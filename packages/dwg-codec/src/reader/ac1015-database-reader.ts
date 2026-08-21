@@ -107,6 +107,8 @@ import {
   decodeAc1015LayerBody,
   decodeAc1015LayerControlBody,
 } from "../objects/table-layer.js";
+import { buildAc1015NeutralTables, decodeAc1015SymbolFamilyObject, type Ac1015DatabaseDictionary, type Ac1015DatabaseSymbolTables, type Ac1015DecodedSymbolObject } from "../objects/tables-symbol.js";
+import { decodeAc1015ClassesSection, decodeAc1015DictionaryFamilyObject, type Ac1015ClassRecord, type Ac1015DecodedDictionaryFamily } from "../objects/objects-dictionary.js";
 import { createInputSnapshot } from "../security/input-snapshot.js";
 import { DwgParseError, throwDwgError } from "../security/parse-error.js";
 import { ResourceBudget } from "../security/resource-budget.js";
@@ -153,13 +155,19 @@ export interface Ac1015UnsupportedDatabaseObject {
   readonly handle: number;
   /** Tipo BS con que arranca su cuerpo. */
   readonly type: number;
+  /** Bytes del nombre DXF de la clase, cuando el tipo es de clase (D5). */
+  readonly className?: readonly number[];
 }
 
-/** La base de datos neutral que devuelve el ensamblado de la fase D4. */
+/** La base de datos neutral que devuelve el ensamblado de las fases D4/D5. */
 export interface Ac1015NeutralDatabase {
   readonly layers: readonly Ac1015DatabaseLayer[];
   readonly blocks: readonly Ac1015DatabaseBlock[];
   readonly modelSpaceEntities: readonly Ac1015DatabaseEntityRecord[];
+  /** Fase D5: tablas de símbolos, diccionarios (nombre → handle) y el mapa de clases (número → nombre). */
+  readonly tables: Ac1015DatabaseSymbolTables;
+  readonly dictionaries: readonly Ac1015DatabaseDictionary[];
+  readonly classMap: readonly Ac1015ClassRecord[];
   readonly unsupported: readonly Ac1015UnsupportedDatabaseObject[];
   readonly diagnostics: readonly DwgDiagnostic[];
 }
@@ -204,7 +212,9 @@ type DecodedObject =
   | { readonly kind: "blockRecord"; readonly handle: number; readonly offset: number; readonly name: readonly number[] }
   | { readonly kind: "blockBegin"; readonly handle: number; readonly offset: number; readonly decoded: Ac1015DecodedBlockBegin }
   | { readonly kind: "blockEnd"; readonly handle: number; readonly offset: number; readonly decoded: Ac1015DecodedBlockEnd }
-  | { readonly kind: "control"; readonly handle: number; readonly offset: number };
+  | { readonly kind: "control"; readonly handle: number; readonly offset: number }
+  | { readonly kind: "symbol"; readonly handle: number; readonly offset: number; readonly result: Ac1015DecodedSymbolObject }
+  | { readonly kind: "dictionaryFamily"; readonly handle: number; readonly offset: number; readonly result: Ac1015DecodedDictionaryFamily };
 
 /**
  * Lee la base de datos neutral completa de un archivo AC1015. `input` son los
@@ -240,10 +250,12 @@ export function readAc1015Database(
   const classesRecord = requireRecord(header.records, CLASSES_RECORD_ID);
   const objectMapRecord = requireRecord(header.records, OBJECT_MAP_RECORD_ID);
 
-  // Los marcos se VERIFICAN (centinelas + CRC); sus payloads siguen opacos —
-  // decodificar variables de cabecera y clases es de fases posteriores.
+  // Los marcos se VERIFICAN (centinelas + CRC); el payload de variables sigue
+  // opaco y el de clases se DECODIFICA (D5): decide los objetos de clase.
   readAc1015SectionFrame(cursor, headerVariablesRecord, AC1015_HEADER_VARIABLES_SENTINELS);
-  readAc1015SectionFrame(cursor, classesRecord, AC1015_CLASSES_SENTINELS);
+  const classesFrame = readAc1015SectionFrame(cursor, classesRecord, AC1015_CLASSES_SENTINELS);
+  const classRecords = decodeAc1015ClassesSection(classesFrame.payload);
+  const classNames = new Map(classRecords.map((record) => [record.classNumber, record.dxfClassName]));
 
   const mapEntries = readAc1015ObjectMap(cursor, objectMapRecord, limits);
 
@@ -255,15 +267,16 @@ export function readAc1015Database(
   for (const entry of mapEntries) {
     const envelope = readAc1015ObjectEnvelope(cursor, entry.offset, header.records);
     budget.consume(envelope.bodyBytes.length, entry.offset);
-    const decoded = decodeMappedObject(envelope.type, envelope.bodyBytes, entry);
+    const decoded = decodeMappedObject(envelope.type, envelope.bodyBytes, entry, classNames);
     if (decoded === null) {
-      unsupported.push(Object.freeze({ handle: entry.handle, type: envelope.type }));
+      const className = classNames.get(envelope.type);
+      unsupported.push(Object.freeze({ handle: entry.handle, type: envelope.type, ...(className === undefined ? {} : { className }) }));
       continue;
     }
     decodedObjects.push(decoded);
   }
 
-  return assembleDatabase(decodedObjects, unsupported);
+  return assembleDatabase(decodedObjects, unsupported, classRecords);
 }
 
 /** Exactamente un registro del directorio con el id pedido. */
@@ -286,12 +299,14 @@ function requireRecord(
 /**
  * Decodifica un cuerpo según su tipo BS. Devuelve `null` cuando el tipo no
  * está cubierto por el laboratorio — el llamador lo ENUMERA como unsupported;
- * la corrupción, en cambio, se propaga y aborta la lectura.
+ * la corrupción en una ENTIDAD o tabla D3/D4 se propaga y aborta la lectura
+ * (las familias auxiliares D5 tienen su propio contrato, ver abajo).
  */
 function decodeMappedObject(
   type: number,
   bodyBytes: Uint8Array,
   entry: { readonly handle: number; readonly offset: number },
+  classNames: ReadonlyMap<number, readonly number[]>,
 ): DecodedObject | null {
   try {
     switch (type) {
@@ -381,7 +396,7 @@ function decodeMappedObject(
         return { kind: "blockEnd", handle: entry.handle, offset: entry.offset, decoded };
       }
       default:
-        return null;
+        return decodeAuxiliaryObject(type, bodyBytes, entry, classNames);
     }
   } catch (error) {
     if (
@@ -407,6 +422,39 @@ function decodeMappedObject(
 }
 
 /**
+ * Los objetos AUXILIARES de la fase D5: tablas de símbolos, diccionarios y
+ * objetos de clase. Un cuerpo de estas familias que no decodifica cae a
+ * `null` — el llamador lo ENUMERA como unsupported (contrato fijado por los
+ * cuerpos sintéticos D1: el canal de pérdida es `unsupported`, nunca el
+ * silencio). Los errores de RECURSOS se propagan; el handle, FUERA del blindaje.
+ */
+function decodeAuxiliaryObject(
+  type: number,
+  bodyBytes: Uint8Array,
+  entry: { readonly handle: number; readonly offset: number },
+  classNames: ReadonlyMap<number, readonly number[]>,
+): DecodedObject | null {
+  let symbol = null;
+  let member = null; // ambos se resuelven dentro del blindaje
+  try {
+    symbol = decodeAc1015SymbolFamilyObject(type, bodyBytes);
+    if (symbol === null) member = decodeAc1015DictionaryFamilyObject(type, bodyBytes, classNames);
+  } catch (error) {
+    if (error instanceof DwgParseError && error.detail.category !== "resource") return null;
+    throw error;
+  }
+  if (symbol !== null) {
+    assertBodyHandleMatchesMap(symbol.handle, entry);
+    return { kind: "symbol", handle: entry.handle, offset: entry.offset, result: symbol };
+  }
+  if (member !== null) {
+    assertBodyHandleMatchesMap(member.handle, entry);
+    return { kind: "dictionaryFamily", handle: entry.handle, offset: entry.offset, result: member };
+  }
+  return null;
+}
+
+/**
  * El índice y el objeto deben contar la misma historia: un cuerpo cuyo handle
  * propio no es el del mapa es un archivo mentiroso (decisión de laboratorio
  * declarada), no una discrepancia que promediar.
@@ -429,10 +477,13 @@ function assertBodyHandleMatchesMap(
 function assembleDatabase(
   decodedObjects: readonly DecodedObject[],
   unsupported: readonly Ac1015UnsupportedDatabaseObject[],
+  classRecords: readonly Ac1015ClassRecord[],
 ): Ac1015NeutralDatabase {
   const diagnostics: DwgDiagnostic[] = [];
   const layers: Ac1015DatabaseLayer[] = [];
   const modelSpace: MutableEntityRecord[] = [];
+  const symbolObjects: Ac1015DecodedSymbolObject[] = [];
+  const dictionaryObjects: Ac1015DecodedDictionaryFamily[] = [];
 
   // Los BLOCK_RECORD primero: son el destino de todas las resoluciones y el
   // mapa no garantiza que aparezcan antes que sus entidades.
@@ -471,6 +522,8 @@ function assembleDatabase(
       case "blockRecord":
       case "control":
         break;
+      case "symbol": symbolObjects.push(object.result); break;
+      case "dictionaryFamily": dictionaryObjects.push(object.result); break;
       case "layer":
         layers.push(
           Object.freeze({
@@ -574,6 +627,8 @@ function assembleDatabase(
     placeEntity(object, record);
   }
 
+  const { tables, dictionaries } = buildAc1015NeutralTables(symbolObjects, dictionaryObjects);
+
   return Object.freeze({
     layers: Object.freeze(layers),
     blocks: Object.freeze(
@@ -588,6 +643,9 @@ function assembleDatabase(
       ),
     ),
     modelSpaceEntities: Object.freeze(modelSpace.map(freezeEntityRecord)),
+    tables,
+    dictionaries,
+    classMap: Object.freeze([...classRecords]),
     unsupported: Object.freeze([...unsupported]),
     diagnostics: Object.freeze(diagnostics),
   });

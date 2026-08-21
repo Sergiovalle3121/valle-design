@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-corpus-validation-v1",
   "generadoPor": "node scripts/dwg/validate-corpus.mjs",
-  "generadoEn": "2026-08-21T07:07:47.982Z",
+  "generadoEn": "2026-08-21T07:59:33.354Z",
   "environment": {
     "node": "v22.18.0",
     "platform": "win32",
@@ -456,6 +456,49 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [
+            "STANDARD",
+            "ROTU-OLA2"
+          ],
+          "leidos": [
+            "STANDARD",
+            "ROTU-OLA2"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "leader": {
@@ -492,116 +535,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 47
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 36
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 503,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -682,6 +648,49 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS",
+            "OCULTA-VALLE"
+          ],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS",
+            "OCULTA-VALLE"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "line": {
@@ -718,116 +727,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 47
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 4
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 36
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 503,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -908,6 +840,47 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "face3d": {
@@ -944,116 +917,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 47
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 36
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 503,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -1150,6 +1046,49 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [
+            "STANDARD",
+            "VALLE-RADIAL"
+          ],
+          "leidos": [
+            "STANDARD",
+            "VALLE-RADIAL"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "circle": {
@@ -1181,116 +1120,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 49
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 38
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 503,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -1399,6 +1261,47 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "dimension": {
@@ -1431,116 +1334,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 49
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 38
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 503,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -1637,6 +1463,47 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "hatch": {
@@ -1659,116 +1526,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 47
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 36
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 503,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -1865,6 +1655,47 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "attrib": {
@@ -1958,116 +1789,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 48
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 37
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 503,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -2148,6 +1902,47 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "circle": {
@@ -2184,120 +1979,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 49
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 71,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 38
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 503,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -2388,6 +2102,50 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [
+            "VALLE-DOBLE"
+          ],
+          "leidos": [
+            "VALLE-DOBLE",
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "mline": {
@@ -2410,116 +2168,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 47
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 36
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 503,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -2599,6 +2280,47 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "polyfaceMesh": {
@@ -2628,116 +2350,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 47
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 36
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 503,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -2816,6 +2461,47 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "mtext": {
@@ -2838,116 +2524,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 47
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 36
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 503,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -3032,6 +2641,49 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [
+            "STANDARD",
+            "VALLE-COTAS"
+          ],
+          "leidos": [
+            "STANDARD",
+            "VALLE-COTAS"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "dimension": {
@@ -3064,116 +2716,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 48
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 37
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 503,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -3270,6 +2845,47 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "hatch": {
@@ -3292,116 +2908,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 47
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 36
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 503,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -3485,6 +3024,47 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "attrib": {
@@ -3540,116 +3120,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 47
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 36
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 503,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -3729,6 +3232,47 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "lwpolyline": {
@@ -3758,116 +3302,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 47
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 36
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 503,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -3947,6 +3414,47 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "ellipse": {
@@ -3976,116 +3484,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 47
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 36
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 503,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -4177,6 +3608,51 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS",
+            "TRAZOS-VALLE"
+          ],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS",
+            "TRAZOS-VALLE"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [
+            "STANDARD",
+            "ROTULOS-OBLICUOS"
+          ],
+          "leidos": [
+            "STANDARD",
+            "ROTULOS-OBLICUOS"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [
+            "STANDARD"
+          ],
+          "leidos": [
+            "STANDARD"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "line": {
@@ -4206,116 +3682,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 48
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 4
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 37
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 503,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -4371,6 +3770,39 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "Continuous"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {},
         "detalles": []
@@ -4385,116 +3817,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 46
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 35
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 503,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -4552,6 +3907,39 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "Continuous"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "line": {
@@ -4574,116 +3962,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 46
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 35
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 503,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -4744,6 +4055,39 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "Continuous"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "arc": {
@@ -4787,116 +4131,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 46
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 35
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 503,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -5053,6 +4320,43 @@
           }
         ]
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [
+            "CONTINUOUS",
+            "TRAZOS"
+          ],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS",
+            "TRAZOS"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "circle": {
@@ -5082,116 +4386,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 52
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 4
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 41
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
           "codigoBs": 501,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 502,
-          "cuantos": 17
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 503,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -5249,6 +4476,39 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "Continuous"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "lwpolyline": {
@@ -5271,116 +4531,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 46
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 35
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 503,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -5438,6 +4621,45 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "Continuous"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [
+            "STANDARD",
+            "ESTILO-VALLE",
+            "ROTULOS"
+          ],
+          "leidos": [
+            "STANDARD",
+            "ESTILO-VALLE",
+            "ROTULOS"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "text": {
@@ -5460,116 +4682,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 46
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 35
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 503,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -5631,6 +4776,39 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "Continuous"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "insert": {
@@ -5679,116 +4857,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 46
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 35
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 501,
-          "cuantos": 17
-        },
-        {
           "codigoBs": 502,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 503,
-          "cuantos": 3
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [
@@ -5909,6 +5010,43 @@
         "coloresDistintos": [],
         "observacionesDeEstado": []
       },
+      "tablas": {
+        "ltype": {
+          "esperados": [
+            "CONTINUOUS",
+            "TRAZOS"
+          ],
+          "leidos": [
+            "ByBlock",
+            "ByLayer",
+            "CONTINUOUS",
+            "TRAZOS"
+          ],
+          "faltantes": [],
+          "trazosDistintos": []
+        },
+        "style": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        },
+        "dimstyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        },
+        "mlinestyle": {
+          "esperados": [],
+          "leidos": [
+            "Standard"
+          ],
+          "faltantes": []
+        }
+      },
       "entidades": {
         "porTipo": {
           "insert": {
@@ -5978,116 +5116,39 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 42,
-          "cuantos": 50
-        },
-        {
-          "codigoBs": 52,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 53,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 56,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 57,
-          "cuantos": 4
-        },
-        {
-          "codigoBs": 60,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 62,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 64,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 65,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 66,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 67,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 68,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 69,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 70,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 73,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 79,
-          "cuantos": 39
-        },
-        {
-          "codigoBs": 500,
-          "cuantos": 1
-        },
-        {
           "codigoBs": 501,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 502,
-          "cuantos": 17
+          "cuantos": 3,
+          "nombreClase": "MATERIAL"
         },
         {
           "codigoBs": 503,
-          "cuantos": 24
+          "cuantos": 24,
+          "nombreClase": "VISUALSTYLE"
         },
         {
           "codigoBs": 504,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "TABLESTYLE"
         },
         {
           "codigoBs": 505,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "MLEADERSTYLE"
         },
         {
           "codigoBs": 506,
-          "cuantos": 1
+          "cuantos": 1,
+          "nombreClase": "ACDBDETAILVIEWSTYLE"
         },
         {
           "codigoBs": 507,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 508,
-          "cuantos": 8
+          "cuantos": 1,
+          "nombreClase": "ACDBSECTIONVIEWSTYLE"
         },
         {
           "codigoBs": 509,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 510,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 511,
-          "cuantos": 2
+          "cuantos": 1,
+          "nombreClase": "CELLSTYLEMAP"
         }
       ],
       "diagnosticos": [

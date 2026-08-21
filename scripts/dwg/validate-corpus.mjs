@@ -553,6 +553,44 @@ async function main() {
         observacionesDeEstado: observacionesEstado,
       };
 
+      // --- tablas de símbolos (fase D5): nombres declarados en el DXF fuente
+      // contra las tablas leídas, y el patrón de trazos de cada LTYPE. Misma
+      // convención de mayúsculas que la comparación de capas.
+      const upper = (bytes) => decodeBytes(bytes).toUpperCase();
+      const tablaNombres = (declaradas, leidas) => ({
+        esperados: declaradas.map((d) => d.name),
+        leidos: leidas.map((l) => decodeBytes(l.name)),
+        faltantes: declaradas
+          .map((d) => d.name)
+          .filter((name) => !leidas.some((l) => upper(l.name) === name.toUpperCase())),
+      });
+      const t = database.tables;
+      const ltype = tablaNombres(expected.ltypes, t.linetypes);
+      ltype.trazosDistintos = [];
+      for (const want of expected.ltypes) {
+        const got = t.linetypes.find((l) => upper(l.name) === want.name.toUpperCase());
+        if (!got) continue;
+        const leidos = [...(got.fields.dashLengths ?? [])];
+        const near = (a, b) => Math.abs(a - b) <= TOLERANCE;
+        const iguales =
+          leidos.length === want.dashes.length &&
+          leidos.every((v, i) => near(v, want.dashes[i])) &&
+          near(got.fields.patternLength ?? 0, want.patternLength);
+        if (!iguales) {
+          ltype.trazosDistintos.push({
+            ltype: want.name,
+            esperado: { trazos: want.dashes, longitudPatron: want.patternLength },
+            leido: { trazos: leidos, longitudPatron: got.fields.patternLength ?? null },
+          });
+        }
+      }
+      record.tablas = {
+        ltype,
+        style: tablaNombres(expected.styles, t.styles),
+        dimstyle: tablaNombres(expected.dimstyles, t.dimstyles),
+        mlinestyle: tablaNombres(expected.mlinestyles, t.mlinestyles),
+      };
+
       // --- entidades de model space ---
       const modelBlocks = database.blocks.filter((b) =>
         decodeBytes(b.name).toUpperCase().includes("MODEL_SPACE"),
@@ -585,14 +623,23 @@ async function main() {
         porBloque: bloques,
       };
 
-      // --- unsupported y diagnósticos ---
+      // --- unsupported y diagnósticos (los de clase llevan su nombre DXF) ---
       const unsupportedCounts = new Map();
       for (const item of database.unsupported) {
-        unsupportedCounts.set(item.type, (unsupportedCounts.get(item.type) ?? 0) + 1);
+        const cell = unsupportedCounts.get(item.type) ?? {
+          cuantos: 0,
+          nombreClase: item.className ? decodeBytes(item.className) : null,
+        };
+        cell.cuantos += 1;
+        unsupportedCounts.set(item.type, cell);
       }
       record.tiposNoSoportados = [...unsupportedCounts.entries()]
         .sort((a, b) => a[0] - b[0])
-        .map(([type, count]) => ({ codigoBs: type, cuantos: count }));
+        .map(([type, cell]) => ({
+          codigoBs: type,
+          cuantos: cell.cuantos,
+          ...(cell.nombreClase === null ? {} : { nombreClase: cell.nombreClase }),
+        }));
       record.diagnosticos = database.diagnostics.map((d) => ({
         code: d.code,
         severity: d.severity,
@@ -662,6 +709,14 @@ async function main() {
     }
     for (const problema of record.capas?.coloresDistintos ?? []) {
       discrepancias.push({ archivo: record.archivo, tipo: "capa-color-distinto", ...problema });
+    }
+    for (const [tabla, comparacion] of Object.entries(record.tablas ?? {})) {
+      for (const nombre of comparacion.faltantes ?? []) {
+        discrepancias.push({ archivo: record.archivo, tipo: `${tabla}-faltante`, nombre });
+      }
+      for (const problema of comparacion.trazosDistintos ?? []) {
+        discrepancias.push({ archivo: record.archivo, tipo: "ltype-trazos-distintos", ...problema });
+      }
     }
   }
 

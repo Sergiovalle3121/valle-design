@@ -529,13 +529,18 @@
         "Compresion R2004 — el campo de tamano comprimido cuenta DOS bytes tras el terminador 0x11 (su offset de dos bytes, observado 0x0000): el 0x11 aparece en compSize-3 en todas las paginas medidas; el decompresor los consume y exige consumo exacto",
         "Compresion R2004 — los offsets de copia se guardan MENOS UNO en todas las formas (se suma 1 al decodificar, ademas del +0x3FFF en los opcodes 0x10-0x1F): con la formula tabulada el par 4c 01 del mapa real alcanza 7 atras y desalinea; con +1 los 47 flujos comprimidos del corpus descomprimen exactos",
         "Mapa de secciones R2004 — el nombre de seccion es un campo FIJO de 64 bytes terminado en NUL (no longitud RL + bytes), y el descriptor lleva tamano u64, bandera de compresion (1/2), id y cifrado",
-        "Cabecera R2004 — confirmados en 32/32: CRC32 estandar reflejado 0xEDB88320 con el campo a cero, los campos +0x50/+0x54/+0x5C/+0x40 de la cabecera descifrada, el remate 0xEC-0xFF igual al keystream, lastSectionPageEndAddress = fin - 0x100, y la mascara 0x4164536B XOR direccion en las cabeceras de pagina de datos"
+        "Cabecera R2004 — confirmados en 32/32: CRC32 estandar reflejado 0xEDB88320 con el campo a cero, los campos +0x50/+0x54/+0x5C/+0x40 de la cabecera descifrada, el remate 0xEC-0xFF igual al keystream, lastSectionPageEndAddress = fin - 0x100, y la mascara 0x4164536B XOR direccion en las cabeceras de pagina de datos",
+        "Tablas AC1015 — DIMSTYLE CONTROL (0x44): entre el recuento de entradas y el flujo de handles viaja UN byte RC extra que la ODS 20.4.67 no lista (0x00 en los 25 archivos medidos); el decoder lo lee solo cuando el bitSize lo exige y lo expone crudo",
+        "Tablas AC1015 — LTYPE (0x39): el area de texto de 256 bytes esta SIEMPRE presente en AC1015, tambien con cero trazos y banderas de forma a cero (79/79 entradas del corpus solo cierran bit a bit con ella)",
+        "Objetos AC1015 — confirmados bit a bit sobre 3232 objetos reales (25/25 cierran en su bitSize exacto): seccion de clases R13-R15, DICTIONARY/ACDBDICTIONARYWDFLT/XRECORD/MLINESTYLE, LAYOUT R2000, VPORT/DIMSTYLE/STYLE/APPID/VP ENT HDR completos; los reactores de DICTIONARY (BS en la ODS) coinciden bit a bit con el BL del comun compartido para 0-255"
       ],
       "derivedFiles": [
         "packages/dwg-codec/src/container/r2004-crypto.ts",
         "packages/dwg-codec/src/container/r2004-decompress.ts",
         "packages/dwg-codec/src/container/r2004-pages.ts",
-        "packages/dwg-codec/src/container/r2004-sections.ts"
+        "packages/dwg-codec/src/container/r2004-sections.ts",
+        "packages/dwg-codec/src/objects/objects-dictionary.ts",
+        "packages/dwg-codec/src/objects/tables-symbol.ts"
       ],
       "reviewer": "Medicion first-party del laboratorio bajo la directiva del propietario 2026-08-13; evidencia cruda en docs/cad/evidence/dwg-corpus-validation.json",
       "reviewedAt": "2026-08-21",

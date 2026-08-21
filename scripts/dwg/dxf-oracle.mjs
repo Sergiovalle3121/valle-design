@@ -42,11 +42,15 @@ export function parseOracleDxf(text) {
   const layers = [];
   const blocks = new Map();
   const topEntities = [];
+  // Tablas de símbolos declaradas por la fuente: nombres (y trazos de LTYPE)
+  // que un lector DWG correcto DEBE encontrar. MLINESTYLE viaja en OBJECTS.
+  const [ltypes, styles, dimstyles, mlinestyles] = [[], [], [], []];
 
   let section = null;
   let table = null;
   let currentBlock = null;
   let entity = null;
+  let objectsType = null;
   let entitySink = () => topEntities;
 
   const num = (value) => Number.parseFloat(value);
@@ -84,6 +88,7 @@ export function parseOracleDxf(text) {
       section = null;
       table = null;
       currentBlock = null;
+      objectsType = null;
       entitySink = () => topEntities;
       continue;
     }
@@ -107,7 +112,26 @@ export function parseOracleDxf(text) {
           else if (code === 62) layer.color = Number.parseInt(value, 10);
           else if (code === 6) layer.linetype = value.toUpperCase();
         }
+      } else if (table === "LTYPE") {
+        if (code === 0 && value === "LTYPE") {
+          ltypes.push({ name: null, patternLength: 0, dashes: [] });
+        } else if (ltypes.length > 0) {
+          const ltype = ltypes[ltypes.length - 1];
+          if (code === 2) ltype.name = value;
+          else if (code === 40) ltype.patternLength = num(value);
+          else if (code === 49) ltype.dashes.push(num(value));
+        }
+      } else if (table === "STYLE" || table === "DIMSTYLE") {
+        const sink = table === "STYLE" ? styles : dimstyles;
+        if (code === 0 && value === table) sink.push({ name: null });
+        else if (code === 2 && sink.length > 0) sink[sink.length - 1].name = value;
       }
+      continue;
+    }
+
+    if (section === "OBJECTS") {
+      if (code === 0) objectsType = value;
+      else if (code === 2 && objectsType === "MLINESTYLE") mlinestyles.push({ name: value });
       continue;
     }
 
@@ -149,7 +173,16 @@ export function parseOracleDxf(text) {
     }
   }
   closeEntity();
-  return { layers: layers.filter((l) => l.name !== null), blocks, topEntities };
+  const named = (list) => list.filter((record) => record.name !== null);
+  return {
+    layers: named(layers),
+    ltypes: named(ltypes),
+    styles: named(styles),
+    dimstyles: named(dimstyles),
+    mlinestyles,
+    blocks,
+    topEntities,
+  };
 }
 
 /** Crea el acumulador de una entidad DXF y la registra en su destino. */
