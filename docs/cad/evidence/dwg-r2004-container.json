@@ -1,0 +1,4503 @@
+{
+  "$schema": "urn:valle-design:schema:dwg-r2004-container:v1",
+  "schemaVersion": 1,
+  "evidenceId": "valle-design-dwg-r2004-container-v1",
+  "generadoPor": "node scripts/dwg/probe-r2004.mjs",
+  "generadoEn": "2026-08-21T07:23:49.963Z",
+  "environment": {
+    "node": "v22.18.0",
+    "platform": "win32",
+    "architecture": "x64",
+    "osType": "Windows_NT",
+    "osRelease": "10.0.26200",
+    "cpuModel": "AMD Ryzen 5 5500U with Radeon Graphics         ",
+    "logicalCpuCount": 12,
+    "totalMemoryBytes": 7896625152,
+    "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos lógicos), 7.9 GB de RAM, Windows_NT 10.0.26200"
+  },
+  "veredicto": "La capa de contenedor R2004 localiza y descomprime las cuatro secciones AcDb:Header/Classes/Handles/AcDbObjects en los 32 DWG reales de la familia (AC1018, AC1024, AC1027, AC1032).",
+  "alcance": "Sólo la capa de CONTENEDOR (cabecera cifrada, mapas, descompresión y ensamblado de secciones) sobre los fixtures AC1018/AC1024/AC1027/AC1032 del corpus admitido y verificado por hash. No decodifica objetos: eso es de la siguiente ola.",
+  "corpus": {
+    "commit": "a60ebe2a71dae684ccd6c72d5f1a388be1777585",
+    "indexSha256": "59c69c1ba3a9524a5ca5fb246c7b0226e9980e0c3b9cdbdc2d6e2180d49ee07a",
+    "transporte": "local-mirror",
+    "bundles": [
+      "valle.fundacional.ac1018.001",
+      "valle.fundacional.ac1024.001",
+      "valle.fundacional.ac1027.001",
+      "valle.fundacional.ac1032.001"
+    ]
+  },
+  "resumen": {
+    "archivos": 32,
+    "cuatroSeccionesCompletas": 32,
+    "porVersion": {
+      "AC1018": {
+        "archivos": 8,
+        "cuatroSeccionesOk": 8
+      },
+      "AC1024": {
+        "archivos": 8,
+        "cuatroSeccionesOk": 8
+      },
+      "AC1027": {
+        "archivos": 8,
+        "cuatroSeccionesOk": 8
+      },
+      "AC1032": {
+        "archivos": 8,
+        "cuatroSeccionesOk": 8
+      }
+    }
+  },
+  "archivos": [
+    {
+      "bundle": "valle.fundacional.ac1018.001",
+      "archivo": "01-vacio",
+      "fixture": "bundles/valle.fundacional.ac1018.001/fixtures/01-vacio.dwg",
+      "sha256": "3b266f8c671c52677bca38dedd2e8e4123976c99ca4f7d5ec4774d9598def4c0",
+      "byteLength": 14985,
+      "version": "AC1018",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 18,
+        "direccion": "0x3980"
+      },
+      "paginas": 16,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 62,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 220,
+          "paginas": 2,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 63,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 12,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 91920,
+          "paginas": 4,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 53,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 523,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 659,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1345,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1345
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 659
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 523
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 91920
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1018.001",
+      "archivo": "02-una-linea",
+      "fixture": "bundles/valle.fundacional.ac1018.001/fixtures/02-una-linea.dwg",
+      "sha256": "14849b618d1dcf7e1ecf06012edbace76522525ba3b940ff182daae96846c867",
+      "byteLength": 15081,
+      "version": "AC1018",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 18,
+        "direccion": "0x39e0"
+      },
+      "paginas": 16,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 62,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 220,
+          "paginas": 2,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 63,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 12,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 91973,
+          "paginas": 4,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 53,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 527,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 659,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1345,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1345
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 659
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 527
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 91973
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1018.001",
+      "archivo": "03-figuras-basicas",
+      "fixture": "bundles/valle.fundacional.ac1018.001/fixtures/03-figuras-basicas.dwg",
+      "sha256": "e5730c79fb86c5a7ea90dab59946b61f44c9838418fc13806b45994575f44c6c",
+      "byteLength": 15177,
+      "version": "AC1018",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 18,
+        "direccion": "0x3a40"
+      },
+      "paginas": 16,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 62,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 220,
+          "paginas": 2,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 63,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 12,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 92106,
+          "paginas": 4,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 53,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 533,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 659,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1345,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1345
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 659
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 533
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 92106
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1018.001",
+      "archivo": "04-capas",
+      "fixture": "bundles/valle.fundacional.ac1018.001/fixtures/04-capas.dwg",
+      "sha256": "b9da9878345ee7b9fffbb173eac660f9ba15957336e56e28a4336bc5b1e64d1c",
+      "byteLength": 16229,
+      "version": "AC1018",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 18,
+        "direccion": "0x3e60"
+      },
+      "paginas": 16,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 62,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 220,
+          "paginas": 2,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 63,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 12,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 93274,
+          "paginas": 4,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 53,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 585,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 659,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1345,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1345
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 659
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 585
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 93274
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1018.001",
+      "archivo": "05-lwpolyline-bulges",
+      "fixture": "bundles/valle.fundacional.ac1018.001/fixtures/05-lwpolyline-bulges.dwg",
+      "sha256": "91bdc8de3e41ca2299ae73c00ea7d7b11ed5408f4cecac1149f06f0b79c92968",
+      "byteLength": 15177,
+      "version": "AC1018",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 18,
+        "direccion": "0x3a40"
+      },
+      "paginas": 16,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 62,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 220,
+          "paginas": 2,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 63,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 12,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 92074,
+          "paginas": 4,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 53,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 530,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 659,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1345,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1345
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 659
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 530
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 92074
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1018.001",
+      "archivo": "06-texto",
+      "fixture": "bundles/valle.fundacional.ac1018.001/fixtures/06-texto.dwg",
+      "sha256": "fc52679fd3cc6bb2c2a3553894ff7a033d8380d034b3064d587fc2545dcd7064",
+      "byteLength": 15370,
+      "version": "AC1018",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 18,
+        "direccion": "0x3b00"
+      },
+      "paginas": 16,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 62,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 220,
+          "paginas": 2,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 63,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 12,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 92205,
+          "paginas": 4,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 53,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 537,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 659,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1345,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1345
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 659
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 537
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 92205
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1018.001",
+      "archivo": "07-bloques-insert",
+      "fixture": "bundles/valle.fundacional.ac1018.001/fixtures/07-bloques-insert.dwg",
+      "sha256": "7a3f920b0dc29f6ee54c035354bfdb408fd287c4e882baf3a716bca435664e8b",
+      "byteLength": 15496,
+      "version": "AC1018",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 18,
+        "direccion": "0x3b80"
+      },
+      "paginas": 16,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 62,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 220,
+          "paginas": 2,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 63,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 12,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 92459,
+          "paginas": 4,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 53,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 551,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 659,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1345,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1345
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 659
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 551
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 92459
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1018.001",
+      "archivo": "08-plano-mini",
+      "fixture": "bundles/valle.fundacional.ac1018.001/fixtures/08-plano-mini.dwg",
+      "sha256": "02a8032727177a85a3a928578006e3b7eb05fbbdb5b05e58b3872b524155d3be",
+      "byteLength": 16357,
+      "version": "AC1018",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 18,
+        "direccion": "0x3ee0"
+      },
+      "paginas": 16,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 62,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 220,
+          "paginas": 2,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 63,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 12,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 93319,
+          "paginas": 4,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 53,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 585,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 659,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1345,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1345
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 659
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 585
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 93319
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "01-vacio",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/01-vacio.dwg",
+      "sha256": "34f0b47e5f363d2eac2b5870e7c89b4c9cbd249bf20cc94cb9adcb71be9388d6",
+      "byteLength": 14699,
+      "version": "AC1024",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 17,
+        "direccion": "0x3860"
+      },
+      "paginas": 15,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 78,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 85823,
+          "paginas": 3,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 458,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1580,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1580
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 458
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 85823
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "02-una-linea",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/02-una-linea.dwg",
+      "sha256": "18b833e4603d4e57296783137b639a2ba4a05af1ff033c229999c239c728da7a",
+      "byteLength": 14635,
+      "version": "AC1024",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 17,
+        "direccion": "0x3820"
+      },
+      "paginas": 15,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 78,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 85875,
+          "paginas": 3,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 462,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1580,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1580
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 462
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 85875
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "03-figuras-basicas",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/03-figuras-basicas.dwg",
+      "sha256": "590060bf0b58c0f64b659ef3d506f28aa8df7dbf9ebc7c55aa71a0acef39c062",
+      "byteLength": 14891,
+      "version": "AC1024",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 17,
+        "direccion": "0x3920"
+      },
+      "paginas": 15,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 78,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 86005,
+          "paginas": 3,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 468,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1580,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1580
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 468
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 86005
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "04-capas",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/04-capas.dwg",
+      "sha256": "6030998d528b1c25c3fabaaf9d962d5b953d965f2bf0d15b6172667580f197c6",
+      "byteLength": 15147,
+      "version": "AC1024",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 17,
+        "direccion": "0x3a20"
+      },
+      "paginas": 15,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 78,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 86473,
+          "paginas": 3,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 489,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1580,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1580
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 489
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 86473
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "05-lwpolyline-bulges",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/05-lwpolyline-bulges.dwg",
+      "sha256": "4759ad24302a4544765bc8cabdf4275cabf88c4a86221a7dc5a2cddb5225a293",
+      "byteLength": 14858,
+      "version": "AC1024",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 17,
+        "direccion": "0x3900"
+      },
+      "paginas": 15,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 78,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 85974,
+          "paginas": 3,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 465,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1580,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1580
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 465
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 85974
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "06-texto",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/06-texto.dwg",
+      "sha256": "749bf4a160dba1a4c8b9b94df1f5bcb3b27af7b42693cbe8ade91718c98c63b2",
+      "byteLength": 14892,
+      "version": "AC1024",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 17,
+        "direccion": "0x3920"
+      },
+      "paginas": 15,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 78,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 86166,
+          "paginas": 3,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 473,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1580,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1580
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 473
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 86166
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "07-bloques-insert",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/07-bloques-insert.dwg",
+      "sha256": "a787db0cab259a7a712df5fa4bbc24e92c95cd7de5206f8c1a9ea8f8164df182",
+      "byteLength": 15145,
+      "version": "AC1024",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 17,
+        "direccion": "0x3a20"
+      },
+      "paginas": 15,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 78,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 86368,
+          "paginas": 3,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 486,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1580,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1580
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 486
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 86368
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "08-plano-mini",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/08-plano-mini.dwg",
+      "sha256": "066048b9ee745f94332bc43d83c5d469b666be335266e37f762f8a1c0670996e",
+      "byteLength": 15373,
+      "version": "AC1024",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 17,
+        "direccion": "0x3b00"
+      },
+      "paginas": 15,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 78,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 86693,
+          "paginas": 3,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 501,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1580,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1580
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 501
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 86693
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "01-vacio",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/01-vacio.dwg",
+      "sha256": "4c77fde71832a4f281875afb3cd460af0790b47966bd32e7758aae3bd52127d5",
+      "byteLength": 11645,
+      "version": "AC1027",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 15,
+        "direccion": "0x2c80"
+      },
+      "paginas": 13,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 78,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 12283,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 274,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1581,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1581
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 274
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 12283
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "02-una-linea",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/02-una-linea.dwg",
+      "sha256": "93099d2e59432abd14093c9e5f9e5b7245b1a41c7013275786c9c858c1fef8a4",
+      "byteLength": 11708,
+      "version": "AC1027",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 15,
+        "direccion": "0x2cc0"
+      },
+      "paginas": 13,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 78,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 12335,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 278,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1581,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1581
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 278
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 12335
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "03-figuras-basicas",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/03-figuras-basicas.dwg",
+      "sha256": "a8ef53c653a7ce4597added3dbde7bd14fd865bc304cc07661e5fbced4fcd663",
+      "byteLength": 11805,
+      "version": "AC1027",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 15,
+        "direccion": "0x2d20"
+      },
+      "paginas": 13,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 78,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 12466,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 284,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1581,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1581
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 284
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 12466
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "04-capas",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/04-capas.dwg",
+      "sha256": "9287870c6a5e2aeab5378f37daf0aa39c75487b7455f1af5d49d5d615a17e00f",
+      "byteLength": 11998,
+      "version": "AC1027",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 15,
+        "direccion": "0x2de0"
+      },
+      "paginas": 13,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 78,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 12939,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 305,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1581,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1581
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 305
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 12939
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "05-lwpolyline-bulges",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/05-lwpolyline-bulges.dwg",
+      "sha256": "ea0680d300ea1551f01678be6636b470213b04ce430e77c453834c57d169715b",
+      "byteLength": 11740,
+      "version": "AC1027",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 15,
+        "direccion": "0x2ce0"
+      },
+      "paginas": 13,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 78,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 12435,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 281,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1581,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1581
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 281
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 12435
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "06-texto",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/06-texto.dwg",
+      "sha256": "a54eac813a87d4af02d9eeb3eebd04fc50c65eadccfdf0246bb4b6cee68dc6ea",
+      "byteLength": 11901,
+      "version": "AC1027",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 15,
+        "direccion": "0x2d80"
+      },
+      "paginas": 13,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 78,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 12626,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 289,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1581,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1581
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 289
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 12626
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "07-bloques-insert",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/07-bloques-insert.dwg",
+      "sha256": "e21ab1f13c32ee0d36fa4bc294d973f9f67883747e622471544fe110b619377c",
+      "byteLength": 12029,
+      "version": "AC1027",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 15,
+        "direccion": "0x2e00"
+      },
+      "paginas": 13,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 78,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 12828,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 302,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1581,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1581
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 302
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 12828
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "08-plano-mini",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/08-plano-mini.dwg",
+      "sha256": "e572b1d0e96d35d1cabef2e8822bb6a3e3e161155dcb4e3f7a54a7fad0984e83",
+      "byteLength": 12282,
+      "version": "AC1027",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 15,
+        "direccion": "0x2f00"
+      },
+      "paginas": 13,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 78,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 13158,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 318,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 123,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1581,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1581
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 318
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 13158
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "01-vacio",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/01-vacio.dwg",
+      "sha256": "02910ffd1f78ed3e0003b5cd610be0b7e392591fcb66ce0fa7d3fe97232bf04b",
+      "byteLength": 11321,
+      "version": "AC1032",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 14,
+        "direccion": "0x2b40"
+      },
+      "paginas": 12,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 8,
+          "paginas": 0,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 12030,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 262,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 129,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1581,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1581
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 262
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 12030
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "02-una-linea",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/02-una-linea.dwg",
+      "sha256": "20ee9f89a7be6e103ed664922e019f3f723a277e1230a9ffce1124e35ed939c9",
+      "byteLength": 11353,
+      "version": "AC1032",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 14,
+        "direccion": "0x2b60"
+      },
+      "paginas": 12,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 8,
+          "paginas": 0,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 12082,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 266,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 129,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1581,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1581
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 266
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 12082
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "03-figuras-basicas",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/03-figuras-basicas.dwg",
+      "sha256": "5e430ae342e161c89f530ad03b8d0cd9be930327b202334f8426387b194439f4",
+      "byteLength": 11480,
+      "version": "AC1032",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 14,
+        "direccion": "0x2be0"
+      },
+      "paginas": 12,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 8,
+          "paginas": 0,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 12213,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 272,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 129,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1581,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1581
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 272
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 12213
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "04-capas",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/04-capas.dwg",
+      "sha256": "c5b4fe4bf775de858eafebf72ab021a9b9b21902fe2b536f4d00e2a4d8a78b7a",
+      "byteLength": 11705,
+      "version": "AC1032",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 14,
+        "direccion": "0x2cc0"
+      },
+      "paginas": 12,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 8,
+          "paginas": 0,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 12686,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 293,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 129,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1581,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1581
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 293
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 12686
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "05-lwpolyline-bulges",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/05-lwpolyline-bulges.dwg",
+      "sha256": "c37490b12eb1c81542654cf3a7389ddb23dded6ff055e58b777df56b4c7e2f06",
+      "byteLength": 11385,
+      "version": "AC1032",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 14,
+        "direccion": "0x2b80"
+      },
+      "paginas": 12,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 8,
+          "paginas": 0,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 12182,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 269,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 129,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1581,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1581
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 269
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 12182
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "06-texto",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/06-texto.dwg",
+      "sha256": "85bfe217ed3ee3dc6111c5584f37622e5e3e045ad3d9632c1e604045209b5b2b",
+      "byteLength": 11608,
+      "version": "AC1032",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 14,
+        "direccion": "0x2c60"
+      },
+      "paginas": 12,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 8,
+          "paginas": 0,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 12373,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 277,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 129,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1581,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1581
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 277
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 12373
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "07-bloques-insert",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/07-bloques-insert.dwg",
+      "sha256": "9dd6d810fda049f650770082a8f5587d79a1a66b00afe2b582c76f0acd383969",
+      "byteLength": 11704,
+      "version": "AC1032",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 14,
+        "direccion": "0x2cc0"
+      },
+      "paginas": 12,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 8,
+          "paginas": 0,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 12575,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 290,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 129,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1581,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1581
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 290
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 12575
+        }
+      },
+      "cuatroSeccionesOk": true
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "08-plano-mini",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/08-plano-mini.dwg",
+      "sha256": "13f815fcc40cba1659b635bd1a21d5db6a3edbe6ba6dbe163048cb1e0555dddd",
+      "byteLength": 11960,
+      "version": "AC1032",
+      "cabeceraDescifradaOk": true,
+      "mapaDePaginas": {
+        "id": 14,
+        "direccion": "0x2dc0"
+      },
+      "paginas": 12,
+      "secciones": [
+        {
+          "nombre": "(vacía)",
+          "id": 0,
+          "bytes": 0,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:FileDepList",
+          "id": 12,
+          "bytes": 8,
+          "paginas": 0,
+          "compresion": 1,
+          "cifrado": 2
+        },
+        {
+          "nombre": "AcDb:AppInfo",
+          "id": 11,
+          "bytes": 674,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Preview",
+          "id": 10,
+          "bytes": 37,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:SummaryInfo",
+          "id": 9,
+          "bytes": 76,
+          "paginas": 1,
+          "compresion": 1,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:RevHistory",
+          "id": 8,
+          "bytes": 16,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AcDbObjects",
+          "id": 7,
+          "bytes": 12905,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:ObjFreeSpace",
+          "id": 6,
+          "bytes": 89,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Template",
+          "id": 5,
+          "bytes": 4,
+          "paginas": 0,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Handles",
+          "id": 4,
+          "bytes": 306,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Classes",
+          "id": 3,
+          "bytes": 1032,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:AuxHeader",
+          "id": 2,
+          "bytes": 129,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        },
+        {
+          "nombre": "AcDb:Header",
+          "id": 1,
+          "bytes": 1581,
+          "paginas": 1,
+          "compresion": 2,
+          "cifrado": 0
+        }
+      ],
+      "cuatroSecciones": {
+        "AcDb:Header": {
+          "ok": true,
+          "bytes": 1581
+        },
+        "AcDb:Classes": {
+          "ok": true,
+          "bytes": 1032
+        },
+        "AcDb:Handles": {
+          "ok": true,
+          "bytes": 306
+        },
+        "AcDb:AcDbObjects": {
+          "ok": true,
+          "bytes": 12905
+        }
+      },
+      "cuatroSeccionesOk": true
+    }
+  ]
+}

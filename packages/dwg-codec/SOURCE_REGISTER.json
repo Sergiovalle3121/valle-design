@@ -505,6 +505,41 @@
       "reviewer": "Codex dependency provenance review",
       "reviewedAt": "2026-08-09",
       "notes": "Pinned development dependency only"
+    },
+    {
+      "id": "VALLE-CORPUS-INTAKE-A60EBE2",
+      "owner": "Sergio Valle Zarate",
+      "origin": {
+        "type": "original-measurement",
+        "location": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance/tree/a60ebe2a71dae684ccd6c72d5f1a388be1777585",
+        "accessedAt": "2026-08-21"
+      },
+      "title": "Mediciones first-party sobre el corpus admitido a60ebe2 (57 DWG propios tool-converted)",
+      "versionOrDate": "2026-08-21",
+      "terms": {
+        "license": "Valle first-party corpus measurement (admitted tool-converted-original bundles)",
+        "access": "Blobs leidos del commit fijado del repo hermano de conformidad via el gate consumidor (corpus-pin.json + SHA-256 verificado); ningun working tree",
+        "redistribution": "Solo se registran numeros observados (offsets, CRCs, recuentos); los bytes DWG permanecen en el repo hermano bajo su propia politica",
+        "notes": "Medicion sobre archivos generados por ODA File Converter 27.1 desde DXF de autoria propia (origen tool-converted-original, docs/TOOLS.md del repo hermano). Es una observacion de bytes, no una fuente documental: desmiente un hecho previamente registrado de ODA-ODS-DWG-5.4.1-PUBLIC."
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "Contenedor R2004 — el byte del generador XOR de la cabecera cifrada es (seed >> 16) & 0xFF (bits 16-23), no los bits 8-15 del resumen previo: con esa extraccion la cadena AcFssFcAJMB aparece en los 32 archivos de la familia y el generador reproduce byte a byte el prefijo publicado de la secuencia magica",
+        "Contenedor R2004 — cabecera de pagina de datos (corrige la tabla de la ODS 4.6, medida en 66 paginas): el campo +0x0C es el tamano de la pagina EN DISCO (32 de cabecera + datos + relleno); el descomprimido real de cada pagina comprimida es EXACTAMENTE el maxDecompressedSize de su seccion (41/41 paginas producen 0x7400) y el contenido logico son los primeros size-startOffset bytes; el offset de arranque es u64 en +0x10/+0x14; el checksum de cabecera viaja en +0x18 (suma Fletcher mod 0xFFF1 en dos etapas con el checksum de datos como semilla y su campo a cero) y el de datos en +0x1C (semilla 0 sobre los bytes comprimidos): 66/66 cuadran asi y 0/66 con la disposicion tabulada",
+        "Compresion R2004 — el campo de tamano comprimido cuenta DOS bytes tras el terminador 0x11 (su offset de dos bytes, observado 0x0000): el 0x11 aparece en compSize-3 en todas las paginas medidas; el decompresor los consume y exige consumo exacto",
+        "Compresion R2004 — los offsets de copia se guardan MENOS UNO en todas las formas (se suma 1 al decodificar, ademas del +0x3FFF en los opcodes 0x10-0x1F): con la formula tabulada el par 4c 01 del mapa real alcanza 7 atras y desalinea; con +1 los 47 flujos comprimidos del corpus descomprimen exactos",
+        "Mapa de secciones R2004 — el nombre de seccion es un campo FIJO de 64 bytes terminado en NUL (no longitud RL + bytes), y el descriptor lleva tamano u64, bandera de compresion (1/2), id y cifrado",
+        "Cabecera R2004 — confirmados en 32/32: CRC32 estandar reflejado 0xEDB88320 con el campo a cero, los campos +0x50/+0x54/+0x5C/+0x40 de la cabecera descifrada, el remate 0xEC-0xFF igual al keystream, lastSectionPageEndAddress = fin - 0x100, y la mascara 0x4164536B XOR direccion en las cabeceras de pagina de datos"
+      ],
+      "derivedFiles": [
+        "packages/dwg-codec/src/container/r2004-crypto.ts",
+        "packages/dwg-codec/src/container/r2004-decompress.ts",
+        "packages/dwg-codec/src/container/r2004-pages.ts",
+        "packages/dwg-codec/src/container/r2004-sections.ts"
+      ],
+      "reviewer": "Medicion first-party del laboratorio bajo la directiva del propietario 2026-08-13; evidencia cruda en docs/cad/evidence/dwg-corpus-validation.json",
+      "reviewedAt": "2026-08-21",
+      "notes": "Observaciones por diffing sobre bytes de NUESTRO corpus (dibujos propios convertidos por herramienta independiente). Cada hecho se registro antes de la correccion de codigo correspondiente (ADR-0007)."
     }
   ]
 }
