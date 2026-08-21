@@ -333,7 +333,13 @@ const corpusPermitePromocion = (corpus) =>
 const LIMITE_SIN_CORPUS =
   "Sin corpus independiente admitido: lo que el laboratorio decodifica está verificado sólo contra fixtures que genera él mismo, y eso prueba consistencia interna, no compatibilidad con ningún archivo ni con ningún software ajeno.";
 
-export function buildDecoderMatrix({ capabilities, objectTypes, geometryKinds, corpus }) {
+export function buildDecoderMatrix({
+  capabilities,
+  objectTypes,
+  geometryKinds,
+  corpus,
+  corpusValidation = null,
+}) {
   const promocionPosible = corpusPermitePromocion(corpus);
   // `productionAvailable` no es una capacidad que se promueva: es el veredicto
   // sobre el producto, y vive en `disponibilidadEnProducto`. Contarla en la
@@ -356,8 +362,9 @@ export function buildDecoderMatrix({ capabilities, objectTypes, geometryKinds, c
   // corpus admitido (dwg-corpus-validation.json) lo comparó campo a campo con
   // cero discrepancias. Antes esta bandera colgaba de entityImport — la
   // disponibilidad en PRODUCTO —, que confundía dos preguntas distintas.
-  const validation = readCorpusValidationMeasurement();
-  const verifiedKinds = independentlyVerifiedKinds(validation);
+  // La medición llega como PARÁMETRO (la lee generateDwgEvidence); un builder
+  // sin medición produce el cero honesto — propiedad que la spec fija.
+  const verifiedKinds = independentlyVerifiedKinds(corpusValidation);
   const entidades = objectTypes.map((type) => {
     const claveDeVerificacion = validationKindForType(type.tipo);
     return {
@@ -410,7 +417,11 @@ export function buildDecoderMatrix({ capabilities, objectTypes, geometryKinds, c
 // Artefacto 2: round-trip
 // ---------------------------------------------------------------------------
 
-export function buildRoundtripEvidence({ capabilities, corpus }) {
+export function buildRoundtripEvidence({
+  capabilities,
+  corpus,
+  odaRoundtrip = null,
+}) {
   const promocionPosible = corpusPermitePromocion(corpus);
   const estadoWriter = capabilities.get("dwgExport") ?? "unsupported";
   const estadoRoundTrip = capabilities.get("roundTrip") ?? "unsupported";
@@ -420,10 +431,11 @@ export function buildRoundtripEvidence({ capabilities, corpus }) {
   const roundTripsDeLaboratorio = estadoRoundTrip === "unsupported" ? 0 : 1;
 
   // Desde la campaña 2026-08-21 existe una medición REAL de lector externo:
-  // el harness del oráculo ODA (dwg-oda-roundtrip.json). Cuando está, la
-  // cifra publicada sale de esa medición; sin ella, se conserva el cero
-  // honesto de siempre — jamás se fabrica desde estados de texto.
-  const oda = readOdaRoundtripMeasurement();
+  // el harness del oráculo ODA (dwg-oda-roundtrip.json). Llega como
+  // PARÁMETRO (la lee generateDwgEvidence); con ella, la cifra publicada
+  // sale de la medición; sin ella, se conserva el cero honesto de siempre —
+  // jamás se fabrica desde estados de texto.
+  const oda = odaRoundtrip;
   const odaResumen = oda?.resumen ?? null;
   const lectoresExternosAutorizados =
     odaResumen?.lectoresExternosAutorizados?.length ??
@@ -484,9 +496,20 @@ export function generateDwgEvidence(options = {}) {
   const objectTypes = readLabObjectTypes();
   const geometryKinds = readLabGeometryKinds();
   const corpus = readCorpusState(options.corpus ?? {});
+  // Las mediciones crudas del árbol (harness diferencial y oráculo ODA) se
+  // leen AQUÍ y viajan a los builders como parámetros: los builders puros
+  // sin medición producen el cero honesto, y la spec fija ambas cosas.
+  const corpusValidation = readCorpusValidationMeasurement();
+  const odaRoundtrip = readOdaRoundtripMeasurement();
   return {
-    decoderMatrix: buildDecoderMatrix({ capabilities, objectTypes, geometryKinds, corpus }),
-    roundtrip: buildRoundtripEvidence({ capabilities, corpus }),
+    decoderMatrix: buildDecoderMatrix({
+      capabilities,
+      objectTypes,
+      geometryKinds,
+      corpus,
+      corpusValidation,
+    }),
+    roundtrip: buildRoundtripEvidence({ capabilities, corpus, odaRoundtrip }),
   };
 }
 

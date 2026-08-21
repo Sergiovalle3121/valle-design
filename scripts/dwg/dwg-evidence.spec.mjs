@@ -82,45 +82,102 @@ const laboratorioPromovible = new Map([
   ["productionAvailable", "false"],
 ]);
 
-const matriz = (capabilities, corpus) =>
-  buildDecoderMatrix({ capabilities, objectTypes, geometryKinds, corpus });
+const matriz = (capabilities, corpus, corpusValidation = null) =>
+  buildDecoderMatrix({
+    capabilities,
+    objectTypes,
+    geometryKinds,
+    corpus,
+    corpusValidation,
+  });
 
-// --- 1. el árbol de HOY, tal cual, genera cero ------------------------------
+/**
+ * Una medición diferencial SINTÉTICA donde todo comparó limpio: cada clave
+ * de verificación posible aparece con cero discrepancias. Sirve para probar
+ * el mecanismo (medición → verificado) sin depender del árbol.
+ */
+const filaLimpia = {
+  esperado: 1,
+  leidoCorrecto: 1,
+  geometriaDistinta: 0,
+  faltante: 0,
+  inesperado: 0,
+};
+const medicionTodaLimpia = {
+  resumen: { noAbiertos: 0 },
+  matrizEntidades: Object.fromEntries([
+    ...objectTypes.map((t) => [t.tipo.toLowerCase(), filaLimpia]),
+    ["dimension", filaLimpia],
+    ["face3d", filaLimpia],
+    ["lwpolyline", filaLimpia],
+    ["polyline3d", filaLimpia],
+    ["polymesh", filaLimpia],
+    ["polyfaceMesh", filaLimpia],
+  ]),
+  archivos: [
+    {
+      abre: true,
+      capas: { faltantes: [], coloresDistintos: [] },
+      bloques: { porBloque: { X: { encontrado: true } } },
+      tablas: {
+        ltype: { esperados: ["A"], faltantes: [], trazosDistintos: [] },
+        style: { esperados: ["A"], faltantes: [] },
+        dimstyle: { esperados: ["A"], faltantes: [] },
+        mlinestyle: { esperados: ["A"], faltantes: [] },
+      },
+    },
+  ],
+};
+
+// --- 1. el árbol de HOY es COHERENTE con sus mediciones ----------------------
+// Desde la campaña 2026-08-21 el árbol lleva mediciones reales commiteadas
+// (dwg-corpus-validation.json, dwg-oda-roundtrip.json): las cifras publicadas
+// deben SALIR de ellas, nunca de estados de texto ni de constantes a mano.
 const hoy = generateDwgEvidence();
-eq(hoy.decoderMatrix.resumen.bundlesAdmitidos, 0, "hoy no hay bundles admitidos");
-eq(hoy.decoderMatrix.resumen.capacidadesPromovidas, 0, "hoy no hay capacidades promovidas");
-eq(
-  hoy.decoderMatrix.resumen.tiposVerificadosIndependientemente,
-  0,
-  "hoy ningún tipo está verificado de forma independiente",
-);
+const medicionOda = leerJsonSiExiste("docs/cad/evidence/dwg-oda-roundtrip.json");
 eq(
   hoy.roundtrip.resumen.roundTripsVerificadosPorLectorExterno,
-  0,
-  "hoy ningún round-trip lo firma un lector externo",
+  medicionOda?.resumen?.roundTripsVerificadosPorLectorExterno ?? 0,
+  "los round-trips externos publicados son exactamente los de la medición del oráculo",
+);
+eq(
+  hoy.roundtrip.resumen.lectoresExternosAutorizados,
+  medicionOda?.resumen?.lectoresExternosAutorizados?.length ?? 0,
+  "los lectores externos publicados son exactamente los medidos",
+);
+eq(
+  hoy.decoderMatrix.resumen.tiposVerificadosIndependientemente,
+  hoy.decoderMatrix.entidades.filter((e) => e.verificadoIndependientemente).length,
+  "el resumen cuadra con la lista tipo a tipo",
+);
+ok(
+  hoy.decoderMatrix.entidades.every(
+    (e) => !e.verificadoIndependientemente || e.claveDeVerificacion !== null,
+  ),
+  "ningún tipo se declara verificado sin su clave de verificación medida",
 );
 eq(hoy.decoderMatrix.disponibilidadEnProducto, false, "el producto no ofrece DWG");
 eq(hoy.roundtrip.disponibilidadEnProducto, false, "el producto no exporta DWG");
 ok(
-  hoy.decoderMatrix.declaracion.includes("CERO BUNDLES ADMITIDOS, CERO CAPACIDADES PROMOVIDAS"),
-  "la matriz lo dice con todas las letras",
-);
-ok(
-  hoy.roundtrip.declaracion.includes("CERO ROUND-TRIPS VERIFICADOS POR UN LECTOR EXTERNO"),
-  "el round-trip lo dice con todas las letras",
-);
-ok(
   hoy.decoderMatrix.resumen.tiposDecodificadosEnLaboratorio > 0,
-  "la matriz sí enumera lo que el laboratorio decodifica: el cero es del PRODUCTO, no del trabajo",
+  "la matriz sí enumera lo que el laboratorio decodifica",
 );
 ok(
-  hoy.decoderMatrix.entidades.every((e) => e.decodificadoEnLaboratorio && !e.verificadoIndependientemente),
-  "cada tipo separa lo decodificado en laboratorio de lo verificado fuera",
+  hoy.decoderMatrix.entidades.every((e) => e.decodificadoEnLaboratorio),
+  "cada tipo del laboratorio queda enumerado",
 );
 ok(
   !hoy.decoderMatrix.capacidades.some((c) => c.id === "productionAvailable"),
   "la disponibilidad en producto no es una casilla más de la lista de capacidades",
 );
+
+function leerJsonSiExiste(ruta) {
+  try {
+    return JSON.parse(fs.readFileSync(ruta, "utf8"));
+  } catch {
+    return null;
+  }
+}
 
 // --- 2. el corpus SOLO no promueve nada -------------------------------------
 const soloCorpus = matriz(laboratorioDeHoy, corpusCompleto);
@@ -161,7 +218,7 @@ eq(
 );
 
 // --- 4. con las dos mitades, promueve DE VERDAD ------------------------------
-const promovido = matriz(laboratorioPromovible, corpusCompleto);
+const promovido = matriz(laboratorioPromovible, corpusCompleto, medicionTodaLimpia);
 ok(
   promovido.resumen.capacidadesPromovidas > 0,
   "el cero de hoy es un resultado: con laboratorio y corpus, la matriz promueve",
@@ -169,7 +226,13 @@ ok(
 eq(
   promovido.resumen.tiposVerificadosIndependientemente,
   objectTypes.length,
-  "y los tipos pasan a contar como verificados",
+  "con la medición limpia, TODOS los tipos pasan a contar como verificados",
+);
+eq(
+  matriz(laboratorioPromovible, corpusCompleto).resumen
+    .tiposVerificadosIndependientemente,
+  0,
+  "sin medición diferencial, ni el laboratorio ni el corpus verifican un tipo",
 );
 const roundtripPromovido = buildRoundtripEvidence({
   capabilities: laboratorioPromovible,
