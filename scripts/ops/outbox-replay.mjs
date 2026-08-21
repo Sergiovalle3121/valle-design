@@ -180,6 +180,6 @@ if (!dryRun && rows.length > 0) {
       'El worker las tomará en su próximo lote; vigila que el backlog baja:',
   );
   console.error(
-    `  curl -sS $API/health/metrics/commercial | jq '.outbox.${queue}'`,
+    `  curl -sS -H "Authorization: Bearer $METRICS_TOKEN" $API/health/metrics/commercial | jq '.outbox.${queue}'`,
   );
 }

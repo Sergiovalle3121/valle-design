@@ -1,6 +1,9 @@
+import { Global, Module } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { FIRST_PARTY_AUTH_ENTITY_GRAPH } from '../../common/testing/first-party-cad-auth';
+import { ApiRateLimitService } from '../identity/api-rate-limit.service';
+import { BoundedMemoryIdentityRateLimitStore } from '../identity/identity-rate-limit.store';
 import { NullPaymentProvider } from './adapters/null-payment.provider';
 import { StripePaymentProvider } from './adapters/stripe-payment.provider';
 import { CommercialModule } from './commercial.module';
@@ -75,6 +78,24 @@ describe('cableado del puerto de pagos (grafo real de CommercialModule)', () => 
     saved.clear();
   });
 
+  // En producción ApiRateLimitService llega por el IdentityModule GLOBAL
+  // (importar IdentityModule aquí crearía el ciclo Identity→Commercial→…).
+  // Este módulo global de prueba reproduce esa topología con el store en
+  // memoria: mismo mecanismo de visibilidad, sin PostgreSQL.
+  @Global()
+  @Module({
+    providers: [
+      {
+        provide: ApiRateLimitService,
+        useValue: new ApiRateLimitService(
+          new BoundedMemoryIdentityRateLimitStore(),
+        ),
+      },
+    ],
+    exports: [ApiRateLimitService],
+  })
+  class GlobalRateLimitTestModule {}
+
   async function compile() {
     return Test.createTestingModule({
       imports: [
@@ -86,6 +107,7 @@ describe('cableado del puerto de pagos (grafo real de CommercialModule)', () => 
           autoLoadEntities: true,
           entities: [...FIRST_PARTY_AUTH_ENTITY_GRAPH],
         }),
+        GlobalRateLimitTestModule,
         CommercialModule,
       ],
     }).compile();

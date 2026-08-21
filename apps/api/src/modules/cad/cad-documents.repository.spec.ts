@@ -392,6 +392,62 @@ describe('CadDocumentsRepository — ciclo de vida + CAS sobre tablas cad_*', ()
     });
   });
 
+  it('la búsqueda q pagina y cuenta EN SQL: total real, escapes y sin campos pesados', async () => {
+    await tenant.run(context('tenant-a'), async () => {
+      await repository.createDocument({ name: 'Planta Baja Norte' });
+      await repository.createDocument({ name: 'planta baja SUR' });
+      await repository.createDocument({ name: 'Corte 100% real' });
+      await repository.createDocument({ name: 'Azotea' });
+      const conContenido = await repository.createDocument({
+        name: 'Planta Alta',
+      });
+      await repository.saveContent(conContenido.id, {
+        document: doc(1),
+        expectedVersion: 0,
+      });
+
+      // Total REAL del filtro (antes: mentía por encima del tope de 1000),
+      // insensible a mayúsculas y paginado en SQL, no en memoria.
+      const primera = await repository.listDocuments({ q: 'planta', limit: 2 });
+      expect(primera.total).toBe(3);
+      expect(primera.items).toHaveLength(2);
+      const segunda = await repository.listDocuments({
+        q: 'planta',
+        limit: 2,
+        offset: 2,
+      });
+      expect(segunda.total).toBe(3);
+      expect(segunda.items).toHaveLength(1);
+
+      // `%` literal en el término NO es comodín: se escapa.
+      const porciento = await repository.listDocuments({ q: '100%' });
+      expect(porciento.total).toBe(1);
+      expect(porciento.items[0].name).toBe('Corte 100% real');
+      expect((await repository.listDocuments({ q: '1000' })).total).toBe(0);
+
+      // El listado NO arrastra el documento canónico ni el DXF crudo — son
+      // los campos que hacen pesar decenas de MB a una respuesta de resumen.
+      const listado = await repository.listDocuments({});
+      expect(listado.items.map((item) => item.name)).toContain('Planta Alta');
+      for (const item of listado.items) {
+        expect(item.cadDocument).toBeUndefined();
+        expect(item.dxfData).toBeUndefined();
+      }
+
+      // Y la apertura individual SÍ trae el contenido: la proyección es del
+      // listado, no del documento.
+      const abierto = await repository.getDocument(conContenido.id);
+      expect(abierto.cadDocument).not.toBeNull();
+
+      // Proyectos: misma semántica de búsqueda.
+      await repository.createProject({ name: 'Residencial Valle' });
+      await repository.createProject({ name: 'Nave industrial' });
+      const proyectos = await repository.listProjects({ q: 'valle' });
+      expect(proyectos.total).toBe(1);
+      expect(proyectos.items[0].name).toBe('Residencial Valle');
+    });
+  });
+
   it('el plano DXF de fondo vive junto al documento: put/get/clear', async () => {
     await tenant.run(context('tenant-a'), async () => {
       const document = await repository.createDocument({ name: 'Plano' });

@@ -19,6 +19,11 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { RequirePermissions } from '../auth/decorators/permissions.decorator';
+import {
+  API_RATE_LIMITS,
+  ApiRateLimitService,
+} from '../identity/api-rate-limit.service';
+import { TenantContextService } from '../../common/tenant/tenant-context.service';
 import { CadDocumentsRepository } from './cad-documents.repository';
 import { buildDxfExportInput } from './cad-dxf-export';
 import { CadBlocksService } from '../cad-documents/cad-blocks.service';
@@ -70,6 +75,8 @@ export class CadController {
     private readonly blocks: CadBlocksService,
     private readonly intent: CadIntentService,
     private readonly vision: CadVisionService,
+    private readonly rateLimits: ApiRateLimitService,
+    private readonly tenantContext: TenantContextService,
   ) {}
 
   /* ───────────────────────────── Proyectos ──────────────────────────────── */
@@ -188,10 +195,17 @@ export class CadController {
 
   @Put('documents/:documentId/content')
   @RequirePermissions('cad:edit')
-  saveContent(
+  async saveContent(
     @Param('documentId', ParseUUIDPipe) documentId: string,
     @Body() dto: SaveCadContentDto,
   ) {
+    // Techo generoso por documento (VD-RL-001): un dibujante guardando
+    // frenéticamente no lo alcanza; un cliente roto en bucle sí.
+    await this.rateLimits.enforce(
+      'cad.content.write',
+      [documentId],
+      API_RATE_LIMITS.cadContentWritePerDocument,
+    );
     return this.repository.saveContent(documentId, {
       document: dto.cadDocument,
       expectedVersion: dto.expectedCadDocumentVersion,
@@ -219,6 +233,13 @@ export class CadController {
     if (!file?.buffer) {
       throw new BadRequestException('El archivo CAD gzip es obligatorio.');
     }
+    // Más estricto que /content: cada intento acarrea hasta 20 MiB
+    // comprimidos y una descompresión acotada en el servidor.
+    await this.rateLimits.enforce(
+      'cad.archive.write',
+      [documentId],
+      API_RATE_LIMITS.cadArchiveWritePerDocument,
+    );
     const expectedVersion = parseArchivePayload(body?.payload);
     const validatedDocument = await this.cadDocuments.decodeCadDocumentUpload(
       file.buffer,
@@ -396,7 +417,15 @@ export class CadController {
 
   @Post('vision')
   @RequirePermissions('cad:edit')
-  vectorize(@Body() dto: CadVisionDto) {
+  async vectorize(@Body() dto: CadVisionDto) {
+    // Por CUENTA, no por documento: cada llamada cuesta inferencia y la
+    // imagen viaja completa. 10/min es holgado para un humano digitalizando.
+    const context = this.tenantContext.get();
+    await this.rateLimits.enforce(
+      'cad.vision',
+      [context?.tenant_id ?? '', context?.user_email ?? ''],
+      API_RATE_LIMITS.cadVisionPerAccount,
+    );
     return this.vision.vectorize(dto.image);
   }
 

@@ -28,7 +28,16 @@ export type PersistedCadDocument = Record<string, unknown>;
  */
 export const CAD_DOCUMENT_MAX_SCHEMA = 9;
 export const CAD_DOCUMENT_MAX_INLINE_BYTES = 8_000_000;
-export const CAD_DOCUMENT_MAX_ARCHIVE_BYTES = 128 * 1024 * 1024;
+/**
+ * Techo del documento DESCOMPRIMIDO (gzip aparte, 20 MiB comprimidos). Bajó de
+ * 128 MiB a 32 MiB en la campaña 2026-08-20: con 128 MiB, un solo PUT podía
+ * hinchar 128 MiB de heap por réplica (gunzip + parse + validación), y el
+ * techo REAL del producto es el límite de entidades (100k), que en la práctica
+ * produce documentos muy por debajo de 32 MiB. Si un documento legítimo de
+ * 100k entidades alguna vez lo roza, la evidencia de document-limits es el
+ * lugar donde demostrarlo antes de subirlo.
+ */
+export const CAD_DOCUMENT_MAX_ARCHIVE_BYTES = 32 * 1024 * 1024;
 const MAX_ENTITIES = 100_000;
 const MAX_BLOCKS = 2_000;
 const MAX_CONSTRAINTS = 250_000;

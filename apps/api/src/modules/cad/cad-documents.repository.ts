@@ -8,7 +8,13 @@ import {
   Optional,
 } from '@nestjs/common';
 import { createHash } from 'node:crypto';
-import { DataSource, EntityManager, FindOptionsWhere, IsNull } from 'typeorm';
+import {
+  DataSource,
+  EntityManager,
+  FindOptionsWhere,
+  IsNull,
+  Raw,
+} from 'typeorm';
 import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import {
   TenantScopedRepository,
@@ -52,8 +58,62 @@ export interface CadDocumentSaveResult {
   storedAsBlobPointer: boolean;
 }
 
-/** Tope de filas que una lista pagina en memoria (límite v1: 200 por página). */
-const LIST_SCAN_CAP = 1000;
+/**
+ * Columnas que viajan en los LISTADOS. Nunca el documento canónico
+ * (`cadDocument`, jsonb que puede pesar decenas de MB), ni el DXF crudo
+ * (`dxfData`), ni `legacyMetadata`: un listado de 200 filas arrastrando eso
+ * es transferencia y heap por una respuesta que sólo muestra nombre y
+ * versión. Son exactamente las columnas que `documentSummary`/
+ * `projectResource` serializan.
+ */
+const DOCUMENT_LIST_COLUMNS = [
+  'id',
+  'projectId',
+  'name',
+  'model',
+  'revision',
+  'cadDocumentVersion',
+  'layers',
+  'legacySourceId',
+  'created_at',
+  'updated_at',
+  'created_by',
+] as const satisfies readonly (keyof CadDocument)[];
+
+const PROJECT_LIST_COLUMNS = [
+  'id',
+  'name',
+  'description',
+  'status',
+  'legacySourceId',
+  'created_at',
+  'updated_at',
+  'created_by',
+] as const satisfies readonly (keyof CadProject)[];
+
+/** Ventana de página del contrato v1: default 50, máximo 200. */
+function pageWindow(query: PageQuery): { offset: number; limit: number } {
+  return {
+    offset: Math.max(0, query.offset ?? 0),
+    limit: Math.min(Math.max(1, query.limit ?? 50), 200),
+  };
+}
+
+/**
+ * Búsqueda `q` por nombre EN SQL, portable entre PostgreSQL y SQLite:
+ * `LOWER(col) LIKE LOWER(:q)` con comodines escapados — un nombre con `%` o
+ * `_` literales no es un patrón. Sustituye a la paginación en memoria con
+ * tope de 1000 filas que hacía mentir a `total` por encima del tope y volvía
+ * inalcanzable todo documento más viejo que las 1000 filas más recientes.
+ * Como FindOperator dentro de `find`, conserva el scoping de tenant del
+ * TenantScopedRepository (un QueryBuilder lo perdería).
+ */
+function nameContains(term: string) {
+  const escaped = term.replace(/[\\%_]/gu, (ch) => `\\${ch}`);
+  return Raw((alias) => `LOWER(${alias}) LIKE LOWER(:q) ESCAPE '\\'`, {
+    q: `%${escaped}%`,
+  });
+}
 
 /**
  * Repositorio FINO del ciclo de vida CAD propio (contrato design-api.v1):
@@ -102,12 +162,17 @@ export class CadDocumentsRepository {
   ): Promise<{ items: CadProject[]; total: number }> {
     const where: FindOptionsWhere<CadProject> = {};
     if (query.status) where.status = query.status;
-    const rows = await this.projects.find({
+    const term = (query.q ?? '').trim();
+    if (term) where.name = nameContains(term);
+    const { offset, limit } = pageWindow(query);
+    const [items, total] = await this.projects.findAndCount({
+      select: [...PROJECT_LIST_COLUMNS],
       where,
       order: { created_at: 'DESC' },
-      take: LIST_SCAN_CAP,
+      skip: offset,
+      take: limit,
     });
-    return paginate(rows, query, (p) => p.name);
+    return { items, total };
   }
 
   async createProject(input: {
@@ -177,27 +242,21 @@ export class CadDocumentsRepository {
     if (query.model) where.model = query.model;
     if (query.revision) where.revision = query.revision;
 
-    // Sin búsqueda libre por nombre, pagina y cuenta en SQL. En particular,
-    // model+revision se aplican ANTES del límite: un marcador histórico no
-    // desaparece por estar después de las primeras 200 filas del tenant.
-    if (!(query.q ?? '').trim()) {
-      const offset = Math.max(0, query.offset ?? 0);
-      const limit = Math.min(Math.max(1, query.limit ?? 50), 200);
-      const [items, total] = await this.documents.findAndCount({
-        where,
-        order: { created_at: 'DESC' },
-        skip: offset,
-        take: limit,
-      });
-      return { items, total };
-    }
-
-    const rows = await this.documents.find({
+    // TODO se aplica ANTES del límite y EN SQL — filtros, búsqueda `q` y
+    // conteo. Un marcador histórico no desaparece por estar después de las
+    // primeras 200 filas del tenant, `total` es el total real, y ninguna
+    // fila arrastra el jsonb del documento ni el DXF crudo (proyección).
+    const term = (query.q ?? '').trim();
+    if (term) where.name = nameContains(term);
+    const { offset, limit } = pageWindow(query);
+    const [items, total] = await this.documents.findAndCount({
+      select: [...DOCUMENT_LIST_COLUMNS],
       where,
       order: { created_at: 'DESC' },
-      take: LIST_SCAN_CAP,
+      skip: offset,
+      take: limit,
     });
-    return paginate(rows, query, (d) => d.name);
+    return { items, total };
   }
 
   async createDocument(input: {
@@ -774,20 +833,3 @@ function storedDocumentSha256(stored: Record<string, unknown>): string | null {
   }
 }
 
-/** Paginación en memoria con búsqueda `q` (contains, case-insensitive). */
-function paginate<T>(
-  rows: T[],
-  query: PageQuery,
-  nameOf: (row: T) => string,
-): { items: T[]; total: number } {
-  const q = (query.q ?? '').trim().toLocaleLowerCase();
-  const filtered = q
-    ? rows.filter((row) => nameOf(row).toLocaleLowerCase().includes(q))
-    : rows;
-  const offset = Math.max(0, query.offset ?? 0);
-  const limit = Math.min(Math.max(1, query.limit ?? 50), 200);
-  return {
-    items: filtered.slice(offset, offset + limit),
-    total: filtered.length,
-  };
-}

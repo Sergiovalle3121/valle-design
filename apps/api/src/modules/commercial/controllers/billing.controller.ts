@@ -26,6 +26,10 @@ import {
 import { DataSource, Repository } from 'typeorm';
 import { isUniqueViolation } from '../../../common/database/unique-violation';
 import {
+  API_RATE_LIMITS,
+  ApiRateLimitService,
+} from '../../identity/api-rate-limit.service';
+import {
   Invoice,
   PAYMENT_METHODS,
   PLAN_PRICE_PERIODS,
@@ -177,6 +181,7 @@ export class BillingController {
     private readonly events: CadEventPublisher,
     @Inject(PAYMENT_PROVIDER)
     private readonly payments: PaymentProvider,
+    private readonly rateLimits: ApiRateLimitService,
   ) {}
 
   /**
@@ -195,6 +200,13 @@ export class BillingController {
     @Req() request: AuthenticatedRequest,
   ) {
     const { user, organizationId } = requireDecider(request);
+    // Cada sesión abre recursos en el proveedor de pagos: el techo por
+    // organización acota lo que un decisor con un cliente roto puede crear.
+    await this.rateLimits.enforce(
+      'commercial.checkout',
+      [organizationId],
+      API_RATE_LIMITS.checkoutSessionsPerOrganization,
+    );
     const descriptor = this.payments.descriptor();
     const paymentMethod: PaymentMethod = body.paymentMethod ?? 'card';
 

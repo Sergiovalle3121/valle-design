@@ -159,13 +159,33 @@ describe('Cableado comercial del CAD (grafo de módulos real)', () => {
       status: 'pending',
     });
 
-    // El endpoint de métricas del runbook ve ese backlog sin exponer PII.
-    const metrics = await request(server)
-      .get('/health/metrics/commercial')
-      .expect(200);
-    expect(metrics.body.outbox.domain.byStatus).toEqual({ pending: 1 });
-    const serialized = JSON.stringify(metrics.body);
-    expect(serialized).not.toContain(owner.organizationId!);
-    expect(serialized).not.toContain('@test.invalid');
+    // El endpoint de métricas del runbook ve ese backlog sin exponer PII —
+    // pero SÓLO con el bearer de METRICS_TOKEN: consulta la base en cada
+    // petición y publica el mapa de carga, así que dejó de ser público.
+    const previousToken = process.env.METRICS_TOKEN;
+    try {
+      delete process.env.METRICS_TOKEN;
+      // Sin token configurado el endpoint NO se anuncia (404, como /metrics).
+      await request(server).get('/health/metrics/commercial').expect(404);
+
+      process.env.METRICS_TOKEN = 'runbook-token-de-32-caracteres!!';
+      await request(server).get('/health/metrics/commercial').expect(401);
+      await request(server)
+        .get('/health/metrics/commercial')
+        .set('authorization', 'Bearer un-token-que-no-es')
+        .expect(401);
+
+      const metrics = await request(server)
+        .get('/health/metrics/commercial')
+        .set('authorization', `Bearer ${process.env.METRICS_TOKEN}`)
+        .expect(200);
+      expect(metrics.body.outbox.domain.byStatus).toEqual({ pending: 1 });
+      const serialized = JSON.stringify(metrics.body);
+      expect(serialized).not.toContain(owner.organizationId!);
+      expect(serialized).not.toContain('@test.invalid');
+    } finally {
+      if (previousToken === undefined) delete process.env.METRICS_TOKEN;
+      else process.env.METRICS_TOKEN = previousToken;
+    }
   });
 });

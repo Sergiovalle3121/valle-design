@@ -15,7 +15,11 @@ credenciales ni claves reales en Git.
 | `DB_HOST`        | Una conexión PG      | Alternativa a `DATABASE_URL`; se completa con `DB_PORT` (default `5432`), `DB_USERNAME`, `DB_PASSWORD` y `DB_DATABASE`.                                            |
 | `SYNCHRONIZE`    | Sí en producción     | Debe ser exactamente `false`. `true` está prohibido en producción. También conviene fijarlo en `false` en staging/dev PostgreSQL cuando se prueban migraciones.    |
 | `MIGRATIONS_RUN` | Según entorno        | Con `true`, aplica migraciones al arranque cuando synchronize está apagado fuera de producción. Producción las ejecuta con synchronize apagado.                    |
-| `DB_SSL_STRICT`  | Según proveedor      | Con `true`, valida el certificado PostgreSQL. SSL se activa en producción o si la URL contiene `sslmode=require`.                                                  |
+| `DB_SSL_STRICT`  | Según proveedor      | **En producción la validación del certificado es el DEFAULT**; `DB_SSL_STRICT=false` es la válvula de escape explícita para hosts sin CA verificable. Fuera de producción el estricto es opt-in con `true`. SSL se activa en producción o si la URL contiene `sslmode=require`. |
+| `DB_POOL_SIZE`   | No                   | Tamaño del pool de conexiones PostgreSQL; default `20`. Entero positivo — un valor ilegible impide el arranque en vez de aplicar el default en silencio.           |
+| `DB_STATEMENT_TIMEOUT_MS` | No         | `statement_timeout` por sesión; default `30000`. Una query degenerada devuelve error acotado en vez de retener su conexión para siempre.                           |
+| `DB_IDLE_IN_TRANSACTION_TIMEOUT_MS` | No | `idle_in_transaction_session_timeout` por sesión; default `30000`. Una transacción olvidada suelta sus locks con error ruidoso.                                   |
+| `DB_LOCK_TIMEOUT_MS` | No               | `lock_timeout` por sesión; default `10000`.                                                                                                                        |
 | `SQLITE_PATH`    | Sólo dev             | Archivo del fallback SQLite cuando no existe configuración PostgreSQL; default `dev.sqlite` relativo a `apps/api`.                                                 |
 | `ALLOWED_ORIGIN` | Sí para web separado | Orígenes CORS exactos, separados por coma, `;`, salto de línea o arreglo JSON. Se normaliza el slash final. Sin valor fuera de desarrollo se rechaza cross-origin. |
 

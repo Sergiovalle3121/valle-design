@@ -2,6 +2,24 @@ import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { join } from 'path';
 
 /**
+ * Entero positivo desde el entorno, con default. Un valor ilegible LANZA en
+ * vez de caer al default: `DB_POOL_SIZE=2O` (letra O) aplicando 20 en
+ * silencio es una configuración que miente — mejor un arranque que no llega.
+ */
+function positiveIntFromEnv(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (raw === undefined || raw === '') return fallback;
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value) || value <= 0) {
+    throw new Error(
+      `${name}="${raw}" no es un entero positivo. Corrige o elimina la variable ` +
+        `(default: ${fallback}).`,
+    );
+  }
+  return value;
+}
+
+/**
  * Estrategia de base de datos:
  *
  * - DATABASE_URL usa PostgreSQL con synchronize desactivado y migraciones
@@ -79,12 +97,35 @@ export function ormOptions(): TypeOrmModuleOptions {
         ? process.env.MIGRATIONS_RUN !== 'false'
         : isProd || process.env.MIGRATIONS_RUN === 'true'),
     migrations: [join(__dirname, 'migrations', '!(*.spec).{ts,js}')],
-    // SSL relajado por defecto (PaaS con certs internos/self-signed). Endurecer
-    // con DB_SSL_STRICT=true SOLO con un CA verificable, o romperá la conexión.
+    // SSL: en PRODUCCIÓN la validación del certificado es el default — un
+    // TLS que no valida al servidor protege del sniffing pero no del MITM,
+    // y el silencio de `rejectUnauthorized: false` es exactamente el tipo de
+    // default que nadie revisa hasta el incidente. La válvula de escape para
+    // hosts sin CA verificable existe pero es EXPLÍCITA: DB_SSL_STRICT=false
+    // queda escrito en la configuración del despliegue, delante de quien lo
+    // opere. Fuera de producción el estricto sigue siendo opt-in.
     ssl:
       isProd || url?.includes('sslmode=require')
-        ? { rejectUnauthorized: process.env.DB_SSL_STRICT === 'true' }
+        ? {
+            rejectUnauthorized:
+              process.env.DB_SSL_STRICT === 'false'
+                ? false
+                : process.env.DB_SSL_STRICT === 'true' || isProd,
+          }
         : false,
+    // Presupuestos de conexión (node-postgres los aplica por sesión). Sin
+    // ellos, una query degenerada retiene su conexión para siempre y una
+    // transacción olvidada retiene sus locks: los timeouts convierten ambos
+    // en un error ruidoso y acotado en vez de una degradación silenciosa.
+    extra: {
+      max: positiveIntFromEnv('DB_POOL_SIZE', 20),
+      statement_timeout: positiveIntFromEnv('DB_STATEMENT_TIMEOUT_MS', 30_000),
+      idle_in_transaction_session_timeout: positiveIntFromEnv(
+        'DB_IDLE_IN_TRANSACTION_TIMEOUT_MS',
+        30_000,
+      ),
+      lock_timeout: positiveIntFromEnv('DB_LOCK_TIMEOUT_MS', 10_000),
+    },
   };
 
   // ── PostgreSQL vía DATABASE_URL ──────────────────────────────────────────

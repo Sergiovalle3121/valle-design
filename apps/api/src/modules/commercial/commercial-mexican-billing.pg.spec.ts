@@ -7,6 +7,8 @@ import {
   type PostgresHarness,
 } from '../../common/testing/postgres-harness';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.types';
+import { ApiRateLimitService } from '../identity/api-rate-limit.service';
+import { BoundedMemoryIdentityRateLimitStore } from '../identity/identity-rate-limit.store';
 import { User } from '../identity/entities/identity.entity';
 import {
   Invitation,
@@ -200,6 +202,7 @@ describePostgres('Facturación mexicana: CFDI, OXXO y asientos', () => {
       source,
       new PostgresCadEventPublisher(),
       new StripePaymentProvider(CONFIGURATION, httpClient),
+      new ApiRateLimitService(new BoundedMemoryIdentityRateLimitStore()),
     );
     taxes = new TaxProfileController(
       source.getRepository(TaxProfile),

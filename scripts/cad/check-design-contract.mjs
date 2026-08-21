@@ -10,7 +10,34 @@ const generatedPath = path.join(
   "packages/design-sdk/src/generated/design-api.ts",
 );
 const clientPath = path.join(root, "packages/design-sdk/src/client.ts");
-const controllerDir = path.join(root, "apps/api/src/modules/cad");
+
+/**
+ * Módulos cuyo router participa de la biyección OpenAPI↔SDK↔Nest. El gate
+ * cubría sólo /v1/cad (43 de 77 operaciones); auth, organizations y
+ * commercial vivían fuera — una ruta podía divergir del contrato sin que
+ * nada lo dijera. Los módulos `legal` y `outbox-receiver` quedan fuera A
+ * PROPÓSITO: sus rutas no están en design-api.v1.yaml (superficies internas
+ * u operativas, no del SDK del producto).
+ */
+const controllerDirs = [
+  "apps/api/src/modules/cad",
+  "apps/api/src/modules/identity",
+  "apps/api/src/modules/organizations",
+  "apps/api/src/modules/commercial/controllers",
+].map((dir) => path.join(root, dir));
+
+/** Familias de paths del contrato que el gate cruza contra el router. */
+const coveredPrefixes = ["/v1/cad", "/v1/auth", "/v1/organizations", "/v1/commercial"];
+const coveredPath = (p) =>
+  coveredPrefixes.some((prefix) => p === prefix || p.startsWith(`${prefix}/`));
+
+/**
+ * Controllers montados fuera del contrato, con su justificación. Un prefijo
+ * `_development/` es una superficie de desarrollo que el bootstrap de
+ * producción ni monta; nada más entra aquí sin comentario.
+ */
+const isOutOfContractPrefix = (prefix) => prefix.startsWith("_development/");
+
 const methods = new Set(["get", "post", "put", "patch", "delete"]);
 
 const spec = fs.readFileSync(specPath, "utf8").replaceAll("\r\n", "\n");
@@ -18,10 +45,14 @@ const generated = fs
   .readFileSync(generatedPath, "utf8")
   .replaceAll("\r\n", "\n");
 const client = fs.readFileSync(clientPath, "utf8");
-const controllerFiles = fs
-  .readdirSync(controllerDir)
-  .filter((name) => name.endsWith(".controller.ts"))
-  .sort();
+const controllerFiles = controllerDirs
+  .flatMap((dir) =>
+    fs
+      .readdirSync(dir)
+      .filter((name) => name.endsWith(".controller.ts"))
+      .map((name) => ({ dir, name })),
+  )
+  .sort((a, b) => a.name.localeCompare(b.name));
 
 function routeKey(method, route) {
   const normalized = route
@@ -63,7 +94,18 @@ function parseSpecOperations(source) {
     const pathMatch = line.match(/^  (\/[^:]+):\s*$/);
     if (pathMatch) {
       finishPending(index);
-      currentPath = pathMatch[1].startsWith("/v1/cad/") ? pathMatch[1] : null;
+      if (coveredPath(pathMatch[1])) {
+        currentPath = pathMatch[1];
+      } else {
+        // El contrato NO puede tener familias que el gate no cruce: una
+        // operación publicada en el SDK sin router verificado es exactamente
+        // el hueco que este gate existe para cerrar.
+        errors.push(
+          `Path del contrato fuera del alcance del gate: ${pathMatch[1]} — ` +
+            `añade su familia a coveredPrefixes y su módulo a controllerDirs`,
+        );
+        currentPath = null;
+      }
       return;
     }
 
@@ -105,7 +147,7 @@ function parseGeneratedOperations(source) {
 
     const pathMatch = line.match(/^    "([^"]+)": \{$/);
     if (pathMatch) {
-      currentPath = pathMatch[1].startsWith("/v1/cad/") ? pathMatch[1] : null;
+      currentPath = coveredPath(pathMatch[1]) ? pathMatch[1] : null;
       continue;
     }
     const methodMatch = line.match(
@@ -123,8 +165,8 @@ function parseGeneratedOperations(source) {
 function parseControllerOperations() {
   const operations = new Map();
   const errors = [];
-  for (const name of controllerFiles) {
-    const source = fs.readFileSync(path.join(controllerDir, name), "utf8");
+  for (const { dir, name } of controllerFiles) {
+    const source = fs.readFileSync(path.join(dir, name), "utf8");
     const prefixes = [
       ...source.matchAll(/@Controller\(\s*["']([^"']*)["']\s*\)/g),
     ].map((match) => match[1].replace(/^\/+|\/+$/g, ""));
@@ -133,7 +175,8 @@ function parseControllerOperations() {
       continue;
     }
     const prefix = prefixes[0];
-    if (prefix !== "v1/cad" && !prefix.startsWith("v1/cad/")) {
+    if (isOutOfContractPrefix(prefix)) continue;
+    if (!coveredPath(`/${prefix}`)) {
       errors.push(`${name}: prefijo no canónico ${prefix}`);
     }
     for (const match of source.matchAll(

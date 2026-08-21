@@ -7,6 +7,8 @@ import {
   type PostgresHarness,
 } from '../../common/testing/postgres-harness';
 import type { AuthenticatedUser } from '../../common/types/authenticated-user.types';
+import { ApiRateLimitService } from '../identity/api-rate-limit.service';
+import { BoundedMemoryIdentityRateLimitStore } from '../identity/identity-rate-limit.store';
 import { User } from '../identity/entities/identity.entity';
 import { Organization } from '../organizations/entities/organization.entity';
 import { PostgresCadEventPublisher } from './adapters/postgres.adapters';
@@ -168,6 +170,7 @@ describePostgres('Ciclo de vida cobrado con Stripe (PostgreSQL)', () => {
       source,
       new PostgresCadEventPublisher(),
       new StripePaymentProvider(CONFIGURATION, httpClient),
+      new ApiRateLimitService(new BoundedMemoryIdentityRateLimitStore()),
     );
   });
 
@@ -641,6 +644,7 @@ describePostgres('Ciclo de vida cobrado con Stripe (PostgreSQL)', () => {
       harness.dataSource,
       new PostgresCadEventPublisher(),
       new NullPaymentProvider(),
+      new ApiRateLimitService(new BoundedMemoryIdentityRateLimitStore()),
     );
     const resultado = await conNulo.cancelSubscription(
       authenticated(organizationId, ownerId, 'owner'),

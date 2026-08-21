@@ -10,6 +10,10 @@ import {
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { ReviewLinkSurface } from '../auth/decorators/review-link-surface.decorator';
+import {
+  API_RATE_LIMITS,
+  ApiRateLimitService,
+} from '../identity/api-rate-limit.service';
 import { CadDocumentsRepository } from './cad-documents.repository';
 import { CadReviewRepository } from './cad-review.repository';
 import {
@@ -45,6 +49,7 @@ export class CadReviewLinkController {
     private readonly documents: CadDocumentsRepository,
     private readonly reviews: CadReviewRepository,
     private readonly cadDocuments: CadDocumentsService,
+    private readonly rateLimits: ApiRateLimitService,
   ) {}
 
   /**
@@ -94,6 +99,13 @@ export class CadReviewLinkController {
     @Body() dto: CreateReviewLinkCommentDto,
   ) {
     const access = requireReviewAccess(request);
+    // La superficie anónima-con-token es la más expuesta de la API: el techo
+    // por SESIÓN acota lo que un token filtrado puede inundar.
+    await this.rateLimits.enforce(
+      'cad.review.comment',
+      [access.sessionId],
+      API_RATE_LIMITS.reviewCommentsPerSession,
+    );
     return commentResource(
       await this.reviews.createSessionComment(access, dto),
     );

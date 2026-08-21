@@ -10,6 +10,7 @@ import {
   Session,
   User,
 } from './entities/identity.entity';
+import { ApiRateLimitService } from './api-rate-limit.service';
 import { IdentityController } from './identity.controller';
 import {
   BoundedMemoryIdentityRateLimitStore,
@@ -34,6 +35,7 @@ import { PostgresIdentityRateLimitStore } from './postgres-identity-rate-limit.s
   controllers: [IdentityController],
   providers: [
     IdentityService,
+    ApiRateLimitService,
     {
       provide: IDENTITY_RATE_LIMIT_STORE,
       inject: [DataSource],
@@ -43,6 +45,6 @@ import { PostgresIdentityRateLimitStore } from './postgres-identity-rate-limit.s
           : new BoundedMemoryIdentityRateLimitStore(),
     },
   ],
-  exports: [IdentityService, IDENTITY_RATE_LIMIT_STORE],
+  exports: [IdentityService, IDENTITY_RATE_LIMIT_STORE, ApiRateLimitService],
 })
 export class IdentityModule {}

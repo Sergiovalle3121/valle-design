@@ -10,6 +10,11 @@ const ENVIRONMENT_KEYS = [
   'DB_DATABASE',
   'SYNCHRONIZE',
   'MIGRATIONS_RUN',
+  'DB_SSL_STRICT',
+  'DB_POOL_SIZE',
+  'DB_STATEMENT_TIMEOUT_MS',
+  'DB_IDLE_IN_TRANSACTION_TIMEOUT_MS',
+  'DB_LOCK_TIMEOUT_MS',
 ] as const;
 
 describe('production database configuration', () => {
@@ -71,5 +76,79 @@ describe('production database configuration', () => {
       migrationsRun: true,
       url: process.env.DATABASE_URL,
     });
+  });
+
+  it('validates the PostgreSQL certificate by DEFAULT in production', () => {
+    process.env.DATABASE_URL = 'postgres://valle:x@db.internal:5432/valle';
+    process.env.SYNCHRONIZE = 'false';
+
+    // Sin declarar DB_SSL_STRICT: estricto. El TLS que no valida al servidor
+    // no protege del MITM, y ese default nadie lo revisa hasta el incidente.
+    expect(ormOptions()).toMatchObject({
+      ssl: { rejectUnauthorized: true },
+    });
+
+    // La válvula de escape existe pero es EXPLÍCITA.
+    process.env.DB_SSL_STRICT = 'false';
+    expect(ormOptions()).toMatchObject({
+      ssl: { rejectUnauthorized: false },
+    });
+    delete process.env.DB_SSL_STRICT;
+  });
+
+  it('keeps strict SSL as opt-in outside production', () => {
+    process.env.NODE_ENV = 'development';
+    process.env.DATABASE_URL =
+      'postgres://valle:x@db.internal:5432/valle?sslmode=require';
+
+    expect(ormOptions()).toMatchObject({ ssl: { rejectUnauthorized: false } });
+
+    process.env.DB_SSL_STRICT = 'true';
+    expect(ormOptions()).toMatchObject({ ssl: { rejectUnauthorized: true } });
+    delete process.env.DB_SSL_STRICT;
+  });
+
+  it('applies connection budgets with sane defaults and env overrides', () => {
+    process.env.DATABASE_URL = 'postgres://valle:x@db.internal:5432/valle';
+    process.env.SYNCHRONIZE = 'false';
+
+    // Defaults: pool 20, statement 30s, idle-in-tx 30s, lock 10s.
+    expect(ormOptions()).toMatchObject({
+      extra: {
+        max: 20,
+        statement_timeout: 30_000,
+        idle_in_transaction_session_timeout: 30_000,
+        lock_timeout: 10_000,
+      },
+    });
+
+    process.env.DB_POOL_SIZE = '5';
+    process.env.DB_STATEMENT_TIMEOUT_MS = '60000';
+    process.env.DB_IDLE_IN_TRANSACTION_TIMEOUT_MS = '15000';
+    process.env.DB_LOCK_TIMEOUT_MS = '2000';
+    expect(ormOptions()).toMatchObject({
+      extra: {
+        max: 5,
+        statement_timeout: 60_000,
+        idle_in_transaction_session_timeout: 15_000,
+        lock_timeout: 2_000,
+      },
+    });
+    delete process.env.DB_POOL_SIZE;
+    delete process.env.DB_STATEMENT_TIMEOUT_MS;
+    delete process.env.DB_IDLE_IN_TRANSACTION_TIMEOUT_MS;
+    delete process.env.DB_LOCK_TIMEOUT_MS;
+  });
+
+  it('rejects unreadable connection budgets instead of silently defaulting', () => {
+    process.env.DATABASE_URL = 'postgres://valle:x@db.internal:5432/valle';
+    process.env.SYNCHRONIZE = 'false';
+
+    // `2O` (letra O) aplicando 20 en silencio es configuración que miente.
+    process.env.DB_POOL_SIZE = '2O';
+    expect(() => ormOptions()).toThrow(/DB_POOL_SIZE/u);
+    process.env.DB_POOL_SIZE = '0';
+    expect(() => ormOptions()).toThrow(/entero positivo/u);
+    delete process.env.DB_POOL_SIZE;
   });
 });

@@ -2,6 +2,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { TenantContextService } from '../../common/tenant/tenant-context.service';
+import { ApiRateLimitService } from '../identity/api-rate-limit.service';
 import { CadBlocksService } from '../cad-documents/cad-blocks.service';
 import { CadDocumentsService } from '../cad-documents/cad-documents.service';
 import { CadIntentService } from '../cad-documents/cad-intent.service';
@@ -40,6 +42,8 @@ describe('contrato OpenAPI contra el router Nest real', () => {
         CadBlocksService,
         CadIntentService,
         CadVisionService,
+        ApiRateLimitService,
+        TenantContextService,
       ].map((provide) => ({ provide, useValue: {} })),
     }).compile();
     app = moduleRef.createNestApplication();

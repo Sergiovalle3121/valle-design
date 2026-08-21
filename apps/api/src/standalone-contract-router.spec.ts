@@ -29,6 +29,7 @@ import { SubscriptionLifecycleService } from './modules/commercial/subscription-
 import { SeatEntitlementService } from './modules/commercial/seat-entitlement.service';
 import { User } from './modules/identity/entities/identity.entity';
 import { IdentityController } from './modules/identity/identity.controller';
+import { ApiRateLimitService } from './modules/identity/api-rate-limit.service';
 import { IDENTITY_RATE_LIMIT_STORE } from './modules/identity/identity-rate-limit.store';
 import { IdentityService } from './modules/identity/identity.service';
 import {
@@ -96,6 +97,7 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
         { provide: SeatEntitlementService, useValue: {} },
         { provide: BillingWebhookService, useValue: {} },
         { provide: IDENTITY_RATE_LIMIT_STORE, useValue: {} },
+        { provide: ApiRateLimitService, useValue: {} },
         ...repositoryEntities.map((entity) => ({
           provide: getRepositoryToken(entity),
           useValue: {},

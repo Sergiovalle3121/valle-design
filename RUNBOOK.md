@@ -19,7 +19,8 @@ Primer comando de cualquier incidente, siempre el mismo:
 ```bash
 curl -fsS $API/health        # ¿vive el proceso?
 curl -sS  $API/health/ready  # ¿puede atender? (200 ok / 503 degraded|draining)
-curl -sS  $API/health/metrics/commercial | jq '.outbox, .dispatcher'
+curl -sS -H "Authorization: Bearer $METRICS_TOKEN" \
+  $API/health/metrics/commercial | jq '.outbox, .dispatcher'
 ```
 
 ## Señales mínimas
@@ -30,8 +31,10 @@ filas `dead`, latencia del webhook, conflictos CAS y tiempos de apertura,
 serialización y escena. Las métricas y logs no deben contener correos, tokens,
 cuerpos CAD, tenant IDs, firmas ni respuestas del proveedor.
 
-`GET /health/metrics/commercial` expone sin autenticación (como los probes de
-`/health`) el subconjunto comercial de estas señales listo para scrapear:
+`GET /health/metrics/commercial` expone — con el mismo bearer que `/metrics`
+(`METRICS_TOKEN`; sin token configurado responde 404, sin bearer 401; los
+probes de vida `/health` y `/health/ready` sí siguen públicos) — el
+subconjunto comercial de estas señales listo para consultar:
 backlog y edad por cola del outbox, filas `dead`, contadores y latencia
 `claimed→sent` del dispatcher por clase de error, y 401/403/409/429 por PATRÓN
 de ruta. Todo son agregados: sin URLs reales, payloads ni identificadores. Los
