@@ -91,6 +91,7 @@ Opcionales que cambian el comportamiento operativo:
 | ---------------------------- | -------- | ---------------------------------------------------------- |
 | `METRICS_TOKEN`              | *(sin)*  | sin él, `GET /metrics` **y** `GET /health/metrics/commercial` responden **404** (desactivados); ambos usan el mismo bearer |
 | `SENTRY_DSN`                 | *(sin)*  | sin él, el reporte de errores es **inerte** (sin red)       |
+| `CFDI_PAC_NAME` (+3 vars)    | *(sin)*  | sin PAC: emisión manual honesta. `facturama` timbra vía el job del outbox (exige además `CFDI_ISSUER_POSTAL_CODE`); PAC desconocido **no arranca**. Sandbox de Facturama por default: producción real exige `CFDI_PAC_BASE_URL=https://api.facturama.mx`. Verificación sandbox del adaptador: pendiente de credenciales del dueño |
 | `HTTP_KEEP_ALIVE_TIMEOUT_MS` | `65000`  | debe superar el idle del balanceador (ver §6)               |
 | `HTTP_HEADERS_TIMEOUT_MS`    | `70000`  | se fuerza siempre > keep-alive                              |
 | `HTTP_REQUEST_TIMEOUT_MS`    | `120000` | techo de una petición                                       |

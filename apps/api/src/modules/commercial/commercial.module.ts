@@ -39,6 +39,11 @@ import {
   resolveCfdiConfiguration,
 } from './adapters/null-cfdi.provider';
 import {
+  FacturamaCfdiProvider,
+  globalFacturamaHttpClient,
+  resolveFacturamaConfiguration,
+} from './adapters/facturama-cfdi.provider';
+import {
   globalStripeHttpClient,
   resolveStripeConfiguration,
   StripePaymentProvider,
@@ -56,6 +61,9 @@ import {
   CommercialOutboxDispatcher,
 } from './outbox-dispatcher.service';
 import { CommercialOutboxWorker } from './outbox-worker.service';
+import { CfdiIssuanceService } from './cfdi-issuance.service';
+import { CfdiController } from './controllers/cfdi.controller';
+import { CfdiReceipt } from './entities/cfdi-receipt.entity';
 import { RenewalReminderService } from './renewal-reminder.service';
 import { WebhookCommercialOutboxTransport } from './webhook-outbox.transport';
 import { CommercialCatalogBootstrap } from './commercial-catalog.bootstrap';
@@ -77,6 +85,7 @@ import { SeatEntitlementService } from './seat-entitlement.service';
       PaymentEvent,
       Invoice,
       TaxProfile,
+      CfdiReceipt,
     ]),
   ],
   controllers: [
@@ -85,6 +94,7 @@ import { SeatEntitlementService } from './seat-entitlement.service';
     BillingController,
     BillingWebhookController,
     TaxProfileController,
+    CfdiController,
     EmailOutboxController,
   ],
   providers: [
@@ -117,21 +127,26 @@ import { SeatEntitlementService } from './seat-entitlement.service';
     //
     // Sin variables CFDI_PAC_* el adaptador es el NULO: el producto captura y
     // valida datos fiscales y el CFDI lo emite una persona (modo `manual`, y
-    // la interfaz lo dice así). Con la configuración COMPLETA el arranque
-    // FALLA hoy a propósito: el dueño todavía no ha elegido PAC, así que no
-    // existe adaptador real detrás del puerto, y arrancar en modo manual con
-    // credenciales puestas haría creer que el producto ya timbra. El día que
-    // haya PAC, el adaptador se enchufa aquí y este `throw` desaparece.
+    // la interfaz lo dice así). Con CFDI_PAC_NAME=facturama el adaptador real
+    // se enchufa (y su propia resolución exige además el CP del emisor). Un
+    // PAC DESCONOCIDO sigue reventando el arranque: arrancar en modo manual
+    // con credenciales puestas haría creer que el producto ya timbra.
     {
       provide: CFDI_PROVIDER,
       useFactory: (): CfdiProvider => {
         const configuration = resolveCfdiConfiguration(process.env);
         if (!configuration) return new NullCfdiProvider();
+        if (configuration.pacName.trim().toLowerCase() === 'facturama') {
+          return new FacturamaCfdiProvider(
+            resolveFacturamaConfiguration(configuration, process.env),
+            globalFacturamaHttpClient,
+          );
+        }
         throw new CfdiConfigurationError(
-          `Hay configuración para el PAC "${configuration.pacName}" pero ningún ` +
-            'adaptador de PAC implementado todavía. Vacía las variables ' +
-            'CFDI_PAC_* para seguir con emisión manual, o enchufa el adaptador ' +
-            'real detrás de CFDI_PROVIDER.',
+          `Hay configuración para el PAC "${configuration.pacName}" pero el ` +
+            'único adaptador implementado es "facturama". Usa ' +
+            'CFDI_PAC_NAME=facturama, o vacía las variables CFDI_PAC_* para ' +
+            'seguir con emisión manual.',
         );
       },
     },
@@ -155,6 +170,7 @@ import { SeatEntitlementService } from './seat-entitlement.service';
     // horaria dentro del servicio). OXXO/SPEI no se renuevan solos; sin este
     // aviso el cliente de efectivo descubre el vencimiento cuando ya venció.
     RenewalReminderService,
+    CfdiIssuanceService,
     CommercialOutboxWorker,
     CommercialCatalogBootstrap,
   ],

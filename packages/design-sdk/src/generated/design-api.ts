@@ -553,6 +553,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/commercial/cfdi": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Lista los CFDI de cada cobro de la organizacion (owner/admin).
+         * @description El rastro fiscal, separado del espejo de facturas del proveedor de pagos: que comprobante cubre cada cobro y en que estado esta (timbrado, en emision manual, en el pool de la factura global, o rechazado por el PAC). `issuance` repite el descriptor del proveedor para que la interfaz no prometa timbrado donde no lo hay.
+         */
+        get: operations["listCommercialCfdiReceipts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/commercial/cfdi/{receiptId}/files/{format}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Descarga el XML o PDF de un CFDI timbrado (owner/admin).
+         * @description El archivo lo custodia el PAC y exige la credencial de la cuenta emisora, que jamas viaja al navegador: el producto lo descarga autenticado y lo sirve. Solo comprobantes `issued` tienen archivos.
+         */
+        get: operations["downloadCommercialCfdiFile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/commercial/webhooks/stripe": {
         parameters: {
             query?: never;
@@ -1541,6 +1581,38 @@ export interface components {
             /** Format: uuid */
             organizationId: string;
             items: components["schemas"]["CommercialInvoice"][];
+        };
+        CommercialCfdiReceipt: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * Format: uuid
+             * @description Factura del proveedor que origina el CFDI; null en la global.
+             */
+            invoiceId: string | null;
+            /** @enum {string} */
+            kind: "nominative" | "global";
+            /**
+             * @description `issued`: timbrado (uuid = folio fiscal). `manual`: sin PAC, lo emite el equipo. `pooled`: sin datos fiscales, lo cubre la factura global del mes. `failed`: rechazo del PAC, en reintento.
+             * @enum {string}
+             */
+            status: "pending" | "issued" | "manual" | "pooled" | "failed";
+            /** @description Folio fiscal del SAT cuando esta timbrado. */
+            uuid: string | null;
+            /** Format: int64 */
+            amountCents: number;
+            currency: string;
+            filesAvailable: boolean;
+            /** @description Motivo de `manual`/`failed`. Nunca datos de pago. */
+            detail: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        CommercialCfdiReceiptList: {
+            /** Format: uuid */
+            organizationId: string;
+            issuance: components["schemas"]["CfdiIssuance"];
+            items: components["schemas"]["CommercialCfdiReceipt"][];
         };
         CommercialSubscriptionCancellation: {
             /** Format: uuid */
@@ -3175,6 +3247,63 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             /** @description No hay pasarela configurada o la organizacion no tiene cliente en ella (`billing_portal_unavailable`). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    listCommercialCfdiReceipts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Recibos CFDI de la organizacion activa, recientes primero. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommercialCfdiReceiptList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    downloadCommercialCfdiFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                receiptId: string;
+                format: "pdf" | "xml";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description El comprobante, como adjunto. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/octet-stream": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Aun no esta timbrado, o el proveedor configurado no ofrece descarga (`cfdi_files_unavailable`). */
             409: {
                 headers: {
                     [name: string]: unknown;

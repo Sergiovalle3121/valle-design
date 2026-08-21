@@ -145,19 +145,29 @@ contra los catálogos del SAT, y el comprobante lo emite una persona con esos
 datos: modo `manual`, `available: false`, y la interfaz lo dice con esas
 palabras en vez de prometer una factura automática.
 
-Regla idéntica a la de la pasarela: **o las cuatro, o ninguna**. Y una cuarta
-condición hoy: aunque estén las cuatro, el arranque FALLA, porque todavía no
-hay adaptador de PAC implementado detrás del puerto. Es deliberado — arrancar
-en modo manual con credenciales puestas haría creer que el producto ya timbra,
-y un comprobante fiscal que el cliente cree tener y no tiene es un problema
-legal suyo, no una decepción nuestra.
+Regla idéntica a la de la pasarela: **o las cuatro, o ninguna**. Con
+`CFDI_PAC_NAME=facturama` (2026-08-20) el adaptador real se enchufa y el job
+del outbox timbra cada cobro confirmado: CFDI nominativo con los datos
+fiscales capturados, pool + factura global mensual (RFC `XAXX010101000`,
+día 1, mes anterior) para quien no los dio. Un PAC DESCONOCIDO sigue haciendo
+fallar el arranque — arrancar en modo manual con credenciales puestas haría
+creer que el producto ya timbra.
+
+Estado de verificación del adaptador: contrato HTTP fijado por specs con
+dobles (creación, descarga, autenticación Basic, desglose de IVA); la corrida
+contra el sandbox real de Facturama requiere credenciales del dueño y está
+pendiente.
 
 | Variable                 | Requerida | Comportamiento                                                                    |
 | ------------------------ | --------- | --------------------------------------------------------------------------------- |
-| `CFDI_PAC_NAME`          | Con PAC   | Adaptador de PAC a usar (`facturama`, `bind`, `sw`…). Hoy ninguno está implementado. |
-| `CFDI_PAC_API_KEY`       | Con PAC   | Credencial del PAC. Nunca se registra.                                            |
+| `CFDI_PAC_NAME`          | Con PAC   | Adaptador de PAC a usar. Implementado: `facturama`. Cualquier otro no arranca.    |
+| `CFDI_PAC_API_KEY`       | Con PAC   | Credencial del PAC (`usuario:contraseña` en Facturama, va en Basic auth). Nunca se registra. |
 | `CFDI_ISSUER_RFC`        | Con PAC   | RFC del EMISOR (Valle Design), no el del cliente.                                 |
 | `CFDI_ISSUER_TAX_REGIME` | Con PAC   | Clave de `c_RegimenFiscal` del emisor.                                            |
+| `CFDI_ISSUER_POSTAL_CODE`| Con facturama | CP del emisor (5 dígitos): el `ExpeditionPlace` de cada comprobante. Sin él no arranca. |
+| `CFDI_PAC_BASE_URL`      | No        | Origen HTTPS de la API del PAC; default `https://apisandbox.facturama.mx`. Producción real: `https://api.facturama.mx`. |
+| `CFDI_PAYMENT_FORM`      | No        | Forma de pago SAT del comprobante; default `31` (intermediario de pagos).         |
+| `CFDI_PRODUCT_CODE`      | No        | Clave `c_ClaveProdServ` del concepto; default `81161501`. Confírmala con el contador. |
 
 El producto NO custodia sello, certificado ni contraseña de la FIEL del
 cliente: aquí no se firma nada. Y la validación del RFC es de FORMA y de

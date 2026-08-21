@@ -801,6 +801,59 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiError" }
+  /v1/commercial/cfdi:
+    get:
+      operationId: listCommercialCfdiReceipts
+      tags: [commercial]
+      summary: Lista los CFDI de cada cobro de la organizacion (owner/admin).
+      description: >-
+        El rastro fiscal, separado del espejo de facturas del proveedor de
+        pagos: que comprobante cubre cada cobro y en que estado esta
+        (timbrado, en emision manual, en el pool de la factura global, o
+        rechazado por el PAC). `issuance` repite el descriptor del proveedor
+        para que la interfaz no prometa timbrado donde no lo hay.
+      responses:
+        "200":
+          description: Recibos CFDI de la organizacion activa, recientes primero.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CommercialCfdiReceiptList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/commercial/cfdi/{receiptId}/files/{format}:
+    get:
+      operationId: downloadCommercialCfdiFile
+      tags: [commercial]
+      summary: Descarga el XML o PDF de un CFDI timbrado (owner/admin).
+      description: >-
+        El archivo lo custodia el PAC y exige la credencial de la cuenta
+        emisora, que jamas viaja al navegador: el producto lo descarga
+        autenticado y lo sirve. Solo comprobantes `issued` tienen archivos.
+      parameters:
+        - name: receiptId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+        - name: format
+          in: path
+          required: true
+          schema: { type: string, enum: [pdf, xml] }
+      responses:
+        "200":
+          description: El comprobante, como adjunto.
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: >-
+            Aun no esta timbrado, o el proveedor configurado no ofrece
+            descarga (`cfdi_files_unavailable`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
   /v1/commercial/webhooks/stripe:
     post:
       operationId: receiveStripeWebhook
@@ -2976,6 +3029,48 @@ components:
           type: array
           maxItems: 200
           items: { $ref: "#/components/schemas/CommercialInvoice" }
+    CommercialCfdiReceipt:
+      type: object
+      additionalProperties: false
+      required:
+        [id, invoiceId, kind, status, uuid, amountCents, currency,
+         filesAvailable, detail, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        invoiceId:
+          type: [string, "null"]
+          format: uuid
+          description: Factura del proveedor que origina el CFDI; null en la global.
+        kind: { type: string, enum: [nominative, global] }
+        status:
+          type: string
+          enum: [pending, issued, manual, pooled, failed]
+          description: >-
+            `issued`: timbrado (uuid = folio fiscal). `manual`: sin PAC, lo
+            emite el equipo. `pooled`: sin datos fiscales, lo cubre la
+            factura global del mes. `failed`: rechazo del PAC, en reintento.
+        uuid:
+          type: [string, "null"]
+          maxLength: 40
+          description: Folio fiscal del SAT cuando esta timbrado.
+        amountCents: { type: integer, format: int64 }
+        currency: { type: string, minLength: 3, maxLength: 3 }
+        filesAvailable: { type: boolean }
+        detail:
+          type: [string, "null"]
+          description: Motivo de `manual`/`failed`. Nunca datos de pago.
+        createdAt: { type: string, format: date-time }
+    CommercialCfdiReceiptList:
+      type: object
+      additionalProperties: false
+      required: [organizationId, issuance, items]
+      properties:
+        organizationId: { type: string, format: uuid }
+        issuance: { $ref: "#/components/schemas/CfdiIssuance" }
+        items:
+          type: array
+          maxItems: 200
+          items: { $ref: "#/components/schemas/CommercialCfdiReceipt" }
     CommercialSubscriptionCancellation:
       type: object
       additionalProperties: false

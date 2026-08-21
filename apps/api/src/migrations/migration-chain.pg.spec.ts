@@ -29,6 +29,7 @@ import { ArchitecturalBlockLibrarySeed20260817090000 } from './20260817090000-Ar
 import { MexicanFiscalAndSeats20260817100000 } from './20260817100000-MexicanFiscalAndSeats';
 import { WebhookReceipts20260820100000 } from './20260820100000-WebhookReceipts';
 import { TenantIntegrityRls20260820120000 } from './20260820120000-TenantIntegrityRls';
+import { CfdiReceipts20260820140000 } from './20260820140000-CfdiReceipts';
 
 const LEGACY_MIGRATIONS: Array<new () => MigrationInterface> = [
   AddCadBlocks20260706180000,
@@ -62,6 +63,7 @@ const ALL_MIGRATIONS: Array<new () => MigrationInterface> = [
   MexicanFiscalAndSeats20260817100000,
   WebhookReceipts20260820100000,
   TenantIntegrityRls20260820120000,
+  CfdiReceipts20260820140000,
 ];
 
 /**

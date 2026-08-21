@@ -10,6 +10,7 @@ import {
   CommercialOutboxDispatcher,
   type CommercialOutboxDispatchSummary,
 } from './outbox-dispatcher.service';
+import { CfdiIssuanceService } from './cfdi-issuance.service';
 import { RenewalReminderService } from './renewal-reminder.service';
 import { WebhookCommercialOutboxTransport } from './webhook-outbox.transport';
 
@@ -33,6 +34,8 @@ export class CommercialOutboxWorker
     // wirings parciales). Con él, cada tick pasa por la compuerta horaria.
     @Optional()
     private readonly renewalReminders?: RenewalReminderService,
+    @Optional()
+    private readonly cfdiIssuance?: CfdiIssuanceService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -91,6 +94,14 @@ export class CommercialOutboxWorker
     } catch (error) {
       const kind = error instanceof Error ? error.name : 'RenewalReminderError';
       this.logger.error(`Renewal reminder pass failed (${kind}).`);
+    }
+    // Emisión de CFDI, con la misma independencia: un PAC caído no toca el
+    // correo ni los recordatorios, y su compuerta horaria vive dentro.
+    try {
+      await this.cfdiIssuance?.maybeRun();
+    } catch (error) {
+      const kind = error instanceof Error ? error.name : 'CfdiIssuanceError';
+      this.logger.error(`CFDI issuance pass failed (${kind}).`);
     }
   }
 

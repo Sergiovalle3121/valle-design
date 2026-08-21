@@ -46,6 +46,8 @@ export type CommercialCheckoutSessionCreate =
 export type CommercialCheckoutSession = Schemas["CommercialCheckoutSession"];
 export type CommercialInvoice = Schemas["CommercialInvoice"];
 export type CommercialInvoiceList = Schemas["CommercialInvoiceList"];
+export type CommercialCfdiReceipt = Schemas["CommercialCfdiReceipt"];
+export type CommercialCfdiReceiptList = Schemas["CommercialCfdiReceiptList"];
 export type CommercialSubscriptionCancellation =
   Schemas["CommercialSubscriptionCancellation"];
 export type CommercialPendingPayment = Schemas["CommercialPendingPayment"];
@@ -356,6 +358,17 @@ export function createDesignClient(options: DesignClientOptions) {
       /** Historial de facturas de la organización activa (owner/admin). */
       invoices: () =>
         call<CommercialInvoiceList>("GET", resource("/v1/commercial/invoices")),
+      /** Rastro fiscal: qué CFDI cubre cada cobro (owner/admin). */
+      cfdiReceipts: () =>
+        call<CommercialCfdiReceiptList>("GET", resource("/v1/commercial/cfdi")),
+      /**
+       * URL de descarga del XML/PDF de un CFDI timbrado. La descarga es una
+       * navegación con cookie de sesión (adjunto binario), no un fetch JSON.
+       */
+      cfdiFileUrl: (receiptId: string, format: "pdf" | "xml") =>
+        resource(
+          `/v1/commercial/cfdi/${encodeURIComponent(receiptId)}/files/${format}`,
+        ),
       /**
        * Baja a fin de período (owner). No corta el acceso: lo comprado sigue
        * vigente hasta `currentPeriodEnd`.

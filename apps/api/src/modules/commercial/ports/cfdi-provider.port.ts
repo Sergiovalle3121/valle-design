@@ -61,6 +61,8 @@ export type CfdiIssuanceResult =
   | {
       kind: 'issued';
       uuid: string;
+      /** Referencia del comprobante EN EL PAC (para descargar XML/PDF). */
+      providerRef?: string;
       xmlUrl: string | null;
       pdfUrl: string | null;
     }
@@ -70,6 +72,15 @@ export type CfdiIssuanceResult =
 export interface CfdiProvider {
   descriptor(): CfdiProviderDescriptor;
   issue(request: CfdiIssuanceRequest): Promise<CfdiIssuanceResult>;
+  /**
+   * Descarga autenticada del comprobante timbrado. Opcional: sólo los PAC
+   * que custodian los archivos la ofrecen; sin ella, el producto responde
+   * que los archivos no están disponibles todavía.
+   */
+  download?(
+    providerRef: string,
+    format: 'pdf' | 'xml',
+  ): Promise<{ contentBase64: string; contentType: string }>;
 }
 
 export const CFDI_PROVIDER = Symbol('CFDI_PROVIDER');

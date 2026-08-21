@@ -150,6 +150,48 @@ export function invoiceRow(invoice: Invoice): InvoiceRow {
   };
 }
 
+export type CfdiReceipt = Schemas["CommercialCfdiReceipt"];
+
+export function cfdiStatusLabel(status: CfdiReceipt["status"]): string {
+  switch (status) {
+    case "pending":
+      return "En emisión";
+    case "issued":
+      return "Timbrado";
+    case "manual":
+      return "En emisión manual";
+    case "pooled":
+      return "Cubierto por factura global";
+    case "failed":
+      return "Rechazado por el PAC (en reintento)";
+  }
+}
+
+export interface CfdiRow {
+  id: string;
+  /** Folio fiscal cuando está timbrado; si no, el estado manda. */
+  label: string;
+  amount: string;
+  status: string;
+  filesAvailable: boolean;
+  createdAt: string | null;
+}
+
+/** Fila de CFDI lista para pintar. Los archivos se descargan autenticados. */
+export function cfdiRow(receipt: CfdiReceipt): CfdiRow {
+  return {
+    id: receipt.id,
+    label:
+      receipt.kind === "global"
+        ? "Factura global (público en general)"
+        : (receipt.uuid ?? "CFDI del cobro"),
+    amount: formatMoney(receipt.amountCents, receipt.currency),
+    status: cfdiStatusLabel(receipt.status),
+    filesAvailable: receipt.filesAvailable,
+    createdAt: formatDate(receipt.createdAt),
+  };
+}
+
 function safeDocumentUrl(value: string | null): string | null {
   if (!value) return null;
   try {

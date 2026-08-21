@@ -6,9 +6,11 @@ import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import {
   cancellationWarning,
+  cfdiRow,
   invoiceRow,
   renewalNote,
   subscriptionStatusLabel,
+  type CfdiRow,
   type InvoiceRow,
   type Subscription,
 } from "@/lib/commercial/billing";
@@ -72,6 +74,7 @@ export function BillingPortal() {
   const [subscription, setSubscription] = useState<Subscription | null>(null);
   const [invoices, setInvoices] = useState<InvoiceRow[]>([]);
   const [invoicesDenied, setInvoicesDenied] = useState(false);
+  const [cfdi, setCfdi] = useState<CfdiRow[]>([]);
   const [cancel, setCancel] = useState<CancelState>({ status: "idle" });
   const [pendingPayment, setPendingPayment] = useState<PendingPayment | null>(
     null,
@@ -103,6 +106,11 @@ export function BillingPortal() {
           const history = await designClient.commercial.invoices();
           if (cancelled) return;
           setInvoices(history.items.map(invoiceRow));
+          // El rastro fiscal comparte las reglas de acceso del historial: si
+          // las facturas se pueden ver, los CFDI también.
+          const receipts = await designClient.commercial.cfdiReceipts();
+          if (cancelled) return;
+          setCfdi(receipts.items.map(cfdiRow));
           setInvoicesDenied(false);
         } catch (error) {
           if (cancelled) return;
@@ -397,6 +405,63 @@ export function BillingPortal() {
           </ul>
         )}
       </section>
+
+      {!invoicesDenied && (
+        <section aria-labelledby="cfdi" className="mt-10">
+          <h2 id="cfdi" className="text-xl font-semibold">
+            CFDI
+          </h2>
+          {cfdi.length === 0 ? (
+            <p className="mt-4 text-sm text-gray-600 dark:text-gray-300">
+              Todavía no hay comprobantes fiscales. Aparecen aquí en cuanto se
+              confirma un cobro.
+            </p>
+          ) : (
+            <ul className="mt-4 space-y-3">
+              {cfdi.map((receipt) => (
+                <li
+                  key={receipt.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-black/10 p-4 dark:border-white/10"
+                >
+                  <span>
+                    <strong className="block">{receipt.label}</strong>
+                    <span className="text-sm text-gray-600 dark:text-gray-300">
+                      {receipt.amount} · {receipt.status}
+                      {receipt.createdAt ? ` · ${receipt.createdAt}` : ""}
+                    </span>
+                  </span>
+                  {receipt.filesAvailable ? (
+                    <span className="flex gap-4">
+                      <a
+                        className="underline underline-offset-4"
+                        href={designClient.commercial.cfdiFileUrl(
+                          receipt.id,
+                          "pdf",
+                        )}
+                      >
+                        PDF
+                      </a>
+                      <a
+                        className="underline underline-offset-4"
+                        href={designClient.commercial.cfdiFileUrl(
+                          receipt.id,
+                          "xml",
+                        )}
+                      >
+                        XML
+                      </a>
+                    </span>
+                  ) : (
+                    <span className="text-sm text-gray-500">
+                      Archivos aún no disponibles
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       {subscription && subscription.status !== "cancelled" && (
         <section aria-labelledby="baja" className="mt-10">

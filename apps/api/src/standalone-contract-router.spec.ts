@@ -10,6 +10,7 @@ import { BillingWebhookController } from './modules/commercial/controllers/billi
 import { CommercialController } from './modules/commercial/controllers/commercial.controller';
 import { PublicCatalogController } from './modules/commercial/controllers/public-catalog.controller';
 import { TaxProfileController } from './modules/commercial/controllers/tax-profile.controller';
+import { CfdiController } from './modules/commercial/controllers/cfdi.controller';
 import {
   Invoice,
   PlanCatalog,
@@ -19,6 +20,7 @@ import {
   SubscriptionUpgradeIntent,
   TaxProfile,
 } from './modules/commercial/entities/commercial.entities';
+import { CfdiReceipt } from './modules/commercial/entities/cfdi-receipt.entity';
 import {
   CAD_EVENT_PUBLISHER,
   EMAIL_SERVICE,
@@ -70,6 +72,7 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
       SubscriptionUpgradeIntent,
       Invoice,
       TaxProfile,
+      CfdiReceipt,
     ];
     const moduleRef = await Test.createTestingModule({
       controllers: [
@@ -80,6 +83,7 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
         BillingController,
         BillingWebhookController,
         TaxProfileController,
+        CfdiController,
       ],
       providers: [
         { provide: IdentityService, useValue: {} },
@@ -151,8 +155,9 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
     // baja y el webhook público de la pasarela) + el catálogo público que
     // alimenta la página de precios sin exigir sesión + las 4 de la ola
     // mexicana: los catálogos del SAT, leer y guardar los datos fiscales del
-    // CFDI 4.0, y el portal del proveedor para arreglar el medio de pago.
-    expect(expected).toHaveLength(34);
+    // CFDI 4.0, y el portal del proveedor para arreglar el medio de pago
+    // + las 2 del rastro fiscal (listado de CFDI y descarga de archivos).
+    expect(expected).toHaveLength(36);
     expect([...actual].sort()).toEqual(expected.sort());
   });
 });
