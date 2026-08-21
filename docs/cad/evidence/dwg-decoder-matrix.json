@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-decoder-matrix-v1",
   "generadoPor": "node scripts/dwg/dwg-evidence.mjs",
-  "generadoEn": "2026-08-19T17:07:04.341Z",
+  "generadoEn": "2026-08-21T06:12:24.047Z",
   "environment": {
     "node": "v22.18.0",
     "platform": "win32",
@@ -15,27 +15,32 @@
     "totalMemoryBytes": 7896625152,
     "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos lógicos), 7.9 GB de RAM, Windows_NT 10.0.26200"
   },
-  "declaracion": "CERO BUNDLES ADMITIDOS, CERO CAPACIDADES PROMOVIDAS. No hay decodificador DWG en el producto, no hay importación DWG y no se afirma compatibilidad con ningún archivo ni con ningún software de terceros. Este artefacto existe para que la ausencia sea MEDIBLE y para que la evidencia se genere sola el día que haya corpus con derechos.",
+  "declaracion": "Capacidades promovidas con corpus independiente admitido; ver `capacidades` y `entidades` para el alcance exacto.",
   "reglaDePromocion": "Una capacidad se promueve sólo si el laboratorio la declara `supported` Y hay ≥1 bundle admitido Y ≥2 validaciones independientes autorizadas. El reader y el writer de Valle nunca son el único oráculo (CORPUS_POLICY.md).",
   "limiteDeLaEvidencia": "Sin corpus independiente admitido: lo que el laboratorio decodifica está verificado sólo contra fixtures que genera él mismo, y eso prueba consistencia interna, no compatibilidad con ningún archivo ni con ningún software ajeno.",
   "disponibilidadEnProducto": false,
   "corpus": {
-    "estado": "unavailable",
-    "origen": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance.git",
-    "commitFijado": "48eaab09c4c0eb93d5149852a979e274b1aaa1d0",
-    "indiceSha256": null,
-    "bundlesAdmitidos": 0,
-    "validacionesIndependientes": 0,
-    "oraculosIndependientes": 0,
-    "fixtures": 0,
-    "versionesCubiertas": [],
-    "motivo": "sin VALLE_DWG_CORPUS_MIRROR y sin VALLE_DWG_CORPUS_TOKEN: no se descargó nada y no se afirma nada"
+    "estado": "verified",
+    "origen": "D:\\dev\\valle-design-dwg-conformance",
+    "commitFijado": "ca1072cd6ce62bd1831c49220d486219b045d262",
+    "indiceSha256": "2c63373bf157e721d46ce4c4659f89f6d49d464d4f8477ef941fea7edd746e05",
+    "bundlesAdmitidos": 6,
+    "validacionesIndependientes": 12,
+    "oraculosIndependientes": 59,
+    "fixtures": 47,
+    "versionesCubiertas": [
+      "AC1015",
+      "AC1018",
+      "AC1024",
+      "AC1027",
+      "AC1032"
+    ]
   },
   "resumen": {
-    "bundlesAdmitidos": 0,
-    "validacionesIndependientes": 0,
+    "bundlesAdmitidos": 6,
+    "validacionesIndependientes": 12,
     "capacidadesEvaluadas": 8,
-    "capacidadesPromovidas": 0,
+    "capacidadesPromovidas": 2,
     "tiposDecodificadosEnLaboratorio": 13,
     "tiposVerificadosIndependientemente": 0,
     "geometriasNeutrales": 7
@@ -44,29 +49,21 @@
     {
       "id": "signatureDetection",
       "estadoLaboratorio": "supported",
-      "promovida": false,
-      "bloqueos": [
-        "cero bundles admitidos en el corpus independiente",
-        "faltan dos validaciones independientes autorizadas"
-      ]
+      "promovida": true,
+      "bloqueos": []
     },
     {
       "id": "boundedBinaryPrimitives",
       "estadoLaboratorio": "supported",
-      "promovida": false,
-      "bloqueos": [
-        "cero bundles admitidos en el corpus independiente",
-        "faltan dos validaciones independientes autorizadas"
-      ]
+      "promovida": true,
+      "bloqueos": []
     },
     {
       "id": "ac1015Envelope",
       "estadoLaboratorio": "experimental-lab",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"experimental-lab\"",
-        "cero bundles admitidos en el corpus independiente",
-        "faltan dos validaciones independientes autorizadas"
+        "el laboratorio la declara \"experimental-lab\""
       ]
     },
     {
@@ -74,9 +71,7 @@
       "estadoLaboratorio": "experimental-lab-partial",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"experimental-lab-partial\"",
-        "cero bundles admitidos en el corpus independiente",
-        "faltan dos validaciones independientes autorizadas"
+        "el laboratorio la declara \"experimental-lab-partial\""
       ]
     },
     {
@@ -84,9 +79,7 @@
       "estadoLaboratorio": "unsupported",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"unsupported\"",
-        "cero bundles admitidos en el corpus independiente",
-        "faltan dos validaciones independientes autorizadas"
+        "el laboratorio la declara \"unsupported\""
       ]
     },
     {
@@ -94,9 +87,7 @@
       "estadoLaboratorio": "unsupported",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"unsupported\"",
-        "cero bundles admitidos en el corpus independiente",
-        "faltan dos validaciones independientes autorizadas"
+        "el laboratorio la declara \"unsupported\""
       ]
     },
     {
@@ -104,9 +95,7 @@
       "estadoLaboratorio": "experimental-lab-writer",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"experimental-lab-writer\"",
-        "cero bundles admitidos en el corpus independiente",
-        "faltan dos validaciones independientes autorizadas"
+        "el laboratorio la declara \"experimental-lab-writer\""
       ]
     },
     {
@@ -114,9 +103,7 @@
       "estadoLaboratorio": "experimental-lab-own-corpus",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"experimental-lab-own-corpus\"",
-        "cero bundles admitidos en el corpus independiente",
-        "faltan dos validaciones independientes autorizadas"
+        "el laboratorio la declara \"experimental-lab-own-corpus\""
       ]
     }
   ],
@@ -127,7 +114,7 @@
       "modulo": "entities-core.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 6
     },
     {
       "tipo": "BLOCK",
@@ -135,7 +122,7 @@
       "modulo": "table-block.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 6
     },
     {
       "tipo": "ENDBLK",
@@ -143,7 +130,7 @@
       "modulo": "table-block.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 6
     },
     {
       "tipo": "INSERT",
@@ -151,7 +138,7 @@
       "modulo": "entity-insert.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 6
     },
     {
       "tipo": "ARC",
@@ -159,7 +146,7 @@
       "modulo": "entities-core.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 6
     },
     {
       "tipo": "CIRCLE",
@@ -167,7 +154,7 @@
       "modulo": "entities-core.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 6
     },
     {
       "tipo": "LINE",
@@ -175,7 +162,7 @@
       "modulo": "entities-core.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 6
     },
     {
       "tipo": "POINT",
@@ -183,7 +170,7 @@
       "modulo": "entities-core.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 6
     },
     {
       "tipo": "BLOCK_CONTROL",
@@ -191,7 +178,7 @@
       "modulo": "table-block.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 6
     },
     {
       "tipo": "BLOCK_HEADER",
@@ -199,7 +186,7 @@
       "modulo": "table-block.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 6
     },
     {
       "tipo": "LAYER_CONTROL",
@@ -207,7 +194,7 @@
       "modulo": "table-layer.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 6
     },
     {
       "tipo": "LAYER",
@@ -215,7 +202,7 @@
       "modulo": "table-layer.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 6
     },
     {
       "tipo": "LWPOLYLINE",
@@ -223,7 +210,7 @@
       "modulo": "entities-poly.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 0
+      "bundlesQueLoCubren": 6
     }
   ],
   "geometriasNeutrales": [

@@ -37,6 +37,31 @@ function assertTypedFailure(result: DwgProbeResult, inputLength: number): void {
   assert.ok(Array.isArray(result.lossManifest));
 }
 
+/**
+ * Una entrada que empieza con la firma AC1015 completa hace que el probe
+ * tenga éxito desde que el decoder de laboratorio existe; los invariantes
+ * duros (presupuesto acotado, metadata coherente) se mantienen.
+ */
+function startsWithLabDecodedSignature(bytes: Uint8Array): boolean {
+  const signature = ascii("AC1015");
+  if (bytes.byteLength < signature.byteLength) return false;
+  return signature.every((byte, index) => bytes[index] === byte);
+}
+
+function assertTypedResult(result: DwgProbeResult, bytes: Uint8Array): void {
+  if (startsWithLabDecodedSignature(bytes)) {
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.probe.signature, "AC1015");
+    assert.equal(result.probe.byteLength, bytes.byteLength);
+    assert.equal(Number.isSafeInteger(result.workUnits), true);
+    assert.ok(result.workUnits >= 0);
+    assert.ok(result.workUnits <= bytes.byteLength * 2 + 1);
+    return;
+  }
+  assertTypedFailure(result, bytes.byteLength);
+}
+
 function probeWithoutThrow(bytes: Uint8Array): DwgProbeResult {
   let result: DwgProbeResult | undefined;
   assert.doesNotThrow(() => {
@@ -85,11 +110,8 @@ test("a byte-offset view is bounded to its own region", () => {
   const backing = new Uint8Array(20).fill(0xff);
   backing.set(ascii("AC1015"), 7);
   const result = probeDwg(new Uint8Array(backing.buffer, 7, 6));
-  assert.equal(result.ok, false);
-  if (!result.ok) {
-    assert.equal(result.error.code, "DWG_VERSION_DECODER_UNSUPPORTED");
-    assert.notEqual(result.probe, null);
-  }
+  assert.equal(result.ok, true);
+  if (result.ok) assert.equal(result.probe.byteLength, 6);
 });
 
 test("a genuine cross-realm Uint8Array is accepted without weakening brand checks", () => {
@@ -100,9 +122,8 @@ test("a genuine cross-realm Uint8Array is accepted without weakening brand check
   ) as Uint8Array;
   assert.equal(crossRealm instanceof Uint8Array, false);
   const result = probeDwg(crossRealm);
-  assert.equal(result.ok, false);
-  if (!result.ok)
-    assert.equal(result.error.code, "DWG_VERSION_DECODER_UNSUPPORTED");
+  assert.equal(result.ok, true);
+  if (result.ok) assert.equal(result.probe.signature, "AC1015");
 });
 
 test("a detached Uint8Array is rejected as typed input failure", () => {
@@ -119,13 +140,16 @@ test("a detached Uint8Array is rejected as typed input failure", () => {
 });
 
 for (const signature of KNOWN_SIGNATURES) {
-  test(`known signature ${signature} remains decoder-unsupported`, () => {
+  const decoded = signature === "AC1015";
+  test(`known signature ${signature} declares its real decoder status`, () => {
     const result = probeDwg(ascii(signature));
-    assert.equal(result.ok, false);
-    if (!result.ok) {
+    assert.equal(result.ok, decoded);
+    assert.notEqual(result.probe, null);
+    assert.equal(result.workUnits, 13);
+    if (result.ok) {
+      assert.equal(result.probe.decoderStatus, "experimental-lab");
+    } else {
       assert.equal(result.error.code, "DWG_VERSION_DECODER_UNSUPPORTED");
-      assert.notEqual(result.probe, null);
-      assert.equal(result.workUnits, 13);
     }
   });
 }
@@ -177,7 +201,7 @@ for (const vector of truncationVectors) {
     test(`exhaustive truncation ${JSON.stringify(vector)} at byte ${cut}`, () => {
       const truncated = bytes.slice(0, cut);
       const result = probeWithoutThrow(truncated);
-      assertTypedFailure(result, truncated.byteLength);
+      assertTypedResult(result, truncated);
       assert.equal(JSON.stringify(result), JSON.stringify(probeDwg(truncated)));
     });
   }
@@ -211,7 +235,7 @@ for (const [index, bytes] of generatedCases.entries()) {
   test(`generated hostile subcase ${index + 1}/160 is typed and deterministic`, () => {
     const first = probeWithoutThrow(bytes);
     const second = probeWithoutThrow(bytes.slice());
-    assertTypedFailure(first, bytes.byteLength);
+    assertTypedResult(first, bytes);
     assert.deepEqual(second, first);
   });
 }
@@ -221,9 +245,7 @@ test("file-size limit accepts the exact boundary and rejects one byte above it",
   const atLimit = probeDwg(exact, {
     limits: { maxFileBytes: exact.byteLength },
   });
-  assert.equal(atLimit.ok, false);
-  if (!atLimit.ok)
-    assert.equal(atLimit.error.code, "DWG_VERSION_DECODER_UNSUPPORTED");
+  assert.equal(atLimit.ok, true);
 
   const above = new Uint8Array(exact.byteLength + 1);
   above.set(exact);

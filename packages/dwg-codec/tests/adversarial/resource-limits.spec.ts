@@ -76,11 +76,8 @@ test("work budget accepts exact work and fails one unit below without a partial 
   const exact = probeDwg(bytes, {
     limits: { maxWorkUnits: 13, workPollInterval: 1 },
   });
-  assert.equal(exact.ok, false);
-  if (!exact.ok) {
-    assert.equal(exact.error.code, "DWG_VERSION_DECODER_UNSUPPORTED");
-    assert.equal(exact.workUnits, 13);
-  }
+  assert.equal(exact.ok, true);
+  assert.equal(exact.workUnits, 13);
 
   const exhausted = probeDwg(bytes, {
     limits: { maxWorkUnits: 12, workPollInterval: 1 },

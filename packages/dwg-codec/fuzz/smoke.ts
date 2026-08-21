@@ -113,15 +113,17 @@ function runPass(): PassEvidence {
         `probeDwg threw for deterministic fuzz case ${index}: ${detail}`,
       );
     }
-    if (result.ok)
-      throw new Error(`DWG-0 fuzz case ${index} unexpectedly decoded a file`);
+    // Un probe con éxito sólo afirma firma reconocida con decoder de
+    // laboratorio; es un resultado legítimo del histograma desde que AC1015
+    // decodifica. Los invariantes duros siguen: sin throw, presupuesto
+    // acotado y cero DWG_INTERNAL_ERROR.
     if (
       !Number.isSafeInteger(result.workUnits) ||
       result.workUnits > DEFAULT_DWG_LIMITS.maxWorkUnits
     ) {
       throw new Error(`fuzz case ${index} exceeded the immutable work budget`);
     }
-    if (result.error.code === "DWG_INTERNAL_ERROR") {
+    if (!result.ok && result.error.code === "DWG_INTERNAL_ERROR") {
       throw new Error(`fuzz case ${index} escaped through DWG_INTERNAL_ERROR`);
     }
     const serialized = stableJson(result);

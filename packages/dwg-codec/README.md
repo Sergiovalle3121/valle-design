@@ -12,32 +12,29 @@ del producto. La autorización del propietario no es un dictamen jurídico,
 licencia sobre DWG, certificación ni permiso para consultar material
 restringido.
 
-## Estado (corte DWG-1, fases A–D4)
+## Estado (corte 2026-08-21, campaña DWG)
 
 **La fuente única de claims es `CAPABILITIES.md`.** Este resumen existe para
-orientar; ante cualquier discrepancia, gana la matriz. La versión anterior de
-este bloque decía «no existe object database ni writer» cuando las fases B–D4
-ya los habían construido: un README que niega lo que el laboratorio ya hizo es
-tan engañoso como uno que promete lo que no hay.
+orientar; ante cualquier discrepancia, gana la matriz.
 
 - El package es privado, `UNLICENSED`, estricto y no tiene dependencias runtime.
-- **La superficie pública sigue siendo sólo `probeDwg(Uint8Array, options?)`**
-  (más límites, registro de versiones y tipos). Reconoce nueve firmas `AC10xx`
-  y distingue truncación, firma inválida, versión desconocida y versión
-  reconocida; toda firma reconocida sigue devolviendo
-  `DWG_VERSION_DECODER_UNSUPPORTED` porque ningún decoder está promocionado.
-- **En el laboratorio, NO exportados por `src/index.ts`:** un lector AC1015
-  (`src/reader/ac1015-database-reader.ts`, `readAc1015Database`) que ensambla
-  una base neutral PARCIAL —LINE, POINT, CIRCLE, ARC, TEXT, LWPOLYLINE, INSERT
-  con referencia a bloque resuelta, BLOCK/ENDBLK y las tablas LAYER y
-  BLOCK_RECORD; todo lo demás se enumera `unsupported` con handle y tipo— y un
-  writer mínimo (`src/writer/ac1015-container-writer.ts`,
-  `writeAc1015Container`) que emite contenedores AC1015 que el lector propio
-  recupera exactos.
-- **El round-trip es de consistencia interna**: corpus generado por el mismo
-  laboratorio. No demuestra compatibilidad con archivos DWG reales ni con
-  software de terceros, y no se afirma ninguna. La validación contra corpus
-  first-party con derechos (fase de corpus) está pendiente.
+- **Superficie pública** (`src/index.ts`): tres funciones con nombres estables.
+  - `probeDwg(Uint8Array, options?)` valida la firma y devuelve un union con
+    variante de ÉXITO: `ok:true` cuando la versión tiene decodificador de
+    laboratorio (hoy AC1015, `decoderStatus:"experimental-lab"` en
+    `DWG_VERSION_REGISTRY`); las demás versiones reconocidas siguen fallando
+    con `DWG_VERSION_DECODER_UNSUPPORTED`.
+  - `readDwg(Uint8Array, limits?)` lee un DWG AC1015 completo a la base
+    neutral (`DwgDatabase`): capas, bloques con contenido, entidades de model
+    space, tipos no soportados ENUMERADOS y diagnósticos. Falla cerrado con
+    errores tipados.
+  - `writeDwg(options?)` emite un contenedor AC1015 (writer de laboratorio con
+    placeholders confesos; ver CAPABILITIES para sus límites).
+- **Evidencia independiente**: los DWG AC1015 reales del corpus admitido del
+  repo hermano (`valle-design-dwg-conformance`, producidos por ODA File
+  Converter 27.1 desde DXF propios) abren y su geometría se compara campo a
+  campo contra los oráculos DXF (`scripts/dwg/validate-corpus.mjs`, evidencia
+  en `docs/cad/evidence/dwg-corpus-validation.json`).
 - **Nada de esto está en el producto** (`productionAvailable: false`): ningún
   provider, endpoint, upload, feature flag ni mapping a `CadDocument`. El
   detector web conserva `nativeSupport:false`; un gate exige paridad exacta de

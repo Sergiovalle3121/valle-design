@@ -14,10 +14,17 @@ export type DwgVersionCode = (typeof DWG_VERSION_CODES)[number];
 export type DwgVersionLabel =
   "R12" | "R13" | "R14" | "2000" | "2004" | "2007" | "2010" | "2013" | "2018";
 
+/**
+ * Estado REAL del decodificador de cada versión. "experimental-lab" declara
+ * que el laboratorio decodifica esa versión con evidencia de corpus propio
+ * (CAPABILITIES.md manda); no declara disponibilidad en el producto.
+ */
+export type DwgDecoderStatus = "unsupported" | "experimental-lab";
+
 export interface DwgVersion {
   readonly code: DwgVersionCode;
   readonly label: DwgVersionLabel;
-  readonly decoderStatus: "unsupported";
+  readonly decoderStatus: DwgDecoderStatus;
 }
 
 const AC1009: DwgVersion = Object.freeze({
@@ -38,7 +45,7 @@ const AC1014: DwgVersion = Object.freeze({
 const AC1015: DwgVersion = Object.freeze({
   code: "AC1015",
   label: "2000",
-  decoderStatus: "unsupported",
+  decoderStatus: "experimental-lab",
 });
 const AC1018: DwgVersion = Object.freeze({
   code: "AC1018",

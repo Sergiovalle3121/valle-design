@@ -62,27 +62,38 @@ export interface FixtureManifest {
 const ascii = (value: string): Uint8Array =>
   Uint8Array.from([...value].map((character) => character.charCodeAt(0)));
 
+/**
+ * Versiones cuyo decoder de laboratorio existe: su probe devuelve éxito.
+ * Debe reflejar el `decoderStatus` real de `DWG_VERSION_REGISTRY`.
+ */
+const LAB_DECODED_SIGNATURES: readonly string[] = ["AC1015"];
+
 const signatureSpec = (
   category: "recognized" | "unknown",
   signature: string,
 ): SyntheticFixtureSpec => {
   const recognized = category === "recognized";
+  const decoded = recognized && LAB_DECODED_SIGNATURES.includes(signature);
   return {
     id: `synthetic.${category}.${signature.toLowerCase()}`,
     path: `synthetic/${category}/${signature.toLowerCase()}.dwg`,
     bytes: ascii(signature),
     declaredVersion: signature,
     purpose: [
-      recognized
-        ? "Exercise a known first-party signature without claiming a decoder"
-        : "Exercise a syntactically valid but unknown AC10xx signature",
+      decoded
+        ? "Exercise a known first-party signature whose lab decoder makes the probe succeed"
+        : recognized
+          ? "Exercise a known first-party signature without claiming a decoder"
+          : "Exercise a syntactically valid but unknown AC10xx signature",
     ],
     expectations: {
       signature: recognized ? "recognized" : "unknown-version",
-      parseOutcome: "unsupported",
-      errorCode: recognized
-        ? "DWG_VERSION_DECODER_UNSUPPORTED"
-        : "DWG_VERSION_UNKNOWN",
+      parseOutcome: decoded ? "ok" : "unsupported",
+      errorCode: decoded
+        ? null
+        : recognized
+          ? "DWG_VERSION_DECODER_UNSUPPORTED"
+          : "DWG_VERSION_UNKNOWN",
       maxWorkUnits: 32,
     },
   };
@@ -174,7 +185,7 @@ export function createSyntheticCorpus(): readonly SyntheticFixtureSpec[] {
     bytes: Uint8Array.of(...ascii("AC1015"), 0x00, 0xff, 0x7f),
     purpose: [
       "Verify that signature probing is bounded to the six-byte prefix",
-      "Keep arbitrary trailing bytes unsupported rather than treating them as a decoded header",
+      "Keep arbitrary trailing bytes opaque to the probe; validating the container is readDwg's job",
     ],
   };
   const unknown = ["AC1000", "AC1099"].map((signature) =>

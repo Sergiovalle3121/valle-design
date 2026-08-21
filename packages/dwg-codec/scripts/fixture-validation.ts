@@ -51,19 +51,24 @@ function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
 function assertExpectedOutcome(entry: FixtureManifestEntry): void {
   const signature = entry.expectations.signature;
   const outcome = entry.expectations.parseOutcome;
-  if (outcome === "ok") {
-    throw new Error(
-      `${entry.id}: no DWG-0 synthetic fixture may claim parse success`,
-    );
-  }
+  // "ok" sólo puede declararlo una firma reconocida cuya versión tenga
+  // decodificador de laboratorio (hoy AC1015): el probe valida la firma y
+  // afirma el estado real del registro, nada más.
   if (
-    ((signature === "recognized" || signature === "unknown-version") &&
-      outcome !== "unsupported") ||
+    (signature === "recognized" &&
+      outcome !== "unsupported" &&
+      outcome !== "ok") ||
+    (signature === "unknown-version" && outcome !== "unsupported") ||
     ((signature === "invalid" || signature === "truncated") &&
       outcome !== "error")
   ) {
     throw new Error(
-      `${entry.id}: signature and parse outcome contradict DWG-0 scope`,
+      `${entry.id}: signature and parse outcome contradict the probe scope`,
+    );
+  }
+  if (outcome === "ok" && entry.expectations.errorCode !== null) {
+    throw new Error(
+      `${entry.id}: a fixture expecting probe success cannot declare an error code`,
     );
   }
 }
@@ -73,12 +78,13 @@ function assertProbeMatchesManifest(
   bytes: Uint8Array,
 ): void {
   const result = probeDwg(bytes);
-  if (result.error.code === "DWG_INTERNAL_ERROR") {
+  if (!result.ok && result.error.code === "DWG_INTERNAL_ERROR") {
     throw new Error(`${entry.id}: probe escaped as DWG_INTERNAL_ERROR`);
   }
-  if (result.error.code !== entry.expectations.errorCode) {
+  const observedErrorCode = result.ok ? null : result.error.code;
+  if (observedErrorCode !== entry.expectations.errorCode) {
     throw new Error(
-      `${entry.id}: probe error ${result.error.code} does not match manifest ${entry.expectations.errorCode}`,
+      `${entry.id}: probe error ${String(observedErrorCode)} does not match manifest ${String(entry.expectations.errorCode)}`,
     );
   }
   if (result.workUnits > entry.expectations.maxWorkUnits) {
@@ -89,7 +95,7 @@ function assertProbeMatchesManifest(
 
   const signatureKind = entry.expectations.signature;
   if (signatureKind === "invalid" || signatureKind === "truncated") {
-    if (result.probe !== null || result.error.category !== "input") {
+    if (result.ok || result.probe !== null || result.error.category !== "input") {
       throw new Error(
         `${entry.id}: invalid/truncated input must fail as input without probe metadata`,
       );
@@ -97,8 +103,23 @@ function assertProbeMatchesManifest(
     return;
   }
 
+  if (entry.expectations.parseOutcome === "ok") {
+    if (
+      !result.ok ||
+      result.probe.signature !== entry.declaredVersion ||
+      result.probe.byteLength !== entry.byteLength ||
+      result.probe.decoderStatus === "unsupported"
+    ) {
+      throw new Error(
+        `${entry.id}: probe success metadata contradicts the independent manifest`,
+      );
+    }
+    return;
+  }
+
   if (
     entry.expectations.parseOutcome !== "unsupported" ||
+    result.ok ||
     result.error.category !== "unsupported" ||
     result.probe === null ||
     result.probe.signature !== entry.declaredVersion ||

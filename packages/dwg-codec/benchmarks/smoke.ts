@@ -9,9 +9,11 @@ import {
   type DwgErrorCode,
 } from "../src/index.js";
 
+type BenchmarkOutcome = DwgErrorCode | "ok";
+
 interface BenchmarkInput {
   readonly bytes: Uint8Array;
-  readonly expectedError: DwgErrorCode;
+  readonly expectedOutcome: BenchmarkOutcome;
 }
 
 interface BenchmarkProfile {
@@ -77,7 +79,7 @@ function digestCorpus(inputs: readonly BenchmarkInput[]): string {
     hash.update(length);
     hash.update(input.bytes);
     hash.update(Uint8Array.of(0));
-    hash.update(input.expectedError, "ascii");
+    hash.update(input.expectedOutcome, "ascii");
   }
   return hash.digest("hex");
 }
@@ -88,7 +90,7 @@ function runProfile(profile: BenchmarkProfile): object {
     0,
   );
   const resultHash = createHash("sha256");
-  const outcomeHistogram: Partial<Record<DwgErrorCode, number>> = {};
+  const outcomeHistogram: Partial<Record<BenchmarkOutcome, number>> = {};
   const before = memorySnapshot();
   let processedBytes = 0;
   let workUnits = 0;
@@ -96,16 +98,13 @@ function runProfile(profile: BenchmarkProfile): object {
   for (let operation = 0; operation < profile.operations; operation += 1) {
     const input = profile.inputs[operation % profile.inputs.length]!;
     const result = probeDwg(input.bytes);
-    if (result.ok)
-      throw new Error(
-        `${profile.name} unexpectedly decoded a DWG during DWG-0`,
-      );
-    if (result.error.code === "DWG_INTERNAL_ERROR") {
+    if (!result.ok && result.error.code === "DWG_INTERNAL_ERROR") {
       throw new Error(`${profile.name} escaped through DWG_INTERNAL_ERROR`);
     }
-    if (result.error.code !== input.expectedError) {
+    const observed: BenchmarkOutcome = result.ok ? "ok" : result.error.code;
+    if (observed !== input.expectedOutcome) {
       throw new Error(
-        `${profile.name} expected ${input.expectedError} but received ${result.error.code}`,
+        `${profile.name} expected ${input.expectedOutcome} but received ${observed}`,
       );
     }
     if (!Number.isSafeInteger(result.workUnits) || result.workUnits < 0) {
@@ -114,17 +113,16 @@ function runProfile(profile: BenchmarkProfile): object {
     workUnits += result.workUnits;
     processedBytes += input.bytes.byteLength;
     resultHash.update(
-      `${result.error.code}:${result.error.offset}:${result.workUnits};`,
+      `${observed}:${result.ok ? "-" : result.error.offset}:${result.workUnits};`,
     );
-    outcomeHistogram[result.error.code] =
-      (outcomeHistogram[result.error.code] ?? 0) + 1;
+    outcomeHistogram[observed] = (outcomeHistogram[observed] ?? 0) + 1;
   }
   const wallMs = performance.now() - started;
   const after = memorySnapshot();
   return {
     corpus: {
       bytes: corpusBytes,
-      expectedErrors: profile.inputs.map((input) => input.expectedError),
+      expectedOutcomes: profile.inputs.map((input) => input.expectedOutcome),
       inputs: profile.inputs.length,
       sha256: digestCorpus(profile.inputs),
     },
@@ -170,7 +168,7 @@ const profiles: readonly BenchmarkProfile[] = [
     inputs: [
       {
         bytes: ascii("AC1015"),
-        expectedError: "DWG_VERSION_DECODER_UNSUPPORTED",
+        expectedOutcome: "ok",
       },
     ],
     name: "tiny",
@@ -178,28 +176,26 @@ const profiles: readonly BenchmarkProfile[] = [
   },
   {
     inputs: [
-      { bytes: new Uint8Array(), expectedError: "DWG_SIGNATURE_TRUNCATED" },
-      { bytes: patterned(1_024), expectedError: "DWG_SIGNATURE_INVALID" },
+      { bytes: new Uint8Array(), expectedOutcome: "DWG_SIGNATURE_TRUNCATED" },
+      { bytes: patterned(1_024), expectedOutcome: "DWG_SIGNATURE_INVALID" },
       {
         bytes: patterned(4_096, "AC1015"),
-        expectedError: "DWG_VERSION_DECODER_UNSUPPORTED",
+        expectedOutcome: "ok",
       },
       {
         bytes: patterned(65_536, "AC1099"),
-        expectedError: "DWG_VERSION_UNKNOWN",
+        expectedOutcome: "DWG_VERSION_UNKNOWN",
       },
       {
         bytes: patterned(1_048_576, "AC1032"),
-        expectedError: "DWG_VERSION_DECODER_UNSUPPORTED",
+        expectedOutcome: "DWG_VERSION_DECODER_UNSUPPORTED",
       },
     ],
     name: "mixed",
     operations: 64,
   },
   {
-    inputs: [
-      { bytes: maxSnapshot, expectedError: "DWG_VERSION_DECODER_UNSUPPORTED" },
-    ],
+    inputs: [{ bytes: maxSnapshot, expectedOutcome: "ok" }],
     name: "max-snapshot",
     operations: 1,
   },

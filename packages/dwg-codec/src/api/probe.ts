@@ -3,7 +3,12 @@ import {
   EMPTY_DWG_LOSS_MANIFEST,
 } from "./diagnostics.js";
 import { createDwgLimits, type DwgLimitOverrides } from "./limits.js";
-import type { DwgProbeMetadata, DwgProbeResult } from "./results.js";
+import type {
+  DwgKnownProbeMetadata,
+  DwgProbeFailure,
+  DwgProbeMetadata,
+  DwgProbeResult,
+} from "./results.js";
 import { detectDwgSignature } from "../container/signature.js";
 import { lookupDwgVersion } from "../container/version-registry.js";
 import { createInputSnapshot } from "../security/input-snapshot.js";
@@ -80,13 +85,26 @@ function validateOptions(options: unknown): asserts options is DwgProbeOptions {
 }
 
 function failure(
-  error: DwgProbeResult["error"],
+  error: DwgProbeFailure["error"],
   workUnits: number,
   probe: DwgProbeMetadata | null = null,
-): DwgProbeResult {
+): DwgProbeFailure {
   return Object.freeze({
     ok: false,
     error,
+    diagnostics: EMPTY_DWG_DIAGNOSTICS,
+    lossManifest: EMPTY_DWG_LOSS_MANIFEST,
+    probe,
+    workUnits,
+  });
+}
+
+function success(
+  probe: DwgKnownProbeMetadata,
+  workUnits: number,
+): DwgProbeResult {
+  return Object.freeze({
+    ok: true,
     diagnostics: EMPTY_DWG_DIAGNOSTICS,
     lossManifest: EMPTY_DWG_LOSS_MANIFEST,
     probe,
@@ -113,22 +131,6 @@ export function probeDwg(
     const signature = detectDwgSignature(snapshot, budget);
     budget.consume(1, 0);
     const version = lookupDwgVersion(signature.code);
-    const probe: DwgProbeMetadata =
-      version === null
-        ? Object.freeze({
-            versionKind: "unknown",
-            signature: signature.code,
-            byteLength: snapshot.byteLength,
-            decoderStatus: "unsupported",
-            version: null,
-          })
-        : Object.freeze({
-            versionKind: "known",
-            signature: signature.code,
-            byteLength: snapshot.byteLength,
-            decoderStatus: "unsupported",
-            version,
-          });
     budget.checkpoint(0, true);
 
     if (version === null) {
@@ -140,19 +142,35 @@ export function probeDwg(
           "The AC10dd signature is valid but its version is not registered.",
         ),
         budget.workUnits,
+        Object.freeze({
+          versionKind: "unknown",
+          signature: signature.code,
+          byteLength: snapshot.byteLength,
+          decoderStatus: "unsupported",
+          version: null,
+        }),
+      );
+    }
+    const probe: DwgKnownProbeMetadata = Object.freeze({
+      versionKind: "known",
+      signature: signature.code,
+      byteLength: snapshot.byteLength,
+      decoderStatus: version.decoderStatus,
+      version,
+    });
+    if (version.decoderStatus === "unsupported") {
+      return failure(
+        createDwgError(
+          "DWG_VERSION_DECODER_UNSUPPORTED",
+          "unsupported",
+          0,
+          "The signature is recognized but no DWG decoder is implemented.",
+        ),
+        budget.workUnits,
         probe,
       );
     }
-    return failure(
-      createDwgError(
-        "DWG_VERSION_DECODER_UNSUPPORTED",
-        "unsupported",
-        0,
-        "The signature is recognized but no DWG decoder is implemented.",
-      ),
-      budget.workUnits,
-      probe,
-    );
+    return success(probe, budget.workUnits);
   } catch (error: unknown) {
     return failure(normalizeDwgError(error), budget?.workUnits ?? 0);
   }

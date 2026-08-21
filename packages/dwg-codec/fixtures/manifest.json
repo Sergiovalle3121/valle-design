@@ -432,12 +432,12 @@
       "declaredVersion": "AC1015",
       "byteLength": 6,
       "purpose": [
-        "Exercise a known first-party signature without claiming a decoder"
+        "Exercise a known first-party signature whose lab decoder makes the probe succeed"
       ],
       "expectations": {
         "signature": "recognized",
-        "parseOutcome": "unsupported",
-        "errorCode": "DWG_VERSION_DECODER_UNSUPPORTED",
+        "parseOutcome": "ok",
+        "errorCode": null,
         "maxWorkUnits": 32
       },
       "synthetic": true,
@@ -637,12 +637,12 @@
       "byteLength": 9,
       "purpose": [
         "Verify that signature probing is bounded to the six-byte prefix",
-        "Keep arbitrary trailing bytes unsupported rather than treating them as a decoded header"
+        "Keep arbitrary trailing bytes opaque to the probe; validating the container is readDwg's job"
       ],
       "expectations": {
         "signature": "recognized",
-        "parseOutcome": "unsupported",
-        "errorCode": "DWG_VERSION_DECODER_UNSUPPORTED",
+        "parseOutcome": "ok",
+        "errorCode": null,
         "maxWorkUnits": 32
       },
       "synthetic": true,
