@@ -1,6 +1,17 @@
 # Campaña 10/10 — estado y cascada
 
-Actualizado: 2026-08-14 · main: `87d929c` · Rúbrica: 166/200 (83%)
+Actualizado: 2026-08-21 · main: `da59d22` · Rúbrica: **186/200 (93 %)**
+(corte `docs/competitive/history/2026-08-21-da59d22.json`)
+
+> **Nota 2026-08-21** — Campaña de 8 h (bitácora en `CAMPANA_8H_20260820.md`,
+> informe en `INFORME_CAMPANA_8H_20260820.md`): seguridad de producción
+> (RLS + NOT NULL por tenant, rate limits, SSL estricto, timeouts de pool),
+> cobro con CFDI 4.0 real (adaptador Facturama tras el puerto + factura
+> global mensual + portal), DIMSTYLE de 30 DIMVARs con tabla en DXF, cotas
+> anotativas v1, y la evidencia de rendimiento pasó de SwiftShader (45–48 s)
+> a GPU real declarada (10k en 1,9 s; fila performance.browser-slo CUMPLIDA
+> por contenido). La prosa de abajo es del corte 2026-08-14 y se conserva
+> como historia.
 
 Regla de oro: nada cuenta sin evidencia ejecutable (spec, golden, benchmark
 con máquina, migración probada). La rúbrica no se infla; se gana.
