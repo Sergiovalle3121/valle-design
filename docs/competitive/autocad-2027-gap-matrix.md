@@ -113,7 +113,7 @@ GIS (3) es otro producto.
 > Editarla a mano es reintroducir el defecto que motivó el script: la prosa
 > manual envejeció dos veces y en las dos direcciones.
 
-**Puntuación (rúbrica 2026-08-20.1): 184/200 (92 %).** 17 de 25 filas están en su tope: Dibujo 2D y precisión, Cotas asociativas, HATCH asociativo, Capas y propiedades, Bloques y atributos, Layouts, viewports y publicación, Guardado CAS, autosave, historia y versiones, Línea de comandos, alias y scripting, MLEADER y tablas, Xrefs, Importación de JSON canónico, API y SDK de automatización, Plugins AutoLISP / .NET / VBA, Asistencia NL→CAD y Vision→CAD, Almacenamiento de objetos, Modelo 3D y sólidos B-rep, Nubes de puntos, raster georreferenciado y GIS. Una fila sólo llega a su tope cuando TODOS sus criterios verifican, incluidos los que nombran gaps documentados; un gap conocido se declara como criterio que falla, no como nota al pie.
+**Puntuación (rúbrica 2026-08-20.1): 186/200 (93 %).** 18 de 25 filas están en su tope: Dibujo 2D y precisión, Cotas asociativas, HATCH asociativo, Capas y propiedades, Bloques y atributos, Layouts, viewports y publicación, Guardado CAS, autosave, historia y versiones, Línea de comandos, alias y scripting, MLEADER y tablas, Xrefs, Rendimiento 10k/100k, Importación de JSON canónico, API y SDK de automatización, Plugins AutoLISP / .NET / VBA, Asistencia NL→CAD y Vision→CAD, Almacenamiento de objetos, Modelo 3D y sólidos B-rep, Nubes de puntos, raster georreferenciado y GIS. Una fila sólo llega a su tope cuando TODOS sus criterios verifican, incluidos los que nombran gaps documentados; un gap conocido se declara como criterio que falla, no como nota al pie.
 
 ### Núcleo del plano entregable — 106/110
 
@@ -130,14 +130,14 @@ GIS (3) es otro producto.
 | Layouts, viewports y publicación | 10/10 | Completa | Paper space con múltiples viewports; Hoja de ploteo y adaptador de exportación del layout; Publicaciones versionadas y consultables desde el cliente; LAYOUT, MVIEW, MSPACE, PSPACE, PLOT y PAGESETUP tecleables; Fidelidad geométrica de publicación MEDIDA sobre los bytes del PDF: error de escala bajo la tolerancia de 0,001 mm y veredicto verde, con máquina declarada; PAGESETUP recoloca la ventana gráfica al cambiar el papel: cero segmentos fuera del área imprimible en el caso medido A1→A3; El sombreado llega al PDF publicado con su patrón, no sólo el contorno | Nada pendiente: todos los criterios declarados verifican |
 | Guardado CAS, autosave, historia y versiones | 8/8 | Completa | Cola de un solo escritor con CAS y conflicto 409 explícito; Journal de recuperación con códec e integridad verificada; Recorrido real contra API y PostgreSQL: logout, reapertura y documento >1 MB; Offline, multi-pestaña y cierre forzado sin pérdida, con presupuesto de documento y memoria publicado | Nada pendiente: todos los criterios declarados verifican |
 
-### Productividad profesional — 40/44
+### Productividad profesional — 42/44
 
 | Categoría | Puntos | Estado | Qué verifica hoy | Qué falta exactamente |
 | --- | ---: | --- | --- | --- |
 | Línea de comandos, alias y scripting | 12/12 | Completa | Registro único de comandos: paleta, línea, barra y scripts leen del mismo sitio; Tabla de alias compatible con acad.pgp, invariante entre idiomas; Línea de comandos en el editor con prompts, opciones y eco; Motor de comandos con estados y pipeline de entrada (punto, distancia, palabra clave, selección); Los alias de anotación, capa, consulta y vista resuelven: H, LA, DLI, T, Z, P, I y B; La tabla acad.pgp resuelve COMPLETA: los 129 alias, incluidos BE→BEDIT y BLE→BLEND, que hoy cuelgan; SCRIPT (.scr) y variantes -COMANDO ejecutables sin interfaz gráfica | Nada pendiente: todos los criterios declarados verifican |
 | MLEADER y tablas | 5/5 | Completa | MLEADER canónico con asociatividad; TABLE tecleable como descriptor del motor; MLEADER, MLEADERSTYLE y TABLESTYLE tecleables con estilos aplicables | Nada pendiente: todos los criterios declarados verifican |
 | Xrefs | 6/6 | Completa | Referencias externas declaradas en el documento canónico; Resolución de recursos, capas de xref y bind con round-trip; XREF, XATTACH, XBIND y XCLIP tecleables | Nada pendiente: todos los criterios declarados verifican |
-| Rendimiento 10k/100k | 10/12 | Parcial | Índice espacial, nivel de detalle y presupuesto de render en el editor; Corpus determinista versionado por sha256 y benchmark reproducible; Spec Playwright a 100k con artefacto JSON por corrida; Pipeline por lotes y tiles medido: primer detalle <1 s y asentado del zoom <100 ms sobre 100k, con máquina declarada; El editor USA ese pipeline: algo fuera de lib/cad/render lo importa | SLO de navegador CUMPLIDO, no sólo publicado: detalle completo ≤5 s, paneo ≥30 fps p95 y zoom asentado ≤500 ms sobre el corpus architecture (perfil next, 10k), con hardware y navegador declarados (2 pt) |
+| Rendimiento 10k/100k | 12/12 | Completa | Índice espacial, nivel de detalle y presupuesto de render en el editor; Corpus determinista versionado por sha256 y benchmark reproducible; Spec Playwright a 100k con artefacto JSON por corrida; Pipeline por lotes y tiles medido: primer detalle <1 s y asentado del zoom <100 ms sobre 100k, con máquina declarada; El editor USA ese pipeline: algo fuera de lib/cad/render lo importa; SLO de navegador CUMPLIDO, no sólo publicado: detalle completo ≤5 s, paneo ≥30 fps p95 y zoom asentado ≤500 ms sobre el corpus architecture (perfil next, 10k), con hardware y navegador declarados | Nada pendiente: todos los criterios declarados verifican |
 | Compare, comentarios y enlaces de revisión | 3/5 | Parcial | Enlaces de revisión con hash, caducidad, revocación y aislamiento por organización; Comentarios anclados a la geometría, con spec de anclaje | Carga concurrente medida y merge semántico con recorrido de todos los roles, con veredicto verde en el artefacto (2 pt) |
 | Importación de JSON canónico | 4/4 | Completa | Worker con progreso, cancelación y límites declarados; Transporte de documentos grandes con gzip y blobs; Corpus hostil y fuzzing ejecutados en navegador, no sólo en Node | Nada pendiente: todos los criterios declarados verifican |
 
@@ -171,12 +171,11 @@ declarados. Reproducible con `node scripts/cad/rubric.mjs --priorities`.
 | 2 | 2 | 10 | Import/export DXF de texto | Corpus DXF de terceros, autorizado y diverso, con matriz por entidad y pérdidas aceptadas |
 | 3 | 1 | 5 | Selección y modificación | Estrés de navegador con trazos densos (100k) sobre selección y modificación, con artefacto versionado por corrida |
 | 4 | 1 | 6 | MTEXT y texto | Una fuente de trazos (SHX o equivalente de dominio público) resuelve glifos de verdad en vez de sustituirse |
-| 5 | 2 | 12 | Rendimiento 10k/100k | SLO de navegador CUMPLIDO, no sólo publicado: detalle completo ≤5 s, paneo ≥30 fps p95 y zoom asentado ≤500 ms sobre el corpus architecture (perfil next, 10k), con hardware y navegador declarados |
-| 6 | 1 | 8 | Eventos e integración asíncrona | Evidencia operacional sostenida y replay auditado con receptor externo |
-| 7 | 3 | 60 | Import/export DWG | Decoder productivo con corpus independiente y matriz de entidades |
-| 8 | 2 | 40 | Import/export DWG | Exportación DWG con round-trip verificado por lector externo |
-| 9 | 1 | 20 | Import/export DWG | Integración en runtime con gates legal, de seguridad y de fidelidad superados |
-| 10 | 1 | 30 | Kernel Rust/WASM | Kernel WASM con paridad numérica verde Y enchufado: alguien fuera de lib/cad/wasm lo importa (regla 6) |
+| 5 | 1 | 8 | Eventos e integración asíncrona | Evidencia operacional sostenida y replay auditado con receptor externo |
+| 6 | 3 | 60 | Import/export DWG | Decoder productivo con corpus independiente y matriz de entidades |
+| 7 | 2 | 40 | Import/export DWG | Exportación DWG con round-trip verificado por lector externo |
+| 8 | 1 | 20 | Import/export DWG | Integración en runtime con gates legal, de seguridad y de fidelidad superados |
+| 9 | 1 | 30 | Kernel Rust/WASM | Kernel WASM con paridad numérica verde Y enchufado: alguien fuera de lib/cad/wasm lo importa (regla 6) |
 
 <!-- rubric:end -->
 
