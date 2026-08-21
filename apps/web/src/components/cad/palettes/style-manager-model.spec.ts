@@ -39,10 +39,28 @@ const empty = (): CadStyleTable => ({
     cadStyleFamilyDescriptor("text").fields.map((field) => field.key),
     ["fontFamily", "height"],
   );
-  assert.deepEqual(
-    cadStyleFamilyDescriptor("dimension").fields.map((field) => field.key),
-    ["textStyle", "arrowSize", "precision", "units", "arrowhead"],
+  // El núcleo DIMVAR completo (dimension-style.ts) es editable en la paleta:
+  // los cinco históricos primero, y detrás los 25 que la campaña 2026-08-21
+  // subió a la definición. Un campo que sólo viviera en el fichero sería una
+  // norma ineditable.
+  const dimensionKeys = cadStyleFamilyDescriptor("dimension").fields.map(
+    (field) => field.key,
   );
+  assert.deepEqual(dimensionKeys.slice(0, 5), [
+    "textStyle",
+    "arrowSize",
+    "precision",
+    "units",
+    "arrowhead",
+  ]);
+  assert.equal(dimensionKeys.length, 30, "el núcleo son 30 campos editables");
+  assert.equal(
+    new Set(dimensionKeys).size,
+    dimensionKeys.length,
+    "sin claves repetidas",
+  );
+  for (const key of ["textHeight", "overallScale", "zeroSuppression", "separateArrowheads"])
+    assert.ok(dimensionKeys.includes(key), `el núcleo incluye ${key}`);
   // La unidad y el remate son lo que hace mexicana una cota, y se editan desde
   // la paleta: una norma que sólo llega en la plantilla es una norma que el
   // usuario no puede cambiar sin rehacer el estilo. La garrapata va PRIMERA
