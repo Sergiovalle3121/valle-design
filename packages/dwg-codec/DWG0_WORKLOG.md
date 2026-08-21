@@ -656,3 +656,52 @@ Cuatro hechos registrados y corregidos, un commit por hecho. Tras el cuarto:
 - Los estados de la matriz de capacidades NO cambian en esta ola: la
   promoción sigue gobernada por la regla de `CORPUS_POLICY.md` y la
   disponibilidad en producto sigue `false`.
+
+## Campana DWG propio — sesion 2026-08-21 (olas 0 a 5)
+
+Ocho horas en cascada con tres frentes paralelos. Cada hecho nuevo quedo
+registrado ANTES de derivar codigo (SOURCE_REGISTER: la entrada de la ODS
+crece a 80 hechos tras consultar su texto integro — descarga publica
+oficial, consulta local fuera del repo — y nace VALLE-CORPUS-INTAKE-A60EBE2
+con 12 mediciones first-party). Resumen por ola; el detalle vive en
+docs/execution/CAMPANA_DWG_20260821.md y la evidencia en docs/cad/evidence.
+
+- OLA 0 — API honesta: probeDwg gana la variante de EXITO, readDwg y
+  writeDwg salen al indice, AC1015 declara experimental-lab en el registro
+  de versiones, fixtures/fuzz/benchmark declaran el exito esperado.
+- OLA 1 — lectura AC1015 completa para el corpus: el repo hermano gana los
+  dibujos 16-25 (bundle entity-wave-2-ac1015, 25 DWG AC1015 en total) y el
+  decoder cubre TODA entidad presente: anotacion (MTEXT, ATTRIB/ATTDEF/
+  SEQEND atados a su INSERT, las siete DIMENSION, LEADER, TOLERANCE),
+  polilineas clasicas con VERTEX, ELLIPSE/SPLINE, SOLID/TRACE/3DFACE,
+  RAY/XLINE, MLINE, VIEWPORT y HATCH con islas; tablas de simbolos,
+  diccionarios con entradas resueltas, XRECORD, clases y LAYOUT (los
+  unsupported caen de ~160 a 32 por archivo, todos con nombre de clase);
+  variables de cabecera decodificadas COMPLETAS con emisor espejo en
+  round-trip exacto. Matriz diferencial: 25/25 abren, 0 discrepancias.
+  Correcciones medidas a la ODS: cola BS+B+B del LEADER, byte extra del
+  DIMSTYLE CONTROL, area de texto de 256 bytes siempre presente del LTYPE.
+- OLA 2 — contenedor familia 2004: 32/32 DWG reales de AC1018/24/27/32
+  abren su contenedor (descifrado con CRC32, mapas, descompresion LZ77 con
+  presupuesto) y las cuatro secciones AcDb:* se localizan y descomprimen.
+  Seis mediciones corrigieron a la propia ODS (byte del generador XOR,
+  cabecera de pagina de datos con suma Fletcher en dos etapas, offsets de
+  copia -1, dos bytes tras el terminador, nombres fijos de 64 bytes).
+  Los cuerpos de objeto de la familia son la ola en curso.
+- OLA 3 — escritura con oraculo externo: writeAc1015MinimalFile emite el
+  archivo COMPLETO (6 registros, AuxHeader, variables reales, clases, 34
+  objetos del esquema canonico medido, mapa, ObjFreeSpace, second header
+  bit a bit, Template) y el ODA File Converter 27.1 acepta 4/4 casos sin
+  error con coincidencia campo a campo. El oraculo pidio tres cosas, las
+  tres medidas y registradas: byte del control DIMSTYLE, posiciones de la
+  lista enlazada (sin ellas un lector ajeno solo ve la primera entidad) y
+  el hard pointer al STYLE de todo TEXT. Sin TrustedDWG, jamas.
+- OLA 4 — mapeo canonico puro con tipos espejo del esquema 9 y manifiesto
+  de perdidas en ambos sentidos; tablas proyectadas con patrones .lin
+  exactos; ADR-0009 redactado con el checklist de gates.
+- OLA 5 — blindaje: 1200 mutaciones estructurales de DWG reales con 0
+  fallos de invariante; 8 propiedades encode/decode de bitcodes; benchmark
+  report-only (2.46 MB/s, 4369 objetos/s, maquina declarada).
+
+El producto permanece available:false; la promocion es la firma del
+ADR-0009, no un efecto colateral de esta campana.

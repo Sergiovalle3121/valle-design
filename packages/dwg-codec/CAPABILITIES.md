@@ -8,11 +8,14 @@ tests y evidencia independiente del límite relevante.
 signatureDetection: supported
 boundedBinaryPrimitives: supported
 ac1015Envelope: experimental-lab
-objectDatabase: experimental-lab-partial
+objectDatabase: experimental-lab
+headerVariables: experimental-lab
+symbolTables: experimental-lab
+r2004Container: experimental-lab
 entityImport: unsupported
-cadDocumentMapping: unsupported
+cadDocumentMapping: experimental-lab-mapping
 dwgExport: experimental-lab-writer
-roundTrip: experimental-lab-own-corpus
+roundTrip: external-oracle-verified
 productionAvailable: false
 ```
 
@@ -66,3 +69,23 @@ propia (repo hermano de conformidad, commit `dae5e77`, verificado por hash).
   los `stateFlags` de capa siguen crudos. El corpus es tool-converted desde
   DXF propios: nada aquí afirma compatibilidad con archivos de terceros
   arbitrarios ni con ningún software ajeno.
+
+## Evidencia del corte 2026-08-21 (campaña DWG propio)
+
+Este corte supera varios límites del anterior. Evidencia en
+`docs/cad/evidence/` (corpus-validation, decoder-matrix, oda-roundtrip,
+roundtrip, r2004-container, structural-fuzz, read-benchmark) y bitácora en
+`docs/execution/CAMPANA_DWG_20260821.md`.
+
+| Capacidad | Evidencia | Límite honesto |
+| --- | --- | --- |
+| `objectDatabase` | Cobertura COMPLETA del corpus AC1015 (25 DWG, dibujos 01–25): toda entidad presente decodifica con geometría EXACTA contra su oráculo DXF — anotación (MTEXT, ATTRIB/ATTDEF/SEQEND atados, las 7 DIMENSION, LEADER, TOLERANCE), polilíneas clásicas (2D/3D/malla/polyface con VERTEX), curvas (ELLIPSE, SPLINE), superficies (SOLID, TRACE, 3DFACE), RAY/XLINE, MLINE, VIEWPORT y HATCH con islas. Matriz diferencial: **0 discrepancias**. | Quedan 32 objetos por archivo sin decodificar, ENUMERADOS con su nombre de clase (VISUALSTYLE, MATERIAL, estilos de tabla/vista). Paper space aún cae a model space con diagnóstico. |
+| `headerVariables` | La sección se decodifica COMPLETA (secuencia R2000 íntegra del cap. 9 de la ODS) y el emisor espejo hace round-trip exacto; anclas validadas contra el DXF regenerado por el conversor. | Los condicionales R2004+ de la sección están pendientes de la ola de objetos familia-2004. |
+| `symbolTables` | STYLE, LTYPE (con trazos), DIMSTYLE completo, VPORT, APPID, VIEW/UCS/VP-ENT-HDR con controles, DICTIONARY con entradas resueltas, XRECORD, MLINESTYLE, clases y LAYOUT: 57+22+19+1 entradas comparadas contra los oráculos con 0 diferencias. | GROUP/VIEW/UCS/PLOTSETTINGS no existen en el corpus: verificados solo por round-trip de laboratorio. |
+| `r2004Container` | 32/32 DWG reales AC1018/24/27/32: cabecera descifrada (CRC32), mapa de páginas, mapa de secciones y descompresión con checksums en dos etapas — las CUATRO secciones AcDb:* localizadas y descomprimidas (`dwg-r2004-container.json`). Seis mediciones corrigieron a la propia ODS y están registradas. | Los CUERPOS de objeto de la familia 2004 están en curso; AC1021 (2007) queda fuera por diseño (contenedor rediseñado, uso marginal). |
+| `dwgExport` + `roundTrip` | **Un lector ajeno abre nuestros archivos**: `writeAc1015MinimalFile` emite el archivo completo (6 registros, AuxHeader, variables reales, clases, 34 objetos canónicos, mapa, ObjFreeSpace, second header, Template) y el ODA File Converter 27.1 convierte 4/4 casos a DXF sin error, con coincidencia campo a campo (`dwg-oda-roundtrip.json`). | El writer emite el subconjunto line/point/circle/arc/lwpolyline/text/insert; anotación y ATTRIBs de INSERT son pendientes declarados. Sin TrustedDWG: AutoCAD mostrará su aviso — es normal y es legal. |
+| `cadDocumentMapping` | Mapeo PURO base-neutral ↔ JSON con la forma del `CadDocument` (esquema 9) con manifiesto de pérdidas en ambos sentidos y round-trip hermético verde; tablas proyectadas (patrones .lin exactos). | Tipos espejo: el codec sigue sin importar el producto (ADR-0007). El adaptador de integración y el núcleo de DIMVARs son del producto (ADR-0009). |
+| Blindaje | 1200 mutaciones estructurales de DWG reales: 0 excepciones sin tipar, 0 internal, 0 cuelgues (peor caso 87.5 ms); 8 propiedades encode/decode de bitcodes; benchmark report-only 2.46 MB/s. | El corpus mutado sigue siendo derivado de dibujos propios; el corpus adversarial de archivos del mundo real es cola de reserva. |
+
+La promoción al producto sigue exigiendo la firma del ADR-0009:
+`productionAvailable: false`, provider no disponible y `.dwg` rechazado.

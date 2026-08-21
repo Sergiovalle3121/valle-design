@@ -18,7 +18,10 @@ restringido.
 orientar; ante cualquier discrepancia, gana la matriz.
 
 - El package es privado, `UNLICENSED`, estricto y no tiene dependencias runtime.
-- **Superficie pública** (`src/index.ts`): tres funciones con nombres estables.
+- **Superficie pública** (`src/index.ts`): cinco funciones con nombres estables
+  — las tres de abajo más el mapeo canónico puro
+  (`dwgDatabaseToCanonicalDocument` / `canonicalDocumentToDwgEntities`, con
+  manifiesto de pérdidas en ambos sentidos).
   - `probeDwg(Uint8Array, options?)` valida la firma y devuelve un union con
     variante de ÉXITO: `ok:true` cuando la versión tiene decodificador de
     laboratorio (hoy AC1015, `decoderStatus:"experimental-lab"` en

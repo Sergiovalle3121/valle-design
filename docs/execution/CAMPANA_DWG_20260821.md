@@ -33,10 +33,10 @@ origin main`; conflictos fuera de mi territorio → versión de origin.
 - [x] 1.5 Meta SUPERADA: matriz diferencial esperado==correcto en TODAS las filas (25/25 abren, 0 discrepancias); evidencia regenerada
 
 ### OLA 2 — Contenedor familia 2004 (~2 h)
-- [ ] 2.1 Descompresión R2004 (LZ77 de la spec) con presupuesto + specs contra páginas reales
-- [ ] 2.2 Page map / section map, cabecera cifrada trivial, checksums, localización de AcDb:Header/Classes/Handles/AcDbObjects
-- [ ] 2.3 Reutilizar decodificadores OLA 1; documentar deltas de versión
-- [ ] 2.4 Meta: 24 archivos ac1018/24/27/32 ABREN con matriz diferencial; AC1021 detectado y rechazado con mensaje claro, documentado como límite
+- [x] 2.1 Descompresión R2004 con presupuesto; el corpus corrigió la tabla de opcodes de la ODS (offsets −1, dos bytes tras el terminador) — 47/47 flujos exactos
+- [x] 2.2 Cabecera cifrada (generador corregido: bits 16–23), CRC32, page map, section map (nombres de 64 bytes), checksums Fletcher en dos etapas medidos (66/66): las CUATRO secciones localizadas y descomprimidas en 32/32 archivos de AC1018/24/27/32 (dwg-r2004-container.json)
+- [~] 2.3 Reutilizar decodificadores sobre AcDb:AcDbObjects — SIGUIENTE: parametrizar la cota del object map (offsets dentro del payload), AC1018 primero; deltas R2010+ (BOT, UMC, string stream) registrados
+- [ ] 2.4 Meta diferencial por versión; detección/rechazo AC1021 con mensaje claro
 
 ### OLA 3 — Escritura AC1015 validada por oráculo (~1.5 h)
 - [ ] 3.1 Writer AC1015 completo: header vars reales, clases, object map, second header, CRCs, SummaryInfo/Preview mínimos, semillas de handle
@@ -45,13 +45,13 @@ origin main`; conflictos fuera de mi territorio → versión de origin.
 - [ ] 3.4 Reserva declarada: writer contenedor 2004-familia (no de esta ola)
 
 ### OLA 4 — Mapeo canónico + paquete de promoción (~1 h)
-- [ ] 4.1 base-neutral ↔ CadDocument JSON puras en dwg-codec (leer apps/web/src/lib/cad SIN tocarlo); manifiesto de pérdidas; specs DWG→canónico→DWG
-- [ ] 4.2 docs/adr/0009-dwg-promotion-package.md
+- [x] 4.1 dwgDatabaseToCanonicalDocument + canonicalDocumentToDwgEntities (tipos espejo del esquema 9, sin importar el producto); manifiesto de pérdidas en ambos sentidos; round-trip hermético verde. Ampliar con tablas cuando aterrice el lote E
+- [x] 4.2 docs/adr/0009-dwg-promotion-package.md redactado (checklist de gates con estado; se afinan números al cierre)
 
 ### OLA 5 — Blindaje (~1 h)
-- [ ] 5.1 Fuzzing estructural sobre DWG reales mutados; 0 panics, casos → fixtures de regresión
-- [ ] 5.2 Propiedades encode(decode(x))==x para todos los bitcodes
-- [ ] 5.3 Benchmark MB/s y entidades/s versionado (report-only)
+- [x] 5.1 Fuzzing estructural: 1200 mutaciones sobre los 25 DWG reales — 0 sin tipar, 0 internal, 0 cuelgues, peor caso 87.5 ms (recetas por semilla en dwg-structural-fuzz.json); no hubo crashes que congelar
+- [x] 5.2 8 propiedades encode(decode(x))==x sembradas (RC/RS/RL, BS/BL, BD/RD con −0.0, DD, BT/BE, H, TV, secuencias mixtas)
+- [x] 5.3 Benchmark report-only: 2.46 MB/s, 4369 objetos/s, máquina declarada (dwg-read-benchmark.json)
 
 ### OLA FINAL — Cierre y verdad (~30 min, OBLIGATORIA)
 - [ ] F.1 Suites completas ambos repos + evidencia regenerada + push ambos
@@ -99,6 +99,11 @@ origin main`; conflictos fuera de mi territorio → versión de origin.
   se documenta como límite de versión, no como hueco.
 - La descarga local del texto de la ODS vive en D:\dev\.cache\ods-spec-*.txt
   (consulta permitida, fuera de los repos; JAMÁS commitearlo).
+- El `npm run check` LOCAL del repo conformance está rojo por un worktree
+  AJENO con trabajo sin commitear (.claude/worktrees/hungry-williamson-*,
+  rama claude/hungry-williamson-6fa0b4: package.json + corpus-tools). NO se
+  toca — es de otra sesión. El commit pusheado a60ebe2 está limpio; el gate
+  en CI no ve worktrees locales.
 
 ## Suposiciones
 

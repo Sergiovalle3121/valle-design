@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-roundtrip-v1",
   "generadoPor": "node scripts/dwg/dwg-evidence.mjs",
-  "generadoEn": "2026-08-21T08:03:22.753Z",
+  "generadoEn": "2026-08-21T09:34:56.303Z",
   "environment": {
     "node": "v22.18.0",
     "platform": "win32",
@@ -66,7 +66,7 @@
   },
   "laboratorio": {
     "dwgExport": "experimental-lab-writer",
-    "roundTrip": "experimental-lab-own-corpus",
+    "roundTrip": "external-oracle-verified",
     "limite": "Corpus generado por el mismo laboratorio: prueba consistencia interna, no compatibilidad con archivos DWG reales ni con software de terceros."
   },
   "versionesCubiertas": [

@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-decoder-matrix-v1",
   "generadoPor": "node scripts/dwg/dwg-evidence.mjs",
-  "generadoEn": "2026-08-21T08:03:22.745Z",
+  "generadoEn": "2026-08-21T09:34:56.290Z",
   "environment": {
     "node": "v22.18.0",
     "platform": "win32",
@@ -39,7 +39,7 @@
   "resumen": {
     "bundlesAdmitidos": 7,
     "validacionesIndependientes": 14,
-    "capacidadesEvaluadas": 8,
+    "capacidadesEvaluadas": 11,
     "capacidadesPromovidas": 2,
     "tiposDecodificadosEnLaboratorio": 65,
     "tiposVerificadosIndependientemente": 0,
@@ -68,10 +68,34 @@
     },
     {
       "id": "objectDatabase",
-      "estadoLaboratorio": "experimental-lab-partial",
+      "estadoLaboratorio": "experimental-lab",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"experimental-lab-partial\""
+        "el laboratorio la declara \"experimental-lab\""
+      ]
+    },
+    {
+      "id": "headerVariables",
+      "estadoLaboratorio": "experimental-lab",
+      "promovida": false,
+      "bloqueos": [
+        "el laboratorio la declara \"experimental-lab\""
+      ]
+    },
+    {
+      "id": "symbolTables",
+      "estadoLaboratorio": "experimental-lab",
+      "promovida": false,
+      "bloqueos": [
+        "el laboratorio la declara \"experimental-lab\""
+      ]
+    },
+    {
+      "id": "r2004Container",
+      "estadoLaboratorio": "experimental-lab",
+      "promovida": false,
+      "bloqueos": [
+        "el laboratorio la declara \"experimental-lab\""
       ]
     },
     {
@@ -84,10 +108,10 @@
     },
     {
       "id": "cadDocumentMapping",
-      "estadoLaboratorio": "unsupported",
+      "estadoLaboratorio": "experimental-lab-mapping",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"unsupported\""
+        "el laboratorio la declara \"experimental-lab-mapping\""
       ]
     },
     {
@@ -100,10 +124,10 @@
     },
     {
       "id": "roundTrip",
-      "estadoLaboratorio": "experimental-lab-own-corpus",
+      "estadoLaboratorio": "external-oracle-verified",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"experimental-lab-own-corpus\""
+        "el laboratorio la declara \"external-oracle-verified\""
       ]
     }
   ],
