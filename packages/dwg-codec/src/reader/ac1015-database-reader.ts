@@ -66,7 +66,12 @@ import {
   AC1015_TYPE_DIM_LINEAR,
   AC1015_TYPE_DIM_ORDINATE,
   AC1015_TYPE_DIM_RADIUS,
+  AC1015_TYPE_HATCH,
   AC1015_TYPE_INSERT,
+  AC1015_TYPE_LEADER,
+  AC1015_TYPE_MLINE,
+  AC1015_TYPE_TOLERANCE,
+  AC1015_TYPE_VIEWPORT,
   AC1015_TYPE_LINE,
   AC1015_TYPE_LWPOLYLINE,
   AC1015_TYPE_MTEXT,
@@ -323,7 +328,12 @@ function decodeMappedObject(
       case AC1015_TYPE_SOLID:
       case AC1015_TYPE_SPLINE:
       case AC1015_TYPE_TRACE:
-      case AC1015_TYPE_XLINE: {
+      case AC1015_TYPE_XLINE:
+      case AC1015_TYPE_VIEWPORT:
+      case AC1015_TYPE_LEADER:
+      case AC1015_TYPE_TOLERANCE:
+      case AC1015_TYPE_MLINE:
+      case AC1015_TYPE_HATCH: {
         const decoded = decodeAc1015EntityBody(bodyBytes);
         assertBodyHandleMatchesMap(decoded.common.ownHandle.value, entry);
         return { kind: "entity", handle: entry.handle, offset: entry.offset, decoded };

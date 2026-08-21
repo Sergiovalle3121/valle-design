@@ -693,11 +693,13 @@ test("gemelo triste: un double no finito en un campo BD es corrupción", () => {
   );
 });
 
-test("gemelo triste: un tipo no cubierto (0x22 VIEWPORT) es capacidad ausente", () => {
+test("gemelo triste: un tipo no cubierto (0x21 SHAPE) es capacidad ausente", () => {
+  // Era 0x22 hasta que la campaña de entidades complejas decodificó VIEWPORT;
+  // SHAPE sigue fuera del despachador y conserva el papel de no-cubierto.
   const tail = new DwgBitEmitter();
   emitAc1015EntityCommonTail(tail, 7, false);
   const error = assertDwgError(
-    () => decodeAc1015EntityBody(hostileBody(0x22, tail)),
+    () => decodeAc1015EntityBody(hostileBody(0x21, tail)),
     "DWG_VERSION_DECODER_UNSUPPORTED",
   );
   assert.equal(error.detail.category, "unsupported");

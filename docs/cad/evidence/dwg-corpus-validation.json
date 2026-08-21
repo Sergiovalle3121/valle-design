@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-corpus-validation-v1",
   "generadoPor": "node scripts/dwg/validate-corpus.mjs",
-  "generadoEn": "2026-08-21T06:43:16.056Z",
+  "generadoEn": "2026-08-21T07:07:47.982Z",
   "environment": {
     "node": "v22.18.0",
     "platform": "win32",
@@ -34,23 +34,23 @@
     "noAbiertos": 0,
     "sinOraculo": 0,
     "matrizEntidades": {
-      "dxf:leader": {
+      "leader": {
         "esperado": 2,
-        "leidoCorrecto": 0,
+        "leidoCorrecto": 2,
         "geometriaDistinta": 0,
-        "faltante": 2,
-        "inesperado": 0
-      },
-      "dxf:tolerance": {
-        "esperado": 1,
-        "leidoCorrecto": 0,
-        "geometriaDistinta": 0,
-        "faltante": 1,
+        "faltante": 0,
         "inesperado": 0
       },
       "mtext": {
         "esperado": 5,
         "leidoCorrecto": 5,
+        "geometriaDistinta": 0,
+        "faltante": 0,
+        "inesperado": 0
+      },
+      "tolerance": {
+        "esperado": 1,
+        "leidoCorrecto": 1,
         "geometriaDistinta": 0,
         "faltante": 0,
         "inesperado": 0
@@ -111,11 +111,11 @@
         "faltante": 0,
         "inesperado": 0
       },
-      "dxf:hatch": {
+      "hatch": {
         "esperado": 4,
-        "leidoCorrecto": 0,
+        "leidoCorrecto": 4,
         "geometriaDistinta": 0,
-        "faltante": 4,
+        "faltante": 0,
         "inesperado": 0
       },
       "attrib": {
@@ -139,18 +139,18 @@
         "faltante": 0,
         "inesperado": 0
       },
-      "dxf:viewport": {
+      "viewport": {
         "esperado": 2,
-        "leidoCorrecto": 0,
+        "leidoCorrecto": 2,
         "geometriaDistinta": 0,
-        "faltante": 2,
+        "faltante": 0,
         "inesperado": 0
       },
-      "dxf:mline": {
+      "mline": {
         "esperado": 2,
-        "leidoCorrecto": 0,
+        "leidoCorrecto": 2,
         "geometriaDistinta": 0,
-        "faltante": 2,
+        "faltante": 0,
         "inesperado": 0
       },
       "polyfaceMesh": {
@@ -217,26 +217,26 @@
         "inesperado": 0
       }
     },
-    "discrepanciasRegistradas": 11
+    "discrepanciasRegistradas": 0
   },
   "matrizEntidades": {
-    "dxf:leader": {
+    "leader": {
       "esperado": 2,
-      "leidoCorrecto": 0,
+      "leidoCorrecto": 2,
       "geometriaDistinta": 0,
-      "faltante": 2,
-      "inesperado": 0
-    },
-    "dxf:tolerance": {
-      "esperado": 1,
-      "leidoCorrecto": 0,
-      "geometriaDistinta": 0,
-      "faltante": 1,
+      "faltante": 0,
       "inesperado": 0
     },
     "mtext": {
       "esperado": 5,
       "leidoCorrecto": 5,
+      "geometriaDistinta": 0,
+      "faltante": 0,
+      "inesperado": 0
+    },
+    "tolerance": {
+      "esperado": 1,
+      "leidoCorrecto": 1,
       "geometriaDistinta": 0,
       "faltante": 0,
       "inesperado": 0
@@ -297,11 +297,11 @@
       "faltante": 0,
       "inesperado": 0
     },
-    "dxf:hatch": {
+    "hatch": {
       "esperado": 4,
-      "leidoCorrecto": 0,
+      "leidoCorrecto": 4,
       "geometriaDistinta": 0,
-      "faltante": 4,
+      "faltante": 0,
       "inesperado": 0
     },
     "attrib": {
@@ -325,18 +325,18 @@
       "faltante": 0,
       "inesperado": 0
     },
-    "dxf:viewport": {
+    "viewport": {
       "esperado": 2,
-      "leidoCorrecto": 0,
+      "leidoCorrecto": 2,
       "geometriaDistinta": 0,
-      "faltante": 2,
+      "faltante": 0,
       "inesperado": 0
     },
-    "dxf:mline": {
+    "mline": {
       "esperado": 2,
-      "leidoCorrecto": 0,
+      "leidoCorrecto": 2,
       "geometriaDistinta": 0,
-      "faltante": 2,
+      "faltante": 0,
       "inesperado": 0
     },
     "polyfaceMesh": {
@@ -403,85 +403,7 @@
       "inesperado": 0
     }
   },
-  "discrepancias": [
-    {
-      "archivo": "16-leader-tolerance",
-      "contexto": "model-space",
-      "tipo": "dxf:leader",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "16-leader-tolerance",
-      "contexto": "model-space",
-      "tipo": "dxf:leader",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "16-leader-tolerance",
-      "contexto": "model-space",
-      "tipo": "dxf:tolerance",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "21-hatch-islands",
-      "contexto": "model-space",
-      "tipo": "dxf:hatch",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "21-hatch-islands",
-      "contexto": "model-space",
-      "tipo": "dxf:hatch",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "23-layout-viewport",
-      "contexto": "model-space",
-      "tipo": "dxf:viewport",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "23-layout-viewport",
-      "contexto": "model-space",
-      "tipo": "dxf:viewport",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "24-mline",
-      "contexto": "model-space",
-      "tipo": "dxf:mline",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "24-mline",
-      "contexto": "model-space",
-      "tipo": "dxf:mline",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "11-hatch",
-      "contexto": "model-space",
-      "tipo": "dxf:hatch",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "11-hatch",
-      "contexto": "model-space",
-      "tipo": "dxf:hatch",
-      "problema": "faltante",
-      "esperado": {}
-    }
-  ],
+  "discrepancias": [],
   "archivos": [
     {
       "bundle": "entity-wave-2-ac1015",
@@ -493,8 +415,8 @@
       "esperadoSegunOraculo": {
         "entidades": {
           "mtext": 2,
-          "dxf:leader": 2,
-          "dxf:tolerance": 1
+          "leader": 2,
+          "tolerance": 1
         },
         "capas": [
           "0",
@@ -536,18 +458,11 @@
       },
       "entidades": {
         "porTipo": {
-          "dxf:leader": {
+          "leader": {
             "esperado": 2,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 2,
             "geometriaDistinta": 0,
-            "faltante": 2,
-            "inesperado": 0
-          },
-          "dxf:tolerance": {
-            "esperado": 1,
-            "leidoCorrecto": 0,
-            "geometriaDistinta": 0,
-            "faltante": 1,
+            "faltante": 0,
             "inesperado": 0
           },
           "mtext": {
@@ -556,25 +471,16 @@
             "geometriaDistinta": 0,
             "faltante": 0,
             "inesperado": 0
+          },
+          "tolerance": {
+            "esperado": 1,
+            "leidoCorrecto": 1,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
           }
         },
-        "detalles": [
-          {
-            "tipo": "dxf:leader",
-            "problema": "faltante",
-            "esperado": {}
-          },
-          {
-            "tipo": "dxf:leader",
-            "problema": "faltante",
-            "esperado": {}
-          },
-          {
-            "tipo": "dxf:tolerance",
-            "problema": "faltante",
-            "esperado": {}
-          }
-        ]
+        "detalles": []
       },
       "bloques": {
         "esperados": [],
@@ -588,14 +494,6 @@
         {
           "codigoBs": 42,
           "cuantos": 47
-        },
-        {
-          "codigoBs": 45,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 46,
-          "cuantos": 1
         },
         {
           "codigoBs": 52,
@@ -1699,7 +1597,7 @@
       "oraculo": "bundles/entity-wave-2-ac1015/oracles/dxf/21-hatch-islands.dxf",
       "esperadoSegunOraculo": {
         "entidades": {
-          "dxf:hatch": 2
+          "hatch": 2
         },
         "capas": [
           "0",
@@ -1741,26 +1639,15 @@
       },
       "entidades": {
         "porTipo": {
-          "dxf:hatch": {
+          "hatch": {
             "esperado": 2,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 2,
             "geometriaDistinta": 0,
-            "faltante": 2,
+            "faltante": 0,
             "inesperado": 0
           }
         },
-        "detalles": [
-          {
-            "tipo": "dxf:hatch",
-            "problema": "faltante",
-            "esperado": {}
-          },
-          {
-            "tipo": "dxf:hatch",
-            "problema": "faltante",
-            "esperado": {}
-          }
-        ]
+        "detalles": []
       },
       "bloques": {
         "esperados": [],
@@ -1830,10 +1717,6 @@
         {
           "codigoBs": 73,
           "cuantos": 1
-        },
-        {
-          "codigoBs": 78,
-          "cuantos": 2
         },
         {
           "codigoBs": 79,
@@ -2225,7 +2108,7 @@
         "entidades": {
           "line": 2,
           "circle": 1,
-          "dxf:viewport": 2
+          "viewport": 2
         },
         "capas": [
           "0",
@@ -2274,14 +2157,14 @@
             "faltante": 0,
             "inesperado": 0
           },
-          "dxf:viewport": {
+          "line": {
             "esperado": 2,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 2,
             "geometriaDistinta": 0,
-            "faltante": 2,
+            "faltante": 0,
             "inesperado": 0
           },
-          "line": {
+          "viewport": {
             "esperado": 2,
             "leidoCorrecto": 2,
             "geometriaDistinta": 0,
@@ -2289,18 +2172,7 @@
             "inesperado": 0
           }
         },
-        "detalles": [
-          {
-            "tipo": "dxf:viewport",
-            "problema": "faltante",
-            "esperado": {}
-          },
-          {
-            "tipo": "dxf:viewport",
-            "problema": "faltante",
-            "esperado": {}
-          }
-        ]
+        "detalles": []
       },
       "bloques": {
         "esperados": [],
@@ -2311,10 +2183,6 @@
         "porBloque": {}
       },
       "tiposNoSoportados": [
-        {
-          "codigoBs": 34,
-          "cuantos": 2
-        },
         {
           "codigoBs": 42,
           "cuantos": 49
@@ -2456,6 +2324,18 @@
           "severity": "warning",
           "offset": 6293,
           "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-paper-space-entity",
+          "severity": "warning",
+          "offset": 6346,
+          "message": "A paper-space entity is not modeled yet; it was kept in model space."
+        },
+        {
+          "code": "database-paper-space-entity",
+          "severity": "warning",
+          "offset": 6499,
+          "message": "A paper-space entity is not modeled yet; it was kept in model space."
         }
       ]
     },
@@ -2468,7 +2348,7 @@
       "oraculo": "bundles/entity-wave-2-ac1015/oracles/dxf/24-mline.dxf",
       "esperadoSegunOraculo": {
         "entidades": {
-          "dxf:mline": 2
+          "mline": 2
         },
         "capas": [
           "0",
@@ -2510,26 +2390,15 @@
       },
       "entidades": {
         "porTipo": {
-          "dxf:mline": {
+          "mline": {
             "esperado": 2,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 2,
             "geometriaDistinta": 0,
-            "faltante": 2,
+            "faltante": 0,
             "inesperado": 0
           }
         },
-        "detalles": [
-          {
-            "tipo": "dxf:mline",
-            "problema": "faltante",
-            "esperado": {}
-          },
-          {
-            "tipo": "dxf:mline",
-            "problema": "faltante",
-            "esperado": {}
-          }
-        ]
+        "detalles": []
       },
       "bloques": {
         "esperados": [],
@@ -2543,10 +2412,6 @@
         {
           "codigoBs": 42,
           "cuantos": 47
-        },
-        {
-          "codigoBs": 47,
-          "cuantos": 2
         },
         {
           "codigoBs": 52,
@@ -3365,7 +3230,7 @@
       "oraculo": "bundles/foundational-entities-ac1015/oracles/dxf/11-hatch.dxf",
       "esperadoSegunOraculo": {
         "entidades": {
-          "dxf:hatch": 2
+          "hatch": 2
         },
         "capas": [
           "0",
@@ -3407,26 +3272,15 @@
       },
       "entidades": {
         "porTipo": {
-          "dxf:hatch": {
+          "hatch": {
             "esperado": 2,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 2,
             "geometriaDistinta": 0,
-            "faltante": 2,
+            "faltante": 0,
             "inesperado": 0
           }
         },
-        "detalles": [
-          {
-            "tipo": "dxf:hatch",
-            "problema": "faltante",
-            "esperado": {}
-          },
-          {
-            "tipo": "dxf:hatch",
-            "problema": "faltante",
-            "esperado": {}
-          }
-        ]
+        "detalles": []
       },
       "bloques": {
         "esperados": [],
@@ -3496,10 +3350,6 @@
         {
           "codigoBs": 73,
           "cuantos": 1
-        },
-        {
-          "codigoBs": 78,
-          "cuantos": 2
         },
         {
           "codigoBs": 79,

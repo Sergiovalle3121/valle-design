@@ -243,6 +243,51 @@ function readFieldsFromEntity(record) {
         corners: e.corners.map((c) => [c.x, c.y, c.z]),
         invisibility: e.invisibilityFlags,
       };
+    case "leader": {
+      // Extremos del camino: el conversor regenera los vértices intermedios
+      // y las cajas del leader (tolerancia declarada en el oráculo).
+      const first = e.points[0] ?? { x: 0, y: 0 };
+      const last = e.points[e.points.length - 1] ?? { x: 0, y: 0 };
+      return {
+        firstPoint: [first.x, first.y],
+        lastPoint: [last.x, last.y],
+      };
+    }
+    case "tolerance":
+      return {
+        insertion: [e.insertion.x, e.insertion.y, e.insertion.z],
+        text: decodeBytes(e.textBytes),
+      };
+    case "mline":
+      return {
+        base: [e.basePoint.x, e.basePoint.y, e.basePoint.z],
+        scale: e.scale,
+        vertices: e.vertices.map((v) => [
+          v.position.x,
+          v.position.y,
+          v.position.z,
+        ]),
+      };
+    case "viewport":
+      return {
+        center: [e.center.x, e.center.y],
+        width: e.width,
+        height: e.height,
+      };
+    case "hatch": {
+      const polylinePaths = e.paths.filter((p) => p.kind === "polyline");
+      return {
+        name: decodeBytes(e.nameBytes).toUpperCase(),
+        solidFill: e.solidFill,
+        pathCount: e.paths.length,
+        polylineVertices: polylinePaths.map((p) =>
+          p.vertices.map((v) => [v.x, v.y]),
+        ),
+        polylineBulges: polylinePaths.map((p) =>
+          p.bulges ? [...p.bulges] : p.vertices.map(() => 0),
+        ),
+      };
+    }
     case "dimension":
       // textMid excluido a propósito: el conversor recoloca el texto al
       // regenerar el bloque anónimo (tolerancia declarada en el oráculo).

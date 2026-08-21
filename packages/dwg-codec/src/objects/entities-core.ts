@@ -101,6 +101,18 @@ import {
   decodeXline,
 } from "./entities-curves-surfaces.js";
 import {
+  AC1015_TYPE_HATCH,
+  AC1015_TYPE_LEADER,
+  AC1015_TYPE_MLINE,
+  AC1015_TYPE_TOLERANCE,
+  AC1015_TYPE_VIEWPORT,
+  decodeHatch,
+  decodeLeader,
+  decodeMline,
+  decodeTolerance,
+  decodeViewport,
+} from "./entities-complex.js";
+import {
   decodeTextFields,
   finiteDecoded,
   frozenPoint3,
@@ -153,6 +165,13 @@ export {
   AC1015_TYPE_TRACE,
   AC1015_TYPE_XLINE,
 } from "./entities-curves-surfaces.js";
+export {
+  AC1015_TYPE_HATCH,
+  AC1015_TYPE_LEADER,
+  AC1015_TYPE_MLINE,
+  AC1015_TYPE_TOLERANCE,
+  AC1015_TYPE_VIEWPORT,
+} from "./entities-complex.js";
 
 /**
  * Las referencias interpretadas de una entidad (fase D4): la cabeza del flujo
@@ -293,6 +312,11 @@ const DECODED_ENTITY_TYPES: ReadonlySet<number> = new Set([
   AC1015_TYPE_SPLINE,
   AC1015_TYPE_TRACE,
   AC1015_TYPE_XLINE,
+  AC1015_TYPE_VIEWPORT,
+  AC1015_TYPE_LEADER,
+  AC1015_TYPE_TOLERANCE,
+  AC1015_TYPE_MLINE,
+  AC1015_TYPE_HATCH,
 ]);
 
 /** Despacha al decodificador del tipo ya verificado como soportado. */
@@ -357,6 +381,16 @@ function decodeEntitySpecific(
       return decodeTrace(reader);
     case AC1015_TYPE_SPLINE:
       return decodeSpline(reader);
+    case AC1015_TYPE_VIEWPORT:
+      return decodeViewport(reader);
+    case AC1015_TYPE_LEADER:
+      return decodeLeader(reader);
+    case AC1015_TYPE_TOLERANCE:
+      return decodeTolerance(reader);
+    case AC1015_TYPE_MLINE:
+      return decodeMline(reader);
+    case AC1015_TYPE_HATCH:
+      return decodeHatch(reader);
     default:
       // Inalcanzable: el despachador sólo se llama tras el filtro de tipos.
       // Si llega, el error es NUESTRO, no del archivo.

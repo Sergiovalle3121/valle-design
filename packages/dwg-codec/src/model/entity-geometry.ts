@@ -410,6 +410,229 @@ export interface Dwg3dFaceEntity {
   readonly invisibilityFlags: number;
 }
 
+/**
+ * Línea guía de anotación (LEADER). Los puntos del camino viajan con recuento
+ * propio; el bit inicial, los códigos BS de tipo de anotación/camino y la
+ * cola R2000+ (un BS y dos bits sin semántica registrada) viajan CRUDOS. El
+ * `origin` es el origen del plano del leader (por defecto, su primer punto) y
+ * `endpointProjection` es la proyección R14+ del extremo hacia la anotación.
+ * La anotación asociada y el DIMSTYLE son handles del flujo final
+ * (contabilizado opaco).
+ */
+export interface DwgLeaderEntity {
+  readonly kind: "leader";
+  /** Bit inicial sin semántica registrada; viaja crudo. */
+  readonly unnamedBit: number;
+  readonly annotationType: number;
+  readonly pathType: number;
+  readonly points: readonly DwgPoint3[];
+  /** Origen del plano del leader (por defecto, el primer punto). */
+  readonly origin: DwgPoint3;
+  readonly extrusion: DwgPoint3;
+  readonly xDirection: DwgPoint3;
+  /** Offset al punto de inserción del bloque de anotación. */
+  readonly blockInsertOffset: DwgPoint3;
+  /** Proyección R14+ del extremo del leader hacia la anotación. */
+  readonly endpointProjection: DwgPoint3;
+  readonly boxHeight: number;
+  readonly boxWidth: number;
+  /** Bit de hookline en la dirección X; crudo. */
+  readonly hooklineAlongXDirection: number;
+  /** Bit de flecha; crudo. */
+  readonly arrowheadOn: number;
+  /** El BS y los dos bits R2000+ sin semántica registrada; crudos. */
+  readonly unnamedShort: number;
+  readonly unnamedBitA: number;
+  readonly unnamedBitB: number;
+}
+
+/**
+ * Marco de tolerancia geométrica (TOLERANCE). La cadena viaja como BYTES en
+ * la página de códigos del dibujo (misma convención que TEXT); el DIMSTYLE es
+ * un handle del flujo final.
+ */
+export interface DwgToleranceEntity {
+  readonly kind: "tolerance";
+  readonly insertion: DwgPoint3;
+  readonly xDirection: DwgPoint3;
+  readonly extrusion: DwgPoint3;
+  readonly textBytes: readonly number[];
+}
+
+/** Parámetros de una línea de estilo en un vértice de MLINE, crudos en BD. */
+export interface DwgMlineStyleLineParameters {
+  readonly segmentParameters: readonly number[];
+  readonly areaFillParameters: readonly number[];
+}
+
+/** Un vértice de MLINE con sus direcciones y los parámetros por línea. */
+export interface DwgMlineVertex {
+  readonly position: DwgPoint3;
+  readonly vertexDirection: DwgPoint3;
+  readonly miterDirection: DwgPoint3;
+  /** Exactamente `styleLineCount` entradas, en el orden del archivo. */
+  readonly styleLines: readonly DwgMlineStyleLineParameters[];
+}
+
+/**
+ * Multilínea (MLINE). La justificación RC y las banderas BS de apertura y
+ * cierre viajan CRUDAS; el recuento de líneas del estilo se conserva aparte
+ * porque una MLINE sin vértices lo perdería. El MLINESTYLE es un handle del
+ * flujo final.
+ */
+export interface DwgMlineEntity {
+  readonly kind: "mline";
+  readonly scale: number;
+  readonly justification: number;
+  readonly basePoint: DwgPoint3;
+  readonly extrusion: DwgPoint3;
+  readonly openClosedFlags: number;
+  readonly styleLineCount: number;
+  readonly vertices: readonly DwgMlineVertex[];
+}
+
+/**
+ * Ventana de presentación (VIEWPORT, la ENTIDAD de paper space). Todos los
+ * campos del hecho registrado, en unidades del dibujo; los códigos BS/BL/RC
+ * (zoom de círculo, banderas de estado, modo de render, vista ortográfica) y
+ * los bits de UCS viajan CRUDOS. Los handles de capas congeladas (su recuento
+ * viaja aquí) y del contorno de recorte viven en el flujo final.
+ */
+export interface DwgViewportEntity {
+  readonly kind: "viewport";
+  readonly center: DwgPoint3;
+  readonly width: number;
+  readonly height: number;
+  readonly viewTarget: DwgPoint3;
+  readonly viewDirection: DwgPoint3;
+  readonly twistAngle: number;
+  readonly viewHeight: number;
+  readonly lensLength: number;
+  readonly frontClip: number;
+  readonly backClip: number;
+  readonly snapAngle: number;
+  readonly viewCenter: DwgPoint2;
+  readonly snapBase: DwgPoint2;
+  readonly snapSpacing: DwgPoint2;
+  readonly gridSpacing: DwgPoint2;
+  readonly circleZoom: number;
+  /** Recuento de capas congeladas; sus handles viven en el flujo final. */
+  readonly frozenLayerCount: number;
+  readonly statusFlags: number;
+  readonly styleSheetBytes: readonly number[];
+  readonly renderMode: number;
+  readonly ucsAtOrigin: number;
+  readonly ucsPerViewport: number;
+  readonly ucsOrigin: DwgPoint3;
+  readonly ucsXAxis: DwgPoint3;
+  readonly ucsYAxis: DwgPoint3;
+  readonly ucsElevation: number;
+  readonly ucsOrthoViewType: number;
+}
+
+/** Segmento recto de un camino de HATCH. */
+export interface DwgHatchLineSegment {
+  readonly kind: "line";
+  readonly start: DwgPoint2;
+  readonly end: DwgPoint2;
+}
+
+/** Segmento de arco circular de un camino de HATCH. */
+export interface DwgHatchArcSegment {
+  readonly kind: "arc";
+  readonly center: DwgPoint2;
+  readonly radius: number;
+  readonly startAngle: number;
+  readonly endAngle: number;
+  readonly counterClockwise: boolean;
+}
+
+/** Segmento de arco elíptico: el extremo mayor es un VECTOR desde el centro. */
+export interface DwgHatchEllipticArcSegment {
+  readonly kind: "ellipticArc";
+  readonly center: DwgPoint2;
+  readonly majorAxisEndpoint: DwgPoint2;
+  readonly axisRatio: number;
+  readonly startAngle: number;
+  readonly endAngle: number;
+  readonly counterClockwise: boolean;
+}
+
+/** Segmento spline 2D de un camino de HATCH; pesos sólo si es racional. */
+export interface DwgHatchSplineSegment {
+  readonly kind: "spline";
+  readonly degree: number;
+  readonly rational: boolean;
+  readonly periodic: boolean;
+  readonly knots: readonly number[];
+  readonly controlPoints: readonly DwgPoint2[];
+  readonly weights: readonly number[] | undefined;
+}
+
+export type DwgHatchSegment =
+  | DwgHatchLineSegment
+  | DwgHatchArcSegment
+  | DwgHatchEllipticArcSegment
+  | DwgHatchSplineSegment;
+
+/**
+ * Camino de HATCH en su forma polilínea: vértices 2D con bulges opcionales
+ * (`undefined` = el bit de bulges no viajó). Las banderas BL del camino se
+ * conservan CRUDAS; el recuento de objetos frontera viaja aquí y sus handles
+ * en el flujo final.
+ */
+export interface DwgHatchPolylinePath {
+  readonly kind: "polyline";
+  readonly flags: number;
+  readonly closed: boolean;
+  readonly vertices: readonly DwgPoint2[];
+  readonly bulges: readonly number[] | undefined;
+  readonly boundaryObjectCount: number;
+}
+
+/** Camino de HATCH como lista de segmentos tipados. */
+export interface DwgHatchSegmentsPath {
+  readonly kind: "segments";
+  readonly flags: number;
+  readonly segments: readonly DwgHatchSegment[];
+  readonly boundaryObjectCount: number;
+}
+
+export type DwgHatchPath = DwgHatchPolylinePath | DwgHatchSegmentsPath;
+
+/** Línea de definición del patrón de un HATCH no sólido. */
+export interface DwgHatchDefinitionLine {
+  readonly angle: number;
+  readonly basePoint: DwgPoint2;
+  readonly offset: DwgPoint2;
+  readonly dashes: readonly number[];
+}
+
+/**
+ * Sombreado (HATCH). El nombre del patrón viaja como BYTES; los caminos son
+ * un discriminante polyline/segments; los campos de patrón (ángulo, escala,
+ * doble trama, líneas de definición) sólo existen cuando NO es relleno
+ * sólido, y `pixelSize` sólo cuando algún camino lleva el bit de derivado —
+ * ausentes se modelan `undefined`, como el resto del modelo.
+ */
+export interface DwgHatchEntity {
+  readonly kind: "hatch";
+  readonly elevation: number;
+  readonly extrusion: DwgPoint3;
+  readonly nameBytes: readonly number[];
+  readonly solidFill: boolean;
+  readonly associative: boolean;
+  readonly paths: readonly DwgHatchPath[];
+  readonly style: number;
+  readonly patternType: number;
+  readonly angle: number | undefined;
+  readonly scaleOrSpacing: number | undefined;
+  readonly doubleHatch: boolean | undefined;
+  readonly definitionLines: readonly DwgHatchDefinitionLine[] | undefined;
+  readonly pixelSize: number | undefined;
+  readonly seedPoints: readonly DwgPoint2[];
+}
+
 /** Las entidades geométricas que el laboratorio decodifica. */
 export type DwgGeometryEntity =
   | DwgLineEntity
@@ -439,7 +662,12 @@ export type DwgGeometryEntity =
   | DwgXlineEntity
   | DwgSolidEntity
   | DwgTraceEntity
-  | Dwg3dFaceEntity;
+  | Dwg3dFaceEntity
+  | DwgLeaderEntity
+  | DwgToleranceEntity
+  | DwgMlineEntity
+  | DwgViewportEntity
+  | DwgHatchEntity;
 
 /** Los discriminantes válidos del modelo, para validación cerrada. */
 export const DWG_GEOMETRY_ENTITY_KINDS = Object.freeze([
@@ -471,6 +699,11 @@ export const DWG_GEOMETRY_ENTITY_KINDS = Object.freeze([
   "solid",
   "trace",
   "face3d",
+  "leader",
+  "tolerance",
+  "mline",
+  "viewport",
+  "hatch",
 ] as const);
 
 export type DwgGeometryEntityKind = (typeof DWG_GEOMETRY_ENTITY_KINDS)[number];

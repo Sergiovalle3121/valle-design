@@ -176,6 +176,11 @@ function startEntity(type, sink) {
     "SOLID",
     "TRACE",
     "3DFACE",
+    "LEADER",
+    "TOLERANCE",
+    "MLINE",
+    "VIEWPORT",
+    "HATCH",
   ]);
   if (!known.has(type)) {
     const record = { type, layer: "0", unknown: true };
@@ -200,6 +205,104 @@ function startEntity(type, sink) {
 
 function feedEntity(entity, code, value, num) {
   if (!entity) return;
+  // El LEADER lleva sus vértices como grupos 10/20/30 REPETIDOS: se acumulan
+  // en lista en vez de sobrescribirse.
+  if (entity.type === "LEADER") {
+    switch (code) {
+      case 10:
+        (entity.pts ??= []).push({ x: num(value), y: 0, z: 0 });
+        return;
+      case 20:
+        if (entity.pts?.length) entity.pts[entity.pts.length - 1].y = num(value);
+        return;
+      case 30:
+        if (entity.pts?.length) entity.pts[entity.pts.length - 1].z = num(value);
+        return;
+      default:
+        break;
+    }
+  }
+  // La MLINE repite 11/21/31 por vértice (12/22/32 y 13/23/33 son direcciones
+  // que la comparación no usa); la base 10/20/30 y la escala 40 van una vez.
+  if (entity.type === "MLINE") {
+    switch (code) {
+      case 11:
+        (entity.mlineVertices ??= []).push({ x: num(value), y: 0, z: 0 });
+        return;
+      case 21:
+        if (entity.mlineVertices?.length) {
+          entity.mlineVertices[entity.mlineVertices.length - 1].y = num(value);
+        }
+        return;
+      case 31:
+        if (entity.mlineVertices?.length) {
+          entity.mlineVertices[entity.mlineVertices.length - 1].z = num(value);
+        }
+        return;
+      default:
+        break;
+    }
+  }
+  // El HATCH es ESTATAL: 91 abre la lista de caminos, cada 92 abre un camino
+  // con sus banderas, los 10/20 dentro de un camino son sus vértices (con 42
+  // de bulge) y tras el 98 los 10/20 restantes son puntos semilla. Antes del
+  // 91, el 10/20/30 es el punto de elevación y cae al genérico.
+  if (entity.type === "HATCH") {
+    const path = entity.paths?.[entity.paths.length - 1];
+    switch (code) {
+      case 91:
+        entity.paths ??= [];
+        return;
+      case 92:
+        (entity.paths ??= []).push({
+          flags: Number.parseInt(value, 10),
+          vertices: [],
+        });
+        return;
+      case 72:
+        if (path) path.hasBulge = Number.parseInt(value, 10);
+        return;
+      case 73:
+        if (path) path.closed = Number.parseInt(value, 10) !== 0;
+        return;
+      case 93:
+        if (path) path.declaredVertexCount = Number.parseInt(value, 10);
+        return;
+      case 97:
+        return; // recuento de objetos frontera de la fuente; no se compara
+      case 98:
+        entity.seedMode = true;
+        return;
+      case 10:
+        if (entity.seedMode) {
+          (entity.seeds ??= []).push({ x: num(value), y: 0 });
+          return;
+        }
+        if (path) {
+          path.vertices.push({ x: num(value), y: 0 });
+          return;
+        }
+        break;
+      case 20:
+        if (entity.seedMode) {
+          if (entity.seeds?.length) entity.seeds[entity.seeds.length - 1].y = num(value);
+          return;
+        }
+        if (path?.vertices.length) {
+          path.vertices[path.vertices.length - 1].y = num(value);
+          return;
+        }
+        break;
+      case 42:
+        if (path?.vertices.length) {
+          path.vertices[path.vertices.length - 1].bulge = num(value);
+          return;
+        }
+        break;
+      default:
+        break;
+    }
+  }
   // La SPLINE lleva grupos REPETIDOS (nudos 40, puntos de control 10/20/30 y
   // de ajuste 11/21/31): se acumulan en listas en vez de sobrescribirse.
   if (entity.type === "SPLINE") {
@@ -517,6 +620,79 @@ export function expectedFromOracle(record) {
               defPoint: [record.x ?? 0, record.y ?? 0, record.z ?? 0],
             };
       return { kind: "dimension", layer: record.layer, fields };
+    }
+    case "LEADER": {
+      // Tolerancia declarada (medida sobre 16-leader-tolerance: los dos
+      // cuerpos LEADER reales aterrizan exactos en su tamaño en bits, 671/671,
+      // con numpts=2): la herramienta conversora REGENERA el camino del
+      // leader — conserva el primer punto (la flecha) y el último (el
+      // enganche a la anotación), descarta los vértices intermedios del DXF y
+      // recalcula las cajas 40/41 (DXF 40.0/45.0 → DWG 39.5/29.0). Se
+      // comparan los EXTREMOS medidos; el camino intermedio y las cajas miden
+      // el motor del conversor, no el decoder (misma política que el textMid
+      // de las cotas).
+      const pts = record.pts ?? [];
+      const first = pts[0] ?? { x: 0, y: 0 };
+      const last = pts[pts.length - 1] ?? { x: 0, y: 0 };
+      return {
+        kind: "leader",
+        layer: record.layer,
+        fields: {
+          firstPoint: [first.x, first.y],
+          lastPoint: [last.x, last.y],
+        },
+      };
+    }
+    case "TOLERANCE":
+      return {
+        kind: "tolerance",
+        layer: record.layer,
+        fields: {
+          insertion: [record.x ?? 0, record.y ?? 0, record.z ?? 0],
+          text: record.text ?? "",
+        },
+      };
+    case "MLINE":
+      return {
+        kind: "mline",
+        layer: record.layer,
+        fields: {
+          base: [record.x ?? 0, record.y ?? 0, record.z ?? 0],
+          scale: record.r40 ?? 1,
+          vertices: (record.mlineVertices ?? []).map((v) => [v.x, v.y, v.z]),
+        },
+      };
+    case "VIEWPORT":
+      return {
+        kind: "viewport",
+        layer: record.layer,
+        fields: {
+          center: [record.x ?? 0, record.y ?? 0],
+          width: record.r40 ?? 0,
+          height: record.r41 ?? 0,
+        },
+      };
+    case "HATCH": {
+      const paths = record.paths ?? [];
+      // Se comparan los caminos POLILÍNEA medidos (vértices y bulges); los
+      // caminos de segmentos del corpus actual no existen y los seedpoints
+      // son derivados del conversor (no se comparan).
+      const polylinePaths = paths.filter((p) => (p.flags & 2) !== 0);
+      return {
+        kind: "hatch",
+        layer: record.layer,
+        fields: {
+          name: (record.blockName ?? "").toUpperCase(),
+          solidFill: ((record.flags ?? 0) & 1) === 1,
+          pathCount: paths.length,
+          polylineVertices: polylinePaths.map((p) =>
+            p.vertices.map((v) => [v.x, v.y]),
+          ),
+          polylineBulges: polylinePaths.map((p) =>
+            p.vertices.map((v) => v.bulge ?? 0),
+          ),
+        },
+      };
     }
     case "POLYLINE": {
       const flags = record.flags ?? 0;
