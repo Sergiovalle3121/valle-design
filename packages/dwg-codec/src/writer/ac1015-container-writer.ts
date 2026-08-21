@@ -311,14 +311,14 @@ export function writeAc1015Container(
   const file = new Uint8Array(fileLength);
   file.set(Uint8Array.from(head), 0);
   file.set(
-    buildSectionFrame(
+    buildAc1015SectionFrame(
       AC1015_HEADER_VARIABLES_SENTINELS,
       headerVariablesPayload,
     ),
     headerVariablesStart,
   );
   file.set(
-    buildSectionFrame(AC1015_CLASSES_SENTINELS, classesPayload),
+    buildAc1015SectionFrame(AC1015_CLASSES_SENTINELS, classesPayload),
     classesStart,
   );
   let envelopeOffset = objectsStart;
@@ -497,8 +497,14 @@ function ownedPayload(
   return owned;
 }
 
-/** Marco completo de una sección: apertura + RL + payload + CRC + cierre. */
-function buildSectionFrame(
+/**
+ * Marco completo de una sección: apertura + RL + payload + CRC + cierre.
+ * Exportado desde la OLA 3 para que el writer de ARCHIVO COMPLETO
+ * (`ac1015-minimal-file-writer`) enmarque variables y clases con EL MISMO
+ * marco que este contenedor — una sola fuente, sin marcos gemelos. La API
+ * existente (`writeAc1015Container`) no cambia.
+ */
+export function buildAc1015SectionFrame(
   sentinels: Ac1015SectionSentinelPair,
   payload: Uint8Array,
 ): Uint8Array {

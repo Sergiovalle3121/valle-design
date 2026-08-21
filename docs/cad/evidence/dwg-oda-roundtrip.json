@@ -1,0 +1,265 @@
+{
+  "$schema": "urn:valle-design:schema:dwg-roundtrip-evidence:v1",
+  "schemaVersion": 1,
+  "evidenceId": "valle-design-dwg-roundtrip-v1",
+  "generadoPor": "node scripts/dwg/oda-roundtrip.mjs",
+  "generadoEn": "2026-08-21T07:59:04.001Z",
+  "environment": {
+    "node": "v22.18.0",
+    "platform": "win32",
+    "architecture": "x64",
+    "osType": "Windows_NT",
+    "osRelease": "10.0.26200",
+    "cpuModel": "AMD Ryzen 5 5500U with Radeon Graphics         ",
+    "logicalCpuCount": 12,
+    "totalMemoryBytes": 7896625152,
+    "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos lógicos), 7.4 GB de RAM, Windows_NT 10.0.26200"
+  },
+  "declaracion": "ROUND-TRIP VERIFICADO POR UN LECTOR EXTERNO: los archivos DWG AC1015 escritos al 100% por el writer del laboratorio (writeAc1015MinimalFile) son convertidos a DXF por el ODA File Converter 27.1 con exit 0, sin archivos .err, y el DXF regenerado coincide campo a campo con lo escrito (capas por nombre y color; entidades por tipo y geometría con tolerancia 1e-6). Sigue sin haber exportación DWG en el producto.",
+  "porQueCuentaElOraculo": "El conversor es una implementación INDEPENDIENTE con licencia propia: no comparte ni una línea con nuestro writer. Que abra un archivo nuestro y regenere las mismas capas y entidades demuestra compatibilidad real con el formato, no consistencia interna.",
+  "disponibilidadEnProducto": false,
+  "conversor": {
+    "herramienta": "ODA File Converter",
+    "version": "27.1",
+    "binario": "D:\\dev\\tools\\oda\\extracted\\ODAFileConverter.exe",
+    "argumentos": [
+      "C:\\Users\\sergi\\AppData\\Local\\Temp\\claude\\D--\\faacfa40-fc40-46ab-bca2-44f357e305c2\\scratchpad\\ola3\\roundtrip\\in",
+      "C:\\Users\\sergi\\AppData\\Local\\Temp\\claude\\D--\\faacfa40-fc40-46ab-bca2-44f357e305c2\\scratchpad\\ola3\\roundtrip\\out",
+      "ACAD2000",
+      "DXF",
+      "0",
+      "1"
+    ],
+    "exitCode": 0,
+    "timeout": false,
+    "regla": "Sólo el BINARIO es oráculo permitido; su código ni se consulta ni se descompila. El DXF que produce lleva el watermark del propio conversor: se ignora y JAMÁS se imita (prohibido emitir o imitar el watermark TrustedDWG de Autodesk)."
+  },
+  "casos": [
+    {
+      "nombre": "vacio",
+      "bytes": 4141,
+      "verificacionPropia": {
+        "abre": true,
+        "capas": [
+          "0"
+        ],
+        "entidadesModelSpace": 0,
+        "bloquesUsuario": [],
+        "diagnosticos": 4,
+        "sinSoporte": 0
+      },
+      "oraculo": {
+        "consultado": true,
+        "convertido": true,
+        "dxfBytes": 158409
+      },
+      "comparacion": {
+        "coincide": true,
+        "capas": [
+          {
+            "nombre": "0",
+            "presente": true,
+            "color": 7,
+            "colorCoincide": true
+          }
+        ],
+        "entidades": [],
+        "bloques": [],
+        "discrepancias": []
+      }
+    },
+    {
+      "nombre": "capa-linea",
+      "bytes": 4232,
+      "verificacionPropia": {
+        "abre": true,
+        "capas": [
+          "0",
+          "MUROS"
+        ],
+        "entidadesModelSpace": 1,
+        "bloquesUsuario": [],
+        "diagnosticos": 4,
+        "sinSoporte": 0
+      },
+      "oraculo": {
+        "consultado": true,
+        "convertido": true,
+        "dxfBytes": 158705
+      },
+      "comparacion": {
+        "coincide": true,
+        "capas": [
+          {
+            "nombre": "0",
+            "presente": true,
+            "color": 7,
+            "colorCoincide": true
+          },
+          {
+            "nombre": "MUROS",
+            "presente": true,
+            "color": 4,
+            "colorCoincide": true
+          }
+        ],
+        "entidades": [
+          {
+            "indice": 0,
+            "tipo": "line",
+            "capaEsperada": "MUROS",
+            "coincide": true
+          }
+        ],
+        "bloques": [],
+        "discrepancias": []
+      }
+    },
+    {
+      "nombre": "figuras",
+      "bytes": 4373,
+      "verificacionPropia": {
+        "abre": true,
+        "capas": [
+          "0"
+        ],
+        "entidadesModelSpace": 4,
+        "bloquesUsuario": [],
+        "diagnosticos": 4,
+        "sinSoporte": 0
+      },
+      "oraculo": {
+        "consultado": true,
+        "convertido": true,
+        "dxfBytes": 159033
+      },
+      "comparacion": {
+        "coincide": true,
+        "capas": [
+          {
+            "nombre": "0",
+            "presente": true,
+            "color": 7,
+            "colorCoincide": true
+          }
+        ],
+        "entidades": [
+          {
+            "indice": 0,
+            "tipo": "circle",
+            "capaEsperada": "0",
+            "coincide": true
+          },
+          {
+            "indice": 1,
+            "tipo": "arc",
+            "capaEsperada": "0",
+            "coincide": true
+          },
+          {
+            "indice": 2,
+            "tipo": "text",
+            "capaEsperada": "0",
+            "coincide": true
+          },
+          {
+            "indice": 3,
+            "tipo": "lwpolyline",
+            "capaEsperada": "0",
+            "coincide": true
+          }
+        ],
+        "bloques": [],
+        "discrepancias": []
+      }
+    },
+    {
+      "nombre": "bloque-insert",
+      "bytes": 4387,
+      "verificacionPropia": {
+        "abre": true,
+        "capas": [
+          "0"
+        ],
+        "entidadesModelSpace": 1,
+        "bloquesUsuario": [
+          "PUERTA"
+        ],
+        "diagnosticos": 4,
+        "sinSoporte": 0
+      },
+      "oraculo": {
+        "consultado": true,
+        "convertido": true,
+        "dxfBytes": 159152
+      },
+      "comparacion": {
+        "coincide": true,
+        "capas": [
+          {
+            "nombre": "0",
+            "presente": true,
+            "color": 7,
+            "colorCoincide": true
+          }
+        ],
+        "entidades": [
+          {
+            "indice": 0,
+            "tipo": "insert",
+            "capaEsperada": "0",
+            "coincide": true
+          }
+        ],
+        "bloques": [
+          {
+            "nombre": "PUERTA",
+            "presente": true,
+            "entidades": [
+              "line",
+              "circle"
+            ]
+          }
+        ],
+        "discrepancias": []
+      }
+    }
+  ],
+  "iteraciones": [
+    {
+      "iteracion": 1,
+      "err": "Object improperly read: <AcDbDimStyleTable> (A)",
+      "causa": "El control de DIMSTYLE (tipo 68) lleva un byte a cero tras el recuento de entradas que ningún otro control lleva (declara 80 bits donde sus hermanos declaran 72; hecho medido en el fixture 01-vacio del corpus).",
+      "correccion": "writeAc1015StructTableControlBody ganó el parámetro postCountZeroBytes y el writer de archivo lo fija en 1 para ese control."
+    },
+    {
+      "iteracion": 2,
+      "err": "(sin .err: conversión con exit 0 pero el DXF de 'figuras' sólo conservaba la PRIMERA entidad de la cadena)",
+      "causa": "El lector externo RECORRE la lista enlazada de entidades desde el puntero first del BLOCK_RECORD; con punteros next nulos la cadena se cortaba tras la primera entidad.",
+      "correccion": "Cada entidad declara su posición en la cadena con las formas medidas del corpus: first → next H(6,0) (handle+1), middle → vínculos implícitos (bit a 1), last → prev H(8,0), isolated → ambos nulos."
+    },
+    {
+      "iteracion": 3,
+      "err": "Object improperly read: <AcDbText> (24)",
+      "causa": "Un TEXT R2000 lleva el hard pointer a su STYLE (grupo 7) al final del flujo de handles (capítulo 20.4.3); el writer no lo emitía.",
+      "correccion": "writeAc1015ResolvedEntityBody exige textStyleHandle para TEXT y lo emite tras la capa."
+    }
+  ],
+  "resumen": {
+    "casos": 4,
+    "verificadosPorLectorPropio": 4,
+    "aceptadosPorElOraculo": 4,
+    "roundTripsVerificadosPorLectorExterno": 4,
+    "lectoresExternosAutorizados": [
+      {
+        "herramienta": "ODA File Converter",
+        "version": "27.1",
+        "evidencia": "Convierte a DXF los cuatro casos escritos por writeAc1015MinimalFile con exit 0, sin .err, y el DXF coincide campo a campo con lo escrito."
+      }
+    ]
+  },
+  "limitaciones": [
+    "El helper del oráculo (dxf-oracle.mjs, importado sin modificar) no acumula los vértices 10/20 repetidos de una LWPOLYLINE: el conteo de vértices y el cierre se verifican contra los grupos 90/70 del DXF crudo y la geometría exacta de vértices queda cubierta por el round-trip del lector propio.",
+    "Entidades de anotación (MTEXT, DIMENSION, HATCH, LEADER…) siguen siendo pendiente declarado del writer: el lector propio ya las decodifica, pero writeAc1015EntityBody aún no las emite."
+  ]
+}

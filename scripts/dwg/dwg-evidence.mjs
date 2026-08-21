@@ -44,6 +44,23 @@ const LAB_ROOT = path.join(REPO_ROOT, "packages", "dwg-codec");
 const EVIDENCE_DIR = path.join(REPO_ROOT, "docs", "cad", "evidence");
 export const DECODER_MATRIX_FILE = path.join(EVIDENCE_DIR, "dwg-decoder-matrix.json");
 export const ROUNDTRIP_FILE = path.join(EVIDENCE_DIR, "dwg-roundtrip.json");
+export const ODA_ROUNDTRIP_FILE = path.join(EVIDENCE_DIR, "dwg-oda-roundtrip.json");
+
+/**
+ * La medición CRUDA del oráculo externo (scripts/dwg/oda-roundtrip.mjs):
+ * DWG escritos por nuestro writer convertidos por el ODA File Converter.
+ * Es una ENTRADA medida de este generador — el rollup la incorpora en vez
+ * de fabricar la cifra desde los estados de texto de CAPABILITIES.
+ */
+function readOdaRoundtripMeasurement() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(ODA_ROUNDTRIP_FILE, "utf8"));
+    if (typeof parsed !== "object" || parsed === null) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Campos que `--check` NO compara.
@@ -263,9 +280,19 @@ export function buildRoundtripEvidence({ capabilities, corpus }) {
   // Un round-trip del laboratorio contra sí mismo existe y se declara, pero se
   // cuenta en su propia casilla: no suma a la única cifra que la rúbrica mira.
   const roundTripsDeLaboratorio = estadoRoundTrip === "unsupported" ? 0 : 1;
-  const lectoresExternosAutorizados = promocionPosible ? corpus.validacionesIndependientes : 0;
+
+  // Desde la campaña 2026-08-21 existe una medición REAL de lector externo:
+  // el harness del oráculo ODA (dwg-oda-roundtrip.json). Cuando está, la
+  // cifra publicada sale de esa medición; sin ella, se conserva el cero
+  // honesto de siempre — jamás se fabrica desde estados de texto.
+  const oda = readOdaRoundtripMeasurement();
+  const odaResumen = oda?.resumen ?? null;
+  const lectoresExternosAutorizados =
+    odaResumen?.lectoresExternosAutorizados?.length ??
+    (promocionPosible ? corpus.validacionesIndependientes : 0);
   const roundTripsVerificadosPorLectorExterno =
-    promocionPosible && estadoWriter === "supported" ? corpus.bundlesAdmitidos : 0;
+    odaResumen?.roundTripsVerificadosPorLectorExterno ??
+    (promocionPosible && estadoWriter === "supported" ? corpus.bundlesAdmitidos : 0);
 
   return {
     $schema: "urn:valle-design:schema:dwg-roundtrip-evidence:v1",
@@ -277,7 +304,7 @@ export function buildRoundtripEvidence({ capabilities, corpus }) {
     declaracion:
       roundTripsVerificadosPorLectorExterno === 0
         ? "CERO ROUND-TRIPS VERIFICADOS POR UN LECTOR EXTERNO. No hay exportación DWG en el producto. El laboratorio tiene un writer experimental cuyo round-trip verifica su PROPIO lector: eso demuestra consistencia interna del laboratorio y NO demuestra que ningún software ajeno abra el archivo."
-        : "Round-trips verificados contra lectores externos autorizados; ver `bundles`.",
+        : "Round-trips verificados contra un lector externo autorizado; la medición cruda vive en `oraculoExterno.fuente`.",
     porQueNoCuentaElPropio:
       "El writer y el reader de Valle salen del mismo código y comparten sus errores: si el writer emite un campo mal y el reader lo lee igual de mal, el round-trip cierra y no ha demostrado nada. Por eso la cifra que se publica exige un lector independiente autorizado.",
     disponibilidadEnProducto: false,
@@ -289,6 +316,17 @@ export function buildRoundtripEvidence({ capabilities, corpus }) {
       roundTripsDeLaboratorio,
       oraculosIndependientes: corpus.oraculosIndependientes,
     },
+    oraculoExterno:
+      odaResumen === null
+        ? null
+        : {
+            fuente: "docs/cad/evidence/dwg-oda-roundtrip.json",
+            conversor: oda?.conversor ?? null,
+            casos: odaResumen.casos ?? null,
+            aceptadosPorElOraculo: odaResumen.aceptadosPorElOraculo ?? null,
+            roundTripsVerificadosPorLectorExterno:
+              odaResumen.roundTripsVerificadosPorLectorExterno ?? null,
+          },
     laboratorio: {
       dwgExport: estadoWriter,
       roundTrip: estadoRoundTrip,

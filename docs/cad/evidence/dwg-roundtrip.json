@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-roundtrip-v1",
   "generadoPor": "node scripts/dwg/dwg-evidence.mjs",
-  "generadoEn": "2026-08-21T07:56:43.487Z",
+  "generadoEn": "2026-08-21T08:03:22.753Z",
   "environment": {
     "node": "v22.18.0",
     "platform": "win32",
@@ -15,32 +15,65 @@
     "totalMemoryBytes": 7896625152,
     "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos lógicos), 7.9 GB de RAM, Windows_NT 10.0.26200"
   },
-  "declaracion": "CERO ROUND-TRIPS VERIFICADOS POR UN LECTOR EXTERNO. No hay exportación DWG en el producto. El laboratorio tiene un writer experimental cuyo round-trip verifica su PROPIO lector: eso demuestra consistencia interna del laboratorio y NO demuestra que ningún software ajeno abra el archivo.",
+  "declaracion": "Round-trips verificados contra un lector externo autorizado; la medición cruda vive en `oraculoExterno.fuente`.",
   "porQueNoCuentaElPropio": "El writer y el reader de Valle salen del mismo código y comparten sus errores: si el writer emite un campo mal y el reader lo lee igual de mal, el round-trip cierra y no ha demostrado nada. Por eso la cifra que se publica exige un lector independiente autorizado.",
   "disponibilidadEnProducto": false,
   "corpus": {
-    "estado": "unavailable",
-    "origen": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance.git",
+    "estado": "verified",
+    "origen": "D:\\dev\\valle-design-dwg-conformance",
     "commitFijado": "a60ebe2a71dae684ccd6c72d5f1a388be1777585",
-    "indiceSha256": null,
-    "bundlesAdmitidos": 0,
-    "validacionesIndependientes": 0,
-    "oraculosIndependientes": 0,
-    "fixtures": 0,
-    "versionesCubiertas": [],
-    "motivo": "sin VALLE_DWG_CORPUS_MIRROR y sin VALLE_DWG_CORPUS_TOKEN: no se descargó nada y no se afirma nada"
+    "indiceSha256": "59c69c1ba3a9524a5ca5fb246c7b0226e9980e0c3b9cdbdc2d6e2180d49ee07a",
+    "bundlesAdmitidos": 7,
+    "validacionesIndependientes": 14,
+    "oraculosIndependientes": 71,
+    "fixtures": 57,
+    "versionesCubiertas": [
+      "AC1015",
+      "AC1018",
+      "AC1024",
+      "AC1027",
+      "AC1032"
+    ]
   },
   "resumen": {
-    "bundlesAdmitidos": 0,
-    "lectoresExternosAutorizados": 0,
-    "roundTripsVerificadosPorLectorExterno": 0,
+    "bundlesAdmitidos": 7,
+    "lectoresExternosAutorizados": 1,
+    "roundTripsVerificadosPorLectorExterno": 4,
     "roundTripsDeLaboratorio": 1,
-    "oraculosIndependientes": 0
+    "oraculosIndependientes": 71
+  },
+  "oraculoExterno": {
+    "fuente": "docs/cad/evidence/dwg-oda-roundtrip.json",
+    "conversor": {
+      "herramienta": "ODA File Converter",
+      "version": "27.1",
+      "binario": "D:\\dev\\tools\\oda\\extracted\\ODAFileConverter.exe",
+      "argumentos": [
+        "C:\\Users\\sergi\\AppData\\Local\\Temp\\claude\\D--\\faacfa40-fc40-46ab-bca2-44f357e305c2\\scratchpad\\ola3\\roundtrip\\in",
+        "C:\\Users\\sergi\\AppData\\Local\\Temp\\claude\\D--\\faacfa40-fc40-46ab-bca2-44f357e305c2\\scratchpad\\ola3\\roundtrip\\out",
+        "ACAD2000",
+        "DXF",
+        "0",
+        "1"
+      ],
+      "exitCode": 0,
+      "timeout": false,
+      "regla": "Sólo el BINARIO es oráculo permitido; su código ni se consulta ni se descompila. El DXF que produce lleva el watermark del propio conversor: se ignora y JAMÁS se imita (prohibido emitir o imitar el watermark TrustedDWG de Autodesk)."
+    },
+    "casos": 4,
+    "aceptadosPorElOraculo": 4,
+    "roundTripsVerificadosPorLectorExterno": 4
   },
   "laboratorio": {
     "dwgExport": "experimental-lab-writer",
     "roundTrip": "experimental-lab-own-corpus",
     "limite": "Corpus generado por el mismo laboratorio: prueba consistencia interna, no compatibilidad con archivos DWG reales ni con software de terceros."
   },
-  "versionesCubiertas": []
+  "versionesCubiertas": [
+    "AC1015",
+    "AC1018",
+    "AC1024",
+    "AC1027",
+    "AC1032"
+  ]
 }
