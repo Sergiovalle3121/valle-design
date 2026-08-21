@@ -116,6 +116,14 @@ jobs:
         if: steps.deps.outputs.cache-hit != 'true'
         run: npm ci
 
+      # Vulnerabilidades conocidas en dependencias de PRODUCCIÓN. Sólo bloquea
+      # HIGH/CRITICAL: una MODERATE avisa en el log pero no tumba el merge —
+      # el umbral es deliberado para que el gate no se vuelva ruido que alguien
+      # termine ignorando. Trabaja sobre el lockfile + registro, así que corre
+      # igual con caché de node_modules que sin ella.
+      - name: Production dependency audit (high+)
+        run: npm audit --omit=dev --audit-level=high
+
       # Puerta de CONTRATO: los YAML de packages/contracts/specs validan
       # (el SDK se genera de ahí; un spec roto es un SDK roto). La CLI viene
       # del lockfile (devDependencies raíz): un gate bloqueante no puede

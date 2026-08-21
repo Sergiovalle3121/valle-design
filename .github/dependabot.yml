@@ -1,0 +1,29 @@
+# Dependabot: vigilancia semanal de dependencias npm.
+#
+# Agrupado en UN solo PR semanal: la cuota de Actions de este repo es escasa
+# (ver ci.yml) y cada PR de dependencias dispara el pipeline completo. Un grupo
+# semanal produce un veredicto por semana en vez de uno por paquete.
+#
+# Las actualizaciones de SEGURIDAD no esperan al lunes: Dependabot las abre en
+# cuanto aparece el aviso, también agrupadas.
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Mexico_City"
+    open-pull-requests-limit: 5
+    groups:
+      npm-semanal:
+        applies-to: version-updates
+        patterns:
+          - "*"
+      npm-seguridad:
+        applies-to: security-updates
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "deps"
