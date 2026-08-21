@@ -1,4 +1,5 @@
 import { randomBytes, randomUUID } from 'node:crypto';
+import { readdirSync } from 'node:fs';
 import { DataSource, type MigrationInterface } from 'typeorm';
 import {
   describePostgres,
@@ -27,6 +28,7 @@ import { MexicanPublicCatalog20260816120000 } from './20260816120000-MexicanPubl
 import { ArchitecturalBlockLibrarySeed20260817090000 } from './20260817090000-ArchitecturalBlockLibrarySeed';
 import { MexicanFiscalAndSeats20260817100000 } from './20260817100000-MexicanFiscalAndSeats';
 import { WebhookReceipts20260820100000 } from './20260820100000-WebhookReceipts';
+import { TenantIntegrityRls20260820120000 } from './20260820120000-TenantIntegrityRls';
 
 const LEGACY_MIGRATIONS: Array<new () => MigrationInterface> = [
   AddCadBlocks20260706180000,
@@ -59,7 +61,33 @@ const ALL_MIGRATIONS: Array<new () => MigrationInterface> = [
   ArchitecturalBlockLibrarySeed20260817090000,
   MexicanFiscalAndSeats20260817100000,
   WebhookReceipts20260820100000,
+  TenantIntegrityRls20260820120000,
 ];
+
+/**
+ * La lista de arriba se mantiene con imports explícitos porque TypeORM
+ * necesita las CLASES, pero su contenido ya no se fía de la memoria de nadie:
+ * este bloque deriva del DIRECTORIO la lista esperada y falla si ambas
+ * difieren. `LegalAcceptances` faltó de la cadena una temporada entera y nadie
+ * lo vio — una migración ausente de la lista simplemente nunca se prueba, que
+ * es el modo de fallo más silencioso posible.
+ *
+ * Corre SIN PostgreSQL (es puro filesystem), así que vigila también en
+ * `npm test`, no sólo en `test:pg`.
+ */
+describe('la cadena de migraciones es exactamente el directorio', () => {
+  it('cada archivo de migración está en ALL_MIGRATIONS, en orden y sin extras', () => {
+    const files = readdirSync(__dirname)
+      .filter((file) => /^\d{14}-.+\.ts$/u.test(file))
+      .filter((file) => !file.endsWith('.spec.ts'))
+      .sort();
+    const expected = files.map((file) => {
+      const match = /^(\d{14})-(.+)\.ts$/u.exec(file)!;
+      return `${match[2]}${match[1]}`;
+    });
+    expect(ALL_MIGRATIONS.map((migration) => migration.name)).toEqual(expected);
+  });
+});
 
 describePostgres('migration chain (previous main -> latest)', () => {
   jest.setTimeout(120_000);

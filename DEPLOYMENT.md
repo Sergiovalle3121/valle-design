@@ -89,14 +89,18 @@ Opcionales que cambian el comportamiento operativo:
 
 | Variable                     | Default  | Efecto                                                     |
 | ---------------------------- | -------- | ---------------------------------------------------------- |
-| `METRICS_TOKEN`              | *(sin)*  | sin él, `GET /metrics` responde **404** (desactivado)       |
+| `METRICS_TOKEN`              | *(sin)*  | sin él, `GET /metrics` **y** `GET /health/metrics/commercial` responden **404** (desactivados); ambos usan el mismo bearer |
 | `SENTRY_DSN`                 | *(sin)*  | sin él, el reporte de errores es **inerte** (sin red)       |
 | `HTTP_KEEP_ALIVE_TIMEOUT_MS` | `65000`  | debe superar el idle del balanceador (ver §6)               |
 | `HTTP_HEADERS_TIMEOUT_MS`    | `70000`  | se fuerza siempre > keep-alive                              |
 | `HTTP_REQUEST_TIMEOUT_MS`    | `120000` | techo de una petición                                       |
 | `SHUTDOWN_DRAIN_DELAY_MS`    | `5000`   | espera con readiness en 503 antes de cerrar                 |
 | `SHUTDOWN_GRACE_MS`          | `25000`  | techo del apagado; por debajo del `stopTimeout` del orquestador |
-| `DB_SSL_STRICT`              | `false`  | `true` valida el certificado del servidor PostgreSQL        |
+| `DB_SSL_STRICT`              | `true` en producción | la validación del certificado es el **default productivo**; `false` es la válvula de escape explícita para hosts sin CA verificable |
+| `DB_POOL_SIZE`               | `20`     | tamaño del pool PostgreSQL por réplica                      |
+| `DB_STATEMENT_TIMEOUT_MS`    | `30000`  | mata la query degenerada con error acotado                  |
+| `DB_IDLE_IN_TRANSACTION_TIMEOUT_MS` | `30000` | mata la transacción ociosa que retiene locks          |
+| `DB_LOCK_TIMEOUT_MS`         | `10000`  | techo de espera por un lock                                 |
 
 Inventario completo: `docs/guides/environment-variables.md`. Los secretos
 llegan del gestor de secretos del entorno, **nunca** de una imagen, un archivo
@@ -185,6 +189,41 @@ docker run --rm -e DATABASE_URL="$DATABASE_URL" \
 Regla de compatibilidad: **expandir → migrar → contraer**, en releases
 separados. Una migración que borra o renombra una columna que la versión
 anterior aún lee hace que el rollback de aplicación deje de ser posible.
+
+#### Row-Level Security por tenant (desde `TenantIntegrityRls`, 2026-08-20)
+
+Las 8 tablas CAD tienen RLS activo con política
+`tenant_id = current_setting('app.tenant_id', true)` (y en `sf_cad_blocks`,
+lectura adicional del carril de sistema `tenant_id IS NULL`). Tres cosas que
+el operador debe saber:
+
+1. **El pre-check de la migración aborta si hay filas con `tenant_id NULL`**
+   en las 7 tablas endurecidas — sin mutar nada. Adóptalas
+   (`UPDATE … SET tenant_id = …`) o elimínalas y vuelve a desplegar. Las
+   importaciones enterprise por el carril NULL de `cad_projects`/
+   `cad_documents` ya no existen: toda importación asigna tenant.
+2. **La política aplica hoy a todo rol NO dueño de las tablas.** La
+   aplicación corre como el rol que migró (dueño) y no queda sujeta — su
+   aislamiento sigue siendo el scoping de aplicación. Cualquier credencial
+   secundaria (soporte, analítica, un `psql` suelto) que consulte sin
+   `SET app.tenant_id` no ve NINGUNA fila: cerrado por defecto.
+3. **Para que la póliza cubra también a la aplicación** (el paso de
+   endurecimiento siguiente): crea un rol runtime no-dueño y despliega la API
+   con él, dejando las migraciones al rol dueño —
+
+   ```sql
+   CREATE ROLE valle_app LOGIN PASSWORD '…';
+   GRANT USAGE ON SCHEMA public TO valle_app;
+   GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO valle_app;
+   ALTER DEFAULT PRIVILEGES IN SCHEMA public
+     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO valle_app;
+   ```
+
+   Con `DATABASE_URL` apuntando a `valle_app` y `MIGRATIONS_RUN=false` (las
+   migraciones van en el paso explícito de arriba, con el rol dueño), la API
+   queda sujeta a las políticas; ese cambio requiere que la capa de datos
+   fije `app.tenant_id` por transacción y está pendiente de cablear — no lo
+   actives sin esa pieza.
 
 ### 3.3 · Rotación de réplicas
 
