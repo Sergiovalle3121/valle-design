@@ -45,6 +45,134 @@ const EVIDENCE_DIR = path.join(REPO_ROOT, "docs", "cad", "evidence");
 export const DECODER_MATRIX_FILE = path.join(EVIDENCE_DIR, "dwg-decoder-matrix.json");
 export const ROUNDTRIP_FILE = path.join(EVIDENCE_DIR, "dwg-roundtrip.json");
 export const ODA_ROUNDTRIP_FILE = path.join(EVIDENCE_DIR, "dwg-oda-roundtrip.json");
+export const CORPUS_VALIDATION_FILE = path.join(
+  EVIDENCE_DIR,
+  "dwg-corpus-validation.json",
+);
+
+/**
+ * La medición CRUDA del harness diferencial (validate-corpus.mjs): matriz
+ * {tipo → esperado/correcto/…} contra los oráculos DXF del corpus admitido.
+ * Es la ÚNICA fuente que puede marcar un tipo como verificado
+ * independientemente — jamás un estado de texto.
+ */
+function readCorpusValidationMeasurement() {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(CORPUS_VALIDATION_FILE, "utf8"));
+    if (typeof parsed !== "object" || parsed === null) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Claves de verificación que la medición sostiene HOY: filas de la matriz de
+ * entidades con esperado>0 y cero discrepancias, más las comparaciones de
+ * capas, bloques y tablas de símbolos cuando ningún archivo las contradice.
+ */
+function independentlyVerifiedKinds(validation) {
+  const kinds = new Set();
+  if (validation === null) return kinds;
+  if ((validation.resumen?.noAbiertos ?? 1) !== 0) return kinds;
+  const files = validation.archivos ?? [];
+  if (files.length === 0) return kinds;
+
+  for (const [kind, row] of Object.entries(validation.matrizEntidades ?? {})) {
+    if (
+      row.esperado > 0 &&
+      row.leidoCorrecto === row.esperado &&
+      row.geometriaDistinta === 0 &&
+      row.faltante === 0 &&
+      row.inesperado === 0
+    ) {
+      kinds.add(kind);
+    }
+  }
+  if (
+    files.every(
+      (a) =>
+        a.abre === true &&
+        (a.capas?.faltantes ?? []).length === 0 &&
+        (a.capas?.coloresDistintos ?? []).length === 0,
+    )
+  ) {
+    kinds.add("layer-table");
+  }
+  if (
+    files.every((a) =>
+      Object.values(a.bloques?.porBloque ?? {}).every(
+        (b) => b.encontrado !== false,
+      ),
+    )
+  ) {
+    kinds.add("block-definitions");
+  }
+  const tableSeen = (key) =>
+    files.some((a) => (a.tablas?.[key]?.esperados ?? []).length > 0);
+  const tableClean = (key, extraListas = []) =>
+    files.every((a) => {
+      const table = a.tablas?.[key];
+      if (table === undefined) return true;
+      return (
+        (table.faltantes ?? []).length === 0 &&
+        extraListas.every((campo) => (table[campo] ?? []).length === 0)
+      );
+    });
+  if (tableSeen("ltype") && tableClean("ltype", ["trazosDistintos"])) kinds.add("ltype-table");
+  if (tableSeen("style") && tableClean("style")) kinds.add("style-table");
+  if (tableSeen("dimstyle") && tableClean("dimstyle")) kinds.add("dimstyle-table");
+  if (tableSeen("mlinestyle") && tableClean("mlinestyle")) kinds.add("mlinestyle-table");
+  return kinds;
+}
+
+/**
+ * Clave de verificación que sostiene a cada tipo del laboratorio, o null
+ * cuando ninguna comparación del harness lo cubre (decodificado ≠ verificado:
+ * SEQEND, diccionarios, XRECORD y los controles sin oráculo siguen en false).
+ */
+function validationKindForType(nombre) {
+  if (nombre.startsWith("DIM_")) return "dimension";
+  switch (nombre) {
+    case "3DFACE":
+      return "face3d";
+    case "POLYLINE_2D":
+    case "VERTEX_2D":
+    case "LWPOLYLINE":
+      return "lwpolyline";
+    case "POLYLINE_3D":
+    case "VERTEX_3D":
+      return "polyline3d";
+    case "POLYLINE_MESH":
+    case "VERTEX_MESH":
+      return "polymesh";
+    case "POLYLINE_PFACE":
+    case "VERTEX_PFACE":
+    case "VERTEX_PFACE_FACE":
+      return "polyfaceMesh";
+    case "LAYER":
+    case "LAYER_CONTROL":
+      return "layer-table";
+    case "BLOCK":
+    case "ENDBLK":
+    case "BLOCK_HEADER":
+    case "BLOCK_CONTROL":
+      return "block-definitions";
+    case "LTYPE":
+    case "LTYPE_CONTROL":
+      return "ltype-table";
+    case "STYLE":
+    case "STYLE_CONTROL":
+      return "style-table";
+    case "DIMSTYLE":
+    case "DIMSTYLE_CONTROL":
+      return "dimstyle-table";
+    case "MLINESTYLE":
+      return "mlinestyle-table";
+    default:
+      return nombre.toLowerCase();
+  }
+}
 
 /**
  * La medición CRUDA del oráculo externo (scripts/dwg/oda-roundtrip.mjs):
@@ -224,13 +352,23 @@ export function buildDecoderMatrix({ capabilities, objectTypes, geometryKinds, c
       return { id, estadoLaboratorio, promovida, bloqueos };
     });
 
-  const entidades = objectTypes.map((type) => ({
-    ...type,
-    decodificadoEnLaboratorio: true,
-    verificadoIndependientemente:
-      promocionPosible && capabilities.get("entityImport") === "supported",
-    bundlesQueLoCubren: promocionPosible ? corpus.bundlesAdmitidos : 0,
-  }));
+  // Un tipo cuenta como verificado SOLO si la medición diferencial contra el
+  // corpus admitido (dwg-corpus-validation.json) lo comparó campo a campo con
+  // cero discrepancias. Antes esta bandera colgaba de entityImport — la
+  // disponibilidad en PRODUCTO —, que confundía dos preguntas distintas.
+  const validation = readCorpusValidationMeasurement();
+  const verifiedKinds = independentlyVerifiedKinds(validation);
+  const entidades = objectTypes.map((type) => {
+    const claveDeVerificacion = validationKindForType(type.tipo);
+    return {
+      ...type,
+      decodificadoEnLaboratorio: true,
+      verificadoIndependientemente:
+        claveDeVerificacion !== null && verifiedKinds.has(claveDeVerificacion),
+      claveDeVerificacion,
+      bundlesQueLoCubren: promocionPosible ? corpus.bundlesAdmitidos : 0,
+    };
+  });
 
   const capacidadesPromovidas = capacidades.filter((c) => c.promovida).length;
   const tiposVerificadosIndependientemente = entidades.filter(
