@@ -148,11 +148,8 @@ export interface CadDxfMText {
 export type CadDxfSemanticDimension = Omit<
   CadDimensionEntity,
   "id" | "type" | "context" | "references" | "associative" | "associationStatus"
-> & {
-  blockName: string;
-  /** Tamaño de flecha SOBRE PAPEL (mm) de una cota anotativa, si el fichero lo trae. */
-  annotativeHeightMm?: number;
-};
+  /** annotativeHeightMm: flecha SOBRE PAPEL (mm) si la cota es anotativa. */
+> & { blockName: string; annotativeHeightMm?: number };
 export type CadDxfSemanticMleader = Omit<
   CadMleaderEntity,
   "id" | "type" | "context" | "references" | "associative" | "associationStatus"
@@ -228,10 +225,7 @@ export interface CadDxfImportResult {
   /** $LTSCALE. Ausente cuando el fichero no la declara. */
   linetypeScale?: number;
   /** Tabla DIMSTYLE del fichero: la norma de acotación del remitente. */
-  dimensionStyles?: Record<
-    string,
-    import("./dimension-style").CadDimensionStyleDefinition
-  >;
+  dimensionStyles?: Record<string, import("./dimension-style").CadDimensionStyleDefinition>;
 }
 
 export interface CadDxfWarningSummary {

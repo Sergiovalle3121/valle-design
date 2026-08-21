@@ -80,7 +80,7 @@ export function CadCommandDock({
       <form className="mt-2 flex gap-1.5" onSubmit={(event) => { event.preventDefault(); onSubmit(); }}>
         <input
           ref={inputRef}
-          aria-label="Línea de comandos CAD"
+          aria-label="Copiloto CAD en lenguaje natural"
           value={value}
           onChange={(event) => onValueChange(event.target.value)}
           onKeyDown={(event) => {

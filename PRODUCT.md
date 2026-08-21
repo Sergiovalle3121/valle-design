@@ -80,7 +80,10 @@ verifica contra la API real y PostgreSQL en
   intercambio `IMPORT`/`EXPORT` en STEP e IGES 5.3, y un intérprete AutoLISP en
   sandbox con biblioteca `.lsp` por organización. Sus límites, que sí se
   mantienen: los sólidos son FACETADOS —un intercambio STEP/IGES conserva la
-  faceta, no la superficie exacta que la generó— y el AutoLISP es un subconjunto
+  faceta, no la superficie exacta que la generó—, el importador STEP sólo
+  acepta sólidos de caras PLANAS (`PLANE` con lazos de aristas rectas; una
+  cara `CYLINDRICAL_SURFACE` u otra superficie curva se rechaza con su número
+  de entidad, nunca se ignora en silencio), y el AutoLISP es un subconjunto
   con presupuesto de ejecución y una única puerta de mutación, no el intérprete
   de Autodesk.
 - El corpus de 100k usa LOD. Los números actuales no demuestran 60 FPS, tiempo

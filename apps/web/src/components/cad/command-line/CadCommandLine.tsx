@@ -131,6 +131,12 @@ export function CadCommandLine({
       <div
         ref={logRef}
         data-testid="cad-command-line-log"
+        // Región viva para lectores de pantalla: cada paso del comando se
+        // anuncia sin robar el foco (polite, no assertive — un dibujante
+        // tecleando no quiere interrupciones a mitad de coordenada).
+        role="log"
+        aria-live="polite"
+        aria-label="Diálogo de la línea de comandos"
         // `pointer-events-none`: el diálogo es texto de SÓLO LECTURA y el
         // muelle flota sobre el lienzo y sobre la barra inferior. Con el
         // puntero enrutado al motor, cada paso de cada comando deja su renglón

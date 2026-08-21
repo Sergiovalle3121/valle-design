@@ -254,8 +254,8 @@ console.log("cad annotative scale specs passed");
   assert.equal(result.commands.length, 2, "las dos cotas se reescalan");
   const replaced = new Map(
     result.commands.map((command) => [
-      (command as { entityId: string }).entityId,
-      (command as { entity: Record<string, number> }).entity,
+      (command as unknown as { entityId: string }).entityId,
+      (command as unknown as { entity: Record<string, number> }).entity,
     ]),
   );
   // 2,5 mm de flecha sobre papel: 125 unidades a 1:50, 12,5 a 1:5.

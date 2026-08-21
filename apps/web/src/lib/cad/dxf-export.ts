@@ -107,10 +107,7 @@ export interface CadDxfExportMText {
 export type CadDxfExportSemanticDimension = Omit<
   CadDimensionEntity,
   "id" | "type" | "context" | "references" | "associative" | "associationStatus"
-> & {
-  /** Tamaño de flecha SOBRE PAPEL de una cota anotativa (mm); viaja en XDATA. */
-  annotativeHeightMm?: number;
-};
+> & { /** flecha SOBRE PAPEL (mm) si la cota es anotativa */ annotativeHeightMm?: number };
 export type CadDxfExportMleader = Omit<
   CadMleaderEntity,
   "id" | "type" | "context" | "references" | "associative" | "associationStatus"
@@ -207,15 +204,7 @@ export interface CadDxfExportModel {
   mtexts?: CadDxfExportMText[];
   measurements?: CadDxfExportMeasurement[];
   semanticDimensions?: CadDxfExportSemanticDimension[];
-  /**
-   * Tabla DIMSTYLE: la norma de acotación viaja como tabla, no sólo como
-   * overrides por entidad. Códigos DIMVAR estándar para lectores ajenos y
-   * XDATA clave=valor para el round-trip propio sin pérdida.
-   */
-  dimensionStyles?: Record<
-    string,
-    import("./dimension-style").CadDimensionStyleDefinition
-  >;
+  /** Tabla DIMSTYLE (norma de acotación); códec en dimension-style.ts. */ dimensionStyles?: Record<string, import("./dimension-style").CadDimensionStyleDefinition>;
   mleaders?: CadDxfExportMleader[];
   blocks?: CadDxfExportBlock[];
   inserts?: CadDxfExportInsert[];

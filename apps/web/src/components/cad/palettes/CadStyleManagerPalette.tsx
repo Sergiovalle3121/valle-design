@@ -136,6 +136,9 @@ export const CadStyleManagerPalette = React.memo(
       <div
         data-testid="cad-style-manager"
         data-family={family}
+        role="dialog"
+        aria-modal="false"
+        aria-label="Gestor de estilos"
         className="max-h-[80vh] w-[min(560px,92vw)] overflow-y-auto rounded-2xl border border-white/10 bg-gray-900 p-4 text-white shadow-2xl"
       >
         <div className="mb-3 flex items-center justify-between gap-3">

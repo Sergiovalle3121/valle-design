@@ -13802,370 +13802,10 @@ export default function Layout3DEditor({
     a.download = `layout3d-${model}-${revision}.png`.replace(/[^\w.\-]+/g, "_");
     a.click();
   };
-  // Plot a printable PDF sheet: the rendered view + a title block (Fase 65).
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- retained only as rollback code; user-facing PDF uses publishSheetSetPdf.
-  const exportPdf = async (paperOverride?: CadPaperId) => {
-    const r = rendererRef.current,
-      sc = sceneRef.current,
-      cam = cameraRef.current,
-      fp = data?.footprint;
-    if (!r || !sc || !cam || !fp) return;
-    try {
-      r.render(sc, cam);
-      const img = r.domElement.toDataURL("image/png");
-      const placements = [...placementsRef.current.values()];
-      const stationArea = placements.reduce((acc, p) => acc + p.w * p.h, 0);
-      const assets = [...assetsRef.current.values()];
-      const equipArea = assets.reduce(
-        (acc, x) =>
-          x.kind !== "zone" && x.kind !== "agvpath" ? acc + x.w * x.h : acc,
-        0,
-      );
-      const footprintArea = fp.footprintW * fp.footprintH;
-      const util =
-        footprintArea > 0
-          ? Math.min(100, ((stationArea + equipArea) / footprintArea) * 100)
-          : 0;
-      const centers: Record<string, FlowCenter> = {};
-      placementsRef.current.forEach((p, id) => {
-        centers[id] = { x: p.x + p.w / 2, y: p.y + p.h / 2 };
-      });
-      const flow = flowMetrics(connectorsRef.current, centers);
-      const annotations = [...annotationsRef.current.values()];
-      const dimensionCount = annotations.filter(
-        (item) => item.type === "dim",
-      ).length;
-      const labelCount = annotations.filter(
-        (item) => item.type === "text",
-      ).length;
-      const validationIssueCount = cadValidationReport
-        ? cadValidationReport.issues.length
-        : 0;
-      const activeLayerLabel =
-        cadLayers.find((layer) => layer.id === activeCadLayer)?.label ??
-        activeCadLayer;
-      const approvalLabel = approval
-        ? APPROVAL_META[approval.status].label
-        : "Borrador";
-      // Motor universal de ploteo: papel elegido por el usuario, orientación
-      // según la forma del dibujo y la MAYOR escala estándar que quepa.
-      const unitStr = fp.unit === "m" ? "m" : "mm";
-      const wMm = unitStr === "m" ? fp.footprintW * 1000 : fp.footprintW;
-      const hMm = unitStr === "m" ? fp.footprintH * 1000 : fp.footprintH;
-      const plot = buildPlotSheet({
-        drawingW: wMm,
-        drawingH: hMm,
-        paper: paperOverride ?? plotPaper,
-        orientation: wMm >= hMm ? "landscape" : "portrait",
-        project: `Layout ${model}`,
-        drawnBy: branding.legalEntityName,
-        date: new Date().toLocaleDateString("es-MX"),
-        revision,
-        sheetNumber: "1/2",
-      });
-      if (!plot.scale) {
-        toast.error(
-          plot.issues[0] ??
-            "El plano no cabe en este papel; usa uno más grande.",
-          "3D",
-        );
-        return;
-      }
-      const plotScale = plot.scale;
-      const paperOrientationLabel =
-        plot.orientation === "landscape" ? "horizontal" : "vertical";
-      const sheet = plotSheetModel({
-        model,
-        revision,
-        unit: fp.unit || "mm",
-        footprintW: fp.footprintW,
-        footprintH: fp.footprintH,
-        placedStations: placements.length,
-        totalStations: data!.stations.length,
-        equipmentCount: assets.length,
-        utilPct: util,
-        flowLen: flow.totalLen,
-        date: new Date(),
-        sheetSize: `${plot.paperLabel} ${paperOrientationLabel}`,
-        exportFormat: "PDF",
-        approvalStatus: approvalLabel,
-        activeLayer: activeLayerLabel,
-        layerCount: cadLayers.length,
-        visibleLayerCount: cadLayers.filter((layer) => layer.visible).length,
-        lockedLayerCount: cadLayers.filter((layer) => layer.locked).length,
-        connectorCount: connectorsRef.current.length,
-        dimensionCount,
-        labelCount,
-        validationSeverity: cadValidationReport?.severity ?? "pending",
-        validationIssueCount,
-        dxfWarningCount: dxfWarnings.length,
-      });
-      const { jsPDF } = await import("jspdf");
-      const paperBase = CAD_PAPER_SIZES[plot.paper];
-      const doc = new jsPDF({
-        orientation: plot.orientation,
-        unit: "mm",
-        format: [paperBase.w, paperBase.h],
-      });
-      const pageW = plot.sheetW,
-        pageH = plot.sheetH,
-        margin = 10;
-      const drawHeader = () => {
-        doc.setFillColor(17, 24, 39);
-        doc.rect(0, 0, pageW, 16, "F");
-        doc.setTextColor(255, 255, 255);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(13);
-        doc.text(`${branding.brandName} · ${sheet.title}`, margin, 11);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(10);
-        doc.text(sheet.subtitle, pageW - margin, 11, { align: "right" });
-      };
-      // ── Página 1: HOJA UNIVERSAL A ESCALA ESTÁNDAR (motor lib/cad/plot-sheet) ──
-      // Sin banner web: marco, dibujo centrado por el motor y cajetín inferior
-      // clásico, como una lámina de arquitectura. La ficha EMS vive en la pág. 2.
-      const layout: PlotLayout = {
-        scale: plotScale,
-        drawingWmm: plot.placement.w,
-        drawingHmm: plot.placement.h,
-        offsetXmm: plot.placement.x,
-        offsetYmm: plot.placement.y,
-        paper: { w: pageW, h: pageH },
-      };
-      // worldToPaper asume origen abajo-izquierda; el editor usa Y hacia abajo —
-      // se compensa con footprintH − y para que el papel coincida con la pantalla.
-      const toPaper = (x: number, y: number) =>
-        worldToPaper(
-          { x, y: fp.footprintH - y },
-          { footprintH: fp.footprintH, unit: unitStr },
-          layout,
-        );
-      const drawPoly = (
-        box: { x: number; y: number; w: number; h: number; rotation?: number },
-        style: "S" | "F" | "FD",
-      ) => {
-        const pts = rectGeometry(box).corners.map((c) => toPaper(c.x, c.y));
-        const deltas = pts
-          .slice(1)
-          .map((p, i) => [p.x - pts[i].x, p.y - pts[i].y]);
-        doc.lines(deltas, pts[0].x, pts[0].y, [1, 1], style, true);
-      };
-      // borde de la huella
-      doc.setDrawColor(60);
-      doc.setLineWidth(0.4);
-      doc.rect(
-        layout.offsetXmm,
-        layout.offsetYmm,
-        layout.drawingWmm,
-        layout.drawingHmm,
-      );
-      doc.setLineWidth(0.2);
-      const assetList = [...assetsRef.current.values()];
-      // zonas y pasillos al fondo
-      doc.setDrawColor(160);
-      doc.setFillColor(235, 242, 250);
-      assetList
-        .filter((a) => a.kind === "zone")
-        .forEach((a) => drawPoly(a, "FD"));
-      doc.setFillColor(252, 243, 219);
-      assetList
-        .filter((a) => a.kind === "agvpath" || a.kind === "path")
-        .forEach((a) => drawPoly(a, "FD"));
-      // equipo
-      doc.setDrawColor(90);
-      doc.setFillColor(246, 248, 250);
-      assetList
-        .filter(
-          (a) =>
-            a.kind !== "zone" &&
-            a.kind !== "agvpath" &&
-            a.kind !== "path" &&
-            a.kind !== "wall",
-        )
-        .forEach((a) => drawPoly(a, "FD"));
-      // muros — trazo grueso
-      doc.setDrawColor(20);
-      doc.setFillColor(40, 44, 52);
-      doc.setLineWidth(0.3);
-      assetList
-        .filter((a) => a.kind === "wall")
-        .forEach((a) => drawPoly(a, "FD"));
-      doc.setLineWidth(0.2);
-      // conectores de flujo
-      doc.setDrawColor(37, 99, 235);
-      connectorsRef.current.forEach((c) => {
-        const a = placementsRef.current.get(c.from);
-        const b = placementsRef.current.get(c.to);
-        if (!a || !b) return;
-        const pa = toPaper(a.x + a.w / 2, a.y + a.h / 2);
-        const pb = toPaper(b.x + b.w / 2, b.y + b.h / 2);
-        doc.line(pa.x, pa.y, pb.x, pb.y);
-      });
-      // estaciones + etiqueta cuando el tamaño en papel lo permite
-      doc.setDrawColor(30, 64, 175);
-      doc.setFillColor(219, 234, 254);
-      placementsRef.current.forEach((p, id) => {
-        drawPoly(p, "FD");
-        const paperW = (unitStr === "m" ? p.w * 1000 : p.w) / plotScale;
-        if (paperW >= 10) {
-          const ccenter = toPaper(p.x + p.w / 2, p.y + p.h / 2);
-          doc.setFontSize(6);
-          doc.setTextColor(15, 23, 42);
-          doc.setFont("helvetica", "normal");
-          doc.text(
-            (stationsByIdRef.current.get(id)?.station ?? id).slice(0, 14),
-            ccenter.x,
-            ccenter.y,
-            { align: "center" },
-          );
-        }
-      });
-      // marco de la lámina
-      doc.setDrawColor(20);
-      doc.setLineWidth(0.5);
-      doc.rect(margin, margin, pageW - margin * 2, pageH - margin * 2);
-      doc.setLineWidth(0.2);
-      // cajetín inferior clásico: marca + 2 filas × 4 campos
-      const tb = {
-        x: margin,
-        y: pageH - margin - 30,
-        w: pageW - margin * 2,
-        h: 30,
-      };
-      doc.setDrawColor(20);
-      doc.setLineWidth(0.4);
-      doc.rect(tb.x, tb.y, tb.w, tb.h);
-      doc.setLineWidth(0.2);
-      const brandW = Math.min(60, tb.w * 0.22);
-      doc.line(tb.x + brandW, tb.y, tb.x + brandW, tb.y + tb.h);
-      doc.setFont("helvetica", "bold");
-      doc.setFontSize(13);
-      doc.setTextColor(20, 24, 32);
-      doc.text(branding.brandName, tb.x + brandW / 2, tb.y + 13, {
-        align: "center",
-      });
-      doc.setFont("helvetica", "normal");
-      doc.setFontSize(7);
-      doc.setTextColor(110, 116, 128);
-      doc.text(sheet.title, tb.x + brandW / 2, tb.y + 19, { align: "center" });
-      const tbFields = [
-        { label: "Proyecto", value: plot.titleBlock.project },
-        { label: "Huella", value: sheet.footprintLabel },
-        { label: "Escala", value: plot.scaleLabel },
-        {
-          label: "Papel",
-          value: `${plot.paperLabel} ${paperOrientationLabel}`,
-        },
-        { label: "Fecha", value: plot.titleBlock.date },
-        { label: "Dibujó", value: plot.titleBlock.drawnBy },
-        { label: "Hoja", value: plot.titleBlock.sheetNumber },
-        { label: "Revisión", value: plot.titleBlock.revision },
-      ];
-      const cellW = (tb.w - brandW) / 4,
-        cellH = tb.h / 2;
-      tbFields.forEach((f, i) => {
-        const cx = tb.x + brandW + (i % 4) * cellW,
-          cy = tb.y + Math.floor(i / 4) * cellH;
-        doc.setDrawColor(150);
-        doc.rect(cx, cy, cellW, cellH);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(6);
-        doc.setTextColor(110, 116, 128);
-        doc.text(f.label.toUpperCase(), cx + 2, cy + 4.5);
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(9);
-        doc.setTextColor(20, 24, 32);
-        doc.text(String(f.value).slice(0, 34), cx + 2, cy + 10.5);
-      });
-      // escalímetro del motor: tramos redondos (1/2/5×10^n) alternados sobre el cajetín
-      if (plot.scaleBar) {
-        const bar = plot.scaleBar;
-        const barY = tb.y - 6;
-        let barX = margin + 2;
-        doc.setDrawColor(20);
-        for (let i = 0; i < bar.segments; i++) {
-          if (i % 2 === 0) doc.setFillColor(20, 24, 32);
-          else doc.setFillColor(255, 255, 255);
-          doc.rect(barX, barY, bar.segmentSheetMm, 2, "FD");
-          barX += bar.segmentSheetMm;
-        }
-        doc.setFontSize(6.5);
-        doc.setTextColor(60, 66, 76);
-        doc.setFont("helvetica", "normal");
-        for (let i = 0; i <= bar.segments; i++) {
-          const real = bar.segmentMm * i;
-          doc.text(
-            real >= 1000 ? `${real / 1000}` : `${real}`,
-            margin + 2 + bar.segmentSheetMm * i,
-            barY - 1,
-            { align: "center" },
-          );
-        }
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(9);
-        doc.setTextColor(20, 24, 32);
-        doc.text(
-          `Escala ${plot.scaleLabel} · tramo ${bar.label}`,
-          barX + 5,
-          barY + 2,
-        );
-      }
-      // ── Página 2: vista 3D + ficha técnica EMS (el cajetín extendido) ──
-      doc.addPage([paperBase.w, paperBase.h], plot.orientation);
-      drawHeader();
-      const fields = [
-        ...sheet.fields,
-        { label: "Escala", value: plot.scaleLabel },
-        {
-          label: "Papel",
-          value: `${plot.paperLabel} ${paperOrientationLabel}`,
-        },
-      ];
-      const tbW = 70,
-        tbX = pageW - margin - tbW,
-        tbY = 22,
-        rowH = 8;
-      const tbH = Math.min(fields.length * rowH + 6, pageH - tbY - margin);
-      doc.setDrawColor(150);
-      doc.setFillColor(246, 248, 250);
-      doc.rect(tbX, tbY, tbW, tbH, "FD");
-      doc.setFontSize(8);
-      let y = tbY + 6;
-      for (const f of fields) {
-        if (y > tbY + tbH - 3) break;
-        doc.setFont("helvetica", "normal");
-        doc.setTextColor(110, 116, 128);
-        doc.text(f.label, tbX + 3, y);
-        doc.setFont("helvetica", "bold");
-        doc.setTextColor(20, 24, 32);
-        doc.text(f.value, tbX + tbW - 3, y, { align: "right" });
-        y += rowH;
-      }
-      const vX = margin,
-        vY = 22,
-        vW = tbX - margin - 6,
-        vH = pageH - vY - margin;
-      const props = doc.getImageProperties(img);
-      const ar = (props.width || 4) / (props.height || 3);
-      let w = vW,
-        h = w / ar;
-      if (h > vH) {
-        h = vH;
-        w = h * ar;
-      }
-      doc.setDrawColor(205);
-      doc.rect(vX, vY, vW, vH);
-      doc.addImage(img, "PNG", vX + (vW - w) / 2, vY + (vH - h) / 2, w, h);
-      doc.save(`layout-${model}-${revision}.pdf`.replace(/[^\w.\-]+/g, "_"));
-      toast.success(
-        `Plano ${plot.paperLabel} ${paperOrientationLabel} a escala 1:${plotScale} (PDF, 2 páginas).`,
-        "3D",
-      );
-    } catch (e) {
-      console.error(e);
-      toast.error("No se pudo generar el PDF.", "3D");
-    }
-  };
+  // El PDF de la Fase 65 (render + cajetín a mano con jsPDF) se retiró: era
+  // código de rollback sin llamadas y duplicaba a mano lo que lib/cad/plot
+  // hace con contrato y specs. La única salida PDF del producto es
+  // publishSheetSetPdf (conjunto de hojas).
   // Export the 3D model as binary glTF (.glb) — opens in Blender, other CAD, etc.
   const exportGltf = async () => {
     const groups = [
@@ -15179,15 +14819,17 @@ export default function Layout3DEditor({
             viewport.clip.y + 4,
           );
         });
+        // Las CLAVES del cajetín (PROJECT, TITLE…) son contrato del documento
+        // y no se tocan; lo que se IMPRIME para el cliente va en es-MX.
         const titleBlockEntries = [
-          ["PROJECT", sheet.titleBlock.PROJECT ?? `Layout ${model}`],
-          ["TITLE", sheet.titleBlock.TITLE ?? sheet.name],
-          ["DRAWING_NO", sheet.titleBlock.DRAWING_NO ?? "-"],
-          ["SHEET_NO", sheet.titleBlock.SHEET_NO ?? String(sheetIndex + 1)],
-          ["REVISION", sheet.titleBlock.REVISION ?? revision],
-          ["DISCIPLINE", sheet.titleBlock.DISCIPLINE ?? "-"],
-          ["PREPARED_BY", sheet.titleBlock.PREPARED_BY ?? "-"],
-          ["CHECKED_BY", sheet.titleBlock.CHECKED_BY ?? "-"],
+          ["PROYECTO", sheet.titleBlock.PROJECT ?? `Layout ${model}`],
+          ["TÍTULO", sheet.titleBlock.TITLE ?? sheet.name],
+          ["NO. DE PLANO", sheet.titleBlock.DRAWING_NO ?? "-"],
+          ["NO. DE HOJA", sheet.titleBlock.SHEET_NO ?? String(sheetIndex + 1)],
+          ["REVISIÓN", sheet.titleBlock.REVISION ?? revision],
+          ["DISCIPLINA", sheet.titleBlock.DISCIPLINE ?? "-"],
+          ["ELABORÓ", sheet.titleBlock.PREPARED_BY ?? "-"],
+          ["REVISÓ", sheet.titleBlock.CHECKED_BY ?? "-"],
         ] as const;
         const blockX = 8,
           blockY = sheet.height - 34,
@@ -16833,13 +16475,17 @@ export default function Layout3DEditor({
             <T3Btn onClick={() => viewPreset("front")} title="Vista frontal">
               <Layers className="w-4 h-4" />
             </T3Btn>
-            <T3Btn
-              active={walk}
-              onClick={toggleWalk}
-              title="Recorrido en primera persona — arrastra para mirar, WASD para caminar, Esc para salir"
-            >
-              <PersonStanding className="w-4 h-4" />
-            </T3Btn>
+            {/* MODO PLANTA: el paseo en primera persona es del recorrido de
+                fábrica, no del estudio de dibujo. */}
+            {!standalone && (
+              <T3Btn
+                active={walk}
+                onClick={toggleWalk}
+                title="Recorrido en primera persona — arrastra para mirar, WASD para caminar, Esc para salir"
+              >
+                <PersonStanding className="w-4 h-4" />
+              </T3Btn>
+            )}
           </>
         )}
         <T3Btn
@@ -16892,13 +16538,18 @@ export default function Layout3DEditor({
           <MapPin className="w-4 h-4" />
         </T3Btn>
         <div className="w-px h-5 bg-white/10 mx-1" />
-        <T3Btn
-          active={showHeat}
-          onClick={() => setShowHeat((v) => !v)}
-          title="Mapa de calor de ocupación en el piso"
-        >
-          <Grid2x2 className="w-4 h-4" />
-        </T3Btn>
+        {/* MODO PLANTA: el mapa de calor MES es analítica industrial, no CAD.
+            En el estudio Design (standalone) no existe — mismo criterio WP6
+            que dejó los paneles de análisis como inyección enterprise. */}
+        {!standalone && (
+          <T3Btn
+            active={showHeat}
+            onClick={() => setShowHeat((v) => !v)}
+            title="Mapa de calor de ocupación en el piso"
+          >
+            <Grid2x2 className="w-4 h-4" />
+          </T3Btn>
+        )}
         <T3Btn
           active={showGaps}
           onClick={() => setShowGaps((v) => !v)}
@@ -16907,6 +16558,8 @@ export default function Layout3DEditor({
           <ShieldAlert className="w-4 h-4" />
         </T3Btn>
         <div className="relative" ref={overlayMenuRef}>
+          {/* MODO PLANTA: los overlays MES sólo con backend de planta. */}
+          {!standalone && (
           <T3Btn
             active={showOverlayMenu || !!overlay}
             onClick={() => setShowOverlayMenu((v) => !v)}
@@ -16914,6 +16567,7 @@ export default function Layout3DEditor({
           >
             <Activity className="w-4 h-4" />
           </T3Btn>
+          )}
           {showOverlayMenu && (
             <div className="absolute top-full mt-1 left-0 z-50 w-60 rounded-xl border border-white/10 bg-gray-900 shadow-2xl py-1">
               <div className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-gray-500">
@@ -17209,29 +16863,36 @@ export default function Layout3DEditor({
             <Waypoints className="w-4 h-4" />
           </T3Btn>
         )}
-        <T3Btn
-          onClick={runOptimize}
-          disabled={serverBusy}
-          title="Optimizar flujo — reordena para minimizar el recorrido (servidor)"
-        >
-          <WandSparkles className="w-4 h-4" />
-        </T3Btn>
-        <T3Btn
-          active={showCommand && workspacePreferences.commandDock}
-          onClick={() => {
-            setFocusMode(false);
-            updateWorkspacePreferences({
-              ...workspacePreferencesRef.current,
-              commandDock: true,
-            });
-            window.requestAnimationFrame(() =>
-              commandInputRef.current?.focus(),
-            );
-          }}
-          title="Línea de comandos determinística — historial, preview y repetición"
-        >
-          <ChevronRight className="w-4 h-4" />
-        </T3Btn>
+        {/* MODO PLANTA: el balanceo/flujo es del paquete industrial. */}
+        {!standalone && (
+          <T3Btn
+            onClick={runOptimize}
+            disabled={serverBusy}
+            title="Optimizar flujo — reordena para minimizar el recorrido (servidor)"
+          >
+            <WandSparkles className="w-4 h-4" />
+          </T3Btn>
+        )}
+        {/* MODO PLANTA: este botón abre el DOCK del copiloto legado, que en
+            el estudio Design ya no se monta. */}
+        {!standalone && (
+          <T3Btn
+            active={showCommand && workspacePreferences.commandDock}
+            onClick={() => {
+              setFocusMode(false);
+              updateWorkspacePreferences({
+                ...workspacePreferencesRef.current,
+                commandDock: true,
+              });
+              window.requestAnimationFrame(() =>
+                commandInputRef.current?.focus(),
+              );
+            }}
+            title="Línea de comandos determinística — historial, preview y repetición"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </T3Btn>
+        )}
         <T3Btn
           active={showPalette}
           onClick={() => setShowPalette((v) => !v)}
@@ -17384,12 +17045,14 @@ export default function Layout3DEditor({
         >
           <FileDown className="w-4 h-4" />
         </T3Btn>
-        <T3Btn
-          onClick={exportCsvSchedule}
-          title="Exportar estaciones a CSV (Excel)"
-        >
-          <FileText className="w-4 h-4" />
-        </T3Btn>
+        {!standalone && (
+          <T3Btn
+            onClick={exportCsvSchedule}
+            title="Exportar estaciones a CSV (Excel)"
+          >
+            <FileText className="w-4 h-4" />
+          </T3Btn>
+        )}
         {dxfWarnings.length > 0 && (
           <div
             className="ml-1 inline-flex items-center gap-1 rounded-lg border border-amber-400/20 bg-amber-400/10 px-2 py-1 text-[11px] text-amber-100"
@@ -17508,9 +17171,13 @@ export default function Layout3DEditor({
               muscular. */}
           <div
             data-testid="cad-left-dock"
-            className={`w-60 shrink-0 border-r border-white/10 bg-gray-900/95 text-white flex-col max-[1100px]:hidden ${focusMode || (!workspacePreferences.leftDock && !workspacePreferences.commandDock) ? "hidden" : "flex"}`}
+            className={`w-60 shrink-0 border-r border-white/10 bg-gray-900/95 text-white flex-col max-[1100px]:hidden ${focusMode || (!workspacePreferences.leftDock && !(workspacePreferences.commandDock && !standalone)) ? "hidden" : "flex"}`}
           >
-            {showCommand && workspacePreferences.commandDock && (
+            {/* El COPILOTO legado de fábrica (parser NL de 47 comandos) no se
+                monta en el estudio Design: la línea de comandos del motor
+                (CadCommandLine) es la única entrada tecleable. El motor
+                NL→CAD del puerto CIDE vive aparte y no se toca. */}
+            {showCommand && workspacePreferences.commandDock && !standalone && (
               <CadCommandDock
                 inputRef={commandInputRef}
                 value={commandText}
@@ -18634,12 +18301,12 @@ export default function Layout3DEditor({
               </span>
               {cadLayerSummary.hiddenObjectCount > 0 && (
                 <span className="text-amber-300">
-                  Hidden layer objs {cadLayerSummary.hiddenObjectCount}
+                  Objetos en capas ocultas {cadLayerSummary.hiddenObjectCount}
                 </span>
               )}
               {cadLayerSummary.lockedObjectCount > 0 && (
                 <span className="text-amber-300">
-                  Locked layer objs {cadLayerSummary.lockedObjectCount}
+                  Objetos en capas bloqueadas {cadLayerSummary.lockedObjectCount}
                 </span>
               )}
               <span>
@@ -18725,7 +18392,7 @@ export default function Layout3DEditor({
                 <span className="text-amber-300">DXF {dxfWarnings.length}</span>
               )}
               {localSnapshots.snapshots.length > 0 && (
-                <span>Snapshots {localSnapshots.snapshots.length}</span>
+                <span>Instantáneas {localSnapshots.snapshots.length}</span>
               )}
             </div>
             {hatchPickMode && (
@@ -19096,8 +18763,8 @@ export default function Layout3DEditor({
                               }
                               className="rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[11px] text-white"
                             >
-                              <option value="start">Start</option>
-                              <option value="end">End</option>
+                              <option value="start">Inicio</option>
+                              <option value="end">Fin</option>
                             </select>
                           </div>
                           <button
@@ -20659,7 +20326,7 @@ export default function Layout3DEditor({
                       }
                       className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white"
                     >
-                      <option value="monochrome">Monochrome</option>
+                      <option value="monochrome">Monocromo</option>
                       <option value="color">Color</option>
                     </select>
                   </label>
@@ -21347,7 +21014,7 @@ export default function Layout3DEditor({
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <label className="rounded-lg bg-white/[0.04] p-2 text-gray-300">
-                  <span className="mb-1 block text-gray-500">Scope</span>
+                  <span className="mb-1 block text-gray-500">Alcance</span>
                   <select
                     value={dxfExportOptions.scope}
                     onChange={(e) =>
@@ -21422,7 +21089,7 @@ export default function Layout3DEditor({
                   <b className="text-right">{dxfExportSummary.measurements}</b>
                   <span>Notas</span>
                   <b className="text-right">{dxfExportSummary.labels}</b>
-                  <span>Layers</span>
+                  <span>Capas</span>
                   <b className="text-right">{dxfExportSummary.layers}</b>
                 </div>
               </div>
@@ -21433,7 +21100,7 @@ export default function Layout3DEditor({
                   </div>
                   <span className="text-[10.5px] text-gray-500">
                     {dxfExportSummary.includedLayers.join(" · ") ||
-                      "Sin layers"}
+                      "Sin capas"}
                   </span>
                 </div>
                 {dxfExportLayerRows.length ? (

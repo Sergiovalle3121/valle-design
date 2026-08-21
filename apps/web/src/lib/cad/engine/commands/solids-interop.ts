@@ -47,7 +47,8 @@ interface ImportState {
 const importPrompt: CadCommandStep<ImportState> = {
   state: { waiting: true },
   prompt: {
-    message: "Pegue o cargue el contenido del archivo STEP o IGES",
+    message:
+      "Pegue o cargue el contenido del archivo STEP o IGES (STEP: sólo sólidos de caras planas)",
     options: [],
   },
   accepts: CAD_ACCEPT_TEXT,

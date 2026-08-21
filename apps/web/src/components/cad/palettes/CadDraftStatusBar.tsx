@@ -69,6 +69,9 @@ export const CadDraftStatusBar = React.memo(function CadDraftStatusBar({
           key={toggle.id}
           data-testid={`cad-draft-status-${toggle.id}`}
           data-active={toggle.active ? "true" : "false"}
+          // El estado del conmutador debe OÍRSE, no sólo verse: aria-pressed
+          // es lo que un lector de pantalla anuncia como «presionado».
+          aria-pressed={toggle.active}
           onClick={toggle.onClick}
           className={
             toggle.active
