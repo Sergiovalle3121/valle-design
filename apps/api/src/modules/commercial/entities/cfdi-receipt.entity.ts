@@ -63,7 +63,12 @@ export class CfdiReceipt {
   uuid!: string | null;
 
   /** Referencia del comprobante en el PAC (para descargar XML/PDF). */
-  @Column({ name: 'provider_ref', type: 'varchar', length: 120, nullable: true })
+  @Column({
+    name: 'provider_ref',
+    type: 'varchar',
+    length: 120,
+    nullable: true,
+  })
   providerRef!: string | null;
 
   /** bigint: PostgreSQL lo devuelve como string, SQLite como number. */

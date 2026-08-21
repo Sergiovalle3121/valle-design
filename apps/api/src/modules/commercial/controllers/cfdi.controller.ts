@@ -13,10 +13,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import type { Response } from 'express';
 import { Repository } from 'typeorm';
 import { CfdiReceipt } from '../entities/cfdi-receipt.entity';
-import {
-  CFDI_PROVIDER,
-  type CfdiProvider,
-} from '../ports/cfdi-provider.port';
+import { CFDI_PROVIDER, type CfdiProvider } from '../ports/cfdi-provider.port';
 import {
   requireDecider,
   type AuthenticatedRequest,
@@ -118,7 +115,8 @@ function receiptView(row: CfdiReceipt) {
     currency: row.currency,
     // Descargables sólo cuando está timbrado y el PAC custodia archivos.
     filesAvailable: row.status === 'issued' && row.providerRef !== null,
-    detail: row.status === 'manual' || row.status === 'failed' ? row.detail : null,
+    detail:
+      row.status === 'manual' || row.status === 'failed' ? row.detail : null,
     createdAt: row.createdAt,
   };
 }

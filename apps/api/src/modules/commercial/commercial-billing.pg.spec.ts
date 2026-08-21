@@ -47,7 +47,6 @@ import type { PaymentWebhookEvent } from './ports/payment-provider.port';
  * asiento. Un doble afirmaría justo lo que se quiere probar.
  */
 
-
 describePostgres('Ciclo de vida cobrado con Stripe (PostgreSQL)', () => {
   jest.setTimeout(90_000);
 

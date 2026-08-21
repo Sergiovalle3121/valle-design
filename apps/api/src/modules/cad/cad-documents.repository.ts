@@ -55,7 +55,6 @@ export interface CadDocumentSaveResult {
   storedAsBlobPointer: boolean;
 }
 
-
 /**
  * Repositorio FINO del ciclo de vida CAD propio (contrato design-api.v1):
  * opera las filas `cad_projects` / `cad_documents` / `cad_document_versions` /
@@ -773,4 +772,3 @@ function storedDocumentSha256(stored: Record<string, unknown>): string | null {
     return null;
   }
 }
-

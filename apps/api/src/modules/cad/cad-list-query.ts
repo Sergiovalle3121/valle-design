@@ -47,7 +47,10 @@ export const PROJECT_LIST_COLUMNS = [
 ] as const satisfies readonly (keyof CadProject)[];
 
 /** Ventana de página del contrato v1: default 50, máximo 200. */
-export function pageWindow(query: PageQuery): { offset: number; limit: number } {
+export function pageWindow(query: PageQuery): {
+  offset: number;
+  limit: number;
+} {
   return {
     offset: Math.max(0, query.offset ?? 0),
     limit: Math.min(Math.max(1, query.limit ?? 50), 200),

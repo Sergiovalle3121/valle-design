@@ -181,7 +181,10 @@ describe('FacturamaCfdiProvider.issue · el cuerpo que viaja al PAC', () => {
   });
 
   it('una respuesta que no es JSON es error tipado, no un crash', async () => {
-    const { client } = httpDouble({ status: 200, body: '<html>gateway</html>' });
+    const { client } = httpDouble({
+      status: 200,
+      body: '<html>gateway</html>',
+    });
     const provider = new FacturamaCfdiProvider(
       resolveFacturamaConfiguration(BASE, ENV),
       client,

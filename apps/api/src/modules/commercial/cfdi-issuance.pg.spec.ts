@@ -104,14 +104,14 @@ describePostgres('CfdiIssuanceService (ciclo pago→CFDI, PostgreSQL)', () => {
     issuedAt: Date,
     amountCents = 99_900,
   ): Promise<string> {
-    const rows = (await harness.dataSource.query(
+    const rows = await harness.dataSource.query(
       `INSERT INTO "${harness.schema}"."invoices"
          ("organization_id", "tenant_id", "provider", "provider_invoice_id",
           "number", "amount_cents", "currency", "status", "issued_at")
        VALUES ($1, $1, 'stripe', $2, 'VD-0042', $3, 'MXN', 'paid', $4)
        RETURNING "id"`,
       [organizationId, `in_${randomUUID().slice(0, 8)}`, amountCents, issuedAt],
-    )) as Array<{ id: string }>;
+    );
     return rows[0].id;
   }
 

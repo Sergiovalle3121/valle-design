@@ -49,7 +49,9 @@ describePostgres('TenantIntegrityRls (RLS real, rol no dueño)', () => {
     );
   }
 
-  function rowSecurity(table: string): Promise<Array<{ relrowsecurity: boolean }>> {
+  function rowSecurity(
+    table: string,
+  ): Promise<Array<{ relrowsecurity: boolean }>> {
     return harness.dataSource.query(
       `SELECT c."relrowsecurity"
          FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -108,7 +110,9 @@ describePostgres('TenantIntegrityRls (RLS real, rol no dueño)', () => {
         ORDER BY table_name`,
       [harness.schema],
     );
-    expect(notNullTables.map((r: { table_name: string }) => r.table_name)).toEqual(
+    expect(
+      notNullTables.map((r: { table_name: string }) => r.table_name),
+    ).toEqual(
       expect.arrayContaining([
         'cad_comments',
         'cad_document_versions',
@@ -183,17 +187,17 @@ describePostgres('TenantIntegrityRls (RLS real, rol no dueño)', () => {
       await runner.query(`SELECT set_config('app.tenant_id', $1, false)`, [
         tenantA,
       ]);
-      expect(
-        await runner.query(`SELECT "id" FROM "cad_projects"`),
-      ).toEqual([{ id: projectA }]);
+      expect(await runner.query(`SELECT "id" FROM "cad_projects"`)).toEqual([
+        { id: projectA },
+      ]);
 
       // El scope de B no ve lo de A.
       await runner.query(`SELECT set_config('app.tenant_id', $1, false)`, [
         tenantB,
       ]);
-      expect(
-        await runner.query(`SELECT "id" FROM "cad_projects"`),
-      ).toEqual([{ id: projectB }]);
+      expect(await runner.query(`SELECT "id" FROM "cad_projects"`)).toEqual([
+        { id: projectB },
+      ]);
 
       // Escribir en el tenant ajeno viola la política (42501), no un WHERE.
       await expect(
@@ -202,7 +206,9 @@ describePostgres('TenantIntegrityRls (RLS real, rol no dueño)', () => {
            VALUES ($1, $2, 'intruso', 'active')`,
           [randomUUID(), tenantA],
         ),
-      ).rejects.toMatchObject({ driverError: expect.objectContaining({ code: '42501' }) });
+      ).rejects.toMatchObject({
+        driverError: expect.objectContaining({ code: '42501' }),
+      });
 
       // La biblioteca de sistema: legible por cualquier tenant…
       expect(
@@ -217,8 +223,9 @@ describePostgres('TenantIntegrityRls (RLS real, rol no dueño)', () => {
            VALUES ($1, NULL, 'troyano', '[]'::jsonb)`,
           [randomUUID()],
         ),
-      ).rejects.toMatchObject({ driverError: expect.objectContaining({ code: '42501' }) });
-
+      ).rejects.toMatchObject({
+        driverError: expect.objectContaining({ code: '42501' }),
+      });
     } finally {
       // En el finally: si una aserción intermedia falla, la conexión vuelve
       // al pool SIN el rol probe ni el scope pegados — un rol filtrado

@@ -112,7 +112,7 @@ export class CfdiIssuanceService {
   private async discoverPaidInvoices(): Promise<number> {
     const receipts = this.table(CfdiReceipt);
     const invoices = this.table(Invoice);
-    const rows = (await this.database.query(
+    const rows = await this.database.query(
       `INSERT INTO ${receipts}
          ("organization_id", "tenant_id", "invoice_id", "kind", "status",
           "amount_cents", "currency")
@@ -123,7 +123,7 @@ export class CfdiIssuanceService {
         WHERE i."status" = 'paid' AND r."id" IS NULL
         ON CONFLICT DO NOTHING
         RETURNING "id"`,
-    )) as Array<{ id: string }>;
+    );
     return rows.length;
   }
 
@@ -195,7 +195,7 @@ export class CfdiIssuanceService {
     // Pool del mes anterior aún sin cubrir. Sólo MXN: una global multi-moneda
     // no existe en el SAT; un cobro pooled en otra divisa queda para el
     // operador (y este log lo dice).
-    const pool = (await this.database.query(
+    const pool = await this.database.query(
       `SELECT r."id", r."amount_cents"
          FROM ${this.table(CfdiReceipt)} r
          JOIN ${this.table(Invoice)} i ON i."id" = r."invoice_id"
@@ -203,7 +203,7 @@ export class CfdiIssuanceService {
           AND r."currency" = 'MXN'
           AND i."issued_at" >= $1 AND i."issued_at" < $2`,
       [periodStart, periodEnd],
-    )) as Array<{ id: string; amount_cents: string | number }>;
+    );
     if (pool.length === 0) return false;
 
     const totalCents = pool.reduce(
@@ -212,21 +212,24 @@ export class CfdiIssuanceService {
     );
 
     // Reclamo idempotente del período; si otra réplica ganó, no hay doble.
-    const claimed = (await this.database.query(
+    const claimed = await this.database.query(
       `INSERT INTO ${this.table(CfdiReceipt)}
          ("kind", "status", "amount_cents", "currency", "period_start", "period_end")
        VALUES ('global', 'pending', $1, 'MXN', $2, $3)
        ON CONFLICT DO NOTHING
        RETURNING "id"`,
       [totalCents, periodStart, periodEnd],
-    )) as Array<{ id: string }>;
+    );
     const globalRow = claimed[0]
       ? await receipts.findOneByOrFail({ id: claimed[0].id })
       : await receipts.findOneBy({ kind: 'global', periodStart });
     if (!globalRow || !['pending', 'failed'].includes(globalRow.status)) {
       return false;
     }
-    if (globalRow.status === 'failed' && globalRow.attemptCount >= MAX_ATTEMPTS) {
+    if (
+      globalRow.status === 'failed' &&
+      globalRow.attemptCount >= MAX_ATTEMPTS
+    ) {
       return false;
     }
 
