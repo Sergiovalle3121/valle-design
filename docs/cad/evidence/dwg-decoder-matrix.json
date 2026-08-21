@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-decoder-matrix-v1",
   "generadoPor": "node scripts/dwg/dwg-evidence.mjs",
-  "generadoEn": "2026-08-21T09:40:02.333Z",
+  "generadoEn": "2026-08-21T16:07:44.925Z",
   "environment": {
     "node": "v22.18.0",
     "platform": "win32",
@@ -42,7 +42,7 @@
     "capacidadesEvaluadas": 11,
     "capacidadesPromovidas": 2,
     "tiposDecodificadosEnLaboratorio": 65,
-    "tiposVerificadosIndependientemente": 51,
+    "tiposVerificadosIndependientemente": 0,
     "geometriasNeutrales": 24
   },
   "capacidades": [
@@ -137,7 +137,7 @@
       "codigoBs": 1,
       "modulo": "entities-core.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "text",
       "bundlesQueLoCubren": 7
     },
@@ -146,7 +146,7 @@
       "codigoBs": 2,
       "modulo": "entities-annotation.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "attrib",
       "bundlesQueLoCubren": 7
     },
@@ -155,7 +155,7 @@
       "codigoBs": 3,
       "modulo": "entities-annotation.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "attdef",
       "bundlesQueLoCubren": 7
     },
@@ -164,7 +164,7 @@
       "codigoBs": 4,
       "modulo": "table-block.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "block-definitions",
       "bundlesQueLoCubren": 7
     },
@@ -173,7 +173,7 @@
       "codigoBs": 5,
       "modulo": "table-block.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "block-definitions",
       "bundlesQueLoCubren": 7
     },
@@ -191,7 +191,7 @@
       "codigoBs": 7,
       "modulo": "entity-insert.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "insert",
       "bundlesQueLoCubren": 7
     },
@@ -200,7 +200,7 @@
       "codigoBs": 10,
       "modulo": "entities-polyline-classic.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "lwpolyline",
       "bundlesQueLoCubren": 7
     },
@@ -209,7 +209,7 @@
       "codigoBs": 11,
       "modulo": "entities-polyline-classic.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "polyline3d",
       "bundlesQueLoCubren": 7
     },
@@ -218,7 +218,7 @@
       "codigoBs": 12,
       "modulo": "entities-polyline-classic.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "polymesh",
       "bundlesQueLoCubren": 7
     },
@@ -227,7 +227,7 @@
       "codigoBs": 13,
       "modulo": "entities-polyline-classic.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "polyfaceMesh",
       "bundlesQueLoCubren": 7
     },
@@ -236,7 +236,7 @@
       "codigoBs": 14,
       "modulo": "entities-polyline-classic.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "polyfaceMesh",
       "bundlesQueLoCubren": 7
     },
@@ -245,7 +245,7 @@
       "codigoBs": 15,
       "modulo": "entities-polyline-classic.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "lwpolyline",
       "bundlesQueLoCubren": 7
     },
@@ -254,7 +254,7 @@
       "codigoBs": 16,
       "modulo": "entities-polyline-classic.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "polyline3d",
       "bundlesQueLoCubren": 7
     },
@@ -263,7 +263,7 @@
       "codigoBs": 17,
       "modulo": "entities-core.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "arc",
       "bundlesQueLoCubren": 7
     },
@@ -272,7 +272,7 @@
       "codigoBs": 18,
       "modulo": "entities-core.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "circle",
       "bundlesQueLoCubren": 7
     },
@@ -281,7 +281,7 @@
       "codigoBs": 19,
       "modulo": "entities-core.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "line",
       "bundlesQueLoCubren": 7
     },
@@ -290,7 +290,7 @@
       "codigoBs": 20,
       "modulo": "entities-annotation.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "dimension",
       "bundlesQueLoCubren": 7
     },
@@ -299,7 +299,7 @@
       "codigoBs": 21,
       "modulo": "entities-annotation.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "dimension",
       "bundlesQueLoCubren": 7
     },
@@ -308,7 +308,7 @@
       "codigoBs": 22,
       "modulo": "entities-annotation.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "dimension",
       "bundlesQueLoCubren": 7
     },
@@ -317,7 +317,7 @@
       "codigoBs": 23,
       "modulo": "entities-annotation.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "dimension",
       "bundlesQueLoCubren": 7
     },
@@ -326,7 +326,7 @@
       "codigoBs": 24,
       "modulo": "entities-annotation.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "dimension",
       "bundlesQueLoCubren": 7
     },
@@ -335,7 +335,7 @@
       "codigoBs": 25,
       "modulo": "entities-annotation.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "dimension",
       "bundlesQueLoCubren": 7
     },
@@ -344,7 +344,7 @@
       "codigoBs": 26,
       "modulo": "entities-annotation.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "dimension",
       "bundlesQueLoCubren": 7
     },
@@ -353,7 +353,7 @@
       "codigoBs": 27,
       "modulo": "entities-core.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "point",
       "bundlesQueLoCubren": 7
     },
@@ -362,7 +362,7 @@
       "codigoBs": 28,
       "modulo": "entities-curves-surfaces.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "face3d",
       "bundlesQueLoCubren": 7
     },
@@ -371,7 +371,7 @@
       "codigoBs": 29,
       "modulo": "entities-polyline-classic.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "polyfaceMesh",
       "bundlesQueLoCubren": 7
     },
@@ -380,7 +380,7 @@
       "codigoBs": 30,
       "modulo": "entities-polyline-classic.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "polymesh",
       "bundlesQueLoCubren": 7
     },
@@ -389,7 +389,7 @@
       "codigoBs": 31,
       "modulo": "entities-curves-surfaces.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "solid",
       "bundlesQueLoCubren": 7
     },
@@ -398,7 +398,7 @@
       "codigoBs": 32,
       "modulo": "entities-curves-surfaces.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "trace",
       "bundlesQueLoCubren": 7
     },
@@ -407,7 +407,7 @@
       "codigoBs": 34,
       "modulo": "entities-complex.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "viewport",
       "bundlesQueLoCubren": 7
     },
@@ -416,7 +416,7 @@
       "codigoBs": 35,
       "modulo": "entities-curves-surfaces.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "ellipse",
       "bundlesQueLoCubren": 7
     },
@@ -425,7 +425,7 @@
       "codigoBs": 36,
       "modulo": "entities-curves-surfaces.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "spline",
       "bundlesQueLoCubren": 7
     },
@@ -434,7 +434,7 @@
       "codigoBs": 40,
       "modulo": "entities-curves-surfaces.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "ray",
       "bundlesQueLoCubren": 7
     },
@@ -443,7 +443,7 @@
       "codigoBs": 41,
       "modulo": "entities-curves-surfaces.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "xline",
       "bundlesQueLoCubren": 7
     },
@@ -461,7 +461,7 @@
       "codigoBs": 44,
       "modulo": "entities-annotation.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "mtext",
       "bundlesQueLoCubren": 7
     },
@@ -470,7 +470,7 @@
       "codigoBs": 45,
       "modulo": "entities-complex.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "leader",
       "bundlesQueLoCubren": 7
     },
@@ -479,7 +479,7 @@
       "codigoBs": 46,
       "modulo": "entities-complex.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "tolerance",
       "bundlesQueLoCubren": 7
     },
@@ -488,7 +488,7 @@
       "codigoBs": 47,
       "modulo": "entities-complex.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "mline",
       "bundlesQueLoCubren": 7
     },
@@ -497,7 +497,7 @@
       "codigoBs": 48,
       "modulo": "table-block.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "block-definitions",
       "bundlesQueLoCubren": 7
     },
@@ -506,7 +506,7 @@
       "codigoBs": 49,
       "modulo": "table-block.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "block-definitions",
       "bundlesQueLoCubren": 7
     },
@@ -515,7 +515,7 @@
       "codigoBs": 50,
       "modulo": "table-layer.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "layer-table",
       "bundlesQueLoCubren": 7
     },
@@ -524,7 +524,7 @@
       "codigoBs": 51,
       "modulo": "table-layer.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "layer-table",
       "bundlesQueLoCubren": 7
     },
@@ -533,7 +533,7 @@
       "codigoBs": 52,
       "modulo": "tables-symbol.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "style-table",
       "bundlesQueLoCubren": 7
     },
@@ -542,7 +542,7 @@
       "codigoBs": 53,
       "modulo": "tables-symbol.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "style-table",
       "bundlesQueLoCubren": 7
     },
@@ -551,7 +551,7 @@
       "codigoBs": 56,
       "modulo": "tables-symbol.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "ltype-table",
       "bundlesQueLoCubren": 7
     },
@@ -560,7 +560,7 @@
       "codigoBs": 57,
       "modulo": "tables-symbol.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "ltype-table",
       "bundlesQueLoCubren": 7
     },
@@ -641,7 +641,7 @@
       "codigoBs": 68,
       "modulo": "tables-symbol.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "dimstyle-table",
       "bundlesQueLoCubren": 7
     },
@@ -650,7 +650,7 @@
       "codigoBs": 69,
       "modulo": "tables-symbol.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "dimstyle-table",
       "bundlesQueLoCubren": 7
     },
@@ -686,7 +686,7 @@
       "codigoBs": 73,
       "modulo": "objects-dictionary.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "mlinestyle-table",
       "bundlesQueLoCubren": 7
     },
@@ -695,7 +695,7 @@
       "codigoBs": 77,
       "modulo": "entities-poly.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "lwpolyline",
       "bundlesQueLoCubren": 7
     },
@@ -704,7 +704,7 @@
       "codigoBs": 78,
       "modulo": "entities-complex.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": true,
+      "verificadoIndependientemente": false,
       "claveDeVerificacion": "hatch",
       "bundlesQueLoCubren": 7
     },

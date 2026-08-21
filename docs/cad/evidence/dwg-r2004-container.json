@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-r2004-container-v1",
   "generadoPor": "node scripts/dwg/probe-r2004.mjs",
-  "generadoEn": "2026-08-21T07:23:49.963Z",
+  "generadoEn": "2026-08-21T10:45:28.650Z",
   "environment": {
     "node": "v22.18.0",
     "platform": "win32",

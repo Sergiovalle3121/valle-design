@@ -1,22 +1,15 @@
 /**
- * Decodificador de la sección de VARIABLES DE CABECERA R2000 (AC1015) —
- * campaña 2026-08-21, OLA 1.4.
- *
- * La sección (registro 0 del directorio) es un único flujo de bits SIN
- * huecos: la secuencia completa y ordenada está registrada como hecho en
- * SOURCE_REGISTER (ODA-ODS-DWG-5.4.1-PUBLIC, capítulo 9). Este módulo la
- * transcribe para R2000: los condicionales R13-R14 y R2004+/R2007+ no
- * existen en AC1015; los "pre-2004" y "R13-R15" SÍ.
- *
- * El payload que recibe es el que devuelve `readAc1015SectionFrame` (tras
- * el tamaño RL y antes del CRC, ya validados por el marco). Al final del
- * flujo viajan cuatro BS sin nombre de R14+ y relleno aleatorio hasta el
- * límite de byte: el decodificador los CONTABILIZA como tramo opaco y
- * expone dónde aterrizó — nada se ignora en silencio.
- *
- * Los nombres de variable son los del dibujo (DIMASO, LTSCALE…); los
- * valores sin semántica interpretada viajan CRUDOS. MEASUREMENT no está
- * aquí: viaja en la sección Template (hecho registrado).
+ * Decodificador de la sección de VARIABLES DE CABECERA (capítulo 9 de la ODS,
+ * hecho registrado en SOURCE_REGISTER) — OLA 1.4; el NÚCLEO sirve a los
+ * sabores R2000 (aquí) y R2004 (`r2004-header-variables.ts`). El sabor R2004
+ * (AC1018) activa el B sin documentar tras LIMCHECK, los 3 BL tras PDMODE y
+ * tras TDUPDATE, MATERIALS/COLORS y el bloque RC SORTENTS…PROJECTNAME, retira
+ * el viewport pre-2004 y el control R13-R15, y lee los colores CmC 2004
+ * (posiciones medidas byte a byte en los 8 AC1018 del corpus); R2007+/R2010+
+ * (flujo de strings) son de otra ola. El payload es el del marco (tras el
+ * tamaño RL, antes del CRC); el relleno final queda CONTABILIZADO — nada se
+ * ignora en silencio — y los valores sin semántica viajan CRUDOS
+ * (MEASUREMENT no está aquí: viaja en Template).
  */
 import { BoundedByteCursor } from "../binary/byte-cursor.js";
 import {
@@ -25,6 +18,9 @@ import {
   type DwgHandleReference,
 } from "../codecs/bitcodes.js";
 import { throwDwgError } from "../security/parse-error.js";
+// Sólo un TIPO del módulo hermano del sabor R2004 (se borra al compilar: no
+// hay ciclo en runtime; el hermano importa de aquí el núcleo por VALOR).
+import type { CoreHeaderVariables } from "./r2004-header-variables.js";
 
 /** Un punto 3D crudo de la cabecera (sin validar semántica). */
 export interface HeaderPoint3 {
@@ -263,6 +259,21 @@ export interface Ac1015HeaderVariables {
 export function decodeAc1015HeaderVariables(
   payload: Uint8Array,
 ): Ac1015HeaderVariables {
+  return decodeHeaderVariablesCore(payload, false, (reader) =>
+    reader.readCmC(),
+  ) as Ac1015HeaderVariables;
+}
+
+/**
+ * El NÚCLEO de la secuencia del capítulo 9, compartido por los sabores. El
+ * lector de colores llega inyectado (BS en R2000; BS+BL+RC en R2004 — ver
+ * `r2004-header-variables.ts`): la secuencia vive UNA vez, sin gemelos.
+ */
+export function decodeHeaderVariablesCore(
+  payload: Uint8Array,
+  r2004: boolean,
+  readColor: (reader: DwgBitReader) => DwgColorReference,
+): CoreHeaderVariables {
   const reader = new DwgBitReader(new BoundedByteCursor(payload));
   const payloadBitLength = payload.length * 8;
 
@@ -280,8 +291,8 @@ export function decodeAc1015HeaderVariables(
   ]);
   const unknownLongs = [reader.readBL(), reader.readBL()] as const;
 
-  // Pre-2004: el handle del viewport entity header actual.
-  const currentViewportEntityHeader = reader.readH();
+  // Pre-2004: el handle del viewport entity header actual (ausente en R2004+).
+  const currentViewportEntityHeader = r2004 ? undefined : reader.readH();
 
   const dimaso = bit(reader);
   const dimsho = bit(reader);
@@ -292,6 +303,8 @@ export function decodeAc1015HeaderVariables(
   const qtextmode = bit(reader);
   const psltscale = bit(reader);
   const limcheck = bit(reader);
+  // R2004+: un B sin documentar tras LIMCHECK (medido 0 en los 8 AC1018).
+  const undocumentedR2004Bit = r2004 ? reader.readB() : undefined;
   const usrtimer = bit(reader);
   const skpoly = bit(reader);
   const angdir = bit(reader);
@@ -312,6 +325,8 @@ export function decodeAc1015HeaderVariables(
   const auprec = reader.readBS();
   const attmode = reader.readBS();
   const pdmode = reader.readBS();
+  // R2004+: tres BL sin nombre tras PDMODE (medidos 0 en los 8 AC1018).
+  const unknownR2004Longs = r2004 ? read3BL(reader) : undefined;
   const useri = [
     reader.readBS(),
     reader.readBS(),
@@ -362,10 +377,12 @@ export function decodeAc1015HeaderVariables(
 
   const tdcreate = [reader.readBL(), reader.readBL()] as const;
   const tdupdate = [reader.readBL(), reader.readBL()] as const;
+  // R2004+: tres BL sin nombre tras TDUPDATE (medidos 0 en los 8 AC1018).
+  const unknownR2004TimeLongs = r2004 ? read3BL(reader) : undefined;
   const tdindwg = [reader.readBL(), reader.readBL()] as const;
   const tdusrtimer = [reader.readBL(), reader.readBL()] as const;
 
-  const cecolor = reader.readCmC();
+  const cecolor = readColor(reader);
   const handseed = reader.readH();
   const clayer = reader.readH();
   const textstyle = reader.readH();
@@ -412,9 +429,9 @@ export function decodeAc1015HeaderVariables(
   const dimsah = bit(reader);
   const dimtix = bit(reader);
   const dimsoxd = bit(reader);
-  const dimclrd = reader.readCmC();
-  const dimclre = reader.readCmC();
-  const dimclrt = reader.readCmC();
+  const dimclrd = readColor(reader);
+  const dimclre = readColor(reader);
+  const dimclrt = readColor(reader);
   const dimadec = reader.readBS();
   const dimdec = reader.readBS();
   const dimtdec = reader.readBS();
@@ -451,7 +468,8 @@ export function decodeAc1015HeaderVariables(
   const vportControl = reader.readH();
   const appidControl = reader.readH();
   const dimstyleControl = reader.readH();
-  const viewportEntityHeaderControl = reader.readH();
+  // R13-R15: el control de viewport entity headers desaparece en R2004+.
+  const viewportEntityHeaderControl = r2004 ? undefined : reader.readH();
   const groupDictionary = reader.readH();
   const mlineStyleDictionary = reader.readH();
   const namedObjectsDictionary = reader.readH();
@@ -463,6 +481,9 @@ export function decodeAc1015HeaderVariables(
   const layoutsDictionary = reader.readH();
   const plotSettingsDictionary = reader.readH();
   const plotStylesDictionary = reader.readH();
+  // R2004+: los diccionarios MATERIALS y COLORS tras el de PLOTSTYLES.
+  const materialsDictionary = r2004 ? reader.readH() : undefined;
+  const colorsDictionary = r2004 ? reader.readH() : undefined;
 
   const flags = reader.readBL();
   const insunits = reader.readBS();
@@ -471,6 +492,18 @@ export function decodeAc1015HeaderVariables(
     cepsntype === 3 ? reader.readH() : undefined;
   const fingerprintGuid = readBytes(reader);
   const versionGuid = readBytes(reader);
+
+  // R2004+: el bloque RC SORTENTS…INTERSECTIONDISPLAY más PROJECTNAME.
+  const r2004RenderFlags = r2004
+    ? Object.freeze({
+        sortents: reader.readRC(), indexctl: reader.readRC(),
+        hidetext: reader.readRC(), xclipframe: reader.readRC(),
+        dimassoc: reader.readRC(), halogap: reader.readRC(),
+        obscuredcolor: reader.readBS(), intersectioncolor: reader.readBS(),
+        obscuredltype: reader.readRC(), intersectiondisplay: reader.readRC(),
+        projectname: readBytes(reader),
+      })
+    : undefined;
 
   const paperSpaceBlockRecord = reader.readH();
   const modelSpaceBlockRecord = reader.readH();
@@ -646,7 +679,13 @@ export function decodeAc1015HeaderVariables(
     fingerprintGuid,
     versionGuid,
     handles: Object.freeze({
-      currentViewportEntityHeader,
+      // Los campos condicionales sólo EXISTEN en su sabor: un R2000 no lleva
+      // claves R2004 en undefined ni al revés — mismas claves, mismos bytes.
+      ...(r2004
+        ? { materialsDictionary: materialsDictionary!,
+            colorsDictionary: colorsDictionary! }
+        : { currentViewportEntityHeader: currentViewportEntityHeader!,
+            viewportEntityHeaderControl: viewportEntityHeaderControl! }),
       handseed,
       clayer,
       textstyle,
@@ -662,7 +701,6 @@ export function decodeAc1015HeaderVariables(
       vportControl,
       appidControl,
       dimstyleControl,
-      viewportEntityHeaderControl,
       groupDictionary,
       mlineStyleDictionary,
       namedObjectsDictionary,
@@ -676,11 +714,18 @@ export function decodeAc1015HeaderVariables(
       continuousLinetype,
       currentPlotStyleName,
     }),
+    ...(r2004
+      ? { undocumentedR2004Bit: undocumentedR2004Bit!,
+          unknownR2004Longs: unknownR2004Longs!,
+          unknownR2004TimeLongs: unknownR2004TimeLongs!,
+          r2004RenderFlags: r2004RenderFlags! }
+      : {}),
     trailingUnknownShorts,
     decodedBitLength,
     payloadBitLength,
   });
 }
+
 
 /** Un bloque PSPACE/MSPACE completo, con sus extensiones R2000. */
 function readSpaceBlock(reader: DwgBitReader): Ac1015HeaderSpaceBlock {
@@ -729,6 +774,10 @@ function readSpaceBlock(reader: DwgBitReader): Ac1015HeaderSpaceBlock {
 function bit(reader: DwgBitReader): boolean {
   return reader.readB() === 1;
 }
+
+/** Los tríos de BL sin nombre R2004+ (tras PDMODE y tras TDUPDATE). */
+const read3BL = (r: DwgBitReader): readonly [number, number, number] =>
+  [r.readBL(), r.readBL(), r.readBL()] as const;
 
 function read3BD(reader: DwgBitReader): HeaderPoint3 {
   const { x, y, z } = reader.read3BD();

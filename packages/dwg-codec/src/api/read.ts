@@ -7,11 +7,13 @@ import {
   type Ac1015NeutralDatabase,
   type Ac1015UnsupportedDatabaseObject,
 } from "../reader/ac1015-database-reader.js";
+import { readR2004Database } from "../reader/r2004-database-reader.js";
+import { throwDwgError } from "../security/parse-error.js";
 
 /**
- * Base neutral que `readDwg` devuelve. Hoy es la base AC1015; cuando el
- * contenedor de la familia 2004 se decodifique, este alias seguirá siendo el
- * contrato estable del paquete y el despacho por versión vivirá aquí dentro.
+ * Base neutral que `readDwg` devuelve. El contrato es el MISMO para todas
+ * las versiones que el laboratorio decodifica; el despacho por firma vive
+ * aquí dentro.
  */
 export type DwgDatabase = Ac1015NeutralDatabase;
 export type DwgDatabaseLayer = Ac1015DatabaseLayer;
@@ -19,8 +21,17 @@ export type DwgDatabaseBlock = Ac1015DatabaseBlock;
 export type DwgDatabaseEntityRecord = Ac1015DatabaseEntityRecord;
 export type DwgUnsupportedDatabaseObject = Ac1015UnsupportedDatabaseObject;
 
+/** Firmas de la familia R2004 que despachan al lector R2004. */
+const R2004_FAMILY_SIGNATURES = ["AC1018", "AC1024", "AC1027", "AC1032"];
+/** Firma del contenedor R2007, estructuralmente distinto (Reed-Solomon). */
+const R2007_SIGNATURE = "AC1021";
+
 /**
- * Lee un archivo DWG completo a la base neutral del laboratorio.
+ * Lee un archivo DWG completo a la base neutral del laboratorio,
+ * despachando por firma: AC1015 al lector R2000, la familia
+ * AC1018/AC1024/AC1027/AC1032 al lector R2004 (hoy decodifica objetos sólo
+ * en AC1018), y AC1021 se rechaza tipado — su contenedor R2007 usa
+ * Reed-Solomon y flujos propios que este laboratorio no abre.
  *
  * Falla cerrado con `DwgParseError` tipado: firma ajena o versión sin
  * decodificador (`DWG_VERSION_DECODER_UNSUPPORTED`), estructura corrupta con
@@ -31,7 +42,36 @@ export function readDwg(
   input: Uint8Array,
   limits?: DwgLimitOverrides,
 ): DwgDatabase {
+  const code = peekSignature(input);
+  if (code !== null && R2004_FAMILY_SIGNATURES.includes(code)) {
+    return limits === undefined
+      ? readR2004Database(input)
+      : readR2004Database(input, limits);
+  }
+  if (code === R2007_SIGNATURE) {
+    throwDwgError(
+      "DWG_VERSION_DECODER_UNSUPPORTED",
+      "unsupported",
+      0,
+      "AC1021 uses the R2007 Reed-Solomon container, which this laboratory does not open; AC1015 and the R2004 family are the decoded versions.",
+    );
+  }
+  // Todo lo demás — AC1015 incluido — sigue el camino R2000, que valida la
+  // firma con su propio gate y rechaza tipado las versiones que no abre.
   return limits === undefined
     ? readAc1015Database(input)
     : readAc1015Database(input, limits);
+}
+
+/**
+ * Mira los seis bytes de la firma SIN validar nada: el gate de verdad vive en
+ * cada lector (presupuesto incluido). Devuelve `null` si no alcanza.
+ */
+function peekSignature(input: Uint8Array): string | null {
+  if (!(input instanceof Uint8Array) || input.length < 6) return null;
+  let code = "";
+  for (let index = 0; index < 6; index += 1) {
+    code += String.fromCharCode(input[index]!);
+  }
+  return code;
 }

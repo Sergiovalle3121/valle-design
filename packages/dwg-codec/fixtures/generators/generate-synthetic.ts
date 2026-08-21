@@ -66,7 +66,7 @@ const ascii = (value: string): Uint8Array =>
  * Versiones cuyo decoder de laboratorio existe: su probe devuelve éxito.
  * Debe reflejar el `decoderStatus` real de `DWG_VERSION_REGISTRY`.
  */
-const LAB_DECODED_SIGNATURES: readonly string[] = ["AC1015"];
+const LAB_DECODED_SIGNATURES: readonly string[] = ["AC1015", "AC1018"];
 
 const signatureSpec = (
   category: "recognized" | "unknown",

@@ -50,7 +50,7 @@ const AC1015: DwgVersion = Object.freeze({
 const AC1018: DwgVersion = Object.freeze({
   code: "AC1018",
   label: "2004",
-  decoderStatus: "unsupported",
+  decoderStatus: "experimental-lab",
 });
 const AC1021: DwgVersion = Object.freeze({
   code: "AC1021",

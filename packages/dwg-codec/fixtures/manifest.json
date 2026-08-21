@@ -466,12 +466,12 @@
       "declaredVersion": "AC1018",
       "byteLength": 6,
       "purpose": [
-        "Exercise a known first-party signature without claiming a decoder"
+        "Exercise a known first-party signature whose lab decoder makes the probe succeed"
       ],
       "expectations": {
         "signature": "recognized",
-        "parseOutcome": "unsupported",
-        "errorCode": "DWG_VERSION_DECODER_UNSUPPORTED",
+        "parseOutcome": "ok",
+        "errorCode": null,
         "maxWorkUnits": 32
       },
       "synthetic": true,

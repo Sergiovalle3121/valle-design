@@ -1,9 +1,9 @@
 {
-  "$schema": "urn:valle-design:schema:dwg-roundtrip-evidence:v1",
+  "$schema": "urn:valle-design:schema:dwg-oda-roundtrip-evidence:v1",
   "schemaVersion": 1,
-  "evidenceId": "valle-design-dwg-roundtrip-v1",
+  "evidenceId": "valle-design-dwg-oda-roundtrip-v1",
   "generadoPor": "node scripts/dwg/oda-roundtrip.mjs",
-  "generadoEn": "2026-08-21T07:59:04.001Z",
+  "generadoEn": "2026-08-21T16:04:21.826Z",
   "environment": {
     "node": "v22.18.0",
     "platform": "win32",
@@ -45,13 +45,13 @@
         ],
         "entidadesModelSpace": 0,
         "bloquesUsuario": [],
-        "diagnosticos": 4,
+        "diagnosticos": 0,
         "sinSoporte": 0
       },
       "oraculo": {
         "consultado": true,
         "convertido": true,
-        "dxfBytes": 158409
+        "dxfBytes": 158406
       },
       "comparacion": {
         "coincide": true,
@@ -79,7 +79,7 @@
         ],
         "entidadesModelSpace": 1,
         "bloquesUsuario": [],
-        "diagnosticos": 4,
+        "diagnosticos": 0,
         "sinSoporte": 0
       },
       "oraculo": {
@@ -125,13 +125,13 @@
         ],
         "entidadesModelSpace": 4,
         "bloquesUsuario": [],
-        "diagnosticos": 4,
+        "diagnosticos": 0,
         "sinSoporte": 0
       },
       "oraculo": {
         "consultado": true,
         "convertido": true,
-        "dxfBytes": 159033
+        "dxfBytes": 159030
       },
       "comparacion": {
         "coincide": true,
@@ -185,7 +185,7 @@
         "bloquesUsuario": [
           "PUERTA"
         ],
-        "diagnosticos": 4,
+        "diagnosticos": 0,
         "sinSoporte": 0
       },
       "oraculo": {

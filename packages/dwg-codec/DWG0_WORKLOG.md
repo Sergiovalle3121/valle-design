@@ -1,4 +1,4 @@
-# DWG-0 work log
+﻿# DWG-0 work log
 
 ## Preflight 2026-08-09
 
@@ -700,8 +700,7 @@ docs/execution/CAMPANA_DWG_20260821.md y la evidencia en docs/cad/evidence.
   de perdidas en ambos sentidos; tablas proyectadas con patrones .lin
   exactos; ADR-0009 redactado con el checklist de gates.
 - OLA 5 — blindaje: 1200 mutaciones estructurales de DWG reales con 0
-  fallos de invariante; 8 propiedades encode/decode de bitcodes; benchmark
-  report-only (2.46 MB/s, 4369 objetos/s, maquina declarada).
+  fallos de invariante; 8 propiedades encode/decode de bitcodes; benchmark report-only (0.69 MB/s y 298 objetos/s tras la fase D5, maquina declarada).
 
 El producto permanece available:false; la promocion es la firma del
 ADR-0009, no un efecto colateral de esta campana.

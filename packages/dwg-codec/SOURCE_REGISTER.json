@@ -535,17 +535,30 @@
         "Objetos AC1015 — confirmados bit a bit sobre 3232 objetos reales (25/25 cierran en su bitSize exacto): seccion de clases R13-R15, DICTIONARY/ACDBDICTIONARYWDFLT/XRECORD/MLINESTYLE, LAYOUT R2000, VPORT/DIMSTYLE/STYLE/APPID/VP ENT HDR completos; los reactores de DICTIONARY (BS en la ODS) coinciden bit a bit con el BL del comun compartido para 0-255",
         "Writer AC1015 — lista enlazada de entidades (medido iterando contra el oraculo ODA): un lector ajeno recorre las entidades desde el puntero first del BLOCK_RECORD; en el corpus la PRIMERA entidad de cada espacio lleva next como H(6,0) (propio+1) con prev nulo, las intermedias viajan con vinculos implicitos (bit de sin-vinculos a 1) y la ULTIMA lleva prev como H(8,0) (propio-1) con next nulo — sin esas posiciones el conversor conserva solo la primera entidad",
         "Writer AC1015 — TEXT exige el hard pointer a su STYLE al final del flujo de handles (el oraculo rechaza con Object improperly read AcDbText un TEXT sin el); coincide con la nota del capitulo 20 para las entidades de texto",
-        "Second file header R2000 (medido bit a bit sobre el corpus, complementa el capitulo 26): tras la cadena de version viajan los seis bytes 10 5c 18 78 01 06 y el directorio enumera TAMBIEN los registros extra ids 4 (Template) y 5 (AuxHeader) ademas de los cuatro que la ODS lista; el CRC usa semilla 0xC0C1"
+        "Second file header R2000 (medido bit a bit sobre el corpus, complementa el capitulo 26): tras la cadena de version viajan los seis bytes 10 5c 18 78 01 06 y el directorio enumera TAMBIEN los registros extra ids 4 (Template) y 5 (AuxHeader) ademas de los cuatro que la ODS lista; el CRC usa semilla 0xC0C1",
+        "Objetos R2004+ — prologo (ODS 20.1/20.4.1 confirmado sobre los 8 AC1018): tras el recuento de reactores viaja el bit XDic-Missing; con el, el LAYER real aterriza exacto (147/147 bits) y sin el la TV revienta",
+        "Entidades AC1018 — en la posicion del bit de sin-vinculos R2000 viaja UN solo bit y los punteros anterior/siguiente NO existen (el flujo del LINE real son 21 bits: solo la capa); la hipotesis de dos bits queda desmentida por ltscale=1.0 y el aterrizaje exacto 347/347. El ENC sin banderas es identico al BS (256 medido)",
+        "Color CmC 2004 (medido byte a byte): BS(0) + BL + RC, con el metodo en el byte alto del BL — 0xC3 con el indice ACI en el byte bajo (capas 1..7 del dibujo de capas), 0xC0 = ByLayer (proyecta a 256), 0xC1 = ByBlock (proyecta a 0); el RC de color book es 0 en todo el corpus. El DIMSTYLE completo aterriza 988/988 con esta forma",
+        "BLOCK_HEADER R2004+ (ODS 20.4.52 confirmado): entre el bit de cargado y el punto base viaja un BL con el recuento de objetos poseidos, y el flujo de handles lleva esos N handles poseidos en vez de primero/ultimo; los marcadores BLOCK/ENDBLK viajan con modo 2/1 SIN propietario y los registros se llaman *Model_Space/*Paper_Space",
+        "AcDb:AcDbObjects AC1018 abre con un RL de tamano (0x0dca observado) y los offsets del mapa de AcDb:Handles son RELATIVOS al payload ensamblado (minimo 4); la envoltura de objeto (tamano MS + cuerpo + CRC16 LE) es identica a R2000",
+        "Variables de cabecera AC1018 (capitulo 9 confirmado posicionalmente sobre los 8 archivos, aterrizaje 4539/4544 bits): B tras LIMCHECK = 0, tres BL tras PDMODE = 0, tres BL tras TDUPDATE = 0, sin el handle de viewport pre-2004 ni el control R13-R15, diccionarios MATERIALS/COLORS presentes, bloque RC SORTENTS..PROJECTNAME al final; el marco de la seccion son centinelas + RL + CRC16 crudo + holgura ALEATORIA (no llena la seccion, a diferencia de R2000). La seccion de clases R2004 lleva cabecera {BS,RC,RC,B}, registros extendidos y 8 bytes cero tras el centinela"
       ],
       "derivedFiles": [
         "packages/dwg-codec/src/container/r2004-crypto.ts",
         "packages/dwg-codec/src/container/r2004-decompress.ts",
+        "packages/dwg-codec/src/container/r2004-header-variables.ts",
         "packages/dwg-codec/src/container/r2004-pages.ts",
         "packages/dwg-codec/src/container/r2004-sections.ts",
         "packages/dwg-codec/src/objects/objects-dictionary.ts",
         "packages/dwg-codec/src/objects/tables-symbol.ts",
+        "packages/dwg-codec/src/reader/database-assembly.ts",
+        "packages/dwg-codec/src/reader/r2004-body-adapter.ts",
+        "packages/dwg-codec/src/reader/r2004-database-reader.ts",
+        "packages/dwg-codec/src/writer/ac1015-minimal-file-support.ts",
         "packages/dwg-codec/src/writer/ac1015-minimal-file-writer.ts",
-        "packages/dwg-codec/src/writer/ac1015-structure-writers.ts"
+        "packages/dwg-codec/src/writer/ac1015-resolved-writers.ts",
+        "packages/dwg-codec/src/writer/ac1015-structure-writers.ts",
+        "packages/dwg-codec/tests/unit/r2004-database.spec.ts"
       ],
       "reviewer": "Medicion first-party del laboratorio bajo la directiva del propietario 2026-08-13; evidencia cruda en docs/cad/evidence/dwg-corpus-validation.json",
       "reviewedAt": "2026-08-21",

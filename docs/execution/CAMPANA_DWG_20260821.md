@@ -35,8 +35,8 @@ origin main`; conflictos fuera de mi territorio → versión de origin.
 ### OLA 2 — Contenedor familia 2004 (~2 h)
 - [x] 2.1 Descompresión R2004 con presupuesto; el corpus corrigió la tabla de opcodes de la ODS (offsets −1, dos bytes tras el terminador) — 47/47 flujos exactos
 - [x] 2.2 Cabecera cifrada (generador corregido: bits 16–23), CRC32, page map, section map (nombres de 64 bytes), checksums Fletcher en dos etapas medidos (66/66): las CUATRO secciones localizadas y descomprimidas en 32/32 archivos de AC1018/24/27/32 (dwg-r2004-container.json)
-- [~] 2.3 Reutilizar decodificadores sobre AcDb:AcDbObjects — SIGUIENTE: parametrizar la cota del object map (offsets dentro del payload), AC1018 primero; deltas R2010+ (BOT, UMC, string stream) registrados
-- [ ] 2.4 Meta diferencial por versión; detección/rechazo AC1021 con mensaje claro
+- [x] 2.3 AC1018 decodifica ENTERO reutilizando los decodificadores R2000 (adaptador de cuerpos medido + ensamblado compartido, cero gemelos); deltas R2010+ (BOT, UMC, string stream) registrados y declarados — fallo cerrado con motivo exacto
+- [x] 2.4 Matriz diferencial por versión: AC1015 25/25 y AC1018 8/8 en 0 discrepancias; AC1024/27/32 con 8 no-abre tipados cada una; AC1021 detectado y rechazado con mensaje de límite
 
 ### OLA 3 — Escritura AC1015 validada por oráculo (~1.5 h)
 - [ ] 3.1 Writer AC1015 completo: header vars reales, clases, object map, second header, CRCs, SummaryInfo/Preview mínimos, semillas de handle

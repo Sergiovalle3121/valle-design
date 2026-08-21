@@ -1,4 +1,4 @@
-# Informe de campaña — DWG propio, 2026-08-21
+﻿# Informe de campaña — DWG propio, 2026-08-21
 
 Ocho horas en cascada, tres frentes paralelos, un objetivo: que el formato
 DWG sea NUESTRO. Bitácora operativa en `CAMPANA_DWG_20260821.md`; evidencia
@@ -35,8 +35,7 @@ en `docs/cad/evidence/`; claims en `packages/dwg-codec/CAPABILITIES.md`.
    proyecto.
 6. **Blindaje medido.** 1200 mutaciones estructurales de DWG reales: 0
    excepciones sin tipar, 0 cuelgues (peor caso 87.5 ms); 8 propiedades
-   encode/decode de bitcodes; benchmark declarado (2.46 MB/s, 4369
-   objetos/s).
+   encode/decode de bitcodes; benchmark declarado (0.69 MB/s, 298 objetos/s con la decodificación completa de tablas y diccionarios).
 7. **La rúbrica lo reconoció sola**: Import/export DWG 4/8 → **7/8** (191/
    200 total) al derivar la verificación independiente de la medición
    (51/65 tipos verificados); el punto restante espera la firma del dueño.
@@ -48,10 +47,15 @@ en `docs/cad/evidence/`; claims en `packages/dwg-codec/CAPABILITIES.md`.
   14 restantes decodifican y aterrizan exactos pero carecen de comparación
   de oráculo). ESCRIBE: line, point, circle, arc, lwpolyline, text, insert
   + el esqueleto estructural completo, aceptado por lector externo.
-- **AC1018/AC1024/AC1027/AC1032** — contenedor COMPLETO (32/32); cuerpos
-  de objeto: ola en curso al cierre de este informe (AC1018 reutiliza la
-  codificación R2000; R2010+ exige BOT + UMC + string stream, hechos ya
-  registrados).
+- **AC1018 (2004)** — LEE ENTERO: 8/8 archivos con matriz diferencial en 0
+  discrepancias (entidades, capas con colores, bloques y tablas). El
+  adaptador de cuerpos normaliza los deltas R2004 medidos (bit
+  XDic-Missing, un solo bit de vínculos, CmC 2004, BL de poseídos) y
+  reutiliza TODOS los decodificadores R2000 sin gemelos; el ensamblado es
+  compartido (`database-assembly.ts`).
+- **AC1024/AC1027/AC1032** — contenedor COMPLETO (8/8 cada una); los
+  cuerpos exigen BOT + UMC + flujo de strings UTF-16 (hechos registrados) y
+  hoy fallan CERRADOS con el motivo exacto — siguiente ola.
 - **AC1021 (2007)** — FUERA por diseño: contenedor rediseñado, uso real
   marginal; detección y rechazo tipado.
 - **R12/R13/R14** — solo detección de firma, como siempre.

@@ -1,33 +1,24 @@
 #!/usr/bin/env node
 /**
- * Harness de validación del decoder AC1015 contra el corpus ADMITIDO.
- *
- * QUÉ RESPONDE. La pregunta que ninguna spec del laboratorio puede responder:
- * ¿`readAc1015Database` lee bytes DWG producidos por una implementación
- * INDEPENDIENTE? Por cada fixture AC1015 del corpus se decodifica el DWG, se
- * parsea su DXF fuente (el oráculo de autoría propia congelado en el mismo
- * bundle) y se compara: matriz {tipo de entidad → esperado vs leído}, capas
- * esperadas vs leídas, bloques, tipos no soportados y diagnósticos.
+ * Harness de validación de los decoders DWG contra el corpus ADMITIDO,
+ * POR VERSIÓN (AC1015 con el lector R2000; AC1018/AC1024/AC1027/AC1032 con
+ * el lector R2004): ¿leen bytes DWG de una implementación INDEPENDIENTE?
+ * Por cada fixture se decodifica el DWG, se parsea su DXF fuente (el oráculo
+ * de autoría propia del mismo bundle) y se compara: matriz {tipo de entidad
+ * → esperado vs leído}, capas, bloques, tablas, no soportados y diagnósticos.
  *
  * DE DÓNDE SALEN LOS BYTES. Del gate consumidor (`corpus-consumer.mjs`):
- * commit fijado + SHA-256 verificado. Este harness no lee el working tree del
- * repo hermano: lee los blobs del commit del pin, como todo lo demás.
+ * commit fijado + SHA-256 verificado; nunca el working tree del repo hermano.
  *
- * REGLA CLEAN-ROOM (ADR-0007). Si el diffing revela un hecho de formato
- * nuevo, este harness lo REGISTRA como discrepancia u observación en el
- * reporte y NADA MÁS. Corregir el decoder exige registrar antes el hecho en
- * `packages/dwg-codec/SOURCE_REGISTER.json`; esa corrección es de otra ola.
- * En particular: los `stateFlags` de capa se reportan CRUDOS junto al estado
- * declarado en el oráculo (frozen/locked), sin interpretarlos.
+ * REGLA CLEAN-ROOM (ADR-0007). Un hecho de formato nuevo se REGISTRA aquí
+ * como discrepancia y NADA MÁS: corregir el decoder exige registrarlo antes
+ * en `packages/dwg-codec/SOURCE_REGISTER.json`. Los `stateFlags` de capa se
+ * reportan CRUDOS junto al estado del oráculo, sin interpretar bits.
  *
- * FRONTERA DE PRODUCTO. Esto es un script de evidencia: importa el laboratorio
- * por su ruta interna de dist a propósito, sin tocar la superficie pública
- * (`probeDwg`) ni ningún runtime del producto. `check-product-boundary.mjs`
- * vigila apps/ y packages/; este archivo vive en scripts/ y no promueve nada.
- *
- * AMBOS RESULTADOS SON ÉXITO DEL HARNESS: que el decoder lea bien, o un
- * informe de discrepancias que desmienta sus certezas. Lo único que sería
- * fracaso es un informe que suavice lo que vio.
+ * FRONTERA DE PRODUCTO. Script de evidencia: importa el laboratorio por su
+ * ruta interna de dist a propósito, sin superficie pública ni runtime del
+ * producto. AMBOS RESULTADOS SON ÉXITO DEL HARNESS: leer bien, o un informe
+ * de discrepancias que desmienta certezas; fracaso sería suavizar lo visto.
  */
 import fs from "node:fs";
 import os from "node:os";
@@ -58,6 +49,14 @@ const READER_DIST = path.join(
   "reader",
   "ac1015-database-reader.js",
 );
+const R2004_READER_DIST = path.join(
+  path.dirname(READER_DIST),
+  "r2004-database-reader.js",
+);
+// Versiones validadas: la familia R2004 completa entra en el reporte; las que
+// aún no decodifican objetos (R2010+) quedan como "no abre" con su error
+// tipado — la verdad por versión, no un filtro que la esconda.
+const VALIDATED_VERSIONS = ["AC1015", "AC1018", "AC1024", "AC1027", "AC1032"];
 
 const TOLERANCE = 1e-6;
 // ---------------------------------------------------------------------------
@@ -71,14 +70,10 @@ const decodeBytes = (bytes) => Buffer.from(bytes ?? []).toString("latin1");
 // Observación first-party del CRC de cabecera (sólo para REGISTRAR)
 // ---------------------------------------------------------------------------
 
-/**
- * CRC-16 reflejado 0xA001 idéntico al del laboratorio, recalculado aquí para
- * CARACTERIZAR una discrepancia sobre bytes propios: cuando la cabecera de un
- * DWG real no pasa el CRC del decoder, el reporte deja los números crudos
- * (CRC guardado, CRC calculado con la semilla registrada, XOR necesario y
- * recuento de registros) para que el hecho pueda registrarse en
- * SOURCE_REGISTER.json ANTES de tocar el decoder. Aquí no se corrige nada.
- */
+// CRC-16 reflejado 0xA001 idéntico al del laboratorio, recalculado aquí para
+// CARACTERIZAR una discrepancia sobre bytes propios: cuando una cabecera real
+// no pasa el CRC del decoder, el reporte deja los números crudos para que el
+// hecho pueda registrarse en SOURCE_REGISTER.json ANTES de tocar el decoder.
 const CRC16_TABLE = (() => {
   const table = new Uint16Array(256);
   for (let index = 0; index < 256; index += 1) {
@@ -442,6 +437,9 @@ async function main() {
     process.exit(1);
   }
   const { readAc1015Database } = await import(pathToFileURL(READER_DIST).href);
+  const { readR2004Database } = await import(pathToFileURL(R2004_READER_DIST).href);
+  const readerFor = (version) =>
+    version === "AC1015" ? readAc1015Database : readR2004Database;
 
   const pin = loadCorpusPin();
   const { transport } = resolveCorpusSource({ pin });
@@ -452,7 +450,9 @@ async function main() {
     process.exit(1);
   }
   const corpus = fetchAdmittedCorpus({ pin, transport });
-  const bundles = corpus.bundles.filter((bundle) => bundle.dwgVersion === "AC1015");
+  const bundles = corpus.bundles.filter((bundle) =>
+    VALIDATED_VERSIONS.includes(bundle.dwgVersion),
+  );
 
   const archivos = [];
   for (const bundle of bundles) {
@@ -467,6 +467,7 @@ async function main() {
       const dwgBytes = transport.readFile(pin.commit, fixture.path);
       const record = {
         bundle: bundle.id,
+        version: bundle.dwgVersion,
         archivo: stem,
         fixture: fixture.path,
         sha256: fixture.sha256,
@@ -499,7 +500,7 @@ async function main() {
 
       let database;
       try {
-        database = readAc1015Database(new Uint8Array(dwgBytes));
+        database = readerFor(bundle.dwgVersion)(new Uint8Array(dwgBytes));
       } catch (error) {
         record.abre = false;
         record.error = {
@@ -649,90 +650,89 @@ async function main() {
     }
   }
 
-  // --- resumen global ---
+  // --- resumen global y POR VERSIÓN ---
   const matriz = {};
+  const porVersion = {};
+  const emptyRow = () =>
+    ({ esperado: 0, leidoCorrecto: 0, geometriaDistinta: 0, faltante: 0, inesperado: 0 });
+  const addRow = (target, kind, row) => {
+    const cell = (target[kind] ??= emptyRow());
+    for (const key of Object.keys(cell)) cell[key] += row[key] ?? 0;
+  };
   let abiertos = 0;
   let fallados = 0;
   const discrepancias = [];
   for (const record of archivos) {
-    if (record.abre === true) abiertos += 1;
-    if (record.abre === false) {
+    const cell = (porVersion[record.version] ??=
+      { archivos: 0, abiertos: 0, noAbiertos: 0, matrizEntidades: {}, discrepancias: 0 });
+    cell.archivos += 1;
+    const addDiscrepancia = (entry) => {
+      cell.discrepancias += 1;
+      discrepancias.push({ archivo: record.archivo, version: record.version, ...entry });
+    };
+    if (record.abre === true) {
+      abiertos += 1;
+      cell.abiertos += 1;
+    } else if (record.abre === false) {
       fallados += 1;
-      discrepancias.push({
-        archivo: record.archivo,
-        tipo: "no-abre",
-        error: record.error,
-      });
+      cell.noAbiertos += 1;
+      addDiscrepancia({ tipo: "no-abre", error: record.error });
       // Lo que quedó SIN validar por no abrir también cuenta en la matriz:
       // un esperado sin leído no desaparece del total.
       for (const [kind, count] of Object.entries(
         record.esperadoSegunOraculo?.entidades ?? {},
       )) {
-        const cell = (matriz[kind] ??= {
-          esperado: 0,
-          leidoCorrecto: 0,
-          geometriaDistinta: 0,
-          faltante: 0,
-          inesperado: 0,
-          sinValidarPorNoAbrir: 0,
-        });
-        cell.esperado += count;
-        cell.sinValidarPorNoAbrir = (cell.sinValidarPorNoAbrir ?? 0) + count;
+        for (const target of [matriz, cell.matrizEntidades]) {
+          const row = (target[kind] ??= { ...emptyRow(), sinValidarPorNoAbrir: 0 });
+          row.esperado += count;
+          row.sinValidarPorNoAbrir = (row.sinValidarPorNoAbrir ?? 0) + count;
+        }
       }
       continue;
     }
     const collect = (comparison, contexto) => {
       for (const [kind, row] of Object.entries(comparison?.porTipo ?? {})) {
-        const cell = (matriz[kind] ??= {
-          esperado: 0,
-          leidoCorrecto: 0,
-          geometriaDistinta: 0,
-          faltante: 0,
-          inesperado: 0,
-        });
-        for (const key of Object.keys(cell)) cell[key] += row[key];
+        addRow(matriz, kind, row);
+        addRow(cell.matrizEntidades, kind, row);
       }
       for (const detalle of comparison?.detalles ?? []) {
-        discrepancias.push({ archivo: record.archivo, contexto, ...detalle });
+        addDiscrepancia({ contexto, ...detalle });
       }
     };
     collect(record.entidades, "model-space");
     for (const [name, info] of Object.entries(record.bloques?.porBloque ?? {})) {
       if (info.encontrado === false) {
-        discrepancias.push({ archivo: record.archivo, tipo: "bloque-faltante", bloque: name });
+        addDiscrepancia({ tipo: "bloque-faltante", bloque: name });
       } else {
         collect(info.contenido, `bloque:${name}`);
       }
     }
     for (const capa of record.capas?.faltantes ?? []) {
-      discrepancias.push({ archivo: record.archivo, tipo: "capa-faltante", capa });
+      addDiscrepancia({ tipo: "capa-faltante", capa });
     }
     for (const problema of record.capas?.coloresDistintos ?? []) {
-      discrepancias.push({ archivo: record.archivo, tipo: "capa-color-distinto", ...problema });
+      addDiscrepancia({ tipo: "capa-color-distinto", ...problema });
     }
     for (const [tabla, comparacion] of Object.entries(record.tablas ?? {})) {
       for (const nombre of comparacion.faltantes ?? []) {
-        discrepancias.push({ archivo: record.archivo, tipo: `${tabla}-faltante`, nombre });
+        addDiscrepancia({ tipo: `${tabla}-faltante`, nombre });
       }
       for (const problema of comparacion.trazosDistintos ?? []) {
-        discrepancias.push({ archivo: record.archivo, tipo: "ltype-trazos-distintos", ...problema });
+        addDiscrepancia({ tipo: "ltype-trazos-distintos", ...problema });
       }
     }
   }
 
-  const errorSignatures = [
-    ...new Set(
-      archivos
-        .filter((a) => a.abre === false)
-        .map((a) => `${a.error.code} @${a.error.offset}: ${a.error.message}`),
-    ),
-  ];
+  const versionSummary = Object.entries(porVersion)
+    .sort()
+    .map(([v, c]) => `${v} ${c.abiertos}/${c.archivos} abiertos con ${c.discrepancias} discrepancia(s)`)
+    .join("; ");
   const veredicto =
-    fallados === archivos.length && archivos.length > 0
-      ? `EL DECODER NO ABRE NINGUNO de los ${archivos.length} DWG AC1015 reales del corpus. ${errorSignatures.length === 1 ? `Todos fallan en el MISMO punto: ${errorSignatures[0]}` : `Fallos distintos: ${errorSignatures.join(" | ")}`}`
-      : fallados > 0
-        ? `El decoder abre ${abiertos} de ${archivos.length} DWG AC1015; ${fallados} fallan.`
-        : `El decoder abre los ${archivos.length} DWG AC1015 del corpus; ver matriz para el detalle por entidad.`;
+    archivos.length === 0
+      ? "No hay fixtures de las versiones validadas en el corpus."
+      : fallados === 0 && discrepancias.length === 0
+        ? `El decoder abre los ${archivos.length} DWG del corpus SIN discrepancias: ${versionSummary}.`
+        : `Resultado por versión: ${versionSummary}. Ver discrepancias para el detalle.`;
 
   const report = {
     $schema: "urn:valle-design:schema:dwg-corpus-validation:v1",
@@ -745,21 +745,23 @@ async function main() {
     reglaCleanRoom:
       "Toda discrepancia se REGISTRA aquí y no se corrige en esta ola: corregir el decoder exige registrar antes el hecho de formato en packages/dwg-codec/SOURCE_REGISTER.json (ADR-0007).",
     alcance:
-      "Sólo fixtures AC1015 del corpus admitido y verificado por hash. El DXF oráculo es la fuente de autoría propia congelada en el mismo bundle; los DWG los produjo una implementación independiente (ver docs/TOOLS.md del repo hermano).",
+      "Fixtures AC1015 y de la familia R2004 (AC1018/AC1024/AC1027/AC1032) del corpus admitido y verificado por hash, comparados POR VERSIÓN. El DXF oráculo es la fuente de autoría propia congelada en el mismo bundle; los DWG los produjo una implementación independiente (ver docs/TOOLS.md del repo hermano). Las versiones sin decodificador de objetos quedan como no-abre con su error tipado.",
     corpus: {
       commit: corpus.commit,
       indexSha256: corpus.indexSha256,
       transporte: corpus.transport,
-      bundlesAc1015: bundles.map((b) => b.id),
+      bundles: bundles.map((b) => ({ id: b.id, version: b.dwgVersion })),
     },
     resumen: {
-      archivosAc1015: archivos.length,
+      archivosValidados: archivos.length,
       abiertos,
       noAbiertos: fallados,
       sinOraculo: archivos.filter((a) => a.abre === null).length,
+      porVersion,
       matrizEntidades: matriz,
       discrepanciasRegistradas: discrepancias.length,
     },
+    porVersion,
     matrizEntidades: matriz,
     discrepancias,
     archivos,
@@ -770,9 +772,11 @@ async function main() {
 
   // --- resumen legible ---
   const w = (s) => process.stdout.write(`${s}\n`);
-  w(`validate-corpus: ${archivos.length} fixture(s) AC1015 · abren ${abiertos} · fallan ${fallados}`);
+  w(`validate-corpus: ${archivos.length} fixture(s) · abren ${abiertos} · fallan ${fallados}`);
   w(`veredicto: ${veredicto}`);
-  w(`matriz entidad → esperado/correcto/geomDist/faltante/inesperado:`);
+  for (const [version, cell] of Object.entries(porVersion).sort())
+    w(`  ${version}: ${cell.abiertos}/${cell.archivos} abiertos · ${cell.discrepancias} discrepancia(s)`);
+  w(`matriz global entidad → esperado/correcto/geomDist/faltante/inesperado:`);
   for (const [kind, row] of Object.entries(matriz).sort()) {
     const blocked = row.sinValidarPorNoAbrir
       ? ` (sin validar por no abrir: ${row.sinValidarPorNoAbrir})`

@@ -140,7 +140,8 @@ test("a detached Uint8Array is rejected as typed input failure", () => {
 });
 
 for (const signature of KNOWN_SIGNATURES) {
-  const decoded = signature === "AC1015";
+  // AC1018 decodifica desde la campaña de objetos R2004 (corpus 8/8).
+  const decoded = signature === "AC1015" || signature === "AC1018";
   test(`known signature ${signature} declares its real decoder status`, () => {
     const result = probeDwg(ascii(signature));
     assert.equal(result.ok, decoded);

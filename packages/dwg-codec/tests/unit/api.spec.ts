@@ -61,13 +61,18 @@ test("the version registry is immutable and matches all nine known labels", () =
     assert.equal(Object.isFrozen(version), true);
     assert.equal(
       version.decoderStatus,
-      version.code === "AC1015" ? "experimental-lab" : "unsupported",
+      // AC1018 decodifica desde la campaña de objetos R2004 (evidencia de
+      // corpus 8/8); AC1024/27/32 abren el CONTENEDOR pero sus cuerpos
+      // R2010+ siguen sin decodificador y lo declaran.
+      version.code === "AC1015" || version.code === "AC1018"
+        ? "experimental-lab"
+        : "unsupported",
     );
   }
 });
 
 for (const [signature, label] of KNOWN) {
-  const decoded = signature === "AC1015";
+  const decoded = signature === "AC1015" || signature === "AC1018";
   test(`${signature} probe declares its real decoder status`, () => {
     const result = probeDwg(ascii(signature));
     assert.equal(result.ok, decoded);

@@ -57,19 +57,38 @@ export interface Ac1015ObjectMapEntry {
 
 /**
  * Lee el mapa de objetos completo — vacío o poblado — y devuelve la lista de
- * entradas validada: handles estrictamente crecientes, offsets dentro del
- * archivo y sin duplicados, y recuento dentro de los topes de `limits`.
+ * entradas validada: handles estrictamente crecientes, offsets dentro de la
+ * cota y sin duplicados, y recuento dentro de los topes de `limits`.
  *
  * Recibe el cursor del ARCHIVO ENTERO más la extensión que el directorio
  * declaró para el mapa; el mapa debe llenarla exactamente (páginas de datos +
  * terminadora, sin bytes de sobra). El cursor queda tras la terminadora.
+ *
+ * `offsetUpperBound` acota los offsets de las entradas. En R2000 los offsets
+ * son direcciones del ARCHIVO y la cota por defecto (la longitud del cursor)
+ * es la correcta; en la familia R2004 la MISMA codificación viaja en la
+ * sección AcDb:Handles pero sus offsets apuntan DENTRO del payload ensamblado
+ * de AcDb:AcDbObjects (hecho registrado, ODS §23.2), así que el llamador pasa
+ * la longitud de ESE payload como cota.
  */
 export function readAc1015ObjectMap(
   cursor: BoundedByteCursor,
   extent: Ac1015SectionExtent,
   limits: DwgLimits,
+  offsetUpperBound: number = cursor.length,
 ): readonly Ac1015ObjectMapEntry[] {
   assertCursor(cursor);
+  if (
+    !Number.isSafeInteger(offsetUpperBound) ||
+    offsetUpperBound < 1
+  ) {
+    throwDwgError(
+      "DWG_INPUT_INVALID",
+      "input",
+      0,
+      "The object-map offset bound must be a positive safe integer.",
+    );
+  }
   const entryCap = resolveEntryCap(limits);
   checkedRange(extent.start, extent.size, cursor.length, extent.start);
   const sectionEnd = extent.start + extent.size;
@@ -172,13 +191,13 @@ export function readAc1015ObjectMap(
       if (
         !Number.isSafeInteger(offset) ||
         offset < 0 ||
-        offset >= cursor.length
+        offset >= offsetUpperBound
       ) {
         throwDwgError(
           "DWG_STRUCTURE_CORRUPT",
           "input",
           pairOffset,
-          "An object-map offset lands outside the file.",
+          "An object-map offset lands outside its declared bound.",
         );
       }
       if (seenOffsets.has(offset)) {

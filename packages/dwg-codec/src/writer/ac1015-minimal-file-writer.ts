@@ -84,101 +84,76 @@ import {
   writeAc1015LinetypeBody,
   writeAc1015MlineStyleBody,
   writeAc1015PlaceholderBody,
+  writeAc1015StructTableControlBody,
+  writeAc1015TextStyleBody,
+  writeAc1015VportBody,
+} from "./ac1015-structure-writers.js";
+import {
   writeAc1015ResolvedEntityBody,
   writeAc1015ResolvedLayerBody,
   writeAc1015StructBlockBeginBody,
   writeAc1015StructBlockEndBody,
   writeAc1015StructBlockRecordBody,
-  writeAc1015StructTableControlBody,
-  writeAc1015TextStyleBody,
-  writeAc1015VportBody,
-} from "./ac1015-structure-writers.js";
+} from "./ac1015-resolved-writers.js";
 import { DwgBitEmitter } from "./dwg-bit-emitter.js";
 
-// ---------------------------------------------------------------------------
-// Esquema canónico de handles (hechos medidos del corpus).
-// ---------------------------------------------------------------------------
-const H_BLOCK_CONTROL = 0x01;
-const H_LAYER_CONTROL = 0x02;
-const H_STYLE_CONTROL = 0x03;
-const H_LTYPE_CONTROL = 0x05;
-const H_VIEW_CONTROL = 0x06;
-const H_UCS_CONTROL = 0x07;
-const H_VPORT_CONTROL = 0x08;
-const H_APPID_CONTROL = 0x09;
-const H_DIMSTYLE_CONTROL = 0x0a;
-const H_VPENT_CONTROL = 0x0b;
-const H_NOD = 0x0c;
-const H_GROUP_DICT = 0x0d;
-const H_PLOTSTYLE_DICT = 0x0e;
-const H_PLACEHOLDER = 0x0f;
-const H_LAYER_ZERO = 0x10;
-const H_STYLE_STANDARD = 0x11;
-const H_APPID_ACAD = 0x12;
-const H_LTYPE_BYBLOCK = 0x14;
-const H_LTYPE_BYLAYER = 0x15;
-const H_LTYPE_CONTINUOUS = 0x16;
-const H_MLSTYLE_DICT = 0x17;
-const H_MLINESTYLE = 0x18;
-const H_PLOTSETTINGS_DICT = 0x19;
-const H_LAYOUTS_DICT = 0x1a;
-const H_PAPER_RECORD = 0x1b;
-const H_PAPER_LAYOUT = 0x1c;
-const H_MODEL_RECORD = 0x1d;
-const H_MODEL_LAYOUT = 0x1e;
-const H_DIMSTYLE_STANDARD = 0x20;
-const H_VPORT_ACTIVE = 0x21;
-/** Primer handle dinámico: capas extra, bloques, entidades y marcadores. */
-const H_DYNAMIC_BASE = 0x22;
 
-/** Códigos de clase de ESTE archivo: 500 + índice en la lista de clases. */
-const CLASS_TYPE_DICTIONARYWDFLT = 500;
-const CLASS_TYPE_PLACEHOLDER = 501;
-const CLASS_TYPE_LAYOUT = 502;
-
-/** Disposición fija de la cabecera de 6 registros (0x61 bytes). */
-const FILE_HEADER_LENGTH = 0x15 + 4 + 6 * 9 + 2 + 16;
-const AUX_HEADER_START = FILE_HEADER_LENGTH; // 0x61, hueco tras la cabecera
-const AUX_HEADER_LENGTH = 123;
-const PREVIEW_START = AUX_HEADER_START + AUX_HEADER_LENGTH; // 0xDC
-const PREVIEW_LENGTH = 37;
-const HEADER_VARIABLES_START = PREVIEW_START + PREVIEW_LENGTH; // 0x101
-/** Relleno R13C3 tras la sección de clases (capítulo 11: 0x200 ceros). */
-const POST_CLASSES_PADDING = 0x200;
-
-/** Página de códigos del DIBUJO (código DWG, no Windows): ANSI_1252 = 30. */
-const DRAWING_CODEPAGE = 30;
-/** Versión de mantenimiento medida en el corpus R2000. */
-const MAINTENANCE_VERSION = 6;
-/** Timestamps deterministas (los del fixture 01-vacio, también en defaults). */
-const TDCREATE = [2461273, 58247617] as const;
-const TDUPDATE = [2461273, 58247625] as const;
-
-/** Centinelas del SECOND FILE HEADER (capítulo 26, hecho registrado). */
-const SECOND_HEADER_BEGIN_SENTINEL = [
-  0xd4, 0x7b, 0x21, 0xce, 0x28, 0x93, 0x9f, 0xbf, 0x53, 0x24, 0x40, 0x09,
-  0x12, 0x3c, 0xaa, 0x01,
-] as const;
-const SECOND_HEADER_END_SENTINEL = [
-  0x2b, 0x84, 0xde, 0x31, 0xd7, 0x6c, 0x60, 0x40, 0xac, 0xdb, 0xbf, 0xf6,
-  0xed, 0xc3, 0x55, 0xfe,
-] as const;
-
-/** Centinela de apertura del área de previsualización (capítulo 8). */
-const PREVIEW_BEGIN_SENTINEL = [
-  0x1f, 0x25, 0x6d, 0x07, 0xd4, 0x36, 0x28, 0x28, 0x9d, 0x57, 0xca, 0x3f,
-  0x9d, 0x44, 0x10, 0x2b,
-] as const;
-
-/**
- * Los seis bytes que el productor real escribe entre la versión de
- * mantenimiento y los localizadores del second header (medidos bit a bit;
- * los cuatro últimos son los RC que el capítulo 26 lista como
- * 0x18,0x78,0x01,0x04|0x05 — el corpus R2000 lleva 0x06 al final).
- */
-const SECOND_HEADER_MAGIC_BYTES = [0x10, 0x5c, 0x18, 0x78, 0x01, 0x06] as const;
-
-const ascii = (text: string): number[] => [...text].map((c) => c.charCodeAt(0));
+import {
+  ascii,
+  AUX_HEADER_LENGTH,
+  AUX_HEADER_START,
+  buildAuxHeader,
+  buildClassesPayload,
+  buildObjFreeSpace,
+  buildPreviewBlob,
+  buildSecondHeader,
+  byteLengthOf,
+  CLASS_TYPE_DICTIONARYWDFLT,
+  CLASS_TYPE_LAYOUT,
+  CLASS_TYPE_PLACEHOLDER,
+  DRAWING_CODEPAGE,
+  FILE_HEADER_LENGTH,
+  H_APPID_ACAD,
+  H_APPID_CONTROL,
+  H_BLOCK_CONTROL,
+  H_DIMSTYLE_CONTROL,
+  H_DIMSTYLE_STANDARD,
+  H_DYNAMIC_BASE,
+  H_GROUP_DICT,
+  H_LAYER_CONTROL,
+  H_LAYER_ZERO,
+  H_LAYOUTS_DICT,
+  H_LTYPE_BYBLOCK,
+  H_LTYPE_BYLAYER,
+  H_LTYPE_CONTINUOUS,
+  H_LTYPE_CONTROL,
+  H_MLINESTYLE,
+  H_MLSTYLE_DICT,
+  H_MODEL_LAYOUT,
+  H_MODEL_RECORD,
+  H_NOD,
+  H_PAPER_LAYOUT,
+  H_PAPER_RECORD,
+  H_PLACEHOLDER,
+  H_PLOTSETTINGS_DICT,
+  H_PLOTSTYLE_DICT,
+  H_STYLE_CONTROL,
+  H_STYLE_STANDARD,
+  H_UCS_CONTROL,
+  H_VIEW_CONTROL,
+  H_VPENT_CONTROL,
+  H_VPORT_ACTIVE,
+  H_VPORT_CONTROL,
+  HEADER_VARIABLES_START,
+  MAINTENANCE_VERSION,
+  POST_CLASSES_PADDING,
+  PREVIEW_LENGTH,
+  PREVIEW_START,
+  pushRecord,
+  pushUint16LE,
+  pushUint32LE,
+  validateOptions,
+} from "./ac1015-minimal-file-support.js";
 
 // ---------------------------------------------------------------------------
 // Opciones
@@ -807,237 +782,6 @@ export function writeAc1015MinimalFile(
   return file;
 }
 
-// ---------------------------------------------------------------------------
-// Secciones auxiliares
-// ---------------------------------------------------------------------------
-
-/** Las tres clases mínimas del archivo (capítulo 10; valores medidos). */
-function buildClassesPayload(): Uint8Array {
-  const emitter = new DwgBitEmitter();
-  const appName = ascii("ObjectDBX Classes");
-  const emitClass = (
-    classnum: number,
-    cppName: string,
-    dxfName: string,
-  ): void => {
-    emitter.emitBS(classnum);
-    emitter.emitBS(0); // versión/banderas proxy (0 medido en estas tres)
-    emitter.emitTV(appName);
-    emitter.emitTV(ascii(cppName));
-    emitter.emitTV(ascii(dxfName));
-    emitter.pushBit(0); // wasazombie
-    emitter.emitBS(0x1f3); // itemclassid: clase que produce OBJETOS
-  };
-  emitClass(CLASS_TYPE_DICTIONARYWDFLT, "AcDbDictionaryWithDefault", "ACDBDICTIONARYWDFLT");
-  emitClass(CLASS_TYPE_PLACEHOLDER, "AcDbPlaceHolder", "ACDBPLACEHOLDER");
-  emitClass(CLASS_TYPE_LAYOUT, "AcDbLayout", "LAYOUT");
-  return emitter.toBytes();
-}
-
-/** AuxHeader (capítulo 27): 123 bytes, campo a campo con los valores medidos. */
-function buildAuxHeader(handseed: number): Uint8Array {
-  const out: number[] = [];
-  out.push(0xff, 0x77, 0x01);
-  pushUint16LE(out, 23); // versión DWG: AC1015
-  pushUint16LE(out, MAINTENANCE_VERSION);
-  pushUint32LE(out, 1); // número de guardados
-  pushUint32LE(out, 0xffffffff);
-  pushUint16LE(out, 1); // guardados, parte 1
-  pushUint16LE(out, 0); // guardados, parte 2
-  pushUint32LE(out, 0);
-  pushUint16LE(out, 23);
-  pushUint16LE(out, MAINTENANCE_VERSION);
-  pushUint16LE(out, 23);
-  pushUint16LE(out, MAINTENANCE_VERSION);
-  pushUint16LE(out, 0x0005);
-  pushUint16LE(out, 0x0893);
-  pushUint16LE(out, 0x0005);
-  pushUint16LE(out, 0x0893);
-  pushUint16LE(out, 0x0000);
-  pushUint16LE(out, 0x0001);
-  for (let index = 0; index < 5; index += 1) pushUint32LE(out, 0);
-  pushUint32LE(out, TDCREATE[0]);
-  pushUint32LE(out, TDCREATE[1]);
-  pushUint32LE(out, TDUPDATE[0]);
-  pushUint32LE(out, TDUPDATE[1]);
-  pushUint32LE(out, handseed <= 0x7fffffff ? handseed : 0xffffffff);
-  pushUint32LE(out, 0); // sello de plot educativo
-  pushUint16LE(out, 0);
-  pushUint16LE(out, 1); // parte 1 − parte 2
-  pushUint32LE(out, 0);
-  pushUint32LE(out, 0);
-  pushUint32LE(out, 0);
-  pushUint32LE(out, 1); // número de guardados
-  for (let index = 0; index < 4; index += 1) pushUint32LE(out, 0);
-  if (out.length !== AUX_HEADER_LENGTH) {
-    throwDwgError(
-      "DWG_INTERNAL_ERROR",
-      "internal",
-      out.length,
-      "The aux header emitter produced an unexpected length.",
-    );
-  }
-  return Uint8Array.from(out);
-}
-
-/** Previsualización mínima (capítulo 8): sin imágenes, 37 bytes medidos. */
-function buildPreviewBlob(): Uint8Array {
-  const out: number[] = [...PREVIEW_BEGIN_SENTINEL];
-  pushUint32LE(out, 1); // tamaño del área: sólo el contador
-  out.push(0); // cero imágenes
-  out.push(...PREVIEW_BEGIN_SENTINEL.map((byte) => byte ^ 0xff));
-  if (out.length !== PREVIEW_LENGTH) {
-    throwDwgError(
-      "DWG_INTERNAL_ERROR",
-      "internal",
-      out.length,
-      "The preview emitter produced an unexpected length.",
-    );
-  }
-  return Uint8Array.from(out);
-}
-
-/** ObjFreeSpace (capítulo 21): 53 bytes con los valores que escribe la ODA. */
-function buildObjFreeSpace(objectCount: number, objectsStart: number): Uint8Array {
-  const out: number[] = [];
-  pushUint32LE(out, 0);
-  pushUint32LE(out, objectCount);
-  pushUint32LE(out, TDUPDATE[0]);
-  pushUint32LE(out, TDUPDATE[1]);
-  pushUint32LE(out, objectsStart);
-  out.push(4); // cuatro valores de 64 bits a continuación
-  for (const value of [0x32, 0x64, 0x200, 0xffffffff]) {
-    pushUint32LE(out, value);
-    pushUint32LE(out, 0);
-  }
-  if (out.length !== 53) {
-    throwDwgError(
-      "DWG_INTERNAL_ERROR",
-      "internal",
-      out.length,
-      "The ObjFreeSpace emitter produced an unexpected length.",
-    );
-  }
-  return Uint8Array.from(out);
-}
-
-interface SecondHeaderExtent {
-  readonly start: number;
-  readonly size: number;
-}
-
-interface SecondHeaderInput {
-  readonly headerVariables: SecondHeaderExtent;
-  readonly classes: SecondHeaderExtent;
-  readonly objectMap: SecondHeaderExtent;
-  readonly objFreeSpace: SecondHeaderExtent;
-  readonly handseed: number;
-}
-
-/**
- * SECOND FILE HEADER (capítulo 26 + medición bit a bit del corpus): flujo de
- * bits entre centinelas, con la localización y los localizadores como BL en
- * forma RL FORZADA (válida para cualquier lector y alineada a byte para los
- * registros de handle), los seis bytes medidos tras el mantenimiento, los
- * registros extra {4: 0,1} y {5: AuxHeader}, los 14 registros de handle y el
- * CRC 0xC0C1 desde el campo de tamaño, más los 8 bytes de cola a cero.
- */
-function buildSecondHeader(
-  location: number,
-  input: SecondHeaderInput,
-): Uint8Array {
-  const handleRecords: readonly { id: number; value: number }[] = [
-    { id: 0, value: input.handseed },
-    { id: 1, value: H_BLOCK_CONTROL },
-    { id: 2, value: H_LAYER_CONTROL },
-    { id: 3, value: H_STYLE_CONTROL },
-    { id: 4, value: H_LTYPE_CONTROL },
-    { id: 5, value: H_VIEW_CONTROL },
-    { id: 6, value: H_UCS_CONTROL },
-    { id: 7, value: H_VPORT_CONTROL },
-    { id: 8, value: H_APPID_CONTROL },
-    { id: 9, value: H_DIMSTYLE_CONTROL },
-    { id: 10, value: H_VPENT_CONTROL },
-    { id: 11, value: H_NOD },
-    { id: 12, value: H_MLSTYLE_DICT },
-    { id: 13, value: H_GROUP_DICT },
-  ];
-  const recordsBytes = handleRecords.reduce(
-    (total, record) => total + 2 + Math.max(1, byteLengthOf(record.value)),
-    0,
-  );
-  // 85 bytes fijos hasta el final del recuento BS(14) con los BL en forma RL.
-  const PRE_RECORDS_BYTES = 85;
-  const sectionSize = PRE_RECORDS_BYTES + recordsBytes + 2 + 8;
-
-  const emitter = new DwgBitEmitter();
-  emitter.emitRL(sectionSize);
-  emitForcedLongBL(emitter, location);
-  for (const byte of AC1015_MAGIC) emitter.emitRC(byte);
-  for (let index = 0; index < 5; index += 1) emitter.emitRC(0);
-  emitter.emitRC(MAINTENANCE_VERSION);
-  emitter.pushBits(0, 4);
-  for (const byte of SECOND_HEADER_MAGIC_BYTES) emitter.emitRC(byte);
-  const locators: readonly { id: number; start: number; size: number }[] = [
-    { id: 0, ...input.headerVariables },
-    { id: 1, ...input.classes },
-    { id: 2, ...input.objectMap },
-    { id: 3, ...input.objFreeSpace },
-    { id: 4, start: 0, size: 1 }, // registro extra medido (semántica sin nombrar)
-    { id: 5, start: AUX_HEADER_START, size: AUX_HEADER_LENGTH },
-  ];
-  for (const locator of locators) {
-    emitter.emitRC(locator.id);
-    emitForcedLongBL(emitter, locator.start);
-    emitForcedLongBL(emitter, locator.size);
-  }
-  emitter.emitBS(handleRecords.length);
-  if (emitter.bitLength !== PRE_RECORDS_BYTES * 8) {
-    throwDwgError(
-      "DWG_INTERNAL_ERROR",
-      "internal",
-      emitter.bitLength,
-      "The second header prefix is not byte aligned as designed.",
-    );
-  }
-  for (const record of handleRecords) {
-    const bytes = handleValueBytes(record.value);
-    emitter.emitRC(bytes.length);
-    emitter.emitRC(record.id);
-    for (const byte of bytes) emitter.emitRC(byte);
-  }
-  const crc = crc16Dwg(emitter.toBytes(), 0xc0c1);
-  emitter.emitRS(crc);
-  for (let index = 0; index < 8; index += 1) emitter.emitRC(0);
-
-  const body = emitter.toBytes();
-  if (body.length !== sectionSize) {
-    throwDwgError(
-      "DWG_INTERNAL_ERROR",
-      "internal",
-      body.length,
-      "The second header body does not match its declared size.",
-    );
-  }
-  const out = new Uint8Array(16 + body.length + 16);
-  out.set(Uint8Array.from(SECOND_HEADER_BEGIN_SENTINEL), 0);
-  out.set(body, 16);
-  out.set(Uint8Array.from(SECOND_HEADER_END_SENTINEL), 16 + body.length);
-  return out;
-}
-
-/** BL en forma larga forzada: bandera 00 + RL (válida para todo lector). */
-function emitForcedLongBL(emitter: DwgBitEmitter, value: number): void {
-  emitter.pushBits(0b00, 2);
-  emitter.emitRL(value);
-}
-
-/**
- * Posición en la cadena de entidades de un espacio o bloque: el lector ajeno
- * RECORRE la lista enlazada desde el `first` del BLOCK_RECORD, así que cada
- * entidad declara su lugar (hecho verificado contra el oráculo el 2026-08-21:
- * con punteros nulos sólo sobrevivía la primera entidad de cada cadena).
- */
 function chainPositionFor(
   index: number,
   total: number,
@@ -1048,175 +792,3 @@ function chainPositionFor(
   return "middle";
 }
 
-/** Bytes big-endian mínimos de un handle; el 0 viaja como un byte a cero. */
-function handleValueBytes(value: number): number[] {
-  if (value === 0) return [0];
-  const bytes: number[] = [];
-  let rest = value;
-  while (rest > 0) {
-    bytes.unshift(rest % 0x100);
-    rest = Math.floor(rest / 0x100);
-  }
-  return bytes;
-}
-
-function byteLengthOf(value: number): number {
-  let length = 0;
-  let rest = value;
-  while (rest > 0) {
-    length += 1;
-    rest = Math.floor(rest / 0x100);
-  }
-  return length;
-}
-
-// ---------------------------------------------------------------------------
-// Validación de opciones (fallo cerrado)
-// ---------------------------------------------------------------------------
-
-interface ValidatedOptions {
-  readonly layers: readonly Ac1015MinimalFileLayerSpec[];
-  readonly blocks: readonly Ac1015MinimalFileBlockSpec[];
-  readonly entities: readonly Ac1015MinimalFileEntitySpec[];
-  readonly measurement: 0 | 1;
-}
-
-function validateOptions(options: Ac1015MinimalFileOptions): ValidatedOptions {
-  if (typeof options !== "object" || options === null) {
-    throwDwgError(
-      "DWG_INPUT_INVALID",
-      "input",
-      0,
-      "The minimal file options must be an object.",
-    );
-  }
-  const layers = options.layers ?? [];
-  const blocks = options.blocks ?? [];
-  const entities = options.entities ?? [];
-  const measurement = options.measurement ?? 0;
-  if (!Array.isArray(layers) || !Array.isArray(blocks) || !Array.isArray(entities)) {
-    throwDwgError(
-      "DWG_INPUT_INVALID",
-      "input",
-      0,
-      "The minimal file layers, blocks and entities must be arrays.",
-    );
-  }
-  if (measurement !== 0 && measurement !== 1) {
-    throwDwgError(
-      "DWG_INPUT_INVALID",
-      "input",
-      0,
-      "The MEASUREMENT variable must be 0 (English) or 1 (metric).",
-    );
-  }
-  for (const layer of layers) {
-    assertNameBytes(layer.name, "A minimal file layer name");
-  }
-  for (const block of blocks) {
-    assertNameBytes(block.name, "A minimal file block name");
-    if (!Array.isArray(block.entities)) {
-      throwDwgError(
-        "DWG_INPUT_INVALID",
-        "input",
-        0,
-        "A minimal file block needs an entities array.",
-      );
-    }
-    for (const entity of block.entities) {
-      if (entity.kind === "insert") {
-        // Un INSERT dentro de un bloque exigiría resolver el bloque anidado;
-        // pendiente DECLARADO de esta ola — fallo cerrado, no silencio.
-        throwDwgError(
-          "DWG_INPUT_INVALID",
-          "input",
-          0,
-          "An INSERT inside a block definition is not supported by this wave.",
-        );
-      }
-    }
-  }
-  entities.forEach((spec) => {
-    const layerIndex = spec.layerIndex ?? 0;
-    if (
-      !Number.isInteger(layerIndex) ||
-      layerIndex < 0 ||
-      layerIndex > layers.length
-    ) {
-      throwDwgError(
-        "DWG_INPUT_INVALID",
-        "input",
-        0,
-        "A minimal file entity layer index escapes the declared layers.",
-      );
-    }
-    if (spec.entity.kind === "insert") {
-      const blockIndex = spec.insertBlockIndex;
-      if (
-        blockIndex === undefined ||
-        !Number.isInteger(blockIndex) ||
-        blockIndex < 0 ||
-        blockIndex >= blocks.length
-      ) {
-        throwDwgError(
-          "DWG_INPUT_INVALID",
-          "input",
-          0,
-          "An INSERT entity needs the index of a declared block.",
-        );
-      }
-    } else if (spec.insertBlockIndex !== undefined) {
-      throwDwgError(
-        "DWG_INPUT_INVALID",
-        "input",
-        0,
-        "Only an INSERT entity may name an inserted block.",
-      );
-    }
-  });
-  return { layers, blocks, entities, measurement };
-}
-
-function assertNameBytes(name: readonly number[], what: string): void {
-  if (!Array.isArray(name) || name.length < 1 || name.length > 0xff) {
-    throwDwgError(
-      "DWG_INPUT_INVALID",
-      "input",
-      0,
-      `${what} needs between 1 and 255 byte values.`,
-    );
-  }
-  for (const byte of name) {
-    if (!Number.isInteger(byte) || byte < 0 || byte > 0xff) {
-      throwDwgError(
-        "DWG_INPUT_INVALID",
-        "input",
-        0,
-        `${what} must hold byte values between 0 and 255.`,
-      );
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Primitivas de bytes little-endian del ensamblado
-// ---------------------------------------------------------------------------
-
-function pushUint16LE(into: number[], value: number): void {
-  into.push(value & 0xff, (value >> 8) & 0xff);
-}
-
-function pushUint32LE(into: number[], value: number): void {
-  into.push(
-    value & 0xff,
-    (value >>> 8) & 0xff,
-    (value >>> 16) & 0xff,
-    (value >>> 24) & 0xff,
-  );
-}
-
-function pushRecord(into: number[], id: number, start: number, size: number): void {
-  into.push(id & 0xff);
-  pushUint32LE(into, start);
-  pushUint32LE(into, size);
-}

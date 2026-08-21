@@ -17,6 +17,7 @@ import "./unit/entity-insert.spec.js";
 import "./unit/model.spec.js";
 import "./unit/objects-dictionary.spec.js";
 import "./unit/r2004-container.spec.js";
+import "./unit/r2004-database.spec.js";
 import "./unit/security.spec.js";
 import "./unit/table-block.spec.js";
 import "./unit/table-layer.spec.js";
