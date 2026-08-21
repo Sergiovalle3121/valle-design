@@ -64,7 +64,7 @@ export const CadEditorLayerToggles = React.memo(function CadEditorLayerToggles({
             data-testid={`cad-editor-layer-${key}`}
             checked={layers[key]}
             onChange={(event) => onToggle(key, event.target.checked)}
-            className="accent-cyan-500"
+            className="accent-indigo-500"
           />
           {key === "stations" ? stationsLabel : label}
         </label>

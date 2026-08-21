@@ -128,7 +128,7 @@ const LayerRow = React.memo(function LayerRow({
       data-testid={`cad-layer-row-${row.id}`}
       className={`rounded-lg px-2 py-1 ${
         row.active
-          ? "bg-cyan-400/[0.10] ring-1 ring-cyan-400/20"
+          ? "bg-indigo-400/[0.10] ring-1 ring-indigo-400/20"
           : "bg-white/[0.04]"
       }`}
     >
@@ -183,7 +183,7 @@ const LayerRow = React.memo(function LayerRow({
           defaultValue={row.name}
           onBlur={(event) => onRename(row.id, event.target.value)}
           disabled={readOnly}
-          className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-1.5 py-0.5 text-[10.5px] text-gray-200 outline-none focus:ring-1 focus:ring-cyan-500/40 disabled:opacity-50"
+          className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-1.5 py-0.5 text-[10.5px] text-gray-200 outline-none focus:ring-1 focus:ring-indigo-500/40 disabled:opacity-50"
           title="Renombrar capa del documento"
         />
         <input
@@ -287,7 +287,7 @@ const LayerRow = React.memo(function LayerRow({
           <button
             onClick={() => onAssignSelection(row.id)}
             disabled={readOnly}
-            className="text-cyan-300 hover:text-cyan-100 disabled:opacity-40"
+            className="text-indigo-300 hover:text-indigo-100 disabled:opacity-40"
           >
             Asignar
           </button>
@@ -340,7 +340,7 @@ export const CadLayerManagerPalette = React.memo(
             }}
             disabled={readOnly}
             placeholder="Nueva capa"
-            className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-2 py-1 text-[10.5px] text-gray-200 outline-none focus:ring-1 focus:ring-cyan-500/40 disabled:opacity-50"
+            className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-2 py-1 text-[10.5px] text-gray-200 outline-none focus:ring-1 focus:ring-indigo-500/40 disabled:opacity-50"
           />
           <input
             data-testid="cad-layer-new-color"
@@ -355,7 +355,7 @@ export const CadLayerManagerPalette = React.memo(
             data-testid="cad-layer-create"
             onClick={props.onCreate}
             disabled={readOnly || !props.draftName.trim()}
-            className="rounded-md bg-cyan-500/15 px-2 text-[10px] font-semibold text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-40"
+            className="rounded-md bg-indigo-500/15 px-2 text-[10px] font-semibold text-indigo-200 hover:bg-indigo-500/25 disabled:opacity-40"
           >
             Crear
           </button>
@@ -367,7 +367,7 @@ export const CadLayerManagerPalette = React.memo(
             value={filter.text}
             onChange={(event) => props.onFilterText(event.target.value)}
             placeholder="Filtrar por nombre"
-            className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-2 py-1 text-[10.5px] text-gray-200 outline-none focus:ring-1 focus:ring-cyan-500/40"
+            className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-2 py-1 text-[10.5px] text-gray-200 outline-none focus:ring-1 focus:ring-indigo-500/40"
           />
           <select
             data-testid="cad-layer-filter-property"
@@ -495,7 +495,7 @@ export const CadLayerManagerPalette = React.memo(
               value={props.draftStateName}
               onChange={(event) => props.onDraftStateName(event.target.value)}
               placeholder="Nombre del estado"
-              className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-2 py-1 text-[10.5px] text-gray-200 outline-none focus:ring-1 focus:ring-cyan-500/40"
+              className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-2 py-1 text-[10.5px] text-gray-200 outline-none focus:ring-1 focus:ring-indigo-500/40"
             />
             <button
               data-testid="cad-layer-state-save"
@@ -519,7 +519,7 @@ export const CadLayerManagerPalette = React.memo(
                     data-testid={`cad-layer-state-restore-${state.name}`}
                     onClick={() => props.onRestoreState(state.name)}
                     disabled={readOnly}
-                    className="text-cyan-300 hover:text-cyan-100 disabled:opacity-40"
+                    className="text-indigo-300 hover:text-indigo-100 disabled:opacity-40"
                   >
                     Restaurar
                   </button>

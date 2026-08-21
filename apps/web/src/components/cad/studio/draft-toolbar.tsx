@@ -86,7 +86,7 @@ export function CadDraftToolbar({
         <button
           data-testid="cad-polyline-close"
           onClick={onClose}
-          className="rounded-lg border border-cyan-400/20 bg-cyan-400/10 px-2 py-1 text-[10px] font-semibold text-cyan-100 hover:bg-cyan-400/20"
+          className="rounded-lg border border-indigo-400/20 bg-indigo-400/10 px-2 py-1 text-[10px] font-semibold text-indigo-100 hover:bg-indigo-400/20"
         >
           Cerrar
         </button>

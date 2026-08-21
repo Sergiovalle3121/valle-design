@@ -71,9 +71,9 @@ export function CadMTextEditor(props: CadMTextEditorProps) {
   };
   const valid = draft.text.trim().length > 0 && draft.width > 0 && draft.height > 0 && draft.lineSpacing >= 0.5;
   return (
-    <div data-testid="cad-mtext-editor" role="dialog" aria-label={props.initial ? 'Editar MTEXT' : 'Crear MTEXT'} className="absolute left-1/2 top-20 z-[65] w-[min(560px,calc(100vw-32px))] -translate-x-1/2 rounded-2xl border border-cyan-400/25 bg-gray-950/95 p-4 shadow-2xl backdrop-blur">
+    <div data-testid="cad-mtext-editor" role="dialog" aria-label={props.initial ? 'Editar MTEXT' : 'Crear MTEXT'} className="absolute left-1/2 top-20 z-[65] w-[min(560px,calc(100vw-32px))] -translate-x-1/2 rounded-2xl border border-indigo-400/25 bg-gray-950/95 p-4 shadow-2xl backdrop-blur">
       <div className="mb-3 flex items-start justify-between gap-3">
-        <div><div className="text-sm font-semibold text-cyan-100">{props.initial ? 'Editar MTEXT' : 'Nuevo MTEXT'}</div><div className="text-[10px] text-gray-500">Editor multilínea dentro del lienzo · Ctrl+Enter guarda · Esc cancela</div></div>
+        <div><div className="text-sm font-semibold text-indigo-100">{props.initial ? 'Editar MTEXT' : 'Nuevo MTEXT'}</div><div className="text-[10px] text-gray-500">Editor multilínea dentro del lienzo · Ctrl+Enter guarda · Esc cancela</div></div>
         <button onClick={props.onCancel} className="rounded px-2 py-1 text-xs text-gray-400 hover:bg-white/10">Cerrar</button>
       </div>
       <textarea
@@ -87,11 +87,11 @@ export function CadMTextEditor(props: CadMTextEditorProps) {
         }}
         rows={6}
         placeholder="Escribe texto multilínea…"
-        className="w-full resize-y rounded-xl border border-white/10 bg-black/35 px-3 py-2 font-mono text-sm text-white outline-none focus:border-cyan-400/40"
+        className="w-full resize-y rounded-xl border border-white/10 bg-black/35 px-3 py-2 font-mono text-sm text-white outline-none focus:border-indigo-400/40"
       />
       <div className="mt-2 flex flex-wrap gap-1">
         {([['bold', 'B'], ['italic', 'I'], ['underline', 'U']] as const).map(([key, label]) => (
-          <button key={key} data-testid={`cad-mtext-${key}`} aria-pressed={draft[key]} onClick={() => setDraft((current) => ({ ...current, [key]: !current[key] }))} className={`h-7 min-w-8 rounded border px-2 text-xs ${draft[key] ? 'border-cyan-400/40 bg-cyan-400/15 text-cyan-100' : 'border-white/10 text-gray-300'}`}>{label}</button>
+          <button key={key} data-testid={`cad-mtext-${key}`} aria-pressed={draft[key]} onClick={() => setDraft((current) => ({ ...current, [key]: !current[key] }))} className={`h-7 min-w-8 rounded border px-2 text-xs ${draft[key] ? 'border-indigo-400/40 bg-indigo-400/15 text-indigo-100' : 'border-white/10 text-gray-300'}`}>{label}</button>
         ))}
         <button data-testid="cad-mtext-background-mask" aria-pressed={draft.backgroundMask} onClick={() => setDraft((current) => ({ ...current, backgroundMask: !current.backgroundMask }))} className={`h-7 rounded border px-2 text-xs ${draft.backgroundMask ? 'border-violet-400/40 bg-violet-400/15 text-violet-100' : 'border-white/10 text-gray-300'}`}>Máscara</button>
       </div>
@@ -113,7 +113,7 @@ export function CadMTextEditor(props: CadMTextEditorProps) {
         <label className="col-span-2">Estilo<input data-testid="cad-mtext-style" list="cad-mtext-styles" value={draft.style} onChange={(event) => setDraft((current) => ({ ...current, style: event.target.value }))} className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white" /><datalist id="cad-mtext-styles">{Object.keys(props.textStyles).map((style) => <option key={style} value={style} />)}</datalist></label>
         <label className="col-span-2">Fuente / fallback<input data-testid="cad-mtext-font" value={draft.fontFamily} onChange={(event) => setDraft((current) => ({ ...current, fontFamily: event.target.value }))} className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white" /></label>
       </div>
-      <div className="mt-3 flex justify-end gap-2"><button onClick={props.onCancel} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-gray-300">Cancelar</button><button data-testid="cad-mtext-save" disabled={!valid} onClick={() => props.onSave(draft)} className="rounded-lg bg-cyan-500 px-3 py-1.5 text-xs font-semibold text-gray-950 disabled:opacity-40">{props.initial ? 'Aplicar cambios' : 'Crear MTEXT'}</button></div>
+      <div className="mt-3 flex justify-end gap-2"><button onClick={props.onCancel} className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-gray-300">Cancelar</button><button data-testid="cad-mtext-save" disabled={!valid} onClick={() => props.onSave(draft)} className="rounded-lg bg-indigo-500 px-3 py-1.5 text-xs font-semibold text-gray-950 disabled:opacity-40">{props.initial ? 'Aplicar cambios' : 'Crear MTEXT'}</button></div>
     </div>
   );
 }

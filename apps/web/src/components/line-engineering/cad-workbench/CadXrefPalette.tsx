@@ -42,7 +42,7 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [comparison, setComparison] = useState<CadXrefVersionComparison | null>(null);
-  const input = 'mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white outline-none focus:border-cyan-400/50';
+  const input = 'mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white outline-none focus:border-indigo-400/50';
   const run = async (key: string, action: () => Promise<void>) => {
     setBusy(key); setMessage(null);
     try { await action(); }
@@ -51,7 +51,7 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
   };
   return (
     <div data-testid="cad-xref-palette" className="h-full overflow-y-auto p-3 text-[10.5px]">
-      <div className="flex items-center justify-between"><strong className="text-cyan-100">EXTERNAL REFERENCES</strong><span className="text-gray-500">{props.references.length} linked</span></div>
+      <div className="flex items-center justify-between"><strong className="text-indigo-100">EXTERNAL REFERENCES</strong><span className="text-gray-500">{props.references.length} linked</span></div>
       <p className="mt-1 text-[9.5px] leading-relaxed text-gray-500">Referencias a layouts del mismo tenant. Nunca se persisten rutas locales del navegador.</p>
       <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
         <label className="text-gray-400">Asset / model<input data-testid="cad-xref-asset" value={draft.assetId} onChange={(event) => setDraft((current) => ({ ...current, assetId: event.target.value.slice(0, 96) }))} placeholder="PLANT-ARCH" className={input} /></label>
@@ -59,7 +59,7 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
         <label className="text-gray-400">Display name<input data-testid="cad-xref-name" value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value.slice(0, 80) }))} placeholder={draft.assetId || 'Reference'} className={input} /></label>
         <label className="text-gray-400">Type<select data-testid="cad-xref-mode" value={draft.mode} onChange={(event) => setDraft((current) => ({ ...current, mode: event.target.value as CadXrefAttachDraft['mode'] }))} className={input}><option value="attachment">Attachment</option><option value="overlay">Overlay</option></select></label>
         {(['x', 'y', 'scale', 'rotation'] as const).map((key) => <label key={key} className="text-gray-400">{key}<input data-testid={`cad-xref-${key}`} type="number" value={draft[key]} onChange={(event) => setDraft((current) => ({ ...current, [key]: Number(event.target.value) || 0 }))} className={input} /></label>)}
-        <button data-testid="cad-xref-attach" disabled={busy !== null || !draft.assetId.trim() || !draft.revision.trim() || draft.scale <= 0} onClick={() => void run('attach', () => props.onAttach({ ...draft, assetId: draft.assetId.trim(), revision: draft.revision.trim(), name: draft.name.trim() || draft.assetId.trim() }))} className="col-span-2 rounded-lg bg-cyan-500 px-3 py-1.5 font-semibold text-gray-950 disabled:opacity-40">{busy === 'attach' ? 'Resolving tenant asset…' : 'Attach tenant Xref'}</button>
+        <button data-testid="cad-xref-attach" disabled={busy !== null || !draft.assetId.trim() || !draft.revision.trim() || draft.scale <= 0} onClick={() => void run('attach', () => props.onAttach({ ...draft, assetId: draft.assetId.trim(), revision: draft.revision.trim(), name: draft.name.trim() || draft.assetId.trim() }))} className="col-span-2 rounded-lg bg-indigo-500 px-3 py-1.5 font-semibold text-gray-950 disabled:opacity-40">{busy === 'attach' ? 'Resolving tenant asset…' : 'Attach tenant Xref'}</button>
       </div>
       {message && <div data-testid="cad-xref-message" className="mt-2 rounded-lg border border-rose-300/20 bg-rose-400/[0.08] px-2 py-1.5 text-rose-100">{message}</div>}
 
@@ -72,7 +72,7 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
             {reference.error && <p className="mt-1 text-[9px] text-rose-300">{reference.error}</p>}
             <div className="mt-2 grid grid-cols-5 gap-1">
               <button disabled={busy !== null} onClick={() => void run(`compare:${reference.id}`, async () => setComparison(await props.onCompare(reference)))} className="rounded border border-white/10 px-1 py-1 text-gray-200 disabled:opacity-30">Compare</button>
-              <button disabled={busy !== null} onClick={() => void run(`reload:${reference.id}`, () => props.onReload(reference))} className="rounded border border-cyan-300/20 px-1 py-1 text-cyan-100 disabled:opacity-30">{reference.loaded ? 'Reload' : 'Load'}</button>
+              <button disabled={busy !== null} onClick={() => void run(`reload:${reference.id}`, () => props.onReload(reference))} className="rounded border border-indigo-300/20 px-1 py-1 text-indigo-100 disabled:opacity-30">{reference.loaded ? 'Reload' : 'Load'}</button>
               <button disabled={!reference.loaded || busy !== null} onClick={() => props.onUnload(reference.id)} className="rounded border border-white/10 px-1 py-1 text-gray-300 disabled:opacity-30">Unload</button>
               <button disabled={!reference.loaded || busy !== null} onClick={() => props.onBind(reference.id)} className="rounded border border-amber-300/20 px-1 py-1 text-amber-100 disabled:opacity-30">Bind</button>
               <button disabled={busy !== null} onClick={() => props.onDetach(reference.id)} className="rounded border border-rose-300/20 px-1 py-1 text-rose-200 disabled:opacity-30">Detach</button>

@@ -44,7 +44,7 @@ interface CadCollaborationPaletteProps {
 type DiffFilter = "all" | "added" | "modified" | "deleted";
 
 const button = "rounded-lg border border-white/10 px-2 py-1 text-[10px] text-gray-200 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-35";
-const input = "w-full rounded-lg border border-white/10 bg-black/25 px-2 py-1.5 text-[10.5px] text-white outline-none focus:border-cyan-300/40";
+const input = "w-full rounded-lg border border-white/10 bg-black/25 px-2 py-1.5 text-[10.5px] text-white outline-none focus:border-indigo-300/40";
 
 function id(prefix: string) {
   const value = typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -224,13 +224,13 @@ export function CadCollaborationPalette({
   return (
     <div data-testid="cad-collaboration-palette" data-cad-review-allowed className="h-full overflow-y-auto p-3 text-[10.5px] text-gray-300">
       <div className="flex items-start justify-between gap-2">
-        <div><strong className="text-cyan-100">COMPARE / MERGE / REVIEW</strong><p className="mt-0.5 text-[9px] text-gray-500">Canonical entities · tenant CAS · immutable server audit on save</p></div>
+        <div><strong className="text-indigo-100">COMPARE / MERGE / REVIEW</strong><p className="mt-0.5 text-[9px] text-gray-500">Canonical entities · tenant CAS · immutable server audit on save</p></div>
         {reviewReadOnly && <span data-testid="cad-review-readonly" className="rounded-full border border-amber-300/25 bg-amber-400/10 px-2 py-0.5 text-[9px] text-amber-200">READ ONLY</span>}
       </div>
 
       <section className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
         <div className="flex items-center justify-between"><strong className="text-gray-100">Version history</strong><span className="text-gray-500">{collaboration?.versions.length ?? 0}/12</span></div>
-        <div className="mt-2 flex gap-1"><input data-testid="cad-version-label" value={checkpointLabel} onChange={(event) => setCheckpointLabel(event.target.value)} placeholder="Checkpoint label" className={input} /><button data-testid="cad-version-create" disabled={reviewReadOnly} onClick={checkpoint} className={`${button} shrink-0 border-cyan-300/20 text-cyan-100`}>Capture current</button></div>
+        <div className="mt-2 flex gap-1"><input data-testid="cad-version-label" value={checkpointLabel} onChange={(event) => setCheckpointLabel(event.target.value)} placeholder="Checkpoint label" className={input} /><button data-testid="cad-version-create" disabled={reviewReadOnly} onClick={checkpoint} className={`${button} shrink-0 border-indigo-300/20 text-indigo-100`}>Capture current</button></div>
         <div className="mt-2 space-y-1">{[...(collaboration?.versions ?? [])].reverse().slice(0, 4).map((version) => <div key={version.id} className="flex justify-between gap-2 text-[9px] text-gray-500"><span className="truncate">{version.label}</span><span className="font-mono">{version.contentHash}</span></div>)}</div>
       </section>
 
@@ -244,7 +244,7 @@ export function CadCollaborationPalette({
           <div className="flex items-center gap-1"><button disabled={!rows.length} onClick={() => moveCursor(-1)} className={button}>Prev</button><span data-testid="cad-diff-cursor" className="min-w-12 text-center text-[9px] text-gray-500">{rows.length ? `${Math.min(cursor + 1, rows.length)}/${rows.length}` : '0/0'}</span><button disabled={!rows.length} onClick={() => moveCursor(1)} className={button}>Next</button></div>
         </div>
         {selected ? <article data-testid="cad-diff-selected" className="mt-2 rounded-lg border border-violet-300/15 bg-violet-400/[0.06] p-2">
-          <div className="flex justify-between"><strong className="text-violet-100">{selected.change.toUpperCase()} · {selected.entityType}</strong><button onClick={() => onNavigate(selected.entityId)} className="font-mono text-cyan-200 hover:text-white">{selected.entityId}</button></div>
+          <div className="flex justify-between"><strong className="text-violet-100">{selected.change.toUpperCase()} · {selected.entityType}</strong><button onClick={() => onNavigate(selected.entityId)} className="font-mono text-indigo-200 hover:text-white">{selected.entityId}</button></div>
           <div className="mt-1 text-[9px] text-gray-400">Geometry: {selected.geometryPaths.join(', ') || '—'}</div><div className="mt-0.5 text-[9px] text-gray-400">Properties: {selected.propertyPaths.join(', ') || '—'}</div>
         </article> : <div className="mt-2 rounded-lg border border-dashed border-white/10 p-3 text-center text-gray-500">Mine and theirs are identical.</div>}
       </section>
@@ -254,7 +254,7 @@ export function CadCollaborationPalette({
         {merge.collisions.map((collision) => <article key={collision.entityId} data-testid={`cad-merge-conflict-${collision.entityId}`} className="mt-2 rounded-lg border border-rose-300/20 bg-rose-400/[0.06] p-2">
           <div className="flex justify-between"><strong className="text-rose-100">{collision.entityId}</strong><span className="text-[9px] text-rose-200">{collision.reason}</span></div>
           <div className="mt-1 text-[9px] text-gray-500">Mine: {collision.minePaths.join(', ') || 'deleted'}<br />Theirs: {collision.theirsPaths.join(', ') || 'deleted'}</div>
-          <div className="mt-2 grid grid-cols-3 gap-1"><button onClick={() => choose(collision.entityId, { strategy: 'mine' })} className={`${button} ${resolutions[collision.entityId]?.strategy === 'mine' ? 'bg-cyan-400/15 text-cyan-100' : ''}`}>Keep mine</button><button onClick={() => choose(collision.entityId, { strategy: 'theirs' })} className={`${button} ${resolutions[collision.entityId]?.strategy === 'theirs' ? 'bg-cyan-400/15 text-cyan-100' : ''}`}>Keep theirs</button><button onClick={() => setResolutions((current) => { const next = { ...current }; delete next[collision.entityId]; return next; })} className={button}>Reject / reset</button></div>
+          <div className="mt-2 grid grid-cols-3 gap-1"><button onClick={() => choose(collision.entityId, { strategy: 'mine' })} className={`${button} ${resolutions[collision.entityId]?.strategy === 'mine' ? 'bg-indigo-400/15 text-indigo-100' : ''}`}>Keep mine</button><button onClick={() => choose(collision.entityId, { strategy: 'theirs' })} className={`${button} ${resolutions[collision.entityId]?.strategy === 'theirs' ? 'bg-indigo-400/15 text-indigo-100' : ''}`}>Keep theirs</button><button onClick={() => setResolutions((current) => { const next = { ...current }; delete next[collision.entityId]; return next; })} className={button}>Reject / reset</button></div>
           <textarea value={manualJson[collision.entityId] ?? JSON.stringify(collision.mine ?? null, null, 2)} onChange={(event) => setManualJson((current) => ({ ...current, [collision.entityId]: event.target.value }))} rows={3} className={`${input} mt-2 font-mono text-[9px]`} /><button onClick={() => parseManual(collision.entityId)} className={`${button} mt-1 w-full`}>Stage manual merge</button>
         </article>)}
         <button data-testid="cad-merge-apply" disabled={reviewReadOnly || merge.unresolved.length > 0 || (!merge.autoMergedIds.length && !merge.appliedResolutions.length)} onClick={applyMerge} className="mt-2 w-full rounded-lg bg-emerald-500 px-2 py-1.5 font-semibold text-gray-950 disabled:cursor-not-allowed disabled:opacity-35">Apply atomic merge</button>
@@ -279,8 +279,8 @@ export function CadCollaborationPalette({
         <div className="mt-2 space-y-1">{[...(collaboration?.reviewLinks ?? [])].reverse().map((link) => <div key={link.id} className="flex items-center gap-1 rounded-lg border border-white/10 p-1.5"><span className={`min-w-0 flex-1 truncate ${link.revokedAt ? 'text-gray-600 line-through' : 'text-gray-300'}`}>{link.label}</span><span className="shrink-0 text-[9px] text-gray-500">{link.revokedAt ? 'revoked' : link.expiresAt ? `until ${link.expiresAt.slice(0, 10)}` : 'active'}</span><button data-testid={`cad-review-link-revoke-${link.id}`} disabled={reviewReadOnly || linkBusy || !!link.revokedAt} onClick={() => void revokeLink(link)} className={`${button} text-rose-200`}>Revoke</button></div>)}</div>
       </section>
 
-      <section className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5"><div className="flex justify-between"><strong className="text-gray-100">Audit</strong><span className="text-gray-500">{collaboration?.audit.length ?? 0} event(s)</span></div><div className="mt-2 space-y-1">{[...(collaboration?.audit ?? [])].reverse().slice(0, 12).map((entry) => <div key={entry.id} className="border-l border-cyan-300/20 pl-2 text-[9px]"><div className="text-gray-300">{entry.action} · {entry.actor}</div><div className="truncate text-gray-500">{entry.detail}</div></div>)}</div></section>
-      {message && <div data-testid="cad-collaboration-message" className="sticky bottom-2 mt-3 rounded-lg border border-cyan-300/20 bg-gray-950/95 px-2 py-1.5 text-cyan-100 shadow-xl">{message}</div>}
+      <section className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5"><div className="flex justify-between"><strong className="text-gray-100">Audit</strong><span className="text-gray-500">{collaboration?.audit.length ?? 0} event(s)</span></div><div className="mt-2 space-y-1">{[...(collaboration?.audit ?? [])].reverse().slice(0, 12).map((entry) => <div key={entry.id} className="border-l border-indigo-300/20 pl-2 text-[9px]"><div className="text-gray-300">{entry.action} · {entry.actor}</div><div className="truncate text-gray-500">{entry.detail}</div></div>)}</div></section>
+      {message && <div data-testid="cad-collaboration-message" className="sticky bottom-2 mt-3 rounded-lg border border-indigo-300/20 bg-gray-950/95 px-2 py-1.5 text-indigo-100 shadow-xl">{message}</div>}
     </div>
   );
 }

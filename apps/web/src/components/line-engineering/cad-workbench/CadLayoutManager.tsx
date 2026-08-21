@@ -107,8 +107,8 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
   return (
     <section data-testid="cad-layout-manager" className="col-span-full mt-2 space-y-3 border-t border-white/10 pt-3">
       <div className="flex flex-wrap items-center gap-2">
-        <span className="mr-auto text-[10px] font-semibold uppercase tracking-[0.15em] text-cyan-200">Viewports · {space.viewports?.length ?? 0}</span>
-        <button data-testid="cad-viewport-add" onClick={props.onAdd} className="inline-flex items-center gap-1 rounded-lg bg-cyan-600 px-2 py-1 text-[10.5px] font-semibold text-white hover:bg-cyan-500"><Plus className="h-3 w-3" />Viewport</button>
+        <span className="mr-auto text-[10px] font-semibold uppercase tracking-[0.15em] text-indigo-200">Viewports · {space.viewports?.length ?? 0}</span>
+        <button data-testid="cad-viewport-add" onClick={props.onAdd} className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-2 py-1 text-[10.5px] font-semibold text-white hover:bg-indigo-500"><Plus className="h-3 w-3" />Viewport</button>
         <button disabled={!active} onClick={() => active && props.onDuplicate(active.id)} className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 text-[10.5px] disabled:opacity-35"><Copy className="h-3 w-3" />Duplicar</button>
         <button disabled={!active} onClick={() => active && props.onDelete(active.id)} className="inline-flex items-center gap-1 rounded-lg border border-rose-300/20 px-2 py-1 text-[10.5px] text-rose-200 disabled:opacity-35"><Trash2 className="h-3 w-3" />Eliminar</button>
       </div>
@@ -119,16 +119,16 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
             {(space.viewports ?? []).map((viewport) => {
               const bounds = shownBounds(viewport);
               return (
-                <button key={viewport.id} data-testid={`cad-paper-viewport-${viewport.id}`} onClick={() => props.onActivate(viewport.id)} onPointerDown={(event) => beginDrag(event, viewport, 'move')} className={`absolute overflow-hidden border-2 text-left text-[8px] ${active?.id === viewport.id ? 'z-10 border-cyan-500 bg-cyan-100/20 text-cyan-950' : 'border-slate-500 bg-slate-100/15 text-slate-700'}`} style={{ left: `${bounds.x / space.page.width * 100}%`, top: `${bounds.y / space.page.height * 100}%`, width: `${bounds.width / space.page.width * 100}%`, height: `${bounds.height / space.page.height * 100}%` }}>
+                <button key={viewport.id} data-testid={`cad-paper-viewport-${viewport.id}`} onClick={() => props.onActivate(viewport.id)} onPointerDown={(event) => beginDrag(event, viewport, 'move')} className={`absolute overflow-hidden border-2 text-left text-[8px] ${active?.id === viewport.id ? 'z-10 border-indigo-500 bg-indigo-100/20 text-indigo-950' : 'border-slate-500 bg-slate-100/15 text-slate-700'}`} style={{ left: `${bounds.x / space.page.width * 100}%`, top: `${bounds.y / space.page.height * 100}%`, width: `${bounds.width / space.page.width * 100}%`, height: `${bounds.height / space.page.height * 100}%` }}>
                   <span className="absolute left-1 top-1 rounded bg-white/80 px-1 py-0.5">{viewport.name ?? viewport.id} · 1:{viewport.scale}{viewport.locked ? ' · LOCK' : ''}</span>
-                  {!viewport.locked && <span data-testid={`cad-viewport-resize-${viewport.id}`} onPointerDown={(event) => beginDrag(event, viewport, 'resize')} className="absolute bottom-0 right-0 h-3 w-3 cursor-nwse-resize border-l border-t border-cyan-700 bg-cyan-400" />}
+                  {!viewport.locked && <span data-testid={`cad-viewport-resize-${viewport.id}`} onPointerDown={(event) => beginDrag(event, viewport, 'resize')} className="absolute bottom-0 right-0 h-3 w-3 cursor-nwse-resize border-l border-t border-indigo-700 bg-indigo-400" />}
                 </button>
               );
             })}
             <div className="pointer-events-none absolute inset-x-[2%] bottom-[2%] h-[10%] border border-slate-600 text-[7px] text-slate-600">TITLE BLOCK</div>
           </div>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {(space.viewports ?? []).map((viewport) => <button key={viewport.id} onClick={() => props.onActivate(viewport.id)} className={`rounded-full border px-2 py-0.5 text-[9.5px] ${active?.id === viewport.id ? 'border-cyan-300/50 bg-cyan-400/15 text-cyan-100' : 'border-white/10 text-gray-400'}`}>{viewport.name ?? viewport.id}</button>)}
+            {(space.viewports ?? []).map((viewport) => <button key={viewport.id} onClick={() => props.onActivate(viewport.id)} className={`rounded-full border px-2 py-0.5 text-[9.5px] ${active?.id === viewport.id ? 'border-indigo-300/50 bg-indigo-400/15 text-indigo-100' : 'border-white/10 text-gray-400'}`}>{viewport.name ?? viewport.id}</button>)}
           </div>
         </div>
 

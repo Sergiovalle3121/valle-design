@@ -219,7 +219,7 @@ export default function StudioCollaborationLayer({
           type="button"
           data-testid="cad-collab-toggle"
           onClick={() => setCollapsed((value) => !value)}
-          className="rounded-md border border-white/15 px-2 py-0.5 text-[10px] text-gray-300 hover:border-cyan-300/40 hover:text-cyan-100"
+          className="rounded-md border border-white/15 px-2 py-0.5 text-[10px] text-gray-300 hover:border-indigo-300/40 hover:text-indigo-100"
           aria-expanded={!collapsed}
         >
           {collapsed ? "Abrir" : "Ocultar"}

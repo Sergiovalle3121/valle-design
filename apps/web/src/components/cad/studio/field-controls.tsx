@@ -71,7 +71,7 @@ export function NumField({
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
         onBlur={onEnd}
-        className="w-full px-2 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[13px] text-white focus:outline-none focus:border-cyan-400/60"
+        className="w-full px-2 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[13px] text-white focus:outline-none focus:border-indigo-400/60"
       />
     </label>
   );
@@ -98,7 +98,7 @@ export function DimInput({
         data-testid={testId}
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-        className="w-full px-1.5 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[12px] text-white focus:outline-none focus:border-cyan-400/60"
+        className="w-full px-1.5 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[12px] text-white focus:outline-none focus:border-indigo-400/60"
       />
     </label>
   );
@@ -135,13 +135,13 @@ export function Stat({
 }) {
   return (
     <div
-      className={`rounded-lg px-3 py-2 ${highlight ? "bg-cyan-500/15" : "bg-white/[0.04]"}`}
+      className={`rounded-lg px-3 py-2 ${highlight ? "bg-indigo-500/15" : "bg-white/[0.04]"}`}
     >
       <div className="text-[10px] uppercase tracking-wide text-gray-500">
         {label}
       </div>
       <div
-        className={`text-[15px] font-semibold ${highlight ? "text-cyan-300" : "text-white"}`}
+        className={`text-[15px] font-semibold ${highlight ? "text-indigo-300" : "text-white"}`}
       >
         {value}
       </div>

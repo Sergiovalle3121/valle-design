@@ -29,10 +29,10 @@ export function CadHatchPalette({
   const exactPointValid = Number.isFinite(exactPoint.x) && Number.isFinite(exactPoint.y);
   return (
     <div data-testid="cad-hatch-palette" className={docked ? 'w-full p-3 text-[11px]' : 'absolute right-0 top-full z-50 mt-1.5 w-72 rounded-xl border border-white/10 bg-gray-900 p-3 text-[11px] shadow-2xl'}>
-      <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-cyan-200">HATCH nativo</div>
+      <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-indigo-200">HATCH nativo</div>
       <div className="mb-2 grid grid-cols-2 gap-1">
-        <button onClick={() => onSolidChange(false)} className={`rounded-md border px-2 py-1 ${!solid ? 'border-cyan-400/40 bg-cyan-400/15 text-cyan-100' : 'border-white/10 text-gray-300'}`}>ANSI31</button>
-        <button onClick={() => onSolidChange(true)} className={`rounded-md border px-2 py-1 ${solid ? 'border-cyan-400/40 bg-cyan-400/15 text-cyan-100' : 'border-white/10 text-gray-300'}`}>SOLID</button>
+        <button onClick={() => onSolidChange(false)} className={`rounded-md border px-2 py-1 ${!solid ? 'border-indigo-400/40 bg-indigo-400/15 text-indigo-100' : 'border-white/10 text-gray-300'}`}>ANSI31</button>
+        <button onClick={() => onSolidChange(true)} className={`rounded-md border px-2 py-1 ${solid ? 'border-indigo-400/40 bg-indigo-400/15 text-indigo-100' : 'border-white/10 text-gray-300'}`}>SOLID</button>
       </div>
       <label className="mb-2 block text-[10px] text-gray-500">
         Islands
@@ -57,9 +57,9 @@ export function CadHatchPalette({
       <div className="mb-2 rounded-lg border border-white/10 bg-gray-950/50 p-2">
         <div className="mb-1 text-[9px] uppercase tracking-wide text-gray-500">Punto exacto del dibujo</div>
         <div className="grid grid-cols-[1fr_1fr_auto] gap-1.5">
-          <input data-testid="cad-hatch-point-x" aria-label="Coordenada X del hatch" inputMode="decimal" value={exactX} onChange={(event) => setExactX(event.target.value)} className="min-w-0 rounded-md border border-white/10 bg-gray-950 px-2 py-1 text-gray-100 outline-none focus:border-cyan-400/40" />
-          <input data-testid="cad-hatch-point-y" aria-label="Coordenada Y del hatch" inputMode="decimal" value={exactY} onChange={(event) => setExactY(event.target.value)} className="min-w-0 rounded-md border border-white/10 bg-gray-950 px-2 py-1 text-gray-100 outline-none focus:border-cyan-400/40" />
-          <button data-testid="cad-hatch-create-exact" disabled={!exactPointValid} onClick={() => onCreateAtPoint(exactPoint)} className="rounded-md bg-cyan-500 px-2 py-1 font-semibold text-white hover:bg-cyan-400 disabled:opacity-40">Crear</button>
+          <input data-testid="cad-hatch-point-x" aria-label="Coordenada X del hatch" inputMode="decimal" value={exactX} onChange={(event) => setExactX(event.target.value)} className="min-w-0 rounded-md border border-white/10 bg-gray-950 px-2 py-1 text-gray-100 outline-none focus:border-indigo-400/40" />
+          <input data-testid="cad-hatch-point-y" aria-label="Coordenada Y del hatch" inputMode="decimal" value={exactY} onChange={(event) => setExactY(event.target.value)} className="min-w-0 rounded-md border border-white/10 bg-gray-950 px-2 py-1 text-gray-100 outline-none focus:border-indigo-400/40" />
+          <button data-testid="cad-hatch-create-exact" disabled={!exactPointValid} onClick={() => onCreateAtPoint(exactPoint)} className="rounded-md bg-indigo-500 px-2 py-1 font-semibold text-white hover:bg-indigo-400 disabled:opacity-40">Crear</button>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-1">

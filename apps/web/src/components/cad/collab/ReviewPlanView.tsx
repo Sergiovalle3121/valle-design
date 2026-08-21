@@ -251,7 +251,7 @@ export default function ReviewPlanView({
               ? "border-emerald-200/60 bg-emerald-500/85 text-gray-950"
               : "border-amber-200/70 bg-amber-400 text-gray-950"
           } ${placement.offscreen ? "opacity-70 ring-2 ring-white/30" : ""} ${
-            activeId === placement.id ? "ring-2 ring-cyan-300" : ""
+            activeId === placement.id ? "ring-2 ring-indigo-300" : ""
           }`}
           aria-label={`Comentario ${placement.ordinal}`}
         >

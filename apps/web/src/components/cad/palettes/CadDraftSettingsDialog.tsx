@@ -80,7 +80,7 @@ function Toggle({
       onClick={onClick}
       className={`flex items-center justify-between gap-3 rounded-lg border px-2.5 py-1.5 text-left text-[11px] transition-colors ${
         active
-          ? "border-cyan-400/40 bg-cyan-400/[0.10] text-cyan-100"
+          ? "border-indigo-400/40 bg-indigo-400/[0.10] text-indigo-100"
           : "border-white/10 bg-white/[0.03] text-gray-400 hover:text-white"
       }`}
     >
@@ -147,7 +147,7 @@ export const CadDraftSettingsDialog = React.memo(
         <div className="grid gap-3 sm:grid-cols-2">
           <section className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-wide text-cyan-200">
+              <span className="text-[10px] uppercase tracking-wide text-indigo-200">
                 Captura a objetos (OSNAP)
               </span>
               <span
@@ -180,7 +180,7 @@ export const CadDraftSettingsDialog = React.memo(
                     onChange={(event) =>
                       onToggleMode(mode, event.target.checked)
                     }
-                    className="accent-cyan-500"
+                    className="accent-indigo-500"
                   />
                 </label>
               ))}
@@ -215,7 +215,7 @@ export const CadDraftSettingsDialog = React.memo(
 
           <div className="space-y-3">
             <section className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
-              <div className="mb-2 text-[10px] uppercase tracking-wide text-cyan-200">
+              <div className="mb-2 text-[10px] uppercase tracking-wide text-indigo-200">
                 Rastreo
               </div>
               <div className="grid gap-1.5">
@@ -278,7 +278,7 @@ export const CadDraftSettingsDialog = React.memo(
             </section>
 
             <section className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
-              <div className="mb-2 text-[10px] uppercase tracking-wide text-cyan-200">
+              <div className="mb-2 text-[10px] uppercase tracking-wide text-indigo-200">
                 Rejilla y resolución
               </div>
               <div className="grid gap-1.5">

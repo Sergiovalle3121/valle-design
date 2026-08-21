@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { getLocale, getMessages } from "next-intl/server";
 import { I18nProvider } from "@/components/I18nProvider";
@@ -7,6 +8,43 @@ import { DesignAuthProvider } from "@/contexts/DesignAuthContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { BRAND } from "@/config/brand";
 import { SITE_URL } from "@/config/site-routes";
+
+/**
+ * TIPOGRAFÍA DE LA MARCA — `next/font` la sirve desde nuestro propio origen.
+ *
+ * `globals.css` lleva desde el primer día declarando `var(--font-inter)` y
+ * `var(--font-jetbrains)` al frente de `--font-sans` y `--font-mono`… y nadie
+ * las definía nunca. El resultado medido: la app se componía con Segoe UI en
+ * Windows, San Francisco en Mac y Roboto en Android — tres productos distintos
+ * con el mismo código, y ninguna posibilidad de afinar interletraje porque el
+ * interletraje depende del tipo.
+ *
+ * · `variable` en vez de `className`: la fuente entra como variable CSS y la
+ *   consume el sistema de tokens, no cada componente. Un cambio de tipo es un
+ *   cambio en estas dos líneas.
+ * · `display: "swap"`: el texto se lee desde el primer paint con el stack de
+ *   respaldo y cambia al tipo real al llegar. Nunca hay pantalla en blanco.
+ * · `subsets: ["latin"]`: es-MX necesita acentos, ñ y los signos de apertura;
+ *   `latin` los trae y pesa una fracción de la fuente completa.
+ * · `adjustFontFallback` (por defecto activo) sincroniza las métricas del
+ *   respaldo con las de Inter, así que el cambio de tipo no mueve el layout.
+ *
+ * La mono NO es decorativa: la línea de comandos, las coordenadas del cursor y
+ * las cifras de las tablas son datos que se comparan en columna. JetBrains Mono
+ * trae `tnum` de serie y una cifra cero ranurada que distingue 0 de O — que en
+ * un plano cotado no es un detalle.
+ */
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-jetbrains",
+});
 
 /**
  * Metadata: TODA la identidad sale del manifiesto de marca (config/brand).
@@ -48,7 +86,11 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} className="h-full antialiased" suppressHydrationWarning>
+    <html
+      lang={locale}
+      className={`h-full antialiased ${inter.variable} ${jetbrainsMono.variable}`}
+      suppressHydrationWarning
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>

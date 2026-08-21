@@ -48,7 +48,7 @@ import type {
 } from "./lisp-runtime";
 
 const LEVEL_CLASS: Record<CadLispEntryLevel, string> = {
-  input: "text-cyan-300",
+  input: "text-indigo-300",
   value: "text-emerald-300",
   output: "text-gray-200",
   error: "text-red-400",
@@ -129,7 +129,7 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
             type="button"
             data-testid="cad-lisp-appload"
             onClick={() => fileRef.current?.click()}
-            className="rounded border border-white/15 px-1.5 py-0.5 font-mono text-[11px] text-cyan-200 hover:bg-white/10"
+            className="rounded border border-white/15 px-1.5 py-0.5 font-mono text-[11px] text-indigo-200 hover:bg-white/10"
           >
             APPLOAD
           </button>
@@ -351,7 +351,7 @@ function VariableList({ snapshot }: { snapshot: CadLispSnapshot }) {
     <ul data-testid="cad-lisp-variables" className="flex flex-col">
       {snapshot.variables.map((variable) => (
         <li key={variable.name} className="flex items-baseline gap-1">
-          <span className={variable.shadowsBuiltin ? "text-amber-300" : "text-cyan-200"}>
+          <span className={variable.shadowsBuiltin ? "text-amber-300" : "text-indigo-200"}>
             {variable.name}
           </span>
           {variable.shadowsBuiltin && (

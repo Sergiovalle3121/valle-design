@@ -51,8 +51,8 @@ export function CadSelectionPalette(props: CadSelectionPaletteProps) {
       className={props.docked ? 'w-full p-3 text-[11px]' : 'absolute right-0 top-full z-50 mt-1.5 w-[340px] rounded-xl border border-white/10 bg-gray-900 p-3 text-[11px] shadow-2xl'}
     >
       <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="text-[10px] font-semibold uppercase tracking-wide text-cyan-200">Selección profesional</div>
-        <span data-testid="cad-selection-count" className="rounded-full bg-cyan-400/10 px-2 py-0.5 text-cyan-200">{props.selectedCount} seleccionados</span>
+        <div className="text-[10px] font-semibold uppercase tracking-wide text-indigo-200">Selección profesional</div>
+        <span data-testid="cad-selection-count" className="rounded-full bg-indigo-400/10 px-2 py-0.5 text-indigo-200">{props.selectedCount} seleccionados</span>
       </div>
 
       <div className="mb-1 text-[9px] uppercase tracking-wide text-gray-500">Geometría</div>
@@ -62,7 +62,7 @@ export function CadSelectionPalette(props: CadSelectionPaletteProps) {
             key={item.id}
             data-testid={`cad-selection-mode-${item.id}`}
             onClick={() => props.onModeChange(item.id)}
-            className={`${buttonClass} ${props.mode === item.id ? 'border-cyan-400/40 bg-cyan-400/15 text-cyan-100' : ''}`}
+            className={`${buttonClass} ${props.mode === item.id ? 'border-indigo-400/40 bg-indigo-400/15 text-indigo-100' : ''}`}
           >
             {item.label}
           </button>
@@ -120,9 +120,9 @@ export function CadSelectionPalette(props: CadSelectionPaletteProps) {
             onChange={(event) => props.onQuickTextChange(event.target.value)}
             onKeyDown={(event) => { if (event.key === 'Enter') props.onQuick(); }}
             placeholder="ID, etiqueta o propiedad…"
-            className="min-w-0 flex-1 rounded-md border border-white/10 bg-gray-950 px-2 py-1 text-[10.5px] text-white outline-none focus:border-cyan-400/40"
+            className="min-w-0 flex-1 rounded-md border border-white/10 bg-gray-950 px-2 py-1 text-[10.5px] text-white outline-none focus:border-indigo-400/40"
           />
-          <button data-testid="cad-quick-select-apply" onClick={props.onQuick} className={`${buttonClass} border-cyan-400/20 text-cyan-100`}>Aplicar</button>
+          <button data-testid="cad-quick-select-apply" onClick={props.onQuick} className={`${buttonClass} border-indigo-400/20 text-indigo-100`}>Aplicar</button>
         </div>
       </div>
       <p className="mt-2 text-[9.5px] leading-relaxed text-gray-500">

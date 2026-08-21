@@ -72,12 +72,30 @@
     --glass-opacity: 0.34;
     --radius: var(--border-radius-custom);
 
-    /* Acento "vivo" + easings (compat con utilidades previas). */
+    /* === Radio: TRES escalones, uno por clase de superficie ===============
+       Se midieron SIETE radios distintos aplicados al mismo tipo de control
+       (botones con rounded-lg, -xl, -2xl, -md, -[10px]…). El ojo no lee siete
+       radios como variedad: los lee como descuido, porque dos controles
+       hermanos con esquinas distintas parecen venir de dos programas.
+
+       La regla es de tamaño, no de gusto: cuanto mayor la superficie, mayor el
+       radio que la hace parecer sólida. Un botón de 40 px con radio 16 se ve
+       como una pastilla; una tarjeta de 400 px con radio 8 se ve como una caja
+       de diálogo de Windows 95.
+
+         · control  — botón, campo, ficha, conmutador  (≤ 56 px de alto)
+         · card     — tarjeta, panel, paleta, aviso
+         · surface  — modal, marco del producto, sección con fondo propio
+    */
+    /* Los tres valores viven en `@theme` (abajo): allí generan `rounded-control`,
+       `rounded-card` y `rounded-surface` Y se emiten en :root, así que la CSS
+       escrita a mano los sigue leyendo con `var(--radius-card)`. */
+
+    /* Acento "vivo" (compat con utilidades previas). Los easings viven en
+       `@theme` porque no dependen del tema y sí generan utilidad. */
     --accent-strong: #4f46e5; /* indigo-600 */
     --accent-soft: #a5b4fc; /* indigo-300 */
     --accent-glow: rgba(99, 102, 241, 0.18);
-    --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
     /* === Tipografía ========================================================
        Inter variable (servida por next/font, sin petición a terceros en
@@ -95,15 +113,6 @@
     --font-mono:
       var(--font-jetbrains), ui-monospace, SFMono-Regular, "SF Mono", Menlo,
       Consolas, monospace;
-
-    /* === Escala tipográfica ================================================
-       Interletraje NEGATIVO que crece con el tamaño. Una grotesca compuesta a
-       76px con el tracking de 16px se ve desarmada; ésta es la corrección que
-       más cambia la percepción de calidad y la que casi nunca se hace. */
-    --tracking-display: -0.038em;
-    --tracking-title: -0.024em;
-    --tracking-body: -0.011em;
-    --tracking-label: 0.04em;
 
     /* === Elevación NEUTRA (materialidad, no glow) =========================
        Tres niveles tokenizados; sombra de negro a baja opacidad, jamás teñida
@@ -183,8 +192,8 @@
   }
 
   /* Fondo base = token semántico (claro u oscuro según `.dark`). Sin neón
-     hardcodeado: el <AuroraBackground/> del dashboard pinta su gradiente sutil
-     encima, y landing/login traen el suyo. */
+     hardcodeado: las superficies que quieran ambiente pintan `.aurora-bg`
+     encima (una capa fija en -z-10), nunca un gradiente suelto. */
   html {
     min-height: 100%;
     background: hsl(var(--background));
@@ -277,6 +286,67 @@
   --color-danger-foreground: hsl(var(--danger-foreground));
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
+
+  /* Acento de marca en HEX (white-label). `brand-strong` es la variante que
+     cumple AA con texto blanco pequeño encima: el acento base da 4.46:1 y el
+     mínimo es 4.5. Existe para que la corrección se pida por nombre. */
+  --color-brand: var(--brand-primary);
+  --color-brand-strong: var(--brand-primary-strong);
+
+  /* === Elevación → utilidades ==========================================
+     Los tres niveles llevaban tokenizados desde el principio y NINGUNO era
+     alcanzable como clase: no había mapeo, así que ni siquiera se PODÍA
+     escribir `shadow-elevated`. Sin esa puerta, cada pantalla resolvía la
+     elevación con las utilidades de Tailwind, y el resultado medido fue 29
+     `shadow-2xl` contra 2 `shadow-sm`: casi todo flotando al máximo, que es
+     exactamente cómo se ve una interfaz aficionada.
+
+     Los nombres son de INTENCIÓN, no de tamaño, y no chocan con los de
+     Tailwind (`shadow-sm/md/lg`) a propósito: quien escribe `shadow-2xl` en
+     un componente sabe que se está saliendo del sistema.
+
+       · resting  — la tarjeta está apoyada en la página
+       · elevated — se despega: menú, popover, tarjeta activa
+       · floating — vuela sobre todo: modal, paleta flotante, muelle */
+  --shadow-resting: var(--shadow-sm);
+  --shadow-elevated: var(--shadow-md);
+  --shadow-floating: var(--shadow-lg);
+
+}
+
+/* ===========================================================================
+   Tokens que NO dependen del tema (radio, interletraje, movimiento).
+   ---------------------------------------------------------------------------
+   Van en `@theme` a secas —no `inline`— por dos razones: Tailwind los emite
+   igualmente en `:root`, así que la CSS escrita a mano los sigue leyendo con
+   `var(--radius-card)`; y al ser el ÚNICO sitio donde se declaran, no puede
+   existir una segunda verdad. Un alias `inline` con el mismo nombre que la
+   variable de origen sería circular y el navegador lo descartaría entero.
+   =========================================================================== */
+@theme {
+  /* Radio: tres escalones, uno por clase de superficie (ver `--radius` arriba).
+       · control  — botón, campo, ficha, conmutador (≤ 56 px de alto)
+       · card     — tarjeta, panel, paleta, aviso
+       · surface  — modal, marco del producto, sección con fondo propio */
+  --radius-control: 0.625rem;
+  --radius-card: var(--radius);
+  --radius-surface: 1.5rem;
+  --radius-token: var(--radius);
+
+  /* Interletraje NEGATIVO que crece con el tamaño. Una grotesca compuesta a
+     76 px con el tracking pensado para 16 px se ve desarmada; ésta es la
+     corrección que más cambia la percepción de calidad y la que casi nunca se
+     hace. Como utilidad (`tracking-display`) el valor deja de poder divergir
+     de `tracking-[-0.038em]` escrito a ojo en otro componente. */
+  --tracking-display: -0.038em;
+  --tracking-title: -0.024em;
+  --tracking-body: -0.011em;
+  --tracking-label: 0.04em;
+
+  /* Movimiento: dos curvas y ninguna más. `expo` para lo que entra y sale
+     (paletas, modales); `spring` para lo que confirma una acción del usuario. */
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
 /* Respeta prefers-reduced-motion en TODA animación (CSS + scroll). Framer Motion
@@ -295,7 +365,16 @@
   }
 }
 
+/* ===========================================================================
+   DISEÑO ESCRITO QUE AÚN NO SE CONSUME — inventario con dueño
+   ---------------------------------------------------------------------------
+   Todo lo que sigue estaba escrito y con CERO usos medidos. No es CSS muerto:
+   es CSS que nunca tuvo quien lo llamara. Cada bloque lleva la ola que lo
+   cablea, para que la próxima auditoría sepa distinguir "pendiente" de
+   "basura" sin volver a razonarlo desde cero.
+   =========================================================================== */
 @layer utilities {
+  /* OLA 3 · marco del producto en el hero y muelles del estudio. */
   .premium-glass {
     position: relative;
     background:
@@ -332,13 +411,24 @@
     z-index: 1;
   }
 
+  /* OLA 3 · retícula de plano bajo el hero. La versión anterior pintaba
+     líneas blancas fijas, así que en tema claro era invisible; ahora sale del
+     token de borde y funciona en los dos temas. */
   .mission-grid {
     background-image:
-      linear-gradient(rgba(255, 255, 255, 0.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+      linear-gradient(
+        color-mix(in srgb, hsl(var(--border)) 70%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        90deg,
+        color-mix(in srgb, hsl(var(--border)) 70%, transparent) 1px,
+        transparent 1px
+      );
     background-size: 42px 42px;
   }
 
+  /* OLA 5 · superficie translúcida de las paletas del estudio. */
   .apple-card {
     background: var(--apple-card);
     backdrop-filter: blur(20px) saturate(180%);
@@ -389,10 +479,12 @@
   }
 }
 
+/* OLA 3 · fondo ambiental de la portada y del embudo de alta. */
 /* --- Fondo "aurora" (estilo Apple) --- */
 /* Tintes pastel muy tenues en las esquinas sobre el fondo base del tema; en
    oscuro, misma idea a ~.07 de alfa. Base anclada a `--background` (una sola
-   fuente de verdad). Usado por <AuroraBackground/> (fixed -z-10); sigue `.dark`. */
+   fuente de verdad). OLA 3: lo consume `<AmbientBackdrop/>` bajo el hero y el
+   panel de alta (capa fija en -z-10); sigue `.dark`. */
 .aurora-bg {
   background:
     radial-gradient(
@@ -433,6 +525,7 @@
     hsl(var(--background));
 }
 
+/* OLA 3 · realce de una sola palabra del titular de la portada. */
 /* --- Degradado de texto sutil (palabra "gris" del título de la landing) --- */
 /* Slate -> índigo suave: añade vida sin saturar. */
 .text-gradient-title {
@@ -448,6 +541,7 @@
   transition: all 0.35s var(--ease-out-expo);
 }
 
+/* OLA 3 · deriva del fondo ambiental (respeta prefers-reduced-motion). */
 /* --- Fondo ambiental: deriva (drift) lenta de los blobs de aurora --- */
 @keyframes valle-drift-a {
   0%,
@@ -502,6 +596,8 @@
    impresión se sienta "viva" y de altísimo valor, sin saturar.
    =========================================================================== */
 
+/* OLA 3 · profundidad del hero: orbes + malla cónica + halo + flotación.
+   Los cuatro se consumen juntos en `<HeroBackdrop/>` y `<ProductFrame/>`. */
 /* Orbes de aurora del hero: manchas de color difusas que derivan en bucle. */
 .hero-orb {
   position: absolute;
@@ -609,46 +705,6 @@
   filter: blur(60px);
 }
 
-/* Línea de "scan" que recorre tarjetas premium al hover (vida sutil). */
-@keyframes sheen {
-  0% {
-    transform: translateX(-120%);
-  }
-  100% {
-    transform: translateX(120%);
-  }
-}
-
-/* Marquesina de logos/keywords que se desliza en bucle. */
-@keyframes marquee {
-  from {
-    transform: translateX(0);
-  }
-  to {
-    transform: translateX(-50%);
-  }
-}
-.marquee-track {
-  animation: marquee 32s linear infinite;
-  will-change: transform;
-}
-.marquee-mask {
-  -webkit-mask-image: linear-gradient(
-    to right,
-    transparent,
-    #000 12%,
-    #000 88%,
-    transparent
-  );
-  mask-image: linear-gradient(
-    to right,
-    transparent,
-    #000 12%,
-    #000 88%,
-    transparent
-  );
-}
-
 /* Respeta prefers-reduced-motion: nada se mueve. */
 @media (prefers-reduced-motion: reduce) {
   .hero-orb-1,
@@ -656,24 +712,10 @@
   .hero-orb-3,
   .hero-conic,
   .float-slow,
-  .marquee-track {
+  .valle-blob-a,
+  .valle-blob-b,
+  .valle-blob-c {
     animation: none !important;
-  }
-}
-
-/* Recharts: su tooltip por defecto trae un fondo claro embebido (estilo inline)
-   que en modo oscuro queda como una caja blanca ilegible sobre el tablero. Lo
-   alineamos al tema oscuro del sistema. El modo oscuro de la app se rige por
-   prefers-color-scheme (igual que el resto de este archivo) y el !important es
-   necesario para ganarle al estilo inline que recharts aplica al tooltip. */
-@media (prefers-color-scheme: dark) {
-  .recharts-default-tooltip {
-    background: rgba(20, 20, 22, 0.96) !important;
-    border: 1px solid rgba(255, 255, 255, 0.14) !important;
-    border-radius: 12px !important;
-  }
-  .recharts-default-tooltip .recharts-tooltip-label {
-    color: #e5e7eb !important;
   }
 }
 
@@ -743,6 +785,84 @@
   font-feature-settings:
     "tnum" 1,
     "cv11" 1;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+   LOS SIETE ESCALONES (OLA 1) — la escala completa, de titular a etiqueta.
+   ---------------------------------------------------------------------------
+   La medición que obliga a esto: 659 tamaños arbitrarios `text-[Npx]` en TRECE
+   valores distintos, y once de esos trece caben en una banda de ocho píxeles
+   (7 · 8 · 8.5 · 9 · 9.5 · 10 · 10.5 · 11 · 11.5 · 12 · 12.5). Trece pasos
+   dentro de 8 px no son una escala: son trece decisiones tomadas por separado
+   que el ojo lee como ruido. Y el extremo bajo era ilegible: había interfaz
+   compuesta a 7 px.
+
+   La escala tiene SIETE escalones y un piso duro en 11 px. Un estudio de dibujo
+   puede —debe— ser denso, pero denso y preciso, no denso y descuidado.
+
+     display  · el titular de la portada, uno por página
+     title    · encabezado de sección
+     heading  · encabezado de tarjeta o subsección
+     body     · texto corrido, el tamaño por defecto de lo que se lee
+     small    · texto secundario, ayudas, pies de ficha
+     caption  · etiqueta de interfaz densa (el estudio vive aquí)
+     mono     · cifras, coordenadas, comandos y códigos
+
+   `micro` es el piso, no un escalón más: existe SOLO para la fila de estado y
+   las etiquetas de paleta que no caben de otro modo, y nunca para prosa.
+   ─────────────────────────────────────────────────────────────────────────── */
+
+.type-heading {
+  font-size: clamp(1.125rem, 0.45vw + 1rem, 1.375rem);
+  line-height: 1.28;
+  letter-spacing: var(--tracking-title);
+  font-weight: 600;
+}
+
+.type-body {
+  font-size: 1rem;
+  line-height: 1.65;
+  letter-spacing: var(--tracking-body);
+}
+
+.type-small {
+  font-size: 0.875rem;
+  line-height: 1.55;
+  letter-spacing: -0.006em;
+}
+
+.type-caption {
+  font-size: 0.75rem;
+  line-height: 1.45;
+  letter-spacing: 0;
+}
+
+/**
+ * EL PISO. Debajo de esto no hay nada: 11 px es donde una grotesca a 400 de
+ * peso deja de leerse de un vistazo en una pantalla de portátil, y en un
+ * estudio de dibujo el usuario NO se acerca a la pantalla — tiene la mano en
+ * el ratón y la vista en el lienzo. Peso 500 porque a este tamaño el regular
+ * se desvanece sobre fondo oscuro.
+ */
+.type-micro {
+  font-size: 0.6875rem;
+  line-height: 1.36;
+  letter-spacing: 0.005em;
+  font-weight: 500;
+}
+
+/**
+ * Mono del sistema: cifras tabulares SIEMPRE. Es el tipo de la línea de
+ * comandos, de las coordenadas del cursor y de cualquier columna de números.
+ * Sin `tnum`, un contador que va de 9 a 10 empuja media línea de interfaz.
+ */
+.type-mono {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings:
+    "tnum" 1,
+    "zero" 1;
+  letter-spacing: 0;
 }
 
 /* ===========================================================================

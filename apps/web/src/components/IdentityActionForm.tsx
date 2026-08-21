@@ -127,7 +127,7 @@ export function IdentityActionForm({
         <Link href="/" className="inline-flex items-center gap-2 font-semibold">
           <DraftingCompass
             aria-hidden="true"
-            className="h-6 w-6 text-cyan-500"
+            className="h-6 w-6 text-indigo-500"
           />
           {PRODUCT_LABEL.design}
         </Link>

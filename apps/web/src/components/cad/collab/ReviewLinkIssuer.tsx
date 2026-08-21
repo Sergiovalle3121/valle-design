@@ -29,7 +29,7 @@ import type { CadReviewSession } from "@valle/design-sdk";
 import { reviewsRepository } from "@/lib/cad/repositories/reviews";
 
 const BUTTON =
-  "rounded-md border border-white/15 px-2 py-1 text-[11px] font-medium text-gray-200 transition-colors hover:border-cyan-300/40 hover:text-cyan-100 disabled:cursor-not-allowed disabled:opacity-40";
+  "rounded-md border border-white/15 px-2 py-1 text-[11px] font-medium text-gray-200 transition-colors hover:border-indigo-300/40 hover:text-indigo-100 disabled:cursor-not-allowed disabled:opacity-40";
 
 export default function ReviewLinkIssuer({ documentId }: { documentId: string }) {
   const [sessions, setSessions] = useState<CadReviewSession[]>([]);
@@ -138,7 +138,7 @@ export default function ReviewLinkIssuer({ documentId }: { documentId: string })
           data-testid="cad-review-link-new"
           disabled={busy}
           onClick={() => void create()}
-          className={`${BUTTON} border-cyan-300/30 text-cyan-100`}
+          className={`${BUTTON} border-indigo-300/30 text-indigo-100`}
         >
           {busy ? "…" : "Crear enlace"}
         </button>

@@ -59,16 +59,16 @@ export function CadBlockPalette({ blocks, selectedEntityCount, selectedInsert, d
   const [insert, setInsert] = useState({ x: defaultPoint.x, y: defaultPoint.y, rotation: 0, scaleX: 1, scaleY: 1, attributes: '' });
   const visibleBlocks = useMemo(() => searchCadBlocks(blocks, query), [blocks, query]);
   const selectedDefinition = blocks.find((block) => block.id === selectedBlock) ?? visibleBlocks[0];
-  const input = 'mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white outline-none focus:border-cyan-400/50';
+  const input = 'mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white outline-none focus:border-indigo-400/50';
   return (
-    <div data-testid="cad-block-palette" className={docked ? 'grid w-full grid-cols-[minmax(150px,0.7fr)_minmax(220px,1.3fr)] overflow-hidden text-[10.5px]' : 'absolute left-0 top-full z-50 mt-1.5 grid w-[620px] max-w-[92vw] grid-cols-[250px_1fr] overflow-hidden rounded-xl border border-cyan-400/20 bg-gray-950 text-[10.5px] shadow-2xl'}>
+    <div data-testid="cad-block-palette" className={docked ? 'grid w-full grid-cols-[minmax(150px,0.7fr)_minmax(220px,1.3fr)] overflow-hidden text-[10.5px]' : 'absolute left-0 top-full z-50 mt-1.5 grid w-[620px] max-w-[92vw] grid-cols-[250px_1fr] overflow-hidden rounded-xl border border-indigo-400/20 bg-gray-950 text-[10.5px] shadow-2xl'}>
       <section className="border-r border-white/10 p-3">
-        <div className="mb-2 flex items-center justify-between"><span className="font-semibold text-cyan-100">BLOCK / INSERT</span><span className="text-gray-500">{blocks.length}</span></div>
+        <div className="mb-2 flex items-center justify-between"><span className="font-semibold text-indigo-100">BLOCK / INSERT</span><span className="text-gray-500">{blocks.length}</span></div>
         <input aria-label="Buscar bloques" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar nombre, tag, negocio…" className={input} />
         <div className="mt-2 max-h-64 space-y-1 overflow-y-auto">
           {visibleBlocks.map((block) => {
             const thumbnail = block.thumbnail?.svg ?? buildCadBlockThumbnail(block, 96);
-            return <button key={block.id} data-testid={`cad-block-row-${block.name}`} onClick={() => setSelectedBlock(block.id)} className={`flex w-full items-center gap-2 rounded-lg border p-1.5 text-left ${selectedDefinition?.id === block.id ? 'border-cyan-400/40 bg-cyan-400/10' : 'border-white/5 bg-white/[0.03]'}`}>
+            return <button key={block.id} data-testid={`cad-block-row-${block.name}`} onClick={() => setSelectedBlock(block.id)} className={`flex w-full items-center gap-2 rounded-lg border p-1.5 text-left ${selectedDefinition?.id === block.id ? 'border-indigo-400/40 bg-indigo-400/10' : 'border-white/5 bg-white/[0.03]'}`}>
               <span className="h-10 w-10 shrink-0 rounded bg-cover bg-center" style={{ backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(thumbnail)}")` }} />
               <span className="min-w-0"><strong className="block truncate text-gray-100">{block.name}</strong><span className="block truncate text-[9px] text-gray-500">v{block.version ?? 1} · {block.entities.length} entidad(es) · {block.library?.scope ?? 'document'}</span></span>
             </button>;
@@ -87,8 +87,8 @@ export function CadBlockPalette({ blocks, selectedEntityCount, selectedInsert, d
           <label className="text-gray-400">Business type<input value={businessEntityType} onChange={(event) => setBusinessEntityType(event.target.value)} placeholder="assetType" className={input} /></label>
           <label className="text-gray-400">Business id<input value={businessEntityId} onChange={(event) => setBusinessEntityId(event.target.value)} placeholder="door-standard" className={input} /></label>
         </div>
-        <label className="mt-2 flex items-center gap-2 text-gray-300"><input type="checkbox" checked={tenantLibrary} onChange={(event) => setTenantLibrary(event.target.checked)} className="accent-cyan-500" /> Publicar en biblioteca tenant</label>
-        <button data-testid="cad-block-define" disabled={!name.trim() || selectedEntityCount < 1} onClick={() => onDefine({ name: name.trim(), description: description.trim(), keywords: keywords.split(',').map((value) => value.trim()).filter(Boolean), attributeTag: attributeTag || undefined, attributeDefault: attributeDefault || undefined, tenantLibrary, businessEntityType: businessEntityType || undefined, businessEntityId: businessEntityId || undefined })} className="mt-2 w-full rounded-lg bg-cyan-500 px-3 py-1.5 font-semibold text-gray-950 disabled:opacity-40">Crear BLOCK desde selección ({selectedEntityCount})</button>
+        <label className="mt-2 flex items-center gap-2 text-gray-300"><input type="checkbox" checked={tenantLibrary} onChange={(event) => setTenantLibrary(event.target.checked)} className="accent-indigo-500" /> Publicar en biblioteca tenant</label>
+        <button data-testid="cad-block-define" disabled={!name.trim() || selectedEntityCount < 1} onClick={() => onDefine({ name: name.trim(), description: description.trim(), keywords: keywords.split(',').map((value) => value.trim()).filter(Boolean), attributeTag: attributeTag || undefined, attributeDefault: attributeDefault || undefined, tenantLibrary, businessEntityType: businessEntityType || undefined, businessEntityId: businessEntityId || undefined })} className="mt-2 w-full rounded-lg bg-indigo-500 px-3 py-1.5 font-semibold text-gray-950 disabled:opacity-40">Crear BLOCK desde selección ({selectedEntityCount})</button>
 
         <div className="my-3 border-t border-white/10" />
         <div className="mb-2 font-semibold text-violet-100">INSERT {selectedDefinition?.name ?? '—'}</div>

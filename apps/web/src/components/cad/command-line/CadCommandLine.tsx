@@ -45,7 +45,7 @@ export interface CadCommandLineProps {
 
 const LEVEL_CLASS: Record<CadCommandLineEntry["level"], string> = {
   prompt: "text-gray-400",
-  input: "text-cyan-300",
+  input: "text-indigo-300",
   info: "text-gray-300",
   error: "text-red-400",
 };
@@ -166,7 +166,7 @@ export function CadCommandLine({
                 onKeyword(option.shortcut);
                 inputRef.current?.focus();
               }}
-              className="pointer-events-auto rounded border border-white/15 px-1.5 py-0.5 font-mono text-[11px] text-cyan-200 transition-colors hover:bg-white/10"
+              className="pointer-events-auto rounded border border-white/15 px-1.5 py-0.5 font-mono text-[11px] text-indigo-200 transition-colors hover:bg-white/10"
               title={`Atajo: ${option.shortcut.toUpperCase()}`}
             >
               {formatCadKeyword(option)}

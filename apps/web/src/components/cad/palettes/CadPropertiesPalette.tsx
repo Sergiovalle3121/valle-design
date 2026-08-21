@@ -51,7 +51,7 @@ export interface CadPropertiesPaletteProps {
 }
 
 function fieldClass(varies: boolean): string {
-  return `mt-1 w-full rounded-lg border bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none focus:ring-1 focus:ring-cyan-500/40 ${
+  return `mt-1 w-full rounded-lg border bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none focus:ring-1 focus:ring-indigo-500/40 ${
     varies
       ? "border-amber-400/40 placeholder:text-amber-300/70"
       : "border-white/10"
@@ -131,7 +131,7 @@ const PropertyField = React.memo(function PropertyField({
           checked={row.varies ? false : row.value === true}
           disabled={readOnly}
           onChange={(event) => onEdit(row, event.target.checked)}
-          className="accent-cyan-500 disabled:opacity-40"
+          className="accent-indigo-500 disabled:opacity-40"
         />
       </label>
     );
@@ -215,7 +215,7 @@ export const CadPropertiesPalette = React.memo(function CadPropertiesPalette({
 
   return (
     <div data-testid="cad-properties-palette" data-count={model.count}>
-      <div className="mb-3 grid grid-cols-2 gap-2 rounded-xl border border-cyan-400/15 bg-cyan-400/[0.04] p-2.5">
+      <div className="mb-3 grid grid-cols-2 gap-2 rounded-xl border border-indigo-400/15 bg-indigo-400/[0.04] p-2.5">
         {summary ? (
           <>
             <ReadOnlyCell label="ID" value={summary.id} />
@@ -243,7 +243,7 @@ export const CadPropertiesPalette = React.memo(function CadPropertiesPalette({
         <section key={group.category} className="mb-3">
           <div
             data-testid={`cad-properties-group-${group.category}`}
-            className="mb-1.5 text-[10px] uppercase tracking-wide text-cyan-200"
+            className="mb-1.5 text-[10px] uppercase tracking-wide text-indigo-200"
           >
             {group.category}
           </div>
@@ -263,7 +263,7 @@ export const CadPropertiesPalette = React.memo(function CadPropertiesPalette({
 
       {summary && summary.gripLabels.length > 0 && (
         <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
-          <div className="mb-2 text-[10px] uppercase tracking-wide text-cyan-200">
+          <div className="mb-2 text-[10px] uppercase tracking-wide text-indigo-200">
             Grips disponibles
           </div>
           <div className="flex flex-wrap gap-1">

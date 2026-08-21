@@ -76,7 +76,7 @@ function Field({
           onChange={(event) =>
             onEdit(row.name, field.key, event.target.checked)
           }
-          className="accent-cyan-500"
+          className="accent-indigo-500"
         />
       </label>
     );
@@ -122,7 +122,7 @@ function Field({
           }
           onEdit(row.name, field.key, raw);
         }}
-        className="mt-0.5 w-full rounded-md border border-white/10 bg-gray-950/70 px-1.5 py-1 text-[11px] text-white outline-none focus:ring-1 focus:ring-cyan-500/40 disabled:opacity-50"
+        className="mt-0.5 w-full rounded-md border border-white/10 bg-gray-950/70 px-1.5 py-1 text-[11px] text-white outline-none focus:ring-1 focus:ring-indigo-500/40 disabled:opacity-50"
       />
     </label>
   );
@@ -170,7 +170,7 @@ export const CadStyleManagerPalette = React.memo(
               onClick={() => props.onFamily(entry.family)}
               className={`rounded-full border px-2.5 py-0.5 text-[10.5px] ${
                 entry.family === family
-                  ? "border-cyan-300/50 bg-cyan-400/15 text-cyan-100"
+                  ? "border-indigo-300/50 bg-indigo-400/15 text-indigo-100"
                   : "border-white/10 text-gray-400 hover:text-white"
               }`}
             >
@@ -192,13 +192,13 @@ export const CadStyleManagerPalette = React.memo(
             }}
             disabled={readOnly}
             placeholder="Nuevo estilo"
-            className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-2 py-1 text-[11px] text-gray-200 outline-none focus:ring-1 focus:ring-cyan-500/40 disabled:opacity-50"
+            className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-2 py-1 text-[11px] text-gray-200 outline-none focus:ring-1 focus:ring-indigo-500/40 disabled:opacity-50"
           />
           <button
             data-testid="cad-style-create"
             onClick={props.onCreate}
             disabled={readOnly || !props.draftName.trim()}
-            className="rounded-md bg-cyan-500/15 px-2.5 text-[10.5px] font-semibold text-cyan-200 hover:bg-cyan-500/25 disabled:opacity-40"
+            className="rounded-md bg-indigo-500/15 px-2.5 text-[10.5px] font-semibold text-indigo-200 hover:bg-indigo-500/25 disabled:opacity-40"
           >
             Crear
           </button>
@@ -220,7 +220,7 @@ export const CadStyleManagerPalette = React.memo(
                   <span className="inline-flex items-center gap-2 text-[10px]">
                     <span
                       data-testid={`cad-style-usage-${row.name}`}
-                      className={references ? "text-cyan-200" : "text-gray-500"}
+                      className={references ? "text-indigo-200" : "text-gray-500"}
                     >
                       {references} uso(s)
                     </span>

@@ -135,7 +135,7 @@ export function CadDynamicInput({
           </button>
         </label>
       ))}
-      <span aria-live="polite" className={`max-w-40 truncate text-[9.5px] ${inlineError ? 'text-rose-300' : 'text-cyan-200'}`}>
+      <span aria-live="polite" className={`max-w-40 truncate text-[9.5px] ${inlineError ? 'text-rose-300' : 'text-indigo-200'}`}>
         {inlineError ?? (result.ok ? result.previewLabel : 'Tab cambia de campo')}
       </span>
       <button type="submit" disabled={!result.ok} className="rounded-md bg-amber-300 px-2 py-1 text-[10px] font-semibold text-gray-950 disabled:cursor-not-allowed disabled:opacity-40">Aplicar</button>
