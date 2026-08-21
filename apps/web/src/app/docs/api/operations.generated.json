@@ -4,7 +4,7 @@
   "openapi": "3.1.0",
   "apiTitle": "Valle Design — API standalone (v1)",
   "apiVersion": "1.0.0",
-  "operationCount": 77,
+  "operationCount": 79,
   "cadOperationCount": 43,
   "groups": [
     {
@@ -56,6 +56,8 @@
         "listCommercialInvoices",
         "cancelCommercialSubscription",
         "createProviderBillingPortalSession",
+        "listCommercialCfdiReceipts",
+        "downloadCommercialCfdiFile",
         "receiveStripeWebhook"
       ]
     },
@@ -917,6 +919,57 @@
       "permission": null,
       "authentication": "sessionCookie",
       "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404",
+        "409"
+      ]
+    },
+    {
+      "operationId": "listCommercialCfdiReceipts",
+      "method": "GET",
+      "path": "/v1/commercial/cfdi",
+      "summary": "Lista los CFDI de cada cobro de la organizacion (owner/admin).",
+      "tags": [
+        "commercial"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403"
+      ]
+    },
+    {
+      "operationId": "downloadCommercialCfdiFile",
+      "method": "GET",
+      "path": "/v1/commercial/cfdi/{receiptId}/files/{format}",
+      "summary": "Descarga el XML o PDF de un CFDI timbrado (owner/admin).",
+      "tags": [
+        "commercial"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "receiptId",
+          "in": "path",
+          "required": true
+        },
+        {
+          "name": "format",
+          "in": "path",
+          "required": true
+        }
+      ],
       "requestBody": null,
       "responses": [
         "200",
