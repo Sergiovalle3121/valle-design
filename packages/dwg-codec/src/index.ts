@@ -1,6 +1,18 @@
 export { probeDwg } from "./api/probe.js";
 export { readDwg } from "./api/read.js";
 export { writeAc1015Container as writeDwg } from "./writer/ac1015-container-writer.js";
+export {
+  canonicalDocumentToDwgEntities,
+  dwgDatabaseToCanonicalDocument,
+} from "./api/canonical.js";
+export type {
+  CanonicalCadDocumentJson,
+  CanonicalLossEntry,
+  CanonicalMappingResult,
+  CanonicalOpaqueEntity,
+  CanonicalToDwgEntity,
+  CanonicalToDwgResult,
+} from "./api/canonical.js";
 export { DEFAULT_DWG_LIMITS } from "./api/limits.js";
 export { DWG_VERSION_REGISTRY } from "./container/version-registry.js";
 

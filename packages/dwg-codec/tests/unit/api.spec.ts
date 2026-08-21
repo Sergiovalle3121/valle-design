@@ -35,13 +35,19 @@ function expectError(result: DwgProbeResult): DwgError {
   return result.error;
 }
 
-test("the package exposes exactly three callable public boundaries", () => {
+test("the package exposes exactly five callable public boundaries", () => {
   const functions = Object.entries(publicApi).filter(
     ([, value]) => typeof value === "function",
   );
   assert.deepEqual(
     functions.map(([name]) => name).sort(),
-    ["probeDwg", "readDwg", "writeDwg"],
+    [
+      "canonicalDocumentToDwgEntities",
+      "dwgDatabaseToCanonicalDocument",
+      "probeDwg",
+      "readDwg",
+      "writeDwg",
+    ],
   );
 });
 
