@@ -32,6 +32,10 @@ export function applyStyleCommands(
     mleader: { ...(styles.mleader ?? {}) },
     table: { ...styles.table },
     plot: { ...styles.plot },
+    // `linetype` no es una familia de comandos de estilo, pero SÍ es parte de
+    // la tabla: reconstruir `next` sin copiarla descartaba el catálogo entero
+    // de tipos de línea con cualquier upsert/delete de estilo.
+    ...(styles.linetype ? { linetype: { ...styles.linetype } } : {}),
   };
   for (const command of commands) {
     const name = command.name.trim();

@@ -254,6 +254,18 @@ function importDxfDocument(content: string): DocumentImportReport {
       ...empty.styles,
       // Sección OPCIONAL: sólo aparece si el fichero traía tabla LTYPE.
       ...(Object.keys(linetypeCatalog).length ? { linetype: linetypeCatalog } : {}),
+      // La tabla DIMSTYLE del fichero puebla la norma de acotación del
+      // documento: el estilo por nombre vuelve a gobernar, no sólo el aspecto
+      // horneado de cada cota.
+      ...(imported.dimensionStyles &&
+      Object.keys(imported.dimensionStyles).length
+        ? {
+            dimension: {
+              ...empty.styles.dimension,
+              ...imported.dimensionStyles,
+            },
+          }
+        : {}),
     },
     layers: buildLayers(imported.layers, imported.layerDefinitions),
     entities,

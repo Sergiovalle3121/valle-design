@@ -56,6 +56,7 @@ function run(
     activeLayer: layer,
     view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
     newEntityId: () => "nuevo",
+    document: () => doc,
   };
   let step = descriptor.begin(context);
   for (const input of inputs) {
@@ -136,10 +137,19 @@ const enter: CadCommandInput = { kind: "enter" };
   eq(merged.styles.text.COTAS, { fontFamily: "Courier", height: 90 }, "la fuente sobrevive");
 }
 
-// --- DIMSTYLE: tres campos, con la precisión redondeada a entero -----------------------------
+// --- DIMSTYLE: el diálogo curado del núcleo DIMVAR --------------------------------------------
 {
   const commands = commandsOf(
-    run("DIMSTYLE", [text("ARQ"), text("TITULOS"), distance(240), distance(3.4)]),
+    run("DIMSTYLE", [
+      text("ARQ"),
+      text("TITULOS"), // DIMTXSTY
+      distance(300), // DIMTXT
+      distance(240), // DIMASZ
+      text("dot"), // DIMBLK
+      distance(3.4), // DIMDEC → 3
+      text("m"), // unidad
+      distance(2), // DIMSCALE
+    ]),
   );
   eq(
     commands[0],
@@ -148,9 +158,96 @@ const enter: CadCommandInput = { kind: "enter" };
       op: "upsert",
       family: "dimension",
       name: "ARQ",
-      values: { textStyle: "TITULOS", arrowSize: 240, precision: 3 },
+      values: {
+        textStyle: "TITULOS",
+        textHeight: 300,
+        arrowSize: 240,
+        arrowhead: "dot",
+        precision: 3,
+        units: "m",
+        overallScale: 2,
+      },
     },
-    "la precisión son dígitos: se redondea",
+    "la precisión son dígitos: se redondea; el núcleo curado viaja entero",
+  );
+}
+
+// --- DIMSTYLE: el vocabulario cerrado se niega en el momento de teclear -----------------------
+{
+  const result = run("DIMSTYLE", [
+    text("ARQ"),
+    text("TITULOS"),
+    distance(300),
+    distance(240),
+    text("flecha-inventada"),
+  ]);
+  ok(result?.kind === "message", "un terminador inventado no se guarda");
+  ok(
+    result?.kind === "message" && result.text.includes("closed-filled"),
+    "la negativa enumera el vocabulario",
+  );
+}
+
+// --- DIMSTYLE → Aplicar: la norma alcanza a las cotas ya dibujadas ----------------------------
+{
+  const doc = document([
+    {
+      id: "d1",
+      type: "dimension",
+      a: { x: 0, y: 0 },
+      b: { x: 1000, y: 0 },
+      layer,
+      style: "ARQ",
+      arrowSize: 999,
+    } as unknown as CadEntity,
+    {
+      id: "d2",
+      type: "dimension",
+      a: { x: 0, y: 0 },
+      b: { x: 500, y: 0 },
+      layer,
+      style: "Otro",
+    } as unknown as CadEntity,
+  ]);
+  doc.styles.dimension.ARQ = { arrowSize: 240, precision: 1, overallScale: 2 };
+
+  const commands = commandsOf(run("DIMSTYLE", [keyword("Aplicar"), text("ARQ")], doc));
+  eq(commands.length, 1, "sólo la cota del estilo se re-hornea");
+  const replace = commands[0] as Extract<CadEntityCommand, { type: "replace" }>;
+  eq(replace.type, "replace", "re-horneado por reemplazo");
+  eq(replace.entityId, "d1", "la cota correcta");
+  eq(
+    (replace.entity as { arrowSize?: number }).arrowSize,
+    480,
+    "arrowSize del estilo × DIMSCALE pisa el valor viejo",
+  );
+  eq((replace.entity as { precision?: number }).precision, 1, "la precisión de la norma llega");
+
+  const vacio = run("DIMSTYLE", [keyword("Aplicar"), text("SinCotas")], doc);
+  ok(
+    vacio?.kind === "message" && vacio.text.includes("Ninguna cota"),
+    "aplicar sin cotas del estilo se niega con motivo",
+  );
+}
+
+// --- DIMSTYLE → Comparar: diferencias efectivas, con su DIMVAR --------------------------------
+{
+  const doc = document();
+  doc.styles.dimension.A = { arrowSize: 100 };
+  doc.styles.dimension.B = { arrowSize: 250, precision: 0 };
+  const result = run("DIMSTYLE", [keyword("Comparar"), text("A"), text("B")], doc);
+  ok(result?.kind === "message", "comparar responde por el canal de mensajes");
+  ok(
+    result?.kind === "message" &&
+      result.text.includes("DIMASZ") &&
+      result.text.includes("100") &&
+      result.text.includes("250"),
+    "el mensaje nombra el DIMVAR y ambos valores",
+  );
+  const identicos = run("DIMSTYLE", [keyword("Comparar"), text("A"), text("A")], doc);
+  ok(
+    identicos?.kind === "message" && identicos.text.includes("idénticos"),
+    "compararse consigo mismo lo dice claro",
   );
 }
 

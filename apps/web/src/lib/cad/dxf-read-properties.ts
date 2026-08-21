@@ -33,7 +33,12 @@
  *
  * Módulo puro y HOJA: sólo importa tipos.
  */
+import { isDxfXdataApp } from "@valle-design/contracts";
 import type { CadEntityPresentation, CadPropertySource } from "./cad-document";
+import {
+  cadDimensionStyleFromEntries,
+  cadDimensionStyleFromStandardPairs,
+} from "./dimension-style";
 import { num, rawDxfPairs, type RawDxfPair } from "./dxf-read-core";
 
 /**
@@ -96,6 +101,15 @@ export interface CadDxfProperties {
   lineweightDisplay?: boolean;
   linetypes: CadDxfLinetypeDefinition[];
   layers: CadDxfLayerDefinition[];
+  /**
+   * Tabla DIMSTYLE: nombre → definición. La XDATA VALLE_DIM (clave=valor)
+   * restaura EXACTO lo nuestro; los códigos DIMVAR estándar cubren los
+   * ficheros ajenos (ISO-25 y compañía).
+   */
+  dimensionStyles: Record<
+    string,
+    import("./dimension-style").CadDimensionStyleDefinition
+  >;
   /** Presentación de las entidades de ENTITIES, en orden de fichero. */
   entities: CadDxfEntityProperties[];
   /** Ídem por bloque: nombre del BLOCK → sus entidades en orden. */
@@ -213,6 +227,33 @@ function flushRecord(
     });
     return;
   }
+  if (cursor.section === "TABLES" && cursor.table === "DIMSTYLE" && upper === "DIMSTYLE") {
+    const name = pairs.find((pair) => pair.code === 2)?.value?.trim();
+    if (!name) return;
+    // Primero la XDATA propia (exacta); los códigos estándar rellenan lo que
+    // ella no fijó — así un fichero ajeno también puebla la tabla.
+    const entries: Array<[string, string]> = [];
+    let inOwnXdata = false;
+    const standard: Array<[number, string]> = [];
+    for (const pair of pairs) {
+      if (pair.code === 1001) {
+        inOwnXdata = isDxfXdataApp("dimension", pair.value);
+        continue;
+      }
+      if (pair.code === 1000 && inOwnXdata) {
+        const separator = pair.value.indexOf("=");
+        if (separator > 0)
+          entries.push([pair.value.slice(0, separator), pair.value.slice(separator + 1)]);
+        continue;
+      }
+      if (pair.code >= 1000) continue;
+      standard.push([pair.code, pair.value]);
+    }
+    const exact = cadDimensionStyleFromEntries(entries);
+    const foreign = cadDimensionStyleFromStandardPairs(standard);
+    result.dimensionStyles[name] = { ...foreign, ...exact };
+    return;
+  }
   if (cursor.section === "TABLES" && cursor.table === "LAYER" && upper === "LAYER") {
     const name = pairs.find((pair) => pair.code === 2)?.value?.trim();
     if (!name) return;
@@ -279,6 +320,7 @@ export function parseRawDxfProperties(text: string): CadDxfProperties {
   const result: CadDxfProperties = {
     linetypes: [],
     layers: [],
+    dimensionStyles: {},
     entities: [],
     blocks: {},
     warnings: [],

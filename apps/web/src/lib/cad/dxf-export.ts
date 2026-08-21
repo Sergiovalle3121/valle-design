@@ -204,6 +204,15 @@ export interface CadDxfExportModel {
   mtexts?: CadDxfExportMText[];
   measurements?: CadDxfExportMeasurement[];
   semanticDimensions?: CadDxfExportSemanticDimension[];
+  /**
+   * Tabla DIMSTYLE: la norma de acotación viaja como tabla, no sólo como
+   * overrides por entidad. Códigos DIMVAR estándar para lectores ajenos y
+   * XDATA clave=valor para el round-trip propio sin pérdida.
+   */
+  dimensionStyles?: Record<
+    string,
+    import("./dimension-style").CadDimensionStyleDefinition
+  >;
   mleaders?: CadDxfExportMleader[];
   blocks?: CadDxfExportBlock[];
   inserts?: CadDxfExportInsert[];

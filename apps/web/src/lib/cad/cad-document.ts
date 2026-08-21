@@ -426,7 +426,14 @@ export interface CadLayerDef {
  */
 export interface CadStyleTable {
   text: Record<string, { fontFamily?: string; height?: number }>;
-  dimension: Record<string, { textStyle?: string; arrowSize?: number; precision?: number; units?: "mm" | "cm" | "m" | "in" | "ft"; arrowhead?: "closed-filled" | "open" | "architectural-tick" | "dot" }>;
+  /**
+   * DIMSTYLE con nombre: el núcleo de ~30 DIMVARs vive en
+   * `CadDimensionStyleDefinition` (dimension-style.ts, cada campo con su
+   * DIMVAR al lado). Todos opcionales — un estilo declara lo que fija y el
+   * resto lo resuelve `Standard` + defaults, así que los documentos
+   * existentes no cambian ni un byte.
+   */
+  dimension: Record<string, import("./dimension-style").CadDimensionStyleDefinition>;
   mleader?: Record<string, { textStyle?: string; arrowSize?: number; doglegLength?: number; landing?: boolean }>;
   table: Record<string, { textStyle?: string; rowHeight?: number }>;
   plot: Record<string, { colorMode?: "color" | "monochrome"; lineweightScale?: number }>;

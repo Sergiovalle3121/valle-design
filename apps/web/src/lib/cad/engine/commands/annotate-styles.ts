@@ -28,6 +28,11 @@
  */
 import type { CadStyleFamilyName } from "../../entity-commands";
 import {
+  cadCompareDimensionStyles,
+  cadDimensionStyleBake,
+  resolveCadDimensionStyle,
+} from "../../dimension-style";
+import {
   CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_KEYWORD,
   CAD_ACCEPT_TEXT,
@@ -50,6 +55,12 @@ interface StyleField {
   min?: number;
   /** Redondea a entero. La precisión de una cota son dígitos, no milímetros. */
   integer?: boolean;
+  /**
+   * Vocabulario CERRADO para un campo de texto: `flecha` o `unidad` con un
+   * valor inventado no fallan al guardar — fallan al DIBUJAR, semanas después
+   * y sin decir por qué. Aquí la negativa llega en el momento de teclear.
+   */
+  options?: readonly string[];
 }
 
 interface StyleCommandSpec {
@@ -63,6 +74,8 @@ interface StyleCommandSpec {
 }
 
 const DELETE_OPTION = { keyword: "Suprimir", shortcut: "S" } as const;
+const APPLY_OPTION = { keyword: "Aplicar", shortcut: "A" } as const;
+const COMPARE_OPTION = { keyword: "Comparar", shortcut: "C" } as const;
 const YES = { keyword: "Sí", shortcut: "S" } as const;
 const NO = { keyword: "No", shortcut: "N" } as const;
 
@@ -84,16 +97,41 @@ const STYLE_COMMANDS: readonly StyleCommandSpec[] = [
     family: "dimension",
     label: "cota",
     referencedBy: "dimension",
+    // El diálogo pide el subconjunto que se teclea a diario; el núcleo
+    // COMPLETO de ~30 DIMVARs (dimension-style.ts) es editable desde el
+    // gestor de estilos y viaja entero por la tabla DIMSTYLE del DXF.
     fields: [
-      { key: "textStyle", prompt: "Precise el estilo de texto", kind: "text", fallback: "Standard" },
-      { key: "arrowSize", prompt: "Precise el tamaño de flecha", kind: "number", fallback: 180, min: 1e-6 },
+      { key: "textStyle", prompt: "Precise el estilo de texto (DIMTXSTY)", kind: "text", fallback: "Standard" },
+      { key: "textHeight", prompt: "Precise la altura de texto (DIMTXT)", kind: "number", fallback: 120, min: 1e-6 },
+      { key: "arrowSize", prompt: "Precise el tamaño de flecha (DIMASZ)", kind: "number", fallback: 180, min: 1e-6 },
+      {
+        key: "arrowhead",
+        prompt: "Precise el terminador (DIMBLK)",
+        kind: "text",
+        fallback: "closed-filled",
+        options: ["closed-filled", "open", "architectural-tick", "dot"],
+      },
       {
         key: "precision",
-        prompt: "Precise el número de decimales",
+        prompt: "Precise el número de decimales (DIMDEC)",
         kind: "number",
         fallback: 2,
         min: 0,
         integer: true,
+      },
+      {
+        key: "units",
+        prompt: "Precise la unidad de la medida",
+        kind: "text",
+        fallback: "mm",
+        options: ["mm", "cm", "m", "in", "ft"],
+      },
+      {
+        key: "overallScale",
+        prompt: "Precise la escala global (DIMSCALE)",
+        kind: "number",
+        fallback: 1,
+        min: 1e-6,
       },
     ],
   },
@@ -133,6 +171,10 @@ interface StyleState {
   /** Índice del campo que se está pidiendo; `-1` mientras se pide el nombre. */
   field: number;
   deleting: boolean;
+  /** DIMSTYLE → Aplicar: re-hornear las cotas existentes del estilo. */
+  applying?: boolean;
+  /** DIMSTYLE → Comparar: primer nombre ya capturado, se pide el segundo. */
+  comparingWith?: string | null;
 }
 
 function fieldOf(state: StyleState): StyleField | undefined {
@@ -140,15 +182,26 @@ function fieldOf(state: StyleState): StyleField | undefined {
 }
 
 function styleStep(state: StyleState): CadCommandStep<StyleState> {
-  if (state.field < 0)
+  if (state.field < 0) {
+    const message = state.comparingWith
+      ? `Escriba el SEGUNDO estilo a comparar con «${state.comparingWith}»`
+      : state.applying
+        ? `Escriba el estilo de ${state.spec.label} a APLICAR a sus cotas`
+        : `Escriba el nombre del estilo de ${state.spec.label}`;
     return {
       state,
       prompt: {
-        message: `Escriba el nombre del estilo de ${state.spec.label}`,
-        options: [DELETE_OPTION],
+        message,
+        options:
+          state.spec.family === "dimension" &&
+          !state.applying &&
+          state.comparingWith === undefined
+            ? [DELETE_OPTION, APPLY_OPTION, COMPARE_OPTION]
+            : [DELETE_OPTION],
       },
       accepts: CAD_ACCEPT_TEXT | CAD_ACCEPT_KEYWORD,
     };
+  }
   const field = fieldOf(state)!;
   return {
     state,
@@ -196,7 +249,14 @@ function advance(state: StyleState): CadCommandStep<StyleState> {
 }
 
 function styleDescriptor(spec: StyleCommandSpec): CadCommandDescriptor<StyleState> {
-  const empty: StyleState = { spec, name: "", values: {}, field: -1, deleting: false };
+  const empty: StyleState = {
+    spec,
+    name: "",
+    values: {},
+    field: -1,
+    deleting: false,
+    comparingWith: undefined,
+  };
   return {
     name: spec.name,
     aliases: spec.aliases,
@@ -211,8 +271,14 @@ function styleDescriptor(spec: StyleCommandSpec): CadCommandDescriptor<StyleStat
       if (input.kind === "cancel") return cadCommandCancelled(state);
 
       if (input.kind === "keyword") {
-        if (input.keyword === DELETE_OPTION.keyword && state.field < 0)
-          return styleStep({ ...state, deleting: true });
+        if (state.field < 0) {
+          if (input.keyword === DELETE_OPTION.keyword)
+            return styleStep({ ...state, deleting: true });
+          if (spec.family === "dimension" && input.keyword === APPLY_OPTION.keyword)
+            return styleStep({ ...state, applying: true });
+          if (spec.family === "dimension" && input.keyword === COMPARE_OPTION.keyword)
+            return styleStep({ ...state, comparingWith: null });
+        }
         const field = fieldOf(state);
         if (field?.kind === "boolean" && (input.keyword === YES.keyword || input.keyword === NO.keyword))
           return advance({
@@ -226,6 +292,51 @@ function styleDescriptor(spec: StyleCommandSpec): CadCommandDescriptor<StyleStat
         if (state.field < 0) {
           const name = input.value.trim().slice(0, 128);
           if (!name) return cadCommandRefused(state, "Un estilo necesita un nombre no vacío.");
+
+          // Comparar: dos nombres → diferencias efectivas, campo a campo.
+          if (state.comparingWith === null) return styleStep({ ...state, comparingWith: name });
+          if (state.comparingWith) {
+            const differences = cadCompareDimensionStyles(
+              context.document?.().styles,
+              state.comparingWith,
+              name,
+            );
+            return cadCommandRefused(
+              state,
+              differences.length === 0
+                ? `«${state.comparingWith}» y «${name}» son efectivamente idénticos.`
+                : `«${state.comparingWith}» → «${name}»: ${differences.join("; ")}`,
+            );
+          }
+
+          // Aplicar: re-hornea las cotas existentes del estilo — así una norma
+          // alcanza a un plano ya dibujado, no sólo a las cotas por nacer.
+          if (state.applying) {
+            const definition = resolveCadDimensionStyle(context.document?.().styles, name);
+            const baked = cadDimensionStyleBake(definition);
+            const commands = [];
+            for (const entityId of context.entityIds) {
+              const entity = context.entity?.(entityId);
+              if (!entity || entity.type !== "dimension") continue;
+              if ((entity as { style?: string }).style !== name) continue;
+              commands.push({
+                type: "replace" as const,
+                entityId,
+                entity: { ...entity, ...baked } as typeof entity,
+              });
+            }
+            if (commands.length === 0)
+              return cadCommandRefused(
+                state,
+                `Ninguna cota usa el estilo «${name}»: nada que aplicar.`,
+              );
+            return cadCommandWrites(
+              { ...state, name },
+              commands,
+              `${spec.name} aplicar «${name}» (${commands.length} cota(s))`,
+            );
+          }
+
           const named = { ...state, name };
           if (!state.deleting) return advance({ ...named, field: -1 });
           const usage = styleUsage(named, context);
@@ -244,6 +355,11 @@ function styleDescriptor(spec: StyleCommandSpec): CadCommandDescriptor<StyleStat
         const field = fieldOf(state)!;
         if (field.kind !== "text") return styleStep(state);
         const value = input.value.trim().slice(0, 128);
+        if (value && field.options && !field.options.includes(value))
+          return cadCommandRefused(
+            state,
+            `${field.prompt}: «${value}» no está en el vocabulario (${field.options.join(", ")}).`,
+          );
         return advance({ ...state, values: { ...state.values, [field.key]: value || field.fallback } });
       }
 

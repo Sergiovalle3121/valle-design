@@ -43,7 +43,7 @@ import { exportCadDxf, type CadDxfExportModel, type CadDxfExportOptions } from "
  */
 export type CadDxfDocumentExportSource = CadDxfExportSource & {
   layers: readonly CadLayerDef[];
-  styles?: Partial<Pick<CadStyleTable, "linetype">>;
+  styles?: Partial<Pick<CadStyleTable, "linetype" | "dimension">>;
   meta?: { linetypeScale?: number };
 };
 
@@ -92,6 +92,13 @@ export function cadDocumentToDxfExportModel(
             ...(entry.description ? { description: entry.description } : {}),
           })),
         }
+      : {}),
+    // La norma de acotación viaja como TABLA (además del nombre en código 3 y
+    // los overrides XDATA por entidad): un despacho que fija su DIMSTYLE lo
+    // recupera al reabrir el fichero, no sólo el aspecto de cada cota.
+    ...(document.styles?.dimension &&
+    Object.keys(document.styles.dimension).length > 0
+      ? { dimensionStyles: document.styles.dimension }
       : {}),
     ...(typeof document.meta?.linetypeScale === "number"
       ? { linetypeScale: document.meta.linetypeScale }

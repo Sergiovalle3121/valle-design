@@ -223,6 +223,11 @@ export interface CadDxfImportResult {
   layerDefinitions: CadDxfLayerDefinition[];
   /** $LTSCALE. Ausente cuando el fichero no la declara. */
   linetypeScale?: number;
+  /** Tabla DIMSTYLE del fichero: la norma de acotación del remitente. */
+  dimensionStyles?: Record<
+    string,
+    import("./dimension-style").CadDimensionStyleDefinition
+  >;
 }
 
 export interface CadDxfWarningSummary {
@@ -873,6 +878,7 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
       inserts: [],
       imageDefinitions: [],
       linetypes: properties.linetypes, layerDefinitions: properties.layers,
+    ...(Object.keys(properties.dimensionStyles).length ? { dimensionStyles: properties.dimensionStyles } : {}),
       ...(properties.linetypeScale !== undefined ? { linetypeScale: properties.linetypeScale } : {}),
       layers: [...new Set([...rawHatchResult.hatches.map((hatch) => hatch.layer), ...rawMTexts.map((mtext) => mtext.layer), ...semanticDimensions.map((dimension) => dimension.layer), ...mleaders.map((mleader) => mleader.layer)])].sort(),
       warnings: [
@@ -1033,6 +1039,7 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
     semanticDimensions, mleaders, blocks, inserts,
     imageDefinitions: schema4.imageDefinitions,
     linetypes: properties.linetypes, layerDefinitions: properties.layers,
+    ...(Object.keys(properties.dimensionStyles).length ? { dimensionStyles: properties.dimensionStyles } : {}),
     ...(properties.linetypeScale !== undefined ? { linetypeScale: properties.linetypeScale } : {}),
     warnings, layers: [...layers].sort(),
   };

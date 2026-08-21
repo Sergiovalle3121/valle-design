@@ -23,6 +23,10 @@ import type {
   CadDxfExportModel,
 } from "./dxf-export";
 import type { CadDxfPrimitive } from "./dxf-import";
+import {
+  cadDimensionStyleStandardPairs,
+  cadDimensionStyleToEntries,
+} from "./dimension-style";
 import { fmt, pushPair, safeLayerName, safeStyleName, safeText } from "./dxf-write-core";
 
 function layerColor(model: CadDxfExportModel, name: string): number {
@@ -140,6 +144,30 @@ export function pushLayerTable(
     pushPair(lines, 4, "");
   }
   pushPair(lines, 0, "ENDTAB");
+  // Tabla DIMSTYLE: la norma de acotación del documento. Cada entrada lleva
+  // los DIMVARs con código estándar (la cara para AutoCAD y visores) y la
+  // XDATA VALLE_DIM clave=valor (la fidelidad exacta del round-trip propio —
+  // colores CSS y campos sin código estándar viajan sólo ahí).
+  const dimensionStyles = Object.entries(model.dimensionStyles ?? {});
+  if (dimensionStyles.length > 0) {
+    pushPair(lines, 0, "TABLE");
+    pushPair(lines, 2, "DIMSTYLE");
+    pushPair(lines, 70, dimensionStyles.length);
+    for (const [name, definition] of dimensionStyles) {
+      pushPair(lines, 0, "DIMSTYLE");
+      pushPair(lines, 2, safeStyleName(name));
+      pushPair(lines, 70, 0);
+      for (const [code, value] of cadDimensionStyleStandardPairs(definition))
+        pushPair(lines, code, typeof value === "number" ? fmt(value) : safeText(value));
+      const entries = cadDimensionStyleToEntries(definition);
+      if (entries.length > 0) {
+        pushPair(lines, 1001, DXF_XDATA_APP_DIMENSION);
+        for (const [key, value] of entries)
+          pushPair(lines, 1000, `${key}=${safeText(value)}`);
+      }
+    }
+    pushPair(lines, 0, "ENDTAB");
+  }
   pushPair(lines, 0, "TABLE");
   pushPair(lines, 2, "APPID");
   pushPair(lines, 70, 3);

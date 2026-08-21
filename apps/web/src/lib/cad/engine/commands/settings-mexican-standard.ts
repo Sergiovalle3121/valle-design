@@ -156,7 +156,15 @@ function missingStyleCommands(context: CadCommandContext, scale: number): CadEnt
 
   for (const [name, values] of Object.entries(cadMexicanDimensionStyles(unit)))
     if (!existingDimension.has(name))
-      commands.push({ type: "style", op: "upsert", family: "dimension", name, values });
+      commands.push({
+        type: "style",
+        op: "upsert",
+        family: "dimension",
+        name,
+        // La definición tipada tiene campos opcionales; el comando transporta
+        // sólo los presentes (nunca hay `undefined` en los estilos de la norma).
+        values: values as Readonly<Record<string, string | number | boolean>>,
+      });
 
   return commands;
 }

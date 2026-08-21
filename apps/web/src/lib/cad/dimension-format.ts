@@ -95,6 +95,14 @@ export interface CadDimensionStyleShape {
   precision?: number;
   units?: CadDimensionUnitName;
   arrowhead?: CadDimensionArrowhead;
+  prefix?: string;
+  suffix?: string;
+  arrowSize?: number;
+  extensionGap?: number;
+  extensionOvershoot?: number;
+  textGap?: number;
+  /** DIMSCALE — multiplica los tamaños que el ESTILO declara al hornear. */
+  overallScale?: number;
 }
 
 /**
@@ -116,12 +124,26 @@ export function cadDimensionStyleOverrides(
   style: CadDimensionStyleShape,
   draft: CadDimensionStyleShape = {},
 ): CadDimensionStyleShape {
-  const precision = style.precision ?? draft.precision;
-  const units = style.units ?? draft.units;
-  const arrowhead = style.arrowhead ?? draft.arrowhead;
+  // DIMSCALE multiplica los TAMAÑOS que el estilo declara: un solo número
+  // escala flechas, huecos y separaciones — para eso existe. Los tamaños que
+  // vienen del borrador no se escalan: no pertenecen a la norma.
+  const scale = style.overallScale ?? 1;
+  const pick = <K extends keyof CadDimensionStyleShape>(key: K) =>
+    style[key] ?? draft[key];
+  const pickScaled = (
+    key: 'arrowSize' | 'extensionGap' | 'extensionOvershoot' | 'textGap',
+  ) => (style[key] === undefined ? draft[key] : style[key]! * scale);
+  const emit = <T>(value: T | undefined, key: string) =>
+    value === undefined ? {} : { [key]: value };
   return {
-    ...(precision === undefined ? {} : { precision }),
-    ...(units === undefined ? {} : { units }),
-    ...(arrowhead === undefined ? {} : { arrowhead }),
+    ...emit(pick('precision'), 'precision'),
+    ...emit(pick('units'), 'units'),
+    ...emit(pick('arrowhead'), 'arrowhead'),
+    ...emit(pick('prefix'), 'prefix'),
+    ...emit(pick('suffix'), 'suffix'),
+    ...emit(pickScaled('arrowSize'), 'arrowSize'),
+    ...emit(pickScaled('extensionGap'), 'extensionGap'),
+    ...emit(pickScaled('extensionOvershoot'), 'extensionOvershoot'),
+    ...emit(pickScaled('textGap'), 'textGap'),
   };
 }

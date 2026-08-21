@@ -322,7 +322,7 @@
       "group": "core",
       "name": "Cotas asociativas",
       "points": 12,
-      "gap": "Ningún comando DIM* es tecleable: el alias DLI no resuelve. Sin DIMSTYLE no hay entrega normalizada.",
+      "gap": "(2026-08-21) Los DIM* teclean, DIMSTYLE cubre el núcleo de ~30 DIMVARs con Aplicar/Comparar y la tabla viaja por DXF. Falta que el ESQUEMA de entidad exprese los campos aún sólo-de-tabla (DIMTXT, colores, grosores, TAD/JUST) para que gobiernen el render por cota, y el golden de navegador del ciclo completo.",
       "criteria": [
         {
           "id": "dimensions.entity",
@@ -398,11 +398,13 @@
         {
           "id": "dimensions.style",
           "points": 2,
-          "text": "DIMSTYLE aplicable: familia de estilos de cota que el plano entregado respeta",
+          "text": "DIMSTYLE aplicable: núcleo de ~30 DIMVARs con nombre, aplicación retroactiva, comparación y round-trip DXF de la tabla",
           "costDays": 5,
           "evidence": [
             { "kind": "command", "name": "DIMSTYLE" },
-            { "kind": "alias", "alias": "D" }
+            { "kind": "alias", "alias": "D" },
+            { "kind": "file", "path": "apps/web/src/lib/cad/dimension-style.ts" },
+            { "kind": "spec", "path": "apps/web/src/lib/cad/dimension-style.spec.ts" }
           ]
         }
       ]
@@ -1233,7 +1235,7 @@
       "group": "pro",
       "name": "MLEADER y tablas",
       "points": 5,
-      "gap": "Los estilos de directriz y de tabla no existen; MLD y TS no resuelven.",
+      "gap": "(2026-08-21) MLEADERSTYLE y TABLESTYLE teclean (MLS/TS) y sus familias viven en styles. Falta que el estilo de TABLA gobierne bordes/filas al render y que ambos viajen por DXF (hoy sólo la familia dimension tiene tabla en el fichero).",
       "criteria": [
         {
           "id": "annotation-extras.mleader",

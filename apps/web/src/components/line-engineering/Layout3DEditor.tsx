@@ -6163,20 +6163,18 @@ export default function Layout3DEditor({
           : {}),
         style: draft.style,
         sourceUnit: data?.footprint.unit === "m" ? "m" : "mm",
-        // El ESTILO manda sobre el borrador de la paleta. Es lo que hace que un
-        // documento nacido de plantilla mexicana acote en METROS con dos
-        // decimales y con garrapata desde la primera cota, sin que nadie lo
-        // teclee: la plantilla decide una vez y todas heredan.
-        ...cadDimensionStyleOverrides(style, draft),
         ...(draft.alternateUnits
           ? { alternateUnits: draft.alternateUnits }
           : {}),
-        prefix: draft.prefix,
-        suffix: draft.suffix,
         extensionLines: draft.extensionLines,
-        arrowSize:
-          style.arrowSize ??
-          Math.max(1, (data?.footprint.gridSize ?? 100) * 1.8),
+        arrowSize: Math.max(1, (data?.footprint.gridSize ?? 100) * 1.8),
+        // El ESTILO manda sobre el borrador de la paleta, y por eso el
+        // horneado va AL FINAL: es lo que hace que un documento nacido de
+        // plantilla mexicana acote en METROS con dos decimales y con
+        // garrapata desde la primera cota, sin que nadie lo teclee. El núcleo
+        // horneado incluye ya prefijo/sufijo, tamaños escalados por DIMSCALE
+        // y los huecos de extensión (dimension-style.ts).
+        ...cadDimensionStyleOverrides(style, draft),
         associative: true,
         references,
         associationStatus: "associated",
