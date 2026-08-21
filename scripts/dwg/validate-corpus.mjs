@@ -210,6 +210,39 @@ function readFieldsFromEntity(record) {
         faces: faces.map((v) => [v.index1, v.index2, v.index3, v.index4]),
       };
     }
+    case "ellipse":
+      return {
+        center: [e.center.x, e.center.y, e.center.z],
+        majorAxis: [
+          e.majorAxisEndpoint.x,
+          e.majorAxisEndpoint.y,
+          e.majorAxisEndpoint.z,
+        ],
+        ratio: e.axisRatio,
+        startAngle: e.startAngle,
+        endAngle: e.endAngle,
+      };
+    case "spline":
+      return {
+        degree: e.degree,
+        closed: e.closed ?? false,
+        knots: [...(e.knots ?? [])],
+        controlPoints: (e.controlPoints ?? []).map((p) => [p.x, p.y, p.z]),
+      };
+    case "ray":
+    case "xline":
+      return {
+        base: [e.basePoint.x, e.basePoint.y, e.basePoint.z],
+        direction: [e.direction.x, e.direction.y, e.direction.z],
+      };
+    case "solid":
+    case "trace":
+      return { corners: e.corners.map((c) => [c.x, c.y]) };
+    case "face3d":
+      return {
+        corners: e.corners.map((c) => [c.x, c.y, c.z]),
+        invisibility: e.invisibilityFlags,
+      };
     case "dimension":
       // textMid excluido a propósito: el conversor recoloca el texto al
       // regenerar el bloque anónimo (tolerancia declarada en el oráculo).

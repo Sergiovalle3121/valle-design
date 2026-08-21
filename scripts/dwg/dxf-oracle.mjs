@@ -169,6 +169,13 @@ function startEntity(type, sink) {
     "ATTRIB",
     "ATTDEF",
     "DIMENSION",
+    "ELLIPSE",
+    "SPLINE",
+    "RAY",
+    "XLINE",
+    "SOLID",
+    "TRACE",
+    "3DFACE",
   ]);
   if (!known.has(type)) {
     const record = { type, layer: "0", unknown: true };
@@ -193,6 +200,35 @@ function startEntity(type, sink) {
 
 function feedEntity(entity, code, value, num) {
   if (!entity) return;
+  // La SPLINE lleva grupos REPETIDOS (nudos 40, puntos de control 10/20/30 y
+  // de ajuste 11/21/31): se acumulan en listas en vez de sobrescribirse.
+  if (entity.type === "SPLINE") {
+    switch (code) {
+      case 40:
+        (entity.knots ??= []).push(num(value));
+        return;
+      case 10:
+        (entity.ctrl ??= []).push({ x: num(value), y: 0, z: 0 });
+        return;
+      case 20:
+        if (entity.ctrl?.length) entity.ctrl[entity.ctrl.length - 1].y = num(value);
+        return;
+      case 30:
+        if (entity.ctrl?.length) entity.ctrl[entity.ctrl.length - 1].z = num(value);
+        return;
+      case 11:
+        (entity.fit ??= []).push({ x: num(value), y: 0, z: 0 });
+        return;
+      case 21:
+        if (entity.fit?.length) entity.fit[entity.fit.length - 1].y = num(value);
+        return;
+      case 31:
+        if (entity.fit?.length) entity.fit[entity.fit.length - 1].z = num(value);
+        return;
+      default:
+        break;
+    }
+  }
   switch (code) {
     case 8:
       entity.layer = value.trim();
@@ -232,11 +268,23 @@ function feedEntity(entity, code, value, num) {
     case 31:
       entity.z2 = num(value);
       break;
+    case 12:
+      entity.x12 = num(value);
+      break;
+    case 22:
+      entity.y12 = num(value);
+      break;
+    case 32:
+      entity.z12 = num(value);
+      break;
     case 13:
       entity.x13 = num(value);
       break;
     case 23:
       entity.y13 = num(value);
+      break;
+    case 33:
+      entity.z13 = num(value);
       break;
     case 14:
       entity.x14 = num(value);
@@ -350,6 +398,67 @@ export function expectedFromOracle(record) {
           position: [record.x ?? 0, record.y ?? 0, record.z ?? 0],
           scale: [record.r41 ?? 1, record.r42 ?? record.r41 ?? 1, record.r43 ?? 1],
           rotation: (record.angle50 ?? 0) * DEG,
+        },
+      };
+    case "ELLIPSE":
+      return {
+        kind: "ellipse",
+        layer: record.layer,
+        fields: {
+          center: [record.x ?? 0, record.y ?? 0, record.z ?? 0],
+          majorAxis: [record.x2 ?? 0, record.y2 ?? 0, record.z2 ?? 0],
+          ratio: record.r40 ?? 0,
+          startAngle: record.r41 ?? 0,
+          endAngle: record.r42 ?? 0,
+        },
+      };
+    case "SPLINE":
+      return {
+        kind: "spline",
+        layer: record.layer,
+        fields: {
+          degree: record.g71 ?? 0,
+          closed: ((record.flags ?? 0) & 1) === 1,
+          knots: record.knots ?? [],
+          controlPoints: (record.ctrl ?? []).map((p) => [p.x, p.y, p.z]),
+        },
+      };
+    case "RAY":
+    case "XLINE":
+      return {
+        kind: record.type.toLowerCase(),
+        layer: record.layer,
+        fields: {
+          base: [record.x ?? 0, record.y ?? 0, record.z ?? 0],
+          direction: [record.x2 ?? 0, record.y2 ?? 0, record.z2 ?? 0],
+        },
+      };
+    case "SOLID":
+    case "TRACE":
+      return {
+        kind: record.type.toLowerCase(),
+        layer: record.layer,
+        fields: {
+          corners: [
+            [record.x ?? 0, record.y ?? 0],
+            [record.x2 ?? 0, record.y2 ?? 0],
+            [record.x12 ?? 0, record.y12 ?? 0],
+            [record.x13 ?? 0, record.y13 ?? 0],
+          ],
+        },
+      };
+    case "3DFACE":
+      return {
+        kind: "face3d",
+        layer: record.layer,
+        fields: {
+          corners: [
+            [record.x ?? 0, record.y ?? 0, record.z ?? 0],
+            [record.x2 ?? 0, record.y2 ?? 0, record.z2 ?? 0],
+            [record.x12 ?? 0, record.y12 ?? 0, record.z12 ?? 0],
+            [record.x13 ?? 0, record.y13 ?? 0, record.z13 ?? 0],
+          ],
+          invisibility: record.flags ?? 0,
         },
       };
     case "MTEXT":

@@ -39,7 +39,11 @@ import {
   type DwgHandleReference,
   type DwgResolvedHandle,
 } from "../codecs/bitcodes.js";
-import type { DwgPoint3 } from "../model/entity-geometry.js";
+import type {
+  DwgPoint2,
+  DwgPoint3,
+  DwgTextFields,
+} from "../model/entity-geometry.js";
 import { throwDwgError } from "../security/parse-error.js";
 
 /**
@@ -424,4 +428,102 @@ export function readFiniteExtrusion(reader: DwgBitReader): DwgPoint3 {
     finiteDecoded(reader, y, "an extrusion component"),
     finiteDecoded(reader, z, "an extrusion component"),
   );
+}
+
+/**
+ * Los campos compartidos por TEXT y por ATTRIB/ATTDEF (hecho registrado: los
+ * atributos abren con la MISMA disposición de TEXT antes de sus campos
+ * propios). Vive en este módulo HOJA para que `entities-core.ts` y
+ * `entities-annotation.ts` lo compartan sin ciclo de importación — cero
+ * criterios gemelos. Un RC de banderas abre el dato y cada bit a 1 declara
+ * un campo AUSENTE; ausente se modela `undefined`.
+ */
+export function decodeTextFields(reader: DwgBitReader): DwgTextFields {
+  const dataFlags = reader.readRC();
+
+  const elevation =
+    (dataFlags & 0x01) === 0
+      ? finiteDecoded(reader, reader.readRD(), "a text elevation")
+      : undefined;
+
+  const insertionX = finiteDecoded(reader, reader.readRD(), "a text insertion X");
+  const insertionY = finiteDecoded(reader, reader.readRD(), "a text insertion Y");
+  const insertion = frozenTextPoint2(insertionX, insertionY);
+
+  let alignment: DwgPoint2 | undefined;
+  if ((dataFlags & 0x02) === 0) {
+    const alignmentX = finiteDecoded(
+      reader,
+      reader.readDD(insertionX),
+      "a text alignment X",
+    );
+    const alignmentY = finiteDecoded(
+      reader,
+      reader.readDD(insertionY),
+      "a text alignment Y",
+    );
+    alignment = frozenTextPoint2(alignmentX, alignmentY);
+  }
+
+  const extrusion = readFiniteExtrusion(reader);
+  const thickness = finiteDecoded(reader, reader.readBT(), "a text thickness");
+
+  const obliqueAngle =
+    (dataFlags & 0x04) === 0
+      ? finiteDecoded(reader, reader.readRD(), "a text oblique angle")
+      : undefined;
+  const rotation =
+    (dataFlags & 0x08) === 0
+      ? finiteDecoded(reader, reader.readRD(), "a text rotation")
+      : undefined;
+
+  const height = finiteDecoded(reader, reader.readRD(), "a text height");
+  if (height < 0) {
+    // Una altura negativa no describe ningún texto: estructura corrupta
+    // (decisión de laboratorio declarada), no una convención que inventar.
+    throwDwgError(
+      "DWG_STRUCTURE_CORRUPT",
+      "input",
+      Math.floor(reader.bitPosition / 8),
+      "A text height cannot be negative.",
+    );
+  }
+
+  const widthFactor =
+    (dataFlags & 0x10) === 0
+      ? finiteDecoded(reader, reader.readRD(), "a text width factor")
+      : undefined;
+
+  // La cadena llega como bytes congelados: mismos bytes, mismo modelo.
+  const text = reader.readTV();
+  const valueBytes = new Array<number>(text.bytes.length);
+  for (let index = 0; index < text.bytes.length; index += 1) {
+    valueBytes[index] = text.bytes[index]!;
+  }
+
+  const generation = (dataFlags & 0x20) === 0 ? reader.readBS() : undefined;
+  const horizontalAlignment =
+    (dataFlags & 0x40) === 0 ? reader.readBS() : undefined;
+  const verticalAlignment =
+    (dataFlags & 0x80) === 0 ? reader.readBS() : undefined;
+
+  return {
+    insertion,
+    elevation,
+    alignment,
+    thickness,
+    extrusion,
+    obliqueAngle,
+    rotation,
+    height,
+    widthFactor,
+    valueBytes: Object.freeze(valueBytes),
+    generation,
+    horizontalAlignment,
+    verticalAlignment,
+  };
+}
+
+function frozenTextPoint2(x: number, y: number): DwgPoint2 {
+  return Object.freeze({ x, y });
 }

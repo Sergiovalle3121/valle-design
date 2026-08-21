@@ -253,7 +253,7 @@ test("los tipos no decodificados se ENUMERAN con su handle y tipo", () => {
   const file = writeAc1015Container({
     objects: [
       { layer: { name: [0x30] }, handle: 2 },
-      { type: 0x1c, handle: 3 }, // sintético D1: tipo que no decodificamos
+      { type: 0x2a, handle: 3 }, // sintético D1: tipo que no decodificamos
       { entity: POINT, handle: 4 },
       { type: 0x64, handle: 5 },
     ],
@@ -261,7 +261,7 @@ test("los tipos no decodificados se ENUMERAN con su handle y tipo", () => {
   const database = readAc1015Database(file);
 
   assert.deepEqual(database.unsupported, [
-    { handle: 3, type: 0x1c },
+    { handle: 3, type: 0x2a },
     { handle: 5, type: 0x64 },
   ]);
   // Lo soportado alrededor sigue decodificado: nada se pierde por vecindad.

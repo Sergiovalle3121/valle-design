@@ -336,6 +336,80 @@ export interface DwgPfaceFaceEntity {
   readonly index4: number;
 }
 
+/**
+ * Elipse: centro, extremo del eje mayor como VECTOR relativo al centro,
+ * extrusión (3BD completa, no BE), razón de ejes y ángulos paramétricos.
+ */
+export interface DwgEllipseEntity {
+  readonly kind: "ellipse";
+  readonly center: DwgPoint3;
+  readonly majorAxisEndpoint: DwgPoint3;
+  readonly extrusion: DwgPoint3;
+  readonly axisRatio: number;
+  readonly startAngle: number;
+  readonly endAngle: number;
+}
+
+/**
+ * Spline. El formato guarda dos escenarios excluyentes (hecho registrado):
+ * 1 = nudos + puntos de control (con pesos opcionales), 2 = puntos de
+ * ajuste con tangentes. Los campos del escenario ausente llegan `undefined`.
+ */
+export interface DwgSplineEntity {
+  readonly kind: "spline";
+  readonly scenario: number;
+  readonly degree: number;
+  readonly rational: boolean | undefined;
+  readonly closed: boolean | undefined;
+  readonly periodic: boolean | undefined;
+  readonly knotTolerance: number | undefined;
+  readonly controlTolerance: number | undefined;
+  readonly knots: readonly number[] | undefined;
+  readonly controlPoints: readonly DwgPoint3[] | undefined;
+  readonly weights: readonly number[] | undefined;
+  readonly fitTolerance: number | undefined;
+  readonly startTangent: DwgPoint3 | undefined;
+  readonly endTangent: DwgPoint3 | undefined;
+  readonly fitPoints: readonly DwgPoint3[] | undefined;
+}
+
+/** Semirrecta (RAY) o recta infinita (XLINE): punto base y vector unitario. */
+export interface DwgRayEntity {
+  readonly kind: "ray";
+  readonly basePoint: DwgPoint3;
+  readonly direction: DwgPoint3;
+}
+
+export interface DwgXlineEntity {
+  readonly kind: "xline";
+  readonly basePoint: DwgPoint3;
+  readonly direction: DwgPoint3;
+}
+
+/** SOLID o TRACE: cuatro esquinas 2D sobre una elevación común. */
+export interface DwgSolidEntity {
+  readonly kind: "solid";
+  readonly thickness: number;
+  readonly elevation: number;
+  readonly corners: readonly [DwgPoint2, DwgPoint2, DwgPoint2, DwgPoint2];
+  readonly extrusion: DwgPoint3;
+}
+
+export interface DwgTraceEntity {
+  readonly kind: "trace";
+  readonly thickness: number;
+  readonly elevation: number;
+  readonly corners: readonly [DwgPoint2, DwgPoint2, DwgPoint2, DwgPoint2];
+  readonly extrusion: DwgPoint3;
+}
+
+/** Cara 3D: cuatro esquinas y banderas de invisibilidad de aristas crudas. */
+export interface Dwg3dFaceEntity {
+  readonly kind: "face3d";
+  readonly corners: readonly [DwgPoint3, DwgPoint3, DwgPoint3, DwgPoint3];
+  readonly invisibilityFlags: number;
+}
+
 /** Las entidades geométricas que el laboratorio decodifica. */
 export type DwgGeometryEntity =
   | DwgLineEntity
@@ -358,7 +432,14 @@ export type DwgGeometryEntity =
   | DwgVertex3dEntity
   | DwgVertexMeshEntity
   | DwgVertexPfaceEntity
-  | DwgPfaceFaceEntity;
+  | DwgPfaceFaceEntity
+  | DwgEllipseEntity
+  | DwgSplineEntity
+  | DwgRayEntity
+  | DwgXlineEntity
+  | DwgSolidEntity
+  | DwgTraceEntity
+  | Dwg3dFaceEntity;
 
 /** Los discriminantes válidos del modelo, para validación cerrada. */
 export const DWG_GEOMETRY_ENTITY_KINDS = Object.freeze([
@@ -383,6 +464,13 @@ export const DWG_GEOMETRY_ENTITY_KINDS = Object.freeze([
   "vertexMesh",
   "vertexPface",
   "pfaceFace",
+  "ellipse",
+  "spline",
+  "ray",
+  "xline",
+  "solid",
+  "trace",
+  "face3d",
 ] as const);
 
 export type DwgGeometryEntityKind = (typeof DWG_GEOMETRY_ENTITY_KINDS)[number];

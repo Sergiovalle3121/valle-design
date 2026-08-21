@@ -302,7 +302,13 @@
         "Datos de VERTEX 3D, VERTEX MESH y VERTEX PFACE R2000: banderas RC y punto 3BD",
         "Datos de VERTEX PFACE FACE R2000: cuatro indices de vertice BS (un indice negativo declara arista invisible; 0 = sin cuarto vertice)",
         "Datos de POLYLINE PFACE R2000: recuento de vertices BS y recuento de caras BS; mismo flujo de handles de primer/ultimo VERTEX y SEQEND",
-        "Datos de POLYLINE MESH R2000: banderas BS, tipo de curva BS, recuentos M y N BS y densidades de superficie M y N BS; mismo flujo de handles"
+        "Datos de POLYLINE MESH R2000: banderas BS, tipo de curva BS, recuentos M y N BS y densidades de superficie M y N BS; mismo flujo de handles",
+        "Codigos de tipo BS de curvas y superficies simples R2000: 0x1C 3DFACE, 0x1F SOLID, 0x20 TRACE, 0x23 ELLIPSE, 0x24 SPLINE, 0x28 RAY, 0x29 XLINE",
+        "Datos de ELLIPSE R2000: centro 3BD, extremo del eje mayor 3BD (vector relativo al centro), extrusion 3BD, razon de ejes BD, angulo inicial BD y angulo final BD",
+        "Datos de SPLINE R2000: escenario BL (1 = con nudos y puntos de control, 2 = con puntos de ajuste), grado BL; escenario 2 sigue con tolerancia de ajuste BD, tangentes inicial y final 3BD y recuento BL de puntos de ajuste 3BD; escenario 1 sigue con bits de racional/cerrada/periodica, tolerancias de nudo y de control BD, recuentos BL de nudos y de puntos de control, bit de pesos, nudos BD, y puntos de control 3BD cada uno seguido de su peso BD si el bit de pesos esta a 1",
+        "Datos de RAY y XLINE R2000: punto base 3BD y vector unitario 3BD",
+        "Datos de SOLID y TRACE R2000: grosor BT, elevacion BD (la Z comun), cuatro esquinas 2RD y extrusion BE",
+        "Datos de 3DFACE R2000: un bit de sin-banderas y un bit de Z1-cero; la primera esquina como RD/RD con la Z solo si el bit de Z-cero esta a 0, las esquinas 2 a 4 como 3DD contra la esquina anterior, y las banderas de invisibilidad BS solo si el bit de sin-banderas esta a 0"
       ],
       "derivedFiles": [
         "packages/dwg-codec/DWG0_WORKLOG.md",
@@ -316,6 +322,7 @@
         "packages/dwg-codec/src/model/entity-geometry.ts",
         "packages/dwg-codec/src/objects/entities-annotation.ts",
         "packages/dwg-codec/src/objects/entities-core.ts",
+        "packages/dwg-codec/src/objects/entities-curves-surfaces.ts",
         "packages/dwg-codec/src/objects/entities-poly.ts",
         "packages/dwg-codec/src/objects/entities-polyline-classic.ts",
         "packages/dwg-codec/src/objects/entity-common.ts",
@@ -334,6 +341,7 @@
         "packages/dwg-codec/tests/unit/ac1015-object-map.spec.ts",
         "packages/dwg-codec/tests/unit/ac1015-writer.spec.ts",
         "packages/dwg-codec/tests/unit/bitcodes.spec.ts",
+        "packages/dwg-codec/tests/unit/entities-annotation.spec.ts",
         "packages/dwg-codec/tests/unit/entities-core.spec.ts",
         "packages/dwg-codec/tests/unit/entities-poly.spec.ts",
         "packages/dwg-codec/tests/unit/entity-insert.spec.ts",

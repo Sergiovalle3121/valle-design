@@ -48,10 +48,17 @@ import { detectDwgSignature } from "../container/signature.js";
 import type { DwgGeometryEntity } from "../model/entity-geometry.js";
 import {
   decodeAc1015EntityBody,
+  AC1015_TYPE_3DFACE,
   AC1015_TYPE_ARC,
   AC1015_TYPE_ATTDEF,
   AC1015_TYPE_ATTRIB,
   AC1015_TYPE_CIRCLE,
+  AC1015_TYPE_ELLIPSE,
+  AC1015_TYPE_RAY,
+  AC1015_TYPE_SOLID,
+  AC1015_TYPE_SPLINE,
+  AC1015_TYPE_TRACE,
+  AC1015_TYPE_XLINE,
   AC1015_TYPE_DIM_ALIGNED,
   AC1015_TYPE_DIM_ANGULAR_2LN,
   AC1015_TYPE_DIM_ANGULAR_3PT,
@@ -309,7 +316,14 @@ function decodeMappedObject(
       case AC1015_TYPE_VERTEX_3D:
       case AC1015_TYPE_VERTEX_MESH:
       case AC1015_TYPE_VERTEX_PFACE:
-      case AC1015_TYPE_VERTEX_PFACE_FACE: {
+      case AC1015_TYPE_VERTEX_PFACE_FACE:
+      case AC1015_TYPE_3DFACE:
+      case AC1015_TYPE_ELLIPSE:
+      case AC1015_TYPE_RAY:
+      case AC1015_TYPE_SOLID:
+      case AC1015_TYPE_SPLINE:
+      case AC1015_TYPE_TRACE:
+      case AC1015_TYPE_XLINE: {
         const decoded = decodeAc1015EntityBody(bodyBytes);
         assertBodyHandleMatchesMap(decoded.common.ownHandle.value, entry);
         return { kind: "entity", handle: entry.handle, offset: entry.offset, decoded };

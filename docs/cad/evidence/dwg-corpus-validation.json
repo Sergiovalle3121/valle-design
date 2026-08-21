@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-corpus-validation-v1",
   "generadoPor": "node scripts/dwg/validate-corpus.mjs",
-  "generadoEn": "2026-08-21T06:35:14.012Z",
+  "generadoEn": "2026-08-21T06:43:16.056Z",
   "environment": {
     "node": "v22.18.0",
     "platform": "win32",
@@ -55,20 +55,6 @@
         "faltante": 0,
         "inesperado": 0
       },
-      "dxf:ray": {
-        "esperado": 2,
-        "leidoCorrecto": 0,
-        "geometriaDistinta": 0,
-        "faltante": 2,
-        "inesperado": 0
-      },
-      "dxf:xline": {
-        "esperado": 2,
-        "leidoCorrecto": 0,
-        "geometriaDistinta": 0,
-        "faltante": 2,
-        "inesperado": 0
-      },
       "line": {
         "esperado": 39,
         "leidoCorrecto": 39,
@@ -76,25 +62,39 @@
         "faltante": 0,
         "inesperado": 0
       },
-      "dxf:3dface": {
+      "ray": {
         "esperado": 2,
-        "leidoCorrecto": 0,
+        "leidoCorrecto": 2,
         "geometriaDistinta": 0,
-        "faltante": 2,
+        "faltante": 0,
         "inesperado": 0
       },
-      "dxf:solid": {
+      "xline": {
         "esperado": 2,
-        "leidoCorrecto": 0,
+        "leidoCorrecto": 2,
         "geometriaDistinta": 0,
-        "faltante": 2,
+        "faltante": 0,
         "inesperado": 0
       },
-      "dxf:trace": {
+      "face3d": {
+        "esperado": 2,
+        "leidoCorrecto": 2,
+        "geometriaDistinta": 0,
+        "faltante": 0,
+        "inesperado": 0
+      },
+      "solid": {
+        "esperado": 2,
+        "leidoCorrecto": 2,
+        "geometriaDistinta": 0,
+        "faltante": 0,
+        "inesperado": 0
+      },
+      "trace": {
         "esperado": 1,
-        "leidoCorrecto": 0,
+        "leidoCorrecto": 1,
         "geometriaDistinta": 0,
-        "faltante": 1,
+        "faltante": 0,
         "inesperado": 0
       },
       "circle": {
@@ -181,18 +181,18 @@
         "faltante": 0,
         "inesperado": 0
       },
-      "dxf:ellipse": {
+      "ellipse": {
         "esperado": 2,
-        "leidoCorrecto": 0,
+        "leidoCorrecto": 2,
         "geometriaDistinta": 0,
-        "faltante": 2,
+        "faltante": 0,
         "inesperado": 0
       },
-      "dxf:spline": {
+      "spline": {
         "esperado": 1,
-        "leidoCorrecto": 0,
+        "leidoCorrecto": 1,
         "geometriaDistinta": 0,
-        "faltante": 1,
+        "faltante": 0,
         "inesperado": 0
       },
       "text": {
@@ -217,7 +217,7 @@
         "inesperado": 0
       }
     },
-    "discrepanciasRegistradas": 23
+    "discrepanciasRegistradas": 11
   },
   "matrizEntidades": {
     "dxf:leader": {
@@ -241,20 +241,6 @@
       "faltante": 0,
       "inesperado": 0
     },
-    "dxf:ray": {
-      "esperado": 2,
-      "leidoCorrecto": 0,
-      "geometriaDistinta": 0,
-      "faltante": 2,
-      "inesperado": 0
-    },
-    "dxf:xline": {
-      "esperado": 2,
-      "leidoCorrecto": 0,
-      "geometriaDistinta": 0,
-      "faltante": 2,
-      "inesperado": 0
-    },
     "line": {
       "esperado": 39,
       "leidoCorrecto": 39,
@@ -262,25 +248,39 @@
       "faltante": 0,
       "inesperado": 0
     },
-    "dxf:3dface": {
+    "ray": {
       "esperado": 2,
-      "leidoCorrecto": 0,
+      "leidoCorrecto": 2,
       "geometriaDistinta": 0,
-      "faltante": 2,
+      "faltante": 0,
       "inesperado": 0
     },
-    "dxf:solid": {
+    "xline": {
       "esperado": 2,
-      "leidoCorrecto": 0,
+      "leidoCorrecto": 2,
       "geometriaDistinta": 0,
-      "faltante": 2,
+      "faltante": 0,
       "inesperado": 0
     },
-    "dxf:trace": {
+    "face3d": {
+      "esperado": 2,
+      "leidoCorrecto": 2,
+      "geometriaDistinta": 0,
+      "faltante": 0,
+      "inesperado": 0
+    },
+    "solid": {
+      "esperado": 2,
+      "leidoCorrecto": 2,
+      "geometriaDistinta": 0,
+      "faltante": 0,
+      "inesperado": 0
+    },
+    "trace": {
       "esperado": 1,
-      "leidoCorrecto": 0,
+      "leidoCorrecto": 1,
       "geometriaDistinta": 0,
-      "faltante": 1,
+      "faltante": 0,
       "inesperado": 0
     },
     "circle": {
@@ -367,18 +367,18 @@
       "faltante": 0,
       "inesperado": 0
     },
-    "dxf:ellipse": {
+    "ellipse": {
       "esperado": 2,
-      "leidoCorrecto": 0,
+      "leidoCorrecto": 2,
       "geometriaDistinta": 0,
-      "faltante": 2,
+      "faltante": 0,
       "inesperado": 0
     },
-    "dxf:spline": {
+    "spline": {
       "esperado": 1,
-      "leidoCorrecto": 0,
+      "leidoCorrecto": 1,
       "geometriaDistinta": 0,
-      "faltante": 1,
+      "faltante": 0,
       "inesperado": 0
     },
     "text": {
@@ -426,69 +426,6 @@
       "esperado": {}
     },
     {
-      "archivo": "17-ray-xline",
-      "contexto": "model-space",
-      "tipo": "dxf:ray",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "17-ray-xline",
-      "contexto": "model-space",
-      "tipo": "dxf:ray",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "17-ray-xline",
-      "contexto": "model-space",
-      "tipo": "dxf:xline",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "17-ray-xline",
-      "contexto": "model-space",
-      "tipo": "dxf:xline",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "18-solid-trace-3dface",
-      "contexto": "model-space",
-      "tipo": "dxf:3dface",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "18-solid-trace-3dface",
-      "contexto": "model-space",
-      "tipo": "dxf:3dface",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "18-solid-trace-3dface",
-      "contexto": "model-space",
-      "tipo": "dxf:solid",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "18-solid-trace-3dface",
-      "contexto": "model-space",
-      "tipo": "dxf:solid",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "18-solid-trace-3dface",
-      "contexto": "model-space",
-      "tipo": "dxf:trace",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
       "archivo": "21-hatch-islands",
       "contexto": "model-space",
       "tipo": "dxf:hatch",
@@ -541,27 +478,6 @@
       "archivo": "11-hatch",
       "contexto": "model-space",
       "tipo": "dxf:hatch",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "14-ellipse-spline",
-      "contexto": "model-space",
-      "tipo": "dxf:ellipse",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "14-ellipse-spline",
-      "contexto": "model-space",
-      "tipo": "dxf:ellipse",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "14-ellipse-spline",
-      "contexto": "model-space",
-      "tipo": "dxf:spline",
       "problema": "faltante",
       "esperado": {}
     }
@@ -826,8 +742,8 @@
       "oraculo": "bundles/entity-wave-2-ac1015/oracles/dxf/17-ray-xline.dxf",
       "esperadoSegunOraculo": {
         "entidades": {
-          "dxf:ray": 2,
-          "dxf:xline": 2,
+          "ray": 2,
+          "xline": 2,
           "line": 2
         },
         "capas": [
@@ -870,21 +786,21 @@
       },
       "entidades": {
         "porTipo": {
-          "dxf:ray": {
-            "esperado": 2,
-            "leidoCorrecto": 0,
-            "geometriaDistinta": 0,
-            "faltante": 2,
-            "inesperado": 0
-          },
-          "dxf:xline": {
-            "esperado": 2,
-            "leidoCorrecto": 0,
-            "geometriaDistinta": 0,
-            "faltante": 2,
-            "inesperado": 0
-          },
           "line": {
+            "esperado": 2,
+            "leidoCorrecto": 2,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          },
+          "ray": {
+            "esperado": 2,
+            "leidoCorrecto": 2,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          },
+          "xline": {
             "esperado": 2,
             "leidoCorrecto": 2,
             "geometriaDistinta": 0,
@@ -892,28 +808,7 @@
             "inesperado": 0
           }
         },
-        "detalles": [
-          {
-            "tipo": "dxf:ray",
-            "problema": "faltante",
-            "esperado": {}
-          },
-          {
-            "tipo": "dxf:ray",
-            "problema": "faltante",
-            "esperado": {}
-          },
-          {
-            "tipo": "dxf:xline",
-            "problema": "faltante",
-            "esperado": {}
-          },
-          {
-            "tipo": "dxf:xline",
-            "problema": "faltante",
-            "esperado": {}
-          }
-        ]
+        "detalles": []
       },
       "bloques": {
         "esperados": [],
@@ -924,14 +819,6 @@
         "porBloque": {}
       },
       "tiposNoSoportados": [
-        {
-          "codigoBs": 40,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 41,
-          "cuantos": 2
-        },
         {
           "codigoBs": 42,
           "cuantos": 47
@@ -1081,9 +968,9 @@
       "oraculo": "bundles/entity-wave-2-ac1015/oracles/dxf/18-solid-trace-3dface.dxf",
       "esperadoSegunOraculo": {
         "entidades": {
-          "dxf:solid": 2,
-          "dxf:trace": 1,
-          "dxf:3dface": 2
+          "solid": 2,
+          "trace": 1,
+          "face3d": 2
         },
         "capas": [
           "0",
@@ -1125,55 +1012,29 @@
       },
       "entidades": {
         "porTipo": {
-          "dxf:3dface": {
+          "face3d": {
             "esperado": 2,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 2,
             "geometriaDistinta": 0,
-            "faltante": 2,
+            "faltante": 0,
             "inesperado": 0
           },
-          "dxf:solid": {
+          "solid": {
             "esperado": 2,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 2,
             "geometriaDistinta": 0,
-            "faltante": 2,
+            "faltante": 0,
             "inesperado": 0
           },
-          "dxf:trace": {
+          "trace": {
             "esperado": 1,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 1,
             "geometriaDistinta": 0,
-            "faltante": 1,
+            "faltante": 0,
             "inesperado": 0
           }
         },
-        "detalles": [
-          {
-            "tipo": "dxf:3dface",
-            "problema": "faltante",
-            "esperado": {}
-          },
-          {
-            "tipo": "dxf:3dface",
-            "problema": "faltante",
-            "esperado": {}
-          },
-          {
-            "tipo": "dxf:solid",
-            "problema": "faltante",
-            "esperado": {}
-          },
-          {
-            "tipo": "dxf:solid",
-            "problema": "faltante",
-            "esperado": {}
-          },
-          {
-            "tipo": "dxf:trace",
-            "problema": "faltante",
-            "esperado": {}
-          }
-        ]
+        "detalles": []
       },
       "bloques": {
         "esperados": [],
@@ -1184,18 +1045,6 @@
         "porBloque": {}
       },
       "tiposNoSoportados": [
-        {
-          "codigoBs": 28,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 31,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 32,
-          "cuantos": 1
-        },
         {
           "codigoBs": 42,
           "cuantos": 47
@@ -1433,10 +1282,6 @@
         "porBloque": {}
       },
       "tiposNoSoportados": [
-        {
-          "codigoBs": 31,
-          "cuantos": 2
-        },
         {
           "codigoBs": 42,
           "cuantos": 49
@@ -1687,10 +1532,6 @@
         "porBloque": {}
       },
       "tiposNoSoportados": [
-        {
-          "codigoBs": 31,
-          "cuantos": 2
-        },
         {
           "codigoBs": 42,
           "cuantos": 49
@@ -3358,10 +3199,6 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 31,
-          "cuantos": 6
-        },
-        {
           "codigoBs": 42,
           "cuantos": 48
         },
@@ -4219,8 +4056,8 @@
       "oraculo": "bundles/foundational-entities-ac1015/oracles/dxf/14-ellipse-spline.dxf",
       "esperadoSegunOraculo": {
         "entidades": {
-          "dxf:ellipse": 2,
-          "dxf:spline": 1
+          "ellipse": 2,
+          "spline": 1
         },
         "capas": [
           "0",
@@ -4262,38 +4099,22 @@
       },
       "entidades": {
         "porTipo": {
-          "dxf:ellipse": {
+          "ellipse": {
             "esperado": 2,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 2,
             "geometriaDistinta": 0,
-            "faltante": 2,
+            "faltante": 0,
             "inesperado": 0
           },
-          "dxf:spline": {
+          "spline": {
             "esperado": 1,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 1,
             "geometriaDistinta": 0,
-            "faltante": 1,
+            "faltante": 0,
             "inesperado": 0
           }
         },
-        "detalles": [
-          {
-            "tipo": "dxf:ellipse",
-            "problema": "faltante",
-            "esperado": {}
-          },
-          {
-            "tipo": "dxf:ellipse",
-            "problema": "faltante",
-            "esperado": {}
-          },
-          {
-            "tipo": "dxf:spline",
-            "problema": "faltante",
-            "esperado": {}
-          }
-        ]
+        "detalles": []
       },
       "bloques": {
         "esperados": [],
@@ -4304,14 +4125,6 @@
         "porBloque": {}
       },
       "tiposNoSoportados": [
-        {
-          "codigoBs": 35,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 36,
-          "cuantos": 1
-        },
         {
           "codigoBs": 42,
           "cuantos": 47

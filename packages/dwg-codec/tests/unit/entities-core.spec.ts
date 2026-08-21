@@ -398,7 +398,7 @@ test("pipeline completo: mapa → envoltura → común → tipo, geometría exac
 
 test("gemelo triste: un tipo BS desconocido es unsupported, no corrupt", () => {
   const tail = handmadeCommonTail();
-  const body = composeBody(0x1f, tail, 0, nullStream());
+  const body = composeBody(0x4a, tail, 0, nullStream());
   const error = assertDwgError(
     () => decodeAc1015EntityBody(body),
     "DWG_VERSION_DECODER_UNSUPPORTED",
@@ -572,10 +572,20 @@ test("el writer de entidades falla cerrado ante specs imposibles", () => {
   assertDwgError(
     () =>
       writeAc1015EntityBody(
-        { kind: "solid" } as unknown as DwgGeometryEntity,
+        { kind: "banana" } as unknown as DwgGeometryEntity,
         1,
       ),
     "DWG_INPUT_INVALID",
+  );
+  // Un kind del modelo que el lector decodifica pero el writer aún no emite
+  // se rechaza como pendiente DECLARADO, no como input inválido.
+  assertDwgError(
+    () =>
+      writeAc1015EntityBody(
+        { kind: "solid" } as unknown as DwgGeometryEntity,
+        1,
+      ),
+    "DWG_VERSION_DECODER_UNSUPPORTED",
   );
   assertDwgError(() => writeAc1015EntityBody(good, 0), "DWG_INPUT_INVALID");
 

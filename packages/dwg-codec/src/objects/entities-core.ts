@@ -85,6 +85,23 @@ import {
   decodeVertexPface,
 } from "./entities-polyline-classic.js";
 import {
+  AC1015_TYPE_3DFACE,
+  AC1015_TYPE_ELLIPSE,
+  AC1015_TYPE_RAY,
+  AC1015_TYPE_SOLID,
+  AC1015_TYPE_SPLINE,
+  AC1015_TYPE_TRACE,
+  AC1015_TYPE_XLINE,
+  decode3dFace,
+  decodeEllipse,
+  decodeRay,
+  decodeSolid,
+  decodeSpline,
+  decodeTrace,
+  decodeXline,
+} from "./entities-curves-surfaces.js";
+import {
+  decodeTextFields,
   finiteDecoded,
   frozenPoint3,
   readAc1015EntityCommon,
@@ -127,6 +144,15 @@ export {
   AC1015_TYPE_VERTEX_PFACE,
   AC1015_TYPE_VERTEX_PFACE_FACE,
 } from "./entities-polyline-classic.js";
+export {
+  AC1015_TYPE_3DFACE,
+  AC1015_TYPE_ELLIPSE,
+  AC1015_TYPE_RAY,
+  AC1015_TYPE_SOLID,
+  AC1015_TYPE_SPLINE,
+  AC1015_TYPE_TRACE,
+  AC1015_TYPE_XLINE,
+} from "./entities-curves-surfaces.js";
 
 /**
  * Las referencias interpretadas de una entidad (fase D4): la cabeza del flujo
@@ -260,6 +286,13 @@ const DECODED_ENTITY_TYPES: ReadonlySet<number> = new Set([
   AC1015_TYPE_VERTEX_MESH,
   AC1015_TYPE_VERTEX_PFACE,
   AC1015_TYPE_VERTEX_PFACE_FACE,
+  AC1015_TYPE_3DFACE,
+  AC1015_TYPE_ELLIPSE,
+  AC1015_TYPE_RAY,
+  AC1015_TYPE_SOLID,
+  AC1015_TYPE_SPLINE,
+  AC1015_TYPE_TRACE,
+  AC1015_TYPE_XLINE,
 ]);
 
 /** Despacha al decodificador del tipo ya verificado como soportado. */
@@ -310,6 +343,20 @@ function decodeEntitySpecific(
       return decodeVertexPface(reader);
     case AC1015_TYPE_VERTEX_PFACE_FACE:
       return decodePfaceFace(reader);
+    case AC1015_TYPE_3DFACE:
+      return decode3dFace(reader);
+    case AC1015_TYPE_ELLIPSE:
+      return decodeEllipse(reader);
+    case AC1015_TYPE_RAY:
+      return decodeRay(reader);
+    case AC1015_TYPE_XLINE:
+      return decodeXline(reader);
+    case AC1015_TYPE_SOLID:
+      return decodeSolid(reader);
+    case AC1015_TYPE_TRACE:
+      return decodeTrace(reader);
+    case AC1015_TYPE_SPLINE:
+      return decodeSpline(reader);
     default:
       // Inalcanzable: el despachador sólo se llama tras el filtro de tipos.
       // Si llega, el error es NUESTRO, no del archivo.
@@ -436,97 +483,6 @@ function decodeText(reader: DwgBitReader): DwgTextEntity {
     kind: "text" as const,
     ...decodeTextFields(reader),
   });
-}
-
-/**
- * Los campos compartidos por TEXT y por ATTRIB/ATTDEF (hecho registrado: los
- * atributos abren con la MISMA disposición de TEXT antes de sus campos
- * propios). Exportado para `entities-annotation.ts` — cero criterios gemelos.
- */
-export function decodeTextFields(reader: DwgBitReader): DwgTextFields {
-  const dataFlags = reader.readRC();
-
-  const elevation =
-    (dataFlags & 0x01) === 0
-      ? finiteDecoded(reader, reader.readRD(), "a text elevation")
-      : undefined;
-
-  const insertionX = finiteDecoded(reader, reader.readRD(), "a text insertion X");
-  const insertionY = finiteDecoded(reader, reader.readRD(), "a text insertion Y");
-  const insertion = frozenPoint2(insertionX, insertionY);
-
-  let alignment: DwgPoint2 | undefined;
-  if ((dataFlags & 0x02) === 0) {
-    const alignmentX = finiteDecoded(
-      reader,
-      reader.readDD(insertionX),
-      "a text alignment X",
-    );
-    const alignmentY = finiteDecoded(
-      reader,
-      reader.readDD(insertionY),
-      "a text alignment Y",
-    );
-    alignment = frozenPoint2(alignmentX, alignmentY);
-  }
-
-  const extrusion = readFiniteExtrusion(reader);
-  const thickness = finiteDecoded(reader, reader.readBT(), "a text thickness");
-
-  const obliqueAngle =
-    (dataFlags & 0x04) === 0
-      ? finiteDecoded(reader, reader.readRD(), "a text oblique angle")
-      : undefined;
-  const rotation =
-    (dataFlags & 0x08) === 0
-      ? finiteDecoded(reader, reader.readRD(), "a text rotation")
-      : undefined;
-
-  const height = finiteDecoded(reader, reader.readRD(), "a text height");
-  if (height < 0) {
-    // Una altura negativa no describe ningún texto: estructura corrupta
-    // (decisión de laboratorio declarada), no una convención que inventar.
-    throwDwgError(
-      "DWG_STRUCTURE_CORRUPT",
-      "input",
-      Math.floor(reader.bitPosition / 8),
-      "A text height cannot be negative.",
-    );
-  }
-
-  const widthFactor =
-    (dataFlags & 0x10) === 0
-      ? finiteDecoded(reader, reader.readRD(), "a text width factor")
-      : undefined;
-
-  // La cadena llega como bytes congelados: mismos bytes, mismo modelo.
-  const text = reader.readTV();
-  const valueBytes = new Array<number>(text.bytes.length);
-  for (let index = 0; index < text.bytes.length; index += 1) {
-    valueBytes[index] = text.bytes[index]!;
-  }
-
-  const generation = (dataFlags & 0x20) === 0 ? reader.readBS() : undefined;
-  const horizontalAlignment =
-    (dataFlags & 0x40) === 0 ? reader.readBS() : undefined;
-  const verticalAlignment =
-    (dataFlags & 0x80) === 0 ? reader.readBS() : undefined;
-
-  return {
-    insertion,
-    elevation,
-    alignment,
-    thickness,
-    extrusion,
-    obliqueAngle,
-    rotation,
-    height,
-    widthFactor,
-    valueBytes: Object.freeze(valueBytes),
-    generation,
-    horizontalAlignment,
-    verticalAlignment,
-  };
 }
 
 /** Un 3BD validado como punto finito del modelo neutral. */

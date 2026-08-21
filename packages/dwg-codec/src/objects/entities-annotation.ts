@@ -25,8 +25,8 @@ import type {
   DwgPoint3,
   DwgSeqendEntity,
 } from "../model/entity-geometry.js";
-import { decodeTextFields } from "./entities-core.js";
 import {
+  decodeTextFields,
   finiteDecoded,
   frozenPoint3,
 } from "./entity-common.js";

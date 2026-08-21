@@ -5,6 +5,7 @@ import "./unit/ac1015-writer.spec.js";
 import "./unit/api.spec.js";
 import "./unit/binary.spec.js";
 import "./unit/bitcodes.spec.js";
+import "./unit/entities-annotation.spec.js";
 import "./unit/entities-core.spec.js";
 import "./unit/entities-poly.spec.js";
 import "./unit/entity-insert.spec.js";
