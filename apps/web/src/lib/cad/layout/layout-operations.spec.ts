@@ -64,6 +64,41 @@ const METADATA = {
   // Margen ISO 5457: 20 mm de archivado a la izquierda.
   assert.deepEqual(a1.pageSetup?.margins, { top: 10, right: 10, bottom: 10, left: 20 });
   assert.equal(a1.viewports?.length, 1, "una hoja nace con su ventana");
+  // Y la ventana nace DONDE esos márgenes la ponen: la plantilla entra por la
+  // misma puerta que PAGESETUP y la ventana queda recolocada. Nacer en x=10
+  // —dentro del margen de archivado, por donde se perfora el plano— era el
+  // defecto: la hoja declaraba 20 mm y la ventana usaba 10.
+  assert.deepEqual(a1.viewports![0].paperBounds, { x: 20, y: 10, width: 811, height: 544 });
+  assert.deepEqual(
+    a1.viewports![0].paperBounds,
+    cadPrintableBounds(a1),
+    "la ventana llena exactamente el área imprimible de la hoja definitiva",
+  );
+
+  // La escala automática se ajusta contra la ventana RECOLOCADA. En A3 apaisado
+  // la ventana definitiva mide 390 mm y el modelo a 1:50 mediría 400: encajaba
+  // sólo porque la ventana vieja invadía el margen. La escala honesta es 1:75.
+  const a3 = createCadLayout([], {
+    id: "layout:corte",
+    name: "Corte",
+    templateId: "a3-landscape",
+    modelBounds: MODEL,
+    unit: "mm",
+    metadata: METADATA,
+  });
+  assert.deepEqual(a3.viewports![0].paperBounds, { x: 20, y: 10, width: 390, height: 247 });
+  assert.equal(a3.viewports![0].scale, 75, "la escala se ajusta a la ventana definitiva");
+  // Una escala pedida explícitamente es contrato y NO se reajusta.
+  const fija = createCadLayout([], {
+    id: "layout:corte-50",
+    name: "Corte 1:50",
+    templateId: "a3-landscape",
+    modelBounds: MODEL,
+    unit: "mm",
+    scale: 50,
+    metadata: METADATA,
+  });
+  assert.equal(fija.viewports![0].scale, 50);
 
   const a4 = createCadLayout([a1], {
     id: "layout:detalle",
