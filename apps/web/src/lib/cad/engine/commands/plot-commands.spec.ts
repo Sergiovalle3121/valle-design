@@ -153,11 +153,12 @@ const messages = (effects: readonly CadCommandEffect[]) =>
   // nace en A1 y se pasa a A3. Antes la ventana conservaba los `paperBounds`
   // de A1 y la geometría caía fuera del área imprimible del A3.
   //
-  // La lámina se crea SIN plantilla a propósito: la plantilla ISO reescribe los
-  // márgenes DESPUÉS de colocar la ventana (la ventana nace invadiendo el
-  // margen de archivado), y el recolocado conserva esa invasión en proporción
-  // porque recoloca, no corrige láminas torcidas. Con márgenes consistentes la
-  // afirmación es exacta: dentro del área imprimible, sin tolerancias blandas.
+  // La lámina se crea sin plantilla: márgenes uniformes de 10 mm, el caso
+  // mínimo. (Con plantilla la afirmación también valdría: desde que
+  // `createCadLayout` aplica la plantilla a través de
+  // `applyCadPageSetupToLayout`, la ventana nace dentro de los márgenes ISO;
+  // eso lo fija el spec de layout-operations.) La afirmación es exacta:
+  // dentro del área imprimible, sin tolerancias blandas.
   const consistente = createCadLayout([], {
     id: "layout:planta",
     name: "Planta",
