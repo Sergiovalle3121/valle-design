@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-decoder-matrix-v1",
   "generadoPor": "node scripts/dwg/dwg-evidence.mjs",
-  "generadoEn": "2026-08-21T06:12:24.047Z",
+  "generadoEn": "2026-08-21T07:56:43.481Z",
   "environment": {
     "node": "v22.18.0",
     "platform": "win32",
@@ -15,55 +15,58 @@
     "totalMemoryBytes": 7896625152,
     "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos lógicos), 7.9 GB de RAM, Windows_NT 10.0.26200"
   },
-  "declaracion": "Capacidades promovidas con corpus independiente admitido; ver `capacidades` y `entidades` para el alcance exacto.",
+  "declaracion": "CERO BUNDLES ADMITIDOS, CERO CAPACIDADES PROMOVIDAS. No hay decodificador DWG en el producto, no hay importación DWG y no se afirma compatibilidad con ningún archivo ni con ningún software de terceros. Este artefacto existe para que la ausencia sea MEDIBLE y para que la evidencia se genere sola el día que haya corpus con derechos.",
   "reglaDePromocion": "Una capacidad se promueve sólo si el laboratorio la declara `supported` Y hay ≥1 bundle admitido Y ≥2 validaciones independientes autorizadas. El reader y el writer de Valle nunca son el único oráculo (CORPUS_POLICY.md).",
   "limiteDeLaEvidencia": "Sin corpus independiente admitido: lo que el laboratorio decodifica está verificado sólo contra fixtures que genera él mismo, y eso prueba consistencia interna, no compatibilidad con ningún archivo ni con ningún software ajeno.",
   "disponibilidadEnProducto": false,
   "corpus": {
-    "estado": "verified",
-    "origen": "D:\\dev\\valle-design-dwg-conformance",
-    "commitFijado": "ca1072cd6ce62bd1831c49220d486219b045d262",
-    "indiceSha256": "2c63373bf157e721d46ce4c4659f89f6d49d464d4f8477ef941fea7edd746e05",
-    "bundlesAdmitidos": 6,
-    "validacionesIndependientes": 12,
-    "oraculosIndependientes": 59,
-    "fixtures": 47,
-    "versionesCubiertas": [
-      "AC1015",
-      "AC1018",
-      "AC1024",
-      "AC1027",
-      "AC1032"
-    ]
+    "estado": "unavailable",
+    "origen": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance.git",
+    "commitFijado": "a60ebe2a71dae684ccd6c72d5f1a388be1777585",
+    "indiceSha256": null,
+    "bundlesAdmitidos": 0,
+    "validacionesIndependientes": 0,
+    "oraculosIndependientes": 0,
+    "fixtures": 0,
+    "versionesCubiertas": [],
+    "motivo": "sin VALLE_DWG_CORPUS_MIRROR y sin VALLE_DWG_CORPUS_TOKEN: no se descargó nada y no se afirma nada"
   },
   "resumen": {
-    "bundlesAdmitidos": 6,
-    "validacionesIndependientes": 12,
+    "bundlesAdmitidos": 0,
+    "validacionesIndependientes": 0,
     "capacidadesEvaluadas": 8,
-    "capacidadesPromovidas": 2,
-    "tiposDecodificadosEnLaboratorio": 13,
+    "capacidadesPromovidas": 0,
+    "tiposDecodificadosEnLaboratorio": 45,
     "tiposVerificadosIndependientemente": 0,
-    "geometriasNeutrales": 7
+    "geometriasNeutrales": 24
   },
   "capacidades": [
     {
       "id": "signatureDetection",
       "estadoLaboratorio": "supported",
-      "promovida": true,
-      "bloqueos": []
+      "promovida": false,
+      "bloqueos": [
+        "cero bundles admitidos en el corpus independiente",
+        "faltan dos validaciones independientes autorizadas"
+      ]
     },
     {
       "id": "boundedBinaryPrimitives",
       "estadoLaboratorio": "supported",
-      "promovida": true,
-      "bloqueos": []
+      "promovida": false,
+      "bloqueos": [
+        "cero bundles admitidos en el corpus independiente",
+        "faltan dos validaciones independientes autorizadas"
+      ]
     },
     {
       "id": "ac1015Envelope",
       "estadoLaboratorio": "experimental-lab",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"experimental-lab\""
+        "el laboratorio la declara \"experimental-lab\"",
+        "cero bundles admitidos en el corpus independiente",
+        "faltan dos validaciones independientes autorizadas"
       ]
     },
     {
@@ -71,7 +74,9 @@
       "estadoLaboratorio": "experimental-lab-partial",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"experimental-lab-partial\""
+        "el laboratorio la declara \"experimental-lab-partial\"",
+        "cero bundles admitidos en el corpus independiente",
+        "faltan dos validaciones independientes autorizadas"
       ]
     },
     {
@@ -79,7 +84,9 @@
       "estadoLaboratorio": "unsupported",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"unsupported\""
+        "el laboratorio la declara \"unsupported\"",
+        "cero bundles admitidos en el corpus independiente",
+        "faltan dos validaciones independientes autorizadas"
       ]
     },
     {
@@ -87,7 +94,9 @@
       "estadoLaboratorio": "unsupported",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"unsupported\""
+        "el laboratorio la declara \"unsupported\"",
+        "cero bundles admitidos en el corpus independiente",
+        "faltan dos validaciones independientes autorizadas"
       ]
     },
     {
@@ -95,7 +104,9 @@
       "estadoLaboratorio": "experimental-lab-writer",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"experimental-lab-writer\""
+        "el laboratorio la declara \"experimental-lab-writer\"",
+        "cero bundles admitidos en el corpus independiente",
+        "faltan dos validaciones independientes autorizadas"
       ]
     },
     {
@@ -103,7 +114,9 @@
       "estadoLaboratorio": "experimental-lab-own-corpus",
       "promovida": false,
       "bloqueos": [
-        "el laboratorio la declara \"experimental-lab-own-corpus\""
+        "el laboratorio la declara \"experimental-lab-own-corpus\"",
+        "cero bundles admitidos en el corpus independiente",
+        "faltan dos validaciones independientes autorizadas"
       ]
     }
   ],
@@ -114,7 +127,23 @@
       "modulo": "entities-core.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 6
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "ATTRIB",
+      "codigoBs": 2,
+      "modulo": "entities-annotation.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "ATTDEF",
+      "codigoBs": 3,
+      "modulo": "entities-annotation.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
     },
     {
       "tipo": "BLOCK",
@@ -122,7 +151,7 @@
       "modulo": "table-block.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 6
+      "bundlesQueLoCubren": 0
     },
     {
       "tipo": "ENDBLK",
@@ -130,7 +159,15 @@
       "modulo": "table-block.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 6
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "SEQEND",
+      "codigoBs": 6,
+      "modulo": "entities-annotation.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
     },
     {
       "tipo": "INSERT",
@@ -138,7 +175,63 @@
       "modulo": "entity-insert.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 6
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "VERTEX_2D",
+      "codigoBs": 10,
+      "modulo": "entities-polyline-classic.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "VERTEX_3D",
+      "codigoBs": 11,
+      "modulo": "entities-polyline-classic.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "VERTEX_MESH",
+      "codigoBs": 12,
+      "modulo": "entities-polyline-classic.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "VERTEX_PFACE",
+      "codigoBs": 13,
+      "modulo": "entities-polyline-classic.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "VERTEX_PFACE_FACE",
+      "codigoBs": 14,
+      "modulo": "entities-polyline-classic.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "POLYLINE_2D",
+      "codigoBs": 15,
+      "modulo": "entities-polyline-classic.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "POLYLINE_3D",
+      "codigoBs": 16,
+      "modulo": "entities-polyline-classic.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
     },
     {
       "tipo": "ARC",
@@ -146,7 +239,7 @@
       "modulo": "entities-core.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 6
+      "bundlesQueLoCubren": 0
     },
     {
       "tipo": "CIRCLE",
@@ -154,7 +247,7 @@
       "modulo": "entities-core.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 6
+      "bundlesQueLoCubren": 0
     },
     {
       "tipo": "LINE",
@@ -162,7 +255,63 @@
       "modulo": "entities-core.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 6
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "DIM_ORDINATE",
+      "codigoBs": 20,
+      "modulo": "entities-annotation.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "DIM_LINEAR",
+      "codigoBs": 21,
+      "modulo": "entities-annotation.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "DIM_ALIGNED",
+      "codigoBs": 22,
+      "modulo": "entities-annotation.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "DIM_ANGULAR_3PT",
+      "codigoBs": 23,
+      "modulo": "entities-annotation.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "DIM_ANGULAR_2LN",
+      "codigoBs": 24,
+      "modulo": "entities-annotation.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "DIM_RADIUS",
+      "codigoBs": 25,
+      "modulo": "entities-annotation.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "DIM_DIAMETER",
+      "codigoBs": 26,
+      "modulo": "entities-annotation.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
     },
     {
       "tipo": "POINT",
@@ -170,7 +319,119 @@
       "modulo": "entities-core.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 6
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "3DFACE",
+      "codigoBs": 28,
+      "modulo": "entities-curves-surfaces.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "POLYLINE_PFACE",
+      "codigoBs": 29,
+      "modulo": "entities-polyline-classic.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "POLYLINE_MESH",
+      "codigoBs": 30,
+      "modulo": "entities-polyline-classic.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "SOLID",
+      "codigoBs": 31,
+      "modulo": "entities-curves-surfaces.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "TRACE",
+      "codigoBs": 32,
+      "modulo": "entities-curves-surfaces.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "VIEWPORT",
+      "codigoBs": 34,
+      "modulo": "entities-complex.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "ELLIPSE",
+      "codigoBs": 35,
+      "modulo": "entities-curves-surfaces.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "SPLINE",
+      "codigoBs": 36,
+      "modulo": "entities-curves-surfaces.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "RAY",
+      "codigoBs": 40,
+      "modulo": "entities-curves-surfaces.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "XLINE",
+      "codigoBs": 41,
+      "modulo": "entities-curves-surfaces.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "MTEXT",
+      "codigoBs": 44,
+      "modulo": "entities-annotation.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "LEADER",
+      "codigoBs": 45,
+      "modulo": "entities-complex.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "TOLERANCE",
+      "codigoBs": 46,
+      "modulo": "entities-complex.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "MLINE",
+      "codigoBs": 47,
+      "modulo": "entities-complex.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
     },
     {
       "tipo": "BLOCK_CONTROL",
@@ -178,7 +439,7 @@
       "modulo": "table-block.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 6
+      "bundlesQueLoCubren": 0
     },
     {
       "tipo": "BLOCK_HEADER",
@@ -186,7 +447,7 @@
       "modulo": "table-block.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 6
+      "bundlesQueLoCubren": 0
     },
     {
       "tipo": "LAYER_CONTROL",
@@ -194,7 +455,7 @@
       "modulo": "table-layer.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 6
+      "bundlesQueLoCubren": 0
     },
     {
       "tipo": "LAYER",
@@ -202,7 +463,7 @@
       "modulo": "table-layer.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 6
+      "bundlesQueLoCubren": 0
     },
     {
       "tipo": "LWPOLYLINE",
@@ -210,7 +471,15 @@
       "modulo": "entities-poly.ts",
       "decodificadoEnLaboratorio": true,
       "verificadoIndependientemente": false,
-      "bundlesQueLoCubren": 6
+      "bundlesQueLoCubren": 0
+    },
+    {
+      "tipo": "HATCH",
+      "codigoBs": 78,
+      "modulo": "entities-complex.ts",
+      "decodificadoEnLaboratorio": true,
+      "verificadoIndependientemente": false,
+      "bundlesQueLoCubren": 0
     }
   ],
   "geometriasNeutrales": [
@@ -220,6 +489,23 @@
     "arc",
     "lwpolyline",
     "text",
-    "insert"
+    "insert",
+    "attrib",
+    "attdef",
+    "seqend",
+    "mtext",
+    "dimension",
+    "polymesh",
+    "ellipse",
+    "spline",
+    "ray",
+    "xline",
+    "solid",
+    "trace",
+    "leader",
+    "tolerance",
+    "mline",
+    "viewport",
+    "hatch"
   ]
 }
