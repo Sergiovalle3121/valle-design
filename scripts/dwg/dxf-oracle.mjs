@@ -57,7 +57,13 @@ export function parseOracleDxf(text) {
       entity.parent.vertices.push({
         x: entity.x ?? 0,
         y: entity.y ?? 0,
+        z: entity.z ?? 0,
         bulge: entity.bulge ?? 0,
+        flags: entity.flags ?? 0,
+        g71: entity.g71 ?? 0,
+        g72: entity.g72 ?? 0,
+        g73: entity.g73 ?? 0,
+        g74: entity.g74 ?? 0,
       });
       entity = entity.parent.self;
       return;
@@ -159,6 +165,10 @@ function startEntity(type, sink) {
     "LWPOLYLINE",
     "VERTEX",
     "SEQEND",
+    "MTEXT",
+    "ATTRIB",
+    "ATTDEF",
+    "DIMENSION",
   ]);
   if (!known.has(type)) {
     const record = { type, layer: "0", unknown: true };
@@ -188,7 +198,18 @@ function feedEntity(entity, code, value, num) {
       entity.layer = value.trim();
       break;
     case 2:
-      entity.blockName = value.trim();
+      // En MTEXT/ATTRIB/ATTDEF/DIMENSION el 2 no es nombre de bloque: es el
+      // tag del atributo o el nombre del bloque anónimo de la cota.
+      if (entity.type === "ATTRIB" || entity.type === "ATTDEF") {
+        entity.tag = value.trim();
+      } else {
+        entity.blockName = value.trim();
+      }
+      break;
+    case 3:
+      // Continuación de texto MTEXT o prompt de ATTDEF.
+      if (entity.type === "MTEXT") entity.text3 = (entity.text3 ?? "") + value;
+      else if (entity.type === "ATTDEF") entity.prompt = value;
       break;
     case 1:
       entity.text = value;
@@ -210,6 +231,24 @@ function feedEntity(entity, code, value, num) {
       break;
     case 31:
       entity.z2 = num(value);
+      break;
+    case 13:
+      entity.x13 = num(value);
+      break;
+    case 23:
+      entity.y13 = num(value);
+      break;
+    case 14:
+      entity.x14 = num(value);
+      break;
+    case 24:
+      entity.y14 = num(value);
+      break;
+    case 15:
+      entity.x15 = num(value);
+      break;
+    case 25:
+      entity.y15 = num(value);
       break;
     case 40:
       entity.r40 = num(value);
@@ -235,6 +274,18 @@ function feedEntity(entity, code, value, num) {
     case 70:
       entity.flags = Number.parseInt(value, 10);
       if (entity.type === "POLYLINE") entity.closed = (entity.flags & 1) === 1;
+      break;
+    case 71:
+      entity.g71 = Number.parseInt(value, 10);
+      break;
+    case 72:
+      entity.g72 = Number.parseInt(value, 10);
+      break;
+    case 73:
+      entity.g73 = Number.parseInt(value, 10);
+      break;
+    case 74:
+      entity.g74 = Number.parseInt(value, 10);
       break;
     default:
       break;
@@ -301,10 +352,120 @@ export function expectedFromOracle(record) {
           rotation: (record.angle50 ?? 0) * DEG,
         },
       };
-    case "POLYLINE":
+    case "MTEXT":
+      return {
+        kind: "mtext",
+        layer: record.layer,
+        fields: {
+          insertion: [record.x ?? 0, record.y ?? 0],
+          height: record.r40 ?? 0,
+          value: (record.text3 ?? "") + (record.text ?? ""),
+        },
+      };
+    case "ATTRIB":
+    case "ATTDEF":
+      return {
+        kind: record.type.toLowerCase(),
+        layer: record.layer,
+        fields: {
+          insertion: [record.x ?? 0, record.y ?? 0],
+          height: record.r40 ?? 0,
+          value: record.text ?? "",
+          tag: record.tag ?? "",
+        },
+      };
+    case "DIMENSION": {
+      // El 70 del DXF empaqueta el tipo en los bits 0-2 más banderas (32 =
+      // referencia a bloque, 64 = ordinate en X, 128 = texto recolocado).
+      const type = (record.flags ?? 0) & 7;
+      const kinds = [
+        "linear",
+        "aligned",
+        "angular2ln",
+        "diameter",
+        "radius",
+        "angular3pt",
+        "ordinate",
+      ];
+      // El punto medio del texto (11/21) NO se compara: la herramienta
+      // conversora regenera el bloque anónimo de la cota y recoloca el
+      // texto, así que ese campo mide su motor de layout, no el decoder
+      // (tolerancia declarada; observado en 19/20: sólo textMid difiere).
+      // En las angulares el grupo 10 también es DERIVADO (el punto del arco
+      // de cota, recalculado por el conversor): se comparan los puntos
+      // MEDIDOS 13/14/15, que sí son geometría de la fuente.
+      const kind = kinds[type] ?? `unknown-${type}`;
+      const fields =
+        kind === "angular3pt" || kind === "angular2ln"
+          ? {
+              dimensionKind: kind,
+              point13: [record.x13 ?? 0, record.y13 ?? 0],
+              point14: [record.x14 ?? 0, record.y14 ?? 0],
+              point15: [record.x15 ?? 0, record.y15 ?? 0],
+            }
+          : {
+              dimensionKind: kind,
+              defPoint: [record.x ?? 0, record.y ?? 0, record.z ?? 0],
+            };
+      return { kind: "dimension", layer: record.layer, fields };
+    }
+    case "POLYLINE": {
+      const flags = record.flags ?? 0;
+      const vertices = record.vertices ?? [];
+      if (flags & 8) {
+        // Polilínea 3D: se conserva como su propia clase con vértices XYZ.
+        return {
+          kind: "polyline3d",
+          layer: record.layer,
+          fields: {
+            closed: (flags & 1) === 1,
+            vertices: vertices.map((v) => [v.x, v.y, v.z]),
+          },
+        };
+      }
+      if (flags & 16) {
+        // Malla M×N: recuentos en 71/72 y vértices XYZ.
+        return {
+          kind: "polymesh",
+          layer: record.layer,
+          fields: {
+            mSize: record.g71 ?? 0,
+            nSize: record.g72 ?? 0,
+            vertices: vertices.map((v) => [v.x, v.y, v.z]),
+          },
+        };
+      }
+      if (flags & 64) {
+        // Malla polyface: separa posiciones (70 con bit 64) de caras (70 con
+        // bit 128 sin bit 64), cuyos índices viajan en 71–74.
+        const positions = vertices.filter((v) => (v.flags & 64) !== 0);
+        const faces = vertices.filter(
+          (v) => (v.flags & 128) !== 0 && (v.flags & 64) === 0,
+        );
+        return {
+          kind: "polyfaceMesh",
+          layer: record.layer,
+          fields: {
+            vertices: positions.map((v) => [v.x, v.y, v.z]),
+            faces: faces.map((v) => [v.g71, v.g72, v.g73, v.g74]),
+          },
+        };
+      }
+      // La POLYLINE 2D del dialecto R12 se guarda como LWPOLYLINE en
+      // contenedores modernos O como POLYLINE 2D clásica; ambas lecturas se
+      // proyectan al mismo vocabulario para compararse.
+      return {
+        kind: "lwpolyline",
+        layer: record.layer,
+        fields: {
+          closed: record.closed ?? false,
+          vertices: vertices.map((v) => [v.x, v.y]),
+          bulges: vertices.map((v) => v.bulge ?? 0),
+          constantWidth: record.r40 ?? 0,
+        },
+      };
+    }
     case "LWPOLYLINE":
-      // Equivalencia declarada del corpus: la POLYLINE 2D clásica del DXF R12
-      // se guarda como LWPOLYLINE en contenedores modernos.
       return {
         kind: "lwpolyline",
         layer: record.layer,

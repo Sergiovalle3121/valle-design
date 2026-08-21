@@ -408,11 +408,37 @@ function typeOf(entity: DwgGeometryEntity): number {
       return AC1015_TYPE_TEXT;
     case "insert":
       return AC1015_TYPE_INSERT;
+    default:
+      // El lector ya decodifica más tipos de los que este writer emite; un
+      // modelo que el writer no sabe escribir se rechaza cerrado y declarado,
+      // no se emite a medias (pendiente declarado de la ola de escritura).
+      throwDwgError(
+        "DWG_VERSION_DECODER_UNSUPPORTED",
+        "unsupported",
+        0,
+        `Writing a "${entity.kind}" entity is not implemented by the laboratory writer yet.`,
+      );
   }
 }
 
+/**
+ * El subconjunto del modelo neutral que este writer sabe emitir hoy. El
+ * lector decodifica más tipos; escribirlos es pendiente DECLARADO de la ola
+ * de escritura — un modelo fuera de esta unión se rechaza cerrado.
+ */
+type Ac1015WritableEntity =
+  | import("../model/entity-geometry.js").DwgLineEntity
+  | import("../model/entity-geometry.js").DwgPointEntity
+  | import("../model/entity-geometry.js").DwgCircleEntity
+  | import("../model/entity-geometry.js").DwgArcEntity
+  | import("../model/entity-geometry.js").DwgLwPolylineEntity
+  | import("../model/entity-geometry.js").DwgTextEntity
+  | import("../model/entity-geometry.js").DwgInsertEntity;
+
 /** Geometría no finita o specs imposibles: el writer falla cerrado. */
-function validateEntity(entity: DwgGeometryEntity): void {
+function validateEntity(
+  entity: DwgGeometryEntity,
+): asserts entity is Ac1015WritableEntity {
   if (
     typeof entity !== "object" ||
     entity === null ||
@@ -422,8 +448,25 @@ function validateEntity(entity: DwgGeometryEntity): void {
       "DWG_INPUT_INVALID",
       "input",
       0,
-      "An entity spec must be one of the phase-D2 geometry kinds.",
+      "An entity spec must be one of the neutral geometry kinds.",
     );
+  }
+  switch (entity.kind) {
+    case "line":
+    case "point":
+    case "circle":
+    case "arc":
+    case "lwpolyline":
+    case "text":
+    case "insert":
+      break;
+    default:
+      throwDwgError(
+        "DWG_VERSION_DECODER_UNSUPPORTED",
+        "unsupported",
+        0,
+        `Writing a "${entity.kind}" entity is not implemented by the laboratory writer yet.`,
+      );
   }
   const invalid = (): never =>
     throwDwgError(

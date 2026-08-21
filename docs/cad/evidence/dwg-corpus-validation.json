@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-corpus-validation-v1",
   "generadoPor": "node scripts/dwg/validate-corpus.mjs",
-  "generadoEn": "2026-08-21T05:52:03.347Z",
+  "generadoEn": "2026-08-21T06:35:14.012Z",
   "environment": {
     "node": "v22.18.0",
     "platform": "win32",
@@ -15,78 +15,170 @@
     "totalMemoryBytes": 7896625152,
     "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos lógicos), 7.9 GB de RAM, Windows_NT 10.0.26200"
   },
-  "veredicto": "El decoder abre los 15 DWG AC1015 del corpus; ver matriz para el detalle por entidad.",
+  "veredicto": "El decoder abre los 25 DWG AC1015 del corpus; ver matriz para el detalle por entidad.",
   "reglaCleanRoom": "Toda discrepancia se REGISTRA aquí y no se corrige en esta ola: corregir el decoder exige registrar antes el hecho de formato en packages/dwg-codec/SOURCE_REGISTER.json (ADR-0007).",
   "alcance": "Sólo fixtures AC1015 del corpus admitido y verificado por hash. El DXF oráculo es la fuente de autoría propia congelada en el mismo bundle; los DWG los produjo una implementación independiente (ver docs/TOOLS.md del repo hermano).",
   "corpus": {
-    "commit": "ca1072cd6ce62bd1831c49220d486219b045d262",
-    "indexSha256": "2c63373bf157e721d46ce4c4659f89f6d49d464d4f8477ef941fea7edd746e05",
+    "commit": "a60ebe2a71dae684ccd6c72d5f1a388be1777585",
+    "indexSha256": "59c69c1ba3a9524a5ca5fb246c7b0226e9980e0c3b9cdbdc2d6e2180d49ee07a",
     "transporte": "local-mirror",
     "bundlesAc1015": [
+      "entity-wave-2-ac1015",
       "foundational-entities-ac1015",
       "valle.fundacional.ac1015.001"
     ]
   },
   "resumen": {
-    "archivosAc1015": 15,
-    "abiertos": 15,
+    "archivosAc1015": 25,
+    "abiertos": 25,
     "noAbiertos": 0,
     "sinOraculo": 0,
     "matrizEntidades": {
-      "dxf:mtext": {
-        "esperado": 3,
-        "leidoCorrecto": 0,
-        "geometriaDistinta": 0,
-        "faltante": 3,
-        "inesperado": 0
-      },
-      "dxf:dimension": {
-        "esperado": 3,
-        "leidoCorrecto": 0,
-        "geometriaDistinta": 0,
-        "faltante": 3,
-        "inesperado": 0
-      },
-      "line": {
-        "esperado": 24,
-        "leidoCorrecto": 24,
-        "geometriaDistinta": 0,
-        "faltante": 0,
-        "inesperado": 0
-      },
-      "dxf:hatch": {
+      "dxf:leader": {
         "esperado": 2,
         "leidoCorrecto": 0,
         "geometriaDistinta": 0,
         "faltante": 2,
         "inesperado": 0
       },
-      "dxf:attrib": {
-        "esperado": 4,
+      "dxf:tolerance": {
+        "esperado": 1,
         "leidoCorrecto": 0,
         "geometriaDistinta": 0,
-        "faltante": 4,
+        "faltante": 1,
         "inesperado": 0
       },
-      "insert": {
+      "mtext": {
+        "esperado": 5,
+        "leidoCorrecto": 5,
+        "geometriaDistinta": 0,
+        "faltante": 0,
+        "inesperado": 0
+      },
+      "dxf:ray": {
+        "esperado": 2,
+        "leidoCorrecto": 0,
+        "geometriaDistinta": 0,
+        "faltante": 2,
+        "inesperado": 0
+      },
+      "dxf:xline": {
+        "esperado": 2,
+        "leidoCorrecto": 0,
+        "geometriaDistinta": 0,
+        "faltante": 2,
+        "inesperado": 0
+      },
+      "line": {
+        "esperado": 39,
+        "leidoCorrecto": 39,
+        "geometriaDistinta": 0,
+        "faltante": 0,
+        "inesperado": 0
+      },
+      "dxf:3dface": {
+        "esperado": 2,
+        "leidoCorrecto": 0,
+        "geometriaDistinta": 0,
+        "faltante": 2,
+        "inesperado": 0
+      },
+      "dxf:solid": {
+        "esperado": 2,
+        "leidoCorrecto": 0,
+        "geometriaDistinta": 0,
+        "faltante": 2,
+        "inesperado": 0
+      },
+      "dxf:trace": {
+        "esperado": 1,
+        "leidoCorrecto": 0,
+        "geometriaDistinta": 0,
+        "faltante": 1,
+        "inesperado": 0
+      },
+      "circle": {
+        "esperado": 6,
+        "leidoCorrecto": 6,
+        "geometriaDistinta": 0,
+        "faltante": 0,
+        "inesperado": 0
+      },
+      "dimension": {
         "esperado": 8,
         "leidoCorrecto": 8,
         "geometriaDistinta": 0,
         "faltante": 0,
         "inesperado": 0
       },
-      "dxf:attdef": {
+      "dxf:hatch": {
+        "esperado": 4,
+        "leidoCorrecto": 0,
+        "geometriaDistinta": 0,
+        "faltante": 4,
+        "inesperado": 0
+      },
+      "attrib": {
+        "esperado": 7,
+        "leidoCorrecto": 7,
+        "geometriaDistinta": 0,
+        "faltante": 0,
+        "inesperado": 0
+      },
+      "insert": {
+        "esperado": 10,
+        "leidoCorrecto": 10,
+        "geometriaDistinta": 0,
+        "faltante": 0,
+        "inesperado": 0
+      },
+      "attdef": {
+        "esperado": 5,
+        "leidoCorrecto": 5,
+        "geometriaDistinta": 0,
+        "faltante": 0,
+        "inesperado": 0
+      },
+      "dxf:viewport": {
         "esperado": 2,
         "leidoCorrecto": 0,
         "geometriaDistinta": 0,
         "faltante": 2,
         "inesperado": 0
       },
-      "lwpolyline": {
-        "esperado": 6,
-        "leidoCorrecto": 3,
+      "dxf:mline": {
+        "esperado": 2,
+        "leidoCorrecto": 0,
         "geometriaDistinta": 0,
-        "faltante": 3,
+        "faltante": 2,
+        "inesperado": 0
+      },
+      "polyfaceMesh": {
+        "esperado": 1,
+        "leidoCorrecto": 1,
+        "geometriaDistinta": 0,
+        "faltante": 0,
+        "inesperado": 0
+      },
+      "polymesh": {
+        "esperado": 1,
+        "leidoCorrecto": 1,
+        "geometriaDistinta": 0,
+        "faltante": 0,
+        "inesperado": 0
+      },
+      "lwpolyline": {
+        "esperado": 5,
+        "leidoCorrecto": 5,
+        "geometriaDistinta": 0,
+        "faltante": 0,
+        "inesperado": 0
+      },
+      "polyline3d": {
+        "esperado": 1,
+        "leidoCorrecto": 1,
+        "geometriaDistinta": 0,
+        "faltante": 0,
         "inesperado": 0
       },
       "dxf:ellipse": {
@@ -117,13 +209,6 @@
         "faltante": 0,
         "inesperado": 0
       },
-      "circle": {
-        "esperado": 3,
-        "leidoCorrecto": 3,
-        "geometriaDistinta": 0,
-        "faltante": 0,
-        "inesperado": 0
-      },
       "point": {
         "esperado": 1,
         "leidoCorrecto": 1,
@@ -132,63 +217,154 @@
         "inesperado": 0
       }
     },
-    "discrepanciasRegistradas": 20
+    "discrepanciasRegistradas": 23
   },
   "matrizEntidades": {
-    "dxf:mtext": {
-      "esperado": 3,
-      "leidoCorrecto": 0,
-      "geometriaDistinta": 0,
-      "faltante": 3,
-      "inesperado": 0
-    },
-    "dxf:dimension": {
-      "esperado": 3,
-      "leidoCorrecto": 0,
-      "geometriaDistinta": 0,
-      "faltante": 3,
-      "inesperado": 0
-    },
-    "line": {
-      "esperado": 24,
-      "leidoCorrecto": 24,
-      "geometriaDistinta": 0,
-      "faltante": 0,
-      "inesperado": 0
-    },
-    "dxf:hatch": {
+    "dxf:leader": {
       "esperado": 2,
       "leidoCorrecto": 0,
       "geometriaDistinta": 0,
       "faltante": 2,
       "inesperado": 0
     },
-    "dxf:attrib": {
-      "esperado": 4,
+    "dxf:tolerance": {
+      "esperado": 1,
       "leidoCorrecto": 0,
       "geometriaDistinta": 0,
-      "faltante": 4,
+      "faltante": 1,
       "inesperado": 0
     },
-    "insert": {
+    "mtext": {
+      "esperado": 5,
+      "leidoCorrecto": 5,
+      "geometriaDistinta": 0,
+      "faltante": 0,
+      "inesperado": 0
+    },
+    "dxf:ray": {
+      "esperado": 2,
+      "leidoCorrecto": 0,
+      "geometriaDistinta": 0,
+      "faltante": 2,
+      "inesperado": 0
+    },
+    "dxf:xline": {
+      "esperado": 2,
+      "leidoCorrecto": 0,
+      "geometriaDistinta": 0,
+      "faltante": 2,
+      "inesperado": 0
+    },
+    "line": {
+      "esperado": 39,
+      "leidoCorrecto": 39,
+      "geometriaDistinta": 0,
+      "faltante": 0,
+      "inesperado": 0
+    },
+    "dxf:3dface": {
+      "esperado": 2,
+      "leidoCorrecto": 0,
+      "geometriaDistinta": 0,
+      "faltante": 2,
+      "inesperado": 0
+    },
+    "dxf:solid": {
+      "esperado": 2,
+      "leidoCorrecto": 0,
+      "geometriaDistinta": 0,
+      "faltante": 2,
+      "inesperado": 0
+    },
+    "dxf:trace": {
+      "esperado": 1,
+      "leidoCorrecto": 0,
+      "geometriaDistinta": 0,
+      "faltante": 1,
+      "inesperado": 0
+    },
+    "circle": {
+      "esperado": 6,
+      "leidoCorrecto": 6,
+      "geometriaDistinta": 0,
+      "faltante": 0,
+      "inesperado": 0
+    },
+    "dimension": {
       "esperado": 8,
       "leidoCorrecto": 8,
       "geometriaDistinta": 0,
       "faltante": 0,
       "inesperado": 0
     },
-    "dxf:attdef": {
+    "dxf:hatch": {
+      "esperado": 4,
+      "leidoCorrecto": 0,
+      "geometriaDistinta": 0,
+      "faltante": 4,
+      "inesperado": 0
+    },
+    "attrib": {
+      "esperado": 7,
+      "leidoCorrecto": 7,
+      "geometriaDistinta": 0,
+      "faltante": 0,
+      "inesperado": 0
+    },
+    "insert": {
+      "esperado": 10,
+      "leidoCorrecto": 10,
+      "geometriaDistinta": 0,
+      "faltante": 0,
+      "inesperado": 0
+    },
+    "attdef": {
+      "esperado": 5,
+      "leidoCorrecto": 5,
+      "geometriaDistinta": 0,
+      "faltante": 0,
+      "inesperado": 0
+    },
+    "dxf:viewport": {
       "esperado": 2,
       "leidoCorrecto": 0,
       "geometriaDistinta": 0,
       "faltante": 2,
       "inesperado": 0
     },
-    "lwpolyline": {
-      "esperado": 6,
-      "leidoCorrecto": 3,
+    "dxf:mline": {
+      "esperado": 2,
+      "leidoCorrecto": 0,
       "geometriaDistinta": 0,
-      "faltante": 3,
+      "faltante": 2,
+      "inesperado": 0
+    },
+    "polyfaceMesh": {
+      "esperado": 1,
+      "leidoCorrecto": 1,
+      "geometriaDistinta": 0,
+      "faltante": 0,
+      "inesperado": 0
+    },
+    "polymesh": {
+      "esperado": 1,
+      "leidoCorrecto": 1,
+      "geometriaDistinta": 0,
+      "faltante": 0,
+      "inesperado": 0
+    },
+    "lwpolyline": {
+      "esperado": 5,
+      "leidoCorrecto": 5,
+      "geometriaDistinta": 0,
+      "faltante": 0,
+      "inesperado": 0
+    },
+    "polyline3d": {
+      "esperado": 1,
+      "leidoCorrecto": 1,
+      "geometriaDistinta": 0,
+      "faltante": 0,
       "inesperado": 0
     },
     "dxf:ellipse": {
@@ -219,13 +395,6 @@
       "faltante": 0,
       "inesperado": 0
     },
-    "circle": {
-      "esperado": 3,
-      "leidoCorrecto": 3,
-      "geometriaDistinta": 0,
-      "faltante": 0,
-      "inesperado": 0
-    },
     "point": {
       "esperado": 1,
       "leidoCorrecto": 1,
@@ -236,44 +405,128 @@
   },
   "discrepancias": [
     {
-      "archivo": "09-mtext",
+      "archivo": "16-leader-tolerance",
       "contexto": "model-space",
-      "tipo": "dxf:mtext",
+      "tipo": "dxf:leader",
       "problema": "faltante",
       "esperado": {}
     },
     {
-      "archivo": "09-mtext",
+      "archivo": "16-leader-tolerance",
       "contexto": "model-space",
-      "tipo": "dxf:mtext",
+      "tipo": "dxf:leader",
       "problema": "faltante",
       "esperado": {}
     },
     {
-      "archivo": "09-mtext",
+      "archivo": "16-leader-tolerance",
       "contexto": "model-space",
-      "tipo": "dxf:mtext",
+      "tipo": "dxf:tolerance",
       "problema": "faltante",
       "esperado": {}
     },
     {
-      "archivo": "10-dimension",
+      "archivo": "17-ray-xline",
       "contexto": "model-space",
-      "tipo": "dxf:dimension",
+      "tipo": "dxf:ray",
       "problema": "faltante",
       "esperado": {}
     },
     {
-      "archivo": "10-dimension",
+      "archivo": "17-ray-xline",
       "contexto": "model-space",
-      "tipo": "dxf:dimension",
+      "tipo": "dxf:ray",
       "problema": "faltante",
       "esperado": {}
     },
     {
-      "archivo": "10-dimension",
+      "archivo": "17-ray-xline",
       "contexto": "model-space",
-      "tipo": "dxf:dimension",
+      "tipo": "dxf:xline",
+      "problema": "faltante",
+      "esperado": {}
+    },
+    {
+      "archivo": "17-ray-xline",
+      "contexto": "model-space",
+      "tipo": "dxf:xline",
+      "problema": "faltante",
+      "esperado": {}
+    },
+    {
+      "archivo": "18-solid-trace-3dface",
+      "contexto": "model-space",
+      "tipo": "dxf:3dface",
+      "problema": "faltante",
+      "esperado": {}
+    },
+    {
+      "archivo": "18-solid-trace-3dface",
+      "contexto": "model-space",
+      "tipo": "dxf:3dface",
+      "problema": "faltante",
+      "esperado": {}
+    },
+    {
+      "archivo": "18-solid-trace-3dface",
+      "contexto": "model-space",
+      "tipo": "dxf:solid",
+      "problema": "faltante",
+      "esperado": {}
+    },
+    {
+      "archivo": "18-solid-trace-3dface",
+      "contexto": "model-space",
+      "tipo": "dxf:solid",
+      "problema": "faltante",
+      "esperado": {}
+    },
+    {
+      "archivo": "18-solid-trace-3dface",
+      "contexto": "model-space",
+      "tipo": "dxf:trace",
+      "problema": "faltante",
+      "esperado": {}
+    },
+    {
+      "archivo": "21-hatch-islands",
+      "contexto": "model-space",
+      "tipo": "dxf:hatch",
+      "problema": "faltante",
+      "esperado": {}
+    },
+    {
+      "archivo": "21-hatch-islands",
+      "contexto": "model-space",
+      "tipo": "dxf:hatch",
+      "problema": "faltante",
+      "esperado": {}
+    },
+    {
+      "archivo": "23-layout-viewport",
+      "contexto": "model-space",
+      "tipo": "dxf:viewport",
+      "problema": "faltante",
+      "esperado": {}
+    },
+    {
+      "archivo": "23-layout-viewport",
+      "contexto": "model-space",
+      "tipo": "dxf:viewport",
+      "problema": "faltante",
+      "esperado": {}
+    },
+    {
+      "archivo": "24-mline",
+      "contexto": "model-space",
+      "tipo": "dxf:mline",
+      "problema": "faltante",
+      "esperado": {}
+    },
+    {
+      "archivo": "24-mline",
+      "contexto": "model-space",
+      "tipo": "dxf:mline",
       "problema": "faltante",
       "esperado": {}
     },
@@ -290,155 +543,6 @@
       "tipo": "dxf:hatch",
       "problema": "faltante",
       "esperado": {}
-    },
-    {
-      "archivo": "12-attrib",
-      "contexto": "model-space",
-      "tipo": "dxf:attrib",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "12-attrib",
-      "contexto": "model-space",
-      "tipo": "dxf:attrib",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "12-attrib",
-      "contexto": "model-space",
-      "tipo": "dxf:attrib",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "12-attrib",
-      "contexto": "model-space",
-      "tipo": "dxf:attrib",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "12-attrib",
-      "contexto": "bloque:CAJETIN",
-      "tipo": "dxf:attdef",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "12-attrib",
-      "contexto": "bloque:CAJETIN",
-      "tipo": "dxf:attdef",
-      "problema": "faltante",
-      "esperado": {}
-    },
-    {
-      "archivo": "13-polyline2d",
-      "contexto": "model-space",
-      "tipo": "lwpolyline",
-      "problema": "faltante",
-      "esperado": {
-        "closed": false,
-        "vertices": [
-          [
-            0,
-            0
-          ],
-          [
-            40,
-            0
-          ],
-          [
-            80,
-            0
-          ],
-          [
-            80,
-            40
-          ]
-        ],
-        "bulges": [
-          0,
-          0.5,
-          0,
-          0
-        ],
-        "constantWidth": 2
-      }
-    },
-    {
-      "archivo": "13-polyline2d",
-      "contexto": "model-space",
-      "tipo": "lwpolyline",
-      "problema": "faltante",
-      "esperado": {
-        "closed": true,
-        "vertices": [
-          [
-            120,
-            0
-          ],
-          [
-            160,
-            10
-          ],
-          [
-            200,
-            0
-          ],
-          [
-            180,
-            40
-          ],
-          [
-            140,
-            40
-          ]
-        ],
-        "bulges": [
-          0,
-          0,
-          0,
-          0,
-          0
-        ],
-        "constantWidth": 0
-      }
-    },
-    {
-      "archivo": "13-polyline2d",
-      "contexto": "model-space",
-      "tipo": "lwpolyline",
-      "problema": "faltante",
-      "esperado": {
-        "closed": true,
-        "vertices": [
-          [
-            0,
-            80
-          ],
-          [
-            40,
-            80
-          ],
-          [
-            40,
-            120
-          ],
-          [
-            0,
-            120
-          ]
-        ],
-        "bulges": [
-          0,
-          0,
-          0,
-          0
-        ],
-        "constantWidth": 0
-      }
     },
     {
       "archivo": "14-ellipse-spline",
@@ -464,6 +568,2500 @@
   ],
   "archivos": [
     {
+      "bundle": "entity-wave-2-ac1015",
+      "archivo": "16-leader-tolerance",
+      "fixture": "bundles/entity-wave-2-ac1015/fixtures/16-leader-tolerance.dwg",
+      "sha256": "5de64b4d135fdf25f0d37c2bdd28fd5ab461ed9e1bd78774dae507d941363229",
+      "byteLength": 96871,
+      "oraculo": "bundles/entity-wave-2-ac1015/oracles/dxf/16-leader-tolerance.dxf",
+      "esperadoSegunOraculo": {
+        "entidades": {
+          "mtext": 2,
+          "dxf:leader": 2,
+          "dxf:tolerance": 1
+        },
+        "capas": [
+          "0",
+          "DETALLES"
+        ],
+        "bloques": []
+      },
+      "abre": true,
+      "capas": {
+        "esperadas": [
+          {
+            "name": "0",
+            "flags": 0,
+            "color": 7,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "DETALLES",
+            "flags": 0,
+            "color": 4,
+            "linetype": "CONTINUOUS"
+          }
+        ],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "DETALLES",
+            "colorIndex": 4,
+            "stateFlags": 1008
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": []
+      },
+      "entidades": {
+        "porTipo": {
+          "dxf:leader": {
+            "esperado": 2,
+            "leidoCorrecto": 0,
+            "geometriaDistinta": 0,
+            "faltante": 2,
+            "inesperado": 0
+          },
+          "dxf:tolerance": {
+            "esperado": 1,
+            "leidoCorrecto": 0,
+            "geometriaDistinta": 0,
+            "faltante": 1,
+            "inesperado": 0
+          },
+          "mtext": {
+            "esperado": 2,
+            "leidoCorrecto": 2,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          }
+        },
+        "detalles": [
+          {
+            "tipo": "dxf:leader",
+            "problema": "faltante",
+            "esperado": {}
+          },
+          {
+            "tipo": "dxf:leader",
+            "problema": "faltante",
+            "esperado": {}
+          },
+          {
+            "tipo": "dxf:tolerance",
+            "problema": "faltante",
+            "esperado": {}
+          }
+        ]
+      },
+      "bloques": {
+        "esperados": [],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space"
+        ],
+        "porBloque": {}
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 42,
+          "cuantos": 47
+        },
+        {
+          "codigoBs": 45,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 46,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 36
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6570,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6603,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6071,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6550,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        }
+      ]
+    },
+    {
+      "bundle": "entity-wave-2-ac1015",
+      "archivo": "17-ray-xline",
+      "fixture": "bundles/entity-wave-2-ac1015/fixtures/17-ray-xline.dwg",
+      "sha256": "d31eb5ef0d7872a4642ec56b60e848b13d5aae21540e13ef49de6fb1a2308323",
+      "byteLength": 97019,
+      "oraculo": "bundles/entity-wave-2-ac1015/oracles/dxf/17-ray-xline.dxf",
+      "esperadoSegunOraculo": {
+        "entidades": {
+          "dxf:ray": 2,
+          "dxf:xline": 2,
+          "line": 2
+        },
+        "capas": [
+          "0",
+          "CONSTRUCCION"
+        ],
+        "bloques": []
+      },
+      "abre": true,
+      "capas": {
+        "esperadas": [
+          {
+            "name": "0",
+            "flags": 0,
+            "color": 7,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "CONSTRUCCION",
+            "flags": 0,
+            "color": 8,
+            "linetype": "OCULTA-VALLE"
+          }
+        ],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "CONSTRUCCION",
+            "colorIndex": 8,
+            "stateFlags": 1008
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": []
+      },
+      "entidades": {
+        "porTipo": {
+          "dxf:ray": {
+            "esperado": 2,
+            "leidoCorrecto": 0,
+            "geometriaDistinta": 0,
+            "faltante": 2,
+            "inesperado": 0
+          },
+          "dxf:xline": {
+            "esperado": 2,
+            "leidoCorrecto": 0,
+            "geometriaDistinta": 0,
+            "faltante": 2,
+            "inesperado": 0
+          },
+          "line": {
+            "esperado": 2,
+            "leidoCorrecto": 2,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          }
+        },
+        "detalles": [
+          {
+            "tipo": "dxf:ray",
+            "problema": "faltante",
+            "esperado": {}
+          },
+          {
+            "tipo": "dxf:ray",
+            "problema": "faltante",
+            "esperado": {}
+          },
+          {
+            "tipo": "dxf:xline",
+            "problema": "faltante",
+            "esperado": {}
+          },
+          {
+            "tipo": "dxf:xline",
+            "problema": "faltante",
+            "esperado": {}
+          }
+        ]
+      },
+      "bloques": {
+        "esperados": [],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space"
+        ],
+        "porBloque": {}
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 40,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 41,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 42,
+          "cuantos": 47
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 4
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 36
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6721,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6754,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6412,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6701,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        }
+      ]
+    },
+    {
+      "bundle": "entity-wave-2-ac1015",
+      "archivo": "18-solid-trace-3dface",
+      "fixture": "bundles/entity-wave-2-ac1015/fixtures/18-solid-trace-3dface.dwg",
+      "sha256": "36798ba943c64c5bd2ac4d47e535bdbfc8977a49e76821742d73be3c09413247",
+      "byteLength": 96790,
+      "oraculo": "bundles/entity-wave-2-ac1015/oracles/dxf/18-solid-trace-3dface.dxf",
+      "esperadoSegunOraculo": {
+        "entidades": {
+          "dxf:solid": 2,
+          "dxf:trace": 1,
+          "dxf:3dface": 2
+        },
+        "capas": [
+          "0",
+          "RELLENOS"
+        ],
+        "bloques": []
+      },
+      "abre": true,
+      "capas": {
+        "esperadas": [
+          {
+            "name": "0",
+            "flags": 0,
+            "color": 7,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "RELLENOS",
+            "flags": 0,
+            "color": 30,
+            "linetype": "CONTINUOUS"
+          }
+        ],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "RELLENOS",
+            "colorIndex": 30,
+            "stateFlags": 1008
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": []
+      },
+      "entidades": {
+        "porTipo": {
+          "dxf:3dface": {
+            "esperado": 2,
+            "leidoCorrecto": 0,
+            "geometriaDistinta": 0,
+            "faltante": 2,
+            "inesperado": 0
+          },
+          "dxf:solid": {
+            "esperado": 2,
+            "leidoCorrecto": 0,
+            "geometriaDistinta": 0,
+            "faltante": 2,
+            "inesperado": 0
+          },
+          "dxf:trace": {
+            "esperado": 1,
+            "leidoCorrecto": 0,
+            "geometriaDistinta": 0,
+            "faltante": 1,
+            "inesperado": 0
+          }
+        },
+        "detalles": [
+          {
+            "tipo": "dxf:3dface",
+            "problema": "faltante",
+            "esperado": {}
+          },
+          {
+            "tipo": "dxf:3dface",
+            "problema": "faltante",
+            "esperado": {}
+          },
+          {
+            "tipo": "dxf:solid",
+            "problema": "faltante",
+            "esperado": {}
+          },
+          {
+            "tipo": "dxf:solid",
+            "problema": "faltante",
+            "esperado": {}
+          },
+          {
+            "tipo": "dxf:trace",
+            "problema": "faltante",
+            "esperado": {}
+          }
+        ]
+      },
+      "bloques": {
+        "esperados": [],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space"
+        ],
+        "porBloque": {}
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 28,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 31,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 32,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 42,
+          "cuantos": 47
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 36
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6492,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6525,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6025,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6472,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        }
+      ]
+    },
+    {
+      "bundle": "entity-wave-2-ac1015",
+      "archivo": "19-dim-radial-diameter",
+      "fixture": "bundles/entity-wave-2-ac1015/fixtures/19-dim-radial-diameter.dwg",
+      "sha256": "a917565031df86b4eefa6bb7ceab2ec7e9aaabcf23e067dd1efa95cb00d8ac12",
+      "byteLength": 98247,
+      "oraculo": "bundles/entity-wave-2-ac1015/oracles/dxf/19-dim-radial-diameter.dxf",
+      "esperadoSegunOraculo": {
+        "entidades": {
+          "circle": 2,
+          "dimension": 2
+        },
+        "capas": [
+          "0",
+          "PIEZAS",
+          "COTAS-R"
+        ],
+        "bloques": []
+      },
+      "abre": true,
+      "capas": {
+        "esperadas": [
+          {
+            "name": "0",
+            "flags": 0,
+            "color": 7,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "PIEZAS",
+            "flags": 0,
+            "color": 5,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "COTAS-R",
+            "flags": 0,
+            "color": 3,
+            "linetype": "CONTINUOUS"
+          }
+        ],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "PIEZAS",
+            "colorIndex": 5,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "COTAS-R",
+            "colorIndex": 3,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "Defpoints",
+            "colorIndex": 7,
+            "stateFlags": 992
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": []
+      },
+      "entidades": {
+        "porTipo": {
+          "circle": {
+            "esperado": 2,
+            "leidoCorrecto": 2,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          },
+          "dimension": {
+            "esperado": 2,
+            "leidoCorrecto": 2,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          }
+        },
+        "detalles": []
+      },
+      "bloques": {
+        "esperados": [],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space",
+          "*D",
+          "*D"
+        ],
+        "porBloque": {}
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 31,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 42,
+          "cuantos": 49
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 38
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 7687,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 7720,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 7326,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 7667,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-name-mismatch",
+          "severity": "warning",
+          "offset": 6324,
+          "message": "A BLOCK entity name does not match its block record name."
+        },
+        {
+          "code": "database-block-name-mismatch",
+          "severity": "warning",
+          "offset": 6853,
+          "message": "A BLOCK entity name does not match its block record name."
+        }
+      ]
+    },
+    {
+      "bundle": "entity-wave-2-ac1015",
+      "archivo": "20-dim-ordinate-angular",
+      "fixture": "bundles/entity-wave-2-ac1015/fixtures/20-dim-ordinate-angular.dwg",
+      "sha256": "164862412230a442f479733d4a07c16061f6a937e4b5c9f826084a6a3a928708",
+      "byteLength": 98708,
+      "oraculo": "bundles/entity-wave-2-ac1015/oracles/dxf/20-dim-ordinate-angular.dxf",
+      "esperadoSegunOraculo": {
+        "entidades": {
+          "line": 3,
+          "dimension": 3
+        },
+        "capas": [
+          "0",
+          "PIEZAS",
+          "COTAS-O"
+        ],
+        "bloques": []
+      },
+      "abre": true,
+      "capas": {
+        "esperadas": [
+          {
+            "name": "0",
+            "flags": 0,
+            "color": 7,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "PIEZAS",
+            "flags": 0,
+            "color": 5,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "COTAS-O",
+            "flags": 0,
+            "color": 3,
+            "linetype": "CONTINUOUS"
+          }
+        ],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "PIEZAS",
+            "colorIndex": 5,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "COTAS-O",
+            "colorIndex": 3,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "Defpoints",
+            "colorIndex": 7,
+            "stateFlags": 992
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": []
+      },
+      "entidades": {
+        "porTipo": {
+          "dimension": {
+            "esperado": 3,
+            "leidoCorrecto": 3,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          },
+          "line": {
+            "esperado": 3,
+            "leidoCorrecto": 3,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          }
+        },
+        "detalles": []
+      },
+      "bloques": {
+        "esperados": [],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space",
+          "*D",
+          "*D",
+          "*D"
+        ],
+        "porBloque": {}
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 31,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 42,
+          "cuantos": 49
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 38
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 8121,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 8154,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 7573,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 8101,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-name-mismatch",
+          "severity": "warning",
+          "offset": 6248,
+          "message": "A BLOCK entity name does not match its block record name."
+        },
+        {
+          "code": "database-block-name-mismatch",
+          "severity": "warning",
+          "offset": 6558,
+          "message": "A BLOCK entity name does not match its block record name."
+        },
+        {
+          "code": "database-block-name-mismatch",
+          "severity": "warning",
+          "offset": 6868,
+          "message": "A BLOCK entity name does not match its block record name."
+        }
+      ]
+    },
+    {
+      "bundle": "entity-wave-2-ac1015",
+      "archivo": "21-hatch-islands",
+      "fixture": "bundles/entity-wave-2-ac1015/fixtures/21-hatch-islands.dwg",
+      "sha256": "a06b0402f8ac4a69755ef578e423a090341c5533d6e805cf8834e188b8e6860b",
+      "byteLength": 96627,
+      "oraculo": "bundles/entity-wave-2-ac1015/oracles/dxf/21-hatch-islands.dxf",
+      "esperadoSegunOraculo": {
+        "entidades": {
+          "dxf:hatch": 2
+        },
+        "capas": [
+          "0",
+          "MUROS-2"
+        ],
+        "bloques": []
+      },
+      "abre": true,
+      "capas": {
+        "esperadas": [
+          {
+            "name": "0",
+            "flags": 0,
+            "color": 7,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "MUROS-2",
+            "flags": 0,
+            "color": 1,
+            "linetype": "CONTINUOUS"
+          }
+        ],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "MUROS-2",
+            "colorIndex": 1,
+            "stateFlags": 1008
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": []
+      },
+      "entidades": {
+        "porTipo": {
+          "dxf:hatch": {
+            "esperado": 2,
+            "leidoCorrecto": 0,
+            "geometriaDistinta": 0,
+            "faltante": 2,
+            "inesperado": 0
+          }
+        },
+        "detalles": [
+          {
+            "tipo": "dxf:hatch",
+            "problema": "faltante",
+            "esperado": {}
+          },
+          {
+            "tipo": "dxf:hatch",
+            "problema": "faltante",
+            "esperado": {}
+          }
+        ]
+      },
+      "bloques": {
+        "esperados": [],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space"
+        ],
+        "porBloque": {}
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 42,
+          "cuantos": 47
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 78,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 36
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6339,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6372,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6024,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6319,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        }
+      ]
+    },
+    {
+      "bundle": "entity-wave-2-ac1015",
+      "archivo": "22-nested-attribs",
+      "fixture": "bundles/entity-wave-2-ac1015/fixtures/22-nested-attribs.dwg",
+      "sha256": "96067cd49aee6efdac39857628758e76489068c9e557c55a81ed5d37d9ea7abd",
+      "byteLength": 97762,
+      "oraculo": "bundles/entity-wave-2-ac1015/oracles/dxf/22-nested-attribs.dxf",
+      "esperadoSegunOraculo": {
+        "entidades": {
+          "insert": 2,
+          "attrib": 3,
+          "line": 8,
+          "attdef": 3
+        },
+        "capas": [
+          "0",
+          "MARCOS",
+          "TEXTOS-2"
+        ],
+        "bloques": [
+          "TITULO",
+          "CONJUNTO"
+        ]
+      },
+      "abre": true,
+      "capas": {
+        "esperadas": [
+          {
+            "name": "0",
+            "flags": 0,
+            "color": 7,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "MARCOS",
+            "flags": 0,
+            "color": 4,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "TEXTOS-2",
+            "flags": 0,
+            "color": 6,
+            "linetype": "CONTINUOUS"
+          }
+        ],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "MARCOS",
+            "colorIndex": 4,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "TEXTOS-2",
+            "colorIndex": 6,
+            "stateFlags": 1008
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": []
+      },
+      "entidades": {
+        "porTipo": {
+          "attrib": {
+            "esperado": 1,
+            "leidoCorrecto": 1,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          },
+          "insert": {
+            "esperado": 1,
+            "leidoCorrecto": 1,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          }
+        },
+        "detalles": []
+      },
+      "bloques": {
+        "esperados": [
+          "TITULO",
+          "CONJUNTO"
+        ],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space",
+          "TITULO",
+          "CONJUNTO"
+        ],
+        "porBloque": {
+          "TITULO": {
+            "encontrado": true,
+            "contenido": {
+              "porTipo": {
+                "attdef": {
+                  "esperado": 2,
+                  "leidoCorrecto": 2,
+                  "geometriaDistinta": 0,
+                  "faltante": 0,
+                  "inesperado": 0
+                },
+                "line": {
+                  "esperado": 4,
+                  "leidoCorrecto": 4,
+                  "geometriaDistinta": 0,
+                  "faltante": 0,
+                  "inesperado": 0
+                }
+              },
+              "detalles": []
+            }
+          },
+          "CONJUNTO": {
+            "encontrado": true,
+            "contenido": {
+              "porTipo": {
+                "attdef": {
+                  "esperado": 1,
+                  "leidoCorrecto": 1,
+                  "geometriaDistinta": 0,
+                  "faltante": 0,
+                  "inesperado": 0
+                },
+                "attrib": {
+                  "esperado": 2,
+                  "leidoCorrecto": 2,
+                  "geometriaDistinta": 0,
+                  "faltante": 0,
+                  "inesperado": 0
+                },
+                "insert": {
+                  "esperado": 1,
+                  "leidoCorrecto": 1,
+                  "geometriaDistinta": 0,
+                  "faltante": 0,
+                  "inesperado": 0
+                },
+                "line": {
+                  "esperado": 4,
+                  "leidoCorrecto": 4,
+                  "geometriaDistinta": 0,
+                  "faltante": 0,
+                  "inesperado": 0
+                }
+              },
+              "detalles": []
+            }
+          }
+        }
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 42,
+          "cuantos": 48
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 37
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 7067,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 7100,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6963,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 7047,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        }
+      ]
+    },
+    {
+      "bundle": "entity-wave-2-ac1015",
+      "archivo": "23-layout-viewport",
+      "fixture": "bundles/entity-wave-2-ac1015/fixtures/23-layout-viewport.dwg",
+      "sha256": "9c0759d67834a9911d7439454f5b004f9d742d7665324b60b5a8c60f8dc8d25b",
+      "byteLength": 97415,
+      "oraculo": "bundles/entity-wave-2-ac1015/oracles/dxf/23-layout-viewport.dxf",
+      "esperadoSegunOraculo": {
+        "entidades": {
+          "line": 2,
+          "circle": 1,
+          "dxf:viewport": 2
+        },
+        "capas": [
+          "0",
+          "PLANTA"
+        ],
+        "bloques": []
+      },
+      "abre": true,
+      "capas": {
+        "esperadas": [
+          {
+            "name": "0",
+            "flags": 0,
+            "color": 7,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "PLANTA",
+            "flags": 0,
+            "color": 3,
+            "linetype": "CONTINUOUS"
+          }
+        ],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "PLANTA",
+            "colorIndex": 3,
+            "stateFlags": 1008
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": []
+      },
+      "entidades": {
+        "porTipo": {
+          "circle": {
+            "esperado": 1,
+            "leidoCorrecto": 1,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          },
+          "dxf:viewport": {
+            "esperado": 2,
+            "leidoCorrecto": 0,
+            "geometriaDistinta": 0,
+            "faltante": 2,
+            "inesperado": 0
+          },
+          "line": {
+            "esperado": 2,
+            "leidoCorrecto": 2,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          }
+        },
+        "detalles": [
+          {
+            "tipo": "dxf:viewport",
+            "problema": "faltante",
+            "esperado": {}
+          },
+          {
+            "tipo": "dxf:viewport",
+            "problema": "faltante",
+            "esperado": {}
+          }
+        ]
+      },
+      "bloques": {
+        "esperados": [],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space"
+        ],
+        "porBloque": {}
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 34,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 42,
+          "cuantos": 49
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 71,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 38
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6313,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6652,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6121,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6293,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        }
+      ]
+    },
+    {
+      "bundle": "entity-wave-2-ac1015",
+      "archivo": "24-mline",
+      "fixture": "bundles/entity-wave-2-ac1015/fixtures/24-mline.dwg",
+      "sha256": "dc3772be33c7b28b59fcb50391c0c051116af497a206dfd7002de7cf6b5548e9",
+      "byteLength": 96643,
+      "oraculo": "bundles/entity-wave-2-ac1015/oracles/dxf/24-mline.dxf",
+      "esperadoSegunOraculo": {
+        "entidades": {
+          "dxf:mline": 2
+        },
+        "capas": [
+          "0",
+          "MUROS-ML"
+        ],
+        "bloques": []
+      },
+      "abre": true,
+      "capas": {
+        "esperadas": [
+          {
+            "name": "0",
+            "flags": 0,
+            "color": 7,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "MUROS-ML",
+            "flags": 0,
+            "color": 1,
+            "linetype": "CONTINUOUS"
+          }
+        ],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "MUROS-ML",
+            "colorIndex": 1,
+            "stateFlags": 1008
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": []
+      },
+      "entidades": {
+        "porTipo": {
+          "dxf:mline": {
+            "esperado": 2,
+            "leidoCorrecto": 0,
+            "geometriaDistinta": 0,
+            "faltante": 2,
+            "inesperado": 0
+          }
+        },
+        "detalles": [
+          {
+            "tipo": "dxf:mline",
+            "problema": "faltante",
+            "esperado": {}
+          },
+          {
+            "tipo": "dxf:mline",
+            "problema": "faltante",
+            "esperado": {}
+          }
+        ]
+      },
+      "bloques": {
+        "esperados": [],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space"
+        ],
+        "porBloque": {}
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 42,
+          "cuantos": 47
+        },
+        {
+          "codigoBs": 47,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 36
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6261,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6294,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6034,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6241,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        }
+      ]
+    },
+    {
+      "bundle": "entity-wave-2-ac1015",
+      "archivo": "25-vertex-mesh",
+      "fixture": "bundles/entity-wave-2-ac1015/fixtures/25-vertex-mesh.dwg",
+      "sha256": "4b0148a4646354bf237027bb65ffd9a815b54301737808a8f3701f02255805ae",
+      "byteLength": 97283,
+      "oraculo": "bundles/entity-wave-2-ac1015/oracles/dxf/25-vertex-mesh.dxf",
+      "esperadoSegunOraculo": {
+        "entidades": {
+          "polymesh": 1,
+          "polyfaceMesh": 1
+        },
+        "capas": [
+          "0",
+          "TERRENO"
+        ],
+        "bloques": []
+      },
+      "abre": true,
+      "capas": {
+        "esperadas": [
+          {
+            "name": "0",
+            "flags": 0,
+            "color": 7,
+            "linetype": "CONTINUOUS"
+          },
+          {
+            "name": "TERRENO",
+            "flags": 0,
+            "color": 84,
+            "linetype": "CONTINUOUS"
+          }
+        ],
+        "leidas": [
+          {
+            "nombre": "0",
+            "colorIndex": 7,
+            "stateFlags": 1008
+          },
+          {
+            "nombre": "TERRENO",
+            "colorIndex": 84,
+            "stateFlags": 1008
+          }
+        ],
+        "faltantes": [],
+        "coloresDistintos": [],
+        "observacionesDeEstado": []
+      },
+      "entidades": {
+        "porTipo": {
+          "polyfaceMesh": {
+            "esperado": 1,
+            "leidoCorrecto": 1,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          },
+          "polymesh": {
+            "esperado": 1,
+            "leidoCorrecto": 1,
+            "geometriaDistinta": 0,
+            "faltante": 0,
+            "inesperado": 0
+          }
+        },
+        "detalles": []
+      },
+      "bloques": {
+        "esperados": [],
+        "leidosTodos": [
+          "*Paper_Space",
+          "*Model_Space"
+        ],
+        "porBloque": {}
+      },
+      "tiposNoSoportados": [
+        {
+          "codigoBs": 42,
+          "cuantos": 47
+        },
+        {
+          "codigoBs": 52,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 53,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 56,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 57,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 60,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 62,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 64,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 65,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 66,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 67,
+          "cuantos": 2
+        },
+        {
+          "codigoBs": 68,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 69,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 70,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 73,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 79,
+          "cuantos": 36
+        },
+        {
+          "codigoBs": 500,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 501,
+          "cuantos": 17
+        },
+        {
+          "codigoBs": 502,
+          "cuantos": 3
+        },
+        {
+          "codigoBs": 503,
+          "cuantos": 24
+        },
+        {
+          "codigoBs": 504,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 505,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 506,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 507,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 508,
+          "cuantos": 8
+        },
+        {
+          "codigoBs": 509,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 510,
+          "cuantos": 1
+        },
+        {
+          "codigoBs": 511,
+          "cuantos": 2
+        }
+      ],
+      "diagnosticos": [
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6147,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6180,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6024,
+          "message": "A BLOCK entity does not resolve to a known block record; it was recorded but not attached."
+        },
+        {
+          "code": "database-block-marker-unresolved",
+          "severity": "warning",
+          "offset": 6127,
+          "message": "An ENDBLK entity does not resolve to a known block record; it was recorded but not attached."
+        }
+      ]
+    },
+    {
       "bundle": "foundational-entities-ac1015",
       "archivo": "09-mtext",
       "fixture": "bundles/foundational-entities-ac1015/fixtures/09-mtext.dwg",
@@ -472,7 +3070,7 @@
       "oraculo": "bundles/foundational-entities-ac1015/oracles/dxf/09-mtext.dxf",
       "esperadoSegunOraculo": {
         "entidades": {
-          "dxf:mtext": 3
+          "mtext": 3
         },
         "capas": [
           "0",
@@ -514,31 +3112,15 @@
       },
       "entidades": {
         "porTipo": {
-          "dxf:mtext": {
+          "mtext": {
             "esperado": 3,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 3,
             "geometriaDistinta": 0,
-            "faltante": 3,
+            "faltante": 0,
             "inesperado": 0
           }
         },
-        "detalles": [
-          {
-            "tipo": "dxf:mtext",
-            "problema": "faltante",
-            "esperado": {}
-          },
-          {
-            "tipo": "dxf:mtext",
-            "problema": "faltante",
-            "esperado": {}
-          },
-          {
-            "tipo": "dxf:mtext",
-            "problema": "faltante",
-            "esperado": {}
-          }
-        ]
+        "detalles": []
       },
       "bloques": {
         "esperados": [],
@@ -552,10 +3134,6 @@
         {
           "codigoBs": 42,
           "cuantos": 47
-        },
-        {
-          "codigoBs": 44,
-          "cuantos": 3
         },
         {
           "codigoBs": 52,
@@ -703,7 +3281,7 @@
       "esperadoSegunOraculo": {
         "entidades": {
           "line": 2,
-          "dxf:dimension": 3
+          "dimension": 3
         },
         "capas": [
           "0",
@@ -750,11 +3328,11 @@
       },
       "entidades": {
         "porTipo": {
-          "dxf:dimension": {
+          "dimension": {
             "esperado": 3,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 3,
             "geometriaDistinta": 0,
-            "faltante": 3,
+            "faltante": 0,
             "inesperado": 0
           },
           "line": {
@@ -765,23 +3343,7 @@
             "inesperado": 0
           }
         },
-        "detalles": [
-          {
-            "tipo": "dxf:dimension",
-            "problema": "faltante",
-            "esperado": {}
-          },
-          {
-            "tipo": "dxf:dimension",
-            "problema": "faltante",
-            "esperado": {}
-          },
-          {
-            "tipo": "dxf:dimension",
-            "problema": "faltante",
-            "esperado": {}
-          }
-        ]
+        "detalles": []
       },
       "bloques": {
         "esperados": [],
@@ -796,28 +3358,12 @@
       },
       "tiposNoSoportados": [
         {
-          "codigoBs": 21,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 22,
-          "cuantos": 1
-        },
-        {
-          "codigoBs": 23,
-          "cuantos": 1
-        },
-        {
           "codigoBs": 31,
           "cuantos": 6
         },
         {
           "codigoBs": 42,
           "cuantos": 48
-        },
-        {
-          "codigoBs": 44,
-          "cuantos": 3
         },
         {
           "codigoBs": 52,
@@ -1208,9 +3754,9 @@
       "esperadoSegunOraculo": {
         "entidades": {
           "insert": 2,
-          "dxf:attrib": 4,
+          "attrib": 4,
           "line": 5,
-          "dxf:attdef": 2
+          "attdef": 2
         },
         "capas": [
           "0",
@@ -1254,11 +3800,11 @@
       },
       "entidades": {
         "porTipo": {
-          "dxf:attrib": {
+          "attrib": {
             "esperado": 4,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 4,
             "geometriaDistinta": 0,
-            "faltante": 4,
+            "faltante": 0,
             "inesperado": 0
           },
           "insert": {
@@ -1269,28 +3815,7 @@
             "inesperado": 0
           }
         },
-        "detalles": [
-          {
-            "tipo": "dxf:attrib",
-            "problema": "faltante",
-            "esperado": {}
-          },
-          {
-            "tipo": "dxf:attrib",
-            "problema": "faltante",
-            "esperado": {}
-          },
-          {
-            "tipo": "dxf:attrib",
-            "problema": "faltante",
-            "esperado": {}
-          },
-          {
-            "tipo": "dxf:attrib",
-            "problema": "faltante",
-            "esperado": {}
-          }
-        ]
+        "detalles": []
       },
       "bloques": {
         "esperados": [
@@ -1306,11 +3831,11 @@
             "encontrado": true,
             "contenido": {
               "porTipo": {
-                "dxf:attdef": {
+                "attdef": {
                   "esperado": 2,
-                  "leidoCorrecto": 0,
+                  "leidoCorrecto": 2,
                   "geometriaDistinta": 0,
-                  "faltante": 2,
+                  "faltante": 0,
                   "inesperado": 0
                 },
                 "line": {
@@ -1321,35 +3846,12 @@
                   "inesperado": 0
                 }
               },
-              "detalles": [
-                {
-                  "tipo": "dxf:attdef",
-                  "problema": "faltante",
-                  "esperado": {}
-                },
-                {
-                  "tipo": "dxf:attdef",
-                  "problema": "faltante",
-                  "esperado": {}
-                }
-              ]
+              "detalles": []
             }
           }
         }
       },
       "tiposNoSoportados": [
-        {
-          "codigoBs": 2,
-          "cuantos": 4
-        },
-        {
-          "codigoBs": 3,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 6,
-          "cuantos": 2
-        },
         {
           "codigoBs": 42,
           "cuantos": 47
@@ -1499,7 +4001,8 @@
       "oraculo": "bundles/foundational-entities-ac1015/oracles/dxf/13-polyline2d.dxf",
       "esperadoSegunOraculo": {
         "entidades": {
-          "lwpolyline": 3
+          "lwpolyline": 2,
+          "polyline3d": 1
         },
         "capas": [
           "0",
@@ -1542,116 +4045,21 @@
       "entidades": {
         "porTipo": {
           "lwpolyline": {
-            "esperado": 3,
-            "leidoCorrecto": 0,
+            "esperado": 2,
+            "leidoCorrecto": 2,
             "geometriaDistinta": 0,
-            "faltante": 3,
+            "faltante": 0,
+            "inesperado": 0
+          },
+          "polyline3d": {
+            "esperado": 1,
+            "leidoCorrecto": 1,
+            "geometriaDistinta": 0,
+            "faltante": 0,
             "inesperado": 0
           }
         },
-        "detalles": [
-          {
-            "tipo": "lwpolyline",
-            "problema": "faltante",
-            "esperado": {
-              "closed": false,
-              "vertices": [
-                [
-                  0,
-                  0
-                ],
-                [
-                  40,
-                  0
-                ],
-                [
-                  80,
-                  0
-                ],
-                [
-                  80,
-                  40
-                ]
-              ],
-              "bulges": [
-                0,
-                0.5,
-                0,
-                0
-              ],
-              "constantWidth": 2
-            }
-          },
-          {
-            "tipo": "lwpolyline",
-            "problema": "faltante",
-            "esperado": {
-              "closed": true,
-              "vertices": [
-                [
-                  120,
-                  0
-                ],
-                [
-                  160,
-                  10
-                ],
-                [
-                  200,
-                  0
-                ],
-                [
-                  180,
-                  40
-                ],
-                [
-                  140,
-                  40
-                ]
-              ],
-              "bulges": [
-                0,
-                0,
-                0,
-                0,
-                0
-              ],
-              "constantWidth": 0
-            }
-          },
-          {
-            "tipo": "lwpolyline",
-            "problema": "faltante",
-            "esperado": {
-              "closed": true,
-              "vertices": [
-                [
-                  0,
-                  80
-                ],
-                [
-                  40,
-                  80
-                ],
-                [
-                  40,
-                  120
-                ],
-                [
-                  0,
-                  120
-                ]
-              ],
-              "bulges": [
-                0,
-                0,
-                0,
-                0
-              ],
-              "constantWidth": 0
-            }
-          }
-        ]
+        "detalles": []
       },
       "bloques": {
         "esperados": [],
@@ -1662,26 +4070,6 @@
         "porBloque": {}
       },
       "tiposNoSoportados": [
-        {
-          "codigoBs": 6,
-          "cuantos": 3
-        },
-        {
-          "codigoBs": 10,
-          "cuantos": 9
-        },
-        {
-          "codigoBs": 11,
-          "cuantos": 4
-        },
-        {
-          "codigoBs": 15,
-          "cuantos": 2
-        },
-        {
-          "codigoBs": 16,
-          "cuantos": 1
-        },
         {
           "codigoBs": 42,
           "cuantos": 47

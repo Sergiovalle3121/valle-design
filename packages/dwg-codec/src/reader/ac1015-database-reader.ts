@@ -49,12 +49,32 @@ import type { DwgGeometryEntity } from "../model/entity-geometry.js";
 import {
   decodeAc1015EntityBody,
   AC1015_TYPE_ARC,
+  AC1015_TYPE_ATTDEF,
+  AC1015_TYPE_ATTRIB,
   AC1015_TYPE_CIRCLE,
+  AC1015_TYPE_DIM_ALIGNED,
+  AC1015_TYPE_DIM_ANGULAR_2LN,
+  AC1015_TYPE_DIM_ANGULAR_3PT,
+  AC1015_TYPE_DIM_DIAMETER,
+  AC1015_TYPE_DIM_LINEAR,
+  AC1015_TYPE_DIM_ORDINATE,
+  AC1015_TYPE_DIM_RADIUS,
   AC1015_TYPE_INSERT,
   AC1015_TYPE_LINE,
   AC1015_TYPE_LWPOLYLINE,
+  AC1015_TYPE_MTEXT,
   AC1015_TYPE_POINT,
+  AC1015_TYPE_POLYLINE_2D,
+  AC1015_TYPE_POLYLINE_3D,
+  AC1015_TYPE_POLYLINE_MESH,
+  AC1015_TYPE_POLYLINE_PFACE,
+  AC1015_TYPE_SEQEND,
   AC1015_TYPE_TEXT,
+  AC1015_TYPE_VERTEX_2D,
+  AC1015_TYPE_VERTEX_3D,
+  AC1015_TYPE_VERTEX_MESH,
+  AC1015_TYPE_VERTEX_PFACE,
+  AC1015_TYPE_VERTEX_PFACE_FACE,
   type Ac1015DecodedEntity,
 } from "../objects/entities-core.js";
 import {
@@ -97,6 +117,12 @@ export interface Ac1015DatabaseEntityRecord {
   readonly layerHandle: number | undefined;
   /** Sólo INSERT: nombre del bloque insertado, resuelto por su handle. */
   readonly insertedBlockName: readonly number[] | undefined;
+  /** Sólo INSERT con ATTRIBs: los atributos atados por su propietario. */
+  readonly attributes: readonly Ac1015DatabaseEntityRecord[] | undefined;
+  /** Sólo POLYLINE clásica: sus VERTEX (y caras polyface) en orden del mapa. */
+  readonly vertices: readonly Ac1015DatabaseEntityRecord[] | undefined;
+  /** Sólo INSERT/POLYLINE: handle del SEQEND que cierra su secuencia. */
+  readonly sequenceEndHandle: number | undefined;
 }
 
 /** Un bloque de la base: registro, marcadores y contenido en orden del mapa. */
@@ -130,6 +156,34 @@ export interface Ac1015NeutralDatabase {
 const HEADER_VARIABLES_RECORD_ID = 0;
 const CLASSES_RECORD_ID = 1;
 const OBJECT_MAP_RECORD_ID = 2;
+
+/** Tipos que viajan como miembros de una secuencia con propietario. */
+const SEQUENCE_MEMBER_TYPES: ReadonlySet<number> = new Set([
+  AC1015_TYPE_ATTRIB,
+  AC1015_TYPE_SEQEND,
+  AC1015_TYPE_VERTEX_2D,
+  AC1015_TYPE_VERTEX_3D,
+  AC1015_TYPE_VERTEX_MESH,
+  AC1015_TYPE_VERTEX_PFACE,
+  AC1015_TYPE_VERTEX_PFACE_FACE,
+]);
+
+/** Cabeceras de POLYLINE clásica: los destinos válidos de un VERTEX. */
+const POLYLINE_HEADER_TYPES: ReadonlySet<number> = new Set([
+  AC1015_TYPE_POLYLINE_2D,
+  AC1015_TYPE_POLYLINE_3D,
+  AC1015_TYPE_POLYLINE_MESH,
+  AC1015_TYPE_POLYLINE_PFACE,
+]);
+
+/** Los VERTEX de todas las variantes (caras polyface incluidas). */
+const VERTEX_TYPES: ReadonlySet<number> = new Set([
+  AC1015_TYPE_VERTEX_2D,
+  AC1015_TYPE_VERTEX_3D,
+  AC1015_TYPE_VERTEX_MESH,
+  AC1015_TYPE_VERTEX_PFACE,
+  AC1015_TYPE_VERTEX_PFACE_FACE,
+]);
 
 /** Un objeto decodificado en la primera pasada, aún sin ensamblar. */
 type DecodedObject =
@@ -235,7 +289,27 @@ function decodeMappedObject(
       case AC1015_TYPE_ARC:
       case AC1015_TYPE_LWPOLYLINE:
       case AC1015_TYPE_TEXT:
-      case AC1015_TYPE_INSERT: {
+      case AC1015_TYPE_INSERT:
+      case AC1015_TYPE_ATTRIB:
+      case AC1015_TYPE_ATTDEF:
+      case AC1015_TYPE_SEQEND:
+      case AC1015_TYPE_MTEXT:
+      case AC1015_TYPE_DIM_ORDINATE:
+      case AC1015_TYPE_DIM_LINEAR:
+      case AC1015_TYPE_DIM_ALIGNED:
+      case AC1015_TYPE_DIM_ANGULAR_3PT:
+      case AC1015_TYPE_DIM_ANGULAR_2LN:
+      case AC1015_TYPE_DIM_RADIUS:
+      case AC1015_TYPE_DIM_DIAMETER:
+      case AC1015_TYPE_POLYLINE_2D:
+      case AC1015_TYPE_POLYLINE_3D:
+      case AC1015_TYPE_POLYLINE_MESH:
+      case AC1015_TYPE_POLYLINE_PFACE:
+      case AC1015_TYPE_VERTEX_2D:
+      case AC1015_TYPE_VERTEX_3D:
+      case AC1015_TYPE_VERTEX_MESH:
+      case AC1015_TYPE_VERTEX_PFACE:
+      case AC1015_TYPE_VERTEX_PFACE_FACE: {
         const decoded = decodeAc1015EntityBody(bodyBytes);
         assertBodyHandleMatchesMap(decoded.common.ownHandle.value, entry);
         return { kind: "entity", handle: entry.handle, offset: entry.offset, decoded };
@@ -334,7 +408,7 @@ function assembleDatabase(
 ): Ac1015NeutralDatabase {
   const diagnostics: DwgDiagnostic[] = [];
   const layers: Ac1015DatabaseLayer[] = [];
-  const modelSpace: Ac1015DatabaseEntityRecord[] = [];
+  const modelSpace: MutableEntityRecord[] = [];
 
   // Los BLOCK_RECORD primero: son el destino de todas las resoluciones y el
   // mapa no garantiza que aparezcan antes que sus entidades.
@@ -343,10 +417,18 @@ function assembleDatabase(
     readonly name: readonly number[];
     blockBeginHandle: number | undefined;
     blockEndHandle: number | undefined;
-    readonly entities: Ac1015DatabaseEntityRecord[];
+    readonly entities: MutableEntityRecord[];
   }
   const blocksByHandle = new Map<number, MutableBlock>();
   const blockOrder: MutableBlock[] = [];
+  const entityByHandle = new Map<
+    number,
+    { readonly record: MutableEntityRecord; readonly type: number }
+  >();
+  const pendingSequenceMembers: {
+    readonly object: Extract<DecodedObject, { kind: "entity" }>;
+    readonly record: MutableEntityRecord;
+  }[] = [];
   for (const object of decodedObjects) {
     if (object.kind !== "blockRecord") continue;
     const block: MutableBlock = {
@@ -419,43 +501,53 @@ function assembleDatabase(
       }
       case "entity": {
         const record = buildEntityRecord(object, blocksByHandle, diagnostics);
-        const { common, references } = object.decoded;
-        if (common.entityMode === 0) {
-          const owner = resolveToBlock(references.owner, blocksByHandle);
-          if (owner === undefined) {
-            // Propietario nulo, desconocido o que no es un BLOCK_RECORD: la
-            // entidad queda VISIBLE en model space y el hueco, diagnosticado
-            // (certeza declarada en el worklog) — nunca descartada.
-            diagnostics.push(
-              diagnostic(
-                "database-entity-owner-unresolved",
-                "warning",
-                object.offset,
-                "An entity owner does not resolve to a known block record; the entity was kept in model space.",
-              ),
-            );
-            modelSpace.push(record);
-          } else {
-            owner.entities.push(record);
-          }
+        const { common } = object.decoded;
+        entityByHandle.set(object.handle, { record, type: common.type });
+        // Los miembros de secuencia (ATTRIB tras un INSERT, VERTEX de una
+        // POLYLINE clásica, SEQEND que cierra ambas) se atan a su propietario
+        // en una segunda pasada: el mapa no garantiza que el propietario
+        // aparezca antes que sus miembros.
+        if (
+          common.entityMode === 0 &&
+          SEQUENCE_MEMBER_TYPES.has(common.type)
+        ) {
+          pendingSequenceMembers.push({ object, record });
           break;
         }
-        if (common.entityMode === 1) {
-          // Paper space no se modela aún: la entidad queda en model space
-          // con diagnóstico (decisión de laboratorio declarada).
-          diagnostics.push(
-            diagnostic(
-              "database-paper-space-entity",
-              "warning",
-              object.offset,
-              "A paper-space entity is not modeled yet; it was kept in model space.",
-            ),
-          );
-        }
-        modelSpace.push(record);
+        placeEntity(object, record);
         break;
       }
     }
+  }
+
+  // Segunda pasada: los miembros de secuencia buscan su propietario — ATTRIB
+  // y su SEQEND van a un INSERT; los VERTEX y su SEQEND, a una cabecera de
+  // POLYLINE clásica. Lo que no resuelve cae al camino normal (bloque o
+  // model space) CON su diagnóstico — nunca se descarta.
+  for (const { object, record } of pendingSequenceMembers) {
+    const { references, common } = object.decoded;
+    const ownerReference = references.owner;
+    const target =
+      ownerReference === undefined || ownerReference.kind === "null"
+        ? undefined
+        : entityByHandle.get(ownerReference.handle);
+    if (target !== undefined) {
+      const ownerIsInsert = target.type === AC1015_TYPE_INSERT;
+      const ownerIsPolyline = POLYLINE_HEADER_TYPES.has(target.type);
+      if (common.type === AC1015_TYPE_SEQEND && (ownerIsInsert || ownerIsPolyline)) {
+        target.record.sequenceEndHandle = object.handle;
+        continue;
+      }
+      if (common.type === AC1015_TYPE_ATTRIB && ownerIsInsert) {
+        target.record.attributes.push(record);
+        continue;
+      }
+      if (VERTEX_TYPES.has(common.type) && ownerIsPolyline) {
+        target.record.vertices.push(record);
+        continue;
+      }
+    }
+    placeEntity(object, record);
   }
 
   return Object.freeze({
@@ -467,13 +559,86 @@ function assembleDatabase(
           name: block.name,
           blockBeginHandle: block.blockBeginHandle,
           blockEndHandle: block.blockEndHandle,
-          entities: Object.freeze([...block.entities]),
+          entities: Object.freeze(block.entities.map(freezeEntityRecord)),
         }),
       ),
     ),
-    modelSpaceEntities: Object.freeze(modelSpace),
+    modelSpaceEntities: Object.freeze(modelSpace.map(freezeEntityRecord)),
     unsupported: Object.freeze([...unsupported]),
     diagnostics: Object.freeze(diagnostics),
+  });
+
+  /** Coloca una entidad en su bloque o en model space, con sus diagnósticos. */
+  function placeEntity(
+    object: Extract<DecodedObject, { kind: "entity" }>,
+    record: MutableEntityRecord,
+  ): void {
+    const { common, references } = object.decoded;
+    if (common.entityMode === 0) {
+      const owner = resolveToBlock(references.owner, blocksByHandle);
+      if (owner === undefined) {
+        // Propietario nulo, desconocido o que no es un BLOCK_RECORD: la
+        // entidad queda VISIBLE en model space y el hueco, diagnosticado
+        // (certeza declarada en el worklog) — nunca descartada.
+        diagnostics.push(
+          diagnostic(
+            "database-entity-owner-unresolved",
+            "warning",
+            object.offset,
+            "An entity owner does not resolve to a known block record; the entity was kept in model space.",
+          ),
+        );
+        modelSpace.push(record);
+      } else {
+        owner.entities.push(record);
+      }
+      return;
+    }
+    if (common.entityMode === 1) {
+      // Paper space no se modela aún: la entidad queda en model space
+      // con diagnóstico (decisión de laboratorio declarada).
+      diagnostics.push(
+        diagnostic(
+          "database-paper-space-entity",
+          "warning",
+          object.offset,
+          "A paper-space entity is not modeled yet; it was kept in model space.",
+        ),
+      );
+    }
+    modelSpace.push(record);
+  }
+}
+
+/** El registro mutable durante el ensamblado; se congela al final. */
+interface MutableEntityRecord {
+  readonly handle: number;
+  readonly entity: DwgGeometryEntity;
+  readonly layerHandle: number | undefined;
+  readonly insertedBlockName: readonly number[] | undefined;
+  readonly attributes: MutableEntityRecord[];
+  readonly vertices: MutableEntityRecord[];
+  sequenceEndHandle: number | undefined;
+}
+
+/** Congela un registro y sus atributos; sin atributos viaja `undefined`. */
+function freezeEntityRecord(
+  record: MutableEntityRecord,
+): Ac1015DatabaseEntityRecord {
+  return Object.freeze({
+    handle: record.handle,
+    entity: record.entity,
+    layerHandle: record.layerHandle,
+    insertedBlockName: record.insertedBlockName,
+    attributes:
+      record.attributes.length === 0
+        ? undefined
+        : Object.freeze(record.attributes.map(freezeEntityRecord)),
+    vertices:
+      record.vertices.length === 0
+        ? undefined
+        : Object.freeze(record.vertices.map(freezeEntityRecord)),
+    sequenceEndHandle: record.sequenceEndHandle,
   });
 }
 
@@ -482,7 +647,7 @@ function buildEntityRecord(
   object: Extract<DecodedObject, { kind: "entity" }>,
   blocksByHandle: ReadonlyMap<number, { readonly name: readonly number[] }>,
   diagnostics: DwgDiagnostic[],
-): Ac1015DatabaseEntityRecord {
+): MutableEntityRecord {
   const { entity, references, common } = object.decoded;
   const layerHandle =
     references.layer.kind === "null" ? undefined : references.layer.handle;
@@ -510,12 +675,15 @@ function buildEntityRecord(
     }
   }
 
-  return Object.freeze({
+  return {
     handle: object.handle,
     entity,
     layerHandle,
     insertedBlockName,
-  });
+    attributes: [],
+    vertices: [],
+    sequenceEndHandle: undefined,
+  };
 }
 
 /** Resuelve una referencia de la cabeza del flujo a un bloque conocido. */

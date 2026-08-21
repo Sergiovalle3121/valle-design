@@ -115,8 +115,20 @@ function observeHeaderCrc(dwgBytes) {
   };
 }
 
+/**
+ * Proyecta un registro leído al vocabulario de comparación del oráculo: la
+ * POLYLINE 2D clásica habla el mismo idioma que la LWPOLYLINE (equivalencia
+ * declarada del corpus) y las demás variantes conservan su clase.
+ */
+function projectRecord(record) {
+  const kind =
+    record.entity.kind === "polyline2d" ? "lwpolyline" : record.entity.kind;
+  return { kind, fields: readFieldsFromEntity(record) };
+}
+
 function readFieldsFromEntity(record) {
   const e = record.entity;
+  const vertexEntities = (record.vertices ?? []).map((v) => v.entity);
   switch (e.kind) {
     case "line":
       return { start: [e.start.x, e.start.y, e.start.z], end: [e.end.x, e.end.y, e.end.z] };
@@ -152,9 +164,89 @@ function readFieldsFromEntity(record) {
         bulges: e.bulges ? [...e.bulges] : e.vertices.map(() => 0),
         constantWidth: e.constantWidth ?? 0,
       };
+    case "mtext":
+      return {
+        insertion: [e.insertion.x, e.insertion.y],
+        height: e.height,
+        value: decodeBytes(e.valueBytes),
+      };
+    case "attrib":
+    case "attdef":
+      return {
+        insertion: [e.insertion.x, e.insertion.y],
+        height: e.height,
+        value: decodeBytes(e.valueBytes),
+        tag: decodeBytes(e.tagBytes),
+      };
+    case "polyline2d": {
+      const positions = vertexEntities.filter((v) => v.kind === "vertex2d");
+      return {
+        closed: (e.flags & 1) === 1,
+        vertices: positions.map((v) => [v.position.x, v.position.y]),
+        bulges: positions.map((v) => v.bulge),
+        constantWidth: e.startWidth === e.endWidth ? e.startWidth : 0,
+      };
+    }
+    case "polyline3d": {
+      const positions = vertexEntities.filter((v) => v.kind === "vertex3d");
+      return {
+        closed: (e.closedFlags & 1) === 1,
+        vertices: positions.map((v) => [v.position.x, v.position.y, v.position.z]),
+      };
+    }
+    case "polymesh": {
+      const positions = vertexEntities.filter((v) => v.kind === "vertexMesh");
+      return {
+        mSize: e.mVertexCount,
+        nSize: e.nVertexCount,
+        vertices: positions.map((v) => [v.position.x, v.position.y, v.position.z]),
+      };
+    }
+    case "polyfaceMesh": {
+      const positions = vertexEntities.filter((v) => v.kind === "vertexPface");
+      const faces = vertexEntities.filter((v) => v.kind === "pfaceFace");
+      return {
+        vertices: positions.map((v) => [v.position.x, v.position.y, v.position.z]),
+        faces: faces.map((v) => [v.index1, v.index2, v.index3, v.index4]),
+      };
+    }
+    case "dimension":
+      // textMid excluido a propósito: el conversor recoloca el texto al
+      // regenerar el bloque anónimo (tolerancia declarada en el oráculo).
+      // En las angulares el 10 también es derivado: se comparan 13/14/15.
+      if (e.dimensionKind === "angular3pt" || e.dimensionKind === "angular2ln") {
+        return {
+          dimensionKind: e.dimensionKind,
+          point13: [e.point13?.x ?? 0, e.point13?.y ?? 0],
+          point14: [e.point14?.x ?? 0, e.point14?.y ?? 0],
+          point15: [e.point15?.x ?? 0, e.point15?.y ?? 0],
+        };
+      }
+      return {
+        dimensionKind: e.dimensionKind,
+        defPoint: [e.definitionPoint.x, e.definitionPoint.y, e.definitionPoint.z],
+      };
     default:
       return {};
   }
+}
+
+/**
+ * Aplana una lista de registros de la base para compararla: los ATTRIB
+ * atados a un INSERT vuelven a la lista (el oráculo DXF los ve como
+ * entidades que siguen al INSERT) y los SEQEND estructurales se excluyen
+ * (el oráculo también los descarta).
+ */
+function flattenRecords(records) {
+  const out = [];
+  for (const record of records) {
+    if (record.entity.kind === "seqend") continue;
+    out.push(record);
+    for (const attribute of record.attributes ?? []) {
+      if (attribute.entity.kind !== "seqend") out.push(attribute);
+    }
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -387,10 +479,10 @@ async function main() {
       const modelBlocks = database.blocks.filter((b) =>
         decodeBytes(b.name).toUpperCase().includes("MODEL_SPACE"),
       );
-      const readTop = [
+      const readTop = flattenRecords([
         ...database.modelSpaceEntities,
         ...modelBlocks.flatMap((b) => b.entities),
-      ].map((r) => ({ kind: r.entity.kind, fields: readFieldsFromEntity(r) }));
+      ]).map(projectRecord);
       const expectedTop = expected.topEntities.map(expectedFromOracle);
       record.entidades = compareEntitySets(expectedTop, readTop);
 
@@ -403,10 +495,7 @@ async function main() {
           bloques[name] = { encontrado: false };
           continue;
         }
-        const readInside = found.entities.map((r) => ({
-          kind: r.entity.kind,
-          fields: readFieldsFromEntity(r),
-        }));
+        const readInside = flattenRecords(found.entities).map(projectRecord);
         bloques[name] = {
           encontrado: true,
           contenido: compareEntitySets(entities.map(expectedFromOracle), readInside),

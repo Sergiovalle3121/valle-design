@@ -40,10 +40,50 @@ import type {
   DwgPoint3,
   DwgPointEntity,
   DwgTextEntity,
+  DwgTextFields,
 } from "../model/entity-geometry.js";
 import { throwDwgError } from "../security/parse-error.js";
 import { AC1015_TYPE_INSERT, decodeInsert } from "./entity-insert.js";
 import { AC1015_TYPE_LWPOLYLINE, decodeLwPolyline } from "./entities-poly.js";
+import {
+  AC1015_TYPE_ATTDEF,
+  AC1015_TYPE_ATTRIB,
+  AC1015_TYPE_DIM_ALIGNED,
+  AC1015_TYPE_DIM_ANGULAR_2LN,
+  AC1015_TYPE_DIM_ANGULAR_3PT,
+  AC1015_TYPE_DIM_DIAMETER,
+  AC1015_TYPE_DIM_LINEAR,
+  AC1015_TYPE_DIM_ORDINATE,
+  AC1015_TYPE_DIM_RADIUS,
+  AC1015_TYPE_MTEXT,
+  AC1015_TYPE_SEQEND,
+  decodeAttdef,
+  decodeAttrib,
+  decodeDimension,
+  decodeMText,
+  decodeSeqend,
+  dimensionKindOfType,
+} from "./entities-annotation.js";
+import {
+  AC1015_TYPE_POLYLINE_2D,
+  AC1015_TYPE_POLYLINE_3D,
+  AC1015_TYPE_POLYLINE_MESH,
+  AC1015_TYPE_POLYLINE_PFACE,
+  AC1015_TYPE_VERTEX_2D,
+  AC1015_TYPE_VERTEX_3D,
+  AC1015_TYPE_VERTEX_MESH,
+  AC1015_TYPE_VERTEX_PFACE,
+  AC1015_TYPE_VERTEX_PFACE_FACE,
+  decodePfaceFace,
+  decodePolyfaceMesh,
+  decodePolyline2d,
+  decodePolyline3d,
+  decodePolylineMesh,
+  decodeVertex2d,
+  decodeVertex3d,
+  decodeVertexMesh,
+  decodeVertexPface,
+} from "./entities-polyline-classic.js";
 import {
   finiteDecoded,
   frozenPoint3,
@@ -63,6 +103,30 @@ export const AC1015_TYPE_LINE = 0x13;
 export const AC1015_TYPE_POINT = 0x1b;
 export { AC1015_TYPE_LWPOLYLINE } from "./entities-poly.js";
 export { AC1015_TYPE_INSERT } from "./entity-insert.js";
+export {
+  AC1015_TYPE_ATTDEF,
+  AC1015_TYPE_ATTRIB,
+  AC1015_TYPE_DIM_ALIGNED,
+  AC1015_TYPE_DIM_ANGULAR_2LN,
+  AC1015_TYPE_DIM_ANGULAR_3PT,
+  AC1015_TYPE_DIM_DIAMETER,
+  AC1015_TYPE_DIM_LINEAR,
+  AC1015_TYPE_DIM_ORDINATE,
+  AC1015_TYPE_DIM_RADIUS,
+  AC1015_TYPE_MTEXT,
+  AC1015_TYPE_SEQEND,
+} from "./entities-annotation.js";
+export {
+  AC1015_TYPE_POLYLINE_2D,
+  AC1015_TYPE_POLYLINE_3D,
+  AC1015_TYPE_POLYLINE_MESH,
+  AC1015_TYPE_POLYLINE_PFACE,
+  AC1015_TYPE_VERTEX_2D,
+  AC1015_TYPE_VERTEX_3D,
+  AC1015_TYPE_VERTEX_MESH,
+  AC1015_TYPE_VERTEX_PFACE,
+  AC1015_TYPE_VERTEX_PFACE_FACE,
+} from "./entities-polyline-classic.js";
 
 /**
  * Las referencias interpretadas de una entidad (fase D4): la cabeza del flujo
@@ -99,20 +163,12 @@ export function decodeAc1015EntityBody(
   // el común de entidad sería desincronizarse en silencio. El tipo vive en el
   // byte 0 del cuerpo; lo desconocido es capacidad ausente, no corrupción.
   const type = peekEntityType(bodyBytes);
-  if (
-    type !== AC1015_TYPE_LINE &&
-    type !== AC1015_TYPE_POINT &&
-    type !== AC1015_TYPE_CIRCLE &&
-    type !== AC1015_TYPE_ARC &&
-    type !== AC1015_TYPE_LWPOLYLINE &&
-    type !== AC1015_TYPE_TEXT &&
-    type !== AC1015_TYPE_INSERT
-  ) {
+  if (!DECODED_ENTITY_TYPES.has(type)) {
     throwDwgError(
       "DWG_VERSION_DECODER_UNSUPPORTED",
       "unsupported",
       0,
-      "This entity type is not decoded by the phase-D laboratory.",
+      "This entity type is not decoded by the laboratory.",
     );
   }
 
@@ -175,11 +231,44 @@ function peekEntityType(bodyBytes: Uint8Array): number {
   return new DwgBitReader(new BoundedByteCursor(bodyBytes)).readBS();
 }
 
+/** Los tipos de entidad que el despachador decodifica hoy. */
+const DECODED_ENTITY_TYPES: ReadonlySet<number> = new Set([
+  AC1015_TYPE_LINE,
+  AC1015_TYPE_POINT,
+  AC1015_TYPE_CIRCLE,
+  AC1015_TYPE_ARC,
+  AC1015_TYPE_LWPOLYLINE,
+  AC1015_TYPE_TEXT,
+  AC1015_TYPE_INSERT,
+  AC1015_TYPE_ATTRIB,
+  AC1015_TYPE_ATTDEF,
+  AC1015_TYPE_SEQEND,
+  AC1015_TYPE_MTEXT,
+  AC1015_TYPE_DIM_ORDINATE,
+  AC1015_TYPE_DIM_LINEAR,
+  AC1015_TYPE_DIM_ALIGNED,
+  AC1015_TYPE_DIM_ANGULAR_3PT,
+  AC1015_TYPE_DIM_ANGULAR_2LN,
+  AC1015_TYPE_DIM_RADIUS,
+  AC1015_TYPE_DIM_DIAMETER,
+  AC1015_TYPE_POLYLINE_2D,
+  AC1015_TYPE_POLYLINE_3D,
+  AC1015_TYPE_POLYLINE_MESH,
+  AC1015_TYPE_POLYLINE_PFACE,
+  AC1015_TYPE_VERTEX_2D,
+  AC1015_TYPE_VERTEX_3D,
+  AC1015_TYPE_VERTEX_MESH,
+  AC1015_TYPE_VERTEX_PFACE,
+  AC1015_TYPE_VERTEX_PFACE_FACE,
+]);
+
 /** Despacha al decodificador del tipo ya verificado como soportado. */
 function decodeEntitySpecific(
   type: number,
   reader: DwgBitReader,
 ): DwgGeometryEntity {
+  const dimensionKind = dimensionKindOfType(type);
+  if (dimensionKind !== null) return decodeDimension(reader, dimensionKind);
   switch (type) {
     case AC1015_TYPE_LINE:
       return decodeLine(reader);
@@ -195,6 +284,32 @@ function decodeEntitySpecific(
       return decodeText(reader);
     case AC1015_TYPE_INSERT:
       return decodeInsert(reader);
+    case AC1015_TYPE_ATTRIB:
+      return decodeAttrib(reader);
+    case AC1015_TYPE_ATTDEF:
+      return decodeAttdef(reader);
+    case AC1015_TYPE_SEQEND:
+      return decodeSeqend();
+    case AC1015_TYPE_MTEXT:
+      return decodeMText(reader);
+    case AC1015_TYPE_POLYLINE_2D:
+      return decodePolyline2d(reader);
+    case AC1015_TYPE_POLYLINE_3D:
+      return decodePolyline3d(reader);
+    case AC1015_TYPE_POLYLINE_MESH:
+      return decodePolylineMesh(reader);
+    case AC1015_TYPE_POLYLINE_PFACE:
+      return decodePolyfaceMesh(reader);
+    case AC1015_TYPE_VERTEX_2D:
+      return decodeVertex2d(reader);
+    case AC1015_TYPE_VERTEX_3D:
+      return decodeVertex3d(reader);
+    case AC1015_TYPE_VERTEX_MESH:
+      return decodeVertexMesh(reader);
+    case AC1015_TYPE_VERTEX_PFACE:
+      return decodeVertexPface(reader);
+    case AC1015_TYPE_VERTEX_PFACE_FACE:
+      return decodePfaceFace(reader);
     default:
       // Inalcanzable: el despachador sólo se llama tras el filtro de tipos.
       // Si llega, el error es NUESTRO, no del archivo.
@@ -317,6 +432,18 @@ function decodeCircleFields(reader: DwgBitReader): {
  * generación/alineación se conservan crudos.
  */
 function decodeText(reader: DwgBitReader): DwgTextEntity {
+  return Object.freeze({
+    kind: "text" as const,
+    ...decodeTextFields(reader),
+  });
+}
+
+/**
+ * Los campos compartidos por TEXT y por ATTRIB/ATTDEF (hecho registrado: los
+ * atributos abren con la MISMA disposición de TEXT antes de sus campos
+ * propios). Exportado para `entities-annotation.ts` — cero criterios gemelos.
+ */
+export function decodeTextFields(reader: DwgBitReader): DwgTextFields {
   const dataFlags = reader.readRC();
 
   const elevation =
@@ -385,8 +512,7 @@ function decodeText(reader: DwgBitReader): DwgTextEntity {
   const verticalAlignment =
     (dataFlags & 0x80) === 0 ? reader.readBS() : undefined;
 
-  return Object.freeze({
-    kind: "text" as const,
+  return {
     insertion,
     elevation,
     alignment,
@@ -400,7 +526,7 @@ function decodeText(reader: DwgBitReader): DwgTextEntity {
     generation,
     horizontalAlignment,
     verticalAlignment,
-  });
+  };
 }
 
 /** Un 3BD validado como punto finito del modelo neutral. */
