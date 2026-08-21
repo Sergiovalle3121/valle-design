@@ -484,10 +484,9 @@ export function createCadStarterDocument(input: CadStarterDocumentInput): CadDoc
   });
 
   // La ventana se recalcula ENTERA en vez de heredar la que trae la
-  // presentación. La que trae usa 10 mm en los cuatro márgenes y reserva 30 mm
-  // de cajetín: sobre una lámina mexicana eso mete el dibujo diez milímetros
-  // dentro de la zona de archivo —por donde se perfora el plano— y veinte
-  // encima del cajetín. Ninguna de las dos cosas se ve en pantalla.
+  // presentación. La heredada ya respeta los márgenes ISO, pero reserva los
+  // 30 mm del cajetín genérico y el mexicano mide 50: heredarla dejaría veinte
+  // milímetros de dibujo encima del cajetín, y eso no se ve en pantalla.
   const paperBounds = {
     x: ISO_MARGINS.left,
     y: ISO_MARGINS.top,

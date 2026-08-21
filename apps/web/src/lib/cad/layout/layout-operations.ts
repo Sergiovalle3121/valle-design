@@ -30,10 +30,12 @@ import type { CadDocument, CadPaperSpace, CadPaperViewport } from "../cad-docume
 import type { CadEntityCommand } from "../entity-commands";
 import {
   createCadPaperSpace,
+  fitCadViewportScale,
   type CadModelBounds,
   type CadSheetMetadata,
   type CadSheetPaper,
 } from "../paper-space";
+import { applyCadPageSetupToLayout, cadPageSetupFromLayout } from "../plot/page-setup";
 
 export interface CadLayoutTemplate {
   id: string;
@@ -139,20 +141,33 @@ export function createCadLayout(
     ...(input.scale !== undefined ? { scale: input.scale } : {}),
   });
   if (!template) return space;
+  // La plantilla entra POR LA MISMA PUERTA que PAGESETUP. La hoja nace con los
+  // márgenes uniformes de `createCadPaperSpace`, que ya colocaron la ventana;
+  // sobreescribir `pageSetup` a mano dejaba esa ventana donde la pusieron los
+  // márgenes viejos, invadiendo 10 mm el margen de archivado ISO — el margen
+  // por el que se perfora el plano. `applyCadPageSetupToLayout` recoloca las
+  // ventanas al cambiar los márgenes, y usarlo aquí es lo que hace que una
+  // lámina de plantilla nazca igual que si PAGESETUP la hubiera configurado.
+  const applied = applyCadPageSetupToLayout(space, {
+    ...cadPageSetupFromLayout(space),
+    paper: template.paper,
+    orientation: template.orientation,
+    margins: { ...template.margins },
+    colorMode: template.colorMode,
+    lineweightScale: template.lineweightScale,
+  });
+  if (input.scale !== undefined) return applied;
+  // La escala automática se ajustó contra la ventana de márgenes uniformes,
+  // que era más ancha que la definitiva. Se vuelve a ajustar contra la ventana
+  // recolocada: sin esto, un modelo que apuraba el ancho nacería desbordando la
+  // ventana un 1 % — el recorte silencioso que `viewport_model_clipped` existe
+  // para denunciar. Una escala pedida explícitamente es contrato y no se toca.
   return {
-    ...space,
-    pageSetup: {
-      ...(space.pageSetup ?? {
-        paper: template.paper,
-        margins: template.margins,
-        colorMode: template.colorMode,
-        lineweightScale: template.lineweightScale,
-      }),
-      paper: template.paper,
-      margins: { ...template.margins },
-      colorMode: template.colorMode,
-      lineweightScale: template.lineweightScale,
-    },
+    ...applied,
+    viewports: applied.viewports?.map((viewport) => ({
+      ...viewport,
+      scale: fitCadViewportScale(viewport.modelBounds, viewport.paperBounds, input.unit),
+    })),
   };
 }
 
