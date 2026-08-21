@@ -8,13 +8,14 @@ import {
   Optional,
 } from '@nestjs/common';
 import { createHash } from 'node:crypto';
+import { DataSource, EntityManager, FindOptionsWhere, IsNull } from 'typeorm';
 import {
-  DataSource,
-  EntityManager,
-  FindOptionsWhere,
-  IsNull,
-  Raw,
-} from 'typeorm';
+  DOCUMENT_LIST_COLUMNS,
+  PROJECT_LIST_COLUMNS,
+  nameContains,
+  pageWindow,
+  type PageQuery,
+} from './cad-list-query';
 import type { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import {
   TenantScopedRepository,
@@ -45,11 +46,7 @@ import type {
   UsageMeter,
 } from '../commercial/ports/commercial.ports';
 
-export interface PageQuery {
-  q?: string;
-  limit?: number;
-  offset?: number;
-}
+export type { PageQuery } from './cad-list-query';
 
 export interface CadDocumentSaveResult {
   cadDocumentId: string;
@@ -58,62 +55,6 @@ export interface CadDocumentSaveResult {
   storedAsBlobPointer: boolean;
 }
 
-/**
- * Columnas que viajan en los LISTADOS. Nunca el documento canónico
- * (`cadDocument`, jsonb que puede pesar decenas de MB), ni el DXF crudo
- * (`dxfData`), ni `legacyMetadata`: un listado de 200 filas arrastrando eso
- * es transferencia y heap por una respuesta que sólo muestra nombre y
- * versión. Son exactamente las columnas que `documentSummary`/
- * `projectResource` serializan.
- */
-const DOCUMENT_LIST_COLUMNS = [
-  'id',
-  'projectId',
-  'name',
-  'model',
-  'revision',
-  'cadDocumentVersion',
-  'layers',
-  'legacySourceId',
-  'created_at',
-  'updated_at',
-  'created_by',
-] as const satisfies readonly (keyof CadDocument)[];
-
-const PROJECT_LIST_COLUMNS = [
-  'id',
-  'name',
-  'description',
-  'status',
-  'legacySourceId',
-  'created_at',
-  'updated_at',
-  'created_by',
-] as const satisfies readonly (keyof CadProject)[];
-
-/** Ventana de página del contrato v1: default 50, máximo 200. */
-function pageWindow(query: PageQuery): { offset: number; limit: number } {
-  return {
-    offset: Math.max(0, query.offset ?? 0),
-    limit: Math.min(Math.max(1, query.limit ?? 50), 200),
-  };
-}
-
-/**
- * Búsqueda `q` por nombre EN SQL, portable entre PostgreSQL y SQLite:
- * `LOWER(col) LIKE LOWER(:q)` con comodines escapados — un nombre con `%` o
- * `_` literales no es un patrón. Sustituye a la paginación en memoria con
- * tope de 1000 filas que hacía mentir a `total` por encima del tope y volvía
- * inalcanzable todo documento más viejo que las 1000 filas más recientes.
- * Como FindOperator dentro de `find`, conserva el scoping de tenant del
- * TenantScopedRepository (un QueryBuilder lo perdería).
- */
-function nameContains(term: string) {
-  const escaped = term.replace(/[\\%_]/gu, (ch) => `\\${ch}`);
-  return Raw((alias) => `LOWER(${alias}) LIKE LOWER(:q) ESCAPE '\\'`, {
-    q: `%${escaped}%`,
-  });
-}
 
 /**
  * Repositorio FINO del ciclo de vida CAD propio (contrato design-api.v1):

@@ -6,16 +6,19 @@ import {
   describePostgres,
   type PostgresHarness,
 } from '../../common/testing/postgres-harness';
-import type { AuthenticatedUser } from '../../common/types/authenticated-user.types';
-import { ApiRateLimitService } from '../identity/api-rate-limit.service';
-import { BoundedMemoryIdentityRateLimitStore } from '../identity/identity-rate-limit.store';
+import {
+  STRIPE_TEST_CONFIGURATION as CONFIGURATION,
+  STRIPE_TEST_WEBHOOK_SECRET as WEBHOOK_SECRET,
+  authenticatedCommercialRequest as authenticated,
+  epochSeconds as epoch,
+  memoryRateLimits,
+} from '../../common/testing/stripe-billing-fixture';
 import { User } from '../identity/entities/identity.entity';
 import { Organization } from '../organizations/entities/organization.entity';
 import { PostgresCadEventPublisher } from './adapters/postgres.adapters';
 import { NullPaymentProvider } from './adapters/null-payment.provider';
 import {
   StripePaymentProvider,
-  type StripeConfiguration,
   type StripeHttpClient,
 } from './adapters/stripe-payment.provider';
 import { BillingWebhookService } from './billing-webhook.service';
@@ -44,36 +47,6 @@ import type { PaymentWebhookEvent } from './ports/payment-provider.port';
  * asiento. Un doble afirmaría justo lo que se quiere probar.
  */
 
-const WEBHOOK_SECRET = 'whsec_prueba_de_treinta_y_dos_caracteres';
-const CONFIGURATION: StripeConfiguration = {
-  secretKey: 'sk_test_x',
-  webhookSecret: WEBHOOK_SECRET,
-  apiBaseUrl: 'https://api.stripe.test',
-  successUrl: 'https://app.example.test/ok',
-  cancelUrl: 'https://app.example.test/ko',
-  portalReturnUrl: 'https://app.example.test/portal',
-  timeoutMs: 5_000,
-  toleranceSeconds: 300,
-  apiVersion: null,
-};
-
-function authenticated(
-  organizationId: string,
-  userId: string,
-  role: 'owner' | 'admin' | 'member',
-): Request {
-  const user: AuthenticatedUser = {
-    userId,
-    organization_id: organizationId,
-    tenant_id: organizationId,
-    role,
-  } as AuthenticatedUser;
-  return { user } as unknown as Request;
-}
-
-function epoch(iso: string): number {
-  return Math.floor(new Date(iso).getTime() / 1000);
-}
 
 describePostgres('Ciclo de vida cobrado con Stripe (PostgreSQL)', () => {
   jest.setTimeout(90_000);
@@ -170,7 +143,7 @@ describePostgres('Ciclo de vida cobrado con Stripe (PostgreSQL)', () => {
       source,
       new PostgresCadEventPublisher(),
       new StripePaymentProvider(CONFIGURATION, httpClient),
-      new ApiRateLimitService(new BoundedMemoryIdentityRateLimitStore()),
+      memoryRateLimits(),
     );
   });
 
@@ -644,7 +617,7 @@ describePostgres('Ciclo de vida cobrado con Stripe (PostgreSQL)', () => {
       harness.dataSource,
       new PostgresCadEventPublisher(),
       new NullPaymentProvider(),
-      new ApiRateLimitService(new BoundedMemoryIdentityRateLimitStore()),
+      memoryRateLimits(),
     );
     const resultado = await conNulo.cancelSubscription(
       authenticated(organizationId, ownerId, 'owner'),

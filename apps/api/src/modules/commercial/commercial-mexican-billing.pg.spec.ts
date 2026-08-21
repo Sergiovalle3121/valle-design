@@ -1,14 +1,15 @@
 import { createHmac, randomUUID } from 'node:crypto';
 import { BadRequestException, ConflictException } from '@nestjs/common';
-import type { Request } from 'express';
 import {
   createPostgresHarness,
   describePostgres,
   type PostgresHarness,
 } from '../../common/testing/postgres-harness';
-import type { AuthenticatedUser } from '../../common/types/authenticated-user.types';
-import { ApiRateLimitService } from '../identity/api-rate-limit.service';
-import { BoundedMemoryIdentityRateLimitStore } from '../identity/identity-rate-limit.store';
+import {
+  STRIPE_TEST_WEBHOOK_SECRET as WEBHOOK_SECRET,
+  authenticatedCommercialRequest as authenticated,
+  memoryRateLimits,
+} from '../../common/testing/stripe-billing-fixture';
 import { User } from '../identity/entities/identity.entity';
 import {
   Invitation,
@@ -54,7 +55,6 @@ import type { PaymentWebhookEvent } from './ports/payment-provider.port';
  *    se quiere probar.
  */
 
-const WEBHOOK_SECRET = 'whsec_prueba_de_treinta_y_dos_caracteres';
 const CONFIGURATION: StripeConfiguration = {
   secretKey: 'sk_test_mx',
   webhookSecret: WEBHOOK_SECRET,
@@ -74,20 +74,6 @@ const FISCAL_VALIDO = {
   cfdiUseCode: 'G03',
   postalCode: '06700',
 };
-
-function authenticated(
-  organizationId: string,
-  userId: string,
-  role: 'owner' | 'admin' | 'member',
-): Request {
-  const user: AuthenticatedUser = {
-    userId,
-    organization_id: organizationId,
-    tenant_id: organizationId,
-    role,
-  } as AuthenticatedUser;
-  return { user } as unknown as Request;
-}
 
 describePostgres('Facturación mexicana: CFDI, OXXO y asientos', () => {
   jest.setTimeout(90_000);
@@ -202,7 +188,7 @@ describePostgres('Facturación mexicana: CFDI, OXXO y asientos', () => {
       source,
       new PostgresCadEventPublisher(),
       new StripePaymentProvider(CONFIGURATION, httpClient),
-      new ApiRateLimitService(new BoundedMemoryIdentityRateLimitStore()),
+      memoryRateLimits(),
     );
     taxes = new TaxProfileController(
       source.getRepository(TaxProfile),
