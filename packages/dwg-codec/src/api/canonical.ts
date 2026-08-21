@@ -248,10 +248,15 @@ export function dwgDatabaseToCanonicalDocument(
   const unsupportedCounts = new Map<number, number>();
   for (const item of database.unsupported) {
     unsupportedCounts.set(item.type, (unsupportedCounts.get(item.type) ?? 0) + 1);
+    const className =
+      item.className === undefined ? undefined : decodeBytes(item.className);
     opaque.push({
       id: handleId(item.handle),
       provider: PROVIDER,
-      sourceType: `dwg-type-0x${item.type.toString(16)}`,
+      sourceType:
+        className === undefined
+          ? `dwg-type-0x${item.type.toString(16)}`
+          : `dwg-class:${className}`,
       raw: `handle=0x${item.handle.toString(16)};type=0x${item.type.toString(16)}`,
       editable: false,
     });
@@ -265,6 +270,43 @@ export function dwgDatabaseToCanonicalDocument(
     });
   }
 
+  // Las tablas de símbolos de la fase D5 viajan al catálogo de estilos del
+  // documento: tipos de línea con su patrón .lin (49 firmados), estilos de
+  // texto con su altura fija y los NOMBRES de los estilos de cota (el núcleo
+  // de DIMVARs se proyecta en la integración; pérdida declarada).
+  const linetypeStyles: Record<string, { pattern: number[]; description?: string }> = {};
+  for (const entry of database.tables?.linetypes ?? []) {
+    const name = decodeBytes(entry.name);
+    const dashes = entry.fields["dashLengths"];
+    linetypeStyles[name] = {
+      pattern: Array.isArray(dashes) ? dashes.map((d) => Number(d)) : [],
+      ...(entry.fields["description"] !== undefined &&
+      Array.isArray(entry.fields["description"]) &&
+      (entry.fields["description"] as readonly number[]).length > 0
+        ? { description: decodeBytes(entry.fields["description"] as readonly number[]) }
+        : {}),
+    };
+  }
+  const textStyles: Record<string, { height?: number }> = {};
+  for (const entry of database.tables?.styles ?? []) {
+    const height = entry.fields["fixedHeight"];
+    textStyles[decodeBytes(entry.name)] = {
+      ...(typeof height === "number" && height !== 0 ? { height } : {}),
+    };
+  }
+  const dimensionStyles: Record<string, Record<string, unknown>> = {};
+  for (const entry of database.tables?.dimstyles ?? []) {
+    dimensionStyles[decodeBytes(entry.name)] = {};
+  }
+  if (Object.keys(dimensionStyles).length > 0) {
+    losses.push({
+      code: "dimstyle-variables-not-projected",
+      sourceType: "DIMSTYLE",
+      detail: `${Object.keys(dimensionStyles).length} estilo(s) de cota se proyectan por NOMBRE; el núcleo de DIMVARs al CadDimensionStyleDefinition es del adaptador de integración.`,
+      severity: "info",
+    });
+  }
+
   const document: CanonicalCadDocumentJson = {
     meta: { version: 1, schema: CANONICAL_SCHEMA, unit: "mm" },
     layers,
@@ -272,7 +314,15 @@ export function dwgDatabaseToCanonicalDocument(
     history: [{ version: 1, label: "importado por valle-dwg-codec" }],
     modelSpace: { entityIds },
     paperSpaces: [],
-    styles: { text: {}, dimension: {}, table: {}, plot: {} },
+    styles: {
+      text: textStyles,
+      dimension: dimensionStyles,
+      table: {},
+      plot: {},
+      ...(Object.keys(linetypeStyles).length > 0
+        ? { linetype: linetypeStyles }
+        : {}),
+    },
     blocks,
     constraints: [],
     externalReferences: [],
