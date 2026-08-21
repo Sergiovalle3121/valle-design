@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-roundtrip-v1",
   "generadoPor": "node scripts/dwg/dwg-evidence.mjs",
-  "generadoEn": "2026-08-21T16:07:44.931Z",
+  "generadoEn": "2026-08-21T16:21:23.695Z",
   "environment": {
     "node": "v22.18.0",
     "platform": "win32",

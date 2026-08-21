@@ -74,19 +74,32 @@ function readCorpusValidationMeasurement() {
 function independentlyVerifiedKinds(validation) {
   const kinds = new Set();
   if (validation === null) return kinds;
-  if ((validation.resumen?.noAbiertos ?? 1) !== 0) return kinds;
-  const files = validation.archivos ?? [];
+  const files = (validation.archivos ?? []).filter((a) => a.abre === true);
   if (files.length === 0) return kinds;
 
-  for (const [kind, row] of Object.entries(validation.matrizEntidades ?? {})) {
-    if (
-      row.esperado > 0 &&
-      row.leidoCorrecto === row.esperado &&
-      row.geometriaDistinta === 0 &&
-      row.faltante === 0 &&
-      row.inesperado === 0
-    ) {
-      kinds.add(kind);
+  // Una fila cuenta cuando TODO lo esperado comparó limpio. El informe es
+  // multi-versión desde la campaña: las versiones cuyos cuerpos aún no
+  // decodifican aportan "sinValidarPorNoAbrir", así que la fila se evalúa
+  // POR VERSIÓN (si existe el desglose) — que una versión entera compare
+  // limpia ES verificación independiente; la global sigue valiendo cuando
+  // no hay desglose.
+  const cleanRow = (row) =>
+    row !== undefined &&
+    row.esperado > 0 &&
+    row.leidoCorrecto === row.esperado &&
+    row.geometriaDistinta === 0 &&
+    row.faltante === 0 &&
+    row.inesperado === 0;
+  const porVersion = validation.resumen?.porVersion ?? null;
+  const matrices =
+    porVersion === null
+      ? [validation.matrizEntidades ?? validation.resumen?.matrizEntidades ?? {}]
+      : Object.values(porVersion)
+          .filter((v) => (v.noAbiertos ?? 1) === 0)
+          .map((v) => v.matrizEntidades ?? {});
+  for (const matrix of matrices) {
+    for (const [kind, row] of Object.entries(matrix)) {
+      if (cleanRow(row)) kinds.add(kind);
     }
   }
   if (

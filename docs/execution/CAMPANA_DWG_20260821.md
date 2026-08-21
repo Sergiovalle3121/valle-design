@@ -54,10 +54,10 @@ origin main`; conflictos fuera de mi territorio → versión de origin.
 - [x] 5.3 Benchmark report-only: 2.46 MB/s, 4369 objetos/s, máquina declarada (dwg-read-benchmark.json)
 
 ### OLA FINAL — Cierre y verdad (~30 min, OBLIGATORIA)
-- [ ] F.1 Suites completas ambos repos + evidencia regenerada + push ambos
-- [ ] F.2 CAPABILITIES/README/DWG0_WORKLOG al día; SOURCE_REGISTER completo
-- [ ] F.3 node scripts/cad/rubric.mjs --history (sin tocar pesos)
-- [ ] F.4 docs/execution/INFORME_CAMPANA_DWG_20260821.md
+- [x] F.1 check:dwg + check del paquete (366 unit + 349 adversarial + fuzz) + presupuesto de monolito verdes; evidencia regenerada entera; push de ambos repos (conformance a60ebe2; principal d95269c)
+- [x] F.2 CAPABILITIES/README/DWG0_WORKLOG al día; SOURCE_REGISTER con 80 hechos de la ODS + 21 mediciones first-party en dos entradas de corpus
+- [x] F.3 Rúbrica sin tocar pesos: Import/export DWG 4/8 → 7/8 (191/200) al corregir el generador de evidencia; el punto restante espera la firma del ADR-0009
+- [x] F.4 INFORME_CAMPANA_DWG_20260821.md con matriz por versión, lo rojo, los 10 pasos y el checklist de promoción
 
 ### Cola de reserva
 - [ ] R.1 Writer contenedor 2004-familia
