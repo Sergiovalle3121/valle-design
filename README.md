@@ -25,10 +25,14 @@ canónico, guardar con control de concurrencia CAS, consultar versiones,
 publicar hojas, usar review links y comentarios, importar DXF de texto o JSON
 canónico y exportar el subconjunto DXF implementado. Los documentos grandes se
 envían como archivos gzip y se guardan en PostgreSQL mediante blobs
-content-addressed. DWG no está disponible en el producto. El repositorio
-contiene un laboratorio clean-room experimental y aislado con detección binaria
-acotada y errores tipados; no decodifica una base de objetos y no está conectado
-a UI, API, provider ni al documento canónico.
+content-addressed. DWG no está disponible en el producto: la interfaz detecta
+el formato y lo dice, sin fingir soporte. El repositorio contiene un
+laboratorio clean-room AISLADO (`packages/dwg-codec`) cuyo códec propio hoy
+lee AC1015/AC1018 (2000/2004) a una base neutral con cero discrepancias
+contra su corpus con oráculo externo, y escribe un archivo AC1015 completo
+que ODA File Converter acepta; NADA de eso está conectado a UI, API, provider
+ni al documento canónico — la estrategia de dos vías está en
+`docs/adr/0012-dwg-doble-via.md`.
 
 ## Repositorio
 
@@ -148,9 +152,14 @@ siendo pruebas útiles, pero no sustituyen el recorrido full-stack.
 
 ## Límites declarados
 
-- No existe importación/exportación DWG productiva, modelador sólido B-rep,
-  API de plugins AutoLISP/.NET, GIS ni paridad general con AutoCAD. Detectar
-  una firma o mantener un laboratorio desconectado no cambia ese estado.
+- No existe importación/exportación DWG productiva ni paridad general con
+  AutoCAD; detectar una firma o mantener un laboratorio desconectado no cambia
+  ese estado. Lo que SÍ existe se dice con su límite: hay modelador de sólidos
+  B-rep FACETADO (booleanas, extrusión, STEP/IGES; no es 3D exacto), hay
+  intérprete AutoLISP con biblioteca de rutinas y plugins JS con manifiesto
+  versionado (no hay .NET ni VBA), y hay lectura LAS/GeoTIFF/SHP con
+  reproyección (no un GIS). «Todavía no» y «no» son cosas distintas: el mapa
+  de etapas vive en el anexo de crecimiento y la rúbrica.
 - DXF es un subconjunto de texto con manifiesto de pérdidas, no compatibilidad
   universal.
 - El benchmark de 100k usa LOD y presupuestos amplios; no autoriza afirmar

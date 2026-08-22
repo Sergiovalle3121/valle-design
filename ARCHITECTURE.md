@@ -103,15 +103,17 @@ efecto externo.
 ## Interoperabilidad y asistencia
 
 DXF es un adaptador parcial sobre el documento canónico. El loss manifest hace
-explícita la semántica no representable; DWG, STEP, IGES e IFC no están
-implementados en el producto.
+explícita la semántica no representable. STEP e IGES existen para SÓLIDOS
+(comandos IMPORT/EXPORT del motor, geometría facetada del kernel B-rep); DWG e
+IFC no están implementados en el producto. El contrato que cualquier formato
+futuro debe implementar está escrito en `docs/interop/CONTRATO-INTEROP.md`.
 
-`packages/dwg-codec/` es un laboratorio clean-room experimental y aislado
-gobernado por ADR-0007. Su frontera futura recibe bytes, produce primero una
-representación neutral, diagnostics y manifiesto de pérdidas y no depende de
-web, API, persistencia ni `CadDocument`. En DWG-0 no tiene consumidor runtime,
-provider, endpoint, upload ni UI; por tanto no cambia la disponibilidad del
-producto.
+`packages/dwg-codec/` es el laboratorio clean-room aislado gobernado por
+ADR-0007 (y la estrategia de dos vías por ADR-0012). Su códec ya lee
+AC1015/AC1018 a la base neutral con diagnósticos y pérdidas declaradas, y
+escribe un AC1015 completo aceptado por oráculo externo; sigue SIN consumidor
+runtime, provider, endpoint, upload ni UI, así que no cambia la disponibilidad
+del producto.
 
 CIDE es un puerto opcional para intent y vision: si falta, la respuesta es
 `available: false` y el editor sigue funcionando.

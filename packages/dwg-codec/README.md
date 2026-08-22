@@ -31,8 +31,14 @@ orientar; ante cualquier discrepancia, gana la matriz.
     neutral (`DwgDatabase`): capas, bloques con contenido, entidades de model
     space, tipos no soportados ENUMERADOS y diagnósticos. Falla cerrado con
     errores tipados.
-  - `writeDwg(options?)` emite un contenedor AC1015 (writer de laboratorio con
-    placeholders confesos; ver CAPABILITIES para sus límites).
+  - `writeDwg(options?)` emite el archivo AC1015 COMPLETO validado por
+    oráculo externo (ODA File Converter 27.1 convierte 4/4 casos con
+    coincidencia campo a campo; subconjunto de entidades
+    line/point/circle/arc/lwpolyline/text/insert — anotación y ATTRIBs son
+    pendientes declarados; sin TrustedDWG, AutoCAD muestra su aviso).
+  - `writeAc1015Container(options?)` es el writer de LABORATORIO (contenedor
+    con placeholders confesos, mitad emisora del round-trip propio); antes se
+    exportaba como `writeDwg` y esa confusión ya no existe.
 - **Evidencia independiente**: los DWG AC1015 reales del corpus admitido del
   repo hermano (`valle-design-dwg-conformance`, producidos por ODA File
   Converter 27.1 desde DXF propios) abren y su geometría se compara campo a

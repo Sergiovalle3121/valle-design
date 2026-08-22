@@ -35,7 +35,7 @@ function expectError(result: DwgProbeResult): DwgError {
   return result.error;
 }
 
-test("the package exposes exactly five callable public boundaries", () => {
+test("the package exposes exactly six callable public boundaries", () => {
   const functions = Object.entries(publicApi).filter(
     ([, value]) => typeof value === "function",
   );
@@ -46,6 +46,12 @@ test("the package exposes exactly five callable public boundaries", () => {
       "dwgDatabaseToCanonicalDocument",
       "probeDwg",
       "readDwg",
+      // `writeAc1015Container` es el writer de LABORATORIO (placeholders
+      // confesos) bajo su nombre honesto; `writeDwg` es el archivo COMPLETO
+      // validado por oráculo externo. Hasta la campaña de cimientos el alias
+      // público apuntaba al contenedor — la mentira por omisión que la
+      // auditoría señaló y que esta lista impide reintroducir.
+      "writeAc1015Container",
       "writeDwg",
     ],
   );
@@ -92,13 +98,18 @@ for (const [signature, label] of KNOWN) {
   });
 }
 
-test("the public writer and reader round-trip an empty container", () => {
+test("the public writer emits a COMPLETE file that the public reader round-trips", () => {
+  // `writeDwg` ya no es el contenedor de laboratorio: es el archivo AC1015
+  // entero que el oráculo externo acepta. Vacío por defecto trae lo que un
+  // archivo real mínimo trae: la capa "0" y los dos bloques de espacio.
   const bytes = writeDwg();
   const probe = probeDwg(bytes);
   assert.equal(probe.ok, true);
   const database = readDwg(bytes);
-  assert.deepEqual(database.layers, []);
-  assert.deepEqual(database.blocks, []);
+  assert.equal(database.layers.length, 1);
+  // El modelo crudo del lector conserva el nombre como códigos: 48 es "0".
+  assert.deepEqual(database.layers[0]?.name, [48]);
+  assert.equal(database.blocks.length, 2);
   assert.deepEqual(database.modelSpaceEntities, []);
   assert.deepEqual(database.unsupported, []);
 });

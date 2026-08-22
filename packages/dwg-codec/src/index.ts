@@ -1,6 +1,14 @@
 export { probeDwg } from "./api/probe.js";
 export { readDwg } from "./api/read.js";
-export { writeAc1015Container as writeDwg } from "./writer/ac1015-container-writer.js";
+// `writeDwg` es el writer VALIDADO POR ORÁCULO EXTERNO: emite el archivo
+// AC1015 completo que ODA File Converter acepta (evidencia en
+// dwg-oda-roundtrip.json). Hasta la campaña de cimientos este alias apuntaba
+// al writer de CONTENEDOR con placeholders confesos — una superficie pública
+// que mentía por omisión (auditoría externa, punto 9). El contenedor sigue
+// exportado con su nombre honesto porque las pruebas de round-trip propio lo
+// usan; lo que ya no existe es la confusión entre los dos.
+export { writeAc1015MinimalFile as writeDwg } from "./writer/ac1015-minimal-file-writer.js";
+export { writeAc1015Container } from "./writer/ac1015-container-writer.js";
 export {
   canonicalDocumentToDwgEntities,
   dwgDatabaseToCanonicalDocument,
