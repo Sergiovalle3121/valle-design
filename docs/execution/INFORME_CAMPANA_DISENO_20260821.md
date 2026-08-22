@@ -97,7 +97,14 @@ las cuatro pantallas de Next que faltaban.
 **Ola 5 — estudio.** El «Cerrar» rojo deja de ser lo más fuerte de la pantalla,
 la telemetría de desarrollador se esconde tras `?cadDiag=1` sin salir del DOM
 —dieciséis goldens la leen—, la paleta gana iconos y tooltips con el atajo de
-teclado, y el modo claro **funciona por primera vez**.
+teclado, y el modo claro **funciona por primera vez**: los colores fijos del
+chrome del estudio bajan de 646 a 1.
+
+**Cola de reserva — R.1 a R.4.** El sistema de movimiento quedó tokenizado en la
+ola 0 (dos curvas, `ease-out-expo` y `ease-spring`, mapeadas como utilidad).
+Guías y `/docs` con el tratamiento del sistema, tres ilustraciones propias en el
+vocabulario del isotipo, y `/status` y `/support` reordenadas por urgencia — son
+las dos páginas a las que se llega cuando algo va mal.
 
 ---
 
@@ -152,11 +159,9 @@ barra.
 | 2 | **`check:dwg-evidence` rojo**, también en `main` limpio. Territorio de la sesión de DWG. | ajeno |
 | 3 | **25 `shadow-2xl` restantes**, todos dentro del monolito. | 1 h |
 | 4 | **Restos de vocabulario industrial en el estudio** («estaciones», «Aisle», «Zone», «Equipment», «AXOS-CAD-STUDIO»). Territorio de la campaña de identidad, que corrió en paralelo. | ajeno |
-| 5 | **Páginas de documentación y guías** sin el tratamiento premium (R.2). | 1,5 h |
-| 6 | **Ilustraciones SVG propias** para estados vacíos y errores (R.3). | 2 h |
-| 7 | **`/status` y soporte** con el tratamiento premium (R.4). | 1 h |
-| 8 | **Modo presentación del estudio** (R.5). | 2 h |
-| 9 | **Infraestructura de claves i18n del estudio** (R.6). | 2 h |
+| 5 | **Modo presentación del estudio** (R.5). Diferenciador barato y muy vendible: una vista limpia sin paletas para enseñar el plano en junta. | 2 h |
+| 6 | **Infraestructura de claves i18n del estudio** (R.6). Hoy hay cinco claves de traducción en total y el editor tiene el español cableado. | 2 h |
+| 7 | **Golden visual del embudo público.** Es lo único que impediría una regresión estética silenciosa. | 2 h |
 
 ---
 
@@ -186,3 +191,53 @@ barra.
    nuevo no se ha vuelto a medir.
 10. **Escribir el gate de tono de voz.** El de diseño impide un hex suelto; nada
     impide todavía un «¡Revolucionario!» en la portada.
+
+
+---
+
+## Cola de reserva — lo que se alcanzó
+
+| # | Ítem | Estado |
+| - | ---- | ------ |
+| R.1 | Sistema de movimiento tokenizado | ✅ (en la ola 0) |
+| R.2 | Documentación y guías con el sistema | ✅ |
+| R.3 | Ilustraciones SVG propias | ✅ |
+| R.4 | `/status` y `/support` premium | ✅ |
+| R.5 | Modo presentación del estudio | pendiente |
+| R.6 | Infraestructura de claves i18n del estudio | pendiente |
+
+**R.3 · las tres ilustraciones** están dibujadas con el vocabulario del isotipo
+—trazo de plano, líneas de construcción, nodos de referencia a objetos— y todas
+en `currentColor`, así que funcionan en los dos temas sin una sola variante:
+
+- **Lienzo vacío**: una hoja con su cajetín. Dice «aquí va un plano» sin dibujar
+  uno; una planta terminada prometería un contenido que la pantalla no tiene.
+- **Sin resultados**: una lupa con marcas de centro y cota de radio con su marca
+  oblicua — una lupa dibujada como se dibuja en un plano.
+- **Algo se rompió**: una línea de construcción interrumpida con los dos nodos
+  huérfanos en ámbar, que es exactamente lo que el editor pinta cuando una
+  referencia se rompe. El dibujo dice lo mismo que el mensaje.
+
+---
+
+## Nota de método, para la próxima campaña
+
+Tres cosas costaron tiempo y merecen quedar escritas:
+
+1. **Correr los goldens mientras se edita no sirve.** El `webServer` de Playwright
+   es `npm run dev` y recarga en caliente con cada guardado. La primera corrida
+   dio seis fallos con duraciones de 3,5 y 4,6 minutos — firma inconfundible de
+   una recarga a mitad de prueba. Toda medición de goldens se hace con el árbol
+   quieto, y un `build` o un `lint` en paralelo cuenta como movimiento.
+
+2. **Antes de culpar a la rama, correr el control.** Cada fallo se clasificó con
+   `git stash` + corrida sobre `HEAD`. De doce rojos, seis eran anteriores a la
+   campaña, cuatro venían de la sesión paralela y sólo dos eran míos.
+
+3. **Dos sesiones sobre el MISMO árbol de trabajo es el riesgo real.** La campaña
+   de identidad renombró `components/line-engineering/` a `components/cad/` a
+   mitad de una ola, y el servidor de desarrollo se quedó con el grafo de módulos
+   a medias. Lo que lo hizo sobrevivible: staging explícito por ruta (nunca
+   `git add -A`), sacar sus archivos del índice antes de cada commit, y
+   transformaciones de archivo en una sola lectura-escritura para que la ventana
+   en la que se puede pisar su trabajo dure milisegundos.
