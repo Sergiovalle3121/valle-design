@@ -110,7 +110,7 @@ es que **nadie lo consume**. Esta campaña no reescribe el sistema: **lo cablea*
 - [x] R.1 Sistema de movimiento tokenizado
 - [x] R.2 Rediseño de documentación y guías
 - [x] R.3 Ilustraciones SVG propias
-- [ ] R.4 `/status` y soporte premium
+- [x] R.4 `/status` y soporte premium
 - [ ] R.5 Modo presentación del estudio
 - [ ] R.6 Infraestructura de claves i18n del estudio
 
@@ -641,3 +641,39 @@ en `currentColor`, así que funcionan en los dos temas sin una sola variante:
 Ninguna lleva `alt`: son `aria-hidden` sin excepción, porque lo que informa es
 el texto que va al lado y obligar a un lector de pantalla a describir un dibujo
 decorativo antes del mensaje es ruido.
+
+### VERIFICACIÓN FINAL — goldens 81/87
+
+Corrida completa con el árbol quieto, tras cerrar la cola de reserva:
+**80 verdes / 7 rojos**, y el rojo número siete
+(`19-cad-professional-workbench`) resultó ser un agotamiento de tiempo por
+CONTENCIÓN: la prueba tarda 4,5 minutos por sí sola y se le fue a 7,2 corriendo
+en paralelo con un `build` y un `lint` míos. **Verificada en aislamiento: verde.**
+
+**Resultado real: 81/87.** Los seis rojos que quedan —21-xrefs, 47-lisp-appload,
+47-solids, 53-bim-wall, 54-bim-wall-joins, 55-anchored-comments— son
+**exactamente los mismos seis que ya estaban rojos antes de empezar esta
+campaña**, comprobados con corrida de control sobre `main` limpio en la ola 1.
+
+Los cuatro que la sesión paralela había roto a mitad de camino (17-mleader,
+46-pointer-engine, 51-style-manager, 56-tableta) **han vuelto a verde**: los
+arregló ella.
+
+Y confirma la nota de método por tercera vez: un `build` o un `lint` en paralelo
+falsea una corrida de goldens igual que una recarga en caliente. La medición se
+hace con el árbol quieto o no se hace.
+
+### R.4 — cerrada
+
+`/status` y `/support` reordenadas por urgencia. Son páginas de MOMENTO MALO: se
+llega a ellas cuando algo no funciona, así que lo que importa no es que sean
+bonitas sino que la información esté ordenada y la acción se vea. La lista de
+«qué incluir al pedir ayuda» pasa a tarjetas numeradas —quien está atascado lee
+viñetas en diagonal y una lista numerada la sigue— y el aviso de no enviar
+contraseñas sale del párrafo introductorio a su propio bloque, con una frase que
+cierra la puerta: nadie de soporte te los va a pedir.
+
+`/status` gana un distintivo que dice de un vistazo qué clase de página es, y
+dice la verdad en los dos casos —«fuente externa configurada» o «sin telemetría
+pública»— sin decir nunca «todo operativo», que es exactamente lo que esta
+página existe para NO decir.

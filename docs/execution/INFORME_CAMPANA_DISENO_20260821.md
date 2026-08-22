@@ -140,7 +140,7 @@ La comparativa de la ola 3 se reformuló para comparar MODELOS de licencia
 | `design-system.spec`        | ✅ (nuevo) |
 | `organization-slug.spec`    | ✅ (nuevo) |
 | `build-brand-assets --check` | ✅ (nuevo) |
-| Goldens Playwright          | ver bitácora |
+| Goldens Playwright          | **81/87** — los 6 rojos son anteriores a la campaña |
 
 **Ningún `data-testid` cambió, se borró ni se renombró.** Cuando un spec
 existente dejó de encajar —`public-pages` y `seo-surface` afirmaban que la
