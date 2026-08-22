@@ -26,7 +26,7 @@ import React, { useCallback, useEffect, useMemo } from "react";
 import Layout3DEditor, {
   type Layout3DEditorPlatformProps,
   type Layout3DEditorProps,
-} from "@/components/line-engineering/Layout3DEditor";
+} from "@/components/cad/editor/Layout3DEditor";
 import { useToast } from "@/contexts/ToastContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";

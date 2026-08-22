@@ -13,7 +13,7 @@
  * de 23.000 líneas.
  */
 import * as THREE from "three";
-import type { AssetArchetype } from "@/components/line-engineering/asset-catalog";
+import type { AssetArchetype } from "./asset-catalog";
 
 // ── 3D asset geometry factory ────────────────────────────────────────────────
 // Builds a distinctive mesh group per archetype. Geometry is centred in X/Z with
@@ -131,7 +131,13 @@ export function buildCadAssetArchetype(
       const rg = new THREE.CylinderGeometry(rr, rr, dS * 0.7, 10);
       for (let i = 0; i < rollers; i++) {
         const rx = -wS / 2 + (wS / (rollers - 1 || 1)) * i;
-        const rm = cadAssetPart(rg, cadAssetMaterial(light, 0.4, 0.6), rx, deckY + deckT * 0.5, 0);
+        const rm = cadAssetPart(
+          rg,
+          cadAssetMaterial(light, 0.4, 0.6),
+          rx,
+          deckY + deckT * 0.5,
+          0,
+        );
         rm.rotation.x = Math.PI / 2;
         out.push(rm);
       }
@@ -304,7 +310,13 @@ export function buildCadAssetArchetype(
     }
     case "wall": {
       out.push(
-        cadAssetPart(new THREE.BoxGeometry(wS, H, dS), cadAssetMaterial(c, 0.9, 0.02), 0, H / 2, 0),
+        cadAssetPart(
+          new THREE.BoxGeometry(wS, H, dS),
+          cadAssetMaterial(c, 0.9, 0.02),
+          0,
+          H / 2,
+          0,
+        ),
       );
       out.push(
         cadAssetPart(
@@ -361,7 +373,13 @@ export function buildCadAssetArchetype(
     }
     case "cabinet": {
       out.push(
-        cadAssetPart(new THREE.BoxGeometry(wS, H, dS), cadAssetMaterial(c, 0.5, 0.3), 0, H / 2, 0),
+        cadAssetPart(
+          new THREE.BoxGeometry(wS, H, dS),
+          cadAssetMaterial(c, 0.5, 0.3),
+          0,
+          H / 2,
+          0,
+        ),
       );
       // door seam + handle
       out.push(
@@ -437,7 +455,13 @@ export function buildCadAssetArchetype(
       for (let i = 0; i < posts; i++) {
         const x = -wS / 2 + (wS / (posts - 1 || 1)) * i;
         out.push(
-          cadAssetPart(new THREE.BoxGeometry(pw, H, pw), cadAssetMaterial(c, 0.6, 0.3), x, H / 2, 0),
+          cadAssetPart(
+            new THREE.BoxGeometry(pw, H, pw),
+            cadAssetMaterial(c, 0.6, 0.3),
+            x,
+            H / 2,
+            0,
+          ),
         );
       }
       out.push(
@@ -490,7 +514,13 @@ export function buildCadAssetArchetype(
         [lx, -lz],
         [-lx, -lz],
       ].forEach(([x, z]) => {
-        const w = cadAssetPart(wg, cadAssetMaterial(0x111827, 0.6, 0.2), x, wr, z);
+        const w = cadAssetPart(
+          wg,
+          cadAssetMaterial(0x111827, 0.6, 0.2),
+          x,
+          wr,
+          z,
+        );
         w.rotation.x = Math.PI / 2;
         out.push(w);
       });

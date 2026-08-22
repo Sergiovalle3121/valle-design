@@ -146,9 +146,9 @@ export const residueBacklog = [
   ["apps/api/src/modules/cad-documents/cad-intent-tools.spec.ts", "ola 5"],
   ["apps/api/src/modules/cad-documents/cad-intent-tools.ts", "ola 5"],
   ["apps/api/src/modules/cad/cad.controller.spec.ts", "ola 5"],
-  ["apps/web/src/components/line-engineering/asset-catalog.ts", "ola 5"],
-  ["apps/web/src/components/line-engineering/cad-intent.spec.ts", "ola 5"],
-  ["apps/web/src/components/line-engineering/cad-intent.ts", "ola 5"],
+  ["apps/web/src/components/cad/viewport/asset-catalog.ts", "ola 5"],
+  ["apps/web/src/lib/cad/cad-intent.spec.ts", "ola 5"],
+  ["apps/web/src/lib/cad/cad-intent.ts", "ola 5"],
   ["apps/web/src/lib/cad/architecture.spec.ts", "ola 5"],
   ["apps/web/src/lib/cad/architecture.ts", "ola 5"],
   ["apps/web/src/lib/cad/cad-document.spec.ts", "ola 5"],
@@ -167,7 +167,7 @@ export const residueBacklog = [
   ["apps/web/src/lib/cad/symbols.ts", "ola 5"],
   ["apps/web/src/lib/cad/templates.spec.ts", "ola 5"],
   ["apps/web/src/lib/cad/templates.ts", "ola 5"],
-  ["apps/web/src/components/line-engineering/Layout3DEditor.tsx", "ola 6"],
+  ["apps/web/src/components/cad/editor/Layout3DEditor.tsx", "ola 6"],
 ];
 
 const stripAccents = (value) => value.normalize("NFD").replace(/[̀-ͯ]/g, "");

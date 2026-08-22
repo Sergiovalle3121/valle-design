@@ -156,3 +156,39 @@ Formato: `[hora] OLA · ítem — qué se hizo · decisiones y suposiciones`.
 - `[00:45]` **Coordinación.** La sesión paralela cerró y publicó su commit `655586b` («La portada deja
   de vender un CAD sin enseñar un dibujo»); el árbol de trabajo quedó con cambios míos únicamente.
   Regla que se mantiene: `git commit -- <rutas>` con pathspec explícito, nunca `git add -A`.
+
+- `[01:35]` **OLA 1 cerrada — la casa cambió de nombre.** `components/line-engineering/` se desarmó
+  con `git mv` (historial conservado) hacia el sitio al que la descomposición del monolito venía
+  apuntando:
+  | Destino | Qué llegó |
+  |---|---|
+  | `components/cad/editor/` | `Layout3DEditor.tsx`, `ScaleBar.tsx` |
+  | `components/cad/palettes/` | los 13 archivos de `cad-workbench/` |
+  | `components/cad/interop/` | `dxf.ts`, `dxf-walls.ts`, `dxf-snap.ts`, `cad-format-detect.ts` (+spec) |
+  | `components/cad/plot/` | `plot-sheet.ts`, `plot-scale.ts` (+specs) |
+  | `components/cad/viewport/` | `asset-catalog.ts` (+spec) — junto a sus dos consumidores |
+  | `lib/cad/` | `auto-dimensions`, `cad-command`, `cad-intent`, `cad-vision`, `design-checks`, `precision-input.spec`, `professional-snapping.spec` |
+  Y se borraron los **6 shims de 2 líneas** (`cad-array`, `dimension-format`, `geom-edit`,
+  `geom-measure`, `snap-engine`, `precision-input`): su código real ya vivía en `lib/cad/`, y los
+  únicos importadores eran archivos de la propia carpeta, que ahora importan el original.
+  - **Se quedan en `components/line-engineering/` los 6 archivos industriales** (`PlantMinimap`,
+    `arrange-line`, `connect-line`, `flow-metrics`, `station-overlays` + spec). Decisión consciente:
+    moverlos para borrarlos 1.5 h después sería churn de historial. La carpeta desaparece en la
+    OLA 3, y ese commit queda como puro borrado, fácil de revertir solo.
+  - Puntos de edición que cruzaban la frontera: exactamente los 7 previstos, más 3 que el diagnóstico
+    no listaba y el árbol sí tenía: `docs/competitive/rubric.json` (dos rutas de evidencia de
+    `cad-format-detect`, que habrían puesto rojo el gate de rúbrica), `docs/cad/VALLE_CAD_ARCHITECTURE_LAYER.md`
+    y `lib/cad/engine/commands/draw-basics.ts`. De paso, el mismo documento afirmaba que
+    `precision-input.ts` «is now a thin compatibility re-export»: ya no lo es, porque el shim se
+    borró; se corrigió el párrafo en vez de dejar la mentira.
+  - Los encabezados «npx tsx src/components/line-engineering/…» de los 11 archivos movidos apuntan
+    ahora a su ruta real: una instrucción de correr tests que no corre es peor que ninguna.
+  - `check-no-line-engineering.mjs` no se disparó, como estaba previsto: vigila URLs HTTP y
+    `rawApiFetch`, no el nombre de la carpeta. El adaptador `lib/cad/legacy/` no se tocó.
+  - **Verificación:** `typecheck` 6/6 verde · `web` 386/386 specs verdes · `lint` 0 errores ·
+    `check:cad` verde salvo el `check:dwg-evidence` ambiental ya anotado · `check-product-boundary`
+    de DWG verde con la ruta nueva del detector. Un test de la API (`round-trip real >1MB`) se cayó
+    por timeout de 30 s en la corrida completa y **pasa solo en 21 s**: es lentitud de máquina con la
+    sesión paralela encima, no regresión — esta ola no toca `apps/api`.
+  - Prettier reformateó de paso 8 archivos preexistentes de `palettes/` que no son de esta campaña;
+    se revirtieron para que el commit no mienta sobre su alcance.

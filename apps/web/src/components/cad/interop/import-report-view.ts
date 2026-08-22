@@ -38,7 +38,11 @@ export interface CadDxfImportReportSection {
  * hacer algo—, después lo que está peor, y al final lo que salió bien, que es
  * tranquilizador pero no accionable.
  */
-const SECTIONS: ReadonlyArray<{ fidelity: CadDxfFidelity; title: string; open: boolean }> = [
+const SECTIONS: ReadonlyArray<{
+  fidelity: CadDxfFidelity;
+  title: string;
+  open: boolean;
+}> = [
   { fidelity: "lost", title: "No entró en el dibujo", open: true },
   { fidelity: "degraded", title: "Entró con menos información", open: true },
   { fidelity: "kept", title: "Entró íntegro", open: false },

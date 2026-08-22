@@ -11,7 +11,8 @@ const detectorPath = join(
   "web",
   "src",
   "components",
-  "line-engineering",
+  "cad",
+  "interop",
   "cad-format-detect.ts",
 );
 const codecEntry = join(
@@ -22,7 +23,7 @@ const codecEntry = join(
   "index.js",
 );
 const expectedSpecs = [
-  "src/components/line-engineering/cad-format-detect.spec.ts",
+  "src/components/cad/interop/cad-format-detect.spec.ts",
   "src/lib/cad/interop-provider.spec.ts",
   "src/lib/cad/document-import.spec.ts",
 ];

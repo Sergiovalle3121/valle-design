@@ -1942,11 +1942,11 @@
           "evidence": [
             {
               "kind": "file",
-              "path": "apps/web/src/components/line-engineering/cad-format-detect.ts"
+              "path": "apps/web/src/components/cad/interop/cad-format-detect.ts"
             },
             {
               "kind": "spec",
-              "path": "apps/web/src/components/line-engineering/cad-format-detect.spec.ts"
+              "path": "apps/web/src/components/cad/interop/cad-format-detect.spec.ts"
             }
           ]
         },

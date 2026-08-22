@@ -12,7 +12,7 @@
  * vocabulario de lo que dibujan— y el monolito los reimporta.
  */
 import * as THREE from "three";
-import { assetMeta } from "@/components/line-engineering/asset-catalog";
+import { assetMeta } from "./asset-catalog";
 import { buildCadAssetArchetype } from "./asset-archetypes";
 
 /** Un activo colocado en la planta del editor heredado. */
@@ -86,7 +86,6 @@ export function makeLabel(text: string, scale = 1.5): THREE.Sprite {
   return sprite;
 }
 
-
 export function disposeObject(o: THREE.Object3D) {
   o.traverse((c) => {
     const mesh = c as THREE.Mesh & {
@@ -102,7 +101,6 @@ export function disposeObject(o: THREE.Object3D) {
       });
   });
 }
-
 
 export function makeNoteLabel(text: string): THREE.Sprite {
   const canvas = document.createElement("canvas");
@@ -139,8 +137,6 @@ export function makeNoteLabel(text: string): THREE.Sprite {
   return sprite;
 }
 
-
-
 export function buildAssetGroup(
   a: Asset,
   s: number,
@@ -154,9 +150,14 @@ export function buildAssetGroup(
   const dS = Math.max(0.2, a.h * s);
   const h3d = Math.max(0.05, def.height * s);
   const group = new THREE.Group();
-  buildCadAssetArchetype(def.archetype, wS, dS, h3d, def.color, a.shape).forEach((o) =>
-    group.add(o),
-  );
+  buildCadAssetArchetype(
+    def.archetype,
+    wS,
+    dS,
+    h3d,
+    def.color,
+    a.shape,
+  ).forEach((o) => group.add(o));
 
   // invisible, forgiving hit box covering the whole bounding volume
   const flat = def.archetype === "zone" || def.archetype === "path";
@@ -182,7 +183,9 @@ export function buildAssetGroup(
           dS * (alert ? 1.08 : 1.04),
         ),
       ),
-      new THREE.LineBasicMaterial({ color: alert ? 0xf87171 : CAD_SCENE_SELECT }),
+      new THREE.LineBasicMaterial({
+        color: alert ? 0xf87171 : CAD_SCENE_SELECT,
+      }),
     );
     outline.position.y = oh / 2;
     group.add(outline);
@@ -200,7 +203,6 @@ export function buildAssetGroup(
   group.rotation.y = -((a.rotation || 0) * Math.PI) / 180;
   return group;
 }
-
 
 export function buildDim(
   a: Ann,

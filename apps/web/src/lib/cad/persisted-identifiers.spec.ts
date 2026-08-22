@@ -86,10 +86,7 @@ assert.equal(
   assert.equal(migrated.pickBoxPx, 11);
   // Migrada a la clave nueva y retirada la anterior: se lee una sola vez.
   assert.equal(store.has(legacyCadWorkspaceStorageKey(scope)), false);
-  assert.equal(
-    loadCadWorkspacePreferences(storage, scope).profile,
-    "review",
-  );
+  assert.equal(loadCadWorkspacePreferences(storage, scope).profile, "review");
   assert.ok(store.get(cadWorkspaceStorageKey(scope))?.includes('"review"'));
 }
 
@@ -141,9 +138,16 @@ for (const build of [
     serializeCadCommandHistory([entry]),
   );
   const restored = readCadCommandHistory(storage, historyScope);
-  assert.equal(restored.length, 1, "el historial anterior sobrevive al renombre");
+  assert.equal(
+    restored.length,
+    1,
+    "el historial anterior sobrevive al renombre",
+  );
   assert.equal(restored[0].commandId, "align_selection");
-  assert.equal(store.has(legacyCadCommandHistoryStorageKey(historyScope)!), false);
+  assert.equal(
+    store.has(legacyCadCommandHistoryStorageKey(historyScope)!),
+    false,
+  );
   assert.ok(store.has(cadCommandHistoryStorageKey(historyScope)!));
 }
 
@@ -155,7 +159,7 @@ for (const application of LEGACY_DXF_XDATA_APPS) {
   assert.ok(xdataGolden.includes(application));
 }
 const editorSource = readFileSync(
-  "src/components/line-engineering/Layout3DEditor.tsx",
+  "src/components/cad/editor/Layout3DEditor.tsx",
   "utf8",
 );
 // Vistas guardadas: prefijo nuevo al escribir, anterior sólo como migración.

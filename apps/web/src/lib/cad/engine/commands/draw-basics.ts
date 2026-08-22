@@ -2,7 +2,7 @@
  * LINE y CIRCLE como descriptores del motor.
  *
  * Sustituyen al reductor de siete comandos de
- * `components/line-engineering/cad-command.ts`, que emitía «acciones de dibujo»
+ * `lib/cad/cad-command.ts`, que emitía «acciones de dibujo»
  * y no entidades, no tenía opciones y encadenaba a mano. Aquí cada comando es
  * una máquina de estados que emite `CadEntityCommand[]` y termina en UN lote,
  * así que deshacer una polilínea de treinta vértices es un solo Ctrl+Z.
@@ -46,11 +46,21 @@ function flat(point: CadPoint2 | CadPoint3) {
   return { x: point.x, y: point.y, z: "z" in point ? point.z : 0 };
 }
 
-function lineEntity(id: string, a: CadPoint2, b: CadPoint2, layer: string): CadNativeEntity {
+function lineEntity(
+  id: string,
+  a: CadPoint2,
+  b: CadPoint2,
+  layer: string,
+): CadNativeEntity {
   return { id, type: "line", start: flat(a), end: flat(b), layer };
 }
 
-function circleEntity(id: string, center: CadPoint2, radius: number, layer: string): CadNativeEntity {
+function circleEntity(
+  id: string,
+  center: CadPoint2,
+  radius: number,
+  layer: string,
+): CadNativeEntity {
   return { id, type: "circle", center: flat(center), radius, layer };
 }
 
@@ -72,7 +82,10 @@ interface LineState {
   commands: CadEntityCommand[];
 }
 
-function lineStep(state: LineState, context: CadCommandContext): CadCommandStep<LineState> {
+function lineStep(
+  state: LineState,
+  context: CadCommandContext,
+): CadCommandStep<LineState> {
   if (state.points.length === 0)
     return {
       state,
@@ -123,7 +136,10 @@ const lineCommand: CadCommandDescriptor<LineState> = {
       // Deshacer dentro del comando retira el último vértice Y el segmento que
       // creó. Sin retirar ambos, el segmento quedaría huérfano en el lote.
       const points = state.points.slice(0, -1);
-      const commands = state.commands.slice(0, Math.max(0, state.commands.length - 1));
+      const commands = state.commands.slice(
+        0,
+        Math.max(0, state.commands.length - 1),
+      );
       return lineStep({ points, commands }, context);
     }
 
@@ -135,7 +151,15 @@ const lineCommand: CadCommandDescriptor<LineState> = {
         points: state.points,
         commands: [
           ...state.commands,
-          { type: "insert", entity: lineEntity(context.newEntityId(), last, first, context.activeLayer) },
+          {
+            type: "insert",
+            entity: lineEntity(
+              context.newEntityId(),
+              last,
+              first,
+              context.activeLayer,
+            ),
+          },
         ],
       });
     }
@@ -155,7 +179,12 @@ const lineCommand: CadCommandDescriptor<LineState> = {
           ...state.commands,
           {
             type: "insert",
-            entity: lineEntity(context.newEntityId(), previous, input.point, context.activeLayer),
+            entity: lineEntity(
+              context.newEntityId(),
+              previous,
+              input.point,
+              context.activeLayer,
+            ),
           },
         ],
       },
@@ -197,7 +226,12 @@ function circleResult(
             commands: [
               {
                 type: "insert",
-                entity: circleEntity(context.newEntityId(), center, radius, context.activeLayer),
+                entity: circleEntity(
+                  context.newEntityId(),
+                  center,
+                  radius,
+                  context.activeLayer,
+                ),
               },
             ],
             label: "CIRCLE",
@@ -224,12 +258,18 @@ function circleThroughThree(
   return { center, radius: distance(center, a) };
 }
 
-function circleStep(state: CircleState, context: CadCommandContext): CadCommandStep<CircleState> {
+function circleStep(
+  state: CircleState,
+  context: CadCommandContext,
+): CadCommandStep<CircleState> {
   if (state.mode === "center") {
     if (state.points.length === 0)
       return {
         state,
-        prompt: { message: "Precise el centro", options: [CIRCLE_3P, CIRCLE_2P] },
+        prompt: {
+          message: "Precise el centro",
+          options: [CIRCLE_3P, CIRCLE_2P],
+        },
         accepts: CAD_ACCEPT_POINT | CAD_ACCEPT_KEYWORD,
       };
     return {
@@ -243,7 +283,8 @@ function circleStep(state: CircleState, context: CadCommandContext): CadCommandS
     };
   }
   const needed = state.mode === "two-point" ? 2 : 3;
-  const ordinal = ["primer", "segundo", "tercer"][state.points.length] ?? "siguiente";
+  const ordinal =
+    ["primer", "segundo", "tercer"][state.points.length] ?? "siguiente";
   return {
     state,
     prompt: {
@@ -276,16 +317,28 @@ const circleCommand: CadCommandDescriptor<CircleState> = {
   // dice. Se destapará cuando el trazado por tres puntos trabaje en el plano
   // del SCU y no en el del mundo.
   cursor: "crosshair",
-  begin: (context) => circleStep({ mode: "center", points: [], diameter: false }, context),
+  begin: (context) =>
+    circleStep({ mode: "center", points: [], diameter: false }, context),
   step: (state, input, context) => {
     if (input.kind === "enter")
-      return { state, prompt: { message: "", options: [] }, accepts: 0, result: { kind: "none" } };
+      return {
+        state,
+        prompt: { message: "", options: [] },
+        accepts: 0,
+        result: { kind: "none" },
+      };
 
     if (input.kind === "keyword") {
       if (input.keyword === CIRCLE_3P.keyword)
-        return circleStep({ mode: "three-point", points: [], diameter: false }, context);
+        return circleStep(
+          { mode: "three-point", points: [], diameter: false },
+          context,
+        );
       if (input.keyword === CIRCLE_2P.keyword)
-        return circleStep({ mode: "two-point", points: [], diameter: false }, context);
+        return circleStep(
+          { mode: "two-point", points: [], diameter: false },
+          context,
+        );
       if (input.keyword === CIRCLE_DIAMETER.keyword)
         return circleStep({ ...state, diameter: true }, context);
       return circleStep(state, context);
@@ -294,10 +347,16 @@ const circleCommand: CadCommandDescriptor<CircleState> = {
     if (state.mode === "center") {
       if (input.kind === "distance" && state.points.length === 1) {
         const size = Math.abs(input.value);
-        return circleResult(state, state.points[0], state.diameter ? size / 2 : size, context);
+        return circleResult(
+          state,
+          state.points[0],
+          state.diameter ? size / 2 : size,
+          context,
+        );
       }
       if (input.kind !== "point") return circleStep(state, context);
-      if (state.points.length === 0) return circleStep({ ...state, points: [input.point] }, context);
+      if (state.points.length === 0)
+        return circleStep({ ...state, points: [input.point] }, context);
       const radius = distance(state.points[0], input.point);
       // Con la opción Diámetro activa, el punto marca el borde opuesto: la
       // distancia al centro ya ES el radio, no hay que dividir otra vez.
@@ -307,8 +366,16 @@ const circleCommand: CadCommandDescriptor<CircleState> = {
     if (input.kind !== "point") return circleStep(state, context);
     const points = [...state.points, input.point];
     if (state.mode === "two-point" && points.length === 2) {
-      const center = { x: (points[0].x + points[1].x) / 2, y: (points[0].y + points[1].y) / 2 };
-      return circleResult(state, center, distance(points[0], points[1]) / 2, context);
+      const center = {
+        x: (points[0].x + points[1].x) / 2,
+        y: (points[0].y + points[1].y) / 2,
+      };
+      return circleResult(
+        state,
+        center,
+        distance(points[0], points[1]) / 2,
+        context,
+      );
     }
     if (state.mode === "three-point" && points.length === 3) {
       const solved = circleThroughThree(points[0], points[1], points[2]);
@@ -317,7 +384,10 @@ const circleCommand: CadCommandDescriptor<CircleState> = {
           state,
           prompt: { message: "", options: [] },
           accepts: 0,
-          result: { kind: "message", text: "Los tres puntos están alineados: no definen una circunferencia." },
+          result: {
+            kind: "message",
+            text: "Los tres puntos están alineados: no definen una circunferencia.",
+          },
         };
       return circleResult(state, solved.center, solved.radius, context);
     }

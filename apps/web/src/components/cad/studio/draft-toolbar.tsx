@@ -16,7 +16,7 @@
  * conocer la lista de comandos.
  */
 import React from "react";
-import { CadDynamicInput } from "@/components/line-engineering/cad-workbench/CadDynamicInput";
+import { CadDynamicInput } from "@/components/cad/palettes/CadDynamicInput";
 
 type DynamicInputProps = React.ComponentProps<typeof CadDynamicInput>;
 

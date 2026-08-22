@@ -56,54 +56,58 @@ const SECTION_CLASS: Readonly<Record<string, string>> = {
   kept: "text-emerald-300",
 };
 
-export const CadDxfImportReportPanel = React.memo(function CadDxfImportReportPanel({
-  report,
-  fileName,
-  format = "dxf",
-}: CadDxfImportReportPanelProps) {
-  const sections = groupCadDxfImportReport(report);
-  const tone = cadDxfImportTone(report);
-  return (
-    <section
-      data-testid={`cad-${format}-import-report`}
-      data-tone={tone}
-      className={`rounded-xl p-3 text-sm ${TONE_CLASS[tone]}`}
-      aria-label={`Qué se conservó al importar el ${format.toUpperCase()}`}
-    >
-      <p role="status" className="font-medium">
-        {fileName ? `${fileName}: ` : ""}
-        {report.headline}
-      </p>
-      <p className="mt-1 text-xs opacity-80">
-        {report.layerCount} capa(s) reconocidas.
-      </p>
-      {sections.map((section) => (
-        <details
-          key={section.fidelity}
-          open={section.open}
-          data-testid={`cad-${format}-import-${section.fidelity}`}
-          className="mt-2"
-        >
-          <summary className={`cursor-pointer text-xs uppercase tracking-wide ${SECTION_CLASS[section.fidelity]}`}>
-            {section.title} · {section.count}
-          </summary>
-          <ul className="mt-1 list-disc space-y-1 pl-5 text-xs">
-            {section.rows.map((row) => (
-              <li key={row.code}>{row.detail}</li>
-            ))}
-          </ul>
-        </details>
-      ))}
-      {/*
+export const CadDxfImportReportPanel = React.memo(
+  function CadDxfImportReportPanel({
+    report,
+    fileName,
+    format = "dxf",
+  }: CadDxfImportReportPanelProps) {
+    const sections = groupCadDxfImportReport(report);
+    const tone = cadDxfImportTone(report);
+    return (
+      <section
+        data-testid={`cad-${format}-import-report`}
+        data-tone={tone}
+        className={`rounded-xl p-3 text-sm ${TONE_CLASS[tone]}`}
+        aria-label={`Qué se conservó al importar el ${format.toUpperCase()}`}
+      >
+        <p role="status" className="font-medium">
+          {fileName ? `${fileName}: ` : ""}
+          {report.headline}
+        </p>
+        <p className="mt-1 text-xs opacity-80">
+          {report.layerCount} capa(s) reconocidas.
+        </p>
+        {sections.map((section) => (
+          <details
+            key={section.fidelity}
+            open={section.open}
+            data-testid={`cad-${format}-import-${section.fidelity}`}
+            className="mt-2"
+          >
+            <summary
+              className={`cursor-pointer text-xs uppercase tracking-wide ${SECTION_CLASS[section.fidelity]}`}
+            >
+              {section.title} · {section.count}
+            </summary>
+            <ul className="mt-1 list-disc space-y-1 pl-5 text-xs">
+              {section.rows.map((row) => (
+                <li key={row.code}>{row.detail}</li>
+              ))}
+            </ul>
+          </details>
+        ))}
+        {/*
         La frase final no es relleno. Un arquitecto que acaba de leer que perdió
         tres entidades necesita saber qué hacer, y la respuesta honesta es
         conservar el original: este documento ya no lo sustituye.
       */}
-      {report.hasLosses && (
-        <p className="mt-2 text-xs opacity-80">
-          Conserva el archivo original: este dibujo ya no lo reemplaza.
-        </p>
-      )}
-    </section>
-  );
-});
+        {report.hasLosses && (
+          <p className="mt-2 text-xs opacity-80">
+            Conserva el archivo original: este dibujo ya no lo reemplaza.
+          </p>
+        )}
+      </section>
+    );
+  },
+);

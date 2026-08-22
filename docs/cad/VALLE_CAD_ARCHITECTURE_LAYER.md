@@ -8,8 +8,8 @@ This document tracks the first dedicated Valle Design CAD architecture layer for
 
 ## Existing CAD implementation inspected
 
-- `apps/web/src/components/line-engineering/Layout3DEditor.tsx`
-- `apps/web/src/components/line-engineering/asset-catalog.ts`
+- `apps/web/src/components/cad/editor/Layout3DEditor.tsx`
+- `apps/web/src/components/cad/viewport/asset-catalog.ts`
 - `apps/web/src/lib/cad/layers.ts`
 - `apps/web/src/lib/cad/object-properties.ts`
 - `apps/web/src/lib/cad/layout-export-adapter.ts`
@@ -138,8 +138,9 @@ What changed:
 
 Non-redundancy guardrails:
 
-- `apps/web/src/components/line-engineering/precision-input.ts` is now a thin
-  compatibility re-export to the shared CAD precision module.
+- The precision module lives once, at `apps/web/src/lib/cad/precision-input.ts`.
+  The compatibility re-export that used to sit under `components/` was deleted
+  when the folder was renamed (identity campaign, 2026-08-22).
 - Coordinate drafting reuses `parseCadCommand`, `previewCadCommand`,
   `executeCadCommand`, and `applyCommandOperation`; no alternate command runner
   was introduced.
@@ -149,7 +150,7 @@ Non-redundancy guardrails:
 ## CAD Phase 1 interactive drafting cascade — 2026-07-07
 
 The second Phase 1 slice wires the pre-existing pure CAD command reducer
-(`apps/web/src/components/line-engineering/cad-command.ts`) into the existing
+(`apps/web/src/lib/cad/cad-command.ts`) into the existing
 `Layout3DEditor` workbench. This is a UI wiring pass over the current editor,
 not a new drafting subsystem.
 
