@@ -139,8 +139,20 @@ ok(
   "el mes fiscal del CFDI está exento por archivo",
 );
 ok(
-  !isPermittedPath("apps/web/src/lib/cad/templates.ts"),
-  "el código de producto normal NO está exento",
+  isPermittedPath("apps/web/src/lib/cad/templates.ts"),
+  "los catálogos de contenido dibujable están exentos: un plano DE una fábrica sí se dibuja",
+);
+ok(
+  isPermittedPath("apps/web/src/lib/cad/safety-zones.ts"),
+  "el tipo de zona persistido y congelado está exento",
+);
+ok(
+  !isPermittedPath("apps/web/src/components/cad/editor/Layout3DEditor.tsx"),
+  "el editor NO está exento: ahí es donde vivía la funcionalidad industrial",
+);
+ok(
+  !isPermittedPath("apps/web/src/lib/cad/commands/registry.ts"),
+  "el registry de comandos NO está exento",
 );
 
 // ─── El trinquete del backlog ────────────────────────────────────────────────
@@ -186,16 +198,14 @@ for (const [prefix, reason] of [...permittedExceptions, ...permittedFiles]) {
   );
 }
 
-for (const [target, wave] of residueBacklog) {
-  ok(
-    fs.existsSync(path.join(root, target)),
-    `el backlog no apunta a un archivo inexistente: ${target}`,
-  );
-  ok(
-    /^ola \d+$/.test(wave),
-    `cada entrada del backlog dice en qué ola se retira: ${target}`,
-  );
-}
+// El objetivo de la campaña de identidad se cumplió: la lista quedó VACÍA. Esta
+// aserción es el candado que impide volver a usarla como escondite — si alguien
+// mete residuo nuevo detrás de una entrada, esta spec se pone roja.
+eq(
+  residueBacklog,
+  [],
+  "el backlog de residuo industrial está vacío y se queda vacío",
+);
 
 console.log(
   `Spec del gate de identidad OK: ${checks} comprobaciones, ` +

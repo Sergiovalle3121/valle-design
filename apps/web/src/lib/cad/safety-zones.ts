@@ -7,6 +7,12 @@ export type CadSafetyZoneKind =
   | "no_go"
   | "restricted"
   | "esd_zone"
+  /**
+   * VALOR LEGADO Y CONGELADO. Viene del planificador de plantas del que nació
+   * Valle Design y sigue aquí porque está PERSISTIDO en documentos guardados.
+   * Se LEE para no romperlos; ya no se OFRECE: ninguna acción del editor crea
+   * uno nuevo — los pasillos se crean como `aisle`. Ver `IDENTITY.md`.
+   */
   | "forklift_path"
   | "emergency_exit";
 export interface CadSafetyZone {
@@ -54,7 +60,7 @@ function objectIsEsdControlled(object: CadCollisionBox): boolean {
 function invasionMessage(object: CadCollisionBox, zone: CadSafetyZone): string {
   const objectLabel = object.label ?? object.id;
   if (zone.kind === "forklift_path")
-    return `${objectLabel} bloquea la ruta de montacargas ${zone.label}.`;
+    return `${objectLabel} bloquea el pasillo de maniobra ${zone.label}.`;
   if (zone.kind === "emergency_exit")
     return `${objectLabel} bloquea la ruta de emergencia ${zone.label}.`;
   if (zone.kind === "aisle")

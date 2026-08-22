@@ -111,7 +111,6 @@ export default function DocumentStudioPage({
       projectId={state.document.projectId ?? undefined}
       models={[]}
       open
-      standalone
       readOnly={!auth.permissions.includes("cad:edit")}
       title={state.document.name}
       subtitle={`Documento ${documentId}`}

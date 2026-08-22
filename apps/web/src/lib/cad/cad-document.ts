@@ -143,7 +143,7 @@ export type CadEntity =
     }
   | {
       id: string;
-      type: "station";
+      type: "station"; // LEGADO CONGELADO: persistido en documentos de clientes; se lee, no se ofrece (IDENTITY.md)
       x: number;
       y: number;
       w: number;

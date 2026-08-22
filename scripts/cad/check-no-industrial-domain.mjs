@@ -118,24 +118,31 @@ export const permittedFiles = [
   ["apps/api/src/commercial/cfdi-issuance.service.ts", "mes fiscal del CFDI"],
   // «Sergio Valle Enterprise Software» es la razón social real de la empresa.
   ["packages/contracts/src/brand.ts", "razón social real"],
+  // CATÁLOGOS DE CONTENIDO DIBUJABLE. Son datos puros —sin lógica— y la regla
+  // que aplican es la de IDENTITY.md: un plano DE una fábrica sí se dibuja. Una
+  // nave industrial necesita poder llevar dibujados su banda transportadora, su
+  // montacargas y su línea de producción, igual que la panadería lleva su
+  // `bread-rack`. Lo que no vive aquí ni en ningún otro sitio es la
+  // FUNCIONALIDAD industrial: nada calcula takt, balancea líneas ni rutea
+  // material. Si alguien mete lógica en estos archivos, se saca de la lista.
+  ["apps/web/src/lib/cad/symbols.ts", "catálogo de símbolos dibujables"],
+  ["apps/web/src/lib/cad/symbols.spec.ts", "spec del catálogo de símbolos"],
+  ["apps/web/src/lib/cad/templates.ts", "catálogo de plantillas dibujables"],
+  // Valor PERSISTIDO congelado: `forklift_path` vive dentro de documentos
+  // guardados. Se lee para no romperlos; ninguna acción del editor crea uno
+  // nuevo (los pasillos se crean como `aisle`). Ver IDENTITY.md.
+  [
+    "apps/web/src/lib/cad/safety-zones.ts",
+    "tipo de zona persistido y congelado",
+  ],
+  ["apps/web/src/lib/cad/safety-zones.spec.ts", "spec del tipo persistido"],
 ];
 
 /**
  * Residuo conocido pendiente de retirar. TRINQUETE: una entrada sin hallazgos
  * hace fallar el gate. Objetivo: lista vacía, y que se quede vacía.
  */
-export const residueBacklog = [
-  ["apps/web/src/lib/cad/cad-document.spec.ts", "ola 5"],
-  ["apps/web/src/lib/cad/dxf-layer-map.ts", "ola 5"],
-  ["apps/web/src/lib/cad/editor-snapshot.spec.ts", "ola 5"],
-  ["apps/web/src/lib/cad/object-properties.ts", "ola 5"],
-  ["apps/web/src/lib/cad/safety-zones.spec.ts", "ola 5"],
-  ["apps/web/src/lib/cad/safety-zones.ts", "ola 5"],
-  ["apps/web/src/lib/cad/symbols.spec.ts", "ola 5"],
-  ["apps/web/src/lib/cad/symbols.ts", "ola 5"],
-  ["apps/web/src/lib/cad/templates.ts", "ola 5"],
-  ["apps/web/src/components/cad/editor/Layout3DEditor.tsx", "ola 6"],
-];
+export const residueBacklog = [];
 
 const stripAccents = (value) => value.normalize("NFD").replace(/[̀-ͯ]/g, "");
 

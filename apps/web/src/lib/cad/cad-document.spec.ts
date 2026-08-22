@@ -24,7 +24,7 @@ const layout: LayoutInput = {
     { id: "n1", type: "text", x: 5, y: 5, text: "Nota" },
     { id: "d1", type: "dim", x: 0, y: 0, x2: 300, y2: 0, text: "300 mm" },
   ],
-  connectors: [{ from: "s1", to: "s2", kind: "conveyor" }],
+  connectors: [{ from: "s1", to: "s2", kind: "material" }],
   layers: [
     { id: "architecture", name: "Arquitectura", color: "#888", visible: true, locked: false },
     { id: "layout", name: "Layout", color: "#4af", visible: true, locked: false },
@@ -57,7 +57,7 @@ assert.equal(dim?.text, "300 mm", "texto de la cota preservado");
 // El conector recupera from/to/kind.
 assert.equal(back.connectors.length, 1, "un conector");
 assert.equal(back.connectors[0].from, "s1");
-assert.equal(back.connectors[0].kind, "conveyor");
+assert.equal(back.connectors[0].kind, "material");
 
 // Igualdad estructural exacta entrada↔salida (normalizando el orden por id).
 const norm = (l: Required<LayoutInput>) => ({

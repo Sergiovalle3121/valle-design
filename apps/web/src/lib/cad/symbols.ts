@@ -1419,6 +1419,26 @@ const CAD_CORE_SYMBOLS: CadSymbolDefinition[] = [
   },
   // Cuadragésima segunda tanda universal (VD-CAD-UNIVERSAL-134): industria y agro.
   {
+    id: "conveyor",
+    label: "Banda transportadora",
+    category: "equipment",
+    defaultWidth: 6000,
+    defaultHeight: 900,
+    layer: "Equipment",
+    tags: ["banda", "transportadora", "nave", "bodega"],
+    ports: [],
+  },
+  {
+    id: "forklift",
+    label: "Montacargas",
+    category: "equipment",
+    defaultWidth: 1400,
+    defaultHeight: 1800,
+    layer: "Equipment",
+    tags: ["montacargas", "vehiculo", "bodega", "maniobras"],
+    ports: [],
+  },
+  {
     id: "assembly-line",
     label: "Línea de producción",
     category: "equipment",

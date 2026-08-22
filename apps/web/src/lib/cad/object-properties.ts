@@ -125,7 +125,7 @@ export function cadSafetyClassificationFromTags(
         tag === "aisle" ||
         tag === "clearance" ||
         tag === "material-flow" ||
-        tag.includes("forklift") ||
+        tag.includes("circulation") ||
         tag === "emergency" ||
         tag === "exit" ||
         tag === "egress" ||

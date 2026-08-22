@@ -30,7 +30,7 @@ const snapshot: CadEditorSnapshot = {
     { id: "n1", type: "text", x: 10, y: 20, text: "Nota", color: "#fff" },
     { id: "d1", type: "dim", x: 0, y: 0, x2: 5000, y2: 0, text: "5000 mm" },
   ],
-  connectors: [{ from: "st1", to: "st2", kind: "conveyor" }, { from: "a1", to: "st1" }],
+  connectors: [{ from: "st1", to: "st2", kind: "material" }, { from: "a1", to: "st1" }],
   layers: { a1: "equipment", st2: "layout", d1: "measurements" },
   tags: { a1: "use:smt, requires:power", st2: "linea-a, cuello-botella" },
 };

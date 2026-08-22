@@ -396,3 +396,40 @@ Formato: `[hora] OLA · ítem — qué se hizo · decisiones y suposiciones`.
     **Decisión de proceso:** NO se corrió prettier sobre `templates.ts`, `symbols.ts` ni
     `architecture.ts`: no estaban formateados de origen, el lint no lo exige, y reformatearlos los
     inflaría por encima de su presupuesto de monolito, que sólo permite encoger.
+
+- `[08:40]` **OLA 5.6 + OLA 6 — el modo fábrica deja de existir y `station` se congela.**
+  - **La prop `standalone` desapareció.** No queda una sola guarda `!standalone`: el editor toma
+    siempre la rama CAD. Con ella se van el contrato `analysisPanels` (WP6: tipos, prop, menú
+    «Análisis» y montaje bajo demanda), el botón y el dock del **copiloto legado** —el de «pasillo 1.2
+    entre SMT e inspección», que en Design ya no se montaba—, `runOptimize` (optimización de flujo
+    en servidor), `exportCsvSchedule` («exportar estaciones a CSV») y el **mapa de calor de ocupación**
+    con toda su maquinaria: pedía `layout/density` a un endpoint de planta.
+  - **DESVIACIÓN DELIBERADA:** el **recorrido a pie en primera persona no se borró**, se dejó siempre
+    visible y se le cambió el título («Recorrido a pie por el modelo»). El diagnóstico lo clasificaba
+    como «recorrido de fábrica», pero caminar por dentro de un edificio que acabas de dibujar es
+    visualización arquitectónica —lo hacen Revit y SketchUp—, no operación industrial. Además su
+    implementación está entretejida en 12 puntos del manejo de puntero y cámara: arrancarla en la
+    última hora habría sido meter riesgo de regresión en el viewport a cambio de nada.
+  - **`station` congelado y oculto (5.6).** El tipo sigue en el esquema con un comentario que dice
+    por qué —está persistido en documentos de clientes— y apunta a `IDENTITY.md`. Lo que cambió es
+    todo lo visible: la pestaña, el dock, el panel de propiedades, los toasts y los títulos ya no
+    dicen «Estación» sino **«Punto»**. Igual `forklift_path` en `safety-zones.ts`: valor persistido,
+    congelado, documentado, y **el editor ya no crea ninguno** —la acción de la paleta crea un
+    «Pasillo de circulación» y el detector de texto ya no mapea «montacargas» a ese tipo.
+  - **CORRECCIÓN CONSISTENTE Y DOCUMENTADA:** se **restauraron** los símbolos `conveyor` y `forklift`
+    con etiquetas en español («Banda transportadora», «Montacargas»). El principio que ordena todo
+    esto quedó escrito en el gate: **dibujar una máquina no es operar una fábrica.** Las plantillas
+    `nave-industrial`, `recicladora` y `planta-embotelladora` —que la campaña conserva a propósito—
+    necesitan poder llevar dibujados su banda y su montacargas, igual que la panadería lleva su
+    `bread-rack`. Lo que no existe en ningún sitio es la FUNCIONALIDAD: nada calcula takt, balancea
+    líneas ni rutea material.
+  - **El trinquete llegó a CERO.** 40 → 0. Las últimas entradas no se borraron escondiendo residuo:
+    se resolvieron una por una y las cinco que quedan son **excepciones permanentes con su motivo
+    escrito** (los dos catálogos de contenido dibujable y el tipo de zona persistido). La spec del
+    gate ahora **afirma que el backlog está vacío**, así que volver a usarlo como escondite pone la
+    spec roja.
+  - **Monolito: 22 208 → 20 248 líneas (−1 960) y 153 → 141 `useState`.**
+  - **Verificación:** `tsc` de web y api limpios · `web` **381/381** verdes · gate de identidad verde
+    **sin backlog** · presupuesto OK. `symbols.ts` subió 20 líneas al restaurar los dos símbolos, así
+    que su techo se subió con `--allow-growth` y la razón queda escrita aquí y en el commit: es la
+    corrección de un borrado propio de hace una hora, no crecimiento nuevo.

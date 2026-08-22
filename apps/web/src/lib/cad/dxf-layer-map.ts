@@ -33,7 +33,7 @@ const LAYER_RULES: Array<{ layer: CadLayerId; keywords: string[]; prefixes?: str
   { layer: "utilities", keywords: ["elec", "power", "energ", "plumb", "hidra", "hidro", "agua", "water", "gas", "hvac", "mech", "mecan", "duct", "pipe", "tuber", "drain", "mep", "data", "voz", "network"], prefixes: ["p-", "m-", "e-"] },
   { layer: "measurements", keywords: ["dim", "cota", "axis", "eje", "grid", "reja", "annot", "anot", "text", "leyend", "north", "norte"] },
   { layer: "aisles", keywords: ["aisle", "pasillo", "circul", "corridor", "path", "ruta", "vialidad", "road", "via"] },
-  { layer: "flow", keywords: ["flow", "flujo", "conveyor", "transport", "material"] },
+  { layer: "flow", keywords: ["flow", "flujo", "transport", "material"] },
   { layer: "equipment", keywords: ["equip", "furn", "mobil", "mueble", "machine", "maquin", "asset", "rack", "estante"] },
 ];
 

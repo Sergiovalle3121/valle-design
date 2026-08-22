@@ -15,7 +15,6 @@ import {
   X,
   Save,
   Grid3x3,
-  Grid2x2,
   ShieldAlert,
   RotateCw,
   RotateCcw,
@@ -56,15 +55,11 @@ import {
   AlignHorizontalDistributeCenter,
   AlignVerticalDistributeCenter,
   RulerDimensionLine,
-  Rows3,
   Waypoints,
   ShieldCheck,
   CircleCheck,
   CircleAlert,
   Printer,
-  ChartLine,
-  FileText,
-  WandSparkles,
   Stamp,
   Upload,
   ImageOff,
@@ -542,10 +537,6 @@ import {
 import CadOverviewMinimap from "@/components/cad/viewport/CadOverviewMinimap";
 import ScaleBar from "./ScaleBar";
 import {
-  CadCommandDock,
-  type CadAiProposal,
-} from "@/components/cad/palettes/CadCommandDock";
-import {
   CadSelectionPalette,
   type CadSelectionGeometryMode,
 } from "@/components/cad/palettes/CadSelectionPalette";
@@ -622,45 +613,14 @@ import {
 // los comandos de análisis del kernel degradan con su aviso contractual
 // (`analysis_pack_missing`) — comportamiento probado en analysis-extensions.spec.
 
-/**
- * Contrato de EXTENSIÓN de paneles de análisis (WP6 — inversión de dependencias).
- *
- * Los paneles industriales (balanceo, costos, escenarios, expediente…) son
- * ENTERPRISE_OWNED: el editor CAD ya no los importa. El anfitrión los
- * inyecta como descriptores por la prop `analysisPanels`; el editor sólo
- * construye el menú "Análisis" con ellos y monta el activo bajo demanda con el
- * contexto mínimo que los paneles siempre usaron (modelo/revisión, estaciones
- * colocadas y unidad del plano, y el cierre del panel). Sin descriptores el
- * menú de análisis industrial no se renderiza.
- */
-export interface CadAnalysisPanelContext {
-  /** Modelo y revisión activos en el editor. */
-  model: string;
-  /** Revisión activa en el editor. */
-  revision: string;
-  /** Estaciones COLOCADAS en el plano (id + etiqueta), en el orden del plan.
-   *  Es lo que el panel local de balance de línea lee en lugar de ir al server. */
-  placedStations: { id: string; label: string }[];
-  /** Unidad del footprint del layout activo ('mm' mientras no haya datos). */
-  unit: string;
-  /** Cierra el panel activo (el editor lo desmonta). */
-  onClose: () => void;
-}
-
-export interface CadAnalysisPanelDescriptor {
-  /** Clave estable del panel — identifica el panel activo en el estado del editor. */
-  key: string;
-  /** Etiqueta visible en el menú "Análisis". */
-  label: string;
-  /** Render del panel. El editor lo invoca sólo mientras el panel está activo,
-   *  con el contexto mínimo de arriba; el descriptor decide qué props recibe
-   *  su componente (los paneles hoy toman model/revision u estaciones+unidad,
-   *  más open/onClose). */
-  render: (ctx: CadAnalysisPanelContext) => React.ReactNode;
-}
-
-/** Sin inyección no hay análisis industrial (referencia estable). */
-const NO_ANALYSIS_PANELS: CadAnalysisPanelDescriptor[] = [];
+/** Propuesta del copiloto IA que el humano aprueba antes de aplicarse. */
+type CadAiProposal = {
+  source: "intent" | "optimize";
+  intents: CadIntent[];
+  descriptions?: string[];
+  errors: string[];
+  message?: string;
+};
 
 /**
  * Full-screen interactive 3D layout editor — the "CAD" view of the plant floor.
@@ -999,8 +959,6 @@ function assetSafetyZoneKind(
     text.includes("evacuation")
   )
     return "emergency_exit";
-  if (text.includes("forklift") || text.includes("montacargas"))
-    return "forklift_path";
   if (text.includes("aisle") || text.includes("pasillo")) return "aisle";
   if (text.includes("clearance")) return "safety_clearance";
   return meta.archetype === "zone" && text.includes("safety")
@@ -1089,10 +1047,8 @@ const isCadDrawTool = (tool: EditorTool): tool is CadDrawCommandId =>
 
 const DXF_LABEL_REQUIRED_ASSET_KINDS = new Set([
   "workbench",
-  "conveyor",
   "rack",
   "robot",
-  "aoi",
   "oven",
   "printer",
   "machine",
@@ -1178,7 +1134,6 @@ export interface Layout3DEditorPlatformProps {
   };
   /** Paneles de análisis industrial inyectados por el anfitrión (WP6). El menú
    *  "Análisis" se construye desde aquí; ausente o vacío, el menú no aparece. */
-  analysisPanels?: CadAnalysisPanelDescriptor[];
 }
 
 export interface Layout3DEditorProps extends Layout3DEditorPlatformProps {
@@ -1190,7 +1145,6 @@ export interface Layout3DEditorProps extends Layout3DEditorPlatformProps {
   onClose: () => void;
   onSaved?: () => void;
   models?: { model: string; revision: string }[];
-  standalone?: boolean;
   title?: string;
   subtitle?: string;
   /**
@@ -1216,7 +1170,6 @@ export default function Layout3DEditor({
   onClose,
   onSaved,
   models = [],
-  standalone = false,
   title,
   subtitle,
   readOnly = false,
@@ -1226,7 +1179,6 @@ export default function Layout3DEditor({
   onNotify,
   onFullscreenChange,
   branding = DEFAULT_BRANDING,
-  analysisPanels = NO_ANALYSIS_PANELS,
 }: Layout3DEditorProps) {
   const documentLifecycle = useMemo(
     () =>
@@ -1435,7 +1387,6 @@ export default function Layout3DEditor({
     dirtyRef.current = false;
     setDirty(false);
   }, [drawingReadOnly]);
-  const [serverBusy, setServerBusy] = useState(false); // server auto-arrange/optimize in flight (unify)
   const [approval, setApproval] = useState<LayoutApproval | null>(null); // sign-off status (unify)
   const [approvalBusy, setApprovalBusy] = useState(false);
   const [dxfBusy, setDxfBusy] = useState(false); // DXF backdrop upload/remove in flight (unify)
@@ -1617,6 +1568,7 @@ export default function Layout3DEditor({
   >(null);
   const commandInputRef = useRef<HTMLInputElement | null>(null);
   const commandPreviewRef = useRef<CommandPreviewState | null>(null);
+
   const commandTextRef = useRef("");
   // Copiloto IA (ADR §215): propuesta NL→CAD / optimización — humano aprueba.
   const [aiBusy, setAiBusy] = useState<null | "intent" | "optimize">(null);
@@ -1638,9 +1590,7 @@ export default function Layout3DEditor({
   });
   const [placedIds, setPlacedIds] = useState<Set<string>>(new Set());
   const [assetIds, setAssetIds] = useState<Set<string>>(new Set());
-  const [tab, setTab] = useState<"stations" | "equipment">(
-    standalone ? "equipment" : "stations",
-  );
+  const [tab, setTab] = useState<"stations" | "equipment">("equipment");
   const [symbolSearch, setSymbolSearch] = useState("");
   const [symbolCategory, setSymbolCategory] = useState<
     CadSymbolCategory | "all"
@@ -1810,11 +1760,7 @@ export default function Layout3DEditor({
   const [validationHighlightIds, setValidationHighlightIds] = useState<
     Set<string>
   >(new Set());
-  const [analysisPanel, setAnalysisPanel] = useState<string | null>(null); // active analysis panel key (unify)
-  const [showAnalysis, setShowAnalysis] = useState(false); // analysis dropdown open
-  const analysisMenuRef = useRef<HTMLDivElement | null>(null);
   const validationHighlightRef = useRef<Set<string>>(new Set());
-  const [showHeat, setShowHeat] = useState(false); // occupancy heat-map overlay on the floor (Fase 51)
   const [arr, setArr] = useState({
     cols: 3,
     rows: 1,
@@ -1944,10 +1890,6 @@ export default function Layout3DEditor({
   const cellsRef = useRef<Cell[]>([]); // mutable cells/zones (unify — editable + round-trip)
   const gridGroupRef = useRef<THREE.Group | null>(null);
   const dxfGroupRef = useRef<THREE.Group | null>(null);
-  const heatGroupRef = useRef<THREE.Group | null>(null); // occupancy heat-map tiles
-  const heatLoadedRef = useRef(false); // lazy-load the density grid only once per scene
-  const showHeatRef = useRef(false); // current toggle, read inside the scene-init effect
-  const loadHeatRef = useRef<() => void>(() => {}); // latest loadHeat, callable from init
   const gapsGroupRef = useRef<THREE.Group | null>(null); // clearance gap markers
   const gapsLoadedRef = useRef(false);
   const showGapsRef = useRef(false);
@@ -2392,18 +2334,6 @@ export default function Layout3DEditor({
     document.addEventListener("mousedown", onDoc);
     return () => document.removeEventListener("mousedown", onDoc);
   }, [showView]);
-  useEffect(() => {
-    if (!showAnalysis) return;
-    const onDoc = (e: MouseEvent) => {
-      if (
-        analysisMenuRef.current &&
-        !analysisMenuRef.current.contains(e.target as Node)
-      )
-        setShowAnalysis(false);
-    };
-    document.addEventListener("mousedown", onDoc);
-    return () => document.removeEventListener("mousedown", onDoc);
-  }, [showAnalysis]);
 
   // ---- visual theme (background / fog / floor / grid colours) ----
   const applyTheme = useCallback(() => {
@@ -2553,7 +2483,7 @@ export default function Layout3DEditor({
         h: p.h,
         rotation: p.rotation,
         title: st.station,
-        subtitle: `Estación · ${st.line}${st.ctq ? " · CTQ" : ""}`,
+        subtitle: `Punto · ${st.line}${st.ctq ? " · CTQ" : ""}`,
         canDuplicate: false,
       };
     }
@@ -3099,12 +3029,9 @@ export default function Layout3DEditor({
           false,
         ),
         new THREE.MeshStandardMaterial({
-          color:
-            cn.kind === "conveyor"
-              ? 0x7c3aed
-              : cn.kind === "return"
-                ? 0x94a3b8
-                : 0x3b82f6,
+          // Los `kind` de conector están PERSISTIDOS en documentos antiguos;
+          // se leen tal cual y los que no reconocemos toman el color base.
+          color: cn.kind === "return" ? 0x94a3b8 : 0x3b82f6,
           roughness: 0.4,
         }),
       );
@@ -3530,79 +3457,6 @@ export default function Layout3DEditor({
     rebuildDxfRef.current = rebuildDxf;
   }, [rebuildDxf]);
 
-  // ---- occupancy heat-map: paint the floor by zone density (Fase 51) ----
-  // Reuses the density grid (Fase 48) and the same rose intensity ramp as the 2D
-  // panel, so a packed corner glows solid and dead floor stays bare.
-  const buildHeatTiles = useCallback((grid: number[][]) => {
-    const group = heatGroupRef.current;
-    const ctx = ctxRef.current;
-    if (!group || !ctx) return;
-    group.children.slice().forEach((c) => {
-      group.remove(c);
-      const m = c as THREE.Mesh;
-      m.geometry?.dispose?.();
-      (m.material as THREE.Material)?.dispose?.();
-    });
-    const { s, W, H } = ctx;
-    const rows = grid.length;
-    const cols = grid[0]?.length ?? 0;
-    if (!rows || !cols) return;
-    const cw = W / cols,
-      ch = H / rows; // footprint units per cell
-    const rose = new THREE.Color(0xf43f5e);
-    for (let r = 0; r < rows; r++) {
-      for (let c = 0; c < cols; c++) {
-        const pct = grid[r][c];
-        if (pct < 1) continue; // bare floor stays bare
-        const t = Math.min(1, pct / 100);
-        const plane = new THREE.Mesh(
-          new THREE.PlaneGeometry(cw * s * 0.92, ch * s * 0.92),
-          new THREE.MeshBasicMaterial({
-            color: rose,
-            transparent: true,
-            opacity: 0.12 + 0.6 * t,
-            depthWrite: false,
-          }),
-        );
-        plane.rotation.x = -Math.PI / 2;
-        plane.position.set(
-          ((c + 0.5) * cw - W / 2) * s,
-          0.05,
-          ((r + 0.5) * ch - H / 2) * s,
-        );
-        group.add(plane);
-      }
-    }
-  }, []);
-
-  const loadHeat = useCallback(async () => {
-    try {
-      const r = await legacyCadFetch(
-        `layout/density?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
-      );
-      if (!r.ok) return;
-      const d = (await r.json()) as { grid?: number[][] };
-      buildHeatTiles(d.grid ?? []);
-    } catch {
-      /* heat-map is a non-critical overlay — ignore fetch errors */
-    }
-  }, [model, revision, buildHeatTiles]);
-
-  useEffect(() => {
-    loadHeatRef.current = loadHeat;
-  }, [loadHeat]);
-  // Toggle visibility; lazy-load the grid the first time it's switched on.
-  useEffect(() => {
-    showHeatRef.current = showHeat;
-    const group = heatGroupRef.current;
-    if (!group) return;
-    group.visible = showHeat;
-    if (showHeat && !heatLoadedRef.current) {
-      heatLoadedRef.current = true;
-      loadHeat();
-    }
-  }, [showHeat, loadHeat]);
-
   // ---- clearance / safety gap markers on the floor (Fase 52) ----
   // Reuses the clearance analysis (Fase 43): draws a link between each pair of
   // objects flagged as too close (amber, with the gap) or overlapping (red), so
@@ -3844,7 +3698,7 @@ export default function Layout3DEditor({
       .filter((it) => it.type === "station")
       .map((it) => it.id);
     if (ids.length === 0) {
-      toast.error("Selecciona estaciones para agrupar en una celda.", "3D");
+      toast.error("Selecciona puntos para agrupar en una celda.", "3D");
       return;
     }
     const palette = [
@@ -6391,15 +6245,6 @@ export default function Layout3DEditor({
     const dxfGroup = new THREE.Group();
     scene.add(dxfGroup);
     dxfGroupRef.current = dxfGroup;
-    const heatGroup = new THREE.Group();
-    heatGroup.visible = showHeatRef.current;
-    scene.add(heatGroup);
-    heatGroupRef.current = heatGroup;
-    heatLoadedRef.current = false;
-    if (showHeatRef.current) {
-      heatLoadedRef.current = true;
-      loadHeatRef.current();
-    }
     const gapsGroup = new THREE.Group();
     gapsGroup.visible = showGapsRef.current;
     scene.add(gapsGroup);
@@ -7925,8 +7770,6 @@ export default function Layout3DEditor({
       dirLightRef.current = null;
       notesGroupRef.current = null;
       dxfGroupRef.current = null;
-      heatGroupRef.current = null;
-      heatLoadedRef.current = false;
       gapsGroupRef.current = null;
       gapsLoadedRef.current = false;
       guidesGroupRef.current = null;
@@ -9841,7 +9684,7 @@ export default function Layout3DEditor({
     });
     markDirty();
     toast.success(
-      `Grupo creado con ${assets.length} objeto(s)${stations ? ` (${stations} estación(es) fuera — usa Celdas)` : ""}. Alt+clic selecciona individual.`,
+      `Grupo creado con ${assets.length} objeto(s)${stations ? ` (${stations} punto(s) fuera — usa Celdas)` : ""}. Alt+clic selecciona individual.`,
       "Grupos",
     );
   };
@@ -9886,7 +9729,7 @@ export default function Layout3DEditor({
     if (!assets.length) {
       toast.error(
         stations
-          ? "Las estaciones no se copian (routing); selecciona equipos/activos."
+          ? "Los puntos heredados no se copian; selecciona objetos del dibujo."
           : "Selecciona objetos para copiar.",
         "Portapapeles",
       );
@@ -9911,7 +9754,7 @@ export default function Layout3DEditor({
       ];
     });
     toast.success(
-      `${CAD_CLIPBOARD.items.length} objeto(s) copiados${stations ? ` (${stations} estación(es) omitidas)` : ""}.`,
+      `${CAD_CLIPBOARD.items.length} objeto(s) copiados${stations ? ` (${stations} punto(s) omitidos)` : ""}.`,
       "Portapapeles",
     );
   };
@@ -10515,60 +10358,6 @@ export default function Layout3DEditor({
       "3D",
     );
   };
-  // ---- server-side optimisation: minimise material travel (ported from 2D, unify) ----
-  const runOptimize = async () => {
-    if (!model) return;
-    setServerBusy(true);
-    try {
-      const r = await legacyCadFetch(
-        `layout/optimize?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
-      );
-      if (!r.ok) {
-        toast.error("No se pudo optimizar.", "3D");
-        return;
-      }
-      const d = (await r.json()) as {
-        positions: {
-          id: string;
-          x: number;
-          y: number;
-          w: number;
-          h: number;
-          rotation: number;
-        }[];
-        improvedPct: number;
-      };
-      if (!d.positions?.length) {
-        toast.error("No hay estaciones para optimizar.", "3D");
-        return;
-      }
-      recordLocalSnapshot("Auto · antes de optimizar flujo", "command");
-      pushHistory();
-      d.positions.forEach((p) =>
-        placementsRef.current.set(p.id, {
-          x: p.x,
-          y: p.y,
-          w: p.w,
-          h: p.h,
-          rotation: p.rotation,
-        }),
-      );
-      setPlacedIds(new Set(placementsRef.current.keys()));
-      markDirty();
-      rebuildBlocks();
-      refreshSnap();
-      toast.success(
-        d.improvedPct > 0
-          ? `Flujo optimizado: −${d.improvedPct}% de recorrido — revisa y guarda.`
-          : "El layout ya estaba óptimo para el flujo.",
-        "3D",
-      );
-    } catch {
-      toast.error("No se pudo optimizar.", "3D");
-    } finally {
-      setServerBusy(false);
-    }
-  };
   // ---- DXF backdrop upload / remove (ported from 2D, unify) ----
   const onDxfFile = async (file: File) => {
     if (!data) return;
@@ -10982,53 +10771,6 @@ export default function Layout3DEditor({
     }
   };
   // ---- export the station schedule as CSV (ported from 2D, unify) ----
-  const exportCsvSchedule = () => {
-    if (!data) return;
-    const esc = (v: string | number) => {
-      const s = String(v);
-      return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-    };
-    const unit = data.footprint.unit || "mm";
-    const header = [
-      "estacion",
-      "linea",
-      "colocada",
-      `x_${unit}`,
-      `y_${unit}`,
-      `w_${unit}`,
-      `h_${unit}`,
-      "rotacion_deg",
-      "ctq",
-    ];
-    const rows = data.stations.map((s) => {
-      const p = placementsRef.current.get(s.id);
-      return [
-        s.station,
-        s.line,
-        p ? "si" : "no",
-        p?.x ?? "",
-        p?.y ?? "",
-        p?.w ?? "",
-        p?.h ?? "",
-        p?.rotation ?? "",
-        s.ctq ? "si" : "no",
-      ]
-        .map(esc)
-        .join(",");
-    });
-    const csv = [header.join(","), ...rows].join("\r\n");
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(
-      new Blob([csv], { type: "text/csv;charset=utf-8" }),
-    );
-    a.download = `estaciones-${model}-${revision}.csv`.replace(
-      /[^\w.\-]+/g,
-      "_",
-    );
-    a.click();
-    URL.revokeObjectURL(a.href);
-    toast.success("Estaciones exportadas (CSV).", "3D");
-  };
   const arrayAssets = (cols: number, rows: number, gap: number) => {
     const sel = selRef.current.filter((s) => s.type === "asset");
     const c = Math.max(1, Math.min(50, Math.round(cols))),
@@ -11340,18 +11082,18 @@ export default function Layout3DEditor({
     rebuildAll();
     toast.success(`${label} creada.`, "Safety");
   };
-  const createSafetyPathAsset = (kind: "forklift" | "emergency") => {
+  const createSafetyPathAsset = (kind: "circulation" | "emergency") => {
     const ctx = ctxRef.current;
     const ctrl = controlsRef.current;
     if (!ctx) return;
-    const w = kind === "forklift" ? 6200 : 5200;
-    const h = kind === "forklift" ? 1800 : 1100;
+    const w = kind === "circulation" ? 6200 : 5200;
+    const h = kind === "circulation" ? 1800 : 1100;
     const cx = ctrl ? ctrl.target.x / ctx.s + ctx.W / 2 : ctx.W / 2;
     const cy = ctrl ? ctrl.target.z / ctx.s + ctx.H / 2 : ctx.H / 2;
     pushHistory();
     const id = newId("as");
     const label =
-      kind === "forklift" ? "Forklift safety path" : "Emergency exit path";
+      kind === "circulation" ? "Pasillo de circulación" : "Ruta de evacuación";
     assetsRef.current.set(id, {
       id,
       kind: "agvpath",
@@ -11367,8 +11109,8 @@ export default function Layout3DEditor({
     setObjectTags((cur) => ({
       ...cur,
       [id]:
-        kind === "forklift"
-          ? "forklift, safety, aisle, keep-clear"
+        kind === "circulation"
+          ? "circulation, safety, aisle, keep-clear"
           : "emergency, exit, safety, keep-clear",
     }));
     select([{ type: "asset", id }]);
@@ -11879,7 +11621,7 @@ export default function Layout3DEditor({
       const asset = assetsRef.current.get(op.objectId);
       if (!asset) {
         toast.error(
-          "Las estaciones toman su nombre del routing; solo puedo renombrar equipos y objetos.",
+          "Los puntos heredados toman su nombre del documento; solo puedo renombrar objetos del dibujo.",
           "Comando CAD",
         );
         return false;
@@ -14709,14 +14451,10 @@ export default function Layout3DEditor({
       })
     : [];
   const tray = (data?.stations ?? []).filter((s) => !placedIds.has(s.id));
-  const cadTitle =
-    title?.trim() ||
-    (standalone ? branding.productLabel : `CAD · ${model} · ${revision}`);
+  const cadTitle = title?.trim() || branding.productLabel;
   const cadSubtitle =
     subtitle?.trim() ||
-    (standalone
-      ? "Diseño universal 2D/3D para arquitectura, ingeniería, almacenes, plantas y layouts técnicos."
-      : "Workbench CAD conectado al gemelo industrial y al balanceo de línea.");
+    "Dibujo técnico 2D y 3D de precisión: arquitectura, ingeniería, instalaciones, mobiliario y terreno.";
   const placedCount = placedIds.size;
   const assetCount = assetIds.size;
   const mleaderSelectedCount = new Set([
@@ -15692,17 +15430,13 @@ export default function Layout3DEditor({
             <T3Btn onClick={() => viewPreset("front")} title="Vista frontal">
               <Layers className="w-4 h-4" />
             </T3Btn>
-            {/* MODO PLANTA: el paseo en primera persona es del recorrido de
-                fábrica, no del estudio de dibujo. */}
-            {!standalone && (
-              <T3Btn
-                active={walk}
-                onClick={toggleWalk}
-                title="Recorrido en primera persona — arrastra para mirar, WASD para caminar, Esc para salir"
-              >
-                <PersonStanding className="w-4 h-4" />
-              </T3Btn>
-            )}
+            <T3Btn
+              active={walk}
+              onClick={toggleWalk}
+              title="Recorrido a pie por el modelo — arrastra para mirar, WASD para caminar, Esc para salir"
+            >
+              <PersonStanding className="w-4 h-4" />
+            </T3Btn>
           </>
         )}
         <T3Btn
@@ -15750,23 +15484,11 @@ export default function Layout3DEditor({
               minimap: !workspacePreferencesRef.current.minimap,
             })
           }
-          title="Minimapa de la planta — vista general y navegación"
+          title="Vista general del dibujo — navegación rápida"
         >
           <MapPin className="w-4 h-4" />
         </T3Btn>
         <div className="w-px h-5 bg-muted mx-1" />
-        {/* MODO PLANTA: el mapa de calor MES es analítica industrial, no CAD.
-            En el estudio Design (standalone) no existe — mismo criterio WP6
-            que dejó los paneles de análisis como inyección enterprise. */}
-        {!standalone && (
-          <T3Btn
-            active={showHeat}
-            onClick={() => setShowHeat((v) => !v)}
-            title="Mapa de calor de ocupación en el piso"
-          >
-            <Grid2x2 className="w-4 h-4" />
-          </T3Btn>
-        )}
         <T3Btn
           active={showGaps}
           onClick={() => setShowGaps((v) => !v)}
@@ -15793,7 +15515,7 @@ export default function Layout3DEditor({
               >
                 <CadEditorLayerToggles
                   layers={layers}
-                  stationsLabel={standalone ? "Puntos" : "Estaciones"}
+                  stationsLabel="Puntos"
                   onToggle={toggleEditorLayer}
                 />
                 <CadLayerManagerPalette
@@ -16030,36 +15752,6 @@ export default function Layout3DEditor({
             )}
         </div>
         <div className="w-px h-5 bg-muted mx-1" />
-        {/* MODO PLANTA: el balanceo/flujo es del paquete industrial. */}
-        {!standalone && (
-          <T3Btn
-            onClick={runOptimize}
-            disabled={serverBusy}
-            title="Optimizar flujo — reordena para minimizar el recorrido (servidor)"
-          >
-            <WandSparkles className="w-4 h-4" />
-          </T3Btn>
-        )}
-        {/* MODO PLANTA: este botón abre el DOCK del copiloto legado, que en
-            el estudio Design ya no se monta. */}
-        {!standalone && (
-          <T3Btn
-            active={showCommand && workspacePreferences.commandDock}
-            onClick={() => {
-              setFocusMode(false);
-              updateWorkspacePreferences({
-                ...workspacePreferencesRef.current,
-                commandDock: true,
-              });
-              window.requestAnimationFrame(() =>
-                commandInputRef.current?.focus(),
-              );
-            }}
-            title="Línea de comandos determinística — historial, preview y repetición"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </T3Btn>
-        )}
         <T3Btn
           active={showPalette}
           onClick={() => setShowPalette((v) => !v)}
@@ -16076,36 +15768,6 @@ export default function Layout3DEditor({
         <T3Btn onClick={openTakeoff} title="Cantidades / lista de materiales">
           <ClipboardList className="w-4 h-4" />
         </T3Btn>
-        {analysisPanels.length > 0 && (
-          <div className="relative" ref={analysisMenuRef}>
-            <T3Btn
-              active={showAnalysis || !!analysisPanel}
-              onClick={() => setShowAnalysis((v) => !v)}
-              title="Análisis del layout — balanceo, costos, flujo, escenarios, salud…"
-            >
-              <ChartLine className="w-4 h-4" />
-            </T3Btn>
-            {showAnalysis && (
-              <div className="absolute top-full mt-1 left-0 z-50 w-64 max-h-[62vh] overflow-y-auto rounded-xl border border-border bg-surface shadow-2xl py-1">
-                <div className="px-3 py-1.5 type-micro uppercase tracking-wide text-muted-foreground">
-                  Análisis del layout
-                </div>
-                {analysisPanels.map((p) => (
-                  <button
-                    key={p.key}
-                    onClick={() => {
-                      setAnalysisPanel(p.key);
-                      setShowAnalysis(false);
-                    }}
-                    className="w-full text-left px-3 py-1.5 type-caption text-foreground hover:bg-muted/60 transition-colors"
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
         <T3Btn
           active={showSheetPackage}
           onClick={() => setShowSheetPackage(true)}
@@ -16205,14 +15867,6 @@ export default function Layout3DEditor({
         >
           <FileDown className="w-4 h-4" />
         </T3Btn>
-        {!standalone && (
-          <T3Btn
-            onClick={exportCsvSchedule}
-            title="Exportar estaciones a CSV (Excel)"
-          >
-            <FileText className="w-4 h-4" />
-          </T3Btn>
-        )}
         {dxfWarnings.length > 0 && (
           <div
             className="ml-1 inline-flex items-center gap-1 rounded-lg border border-amber-400/20 bg-amber-400/10 px-2 py-1 type-micro text-warning-ink"
@@ -16232,7 +15886,7 @@ export default function Layout3DEditor({
         <T3Btn
           active={showCells}
           onClick={() => setShowCells((v) => !v)}
-          title="Celdas / zonas — agrupar estaciones en celdas"
+          title="Celdas / zonas — agrupar objetos en una celda"
         >
           <Group className="w-4 h-4" />
         </T3Btn>
@@ -16331,51 +15985,8 @@ export default function Layout3DEditor({
               muscular. */}
           <div
             data-testid="cad-left-dock"
-            className={`w-60 shrink-0 border-r border-border bg-surface/90 text-foreground flex-col max-[1100px]:hidden ${focusMode || (!workspacePreferences.leftDock && !(workspacePreferences.commandDock && !standalone)) ? "hidden" : "flex"}`}
+            className={`w-60 shrink-0 border-r border-border bg-surface/90 text-foreground flex-col max-[1100px]:hidden ${focusMode || !workspacePreferences.leftDock ? "hidden" : "flex"}`}
           >
-            {/* El COPILOTO legado de fábrica (parser NL de 47 comandos) no se
-                monta en el estudio Design: la línea de comandos del motor
-                (CadCommandLine) es la única entrada tecleable. El motor
-                NL→CAD del puerto CIDE vive aparte y no se toca. */}
-            {showCommand && workspacePreferences.commandDock && !standalone && (
-              <CadCommandDock
-                inputRef={commandInputRef}
-                value={commandText}
-                preview={commandPreview}
-                log={commandLog}
-                suggestions={commandAssistSuggestions}
-                selectionCount={selList.length}
-                aiBusy={aiBusy}
-                aiProposal={aiProposal}
-                canUndo={
-                  commandLog.some((command) => command.status === "applied") &&
-                  hist.undo > 0
-                }
-                canRedo={
-                  commandLog.some((command) => command.status === "undone") &&
-                  hist.redo > 0
-                }
-                onValueChange={(value) => {
-                  setCommandText(value);
-                  setCommandHistoryCursor(-1);
-                }}
-                onSubmit={interpretCommand}
-                onHistory={navigateCommandLineHistory}
-                onRepeat={repeatLastCommand}
-                onClearInput={() => {
-                  setCommandText("");
-                  setCommandHistoryCursor(-1);
-                }}
-                onDismissPreview={() => setCommandPreview(null)}
-                onRequestAi={(source) => void requestAiProposal(source)}
-                onApplyAi={applyAiProposal}
-                onDiscardAi={() => setAiProposal(null)}
-                onApplyPreview={applyCommand}
-                onSuggestion={applyCommandSuggestion}
-                onUndo={undoLastCommand}
-                onRedo={redoLastCommand}
-              />
-            )}
             {workspacePreferences.leftDock && (
               <>
                 <div className="flex shrink-0 type-caption font-medium border-b border-border">
@@ -16383,8 +15994,7 @@ export default function Layout3DEditor({
                     onClick={() => setTab("stations")}
                     className={`flex-1 px-3 py-2 inline-flex items-center justify-center gap-1.5 ${tab === "stations" ? "text-foreground bg-muted/60" : "text-muted-foreground dark:text-muted-foreground hover:text-foreground"}`}
                   >
-                    <MapPin className="w-3.5 h-3.5" />{" "}
-                    {standalone ? "Puntos" : "Estaciones"}
+                    <MapPin className="w-3.5 h-3.5" /> Puntos
                   </button>
                   <button
                     onClick={() => setTab("equipment")}
@@ -16577,10 +16187,10 @@ export default function Layout3DEditor({
                             ESD zone
                           </button>
                           <button
-                            onClick={() => createSafetyPathAsset("forklift")}
+                            onClick={() => createSafetyPathAsset("circulation")}
                             className="rounded-lg border border-emerald-300/20 bg-emerald-400/[0.10] px-2 py-1.5 text-left type-micro font-semibold text-success-ink hover:bg-emerald-400/[0.16]"
                           >
-                            Forklift path
+                            Pasillo de circulación
                           </button>
                           <button
                             onClick={() => createSafetyPathAsset("emergency")}
@@ -16882,6 +16492,7 @@ export default function Layout3DEditor({
                 controlsRef={controlsRef}
               />
             )}
+            <CadOverlayLegends gaps={showGaps} />
             <ScaleBar
               ctxRef={ctxRef}
               cameraRef={cameraRef}
@@ -16889,7 +16500,7 @@ export default function Layout3DEditor({
               mountRef={mountRef}
               unit={(data?.footprint.unit ?? "mm") as WorldUnit}
             />
-            <CadOverlayLegends heat={showHeat} gaps={showGaps} />
+
             {(dxfWarnings.length > 0 || dxfImportPreview) && (
               <div className="absolute right-3 top-16 z-20 w-80 rounded-2xl border border-amber-400/20 bg-surface/80 p-3 shadow-2xl backdrop-blur">
                 <div className="mb-2 flex items-center justify-between gap-2">
@@ -18485,7 +18096,7 @@ export default function Layout3DEditor({
                           <ReadField
                             label="Tipo"
                             value={
-                              selSnap.type === "station" ? "Estación" : "Equipo"
+                              selSnap.type === "station" ? "Punto" : "Objeto"
                             }
                           />
                           <ReadField label="ID" value={selSnap.id} />
@@ -19408,7 +19019,7 @@ export default function Layout3DEditor({
             <div className="p-4">
               <div className="grid grid-cols-2 gap-2 mb-3">
                 <Stat
-                  label="Estaciones"
+                  label="Puntos"
                   value={`${takeoff.placedStations}/${takeoff.totalStations}`}
                 />
                 <Stat label="Equipos" value={`${takeoff.equipmentCount}`} />
@@ -19582,7 +19193,7 @@ export default function Layout3DEditor({
                       ]),
                     );
                     rows.push([
-                      "Estaciones colocadas",
+                      "Puntos colocados",
                       `${takeoff.placedStations}/${takeoff.totalStations}`,
                       fmtArea(takeoff.stationArea, takeoff.unit).replace(
                         " m²",
@@ -20550,24 +20161,6 @@ export default function Layout3DEditor({
           </div>
         </div>
       )}
-
-      {/* Analysis panels — mounted on demand from the Análisis menu. The panels
-          themselves are host-injected descriptors (WP6): the editor only builds
-          the minimal context they consume and lets each descriptor render. */}
-      {analysisPanel &&
-        (() => {
-          const it = analysisPanels.find((a) => a.key === analysisPanel);
-          if (!it) return null;
-          return it.render({
-            model,
-            revision,
-            placedStations: (data?.stations ?? [])
-              .filter((s) => placementsRef.current.has(s.id))
-              .map((s) => ({ id: s.id, label: s.station })),
-            unit: data?.footprint.unit || "mm",
-            onClose: () => setAnalysisPanel(null),
-          });
-        })()}
 
       {/* Cuadros flotantes de las paletas. Su estado vive fuera de React
           (`components/cad/palettes`), así que abrirlos no cuesta un `useState`

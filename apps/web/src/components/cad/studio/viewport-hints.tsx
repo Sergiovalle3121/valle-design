@@ -33,7 +33,11 @@ export interface CadViewportPromptProps {
 }
 
 /** Aviso superior: qué espera la herramienta activa AHORA mismo. */
-export function CadViewportPrompt({ kind, live, snapLabelRef }: CadViewportPromptProps) {
+export function CadViewportPrompt({
+  kind,
+  live,
+  snapLabelRef,
+}: CadViewportPromptProps) {
   return (
     <div
       data-testid="cad-live-prompt"
@@ -70,44 +74,18 @@ const HINTS: Record<CadViewportHintProps["kind"], string> = {
 };
 
 export interface CadOverlayLegendsProps {
-  /** Mapa de calor de ocupación del piso. */
-  heat: boolean;
   /** Resaltado de holguras y traslapes. */
   gaps: boolean;
 }
 
 /**
- * Leyendas de las capas de análisis, abajo a la izquierda.
- *
- * Las dos comparten esquina, así que cuando ambas están activas la de holguras
- * sube una fila. Ese desplazamiento condicional es la única lógica que hay
- * aquí, y estaba escrito como un `style` en línea a 19.200 líneas de distancia
- * de la leyenda con la que colisiona.
+ * Leyenda de la capa de holguras, abajo a la izquierda.
  */
-export function CadOverlayLegends({ heat, gaps }: CadOverlayLegendsProps) {
+export function CadOverlayLegends({ gaps }: CadOverlayLegendsProps) {
   return (
     <>
-      {heat && (
-        <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-card bg-surface/90 backdrop-blur border border-border type-micro text-foreground inline-flex items-center gap-2 pointer-events-none">
-          <Grid2x2 className="w-3.5 h-3.5" /> Ocupación del piso
-          <span className="inline-flex items-center gap-1">
-            menos
-            <span
-              className="inline-block w-12 h-2 rounded-sm"
-              style={{
-                background:
-                  "linear-gradient(90deg, rgba(244,63,94,0.15), rgba(244,63,94,1))",
-              }}
-            />
-            más
-          </span>
-        </div>
-      )}
       {gaps && (
-        <div
-          className="absolute bottom-3 left-3 px-3 py-1.5 rounded-card bg-surface/90 backdrop-blur border border-border type-micro text-foreground inline-flex items-center gap-3 pointer-events-none"
-          style={{ bottom: heat ? "3.25rem" : undefined }}
-        >
+        <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-card bg-surface/90 backdrop-blur border border-border type-micro text-foreground inline-flex items-center gap-3 pointer-events-none">
           <ShieldAlert className="w-3.5 h-3.5" /> Holguras
           <span className="inline-flex items-center gap-1">
             <span
