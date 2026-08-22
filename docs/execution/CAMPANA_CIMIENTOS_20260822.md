@@ -434,3 +434,21 @@ final declarado y correrá sobre main INCLUYENDO lo empujado por esta
 campaña—, y esta campaña cierra con sus seis gates (typecheck, test, lint,
 check:cad, check:dwg, build) sobre el árbol committeado. Si PULIDO no lo
 corriera, el barrido pasa a ser el primer paso del backlog P1-1.
+
+**F.1 RESULTADO (22:20).** Los seis gates sobre el árbol committeado:
+typecheck ✔ · test ✔ (todas las workspaces; web 381/381 specs) · lint ✔ (0
+errores, 549 avisos bajo presupuesto) · check:dwg ✔ (7 bundles contra commit
+fijado) · build ✔ · check:cad ✔ — con una vuelta de tuerca que merece
+registro: la PRIMERA corrida puso check:cad en ROJO porque los trinquetes de
+esta misma campaña atraparon a su autor (los cables sumaron 36 líneas al
+monolito; el motor de la rúbrica pasó de 800). No se subió ningún techo: los
+puentes salieron a `studio-engine-bridges.ts`, el histórico a
+`rubric-history.mjs`, y el monolito quedó en 20,247 — por DEBAJO de donde
+empezó el día. El presupuesto de lint se re-basó 163→164 en refs con
+justificación escrita (línea base medida sobre árbol a media edición; la
+cifra estable es 164). Push final: `12c3c28..b0ade5e` a main; conformidad en
+`3c456d7`. El barrido de goldens e2e queda delegado al F.1 de PULIDO (activa
+a esta hora con el dev server) según la decisión documentada arriba.
+
+**CAMPAÑA CERRADA (22:25).** 13 commits en main, 1 en conformidad, 1 PR
+borrador deliberado (#87), backlog e informe publicados.
