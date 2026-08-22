@@ -83,6 +83,22 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
+// Con --write, además deja el ARTEFACTO de evidencia que consume la rúbrica
+// (fila de integridad). Sin el flag no escribe nada: el gate de CI compara
+// contra el árbol quieto y no debe ensuciarlo.
+if (process.argv.includes("--write")) {
+  const artifact = path.join(root, "docs/cad/evidence/command-integrity.json");
+  const payload = {
+    generatedBy: "scripts/cad/check-command-integrity.mjs --write",
+    total: report.total,
+    verdicts: report.verdicts,
+    exemptions: Object.keys(exemptions.noConcluyentes ?? {}).sort(),
+  };
+  const { writeFileSync } = await import("node:fs");
+  writeFileSync(artifact, `${JSON.stringify(payload, null, 2)}\n`);
+  console.log(`Artefacto escrito: ${path.relative(root, artifact)}`);
+}
+
 const verdicts = report.verdicts;
 console.log(
   `Integridad de comandos OK: ${report.total} comandos · ` +

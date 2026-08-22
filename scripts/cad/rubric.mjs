@@ -526,6 +526,19 @@ const CHECKERS = {
       `MANUAL · ${item.verifiedBy} · ${item.verifiedAt} (${ageDays} d)`,
     );
   },
+
+  /**
+   * Un «todavía no» EXPLÍCITO: siempre falla, con la razón publicada.
+   *
+   * Es la diferencia entre un techo honesto y una fila inflada: el criterio
+   * existe, sus puntos existen, y hoy no se ganan — con la razón a la vista
+   * en vez de una evidencia débil que finja concederlos. Y es «todavía no»,
+   * nunca «nunca»: cuando la capacidad llegue, este item se sustituye por
+   * evidencia real en el mismo criterio.
+   */
+  todaviaNo(item) {
+    return fail(`TODAVÍA NO — ${item.reason ?? "capacidad declarada como pendiente"}`);
+  },
 };
 
 // ---------------------------------------------------------------------------
@@ -552,11 +565,21 @@ export function scoreRubric(rubric, ctx = createContext()) {
       const granted =
         evidence.length > 0 && evidence.every((e) => e.ok === true);
       const blocked = evidence.some((e) => e.ok === null);
+      // Un criterio es INDEPENDIENTE si al menos una de sus evidencias
+      // verificadas está marcada `independent: true` (oráculo externo,
+      // material de terceros). Todo lo demás es evidencia propia: specs y
+      // corpus que fabricó el propio proyecto.
+      const independent =
+        granted &&
+        (criterion.evidence ?? []).some(
+          (item, index) => item.independent === true && evidence[index]?.ok === true,
+        );
       return {
         id: criterion.id,
         text: criterion.text,
         points: criterion.points,
         earned: granted ? criterion.points : 0,
+        independent,
         status: granted
           ? "otorgado"
           : blocked
@@ -565,19 +588,43 @@ export function scoreRubric(rubric, ctx = createContext()) {
         evidence,
       };
     });
-    const earned = criteria.reduce((acc, c) => acc + c.earned, 0);
+    let earned = criteria.reduce((acc, c) => acc + c.earned, 0);
+    const independentEarned = criteria.reduce(
+      (acc, c) => acc + (c.independent ? c.earned : 0),
+      0,
+    );
+    // La regla del corte 2026-08-22: una capacidad validada SÓLO contra
+    // material propio no puede llegar al tope de su fila. Se retiene un punto
+    // con la nota a la vista — el punto vuelve el día que entre evidencia
+    // independiente (un archivo de tercero, un oráculo externo, un usuario
+    // real), no el día que se escriba otro spec propio.
+    let independenceCap = false;
+    if (earned === category.points && independentEarned === 0 && category.points > 0) {
+      earned -= 1;
+      independenceCap = true;
+    }
     return {
       id: category.id,
       group: category.group,
       name: category.name,
+      scope: category.scope ?? "hoy",
       points: category.points,
       earned,
+      independentEarned,
+      independenceCap,
       ratio: category.points ? earned / category.points : 0,
       gap: category.gap,
       criteria,
     };
   });
   const earned = categories.reduce((acc, c) => acc + c.earned, 0);
+  const independentEarned = categories.reduce(
+    (acc, c) => acc + c.independentEarned,
+    0,
+  );
+  const hoyCategories = categories.filter((c) => c.scope === "hoy");
+  const hoyPoints = hoyCategories.reduce((acc, c) => acc + c.points, 0);
+  const hoyEarned = hoyCategories.reduce((acc, c) => acc + c.earned, 0);
   return {
     schemaVersion: 1,
     rubricVersion: rubric.version ?? null,
@@ -585,6 +632,27 @@ export function scoreRubric(rubric, ctx = createContext()) {
     totalPoints: rubric.totalPoints,
     earned,
     percentage: Number(((earned / rubric.totalPoints) * 100).toFixed(1)),
+    // Los DOS denominadores, publicados juntos: el de HOY se enseña a un
+    // cliente; el de DESTINO, a un inversionista y a nosotros mismos.
+    scopes: {
+      hoy: {
+        points: hoyPoints,
+        earned: hoyEarned,
+        percentage: hoyPoints
+          ? Number(((hoyEarned / hoyPoints) * 100).toFixed(1))
+          : 0,
+      },
+      destino: {
+        points: rubric.totalPoints,
+        earned,
+        percentage: Number(((earned / rubric.totalPoints) * 100).toFixed(1)),
+      },
+    },
+    evidenceClasses: {
+      independiente: independentEarned,
+      propia: earned - independentEarned,
+      categoriasConTecho: categories.filter((c) => c.independenceCap).length,
+    },
     definitionErrors: validateRubric(rubric),
     categories,
   };

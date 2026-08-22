@@ -40,7 +40,10 @@ export function formatReport(scored, { verbose = false } = {}) {
   if (scored.definitionErrors.length) lines.push("");
   for (const category of scored.categories) {
     lines.push(
-      `${bar(category.ratio)} ${String(category.earned).padStart(3)}/${String(category.points).padEnd(3)} ${category.name}`,
+      `${bar(category.ratio)} ${String(category.earned).padStart(3)}/${String(category.points).padEnd(3)} ${category.name}` +
+        (category.independenceCap
+          ? " · retiene 1 pt: toda su evidencia es propia"
+          : ""),
     );
     for (const criterion of category.criteria) {
       if (criterion.status === "otorgado" && !verbose) continue;
@@ -66,6 +69,25 @@ export function formatReport(scored, { verbose = false } = {}) {
   const capped = scored.categories.filter(
     (category) => category.earned >= category.points,
   );
+  // Los DOS denominadores, siempre juntos: el de HOY (el flujo diario de
+  // dibujo 2D técnico, donde se exige el 10/10 y que se enseña a un cliente)
+  // y el de DESTINO (AutoCAD completo, que mide si avanzamos hacia donde
+  // queremos llegar). Publicar sólo uno es elegir a quién mentirle.
+  if (scored.scopes) {
+    lines.push(
+      `ALCANCE DE HOY   ${scored.scopes.hoy.earned}/${scored.scopes.hoy.points} (${scored.scopes.hoy.percentage} %) — flujo diario de dibujo 2D técnico; la cifra de cliente.`,
+    );
+    lines.push(
+      `ALCANCE DESTINO  ${scored.scopes.destino.earned}/${scored.scopes.destino.points} (${scored.scopes.destino.percentage} %) — AutoCAD completo; la cifra de inversionista. Lo excluido de hoy es «todavía no», nunca «nunca».`,
+    );
+  }
+  if (scored.evidenceClasses) {
+    lines.push(
+      `EVIDENCIA: ${scored.evidenceClasses.independiente} pt con evidencia INDEPENDIENTE (oráculos externos, material de terceros) · ` +
+        `${scored.evidenceClasses.propia} pt sólo con evidencia propia · ` +
+        `${scored.evidenceClasses.categoriasConTecho} fila(s) retienen 1 pt por carecer de evidencia independiente.`,
+    );
+  }
   lines.push(
     `TOTAL ${scored.earned}/${scored.totalPoints} (${scored.percentage} %) — el denominador es ` +
       `público y ${
@@ -119,8 +141,20 @@ export function renderMatrixSection(rubric, scored) {
   );
   const capped = scored.categories.filter((c) => c.earned >= c.points);
   lines.push(
-    `**Puntuación (rúbrica ${scored.rubricVersion ?? "sin versión"}): ` +
-      `${scored.earned}/${scored.totalPoints} (${scored.percentage} %).** ` +
+    `**Puntuación (rúbrica ${scored.rubricVersion ?? "sin versión"}).** ` +
+      (scored.scopes
+        ? `**Alcance de HOY: ${scored.scopes.hoy.earned}/${scored.scopes.hoy.points} ` +
+          `(${scored.scopes.hoy.percentage} %)** — el flujo diario de dibujo 2D técnico, ` +
+          `la cifra que se enseña a un cliente. **Alcance de DESTINO: ` +
+          `${scored.scopes.destino.earned}/${scored.scopes.destino.points} ` +
+          `(${scored.scopes.destino.percentage} %)** — AutoCAD completo con sus verticales, ` +
+          `la cifra que mide el camino; lo excluido de hoy es «todavía no», nunca «nunca». `
+        : `${scored.earned}/${scored.totalPoints} (${scored.percentage} %). `) +
+      (scored.evidenceClasses
+        ? `${scored.evidenceClasses.independiente} pt provienen de evidencia INDEPENDIENTE y ` +
+          `${scored.evidenceClasses.propia} pt sólo de evidencia propia; ` +
+          `${scored.evidenceClasses.categoriasConTecho} fila(s) retienen 1 pt hasta tener evidencia independiente. `
+        : "") +
       `${capped.length} de ${scored.categories.length} filas están en su tope` +
       (capped.length
         ? `: ${capped.map((c) => c.name ?? c.id).join(", ")}. `

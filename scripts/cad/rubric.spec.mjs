@@ -146,8 +146,56 @@ const byId = (scored, id) =>
     [],
     "una rúbrica bien formada no tiene errores de definición",
   );
-  eq(scored.earned, 6, "la evidencia completa concede los 6 puntos");
-  eq(scored.percentage, 100, "el porcentaje sale del denominador publicado");
+  // Corte 2026-08-22: TODA la evidencia de esta categoría es PROPIA, así que
+  // aunque cada criterio verifique, la fila retiene 1 punto — una capacidad
+  // validada sólo contra material propio no puede llegar a su tope.
+  eq(scored.earned, 5, "evidencia completa pero sólo propia: 6 − 1 de techo");
+  eq(
+    scored.categories[0].independenceCap,
+    true,
+    "y el techo queda declarado en la categoría",
+  );
+  eq(
+    scored.evidenceClasses.categoriasConTecho,
+    1,
+    "y contado en el resumen de clases de evidencia",
+  );
+
+  // Con UNA evidencia independiente verificada, el techo se levanta.
+  const independentRubric = rubricWith([
+    {
+      id: "cat-a",
+      name: "Categoría A",
+      points: 6,
+      criteria: [
+        criterion("cat-a.file", 2, [
+          {
+            kind: "file",
+            path: "apps/web/src/lib/demo/present.ts",
+            minLines: 1,
+            independent: true,
+          },
+        ]),
+        criterion("cat-a.spec", 3, [
+          { kind: "spec", path: "apps/web/src/lib/demo/present.spec.ts" },
+        ]),
+        criterion("cat-a.golden", 1, [
+          { kind: "golden", path: "apps/web/e2e/golden/01-demo.spec.ts" },
+        ]),
+      ],
+    },
+  ]);
+  const independentScored = scoreRubric(independentRubric, ctx());
+  eq(
+    independentScored.earned,
+    6,
+    "con evidencia independiente la fila SÍ llega a su tope",
+  );
+  eq(
+    independentScored.evidenceClasses.independiente,
+    2,
+    "y sus puntos se cuentan como independientes",
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -423,7 +471,22 @@ const byId = (scored, id) =>
     [],
     "docs/competitive/rubric.json no tiene errores de definición",
   );
-  eq(published.totalPoints, 200, "el denominador publicado son 200 puntos");
+  // Corte 2026-08-22: el denominador de DESTINO creció a 220 al nacer las
+  // filas de integridad y de capacidad de crecer, y se publica JUNTO al de
+  // HOY (las categorías scope:"hoy"), que es el que se enseña a un cliente.
+  eq(published.totalPoints, 220, "el denominador de destino publicado son 220 puntos");
+  eq(
+    published.categories.every((c) => c.scope === "hoy" || c.scope === "destino"),
+    true,
+    "cada categoría declara su alcance",
+  );
+  eq(
+    published.categories
+      .filter((c) => c.scope === "hoy")
+      .reduce((acc, c) => acc + c.points, 0),
+    175,
+    "el denominador de HOY (flujo diario 2D) son 175 puntos",
+  );
   const groups = new Map(published.groups.map((g) => [g.id, g.points]));
   for (const [id, points] of groups) {
     const sum = published.categories
