@@ -1,0 +1,132 @@
+{
+  "schemaVersion": "1.0.0",
+  "owner": "Sergio Valle Zárate",
+  "policy": "./ASSISTED_DEVELOPMENT.md",
+  "entries": [
+    {
+      "id": "DWG-01-GOVERNANCE-2026-08-09",
+      "date": "2026-08-09",
+      "initiative": "DWG-01 — propiedad y protección",
+      "branch": "codex/dwg-01-governance",
+      "assistants": [
+        {
+          "name": "OpenAI Codex",
+          "role": "análisis, propuesta y edición supervisada"
+        }
+      ],
+      "authority": "Directiva expresa de Sergio Valle Zárate en la tarea de implementación DWG-01 y confirmación posterior de que es el único titular y contribuidor humano",
+      "firstPartyInputs": [
+        "Repositorio Valle Design y sus políticas existentes",
+        "Plan propietario y comercial aprobado por Sergio Valle Zárate",
+        "Decisión expresa de Sergio de operar la gobernanza sin un segundo revisor inexistente, conservando PR, checks exact-SHA e historial lineal",
+        "Confirmación por API de que valle-design es privado y directiva de Sergio de mantener un único repositorio"
+      ],
+      "externalSources": [
+        {
+          "location": "https://github.com/actions/checkout/commit/11d5960a326750d5838078e36cf38b85af677262",
+          "terms": "MIT",
+          "fact": "SHA verificado de actions/checkout v4 usado por CI"
+        },
+        {
+          "location": "https://github.com/actions/setup-node/commit/49933ea5288caeca8642d1e84afbd3f7d6820020",
+          "terms": "MIT",
+          "fact": "SHA verificado de actions/setup-node v4 usado por CI"
+        },
+        {
+          "location": "https://github.com/actions/upload-artifact/commit/ea165f8d65b6e75b540449e92b4886f43607fa02",
+          "terms": "MIT",
+          "fact": "SHA verificado de actions/upload-artifact v4 usado por CI"
+        },
+        {
+          "location": "https://github.com/gitleaks/gitleaks/releases/tag/v8.24.3",
+          "terms": "MIT",
+          "fact": "SHA-256 oficial del tarball linux_x64 fijado por CI"
+        }
+      ],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "términos propietarios",
+        "política de contribuciones",
+        "procedencia de desarrollo asistido",
+        "modelo de adopción personal por propietario único",
+        "aviso confidencial y topología de repositorio privado único",
+        "protección del repositorio",
+        "inventario SBOM y gate de licencias",
+        "CI"
+      ],
+      "fixtures": [],
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "adopted",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Adoptado el 2026-08-22 por directiva de la campaña de cimientos: los archivos de gobernanza del PR #77 entran a main adaptados al estado real del día (topología de dos repositorios, protección remota activa observada, visibilidad pública registrada como pendiente de decisión). El código DWG paralelo de los PR #78/#79 NO se adopta por duplicar el códec ya integrado."
+      },
+      "aiCoAuthorTrailers": false,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "AI-ASSISTED-HISTORY-BASELINE-2026-08-09",
+      "date": "2026-08-09",
+      "initiative": "Línea base histórica de desarrollo asistido",
+      "branch": "main-history-through-98a5b18",
+      "assistants": [
+        {
+          "name": "Anthropic Claude Code",
+          "role": "asistencia de análisis y edición en cambios históricos del repositorio"
+        },
+        {
+          "name": "OpenAI Codex",
+          "role": "asistencia de análisis y edición en cambios históricos del repositorio"
+        }
+      ],
+      "authority": "Sergio Valle Zárate dirigió y fusionó cambios asistidos anteriores como titular del repositorio",
+      "firstPartyInputs": [
+        "Historial first-party de valle-design hasta 98a5b18, incluido trabajo CAD concurrente ya fusionado",
+        "PR y commits ya revisados y fusionados por Sergio Valle Zárate"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "no-certificado-retroactivamente",
+      "derivedAreas": [
+        "Línea base histórica; esta entrada no sustituye la procedencia específica de cada PR ni certifica retrospectivamente fuentes externas"
+      ],
+      "fixtures": [],
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "El merge del PR DWG-01 confirma el uso histórico de asistencia y adopta este registro sin reescribir autoría, titularidad o procedencia de commits anteriores."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CIMIENTOS-2026-08-22",
+      "date": "2026-08-22",
+      "initiative": "Campaña de cimientos — integridad del repositorio",
+      "branch": "claude/cimientos",
+      "assistants": [
+        {
+          "name": "Claude Code (Claude Fable 5, Anthropic)",
+          "role": "ejecución autónoma supervisada por directiva escrita del titular: limpieza de ramas y PR, rescate de gobernanza, arnés de integridad de comandos, correcciones P0, documentación y rúbrica"
+        }
+      ],
+      "authority": "Directiva escrita de Sergio Valle Zárate del 2026-08-22 (prompt de la campaña de cimientos y su anexo de crecimiento), bajo las reglas de no-detención y decisión conservadora documentada en docs/execution/CAMPANA_CIMIENTOS_20260822.md",
+      "firstPartyInputs": [
+        "Repositorio Valle Design en fc9ba23 y sus políticas",
+        "Auditoría externa citada en la directiva",
+        "Repositorio valle-design-dwg-conformance como espejo del corpus"
+      ],
+      "externalSources": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: el titular revisa el informe INFORME_CAMPANA_CIMIENTOS_20260822.md y los SHA empujados a main durante la campaña; la adopción se registra al cerrar la revisión."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    }
+  ]
+}

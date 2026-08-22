@@ -1,0 +1,29 @@
+VALLE DESIGN — AVISO CONFIDENCIAL DE SOFTWARE PROPIETARIO
+
+Copyright (c) 2026 Sergio Valle Zárate. Todos los derechos reservados.
+
+Este software es propietario y confidencial. Poder ver este repositorio —
+cualquiera que sea su visibilidad en la plataforma — no concede permiso para
+copiar, usar, modificar, redistribuir, vender, entrenar un producto derivado ni
+explotar comercialmente el código. El uso se limita a Sergio Valle Zárate y a
+las personas que él autorice expresamente por escrito. Valle Design no es
+software open source ni source-available bajo una licencia de uso. Consulte
+LICENSE. El estado de visibilidad vigente del repositorio y su remediación se
+registran en `docs/governance/repository-protection-baseline.json`.
+
+Valle Design se comercializará como software propietario y cerrado. Sólo se
+distribuirán aplicaciones compiladas, servicios y SDK expresamente autorizados.
+El proyecto vive en exactamente dos repositorios privados del mismo titular:
+`Sergiovalle3121/valle-design` (el producto) y
+`Sergiovalle3121/valle-design-dwg-conformance` (el laboratorio clean-room y el
+corpus de conformidad DWG, aislado del producto por política). Esta enumeración
+es exhaustiva: ningún otro repositorio está autorizado por esta política.
+
+No se aceptan aportaciones externas sin acuerdo escrito de cesión o CLA
+confirmado por el titular. El carácter privado del repositorio no autoriza subir
+secretos, corpus no aprobados, planos de clientes, datos personales ni material
+de procedencia dudosa.
+
+Third-party components retain their own notices and licenses. Authorized access
+to this private repository grants no license to the first-party Valle Design
+works.

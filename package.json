@@ -54,7 +54,9 @@
     "smoke:deploy": "node scripts/deploy/production-startup-smoke.mjs",
     "ops:backup": "node scripts/ops/backup.mjs",
     "ops:restore-verify": "node scripts/ops/restore-verify.mjs",
-    "ops:outbox-replay": "node scripts/ops/outbox-replay.mjs"
+    "ops:outbox-replay": "node scripts/ops/outbox-replay.mjs",
+    "check:governance": "node scripts/check-proprietary-governance.mjs && node --test scripts/check-proprietary-governance.spec.mjs",
+    "sbom:full": "npm sbom --sbom-format cyclonedx > sbom.full.cdx.json && node -e \"const b=require('./sbom.full.cdx.json');console.log('SBOM completo OK:',b.components.length,'componentes (runtime+dev)')\""
   },
   "devDependencies": {
     "@redocly/cli": "1.34.3",

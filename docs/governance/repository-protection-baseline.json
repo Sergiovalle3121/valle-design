@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "1.2.0",
+  "recordedAt": "2026-08-22",
+  "repository": "Sergiovalle3121/valle-design",
+  "repositoryId": 1318987896,
+  "visibility": "public",
+  "visibilityVerifiedAt": "2026-08-22",
+  "visibilityContradictsNotice": true,
+  "visibilityDecision": {
+    "status": "pending-owner-decision",
+    "recordedAt": "2026-08-22",
+    "finding": "Ambos repositorios (valle-design y valle-design-dwg-conformance) son PÚBLICOS mientras LICENSE/NOTICE declaran software propietario y confidencial. La visibilidad pública es probablemente el medio por el que la protección de rama clásica funciona en el plan Free.",
+    "options": "(a) volver ambos a privado y aceptar que la protección remota se apaga en el plan Free, gobernando con los gates locales y el protocolo del titular; (b) GitHub Pro u organización para tener repos privados CON protección; (c) mantener público deliberadamente, asumiendo la exposición del código fuente propietario.",
+    "requiredRemediation": "El titular decide y esta línea base se actualiza con la decisión y su fecha. Registrado como P0-1 en docs/execution/BACKLOG.md."
+  },
+  "defaultBranch": "main",
+  "repositoryTopology": {
+    "kind": "two-repositories-single-owner",
+    "repositories": [
+      "Sergiovalle3121/valle-design",
+      "Sergiovalle3121/valle-design-dwg-conformance"
+    ],
+    "companionRepository": "Sergiovalle3121/valle-design-dwg-conformance",
+    "companionPurpose": "Laboratorio clean-room y corpus de conformidad DWG, aislado del producto por política; el producto lo consume solo como espejo de solo lectura vía VALLE_DWG_CORPUS_MIRROR."
+  },
+  "governanceModel": {
+    "kind": "sole-human-owner",
+    "owner": "Sergio Valle Zárate",
+    "githubLogin": "Sergiovalle3121",
+    "humanContributors": 1,
+    "independentApprovalRequiredForOwnerChanges": false,
+    "ownerClaOrAssignmentRequired": false
+  },
+  "remoteProtectionObserved": {
+    "capturedAt": "2026-08-22",
+    "kind": "classic-branch-protection",
+    "requiredStatusChecks": [
+      "Contrato · Build · Test · Lint · Smoke",
+      "E2E Playwright (PostgreSQL · Chromium + Firefox)",
+      "Gitleaks (historial completo)"
+    ],
+    "strictUpToDate": false,
+    "enforceAdmins": false,
+    "requireLinearHistory": false,
+    "requireConversationResolution": false,
+    "allowForcePushes": false,
+    "allowDeletions": false,
+    "requirePullRequestReviews": false,
+    "note": "La protección exige checks verdes para fusionar PRs pero NO exige PR: el titular (admin) puede empujar directo a main. Coincide con la práctica documentada de campañas: push directo con los seis gates locales verdes."
+  },
+  "ownerMergeProtocol": {
+    "directPushAllowedFor": "sole-owner-and-sessions-he-authorizes",
+    "localGatesRequiredBeforePush": [
+      "check:cad",
+      "check:dwg",
+      "typecheck",
+      "test",
+      "lint",
+      "build"
+    ],
+    "pullRequestsRequireExactShaChecks": true,
+    "machineEnforced": "partial-status-checks-only"
+  },
+  "repositoryMergeSettings": {
+    "allowSquashMerge": true,
+    "allowMergeCommit": false,
+    "allowRebaseMerge": false,
+    "allowAutoMerge": true,
+    "allowUpdateBranch": true,
+    "deleteBranchOnMerge": true
+  },
+  "soleOwnerSubstituteControls": [
+    "pull-request-record",
+    "exact-sha-required-status-checks",
+    "local-six-gate-protocol",
+    "owner-adoption-record",
+    "assisted-development-log"
+  ],
+  "futureExternalContributorGate": {
+    "assignmentOrClaRequired": true,
+    "independentApprovalRequired": true,
+    "lastPushApprovalRequired": true,
+    "codeOwnerReviewRequiredForSensitivePaths": true,
+    "mustBeEnabledBeforeFirstExternalPullRequest": true
+  },
+  "mergeQueue": {
+    "enabled": false,
+    "reason": "GitHub merge queues require an organization-owned repository; the current repository is owned by a personal account.",
+    "officialDocumentation": "https://docs.github.com/en/pull-requests/how-tos/merge-and-close-pull-requests/merging-a-pull-request-with-a-merge-queue"
+  }
+}
