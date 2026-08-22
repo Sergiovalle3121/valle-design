@@ -324,3 +324,58 @@ con el diseño completo y la sonda lista para el «después».
   (maxSegments 96), topes de selección por índice (300/4096, cortan por orden
   espacial), intersecciones sobre teselado vs analíticas, tope de 300 en
   `selectNative` (afecta QSELECT grande).
+
+### OLA 3 (17:20–18:35)
+
+**3.1 CERRADO.** Inter (variable, 4.66) y JetBrains Mono (variable) viven en
+`apps/web/src/fonts/` (OFL 1.1, procedencia en su LICENSE.txt y en
+THIRD_PARTY_NOTICES); `layout.tsx` pasa a `next/font/local` con
+`adjustFontFallback`. Gate `check:fonts`: archivos presentes + cero imports de
+`next/font/google` (sólo imports reales, los comentarios pueden contar la
+historia). **3.2 CERRADO.** typescript 5.9.3, @types/node ^22.18, eslint
+^9.18, prettier ^3.4→3.9.6, tsx 4.23.12: UNA declaración en la raíz;
+workspaces heredan (borradas 14 declaraciones duplicadas). Typecheck verde con
+la cadena única; SDK regenerado byte-estable. **3.3 CERRADO (curva a la baja +
+techo).** 562→548 avisos: 2 errores prettier arreglados, no-base-to-string de
+RUTA DE PRODUCCIÓN corregidos (DXF export ya no puede emitir '[object
+Object]'; token DI multi-tenant sin colisión de anónimos), imports muertos
+fuera del monolito retirados (los ~20 del monolito son del 5.2 de PULIDO hoy
+mismo — no tocados a propósito), 4 reglas del React Compiler en cero suben a
+ERROR, convención `_` declarada, y trinquete `check:lint-budget` (por regla y
+workspace, sólo baja, --update auditable) cableado en check:cad. **3.4
+CERRADO.** Carpeta prístina (git archive): `npm ci` 1 min + `npm run build`
+1m25s, VERDES, sin variables de entorno. Arranque = 2 comandos (ci, dev).
+Nota de entorno: el Control de aplicaciones de Windows puede bloquear binarios
+nativos recién extraídos (documentado en PRIMER-DIA.md).
+
+### OLA 4 + ANEXO (18:35–19:15)
+
+**4.1–4.3, 4.5, 4.6 CERRADOS.** `docs/onboarding/`: PRIMER-DIA.md (clonar→
+correr con tiempos medidos), MAPA.md (tres procesos, documento canónico,
+motor, render, interop, comercial, seis fronteras), GATES.md (los ~15 gates
+uno a uno con su «cuando está rojo» y el único procedimiento para cambiarlos),
+CONVENCIONES.md (dónde va el código, nombres, commits, comentarios, pruebas).
+Gate NUEVO `check:conventions` (dirección de imports: lib/ no importa de
+components//app/; 524 archivos verificados; halló 3 violaciones — 2 specs de
+integración, ahora fuera por regla, y `social-card.tsx`, exenta DECLARADA con
+deuda escrita). `docs/adr/README.md`: índice de las DOCE ADR con estado (la
+cola decía nueve; son diez + las dos nuevas). **4.4 cerrado en OLA 0.**
+
+**Anexo:** A.1 → ADR-0011 (migración aditiva como invariante, procedimiento
+de subida de esquema, fila de compatibilidad medida). A.7 → ADR-0012 (DWG a
+doble vía con criterio de cambio medible). A.2 →
+`docs/api/POLITICA-API-PUBLICA.md` (tres niveles, reglas de cambio, default
+todo-internal, manifiesto de plugins LISP/JS declarado formato v1 sobre el
+contrato ya existente en `lib/lisp/plugins/api.ts`; marcado por operación en
+el YAML queda en backlog). A.5 → `docs/interop/CONTRATO-INTEROP.md` (bytes →
+neutral → canónico, cinco garantías, estado real por formato; unificación de
+las dos rutas DXF sigue en backlog R.1). A.6 → `docs/execution/DEUDA-MONOLITO.md`
+(meta <8,000 líneas como compromiso fechado, método por costuras, registro por
+campaña; el escalón del trinquete de HOY lo da el 5.2 de PULIDO). A.8 →
+`docs/DONACIONES.md` EN EL REPO DE CONFORMIDAD (pusheado: procedimiento,
+permiso mínimo, compromiso de fidelidad por versión, registro vacío a
+propósito). **A.3/A.4 VERIFICADOS COMO EXISTENTES** (mejor que construirlos):
+el guard ya pregunta entitlements genéricos por código con catálogo
+N-por-plan, y `UsageLedger` ya registra `design.document.saved/published` por
+organización con idempotencia. Faltantes menores a backlog: métrica de
+almacenamiento, superficie UI «esto es del plan Pro», exposición de consumo.
