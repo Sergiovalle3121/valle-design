@@ -434,3 +434,34 @@ Formato: `[hora] OLA · ítem — qué se hizo · decisiones y suposiciones`.
     **sin backlog** · presupuesto OK. `symbols.ts` subió 20 líneas al restaurar los dos símbolos, así
     que su techo se subió con `--allow-growth` y la razón queda escrita aquí y en el commit: es la
     corrección de un borrado propio de hace una hora, no crecimiento nuevo.
+
+## Cola de reserva
+
+- `[09:20]` **R.5 — ADR-0010 escrito.** `docs/adr/0010-identificadores-persistidos-congelados.md`
+  documenta la decisión: qué está congelado, dónde vive el dato de verdad, los tres regímenes
+  (congelado y en uso / congelado y oculto / escritura retirada con lectura viva), los cuatro tests
+  que lo sostienen y la **condición de retiro por familia**. La condición del XDATA de DXF está dicha
+  sin adornos: no depende de nosotros, depende de que los archivos que ya salieron del producto estén
+  migrados de forma verificable — y eso el producto no lo controla.
+- `[09:50]` **R.3 — cuatro plantillas por disciplina.** La prueba dibujable de que Valle Design no es
+  sólo arquitectura, que era el agujero del posicionamiento nuevo: el README dice «CAD general» y la
+  paleta ofrecía 145 tipologías de **edificio**.
+  - **Pieza mecánica** — brida con barreno central H7, cuatro barrenos M8, vista frontal, corte A-A
+    con su eje, y cuadro de tolerancias y acabado. Escala 1:1, cotas en mm.
+  - **Diagrama unifilar** — acometida, medidor, interruptor principal, tablero y cuatro circuitos
+    derivados con su electrodo de tierra y su cuadro de cargas, con nota a la NOM-001-SEDE.
+  - **Levantamiento de predio** — polígono de cuatro vértices con mojoneras, colindancias, banqueta y
+    calle, y el cuadro de construcción con sus encabezados listo para llenar con la libreta de campo.
+  - **Despiece de carpintería** — librero de tres entrepaños despiezado en costados, entrepaños,
+    respaldo y zócalo, con vista de armado y lista de corte (MDF 18, triplay 6, sistema 32).
+  - **El trinquete volvió a ordenar el diseño:** `templates.ts` sólo puede encoger, así que las 120
+    líneas de contenido nuevo viven en `lib/cad/templates-disciplines.ts` y el catálogo se compone
+    concatenando. En `templates.ts` sólo quedaron los cuatro ids del tipo y el enlace: +6 líneas, que
+    se subieron con `--allow-growth` y quedan explicadas aquí. El archivo sigue **168 líneas por
+    debajo** de donde arrancó la campaña.
+  - Su spec **no reutiliza** las aserciones del catálogo de edificios —una pieza mecánica no tiene
+    puerta—: verifica lo que sí aplica a un dibujo de disciplina (escala propia sin reescalar, capa
+    de cotas presente, al menos tres anotaciones que digan qué es y en qué unidades está) y añade un
+    candado nuevo: **ninguna disciplina se queda sin arranque**.
+  - **Verificación:** `tsc` limpio · `web` **381/381** verdes · `lint` 0 errores · gate de identidad
+    verde · presupuesto OK.

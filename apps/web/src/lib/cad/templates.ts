@@ -1,10 +1,16 @@
 import type { CadLayerId } from "./layers";
+import { CAD_DISCIPLINE_TEMPLATES } from "./templates-disciplines";
 
 export type CadLayoutTemplateId =
   | "architecture-floor-core"
   | "civil-site-utilities"
   | "structural-grid-core"
   | "mep-plantroom"
+  // Disciplina (ver templates-disciplines.ts): no todo plano es un edificio.
+  | "pieza-mecanica"
+  | "diagrama-unifilar"
+  | "levantamiento-predio"
+  | "despiece-carpinteria"
   // CAD universal (VD-CAD-UNIVERSAL-002): arranques para cualquiera.
   | "casa-habitacion"
   | "local-comercial"
@@ -228,8 +234,7 @@ const note = (
   layer: CadLayerId,
 ): CadTemplateAnnotation => ({ ref, type: "text", text, x, y, layer });
 
-export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
-
+const CAD_BUILDING_TEMPLATES: CadLayoutTemplate[] = [
   {
     id: "architecture-floor-core",
     label: "Architecture floor core",
@@ -4900,6 +4905,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     ],
   },
 ];
+export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [...CAD_BUILDING_TEMPLATES, ...CAD_DISCIPLINE_TEMPLATES];
 
 export function getCadLayoutTemplate(
   id: CadLayoutTemplateId,
