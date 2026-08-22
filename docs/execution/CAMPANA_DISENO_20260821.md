@@ -82,12 +82,12 @@ es que **nadie lo consume**. Esta campaña no reescribe el sistema: **lo cablea*
 
 ### OLA 4 — EL EMBUDO DE ALTA
 
-- [ ] 4.1 Registro sin callejón ("Revisa tu correo")
-- [ ] 4.2 Verificación por enlace, token como respaldo
-- [ ] 4.3 Organización sin jerga (slug derivado + "trabajo por mi cuenta")
-- [ ] 4.4 El primer minuto (tres caminos; plano de ejemplo)
-- [ ] 4.5 Estados (skeletons, vacíos ilustrados, `loading/error/not-found/global-error`)
-- [ ] 4.6 Skip link real a `#contenido`
+- [x] 4.1 Registro sin callejón ("Revisa tu correo")
+- [x] 4.2 Verificación por enlace, token como respaldo
+- [x] 4.3 Organización sin jerga (slug derivado + "trabajo por mi cuenta")
+- [x] 4.4 El primer minuto (tres caminos; plano de ejemplo)
+- [x] 4.5 Estados (skeletons, vacíos ilustrados, `loading/error/not-found/global-error`)
+- [x] 4.6 Skip link real a `#contenido`
 
 ### OLA 5 — LA PRIMERA IMPRESIÓN DEL ESTUDIO
 
@@ -389,3 +389,98 @@ llegar— en vez del sitio donde está escrita.
 temas. `/precios` se verificó con el catálogo interceptado, porque la API
 comercial no corre en local y la página —correctamente— se niega a inventar un
 importe.
+
+### OLA 4 — cerrada
+
+**4.1 · Registro sin callejón.** Tras registrarse ya no hay un `<p>` verde: hay
+una pantalla que NOMBRA el correo exacto al que se envió —el dato que necesita
+quien tecleó mal una letra—, explica por qué puede tardar, y trae el reenvío
+CON temporizador y sin salir de la pantalla. Mandar al usuario a otra página a
+reescribir el correo que acaba de teclear es pedirle que repita trabajo justo
+cuando ya dudaba de si funcionó.
+
+El temporizador se encadena con `setTimeout` y no con `setInterval`: si la
+pestaña se duerme, el intervalo acumula disparos y al volver descuenta varios
+segundos de golpe.
+
+**4.2 · Verificación por enlace.** El correo YA traía un enlace absoluto con el
+token (`apps/api/.../email-templates.ts`); lo que faltaba era que al abrirlo
+pasara algo — el enlace rellenaba el campo y el usuario tenía que pulsar un
+botón. Ahora la verificación corre sola al montar, con una pantalla que dice que
+está trabajando en vez de un formulario que se autoenvía y se queda visible
+invitando a pulsarlo encima de una petición en curso. El campo de token queda
+como respaldo detrás de «¿Tienes un código?»: quien llega sin enlace es la
+excepción, y un campo a la vista convierte la excepción en el camino principal.
+
+La guarda `autoVerified` importa: en desarrollo React monta cada efecto dos
+veces a propósito, y sin ella el token se canjearía dos veces — la segunda
+fallaría y el usuario vería «token inválido» tras una verificación que SÍ
+funcionó.
+
+**4.3 · Organización sin jerga.** Se le pedía a un arquitecto teclear un slug
+conforme a `[a-z0-9]+(?:-[a-z0-9]+)*`, y si repetía lo que acababa de escribir
+arriba el formulario lo rechazaba sin explicar nada. Ahora hay dos caminos:
+«Trabajo por mi cuenta» —un botón, cero campos, nombre derivado del correo— y
+«Tengo un despacho» —un campo, con el identificador derivado, VISIBLE (quien
+comparta enlaces querrá saber cuál es) y editable sólo tras pulsar
+«personalizar»—.
+
+La derivación vive en `lib/organization-slug.ts` con su spec: acentos, ñ
+(«Peña» → `pena`, no `pe-a`), recorte sin guion colgante y la garantía de que
+lo derivado SIEMPRE pasa la validación de la API. El día que no la pase, el
+alta se rompería en el paso más caro del embudo y sin mensaje que lo explique.
+
+**4.4 · El primer minuto.** Tres caminos, y el primero decide la venta: «Abre un
+plano de ejemplo» pone al usuario delante de un dibujo terminado en cinco
+segundos. El plano NO se escribe a mano — `sample-plan.json` lo genera el mismo
+script de capturas dibujando con los comandos reales, así que **es literalmente
+el plano de la portada**: quien llegó por la captura del hero abre exactamente
+lo que vio. Medido: 5 muros, 2 cotas, 19 capas, 5 estilos, espacio papel y
+cajetín.
+
+Y el ORDEN de la página depende del estado: con documentos creados mandan los
+formularios; con el espacio vacío manda el primer minuto. Resuelto con `order`
+y no duplicando los dos bloques en las dos ramas de un ternario — duplicarlos
+habría duplicado también las seis validaciones que cuelgan de ellos.
+
+**4.5 · Estados.** `animate-pulse` y `skeleton` medían CERO usos en toda la
+aplicación y el tablero cargaba con un `<p>` centrado en blanco. Ahora hay
+huesos con la silueta de lo que viene —al llegar los datos nada se mueve de
+sitio— y las cuatro pantallas que faltaban: `loading.tsx`, `error.tsx`,
+`not-found.tsx` y `global-error.tsx`. Antes, un 404 o un error de servidor
+mostraban la pantalla por defecto de Next: la marca del FRAMEWORK, en inglés, en
+la pantalla de un cliente mexicano.
+
+`error.tsx` enseña el `digest`: en producción Next no manda el mensaje del error
+al navegador —correctamente, un mensaje puede filtrar la forma de la base de
+datos— y manda un identificador; enseñarlo permite que soporte encuentre ESA
+entrada en el registro en vez de pedirle al usuario que describa lo que vio.
+
+`global-error.tsx` es la TERCERA excepción autorizada a «ningún hex fuera de
+globals.css», y la razón es dura: sustituye al documento entero, así que corre
+SIN el layout raíz — sin `ThemeProvider`, sin las variables CSS, sin la
+tipografía de `next/font`. Un componente que usara `bg-card` se pintaría sin
+estilo dentro de la pantalla que existe para cuando todo lo demás ha reventado.
+
+**4.6 · Skip link.** `<main id="contenido">` existía en dos sitios y NINGÚN
+enlace apuntaba a `#contenido`: un ancla huérfana. Ahora hay `<SkipLink/>` en la
+portada, en todas las páginas públicas y en el tablero, oculto con `sr-only` y no
+con `display:none` —que lo sacaría del orden de tabulación y lo volvería inútil
+para quien lo necesita.
+
+**El tablero, de paso, queda tokenizado por completo:** cero clases de paleta
+cruda, cero tamaños de Tailwind, y el formulario de organización extraído a su
+propio archivo (eran 120 líneas dentro de un archivo de 712 que ya hacía otras
+seis cosas).
+
+**Gates:** `typecheck` ✅ · `build` ✅ · `lint` ✅ 0 errores · `test` ✅ 387/387.
+
+**AVISO — SESIÓN PARALELA.** A mitad de esta ola, otra sesión («CAMPAÑA DE
+IDENTIDAD», `docs/execution/CAMPANA_IDENTIDAD_20260822.md`) renombró
+`components/line-engineering/` a `components/cad/` EN EL MISMO ÁRBOL DE TRABAJO.
+El servidor de desarrollo se quedó con el grafo de módulos a medias y falló con
+un `Module not found` que no era mío. Comprobado que el renombrado quedó
+consistente (`typecheck` verde) y reiniciado el servidor. **Sus archivos se
+sacaron del índice antes de cada commit**: AGENTS.md, ARCHITECTURE.md,
+PRODUCT.md, README.md, REPOSITORY_SCOPE.md, IDENTITY.md, `site-routes.ts`,
+`professional-blocks.spec.ts`, `docs/competitive/` y `scripts/cad/check-no-industrial-domain*`.

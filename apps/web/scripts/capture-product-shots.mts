@@ -42,6 +42,18 @@ const API_ORIGIN = process.env.E2E_API_ORIGIN || "http://localhost:4010";
 
 /** Dónde caen las capturas. `public/product/` las sirve la portada. */
 const OUT_DIR = path.join(webRoot, "public", "product");
+/**
+ * EL PLANO DE EJEMPLO — el mismo que sale en la portada.
+ *
+ * Que sean el mismo dibujo no es una economía: es una promesa cumplida. Quien
+ * ve la captura del hero y pulsa «Abre un plano de ejemplo» abre EXACTAMENTE lo
+ * que acaba de ver. La alternativa —una captura bonita y un ejemplo distinto—
+ * es la primera decepción del producto, y llega en el primer minuto.
+ *
+ * El fixture se GENERA dibujando con los comandos reales, no se escribe a mano:
+ * el día que el esquema del documento cambie, se regenera en vez de pudrirse.
+ */
+const SAMPLE_PLAN = path.join(webRoot, "src", "lib", "cad", "sample-plan.json");
 /** Copia de referencia para el informe de la campaña (antes/después). */
 const DOC_DIR = path.resolve(webRoot, "..", "..", "docs", "design", "before-after");
 
@@ -161,7 +173,7 @@ function starterDocument(): CadDocument {
 async function installBackends(context: BrowserContext) {
   await installMockBackend(context);
   await loginAsStandaloneOwner(context);
-  await installCadV1Backend(context, {
+  return installCadV1Backend(context, {
     document: starterDocument() as unknown as Record<string, unknown>,
     footprint: {
       footprintW: 40_550,
@@ -231,7 +243,7 @@ async function main() {
         (value) => window.localStorage.setItem("valle_theme", value),
         theme,
       );
-      await installBackends(context);
+      const { snapshot } = await installBackends(context);
       const page = await context.newPage();
 
       await page.goto(`${BASE_URL}/legacy/studio`);
@@ -254,6 +266,15 @@ async function main() {
       );
 
       if (theme === "dark") {
+        /* El plano de ejemplo, tal y como quedó dibujado. */
+        const { document: drawn } = snapshot();
+        await writeFile(
+          SAMPLE_PLAN,
+          `${JSON.stringify(drawn, null, 2)}\n`,
+          "utf8",
+        );
+        console.log("  · sample-plan.json — el plano que abre el tablero");
+
         /* Acercamiento a la línea de comandos con un comando EN CURSO. */
         await type(page, "DLI");
         await page.waitForTimeout(300);

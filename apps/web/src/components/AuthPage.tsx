@@ -7,6 +7,7 @@ import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import { localReturnTo } from "@/lib/session";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import { AuthShell } from "@/components/AuthShell";
+import { ResendTimerButton } from "@/components/ResendTimerButton";
 import { Button, Input } from "@/components/ui";
 
 type AuthMode = "login" | "register";
@@ -229,14 +230,24 @@ function CheckYourInbox({ email }: { email: string }) {
               </li>
             </ul>
           </div>
+          {/*
+            El reenvío se hace AQUÍ, sin salir de la pantalla: mandar al usuario
+            a otra página a reescribir el correo que acaba de teclear es pedirle
+            que repita trabajo en el momento en que ya dudaba de si funcionó.
+            El temporizador evita los cinco correos y los cinco tokens que
+            produce un botón sin espera.
+          */}
+          <ResendTimerButton
+            onResend={async () => {
+              await designClient.identity.resendVerification(email).catch(() => {
+                /* La API responde igual exista o no la cuenta: no se filtra
+                   quién está registrado, y un fallo de red aquí no debe
+                   convertirse en un error rojo que asuste — el usuario ya tiene
+                   el primer correo en camino. */
+              });
+            }}
+          />
           <p className="type-small text-center text-muted-foreground">
-            <Link
-              className="font-semibold text-primary-ink underline-offset-4 hover:underline"
-              href="/resend-verification"
-            >
-              Enviar otro correo
-            </Link>
-            {" · "}
             <Link
               className="underline underline-offset-4 hover:text-foreground"
               href="/verify-email"

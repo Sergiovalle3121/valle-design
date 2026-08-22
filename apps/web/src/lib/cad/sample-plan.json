@@ -1,0 +1,556 @@
+{
+  "meta": {
+    "version": 15,
+    "schema": 9,
+    "unit": "mm",
+    "footprintW": 40550,
+    "footprintH": 26200,
+    "gridSize": 100
+  },
+  "layers": [
+    {
+      "color": "#808080",
+      "id": "AUXILIAR",
+      "lineweight": 0.13,
+      "locked": false,
+      "name": "Auxiliar",
+      "plot": false,
+      "visible": true
+    },
+    {
+      "color": "#00ffff",
+      "id": "CANCEL",
+      "lineweight": 0.25,
+      "locked": false,
+      "name": "Cancelería",
+      "plot": true,
+      "visible": true
+    },
+    {
+      "color": "#ff00ff",
+      "id": "COTA",
+      "lineweight": 0.13,
+      "locked": false,
+      "name": "Acotación",
+      "plot": true,
+      "visible": true
+    },
+    {
+      "color": "#ff0000",
+      "id": "EJE",
+      "linetype": "CENTER",
+      "lineweight": 0.13,
+      "locked": false,
+      "name": "Ejes",
+      "plot": true,
+      "visible": true
+    },
+    {
+      "color": "#00ff00",
+      "id": "MOBILIARIO",
+      "lineweight": 0.13,
+      "locked": false,
+      "name": "Mobiliario",
+      "plot": true,
+      "visible": true
+    },
+    {
+      "color": "#ffffff",
+      "id": "MURO",
+      "lineweight": 0.35,
+      "locked": false,
+      "name": "Muros",
+      "plot": true,
+      "visible": true
+    },
+    {
+      "color": "#00ffff",
+      "id": "NIVEL",
+      "lineweight": 0.13,
+      "locked": false,
+      "name": "Niveles",
+      "plot": true,
+      "visible": true
+    },
+    {
+      "color": "#8000ff",
+      "id": "PLAFON",
+      "linetype": "DASHED",
+      "lineweight": 0.13,
+      "locked": false,
+      "name": "Plafones",
+      "plot": true,
+      "visible": true
+    },
+    {
+      "color": "#00ffff",
+      "id": "TEXTO",
+      "lineweight": 0.18,
+      "locked": false,
+      "name": "Textos",
+      "plot": true,
+      "visible": true
+    },
+    {
+      "color": "#ffff00",
+      "id": "VANO",
+      "lineweight": 0.25,
+      "locked": false,
+      "name": "Puertas y ventanas",
+      "plot": true,
+      "visible": true
+    },
+    {
+      "color": "#fbbf24",
+      "id": "aisles",
+      "locked": false,
+      "name": "Aisles",
+      "plot": true,
+      "visible": true
+    },
+    {
+      "color": "#64748b",
+      "id": "architecture",
+      "locked": false,
+      "name": "Architecture",
+      "plot": true,
+      "visible": true
+    },
+    {
+      "color": "#a78bfa",
+      "id": "equipment",
+      "locked": false,
+      "name": "Equipment",
+      "plot": true,
+      "visible": true
+    },
+    {
+      "color": "#34d399",
+      "id": "flow",
+      "locked": false,
+      "name": "Flow",
+      "plot": true,
+      "visible": true
+    },
+    {
+      "color": "#38bdf8",
+      "id": "layout",
+      "locked": false,
+      "name": "Layout",
+      "plot": true,
+      "visible": true
+    },
+    {
+      "color": "#f472b6",
+      "id": "measurements",
+      "locked": false,
+      "name": "Measurements",
+      "plot": true,
+      "visible": true
+    },
+    {
+      "color": "#fb7185",
+      "id": "safety",
+      "locked": false,
+      "name": "Safety",
+      "plot": true,
+      "visible": true
+    },
+    {
+      "color": "#475569",
+      "id": "structure",
+      "locked": false,
+      "name": "Structure",
+      "plot": true,
+      "visible": true
+    },
+    {
+      "color": "#0ea5e9",
+      "id": "utilities",
+      "locked": false,
+      "name": "Utilities",
+      "plot": true,
+      "visible": true
+    }
+  ],
+  "entities": [
+    {
+      "end": {
+        "x": 10000,
+        "y": 2000,
+        "z": 0
+      },
+      "height": 2400,
+      "id": "cad_mt3ztrun_10el",
+      "layer": "equipment",
+      "start": {
+        "x": 2000,
+        "y": 2000,
+        "z": 0
+      },
+      "thickness": 200,
+      "type": "wall"
+    },
+    {
+      "end": {
+        "x": 10000,
+        "y": 7000,
+        "z": 0
+      },
+      "height": 2400,
+      "id": "cad_mt3ztyo1_a73b",
+      "layer": "equipment",
+      "start": {
+        "x": 10000,
+        "y": 2000,
+        "z": 0
+      },
+      "thickness": 200,
+      "type": "wall"
+    },
+    {
+      "end": {
+        "x": 2000,
+        "y": 7000,
+        "z": 0
+      },
+      "height": 2400,
+      "id": "cad_mt3zu66v_44ma",
+      "layer": "equipment",
+      "start": {
+        "x": 10000,
+        "y": 7000,
+        "z": 0
+      },
+      "thickness": 200,
+      "type": "wall"
+    },
+    {
+      "end": {
+        "x": 2000,
+        "y": 2000,
+        "z": 0
+      },
+      "height": 2400,
+      "id": "cad_mt3zudpe_twef",
+      "layer": "equipment",
+      "start": {
+        "x": 2000,
+        "y": 7000,
+        "z": 0
+      },
+      "thickness": 200,
+      "type": "wall"
+    },
+    {
+      "end": {
+        "x": 6000,
+        "y": 5000,
+        "z": 0
+      },
+      "height": 2400,
+      "id": "cad_mt3zul9g_1kj3",
+      "layer": "equipment",
+      "start": {
+        "x": 6000,
+        "y": 2000,
+        "z": 0
+      },
+      "thickness": 200,
+      "type": "wall"
+    },
+    {
+      "a": {
+        "x": 2000,
+        "y": 2000
+      },
+      "axis": "x",
+      "b": {
+        "x": 10000,
+        "y": 2000
+      },
+      "dimensionKind": "linear",
+      "id": "cad_mt3zuvid_a6in",
+      "layer": "equipment",
+      "offset": -1300,
+      "type": "dimension"
+    },
+    {
+      "a": {
+        "x": 2000,
+        "y": 2000
+      },
+      "axis": "y",
+      "b": {
+        "x": 2000,
+        "y": 7000
+      },
+      "dimensionKind": "linear",
+      "id": "cad_mt3zv4js_7ozf",
+      "layer": "equipment",
+      "offset": -1100,
+      "type": "dimension"
+    }
+  ],
+  "history": [
+    {
+      "version": 1,
+      "label": "Plantilla de arranque: Planta arquitectónica"
+    },
+    {
+      "version": 2,
+      "label": "insert:wall"
+    },
+    {
+      "version": 3,
+      "label": "save"
+    },
+    {
+      "version": 4,
+      "label": "insert:wall"
+    },
+    {
+      "version": 5,
+      "label": "save"
+    },
+    {
+      "version": 6,
+      "label": "insert:wall"
+    },
+    {
+      "version": 7,
+      "label": "save"
+    },
+    {
+      "version": 8,
+      "label": "insert:wall"
+    },
+    {
+      "version": 9,
+      "label": "save"
+    },
+    {
+      "version": 10,
+      "label": "insert:wall"
+    },
+    {
+      "version": 11,
+      "label": "save"
+    },
+    {
+      "version": 12,
+      "label": "insert:dimension"
+    },
+    {
+      "version": 13,
+      "label": "save"
+    },
+    {
+      "version": 14,
+      "label": "insert:dimension"
+    },
+    {
+      "version": 15,
+      "label": "save"
+    }
+  ],
+  "modelSpace": {
+    "entityIds": [
+      "cad_mt3ztrun_10el",
+      "cad_mt3ztyo1_a73b",
+      "cad_mt3zu66v_44ma",
+      "cad_mt3zudpe_twef",
+      "cad_mt3zul9g_1kj3",
+      "cad_mt3zuvid_a6in",
+      "cad_mt3zv4js_7ozf"
+    ]
+  },
+  "paperSpaces": [
+    {
+      "entityIds": [],
+      "id": "layout:planta-arquitectonica",
+      "includeInPublish": true,
+      "name": "Planta arquitectónica",
+      "order": 0,
+      "page": {
+        "height": 594,
+        "orientation": "landscape",
+        "unit": "mm",
+        "width": 841
+      },
+      "pageSetup": {
+        "colorMode": "monochrome",
+        "lineweightScale": 1,
+        "margins": {
+          "bottom": 10,
+          "left": 20,
+          "right": 10,
+          "top": 10
+        },
+        "paper": "A1"
+      },
+      "titleBlock": {
+        "attributes": {
+          "APPROVED_BY": "-",
+          "CHECKED_BY": "-",
+          "CLIENTE": "Familia Zaragoza",
+          "DISCIPLINE": "Arquitectura",
+          "DRAWING_NO": "A-101",
+          "DRO": "-",
+          "DRO_REGISTRO": "-",
+          "FECHA": "2026-08-21",
+          "NOTES": "-",
+          "PREPARED_BY": "S. Valle",
+          "PROJECT": "Casa Zaragoza",
+          "PROPIETARIO": "-",
+          "REVISION": "A",
+          "SHEET_NO": "A-101",
+          "TITLE": "Planta baja",
+          "TITLE_BLOCK_VARIANT": "mexicano",
+          "UBICACION": "-",
+          "UNIDADES": "mm"
+        }
+      },
+      "viewports": [
+        {
+          "annotationScale": 50,
+          "id": "layout:planta-arquitectonica:viewport:1",
+          "locked": true,
+          "modelBounds": {
+            "height": 26200,
+            "width": 40550,
+            "x": 0,
+            "y": 0
+          },
+          "name": "Model",
+          "paperBounds": {
+            "height": 524,
+            "width": 811,
+            "x": 20,
+            "y": 10
+          },
+          "scale": 50,
+          "view": {
+            "direction": {
+              "x": 0,
+              "y": 0,
+              "z": -1
+            },
+            "kind": "plan",
+            "projection": "parallel",
+            "target": {
+              "x": 0,
+              "y": 0,
+              "z": 0
+            },
+            "up": {
+              "x": 0,
+              "y": 1,
+              "z": 0
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "styles": {
+    "dimension": {
+      "COTA 1:100": {
+        "arrowhead": "architectural-tick",
+        "arrowSize": 250,
+        "precision": 2,
+        "textStyle": "ROTULO",
+        "units": "m"
+      },
+      "COTA 1:200": {
+        "arrowhead": "architectural-tick",
+        "arrowSize": 500,
+        "precision": 2,
+        "textStyle": "ROTULO",
+        "units": "m"
+      },
+      "COTA 1:50": {
+        "arrowhead": "architectural-tick",
+        "arrowSize": 125,
+        "precision": 2,
+        "textStyle": "ROTULO",
+        "units": "m"
+      },
+      "COTA 1:75": {
+        "arrowhead": "architectural-tick",
+        "arrowSize": 187.5,
+        "precision": 2,
+        "textStyle": "ROTULO",
+        "units": "m"
+      },
+      "COTA DET 1:10": {
+        "arrowhead": "architectural-tick",
+        "arrowSize": 25,
+        "precision": 0,
+        "textStyle": "ROTULO",
+        "units": "cm"
+      },
+      "COTA DET 1:20": {
+        "arrowhead": "architectural-tick",
+        "arrowSize": 50,
+        "precision": 0,
+        "textStyle": "ROTULO",
+        "units": "cm"
+      },
+      "COTA DET 1:25": {
+        "arrowhead": "architectural-tick",
+        "arrowSize": 62.5,
+        "precision": 0,
+        "textStyle": "ROTULO",
+        "units": "cm"
+      },
+      "COTA DET 1:5": {
+        "arrowhead": "architectural-tick",
+        "arrowSize": 12.5,
+        "precision": 0,
+        "textStyle": "ROTULO",
+        "units": "cm"
+      }
+    },
+    "mleader": {
+      "DIRECTRIZ": {
+        "arrowSize": 125,
+        "doglegLength": 250,
+        "landing": true,
+        "textStyle": "ROTULO"
+      }
+    },
+    "plot": {
+      "MONOCROMO": {
+        "colorMode": "monochrome",
+        "lineweightScale": 1
+      }
+    },
+    "table": {
+      "CUADRO": {
+        "rowHeight": 250,
+        "textStyle": "ROTULO"
+      }
+    },
+    "text": {
+      "ROTULO": {
+        "fontFamily": "Helvetica",
+        "height": 125
+      },
+      "SUBTITULO": {
+        "fontFamily": "Helvetica",
+        "height": 175
+      },
+      "TITULO": {
+        "fontFamily": "Helvetica",
+        "height": 250
+      }
+    }
+  },
+  "blocks": [],
+  "constraints": [],
+  "externalReferences": [],
+  "unsupportedEntities": [],
+  "lossManifest": [],
+  "publications": []
+}

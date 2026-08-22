@@ -3,6 +3,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { FilePlus2, FolderPlus, LogIn, LogOut, Upload } from "lucide-react";
+import { Logo } from "@/components/brand/Logo";
+import { SkipLink } from "@/components/SkipLink";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { Button, Surface, buttonClass, cx } from "@/components/ui";
+import { DashboardSkeleton } from "./DashboardSkeleton";
+import { FirstMinute } from "./FirstMinute";
+import { OrganizationOnboarding } from "./OrganizationOnboarding";
+import SAMPLE_PLAN from "@/lib/cad/sample-plan.json";
 import type {
   CadDocumentInline,
   CadDocumentSummary,
@@ -53,8 +61,6 @@ export default function DashboardPage() {
     useState<CommercialSubscriptionResponse["subscription"]>(null);
   const [entitlements, setEntitlements] = useState<string[]>([]);
   const [state, setState] = useState<ViewState>("loading");
-  const [organizationName, setOrganizationName] = useState("");
-  const [organizationSlug, setOrganizationSlug] = useState("");
   const [organizationError, setOrganizationError] = useState<string | null>(
     null,
   );
@@ -73,6 +79,12 @@ export default function DashboardPage() {
     status: "idle",
   });
   const importAbort = useRef<AbortController | null>(null);
+  /**
+   * «Crea un plano en blanco» NO abre otro formulario: lleva el foco al que ya
+   * está en la página. Duplicar el formulario habría duplicado también las seis
+   * ramas de validación que tiene detrás.
+   */
+  const documentNameRef = useRef<HTMLInputElement>(null);
   const canEdit = auth.permissions.includes("cad:edit");
 
   const load = useCallback(async () => {
@@ -121,15 +133,14 @@ export default function DashboardPage() {
 
   useEffect(() => void load(), [load]);
 
-  const createOrganization = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!organizationName.trim() || !organizationSlug.trim() || busy) return;
+  const createOrganization = async (input: { name: string; slug: string }) => {
+    if (!input.name.trim() || !input.slug.trim() || busy) return;
     setBusy(true);
     setOrganizationError(null);
     try {
       await designClient.organizations.create({
-        name: organizationName.trim(),
-        slug: organizationSlug.trim().toLowerCase(),
+        name: input.name.trim(),
+        slug: input.slug.trim().toLowerCase(),
       });
       await auth.refresh();
     } catch (error) {
@@ -230,6 +241,56 @@ export default function DashboardPage() {
           : error instanceof Error
             ? error.message
             : "No se pudo crear el documento.",
+      );
+      setBusy(false);
+    }
+  };
+
+  /**
+   * 4.4 · ABRIR EL PLANO DE EJEMPLO.
+   *
+   * Reutiliza la MISMA secuencia que `createDocument` —crear el documento y
+   * escribir su contenido ANTES de abrir el estudio— porque el motivo es el
+   * mismo: si el editor abriera un documento vacío y escribiera después, habría
+   * dos escritores del mismo documento en la misma décima de segundo y el CAS
+   * devolvería un 409.
+   *
+   * El plano NO se escribe a mano en el código: `sample-plan.json` lo genera
+   * `npm run capture:product` dibujando con los comandos reales, y es
+   * literalmente el mismo dibujo que sale en la portada.
+   */
+  const openSamplePlan = async () => {
+    if (!canEdit || busy) return;
+    setBusy(true);
+    setActionError(null);
+    try {
+      // El ejemplo necesita un proyecto donde vivir. Si la organización está
+      // recién creada no hay ninguno, así que se crea uno con nombre propio en
+      // vez de pedirle al usuario que lo invente antes de ver nada.
+      let projectId = selectedProject || projects[0]?.id;
+      if (!projectId) {
+        const project = await designClient.projects.create({
+          name: "Ejemplos",
+        });
+        setProjects((items) => [...items, project]);
+        projectId = project.id;
+        setSelectedProject(project.id);
+      }
+      const document = await designClient.documents.create({
+        name: "Planta de ejemplo",
+        projectId,
+      });
+      await designClient.documents.saveContent(
+        document.id,
+        SAMPLE_PLAN as unknown as CadDocumentInline,
+        0,
+      );
+      router.push(`/studio/${document.id}`);
+    } catch (error) {
+      setActionError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo abrir el plano de ejemplo.",
       );
       setBusy(false);
     }
@@ -336,19 +397,15 @@ export default function DashboardPage() {
     }
   };
 
-  if (state === "loading")
-    return <Status text="Cargando proyectos y documentos…" />;
+  if (state === "loading") return <DashboardSkeleton />;
   if (state === "organization-required") {
     return (
       <OrganizationOnboarding
         organizations={organizations}
-        name={organizationName}
-        slug={organizationSlug}
+        email={auth.user?.email}
         busy={busy}
         error={organizationError}
-        onNameChange={setOrganizationName}
-        onSlugChange={setOrganizationSlug}
-        onCreate={createOrganization}
+        onCreate={(input) => void createOrganization(input)}
         onActivate={activateOrganization}
         onLogout={() => void auth.logout()}
       />
@@ -371,337 +428,273 @@ export default function DashboardPage() {
   }
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-6xl p-6 md:p-10">
-      <header className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-indigo-500">
-            Organización
-          </p>
-          <h1 className="text-3xl font-semibold">
-            {auth.organizationName ?? auth.tenantId}
-          </h1>
-          {subscription && (
-            <p
-              className="mt-1 text-xs text-gray-500"
-              data-testid="subscription-status"
-            >
-              Suscripción {subscription.status}
-              {subscription.status === "trialing" && subscription.trialEndsAt
-                ? ` hasta ${new Date(subscription.trialEndsAt).toLocaleDateString()}`
-                : ""}
-              {entitlements.includes("design.cad") ? " · CAD habilitado" : ""}
-            </p>
-          )}
-          <p className="text-sm text-gray-500">Proyectos y documentos CAD</p>
-        </div>
-        {organizations.length > 1 && (
-          <select
-            aria-label="Organización activa"
-            value={auth.organizationId ?? ""}
-            disabled={busy}
-            onChange={(event) => void activateOrganization(event.target.value)}
-            className="rounded-xl border bg-transparent px-3 py-2 text-sm"
-          >
-            {organizations.map((organization) => (
-              <option key={organization.id} value={organization.id}>
-                {organization.name}
-              </option>
-            ))}
-          </select>
-        )}
-        <button
-          onClick={auth.logout}
-          className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm"
-        >
-          <LogOut className="h-4 w-4" /> Cerrar sesión
-        </button>
-      </header>
-
-      {canEdit ? (
-        <section className="mt-8 grid gap-6 md:grid-cols-2">
-          <form
-            onSubmit={createProject}
-            className="rounded-2xl border border-black/10 p-5 dark:border-white/10"
-          >
-            <h2 className="font-semibold">Nuevo proyecto</h2>
-            <div className="mt-3 flex gap-2">
-              <input
-                aria-label="Nombre del proyecto"
-                value={projectName}
-                onChange={(e) => setProjectName(e.target.value)}
-                className="min-w-0 flex-1 rounded-xl border bg-transparent px-3 py-2"
-                placeholder="Ej. Reforma planta norte"
-              />
-              <button
-                disabled={busy}
-                className="rounded-xl bg-indigo-600 px-4 text-white"
-                aria-label="Crear proyecto"
-              >
-                <FolderPlus />
-              </button>
-            </div>
-          </form>
-          <form
-            onSubmit={(event) => {
-              event.preventDefault();
-              void createDocument(documentName);
-            }}
-            className="rounded-2xl border border-black/10 p-5 dark:border-white/10"
-          >
-            <h2 className="font-semibold">Nuevo documento</h2>
-            <select
-              aria-label="Proyecto"
-              value={selectedProject}
-              onChange={(e) => setSelectedProject(e.target.value)}
-              className="mt-3 w-full rounded-xl border bg-transparent px-3 py-2"
-            >
-              <option value="">Selecciona un proyecto</option>
-              {projects.map((project) => (
-                <option key={project.id} value={project.id}>
-                  {project.name}
-                </option>
-              ))}
-            </select>
-            <div className="mt-2 flex gap-2">
-              <input
-                aria-label="Nombre del documento"
-                value={documentName}
-                onChange={(e) => setDocumentName(e.target.value)}
-                className="min-w-0 flex-1 rounded-xl border bg-transparent px-3 py-2"
-                placeholder="Plano general"
-              />
-              <button
-                disabled={busy || !selectedProject}
-                className="rounded-xl bg-indigo-600 px-4 text-white"
-                aria-label="Crear documento"
-              >
-                <FilePlus2 />
-              </button>
-            </div>
-            {/*
-              La plantilla va DEBAJO del nombre y no en un asistente aparte: es
-              una decisión de un segundo que ahorra media hora de configuración,
-              y un asistente de tres pasos para elegirla costaría más que el
-              tiempo que ahorra. Lo que se pinta vive en `starter-template-fields`
-              por el presupuesto de tamaño de esta página.
-            */}
-            <CadStarterTemplateFields
-              value={starter}
-              onChange={setStarter}
-              disabled={busy}
-            />
-            <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm text-indigo-500">
-              <Upload className="h-4 w-4" /> Importar como documento
-              <input
-                type="file"
-                className="sr-only"
-                accept=".dxf,.json,.shp,.shx,.dbf,.prj,.cpg"
-                multiple
-                disabled={!selectedProject || busy}
-                onChange={(e) => {
-                  // Un shapefile son varios archivos que hay que elegir juntos.
-                  const chosen = splitDocumentSelection([...(e.target.files ?? [])]);
-                  if (chosen) void importDocument(chosen.primary, chosen.sidecars);
-                  e.currentTarget.value = "";
-                }}
-              />
-            </label>
-            <ImportStatus
-              state={importState}
-              onCancel={() => importAbort.current?.abort()}
-              onOpen={(documentId) => router.push(`/studio/${documentId}`)}
-            />
-          </form>
-        </section>
-      ) : (
-        <p
-          data-testid="dashboard-read-only"
-          className="mt-8 rounded-2xl border border-amber-300/20 bg-amber-400/5 px-5 py-4 text-sm text-amber-700 dark:text-amber-200"
-        >
-          Tu rol permite consultar proyectos y documentos. La creación y la
-          importación requieren permiso de edición.
-        </p>
-      )}
-
-      {actionError && (
-        <p role="alert" className="mt-4 text-sm text-rose-600">
-          {actionError}
-        </p>
-      )}
-
-      {state === "empty" ? (
-        <p className="mt-10 rounded-2xl border border-dashed p-10 text-center text-gray-500">
-          {canEdit
-            ? "Aún no hay proyectos ni documentos. Crea tu primer proyecto para comenzar."
-            : "Este espacio todavía no contiene proyectos ni documentos."}
-        </p>
-      ) : (
-        <section className="mt-10">
-          <h2 className="text-xl font-semibold">Documentos</h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {documents.map((document) => (
-              <button
-                key={document.id}
-                onClick={() => router.push(`/studio/${document.id}`)}
-                className="rounded-2xl border border-black/10 p-4 text-left hover:border-indigo-400 dark:border-white/10"
-              >
-                <strong>{document.name}</strong>
-                <span className="mt-2 block truncate text-xs text-gray-500">
-                  {document.id}
-                </span>
-              </button>
-            ))}
-          </div>
-          {documents.length === 0 && (
-            <p className="mt-4 text-sm text-gray-500">
-              Este espacio todavía no contiene documentos.
-            </p>
-          )}
-        </section>
-      )}
-    </main>
-  );
-}
-
-function OrganizationOnboarding({
-  organizations,
-  name,
-  slug,
-  busy,
-  error,
-  onNameChange,
-  onSlugChange,
-  onCreate,
-  onActivate,
-  onLogout,
-}: {
-  organizations: OrganizationItem[];
-  name: string;
-  slug: string;
-  busy: boolean;
-  error: string | null;
-  onNameChange: (value: string) => void;
-  onSlugChange: (value: string) => void;
-  onCreate: (event: React.FormEvent<HTMLFormElement>) => void;
-  onActivate: (organizationId: string) => void;
-  onLogout: () => void;
-}) {
-  return (
-    <main className="mx-auto min-h-screen w-full max-w-2xl p-6 md:p-10">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-indigo-500">
-            Primer acceso
-          </p>
-          <h1 className="mt-2 text-3xl font-semibold">Elige tu organización</h1>
-        </div>
-        <button
-          type="button"
-          onClick={onLogout}
-          className="flex items-center gap-2 rounded-xl border px-3 py-2 text-sm"
-        >
-          <LogOut className="h-4 w-4" /> Cerrar sesión
-        </button>
-      </div>
-
-      {organizations.length > 0 && (
-        <section className="mt-8 rounded-2xl border border-black/10 p-5 dark:border-white/10">
-          <h2 className="font-semibold">Organizaciones disponibles</h2>
-          <div className="mt-3 grid gap-2">
-            {organizations.map((organization) => (
-              <button
-                key={organization.id}
-                type="button"
-                disabled={busy}
-                onClick={() => onActivate(organization.id)}
-                className="flex items-center justify-between rounded-xl border px-4 py-3 text-left"
-              >
-                <span>
-                  <strong className="block">{organization.name}</strong>
-                  <span className="text-xs text-gray-500">
-                    {organization.slug} · {organization.role}
-                  </span>
-                </span>
-                <span className="text-sm text-indigo-500">Abrir</span>
-              </button>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <form
-        onSubmit={onCreate}
-        className="mt-6 rounded-2xl border border-black/10 p-5 dark:border-white/10"
+    <>
+      <SkipLink />
+      <main
+        id="contenido"
+        className="mx-auto min-h-screen w-full max-w-6xl p-6 md:p-10"
       >
-        <h2 className="font-semibold">Crear una organización</h2>
-        <p className="mt-1 text-sm text-gray-500">
-          La primera organización recibe un periodo de prueba configurable con
-          acceso CAD; no se publica ningún precio desde esta pantalla.
-        </p>
-        <label
-          className="mt-4 block text-sm font-medium"
-          htmlFor="organization-name"
-        >
-          Nombre
-        </label>
-        <input
-          id="organization-name"
-          name="organizationName"
-          value={name}
-          onChange={(event) => onNameChange(event.target.value)}
-          minLength={2}
-          maxLength={160}
-          required
-          className="mt-2 w-full rounded-xl border bg-transparent px-3 py-2"
-          placeholder="Ej. Estudio Valle"
-        />
-        <label
-          className="mt-4 block text-sm font-medium"
-          htmlFor="organization-slug"
-        >
-          Identificador
-        </label>
-        <input
-          id="organization-slug"
-          name="organizationSlug"
-          value={slug}
-          onChange={(event) => onSlugChange(event.target.value.toLowerCase())}
-          minLength={2}
-          maxLength={80}
-          pattern="[a-z0-9]+(?:-[a-z0-9]+)*"
-          required
-          className="mt-2 w-full rounded-xl border bg-transparent px-3 py-2 font-mono"
-          placeholder="estudio-valle"
-        />
-        <button
-          type="submit"
-          disabled={busy}
-          className="mt-5 min-h-11 w-full rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white disabled:opacity-60"
-        >
-          {busy ? "Creando…" : "Crear organización y comenzar"}
-        </button>
-        {error && (
-          <p
-            role="alert"
-            className="mt-3 text-sm text-red-700 dark:text-red-300"
+        <header className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <Logo markClassName="h-6 w-6" showWordmark={false} />
+            <p className="type-eyebrow mt-3 text-primary-ink">Organización</p>
+            <h1 className="type-title mt-1">
+              {auth.organizationName ?? auth.tenantId}
+            </h1>
+            {subscription && (
+              <p
+                className="type-caption mt-2 text-muted-foreground"
+                data-testid="subscription-status"
+              >
+                Suscripción {subscription.status}
+                {subscription.status === "trialing" && subscription.trialEndsAt
+                  ? ` hasta ${new Date(subscription.trialEndsAt).toLocaleDateString()}`
+                  : ""}
+                {entitlements.includes("design.cad") ? " · CAD habilitado" : ""}
+              </p>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <ThemeToggle />
+            {organizations.length > 1 && (
+              <select
+                aria-label="Organización activa"
+                value={auth.organizationId ?? ""}
+                disabled={busy}
+                onChange={(event) =>
+                  void activateOrganization(event.target.value)
+                }
+                className="type-small min-h-11 rounded-control border border-border bg-card px-3 text-foreground"
+              >
+                {organizations.map((organization) => (
+                  <option key={organization.id} value={organization.id}>
+                    {organization.name}
+                  </option>
+                ))}
+              </select>
+            )}
+            <Button
+              variant="ghost"
+              onClick={auth.logout}
+              iconLeft={<LogOut className="h-4 w-4" />}
+            >
+              Cerrar sesión
+            </Button>
+          </div>
+        </header>
+
+        {/*
+          EL ORDEN DEPENDE DEL ESTADO, y no es maquetación por gusto. Con
+          documentos creados, quien entra viene a abrir uno o a crear el
+          siguiente: mandan los formularios. Con el espacio VACÍO, quien mira
+          acaba de terminar el alta y todavía no sabe qué es un «proyecto»:
+          enseñarle dos formularios de seis campos antes que nada es darle
+          deberes en lugar de producto.
+
+          Se resuelve con `order` y no duplicando los dos bloques en las dos
+          ramas de un ternario: duplicarlos habría duplicado también las seis
+          validaciones que cuelgan de ellos, y la copia de abajo empieza a
+          divergir el día que alguien arregle sólo la de arriba.
+        */}
+        <div className="flex flex-col">
+        {canEdit ? (
+          <section
+            className={cx(
+              "mt-10 grid gap-5 md:grid-cols-2",
+              state === "empty" ? "order-3" : "order-1",
+            )}
           >
-            {error}
+            <Surface as="form" onSubmit={createProject} className="flex flex-col">
+              <h2 className="type-heading">Nuevo proyecto</h2>
+              <p className="type-small mt-1 text-muted-foreground">
+                Un proyecto agrupa los planos de una misma obra.
+              </p>
+              <div className="mt-4 flex gap-2">
+                <input
+                  aria-label="Nombre del proyecto"
+                  value={projectName}
+                  onChange={(e) => setProjectName(e.target.value)}
+                  className="type-small min-h-11 min-w-0 flex-1 rounded-control border border-input bg-card px-3 text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  placeholder="Ej. Reforma planta norte"
+                />
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={busy}
+                  aria-label="Crear proyecto"
+                  className="px-4"
+                >
+                  <FolderPlus className="h-4 w-4" />
+                </Button>
+              </div>
+            </Surface>
+
+            <Surface
+              as="form"
+              onSubmit={(event: React.FormEvent) => {
+                event.preventDefault();
+                void createDocument(documentName);
+              }}
+              className="flex flex-col"
+            >
+              <h2 className="type-heading">Nuevo documento</h2>
+              <select
+                aria-label="Proyecto"
+                value={selectedProject}
+                onChange={(e) => setSelectedProject(e.target.value)}
+                className="type-small mt-4 min-h-11 w-full rounded-control border border-input bg-card px-3 text-foreground"
+              >
+                <option value="">Selecciona un proyecto</option>
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+              <div className="mt-2 flex gap-2">
+                <input
+                  ref={documentNameRef}
+                  aria-label="Nombre del documento"
+                  value={documentName}
+                  onChange={(e) => setDocumentName(e.target.value)}
+                  className="type-small min-h-11 min-w-0 flex-1 rounded-control border border-input bg-card px-3 text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                  placeholder="Plano general"
+                />
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={busy || !selectedProject}
+                  aria-label="Crear documento"
+                  className="px-4"
+                >
+                  <FilePlus2 className="h-4 w-4" />
+                </Button>
+              </div>
+              {/*
+                La plantilla va DEBAJO del nombre y no en un asistente aparte: es
+                una decisión de un segundo que ahorra media hora de configuración,
+                y un asistente de tres pasos para elegirla costaría más que el
+                tiempo que ahorra. Lo que se pinta vive en `starter-template-fields`
+                por el presupuesto de tamaño de esta página.
+              */}
+              <CadStarterTemplateFields
+                value={starter}
+                onChange={setStarter}
+                disabled={busy}
+              />
+              <label className="type-small mt-4 inline-flex cursor-pointer items-center gap-2 font-medium text-primary-ink">
+                <Upload className="h-4 w-4" /> Importar como documento
+                <input
+                  type="file"
+                  className="sr-only"
+                  accept=".dxf,.json,.shp,.shx,.dbf,.prj,.cpg"
+                  multiple
+                  disabled={!selectedProject || busy}
+                  onChange={(e) => {
+                    // Un shapefile son varios archivos que hay que elegir juntos.
+                    const chosen = splitDocumentSelection([
+                      ...(e.target.files ?? []),
+                    ]);
+                    if (chosen)
+                      void importDocument(chosen.primary, chosen.sidecars);
+                    e.currentTarget.value = "";
+                  }}
+                />
+              </label>
+              <ImportStatus
+                state={importState}
+                onCancel={() => importAbort.current?.abort()}
+                onOpen={(documentId) => router.push(`/studio/${documentId}`)}
+              />
+            </Surface>
+          </section>
+        ) : (
+          <p
+            data-testid="dashboard-read-only"
+            className={cx(
+              "type-small mt-10 rounded-card border border-warning/30 bg-warning/10 px-5 py-4 text-warning-ink",
+              state === "empty" ? "order-3" : "order-1",
+            )}
+          >
+            Tu rol permite consultar proyectos y documentos. La creación y la
+            importación requieren permiso de edición.
           </p>
         )}
-      </form>
-    </main>
+
+        {actionError && (
+          <p role="alert" className="order-2 type-small mt-4 text-danger-ink">
+            {actionError}
+          </p>
+        )}
+
+        {state === "empty" ? (
+          <FirstMinute
+            className="order-1"
+            canEdit={canEdit}
+            busy={busy}
+            onOpenSample={() => void openSamplePlan()}
+            onCreateBlank={() => documentNameRef.current?.focus()}
+            onImport={(files) => {
+              const chosen = splitDocumentSelection([...(files ?? [])]);
+              if (chosen) void importDocument(chosen.primary, chosen.sidecars);
+            }}
+          />
+        ) : (
+          <section className="order-3 mt-12" aria-labelledby="documentos">
+            <h2 id="documentos" className="type-heading">
+              Documentos
+            </h2>
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+              {documents.map((document) => (
+                <button
+                  key={document.id}
+                  onClick={() => router.push(`/studio/${document.id}`)}
+                  className={cx(
+                    "rounded-card border border-border bg-card p-4 text-left",
+                    "transition-[border-color,box-shadow] duration-200 ease-out-expo",
+                    "hover:border-primary/50 hover:shadow-elevated",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                  )}
+                >
+                  <strong className="type-small block font-semibold text-foreground">
+                    {document.name}
+                  </strong>
+                  <span className="type-mono type-micro mt-2 block truncate text-muted-foreground">
+                    {document.id}
+                  </span>
+                </button>
+              ))}
+            </div>
+            {documents.length === 0 && (
+              <p className="type-small mt-4 text-muted-foreground">
+                Este espacio todavía no contiene documentos.
+              </p>
+            )}
+          </section>
+        )}
+        </div>
+      </main>
+    </>
   );
 }
 
 function Status({ text, action }: { text: string; action?: () => void }) {
   return (
-    <main className="grid min-h-screen place-items-center p-6">
-      <div className="text-center">
-        <p role="status">{text}</p>
+    <main
+      id="contenido"
+      className="relative grid min-h-screen place-items-center p-6"
+    >
+      <div aria-hidden="true" className="aurora-bg fixed inset-0 -z-10" />
+      <div className="max-w-md text-center">
+        <Logo />
+        <p role="status" className="type-body mt-8 text-muted-foreground">
+          {text}
+        </p>
         {action && (
           <button
             onClick={action}
-            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-white"
+            className={`${buttonClass({ variant: "primary", size: "lg" })} mt-6`}
           >
             <LogIn className="h-4 w-4" /> Continuar
           </button>
