@@ -185,3 +185,40 @@ deterministic differential tests pass, memory is bounded and a worker-compatible
 TypeScript fallback remains. Such a change also requires an ADR, pinned
 toolchain, reproducible build, parity/goldens, browser benchmarks with hardware
 metadata, SBOM and license review.
+
+## Las reglas de la campaña de cimientos (2026-08-22)
+
+Cuatro reglas que quedaron cableadas en gates; violarlas no es una opinión,
+es un rojo.
+
+1. **Ningún módulo cuenta por existir.** Una capacidad puntúa en la rúbrica
+   sólo si su flujo está conectado y probado; un subsistema sin importador
+   fuera de sí mismo no está implementado (regla vieja) y una fila con toda
+   la evidencia FABRICADA POR EL PROYECTO no puede llegar a su tope (regla
+   nueva: retiene 1 punto hasta tener oráculo externo, material de terceros o
+   usuario real).
+2. **Ningún comando responde éxito sin efecto verificado.**
+   `check:command-integrity` ejecuta los ~192 comandos del registro real y
+   prohíbe el «hecho» vacío y el silencio ante entrada sustantiva. Un comando
+   nuevo o termina con efecto, o declara su límite («no está disponible en
+   esta versión»), o se exenta con razón escrita en
+   `scripts/cad/command-integrity-exemptions.json`.
+3. **Ninguna capacidad se anuncia sin evidencia del límite.** Toda afirmación
+   pública lleva su frontera al lado (README «Límites declarados»,
+   CAPABILITIES con columna de límites, manifiesto de pérdidas que viaja con
+   el archivo). Lo que falta se marca «todavía no», nunca «nunca» y nunca en
+   silencio.
+4. **Ninguna cifra vive en dos lugares.** El estado del producto lo computa
+   `node scripts/cad/rubric.mjs` (dos denominadores: HOY y DESTINO) y la
+   matriz se REGENERA de él; los informes ENLAZAN, no copian. Una cifra
+   escrita a mano en un doc es un defecto aunque hoy coincida.
+
+Y tres costumbres operativas que las campañas paralelas pagaron caro:
+
+- Antes de tocar un archivo caliente, mira si otra sesión lo tiene sin
+  commitear (`git status` del checkout principal); las zonas de roce se
+  anotan en la bitácora de campaña ANTES de editar.
+- Los gates se corren sobre el árbol QUIETO (committeado); un gate corrido a
+  media edición produce rojos falsos que cuestan más que esperar.
+- `VALLE_DWG_CORPUS_MIRROR` apunta al clon local de
+  `valle-design-dwg-conformance` o los gates DWG mienten por entorno.

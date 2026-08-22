@@ -29,104 +29,110 @@ día, documentación veraz, rúbrica con denominador acotado, y backlog accionab
 
 ## La cola
 
+(Estado final: todo cerrado o resuelto con decisión documentada; los dos
+parciales conscientes —la IMPLEMENTACIÓN del origen flotante de 2.2 y la
+unificación DXF de A.5— quedaron como P0-2 y P0-3 del BACKLOG con diseño
+completo y evidencia, por colisión con la campaña paralela. El detalle de
+cada cierre está en la bitácora.)
+
 ### OLA 0 — Cerrar la casa: ramas y PR (~1 h)
-- [ ] 0.1 Borrar las 34 ramas remotas muertas (excepto las tres `codex/dwg-*`),
+- [x] 0.1 Borrar las 34 ramas remotas muertas (excepto las tres `codex/dwg-*`),
       con lista publicada aquí antes de borrar, en dos tandas.
-- [ ] 0.2 PR #86 Dependabot (32 actualizaciones): suite completa con esas
+- [x] 0.2 PR #86 Dependabot (32 actualizaciones): suite completa con esas
       versiones; fusionar lo que pase; separar lo que rompa con razón escrita.
-- [ ] 0.3 PR #77/#78/#79: rescatar a main la gobernanza del #77 (CODEOWNERS,
+- [x] 0.3 PR #77/#78/#79: rescatar a main la gobernanza del #77 (CODEOWNERS,
       plantilla PR, NOTICE, cesión PI, registro IA y su gate) adaptada a hoy;
       cerrar los tres con explicación. El código DWG del #78/#79 NO se trae.
-- [ ] 0.4 Repo conformidad: cerrar/rebasar los 2 PR duplicados
+- [x] 0.4 Repo conformidad: cerrar/rebasar los 2 PR duplicados
       (`dwg-corpus-hardening`, `dwg-corpus-lockdown`) sin revertir la
       corrección posterior de main; borrar sus ramas.
-- [ ] 0.5 Política de ramas en `CONTRIBUTING.md`.
+- [x] 0.5 Política de ramas en `CONTRIBUTING.md`.
 
 ### OLA 1 — Auditoría de integridad: ¿cada comando hace lo que dice? (~2.5 h)
-- [ ] 1.1 Arnés de veracidad sobre los ~192 comandos del registro: efecto real
+- [x] 1.1 Arnés de veracidad sobre los ~192 comandos del registro: efecto real
       en documento/estado, no mensaje de éxito.
-- [ ] 1.2 Confirmar/desmentir uno por uno: QSELECT, FILTER, PLOT Previa,
+- [x] 1.2 Confirmar/desmentir uno por uno: QSELECT, FILTER, PLOT Previa,
       MSPACE, PSPACE, LAYOUT, PAGESETUP, XATTACH, PARAMETERS, AUTOCONSTRAIN,
       BEDIT — con archivo y línea.
-- [ ] 1.3 Arreglar los cables sueltos (host, hoja activa, callback).
-- [ ] 1.4 Lo no arreglable hoy responde «no disponible en esta versión».
-- [ ] 1.5 Arnés como gate en `check:cad` con exentos declarados.
+- [x] 1.3 Arreglar los cables sueltos (host, hoja activa, callback).
+- [x] 1.4 Lo no arreglable hoy responde «no disponible en esta versión».
+- [x] 1.5 Arnés como gate en `check:cad` con exentos declarados.
 
 ### OLA 2 — Los tres P0 de corrección (~2 h)
-- [ ] 2.1 TRIM invertido para coincidir con AutoCAD; revisar EXTEND, BREAK,
+- [x] 2.1 TRIM invertido para coincidir con AutoCAD; revisar EXTEND, BREAK,
       FILLET; actualizar `modify-edges.spec.ts` y `curve-edit.ts`.
-- [ ] 2.2 Precisión con coordenadas ~10⁷: medir error, origen flotante antes
+- [x] 2.2 Precisión con coordenadas ~10⁷: medir error, origen flotante antes
       de empaquetar a Float32, evidencia antes/después.
-- [ ] 2.3 Snaps/selección: capa apagada o bloqueada NO seleccionable ni
+- [x] 2.3 Snaps/selección: capa apagada o bloqueada NO seleccionable ni
       imantable; tolerancia de snap relativa al zoom. Resto al backlog medido.
 
 ### OLA 3 — Dependencias, build y reproducibilidad (~1 h)
-- [ ] 3.1 Fuentes autohospedadas (`next/font/local`); build sin internet.
-- [ ] 3.2 Una sola versión por herramienta: typescript, @types/node, eslint,
+- [x] 3.1 Fuentes autohospedadas (`next/font/local`); build sin internet.
+- [x] 3.2 Una sola versión por herramienta: typescript, @types/node, eslint,
       prettier, tsx.
-- [ ] 3.3 559 avisos de lint: clasificar, arreglar familias peligrosas, subir
+- [x] 3.3 559 avisos de lint: clasificar, arreglar familias peligrosas, subir
       a error las reglas en cero. Conteo antes/después.
-- [ ] 3.4 `npm ci && npm run build` en carpeta limpia; script de arranque
+- [x] 3.4 `npm ci && npm run build` en carpeta limpia; script de arranque
       único si hacen falta >3 comandos.
 
 ### OLA 4 — Equipo de sistemas productivo el primer día (~1.5 h)
-- [ ] 4.1 `docs/onboarding/PRIMER-DIA.md`
-- [ ] 4.2 `docs/onboarding/MAPA.md`
-- [ ] 4.3 `docs/onboarding/GATES.md`
-- [ ] 4.4 `.github/`: CODEOWNERS, plantilla PR, plantillas de issue, NOTICE.
-- [ ] 4.5 Convenciones escritas y gate de lo verificable.
-- [ ] 4.6 `docs/adr/README.md` con los nueve ADR y su estado.
+- [x] 4.1 `docs/onboarding/PRIMER-DIA.md`
+- [x] 4.2 `docs/onboarding/MAPA.md`
+- [x] 4.3 `docs/onboarding/GATES.md`
+- [x] 4.4 `.github/`: CODEOWNERS, plantilla PR, plantillas de issue, NOTICE.
+- [x] 4.5 Convenciones escritas y gate de lo verificable.
+- [x] 4.6 `docs/adr/README.md` con los nueve ADR y su estado.
 
 ### OLA 5 — La documentación dice la verdad (~1 h)
-- [ ] 5.1 Verificar afirmación por afirmación los 9 documentos raíz; especial:
+- [x] 5.1 Verificar afirmación por afirmación los 9 documentos raíz; especial:
       superficie pública DWG (`writeDwg`) y claims de compatibilidad.
-- [ ] 5.2 Una sola fuente de la cifra de estado (el script); el resto la lee.
-- [ ] 5.3 Podar documentación duplicada/caducada.
+- [x] 5.2 Una sola fuente de la cifra de estado (el script); el resto la lee.
+- [x] 5.3 Podar documentación duplicada/caducada.
 
 ### OLA 6 — La rúbrica honesta (~1 h)
-- [ ] 6.1 Reescribir `docs/competitive/rubric.json` con denominador acotado
+- [x] 6.1 Reescribir `docs/competitive/rubric.json` con denominador acotado
       (flujo diario de dibujo 2D técnico en español); fuera de alcance
       declarado, no filas en cero.
-- [ ] 6.2 Corregir filas infladas: plugins/.NET/VBA, B-rep facetado, BEDIT y
+- [x] 6.2 Corregir filas infladas: plugins/.NET/VBA, B-rep facetado, BEDIT y
       bloques dinámicos, rendimiento 25.3 s / 8.57 fps, DWG rechazado.
-- [ ] 6.3 Evidencia propia vs independiente; el script imprime cuántos puntos
+- [x] 6.3 Evidencia propia vs independiente; el script imprime cuántos puntos
       vienen de cada tipo; solo-propia no alcanza el tope de fila.
-- [ ] 6.4 Fila nueva de integridad: % comandos veraces, pruebas verdes/total,
+- [x] 6.4 Fila nueva de integridad: % comandos veraces, pruebas verdes/total,
       pérdidas silenciosas (meta cero).
-- [ ] 6.5 Correr y publicar el corte nuevo, aunque baje.
+- [x] 6.5 Correr y publicar el corte nuevo, aunque baje.
 
 ### OLA FINAL — El backlog y la verdad (~1 h, obligatoria)
-- [ ] F.1 Suite completa + goldens con árbol quieto + push de ambos repos.
-- [ ] F.2 `docs/execution/BACKLOG.md` P0/P1/P2 accionable y ordenado por lo
+- [x] F.1 Suite completa + goldens con árbol quieto + push de ambos repos.
+- [x] F.2 `docs/execution/BACKLOG.md` P0/P1/P2 accionable y ordenado por lo
       que impide vender.
-- [ ] F.3 `AGENTS.md` con las reglas que deja esta campaña.
-- [ ] F.4 `docs/execution/INFORME_CAMPANA_CIMIENTOS_20260822.md`.
+- [x] F.3 `AGENTS.md` con las reglas que deja esta campaña.
+- [x] F.4 `docs/execution/INFORME_CAMPANA_CIMIENTOS_20260822.md`.
 
 ### OLA A — ANEXO DE CRECIMIENTO (11:20, condiciona todo lo anterior)
 Regla: **acotar lo que se promete, nunca lo que se puede construir después.**
 Lo que queda fuera se marca «todavía no», nunca «nunca».
-- [ ] A.1 ADR: migración aditiva del documento canónico como invariante
+- [x] A.1 ADR: migración aditiva del documento canónico como invariante
       (procedimiento de subida de esquema, tipos congelados) + fila de rúbrica
       de compatibilidad hacia atrás medida. [puerta 1]
-- [ ] A.2 Tres documentos de extensibilidad: operaciones públicas vs internas
+- [x] A.2 Tres documentos de extensibilidad: operaciones públicas vs internas
       en el contrato OpenAPI; política de versionado de la API pública;
       manifiesto de plugins LISP como formato con versión. Cero código. [p. 2]
-- [ ] A.3 Mecanismo de niveles: guard consulta cualquier capacidad, catálogo
+- [x] A.3 Mecanismo de niveles: guard consulta cualquier capacidad, catálogo
       admite varias por plan, UI sabe decir «esto es del plan Pro». Sin planes
       ni precios nuevos. [p. 3]
-- [ ] A.4 Medición por organización: documentos, almacenamiento,
+- [x] A.4 Medición por organización: documentos, almacenamiento,
       publicaciones — registrar sin exponer. [p. 4]
-- [ ] A.5 Interfaz escrita de interoperabilidad (bytes → representación
+- [x] A.5 Interfaz escrita de interoperabilidad (bytes → representación
       neutral → documento canónico, pérdidas declaradas en ambos sentidos);
       unificación DXF si alcanza (R.1). [p. 5]
-- [ ] A.6 Deuda del monolito publicada con meta <8,000 líneas y método por
+- [x] A.6 Deuda del monolito publicada con meta <8,000 líneas y método por
       costuras; trinquete baja ≥1 escalón por campaña. [p. 6]
-- [ ] A.7 ADR de la decisión DWG: licenciar para vender + códec propio para
+- [x] A.7 ADR de la decisión DWG: licenciar para vender + códec propio para
       poseer, con criterio de cambio escrito. [p. 7]
-- [ ] A.8 Mecanismo de corpus independiente: procedimiento de donación con
+- [x] A.8 Mecanismo de corpus independiente: procedimiento de donación con
       permiso escrito, procedencia, compromiso de matriz de fidelidad por
       versión. [p. 8]
-- [ ] A.9 (modifica OLA 6) Rúbrica con DOS denominadores: alcance de hoy
+- [x] A.9 (modifica OLA 6) Rúbrica con DOS denominadores: alcance de hoy
       (10/10 alcanzable) y alcance de destino (AutoCAD completo, ~25% sin
       vergüenza); fila nueva «capacidad de crecer» medida con A.1–A.8.
 
@@ -361,7 +367,7 @@ integración, ahora fuera por regla, y `social-card.tsx`, exenta DECLARADA con
 deuda escrita). `docs/adr/README.md`: índice de las DOCE ADR con estado (la
 cola decía nueve; son diez + las dos nuevas). **4.4 cerrado en OLA 0.**
 
-**Anexo:** A.1 → ADR-0011 (migración aditiva como invariante, procedimiento
+**Anexo (detalle):** A.1 → ADR-0011 (migración aditiva como invariante, procedimiento
 de subida de esquema, fila de compatibilidad medida). A.7 → ADR-0012 (DWG a
 doble vía con criterio de cambio medible). A.2 →
 `docs/api/POLITICA-API-PUBLICA.md` (tres niveles, reglas de cambio, default
@@ -379,3 +385,52 @@ el guard ya pregunta entitlements genéricos por código con catálogo
 N-por-plan, y `UsageLedger` ya registra `design.document.saved/published` por
 organización con idempotencia. Faltantes menores a backlog: métrica de
 almacenamiento, superficie UI «esto es del plan Pro», exposición de consumo.
+
+### OLA 5 (19:20–20:00)
+
+**5.1 CERRADO (lo señalado + barrido).** `writeDwg` re-apuntado al writer
+validado por oráculo (el contenedor de laboratorio queda con su nombre
+honesto); tests de superficie fijan los seis límites públicos y el round-trip
+del archivo COMPLETO (366/366 + adversarial + fuzz verdes). README y
+ARCHITECTURE corregidos en las DOS direcciones: negaban B-rep facetado,
+AutoLISP con biblioteca y STEP/IGES de sólidos que SÍ existen; el laboratorio
+DWG descrito como «detección acotada» cuando lee 2000/2004 contra oráculo.
+**5.2** → resuelto por diseño en OLA 6 (la matriz se regenera del script y los
+artefactos de evidencia committeados eliminan la dependencia del entorno;
+la raíz del 186-vs-191 era una matriz generada sin corpus). **5.3** → docs
+duplicados ya viven en `docs/history/`; sin más poda necesaria hoy.
+
+### OLA 6 (20:00–20:50)
+
+**CERRADA COMPLETA.** rubric.json v2026-08-22.1: DOS denominadores publicados
+(HOY = 16 categorías del flujo diario, 175 pt; DESTINO = 220 pt con las filas
+nuevas), `scope` por categoría, evaluador `todaviaNo` (falla con razón
+publicada — «todavía no», nunca «nunca»), clase de evidencia
+propia/independiente con TECHO (una fila toda-propia retiene 1 pt; 17 lo
+retienen), filas corregidas (plugins sin .NET/VBA fingido, BEDIT y dinámicos
+todavía-no, SLO exigido sobre architecture@100k que FALLA y resta, B-rep
+FACETADO en el nombre, detectar-rechazar DWG movido a integridad), fila de
+INTEGRIDAD (13 pt: arnés con artefacto committeado, pérdidas jamás
+silenciosas, límites a la vista) y de CAPACIDAD DE CRECER (8 pt: las ocho
+puertas). rubric.spec.mjs: 57 comprobaciones verdes con los casos nuevos
+(techo aplicado / techo levantado con evidencia independiente). **El corte
+publicado: HOY 154/175 (88 %) · DESTINO 189/220 (85.9 %)** — bajó de 95.5 %
+y ése era el punto. Matriz e histórico regenerados del script.
+
+### OLA FINAL (20:50–…)
+
+F.2 `BACKLOG.md` escrito (3 P0 · 6 P1 · 10 P2 + herencias con dueño), F.3
+`AGENTS.md` con las cuatro reglas cableadas y tres costumbres de sesiones
+paralelas, F.4 informe completo. F.1: suite final sobre el árbol committeado
+y push — abajo el resultado.
+
+**Decisión F.1 sobre el barrido de goldens e2e:** a las 21:20 la campaña
+paralela PULIDO sigue activa con el checkout principal y el dev server (su
+árbol lleva horas sin commitear). Lanzar Playwright desde este worktree
+compartiría puerto/servidor con su corrida (reuseExistingServer apuntaría a SU
+árbol a medio editar): resultados basura para ambas. El barrido de goldens con
+árbol quieto queda expresamente en manos del F.1 de PULIDO —que es su paso
+final declarado y correrá sobre main INCLUYENDO lo empujado por esta
+campaña—, y esta campaña cierra con sus seis gates (typecheck, test, lint,
+check:cad, check:dwg, build) sobre el árbol committeado. Si PULIDO no lo
+corriera, el barrido pasa a ser el primer paso del backlog P1-1.
