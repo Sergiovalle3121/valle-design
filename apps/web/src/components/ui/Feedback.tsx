@@ -164,6 +164,8 @@ export interface ProgressBarProps {
   showCount?: boolean;
   className?: string;
   tone?: "brand" | "success";
+  /** Se propaga tal cual: NUNCA se renombra un gancho de prueba existente. */
+  "data-testid"?: string;
 }
 
 /**
@@ -184,6 +186,7 @@ export function ProgressBar({
   showCount = false,
   className,
   tone = "brand",
+  ...rest
 }: ProgressBarProps) {
   const safeMax = max > 0 ? max : 1;
   const clamped = Math.max(0, Math.min(value, safeMax));
@@ -202,6 +205,7 @@ export function ProgressBar({
         </div>
       ) : null}
       <div
+        {...rest}
         role="progressbar"
         aria-valuenow={clamped}
         aria-valuemin={0}

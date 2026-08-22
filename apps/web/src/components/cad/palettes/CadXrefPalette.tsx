@@ -33,13 +33,13 @@ interface CadXrefPaletteProps {
 }
 
 const tone: Record<string, string> = {
-  loaded: "border-emerald-300/25 bg-emerald-400/10 text-emerald-200",
-  unloaded: "border-gray-300/15 bg-white/[0.04] text-gray-300",
-  stale: "border-amber-300/25 bg-amber-400/10 text-amber-200",
-  missing: "border-rose-300/25 bg-rose-400/10 text-rose-200",
-  denied: "border-rose-300/25 bg-rose-400/10 text-rose-200",
-  cycle: "border-rose-300/25 bg-rose-400/10 text-rose-200",
-  depth_exceeded: "border-rose-300/25 bg-rose-400/10 text-rose-200",
+  loaded: "border-success/30 bg-success/15 text-success-ink",
+  unloaded: "border-gray-300/15 bg-muted/40 text-foreground",
+  stale: "border-warning/30 bg-warning/15 text-warning-ink",
+  missing: "border-danger/30 bg-danger/15 text-danger-ink",
+  denied: "border-danger/30 bg-danger/15 text-danger-ink",
+  cycle: "border-danger/30 bg-danger/15 text-danger-ink",
+  depth_exceeded: "border-danger/30 bg-danger/15 text-danger-ink",
 };
 
 export function CadXrefPalette(props: CadXrefPaletteProps) {
@@ -59,7 +59,7 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
     null,
   );
   const input =
-    "mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white outline-none focus:border-indigo-400/50";
+    "mt-1 w-full rounded border border-border bg-black/30 px-2 py-1 text-foreground outline-none focus:border-primary/30";
   const run = async (key: string, action: () => Promise<void>) => {
     setBusy(key);
     setMessage(null);
@@ -81,15 +81,15 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
       className="h-full overflow-y-auto p-3 type-micro"
     >
       <div className="flex items-center justify-between">
-        <strong className="text-indigo-100">EXTERNAL REFERENCES</strong>
-        <span className="text-gray-500">{props.references.length} linked</span>
+        <strong className="text-primary-ink">EXTERNAL REFERENCES</strong>
+        <span className="text-muted-foreground">{props.references.length} linked</span>
       </div>
-      <p className="mt-1 type-micro leading-relaxed text-gray-500">
+      <p className="mt-1 type-micro leading-relaxed text-muted-foreground">
         Referencias a layouts del mismo tenant. Nunca se persisten rutas locales
         del navegador.
       </p>
-      <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
-        <label className="text-gray-400">
+      <div className="mt-3 grid grid-cols-2 gap-2 rounded-card border border-border bg-muted/40 p-2.5">
+        <label className="text-muted-foreground">
           Asset / model
           <input
             data-testid="cad-xref-asset"
@@ -104,7 +104,7 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
             className={input}
           />
         </label>
-        <label className="text-gray-400">
+        <label className="text-muted-foreground">
           Revision
           <input
             data-testid="cad-xref-revision"
@@ -118,7 +118,7 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
             className={input}
           />
         </label>
-        <label className="text-gray-400">
+        <label className="text-muted-foreground">
           Display name
           <input
             data-testid="cad-xref-name"
@@ -133,7 +133,7 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
             className={input}
           />
         </label>
-        <label className="text-gray-400">
+        <label className="text-muted-foreground">
           Type
           <select
             data-testid="cad-xref-mode"
@@ -151,7 +151,7 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
           </select>
         </label>
         {(["x", "y", "scale", "rotation"] as const).map((key) => (
-          <label key={key} className="text-gray-400">
+          <label key={key} className="text-muted-foreground">
             {key}
             <input
               data-testid={`cad-xref-${key}`}
@@ -185,7 +185,7 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
               }),
             )
           }
-          className="col-span-2 rounded-lg bg-indigo-500 px-3 py-1.5 font-semibold text-gray-950 disabled:opacity-40"
+          className="col-span-2 rounded-control bg-indigo-500 px-3 py-1.5 font-semibold text-gray-950 disabled:opacity-40"
         >
           {busy === "attach" ? "Resolving tenant asset…" : "Attach tenant Xref"}
         </button>
@@ -193,7 +193,7 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
       {message && (
         <div
           data-testid="cad-xref-message"
-          className="mt-2 rounded-lg border border-rose-300/20 bg-rose-400/[0.08] px-2 py-1.5 text-rose-100"
+          className="mt-2 rounded-control border border-danger/30 bg-danger/15 px-2 py-1.5 text-rose-100"
         >
           {message}
         </div>
@@ -207,14 +207,14 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
             <article
               key={reference.id}
               data-testid={`cad-xref-row-${reference.assetId ?? reference.id}`}
-              className="rounded-xl border border-white/10 bg-gray-950/50 p-2.5"
+              className="rounded-card border border-border bg-surface/80 p-2.5"
             >
               <div className="flex items-start gap-2">
                 <div className="min-w-0 flex-1">
-                  <strong className="block truncate text-gray-100">
+                  <strong className="block truncate text-foreground">
                     {reference.name}
                   </strong>
-                  <span className="block truncate type-micro text-gray-500">
+                  <span className="block truncate type-micro text-muted-foreground">
                     {reference.relativePath ?? reference.uri}
                   </span>
                 </div>
@@ -224,13 +224,13 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
                   {status}
                 </span>
               </div>
-              <div className="mt-1 grid grid-cols-3 gap-1 type-micro text-gray-500">
+              <div className="mt-1 grid grid-cols-3 gap-1 type-micro text-muted-foreground">
                 <span>{reference.mode ?? "attachment"}</span>
                 <span>v{reference.sourceVersion ?? 0}</span>
                 <span>{reference.contentHash?.slice(0, 10) ?? "no hash"}</span>
               </div>
               {reference.error && (
-                <p className="mt-1 type-micro text-rose-300">
+                <p className="mt-1 type-micro text-danger-ink">
                   {reference.error}
                 </p>
               )}
@@ -242,7 +242,7 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
                       setComparison(await props.onCompare(reference)),
                     )
                   }
-                  className="rounded border border-white/10 px-1 py-1 text-gray-200 disabled:opacity-30"
+                  className="rounded border border-border px-1 py-1 text-foreground disabled:opacity-30"
                 >
                   Compare
                 </button>
@@ -253,28 +253,28 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
                       props.onReload(reference),
                     )
                   }
-                  className="rounded border border-indigo-300/20 px-1 py-1 text-indigo-100 disabled:opacity-30"
+                  className="rounded border border-primary/30 px-1 py-1 text-primary-ink disabled:opacity-30"
                 >
                   {reference.loaded ? "Reload" : "Load"}
                 </button>
                 <button
                   disabled={!reference.loaded || busy !== null}
                   onClick={() => props.onUnload(reference.id)}
-                  className="rounded border border-white/10 px-1 py-1 text-gray-300 disabled:opacity-30"
+                  className="rounded border border-border px-1 py-1 text-foreground disabled:opacity-30"
                 >
                   Unload
                 </button>
                 <button
                   disabled={!reference.loaded || busy !== null}
                   onClick={() => props.onBind(reference.id)}
-                  className="rounded border border-amber-300/20 px-1 py-1 text-amber-100 disabled:opacity-30"
+                  className="rounded border border-warning/30 px-1 py-1 text-warning-ink disabled:opacity-30"
                 >
                   Bind
                 </button>
                 <button
                   disabled={busy !== null}
                   onClick={() => props.onDetach(reference.id)}
-                  className="rounded border border-rose-300/20 px-1 py-1 text-rose-200 disabled:opacity-30"
+                  className="rounded border border-danger/30 px-1 py-1 text-danger-ink disabled:opacity-30"
                 >
                   Detach
                 </button>
@@ -283,7 +283,7 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
           );
         })}
         {!props.references.length && (
-          <div className="rounded-xl border border-dashed border-white/10 p-4 text-center text-gray-500">
+          <div className="rounded-card border border-dashed border-border p-4 text-center text-muted-foreground">
             No tenant Xrefs attached.
           </div>
         )}
@@ -292,7 +292,7 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
       {comparison && (
         <div
           data-testid="cad-xref-comparison"
-          className="mt-3 rounded-xl border border-violet-300/20 bg-violet-400/[0.08] p-2 text-violet-100"
+          className="mt-3 rounded-card border border-violet-300/20 bg-violet-400/[0.08] p-2 text-violet-100"
         >
           <strong>
             Version compare {comparison.currentVersion} →{" "}
@@ -311,18 +311,18 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
       )}
       <div
         data-testid="cad-xref-graph"
-        className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-2"
+        className="mt-3 rounded-card border border-border bg-muted/40 p-2"
       >
         <div className="flex justify-between">
-          <strong className="text-gray-300">Dependency graph</strong>
-          <span className="text-gray-500">
+          <strong className="text-foreground">Dependency graph</strong>
+          <span className="text-muted-foreground">
             depth {props.graph.maxDepth}/{8}
           </span>
         </div>
         {props.graph.edges.map((edge, index) => (
           <div
             key={`${edge.from}:${edge.to}:${index}`}
-            className="mt-1 font-mono type-micro text-gray-500"
+            className="mt-1 font-mono type-micro text-muted-foreground"
           >
             {edge.from} → {edge.to} [{edge.mode}]
           </div>
@@ -330,13 +330,13 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
         {props.graph.issues.map((issue, index) => (
           <div
             key={`${issue.code}:${index}`}
-            className="mt-1 type-micro text-rose-200"
+            className="mt-1 type-micro text-danger-ink"
           >
             {issue.code}: {issue.detail}
           </div>
         ))}
       </div>
-      <p className="mt-2 type-micro leading-relaxed text-gray-500">
+      <p className="mt-2 type-micro leading-relaxed text-muted-foreground">
         Publish incluye sólo referencias cargadas mediante BLOCK/INSERT
         vectorial. DXF conserva esa proyección como BLOCK/INSERT; Bind la
         convierte en geometría local editable.

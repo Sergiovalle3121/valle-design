@@ -93,20 +93,20 @@ export function CadBlockPalette({
   const selectedDefinition =
     blocks.find((block) => block.id === selectedBlock) ?? visibleBlocks[0];
   const input =
-    "mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white outline-none focus:border-indigo-400/50";
+    "mt-1 w-full rounded border border-border bg-black/30 px-2 py-1 text-foreground outline-none focus:border-primary/30";
   return (
     <div
       data-testid="cad-block-palette"
       className={
         docked
           ? "grid w-full grid-cols-[minmax(150px,0.7fr)_minmax(220px,1.3fr)] overflow-hidden type-micro"
-          : "absolute left-0 top-full z-50 mt-1.5 grid w-[620px] max-w-[92vw] grid-cols-[250px_1fr] overflow-hidden rounded-xl border border-indigo-400/20 bg-gray-950 type-micro shadow-2xl"
+          : "absolute left-0 top-full z-50 mt-1.5 grid w-[620px] max-w-[92vw] grid-cols-[250px_1fr] overflow-hidden rounded-card border border-primary/30 bg-surface type-micro shadow-2xl"
       }
     >
-      <section className="border-r border-white/10 p-3">
+      <section className="border-r border-border p-3">
         <div className="mb-2 flex items-center justify-between">
-          <span className="font-semibold text-indigo-100">BLOCK / INSERT</span>
-          <span className="text-gray-500">{blocks.length}</span>
+          <span className="font-semibold text-primary-ink">BLOCK / INSERT</span>
+          <span className="text-muted-foreground">{blocks.length}</span>
         </div>
         <input
           aria-label="Buscar bloques"
@@ -124,7 +124,7 @@ export function CadBlockPalette({
                 key={block.id}
                 data-testid={`cad-block-row-${block.name}`}
                 onClick={() => setSelectedBlock(block.id)}
-                className={`flex w-full items-center gap-2 rounded-lg border p-1.5 text-left ${selectedDefinition?.id === block.id ? "border-indigo-400/40 bg-indigo-400/10" : "border-white/5 bg-white/[0.03]"}`}
+                className={`flex w-full items-center gap-2 rounded-control border p-1.5 text-left ${selectedDefinition?.id === block.id ? "border-primary/30 bg-primary/15" : "border-border bg-muted/40"}`}
               >
                 <span
                   className="h-10 w-10 shrink-0 rounded bg-cover bg-center"
@@ -133,10 +133,10 @@ export function CadBlockPalette({
                   }}
                 />
                 <span className="min-w-0">
-                  <strong className="block truncate text-gray-100">
+                  <strong className="block truncate text-foreground">
                     {block.name}
                   </strong>
-                  <span className="block truncate type-micro text-gray-500">
+                  <span className="block truncate type-micro text-muted-foreground">
                     v{block.version ?? 1} · {block.entities.length} entidad(es)
                     · {block.library?.scope ?? "document"}
                   </span>
@@ -145,20 +145,20 @@ export function CadBlockPalette({
             );
           })}
           {!visibleBlocks.length && (
-            <p className="py-4 text-center text-gray-500">Sin coincidencias.</p>
+            <p className="py-4 text-center text-muted-foreground">Sin coincidencias.</p>
           )}
         </div>
         <button
           data-testid="cad-block-purge"
           onClick={onPurge}
-          className="mt-2 w-full rounded border border-amber-400/25 px-2 py-1 text-amber-200"
+          className="mt-2 w-full rounded border border-warning/30 px-2 py-1 text-warning-ink"
         >
           Purge no usados
         </button>
       </section>
       <section className="max-h-[78vh] overflow-y-auto p-3">
         <div className="grid grid-cols-2 gap-2">
-          <label className="text-gray-400">
+          <label className="text-muted-foreground">
             Nombre
             <input
               data-testid="cad-block-name"
@@ -167,7 +167,7 @@ export function CadBlockPalette({
               className={input}
             />
           </label>
-          <label className="text-gray-400">
+          <label className="text-muted-foreground">
             Keywords
             <input
               value={keywords}
@@ -176,7 +176,7 @@ export function CadBlockPalette({
               className={input}
             />
           </label>
-          <label className="col-span-2 text-gray-400">
+          <label className="col-span-2 text-muted-foreground">
             Descripción
             <input
               value={description}
@@ -184,7 +184,7 @@ export function CadBlockPalette({
               className={input}
             />
           </label>
-          <label className="text-gray-400">
+          <label className="text-muted-foreground">
             ATTDEF tag
             <input
               value={attributeTag}
@@ -199,7 +199,7 @@ export function CadBlockPalette({
               className={input}
             />
           </label>
-          <label className="text-gray-400">
+          <label className="text-muted-foreground">
             Default
             <input
               value={attributeDefault}
@@ -208,7 +208,7 @@ export function CadBlockPalette({
               className={input}
             />
           </label>
-          <label className="text-gray-400">
+          <label className="text-muted-foreground">
             Business type
             <input
               value={businessEntityType}
@@ -217,7 +217,7 @@ export function CadBlockPalette({
               className={input}
             />
           </label>
-          <label className="text-gray-400">
+          <label className="text-muted-foreground">
             Business id
             <input
               value={businessEntityId}
@@ -227,7 +227,7 @@ export function CadBlockPalette({
             />
           </label>
         </div>
-        <label className="mt-2 flex items-center gap-2 text-gray-300">
+        <label className="mt-2 flex items-center gap-2 text-foreground">
           <input
             type="checkbox"
             checked={tenantLibrary}
@@ -254,18 +254,18 @@ export function CadBlockPalette({
               businessEntityId: businessEntityId || undefined,
             })
           }
-          className="mt-2 w-full rounded-lg bg-indigo-500 px-3 py-1.5 font-semibold text-gray-950 disabled:opacity-40"
+          className="mt-2 w-full rounded-control bg-indigo-500 px-3 py-1.5 font-semibold text-gray-950 disabled:opacity-40"
         >
           Crear BLOCK desde selección ({selectedEntityCount})
         </button>
 
-        <div className="my-3 border-t border-white/10" />
+        <div className="my-3 border-t border-border" />
         <div className="mb-2 font-semibold text-violet-100">
           INSERT {selectedDefinition?.name ?? "—"}
         </div>
         <div className="grid grid-cols-3 gap-2">
           {(["x", "y", "rotation", "scaleX", "scaleY"] as const).map((key) => (
-            <label key={key} className="text-gray-400">
+            <label key={key} className="text-muted-foreground">
               {key}
               <input
                 data-testid={`cad-block-insert-${key}`}
@@ -282,7 +282,7 @@ export function CadBlockPalette({
             </label>
           ))}
         </div>
-        <label className="mt-2 block text-gray-400">
+        <label className="mt-2 block text-muted-foreground">
           Atributos por instancia (TAG=valor)
           <textarea
             data-testid="cad-block-attributes"
@@ -309,7 +309,7 @@ export function CadBlockPalette({
               attributes: parseAttributes(insert.attributes),
             })
           }
-          className="mt-2 w-full rounded-lg bg-violet-500 px-3 py-1.5 font-semibold text-white disabled:opacity-40"
+          className="mt-2 w-full rounded-control bg-violet-500 px-3 py-1.5 font-semibold text-foreground disabled:opacity-40"
         >
           Insertar instancia viva
         </button>
@@ -319,7 +319,7 @@ export function CadBlockPalette({
             onClick={() =>
               selectedDefinition && onRedefine(selectedDefinition.id)
             }
-            className="rounded border border-white/10 px-2 py-1 text-gray-200 disabled:opacity-30"
+            className="rounded border border-border px-2 py-1 text-foreground disabled:opacity-30"
           >
             Redefinir
           </button>
@@ -334,7 +334,7 @@ export function CadBlockPalette({
               selectedDefinition &&
               onReplace(selectedInsert.block, selectedDefinition.id)
             }
-            className="rounded border border-white/10 px-2 py-1 text-gray-200 disabled:opacity-30"
+            className="rounded border border-border px-2 py-1 text-foreground disabled:opacity-30"
           >
             Replace todas
           </button>
@@ -342,12 +342,12 @@ export function CadBlockPalette({
             data-testid="cad-block-explode"
             disabled={!selectedInsert}
             onClick={() => selectedInsert && onExplode(selectedInsert.id)}
-            className="rounded border border-rose-400/20 px-2 py-1 text-rose-200 disabled:opacity-30"
+            className="rounded border border-danger/30 px-2 py-1 text-danger-ink disabled:opacity-30"
           >
             Explode
           </button>
         </div>
-        <p className="mt-2 type-micro leading-relaxed text-gray-500">
+        <p className="mt-2 type-micro leading-relaxed text-muted-foreground">
           Las instancias conservan definición, anidación, transform, atributos y
           vínculos; redefinir actualiza todas sin aplanarlas.
         </p>

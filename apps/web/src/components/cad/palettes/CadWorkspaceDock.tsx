@@ -108,25 +108,25 @@ export function CadWorkspaceDock({
         reset: "Restablecer workspace",
         conflict: "Bindings en conflicto",
       };
-  const panel = "rounded-xl border border-white/10 bg-white/[0.035] p-3";
+  const panel = "rounded-card border border-border bg-muted/40 p-3";
   const select =
-    "rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-micro text-white outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/50";
+    "rounded-control border border-border bg-surface/80 px-2 py-1.5 type-micro text-foreground outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/50";
   return (
     <div
       data-testid="cad-workspace-dock"
-      className="h-full overflow-y-auto p-3 type-micro text-gray-200"
+      className="h-full overflow-y-auto p-3 type-micro text-foreground"
     >
       <div className="mb-3">
-        <div className="text-sm font-semibold text-indigo-100">
+        <div className="text-sm font-semibold text-primary-ink">
           {labels.title}
         </div>
-        <div className="mt-0.5 type-micro text-gray-500">
+        <div className="mt-0.5 type-micro text-muted-foreground">
           {resolvedScheme} · {preferences.profile}
         </div>
       </div>
 
       <section className={panel}>
-        <div className="mb-2 type-micro font-semibold uppercase tracking-[0.16em] text-gray-500">
+        <div className="mb-2 type-micro font-semibold uppercase tracking-[0.16em] text-muted-foreground">
           {labels.profiles}
         </div>
         <div className="grid grid-cols-2 gap-1.5">
@@ -142,7 +142,7 @@ export function CadWorkspaceDock({
               key={profile}
               data-testid={`cad-workspace-profile-${profile}`}
               onClick={() => onProfile(profile)}
-              className={`rounded-lg border px-2 py-1.5 type-micro font-semibold focus-visible:ring-2 focus-visible:ring-indigo-400/50 ${preferences.profile === profile ? "border-indigo-300/40 bg-indigo-400/15 text-indigo-100" : "border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/[0.1]"}`}
+              className={`rounded-control border px-2 py-1.5 type-micro font-semibold focus-visible:ring-2 focus-visible:ring-indigo-400/50 ${preferences.profile === profile ? "border-primary/30 bg-primary/15 text-primary-ink" : "border-border bg-muted/40 text-foreground hover:bg-muted"}`}
             >
               {labels[profile]}
             </button>
@@ -151,7 +151,7 @@ export function CadWorkspaceDock({
       </section>
 
       <section className={`${panel} mt-2`}>
-        <div className="mb-2 type-micro font-semibold uppercase tracking-[0.16em] text-gray-500">
+        <div className="mb-2 type-micro font-semibold uppercase tracking-[0.16em] text-muted-foreground">
           {labels.docks}
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -173,7 +173,7 @@ export function CadWorkspaceDock({
           ).map(([key, label]) => (
             <label
               key={key}
-              className="flex items-center gap-2 rounded-lg border border-white/10 bg-gray-950/45 px-2 py-1.5"
+              className="flex items-center gap-2 rounded-control border border-border bg-surface/80 px-2 py-1.5"
             >
               <input
                 data-testid={`cad-workspace-${key}`}
@@ -186,7 +186,7 @@ export function CadWorkspaceDock({
             </label>
           ))}
         </div>
-        <label className="mt-2 flex items-center justify-between gap-2 text-gray-400">
+        <label className="mt-2 flex items-center justify-between gap-2 text-muted-foreground">
           {labels.density}
           <select
             value={preferences.toolbarDensity}
@@ -205,7 +205,7 @@ export function CadWorkspaceDock({
       </section>
 
       <section className={`${panel} mt-2`}>
-        <div className="mb-2 type-micro font-semibold uppercase tracking-[0.16em] text-gray-500">
+        <div className="mb-2 type-micro font-semibold uppercase tracking-[0.16em] text-muted-foreground">
           {labels.precision}
         </div>
         {(
@@ -215,10 +215,10 @@ export function CadWorkspaceDock({
             ["aperturePx", labels.aperture, 4, 40, "px"],
           ] as const
         ).map(([key, label, min, max, unit]) => (
-          <label key={key} className="mb-2 block text-gray-400">
+          <label key={key} className="mb-2 block text-muted-foreground">
             <span className="flex justify-between">
               <span>{label}</span>
-              <span className="tabular-nums text-indigo-200">
+              <span className="tabular-nums text-primary-ink">
                 {preferences[key]}
                 {unit}
               </span>
@@ -234,7 +234,7 @@ export function CadWorkspaceDock({
             />
           </label>
         ))}
-        <label className="flex items-center justify-between gap-2 text-gray-400">
+        <label className="flex items-center justify-between gap-2 text-muted-foreground">
           {labels.rightClick}
           <select
             data-testid="cad-workspace-right-click"
@@ -256,7 +256,7 @@ export function CadWorkspaceDock({
       </section>
 
       <section className={`${panel} mt-2`}>
-        <div className="mb-2 type-micro font-semibold uppercase tracking-[0.16em] text-gray-500">
+        <div className="mb-2 type-micro font-semibold uppercase tracking-[0.16em] text-muted-foreground">
           {labels.appearance}
         </div>
         <div className="flex items-center justify-between gap-2">
@@ -278,11 +278,11 @@ export function CadWorkspaceDock({
 
       <section className={`${panel} mt-2`}>
         <div className="mb-2 flex items-center justify-between">
-          <span className="type-micro font-semibold uppercase tracking-[0.16em] text-gray-500">
+          <span className="type-micro font-semibold uppercase tracking-[0.16em] text-muted-foreground">
             {labels.shortcuts}
           </span>
           {conflicts.length > 0 && (
-            <span className="type-micro text-rose-300">
+            <span className="type-micro text-danger-ink">
               {labels.conflict}: {conflicts.length}
             </span>
           )}
@@ -304,7 +304,7 @@ export function CadWorkspaceDock({
                 .filter(Boolean)
                 .join("+");
             return (
-              <label key={id} className="min-w-0 type-micro text-gray-500">
+              <label key={id} className="min-w-0 type-micro text-muted-foreground">
                 <span className="block truncate" title={definition.description}>
                   {definition.label}
                 </span>
@@ -317,7 +317,7 @@ export function CadWorkspaceDock({
                       [id]: event.target.value,
                     })
                   }
-                  className="mt-0.5 w-full rounded-md border border-white/10 bg-gray-950/70 px-1.5 py-1 type-micro text-white outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/50"
+                  className="mt-0.5 w-full rounded-control border border-border bg-surface/80 px-1.5 py-1 type-micro text-foreground outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/50"
                 />
               </label>
             );
@@ -328,7 +328,7 @@ export function CadWorkspaceDock({
       <button
         data-testid="cad-workspace-reset"
         onClick={onReset}
-        className="mt-3 w-full rounded-lg border border-amber-300/20 bg-amber-400/[0.07] px-3 py-1.5 font-semibold text-amber-100 hover:bg-amber-400/[0.12] focus-visible:ring-2 focus-visible:ring-amber-300/60"
+        className="mt-3 w-full rounded-control border border-warning/30 bg-warning/15 px-3 py-1.5 font-semibold text-warning-ink hover:bg-warning/15 focus-visible:ring-2 focus-visible:ring-amber-300/60"
       >
         {labels.reset}
       </button>

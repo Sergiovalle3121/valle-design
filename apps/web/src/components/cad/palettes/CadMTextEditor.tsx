@@ -90,21 +90,21 @@ export function CadMTextEditor(props: CadMTextEditorProps) {
       data-testid="cad-mtext-editor"
       role="dialog"
       aria-label={props.initial ? "Editar MTEXT" : "Crear MTEXT"}
-      className="absolute left-1/2 top-20 z-[65] w-[min(560px,calc(100vw-32px))] -translate-x-1/2 rounded-2xl border border-indigo-400/25 bg-gray-950/95 p-4 shadow-2xl backdrop-blur"
+      className="absolute left-1/2 top-20 z-[65] w-[min(560px,calc(100vw-32px))] -translate-x-1/2 rounded-card border border-primary/30 bg-surface/80 p-4 shadow-2xl backdrop-blur"
     >
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
-          <div className="text-sm font-semibold text-indigo-100">
+          <div className="text-sm font-semibold text-primary-ink">
             {props.initial ? "Editar MTEXT" : "Nuevo MTEXT"}
           </div>
-          <div className="type-micro text-gray-500">
+          <div className="type-micro text-muted-foreground">
             Editor multilínea dentro del lienzo · Ctrl+Enter guarda · Esc
             cancela
           </div>
         </div>
         <button
           onClick={props.onCancel}
-          className="rounded px-2 py-1 text-xs text-gray-400 hover:bg-white/10"
+          className="rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
         >
           Cerrar
         </button>
@@ -130,7 +130,7 @@ export function CadMTextEditor(props: CadMTextEditorProps) {
         }}
         rows={6}
         placeholder="Escribe texto multilínea…"
-        className="w-full resize-y rounded-xl border border-white/10 bg-black/35 px-3 py-2 font-mono text-sm text-white outline-none focus:border-indigo-400/40"
+        className="w-full resize-y rounded-card border border-border bg-black/35 px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-primary/30"
       />
       <div className="mt-2 flex flex-wrap gap-1">
         {(
@@ -147,7 +147,7 @@ export function CadMTextEditor(props: CadMTextEditorProps) {
             onClick={() =>
               setDraft((current) => ({ ...current, [key]: !current[key] }))
             }
-            className={`h-7 min-w-8 rounded border px-2 text-xs ${draft[key] ? "border-indigo-400/40 bg-indigo-400/15 text-indigo-100" : "border-white/10 text-gray-300"}`}
+            className={`h-7 min-w-8 rounded border px-2 text-xs ${draft[key] ? "border-primary/30 bg-primary/15 text-primary-ink" : "border-border text-foreground"}`}
           >
             {label}
           </button>
@@ -161,12 +161,12 @@ export function CadMTextEditor(props: CadMTextEditorProps) {
               backgroundMask: !current.backgroundMask,
             }))
           }
-          className={`h-7 rounded border px-2 text-xs ${draft.backgroundMask ? "border-violet-400/40 bg-violet-400/15 text-violet-100" : "border-white/10 text-gray-300"}`}
+          className={`h-7 rounded border px-2 text-xs ${draft.backgroundMask ? "border-violet-400/40 bg-violet-400/15 text-violet-100" : "border-border text-foreground"}`}
         >
           Máscara
         </button>
       </div>
-      <div className="mt-3 grid grid-cols-4 gap-2 type-micro text-gray-400">
+      <div className="mt-3 grid grid-cols-4 gap-2 type-micro text-muted-foreground">
         <label>
           X
           <input
@@ -174,7 +174,7 @@ export function CadMTextEditor(props: CadMTextEditorProps) {
             type="number"
             value={draft.insertionX}
             onChange={(event) => number("insertionX", event.target.value)}
-            className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-black/30 px-2 py-1 text-foreground"
           />
         </label>
         <label>
@@ -184,7 +184,7 @@ export function CadMTextEditor(props: CadMTextEditorProps) {
             type="number"
             value={draft.insertionY}
             onChange={(event) => number("insertionY", event.target.value)}
-            className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-black/30 px-2 py-1 text-foreground"
           />
         </label>
         <label>
@@ -195,7 +195,7 @@ export function CadMTextEditor(props: CadMTextEditorProps) {
             min="1"
             value={draft.width}
             onChange={(event) => number("width", event.target.value)}
-            className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-black/30 px-2 py-1 text-foreground"
           />
         </label>
         <label>
@@ -206,7 +206,7 @@ export function CadMTextEditor(props: CadMTextEditorProps) {
             min="1"
             value={draft.height}
             onChange={(event) => number("height", event.target.value)}
-            className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-black/30 px-2 py-1 text-foreground"
           />
         </label>
         <label>
@@ -216,7 +216,7 @@ export function CadMTextEditor(props: CadMTextEditorProps) {
             type="number"
             value={draft.rotation}
             onChange={(event) => number("rotation", event.target.value)}
-            className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-black/30 px-2 py-1 text-foreground"
           />
         </label>
         <label>
@@ -229,7 +229,7 @@ export function CadMTextEditor(props: CadMTextEditorProps) {
             step="0.05"
             value={draft.lineSpacing}
             onChange={(event) => number("lineSpacing", event.target.value)}
-            className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-black/30 px-2 py-1 text-foreground"
           />
         </label>
         <label>
@@ -241,7 +241,7 @@ export function CadMTextEditor(props: CadMTextEditorProps) {
             max="8"
             value={draft.columns}
             onChange={(event) => number("columns", event.target.value)}
-            className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-black/30 px-2 py-1 text-foreground"
           />
         </label>
         <label>
@@ -255,7 +255,7 @@ export function CadMTextEditor(props: CadMTextEditorProps) {
             onChange={(event) =>
               number("backgroundPadding", event.target.value)
             }
-            className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-black/30 px-2 py-1 text-foreground"
           />
         </label>
         <label className="col-span-2">
@@ -269,7 +269,7 @@ export function CadMTextEditor(props: CadMTextEditorProps) {
                 alignment: event.target.value as CadMTextDraft["alignment"],
               }))
             }
-            className="mt-1 w-full rounded border border-white/10 bg-gray-900 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-surface px-2 py-1 text-foreground"
           >
             {[
               "top-left",
@@ -298,7 +298,7 @@ export function CadMTextEditor(props: CadMTextEditorProps) {
                   .value as CadMTextDraft["paragraphAlignment"],
               }))
             }
-            className="mt-1 w-full rounded border border-white/10 bg-gray-900 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-surface px-2 py-1 text-foreground"
           >
             {["left", "center", "right", "justify"].map((value) => (
               <option key={value}>{value}</option>
@@ -314,7 +314,7 @@ export function CadMTextEditor(props: CadMTextEditorProps) {
             onChange={(event) =>
               setDraft((current) => ({ ...current, style: event.target.value }))
             }
-            className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-black/30 px-2 py-1 text-foreground"
           />
           <datalist id="cad-mtext-styles">
             {Object.keys(props.textStyles).map((style) => (
@@ -333,14 +333,14 @@ export function CadMTextEditor(props: CadMTextEditorProps) {
                 fontFamily: event.target.value,
               }))
             }
-            className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-black/30 px-2 py-1 text-foreground"
           />
         </label>
       </div>
       <div className="mt-3 flex justify-end gap-2">
         <button
           onClick={props.onCancel}
-          className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-gray-300"
+          className="rounded-control border border-border px-3 py-1.5 text-xs text-foreground"
         >
           Cancelar
         </button>
@@ -348,7 +348,7 @@ export function CadMTextEditor(props: CadMTextEditorProps) {
           data-testid="cad-mtext-save"
           disabled={!valid}
           onClick={() => props.onSave(draft)}
-          className="rounded-lg bg-indigo-500 px-3 py-1.5 text-xs font-semibold text-gray-950 disabled:opacity-40"
+          className="rounded-control bg-indigo-500 px-3 py-1.5 text-xs font-semibold text-gray-950 disabled:opacity-40"
         >
           {props.initial ? "Aplicar cambios" : "Crear MTEXT"}
         </button>

@@ -12388,20 +12388,6 @@ export default function Layout3DEditor({
         );
         return true;
       }
-      case "arrangeLine":
-      case "connectLine": {
-        // Sin selección explícita: el registry cae a TODAS las estaciones por secuencia.
-        const input: CadCommandInput =
-          intent.kind === "arrangeLine"
-            ? { id: "arrange_line" }
-            : { id: "connect_flow" };
-        const result = executeCadCommand(input, {
-          ...buildCommandContext(),
-          selectedIds: [],
-        });
-        if (!result.applied) return false;
-        return result.operations.map(applyCommandOperation).some(Boolean);
-      }
       case "moveStation": {
         const wanted = intent.station.trim().toLocaleLowerCase("es-MX");
         let sid: string | null = null;
@@ -15475,6 +15461,29 @@ export default function Layout3DEditor({
         <span className="hidden xl:inline type-micro text-muted-foreground dark:text-muted-foreground max-w-[520px] truncate">
           {cadSubtitle}
         </span>
+        {/*
+          EL CONTADOR HEREDADO, fuera de la vista del cliente pero NO del DOM.
+
+          Decía «N estaciones · N equipos»: vocabulario del producto industrial
+          del que salió este editor. Un arquitecto no tiene estaciones, y el
+          número no le dice nada de su plano — pero SÍ dice algo importante a
+          quien prueba el producto: que dibujar un círculo o una polilínea no
+          creó un «asset» heredado por la puerta de atrás. Dos goldens viven de
+          esa afirmación, y es una afirmación que merece seguir viva.
+
+          Así que se queda con su propio `data-testid`, dentro del bloque de
+          diagnóstico: legible por `textContent` para quien lo comprueba,
+          invisible para quien dibuja.
+        */}
+        <CadDiagnosticsReadout enabled={diagnosticsEnabled}>
+          <span
+            data-testid="cad-legacy-asset-count"
+            title="Objetos heredados en el plano (0 = todo canónico)"
+            className="type-micro text-muted-foreground"
+          >
+            {placedCount} colocados · {assetCount} heredados
+          </span>
+        </CadDiagnosticsReadout>
         <div className="inline-flex items-center rounded-lg bg-muted/60 p-0.5 type-caption font-semibold ml-1">
           <button
             data-cad-readonly-allowed
@@ -18012,7 +18021,7 @@ export default function Layout3DEditor({
                 ) : selList.length > 1 || !selSnap ? (
                   <div className="p-3.5">
                     <div className="flex items-center gap-2 mb-1">
-                      <Boxes className="w-4 h-4" style={{ color: "#22d3ee" }} />
+                      <Boxes className="w-4 h-4" />
                       <span className="text-sm font-semibold">
                         {selList.length} seleccionados
                       </span>
@@ -18363,10 +18372,7 @@ export default function Layout3DEditor({
                 ) : (
                   <div className="p-3.5">
                     <div className="flex items-center gap-2 mb-1">
-                      <Settings2
-                        className="w-4 h-4"
-                        style={{ color: "#22d3ee" }}
-                      />
+                      <Settings2 className="w-4 h-4 text-primary" />
                       <span className="text-sm font-semibold">
                         {selSnap.title}
                       </span>
@@ -19393,7 +19399,7 @@ export default function Layout3DEditor({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-              <ClipboardList className="w-4 h-4" style={{ color: "#22d3ee" }} />
+              <ClipboardList className="w-4 h-4" />
               <span className="text-sm font-semibold">
                 Cantidades · {model} · {revision}
               </span>
@@ -19957,7 +19963,7 @@ export default function Layout3DEditor({
           >
             <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
               <ShieldCheck
-                className="w-4 h-4"
+                className="w-4 h-4 text-primary"
                 style={{
                   color:
                     report.score === "ok"
@@ -20074,14 +20080,6 @@ export default function Layout3DEditor({
                       </span>
                       <b className="ml-2 tabular-nums text-foreground">
                         {cadValidationReport.architecture.length}
-                      </b>
-                    </div>
-                    <div className="rounded-lg bg-surface/80 px-2 py-1.5">
-                      <span className="text-muted-foreground">Flow</span>
-                      <b className="ml-2 tabular-nums text-foreground">
-                        {cadValidationReport.flow
-                          ? `${cadValidationReport.flow.score}/100`
-                          : "n/a"}
                       </b>
                     </div>
                   </div>
@@ -20259,7 +20257,7 @@ export default function Layout3DEditor({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-              <History className="w-4 h-4" style={{ color: "#22d3ee" }} />
+              <History className="w-4 h-4" />
               <span className="text-sm font-semibold">
                 Versiones · {model} · {revision}
               </span>
@@ -20410,7 +20408,7 @@ export default function Layout3DEditor({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-              <Copy className="w-4 h-4" style={{ color: "#22d3ee" }} />
+              <Copy className="w-4 h-4" />
               <span className="text-sm font-semibold">
                 Clonar desde plantilla
               </span>
@@ -20476,7 +20474,7 @@ export default function Layout3DEditor({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-              <Group className="w-4 h-4" style={{ color: "#22d3ee" }} />
+              <Group className="w-4 h-4" />
               <span className="text-sm font-semibold">
                 Celdas / zonas · {model} · {revision}
               </span>
@@ -20613,7 +20611,7 @@ export default function Layout3DEditor({
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-              <HelpCircle className="w-4 h-4" style={{ color: "#22d3ee" }} />
+              <HelpCircle className="w-4 h-4" />
               <span className="text-sm font-semibold">
                 Atajos y herramientas · CAD 3D
               </span>

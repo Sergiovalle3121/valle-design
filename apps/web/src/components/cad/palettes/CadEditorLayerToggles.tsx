@@ -51,13 +51,13 @@ export const CadEditorLayerToggles = React.memo(function CadEditorLayerToggles({
 }: CadEditorLayerTogglesProps) {
   return (
     <div data-testid="cad-editor-layer-toggles">
-      <div className="mb-1.5 type-micro uppercase tracking-wide text-gray-500">
+      <div className="mb-1.5 type-micro uppercase tracking-wide text-muted-foreground">
         Capas
       </div>
       {ORDER.map(([key, label]) => (
         <label
           key={key}
-          className="flex cursor-pointer items-center gap-2 py-1 text-gray-300 hover:text-white"
+          className="flex cursor-pointer items-center gap-2 py-1 text-foreground hover:text-foreground"
         >
           <input
             type="checkbox"

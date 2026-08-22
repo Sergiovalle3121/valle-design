@@ -29,7 +29,7 @@ import type { CadReviewSession } from "@valle/design-sdk";
 import { reviewsRepository } from "@/lib/cad/repositories/reviews";
 
 const BUTTON =
-  "rounded-md border border-white/15 px-2 py-1 type-micro font-medium text-gray-200 transition-colors hover:border-indigo-300/40 hover:text-indigo-100 disabled:cursor-not-allowed disabled:opacity-40";
+  "rounded-control border border-border px-2 py-1 type-micro font-medium text-foreground transition-colors hover:border-primary/30 hover:text-primary-ink disabled:cursor-not-allowed disabled:opacity-40";
 
 export default function ReviewLinkIssuer({ documentId }: { documentId: string }) {
   const [sessions, setSessions] = useState<CadReviewSession[]>([]);
@@ -129,21 +129,21 @@ export default function ReviewLinkIssuer({ documentId }: { documentId: string })
   return (
     <section
       data-testid="cad-review-link-panel"
-      className="rounded-lg border border-white/10 bg-white/[0.02] p-2 type-micro text-gray-300"
+      className="rounded-control border border-border bg-muted/40 p-2 type-micro text-foreground"
     >
       <div className="flex items-center justify-between gap-2">
-        <strong className="text-gray-100">Enlace para el cliente</strong>
+        <strong className="text-foreground">Enlace para el cliente</strong>
         <button
           type="button"
           data-testid="cad-review-link-new"
           disabled={busy}
           onClick={() => void create()}
-          className={`${BUTTON} border-indigo-300/30 text-indigo-100`}
+          className={`${BUTTON} border-primary/30 text-primary-ink`}
         >
           {busy ? "…" : "Crear enlace"}
         </button>
       </div>
-      <p className="mt-1 type-micro text-gray-500">
+      <p className="mt-1 type-micro text-muted-foreground">
         Quien lo reciba ve el plano y comenta sobre él sin instalar nada ni
         crear cuenta. Solo lectura, solo este documento.
       </p>
@@ -151,9 +151,9 @@ export default function ReviewLinkIssuer({ documentId }: { documentId: string })
       {url ? (
         <div
           data-testid="cad-review-link-issued"
-          className="mt-2 rounded-lg border border-amber-300/25 bg-amber-400/[0.07] p-2"
+          className="mt-2 rounded-control border border-warning/30 bg-warning/15 p-2"
         >
-          <strong className="type-micro text-amber-100">
+          <strong className="type-micro text-warning-ink">
             Cópialo ahora: no se vuelve a mostrar
           </strong>
           <code
@@ -187,7 +187,7 @@ export default function ReviewLinkIssuer({ documentId }: { documentId: string })
         <p
           role="alert"
           data-testid="cad-review-link-error"
-          className="mt-2 rounded-md border border-rose-300/25 bg-rose-400/10 px-2 py-1 type-micro text-rose-100"
+          className="mt-2 rounded-control border border-danger/30 bg-danger/15 px-2 py-1 type-micro text-rose-100"
         >
           {error}
         </p>
@@ -195,15 +195,15 @@ export default function ReviewLinkIssuer({ documentId }: { documentId: string })
 
       <ul className="mt-2 space-y-1">
         {sessions.length === 0 ? (
-          <li className="type-micro text-gray-500">Sin revisiones abiertas.</li>
+          <li className="type-micro text-muted-foreground">Sin revisiones abiertas.</li>
         ) : null}
         {sessions.map((session) => (
           <li
             key={session.id}
             data-testid={`cad-review-session-${session.id}`}
-            className="flex items-center gap-1 rounded-md border border-white/10 p-1.5"
+            className="flex items-center gap-1 rounded-control border border-border p-1.5"
           >
-            <span className="min-w-0 flex-1 truncate type-micro text-gray-400">
+            <span className="min-w-0 flex-1 truncate type-micro text-muted-foreground">
               {session.hasShareLink ? "Enlace activo" : "Sin enlace"}
               {session.expiresAt ? ` · caduca ${session.expiresAt.slice(0, 10)}` : ""}
               {session.allowComments ? "" : " · sin comentarios"}
@@ -213,7 +213,7 @@ export default function ReviewLinkIssuer({ documentId }: { documentId: string })
               data-testid={`cad-review-session-close-${session.id}`}
               disabled={busy}
               onClick={() => void close(session.id)}
-              className={`${BUTTON} shrink-0 text-rose-200`}
+              className={`${BUTTON} shrink-0 text-danger-ink`}
             >
               Revocar
             </button>

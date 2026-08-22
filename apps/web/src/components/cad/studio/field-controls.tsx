@@ -30,7 +30,7 @@ export function T3Btn({
       onClick={onClick}
       title={title}
       disabled={disabled}
-      className={`p-1.5 rounded-lg transition-colors disabled:opacity-30 disabled:hover:bg-transparent ${active ? "text-white" : "text-gray-500 dark:text-gray-400 hover:bg-white/10"}`}
+      className={`p-1.5 rounded-control transition-colors disabled:opacity-30 disabled:hover:bg-transparent ${active ? "text-foreground" : "text-muted-foreground dark:text-muted-foreground hover:bg-muted"}`}
       style={active ? { background: "#0e7490" } : undefined}
     >
       {children}
@@ -62,7 +62,7 @@ export function NumField({
 }) {
   return (
     <label className="block">
-      <span className="block type-micro uppercase tracking-wide text-gray-500 mb-0.5">
+      <span className="block type-micro uppercase tracking-wide text-muted-foreground mb-0.5">
         {label}
       </span>
       <input
@@ -71,7 +71,7 @@ export function NumField({
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value))}
         onBlur={onEnd}
-        className="w-full px-2 py-1 rounded-md bg-white/[0.06] border border-white/10 type-small text-white focus:outline-none focus:border-indigo-400/60"
+        className="w-full px-2 py-1 rounded-control bg-muted/60 border border-border type-small text-foreground focus:outline-none focus:border-primary/30"
       />
     </label>
   );
@@ -90,7 +90,7 @@ export function DimInput({
 }) {
   return (
     <label className="block">
-      <span className="block type-micro uppercase tracking-wide text-gray-500 mb-0.5">
+      <span className="block type-micro uppercase tracking-wide text-muted-foreground mb-0.5">
         {label}
       </span>
       <input
@@ -98,7 +98,7 @@ export function DimInput({
         data-testid={testId}
         value={value}
         onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-        className="w-full px-1.5 py-1 rounded-md bg-white/[0.06] border border-white/10 type-caption text-white focus:outline-none focus:border-indigo-400/60"
+        className="w-full px-1.5 py-1 rounded-control bg-muted/60 border border-border type-caption text-foreground focus:outline-none focus:border-primary/30"
       />
     </label>
   );
@@ -117,7 +117,7 @@ export function AlignBtn({
     <button
       onClick={onClick}
       title={title}
-      className="inline-flex items-center justify-center py-1.5 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-gray-200"
+      className="inline-flex items-center justify-center py-1.5 rounded-control bg-muted/60 hover:bg-muted text-foreground"
     >
       {children}
     </button>
@@ -135,13 +135,13 @@ export function Stat({
 }) {
   return (
     <div
-      className={`rounded-lg px-3 py-2 ${highlight ? "bg-indigo-500/15" : "bg-white/[0.04]"}`}
+      className={`rounded-control px-3 py-2 ${highlight ? "bg-primary/15" : "bg-muted/40"}`}
     >
-      <div className="type-micro uppercase tracking-wide text-gray-500">
+      <div className="type-micro uppercase tracking-wide text-muted-foreground">
         {label}
       </div>
       <div
-        className={`type-body font-semibold ${highlight ? "text-indigo-300" : "text-white"}`}
+        className={`type-body font-semibold ${highlight ? "text-primary-ink" : "text-foreground"}`}
       >
         {value}
       </div>
@@ -152,10 +152,10 @@ export function Stat({
 export function ReadField({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <span className="block type-micro uppercase tracking-wide text-gray-500 mb-0.5">
+      <span className="block type-micro uppercase tracking-wide text-muted-foreground mb-0.5">
         {label}
       </span>
-      <div className="w-full px-2 py-1 rounded-md bg-white/[0.03] border border-white/5 type-small text-gray-500 dark:text-gray-400">
+      <div className="w-full px-2 py-1 rounded-control bg-muted/40 border border-border type-small text-muted-foreground dark:text-muted-foreground">
         {value}
       </div>
     </div>

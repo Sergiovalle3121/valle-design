@@ -51,10 +51,10 @@ export interface CadPropertiesPaletteProps {
 }
 
 function fieldClass(varies: boolean): string {
-  return `mt-1 w-full rounded-lg border bg-gray-950/70 px-2 py-1.5 type-caption text-white outline-none focus:ring-1 focus:ring-indigo-500/40 ${
+  return `mt-1 w-full rounded-control border bg-surface/80 px-2 py-1.5 type-caption text-foreground outline-none focus:ring-1 focus:ring-indigo-500/40 ${
     varies
-      ? "border-amber-400/40 placeholder:text-amber-300/70"
-      : "border-white/10"
+      ? "border-warning/30 placeholder:text-warning-ink/70"
+      : "border-border"
   }`;
 }
 
@@ -96,7 +96,7 @@ const PropertyField = React.memo(function PropertyField({
   // el adaptador iba a ignorar.
   if (row.kind === "readonly")
     return (
-      <label className="type-micro text-gray-500 dark:text-gray-400">
+      <label className="type-micro text-muted-foreground dark:text-muted-foreground">
         {row.key}
         <input
           data-testid={testId}
@@ -104,7 +104,7 @@ const PropertyField = React.memo(function PropertyField({
           readOnly
           tabIndex={-1}
           value={row.varies ? CAD_PROPERTY_VARIES : String(row.value)}
-          className="mt-1 w-full rounded-lg border border-white/5 bg-white/[0.03] px-2 py-1.5 type-caption text-gray-400 outline-none"
+          className="mt-1 w-full rounded-control border border-border bg-muted/40 px-2 py-1.5 type-caption text-muted-foreground outline-none"
         />
       </label>
     );
@@ -113,11 +113,11 @@ const PropertyField = React.memo(function PropertyField({
     return (
       <label
         key={fieldKey}
-        className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-gray-950/50 px-2 py-1.5 type-micro text-gray-400"
+        className="flex items-center justify-between gap-2 rounded-control border border-border bg-surface/80 px-2 py-1.5 type-micro text-muted-foreground"
       >
         {row.key}
         {row.varies && (
-          <span className="type-micro text-amber-300">
+          <span className="type-micro text-warning-ink">
             {CAD_PROPERTY_VARIES}
           </span>
         )}
@@ -140,7 +140,7 @@ const PropertyField = React.memo(function PropertyField({
     return (
       <label
         key={row.key}
-        className="col-span-2 type-micro text-gray-500 dark:text-gray-400"
+        className="col-span-2 type-micro text-muted-foreground dark:text-muted-foreground"
       >
         {row.key}
         <textarea
@@ -165,7 +165,7 @@ const PropertyField = React.memo(function PropertyField({
   return (
     <label
       key={row.key}
-      className="type-micro text-gray-500 dark:text-gray-400"
+      className="type-micro text-muted-foreground dark:text-muted-foreground"
     >
       {row.key}
       <input
@@ -207,7 +207,7 @@ export const CadPropertiesPalette = React.memo(function CadPropertiesPalette({
     return (
       <div
         data-testid="cad-properties-palette"
-        className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5 type-micro text-gray-400"
+        className="rounded-card border border-border bg-muted/40 p-2.5 type-micro text-muted-foreground"
       >
         Designa objetos para editar sus propiedades.
       </div>
@@ -215,7 +215,7 @@ export const CadPropertiesPalette = React.memo(function CadPropertiesPalette({
 
   return (
     <div data-testid="cad-properties-palette" data-count={model.count}>
-      <div className="mb-3 grid grid-cols-2 gap-2 rounded-xl border border-indigo-400/15 bg-indigo-400/[0.04] p-2.5">
+      <div className="mb-3 grid grid-cols-2 gap-2 rounded-card border border-primary/30 bg-primary/15 p-2.5">
         {summary ? (
           <>
             <ReadOnlyCell label="ID" value={summary.id} />
@@ -228,7 +228,7 @@ export const CadPropertiesPalette = React.memo(function CadPropertiesPalette({
             <ReadOnlyCell label="Objetos" value={`${model.count}`} />
             <ReadOnlyCell label="Tipos" value={model.types.join(", ")} />
             <div
-              className="col-span-2 type-micro text-gray-400"
+              className="col-span-2 type-micro text-muted-foreground"
               data-testid="cad-properties-multi-hint"
             >
               Se editan las propiedades COMUNES. Un valor que difiere se marca{" "}
@@ -243,7 +243,7 @@ export const CadPropertiesPalette = React.memo(function CadPropertiesPalette({
         <section key={group.category} className="mb-3">
           <div
             data-testid={`cad-properties-group-${group.category}`}
-            className="mb-1.5 type-micro uppercase tracking-wide text-indigo-200"
+            className="mb-1.5 type-micro uppercase tracking-wide text-primary-ink"
           >
             {group.category}
           </div>
@@ -262,15 +262,15 @@ export const CadPropertiesPalette = React.memo(function CadPropertiesPalette({
       ))}
 
       {summary && summary.gripLabels.length > 0 && (
-        <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
-          <div className="mb-2 type-micro uppercase tracking-wide text-indigo-200">
+        <div className="mb-3 rounded-card border border-border bg-muted/40 p-2.5">
+          <div className="mb-2 type-micro uppercase tracking-wide text-primary-ink">
             Grips disponibles
           </div>
           <div className="flex flex-wrap gap-1">
             {summary.gripLabels.slice(0, 12).map((label, index) => (
               <span
                 key={`${label}-${index}`}
-                className="rounded-full bg-white/[0.06] px-2 py-0.5 type-micro text-gray-300"
+                className="rounded-full bg-muted/60 px-2 py-0.5 type-micro text-foreground"
               >
                 {label}
               </span>
@@ -285,10 +285,10 @@ export const CadPropertiesPalette = React.memo(function CadPropertiesPalette({
 function ReadOnlyCell({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <span className="mb-0.5 block type-micro uppercase tracking-wide text-gray-500">
+      <span className="mb-0.5 block type-micro uppercase tracking-wide text-muted-foreground">
         {label}
       </span>
-      <div className="w-full rounded-md border border-white/5 bg-white/[0.03] px-2 py-1 type-small text-gray-500 dark:text-gray-400">
+      <div className="w-full rounded-control border border-border bg-muted/40 px-2 py-1 type-small text-muted-foreground dark:text-muted-foreground">
         {value}
       </div>
     </div>

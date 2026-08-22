@@ -193,7 +193,7 @@ export default function ReviewLinkClient() {
   if (phase.kind === "loading") {
     return (
       <Shell>
-        <p data-testid="cad-review-loading" role="status" className="text-sm text-gray-400">
+        <p data-testid="cad-review-loading" role="status" className="text-sm text-muted-foreground">
           Abriendo la revisión…
         </p>
       </Shell>
@@ -205,7 +205,7 @@ export default function ReviewLinkClient() {
       <Shell>
         <div
           data-testid="cad-review-failed"
-          className="max-w-md rounded-2xl border border-rose-300/20 bg-rose-400/[0.06] p-6 text-center"
+          className="max-w-md rounded-card border border-danger/30 bg-danger/15 p-6 text-center"
         >
           <h1 className="text-lg font-semibold text-rose-100">{phase.title}</h1>
           <p role="alert" className="mt-2 text-sm text-rose-100/80">
@@ -219,19 +219,19 @@ export default function ReviewLinkClient() {
   return (
     <main
       data-testid="cad-review-surface"
-      className="flex h-dvh w-full flex-col bg-[#070b16] text-gray-200 lg:flex-row"
+      className="flex h-dvh w-full flex-col bg-[#070b16] text-foreground lg:flex-row"
     >
       <div className="relative min-h-0 flex-1">
         <header className="absolute left-0 right-0 top-0 z-10 flex flex-wrap items-center gap-2 bg-gradient-to-b from-[#070b16] to-transparent px-3 py-2">
           <span
             data-testid="cad-review-banner"
-            className="rounded-full border border-amber-300/30 bg-amber-400/10 px-2.5 py-0.5 type-micro font-semibold text-amber-100"
+            className="rounded-full border border-warning/30 bg-warning/15 px-2.5 py-0.5 type-micro font-semibold text-warning-ink"
           >
             REVISIÓN · SOLO LECTURA
           </span>
           <h1
             data-testid="cad-review-document-name"
-            className="min-w-0 truncate type-small font-medium text-gray-100"
+            className="min-w-0 truncate type-small font-medium text-foreground"
           >
             {phase.review.documentName}
           </h1>
@@ -248,7 +248,7 @@ export default function ReviewLinkClient() {
         ) : null}
       </div>
 
-      <aside className="flex min-h-0 w-full shrink-0 flex-col border-t border-white/10 bg-[#0b1020] p-3 lg:h-full lg:w-[22rem] lg:border-l lg:border-t-0">
+      <aside className="flex min-h-0 w-full shrink-0 flex-col border-t border-border bg-surface text-foreground p-3 lg:h-full lg:w-[22rem] lg:border-l lg:border-t-0">
         <CollabThreadPanel
           threads={comments.threads}
           error={comments.error}
@@ -270,7 +270,7 @@ export default function ReviewLinkClient() {
           peers={presence.peers}
           presenceConnected={presence.connected}
         />
-        <p className="mt-2 shrink-0 type-micro text-gray-600">
+        <p className="mt-2 shrink-0 type-micro text-muted-foreground">
           Valle Design · Este enlace da acceso únicamente a este plano.
         </p>
       </aside>

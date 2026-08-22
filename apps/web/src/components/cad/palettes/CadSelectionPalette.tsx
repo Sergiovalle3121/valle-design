@@ -44,7 +44,7 @@ const OPERATIONS: Array<{ id: CadSelectionOperation; label: string }> = [
 ];
 
 const buttonClass =
-  "rounded-md border border-white/10 bg-white/[0.05] px-2 py-1 type-micro text-gray-200 hover:bg-white/[0.12] disabled:cursor-not-allowed disabled:opacity-40";
+  "rounded-control border border-border bg-muted/60 px-2 py-1 type-micro text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-40";
 
 export function CadSelectionPalette(props: CadSelectionPaletteProps) {
   return (
@@ -53,22 +53,22 @@ export function CadSelectionPalette(props: CadSelectionPaletteProps) {
       className={
         props.docked
           ? "w-full p-3 type-micro"
-          : "absolute right-0 top-full z-50 mt-1.5 w-[340px] rounded-xl border border-white/10 bg-gray-900 p-3 type-micro shadow-2xl"
+          : "absolute right-0 top-full z-50 mt-1.5 w-[340px] rounded-card border border-border bg-surface p-3 type-micro shadow-2xl"
       }
     >
       <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="type-micro font-semibold uppercase tracking-wide text-indigo-200">
+        <div className="type-micro font-semibold uppercase tracking-wide text-primary-ink">
           Selección profesional
         </div>
         <span
           data-testid="cad-selection-count"
-          className="rounded-full bg-indigo-400/10 px-2 py-0.5 text-indigo-200"
+          className="rounded-full bg-primary/15 px-2 py-0.5 text-primary-ink"
         >
           {props.selectedCount} seleccionados
         </span>
       </div>
 
-      <div className="mb-1 type-micro uppercase tracking-wide text-gray-500">
+      <div className="mb-1 type-micro uppercase tracking-wide text-muted-foreground">
         Geometría
       </div>
       <div className="mb-2 grid grid-cols-3 gap-1">
@@ -77,14 +77,14 @@ export function CadSelectionPalette(props: CadSelectionPaletteProps) {
             key={item.id}
             data-testid={`cad-selection-mode-${item.id}`}
             onClick={() => props.onModeChange(item.id)}
-            className={`${buttonClass} ${props.mode === item.id ? "border-indigo-400/40 bg-indigo-400/15 text-indigo-100" : ""}`}
+            className={`${buttonClass} ${props.mode === item.id ? "border-primary/30 bg-primary/15 text-primary-ink" : ""}`}
           >
             {item.label}
           </button>
         ))}
       </div>
 
-      <div className="mb-1 type-micro uppercase tracking-wide text-gray-500">
+      <div className="mb-1 type-micro uppercase tracking-wide text-muted-foreground">
         Operación
       </div>
       <div className="mb-2 grid grid-cols-4 gap-1">
@@ -93,7 +93,7 @@ export function CadSelectionPalette(props: CadSelectionPaletteProps) {
             key={item.id}
             data-testid={`cad-selection-operation-${item.id}`}
             onClick={() => props.onOperationChange(item.id)}
-            className={`${buttonClass} px-1 ${props.operation === item.id ? "border-emerald-400/40 bg-emerald-400/15 text-emerald-100" : ""}`}
+            className={`${buttonClass} px-1 ${props.operation === item.id ? "border-success/30 bg-success/15 text-success-ink" : ""}`}
           >
             {item.label}
           </button>
@@ -126,8 +126,8 @@ export function CadSelectionPalette(props: CadSelectionPaletteProps) {
         </button>
       </div>
 
-      <div className="rounded-lg border border-white/10 bg-gray-950/50 p-2">
-        <div className="mb-1.5 type-micro uppercase tracking-wide text-gray-500">
+      <div className="rounded-control border border-border bg-surface/80 p-2">
+        <div className="mb-1.5 type-micro uppercase tracking-wide text-muted-foreground">
           Quick select
         </div>
         <div className="grid grid-cols-2 gap-1.5">
@@ -135,7 +135,7 @@ export function CadSelectionPalette(props: CadSelectionPaletteProps) {
             aria-label="Filtrar por tipo"
             value={props.quickType}
             onChange={(event) => props.onQuickTypeChange(event.target.value)}
-            className="rounded-md border border-white/10 bg-gray-950 px-2 py-1 type-micro text-white outline-none"
+            className="rounded-control border border-border bg-surface px-2 py-1 type-micro text-foreground outline-none"
           >
             <option value="">Todos los tipos</option>
             {props.entityTypes.map((type) => (
@@ -148,7 +148,7 @@ export function CadSelectionPalette(props: CadSelectionPaletteProps) {
             aria-label="Filtrar por capa"
             value={props.quickLayer}
             onChange={(event) => props.onQuickLayerChange(event.target.value)}
-            className="rounded-md border border-white/10 bg-gray-950 px-2 py-1 type-micro text-white outline-none"
+            className="rounded-control border border-border bg-surface px-2 py-1 type-micro text-foreground outline-none"
           >
             <option value="">Todas las capas</option>
             {props.layers.map((layer) => (
@@ -167,18 +167,18 @@ export function CadSelectionPalette(props: CadSelectionPaletteProps) {
               if (event.key === "Enter") props.onQuick();
             }}
             placeholder="ID, etiqueta o propiedad…"
-            className="min-w-0 flex-1 rounded-md border border-white/10 bg-gray-950 px-2 py-1 type-micro text-white outline-none focus:border-indigo-400/40"
+            className="min-w-0 flex-1 rounded-control border border-border bg-surface px-2 py-1 type-micro text-foreground outline-none focus:border-primary/30"
           />
           <button
             data-testid="cad-quick-select-apply"
             onClick={props.onQuick}
-            className={`${buttonClass} border-indigo-400/20 text-indigo-100`}
+            className={`${buttonClass} border-primary/30 text-primary-ink`}
           >
             Aplicar
           </button>
         </div>
       </div>
-      <p className="mt-2 type-micro leading-relaxed text-gray-500">
+      <p className="mt-2 type-micro leading-relaxed text-muted-foreground">
         Arrastra para ventana/cruce. Para polígono, fence o lasso, dibuja un
         trazo continuo sobre el fondo. Clics repetidos ciclan geometría
         solapada.

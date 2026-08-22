@@ -111,11 +111,11 @@ export function CadCommandDock({
   onRedo,
 }: CadCommandDockProps) {
   return (
-    <div className="border-b border-indigo-400/20 bg-indigo-400/[0.06] p-3">
-      <div className="flex items-center gap-2 type-micro font-semibold uppercase tracking-wide text-indigo-200">
+    <div className="border-b border-primary/30 bg-primary/15 p-3">
+      <div className="flex items-center gap-2 type-micro font-semibold uppercase tracking-wide text-primary-ink">
         <WandSparkles className="h-3.5 w-3.5" /> Copiloto CAD
       </div>
-      <p className="mt-1 type-micro leading-snug text-gray-500 dark:text-gray-400">
+      <p className="mt-1 type-micro leading-snug text-muted-foreground dark:text-muted-foreground">
         Comandos determinísticos locales (Preview) o interpretación con IA
         (CIDE) — la IA solo propone; tú apruebas.
       </p>
@@ -151,11 +151,11 @@ export function CadCommandDock({
             }
           }}
           placeholder="pasillo 1.2 entre SMT e inspección"
-          className="min-w-0 flex-1 rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-caption text-white placeholder:text-gray-600 outline-none focus:border-indigo-400/60"
+          className="min-w-0 flex-1 rounded-control border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/30"
         />
         <button
           type="submit"
-          className="rounded-lg bg-indigo-500 px-2.5 py-1.5 type-caption font-semibold text-white hover:bg-indigo-400"
+          className="rounded-control bg-indigo-500 px-2.5 py-1.5 type-caption font-semibold text-foreground hover:bg-indigo-400"
         >
           Preview
         </button>
@@ -164,7 +164,7 @@ export function CadCommandDock({
           onClick={() => onRequestAi("intent")}
           disabled={aiBusy !== null}
           title="Interpreta la instrucción con el motor de IA (CIDE)"
-          className="rounded-lg bg-violet-600 px-2.5 py-1.5 type-caption font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+          className="rounded-control bg-violet-600 px-2.5 py-1.5 type-caption font-semibold text-foreground hover:bg-violet-500 disabled:opacity-50"
         >
           {aiBusy === "intent" ? "…" : "IA"}
         </button>
@@ -173,7 +173,7 @@ export function CadCommandDock({
         type="button"
         onClick={() => onRequestAi("optimize")}
         disabled={aiBusy !== null}
-        className="mt-1.5 w-full rounded-lg border border-violet-400/30 bg-violet-400/[0.08] px-2 py-1.5 type-micro font-semibold text-violet-200 hover:bg-violet-400/[0.14] disabled:opacity-50"
+        className="mt-1.5 w-full rounded-control border border-violet-400/30 bg-violet-400/[0.08] px-2 py-1.5 type-micro font-semibold text-violet-200 hover:bg-violet-400/[0.14] disabled:opacity-50"
       >
         {aiBusy === "optimize"
           ? "Analizando layout…"
@@ -181,31 +181,31 @@ export function CadCommandDock({
       </button>
 
       {aiProposal && (
-        <div className="mt-2 rounded-xl border border-violet-400/25 bg-gray-950/70 p-2">
+        <div className="mt-2 rounded-card border border-violet-400/25 bg-surface/80 p-2">
           <div className="type-micro font-semibold text-violet-200">
             Propuesta IA ·{" "}
             {aiProposal.source === "intent" ? "instrucción" : "optimización"}
           </div>
           {aiProposal.message && (
-            <div className="mt-1 type-micro text-amber-200">
+            <div className="mt-1 type-micro text-warning-ink">
               {aiProposal.message}
             </div>
           )}
           {aiProposal.intents.slice(0, 6).map((intent, index) => (
             <div
               key={`ai-${index}`}
-              className="mt-1 rounded-md bg-white/[0.04] px-1.5 py-1 type-micro text-gray-300"
+              className="mt-1 rounded-control bg-muted/40 px-1.5 py-1 type-micro text-foreground"
             >
               {aiProposal.descriptions?.[index] ?? describeCadIntent(intent)}
             </div>
           ))}
           {aiProposal.intents.length > 6 && (
-            <div className="mt-1 type-micro text-gray-500">
+            <div className="mt-1 type-micro text-muted-foreground">
               …y {aiProposal.intents.length - 6} acción(es) más.
             </div>
           )}
           {aiProposal.errors.slice(0, 2).map((error) => (
-            <div key={error} className="mt-1 type-micro text-rose-300">
+            <div key={error} className="mt-1 type-micro text-danger-ink">
               Descartada: {error}
             </div>
           ))}
@@ -214,7 +214,7 @@ export function CadCommandDock({
               <button
                 type="button"
                 onClick={onApplyAi}
-                className="rounded-lg bg-emerald-700 px-2 py-1 type-micro font-semibold text-white hover:bg-emerald-600"
+                className="rounded-control bg-emerald-700 px-2 py-1 type-micro font-semibold text-foreground hover:bg-emerald-600"
               >
                 Aplicar {aiProposal.intents.length}
               </button>
@@ -222,7 +222,7 @@ export function CadCommandDock({
             <button
               type="button"
               onClick={onDiscardAi}
-              className="rounded-lg border border-white/10 px-2 py-1 type-micro text-gray-300 hover:bg-white/10"
+              className="rounded-control border border-border px-2 py-1 type-micro text-foreground hover:bg-muted"
             >
               Descartar
             </button>
@@ -231,31 +231,31 @@ export function CadCommandDock({
       )}
 
       {preview && (
-        <div className="mt-2 rounded-xl border border-white/10 bg-gray-950/70 p-2">
-          <div className="type-micro font-semibold text-white">
+        <div className="mt-2 rounded-card border border-border bg-surface/80 p-2">
+          <div className="type-micro font-semibold text-foreground">
             {preview.preview.summary}
           </div>
-          <div className="mt-1 type-micro text-gray-500 dark:text-gray-400">
+          <div className="mt-1 type-micro text-muted-foreground dark:text-muted-foreground">
             {preview.preview.affectedObjectIds.length} objeto(s) ·{" "}
             {preview.preview.operations.length} operación(es)
           </div>
           {preview.preview.operations.slice(0, 3).map((operation, index) => (
             <div
               key={`${operation.type}-${index}`}
-              className="mt-1 rounded-md bg-white/[0.04] px-1.5 py-1 type-micro text-gray-300"
+              className="mt-1 rounded-control bg-muted/40 px-1.5 py-1 type-micro text-foreground"
             >
               {operation.type === "report" ? (
                 <div>
-                  <div className="font-semibold text-indigo-100">
+                  <div className="font-semibold text-primary-ink">
                     {operation.title}
                   </div>
                   {operation.rows.slice(0, 3).map((row) => (
                     <div
                       key={`${row.label}-${row.value}`}
-                      className="mt-0.5 flex justify-between gap-2 text-gray-500 dark:text-gray-400"
+                      className="mt-0.5 flex justify-between gap-2 text-muted-foreground dark:text-muted-foreground"
                     >
                       <span className="truncate">{row.label}</span>
-                      <span className="shrink-0 text-gray-200">
+                      <span className="shrink-0 text-foreground">
                         {row.value}
                       </span>
                     </div>
@@ -269,7 +269,7 @@ export function CadCommandDock({
           {preview.preview.issues.slice(0, 2).map((issue) => (
             <div
               key={`${issue.code}-${issue.message}`}
-              className={`mt-1 type-micro ${issue.level === "error" ? "text-rose-300" : issue.level === "warning" ? "text-amber-300" : "text-indigo-200"}`}
+              className={`mt-1 type-micro ${issue.level === "error" ? "text-danger-ink" : issue.level === "warning" ? "text-warning-ink" : "text-primary-ink"}`}
             >
               {issue.message}
             </div>
@@ -278,21 +278,21 @@ export function CadCommandDock({
             <button
               type="button"
               onClick={onApplyPreview}
-              className="rounded-lg bg-emerald-700 px-2 py-1 type-micro font-semibold text-white hover:bg-emerald-600"
+              className="rounded-control bg-emerald-700 px-2 py-1 type-micro font-semibold text-foreground hover:bg-emerald-600"
             >
               Aplicar
             </button>
             <button
               type="button"
               onClick={onDismissPreview}
-              className="rounded-lg border border-white/10 px-2 py-1 type-micro text-gray-300 hover:bg-white/10"
+              className="rounded-control border border-border px-2 py-1 type-micro text-foreground hover:bg-muted"
             >
               Cancelar
             </button>
             <button
               type="button"
               onClick={onDismissPreview}
-              className="rounded-lg border border-white/10 px-2 py-1 type-micro text-gray-300 hover:bg-white/10"
+              className="rounded-control border border-border px-2 py-1 type-micro text-foreground hover:bg-muted"
             >
               Editar
             </button>
@@ -302,7 +302,7 @@ export function CadCommandDock({
 
       {suggestions.length > 0 && (
         <div className="mt-2 space-y-1.5">
-          <div className="flex items-center justify-between type-micro uppercase tracking-wide text-gray-500">
+          <div className="flex items-center justify-between type-micro uppercase tracking-wide text-muted-foreground">
             <span>Sugerencias</span>
             <span>{selectionCount} sel</span>
           </div>
@@ -312,23 +312,23 @@ export function CadCommandDock({
               key={suggestion.id}
               onClick={() => onSuggestion(suggestion)}
               title={suggestion.example}
-              className={`w-full rounded-lg border px-2 py-1.5 text-left hover:bg-white/[0.08] ${suggestion.ready ? "border-indigo-400/20 bg-indigo-400/[0.05]" : "border-amber-400/20 bg-amber-400/[0.05]"}`}
+              className={`w-full rounded-control border px-2 py-1.5 text-left hover:bg-muted/60 ${suggestion.ready ? "border-primary/30 bg-primary/15" : "border-warning/30 bg-warning/15"}`}
             >
               <span className="flex items-center justify-between gap-2">
-                <span className="truncate type-micro font-semibold text-gray-100">
+                <span className="truncate type-micro font-semibold text-foreground">
                   {suggestion.label}
                 </span>
                 <span
-                  className={`shrink-0 type-micro uppercase tracking-wide ${suggestion.ready ? "text-indigo-200" : "text-amber-200"}`}
+                  className={`shrink-0 type-micro uppercase tracking-wide ${suggestion.ready ? "text-primary-ink" : "text-warning-ink"}`}
                 >
                   {suggestion.ready ? "Preview" : "Pendiente"}
                 </span>
               </span>
-              <span className="mt-0.5 block truncate type-micro text-gray-400">
+              <span className="mt-0.5 block truncate type-micro text-muted-foreground">
                 {suggestion.example}
               </span>
               <span
-                className={`mt-0.5 block truncate type-micro ${suggestion.ready ? "text-indigo-200/70" : "text-amber-200/80"}`}
+                className={`mt-0.5 block truncate type-micro ${suggestion.ready ? "text-primary-ink/70" : "text-warning-ink/80"}`}
               >
                 {suggestion.reason}
               </span>
@@ -339,7 +339,7 @@ export function CadCommandDock({
 
       {log.length > 0 && (
         <div className="mt-2 space-y-1">
-          <div className="flex items-center justify-between type-micro uppercase tracking-wide text-gray-500">
+          <div className="flex items-center justify-between type-micro uppercase tracking-wide text-muted-foreground">
             <span>Historial</span>
             <span>{log.length}</span>
           </div>
@@ -348,7 +348,7 @@ export function CadCommandDock({
               type="button"
               onClick={onUndo}
               disabled={!canUndo}
-              className="flex-1 rounded-lg border border-white/10 px-2 py-1 type-micro text-gray-300 disabled:opacity-40 hover:bg-white/10"
+              className="flex-1 rounded-control border border-border px-2 py-1 type-micro text-foreground disabled:opacity-40 hover:bg-muted"
             >
               Deshacer cmd
             </button>
@@ -356,7 +356,7 @@ export function CadCommandDock({
               type="button"
               onClick={onRedo}
               disabled={!canRedo}
-              className="flex-1 rounded-lg border border-white/10 px-2 py-1 type-micro text-gray-300 disabled:opacity-40 hover:bg-white/10"
+              className="flex-1 rounded-control border border-border px-2 py-1 type-micro text-foreground disabled:opacity-40 hover:bg-muted"
             >
               Rehacer cmd
             </button>
@@ -364,15 +364,15 @@ export function CadCommandDock({
           {log.slice(0, 3).map((item) => (
             <div
               key={item.id}
-              className="rounded-lg bg-white/[0.04] px-2 py-1 type-micro text-gray-300"
+              className="rounded-control bg-muted/40 px-2 py-1 type-micro text-foreground"
             >
               <span
                 className={
                   item.status === "failed"
-                    ? "text-rose-300"
+                    ? "text-danger-ink"
                     : item.status === "applied"
-                      ? "text-emerald-300"
-                      : "text-indigo-200"
+                      ? "text-success-ink"
+                      : "text-primary-ink"
                 }
               >
                 {item.status}

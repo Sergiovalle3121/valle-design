@@ -89,20 +89,20 @@ export function CadDynamicInput({
           onCancel();
         }
       }}
-      className="flex max-w-[720px] flex-wrap items-center gap-1.5 rounded-xl border border-amber-300/30 bg-gray-900/95 px-2 py-1.5 shadow-2xl backdrop-blur"
+      className="flex max-w-[720px] flex-wrap items-center gap-1.5 rounded-card border border-warning/30 bg-surface/90 px-2 py-1.5 shadow-2xl backdrop-blur"
     >
-      <span className="px-1 type-micro font-semibold uppercase tracking-wide text-amber-200">
+      <span className="px-1 type-micro font-semibold uppercase tracking-wide text-warning-ink">
         DYN
       </span>
       {kind === "point" && (
-        <div className="inline-flex rounded-md bg-white/[0.06] p-0.5">
+        <div className="inline-flex rounded-control bg-muted/60 p-0.5">
           {(["absolute", "relative", "polar"] as const).map((item) => (
             <button
               key={item}
               type="button"
               disabled={item !== "absolute" && !anchor}
               onClick={() => setPointMode(item)}
-              className={`rounded px-2 py-0.5 type-micro disabled:opacity-35 ${mode === item ? "bg-amber-300 text-gray-950" : "text-gray-300 hover:bg-white/10"}`}
+              className={`rounded px-2 py-0.5 type-micro disabled:opacity-35 ${mode === item ? "bg-amber-300 text-gray-950" : "text-foreground hover:bg-muted"}`}
             >
               {item === "absolute"
                 ? "ABS"
@@ -114,13 +114,13 @@ export function CadDynamicInput({
         </div>
       )}
       {kind === "radius" && (
-        <div className="inline-flex rounded-md bg-white/[0.06] p-0.5">
+        <div className="inline-flex rounded-control bg-muted/60 p-0.5">
           {(["radius", "diameter"] as const).map((item) => (
             <button
               key={item}
               type="button"
               onClick={() => setRadiusMode(item)}
-              className={`rounded px-2 py-0.5 type-micro ${mode === item ? "bg-amber-300 text-gray-950" : "text-gray-300 hover:bg-white/10"}`}
+              className={`rounded px-2 py-0.5 type-micro ${mode === item ? "bg-amber-300 text-gray-950" : "text-foreground hover:bg-muted"}`}
             >
               {item === "radius" ? "R" : "Ø"}
             </button>
@@ -130,9 +130,9 @@ export function CadDynamicInput({
       {fields.map((field) => (
         <label
           key={field}
-          className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-gray-950/80 px-1.5 py-0.5"
+          className="inline-flex items-center gap-1 rounded-control border border-border bg-surface/80 px-1.5 py-0.5"
         >
-          <span className="type-micro text-gray-500">{fieldLabels[field]}</span>
+          <span className="type-micro text-muted-foreground">{fieldLabels[field]}</span>
           <input
             data-testid={`cad-dynamic-field-${field}`}
             aria-label={fieldLabels[field]}
@@ -161,7 +161,7 @@ export function CadDynamicInput({
                 : `≈${Number(defaults[field]).toFixed(field === "angle" ? 1 : 2)}`
             }
             inputMode="decimal"
-            className="w-20 bg-transparent type-micro text-white outline-none placeholder:text-gray-600"
+            className="w-20 bg-transparent type-micro text-foreground outline-none placeholder:text-muted-foreground"
           />
           <button
             type="button"
@@ -170,8 +170,8 @@ export function CadDynamicInput({
             onClick={() => toggleLock(field)}
             className={
               locked[field]
-                ? "text-amber-300"
-                : "text-gray-600 hover:text-gray-300"
+                ? "text-warning-ink"
+                : "text-muted-foreground hover:text-foreground"
             }
           >
             {locked[field] ? "●" : "○"}
@@ -180,7 +180,7 @@ export function CadDynamicInput({
       ))}
       <span
         aria-live="polite"
-        className={`max-w-40 truncate type-micro ${inlineError ? "text-rose-300" : "text-indigo-200"}`}
+        className={`max-w-40 truncate type-micro ${inlineError ? "text-danger-ink" : "text-primary-ink"}`}
       >
         {inlineError ??
           (result.ok ? result.previewLabel : "Tab cambia de campo")}
@@ -188,7 +188,7 @@ export function CadDynamicInput({
       <button
         type="submit"
         disabled={!result.ok}
-        className="rounded-md bg-amber-300 px-2 py-1 type-micro font-semibold text-gray-950 disabled:cursor-not-allowed disabled:opacity-40"
+        className="rounded-control bg-amber-300 px-2 py-1 type-micro font-semibold text-gray-950 disabled:cursor-not-allowed disabled:opacity-40"
       >
         Aplicar
       </button>

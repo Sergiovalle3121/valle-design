@@ -49,9 +49,9 @@ interface CadCollaborationPaletteProps {
 type DiffFilter = "all" | "added" | "modified" | "deleted";
 
 const button =
-  "rounded-lg border border-white/10 px-2 py-1 type-micro text-gray-200 hover:bg-white/[0.07] disabled:cursor-not-allowed disabled:opacity-35";
+  "rounded-control border border-border px-2 py-1 type-micro text-foreground hover:bg-muted/60 disabled:cursor-not-allowed disabled:opacity-35";
 const input =
-  "w-full rounded-lg border border-white/10 bg-black/25 px-2 py-1.5 type-micro text-white outline-none focus:border-indigo-300/40";
+  "w-full rounded-control border border-border bg-black/25 px-2 py-1.5 type-micro text-foreground outline-none focus:border-primary/30";
 
 function id(prefix: string) {
   const value =
@@ -277,29 +277,29 @@ export function CadCollaborationPalette({
     <div
       data-testid="cad-collaboration-palette"
       data-cad-review-allowed
-      className="h-full overflow-y-auto p-3 type-micro text-gray-300"
+      className="h-full overflow-y-auto p-3 type-micro text-foreground"
     >
       <div className="flex items-start justify-between gap-2">
         <div>
-          <strong className="text-indigo-100">COMPARE / MERGE / REVIEW</strong>
-          <p className="mt-0.5 type-micro text-gray-500">
+          <strong className="text-primary-ink">COMPARE / MERGE / REVIEW</strong>
+          <p className="mt-0.5 type-micro text-muted-foreground">
             Canonical entities · tenant CAS · immutable server audit on save
           </p>
         </div>
         {reviewReadOnly && (
           <span
             data-testid="cad-review-readonly"
-            className="rounded-full border border-amber-300/25 bg-amber-400/10 px-2 py-0.5 type-micro text-amber-200"
+            className="rounded-full border border-warning/30 bg-warning/15 px-2 py-0.5 type-micro text-warning-ink"
           >
             READ ONLY
           </span>
         )}
       </div>
 
-      <section className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+      <section className="mt-3 rounded-card border border-border bg-muted/40 p-2.5">
         <div className="flex items-center justify-between">
-          <strong className="text-gray-100">Version history</strong>
-          <span className="text-gray-500">
+          <strong className="text-foreground">Version history</strong>
+          <span className="text-muted-foreground">
             {collaboration?.versions.length ?? 0}/12
           </span>
         </div>
@@ -315,7 +315,7 @@ export function CadCollaborationPalette({
             data-testid="cad-version-create"
             disabled={reviewReadOnly}
             onClick={checkpoint}
-            className={`${button} shrink-0 border-indigo-300/20 text-indigo-100`}
+            className={`${button} shrink-0 border-primary/30 text-primary-ink`}
           >
             Capture current
           </button>
@@ -327,7 +327,7 @@ export function CadCollaborationPalette({
             .map((version) => (
               <div
                 key={version.id}
-                className="flex justify-between gap-2 type-micro text-gray-500"
+                className="flex justify-between gap-2 type-micro text-muted-foreground"
               >
                 <span className="truncate">{version.label}</span>
                 <span className="font-mono">{version.contentHash}</span>
@@ -336,7 +336,7 @@ export function CadCollaborationPalette({
         </div>
       </section>
 
-      <section className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+      <section className="mt-3 rounded-card border border-border bg-muted/40 p-2.5">
         <div className="grid grid-cols-3 gap-1.5">
           {(
             [
@@ -345,7 +345,7 @@ export function CadCollaborationPalette({
               ["Theirs", theirsId, setTheirsId],
             ] as const
           ).map(([label, value, setter]) => (
-            <label key={label} className="type-micro text-gray-500">
+            <label key={label} className="type-micro text-muted-foreground">
               {label}
               <select
                 data-testid={`cad-merge-${label.toLowerCase()}`}
@@ -400,7 +400,7 @@ export function CadCollaborationPalette({
             </button>
             <span
               data-testid="cad-diff-cursor"
-              className="min-w-12 text-center type-micro text-gray-500"
+              className="min-w-12 text-center type-micro text-muted-foreground"
             >
               {rows.length
                 ? `${Math.min(cursor + 1, rows.length)}/${rows.length}`
@@ -418,7 +418,7 @@ export function CadCollaborationPalette({
         {selected ? (
           <article
             data-testid="cad-diff-selected"
-            className="mt-2 rounded-lg border border-violet-300/15 bg-violet-400/[0.06] p-2"
+            className="mt-2 rounded-control border border-violet-300/15 bg-violet-400/[0.06] p-2"
           >
             <div className="flex justify-between">
               <strong className="text-violet-100">
@@ -426,32 +426,32 @@ export function CadCollaborationPalette({
               </strong>
               <button
                 onClick={() => onNavigate(selected.entityId)}
-                className="font-mono text-indigo-200 hover:text-white"
+                className="font-mono text-primary-ink hover:text-foreground"
               >
                 {selected.entityId}
               </button>
             </div>
-            <div className="mt-1 type-micro text-gray-400">
+            <div className="mt-1 type-micro text-muted-foreground">
               Geometry: {selected.geometryPaths.join(", ") || "—"}
             </div>
-            <div className="mt-0.5 type-micro text-gray-400">
+            <div className="mt-0.5 type-micro text-muted-foreground">
               Properties: {selected.propertyPaths.join(", ") || "—"}
             </div>
           </article>
         ) : (
-          <div className="mt-2 rounded-lg border border-dashed border-white/10 p-3 text-center text-gray-500">
+          <div className="mt-2 rounded-control border border-dashed border-border p-3 text-center text-muted-foreground">
             Mine and theirs are identical.
           </div>
         )}
       </section>
 
-      <section className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+      <section className="mt-3 rounded-card border border-border bg-muted/40 p-2.5">
         <div className="flex justify-between">
-          <strong className="text-gray-100">Three-way merge</strong>
+          <strong className="text-foreground">Three-way merge</strong>
           <span
             data-testid="cad-merge-summary"
             className={
-              merge.unresolved.length ? "text-rose-200" : "text-emerald-200"
+              merge.unresolved.length ? "text-danger-ink" : "text-success-ink"
             }
           >
             {merge.autoMergedIds.length} auto · {merge.collisions.length}{" "}
@@ -462,15 +462,15 @@ export function CadCollaborationPalette({
           <article
             key={collision.entityId}
             data-testid={`cad-merge-conflict-${collision.entityId}`}
-            className="mt-2 rounded-lg border border-rose-300/20 bg-rose-400/[0.06] p-2"
+            className="mt-2 rounded-control border border-danger/30 bg-danger/15 p-2"
           >
             <div className="flex justify-between">
               <strong className="text-rose-100">{collision.entityId}</strong>
-              <span className="type-micro text-rose-200">
+              <span className="type-micro text-danger-ink">
                 {collision.reason}
               </span>
             </div>
-            <div className="mt-1 type-micro text-gray-500">
+            <div className="mt-1 type-micro text-muted-foreground">
               Mine: {collision.minePaths.join(", ") || "deleted"}
               <br />
               Theirs: {collision.theirsPaths.join(", ") || "deleted"}
@@ -478,7 +478,7 @@ export function CadCollaborationPalette({
             <div className="mt-2 grid grid-cols-3 gap-1">
               <button
                 onClick={() => choose(collision.entityId, { strategy: "mine" })}
-                className={`${button} ${resolutions[collision.entityId]?.strategy === "mine" ? "bg-indigo-400/15 text-indigo-100" : ""}`}
+                className={`${button} ${resolutions[collision.entityId]?.strategy === "mine" ? "bg-primary/15 text-primary-ink" : ""}`}
               >
                 Keep mine
               </button>
@@ -486,7 +486,7 @@ export function CadCollaborationPalette({
                 onClick={() =>
                   choose(collision.entityId, { strategy: "theirs" })
                 }
-                className={`${button} ${resolutions[collision.entityId]?.strategy === "theirs" ? "bg-indigo-400/15 text-indigo-100" : ""}`}
+                className={`${button} ${resolutions[collision.entityId]?.strategy === "theirs" ? "bg-primary/15 text-primary-ink" : ""}`}
               >
                 Keep theirs
               </button>
@@ -533,16 +533,16 @@ export function CadCollaborationPalette({
             (!merge.autoMergedIds.length && !merge.appliedResolutions.length)
           }
           onClick={applyMerge}
-          className="mt-2 w-full rounded-lg bg-emerald-500 px-2 py-1.5 font-semibold text-gray-950 disabled:cursor-not-allowed disabled:opacity-35"
+          className="mt-2 w-full rounded-control bg-emerald-500 px-2 py-1.5 font-semibold text-gray-950 disabled:cursor-not-allowed disabled:opacity-35"
         >
           Apply atomic merge
         </button>
       </section>
 
-      <section className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+      <section className="mt-3 rounded-card border border-border bg-muted/40 p-2.5">
         <div className="flex justify-between">
-          <strong className="text-gray-100">Comments & markups</strong>
-          <span className="text-gray-500">
+          <strong className="text-foreground">Comments & markups</strong>
+          <span className="text-muted-foreground">
             {collaboration?.threads.filter((thread) => thread.status === "open")
               .length ?? 0}{" "}
             open
@@ -596,19 +596,19 @@ export function CadCollaborationPalette({
             .map((thread) => (
               <article
                 key={thread.id}
-                className={`rounded-lg border p-2 ${thread.status === "open" ? "border-amber-300/15 bg-amber-400/[0.05]" : "border-white/10 opacity-60"}`}
+                className={`rounded-control border p-2 ${thread.status === "open" ? "border-warning/30 bg-warning/15" : "border-border opacity-60"}`}
               >
                 <div className="flex justify-between gap-2">
-                  <span className="truncate text-gray-100">
+                  <span className="truncate text-foreground">
                     {thread.entityId ?? "Drawing"} ·{" "}
                     {thread.markup?.kind ?? "comment"}
                   </span>
-                  <span className="type-micro text-gray-500">
+                  <span className="type-micro text-muted-foreground">
                     {thread.status}
                   </span>
                 </div>
-                <p className="mt-1 type-micro text-gray-300">{thread.body}</p>
-                <div className="mt-1 flex items-center justify-between type-micro text-gray-500">
+                <p className="mt-1 type-micro text-foreground">{thread.body}</p>
+                <div className="mt-1 flex items-center justify-between type-micro text-muted-foreground">
                   <span>
                     {thread.author}
                     {thread.assignedTo ? ` → ${thread.assignedTo}` : ""}
@@ -627,7 +627,7 @@ export function CadCollaborationPalette({
                           `Comment resolved · ${thread.entityId ?? "drawing"}`,
                         )
                       }
-                      className="text-emerald-200 hover:text-white disabled:opacity-40"
+                      className="text-success-ink hover:text-foreground disabled:opacity-40"
                     >
                       Resolve
                     </button>
@@ -638,15 +638,15 @@ export function CadCollaborationPalette({
         </div>
       </section>
 
-      <section className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+      <section className="mt-3 rounded-card border border-border bg-muted/40 p-2.5">
         <div className="flex justify-between">
-          <strong className="text-gray-100">Read-only review links</strong>
-          <span className="text-gray-500">server-issued · revocable</span>
+          <strong className="text-foreground">Read-only review links</strong>
+          <span className="text-muted-foreground">server-issued · revocable</span>
         </div>
-        <p className="mt-1 type-micro text-gray-500">
+        <p className="mt-1 type-micro text-muted-foreground">
           The server issues and owns the token (only its hash is stored). It is
           shown once, travels in the{" "}
-          <code className="text-gray-400">X-Review-Token</code> header — never
+          <code className="text-muted-foreground">X-Review-Token</code> header — never
           in a URL — and dies on revoke or expiry.
         </p>
         <div className="mt-2 flex gap-1">
@@ -668,10 +668,10 @@ export function CadCollaborationPalette({
         {issuedToken && (
           <div
             data-testid="cad-review-token-once"
-            className="mt-2 rounded-lg border border-amber-300/25 bg-amber-400/[0.07] p-2"
+            className="mt-2 rounded-control border border-warning/30 bg-warning/15 p-2"
           >
             <div className="flex items-center justify-between gap-2">
-              <strong className="text-amber-100">
+              <strong className="text-warning-ink">
                 Share token — shown once
               </strong>
               <button
@@ -701,14 +701,14 @@ export function CadCollaborationPalette({
           {[...(collaboration?.reviewLinks ?? [])].reverse().map((link) => (
             <div
               key={link.id}
-              className="flex items-center gap-1 rounded-lg border border-white/10 p-1.5"
+              className="flex items-center gap-1 rounded-control border border-border p-1.5"
             >
               <span
-                className={`min-w-0 flex-1 truncate ${link.revokedAt ? "text-gray-600 line-through" : "text-gray-300"}`}
+                className={`min-w-0 flex-1 truncate ${link.revokedAt ? "text-muted-foreground line-through" : "text-foreground"}`}
               >
                 {link.label}
               </span>
-              <span className="shrink-0 type-micro text-gray-500">
+              <span className="shrink-0 type-micro text-muted-foreground">
                 {link.revokedAt
                   ? "revoked"
                   : link.expiresAt
@@ -719,7 +719,7 @@ export function CadCollaborationPalette({
                 data-testid={`cad-review-link-revoke-${link.id}`}
                 disabled={reviewReadOnly || linkBusy || !!link.revokedAt}
                 onClick={() => void revokeLink(link)}
-                className={`${button} text-rose-200`}
+                className={`${button} text-danger-ink`}
               >
                 Revoke
               </button>
@@ -728,10 +728,10 @@ export function CadCollaborationPalette({
         </div>
       </section>
 
-      <section className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+      <section className="mt-3 rounded-card border border-border bg-muted/40 p-2.5">
         <div className="flex justify-between">
-          <strong className="text-gray-100">Audit</strong>
-          <span className="text-gray-500">
+          <strong className="text-foreground">Audit</strong>
+          <span className="text-muted-foreground">
             {collaboration?.audit.length ?? 0} event(s)
           </span>
         </div>
@@ -742,12 +742,12 @@ export function CadCollaborationPalette({
             .map((entry) => (
               <div
                 key={entry.id}
-                className="border-l border-indigo-300/20 pl-2 type-micro"
+                className="border-l border-primary/30 pl-2 type-micro"
               >
-                <div className="text-gray-300">
+                <div className="text-foreground">
                   {entry.action} · {entry.actor}
                 </div>
-                <div className="truncate text-gray-500">{entry.detail}</div>
+                <div className="truncate text-muted-foreground">{entry.detail}</div>
               </div>
             ))}
         </div>
@@ -755,7 +755,7 @@ export function CadCollaborationPalette({
       {message && (
         <div
           data-testid="cad-collaboration-message"
-          className="sticky bottom-2 mt-3 rounded-lg border border-indigo-300/20 bg-gray-950/95 px-2 py-1.5 text-indigo-100 shadow-xl"
+          className="sticky bottom-2 mt-3 rounded-control border border-primary/30 bg-surface/80 px-2 py-1.5 text-primary-ink shadow-xl"
         >
           {message}
         </div>

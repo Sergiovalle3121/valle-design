@@ -126,10 +126,10 @@ const LayerRow = React.memo(function LayerRow({
   return (
     <div
       data-testid={`cad-layer-row-${row.id}`}
-      className={`rounded-lg px-2 py-1 ${
+      className={`rounded-control px-2 py-1 ${
         row.active
-          ? "bg-indigo-400/[0.10] ring-1 ring-indigo-400/20"
-          : "bg-white/[0.04]"
+          ? "bg-primary/15 ring-1 ring-indigo-400/20"
+          : "bg-muted/40"
       }`}
     >
       <div className="flex items-center gap-1.5">
@@ -144,12 +144,12 @@ const LayerRow = React.memo(function LayerRow({
         <button
           data-testid={`cad-layer-active-${row.id}`}
           onClick={() => onActivate(row.id)}
-          className={`min-w-0 flex-1 truncate text-left ${row.visible ? "text-gray-200" : "text-gray-500"}`}
+          className={`min-w-0 flex-1 truncate text-left ${row.visible ? "text-foreground" : "text-muted-foreground"}`}
           title="Definir como capa activa"
         >
           {row.name}
         </button>
-        <span className="rounded bg-white/[0.06] px-1.5 py-0.5 type-micro text-gray-500 dark:text-gray-400">
+        <span className="rounded bg-muted/60 px-1.5 py-0.5 type-micro text-muted-foreground dark:text-muted-foreground">
           {row.objectCount}
         </span>
         <button
@@ -157,7 +157,7 @@ const LayerRow = React.memo(function LayerRow({
           data-state={row.frozen ? "frozen" : "thawed"}
           onClick={() => onToggleFrozen(row.id, !row.frozen)}
           disabled={readOnly}
-          className={`type-micro ${row.frozen ? "text-indigo-300" : "text-gray-600 opacity-60"} hover:opacity-100 disabled:opacity-40`}
+          className={`type-micro ${row.frozen ? "text-primary-ink" : "text-muted-foreground opacity-60"} hover:opacity-100 disabled:opacity-40`}
           title={
             row.frozen
               ? "Descongelar capa"
@@ -170,7 +170,7 @@ const LayerRow = React.memo(function LayerRow({
           data-testid={`cad-layer-lock-${row.id}`}
           onClick={() => onToggleLock(row.id)}
           disabled={readOnly}
-          className={`type-micro ${row.locked ? "text-amber-300" : "text-gray-500"} disabled:opacity-40`}
+          className={`type-micro ${row.locked ? "text-warning-ink" : "text-muted-foreground"} disabled:opacity-40`}
         >
           {row.locked ? "Lock" : "Open"}
         </button>
@@ -183,7 +183,7 @@ const LayerRow = React.memo(function LayerRow({
           defaultValue={row.name}
           onBlur={(event) => onRename(row.id, event.target.value)}
           disabled={readOnly}
-          className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-1.5 py-0.5 type-micro text-gray-200 outline-none focus:ring-1 focus:ring-indigo-500/40 disabled:opacity-50"
+          className="min-w-0 rounded-control border border-border bg-surface/80 px-1.5 py-0.5 type-micro text-foreground outline-none focus:ring-1 focus:ring-indigo-500/40 disabled:opacity-50"
           title="Renombrar capa del documento"
         />
         <input
@@ -192,7 +192,7 @@ const LayerRow = React.memo(function LayerRow({
           value={row.color}
           onChange={(event) => onColor(row.id, event.target.value)}
           disabled={readOnly}
-          className="h-6 w-7 rounded border border-white/10 bg-transparent p-0 disabled:opacity-50"
+          className="h-6 w-7 rounded border border-border bg-transparent p-0 disabled:opacity-50"
           title="Color de capa"
         />
       </div>
@@ -207,7 +207,7 @@ const LayerRow = React.memo(function LayerRow({
           }
           onChange={(event) => onLinetype(row.id, event.target.value)}
           disabled={readOnly}
-          className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-1 py-0.5 type-micro text-gray-200 outline-none disabled:opacity-50"
+          className="min-w-0 rounded-control border border-border bg-surface/80 px-1 py-0.5 type-micro text-foreground outline-none disabled:opacity-50"
           title="Tipo de línea"
         >
           {CAD_LINETYPE_NAMES.map((name) => (
@@ -221,7 +221,7 @@ const LayerRow = React.memo(function LayerRow({
           value={row.lineweight}
           onChange={(event) => onLineweight(row.id, Number(event.target.value))}
           disabled={readOnly}
-          className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-1 py-0.5 type-micro text-gray-200 outline-none disabled:opacity-50"
+          className="min-w-0 rounded-control border border-border bg-surface/80 px-1 py-0.5 type-micro text-foreground outline-none disabled:opacity-50"
           title="Grosor de línea"
         >
           {CAD_LINEWEIGHTS.map((value) => (
@@ -235,7 +235,7 @@ const LayerRow = React.memo(function LayerRow({
           data-active={row.plot ? "true" : "false"}
           onClick={() => onPlot(row.id, !row.plot)}
           disabled={readOnly}
-          className={`type-micro ${row.plot ? "text-emerald-300" : "text-gray-500 line-through"} disabled:opacity-40`}
+          className={`type-micro ${row.plot ? "text-success-ink" : "text-muted-foreground line-through"} disabled:opacity-40`}
           title={row.plot ? "Se imprime" : "No se imprime"}
         >
           Plot
@@ -247,7 +247,7 @@ const LayerRow = React.memo(function LayerRow({
           <span
             data-testid={`cad-layer-vpfreeze-${row.id}`}
             data-state="unavailable"
-            className="text-gray-600"
+            className="text-muted-foreground"
             title="Sólo en una presentación con viewport activo"
           >
             VP freeze —
@@ -262,8 +262,8 @@ const LayerRow = React.memo(function LayerRow({
             disabled={readOnly}
             className={
               row.frozenInViewport
-                ? "text-indigo-300 hover:text-indigo-100 disabled:opacity-40"
-                : "text-gray-500 hover:text-white disabled:opacity-40"
+                ? "text-primary-ink hover:text-primary-ink disabled:opacity-40"
+                : "text-muted-foreground hover:text-foreground disabled:opacity-40"
             }
             title="Congelar sólo en el viewport activo"
           >
@@ -273,21 +273,21 @@ const LayerRow = React.memo(function LayerRow({
         <div className="inline-flex items-center gap-2">
           <button
             onClick={() => onSelectObjects(row.id)}
-            className="text-gray-500 hover:text-white dark:text-gray-400"
+            className="text-muted-foreground hover:text-foreground dark:text-muted-foreground"
           >
             Sel
           </button>
           <button
             onClick={() => onIsolate(row.id)}
             disabled={readOnly}
-            className="text-gray-500 hover:text-white disabled:opacity-40 dark:text-gray-400"
+            className="text-muted-foreground hover:text-foreground disabled:opacity-40 dark:text-muted-foreground"
           >
             Solo
           </button>
           <button
             onClick={() => onAssignSelection(row.id)}
             disabled={readOnly}
-            className="text-indigo-300 hover:text-indigo-100 disabled:opacity-40"
+            className="text-primary-ink hover:text-primary-ink disabled:opacity-40"
           >
             Asignar
           </button>
@@ -296,7 +296,7 @@ const LayerRow = React.memo(function LayerRow({
               data-testid={`cad-layer-delete-${row.id}`}
               onClick={() => onDelete(row.id)}
               disabled={readOnly || !deletable}
-              className="text-rose-300/80 hover:text-rose-200 disabled:opacity-40"
+              className="text-danger-ink/80 hover:text-danger-ink disabled:opacity-40"
             >
               Borrar
             </button>
@@ -316,18 +316,18 @@ export const CadLayerManagerPalette = React.memo(
     return (
       <div data-testid="cad-layer-properties">
         <div className="mb-1.5 flex items-center justify-between gap-2">
-          <div className="type-micro uppercase tracking-wide text-gray-500">
+          <div className="type-micro uppercase tracking-wide text-muted-foreground">
             Capas CAD
           </div>
           <div
             data-testid="cad-layer-visible-count"
-            className="type-micro text-gray-500"
+            className="type-micro text-muted-foreground"
           >
             {rows.length}/{totalRows} listadas
           </div>
         </div>
 
-        <div className="mb-2 grid grid-cols-[1fr_auto_auto] gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] p-1.5">
+        <div className="mb-2 grid grid-cols-[1fr_auto_auto] gap-1.5 rounded-control border border-border bg-muted/40 p-1.5">
           <input
             data-testid="cad-layer-new-name"
             value={props.draftName}
@@ -340,7 +340,7 @@ export const CadLayerManagerPalette = React.memo(
             }}
             disabled={readOnly}
             placeholder="Nueva capa"
-            className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-2 py-1 type-micro text-gray-200 outline-none focus:ring-1 focus:ring-indigo-500/40 disabled:opacity-50"
+            className="min-w-0 rounded-control border border-border bg-surface/80 px-2 py-1 type-micro text-foreground outline-none focus:ring-1 focus:ring-indigo-500/40 disabled:opacity-50"
           />
           <input
             data-testid="cad-layer-new-color"
@@ -348,14 +348,14 @@ export const CadLayerManagerPalette = React.memo(
             value={props.draftColor}
             onChange={(event) => props.onDraftColor(event.target.value)}
             disabled={readOnly}
-            className="h-7 w-8 rounded border border-white/10 bg-transparent p-0 disabled:opacity-50"
+            className="h-7 w-8 rounded border border-border bg-transparent p-0 disabled:opacity-50"
             title="Color de la nueva capa"
           />
           <button
             data-testid="cad-layer-create"
             onClick={props.onCreate}
             disabled={readOnly || !props.draftName.trim()}
-            className="rounded-md bg-indigo-500/15 px-2 type-micro font-semibold text-indigo-200 hover:bg-indigo-500/25 disabled:opacity-40"
+            className="rounded-control bg-primary/15 px-2 type-micro font-semibold text-primary-ink hover:bg-primary/15 disabled:opacity-40"
           >
             Crear
           </button>
@@ -367,7 +367,7 @@ export const CadLayerManagerPalette = React.memo(
             value={filter.text}
             onChange={(event) => props.onFilterText(event.target.value)}
             placeholder="Filtrar por nombre"
-            className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-2 py-1 type-micro text-gray-200 outline-none focus:ring-1 focus:ring-indigo-500/40"
+            className="min-w-0 rounded-control border border-border bg-surface/80 px-2 py-1 type-micro text-foreground outline-none focus:ring-1 focus:ring-indigo-500/40"
           />
           <select
             data-testid="cad-layer-filter-property"
@@ -377,7 +377,7 @@ export const CadLayerManagerPalette = React.memo(
                 event.target.value as CadLayerFilterProperty,
               )
             }
-            className="rounded-md border border-white/10 bg-gray-950/70 px-1 py-1 type-micro text-gray-200 outline-none"
+            className="rounded-control border border-border bg-surface/80 px-1 py-1 type-micro text-foreground outline-none"
           >
             {FILTER_ORDER.map((property) => (
               <option key={property} value={property} className="text-gray-900">
@@ -388,12 +388,12 @@ export const CadLayerManagerPalette = React.memo(
         </div>
 
         {filtering && (
-          <div className="mb-2 flex items-center justify-between gap-2 rounded-md bg-amber-400/[0.07] px-2 py-1 type-micro text-amber-200">
+          <div className="mb-2 flex items-center justify-between gap-2 rounded-control bg-warning/15 px-2 py-1 type-micro text-warning-ink">
             <span>El filtro oculta {totalRows - rows.length} capa(s).</span>
             <button
               data-testid="cad-layer-filter-clear"
               onClick={props.onClearFilter}
-              className="hover:text-white"
+              className="hover:text-foreground"
             >
               Quitar filtro
             </button>
@@ -401,7 +401,7 @@ export const CadLayerManagerPalette = React.memo(
         )}
 
         <div
-          className="mb-2 px-0.5 type-micro text-gray-500"
+          className="mb-2 px-0.5 type-micro text-muted-foreground"
           data-testid="cad-layer-viewport-scope"
         >
           {activeViewportName
@@ -433,13 +433,13 @@ export const CadLayerManagerPalette = React.memo(
             />
           ))}
           {rows.length === 0 && (
-            <div className="rounded-lg border border-dashed border-white/10 px-2 py-3 text-center type-micro text-gray-500">
+            <div className="rounded-control border border-dashed border-border px-2 py-3 text-center type-micro text-muted-foreground">
               Ninguna capa coincide con el filtro.
             </div>
           )}
         </div>
 
-        <div className="mt-1 flex items-center justify-between gap-2 type-micro text-gray-500">
+        <div className="mt-1 flex items-center justify-between gap-2 type-micro text-muted-foreground">
           <span>
             {props.summary.assigned} asignados · {props.summary.hiddenObjects}{" "}
             ocultos · {props.summary.lockedObjects} bloqueados
@@ -448,7 +448,7 @@ export const CadLayerManagerPalette = React.memo(
             <button
               data-testid="cad-layer-show-all"
               onClick={props.onShowAll}
-              className="text-gray-500 hover:text-white dark:text-gray-400"
+              className="text-muted-foreground hover:text-foreground dark:text-muted-foreground"
             >
               All
             </button>
@@ -456,7 +456,7 @@ export const CadLayerManagerPalette = React.memo(
               data-testid="cad-layer-hide-empty"
               onClick={props.onHideEmpty}
               disabled={readOnly}
-              className="text-gray-500 hover:text-white disabled:opacity-40 dark:text-gray-400"
+              className="text-muted-foreground hover:text-foreground disabled:opacity-40 dark:text-muted-foreground"
               title="Ocultar capas sin objetos"
             >
               Ocultar 0
@@ -464,7 +464,7 @@ export const CadLayerManagerPalette = React.memo(
             <button
               data-testid="cad-layer-unlock-all"
               onClick={props.onUnlockAll}
-              className="text-gray-500 hover:text-white dark:text-gray-400"
+              className="text-muted-foreground hover:text-foreground dark:text-muted-foreground"
               title="Desbloquear todas las capas"
             >
               Unlock
@@ -472,21 +472,21 @@ export const CadLayerManagerPalette = React.memo(
             <button
               data-testid="cad-layer-reset"
               onClick={props.onResetPresentation}
-              className="text-gray-500 hover:text-white dark:text-gray-400"
+              className="text-muted-foreground hover:text-foreground dark:text-muted-foreground"
             >
               Reset
             </button>
           </div>
         </div>
         {props.summary.hiddenObjects > 0 && (
-          <div className="mt-1 rounded-lg border border-amber-400/15 bg-amber-400/[0.06] px-2 py-1 type-micro text-amber-100">
+          <div className="mt-1 rounded-control border border-warning/30 bg-warning/15 px-2 py-1 type-micro text-warning-ink">
             {props.summary.hiddenObjects} objeto(s) ocultos por capas CAD. Usa
             All para recuperar la vista completa.
           </div>
         )}
 
-        <section className="mt-2 rounded-lg border border-white/10 bg-white/[0.03] p-1.5">
-          <div className="mb-1 type-micro uppercase tracking-wide text-gray-500">
+        <section className="mt-2 rounded-control border border-border bg-muted/40 p-1.5">
+          <div className="mb-1 type-micro uppercase tracking-wide text-muted-foreground">
             Estados de capa
           </div>
           <div className="grid grid-cols-[1fr_auto] gap-1.5">
@@ -495,13 +495,13 @@ export const CadLayerManagerPalette = React.memo(
               value={props.draftStateName}
               onChange={(event) => props.onDraftStateName(event.target.value)}
               placeholder="Nombre del estado"
-              className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-2 py-1 type-micro text-gray-200 outline-none focus:ring-1 focus:ring-indigo-500/40"
+              className="min-w-0 rounded-control border border-border bg-surface/80 px-2 py-1 type-micro text-foreground outline-none focus:ring-1 focus:ring-indigo-500/40"
             />
             <button
               data-testid="cad-layer-state-save"
               onClick={props.onSaveState}
               disabled={!props.draftStateName.trim()}
-              className="rounded-md bg-white/[0.06] px-2 type-micro text-gray-200 hover:bg-white/[0.12] disabled:opacity-40"
+              className="rounded-control bg-muted/60 px-2 type-micro text-foreground hover:bg-muted disabled:opacity-40"
             >
               Guardar
             </button>
@@ -511,7 +511,7 @@ export const CadLayerManagerPalette = React.memo(
               <div
                 key={state.name}
                 data-testid={`cad-layer-state-${state.name}`}
-                className="flex items-center justify-between gap-2 rounded bg-white/[0.04] px-2 py-1 type-micro text-gray-300"
+                className="flex items-center justify-between gap-2 rounded bg-muted/40 px-2 py-1 type-micro text-foreground"
               >
                 <span className="min-w-0 truncate">{state.name}</span>
                 <span className="inline-flex items-center gap-2">
@@ -519,14 +519,14 @@ export const CadLayerManagerPalette = React.memo(
                     data-testid={`cad-layer-state-restore-${state.name}`}
                     onClick={() => props.onRestoreState(state.name)}
                     disabled={readOnly}
-                    className="text-indigo-300 hover:text-indigo-100 disabled:opacity-40"
+                    className="text-primary-ink hover:text-primary-ink disabled:opacity-40"
                   >
                     Restaurar
                   </button>
                   <button
                     data-testid={`cad-layer-state-delete-${state.name}`}
                     onClick={() => props.onDeleteState(state.name)}
-                    className="text-rose-300/80 hover:text-rose-200"
+                    className="text-danger-ink/80 hover:text-danger-ink"
                   >
                     Borrar
                   </button>
@@ -534,7 +534,7 @@ export const CadLayerManagerPalette = React.memo(
               </div>
             ))}
             {states.length === 0 && (
-              <div className="px-1 type-micro text-gray-500">
+              <div className="px-1 type-micro text-muted-foreground">
                 Sin estados guardados. Viven en el documento: sobreviven a la
                 recarga y viajan con el plano.
               </div>

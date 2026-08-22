@@ -61,7 +61,7 @@ function CadExactPrintPreview({ sheet }: { sheet: CadPublishSheet }) {
   return (
     <div
       data-testid="cad-exact-print-preview"
-      className="rounded-xl border border-white/10 bg-slate-200 p-2"
+      className="rounded-card border border-border bg-slate-200 p-2"
     >
       <svg
         viewBox={`0 0 ${sheet.width} ${sheet.height}`}
@@ -274,16 +274,16 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
   return (
     <section
       data-testid="cad-layout-manager"
-      className="col-span-full mt-2 space-y-3 border-t border-white/10 pt-3"
+      className="col-span-full mt-2 space-y-3 border-t border-border pt-3"
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="mr-auto type-micro font-semibold uppercase tracking-[0.15em] text-indigo-200">
+        <span className="mr-auto type-micro font-semibold uppercase tracking-[0.15em] text-primary-ink">
           Viewports · {space.viewports?.length ?? 0}
         </span>
         <button
           data-testid="cad-viewport-add"
           onClick={props.onAdd}
-          className="inline-flex items-center gap-1 rounded-lg bg-indigo-600 px-2 py-1 type-micro font-semibold text-white hover:bg-indigo-500"
+          className="inline-flex items-center gap-1 rounded-control bg-indigo-600 px-2 py-1 type-micro font-semibold text-foreground hover:bg-indigo-500"
         >
           <Plus className="h-3 w-3" />
           Viewport
@@ -291,7 +291,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
         <button
           disabled={!active}
           onClick={() => active && props.onDuplicate(active.id)}
-          className="inline-flex items-center gap-1 rounded-lg border border-white/10 px-2 py-1 type-micro disabled:opacity-35"
+          className="inline-flex items-center gap-1 rounded-control border border-border px-2 py-1 type-micro disabled:opacity-35"
         >
           <Copy className="h-3 w-3" />
           Duplicar
@@ -299,7 +299,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
         <button
           disabled={!active}
           onClick={() => active && props.onDelete(active.id)}
-          className="inline-flex items-center gap-1 rounded-lg border border-rose-300/20 px-2 py-1 type-micro text-rose-200 disabled:opacity-35"
+          className="inline-flex items-center gap-1 rounded-control border border-danger/30 px-2 py-1 type-micro text-danger-ink disabled:opacity-35"
         >
           <Trash2 className="h-3 w-3" />
           Eliminar
@@ -325,7 +325,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
                   data-testid={`cad-paper-viewport-${viewport.id}`}
                   onClick={() => props.onActivate(viewport.id)}
                   onPointerDown={(event) => beginDrag(event, viewport, "move")}
-                  className={`absolute overflow-hidden border-2 text-left type-micro ${active?.id === viewport.id ? "z-10 border-indigo-500 bg-indigo-100/20 text-indigo-950" : "border-slate-500 bg-slate-100/15 text-slate-700"}`}
+                  className={`absolute overflow-hidden border-2 text-left type-micro ${active?.id === viewport.id ? "z-10 border-indigo-500 bg-indigo-100/20 text-indigo-950" : "border-slate-500 bg-slate-100/15 text-foreground"}`}
                   style={{
                     left: `${(bounds.x / space.page.width) * 100}%`,
                     top: `${(bounds.y / space.page.height) * 100}%`,
@@ -349,7 +349,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
                 </button>
               );
             })}
-            <div className="pointer-events-none absolute inset-x-[2%] bottom-[2%] h-[10%] border border-slate-600 type-micro text-slate-600">
+            <div className="pointer-events-none absolute inset-x-[2%] bottom-[2%] h-[10%] border border-slate-600 type-micro text-foreground">
               TITLE BLOCK
             </div>
           </div>
@@ -358,7 +358,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
               <button
                 key={viewport.id}
                 onClick={() => props.onActivate(viewport.id)}
-                className={`rounded-full border px-2 py-0.5 type-micro ${active?.id === viewport.id ? "border-indigo-300/50 bg-indigo-400/15 text-indigo-100" : "border-white/10 text-gray-400"}`}
+                className={`rounded-full border px-2 py-0.5 type-micro ${active?.id === viewport.id ? "border-primary/30 bg-primary/15 text-primary-ink" : "border-border text-muted-foreground"}`}
               >
                 {viewport.name ?? viewport.id}
               </button>
@@ -367,7 +367,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
         </div>
 
         {active ? (
-          <div className="space-y-2 rounded-xl border border-white/10 bg-gray-950/45 p-2.5">
+          <div className="space-y-2 rounded-card border border-border bg-surface/80 p-2.5">
             <div className="flex items-center gap-2">
               <input
                 data-testid="cad-viewport-name"
@@ -382,7 +382,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
                     "Renombrar viewport",
                   )
                 }
-                className="min-w-0 flex-1 rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-micro text-white"
+                className="min-w-0 flex-1 rounded-control border border-border bg-surface/80 px-2 py-1.5 type-micro text-foreground"
               />
               <button
                 data-testid="cad-viewport-lock"
@@ -395,7 +395,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
                       : "Bloquear viewport",
                   )
                 }
-                className={`rounded-lg p-1.5 ${active.locked ? "bg-emerald-400/10 text-emerald-200" : "bg-amber-400/10 text-amber-200"}`}
+                className={`rounded-control p-1.5 ${active.locked ? "bg-success/15 text-success-ink" : "bg-warning/15 text-warning-ink"}`}
               >
                 {active.locked ? (
                   <Lock className="h-3.5 w-3.5" />
@@ -408,7 +408,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
               {(["x", "y", "width", "height"] as const).map((field) => (
                 <label
                   key={`paper-${field}`}
-                  className="type-micro text-gray-500"
+                  className="type-micro text-muted-foreground"
                 >
                   Paper {field}
                   <input
@@ -423,7 +423,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
                         Number(event.target.value),
                       )
                     }
-                    className="mt-0.5 w-full rounded border border-white/10 bg-gray-950/70 px-1 py-1 type-micro text-white disabled:opacity-40"
+                    className="mt-0.5 w-full rounded border border-border bg-surface/80 px-1 py-1 type-micro text-foreground disabled:opacity-40"
                   />
                 </label>
               ))}
@@ -432,7 +432,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
               {(["x", "y", "width", "height"] as const).map((field) => (
                 <label
                   key={`model-${field}`}
-                  className="type-micro text-gray-500"
+                  className="type-micro text-muted-foreground"
                 >
                   Model {field}
                   <input
@@ -447,13 +447,13 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
                         Number(event.target.value),
                       )
                     }
-                    className="mt-0.5 w-full rounded border border-white/10 bg-gray-950/70 px-1 py-1 type-micro text-white disabled:opacity-40"
+                    className="mt-0.5 w-full rounded border border-border bg-surface/80 px-1 py-1 type-micro text-foreground disabled:opacity-40"
                   />
                 </label>
               ))}
             </div>
             <div className="grid grid-cols-3 gap-1.5">
-              <label className="type-micro text-gray-500">
+              <label className="type-micro text-muted-foreground">
                 Standard scale
                 <select
                   data-testid="cad-viewport-scale"
@@ -476,7 +476,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
                       "Escala estándar",
                     )
                   }
-                  className="mt-0.5 w-full rounded border border-white/10 bg-gray-950/70 px-1 py-1 type-micro text-white disabled:opacity-40"
+                  className="mt-0.5 w-full rounded border border-border bg-surface/80 px-1 py-1 type-micro text-foreground disabled:opacity-40"
                 >
                   <option value="custom">Custom</option>
                   {CAD_SHEET_SCALES.map((scale) => (
@@ -486,7 +486,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
                   ))}
                 </select>
               </label>
-              <label className="type-micro text-gray-500">
+              <label className="type-micro text-muted-foreground">
                 Custom scale
                 <input
                   data-testid="cad-viewport-custom-scale"
@@ -505,10 +505,10 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
                       "Escala personalizada",
                     )
                   }
-                  className="mt-0.5 w-full rounded border border-white/10 bg-gray-950/70 px-1 py-1 type-micro text-white disabled:opacity-40"
+                  className="mt-0.5 w-full rounded border border-border bg-surface/80 px-1 py-1 type-micro text-foreground disabled:opacity-40"
                 />
               </label>
-              <label className="type-micro text-gray-500">
+              <label className="type-micro text-muted-foreground">
                 Annotation scale
                 <input
                   data-testid="cad-viewport-annotation-scale"
@@ -526,11 +526,11 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
                       "Escala anotativa",
                     )
                   }
-                  className="mt-0.5 w-full rounded border border-white/10 bg-gray-950/70 px-1 py-1 type-micro text-white"
+                  className="mt-0.5 w-full rounded border border-border bg-surface/80 px-1 py-1 type-micro text-foreground"
                 />
               </label>
             </div>
-            <label className="block type-micro text-gray-500">
+            <label className="block type-micro text-muted-foreground">
               Named view
               <input
                 data-testid="cad-viewport-named-view"
@@ -545,17 +545,17 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
                     "Vista nombrada",
                   )
                 }
-                className="mt-0.5 w-full rounded border border-white/10 bg-gray-950/70 px-2 py-1 type-micro text-white"
+                className="mt-0.5 w-full rounded border border-border bg-surface/80 px-2 py-1 type-micro text-foreground"
               />
             </label>
-            <div className="max-h-36 space-y-1 overflow-y-auto border-t border-white/10 pt-2">
+            <div className="max-h-36 space-y-1 overflow-y-auto border-t border-border pt-2">
               {props.layers.map((layer) => {
                 const visible = active.layerVisibility?.[layer.id] !== false;
                 const override = active.layerOverrides?.[layer.id];
                 return (
                   <div
                     key={layer.id}
-                    className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-1.5 rounded bg-white/[0.03] px-1.5 py-1 type-micro"
+                    className="grid grid-cols-[1fr_auto_auto_auto] items-center gap-1.5 rounded bg-muted/40 px-1.5 py-1 type-micro"
                   >
                     <label className="flex min-w-0 items-center gap-1.5">
                       <input
@@ -599,13 +599,13 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
                             : undefined,
                         })
                       }
-                      className="w-11 rounded border border-white/10 bg-gray-950 px-1 py-0.5 type-micro"
+                      className="w-11 rounded border border-border bg-surface px-1 py-0.5 type-micro"
                     />
                     <button
                       onClick={() =>
                         props.onLayerOverride(active.id, layer.id, null)
                       }
-                      className="text-gray-500 hover:text-white"
+                      className="text-muted-foreground hover:text-foreground"
                     >
                       Reset
                     </button>
@@ -615,29 +615,29 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
             </div>
           </div>
         ) : (
-          <div className="grid place-items-center rounded-xl border border-dashed border-white/10 type-micro text-gray-500">
+          <div className="grid place-items-center rounded-card border border-dashed border-border type-micro text-muted-foreground">
             Add a viewport to begin.
           </div>
         )}
       </div>
 
-      <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-2">
+      <div className="flex items-center gap-2 rounded-card border border-border bg-muted/40 p-2">
         <button
           data-testid="cad-layout-preview-build"
           onClick={props.onRequestPreview}
-          className="inline-flex items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 type-micro font-semibold text-gray-900"
+          className="inline-flex items-center gap-1 rounded-control bg-white px-2.5 py-1.5 type-micro font-semibold text-gray-900"
         >
           <Eye className="h-3.5 w-3.5" />
           Exact print preview
         </button>
         <span
-          className={`type-micro ${props.preflight.some((issue) => issue.severity === "error") ? "text-rose-200" : props.preflight.length ? "text-amber-200" : "text-emerald-200"}`}
+          className={`type-micro ${props.preflight.some((issue) => issue.severity === "error") ? "text-danger-ink" : props.preflight.length ? "text-warning-ink" : "text-success-ink"}`}
         >
           {props.preflight.length
             ? `${props.preflight.length} preflight issue(s)`
             : "Preflight ready"}
         </span>
-        <span className="ml-auto type-micro text-gray-500">
+        <span className="ml-auto type-micro text-muted-foreground">
           Drag unlocked viewports; use the lower-right grip to resize.
         </span>
       </div>
@@ -649,7 +649,7 @@ export function CadLayoutManager(props: CadLayoutManagerProps) {
           {props.preflight.map((issue, index) => (
             <div
               key={`${issue.code}:${issue.viewportId ?? index}`}
-              className={`rounded-lg border px-2 py-1 type-micro ${issue.severity === "error" ? "border-rose-300/20 bg-rose-400/[0.07] text-rose-100" : "border-amber-300/20 bg-amber-400/[0.07] text-amber-100"}`}
+              className={`rounded-control border px-2 py-1 type-micro ${issue.severity === "error" ? "border-danger/30 bg-danger/15 text-rose-100" : "border-warning/30 bg-warning/15 text-warning-ink"}`}
             >
               {issue.code}: {issue.detail}
             </div>

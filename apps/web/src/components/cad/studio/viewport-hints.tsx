@@ -37,7 +37,7 @@ export function CadViewportPrompt({ kind, live, snapLabelRef }: CadViewportPromp
   return (
     <div
       data-testid="cad-live-prompt"
-      className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-amber-400/95 text-gray-900 type-caption font-semibold inline-flex items-center gap-1.5 pointer-events-none"
+      className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-warning/15 text-gray-900 type-caption font-semibold inline-flex items-center gap-1.5 pointer-events-none"
     >
       {kind === "measure" ? (
         <Ruler className="w-3.5 h-3.5" />
@@ -88,7 +88,7 @@ export function CadOverlayLegends({ heat, gaps }: CadOverlayLegendsProps) {
   return (
     <>
       {heat && (
-        <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-gray-900/80 backdrop-blur border border-white/10 type-micro text-gray-300 inline-flex items-center gap-2 pointer-events-none">
+        <div className="absolute bottom-3 left-3 px-3 py-1.5 rounded-card bg-surface/90 backdrop-blur border border-border type-micro text-foreground inline-flex items-center gap-2 pointer-events-none">
           <Grid2x2 className="w-3.5 h-3.5" /> Ocupación del piso
           <span className="inline-flex items-center gap-1">
             menos
@@ -105,7 +105,7 @@ export function CadOverlayLegends({ heat, gaps }: CadOverlayLegendsProps) {
       )}
       {gaps && (
         <div
-          className="absolute bottom-3 left-3 px-3 py-1.5 rounded-xl bg-gray-900/80 backdrop-blur border border-white/10 type-micro text-gray-300 inline-flex items-center gap-3 pointer-events-none"
+          className="absolute bottom-3 left-3 px-3 py-1.5 rounded-card bg-surface/90 backdrop-blur border border-border type-micro text-foreground inline-flex items-center gap-3 pointer-events-none"
           style={{ bottom: heat ? "3.25rem" : undefined }}
         >
           <ShieldAlert className="w-3.5 h-3.5" /> Holguras
@@ -132,7 +132,7 @@ export function CadOverlayLegends({ heat, gaps }: CadOverlayLegendsProps) {
 /** Aviso inferior: qué se puede hacer con el ratón en este modo. */
 export function CadViewportHint({ kind }: CadViewportHintProps) {
   return (
-    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-gray-900/80 backdrop-blur border border-white/10 type-micro text-gray-300 inline-flex items-center gap-2 pointer-events-none">
+    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-surface/90 backdrop-blur border border-border type-micro text-foreground inline-flex items-center gap-2 pointer-events-none">
       <Move3d className="w-3.5 h-3.5" />
       {HINTS[kind]}
     </div>

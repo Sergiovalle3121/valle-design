@@ -248,9 +248,9 @@ export default function ReviewPlanView({
           style={{ transform: `translate3d(${placement.x}px, ${placement.y}px, 0)` }}
           className={`absolute left-0 top-0 -ml-3 -mt-3 flex h-6 w-6 items-center justify-center rounded-full border type-micro font-bold shadow-lg ${
             placement.resolved
-              ? "border-emerald-200/60 bg-emerald-500/85 text-gray-950"
+              ? "border-emerald-200/60 bg-success/15 text-gray-950"
               : "border-amber-200/70 bg-amber-400 text-gray-950"
-          } ${placement.offscreen ? "opacity-70 ring-2 ring-white/30" : ""} ${
+          } ${placement.offscreen ? "opacity-70 ring-2 ring-ring" : ""} ${
             activeId === placement.id ? "ring-2 ring-indigo-300" : ""
           }`}
           aria-label={`Comentario ${placement.ordinal}`}
@@ -263,7 +263,7 @@ export default function ReviewPlanView({
         <p
           data-testid="cad-review-truncated"
           role="alert"
-          className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-rose-300/30 bg-gray-950/95 px-3 py-1 type-micro text-rose-100"
+          className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-danger/30 bg-surface/80 px-3 py-1 type-micro text-rose-100"
         >
           Este plano es demasiado grande para la vista de revisión y se muestra
           incompleto. Pide al autor un PDF o una vista más acotada.

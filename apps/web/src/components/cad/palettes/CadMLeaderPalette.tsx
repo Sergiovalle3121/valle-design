@@ -50,14 +50,14 @@ export function CadMLeaderPalette({
       className={
         docked
           ? "w-full p-3 type-micro"
-          : "absolute right-0 top-full z-50 mt-1.5 w-80 rounded-xl border border-indigo-400/20 bg-gray-950 p-3 type-micro shadow-2xl"
+          : "absolute right-0 top-full z-50 mt-1.5 w-80 rounded-card border border-primary/30 bg-surface p-3 type-micro shadow-2xl"
       }
     >
       <div className="mb-2 flex items-center justify-between">
-        <span className="font-semibold text-indigo-100">MLEADER semántico</span>
-        <span className="text-gray-500">{selectedCount} destino(s)</span>
+        <span className="font-semibold text-primary-ink">MLEADER semántico</span>
+        <span className="text-muted-foreground">{selectedCount} destino(s)</span>
       </div>
-      <label className="text-gray-400">
+      <label className="text-muted-foreground">
         Contenido
         <textarea
           data-testid="cad-mleader-content"
@@ -70,11 +70,11 @@ export function CadMLeaderPalette({
           }
           rows={4}
           placeholder="Nota técnica…"
-          className="mt-1 w-full resize-y rounded border border-white/10 bg-black/30 px-2 py-1.5 text-white"
+          className="mt-1 w-full resize-y rounded border border-border bg-black/30 px-2 py-1.5 text-foreground"
         />
       </label>
       <div className="mt-2 grid grid-cols-2 gap-2">
-        <label className="text-gray-400">
+        <label className="text-muted-foreground">
           Tipo
           <select
             value={draft.contentType}
@@ -85,13 +85,13 @@ export function CadMLeaderPalette({
                   .value as CadMLeaderDraft["contentType"],
               }))
             }
-            className="mt-1 w-full rounded border border-white/10 bg-gray-900 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-surface px-2 py-1 text-foreground"
           >
             <option value="mtext">MTEXT</option>
             <option value="text">Text</option>
           </select>
         </label>
-        <label className="text-gray-400">
+        <label className="text-muted-foreground">
           Estilo
           <input
             list="cad-mleader-styles"
@@ -99,7 +99,7 @@ export function CadMLeaderPalette({
             onChange={(event) =>
               setDraft((current) => ({ ...current, style: event.target.value }))
             }
-            className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-black/30 px-2 py-1 text-foreground"
           />
           <datalist id="cad-mleader-styles">
             {styles.map((style) => (
@@ -107,7 +107,7 @@ export function CadMLeaderPalette({
             ))}
           </datalist>
         </label>
-        <label className="text-gray-400">
+        <label className="text-muted-foreground">
           Arrow
           <select
             data-testid="cad-mleader-arrow"
@@ -118,7 +118,7 @@ export function CadMLeaderPalette({
                 arrowhead: event.target.value as CadMLeaderDraft["arrowhead"],
               }))
             }
-            className="mt-1 w-full rounded border border-white/10 bg-gray-900 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-surface px-2 py-1 text-foreground"
           >
             <option value="closed-filled">Closed filled</option>
             <option value="open">Open</option>
@@ -127,7 +127,7 @@ export function CadMLeaderPalette({
             <option value="none">None</option>
           </select>
         </label>
-        <label className="text-gray-400">
+        <label className="text-muted-foreground">
           Arrow size
           <input
             type="number"
@@ -142,10 +142,10 @@ export function CadMLeaderPalette({
                 ),
               }))
             }
-            className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-black/30 px-2 py-1 text-foreground"
           />
         </label>
-        <label className="text-gray-400">
+        <label className="text-muted-foreground">
           Dogleg
           <input
             data-testid="cad-mleader-dogleg"
@@ -161,10 +161,10 @@ export function CadMLeaderPalette({
                 ),
               }))
             }
-            className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-black/30 px-2 py-1 text-foreground"
           />
         </label>
-        <label className="text-gray-400">
+        <label className="text-muted-foreground">
           Alineación
           <select
             value={draft.textAlignment}
@@ -175,14 +175,14 @@ export function CadMLeaderPalette({
                   .value as CadMLeaderDraft["textAlignment"],
               }))
             }
-            className="mt-1 w-full rounded border border-white/10 bg-gray-900 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-surface px-2 py-1 text-foreground"
           >
             {["left", "center", "right", "justify"].map((value) => (
               <option key={value}>{value}</option>
             ))}
           </select>
         </label>
-        <label className="text-gray-400">
+        <label className="text-muted-foreground">
           Text width
           <input
             type="number"
@@ -197,10 +197,10 @@ export function CadMLeaderPalette({
                 ),
               }))
             }
-            className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-black/30 px-2 py-1 text-foreground"
           />
         </label>
-        <label className="text-gray-400">
+        <label className="text-muted-foreground">
           Text height
           <input
             type="number"
@@ -215,12 +215,12 @@ export function CadMLeaderPalette({
                 ),
               }))
             }
-            className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-black/30 px-2 py-1 text-foreground"
           />
         </label>
       </div>
       <div className="mt-2 flex gap-4">
-        <label className="flex items-center gap-2 text-gray-300">
+        <label className="flex items-center gap-2 text-foreground">
           <input
             type="checkbox"
             checked={draft.landing}
@@ -234,7 +234,7 @@ export function CadMLeaderPalette({
           />{" "}
           Landing
         </label>
-        <label className="flex items-center gap-2 text-gray-300">
+        <label className="flex items-center gap-2 text-foreground">
           <input
             type="checkbox"
             checked={draft.backgroundMask}
@@ -253,11 +253,11 @@ export function CadMLeaderPalette({
         data-testid="cad-mleader-create"
         disabled={selectedCount < 1 || !draft.text.trim()}
         onClick={() => onCreate(draft)}
-        className="mt-3 w-full rounded-lg bg-indigo-500 px-3 py-1.5 font-semibold text-gray-950 disabled:opacity-40"
+        className="mt-3 w-full rounded-control bg-indigo-500 px-3 py-1.5 font-semibold text-gray-950 disabled:opacity-40"
       >
         Crear MLEADER ({selectedCount} línea{selectedCount === 1 ? "" : "s"})
       </button>
-      <div className="mt-2 type-micro leading-relaxed text-gray-500">
+      <div className="mt-2 type-micro leading-relaxed text-muted-foreground">
         Una entidad, selección unitaria y una línea asociativa por cada destino
         seleccionado.
       </div>

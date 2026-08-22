@@ -51,11 +51,11 @@ function Field({
   const testId = `cad-style-field-${row.name}-${field.key}`;
   const inherited = !row.explicit.includes(field.key);
   const label = (
-    <span className="type-micro text-gray-500">
+    <span className="type-micro text-muted-foreground">
       {field.label}
       {inherited && (
         <span
-          className="ml-1 type-micro text-gray-600"
+          className="ml-1 type-micro text-muted-foreground"
           title="Valor de fábrica"
         >
           (por defecto)
@@ -66,7 +66,7 @@ function Field({
 
   if (field.kind === "boolean")
     return (
-      <label className="flex items-center justify-between gap-2 rounded-md border border-white/10 bg-gray-950/60 px-2 py-1.5">
+      <label className="flex items-center justify-between gap-2 rounded-control border border-border bg-surface/80 px-2 py-1.5">
         {label}
         <input
           type="checkbox"
@@ -90,7 +90,7 @@ function Field({
           value={String(row.values[field.key])}
           disabled={readOnly}
           onChange={(event) => onEdit(row.name, field.key, event.target.value)}
-          className="mt-0.5 w-full rounded-md border border-white/10 bg-gray-950/70 px-1.5 py-1 type-micro text-gray-100 outline-none disabled:opacity-50"
+          className="mt-0.5 w-full rounded-control border border-border bg-surface/80 px-1.5 py-1 type-micro text-foreground outline-none disabled:opacity-50"
         >
           {(field.options ?? []).map((option) => (
             <option key={option} value={option} className="text-gray-900">
@@ -122,7 +122,7 @@ function Field({
           }
           onEdit(row.name, field.key, raw);
         }}
-        className="mt-0.5 w-full rounded-md border border-white/10 bg-gray-950/70 px-1.5 py-1 type-micro text-white outline-none focus:ring-1 focus:ring-indigo-500/40 disabled:opacity-50"
+        className="mt-0.5 w-full rounded-control border border-border bg-surface/80 px-1.5 py-1 type-micro text-foreground outline-none focus:ring-1 focus:ring-indigo-500/40 disabled:opacity-50"
       />
     </label>
   );
@@ -139,12 +139,12 @@ export const CadStyleManagerPalette = React.memo(
         role="dialog"
         aria-modal="false"
         aria-label="Gestor de estilos"
-        className="max-h-[80vh] w-[min(560px,92vw)] overflow-y-auto rounded-2xl border border-white/10 bg-gray-900 p-4 text-white shadow-2xl"
+        className="max-h-[80vh] w-[min(560px,92vw)] overflow-y-auto rounded-card border border-border bg-surface p-4 text-foreground shadow-2xl"
       >
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <div className="type-small font-semibold">Gestor de estilos</div>
-            <div className="type-micro text-gray-500">
+            <div className="type-micro text-muted-foreground">
               Un estilo sin campos fijados hereda los de fábrica; sólo lo que
               cambies viaja al documento.
             </div>
@@ -154,7 +154,7 @@ export const CadStyleManagerPalette = React.memo(
             data-testid="cad-style-close"
             aria-label="Cerrar gestor de estilos"
             onClick={props.onClose}
-            className="rounded-lg px-2 py-1 type-micro text-gray-400 hover:bg-white/10 hover:text-white"
+            className="rounded-control px-2 py-1 type-micro text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             Cerrar
           </button>
@@ -170,8 +170,8 @@ export const CadStyleManagerPalette = React.memo(
               onClick={() => props.onFamily(entry.family)}
               className={`rounded-full border px-2.5 py-0.5 type-micro ${
                 entry.family === family
-                  ? "border-indigo-300/50 bg-indigo-400/15 text-indigo-100"
-                  : "border-white/10 text-gray-400 hover:text-white"
+                  ? "border-primary/30 bg-primary/15 text-primary-ink"
+                  : "border-border text-muted-foreground hover:text-foreground"
               }`}
             >
               {entry.label}
@@ -179,7 +179,7 @@ export const CadStyleManagerPalette = React.memo(
           ))}
         </div>
 
-        <div className="mb-3 grid grid-cols-[1fr_auto] gap-1.5 rounded-lg border border-white/10 bg-white/[0.03] p-1.5">
+        <div className="mb-3 grid grid-cols-[1fr_auto] gap-1.5 rounded-control border border-border bg-muted/40 p-1.5">
           <input
             data-testid="cad-style-new-name"
             value={props.draftName}
@@ -192,13 +192,13 @@ export const CadStyleManagerPalette = React.memo(
             }}
             disabled={readOnly}
             placeholder="Nuevo estilo"
-            className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-2 py-1 type-micro text-gray-200 outline-none focus:ring-1 focus:ring-indigo-500/40 disabled:opacity-50"
+            className="min-w-0 rounded-control border border-border bg-surface/80 px-2 py-1 type-micro text-foreground outline-none focus:ring-1 focus:ring-indigo-500/40 disabled:opacity-50"
           />
           <button
             data-testid="cad-style-create"
             onClick={props.onCreate}
             disabled={readOnly || !props.draftName.trim()}
-            className="rounded-md bg-indigo-500/15 px-2.5 type-micro font-semibold text-indigo-200 hover:bg-indigo-500/25 disabled:opacity-40"
+            className="rounded-control bg-primary/15 px-2.5 type-micro font-semibold text-primary-ink hover:bg-primary/15 disabled:opacity-40"
           >
             Crear
           </button>
@@ -211,16 +211,16 @@ export const CadStyleManagerPalette = React.memo(
               <section
                 key={row.name}
                 data-testid={`cad-style-row-${row.name}`}
-                className="rounded-xl border border-white/10 bg-white/[0.04] p-2.5"
+                className="rounded-card border border-border bg-muted/40 p-2.5"
               >
                 <div className="mb-1.5 flex items-center justify-between gap-2">
-                  <span className="min-w-0 truncate type-micro font-semibold text-gray-100">
+                  <span className="min-w-0 truncate type-micro font-semibold text-foreground">
                     {row.name}
                   </span>
                   <span className="inline-flex items-center gap-2 type-micro">
                     <span
                       data-testid={`cad-style-usage-${row.name}`}
-                      className={references ? "text-indigo-200" : "text-gray-500"}
+                      className={references ? "text-primary-ink" : "text-muted-foreground"}
                     >
                       {references} uso(s)
                     </span>
@@ -233,7 +233,7 @@ export const CadStyleManagerPalette = React.memo(
                           ? `Lo usan ${references} entidades de ${usedBy}; reasígnalas antes de borrarlo.`
                           : "Borrar estilo"
                       }
-                      className="text-rose-300/80 hover:text-rose-200 disabled:opacity-40"
+                      className="text-danger-ink/80 hover:text-danger-ink disabled:opacity-40"
                     >
                       Borrar
                     </button>
@@ -254,14 +254,14 @@ export const CadStyleManagerPalette = React.memo(
             );
           })}
           {rows.length === 0 && (
-            <div className="rounded-xl border border-dashed border-white/10 px-2 py-4 text-center type-micro text-gray-500">
+            <div className="rounded-card border border-dashed border-border px-2 py-4 text-center type-micro text-muted-foreground">
               Esta familia no tiene estilos todavía. Crea uno y las entidades de{" "}
               {usedBy} podrán apuntarlo por su nombre.
             </div>
           )}
         </div>
 
-        <p className="mt-3 type-micro text-gray-500">
+        <p className="mt-3 type-micro text-muted-foreground">
           Renombrar no se ofrece: las entidades referencian su estilo POR
           NOMBRE, y cambiarlo sin reasignarlas las dejaría huérfanas. Crea el
           nuevo, mueve las entidades desde la paleta de propiedades y borra el

@@ -63,11 +63,11 @@ export function CadDraftToolbar({
   onClose,
 }: CadDraftToolbarProps) {
   return (
-    <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-full border border-white/10 bg-gray-900/90 px-2 py-1.5 backdrop-blur">
+    <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-full border border-border bg-surface/90 px-2 py-1.5 backdrop-blur">
       <button
         onClick={onToggleOrtho}
         title="Orto: restringe los muros a 0/90/180/270 (como F8 de AutoCAD)"
-        className={`rounded-full px-2 py-0.5 type-micro font-semibold ${orthoLock ? "bg-amber-400 text-gray-900" : "bg-white/[0.08] text-gray-300 hover:bg-white/[0.15]"}`}
+        className={`rounded-full px-2 py-0.5 type-micro font-semibold ${orthoLock ? "bg-amber-400 text-gray-900" : "bg-muted/60 text-foreground hover:bg-muted"}`}
       >
         ORTO
       </button>
@@ -77,7 +77,7 @@ export function CadDraftToolbar({
       {chaining && (
         <button
           onClick={onFinish}
-          className="rounded-lg border border-white/10 px-2 py-1 type-micro text-gray-300 hover:bg-white/10"
+          className="rounded-control border border-border px-2 py-1 type-micro text-foreground hover:bg-muted"
         >
           Terminar
         </button>
@@ -86,7 +86,7 @@ export function CadDraftToolbar({
         <button
           data-testid="cad-polyline-close"
           onClick={onClose}
-          className="rounded-lg border border-indigo-400/20 bg-indigo-400/10 px-2 py-1 type-micro font-semibold text-indigo-100 hover:bg-indigo-400/20"
+          className="rounded-control border border-primary/30 bg-primary/15 px-2 py-1 type-micro font-semibold text-primary-ink hover:bg-primary/15"
         >
           Cerrar
         </button>

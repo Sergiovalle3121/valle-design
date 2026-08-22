@@ -56,7 +56,7 @@ export interface StudioCollaborationLayerProps {
  * orden correcto.
  */
 const DOCK =
-  "fixed right-3 top-24 z-[75] flex max-w-[calc(100vw-1.5rem)] flex-col rounded-xl border border-white/12 bg-[#0b1020]/96 p-2 shadow-2xl backdrop-blur";
+  "fixed right-3 top-24 z-[75] flex max-w-[calc(100vw-1.5rem)] flex-col rounded-card border border-border bg-popover/95 text-popover-foreground p-2 shadow-floating backdrop-blur";
 
 /**
  * El ancho es del CONTENIDO, no del muelle. Plegado sólo hay un título y un
@@ -214,12 +214,12 @@ export default function StudioCollaborationLayer({
       data-testid="cad-collab-dock"
     >
       <div className="flex items-center justify-between gap-2">
-        <strong className="type-micro text-gray-100">Colaboración</strong>
+        <strong className="type-micro text-foreground">Colaboración</strong>
         <button
           type="button"
           data-testid="cad-collab-toggle"
           onClick={() => setCollapsed((value) => !value)}
-          className="rounded-md border border-white/15 px-2 py-0.5 type-micro text-gray-300 hover:border-indigo-300/40 hover:text-indigo-100"
+          className="rounded-control border border-border px-2 py-0.5 type-micro text-foreground hover:border-primary/30 hover:text-primary-ink"
           aria-expanded={!collapsed}
         >
           {collapsed ? "Abrir" : "Ocultar"}
@@ -251,7 +251,7 @@ export default function StudioCollaborationLayer({
       ) : (
         <p
           data-testid="cad-collab-no-permission"
-          className="mt-2 type-micro text-gray-500"
+          className="mt-2 type-micro text-muted-foreground"
         >
           Tu rol no incluye el permiso de revisión (cad:review), así que no
           puedes leer ni escribir comentarios de este documento.

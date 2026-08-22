@@ -78,16 +78,16 @@ function Toggle({
       data-testid={testId}
       data-active={active ? "true" : "false"}
       onClick={onClick}
-      className={`flex items-center justify-between gap-3 rounded-lg border px-2.5 py-1.5 text-left type-micro transition-colors ${
+      className={`flex items-center justify-between gap-3 rounded-control border px-2.5 py-1.5 text-left type-micro transition-colors ${
         active
-          ? "border-indigo-400/40 bg-indigo-400/[0.10] text-indigo-100"
-          : "border-white/10 bg-white/[0.03] text-gray-400 hover:text-white"
+          ? "border-primary/30 bg-primary/15 text-primary-ink"
+          : "border-border bg-muted/40 text-muted-foreground hover:text-foreground"
       }`}
     >
       <span>
         {label}
         {hint && (
-          <span className="ml-1.5 type-micro text-gray-500">{hint}</span>
+          <span className="ml-1.5 type-micro text-muted-foreground">{hint}</span>
         )}
       </span>
       <span className="type-micro font-semibold">{active ? "ON" : "OFF"}</span>
@@ -121,14 +121,14 @@ export const CadDraftSettingsDialog = React.memo(
     return (
       <div
         data-testid="cad-draft-settings"
-        className="w-[min(640px,92vw)] max-h-[80vh] overflow-y-auto rounded-2xl border border-white/10 bg-gray-900 p-4 text-white shadow-2xl"
+        className="w-[min(640px,92vw)] max-h-[80vh] overflow-y-auto rounded-card border border-border bg-surface p-4 text-foreground shadow-2xl"
       >
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
             <div className="type-small font-semibold">
               DSETTINGS · Ayudas al dibujo
             </div>
-            <div className="type-micro text-gray-500">
+            <div className="type-micro text-muted-foreground">
               Captura a objetos, rastreo y rejilla. F3 / F8 / F10 / F11 conmutan
               lo mismo desde el teclado.
             </div>
@@ -138,21 +138,21 @@ export const CadDraftSettingsDialog = React.memo(
             data-testid="cad-draft-settings-close"
             aria-label="Cerrar ayudas al dibujo"
             onClick={onClose}
-            className="rounded-lg px-2 py-1 type-micro text-gray-400 hover:bg-white/10 hover:text-white"
+            className="rounded-control px-2 py-1 type-micro text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             Cerrar
           </button>
         </div>
 
         <div className="grid gap-3 sm:grid-cols-2">
-          <section className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+          <section className="rounded-card border border-border bg-muted/40 p-2.5">
             <div className="mb-2 flex items-center justify-between">
-              <span className="type-micro uppercase tracking-wide text-indigo-200">
+              <span className="type-micro uppercase tracking-wide text-primary-ink">
                 Captura a objetos (OSNAP)
               </span>
               <span
                 data-testid="cad-draft-settings-mode-count"
-                className="type-micro text-gray-500"
+                className="type-micro text-muted-foreground"
               >
                 {activeModes}/{modes.length}
               </span>
@@ -168,8 +168,8 @@ export const CadDraftSettingsDialog = React.memo(
               {modes.map((mode) => (
                 <label
                   key={mode}
-                  className={`flex items-center justify-between gap-2 rounded-md px-2 py-1 type-micro ${
-                    settings.osnap ? "text-gray-300" : "text-gray-600"
+                  className={`flex items-center justify-between gap-2 rounded-control px-2 py-1 type-micro ${
+                    settings.osnap ? "text-foreground" : "text-muted-foreground"
                   }`}
                 >
                   {OSNAP_LABELS[mode] ?? mode}
@@ -190,7 +190,7 @@ export const CadDraftSettingsDialog = React.memo(
                 type="button"
                 data-testid="cad-osnap-all"
                 onClick={() => onAllModes(true)}
-                className="text-gray-400 hover:text-white"
+                className="text-muted-foreground hover:text-foreground"
               >
                 Todos
               </button>
@@ -198,7 +198,7 @@ export const CadDraftSettingsDialog = React.memo(
                 type="button"
                 data-testid="cad-osnap-none"
                 onClick={() => onAllModes(false)}
-                className="text-gray-400 hover:text-white"
+                className="text-muted-foreground hover:text-foreground"
               >
                 Ninguno
               </button>
@@ -206,7 +206,7 @@ export const CadDraftSettingsDialog = React.memo(
                 type="button"
                 data-testid="cad-osnap-reset"
                 onClick={onResetModes}
-                className="text-gray-400 hover:text-white"
+                className="text-muted-foreground hover:text-foreground"
               >
                 Por defecto
               </button>
@@ -214,8 +214,8 @@ export const CadDraftSettingsDialog = React.memo(
           </section>
 
           <div className="space-y-3">
-            <section className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
-              <div className="mb-2 type-micro uppercase tracking-wide text-indigo-200">
+            <section className="rounded-card border border-border bg-muted/40 p-2.5">
+              <div className="mb-2 type-micro uppercase tracking-wide text-primary-ink">
                 Rastreo
               </div>
               <div className="grid gap-1.5">
@@ -233,7 +233,7 @@ export const CadDraftSettingsDialog = React.memo(
                   active={settings.polar}
                   onClick={onTogglePolar}
                 />
-                <label className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 type-micro text-gray-400">
+                <label className="flex items-center justify-between gap-2 rounded-control border border-border bg-muted/40 px-2.5 py-1.5 type-micro text-muted-foreground">
                   Incremento polar
                   <select
                     data-testid="cad-draft-settings-polar-increment"
@@ -241,7 +241,7 @@ export const CadDraftSettingsDialog = React.memo(
                     onChange={(event) =>
                       onPolarIncrement(Number(event.target.value))
                     }
-                    className="rounded bg-gray-950/70 px-1.5 py-0.5 type-micro text-gray-100 outline-none"
+                    className="rounded bg-surface/80 px-1.5 py-0.5 type-micro text-foreground outline-none"
                   >
                     {polarIncrements.map((value) => (
                       <option
@@ -261,7 +261,7 @@ export const CadDraftSettingsDialog = React.memo(
                   active={settings.objectSnapTracking}
                   onClick={onToggleObjectSnapTracking}
                 />
-                <div className="flex items-center justify-between gap-2 px-1 type-micro text-gray-500">
+                <div className="flex items-center justify-between gap-2 px-1 type-micro text-muted-foreground">
                   <span data-testid="cad-draft-settings-tracked">
                     {settings.acquiredTrackingPoints} punto(s) adquirido(s)
                   </span>
@@ -269,7 +269,7 @@ export const CadDraftSettingsDialog = React.memo(
                     type="button"
                     data-testid="cad-draft-settings-clear-tracking"
                     onClick={onClearTracking}
-                    className="text-gray-400 hover:text-white"
+                    className="text-muted-foreground hover:text-foreground"
                   >
                     Limpiar
                   </button>
@@ -277,8 +277,8 @@ export const CadDraftSettingsDialog = React.memo(
               </div>
             </section>
 
-            <section className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
-              <div className="mb-2 type-micro uppercase tracking-wide text-indigo-200">
+            <section className="rounded-card border border-border bg-muted/40 p-2.5">
+              <div className="mb-2 type-micro uppercase tracking-wide text-primary-ink">
                 Rejilla y resolución
               </div>
               <div className="grid gap-1.5">
@@ -296,7 +296,7 @@ export const CadDraftSettingsDialog = React.memo(
                   active={grid.snap}
                   onClick={onToggleGridSnap}
                 />
-                <div className="px-1 type-micro text-gray-500">
+                <div className="px-1 type-micro text-muted-foreground">
                   Paso actual: {grid.size} unidades del documento.
                 </div>
               </div>

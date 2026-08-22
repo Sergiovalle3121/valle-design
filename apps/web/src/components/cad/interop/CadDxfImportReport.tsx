@@ -45,15 +45,15 @@ export interface CadDxfImportReportPanelProps {
 }
 
 const TONE_CLASS: Readonly<Record<CadDxfImportTone, string>> = {
-  ok: "bg-emerald-500/10 text-emerald-200",
-  warn: "bg-amber-500/10 text-amber-100",
+  ok: "bg-success/15 text-success-ink",
+  warn: "bg-warning/15 text-warning-ink",
   alert: "bg-red-500/10 text-red-100",
 };
 
 const SECTION_CLASS: Readonly<Record<string, string>> = {
-  lost: "text-red-300",
-  degraded: "text-amber-300",
-  kept: "text-emerald-300",
+  lost: "text-danger-ink",
+  degraded: "text-warning-ink",
+  kept: "text-success-ink",
 };
 
 export const CadDxfImportReportPanel = React.memo(
@@ -68,7 +68,7 @@ export const CadDxfImportReportPanel = React.memo(
       <section
         data-testid={`cad-${format}-import-report`}
         data-tone={tone}
-        className={`rounded-xl p-3 text-sm ${TONE_CLASS[tone]}`}
+        className={`rounded-card p-3 text-sm ${TONE_CLASS[tone]}`}
         aria-label={`Qué se conservó al importar el ${format.toUpperCase()}`}
       >
         <p role="status" className="font-medium">

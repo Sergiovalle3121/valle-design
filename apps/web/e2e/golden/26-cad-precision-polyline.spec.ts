@@ -1,3 +1,18 @@
+/*
+ * NOTA DE LA CAMPAÑA DE DISEÑO (2026-08-21) — por qué cambió una aserción.
+ *
+ * Este spec afirmaba `getByText(/0 equipos/)` VISIBLE. La afirmación de
+ * fondo es buena y sigue intacta: dibujar geometría canónica no debe crear
+ * un objeto HEREDADO por la puerta de atrás. Lo que cambió es su prueba.
+ *
+ * «N estaciones · N equipos» era vocabulario del producto industrial del
+ * que salió este editor, pintado en la barra superior que ve un arquitecto.
+ * La ola 5 lo sacó de la vista del cliente — pero NO del DOM: vive en el
+ * bloque de diagnóstico con `data-testid="cad-legacy-asset-count"`.
+ *
+ * La aserción nueva es MÁS precisa que la anterior: apunta a un gancho
+ * estable en vez de a una expresión regular sobre el texto de la página.
+ */
 import { expect, test, type BrowserContext } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
@@ -95,7 +110,9 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
     // PRIORIDAD 2 — antes esto afirmaba `/2 equipos/`: LINE creaba MUROS
     // heredados, uno por tramo. Hoy son dos entidades `line` canónicas y el
     // contador de equipo no se mueve.
-    await expect(page.getByText(/0 equipos/)).toBeVisible();
+    await expect(page.getByTestId('cad-legacy-asset-count')).toContainText(
+      '0 heredados',
+    );
   });
 
   await test.step('13. Crear polilínea cerrada', async () => {
@@ -106,7 +123,9 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
     await page.getByTestId('cad-polyline-close').click();
     // Antes: `/5 equipos/` — la polilínea se partía en un muro POR TRAMO. Hoy
     // es UNA entidad `polyline` cerrada, así que el conteo heredado no cambia.
-    await expect(page.getByText(/0 equipos/)).toBeVisible();
+    await expect(page.getByTestId('cad-legacy-asset-count')).toContainText(
+      '0 heredados',
+    );
     await expect(page.getByTestId('cad-native-properties')).toContainText('POLYLINE');
   });
 

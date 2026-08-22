@@ -44,10 +44,10 @@ export interface CadCommandLineProps {
 }
 
 const LEVEL_CLASS: Record<CadCommandLineEntry["level"], string> = {
-  prompt: "text-gray-400",
-  input: "text-indigo-300",
-  info: "text-gray-300",
-  error: "text-red-400",
+  prompt: "text-muted-foreground",
+  input: "text-primary-ink",
+  info: "text-foreground",
+  error: "text-danger-ink",
 };
 
 export function CadCommandLine({
@@ -126,7 +126,17 @@ export function CadCommandLine({
       // su tope en cuanto se dibuja. Reciben el ratón sólo las dos filas que lo
       // necesitan —palabras clave y entrada—; el diálogo y el fondo lo dejan
       // pasar, para que Undo y la barra sigan siendo pulsables debajo.
-      className="pointer-events-none flex w-full flex-col rounded-lg border border-white/10 bg-[#0b1020]/95 type-caption shadow-lg backdrop-blur"
+      /*
+        La superficie sigue el TEMA, no un azul de medianoche fijo.
+        `bg-[#0b1020]` era el único color escrito a mano que quedaba aquí, y con
+        el texto ya tokenizado producía el peor resultado posible en tema claro:
+        letra oscura sobre panel oscuro. `--popover` es exactamente esta forma —
+        una superficie flotante con su propio color de texto—, así que la línea
+        de comandos conserva su densidad y su monoespaciada, que es lo que la
+        hace leerse como herramienta profesional, y deja de ser una mancha negra
+        en una interfaz clara.
+      */
+      className="pointer-events-none flex w-full flex-col rounded-control border border-border bg-popover/95 text-popover-foreground type-caption shadow-floating backdrop-blur"
     >
       <div
         ref={logRef}
@@ -153,8 +163,8 @@ export function CadCommandLine({
       </div>
 
       {prompt && (
-        <div className="pointer-events-none flex flex-wrap items-center gap-1 border-t border-white/5 px-2 py-1">
-          <span data-testid="cad-command-prompt" className="font-mono text-gray-200">
+        <div className="pointer-events-none flex flex-wrap items-center gap-1 border-t border-border px-2 py-1">
+          <span data-testid="cad-command-prompt" className="font-mono text-foreground">
             {line}
           </span>
           {prompt.options.map((option) => (
@@ -166,7 +176,7 @@ export function CadCommandLine({
                 onKeyword(option.shortcut);
                 inputRef.current?.focus();
               }}
-              className="pointer-events-auto rounded border border-white/15 px-1.5 py-0.5 font-mono type-micro text-indigo-200 transition-colors hover:bg-white/10"
+              className="pointer-events-auto rounded border border-border px-1.5 py-0.5 font-mono type-micro text-primary-ink transition-colors hover:bg-muted"
               title={`Atajo: ${option.shortcut.toUpperCase()}`}
             >
               {formatCadKeyword(option)}
@@ -175,8 +185,8 @@ export function CadCommandLine({
         </div>
       )}
 
-      <div className="pointer-events-none flex items-center gap-1 border-t border-white/5 px-2 py-1">
-        <span className="font-mono text-gray-500">{prompt ? "»" : "Comando:"}</span>
+      <div className="pointer-events-none flex items-center gap-1 border-t border-border px-2 py-1">
+        <span className="font-mono text-muted-foreground">{prompt ? "»" : "Comando:"}</span>
         <input
           ref={inputRef}
           data-testid="cad-command-input"
@@ -194,7 +204,7 @@ export function CadCommandLine({
                 ? `escribe un comando · Espacio repite ${lastCommand}`
                 : "escribe un comando (L, C, TR, MI…)"
           }
-          className="pointer-events-auto min-w-0 flex-1 bg-transparent font-mono text-gray-100 outline-none placeholder:text-gray-600"
+          className="pointer-events-auto min-w-0 flex-1 bg-transparent font-mono text-foreground outline-none placeholder:text-muted-foreground"
         />
       </div>
     </div>

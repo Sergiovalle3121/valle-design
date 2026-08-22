@@ -91,23 +91,23 @@ es que **nadie lo consume**. Esta campaña no reescribe el sistema: **lo cablea*
 
 ### OLA 5 — LA PRIMERA IMPRESIÓN DEL ESTUDIO
 
-- [ ] 5.1 Jerarquía de la barra superior (el "Cerrar" rojo deja de ser lo más fuerte)
-- [ ] 5.2 Fuera la telemetría de desarrollador (tras modo diagnóstico)
-- [ ] 5.3 Iconos en la paleta de herramientas + tooltip con alias
-- [ ] 5.4 Arreglar el modo claro de las paletas CAD
-- [ ] 5.5 Rediseñar el tour "Primeros cinco minutos"
-- [ ] 5.6 Densidad coherente en el chrome del estudio
+- [x] 5.1 Jerarquía de la barra superior (el "Cerrar" rojo deja de ser lo más fuerte)
+- [x] 5.2 Fuera la telemetría de desarrollador (tras modo diagnóstico)
+- [x] 5.3 Iconos en la paleta de herramientas + tooltip con alias
+- [x] 5.4 Arreglar el modo claro de las paletas CAD
+- [x] 5.5 Rediseñar el tour "Primeros cinco minutos"
+- [x] 5.6 Densidad coherente en el chrome del estudio
 
 ### OLA FINAL — DOCUMENTAR Y PROBAR QUE MEJORÓ
 
 - [ ] F.1 Suite completa de gates + goldens verdes + push
 - [ ] F.2 Antes/después de las 6 pantallas clave → `docs/design/before-after/`
-- [ ] F.3 `docs/design/DESIGN_SYSTEM.md` + sección de diseño en `AGENTS.md`
-- [ ] F.4 `docs/execution/INFORME_CAMPANA_DISENO_20260821.md`
+- [x] F.3 `docs/design/DESIGN_SYSTEM.md` + sección de diseño en `AGENTS.md`
+- [x] F.4 `docs/execution/INFORME_CAMPANA_DISENO_20260821.md`
 
 ### COLA DE RESERVA
 
-- [ ] R.1 Sistema de movimiento tokenizado
+- [x] R.1 Sistema de movimiento tokenizado
 - [ ] R.2 Rediseño de documentación y guías
 - [ ] R.3 Ilustraciones SVG propias
 - [ ] R.4 `/status` y soporte premium
@@ -484,3 +484,96 @@ consistente (`typecheck` verde) y reiniciado el servidor. **Sus archivos se
 sacaron del índice antes de cada commit**: AGENTS.md, ARCHITECTURE.md,
 PRODUCT.md, README.md, REPOSITORY_SCOPE.md, IDENTITY.md, `site-routes.ts`,
 `professional-blocks.spec.ts`, `docs/competitive/` y `scripts/cad/check-no-industrial-domain*`.
+
+### OLA 5 — cerrada
+
+**5.1 · El «Cerrar» deja de gritar.** Era un botón ROJO con sombra máxima
+anclado a la izquierda: el elemento visualmente más fuerte de todo el estudio.
+En una herramienta profesional SALIR nunca es lo más llamativo — y el rojo es el
+color con el que se avisa de que algo se va a destruir; gastarlo en «volver al
+tablero» lo deja sin significado para cuando de verdad haga falta. Ahora es un
+control discreto y el peso visual vuelve al nombre del documento.
+
+**5.2 · Fuera la telemetría de desarrollador.** «Tool: select», «Native 7»,
+«U0/R0» y el distintivo del pipeline desaparecen de la vista del cliente — pero
+NO del DOM. Dieciséis goldens las leen por `textContent` y por atributo, y son la
+forma más barata de afirmar que una acción de dibujo dejó exactamente una entrada
+de historial. Se esconden tras `?cadDiag=1`, el mismo mecanismo que ya usaba
+`?cadRenderPipeline=legacy`. Comprobado antes de tocar nada: ninguna de las
+dieciséis aserciones pide `toBeVisible`.
+
+**5.3 · Iconos en la paleta.** Dieciocho etiquetas de texto a 10,5 px en un
+producto con 79 iconos ya importados. Icono **y** etiqueta —un icono solo es un
+acertijo la primera semana, y ésta es la primera semana de alguien que viene de
+AutoCAD— y tooltip que enseña el ATAJO. Ésa era la joya enterrada: la tabla de
+alias existía y no se anunciaba en ningún sitio. Quien pasa el cursor por
+«Circle» y lee «C» acaba de descubrir que su memoria muscular de veinte años
+sirve aquí.
+
+**5.4 · El modo claro FUNCIONA por primera vez.** Catorce de las veinte paletas
+tenían cero variantes `dark:` y fondos `bg-gray-950` fijos: al conmutar, el
+lienzo se aclaraba y las paletas seguían negras. La causa era un idioma heredado
+de un editor que sólo existía en oscuro —capas translúcidas de BLANCO sobre negro
+fijo—, y ese idioma no tiene modo claro posible: un blanco al 5 % sobre blanco es
+blanco. **Colores fijos en el chrome del estudio: 646 → 1** (el que queda es la
+paleta categórica de celdas, que es dato del dibujo). El armazón pierde además su
+ternario de tema: existía porque las paletas de dentro no giraban.
+
+**5.5 · El acompañante.** La lógica no se toca ni una línea —lee el DIBUJO, no
+cuenta clics, y es lo mejor del código—. Cambia la piel: panel verde de 11 px con
+viñetas de texto y una `<progress>` sin estilar → tarjeta del sistema, barra de
+progreso de las primitivas, iconos y una celebración discreta. Se conservan
+íntegras las dos invariantes que sus comentarios defienden: `pointer-events-none`
+en el panel con el puntero reclamado SÓLO por los botones, y `max-h-[32vh]`.
+
+**5.6 · Densidad.** La escala de la ola 1 ya cubría el chrome del estudio: los
+658 tamaños arbitrarios se migraron entonces, y esta ola sólo tuvo que retirar
+los últimos siete iconos con color en línea.
+
+**Trinquete del monolito: 22 208 → 20 661 líneas** y 153 → 145 `useState`. Cada
+mejora se pagó extrayendo: `CadToolPalette` y `CadDiagnosticsReadout` salieron
+fuera del archivo.
+
+### GOLDENS — qué se rompió y qué no
+
+Corrida completa tras la ola 5: **75 de 87 verdes, 12 rojos.** De esos doce:
+
+**Seis eran rojos antes de esta campaña** (21-xrefs, 47-lisp-appload, 47-solids,
+53-bim-wall, 54-bim-wall-joins, 55-anchored-comments): comprobado con `git stash`
+y corrida de control ya en la ola 1.
+
+**Cuatro regresaron por la sesión paralela** (17-mleader, 46-pointer-engine,
+51-style-manager, 56-tableta). Comprobado con una corrida de CONTROL sobre HEAD
+con mi ola 5 guardada: los cuatro fallan igual sin mis cambios — y
+46-pointer-engine falla ahí en DOS pruebas en vez de una. Sus aserciones son de
+dominio CAD, no visuales.
+
+**Dos eran míos, y los dos por la misma causa.** `13-cad-dynamic-input` y
+`26-cad-precision-polyline` afirmaban `getByText(/0 equipos/)` VISIBLE, y la ola
+5 quitó ese contador de la barra superior. **La afirmación de fondo es buena**
+—dibujar geometría canónica no debe crear un objeto heredado por la puerta de
+atrás— así que no se borró: el contador vive ahora en el bloque de diagnóstico
+con `data-testid="cad-legacy-asset-count"`, y la aserción apunta a ese gancho
+estable en vez de a una expresión regular sobre el texto de la página. **Es más
+precisa que antes.** Los dos verificados verdes.
+
+### CIERRE DEL INVENTARIO DE CSS
+
+La ola 0 marcó cada bloque no consumido con la ola que iba a cablearlo. Balance
+final: **cableados** `.aurora-bg`, `.mission-grid`, `.hero-conic`, los tres
+`.hero-orb`, `.product-halo`, `.float-slow` y la escala entera. **Eliminados**
+`.premium-glass`, `.apple-card`, `.glass`, `.valle-blob-*`, `.valle-noise`,
+`.text-gradient-title`, `.transition-smooth` y los siete tokens `--apple-*`.
+
+No se quedaron sin cablear por falta de tiempo: al llegar a su ola resultaron
+REDUNDANTES —tres variantes del mismo material translúcido para un sistema que ya
+resuelve esa superficie con `bg-popover` + `border-border` + `shadow-floating`, y
+que además gira sola con el tema, cosa que ninguna de las tres hacía—. Dejarlas
+«marcadas para más adelante» habría sido mover el problema.
+`globals.css`: 1 001 → 832 líneas.
+
+**PENDIENTE AJENO:** el gate del monolito está rojo porque
+`lib/cad/commands/parser.ts` CRECIÓ de 1 620 a 1 685 líneas. Es archivo de la
+sesión paralela y `--allow-growth` es una decisión suya, no mía. Igual que
+`asset-catalog.spec.ts` y `nl-quality.spec.ts`, rojos por su retirada de
+vocabulario industrial en vuelo.

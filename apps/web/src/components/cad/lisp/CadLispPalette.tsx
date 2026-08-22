@@ -48,11 +48,11 @@ import type {
 } from "./lisp-runtime";
 
 const LEVEL_CLASS: Record<CadLispEntryLevel, string> = {
-  input: "text-indigo-300",
-  value: "text-emerald-300",
-  output: "text-gray-200",
-  error: "text-red-400",
-  info: "text-gray-400",
+  input: "text-primary-ink",
+  value: "text-success-ink",
+  output: "text-foreground",
+  error: "text-danger-ink",
+  info: "text-muted-foreground",
 };
 
 const LEVEL_MARK: Record<CadLispEntryLevel, string> = {
@@ -114,13 +114,13 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
   return (
     <div
       data-testid="cad-lisp-palette"
-      className="pointer-events-auto flex w-full flex-col rounded-lg border border-white/10 bg-[#0b1020]/95 type-caption shadow-lg backdrop-blur"
+      className="pointer-events-auto flex w-full flex-col rounded-control border border-border bg-[#0b1020]/95 type-caption shadow-lg backdrop-blur"
     >
-      <header className="flex items-center gap-2 border-b border-white/5 px-2 py-1">
-        <span className="font-mono type-micro font-semibold uppercase tracking-wide text-emerald-300">
+      <header className="flex items-center gap-2 border-b border-border px-2 py-1">
+        <span className="font-mono type-micro font-semibold uppercase tracking-wide text-success-ink">
           AutoLISP
         </span>
-        <span data-testid="cad-lisp-command-count" className="type-micro text-gray-400">
+        <span data-testid="cad-lisp-command-count" className="type-micro text-muted-foreground">
           {snapshot.files.length} rutina{snapshot.files.length === 1 ? "" : "s"} ·{" "}
           {snapshot.commands.length} comando{snapshot.commands.length === 1 ? "" : "s"}
         </span>
@@ -129,7 +129,7 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
             type="button"
             data-testid="cad-lisp-appload"
             onClick={() => fileRef.current?.click()}
-            className="rounded border border-white/15 px-1.5 py-0.5 font-mono type-micro text-indigo-200 hover:bg-white/10"
+            className="rounded border border-border px-1.5 py-0.5 font-mono type-micro text-primary-ink hover:bg-muted"
           >
             APPLOAD
           </button>
@@ -137,7 +137,7 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
             type="button"
             data-testid="cad-lisp-clear"
             onClick={runtime.clearTranscript}
-            className="rounded border border-white/15 px-1.5 py-0.5 font-mono type-micro text-gray-300 hover:bg-white/10"
+            className="rounded border border-border px-1.5 py-0.5 font-mono type-micro text-foreground hover:bg-muted"
           >
             Limpiar
           </button>
@@ -146,7 +146,7 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
             data-testid="cad-lisp-close"
             onClick={runtime.close}
             aria-label="Cerrar la consola LISP"
-            className="rounded border border-white/15 px-1.5 py-0.5 font-mono type-micro text-gray-300 hover:bg-white/10"
+            className="rounded border border-border px-1.5 py-0.5 font-mono type-micro text-foreground hover:bg-muted"
           >
             ✕
           </button>
@@ -169,7 +169,7 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
         className="max-h-40 min-h-[4rem] overflow-y-auto px-2 py-1 font-mono leading-snug"
       >
         {snapshot.transcript.length === 0 && (
-          <div className="text-gray-500">
+          <div className="text-muted-foreground">
             Carga un .lsp con APPLOAD, o escribe una expresión: (+ 1 2)
           </div>
         )}
@@ -180,40 +180,40 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
               {entry.text}
             </span>
             {entry.origin && entry.level === "input" && (
-              <span className="ml-1 type-micro text-gray-500">[{entry.origin}]</span>
+              <span className="ml-1 type-micro text-muted-foreground">[{entry.origin}]</span>
             )}
           </div>
         ))}
       </div>
 
       {snapshot.lastTrace && (
-        <details data-testid="cad-lisp-trace" className="border-t border-white/5 px-2 py-1">
-          <summary className="cursor-pointer font-mono type-micro text-red-300">
+        <details data-testid="cad-lisp-trace" className="border-t border-border px-2 py-1">
+          <summary className="cursor-pointer font-mono type-micro text-danger-ink">
             Traza · {snapshot.lastTrace.kind}
             {snapshot.lastTrace.reason ? ` (${snapshot.lastTrace.reason})` : ""}
           </summary>
-          <dl className="mt-1 grid grid-cols-[7rem_1fr] gap-x-2 font-mono type-micro text-gray-300">
-            <dt className="text-gray-500">invocación</dt>
+          <dl className="mt-1 grid grid-cols-[7rem_1fr] gap-x-2 font-mono type-micro text-foreground">
+            <dt className="text-muted-foreground">invocación</dt>
             <dd className="break-all">{snapshot.lastTrace.invoke}</dd>
-            <dt className="text-gray-500">origen</dt>
+            <dt className="text-muted-foreground">origen</dt>
             <dd>{snapshot.lastTrace.origin}</dd>
-            <dt className="text-gray-500">cargado</dt>
+            <dt className="text-muted-foreground">cargado</dt>
             <dd>{snapshot.lastTrace.loaded.join(", ") || "nada"}</dd>
-            <dt className="text-gray-500">descartado</dt>
+            <dt className="text-muted-foreground">descartado</dt>
             <dd>
               {snapshot.lastTrace.discardedCommands} escritura
               {snapshot.lastTrace.discardedCommands === 1 ? "" : "s"} al dibujo
             </dd>
           </dl>
           {snapshot.lastTrace.output.trim() && (
-            <pre className="mt-1 max-h-24 overflow-y-auto whitespace-pre-wrap font-mono type-micro text-gray-400">
+            <pre className="mt-1 max-h-24 overflow-y-auto whitespace-pre-wrap font-mono type-micro text-muted-foreground">
               {snapshot.lastTrace.output}
             </pre>
           )}
         </details>
       )}
 
-      <div className="flex items-center gap-1 border-t border-white/5 px-2 py-1">
+      <div className="flex items-center gap-1 border-t border-border px-2 py-1">
         {(["routines", "variables"] as const).map((id) => (
           <button
             key={id}
@@ -221,7 +221,7 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
             data-testid={`cad-lisp-tab-${id}`}
             onClick={() => setTab(id)}
             className={`rounded px-1.5 py-0.5 font-mono type-micro ${
-              tab === id ? "bg-white/10 text-gray-100" : "text-gray-400 hover:bg-white/5"
+              tab === id ? "bg-muted text-foreground" : "text-muted-foreground hover:bg-muted/50"
             }`}
           >
             {id === "routines" ? "Rutinas" : "Variables"}
@@ -232,7 +232,7 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
             type="button"
             data-testid="cad-lisp-reset-variables"
             onClick={runtime.resetVariables}
-            className="ml-auto rounded border border-white/15 px-1.5 py-0.5 font-mono type-micro text-gray-300 hover:bg-white/10"
+            className="ml-auto rounded border border-border px-1.5 py-0.5 font-mono type-micro text-foreground hover:bg-muted"
           >
             Olvidar
           </button>
@@ -247,8 +247,8 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
         )}
       </div>
 
-      <div className="flex items-center gap-1 border-t border-white/5 px-2 py-1">
-        <span className="font-mono text-gray-500">_$</span>
+      <div className="flex items-center gap-1 border-t border-border px-2 py-1">
+        <span className="font-mono text-muted-foreground">_$</span>
         <input
           data-testid="cad-lisp-input"
           value={value}
@@ -263,7 +263,7 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
           autoComplete="off"
           aria-label="Consola AutoLISP"
           placeholder={disabled ? "dibujo en sólo lectura" : "(setq a 5)"}
-          className="min-w-0 flex-1 bg-transparent font-mono text-gray-100 outline-none placeholder:text-gray-600"
+          className="min-w-0 flex-1 bg-transparent font-mono text-foreground outline-none placeholder:text-muted-foreground"
         />
       </div>
     </div>
@@ -286,42 +286,42 @@ function RoutineList({
       */}
       {snapshot.factory.map((file) => (
         <li key={file.id} className="flex items-baseline gap-1">
-          <span className="text-gray-200">{file.name}</span>
-          <span className="text-gray-500">de fábrica</span>
-          <span className="text-emerald-300">
+          <span className="text-foreground">{file.name}</span>
+          <span className="text-muted-foreground">de fábrica</span>
+          <span className="text-success-ink">
             {file.commands.map((command) => command.toUpperCase()).join(" ") || "—"}
           </span>
         </li>
       ))}
       {snapshot.files.length === 0 && (
-        <li className="text-gray-500">
+        <li className="text-muted-foreground">
           Ninguna rutina del estudio cargada todavía: usa APPLOAD para subir un .lsp.
         </li>
       )}
       {snapshot.storageProblems.map((problem) => (
-        <li key={problem} className="text-amber-300">
+        <li key={problem} className="text-warning-ink">
           Almacén · {problem}
         </li>
       ))}
       {snapshot.shadowedByNative.length > 0 && (
-        <li data-testid="cad-lisp-shadowed" className="text-amber-300">
+        <li data-testid="cad-lisp-shadowed" className="text-warning-ink">
           {snapshot.shadowedByNative.join(", ")} ya {snapshot.shadowedByNative.length === 1 ? "es" : "son"}{" "}
           del producto: el comando nativo gana y esa rutina no se puede invocar así.
         </li>
       )}
       {snapshot.collisions.map((collision) => (
-        <li key={collision.command} className="text-amber-300">
+        <li key={collision.command} className="text-warning-ink">
           {collision.command} lo declaran {collision.files.join(" y ")}; gana el último cargado.
         </li>
       ))}
       {snapshot.files.map((file) => (
         <li key={file.id} className="flex items-baseline gap-1">
-          <span className="text-gray-200">{file.name}</span>
-          <span className="text-gray-500">v{file.version}</span>
-          <span className="truncate text-gray-500" title={`${file.updatedBy} · ${file.updatedAt}`}>
+          <span className="text-foreground">{file.name}</span>
+          <span className="text-muted-foreground">v{file.version}</span>
+          <span className="truncate text-muted-foreground" title={`${file.updatedBy} · ${file.updatedAt}`}>
             {file.updatedBy} · {file.updatedAt.slice(0, 10)}
           </span>
-          <span className="text-emerald-300">
+          <span className="text-success-ink">
             {file.commands.length
               ? file.commands.map((command) => command.toUpperCase()).join(" ")
               : "—"}
@@ -330,7 +330,7 @@ function RoutineList({
             type="button"
             data-testid={`cad-lisp-unload-${file.name}`}
             onClick={() => runtime.unload(file.name)}
-            className="ml-auto rounded border border-white/15 px-1 text-gray-400 hover:bg-white/10"
+            className="ml-auto rounded border border-border px-1 text-muted-foreground hover:bg-muted"
           >
             descargar
           </button>
@@ -343,7 +343,7 @@ function RoutineList({
 function VariableList({ snapshot }: { snapshot: CadLispSnapshot }) {
   if (snapshot.variables.length === 0)
     return (
-      <div className="text-gray-500">
+      <div className="text-muted-foreground">
         La última ejecución no dejó nada ligado.
       </div>
     );
@@ -351,7 +351,7 @@ function VariableList({ snapshot }: { snapshot: CadLispSnapshot }) {
     <ul data-testid="cad-lisp-variables" className="flex flex-col">
       {snapshot.variables.map((variable) => (
         <li key={variable.name} className="flex items-baseline gap-1">
-          <span className={variable.shadowsBuiltin ? "text-amber-300" : "text-indigo-200"}>
+          <span className={variable.shadowsBuiltin ? "text-warning-ink" : "text-primary-ink"}>
             {variable.name}
           </span>
           {variable.shadowsBuiltin && (
@@ -359,7 +359,7 @@ function VariableList({ snapshot }: { snapshot: CadLispSnapshot }) {
               tapa un builtin
             </span>
           )}
-          <span className="truncate text-gray-300">{variable.value}</span>
+          <span className="truncate text-foreground">{variable.value}</span>
         </li>
       ))}
     </ul>

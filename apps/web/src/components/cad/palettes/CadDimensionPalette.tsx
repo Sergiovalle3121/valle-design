@@ -57,17 +57,17 @@ export function CadDimensionPalette({
       className={
         docked
           ? "w-full p-3 type-micro"
-          : "absolute right-0 top-full z-50 mt-1.5 w-80 rounded-xl border border-emerald-400/20 bg-gray-950 p-3 type-micro shadow-2xl"
+          : "absolute right-0 top-full z-50 mt-1.5 w-80 rounded-card border border-success/30 bg-surface p-3 type-micro shadow-2xl"
       }
     >
       <div className="mb-2 flex items-center justify-between">
-        <span className="font-semibold text-emerald-100">
+        <span className="font-semibold text-success-ink">
           Dimensión asociativa
         </span>
-        <span className="text-gray-500">{selectedCount} fuente(s)</span>
+        <span className="text-muted-foreground">{selectedCount} fuente(s)</span>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <label className="col-span-2 text-gray-400">
+        <label className="col-span-2 text-muted-foreground">
           Tipo
           <select
             data-testid="cad-dimension-kind"
@@ -78,7 +78,7 @@ export function CadDimensionPalette({
                 kind: event.target.value as CadDimensionDraft["kind"],
               }))
             }
-            className="mt-1 w-full rounded border border-white/10 bg-gray-900 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-surface px-2 py-1 text-foreground"
           >
             <option value="linear">Linear</option>
             <option value="aligned">Aligned</option>
@@ -89,7 +89,7 @@ export function CadDimensionPalette({
             <option value="arc-length">Arc length</option>
           </select>
         </label>
-        <label className="text-gray-400">
+        <label className="text-muted-foreground">
           Eje
           <select
             value={draft.axis}
@@ -99,13 +99,13 @@ export function CadDimensionPalette({
                 axis: event.target.value as "x" | "y",
               }))
             }
-            className="mt-1 w-full rounded border border-white/10 bg-gray-900 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-surface px-2 py-1 text-foreground"
           >
             <option value="x">X</option>
             <option value="y">Y</option>
           </select>
         </label>
-        <label className="text-gray-400">
+        <label className="text-muted-foreground">
           Offset
           <input
             data-testid="cad-dimension-offset"
@@ -117,10 +117,10 @@ export function CadDimensionPalette({
                 offset: Number(event.target.value) || 0,
               }))
             }
-            className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-black/30 px-2 py-1 text-foreground"
           />
         </label>
-        <label className="text-gray-400">
+        <label className="text-muted-foreground">
           Estilo
           <input
             list="cad-dimension-styles"
@@ -128,7 +128,7 @@ export function CadDimensionPalette({
             onChange={(event) =>
               setDraft((current) => ({ ...current, style: event.target.value }))
             }
-            className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-black/30 px-2 py-1 text-foreground"
           />
           <datalist id="cad-dimension-styles">
             {styles.map((style) => (
@@ -136,7 +136,7 @@ export function CadDimensionPalette({
             ))}
           </datalist>
         </label>
-        <label className="text-gray-400">
+        <label className="text-muted-foreground">
           Precisión
           <input
             type="number"
@@ -152,10 +152,10 @@ export function CadDimensionPalette({
                 ),
               }))
             }
-            className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-black/30 px-2 py-1 text-foreground"
           />
         </label>
-        <label className="text-gray-400">
+        <label className="text-muted-foreground">
           Unidades
           <select
             data-testid="cad-dimension-units"
@@ -166,14 +166,14 @@ export function CadDimensionPalette({
                 units: event.target.value as CadDimensionDraft["units"],
               }))
             }
-            className="mt-1 w-full rounded border border-white/10 bg-gray-900 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-surface px-2 py-1 text-foreground"
           >
             {["mm", "cm", "m", "in", "ft"].map((unit) => (
               <option key={unit}>{unit}</option>
             ))}
           </select>
         </label>
-        <label className="text-gray-400">
+        <label className="text-muted-foreground">
           Alterna
           <select
             value={draft.alternateUnits}
@@ -184,7 +184,7 @@ export function CadDimensionPalette({
                   .value as CadDimensionDraft["alternateUnits"],
               }))
             }
-            className="mt-1 w-full rounded border border-white/10 bg-gray-900 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-surface px-2 py-1 text-foreground"
           >
             <option value="">Off</option>
             {["mm", "cm", "m", "in", "ft"].map((unit) => (
@@ -192,7 +192,7 @@ export function CadDimensionPalette({
             ))}
           </select>
         </label>
-        <label className="text-gray-400">
+        <label className="text-muted-foreground">
           Prefijo
           <input
             value={draft.prefix}
@@ -202,10 +202,10 @@ export function CadDimensionPalette({
                 prefix: event.target.value.slice(0, 64),
               }))
             }
-            className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-black/30 px-2 py-1 text-foreground"
           />
         </label>
-        <label className="text-gray-400">
+        <label className="text-muted-foreground">
           Sufijo
           <input
             value={draft.suffix}
@@ -215,10 +215,10 @@ export function CadDimensionPalette({
                 suffix: event.target.value.slice(0, 64),
               }))
             }
-            className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-black/30 px-2 py-1 text-foreground"
           />
         </label>
-        <label className="col-span-2 text-gray-400">
+        <label className="col-span-2 text-muted-foreground">
           Arrowhead
           <select
             value={draft.arrowhead}
@@ -228,7 +228,7 @@ export function CadDimensionPalette({
                 arrowhead: event.target.value as CadDimensionDraft["arrowhead"],
               }))
             }
-            className="mt-1 w-full rounded border border-white/10 bg-gray-900 px-2 py-1 text-white"
+            className="mt-1 w-full rounded border border-border bg-surface px-2 py-1 text-foreground"
           >
             <option value="closed-filled">Closed filled</option>
             <option value="open">Open</option>
@@ -237,7 +237,7 @@ export function CadDimensionPalette({
           </select>
         </label>
       </div>
-      <label className="mt-2 flex items-center gap-2 text-gray-300">
+      <label className="mt-2 flex items-center gap-2 text-foreground">
         <input
           type="checkbox"
           checked={draft.extensionLines}
@@ -255,11 +255,11 @@ export function CadDimensionPalette({
         data-testid="cad-dimension-create"
         disabled={selectedCount < 1}
         onClick={() => onCreate(draft)}
-        className="mt-3 w-full rounded-lg bg-emerald-500 px-3 py-1.5 font-semibold text-gray-950 disabled:opacity-40"
+        className="mt-3 w-full rounded-control bg-emerald-500 px-3 py-1.5 font-semibold text-gray-950 disabled:opacity-40"
       >
         Crear dimensión asociativa
       </button>
-      <div className="mt-2 type-micro leading-relaxed text-gray-500">
+      <div className="mt-2 type-micro leading-relaxed text-muted-foreground">
         LINE: linear/aligned/ordinate · ARC: angular/radius/diameter/arc length
         · las referencias se regeneran al editar la fuente.
       </div>
