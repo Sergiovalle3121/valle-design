@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
-import {
-  PublicPageShell,
-  PublicSection,
-  publicActionClass,
-} from "../docs/PublicPageShell";
+import { ExternalLink } from "lucide-react";
+import { PublicPageShell, PublicSection } from "../docs/PublicPageShell";
+import { Badge, buttonClass } from "@/components/ui";
 import { COMMERCIAL_LINKS } from "@/config/commercial";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 
@@ -25,21 +23,38 @@ export default function StatusPage() {
       intro="Esta ruta no inventa disponibilidad: una página estática no demuestra que la web, la API, la base de datos o sus dependencias estén operativas."
     >
       <PublicSection title="Fuente de estado">
+        {/* El BADGE dice de un vistazo qué clase de página es ésta, que es lo
+            que alguien preocupado necesita saber antes de leer un párrafo. Y
+            dice la verdad en los dos casos: «hay fuente» o «no la hay» — nunca
+            «todo operativo», que es lo que esta página existe para NO decir. */}
         {externalStatus ? (
           <>
+            <Badge tone="brand" dot>
+              Fuente externa configurada
+            </Badge>
             <p>
               Este despliegue tiene configurada una página externa como fuente
-              pública de estado.
+              pública de estado. La telemetría vive ahí, no aquí.
             </p>
-            <a className={publicActionClass} href={externalStatus}>
+            <a
+              className={buttonClass({ variant: "primary" })}
+              href={externalStatus}
+            >
               Abrir página de estado
+              <ExternalLink aria-hidden="true" className="h-4 w-4" />
             </a>
           </>
         ) : (
-          <p role="status">
-            No hay una fuente pública de telemetría configurada en este
-            despliegue. No se declara ningún estado operativo desde esta página.
-          </p>
+          <>
+            <Badge tone="neutral" dot>
+              Sin telemetría pública
+            </Badge>
+            <p role="status">
+              No hay una fuente pública de telemetría configurada en este
+              despliegue. No se declara ningún estado operativo desde esta
+              página: una página estática no demuestra que nada esté vivo.
+            </p>
+          </>
         )}
       </PublicSection>
 
@@ -48,7 +63,10 @@ export default function StatusPage() {
           Si una operación falla, conserva el mensaje visible y consulta el
           canal de soporte configurado. No incluyas credenciales ni tokens.
         </p>
-        <a className={publicActionClass} href={COMMERCIAL_LINKS.support}>
+        <a
+          className={buttonClass({ variant: "secondary" })}
+          href={COMMERCIAL_LINKS.support}
+        >
           Ir a soporte
         </a>
       </PublicSection>
