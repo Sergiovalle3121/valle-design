@@ -218,7 +218,12 @@ export function getTenantRepositoryToken(
   const name =
     typeof entity === 'function'
       ? entity.name
-      : ((entity as { name?: string }).name ?? String(entity));
+      : typeof entity === 'string'
+        ? entity
+        : // Un esquema sin nombre produciría el token '[object Object]' para
+          // TODOS los anónimos — colisión de inyección silenciosa. Se nombra
+          // el caso en vez de dejar que String() lo tape.
+          ((entity as { name?: string }).name ?? 'anonymous-entity');
   return `TENANT_SCOPED_REPOSITORY_${name}`;
 }
 

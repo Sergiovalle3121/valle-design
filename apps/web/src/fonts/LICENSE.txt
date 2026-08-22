@@ -1,0 +1,24 @@
+Fuentes autohospedadas de Valle Design
+======================================
+
+Estos archivos se descargaron UNA vez y viven en el repositorio para que el
+build no dependa de ningún tercero (antes, next/font/google descargaba de
+Google en tiempo de compilación: sin internet, el build moría).
+
+1. Inter (InterVariable.woff2, InterVariable-Italic.woff2)
+   Copyright (c) 2016 The Inter Project Authors (https://github.com/rsms/inter)
+   Licencia: SIL Open Font License 1.1 (https://openfontlicense.org)
+   Origen de la descarga: https://rsms.me/inter/font-files/ (v4.66, 2026-08-22)
+
+2. JetBrains Mono (JetBrainsMono-wght.ttf, JetBrainsMono-Italic-wght.ttf)
+   Copyright 2020 The JetBrains Mono Project Authors
+   (https://github.com/JetBrains/JetBrainsMono)
+   Licencia: SIL Open Font License 1.1
+   Origen de la descarga: repositorio oficial JetBrains/JetBrainsMono, rama
+   master, fonts/variable/ (2026-08-22)
+
+La SIL OFL 1.1 permite usar, empaquetar y redistribuir las fuentes con
+software, incluido software comercial y propietario, siempre que no se vendan
+por sí solas y conserven su aviso. El texto completo de la licencia acompaña a
+cada fuente en sus repositorios de origen y se referencia desde
+THIRD_PARTY_NOTICES.md en la raíz.

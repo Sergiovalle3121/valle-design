@@ -1,6 +1,5 @@
 import { randomUUID } from 'node:crypto';
 import {
-  ArchiveIntegrityError,
   readArchiveBlob,
   readManifest,
   readNdjson,

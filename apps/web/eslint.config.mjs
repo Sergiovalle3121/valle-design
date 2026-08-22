@@ -26,15 +26,23 @@ const eslintConfig = defineConfig([
     // —sin bloquear el build— conservando intactas las reglas clásicas
     // `rules-of-hooks` y `exhaustive-deps` (mismo criterio que el origen).
     rules: {
-      "react-hooks/static-components": "warn",
+      // En CERO hoy y bloqueadas en error para que no vuelvan (campaña de
+      // cimientos): static-components, incompatible-library,
+      // set-state-in-render y use-memo.
+      "react-hooks/static-components": "error",
       "react-hooks/refs": "warn",
       "react-hooks/set-state-in-effect": "warn",
       "react-hooks/purity": "warn",
       "react-hooks/immutability": "warn",
       "react-hooks/preserve-manual-memoization": "warn",
-      "react-hooks/incompatible-library": "warn",
-      "react-hooks/set-state-in-render": "warn",
-      "react-hooks/use-memo": "warn",
+      "react-hooks/incompatible-library": "error",
+      "react-hooks/set-state-in-render": "error",
+      "react-hooks/use-memo": "error",
+      // Lo prefijado con _ es descarte deliberado, no un olvido.
+      "@typescript-eslint/no-unused-vars": [
+        "warn",
+        { argsIgnorePattern: "^_", varsIgnorePattern: "^_", caughtErrorsIgnorePattern: "^_" },
+      ],
     },
   },
 ]);

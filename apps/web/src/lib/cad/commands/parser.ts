@@ -5,12 +5,10 @@ import {
   labelAfter,
   lastTwoTargets,
   numberNear,
-  numberWithTimeUnit,
   numberWithUnit,
   parseDraftPointPair,
   reject,
   unitValueToMm,
-  unitValueToSeconds,
 } from "./parse-helpers";
 import type { CadCommandInput, CadParseResult } from "./types";
 

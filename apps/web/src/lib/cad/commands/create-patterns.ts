@@ -7,7 +7,7 @@
  * v1 duplica ASSETS (equipos/zonas/muros): las estaciones pertenecen al routing
  * y no se copian — el validador lo explica en vez de fallar en silencio.
  */
-import { pathArray, polarArray, rectangularArray } from "../cad-array";
+import { polarArray, rectangularArray } from "../cad-array";
 import { offsetSegment } from "../geom-edit";
 import { normalizeDeg } from "../precision-input";
 import { matchObjectsByName } from "./targets";

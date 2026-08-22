@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
 import { getLocale, getMessages } from "next-intl/server";
 import { I18nProvider } from "@/components/I18nProvider";
@@ -24,26 +24,38 @@ import { SITE_URL } from "@/config/site-routes";
  *   cambio en estas dos líneas.
  * · `display: "swap"`: el texto se lee desde el primer paint con el stack de
  *   respaldo y cambia al tipo real al llegar. Nunca hay pantalla en blanco.
- * · `subsets: ["latin"]`: es-MX necesita acentos, ñ y los signos de apertura;
- *   `latin` los trae y pesa una fracción de la fuente completa.
- * · `adjustFontFallback` (por defecto activo) sincroniza las métricas del
- *   respaldo con las de Inter, así que el cambio de tipo no mueve el layout.
+ * · AUTOHOSPEDADAS con `next/font/local` (campaña de cimientos): antes
+ *   `next/font/google` descargaba de Google EN TIEMPO DE BUILD — sin salida a
+ *   internet, o con Google caído, el producto no compilaba. Un producto
+ *   comercial no puede depender de un tercero para compilar. Los archivos
+ *   viven en `src/fonts/` (OFL 1.1, ver su LICENSE.txt) y se descargaron una
+ *   sola vez; el gate `check:fonts` impide que `next/font/google` regrese.
+ * · `adjustFontFallback: "Arial"`/`"Times New Roman"` sincroniza las métricas
+ *   del respaldo, así que el cambio de tipo no mueve el layout.
  *
  * La mono NO es decorativa: la línea de comandos, las coordenadas del cursor y
  * las cifras de las tablas son datos que se comparan en columna. JetBrains Mono
  * trae `tnum` de serie y una cifra cero ranurada que distingue 0 de O — que en
  * un plano cotado no es un detalle.
  */
-const inter = Inter({
-  subsets: ["latin"],
+const inter = localFont({
+  src: [
+    { path: "../fonts/InterVariable.woff2", style: "normal", weight: "100 900" },
+    { path: "../fonts/InterVariable-Italic.woff2", style: "italic", weight: "100 900" },
+  ],
   display: "swap",
   variable: "--font-inter",
+  adjustFontFallback: "Arial",
 });
 
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ["latin"],
+const jetbrainsMono = localFont({
+  src: [
+    { path: "../fonts/JetBrainsMono-wght.ttf", style: "normal", weight: "100 800" },
+    { path: "../fonts/JetBrainsMono-Italic-wght.ttf", style: "italic", weight: "100 800" },
+  ],
   display: "swap",
   variable: "--font-jetbrains",
+  adjustFontFallback: "Arial",
 });
 
 /**

@@ -1,0 +1,19 @@
+{
+  "apps/web": {
+    "@typescript-eslint/no-unused-vars": 22,
+    "react-hooks/set-state-in-effect": 9,
+    "react-hooks/refs": 163,
+    "react-hooks/exhaustive-deps": 6,
+    "react-hooks/purity": 1,
+    "react-hooks/immutability": 3,
+    "react-hooks/preserve-manual-memoization": 1
+  },
+  "apps/api": {
+    "@typescript-eslint/no-unsafe-argument": 3,
+    "@typescript-eslint/no-unsafe-return": 15,
+    "@typescript-eslint/no-unsafe-assignment": 54,
+    "@typescript-eslint/no-unsafe-member-access": 221,
+    "@typescript-eslint/no-unsafe-call": 48,
+    "@typescript-eslint/no-base-to-string": 2
+  }
+}

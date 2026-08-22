@@ -69,7 +69,7 @@ function tessellationOf(segments: Array<[number, number, number, number]>): CadT
 
 function ulpAt(value: number): number {
   const f = Math.fround(value);
-  let bits = new DataView(new ArrayBuffer(4));
+  const bits = new DataView(new ArrayBuffer(4));
   bits.setFloat32(0, f);
   const up = bits.getUint32(0) + 1;
   bits.setUint32(0, up);

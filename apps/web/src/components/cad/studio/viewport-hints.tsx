@@ -13,7 +13,7 @@
  * precisamente lo que hará que ese día sea un cambio de un archivo.
  */
 import React from "react";
-import { Grid2x2, Move3d, Ruler, ShieldAlert, Spline } from "lucide-react";
+import { Move3d, Ruler, ShieldAlert, Spline } from "lucide-react";
 
 export interface CadViewportPromptProps {
   /** Herramienta activa, ya reducida a las tres familias que dan aviso. */

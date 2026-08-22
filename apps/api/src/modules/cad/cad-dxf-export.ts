@@ -54,11 +54,15 @@ export function buildDxfExportInput(
   };
 
   for (const entity of entities) {
-    const type = String(entity.type ?? '').toLowerCase();
+    const type =
+      typeof entity.type === 'string' ? entity.type.toLowerCase() : '';
     const box = boxOf(entity);
     if (box) {
       assets.push({
-        kind: String(entity.kind ?? (type || 'box')).slice(0, 24),
+        kind: (typeof entity.kind === 'string'
+          ? entity.kind
+          : type || 'box'
+        ).slice(0, 24),
         x: box.x,
         y: box.y,
         w: box.w,
@@ -267,7 +271,7 @@ function pointOf(value: unknown): { x: number; y: number } | null {
 function segmentOf(
   entity: Record<string, unknown>,
 ): { x1: number; y1: number; x2: number; y2: number } | null {
-  const type = String(entity.type ?? '').toLowerCase();
+  const type = typeof entity.type === 'string' ? entity.type.toLowerCase() : '';
   if (type !== 'line' && type !== 'polyline' && type !== 'dim') return null;
   const start = pointOf(entity.start) ?? pointOf(entity.a);
   const end = pointOf(entity.end) ?? pointOf(entity.b);

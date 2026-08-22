@@ -64,5 +64,4 @@ describe('cad-intent-tools (Fase 69)', () => {
       'y',
     ]);
   });
-
 });
