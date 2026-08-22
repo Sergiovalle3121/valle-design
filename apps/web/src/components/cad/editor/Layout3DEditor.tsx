@@ -298,10 +298,6 @@ import {
   getCadSymbol,
   type CadSymbolCategory,
 } from "@/lib/cad/symbols";
-import {
-  createDefaultIndustryRegistry,
-  type SmartObjectInstance,
-} from "@/lib/cad/industry-pack";
 import { tessellateDxfPrimitive } from "@/lib/cad/curve-tessellate";
 import { DWG_UNAVAILABLE_REASON } from "@/lib/cad/interop-provider";
 import { mapDxfLayerToCadLayer } from "@/lib/cad/dxf-layer-map";
@@ -326,14 +322,6 @@ import {
   instantiateCadLayoutTemplate,
   type CadLayoutTemplateId,
 } from "@/lib/cad/templates";
-import {
-  generateWarehouseDockStaging,
-  generateWarehouseRackRows,
-  generateWarehouseSupermarketKitting,
-  type CadDockStagingGeneratorInput,
-  type CadRackRowGeneratorInput,
-  type CadSupermarketGeneratorInput,
-} from "@/lib/cad/warehouse-generators";
 import {
   type CadClearanceIssue,
   type CadCollisionHit,
@@ -1127,7 +1115,6 @@ const DXF_LABEL_REQUIRED_ASSET_KINDS = new Set([
 /** An amber "sticky note" sprite for a free-text annotation on the plan. */
 /** Build a positioned, rotated, pickable asset group (base at floor). */
 /** Registro de Industry Packs (CAD-NEXT-090): objetos inteligentes por industria. */
-const INDUSTRY_REGISTRY = createDefaultIndustryRegistry();
 const newId = (p: string) =>
   `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
 const fmtDist = (d: number, unit: string) =>
@@ -1658,41 +1645,6 @@ export default function Layout3DEditor({
   const [symbolCategory, setSymbolCategory] = useState<
     CadSymbolCategory | "all"
   >("all");
-  const [rackGenerator, setRackGenerator] = useState<CadRackRowGeneratorInput>({
-    rows: 2,
-    baysPerRow: 4,
-    bayWidth: 2400,
-    rackDepth: 1100,
-    aisleWidth: 3000,
-    orientation: "horizontal",
-    labelPrefix: "R",
-  });
-  const [dockGenerator, setDockGenerator] =
-    useState<CadDockStagingGeneratorInput>({
-      dockCount: 4,
-      stagingLanes: 4,
-      dockWidth: 3200,
-      dockDepth: 900,
-      stagingDepth: 5000,
-      aisleWidth: 3600,
-      side: "south",
-      mode: "receiving",
-      labelPrefix: "D",
-    });
-  const [supermarketGenerator, setSupermarketGenerator] =
-    useState<CadSupermarketGeneratorInput>({
-      lanes: 3,
-      cartsPerLane: 1,
-      laneLength: 3600,
-      laneWidth: 750,
-      cartWidth: 1100,
-      cartDepth: 750,
-      aisleWidth: 1200,
-      orientation: "horizontal",
-      labelPrefix: "K",
-      includeEsdZone: true,
-      includeQuarantine: true,
-    });
   const [tool, setTool] = useState<EditorTool>("select");
   const [showSelectionPalette, setShowSelectionPalette] = useState(false);
   const [selectionGeometryMode, setSelectionGeometryMode] =
@@ -8867,27 +8819,6 @@ export default function Layout3DEditor({
       (data?.stations.length ?? 0) - placementsRef.current.size,
     );
     const collisionBoxes = currentCollisionBoxes();
-    // Re-evaluación normativa de Industry Packs (CAD-NEXT-095): los assets
-    // soltados desde la paleta llevan su objectId como tag; las reglas
-    // geométricas del pack se re-corren con el tamaño ACTUAL del objeto.
-    const placedIndustry = [...assetsRef.current.values()].flatMap((asset) => {
-      const tags = (objectTagsRef.current[asset.id] ?? "")
-        .split(/[,\n]/)
-        .map((t) => t.trim());
-      const objectId = tags.find((t) => INDUSTRY_REGISTRY.getObject(t));
-      return objectId ? [{ asset, objectId }] : [];
-    });
-    const industryFindings = placedIndustry.flatMap(({ asset, objectId }) => {
-      const def = INDUSTRY_REGISTRY.getObject(objectId)!;
-      return INDUSTRY_REGISTRY.validatePlaced(objectId, asset.w, asset.h).map(
-        (finding) => ({
-          assetId: asset.id,
-          objectLabel: def.label,
-          level: finding.level,
-          message: finding.message,
-        }),
-      );
-    });
     const cadReport = buildCadValidationReport({
       boxes: collisionBoxes,
       zones: currentSafetyZones(),
@@ -8897,7 +8828,6 @@ export default function Layout3DEditor({
       // documento (ids duplicados, fuera del área — estaciones incluidas).
       document: snapshotDocument(),
       footprint: { w: fp.footprintW, h: fp.footprintH },
-      industryFindings,
       dimensionCount: [...annotationsRef.current.values()].filter(
         (a) => a.type === "dim",
       ).length,
@@ -8952,9 +8882,6 @@ export default function Layout3DEditor({
     cadReport.document.forEach((finding) => {
       finding.entityIds.forEach((id) => highlightIds.add(id));
     });
-    cadReport.industry.forEach((finding) => {
-      highlightIds.add(finding.assetId);
-    });
     validationHighlightRef.current = highlightIds;
     setValidationHighlightIds(highlightIds);
     setCadValidationReport(cadReport);
@@ -8969,7 +8896,6 @@ export default function Layout3DEditor({
         unplacedStations: unplaced,
         footprintW: fp.footprintW,
         footprintH: fp.footprintH,
-        connectors: connectorsRef.current,
       }),
     );
   }, [
@@ -9605,84 +9531,6 @@ export default function Layout3DEditor({
       toast.success(`${symbol.label} agregado al layout.`, "Símbolos CAD");
     }
   };
-  // Suelta un objeto inteligente de un Industry Pack (CAD-NEXT-090/091): el pack
-  // proyecta la instancia a una entidad canónica y reutilizamos addAsset. El
-  // tanque llega con shape:'circle' → se dibuja como disco (CAD-NEXT-020). El
-  // toast muestra los cálculos de negocio del propio objeto.
-  const addIndustryObject = (objectId: string) => {
-    const ctx = ctxRef.current;
-    if (!ctx) return;
-    const def = INDUSTRY_REGISTRY.getObject(objectId);
-    if (!def) return;
-    const instance: SmartObjectInstance = {
-      id: newId("as"),
-      objectId,
-      x: 0,
-      y: 0,
-      props: {},
-    };
-    // TODAS las cajas del objeto inteligente (CAD-NEXT-094): la línea de cajas
-    // trae mueble + zona de fila; antes sólo la primera sobrevivía al drop.
-    const entities = def
-      .toEntities(instance)
-      .filter(
-        (e): e is Extract<CadEntity, { type: "box" }> => e.type === "box",
-      );
-    if (!entities.length) return;
-    pushHistory();
-    const primary = entities[0];
-    const baseX = snapWorld(ctx.W / 2 - primary.w / 2);
-    const baseY = snapWorld(ctx.H / 2 - primary.h / 2);
-    const created: SelItem[] = [];
-    const tagUpdates: Record<string, string> = {};
-    for (const entity of entities) {
-      const id = newId("as");
-      const renderKind =
-        entity.shape === "circle" || entity.kind === "zone"
-          ? "zone"
-          : "machine";
-      // Offset relativo al primario: la fila queda DETRÁS de la caja, como la
-      // definió el pack, no encimada en el centro.
-      assetsRef.current.set(id, {
-        id,
-        kind: renderKind,
-        x: baseX + (entity.x - primary.x),
-        y: baseY + (entity.y - primary.y),
-        w: entity.w,
-        h: entity.h,
-        rotation: entity.rotation ?? 0,
-        label: entity.label,
-        ...(entity.shape === "circle" ? { shape: "circle" as const } : {}),
-      });
-      created.push({ type: "asset", id });
-      tagUpdates[id] = `industry:${def.industry}, ${objectId}`;
-    }
-    setAssetIds((prev) => {
-      const next = new Set(prev);
-      for (const c of created) next.add(c.id);
-      return next;
-    });
-    const defaultLayer = defaultCadLayerForAssetKind("machine");
-    setLayerAssignments((cur) =>
-      assignObjectsToLayer(
-        cur,
-        created.map((c) => c.id),
-        activeCadLayer === "equipment" ? defaultLayer : activeCadLayer,
-      ),
-    );
-    setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
-    select(created);
-    markDirty();
-    rebuildAll();
-    const calc = def.calculate?.(instance) ?? {};
-    const summary = Object.entries(calc)
-      .map(([k, v]) => `${k} ${v}`)
-      .join(" · ");
-    toast.success(
-      `${def.label} agregada${entities.length > 1 ? ` (${entities.length} objetos)` : ""}${summary ? ` — ${summary}` : ""}.`,
-      "Industry Pack",
-    );
-  };
   const applyCadTemplate = (templateId: CadLayoutTemplateId) => {
     const ctx = ctxRef.current;
     const fp = data?.footprint;
@@ -9766,274 +9614,6 @@ export default function Layout3DEditor({
     );
     if (generated.warnings[0])
       toast.error(generated.warnings[0], "Plantillas CAD");
-  };
-  const setRackGeneratorField = <K extends keyof CadRackRowGeneratorInput>(
-    field: K,
-    value: CadRackRowGeneratorInput[K],
-  ) => {
-    setRackGenerator((state) => ({ ...state, [field]: value }));
-  };
-  const setDockGeneratorField = <K extends keyof CadDockStagingGeneratorInput>(
-    field: K,
-    value: CadDockStagingGeneratorInput[K],
-  ) => {
-    setDockGenerator((state) => ({ ...state, [field]: value }));
-  };
-  const setSupermarketGeneratorField = <
-    K extends keyof CadSupermarketGeneratorInput,
-  >(
-    field: K,
-    value: CadSupermarketGeneratorInput[K],
-  ) => {
-    setSupermarketGenerator((state) => ({ ...state, [field]: value }));
-  };
-  const applyRackRowGenerator = () => {
-    const ctx = ctxRef.current;
-    const fp = data?.footprint;
-    if (!ctx || !fp) {
-      toast.error(
-        "No hay footprint listo para generar racks.",
-        "Generador warehouse",
-      );
-      return;
-    }
-    const generated = generateWarehouseRackRows(rackGenerator, {
-      width: fp.footprintW || ctx.W,
-      height: fp.footprintH || ctx.H,
-      gridSize: fp.gridSize || 100,
-    });
-    recordLocalSnapshot("Auto - antes de generar racks warehouse", "command");
-    pushHistory();
-    const created: SelItem[] = [];
-    const layerUpdates: Record<string, CadLayerId> = {};
-    const tagUpdates: Record<string, string> = {};
-
-    for (const item of generated.assets) {
-      const id = newId("as");
-      assetsRef.current.set(id, {
-        id,
-        kind: item.kind,
-        label: item.label,
-        x: item.x,
-        y: item.y,
-        w: item.w,
-        h: item.h,
-        rotation: item.rotation ?? 0,
-      });
-      created.push({ type: "asset", id });
-      layerUpdates[id] = item.layer;
-      tagUpdates[id] = item.tags.join(", ");
-    }
-    for (const item of generated.annotations) {
-      const id = newId("nt");
-      annotationsRef.current.set(id, {
-        id,
-        type: "text",
-        text: item.text,
-        x: item.x,
-        y: item.y,
-        color: cadLayersRef.current.find((layer) => layer.id === item.layer)
-          ?.color,
-      });
-    }
-
-    setAssetIds(new Set(assetsRef.current.keys()));
-    setLayerAssignments((cur) => ({ ...cur, ...layerUpdates }));
-    setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
-    if (created.length) select(created.slice(0, 120));
-    markDirty();
-    rebuildAll();
-    refreshSnap();
-    const scaled =
-      generated.scale < 1
-        ? ` - escala ${Math.round(generated.scale * 100)}%`
-        : "";
-    toast.success(
-      `${generated.summary.rackCount} racks, ${generated.summary.aisleCount} pasillos y ${generated.summary.labelCount} etiquetas${scaled}.`,
-      "Generador warehouse",
-    );
-    if (generated.warnings[0])
-      toast.error(generated.warnings[0], "Generador warehouse");
-  };
-  const applyDockStagingGenerator = () => {
-    const ctx = ctxRef.current;
-    const fp = data?.footprint;
-    if (!ctx || !fp) {
-      toast.error(
-        "No hay footprint listo para generar docks.",
-        "Generador dock",
-      );
-      return;
-    }
-    const generated = generateWarehouseDockStaging(dockGenerator, {
-      width: fp.footprintW || ctx.W,
-      height: fp.footprintH || ctx.H,
-      gridSize: fp.gridSize || 100,
-    });
-    recordLocalSnapshot("Auto - antes de generar docks y staging", "command");
-    pushHistory();
-    const created: SelItem[] = [];
-    const idByRef = new Map<string, string>();
-    const layerUpdates: Record<string, CadLayerId> = {};
-    const tagUpdates: Record<string, string> = {};
-
-    for (const item of generated.assets) {
-      const id = newId("as");
-      assetsRef.current.set(id, {
-        id,
-        kind: item.kind,
-        label: item.label,
-        x: item.x,
-        y: item.y,
-        w: item.w,
-        h: item.h,
-        rotation: item.rotation ?? 0,
-      });
-      idByRef.set(item.ref, id);
-      created.push({ type: "asset", id });
-      layerUpdates[id] = item.layer;
-      tagUpdates[id] = item.tags.join(", ");
-    }
-
-    for (const item of generated.annotations) {
-      const id = newId("nt");
-      annotationsRef.current.set(id, {
-        id,
-        type: "text",
-        text: item.text,
-        x: item.x,
-        y: item.y,
-        color: cadLayersRef.current.find((layer) => layer.id === item.layer)
-          ?.color,
-      });
-    }
-
-    const nextConnectors = [...connectorsRef.current];
-    let connectorCount = 0;
-    for (const connector of generated.connectors) {
-      const from = idByRef.get(connector.fromRef);
-      const to = idByRef.get(connector.toRef);
-      if (!from || !to) continue;
-      if (
-        !nextConnectors.some(
-          (item) =>
-            item.from === from &&
-            item.to === to &&
-            (item.kind ?? "flow") === connector.kind,
-        )
-      ) {
-        nextConnectors.push({ from, to, kind: connector.kind });
-        connectorCount++;
-      }
-    }
-    connectorsRef.current = nextConnectors;
-
-    setAssetIds(new Set(assetsRef.current.keys()));
-    setLayerAssignments((cur) => ({ ...cur, ...layerUpdates }));
-    setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
-    if (created.length) select(created.slice(0, 140));
-    markDirty();
-    rebuildAll();
-    refreshSnap();
-    const scaled =
-      generated.scale < 1
-        ? ` - escala ${Math.round(generated.scale * 100)}%`
-        : "";
-    toast.success(
-      `${generated.summary.dockCount} docks, ${generated.summary.stagingLaneCount} staging, ${generated.summary.palletCount} pallets, ${connectorCount} flujos${scaled}.`,
-      "Generador dock",
-    );
-    if (generated.warnings[0])
-      toast.error(generated.warnings[0], "Generador dock");
-  };
-  const applySupermarketGenerator = () => {
-    const ctx = ctxRef.current;
-    const fp = data?.footprint;
-    if (!ctx || !fp) {
-      toast.error(
-        "No hay footprint listo para generar kitting.",
-        "Generador kitting",
-      );
-      return;
-    }
-    const generated = generateWarehouseSupermarketKitting(
-      supermarketGenerator,
-      {
-        width: fp.footprintW || ctx.W,
-        height: fp.footprintH || ctx.H,
-        gridSize: fp.gridSize || 100,
-      },
-    );
-    recordLocalSnapshot(
-      "Auto - antes de generar supermarket/kitting",
-      "command",
-    );
-    pushHistory();
-    const created: SelItem[] = [];
-    const idByRef = new Map<string, string>();
-    const layerUpdates: Record<string, CadLayerId> = {};
-    const tagUpdates: Record<string, string> = {};
-
-    for (const item of generated.assets) {
-      const id = newId("as");
-      assetsRef.current.set(id, {
-        id,
-        kind: item.kind,
-        label: item.label,
-        x: item.x,
-        y: item.y,
-        w: item.w,
-        h: item.h,
-        rotation: item.rotation ?? 0,
-      });
-      idByRef.set(item.ref, id);
-      created.push({ type: "asset", id });
-      layerUpdates[id] = item.layer;
-      tagUpdates[id] = item.tags.join(", ");
-    }
-
-    for (const item of generated.annotations) {
-      const id = newId("nt");
-      annotationsRef.current.set(id, {
-        id,
-        type: "text",
-        text: item.text,
-        x: item.x,
-        y: item.y,
-        color: cadLayersRef.current.find((layer) => layer.id === item.layer)
-          ?.color,
-      });
-    }
-
-    let connectorCount = 0;
-    for (const connector of generated.connectors) {
-      const from = idByRef.get(connector.fromRef);
-      const to = idByRef.get(connector.toRef);
-      if (!from || !to) continue;
-      connectorsRef.current = [
-        ...connectorsRef.current,
-        { from, to, kind: connector.kind },
-      ];
-      connectorCount++;
-    }
-
-    setAssetIds(new Set(assetsRef.current.keys()));
-    setLayerAssignments((cur) => ({ ...cur, ...layerUpdates }));
-    setObjectTags((cur) => ({ ...cur, ...tagUpdates }));
-    if (created.length) select(created.slice(0, 120));
-    markDirty();
-    rebuildAll();
-    refreshSnap();
-    const scaled =
-      generated.scale < 1
-        ? ` - escala ${Math.round(generated.scale * 100)}%`
-        : "";
-    toast.success(
-      `${generated.summary.laneCount} lanes, ${generated.summary.cartCount} carts y ${connectorCount} conectores${scaled}.`,
-      "Generador kitting",
-    );
-    if (generated.warnings[0])
-      toast.error(generated.warnings[0], "Generador kitting");
   };
   const fallbackLayerForItem = (item: SelItem): CadLayerId =>
     item.type === "station" ? "layout" : defaultLayerForAsset(item.id);
@@ -15475,32 +15055,6 @@ export default function Layout3DEditor({
           });
         })()
       : null;
-  // Bloque Industry Pack VIVO (CAD-NEXT-096): métricas y primera norma del
-  // pack re-calculadas con el tamaño actual del asset seleccionado.
-  const selectedIndustryInfo =
-    selSnap && selSnap.type === "asset"
-      ? (() => {
-          const tags = (objectTags[selSnap.id] ?? "")
-            .split(/[,\n]/)
-            .map((t) => t.trim());
-          const objectId = tags.find((t) => INDUSTRY_REGISTRY.getObject(t));
-          if (!objectId) return null;
-          const def = INDUSTRY_REGISTRY.getObject(objectId)!;
-          return {
-            label: def.label,
-            metrics: INDUSTRY_REGISTRY.calculatePlaced(
-              objectId,
-              selSnap.w,
-              selSnap.h,
-            ),
-            findings: INDUSTRY_REGISTRY.validatePlaced(
-              objectId,
-              selSnap.w,
-              selSnap.h,
-            ),
-          };
-        })()
-      : null;
   const safetyBlockers = safetyIssues.filter(
     (issue) => issue.code === "zone_invasion",
   ).length;
@@ -16991,340 +16545,6 @@ export default function Layout3DEditor({
                           clasifican locales en el takeoff.
                         </div>
                       </div>
-                      <div className="mb-3 rounded-xl border border-amber-400/15 bg-amber-400/[0.05] p-2.5">
-                        <div className="mb-1.5 flex items-center justify-between gap-2">
-                          <div className="inline-flex items-center gap-1.5 type-micro uppercase tracking-wide text-warning-ink">
-                            <Rows3 className="h-3.5 w-3.5" /> Generador de racks
-                          </div>
-                          <span className="type-micro text-warning-ink/60">
-                            editable
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-1.5">
-                          <DimInput
-                            label="Filas"
-                            value={rackGenerator.rows}
-                            onChange={(v) => setRackGeneratorField("rows", v)}
-                          />
-                          <DimInput
-                            label="Bahias"
-                            value={rackGenerator.baysPerRow}
-                            onChange={(v) =>
-                              setRackGeneratorField("baysPerRow", v)
-                            }
-                          />
-                          <DimInput
-                            label="Bay mm"
-                            value={rackGenerator.bayWidth}
-                            onChange={(v) =>
-                              setRackGeneratorField("bayWidth", v)
-                            }
-                          />
-                          <DimInput
-                            label="Rack mm"
-                            value={rackGenerator.rackDepth}
-                            onChange={(v) =>
-                              setRackGeneratorField("rackDepth", v)
-                            }
-                          />
-                          <DimInput
-                            label="Pasillo"
-                            value={rackGenerator.aisleWidth}
-                            onChange={(v) =>
-                              setRackGeneratorField("aisleWidth", v)
-                            }
-                          />
-                          <label className="block">
-                            <span className="block type-micro uppercase tracking-wide text-muted-foreground mb-0.5">
-                              Prefijo
-                            </span>
-                            <input
-                              value={rackGenerator.labelPrefix}
-                              onChange={(e) =>
-                                setRackGeneratorField(
-                                  "labelPrefix",
-                                  e.target.value,
-                                )
-                              }
-                              className="w-full px-1.5 py-1 rounded-md bg-muted/60 border border-border type-caption text-foreground focus:outline-none focus:border-amber-300/60"
-                            />
-                          </label>
-                        </div>
-                        <div className="mt-2 grid grid-cols-2 gap-1.5 type-micro">
-                          {(["horizontal", "vertical"] as const).map(
-                            (orientation) => (
-                              <button
-                                key={orientation}
-                                onClick={() =>
-                                  setRackGeneratorField(
-                                    "orientation",
-                                    orientation,
-                                  )
-                                }
-                                className={`rounded-lg border px-2 py-1.5 font-semibold ${rackGenerator.orientation === orientation ? "border-amber-300/50 bg-amber-400/15 text-warning-ink" : "border-border text-muted-foreground hover:text-foreground"}`}
-                              >
-                                {orientation === "horizontal"
-                                  ? "Horizontal"
-                                  : "Vertical"}
-                              </button>
-                            ),
-                          )}
-                        </div>
-                        <button
-                          onClick={applyRackRowGenerator}
-                          className="mt-2 w-full rounded-lg bg-amber-500/90 px-2 py-1.5 type-micro font-semibold text-foreground hover:bg-amber-400"
-                        >
-                          Generar racks editables
-                        </button>
-                        <div className="mt-1.5 type-micro leading-snug text-warning-ink/60">
-                          Crea racks, pasillos forklift y etiquetas en capas CAD
-                          existentes.
-                        </div>
-                      </div>
-                      <div className="mb-3 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.05] p-2.5">
-                        <div className="mb-1.5 flex items-center justify-between gap-2">
-                          <div className="inline-flex items-center gap-1.5 type-micro uppercase tracking-wide text-success-ink">
-                            <Waypoints className="h-3.5 w-3.5" /> Generador
-                            dock/staging
-                          </div>
-                          <span className="type-micro text-success-ink/60">
-                            flow
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-1.5">
-                          <DimInput
-                            label="Docks"
-                            value={dockGenerator.dockCount}
-                            onChange={(v) =>
-                              setDockGeneratorField("dockCount", v)
-                            }
-                          />
-                          <DimInput
-                            label="Staging"
-                            value={dockGenerator.stagingLanes}
-                            onChange={(v) =>
-                              setDockGeneratorField("stagingLanes", v)
-                            }
-                          />
-                          <DimInput
-                            label="Dock mm"
-                            value={dockGenerator.dockWidth}
-                            onChange={(v) =>
-                              setDockGeneratorField("dockWidth", v)
-                            }
-                          />
-                          <DimInput
-                            label="Fondo"
-                            value={dockGenerator.stagingDepth}
-                            onChange={(v) =>
-                              setDockGeneratorField("stagingDepth", v)
-                            }
-                          />
-                          <DimInput
-                            label="Apron"
-                            value={dockGenerator.aisleWidth}
-                            onChange={(v) =>
-                              setDockGeneratorField("aisleWidth", v)
-                            }
-                          />
-                          <label className="block">
-                            <span className="block type-micro uppercase tracking-wide text-muted-foreground mb-0.5">
-                              Prefijo
-                            </span>
-                            <input
-                              value={dockGenerator.labelPrefix}
-                              onChange={(e) =>
-                                setDockGeneratorField(
-                                  "labelPrefix",
-                                  e.target.value,
-                                )
-                              }
-                              className="w-full px-1.5 py-1 rounded-md bg-muted/60 border border-border type-caption text-foreground focus:outline-none focus:border-emerald-300/60"
-                            />
-                          </label>
-                        </div>
-                        <div className="mt-2 grid grid-cols-3 gap-1.5 type-micro">
-                          {(
-                            ["receiving", "shipping", "crossdock"] as const
-                          ).map((mode) => (
-                            <button
-                              key={mode}
-                              onClick={() =>
-                                setDockGeneratorField("mode", mode)
-                              }
-                              className={`rounded-lg border px-1.5 py-1.5 font-semibold ${dockGenerator.mode === mode ? "border-emerald-300/50 bg-emerald-400/15 text-success-ink" : "border-border text-muted-foreground hover:text-foreground"}`}
-                            >
-                              {mode === "receiving"
-                                ? "Recibir"
-                                : mode === "shipping"
-                                  ? "Enviar"
-                                  : "Cross"}
-                            </button>
-                          ))}
-                        </div>
-                        <div className="mt-1.5 grid grid-cols-4 gap-1 type-micro">
-                          {(["north", "south", "west", "east"] as const).map(
-                            (side) => (
-                              <button
-                                key={side}
-                                onClick={() =>
-                                  setDockGeneratorField("side", side)
-                                }
-                                className={`rounded-lg border px-1.5 py-1 font-semibold ${dockGenerator.side === side ? "border-emerald-300/50 bg-emerald-400/15 text-success-ink" : "border-border text-muted-foreground hover:text-foreground"}`}
-                              >
-                                {side === "north"
-                                  ? "N"
-                                  : side === "south"
-                                    ? "S"
-                                    : side === "west"
-                                      ? "O"
-                                      : "E"}
-                              </button>
-                            ),
-                          )}
-                        </div>
-                        <button
-                          onClick={applyDockStagingGenerator}
-                          className="mt-2 w-full rounded-lg bg-emerald-500/90 px-2 py-1.5 type-micro font-semibold text-foreground hover:bg-emerald-400"
-                        >
-                          Generar dock + staging
-                        </button>
-                        <div className="mt-1.5 type-micro leading-snug text-success-ink/60">
-                          Crea puertas, staging, pallets, apron forklift y
-                          flujos visibles como objetos editables.
-                        </div>
-                      </div>
-                      <div className="mb-3 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.05] p-2.5">
-                        <div className="mb-1.5 flex items-center justify-between gap-2">
-                          <div className="inline-flex items-center gap-1.5 type-micro uppercase tracking-wide text-success-ink">
-                            <Package className="h-3.5 w-3.5" />{" "}
-                            Supermarket/kitting
-                          </div>
-                          <span className="type-micro text-success-ink/60">
-                            param
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-2 gap-1.5">
-                          <DimInput
-                            label="Lanes"
-                            value={supermarketGenerator.lanes}
-                            onChange={(v) =>
-                              setSupermarketGeneratorField("lanes", v)
-                            }
-                          />
-                          <DimInput
-                            label="Carts"
-                            value={supermarketGenerator.cartsPerLane}
-                            onChange={(v) =>
-                              setSupermarketGeneratorField("cartsPerLane", v)
-                            }
-                          />
-                          <DimInput
-                            label="Lane mm"
-                            value={supermarketGenerator.laneLength}
-                            onChange={(v) =>
-                              setSupermarketGeneratorField("laneLength", v)
-                            }
-                          />
-                          <DimInput
-                            label="Width"
-                            value={supermarketGenerator.laneWidth}
-                            onChange={(v) =>
-                              setSupermarketGeneratorField("laneWidth", v)
-                            }
-                          />
-                          <DimInput
-                            label="Cart W"
-                            value={supermarketGenerator.cartWidth}
-                            onChange={(v) =>
-                              setSupermarketGeneratorField("cartWidth", v)
-                            }
-                          />
-                          <DimInput
-                            label="Aisle"
-                            value={supermarketGenerator.aisleWidth}
-                            onChange={(v) =>
-                              setSupermarketGeneratorField("aisleWidth", v)
-                            }
-                          />
-                          <label className="block">
-                            <span className="block type-micro uppercase tracking-wide text-muted-foreground mb-0.5">
-                              Prefijo
-                            </span>
-                            <input
-                              value={supermarketGenerator.labelPrefix}
-                              onChange={(e) =>
-                                setSupermarketGeneratorField(
-                                  "labelPrefix",
-                                  e.target.value,
-                                )
-                              }
-                              className="w-full px-1.5 py-1 rounded-md bg-muted/60 border border-border type-caption text-foreground focus:outline-none focus:border-emerald-300/60"
-                            />
-                          </label>
-                          <DimInput
-                            label="Cart D"
-                            value={supermarketGenerator.cartDepth}
-                            onChange={(v) =>
-                              setSupermarketGeneratorField("cartDepth", v)
-                            }
-                          />
-                        </div>
-                        <div className="mt-2 grid grid-cols-2 gap-1.5 type-micro">
-                          {(["horizontal", "vertical"] as const).map(
-                            (orientation) => (
-                              <button
-                                key={orientation}
-                                onClick={() =>
-                                  setSupermarketGeneratorField(
-                                    "orientation",
-                                    orientation,
-                                  )
-                                }
-                                className={`rounded-lg border px-2 py-1.5 font-semibold ${supermarketGenerator.orientation === orientation ? "border-emerald-300/50 bg-emerald-400/15 text-success-ink" : "border-border text-muted-foreground hover:text-foreground"}`}
-                              >
-                                {orientation === "horizontal"
-                                  ? "Horizontal"
-                                  : "Vertical"}
-                              </button>
-                            ),
-                          )}
-                        </div>
-                        <div className="mt-2 grid grid-cols-2 gap-1.5 type-micro">
-                          <button
-                            onClick={() =>
-                              setSupermarketGeneratorField(
-                                "includeEsdZone",
-                                !supermarketGenerator.includeEsdZone,
-                              )
-                            }
-                            className={`rounded-lg border px-2 py-1.5 text-left font-semibold ${supermarketGenerator.includeEsdZone ? "border-indigo-300/40 bg-indigo-400/15 text-primary-ink" : "border-border text-muted-foreground hover:text-foreground"}`}
-                          >
-                            ESD zone
-                          </button>
-                          <button
-                            onClick={() =>
-                              setSupermarketGeneratorField(
-                                "includeQuarantine",
-                                !supermarketGenerator.includeQuarantine,
-                              )
-                            }
-                            className={`rounded-lg border px-2 py-1.5 text-left font-semibold ${supermarketGenerator.includeQuarantine ? "border-rose-300/40 bg-rose-400/15 text-rose-100" : "border-border text-muted-foreground hover:text-foreground"}`}
-                          >
-                            Quarantine
-                          </button>
-                        </div>
-                        <button
-                          onClick={applySupermarketGenerator}
-                          className="mt-2 w-full rounded-lg bg-emerald-500/90 px-2 py-1.5 type-micro font-semibold text-foreground hover:bg-emerald-400"
-                        >
-                          Generar kitting editable
-                        </button>
-                        <div className="mt-1.5 type-micro leading-snug text-success-ink/60">
-                          Crea lanes kanban, carts, FIFO, line-side, ESD,
-                          quarantine y flujos.
-                        </div>
-                      </div>
                       <div className="mb-3 rounded-xl border border-rose-400/15 bg-rose-400/[0.05] p-2.5">
                         <div className="type-micro uppercase tracking-wide text-danger-ink mb-1.5">
                           Safety zones
@@ -17365,33 +16585,6 @@ export default function Layout3DEditor({
                           >
                             Emergency exit
                           </button>
-                        </div>
-                      </div>
-                      <div className="mb-2 rounded-lg border border-violet-300/20 bg-violet-400/[0.06] p-2">
-                        <div className="mb-1.5 type-micro uppercase tracking-wide text-violet-200/80">
-                          Industry Packs
-                        </div>
-                        <div className="grid grid-cols-1 gap-1.5">
-                          {INDUSTRY_REGISTRY.listObjects().map((obj) => (
-                            <button
-                              key={obj.id}
-                              onClick={() => addIndustryObject(obj.id)}
-                              title={`Agregar ${obj.label}`}
-                              className="rounded-lg bg-violet-400/[0.10] px-2 py-1.5 text-left type-micro text-violet-100 hover:bg-violet-400/[0.16]"
-                            >
-                              <span className="flex items-center justify-between gap-2">
-                                <span className="truncate font-semibold">
-                                  {obj.label}
-                                </span>
-                                <span className="shrink-0 type-micro text-violet-200/70">
-                                  {obj.industry}
-                                </span>
-                              </span>
-                              <span className="mt-0.5 block truncate type-micro text-violet-200/70">
-                                objeto inteligente · {obj.category}
-                              </span>
-                            </button>
-                          ))}
                         </div>
                       </div>
                       <div className="mb-2 flex items-center justify-between gap-2">
@@ -19432,41 +18625,6 @@ export default function Layout3DEditor({
                                       />
                                     ))}
                                 </div>
-                              </div>
-                            )}
-                            {selectedIndustryInfo && (
-                              <div className="mt-2 rounded-lg border border-violet-300/10 bg-violet-300/[0.05] p-2">
-                                <div className="mb-1.5 flex items-center justify-between gap-2">
-                                  <span className="type-micro uppercase tracking-wide text-violet-300">
-                                    Industry Pack
-                                  </span>
-                                  <span className="rounded-full bg-muted/60 px-1.5 py-0.5 type-micro text-violet-200">
-                                    {selectedIndustryInfo.label}
-                                  </span>
-                                </div>
-                                {Object.keys(selectedIndustryInfo.metrics)
-                                  .length > 0 && (
-                                  <div className="grid grid-cols-2 gap-2">
-                                    {Object.entries(
-                                      selectedIndustryInfo.metrics,
-                                    )
-                                      .slice(0, 4)
-                                      .map(([metric, value]) => (
-                                        <ReadField
-                                          key={metric}
-                                          label={metric}
-                                          value={value.toLocaleString("es-MX")}
-                                        />
-                                      ))}
-                                  </div>
-                                )}
-                                {selectedIndustryInfo.findings.length > 0 && (
-                                  <div
-                                    className={`mt-2 rounded-md px-2 py-1 type-micro ${selectedIndustryInfo.findings[0].level === "error" ? "border border-rose-300/15 bg-rose-400/[0.06] text-rose-100" : "border border-amber-300/15 bg-amber-400/[0.06] text-warning-ink"}`}
-                                  >
-                                    {selectedIndustryInfo.findings[0].message}
-                                  </div>
-                                )}
                               </div>
                             )}
                             {selectedObjectProperties.warnings.length > 0 && (

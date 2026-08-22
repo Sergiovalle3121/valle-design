@@ -8,7 +8,9 @@ import { layoutToCadDocument } from "./cad-document";
 
 function assertEqual<T>(actual: T, expected: T, message: string) {
   if (actual !== expected)
-    throw new Error(`${message}: expected ${String(expected)}, got ${String(actual)}`);
+    throw new Error(
+      `${message}: expected ${String(expected)}, got ${String(actual)}`,
+    );
 }
 
 function assertOk(value: unknown, message: string) {
@@ -141,15 +143,21 @@ assertEqual(
   "blocked doors mark architecture validation critical",
 );
 assertOk(
-  architectureReport.architecture.some((issue) => issue.code === "room_missing_label"),
+  architectureReport.architecture.some(
+    (issue) => issue.code === "room_missing_label",
+  ),
   "architecture validation flags unlabeled rooms",
 );
 assertOk(
-  architectureReport.architecture.some((issue) => issue.code === "door_blocked"),
+  architectureReport.architecture.some(
+    (issue) => issue.code === "door_blocked",
+  ),
   "architecture validation flags blocked doors",
 );
 assertOk(
-  architectureReport.architecture.some((issue) => issue.code === "utility_missing"),
+  architectureReport.architecture.some(
+    (issue) => issue.code === "utility_missing",
+  ),
   "architecture validation flags missing explicit utility requirements",
 );
 assertOk(
@@ -196,52 +204,50 @@ const documentReport = buildCadValidationReport({
   document: layoutToCadDocument({
     assets: [
       { id: "dup", kind: "workbench", x: 0, y: 0, w: 100, h: 100, rotation: 0 },
-      { id: "dup", kind: "workbench", x: 500, y: 0, w: 100, h: 100, rotation: 0 },
+      {
+        id: "dup",
+        kind: "workbench",
+        x: 500,
+        y: 0,
+        w: 100,
+        h: 100,
+        rotation: 0,
+      },
     ],
     stations: [{ id: "st-lejos", x: 9000, y: 0, w: 1000, h: 800, rotation: 0 }],
   }),
   footprint: { w: 5000, h: 5000 },
 });
-assertEqual(documentReport.severity, "critical", "document errors mark report critical");
+assertEqual(
+  documentReport.severity,
+  "critical",
+  "document errors mark report critical",
+);
 assertEqual(
   documentReport.document.filter((f) => f.ruleId === "duplicate-ids").length,
   1,
   "duplicate id detected via canonical engine",
 );
 assertOk(
-  documentReport.document.some((f) => f.ruleId === "within-bounds" && f.entityIds.includes("st-lejos")),
+  documentReport.document.some(
+    (f) => f.ruleId === "within-bounds" && f.entityIds.includes("st-lejos"),
+  ),
   "station out of bounds detected via canonical engine",
 );
 assertOk(
-  documentReport.issues.some((row) => row.category === "document" && row.severity === "critical"),
+  documentReport.issues.some(
+    (row) => row.category === "document" && row.severity === "critical",
+  ),
   "document findings surface as actionable issue rows",
 );
 
 // Sin documento no hay hallazgos de documento (compatibilidad hacia atrás).
 const noDocReport = buildCadValidationReport({ boxes: [] });
-assertEqual(noDocReport.document.length, 0, "no document input → no document findings");
-assertEqual(noDocReport.severity, "ok", "empty report stays ok");
-
-// --- hallazgos normativos de Industry Packs (CAD-NEXT-095) -------------------
-const industryReport = buildCadValidationReport({
-  boxes: [],
-  industryFindings: [
-    { assetId: "aisle-1", objectLabel: "Pasillo de montacargas", level: "error", message: "Pasillo de 2500 mm: requiere ≥ 3500 mm." },
-    { assetId: "stall-1", objectLabel: "Cajón de estacionamiento", level: "warning", message: "Ancho < 2400 mm." },
-  ],
-});
-assertEqual(industryReport.severity, "critical", "industry error marks report critical");
-assertEqual(industryReport.industry.length, 2, "both findings kept on the report");
-assertOk(
-  industryReport.issues.some(
-    (row) => row.category === "industry" && row.severity === "critical" && row.affectedObjectIds.includes("aisle-1"),
-  ),
-  "industry findings surface as actionable rows with the asset attached",
-);
 assertEqual(
-  buildCadValidationReport({ boxes: [] }).industry.length,
+  noDocReport.document.length,
   0,
-  "no industry findings input → empty list",
+  "no document input → no document findings",
 );
+assertEqual(noDocReport.severity, "ok", "empty report stays ok");
 
 console.log("cad validation report specs passed");

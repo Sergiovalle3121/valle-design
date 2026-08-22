@@ -26,21 +26,19 @@
   "allowances": {
     "apps/api/src/migration-cli/import.ts": 810,
     "apps/web/e2e/real/studio-real-api.spec.ts": 821,
-    "apps/web/src/components/cad/editor/Layout3DEditor.tsx": 21506,
+    "apps/web/src/components/cad/editor/Layout3DEditor.tsx": 20663,
     "apps/web/src/lib/cad/commands/parser.ts": 1620,
     "apps/web/src/lib/cad/commands/registry.spec.ts": 3063,
     "apps/web/src/lib/cad/commands/registry.ts": 2953,
     "apps/web/src/lib/cad/dxf-cad-document.ts": 970,
     "apps/web/src/lib/cad/dxf-export.ts": 971,
     "apps/web/src/lib/cad/dxf-import.ts": 1044,
-    "apps/web/src/lib/cad/industry-pack.ts": 906,
     "apps/web/src/lib/cad/legacy/layout-http-adapter.ts": 871,
     "apps/web/src/lib/cad/paper-space.ts": 909,
     "apps/web/src/lib/cad/symbols.ts": 1650,
-    "apps/web/src/lib/cad/templates.ts": 5150,
-    "apps/web/src/lib/cad/warehouse-generators.ts": 1163
+    "apps/web/src/lib/cad/templates.ts": 5150
   },
   "stateCeilings": {
-    "apps/web/src/components/cad/editor/Layout3DEditor.tsx": 148
+    "apps/web/src/components/cad/editor/Layout3DEditor.tsx": 145
   }
 }

@@ -18,7 +18,12 @@ import {
 import type { CadSafetyIssue, CadSafetyZone } from "./safety-zones";
 import { evaluateSafetyZones } from "./safety-zones";
 import type { CadDocument } from "./cad-document";
-import { duplicateIdsRule, RuleEngine, withinBoundsRule, type RuleFinding } from "./rule-engine";
+import {
+  duplicateIdsRule,
+  RuleEngine,
+  withinBoundsRule,
+  type RuleFinding,
+} from "./rule-engine";
 
 export interface CadValidationReport {
   collisions: CadCollisionHit[];
@@ -27,29 +32,13 @@ export interface CadValidationReport {
   architecture: CadArchitectureValidationIssue[];
   /** Hallazgos del motor de reglas canónico sobre el CadDocument (CAD-NEXT-101). */
   document: RuleFinding[];
-  /** Hallazgos normativos de Industry Packs re-evaluados (CAD-NEXT-095). */
-  industry: CadIndustryValidationFinding[];
   issues: CadValidationIssueRow[];
   flow?: CadFlowScore;
   severity: "ok" | "warning" | "critical";
 }
 
 export type CadValidationIssueCategory =
-  | "collision"
-  | "clearance"
-  | "safety"
-  | "architecture"
-  | "document"
-  | "industry"
-  | "flow";
-
-/** Hallazgo normativo de un Industry Pack re-evaluado sobre un objeto colocado. */
-export interface CadIndustryValidationFinding {
-  assetId: string;
-  objectLabel: string;
-  level: "error" | "warning";
-  message: string;
-}
+  "collision" | "clearance" | "safety" | "architecture" | "document" | "flow";
 
 export interface CadValidationIssueRow {
   id: string;
@@ -117,7 +106,8 @@ const UTILITY_KIND_ALIASES: Record<string, string> = {
 };
 
 function tags(value: CadArchitectureObjectInput["tags"]): string[] {
-  if (Array.isArray(value)) return value.map((tag) => tag.trim()).filter(Boolean);
+  if (Array.isArray(value))
+    return value.map((tag) => tag.trim()).filter(Boolean);
   return (value ?? "")
     .split(/[,\n]/)
     .map((tag) => tag.trim())
@@ -147,7 +137,10 @@ function areaOf(object: CadArchitectureObjectInput): number {
   return Math.max(0, object.width) * Math.max(0, object.height);
 }
 
-function overlaps(a: CadArchitectureObjectInput, b: CadArchitectureObjectInput): boolean {
+function overlaps(
+  a: CadArchitectureObjectInput,
+  b: CadArchitectureObjectInput,
+): boolean {
   const ab = boundsOf(a);
   const bb = boundsOf(b);
   return (
@@ -156,24 +149,42 @@ function overlaps(a: CadArchitectureObjectInput, b: CadArchitectureObjectInput):
   );
 }
 
-function containsBounds(container: CadArchitectureObjectInput, object: CadArchitectureObjectInput): boolean {
+function containsBounds(
+  container: CadArchitectureObjectInput,
+  object: CadArchitectureObjectInput,
+): boolean {
   const cb = boundsOf(container);
   const ob = boundsOf(object);
-  return ob.left >= cb.left && ob.right <= cb.right && ob.top >= cb.top && ob.bottom <= cb.bottom;
+  return (
+    ob.left >= cb.left &&
+    ob.right <= cb.right &&
+    ob.top >= cb.top &&
+    ob.bottom <= cb.bottom
+  );
 }
 
-function centerInside(container: CadArchitectureObjectInput, object: CadArchitectureObjectInput): boolean {
+function centerInside(
+  container: CadArchitectureObjectInput,
+  object: CadArchitectureObjectInput,
+): boolean {
   const cb = boundsOf(container);
   const center = {
     x: object.x + Math.max(0, object.width) / 2,
     y: object.y + Math.max(0, object.height) / 2,
   };
-  return center.x >= cb.left && center.x <= cb.right && center.y >= cb.top && center.y <= cb.bottom;
+  return (
+    center.x >= cb.left &&
+    center.x <= cb.right &&
+    center.y >= cb.top &&
+    center.y <= cb.bottom
+  );
 }
 
 function isSafetyOrAisleObject(object: CadArchitectureObjectInput): boolean {
   const text = `${object.kind} ${object.label ?? ""} ${normalizedTags(object.tags).join(" ")}`;
-  return /aisle|pasillo|safety|no-go|restricted|emergency|egress|forklift|pedestrian|esd/.test(text);
+  return /aisle|pasillo|safety|no-go|restricted|emergency|egress|forklift|pedestrian|esd/.test(
+    text,
+  );
 }
 
 function architectureRole(object: CadArchitectureObjectInput) {
@@ -182,9 +193,20 @@ function architectureRole(object: CadArchitectureObjectInput) {
 
 function isEquipmentObject(object: CadArchitectureObjectInput): boolean {
   const role = architectureRole(object);
-  if (role === "wall" || role === "door" || role === "room" || role === "utility") return false;
+  if (
+    role === "wall" ||
+    role === "door" ||
+    role === "room" ||
+    role === "utility"
+  )
+    return false;
   if (isSafetyOrAisleObject(object)) return false;
-  return object.kind === "station" || object.layerId === "layout" || object.layerId === "equipment" || !role;
+  return (
+    object.kind === "station" ||
+    object.layerId === "layout" ||
+    object.layerId === "equipment" ||
+    !role
+  );
 }
 
 function utilityKind(object: CadArchitectureObjectInput): string | null {
@@ -231,7 +253,11 @@ function roomForObject(
   object: CadArchitectureObjectInput,
   rooms: CadArchitectureObjectInput[],
 ): CadArchitectureObjectInput | null {
-  return rooms.find((room) => containsBounds(room, object) || centerInside(room, object)) ?? null;
+  return (
+    rooms.find(
+      (room) => containsBounds(room, object) || centerInside(room, object),
+    ) ?? null
+  );
 }
 
 function formatUtility(kind: string): string {
@@ -258,7 +284,10 @@ function buildArchitectureValidationIssues(
   const equipment = objects.filter(isEquipmentObject);
   const utilities = objects
     .map((object) => ({ object, kind: utilityKind(object) }))
-    .filter((entry): entry is { object: CadArchitectureObjectInput; kind: string } => !!entry.kind);
+    .filter(
+      (entry): entry is { object: CadArchitectureObjectInput; kind: string } =>
+        !!entry.kind,
+    );
   const issues: CadArchitectureValidationIssue[] = [];
 
   for (const room of rooms) {
@@ -296,15 +325,17 @@ function buildArchitectureValidationIssues(
         title: "Room area below engineering minimum",
         message: `${label || "Room"} area is below the minimum planning threshold.`,
         affectedObjectIds: [room.id],
-        suggestedFix: "Resize the room or document why the area is intentionally constrained.",
+        suggestedFix:
+          "Resize the room or document why the area is intentionally constrained.",
       });
     }
   }
 
   for (const door of doors) {
-    const blocker = [...equipment, ...utilities.map((entry) => entry.object)].find((object) =>
-      overlaps(door, object),
-    );
+    const blocker = [
+      ...equipment,
+      ...utilities.map((entry) => entry.object),
+    ].find((object) => overlaps(door, object));
     if (blocker) {
       issues.push({
         code: "door_blocked",
@@ -312,7 +343,8 @@ function buildArchitectureValidationIssues(
         title: "Door opening blocked",
         message: `${door.label || "Door"} overlaps ${blocker.label || blocker.id}.`,
         affectedObjectIds: [door.id, blocker.id],
-        suggestedFix: "Move the blocking object or relocate the door opening so egress stays clear.",
+        suggestedFix:
+          "Move the blocking object or relocate the door opening so egress stays clear.",
       });
     }
   }
@@ -326,7 +358,8 @@ function buildArchitectureValidationIssues(
         title: "Wall crosses equipment",
         message: `${wall.label || "Wall"} overlaps ${blocker.label || blocker.id}.`,
         affectedObjectIds: [wall.id, blocker.id],
-        suggestedFix: "Move the equipment or reroute the wall so the architectural shell does not cut through assets.",
+        suggestedFix:
+          "Move the equipment or reroute the wall so the architectural shell does not cut through assets.",
       });
     }
   }
@@ -340,7 +373,8 @@ function buildArchitectureValidationIssues(
           title: "Equipment outside a room/area",
           message: `${object.label || object.id} is not contained in any room or department zone.`,
           affectedObjectIds: [object.id],
-          suggestedFix: "Place the object inside a room/area boundary or add the missing room envelope.",
+          suggestedFix:
+            "Place the object inside a room/area boundary or add the missing room envelope.",
         });
       }
     }
@@ -376,9 +410,11 @@ function buildArchitectureValidationIssues(
       code: "critical_dimensions_missing",
       severity: "warning",
       title: "Critical architecture dimensions missing",
-      message: "The architecture layer has no saved dimensions for rooms, walls, or door openings.",
+      message:
+        "The architecture layer has no saved dimensions for rooms, walls, or door openings.",
       affectedObjectIds: [],
-      suggestedFix: "Add baseline, room, wall, and door-width dimensions before releasing the drawing.",
+      suggestedFix:
+        "Add baseline, room, wall, and door-width dimensions before releasing the drawing.",
     });
   }
 
@@ -415,7 +451,6 @@ function buildIssueRows(input: {
   safety: CadSafetyIssue[];
   architecture: CadArchitectureValidationIssue[];
   document: RuleFinding[];
-  industry: CadIndustryValidationFinding[];
   flow?: CadFlowScore;
 }): CadValidationIssueRow[] {
   const rows: CadValidationIssueRow[] = [];
@@ -487,26 +522,14 @@ function buildIssueRows(input: {
       title: `Documento: ${finding.ruleId === "duplicate-ids" ? "id duplicado" : finding.ruleId === "within-bounds" ? "fuera del área" : finding.ruleId}`,
       detail: finding.message,
       affectedObjectIds: finding.entityIds,
-      actionLabel: finding.entityIds.length ? "Select document issue" : "Review document",
+      actionLabel: finding.entityIds.length
+        ? "Select document issue"
+        : "Review document",
       suggestedFix:
         DOCUMENT_RULE_FIXES[finding.ruleId] ??
         "Revisa el hallazgo del motor de reglas del documento canónico.",
     });
   }
-
-  input.industry.forEach((finding, index) => {
-    rows.push({
-      id: `industry:${finding.assetId}:${index}`,
-      category: "industry",
-      severity: finding.level === "error" ? "critical" : "warning",
-      title: `Norma de industria: ${finding.objectLabel}`,
-      detail: finding.message,
-      affectedObjectIds: [finding.assetId],
-      actionLabel: "Select industry issue",
-      suggestedFix:
-        "Ajusta el tamaño del objeto para cumplir la norma del pack o documenta la excepción.",
-    });
-  });
 
   if (input.flow && input.flow.score < 70) {
     rows.push({
@@ -524,8 +547,13 @@ function buildIssueRows(input: {
   }
 
   return rows.sort((a, b) => {
-    const severity = Number(b.severity === "critical") - Number(a.severity === "critical");
-    return severity || a.category.localeCompare(b.category) || a.title.localeCompare(b.title);
+    const severity =
+      Number(b.severity === "critical") - Number(a.severity === "critical");
+    return (
+      severity ||
+      a.category.localeCompare(b.category) ||
+      a.title.localeCompare(b.title)
+    );
   });
 }
 
@@ -542,8 +570,6 @@ export function buildCadValidationReport(input: {
   document?: CadDocument;
   /** Área de trabajo (para la regla fuera-de-límites del documento). */
   footprint?: { w: number; h: number };
-  /** Hallazgos normativos de packs ya re-evaluados por el llamador. */
-  industryFindings?: CadIndustryValidationFinding[];
 }): CadValidationReport {
   const collisions = detectCadCollisions(input.boxes);
   const clearances = input.requiredClearance
@@ -567,22 +593,35 @@ export function buildCadValidationReport(input: {
       : undefined,
   );
   const document = runDocumentRules(input.document, input.footprint);
-  const industry = input.industryFindings ?? [];
   const severity =
     collisions.length ||
     safety.some((issue) => issue.code === "zone_invasion") ||
     architecture.some((issue) => issue.severity === "critical") ||
-    document.some((finding) => finding.level === "error") ||
-    industry.some((finding) => finding.level === "error")
+    document.some((finding) => finding.level === "error")
       ? "critical"
       : clearances.length ||
           safety.length ||
           architecture.length ||
           document.length ||
-          industry.length ||
           (flow && flow.score < 70)
         ? "warning"
         : "ok";
-  const issues = buildIssueRows({ collisions, clearances, safety, architecture, document, industry, flow });
-  return { collisions, clearances, safety, architecture, document, industry, issues, flow, severity };
+  const issues = buildIssueRows({
+    collisions,
+    clearances,
+    safety,
+    architecture,
+    document,
+    flow,
+  });
+  return {
+    collisions,
+    clearances,
+    safety,
+    architecture,
+    document,
+    issues,
+    flow,
+    severity,
+  };
 }

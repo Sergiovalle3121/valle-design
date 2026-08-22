@@ -18,6 +18,5 @@ export * from "./keyboard-shortcuts";
 export * from "./validation-report";
 export * from "./object-properties";
 export * from "./templates";
-export * from "./warehouse-generators";
 export * from "./architecture";
 export * from "./viewport-bookmarks";

@@ -266,3 +266,40 @@ Formato: `[hora] OLA · ítem — qué se hizo · decisiones y suposiciones`.
     *Caveat de la medición:* la sesión paralela está agregando componentes de marketing y de editor
     en el mismo árbol, así que el total de `.next/static` subió por su trabajo, no bajó por el mío;
     la cifra fiable es la del chunk del estudio, y aun ésa lleva encima su migración de tokens.
+
+- `[04:20]` **OLA 4 cerrada — los bloques grandes.** El monolito pasa de 21 505 a **20 663 líneas**
+  (22 208 al arrancar la campaña: **−1 545**) y de 148 a **145 `useState`**.
+  - **4.1 `warehouse-generators.ts` (1 163 líneas) + spec borrados.** Generadores de andenes, filas de
+    racks y supermercados de kitting: 100 % industrial. Con ellos salen del monolito los tres paneles
+    de generador (334 líneas de JSX), su estado (`rackGenerator`, `dockGenerator`,
+    `supermarketGenerator`), sus setters tipados y los tres `apply*Generator`. Se quitó el
+    `export * from "./warehouse-generators"` del barril `lib/cad/index.ts` y su entrada de
+    `monolith-budget.json`.
+  - **4.2 `industry-pack.ts` (906 líneas) + spec borrados.** Con ellos: el registro
+    `INDUSTRY_REGISTRY`, `addIndustryObject`, la paleta «Industry Packs» del dock, el bloque
+    «Industry Pack» del panel de propiedades y la re-evaluación normativa que corría en cada
+    validación. El valor que aportaba —«¿cuántas posiciones de pallet tiene este almacén?»— es una
+    pregunta de inventario, no de dibujo.
+  - **4.3 Semilla de la API.** `apps/api/src/seed.ts` creaba un documento demo con una «Celda de
+    ensamble» rotulada «LINEA 1» dentro de un proyecto llamado «Planta demo Valle». Ahora siembra una
+    **planta arquitectónica**: cuatro muros cerrados, una recámara y el rótulo «PLANTA BAJA», en el
+    «Proyecto demo Valle». Lo primero que ve quien estrena el producto ya no es una línea de
+    producción. **El centinela `model: 'AXOS-CAD-STUDIO'` NO se tocó** y ahora lleva encima el
+    comentario que explica por qué está congelado, con puntero a `IDENTITY.md`.
+  - **4.4 Huérfanos.**
+    - `validation-report.ts`: fuera la categoría `industry` completa (campo del reporte, tipo
+      `CadIndustryValidationFinding`, filas de issue, entrada `industryFindings` y su peso en la
+      severidad) y su bloque en la spec. **La sección `flow` se quedó a propósito**: la alimentan los
+      comandos industriales del registry, que caen en la OLA 5; separarla aquí habría obligado a
+      meter media OLA 5 en este commit y a hacerlo irreversible por partes.
+    - `design-checks.ts`: se retiró el check 4 («estaciones sin conectar al flujo de la línea») y la
+      entrada `connectors`. Los otros tres checks —objetos sin colocar, objetos fuera del área,
+      objetos encimados— son revisión de dibujo pura y se quedan, con el encabezado reescrito en
+      vocabulario de plano.
+    - `analysis-extensions.ts` **no se borró todavía**: es el contrato que `commands/registry.ts`
+      importa para los 10 comandos industriales. Muere en la OLA 5, con ellos.
+  - **Trinquete:** 5 entradas más fuera del backlog. **32 → 27.**
+  - **Verificación:** `tsc` de `apps/web` y de `apps/api` limpios · `web` 382/382 specs verdes ·
+    `rubric.spec` 51/51 · `check-monolith-budget --update` corrido en el mismo commit, con las dos
+    entradas de archivos borrados quitadas del JSON (si no, el script falla buscando un archivo que
+    ya no existe — la trampa que la campaña anticipaba).

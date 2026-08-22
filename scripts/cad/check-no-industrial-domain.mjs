@@ -127,11 +127,6 @@ export const permittedFiles = [
 export const residueBacklog = [
   ["apps/web/src/lib/cad/analysis-extensions.spec.ts", "ola 4"],
   ["apps/web/src/lib/cad/analysis-extensions.ts", "ola 4"],
-  ["apps/web/src/lib/cad/industry-pack.spec.ts", "ola 4"],
-  ["apps/web/src/lib/cad/industry-pack.ts", "ola 4"],
-  ["apps/web/src/lib/cad/validation-report.spec.ts", "ola 4"],
-  ["apps/web/src/lib/cad/warehouse-generators.spec.ts", "ola 4"],
-  ["apps/web/src/lib/cad/warehouse-generators.ts", "ola 4"],
   ["apps/api/src/modules/cad-documents/cad-intent-tools.spec.ts", "ola 5"],
   ["apps/api/src/modules/cad-documents/cad-intent-tools.ts", "ola 5"],
   ["apps/api/src/modules/cad/cad.controller.spec.ts", "ola 5"],

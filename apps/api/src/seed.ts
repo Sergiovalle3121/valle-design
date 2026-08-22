@@ -17,10 +17,16 @@ import { validateCadDocumentPayload } from './modules/cad-documents/cad-document
  */
 export const SEED_TENANT_ID = 'demo-tenant';
 export const SEED_ACTOR = 'demo@valle.design';
-export const SEED_PROJECT_NAME = 'Planta demo Valle';
+export const SEED_PROJECT_NAME = 'Proyecto demo Valle';
 export const SEED_DOCUMENT_NAME = 'Plano demo';
 
 /** Documento canónico de ejemplo (formato meta.schema v3, entidades reales). */
+/**
+ * Documento de demostración: una planta arquitectónica simple —cuatro muros
+ * cerrados, una recámara acotable y su rótulo— más una lámina A4 a escala 1:100.
+ * Es CAD general a propósito: lo primero que ve quien estrena el producto no
+ * debe ser una celda de ensamble de una línea de producción.
+ */
 export function demoCadDocument(): Record<string, unknown> {
   return validateCadDocumentPayload({
     meta: { schema: 3, version: 1, unit: 'mm' },
@@ -40,20 +46,34 @@ export function demoCadDocument(): Record<string, unknown> {
         layer: 'A-WALL',
       },
       {
-        id: 'cell-1',
+        id: 'wall-3',
+        type: 'line',
+        start: { x: 12000, y: 8000 },
+        end: { x: 0, y: 8000 },
+        layer: 'A-WALL',
+      },
+      {
+        id: 'wall-4',
+        type: 'line',
+        start: { x: 0, y: 8000 },
+        end: { x: 0, y: 0 },
+        layer: 'A-WALL',
+      },
+      {
+        id: 'room-1',
         type: 'box',
         x: 1000,
         y: 1000,
         w: 3000,
         h: 2000,
         kind: 'zone',
-        label: 'Celda de ensamble',
+        label: 'Recamara principal',
       },
       {
         id: 'label-1',
         type: 'text',
         position: { x: 1200, y: 1200 },
-        text: 'LINEA 1',
+        text: 'PLANTA BAJA',
         layer: 'TEXTO',
       },
     ],
@@ -120,6 +140,9 @@ async function seed(): Promise<void> {
         document = await repository.createDocument({
           name: SEED_DOCUMENT_NAME,
           projectId: project.id,
+          // Centinela PERSISTIDO del estudio universal: es el mismo valor que
+          // llevan todos los documentos ya guardados. No se renombra — ver
+          // IDENTITY.md y packages/contracts/src/legacy/.
           model: 'AXOS-CAD-STUDIO',
           revision: 'UNIVERSAL',
         });

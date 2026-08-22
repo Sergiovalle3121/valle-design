@@ -2,11 +2,11 @@
  * Layout design checks — pure, side-effect-free validation (Fase 63).
  *
  * A complete CAD doesn't just draw — it tells you whether the drawing is sound.
- * This runs the everyday "¿está bien el layout?" review over the editor's own
- * geometry and flags what a line engineer would: stations still in the tray,
- * objects spilling outside the footprint, objects overlapping, and placed
- * stations left out of the material-flow chain. Each finding is a graded item
- * (ok / warn / error) with a human detail, so the panel reads like a checklist.
+ * This runs the everyday "¿está bien el plano?" review over the editor's own
+ * geometry and flags what a drafter would: objects still in the tray, objects
+ * spilling outside the drawing area, and objects overlapping. Each finding is a
+ * graded item (ok / warn / error) with a human detail, so the panel reads like a
+ * checklist.
  *
  * Geometry is checked on the axis-aligned box (rotation ignored) — good enough
  * to surface problems for review. Kept pure (no three/DOM) for unit testing.
@@ -30,8 +30,6 @@ export interface DesignCheckInput {
   unplacedStations: number;
   footprintW: number;
   footprintH: number;
-  /** Flow connectors between station ids. */
-  connectors: { from: string; to: string }[];
 }
 
 export type CheckLevel = "ok" | "warn" | "error";
@@ -171,36 +169,6 @@ export function designChecks(input: DesignCheckInput): DesignReport {
           count: 0,
         },
   );
-
-  // 4) Placed stations left out of the flow chain (only meaningful with ≥2).
-  if (stations.length >= 2) {
-    const linked = new Set<string>();
-    for (const c of Array.isArray(input?.connectors) ? input.connectors : []) {
-      if (c && typeof c.from === "string") linked.add(c.from);
-      if (c && typeof c.to === "string") linked.add(c.to);
-    }
-    const loose = stations.filter((s) => !linked.has(s.id));
-    items.push(
-      loose.length > 0
-        ? {
-            key: "flow",
-            level: "warn",
-            label: "Estaciones sin conectar",
-            detail: `${loose.length} estación(es) no están en el flujo: ${loose
-              .slice(0, 3)
-              .map((b) => b.label)
-              .join(", ")}${loose.length > 3 ? "…" : ""}.`,
-            count: loose.length,
-          }
-        : {
-            key: "flow",
-            level: "ok",
-            label: "Flujo completo",
-            detail: "Cada estación está conectada al flujo de la línea.",
-            count: 0,
-          },
-    );
-  }
 
   const errors = items.filter((i) => i.level === "error").length;
   const warnings = items.filter((i) => i.level === "warn").length;
