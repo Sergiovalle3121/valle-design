@@ -757,7 +757,6 @@ export interface paths {
          *     puntero `_storage` si no. Cada guardado exitoso incrementa
          *     `cadDocumentVersion` en 1 y agrega la fila correspondiente al
          *     historial (`cad_document_versions`).
-         *
          */
         put: operations["saveCadDocumentContent"];
         post?: never;
@@ -791,7 +790,6 @@ export interface paths {
          *       recurso y solo viaja el token.
          *
          *     Mismas reglas CAS y de `publications` que la rama inline.
-         *
          */
         put: operations["saveCadDocumentArchive"];
         post?: never;
@@ -862,7 +860,6 @@ export interface paths {
          *       `design.document.published.v1`.
          *     * Este endpoint es la ÚNICA vía para crear recibos; un guardado normal
          *       que intente mutarlos recibe `400 cad_publications_server_managed`.
-         *
          */
         post: operations["recordCadPublication"];
         delete?: never;
@@ -943,7 +940,6 @@ export interface paths {
          *     pedido (`shareLinkTtlMinutes`, acotado 5 min–90 días) o el default
          *     del despliegue (7 días), y se comprueba server-side en cada canje.
          *     Máximo 20 sesiones abiertas por documento.
-         *
          */
         post: operations["createCadReviewSession"];
         delete?: never;
@@ -1031,7 +1027,6 @@ export interface paths {
          *     Token desconocido/malformado ⇒ `401 review_token_invalid`; expirado ⇒
          *     `401 review_token_expired`; revocado o sesión cerrada ⇒
          *     `401 review_token_revoked`.
-         *
          */
         get: operations["redeemReviewLinkContext"];
         put?: never;
@@ -1940,7 +1935,8 @@ export interface components {
         };
         /** @description Valor persistido del documento canónico: JSON inline cuando es compacto (≤ 1 000 000 bytes serializado) o puntero a blob `_storage` cuando vive como archivo gzip en el blob store. El cliente distingue por la presencia de `_storage.kind === 'document_blob'`. */
         CadDocumentEnvelope: components["schemas"]["CadDocumentInline"] | components["schemas"]["CadDocumentBlobPointer"];
-        /** @description Documento CAD canónico (formato `meta.schema` v1–v3), MISMO formato
+        /**
+         * @description Documento CAD canónico (formato `meta.schema` v1–v3), MISMO formato
          *     que persiste el backend actual. Límites de validación REALES
          *     (aplicados server-side en `cad-document-validation.ts`; se documentan
          *     aquí como contrato — el JSON Schema declara los estructurales):
@@ -1961,7 +1957,7 @@ export interface components {
          *     * Profundidad máxima de anidamiento: 64; claves ≤ 128 chars; números
          *       finitos; serializado ≤ 8 000 000 bytes inline o ≤ 134 217 728 bytes
          *       vía archivo gzip.
-         *      */
+         */
         CadDocumentInline: {
             meta: {
                 /** @description Versión del FORMATO del documento (v1–v3 soportadas). */
