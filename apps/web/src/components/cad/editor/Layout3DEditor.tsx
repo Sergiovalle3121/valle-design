@@ -9657,7 +9657,7 @@ export default function Layout3DEditor({
   }, [loadCadBlocks, open]);
   // Grupos CAD (Ctrl+G, ADR §223): los miembros se seleccionan/mueven/copian
   // como unidad; Alt+clic entra al objeto individual. Solo assets — las
-  // estaciones se agrupan con Celdas (concepto de manufactura, no de dibujo).
+  // los puntos heredados se agrupan con Celdas.
   const groupSelection = () => {
     const assets = selRef.current.filter((s) => s.type === "asset");
     const stations = selRef.current.length - assets.length;
@@ -15977,7 +15977,7 @@ export default function Layout3DEditor({
         </div>
       ) : (
         <div className="flex flex-1 min-h-0">
-          {/* left: bandeja de estaciones. EN TABLETA SE PLIEGA: con los dos
+          {/* left: bandeja de puntos. EN TABLETA SE PLIEGA: con los dos
               muelles fijos, a 768 px el lienzo se quedaba con el 34 % de la
               ventana y la barra flotante llegaba a comerse el primer toque
               (`docs/cad/evidence/touch-support.json`). La línea de comandos NO
@@ -16011,7 +16011,7 @@ export default function Layout3DEditor({
                       </div>
                       {tray.length === 0 ? (
                         <p className="type-caption text-muted-foreground">
-                          Todas las estaciones están en el plano.
+                          Todos los puntos están en el plano.
                         </p>
                       ) : (
                         tray.map((st) => (
@@ -20027,7 +20027,7 @@ export default function Layout3DEditor({
             </div>
             <div className="p-4">
               <p className="type-caption text-muted-foreground dark:text-muted-foreground mb-3">
-                Copia el layout (estaciones, equipo, conexiones, celdas y plano)
+                Copia el dibujo (puntos, objetos, conexiones, celdas y plano)
                 de otro modelo a{" "}
                 <b className="text-foreground">
                   {model} · {revision}
@@ -20102,7 +20102,7 @@ export default function Layout3DEditor({
               </button>
               {cellsView.length === 0 ? (
                 <p className="type-caption text-muted-foreground text-center py-3">
-                  Selecciona estaciones (Shift+clic) y crea una celda para
+                  Selecciona puntos (Shift+clic) y crea una celda para
                   agruparlas.
                 </p>
               ) : (
@@ -20141,7 +20141,7 @@ export default function Layout3DEditor({
                           className="w-full bg-transparent type-small font-medium outline-none focus:bg-muted/60 rounded px-1"
                         />
                         <div className="type-micro text-muted-foreground dark:text-muted-foreground px-1">
-                          {c.stationIds.length} estaciones
+                          {c.stationIds.length} puntos
                         </div>
                       </div>
                       <button
@@ -20155,7 +20155,7 @@ export default function Layout3DEditor({
                 </div>
               )}
               <p className="type-micro text-muted-foreground mt-3">
-                Las celdas tiñen el piso bajo sus estaciones agrupadas.
+                Las celdas tiñen el piso bajo sus objetos agrupados.
               </p>
             </div>
           </div>

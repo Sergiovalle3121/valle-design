@@ -74,7 +74,9 @@ async function readWebVersionRegistry() {
     fail("could not locate ACAD_VERSION_NAMES in the first-party detector");
 
   const versions = new Map();
-  const entryPattern = /^\s*(AC10\d{2}):\s*'([^']+)',?\s*$/gm;
+  // Insensible al estilo de comillas: el registro es un dato, no un formato.
+  // Con comilla simple el gate se caía en cuanto prettier tocaba el archivo.
+  const entryPattern = /^\s*(AC10\d{2}):\s*['"]([^'"]+)['"],?\s*$/gm;
   for (const match of object[1].matchAll(entryPattern)) {
     versions.set(match[1], match[2]);
   }

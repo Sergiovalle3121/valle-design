@@ -118,11 +118,11 @@ Formato: `[hora] OLA · ítem — qué se hizo · decisiones y suposiciones`.
   afirmación **vencida**: decía «DWG no está implementado. Tampoco hay kernel Rust/WASM» cuando existen
   `packages/dwg-codec` (experimental, no expuesto) y `crates/valle-cad-kernel` con artefacto WASM y
   specs de paridad —pero sin ningún consumidor en la app, así que por el propio criterio de evidencia
-  del documento es *parcial*, no *soportado*. Los cuatro citan ahora `IDENTITY.md`.
+  del documento es _parcial_, no _soportado_. Los cuatro citan ahora `IDENTITY.md`.
 - `[00:24]` **OLA 0.3 cerrada.** `AGENTS.md`: el alcance pasa a «general-purpose 2D CAD» y se añade la
-  sección dura *Domain boundary — no industrial management*. **Corrección al diagnóstico:** la campaña
+  sección dura _Domain boundary — no industrial management_. **Corrección al diagnóstico:** la campaña
   pedía quitar la mención `axos` de la línea 1 de `AGENTS.md`; ahí no hay ninguna. La única mención del
-  archivo está en la línea 87, la sección *Legacy boundary*, y es **legítima y necesaria** (documenta
+  archivo está en la línea 87, la sección _Legacy boundary_, y es **legítima y necesaria** (documenta
   los identificadores persistidos congelados). No se toca.
 - `[00:40]` **OLA 0.4 cerrada.** Gate `scripts/cad/check-no-industrial-domain.mjs` + su spec
   (184 comprobaciones), encadenado en `check:cad` vía `npm run check:no-industrial-domain`.
@@ -160,17 +160,18 @@ Formato: `[hora] OLA · ítem — qué se hizo · decisiones y suposiciones`.
 - `[01:35]` **OLA 1 cerrada — la casa cambió de nombre.** `components/line-engineering/` se desarmó
   con `git mv` (historial conservado) hacia el sitio al que la descomposición del monolito venía
   apuntando:
-  | Destino | Qué llegó |
-  |---|---|
-  | `components/cad/editor/` | `Layout3DEditor.tsx`, `ScaleBar.tsx` |
-  | `components/cad/palettes/` | los 13 archivos de `cad-workbench/` |
-  | `components/cad/interop/` | `dxf.ts`, `dxf-walls.ts`, `dxf-snap.ts`, `cad-format-detect.ts` (+spec) |
-  | `components/cad/plot/` | `plot-sheet.ts`, `plot-scale.ts` (+specs) |
-  | `components/cad/viewport/` | `asset-catalog.ts` (+spec) — junto a sus dos consumidores |
-  | `lib/cad/` | `auto-dimensions`, `cad-command`, `cad-intent`, `cad-vision`, `design-checks`, `precision-input.spec`, `professional-snapping.spec` |
-  Y se borraron los **6 shims de 2 líneas** (`cad-array`, `dimension-format`, `geom-edit`,
-  `geom-measure`, `snap-engine`, `precision-input`): su código real ya vivía en `lib/cad/`, y los
-  únicos importadores eran archivos de la propia carpeta, que ahora importan el original.
+
+  | Destino                                                                                         | Qué llegó                                                                                                                           |
+  | ----------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+  | `components/cad/editor/`                                                                        | `Layout3DEditor.tsx`, `ScaleBar.tsx`                                                                                                |
+  | `components/cad/palettes/`                                                                      | los 13 archivos de `cad-workbench/`                                                                                                 |
+  | `components/cad/interop/`                                                                       | `dxf.ts`, `dxf-walls.ts`, `dxf-snap.ts`, `cad-format-detect.ts` (+spec)                                                             |
+  | `components/cad/plot/`                                                                          | `plot-sheet.ts`, `plot-scale.ts` (+specs)                                                                                           |
+  | `components/cad/viewport/`                                                                      | `asset-catalog.ts` (+spec) — junto a sus dos consumidores                                                                           |
+  | `lib/cad/`                                                                                      | `auto-dimensions`, `cad-command`, `cad-intent`, `cad-vision`, `design-checks`, `precision-input.spec`, `professional-snapping.spec` |
+  | Y se borraron los **6 shims de 2 líneas** (`cad-array`, `dimension-format`, `geom-edit`,        |
+  | `geom-measure`, `snap-engine`, `precision-input`): su código real ya vivía en `lib/cad/`, y los |
+  | únicos importadores eran archivos de la propia carpeta, que ahora importan el original.         |
   - **Se quedan en `components/line-engineering/` los 6 archivos industriales** (`PlantMinimap`,
     `arrange-line`, `connect-line`, `flow-metrics`, `station-overlays` + spec). Decisión consciente:
     moverlos para borrarlos 1.5 h después sería churn de historial. La carpeta desaparece en la
@@ -263,7 +264,7 @@ Formato: `[hora] OLA · ítem — qué se hizo · decisiones y suposiciones`.
     Poco, y era lo esperado: los bloques grandes (`warehouse-generators` 1 163 líneas e
     `industry-pack` 906) salen en la OLA 4. El chunk **todavía contiene** marcadores industriales
     (`forklift`, `supermarket-kitting`), que es exactamente lo que la OLA 4 va a quitar.
-    *Caveat de la medición:* la sesión paralela está agregando componentes de marketing y de editor
+    _Caveat de la medición:_ la sesión paralela está agregando componentes de marketing y de editor
     en el mismo árbol, así que el total de `.next/static` subió por su trabajo, no bajó por el mío;
     la cifra fiable es la del chunk del estudio, y aun ésa lleva encima su migración de tokens.
 
@@ -321,7 +322,7 @@ Formato: `[hora] OLA · ítem — qué se hizo · decisiones y suposiciones`.
     424 expresiones restantes —el parser de dibujo técnico en español mexicano, con unidades y
     acentos— **no se tocaron**: son un diferenciador frente a AutoCAD, no residuo. Se conservó
     «holgura/clearance», como pedía el diagnóstico.
-    *Nota de proceso:* correr prettier sobre el archivo lo INFLABA de 1 517 a 1 685 líneas (no estaba
+    _Nota de proceso:_ correr prettier sobre el archivo lo INFLABA de 1 517 a 1 685 líneas (no estaba
     formateado) y eso rompía su presupuesto de monolito, que sólo permite encoger. Se revirtió el
     formateo y se re-aplicaron los borrados a mano.
   - **5.5 `asset-catalog.ts` (492 → 437).** Fuera `conveyor`, `aoi`, `agv`, `agvpath` y
@@ -373,7 +374,7 @@ Formato: `[hora] OLA · ítem — qué se hizo · decisiones y suposiciones`.
     `test-station`, `rework-station`, `operator-station`, `warehouse-rack`, `forklift-path`,
     `conveyor` y `forklift`. Con ellos mueren las categorías `flow` y `operator`.
     **CORRECCIÓN SOBRE LA MARCHA:** primero se borraron también `ict-tester` y
-    `functional-test-bench` y se **restauraron** al releer el criterio: son *máquinas dibujables*, de
+    `functional-test-bench` y se **restauraron** al releer el criterio: son _máquinas dibujables_, de
     la misma clase que `welder`, `press-machine` o `brew-kettle`, que la propia spec conserva.
     Dibujar una máquina no es operar una fábrica. Se quedaron con etiqueta en español.
   - **Falsos positivos respetados uno por uno**, como pedía el diagnóstico: `power-rack` y
