@@ -10,7 +10,6 @@ export type CadToolbarActionId =
   | "copy"
   | "offset"
   | "aisle"
-  | "connector"
   | "zone"
   | "equipment"
   | "text"
@@ -88,15 +87,13 @@ export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
     id: "move",
     label: "Move",
     group: "draw",
-    description:
-      "Desplazar la selección de un punto base a un punto destino.",
+    description: "Desplazar la selección de un punto base a un punto destino.",
   },
   {
     id: "copy",
     label: "Copy",
     group: "draw",
-    description:
-      "Duplicar la selección de un punto base a un punto destino.",
+    description: "Duplicar la selección de un punto base a un punto destino.",
   },
   {
     id: "offset",
@@ -111,13 +108,6 @@ export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
     shortcut: "A",
     group: "draw",
     description: "Preparar creacion de pasillos/holguras.",
-  },
-  {
-    id: "connector",
-    label: "Connector",
-    shortcut: "Shift+L",
-    group: "draw",
-    description: "Conectar flujo entre estaciones.",
   },
   {
     id: "zone",

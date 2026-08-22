@@ -37,11 +37,6 @@ assert.equal(
   "rect action has shortcut",
 );
 assert.equal(
-  findToolbarAction("connector")?.shortcut,
-  "Shift+L",
-  "connector action moves to shift-l",
-);
-assert.equal(
   toolbarActionsByGroup("history").length,
   2,
   "history group exposes undo/redo",

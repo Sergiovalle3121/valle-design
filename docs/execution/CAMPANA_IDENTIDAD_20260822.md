@@ -219,3 +219,50 @@ Formato: `[hora] OLA · ítem — qué se hizo · decisiones y suposiciones`.
   - **Verificación:** `rubric.spec` 51/51 · gate de identidad verde · `tsc` de `apps/web` limpio ·
     cero referencias colgantes (barrido de `docs/audits/`, `docs/cleanup/`, `docs/execution/CAMPANA_*`,
     `VALLE_CAD_*` y `docs/product-split/`).
+
+- `[03:05]` **OLA 3 cerrada — el primer borrado real.** Desaparecen `components/line-engineering/` y
+  `lib/line-engineering/`: la carpeta que dio nombre al producto muerto ya no existe en el árbol.
+  - **Borrados (9 archivos):** `station-overlays.ts` + spec (capas MES / calor de ciclo contra takt),
+    `arrange-line.ts` (acomodo de línea de producción), `connect-line.ts` (cadena de flujo entre
+    estaciones), `flow-metrics.ts` (distancia de recorrido de material), `flow-optimization.ts` + spec
+    (score de flujo de planta, cruces, backtracking, reordenamiento), `industry-rollup.ts` + spec
+    (BOM de objetos de Industry Pack).
+  - **CORRECCIÓN AL DIAGNÓSTICO — `PlantMinimap.tsx` NO se borró.** El diagnóstico lo listaba como
+    industrial (144 líneas) y **no lo es**: es la vista general del dibujo, el panel de navegación
+    que deja recentrar la cámara sin perder el zoom. Es exactamente el falso positivo que la propia
+    campaña advertía: «planta» aquí es la vista en planta, no la planta industrial. Un CAD de
+    escritorio tiene ese panel. En vez de borrarlo se **renombró a `CadOverviewMinimap`** y se movió
+    a `components/cad/viewport/`, junto a las demás capas del viewport, con su comentario reescrito
+    en vocabulario de dibujo.
+  - **Cirugía en el monolito** (22 208 → 21 505 líneas, −703; 153 → 148 `useState`): imports,
+    estado (`flowHealth`, `flowSequence`, `flowSegments`, `industrySummary`, `overlay`,
+    `overlayColorRef`…), los handlers (`arrangeLineLayout`, `connectLineLayout`, `loadOverlay`,
+    `analyzeFlowHealth`, `applyFlowReorderPreview`, `selectFlow*`, `exportIndustryCsv`,
+    `currentFlowNodes`), el panel Flow Health entero, el menú y la leyenda de estado de estación, el
+    panel de objetos inteligentes, la insignia «Flow» de la barra de estado, la fila «Flow Health»
+    del tablero de release y los campos de flujo del panel de cantidades y su CSV.
+  - **Efecto colateral honesto:** el botón `connector` de la barra («Conectar flujo entre
+    estaciones») se quedaba sin acción, así que se retiró también de `lib/cad/toolbar.ts` y de su
+    spec. Un botón que no hace nada es peor que un botón menos.
+  - **Queda para la OLA 5**, con su nota puesta: el `case "arrangeLine" / "connectLine"` del
+    despachador de intents no importa los módulos borrados —llama al registry por id
+    (`arrange_line`, `connect_flow`)—, así que compila; se va cuando caigan esos comandos y los
+    kinds de `cad-intent.ts`. Igual el campo «Flujo total» del cajetín en `plot-sheet.ts`.
+  - **El trinquete funcionó tal cual se diseñó:** al borrar, el gate se puso rojo listando las 8
+    entradas de `residueBacklog` que ya no encontraban nada y exigiendo borrarlas. Backlog **40 → 32**.
+  - **Verificación:** `tsc` limpio · `web` 384/384 specs verdes · `check:cad` verde salvo el
+    `check:dwg-evidence` ambiental · `check-monolith-budget --update` corrido en el mismo commit.
+  - **PENDIENTE anotado:** `plotSheetModel` ya era un import muerto en el monolito ANTES de esta
+    campaña (lo confirma `git show HEAD`); no se toca aquí para no ensanchar el commit.
+  - **Coordinación con la sesión paralela:** mientras se operaba, la campaña de diseño migró
+    `Layout3DEditor.tsx` a tokens de color (313 líneas) **en el mismo árbol de trabajo**. No hay forma
+    de separar hunks de un archivo compartido sin perder su trabajo, así que este commit los lleva.
+    Se declara aquí y en el mensaje del commit para que el historial no engañe a nadie.
+  - **Bundle tras la OLA 3** (chunk del estudio, ahora `1_vfkoj2d2fql.js`): **2 370 711 B en crudo ·
+    617 696 B gzip**, contra 2 386 072 / 622 447 al arrancar → **−15 361 B crudo, −4 751 B gzip**.
+    Poco, y era lo esperado: los bloques grandes (`warehouse-generators` 1 163 líneas e
+    `industry-pack` 906) salen en la OLA 4. El chunk **todavía contiene** marcadores industriales
+    (`forklift`, `supermarket-kitting`), que es exactamente lo que la OLA 4 va a quitar.
+    *Caveat de la medición:* la sesión paralela está agregando componentes de marketing y de editor
+    en el mismo árbol, así que el total de `.next/static` subió por su trabajo, no bajó por el mío;
+    la cifra fiable es la del chunk del estudio, y aun ésa lleva encima su migración de tokens.

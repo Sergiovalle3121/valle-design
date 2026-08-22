@@ -125,17 +125,6 @@ export const permittedFiles = [
  * hace fallar el gate. Objetivo: lista vacía, y que se quede vacía.
  */
 export const residueBacklog = [
-  ["apps/web/src/components/line-engineering/arrange-line.ts", "ola 3"],
-  ["apps/web/src/components/line-engineering/connect-line.ts", "ola 3"],
-  ["apps/web/src/components/line-engineering/flow-metrics.ts", "ola 3"],
-  [
-    "apps/web/src/components/line-engineering/station-overlays.spec.ts",
-    "ola 3",
-  ],
-  ["apps/web/src/components/line-engineering/station-overlays.ts", "ola 3"],
-  ["apps/web/src/lib/cad/industry-rollup.spec.ts", "ola 3"],
-  ["apps/web/src/lib/cad/industry-rollup.ts", "ola 3"],
-  ["apps/web/src/lib/line-engineering/flow-optimization.spec.ts", "ola 3"],
   ["apps/web/src/lib/cad/analysis-extensions.spec.ts", "ola 4"],
   ["apps/web/src/lib/cad/analysis-extensions.ts", "ola 4"],
   ["apps/web/src/lib/cad/industry-pack.spec.ts", "ola 4"],
