@@ -291,7 +291,14 @@ void (async () => {
   );
 
   /* ── 5. Enlaces internos de la landing y honestidad del copy ────────────── */
-  const landing = readFileSync("src/app/page.tsx", "utf8");
+  // La superficie de la portada son DOS archivos desde la ola 3 de la campaña
+  // de diseño: la página y la barra pública que se extrajo de ella. Los enlaces
+  // del embudo viven en la barra, así que el rastreo los sigue hasta ahí — lo
+  // que se defiende es que la portada los OFREZCA, no dónde está el `href`.
+  const landing = [
+    readFileSync("src/app/page.tsx", "utf8"),
+    readFileSync("src/components/PublicNav.tsx", "utf8"),
+  ].join("\n");
 
   const linkedPaths = new Set(
     [...landing.matchAll(/href="(\/[^"#?]*)"/g)].map((match) => match[1]),

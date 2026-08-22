@@ -73,12 +73,12 @@ es que **nadie lo consume**. Esta campaña no reescribe el sistema: **lo cablea*
 
 ### OLA 3 — LANDING ULTRA PREMIUM
 
-- [ ] 3.1 Capturas reales del producto (script Playwright reproducible → `public/product/`)
-- [ ] 3.2 Hero con el producto como imagen (halo + orbes + float ya escritos)
-- [ ] 3.3 Secciones reordenadas para vender
-- [ ] 3.4 Nav sticky con blur + hamburguesa real
-- [ ] 3.5 Conmutador de tema global (nav pública + dashboard)
-- [ ] 3.6 `/precios` con jerarquía, plan destacado, IVA y CFDI
+- [x] 3.1 Capturas reales del producto (script Playwright reproducible → `public/product/`)
+- [x] 3.2 Hero con el producto como imagen (halo + orbes + float ya escritos)
+- [x] 3.3 Secciones reordenadas para vender
+- [x] 3.4 Nav sticky con blur + hamburguesa real
+- [x] 3.5 Conmutador de tema global (nav pública + dashboard)
+- [x] 3.6 `/precios` con jerarquía, plan destacado, IVA y CFDI
 
 ### OLA 4 — EL EMBUDO DE ALTA
 
@@ -305,3 +305,87 @@ espera de paleta. Territorio de la sesión paralela.
 guardado; la primera corrida dio seis fallos con duraciones de 3,5 y 4,6
 minutos, firma inconfundible de una recarga a mitad de prueba. Toda medición de
 goldens de aquí en adelante se hace con el árbol quieto.
+
+### OLA 3 — cerrada
+
+**3.1 · Capturas reales, reproducibles.** `apps/web/scripts/capture-product-shots.mts`
+levanta el editor con los MISMOS fixtures herméticos de los goldens, dibuja una
+planta comando a comando —`WA` para cada muro, `DLI` para cada cota, sobre la
+plantilla mexicana de arranque— y fotografía seis pantallas a 2×. Si el producto
+dejara de responder a un alias, el script FALLA en vez de fotografiar un lienzo
+vacío: ésa es la única forma de que una captura no envejezca en silencio.
+
+Dos cosas que la primera corrida enseñó y que ninguna auditoría de código habría
+visto:
+· **El editor arranca en 3D.** La planta salía como un plano inclinado en
+  perspectiva, ilegible. Un CAD 2D que se anuncia con una órbita 3D vacía está
+  enseñando lo que NO es. El script conmuta a 2D por el mismo control que usa
+  una persona y encuadra con `ZOOM EXtensión` + `0.75X`, porque a ras de borde
+  el plano se lee como recortado.
+· **La barra superior dice «AXOS-CAD-STUDIO» y «0 estaciones · 0 equipos».** Son
+  restos del producto de origen (MES/ERP) que un arquitecto ve en su primera
+  pantalla. Va a la ola 5, que es su sitio.
+
+**3.2 · El hero.** El producto ES la imagen. `<ProductFrame/>` lo enmarca en una
+ventana —una captura a sangre se lee como error de maquetación; la misma dentro
+de un marco con su barra de título se lee como «esto es el programa»— y cablea
+`.product-halo` y `.float-slow`, que llevaban escritos con cero usos.
+`<HeroBackdrop/>` cablea `.aurora-bg`, `.mission-grid`, `.hero-conic` y los tres
+`.hero-orb`.
+
+Corrección medida sobre la primera versión: los orbes iban con el color diluido
+(`bg-primary/40`) ENCIMA de la opacidad 0,5 que ya aplica `.hero-orb` y de sus
+80 px de desenfoque — tres atenuaciones multiplicándose dieron un fondo plano.
+Van al color pleno. Y `.mission-grid` sale al pleno del token de borde: diluida
+al 70 % era literalmente invisible sobre el fondo oscuro, y una textura
+invisible es peso muerto.
+
+**3.3 · Secciones reordenadas para vender.** Prueba visual → el modelo de
+licencia → capacidades → para quién → honestidad → guías → FAQ → CTA. Los tres
+bloques JSON-LD y toda la capa SEO intactos.
+
+**DECISIÓN REGISTRADA sobre el argumento del precio.** La cola pedía «la
+comparativa contra el costo anual de las alternativas, con la cifra verificable».
+No se puede: `public-pages.spec.ts` prohíbe **cualquier cifra de precio en la
+portada**, y con razón — el catálogo lo publica el propio producto desde su tabla
+vigente y dos verdades sobre el mismo importe es una de más. La sección compara
+MODELOS de licencia (no instalas nada · el dibujo no vive en un disco duro · se
+paga por mes y se cancela desde el portal · factura CFDI con IVA incluido), que
+es comprobable, y remata enlazando a `/precios`. Las cifras viven donde el
+producto las publica.
+
+**3.4 · Nav pegajosa.** Vidrio al desplazar y NO siempre: una barra con blur
+permanente pone una lámina turbia sobre el hero desde el primer píxel. Menú de
+móvil real —panel completo, Escape cierra, scroll bloqueado— en vez de cuatro
+enlaces partidos en dos renglones. Y se extrajo a `<PublicNav/>`, así que
+`PublicPageShell` la comparte: precios, guías, soporte, estado, privacidad,
+términos y licencias ganan la misma barra de una sola vez.
+
+**3.5 · Conmutador de tema global.** Tres estados, no dos: «sistema» es un
+estado de pleno derecho, no el hueco entre los otros. Sin marcar hasta que monta
+en cliente —el servidor no lee `localStorage`— para que no haya el salto de
+estado que se ve como un error.
+
+**3.6 · `/precios`.** Jerarquía real: el plan recomendado destaca con borde y
+elevación, no tiñendo la tarjeta (teñirla la saca del sistema y obliga a
+recalcular el contraste de todo lo que lleva dentro). El destacado es el PRIMER
+plan de pago del catálogo, en el orden que publica el operador, y la etiqueta
+dice «Nuestra recomendación» — no se inventa un «más vendido» porque ese dato no
+existe. Sello fiscal visible (IVA incluido · factura CFDI · cancelas cuando
+quieras), que es diferenciación real en México y estaba enterrado en una nota de
+una línea. El importe va con `type-numeric`: sin cifras de ancho fijo, conmutar
+mensual/anual daba un salto lateral en toda la tarjeta.
+
+**Dos specs actualizados, ninguno debilitado.** `public-pages.spec.ts` y
+`seo-surface.spec.ts` afirmaban que la portada enlaza `/login` y `/register`
+comprobando el TEXTO de `page.tsx`. Al extraer la barra, los `href` se mudaron de
+archivo. La comprobación ahora los SIGUE hasta `PublicNav.tsx` y además exige que
+la portada monte `<PublicNav/>`: se defiende la intención —que un visitante pueda
+llegar— en vez del sitio donde está escrita.
+
+**Gates:** `typecheck` ✅ · `build` ✅ · `lint` ✅ · `test` ✅ 386/386.
+
+**Verificación visual:** portada, registro, precios y guías capturadas en los dos
+temas. `/precios` se verificó con el catálogo interceptado, porque la API
+comercial no corre en local y la página —correctamente— se niega a inventar un
+importe.

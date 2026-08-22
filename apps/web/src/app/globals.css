@@ -461,18 +461,15 @@
   /* OLA 3 · retícula de plano bajo el hero. La versión anterior pintaba
      líneas blancas fijas, así que en tema claro era invisible; ahora sale del
      token de borde y funciona en los dos temas. */
+  /* La retícula sale al PLENO del token de borde y la sutileza la pone quien
+     la usa con su propia opacidad. Al revés —diluirla aquí— resultaba en una
+     retícula que sobre el fondo oscuro no se veía en absoluto, y una textura
+     invisible es peso muerto. */
   .mission-grid {
     background-image:
-      linear-gradient(
-        color-mix(in srgb, hsl(var(--border)) 70%, transparent) 1px,
-        transparent 1px
-      ),
-      linear-gradient(
-        90deg,
-        color-mix(in srgb, hsl(var(--border)) 70%, transparent) 1px,
-        transparent 1px
-      );
-    background-size: 42px 42px;
+      linear-gradient(hsl(var(--border)) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border)) 1px, transparent 1px);
+    background-size: 44px 44px;
   }
 
   /* OLA 5 · superficie translúcida de las paletas del estudio. */

@@ -3,6 +3,23 @@ import { existsSync, readFileSync } from "node:fs";
 
 const landing = readFileSync("src/app/page.tsx", "utf8");
 const commercial = readFileSync("src/config/commercial.ts", "utf8");
+/**
+ * La barra pública se EXTRAJO de la portada (ola 3 de la campaña de diseño):
+ * dejó de ser texto plano sin fondo para ser una barra pegajosa con menú real
+ * en móvil, y ahora la comparten portada, precios y guías. Los enlaces del
+ * embudo viven ahí, así que la comprobación los sigue hasta donde están: lo que
+ * esta regla defiende es que un visitante PUEDA llegar a `/login` y `/register`
+ * desde la portada, no en qué archivo está escrito el `href`.
+ */
+const landingNav = readFileSync("src/components/PublicNav.tsx", "utf8");
+const landingSurface = `${landing}
+${landingNav}`;
+
+assert.match(
+  landing,
+  /<PublicNav\s*\/>/,
+  "la portada debe montar la barra pública que trae los enlaces del embudo",
+);
 
 const publicRoutes = [
   "docs",
@@ -28,7 +45,7 @@ for (const route of publicRoutes) {
 for (const route of ["login", "register"] as const) {
   assert.ok(existsSync(`src/app/${route}/page.tsx`), `falta /${route}`);
   assert.ok(
-    landing.includes(`href="/${route}"`),
+    landingSurface.includes(`href="/${route}"`),
     `landing no enlaza /${route}`,
   );
 }

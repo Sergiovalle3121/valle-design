@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import Link from "next/link";
 import { Logo } from "@/components/brand/Logo";
-import { BRAND, PRODUCT_LABEL } from "@/config/brand";
+import { PublicNav } from "@/components/PublicNav";
+import { SkipLink } from "@/components/SkipLink";
+import { BRAND } from "@/config/brand";
 import { COMMERCIAL_LINKS } from "@/config/commercial";
 import { buttonClass } from "@/components/ui";
 
@@ -17,74 +18,58 @@ export function PublicPageShell({
   children: ReactNode;
 }) {
   return (
-    <main id="contenido" className="min-h-screen text-foreground">
-      <header className="border-b border-border">
-        <nav
-          aria-label="Navegación de página pública"
-          className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-5 sm:px-8"
-        >
-          <Link href="/" className="inline-flex">
-            <Logo />
-          </Link>
-          <Link href="/" className={buttonClass({ variant: "ghost", size: "md" })}>
-            Volver al inicio
-          </Link>
-        </nav>
-      </header>
+    <>
+      {/* La MISMA barra que la portada: pegajosa, con vidrio al desplazar,
+          conmutador de tema y menú real en móvil. Antes cada página pública
+          traía su propia cabecera de dos enlaces, así que el conmutador de tema
+          no existía fuera del estudio y el logotipo cambiaba de tamaño según la
+          ruta. Una barra, todas las páginas. */}
+      <SkipLink />
+      <PublicNav />
 
-      <article className="mx-auto max-w-4xl px-5 py-14 sm:px-8 sm:py-20">
-        <header>
-          <p className="type-eyebrow text-primary-ink">
-            {eyebrow}
-          </p>
-          <h1 className="type-title mt-4">{title}</h1>
-          <p className="type-lead mt-5 max-w-3xl text-muted-foreground">
-            {intro}
-          </p>
-        </header>
-        <div className="mt-12 space-y-12">{children}</div>
-      </article>
-
-      <footer className="border-t border-border px-5 py-8 sm:px-8">
-        <div className="mx-auto flex max-w-5xl flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="font-semibold">{PRODUCT_LABEL.design}</p>
-            <p className="type-small mt-1 text-muted-foreground">
-              {BRAND.copyright}
+      <main id="contenido" className="min-h-screen text-foreground">
+        <article className="mx-auto max-w-4xl px-5 py-14 sm:px-8 sm:py-20">
+          <header>
+            <p className="type-eyebrow text-primary-ink">{eyebrow}</p>
+            <h1 className="type-title mt-4">{title}</h1>
+            <p className="type-lead mt-5 max-w-3xl text-muted-foreground">
+              {intro}
             </p>
+          </header>
+          <div className="mt-12 space-y-12">{children}</div>
+        </article>
+
+        <footer className="border-t border-border px-5 py-10 sm:px-8">
+          <div className="mx-auto flex max-w-5xl flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <Logo />
+              <p className="type-small mt-3 text-muted-foreground">
+                {BRAND.copyright}
+              </p>
+            </div>
+            <nav
+              aria-label="Ayuda y contacto"
+              className="type-small flex flex-wrap gap-x-5 gap-y-3 text-muted-foreground"
+            >
+              {[
+                ["Precios", COMMERCIAL_LINKS.pricing],
+                ["Documentación", COMMERCIAL_LINKS.documentation],
+                ["Soporte", COMMERCIAL_LINKS.support],
+                ["Contacto", COMMERCIAL_LINKS.contact],
+              ].map(([label, href]) => (
+                <a
+                  key={label}
+                  className="underline-offset-4 hover:text-foreground hover:underline"
+                  href={href}
+                >
+                  {label}
+                </a>
+              ))}
+            </nav>
           </div>
-          <nav
-            aria-label="Ayuda y contacto"
-            className="type-small flex flex-wrap gap-x-5 gap-y-3 text-muted-foreground"
-          >
-            <a
-              className="underline-offset-4 hover:text-foreground hover:underline"
-              href={COMMERCIAL_LINKS.pricing}
-            >
-              Precios
-            </a>
-            <a
-              className="underline-offset-4 hover:text-foreground hover:underline"
-              href={COMMERCIAL_LINKS.documentation}
-            >
-              Documentación
-            </a>
-            <a
-              className="underline-offset-4 hover:text-foreground hover:underline"
-              href={COMMERCIAL_LINKS.support}
-            >
-              Soporte
-            </a>
-            <a
-              className="underline-offset-4 hover:text-foreground hover:underline"
-              href={COMMERCIAL_LINKS.contact}
-            >
-              Contacto
-            </a>
-          </nav>
-        </div>
-      </footer>
-    </main>
+        </footer>
+      </main>
+    </>
   );
 }
 

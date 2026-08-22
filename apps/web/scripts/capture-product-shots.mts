@@ -121,6 +121,32 @@ async function drawSamplePlan(page: Page) {
   await page.waitForTimeout(600);
 }
 
+/**
+ * VISTA DE PLANO, NO ÓRBITA 3D.
+ *
+ * El editor arranca en 3D y con la cámara en su sitio de fábrica: la primera
+ * captura salió con la planta como un plano inclinado en perspectiva, ilegible
+ * como dibujo. Un CAD 2D que se anuncia con una órbita 3D vacía está enseñando
+ * lo que NO es. Se conmuta a 2D por el mismo control que usa una persona y se
+ * encuadra con ZOOM EXtensión, que es el comando de siempre.
+ */
+async function frameThePlan(page: Page) {
+  const flat = page.getByTitle(/Vista de plano 2D/);
+  if (await flat.isVisible().catch(() => false)) {
+    await flat.click();
+    await page.waitForTimeout(400);
+  }
+  await type(page, "ZOOM");
+  await type(page, "EX");
+  await page.waitForTimeout(500);
+  // EXtensión encaja el dibujo a ras del borde del lienzo. Un plano que toca
+  // los cuatro cantos se lee como recortado; el 0,75 le devuelve el aire que
+  // un arquitecto deja alrededor de una planta.
+  await type(page, "ZOOM");
+  await type(page, "0.75X");
+  await page.waitForTimeout(700);
+}
+
 function starterDocument(): CadDocument {
   return createCadStarterDocument({
     templateId: "planta-arquitectonica",
@@ -219,6 +245,7 @@ async function main() {
       if (await skip.isVisible().catch(() => false)) await skip.click();
 
       await drawSamplePlan(page);
+      await frameThePlan(page);
 
       await shoot(
         page,

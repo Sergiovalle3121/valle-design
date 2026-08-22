@@ -11,10 +11,15 @@ import {
   Terminal,
 } from "lucide-react";
 import { BRAND, PRODUCT_LABEL } from "@/config/brand";
-import { Logo } from "@/components/brand/Logo";
 import { COMMERCIAL_LINKS } from "@/config/commercial";
 import { DOC_GUIDES, PRICING_PATH, docGuidePath } from "@/config/site-routes";
 import { JsonLd } from "@/components/JsonLd";
+import { PublicNav } from "@/components/PublicNav";
+import { SkipLink } from "@/components/SkipLink";
+import { Logo } from "@/components/brand/Logo";
+import { HeroBackdrop } from "@/components/marketing/HeroBackdrop";
+import { ProductFrame } from "@/components/marketing/ProductFrame";
+import { buttonClass } from "@/components/ui";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import {
   faqPageJsonLd,
@@ -38,9 +43,23 @@ import {
  * firmar, y una promesa que el editor no cumple se descubre en la primera
  * sesión, cuando ya te ha costado la confianza.
  *
+ * ── LO QUE CAMBIA EN LA CAMPAÑA DE DISEÑO ────────────────────────────────────
+ * El texto se conserva casi entero; lo que cambia es QUÉ SE VE. La carencia
+ * número uno de esta página era vender un CAD sin enseñar un dibujo: 537 líneas
+ * de tarjetas de texto con ocho iconos de línea, y a la derecha del hero una
+ * caja con degradado y una lista numerada. Ahora el producto ES la imagen —
+ * capturas reales, generadas por `npm run capture:product`, que se regeneran
+ * cuando el editor cambia en vez de envejecer en silencio.
+ *
+ * Y el orden pasa a ser de venta: prueba visual antes que enumeración, el
+ * argumento del modelo de licencia antes que las capacidades, y la sección de
+ * honestidad justo antes del FAQ, que es donde de verdad aparece la objeción.
+ *
  * Tres cosas que NO están aquí y no es un olvido: testimonios (no existe ni uno
- * real), logotipos de clientes (igual) y precios (el catálogo vive en
- * `/precios`, que construye otro frente; esta página enlaza, no inventa).
+ * real), logotipos de clientes (igual) y CIFRAS DE PRECIO. Esto último no es
+ * pudor: `public-pages.spec.ts` prohíbe una cifra en esta página, y con razón —
+ * el catálogo vive en `/precios` y lo publica el propio producto desde su tabla
+ * vigente. Dos verdades sobre el mismo importe es una de más.
  */
 
 const description =
@@ -51,6 +70,29 @@ export const metadata: Metadata = publicPageMetadata({
   title: "CAD en línea para dibujar planos en el navegador",
   description,
 });
+
+/**
+ * PRUEBA VISUAL. Cada captura sale de `public/product/`, generada conduciendo
+ * el editor de verdad. `nota` no es un pie decorativo: dice qué mirar, que es
+ * la diferencia entre una captura que informa y una que rellena.
+ */
+const proof = [
+  {
+    src: "/product/estudio-dark.png",
+    alt: "El estudio de Valle Design con una planta arquitectónica acotada",
+    nota: "Muros que resuelven su unión en la esquina, sombreado de corte y cotas amarradas a la geometría que miden. Todo dibujado con la línea de comandos, con los alias de siempre.",
+  },
+  {
+    src: "/product/espacio-papel.png",
+    alt: "Espacio papel con la lámina y su cajetín",
+    nota: "El espacio papel con su cajetín: eliges tamaño de hoja y escala, y la lámina sale a PDF con el tamaño de página exacto.",
+  },
+  {
+    src: "/product/paleta-capas.png",
+    alt: "Gestor de capas con color, tipo de línea y grosor",
+    nota: "Gestor de capas con color, tipo de línea y grosor de trazo, y congelado por ventana en la presentación.",
+  },
+] as const;
 
 /**
  * Capacidades. `limite` no es letra pequeña: se pinta con el mismo tamaño que
@@ -105,6 +147,31 @@ const capabilities = [
     limite:
       "La revisión es asíncrona: dos personas comentan y se turnan sobre el documento, no dibujan a la vez con cursores simultáneos. Los borradores de recuperación se guardan en tu navegador durante siete días, no en el servidor.",
   },
+] as const;
+
+/**
+ * EL ARGUMENTO DEL MODELO. Compara MODELOS de licencia, no importes: los
+ * importes viven en `/precios`, que los lee del catálogo vigente del producto.
+ * Cada fila describe algo comprobable sobre cómo funciona esto, no una promesa
+ * sobre lo que hace la competencia.
+ */
+const licensing = [
+  [
+    "No instalas nada",
+    "Entras con el navegador que ya tienes. Sin instalador, sin gestor de licencias, sin una computadora concreta donde vive el programa.",
+  ],
+  [
+    "El dibujo no vive en un disco duro",
+    "Los documentos están en el servidor, aislados por organización. Entras desde la oficina, desde tu casa o desde la obra y encuentras la última versión guardada.",
+  ],
+  [
+    "Se paga por mes y se cancela desde el portal",
+    "Sin contrato anual obligatorio. Cancelas cuando quieras y conservas el acceso hasta el final del periodo pagado.",
+  ],
+  [
+    "Factura CFDI e IVA incluido",
+    "Los importes se publican en pesos mexicanos con el IVA ya dentro, y la factura sale con los datos fiscales de tu despacho.",
+  ],
 ] as const;
 
 /** Lo que NO hace. Va arriba del FAQ a propósito: es la objeción real. */
@@ -198,340 +265,370 @@ const featureList = [
   "Documentos en la nube con versiones y diario de recuperación",
 ] as const;
 
-const linkBase =
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500";
+/** Sección con fondo tenue. Alterna con el fondo base para marcar el ritmo. */
+function Band({
+  children,
+  id,
+  tinted = false,
+}: {
+  children: React.ReactNode;
+  id?: string;
+  tinted?: boolean;
+}) {
+  return (
+    <section
+      aria-labelledby={id}
+      className={tinted ? "border-y border-border bg-muted/30" : undefined}
+    >
+      <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 sm:py-24">
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function SectionHead({
+  id,
+  eyebrow,
+  title,
+  lead,
+}: {
+  id: string;
+  eyebrow: string;
+  title: string;
+  lead: string;
+}) {
+  return (
+    <header className="max-w-3xl">
+      <p className="type-eyebrow text-primary-ink">{eyebrow}</p>
+      <h2 id={id} className="type-title mt-3">
+        {title}
+      </h2>
+      <p className="type-lead mt-4 text-muted-foreground">{lead}</p>
+    </header>
+  );
+}
 
 export default function LandingPage() {
   return (
-    <main id="contenido" className="min-h-screen overflow-hidden text-foreground">
-      <JsonLd data={softwareApplicationJsonLd({ description, featureList })} />
-      <JsonLd data={productJsonLd({ description })} />
-      <JsonLd data={faqPageJsonLd(faq)} />
+    <>
+      <SkipLink />
+      <PublicNav />
 
-      <nav
-        aria-label="Navegación principal"
-        className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-5 sm:px-8"
-      >
-        <Link href="/" className={`inline-flex ${linkBase}`}>
-          <Logo />
-        </Link>
-        <div className="flex flex-wrap items-center gap-1 sm:gap-3">
-          <Link
-            className={`rounded-lg px-3 py-2 text-sm font-medium hover:bg-black/5 dark:hover:bg-white/5 ${linkBase}`}
-            href={PRICING_PATH}
-          >
-            Precios
-          </Link>
-          <Link
-            className={`rounded-lg px-3 py-2 text-sm font-medium hover:bg-black/5 dark:hover:bg-white/5 ${linkBase}`}
-            href="/docs"
-          >
-            Guías
-          </Link>
-          <Link
-            className={`rounded-lg px-3 py-2 text-sm font-medium hover:bg-black/5 dark:hover:bg-white/5 ${linkBase}`}
-            href="/login"
-          >
-            Iniciar sesión
-          </Link>
-          <Link
-            className={`rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-500 ${linkBase}`}
-            href="/register"
-          >
-            Crear cuenta
-          </Link>
-        </div>
-      </nav>
+      <main id="contenido" className="text-foreground">
+        <JsonLd data={softwareApplicationJsonLd({ description, featureList })} />
+        <JsonLd data={productJsonLd({ description })} />
+        <JsonLd data={faqPageJsonLd(faq)} />
 
-      <section
-        aria-labelledby="hero-title"
-        className="mx-auto grid max-w-7xl gap-12 px-5 pb-20 pt-14 sm:px-8 lg:grid-cols-[1.1fr_.9fr] lg:py-24"
-      >
-        <div>
-          <p className="mb-4 text-sm font-semibold uppercase tracking-[.2em] text-indigo-600 dark:text-indigo-300">
-            CAD en línea para arquitectura e ingeniería
-          </p>
-          <h1
-            id="hero-title"
-            className="max-w-4xl text-4xl font-bold tracking-tight sm:text-6xl"
-          >
-            Dibuja tus planos en el navegador. Sin instalar nada.
-          </h1>
-          <p className="mt-6 max-w-2xl text-lg leading-8 text-gray-600 dark:text-gray-300">
-            {PRODUCT_LABEL.design} es un software de dibujo arquitectónico que
-            corre donde ya trabajas: capas, bloques, cotas asociativas, espacio
-            papel e intercambio DXF, con tus proyectos guardados en la nube en
-            vez de en una computadora concreta. Una alternativa a AutoCAD en la
-            nube para quien necesita entregar planos, no administrar licencias.
-          </p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/register"
-              className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-500 ${linkBase}`}
-            >
-              Crear mi cuenta
-              <ArrowRight aria-hidden="true" className="h-4 w-4" />
-            </Link>
-            <Link
-              href={PRICING_PATH}
-              className={`inline-flex min-h-11 items-center justify-center rounded-xl border border-black/15 px-5 py-3 font-semibold hover:bg-black/[.025] dark:border-white/20 dark:hover:bg-white/[.025] ${linkBase}`}
-            >
-              Ver precios
-            </Link>
-          </div>
-          <p className="mt-5 max-w-2xl text-sm leading-6 text-gray-500 dark:text-gray-400">
-            Antes de que lo preguntes: no abrimos archivos DWG. Importamos y
-            exportamos DXF, que es el formato con el que cualquier programa de
-            dibujo puede entregarte una copia.
-          </p>
-        </div>
-
-        <div
-          aria-label="Recorrido desde la cuenta hasta la lámina entregada"
-          className="rounded-3xl border border-indigo-500/20 bg-gradient-to-br from-indigo-500/10 to-slate-500/5 p-6 sm:p-9"
-        >
-          <h2 className="text-2xl font-semibold">De la cuenta a la lámina</h2>
-          <ol className="mt-6 space-y-4">
-            {[
-              "Crea tu cuenta y abre un proyecto en tu organización",
-              "Dibuja, o empieza importando un DXF que ya tengas",
-              "Acota, organiza por capas y arma la presentación",
-              "Imprime a PDF a escala y comparte para revisión",
-            ].map((item, index) => (
-              <li key={item} className="flex gap-3">
-                <span
-                  aria-hidden="true"
-                  className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-indigo-500/15 text-sm font-bold text-indigo-700 dark:text-indigo-200"
+        {/* ── HERO ───────────────────────────────────────────────────────── */}
+        <section aria-labelledby="hero-title" className="relative">
+          <HeroBackdrop />
+          <div className="mx-auto grid max-w-7xl items-center gap-14 px-5 pb-20 pt-12 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:pb-28 lg:pt-20">
+            <div>
+              <p className="type-eyebrow text-primary-ink">
+                CAD en línea para arquitectura e ingeniería
+              </p>
+              <h1 id="hero-title" className="type-display mt-5 max-w-2xl">
+                Dibuja tus planos en el navegador. Sin instalar nada.
+              </h1>
+              <p className="type-lead mt-6 max-w-xl text-muted-foreground">
+                {PRODUCT_LABEL.design} es un software de dibujo arquitectónico
+                que corre donde ya trabajas: capas, bloques, cotas asociativas,
+                espacio papel e intercambio DXF, con tus proyectos guardados en
+                la nube en vez de en una computadora concreta. Una alternativa a
+                AutoCAD en la nube para quien necesita entregar planos, no
+                administrar licencias.
+              </p>
+              <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+                <Link
+                  href="/register"
+                  className={buttonClass({ variant: "primary", size: "lg" })}
                 >
-                  {index + 1}
-                </span>
-                <span>{item}</span>
-              </li>
+                  Crear cuenta gratis
+                  <ArrowRight aria-hidden="true" className="h-4 w-4" />
+                </Link>
+                <Link
+                  href={PRICING_PATH}
+                  className={buttonClass({ variant: "secondary", size: "lg" })}
+                >
+                  Ver precios
+                </Link>
+              </div>
+              <p className="type-small mt-6 max-w-xl text-muted-foreground">
+                Antes de que lo preguntes: no abrimos archivos DWG. Importamos y
+                exportamos DXF, que es el formato con el que cualquier programa
+                de dibujo puede entregarte una copia.
+              </p>
+            </div>
+
+            <ProductFrame
+              priority
+              src="/product/estudio-dark.png"
+              alt="Valle Design · planta arquitectónica acotada"
+            />
+          </div>
+        </section>
+
+        {/* ── PRUEBA VISUAL ──────────────────────────────────────────────── */}
+        <Band id="prueba" tinted>
+          <SectionHead
+            id="prueba"
+            eyebrow="Esto es el producto"
+            title="No es una maqueta: es el editor dibujando"
+            lead="Las tres capturas de abajo se generan conduciendo el programa de verdad, comando a comando, cada vez que se publica. Si el editor cambiara, cambian ellas."
+          />
+          <div className="mt-12 grid gap-10 lg:grid-cols-3">
+            {proof.map(({ src, alt, nota }) => (
+              <ProductFrame
+                key={src}
+                src={src}
+                alt={alt}
+                caption={nota}
+                float={false}
+              />
             ))}
-          </ol>
+          </div>
+        </Band>
+
+        {/* ── EL MODELO ──────────────────────────────────────────────────── */}
+        <Band id="modelo">
+          <SectionHead
+            id="modelo"
+            eyebrow="El modelo"
+            title="Una suscripción, no una licencia por computadora"
+            lead="La diferencia con un CAD de escritorio no es sólo el precio: es dónde vive el programa, dónde vive el dibujo y qué pasa el día que cambias de equipo."
+          />
+          <dl className="mt-12 grid gap-5 sm:grid-cols-2">
+            {licensing.map(([title, text]) => (
+              <div
+                key={title}
+                className="rounded-card border border-border bg-card p-6 shadow-resting"
+              >
+                <dt className="type-heading">{title}</dt>
+                <dd className="type-body mt-3 text-muted-foreground">{text}</dd>
+              </div>
+            ))}
+          </dl>
           <Link
-            href="/docs"
-            className={`mt-8 inline-flex items-center gap-2 font-semibold text-indigo-700 underline-offset-4 hover:underline dark:text-indigo-200 ${linkBase}`}
+            href={PRICING_PATH}
+            className={`${buttonClass({ variant: "primary" })} mt-10`}
           >
-            Ver las guías paso a paso
+            Ver los planes y sus condiciones
             <ArrowRight aria-hidden="true" className="h-4 w-4" />
           </Link>
-        </div>
-      </section>
+        </Band>
 
-      <section
-        aria-labelledby="capacidades"
-        className="bg-black/[.025] px-5 py-20 dark:bg-white/[.025] sm:px-8"
-      >
-        <div className="mx-auto max-w-7xl">
-          <h2 id="capacidades" className="text-3xl font-bold sm:text-4xl">
-            Lo que ya puedes hacer hoy
-          </h2>
-          <p className="mt-3 max-w-3xl text-gray-600 dark:text-gray-300">
-            Cada punto de esta lista corresponde a algo implementado y probado en
-            el producto. Donde falta terminar algo, está dicho en la misma ficha.
-          </p>
-          <div className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+        {/* ── CAPACIDADES ────────────────────────────────────────────────── */}
+        <Band id="capacidades" tinted>
+          <SectionHead
+            id="capacidades"
+            eyebrow="Capacidades"
+            title="Lo que ya puedes hacer hoy"
+            lead="Cada punto de esta lista corresponde a algo implementado y probado en el producto. Donde falta terminar algo, está dicho en la misma ficha."
+          />
+          <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
             {capabilities.map(({ icon: Icon, title, text, limite }) => (
               <article
                 key={title}
-                className="flex flex-col rounded-2xl border border-black/10 bg-white/60 p-6 dark:border-white/10 dark:bg-white/5"
+                className="flex flex-col rounded-card border border-border bg-card p-6 shadow-resting"
               >
-                <Icon
-                  aria-hidden="true"
-                  className="h-7 w-7 text-indigo-600 dark:text-indigo-300"
-                />
-                <h3 className="mt-5 text-xl font-semibold">{title}</h3>
-                <p className="mt-3 leading-7 text-gray-600 dark:text-gray-300">
-                  {text}
-                </p>
+                <Icon aria-hidden="true" className="h-7 w-7 text-primary-ink" />
+                <h3 className="type-heading mt-5">{title}</h3>
+                <p className="type-body mt-3 text-muted-foreground">{text}</p>
                 {limite ? (
-                  <p className="mt-4 border-t border-black/10 pt-4 text-sm leading-6 text-gray-500 dark:border-white/10 dark:text-gray-400">
-                    <span className="font-semibold">Límite actual: </span>
+                  <p className="type-small mt-auto border-t border-border pt-4 text-muted-foreground">
+                    <span className="font-semibold text-foreground">
+                      Límite actual:{" "}
+                    </span>
                     {limite}
                   </p>
                 ) : null}
               </article>
             ))}
           </div>
-        </div>
-      </section>
+        </Band>
 
-      <section
-        aria-labelledby="para-quien"
-        className="mx-auto max-w-7xl px-5 py-20 sm:px-8"
-      >
-        <h2 id="para-quien" className="text-3xl font-bold sm:text-4xl">
-          Para quién está pensado
-        </h2>
-        <p className="mt-3 max-w-3xl text-gray-600 dark:text-gray-300">
-          Si tu día termina con una lámina que alguien firma, esto se construyó
-          mirando tu mesa de trabajo.
-        </p>
-        <div className="mt-10 grid gap-5 sm:grid-cols-2">
-          {audiences.map(({ title, text }) => (
-            <article
-              key={title}
-              className="rounded-2xl border border-black/10 p-6 dark:border-white/10"
-            >
-              <h3 className="text-xl font-semibold">{title}</h3>
-              <p className="mt-3 leading-7 text-gray-600 dark:text-gray-300">
-                {text}
-              </p>
-            </article>
-          ))}
-        </div>
-      </section>
+        {/* ── PARA QUIÉN ─────────────────────────────────────────────────── */}
+        <Band id="para-quien">
+          <SectionHead
+            id="para-quien"
+            eyebrow="Para quién"
+            title="Para quién está pensado"
+            lead="Si tu día termina con una lámina que alguien firma, esto se construyó mirando tu mesa de trabajo."
+          />
+          <div className="mt-12 grid gap-5 sm:grid-cols-2">
+            {audiences.map(({ title, text }) => (
+              <article
+                key={title}
+                className="rounded-card border border-border p-6"
+              >
+                <h3 className="type-heading">{title}</h3>
+                <p className="type-body mt-3 text-muted-foreground">{text}</p>
+              </article>
+            ))}
+          </div>
+        </Band>
 
-      <section
-        aria-labelledby="limites"
-        className="bg-black/[.025] px-5 py-20 dark:bg-white/[.025] sm:px-8"
-      >
-        <div className="mx-auto max-w-5xl">
-          <h2 id="limites" className="text-3xl font-bold sm:text-4xl">
-            Lo que todavía no hacemos
-          </h2>
-          <p className="mt-3 max-w-3xl text-gray-600 dark:text-gray-300">
-            Prefieres enterarte aquí que en tu primera entrega. Esta lista se
-            acorta con el producto, no con el copy.
-          </p>
-          <dl className="mt-10 grid gap-6 sm:grid-cols-2">
+        {/* ── HONESTIDAD (intacta: es un activo de confianza) ────────────── */}
+        <Band id="limites" tinted>
+          <SectionHead
+            id="limites"
+            eyebrow="Sin adornos"
+            title="Lo que todavía no hacemos"
+            lead="Prefieres enterarte aquí que en tu primera entrega. Esta lista se acorta con el producto, no con el copy."
+          />
+          <dl className="mt-12 grid gap-6 sm:grid-cols-2">
             {limits.map(([title, text]) => (
               <div
                 key={title}
-                className="rounded-2xl border border-black/10 bg-white/60 p-6 dark:border-white/10 dark:bg-white/5"
+                className="rounded-card border border-border bg-card p-6"
               >
-                <dt className="text-lg font-semibold">{title}</dt>
-                <dd className="mt-3 leading-7 text-gray-600 dark:text-gray-300">
-                  {text}
-                </dd>
+                <dt className="type-heading">{title}</dt>
+                <dd className="type-body mt-3 text-muted-foreground">{text}</dd>
               </div>
             ))}
           </dl>
-        </div>
-      </section>
+        </Band>
 
-      <section
-        aria-labelledby="guias"
-        className="mx-auto max-w-7xl px-5 py-20 sm:px-8"
-      >
-        <h2 id="guias" className="text-3xl font-bold sm:text-4xl">
-          Guías para empezar bien
-        </h2>
-        <p className="mt-3 max-w-3xl text-gray-600 dark:text-gray-300">
-          Escritas desde lo que el producto hace de verdad, con sus límites
-          señalados donde corresponde.
-        </p>
-        <ul className="mt-10 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-          {DOC_GUIDES.map((guide) => (
-            <li key={guide.slug}>
-              <Link
-                href={docGuidePath(guide.slug)}
-                className={`flex h-full flex-col rounded-2xl border border-black/10 p-6 transition hover:border-indigo-500/40 hover:bg-indigo-500/[.04] dark:border-white/10 ${linkBase}`}
-              >
-                <span className="text-lg font-semibold">{guide.title}</span>
-                <span className="mt-3 leading-7 text-gray-600 dark:text-gray-300">
-                  {guide.summary}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section
-        aria-labelledby="faq"
-        className="bg-black/[.025] px-5 py-20 dark:bg-white/[.025] sm:px-8"
-      >
-        <div className="mx-auto max-w-4xl">
-          <h2 id="faq" className="text-3xl font-bold sm:text-4xl">
-            Preguntas frecuentes
-          </h2>
-          <div className="mt-8 divide-y divide-black/10 dark:divide-white/10">
-            {faq.map(([question, answer]) => (
-              <details key={question} className="group py-5">
-                <summary className="cursor-pointer text-lg font-semibold focus-visible:outline-2 focus-visible:outline-offset-4">
-                  {question}
-                </summary>
-                <p className="mt-3 max-w-3xl leading-7 text-gray-600 dark:text-gray-300">
-                  {answer}
-                </p>
-              </details>
+        {/* ── GUÍAS ──────────────────────────────────────────────────────── */}
+        <Band id="guias">
+          <SectionHead
+            id="guias"
+            eyebrow="Guías"
+            title="Guías para empezar bien"
+            lead="Escritas desde lo que el producto hace de verdad, con sus límites señalados donde corresponde."
+          />
+          <ul className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {DOC_GUIDES.map((guide) => (
+              <li key={guide.slug}>
+                <Link
+                  href={docGuidePath(guide.slug)}
+                  className="group flex h-full flex-col rounded-card border border-border p-6 transition-[background-color,border-color,box-shadow] duration-200 ease-out-expo hover:border-primary/40 hover:bg-card hover:shadow-elevated"
+                >
+                  <span className="type-heading">{guide.title}</span>
+                  <span className="type-body mt-3 text-muted-foreground">
+                    {guide.summary}
+                  </span>
+                  <span className="type-small mt-4 inline-flex items-center gap-1.5 font-semibold text-primary-ink">
+                    Leer la guía
+                    <ArrowRight
+                      aria-hidden="true"
+                      className="h-3.5 w-3.5 transition-transform duration-200 ease-out-expo group-hover:translate-x-0.5"
+                    />
+                  </span>
+                </Link>
+              </li>
             ))}
-          </div>
-        </div>
-      </section>
+          </ul>
+        </Band>
 
-      <section
-        aria-labelledby="cta-final"
-        className="mx-auto max-w-7xl px-5 py-20 sm:px-8"
-      >
-        <div className="rounded-3xl border border-indigo-500/25 bg-gradient-to-br from-indigo-500/10 to-slate-500/5 p-8 sm:p-12">
-          <h2 id="cta-final" className="text-3xl font-bold sm:text-4xl">
-            Empieza tu primer plano en línea
-          </h2>
-          <p className="mt-4 max-w-3xl text-lg leading-8 text-gray-600 dark:text-gray-300">
-            Crea la cuenta, abre un proyecto y dibuja. Si ya tienes un DXF, súbelo
-            y sigue desde ahí.
-          </p>
-          <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link
-              href="/register"
-              className={`inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 font-semibold text-white hover:bg-indigo-500 ${linkBase}`}
-            >
-              Crear mi cuenta
-              <ArrowRight aria-hidden="true" className="h-4 w-4" />
-            </Link>
-            <Link
-              href={PRICING_PATH}
-              className={`inline-flex min-h-11 items-center justify-center rounded-xl border border-black/15 px-5 py-3 font-semibold hover:bg-black/[.025] dark:border-white/20 dark:hover:bg-white/[.025] ${linkBase}`}
-            >
-              Ver precios
-            </Link>
+        {/* ── FAQ ────────────────────────────────────────────────────────── */}
+        <Band id="faq" tinted>
+          <div className="mx-auto max-w-4xl">
+            <SectionHead
+              id="faq"
+              eyebrow="Dudas"
+              title="Preguntas frecuentes"
+              lead="Las que de verdad frenan la compra, incluidas las incómodas."
+            />
+            <div className="mt-10 divide-y divide-border border-y border-border">
+              {faq.map(([question, answer]) => (
+                <details key={question} className="group py-5">
+                  <summary className="type-heading cursor-pointer list-none marker:content-none focus-visible:outline-2 focus-visible:outline-offset-4">
+                    <span className="flex items-start justify-between gap-4">
+                      {question}
+                      <span
+                        aria-hidden="true"
+                        className="mt-1 shrink-0 text-muted-foreground transition-transform duration-200 ease-out-expo group-open:rotate-45"
+                      >
+                        +
+                      </span>
+                    </span>
+                  </summary>
+                  <p className="type-body mt-3 max-w-3xl text-muted-foreground">
+                    {answer}
+                  </p>
+                </details>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </Band>
 
-      <footer className="px-5 py-10 sm:px-8">
-        <div className="mx-auto flex max-w-7xl flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="font-semibold">{PRODUCT_LABEL.design}</p>
-            <p className="mt-2 text-sm text-gray-500">{BRAND.copyright}</p>
-            {/*
-              Aviso de marcas: nombrar a la competencia para posicionarse es
-              legítimo; dejar que alguien deduzca una afiliación que no existe,
-              no. Va en el pie, visible en todas las secciones.
-            */}
-            <p className="mt-2 max-w-md text-sm text-gray-500">
-              AutoCAD y DWG son marcas de Autodesk, Inc. {BRAND.brandName} no
-              está afiliado a Autodesk ni respaldado por Autodesk.
+        {/* ── CTA FINAL ──────────────────────────────────────────────────── */}
+        <Band id="cta-final">
+          <div className="relative overflow-hidden rounded-surface border border-border bg-card p-8 shadow-elevated sm:p-14">
+            <div
+              aria-hidden="true"
+              className="product-halo pointer-events-none absolute -right-20 -top-32 h-80 w-80"
+            />
+            <h2 id="cta-final" className="type-title max-w-2xl">
+              Empieza tu primer plano en línea
+            </h2>
+            <p className="type-lead mt-4 max-w-2xl text-muted-foreground">
+              Crea la cuenta, abre un proyecto y dibuja. Si ya tienes un DXF,
+              súbelo y sigue desde ahí.
             </p>
-          </div>
-          <nav
-            aria-label="Enlaces legales y de ayuda"
-            className="flex flex-wrap gap-x-5 gap-y-3 text-sm"
-          >
-            {[
-              ["Precios", PRICING_PATH],
-              ["Documentación", COMMERCIAL_LINKS.documentation],
-              ["Soporte", COMMERCIAL_LINKS.support],
-              ["Estado", COMMERCIAL_LINKS.status],
-              ["Contacto", COMMERCIAL_LINKS.contact],
-              ["Privacidad", COMMERCIAL_LINKS.privacy],
-              ["Términos", COMMERCIAL_LINKS.terms],
-              ["Licencias", COMMERCIAL_LINKS.licenses],
-            ].map(([label, href]) => (
-              <a
-                key={label}
-                href={href}
-                className={`underline-offset-4 hover:underline ${linkBase}`}
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row">
+              <Link
+                href="/register"
+                className={buttonClass({ variant: "primary", size: "lg" })}
               >
-                {label}
-              </a>
-            ))}
-          </nav>
-        </div>
-      </footer>
-    </main>
+                Crear cuenta gratis
+                <ArrowRight aria-hidden="true" className="h-4 w-4" />
+              </Link>
+              <Link
+                href={PRICING_PATH}
+                className={buttonClass({ variant: "secondary", size: "lg" })}
+              >
+                Ver precios
+              </Link>
+            </div>
+          </div>
+        </Band>
+
+        <footer className="border-t border-border px-5 py-12 sm:px-8">
+          <div className="mx-auto flex max-w-7xl flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <Logo />
+              <p className="type-small mt-3 text-muted-foreground">
+                {BRAND.copyright}
+              </p>
+              {/*
+                Aviso de marcas: nombrar a la competencia para posicionarse es
+                legítimo; dejar que alguien deduzca una afiliación que no existe,
+                no. Va en el pie, visible en todas las secciones.
+              */}
+              <p className="type-small mt-2 max-w-md text-muted-foreground">
+                AutoCAD y DWG son marcas de Autodesk, Inc. {BRAND.brandName} no
+                está afiliado a Autodesk ni respaldado por Autodesk.
+              </p>
+            </div>
+            <nav
+              aria-label="Enlaces legales y de ayuda"
+              className="type-small flex flex-wrap gap-x-5 gap-y-3 text-muted-foreground"
+            >
+              {[
+                ["Precios", PRICING_PATH],
+                ["Documentación", COMMERCIAL_LINKS.documentation],
+                ["Soporte", COMMERCIAL_LINKS.support],
+                ["Estado", COMMERCIAL_LINKS.status],
+                ["Contacto", COMMERCIAL_LINKS.contact],
+                ["Privacidad", COMMERCIAL_LINKS.privacy],
+                ["Términos", COMMERCIAL_LINKS.terms],
+                ["Licencias", COMMERCIAL_LINKS.licenses],
+              ].map(([label, href]) => (
+                <a
+                  key={label}
+                  href={href}
+                  className="underline-offset-4 hover:text-foreground hover:underline"
+                >
+                  {label}
+                </a>
+              ))}
+            </nav>
+          </div>
+        </footer>
+      </main>
+    </>
   );
 }
