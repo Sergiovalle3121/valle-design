@@ -664,7 +664,7 @@ registrado ANTES de derivar codigo (SOURCE_REGISTER: la entrada de la ODS
 crece a 80 hechos tras consultar su texto integro — descarga publica
 oficial, consulta local fuera del repo — y nace VALLE-CORPUS-INTAKE-A60EBE2
 con 12 mediciones first-party). Resumen por ola; el detalle vive en
-docs/execution/CAMPANA_DWG_20260821.md y la evidencia en docs/cad/evidence.
+docs/history/execution/CAMPANA_DWG_20260821.md y la evidencia en docs/cad/evidence.
 
 - OLA 0 — API honesta: probeDwg gana la variante de EXITO, readDwg y
   writeDwg salen al indice, AC1015 declara experimental-lab en el registro

@@ -120,7 +120,7 @@ test('professional workbench persists, scales and keeps every palette outside th
   // a 7680×4320 con el bucle de render continuo en marcha: cada frame tarda
   // segundos, las comprobaciones de Playwright (que van sobre rAF) se mueren de
   // hambre y el clic de cierre agota los 180 s. Es la «familia B» de
-  // docs/audits/main-rojo-e2e-20260809.md §13: el cuelgue era inanición del
+  // docs/history/audits/main-rojo-e2e-20260809.md §13: el cuelgue era inanición del
   // hilo principal, no un canvas desmontado (el div es incondicional).
   await page.setViewportSize({ width: 1920, height: 1080 });
   await page.getByTitle(/Workspace profesional/).click();

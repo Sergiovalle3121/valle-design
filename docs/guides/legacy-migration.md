@@ -50,7 +50,7 @@ Lo que **sigue** conteniendo ese literal, y por qué no puede quitarse hoy:
 | `AXOS_DIM`, `AXOS_MLEADER`, `AXOS_BLOCK`                          | marcas XDATA dentro de DXF ya exportados                      | ya no se ESCRIBEN; se leen para no dejar ilegibles los archivos que están en discos de clientes                    |
 | `axos_theme`, `axos_locale`, `axos_cad_workspace`, `axos:cad:*`   | claves de `localStorage`/cookie del navegador de cada usuario | se leen una vez y se migran a la clave `valle_*`; ver `apps/web/src/lib/storage-rename.ts`                          |
 | `axos_access_token`, el secreto de sesión de la plataforma origen | literales dentro de expresiones regulares NEGATIVAS           | los guards prueban que esos valores NO aparecen; quitar el literal apaga el guard sin que ningún test se ponga rojo |
-| `docs/product-split/MANIFEST-SHA256.txt`, `FILTER-REPO-PATHS.txt` | registros congelados de la extracción desde el monorepo       | describen rutas y hashes que existieron en OTRO repositorio; reescribirlos falsificaría el registro                 |
+| `docs/history/product-split/MANIFEST-SHA256.txt`, `FILTER-REPO-PATHS.txt` | registros congelados de la extracción desde el monorepo       | describen rutas y hashes que existieron en OTRO repositorio; reescribirlos falsificaría el registro                 |
 
 Las claves de navegador de la tercera fila desaparecen solas: cada usuario que
 vuelve a entrar migra la suya. Las dos primeras filas requieren decisión de

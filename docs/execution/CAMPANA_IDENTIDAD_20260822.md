@@ -192,3 +192,30 @@ Formato: `[hora] OLA · ítem — qué se hizo · decisiones y suposiciones`.
     sesión paralela encima, no regresión — esta ola no toca `apps/api`.
   - Prettier reformateó de paso 8 archivos preexistentes de `palettes/` que no son de esta campaña;
     se revirtieron para que el commit no mienta sobre su alcance.
+
+- `[02:10]` **OLA 2 cerrada — la historia se archiva, no se borra.** Nace `docs/history/` con un
+  `README.md` que explica qué fue cada cosa, por qué se archiva y qué NO hay que leer ahí como si
+  fuera el runtime de hoy. **No se borró un solo archivo**: es memoria del proyecto y parte del
+  expediente de autoría; sólo deja de ser lo primero que alguien encuentra al abrir `docs/`.
+  - `docs/history/product-split/` ← 14 documentos de la separación del ERP. **Excepción viva:**
+    `docs/product-split/DATA-MIGRATION.md` se queda donde estaba porque el CLI de migración
+    **imprime esa ruta en su ayuda** (`migration-cli/main.ts:135`) y la cita en `source.ts:16`.
+    Moverlo habría dejado al usuario del CLI persiguiendo un archivo inexistente. La carpeta queda
+    con un `README.md` corto que dice qué sigue vivo y dónde está el resto.
+  - `docs/history/execution/` ← 11 planes y bitácoras vencidos: los tres Grand Leap, el native core,
+    el daily driver (corte del 26 de julio), las diez sesiones de la Ola 2, la campaña 10/10 y las
+    bitácoras operativas de las campañas de 8 h y DWG.
+  - `docs/history/cleanup/` y `docs/history/audits/` ← completos: diagnostican problemas resueltos.
+  - **Se quedan en `docs/execution/`:** los dos `INFORME_*` (evidencia medida al cierre, no planes),
+    esta campaña y `CAMPANA_DISENO_20260821.md`, **que es la campaña que la sesión paralela está
+    corriendo ahora mismo**. Archivar una campaña viva habría sido sacarle el suelo a otra sesión.
+  - Ocho referencias apuntaban a las rutas viejas y se corrigieron, incluidas **dos dentro del
+    código**: `apps/web/playwright.config.ts` y `e2e/golden/19-cad-professional-workbench.spec.ts`
+    explican con la auditoría `main-rojo-e2e-20260809.md` por qué existe su configuración. Un
+    comentario que cita un archivo movido es una pista rota; ese archivo se conserva justamente para
+    que alguien lo lea.
+  - `docs/README.md` reordenado: ahora empieza mandando a `IDENTITY.md` y describe `history/` como
+    archivo, no como documentación.
+  - **Verificación:** `rubric.spec` 51/51 · gate de identidad verde · `tsc` de `apps/web` limpio ·
+    cero referencias colgantes (barrido de `docs/audits/`, `docs/cleanup/`, `docs/execution/CAMPANA_*`,
+    `VALLE_CAD_*` y `docs/product-split/`).

@@ -2,7 +2,7 @@
 
 ## Por qué existe este documento
 
-`docs/execution/CAD_ACCEPTANCE_JOURNEY_IV.md` declara 50 pasos con evidencia
+`docs/history/execution/CAD_ACCEPTANCE_JOURNEY_IV.md` declara 50 pasos con evidencia
 ejecutable, 45 de ellos `browser-proven`. Eso demuestra que el código corre. No
 demuestra que una persona que no escribió ese código pueda hacer los 50 pasos
 sin que nadie le diga cómo.
@@ -154,7 +154,7 @@ Dentro de las 24 horas siguientes, mientras se recuerda:
 2. Cada bloqueante y cada silencioso se convierte en un spec que **falla hoy**.
    Se comitea en rojo, con la cita del arquitecto en el comentario. Un fallo que
    sólo vive en un documento se olvida; uno que rompe la suite, no.
-3. Los pasos de `CAD_ACCEPTANCE_JOURNEY_IV.md` que la sesión desmintió se
+3. Los pasos de `docs/history/execution/CAD_ACCEPTANCE_JOURNEY_IV.md` que la sesión desmintió se
    anotan ahí mismo: siguen siendo `browser-proven` y además ahora se sabe que
    una persona no los consigue. Las dos cosas son ciertas y las dos importan.
 4. Lo que la sesión mida se publica tal cual salga. Si sale mal, ese es el

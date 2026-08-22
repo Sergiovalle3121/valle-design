@@ -75,7 +75,7 @@ propia (repo hermano de conformidad, commit `dae5e77`, verificado por hash).
 Este corte supera varios límites del anterior. Evidencia en
 `docs/cad/evidence/` (corpus-validation, decoder-matrix, oda-roundtrip,
 roundtrip, r2004-container, structural-fuzz, read-benchmark) y bitácora en
-`docs/execution/CAMPANA_DWG_20260821.md`.
+`docs/history/execution/CAMPANA_DWG_20260821.md`.
 
 | Capacidad | Evidencia | Límite honesto |
 | --- | --- | --- |

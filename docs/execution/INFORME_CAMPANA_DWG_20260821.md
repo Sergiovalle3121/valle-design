@@ -1,7 +1,7 @@
 ﻿# Informe de campaña — DWG propio, 2026-08-21
 
 Ocho horas en cascada, tres frentes paralelos, un objetivo: que el formato
-DWG sea NUESTRO. Bitácora operativa en `CAMPANA_DWG_20260821.md`; evidencia
+DWG sea NUESTRO. Bitácora operativa en `docs/history/execution/CAMPANA_DWG_20260821.md`; evidencia
 en `docs/cad/evidence/`; claims en `packages/dwg-codec/CAPABILITIES.md`.
 
 ## Qué desbloqueó la campaña

@@ -1,7 +1,7 @@
 # Informe de campaña — 8 horas autónomas, 2026-08-20 → 2026-08-21
 
 Misión: dejar el producto LISTO PARA COBRAR Y OPERAR. Bitácora completa en
-`CAMPANA_8H_20260820.md`. Rúbrica al cierre: **186/200 (93 %)**, corte
+`docs/history/execution/CAMPANA_8H_20260820.md`. Rúbrica al cierre: **186/200 (93 %)**, corte
 `docs/competitive/history/2026-08-21-da59d22.json` (llegó a 184 tras la
 seguridad y a 186 con la evidencia de GPU real; el corte anterior era 166).
 
@@ -141,7 +141,7 @@ La regla quedó en memoria persistente.
   contención de 12 tareas turbo + campaña vecina; verdes en reintento a
   solas. No se cuarentenó nada.
 
-## PENDIENTES priorizados (detalle en CAMPANA_8H_20260820.md § PENDIENTES)
+## PENDIENTES priorizados (detalle en docs/history/execution/CAMPANA_8H_20260820.md § PENDIENTES)
 
 1. **CFDI sandbox real** (~0,5 día + credenciales del dueño): correr el
    contrato fijado contra apisandbox.facturama.mx y marcar la verificación.

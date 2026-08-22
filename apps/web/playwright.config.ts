@@ -29,7 +29,7 @@ export default defineConfig({
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
   // En CI un retry salva la corrida entera (60-90 min de runner) de los flakes
-  // documentados en docs/audits/main-rojo-e2e-20260809.md; Playwright marca el
+  // documentados en docs/history/audits/main-rojo-e2e-20260809.md; Playwright marca el
   // test como "flaky" en el reporte, así que la señal no se pierde. En local
   // se mantiene 0: un flake debe verse, no taparse.
   retries: process.env.CI ? 1 : 0,
