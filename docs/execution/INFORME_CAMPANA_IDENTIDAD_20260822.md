@@ -29,7 +29,8 @@ La declaración de identidad que ordena todo esto vive ahora en la raíz: [`IDEN
 
 ### Código borrado
 
-**20 archivos eliminados por completo**, 4 023 líneas, más los 6 shims de dos líneas que sobraban:
+**15 módulos industriales eliminados por completo** — 4 023 líneas — más los **6 shims** de dos
+líneas (26 en total) que sobraban al desarmar la carpeta:
 
 | Archivo                                                  | Líneas | Qué era                                              |
 | -------------------------------------------------------- | -----: | ---------------------------------------------------- |

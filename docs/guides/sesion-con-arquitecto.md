@@ -65,6 +65,7 @@ Cronometra cada una. Anota **el tiempo hasta que lo consigue** o **el momento
 en que se rinde**.
 
 ### Tarea 1 · El archivo del cliente entra (15 min)
+
 > «Este es el plano que te mandó el cliente. Ábrelo y dime si llegó completo.»
 
 Usa **su** archivo, no uno nuestro. Lo que importa no es que abra: es si él
@@ -73,6 +74,7 @@ nota, apúntalo aparte: un cliente que no nota lo que se perdió es un cliente
 que descubre el problema en obra.
 
 ### Tarea 2 · Dibujar sobre lo que llegó (20 min)
+
 > «Añade el muro que falta en la fachada norte, en su capa, con el grosor que
 > usas normalmente.»
 
@@ -80,30 +82,35 @@ Aquí se mide lo esencial: capas, precisión, referencia a objetos, y si el muro
 se une con los que ya estaban.
 
 ### Tarea 3 · Que el plano diga lo que mide (20 min)
+
 > «Acota esa crujía y ponle el texto que llevaría para obra.»
 
 Cotas y texto. Observa si las cotas siguen al muro cuando lo mueve, porque el
 día que no lo hagan, lo descubrirá con el plano ya impreso.
 
 ### Tarea 4 · Los acabados (15 min)
+
 > «Raya el piso de la recámara con el patrón que uses para el acabado.»
 
 Sombreado. Si la habitación tiene un hueco dentro —una columna, un muro—,
 observa qué pasa con el hueco. Es donde suele romperse.
 
 ### Tarea 5 · Sale a imprimir (20 min)
+
 > «Necesito esto en PDF, a escala 1:50, tamaño carta, para llevarlo a obra.»
 
 La escala es la prueba. Si sale a una escala que no es 1:50 y él no lo nota,
 es un fallo grave aunque el PDF se vea bien: en obra se mide con escalímetro.
 
 ### Tarea 6 · Vuelve al cliente (10 min)
+
 > «Devuélveselo al cliente en el mismo formato en que te lo mandó.»
 
 Ida y vuelta completa. Ábrelo después en su AutoCAD, delante de él, y que sea
 **él** quien diga si está bien.
 
 ### Tarea 7 · La pregunta que vale la sesión (5 min)
+
 > «Es martes, tienes esto que entregar hoy, y sólo tienes este programa.
 > ¿Qué haces?»
 
@@ -111,13 +118,13 @@ La respuesta honesta a esa pregunta es el resultado de la tarde.
 
 ## Qué anotar, tarea por tarea
 
-| Campo | Qué es |
-| --- | --- |
-| Tiempo | Segundos hasta conseguirlo, o hasta que se rinde |
-| Desenlace | `lo hace solo` · `lo hace tras atascarse` · `se rinde` · `cree que lo hizo y está mal` |
-| Primer intento | Qué buscó primero, aunque no existiera. Eso es dónde lo esperaba |
-| Palabra que usó | Cómo lo llamó él. Si el producto lo llama de otra forma, es un fallo de nombre |
-| Cita literal | Lo que dijo, con sus palabras y sus groserías si las hubo |
+| Campo           | Qué es                                                                                 |
+| --------------- | -------------------------------------------------------------------------------------- |
+| Tiempo          | Segundos hasta conseguirlo, o hasta que se rinde                                       |
+| Desenlace       | `lo hace solo` · `lo hace tras atascarse` · `se rinde` · `cree que lo hizo y está mal` |
+| Primer intento  | Qué buscó primero, aunque no existiera. Eso es dónde lo esperaba                       |
+| Palabra que usó | Cómo lo llamó él. Si el producto lo llama de otra forma, es un fallo de nombre         |
+| Cita literal    | Lo que dijo, con sus palabras y sus groserías si las hubo                              |
 
 **«Cree que lo hizo y está mal» es la categoría más grave de todas**, por
 encima de «se rinde». Quien se rinde pregunta; quien entrega un plano mal
@@ -160,3 +167,29 @@ Dentro de las 24 horas siguientes, mientras se recuerda:
 4. Lo que la sesión mida se publica tal cual salga. Si sale mal, ese es el
    resultado. Un arquitecto que se rinde en la tarea 5 vale más que veinte
    puntos de cualquier rúbrica, y sólo vale si se apunta.
+
+## Y con los otros cuatro oficios
+
+Esta guía se escribió para un arquitecto porque lo arquitectónico es donde el
+catálogo está más maduro. **No es donde termina el producto.** Valle Design es un
+CAD 2D general (ver [`IDENTITY.md`](../../IDENTITY.md)), y la misma tarde de
+observación —mismo protocolo, misma regla de no ayudar, misma severidad— vale
+para cuatro oficios más, cada uno con su plantilla de arranque en la paleta:
+
+| Oficio                               | Su martes normal                                     | Plantilla con la que empieza |
+| ------------------------------------ | ---------------------------------------------------- | ---------------------------- |
+| Ingeniero mecánico                   | una pieza con su corte, sus tolerancias y su acabado | `pieza-mecanica`             |
+| Electricista / proyectista eléctrico | el unifilar de una vivienda con su cuadro de cargas  | `diagrama-unifilar`          |
+| Topógrafo / ingeniero civil          | un levantamiento con su cuadro de construcción       | `levantamiento-predio`       |
+| Carpintero / herrero                 | el despiece de un mueble con su lista de corte       | `despiece-carpinteria`       |
+
+Cambia sólo la lista de tareas de la sección **Las tareas**: se sustituyen por
+las cuatro o cinco cosas que ese oficio hace en un encargo real, y se conserva
+todo lo demás —incluida la última, la de entregar el archivo al cliente, que es
+donde se decide si el producto sirve fuera de la pantalla—.
+
+Un hallazgo de estas sesiones vale exactamente lo mismo que uno del arquitecto.
+Si el producto sólo aguanta la tarde con arquitectos, eso también es un
+resultado, y hay que publicarlo tal cual: significaría que el posicionamiento
+del `README.md` va por delante del producto, y esa distancia se mide, no se
+argumenta.
