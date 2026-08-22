@@ -4974,6 +4974,34 @@ export default function Layout3DEditor({
     // VSCURRENT/SHADEMODE: estado del visor, no del documento.
     visualStyle: (styleId) =>
       solidShadeHostRef.current?.applyVisualStyle(styleId) ?? null,
+    // La hoja abierta, para que LAYOUT, PLOT y PAGESETUP operen sobre la
+    // pestaña ACTIVA y no sobre la primera del documento.
+    activeLayout: activePaperSpaceId,
+    // QSELECT y FILTER designan de verdad: el mismo camino que un clic.
+    setSelection: (entityIds) => selectNative([...entityIds]),
+    // MSPACE/PSPACE/MODEL y LAYOUT Definir cambian la pestaña real del editor.
+    // Devuelve si cambió: pedir espacio papel sin presentaciones no puede
+    // afirmar un cambio que no ocurrió.
+    setSpace: (space, layoutId) => {
+      if (space === "model") {
+        setActivePaperSpaceId(null);
+        return true;
+      }
+      const spaces = loadedCadDocumentRef.current?.paperSpaces ?? [];
+      const target = layoutId
+        ? spaces.find((candidate) => candidate.id === layoutId)
+        : (spaces.find((candidate) => candidate.id === activePaperSpaceId) ??
+          spaces[0]);
+      if (!target) return false;
+      setActivePaperSpaceId(target.id);
+      return true;
+    },
+    // PAGESETUP por cuadro: activa la hoja, que es donde viven sus controles.
+    openPageSetup: (layoutId) => {
+      const spaces = loadedCadDocumentRef.current?.paperSpaces ?? [];
+      if (spaces.some((candidate) => candidate.id === layoutId))
+        setActivePaperSpaceId(layoutId);
+    },
   });
 
   /**
@@ -6560,6 +6588,8 @@ export default function Layout3DEditor({
         point,
         pointerWorldTolerance(workspacePreferencesRef.current.pickBoxPx),
         limit,
+        // Un clic no designa lo apagado, lo congelado ni lo bloqueado.
+        "selection",
       ) ?? [];
     const snapFloor = (
       wx: number,
@@ -6609,6 +6639,10 @@ export default function Layout3DEditor({
               maxY: wy + tol * 4,
             },
             48,
+            // El cursor no imanta lo invisible: capas apagadas y congeladas
+            // fuera. Las bloqueadas SÍ imantan — acotar contra un eje
+            // bloqueado es el uso normal.
+            "snap",
           ) ?? [];
         cadSnapSceneAddEntities(
           scene,
@@ -7321,6 +7355,7 @@ export default function Layout3DEditor({
             pathMode,
             pathMode !== "polygon",
             300,
+            "selection",
           ) ?? []
         ).map((entity) => `native:${entity.id}`);
         applyProfessionalSelection({
@@ -7388,6 +7423,7 @@ export default function Layout3DEditor({
             nativeWindow,
             crossing,
             300,
+            "selection",
           ) ?? []
         ).map((entity) => entity.id);
         applyProfessionalSelection({

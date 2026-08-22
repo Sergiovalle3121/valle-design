@@ -106,6 +106,14 @@ export function cadStudioCommandContext(
     // copia de la lista de hojas.
     paperSpaces: () => inputs.document?.paperSpaces ?? [],
     ...(inputs.activeLayout ? { activeLayout: inputs.activeLayout } : {}),
+    // Restricciones y parámetros del documento, tal cual. Sin la primera,
+    // AUTOCONSTRAIN infería como si el dibujo no tuviera ninguna y duplicaba;
+    // sin la segunda, PARAMETERS no podía ni listar la tabla que el propio
+    // documento lleva dentro. Ambas eran deudas del montaje, no del motor.
+    ...(inputs.document ? { constraints: inputs.document.constraints } : {}),
+    ...(inputs.document?.parameters
+      ? { parameters: inputs.document.parameters }
+      : {}),
     // Encadenado opcional a propósito: un anfitrión puede montar un documento
     // parcial —lo hacen las pruebas de esta misma capa— y reventar aquí
     // convertiría «no sé la unidad» en «no hay contexto».

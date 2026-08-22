@@ -279,7 +279,13 @@ function revcloudFinish(
           ],
           label: "REVCLOUD",
         }
-      : { kind: "none" },
+      : {
+          // Un contorno degenerado —dos esquinas alineadas, un perímetro más
+          // corto que el arco— no produce nube. Decirlo es obligatorio: el
+          // silencio aquí era un no-op mudo señalado por el gate de integridad.
+          kind: "message",
+          text: "El contorno es demasiado pequeño para la nube: no cabe ni un arco. Precise esquinas más separadas o baje la longitud de arco.",
+        },
   };
 }
 
@@ -386,7 +392,18 @@ const revcloudCommand: CadCommandDescriptor<RevcloudState> = {
     }
     const [first] = state.points;
     if (Math.abs(input.point.x - first.x) < 1e-9 || Math.abs(input.point.y - first.y) < 1e-9)
-      return { state, prompt: { message: "", options: [] }, accepts: 0, result: { kind: "none" } };
+      return {
+        state,
+        prompt: { message: "", options: [] },
+        accepts: 0,
+        result: {
+          // Terminaba con `none`: el usuario pulsaba dos esquinas alineadas y
+          // la nube desaparecía sin decir palabra. No-op mudo, señalado por el
+          // gate de integridad.
+          kind: "message",
+          text: "Las dos esquinas quedaron alineadas: la nube rectangular necesita ancho y alto. Precise una esquina opuesta fuera de la línea de la primera.",
+        },
+      };
     return revcloudFinish(
       state,
       [

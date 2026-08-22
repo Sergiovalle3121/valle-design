@@ -175,9 +175,17 @@ const near = (actual: number, expected: number, what: string, epsilon = 1e-9) =>
   assert.ok((vertex.endWidth ?? 0) > 0, "y engorda hacia el final del arco");
 }
 
-// --- REVCLOUD: un rectángulo degenerado no es una nube ----------------------
+// --- REVCLOUD: un rectángulo degenerado no es una nube, Y LO DICE -----------
 {
-  assert.equal(run("REVCLOUD", [point(0, 0), point(0, 400)])?.kind, "none");
+  // Antes terminaba con `none`: la nube desaparecía sin explicación. El gate
+  // de integridad lo clasifica como no-op mudo; ahora el comando lo cuenta.
+  const degenerate = run("REVCLOUD", [point(0, 0), point(0, 400)]);
+  assert.equal(degenerate?.kind, "message", "no se escribe nube degenerada");
+  assert.match(
+    (degenerate as { text: string }).text,
+    /alineadas/,
+    "y se explica en vez de callar",
+  );
 }
 
 console.log(

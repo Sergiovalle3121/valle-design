@@ -164,6 +164,18 @@ export interface CadStudioCommandEngineOptions {
    * sólidos. Opcional: un guion sin lienzo simplemente dice que no hay visor.
    */
   visualStyle?(styleId: CadVisualStyleId): string | null;
+  /**
+   * Cambia el espacio activo del editor (MSPACE/PSPACE/MODEL/LAYOUT).
+   * Devuelve si de verdad cambió; sin él, el anfitrión de trazado responde que
+   * el cambio no está disponible en vez de afirmarlo.
+   */
+  setSpace?(space: "model" | "paper", layoutId?: string): boolean;
+  /**
+   * Lleva al usuario a la configuración de página de esa presentación
+   * (PAGESETUP por cuadro). Sin él, PAGESETUP lo dice y ofrece sus opciones
+   * por línea de comandos, que siguen completas.
+   */
+  openPageSetup?(layoutId: string): void;
 }
 
 /**
@@ -207,7 +219,10 @@ export function useCadStudioNavigation(
  * DOM — inyectado para que el anfitrión se pueda probar en Node.
  */
 export function useCadStudioPlotHost(
-  options: Pick<CadStudioCommandEngineOptions, "document" | "visualStyle"> & {
+  options: Pick<
+    CadStudioCommandEngineOptions,
+    "document" | "visualStyle" | "setSpace" | "openPageSetup"
+  > & {
     /** Adónde va el renglón del trazado cuando termina. */
     note?: (text: string, level: "info" | "error") => void;
   },
@@ -221,6 +236,22 @@ export function useCadStudioPlotHost(
         download: downloadCadFile,
         onResult: (text, level) => live.current.note?.(text, level),
         setVisualStyle: (styleId) => live.current.visualStyle?.(styleId) ?? null,
+        // Los puentes de espacio y de configuración de página sólo existen si
+        // el editor los aporta: pasarlos como funciones que devuelven «no» los
+        // convertiría en éxitos falsos otra vez, que es lo que se acaba de
+        // arreglar. `undefined` deja que el anfitrión de trazado diga la verdad.
+        ...(options.setSpace
+          ? {
+              setSpace: (space: "model" | "paper", layoutId?: string) =>
+                live.current.setSpace?.(space, layoutId) ?? false,
+            }
+          : {}),
+        ...(options.openPageSetup
+          ? {
+              openPageSetup: (layoutId: string) =>
+                live.current.openPageSetup?.(layoutId),
+            }
+          : {}),
       }),
     [],
   );
@@ -262,6 +293,8 @@ export function useCadStudioCommandEngine(
     document: options.document,
     note: (text, level) => engineRef.current?.note(text, level),
     visualStyle: options.visualStyle,
+    ...(options.setSpace ? { setSpace: options.setSpace } : {}),
+    ...(options.openPageSetup ? { openPageSetup: options.openPageSetup } : {}),
   });
   const live = useRef(options);
   live.current = options;

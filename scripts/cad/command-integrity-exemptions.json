@@ -1,0 +1,13 @@
+{
+  "$comment": "Comandos que la sonda de integridad no lleva a término con su auto-respondedor. NO son comandos rotos: cada uno tiene spec de familia propio; lo que no tienen es un guion automático que los complete. Añadir un comando aquí exige razón escrita. Quitar entradas es progreso; añadirlas, deuda declarada.",
+  "noConcluyentes": {
+    "ATTEDIT": "pide atributos de una inserción concreta; el documento de sonda no lleva bloque con atributos. Spec: blocks.spec.ts",
+    "CHAMFEREDGE": "es la variante 3D por aristas: exige designar aristas de un sólido que la sonda 2D no fabrica. Spec: solids-modify.spec.ts",
+    "FILLETEDGE": "misma razón que CHAMFEREDGE. Spec: solids-modify.spec.ts",
+    "FLATSHOT": "necesita un sólido 3D que aplanar; la sonda es 2D. Spec: solids-flatshot.spec.ts",
+    "SCALE": "su prompt de factor acepta punto y referencia; el auto-respondedor entra en el ciclo de referencia y lo cancela. Spec: modify-transform.spec.ts",
+    "SOLPROF": "necesita un sólido 3D del que perfilar; la sonda es 2D. Spec: solids-flatshot.spec.ts",
+    "VPOINT": "pide un vector de vista 3D con formato propio que el auto-respondedor no fabrica. Spec: view-navigation-3d.spec.ts",
+    "VSCURRENT": "espera el nombre exacto de un estilo visual del catálogo; la sonda alimenta texto genérico. Spec: view-visual.spec.ts"
+  }
+}

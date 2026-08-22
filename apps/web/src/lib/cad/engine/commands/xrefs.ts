@@ -566,7 +566,13 @@ const xclipCommand: CadCommandDescriptor<XClipState> = {
           : input.kind === "selection" && input.entityIds.length === 1
             ? input.entityIds[0]
             : null;
-      if (!id) return nothing(state);
+      if (!id)
+        return message(
+          state,
+          input.kind === "selection"
+            ? `XCLIP recorta UNA inserción por orden y llegaron ${input.entityIds.length} objetos: designe sólo la inserción o referencia a recortar.`
+            : "XCLIP necesita designar la inserción o referencia a recortar.",
+        );
       const entity = context.entity?.(id);
       if (entity?.type !== "insert")
         return message(state, "XCLIP recorta inserciones de bloque y referencias externas.");

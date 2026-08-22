@@ -194,9 +194,18 @@ const near = (actual: number, expected: number, what: string, epsilon = 1e-9) =>
   near(Math.max(...fy) - Math.min(...fy), (20_000 + loss) / 200, "la anchura compensa las esquinas");
 }
 
-// --- degenerado: no se escribe -----------------------------------------------
+// --- degenerado: no se escribe, Y SE DICE --------------------------------------
 {
-  assert.equal(run([point(0, 0), point(0, 200)])?.kind, "none", "un rectángulo de área cero no es un rectángulo");
+  // Antes terminaba con `none`: ni rectángulo ni explicación. El gate de
+  // integridad clasifica eso como no-op mudo, y con razón: quien pulsó dos
+  // esquinas alineadas merece saber por qué no salió nada.
+  const degenerate = run([point(0, 0), point(0, 200)]);
+  assert.equal(degenerate?.kind, "message", "un rectángulo de área cero no se escribe");
+  assert.match(
+    (degenerate as { text: string }).text,
+    /alineadas|sin ancho/,
+    "y el comando explica por qué en vez de callarse",
+  );
 }
 
 console.log(

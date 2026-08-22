@@ -43,8 +43,12 @@ export interface CadPlotHostBridge {
   preview?(preview: CadPlotPreview): void;
   /** Abre el cuadro de configuración de página. */
   openPageSetup?(layoutId: string): void;
-  /** Cambia el espacio activo del editor. */
-  setSpace?(space: "model" | "paper", layoutId?: string): void;
+  /**
+   * Cambia el espacio activo del editor. Devuelve si DE VERDAD cambió: pedir
+   * espacio papel en un dibujo sin presentaciones no puede cambiar nada, y el
+   * renglón de respuesta tiene que contarlo en vez de afirmar el cambio.
+   */
+  setSpace?(space: "model" | "paper", layoutId?: string): boolean;
   /** Cambia el estilo visual del visor (VSCURRENT). Devuelve el aplicado. */
   setVisualStyle?(styleId: CadVisualStyleId): string | null;
   /**
@@ -139,7 +143,16 @@ export class CadPlotHost {
     }
 
     if (request.kind === "space") {
-      this.bridge.setSpace?.(request.space, request.layoutId);
+      // Sin puente no hubo cambio, y con puente sólo lo hubo si él lo dice.
+      // El renglón anterior afirmaba «Espacio papel.» incondicionalmente: un
+      // éxito falso que la auditoría de integridad señaló con razón.
+      if (!this.bridge.setSpace)
+        return "El cambio de espacio modelo/papel no está disponible en esta versión de este espacio de trabajo.";
+      const switched = this.bridge.setSpace(request.space, request.layoutId);
+      if (!switched)
+        return request.space === "paper"
+          ? "No hay ninguna presentación que activar: el dibujo no tiene espacio papel."
+          : "No se pudo volver al espacio modelo.";
       return request.space === "paper"
         ? `Espacio papel${request.layoutId ? `: ${request.layoutId}` : ""}.`
         : "Espacio modelo.";
@@ -192,8 +205,18 @@ export class CadPlotHost {
 
     if (request.mode === "preview") {
       const preview = buildCadPlotPreview(input);
-      this.bridge.preview?.(preview);
       const errors = preview.issues.filter((issue) => issue.severity === "error");
+      // Sin superficie donde pintarla, la vista previa NO se mostró. El cálculo
+      // sí corrió y sus problemas son información real, así que se cuentan; lo
+      // que no se puede es afirmar «Vista previa de N hojas» que nadie vio.
+      if (!this.bridge.preview)
+        return (
+          "La vista previa de trazado no está disponible en esta versión; PLOT sí produce el PDF." +
+          (errors.length > 0
+            ? ` La comprobación encontró ${errors.length} problema(s): ${errors[0].detail}`
+            : "")
+        );
+      this.bridge.preview(preview);
       return errors.length > 0
         ? `Vista previa con ${errors.length} problema(s): ${errors[0].detail}`
         : `Vista previa de ${preview.sheets.length} hoja(s).`;

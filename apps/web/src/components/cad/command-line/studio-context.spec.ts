@@ -148,6 +148,25 @@ const base = {
     selection: ["b"],
   });
   assert.deepEqual(loose.selection, ["b"], "y sin grupos la lista no cambia");
+
+  // Restricciones y parámetros del documento llegan al motor tal cual: sin
+  // esto AUTOCONSTRAIN infería sobre un dibujo «sin restricciones» y
+  // PARAMETERS no podía listar la tabla que el documento lleva dentro.
+  const constrained = cadStudioCommandContext({
+    ...base,
+    document: {
+      ...documentWith(["a"]),
+      constraints: [{ id: "c1", kind: "horizontal", entityId: "a" }],
+      parameters: [{ name: "ancho", expression: "120" }],
+    } as unknown as CadDocument,
+    selection: [],
+  });
+  assert.equal(constrained.constraints?.length, 1, "las restricciones viajan");
+  assert.equal(
+    constrained.parameters?.[0]?.name,
+    "ancho",
+    "y la tabla de parámetros también",
+  );
 }
 
 console.log("cad studio command context specs passed");

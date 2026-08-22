@@ -99,6 +99,7 @@ async function specs(): Promise<void> {
     },
     setSpace: (next, layoutId) => {
       space = `${next}:${layoutId ?? ""}`;
+      return true;
     },
     onResult: (message, level) => results.push({ message, level }),
   });
@@ -107,6 +108,34 @@ async function specs(): Promise<void> {
   assert.match(host.handle({ kind: "space", space: "paper", layoutId: "layout:planta" }), /papel/i);
   assert.equal(space, "paper:layout:planta");
   assert.match(host.handle({ kind: "space", space: "model" }), /modelo/i);
+
+  // --- honestidad: sin puente o con puente que dice «no», no hay éxito -----
+  // Un anfitrión sin `setSpace` no cambió nada y lo dice; uno cuyo puente
+  // devuelve `false` (pedir papel sin presentaciones) tampoco lo afirma. Es la
+  // corrección del éxito falso que la auditoría de integridad señaló.
+  const mudo = new CadPlotHost({ document: () => document, download: () => {} });
+  assert.match(
+    mudo.handle({ kind: "space", space: "paper" }),
+    /no está disponible/i,
+  );
+  const sinHojas = new CadPlotHost({
+    document: () => document,
+    download: () => {},
+    setSpace: () => false,
+  });
+  assert.match(
+    sinHojas.handle({ kind: "space", space: "paper" }),
+    /No hay ninguna presentación/i,
+  );
+  // Y una vista previa sin superficie donde pintarse no es una vista previa.
+  assert.match(
+    mudo.handle({
+      kind: "plot",
+      mode: "preview",
+      request: { layoutId: "layout:planta", pageSetup, fileName: "planta", copies: 1 },
+    }),
+    /vista previa de trazado no está disponible/i,
+  );
 
   // --- vista previa --------------------------------------------------------
   const previewMessage = host.handle({

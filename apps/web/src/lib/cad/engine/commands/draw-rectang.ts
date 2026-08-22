@@ -211,7 +211,14 @@ function rectangleEntity(
   context: CadCommandContext,
 ): { entity?: CadNativeEntity; error?: string } {
   const local = localVertices(state, w, h);
-  if (!local) return {};
+  // Esquinas alineadas: sin este mensaje, RECTANG terminaba en silencio
+  // absoluto — ni rectángulo ni explicación — que es un no-op mudo de los que
+  // el gate de integridad persigue.
+  if (!local)
+    return {
+      error:
+        "Las dos esquinas quedaron alineadas: el rectángulo saldría sin ancho o sin alto. Precise una esquina opuesta que no esté sobre la primera.",
+    };
   if (local.error) return { error: local.error };
   const first = state.first!;
   const radians = (state.rotationDeg * Math.PI) / 180;
