@@ -9,13 +9,16 @@
  * hay una implementación y no cuatro. Extender es la misma cuenta con la curva
  * sin acotar: se busca el cruce inmediato MÁS ALLÁ del extremo que se estira.
  *
- * ## Una divergencia consciente respecto de AutoCAD
+ * ## La convención es la de AutoCAD: se designa el trozo que SE VA
  *
- * En AutoCAD se designa el trozo que SE VA. Aquí se conserva el trozo
- * designado, que es la regla que el producto ya tenía documentada y probada en
- * `modify-edges.spec.ts` («TRIM conserva el trozo del lado DONDE SE PULSÓ»).
- * Este módulo la generaliza en vez de cambiarla: invertirla es una decisión de
- * producto con su propio cambio, no un efecto colateral de admitir arcos.
+ * Hasta la campaña de cimientos (2026-08-22) aquí se conservaba el trozo
+ * designado — al revés que AutoCAD, donde el clic señala lo que SE ELIMINA.
+ * Para alguien con memoria muscular de AutoCAD, TRIM es de los cinco comandos
+ * más usados del día, y la divergencia significaba borrar exactamente lo que
+ * el usuario quería conservar. La decisión de producto pendiente que este
+ * comentario anunciaba se tomó: TRIM elimina el tramo pinchado entre sus dos
+ * cortes vecinos, y si eso parte una curva abierta por el medio, nacen DOS
+ * trozos (el segundo viaja en `create`), igual que en AutoCAD.
  *
  * ## Lo que sale de aquí
  *
@@ -72,6 +75,12 @@ export function asCadEditableEntity(entity: CadEntity | undefined): CadEditableE
 export interface CadCurveEdit {
   patch?: Partial<CadPropertyBag>;
   replace?: CadNativeEntity;
+  /**
+   * Segunda mitad de un TRIM que partió una curva abierta por el medio. Es una
+   * entidad NUEVA (id propio, mismos capa y contexto): la original conserva su
+   * id en el trozo inicial para no romper cotas, sombreados ni orden de dibujo.
+   */
+  create?: CadNativeEntity;
 }
 
 export type CadCurveEditOutcome = CadCurveEdit | { error: string };
@@ -276,6 +285,12 @@ export interface CadCurveEditInput {
   boundaries: readonly CadEntity[];
   /** Dónde pinchó el usuario, en unidades de dibujo. */
   pick: CadPoint2;
+  /**
+   * Generador de ids para la segunda mitad de un corte por el medio. Sin él,
+   * TRIM sigue funcionando en los extremos y lo dice honestamente cuando el
+   * corte exigiría partir en dos.
+   */
+  newEntityId?: () => string;
 }
 
 /**
@@ -321,11 +336,61 @@ function boundaryCurves(
 }
 
 /**
- * TRIM: conserva el tramo entre los cortes vecinos al punto designado.
+ * La entidad restringida a `[from, to]`, materializada como entidad COMPLETA
+ * con id propio. Es lo que hace falta para la segunda mitad de un corte por el
+ * medio: `restrict` devuelve un parche cuando puede, y un parche no se puede
+ * insertar — se necesita la entidad entera.
+ */
+function materialize(
+  entity: CadEditableEntity,
+  curves: readonly CadCurve[],
+  from: number,
+  to: number,
+  id: string,
+): CadNativeEntity | null {
+  const outcome = restrict(entity, curves, from, to);
+  if ("error" in outcome) return null;
+  if (outcome.replace) return { ...outcome.replace, id };
+  const patch = outcome.patch;
+  if (!patch) return null;
+  if (entity.type === "line")
+    return {
+      id,
+      type: "line",
+      start: { x: patch.startX as number, y: patch.startY as number, z: entity.start.z ?? 0 },
+      end: { x: patch.endX as number, y: patch.endY as number, z: entity.end.z ?? 0 },
+      layer: entity.layer,
+      ...(entity.context ? { context: entity.context } : {}),
+    };
+  if (entity.type === "arc")
+    return {
+      id,
+      type: "arc",
+      center: { ...entity.center },
+      radius: entity.radius,
+      startAngle: patch.startAngle as number,
+      endAngle: patch.endAngle as number,
+      layer: entity.layer,
+      ...(entity.context ? { context: entity.context } : {}),
+    };
+  if (entity.type === "ellipse")
+    return {
+      ...entity,
+      id,
+      startParameter: patch.startParameter as number,
+      endParameter: patch.endParameter as number,
+    };
+  return null;
+}
+
+/**
+ * TRIM: ELIMINA el tramo entre los cortes vecinos al punto designado — la
+ * convención de AutoCAD, donde el clic señala lo que se va.
  *
- * En una curva CERRADA el tramo da la vuelta —hacen falta dos cortes— y en una
- * abierta los extremos hacen de cortes implícitos, que es lo que convierte
- * «recortar contra un borde» en «acortar hasta él».
+ * En una curva CERRADA hacen falta dos cortes y se conserva el sector
+ * complementario (la curva se abre). En una abierta, si el tramo pinchado toca
+ * un extremo se acorta hasta el corte; si queda entre dos cortes, el objeto se
+ * PARTE: la mitad inicial conserva el id y la otra nace en `create`.
  */
 export function computeCadCurveTrim(input: CadCurveEditInput): CadCurveEditOutcome {
   const curves = cadEntityCurves(input.target);
@@ -345,19 +410,44 @@ export function computeCadCurveTrim(input: CadCurveEditInput): CadCurveEditOutco
     if (cuts.length < 2)
       return { error: "una curva cerrada necesita DOS cortes para poder recortarse." };
     // Sector que contiene el clic, dando la vuelta si el clic cae antes del
-    // primer corte o después del último.
+    // primer corte o después del último. Ese sector SE VA; se conserva el
+    // complemento, que arranca en el corte de salida y da la vuelta hasta el
+    // de entrada.
     const after = cuts.find((cut) => cut > pick);
     const before = [...cuts].reverse().find((cut) => cut < pick);
-    const from = before ?? cuts[cuts.length - 1];
-    const to = after ?? cuts[0] + domain;
-    return restrict(input.target, curves, from, to > from ? to : to + domain);
+    const removeFrom = before ?? cuts[cuts.length - 1];
+    const removeTo = after ?? cuts[0] + domain;
+    const keepFrom = removeTo;
+    let keepTo = removeFrom;
+    while (keepTo <= keepFrom + EPS) keepTo += domain;
+    return restrict(input.target, curves, keepFrom, keepTo);
   }
 
-  const from = [...cuts].reverse().find((cut) => cut < pick - EPS) ?? 0;
-  const to = cuts.find((cut) => cut > pick + EPS) ?? domain;
-  if (from <= EPS && to >= domain - EPS)
-    return { error: "el punto designado no queda entre dos cortes." };
-  return restrict(input.target, curves, from, to);
+  const before = [...cuts].reverse().find((cut) => cut < pick - EPS) ?? null;
+  const after = cuts.find((cut) => cut > pick + EPS) ?? null;
+
+  // El tramo pinchado no linda con ningún corte: no hay nada que quitar ahí.
+  if (before === null && after === null)
+    return { error: "el punto designado no queda junto a ningún corte." };
+
+  // Toca el arranque: se elimina [0, corte] y el objeto empieza en el corte.
+  if (before === null) return restrict(input.target, curves, after!, domain);
+
+  // Toca el final: se elimina [corte, fin] y el objeto termina en el corte.
+  if (after === null) return restrict(input.target, curves, 0, before);
+
+  // Tramo interior: el objeto se PARTE en dos.
+  const head = restrict(input.target, curves, 0, before);
+  if ("error" in head) return head;
+  if (!input.newEntityId)
+    return {
+      error:
+        "recortar por el medio parte el objeto en dos y este camino no puede crear la segunda mitad.",
+    };
+  const tail = materialize(input.target, curves, after, domain, input.newEntityId());
+  if (!tail)
+    return { error: "no se pudo construir la segunda mitad del objeto partido." };
+  return { ...head, create: tail };
 }
 
 // ---------------------------------------------------------------------------

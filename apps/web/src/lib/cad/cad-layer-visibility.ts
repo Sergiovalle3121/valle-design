@@ -10,14 +10,17 @@
  * exactamente cómo uno de los cinco se queda atrás y una capa congelada sigue
  * imantando el cursor. La regla vive aquí y los consumidores la importan.
  *
- * ## Congelada no es apagada
+ * ## Congelada no es apagada, y desde la campaña de cimientos apagada tampoco
+ * ## es imantable
  *
- * Las dos desaparecen de la pantalla, pero la congelada además NO SE REGENERA
- * ni cuenta: no entra en la envolvente de `ZOOM Extensión`
- * (`view/document-extents.ts`), no entra en la selección ni en el enganche
- * (`native-selection-index.ts`) y no se proyecta en las ventanas de papel salvo
- * anulación explícita de la ventana (`paper-space.ts`). La apagada conserva el
- * comportamiento que ya tenía: invisible, pero presente para el índice.
+ * La congelada NO SE REGENERA ni cuenta: no entra en la envolvente de
+ * `ZOOM Extensión` (`view/document-extents.ts`) ni se proyecta en las ventanas
+ * de papel salvo anulación explícita (`paper-space.ts`). La apagada sí cuenta
+ * para la envolvente y la regeneración — pero, como en cualquier CAD, lo que
+ * no se ve NO se selecciona NI imanta el cursor: apagada y congelada quedan
+ * fuera de la selección y del enganche (`native-selection-index.ts`, filtros
+ * "snap" y "selection"). La BLOQUEADA se ve y se imanta —acotar contra un eje
+ * bloqueado es el uso normal— pero no se selecciona para modificar.
  */
 import type { CadLayerDef } from "./cad-document";
 
@@ -51,4 +54,24 @@ export function cadFrozenLayerIds(layers: readonly CadLayerDef[]): Set<string> {
   const frozen = new Set<string>();
   for (const layer of layers) if (cadLayerFrozen(layer)) frozen.add(layer.id);
   return frozen;
+}
+
+/**
+ * Ids de las capas cuyo contenido NO imanta el cursor: apagadas y congeladas.
+ * Lo que no se ve no puede ser un imán — un snap de 1 mm al objeto invisible
+ * equivocado cuesta más que cien comandos nuevos.
+ */
+export function cadUnsnappableLayerIds(layers: readonly CadLayerDef[]): Set<string> {
+  return cadHiddenLayerIds(layers);
+}
+
+/**
+ * Ids de las capas cuyo contenido NO se designa: apagadas, congeladas y
+ * BLOQUEADAS. La bloqueada se ve y se imanta (acotar contra un eje bloqueado
+ * es el uso normal), pero un clic o una ventana no la capturan para modificar.
+ */
+export function cadUnselectableLayerIds(layers: readonly CadLayerDef[]): Set<string> {
+  const excluded = cadHiddenLayerIds(layers);
+  for (const layer of layers) if (layer.locked) excluded.add(layer.id);
+  return excluded;
 }

@@ -37,6 +37,11 @@ import { computeCadCurveFillet, type CadCornerEntity } from "../../cad-corner";
 import { computeCadLineFillet } from "../../cad-fillet";
 import { asCadEditableEntity, computeCadCurveKeepSide } from "../../curve-edit";
 import {
+  cadEntityCurves,
+  curveIntersections,
+  curvePointAt,
+} from "../../curve-model";
+import {
   CAD_ACCEPT_ANGLE,
   CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_ENTITY_PICK,
@@ -507,6 +512,73 @@ function curveFillet(
   return cornerFinish(commands, "FILLET", state);
 }
 
+/**
+ * La esquina exacta: intersección (real o prolongada) de los dos objetos más
+ * cercana a los clics. Es la geometría de FILLET radio 0 y de CHAMFER 0×0 —
+ * el gesto de AutoCAD para CERRAR una esquina, y además el valor con el que
+ * ambas órdenes arrancan.
+ */
+function cadCornerPoint(
+  first: CadCornerEntity,
+  second: CadCornerEntity,
+  pickFirst: CadPoint2,
+  pickSecond: CadPoint2,
+): { point: CadPoint2 } | { error: string } {
+  const curvesA = cadEntityCurves(first);
+  const curvesB = cadEntityCurves(second);
+  if (!curvesA || !curvesB)
+    return { error: "uno de los objetos designados no tiene geometría de esquina." };
+  const measure = (a: CadPoint2, b: CadPoint2) => Math.hypot(a.x - b.x, a.y - b.y);
+  let best: { point: CadPoint2; score: number } | null = null;
+  for (const a of curvesA)
+    for (const b of curvesB)
+      for (const hit of curveIntersections(a, b, { extendA: true, extendB: true })) {
+        const point = curvePointAt(a, hit.tA);
+        if (!Number.isFinite(point.x) || !Number.isFinite(point.y)) continue;
+        const score = measure(point, pickFirst) + measure(point, pickSecond);
+        if (!best || score < best.score) best = { point, score };
+      }
+  if (!best)
+    return { error: "los objetos no se cruzan ni prolongados: no hay esquina que cerrar." };
+  return { point: best.point };
+}
+
+/**
+ * FILLET 0 / CHAMFER 0×0: recorta o prolonga ambos objetos hasta su esquina
+ * exacta, sin arco ni chaflán de por medio. Sobrevive el lado donde se pulsó
+ * cada objeto, igual que en AutoCAD.
+ */
+function cornerJoin(
+  state: CornerState,
+  label: "FILLET" | "CHAMFER",
+  first: CadCornerEntity,
+  second: CadCornerEntity,
+  pickPoints: readonly CadPoint2[],
+): CadCommandStep<CornerState> {
+  const refuse = (text: string): CadCommandStep<CornerState> => ({
+    state: { ...state, picks: [], pickPoints: [] },
+    prompt: { message: "", options: [] },
+    accepts: 0,
+    result: { kind: "message", text: `${label}: ${text}` },
+  });
+  const pickFirst = pickPoints[0] ?? entityAnchorPoint(first);
+  const pickSecond = pickPoints[1] ?? entityAnchorPoint(second);
+  const corner = cadCornerPoint(first, second, pickFirst, pickSecond);
+  if ("error" in corner) return refuse(corner.error);
+  const commands: CadEntityCommand[] = [];
+  const trimFirst = trimToTangent(first, corner.point, pickFirst);
+  if (trimFirst) commands.push(trimFirst);
+  const trimSecond = trimToTangent(second, corner.point, pickSecond);
+  if (trimSecond) commands.push(trimSecond);
+  if (commands.length === 0)
+    return refuse("ninguno de los dos objetos se pudo llevar a la esquina.");
+  if (!allFinite(commands))
+    return refuse(
+      "el cálculo produjo coordenadas no finitas y no se ha escrito nada. Es un fallo de la esquina, no del dibujo.",
+    );
+  return cornerFinish(commands, label, state);
+}
+
 /** Punto de referencia cuando se designó por selección y no hay clic. */
 function entityAnchorPoint(entity: CadCornerEntity): CadPoint2 {
   return entity.type === "line"
@@ -602,6 +674,16 @@ function cornerCommand(
           accepts: 0,
           result: { kind: "message", text: `${label}: ${resolved.error}` },
         };
+
+      // FILLET con radio 0 y CHAMFER con 0×0 cierran la ESQUINA EXACTA, como
+      // en AutoCAD — que además es el valor con el que las dos órdenes
+      // arrancan. Antes de la campaña de cimientos ese caso se rechazaba con
+      // «el radio debe ser mayor que cero», o sea: la orden fallaba de fábrica.
+      if (
+        state.primary === 0 &&
+        (label === "FILLET" || state.secondary === 0)
+      )
+        return cornerJoin(state, label, resolved.first, resolved.second, pickPoints);
 
       // El par de LÍNEAS sigue yendo por `computeCadLineFillet`: su regla de
       // desambiguación —el extremo más cercano al cruce es la esquina— está

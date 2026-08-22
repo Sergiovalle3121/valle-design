@@ -3,7 +3,8 @@
  *
  * Las cuatro afirmaciones que importan:
  *
- *   1. TRIM conserva el trozo del lado DONDE SE PULSÓ. Es lo único que
+ *   1. TRIM ELIMINA el trozo del lado DONDE SE PULSÓ — la convención de
+ *      AutoCAD desde la campaña de cimientos. Es lo único que
  *      distingue recortar de borrar la mitad equivocada, y no se puede deducir
  *      de la geometría: hay que mirar el punto de designación.
  *   2. Recortar quince objetos es UN paso de deshacer. El comando acumula y
@@ -86,26 +87,26 @@ const pickAt = (entityId: string, x: number, y: number): CadCommandInput => ({
   point: { x, y },
 });
 
-// --- TRIM conserva el lado donde se pulsó -------------------------------------
+// --- TRIM elimina el lado donde se pulsó (convención AutoCAD) -------------------
 {
   // Borde: la vertical en x=500. Se pulsa la horizontal a la IZQUIERDA (x=100),
-  // así que sobrevive el trozo 0→500.
+  // así que ESE trozo se va y sobrevive el 500→1000.
   const left = run("TRIM", [pickAt("v", 500, 100), enter, pickAt("h", 100, 100), enter]);
   assert.ok(left && left.kind === "document");
   const leftPatch = left.commands[0];
   assert.ok(leftPatch.type === "properties");
   assert.equal(leftPatch.entityId, "h");
-  assert.equal(leftPatch.patch.startX, 0, "conserva desde el origen");
-  assert.equal(leftPatch.patch.endX, 500, "hasta el borde");
+  assert.equal(leftPatch.patch.startX, 500, "lo pulsado se elimina: queda desde el borde");
+  assert.equal(leftPatch.patch.endX, 1000, "hasta el final");
 
-  // La misma orden pulsando a la DERECHA debe conservar el OTRO trozo. Si el
-  // punto de designación no se usara, saldría idéntico a lo anterior.
+  // La misma orden pulsando a la DERECHA elimina el OTRO trozo. Si el punto
+  // de designación no se usara, saldría idéntico a lo anterior.
   const right = run("TRIM", [pickAt("v", 500, 100), enter, pickAt("h", 900, 100), enter]);
   assert.ok(right && right.kind === "document");
   const rightPatch = right.commands[0];
   assert.ok(rightPatch.type === "properties");
-  assert.equal(rightPatch.patch.startX, 500, "conserva desde el borde");
-  assert.equal(rightPatch.patch.endX, 1000, "hasta el final");
+  assert.equal(rightPatch.patch.startX, 0, "queda desde el origen");
+  assert.equal(rightPatch.patch.endX, 500, "hasta el borde");
 }
 
 // --- varios recortes, UN solo lote --------------------------------------------
@@ -144,7 +145,7 @@ const pickAt = (entityId: string, x: number, y: number): CadCommandInput => ({
 // --- un CÍRCULO sí se recorta, y deja de ser un círculo -------------------------
 {
   // Dos cortes (x=±50) contra la horizontal que lo atraviesa. Pinchando arriba
-  // sobrevive la media superior. Antes esto era un rechazo por tipo.
+  // SE VA la media superior y sobrevive la inferior, como en AutoCAD.
   const result = run("TRIM", [pickAt("low", 0, 0), enter, pickAt("circ", 0, 50), enter]);
   assert.ok(result && result.kind === "document", "el círculo se recorta");
   const command = result.commands[0];
@@ -154,8 +155,8 @@ const pickAt = (entityId: string, x: number, y: number): CadCommandInput => ({
   );
   assert.equal(command.entityId, "circ");
   assert.ok(command.entity.type === "arc");
-  assert.equal(command.entity.startAngle, 0, "media superior: de 0°…");
-  assert.equal(command.entity.endAngle, 180, "…a 180°");
+  assert.equal(command.entity.startAngle, 180, "queda la media inferior: de 180°…");
+  assert.equal(command.entity.endAngle, 0, "…a 0°, dando la vuelta por abajo");
 }
 
 // --- lo que no es geometría se cuenta -------------------------------------------

@@ -164,12 +164,18 @@ function edgeEntities(state: EdgeState, context: CadCommandContext): CadEntity[]
     .filter((entity): entity is CadEntity => !!entity);
 }
 
-/** El cambio calculado, ya como comando de entidad. */
-function editCommand(entityId: string, outcome: CadCurveEditOutcome): CadEntityCommand | null {
-  if ("error" in outcome) return null;
-  if (outcome.replace) return { type: "replace", entityId, entity: outcome.replace };
-  if (outcome.patch) return { type: "properties", entityId, patch: outcome.patch };
-  return null;
+/**
+ * El cambio calculado, ya como comandos de entidad. Puede ser más de uno: un
+ * TRIM por el medio edita la mitad inicial Y crea la segunda mitad.
+ */
+function editCommands(entityId: string, outcome: CadCurveEditOutcome): CadEntityCommand[] {
+  if ("error" in outcome) return [];
+  const commands: CadEntityCommand[] = [];
+  if (outcome.replace) commands.push({ type: "replace", entityId, entity: outcome.replace });
+  else if (outcome.patch) commands.push({ type: "properties", entityId, patch: outcome.patch });
+  if (commands.length > 0 && outcome.create)
+    commands.push({ type: "insert", entity: outcome.create });
+  return commands;
 }
 
 function edgeCommand(
@@ -245,11 +251,13 @@ function edgeCommand(
         target,
         boundaries: edgeEntities(state, context),
         pick,
+        // Un TRIM por el medio parte el objeto: la segunda mitad necesita id.
+        newEntityId: context.newEntityId,
       };
       const outcome =
         operation === "TRIM" ? computeCadCurveTrim(payload) : computeCadCurveExtend(payload);
-      const command = editCommand(target.id, outcome);
-      if (!command)
+      const produced = editCommands(target.id, outcome);
+      if (produced.length === 0)
         return edgeStep(
           {
             ...state,
@@ -262,7 +270,7 @@ function edgeCommand(
         );
 
       return edgeStep(
-        { ...state, touched: state.touched + 1, commands: [...state.commands, command] },
+        { ...state, touched: state.touched + 1, commands: [...state.commands, ...produced] },
         operation,
       );
     },

@@ -291,6 +291,50 @@ const pick = (entityId: string): CadCommandInput => ({
   assert.ok(inserted && inserted.type === "insert" && inserted.entity.type === "line");
 }
 
+// --- FILLET radio 0: la esquina exacta, y es el valor de fábrica ----------------
+{
+  // Dos líneas que se cruzan en (100,0) con sobrantes a ambos lados. Sin tocar
+  // el radio (arranca en 0, como en AutoCAD), FILLET debe recortar cada una a
+  // la esquina conservando el lado pulsado — antes respondía «el radio debe
+  // ser mayor que cero», o sea, fallaba de fábrica.
+  const descriptor = commands.get("FILLET");
+  assert.ok(descriptor);
+  const cross = new Map<string, CadEntity>([
+    [
+      "p",
+      { id: "p", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 300, y: 0, z: 0 }, layer: "0" },
+    ],
+    [
+      "q",
+      { id: "q", type: "line", start: { x: 100, y: -50, z: 0 }, end: { x: 100, y: 150, z: 0 }, layer: "0" },
+    ],
+  ]);
+  let ids = 0;
+  const context: CadCommandContext = {
+    entityIds: [...cross.keys()],
+    entity: (id) => cross.get(id),
+    selection: [],
+    activeLayer: "0",
+    view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+    newEntityId: () => `zero${++ids}`,
+  };
+  let step = descriptor.begin(context);
+  step = descriptor.step(step.state, { kind: "entityPick", entityId: "p", point: { x: 20, y: 0 } }, context);
+  step = descriptor.step(step.state, { kind: "entityPick", entityId: "q", point: { x: 100, y: 120 } }, context);
+  assert.ok(step.result && step.result.kind === "document", "radio 0 cierra la esquina");
+  assert.equal(step.result.commands.length, 2, "recorta las dos líneas y NO inserta arco");
+  const patches = step.result.commands.filter((command) => command.type === "properties");
+  assert.equal(patches.length, 2);
+  const pPatch = patches.find((command) => command.entityId === "p");
+  assert.ok(pPatch && pPatch.type === "properties");
+  // Se pulsó "p" en x=20: sobrevive el lado izquierdo, muriendo en la esquina.
+  assert.ok(Math.abs((pPatch.patch.endX as number) - 100) < 1e-9, `p termina en la esquina: ${pPatch.patch.endX}`);
+  const qPatch = patches.find((command) => command.entityId === "q");
+  assert.ok(qPatch && qPatch.type === "properties");
+  // Se pulsó "q" arriba: sobrevive el tramo superior, naciendo en la esquina.
+  assert.ok(Math.abs((qPatch.patch.startY as number) - 0) < 1e-9, `q nace en la esquina: ${qPatch.patch.startY}`);
+}
+
 // --- el radio es pegajoso entre esquinas ---------------------------------------
 {
   const descriptor = commands.get("FILLET");

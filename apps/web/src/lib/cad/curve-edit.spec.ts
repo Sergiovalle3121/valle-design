@@ -3,10 +3,11 @@
  *
  * Lo que este spec vigila, por orden de gravedad:
  *
- *   1. Que la REGLA sea una sola. El tramo conservado es el que queda entre los
- *      cortes vecinos al clic, y eso debe dar el mismo resultado para una
- *      línea, un arco, un círculo, una elipse y una polilínea. Si cada tipo
- *      tuviera su regla, el comando se sentiría distinto según lo que se tocara.
+ *   1. Que la REGLA sea una sola y sea la de AutoCAD: el clic señala el tramo
+ *      que SE ELIMINA (el que queda entre los cortes vecinos al clic), igual
+ *      para línea, arco, círculo, elipse y polilínea. Si el tramo eliminado
+ *      queda entre dos cortes de una curva abierta, el objeto se PARTE y la
+ *      segunda mitad sale por `create`.
  *   2. Que el TIPO cambie cuando debe. Un círculo recortado ya no es un
  *      círculo: sale por `replace`, conservando el id, porque borrarlo y crear
  *      un arco rompería las cotas asociativas y los sombreados que lo apuntan.
@@ -73,12 +74,18 @@ const arc = (id: string, radius: number, startAngle: number, endAngle: number): 
   layer: "0",
 });
 
+let splitIds = 0;
 const trim = (target: CadEntity, boundaries: CadEntity[], x: number, y: number) =>
-  computeCadCurveTrim({ target: target as never, boundaries, pick: { x, y } });
+  computeCadCurveTrim({
+    target: target as never,
+    boundaries,
+    pick: { x, y },
+    newEntityId: () => `split${(splitIds += 1)}`,
+  });
 const extend = (target: CadEntity, boundaries: CadEntity[], x: number, y: number) =>
   computeCadCurveExtend({ target: target as never, boundaries, pick: { x, y } });
 
-// --- la regla heredada no cambia: se conserva el lado DONDE SE PULSÓ -----------
+// --- la regla es la de AutoCAD: se ELIMINA el lado donde se pulsó ---------------
 {
   const horizontal = line("h", 0, 100, 1000, 100);
   const vertical = line("v", 500, 0, 500, 200);
@@ -86,13 +93,13 @@ const extend = (target: CadEntity, boundaries: CadEntity[], x: number, y: number
   const left = trim(horizontal, [vertical], 100, 100);
   assertFinite(left, "TRIM izquierda");
   assert.ok("patch" in left && left.patch);
-  near(left.patch!.startX as number, 0, 1e-9, "conserva desde el origen");
-  near(left.patch!.endX as number, 500, 1e-9, "hasta el borde");
+  near(left.patch!.startX as number, 500, 1e-9, "pulsar la izquierda la elimina: queda desde el borde");
+  near(left.patch!.endX as number, 1000, 1e-9, "hasta el final");
 
   const right = trim(horizontal, [vertical], 900, 100);
   assert.ok("patch" in right && right.patch);
-  near(right.patch!.startX as number, 500, 1e-9, "conserva desde el borde");
-  near(right.patch!.endX as number, 1000, 1e-9, "hasta el final");
+  near(right.patch!.startX as number, 0, 1e-9, "pulsar la derecha conserva desde el origen");
+  near(right.patch!.endX as number, 500, 1e-9, "hasta el borde");
 }
 
 // --- una LÍNEA contra un CÍRCULO: dos cortes, tres tramos -----------------------
@@ -103,15 +110,29 @@ const extend = (target: CadEntity, boundaries: CadEntity[], x: number, y: number
   const outside = trim(target, [cutter], -15, 0);
   assertFinite(outside, "TRIM línea/círculo fuera");
   assert.ok("patch" in outside && outside.patch);
-  near(outside.patch!.startX as number, -20, 1e-9, "el tramo exterior arranca donde arrancaba");
-  near(outside.patch!.endX as number, -5, 1e-9, "y muere en el círculo");
+  near(outside.patch!.startX as number, -5, 1e-9, "el saliente pulsado se va: queda desde el círculo");
+  near(outside.patch!.endX as number, 20, 1e-9, "hasta el final original");
 
-  // Pinchar DENTRO conserva la cuerda: el mismo objeto, la misma regla, y el
-  // tramo central sólo existe porque hay DOS cortes.
+  // Pinchar DENTRO elimina la cuerda: el objeto SE PARTE en dos mitades,
+  // exactamente lo que hace AutoCAD con una línea que atraviesa un círculo.
   const inside = trim(target, [cutter], 0, 0);
-  assert.ok("patch" in inside && inside.patch);
-  near(inside.patch!.startX as number, -5, 1e-9, "la cuerda arranca en el primer corte");
-  near(inside.patch!.endX as number, 5, 1e-9, "y termina en el segundo");
+  assert.ok("patch" in inside && inside.patch, "la mitad inicial conserva el id por patch");
+  near(inside.patch!.startX as number, -20, 1e-9, "la primera mitad arranca donde arrancaba");
+  near(inside.patch!.endX as number, -5, 1e-9, "y muere en el primer corte");
+  assert.ok("create" in inside && inside.create, "y nace la segunda mitad");
+  assert.equal(inside.create!.type, "line");
+  assert.ok(inside.create!.type === "line");
+  near(inside.create!.start.x, 5, 1e-9, "que arranca en el segundo corte");
+  near(inside.create!.end.x, 20, 1e-9, "y llega al final original");
+  assert.notEqual(inside.create!.id, target.id, "con id PROPIO");
+
+  // Sin generador de ids no se puede partir, y se dice en vez de fingir.
+  const stuck = computeCadCurveTrim({
+    target: target as never,
+    boundaries: [cutter],
+    pick: { x: 0, y: 0 },
+  });
+  assert.ok("error" in stuck && stuck.error.includes("parte el objeto"), "partir exige poder crear");
 }
 
 // --- un CÍRCULO recortado deja de ser un círculo ---------------------------------
@@ -125,13 +146,13 @@ const extend = (target: CadEntity, boundaries: CadEntity[], x: number, y: number
   assert.equal(upper.replace!.id, "c", "y CONSERVA el id: lo que lo apunte sigue apuntando");
   assert.equal(upper.replace!.type, "arc");
   assert.ok(upper.replace!.type === "arc");
-  near(upper.replace!.startAngle, 0, 1e-9, "media superior: de 0°…");
-  near(upper.replace!.endAngle, 180, 1e-9, "…a 180°");
+  near(upper.replace!.startAngle, 180, 1e-9, "pulsar arriba QUITA la mitad superior: queda de 180°…");
+  near(upper.replace!.endAngle, 0, 1e-9, "…a 0°, dando la vuelta por abajo");
 
   const lower = trim(target, [cutter], 0, -10);
   assert.ok("replace" in lower && lower.replace && lower.replace.type === "arc");
-  near(lower.replace!.startAngle, 180, 1e-9, "media inferior: de 180°…");
-  near(lower.replace!.endAngle, 0, 1e-9, "…a 0°, dando la vuelta");
+  near(lower.replace!.startAngle, 0, 1e-9, "pulsar abajo conserva la superior: de 0°…");
+  near(lower.replace!.endAngle, 180, 1e-9, "…a 180°");
 
   // UN solo corte no basta para una curva cerrada, y se dice.
   const tangent = trim(target, [line("t", -20, 10, 20, 10)], 0, 10);
@@ -149,13 +170,13 @@ function tangentMessage(outcome: CadCurveEditOutcome): string {
   const right = trim(target, [cutter], 10, 0);
   assertFinite(right, "TRIM arco derecha");
   assert.ok("patch" in right && right.patch);
-  near(right.patch!.startAngle as number, 0, 1e-9, "el cuadrante derecho va de 0°…");
-  near(right.patch!.endAngle as number, 90, 1e-9, "…a 90°");
+  near(right.patch!.startAngle as number, 90, 1e-9, "pulsar el cuadrante derecho lo quita: queda de 90°…");
+  near(right.patch!.endAngle as number, 180, 1e-9, "…a 180°");
 
   const left = trim(target, [cutter], -10, 0);
   assert.ok("patch" in left && left.patch);
-  near(left.patch!.startAngle as number, 90, 1e-9, "y el izquierdo de 90°…");
-  near(left.patch!.endAngle as number, 180, 1e-9, "…a 180°");
+  near(left.patch!.startAngle as number, 0, 1e-9, "y pulsar el izquierdo conserva de 0°…");
+  near(left.patch!.endAngle as number, 90, 1e-9, "…a 90°");
 }
 
 // --- una ELIPSE completa se recorta en sus parámetros --------------------------------
@@ -174,8 +195,8 @@ function tangentMessage(outcome: CadCurveEditOutcome): string {
   const outcome = trim(target, [line("v", 0, -30, 0, 30)], 20, 0);
   assertFinite(outcome, "TRIM elipse");
   assert.ok("patch" in outcome && outcome.patch);
-  near(outcome.patch!.startParameter as number, 270, 1e-6, "el tramo que contiene (20,0) arranca en 270°");
-  near(outcome.patch!.endParameter as number, 90, 1e-6, "y termina en 90° pasando por 0°");
+  near(outcome.patch!.startParameter as number, 90, 1e-6, "el sector que contiene (20,0) SE VA: queda de 90°");
+  near(outcome.patch!.endParameter as number, 270, 1e-6, "a 270°, el lado que no se pulsó");
 }
 
 // --- una POLILÍNEA se recorta reconstruyendo sus vértices ------------------------------
@@ -196,14 +217,14 @@ function tangentMessage(outcome: CadCurveEditOutcome): string {
   const head = trim(target, [cutter], 2, 0);
   assertFinite(head, "TRIM polilínea cabeza");
   assert.ok("replace" in head && head.replace && head.replace.type === "polyline");
-  assert.equal(head.replace!.vertices.length, 2, "queda un solo tramo");
-  near(head.replace!.vertices[1].x, 5, 1e-9, "que muere en el corte");
+  assert.equal(head.replace!.vertices.length, 3, "pulsar la cabeza la elimina: quedan los otros tramos");
+  near(head.replace!.vertices[0].x, 5, 1e-9, "arrancando en el corte");
+  near(head.replace!.vertices[2].y, 10, 1e-9, "y llegando al final original");
 
   const tail = trim(target, [cutter], 8, 0);
   assert.ok("replace" in tail && tail.replace && tail.replace.type === "polyline");
-  assert.equal(tail.replace!.vertices.length, 3, "quedan los dos tramos restantes");
-  near(tail.replace!.vertices[0].x, 5, 1e-9, "arrancando en el corte");
-  near(tail.replace!.vertices[2].y, 10, 1e-9, "y llegando hasta el final original");
+  assert.equal(tail.replace!.vertices.length, 2, "pulsar tras el corte deja sólo la cabeza");
+  near(tail.replace!.vertices[1].x, 5, 1e-9, "que muere en el corte");
 }
 
 // --- una POLILÍNEA CERRADA recortada se ABRE, y el tramo da la vuelta -------------------
@@ -229,11 +250,13 @@ function tangentMessage(outcome: CadCurveEditOutcome): string {
     false,
     "queda ABIERTA: si siguiera cerrada, el trozo quitado volvería como cuerda de cierre",
   );
+  // Se pulsó el lado IZQUIERDO (x=0): ése se va; queda la mitad derecha,
+  // recorrida del corte inferior al superior.
   const vertices = outcome.replace!.vertices;
-  near(vertices[0].x, 5, 1e-9, "arranca en el corte del lado superior");
-  near(vertices[0].y, 10, 1e-9, "");
-  near(vertices[vertices.length - 1].x, 5, 1e-9, "y termina en el del inferior");
-  near(vertices[vertices.length - 1].y, 0, 1e-9, "");
+  near(vertices[0].x, 5, 1e-9, "arranca en el corte del lado inferior");
+  near(vertices[0].y, 0, 1e-9, "");
+  near(vertices[vertices.length - 1].x, 5, 1e-9, "y termina en el del superior");
+  near(vertices[vertices.length - 1].y, 10, 1e-9, "");
 }
 
 // --- EXTEND: hasta el cruce MÁS CERCANO, por el extremo que se designa -----------------

@@ -6,7 +6,11 @@ import {
   type CadScenePatch,
 } from "./entity-runtime";
 import type { CadDocument } from "./cad-document";
-import { cadFrozenLayerIds } from "./cad-layer-visibility";
+import {
+  cadFrozenLayerIds,
+  cadUnselectableLayerIds,
+  cadUnsnappableLayerIds,
+} from "./cad-layer-visibility";
 
 function centerDistanceSquared(
   entity: CadNativeEntity,
@@ -108,18 +112,38 @@ function entityMatchesPath(
  * LOD can therefore omit detailed objects without making their canonical
  * geometry undiscoverable by point, window or snap queries.
  */
+/**
+ * Qué capas excluye una consulta: "none" sólo congeladas (consumidores
+ * internos: regeneración, plan de render), "snap" añade las apagadas (el
+ * cursor no imanta lo invisible), "selection" añade además las bloqueadas.
+ */
+export type CadIndexLayerFilter = "none" | "snap" | "selection";
+
 export class CadNativeSelectionIndex {
   private readonly spatialIndex: CadSpatialIndex;
   private readonly entities = new Map<string, CadNativeEntity>();
   private document?: CadDocument;
   /**
-   * Capas CONGELADAS del documento indexado. Una entidad en capa congelada no
-   * sale de `search` —y por tanto ni se selecciona ni imanta el enganche—, que
-   * es la mitad «no cuenta» de la semántica de `frozen` (esquema 9). Las capas
-   * APAGADAS no entran aquí a propósito: siempre estuvieron en el índice y
-   * quitarlas ahora cambiaría un comportamiento que nadie pidió cambiar.
+   * Tres conjuntos de exclusión por capa, del más chico al más grande:
+   *
+   * - `frozenLayers`: lo que NUNCA sale de una consulta, ni siquiera de las
+   *   internas (regeneración, plan de render) — la semántica «no cuenta» del
+   *   esquema 9.
+   * - `unsnappableLayers` (apagadas + congeladas): lo que no imanta el cursor.
+   *   Desde la campaña de cimientos, lo invisible no es un imán — antes una
+   *   capa apagada seguía capturando el snap, y en un plano denso eso es
+   *   imantar el objeto equivocado sin poder verlo.
+   * - `unselectableLayers` (apagadas + congeladas + BLOQUEADAS): lo que un
+   *   clic o una ventana no designan. La bloqueada se ve y se imanta; no se
+   *   modifica.
+   *
+   * Los consumidores internos siguen usando el filtro de fábrica (sólo
+   * congeladas) para no cambiar regeneración ni render; los caminos de USUARIO
+   * piden su filtro explícito.
    */
   private frozenLayers: ReadonlySet<string> = new Set();
+  private unsnappableLayers: ReadonlySet<string> = new Set();
+  private unselectableLayers: ReadonlySet<string> = new Set();
 
   constructor(cellSize = 100) {
     this.spatialIndex = new CadSpatialIndex(cellSize);
@@ -128,14 +152,14 @@ export class CadNativeSelectionIndex {
   replace(entities: readonly CadNativeEntity[], document?: CadDocument): void {
     this.clear();
     this.document = document;
-    this.frozenLayers = document ? cadFrozenLayerIds(document.layers) : new Set();
+    this.refreshLayerSets(document);
     for (const entity of entities) this.upsert(entity);
   }
 
   applyPatch(patch: CadScenePatch, document?: CadDocument): void {
     if (document) {
       this.document = document;
-      this.frozenLayers = cadFrozenLayerIds(document.layers);
+      this.refreshLayerSets(document);
     }
     for (const id of new Set(patch.remove)) this.remove(id);
     for (const entity of patch.upsert) this.upsert(entity);
@@ -158,11 +182,32 @@ export class CadNativeSelectionIndex {
     return this.entities.get(id);
   }
 
-  search(bounds: CadBounds, limit = Number.POSITIVE_INFINITY): CadNativeEntity[] {
+  private refreshLayerSets(document?: CadDocument): void {
+    this.frozenLayers = document ? cadFrozenLayerIds(document.layers) : new Set();
+    this.unsnappableLayers = document
+      ? cadUnsnappableLayerIds(document.layers)
+      : new Set();
+    this.unselectableLayers = document
+      ? cadUnselectableLayerIds(document.layers)
+      : new Set();
+  }
+
+  private excludedLayers(filter: CadIndexLayerFilter): ReadonlySet<string> {
+    if (filter === "selection") return this.unselectableLayers;
+    if (filter === "snap") return this.unsnappableLayers;
+    return this.frozenLayers;
+  }
+
+  search(
+    bounds: CadBounds,
+    limit = Number.POSITIVE_INFINITY,
+    filter: CadIndexLayerFilter = "none",
+  ): CadNativeEntity[] {
+    const excluded = this.excludedLayers(filter);
     const result: CadNativeEntity[] = [];
     for (const id of this.spatialIndex.search(bounds)) {
       const entity = this.entities.get(id);
-      if (entity && !this.frozenLayers.has(entity.layer)) result.push(entity);
+      if (entity && !excluded.has(entity.layer)) result.push(entity);
       if (result.length >= limit) break;
     }
     return result;
@@ -172,6 +217,7 @@ export class CadNativeSelectionIndex {
     point: { x: number; y: number },
     tolerance: number,
     limit = 16,
+    filter: CadIndexLayerFilter = "none",
   ): CadNativeEntity[] {
     const bounds = {
       minX: point.x - tolerance,
@@ -179,7 +225,7 @@ export class CadNativeSelectionIndex {
       maxX: point.x + tolerance,
       maxY: point.y + tolerance,
     };
-    return this.search(bounds)
+    return this.search(bounds, Number.POSITIVE_INFINITY, filter)
       .filter((entity) =>
         CAD_ENTITY_REGISTRY.adapter(entity).hitTester.hitTest(
           entity,
@@ -199,9 +245,10 @@ export class CadNativeSelectionIndex {
     bounds: CadBounds,
     crossing: boolean,
     limit = 300,
+    filter: CadIndexLayerFilter = "none",
   ): CadNativeEntity[] {
     const result: CadNativeEntity[] = [];
-    for (const entity of this.search(bounds)) {
+    for (const entity of this.search(bounds, Number.POSITIVE_INFINITY, filter)) {
       if (!CAD_ENTITY_REGISTRY.adapter(entity).hitTester.intersectsWindow(
         entity,
         bounds,
@@ -219,12 +266,13 @@ export class CadNativeSelectionIndex {
     mode: CadPathSelectionMode,
     crossing = mode !== "polygon",
     limit = 300,
+    filter: CadIndexLayerFilter = "none",
   ): CadNativeEntity[] {
     if (points.length < (mode === "fence" ? 2 : 3)) return [];
     const bounds = pathBounds(points);
     if (!bounds) return [];
     const result: CadNativeEntity[] = [];
-    for (const entity of this.search(bounds)) {
+    for (const entity of this.search(bounds, Number.POSITIVE_INFINITY, filter)) {
       if (!entityMatchesPath(entity, points, mode, crossing, this.document)) continue;
       result.push(entity);
       if (result.length >= limit) break;

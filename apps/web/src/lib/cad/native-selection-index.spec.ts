@@ -82,4 +82,53 @@ index.applyPatch({ upsert: [], remove: [moved.id] });
 assert.equal(index.entity(moved.id), undefined);
 assert.equal(index.size, 999);
 
-console.log("native-selection-index: el índice espacial sigue altas, bajas y movimientos");
+// --- filtros por capa: lo apagado no imanta; lo bloqueado no se designa --------
+{
+  const filtered = new CadNativeSelectionIndex();
+  const layerDocument = {
+    layers: [
+      { id: "viva", name: "viva", color: "#fff", visible: true, locked: false },
+      { id: "apagada", name: "apagada", color: "#fff", visible: false, locked: false },
+      { id: "candada", name: "candada", color: "#fff", visible: true, locked: true },
+    ],
+  } as never;
+  const at = (id: string, layer: string, x: number) =>
+    ({
+      id,
+      type: "circle",
+      center: { x, y: 0, z: 0 },
+      radius: 1,
+      layer,
+    }) as never;
+  filtered.replace(
+    [at("v1", "viva", 0), at("o1", "apagada", 10), at("l1", "candada", 20)],
+    layerDocument,
+  );
+  const everywhere = { minX: -5, minY: -5, maxX: 25, maxY: 5 };
+  // Consumidores internos (regeneración, render): ven todo lo no congelado.
+  assert.equal(filtered.search(everywhere).length, 3, "el filtro de fábrica no cambia");
+  // El cursor no imanta lo invisible; lo bloqueado SÍ imanta.
+  assert.deepEqual(
+    filtered.search(everywhere, Infinity, "snap").map((entity) => entity.id).sort(),
+    ["l1", "v1"],
+    "capa apagada fuera del enganche; la bloqueada imanta",
+  );
+  // Un clic o una ventana no designan lo apagado NI lo bloqueado.
+  assert.deepEqual(
+    filtered.search(everywhere, Infinity, "selection").map((entity) => entity.id),
+    ["v1"],
+    "sólo la capa viva se designa",
+  );
+  assert.equal(filtered.hitTest({ x: 21, y: 0 }, 0.5, 16, "selection").length, 0);
+  assert.equal(filtered.hitTest({ x: 21, y: 0 }, 0.5, 16)[0]?.id, "l1");
+  assert.equal(
+    filtered.intersecting(everywhere, true, 300, "selection").length,
+    1,
+    "la ventana tampoco captura apagadas ni bloqueadas",
+  );
+}
+
+console.log(
+  "native-selection-index: el índice espacial sigue altas, bajas y movimientos, " +
+    "y las capas apagadas no imantan ni se designan (las bloqueadas imantan sin designarse)",
+);

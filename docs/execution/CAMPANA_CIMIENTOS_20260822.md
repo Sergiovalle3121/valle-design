@@ -102,6 +102,34 @@ día, documentación veraz, rúbrica con denominador acotado, y backlog accionab
 - [ ] F.3 `AGENTS.md` con las reglas que deja esta campaña.
 - [ ] F.4 `docs/execution/INFORME_CAMPANA_CIMIENTOS_20260822.md`.
 
+### OLA A — ANEXO DE CRECIMIENTO (11:20, condiciona todo lo anterior)
+Regla: **acotar lo que se promete, nunca lo que se puede construir después.**
+Lo que queda fuera se marca «todavía no», nunca «nunca».
+- [ ] A.1 ADR: migración aditiva del documento canónico como invariante
+      (procedimiento de subida de esquema, tipos congelados) + fila de rúbrica
+      de compatibilidad hacia atrás medida. [puerta 1]
+- [ ] A.2 Tres documentos de extensibilidad: operaciones públicas vs internas
+      en el contrato OpenAPI; política de versionado de la API pública;
+      manifiesto de plugins LISP como formato con versión. Cero código. [p. 2]
+- [ ] A.3 Mecanismo de niveles: guard consulta cualquier capacidad, catálogo
+      admite varias por plan, UI sabe decir «esto es del plan Pro». Sin planes
+      ni precios nuevos. [p. 3]
+- [ ] A.4 Medición por organización: documentos, almacenamiento,
+      publicaciones — registrar sin exponer. [p. 4]
+- [ ] A.5 Interfaz escrita de interoperabilidad (bytes → representación
+      neutral → documento canónico, pérdidas declaradas en ambos sentidos);
+      unificación DXF si alcanza (R.1). [p. 5]
+- [ ] A.6 Deuda del monolito publicada con meta <8,000 líneas y método por
+      costuras; trinquete baja ≥1 escalón por campaña. [p. 6]
+- [ ] A.7 ADR de la decisión DWG: licenciar para vender + códec propio para
+      poseer, con criterio de cambio escrito. [p. 7]
+- [ ] A.8 Mecanismo de corpus independiente: procedimiento de donación con
+      permiso escrito, procedencia, compromiso de matriz de fidelidad por
+      versión. [p. 8]
+- [ ] A.9 (modifica OLA 6) Rúbrica con DOS denominadores: alcance de hoy
+      (10/10 alcanzable) y alcance de destino (AutoCAD completo, ~25% sin
+      vergüenza); fila nueva «capacidad de crecer» medida con A.1–A.8.
+
 ### Cola de reserva
 R.1 unificar rutas DXF y topes · R.2 descomponer monolito <18k ·
 R.3 auditoría de arranque · R.4 accesibilidad con lector real ·
@@ -159,3 +187,140 @@ claude/valle-design-r0-e2e-recovery-20260803 (332/1).
 
 Total: 32 ramas (la cola decía 34; el conteo real contra el remoto de hoy es
 32 una vez excluidas las 3 `codex/dwg-*` y la de Dependabot).
+
+**0.1 CERRADO (11:10).** 32 borradas en dos tandas; luego las 3 `codex/dwg-*`
+(tras rescatar #77 y cerrar #78/#79) y la de Dependabot (tras cerrar #86).
+Remoto final: `main` + `deps/majors-diferidos-20260822` (PR #87 borrador).
+
+**0.2 CERRADO (12:00).** PR #86 partido con evidencia: set completo revienta
+en `npm ci` (TS7 → TS5108 en contracts). Subconjunto seguro fusionado directo
+a main en `c034e0b` (15 de 32: pg, class-validator, better-sqlite3, argon2,
+supertest types, ts-eslint 8.67, next-intl, react 19.2.8, cross-env 10,
+esbuild, tsx 4.23.12 ×2, openapi-typescript 7.13 + SDK regenerado, turbo
+2.10.11) con typecheck+test+lint+check:cad+check:dwg+build verdes. Diferidos
+con razón por ítem en el PR #87 (borrador deliberado, manifests sin lockfile):
+TS7, ESLint 10, TypeORM 1.x, @nestjs 11.2 (duplica core→ModuleRef roto),
+next 16.3 (Turbopack exige binario nativo que el Control de aplicaciones de
+Windows bloquea; 16.2 compila en WASM), Playwright 1.62, framer-motion 13,
+three 0.185, lucide 1.32, @types/node 26 (runtime es 22), redocly 2.
+Aprendizajes de entorno: (a) los gates DWG requieren
+`VALLE_DWG_CORPUS_MIRROR` apuntando al repo de conformidad — sin documentar
+hasta hoy; (b) los scripts raíz importaban tsx/openapi-typescript sin
+declararlos (azar del hoisting) — ahora están en devDependencies raíz.
+
+**0.3 CERRADO (13:05).** Gobernanza del #77 rescatada y adaptada en `c1b169c`:
+CODEOWNERS, plantilla PR, plantillas de issue, NOTICE, docs/governance (7
+docs + registro + baseline), gate `check:governance` (9 specs) cableado a CI,
+actions pineadas por SHA re-verificado contra tags oficiales, checksum
+SHA-256 de gitleaks, `sbom:full` como evidencia (el bloqueante sigue runtime).
+#77/#78/#79 cerrados con explicación; el código DWG paralelo NO entró.
+Adaptaciones: topología de dos repos, protección remota YA activa (3 checks),
+práctica real de trailers = atribución sin autoría (329/786 commits).
+**HALLAZGO P0: ambos repositorios son PÚBLICOS** (verificado por API y curl
+anónimo) mientras NOTICE/LICENSE declaran confidencial. La visibilidad pública
+es lo que hace funcionar la protección de rama en plan Free. Registrado en
+`repository-protection-baseline.json` como pendiente de decisión del titular;
+opciones documentadas. NO se cambió la visibilidad (decisión del dueño).
+
+**0.4 CERRADO (13:15).** Conformidad: PRs #2/#3 cerrados con verificación —
+fusionar #2 borraría 25,588 líneas (pipelines fuente de los bundles admitidos)
+y revertiría la política enmendada + la corrección de summarizeDxf (82f0368).
+Idea rescatada al backlog: pull_request_target + verificador del commit base
+si algún día se aceptan PRs externos de corpus. Ramas borradas; remoto = main.
+
+**0.5 CERRADO (13:05).** Política de ramas en CONTRIBUTING.md: main única
+larga vida, prefijos claude/deps, vida máxima 7 días o 30 commits, borrado al
+cerrar, staging explícito y rebase-autostash en sesiones paralelas.
+
+### OLA 1 (13:30–15:10)
+
+**1.1 CERRADO.** Arnés de veracidad construido:
+`apps/web/scripts/command-integrity-probe.mts` ejecuta los 192 comandos del
+registro real con el reductor del producto y un auto-respondedor, y clasifica:
+muta (61, con serialización canónica antes/después), delegado (31), informa
+(13), honesto-limitado (79), no-concluyente (8, exentos con razón), ROJO (0).
+
+**1.2 CERRADO — la lista de la auditoría, confirmada una por una:**
+- QSELECT/FILTER: CONFIRMADO — el monolito no pasaba `setSelection`
+  (Layout3DEditor.tsx, montaje del motor); el host avisaba honesto pero no
+  designaba. ARREGLADO: cableado a `selectNative` (con su tope de 300 al
+  backlog, dominio 2.3).
+- PLOT Previa: CONFIRMADO ÉXITO FALSO — `plot-host.ts` respondía «Vista previa
+  de N hoja(s)» sin que exista NINGÚN panel de vista previa en el producto.
+  ARREGLADO: mensaje honesto que además reporta los problemas del cálculo real.
+- MSPACE/PSPACE: CONFIRMADO ÉXITO FALSO — «Espacio papel.» incondicional con
+  `setSpace` ausente. ARREGLADO doble: honestidad en plot-host (setSpace ahora
+  devuelve si cambió) y cable real en el monolito (`setActivePaperSpaceId`),
+  así que hoy MSPACE/PSPACE/MODEL cambian la pestaña DE VERDAD.
+- LAYOUT/PLOT/PAGESETUP sobre la primera hoja: CONFIRMADO — `activeLayout` no
+  se pasaba al contexto. ARREGLADO: viaja `activePaperSpaceId`.
+- PAGESETUP: era honesto por línea de comandos; ahora además su forma de
+  cuadro activa la hoja (openPageSetup → pestaña con los controles).
+- XATTACH: CONFIRMADO — `context.xrefCatalog` no se provee; la orden completa
+  existe y explica su límite. NO arreglado hoy: exige biblioteca asíncrona del
+  tenant (fetchCadXrefSnapshot). P1 en backlog con diseño (petición de host
+  asíncrona al patrón de PLOT, reutilizando attachProfessionalXref).
+- PARAMETERS: CONFIRMADO — faltaba `context.parameters`. ARREGLADO en
+  studio-context.ts: la tabla del documento viaja al motor.
+- AUTOCONSTRAIN: CONFIRMADO — faltaba `context.constraints`: infería como si
+  el dibujo no tuviera ninguna. ARREGLADO en studio-context.ts.
+- BEDIT: verificado honesto — es la puerta tecleable al panel de bloques (con
+  redefinición real detrás); el editor de bloques en sitio queda P1.
+
+**Hallazgos NUEVOS del arnés (no estaban en la auditoría):** RECTANG y
+REVCLOUD terminaban en SILENCIO ABSOLUTO con esquinas alineadas (resultado
+`none`: ni entidad ni mensaje) y XCLIP se esfumaba ante una selección
+múltiple. Los tres arreglados con mensaje que explica; specs de familia
+actualizados (afirmaban el silencio como contrato).
+
+**1.3/1.4 CERRADOS** con lo anterior. **1.5 CERRADO:** gate
+`check:command-integrity` (sonda + exenciones declaradas en
+`scripts/cad/command-integrity-exemptions.json`, con regla bidireccional: un
+no-concluyente sin declarar falla, y una exención ya innecesaria también)
+cableado dentro de `check:cad`.
+
+### OLA 2 (15:15–17:15)
+
+**2.1 CERRADO — TRIM es AutoCAD.** `curve-edit.ts` invertido: el clic señala
+lo que SE ELIMINA. Curva abierta con corte a cada lado → el objeto SE PARTE
+(la mitad inicial conserva el id; la segunda nace en `create` con id nuevo,
+misma capa y contexto — no se rompen cotas ni sombreados). Extremos → se
+acorta hasta el corte. Cerrada → se conserva el complemento y se abre.
+`modify-edges.ts` emite ahora N comandos por recorte (edición + inserción).
+Specs reescritos a la convención nueva (128 comprobaciones curve-edit + familia
+modify-edges verdes). EXTEND verificado: ya era AutoCAD. BREAK verificado: ya
+era AutoCAD (quita entre dos puntos, conserva id del primer trozo). **FILLET y
+CHAMFER: divergencia REAL encontrada y arreglada** — con radio 0 (el valor de
+fábrica ¡y el de AutoCAD!) la orden rechazaba «el radio debe ser mayor que
+cero», o sea fallaba de fábrica; ahora R=0 y 0×0 cierran la ESQUINA EXACTA
+(recorte/prolongación de ambos objetos a su intersección, sin arco),
+sobreviviendo el lado pulsado. Spec nuevo del caso.
+
+**2.2 MEDIDO Y DOCUMENTADO (implementación a backlog P0 por colisión).**
+Sonda `large-coordinate-precision-probe.mts` atravesando el empaquetador real:
+la cuantización float32 empieza en la TESELACIÓN (`CadTessellatedPath.xy` es
+Float32Array) y confirma la pérdida: **4.2 cm a magnitud UTM-México (2·10⁶) y
+37.5 cm a 10⁷**; documento y exportación pierden CERO (float64 de punta a
+punta). Evidencia en `docs/cad/evidence/large-coordinate-precision.json`.
+El arreglo (origen flotante de escena: marco anclado al centro del documento,
+`cadCenter` y uniformes calculados en doubles, tocar line-batch, text-atlas,
+entity-three, scene y el mapeo de cámara del monolito) NO se implementa hoy:
+son exactamente los archivos que la campaña paralela PULIDO está optimizando
+en este momento (su OLA 4: subida por lotes, atlas de texto). P0 en backlog
+con el diseño completo y la sonda lista para el «después».
+
+**2.3 CERRADO (los dos baratos) + verificaciones.**
+- Capa APAGADA ya no imanta NI se designa; capa BLOQUEADA imanta pero no se
+  designa (semántica CAD estándar, más fina que el enunciado). Implementado en
+  el punto único (`cad-layer-visibility.ts` + filtros "snap"/"selection" del
+  `CadNativeSelectionIndex`) con opt-in explícito en los 4 sitios de usuario
+  del monolito; los consumidores internos (regeneración de asociativas, plan
+  de render) conservan su filtro de fábrica para no cambiar comportamiento
+  legítimo. Specs nuevos.
+- Tolerancia de snap: VERIFICADA ya relativa al zoom (`pointerWorldTolerance`
+  → `viewController.toleranceWorld` con apertura en píxeles) — ese punto de la
+  auditoría estaba resuelto antes de hoy; queda registrado.
+- Al backlog con medición pendiente: tope de segmentos del snap
+  (maxSegments 96), topes de selección por índice (300/4096, cortan por orden
+  espacial), intersecciones sobre teselado vs analíticas, tope de 300 en
+  `selectNative` (afecta QSELECT grande).
