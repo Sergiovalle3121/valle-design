@@ -13,7 +13,9 @@ import {
   breadcrumbJsonLd,
   techArticleJsonLd,
 } from "@/lib/seo/structured-data";
-import { PublicPageShell, publicActionClass } from "./PublicPageShell";
+import { AlertTriangle, ArrowRight } from "lucide-react";
+import { Surface, buttonClass, cx } from "@/components/ui";
+import { PublicPageShell } from "./PublicPageShell";
 
 /**
  * ARMAZÓN COMÚN DE LAS GUÍAS.
@@ -39,7 +41,7 @@ export function guideMetadata(slug: DocGuideSlug): Metadata {
 
 /** Párrafo de texto corrido. Existe para no repetir clases en cada guía. */
 export function P({ children }: { children: ReactNode }) {
-  return <p className="leading-8">{children}</p>;
+  return <p className="type-body">{children}</p>;
 }
 
 /** Apartado con encabezado de nivel 2: es el esqueleto que lee el buscador. */
@@ -52,8 +54,8 @@ export function GuideSection({
 }) {
   return (
     <section>
-      <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
-      <div className="mt-4 space-y-4 leading-8 text-muted-foreground">
+      <h2 className="type-heading">{title}</h2>
+      <div className="type-body mt-4 space-y-4 text-muted-foreground">
         {children}
       </div>
     </section>
@@ -67,11 +69,17 @@ export function GuideSection({
  */
 export function GuideLimit({ children }: { children: ReactNode }) {
   return (
-    <aside className="rounded-xl border border-warning/30 bg-warning/[.06] p-5 leading-7">
-      <p className="type-small font-semibold uppercase tracking-[.14em] text-warning-ink">
-        Límite actual
-      </p>
-      <div className="mt-2 space-y-3">{children}</div>
+    <aside className="flex gap-3.5 rounded-card border border-warning/30 bg-warning/[.06] p-5">
+      <AlertTriangle
+        aria-hidden="true"
+        className="mt-0.5 h-5 w-5 shrink-0 text-warning-ink"
+      />
+      <div className="min-w-0">
+        <p className="type-eyebrow text-warning-ink">Límite actual</p>
+        <div className="type-small mt-2 space-y-3 text-foreground">
+          {children}
+        </div>
+      </div>
     </aside>
   );
 }
@@ -106,34 +114,76 @@ export function GuideArticle({
       <PublicPageShell eyebrow="Guía" title={guide.title} intro={guide.summary}>
         {children}
 
-        <section aria-labelledby="siguiente-paso">
-          <h2 id="siguiente-paso" className="text-2xl font-semibold">
+        {/* El cierre no es un banner pegado al final: es el siguiente paso
+            de quien acaba de leer, y por eso ofrece el atajo que de verdad
+            quiere —abrir un plano ya dibujado— y no sólo «crear cuenta». */}
+        <Surface
+          as="section"
+          aria-labelledby="siguiente-paso"
+          padded="lg"
+          elevation="resting"
+          className="relative overflow-hidden"
+        >
+          <div
+            aria-hidden="true"
+            className="product-halo pointer-events-none absolute -right-16 -top-20 h-56 w-56"
+          />
+          <h2 id="siguiente-paso" className="type-heading">
             Ponlo en práctica
           </h2>
-          <p className="mt-4 leading-8 text-muted-foreground">
+          <p className="type-body mt-3 max-w-2xl text-muted-foreground">
             Todo lo de esta guía se hace desde el navegador, sin instalar nada.
-            Crea tu cuenta y abre un proyecto para seguir los pasos con un dibujo
-            de verdad.
+            Crea tu cuenta y abre el plano de ejemplo para seguir los pasos sobre
+            un dibujo de verdad.
           </p>
-          <Link className={`${publicActionClass} mt-5`} href="/register">
-            Crear cuenta
-          </Link>
-        </section>
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <Link
+              className={buttonClass({ variant: "primary" })}
+              href="/register"
+            >
+              Crear cuenta gratis
+              <ArrowRight aria-hidden="true" className="h-4 w-4" />
+            </Link>
+            <Link
+              className={buttonClass({ variant: "secondary" })}
+              href="/precios"
+            >
+              Ver precios
+            </Link>
+          </div>
+        </Surface>
 
         <nav aria-label="Otras guías">
-          <h2 className="text-2xl font-semibold">Otras guías</h2>
-          <ul className="mt-4 space-y-3">
+          <h2 className="type-heading">Otras guías</h2>
+          {/* Tarjetas y no enlaces subrayados: al terminar de leer, lo que se
+              pulsa es el bloque entero, y un objetivo de 3 px de alto obliga a
+              apuntar. */}
+          <ul className="mt-5 grid gap-4 sm:grid-cols-2">
             {others.map((other) => (
               <li key={other.slug}>
                 <Link
-                  className="font-medium text-primary-ink underline-offset-4 hover:underline"
                   href={docGuidePath(other.slug)}
+                  className={cx(
+                    "group flex h-full flex-col rounded-card border border-border p-5",
+                    "transition-[background-color,border-color,box-shadow] duration-200 ease-out-expo",
+                    "hover:border-primary/40 hover:bg-card hover:shadow-elevated",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                  )}
                 >
-                  {other.title}
+                  <span className="type-small font-semibold text-foreground">
+                    {other.title}
+                  </span>
+                  <span className="type-small mt-2 text-muted-foreground">
+                    {other.summary}
+                  </span>
+                  <span className="type-caption mt-4 inline-flex items-center gap-1.5 font-semibold text-primary-ink">
+                    Leer
+                    <ArrowRight
+                      aria-hidden="true"
+                      className="h-3.5 w-3.5 transition-transform duration-200 ease-out-expo group-hover:translate-x-0.5"
+                    />
+                  </span>
                 </Link>
-                <span className="block type-small text-muted-foreground">
-                  {other.summary}
-                </span>
               </li>
             ))}
           </ul>

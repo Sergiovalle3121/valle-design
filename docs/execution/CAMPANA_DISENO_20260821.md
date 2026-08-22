@@ -108,8 +108,8 @@ es que **nadie lo consume**. Esta campaña no reescribe el sistema: **lo cablea*
 ### COLA DE RESERVA
 
 - [x] R.1 Sistema de movimiento tokenizado
-- [ ] R.2 Rediseño de documentación y guías
-- [ ] R.3 Ilustraciones SVG propias
+- [x] R.2 Rediseño de documentación y guías
+- [x] R.3 Ilustraciones SVG propias
 - [ ] R.4 `/status` y soporte premium
 - [ ] R.5 Modo presentación del estudio
 - [ ] R.6 Infraestructura de claves i18n del estudio
@@ -613,3 +613,31 @@ verificados verdes).
 que no son mías—. Los tres son de la campaña de identidad que corre en paralelo
 sobre el mismo árbol de trabajo. `check:dwg-evidence` sigue rojo desde antes de
 empezar, en territorio de la sesión de DWG.
+
+### COLA DE RESERVA — R.2 y R.3
+
+**R.2 · Documentación y guías.** El armazón ya era bueno —una fuente para el
+título, el JSON-LD y las migas— así que no se tocó la estructura, sólo la piel:
+la escala en los encabezados, el aviso de límite convertido en tarjeta del
+sistema CON icono (para que se lea como advertencia útil y no como nota al pie),
+y «Otras guías» y el índice de `/docs` pasan de listas de enlaces subrayados a
+tarjetas navegables. El cierre de cada guía ofrece ahora el atajo que de verdad
+se quiere al terminar de leer —abrir un plano ya dibujado— y no sólo «crear
+cuenta».
+
+**R.3 · Ilustraciones propias.** Tres, en el mismo vocabulario que el isotipo —
+trazo de plano, líneas de construcción, nodos de referencia a objetos— y todas
+en `currentColor`, así que funcionan en los dos temas sin una sola variante:
+
+· **Lienzo vacío**: una hoja con su cajetín y una retícula desvanecida. Dice
+  «aquí va un plano» sin dibujar uno — si dibujara una planta terminada estaría
+  prometiendo un contenido que la pantalla no tiene.
+· **Sin resultados**: una lupa cuyo círculo lleva marcas de centro y una cota de
+  radio con su marca oblicua. Es una lupa dibujada como se dibuja en un plano.
+· **Algo se rompió**: una línea de construcción interrumpida con los dos nodos
+  huérfanos marcados en ámbar — exactamente lo que el editor pinta cuando una
+  referencia se rompe, así que el dibujo dice lo mismo que el mensaje.
+
+Ninguna lleva `alt`: son `aria-hidden` sin excepción, porque lo que informa es
+el texto que va al lado y obligar a un lector de pantalla a describir un dibujo
+decorativo antes del mensaje es ruido.

@@ -2,8 +2,9 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { AlertTriangle, RotateCcw } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
+import { BrokenLinkArt } from "@/components/brand/Illustration";
 import { Button, buttonClass } from "@/components/ui";
 import { COMMERCIAL_LINKS } from "@/config/commercial";
 
@@ -49,10 +50,7 @@ export default function AppError({
         <Link href="/" className="inline-flex">
           <Logo />
         </Link>
-        <AlertTriangle
-          aria-hidden="true"
-          className="mx-auto mt-10 h-10 w-10 text-warning"
-        />
+        <BrokenLinkArt className="mx-auto mt-10" />
         <h1 className="type-title mt-6">Algo se rompió de nuestro lado</h1>
         <p className="type-body mt-4 text-muted-foreground">
           No es culpa de lo que hiciste. Tus documentos guardados están

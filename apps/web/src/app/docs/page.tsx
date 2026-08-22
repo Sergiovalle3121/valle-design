@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import {
   PublicPageShell,
   PublicSection,
@@ -29,16 +30,30 @@ export default function DocumentationPage() {
       intro="Aquí se explica cómo se trabaja de verdad con el producto y dónde están sus límites hoy. Las guías están escritas desde lo que el editor hace, no desde lo que nos gustaría que hiciera."
     >
       <PublicSection title="Guías paso a paso">
-        <ul className="space-y-6">
+        {/* Tarjetas y no una lista de enlaces: el índice de guías es la página
+            desde la que se ELIGE, y elegir entre cinco renglones subrayados
+            obliga a leerlos todos antes de decidir. */}
+        <ul className="grid gap-4 sm:grid-cols-2">
           {DOC_GUIDES.map((guide) => (
             <li key={guide.slug}>
               <Link
-                className="text-lg font-semibold text-primary-ink underline-offset-4 hover:underline"
                 href={docGuidePath(guide.slug)}
+                className="group flex h-full flex-col rounded-card border border-border p-5 transition-[background-color,border-color,box-shadow] duration-200 ease-out-expo hover:border-primary/40 hover:bg-card hover:shadow-elevated focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
               >
-                {guide.title}
+                <span className="type-small font-semibold text-foreground">
+                  {guide.title}
+                </span>
+                <span className="type-small mt-2 text-muted-foreground">
+                  {guide.summary}
+                </span>
+                <span className="type-caption mt-4 inline-flex items-center gap-1.5 font-semibold text-primary-ink">
+                  Leer la guía
+                  <ArrowRight
+                    aria-hidden="true"
+                    className="h-3.5 w-3.5 transition-transform duration-200 ease-out-expo group-hover:translate-x-0.5"
+                  />
+                </span>
               </Link>
-              <p className="mt-1">{guide.summary}</p>
             </li>
           ))}
         </ul>

@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Compass } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
+import { NoResultsArt } from "@/components/brand/Illustration";
 import { buttonClass } from "@/components/ui";
 import { COMMERCIAL_LINKS } from "@/config/commercial";
 
@@ -28,10 +28,7 @@ export default function NotFound() {
         <Link href="/" className="inline-flex">
           <Logo />
         </Link>
-        <Compass
-          aria-hidden="true"
-          className="mx-auto mt-10 h-10 w-10 text-muted-foreground"
-        />
+        <NoResultsArt className="mx-auto mt-10" />
         <p className="type-eyebrow mt-6 text-primary-ink">Error 404</p>
         <h1 className="type-title mt-3">Esta página no existe</h1>
         <p className="type-body mt-4 text-muted-foreground">

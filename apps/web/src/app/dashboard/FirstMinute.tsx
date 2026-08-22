@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useRef } from "react";
 import { FilePlus2, PlayCircle, Upload } from "lucide-react";
 import { Button, Surface, cx } from "@/components/ui";
+import { EmptyCanvasArt } from "@/components/brand/Illustration";
 
 /**
  * EL PRIMER MINUTO.
@@ -52,6 +53,7 @@ export function FirstMinute({
         className={cx("mt-10 text-center", className)}
         data-testid="dashboard-empty"
       >
+        <EmptyCanvasArt className="mx-auto mb-5" />
         <h2 className="type-heading">Este espacio todavía está vacío</h2>
         <p className="type-small mx-auto mt-3 max-w-md text-muted-foreground">
           Tu rol permite consultar proyectos y documentos. Cuando alguien de tu
