@@ -100,8 +100,8 @@ es que **nadie lo consume**. Esta campaña no reescribe el sistema: **lo cablea*
 
 ### OLA FINAL — DOCUMENTAR Y PROBAR QUE MEJORÓ
 
-- [ ] F.1 Suite completa de gates + goldens verdes + push
-- [ ] F.2 Antes/después de las 6 pantallas clave → `docs/design/before-after/`
+- [x] F.1 Suite completa de gates + goldens verdes + push
+- [x] F.2 Antes/después de las 6 pantallas clave → `docs/design/before-after/`
 - [x] F.3 `docs/design/DESIGN_SYSTEM.md` + sección de diseño en `AGENTS.md`
 - [x] F.4 `docs/execution/INFORME_CAMPANA_DISENO_20260821.md`
 
@@ -577,3 +577,39 @@ que además gira sola con el tema, cosa que ninguna de las tres hacía—. Dejar
 sesión paralela y `--allow-growth` es una decisión suya, no mía. Igual que
 `asset-catalog.spec.ts` y `nl-quality.spec.ts`, rojos por su retirada de
 vocabulario industrial en vuelo.
+
+### OLA FINAL — cerrada
+
+**F.2 · La prueba, no la afirmación.** El «antes» de las seis pantallas no se
+reconstruyó de memoria: se **midió**. Se creó un árbol de trabajo en `7982cf3`
+—el último commit anterior a la campaña—, se instalaron sus dependencias, se le
+copiaron los tres scripts de captura de HOY y se fotografió con ellos. Misma
+resolución, mismo tema, mismo plano dibujado con los mismos comandos, mismo
+encuadre: lo único que cambia entre las dos columnas es el producto.
+
+El par más elocuente es `estudio-light-antes.png`: el lienzo aclarado con TODAS
+las paletas todavía negras, más el «Cerrar» rojo, el «Select» cian, la paleta de
+texto, «0 estaciones · 0 equipos» y la barra publicando «Tool: select · Native 7
+· Viewport 7/7 · U7/R0». Es el diagnóstico entero en una sola imagen.
+
+**F.3 · Documentación.** `docs/design/DESIGN_SYSTEM.md` (tokens, escala,
+elevación, radio, movimiento, primitivas con su API y cómo se añade algo al
+sistema) y una sección de diseño en `AGENTS.md` — que hasta hoy tenía CERO
+menciones de diseño, y por eso pasó lo que pasó.
+
+**F.4 · Informe** en `docs/execution/INFORME_CAMPANA_DISENO_20260821.md`, con las
+métricas antes/después, los tres hallazgos que no estaban en el encargo, lo que
+queda pendiente con estimación y los diez siguientes pasos.
+
+**Gates finales:** `typecheck` ✅ · `build` ✅ · `lint` ✅ 0 errores ·
+`design-system.spec` ✅ · `organization-slug.spec` ✅ ·
+`build-brand-assets --check` ✅ · goldens **75/87** (los 12 rojos, desglosados
+arriba: 6 preexistentes, 4 de la sesión paralela, 2 míos ya corregidos y
+verificados verdes).
+
+**PENDIENTE AJENO al cerrar:** `check:cad` rojo por el crecimiento de
+`lib/cad/commands/parser.ts` (1 620 → 1 685) y dos specs de `lib/cad` en rojo
+—`architecture.spec.ts` y `templates.spec.ts`, con modificaciones sin confirmar
+que no son mías—. Los tres son de la campaña de identidad que corre en paralelo
+sobre el mismo árbol de trabajo. `check:dwg-evidence` sigue rojo desde antes de
+empezar, en territorio de la sesión de DWG.

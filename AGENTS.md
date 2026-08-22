@@ -126,6 +126,57 @@ tests.
 - No button, import format, price, security statement or compatibility claim
   may be shown unless the backing behavior and relevant boundary are tested.
 
+## Design system — the rule that was missing
+
+`apps/web/src/app/globals.css` had 825 lines of a well-reasoned design system
+and **zero consumers**: `bg-card` 0 uses, `bg-primary` 0, `text-muted-foreground`
+0, `border-border` 0, `.type-display` 0, `var(--shadow-*)` 0. In their place:
+659 arbitrary font sizes across thirteen values (7 px text shipped to users),
+327 classes of an accent the CSS itself banned in writing, seven radii for the
+same control and 329 hand-written buttons behind five incompatible constants.
+
+This section exists so that does not happen again. A system nobody consumes is
+not a system: it is documentation.
+
+**The golden rule**
+
+> No hex outside `globals.css`. No size outside the scale.
+
+**Non-negotiables**
+
+- Import primitives from `@/components/ui` — never hand-roll a button, input,
+  select, modal, badge, tooltip, tab, skeleton or progress bar.
+- Colour comes from tokens. State colours have **two** tokens and they are not
+  interchangeable: `bg-success` fills, `text-success-ink` writes. The fill
+  colour used as text measures 3.02:1 (green), 2.13:1 (amber) and 3.78:1 (red)
+  on a white card — all below the 4.5:1 AA needs. Same for the brand:
+  `bg-brand-strong` fills, `text-primary-ink` writes, and bare `--primary`
+  (4.41:1) is **not** a button fill.
+- Type comes from the scale: `type-display · title · heading · lead · body ·
+  small · caption · micro · mono · eyebrow`. **11 px is a hard floor.**
+- Elevation is `shadow-resting` / `-elevated` / `-floating`, named by intent.
+  Reaching for `shadow-2xl` means leaving the system.
+- Radius is `rounded-control` / `-card` / `-surface`. Three, by surface class.
+- Respect `prefers-reduced-motion`. Both layers already exist and new animation
+  inherits them; do not add a third mechanism.
+- Spanish es-MX in new copy. No emoji in the UI.
+- ACI drawing colours (`#ff0000`, `#00ffff`, …) and the categorical cell palette
+  are **plan data, not brand**. Never tokenize them.
+
+**Gates**
+
+- `apps/web/src/components/ui/design-system.spec.ts` — seven rules, run by
+  `npm run test`. The one that matters is not a prohibition: it asserts the
+  tokens are **in use**. A gate that only forbids would bless the original
+  state, which had zero loose hex and zero consumed tokens.
+- `node scripts/brand/build-brand-assets.mjs --check` — the logo lives in one
+  geometry (`components/brand/logo-geometry.ts`) that feeds `<Logo/>`, the seven
+  SVGs, the favicon, the iOS icon and the social cards. It cannot drift.
+
+**If a token is missing**, add it to `globals.css` with the reasoning beside it
+and consume it from there. Never a loose value in a component. Full reference:
+`docs/design/DESIGN_SYSTEM.md` and `docs/design/BRAND.md`.
+
 ## Native/WASM entry gate
 
 Do not introduce Rust, WASM or a native kernel until profiling identifies a
