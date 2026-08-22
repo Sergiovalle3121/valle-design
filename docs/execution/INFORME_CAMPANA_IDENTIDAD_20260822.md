@@ -219,6 +219,20 @@ Cosas que no estaban en el plan y que la campaña destapó al pasar:
 | `check-monolith-budget`                                       | verde, 13 asignaciones                        |
 | `npm run check:dwg`                                           | **verde**                                     |
 | Golden 35 (frontera del tipo congelado)                       | **4/4 verde**                                 |
+| Barrido completo de goldens (chromium, arbol quieto)          | **81 de 87 verdes en 32.8 min**               |
+
+**Los seis goldens rojos son exactamente los seis que ya fallaban antes de la campaña**, y no uno
+más: `21-cad-xrefs`, `47-cad-lisp-appload`, `47-cad-solids`, `53-cad-bim-wall`,
+`54-cad-bim-wall-joins` y `55-cad-anchored-comments`. La lista coincide literalmente con la que la
+campaña de diseño publicó tras comprobarla sobre `main` limpio con una corrida de control
+(`CAMPANA_DISENO_20260821.md`). Sus aserciones son de dominio CAD —`saved.meta.schema` esperando 6,
+el contador de comandos LISP, dos tiempos de espera de paleta—, ninguna tiene que ver con esta
+campaña. **Regresiones introducidas: cero.**
+
+**Nota de método, aprendida a golpes:** el `webServer` de Playwright es `npm run dev` y recarga en
+caliente con cada guardado. El golden `26-cad-precision-polyline` falló en una corrida hecha mientras
+se editaban archivos (3.2 min de duración, firma inconfundible) y **pasó en 37 s** al repetirlo con
+el árbol quieto. Toda medición de goldens se hace sin tocar el árbol.
 
 **Falla ambiental conocida, previa a la campaña:** `check:dwg-evidence` no pasa en esta máquina
 porque sin `VALLE_DWG_CORPUS_MIRROR` ni `VALLE_DWG_CORPUS_TOKEN` no se descarga el corpus DWG, y el

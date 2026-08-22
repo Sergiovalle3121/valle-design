@@ -465,3 +465,17 @@ Formato: `[hora] OLA · ítem — qué se hizo · decisiones y suposiciones`.
     candado nuevo: **ninguna disciplina se queda sin arranque**.
   - **Verificación:** `tsc` limpio · `web` **381/381** verdes · `lint` 0 errores · gate de identidad
     verde · presupuesto OK.
+
+- `[10:35]` **Barrido completo de goldens, con el árbol quieto: 81 de 87 verdes en 32.8 min.** Los
+  seis rojos son **exactamente** los seis que ya fallaban antes de la campaña —`21-cad-xrefs`,
+  `47-cad-lisp-appload`, `47-cad-solids`, `53-cad-bim-wall`, `54-cad-bim-wall-joins`,
+  `55-cad-anchored-comments`—, la misma lista que la campaña de diseño publicó tras comprobarla sobre
+  `main` limpio. **Regresiones introducidas por esta campaña: cero.**
+  Antes de eso, `26-cad-precision-polyline` había fallado en una corrida hecha **mientras se editaba
+  el árbol** (3.2 min de duración, la firma de una recarga en caliente a mitad de prueba) y pasó en
+  **37 s** al repetirlo con el árbol parado. La nota de método de la sesión paralela era correcta y
+  ahora está comprobada dos veces.
+- `[10:40]` **Campaña cerrada.** Las ocho olas + la final + tres ítems de la cola de reserva (R.3 las
+  cuatro plantillas de disciplina, R.4 la guía de sesión extendida a los otros cuatro oficios, R.5 el
+  ADR-0010). Queda en PENDIENTES lo que exige su propio commit con la suite corriendo entre paso y
+  paso: `mock-backend.ts` (R.1) y el barrido de nombres internos (R.2).
