@@ -14,14 +14,8 @@ The command registry lives in `apps/web/src/lib/cad/commands/registry.ts` and is
 | Command id               | Category | Purpose                                                         | Example                                         |
 | ------------------------ | -------- | --------------------------------------------------------------- | ----------------------------------------------- |
 | `create_clearance_aisle` | layout   | Create a measurable aisle/clearance between two layout objects. | `haz un pasillo de 1.2m entre SMT e inspección` |
-| `align_selection`        | layout   | Align selected objects to a shared edge or centerline.          | `alinea las estaciones seleccionadas al centro` |
+| `align_selection`        | layout   | Align selected objects to a shared edge or centerline.          | `alinea los objetos seleccionados al centro`    |
 | `distribute_selection`   | layout   | Distribute selected objects with equal spacing.                 | `distribuye horizontalmente`                    |
-| `connect_flow`           | flow     | Create sequential flow connectors between stations.             | `conecta flujo de SMT a inspección`             |
-| `arrange_line`           | layout   | Propose a simple sequence-based station arrangement.            | `acomoda la línea de izquierda a derecha`       |
-| `arrange_flow_line`      | flow     | Arrange selected objects by sequence and add flow connectors.   | `acomoda y conecta la linea de flujo`           |
-| `arrange_rack_rows`      | layout   | Arrange selected racks/equipment into warehouse rack rows.      | `acomoda racks en 2 filas con pasillo 3m`       |
-| `analyze_line_balance`   | analysis | Report takt load, bottleneck, missing cycle times, and overloads. | `analiza balanceo de linea takt 45s`          |
-| `trace_material_route`   | flow     | Report the material from-to route using existing connectors or selected sequence. | `traza ruta material`             |
 | `measure_distance`       | analysis | Measure center-to-center distance between two objects.          | `mide distancia entre AOI y empaque`            |
 | `find_collisions`        | analysis | Detect basic bounding-box overlaps.                             | `encuentra colisiones`                          |
 | `validate_layout`        | analysis | Build the combined validation report for layout readiness.      | `valida el layout`                              |
@@ -46,7 +40,7 @@ Minimal flow:
 The shortcut registry lives in `apps/web/src/lib/cad/keyboard-shortcuts.ts`. `Layout3DEditor.tsx` uses it for local workbench actions and reuses the existing toolbar/export/validation handlers:
 
 - `Ctrl/Cmd+K`: open the CAD command palette.
-- `V`, `M`, `A`, `L`, `Z`, `I`, `T`, `F`: select, measure, aisle command prep, connect flow, insert zone, open equipment, add text note, fit view.
+- `V`, `M`, `A`, `Z`, `I`, `T`, `F`: select, measure, clearance command prep, insert zone, open equipment, add text note, fit view.
 - `G`, `O`: toggle grid visibility and object/DXF snapping.
 - `Shift+V`, `E`: run layout validation and open DXF export.
 - `Ctrl/Cmd+Z`, `Ctrl/Cmd+Shift+Z`, `Ctrl/Cmd+Y`: undo/redo through the existing editor history path.
@@ -79,5 +73,3 @@ The command engine is vendor-neutral. If the deployment points to self-hosted CI
 - `Layout3DEditor.tsx` now consumes command previews for the dock, but only as textual/operation previews.
 - Visual ghost previews are not implemented yet; textual/operation previews are the first contract.
 - Collision detection is basic axis-aligned bounding-box detection and intentionally ignores rotation for now.
-- `arrange_rack_rows` rearranges existing selected racks/equipment; it does not create new rack blocks yet.
-- `trace_material_route` reports local connector/sequence geometry only; it does not call backend material routing or MRP data.

@@ -2,8 +2,8 @@
   "$schema": "urn:valle-design:schema:cad-nl-quality-evidence:v1",
   "schemaVersion": 1,
   "benchmarkId": "valle-design-nl-cad-quality-v1",
-  "measuredAt": "2026-08-19T18:43:56.270Z",
-  "commit": "651adafa9c1ff4550ce6735ec4c62568ccab00c2",
+  "measuredAt": "2026-08-22T08:39:42.857Z",
+  "commit": "75573c3a49b9e76433874430b1acac3c07eb49ea",
   "enforcement": "report-only",
   "enforcementRationale": "La corrida es determinista y no mide tiempos, así que `--check` sí puede exigir que el artefacto coincida con el árbol. Lo que NO bloquea es la NOTA: un banco que impide mergear cuando baja la tasa se convierte en dos semanas en un banco al que se le quitan los casos difíciles.",
   "method": {
@@ -908,17 +908,17 @@
     {
       "id": "d-052",
       "lane": "despacho",
-      "text": "acomoda las camas en linea",
-      "trait": "acomodo en línea",
-      "expectedCommandId": "arrange_line",
-      "confidence": 0.74,
+      "text": "distribuye las camas cada 900",
+      "trait": "reparto con paso fijo",
+      "expectedCommandId": "distribute_selection",
+      "confidence": 0.8,
       "outcome": "acierto",
       "grave": false,
-      "actualCommandId": "arrange_line",
+      "actualCommandId": "distribute_selection",
       "rejectionCodes": [],
       "argMismatches": [],
-      "operationsApplied": 3,
-      "detail": "Acomodar 2 estaciones por secuencia."
+      "operationsApplied": 5,
+      "detail": "Distribuir 5 objetos cada 900 mm en horizontal."
     },
     {
       "id": "d-053",
@@ -1476,7 +1476,7 @@
       "rejectionCodes": [],
       "argMismatches": [],
       "operationsApplied": 1,
-      "detail": "47 comandos disponibles; dilos en español."
+      "detail": "40 comandos disponibles; dilos en español."
     },
     {
       "id": "d-089",

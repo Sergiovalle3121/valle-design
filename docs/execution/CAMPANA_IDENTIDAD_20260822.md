@@ -303,3 +303,55 @@ Formato: `[hora] OLA · ítem — qué se hizo · decisiones y suposiciones`.
     `rubric.spec` 51/51 · `check-monolith-budget --update` corrido en el mismo commit, con las dos
     entradas de archivos borrados quitadas del JSON (si no, el script falla buscando un archivo que
     ya no existe — la trampa que la campaña anticipaba).
+
+- `[06:10]` **OLA 5, primera mitad — el copiloto deja de saber de fábricas.**
+  - **5.1 Registry (2 953 → 2 052 líneas, 47 → 40 comandos).** Fuera `connect_flow`, `arrange_line`,
+    `arrange_flow_line`, `arrange_rack_rows`, `analyze_line_balance`, `trace_material_route` y
+    `array_along_flow`, con sus 607 líneas de helpers (score de flujo, objetos de balanceo, ruta de
+    material, previews de racks).
+    **DESVIACIÓN DELIBERADA DEL DIAGNÓSTICO:** `create_clearance_aisle` **se queda**. La campaña lo
+    listaba entre los 10 a borrar, pero «separa dos objetos para crear una holgura medible» es
+    dibujo general —la holgura entre un mueble y un muro, el paso libre de una circulación, las
+    distancias de accesibilidad— y el propio diagnóstico pedía **conservar** «holgura/clearance» en
+    el parser, cosa que sólo tiene sentido si el comando sobrevive. Se le reescribió el ejemplo, que
+    sí era industrial. `create_zone_around` y `draw_rect_zone` también se quedan: son zonas
+    genéricas, como el diagnóstico anticipaba.
+  - **5.2 Parser (1 620 → 1 517 líneas).** Sólo los 3 bloques industriales: balanceo/takt/yamazumi,
+    rack/almacén/pasillo-de-racks y la tríada línea-de-flujo / conectar-flujo / acomodar-línea. Las
+    424 expresiones restantes —el parser de dibujo técnico en español mexicano, con unidades y
+    acentos— **no se tocaron**: son un diferenciador frente a AutoCAD, no residuo. Se conservó
+    «holgura/clearance», como pedía el diagnóstico.
+    *Nota de proceso:* correr prettier sobre el archivo lo INFLABA de 1 517 a 1 685 líneas (no estaba
+    formateado) y eso rompía su presupuesto de monolito, que sólo permite encoger. Se revirtió el
+    formateo y se re-aplicaron los borrados a mano.
+  - **5.5 `asset-catalog.ts` (492 → 437).** Fuera `conveyor`, `aoi`, `agv`, `agvpath` y
+    `calibration_station`, más los arquetipos 3D que se quedaban sin dueño (`belt` del transportador,
+    `cart` del AGV: 113 líneas de geometría). Se **renombraron etiquetas de interfaz** sin tocar
+    ningún `kind` —que sí se persiste—: «Rack»→«Estante», «Estación seg.»→«Punto de seguridad»,
+    «PPE station»→«Equipo de protección», «Tool crib»→«Bodega de herramienta», «Operador»→«Persona»,
+    «Mantto.»→«Área de servicio», y la categoría «Proceso»→«Equipo». La categoría «Logística»
+    desapareció al quedarse vacía. El encabezado del archivo ahora documenta la regla: quitar una
+    entrada NO borra objetos ya guardados (`assetMeta()` degrada a la entrada genérica); renombrar un
+    `kind` sí sería migración de datos.
+  - **Contrato de analítica industrial borrado:** `analysis-extensions.ts` + spec (255 líneas). Era
+    el contrato que el host inyectaba para balanceo/ruta/flujo; sin comandos que lo llamen, sobraba.
+    Con él sale la sección `flow` de `validation-report.ts` y su categoría de issue.
+  - **Lado API:** fuera las herramientas `arrangeLine`/`connectLine` del copiloto, el método
+    `optimize()` de `cad-intent.service` (63 líneas, **sin un solo llamador**) y su
+    `buildOptimizePrompt`, cuyo system prompt empezaba con «Eres un ingeniero industrial que optimiza
+    el layout de una línea de manufactura electrónica (EMS)». El prompt que sí se usa se reescribió a
+    «asistente CAD para dibujo técnico 2D de propósito general».
+  - **Banco NL→CAD:** el corpus perdió el caso `d-052` («acomoda las camas en linea» → `arrange_line`)
+    y, como era un acierto, el suelo del trinquete (80.61 %) se caía. **No se bajó el suelo**: se
+    repuso el caso con uno de dibujo general que el parser sí resuelve («distribuye las camas cada
+    900» → `distribute_selection`). Resultado: 152 casos, despacho 80.6 %, rechazo tipado 100 %,
+    **0 fallos graves**. Artefacto regenerado y comiteado.
+  - **Trinquete:** 27 → **13** entradas de residuo.
+  - **Verificación:** `tsc` de web y api limpios · `web` 381/381 specs verdes · registry.spec y
+    cad-intent.spec verdes tras reescribir sus fixtures («Rack A1»→«Estante A1», el bloque «Conveyor»
+    de la API → «Ventana») · presupuesto de monolito actualizado.
+  - **Incidente de coordinación:** a mitad de la ola, la sesión paralela hizo `git stash` de TODO el
+    árbol compartido para correr un control sobre `main` limpio, y mi trabajo en curso se fue con él.
+    Se recuperó al hacer ellos `pop`. Lección aplicada: commits más cortos y más seguidos mientras
+    dure la sesión paralela. La segunda mitad de la OLA 5 (plantillas, símbolos y congelar `station`)
+    va en su propio commit por eso.

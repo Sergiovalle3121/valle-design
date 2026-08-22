@@ -56,7 +56,7 @@ export const CAD_TOOLS: CadTool[] = [
     function: {
       name: "placeAsset",
       description:
-        "Coloca un equipo/asset (workbench, conveyor, rack, robot, aoi, oven, printer, cart, person, cabinet…).",
+        "Coloca un objeto (mesa, estante, máquina, columna, puerta, zona, persona…).",
       parameters: {
         type: "object",
         properties: {
@@ -109,27 +109,6 @@ export const CAD_TOOLS: CadTool[] = [
   {
     type: "function",
     function: {
-      name: "arrangeLine",
-      description:
-        "Acomoda automáticamente las estaciones colocadas en filas por secuencia.",
-      parameters: { type: "object", properties: {} },
-    },
-  },
-  {
-    type: "function",
-    function: {
-      name: "connectLine",
-      description:
-        "Conecta las estaciones en secuencia con flechas de flujo. kind: flow|conveyor|return.",
-      parameters: {
-        type: "object",
-        properties: { kind: strProp("flow|conveyor|return (opcional)") },
-      },
-    },
-  },
-  {
-    type: "function",
-    function: {
       name: "moveStation",
       description:
         "Mueve una estación (por su nombre, ej. EST-10) a una posición absoluta x,y.",
@@ -165,10 +144,8 @@ export const CAD_TOOLS: CadTool[] = [
 /** Tipos de asset válidos (espejo del asset-catalog del editor). */
 export const ASSET_KINDS = [
   "workbench",
-  "conveyor",
   "rack",
   "robot",
-  "aoi",
   "oven",
   "printer",
   "cnc",
@@ -183,12 +160,9 @@ export const ASSET_KINDS = [
   "wall",
   "zone",
   "path",
-  "agv",
   "person",
   "label",
 ] as const;
-
-const FLOW_KINDS = ["flow", "conveyor", "return"] as const;
 
 export type CadIntent =
   | {
@@ -210,8 +184,6 @@ export type CadIntent =
       };
     }
   | { kind: "draw"; action: DrawAction } // drawWall / addDimension → acciones declarativas
-  | { kind: "arrangeLine" }
-  | { kind: "connectLine"; flow: "flow" | "conveyor" | "return" }
   | { kind: "moveStation"; station: string; x: number; y: number }
   | {
       kind: "cleanupGeometry";
@@ -314,17 +286,6 @@ export function normalizeToolCall(
         },
       };
     }
-    case "arrangeLine":
-      return { ok: true, intent: { kind: "arrangeLine" } };
-    case "connectLine": {
-      const f = String(args.kind ?? "flow")
-        .trim()
-        .toLowerCase();
-      const flow = (FLOW_KINDS as readonly string[]).includes(f)
-        ? (f as "flow" | "conveyor" | "return")
-        : "flow";
-      return { ok: true, intent: { kind: "connectLine", flow } };
-    }
     case "moveStation": {
       const station = String(args.station ?? "").trim();
       const x = num(args.x);
@@ -374,10 +335,6 @@ export function describeCadIntent(intent: CadIntent): string {
       return `Colocar ${intent.asset.label ?? intent.asset.kind} en (${Math.round(intent.asset.x)}, ${Math.round(intent.asset.y)})`;
     case "draw":
       return "Trazar muro/segmento";
-    case "arrangeLine":
-      return "Acomodar estaciones en línea por secuencia";
-    case "connectLine":
-      return `Conectar estaciones con flujo (${intent.flow})`;
     case "moveStation":
       return `Mover ${intent.station} a (${Math.round(intent.x)}, ${Math.round(intent.y)})`;
     case "cleanupGeometry":

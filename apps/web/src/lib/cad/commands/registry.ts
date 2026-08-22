@@ -9,10 +9,6 @@ import type {
 } from "./types";
 import { measureBoxes, measurementLabel } from "../measurements";
 import { detectCadCollisions } from "../collisions";
-import {
-  getCadAnalysisExtensions,
-  type CadFlowScore,
-} from "../analysis-extensions";
 import { buildCadValidationReport } from "../validation-report";
 import {
   error,
@@ -24,7 +20,6 @@ import {
   warning,
 } from "./validators";
 import {
-  arrayAlongFlowPreview,
   arrayPolarPreview,
   arrayRectangularPreview,
   offsetObjectPreview,
@@ -55,10 +50,7 @@ import { swapObjectsPreview } from "./swap";
 import { auditPlanPreview } from "./audit";
 import { selectObjectsPreview } from "./select";
 import { matchObjectsByName } from "./targets";
-import {
-  rotateSelectionPreview,
-  scaleSelectionPreview,
-} from "./transform";
+import { rotateSelectionPreview, scaleSelectionPreview } from "./transform";
 
 const ok = (issues: ReturnType<CadCommandDefinition["validate"]>) =>
   !issues.some((i) => i.level === "error");
@@ -68,11 +60,6 @@ const result = (
   historyLabel: string,
 ): CadCommandResult => ({ ...preview, applied, historyLabel });
 const uniq = <T>(xs: T[]) => [...new Set(xs)];
-const bySequence = (xs: CadBox[]) =>
-  [...xs].sort(
-    (a, b) =>
-      (a.sequence ?? 0) - (b.sequence ?? 0) || a.label.localeCompare(b.label),
-  );
 
 function clearancePreview(
   input: Extract<CadCommandInput, { id: "create_clearance_aisle" }>,
@@ -135,7 +122,10 @@ function alignPreview(
       affectedObjectIds: [],
       operations: [],
       issues: [
-        error("target_not_found", `No encontré '${input.target?.trim()}' en el plano.`),
+        error(
+          "target_not_found",
+          `No encontré '${input.target?.trim()}' en el plano.`,
+        ),
       ],
     };
   }
@@ -221,7 +211,10 @@ function distributePreview(
       affectedObjectIds: [],
       operations: [],
       issues: [
-        error("target_not_found", `No encontré '${input.target?.trim()}' en el plano.`),
+        error(
+          "target_not_found",
+          `No encontré '${input.target?.trim()}' en el plano.`,
+        ),
       ],
     };
   }
@@ -252,8 +245,7 @@ function distributePreview(
     ? sorted[sorted.length - 1].x + sorted[sorted.length - 1].w
     : sorted[sorted.length - 1].y + sorted[sorted.length - 1].h;
   const total = sorted.reduce((sum, o) => sum + (horizontal ? o.w : o.h), 0);
-  const gap =
-    fixedGap ?? (endEdge - start - total) / (sorted.length - 1);
+  const gap = fixedGap ?? (endEdge - start - total) / (sorted.length - 1);
   let cursor = start;
   const operations: CadOperation[] = sorted.map((o) => {
     const after = { ...o };
@@ -269,613 +261,6 @@ function distributePreview(
         : `Distribuir ${objects.length} objetos en ${input.axis}.`,
     affectedObjectIds: objects.map((o) => o.id),
     operations,
-    issues,
-  };
-}
-
-function flowObjects(
-  input: { objectIds?: string[] },
-  context: Parameters<CadCommandDefinition["preview"]>[1],
-) {
-  const explicit = input.objectIds?.length
-    ? input.objectIds
-    : context.selectedIds;
-  const objects = explicit.length
-    ? explicit
-        .map((id) => context.objects.find((o) => o.id === id))
-        .filter((o): o is CadBox => !!o)
-    : context.objects.filter((o) => o.type === "station");
-  return bySequence(objects);
-}
-
-function flowScoreRows(objects: CadBox[]): { label: string; value: string }[] {
-  const score = flowScore(objects);
-  if (!score)
-    return [
-      { label: "Flujo", value: "Análisis no disponible en esta edición" },
-    ];
-  return [
-    { label: "Score", value: `${score.score}/100` },
-    {
-      label: "Distancia total",
-      value: `${Math.round(score.totalDistance)} mm`,
-    },
-    { label: "Cruces", value: String(score.crossingCount) },
-    { label: "Backtracking", value: String(score.backtrackingCount) },
-  ];
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
-}
-
-function flowScore(objects: CadBox[]): CadFlowScore | undefined {
-  // Analítica industrial inyectada por el host; sin ella el comando sigue
-  // funcionando y solo omite las métricas de flujo.
-  return getCadAnalysisExtensions()?.scoreFlowLayout(
-    objects.map((object) => ({
-      id: object.id,
-      label: object.label,
-      x: object.x + object.w / 2,
-      y: object.y + object.h / 2,
-    })),
-  );
-}
-
-function arrangeFlowLinePreview(
-  input: Extract<CadCommandInput, { id: "arrange_flow_line" }>,
-  context: Parameters<CadCommandDefinition["preview"]>[1],
-): CadCommandPreview {
-  const objects = flowObjects(input, context);
-  const issues =
-    objects.length >= 2
-      ? []
-      : [
-          error(
-            "selection_too_small",
-            "Selecciona al menos 2 objetos para crear una linea de flujo.",
-          ),
-        ];
-  if (objects.length < 2)
-    return {
-      summary: "Acomodar linea de flujo",
-      affectedObjectIds: objects.map((object) => object.id),
-      operations: [],
-      issues,
-    };
-
-  const direction = input.direction ?? "left_to_right";
-  const gap = Math.max(0, input.gap ?? 500);
-  const margin = Math.max(0, input.margin ?? 500);
-  const hasFootprint = context.footprintW > 0 && context.footprintH > 0;
-  const cursor = { x: margin, y: margin };
-  const moveOps: CadOperation[] = [];
-  let clipped = false;
-
-  for (const object of objects) {
-    const after = { ...object };
-    if (direction === "top_to_bottom") {
-      after.x = hasFootprint
-        ? clamp(margin, 0, Math.max(0, context.footprintW - object.w))
-        : margin;
-      after.y = hasFootprint
-        ? clamp(cursor.y, 0, Math.max(0, context.footprintH - object.h))
-        : cursor.y;
-      clipped ||= hasFootprint && after.y !== cursor.y;
-      cursor.y += object.h + gap;
-    } else {
-      after.x = hasFootprint
-        ? clamp(cursor.x, 0, Math.max(0, context.footprintW - object.w))
-        : cursor.x;
-      after.y = hasFootprint
-        ? clamp(margin, 0, Math.max(0, context.footprintH - object.h))
-        : margin;
-      clipped ||= hasFootprint && after.x !== cursor.x;
-      cursor.x += object.w + gap;
-    }
-    moveOps.push({ type: "move", objectId: object.id, before: object, after });
-  }
-
-  if (clipped)
-    issues.push(
-      warning(
-        "flow_line_clipped",
-        "La linea no cabe completa en el footprint; algunas posiciones fueron limitadas.",
-        objects.map((object) => object.id),
-      ),
-    );
-
-  const arranged = moveOps
-    .map((op) => (op.type === "move" ? op.after : null))
-    .filter((box): box is CadBox => !!box);
-  const before = flowScore(objects);
-  const after = flowScore(arranged);
-  const connectOps: CadOperation[] = objects
-    .slice(0, -1)
-    .map((object, idx) => ({
-      type: "connect",
-      from: object.id,
-      to: objects[idx + 1].id,
-      kind: "flow",
-    }));
-  const scoreRows =
-    before && after
-      ? [
-          { label: "Score antes", value: `${before.score}/100` },
-          { label: "Score despues", value: `${after.score}/100` },
-          {
-            label: "Distancia despues",
-            value: `${Math.round(after.totalDistance)} mm`,
-          },
-        ]
-      : [{ label: "Flujo", value: "Análisis no disponible en esta edición" }];
-  const report: CadOperation = {
-    type: "report",
-    title: "Linea de flujo",
-    rows: [
-      { label: "Objetos", value: String(objects.length) },
-      {
-        label: "Direccion",
-        value: direction === "top_to_bottom" ? "Vertical" : "Horizontal",
-      },
-      { label: "Separacion", value: `${Math.round(gap)} mm` },
-      ...scoreRows,
-    ],
-  };
-
-  return {
-    summary: `Acomodar y conectar ${objects.length} objetos como linea de flujo.`,
-    affectedObjectIds: objects.map((object) => object.id),
-    operations: [...moveOps, ...connectOps, report],
-    issues,
-  };
-}
-
-const RACK_LABEL = /rack|estante|warehouse|almacen|supermarket|pallet|tarima/i;
-
-function spatialOrder(a: CadBox, b: CadBox): number {
-  return a.y - b.y || a.x - b.x || a.label.localeCompare(b.label);
-}
-
-function rackObjects(
-  input: { objectIds?: string[] },
-  context: Parameters<CadCommandDefinition["preview"]>[1],
-): CadBox[] {
-  const explicit = input.objectIds?.length
-    ? input.objectIds
-    : context.selectedIds;
-  if (explicit.length)
-    return explicit
-      .map((id) => context.objects.find((object) => object.id === id))
-      .filter((object): object is CadBox => !!object);
-  return context.objects
-    .filter((object) => RACK_LABEL.test(`${object.id} ${object.label}`))
-    .sort(spatialOrder);
-}
-
-function clampInteger(
-  value: number | undefined,
-  min: number,
-  max: number,
-  fallback: number,
-): number {
-  const parsed = Number.isFinite(value)
-    ? Math.trunc(value as number)
-    : fallback;
-  return Math.max(min, Math.min(max, parsed));
-}
-
-function arrangeRackRowsPreview(
-  input: Extract<CadCommandInput, { id: "arrange_rack_rows" }>,
-  context: Parameters<CadCommandDefinition["preview"]>[1],
-): CadCommandPreview {
-  const objects = rackObjects(input, context);
-  const issues =
-    objects.length >= 2
-      ? []
-      : [
-          error(
-            "selection_too_small",
-            "Selecciona al menos 2 racks/equipos para acomodar filas de almacen.",
-          ),
-        ];
-  if (objects.length < 2)
-    return {
-      summary: "Acomodar filas de racks",
-      affectedObjectIds: objects.map((object) => object.id),
-      operations: [],
-      issues,
-    };
-
-  const orientation = input.orientation ?? "horizontal";
-  const defaultRows = objects.length > 6 ? 2 : 1;
-  const rows = clampInteger(input.rows, 1, objects.length, defaultRows);
-  let baysPerRow = clampInteger(
-    input.baysPerRow,
-    1,
-    objects.length,
-    Math.ceil(objects.length / rows),
-  );
-  if (rows * baysPerRow < objects.length) {
-    baysPerRow = Math.ceil(objects.length / rows);
-    issues.push(
-      warning(
-        "rack_row_capacity_expanded",
-        "La capacidad indicada no alcanza; se aumento el numero de bahias por fila.",
-        objects.map((object) => object.id),
-      ),
-    );
-  }
-
-  const aisleWidth = Math.max(0, input.aisleWidth ?? 3000);
-  const bayGap = Math.max(0, input.bayGap ?? 100);
-  const margin = Math.max(0, input.margin ?? 500);
-  const hasFootprint = context.footprintW > 0 && context.footprintH > 0;
-  const moveOps: CadOperation[] = [];
-  let clipped = false;
-  let cursor = 0;
-  const grouped: CadBox[][] = [];
-  while (cursor < objects.length) {
-    grouped.push(objects.slice(cursor, cursor + baysPerRow));
-    cursor += baysPerRow;
-  }
-
-  if (orientation === "vertical") {
-    let x = margin;
-    for (const row of grouped) {
-      let y = margin;
-      const columnWidth = Math.max(...row.map((object) => object.w));
-      for (const object of row) {
-        const target = { x, y };
-        const after = { ...object };
-        after.x = hasFootprint
-          ? clamp(target.x, 0, Math.max(0, context.footprintW - object.w))
-          : target.x;
-        after.y = hasFootprint
-          ? clamp(target.y, 0, Math.max(0, context.footprintH - object.h))
-          : target.y;
-        clipped ||=
-          hasFootprint && (after.x !== target.x || after.y !== target.y);
-        moveOps.push({
-          type: "move",
-          objectId: object.id,
-          before: object,
-          after,
-        });
-        y += object.h + bayGap;
-      }
-      x += columnWidth + aisleWidth;
-    }
-  } else {
-    let y = margin;
-    for (const row of grouped) {
-      let x = margin;
-      const rowHeight = Math.max(...row.map((object) => object.h));
-      for (const object of row) {
-        const target = { x, y };
-        const after = { ...object };
-        after.x = hasFootprint
-          ? clamp(target.x, 0, Math.max(0, context.footprintW - object.w))
-          : target.x;
-        after.y = hasFootprint
-          ? clamp(target.y, 0, Math.max(0, context.footprintH - object.h))
-          : target.y;
-        clipped ||=
-          hasFootprint && (after.x !== target.x || after.y !== target.y);
-        moveOps.push({
-          type: "move",
-          objectId: object.id,
-          before: object,
-          after,
-        });
-        x += object.w + bayGap;
-      }
-      y += rowHeight + aisleWidth;
-    }
-  }
-
-  if (clipped)
-    issues.push(
-      warning(
-        "rack_rows_clipped",
-        "Las filas no caben completas en el footprint; algunas posiciones fueron limitadas.",
-        objects.map((object) => object.id),
-      ),
-    );
-
-  const report: CadOperation = {
-    type: "report",
-    title: "Filas de racks",
-    rows: [
-      { label: "Objetos", value: String(objects.length) },
-      { label: "Filas", value: String(grouped.length) },
-      { label: "Bahias/fila", value: String(baysPerRow) },
-      {
-        label: "Orientacion",
-        value: orientation === "vertical" ? "Vertical" : "Horizontal",
-      },
-      { label: "Pasillo", value: `${Math.round(aisleWidth)} mm` },
-      { label: "Separacion bahias", value: `${Math.round(bayGap)} mm` },
-    ],
-  };
-
-  return {
-    summary: `Acomodar ${objects.length} racks/equipos en ${grouped.length} fila(s).`,
-    affectedObjectIds: objects.map((object) => object.id),
-    operations: [...moveOps, report],
-    issues,
-  };
-}
-
-function lineBalanceObjects(
-  input: { objectIds?: string[] },
-  context: Parameters<CadCommandDefinition["preview"]>[1],
-): CadBox[] {
-  const explicit = input.objectIds?.length
-    ? input.objectIds
-    : context.selectedIds;
-  const objects = explicit.length
-    ? explicit
-        .map((id) => context.objects.find((object) => object.id === id))
-        .filter((object): object is CadBox => !!object)
-    : context.objects.filter((object) => object.type === "station");
-  return bySequence(objects);
-}
-
-function fmtSeconds(value: number | undefined): string {
-  return value == null ? "Sin dato" : `${Math.round(value * 10) / 10}s`;
-}
-
-function analyzeLineBalancePreview(
-  input: Extract<CadCommandInput, { id: "analyze_line_balance" }>,
-  context: Parameters<CadCommandDefinition["preview"]>[1],
-): CadCommandPreview {
-  const objects = lineBalanceObjects(input, context);
-  const issues =
-    objects.length >= 2
-      ? []
-      : [
-          error(
-            "selection_too_small",
-            "Selecciona al menos 2 estaciones para analizar balanceo.",
-          ),
-        ];
-  const analysis = getCadAnalysisExtensions();
-  if (!analysis)
-    return {
-      summary: "Analizar balanceo de línea",
-      affectedObjectIds: objects.map((object) => object.id),
-      operations: [],
-      issues: [
-        ...issues,
-        error(
-          "analysis_pack_missing",
-          "El análisis de balanceo no está disponible en esta edición.",
-        ),
-      ],
-    };
-  const report = analysis.buildLineBalanceReport({
-    taktTimeSec: input.taktTimeSec,
-    stations: objects.map((object) => ({
-      id: object.id,
-      label: object.label,
-      cycleTimeSec: input.cycleTimes?.[object.id],
-    })),
-  });
-
-  if (objects.length >= 2 && report.missingStationIds.length)
-    issues.push(
-      warning(
-        "line_balance_cycle_times_missing",
-        `Faltan tiempos de ciclo en ${report.missingStationIds.length} estacion(es).`,
-        report.missingStationIds,
-      ),
-    );
-  if (objects.length >= 2 && report.overloadedStationIds.length)
-    issues.push(
-      warning(
-        "line_balance_over_takt",
-        `${report.overloadedStationIds.length} estacion(es) exceden el takt.`,
-        report.overloadedStationIds,
-      ),
-    );
-  if (objects.length >= 2 && !report.taktTimeSec)
-    issues.push(
-      warning(
-        "line_balance_takt_missing",
-        "No se indico takt; el reporte usa el cuello de botella como referencia.",
-        objects.map((object) => object.id),
-      ),
-    );
-
-  const rows = [
-    { label: "Score", value: `${report.balanceScore}/100` },
-    {
-      label: "Cuello de botella",
-      value: report.bottleneck
-        ? `${report.bottleneck.label} (${fmtSeconds(report.bottleneck.cycleTimeSec)})`
-        : "Sin tiempos",
-    },
-    {
-      label: "Sobre takt",
-      value: String(report.overloadedStationIds.length),
-    },
-    { label: "Takt", value: fmtSeconds(report.taktTimeSec) },
-    {
-      label: "Estaciones medidas",
-      value: `${report.measuredStationCount}/${report.stationCount}`,
-    },
-    {
-      label: "Carga maxima",
-      value:
-        report.maxLoadPercent == null
-          ? "Sin dato"
-          : `${report.maxLoadPercent}%`,
-    },
-    {
-      label: "Eficiencia",
-      value:
-        report.balanceEfficiencyPercent == null
-          ? "Sin dato"
-          : `${report.balanceEfficiencyPercent}%`,
-    },
-    {
-      label: "Recomendacion",
-      value: report.recommendations[0] ?? "Sin recomendacion",
-    },
-  ];
-
-  return {
-    summary: `Analizar balanceo de ${objects.length} estacion(es).`,
-    affectedObjectIds: objects.map((object) => object.id),
-    operations:
-      objects.length >= 2
-        ? [{ type: "report", title: "Balanceo de linea", rows }]
-        : [],
-    issues,
-  };
-}
-
-function materialRouteObjects(
-  input: { objectIds?: string[] },
-  context: Parameters<CadCommandDefinition["preview"]>[1],
-): CadBox[] {
-  const explicit = input.objectIds?.length
-    ? input.objectIds
-    : context.selectedIds;
-  if (explicit.length) {
-    return explicit
-      .map((id) => context.objects.find((object) => object.id === id))
-      .filter((object): object is CadBox => !!object);
-  }
-  const connectorIds = uniq(
-    (context.connectors ?? []).flatMap((connector) => [
-      connector.from,
-      connector.to,
-    ]),
-  );
-  if (connectorIds.length) {
-    return connectorIds
-      .map((id) => context.objects.find((object) => object.id === id))
-      .filter((object): object is CadBox => !!object);
-  }
-  return bySequence(
-    context.objects.filter((object) => object.type === "station"),
-  );
-}
-
-function fmtDistanceMm(value: number | undefined): string {
-  return value == null ? "Sin dato" : `${Math.round(value)} mm`;
-}
-
-function traceMaterialRoutePreview(
-  input: Extract<CadCommandInput, { id: "trace_material_route" }>,
-  context: Parameters<CadCommandDefinition["preview"]>[1],
-): CadCommandPreview {
-  const objects = materialRouteObjects(input, context);
-  const issues =
-    objects.length >= 2
-      ? []
-      : [
-          error(
-            "selection_too_small",
-            "Selecciona al menos 2 objetos o crea conectores de flujo/material.",
-          ),
-        ];
-  if (objects.length < 2)
-    return {
-      summary: "Trazar ruta material",
-      affectedObjectIds: objects.map((object) => object.id),
-      operations: [],
-      issues,
-    };
-
-  const selectedIds = input.objectIds?.length
-    ? input.objectIds
-    : context.selectedIds.length
-      ? context.selectedIds
-      : undefined;
-  const analysis = getCadAnalysisExtensions();
-  if (!analysis)
-    return {
-      summary: "Trazar ruta material",
-      affectedObjectIds: objects.map((object) => object.id),
-      operations: [],
-      issues: [
-        ...issues,
-        error(
-          "analysis_pack_missing",
-          "El análisis de ruta de material no está disponible en esta edición.",
-        ),
-      ],
-    };
-  const report = analysis.buildMaterialRouteReport({
-    selectedIds,
-    connectors: context.connectors,
-    nodes: objects.map((object) => ({
-      id: object.id,
-      label: object.label,
-      x: object.x + object.w / 2,
-      y: object.y + object.h / 2,
-    })),
-  });
-
-  if (report.connectorCount === 0)
-    issues.push(
-      warning(
-        "material_route_no_connectors",
-        "No hay conectores flow/material; se uso la secuencia de objetos.",
-        report.routeNodeIds,
-      ),
-    );
-  if (report.missingConnectorRefs.length)
-    issues.push(
-      warning(
-        "material_route_missing_refs",
-        `${report.missingConnectorRefs.length} endpoint(s) de conector no existen en el layout.`,
-      ),
-    );
-  if (report.flow.crossingCount)
-    issues.push(
-      warning(
-        "material_route_crossings",
-        `${report.flow.crossingCount} cruce(s) de ruta material detectados.`,
-        report.routeNodeIds,
-      ),
-    );
-  if (report.flow.backtrackingCount)
-    issues.push(
-      warning(
-        "material_route_backtracking",
-        `${report.flow.backtrackingCount} tramo(s) con backtracking.`,
-        report.routeNodeIds,
-      ),
-    );
-
-  const rows = [
-    { label: "Objetos ruta", value: String(report.nodeCount) },
-    { label: "Tramos", value: String(report.legCount) },
-    { label: "Conectores usados", value: String(report.connectorCount) },
-    { label: "Distancia total", value: fmtDistanceMm(report.totalDistance) },
-    {
-      label: "Tramo mas largo",
-      value: report.longestLeg
-        ? `${report.longestLeg.fromLabel} -> ${report.longestLeg.toLabel} (${fmtDistanceMm(report.longestLeg.distance)})`
-        : "Sin dato",
-    },
-    { label: "Cruces", value: String(report.flow.crossingCount) },
-    { label: "Backtracking", value: String(report.flow.backtrackingCount) },
-    { label: "Score", value: `${report.flow.score}/100` },
-    ...report.legs.slice(0, 4).map((leg) => ({
-      label: `${leg.fromLabel} -> ${leg.toLabel}`,
-      value: fmtDistanceMm(leg.distance),
-    })),
-  ];
-
-  return {
-    summary: `Trazar ruta material de ${report.nodeCount} objeto(s): ${fmtDistanceMm(report.totalDistance)}.`,
-    affectedObjectIds: report.routeNodeIds,
-    operations: [{ type: "report", title: "Ruta material", rows }],
     issues,
   };
 }
@@ -973,9 +358,7 @@ function helpCommandsPreview(): CadCommandPreview {
   return {
     summary: `${CAD_COMMAND_REGISTRY.length} comandos disponibles; dilos en español.`,
     affectedObjectIds: [],
-    operations: [
-      { type: "report", title: "Comandos del copiloto CAD", rows },
-    ],
+    operations: [{ type: "report", title: "Comandos del copiloto CAD", rows }],
     issues: [],
   };
 }
@@ -1073,7 +456,8 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       },
       gap: {
         type: "number",
-        description: "Separación fija en mm ('cada 800'); sin ella iguala huecos.",
+        description:
+          "Separación fija en mm ('cada 800'); sin ella iguala huecos.",
       },
       objectIds: { type: "string[]", description: "Objetos afectados." },
     },
@@ -1091,282 +475,6 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     execute: (i, c) => {
       const p = distributePreview(
         i as Extract<CadCommandInput, { id: "distribute_selection" }>,
-        c,
-      );
-      return result(p, ok(p.issues), p.summary);
-    },
-  },
-  {
-    id: "connect_flow",
-    label: "Conectar flujo",
-    category: "flow",
-    description: "Crea conectores secuenciales entre estaciones.",
-    inputSchema: {
-      objectIds: {
-        type: "string[]",
-        description: "Estaciones a conectar en secuencia.",
-      },
-      from: { type: "string", description: "Origen opcional." },
-      to: { type: "string", description: "Destino opcional." },
-    },
-    examples: ["conecta flujo de SMT a inspección"],
-    validate: (i, c) =>
-      flowObjects(i as Extract<CadCommandInput, { id: "connect_flow" }>, c)
-        .length >= 2
-        ? []
-        : [
-            error(
-              "selection_too_small",
-              "Selecciona al menos 2 estaciones para conectar flujo.",
-            ),
-          ],
-    preview: (i, c) => {
-      const xs = flowObjects(
-        i as Extract<CadCommandInput, { id: "connect_flow" }>,
-        c,
-      );
-      const ops: CadOperation[] = xs.slice(0, -1).map((o, idx) => ({
-        type: "connect",
-        from: o.id,
-        to: xs[idx + 1].id,
-        kind: "flow",
-      }));
-      const flowReport: CadOperation = {
-        type: "report",
-        title: "Métricas de flujo",
-        rows: flowScoreRows(xs),
-      };
-      return {
-        summary: `Conectar ${ops.length} tramos de flujo.`,
-        affectedObjectIds: xs.map((o) => o.id),
-        operations: xs.length >= 2 ? [...ops, flowReport] : ops,
-        issues:
-          xs.length >= 2
-            ? []
-            : [
-                error(
-                  "selection_too_small",
-                  "Selecciona al menos 2 estaciones para conectar flujo.",
-                ),
-              ],
-      };
-    },
-    execute: (i, c) => {
-      const p = CAD_COMMAND_REGISTRY.find(
-        (d) => d.id === "connect_flow",
-      )!.preview(i, c);
-      return result(p, ok(p.issues), p.summary);
-    },
-  },
-  {
-    id: "arrange_line",
-    label: "Acomodar línea",
-    category: "layout",
-    description: "Propone acomodo secuencial simple para estaciones.",
-    inputSchema: {
-      direction: {
-        type: "enum",
-        enum: ["left_to_right", "top_to_bottom"],
-        description: "Dirección del acomodo.",
-      },
-      objectIds: { type: "string[]", description: "Estaciones a acomodar." },
-    },
-    examples: ["acomoda la línea de izquierda a derecha"],
-    validate: (i, c) =>
-      flowObjects(i as Extract<CadCommandInput, { id: "arrange_line" }>, c)
-        .length >= 1
-        ? []
-        : [error("selection_empty", "No hay estaciones para acomodar.")],
-    preview: (i, c) => {
-      const input = i as Extract<CadCommandInput, { id: "arrange_line" }>;
-      const xs = flowObjects(input, c);
-      const gap = 500;
-      const cursor = { x: gap, y: gap };
-      const ops: CadOperation[] = xs.map((o) => {
-        const after = { ...o, x: cursor.x, y: cursor.y };
-        if (input.direction === "top_to_bottom") cursor.y += o.h + gap;
-        else cursor.x += o.w + gap;
-        return { type: "move", objectId: o.id, before: o, after };
-      });
-      const arranged = ops
-        .map((op) => (op.type === "move" ? op.after : null))
-        .filter((box): box is CadBox => !!box);
-      const flowReport: CadOperation = {
-        type: "report",
-        title: "Score de flujo posterior",
-        rows: flowScoreRows(arranged),
-      };
-      return {
-        summary: `Acomodar ${xs.length} estaciones por secuencia.`,
-        affectedObjectIds: xs.map((o) => o.id),
-        operations: xs.length ? [...ops, flowReport] : ops,
-        issues: xs.length
-          ? []
-          : [error("selection_empty", "No hay estaciones para acomodar.")],
-      };
-    },
-    execute: (i, c) => {
-      const p = CAD_COMMAND_REGISTRY.find(
-        (d) => d.id === "arrange_line",
-      )!.preview(i, c);
-      return result(p, ok(p.issues), p.summary);
-    },
-  },
-  {
-    id: "arrange_flow_line",
-    label: "Acomodar linea de flujo",
-    category: "flow",
-    description:
-      "Acomoda objetos por secuencia y crea conectores de flujo en una sola vista previa.",
-    inputSchema: {
-      direction: {
-        type: "enum",
-        enum: ["left_to_right", "top_to_bottom"],
-        description: "Direccion del acomodo.",
-      },
-      objectIds: { type: "string[]", description: "Objetos a acomodar." },
-      gap: {
-        type: "number",
-        description: "Separacion entre objetos en mm.",
-      },
-      margin: {
-        type: "number",
-        description: "Margen inicial desde el footprint en mm.",
-      },
-    },
-    examples: [
-      "acomoda y conecta la linea de flujo",
-      "crea una linea de flujo horizontal",
-    ],
-    validate: (i, c) =>
-      arrangeFlowLinePreview(
-        i as Extract<CadCommandInput, { id: "arrange_flow_line" }>,
-        c,
-      ).issues.filter((issue) => issue.level === "error"),
-    preview: (i, c) =>
-      arrangeFlowLinePreview(
-        i as Extract<CadCommandInput, { id: "arrange_flow_line" }>,
-        c,
-      ),
-    execute: (i, c) => {
-      const p = arrangeFlowLinePreview(
-        i as Extract<CadCommandInput, { id: "arrange_flow_line" }>,
-        c,
-      );
-      return result(p, ok(p.issues), p.summary);
-    },
-  },
-  {
-    id: "arrange_rack_rows",
-    label: "Acomodar racks",
-    category: "layout",
-    description:
-      "Acomoda racks/equipos seleccionados en filas de almacen con pasillos medibles.",
-    inputSchema: {
-      orientation: {
-        type: "enum",
-        enum: ["horizontal", "vertical"],
-        description: "Direccion de las filas de racks.",
-      },
-      objectIds: { type: "string[]", description: "Racks/equipos a acomodar." },
-      rows: { type: "number", description: "Numero de filas." },
-      baysPerRow: { type: "number", description: "Bahias por fila." },
-      bayGap: { type: "number", description: "Separacion entre bahias en mm." },
-      aisleWidth: { type: "number", description: "Ancho de pasillo en mm." },
-      margin: { type: "number", description: "Margen inicial en mm." },
-    },
-    examples: [
-      "acomoda racks en 2 filas con pasillo 3m",
-      "arrange warehouse racks in 3 rows",
-    ],
-    validate: (i, c) =>
-      arrangeRackRowsPreview(
-        i as Extract<CadCommandInput, { id: "arrange_rack_rows" }>,
-        c,
-      ).issues.filter((issue) => issue.level === "error"),
-    preview: (i, c) =>
-      arrangeRackRowsPreview(
-        i as Extract<CadCommandInput, { id: "arrange_rack_rows" }>,
-        c,
-      ),
-    execute: (i, c) => {
-      const p = arrangeRackRowsPreview(
-        i as Extract<CadCommandInput, { id: "arrange_rack_rows" }>,
-        c,
-      );
-      return result(p, ok(p.issues), p.summary);
-    },
-  },
-  {
-    id: "analyze_line_balance",
-    label: "Analizar balanceo",
-    category: "analysis",
-    description:
-      "Calcula takt, cuello de botella, carga y faltantes de tiempos de ciclo para la linea seleccionada.",
-    inputSchema: {
-      objectIds: { type: "string[]", description: "Estaciones a analizar." },
-      taktTimeSec: {
-        type: "number",
-        description: "Takt objetivo en segundos.",
-      },
-      cycleTimes: {
-        type: "object",
-        description:
-          "Mapa opcional objectId -> segundos. Si falta, se leen etiquetas como CT=42s.",
-      },
-    },
-    examples: [
-      "analiza balanceo de linea takt 45s",
-      "yamazumi de estaciones seleccionadas",
-    ],
-    validate: (i, c) =>
-      analyzeLineBalancePreview(
-        i as Extract<CadCommandInput, { id: "analyze_line_balance" }>,
-        c,
-      ).issues.filter((issue) => issue.level === "error"),
-    preview: (i, c) =>
-      analyzeLineBalancePreview(
-        i as Extract<CadCommandInput, { id: "analyze_line_balance" }>,
-        c,
-      ),
-    execute: (i, c) => {
-      const p = analyzeLineBalancePreview(
-        i as Extract<CadCommandInput, { id: "analyze_line_balance" }>,
-        c,
-      );
-      return result(p, ok(p.issues), p.summary);
-    },
-  },
-  {
-    id: "trace_material_route",
-    label: "Trazar ruta material",
-    category: "flow",
-    description:
-      "Reporta la ruta from-to de materiales usando conectores existentes o la secuencia seleccionada.",
-    inputSchema: {
-      objectIds: {
-        type: "string[]",
-        description: "Objetos a incluir en la ruta material.",
-      },
-    },
-    examples: [
-      "traza ruta material",
-      "reporte from-to de materiales",
-      "material route for selected stations",
-    ],
-    validate: (i, c) =>
-      traceMaterialRoutePreview(
-        i as Extract<CadCommandInput, { id: "trace_material_route" }>,
-        c,
-      ).issues.filter((issue) => issue.level === "error"),
-    preview: (i, c) =>
-      traceMaterialRoutePreview(
-        i as Extract<CadCommandInput, { id: "trace_material_route" }>,
-        c,
-      ),
-    execute: (i, c) => {
-      const p = traceMaterialRoutePreview(
-        i as Extract<CadCommandInput, { id: "trace_material_route" }>,
         c,
       );
       return result(p, ok(p.issues), p.summary);
@@ -1528,17 +636,8 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         width: box.w,
         height: box.h,
       }));
-      const flowNodes = bySequence(xs.filter((o) => o.type === "station")).map(
-        (box) => ({
-          id: box.id,
-          label: box.label,
-          x: box.x + box.w / 2,
-          y: box.y + box.h / 2,
-        }),
-      );
       const report = buildCadValidationReport({
         boxes,
-        flowNodes: flowNodes.length >= 2 ? flowNodes : undefined,
         requiredClearance: input.requiredClearance,
       });
       const severityLabel =
@@ -1553,8 +652,6 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         { label: "Holguras", value: String(report.clearances.length) },
         { label: "Zonas de seguridad", value: String(report.safety.length) },
       ];
-      if (report.flow)
-        rows.push({ label: "Flujo", value: `${report.flow.score}/100` });
       const affected = uniq([
         ...report.collisions.flatMap((hit) => [hit.aId, hit.bId]),
         ...report.clearances.flatMap((issue) => [issue.aId, issue.bId]),
@@ -1724,42 +821,6 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     },
   },
   {
-    id: "array_along_flow",
-    label: "Arreglo sobre flujo",
-    category: "flow",
-    description:
-      "Distribuye copias del activo seleccionado equiespaciadas a lo largo de la ruta de flujo conectada.",
-    inputSchema: {
-      count: {
-        type: "number",
-        required: true,
-        description: "Copias a colocar.",
-      },
-      objectIds: {
-        type: "string[]",
-        description: "Activo a replicar (exactamente 1).",
-      },
-    },
-    examples: ["coloca 5 copias a lo largo del flujo"],
-    validate: (i, c) =>
-      arrayAlongFlowPreview(
-        i as Extract<CadCommandInput, { id: "array_along_flow" }>,
-        c,
-      ).issues,
-    preview: (i, c) =>
-      arrayAlongFlowPreview(
-        i as Extract<CadCommandInput, { id: "array_along_flow" }>,
-        c,
-      ),
-    execute: (i, c) => {
-      const p = arrayAlongFlowPreview(
-        i as Extract<CadCommandInput, { id: "array_along_flow" }>,
-        c,
-      );
-      return result(p, ok(p.issues), p.summary);
-    },
-  },
-  {
     id: "offset_object",
     label: "Copia paralela (offset)",
     category: "layout",
@@ -1825,7 +886,10 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         description: "Alternativa: objetos seleccionados.",
       },
     },
-    examples: ["espejo vertical de la selección", "espejo horizontal sin copia"],
+    examples: [
+      "espejo vertical de la selección",
+      "espejo horizontal sin copia",
+    ],
     validate: (i, c) =>
       mirrorSelectionPreview(
         i as Extract<CadCommandInput, { id: "mirror_selection" }>,
@@ -1909,7 +973,11 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
           "Copia centrada dentro de este cuarto/zona ('duplica la mesa en la bodega').",
       },
     },
-    examples: ["duplica la selección", "copia esto a 800,0", "duplica la mesa en la bodega"],
+    examples: [
+      "duplica la selección",
+      "copia esto a 800,0",
+      "duplica la mesa en la bodega",
+    ],
     validate: (i, c) =>
       duplicateSelectionPreview(
         i as Extract<CadCommandInput, { id: "duplicate_selection" }>,
@@ -1973,7 +1041,9 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       issues: [],
     }),
     execute: (i, c) => {
-      const p = CAD_COMMAND_REGISTRY.find((d) => d.id === "studio_save")!.preview(i, c);
+      const p = CAD_COMMAND_REGISTRY.find(
+        (d) => d.id === "studio_save",
+      )!.preview(i, c);
       return result(p, ok(p.issues), p.summary);
     },
   },
@@ -2006,7 +1076,9 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       };
     },
     execute: (i, c) => {
-      const p = CAD_COMMAND_REGISTRY.find((d) => d.id === "studio_view")!.preview(i, c);
+      const p = CAD_COMMAND_REGISTRY.find(
+        (d) => d.id === "studio_view",
+      )!.preview(i, c);
       return result(p, ok(p.issues), p.summary);
     },
   },
@@ -2039,14 +1111,14 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
             ? `Imprimir el plano a PDF${input.paper ? ` en ${input.paper}` : ""}.`
             : `Exportar el plano a ${format.toUpperCase()}.`,
         affectedObjectIds: [],
-        operations: [
-          { type: "studio_export", format, paper: input.paper },
-        ],
+        operations: [{ type: "studio_export", format, paper: input.paper }],
         issues: [],
       };
     },
     execute: (i, c) => {
-      const p = CAD_COMMAND_REGISTRY.find((d) => d.id === "studio_export")!.preview(i, c);
+      const p = CAD_COMMAND_REGISTRY.find(
+        (d) => d.id === "studio_export",
+      )!.preview(i, c);
       return result(p, ok(p.issues), p.summary);
     },
   },
@@ -2079,7 +1151,9 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       };
     },
     execute: (i, c) => {
-      const p = CAD_COMMAND_REGISTRY.find((d) => d.id === "history_step")!.preview(i, c);
+      const p = CAD_COMMAND_REGISTRY.find(
+        (d) => d.id === "history_step",
+      )!.preview(i, c);
       return result(p, ok(p.issues), p.summary);
     },
   },
@@ -2303,14 +1377,20 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
         description: "De qué objeto ('mesa', 'barra').",
       },
     },
-    examples: ["info de la mesa", "info de la barra", "¿dónde está la estufa?", "info de los cuartos"],
+    examples: [
+      "info de la mesa",
+      "info de la barra",
+      "¿dónde está la estufa?",
+      "info de los cuartos",
+    ],
     validate: (i, c) =>
+      objectInfoPreview(i as Extract<CadCommandInput, { id: "object_info" }>, c)
+        .issues,
+    preview: (i, c) =>
       objectInfoPreview(
         i as Extract<CadCommandInput, { id: "object_info" }>,
         c,
-      ).issues,
-    preview: (i, c) =>
-      objectInfoPreview(i as Extract<CadCommandInput, { id: "object_info" }>, c),
+      ),
     execute: (i, c) => {
       const p = objectInfoPreview(
         i as Extract<CadCommandInput, { id: "object_info" }>,
@@ -2333,10 +1413,16 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
       byRoom: {
         type: "enum",
         enum: ["true", "false"],
-        description: "Desglosa el conteo por el cuarto que contiene cada pieza.",
+        description:
+          "Desglosa el conteo por el cuarto que contiene cada pieza.",
       },
     },
-    examples: ["cuenta las mesas", "¿cuántas sillas hay?", "¿qué hay en la cocina?", "¿cuántas mesas hay en cada cuarto?"],
+    examples: [
+      "cuenta las mesas",
+      "¿cuántas sillas hay?",
+      "¿qué hay en la cocina?",
+      "¿cuántas mesas hay en cada cuarto?",
+    ],
     validate: (i, c) =>
       countObjectsPreview(
         i as Extract<CadCommandInput, { id: "count_objects" }>,
@@ -2469,10 +1555,8 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     },
     examples: ["escribe 'Recepción' en 2000,1000", "anota 'Zona de carga'"],
     validate: (i, c) =>
-      addLabelPreview(
-        i as Extract<CadCommandInput, { id: "add_label" }>,
-        c,
-      ).issues,
+      addLabelPreview(i as Extract<CadCommandInput, { id: "add_label" }>, c)
+        .issues,
     preview: (i, c) =>
       addLabelPreview(i as Extract<CadCommandInput, { id: "add_label" }>, c),
     execute: (i, c) => {
@@ -2907,11 +1991,26 @@ export const CAD_COMMAND_REGISTRY: CadCommandDefinition[] = [
     description:
       "Detecta duplicados, muros casi ortogonales y segmentos muy cortos; produce evidencia y diff antes de aplicar.",
     inputSchema: {
-      objectIds: { type: "string[]", description: "Selección a revisar; vacío = todo el plano." },
-      tolerance: { type: "number", description: "Tolerancia geométrica en unidades del dibujo." },
-      angleToleranceDeg: { type: "number", description: "Tolerancia angular en grados." },
-      minLength: { type: "number", description: "Longitud mínima antes de marcar un segmento." },
-      removeTiny: { type: "boolean", description: "Si es true, propone borrar segmentos muy cortos." },
+      objectIds: {
+        type: "string[]",
+        description: "Selección a revisar; vacío = todo el plano.",
+      },
+      tolerance: {
+        type: "number",
+        description: "Tolerancia geométrica en unidades del dibujo.",
+      },
+      angleToleranceDeg: {
+        type: "number",
+        description: "Tolerancia angular en grados.",
+      },
+      minLength: {
+        type: "number",
+        description: "Longitud mínima antes de marcar un segmento.",
+      },
+      removeTiny: {
+        type: "boolean",
+        description: "Si es true, propone borrar segmentos muy cortos.",
+      },
     },
     examples: ["limpia la geometría", "limpia duplicados con tolerancia 2"],
     validate: (i, c) =>

@@ -481,7 +481,13 @@ const ARREGLOS: NlCadCase[] = [
       mode: "top",
     },
   ),
-  c("d-052", "acomoda las camas en linea", "acomodo en línea", "arrange_line"),
+  c(
+    "d-052",
+    "distribuye las camas cada 900",
+    "reparto con paso fijo",
+    "distribute_selection",
+    { gap: 900 },
+  ),
   c(
     "d-053",
     "haz un arreglo polar de 8 piezas",

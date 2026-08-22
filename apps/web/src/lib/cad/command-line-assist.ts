@@ -23,13 +23,9 @@ const SELECTION_MINIMUMS: Partial<Record<CadCommandId, number>> = {
   create_clearance_aisle: 2,
   align_selection: 2,
   distribute_selection: 3,
-  connect_flow: 2,
-  arrange_flow_line: 2,
-  arrange_rack_rows: 2,
   measure_distance: 2,
   array_rectangular: 1,
   array_polar: 1,
-  array_along_flow: 1,
   offset_object: 1,
   // Kit diario (VD-CAD-MIRROR/XFORM-001): transformaciones sobre selección.
   mirror_selection: 1,
@@ -69,9 +65,6 @@ const EMPTY_QUERY_PRIORITY: Partial<Record<CadCommandId, number>> = {
   create_clearance_aisle: 9,
   align_selection: 8,
   distribute_selection: 7,
-  connect_flow: 6,
-  arrange_flow_line: 5,
-  trace_material_route: 5,
   validate_layout: 4,
   find_collisions: 3,
   fit_to_view: 2,
@@ -85,7 +78,17 @@ const EMPTY_QUERY_PRIORITY: Partial<Record<CadCommandId, number>> = {
 // pertenece a measure_distance (contrato del spec), no va aquí.
 const QUERY_ALIASES: Partial<Record<CadCommandId, string[]>> = {
   delete_selection: ["vacia", "vaciar", "despejar", "quita"],
-  move_selection: ["mete", "meter", "lleva", "centra", "reparte", "pega", "arrima", "junta", "aleja"],
+  move_selection: [
+    "mete",
+    "meter",
+    "lleva",
+    "centra",
+    "reparte",
+    "pega",
+    "arrima",
+    "junta",
+    "aleja",
+  ],
   select_objects: ["cerca", "junto", "menos", "excepto"],
   count_objects: ["cuantos", "cuantas", "inventario"],
   object_info: ["donde", "ubicacion"],
@@ -116,12 +119,6 @@ function exampleFor(commandId: CadCommandId, labels: string[] | undefined) {
   if (commandId === "align_selection")
     return "alinea las estaciones seleccionadas al centro";
   if (commandId === "distribute_selection") return "distribuye horizontalmente";
-  if (commandId === "connect_flow") return "conecta flujo";
-  if (commandId === "arrange_flow_line")
-    return "acomoda y conecta la linea de flujo";
-  if (commandId === "arrange_rack_rows")
-    return "acomoda racks en 2 filas con pasillo 3m";
-  if (commandId === "trace_material_route") return "traza ruta material";
   if (commandId === "validate_layout") return "valida el layout";
   if (commandId === "find_collisions") return "encuentra colisiones";
   if (commandId === "fit_to_view") return "enfoca la seleccion";

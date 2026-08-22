@@ -20,7 +20,6 @@ const utilityKinds = [
   "network_drop",
   "maintenance_area",
   "tool_crib",
-  "calibration_station",
 ];
 const reusedArchetypes = new Set<AssetArchetype>([
   "cabinet",

@@ -21,7 +21,6 @@ import type { CadAiProvider } from './ports/cad-ai-provider.port';
 import {
   CAD_INTENT_TOOLS,
   buildCadIntentSystemPrompt,
-  buildOptimizePrompt,
 } from './cad-intent-tools';
 
 const CAD_INTENT_MAX_TOKENS = Number(process.env.AI_MAX_OUTPUT_TOKENS) || 700;
@@ -104,69 +103,6 @@ export class CadIntentService {
       stations: placed.map((s) => ({ station: s.station, x: s.x, y: s.y })),
     });
     return this.runModel(system, text, model, revision);
-  }
-
-  /**
-   * Copiloto de optimización (Fase 72): pide al modelo un reacomodo que baje el
-   * recorrido total sin sacar estaciones de la huella ni traslaparlas. Devuelve
-   * tool-calls (moveStation/arrangeLine/connectLine) que el humano aprueba/aplica.
-   */
-  async optimize(
-    model: string,
-    revision: string,
-    loadLayout: CadIntentLayoutLoader,
-  ): Promise<CadIntentResponse> {
-    if (process.env.AI_MOCK === '1') {
-      return {
-        available: false,
-        toolCalls: [],
-        message: 'Motor CIDE en modo mock.',
-      };
-    }
-    const layout = await loadLayout();
-    const placed = layout.stations.filter(
-      (
-        s,
-      ): s is typeof s & {
-        x: number;
-        y: number;
-        w: number | null;
-        h: number | null;
-      } => s.x !== null && s.y !== null,
-    );
-    const center = (s: {
-      x: number;
-      y: number;
-      w: number | null;
-      h: number | null;
-    }) => ({
-      x: s.x + (s.w ?? 0) / 2,
-      y: s.y + (s.h ?? 0) / 2,
-    });
-    const byId = new Map(layout.stations.map((s) => [s.id, s]));
-    let totalFlow = 0;
-    for (const c of layout.connectors) {
-      const from = byId.get(c.from);
-      const to = byId.get(c.to);
-      if (from?.x != null && from.y != null && to?.x != null && to.y != null) {
-        const a = center(
-          from as { x: number; y: number; w: number | null; h: number | null },
-        );
-        const b = center(
-          to as { x: number; y: number; w: number | null; h: number | null },
-        );
-        totalFlow += Math.hypot(b.x - a.x, b.y - a.y);
-      }
-    }
-    const system = buildOptimizePrompt({
-      unit: layout.footprint.unit,
-      footprintW: layout.footprint.footprintW,
-      footprintH: layout.footprint.footprintH,
-      stations: placed.map((s) => ({ station: s.station, x: s.x, y: s.y })),
-      totalFlow,
-      connectorCount: layout.connectors.length,
-    });
-    return this.runModel(system, 'Optimiza este layout.', model, revision);
   }
 
   /** Una llamada al modelo con las CAD tools; degrada con gracia si CIDE no está. */

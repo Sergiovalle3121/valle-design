@@ -1,8 +1,8 @@
 /**
- * Canonical catalog of non-station equipment/assets that can be dropped on the
- * plant layout — the single source of truth shared by the 2D editor (`fabric`
- * rectangles) and the 3D CAD editor (`three` meshes). Keeping one list avoids
- * the two views drifting apart on dimensions, colours or vocabulary.
+ * Catálogo canónico de objetos que se pueden soltar en el plano — la única
+ * fuente de verdad que comparten el editor 2D (rectángulos `fabric`) y el
+ * editor CAD 3D (mallas `three`). Una sola lista evita que las dos vistas se
+ * separen en dimensiones, colores o vocabulario.
  *
  * Pure data only — NO `three` import here, so the lightweight 2D editor can
  * consume the catalog without pulling the 3D engine into its bundle. The 3D
@@ -16,7 +16,6 @@
 /** The 3D shape family used to build an asset's mesh in the CAD editor. */
 export type AssetArchetype =
   | "table" // workbench: top slab on legs
-  | "belt" // conveyor: belt deck with side rails + rollers
   | "shelf" // rack: uprights + horizontal shelves
   | "arm" // robot: base + articulated segments
   | "machine" // generic process machine: body + top + panel
@@ -26,20 +25,18 @@ export type AssetArchetype =
   | "column" // structural cylinder pillar
   | "pallet" // low slatted platform
   | "fence" // safety railing: posts + rails
-  | "cart" // AGV / mobile cart: low rounded body
   | "person" // operator: stylised capsule figure
   | "cabinet" // tall electrical cabinet / locker
   | "desk" // workstation desk with a monitor
   | "bin" // open-top tote / scrap bin
   | "gantry" // overhead crane / gantry: legs + top beam
-  | "path"; // floor lane stripe (AGV route)
+  | "path"; // franja de piso (andador, eje, ruta marcada)
 
 /** Broad grouping used to organise the palette into sections. */
 export type AssetCategory =
   | "proceso"
   | "soporte"
   | "estructura"
-  | "logística"
   | "zona"
   | "seguridad"
   | "utilidades"
@@ -63,9 +60,14 @@ export interface AssetDef {
 }
 
 /**
- * The catalog. The first nine entries preserve the exact dimensions/colours the
- * 2D editor shipped with (Fase 5) so existing layouts render identically; the
- * rest extend the library toward a full factory-floor CAD vocabulary.
+ * El catálogo. Las primeras entradas conservan las dimensiones y colores exactos
+ * con los que salió el editor 2D, para que los dibujos existentes se vean igual.
+ *
+ * NOTA DE COMPATIBILIDAD: el campo `kind` se PERSISTE en los documentos. Quitar
+ * una entrada no borra los objetos ya guardados con ese `kind`: `assetMeta()`
+ * cae a la primera entrada del catálogo y el objeto se sigue dibujando, sólo que
+ * con la apariencia genérica. Nunca se renombra un `kind`; sí se renombra su
+ * `label`, que es sólo texto de interfaz. Ver IDENTITY.md.
  */
 export const ASSET_CATALOG: AssetDef[] = [
   // ── Proceso ────────────────────────────────────────────────────────────────
@@ -81,19 +83,8 @@ export const ASSET_CATALOG: AssetDef[] = [
     category: "soporte",
   },
   {
-    kind: "conveyor",
-    label: "Transportador",
-    color: "#7c3aed",
-    fill: "rgba(124,58,237,0.10)",
-    w: 2400,
-    h: 500,
-    height: 850,
-    archetype: "belt",
-    category: "proceso",
-  },
-  {
     kind: "rack",
-    label: "Rack",
+    label: "Estante",
     color: "#f59e0b",
     fill: "rgba(245,158,11,0.10)",
     w: 900,
@@ -111,17 +102,6 @@ export const ASSET_CATALOG: AssetDef[] = [
     h: 700,
     height: 1400,
     archetype: "arm",
-    category: "proceso",
-  },
-  {
-    kind: "aoi",
-    label: "AOI",
-    color: "#10b981",
-    fill: "rgba(16,185,129,0.10)",
-    w: 900,
-    h: 700,
-    height: 1600,
-    archetype: "machine",
     category: "proceso",
   },
   {
@@ -215,7 +195,7 @@ export const ASSET_CATALOG: AssetDef[] = [
   },
   {
     kind: "safety",
-    label: "Estación seg.",
+    label: "Punto de seguridad",
     color: "#dc2626",
     fill: "rgba(220,38,38,0.12)",
     w: 600,
@@ -268,29 +248,6 @@ export const ASSET_CATALOG: AssetDef[] = [
     height: 1100,
     archetype: "fence",
     category: "estructura",
-  },
-  // ── Logística ──────────────────────────────────────────────────────────────
-  {
-    kind: "agv",
-    label: "AGV",
-    color: "#06b6d4",
-    fill: "rgba(6,182,212,0.12)",
-    w: 1200,
-    h: 800,
-    height: 350,
-    archetype: "cart",
-    category: "logística",
-  },
-  {
-    kind: "agvpath",
-    label: "Ruta AGV",
-    color: "#14b8a6",
-    fill: "rgba(20,184,166,0.10)",
-    w: 4000,
-    h: 300,
-    height: 1,
-    archetype: "path",
-    category: "logística",
   },
   // ── Safety / EHS ───────────────────────────────────────────────────────────
   {
@@ -350,7 +307,7 @@ export const ASSET_CATALOG: AssetDef[] = [
   },
   {
     kind: "ppe_station",
-    label: "PPE station",
+    label: "Equipo de protección",
     color: "#2563eb",
     fill: "rgba(37,99,235,0.12)",
     w: 900,
@@ -395,7 +352,7 @@ export const ASSET_CATALOG: AssetDef[] = [
   },
   {
     kind: "maintenance_area",
-    label: "Mantto.",
+    label: "Área de servicio",
     color: "#64748b",
     fill: "rgba(100,116,139,0.10)",
     w: 2400,
@@ -406,24 +363,13 @@ export const ASSET_CATALOG: AssetDef[] = [
   },
   {
     kind: "tool_crib",
-    label: "Tool crib",
+    label: "Bodega de herramienta",
     color: "#92400e",
     fill: "rgba(146,64,14,0.12)",
     w: 1800,
     h: 900,
     height: 2000,
     archetype: "shelf",
-    category: "utilidades",
-  },
-  {
-    kind: "calibration_station",
-    label: "Calibracion",
-    color: "#0891b2",
-    fill: "rgba(8,145,178,0.12)",
-    w: 1400,
-    h: 800,
-    height: 1150,
-    archetype: "desk",
     category: "utilidades",
   },
   // ── Zona / Persona ─────────────────────────────────────────────────────────
@@ -451,7 +397,7 @@ export const ASSET_CATALOG: AssetDef[] = [
   },
   {
     kind: "operator",
-    label: "Operador",
+    label: "Persona",
     color: "#22c55e",
     fill: "rgba(34,197,94,0.12)",
     w: 600,
@@ -476,10 +422,9 @@ export const ASSET_CATEGORIES: {
   items: AssetDef[];
 }[] = (() => {
   const order: { category: AssetCategory; label: string }[] = [
-    { category: "proceso", label: "Proceso" },
+    { category: "proceso", label: "Equipo" },
     { category: "soporte", label: "Soporte" },
     { category: "estructura", label: "Estructura" },
-    { category: "logística", label: "Logística" },
     { category: "seguridad", label: "Seguridad / EHS" },
     { category: "utilidades", label: "Utilidades" },
     { category: "zona", label: "Zonas" },

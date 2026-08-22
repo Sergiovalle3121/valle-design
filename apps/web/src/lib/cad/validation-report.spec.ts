@@ -22,21 +22,9 @@ const report = buildCadValidationReport({
     { id: "a", x: 0, y: 0, width: 10, height: 10 },
     { id: "b", x: 5, y: 0, width: 10, height: 10 },
   ],
-  flowNodes: [
-    { id: "a", x: 0, y: 0 },
-    { id: "b", x: 5, y: 0 },
-  ],
 });
 assertEqual(report.collisions.length, 1, "includes collision findings");
 assertEqual(report.severity, "critical", "collisions mark report critical");
-// EDICIÓN DESIGN: sin analítica industrial registrada el reporte omite la
-// sección de flujo (degradación contractual) — la aserción con score real
-// vive en el workbench enterprise.
-assertEqual(
-  report.flow,
-  undefined,
-  "omits the flow score in the Design edition (no analysis pack)",
-);
 assertEqual(report.issues.length, 1, "normalizes collisions into issue rows");
 assertEqual(
   report.issues[0]?.severity,

@@ -91,77 +91,6 @@ export function buildCadAssetArchetype(
       );
       break;
     }
-    case "belt": {
-      const deckY = H * 0.78,
-        deckT = Math.max(0.05, H * 0.12);
-      out.push(
-        cadAssetPart(
-          new THREE.BoxGeometry(wS, deckT, dS * 0.78),
-          cadAssetMaterial(c, 0.5, 0.2),
-          0,
-          deckY,
-          0,
-        ),
-      );
-      // side rails
-      out.push(
-        cadAssetPart(
-          new THREE.BoxGeometry(wS, deckT * 0.9, leg),
-          cadAssetMaterial(dark, 0.5, 0.3),
-          0,
-          deckY + deckT * 0.6,
-          dS / 2 - leg / 2,
-        ),
-      );
-      out.push(
-        cadAssetPart(
-          new THREE.BoxGeometry(wS, deckT * 0.9, leg),
-          cadAssetMaterial(dark, 0.5, 0.3),
-          0,
-          deckY + deckT * 0.6,
-          -dS / 2 + leg / 2,
-        ),
-      );
-      // rollers (visual hint of belt direction)
-      const rollers = Math.max(
-        3,
-        Math.min(9, Math.round(wS / Math.max(0.4, dS * 0.6))),
-      );
-      const rr = Math.max(0.03, dS * 0.14);
-      const rg = new THREE.CylinderGeometry(rr, rr, dS * 0.7, 10);
-      for (let i = 0; i < rollers; i++) {
-        const rx = -wS / 2 + (wS / (rollers - 1 || 1)) * i;
-        const rm = cadAssetPart(
-          rg,
-          cadAssetMaterial(light, 0.4, 0.6),
-          rx,
-          deckY + deckT * 0.5,
-          0,
-        );
-        rm.rotation.x = Math.PI / 2;
-        out.push(rm);
-      }
-      // legs
-      const lx = wS / 2 - leg,
-        lz = (dS * 0.78) / 2 - leg;
-      [
-        [lx, lz],
-        [-lx, lz],
-        [lx, -lz],
-        [-lx, -lz],
-      ].forEach(([x, z]) =>
-        out.push(
-          cadAssetPart(
-            new THREE.BoxGeometry(leg, deckY, leg),
-            cadAssetMaterial(dark, 0.7, 0.3),
-            x,
-            deckY / 2,
-            z,
-          ),
-        ),
-      );
-      break;
-    }
     case "shelf": {
       const post = Math.max(0.05, Math.min(wS, dS) * 0.09);
       const lx = wS / 2 - post / 2,
@@ -482,48 +411,6 @@ export function buildCadAssetArchetype(
           0,
         ),
       );
-      break;
-    }
-    case "cart": {
-      out.push(
-        cadAssetPart(
-          new THREE.BoxGeometry(wS, H * 0.7, dS),
-          cadAssetMaterial(c, 0.45, 0.4),
-          0,
-          H * 0.45,
-          0,
-        ),
-      );
-      out.push(
-        cadAssetPart(
-          new THREE.BoxGeometry(wS * 0.6, H * 0.3, dS * 0.6),
-          cadAssetMaterial(light, 0.4, 0.5),
-          0,
-          H * 0.85,
-          0,
-        ),
-      );
-      // wheels
-      const wr = H * 0.18;
-      const wg = new THREE.CylinderGeometry(wr, wr, leg, 12);
-      const lx = wS / 2 - leg,
-        lz = dS / 2 - leg;
-      [
-        [lx, lz],
-        [-lx, lz],
-        [lx, -lz],
-        [-lx, -lz],
-      ].forEach(([x, z]) => {
-        const w = cadAssetPart(
-          wg,
-          cadAssetMaterial(0x111827, 0.6, 0.2),
-          x,
-          wr,
-          z,
-        );
-        w.rotation.x = Math.PI / 2;
-        out.push(w);
-      });
       break;
     }
     case "person": {

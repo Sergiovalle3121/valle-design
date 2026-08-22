@@ -10,11 +10,6 @@ import {
   roomUseTypeFromTags,
   type CadArchitectureObjectInput,
 } from "./architecture";
-import {
-  getCadAnalysisExtensions,
-  type CadFlowNode,
-  type CadFlowScore,
-} from "./analysis-extensions";
 import type { CadSafetyIssue, CadSafetyZone } from "./safety-zones";
 import { evaluateSafetyZones } from "./safety-zones";
 import type { CadDocument } from "./cad-document";
@@ -33,12 +28,11 @@ export interface CadValidationReport {
   /** Hallazgos del motor de reglas canónico sobre el CadDocument (CAD-NEXT-101). */
   document: RuleFinding[];
   issues: CadValidationIssueRow[];
-  flow?: CadFlowScore;
   severity: "ok" | "warning" | "critical";
 }
 
 export type CadValidationIssueCategory =
-  "collision" | "clearance" | "safety" | "architecture" | "document" | "flow";
+  "collision" | "clearance" | "safety" | "architecture" | "document";
 
 export interface CadValidationIssueRow {
   id: string;
@@ -451,7 +445,6 @@ function buildIssueRows(input: {
   safety: CadSafetyIssue[];
   architecture: CadArchitectureValidationIssue[];
   document: RuleFinding[];
-  flow?: CadFlowScore;
 }): CadValidationIssueRow[] {
   const rows: CadValidationIssueRow[] = [];
 
@@ -531,21 +524,6 @@ function buildIssueRows(input: {
     });
   }
 
-  if (input.flow && input.flow.score < 70) {
-    rows.push({
-      id: "flow:score",
-      category: "flow",
-      severity: "warning",
-      title: "Flow health below target",
-      detail: `${input.flow.score}/100 flow score with ${input.flow.crossingCount} crossing(s) and ${input.flow.backtrackingCount} backtracking segment(s).`,
-      affectedObjectIds: [],
-      actionLabel: "Open Flow Health",
-      suggestedFix:
-        input.flow.suggestions[0] ??
-        "Analyze Flow Health and reorder stations to reduce distance, crossings, or backtracking.",
-    });
-  }
-
   return rows.sort((a, b) => {
     const severity =
       Number(b.severity === "critical") - Number(a.severity === "critical");
@@ -560,7 +538,6 @@ function buildIssueRows(input: {
 export function buildCadValidationReport(input: {
   boxes: CadCollisionBox[];
   zones?: CadSafetyZone[];
-  flowNodes?: CadFlowNode[];
   requiredClearance?: number;
   architectureObjects?: CadArchitectureObjectInput[];
   unit?: string;
@@ -578,10 +555,6 @@ export function buildCadValidationReport(input: {
   const safety = input.zones
     ? evaluateSafetyZones(input.boxes, input.zones)
     : [];
-  // Sección de flujo solo si el host inyectó la analítica industrial.
-  const flow = input.flowNodes
-    ? getCadAnalysisExtensions()?.scoreFlowLayout(input.flowNodes)
-    : undefined;
   const architecture = buildArchitectureValidationIssues(
     input.architectureObjects
       ? {
@@ -602,8 +575,7 @@ export function buildCadValidationReport(input: {
       : clearances.length ||
           safety.length ||
           architecture.length ||
-          document.length ||
-          (flow && flow.score < 70)
+          document.length
         ? "warning"
         : "ok";
   const issues = buildIssueRows({
@@ -612,7 +584,6 @@ export function buildCadValidationReport(input: {
     safety,
     architecture,
     document,
-    flow,
   });
   return {
     collisions,
@@ -621,7 +592,6 @@ export function buildCadValidationReport(input: {
     architecture,
     document,
     issues,
-    flow,
     severity,
   };
 }

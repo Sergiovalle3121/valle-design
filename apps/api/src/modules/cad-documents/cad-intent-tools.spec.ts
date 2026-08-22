@@ -1,7 +1,6 @@
 import {
   CAD_INTENT_TOOLS,
   buildCadIntentSystemPrompt,
-  buildOptimizePrompt,
 } from './cad-intent-tools';
 
 describe('cad-intent-tools (Fase 69)', () => {
@@ -18,8 +17,6 @@ describe('cad-intent-tools (Fase 69)', () => {
         'setFootprint',
         'placeAsset',
         'drawWall',
-        'arrangeLine',
-        'connectLine',
         'cleanupGeometry',
       ]),
     );
@@ -68,18 +65,4 @@ describe('cad-intent-tools (Fase 69)', () => {
     ]);
   });
 
-  it('builds an optimize prompt with flow + footprint context (Fase 72)', () => {
-    const sys = buildOptimizePrompt({
-      unit: 'mm',
-      footprintW: 20000,
-      footprintH: 10000,
-      stations: [{ station: 'EST-10', x: 1000, y: 2000 }],
-      totalFlow: 12345,
-      connectorCount: 3,
-    });
-    expect(sys).toContain('12345');
-    expect(sys).toContain('3 conexiones');
-    expect(sys).toContain('EST-10 @(1000,2000)');
-    expect(sys.toLowerCase()).toContain('recorrido');
-  });
 });

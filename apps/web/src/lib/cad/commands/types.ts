@@ -5,19 +5,12 @@ export type CadCommandId =
   | "create_clearance_aisle"
   | "align_selection"
   | "distribute_selection"
-  | "connect_flow"
-  | "arrange_line"
-  | "arrange_flow_line"
-  | "arrange_rack_rows"
-  | "analyze_line_balance"
-  | "trace_material_route"
   | "measure_distance"
   | "find_collisions"
   | "validate_layout"
   | "fit_to_view"
   | "array_rectangular"
   | "array_polar"
-  | "array_along_flow"
   | "offset_object"
   | "mirror_selection"
   | "place_symbol"
@@ -188,39 +181,6 @@ export type CadCommandInput =
       /** Separación fija en mm: 'distribuye las mesas cada 800' (min 2 objetos). */
       gap?: number;
     }
-  | { id: "connect_flow"; from?: string; to?: string; objectIds?: string[] }
-  | {
-      id: "arrange_line";
-      direction?: "left_to_right" | "top_to_bottom";
-      objectIds?: string[];
-    }
-  | {
-      id: "arrange_flow_line";
-      direction?: "left_to_right" | "top_to_bottom";
-      objectIds?: string[];
-      gap?: number;
-      margin?: number;
-    }
-  | {
-      id: "arrange_rack_rows";
-      orientation?: "horizontal" | "vertical";
-      objectIds?: string[];
-      rows?: number;
-      baysPerRow?: number;
-      bayGap?: number;
-      aisleWidth?: number;
-      margin?: number;
-    }
-  | {
-      id: "analyze_line_balance";
-      objectIds?: string[];
-      taktTimeSec?: number;
-      cycleTimes?: Record<string, number>;
-    }
-  | {
-      id: "trace_material_route";
-      objectIds?: string[];
-    }
   | { id: "measure_distance"; targetA?: string; targetB?: string }
   | { id: "find_collisions"; objectIds?: string[] }
   | { id: "validate_layout"; objectIds?: string[]; requiredClearance?: number }
@@ -251,7 +211,6 @@ export type CadCommandInput =
       rotateItems?: boolean;
       centerLabel?: string;
     }
-  | { id: "array_along_flow"; objectIds?: string[]; count: number }
   | {
       id: "offset_object";
       objectIds?: string[];

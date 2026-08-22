@@ -639,14 +639,14 @@ describe('CadController (/v1/cad, stack completo)', () => {
       .post('/v1/cad/blocks')
       .set(auth)
       .send({
-        name: 'Conveyor',
+        name: 'Ventana',
         assets: [{ id: 'a1', kind: 'box', x: 0, y: 0, w: 100, h: 40 }],
       })
       .expect(201);
-    expect(created.body).toMatchObject({ name: 'Conveyor', version: 1 });
+    expect(created.body).toMatchObject({ name: 'Ventana', version: 1 });
 
     const listed = await request(server)
-      .get('/v1/cad/blocks?q=conveyor')
+      .get('/v1/cad/blocks?q=ventana')
       .set(auth)
       .expect(200);
     expect(listed.body.items).toHaveLength(1);
@@ -659,9 +659,9 @@ describe('CadController (/v1/cad, stack completo)', () => {
     const renamed = await request(server)
       .patch(`/v1/cad/blocks/${created.body.id}`)
       .set(auth)
-      .send({ name: 'Conveyor v2' })
+      .send({ name: 'Ventana v2' })
       .expect(200);
-    expect(renamed.body.name).toBe('Conveyor v2');
+    expect(renamed.body.name).toBe('Ventana v2');
 
     await request(server)
       .delete(`/v1/cad/blocks/${created.body.id}`)

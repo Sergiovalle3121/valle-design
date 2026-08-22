@@ -7,11 +7,7 @@
  * v1 duplica ASSETS (equipos/zonas/muros): las estaciones pertenecen al routing
  * y no se copian — el validador lo explica en vez de fallar en silencio.
  */
-import {
-  pathArray,
-  polarArray,
-  rectangularArray,
-} from "../cad-array";
+import { pathArray, polarArray, rectangularArray } from "../cad-array";
 import { offsetSegment } from "../geom-edit";
 import { normalizeDeg } from "../precision-input";
 import { matchObjectsByName } from "./targets";
@@ -51,7 +47,12 @@ function sourceAssets(
   return { assets, issues };
 }
 
-function createOp(source: CadBox, x: number, y: number, rotation?: number): CadOperation {
+function createOp(
+  source: CadBox,
+  x: number,
+  y: number,
+  rotation?: number,
+): CadOperation {
   return {
     type: "create",
     object: {
@@ -92,7 +93,10 @@ function keepInBounds(
   return kept;
 }
 
-const empty = (summary: string, issues: CadValidationIssue[]): CadCommandPreview => ({
+const empty = (
+  summary: string,
+  issues: CadValidationIssue[],
+): CadCommandPreview => ({
   summary,
   affectedObjectIds: [],
   operations: [],
@@ -125,9 +129,16 @@ export function arrayRectangularPreview(
   const cols = Math.floor(input.cols);
   const rows = Math.floor(input.rows);
   if (!Number.isFinite(cols) || !Number.isFinite(rows) || cols < 1 || rows < 1)
-    issues.push(error("invalid_grid", "Indica columnas y filas ≥ 1 (ej. 3x4)."));
+    issues.push(
+      error("invalid_grid", "Indica columnas y filas ≥ 1 (ej. 3x4)."),
+    );
   else if (cols * rows < 2)
-    issues.push(error("invalid_grid", "El arreglo debe generar al menos 1 copia (≥ 1x2)."));
+    issues.push(
+      error(
+        "invalid_grid",
+        "El arreglo debe generar al menos 1 copia (≥ 1x2).",
+      ),
+    );
   else if ((cols * rows - 1) * assets.length > MAX_COPIES)
     issues.push(
       error(
@@ -149,7 +160,8 @@ export function arrayRectangularPreview(
       { cols, rows, dx: (src.w + gapX) * dirX, dy: (src.h + gapY) * dirY },
     );
     // items[0] es la posición original — solo las copias se crean.
-    for (const item of items.slice(1)) ops.push(createOp(src, item.point.x, item.point.y));
+    for (const item of items.slice(1))
+      ops.push(createOp(src, item.point.x, item.point.y));
   }
   const kept = keepInBounds(ops, context, issues);
   return {
@@ -167,7 +179,9 @@ export function arrayPolarPreview(
   const { assets, issues } = sourceAssets(context, input.objectIds);
   const count = Math.floor(input.count);
   if (!Number.isFinite(count) || count < 2 || count > 36)
-    issues.push(error("invalid_count", "El arreglo polar necesita entre 2 y 36 copias."));
+    issues.push(
+      error("invalid_count", "El arreglo polar necesita entre 2 y 36 copias."),
+    );
   if (assets.length > 1)
     issues.push(
       error(
@@ -181,7 +195,10 @@ export function arrayPolarPreview(
     : undefined;
   if (input.centerLabel && !centerObj)
     issues.push(
-      error("center_not_found", `No encontré un objeto llamado ${input.centerLabel}.`),
+      error(
+        "center_not_found",
+        `No encontré un objeto llamado ${input.centerLabel}.`,
+      ),
     );
   if (issues.some((i) => i.level === "error"))
     return empty("Arreglo polar", issues);
@@ -253,60 +270,15 @@ export function flowRoutePoints(context: CadCommandContext): CadBox[] {
   return route;
 }
 
-export function arrayAlongFlowPreview(
-  input: Extract<CadCommandInput, { id: "array_along_flow" }>,
-  context: CadCommandContext,
-): CadCommandPreview {
-  const { assets, issues } = sourceAssets(context, input.objectIds);
-  const count = Math.floor(input.count);
-  if (!Number.isFinite(count) || count < 1 || count > 30)
-    issues.push(error("invalid_count", "Indica entre 1 y 30 copias a lo largo del flujo."));
-  if (assets.length > 1)
-    issues.push(
-      error(
-        "single_source_required",
-        "Selecciona exactamente 1 activo para replicar a lo largo del flujo.",
-        assets.map((a) => a.id),
-      ),
-    );
-  const route = flowRoutePoints(context);
-  if (route.length < 2)
-    issues.push(
-      error(
-        "no_flow_route",
-        "No hay ruta de flujo conectada: usa 'conecta flujo' primero.",
-      ),
-    );
-  if (issues.some((i) => i.level === "error"))
-    return empty("Arreglo sobre flujo", issues);
-
-  const src = assets[0];
-  const points = route.map((o) => ({ x: o.x + o.w / 2, y: o.y + o.h / 2 }));
-  const items = pathArray(points, count);
-  const ops = items.map((item) =>
-    createOp(
-      src,
-      item.point.x - src.w / 2,
-      item.point.y - src.h / 2,
-      normalizeDeg(item.rotationDeg),
-    ),
-  );
-  const kept = keepInBounds(ops, context, issues);
-  return {
-    summary: `Colocar ${kept.length} copia(s) de ${src.label} a lo largo del flujo (${route.length} estaciones).`,
-    affectedObjectIds: [src.id, ...route.map((o) => o.id)],
-    operations: kept,
-    issues,
-  };
-}
-
 export function offsetObjectPreview(
   input: Extract<CadCommandInput, { id: "offset_object" }>,
   context: CadCommandContext,
 ): CadCommandPreview {
   const { assets, issues } = sourceAssets(context, input.objectIds);
   if (!Number.isFinite(input.distance) || input.distance <= 0)
-    issues.push(error("invalid_distance", "La distancia del offset debe ser mayor a 0."));
+    issues.push(
+      error("invalid_distance", "La distancia del offset debe ser mayor a 0."),
+    );
   const copies = Math.floor(input.copies ?? 1);
   if (!Number.isFinite(copies) || copies < 1 || copies > 10)
     issues.push(error("invalid_count", "Entre 1 y 10 copias paralelas."));

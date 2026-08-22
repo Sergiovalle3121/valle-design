@@ -126,57 +126,6 @@ export function parseCadCommand(text: string): CadParseResult {
       input: { id: "validate_layout", requiredClearance },
     };
   }
-  if (/balance|balanceo|yamazumi|takt|tacto|bottleneck|cuello/.test(q)) {
-    const taktTimeSec = unitValueToSeconds(
-      q.match(
-        /(?:takt|tacto|objetivo|target)\D*(\d+(?:[.,]\d+)?)\s*(s|sec|seg|segundos|min|mins|minutos)?/i,
-      ) ?? q.match(numberWithTimeUnit),
-    );
-    return {
-      ok: true,
-      confidence: 0.82,
-      input: { id: "analyze_line_balance", taktTimeSec },
-    };
-  }
-  if (
-    /(ruta|recorrido|traza|trazar|trace|from-to|from to|camino|path)/.test(q) &&
-    /(material|materiales|flujo|flow|route|ruta|recorrido)/.test(q)
-  ) {
-    return {
-      ok: true,
-      confidence: 0.82,
-      input: { id: "trace_material_route" },
-    };
-  }
-  if (
-    /(rack|racks|estante|estantes|almacen|warehouse|supermarket)/.test(q) &&
-    /(acomoda|ordena|organiza|fila|filas|row|rows|bahia|bahias|bays|pasillo|aisle)/.test(
-      q,
-    )
-  ) {
-    const aisleWidth = unitValueToMm(
-      q.match(/(?:pasillo|aisle)\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(mil[ií]metros?|cent[ií]metros?|metros?|mts|mm|cm|m)?(?![a-záéíóúñ])/i),
-    );
-    const bayGap = unitValueToMm(
-      q.match(
-        /(?:gap|separacion|entre racks)\s*(?:de\s*)?(\d+(?:[.,]\d+)?)\s*(mil[ií]metros?|cent[ií]metros?|metros?|mts|mm|cm|m)?(?![a-záéíóúñ])/i,
-      ),
-    );
-    return {
-      ok: true,
-      confidence: 0.83,
-      input: {
-        id: "arrange_rack_rows",
-        orientation: /vertical|norte|sur|top|bottom/.test(q)
-          ? "vertical"
-          : "horizontal",
-        rows: numberNear(q, /(\d+)\s*(?:filas|hileras|rows)/i),
-        baysPerRow: numberNear(q, /(\d+)\s*(?:bahia|bahias|bays)/i),
-        aisleWidth,
-        bayGap,
-      },
-    };
-  }
   // Edición de muros (ADR §218) — extend/trim/chamfer estilo AutoCAD.
   const extendMatch = raw.match(/exti\w+\s+(.+?)\s+(?:hasta|hacia)\s+(.+)$/i);
   if (extendMatch && /exti(e|é)nde|extender|extend/i.test(q)) {
@@ -674,24 +623,6 @@ export function parseCadCommand(text: string): CadParseResult {
         gapY: gap,
         target: gridTarget || undefined,
       },
-    };
-  }
-  if (
-    /(a lo largo|siguiendo)\s+(?:de\s|del\s|la\s|el\s)?.*(flujo|ruta|recorrido)/.test(
-      q,
-    )
-  ) {
-    const count = numberNear(q, /(\d+)/);
-    if (!count)
-      return reject(
-        "flujo_sin_copias",
-        "¿Cuántas copias quieres a lo largo del flujo?",
-        0.6,
-      );
-    return {
-      ok: true,
-      confidence: 0.84,
-      input: { id: "array_along_flow", count },
     };
   }
   // Auto-acotado (ADR §225) — ANTES de mide/medir.
@@ -1552,40 +1483,6 @@ export function parseCadCommand(text: string): CadParseResult {
       } as CadCommandInput,
     };
   }
-  if (
-    /(acomoda|ordena|reacomoda).*(conecta|flujo|secuencia)|linea de flujo|flow line|flujo conectado/.test(
-      q,
-    )
-  ) {
-    const match = q.match(numberWithUnit);
-    const value = match?.[1] ? Number(match[1].replace(",", ".")) : undefined;
-    const gap =
-      value == null ? undefined : match?.[2] === "m" ? value * 1000 : value;
-    return {
-      ok: true,
-      confidence: 0.82,
-      input: {
-        id: "arrange_flow_line",
-        direction: /vertical|arriba|abajo/.test(q)
-          ? "top_to_bottom"
-          : "left_to_right",
-        gap,
-      },
-    };
-  }
-  if (/conecta|flujo|secuencia/.test(q))
-    return { ok: true, confidence: 0.74, input: { id: "connect_flow" } };
-  if (/acomoda|ordena|reacomoda|layout/.test(q))
-    return {
-      ok: true,
-      confidence: 0.74,
-      input: {
-        id: "arrange_line",
-        direction: /vertical|arriba|abajo/.test(q)
-          ? "top_to_bottom"
-          : "left_to_right",
-      },
-    };
   if (/mide|medir|distancia/.test(q)) {
     const [targetA, targetB] = lastTwoTargets(raw);
     if (!targetA || !targetB)

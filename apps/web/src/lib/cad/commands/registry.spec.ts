@@ -13,12 +13,10 @@ import {
 } from "./index";
 import type { CadBox, CadCommandContext } from "./types";
 import type { CadCommandHistoryState } from "./history";
-// EDICIÓN DESIGN: la analítica industrial (balanceo/ruta material) es
-// ENTERPRISE_OWNED y no existe en este repo, así que este spec ya NO la
-// registra. Los comandos CAD puros se prueban idénticos al origen; los dos
-// comandos de análisis se prueban en su modo degradado contractual
-// (`analysis_pack_missing`), igual que en producción Design
-// (ver analysis-extensions.spec.ts).
+// El registry es CAD general: no hay comandos de balanceo de línea, ruta de
+// material ni acomodo de racks. Se retiraron en la campaña de identidad del
+// 2026-08-22 junto con el contrato de analítica industrial que los alimentaba
+// (ver IDENTITY.md).
 
 const ctx: CadCommandContext = {
   unit: "mm",
@@ -65,7 +63,7 @@ assert.equal(
   CAD_COMMAND_REGISTRY.length,
   "registry ids are unique",
 );
-assert.equal(CAD_COMMAND_REGISTRY.length, 47, "registry exposes 47 commands");
+assert.equal(CAD_COMMAND_REGISTRY.length, 40, "registry exposes 40 commands");
 
 // Renombrar (VD-CAD-RENAME-001): primera coincidencia, con aviso si hay más.
 {
@@ -111,7 +109,10 @@ assert.equal(CAD_COMMAND_REGISTRY.length, 47, "registry exposes 47 commands");
     assert.ok(op.rows[0].value.includes("1000×600"), "medidas reales");
   }
   assert.ok(p.summary.includes("SMT"), "resumen con el objeto");
-  const missing = previewCadCommand({ id: "object_info", query: "nave espacial" }, ctx);
+  const missing = previewCadCommand(
+    { id: "object_info", query: "nave espacial" },
+    ctx,
+  );
   assert.ok(
     missing.issues.some((i) => i.code === "info_not_found"),
     "objetivo inexistente → error",
@@ -149,14 +150,36 @@ assert.equal(CAD_COMMAND_REGISTRY.length, 47, "registry exposes 47 commands");
   }
   const plainAlign = parseCadCommand("alinea al centro");
   if (plainAlign.input?.id === "align_selection") {
-    assert.equal(plainAlign.input.target, undefined, "sin residuo no hay target");
+    assert.equal(
+      plainAlign.input.target,
+      undefined,
+      "sin residuo no hay target",
+    );
   }
   const mesasCtx = {
     ...ctx,
     selectedIds: [],
     objects: [
-      { id: "t1", type: "asset", kind: "restaurant-table-4", label: "Mesa 4 personas", x: 0, y: 0, w: 900, h: 900 },
-      { id: "t2", type: "asset", kind: "restaurant-table-4", label: "Mesa 4 personas", x: 2000, y: 400, w: 900, h: 900 },
+      {
+        id: "t1",
+        type: "asset",
+        kind: "restaurant-table-4",
+        label: "Mesa 4 personas",
+        x: 0,
+        y: 0,
+        w: 900,
+        h: 900,
+      },
+      {
+        id: "t2",
+        type: "asset",
+        kind: "restaurant-table-4",
+        label: "Mesa 4 personas",
+        x: 2000,
+        y: 400,
+        w: 900,
+        h: 900,
+      },
     ],
   } as CadCommandContext;
   const aligned = previewCadCommand(
@@ -195,7 +218,10 @@ assert.equal(CAD_COMMAND_REGISTRY.length, 47, "registry exposes 47 commands");
     assert.equal(op.zoom, true, "fit_to_view manda zoom");
     assert.ok(op.objectIds.length >= 1, "resuelve el nombre");
   }
-  const missing = previewCadCommand({ id: "fit_to_view", target: "nave espacial" }, ctx);
+  const missing = previewCadCommand(
+    { id: "fit_to_view", target: "nave espacial" },
+    ctx,
+  );
   assert.ok(
     missing.issues.some((i) => i.code === "focus_target_not_found"),
     "objetivo inexistente → error",
@@ -248,10 +274,14 @@ assert.equal(CAD_COMMAND_REGISTRY.length, 47, "registry exposes 47 commands");
   if (carta.input?.id === "studio_export") {
     assert.equal(carta.input.paper, "letter", "carta → letter");
   }
-  const p = previewCadCommand({ id: "studio_export", format: "pdf", paper: "A3" }, ctx);
+  const p = previewCadCommand(
+    { id: "studio_export", format: "pdf", paper: "A3" },
+    ctx,
+  );
   const op = p.operations[0];
   assert.equal(op.type, "studio_export", "emite studio_export");
-  if (op.type === "studio_export") assert.equal(op.paper, "A3", "papel en la op");
+  if (op.type === "studio_export")
+    assert.equal(op.paper, "A3", "papel en la op");
 }
 
 // Deshacer conversacional (VD-CAD-UNDO-001).
@@ -269,7 +299,9 @@ assert.equal(CAD_COMMAND_REGISTRY.length, 47, "registry exposes 47 commands");
 
 // Cadenas (VD-CAD-CHAIN-001): separadores explícitos; ' y ' pelón NO corta.
 {
-  const chain = splitCadCommandChain("pon una puerta y luego céntrala; quita las cotas");
+  const chain = splitCadCommandChain(
+    "pon una puerta y luego céntrala; quita las cotas",
+  );
   assert.deepEqual(
     chain,
     ["pon una puerta", "céntrala", "quita las cotas"],
@@ -324,95 +356,43 @@ assert.equal(
   "validator reports selection issue",
 );
 
-const flowPreview = previewCadCommand(
-  { id: "connect_flow", objectIds: ["smt", "aoi", "pack"] },
-  ctx,
-);
-assert.equal(
-  flowPreview.operations.some((op) => op.type === "report"),
-  true,
-  "connect flow includes flow metrics report",
-);
-
-const arrangePreview = previewCadCommand(
-  { id: "arrange_line", direction: "left_to_right", objectIds: ["smt", "aoi"] },
-  ctx,
-);
-assert.equal(
-  arrangePreview.operations.some((op) => op.type === "report"),
-  true,
-  "arrange line includes post-flow score report",
-);
-
-const flowLinePreview = previewCadCommand(
-  {
-    id: "arrange_flow_line",
-    direction: "left_to_right",
-    objectIds: ["smt", "aoi", "pack"],
-    gap: 250,
-  },
-  ctx,
-);
-assert.equal(
-  flowLinePreview.operations.filter((op) => op.type === "move").length,
-  3,
-  "flow line moves every object",
-);
-assert.equal(
-  flowLinePreview.operations.filter((op) => op.type === "connect").length,
-  2,
-  "flow line creates connectors between sequence steps",
-);
-assert.equal(
-  flowLinePreview.operations.some(
-    (op) => op.type === "report" && op.title === "Linea de flujo",
-  ),
-  true,
-  "flow line includes score report",
-);
-assert.equal(
-  parseCadCommand("acomoda y conecta la linea de flujo").input?.id,
-  "arrange_flow_line",
-  "parser recognizes arrange and connect flow line intent",
-);
-
-const rackCtx: CadCommandContext = {
+const shelfCtx: CadCommandContext = {
   ...ctx,
   footprintW: 12000,
   footprintH: 9000,
-  selectedIds: ["rack-1", "rack-2", "rack-3", "rack-4"],
+  selectedIds: ["shelf-1", "shelf-2", "shelf-3", "shelf-4"],
   objects: [
     {
-      id: "rack-1",
+      id: "shelf-1",
       type: "asset",
-      label: "Rack A1",
+      label: "Estante A1",
       x: 5000,
       y: 100,
       w: 1200,
       h: 900,
     },
     {
-      id: "rack-2",
+      id: "shelf-2",
       type: "asset",
-      label: "Rack A2",
+      label: "Estante A2",
       x: 5000,
       y: 1200,
       w: 1200,
       h: 900,
     },
     {
-      id: "rack-3",
+      id: "shelf-3",
       type: "asset",
-      label: "Rack B1",
+      label: "Estante B1",
       x: 5000,
       y: 2300,
       w: 1200,
       h: 900,
     },
     {
-      id: "rack-4",
+      id: "shelf-4",
       type: "asset",
-      label: "Rack B2",
+      label: "Estante B2",
       x: 5000,
       y: 3400,
       w: 1200,
@@ -420,120 +400,6 @@ const rackCtx: CadCommandContext = {
     },
   ],
 };
-
-// EDICIÓN DESIGN: sin paquete industrial, `analyze_line_balance` degrada con
-// el aviso contractual en lugar de emitir el reporte de balanceo (las
-// aserciones con analítica real viven en el workbench enterprise). El parser
-// —CAD puro— se conserva idéntico.
-const lineBalancePreview = previewCadCommand(
-  {
-    id: "analyze_line_balance",
-    taktTimeSec: 45,
-    cycleTimes: { smt: 38, aoi: 52, pack: 41 },
-  },
-  ctx,
-);
-assert.equal(
-  lineBalancePreview.operations.length,
-  0,
-  "line balance degrades without operations in the Design edition",
-);
-assert.equal(
-  lineBalancePreview.issues.some(
-    (issue) => issue.code === "analysis_pack_missing",
-  ),
-  true,
-  "line balance warns that the analysis pack is missing",
-);
-assert.equal(
-  parseCadCommand("analiza balanceo de linea takt 45s").input?.id,
-  "analyze_line_balance",
-  "parser recognizes line balance intent",
-);
-
-// EDICIÓN DESIGN: ídem para `trace_material_route` — degradación contractual
-// en lugar del reporte de ruta con analítica real.
-const materialRoutePreview = previewCadCommand(
-  { id: "trace_material_route" },
-  {
-    ...ctx,
-    connectors: [
-      { from: "smt", to: "aoi", kind: "flow" },
-      { from: "aoi", to: "pack", kind: "material" },
-    ],
-  },
-);
-assert.equal(
-  materialRoutePreview.operations.length,
-  0,
-  "material route degrades without operations in the Design edition",
-);
-assert.equal(
-  materialRoutePreview.issues.some(
-    (issue) => issue.code === "analysis_pack_missing",
-  ),
-  true,
-  "material route warns that the analysis pack is missing",
-);
-assert.equal(
-  parseCadCommand("traza ruta material").input?.id,
-  "trace_material_route",
-  "parser recognizes material route intent",
-);
-
-const rackParsed = parseCadCommand(
-  "acomoda racks en 2 filas con pasillo de 3m",
-);
-assert.equal(
-  rackParsed.input?.id,
-  "arrange_rack_rows",
-  "parser recognizes rack row intent before generic aisle commands",
-);
-assert.equal(
-  rackParsed.input?.id === "arrange_rack_rows"
-    ? rackParsed.input.aisleWidth
-    : undefined,
-  3000,
-  "parser converts rack aisle metres to millimetres",
-);
-const rackPreview = previewCadCommand(
-  {
-    id: "arrange_rack_rows",
-    rows: 2,
-    baysPerRow: 2,
-    aisleWidth: 3000,
-    objectIds: ["rack-1", "rack-2", "rack-3", "rack-4"],
-  },
-  rackCtx,
-);
-assert.equal(
-  rackPreview.operations.filter((op) => op.type === "move").length,
-  4,
-  "rack rows move every selected rack",
-);
-assert.equal(
-  rackPreview.operations.some(
-    (op) => op.type === "report" && op.title === "Filas de racks",
-  ),
-  true,
-  "rack rows include a layout report",
-);
-const expandedRackPreview = previewCadCommand(
-  {
-    id: "arrange_rack_rows",
-    rows: 1,
-    baysPerRow: 2,
-    objectIds: ["rack-1", "rack-2", "rack-3", "rack-4"],
-  },
-  rackCtx,
-);
-assert.equal(
-  expandedRackPreview.issues.some(
-    (issue) => issue.code === "rack_row_capacity_expanded",
-  ),
-  true,
-  "rack rows warn when requested row capacity is too small",
-);
 
 const collisionPreview = previewCadCommand(
   { id: "find_collisions" },
@@ -597,8 +463,8 @@ if (gridParsed.input?.id === "array_rectangular") {
   assert.equal(gridParsed.input.gapX, 500, "parser reads gap in mm");
 }
 const gridPreview = previewCadCommand(
-  { id: "array_rectangular", cols: 3, rows: 2, objectIds: ["rack-1"] },
-  rackCtx,
+  { id: "array_rectangular", cols: 3, rows: 2, objectIds: ["shelf-1"] },
+  shelfCtx,
 );
 assert.equal(
   gridPreview.operations.filter((op) => op.type === "create").length,
@@ -617,7 +483,7 @@ assert.equal(
 );
 
 const polarParsed = parseCadCommand(
-  "arreglo polar de 6 copias alrededor de Rack A1",
+  "arreglo polar de 6 copias alrededor de Estante A1",
 );
 assert.equal(
   polarParsed.input?.id,
@@ -628,7 +494,7 @@ if (polarParsed.input?.id === "array_polar") {
   assert.equal(polarParsed.input.count, 6, "parser reads polar count");
   assert.equal(
     polarParsed.input.centerLabel,
-    "Rack A1",
+    "Estante A1",
     "parser captures center label",
   );
 }
@@ -636,10 +502,10 @@ const polarPreview = previewCadCommand(
   {
     id: "array_polar",
     count: 4,
-    centerLabel: "Rack A1",
-    objectIds: ["rack-3"],
+    centerLabel: "Estante A1",
+    objectIds: ["shelf-3"],
   },
-  rackCtx,
+  shelfCtx,
 );
 assert.equal(
   polarPreview.operations.filter((op) => op.type === "create").length,
@@ -667,8 +533,8 @@ if (offsetParsed.input?.id === "offset_object") {
   assert.equal(offsetParsed.input.side, "down", "parser reads offset side");
 }
 const offsetPreview = previewCadCommand(
-  { id: "offset_object", distance: 800, side: "down", objectIds: ["rack-1"] },
-  rackCtx,
+  { id: "offset_object", distance: 800, side: "down", objectIds: ["shelf-1"] },
+  shelfCtx,
 );
 const offsetOp = offsetPreview.operations.find((op) => op.type === "create");
 assert.equal(offsetOp?.type, "create", "offset proposes a create op");
@@ -676,56 +542,6 @@ if (offsetOp?.type === "create") {
   assert.equal(offsetOp.object.y, 900, "offset shifts copy 800 down");
   assert.equal(offsetOp.object.x, 5000, "offset keeps x for horizontal object");
 }
-
-const flowArrayCtx: CadCommandContext = {
-  ...ctx,
-  selectedIds: ["cart"],
-  connectors: [
-    { from: "smt", to: "aoi", kind: "flow" },
-    { from: "aoi", to: "pack", kind: "flow" },
-  ],
-  objects: [
-    ...ctx.objects,
-    {
-      id: "cart",
-      type: "asset",
-      label: "Carrito",
-      x: 4000,
-      y: 3000,
-      w: 400,
-      h: 300,
-    },
-  ],
-};
-assert.equal(
-  parseCadCommand("coloca 5 copias a lo largo del flujo").input?.id,
-  "array_along_flow",
-  "parser recognizes array along flow intent",
-);
-const flowArrayPreview = previewCadCommand(
-  { id: "array_along_flow", count: 3 },
-  flowArrayCtx,
-);
-assert.equal(
-  flowArrayPreview.operations.filter((op) => op.type === "create").length,
-  3,
-  "flow array creates the requested copies along the route",
-);
-assert.equal(
-  flowArrayPreview.affectedObjectIds.includes("aoi"),
-  true,
-  "flow array reports the route stations",
-);
-const noRoute = executeCadCommand(
-  { id: "array_along_flow", count: 3 },
-  { ...flowArrayCtx, connectors: [] },
-);
-assert.equal(noRoute.applied, false, "flow array requires a connected route");
-assert.equal(
-  noRoute.issues.some((i) => i.code === "no_flow_route"),
-  true,
-  "flow array explains the missing route",
-);
 
 // — Edición de muros: extend/trim/chamfer (ADR §218) —
 const wallCtx: CadCommandContext = {
@@ -941,17 +757,17 @@ assert.equal(
   "measure_area",
   "parser recognizes area intent",
 );
-const areaOfTarget = parseCadCommand("mide el área de la zona Rack A1");
+const areaOfTarget = parseCadCommand("mide el área de la zona Estante A1");
 assert.equal(
   areaOfTarget.input?.id === "measure_area"
     ? areaOfTarget.input.targetLabel
     : undefined,
-  "Rack A1",
+  "Estante A1",
   "parser captures the area target label",
 );
 const singleArea = previewCadCommand(
-  { id: "measure_area", objectIds: ["rack-1"] },
-  rackCtx,
+  { id: "measure_area", objectIds: ["shelf-1"] },
+  shelfCtx,
 );
 const singleAreaReport = singleArea.operations.find(
   (op) => op.type === "report",
@@ -971,8 +787,11 @@ if (singleAreaReport?.type === "report") {
   );
 }
 const hullArea = previewCadCommand(
-  { id: "measure_area", objectIds: ["rack-1", "rack-2", "rack-3", "rack-4"] },
-  rackCtx,
+  {
+    id: "measure_area",
+    objectIds: ["shelf-1", "shelf-2", "shelf-3", "shelf-4"],
+  },
+  shelfCtx,
 );
 const hullReport = hullArea.operations.find((op) => op.type === "report");
 if (hullReport?.type === "report") {
@@ -990,8 +809,8 @@ assert.equal(
   "parser recognizes zone-around intent",
 );
 const zonePreview = previewCadCommand(
-  { id: "create_zone_around", margin: 300, objectIds: ["rack-1", "rack-2"] },
-  rackCtx,
+  { id: "create_zone_around", margin: 300, objectIds: ["shelf-1", "shelf-2"] },
+  shelfCtx,
 );
 const zoneOp = zonePreview.operations.find((op) => op.type === "create");
 assert.equal(zoneOp?.type, "create", "zone-around proposes a create op");
@@ -1019,7 +838,7 @@ assert.equal(
 );
 const emptyZone = executeCadCommand(
   { id: "create_zone_around", objectIds: [] },
-  { ...rackCtx, selectedIds: [] },
+  { ...shelfCtx, selectedIds: [] },
 );
 assert.equal(emptyZone.applied, false, "zone-around requires a selection");
 
@@ -1036,11 +855,11 @@ assert.equal(
   "parser reads gaps mode",
 );
 const dimPreview = previewCadCommand(
-  { id: "auto_dimension", objectIds: ["rack-1", "rack-3"] },
+  { id: "auto_dimension", objectIds: ["shelf-1", "shelf-3"] },
   {
-    ...rackCtx,
-    objects: rackCtx.objects.map((o) =>
-      o.id === "rack-3" ? { ...o, x: 7000, y: 100 } : o,
+    ...shelfCtx,
+    objects: shelfCtx.objects.map((o) =>
+      o.id === "shelf-3" ? { ...o, x: 7000, y: 100 } : o,
     ),
   },
 );
@@ -1058,8 +877,8 @@ assert.equal(
   "gap dim carries the 800 mm distance",
 );
 const dimSizeOnly = previewCadCommand(
-  { id: "auto_dimension", mode: "size", objectIds: ["rack-1", "rack-2"] },
-  rackCtx,
+  { id: "auto_dimension", mode: "size", objectIds: ["shelf-1", "shelf-2"] },
+  shelfCtx,
 );
 assert.equal(
   dimSizeOnly.operations.filter((op) => op.type === "annotate").length,
@@ -1162,7 +981,11 @@ if (rectDraftCreate?.type === "create") {
   const gridT = parseCadCommand("arreglo 2x3 de mesas");
   assert.equal(gridT.input?.id, "array_rectangular", "arreglo NxM parsea");
   if (gridT.input?.id === "array_rectangular")
-    assert.equal(gridT.input.target, "mesas", "rejilla con objetivo por nombre");
+    assert.equal(
+      gridT.input.target,
+      "mesas",
+      "rejilla con objetivo por nombre",
+    );
 
   const sillasCtx: CadCommandContext = {
     unit: "mm",
@@ -1312,11 +1135,18 @@ if (rectDraftCreate?.type === "create") {
     { id: "move_selection", target: "silla", anchor: "mesa" },
     comedorCtx,
   );
-  assert.ok(!p.issues.some((i) => i.level === "error"), "move ancla sin errores");
+  assert.ok(
+    !p.issues.some((i) => i.level === "error"),
+    "move ancla sin errores",
+  );
   const op = p.operations[0];
   assert.equal(op?.type, "move", "emite op move");
   if (op?.type === "move") {
-    assert.equal(op.after.x, 4000 + 1200 + 100, "aterriza a la derecha del ancla");
+    assert.equal(
+      op.after.x,
+      4000 + 1200 + 100,
+      "aterriza a la derecha del ancla",
+    );
     assert.equal(op.after.y, 2000, "misma altura que el ancla");
   }
   const sinAncla = previewCadCommand(
@@ -1367,7 +1197,12 @@ if (rectDraftCreate?.type === "create") {
     ],
   };
   const p = previewCadCommand(
-    { id: "distribute_selection", axis: "horizontal", target: "mesa", gap: 800 },
+    {
+      id: "distribute_selection",
+      axis: "horizontal",
+      target: "mesa",
+      gap: 800,
+    },
     mesitasCtx,
   );
   assert.ok(
@@ -1515,9 +1350,7 @@ if (rectDraftCreate?.type === "create") {
   const rep = p.operations.find((op) => op.type === "report");
   if (rep?.type === "report")
     assert.ok(
-      rep.rows.some(
-        (r) => r.label === "Área total" && r.value === "3.00 m²",
-      ),
+      rep.rows.some((r) => r.label === "Área total" && r.value === "3.00 m²"),
       "el reporte incluye la fila de área total",
     );
 }
@@ -1563,7 +1396,10 @@ if (rectDraftCreate?.type === "create") {
     { id: "select_objects", query: "todo", exclude: "mesas" },
     mixCtx,
   );
-  assert.ok(!p.issues.some((i) => i.level === "error"), "exclusión sin errores");
+  assert.ok(
+    !p.issues.some((i) => i.level === "error"),
+    "exclusión sin errores",
+  );
   assert.deepEqual(p.affectedObjectIds, ["s1"], "queda solo la silla");
   const vacio = previewCadCommand(
     { id: "select_objects", query: "mesas", exclude: "mesas" },
@@ -1792,10 +1628,7 @@ if (rectDraftCreate?.type === "create") {
   );
   const op = p.operations[0];
   if (op.type === "report") {
-    assert.ok(
-      op.rows[0]!.value.includes("en 'Cocina'"),
-      "fila con ubicación",
-    );
+    assert.ok(op.rows[0]!.value.includes("en 'Cocina'"), "fila con ubicación");
   }
   const fuera = previewCadCommand(
     { id: "object_info", query: "sofá" },
@@ -2701,7 +2534,11 @@ if (rectDraftCreate?.type === "create") {
     assert.equal(p.issues.length, 0, "pegar sin issues");
     const op = p.operations[0];
     if (op?.type === "move") {
-      assert.equal(op.after.x, 1000, "se recarga en el muro izquierdo de la cocina");
+      assert.equal(
+        op.after.x,
+        1000,
+        "se recarga en el muro izquierdo de la cocina",
+      );
       assert.equal(op.after.y, 2000, "el eje Y no se toca");
     }
   }
@@ -2711,7 +2548,11 @@ if (rectDraftCreate?.type === "create") {
     const p = previewCadCommand(fondo.input, wallCtx);
     const op = p.operations[0];
     if (op?.type === "move")
-      assert.equal(op.after.y, 3500, "el borde inferior toca el muro de la cocina");
+      assert.equal(
+        op.after.y,
+        3500,
+        "el borde inferior toca el muro de la cocina",
+      );
   }
   const orilla = parseCadCommand("pega la silla a la pared de la izquierda");
   if (orilla.input?.id === "move_selection") {
@@ -2719,7 +2560,11 @@ if (rectDraftCreate?.type === "create") {
     const p = previewCadCommand(orilla.input, wallCtx);
     const op = p.operations[0];
     if (op?.type === "move")
-      assert.equal(op.after.x, 0, "sin cuarto contenedor usa la orilla del plano");
+      assert.equal(
+        op.after.x,
+        0,
+        "sin cuarto contenedor usa la orilla del plano",
+      );
   }
 }
 

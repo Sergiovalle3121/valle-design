@@ -112,26 +112,6 @@ ok(
   ok(!r.ok, "addDimension rechaza si falta un punto");
 }
 
-// ── arrangeLine / connectLine ──
-{
-  const r = normalizeToolCall("arrangeLine", {});
-  ok(r.ok && r.intent.kind === "arrangeLine", "arrangeLine");
-}
-{
-  const r = normalizeToolCall("connectLine", { kind: "conveyor" });
-  ok(
-    r.ok && r.intent.kind === "connectLine" && r.intent.flow === "conveyor",
-    "connectLine conveyor",
-  );
-}
-{
-  const r = normalizeToolCall("connectLine", { kind: "basura" });
-  ok(
-    r.ok && r.intent.kind === "connectLine" && r.intent.flow === "flow",
-    "connectLine cae a flow por default",
-  );
-}
-
 // ── moveStation ──
 {
   const r = normalizeToolCall("moveStation", {
@@ -169,8 +149,8 @@ ok(
 // ── batch ──
 {
   const { intents, errors } = normalizeToolCalls([
-    { name: "arrangeLine", arguments: {} },
-    { name: "placeAsset", arguments: { kind: "aoi", x: 5, y: 5 } },
+    { name: "placeAsset", arguments: { kind: "rack", x: 5, y: 5 } },
+    { name: "placeAsset", arguments: { kind: "desk", x: 5, y: 5 } },
     { name: "placeAsset", arguments: { kind: "dragón", x: 5, y: 5 } },
   ]);
   ok(
@@ -193,24 +173,16 @@ ok(
 }
 {
   const r = normalizeToolCall("placeAsset", {
-    kind: "aoi",
+    kind: "rack",
     x: 5,
     y: 5,
-    label: "AOI 2",
+    label: "Estante 2",
   });
   ok(
-    r.ok && describeCadIntent(r.intent).includes("AOI 2"),
+    r.ok && describeCadIntent(r.intent).includes("Estante 2"),
     "describe placeAsset con etiqueta",
   );
 }
-{
-  const r = normalizeToolCall("connectLine", { kind: "conveyor" });
-  ok(
-    r.ok && describeCadIntent(r.intent).includes("conveyor"),
-    "describe connectLine con tipo de flujo",
-  );
-}
-
 {
   const r = normalizeToolCall("cleanupGeometry", {
     tolerance: 2,
