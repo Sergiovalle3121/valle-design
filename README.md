@@ -1,11 +1,18 @@
 # Valle Design
 
-Valle Design es un **sistema de diseño arquitectónico 2D** que corre en el
-navegador. Es el dominio de AutoCAD (Autodesk): dibujo de precisión con capas,
-bloques, cotas asociativas, referencias a objeto, espacio papel e intercambio
-DXF. Ése es el producto con el que se compara y contra el que se mide su
-comportamiento; lo que este repositorio no implementa se dice explícitamente en
-vez de insinuarse.
+Valle Design es un **CAD 2D general y universal** que corre en el navegador.
+Dibuja planos: arquitectónicos, mecánicos, eléctricos, civiles, de
+instalaciones, de mobiliario, de terreno. Es el dominio de AutoCAD (Autodesk):
+dibujo de precisión con capas, bloques, cotas asociativas, referencias a objeto,
+espacio papel e intercambio DXF. Ése es el producto con el que se compara y
+contra el que se mide su comportamiento; lo que este repositorio no implementa
+se dice explícitamente en vez de insinuarse.
+
+El contenido mexicano —plantillas de casa habitación, consultorio, taquería,
+notaría; cajetines y normas de acotación en español mexicano— es la fortaleza
+inicial del producto, no su límite: es donde el catálogo está más maduro, no la
+frontera de lo que la herramienta dibuja. Qué es y qué **no** es Valle Design
+está en [`IDENTITY.md`](IDENTITY.md); léelo antes de agregar una función.
 
 Es un producto standalone: el repositorio contiene el frontend, la API, la
 identidad first-party, organizaciones y membresías, el control de acceso

@@ -2,8 +2,8 @@
 
 ## Límites del sistema
 
-Valle Design es una aplicación standalone desplegable como dos procesos y una
-base de datos:
+Valle Design es un CAD 2D general y universal (ver [`IDENTITY.md`](IDENTITY.md)),
+desplegable como una aplicación standalone de dos procesos y una base de datos:
 
 1. `apps/web`: Next.js/React, el dashboard y el estudio CAD. El editor usa un
    documento canónico TypeScript, command bus, historia acotada, índices y

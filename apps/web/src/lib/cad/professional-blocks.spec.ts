@@ -36,7 +36,7 @@ assert.equal(resolveCadInsert(document, document.entities[0].id).entities.length
 
 document = insertCadBlock(document, {
   id: 'door-2', block: 'DOOR', insertion: { x: 100, y: 50, z: 0 }, scale: { x: 2, y: 2, z: 1 }, rotation: 90,
-  layer: 'E', attributes: { MARK: 'D-02' }, context: { presentation: { color: { source: 'explicit', value: '#f97316' } }, businessLink: { entityType: 'workOrder', entityId: 'wo-42' } },
+  layer: 'E', attributes: { MARK: 'D-02' }, context: { presentation: { color: { source: 'explicit', value: '#f97316' } }, businessLink: { entityType: 'projectItem', entityId: 'pi-42' } },
 });
 const resolved = resolveCadInsert(document, 'door-2');
 const resolvedLine = resolved.entities.find((entity) => entity.type === 'line');

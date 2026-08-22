@@ -2,17 +2,36 @@
 
 ## Scope
 
-Valle Design is a **2D architectural design system** that runs in the browser.
-Its domain — and its competition — is AutoCAD by Autodesk: precision drafting
-with layers, blocks, associative dimensions, object snaps, paper space and DXF
-exchange. Judge behaviour against how a professional drafting tool actually
-behaves, not against a generic web app. What is not implemented is stated
-plainly; it is never implied.
+Valle Design is a **general-purpose 2D CAD** that runs in the browser. It draws
+drawings of any kind: architectural, mechanical, electrical, civil, MEP,
+furniture, land survey. Its domain — and its competition — is AutoCAD by
+Autodesk: precision drafting with layers, blocks, associative dimensions, object
+snaps, paper space and DXF exchange. Judge behaviour against how a professional
+drafting tool actually behaves, not against a generic web app. What is not
+implemented is stated plainly; it is never implied.
+
+The Mexican content (templates, drafting standards, title blocks, Spanish
+command vocabulary) is the product's opening strength, not its ceiling.
 
 This repository is the complete standalone product: Next.js web app, NestJS
 API, first-party identity, organizations and memberships, local subscriptions
 and entitlements, CAD domain, OpenAPI contracts and generated SDK. Do not add a
 runtime dependency on another product or identity service.
+
+## Domain boundary — no industrial management
+
+This repository is a general CAD. **Do not reintroduce ERP/MES/industrial
+planning vocabulary or functionality.** No takt time, no line balancing, no work
+orders, no material routes, no warehouse racks, no conveyors, no forklifts, no
+plant flow optimisation. Drawing a factory _building_ is in scope — a nave
+industrial is a building typology any architect draws. Running a factory is not.
+
+**Every new feature must serve someone who is drawing a drawing.** If it serves
+someone who is administering an industrial operation, it does not belong here.
+
+`npm run check:cad` runs `scripts/cad/check-no-industrial-domain.mjs`, which
+fails the build if that vocabulary comes back. Read `IDENTITY.md` before adding
+a feature; it states what Valle Design is and, explicitly, what it is not.
 
 ## Canonical commands
 

@@ -69,7 +69,7 @@ export const DOC_GUIDES = [
     description:
       "Guía paso a paso para levantar una planta arquitectónica en el navegador: unidades, capas, muros, cotas asociativas y lámina lista para imprimir.",
     summary:
-      "De la unidad de dibujo a la lámina impresa, con el orden de trabajo que evita rehacer el plano.",
+      "De la unidad de dibujo a la lámina impresa, con la secuencia de trabajo que evita rehacer el plano.",
   },
   {
     slug: "dxf-vs-dwg",

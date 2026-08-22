@@ -1,8 +1,14 @@
 # Producto
 
-Valle Design permite que un equipo cree, edite, versione y revise dibujos CAD
-desde el navegador sin depender de otro producto para identidad o acceso. La
-unidad de colaboración y aislamiento es la organización; cada organización
+Valle Design es un **CAD 2D general y universal**: permite que un equipo cree,
+edite, versione y revise dibujos CAD desde el navegador sin depender de otro
+producto para identidad o acceso. El plano puede ser de cualquier disciplina
+—arquitectónico, mecánico, eléctrico, civil, de instalaciones, de mobiliario, de
+terreno— y el catálogo mexicano de plantillas y normas es la fortaleza inicial
+del producto, no su frontera. Qué es y qué **no** es Valle Design está en
+[`IDENTITY.md`](IDENTITY.md).
+
+La unidad de colaboración y aislamiento es la organización; cada organización
 opera como un tenant independiente.
 
 ## Recorridos disponibles
