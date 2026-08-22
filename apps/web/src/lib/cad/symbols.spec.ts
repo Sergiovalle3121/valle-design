@@ -73,10 +73,10 @@ for (const symbol of CAD_SYMBOL_LIBRARY) {
     );
   }
 }
-const placement = createCadSymbolPlacement("smt-line", 100, 200, "p1");
+const placement = createCadSymbolPlacement("packing", 100, 200, "p1");
 assert.equal(
   placement?.width,
-  12000,
+  3200,
   "placement uses default symbol dimensions",
 );
 assert.equal(placement?.layer, "Equipment", "placement carries default layer");
@@ -624,7 +624,6 @@ assert.ok(
 for (const [query, id] of [
   ["bomba de gasolina", "fuel-dispenser"],
   ["automovil", "vehicle"],
-  ["montacargas", "forklift"],
   ["olla de coccion", "brew-kettle"],
   ["tanque de fermentacion", "fermenter"],
   ["molino de malta", "grain-mill"],

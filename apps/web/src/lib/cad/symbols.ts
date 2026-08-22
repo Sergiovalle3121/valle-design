@@ -2,10 +2,8 @@ import { CAD_ARCHITECTURE_SYMBOLS } from "./symbols-architecture";
 
 export type CadSymbolCategory =
   | "equipment"
-  | "flow"
   | "safety"
   | "storage"
-  | "operator"
   // CAD universal (VD-CAD-UNIVERSAL-001): cualquiera diseñando cualquier
   // cosa — no solo plantas EMS.
   | "architecture"
@@ -41,19 +39,6 @@ export interface CadSymbolPlacement {
 }
 
 const CAD_CORE_SYMBOLS: CadSymbolDefinition[] = [
-  {
-    id: "smt-line",
-    label: "SMT line",
-    category: "equipment",
-    defaultWidth: 12000,
-    defaultHeight: 2400,
-    layer: "Equipment",
-    tags: ["smt", "line"],
-    ports: [
-      { id: "in", label: "In", x: -0.5, y: 0 },
-      { id: "out", label: "Out", x: 0.5, y: 0 },
-    ],
-  },
   {
     id: "solder-paste-printer",
     label: "Solder paste printer",
@@ -121,34 +106,6 @@ const CAD_CORE_SYMBOLS: CadSymbolDefinition[] = [
     ],
   },
   {
-    id: "ict-tester",
-    label: "ICT tester",
-    category: "equipment",
-    defaultWidth: 2600,
-    defaultHeight: 1800,
-    layer: "Equipment",
-    tags: ["test", "ict", "quality", "electronics"],
-    ports: [
-      { id: "in", label: "In", x: -0.5, y: 0 },
-      { id: "out", label: "Out", x: 0.5, y: 0 },
-      { id: "fail", label: "Fail", x: 0, y: 0.5 },
-    ],
-  },
-  {
-    id: "functional-test-bench",
-    label: "Functional test bench",
-    category: "equipment",
-    defaultWidth: 3000,
-    defaultHeight: 1800,
-    layer: "Equipment",
-    tags: ["test", "functional", "bench", "quality"],
-    ports: [
-      { id: "in", label: "In", x: -0.5, y: 0 },
-      { id: "out", label: "Out", x: 0.5, y: 0 },
-      { id: "fail", label: "Fail", x: 0, y: 0.5 },
-    ],
-  },
-  {
     id: "conformal-coating",
     label: "Conformal coating",
     category: "equipment",
@@ -188,6 +145,34 @@ const CAD_CORE_SYMBOLS: CadSymbolDefinition[] = [
     ],
   },
   {
+    id: "ict-tester",
+    label: "Probador ICT",
+    category: "equipment",
+    defaultWidth: 2600,
+    defaultHeight: 1800,
+    layer: "Equipment",
+    tags: ["test", "ict", "quality", "electronics"],
+    ports: [
+      { id: "in", label: "In", x: -0.5, y: 0 },
+      { id: "out", label: "Out", x: 0.5, y: 0 },
+      { id: "fail", label: "Fail", x: 0, y: 0.5 },
+    ],
+  },
+  {
+    id: "functional-test-bench",
+    label: "Banco de pruebas",
+    category: "equipment",
+    defaultWidth: 3000,
+    defaultHeight: 1800,
+    layer: "Equipment",
+    tags: ["test", "functional", "bench", "quality"],
+    ports: [
+      { id: "in", label: "In", x: -0.5, y: 0 },
+      { id: "out", label: "Out", x: 0.5, y: 0 },
+      { id: "fail", label: "Fail", x: 0, y: 0.5 },
+    ],
+  },
+  {
     id: "quality-gate",
     label: "Quality gate",
     category: "equipment",
@@ -199,32 +184,6 @@ const CAD_CORE_SYMBOLS: CadSymbolDefinition[] = [
       { id: "in", label: "In", x: -0.5, y: 0 },
       { id: "out", label: "Out", x: 0.5, y: 0 },
       { id: "hold", label: "Hold", x: 0, y: 0.5 },
-    ],
-  },
-  {
-    id: "label-print-station",
-    label: "Label print station",
-    category: "equipment",
-    defaultWidth: 1600,
-    defaultHeight: 1200,
-    layer: "Equipment",
-    tags: ["packing", "label", "printer", "traceability"],
-    ports: [
-      { id: "in", label: "In", x: -0.5, y: 0 },
-      { id: "out", label: "Out", x: 0.5, y: 0 },
-    ],
-  },
-  {
-    id: "calibration-station",
-    label: "Calibration station",
-    category: "equipment",
-    defaultWidth: 2200,
-    defaultHeight: 1600,
-    layer: "Equipment",
-    tags: ["calibration", "quality", "metrology", "tooling"],
-    ports: [
-      { id: "in", label: "In", x: -0.5, y: 0 },
-      { id: "out", label: "Out", x: 0.5, y: 0 },
     ],
   },
   {
@@ -254,16 +213,6 @@ const CAD_CORE_SYMBOLS: CadSymbolDefinition[] = [
     ],
   },
   {
-    id: "warehouse-rack",
-    label: "Warehouse rack",
-    category: "storage",
-    defaultWidth: 4200,
-    defaultHeight: 1100,
-    layer: "Layout",
-    tags: ["warehouse", "storage"],
-    ports: [],
-  },
-  {
     id: "packing",
     label: "Packing",
     category: "equipment",
@@ -275,26 +224,6 @@ const CAD_CORE_SYMBOLS: CadSymbolDefinition[] = [
       { id: "in", label: "In", x: -0.5, y: 0 },
       { id: "out", label: "Out", x: 0.5, y: 0 },
     ],
-  },
-  {
-    id: "forklift-path",
-    label: "Forklift path",
-    category: "flow",
-    defaultWidth: 10000,
-    defaultHeight: 2500,
-    layer: "Flow",
-    tags: ["forklift", "aisle"],
-    ports: [],
-  },
-  {
-    id: "operator-station",
-    label: "Operator station",
-    category: "operator",
-    defaultWidth: 1200,
-    defaultHeight: 900,
-    layer: "Equipment",
-    tags: ["operator"],
-    ports: [{ id: "work", label: "Work", x: 0, y: 0 }],
   },
   {
     id: "esd-area",
@@ -316,47 +245,6 @@ const CAD_CORE_SYMBOLS: CadSymbolDefinition[] = [
     tags: ["safety"],
     ports: [],
   },
-  {
-    id: "conveyor",
-    label: "Conveyor",
-    category: "flow",
-    defaultWidth: 6000,
-    defaultHeight: 900,
-    layer: "Flow",
-    tags: ["conveyor"],
-    ports: [
-      { id: "in", label: "In", x: -0.5, y: 0 },
-      { id: "out", label: "Out", x: 0.5, y: 0 },
-    ],
-  },
-  {
-    id: "test-station",
-    label: "Test station",
-    category: "equipment",
-    defaultWidth: 2200,
-    defaultHeight: 1800,
-    layer: "Equipment",
-    tags: ["test"],
-    ports: [
-      { id: "in", label: "In", x: -0.5, y: 0 },
-      { id: "out", label: "Out", x: 0.5, y: 0 },
-    ],
-  },
-  {
-    id: "rework-station",
-    label: "Rework station",
-    category: "equipment",
-    defaultWidth: 2400,
-    defaultHeight: 1900,
-    layer: "Equipment",
-    tags: ["rework"],
-    ports: [
-      { id: "in", label: "In", x: -0.5, y: 0 },
-      { id: "out", label: "Out", x: 0.5, y: 0 },
-    ],
-  },
-
-  // ── Oficina ──
   {
     id: "desk",
     label: "Escritorio",
@@ -1437,17 +1325,6 @@ const CAD_CORE_SYMBOLS: CadSymbolDefinition[] = [
     tags: ["auto", "automóvil", "automovil", "carro", "vehículo", "vehiculo", "coche", "exhibición", "agencia"],
     ports: [],
   },
-  {
-    id: "forklift",
-    label: "Montacargas",
-    category: "equipment",
-    defaultWidth: 1400,
-    defaultHeight: 1800,
-    layer: "Equipment",
-    tags: ["montacargas", "forklift", "carga", "maniobras", "almacén", "almacen", "industrial"],
-    ports: [],
-  },
-  // Trigésima novena tanda universal (VD-CAD-UNIVERSAL-131): cervecería.
   {
     id: "brew-kettle",
     label: "Olla de cocción",

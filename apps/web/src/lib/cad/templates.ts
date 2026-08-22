@@ -1,11 +1,6 @@
 import type { CadLayerId } from "./layers";
 
 export type CadLayoutTemplateId =
-  | "ems-mini-factory"
-  | "smt-line"
-  | "supermarket-kitting"
-  | "warehouse-racks"
-  | "packing-shipping-cell"
   | "architecture-floor-core"
   | "civil-site-utilities"
   | "structural-grid-core"
@@ -185,7 +180,17 @@ export interface CadLayoutTemplate {
   id: CadLayoutTemplateId;
   label: string;
   description: string;
-  category: "factory" | "production" | "warehouse" | "shipping" | "architecture" | "civil" | "structure" | "mep";
+  /**
+   * Grupo de la plantilla, TAL CUAL se muestra en la paleta. No se persiste en
+   * el documento: es sólo texto de interfaz, en el idioma del producto.
+   */
+  category:
+    | "arquitectura"
+    | "civil"
+    | "estructura"
+    | "instalaciones"
+    | "taller"
+    | "bodega";
   baseWidth: number;
   baseHeight: number;
   assets: CadTemplateAsset[];
@@ -229,7 +234,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "architecture-floor-core",
     label: "Architecture floor core",
     description: "Architectural starter with exterior walls, rooms, doors, columns, stairs, service core, dimensions, and egress zones.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 24000,
     baseHeight: 16000,
     assets: [
@@ -242,7 +247,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       asset("utility", "room", "MEP / utility", 8200, 7600, 3100, 2700, "utilities", ["room", "use:utility", "dept:facilities"]),
       asset("restrooms", "room", "Restrooms", 8200, 10600, 3100, 2600, "architecture", ["room", "use:restroom", "dept:shared"]),
       asset("production", "room", "Flexible production hall", 11900, 9500, 10100, 3400, "architecture", ["room", "use:production", "dept:operations"]),
-      asset("egress", "agvpath", "Main egress corridor", 1300, 6500, 20700, 700, "aisles", ["egress", "corridor", "life-safety"]),
+      asset("egress", "path", "Main egress corridor", 1300, 6500, 20700, 700, "aisles", ["egress", "corridor", "life-safety"]),
       asset("stair", "stair", "Stair core", 19100, 1300, 2900, 3000, "structure", ["stairs", "egress"]),
       asset("col-a", "column", "C1", 6900, 7200, 450, 450, "structure", ["column", "grid:a"]),
       asset("col-b", "column", "C2", 11600, 7200, 450, 450, "structure", ["column", "grid:b"]),
@@ -271,8 +276,8 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     assets: [
       asset("property", "zone", "Property boundary", 800, 800, 40400, 24400, "layout", ["site", "boundary"]),
       asset("building", "room", "Building pad", 10400, 6200, 16400, 9800, "architecture", ["building", "pad"]),
-      asset("truck-road", "agvpath", "Truck loop road", 3000, 3600, 36000, 1600, "aisles", ["road", "truck", "fire-lane"]),
-      asset("south-road", "agvpath", "South service road", 3000, 19900, 36000, 1400, "aisles", ["road", "service"]),
+      asset("truck-road", "path", "Truck loop road", 3000, 3600, 36000, 1600, "aisles", ["road", "truck", "fire-lane"]),
+      asset("south-road", "path", "South service road", 3000, 19900, 36000, 1400, "aisles", ["road", "service"]),
       asset("parking", "zone", "Parking field", 28400, 7100, 9000, 8200, "layout", ["parking", "site"]),
       asset("storm", "zone", "Stormwater basin", 5200, 17100, 7600, 4800, "utilities", ["stormwater", "detention"]),
       asset("substation", "cabinet", "Electrical substation", 5200, 6900, 2600, 2100, "utilities", ["electrical", "utility"]),
@@ -296,7 +301,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "structural-grid-core",
     label: "Structural grid core",
     description: "Column grid, shear/core zones, beams as walls, stairs, expansion joint, and inspection clearances for structural planning.",
-    category: "structure",
+    category: "estructura",
     baseWidth: 30000,
     baseHeight: 21000,
     assets: [
@@ -330,7 +335,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "mep-plantroom",
     label: "MEP plantroom",
     description: "Mechanical/electrical plantroom with utility rooms, transformer, pumps, compressor, maintenance envelope, and service paths.",
-    category: "mep",
+    category: "instalaciones",
     baseWidth: 22000,
     baseHeight: 15000,
     assets: [
@@ -338,7 +343,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       asset("electrical", "room", "Electrical room", 1600, 1600, 4800, 3900, "utilities", ["electrical", "switchgear", "use:utility"]),
       asset("mechanical", "room", "Mechanical room", 7200, 1600, 6100, 3900, "utilities", ["mechanical", "hvac", "use:utility"]),
       asset("pump", "room", "Pump room", 14100, 1600, 5200, 3900, "utilities", ["pump", "water", "use:utility"]),
-      asset("service-aisle", "agvpath", "Service aisle", 1600, 6500, 17700, 900, "aisles", ["service", "maintenance", "egress"]),
+      asset("service-aisle", "path", "Service aisle", 1600, 6500, 17700, 900, "aisles", ["service", "maintenance", "egress"]),
       asset("transformer", "cabinet", "Transformer / switchgear", 2500, 2800, 2500, 1200, "utilities", ["electrical", "transformer"]),
       asset("ahu", "machine", "Air handling unit", 8300, 2550, 3600, 1500, "utilities", ["hvac", "ahu"]),
       asset("compressor", "machine", "Compressed air skid", 8500, 9200, 3000, 1700, "utilities", ["compressed-air", "skid"]),
@@ -358,189 +363,10 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     ],
   },
   {
-    id: "smt-line",
-    label: "SMT line",
-    description: "Printer, SPI, pick-and-place, reflow, AOI, inspection, and packing with material flow.",
-    category: "production",
-    baseWidth: 17000,
-    baseHeight: 5600,
-    assets: [
-      asset("infeed", "conveyor", "Infeed conveyor", 700, 2200, 1300, 500, "flow", ["smt", "flow"]),
-      asset("printer", "printer", "Stencil printer", 2300, 2000, 1400, 900, "equipment", ["smt", "printer"]),
-      asset("spi", "machine", "SPI", 4200, 2000, 1100, 900, "equipment", ["smt", "inspection"]),
-      asset("pnp1", "machine", "Pick and place 1", 5700, 1800, 1700, 1200, "equipment", ["smt", "placement"]),
-      asset("pnp2", "machine", "Pick and place 2", 7700, 1800, 1700, 1200, "equipment", ["smt", "placement"]),
-      asset("reflow", "oven", "Reflow oven", 9900, 1750, 2800, 1300, "equipment", ["smt", "reflow"]),
-      asset("aoi", "aoi", "AOI", 13200, 1900, 1500, 1000, "equipment", ["smt", "aoi"]),
-      asset("pack", "workbench", "Packing bench", 15100, 2000, 1300, 850, "equipment", ["packing"]),
-      asset("operator", "operator", "Operator", 2450, 3350, 600, 600, "equipment", ["operator"]),
-      asset("esd", "zone", "ESD controlled zone", 500, 1300, 16000, 2800, "safety", ["esd", "controlled-area"]),
-      asset("front-aisle", "agvpath", "Front material aisle", 500, 4400, 16000, 700, "aisles", ["aisle", "material-flow"]),
-    ],
-    annotations: [
-      note("label", "SMT Line - editable template", 620, 900, "measurements"),
-      note("takt", "Flow: infeed -> packing", 11300, 4100, "flow"),
-    ],
-    connectors: [
-      { fromRef: "infeed", toRef: "printer", kind: "flow" },
-      { fromRef: "printer", toRef: "spi", kind: "flow" },
-      { fromRef: "spi", toRef: "pnp1", kind: "flow" },
-      { fromRef: "pnp1", toRef: "pnp2", kind: "flow" },
-      { fromRef: "pnp2", toRef: "reflow", kind: "flow" },
-      { fromRef: "reflow", toRef: "aoi", kind: "flow" },
-      { fromRef: "aoi", toRef: "pack", kind: "flow" },
-    ],
-  },
-  {
-    id: "warehouse-racks",
-    label: "Warehouse racks",
-    description: "Rack rows, forklift aisles, receiving, staging, and supermarket lanes.",
-    category: "warehouse",
-    baseWidth: 18000,
-    baseHeight: 11000,
-    assets: [
-      asset("receiving", "zone", "Receiving dock", 700, 700, 3500, 1700, "layout", ["receiving", "dock"]),
-      asset("shipping", "zone", "Shipping dock", 13800, 700, 3500, 1700, "layout", ["shipping", "dock"]),
-      asset("forklift-main", "agvpath", "Forklift main aisle", 800, 4900, 16400, 1000, "aisles", ["forklift", "aisle"]),
-      asset("rack-a1", "rack", "Rack A1", 1600, 3200, 4200, 900, "equipment", ["warehouse", "rack"]),
-      asset("rack-a2", "rack", "Rack A2", 6300, 3200, 4200, 900, "equipment", ["warehouse", "rack"]),
-      asset("rack-a3", "rack", "Rack A3", 11000, 3200, 4200, 900, "equipment", ["warehouse", "rack"]),
-      asset("rack-b1", "rack", "Rack B1", 1600, 6500, 4200, 900, "equipment", ["warehouse", "rack"]),
-      asset("rack-b2", "rack", "Rack B2", 6300, 6500, 4200, 900, "equipment", ["warehouse", "rack"]),
-      asset("rack-b3", "rack", "Rack B3", 11000, 6500, 4200, 900, "equipment", ["warehouse", "rack"]),
-      asset("supermarket", "zone", "Line supermarket", 800, 8700, 7600, 1500, "layout", ["supermarket", "kitting"]),
-      asset("quarantine", "fence", "Quarantine cage", 9300, 8500, 2600, 1800, "safety", ["quality", "quarantine"]),
-      asset("pallets", "pallet", "Pallet staging", 12600, 8400, 3600, 1800, "layout", ["pallet", "staging"]),
-    ],
-    annotations: [
-      note("label", "Warehouse receiving / shipping", 900, 290, "measurements"),
-      note("aisle", "Main forklift aisle", 7400, 4650, "aisles"),
-    ],
-    connectors: [
-      { fromRef: "receiving", toRef: "supermarket", kind: "material" },
-      { fromRef: "supermarket", toRef: "shipping", kind: "material" },
-    ],
-  },
-  {
-    id: "supermarket-kitting",
-    label: "Supermarket + kitting",
-    description: "Kanban lanes, kitting carts, FIFO WIP, ESD boundary, and forklift/pedestrian aisles.",
-    category: "warehouse",
-    baseWidth: 15500,
-    baseHeight: 9200,
-    assets: [
-      asset("receiving", "zone", "Receiving drop", 700, 900, 2600, 1400, "layout", ["receiving", "drop-zone"]),
-      asset("incoming-qc", "workbench", "Incoming QC", 3700, 950, 1400, 850, "equipment", ["quality", "incoming"]),
-      asset("supermarket", "zone", "Material supermarket", 5600, 750, 4700, 1900, "layout", ["supermarket", "kitting"]),
-      asset("kanban-a", "zone", "Kanban lane A", 5800, 3300, 2600, 650, "layout", ["kanban", "lane-a"]),
-      asset("kanban-b", "zone", "Kanban lane B", 5800, 4250, 2600, 650, "layout", ["kanban", "lane-b"]),
-      asset("kanban-c", "zone", "Kanban lane C", 5800, 5200, 2600, 650, "layout", ["kanban", "lane-c"]),
-      asset("cart-a", "agv", "Kitting cart A", 9000, 3200, 1100, 750, "equipment", ["kitting", "cart"]),
-      asset("cart-b", "agv", "Kitting cart B", 9000, 4200, 1100, 750, "equipment", ["kitting", "cart"]),
-      asset("cart-c", "agv", "Kitting cart C", 9000, 5200, 1100, 750, "equipment", ["kitting", "cart"]),
-      asset("fifo", "zone", "FIFO WIP lane", 10800, 3450, 2100, 2200, "layout", ["fifo", "wip"]),
-      asset("point-of-use", "zone", "Line-side delivery", 13200, 3600, 1700, 2000, "layout", ["line-side", "delivery"]),
-      asset("replenishment", "rack", "Replenishment rack", 10800, 950, 2900, 900, "equipment", ["replenishment", "rack"]),
-      asset("kanban-board", "cabinet", "Kanban board", 14100, 1050, 650, 500, "equipment", ["kanban", "visual-management"]),
-      asset("forklift-aisle", "agvpath", "Forklift replenishment aisle", 500, 6650, 14500, 850, "aisles", ["forklift", "aisle"]),
-      asset("pedestrian", "agvpath", "Pedestrian pick aisle", 500, 2700, 14500, 450, "aisles", ["pedestrian", "aisle"]),
-      asset("esd", "zone", "ESD controlled kitting", 5350, 650, 9900, 5450, "safety", ["esd", "controlled-area"]),
-      asset("quarantine", "fence", "Material quarantine", 900, 3900, 2500, 1600, "safety", ["quality", "quarantine"]),
-      asset("operator", "operator", "Kitting operator", 10100, 4350, 600, 600, "equipment", ["operator", "kitting"]),
-    ],
-    annotations: [
-      note("title", "Supermarket + kitting - editable template", 750, 450, "measurements"),
-      note("pull", "Pull flow: receiving -> supermarket -> cart -> line-side", 5900, 3050, "flow"),
-      note("safety", "ESD boundary + quarantine included", 5400, 6300, "safety"),
-    ],
-    connectors: [
-      { fromRef: "receiving", toRef: "incoming-qc", kind: "material" },
-      { fromRef: "incoming-qc", toRef: "supermarket", kind: "material" },
-      { fromRef: "supermarket", toRef: "kanban-a", kind: "material" },
-      { fromRef: "kanban-a", toRef: "cart-a", kind: "flow" },
-      { fromRef: "kanban-b", toRef: "cart-b", kind: "flow" },
-      { fromRef: "kanban-c", toRef: "cart-c", kind: "flow" },
-      { fromRef: "cart-a", toRef: "fifo", kind: "flow" },
-      { fromRef: "cart-b", toRef: "fifo", kind: "flow" },
-      { fromRef: "cart-c", toRef: "fifo", kind: "flow" },
-      { fromRef: "fifo", toRef: "point-of-use", kind: "flow" },
-    ],
-  },
-  {
-    id: "packing-shipping-cell",
-    label: "Packing cell",
-    description: "Packing benches, label print, carton staging, pallet staging, QA hold, and shipping lane.",
-    category: "shipping",
-    baseWidth: 12500,
-    baseHeight: 7800,
-    assets: [
-      asset("inbound-wip", "zone", "Inbound WIP lane", 500, 2400, 1800, 1800, "layout", ["wip", "packing"]),
-      asset("pack-a", "workbench", "Pack bench A", 3000, 1400, 1600, 900, "equipment", ["packing"]),
-      asset("pack-b", "workbench", "Pack bench B", 3000, 2900, 1600, 900, "equipment", ["packing"]),
-      asset("label", "desk", "Label print", 5100, 2100, 1300, 900, "equipment", ["label-print"]),
-      asset("cartons", "zone", "Carton staging", 7200, 1200, 2100, 1900, "layout", ["carton", "staging"]),
-      asset("pallet", "pallet", "Pallet staging", 7200, 3900, 2600, 1700, "layout", ["pallet", "staging"]),
-      asset("qa-hold", "fence", "QA hold", 10100, 1400, 1600, 1600, "safety", ["quality", "hold"]),
-      asset("ship", "agvpath", "Shipping lane", 10100, 4200, 1600, 2500, "aisles", ["shipping", "aisle"]),
-    ],
-    annotations: [
-      note("label", "Packing / shipping cell", 600, 650, "measurements"),
-      note("qa", "QA hold before ship", 9600, 1050, "safety"),
-    ],
-    connectors: [
-      { fromRef: "inbound-wip", toRef: "pack-a", kind: "flow" },
-      { fromRef: "pack-a", toRef: "label", kind: "flow" },
-      { fromRef: "pack-b", toRef: "label", kind: "flow" },
-      { fromRef: "label", toRef: "pallet", kind: "flow" },
-      { fromRef: "pallet", toRef: "ship", kind: "flow" },
-    ],
-  },
-  {
-    id: "ems-mini-factory",
-    label: "EMS mini factory",
-    description: "End-to-end EMS starter: receiving, supermarket, SMT, inspection, rework, packing, shipping, and safety zones.",
-    category: "factory",
-    baseWidth: 22000,
-    baseHeight: 14000,
-    assets: [
-      asset("receiving", "zone", "Receiving", 900, 900, 3200, 1600, "layout", ["receiving"]),
-      asset("supermarket", "zone", "Material supermarket", 900, 3500, 4200, 1800, "layout", ["supermarket", "kitting"]),
-      asset("smt-printer", "printer", "SMT printer", 6500, 2500, 1300, 850, "equipment", ["smt"]),
-      asset("smt-pnp", "machine", "SMT pick and place", 8500, 2300, 2200, 1200, "equipment", ["smt"]),
-      asset("reflow", "oven", "Reflow", 11300, 2250, 2600, 1300, "equipment", ["smt", "reflow"]),
-      asset("aoi", "aoi", "AOI", 14600, 2450, 1500, 1000, "equipment", ["quality", "aoi"]),
-      asset("inspection", "workbench", "Inspection", 16600, 6100, 1600, 900, "equipment", ["inspection"]),
-      asset("rework", "workbench", "Rework", 14100, 7300, 1600, 900, "equipment", ["rework"]),
-      asset("test", "machine", "Functional test", 11200, 6100, 1700, 1100, "equipment", ["test"]),
-      asset("packing", "workbench", "Packing", 17100, 9300, 1700, 900, "equipment", ["packing"]),
-      asset("shipping", "zone", "Shipping", 17100, 11300, 3200, 1600, "layout", ["shipping"]),
-      asset("main-aisle", "agvpath", "Main material aisle", 5600, 4600, 11500, 900, "aisles", ["aisle", "material-flow"]),
-      asset("esd", "zone", "ESD controlled production", 5900, 1500, 11200, 3400, "safety", ["esd", "controlled-area"]),
-      asset("no-go", "fence", "Maintenance no-go", 6500, 9400, 3000, 1800, "safety", ["no-go", "maintenance"]),
-    ],
-    annotations: [
-      note("title", "EMS mini factory - editable layout", 900, 500, "measurements"),
-      note("flow", "Receiving -> SMT -> test -> pack -> ship", 7300, 5600, "flow"),
-      note("safety", "ESD + no-go zones included", 6300, 8800, "safety"),
-    ],
-    connectors: [
-      { fromRef: "receiving", toRef: "supermarket", kind: "material" },
-      { fromRef: "supermarket", toRef: "smt-printer", kind: "material" },
-      { fromRef: "smt-printer", toRef: "smt-pnp", kind: "flow" },
-      { fromRef: "smt-pnp", toRef: "reflow", kind: "flow" },
-      { fromRef: "reflow", toRef: "aoi", kind: "flow" },
-      { fromRef: "aoi", toRef: "test", kind: "flow" },
-      { fromRef: "test", toRef: "inspection", kind: "flow" },
-      { fromRef: "inspection", toRef: "rework", kind: "flow" },
-      { fromRef: "inspection", toRef: "packing", kind: "flow" },
-      { fromRef: "packing", toRef: "shipping", kind: "flow" },
-    ],
-  },
-  {
     id: "casa-habitacion",
     label: "Casa habitación",
     description: "Arranque universal: sala, comedor, cocina, dos recámaras y baño con muebles a medidas reales — edítalo a tu gusto.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -568,7 +394,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "local-comercial",
     label: "Local comercial",
     description: "Arranque universal de tienda: piso de venta con mostrador y góndolas, bodega y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 10000,
     baseHeight: 7000,
     assets: [
@@ -594,7 +420,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "consultorio",
     label: "Consultorio",
     description: "Arranque universal de consultorio: sala de espera con recepción, área de consulta y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -619,7 +445,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "restaurante",
     label: "Restaurante",
     description: "Arranque universal de restaurante: comedor con mesas, barra, cocina y baños.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -651,7 +477,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "aula-escolar",
     label: "Aula escolar",
     description: "Arranque universal de salón de clases: pizarrón al frente, escritorio del profesor y retícula de 12 pupitres.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 7000,
     assets: [
@@ -683,7 +509,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "gimnasio",
     label: "Gimnasio",
     description: "Arranque universal de gimnasio: recepción, zona de cardio con caminadoras, zona de pesas y vestidores.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -712,7 +538,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "oficina-coworking",
     label: "Oficina / Coworking",
     description: "Arranque universal de oficina: recepción, seis escritorios en isla, sala de juntas y archivo.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -742,8 +568,8 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
   {
     id: "bodega-pyme",
     label: "Bodega PyME",
-    description: "Arranque universal de bodega: recibo, cuatro racks en dos filas con pasillo de montacargas, embarque y oficina.",
-    category: "warehouse",
+    description: "Arranque universal de bodega: recibo, cuatro estantes en dos filas con pasillo de maniobra, embarque y oficina.",
+    category: "bodega",
     baseWidth: 14000,
     baseHeight: 9000,
     assets: [
@@ -752,11 +578,11 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       asset("porton-embarque", "door", "Portón de embarque", 9600, 650, 2400, 260, "architecture", ["door", "opening:dock"]),
       asset("recibo", "zone", "Zona de recibo", 1300, 1300, 3200, 2200, "layout", ["zone", "use:receiving", "bodega"]),
       asset("embarque", "zone", "Zona de embarque", 9100, 1300, 3200, 2200, "layout", ["zone", "use:shipping", "bodega"]),
-      asset("rack-1", "warehouse-rack", "Rack A1", 1600, 4300, 2700, 1100, "equipment", ["rack", "storage"]),
-      asset("rack-2", "warehouse-rack", "Rack A2", 4800, 4300, 2700, 1100, "equipment", ["rack", "storage"]),
-      asset("rack-3", "warehouse-rack", "Rack B1", 1600, 6600, 2700, 1100, "equipment", ["rack", "storage"]),
-      asset("rack-4", "warehouse-rack", "Rack B2", 4800, 6600, 2700, 1100, "equipment", ["rack", "storage"]),
-      asset("pasillo", "forklift-path", "Pasillo de montacargas", 1600, 5600, 5900, 800, "aisles", ["aisle", "forklift"]),
+      asset("rack-1", "rack", "Estante A1", 1600, 4300, 2700, 1100, "equipment", ["rack", "storage"]),
+      asset("rack-2", "rack", "Estante A2", 4800, 4300, 2700, 1100, "equipment", ["rack", "storage"]),
+      asset("rack-3", "rack", "Estante B1", 1600, 6600, 2700, 1100, "equipment", ["rack", "storage"]),
+      asset("rack-4", "rack", "Estante B2", 4800, 6600, 2700, 1100, "equipment", ["rack", "storage"]),
+      asset("pasillo", "path", "Pasillo de maniobra", 1600, 5600, 5900, 800, "aisles", ["aisle", "circulation"]),
       asset("oficina", "room", "Oficina de bodega", 9100, 4700, 3200, 2600, "architecture", ["room", "use:office", "bodega"]),
       asset("escritorio-bodega", "desk", "Escritorio", 9600, 5200, 1400, 700, "equipment", ["furniture", "desk"]),
     ],
@@ -774,7 +600,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "taller-mecanico",
     label: "Taller mecánico",
     description: "Arranque universal de taller automotriz: dos bahías con elevador, bancos de trabajo, herramientas, llantera y recepción de clientes.",
-    category: "factory",
+    category: "taller",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -807,7 +633,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "cafeteria",
     label: "Cafetería",
     description: "Arranque universal de cafetería: barra, caja, cocina compacta, cuatro mesas, baño y bodega con estante.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 10000,
     baseHeight: 7000,
     assets: [
@@ -840,7 +666,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "salon-belleza",
     label: "Salón de belleza",
     description: "Arranque universal de salón/barbería: tres estaciones con tocador y silla, dos lavacabezas, recepción, sala de espera y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -872,7 +698,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "farmacia",
     label: "Farmacia",
     description: "Arranque universal de farmacia: mostrador de atención, góndolas de piso de venta, refrigerador de medicinas y trastienda con estante.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -898,7 +724,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "jardin-eventos",
     label: "Jardín de eventos",
     description: "Arranque universal de jardín de eventos: acceso, seis mesas, pista de baile, escenario, barra, baño, estacionamiento y arbolado.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 20000,
     baseHeight: 12000,
     assets: [
@@ -933,7 +759,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "panaderia",
     label: "Panadería",
     description: "Arranque universal de panadería: venta con vitrinas y caja, taller con horno, amasadora y mesa de trabajo, y bodega de insumos.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 10000,
     baseHeight: 7000,
     assets: [
@@ -963,7 +789,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "veterinaria",
     label: "Veterinaria",
     description: "Arranque universal de clínica veterinaria: sala de espera con recepción, consultorio con mesa de exploración y hospitalización con jaulas.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -994,7 +820,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "lavanderia",
     label: "Lavandería",
     description: "Arranque universal de lavandería: mostrador de recepción, batería de lavadoras y secadoras, mesa de doblado y sillas de espera.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 8000,
     baseHeight: 6000,
     assets: [
@@ -1026,7 +852,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "guarderia",
     label: "Guardería",
     description: "Arranque universal de guardería: sala de juegos con mesas infantiles, área de cunas y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -1053,7 +879,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "ferreteria",
     label: "Ferretería",
     description: "Arranque universal de ferretería: mostrador, góndolas de venta, bodega con racks y mesa de cortes.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 10000,
     baseHeight: 7000,
     assets: [
@@ -1065,8 +891,8 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       asset("gondola-fer-3", "shelf-gondola", "Góndola 3", 1300, 3900, 1200, 500, "equipment", ["gondola", "venta"]),
       asset("gondola-fer-4", "shelf-gondola", "Góndola 4", 3100, 3900, 1200, 500, "equipment", ["gondola", "venta"]),
       asset("bodega-fer", "room", "Bodega", 5300, 2900, 3300, 3000, "architecture", ["room", "use:storage", "ferreteria"]),
-      asset("rack-fer-1", "warehouse-rack", "Rack de bodega 1", 5600, 3200, 2700, 1100, "equipment", ["rack", "storage"]),
-      asset("rack-fer-2", "warehouse-rack", "Rack de bodega 2", 5600, 4500, 2700, 1100, "equipment", ["rack", "storage"]),
+      asset("rack-fer-1", "rack", "Rack de bodega 1", 5600, 3200, 2700, 1100, "equipment", ["rack", "storage"]),
+      asset("rack-fer-2", "rack", "Rack de bodega 2", 5600, 4500, 2700, 1100, "equipment", ["rack", "storage"]),
       asset("mesa-cortes", "workbench", "Mesa de cortes", 5600, 1400, 1800, 750, "equipment", ["mesa de trabajo", "cortes"]),
     ],
     annotations: [
@@ -1081,7 +907,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "habitacion-hotel",
     label: "Habitación de hotel",
     description: "Arranque universal de habitación de hotel: cama matrimonial con burós, ropero, escritorio con silla y baño con regadera.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 7000,
     baseHeight: 5000,
     assets: [
@@ -1109,7 +935,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "consultorio-dental",
     label: "Consultorio dental",
     description: "Arranque universal de consultorio dental: recepción con sala de espera, área clínica con sillón dental y gabinete, y esterilización.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 8000,
     baseHeight: 6000,
     assets: [
@@ -1137,7 +963,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "estacionamiento",
     label: "Estacionamiento",
     description: "Arranque universal de estacionamiento: acceso, caseta de cobro, ocho cajones en dos filas y pasillo de circulación.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 20000,
     baseHeight: 14000,
     assets: [
@@ -1167,7 +993,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "cancha-futbol",
     label: "Cancha de fútbol rápido",
     description: "Arranque universal de cancha de fútbol rápido: cancha con línea media, dos porterías, gradas y bancas de jugadores.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 30000,
     baseHeight: 18000,
     assets: [
@@ -1193,7 +1019,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "salon-fiestas",
     label: "Salón de fiestas infantiles",
     description: "Arranque universal de salón de fiestas: área de juegos con brincolín, mesas de invitados, dulcería, mesa de pastel, pista y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 15000,
     baseHeight: 10000,
     assets: [
@@ -1224,7 +1050,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "iglesia",
     label: "Iglesia / Salón de culto",
     description: "Arranque universal de iglesia o salón de culto: vestíbulo, nave con dos columnas de bancas y pasillo central, presbiterio con púlpito y mesa de altar, sala de niños y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 12000,
     assets: [
@@ -1260,7 +1086,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "minisuper",
     label: "Minisúper / Abarrotes",
     description: "Arranque universal de minisúper o tienda de abarrotes: caja con vitrina, tres góndolas centrales, refrigeradores de pared, bodega con anaquel y pasillo de acceso.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -1276,7 +1102,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       asset("refri-2", "refrigerator", "Refrigerador de bebidas 2", 10300, 2400, 800, 700, "equipment", ["refrigerador", "minisuper"]),
       asset("refri-3", "refrigerator", "Refrigerador de lácteos", 10300, 3300, 800, 700, "equipment", ["refrigerador", "minisuper"]),
       asset("bodega", "room", "Bodega", 1300, 5000, 2400, 2000, "architecture", ["room", "use:storage", "minisuper"]),
-      asset("anaquel-bodega", "warehouse-rack", "Anaquel de bodega", 1500, 5300, 2000, 500, "equipment", ["rack", "bodega"]),
+      asset("anaquel-bodega", "rack", "Anaquel de bodega", 1500, 5300, 2000, 500, "equipment", ["rack", "bodega"]),
       asset("pasillo-acceso", "zone", "Pasillo de acceso", 4000, 6000, 4000, 1000, "aisles", ["aisle", "minisuper"]),
     ],
     annotations: [
@@ -1292,7 +1118,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "taqueria",
     label: "Taquería",
     description: "Arranque universal de taquería: cocina con comal y refrigerador, barra de tacos, mostrador para llevar, comedor con cuatro mesas y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -1324,7 +1150,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "carniceria",
     label: "Carnicería",
     description: "Arranque universal de carnicería: vitrina de cortes con báscula y mostrador, dos congeladores y refrigerador, cuarto frío y mesa de corte.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 11000,
     baseHeight: 7000,
     assets: [
@@ -1353,7 +1179,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "fruteria",
     label: "Frutería / Verdulería",
     description: "Arranque universal de frutería: mostrador con báscula, cajones de fruta, góndolas de fruta y verdura, refrigerador y bodega con anaquel.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 10000,
     baseHeight: 7000,
     assets: [
@@ -1370,7 +1196,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
       asset("gondola-verdura", "shelf-gondola", "Góndola de verdura", 5000, 2800, 3000, 500, "equipment", ["gondola", "fruteria"]),
       asset("refri-fruteria", "refrigerator", "Refrigerador", 8300, 1400, 800, 700, "equipment", ["refrigerador", "fruteria"]),
       asset("bodega-fruta", "room", "Bodega", 1300, 4200, 2400, 1800, "architecture", ["room", "use:storage", "fruteria"]),
-      asset("anaquel-fruta", "warehouse-rack", "Anaquel de bodega", 1500, 4500, 2000, 500, "equipment", ["rack", "fruteria"]),
+      asset("anaquel-fruta", "rack", "Anaquel de bodega", 1500, 4500, 2000, 500, "equipment", ["rack", "fruteria"]),
     ],
     annotations: [
       note("titulo", "Frutería / Verdulería — plantilla universal editable", 1200, 420, "measurements"),
@@ -1385,7 +1211,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "barberia",
     label: "Barbería",
     description: "Arranque universal de barbería: sala de espera con sofá, tres estaciones de tocador con silla, lavacabezas y mostrador de cobro.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -1415,7 +1241,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "tortilleria",
     label: "Tortillería",
     description: "Arranque universal de tortillería: máquina tortilladora, comal, mesa de amasado, refrigerador de masa, mostrador con báscula, bodega de maíz y despacho.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -1443,7 +1269,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "papeleria",
     label: "Papelería",
     description: "Arranque universal de papelería: mostrador con vitrina, dos góndolas, copiadora, mesa de trabajo y bodega.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -1470,7 +1296,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "fondita",
     label: "Cocina económica / Fondita",
     description: "Arranque universal de cocina económica: cocina con estufa, refrigerador y mesa de preparación, barra de servicio, comedor con cuatro mesas y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 10000,
     baseHeight: 7000,
     assets: [
@@ -1502,7 +1328,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "estetica-canina",
     label: "Estética canina",
     description: "Arranque universal de estética canina: recepción, sala de espera con sofá, tina de baño, mesa de estética, zona de secado, dos jaulas y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -1532,7 +1358,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "fisioterapia",
     label: "Consultorio de fisioterapia",
     description: "Arranque universal de fisioterapia: recepción, sala de espera, dos camillas, zona de ejercicios con caminadora y rack de pesas, y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -1562,7 +1388,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "spa",
     label: "Spa / Masajes",
     description: "Arranque universal de spa: recepción, sala de espera con sofá, dos cabinas de masaje con camilla, sala de vapor y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 10000,
     baseHeight: 7000,
     assets: [
@@ -1592,7 +1418,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "cibercafe",
     label: "Cibercafé / Café internet",
     description: "Arranque universal de cibercafé: mostrador con copiadora, zona de computadoras con cuatro escritorios y sillas, vitrina de accesorios y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -1626,7 +1452,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "gimnasio-box",
     label: "Gimnasio de box",
     description: "Arranque universal de gimnasio de box: ring, zona de costales, rack de pesas, caminadora, vestidor con banca y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -1657,7 +1483,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "polleria",
     label: "Pollería",
     description: "Arranque universal de pollería: mostrador con vitrina refrigerada y báscula, congelador, mesa de corte, refrigerador, cuarto frío y despacho.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -1685,7 +1511,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "floreria",
     label: "Florería",
     description: "Arranque universal de florería: mostrador, cámara floral, mesa de arreglos, cubetas de flor, estante de macetas y trastienda.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -1713,7 +1539,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "cremeria",
     label: "Cremería",
     description: "Arranque universal de cremería: mostrador con vitrina de lácteos, báscula, caja registradora, mesa de corte y rebanado, refrigerador, cuarto frío y despacho.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -1741,7 +1567,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "neveria",
     label: "Nevería / Paletería",
     description: "Arranque universal de nevería: mostrador con vitrina de paletas, caja registradora, congelador de reserva, dos mesitas, bote de basura y bodega.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -1769,7 +1595,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "jugueria",
     label: "Juguería / Jugos y licuados",
     description: "Arranque universal de juguería: barra de jugos, caja registradora, exhibidor de fruta con huacales, refrigerador, dos mesitas y bodega.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -1798,7 +1624,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "pescaderia",
     label: "Pescadería",
     description: "Arranque universal de pescadería: mostrador con vitrina con hielo, báscula, caja registradora, mesa de fileteado, congelador, cuarto frío y despacho.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -1826,7 +1652,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "boutique",
     label: "Boutique / Tienda de ropa",
     description: "Arranque universal de boutique: mostrador con caja, dos racks de ropa, mesa de exhibición, perchero, dos probadores y bodega.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -1855,7 +1681,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "hostal",
     label: "Hostal / Casa de huéspedes",
     description: "Arranque universal de hostal: recepción, casilleros, dormitorio compartido con literas, cocina común, baño compartido y sala común.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 10000,
     baseHeight: 7000,
     assets: [
@@ -1885,7 +1711,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "autolavado",
     label: "Autolavado",
     description: "Arranque universal de autolavado: portón, dos carriles de lavado, equipo de lavado, zona de aspirado, caja y sala de espera con TV y dispensador.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 7000,
     assets: [
@@ -1914,7 +1740,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "llantera",
     label: "Llantera / Vulcanizadora",
     description: "Arranque universal de llantera: portón, dos bahías de servicio, montadora de llantas, compresor, rack de llantas, conos, caja y bodega.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 10000,
     baseHeight: 7000,
     assets: [
@@ -1944,7 +1770,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "purificadora",
     label: "Purificadora de agua",
     description: "Arranque universal de purificadora: área de llenado, equipo de purificación, filtros, estantes de garrafones, caja con registradora y bodega.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -1972,7 +1798,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "optica",
     label: "Óptica",
     description: "Arranque universal de óptica: mostrador con caja, exhibidores de armazones, espejo de pared, sala de espera, gabinete de examen visual y taller de ajuste.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -2001,7 +1827,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "departamento",
     label: "Departamento",
     description: "Arranque universal de departamento de renta: sala, comedor, cocina con fregadero y refrigerador, dos recámaras con camas y baño completo.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 10000,
     baseHeight: 7000,
     assets: [
@@ -2033,7 +1859,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "rosticeria",
     label: "Rosticería",
     description: "Arranque universal de rosticería: mostrador con horno rosticero al frente, caja registradora, vitrina de complementos, mesa de preparación, refrigerador, cuarto frío y despacho.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -2061,7 +1887,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "terraza-jardin",
     label: "Terraza / Asador de jardín",
     description: "Arranque universal de terraza: asador con barra exterior, dos sombrillas con mesas de picnic, banca, macetas y área de pasto.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 10000,
     baseHeight: 7000,
     assets: [
@@ -2091,7 +1917,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "vinateria",
     label: "Vinatería / Licorería",
     description: "Arranque universal de vinatería: mostrador con caja, dos góndolas de vinos, refrigerador de cervezas, vitrina de licores, despacho y bodega.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -2119,7 +1945,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "pasteleria",
     label: "Pastelería",
     description: "Arranque universal de pastelería: mostrador con caja y vitrina de pasteles, taller de repostería con horno, batidora planetaria, espiguero y refrigerador.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -2148,7 +1974,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "academia-baile",
     label: "Academia de baile",
     description: "Arranque universal de academia de baile: recepción, duela con espejos de pared, barra de ballet, bocinas, vestidor con banca.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 10000,
     baseHeight: 7000,
     assets: [
@@ -2177,7 +2003,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "refaccionaria",
     label: "Refaccionaria",
     description: "Arranque universal de refaccionaria: mostrador con caja, dos racks de refacciones, góndola de accesorios, vitrina de aditivos, despacho y bodega.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -2205,7 +2031,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "imprenta",
     label: "Imprenta / Centro de copiado",
     description: "Arranque universal de imprenta: mostrador con caja, dos copiadoras, estación de diseño, mesa de acabados, estante de papel y bodega.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -2234,7 +2060,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "salon-unas",
     label: "Salón de uñas",
     description: "Arranque universal de salón de uñas: recepción con caja, dos mesas de manicura, estante de esmaltes, tocador con espejo, sala de espera con pantalla y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -2264,7 +2090,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "taller-celulares",
     label: "Taller de celulares",
     description: "Arranque universal de taller de celulares: mostrador con caja, dos vitrinas de equipos y accesorios, mesa de reparación, estante de refacciones y despacho.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -2292,7 +2118,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "mercado",
     label: "Mercado / Pasaje comercial",
     description: "Arranque universal de mercado: portón, pasillo central y seis puestos como locales independientes, con mostradores de muestra y bote de basura.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -2322,7 +2148,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "parque-vecinal",
     label: "Parque vecinal",
     description: "Arranque universal de parque vecinal: andador central, juegos infantiles, áreas de pasto, mesa de picnic con sombrilla, bancas, maceta y bote de basura.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -2352,7 +2178,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "estancia-adultos",
     label: "Estancia de día para adultos mayores",
     description: "Arranque universal de estancia de día: recepción, sala de estar con TV y sillones, comedor, área de descanso con camas, cocina, baño accesible y jardín.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -2387,7 +2213,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "salon-fiestas-infantil",
     label: "Salón de fiestas infantiles",
     description: "Arranque universal de salón infantil: recepción, área de juegos con brincolín, escenario con bocinas, mesas para invitados, cocina de servicio y baños.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -2420,7 +2246,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "marisqueria",
     label: "Marisquería",
     description: "Arranque universal de marisquería: barra de mariscos con vitrina fría, cocina con estufa y refrigerador, mesas del comedor, caja, baño y bodega.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -2455,7 +2281,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "hamburgueseria",
     label: "Hamburguesería / Comida rápida",
     description: "Arranque universal de hamburguesería: mostrador con caja, cocina con plancha/asador, refrigerador, barra alta con bancos, mesas, pantalla de menú y bote de basura.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 10000,
     baseHeight: 7000,
     assets: [
@@ -2491,7 +2317,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "laboratorio-clinico",
     label: "Laboratorio clínico",
     description: "Plantilla universal editable de un laboratorio clínico: recepción y sala de espera, sala de toma de muestras (flebotomía), laboratorio de análisis clínicos, sanitario y equipamiento de seguridad.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -2523,7 +2349,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     id: "funeraria",
     label: "Funeraria",
     description: "Plantilla editable de una funeraria: dos salas de velación, sala de exposición de ataúdes, sala de preparación, oficina de trámites, vestíbulo y cafetería, con mobiliario y seguridad básicos.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -2556,7 +2382,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Notaría",
     description:
       "Plantilla CAD editable de una notaría típica mexicana en un footprint de 9000×6000 mm, con recepción, sala de firmas, oficina del notario, archivo de protocolos y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -2589,7 +2415,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Despacho contable",
     description:
       "Plantilla universal editable para un despacho contable típico en México (9000×6000 mm): recepción, área de trabajo de contadores, oficina del contador titular, sala de juntas, archivo y sanitario, con mobiliario, equipo y circulación definida.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -2622,7 +2448,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Inmobiliaria",
     description:
       "Plantilla editable de una inmobiliaria típica de México con sala de espera, recepción, oficina privada, sala de juntas, escritorios de agentes y baño. Footprint 9000×6000 mm.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -2655,7 +2481,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Sucursal bancaria",
     description:
       "Plantilla universal y editable de una sucursal bancaria típica de México (12000×8000 mm): muro perimetral, entrada al norte, área pública con sala de espera y cajeros automáticos, línea de cajas/ventanillas, área de ejecutivos de cuenta, oficina de gerente, bóveda, sanitario y cuarto de empleados. Coordenadas en milímetros, listas para reubicar o escalar cada zona, cuarto y mueble.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -2688,7 +2514,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Casa de empeño",
     description:
       "Plantilla universal editable de casa de empeño mexicana típica (9000×6000 mm): acceso al frente, zona de atención al cliente, mostrador con vitrinas de joyería y electrónicos, caja de cobro, mesa de avalúo con báscula, bodega segura de resguardo, oficina, baño y extintor. Circulación clara entre el área de clientes y el área de personal.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -2721,7 +2547,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Biblioteca pública",
     description:
       "Plantilla editable de una biblioteca pública típica de México (12000×8000 mm): muro perimetral, entrada al norte, mostrador de préstamo, sala infantil, área de cómputo, estantería de acervo, zona de lectura, hemeroteca, sanitarios y elementos de seguridad. Todos los elementos son reposicionables y editables.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -2754,7 +2580,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Sala de cine",
     description:
       "Plantilla editable de una sala de cine típica mexicana (12000×8000 mm): muro perimetral, entrada superior, vestíbulo, cabina de proyección, dos bloques de butacas con pasillo central, estrado con pantalla y bocinas, más equipo de seguridad.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -2787,7 +2613,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Estudio fotográfico",
     description:
       "Plantilla editable de un estudio fotográfico típico de México (9000×6000 mm): recepción y sala de espera junto a la entrada, set principal amplio con ciclorama, vestidor, área de maquillaje, zona de edición/retoque, baño y bodega de equipo. Circulación libre entre zonas.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -2820,7 +2646,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Estudio de tatuajes",
     description:
       "Arranque universal editable de estudio de tatuajes mexicano (9000×6000 mm): recepción con sala de espera, sofá y mostrador de cobro, área abierta con camilla y estación de tatuaje, cabina privada, sala de esterilización con lavabo, baño con inodoro y extintor de seguridad.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -2853,7 +2679,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Taller de carpintería",
     description:
       "Plantilla editable de un taller de carpintería típico de México (12×8 m): oficina, baño, almacén de madera, zonas de maquinado y ensamble, cuarto de acabados y zona de despacho, con flujo de material.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -2886,7 +2712,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Zapatería",
     description:
       "Plantilla editable de una zapatería típica mexicana en un footprint de 9000×6000 mm, con piso de ventas abierto, góndolas y vitrina de exhibición de calzado, mostrador de caja, banca y espejo de prueba, bodega, baño y seguridad.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -2919,7 +2745,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Joyería",
     description:
       "Plantilla editable y realista para una joyería típica de México (9000×6000 mm): zona de ventas con vitrinas y mostrador, taller de reparación, bóveda de seguridad y equipamiento de seguridad.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -2952,7 +2778,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Mueblería",
     description:
       "Plantilla CAD editable para una mueblería típica de México (12×8 m): zonas de exhibición de salas, recámaras y comedores, bodega de producto, oficina administrativa, caja de cobro, sanitario y equipo de seguridad. Todos los elementos son reposicionables y editables.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -2985,7 +2811,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Tienda de deportes",
     description:
       "Plantilla editable de una tienda de deportes típica de México (12000×8000 mm): muro perimetral, piso de venta, bodega, probadores, mobiliario de exhibición y elementos de seguridad.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -3018,7 +2844,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Cocina fantasma",
     description:
       "Plantilla universal editable de una cocina fantasma (dark kitchen) típica de México en un local de 9000×6000 mm: muro perimetral, puerta de despacho para repartidores en el muro superior, cámara fría y almacén seco, zonas de cocina caliente, preparación y empaque/despacho, equipo de cocción y refrigeración, y elementos de seguridad. Todas las medidas en milímetros y todos los assets son editables.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -3051,7 +2877,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Estudio de yoga",
     description:
       "Plantilla editable y realista de un estudio de yoga típico de México (10000×7000 mm): muro perimetral, entrada principal en el muro superior, área de recepción y espera, sala principal de práctica con espejo de pared y barra de ballet, vestidor y baño en la columna derecha, y equipamiento básico con señalización de seguridad. Todos los elementos son editables y no invaden el footprint.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 10000,
     baseHeight: 7000,
     assets: [
@@ -3084,7 +2910,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Taller de bicicletas",
     description:
       "Plantilla editable de un taller de bicicletas típico de México (9000×6000 mm): área de exhibición y venta al frente, área de reparación con banco de trabajo y compresor, bodega de refacciones, baño y equipo de seguridad.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -3117,7 +2943,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Consultorio de psicología",
     description:
       "Plantilla editable de un consultorio de psicología típico de México (9000×6000 mm): muro perimetral, puerta de acceso en el muro superior, recepción, sala de espera, consultorio principal con diván y escritorio, baño con WC, área de terapia infantil y equipo de seguridad. Los cuartos y zonas están separados con pasillos de circulación y el mobiliario queda contenido en cada espacio para mover, redimensionar o eliminar libremente cada elemento.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -3150,7 +2976,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Vivero y centro de jardinería",
     description:
       "Plantilla editable de un vivero y centro de jardinería típico de México (12000×8000 mm): muro perimetral, bodega de insumos, sanitarios, zonas abiertas de exhibición de plantas, germinación de plántulas y carga/descarga, mostrador de cobro con caja, góndolas de productos, rack de herramientas, mesa de trasplante, tinaco de riego y extintor de seguridad.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -3183,7 +3009,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Cerrajería",
     description:
       "Plantilla CAD editable y realista para una cerrajería típica de México (9000×6000 mm): muro perimetral, entrada superior, zona de atención con mostrador y vitrina, taller de duplicado y reparación, almacén de llaves y herramientas, y baño. Layers separados para arquitectura, layout, equipo y seguridad.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -3215,7 +3041,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Tienda de materiales de construcción",
     description:
       "Plantilla editable y realista de una tienda de materiales de construcción (tlapalería/materialista) típica de México (12000×8000 mm): mostrador de ventas, exhibición de ferretería, bodega de cemento y agregados, racks de varilla, oficina, baño y equipo de seguridad.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -3248,7 +3074,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Bar / Cantina",
     description:
       "Plantilla CAD editable de un bar/cantina típico de México (12000×8000 mm): barra con bancos, zona de mesas, cocina con estufa, refrigerador y fregadero, y sanitario.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -3281,7 +3107,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Gasolinera / Estación de servicio",
     description:
       "Plantilla editable de una gasolinera típica de México (12000×8000 mm): marquesina con islas de despacho, tienda de conveniencia con mostrador y góndolas, baño, oficina y área de aire y agua. Todos los elementos son reposicionables.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -3315,7 +3141,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Agencia de autos",
     description:
       "Plantilla editable de una agencia de autos típica de México (12000×8000 mm): piso de exhibición con autos, módulos de ventas, recepción y caja, oficina del gerente, área de entrega de autos y bodega de refacciones.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -3349,7 +3175,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Escuela primaria",
     description:
       "Plantilla editable de una escuela primaria típica de México (16000×10000 mm): tres aulas, dirección, biblioteca, sanitarios, patio central con área de juegos y comedor. Todos los elementos son reposicionables y editables.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -3382,7 +3208,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Box de CrossFit",
     description:
       "Plantilla editable de un box de CrossFit típico de México (12000×8000 mm): recepción, zona de peso libre con racks, área funcional abierta, zona de cardio, vestidores con lockers, baño y regaderas.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -3417,7 +3243,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Alberca pública",
     description:
       "Plantilla editable de una alberca pública típica de México (14000×9000 mm): alberca con carriles y trampolín, recepción con taquilla, vestidores de hombres y mujeres, regaderas, área de camastros y caseta de bombas.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 14000,
     baseHeight: 9000,
     assets: [
@@ -3451,7 +3277,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Boliche",
     description:
       "Plantilla editable de un boliche típico de México (16000×9000 mm): pistas de boliche, recepción con renta de zapatos, área de jugadores, snack bar con cocina, área de maquinitas y baños.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 9000,
     assets: [
@@ -3484,7 +3310,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Teatro",
     description:
       "Plantilla editable de un teatro típico de México (16000×10000 mm): escenario con foso de orquesta, dos bloques de butacas con pasillo central, vestíbulo con taquilla, camerinos y cabina de control.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -3516,7 +3342,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Clínica dental",
     description:
       "Plantilla editable de una clínica dental típica de México (12000×7000 mm): recepción y sala de espera, dos cubículos con sillón dental, sala de esterilización, sala de rayos X y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 7000,
     assets: [
@@ -3550,7 +3376,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Clínica de urgencias",
     description:
       "Plantilla editable de una clínica de urgencias típica de México (14000×9000 mm): triage y recepción, sala de espera, sala de urgencias con camillas, dos consultorios, laboratorio, farmacia interna y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 14000,
     baseHeight: 9000,
     assets: [
@@ -3585,7 +3411,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Jardín de niños (kínder)",
     description:
       "Plantilla editable de un jardín de niños típico de México (12000×8000 mm): tres salones por grado, dirección, área de juegos, comedor, área de siesta, sanitarios infantiles y equipo de seguridad.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -3618,7 +3444,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Nave industrial",
     description:
       "Plantilla editable de una nave industrial típica de México (16000×10000 mm): oficina, baño, almacén de materia prima, zona de producción con línea y máquinas, almacén de producto terminado y andén de carga con montacargas.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -3652,7 +3478,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Call center",
     description:
       "Plantilla editable de un call center típico de México (14000×9000 mm): recepción, piso de operaciones open-plan con estaciones de trabajo, sala de juntas, sala de capacitación, comedor y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 14000,
     baseHeight: 9000,
     assets: [
@@ -3686,7 +3512,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Cervecería artesanal",
     description:
       "Plantilla editable de una cervecería artesanal típica de México (14000×9000 mm): taproom con barra y mesas, sala de cocción con olla y molino, área de fermentación con tanques, almacén y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 14000,
     baseHeight: 9000,
     assets: [
@@ -3722,7 +3548,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Karaoke bar",
     description:
       "Plantilla editable de un karaoke bar típico de México (12000×8000 mm): recepción, barra central con área de mesas, cinco cabinas privadas de karaoke, cocina y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -3757,7 +3583,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Estación de bomberos",
     description:
       "Plantilla editable de una estación de bomberos típica de México (16000×10000 mm): bahía de camiones, torre de mangueras, taller de equipo, oficina, dormitorios, cocina, comedor y gimnasio.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -3790,7 +3616,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Plaza de comidas (food court)",
     description:
       "Plantilla editable de una plaza de comidas típica de México (16000×10000 mm): locales de comida alrededor, área común de mesas al centro, sanitarios y módulo de limpieza.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -3824,7 +3650,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Estación de policía",
     description:
       "Plantilla editable de una estación de policía típica de México (14000×9000 mm): recepción con barandilla, área de oficiales, celdas de detención, sala de interrogatorio, armería, oficina del comandante y comedor.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 14000,
     baseHeight: 9000,
     assets: [
@@ -3858,7 +3684,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Invernadero de producción",
     description:
       "Plantilla editable de un invernadero de producción típico de México (16000×10000 mm): mesas de cultivo, área de germinación, bodega de insumos, cuarto de riego con tinaco, oficina y área de carga y despacho.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -3891,7 +3717,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Taller de soldadura",
     description:
       "Plantilla editable de un taller de soldadura y herrería típico de México (12000×8000 mm): oficina, baño, almacén de material con rack de perfiles, zona de soldadura con mesa y esmeril, zona de corte y almacén de producto terminado.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -3925,7 +3751,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Hotel — lobby y planta baja",
     description:
       "Plantilla editable de la planta baja de un hotel típico de México (14000×9000 mm): lobby con recepción/check-in, sala de estar, conserjería, elevadores, restaurante, tienda de regalos, sanitarios y salón de eventos.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 14000,
     baseHeight: 9000,
     assets: [
@@ -3960,7 +3786,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Supermercado",
     description:
       "Plantilla editable de un supermercado / autoservicio típico de México (16000×10000 mm): línea de cajas, piso de venta con góndolas, frutas y verduras, refrigerados, panadería, bodega y sanitarios.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -3995,7 +3821,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Central de autobuses",
     description:
       "Plantilla editable de una central de autobuses típica de México (16000×10000 mm): sala de espera con bancas, línea de taquillas, dos andenes de abordaje, paquetería, tienda/cafetería y sanitarios.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -4029,7 +3855,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Tienda departamental",
     description:
       "Plantilla editable de una tienda departamental típica de México (16000×10000 mm): departamento de ropa con exhibidores y maniquíes, departamento de hogar con vitrinas, línea de cajas, probadores, bodega y sanitarios.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -4064,7 +3890,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Universidad — facultad",
     description:
       "Plantilla editable de una facultad universitaria típica de México (16000×10000 mm): aula magna, aulas, laboratorio, biblioteca, sala de cómputo, cafetería, sala de maestros y sanitarios.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -4098,7 +3924,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Hospital veterinario",
     description:
       "Plantilla editable de un hospital veterinario típico de México (14000×9000 mm): recepción y sala de espera, dos consultorios, quirófano, sala de rayos X, jaulas de hospitalización, estética canina y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 14000,
     baseHeight: 9000,
     assets: [
@@ -4134,7 +3960,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Laboratorio dental",
     description:
       "Plantilla editable de un laboratorio dental (protésico) típico de México (12000×8000 mm): recepción, área de yeso y modelos, área de cerámica con horno, área de metal/colado, bodega de materiales, oficina y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -4169,7 +3995,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Taller textil (maquiladora)",
     description:
       "Plantilla editable de un taller textil / maquiladora de ropa típico de México (14000×9000 mm): oficina, almacén de tela, mesa de corte, línea de costura con máquinas, planchado y acabado, y almacén de producto terminado.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 14000,
     baseHeight: 9000,
     assets: [
@@ -4203,7 +4029,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Estacionamiento multinivel",
     description:
       "Plantilla editable de un nivel de estacionamiento multinivel típico de México (16000×10000 mm): caseta de cobro con pluma, rampa de acceso, dos filas de cajones con pasillo de circulación, elevador/escaleras y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -4238,7 +4064,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Rastro / Frigorífico",
     description:
       "Plantilla editable de un rastro / frigorífico (procesadora de carne) típico de México (16000×10000 mm): corral de recepción, área de matanza con riel, deshuese, cámara fría, área de lavado, despacho, oficina y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -4273,7 +4099,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Clínica estética",
     description:
       "Plantilla editable de una clínica de medicina estética típica de México (12000×8000 mm): recepción y sala de espera, dos cabinas de tratamiento, sala de láser, área de recuperación, oficina y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -4308,7 +4134,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Centro de datos",
     description:
       "Plantilla editable de un centro de datos (data center) típico de México (14000×9000 mm): control de acceso, sala de servidores con racks, sala de UPS, cuarto de clima (CRAC), planta de emergencia, NOC de monitoreo y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 14000,
     baseHeight: 9000,
     assets: [
@@ -4344,7 +4170,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Recicladora / Centro de acopio",
     description:
       "Plantilla editable de una recicladora / centro de acopio típico de México (16000×10000 mm): recepción de material con báscula, banda de separación, área de prensado, almacenes de papel, plástico y metal, oficina y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -4378,7 +4204,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Estudio de televisión",
     description:
       "Plantilla editable de un estudio de televisión típico de México (16000×10000 mm): recepción, foro/set con ciclorama y cámaras, cabina de control, camerinos, utilería, maquillaje/vestuario, edición y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -4414,7 +4240,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Club deportivo",
     description:
       "Plantilla editable de un club deportivo típico de México (16000×10000 mm): recepción, cancha de fútbol rápido, alberca con carriles, gimnasio, vestidores de hombres y mujeres, regaderas y cafetería.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -4448,7 +4274,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Antro / Discoteca",
     description:
       "Plantilla editable de un antro / discoteca típico de México (14000×9000 mm): acceso, pista de baile con cabina de DJ, barra con bancos, zona VIP, cocina, baños y bodega.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 14000,
     baseHeight: 9000,
     assets: [
@@ -4483,7 +4309,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Tienda de mascotas",
     description:
       "Plantilla editable de una tienda de mascotas (pet shop) típica de México (12000×8000 mm): piso de venta con góndolas, acuarios y jaulas, caja, estética canina, consultorio veterinario, bodega y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -4519,7 +4345,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Museo",
     description:
       "Plantilla editable de un museo típico de México (16000×10000 mm): vestíbulo con taquilla, tres salas de exhibición con vitrinas, bóveda de acervo, taller de restauración, cafetería, tienda y sanitarios.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -4555,7 +4381,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Autoescuela",
     description:
       "Plantilla editable de una escuela de manejo típica de México (14000×9000 mm): recepción, aula teórica con simulador, patio de prácticas con auto y conos, oficina, sala de espera y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 14000,
     baseHeight: 9000,
     assets: [
@@ -4589,7 +4415,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Balneario",
     description:
       "Plantilla editable de un balneario típico de México (16000×10000 mm): taquilla, alberca principal con carriles, chapoteadero con toboganes, palapas, vestidores, regaderas y restaurante.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -4624,7 +4450,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Planta de tratamiento de agua",
     description:
       "Plantilla editable de una planta de tratamiento de aguas residuales (PTAR) típica de México (16000×10000 mm): cribado, sedimentación, reactor biológico, clarificador, filtros, laboratorio de calidad, dosificación química y tanque de agua tratada.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -4659,7 +4485,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Planta embotelladora",
     description:
       "Plantilla editable de una planta embotelladora típica de México (16000×10000 mm): almacén de preformas con sopladora, línea de llenado y etiquetado, línea de empaque, almacén de producto terminado, laboratorio de calidad y andén de carga.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -4695,7 +4521,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Establo / Lechería",
     description:
       "Plantilla editable de un establo lechero típico de México (16000×10000 mm): corrales con comederos, sala de ordeña con ordeñadora, tanque frío de leche, almacén de forraje, bodega, oficina y andén de carga.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -4730,7 +4556,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Casino",
     description:
       "Plantilla editable de un casino típico de México (14000×9000 mm): acceso con caja/cajero, sala de máquinas tragamonedas, sala de mesas de juego, bar, restaurante, sanitarios y bodega.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 14000,
     baseHeight: 9000,
     assets: [
@@ -4766,7 +4592,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Centro de rehabilitación",
     description:
       "Plantilla editable de un centro de rehabilitación física típico de México (14000×9000 mm): recepción, gimnasio terapéutico con caminadora y barras paralelas, cubículos de terapia, hidroterapia, electroterapia, oficina y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 14000,
     baseHeight: 9000,
     assets: [
@@ -4803,7 +4629,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Centro de distribución (CEDIS)",
     description:
       "Plantilla editable de un centro de distribución (CEDIS) típico de México (16000×10000 mm): andén de recibo, almacén de racks, pasillo central, área de picking, área de embarque, oficina y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -4837,7 +4663,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Granja avícola",
     description:
       "Plantilla editable de una granja avícola típica de México (16000×10000 mm): casetas de engorda con comederos y bebederos, sala de incubación, clasificación de huevo, almacén de alimento, oficina y andén de carga.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -4871,7 +4697,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Torre corporativa (lobby y planta)",
     description:
       "Plantilla editable de la planta baja de una torre corporativa típica de México (14000×9000 mm): lobby con recepción y sala de espera, banco de elevadores con control de acceso, sala ejecutiva, cafetería, piso de oficinas y sanitarios.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 14000,
     baseHeight: 9000,
     assets: [
@@ -4906,7 +4732,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Clínica oftalmológica",
     description:
       "Plantilla editable de una clínica oftalmológica típica de México (12000×8000 mm): recepción y sala de espera, consultorio de optometría, consultorio general, quirófano de láser, óptica de venta de armazones, oficina y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -4942,7 +4768,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Estación de tren",
     description:
       "Plantilla editable de una estación de tren / metro típica de México (16000×10000 mm): vestíbulo con taquillas y torniquetes, dos andenes con vía, sala de espera, tienda/cafetería, sanitarios y oficina.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 16000,
     baseHeight: 10000,
     assets: [
@@ -4976,7 +4802,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Estudio de grabación",
     description:
       "Plantilla editable de un estudio de grabación musical típico de México (12000×8000 mm): recepción, sala de control con consola, sala de grabación (live room), booth de voz, lounge, bodega de equipo y oficina.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [
@@ -5010,7 +4836,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Herbolaria / Tienda naturista",
     description:
       "Plantilla editable de una herbolaria / tienda naturista típica de México (9000×6000 mm): piso de venta con góndolas y vitrina de hierbas a granel, mostrador de caja, consultorio naturista, bodega y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 9000,
     baseHeight: 6000,
     assets: [
@@ -5043,7 +4869,7 @@ export const CAD_LAYOUT_TEMPLATES: CadLayoutTemplate[] = [
     label: "Centro de idiomas",
     description:
       "Plantilla editable de un centro / academia de idiomas típico de México (12000×8000 mm): recepción, tres aulas, laboratorio de idiomas, sala de maestros, biblioteca de autoestudio, cafetería y baño.",
-    category: "architecture",
+    category: "arquitectura",
     baseWidth: 12000,
     baseHeight: 8000,
     assets: [

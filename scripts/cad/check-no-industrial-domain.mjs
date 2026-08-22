@@ -125,8 +125,6 @@ export const permittedFiles = [
  * hace fallar el gate. Objetivo: lista vacía, y que se quede vacía.
  */
 export const residueBacklog = [
-  ["apps/web/src/lib/cad/architecture.spec.ts", "ola 5"],
-  ["apps/web/src/lib/cad/architecture.ts", "ola 5"],
   ["apps/web/src/lib/cad/cad-document.spec.ts", "ola 5"],
   ["apps/web/src/lib/cad/dxf-layer-map.ts", "ola 5"],
   ["apps/web/src/lib/cad/editor-snapshot.spec.ts", "ola 5"],
@@ -135,7 +133,6 @@ export const residueBacklog = [
   ["apps/web/src/lib/cad/safety-zones.ts", "ola 5"],
   ["apps/web/src/lib/cad/symbols.spec.ts", "ola 5"],
   ["apps/web/src/lib/cad/symbols.ts", "ola 5"],
-  ["apps/web/src/lib/cad/templates.spec.ts", "ola 5"],
   ["apps/web/src/lib/cad/templates.ts", "ola 5"],
   ["apps/web/src/components/cad/editor/Layout3DEditor.tsx", "ola 6"],
 ];

@@ -355,3 +355,44 @@ Formato: `[hora] OLA · ítem — qué se hizo · decisiones y suposiciones`.
     Se recuperó al hacer ellos `pop`. Lección aplicada: commits más cortos y más seguidos mientras
     dure la sesión paralela. La segunda mitad de la OLA 5 (plantillas, símbolos y congelar `station`)
     va en su propio commit por eso.
+
+- `[07:35]` **OLA 5, segunda mitad — plantillas y símbolos.**
+  - **5.3 `templates.ts` (5 150 → 4 971 líneas, 150 → 145 plantillas).** Fuera las cinco industriales:
+    `smt-line`, `warehouse-racks`, `supermarket-kitting`, `packing-shipping-cell` y
+    `ems-mini-factory`. **Se conservan** `mep-plantroom` (cuarto de máquinas: MEP arquitectónico) y
+    `bodega-pyme`, y con ellas las 143 restantes —casa habitación, consultorio, taquería, tortillería,
+    notaría, iglesia, museo, estacionamiento multinivel, nave industrial, planta embotelladora…—
+    que son el producto.
+  - **Las categorías de plantilla se traducen y se despiden del vocabulario de fábrica.** El editor
+    imprime `template.category` **tal cual** debajo de cada plantilla, así que un arquitecto mexicano
+    estaba leyendo «factory», «warehouse» y «architecture» en inglés. Ahora: `arquitectura`, `civil`,
+    `estructura`, `instalaciones`, `taller`, `bodega`. Se verificó primero que la categoría **no
+    viaja al documento**: es sólo texto de interfaz.
+  - **5.4 `symbols.ts` (1 650 → 1 529 líneas, 171 → 161 símbolos).** Fuera diez:
+    `smt-line` (una LÍNEA entera, no una máquina), `label-print-station`, `calibration-station`,
+    `test-station`, `rework-station`, `operator-station`, `warehouse-rack`, `forklift-path`,
+    `conveyor` y `forklift`. Con ellos mueren las categorías `flow` y `operator`.
+    **CORRECCIÓN SOBRE LA MARCHA:** primero se borraron también `ict-tester` y
+    `functional-test-bench` y se **restauraron** al releer el criterio: son *máquinas dibujables*, de
+    la misma clase que `welder`, `press-machine` o `brew-kettle`, que la propia spec conserva.
+    Dibujar una máquina no es operar una fábrica. Se quedaron con etiqueta en español.
+  - **Falsos positivos respetados uno por uno**, como pedía el diagnóstico: `power-rack` y
+    `weight-rack` (gimnasio), `tire-rack` (llantera), `bread-rack` (panadería), `coat-rack`
+    (perchero), `wash-station` (lavabo) y `tortilla-machine` siguen ahí.
+  - **La bodega no se quedó sin estantes.** `bodega-pyme` usaba los kinds `warehouse-rack` y
+    `forklift-path`; ahora usa `rack` y `path`, con «Pasillo de montacargas» → «Pasillo de maniobra».
+    Ocho usos de `warehouse-rack`/`agvpath` en otras plantillas (ferretería, frutería, corredores de
+    egreso, camino de camiones) se sustituyeron igual: la capacidad de dibujo se conserva, el
+    vocabulario cambia.
+  - **`architecture.ts`:** un objeto iba a la capa de pasillos por llevar la etiqueta `forklift`;
+    ahora es por `circulation`. Y el mapa categoría-de-símbolo→capa perdió su entrada `flow`, que ya
+    no tenía dueño. **La capa `flow` del documento NO se tocó:** su id está en `DEFAULT_CAD_LAYERS` y
+    por tanto vive dentro de documentos guardados.
+  - **El runner de specs cobró un descuido real:** al reescribir `templates.spec.ts` se perdió su
+    `console.log` final y el runner lo marcó rojo, porque exige que todo spec anuncie su final por
+    stdout. Se repuso. Es exactamente el tipo de gate que evita un spec que "pasa" sin correr.
+  - **Trinquete:** 13 → **10**.
+  - **Verificación:** `tsc` limpio · `web` **381/381** specs verdes · `lint` 0 errores · presupuesto OK.
+    **Decisión de proceso:** NO se corrió prettier sobre `templates.ts`, `symbols.ts` ni
+    `architecture.ts`: no estaban formateados de origen, el lint no lo exige, y reformatearlos los
+    inflaría por encima de su presupuesto de monolito, que sólo permite encoger.

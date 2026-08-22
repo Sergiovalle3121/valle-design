@@ -222,9 +222,9 @@ assert.equal(
   "escalera → capa de arquitectura",
 );
 assert.equal(
-  defaultCadLayerForAssetKind("conveyor"),
-  "flow",
-  "conveyor → capa de flujo",
+  defaultCadLayerForAssetKind("path", "aisle"),
+  "aisles",
+  "un andador etiquetado como pasillo → capa de pasillos",
 );
 assert.equal(
   defaultCadLayerForAssetKind("sofa-3"),

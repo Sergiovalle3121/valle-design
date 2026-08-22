@@ -339,7 +339,7 @@ export function defaultCadLayerForAssetKind(
   }
   if (kind === "column") return "structure";
   if (UTILITY_KINDS.has(kind)) return "utilities";
-  if (kind === "agvpath" || hasAnyTag(tags, ["aisle", "forklift", "pedestrian"])) return "aisles";
+  if (kind === "path" || hasAnyTag(tags, ["aisle", "circulation", "pedestrian"])) return "aisles";
   if (SAFETY_KINDS.has(kind) || hasAnyTag(tags, ["safety", "no-go", "restricted", "emergency", "esd"])) return "safety";
   // Biblioteca de símbolos como fuente de verdad (VD-CAD-LAYER-001): una
   // puerta colocada por el copiloto va a Arquitectura, no a Equipos — igual
@@ -352,7 +352,6 @@ export function defaultCadLayerForAssetKind(
 /** Capa CAD por categoría de símbolo; lo no mapeado cae a equipment. */
 const SYMBOL_CATEGORY_LAYERS: Partial<Record<string, CadLayerId>> = {
   architecture: "architecture",
-  flow: "flow",
   safety: "safety",
 };
 
@@ -539,7 +538,7 @@ export function buildCadArchitectureTakeoff(
       utilityArea += area;
       continue;
     }
-    if (layerId === "aisles" || asset.kind === "agvpath" || hasAnyTag(tags, ["aisle", "forklift", "pedestrian"])) {
+    if (layerId === "aisles" || asset.kind === "path" || hasAnyTag(tags, ["aisle", "circulation", "pedestrian"])) {
       aisleArea += area;
       continue;
     }

@@ -9505,18 +9505,10 @@ export default function Layout3DEditor({
     const symbol = getCadSymbol(symbolId);
     if (!symbol) return;
     const kindBySymbol: Record<string, string> = {
-      "smt-line": "conveyor",
       inspection: "machine",
-      aoi: "aoi",
-      "warehouse-rack": "rack",
       packing: "workbench",
-      "forklift-path": "agvpath",
-      "operator-station": "operator",
       "esd-area": "zone",
       "safety-zone": "zone",
-      conveyor: "conveyor",
-      "test-station": "machine",
-      "rework-station": "workbench",
     };
     const kind = kindBySymbol[symbol.id] ?? "machine";
     const id = addAsset(kind, {
@@ -14910,10 +14902,12 @@ export default function Layout3DEditor({
   const symbolCategories: Array<CadSymbolCategory | "all"> = [
     "all",
     "equipment",
-    "flow",
+    "architecture",
+    "furniture",
+    "office",
+    "commerce",
     "safety",
     "storage",
-    "operator",
   ];
   const filteredSymbols = CAD_SYMBOL_LIBRARY.filter((symbol) => {
     const q = symbolSearch.trim().toLowerCase();
