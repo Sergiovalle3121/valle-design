@@ -424,6 +424,7 @@ import { CadCommandLineDock } from "@/components/cad/command-line/CadCommandLine
 import { useCadCommandEngine } from "@/components/cad/command-line/use-command-engine";
 import { formatCadPrompt } from "@/lib/cad/engine/prompt";
 import { useCadStudioCommandEngine } from "@/components/cad/command-line/use-command-engine";
+import { cadStudioEngineBridges } from "@/components/cad/command-line/studio-engine-bridges";
 import {
   CadOverlayLegends,
   CadViewportHint,
@@ -4949,14 +4950,9 @@ export default function Layout3DEditor({
     activeLayer: activeCadLayer,
     newEntityId: () => newId("cad"),
     apply: (commands) => {
-      // Un dibujo con la BARRA termina con lo dibujado designado, igual que en
-      // el camino heredado que sustituye: es lo que hace que el panel de
-      // propiedades describa la entidad recién creada sin ir a buscarla.
-      //
-      // Tecleado NO, y la diferencia importa: la línea de comandos nunca
-      // designó nada, y designar cambia lo que ve la orden siguiente. Un HATCH
-      // tecleado detrás de un MTEXT sombrearía el rótulo en vez de pedir su
-      // punto interior.
+      // Dibujar con la BARRA deja lo creado designado (como el camino heredado);
+      // tecleado NO: la línea de comandos nunca designó, y designar cambiaría
+      // lo que ve la orden siguiente (p. ej. un HATCH tras un MTEXT).
       const created = enginePointerRouterRef.current?.startedByPointer
         ? commands.flatMap((command) =>
             command.type === "insert" ? [command.entity.id] : [],
@@ -4974,52 +4970,23 @@ export default function Layout3DEditor({
     // VSCURRENT/SHADEMODE: estado del visor, no del documento.
     visualStyle: (styleId) =>
       solidShadeHostRef.current?.applyVisualStyle(styleId) ?? null,
-    // La hoja abierta, para que LAYOUT, PLOT y PAGESETUP operen sobre la
-    // pestaña ACTIVA y no sobre la primera del documento.
-    activeLayout: activePaperSpaceId,
-    // QSELECT y FILTER designan de verdad: el mismo camino que un clic.
-    setSelection: (entityIds) => selectNative([...entityIds]),
-    // MSPACE/PSPACE/MODEL y LAYOUT Definir cambian la pestaña real del editor.
-    // Devuelve si cambió: pedir espacio papel sin presentaciones no puede
-    // afirmar un cambio que no ocurrió.
-    setSpace: (space, layoutId) => {
-      if (space === "model") {
-        setActivePaperSpaceId(null);
-        return true;
-      }
-      const spaces = loadedCadDocumentRef.current?.paperSpaces ?? [];
-      const target = layoutId
-        ? spaces.find((candidate) => candidate.id === layoutId)
-        : (spaces.find((candidate) => candidate.id === activePaperSpaceId) ??
-          spaces[0]);
-      if (!target) return false;
-      setActivePaperSpaceId(target.id);
-      return true;
-    },
-    // PAGESETUP por cuadro: activa la hoja, que es donde viven sus controles.
-    openPageSetup: (layoutId) => {
-      const spaces = loadedCadDocumentRef.current?.paperSpaces ?? [];
-      if (spaces.some((candidate) => candidate.id === layoutId))
-        setActivePaperSpaceId(layoutId);
-    },
+    // Designación, hoja activa y espacio: en su módulo (el monolito sólo baja).
+    ...cadStudioEngineBridges({
+      document: () => loadedCadDocumentRef.current,
+      activePaperSpaceId,
+      setActivePaperSpaceId,
+      selectNative,
+    }),
   });
 
-  /**
-   * El anfitrión del motor, alcanzable desde el efecto de la escena.
-   *
-   * `useCadStudioCommandEngine` devuelve SIEMPRE la misma instancia —su `useMemo`
-   * no tiene dependencias, y por buenas razones—, pero el efecto que monta el
-   * lienzo no la lista en sus dependencias. La ref lo hace explícito en vez de
-   * apoyarse en una estabilidad que no se ve desde ahí.
-   */
+  // El anfitrión del motor, alcanzable desde el efecto de la escena: la
+  // instancia es estable (useMemo sin deps) y la ref lo hace explícito allí
+  // donde esa estabilidad no se ve.
   const commandEngineRef = useRef(commandEngine);
   commandEngineRef.current = commandEngine;
   const commandEngineSnapshot = useCadCommandEngine(commandEngine);
-  /**
-   * Al terminar un comando del motor, la herramienta vuelve a designar — el
-   * mismo gesto que tenía la máquina heredada. Sin esto, la barra seguiría
-   * mostrando LINE encendido con el comando ya cerrado.
-   */
+  // Al terminar un comando del motor, la herramienta vuelve a designar (el
+  // gesto heredado); sin esto la barra dejaría LINE encendido ya cerrado.
   const engineBusy = commandEngineSnapshot.activeCommand !== null;
   useEffect(() => {
     if (engineBusy || !isCadDrawTool(toolRef.current)) return;
@@ -6588,7 +6555,6 @@ export default function Layout3DEditor({
         point,
         pointerWorldTolerance(workspacePreferencesRef.current.pickBoxPx),
         limit,
-        // Un clic no designa lo apagado, lo congelado ni lo bloqueado.
         "selection",
       ) ?? [];
     const snapFloor = (
@@ -6639,10 +6605,7 @@ export default function Layout3DEditor({
               maxY: wy + tol * 4,
             },
             48,
-            // El cursor no imanta lo invisible: capas apagadas y congeladas
-            // fuera. Las bloqueadas SÍ imantan — acotar contra un eje
-            // bloqueado es el uso normal.
-            "snap",
+            "snap", // lo invisible no imanta; lo bloqueado sí (no se designa)
           ) ?? [];
         cadSnapSceneAddEntities(
           scene,

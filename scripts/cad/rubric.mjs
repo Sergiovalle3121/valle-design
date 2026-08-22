@@ -693,68 +693,12 @@ export function cheapestWins(rubric, scored, limit = 10) {
 }
 
 // ---------------------------------------------------------------------------
-// Histórico
+// Histórico — vive en rubric-history.mjs (tope de 800 líneas por archivo).
+// Se re-exporta para que spec y CLI no cambien.
 // ---------------------------------------------------------------------------
 
-function currentCommit(root) {
-  try {
-    return execFileSync("git", ["rev-parse", "HEAD"], {
-      cwd: root,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    }).trim();
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Guarda la corrida con su fecha y su commit.
- *
- * «¿Cuánto hemos avanzado este mes?» no se responde con una foto; hace falta la
- * serie. Se guarda el desglose por categoría, no sólo el total, porque un total
- * plano puede esconder que una categoría subió y otra se cayó.
- */
-export function writeHistory(
-  scored,
-  { root = REPO_ROOT, dir = HISTORY_DIR, now = new Date() } = {},
-) {
-  const commit = currentCommit(root);
-  const stamp = now.toISOString().slice(0, 10);
-  const short = commit ? commit.slice(0, 7) : "sin-commit";
-  fs.mkdirSync(dir, { recursive: true });
-  const file = path.join(dir, `${stamp}-${short}.json`);
-  const entry = {
-    $schema: "urn:valle-design:schema:cad-competitive-rubric-history:v1",
-    schemaVersion: 1,
-    measuredAt: now.toISOString(),
-    commit,
-    totalPoints: scored.totalPoints,
-    earned: scored.earned,
-    percentage: scored.percentage,
-    categories: scored.categories.map((category) => ({
-      id: category.id,
-      name: category.name,
-      points: category.points,
-      earned: category.earned,
-      notGranted: category.criteria
-        .filter((c) => c.status !== "otorgado")
-        .map((c) => c.id),
-    })),
-  };
-  fs.writeFileSync(file, `${JSON.stringify(entry, null, 2)}\n`);
-  return file;
-}
-
-/** Serie temporal ordenada, para responder «¿cuánto hemos avanzado?». */
-export function readHistory(dir = HISTORY_DIR) {
-  if (!fs.existsSync(dir)) return [];
-  return fs
-    .readdirSync(dir)
-    .filter((name) => name.endsWith(".json"))
-    .sort()
-    .map((name) => JSON.parse(fs.readFileSync(path.join(dir, name), "utf8")));
-}
+export { writeHistory, readHistory } from "./rubric-history.mjs";
+import { writeHistory } from "./rubric-history.mjs";
 
 // ---------------------------------------------------------------------------
 // CLI

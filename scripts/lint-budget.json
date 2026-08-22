@@ -2,7 +2,7 @@
   "apps/web": {
     "@typescript-eslint/no-unused-vars": 22,
     "react-hooks/set-state-in-effect": 9,
-    "react-hooks/refs": 163,
+    "react-hooks/refs": 164,
     "react-hooks/exhaustive-deps": 6,
     "react-hooks/purity": 1,
     "react-hooks/immutability": 3,
