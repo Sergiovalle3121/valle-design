@@ -50,9 +50,9 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
     finally { setBusy(null); }
   };
   return (
-    <div data-testid="cad-xref-palette" className="h-full overflow-y-auto p-3 text-[10.5px]">
+    <div data-testid="cad-xref-palette" className="h-full overflow-y-auto p-3 type-micro">
       <div className="flex items-center justify-between"><strong className="text-indigo-100">EXTERNAL REFERENCES</strong><span className="text-gray-500">{props.references.length} linked</span></div>
-      <p className="mt-1 text-[9.5px] leading-relaxed text-gray-500">Referencias a layouts del mismo tenant. Nunca se persisten rutas locales del navegador.</p>
+      <p className="mt-1 type-micro leading-relaxed text-gray-500">Referencias a layouts del mismo tenant. Nunca se persisten rutas locales del navegador.</p>
       <div className="mt-3 grid grid-cols-2 gap-2 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
         <label className="text-gray-400">Asset / model<input data-testid="cad-xref-asset" value={draft.assetId} onChange={(event) => setDraft((current) => ({ ...current, assetId: event.target.value.slice(0, 96) }))} placeholder="PLANT-ARCH" className={input} /></label>
         <label className="text-gray-400">Revision<input data-testid="cad-xref-revision" value={draft.revision} onChange={(event) => setDraft((current) => ({ ...current, revision: event.target.value.slice(0, 64) }))} className={input} /></label>
@@ -67,9 +67,9 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
         {props.references.map((reference) => {
           const status = reference.status ?? (reference.loaded ? 'loaded' : 'unloaded');
           return <article key={reference.id} data-testid={`cad-xref-row-${reference.assetId ?? reference.id}`} className="rounded-xl border border-white/10 bg-gray-950/50 p-2.5">
-            <div className="flex items-start gap-2"><div className="min-w-0 flex-1"><strong className="block truncate text-gray-100">{reference.name}</strong><span className="block truncate text-[9px] text-gray-500">{reference.relativePath ?? reference.uri}</span></div><span className={`rounded-full border px-1.5 py-0.5 text-[8.5px] ${tone[status] ?? tone.unloaded}`}>{status}</span></div>
-            <div className="mt-1 grid grid-cols-3 gap-1 text-[9px] text-gray-500"><span>{reference.mode ?? 'attachment'}</span><span>v{reference.sourceVersion ?? 0}</span><span>{reference.contentHash?.slice(0, 10) ?? 'no hash'}</span></div>
-            {reference.error && <p className="mt-1 text-[9px] text-rose-300">{reference.error}</p>}
+            <div className="flex items-start gap-2"><div className="min-w-0 flex-1"><strong className="block truncate text-gray-100">{reference.name}</strong><span className="block truncate type-micro text-gray-500">{reference.relativePath ?? reference.uri}</span></div><span className={`rounded-full border px-1.5 py-0.5 type-micro ${tone[status] ?? tone.unloaded}`}>{status}</span></div>
+            <div className="mt-1 grid grid-cols-3 gap-1 type-micro text-gray-500"><span>{reference.mode ?? 'attachment'}</span><span>v{reference.sourceVersion ?? 0}</span><span>{reference.contentHash?.slice(0, 10) ?? 'no hash'}</span></div>
+            {reference.error && <p className="mt-1 type-micro text-rose-300">{reference.error}</p>}
             <div className="mt-2 grid grid-cols-5 gap-1">
               <button disabled={busy !== null} onClick={() => void run(`compare:${reference.id}`, async () => setComparison(await props.onCompare(reference)))} className="rounded border border-white/10 px-1 py-1 text-gray-200 disabled:opacity-30">Compare</button>
               <button disabled={busy !== null} onClick={() => void run(`reload:${reference.id}`, () => props.onReload(reference))} className="rounded border border-indigo-300/20 px-1 py-1 text-indigo-100 disabled:opacity-30">{reference.loaded ? 'Reload' : 'Load'}</button>
@@ -82,9 +82,9 @@ export function CadXrefPalette(props: CadXrefPaletteProps) {
         {!props.references.length && <div className="rounded-xl border border-dashed border-white/10 p-4 text-center text-gray-500">No tenant Xrefs attached.</div>}
       </div>
 
-      {comparison && <div data-testid="cad-xref-comparison" className="mt-3 rounded-xl border border-violet-300/20 bg-violet-400/[0.08] p-2 text-violet-100"><strong>Version compare {comparison.currentVersion} → {comparison.incomingVersion}</strong><div className="mt-1 grid grid-cols-3 text-[9.5px]"><span>+{comparison.added.length} added</span><span>~{comparison.modified.length} modified</span><span>−{comparison.deleted.length} deleted</span></div><div className="mt-1 text-[9px] text-violet-200/70">{comparison.currentHash.slice(0, 10)} → {comparison.incomingHash.slice(0, 10)}</div></div>}
-      <div data-testid="cad-xref-graph" className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-2"><div className="flex justify-between"><strong className="text-gray-300">Dependency graph</strong><span className="text-gray-500">depth {props.graph.maxDepth}/{8}</span></div>{props.graph.edges.map((edge, index) => <div key={`${edge.from}:${edge.to}:${index}`} className="mt-1 font-mono text-[9px] text-gray-500">{edge.from} → {edge.to} [{edge.mode}]</div>)}{props.graph.issues.map((issue, index) => <div key={`${issue.code}:${index}`} className="mt-1 text-[9px] text-rose-200">{issue.code}: {issue.detail}</div>)}</div>
-      <p className="mt-2 text-[9px] leading-relaxed text-gray-500">Publish incluye sólo referencias cargadas mediante BLOCK/INSERT vectorial. DXF conserva esa proyección como BLOCK/INSERT; Bind la convierte en geometría local editable.</p>
+      {comparison && <div data-testid="cad-xref-comparison" className="mt-3 rounded-xl border border-violet-300/20 bg-violet-400/[0.08] p-2 text-violet-100"><strong>Version compare {comparison.currentVersion} → {comparison.incomingVersion}</strong><div className="mt-1 grid grid-cols-3 type-micro"><span>+{comparison.added.length} added</span><span>~{comparison.modified.length} modified</span><span>−{comparison.deleted.length} deleted</span></div><div className="mt-1 type-micro text-violet-200/70">{comparison.currentHash.slice(0, 10)} → {comparison.incomingHash.slice(0, 10)}</div></div>}
+      <div data-testid="cad-xref-graph" className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-2"><div className="flex justify-between"><strong className="text-gray-300">Dependency graph</strong><span className="text-gray-500">depth {props.graph.maxDepth}/{8}</span></div>{props.graph.edges.map((edge, index) => <div key={`${edge.from}:${edge.to}:${index}`} className="mt-1 font-mono type-micro text-gray-500">{edge.from} → {edge.to} [{edge.mode}]</div>)}{props.graph.issues.map((issue, index) => <div key={`${issue.code}:${index}`} className="mt-1 type-micro text-rose-200">{issue.code}: {issue.detail}</div>)}</div>
+      <p className="mt-2 type-micro leading-relaxed text-gray-500">Publish incluye sólo referencias cargadas mediante BLOCK/INSERT vectorial. DXF conserva esa proyección como BLOCK/INSERT; Bind la convierte en geometría local editable.</p>
     </div>
   );
 }

@@ -43,25 +43,25 @@ export function CadWorkspaceDock({ preferences, onChange, onProfile, onReset }: 
     appearance: 'Apariencia e idioma', shortcuts: 'Atajos personalizados', reset: 'Restablecer workspace', conflict: 'Bindings en conflicto',
   };
   const panel = 'rounded-xl border border-white/10 bg-white/[0.035] p-3';
-  const select = 'rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[11px] text-white outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/50';
+  const select = 'rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-micro text-white outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/50';
   return (
-    <div data-testid="cad-workspace-dock" className="h-full overflow-y-auto p-3 text-[11px] text-gray-200">
+    <div data-testid="cad-workspace-dock" className="h-full overflow-y-auto p-3 type-micro text-gray-200">
       <div className="mb-3">
         <div className="text-sm font-semibold text-indigo-100">{labels.title}</div>
-        <div className="mt-0.5 text-[10px] text-gray-500">{resolvedScheme} · {preferences.profile}</div>
+        <div className="mt-0.5 type-micro text-gray-500">{resolvedScheme} · {preferences.profile}</div>
       </div>
 
       <section className={panel}>
-        <div className="mb-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-gray-500">{labels.profiles}</div>
+        <div className="mb-2 type-micro font-semibold uppercase tracking-[0.16em] text-gray-500">{labels.profiles}</div>
         <div className="grid grid-cols-2 gap-1.5">
           {(['drafting', 'review', 'presentation', 'focus'] as CadWorkspaceProfile[]).map((profile) => (
-            <button key={profile} data-testid={`cad-workspace-profile-${profile}`} onClick={() => onProfile(profile)} className={`rounded-lg border px-2 py-1.5 text-[10.5px] font-semibold focus-visible:ring-2 focus-visible:ring-indigo-400/50 ${preferences.profile === profile ? 'border-indigo-300/40 bg-indigo-400/15 text-indigo-100' : 'border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/[0.1]'}`}>{labels[profile]}</button>
+            <button key={profile} data-testid={`cad-workspace-profile-${profile}`} onClick={() => onProfile(profile)} className={`rounded-lg border px-2 py-1.5 type-micro font-semibold focus-visible:ring-2 focus-visible:ring-indigo-400/50 ${preferences.profile === profile ? 'border-indigo-300/40 bg-indigo-400/15 text-indigo-100' : 'border-white/10 bg-white/[0.04] text-gray-300 hover:bg-white/[0.1]'}`}>{labels[profile]}</button>
           ))}
         </div>
       </section>
 
       <section className={`${panel} mt-2`}>
-        <div className="mb-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-gray-500">{labels.docks}</div>
+        <div className="mb-2 type-micro font-semibold uppercase tracking-[0.16em] text-gray-500">{labels.docks}</div>
         <div className="grid grid-cols-2 gap-2">
           {([
             ['leftDock', labels.left], ['rightDock', labels.right], ['commandDock', labels.command], ['minimap', labels.minimap],
@@ -73,7 +73,7 @@ export function CadWorkspaceDock({ preferences, onChange, onProfile, onReset }: 
       </section>
 
       <section className={`${panel} mt-2`}>
-        <div className="mb-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-gray-500">{labels.precision}</div>
+        <div className="mb-2 type-micro font-semibold uppercase tracking-[0.16em] text-gray-500">{labels.precision}</div>
         {([
           ['crosshairPercent', labels.crosshair, 5, 100, '%'],
           ['pickBoxPx', labels.pickbox, 3, 24, 'px'],
@@ -85,7 +85,7 @@ export function CadWorkspaceDock({ preferences, onChange, onProfile, onReset }: 
       </section>
 
       <section className={`${panel} mt-2`}>
-        <div className="mb-2 text-[9px] font-semibold uppercase tracking-[0.16em] text-gray-500">{labels.appearance}</div>
+        <div className="mb-2 type-micro font-semibold uppercase tracking-[0.16em] text-gray-500">{labels.appearance}</div>
         <div className="flex items-center justify-between gap-2">
           <select aria-label="Theme" value={colorScheme} onChange={(event) => setColorScheme(event.target.value as ColorScheme)} className={select}><option value="system">System</option><option value="dark">Dark</option><option value="light">Light</option></select>
           <LanguageSwitcher variant="compact" />
@@ -93,13 +93,13 @@ export function CadWorkspaceDock({ preferences, onChange, onProfile, onReset }: 
       </section>
 
       <section className={`${panel} mt-2`}>
-        <div className="mb-2 flex items-center justify-between"><span className="text-[9px] font-semibold uppercase tracking-[0.16em] text-gray-500">{labels.shortcuts}</span>{conflicts.length > 0 && <span className="text-[9px] text-rose-300">{labels.conflict}: {conflicts.length}</span>}</div>
+        <div className="mb-2 flex items-center justify-between"><span className="type-micro font-semibold uppercase tracking-[0.16em] text-gray-500">{labels.shortcuts}</span>{conflicts.length > 0 && <span className="type-micro text-rose-300">{labels.conflict}: {conflicts.length}</span>}</div>
         <div className="grid grid-cols-2 gap-1.5">
           {SHORTCUT_IDS.map((id) => {
             const definition = CAD_KEYBOARD_SHORTCUTS.find((shortcut) => shortcut.id === id)!;
             const active = shortcuts.find((shortcut) => shortcut.id === id);
             const value = preferences.shortcutOverrides[id] ?? [active?.ctrl ? 'Ctrl' : null, active?.shift ? 'Shift' : null, active?.alt ? 'Alt' : null, active?.key?.toUpperCase()].filter(Boolean).join('+');
-            return <label key={id} className="min-w-0 text-[9.5px] text-gray-500"><span className="block truncate" title={definition.description}>{definition.label}</span><input data-testid={`cad-workspace-shortcut-${id}`} value={value} onChange={(event) => update('shortcutOverrides', { ...preferences.shortcutOverrides, [id]: event.target.value })} className="mt-0.5 w-full rounded-md border border-white/10 bg-gray-950/70 px-1.5 py-1 text-[10px] text-white outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/50" /></label>;
+            return <label key={id} className="min-w-0 type-micro text-gray-500"><span className="block truncate" title={definition.description}>{definition.label}</span><input data-testid={`cad-workspace-shortcut-${id}`} value={value} onChange={(event) => update('shortcutOverrides', { ...preferences.shortcutOverrides, [id]: event.target.value })} className="mt-0.5 w-full rounded-md border border-white/10 bg-gray-950/70 px-1.5 py-1 type-micro text-white outline-none focus-visible:ring-2 focus-visible:ring-indigo-400/50" /></label>;
           })}
         </div>
       </section>

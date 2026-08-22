@@ -126,7 +126,7 @@ export function CadCommandLine({
       // su tope en cuanto se dibuja. Reciben el ratón sólo las dos filas que lo
       // necesitan —palabras clave y entrada—; el diálogo y el fondo lo dejan
       // pasar, para que Undo y la barra sigan siendo pulsables debajo.
-      className="pointer-events-none flex w-full flex-col rounded-lg border border-white/10 bg-[#0b1020]/95 text-[12px] shadow-lg backdrop-blur"
+      className="pointer-events-none flex w-full flex-col rounded-lg border border-white/10 bg-[#0b1020]/95 type-caption shadow-lg backdrop-blur"
     >
       <div
         ref={logRef}
@@ -166,7 +166,7 @@ export function CadCommandLine({
                 onKeyword(option.shortcut);
                 inputRef.current?.focus();
               }}
-              className="pointer-events-auto rounded border border-white/15 px-1.5 py-0.5 font-mono text-[11px] text-indigo-200 transition-colors hover:bg-white/10"
+              className="pointer-events-auto rounded border border-white/15 px-1.5 py-0.5 font-mono type-micro text-indigo-200 transition-colors hover:bg-white/10"
               title={`Atajo: ${option.shortcut.toUpperCase()}`}
             >
               {formatCadKeyword(option)}

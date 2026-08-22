@@ -63,10 +63,38 @@ export const metadata: Metadata = {
   },
   description: BRAND.tagline.es,
   applicationName: BRAND.productNames.design,
+  /**
+   * ICONOS Y MANIFIESTO — declarados, no deducidos.
+   *
+   * Next ya inyecta `<link rel="icon">` por convención al encontrar
+   * `icon.tsx` y `apple-icon.tsx`, pero el SVG de `public/brand/` no lo
+   * descubre solo, y es el que sirve un icono nítido a cualquier resolución.
+   * Se enumeran los tres para que el navegador elija, en vez de conformarse.
+   */
+  icons: {
+    icon: [
+      { url: "/icon", sizes: "32x32", type: "image/png" },
+      { url: "/brand/isotipo-oscuro.svg", type: "image/svg+xml" },
+    ],
+    apple: [{ url: "/apple-icon", sizes: "180x180", type: "image/png" }],
+    shortcut: ["/favicon.ico"],
+  },
+  manifest: "/manifest.webmanifest",
 };
 
+/**
+ * `themeColor` pinta la barra del navegador en móvil. Va POR TEMA: con un solo
+ * valor, la barra queda índigo sobre una app en blanco —que es lo que había— y
+ * el teléfono muestra una franja de color que no pertenece a nada. Con los dos,
+ * la barra continúa el fondo de la página y la app parece ocupar la pantalla
+ * entera. Los valores son los tokens `--background` claro y oscuro resueltos.
+ */
 export const viewport: Viewport = {
-  themeColor: "#6366f1",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f4f5f8" },
+    { media: "(prefers-color-scheme: dark)", color: "#0c1017" },
+  ],
+  colorScheme: "light dark",
 };
 
 /**

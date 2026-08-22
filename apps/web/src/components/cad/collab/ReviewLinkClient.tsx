@@ -225,13 +225,13 @@ export default function ReviewLinkClient() {
         <header className="absolute left-0 right-0 top-0 z-10 flex flex-wrap items-center gap-2 bg-gradient-to-b from-[#070b16] to-transparent px-3 py-2">
           <span
             data-testid="cad-review-banner"
-            className="rounded-full border border-amber-300/30 bg-amber-400/10 px-2.5 py-0.5 text-[11px] font-semibold text-amber-100"
+            className="rounded-full border border-amber-300/30 bg-amber-400/10 px-2.5 py-0.5 type-micro font-semibold text-amber-100"
           >
             REVISIÓN · SOLO LECTURA
           </span>
           <h1
             data-testid="cad-review-document-name"
-            className="min-w-0 truncate text-[13px] font-medium text-gray-100"
+            className="min-w-0 truncate type-small font-medium text-gray-100"
           >
             {phase.review.documentName}
           </h1>
@@ -270,7 +270,7 @@ export default function ReviewLinkClient() {
           peers={presence.peers}
           presenceConnected={presence.connected}
         />
-        <p className="mt-2 shrink-0 text-[10px] text-gray-600">
+        <p className="mt-2 shrink-0 type-micro text-gray-600">
           Valle Design · Este enlace da acceso únicamente a este plano.
         </p>
       </aside>

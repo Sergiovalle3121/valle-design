@@ -16091,14 +16091,14 @@ export default function Layout3DEditor({
           <button
             data-testid="cad-library-tab-blocks"
             onClick={() => setCadLibraryTab("blocks")}
-            className={`rounded-lg px-2 py-1 text-[10.5px] font-semibold ${cadLibraryTab === "blocks" ? "bg-indigo-400/15 text-indigo-100" : "text-gray-500 hover:bg-white/[0.05]"}`}
+            className={`rounded-lg px-2 py-1 type-micro font-semibold ${cadLibraryTab === "blocks" ? "bg-indigo-400/15 text-indigo-100" : "text-gray-500 hover:bg-white/[0.05]"}`}
           >
             BLOCK / INSERT
           </button>
           <button
             data-testid="cad-library-tab-xrefs"
             onClick={() => setCadLibraryTab("xrefs")}
-            className={`rounded-lg px-2 py-1 text-[10.5px] font-semibold ${cadLibraryTab === "xrefs" ? "bg-indigo-400/15 text-indigo-100" : "text-gray-500 hover:bg-white/[0.05]"}`}
+            className={`rounded-lg px-2 py-1 type-micro font-semibold ${cadLibraryTab === "xrefs" ? "bg-indigo-400/15 text-indigo-100" : "text-gray-500 hover:bg-white/[0.05]"}`}
           >
             XREF ({cadXrefs.length})
           </button>
@@ -16238,7 +16238,7 @@ export default function Layout3DEditor({
           onClick={onClose}
           title="Cerrar el CAD — volver al dashboard (Esc)"
           aria-label="Cerrar el CAD"
-          className="sticky left-0 z-20 inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-rose-500/95 px-3 py-1.5 text-[13px] font-semibold text-white shadow-xl hover:bg-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+          className="sticky left-0 z-20 inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-rose-500/95 px-3 py-1.5 type-small font-semibold text-white shadow-xl hover:bg-rose-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
         >
           <X className="w-4 h-4" /> Cerrar
         </button>
@@ -16250,18 +16250,18 @@ export default function Layout3DEditor({
             data-testid={
               cadReviewReadOnly ? "cad-review-banner" : "cad-readonly-banner"
             }
-            className="rounded-full border border-amber-300/25 bg-amber-400/10 px-2 py-0.5 text-[10px] font-semibold text-amber-200"
+            className="rounded-full border border-amber-300/25 bg-amber-400/10 px-2 py-0.5 type-micro font-semibold text-amber-200"
           >
             {cadReviewReadOnly ? "REVIEW" : "VIEWER"} · SOLO LECTURA
           </span>
         )}
-        <span className="hidden xl:inline text-[11px] text-gray-500 dark:text-gray-400 max-w-[520px] truncate">
+        <span className="hidden xl:inline type-micro text-gray-500 dark:text-gray-400 max-w-[520px] truncate">
           {cadSubtitle}
         </span>
-        <span className="text-[11px] text-gray-500 dark:text-gray-400 ml-1">
+        <span className="type-micro text-gray-500 dark:text-gray-400 ml-1">
           {placedCount} estaciones · {assetCount} equipos
         </span>
-        <div className="inline-flex items-center rounded-lg bg-white/[0.06] p-0.5 text-[12px] font-semibold ml-1">
+        <div className="inline-flex items-center rounded-lg bg-white/[0.06] p-0.5 type-caption font-semibold ml-1">
           <button
             data-cad-readonly-allowed
             onClick={() => {
@@ -16286,7 +16286,7 @@ export default function Layout3DEditor({
         <div
           data-cad-readonly-allowed
           data-testid="cad-space-tabs"
-          className="inline-flex items-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.04] text-[10.5px] font-semibold"
+          className="inline-flex items-center overflow-hidden rounded-lg border border-white/10 bg-white/[0.04] type-micro font-semibold"
         >
           <button
             onClick={() => setShowSheetPackage(false)}
@@ -16413,7 +16413,7 @@ export default function Layout3DEditor({
           <button
             onClick={clearDims}
             title="Quitar todas las cotas"
-            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] text-gray-300 hover:bg-white/10"
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-lg type-micro text-gray-300 hover:bg-white/10"
           >
             {dimCount} {dimCount === 1 ? "cota" : "cotas"}{" "}
             <Trash2 className="w-3.5 h-3.5" />
@@ -16570,12 +16570,12 @@ export default function Layout3DEditor({
           )}
           {showOverlayMenu && (
             <div className="absolute top-full mt-1 left-0 z-50 w-60 rounded-xl border border-white/10 bg-gray-900 shadow-2xl py-1">
-              <div className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-gray-500">
+              <div className="px-3 py-1.5 type-micro uppercase tracking-wide text-gray-500">
                 Estado de estación
               </div>
               <button
                 onClick={() => loadOverlay(null)}
-                className={`w-full text-left px-3 py-1.5 text-[12.5px] hover:bg-white/[0.08] ${overlay === null ? "text-white" : "text-gray-500 dark:text-gray-400"}`}
+                className={`w-full text-left px-3 py-1.5 type-caption hover:bg-white/[0.08] ${overlay === null ? "text-white" : "text-gray-500 dark:text-gray-400"}`}
               >
                 Ninguno
               </button>
@@ -16583,7 +16583,7 @@ export default function Layout3DEditor({
                 <button
                   key={o.key}
                   onClick={() => loadOverlay(o.key)}
-                  className={`w-full text-left px-3 py-1.5 text-[12.5px] hover:bg-white/[0.08] ${overlay === o.key ? "text-white" : "text-gray-200"}`}
+                  className={`w-full text-left px-3 py-1.5 type-caption hover:bg-white/[0.08] ${overlay === o.key ? "text-white" : "text-gray-200"}`}
                 >
                   {o.label}
                 </button>
@@ -16606,7 +16606,7 @@ export default function Layout3DEditor({
                 ref={viewMenuPanelRef}
                 data-testid="cad-layer-manager"
                 style={viewMenuPosition}
-                className="fixed z-[90] w-72 max-h-[78vh] overflow-y-auto rounded-xl border border-white/10 bg-gray-900 shadow-2xl p-3 text-[12px]"
+                className="fixed z-[90] w-72 max-h-[78vh] overflow-y-auto rounded-xl border border-white/10 bg-gray-900 shadow-2xl p-3 type-caption"
               >
                 <CadEditorLayerToggles
                   layers={layers}
@@ -16658,24 +16658,24 @@ export default function Layout3DEditor({
                   onResetPresentation={resetCadLayerPresentation}
                 />
                 <div className="mt-2.5 mb-1.5 flex items-center justify-between gap-2">
-                  <div className="text-[10px] uppercase tracking-wide text-gray-500">
+                  <div className="type-micro uppercase tracking-wide text-gray-500">
                     Vistas
                   </div>
-                  <span className="text-[10px] text-gray-500">
+                  <span className="type-micro text-gray-500">
                     {viewportBookmarks.length}/8
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
                   <button
                     onClick={saveCurrentViewportBookmark}
-                    className="rounded-md bg-white/[0.06] px-2 py-1.5 text-[11px] font-medium text-gray-200 hover:bg-white/[0.12]"
+                    className="rounded-md bg-white/[0.06] px-2 py-1.5 type-micro font-medium text-gray-200 hover:bg-white/[0.12]"
                   >
                     Guardar vista
                   </button>
                   <button
                     onClick={focusCurrentSelection}
                     disabled={!selList.length}
-                    className="rounded-md bg-white/[0.06] px-2 py-1.5 text-[11px] font-medium text-gray-200 hover:bg-white/[0.12] disabled:opacity-40"
+                    className="rounded-md bg-white/[0.06] px-2 py-1.5 type-micro font-medium text-gray-200 hover:bg-white/[0.12] disabled:opacity-40"
                   >
                     Fit seleccion
                   </button>
@@ -16691,10 +16691,10 @@ export default function Layout3DEditor({
                           onClick={() => restoreViewportBookmark(bookmark)}
                           className="min-w-0 text-left"
                         >
-                          <div className="truncate text-[11.5px] font-medium text-gray-100">
+                          <div className="truncate type-micro font-medium text-gray-100">
                             {bookmark.label}
                           </div>
-                          <div className="text-[10px] text-gray-500">
+                          <div className="type-micro text-gray-500">
                             {bookmark.camera.mode.toUpperCase()} ·{" "}
                             {new Date(bookmark.savedAt).toLocaleTimeString(
                               "es-MX",
@@ -16704,7 +16704,7 @@ export default function Layout3DEditor({
                         </button>
                         <button
                           onClick={() => deleteViewportBookmark(bookmark)}
-                          className="rounded px-1.5 py-0.5 text-[10px] text-gray-500 hover:bg-white/[0.08] hover:text-white"
+                          className="rounded px-1.5 py-0.5 type-micro text-gray-500 hover:bg-white/[0.08] hover:text-white"
                           title="Eliminar vista guardada"
                         >
                           Del
@@ -16712,13 +16712,13 @@ export default function Layout3DEditor({
                       </div>
                     ))
                   ) : (
-                    <div className="rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1.5 text-[10.5px] text-gray-500">
+                    <div className="rounded-lg border border-white/10 bg-white/[0.03] px-2 py-1.5 type-micro text-gray-500">
                       Guarda vistas de una planta grande para volver rapido a
                       areas, issues o revisiones.
                     </div>
                   )}
                 </div>
-                <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1.5">
+                <div className="type-micro uppercase tracking-wide text-gray-500 mt-2.5 mb-1.5">
                   Tema
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
@@ -16726,13 +16726,13 @@ export default function Layout3DEditor({
                     <button
                       key={t}
                       onClick={() => setTheme(t)}
-                      className={`px-2 py-1 rounded-md text-[12px] ${theme === t ? "bg-indigo-600 text-white" : "bg-white/[0.06] text-gray-300 hover:bg-white/[0.12]"}`}
+                      className={`px-2 py-1 rounded-md type-caption ${theme === t ? "bg-indigo-600 text-white" : "bg-white/[0.06] text-gray-300 hover:bg-white/[0.12]"}`}
                     >
                       {THEMES[t].label}
                     </button>
                   ))}
                 </div>
-                <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1.5">
+                <div className="type-micro uppercase tracking-wide text-gray-500 mt-2.5 mb-1.5">
                   Escala de planta
                 </div>
                 <div className="grid grid-cols-2 gap-1.5 mb-2">
@@ -16743,20 +16743,20 @@ export default function Layout3DEditor({
                       title={p.hint}
                       className="px-2 py-1 rounded-md text-left bg-white/[0.06] text-gray-200 hover:bg-indigo-600/30"
                     >
-                      <span className="block text-[12px] leading-tight">
+                      <span className="block type-caption leading-tight">
                         {p.label}
                       </span>
-                      <span className="block text-[9px] text-gray-400 leading-tight">
+                      <span className="block type-micro text-gray-400 leading-tight">
                         {p.widthM}×{p.heightM} m
                       </span>
                     </button>
                   ))}
                 </div>
                 <div className="mt-2.5 mb-1.5 flex items-center justify-between gap-2">
-                  <span className="text-[10px] uppercase tracking-wide text-gray-500">
+                  <span className="type-micro uppercase tracking-wide text-gray-500">
                     Plano ({data?.footprint.unit ?? "mm"})
                   </span>
-                  <div className="inline-flex overflow-hidden rounded-md border border-white/10 text-[9px]">
+                  <div className="inline-flex overflow-hidden rounded-md border border-white/10 type-micro">
                     {(["m", "mm"] as const).map((u) => (
                       <button
                         key={u}
@@ -16789,7 +16789,7 @@ export default function Layout3DEditor({
                     onChange={(v) => setFpDraft((s) => ({ ...s, g: v }))}
                   />
                 </div>
-                <div className="text-[10px] text-gray-500 mb-2">
+                <div className="type-micro text-gray-500 mb-2">
                   ≈{" "}
                   {(() => {
                     const unit = (data?.footprint.unit ?? "mm") as WorldUnit;
@@ -16803,15 +16803,15 @@ export default function Layout3DEditor({
                 <button
                   data-testid="cad-footprint-apply"
                   onClick={applyFootprint}
-                  className="w-full px-2 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-[12px] font-medium"
+                  className="w-full px-2 py-1.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white type-caption font-medium"
                 >
                   Aplicar tamaño
                 </button>
-                <div className="text-[10px] uppercase tracking-wide text-gray-500 mt-2.5 mb-1">
+                <div className="type-micro uppercase tracking-wide text-gray-500 mt-2.5 mb-1">
                   Sol / sombras
                 </div>
                 <label className="block mb-1.5">
-                  <span className="flex justify-between text-[10px] text-gray-500 dark:text-gray-400">
+                  <span className="flex justify-between type-micro text-gray-500 dark:text-gray-400">
                     <span>Azimut</span>
                     <span>{sun.az}°</span>
                   </span>
@@ -16827,7 +16827,7 @@ export default function Layout3DEditor({
                   />
                 </label>
                 <label className="block">
-                  <span className="flex justify-between text-[10px] text-gray-500 dark:text-gray-400">
+                  <span className="flex justify-between type-micro text-gray-500 dark:text-gray-400">
                     <span>Altura</span>
                     <span>{sun.el}°</span>
                   </span>
@@ -16927,7 +16927,7 @@ export default function Layout3DEditor({
             </T3Btn>
             {showAnalysis && (
               <div className="absolute top-full mt-1 left-0 z-50 w-64 max-h-[62vh] overflow-y-auto rounded-xl border border-white/10 bg-gray-900 shadow-2xl py-1">
-                <div className="px-3 py-1.5 text-[10px] uppercase tracking-wide text-gray-500">
+                <div className="px-3 py-1.5 type-micro uppercase tracking-wide text-gray-500">
                   Análisis del layout
                 </div>
                 {analysisPanels.map((p) => (
@@ -16937,7 +16937,7 @@ export default function Layout3DEditor({
                       setAnalysisPanel(p.key);
                       setShowAnalysis(false);
                     }}
-                    className="w-full text-left px-3 py-1.5 text-[12.5px] text-gray-200 hover:bg-white/[0.08] transition-colors"
+                    className="w-full text-left px-3 py-1.5 type-caption text-gray-200 hover:bg-white/[0.08] transition-colors"
                   >
                     {p.label}
                   </button>
@@ -16957,7 +16957,7 @@ export default function Layout3DEditor({
           value={plotPaper}
           onChange={(e) => setPlotPaper(e.target.value as CadPaperId)}
           title="Papel del plano (A4–A0, carta, tabloide) — la escala estándar se elige sola"
-          className="h-7 self-center rounded-lg border border-white/10 bg-white/[0.06] px-1 text-[11px] text-gray-300 focus:outline-none"
+          className="h-7 self-center rounded-lg border border-white/10 bg-white/[0.06] px-1 type-micro text-gray-300 focus:outline-none"
         >
           {(Object.keys(CAD_PAPER_SIZES) as CadPaperId[]).map((id) => (
             <option key={id} value={id} className="bg-gray-900">
@@ -17055,7 +17055,7 @@ export default function Layout3DEditor({
         )}
         {dxfWarnings.length > 0 && (
           <div
-            className="ml-1 inline-flex items-center gap-1 rounded-lg border border-amber-400/20 bg-amber-400/10 px-2 py-1 text-[11px] text-amber-100"
+            className="ml-1 inline-flex items-center gap-1 rounded-lg border border-amber-400/20 bg-amber-400/10 px-2 py-1 type-micro text-amber-100"
             title="Advertencias del último DXF importado"
           >
             <CircleAlert className="h-3.5 w-3.5" />
@@ -17108,7 +17108,7 @@ export default function Layout3DEditor({
               onChange={(e) =>
                 setApprovalStatus(e.target.value as ApprovalStatus)
               }
-              className="text-[12px] rounded-md px-1.5 py-1 bg-white/[0.06] border border-white/10 outline-none"
+              className="type-caption rounded-md px-1.5 py-1 bg-white/[0.06] border border-white/10 outline-none"
               style={{ color: APPROVAL_META[approval.status].color }}
             >
               <option value="draft" className="text-gray-900">
@@ -17218,7 +17218,7 @@ export default function Layout3DEditor({
             )}
             {workspacePreferences.leftDock && (
               <>
-                <div className="flex shrink-0 text-[12px] font-medium border-b border-white/10">
+                <div className="flex shrink-0 type-caption font-medium border-b border-white/10">
                   <button
                     onClick={() => setTab("stations")}
                     className={`flex-1 px-3 py-2 inline-flex items-center justify-center gap-1.5 ${tab === "stations" ? "text-white bg-white/[0.06]" : "text-gray-500 dark:text-gray-400 hover:text-gray-200"}`}
@@ -17236,11 +17236,11 @@ export default function Layout3DEditor({
                 <div className="flex-1 overflow-y-auto p-3">
                   {tab === "stations" ? (
                     <>
-                      <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
+                      <div className="type-micro uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
                         Por colocar ({tray.length})
                       </div>
                       {tray.length === 0 ? (
-                        <p className="text-[12px] text-gray-500">
+                        <p className="type-caption text-gray-500">
                           Todas las estaciones están en el plano.
                         </p>
                       ) : (
@@ -17253,7 +17253,7 @@ export default function Layout3DEditor({
                             <div className="text-sm font-medium">
                               {st.station}
                             </div>
-                            <div className="text-[11px] text-gray-500 dark:text-gray-400">
+                            <div className="type-micro text-gray-500 dark:text-gray-400">
                               {st.line} · clic para colocar
                             </div>
                           </button>
@@ -17264,10 +17264,10 @@ export default function Layout3DEditor({
                     <>
                       <div className="mb-3 rounded-xl border border-indigo-400/15 bg-indigo-400/[0.05] p-2.5">
                         <div className="mb-1.5 flex items-center justify-between gap-2">
-                          <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-indigo-200">
+                          <div className="inline-flex items-center gap-1.5 type-micro uppercase tracking-wide text-indigo-200">
                             <Stamp className="h-3.5 w-3.5" /> Plantillas CAD
                           </div>
-                          <span className="text-[10px] text-indigo-100/60">
+                          <span className="type-micro text-indigo-100/60">
                             {CAD_LAYOUT_TEMPLATES.length}
                           </span>
                         </div>
@@ -17277,17 +17277,17 @@ export default function Layout3DEditor({
                               key={template.id}
                               onClick={() => applyCadTemplate(template.id)}
                               title={template.description}
-                              className="rounded-lg bg-indigo-400/[0.08] px-2 py-1.5 text-left text-[11px] text-indigo-100 hover:bg-indigo-400/[0.14]"
+                              className="rounded-lg bg-indigo-400/[0.08] px-2 py-1.5 text-left type-micro text-indigo-100 hover:bg-indigo-400/[0.14]"
                             >
                               <span className="flex items-center justify-between gap-2">
                                 <span className="truncate font-semibold">
                                   {template.label}
                                 </span>
-                                <span className="shrink-0 text-[10px] text-indigo-200/70">
+                                <span className="shrink-0 type-micro text-indigo-200/70">
                                   {template.assets.length} obj
                                 </span>
                               </span>
-                              <span className="mt-0.5 block truncate text-[10px] text-indigo-200/70">
+                              <span className="mt-0.5 block truncate type-micro text-indigo-200/70">
                                 {template.category} · {template.description}
                               </span>
                             </button>
@@ -17296,22 +17296,22 @@ export default function Layout3DEditor({
                       </div>
                       <div className="mb-3 rounded-xl border border-violet-400/15 bg-violet-400/[0.05] p-2.5">
                         <div className="mb-1.5 flex items-center justify-between gap-2">
-                          <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-violet-200">
+                          <div className="inline-flex items-center gap-1.5 type-micro uppercase tracking-wide text-violet-200">
                             <Boxes className="h-3.5 w-3.5" /> Mis bloques
                           </div>
-                          <span className="text-[10px] text-violet-100/60">
+                          <span className="type-micro text-violet-100/60">
                             {cadBlocks.length}
                           </span>
                         </div>
                         <button
                           onClick={() => void saveSelectionAsBlock()}
                           title="Guarda los equipos seleccionados como bloque reutilizable — disponible en todos los layouts"
-                          className="mb-1.5 w-full rounded-lg border border-violet-400/25 bg-violet-400/[0.08] px-2 py-1.5 text-[11px] font-semibold text-violet-100 hover:bg-violet-400/[0.14]"
+                          className="mb-1.5 w-full rounded-lg border border-violet-400/25 bg-violet-400/[0.08] px-2 py-1.5 type-micro font-semibold text-violet-100 hover:bg-violet-400/[0.14]"
                         >
                           + Guardar selección como bloque
                         </button>
                         {cadBlocks.length === 0 ? (
-                          <p className="text-[10.5px] leading-snug text-gray-500">
+                          <p className="type-micro leading-snug text-gray-500">
                             Sin bloques aún: selecciona una celda armada y
                             guárdala para reutilizarla en cualquier layout.
                           </p>
@@ -17325,13 +17325,13 @@ export default function Layout3DEditor({
                                 <button
                                   onClick={() => insertCadBlock(block)}
                                   title="Insertar en el centro de la vista (llega agrupado)"
-                                  className="min-w-0 flex-1 rounded-lg bg-violet-400/[0.08] px-2 py-1.5 text-left text-[11px] text-violet-100 hover:bg-violet-400/[0.14]"
+                                  className="min-w-0 flex-1 rounded-lg bg-violet-400/[0.08] px-2 py-1.5 text-left type-micro text-violet-100 hover:bg-violet-400/[0.14]"
                                 >
                                   <span className="flex items-center justify-between gap-2">
                                     <span className="truncate font-semibold">
                                       {block.name}
                                     </span>
-                                    <span className="shrink-0 text-[10px] text-violet-200/70">
+                                    <span className="shrink-0 type-micro text-violet-200/70">
                                       {block.assets.length} obj
                                     </span>
                                   </span>
@@ -17350,50 +17350,50 @@ export default function Layout3DEditor({
                       </div>
                       <div className="mb-3 rounded-xl border border-slate-300/15 bg-slate-300/[0.05] p-2.5">
                         <div className="mb-1.5 flex items-center justify-between gap-2">
-                          <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-slate-200">
+                          <div className="inline-flex items-center gap-1.5 type-micro uppercase tracking-wide text-slate-200">
                             <BrickWall className="h-3.5 w-3.5" /> Arquitectura
                           </div>
-                          <span className="text-[10px] text-slate-200/60">
+                          <span className="type-micro text-slate-200/60">
                             editable
                           </span>
                         </div>
                         <div className="grid grid-cols-2 gap-1.5">
                           <button
                             onClick={toggleWall}
-                            className={`rounded-lg px-2 py-1.5 text-left text-[11px] font-semibold ${tool === "wall" ? "bg-slate-200 text-slate-950" : "bg-white/[0.06] text-slate-100 hover:bg-white/[0.12]"}`}
+                            className={`rounded-lg px-2 py-1.5 text-left type-micro font-semibold ${tool === "wall" ? "bg-slate-200 text-slate-950" : "bg-white/[0.06] text-slate-100 hover:bg-white/[0.12]"}`}
                           >
                             Trazar muro
                           </button>
                           <button
                             onClick={() => addArchitectureAsset("column")}
-                            className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-left text-[11px] font-semibold text-slate-100 hover:bg-white/[0.12]"
+                            className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-left type-micro font-semibold text-slate-100 hover:bg-white/[0.12]"
                           >
                             Columna
                           </button>
                           <button
                             onClick={() => addArchitectureAsset("door")}
-                            className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-left text-[11px] font-semibold text-slate-100 hover:bg-white/[0.12]"
+                            className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-left type-micro font-semibold text-slate-100 hover:bg-white/[0.12]"
                           >
                             Puerta
                           </button>
                           <button
                             onClick={() => addArchitectureAsset("room")}
-                            className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-left text-[11px] font-semibold text-slate-100 hover:bg-white/[0.12]"
+                            className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-left type-micro font-semibold text-slate-100 hover:bg-white/[0.12]"
                           >
                             Cuarto / area
                           </button>
                         </div>
-                        <div className="mt-1.5 text-[10px] leading-snug text-slate-200/60">
+                        <div className="mt-1.5 type-micro leading-snug text-slate-200/60">
                           Tags: use:recamara, use:bano, use:cocina o dept:obra
                           clasifican locales en el takeoff.
                         </div>
                       </div>
                       <div className="mb-3 rounded-xl border border-amber-400/15 bg-amber-400/[0.05] p-2.5">
                         <div className="mb-1.5 flex items-center justify-between gap-2">
-                          <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-amber-200">
+                          <div className="inline-flex items-center gap-1.5 type-micro uppercase tracking-wide text-amber-200">
                             <Rows3 className="h-3.5 w-3.5" /> Generador de racks
                           </div>
-                          <span className="text-[10px] text-amber-100/60">
+                          <span className="type-micro text-amber-100/60">
                             editable
                           </span>
                         </div>
@@ -17432,7 +17432,7 @@ export default function Layout3DEditor({
                             }
                           />
                           <label className="block">
-                            <span className="block text-[9px] uppercase tracking-wide text-gray-500 mb-0.5">
+                            <span className="block type-micro uppercase tracking-wide text-gray-500 mb-0.5">
                               Prefijo
                             </span>
                             <input
@@ -17443,11 +17443,11 @@ export default function Layout3DEditor({
                                   e.target.value,
                                 )
                               }
-                              className="w-full px-1.5 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[12px] text-white focus:outline-none focus:border-amber-300/60"
+                              className="w-full px-1.5 py-1 rounded-md bg-white/[0.06] border border-white/10 type-caption text-white focus:outline-none focus:border-amber-300/60"
                             />
                           </label>
                         </div>
-                        <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px]">
+                        <div className="mt-2 grid grid-cols-2 gap-1.5 type-micro">
                           {(["horizontal", "vertical"] as const).map(
                             (orientation) => (
                               <button
@@ -17469,22 +17469,22 @@ export default function Layout3DEditor({
                         </div>
                         <button
                           onClick={applyRackRowGenerator}
-                          className="mt-2 w-full rounded-lg bg-amber-500/90 px-2 py-1.5 text-[11px] font-semibold text-gray-950 hover:bg-amber-400"
+                          className="mt-2 w-full rounded-lg bg-amber-500/90 px-2 py-1.5 type-micro font-semibold text-gray-950 hover:bg-amber-400"
                         >
                           Generar racks editables
                         </button>
-                        <div className="mt-1.5 text-[10px] leading-snug text-amber-100/60">
+                        <div className="mt-1.5 type-micro leading-snug text-amber-100/60">
                           Crea racks, pasillos forklift y etiquetas en capas CAD
                           existentes.
                         </div>
                       </div>
                       <div className="mb-3 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.05] p-2.5">
                         <div className="mb-1.5 flex items-center justify-between gap-2">
-                          <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-emerald-200">
+                          <div className="inline-flex items-center gap-1.5 type-micro uppercase tracking-wide text-emerald-200">
                             <Waypoints className="h-3.5 w-3.5" /> Generador
                             dock/staging
                           </div>
-                          <span className="text-[10px] text-emerald-100/60">
+                          <span className="type-micro text-emerald-100/60">
                             flow
                           </span>
                         </div>
@@ -17525,7 +17525,7 @@ export default function Layout3DEditor({
                             }
                           />
                           <label className="block">
-                            <span className="block text-[9px] uppercase tracking-wide text-gray-500 mb-0.5">
+                            <span className="block type-micro uppercase tracking-wide text-gray-500 mb-0.5">
                               Prefijo
                             </span>
                             <input
@@ -17536,11 +17536,11 @@ export default function Layout3DEditor({
                                   e.target.value,
                                 )
                               }
-                              className="w-full px-1.5 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[12px] text-white focus:outline-none focus:border-emerald-300/60"
+                              className="w-full px-1.5 py-1 rounded-md bg-white/[0.06] border border-white/10 type-caption text-white focus:outline-none focus:border-emerald-300/60"
                             />
                           </label>
                         </div>
-                        <div className="mt-2 grid grid-cols-3 gap-1.5 text-[10.5px]">
+                        <div className="mt-2 grid grid-cols-3 gap-1.5 type-micro">
                           {(
                             ["receiving", "shipping", "crossdock"] as const
                           ).map((mode) => (
@@ -17559,7 +17559,7 @@ export default function Layout3DEditor({
                             </button>
                           ))}
                         </div>
-                        <div className="mt-1.5 grid grid-cols-4 gap-1 text-[10.5px]">
+                        <div className="mt-1.5 grid grid-cols-4 gap-1 type-micro">
                           {(["north", "south", "west", "east"] as const).map(
                             (side) => (
                               <button
@@ -17582,22 +17582,22 @@ export default function Layout3DEditor({
                         </div>
                         <button
                           onClick={applyDockStagingGenerator}
-                          className="mt-2 w-full rounded-lg bg-emerald-500/90 px-2 py-1.5 text-[11px] font-semibold text-gray-950 hover:bg-emerald-400"
+                          className="mt-2 w-full rounded-lg bg-emerald-500/90 px-2 py-1.5 type-micro font-semibold text-gray-950 hover:bg-emerald-400"
                         >
                           Generar dock + staging
                         </button>
-                        <div className="mt-1.5 text-[10px] leading-snug text-emerald-100/60">
+                        <div className="mt-1.5 type-micro leading-snug text-emerald-100/60">
                           Crea puertas, staging, pallets, apron forklift y
                           flujos visibles como objetos editables.
                         </div>
                       </div>
                       <div className="mb-3 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.05] p-2.5">
                         <div className="mb-1.5 flex items-center justify-between gap-2">
-                          <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-emerald-200">
+                          <div className="inline-flex items-center gap-1.5 type-micro uppercase tracking-wide text-emerald-200">
                             <Package className="h-3.5 w-3.5" />{" "}
                             Supermarket/kitting
                           </div>
-                          <span className="text-[10px] text-emerald-100/60">
+                          <span className="type-micro text-emerald-100/60">
                             param
                           </span>
                         </div>
@@ -17645,7 +17645,7 @@ export default function Layout3DEditor({
                             }
                           />
                           <label className="block">
-                            <span className="block text-[9px] uppercase tracking-wide text-gray-500 mb-0.5">
+                            <span className="block type-micro uppercase tracking-wide text-gray-500 mb-0.5">
                               Prefijo
                             </span>
                             <input
@@ -17656,7 +17656,7 @@ export default function Layout3DEditor({
                                   e.target.value,
                                 )
                               }
-                              className="w-full px-1.5 py-1 rounded-md bg-white/[0.06] border border-white/10 text-[12px] text-white focus:outline-none focus:border-emerald-300/60"
+                              className="w-full px-1.5 py-1 rounded-md bg-white/[0.06] border border-white/10 type-caption text-white focus:outline-none focus:border-emerald-300/60"
                             />
                           </label>
                           <DimInput
@@ -17667,7 +17667,7 @@ export default function Layout3DEditor({
                             }
                           />
                         </div>
-                        <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px]">
+                        <div className="mt-2 grid grid-cols-2 gap-1.5 type-micro">
                           {(["horizontal", "vertical"] as const).map(
                             (orientation) => (
                               <button
@@ -17687,7 +17687,7 @@ export default function Layout3DEditor({
                             ),
                           )}
                         </div>
-                        <div className="mt-2 grid grid-cols-2 gap-1.5 text-[11px]">
+                        <div className="mt-2 grid grid-cols-2 gap-1.5 type-micro">
                           <button
                             onClick={() =>
                               setSupermarketGeneratorField(
@@ -17713,20 +17713,20 @@ export default function Layout3DEditor({
                         </div>
                         <button
                           onClick={applySupermarketGenerator}
-                          className="mt-2 w-full rounded-lg bg-emerald-500/90 px-2 py-1.5 text-[11px] font-semibold text-gray-950 hover:bg-emerald-400"
+                          className="mt-2 w-full rounded-lg bg-emerald-500/90 px-2 py-1.5 type-micro font-semibold text-gray-950 hover:bg-emerald-400"
                         >
                           Generar kitting editable
                         </button>
-                        <div className="mt-1.5 text-[10px] leading-snug text-emerald-100/60">
+                        <div className="mt-1.5 type-micro leading-snug text-emerald-100/60">
                           Crea lanes kanban, carts, FIFO, line-side, ESD,
                           quarantine y flujos.
                         </div>
                       </div>
                       <div className="mb-3 rounded-xl border border-rose-400/15 bg-rose-400/[0.05] p-2.5">
-                        <div className="text-[10px] uppercase tracking-wide text-rose-200 mb-1.5">
+                        <div className="type-micro uppercase tracking-wide text-rose-200 mb-1.5">
                           Safety zones
                         </div>
-                        <p className="mb-2 text-[10.5px] leading-snug text-rose-100/70">
+                        <p className="mb-2 type-micro leading-snug text-rose-100/70">
                           Crea zonas y rutas editables en Safety. Validacion
                           detecta bloqueos, invasiones y objetos sin
                           clasificacion ESD.
@@ -17734,38 +17734,38 @@ export default function Layout3DEditor({
                         <div className="grid grid-cols-2 gap-1.5">
                           <button
                             onClick={() => createSafetyZoneAsset("no-go")}
-                            className="rounded-lg border border-rose-300/20 bg-rose-400/[0.10] px-2 py-1.5 text-left text-[11px] font-semibold text-rose-100 hover:bg-rose-400/[0.16]"
+                            className="rounded-lg border border-rose-300/20 bg-rose-400/[0.10] px-2 py-1.5 text-left type-micro font-semibold text-rose-100 hover:bg-rose-400/[0.16]"
                           >
                             No-go zone
                           </button>
                           <button
                             onClick={() => createSafetyZoneAsset("restricted")}
-                            className="rounded-lg border border-amber-300/20 bg-amber-400/[0.10] px-2 py-1.5 text-left text-[11px] font-semibold text-amber-100 hover:bg-amber-400/[0.16]"
+                            className="rounded-lg border border-amber-300/20 bg-amber-400/[0.10] px-2 py-1.5 text-left type-micro font-semibold text-amber-100 hover:bg-amber-400/[0.16]"
                           >
                             Restricted
                           </button>
                           <button
                             onClick={() => createSafetyZoneAsset("esd")}
-                            className="rounded-lg border border-indigo-300/20 bg-indigo-400/[0.10] px-2 py-1.5 text-left text-[11px] font-semibold text-indigo-100 hover:bg-indigo-400/[0.16]"
+                            className="rounded-lg border border-indigo-300/20 bg-indigo-400/[0.10] px-2 py-1.5 text-left type-micro font-semibold text-indigo-100 hover:bg-indigo-400/[0.16]"
                           >
                             ESD zone
                           </button>
                           <button
                             onClick={() => createSafetyPathAsset("forklift")}
-                            className="rounded-lg border border-emerald-300/20 bg-emerald-400/[0.10] px-2 py-1.5 text-left text-[11px] font-semibold text-emerald-100 hover:bg-emerald-400/[0.16]"
+                            className="rounded-lg border border-emerald-300/20 bg-emerald-400/[0.10] px-2 py-1.5 text-left type-micro font-semibold text-emerald-100 hover:bg-emerald-400/[0.16]"
                           >
                             Forklift path
                           </button>
                           <button
                             onClick={() => createSafetyPathAsset("emergency")}
-                            className="rounded-lg border border-sky-300/20 bg-sky-400/[0.10] px-2 py-1.5 text-left text-[11px] font-semibold text-sky-100 hover:bg-sky-400/[0.16]"
+                            className="rounded-lg border border-indigo-300/20 bg-indigo-400/[0.10] px-2 py-1.5 text-left type-micro font-semibold text-indigo-100 hover:bg-indigo-400/[0.16]"
                           >
                             Emergency exit
                           </button>
                         </div>
                       </div>
                       <div className="mb-2 rounded-lg border border-violet-300/20 bg-violet-400/[0.06] p-2">
-                        <div className="mb-1.5 text-[11px] uppercase tracking-wide text-violet-200/80">
+                        <div className="mb-1.5 type-micro uppercase tracking-wide text-violet-200/80">
                           Industry Packs
                         </div>
                         <div className="grid grid-cols-1 gap-1.5">
@@ -17774,17 +17774,17 @@ export default function Layout3DEditor({
                               key={obj.id}
                               onClick={() => addIndustryObject(obj.id)}
                               title={`Agregar ${obj.label}`}
-                              className="rounded-lg bg-violet-400/[0.10] px-2 py-1.5 text-left text-[11px] text-violet-100 hover:bg-violet-400/[0.16]"
+                              className="rounded-lg bg-violet-400/[0.10] px-2 py-1.5 text-left type-micro text-violet-100 hover:bg-violet-400/[0.16]"
                             >
                               <span className="flex items-center justify-between gap-2">
                                 <span className="truncate font-semibold">
                                   {obj.label}
                                 </span>
-                                <span className="shrink-0 text-[10px] text-violet-200/70">
+                                <span className="shrink-0 type-micro text-violet-200/70">
                                   {obj.industry}
                                 </span>
                               </span>
-                              <span className="mt-0.5 block truncate text-[10px] text-violet-200/70">
+                              <span className="mt-0.5 block truncate type-micro text-violet-200/70">
                                 objeto inteligente · {obj.category}
                               </span>
                             </button>
@@ -17792,10 +17792,10 @@ export default function Layout3DEditor({
                         </div>
                       </div>
                       <div className="mb-2 flex items-center justify-between gap-2">
-                        <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        <div className="type-micro uppercase tracking-wide text-gray-500 dark:text-gray-400">
                           Biblioteca CAD universal
                         </div>
-                        <span className="text-[10px] text-gray-500">
+                        <span className="type-micro text-gray-500">
                           {filteredSymbols.length}/{CAD_SYMBOL_LIBRARY.length}
                         </span>
                       </div>
@@ -17803,14 +17803,14 @@ export default function Layout3DEditor({
                         value={symbolSearch}
                         onChange={(e) => setSymbolSearch(e.target.value)}
                         placeholder="Buscar SMT, AOI, safety…"
-                        className="mb-2 w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white placeholder:text-gray-600 outline-none focus:border-indigo-400/60"
+                        className="mb-2 w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-caption text-white placeholder:text-gray-600 outline-none focus:border-indigo-400/60"
                       />
                       <div className="mb-2 flex gap-1 overflow-x-auto pb-1">
                         {symbolCategories.map((category) => (
                           <button
                             key={category}
                             onClick={() => setSymbolCategory(category)}
-                            className={`shrink-0 rounded-full border px-2 py-0.5 text-[10.5px] ${symbolCategory === category ? "border-indigo-300/50 bg-indigo-400/15 text-indigo-100" : "border-white/10 text-gray-500 dark:text-gray-400 hover:text-white"}`}
+                            className={`shrink-0 rounded-full border px-2 py-0.5 type-micro ${symbolCategory === category ? "border-indigo-300/50 bg-indigo-400/15 text-indigo-100" : "border-white/10 text-gray-500 dark:text-gray-400 hover:text-white"}`}
                           >
                             {category}
                           </button>
@@ -17822,35 +17822,35 @@ export default function Layout3DEditor({
                             key={symbol.id}
                             onClick={() => addCadSymbol(symbol.id)}
                             title={`Agregar ${symbol.label}`}
-                            className="rounded-lg bg-indigo-400/[0.08] px-2 py-1.5 text-left text-[11px] text-indigo-100 hover:bg-indigo-400/[0.14]"
+                            className="rounded-lg bg-indigo-400/[0.08] px-2 py-1.5 text-left type-micro text-indigo-100 hover:bg-indigo-400/[0.14]"
                           >
                             <span className="flex items-center justify-between gap-2">
                               <span className="truncate font-semibold">
                                 {symbol.label}
                               </span>
-                              <span className="shrink-0 text-[10px] text-indigo-200/70">
+                              <span className="shrink-0 type-micro text-indigo-200/70">
                                 {Math.round(symbol.defaultWidth)}×
                                 {Math.round(symbol.defaultHeight)}
                               </span>
                             </span>
-                            <span className="mt-0.5 block truncate text-[10px] text-indigo-200/70">
+                            <span className="mt-0.5 block truncate type-micro text-indigo-200/70">
                               {symbol.category} · {symbol.layer} ·{" "}
                               {symbol.tags.join(", ")}
                             </span>
                           </button>
                         ))}
                         {filteredSymbols.length === 0 && (
-                          <div className="rounded-lg border border-white/10 bg-white/[0.03] px-2 py-3 text-center text-[11px] text-gray-500">
+                          <div className="rounded-lg border border-white/10 bg-white/[0.03] px-2 py-3 text-center type-micro text-gray-500">
                             Sin símbolos para ese filtro.
                           </div>
                         )}
                       </div>
-                      <div className="text-[11px] uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
+                      <div className="type-micro uppercase tracking-wide text-gray-500 dark:text-gray-400 mb-2">
                         Agregar equipo
                       </div>
                       {ASSET_CATEGORIES.map((cat) => (
                         <div key={cat.category} className="mb-3">
-                          <div className="text-[10px] uppercase tracking-wider text-gray-500 mb-1.5 flex items-center gap-1">
+                          <div className="type-micro uppercase tracking-wider text-gray-500 mb-1.5 flex items-center gap-1">
                             <ChevronRight className="w-3 h-3" /> {cat.label}
                           </div>
                           <div className="grid grid-cols-2 gap-1.5">
@@ -17859,7 +17859,7 @@ export default function Layout3DEditor({
                                 key={it.kind}
                                 onClick={() => addAsset(it.kind)}
                                 title={`Agregar ${it.label}`}
-                                className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.10] text-[12px] transition-colors"
+                                className="inline-flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.10] type-caption transition-colors"
                               >
                                 <span
                                   className="inline-block w-2.5 h-2.5 rounded-sm shrink-0"
@@ -17902,7 +17902,7 @@ export default function Layout3DEditor({
                   <p className="text-sm font-medium text-white">
                     Este navegador no puede mostrar el viewport 3D
                   </p>
-                  <p className="text-[12px] leading-relaxed text-white/70">
+                  <p className="type-caption leading-relaxed text-white/70">
                     Valle Design necesita WebGL para dibujar en pantalla. El
                     documento, las capas, las propiedades y el guardado siguen
                     funcionando, pero no verás la geometría hasta que actives
@@ -17946,7 +17946,7 @@ export default function Layout3DEditor({
               <div
                 data-testid="cad-context-menu"
                 role="menu"
-                className="absolute z-50 w-44 overflow-hidden rounded-xl border border-white/15 bg-gray-950/95 p-1.5 text-[11px] text-gray-200 shadow-2xl backdrop-blur"
+                className="absolute z-50 w-44 overflow-hidden rounded-xl border border-white/15 bg-gray-950/95 p-1.5 type-micro text-gray-200 shadow-2xl backdrop-blur"
                 style={{ left: cadContextMenu.x, top: cadContextMenu.y }}
                 onPointerDown={(event) => event.stopPropagation()}
               >
@@ -18024,12 +18024,12 @@ export default function Layout3DEditor({
                 <div className="flex items-start gap-2">
                   <History className="mt-0.5 h-4 w-4 shrink-0 text-amber-300" />
                   <div className="min-w-0 flex-1">
-                    <div className="text-[12px] font-semibold text-amber-100">
+                    <div className="type-caption font-semibold text-amber-100">
                       {recoveryDivergent
                         ? "Rama local divergente"
                         : "Borrador local recuperable"}
                     </div>
-                    <div className="mt-1 text-[10.5px] leading-snug text-gray-400">
+                    <div className="mt-1 type-micro leading-snug text-gray-400">
                       Guardado automáticamente{" "}
                       {new Date(recoveryCandidate.savedAt).toLocaleString()} en
                       este tenant, usuario y workspace.
@@ -18038,7 +18038,7 @@ export default function Layout3DEditor({
                       // Antes este borrador se BORRABA sin preguntar en cuanto
                       // el servidor avanzaba. Ahora se ofrece diciendo lo que
                       // es: trabajo local sobre una versión ya superada.
-                      <div className="mt-1 text-[10.5px] leading-snug text-orange-200">
+                      <div className="mt-1 type-micro leading-snug text-orange-200">
                         Parte de la v
                         {recoveryCandidate.baseCadDocumentVersion} y el servidor
                         ya va por la v{data?.cadDocumentVersion ?? 0}: otra
@@ -18047,7 +18047,7 @@ export default function Layout3DEditor({
                       </div>
                     )}
                     {recoveryCandidate.format !== "legacy-object" && (
-                      <div className="mt-1 text-[10px] text-sky-200/80">
+                      <div className="mt-1 type-micro text-indigo-200/80">
                         Journal #{recoveryCandidate.journalSequence} ·{" "}
                         {(recoveryCandidate.storedBytes / 1_000_000).toFixed(2)}{" "}
                         MB local · {recoveryCandidate.format} ·{" "}
@@ -18058,14 +18058,14 @@ export default function Layout3DEditor({
                       <button
                         data-testid="cad-recovery-restore"
                         onClick={restoreRecoveryCandidate}
-                        className="rounded-lg bg-amber-400 px-2.5 py-1.5 text-[11px] font-semibold text-gray-950 hover:bg-amber-300"
+                        className="rounded-lg bg-amber-400 px-2.5 py-1.5 type-micro font-semibold text-gray-950 hover:bg-amber-300"
                       >
                         Restaurar
                       </button>
                       <button
                         data-testid="cad-recovery-discard"
                         onClick={discardRecoveryCandidate}
-                        className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[11px] text-gray-300 hover:bg-white/10"
+                        className="rounded-lg border border-white/10 px-2.5 py-1.5 type-micro text-gray-300 hover:bg-white/10"
                       >
                         Descartar
                       </button>
@@ -18094,7 +18094,7 @@ export default function Layout3DEditor({
             {(dxfWarnings.length > 0 || dxfImportPreview) && (
               <div className="absolute right-3 top-16 z-20 w-80 rounded-2xl border border-amber-400/20 bg-gray-950/90 p-3 shadow-2xl backdrop-blur">
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <div className="inline-flex items-center gap-2 text-[12px] font-semibold text-amber-100">
+                  <div className="inline-flex items-center gap-2 type-caption font-semibold text-amber-100">
                     <CircleAlert className="h-4 w-4" />
                     Import DXF
                   </div>
@@ -18103,16 +18103,16 @@ export default function Layout3DEditor({
                       setDxfWarnings([]);
                       setDxfImportPreview(null);
                     }}
-                    className="rounded-md px-1.5 py-0.5 text-[11px] text-gray-500 dark:text-gray-400 hover:bg-white/10 hover:text-white"
+                    className="rounded-md px-1.5 py-0.5 type-micro text-gray-500 dark:text-gray-400 hover:bg-white/10 hover:text-white"
                   >
                     Ocultar
                   </button>
                 </div>
                 {dxfImportPreview && dxfPrimitiveSummary && (
-                  <div className="mb-2 rounded-xl border border-indigo-400/15 bg-indigo-400/[0.06] p-2 text-[11px] text-indigo-100">
+                  <div className="mb-2 rounded-xl border border-indigo-400/15 bg-indigo-400/[0.06] p-2 type-micro text-indigo-100">
                     {/* Soporte honesto de formatos (contrato D5): DXF nativo; DWG sólo con proveedor licenciado. */}
                     <div
-                      className="mb-1 text-[10px] text-indigo-200/70"
+                      className="mb-1 type-micro text-indigo-200/70"
                       title={DWG_UNAVAILABLE_REASON}
                     >
                       Formatos: DXF ✓ nativo · DWG ✕ requiere proveedor
@@ -18134,7 +18134,7 @@ export default function Layout3DEditor({
                     </div>
                     <button
                       onClick={convertDxfPrimitivesToEditable}
-                      className="mt-2 w-full rounded-lg bg-indigo-600 px-2 py-1.5 text-[11px] font-semibold text-white hover:bg-indigo-500"
+                      className="mt-2 w-full rounded-lg bg-indigo-600 px-2 py-1.5 type-micro font-semibold text-white hover:bg-indigo-500"
                     >
                       Convertir entidades soportadas
                     </button>
@@ -18142,7 +18142,7 @@ export default function Layout3DEditor({
                 )}
                 {dxfWarnings.length > 0 ? (
                   <>
-                    <div className="mb-2 text-[11px] text-gray-500 dark:text-gray-400">
+                    <div className="mb-2 type-micro text-gray-500 dark:text-gray-400">
                       Se cargó el plano; estas entidades se ignoraron o
                       simplificaron localmente.
                     </div>
@@ -18150,7 +18150,7 @@ export default function Layout3DEditor({
                       {dxfWarningSummary.map((warning) => (
                         <div
                           key={warning.key}
-                          className="rounded-lg bg-white/[0.04] px-2 py-1.5 text-[11px]"
+                          className="rounded-lg bg-white/[0.04] px-2 py-1.5 type-micro"
                         >
                           <div className="flex items-center justify-between gap-2 text-amber-100">
                             <span className="truncate">{warning.message}</span>
@@ -18158,7 +18158,7 @@ export default function Layout3DEditor({
                               ×{warning.count}
                             </span>
                           </div>
-                          <div className="mt-0.5 text-[10px] text-gray-500">
+                          <div className="mt-0.5 type-micro text-gray-500">
                             {warning.entityType ?? warning.code}
                             {warning.layer ? ` · capa ${warning.layer}` : ""}
                           </div>
@@ -18167,13 +18167,13 @@ export default function Layout3DEditor({
                     </div>
                   </>
                 ) : (
-                  <div className="text-[11px] text-gray-500">
+                  <div className="type-micro text-gray-500">
                     Sin advertencias críticas en el escaneo local.
                   </div>
                 )}
               </div>
             )}
-            <div className="cad-status-bar absolute bottom-3 right-3 z-20 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-gray-950/85 px-3 py-1.5 text-[11px] text-gray-300 shadow-xl backdrop-blur">
+            <div className="cad-status-bar absolute bottom-3 right-3 z-20 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-gray-950/85 px-3 py-1.5 type-micro text-gray-300 shadow-xl backdrop-blur">
               <span className="text-indigo-200">Tool: {tool}</span>
               <span data-testid="cad-selection-status-count">
                 {professionalSelection.current.length} sel
@@ -18270,7 +18270,7 @@ export default function Layout3DEditor({
                           : "Guardado"}
               </span>
               {dirty && recoverySavedAt && (
-                <span className="text-sky-300" title={recoverySavedAt}>
+                <span className="text-indigo-300" title={recoverySavedAt}>
                   Recovery local activo
                 </span>
               )}
@@ -18396,13 +18396,13 @@ export default function Layout3DEditor({
               )}
             </div>
             {hatchPickMode && (
-              <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full bg-violet-600/95 px-3 py-1.5 text-[12px] font-semibold text-white">
+              <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full bg-violet-600/95 px-3 py-1.5 type-caption font-semibold text-white">
                 HATCH {hatchPickSolid ? "SOLID" : "ANSI31"} · clic dentro de una
                 región cerrada · islands {hatchIslandStyle}
               </div>
             )}
             {walk && (
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-emerald-700/95 text-white text-[12px] font-semibold inline-flex items-center gap-1.5 pointer-events-none">
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-emerald-700/95 text-white type-caption font-semibold inline-flex items-center gap-1.5 pointer-events-none">
                 <PersonStanding className="w-3.5 h-3.5" /> Recorrido · arrastra
                 para mirar · WASD para caminar · Esc para salir
               </div>
@@ -18509,11 +18509,11 @@ export default function Layout3DEditor({
             />
             {visionPreview && (
               <div className="absolute top-3 right-3 z-30 w-[20rem] rounded-2xl border border-violet-400/25 bg-gray-950/95 p-3 shadow-2xl backdrop-blur">
-                <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-violet-200">
+                <div className="flex items-center gap-2 type-micro font-semibold uppercase tracking-wide text-violet-200">
                   <ScanEye className="h-3.5 w-3.5" /> Visión ·{" "}
                   {visionPreview.imageName}
                 </div>
-                <div className="mt-2 rounded-xl bg-white/[0.04] px-2.5 py-2 text-[12px] text-gray-200">
+                <div className="mt-2 rounded-xl bg-white/[0.04] px-2.5 py-2 type-caption text-gray-200">
                   {visionPreview.walls.length} muro(s) y{" "}
                   {visionPreview.zones.length} zona(s) detectados
                   {visionPreview.unitHint
@@ -18522,25 +18522,25 @@ export default function Layout3DEditor({
                   .
                 </div>
                 {visionPreview.errors.slice(0, 3).map((err) => (
-                  <div key={err} className="mt-1 text-[10.5px] text-amber-300">
+                  <div key={err} className="mt-1 type-micro text-amber-300">
                     Descartado: {err}
                   </div>
                 ))}
-                <p className="mt-2 text-[10.5px] leading-snug text-gray-500">
+                <p className="mt-2 type-micro leading-snug text-gray-500">
                   Se insertan como muros/zonas EDITABLES escalados a la huella
                   actual — revisa y ajusta después de insertar.
                 </p>
                 <div className="mt-2 flex gap-1.5">
                   <button
                     onClick={applyVisionResult}
-                    className="rounded-lg bg-emerald-700 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-emerald-600"
+                    className="rounded-lg bg-emerald-700 px-2.5 py-1.5 type-micro font-semibold text-white hover:bg-emerald-600"
                   >
                     Insertar{" "}
                     {visionPreview.walls.length + visionPreview.zones.length}
                   </button>
                   <button
                     onClick={() => setVisionPreview(null)}
-                    className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[11px] text-gray-300 hover:bg-white/10"
+                    className="rounded-lg border border-white/10 px-2.5 py-1.5 type-micro text-gray-300 hover:bg-white/10"
                   >
                     Descartar
                   </button>
@@ -18563,15 +18563,15 @@ export default function Layout3DEditor({
                       }
                     }}
                     placeholder="Buscar comando, herramienta o símbolo..."
-                    className="min-w-0 flex-1 bg-transparent text-[13px] text-white placeholder:text-gray-500 outline-none"
+                    className="min-w-0 flex-1 bg-transparent type-small text-white placeholder:text-gray-500 outline-none"
                   />
-                  <span className="rounded-md border border-white/10 px-1.5 py-0.5 text-[10px] text-gray-500">
+                  <span className="rounded-md border border-white/10 px-1.5 py-0.5 type-micro text-gray-500">
                     Ctrl K
                   </span>
                 </div>
                 {recentPaletteActions.length > 0 && !paletteQuery.trim() && (
                   <div className="mt-2 flex flex-wrap gap-1 border-b border-white/10 pb-2">
-                    <span className="mr-1 self-center text-[10px] uppercase tracking-wide text-gray-500">
+                    <span className="mr-1 self-center type-micro uppercase tracking-wide text-gray-500">
                       Recientes
                     </span>
                     {recentPaletteActions.map((key) => {
@@ -18579,7 +18579,7 @@ export default function Layout3DEditor({
                       return (
                         <span
                           key={key}
-                          className="rounded-full bg-white/[0.05] px-2 py-0.5 text-[10px] text-gray-500 dark:text-gray-400"
+                          className="rounded-full bg-white/[0.05] px-2 py-0.5 type-micro text-gray-500 dark:text-gray-400"
                         >
                           {id}
                         </span>
@@ -18595,19 +18595,19 @@ export default function Layout3DEditor({
                       className="flex w-full items-center justify-between gap-3 rounded-xl px-2.5 py-2 text-left hover:bg-white/[0.07]"
                     >
                       <span className="min-w-0">
-                        <span className="block truncate text-[13px] font-semibold text-white">
+                        <span className="block truncate type-small font-semibold text-white">
                           {entry.label}
                         </span>
-                        <span className="block truncate text-[11px] text-gray-500 dark:text-gray-400">
+                        <span className="block truncate type-micro text-gray-500 dark:text-gray-400">
                           {entry.description}
                         </span>
                       </span>
                       <span className="shrink-0 text-right">
-                        <span className="block rounded-full border border-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-indigo-200">
+                        <span className="block rounded-full border border-white/10 px-2 py-0.5 type-micro uppercase tracking-wide text-indigo-200">
                           {entry.kind}
                         </span>
                         {entry.shortcut && (
-                          <span className="mt-1 block text-[10px] text-gray-500">
+                          <span className="mt-1 block type-micro text-gray-500">
                             {entry.shortcut}
                           </span>
                         )}
@@ -18615,7 +18615,7 @@ export default function Layout3DEditor({
                     </button>
                   ))}
                   {paletteResults.length === 0 && (
-                    <div className="px-2 py-6 text-center text-[12px] text-gray-500">
+                    <div className="px-2 py-6 text-center type-caption text-gray-500">
                       Sin resultados CAD.
                     </div>
                   )}
@@ -18639,7 +18639,7 @@ export default function Layout3DEditor({
                     }
                     onClick={() => runToolbarAction(action.id)}
                     title={`${action.label}${action.shortcut ? ` · ${action.shortcut}` : ""} — ${action.description}`}
-                    className={`h-7 min-w-9 rounded-lg px-2 text-[10.5px] font-semibold transition-colors ${tool === action.id || (action.id === "select" && tool === "select") ? "bg-indigo-500 text-white" : "bg-white/[0.05] text-gray-300 hover:bg-white/[0.12] hover:text-white"}`}
+                    className={`h-7 min-w-9 rounded-lg px-2 type-micro font-semibold transition-colors ${tool === action.id || (action.id === "select" && tool === "select") ? "bg-indigo-500 text-white" : "bg-white/[0.05] text-gray-300 hover:bg-white/[0.12] hover:text-white"}`}
                   >
                     {action.label}
                   </button>
@@ -18647,7 +18647,7 @@ export default function Layout3DEditor({
               </div>
             </div>
             {overlay && (
-              <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-gray-900/85 backdrop-blur border border-white/10 text-[11px] text-gray-200 flex items-center gap-3 pointer-events-none">
+              <div className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-full bg-gray-900/85 backdrop-blur border border-white/10 type-micro text-gray-200 flex items-center gap-3 pointer-events-none">
                 <span className="font-medium">
                   {OVERLAY_DEFS.find((o) => o.key === overlay)?.label}
                 </span>
@@ -18680,7 +18680,7 @@ export default function Layout3DEditor({
             {activeProfessionalDock ? (
               <div className="flex h-full min-h-0 flex-col">
                 <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-3 py-2">
-                  <div className="inline-flex items-center gap-2 text-[12px] font-semibold text-indigo-100">
+                  <div className="inline-flex items-center gap-2 type-caption font-semibold text-indigo-100">
                     <Settings2 className="h-3.5 w-3.5" />
                     {professionalDockTitle}
                   </div>
@@ -18708,7 +18708,7 @@ export default function Layout3DEditor({
                           : `${nativeSelectedEntities.length} curvas nativas`}
                       </span>
                     </div>
-                    <div className="mb-3 text-[11px] text-gray-500 dark:text-gray-400">
+                    <div className="mb-3 type-micro text-gray-500 dark:text-gray-400">
                       Geometría canónica · selección, grips, snaps y DXF sin
                       aproximación persistida.
                     </div>
@@ -18718,7 +18718,7 @@ export default function Layout3DEditor({
                           data-testid="cad-line-edit-control"
                           className="rounded-xl border border-indigo-400/20 bg-indigo-400/[0.06] p-3"
                         >
-                          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-indigo-200">
+                          <div className="mb-2 type-micro font-semibold uppercase tracking-wide text-indigo-200">
                             TRIM / EXTEND · LINE o ARC contra LINE, CIRCLE, ARC o PLINE
                           </div>
                           <div className="grid grid-cols-3 gap-1.5">
@@ -18730,7 +18730,7 @@ export default function Layout3DEditor({
                                   event.target.value as "trim" | "extend",
                                 )
                               }
-                              className="rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[11px] text-white"
+                              className="rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-micro text-white"
                             >
                               <option value="trim">TRIM</option>
                               <option value="extend">EXTEND</option>
@@ -18745,7 +18745,7 @@ export default function Layout3DEditor({
                               onChange={(event) =>
                                 setLineEditTargetId(event.target.value)
                               }
-                              className="rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[11px] text-white"
+                              className="rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-micro text-white"
                             >
                               {selectedNativeLineIds.map((id) => (
                                 <option key={id} value={id}>
@@ -18761,7 +18761,7 @@ export default function Layout3DEditor({
                                   event.target.value as CadLineEndpoint,
                                 )
                               }
-                              className="rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[11px] text-white"
+                              className="rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-micro text-white"
                             >
                               <option value="start">Inicio</option>
                               <option value="end">Fin</option>
@@ -18773,7 +18773,7 @@ export default function Layout3DEditor({
                             onClick={() =>
                               editNativeLines(selectedNativeLineIds)
                             }
-                            className="mt-2 w-full rounded-lg bg-indigo-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-indigo-400 disabled:opacity-40"
+                            className="mt-2 w-full rounded-lg bg-indigo-500 px-3 py-1.5 type-micro font-semibold text-white hover:bg-indigo-400 disabled:opacity-40"
                           >
                             Aplicar {lineEditOperation.toUpperCase()}
                           </button>
@@ -18783,15 +18783,15 @@ export default function Layout3DEditor({
                           data-testid="cad-fillet-control"
                           className="rounded-xl border border-violet-400/20 bg-violet-400/[0.07] p-3"
                         >
-                          <div className="text-[10px] uppercase tracking-wide text-violet-200">
+                          <div className="type-micro uppercase tracking-wide text-violet-200">
                             FILLET · 2 LINE
                           </div>
-                          <p className="mt-1 text-[10.5px] text-gray-400">
+                          <p className="mt-1 type-micro text-gray-400">
                             Recorta ambas líneas y crea un ARC tangente en una
                             sola operación reversible.
                           </p>
                           <div className="mt-2 grid grid-cols-[1fr_auto] gap-2">
-                            <label className="text-[10px] text-gray-500">
+                            <label className="type-micro text-gray-500">
                               Radio
                               <input
                                 data-testid="cad-fillet-radius"
@@ -18806,7 +18806,7 @@ export default function Layout3DEditor({
                                     ),
                                   )
                                 }
-                                className="mt-1 w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none focus:ring-1 focus:ring-violet-400/50"
+                                className="mt-1 w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-caption text-white outline-none focus:ring-1 focus:ring-violet-400/50"
                               />
                             </label>
                             <button
@@ -18815,7 +18815,7 @@ export default function Layout3DEditor({
                               onClick={() =>
                                 filletNativeLines(selectedNativeCornerLineIds)
                               }
-                              className="self-end rounded-lg bg-violet-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-violet-400 disabled:opacity-40"
+                              className="self-end rounded-lg bg-violet-500 px-3 py-1.5 type-micro font-semibold text-white hover:bg-violet-400 disabled:opacity-40"
                             >
                               Aplicar FILLET
                             </button>
@@ -18827,15 +18827,15 @@ export default function Layout3DEditor({
                           data-testid="cad-chamfer-control"
                           className="rounded-xl border border-amber-400/20 bg-amber-400/[0.07] p-3"
                         >
-                          <div className="text-[10px] uppercase tracking-wide text-amber-200">
+                          <div className="type-micro uppercase tracking-wide text-amber-200">
                             CHAMFER · 2 LINE
                           </div>
-                          <p className="mt-1 text-[10.5px] text-gray-400">
+                          <p className="mt-1 type-micro text-gray-400">
                             Recorta ambas líneas y las une con un tramo recto.
                             Distancias distintas dan un chaflán asimétrico.
                           </p>
                           <div className="mt-2 grid grid-cols-[1fr_1fr_auto] gap-2">
-                            <label className="text-[10px] text-gray-500">
+                            <label className="type-micro text-gray-500">
                               Distancia 1
                               <input
                                 data-testid="cad-chamfer-distance-a"
@@ -18850,10 +18850,10 @@ export default function Layout3DEditor({
                                     ),
                                   )
                                 }
-                                className="mt-1 w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none focus:ring-1 focus:ring-amber-400/50"
+                                className="mt-1 w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-caption text-white outline-none focus:ring-1 focus:ring-amber-400/50"
                               />
                             </label>
-                            <label className="text-[10px] text-gray-500">
+                            <label className="type-micro text-gray-500">
                               Distancia 2
                               <input
                                 data-testid="cad-chamfer-distance-b"
@@ -18868,7 +18868,7 @@ export default function Layout3DEditor({
                                     ),
                                   )
                                 }
-                                className="mt-1 w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none focus:ring-1 focus:ring-amber-400/50"
+                                className="mt-1 w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-caption text-white outline-none focus:ring-1 focus:ring-amber-400/50"
                               />
                             </label>
                             <button
@@ -18877,7 +18877,7 @@ export default function Layout3DEditor({
                               onClick={() =>
                                 chamferNativeLines(selectedNativeCornerLineIds)
                               }
-                              className="self-end rounded-lg bg-amber-500 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-amber-400 disabled:opacity-40"
+                              className="self-end rounded-lg bg-amber-500 px-3 py-1.5 type-micro font-semibold text-white hover:bg-amber-400 disabled:opacity-40"
                             >
                               Aplicar CHAMFER
                             </button>
@@ -18904,7 +18904,7 @@ export default function Layout3DEditor({
                             },
                           })
                         }
-                        className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]"
+                        className="rounded-lg bg-white/[0.06] px-2 py-1.5 type-micro text-gray-200 hover:bg-white/[0.12]"
                       >
                         Mover +X
                       </button>
@@ -18927,7 +18927,7 @@ export default function Layout3DEditor({
                               : undefined,
                           })
                         }
-                        className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]"
+                        className="rounded-lg bg-white/[0.06] px-2 py-1.5 type-micro text-gray-200 hover:bg-white/[0.12]"
                       >
                         Rotar +15°
                       </button>
@@ -18950,7 +18950,7 @@ export default function Layout3DEditor({
                               : undefined,
                           })
                         }
-                        className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]"
+                        className="rounded-lg bg-white/[0.06] px-2 py-1.5 type-micro text-gray-200 hover:bg-white/[0.12]"
                       >
                         Escala 110%
                       </button>
@@ -18959,26 +18959,26 @@ export default function Layout3DEditor({
                       <button
                         data-testid="cad-native-copy"
                         onClick={copyNativeSelection}
-                        className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] px-2 py-1 text-[12px] hover:bg-white/[0.12]"
+                        className="inline-flex items-center gap-1 rounded-md bg-white/[0.06] px-2 py-1 type-caption hover:bg-white/[0.12]"
                       >
                         <Copy className="h-3.5 w-3.5" /> Copiar
                       </button>
                       <button
                         data-testid="cad-native-delete"
                         onClick={removeNativeSelection}
-                        className="inline-flex items-center gap-1 rounded-md bg-rose-500/20 px-2 py-1 text-[12px] text-rose-300 hover:bg-rose-500/30"
+                        className="inline-flex items-center gap-1 rounded-md bg-rose-500/20 px-2 py-1 type-caption text-rose-300 hover:bg-rose-500/30"
                       >
                         <Trash2 className="h-3.5 w-3.5" /> Quitar
                       </button>
                       <button
                         onClick={clearNativeSelection}
-                        className="rounded-md bg-white/[0.06] px-2 py-1 text-[12px] hover:bg-white/[0.12]"
+                        className="rounded-md bg-white/[0.06] px-2 py-1 type-caption hover:bg-white/[0.12]"
                       >
                         Deseleccionar
                       </button>
                     </div>
                     {primaryNativeEntity?.type === "hatch" && (
-                      <div className="mt-2 flex items-center gap-1.5 rounded-lg border border-violet-400/15 bg-violet-400/[0.05] p-2 text-[10.5px]">
+                      <div className="mt-2 flex items-center gap-1.5 rounded-lg border border-violet-400/15 bg-violet-400/[0.05] p-2 type-micro">
                         <span
                           className={
                             primaryNativeEntity.associationStatus === "broken"
@@ -19030,14 +19030,14 @@ export default function Layout3DEditor({
                       <button
                         data-testid="cad-mtext-edit"
                         onClick={() => openMTextEditor(primaryNativeEntity.id)}
-                        className="mt-2 w-full rounded-lg border border-indigo-400/20 bg-indigo-400/[0.08] px-3 py-1.5 text-[11px] font-semibold text-indigo-100 hover:bg-indigo-400/[0.14]"
+                        className="mt-2 w-full rounded-lg border border-indigo-400/20 bg-indigo-400/[0.08] px-3 py-1.5 type-micro font-semibold text-indigo-100 hover:bg-indigo-400/[0.14]"
                       >
                         Editar contenido y formato MTEXT
                       </button>
                     )}
                     {primaryNativeEntity?.type === "dimension" &&
                       primaryNativeEntity.dimensionKind && (
-                        <div className="mt-2 flex items-center gap-1.5 rounded-lg border border-emerald-400/15 bg-emerald-400/[0.05] p-2 text-[10.5px]">
+                        <div className="mt-2 flex items-center gap-1.5 rounded-lg border border-emerald-400/15 bg-emerald-400/[0.05] p-2 type-micro">
                           <span
                             className={
                               primaryNativeEntity.associationStatus === "broken"
@@ -19086,12 +19086,12 @@ export default function Layout3DEditor({
                         </div>
                       )}
                     {primaryNativeEntity?.type === "mleader" && (
-                      <div className="mt-2 flex items-center gap-1.5 rounded-lg border border-sky-400/15 bg-sky-400/[0.05] p-2 text-[10.5px]">
+                      <div className="mt-2 flex items-center gap-1.5 rounded-lg border border-indigo-400/15 bg-indigo-400/[0.05] p-2 type-micro">
                         <span
                           className={
                             primaryNativeEntity.associationStatus === "broken"
                               ? "text-rose-300"
-                              : "text-sky-200"
+                              : "text-indigo-200"
                           }
                         >
                           {primaryNativeEntity.associationStatus ??
@@ -19114,7 +19114,7 @@ export default function Layout3DEditor({
                               },
                             ])
                           }
-                          className="ml-auto rounded bg-sky-500/20 px-2 py-1 text-sky-100 hover:bg-sky-500/30"
+                          className="ml-auto rounded bg-indigo-500/20 px-2 py-1 text-indigo-100 hover:bg-indigo-500/30"
                         >
                           Reasociar
                         </button>
@@ -19137,7 +19137,7 @@ export default function Layout3DEditor({
                     )}
                   </div>
                 ) : selList.length === 0 ? (
-                  <div className="p-4 text-[12px] text-gray-500 flex flex-col gap-3">
+                  <div className="p-4 type-caption text-gray-500 flex flex-col gap-3">
                     <div className="flex flex-col items-center gap-2 pt-4">
                       <Crosshair className="w-6 h-6 text-gray-600" />
                       <p className="text-center">
@@ -19151,10 +19151,10 @@ export default function Layout3DEditor({
                         data-testid="cad-native-entity-list"
                       >
                         <div className="mb-2 flex items-center justify-between gap-2">
-                          <span className="text-[10px] uppercase tracking-wide text-indigo-200">
+                          <span className="type-micro uppercase tracking-wide text-indigo-200">
                             Entidades nativas
                           </span>
-                          <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-gray-300">
+                          <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 type-micro text-gray-300">
                             {allNativeEntities.length}
                           </span>
                         </div>
@@ -19167,10 +19167,10 @@ export default function Layout3DEditor({
                                 selectNative([entity.id]);
                                 syncNativeScene();
                               }}
-                              className="flex w-full items-center justify-between gap-2 rounded-lg bg-gray-950/45 px-2 py-1.5 text-left text-[11px] text-gray-200 hover:bg-white/[0.08]"
+                              className="flex w-full items-center justify-between gap-2 rounded-lg bg-gray-950/45 px-2 py-1.5 text-left type-micro text-gray-200 hover:bg-white/[0.08]"
                             >
                               <span className="truncate">{entity.id}</span>
-                              <span className="text-[10px] text-indigo-300">
+                              <span className="type-micro text-indigo-300">
                                 {entity.type.toUpperCase()}
                               </span>
                             </button>
@@ -19180,10 +19180,10 @@ export default function Layout3DEditor({
                     )}
                     <div className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
                       <div className="mb-2 flex items-center justify-between gap-2">
-                        <div className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-indigo-200">
+                        <div className="inline-flex items-center gap-1.5 type-micro uppercase tracking-wide text-indigo-200">
                           <Ruler className="h-3.5 w-3.5" /> Cotas guardadas
                         </div>
-                        <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-gray-300">
+                        <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 type-micro text-gray-300">
                           {dimCount}
                         </span>
                       </div>
@@ -19203,9 +19203,9 @@ export default function Layout3DEditor({
                                   )
                                 }
                                 onBlur={endFieldEdit}
-                                className="mb-1 w-full rounded-md bg-white/[0.05] px-2 py-1 text-[11px] text-white outline-none focus:ring-1 focus:ring-indigo-500/40"
+                                className="mb-1 w-full rounded-md bg-white/[0.05] px-2 py-1 type-micro text-white outline-none focus:ring-1 focus:ring-indigo-500/40"
                               />
-                              <div className="flex items-center justify-between gap-2 text-[10.5px] text-gray-500 dark:text-gray-400">
+                              <div className="flex items-center justify-between gap-2 type-micro text-gray-500 dark:text-gray-400">
                                 <span>{measurement.length}</span>
                                 <div className="flex gap-1">
                                   <button
@@ -19230,7 +19230,7 @@ export default function Layout3DEditor({
                           ))}
                         </div>
                       ) : (
-                        <p className="text-[11px] leading-relaxed text-gray-500">
+                        <p className="type-micro leading-relaxed text-gray-500">
                           Selecciona dos objetos y usa “Cota entre objetos” para
                           guardar distancias centro-a-centro o borde-a-borde.
                           Las cotas exportan a DXF cuando la opción está activa.
@@ -19246,16 +19246,16 @@ export default function Layout3DEditor({
                         {selList.length} seleccionados
                       </span>
                     </div>
-                    <div className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">
+                    <div className="type-micro text-gray-500 dark:text-gray-400 mb-3">
                       Alinea, mide o mueve el grupo en bloque.
                     </div>
                     {selSummary && (
                       <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
                         <div className="mb-2 flex items-center justify-between gap-2">
-                          <span className="text-[10px] uppercase tracking-wide text-indigo-200">
+                          <span className="type-micro uppercase tracking-wide text-indigo-200">
                             Resumen CAD
                           </span>
-                          <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-gray-300">
+                          <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 type-micro text-gray-300">
                             {selSummary.stationCount} st ·{" "}
                             {selSummary.assetCount} eq
                           </span>
@@ -19283,7 +19283,7 @@ export default function Layout3DEditor({
                             {selSummary.layers.slice(0, 3).map((layer) => (
                               <div
                                 key={layer.id}
-                                className="flex items-center justify-between gap-2 rounded-lg bg-gray-950/50 px-2 py-1 text-[10.5px] text-gray-300"
+                                className="flex items-center justify-between gap-2 rounded-lg bg-gray-950/50 px-2 py-1 type-micro text-gray-300"
                               >
                                 <span
                                   className={
@@ -19309,7 +19309,7 @@ export default function Layout3DEditor({
                           </div>
                         )}
                         {selSummary.warnings.length > 0 && (
-                          <div className="mt-2 rounded-lg border border-amber-300/15 bg-amber-400/[0.06] px-2 py-1 text-[10.5px] text-amber-100">
+                          <div className="mt-2 rounded-lg border border-amber-300/15 bg-amber-400/[0.06] px-2 py-1 type-micro text-amber-100">
                             {selSummary.warnings[0]}
                           </div>
                         )}
@@ -19325,37 +19325,37 @@ export default function Layout3DEditor({
                       return (
                         <div className="mb-3 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.04] p-2.5">
                           <div className="mb-1 flex items-center justify-between gap-2">
-                            <span className="text-[10px] uppercase tracking-wide text-emerald-200">
+                            <span className="type-micro uppercase tracking-wide text-emerald-200">
                               Restricciones · {wallCount} muro(s)
                             </span>
                           </div>
-                          <div className="mb-1.5 text-[10px] text-gray-500 dark:text-gray-400">
+                          <div className="mb-1.5 type-micro text-gray-500 dark:text-gray-400">
                             El primer muro seleccionado es la referencia.
                           </div>
                           <div className="grid grid-cols-3 gap-1.5">
                             <button
                               onClick={() => applyWallConstraint("horizontal")}
-                              className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]"
+                              className="rounded-lg bg-white/[0.06] px-2 py-1.5 type-micro text-gray-200 hover:bg-white/[0.12]"
                             >
                               Horizontal
                             </button>
                             <button
                               onClick={() => applyWallConstraint("vertical")}
-                              className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]"
+                              className="rounded-lg bg-white/[0.06] px-2 py-1.5 type-micro text-gray-200 hover:bg-white/[0.12]"
                             >
                               Vertical
                             </button>
                             <button
                               onClick={() => applyWallConstraint("equal")}
                               disabled={wallCount < 2}
-                              className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12] disabled:opacity-40"
+                              className="rounded-lg bg-white/[0.06] px-2 py-1.5 type-micro text-gray-200 hover:bg-white/[0.12] disabled:opacity-40"
                             >
                               Igualar
                             </button>
                             <button
                               onClick={() => applyWallConstraint("parallel")}
                               disabled={wallCount < 2}
-                              className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12] disabled:opacity-40"
+                              className="rounded-lg bg-white/[0.06] px-2 py-1.5 type-micro text-gray-200 hover:bg-white/[0.12] disabled:opacity-40"
                             >
                               Paralelo
                             </button>
@@ -19364,14 +19364,14 @@ export default function Layout3DEditor({
                                 applyWallConstraint("perpendicular")
                               }
                               disabled={wallCount < 2}
-                              className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12] disabled:opacity-40"
+                              className="rounded-lg bg-white/[0.06] px-2 py-1.5 type-micro text-gray-200 hover:bg-white/[0.12] disabled:opacity-40"
                             >
                               Perpend.
                             </button>
                             <button
                               onClick={() => applyWallConstraint("collinear")}
                               disabled={wallCount < 2}
-                              className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12] disabled:opacity-40"
+                              className="rounded-lg bg-white/[0.06] px-2 py-1.5 type-micro text-gray-200 hover:bg-white/[0.12] disabled:opacity-40"
                             >
                               Colineal
                             </button>
@@ -19381,13 +19381,13 @@ export default function Layout3DEditor({
                     })()}
                     {selList.length === 2 && (
                       <div className="mb-3 rounded-xl border border-indigo-400/15 bg-indigo-400/[0.04] p-2.5">
-                        <div className="mb-2 text-[10px] uppercase tracking-wide text-indigo-200">
+                        <div className="mb-2 type-micro uppercase tracking-wide text-indigo-200">
                           Cota entre objetos
                         </div>
                         <div className="grid grid-cols-2 gap-1.5">
                           <button
                             onClick={() => createSelectionMeasurement("direct")}
-                            className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]"
+                            className="rounded-lg bg-white/[0.06] px-2 py-1.5 type-micro text-gray-200 hover:bg-white/[0.12]"
                           >
                             Directa
                           </button>
@@ -19395,7 +19395,7 @@ export default function Layout3DEditor({
                             onClick={() =>
                               createSelectionMeasurement("horizontal")
                             }
-                            className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]"
+                            className="rounded-lg bg-white/[0.06] px-2 py-1.5 type-micro text-gray-200 hover:bg-white/[0.12]"
                           >
                             Horizontal
                           </button>
@@ -19403,7 +19403,7 @@ export default function Layout3DEditor({
                             onClick={() =>
                               createSelectionMeasurement("vertical")
                             }
-                            className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]"
+                            className="rounded-lg bg-white/[0.06] px-2 py-1.5 type-micro text-gray-200 hover:bg-white/[0.12]"
                           >
                             Vertical
                           </button>
@@ -19411,7 +19411,7 @@ export default function Layout3DEditor({
                             onClick={() =>
                               createSelectionMeasurement("edge-horizontal")
                             }
-                            className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]"
+                            className="rounded-lg bg-white/[0.06] px-2 py-1.5 type-micro text-gray-200 hover:bg-white/[0.12]"
                           >
                             Borde H
                           </button>
@@ -19419,7 +19419,7 @@ export default function Layout3DEditor({
                             onClick={() =>
                               createSelectionMeasurement("edge-vertical")
                             }
-                            className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[11px] text-gray-200 hover:bg-white/[0.12]"
+                            className="rounded-lg bg-white/[0.06] px-2 py-1.5 type-micro text-gray-200 hover:bg-white/[0.12]"
                           >
                             Borde V
                           </button>
@@ -19428,10 +19428,10 @@ export default function Layout3DEditor({
                     )}
                     {selList.length === 2 && (
                       <div className="mb-3 rounded-xl border border-amber-400/15 bg-amber-400/[0.04] p-2.5">
-                        <div className="mb-2 text-[10px] uppercase tracking-wide text-amber-200">
+                        <div className="mb-2 type-micro uppercase tracking-wide text-amber-200">
                           Pasillo / clearance
                         </div>
-                        <div className="flex items-center gap-2 text-[11px] text-gray-300">
+                        <div className="flex items-center gap-2 type-micro text-gray-300">
                           <span>Ancho</span>
                           <input
                             type="number"
@@ -19451,7 +19451,7 @@ export default function Layout3DEditor({
                         </div>
                       </div>
                     )}
-                    <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">
+                    <div className="type-micro uppercase tracking-wide text-gray-500 mb-1.5">
                       Alinear
                     </div>
                     <div className="grid grid-cols-3 gap-1.5 mb-3">
@@ -19494,7 +19494,7 @@ export default function Layout3DEditor({
                     </div>
                     {selList.length >= 3 && (
                       <>
-                        <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">
+                        <div className="type-micro uppercase tracking-wide text-gray-500 mb-1.5">
                           Distribuir (espaciado parejo)
                         </div>
                         <div className="flex gap-1.5 mb-3">
@@ -19517,71 +19517,71 @@ export default function Layout3DEditor({
                       <button
                         data-testid="cad-create-hatch-pattern"
                         onClick={() => createHatchForSelection(false)}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-indigo-500/15 text-indigo-100 hover:bg-indigo-500/25 text-[12px]"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-indigo-500/15 text-indigo-100 hover:bg-indigo-500/25 type-caption"
                       >
                         <BrickWall className="w-3.5 h-3.5" /> HATCH ANSI31
                       </button>
                       <button
                         data-testid="cad-create-hatch-solid"
                         onClick={() => createHatchForSelection(true)}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-indigo-500/15 text-indigo-100 hover:bg-indigo-500/25 text-[12px]"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-indigo-500/15 text-indigo-100 hover:bg-indigo-500/25 type-caption"
                       >
                         <BrickWall className="w-3.5 h-3.5" /> Relleno SOLID
                       </button>
                       <button
                         onClick={() => rotateSelected(15)}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] type-caption"
                       >
                         <RotateCw className="w-3.5 h-3.5" /> +15°
                       </button>
                       <button
                         onClick={() => rotateSelected(-15)}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] type-caption"
                       >
                         <RotateCcw className="w-3.5 h-3.5" /> −15°
                       </button>
                       <button
                         onClick={duplicateSelected}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] type-caption"
                       >
                         <Copy className="w-3.5 h-3.5" /> Duplicar
                       </button>
                       <button
                         onClick={copySelection}
                         title="Ctrl+C — copia al portapapeles CAD (pega aquí o en otro layout)"
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] type-caption"
                       >
                         <ClipboardList className="w-3.5 h-3.5" /> Copiar
                       </button>
                       <button
                         onClick={pasteClipboard}
                         title="Ctrl+V — pega el portapapeles CAD"
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] type-caption"
                       >
                         <ClipboardList className="w-3.5 h-3.5" /> Pegar
                       </button>
                       <button
                         onClick={groupSelection}
                         title="Ctrl+G — agrupa los equipos seleccionados (clic selecciona el grupo; Alt+clic el objeto)"
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] type-caption"
                       >
                         <Group className="w-3.5 h-3.5" /> Agrupar
                       </button>
                       <button
                         onClick={ungroupSelection}
                         title="Ctrl+Shift+G — disuelve los grupos de la selección"
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] type-caption"
                       >
                         <Group className="w-3.5 h-3.5" /> Desagrupar
                       </button>
                       <button
                         onClick={removeSelected}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 text-[12px]"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 type-caption"
                       >
                         <Trash2 className="w-3.5 h-3.5" /> Quitar
                       </button>
                     </div>
-                    <p className="text-[10.5px] text-gray-500 mt-3 leading-relaxed">
+                    <p className="type-micro text-gray-500 mt-3 leading-relaxed">
                       <b>Shift</b>+clic agrega/quita · <b>Shift</b>+arrastre en
                       el fondo = ventana (izq→der contiene, der→izq cruza) ·{" "}
                       <b>Ctrl+A</b> todo · <b>Ctrl+C/V</b> copia/pega ·{" "}
@@ -19600,13 +19600,13 @@ export default function Layout3DEditor({
                         {selSnap.title}
                       </span>
                     </div>
-                    <div className="text-[11px] text-gray-500 dark:text-gray-400 mb-3">
+                    <div className="type-micro text-gray-500 dark:text-gray-400 mb-3">
                       {selSnap.subtitle}
                     </div>
                     <button
                       onClick={createLeaderForSelection}
                       title="Crea una directriz con nota que apunta a este objeto (flecha + texto), como MLEADER en AutoCAD"
-                      className="mb-3 w-full rounded-lg border border-sky-400/25 bg-sky-400/[0.08] px-2 py-1.5 text-[11px] font-semibold text-sky-100 hover:bg-sky-400/[0.14]"
+                      className="mb-3 w-full rounded-lg border border-indigo-400/25 bg-indigo-400/[0.08] px-2 py-1.5 type-micro font-semibold text-indigo-100 hover:bg-indigo-400/[0.14]"
                     >
                       ＋ Directriz / Nota
                     </button>
@@ -19615,14 +19615,14 @@ export default function Layout3DEditor({
                         <button
                           data-testid="cad-create-hatch-pattern"
                           onClick={() => createHatchForSelection(false)}
-                          className="rounded-lg border border-indigo-400/25 bg-indigo-400/[0.08] px-2 py-1.5 text-[11px] font-semibold text-indigo-100 hover:bg-indigo-400/[0.14]"
+                          className="rounded-lg border border-indigo-400/25 bg-indigo-400/[0.08] px-2 py-1.5 type-micro font-semibold text-indigo-100 hover:bg-indigo-400/[0.14]"
                         >
                           HATCH ANSI31
                         </button>
                         <button
                           data-testid="cad-create-hatch-solid"
                           onClick={() => createHatchForSelection(true)}
-                          className="rounded-lg border border-indigo-400/25 bg-indigo-400/[0.08] px-2 py-1.5 text-[11px] font-semibold text-indigo-100 hover:bg-indigo-400/[0.14]"
+                          className="rounded-lg border border-indigo-400/25 bg-indigo-400/[0.08] px-2 py-1.5 type-micro font-semibold text-indigo-100 hover:bg-indigo-400/[0.14]"
                         >
                           Relleno SOLID
                         </button>
@@ -19630,11 +19630,11 @@ export default function Layout3DEditor({
                     )}
                     {selSnap.type === "asset" && selSnap.kind === "wall" && (
                       <div className="mb-3 rounded-xl border border-emerald-400/15 bg-emerald-400/[0.04] p-2.5">
-                        <div className="mb-1.5 text-[10px] uppercase tracking-wide text-emerald-200">
+                        <div className="mb-1.5 type-micro uppercase tracking-wide text-emerald-200">
                           Dimensiones exactas
                         </div>
                         <div className="grid grid-cols-2 gap-2">
-                          <label className="block text-[10px] text-gray-500 dark:text-gray-400">
+                          <label className="block type-micro text-gray-500 dark:text-gray-400">
                             <span className="block mb-1">Longitud (mm)</span>
                             <input
                               key={`len-${selSnap.id}-${Math.round(selSnap.w)}`}
@@ -19657,10 +19657,10 @@ export default function Layout3DEditor({
                                 )
                                   applyWallDimension("length", v);
                               }}
-                              className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none"
+                              className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-caption text-white outline-none"
                             />
                           </label>
-                          <label className="block text-[10px] text-gray-500 dark:text-gray-400">
+                          <label className="block type-micro text-gray-500 dark:text-gray-400">
                             <span className="block mb-1">Ángulo (°)</span>
                             <input
                               key={`ang-${selSnap.id}-${Math.round((selSnap.rotation * 180) / Math.PI)}`}
@@ -19685,11 +19685,11 @@ export default function Layout3DEditor({
                                 )
                                   applyWallDimension("angle", v);
                               }}
-                              className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none"
+                              className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-caption text-white outline-none"
                             />
                           </label>
                         </div>
-                        <div className="mt-1.5 text-[10px] text-gray-500 dark:text-gray-400">
+                        <div className="mt-1.5 type-micro text-gray-500 dark:text-gray-400">
                           Fija el valor exacto conservando el primer extremo del
                           muro. Enter aplica.
                         </div>
@@ -19702,7 +19702,7 @@ export default function Layout3DEditor({
                         selList[0].id,
                         defaultLayerFor(selList[0]),
                       ) && (
-                        <div className="mb-3 rounded-lg border border-amber-400/20 bg-amber-400/10 px-2 py-1.5 text-[11px] text-amber-200">
+                        <div className="mb-3 rounded-lg border border-amber-400/20 bg-amber-400/10 px-2 py-1.5 type-micro text-amber-200">
                           Capa bloqueada: las propiedades, drag y comandos
                           destructivos quedan protegidos.
                         </div>
@@ -19720,7 +19720,7 @@ export default function Layout3DEditor({
                           <ReadField label="ID" value={selSnap.id} />
                         </div>
                         {selSnap.type === "asset" ? (
-                          <label className="block text-[11px] text-gray-500 dark:text-gray-400">
+                          <label className="block type-micro text-gray-500 dark:text-gray-400">
                             <span className="block mb-1">Nombre visible</span>
                             <input
                               data-testid="cad-object-label"
@@ -19730,13 +19730,13 @@ export default function Layout3DEditor({
                               }
                               onBlur={endFieldEdit}
                               placeholder="Nombre del equipo o zona"
-                              className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white placeholder:text-gray-600 outline-none"
+                              className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-caption text-white placeholder:text-gray-600 outline-none"
                             />
                           </label>
                         ) : (
                           <ReadField label="Nombre" value={selSnap.title} />
                         )}
-                        <label className="block text-[11px] text-gray-500 dark:text-gray-400">
+                        <label className="block type-micro text-gray-500 dark:text-gray-400">
                           <span className="block mb-1">Capa</span>
                           <select
                             data-testid="cad-object-layer"
@@ -19747,7 +19747,7 @@ export default function Layout3DEditor({
                                 e.target.value as CadLayerId,
                               )
                             }
-                            className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none"
+                            className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-caption text-white outline-none"
                           >
                             {cadLayers.map((layer) => (
                               <option
@@ -19761,7 +19761,7 @@ export default function Layout3DEditor({
                             ))}
                           </select>
                         </label>
-                        <label className="block text-[11px] text-gray-500 dark:text-gray-400">
+                        <label className="block type-micro text-gray-500 dark:text-gray-400">
                           <span className="block mb-1">Tags</span>
                           <input
                             data-testid="cad-object-tags"
@@ -19769,10 +19769,10 @@ export default function Layout3DEditor({
                             onChange={(e) => updateSelectedTags(e.target.value)}
                             onBlur={endFieldEdit}
                             placeholder="esd, safety, smt…"
-                            className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white placeholder:text-gray-600 outline-none"
+                            className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-caption text-white placeholder:text-gray-600 outline-none"
                           />
                         </label>
-                        <label className="block text-[11px] text-gray-500 dark:text-gray-400">
+                        <label className="block type-micro text-gray-500 dark:text-gray-400">
                           <span className="block mb-1">Notas</span>
                           <textarea
                             data-testid="cad-object-notes"
@@ -19783,7 +19783,7 @@ export default function Layout3DEditor({
                             onBlur={endFieldEdit}
                             rows={2}
                             placeholder="Owner, restriccion, pendiente..."
-                            className="w-full resize-none rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white placeholder:text-gray-600 outline-none"
+                            className="w-full resize-none rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-caption text-white placeholder:text-gray-600 outline-none"
                           />
                         </label>
                         <div className="grid grid-cols-2 gap-2">
@@ -19798,7 +19798,7 @@ export default function Layout3DEditor({
                         </div>
                         {selectedObjectProperties && (
                           <div className="rounded-lg border border-white/10 bg-gray-950/45 p-2">
-                            <div className="mb-2 text-[10px] uppercase tracking-wide text-gray-500">
+                            <div className="mb-2 type-micro uppercase tracking-wide text-gray-500">
                               Metadata CAD
                             </div>
                             <div className="grid grid-cols-2 gap-2">
@@ -19836,10 +19836,10 @@ export default function Layout3DEditor({
                             {selectedObjectProperties.architecture && (
                               <div className="mt-2 rounded-lg border border-slate-300/10 bg-slate-300/[0.04] p-2">
                                 <div className="mb-1.5 flex items-center justify-between gap-2">
-                                  <span className="text-[10px] uppercase tracking-wide text-slate-300">
+                                  <span className="type-micro uppercase tracking-wide text-slate-300">
                                     Engineering CAD
                                   </span>
-                                  <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-slate-200">
+                                  <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 type-micro text-slate-200">
                                     {selectedObjectProperties.architecture.role}
                                   </span>
                                 </div>
@@ -19859,10 +19859,10 @@ export default function Layout3DEditor({
                             {selectedIndustryInfo && (
                               <div className="mt-2 rounded-lg border border-violet-300/10 bg-violet-300/[0.05] p-2">
                                 <div className="mb-1.5 flex items-center justify-between gap-2">
-                                  <span className="text-[10px] uppercase tracking-wide text-violet-300">
+                                  <span className="type-micro uppercase tracking-wide text-violet-300">
                                     Industry Pack
                                   </span>
-                                  <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-violet-200">
+                                  <span className="rounded-full bg-white/[0.06] px-1.5 py-0.5 type-micro text-violet-200">
                                     {selectedIndustryInfo.label}
                                   </span>
                                 </div>
@@ -19884,7 +19884,7 @@ export default function Layout3DEditor({
                                 )}
                                 {selectedIndustryInfo.findings.length > 0 && (
                                   <div
-                                    className={`mt-2 rounded-md px-2 py-1 text-[10.5px] ${selectedIndustryInfo.findings[0].level === "error" ? "border border-rose-300/15 bg-rose-400/[0.06] text-rose-100" : "border border-amber-300/15 bg-amber-400/[0.06] text-amber-100"}`}
+                                    className={`mt-2 rounded-md px-2 py-1 type-micro ${selectedIndustryInfo.findings[0].level === "error" ? "border border-rose-300/15 bg-rose-400/[0.06] text-rose-100" : "border border-amber-300/15 bg-amber-400/[0.06] text-amber-100"}`}
                                   >
                                     {selectedIndustryInfo.findings[0].message}
                                   </div>
@@ -19892,7 +19892,7 @@ export default function Layout3DEditor({
                               </div>
                             )}
                             {selectedObjectProperties.warnings.length > 0 && (
-                              <div className="mt-2 rounded-md border border-amber-300/15 bg-amber-400/[0.06] px-2 py-1 text-[10.5px] text-amber-100">
+                              <div className="mt-2 rounded-md border border-amber-300/15 bg-amber-400/[0.06] px-2 py-1 type-micro text-amber-100">
                                 {selectedObjectProperties.warnings[0]}
                               </div>
                             )}
@@ -19901,19 +19901,19 @@ export default function Layout3DEditor({
                         <div className="grid grid-cols-3 gap-1.5 pt-1">
                           <button
                             onClick={assignSelectedToActiveLayer}
-                            className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[10.5px] text-gray-200 hover:bg-white/[0.12]"
+                            className="rounded-lg bg-white/[0.06] px-2 py-1.5 type-micro text-gray-200 hover:bg-white/[0.12]"
                           >
                             Capa activa
                           </button>
                           <button
                             onClick={centerSelectedInFootprint}
-                            className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[10.5px] text-gray-200 hover:bg-white/[0.12]"
+                            className="rounded-lg bg-white/[0.06] px-2 py-1.5 type-micro text-gray-200 hover:bg-white/[0.12]"
                           >
                             Centrar
                           </button>
                           <button
                             onClick={resetSelectedRotation}
-                            className="rounded-lg bg-white/[0.06] px-2 py-1.5 text-[10.5px] text-gray-200 hover:bg-white/[0.12]"
+                            className="rounded-lg bg-white/[0.06] px-2 py-1.5 type-micro text-gray-200 hover:bg-white/[0.12]"
                           >
                             Rot. 0°
                           </button>
@@ -19965,27 +19965,27 @@ export default function Layout3DEditor({
                     <div className="flex flex-wrap gap-1.5">
                       <button
                         onClick={() => rotateSelected(15)}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] type-caption"
                       >
                         <RotateCw className="w-3.5 h-3.5" /> +15°
                       </button>
                       <button
                         onClick={() => rotateSelected(-15)}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] type-caption"
                       >
                         <RotateCcw className="w-3.5 h-3.5" /> −15°
                       </button>
                       {selSnap.canDuplicate && (
                         <button
                           onClick={duplicateSelected}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] type-caption"
                         >
                           <Copy className="w-3.5 h-3.5" /> Duplicar
                         </button>
                       )}
                       <button
                         onClick={removeSelected}
-                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 text-[12px]"
+                        className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-rose-500/20 text-rose-300 hover:bg-rose-500/30 type-caption"
                       >
                         <Trash2 className="w-3.5 h-3.5" /> Quitar
                       </button>
@@ -19993,10 +19993,10 @@ export default function Layout3DEditor({
 
                     {selSnap.canDuplicate && (
                       <div className="mt-3 pt-3 border-t border-white/10 space-y-2">
-                        <div className="text-[10.5px] uppercase tracking-wide text-gray-500">
+                        <div className="type-micro uppercase tracking-wide text-gray-500">
                           Copiar equipo
                         </div>
-                        <div className="flex items-center gap-1.5 text-[12px]">
+                        <div className="flex items-center gap-1.5 type-caption">
                           <span className="text-gray-500 dark:text-gray-400 w-12 shrink-0">
                             Arreglo
                           </span>
@@ -20047,12 +20047,12 @@ export default function Layout3DEditor({
                             onClick={() =>
                               arrayAssets(arr.cols, arr.rows, arr.gap)
                             }
-                            className="ml-auto px-2 py-0.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-medium"
+                            className="ml-auto px-2 py-0.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white type-micro font-medium"
                           >
                             Crear
                           </button>
                         </div>
-                        <div className="flex items-center gap-1.5 text-[12px]">
+                        <div className="flex items-center gap-1.5 type-caption">
                           <span className="text-gray-500 dark:text-gray-400 w-12 shrink-0">
                             Espejo
                           </span>
@@ -20070,7 +20070,7 @@ export default function Layout3DEditor({
                             <FlipVertical className="w-3.5 h-3.5" /> Vertical
                           </button>
                         </div>
-                        <div className="flex items-center gap-1.5 text-[12px]">
+                        <div className="flex items-center gap-1.5 type-caption">
                           <span className="text-gray-500 dark:text-gray-400 w-12 shrink-0">
                             Desfasar
                           </span>
@@ -20100,7 +20100,7 @@ export default function Layout3DEditor({
                           />
                           <button
                             onClick={() => offsetAssets(arr.dx, arr.dy)}
-                            className="ml-auto px-2 py-0.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-medium"
+                            className="ml-auto px-2 py-0.5 rounded-md bg-indigo-600 hover:bg-indigo-500 text-white type-micro font-medium"
                           >
                             Crear
                           </button>
@@ -20108,7 +20108,7 @@ export default function Layout3DEditor({
                       </div>
                     )}
 
-                    <p className="text-[10.5px] text-gray-500 mt-3 leading-relaxed">
+                    <p className="type-micro text-gray-500 mt-3 leading-relaxed">
                       Unidades en {data.footprint.unit}. Usa las flechas para
                       ajustar y <b>R</b> para rotar.
                     </p>
@@ -20136,12 +20136,12 @@ export default function Layout3DEditor({
                 <div className="text-sm font-semibold">
                   Paquete premium de entrega CAD
                 </div>
-                <div className="text-[11px] text-gray-500">
+                <div className="type-micro text-gray-500">
                   Cajetín, revisión, validación, DXF, manifiesto y checklist de
                   emisión.
                 </div>
               </div>
-              <div className="rounded-full border border-indigo-300/20 bg-indigo-400/10 px-3 py-1 text-[12px] font-semibold text-indigo-100">
+              <div className="rounded-full border border-indigo-300/20 bg-indigo-400/10 px-3 py-1 type-caption font-semibold text-indigo-100">
                 {sheetPackageReadyPct}% listo
               </div>
               <button
@@ -20154,7 +20154,7 @@ export default function Layout3DEditor({
             </div>
             <div className="border-b border-white/10 bg-gray-950/35 px-4 py-3">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-gray-500">
+                <span className="mr-1 type-micro font-semibold uppercase tracking-[0.16em] text-gray-500">
                   Layouts
                 </span>
                 {orderedPaperSpaces.map((space) => (
@@ -20174,7 +20174,7 @@ export default function Layout3DEditor({
                       );
                     }}
                     onClick={() => selectPaperSpace(space)}
-                    className={`cursor-grab rounded-lg border px-2.5 py-1.5 text-[11px] font-semibold active:cursor-grabbing ${space.id === activePaperSpace?.id ? "border-indigo-300/50 bg-indigo-400/15 text-indigo-100" : "border-white/10 bg-white/[0.04] text-gray-400 hover:bg-white/[0.08]"}`}
+                    className={`cursor-grab rounded-lg border px-2.5 py-1.5 type-micro font-semibold active:cursor-grabbing ${space.id === activePaperSpace?.id ? "border-indigo-300/50 bg-indigo-400/15 text-indigo-100" : "border-white/10 bg-white/[0.04] text-gray-400 hover:bg-white/[0.08]"}`}
                   >
                     {space.name}
                     {space.includeInPublish === false ? " · excluida" : ""}
@@ -20182,14 +20182,14 @@ export default function Layout3DEditor({
                 ))}
                 <button
                   onClick={addPaperSpace}
-                  className="rounded-lg border border-white/10 px-2.5 py-1.5 text-[11px] text-gray-300 hover:bg-white/10"
+                  className="rounded-lg border border-white/10 px-2.5 py-1.5 type-micro text-gray-300 hover:bg-white/10"
                 >
                   + Hoja
                 </button>
                 <button
                   onClick={seedThreeSheetSet}
                   disabled={paperSpaces.length > 0}
-                  className="rounded-lg bg-indigo-600 px-2.5 py-1.5 text-[11px] font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="rounded-lg bg-indigo-600 px-2.5 py-1.5 type-micro font-semibold text-white hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Demo 3 hojas
                 </button>
@@ -20197,7 +20197,7 @@ export default function Layout3DEditor({
               {activePaperSpace ? (
                 <div className="mt-3 grid gap-2 rounded-xl border border-white/10 bg-gray-900/70 p-3 md:grid-cols-[1.1fr_0.9fr_0.8fr_0.8fr]">
                   <label className="block">
-                    <span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">
+                    <span className="mb-1 block type-micro uppercase tracking-wide text-gray-500">
                       Nombre
                     </span>
                     <input
@@ -20211,11 +20211,11 @@ export default function Layout3DEditor({
                             "Renombrar hoja",
                           );
                       }}
-                      className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none focus:border-indigo-400/60"
+                      className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-caption text-white outline-none focus:border-indigo-400/60"
                     />
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">
+                    <span className="mb-1 block type-micro uppercase tracking-wide text-gray-500">
                       Papel
                     </span>
                     <select
@@ -20227,7 +20227,7 @@ export default function Layout3DEditor({
                       onChange={(event) =>
                         changeActivePaper(event.target.value as CadSheetPaper)
                       }
-                      className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white"
+                      className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-caption text-white"
                     >
                       {(Object.keys(CAD_SHEET_PAPERS) as CadSheetPaper[]).map(
                         (paper) => (
@@ -20239,7 +20239,7 @@ export default function Layout3DEditor({
                     </select>
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">
+                    <span className="mb-1 block type-micro uppercase tracking-wide text-gray-500">
                       Orientación
                     </span>
                     <select
@@ -20249,13 +20249,13 @@ export default function Layout3DEditor({
                           event.target.value as "portrait" | "landscape",
                         )
                       }
-                      className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white"
+                      className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-caption text-white"
                     >
                       <option value="landscape">Horizontal</option>
                       <option value="portrait">Vertical</option>
                     </select>
                   </label>
-                  <label className="flex items-end gap-2 pb-1.5 text-[11px] text-gray-300">
+                  <label className="flex items-end gap-2 pb-1.5 type-micro text-gray-300">
                     <input
                       type="checkbox"
                       checked={activePaperSpace.includeInPublish !== false}
@@ -20275,7 +20275,7 @@ export default function Layout3DEditor({
                   </label>
                   {(["top", "right", "bottom", "left"] as const).map((edge) => (
                     <label key={edge} className="block">
-                      <span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">
+                      <span className="mb-1 block type-micro uppercase tracking-wide text-gray-500">
                         Margen {edge}
                       </span>
                       <input
@@ -20291,12 +20291,12 @@ export default function Layout3DEditor({
                             Number(event.target.value),
                           )
                         }
-                        className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white"
+                        className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-caption text-white"
                       />
                     </label>
                   ))}
                   <label className="block">
-                    <span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">
+                    <span className="mb-1 block type-micro uppercase tracking-wide text-gray-500">
                       Color
                     </span>
                     <select
@@ -20324,14 +20324,14 @@ export default function Layout3DEditor({
                           "Cambiar modo de color",
                         )
                       }
-                      className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white"
+                      className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-caption text-white"
                     >
                       <option value="monochrome">Monocromo</option>
                       <option value="color">Color</option>
                     </select>
                   </label>
                   <label className="block">
-                    <span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">
+                    <span className="mb-1 block type-micro uppercase tracking-wide text-gray-500">
                       Lineweight
                     </span>
                     <input
@@ -20360,11 +20360,11 @@ export default function Layout3DEditor({
                           "Cambiar escala de lineweight",
                         )
                       }
-                      className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white"
+                      className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-caption text-white"
                     />
                   </label>
                   <label className="col-span-2 block">
-                    <span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">
+                    <span className="mb-1 block type-micro uppercase tracking-wide text-gray-500">
                       Biblioteca de cajetines
                     </span>
                     <select
@@ -20385,7 +20385,7 @@ export default function Layout3DEditor({
                           "Cambiar biblioteca de cajetín",
                         )
                       }
-                      className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12px] text-white"
+                      className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-caption text-white"
                     >
                       <option value="">Cajetín vectorial estándar</option>
                       {professionalBlockDefinitions.map((block) => (
@@ -20427,7 +20427,7 @@ export default function Layout3DEditor({
                         )
                       }
                       disabled={(activePaperSpace.order ?? 0) <= 0}
-                      className="rounded-md border border-white/10 px-2 py-1 text-[11px] disabled:opacity-30"
+                      className="rounded-md border border-white/10 px-2 py-1 type-micro disabled:opacity-30"
                     >
                       ← Subir
                     </button>
@@ -20445,7 +20445,7 @@ export default function Layout3DEditor({
                       disabled={
                         (activePaperSpace.order ?? 0) >= paperSpaces.length - 1
                       }
-                      className="rounded-md border border-white/10 px-2 py-1 text-[11px] disabled:opacity-30"
+                      className="rounded-md border border-white/10 px-2 py-1 type-micro disabled:opacity-30"
                     >
                       Bajar →
                     </button>
@@ -20458,14 +20458,14 @@ export default function Layout3DEditor({
                           "Eliminar hoja",
                         )
                       }
-                      className="rounded-md border border-rose-300/20 px-2 py-1 text-[11px] text-rose-200 hover:bg-rose-400/10"
+                      className="rounded-md border border-rose-300/20 px-2 py-1 type-micro text-rose-200 hover:bg-rose-400/10"
                     >
                       Eliminar
                     </button>
                   </div>
                 </div>
               ) : (
-                <div className="mt-3 rounded-xl border border-dashed border-indigo-300/25 bg-indigo-400/[0.05] p-4 text-center text-[12px] text-indigo-100">
+                <div className="mt-3 rounded-xl border border-dashed border-indigo-300/25 bg-indigo-400/[0.05] p-4 text-center type-caption text-indigo-100">
                   Crea una hoja o usa el demo de tres hojas para empezar el
                   conjunto.
                 </div>
@@ -20495,7 +20495,7 @@ export default function Layout3DEditor({
                           : "block"
                       }
                     >
-                      <span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">
+                      <span className="mb-1 block type-micro uppercase tracking-wide text-gray-500">
                         {key === "drawingNo"
                           ? "Drawing No."
                           : key === "preparedBy"
@@ -20514,13 +20514,13 @@ export default function Layout3DEditor({
                             [key]: e.target.value,
                           }))
                         }
-                        className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12.5px] text-white outline-none focus:border-indigo-400/60"
+                        className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-caption text-white outline-none focus:border-indigo-400/60"
                       />
                     </label>
                   ))}
                 </div>
                 <label className="block">
-                  <span className="mb-1 block text-[10px] uppercase tracking-wide text-gray-500">
+                  <span className="mb-1 block type-micro uppercase tracking-wide text-gray-500">
                     Notas de emisión
                   </span>
                   <textarea
@@ -20532,14 +20532,14 @@ export default function Layout3DEditor({
                       }))
                     }
                     rows={3}
-                    className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 text-[12.5px] text-white outline-none focus:border-indigo-400/60"
+                    className="w-full rounded-lg border border-white/10 bg-gray-950/70 px-2 py-1.5 type-caption text-white outline-none focus:border-indigo-400/60"
                     placeholder="Alcance, exclusiones, normas, IFC/for review, etc."
                   />
                 </label>
                 <button
                   onClick={applyActiveTitleBlock}
                   disabled={!activePaperSpace}
-                  className="w-full rounded-lg border border-indigo-300/20 bg-indigo-400/10 px-3 py-2 text-[11px] font-semibold text-indigo-100 hover:bg-indigo-400/15 disabled:opacity-40"
+                  className="w-full rounded-lg border border-indigo-300/20 bg-indigo-400/10 px-3 py-2 type-micro font-semibold text-indigo-100 hover:bg-indigo-400/15 disabled:opacity-40"
                 >
                   Aplicar cajetín a la hoja activa
                 </button>
@@ -20554,14 +20554,14 @@ export default function Layout3DEditor({
               </div>
               <div className="space-y-3">
                 <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                  <div className="mb-2 type-micro font-semibold uppercase tracking-wide text-gray-400">
                     Checklist de emisión
                   </div>
                   <div className="space-y-1.5">
                     {sheetPackageChecks.map((check) => (
                       <div
                         key={check.label}
-                        className="flex items-center gap-2 rounded-lg bg-gray-950/50 px-2 py-1.5 text-[12px]"
+                        className="flex items-center gap-2 rounded-lg bg-gray-950/50 px-2 py-1.5 type-caption"
                       >
                         {check.ok ? (
                           <CircleCheck className="h-3.5 w-3.5 text-emerald-300" />
@@ -20571,7 +20571,7 @@ export default function Layout3DEditor({
                         <span className="flex-1 font-medium text-gray-200">
                           {check.label}
                         </span>
-                        <span className="max-w-[150px] truncate text-[11px] text-gray-500">
+                        <span className="max-w-[150px] truncate type-micro text-gray-500">
                           {check.detail}
                         </span>
                       </div>
@@ -20580,7 +20580,7 @@ export default function Layout3DEditor({
                 </div>
                 <div className="rounded-xl border border-white/10 bg-gray-950/60 p-3">
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                    <span className="type-micro font-semibold uppercase tracking-wide text-gray-400">
                       Manifest JSON
                     </span>
                     <button
@@ -20589,14 +20589,14 @@ export default function Layout3DEditor({
                           JSON.stringify(sheetPackageManifest, null, 2),
                         )
                       }
-                      className="rounded-md bg-indigo-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-indigo-500"
+                      className="rounded-md bg-indigo-600 px-2 py-1 type-micro font-semibold text-white hover:bg-indigo-500"
                     >
                       Copiar
                     </button>
                   </div>
                   <pre
                     data-testid="cad-sheet-package-manifest"
-                    className="max-h-52 overflow-auto whitespace-pre-wrap rounded-lg bg-black/30 p-2 text-[10.5px] leading-relaxed text-indigo-50/80"
+                    className="max-h-52 overflow-auto whitespace-pre-wrap rounded-lg bg-black/30 p-2 type-micro leading-relaxed text-indigo-50/80"
                   >
                     {JSON.stringify(sheetPackageManifest, null, 2)}
                   </pre>
@@ -20611,7 +20611,7 @@ export default function Layout3DEditor({
                         (space) => space.includeInPublish !== false,
                       )
                     }
-                    className="rounded-xl bg-white px-3 py-2 text-[12px] font-semibold text-gray-900 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="rounded-xl bg-white px-3 py-2 type-caption font-semibold text-gray-900 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {publishingSheetSet
                       ? "Publicando…"
@@ -20619,13 +20619,13 @@ export default function Layout3DEditor({
                   </button>
                   <button
                     onClick={openDxfExport}
-                    className="rounded-xl bg-indigo-600 px-3 py-2 text-[12px] font-semibold text-white hover:bg-indigo-500"
+                    className="rounded-xl bg-indigo-600 px-3 py-2 type-caption font-semibold text-white hover:bg-indigo-500"
                   >
                     Preparar DXF
                   </button>
                 </div>
                 {publicationWarnings.length > 0 && (
-                  <div className="rounded-xl border border-amber-300/20 bg-amber-400/[0.07] p-3 text-[11px] text-amber-100">
+                  <div className="rounded-xl border border-amber-300/20 bg-amber-400/[0.07] p-3 type-micro text-amber-100">
                     <div className="font-semibold">
                       Degradaciones declaradas ({publicationWarnings.length})
                     </div>
@@ -20735,7 +20735,7 @@ export default function Layout3DEditor({
               </div>
               {takeoff.byKind.length > 0 ? (
                 <div className="rounded-xl border border-white/10 overflow-hidden">
-                  <table className="w-full text-[12.5px]">
+                  <table className="w-full type-caption">
                     <thead>
                       <tr className="text-gray-500 dark:text-gray-400 bg-white/[0.04]">
                         <th className="text-left font-medium px-3 py-1.5">
@@ -20768,16 +20768,16 @@ export default function Layout3DEditor({
                   </table>
                 </div>
               ) : (
-                <p className="text-[12px] text-gray-500 text-center py-3">
+                <p className="type-caption text-gray-500 text-center py-3">
                   Aún no hay equipo en el layout.
                 </p>
               )}
               {takeoff.byLayer.length > 0 && (
                 <div className="mt-3 rounded-xl border border-white/10 overflow-hidden">
-                  <div className="bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  <div className="bg-white/[0.04] px-3 py-1.5 type-micro font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                     Uso por capa CAD
                   </div>
-                  <table className="w-full text-[12.5px]">
+                  <table className="w-full type-caption">
                     <tbody>
                       {takeoff.byLayer.map((r) => (
                         <tr key={r.id} className="border-t border-white/[0.06]">
@@ -20796,10 +20796,10 @@ export default function Layout3DEditor({
               )}
               {takeoff.architecture.byRoomUse.length > 0 && (
                 <div className="mt-3 rounded-xl border border-white/10 overflow-hidden">
-                  <div className="bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  <div className="bg-white/[0.04] px-3 py-1.5 type-micro font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                     Áreas por uso
                   </div>
-                  <table className="w-full text-[12.5px]">
+                  <table className="w-full type-caption">
                     <tbody>
                       {takeoff.architecture.byRoomUse.map((r) => (
                         <tr
@@ -20821,10 +20821,10 @@ export default function Layout3DEditor({
               )}
               {takeoff.architecture.byDepartment.length > 0 && (
                 <div className="mt-3 rounded-xl border border-white/10 overflow-hidden">
-                  <div className="bg-white/[0.04] px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                  <div className="bg-white/[0.04] px-3 py-1.5 type-micro font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                     Áreas por departamento
                   </div>
-                  <table className="w-full text-[12.5px]">
+                  <table className="w-full type-caption">
                     <tbody>
                       {takeoff.architecture.byDepartment.map((r) => (
                         <tr
@@ -20845,7 +20845,7 @@ export default function Layout3DEditor({
                 </div>
               )}
               <div className="flex items-center justify-between mt-3">
-                <span className="text-[11px] text-gray-500">
+                <span className="type-micro text-gray-500">
                   {takeoff.dimCount} {takeoff.dimCount === 1 ? "cota" : "cotas"}
                 </span>
                 <button
@@ -20968,7 +20968,7 @@ export default function Layout3DEditor({
                       () => toast.error("No se pudo copiar.", "3D"),
                     );
                   }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] text-[12px]"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.12] type-caption"
                 >
                   <Copy className="w-3.5 h-3.5" /> Copiar CSV
                 </button>
@@ -20991,7 +20991,7 @@ export default function Layout3DEditor({
               <FileDown className="h-4 w-4 text-indigo-300" />
               <span className="text-sm font-semibold">Exportar DXF</span>
               <span
-                className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${dxfExportSummary.canExport ? "bg-emerald-400/10 text-emerald-200" : "bg-rose-400/10 text-rose-200"}`}
+                className={`rounded-full px-2 py-0.5 type-micro font-semibold ${dxfExportSummary.canExport ? "bg-emerald-400/10 text-emerald-200" : "bg-rose-400/10 text-rose-200"}`}
               >
                 {dxfExportSummary.canExport ? "Listo" : "Bloqueado"}
               </span>
@@ -21003,7 +21003,7 @@ export default function Layout3DEditor({
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="space-y-3 p-4 text-[12px]">
+            <div className="space-y-3 p-4 type-caption">
               <label className="block text-gray-500 dark:text-gray-400">
                 Nombre de archivo
                 <input
@@ -21077,7 +21077,7 @@ export default function Layout3DEditor({
                 ))}
               </div>
               <div className="rounded-xl border border-indigo-400/15 bg-indigo-400/[0.05] p-3">
-                <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-indigo-200">
+                <div className="mb-2 type-micro font-semibold uppercase tracking-wide text-indigo-200">
                   Resumen
                 </div>
                 <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-gray-300">
@@ -21095,10 +21095,10 @@ export default function Layout3DEditor({
               </div>
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-indigo-200">
+                  <div className="type-micro font-semibold uppercase tracking-wide text-indigo-200">
                     Paquete de capas
                   </div>
-                  <span className="text-[10.5px] text-gray-500">
+                  <span className="type-micro text-gray-500">
                     {dxfExportSummary.includedLayers.join(" · ") ||
                       "Sin capas"}
                   </span>
@@ -21108,7 +21108,7 @@ export default function Layout3DEditor({
                     {dxfExportLayerRows.map((layer) => (
                       <div
                         key={layer.layer}
-                        className="flex items-center justify-between gap-2 rounded-lg bg-gray-950/50 px-2 py-1.5 text-[11px]"
+                        className="flex items-center justify-between gap-2 rounded-lg bg-gray-950/50 px-2 py-1.5 type-micro"
                       >
                         <span className="truncate text-gray-300">
                           {layer.layer}
@@ -21121,13 +21121,13 @@ export default function Layout3DEditor({
                     ))}
                   </div>
                 ) : (
-                  <div className="rounded-lg bg-gray-950/50 px-2 py-1.5 text-[11px] text-gray-500">
+                  <div className="rounded-lg bg-gray-950/50 px-2 py-1.5 type-micro text-gray-500">
                     No hay entidades exportables con estas opciones.
                   </div>
                 )}
               </div>
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-indigo-200">
+                <div className="mb-2 type-micro font-semibold uppercase tracking-wide text-indigo-200">
                   Preflight
                 </div>
                 {dxfExportIssueRows.length ? (
@@ -21135,7 +21135,7 @@ export default function Layout3DEditor({
                     {dxfExportIssueRows.map((issue) => (
                       <div
                         key={issue.code}
-                        className={`flex items-start gap-2 rounded-lg px-2 py-1.5 text-[11px] ${issue.level === "blocker" ? "bg-rose-400/10 text-rose-100" : issue.level === "warning" ? "bg-amber-400/10 text-amber-100" : "bg-white/[0.04] text-gray-300"}`}
+                        className={`flex items-start gap-2 rounded-lg px-2 py-1.5 type-micro ${issue.level === "blocker" ? "bg-rose-400/10 text-rose-100" : issue.level === "warning" ? "bg-amber-400/10 text-amber-100" : "bg-white/[0.04] text-gray-300"}`}
                       >
                         {issue.level === "blocker" ? (
                           <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
@@ -21152,7 +21152,7 @@ export default function Layout3DEditor({
                     ))}
                   </div>
                 ) : (
-                  <div className="flex items-center gap-2 rounded-lg bg-emerald-400/10 px-2 py-1.5 text-[11px] text-emerald-100">
+                  <div className="flex items-center gap-2 rounded-lg bg-emerald-400/10 px-2 py-1.5 type-micro text-emerald-100">
                     <CircleCheck className="h-3.5 w-3.5" />
                     DXF listo para descargar.
                   </div>
@@ -21167,7 +21167,7 @@ export default function Layout3DEditor({
                   data-testid="cad-dxf-loss-manifest"
                   data-blocking={dxfPreflight.blocking ? "true" : "false"}
                   data-losses={dxfPreflight.losses.length}
-                  className={`space-y-1.5 rounded-lg border px-2 py-2 text-[11px] ${dxfPreflight.blocking ? "border-rose-400/30 bg-rose-400/10 text-rose-100" : "border-amber-400/30 bg-amber-400/10 text-amber-100"}`}
+                  className={`space-y-1.5 rounded-lg border px-2 py-2 type-micro ${dxfPreflight.blocking ? "border-rose-400/30 bg-rose-400/10 text-rose-100" : "border-amber-400/30 bg-amber-400/10 text-amber-100"}`}
                 >
                   <div className="font-semibold">
                     {dxfPreflight.blocking
@@ -21181,12 +21181,12 @@ export default function Layout3DEditor({
                         data-testid="cad-dxf-loss-row"
                         className="flex items-start gap-1.5"
                       >
-                        <span className="mt-0.5 shrink-0 font-mono text-[9.5px] uppercase opacity-70">
+                        <span className="mt-0.5 shrink-0 font-mono type-micro uppercase opacity-70">
                           {loss.severity}
                         </span>
                         <span className="min-w-0 flex-1">
                           {loss.entityId ? (
-                            <b className="font-mono text-[10px]">
+                            <b className="font-mono type-micro">
                               {loss.entityId}
                             </b>
                           ) : null}{" "}
@@ -21228,7 +21228,7 @@ export default function Layout3DEditor({
                     dxfPreflightAccepted !== dxfPreflight.token)
                 }
                 onClick={() => exportDxf(dxfExportOptions)}
-                className={`w-full rounded-lg px-3 py-2 text-[12px] font-semibold text-white ${dxfExportSummary.canExport && !(dxfPreflight?.blocking === true && dxfPreflightAccepted !== dxfPreflight.token) ? "bg-indigo-600 hover:bg-indigo-500" : "cursor-not-allowed bg-gray-700 text-gray-500 dark:text-gray-400"}`}
+                className={`w-full rounded-lg px-3 py-2 type-caption font-semibold text-white ${dxfExportSummary.canExport && !(dxfPreflight?.blocking === true && dxfPreflightAccepted !== dxfPreflight.token) ? "bg-indigo-600 hover:bg-indigo-500" : "cursor-not-allowed bg-gray-700 text-gray-500 dark:text-gray-400"}`}
               >
                 {dxfPreflight && dxfPreflightAccepted === dxfPreflight.token
                   ? "Descargar DXF de todos modos"
@@ -21259,7 +21259,7 @@ export default function Layout3DEditor({
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="space-y-3 p-4 text-[12px]">
+            <div className="space-y-3 p-4 type-caption">
               <div className="grid grid-cols-2 gap-2">
                 <Stat
                   label="Score"
@@ -21282,12 +21282,12 @@ export default function Layout3DEditor({
               {flowSequence.length > 0 && (
                 <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <div className="text-[11px] font-semibold uppercase tracking-wide text-indigo-200">
+                    <div className="type-micro font-semibold uppercase tracking-wide text-indigo-200">
                       Secuencia de flujo
                     </div>
                     <button
                       onClick={selectFlowSequence}
-                      className="rounded-lg border border-white/10 px-2 py-1 text-[11px] text-gray-300 hover:bg-white/10"
+                      className="rounded-lg border border-white/10 px-2 py-1 type-micro text-gray-300 hover:bg-white/10"
                     >
                       Seleccionar ruta
                     </button>
@@ -21299,7 +21299,7 @@ export default function Layout3DEditor({
                         onClick={() => selectFlowNode(node.id)}
                         className="flex w-full items-center gap-2 rounded-lg bg-white/[0.04] px-2 py-1 text-left hover:bg-white/[0.09]"
                       >
-                        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-indigo-400/15 text-[10px] font-semibold text-indigo-100">
+                        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-indigo-400/15 type-micro font-semibold text-indigo-100">
                           {idx + 1}
                         </span>
                         <span className="min-w-0 flex-1 truncate text-gray-200">
@@ -21308,7 +21308,7 @@ export default function Layout3DEditor({
                       </button>
                     ))}
                   </div>
-                  <div className="mt-2 text-[10.5px] text-gray-500">
+                  <div className="mt-2 type-micro text-gray-500">
                     {flowSegments.length} tramo(s) · clic en una estación para
                     ubicarla.
                   </div>
@@ -21316,7 +21316,7 @@ export default function Layout3DEditor({
               )}
               {flowSegmentRows.length > 0 && (
                 <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
-                  <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-indigo-200">
+                  <div className="mb-2 type-micro font-semibold uppercase tracking-wide text-indigo-200">
                     Tramos críticos por distancia
                   </div>
                   <div className="space-y-1">
@@ -21326,7 +21326,7 @@ export default function Layout3DEditor({
                         onClick={() => selectFlowSegment(segment)}
                         className="flex w-full items-center gap-2 rounded-lg bg-white/[0.04] px-2 py-1.5 text-left hover:bg-white/[0.09]"
                       >
-                        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-amber-400/15 text-[10px] font-semibold text-amber-100">
+                        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-amber-400/15 type-micro font-semibold text-amber-100">
                           {idx + 1}
                         </span>
                         <span className="min-w-0 flex-1 truncate text-gray-200">
@@ -21348,10 +21348,10 @@ export default function Layout3DEditor({
                 <div className="rounded-xl border border-indigo-400/20 bg-indigo-400/10 p-3">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <div>
-                      <div className="text-[11px] font-semibold uppercase tracking-wide text-indigo-100">
+                      <div className="type-micro font-semibold uppercase tracking-wide text-indigo-100">
                         Vista previa de mejora
                       </div>
-                      <div className="text-[11px] text-indigo-50/80">
+                      <div className="type-micro text-indigo-50/80">
                         Reordenar slots en eje{" "}
                         {flowReorderPreview.axis.toUpperCase()} sin cambiar la
                         secuencia de proceso.
@@ -21359,12 +21359,12 @@ export default function Layout3DEditor({
                     </div>
                     <button
                       onClick={applyFlowReorderPreview}
-                      className="shrink-0 rounded-lg bg-indigo-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-indigo-500"
+                      className="shrink-0 rounded-lg bg-indigo-600 px-2 py-1 type-micro font-semibold text-white hover:bg-indigo-500"
                     >
                       Aplicar
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-[11px]">
+                  <div className="grid grid-cols-2 gap-2 type-micro">
                     <div className="rounded-lg bg-gray-950/40 px-2 py-1.5">
                       <div className="text-gray-400">Score</div>
                       <div className="tabular-nums text-white">
@@ -21407,7 +21407,7 @@ export default function Layout3DEditor({
                       {flowReorderMoveRows.map((move) => (
                         <div
                           key={move.id}
-                          className="flex items-center justify-between gap-2 rounded-lg bg-gray-950/40 px-2 py-1 text-[11px]"
+                          className="flex items-center justify-between gap-2 rounded-lg bg-gray-950/40 px-2 py-1 type-micro"
                         >
                           <span className="min-w-0 flex-1 truncate text-indigo-50">
                             {move.label ?? move.id}
@@ -21441,7 +21441,7 @@ export default function Layout3DEditor({
                   setCommandText("acomoda la línea de izquierda a derecha");
                   setFlowHealth(null);
                 }}
-                className="w-full rounded-lg bg-indigo-600 px-3 py-2 text-[12px] font-semibold text-white hover:bg-indigo-500"
+                className="w-full rounded-lg bg-indigo-600 px-3 py-2 type-caption font-semibold text-white hover:bg-indigo-500"
               >
                 Preparar comando arrange_line con preview
               </button>
@@ -21479,7 +21479,7 @@ export default function Layout3DEditor({
               {validationHighlightIds.size > 0 && (
                 <button
                   onClick={clearValidationHighlights}
-                  className="rounded-lg border border-white/10 px-2 py-1 text-[11px] text-gray-300 hover:bg-white/10"
+                  className="rounded-lg border border-white/10 px-2 py-1 type-micro text-gray-300 hover:bg-white/10"
                 >
                   Ocultar highlights
                 </button>
@@ -21492,7 +21492,7 @@ export default function Layout3DEditor({
               </button>
             </div>
             <div className="p-4 space-y-2">
-              <div className="text-[12.5px] mb-1">
+              <div className="type-caption mb-1">
                 {report.score === "ok" ? (
                   <span className="text-emerald-400">
                     Sin problemas detectados.
@@ -21514,14 +21514,14 @@ export default function Layout3DEditor({
               <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.04] p-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <div>
-                    <div className="text-[10px] uppercase tracking-wide text-gray-500">
+                    <div className="type-micro uppercase tracking-wide text-gray-500">
                       Release readiness
                     </div>
                     <div className={`text-sm font-semibold ${releaseTone}`}>
                       {releaseState}
                     </div>
                   </div>
-                  <div className="text-right text-[11px] text-gray-500 dark:text-gray-400">
+                  <div className="text-right type-micro text-gray-500 dark:text-gray-400">
                     <div>{releaseBlockers} bloqueos</div>
                     <div>{releaseWarnings} avisos</div>
                   </div>
@@ -21530,7 +21530,7 @@ export default function Layout3DEditor({
                   {releaseChecks.map((check) => (
                     <div
                       key={check.label}
-                      className="flex items-center justify-between gap-2 rounded-lg bg-gray-950/50 px-2 py-1.5 text-[11.5px]"
+                      className="flex items-center justify-between gap-2 rounded-lg bg-gray-950/50 px-2 py-1.5 type-micro"
                     >
                       <span className="text-gray-300">{check.label}</span>
                       <span className={check.tone}>{check.value}</span>
@@ -21540,7 +21540,7 @@ export default function Layout3DEditor({
               </div>
               {cadValidationReport && (
                 <div className="mb-3 rounded-xl border border-indigo-400/20 bg-indigo-400/10 p-3">
-                  <div className="mb-2 flex items-center justify-between gap-2 text-[12px] font-semibold text-indigo-100">
+                  <div className="mb-2 flex items-center justify-between gap-2 type-caption font-semibold text-indigo-100">
                     <span>CAD validation center</span>
                     <span
                       className={
@@ -21554,7 +21554,7 @@ export default function Layout3DEditor({
                       {cadValidationReport.severity}
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-1.5 text-[11.5px]">
+                  <div className="grid grid-cols-2 gap-1.5 type-micro">
                     <div className="rounded-lg bg-gray-950/50 px-2 py-1.5">
                       <span className="text-gray-500">Collisions</span>
                       <b className="ml-2 tabular-nums text-white">
@@ -21594,7 +21594,7 @@ export default function Layout3DEditor({
                         <button
                           key={issue.id}
                           onClick={() => selectValidationIssue(issue)}
-                          className={`w-full rounded-lg border px-2 py-1.5 text-left text-[11.5px] transition ${issue.severity === "critical" ? "border-rose-400/20 bg-rose-400/10 hover:bg-rose-400/15" : "border-amber-400/20 bg-amber-400/10 hover:bg-amber-400/15"}`}
+                          className={`w-full rounded-lg border px-2 py-1.5 text-left type-micro transition ${issue.severity === "critical" ? "border-rose-400/20 bg-rose-400/10 hover:bg-rose-400/15" : "border-amber-400/20 bg-amber-400/10 hover:bg-amber-400/15"}`}
                         >
                           <span
                             className={
@@ -21608,7 +21608,7 @@ export default function Layout3DEditor({
                           <span className="block text-gray-300">
                             {issue.suggestedFix}
                           </span>
-                          <span className="block pt-0.5 text-[10.5px] text-gray-500">
+                          <span className="block pt-0.5 type-micro text-gray-500">
                             {issue.actionLabel}
                           </span>
                         </button>
@@ -21620,12 +21620,12 @@ export default function Layout3DEditor({
               {industrySummary && industrySummary.totalInstances > 0 && (
                 <div className="mb-3 rounded-xl border border-violet-400/20 bg-violet-400/[0.07] p-3">
                   <div className="mb-2 flex items-center justify-between gap-2">
-                    <span className="text-[12px] font-semibold text-violet-100">
+                    <span className="type-caption font-semibold text-violet-100">
                       Objetos inteligentes · {industrySummary.totalInstances}
                     </span>
                     <button
                       onClick={exportIndustryCsv}
-                      className="rounded-lg bg-violet-400/[0.14] px-2 py-1 text-[10.5px] text-violet-100 hover:bg-violet-400/[0.22]"
+                      className="rounded-lg bg-violet-400/[0.14] px-2 py-1 type-micro text-violet-100 hover:bg-violet-400/[0.22]"
                     >
                       Exportar CSV
                     </button>
@@ -21634,7 +21634,7 @@ export default function Layout3DEditor({
                     {industrySummary.objects.map((obj) => (
                       <div
                         key={obj.objectId}
-                        className="rounded-lg bg-gray-950/40 px-2 py-1.5 text-[11.5px]"
+                        className="rounded-lg bg-gray-950/40 px-2 py-1.5 type-micro"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-violet-100">{obj.label}</span>
@@ -21643,7 +21643,7 @@ export default function Layout3DEditor({
                           </span>
                         </div>
                         {Object.keys(obj.metrics).length > 0 && (
-                          <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[10.5px] text-gray-400">
+                          <div className="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 type-micro text-gray-400">
                             {Object.entries(obj.metrics).map(
                               ([metric, value]) => (
                                 <span key={metric}>
@@ -21663,11 +21663,11 @@ export default function Layout3DEditor({
               )}
               {collisionHits.length > 0 && (
                 <div className="mb-3 rounded-xl border border-rose-400/20 bg-rose-400/10 p-3">
-                  <div className="mb-2 flex items-center justify-between gap-2 text-[12px] font-semibold text-rose-100">
+                  <div className="mb-2 flex items-center justify-between gap-2 type-caption font-semibold text-rose-100">
                     <span>Colisiones detectadas · {collisionHits.length}</span>
                     <button
                       onClick={() => setCollisionHits([])}
-                      className="text-[11px] text-rose-200/70 hover:text-white"
+                      className="type-micro text-rose-200/70 hover:text-white"
                     >
                       Ocultar
                     </button>
@@ -21677,7 +21677,7 @@ export default function Layout3DEditor({
                       <button
                         key={`${hit.aId}-${hit.bId}`}
                         onClick={() => selectCollisionPair(hit)}
-                        className="w-full rounded-lg bg-white/[0.05] px-2 py-1.5 text-left text-[11.5px] hover:bg-white/[0.1]"
+                        className="w-full rounded-lg bg-white/[0.05] px-2 py-1.5 text-left type-micro hover:bg-white/[0.1]"
                       >
                         <span className="block text-rose-100">
                           {hit.aLabel} ↔ {hit.bLabel}
@@ -21693,11 +21693,11 @@ export default function Layout3DEditor({
               )}
               {clearanceIssues.length > 0 && (
                 <div className="mb-3 rounded-xl border border-amber-400/20 bg-amber-400/10 p-3">
-                  <div className="mb-2 flex items-center justify-between gap-2 text-[12px] font-semibold text-amber-100">
+                  <div className="mb-2 flex items-center justify-between gap-2 type-caption font-semibold text-amber-100">
                     <span>Clearance warnings - {clearanceIssues.length}</span>
                     <button
                       onClick={() => setClearanceIssues([])}
-                      className="text-[11px] text-amber-200/70 hover:text-white"
+                      className="type-micro text-amber-200/70 hover:text-white"
                     >
                       Ocultar
                     </button>
@@ -21707,7 +21707,7 @@ export default function Layout3DEditor({
                       <button
                         key={`${issue.aId}-${issue.bId}`}
                         onClick={() => selectClearanceIssue(issue)}
-                        className="w-full rounded-lg bg-white/[0.05] px-2 py-1.5 text-left text-[11.5px] hover:bg-white/[0.1]"
+                        className="w-full rounded-lg bg-white/[0.05] px-2 py-1.5 text-left type-micro hover:bg-white/[0.1]"
                       >
                         <span className="block text-amber-100">
                           {issue.message}
@@ -21725,11 +21725,11 @@ export default function Layout3DEditor({
               )}
               {safetyIssues.length > 0 && (
                 <div className="mb-3 rounded-xl border border-amber-400/20 bg-amber-400/10 p-3">
-                  <div className="mb-2 flex items-center justify-between gap-2 text-[12px] font-semibold text-amber-100">
+                  <div className="mb-2 flex items-center justify-between gap-2 type-caption font-semibold text-amber-100">
                     <span>Safety issues - {safetyIssues.length}</span>
                     <button
                       onClick={() => setSafetyIssues([])}
-                      className="text-[11px] text-amber-200/70 hover:text-white"
+                      className="type-micro text-amber-200/70 hover:text-white"
                     >
                       Ocultar
                     </button>
@@ -21739,7 +21739,7 @@ export default function Layout3DEditor({
                       <button
                         key={`${issue.zoneId}-${issue.objectId}-${issue.code}`}
                         onClick={() => selectSafetyIssue(issue)}
-                        className="w-full rounded-lg bg-white/[0.05] px-2 py-1.5 text-left text-[11.5px] hover:bg-white/[0.1]"
+                        className="w-full rounded-lg bg-white/[0.05] px-2 py-1.5 text-left type-micro hover:bg-white/[0.1]"
                       >
                         <span className="block text-amber-100">
                           {issue.message}
@@ -21775,18 +21775,18 @@ export default function Layout3DEditor({
                       style={{ color }}
                     />
                     <div className="min-w-0">
-                      <div className="text-[13px] font-medium">
+                      <div className="type-small font-medium">
                         {it.label}
                         {it.count > 0 ? ` · ${it.count}` : ""}
                       </div>
-                      <div className="text-[11.5px] text-gray-500 dark:text-gray-400 leading-snug">
+                      <div className="type-micro text-gray-500 dark:text-gray-400 leading-snug">
                         {it.detail}
                       </div>
                     </div>
                   </div>
                 );
               })}
-              <p className="text-[10.5px] text-gray-500 pt-1 leading-relaxed">
+              <p className="type-micro text-gray-500 pt-1 leading-relaxed">
                 Traslapes y límites se evalúan sobre la caja sin rotación
                 (aproximado).
               </p>
@@ -21824,34 +21824,34 @@ export default function Layout3DEditor({
                   value={versName}
                   onChange={(e) => setVersName(e.target.value)}
                   placeholder="Nombre de la versión/snapshot (opcional)"
-                  className="flex-1 bg-white/[0.06] rounded-lg px-2.5 py-1.5 text-[13px] outline-none focus:ring-1 ring-indigo-500/40"
+                  className="flex-1 bg-white/[0.06] rounded-lg px-2.5 py-1.5 type-small outline-none focus:ring-1 ring-indigo-500/40"
                 />
                 <button
                   onClick={saveVersion}
                   disabled={drawingReadOnly || versBusy}
-                  className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[12px] font-medium disabled:opacity-50"
+                  className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white type-caption font-medium disabled:opacity-50"
                 >
                   Guardar versión
                 </button>
                 <button
                   onClick={() => saveLocalSnapshot("manual")}
-                  className="px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-white text-[12px] font-medium"
+                  className="px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.14] text-white type-caption font-medium"
                 >
                   Snapshot local
                 </button>
               </div>
               <div className="mb-4 rounded-xl border border-indigo-400/15 bg-indigo-400/[0.04] p-3">
                 <div className="mb-2 flex items-center justify-between gap-2">
-                  <div className="text-[11px] font-semibold uppercase tracking-wide text-indigo-200">
+                  <div className="type-micro font-semibold uppercase tracking-wide text-indigo-200">
                     Snapshots locales de sesión
                   </div>
-                  <span className="text-[10px] text-gray-500">
+                  <span className="type-micro text-gray-500">
                     {localSnapshots.snapshots.length}/20
                   </span>
                 </div>
                 {snapshotDiff && (
                   <div
-                    className={`mb-2 rounded-lg px-2 py-1.5 text-[11px] ${snapshotDiff.changed ? "bg-amber-400/10 text-amber-100" : "bg-emerald-400/10 text-emerald-100"}`}
+                    className={`mb-2 rounded-lg px-2 py-1.5 type-micro ${snapshotDiff.changed ? "bg-amber-400/10 text-amber-100" : "bg-emerald-400/10 text-emerald-100"}`}
                   >
                     Comparación:{" "}
                     {snapshotDiff.changed
@@ -21861,7 +21861,7 @@ export default function Layout3DEditor({
                   </div>
                 )}
                 {localSnapshots.snapshots.length === 0 ? (
-                  <p className="text-[11.5px] text-gray-500">
+                  <p className="type-micro text-gray-500">
                     Guarda puntos de restauración rápidos antes de importar,
                     acomodar o probar comandos. No salen del navegador.
                   </p>
@@ -21873,23 +21873,23 @@ export default function Layout3DEditor({
                         className="flex items-center gap-2 rounded-lg bg-white/[0.04] px-2 py-1.5"
                       >
                         <div className="min-w-0 flex-1">
-                          <div className="truncate text-[12px] font-medium text-gray-100">
+                          <div className="truncate type-caption font-medium text-gray-100">
                             {snap.label}
                           </div>
-                          <div className="text-[10.5px] text-gray-500">
+                          <div className="type-micro text-gray-500">
                             {new Date(snap.createdAt).toLocaleString("es-MX")} ·{" "}
                             {snap.reason}
                           </div>
                         </div>
                         <button
                           onClick={() => compareLocalSnapshot(snap.id)}
-                          className="rounded-md bg-white/[0.06] px-2 py-1 text-[11px] text-gray-200 hover:bg-white/[0.12]"
+                          className="rounded-md bg-white/[0.06] px-2 py-1 type-micro text-gray-200 hover:bg-white/[0.12]"
                         >
                           Comparar
                         </button>
                         <button
                           onClick={() => restoreLocalSnapshot(snap.id)}
-                          className="rounded-md bg-indigo-500/15 px-2 py-1 text-[11px] text-indigo-100 hover:bg-indigo-500/25"
+                          className="rounded-md bg-indigo-500/15 px-2 py-1 type-micro text-indigo-100 hover:bg-indigo-500/25"
                         >
                           Restaurar
                         </button>
@@ -21905,7 +21905,7 @@ export default function Layout3DEditor({
                 )}
               </div>
               {versions.length === 0 ? (
-                <p className="text-[12px] text-gray-500 text-center py-4">
+                <p className="type-caption text-gray-500 text-center py-4">
                   Aún no hay versiones guardadas.
                 </p>
               ) : (
@@ -21916,10 +21916,10 @@ export default function Layout3DEditor({
                       className="flex items-center gap-2 rounded-xl border border-white/[0.08] bg-white/[0.03] px-3 py-2"
                     >
                       <div className="min-w-0 flex-1">
-                        <div className="text-[13px] font-medium truncate">
+                        <div className="type-small font-medium truncate">
                           {v.name || "Sin nombre"}
                         </div>
-                        <div className="text-[11px] text-gray-500 dark:text-gray-400">
+                        <div className="type-micro text-gray-500 dark:text-gray-400">
                           {new Date(v.createdAt).toLocaleString("es-MX")} ·{" "}
                           {v.stationCount} est · {v.assetCount} eq
                         </div>
@@ -21927,7 +21927,7 @@ export default function Layout3DEditor({
                       <button
                         onClick={() => restoreVersion(v.id)}
                         disabled={versBusy}
-                        className="px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] text-[12px] disabled:opacity-50"
+                        className="px-2 py-1 rounded-md bg-white/[0.06] hover:bg-white/[0.12] type-caption disabled:opacity-50"
                       >
                         Restaurar
                       </button>
@@ -21970,7 +21970,7 @@ export default function Layout3DEditor({
               </button>
             </div>
             <div className="p-4">
-              <p className="text-[12px] text-gray-500 dark:text-gray-400 mb-3">
+              <p className="type-caption text-gray-500 dark:text-gray-400 mb-3">
                 Copia el layout (estaciones, equipo, conexiones, celdas y plano)
                 de otro modelo a{" "}
                 <b className="text-gray-200">
@@ -21981,7 +21981,7 @@ export default function Layout3DEditor({
               <select
                 value={cloneSrc}
                 onChange={(e) => setCloneSrc(e.target.value)}
-                className="w-full bg-white/[0.06] rounded-lg px-2.5 py-2 text-[13px] outline-none mb-3 focus:ring-1 ring-indigo-500/40"
+                className="w-full bg-white/[0.06] rounded-lg px-2.5 py-2 type-small outline-none mb-3 focus:ring-1 ring-indigo-500/40"
               >
                 <option value="" className="text-gray-900">
                   Elige un modelo origen…
@@ -22003,7 +22003,7 @@ export default function Layout3DEditor({
               <button
                 onClick={cloneFrom}
                 disabled={!cloneSrc || cloneBusy}
-                className="w-full px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[12px] font-medium disabled:opacity-50"
+                className="w-full px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white type-caption font-medium disabled:opacity-50"
               >
                 {cloneBusy ? "Clonando…" : "Clonar layout"}
               </button>
@@ -22040,12 +22040,12 @@ export default function Layout3DEditor({
               <button
                 data-testid="cad-cells-create"
                 onClick={createCellFromSelection}
-                className="w-full mb-3 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-[12px] font-medium"
+                className="w-full mb-3 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white type-caption font-medium"
               >
                 Crear celda con la selección
               </button>
               {cellsView.length === 0 ? (
-                <p className="text-[12px] text-gray-500 text-center py-3">
+                <p className="type-caption text-gray-500 text-center py-3">
                   Selecciona estaciones (Shift+clic) y crea una celda para
                   agruparlas.
                 </p>
@@ -22080,9 +22080,9 @@ export default function Layout3DEditor({
                                 "renombrar celda",
                               );
                           }}
-                          className="w-full bg-transparent text-[13px] font-medium outline-none focus:bg-white/[0.06] rounded px-1"
+                          className="w-full bg-transparent type-small font-medium outline-none focus:bg-white/[0.06] rounded px-1"
                         />
-                        <div className="text-[11px] text-gray-500 dark:text-gray-400 px-1">
+                        <div className="type-micro text-gray-500 dark:text-gray-400 px-1">
                           {c.stationIds.length} estaciones
                         </div>
                       </div>
@@ -22096,7 +22096,7 @@ export default function Layout3DEditor({
                   ))}
                 </div>
               )}
-              <p className="text-[10.5px] text-gray-500 mt-3">
+              <p className="type-micro text-gray-500 mt-3">
                 Las celdas tiñen el piso bajo sus estaciones agrupadas.
               </p>
             </div>
@@ -22170,10 +22170,10 @@ export default function Layout3DEditor({
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="p-4 grid grid-cols-2 gap-x-6 gap-y-4 text-[12.5px]">
+            <div className="p-4 grid grid-cols-2 gap-x-6 gap-y-4 type-caption">
               {HELP_SECTIONS.map((sec) => (
                 <div key={sec.title}>
-                  <div className="text-[10px] uppercase tracking-wide text-gray-500 mb-1.5">
+                  <div className="type-micro uppercase tracking-wide text-gray-500 mb-1.5">
                     {sec.title}
                   </div>
                   <div className="space-y-1">
@@ -22183,7 +22183,7 @@ export default function Layout3DEditor({
                         className="flex items-baseline justify-between gap-3"
                       >
                         <span className="text-gray-300">{d}</span>
-                        <kbd className="shrink-0 px-1.5 py-0.5 rounded-md bg-white/[0.08] border border-white/10 text-[11px] text-gray-200 font-mono">
+                        <kbd className="shrink-0 px-1.5 py-0.5 rounded-md bg-white/[0.08] border border-white/10 type-micro text-gray-200 font-mono">
                           {k}
                         </kbd>
                       </div>
@@ -22192,7 +22192,7 @@ export default function Layout3DEditor({
                 </div>
               ))}
             </div>
-            <div className="px-4 pb-4 text-[11px] text-gray-500">
+            <div className="px-4 pb-4 type-micro text-gray-500">
               Abre esta ayuda con{" "}
               <kbd className="px-1 py-0.5 rounded bg-white/[0.08] border border-white/10 font-mono">
                 ?

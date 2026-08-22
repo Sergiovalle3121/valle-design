@@ -205,7 +205,7 @@ export function CheckoutStarter() {
       <Shell title={state.problem.title}>
         <p role="alert">{state.problem.detail}</p>
         {state.problem.code && (
-          <p className="text-sm text-gray-500">
+          <p className="type-small text-muted-foreground">
             Código para soporte: <code>{state.problem.code}</code>
           </p>
         )}
@@ -270,7 +270,7 @@ export function CheckoutStarter() {
         {methods.map((option) => (
           <label
             key={option.method}
-            className="flex gap-3 rounded-2xl border border-black/10 p-4 dark:border-white/10"
+            className="flex gap-3 rounded-2xl border border-border p-4 dark:border-border"
           >
             <input
               type="radio"
@@ -282,7 +282,7 @@ export function CheckoutStarter() {
             />
             <span>
               <strong className="block">{option.label}</strong>
-              <span className="text-sm text-gray-600 dark:text-gray-300">
+              <span className="type-small text-muted-foreground">
                 {option.detail}
               </span>
             </span>

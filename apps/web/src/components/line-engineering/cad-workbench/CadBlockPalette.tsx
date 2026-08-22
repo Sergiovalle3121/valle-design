@@ -61,7 +61,7 @@ export function CadBlockPalette({ blocks, selectedEntityCount, selectedInsert, d
   const selectedDefinition = blocks.find((block) => block.id === selectedBlock) ?? visibleBlocks[0];
   const input = 'mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white outline-none focus:border-indigo-400/50';
   return (
-    <div data-testid="cad-block-palette" className={docked ? 'grid w-full grid-cols-[minmax(150px,0.7fr)_minmax(220px,1.3fr)] overflow-hidden text-[10.5px]' : 'absolute left-0 top-full z-50 mt-1.5 grid w-[620px] max-w-[92vw] grid-cols-[250px_1fr] overflow-hidden rounded-xl border border-indigo-400/20 bg-gray-950 text-[10.5px] shadow-2xl'}>
+    <div data-testid="cad-block-palette" className={docked ? 'grid w-full grid-cols-[minmax(150px,0.7fr)_minmax(220px,1.3fr)] overflow-hidden type-micro' : 'absolute left-0 top-full z-50 mt-1.5 grid w-[620px] max-w-[92vw] grid-cols-[250px_1fr] overflow-hidden rounded-xl border border-indigo-400/20 bg-gray-950 type-micro shadow-2xl'}>
       <section className="border-r border-white/10 p-3">
         <div className="mb-2 flex items-center justify-between"><span className="font-semibold text-indigo-100">BLOCK / INSERT</span><span className="text-gray-500">{blocks.length}</span></div>
         <input aria-label="Buscar bloques" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar nombre, tag, negocio…" className={input} />
@@ -70,7 +70,7 @@ export function CadBlockPalette({ blocks, selectedEntityCount, selectedInsert, d
             const thumbnail = block.thumbnail?.svg ?? buildCadBlockThumbnail(block, 96);
             return <button key={block.id} data-testid={`cad-block-row-${block.name}`} onClick={() => setSelectedBlock(block.id)} className={`flex w-full items-center gap-2 rounded-lg border p-1.5 text-left ${selectedDefinition?.id === block.id ? 'border-indigo-400/40 bg-indigo-400/10' : 'border-white/5 bg-white/[0.03]'}`}>
               <span className="h-10 w-10 shrink-0 rounded bg-cover bg-center" style={{ backgroundImage: `url("data:image/svg+xml,${encodeURIComponent(thumbnail)}")` }} />
-              <span className="min-w-0"><strong className="block truncate text-gray-100">{block.name}</strong><span className="block truncate text-[9px] text-gray-500">v{block.version ?? 1} · {block.entities.length} entidad(es) · {block.library?.scope ?? 'document'}</span></span>
+              <span className="min-w-0"><strong className="block truncate text-gray-100">{block.name}</strong><span className="block truncate type-micro text-gray-500">v{block.version ?? 1} · {block.entities.length} entidad(es) · {block.library?.scope ?? 'document'}</span></span>
             </button>;
           })}
           {!visibleBlocks.length && <p className="py-4 text-center text-gray-500">Sin coincidencias.</p>}
@@ -102,7 +102,7 @@ export function CadBlockPalette({ blocks, selectedEntityCount, selectedInsert, d
           <button disabled={!selectedInsert || !selectedDefinition || selectedInsert.block === selectedDefinition.id} onClick={() => selectedInsert && selectedDefinition && onReplace(selectedInsert.block, selectedDefinition.id)} className="rounded border border-white/10 px-2 py-1 text-gray-200 disabled:opacity-30">Replace todas</button>
           <button data-testid="cad-block-explode" disabled={!selectedInsert} onClick={() => selectedInsert && onExplode(selectedInsert.id)} className="rounded border border-rose-400/20 px-2 py-1 text-rose-200 disabled:opacity-30">Explode</button>
         </div>
-        <p className="mt-2 text-[9.5px] leading-relaxed text-gray-500">Las instancias conservan definición, anidación, transform, atributos y vínculos; redefinir actualiza todas sin aplanarlas.</p>
+        <p className="mt-2 type-micro leading-relaxed text-gray-500">Las instancias conservan definición, anidación, transform, atributos y vínculos; redefinir actualiza todas sin aplanarlas.</p>
       </section>
     </div>
   );

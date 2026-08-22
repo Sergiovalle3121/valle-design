@@ -103,7 +103,7 @@ export function PricingCatalog() {
             <p
               role="status"
               data-testid="checkout-external-note"
-              className="rounded-2xl border border-amber-400/40 bg-amber-400/10 px-5 py-4 text-sm text-amber-800 dark:text-amber-200"
+              className="rounded-card border border-warning/40 bg-warning/10 px-5 py-4 type-small text-warning-ink"
             >
               La compra en línea todavía no está habilitada en este despliegue:
               no hay pasarela de pago configurada. Los precios de abajo son los
@@ -166,7 +166,7 @@ function PeriodSwitch({
     <div
       role="group"
       aria-label="Periodicidad del pago"
-      className="inline-flex rounded-xl border border-black/10 p-1 dark:border-white/15"
+      className="inline-flex rounded-xl border border-border p-1 dark:border-white/15"
     >
       {options.map(([value, label]) => (
         <button
@@ -174,10 +174,10 @@ function PeriodSwitch({
           type="button"
           aria-pressed={period === value}
           onClick={() => onChange(value)}
-          className={`min-h-11 rounded-lg px-4 text-sm font-semibold ${
+          className={`min-h-11 rounded-lg px-4 type-small font-semibold ${
             period === value
-              ? "bg-indigo-600 text-white"
-              : "text-gray-600 dark:text-gray-300"
+              ? "bg-brand-strong text-primary-foreground"
+              : "text-muted-foreground"
           }`}
         >
           {label}
@@ -210,7 +210,7 @@ function PlanCard({
   return (
     <article
       data-testid="plan-card"
-      className="rounded-2xl border border-black/10 p-6 dark:border-white/10"
+      className="rounded-2xl border border-border p-6 dark:border-border"
     >
       <h2 className="text-xl font-semibold">{view.name}</h2>
 
@@ -218,15 +218,15 @@ function PlanCard({
         <>
           <p className="mt-4">
             <span className="text-3xl font-bold">{shown.amount}</span>{" "}
-            <span className="text-sm text-gray-600 dark:text-gray-300">
+            <span className="type-small text-muted-foreground">
               {shown.unit}
             </span>
           </p>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+          <p className="mt-1 type-small text-muted-foreground">
             {view.taxNote}
           </p>
           {view.seatsNote && (
-            <p className="mt-1 text-sm font-medium" data-testid="plan-seats">
+            <p className="mt-1 type-small font-medium" data-testid="plan-seats">
               {view.seatsNote}
               {shown.minimumCharge
                 ? ` · desde ${shown.minimumCharge} ${
@@ -237,7 +237,7 @@ function PlanCard({
           )}
           {period === "yearly" && view.saving && view.savingAmount && (
             <p
-              className="mt-3 inline-block rounded-lg bg-emerald-500/10 px-3 py-1 text-sm font-semibold text-emerald-800 dark:text-emerald-200"
+              className="mt-3 inline-block rounded-control bg-success/10 px-3 py-1 type-small font-semibold text-success-ink"
               data-testid="plan-saving"
             >
               Ahorras {view.savingAmount} al año ({view.saving.percent} %)
@@ -246,11 +246,11 @@ function PlanCard({
           )}
         </>
       ) : view.kind === "trial" ? (
-        <p className="mt-4 text-sm text-gray-600 dark:text-gray-300">
+        <p className="mt-4 type-small text-muted-foreground">
           Sin coste. Empieza a dibujar y decide después.
         </p>
       ) : (
-        <p className="mt-4 text-sm text-gray-600 dark:text-gray-300">
+        <p className="mt-4 type-small text-muted-foreground">
           Este plan no tiene precio publicado para esa periodicidad.
         </p>
       )}

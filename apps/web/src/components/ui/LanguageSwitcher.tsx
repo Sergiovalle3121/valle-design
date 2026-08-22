@@ -50,7 +50,7 @@ export function LanguageSwitcher({
       className={[
         "inline-flex items-center rounded-full border border-black/10 dark:border-white/15",
         "bg-white/60 dark:bg-white/5 backdrop-blur",
-        compact ? "p-0.5 text-[11px]" : "p-1 text-xs",
+        compact ? "p-0.5 type-micro" : "p-1 text-xs",
         className,
       ].join(" ")}
     >
@@ -72,8 +72,8 @@ export function LanguageSwitcher({
               "rounded-full font-medium transition-colors",
               compact ? "px-2 py-0.5" : "px-2.5 py-1",
               isActive
-                ? "bg-[var(--brand-primary-strong,#4f46e5)] text-white shadow-sm"
-                : "text-foreground/70 hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10",
+                ? "bg-brand-strong text-primary-foreground shadow-resting"
+                : "text-muted-foreground hover:bg-muted hover:text-foreground",
               isPending ? "opacity-70" : "",
             ].join(" ")}
           >

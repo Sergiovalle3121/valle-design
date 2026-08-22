@@ -73,7 +73,7 @@ export function CadMTextEditor(props: CadMTextEditorProps) {
   return (
     <div data-testid="cad-mtext-editor" role="dialog" aria-label={props.initial ? 'Editar MTEXT' : 'Crear MTEXT'} className="absolute left-1/2 top-20 z-[65] w-[min(560px,calc(100vw-32px))] -translate-x-1/2 rounded-2xl border border-indigo-400/25 bg-gray-950/95 p-4 shadow-2xl backdrop-blur">
       <div className="mb-3 flex items-start justify-between gap-3">
-        <div><div className="text-sm font-semibold text-indigo-100">{props.initial ? 'Editar MTEXT' : 'Nuevo MTEXT'}</div><div className="text-[10px] text-gray-500">Editor multilínea dentro del lienzo · Ctrl+Enter guarda · Esc cancela</div></div>
+        <div><div className="text-sm font-semibold text-indigo-100">{props.initial ? 'Editar MTEXT' : 'Nuevo MTEXT'}</div><div className="type-micro text-gray-500">Editor multilínea dentro del lienzo · Ctrl+Enter guarda · Esc cancela</div></div>
         <button onClick={props.onCancel} className="rounded px-2 py-1 text-xs text-gray-400 hover:bg-white/10">Cerrar</button>
       </div>
       <textarea
@@ -95,7 +95,7 @@ export function CadMTextEditor(props: CadMTextEditorProps) {
         ))}
         <button data-testid="cad-mtext-background-mask" aria-pressed={draft.backgroundMask} onClick={() => setDraft((current) => ({ ...current, backgroundMask: !current.backgroundMask }))} className={`h-7 rounded border px-2 text-xs ${draft.backgroundMask ? 'border-violet-400/40 bg-violet-400/15 text-violet-100' : 'border-white/10 text-gray-300'}`}>Máscara</button>
       </div>
-      <div className="mt-3 grid grid-cols-4 gap-2 text-[10px] text-gray-400">
+      <div className="mt-3 grid grid-cols-4 gap-2 type-micro text-gray-400">
         <label>X<input data-testid="cad-mtext-x" type="number" value={draft.insertionX} onChange={(event) => number('insertionX', event.target.value)} className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white" /></label>
         <label>Y<input data-testid="cad-mtext-y" type="number" value={draft.insertionY} onChange={(event) => number('insertionY', event.target.value)} className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white" /></label>
         <label>Ancho<input data-testid="cad-mtext-width" type="number" min="1" value={draft.width} onChange={(event) => number('width', event.target.value)} className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white" /></label>

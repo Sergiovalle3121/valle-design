@@ -79,7 +79,7 @@ export function CadDynamicInput({
       }}
       className="flex max-w-[720px] flex-wrap items-center gap-1.5 rounded-xl border border-amber-300/30 bg-gray-900/95 px-2 py-1.5 shadow-2xl backdrop-blur"
     >
-      <span className="px-1 text-[9px] font-semibold uppercase tracking-wide text-amber-200">DYN</span>
+      <span className="px-1 type-micro font-semibold uppercase tracking-wide text-amber-200">DYN</span>
       {kind === 'point' && (
         <div className="inline-flex rounded-md bg-white/[0.06] p-0.5">
           {(['absolute', 'relative', 'polar'] as const).map((item) => (
@@ -88,7 +88,7 @@ export function CadDynamicInput({
               type="button"
               disabled={item !== 'absolute' && !anchor}
               onClick={() => setPointMode(item)}
-              className={`rounded px-2 py-0.5 text-[9.5px] disabled:opacity-35 ${mode === item ? 'bg-amber-300 text-gray-950' : 'text-gray-300 hover:bg-white/10'}`}
+              className={`rounded px-2 py-0.5 type-micro disabled:opacity-35 ${mode === item ? 'bg-amber-300 text-gray-950' : 'text-gray-300 hover:bg-white/10'}`}
             >
               {item === 'absolute' ? 'ABS' : item === 'relative' ? 'REL' : 'POLAR'}
             </button>
@@ -98,7 +98,7 @@ export function CadDynamicInput({
       {kind === 'radius' && (
         <div className="inline-flex rounded-md bg-white/[0.06] p-0.5">
           {(['radius', 'diameter'] as const).map((item) => (
-            <button key={item} type="button" onClick={() => setRadiusMode(item)} className={`rounded px-2 py-0.5 text-[9.5px] ${mode === item ? 'bg-amber-300 text-gray-950' : 'text-gray-300 hover:bg-white/10'}`}>
+            <button key={item} type="button" onClick={() => setRadiusMode(item)} className={`rounded px-2 py-0.5 type-micro ${mode === item ? 'bg-amber-300 text-gray-950' : 'text-gray-300 hover:bg-white/10'}`}>
               {item === 'radius' ? 'R' : 'Ø'}
             </button>
           ))}
@@ -106,7 +106,7 @@ export function CadDynamicInput({
       )}
       {fields.map((field) => (
         <label key={field} className="inline-flex items-center gap-1 rounded-md border border-white/10 bg-gray-950/80 px-1.5 py-0.5">
-          <span className="text-[9px] text-gray-500">{fieldLabels[field]}</span>
+          <span className="type-micro text-gray-500">{fieldLabels[field]}</span>
           <input
             data-testid={`cad-dynamic-field-${field}`}
             aria-label={fieldLabels[field]}
@@ -122,7 +122,7 @@ export function CadDynamicInput({
             }}
             placeholder={defaults?.[field] == null ? documentUnit : `≈${Number(defaults[field]).toFixed(field === 'angle' ? 1 : 2)}`}
             inputMode="decimal"
-            className="w-20 bg-transparent text-[11px] text-white outline-none placeholder:text-gray-600"
+            className="w-20 bg-transparent type-micro text-white outline-none placeholder:text-gray-600"
           />
           <button
             type="button"
@@ -135,10 +135,10 @@ export function CadDynamicInput({
           </button>
         </label>
       ))}
-      <span aria-live="polite" className={`max-w-40 truncate text-[9.5px] ${inlineError ? 'text-rose-300' : 'text-indigo-200'}`}>
+      <span aria-live="polite" className={`max-w-40 truncate type-micro ${inlineError ? 'text-rose-300' : 'text-indigo-200'}`}>
         {inlineError ?? (result.ok ? result.previewLabel : 'Tab cambia de campo')}
       </span>
-      <button type="submit" disabled={!result.ok} className="rounded-md bg-amber-300 px-2 py-1 text-[10px] font-semibold text-gray-950 disabled:cursor-not-allowed disabled:opacity-40">Aplicar</button>
+      <button type="submit" disabled={!result.ok} className="rounded-md bg-amber-300 px-2 py-1 type-micro font-semibold text-gray-950 disabled:cursor-not-allowed disabled:opacity-40">Aplicar</button>
     </form>
   );
 }

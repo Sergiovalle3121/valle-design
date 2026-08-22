@@ -11,6 +11,7 @@ import {
   Terminal,
 } from "lucide-react";
 import { BRAND, PRODUCT_LABEL } from "@/config/brand";
+import { Logo } from "@/components/brand/Logo";
 import { COMMERCIAL_LINKS } from "@/config/commercial";
 import { DOC_GUIDES, PRICING_PATH, docGuidePath } from "@/config/site-routes";
 import { JsonLd } from "@/components/JsonLd";
@@ -211,9 +212,8 @@ export default function LandingPage() {
         aria-label="Navegación principal"
         className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-5 py-5 sm:px-8"
       >
-        <Link href="/" className={`flex items-center gap-2 font-semibold ${linkBase}`}>
-          <DraftingCompass aria-hidden="true" className="h-6 w-6 text-indigo-500" />
-          {PRODUCT_LABEL.design}
+        <Link href="/" className={`inline-flex ${linkBase}`}>
+          <Logo />
         </Link>
         <div className="flex flex-wrap items-center gap-1 sm:gap-3">
           <Link

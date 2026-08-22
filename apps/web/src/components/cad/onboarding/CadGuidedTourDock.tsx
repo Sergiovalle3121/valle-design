@@ -137,7 +137,7 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
         plano. Y la altura baja a un tercio de la pantalla: en una tableta,
         medio viewport de acompañante es medio plano menos.
       */
-      className="pointer-events-none max-h-[32vh] overflow-y-auto rounded-xl border border-emerald-400/25 bg-gray-950/95 p-2.5 text-[11px] text-emerald-50 shadow-2xl backdrop-blur"
+      className="pointer-events-none max-h-[32vh] overflow-y-auto rounded-xl border border-emerald-400/25 bg-gray-950/95 p-2.5 type-micro text-emerald-50 shadow-2xl backdrop-blur"
     >
       {/*
         La cabecera NO reclama el ratón: sólo su botón.
@@ -161,7 +161,7 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
           type="button"
           data-testid="cad-guided-tour-skip"
           onClick={() => cadTourHost.dispatch({ type: "skip", now: Date.now() })}
-          className="pointer-events-auto rounded-lg border border-white/15 px-2 py-1 text-[10px] text-emerald-100/80 hover:bg-white/10"
+          className="pointer-events-auto rounded-lg border border-white/15 px-2 py-1 type-micro text-emerald-100/80 hover:bg-white/10"
         >
           Saltar recorrido
         </button>
@@ -198,13 +198,13 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
                 {current ? (
                   <>
                     <span className="block text-emerald-100/85">{step.instruction}</span>
-                    <span className="block text-[10px] text-emerald-100/60">{step.hint}</span>
+                    <span className="block type-micro text-emerald-100/60">{step.hint}</span>
                     {step.id === "lamina" ? (
                       <button
                         type="button"
                         data-testid="cad-guided-tour-acknowledge"
                         onClick={() => cadTourHost.dispatch({ type: "acknowledge" })}
-                        className="pointer-events-auto mt-1 rounded-lg bg-emerald-500 px-2 py-1 text-[10px] font-semibold text-emerald-950"
+                        className="pointer-events-auto mt-1 rounded-lg bg-emerald-500 px-2 py-1 type-micro font-semibold text-emerald-950"
                       >
                         Entendido, a dibujar
                       </button>
@@ -217,7 +217,7 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
         })}
       </ol>
       {elapsed !== null ? (
-        <p data-testid="cad-guided-tour-elapsed" className="mt-2 text-[10px] text-emerald-100/70">
+        <p data-testid="cad-guided-tour-elapsed" className="mt-2 type-micro text-emerald-100/70">
           Llevas {formatCadTourDuration(elapsed)}.
         </p>
       ) : null}

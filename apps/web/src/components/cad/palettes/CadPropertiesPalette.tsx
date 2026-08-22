@@ -51,7 +51,7 @@ export interface CadPropertiesPaletteProps {
 }
 
 function fieldClass(varies: boolean): string {
-  return `mt-1 w-full rounded-lg border bg-gray-950/70 px-2 py-1.5 text-[12px] text-white outline-none focus:ring-1 focus:ring-indigo-500/40 ${
+  return `mt-1 w-full rounded-lg border bg-gray-950/70 px-2 py-1.5 type-caption text-white outline-none focus:ring-1 focus:ring-indigo-500/40 ${
     varies
       ? "border-amber-400/40 placeholder:text-amber-300/70"
       : "border-white/10"
@@ -96,7 +96,7 @@ const PropertyField = React.memo(function PropertyField({
   // el adaptador iba a ignorar.
   if (row.kind === "readonly")
     return (
-      <label className="text-[10.5px] text-gray-500 dark:text-gray-400">
+      <label className="type-micro text-gray-500 dark:text-gray-400">
         {row.key}
         <input
           data-testid={testId}
@@ -104,7 +104,7 @@ const PropertyField = React.memo(function PropertyField({
           readOnly
           tabIndex={-1}
           value={row.varies ? CAD_PROPERTY_VARIES : String(row.value)}
-          className="mt-1 w-full rounded-lg border border-white/5 bg-white/[0.03] px-2 py-1.5 text-[12px] text-gray-400 outline-none"
+          className="mt-1 w-full rounded-lg border border-white/5 bg-white/[0.03] px-2 py-1.5 type-caption text-gray-400 outline-none"
         />
       </label>
     );
@@ -113,11 +113,11 @@ const PropertyField = React.memo(function PropertyField({
     return (
       <label
         key={fieldKey}
-        className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-gray-950/50 px-2 py-1.5 text-[10.5px] text-gray-400"
+        className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-gray-950/50 px-2 py-1.5 type-micro text-gray-400"
       >
         {row.key}
         {row.varies && (
-          <span className="text-[9.5px] text-amber-300">
+          <span className="type-micro text-amber-300">
             {CAD_PROPERTY_VARIES}
           </span>
         )}
@@ -140,7 +140,7 @@ const PropertyField = React.memo(function PropertyField({
     return (
       <label
         key={row.key}
-        className="col-span-2 text-[10.5px] text-gray-500 dark:text-gray-400"
+        className="col-span-2 type-micro text-gray-500 dark:text-gray-400"
       >
         {row.key}
         <textarea
@@ -165,7 +165,7 @@ const PropertyField = React.memo(function PropertyField({
   return (
     <label
       key={row.key}
-      className="text-[10.5px] text-gray-500 dark:text-gray-400"
+      className="type-micro text-gray-500 dark:text-gray-400"
     >
       {row.key}
       <input
@@ -207,7 +207,7 @@ export const CadPropertiesPalette = React.memo(function CadPropertiesPalette({
     return (
       <div
         data-testid="cad-properties-palette"
-        className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5 text-[11px] text-gray-400"
+        className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5 type-micro text-gray-400"
       >
         Designa objetos para editar sus propiedades.
       </div>
@@ -228,7 +228,7 @@ export const CadPropertiesPalette = React.memo(function CadPropertiesPalette({
             <ReadOnlyCell label="Objetos" value={`${model.count}`} />
             <ReadOnlyCell label="Tipos" value={model.types.join(", ")} />
             <div
-              className="col-span-2 text-[10.5px] text-gray-400"
+              className="col-span-2 type-micro text-gray-400"
               data-testid="cad-properties-multi-hint"
             >
               Se editan las propiedades COMUNES. Un valor que difiere se marca{" "}
@@ -243,7 +243,7 @@ export const CadPropertiesPalette = React.memo(function CadPropertiesPalette({
         <section key={group.category} className="mb-3">
           <div
             data-testid={`cad-properties-group-${group.category}`}
-            className="mb-1.5 text-[10px] uppercase tracking-wide text-indigo-200"
+            className="mb-1.5 type-micro uppercase tracking-wide text-indigo-200"
           >
             {group.category}
           </div>
@@ -263,14 +263,14 @@ export const CadPropertiesPalette = React.memo(function CadPropertiesPalette({
 
       {summary && summary.gripLabels.length > 0 && (
         <div className="mb-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
-          <div className="mb-2 text-[10px] uppercase tracking-wide text-indigo-200">
+          <div className="mb-2 type-micro uppercase tracking-wide text-indigo-200">
             Grips disponibles
           </div>
           <div className="flex flex-wrap gap-1">
             {summary.gripLabels.slice(0, 12).map((label, index) => (
               <span
                 key={`${label}-${index}`}
-                className="rounded-full bg-white/[0.06] px-2 py-0.5 text-[10px] text-gray-300"
+                className="rounded-full bg-white/[0.06] px-2 py-0.5 type-micro text-gray-300"
               >
                 {label}
               </span>
@@ -285,10 +285,10 @@ export const CadPropertiesPalette = React.memo(function CadPropertiesPalette({
 function ReadOnlyCell({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <span className="mb-0.5 block text-[10px] uppercase tracking-wide text-gray-500">
+      <span className="mb-0.5 block type-micro uppercase tracking-wide text-gray-500">
         {label}
       </span>
-      <div className="w-full rounded-md border border-white/5 bg-white/[0.03] px-2 py-1 text-[13px] text-gray-500 dark:text-gray-400">
+      <div className="w-full rounded-md border border-white/5 bg-white/[0.03] px-2 py-1 type-small text-gray-500 dark:text-gray-400">
         {value}
       </div>
     </div>

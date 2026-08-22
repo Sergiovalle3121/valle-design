@@ -246,7 +246,7 @@ export default function ReviewPlanView({
             onSelect(activeId === placement.id ? null : placement.id);
           }}
           style={{ transform: `translate3d(${placement.x}px, ${placement.y}px, 0)` }}
-          className={`absolute left-0 top-0 -ml-3 -mt-3 flex h-6 w-6 items-center justify-center rounded-full border text-[10px] font-bold shadow-lg ${
+          className={`absolute left-0 top-0 -ml-3 -mt-3 flex h-6 w-6 items-center justify-center rounded-full border type-micro font-bold shadow-lg ${
             placement.resolved
               ? "border-emerald-200/60 bg-emerald-500/85 text-gray-950"
               : "border-amber-200/70 bg-amber-400 text-gray-950"
@@ -263,7 +263,7 @@ export default function ReviewPlanView({
         <p
           data-testid="cad-review-truncated"
           role="alert"
-          className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-rose-300/30 bg-gray-950/95 px-3 py-1 text-[11px] text-rose-100"
+          className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-full border border-rose-300/30 bg-gray-950/95 px-3 py-1 type-micro text-rose-100"
         >
           Este plano es demasiado grande para la vista de revisión y se muestra
           incompleto. Pide al autor un PDF o una vista más acotada.

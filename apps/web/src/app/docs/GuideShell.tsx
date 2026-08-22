@@ -53,7 +53,7 @@ export function GuideSection({
   return (
     <section>
       <h2 className="text-2xl font-semibold tracking-tight">{title}</h2>
-      <div className="mt-4 space-y-4 leading-8 text-gray-600 dark:text-gray-300">
+      <div className="mt-4 space-y-4 leading-8 text-muted-foreground">
         {children}
       </div>
     </section>
@@ -67,8 +67,8 @@ export function GuideSection({
  */
 export function GuideLimit({ children }: { children: ReactNode }) {
   return (
-    <aside className="rounded-xl border border-amber-500/30 bg-amber-500/[.06] p-5 leading-7">
-      <p className="text-sm font-semibold uppercase tracking-[.14em] text-amber-700 dark:text-amber-300">
+    <aside className="rounded-xl border border-warning/30 bg-warning/[.06] p-5 leading-7">
+      <p className="type-small font-semibold uppercase tracking-[.14em] text-warning-ink">
         Límite actual
       </p>
       <div className="mt-2 space-y-3">{children}</div>
@@ -110,7 +110,7 @@ export function GuideArticle({
           <h2 id="siguiente-paso" className="text-2xl font-semibold">
             Ponlo en práctica
           </h2>
-          <p className="mt-4 leading-8 text-gray-600 dark:text-gray-300">
+          <p className="mt-4 leading-8 text-muted-foreground">
             Todo lo de esta guía se hace desde el navegador, sin instalar nada.
             Crea tu cuenta y abre un proyecto para seguir los pasos con un dibujo
             de verdad.
@@ -126,12 +126,12 @@ export function GuideArticle({
             {others.map((other) => (
               <li key={other.slug}>
                 <Link
-                  className="font-medium text-indigo-700 underline-offset-4 hover:underline dark:text-indigo-200"
+                  className="font-medium text-primary-ink underline-offset-4 hover:underline"
                   href={docGuidePath(other.slug)}
                 >
                   {other.title}
                 </Link>
-                <span className="block text-sm text-gray-500 dark:text-gray-400">
+                <span className="block type-small text-muted-foreground">
                   {other.summary}
                 </span>
               </li>

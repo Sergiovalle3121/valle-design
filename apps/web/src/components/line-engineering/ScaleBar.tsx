@@ -85,7 +85,7 @@ export default function ScaleBar({
           <div className="absolute bottom-0 right-0 w-[2px] h-2 bg-white/80" />
           <div className="absolute bottom-0 left-1/2 w-[1px] h-1.5 bg-white/60" />
         </div>
-        <span className="text-[11px] font-medium text-white/90 leading-none mb-0.5 tabular-nums">{bar.label}</span>
+        <span className="type-micro font-medium text-white/90 leading-none mb-0.5 tabular-nums">{bar.label}</span>
       </div>
     </div>
   );

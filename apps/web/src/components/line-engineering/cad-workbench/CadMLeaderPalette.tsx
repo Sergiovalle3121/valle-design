@@ -31,8 +31,8 @@ export function CadMLeaderPalette({ selectedCount, defaultSize, styles, onCreate
     textWidth: defaultSize * 12, textHeight: defaultSize * 0.8, textAlignment: 'left', backgroundMask: true,
   });
   return (
-    <div data-testid="cad-mleader-palette" className={docked ? 'w-full p-3 text-[10.5px]' : 'absolute right-0 top-full z-50 mt-1.5 w-80 rounded-xl border border-sky-400/20 bg-gray-950 p-3 text-[10.5px] shadow-2xl'}>
-      <div className="mb-2 flex items-center justify-between"><span className="font-semibold text-sky-100">MLEADER semántico</span><span className="text-gray-500">{selectedCount} destino(s)</span></div>
+    <div data-testid="cad-mleader-palette" className={docked ? 'w-full p-3 type-micro' : 'absolute right-0 top-full z-50 mt-1.5 w-80 rounded-xl border border-indigo-400/20 bg-gray-950 p-3 type-micro shadow-2xl'}>
+      <div className="mb-2 flex items-center justify-between"><span className="font-semibold text-indigo-100">MLEADER semántico</span><span className="text-gray-500">{selectedCount} destino(s)</span></div>
       <label className="text-gray-400">Contenido
         <textarea data-testid="cad-mleader-content" value={draft.text} onChange={(event) => setDraft((current) => ({ ...current, text: event.target.value.slice(0, 16_384) }))} rows={4} placeholder="Nota técnica…" className="mt-1 w-full resize-y rounded border border-white/10 bg-black/30 px-2 py-1.5 text-white" />
       </label>
@@ -46,9 +46,9 @@ export function CadMLeaderPalette({ selectedCount, defaultSize, styles, onCreate
         <label className="text-gray-400">Text width<input type="number" min="0.001" value={draft.textWidth} onChange={(event) => setDraft((current) => ({ ...current, textWidth: Math.max(0.001, Number(event.target.value) || defaultSize * 12) }))} className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white" /></label>
         <label className="text-gray-400">Text height<input type="number" min="0.001" value={draft.textHeight} onChange={(event) => setDraft((current) => ({ ...current, textHeight: Math.max(0.001, Number(event.target.value) || defaultSize * 0.8) }))} className="mt-1 w-full rounded border border-white/10 bg-black/30 px-2 py-1 text-white" /></label>
       </div>
-      <div className="mt-2 flex gap-4"><label className="flex items-center gap-2 text-gray-300"><input type="checkbox" checked={draft.landing} onChange={(event) => setDraft((current) => ({ ...current, landing: event.target.checked }))} className="accent-sky-500" /> Landing</label><label className="flex items-center gap-2 text-gray-300"><input type="checkbox" checked={draft.backgroundMask} onChange={(event) => setDraft((current) => ({ ...current, backgroundMask: event.target.checked }))} className="accent-sky-500" /> Mask</label></div>
-      <button data-testid="cad-mleader-create" disabled={selectedCount < 1 || !draft.text.trim()} onClick={() => onCreate(draft)} className="mt-3 w-full rounded-lg bg-sky-500 px-3 py-1.5 font-semibold text-gray-950 disabled:opacity-40">Crear MLEADER ({selectedCount} línea{selectedCount === 1 ? '' : 's'})</button>
-      <div className="mt-2 text-[9.5px] leading-relaxed text-gray-500">Una entidad, selección unitaria y una línea asociativa por cada destino seleccionado.</div>
+      <div className="mt-2 flex gap-4"><label className="flex items-center gap-2 text-gray-300"><input type="checkbox" checked={draft.landing} onChange={(event) => setDraft((current) => ({ ...current, landing: event.target.checked }))} className="accent-indigo-500" /> Landing</label><label className="flex items-center gap-2 text-gray-300"><input type="checkbox" checked={draft.backgroundMask} onChange={(event) => setDraft((current) => ({ ...current, backgroundMask: event.target.checked }))} className="accent-indigo-500" /> Mask</label></div>
+      <button data-testid="cad-mleader-create" disabled={selectedCount < 1 || !draft.text.trim()} onClick={() => onCreate(draft)} className="mt-3 w-full rounded-lg bg-indigo-500 px-3 py-1.5 font-semibold text-gray-950 disabled:opacity-40">Crear MLEADER ({selectedCount} línea{selectedCount === 1 ? '' : 's'})</button>
+      <div className="mt-2 type-micro leading-relaxed text-gray-500">Una entidad, selección unitaria y una línea asociativa por cada destino seleccionado.</div>
     </div>
   );
 }

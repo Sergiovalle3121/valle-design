@@ -78,7 +78,7 @@ function Toggle({
       data-testid={testId}
       data-active={active ? "true" : "false"}
       onClick={onClick}
-      className={`flex items-center justify-between gap-3 rounded-lg border px-2.5 py-1.5 text-left text-[11px] transition-colors ${
+      className={`flex items-center justify-between gap-3 rounded-lg border px-2.5 py-1.5 text-left type-micro transition-colors ${
         active
           ? "border-indigo-400/40 bg-indigo-400/[0.10] text-indigo-100"
           : "border-white/10 bg-white/[0.03] text-gray-400 hover:text-white"
@@ -87,10 +87,10 @@ function Toggle({
       <span>
         {label}
         {hint && (
-          <span className="ml-1.5 text-[9.5px] text-gray-500">{hint}</span>
+          <span className="ml-1.5 type-micro text-gray-500">{hint}</span>
         )}
       </span>
-      <span className="text-[10px] font-semibold">{active ? "ON" : "OFF"}</span>
+      <span className="type-micro font-semibold">{active ? "ON" : "OFF"}</span>
     </button>
   );
 }
@@ -125,10 +125,10 @@ export const CadDraftSettingsDialog = React.memo(
       >
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
-            <div className="text-[13px] font-semibold">
+            <div className="type-small font-semibold">
               DSETTINGS · Ayudas al dibujo
             </div>
-            <div className="text-[10.5px] text-gray-500">
+            <div className="type-micro text-gray-500">
               Captura a objetos, rastreo y rejilla. F3 / F8 / F10 / F11 conmutan
               lo mismo desde el teclado.
             </div>
@@ -138,7 +138,7 @@ export const CadDraftSettingsDialog = React.memo(
             data-testid="cad-draft-settings-close"
             aria-label="Cerrar ayudas al dibujo"
             onClick={onClose}
-            className="rounded-lg px-2 py-1 text-[11px] text-gray-400 hover:bg-white/10 hover:text-white"
+            className="rounded-lg px-2 py-1 type-micro text-gray-400 hover:bg-white/10 hover:text-white"
           >
             Cerrar
           </button>
@@ -147,12 +147,12 @@ export const CadDraftSettingsDialog = React.memo(
         <div className="grid gap-3 sm:grid-cols-2">
           <section className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-[10px] uppercase tracking-wide text-indigo-200">
+              <span className="type-micro uppercase tracking-wide text-indigo-200">
                 Captura a objetos (OSNAP)
               </span>
               <span
                 data-testid="cad-draft-settings-mode-count"
-                className="text-[10px] text-gray-500"
+                className="type-micro text-gray-500"
               >
                 {activeModes}/{modes.length}
               </span>
@@ -168,7 +168,7 @@ export const CadDraftSettingsDialog = React.memo(
               {modes.map((mode) => (
                 <label
                   key={mode}
-                  className={`flex items-center justify-between gap-2 rounded-md px-2 py-1 text-[11px] ${
+                  className={`flex items-center justify-between gap-2 rounded-md px-2 py-1 type-micro ${
                     settings.osnap ? "text-gray-300" : "text-gray-600"
                   }`}
                 >
@@ -185,7 +185,7 @@ export const CadDraftSettingsDialog = React.memo(
                 </label>
               ))}
             </div>
-            <div className="mt-2 flex items-center gap-2 text-[10px]">
+            <div className="mt-2 flex items-center gap-2 type-micro">
               <button
                 type="button"
                 data-testid="cad-osnap-all"
@@ -215,7 +215,7 @@ export const CadDraftSettingsDialog = React.memo(
 
           <div className="space-y-3">
             <section className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
-              <div className="mb-2 text-[10px] uppercase tracking-wide text-indigo-200">
+              <div className="mb-2 type-micro uppercase tracking-wide text-indigo-200">
                 Rastreo
               </div>
               <div className="grid gap-1.5">
@@ -233,7 +233,7 @@ export const CadDraftSettingsDialog = React.memo(
                   active={settings.polar}
                   onClick={onTogglePolar}
                 />
-                <label className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 text-[11px] text-gray-400">
+                <label className="flex items-center justify-between gap-2 rounded-lg border border-white/10 bg-white/[0.03] px-2.5 py-1.5 type-micro text-gray-400">
                   Incremento polar
                   <select
                     data-testid="cad-draft-settings-polar-increment"
@@ -241,7 +241,7 @@ export const CadDraftSettingsDialog = React.memo(
                     onChange={(event) =>
                       onPolarIncrement(Number(event.target.value))
                     }
-                    className="rounded bg-gray-950/70 px-1.5 py-0.5 text-[11px] text-gray-100 outline-none"
+                    className="rounded bg-gray-950/70 px-1.5 py-0.5 type-micro text-gray-100 outline-none"
                   >
                     {polarIncrements.map((value) => (
                       <option
@@ -261,7 +261,7 @@ export const CadDraftSettingsDialog = React.memo(
                   active={settings.objectSnapTracking}
                   onClick={onToggleObjectSnapTracking}
                 />
-                <div className="flex items-center justify-between gap-2 px-1 text-[10.5px] text-gray-500">
+                <div className="flex items-center justify-between gap-2 px-1 type-micro text-gray-500">
                   <span data-testid="cad-draft-settings-tracked">
                     {settings.acquiredTrackingPoints} punto(s) adquirido(s)
                   </span>
@@ -278,7 +278,7 @@ export const CadDraftSettingsDialog = React.memo(
             </section>
 
             <section className="rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
-              <div className="mb-2 text-[10px] uppercase tracking-wide text-indigo-200">
+              <div className="mb-2 type-micro uppercase tracking-wide text-indigo-200">
                 Rejilla y resolución
               </div>
               <div className="grid gap-1.5">
@@ -296,7 +296,7 @@ export const CadDraftSettingsDialog = React.memo(
                   active={grid.snap}
                   onClick={onToggleGridSnap}
                 />
-                <div className="px-1 text-[10.5px] text-gray-500">
+                <div className="px-1 type-micro text-gray-500">
                   Paso actual: {grid.size} unidades del documento.
                 </div>
               </div>

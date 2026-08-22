@@ -3,12 +3,11 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useRef, useState } from "react";
-import { DraftingCompass } from "lucide-react";
-import { PRODUCT_LABEL } from "@/config/brand";
-import { COMMERCIAL_LINKS } from "@/config/commercial";
 import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import { localReturnTo } from "@/lib/session";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
+import { AuthShell } from "@/components/AuthShell";
+import { Button, Input } from "@/components/ui";
 
 type AuthMode = "login" | "register";
 
@@ -34,7 +33,7 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
   const auth = useDesignAuth();
   const [busy, setBusy] = useState(false);
   const submitting = useRef(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -43,7 +42,6 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
     submitting.current = true;
     setBusy(true);
     setError(null);
-    setMessage(null);
 
     const form = new FormData(event.currentTarget);
     const body = {
@@ -59,9 +57,10 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
       else await designClient.identity.login(body);
 
       if (register) {
-        setMessage(
-          "Cuenta creada. Completa la verificación de correo antes de continuar.",
-        );
+        // El correo se guarda ANTES de limpiar el formulario: la pantalla de
+        // "revisa tu correo" tiene que poder decir a QUÉ dirección se envió, y
+        // ése es el dato que un usuario que se equivocó de letra necesita ver.
+        setRegisteredEmail(body.email);
         event.currentTarget.reset();
       } else {
         // `router.replace` navega en cliente y el proveedor de identidad vive
@@ -97,134 +96,158 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
     }
   }
 
+  if (registeredEmail) {
+    return <CheckYourInbox email={registeredEmail} />;
+  }
+
   return (
-    <main className="grid min-h-screen place-items-center px-5 py-10">
-      <section
-        aria-labelledby="auth-title"
-        className="w-full max-w-md rounded-3xl border border-black/10 bg-white/70 p-6 shadow-xl shadow-indigo-500/5 dark:border-white/10 dark:bg-white/5 sm:p-9"
-      >
-        <Link href="/" className="inline-flex items-center gap-2 font-semibold">
-          <DraftingCompass
-            aria-hidden="true"
-            className="h-6 w-6 text-indigo-500"
-          />
-          {PRODUCT_LABEL.design}
-        </Link>
-        <h1 id="auth-title" className="mt-8 text-3xl font-bold">
-          {register ? "Crea tu cuenta" : "Te damos la bienvenida"}
-        </h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-300">
-          {register
-            ? "Empieza a preparar entregables técnicos con un flujo verificable."
-            : "Accede a tus dibujos, revisiones y entregables."}
-        </p>
-
-        <form method="post" onSubmit={submit} className="mt-8 space-y-5">
-          {register && (
-            <div>
-              <label
-                htmlFor="displayName"
-                className="mb-2 block text-sm font-medium"
-              >
-                Nombre
-              </label>
-              <input
-                id="displayName"
-                name="displayName"
-                autoComplete="name"
-                maxLength={120}
-                required
-                className="min-h-11 w-full rounded-xl border border-black/15 bg-transparent px-3 focus-visible:outline-2 focus-visible:outline-offset-2 dark:border-white/20"
-              />
-            </div>
-          )}
-          <div>
-            <label htmlFor="email" className="mb-2 block text-sm font-medium">
-              Correo electrónico
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              inputMode="email"
-              autoComplete="email"
-              maxLength={254}
-              required
-              className="min-h-11 w-full rounded-xl border border-black/15 bg-transparent px-3 focus-visible:outline-2 focus-visible:outline-offset-2 dark:border-white/20"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="password"
-              className="mb-2 block text-sm font-medium"
+    <AuthShell
+      title={register ? "Crea tu cuenta" : "Te damos la bienvenida"}
+      description={
+        register
+          ? "Empieza a preparar entregables técnicos con un flujo verificable."
+          : "Accede a tus dibujos, revisiones y entregables."
+      }
+      error={error}
+      footer={
+        <>
+          <p className="type-small mt-6 text-center text-muted-foreground">
+            {register ? "¿Ya tienes cuenta?" : "¿Aún no tienes cuenta?"}{" "}
+            <Link
+              className="font-semibold text-primary-ink underline-offset-4 hover:underline"
+              href={crossLink(register ? "/login" : "/register", returnTo)}
             >
-              Contraseña
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              minLength={12}
-              maxLength={128}
-              autoComplete={register ? "new-password" : "current-password"}
-              required
-              className="min-h-11 w-full rounded-xl border border-black/15 bg-transparent px-3 focus-visible:outline-2 focus-visible:outline-offset-2 dark:border-white/20"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={busy}
-            className="min-h-11 w-full rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white hover:bg-indigo-500 disabled:cursor-wait disabled:opacity-60"
-          >
-            {busy
-              ? "Procesando…"
-              : register
-                ? "Crear cuenta"
-                : "Iniciar sesión"}
-          </button>
-        </form>
-
-        {error && (
-          <p
-            role="alert"
-            className="mt-4 text-sm text-red-700 dark:text-red-300"
-          >
-            {error}
-          </p>
-        )}
-        {message && (
-          <p
-            role="status"
-            className="mt-4 text-sm text-emerald-700 dark:text-emerald-300"
-          >
-            {message}
-          </p>
-        )}
-
-        <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-300">
-          {register ? "¿Ya tienes cuenta?" : "¿Aún no tienes cuenta?"}{" "}
-          <Link
-            className="font-semibold text-indigo-600 underline-offset-4 hover:underline dark:text-indigo-300"
-            href={crossLink(register ? "/login" : "/register", returnTo)}
-          >
-            {register ? "Inicia sesión" : "Regístrate"}
-          </Link>
-        </p>
-        {!register && (
-          <p className="mt-3 text-center text-sm">
-            <Link className="underline" href="/forgot-password">
-              ¿Olvidaste tu contraseña?
+              {register ? "Inicia sesión" : "Regístrate"}
             </Link>
           </p>
+          {!register && (
+            <p className="type-small mt-3 text-center">
+              <Link
+                className="text-muted-foreground underline underline-offset-4 hover:text-foreground"
+                href="/forgot-password"
+              >
+                ¿Olvidaste tu contraseña?
+              </Link>
+            </p>
+          )}
+        </>
+      }
+    >
+      <form method="post" onSubmit={submit} className="mt-8 space-y-5">
+        {register && (
+          <Input
+            label="Nombre"
+            name="displayName"
+            autoComplete="name"
+            maxLength={120}
+            required
+          />
         )}
-        <p className="mt-5 text-center text-xs text-gray-500">
-          ¿Necesitas ayuda?{" "}
-          <a className="underline" href={COMMERCIAL_LINKS.support}>
-            Contacta con soporte
-          </a>
-          .
-        </p>
-      </section>
-    </main>
+        <Input
+          label="Correo electrónico"
+          name="email"
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          maxLength={254}
+          required
+        />
+        <Input
+          label="Contraseña"
+          name="password"
+          type="password"
+          minLength={12}
+          maxLength={128}
+          autoComplete={register ? "new-password" : "current-password"}
+          required
+          hint={register ? "Mínimo 12 caracteres." : undefined}
+        />
+        <Button type="submit" variant="primary" size="lg" fullWidth loading={busy}>
+          {busy
+            ? "Procesando…"
+            : register
+              ? "Crear cuenta"
+              : "Iniciar sesión"}
+        </Button>
+      </form>
+    </AuthShell>
+  );
+}
+
+/**
+ * 4.1 · SIN CALLEJÓN TRAS EL REGISTRO.
+ *
+ * Lo que había: un `<p>` verde que decía "Cuenta creada. Completa la
+ * verificación de correo antes de continuar." — y ahí terminaba. No decía a qué
+ * dirección se había enviado (así que quien tecleó mal una letra no tenía cómo
+ * saberlo), no ofrecía reenviar, y no llevaba a ningún sitio. El siguiente paso
+ * del embudo quedaba a cargo de la memoria del usuario.
+ *
+ * Se extrae a su propio componente en vez de crecer el formulario: son dos
+ * pantallas distintas del mismo paso, no dos estados de un mismo formulario.
+ */
+function CheckYourInbox({ email }: { email: string }) {
+  return (
+    <AuthShell
+      titleId="check-inbox-title"
+      title="Revisa tu correo"
+      description="El último paso es confirmar que la dirección es tuya."
+      // El resultado se anuncia con `role="status"`, no sólo se pinta: quien usa
+      // lector de pantalla acaba de pulsar un botón y la página no ha navegado,
+      // así que sin una región viva no se entera de que la cuenta ya existe.
+      // `status` y no `alert` porque es una buena noticia: espera turno en vez
+      // de cortar la frase que se estaba leyendo.
+      message={
+        <>
+          Cuenta creada. Enviamos un enlace de verificación a{" "}
+          <strong className="type-mono font-semibold text-foreground">
+            {email}
+          </strong>
+          . Ábrelo desde este dispositivo y entrarás directo.
+        </>
+      }
+      footer={
+        <div className="mt-6 space-y-4">
+          <div className="rounded-card border border-border bg-muted/50 p-4">
+            <p className="type-small font-semibold text-foreground">
+              ¿No llegó?
+            </p>
+            <ul className="type-small mt-2 list-disc space-y-1 pl-4 text-muted-foreground">
+              <li>Mira en la carpeta de correo no deseado.</li>
+              <li>
+                Tarda hasta un par de minutos: el envío se encola y se reintenta.
+              </li>
+              <li>
+                Si escribiste mal la dirección, vuelve a{" "}
+                <Link
+                  className="underline underline-offset-4 hover:text-foreground"
+                  href="/register"
+                >
+                  registrarte
+                </Link>{" "}
+                con la correcta.
+              </li>
+            </ul>
+          </div>
+          <p className="type-small text-center text-muted-foreground">
+            <Link
+              className="font-semibold text-primary-ink underline-offset-4 hover:underline"
+              href="/resend-verification"
+            >
+              Enviar otro correo
+            </Link>
+            {" · "}
+            <Link
+              className="underline underline-offset-4 hover:text-foreground"
+              href="/verify-email"
+            >
+              Tengo un código
+            </Link>
+          </p>
+        </div>
+      }
+    >
+      <div className="mt-8" />
+    </AuthShell>
   );
 }

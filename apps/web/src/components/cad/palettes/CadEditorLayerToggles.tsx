@@ -51,7 +51,7 @@ export const CadEditorLayerToggles = React.memo(function CadEditorLayerToggles({
 }: CadEditorLayerTogglesProps) {
   return (
     <div data-testid="cad-editor-layer-toggles">
-      <div className="mb-1.5 text-[10px] uppercase tracking-wide text-gray-500">
+      <div className="mb-1.5 type-micro uppercase tracking-wide text-gray-500">
         Capas
       </div>
       {ORDER.map(([key, label]) => (

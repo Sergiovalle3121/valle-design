@@ -114,13 +114,13 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
   return (
     <div
       data-testid="cad-lisp-palette"
-      className="pointer-events-auto flex w-full flex-col rounded-lg border border-white/10 bg-[#0b1020]/95 text-[12px] shadow-lg backdrop-blur"
+      className="pointer-events-auto flex w-full flex-col rounded-lg border border-white/10 bg-[#0b1020]/95 type-caption shadow-lg backdrop-blur"
     >
       <header className="flex items-center gap-2 border-b border-white/5 px-2 py-1">
-        <span className="font-mono text-[11px] font-semibold uppercase tracking-wide text-emerald-300">
+        <span className="font-mono type-micro font-semibold uppercase tracking-wide text-emerald-300">
           AutoLISP
         </span>
-        <span data-testid="cad-lisp-command-count" className="text-[11px] text-gray-400">
+        <span data-testid="cad-lisp-command-count" className="type-micro text-gray-400">
           {snapshot.files.length} rutina{snapshot.files.length === 1 ? "" : "s"} ·{" "}
           {snapshot.commands.length} comando{snapshot.commands.length === 1 ? "" : "s"}
         </span>
@@ -129,7 +129,7 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
             type="button"
             data-testid="cad-lisp-appload"
             onClick={() => fileRef.current?.click()}
-            className="rounded border border-white/15 px-1.5 py-0.5 font-mono text-[11px] text-indigo-200 hover:bg-white/10"
+            className="rounded border border-white/15 px-1.5 py-0.5 font-mono type-micro text-indigo-200 hover:bg-white/10"
           >
             APPLOAD
           </button>
@@ -137,7 +137,7 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
             type="button"
             data-testid="cad-lisp-clear"
             onClick={runtime.clearTranscript}
-            className="rounded border border-white/15 px-1.5 py-0.5 font-mono text-[11px] text-gray-300 hover:bg-white/10"
+            className="rounded border border-white/15 px-1.5 py-0.5 font-mono type-micro text-gray-300 hover:bg-white/10"
           >
             Limpiar
           </button>
@@ -146,7 +146,7 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
             data-testid="cad-lisp-close"
             onClick={runtime.close}
             aria-label="Cerrar la consola LISP"
-            className="rounded border border-white/15 px-1.5 py-0.5 font-mono text-[11px] text-gray-300 hover:bg-white/10"
+            className="rounded border border-white/15 px-1.5 py-0.5 font-mono type-micro text-gray-300 hover:bg-white/10"
           >
             ✕
           </button>
@@ -180,7 +180,7 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
               {entry.text}
             </span>
             {entry.origin && entry.level === "input" && (
-              <span className="ml-1 text-[10px] text-gray-500">[{entry.origin}]</span>
+              <span className="ml-1 type-micro text-gray-500">[{entry.origin}]</span>
             )}
           </div>
         ))}
@@ -188,11 +188,11 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
 
       {snapshot.lastTrace && (
         <details data-testid="cad-lisp-trace" className="border-t border-white/5 px-2 py-1">
-          <summary className="cursor-pointer font-mono text-[11px] text-red-300">
+          <summary className="cursor-pointer font-mono type-micro text-red-300">
             Traza · {snapshot.lastTrace.kind}
             {snapshot.lastTrace.reason ? ` (${snapshot.lastTrace.reason})` : ""}
           </summary>
-          <dl className="mt-1 grid grid-cols-[7rem_1fr] gap-x-2 font-mono text-[11px] text-gray-300">
+          <dl className="mt-1 grid grid-cols-[7rem_1fr] gap-x-2 font-mono type-micro text-gray-300">
             <dt className="text-gray-500">invocación</dt>
             <dd className="break-all">{snapshot.lastTrace.invoke}</dd>
             <dt className="text-gray-500">origen</dt>
@@ -206,7 +206,7 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
             </dd>
           </dl>
           {snapshot.lastTrace.output.trim() && (
-            <pre className="mt-1 max-h-24 overflow-y-auto whitespace-pre-wrap font-mono text-[11px] text-gray-400">
+            <pre className="mt-1 max-h-24 overflow-y-auto whitespace-pre-wrap font-mono type-micro text-gray-400">
               {snapshot.lastTrace.output}
             </pre>
           )}
@@ -220,7 +220,7 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
             type="button"
             data-testid={`cad-lisp-tab-${id}`}
             onClick={() => setTab(id)}
-            className={`rounded px-1.5 py-0.5 font-mono text-[11px] ${
+            className={`rounded px-1.5 py-0.5 font-mono type-micro ${
               tab === id ? "bg-white/10 text-gray-100" : "text-gray-400 hover:bg-white/5"
             }`}
           >
@@ -232,14 +232,14 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
             type="button"
             data-testid="cad-lisp-reset-variables"
             onClick={runtime.resetVariables}
-            className="ml-auto rounded border border-white/15 px-1.5 py-0.5 font-mono text-[11px] text-gray-300 hover:bg-white/10"
+            className="ml-auto rounded border border-white/15 px-1.5 py-0.5 font-mono type-micro text-gray-300 hover:bg-white/10"
           >
             Olvidar
           </button>
         )}
       </div>
 
-      <div className="max-h-40 overflow-y-auto px-2 pb-1 font-mono text-[11px]">
+      <div className="max-h-40 overflow-y-auto px-2 pb-1 font-mono type-micro">
         {tab === "routines" ? (
           <RoutineList runtime={runtime} snapshot={snapshot} />
         ) : (
@@ -355,7 +355,7 @@ function VariableList({ snapshot }: { snapshot: CadLispSnapshot }) {
             {variable.name}
           </span>
           {variable.shadowsBuiltin && (
-            <span className="text-[10px] text-amber-400" title="Tapa un nombre del sistema">
+            <span className="type-micro text-amber-400" title="Tapa un nombre del sistema">
               tapa un builtin
             </span>
           )}

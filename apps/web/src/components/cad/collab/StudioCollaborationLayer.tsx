@@ -214,12 +214,12 @@ export default function StudioCollaborationLayer({
       data-testid="cad-collab-dock"
     >
       <div className="flex items-center justify-between gap-2">
-        <strong className="text-[11.5px] text-gray-100">Colaboración</strong>
+        <strong className="type-micro text-gray-100">Colaboración</strong>
         <button
           type="button"
           data-testid="cad-collab-toggle"
           onClick={() => setCollapsed((value) => !value)}
-          className="rounded-md border border-white/15 px-2 py-0.5 text-[10px] text-gray-300 hover:border-indigo-300/40 hover:text-indigo-100"
+          className="rounded-md border border-white/15 px-2 py-0.5 type-micro text-gray-300 hover:border-indigo-300/40 hover:text-indigo-100"
           aria-expanded={!collapsed}
         >
           {collapsed ? "Abrir" : "Ocultar"}
@@ -251,7 +251,7 @@ export default function StudioCollaborationLayer({
       ) : (
         <p
           data-testid="cad-collab-no-permission"
-          className="mt-2 text-[10.5px] text-gray-500"
+          className="mt-2 type-micro text-gray-500"
         >
           Tu rol no incluye el permiso de revisión (cad:review), así que no
           puedes leer ni escribir comentarios de este documento.

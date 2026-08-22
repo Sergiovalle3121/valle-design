@@ -39,13 +39,33 @@
     --primary-foreground: 0 0% 100%;
     --ring: 239 84% 67%;
 
-    /* Estados semánticos */
+    /* Estados semánticos.
+       Cada estado tiene DOS tonos y no es redundancia:
+
+         --success     el RELLENO (badge, barra, punto). Lleva texto encima, así
+                       que su trabajo es ser reconocible, no legible.
+         --success-ink el TEXTO del mismo estado sobre una superficie normal.
+
+       Medido: el verde de relleno como texto sobre tarjeta blanca da 3,02:1 —
+       AA pide 4,5 para texto normal. El ámbar es peor: 2,13:1, prácticamente
+       ilegible, y es justo el color con el que se escriben los avisos. Esa es
+       la forma más común de fallar accesibilidad sin enterarse: reutilizar el
+       color del relleno como color de letra porque «es el mismo estado».
+
+       Los tonos de tinta son el MÍNIMO desplazamiento desde el relleno que
+       despeja 4,5:1 contra las tres superficies claras (card, background,
+       muted); en oscuro los rellenos ya pasan y la tinta coincide con ellos. */
     --success: 160 84% 36%;
+    --success-ink: 160 84% 26%;
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
+    --warning-ink: 38 92% 30%;
     --warning-foreground: 222 47% 11%;
     --danger: 0 84% 60%;
+    --danger-ink: 0 84% 45%;
     --danger-foreground: 0 0% 100%;
+    /* Tinta de marca sobre superficie clara: el acento base da 4,46:1. */
+    --primary-ink: 243 75% 59%;
 
     /* Alias de compatibilidad (shadcn/ui) — apuntan al mismo sistema. */
     --secondary: 220 16% 96%;
@@ -67,6 +87,12 @@
        como token para que la corrección sea reutilizable y no un valor suelto
        escondido en un componente. */
     --brand-primary-strong: #4f46e5;
+    /* Estado hover del relleno de marca. Medido con texto blanco encima:
+       reposo #4f46e5 = 6,29:1 · hover #4338ca = 7,90:1. El hover OSCURECE en
+       claro y ACLARA en oscuro (ver `.dark`), que es la dirección que el ojo
+       espera; lo que no cambia es que los dos extremos pasan AA, porque un
+       botón no deja de tener que leerse mientras el puntero está encima. */
+    --brand-primary-hover: #4338ca;
     --brand-logo: none;
     --border-radius-custom: 1rem;
     --glass-opacity: 0.34;
@@ -157,12 +183,20 @@
     --primary-foreground: 0 0% 100%;
     --ring: 239 72% 70%;
 
+    /* En oscuro los rellenos YA pasan AA como texto sobre la superficie
+       profunda (7,37 · 9,00 · 5,45): la tinta es el mismo tono y no hay
+       segunda decisión que mantener. El índigo es la excepción — 3,11:1 sobre
+       la tarjeta oscura—, así que su tinta se aclara ocho puntos. */
     --success: 158 64% 45%;
+    --success-ink: 158 64% 45%;
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 55%;
+    --warning-ink: 38 92% 55%;
     --warning-foreground: 222 47% 11%;
     --danger: 0 84% 65%;
+    --danger-ink: 0 84% 65%;
     --danger-foreground: 0 0% 100%;
+    --primary-ink: 239 72% 68%;
 
     --secondary: 220 18% 15%;
     --secondary-foreground: 210 20% 96%;
@@ -170,6 +204,10 @@
     --accent-foreground: 0 0% 100%;
     --destructive: 0 84% 65%;
     --destructive-foreground: 0 0% 100%;
+
+    /* Relleno de marca en oscuro: el hover ACLARA. #5b54ea con texto blanco
+       mide 5,38:1 — el índigo base (#6366f1) se queda en 4,46 y no pasa. */
+    --brand-primary-hover: #5b54ea;
 
     /* Apple-compat en oscuro */
     --apple-bg: #0b0b0f;
@@ -284,6 +322,14 @@
   --color-warning-foreground: hsl(var(--warning-foreground));
   --color-danger: hsl(var(--danger));
   --color-danger-foreground: hsl(var(--danger-foreground));
+
+  /* Las tintas AA de cada estado: `text-success-ink`, `text-danger-ink`,
+     `text-warning-ink`, `text-primary-ink`. Se usan SIEMPRE que el color del
+     estado sea el color de la letra; el token sin `-ink` es para rellenos. */
+  --color-success-ink: hsl(var(--success-ink));
+  --color-warning-ink: hsl(var(--warning-ink));
+  --color-danger-ink: hsl(var(--danger-ink));
+  --color-primary-ink: hsl(var(--primary-ink));
   --color-destructive: hsl(var(--destructive));
   --color-destructive-foreground: hsl(var(--destructive-foreground));
 
@@ -292,6 +338,7 @@
      mínimo es 4.5. Existe para que la corrección se pida por nombre. */
   --color-brand: var(--brand-primary);
   --color-brand-strong: var(--brand-primary-strong);
+  --color-brand-hover: var(--brand-primary-hover);
 
   /* === Elevación → utilidades ==========================================
      Los tres niveles llevaban tokenizados desde el principio y NINGUNO era
@@ -720,149 +767,160 @@
 }
 
 /* ===========================================================================
-   TIPOGRAFÍA DE MARCA — utilidades de display
+   LA ESCALA TIPOGRÁFICA — en `@layer components` A PROPÓSITO
    ---------------------------------------------------------------------------
-   Tres tamaños de titular con su interletraje ya resuelto, para que ninguna
-   pantalla vuelva a componer un H1 con `tracking-tight` a ojo. `clamp()` hace
-   el escalado fluido: el titular respira en 1440 y sigue siendo legible en 390
-   sin un salto brusco en el breakpoint.
+   El orden de capas de Tailwind v4 es `theme, base, components, utilities`. Con
+   la escala en `components`, una utilidad suelta (`font-semibold`, `text-lg`)
+   la sobrescribe donde de verdad hace falta; fuera de capa pasaba lo contrario
+   —el escalón ganaba— y un `.type-micro font-semibold` habría salido a peso
+   500 sin que nadie entendiera por qué. La escala es el suelo, no el techo.
    =========================================================================== */
-/**
- * El término medio de cada clamp lleva una parte fija además de la parte en
- * vw. Con `5.6vw` a secas, un teléfono de 390 px caía siempre en el mínimo:
- * el H1 se componía a 40 px y ocupaba seis renglones. La constante levanta el
- * extremo estrecho sin tocar el ancho, que es donde la escala ya funcionaba.
- */
-.type-display {
-  font-size: clamp(2.0625rem, 4.4vw + 0.75rem, 4.25rem);
-  line-height: 1.04;
-  letter-spacing: var(--tracking-display);
-  font-weight: 700;
-}
-
-.type-title {
-  font-size: clamp(1.75rem, 2.4vw + 0.5rem, 2.75rem);
-  line-height: 1.1;
-  letter-spacing: var(--tracking-title);
-  font-weight: 650;
-}
-
-.type-lead {
-  font-size: clamp(1rem, 0.6vw + 0.875rem, 1.1875rem);
-  line-height: 1.6;
-  letter-spacing: -0.008em;
-}
-
-/**
- * El interletraje negativo de un titular grande es veneno en pantalla
- * estrecha: a 33 px las letras ya se tocan. Se afloja por debajo de 640 px.
- */
-@media (max-width: 639px) {
+@layer components {
+  /* ===========================================================================
+     TIPOGRAFÍA DE MARCA — utilidades de display
+     ---------------------------------------------------------------------------
+     Tres tamaños de titular con su interletraje ya resuelto, para que ninguna
+     pantalla vuelva a componer un H1 con `tracking-tight` a ojo. `clamp()` hace
+     el escalado fluido: el titular respira en 1440 y sigue siendo legible en 390
+     sin un salto brusco en el breakpoint.
+     =========================================================================== */
+  /**
+   * El término medio de cada clamp lleva una parte fija además de la parte en
+   * vw. Con `5.6vw` a secas, un teléfono de 390 px caía siempre en el mínimo:
+   * el H1 se componía a 40 px y ocupaba seis renglones. La constante levanta el
+   * extremo estrecho sin tocar el ancho, que es donde la escala ya funcionaba.
+   */
   .type-display {
-    letter-spacing: -0.026em;
+    font-size: clamp(2.0625rem, 4.4vw + 0.75rem, 4.25rem);
+    line-height: 1.04;
+    letter-spacing: var(--tracking-display);
+    font-weight: 700;
   }
+
   .type-title {
-    letter-spacing: -0.018em;
+    font-size: clamp(1.75rem, 2.4vw + 0.5rem, 2.75rem);
+    line-height: 1.1;
+    letter-spacing: var(--tracking-title);
+    font-weight: 650;
   }
-}
 
-/**
- * Etiqueta técnica: mayúsculas, monoespaciada y con tracking POSITIVO.
- * Las mayúsculas necesitan lo contrario que los titulares — apretarlas las
- * vuelve ilegibles.
- */
-.type-eyebrow {
-  font-family: var(--font-mono);
-  font-size: 0.6875rem;
-  font-weight: 500;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-}
+  .type-lead {
+    font-size: clamp(1rem, 0.6vw + 0.875rem, 1.1875rem);
+    line-height: 1.6;
+    letter-spacing: -0.008em;
+  }
 
-/** Cifras que se comparan o se apilan: ancho fijo para que las columnas cuadren. */
-.type-numeric {
-  font-variant-numeric: tabular-nums;
-  font-feature-settings:
-    "tnum" 1,
-    "cv11" 1;
-}
+  /**
+   * El interletraje negativo de un titular grande es veneno en pantalla
+   * estrecha: a 33 px las letras ya se tocan. Se afloja por debajo de 640 px.
+   */
+  @media (max-width: 639px) {
+    .type-display {
+      letter-spacing: -0.026em;
+    }
+    .type-title {
+      letter-spacing: -0.018em;
+    }
+  }
 
-/* ───────────────────────────────────────────────────────────────────────────
-   LOS SIETE ESCALONES (OLA 1) — la escala completa, de titular a etiqueta.
-   ---------------------------------------------------------------------------
-   La medición que obliga a esto: 659 tamaños arbitrarios `text-[Npx]` en TRECE
-   valores distintos, y once de esos trece caben en una banda de ocho píxeles
-   (7 · 8 · 8.5 · 9 · 9.5 · 10 · 10.5 · 11 · 11.5 · 12 · 12.5). Trece pasos
-   dentro de 8 px no son una escala: son trece decisiones tomadas por separado
-   que el ojo lee como ruido. Y el extremo bajo era ilegible: había interfaz
-   compuesta a 7 px.
+  /**
+   * Etiqueta técnica: mayúsculas, monoespaciada y con tracking POSITIVO.
+   * Las mayúsculas necesitan lo contrario que los titulares — apretarlas las
+   * vuelve ilegibles.
+   */
+  .type-eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+  }
 
-   La escala tiene SIETE escalones y un piso duro en 11 px. Un estudio de dibujo
-   puede —debe— ser denso, pero denso y preciso, no denso y descuidado.
+  /** Cifras que se comparan o se apilan: ancho fijo para que las columnas cuadren. */
+  .type-numeric {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings:
+      "tnum" 1,
+      "cv11" 1;
+  }
 
-     display  · el titular de la portada, uno por página
-     title    · encabezado de sección
-     heading  · encabezado de tarjeta o subsección
-     body     · texto corrido, el tamaño por defecto de lo que se lee
-     small    · texto secundario, ayudas, pies de ficha
-     caption  · etiqueta de interfaz densa (el estudio vive aquí)
-     mono     · cifras, coordenadas, comandos y códigos
+  /* ───────────────────────────────────────────────────────────────────────────
+     LOS SIETE ESCALONES (OLA 1) — la escala completa, de titular a etiqueta.
+     ---------------------------------------------------------------------------
+     La medición que obliga a esto: 659 tamaños arbitrarios `text-[Npx]` en TRECE
+     valores distintos, y once de esos trece caben en una banda de ocho píxeles
+     (7 · 8 · 8.5 · 9 · 9.5 · 10 · 10.5 · 11 · 11.5 · 12 · 12.5). Trece pasos
+     dentro de 8 px no son una escala: son trece decisiones tomadas por separado
+     que el ojo lee como ruido. Y el extremo bajo era ilegible: había interfaz
+     compuesta a 7 px.
 
-   `micro` es el piso, no un escalón más: existe SOLO para la fila de estado y
-   las etiquetas de paleta que no caben de otro modo, y nunca para prosa.
-   ─────────────────────────────────────────────────────────────────────────── */
+     La escala tiene SIETE escalones y un piso duro en 11 px. Un estudio de dibujo
+     puede —debe— ser denso, pero denso y preciso, no denso y descuidado.
 
-.type-heading {
-  font-size: clamp(1.125rem, 0.45vw + 1rem, 1.375rem);
-  line-height: 1.28;
-  letter-spacing: var(--tracking-title);
-  font-weight: 600;
-}
+       display  · el titular de la portada, uno por página
+       title    · encabezado de sección
+       heading  · encabezado de tarjeta o subsección
+       body     · texto corrido, el tamaño por defecto de lo que se lee
+       small    · texto secundario, ayudas, pies de ficha
+       caption  · etiqueta de interfaz densa (el estudio vive aquí)
+       mono     · cifras, coordenadas, comandos y códigos
 
-.type-body {
-  font-size: 1rem;
-  line-height: 1.65;
-  letter-spacing: var(--tracking-body);
-}
+     `micro` es el piso, no un escalón más: existe SOLO para la fila de estado y
+     las etiquetas de paleta que no caben de otro modo, y nunca para prosa.
+     ─────────────────────────────────────────────────────────────────────────── */
 
-.type-small {
-  font-size: 0.875rem;
-  line-height: 1.55;
-  letter-spacing: -0.006em;
-}
+  .type-heading {
+    font-size: clamp(1.125rem, 0.45vw + 1rem, 1.375rem);
+    line-height: 1.28;
+    letter-spacing: var(--tracking-title);
+    font-weight: 600;
+  }
 
-.type-caption {
-  font-size: 0.75rem;
-  line-height: 1.45;
-  letter-spacing: 0;
-}
+  .type-body {
+    font-size: 1rem;
+    line-height: 1.65;
+    letter-spacing: var(--tracking-body);
+  }
 
-/**
- * EL PISO. Debajo de esto no hay nada: 11 px es donde una grotesca a 400 de
- * peso deja de leerse de un vistazo en una pantalla de portátil, y en un
- * estudio de dibujo el usuario NO se acerca a la pantalla — tiene la mano en
- * el ratón y la vista en el lienzo. Peso 500 porque a este tamaño el regular
- * se desvanece sobre fondo oscuro.
- */
-.type-micro {
-  font-size: 0.6875rem;
-  line-height: 1.36;
-  letter-spacing: 0.005em;
-  font-weight: 500;
-}
+  .type-small {
+    font-size: 0.875rem;
+    line-height: 1.55;
+    letter-spacing: -0.006em;
+  }
 
-/**
- * Mono del sistema: cifras tabulares SIEMPRE. Es el tipo de la línea de
- * comandos, de las coordenadas del cursor y de cualquier columna de números.
- * Sin `tnum`, un contador que va de 9 a 10 empuja media línea de interfaz.
- */
-.type-mono {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-feature-settings:
-    "tnum" 1,
-    "zero" 1;
-  letter-spacing: 0;
+  .type-caption {
+    font-size: 0.75rem;
+    line-height: 1.45;
+    letter-spacing: 0;
+  }
+
+  /**
+   * EL PISO. Debajo de esto no hay nada: 11 px es donde una grotesca a 400 de
+   * peso deja de leerse de un vistazo en una pantalla de portátil, y en un
+   * estudio de dibujo el usuario NO se acerca a la pantalla — tiene la mano en
+   * el ratón y la vista en el lienzo. Peso 500 porque a este tamaño el regular
+   * se desvanece sobre fondo oscuro.
+   */
+  .type-micro {
+    font-size: 0.6875rem;
+    line-height: 1.36;
+    letter-spacing: 0.005em;
+    font-weight: 500;
+  }
+
+  /**
+   * Mono del sistema: cifras tabulares SIEMPRE. Es el tipo de la línea de
+   * comandos, de las coordenadas del cursor y de cualquier columna de números.
+   * Sin `tnum`, un contador que va de 9 a 10 empuja media línea de interfaz.
+   */
+  .type-mono {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings:
+      "tnum" 1,
+      "zero" 1;
+    letter-spacing: 0;
+  }
 }
 
 /* ===========================================================================

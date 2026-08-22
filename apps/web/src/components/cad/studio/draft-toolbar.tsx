@@ -67,7 +67,7 @@ export function CadDraftToolbar({
       <button
         onClick={onToggleOrtho}
         title="Orto: restringe los muros a 0/90/180/270 (como F8 de AutoCAD)"
-        className={`rounded-full px-2 py-0.5 text-[10.5px] font-semibold ${orthoLock ? "bg-amber-400 text-gray-900" : "bg-white/[0.08] text-gray-300 hover:bg-white/[0.15]"}`}
+        className={`rounded-full px-2 py-0.5 type-micro font-semibold ${orthoLock ? "bg-amber-400 text-gray-900" : "bg-white/[0.08] text-gray-300 hover:bg-white/[0.15]"}`}
       >
         ORTO
       </button>
@@ -77,7 +77,7 @@ export function CadDraftToolbar({
       {chaining && (
         <button
           onClick={onFinish}
-          className="rounded-lg border border-white/10 px-2 py-1 text-[10px] text-gray-300 hover:bg-white/10"
+          className="rounded-lg border border-white/10 px-2 py-1 type-micro text-gray-300 hover:bg-white/10"
         >
           Terminar
         </button>
@@ -86,7 +86,7 @@ export function CadDraftToolbar({
         <button
           data-testid="cad-polyline-close"
           onClick={onClose}
-          className="rounded-lg border border-indigo-400/20 bg-indigo-400/10 px-2 py-1 text-[10px] font-semibold text-indigo-100 hover:bg-indigo-400/20"
+          className="rounded-lg border border-indigo-400/20 bg-indigo-400/10 px-2 py-1 type-micro font-semibold text-indigo-100 hover:bg-indigo-400/20"
         >
           Cerrar
         </button>

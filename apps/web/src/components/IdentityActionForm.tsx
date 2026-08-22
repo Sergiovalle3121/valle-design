@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { DraftingCompass } from "lucide-react";
-import { PRODUCT_LABEL } from "@/config/brand";
 import { designClient } from "@/lib/cad/repositories/client";
+import { AuthShell } from "@/components/AuthShell";
+import { Button, Input } from "@/components/ui";
 import {
   cleanIdentityUrl,
   IDENTITY_FIELD_LIMITS,
@@ -119,131 +119,82 @@ export function IdentityActionForm({
   }
 
   return (
-    <main className="grid min-h-screen place-items-center px-5 py-10">
-      <section
-        aria-labelledby="identity-action-title"
-        className="w-full max-w-md rounded-3xl border border-black/10 bg-white/70 p-6 shadow-xl shadow-indigo-500/5 dark:border-white/10 dark:bg-white/5 sm:p-9"
-      >
-        <Link href="/" className="inline-flex items-center gap-2 font-semibold">
-          <DraftingCompass
-            aria-hidden="true"
-            className="h-6 w-6 text-indigo-500"
-          />
-          {PRODUCT_LABEL.design}
-        </Link>
-        <h1 id="identity-action-title" className="mt-8 text-3xl font-bold">
-          {content.title}
-        </h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-300">
-          {content.description}
-        </p>
-
-        <form method="post" onSubmit={submit} className="mt-8 space-y-5">
-          <fieldset disabled={busy} className="space-y-5 disabled:opacity-70">
-            {asksForEmail && (
-              <div>
-                <label
-                  htmlFor="identity-email"
-                  className="mb-2 block text-sm font-medium"
-                >
-                  Correo electrónico
-                </label>
-                <input
-                  id="identity-email"
-                  name="email"
-                  type="email"
-                  inputMode="email"
-                  autoComplete="email"
-                  maxLength={IDENTITY_FIELD_LIMITS.email}
-                  required
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  className="min-h-11 w-full rounded-xl border border-black/15 bg-transparent px-3 focus-visible:outline-2 focus-visible:outline-offset-2 dark:border-white/20"
-                />
-              </div>
-            )}
-            {asksForToken && (
-              <div>
-                <label
-                  htmlFor="identity-token"
-                  className="mb-2 block text-sm font-medium"
-                >
-                  Token
-                </label>
-                <input
-                  id="identity-token"
-                  name="token"
-                  type="text"
-                  autoComplete="one-time-code"
-                  minLength={IDENTITY_FIELD_LIMITS.tokenMin}
-                  maxLength={IDENTITY_FIELD_LIMITS.tokenMax}
-                  spellCheck={false}
-                  required
-                  value={token}
-                  onChange={(event) => setToken(event.target.value)}
-                  className="min-h-11 w-full rounded-xl border border-black/15 bg-transparent px-3 font-mono text-sm focus-visible:outline-2 focus-visible:outline-offset-2 dark:border-white/20"
-                />
-              </div>
-            )}
-            {asksForPassword && (
-              <div>
-                <label
-                  htmlFor="identity-password"
-                  className="mb-2 block text-sm font-medium"
-                >
-                  Contraseña nueva
-                </label>
-                <input
-                  id="identity-password"
-                  name="password"
-                  type="password"
-                  autoComplete="new-password"
-                  minLength={IDENTITY_FIELD_LIMITS.passwordMin}
-                  maxLength={IDENTITY_FIELD_LIMITS.passwordMax}
-                  required
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  className="min-h-11 w-full rounded-xl border border-black/15 bg-transparent px-3 focus-visible:outline-2 focus-visible:outline-offset-2 dark:border-white/20"
-                />
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  Entre {IDENTITY_FIELD_LIMITS.passwordMin} y{" "}
-                  {IDENTITY_FIELD_LIMITS.passwordMax} caracteres.
-                </p>
-              </div>
-            )}
-            <button
-              type="submit"
-              disabled={busy}
-              className="min-h-11 w-full rounded-xl bg-indigo-600 px-4 py-3 font-semibold text-white hover:bg-indigo-500 disabled:cursor-wait disabled:opacity-60"
-            >
-              {busy ? content.busy : content.button}
-            </button>
-          </fieldset>
-        </form>
-
-        {error && (
-          <p
-            role="alert"
-            className="mt-4 text-sm text-red-700 dark:text-red-300"
+    <AuthShell
+      titleId="identity-action-title"
+      title={content.title}
+      description={content.description}
+      error={error}
+      message={message}
+      footer={
+        <p className="type-small mt-6 text-center">
+          <Link
+            className="text-muted-foreground underline underline-offset-4 hover:text-foreground"
+            href={content.linkHref}
           >
-            {error}
-          </p>
-        )}
-        {message && (
-          <p
-            role="status"
-            className="mt-4 text-sm text-emerald-700 dark:text-emerald-300"
-          >
-            {message}
-          </p>
-        )}
-
-        <p className="mt-6 text-center text-sm">
-          <Link className="underline" href={content.linkHref}>
             {content.linkLabel}
           </Link>
         </p>
-      </section>
-    </main>
+      }
+    >
+      <form method="post" onSubmit={submit} className="mt-8">
+        {/* `fieldset[disabled]` apaga TODOS los campos de una vez mientras la
+            petición viaja. Deshabilitar sólo el botón deja los campos vivos, y
+            entonces alguien corrige el correo mientras se envía el anterior. */}
+        <fieldset disabled={busy} className="space-y-5">
+          {asksForEmail && (
+            <Input
+              label="Correo electrónico"
+              name="email"
+              type="email"
+              inputMode="email"
+              autoComplete="email"
+              maxLength={IDENTITY_FIELD_LIMITS.email}
+              required
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
+          )}
+          {asksForToken && (
+            <Input
+              label="Código de verificación"
+              name="token"
+              type="text"
+              autoComplete="one-time-code"
+              minLength={IDENTITY_FIELD_LIMITS.tokenMin}
+              maxLength={IDENTITY_FIELD_LIMITS.tokenMax}
+              spellCheck={false}
+              required
+              mono
+              value={token}
+              onChange={(event) => setToken(event.target.value)}
+              hint="Lo normal es entrar desde el enlace del correo; esto es el respaldo."
+            />
+          )}
+          {asksForPassword && (
+            <Input
+              label="Contraseña nueva"
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              minLength={IDENTITY_FIELD_LIMITS.passwordMin}
+              maxLength={IDENTITY_FIELD_LIMITS.passwordMax}
+              required
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              hint={`Entre ${IDENTITY_FIELD_LIMITS.passwordMin} y ${IDENTITY_FIELD_LIMITS.passwordMax} caracteres.`}
+            />
+          )}
+          <Button
+            type="submit"
+            variant="primary"
+            size="lg"
+            fullWidth
+            loading={busy}
+          >
+            {busy ? content.busy : content.button}
+          </Button>
+        </fieldset>
+      </form>
+    </AuthShell>
   );
 }

@@ -38,7 +38,7 @@ export default function ContactPage() {
             {channels.map(([kind, email]) => (
               <li
                 key={kind}
-                className="rounded-2xl border border-black/10 p-5 dark:border-white/10"
+                className="rounded-2xl border border-border p-5 dark:border-border"
               >
                 <h2 className="font-semibold text-foreground">
                   {channelLabels[kind]}

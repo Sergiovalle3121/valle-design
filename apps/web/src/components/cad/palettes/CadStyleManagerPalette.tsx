@@ -51,11 +51,11 @@ function Field({
   const testId = `cad-style-field-${row.name}-${field.key}`;
   const inherited = !row.explicit.includes(field.key);
   const label = (
-    <span className="text-[10px] text-gray-500">
+    <span className="type-micro text-gray-500">
       {field.label}
       {inherited && (
         <span
-          className="ml-1 text-[9px] text-gray-600"
+          className="ml-1 type-micro text-gray-600"
           title="Valor de fábrica"
         >
           (por defecto)
@@ -90,7 +90,7 @@ function Field({
           value={String(row.values[field.key])}
           disabled={readOnly}
           onChange={(event) => onEdit(row.name, field.key, event.target.value)}
-          className="mt-0.5 w-full rounded-md border border-white/10 bg-gray-950/70 px-1.5 py-1 text-[11px] text-gray-100 outline-none disabled:opacity-50"
+          className="mt-0.5 w-full rounded-md border border-white/10 bg-gray-950/70 px-1.5 py-1 type-micro text-gray-100 outline-none disabled:opacity-50"
         >
           {(field.options ?? []).map((option) => (
             <option key={option} value={option} className="text-gray-900">
@@ -122,7 +122,7 @@ function Field({
           }
           onEdit(row.name, field.key, raw);
         }}
-        className="mt-0.5 w-full rounded-md border border-white/10 bg-gray-950/70 px-1.5 py-1 text-[11px] text-white outline-none focus:ring-1 focus:ring-indigo-500/40 disabled:opacity-50"
+        className="mt-0.5 w-full rounded-md border border-white/10 bg-gray-950/70 px-1.5 py-1 type-micro text-white outline-none focus:ring-1 focus:ring-indigo-500/40 disabled:opacity-50"
       />
     </label>
   );
@@ -143,8 +143,8 @@ export const CadStyleManagerPalette = React.memo(
       >
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
-            <div className="text-[13px] font-semibold">Gestor de estilos</div>
-            <div className="text-[10.5px] text-gray-500">
+            <div className="type-small font-semibold">Gestor de estilos</div>
+            <div className="type-micro text-gray-500">
               Un estilo sin campos fijados hereda los de fábrica; sólo lo que
               cambies viaja al documento.
             </div>
@@ -154,7 +154,7 @@ export const CadStyleManagerPalette = React.memo(
             data-testid="cad-style-close"
             aria-label="Cerrar gestor de estilos"
             onClick={props.onClose}
-            className="rounded-lg px-2 py-1 text-[11px] text-gray-400 hover:bg-white/10 hover:text-white"
+            className="rounded-lg px-2 py-1 type-micro text-gray-400 hover:bg-white/10 hover:text-white"
           >
             Cerrar
           </button>
@@ -168,7 +168,7 @@ export const CadStyleManagerPalette = React.memo(
               data-testid={`cad-style-family-${entry.family}`}
               data-active={entry.family === family ? "true" : "false"}
               onClick={() => props.onFamily(entry.family)}
-              className={`rounded-full border px-2.5 py-0.5 text-[10.5px] ${
+              className={`rounded-full border px-2.5 py-0.5 type-micro ${
                 entry.family === family
                   ? "border-indigo-300/50 bg-indigo-400/15 text-indigo-100"
                   : "border-white/10 text-gray-400 hover:text-white"
@@ -192,13 +192,13 @@ export const CadStyleManagerPalette = React.memo(
             }}
             disabled={readOnly}
             placeholder="Nuevo estilo"
-            className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-2 py-1 text-[11px] text-gray-200 outline-none focus:ring-1 focus:ring-indigo-500/40 disabled:opacity-50"
+            className="min-w-0 rounded-md border border-white/10 bg-gray-950/70 px-2 py-1 type-micro text-gray-200 outline-none focus:ring-1 focus:ring-indigo-500/40 disabled:opacity-50"
           />
           <button
             data-testid="cad-style-create"
             onClick={props.onCreate}
             disabled={readOnly || !props.draftName.trim()}
-            className="rounded-md bg-indigo-500/15 px-2.5 text-[10.5px] font-semibold text-indigo-200 hover:bg-indigo-500/25 disabled:opacity-40"
+            className="rounded-md bg-indigo-500/15 px-2.5 type-micro font-semibold text-indigo-200 hover:bg-indigo-500/25 disabled:opacity-40"
           >
             Crear
           </button>
@@ -214,10 +214,10 @@ export const CadStyleManagerPalette = React.memo(
                 className="rounded-xl border border-white/10 bg-white/[0.04] p-2.5"
               >
                 <div className="mb-1.5 flex items-center justify-between gap-2">
-                  <span className="min-w-0 truncate text-[11.5px] font-semibold text-gray-100">
+                  <span className="min-w-0 truncate type-micro font-semibold text-gray-100">
                     {row.name}
                   </span>
-                  <span className="inline-flex items-center gap-2 text-[10px]">
+                  <span className="inline-flex items-center gap-2 type-micro">
                     <span
                       data-testid={`cad-style-usage-${row.name}`}
                       className={references ? "text-indigo-200" : "text-gray-500"}
@@ -254,14 +254,14 @@ export const CadStyleManagerPalette = React.memo(
             );
           })}
           {rows.length === 0 && (
-            <div className="rounded-xl border border-dashed border-white/10 px-2 py-4 text-center text-[11px] text-gray-500">
+            <div className="rounded-xl border border-dashed border-white/10 px-2 py-4 text-center type-micro text-gray-500">
               Esta familia no tiene estilos todavía. Crea uno y las entidades de{" "}
               {usedBy} podrán apuntarlo por su nombre.
             </div>
           )}
         </div>
 
-        <p className="mt-3 text-[9.5px] text-gray-500">
+        <p className="mt-3 type-micro text-gray-500">
           Renombrar no se ofrece: las entidades referencian su estilo POR
           NOMBRE, y cambiarlo sin reasignarlas las dejaría huérfanas. Crea el
           nuevo, mueve las entidades desde la paleta de propiedades y borra el

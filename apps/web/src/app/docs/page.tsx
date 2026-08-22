@@ -33,7 +33,7 @@ export default function DocumentationPage() {
           {DOC_GUIDES.map((guide) => (
             <li key={guide.slug}>
               <Link
-                className="text-lg font-semibold text-indigo-700 underline-offset-4 hover:underline dark:text-indigo-200"
+                className="text-lg font-semibold text-primary-ink underline-offset-4 hover:underline"
                 href={docGuidePath(guide.slug)}
               >
                 {guide.title}

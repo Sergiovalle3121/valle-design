@@ -30,7 +30,7 @@ export function CadDimensionPalette({ selectedCount, defaultOffset, styles, onCr
     units: 'mm', alternateUnits: '', prefix: '', suffix: '', extensionLines: true, arrowhead: 'closed-filled',
   });
   return (
-    <div data-testid="cad-dimension-palette" className={docked ? 'w-full p-3 text-[10.5px]' : 'absolute right-0 top-full z-50 mt-1.5 w-80 rounded-xl border border-emerald-400/20 bg-gray-950 p-3 text-[10.5px] shadow-2xl'}>
+    <div data-testid="cad-dimension-palette" className={docked ? 'w-full p-3 type-micro' : 'absolute right-0 top-full z-50 mt-1.5 w-80 rounded-xl border border-emerald-400/20 bg-gray-950 p-3 type-micro shadow-2xl'}>
       <div className="mb-2 flex items-center justify-between"><span className="font-semibold text-emerald-100">Dimensión asociativa</span><span className="text-gray-500">{selectedCount} fuente(s)</span></div>
       <div className="grid grid-cols-2 gap-2">
         <label className="col-span-2 text-gray-400">Tipo<select data-testid="cad-dimension-kind" value={draft.kind} onChange={(event) => setDraft((current) => ({ ...current, kind: event.target.value as CadDimensionDraft['kind'] }))} className="mt-1 w-full rounded border border-white/10 bg-gray-900 px-2 py-1 text-white">
@@ -48,7 +48,7 @@ export function CadDimensionPalette({ selectedCount, defaultOffset, styles, onCr
       </div>
       <label className="mt-2 flex items-center gap-2 text-gray-300"><input type="checkbox" checked={draft.extensionLines} onChange={(event) => setDraft((current) => ({ ...current, extensionLines: event.target.checked }))} className="accent-emerald-500" /> Extension lines</label>
       <button data-testid="cad-dimension-create" disabled={selectedCount < 1} onClick={() => onCreate(draft)} className="mt-3 w-full rounded-lg bg-emerald-500 px-3 py-1.5 font-semibold text-gray-950 disabled:opacity-40">Crear dimensión asociativa</button>
-      <div className="mt-2 text-[9.5px] leading-relaxed text-gray-500">LINE: linear/aligned/ordinate · ARC: angular/radius/diameter/arc length · las referencias se regeneran al editar la fuente.</div>
+      <div className="mt-2 type-micro leading-relaxed text-gray-500">LINE: linear/aligned/ordinate · ARC: angular/radius/diameter/arc length · las referencias se regeneran al editar la fuente.</div>
     </div>
   );
 }

@@ -29,7 +29,7 @@ import type { CadReviewSession } from "@valle/design-sdk";
 import { reviewsRepository } from "@/lib/cad/repositories/reviews";
 
 const BUTTON =
-  "rounded-md border border-white/15 px-2 py-1 text-[11px] font-medium text-gray-200 transition-colors hover:border-indigo-300/40 hover:text-indigo-100 disabled:cursor-not-allowed disabled:opacity-40";
+  "rounded-md border border-white/15 px-2 py-1 type-micro font-medium text-gray-200 transition-colors hover:border-indigo-300/40 hover:text-indigo-100 disabled:cursor-not-allowed disabled:opacity-40";
 
 export default function ReviewLinkIssuer({ documentId }: { documentId: string }) {
   const [sessions, setSessions] = useState<CadReviewSession[]>([]);
@@ -129,7 +129,7 @@ export default function ReviewLinkIssuer({ documentId }: { documentId: string })
   return (
     <section
       data-testid="cad-review-link-panel"
-      className="rounded-lg border border-white/10 bg-white/[0.02] p-2 text-[11px] text-gray-300"
+      className="rounded-lg border border-white/10 bg-white/[0.02] p-2 type-micro text-gray-300"
     >
       <div className="flex items-center justify-between gap-2">
         <strong className="text-gray-100">Enlace para el cliente</strong>
@@ -143,7 +143,7 @@ export default function ReviewLinkIssuer({ documentId }: { documentId: string })
           {busy ? "…" : "Crear enlace"}
         </button>
       </div>
-      <p className="mt-1 text-[10px] text-gray-500">
+      <p className="mt-1 type-micro text-gray-500">
         Quien lo reciba ve el plano y comenta sobre él sin instalar nada ni
         crear cuenta. Solo lectura, solo este documento.
       </p>
@@ -153,12 +153,12 @@ export default function ReviewLinkIssuer({ documentId }: { documentId: string })
           data-testid="cad-review-link-issued"
           className="mt-2 rounded-lg border border-amber-300/25 bg-amber-400/[0.07] p-2"
         >
-          <strong className="text-[10.5px] text-amber-100">
+          <strong className="type-micro text-amber-100">
             Cópialo ahora: no se vuelve a mostrar
           </strong>
           <code
             data-testid="cad-review-link-url"
-            className="mt-1 block break-all font-mono text-[9.5px] text-amber-50/90"
+            className="mt-1 block break-all font-mono type-micro text-amber-50/90"
           >
             {url}
           </code>
@@ -187,7 +187,7 @@ export default function ReviewLinkIssuer({ documentId }: { documentId: string })
         <p
           role="alert"
           data-testid="cad-review-link-error"
-          className="mt-2 rounded-md border border-rose-300/25 bg-rose-400/10 px-2 py-1 text-[10.5px] text-rose-100"
+          className="mt-2 rounded-md border border-rose-300/25 bg-rose-400/10 px-2 py-1 type-micro text-rose-100"
         >
           {error}
         </p>
@@ -195,7 +195,7 @@ export default function ReviewLinkIssuer({ documentId }: { documentId: string })
 
       <ul className="mt-2 space-y-1">
         {sessions.length === 0 ? (
-          <li className="text-[10px] text-gray-500">Sin revisiones abiertas.</li>
+          <li className="type-micro text-gray-500">Sin revisiones abiertas.</li>
         ) : null}
         {sessions.map((session) => (
           <li
@@ -203,7 +203,7 @@ export default function ReviewLinkIssuer({ documentId }: { documentId: string })
             data-testid={`cad-review-session-${session.id}`}
             className="flex items-center gap-1 rounded-md border border-white/10 p-1.5"
           >
-            <span className="min-w-0 flex-1 truncate text-[10px] text-gray-400">
+            <span className="min-w-0 flex-1 truncate type-micro text-gray-400">
               {session.hasShareLink ? "Enlace activo" : "Sin enlace"}
               {session.expiresAt ? ` · caduca ${session.expiresAt.slice(0, 10)}` : ""}
               {session.allowComments ? "" : " · sin comentarios"}

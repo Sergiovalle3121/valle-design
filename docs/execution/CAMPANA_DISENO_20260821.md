@@ -58,18 +58,18 @@ es que **nadie lo consume**. Esta campaña no reescribe el sistema: **lo cablea*
 
 ### OLA 1 — LAS PRIMITIVAS QUE NO EXISTEN
 
-- [ ] 1.1 Primitivas en `src/components/ui/` (Button, Input, Textarea, Select, Checkbox, Switch, Card, Modal, Badge, Tooltip, Tabs, Skeleton, EmptyState, Spinner, ProgressBar)
-- [ ] 1.2 Escala tipográfica de 7 escalones + migración de los `text-[Npx]`
-- [ ] 1.3 Migración del embudo público a las primitivas
-- [ ] 1.4 Unificar radios a 3 escalones + deduplicar la tarjeta de auth
+- [x] 1.1 Primitivas en `src/components/ui/` (Button, Input, Textarea, Select, Checkbox, Switch, Card, Modal, Badge, Tooltip, Tabs, Skeleton, EmptyState, Spinner, ProgressBar)
+- [x] 1.2 Escala tipográfica de 7 escalones + migración de los `text-[Npx]`
+- [x] 1.3 Migración del embudo público a las primitivas
+- [x] 1.4 Unificar radios a 3 escalones + deduplicar la tarjeta de auth
 
 ### OLA 2 — IDENTIDAD DE MARCA
 
-- [ ] 2.1 Logo (isotipo + wordmark + lockup, claro/oscuro/mono, componente `<Logo/>`)
-- [ ] 2.2 Favicon (`icon.tsx`, `apple-icon.tsx`, `icons:` en metadata)
-- [ ] 2.3 Imagen Open Graph (`opengraph-image.tsx`, `twitter-image.tsx`, por ruta)
-- [ ] 2.4 `manifest.webmanifest`
-- [ ] 2.5 `docs/design/BRAND.md`
+- [x] 2.1 Logo (isotipo + wordmark + lockup, claro/oscuro/mono, componente `<Logo/>`)
+- [x] 2.2 Favicon (`icon.tsx`, `apple-icon.tsx`, `icons:` en metadata)
+- [x] 2.3 Imagen Open Graph (`opengraph-image.tsx`, `twitter-image.tsx`, por ruta)
+- [x] 2.4 `manifest.webmanifest`
+- [x] 2.5 `docs/design/BRAND.md`
 
 ### OLA 3 — LANDING ULTRA PREMIUM
 
@@ -187,3 +187,121 @@ preexistentes) · `test` ✅ 385/385 · gates CAD ✅ (contrato, línea, monolit
 **PENDIENTE AJENO:** `check:dwg-evidence` falla **también en `main` limpio**
 (comprobado con `git stash`). Es territorio de la sesión de DWG
 (`scripts/dwg`, `packages/dwg-codec`), no de esta campaña; se deja como está.
+
+### OLA 1 — cerrada
+
+**1.1 · Las primitivas.** `src/components/ui/` pasa de UN archivo a doce, con
+Button, Input, Textarea, Select, Checkbox, Switch, Surface/Card, Modal, Badge,
+Tooltip, Tabs, Skeleton, EmptyState, Spinner y ProgressBar, todos consumiendo
+tokens y ninguno escribiendo un hex. Tres detalles que no son cosméticos:
+
+· **`buttonClass` vive en `styles.ts`, no en `Button.tsx`.** Una función
+exportada desde un módulo con `"use client"` NO se puede invocar desde un
+componente de servidor: Next la convierte en referencia remota y el build
+revienta. Se descubrió con el build en rojo en `/docs/*`, y media docena de
+páginas públicas son de servidor.
+
+· **La palomita de la casilla se revela por COLOR, no por opacidad.** `peer-*`
+genera un selector de hermano (`~`); sobre un nieto del hermano no engancha, y
+la palomita habría quedado visible siempre.
+
+· **El modal hace las cinco cosas que casi nunca se hacen**: foco atrapado, foco
+devuelto al abridor, scroll bloqueado, Escape cierra y portal a `<body>` (dentro
+de un ancestro con `transform`, un `position: fixed` cambia de sistema de
+coordenadas). El clic en el velo cierra sólo si EMPEZÓ en el velo.
+
+**1.2 · La escala.** 658 `text-[Npx]` migrados en 31 archivos. Trece valores →
+cinco escalones, con piso duro en 11 px: los nueve tamaños que caían por debajo
+(7 · 8 · 8,5 · 9 · 9,5 · 10 · 10,5 · 11 · 11,5) suben todos a `type-micro`. No es
+pérdida de matiz: nueve tamaños dentro de una banda de cuatro píxeles nunca
+fueron nueve decisiones.
+
+Detalle de cascada que decidió el diseño: la escala vive en `@layer components`,
+no fuera de capa. El orden de Tailwind v4 es `theme, base, components,
+utilities`; fuera de capa, `.type-micro` habría GANADO a un `font-semibold`
+puesto al lado y nadie habría entendido por qué. La escala es el suelo, no el
+techo.
+
+**1.3 · Embudo público migrado.** Registro, login, verificación, reenvío,
+recuperación y restablecimiento pasan por las primitivas; `PublicPageShell`,
+`GuideShell`, contacto, guías, licencias, estado, soporte, privacidad, términos,
+precios y checkout quedan tokenizados (cero clases de paleta cruda). `publicActionClass`
+—una de las cinco constantes de botón incompatibles— sobrevive con su nombre pero
+ya sólo delega en `buttonClass`, así que no puede divergir.
+**La portada y el tablero se migran en sus propias olas (3 y 4), donde se
+rediseñan enteros; migrarlos dos veces habría sido trabajo tirado.**
+
+**1.4 · Radios y duplicación.** Tres escalones (`control`/`card`/`surface`) y la
+tarjeta de auth deduplicada en `<AuthShell/>`. Las dos copias ya habían
+divergido: una traía el logo en índigo y la otra en cian.
+
+**CONTRASTE — el hallazgo que obligó a ampliar el sistema.** Midiendo la paleta
+para BRAND.md salieron cuatro fallos de AA que las primitivas iban a propagar:
+`success` como texto sobre tarjeta blanca da **3,02:1**, `warning` **2,13:1**,
+`danger` **3,78:1** y `primary` **4,41:1** — todos por debajo del 4,5 que exige
+AA. Es la forma más común de fallar accesibilidad sin enterarse: reutilizar el
+color del RELLENO como color de LETRA porque «es el mismo estado». Se añaden al
+sistema los tokens `--success-ink`, `--warning-ink`, `--danger-ink` y
+`--primary-ink`, calculados como el mínimo desplazamiento que despeja 4,5:1
+contra las tres superficies claras. En oscuro los rellenos ya pasan (7,37 · 9,00
+· 5,45) salvo el índigo, que da 3,11:1 y por eso se aclara ocho puntos.
+
+### OLA 2 — cerrada
+
+**2.1 · Logotipo propio.** Línea de cota con marcas a 45° (el remate del dibujo
+arquitectónico mexicano, no la flecha) + una V que lee como valle y como
+escuadra + el nodo cuadrado de la referencia a objetos. UNA geometría
+(`logo-geometry.ts`) alimenta el componente `<Logo/>`, los siete SVG de
+`public/brand/`, el favicon, el icono de iOS y la tarjeta social, con gate
+`--check` que falla si un archivo se desincroniza. Los cuatro
+`<DraftingCompass/>` pintados a mano quedan reducidos a uno —el de la ficha de
+capacidades, donde ilustra «dibujo 2D» y no es el logotipo.
+
+**2.2 · Favicon.** `icon.tsx` (32 px) y `apple-icon.tsx` (180 px, sin esquinas
+redondeadas: iOS aplica su propia máscara y redondear dos veces deja un halo) vía
+`ImageResponse`, más un `favicon.ico` real de tres tamaños rasterizado con sharp
+desde el mismo SVG. `--check` sólo verifica que EXISTA: dos versiones de sharp
+comprimen el mismo PNG distinto y eso no es una diferencia de diseño.
+
+**2.3 · Tarjeta social.** `page-metadata.ts` prometía `summary_large_image` y no
+declaraba ni una imagen, así que cada enlace compartido en WhatsApp —el canal de
+venta real en México— salía como un rectángulo gris. Un renderizador
+(`lib/seo/social-card.tsx`) y cuatro rutas: portada, X/Twitter, precios y guías.
+La de precios NO lleva cifra: una tarjeta social se cachea durante días en cada
+mensajería y un precio congelado en una imagen es una promesa que el producto
+acabaría incumpliendo sin querer.
+
+**2.4 · Manifiesto.** `manifest.ts` como ruta —no archivo estático— para que el
+nombre y los colores sigan saliendo del manifiesto de marca. `themeColor` pasa a
+tener DOS valores: con uno solo, la barra del navegador quedaba índigo sobre una
+app en blanco.
+
+**2.5 · `docs/design/BRAND.md`** con las 21 mediciones de contraste, las reglas
+de uso del logo (tamaño mínimo, espacio libre, qué NO hacer) y las dos
+excepciones autorizadas a «ningún hex fuera de globals.css», las dos de frontera
+técnica: un `.svg` servido como imagen no ve las variables CSS, e `ImageResponse`
+renderiza sin hoja de estilos.
+
+**EL GATE.** `src/components/ui/design-system.spec.ts` convierte la regla de oro
+en aserción: siete reglas que verifican que no hay tamaños fuera de la escala,
+que el piso son 11 px, que no queda un acento fuera de la marca, que no hay hex
+en la capa visual, que las primitivas existen, que la marca no se desincroniza —
+y, la que de verdad importa, **que los tokens están EN USO**. Un gate que sólo
+prohíbe habría dado por bueno el estado original: cero hex sueltos y cero tokens
+consumidos.
+
+**Gates:** `typecheck` ✅ · `build` ✅ · `lint` ✅ · `test` ✅ 386/386 ·
+`design-system.spec` ✅ · **goldens 81/87**.
+
+**PENDIENTE AJENO (medido, no supuesto).** Seis goldens fallan —21-xrefs,
+47-lisp-appload, 47-solids, 53-bim-wall, 54-bim-wall-joins, 55-anchored-comments—
+y **los seis fallan también en `main` limpio**, comprobado con `git stash` y una
+corrida de control. Sus aserciones son de dominio CAD, no visuales:
+`saved.meta.schema` esperando 6, el contador de comandos LISP y dos tiempos de
+espera de paleta. Territorio de la sesión paralela.
+
+**Nota de método:** correr los goldens mientras se edita NO sirve. El
+`webServer` de Playwright es `npm run dev` y recarga en caliente con cada
+guardado; la primera corrida dio seis fallos con duraciones de 3,5 y 4,6
+minutos, firma inconfundible de una recarga a mitad de prueba. Toda medición de
+goldens de aquí en adelante se hace con el árbol quieto.

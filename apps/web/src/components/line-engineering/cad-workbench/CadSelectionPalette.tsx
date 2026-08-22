@@ -42,20 +42,20 @@ const OPERATIONS: Array<{ id: CadSelectionOperation; label: string }> = [
   { id: 'toggle', label: 'Alternar' },
 ];
 
-const buttonClass = 'rounded-md border border-white/10 bg-white/[0.05] px-2 py-1 text-[10.5px] text-gray-200 hover:bg-white/[0.12] disabled:cursor-not-allowed disabled:opacity-40';
+const buttonClass = 'rounded-md border border-white/10 bg-white/[0.05] px-2 py-1 type-micro text-gray-200 hover:bg-white/[0.12] disabled:cursor-not-allowed disabled:opacity-40';
 
 export function CadSelectionPalette(props: CadSelectionPaletteProps) {
   return (
     <div
       data-testid="cad-selection-palette"
-      className={props.docked ? 'w-full p-3 text-[11px]' : 'absolute right-0 top-full z-50 mt-1.5 w-[340px] rounded-xl border border-white/10 bg-gray-900 p-3 text-[11px] shadow-2xl'}
+      className={props.docked ? 'w-full p-3 type-micro' : 'absolute right-0 top-full z-50 mt-1.5 w-[340px] rounded-xl border border-white/10 bg-gray-900 p-3 type-micro shadow-2xl'}
     >
       <div className="mb-2 flex items-center justify-between gap-2">
-        <div className="text-[10px] font-semibold uppercase tracking-wide text-indigo-200">Selección profesional</div>
+        <div className="type-micro font-semibold uppercase tracking-wide text-indigo-200">Selección profesional</div>
         <span data-testid="cad-selection-count" className="rounded-full bg-indigo-400/10 px-2 py-0.5 text-indigo-200">{props.selectedCount} seleccionados</span>
       </div>
 
-      <div className="mb-1 text-[9px] uppercase tracking-wide text-gray-500">Geometría</div>
+      <div className="mb-1 type-micro uppercase tracking-wide text-gray-500">Geometría</div>
       <div className="mb-2 grid grid-cols-3 gap-1">
         {GEOMETRY_MODES.map((item) => (
           <button
@@ -69,7 +69,7 @@ export function CadSelectionPalette(props: CadSelectionPaletteProps) {
         ))}
       </div>
 
-      <div className="mb-1 text-[9px] uppercase tracking-wide text-gray-500">Operación</div>
+      <div className="mb-1 type-micro uppercase tracking-wide text-gray-500">Operación</div>
       <div className="mb-2 grid grid-cols-4 gap-1">
         {OPERATIONS.map((item) => (
           <button
@@ -92,13 +92,13 @@ export function CadSelectionPalette(props: CadSelectionPaletteProps) {
       </div>
 
       <div className="rounded-lg border border-white/10 bg-gray-950/50 p-2">
-        <div className="mb-1.5 text-[9px] uppercase tracking-wide text-gray-500">Quick select</div>
+        <div className="mb-1.5 type-micro uppercase tracking-wide text-gray-500">Quick select</div>
         <div className="grid grid-cols-2 gap-1.5">
           <select
             aria-label="Filtrar por tipo"
             value={props.quickType}
             onChange={(event) => props.onQuickTypeChange(event.target.value)}
-            className="rounded-md border border-white/10 bg-gray-950 px-2 py-1 text-[10.5px] text-white outline-none"
+            className="rounded-md border border-white/10 bg-gray-950 px-2 py-1 type-micro text-white outline-none"
           >
             <option value="">Todos los tipos</option>
             {props.entityTypes.map((type) => <option key={type} value={type}>{type}</option>)}
@@ -107,7 +107,7 @@ export function CadSelectionPalette(props: CadSelectionPaletteProps) {
             aria-label="Filtrar por capa"
             value={props.quickLayer}
             onChange={(event) => props.onQuickLayerChange(event.target.value)}
-            className="rounded-md border border-white/10 bg-gray-950 px-2 py-1 text-[10.5px] text-white outline-none"
+            className="rounded-md border border-white/10 bg-gray-950 px-2 py-1 type-micro text-white outline-none"
           >
             <option value="">Todas las capas</option>
             {props.layers.map((layer) => <option key={layer} value={layer}>{layer}</option>)}
@@ -120,12 +120,12 @@ export function CadSelectionPalette(props: CadSelectionPaletteProps) {
             onChange={(event) => props.onQuickTextChange(event.target.value)}
             onKeyDown={(event) => { if (event.key === 'Enter') props.onQuick(); }}
             placeholder="ID, etiqueta o propiedad…"
-            className="min-w-0 flex-1 rounded-md border border-white/10 bg-gray-950 px-2 py-1 text-[10.5px] text-white outline-none focus:border-indigo-400/40"
+            className="min-w-0 flex-1 rounded-md border border-white/10 bg-gray-950 px-2 py-1 type-micro text-white outline-none focus:border-indigo-400/40"
           />
           <button data-testid="cad-quick-select-apply" onClick={props.onQuick} className={`${buttonClass} border-indigo-400/20 text-indigo-100`}>Aplicar</button>
         </div>
       </div>
-      <p className="mt-2 text-[9.5px] leading-relaxed text-gray-500">
+      <p className="mt-2 type-micro leading-relaxed text-gray-500">
         Arrastra para ventana/cruce. Para polígono, fence o lasso, dibuja un trazo continuo sobre el fondo. Clics repetidos ciclan geometría solapada.
       </p>
     </div>
