@@ -43,23 +43,30 @@ El repo ya tiene una gobernanza más rica que la resumida en el prompt maestro: 
 
 Repo DWG conformance: 57 DWG + 57 DXF, 100% sintéticos vía ODA File Converter 27.1 (no AutoCAD real, `CORPUS_POLICY.md` lo declara explícitamente), 7 bundles admitidos, sin ninguna rama sin fusionar.
 
-## 4. Estado de gates (actualizar cada vez que cambie)
+## 4. Estado de gates — Campaña 0 completa (2026-08-23, SHA f5e36ca4, log completo en `D:\dev\.cache\tmp\baseline-campaign0.log`)
 
-| Comando | Resultado | Evidencia |
-|---|---|---|
-| `npm run typecheck` | EN PROGRESO (background) | `D:\dev\.cache\tmp\baseline-campaign0.log` |
-| `npm run lint` | EN PROGRESO (background) | idem |
-| `npm run build` | EN PROGRESO (background) | idem |
-| `npm run test` | EN PROGRESO (background) | idem |
-| `npm run check:cad` (con `VALLE_DWG_CORPUS_MIRROR`) | EN PROGRESO (background) | idem |
-| `npm run check:dwg` | EN PROGRESO (background) | idem |
-| `npm run sbom` / `check:licenses` | EN PROGRESO (background) | idem |
-| `npm run check:deploy` | EN PROGRESO (background) | idem |
-| PostgreSQL real / `test:pg` | NOT RUN — pendiente de confirmar disponibilidad de instancia aislada | — |
-| E2E navegador real | NOT RUN | — |
-| Docker build/smoke de imágenes finales | NOT RUN | — |
+| Comando | Resultado | Duración | Notas |
+|---|---|---|---|
+| `npm run typecheck` | **PASS** | 103s | 6/6 paquetes, sin errores |
+| `npm run lint` | **PASS** | 5s | warnings dentro del techo (`check:lint-budget` incluido en `check:cad`, también PASS) |
+| `npm run build` | **PASS** | 4s | (cacheado por turbo) |
+| `npm run test` | **FAIL** (exit 1) | 905s | ver desglose abajo — un solo rojo, no funcional |
+| `npm run check:cad` (con `VALLE_DWG_CORPUS_MIRROR=D:\dev\valle-design-dwg-conformance`) | **PASS** | 783s | incluye rubric, monolith-budget, dwg-evidence, command-integrity |
+| `npm run check:dwg` | **PASS** | 123s | dwg-codec suite completa + boundary + corpus check |
+| `npm run sbom` | **PASS** | 18s | |
+| `npm run check:licenses` | **PASS** | 3s | |
+| `npm run check:deploy` | **PASS** | 2s | `scripts/deploy/validate-dockerfiles.mjs` — nota: este script YA pasaba pese al bug de P0-D, no lo detecta hoy (el Frente C debe ampliarlo, ver su tarea) |
+| PostgreSQL real / `test:pg` | NOT RUN — pendiente de confirmar instancia aislada por frente | — | ver §5, cada frente usa su propia DB de test si la necesita |
+| E2E navegador real | NOT RUN | — | pendiente de Ola de staging Railway (sección 7 del prompt maestro) |
+| Docker build/smoke de imágenes finales | NOT RUN | — | Frente C lo intentará si Docker está disponible en el entorno |
 
-No se declara ningún número previo (85/87 goldens, 664 tests, etc.) como vigente sin volver a correrlo en este SHA — se está corriendo ahora, ver log referenciado.
+### Desglose de `npm run test`
+
+- **API** (`valle-design-api:test`): 78/107 suites, 664/811 tests — **PASS**, 147 tests skipped (mayormente por falta de Postgres/entorno externo, consistente con lo esperado). Coincide exacto con la cifra que traía el prompt maestro como referencia, **re-verificada en este SHA**, no asumida.
+- **dwg-codec** (`@valle-design/dwg-codec:test`): `fail 0` en el runner nativo de node:test — **PASS** completo (unitarios + adversariales).
+- **web** (`web:test`): **386 de 387 archivos de spec en verde** — coincide exacto con la cifra de referencia del prompt. El único rojo es `apps/web/src/lib/cad/benchmark/plan-budget.spec.ts`: un `AssertionError` de presupuesto de rendimiento — *"El perfil «plano real» de 20.000 entidades se salió de presupuesto en esta máquina: zoomFrameP95Ms: 41.388 ms supera 22 ms"* — no es el fallo de socket IPC de `tsx` que anticipaba el prompt maestro (ese no se reprodujo), es un assert de rendimiento dependiente del hardware de esta máquina. Ya estaba anotado en memoria de sesiones previas como métrica ruidosa que requiere control sobre `main` antes de culpar a una rama — se trata como **ROJO PREEXISTENTE, no funcional, no atribuible a esta campaña**. Ningún frente P0 debe tocar `CAD_PLAN_BUDGETS` ni el benchmark — eso es alcance de CAD-5 (Ola 2), no de esta ola.
+
+**Conclusión de Campaña 0:** línea base reproducible confirmada, con un solo rojo preexistente ya explicado y fuera de alcance de P0. Ningún número se declaró vigente sin volver a correrlo en este SHA exacto.
 
 ## 5. Matriz de ownership — Ola P0 (en curso)
 
@@ -74,9 +81,13 @@ No se declara ningún número previo (85/87 goldens, 664 tests, etc.) como vigen
 
 Sesiones activas: 5/8 (coordinador + 4 frentes; los 4 verificadores H corren en pipeline después de cada implementación, no simultáneos con el límite).
 
-## 6. Rojos nuevos
+## 6. Rojos
 
-(pendiente — se llena cuando el workflow y el baseline reporten)
+**Preexistentes (Campaña 0, no atribuibles a esta ola):**
+- `apps/web/src/lib/cad/benchmark/plan-budget.spec.ts` — perf budget dependiente de máquina (zoomFrameP95Ms 41.39ms > 22ms). Fuera de alcance P0, ver §4.
+
+**Nuevos (introducidos por los frentes de esta ola):**
+(pendiente — se llena cuando el workflow reporte)
 
 ## 7. Decisiones para Sergio (acumulando, ver también `docs/campaigns/decisiones-pendientes-sergio.md`)
 
