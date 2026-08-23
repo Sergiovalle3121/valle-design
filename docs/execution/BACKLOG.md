@@ -75,6 +75,27 @@ cola viva, no el museo (el museo es `docs/history/`).
 rojo se ataca spec por spec. **Criterio:** 87/87 con árbol quieto dos corridas
 seguidas. **Estimación:** 0.5–2 días según lo que deje pulido.
 
+### P1-1b · golden 46 test 2 (LINE por ratón) frágil ante el cambio de fuentes
+- **Qué falla:** `e2e/golden/46-cad-pointer-engine.spec.ts:177` («con el motor
+  abierto, la máquina heredada no recibe el clic») espera `Native 2` tras dos
+  clics de ratón + Enter y recibe `Native 1`: el segundo punto de LINE no entra.
+- **Bisección RIGUROSA (3× cada variante, caché `.next` limpia, puerto propio):**
+  la ÚNICA variable es el cambio `next/font/google` → `next/font/local` de la
+  OLA 3 de cimientos (fuentes autohospedadas). Fuentes de Google: 3/3 verde.
+  Fuentes propias: 3/3 rojo. Mismo commit, mismo layout salvo la *fuente* de las
+  variables CSS. `document.fonts.status` es `loaded` al fallar (NO es timing de
+  carga); quitar `adjustFontFallback` no lo cambia; añadir `fonts.ready` + doble
+  `requestAnimationFrame` en `openStudio` tampoco. El test 1 del mismo archivo
+  (PLINE, cierra por menú) SÍ pasa; sólo el test 2 (LINE, cierra por Enter).
+- **Por qué NO se revierten las fuentes:** el autohospedaje es requisito del
+  build offline (P0 de la campaña); las otras 384 specs y los otros 80 goldens
+  lo toleran. Revertir reintroduce la dependencia de Google en el build.
+- **Criterio:** el test vuelve a verde con las fuentes propias. Es fragilidad de
+  la PRUEBA ante métricas de fuente, no un defecto de producto (dibujar con LINE
+  funciona en el producto vivo). El arreglo probablemente vive en cómo
+  `screenPointFor` fija la caja del lienzo, no en un warm-up. **Estimación:**
+  medio día de diagnóstico dirigido con trazas del motor.
+
 ### P1-2 · XATTACH por línea de comandos no puede adjuntar (falta la biblioteca)
 - **Qué falla:** la orden está completa pero `context.xrefCatalog` nunca se
   provee; la vía gráfica sí adjunta (fetch asíncrono del asset del tenant).
