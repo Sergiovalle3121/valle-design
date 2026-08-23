@@ -446,7 +446,7 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * RETIRADO (P0-A): ningun principal de la organizacion cliente puede confirmar su propio upgrade.
+         * RETIRADO (P0-A): ningun principal de organizacion cliente puede confirmar su propio upgrade.
          * @deprecated
          * @description Antes activaba la suscripcion sin pasar por un proveedor de pago verificado. `organizationId` siempre se deriva de la membresia activa de quien llama (ADR-0005), asi que el unico principal alcanzable era el owner/admin de la MISMA organizacion que pidio el upgrade - exactamente el actor que nunca debe poder concederse a si mismo un plan pagado. La ruta sigue existiendo (no se retira el path) pero cualquier llamada autenticada recibe 403 sin mutar nada; la activacion real llega por el webhook firmado del proveedor de pagos (ADR-0006, ver `POST /v1/commercial/webhooks/stripe`).
          */

@@ -49,7 +49,9 @@ describePostgres(
 
     /** Toda tabla del dominio CAD/design con columna `tenant_id`, del catálogo REAL. */
     async function cadTenantTables(): Promise<string[]> {
-      const rows = await harness.dataSource.query(
+      const rows = await harness.dataSource.query<
+        Array<{ table_name: string }>
+      >(
         `SELECT DISTINCT c.table_name
          FROM information_schema.columns c
         WHERE c.table_schema = $1
@@ -61,7 +63,7 @@ describePostgres(
         ORDER BY c.table_name`,
         [harness.schema],
       );
-      return rows.map((r: { table_name: string }) => r.table_name);
+      return rows.map((r) => r.table_name);
     }
 
     /** Tablas del dominio CAD/design sin RLS activo o sin ninguna política. */
@@ -69,13 +71,15 @@ describePostgres(
       const tables = await cadTenantTables();
       const missing: string[] = [];
       for (const table of tables) {
-        const [{ relrowsecurity }] = await harness.dataSource.query(
+        const [{ relrowsecurity }] = await harness.dataSource.query<
+          Array<{ relrowsecurity: boolean }>
+        >(
           `SELECT c."relrowsecurity"
            FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
           WHERE n.nspname = $1 AND c.relname = $2`,
           [harness.schema, table],
         );
-        const policies = await harness.dataSource.query(
+        const policies = await harness.dataSource.query<unknown[]>(
           `SELECT 1 FROM pg_policies WHERE schemaname = $1 AND tablename = $2`,
           [harness.schema, table],
         );
@@ -149,7 +153,9 @@ describePostgres(
     });
 
     it('deja constancia: fuera del dominio CAD/design hay tablas tenant SIN RLS (otro frente, no silencioso)', async () => {
-      const rows = await harness.dataSource.query(
+      const rows = await harness.dataSource.query<
+        Array<{ table_name: string }>
+      >(
         `SELECT DISTINCT table_name
          FROM information_schema.columns
         WHERE table_schema = $1
@@ -159,9 +165,7 @@ describePostgres(
         ORDER BY table_name`,
         [harness.schema],
       );
-      const outOfScopeTenantTables = rows.map(
-        (r: { table_name: string }) => r.table_name,
-      );
+      const outOfScopeTenantTables = rows.map((r) => r.table_name);
       // No es una aserción de "deben tener RLS" (fuera de scope de este
       // frente) — es una aserción de VISIBILIDAD: si este conjunto se reduce a
       // cero, hay que revisar si ya se cerró en otro frente y borrar esta nota;

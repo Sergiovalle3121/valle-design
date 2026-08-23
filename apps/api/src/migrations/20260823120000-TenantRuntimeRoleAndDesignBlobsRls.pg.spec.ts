@@ -108,7 +108,15 @@ describePostgres(
         (await policiesOn('design_blobs')).map((p) => p.policyname),
       ).toEqual(['p_design_blobs_tenant']);
 
-      const [role] = await harness.dataSource.query(
+      const [role] = await harness.dataSource.query<
+        Array<{
+          rolsuper: boolean;
+          rolcreatedb: boolean;
+          rolcreaterole: boolean;
+          rolbypassrls: boolean;
+          rolcanlogin: boolean;
+        }>
+      >(
         `SELECT rolsuper, rolcreatedb, rolcreaterole, rolbypassrls, rolcanlogin
          FROM pg_roles WHERE rolname = 'valle_app'`,
       );
@@ -120,16 +128,20 @@ describePostgres(
         rolcanlogin: true,
       });
 
-      const tablePrivileges = await harness.dataSource.query(
-        `SELECT table_name, privilege_type
+      const tablePrivileges = await harness.dataSource.query<
+        Array<{
+          table_name: string;
+          privilege_type: string;
+          is_grantable: string;
+        }>
+      >(
+        `SELECT table_name, privilege_type, is_grantable
          FROM information_schema.role_table_grants
         WHERE grantee = 'valle_app' AND table_schema = $1
         ORDER BY table_name, privilege_type`,
         [harness.schema],
       );
-      const grantedTables = new Set(
-        tablePrivileges.map((r: { table_name: string }) => r.table_name),
-      );
+      const grantedTables = new Set(tablePrivileges.map((r) => r.table_name));
       expect(grantedTables).toEqual(
         new Set([
           'cad_projects',
@@ -146,20 +158,17 @@ describePostgres(
       // Sólo CRUD — nada de DDL (no hay "TRIGGER"/"REFERENCES" ni rastro de
       // privilegios de esquema más allá de USAGE).
       const distinctPrivileges = new Set(
-        tablePrivileges.map(
-          (r: { privilege_type: string }) => r.privilege_type,
-        ),
+        tablePrivileges.map((r) => r.privilege_type),
       );
       expect(distinctPrivileges).toEqual(
         new Set(['SELECT', 'INSERT', 'UPDATE', 'DELETE']),
       );
       // Ninguna fila con is_grantable = 'YES': valle_app no puede otorgar a
-      // nadie más lo que se le otorgó a él (nada de GRANT).
-      expect(
-        tablePrivileges.every(
-          (r: { is_grantable: string }) => r.is_grantable !== 'YES',
-        ),
-      ).toBe(true);
+      // nadie más lo que se le otorgó a él (nada de GRANT). La query ahora
+      // SÍ selecciona `is_grantable` — antes esta aserción comparaba contra
+      // `undefined` (columna nunca pedida al SELECT) y no podía fallar pase
+      // lo que pase; se detectó al tipar la fila en vez de dejarla en `any`.
+      expect(tablePrivileges.every((r) => r.is_grantable !== 'YES')).toBe(true);
     });
 
     describe('con el rol valle_app real (SET ROLE, no el dueño)', () => {
@@ -303,7 +312,7 @@ describePostgres(
       it('el dueño (rol de la migración) sigue sin sujetarse — decisión deliberada, sin FORCE', async () => {
         // La app de HOY corre como dueño; este cambio no altera su
         // comportamiento hasta el corte explícito documentado en el ADR-0013.
-        const rows = await harness.dataSource.query(
+        const rows = await harness.dataSource.query<Array<{ n: number }>>(
           `SELECT count(*)::int AS n FROM "${harness.schema}"."design_blobs"`,
         );
         expect(rows).toEqual([{ n: 2 }]);
@@ -318,7 +327,7 @@ describePostgres(
       ]);
       expect(await policiesOn('design_blobs')).toEqual([]);
 
-      const remainingGrants = await harness.dataSource.query(
+      const remainingGrants = await harness.dataSource.query<unknown[]>(
         `SELECT 1 FROM information_schema.role_table_grants
         WHERE grantee = 'valle_app' AND table_schema = $1`,
         [harness.schema],

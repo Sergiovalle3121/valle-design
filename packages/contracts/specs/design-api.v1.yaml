@@ -635,9 +635,7 @@ paths:
       operationId: confirmUpgradeIntent
       tags: [commercial]
       deprecated: true
-      summary: >-
-        RETIRADO (P0-A): ningun principal de la organizacion cliente puede
-        confirmar su propio upgrade.
+      summary: "RETIRADO (P0-A): ningun principal de organizacion cliente puede confirmar su propio upgrade."
       description: >-
         Antes activaba la suscripcion sin pasar por un proveedor de pago
         verificado. `organizationId` siempre se deriva de la membresia activa
