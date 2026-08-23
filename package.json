@@ -64,13 +64,13 @@
   },
   "devDependencies": {
     "@redocly/cli": "2.46.1",
-    "@types/node": "^22.18.0",
-    "eslint": "^9.18.0",
+    "@types/node": "^26.2.0",
+    "eslint": "^10.8.1",
     "openapi-typescript": "7.13.0",
     "prettier": "^3.4.2",
     "tsx": "4.23.12",
     "turbo": "^2.10.11",
-    "typescript": "5.9.3"
+    "typescript": "7.0.2"
   },
   "workspaces": [
     "apps/*",
