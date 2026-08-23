@@ -73,21 +73,28 @@ Repo DWG conformance: 57 DWG + 57 DXF, 100% sintéticos vía ODA File Converter 
 | Frente | Worktree | Rama | Ownership | SHA base | Estado |
 |---|---|---|---|---|---|
 | Coordinador | `D:\dev\valle-design` | `claude/pulido-ola0` | bitácora, runbooks, integración, archivos transversales | f5e36ca | activo |
-| A — Billing y Entitlements | `D:\dev\wt-p0-billing` | `claude/p0-billing-entitlements` | `apps/api/src/modules/commercial/**` | f5e36ca | agente lanzado (workflow `wf_67c109b8-263`) |
-| B — Tenant/RLS/Storage | `D:\dev\wt-p0-rls` | `claude/p0-tenant-rls` | migraciones RLS, repos/adapters tenant, ADR nuevo | f5e36ca | agente lanzado |
-| C — Contenedores/Deploy | `D:\dev\wt-p0-deploy` | `claude/p0-deploy-release` | Dockerfiles, `scripts/deploy/**` | f5e36ca | agente lanzado |
-| D — Config comercial / fronteras públicas | `D:\dev\wt-p0-commercial` | `claude/p0-commercial-surface` | validación config producción, plantillas legales, checklist | f5e36ca | agente lanzado |
-| H — Red team / verificador | (por frente, mismo worktree del frente, solo lectura+tests) | — | revisión adversarial independiente de A–D | — | agente lanzado por frente, en el mismo workflow |
+| A — Billing y Entitlements | `D:\dev\wt-p0-billing` | `claude/p0-billing-entitlements` | `apps/api/src/modules/commercial/**` | f5e36ca+3 commits | **PARTIAL** — P0-A/B cerrados y verificados sin bypass; rompe 24 tests ajenos (fixture compartida), ver §6. Pendiente: fix de fixture antes de integrar. |
+| B — Tenant/RLS/Storage | `D:\dev\wt-p0-rls` | `claude/p0-tenant-rls` | migraciones RLS, repos/adapters tenant, ADR nuevo | f5e36ca+4 commits | **PARTIAL** — brecha de `design_blobs` cerrada y verificada; riesgo real de fondo (app corre como dueño) sigue abierto por diseño explícito, documentado en ADR-0013. Sin bloqueos para integrar. |
+| C — Contenedores/Deploy | `D:\dev\wt-p0-deploy` | `claude/p0-deploy-release` | Dockerfiles, `scripts/deploy/**` | f5e36ca+3 commits | **PARTIAL** — P0-D cerrado y verificado en vivo; chequeo nuevo de `NEXT_PUBLIC_API_URL` en el smoke está roto (falso negativo), ver §6. Pendiente: fix del chequeo. |
+| D — Config comercial / fronteras públicas | `D:\dev\wt-p0-commercial` | `claude/p0-commercial-surface` | validación config producción, plantillas legales, checklist | f5e36ca+4 commits | **FAIL** — validador correcto pero no conectado al pipeline real; P0-F sigue explotable end-to-end. Pendiente: wiring Dockerfile+release.yml (toma coordinador, cruza con Frente C). |
+| H — Red team / verificador | (por frente, mismo worktree del frente, solo lectura+tests) | — | revisión adversarial independiente de A–D | — | completado, 4/4 veredictos entregados |
 
-Sesiones activas: 5/8 (coordinador + 4 frentes; los 4 verificadores H corren en pipeline después de cada implementación, no simultáneos con el límite).
+Workflow `wf_67c109b8-263` completo: 8/8 agentes, 0 errores, 1.46M tokens, 840 tool calls, ~54 min. Ningún frente encontró bypass de la lógica de seguridad central que se le encargó — los rojos son de integración/wiring (ver §6), no reaperturas de las vulnerabilidades P0-A/B/C, excepto D donde el wiring faltante ES la vulnerabilidad.
+
+**Siguiente ronda (en curso):** fix de fixture compartida (A, en su propia rama), fix de chequeo roto (C, en su propia rama), wiring Dockerfile/release.yml (coordinador, nueva rama tras integrar C+D).
 
 ## 6. Rojos
 
 **Preexistentes (Campaña 0, no atribuibles a esta ola):**
 - `apps/web/src/lib/cad/benchmark/plan-budget.spec.ts` — perf budget dependiente de máquina (zoomFrameP95Ms 41.39ms > 22ms). Fuera de alcance P0, ver §4.
 
-**Nuevos (introducidos por los frentes de esta ola):**
-(pendiente — se llena cuando el workflow reporte)
+**Nuevos (introducidos por los frentes de esta ola, cada uno con verificación adversarial independiente real — workflow `wf_67c109b8-263`, journal completo en `subagents/workflows/wf_67c109b8-263/journal.jsonl`):**
+
+- **Frente A rompe 24 tests ajenos.** El fix de P0-B (exigir `currentPeriodEnd` vigente) hace que `apps/api/src/common/testing/first-party-cad-auth.ts` (fixture compartida usada por 5 suites de CAD) y `organizations.integration.spec.ts` fallen, porque sembraban `status:'active'` sin `currentPeriodEnd`. Confirmado por el propio autor Y por el verificador ejecutando la suite completa (`npx jest` en apps/api: 24/24 fallan con el fix, 0/0 sin él). Diagnóstico exacto disponible; requiere fix en la fixture compartida antes de integrar A solo.
+- **Frente C: chequeo roto en el smoke nuevo.** El sub-chequeo de `NEXT_PUBLIC_API_URL` embebida en `production-startup-smoke.mjs` sólo mira los `<script src>` que sirve `/` (la landing), pero esa variable sólo la usan rutas de dashboard/CAD/comercial — el chequeo falla SIEMPRE, incluso contra un servidor correctamente construido. Falso negativo permanente, no reabre P0-D (los chequeos de assets WASM/SVG sí funcionan) pero bloquearía cualquier corrida real de `smoke:deploy`.
+- **Frente D: el fix no está conectado al pipeline real (hallazgo original sigue abierto).** `apps/web/Dockerfile` y `.github/workflows/release.yml` sólo reenvían `NEXT_PUBLIC_API_URL` al build (y `release.yml` cae a `https://api.example.com` si no hay valor — el mismo tipo de placeholder que P0-F prohíbe). Ninguna `NEXT_PUBLIC_BRAND_*` llega nunca al build, y nada invoca `check:production-config` en el Dockerfile ni en `release.yml`. Un `git tag v1.2.3 && git push --tags` hoy mismo publicaría una imagen con marca/contacto placeholder sin bloqueo alguno — el hallazgo P0-F sigue explotable end-to-end pese al validador nuevo.
+
+Ningún frente encontró un bypass de la lógica de seguridad central que se le encargó (A: ni P0-A ni P0-B tienen bypass conocido; B: el mecanismo RLS+valle_app en sí resistió todos los intentos del revisor). Los tres rojos de arriba son de integración/wiring, no reaperturas de las vulnerabilidades originales — excepto D, donde el wiring faltante ES la vulnerabilidad original.
 
 ## 7. Decisiones para Sergio (acumulando, ver también `docs/campaigns/decisiones-pendientes-sergio.md`)
 
