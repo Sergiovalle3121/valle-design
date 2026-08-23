@@ -19,12 +19,22 @@
  * ola — aquí fallan CERRADOS con su código y un mensaje que dice exactamente
  * eso. Mediciones y evidencia en docs/cad/evidence/dwg-r2004-container.json.
  *
+ * Intake 2026-08-23 (VALLE-CORPUS-INTAKE-A60EBE2): el marco de sección de
+ * datos R2010+ (AcDb:Header/AcDb:Classes) usa un campo de tamaño de 8 bytes
+ * en vez de los 4 de R2000/AC1018 — `readR2004SectionFrame` acepta ahora
+ * `sizeFieldWidth` para las dos formas. El envoltorio de objeto R2010+ (sin
+ * tamaño al frente) queda en `container/r2010-object-envelope.ts`. Ninguna de
+ * las dos piezas decodifica el TIPO del objeto: la codificación BOT sigue sin
+ * fuente registrada suficiente (BLOCKED_BY_SOURCE_GATE, ver DWG0_WORKLOG) y
+ * `readR2004Database` sigue fallando cerrado para AC1024/AC1027/AC1032.
+ *
  * Reglas del laboratorio: presupuesto cobrado por byte y por objeto; fallo
  * cerrado con offset (los offsets de objeto son RELATIVOS al payload de
  * AcDb:AcDbObjects, y así se declara); determinista. Implementación original
  * desde hechos registrados (ADR-0007).
  */
 import { createDwgLimits, type DwgLimitOverrides } from "../api/limits.js";
+import { checkedBigIntToNumber } from "../binary/checked-arithmetic.js";
 import { BoundedByteCursor } from "../binary/byte-cursor.js";
 import { DwgBitReader } from "../codecs/bitcodes.js";
 import { crc16Dwg } from "../codecs/crc16.js";
@@ -249,18 +259,26 @@ export interface R2004SectionFrame {
 
 /**
  * Verifica el marco de las secciones AcDb:Header y AcDb:Classes de la
- * familia R2004: centinela de apertura, tamaño RL, payload, CRC-16 (semilla
+ * familia R2004: centinela de apertura, tamaño (RL de 4 bytes en R2000/
+ * AC1018; 8 bytes little-endian en R2010+ — hecho medido
+ * VALLE-CORPUS-INTAKE-A60EBE2, intake 2026-08-23), payload, CRC-16 (semilla
  * de sección sobre tamaño + payload) y centinela de cierre. A diferencia de
  * R2000, tras el cierre queda RELLENO hasta el tamaño lógico de la sección
  * (medido: aleatorio en AcDb:Header, ceros en AcDb:Classes): se DECLARA como
  * slack, no se interpreta. Los offsets de error son relativos al payload de
  * la sección ensamblada.
+ *
+ * `sizeFieldWidth` selecciona la forma: 4 (por defecto, R2000/AC1018) u 8
+ * (R2010+). El campo de 8 bytes se lee con aritmética comprobada: los 4
+ * bytes altos deben caber en un entero seguro, igual que cualquier otro
+ * tamaño no confiable del laboratorio.
  */
 export function readR2004SectionFrame(
   sectionPayload: Uint8Array,
   sentinels: Ac1015SectionSentinelPair,
+  sizeFieldWidth: 4 | 8 = 4,
 ): R2004SectionFrame {
-  const minimum = AC1015_SECTION_SENTINEL_LENGTH * 2 + 4 + 2;
+  const minimum = AC1015_SECTION_SENTINEL_LENGTH * 2 + sizeFieldWidth + 2;
   if (sectionPayload.length < minimum) {
     throwDwgError(
       "DWG_STRUCTURE_CORRUPT",
@@ -280,8 +298,11 @@ export function readR2004SectionFrame(
     }
   }
   const sizeOffset = AC1015_SECTION_SENTINEL_LENGTH;
-  const declaredSize = readUint32(sectionPayload, sizeOffset);
-  const crcOffset = sizeOffset + 4 + declaredSize;
+  const declaredSize =
+    sizeFieldWidth === 8
+      ? readUint64LEChecked(sectionPayload, sizeOffset)
+      : readUint32(sectionPayload, sizeOffset);
+  const crcOffset = sizeOffset + sizeFieldWidth + declaredSize;
   if (crcOffset + 2 + AC1015_SECTION_SENTINEL_LENGTH > sectionPayload.length) {
     throwDwgError(
       "DWG_STRUCTURE_CORRUPT",
@@ -290,7 +311,7 @@ export function readR2004SectionFrame(
       "The declared section size does not fit inside the section payload.",
     );
   }
-  const payload = sectionPayload.subarray(sizeOffset + 4, crcOffset);
+  const payload = sectionPayload.subarray(sizeOffset + sizeFieldWidth, crcOffset);
   const crc = sectionPayload[crcOffset]! + sectionPayload[crcOffset + 1]! * 0x100;
   const computed = crc16Dwg(
     sectionPayload.subarray(sizeOffset, crcOffset),
@@ -323,6 +344,21 @@ export function readR2004SectionFrame(
     crc,
     slackLength,
   });
+}
+
+/**
+ * Tamaño u64 little-endian con aritmética comprobada: un tamaño de sección no
+ * confiable nunca se usa para reservar antes de compararlo contra un entero
+ * seguro (regla del laboratorio). Los 8 bytes reales del corpus R2010+
+ * miden 0 en la mitad alta; un archivo que declare más no cabría en ningún
+ * presupuesto del laboratorio y falla cerrado aquí, no al reservar memoria.
+ */
+function readUint64LEChecked(bytes: Uint8Array, offset: number): number {
+  let value = 0n;
+  for (let index = 7; index >= 0; index -= 1) {
+    value = (value << 8n) | BigInt(bytes[offset + index]!);
+  }
+  return checkedBigIntToNumber(value, Number.MAX_SAFE_INTEGER, offset);
 }
 
 /**

@@ -1,7 +1,7 @@
 {
   "$schema": "./source-register.schema.json",
   "schemaVersion": "1.0.0",
-  "updatedAt": "2026-08-21",
+  "updatedAt": "2026-08-23",
   "entries": [
     {
       "id": "VALLE-OWNER-DWG0-2026-08-09",
@@ -541,7 +541,8 @@
         "Color CmC 2004 (medido byte a byte): BS(0) + BL + RC, con el metodo en el byte alto del BL — 0xC3 con el indice ACI en el byte bajo (capas 1..7 del dibujo de capas), 0xC0 = ByLayer (proyecta a 256), 0xC1 = ByBlock (proyecta a 0); el RC de color book es 0 en todo el corpus. El DIMSTYLE completo aterriza 988/988 con esta forma",
         "BLOCK_HEADER R2004+ (ODS 20.4.52 confirmado): entre el bit de cargado y el punto base viaja un BL con el recuento de objetos poseidos, y el flujo de handles lleva esos N handles poseidos en vez de primero/ultimo; los marcadores BLOCK/ENDBLK viajan con modo 2/1 SIN propietario y los registros se llaman *Model_Space/*Paper_Space",
         "AcDb:AcDbObjects AC1018 abre con un RL de tamano (0x0dca observado) y los offsets del mapa de AcDb:Handles son RELATIVOS al payload ensamblado (minimo 4); la envoltura de objeto (tamano MS + cuerpo + CRC16 LE) es identica a R2000",
-        "Variables de cabecera AC1018 (capitulo 9 confirmado posicionalmente sobre los 8 archivos, aterrizaje 4539/4544 bits): B tras LIMCHECK = 0, tres BL tras PDMODE = 0, tres BL tras TDUPDATE = 0, sin el handle de viewport pre-2004 ni el control R13-R15, diccionarios MATERIALS/COLORS presentes, bloque RC SORTENTS..PROJECTNAME al final; el marco de la seccion son centinelas + RL + CRC16 crudo + holgura ALEATORIA (no llena la seccion, a diferencia de R2000). La seccion de clases R2004 lleva cabecera {BS,RC,RC,B}, registros extendidos y 8 bytes cero tras el centinela"
+        "Variables de cabecera AC1018 (capitulo 9 confirmado posicionalmente sobre los 8 archivos, aterrizaje 4539/4544 bits): B tras LIMCHECK = 0, tres BL tras PDMODE = 0, tres BL tras TDUPDATE = 0, sin el handle de viewport pre-2004 ni el control R13-R15, diccionarios MATERIALS/COLORS presentes, bloque RC SORTENTS..PROJECTNAME al final; el marco de la seccion son centinelas + RL + CRC16 crudo + holgura ALEATORIA (no llena la seccion, a diferencia de R2000). La seccion de clases R2004 lleva cabecera {BS,RC,RC,B}, registros extendidos y 8 bytes cero tras el centinela",
+        "Marco de seccion de datos R2010+ (AC1024/AC1027/AC1032, intake 2026-08-23): a diferencia de R2000/AC1018 (campo de tamano RL de 4 bytes tras el centinela de apertura), AcDb:Header y AcDb:Classes usan un campo de tamano de 8 bytes little-endian (los 4 bytes altos observados en 0 en todo el corpus); el CRC-16 semilla 0xC0C1 cubre [tamano de 8 bytes + payload] igual que R2000/AC1018 y el centinela de cierre aparece exactamente en sizeOffset+8+tamano+2. Confirmado por coincidencia EXACTA del CRC-16 almacenado: AC1024 (fixtures 01-vacio y 02-una-linea, AcDb:Header y AcDb:Classes), AC1027 y AC1032 (02-una-linea, AcDb:Header y AcDb:Classes) — 7/7 mediciones, 0 discrepancias. Los sentinelas y la semilla del CRC no cambian"
       ],
       "derivedFiles": [
         "packages/dwg-codec/src/container/r2004-crypto.ts",
@@ -560,9 +561,9 @@
         "packages/dwg-codec/src/writer/ac1015-structure-writers.ts",
         "packages/dwg-codec/tests/unit/r2004-database.spec.ts"
       ],
-      "reviewer": "Medicion first-party del laboratorio bajo la directiva del propietario 2026-08-13; evidencia cruda en docs/cad/evidence/dwg-corpus-validation.json",
-      "reviewedAt": "2026-08-21",
-      "notes": "Observaciones por diffing sobre bytes de NUESTRO corpus (dibujos propios convertidos por herramienta independiente). Cada hecho se registro antes de la correccion de codigo correspondiente (ADR-0007)."
+      "reviewer": "Medicion first-party del laboratorio bajo la directiva del propietario 2026-08-13; evidencia cruda en docs/cad/evidence/dwg-corpus-validation.json y en la sesion de intake 2026-08-23 (DWG0_WORKLOG)",
+      "reviewedAt": "2026-08-23",
+      "notes": "Observaciones por diffing sobre bytes de NUESTRO corpus (dibujos propios convertidos por herramienta independiente). Cada hecho se registro antes de la correccion de codigo correspondiente (ADR-0007). El intake 2026-08-23 anade el marco de seccion ancho de la familia R2010+ (AC1024/AC1027/AC1032); el envoltorio de objeto y el bloqueo de BOT quedan en el hecho siguiente de esta misma entrada."
     }
   ]
 }
