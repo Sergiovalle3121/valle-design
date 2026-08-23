@@ -135,6 +135,37 @@ Ambos archivos de B re-verificados contra PostgreSQL 16 real (base aislada `vall
 
 Pendiente (no ejecutable en este entorno, marcado NOT RUN — MISSING EXTERNAL EVIDENCE en vez de asumido): suite `.pg.spec.ts` completa contra Postgres real (sólo se corrió el subconjunto de B, dos veces, en bases aisladas propias — correr la suite completa es un riesgo de recursos ya documentado por B), Docker build/smoke real (Docker no disponible en este entorno), E2E navegador real.
 
+## 5. Reconciliación con trabajo humano en paralelo (2026-08-23, tarde) — `claude/p0-integration` (v1) ABANDONADA
+
+Mientras se corrían los gates finales de §4bis, se detectó que **Sergio (identidad de git real, no una sesión de Claude) avanzó directamente sobre el worktree `wt-p0-commercial`**, en paralelo a esta campaña:
+
+- **`efce2ed`** — "fix(web): incrusta marca y enlaces comerciales reales en el build de producción". **Ya fusionado en `origin/main`** (confirmado con `git fetch`). Es una versión más completa del wiring de Frente D que este coordinador había hecho de forma independiente: 26 variables `NEXT_PUBLIC_*` (el coordinador hizo 17), más actualiza `DEPLOYMENT.md`, `infra/README.md` y `docs/guides/environment-variables.md`. Trae el mensaje de commit con `Co-Authored-By: Claude Sonnet 5`, consistente con una sesión de Claude Code asistiendo bajo la identidad de Sergio (per CONTRIBUTING.md: "todo cambio asistido por IA se adopta bajo la identidad del dueño").
+- **`8e2b28a`** (y sucesores — el worktree pasó luego a la rama `claude/p0-legal-acceptance-gate`) — conecta `/v1/legal/*` al contrato OpenAPI y engancha `CheckoutStarter.tsx` a la puerta de aceptación de términos, cerrando los dos huecos que Frente D había dejado marcados como fuera de su alcance (vía `spawn_task`). Quedó **sin tocar por este coordinador**, tal como decidió Sergio.
+
+**Verificado antes de decidir cómo proceder:** `origin/main` (con `efce2ed` ya adentro) seguía **sin copiar `apps/web/public`** en el Dockerfile — el hallazgo P0-D de Frente C seguía vivo y sin duplicar. P0-A, P0-B y P0-C tampoco se solapaban con nada de lo anterior.
+
+**Decisión de Sergio (confirmada explícitamente):** rebasar sobre el `origin/main` real, descartando el wiring redundante propio, en vez de dejar la rama vieja tal cual o pausar la campaña.
+
+**Ejecutado:** `claude/p0-integration` (v1, SHA final `f6a13d1`) queda **abandonada y documentada, no borrada del historial** (el branch local se eliminó porque su contenido es 100% reconstruible desde las 4 ramas de frente + este rebase; nada de lo que contenía era exclusivo). Se creó `claude/p0-integration-v2` desde `origin/main` (que ya incluye `efce2ed`), fusionando sólo **A + B + C** (sin D — su contenido real ya vive en `main` vía `efce2ed`). La fusión de C sobre el Dockerfile ya modificado por `efce2ed` resolvió automáticamente sin conflicto (regiones distintas del archivo: `efce2ed` tocó el stage de build, C el stage de runtime) — verificado que el resultado tiene AMBAS piezas (26 `ARG`/`ENV` + `check:production-config` de `efce2ed`, y la copia de `public/` de C).
+
+Se reaplicaron, idénticos, los tres arreglos de integración de §4 (regenerar consola de API, tipar las queries de B, corregir el hueco de subdominios placeholder) — mismos hallazgos, mismas correcciones, ahora sobre la base correcta. Commit `a9c87dd`.
+
+### Gates finales — `claude/p0-integration-v2` (SHA `a9c87dd`, base = `origin/main` real)
+
+| Gate | Resultado | Duración |
+|---|---|---|
+| `typecheck` | **PASS** | 67s |
+| `build` | **PASS** | 115s |
+| `lint` | **PASS** | 150s |
+| `test` | **PASS** — API 682/843 (81/112 suites, 0 fallos, 161 skipped); web 0 fallos | 554s |
+| `check:cad` | **PASS** | 293s |
+| `check:dwg` | **PASS** | 66s |
+| `check:deploy` | **PASS** | 2s |
+| `sbom` | **PASS** | 4s |
+| `check:licenses` | **PASS** | 2s |
+
+**Cero rojos, sobre la base correcta.** Esta es la rama vigente para PR — `claude/p0-integration` (v1) queda como referencia histórica de cómo se construyó, no como candidata a fusión.
+
 **Nota aparte (no causada por esta campaña):** el `main` remoto de GitHub tiene CI en rojo desde antes de esta ola (ver §0bis) por un problema de reproducibilidad de `check:dwg-evidence` ajeno a P0 — la rama de integración va a heredar ese mismo rojo en CI. Escalado a Sergio por la otra sesión activa (campaña DWG paralela).
 
 ## 6. Rojos
