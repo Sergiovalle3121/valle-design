@@ -94,3 +94,81 @@ export function isKnownLegalVersion(
     (entry) => entry.documento === documento && entry.version === version,
   );
 }
+
+const ISO_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/u;
+
+/**
+ * Candado de REGRESIÓN sobre el registro, no de configuración de entorno:
+ * `LEGAL_DOCUMENTS` es código fuente, así que la única forma de romperlo es
+ * editarlo mal (borrar una entrada, vaciar una versión, invertir
+ * `requiereAceptacion`). Cada caso de esta función es un error real que ya se
+ * ha visto en otros repos — no una lista de validaciones genéricas por
+ * completar.
+ *
+ * Devuelve la lista de problemas en español, lista para loguear o para que un
+ * arranque productivo la use como motivo de fallo; una lista vacía es la
+ * única señal de éxito.
+ */
+export function validateLegalDocumentsRegistry(
+  documents: readonly LegalDocumentVersion[],
+): string[] {
+  const issues: string[] = [];
+
+  const terms = documents.find((doc) => doc.documento === 'terms');
+  if (!terms) {
+    issues.push(
+      'falta el documento "terms" (obligatorio y debe exigir aceptación)',
+    );
+  } else if (!terms.requiereAceptacion) {
+    issues.push(
+      'el documento "terms" tiene requiereAceptacion=false: los términos de uso SIEMPRE exigen aceptación explícita',
+    );
+  }
+
+  if (!documents.some((doc) => doc.documento === 'privacy')) {
+    issues.push('falta el documento "privacy" (obligatorio)');
+  }
+
+  const seen = new Set<string>();
+  for (const doc of documents) {
+    if (seen.has(doc.documento)) {
+      issues.push(
+        `entrada duplicada para "${doc.documento}": una versión aceptada tiene que resolver a UNA sola fila`,
+      );
+    }
+    seen.add(doc.documento);
+
+    if (!doc.version || doc.version.trim().length === 0) {
+      issues.push(
+        `"${doc.documento}" no tiene versión: aceptar eso no acredita nada`,
+      );
+    }
+    if (!ISO_DATE_PATTERN.test(doc.publicadoEn)) {
+      issues.push(
+        `"${doc.documento}" tiene publicadoEn con formato inválido (se espera AAAA-MM-DD): "${doc.publicadoEn}"`,
+      );
+    }
+    if (!doc.url || doc.url.trim().length === 0) {
+      issues.push(`"${doc.documento}" no tiene url pública`);
+    }
+  }
+
+  return issues;
+}
+
+/**
+ * Se ejecuta AL CARGAR EL MÓDULO — es decir, en cuanto algo importa
+ * `legal-documents.ts`, que ocurre durante `NestFactory.create` en todo
+ * arranque real (dev, test, producción). No es una comprobación de entorno
+ * (`LEGAL_DOCUMENTS` es código fuente, nunca varía por `.env`), así que no
+ * hace falta condicionarla a `NODE_ENV`: un registro roto está roto en
+ * cualquier entorno, igual que `resolveTrialDays` revienta sin mirar el
+ * entorno en `organization-commercial.configuration.ts`.
+ */
+const registryIssues = validateLegalDocumentsRegistry(LEGAL_DOCUMENTS);
+if (registryIssues.length > 0) {
+  throw new Error(
+    'Registro de documentos legales (LEGAL_DOCUMENTS) inválido:\n' +
+      registryIssues.map((issue) => `  · ${issue}`).join('\n'),
+  );
+}
