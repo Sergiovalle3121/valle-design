@@ -582,9 +582,15 @@ describe('first-party organization and commercial HTTP integration', () => {
       ).resolves.toBe(false);
     }
 
+    // Reactivar con `active` sólo concede acceso si el período pagado sigue
+    // vigente: un `trialEndsAt` caducado no debe importar una vez que el
+    // estado es `active`, pero un `currentPeriodEnd` vigente sí es necesario
+    // (P0-B). Sin él, este `active` sería indistinguible del caso que P0-B
+    // corrige, así que se fija aquí para simular una reactivación real.
     await subscriptions.update(subscription.id, {
       status: 'active',
       trialEndsAt: new Date(Date.now() - 86_400_000),
+      currentPeriodEnd: new Date(Date.now() + 30 * 86_400_000),
     });
     await expect(
       entitlements.hasEntitlement(DESIGN_CAD_ENTITLEMENT, {

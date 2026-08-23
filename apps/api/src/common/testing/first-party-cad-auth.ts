@@ -72,6 +72,12 @@ export interface SeedFirstPartyCadActorOptions {
   entitled?: boolean;
   subscriptionStatus?: SubscriptionStatus;
   trialEndsAt?: Date | null;
+  /**
+   * Defaults to 30 days in the future so `subscriptionStatus: 'active'`
+   * (the default) seeds a genuinely current subscription. Tests that need
+   * to exercise a lapsed/absent period must pass this explicitly.
+   */
+  currentPeriodEnd?: Date | null;
   /** Allows a stale active organization to be exercised without membership. */
   activeOrganization?: 'organization' | 'none';
 }
@@ -120,6 +126,8 @@ export async function seedFirstPartyCadActor(
         planCode: TEST_PLAN_CODE,
         status: options.subscriptionStatus ?? 'active',
         trialEndsAt: options.trialEndsAt ?? null,
+        currentPeriodEnd:
+          options.currentPeriodEnd ?? new Date(Date.now() + 30 * 86_400_000),
       });
     }
   }
