@@ -148,12 +148,32 @@ export default function StudioCollaborationLayer({
   useEffect(() => onCadViewportPublished(setSurface), []);
 
   /* ── La esquina del LIENZO donde se posa el muelle ─────────────────────── */
-  const [anchor, setAnchor] = useState<{ top: number; right: number } | null>(
-    null,
-  );
+
+  /**
+   * La posición se escribe DIRECTAMENTE en el nodo, no en un estado de React.
+   *
+   * Dos razones, y las dos importan aquí:
+   *
+   *  · Es lo que un efecto debe hacer. Colocar un elemento flotante sobre otro
+   *    es sincronizar React con el DOM, no derivar estado; llamar a `setState`
+   *    dentro del cuerpo del efecto encadena renders y el trinquete de lint
+   *    (`scripts/check-lint-budget.mjs`) lo cobra, con razón.
+   *
+   *  · El observador se dispara con CADA cambio de tamaño del lienzo, y el
+   *    lienzo de un CAD cambia de tamaño mientras se arrastra el borde de una
+   *    paleta. Un render de React por cuadro de arrastre para mover un panel
+   *    dos píxeles es trabajo que compite con el dibujo.
+   *
+   * Hasta la primera medida el muelle está oculto: enseñarlo en la esquina de
+   * la ventana durante un cuadro y moverlo al lienzo en el siguiente es un
+   * salto visible, y en una captura sale a medio camino.
+   */
+  const dockRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
+    const dock = dockRef.current;
+    if (!dock) return;
     if (!surface) {
-      setAnchor(null);
+      dock.style.visibility = "hidden";
       return;
     }
     const element = surface.container;
@@ -162,13 +182,9 @@ export default function StudioCollaborationLayer({
       // `right` se cuenta desde el borde derecho de la VENTANA porque el muelle
       // es `fixed`: así el ancho del propio muelle —que cambia al plegarse— no
       // entra en la cuenta y no hace falta medirlo.
-      setAnchor({
-        top: rect.top + DOCK_INSET,
-        right: Math.max(
-          DOCK_INSET,
-          window.innerWidth - rect.right + DOCK_INSET,
-        ),
-      });
+      dock.style.top = `${rect.top + DOCK_INSET}px`;
+      dock.style.right = `${Math.max(DOCK_INSET, window.innerWidth - rect.right + DOCK_INSET)}px`;
+      dock.style.visibility = "visible";
     };
     measure();
     const observer = new ResizeObserver(measure);
@@ -177,6 +193,7 @@ export default function StudioCollaborationLayer({
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", measure);
+      dock.style.visibility = "hidden";
     };
   }, [surface]);
 
@@ -263,15 +280,11 @@ export default function StudioCollaborationLayer({
 
   return (
     <aside
+      ref={dockRef}
       className={`${DOCK} ${collapsed ? DOCK_WIDTH.collapsed : DOCK_WIDTH.open}`}
-      // Hasta la primera medida el muelle no se pinta en ningún sitio: enseñarlo
-      // en la esquina de la ventana durante un cuadro y moverlo al lienzo en el
-      // siguiente es un salto visible, y en una captura sale a medio camino.
-      style={
-        anchor
-          ? { top: anchor.top, right: anchor.right }
-          : { visibility: "hidden" }
-      }
+      // Nace oculto y en la esquina; el efecto de arriba lo posa sobre el
+      // lienzo en cuanto lo mide. Ver el porqué allí.
+      style={{ visibility: "hidden", top: DOCK_INSET, right: DOCK_INSET }}
       data-testid="cad-collab-dock"
     >
       <div className="flex items-center justify-between gap-2">
