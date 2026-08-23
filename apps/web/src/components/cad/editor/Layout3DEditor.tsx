@@ -114,7 +114,6 @@ import {
   type CheckBox,
   type DesignReport,
 } from "@/lib/cad/design-checks";
-import { plotSheetModel } from "@/components/cad/plot/plot-sheet";
 import {
   describeCadIntent,
   normalizeToolCalls,
@@ -151,10 +150,7 @@ import {
 } from "@/lib/cad/snap-scene";
 import { normalizeVision, type VisionResult } from "@/lib/cad/cad-vision";
 import { detectCadFormat } from "@/components/cad/interop/cad-format-detect";
-import {
-  worldToPaper,
-  type PlotLayout,
-} from "@/components/cad/plot/plot-scale";
+import type { PlotLayout } from "@/components/cad/plot/plot-scale";
 import {
   createHistoryItem as createCadHistoryItem,
   executeCadCommand,
@@ -173,6 +169,7 @@ import {
 import { maybeSnapScalarToGrid } from "@/lib/cad/snapping";
 import {
   assignObjectsToLayer,
+  DEFAULT_ACTIVE_CAD_LAYER,
   DEFAULT_CAD_LAYERS,
   isObjectLayerLocked,
   summarizeCadLayers,
@@ -181,7 +178,6 @@ import {
   type CadLayerId,
 } from "@/lib/cad/layers";
 import {
-  CAD_TOOLBAR_ACTIONS,
   type CadToolbarActionId,
 } from "@/lib/cad/toolbar";
 import { searchCadPalette } from "@/lib/cad/command-palette";
@@ -270,7 +266,6 @@ import {
 import { cadViewportBoundsChanged } from "@/lib/cad/native-viewport";
 import { exportCadLayoutDxf } from "@/lib/cad/layout-export-adapter";
 import {
-  buildPlotSheet,
   CAD_PAPER_SIZES,
   type CadPaperId,
 } from "@/lib/cad/plot-sheet";
@@ -1706,7 +1701,8 @@ export default function Layout3DEditor({
       /* transitorio — la sección muestra "sin bloques" */
     }
   }, []);
-  const [activeCadLayer, setActiveCadLayer] = useState<CadLayerId>("equipment");
+  const [activeCadLayer, setActiveCadLayer] =
+    useState<CadLayerId>(DEFAULT_ACTIVE_CAD_LAYER);
   /**
    * El efecto de la escena se monta con `[open, data]` y captura las funciones
    * de dibujo de ese render. Leer `activeCadLayer` (estado) desde dentro de esa
@@ -9317,7 +9313,9 @@ export default function Layout3DEditor({
       assignObjectsToLayer(
         cur,
         [id],
-        activeCadLayer === "equipment" ? defaultLayer : activeCadLayer,
+        activeCadLayer === DEFAULT_ACTIVE_CAD_LAYER
+          ? defaultLayer
+          : activeCadLayer,
       ),
     );
     select([{ type: "asset", id }]);
@@ -16904,7 +16902,7 @@ export default function Layout3DEditor({
                 inferior y, con el diálogo lleno, tapaba Undo. Los controles del
                 muelle reactivan el ratón por su cuenta. */}
             {!walk && (
-              <div className="pointer-events-none absolute bottom-14 left-3 z-30 w-[min(30rem,42vw)]">
+              <div className="pointer-events-none absolute bottom-[var(--cad-command-line-clearance,3.5rem)] left-3 z-30 w-[min(30rem,42vw)]">
                 <CadCommandLineDock
                   host={commandEngine}
                   disabled={drawingReadOnly}

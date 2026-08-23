@@ -22,6 +22,29 @@ export interface CadLayerStateSummary {
   lockedObjectCount: number;
 }
 
+/**
+ * LA CAPA ACTIVA AL ABRIR UN DIBUJO.
+ *
+ * Era `equipment`, herencia del planificador de plantas del que nació el
+ * producto: allí lo primero que hacías era colocar equipo. En un CAD universal
+ * es un error visible y caro. Se midió sobre el plano de ejemplo de la portada,
+ * dibujado con los comandos reales: los seis muros, las cuatro ventanas, el
+ * sombreado del baño y los tres rótulos de local acababan TODOS en la capa
+ * `Equipment`. Una planta arquitectónica entera en la capa de equipamiento es
+ * un plano que no se puede publicar por capas, que es media razón para usar un
+ * CAD. Y la barra de estado lo anunciaba —«Layer Equipment»— en cada captura.
+ *
+ * `layout` es la capa neutra y general del juego de fábrica, la primera de la
+ * lista y el equivalente de la capa 0 de AutoCAD: el sitio correcto para lo que
+ * se dibuja antes de haber elegido capa.
+ *
+ * NO se toca el NOMBRE de ninguna capa. `Equipment` viaja dentro de los DXF que
+ * los clientes ya exportaron (`cadStarterLayers` escribe `name: item.label`) y
+ * además es vocabulario de dibujo legítimo: el estándar AIA nombra `A-EQPM` la
+ * capa de equipamiento de una planta. Lo que cambia es cuál está ACTIVA.
+ */
+export const DEFAULT_ACTIVE_CAD_LAYER: CadLayerId = "layout";
+
 export const DEFAULT_CAD_LAYERS: CadLayer[] = [
   {
     id: "layout",

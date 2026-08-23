@@ -1,6 +1,6 @@
 {
   "meta": {
-    "version": 15,
+    "version": 37,
     "schema": 9,
     "unit": "mm",
     "footprintW": 40550,
@@ -176,13 +176,13 @@
   "entities": [
     {
       "end": {
-        "x": 10000,
+        "x": 12000,
         "y": 2000,
         "z": 0
       },
       "height": 2400,
-      "id": "cad_mt44il5b_d51s",
-      "layer": "equipment",
+      "id": "cad_mt4qv1al_9ut9",
+      "layer": "layout",
       "start": {
         "x": 2000,
         "y": 2000,
@@ -193,15 +193,15 @@
     },
     {
       "end": {
-        "x": 10000,
-        "y": 7000,
+        "x": 12000,
+        "y": 9000,
         "z": 0
       },
       "height": 2400,
-      "id": "cad_mt44irzx_8xmz",
-      "layer": "equipment",
+      "id": "cad_mt4qv7xi_j9ds",
+      "layer": "layout",
       "start": {
-        "x": 10000,
+        "x": 12000,
         "y": 2000,
         "z": 0
       },
@@ -211,15 +211,15 @@
     {
       "end": {
         "x": 2000,
-        "y": 7000,
+        "y": 9000,
         "z": 0
       },
       "height": 2400,
-      "id": "cad_mt44izhl_yjpb",
-      "layer": "equipment",
+      "id": "cad_mt4qveph_p63x",
+      "layer": "layout",
       "start": {
-        "x": 10000,
-        "y": 7000,
+        "x": 12000,
+        "y": 9000,
         "z": 0
       },
       "thickness": 200,
@@ -232,11 +232,11 @@
         "z": 0
       },
       "height": 2400,
-      "id": "cad_mt44j6lr_me1i",
-      "layer": "equipment",
+      "id": "cad_mt4qvlmf_4dol",
+      "layer": "layout",
       "start": {
         "x": 2000,
-        "y": 7000,
+        "y": 9000,
         "z": 0
       },
       "thickness": 200,
@@ -244,20 +244,198 @@
     },
     {
       "end": {
-        "x": 6000,
-        "y": 5000,
+        "x": 6500,
+        "y": 6000,
         "z": 0
       },
       "height": 2400,
-      "id": "cad_mt44je9k_hjqv",
-      "layer": "equipment",
+      "id": "cad_mt4qvskr_cdz6",
+      "layer": "layout",
       "start": {
-        "x": 6000,
+        "x": 6500,
         "y": 2000,
         "z": 0
       },
       "thickness": 200,
       "type": "wall"
+    },
+    {
+      "end": {
+        "x": 12000,
+        "y": 6000,
+        "z": 0
+      },
+      "height": 2400,
+      "id": "cad_mt4qw0c5_ypz5",
+      "layer": "layout",
+      "start": {
+        "x": 6500,
+        "y": 6000,
+        "z": 0
+      },
+      "thickness": 200,
+      "type": "wall"
+    },
+    {
+      "height": 2100,
+      "hinge": "start",
+      "hostId": "cad_mt4qv1al_9ut9",
+      "id": "cad_mt4qx8b8_1zk4",
+      "kind": "door",
+      "layer": "layout",
+      "position": 2003.3898305084745,
+      "sill": 0,
+      "swing": "left",
+      "type": "opening",
+      "width": 900
+    },
+    {
+      "height": 1200,
+      "hinge": "start",
+      "hostId": "cad_mt4qv1al_9ut9",
+      "id": "cad_mt4qxyrz_v66e",
+      "kind": "window",
+      "layer": "layout",
+      "position": 7502.169491525423,
+      "sill": 900,
+      "swing": "left",
+      "type": "opening",
+      "width": 1200
+    },
+    {
+      "height": 1200,
+      "hinge": "start",
+      "hostId": "cad_mt4qvlmf_4dol",
+      "id": "cad_mt4qyqdb_oyl3",
+      "kind": "window",
+      "layer": "layout",
+      "position": 3500,
+      "sill": 900,
+      "swing": "left",
+      "type": "opening",
+      "width": 1200
+    },
+    {
+      "height": 1200,
+      "hinge": "start",
+      "hostId": "cad_mt4qveph_p63x",
+      "id": "cad_mt4qzi2s_k7o6",
+      "kind": "window",
+      "layer": "layout",
+      "position": 2497.830508474577,
+      "sill": 900,
+      "swing": "left",
+      "type": "opening",
+      "width": 1200
+    },
+    {
+      "closed": true,
+      "id": "cad_mt4qzz1v_1urz",
+      "layer": "layout",
+      "type": "polyline",
+      "vertices": [
+        {
+          "x": 6650,
+          "y": 6150,
+          "z": 0
+        },
+        {
+          "x": 11850,
+          "y": 6150,
+          "z": 0
+        },
+        {
+          "x": 11850,
+          "y": 8850,
+          "z": 0
+        },
+        {
+          "x": 6650,
+          "y": 8850,
+          "z": 0
+        }
+      ]
+    },
+    {
+      "angle": 45,
+      "associationStatus": "associated",
+      "associative": true,
+      "boundaries": [
+        [
+          {
+            "x": 6650,
+            "y": 6150,
+            "z": 0
+          },
+          {
+            "x": 11850,
+            "y": 6150,
+            "z": 0
+          },
+          {
+            "x": 11850,
+            "y": 8850,
+            "z": 0
+          },
+          {
+            "x": 6650,
+            "y": 8850,
+            "z": 0
+          }
+        ]
+      ],
+      "boundaryRefs": [
+        "cad_mt4qzz1v_1urz"
+      ],
+      "id": "cad_mt4r0536_yoc0",
+      "islandStyle": "normal",
+      "layer": "layout",
+      "pattern": "ANSI31",
+      "scale": 146.47952075290252,
+      "solid": false,
+      "type": "hatch"
+    },
+    {
+      "alignment": "top-left",
+      "height": 320,
+      "id": "cad_mt4r0loq_klmg",
+      "insertion": {
+        "x": 2600,
+        "y": 4200,
+        "z": 0
+      },
+      "layer": "layout",
+      "text": "RECÁMARA",
+      "type": "mtext",
+      "width": 3600
+    },
+    {
+      "alignment": "top-left",
+      "height": 320,
+      "id": "cad_mt4r123u_ztxj",
+      "insertion": {
+        "x": 7000,
+        "y": 3600,
+        "z": 0
+      },
+      "layer": "layout",
+      "text": "SALA · COMEDOR",
+      "type": "mtext",
+      "width": 4600
+    },
+    {
+      "alignment": "top-left",
+      "height": 320,
+      "id": "cad_mt4r1iti_jj25",
+      "insertion": {
+        "x": 7000,
+        "y": 7900,
+        "z": 0
+      },
+      "layer": "layout",
+      "text": "BAÑO",
+      "type": "mtext",
+      "width": 4600
     },
     {
       "a": {
@@ -266,13 +444,29 @@
       },
       "axis": "x",
       "b": {
-        "x": 10000,
+        "x": 12000,
         "y": 2000
       },
       "dimensionKind": "linear",
-      "id": "cad_mt44jnsn_p1n6",
-      "layer": "equipment",
-      "offset": -1300,
+      "id": "cad_mt4r1tst_zbx1",
+      "layer": "layout",
+      "offset": -1400,
+      "type": "dimension"
+    },
+    {
+      "a": {
+        "x": 2000,
+        "y": 2000
+      },
+      "axis": "x",
+      "b": {
+        "x": 6500,
+        "y": 2000
+      },
+      "dimensionKind": "linear",
+      "id": "cad_mt4r24jo_6tz1",
+      "layer": "layout",
+      "offset": -700,
       "type": "dimension"
     },
     {
@@ -283,11 +477,11 @@
       "axis": "y",
       "b": {
         "x": 2000,
-        "y": 7000
+        "y": 9000
       },
       "dimensionKind": "linear",
-      "id": "cad_mt44jxn7_1xwg",
-      "layer": "equipment",
+      "id": "cad_mt4r2ex9_zg0t",
+      "layer": "layout",
       "offset": -1100,
       "type": "dimension"
     }
@@ -339,7 +533,7 @@
     },
     {
       "version": 12,
-      "label": "insert:dimension"
+      "label": "insert:wall"
     },
     {
       "version": 13,
@@ -347,22 +541,121 @@
     },
     {
       "version": 14,
-      "label": "insert:dimension"
+      "label": "insert:opening"
     },
     {
       "version": 15,
+      "label": "save"
+    },
+    {
+      "version": 16,
+      "label": "insert:opening"
+    },
+    {
+      "version": 17,
+      "label": "save"
+    },
+    {
+      "version": 18,
+      "label": "insert:opening"
+    },
+    {
+      "version": 19,
+      "label": "save"
+    },
+    {
+      "version": 20,
+      "label": "insert:opening"
+    },
+    {
+      "version": 21,
+      "label": "save"
+    },
+    {
+      "version": 22,
+      "label": "insert:polyline"
+    },
+    {
+      "version": 23,
+      "label": "save"
+    },
+    {
+      "version": 24,
+      "label": "insert:hatch"
+    },
+    {
+      "version": 25,
+      "label": "save"
+    },
+    {
+      "version": 26,
+      "label": "insert:mtext"
+    },
+    {
+      "version": 27,
+      "label": "save"
+    },
+    {
+      "version": 28,
+      "label": "insert:mtext"
+    },
+    {
+      "version": 29,
+      "label": "save"
+    },
+    {
+      "version": 30,
+      "label": "insert:mtext"
+    },
+    {
+      "version": 31,
+      "label": "save"
+    },
+    {
+      "version": 32,
+      "label": "insert:dimension"
+    },
+    {
+      "version": 33,
+      "label": "save"
+    },
+    {
+      "version": 34,
+      "label": "insert:dimension"
+    },
+    {
+      "version": 35,
+      "label": "save"
+    },
+    {
+      "version": 36,
+      "label": "insert:dimension"
+    },
+    {
+      "version": 37,
       "label": "save"
     }
   ],
   "modelSpace": {
     "entityIds": [
-      "cad_mt44il5b_d51s",
-      "cad_mt44irzx_8xmz",
-      "cad_mt44izhl_yjpb",
-      "cad_mt44j6lr_me1i",
-      "cad_mt44je9k_hjqv",
-      "cad_mt44jnsn_p1n6",
-      "cad_mt44jxn7_1xwg"
+      "cad_mt4r0536_yoc0",
+      "cad_mt4qv1al_9ut9",
+      "cad_mt4qv7xi_j9ds",
+      "cad_mt4qveph_p63x",
+      "cad_mt4qvlmf_4dol",
+      "cad_mt4qvskr_cdz6",
+      "cad_mt4qw0c5_ypz5",
+      "cad_mt4qx8b8_1zk4",
+      "cad_mt4qxyrz_v66e",
+      "cad_mt4qyqdb_oyl3",
+      "cad_mt4qzi2s_k7o6",
+      "cad_mt4qzz1v_1urz",
+      "cad_mt4r0loq_klmg",
+      "cad_mt4r123u_ztxj",
+      "cad_mt4r1iti_jj25",
+      "cad_mt4r1tst_zbx1",
+      "cad_mt4r24jo_6tz1",
+      "cad_mt4r2ex9_zg0t"
     ]
   },
   "paperSpaces": [

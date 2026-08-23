@@ -12,6 +12,7 @@
  * ambos números.
  */
 import React from "react";
+import { useCadStatusBarClearance } from "./use-status-bar-clearance";
 import { CadGuidedTourDock } from "../onboarding/CadGuidedTourDock";
 import { CadLispDock } from "../lisp/CadLispDock";
 import { submitCadLisp } from "../lisp/use-lisp";
@@ -27,6 +28,8 @@ export interface CadCommandLineDockProps {
 
 export function CadCommandLineDock({ host, disabled }: CadCommandLineDockProps) {
   const snapshot = useCadCommandEngine(host);
+  // El muelle se aparta de la barra de estado por su cuenta; ver el módulo.
+  useCadStatusBarClearance();
   return (
     <div className="flex w-full flex-col gap-1">
       {/*

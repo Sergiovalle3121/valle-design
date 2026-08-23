@@ -14,6 +14,8 @@ import { buildCadHatchPublishStrokes } from "./hatch-publish-strokes";
 import { tessellateArc, tessellateEllipse, tessellateSpline } from "./curve-tessellate";
 import { buildCadDimensionGeometry } from "./associative-dimension";
 import { buildCadMleaderGeometry } from "./associative-mleader";
+import { plotEntityFromRegistry } from "./paper-space-registry-fallback";
+import { IDENTITY, multiply, point, type Affine } from "./paper-space-affine";
 
 export const CAD_SHEET_PAPERS = {
   A4: { width: 210, height: 297 },
@@ -339,35 +341,6 @@ export function buildCadSheetSetManifest(
   };
 }
 
-interface Affine {
-  a: number;
-  b: number;
-  c: number;
-  d: number;
-  e: number;
-  f: number;
-}
-
-const IDENTITY: Affine = { a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 };
-
-function multiply(left: Affine, right: Affine): Affine {
-  return {
-    a: left.a * right.a + left.c * right.b,
-    b: left.b * right.a + left.d * right.b,
-    c: left.a * right.c + left.c * right.d,
-    d: left.b * right.c + left.d * right.d,
-    e: left.a * right.e + left.c * right.f + left.e,
-    f: left.b * right.e + left.d * right.f + left.f,
-  };
-}
-
-function point(matrix: Affine, value: CadPoint2): CadPoint2 {
-  return {
-    x: matrix.a * value.x + matrix.c * value.y + matrix.e,
-    y: matrix.b * value.x + matrix.d * value.y + matrix.f,
-  };
-}
-
 function insertTransform(
   entity: Extract<CadEntity, { type: "insert" }>,
   block: CadBlockDefinition,
@@ -537,6 +510,8 @@ function renderEntity(
     layers: Map<string, CadLayerDef>;
     blocks: Map<string, CadBlockDefinition>;
     entities: Map<string, CadEntity>;
+    /** Para la geometría DERIVADA (un muro mira a sus vecinos, un hueco a su anfitrión). */
+    document: CadDocument;
     colorMode: "color" | "monochrome";
     lineweightScale: number;
     inheritedLayer?: string;
@@ -797,7 +772,18 @@ function renderEntity(
     });
     return commands;
   }
-  return [];
+
+  // Lo que la escalera no supo trazar lo traza el REGISTRO. Doce tipos —muro y
+  // hueco entre ellos— desaparecían del PDF en silencio; el porqué, en la
+  // cabecera de `paper-space-registry-fallback.ts`.
+  const fallback = plotEntityFromRegistry(
+    entity,
+    context.document,
+    { sheetId: context.sheetId, viewportId: context.viewport.id },
+    (points, closed) => path(points, closed) ?? null,
+  );
+  if (fallback.warning) context.warnings.push(fallback.warning);
+  return fallback.commands;
 }
 
 export function buildCadPublishPlan(
@@ -861,6 +847,7 @@ export function buildCadPublishPlan(
               layers,
               blocks,
               entities,
+              document,
               colorMode,
               lineweightScale,
               depth: 0,

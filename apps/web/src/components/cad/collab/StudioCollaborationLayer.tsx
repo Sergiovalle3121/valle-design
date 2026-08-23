@@ -56,7 +56,27 @@ export interface StudioCollaborationLayerProps {
  * orden correcto.
  */
 const DOCK =
-  "fixed right-3 top-24 z-[75] flex max-w-[calc(100vw-1.5rem)] flex-col rounded-card border border-border bg-popover/95 text-popover-foreground p-2 shadow-floating backdrop-blur";
+  "fixed z-[75] flex max-w-[calc(100vw-1.5rem)] flex-col rounded-card border border-border bg-popover/95 text-popover-foreground p-2 shadow-floating backdrop-blur";
+
+/**
+ * SE ANCLA AL LIENZO, NO A LA VENTANA.
+ *
+ * Con `fixed right-3 top-24` el muelle caía 304 px dentro del panel derecho del
+ * estudio —justo encima de «Selecciona objetos para ver sus propiedades»— y lo
+ * dejaba ilegible: dos superficies traslúcidas superpuestas no se leen ni por
+ * separado. Se vio en la captura de portada antes que en ninguna prueba, que es
+ * la peor forma de enterarse.
+ *
+ * El lienzo es la única superficie del estudio que NO tiene texto propio, así
+ * que es donde un panel flotante puede vivir sin tapar nada. Y su rectángulo se
+ * conoce sin acoplarse a una clase de Tailwind del monolito: el editor ya
+ * publica su contenedor (`viewport-registry.ts`), que es el mismo elemento que
+ * hospeda las chinchetas. Cuando el panel derecho se ensancha, se pliega o
+ * desaparece —modo enfoque, paleta profesional, pantalla estrecha— el muelle lo
+ * sigue solo, porque el lienzo cambia de tamaño con él.
+ */
+const DOCK_INSET = 12;
+
 
 /**
  * El ancho es del CONTENIDO, no del muelle. Plegado sólo hay un título y un
@@ -126,6 +146,39 @@ export default function StudioCollaborationLayer({
 
   /* ── El overlay: se crea con el lienzo del editor y muere con él ───────── */
   useEffect(() => onCadViewportPublished(setSurface), []);
+
+  /* ── La esquina del LIENZO donde se posa el muelle ─────────────────────── */
+  const [anchor, setAnchor] = useState<{ top: number; right: number } | null>(
+    null,
+  );
+  useEffect(() => {
+    if (!surface) {
+      setAnchor(null);
+      return;
+    }
+    const element = surface.container;
+    const measure = () => {
+      const rect = element.getBoundingClientRect();
+      // `right` se cuenta desde el borde derecho de la VENTANA porque el muelle
+      // es `fixed`: así el ancho del propio muelle —que cambia al plegarse— no
+      // entra en la cuenta y no hace falta medirlo.
+      setAnchor({
+        top: rect.top + DOCK_INSET,
+        right: Math.max(
+          DOCK_INSET,
+          window.innerWidth - rect.right + DOCK_INSET,
+        ),
+      });
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(element);
+    window.addEventListener("resize", measure);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [surface]);
 
   useEffect(() => {
     if (!surface) return;
@@ -211,6 +264,14 @@ export default function StudioCollaborationLayer({
   return (
     <aside
       className={`${DOCK} ${collapsed ? DOCK_WIDTH.collapsed : DOCK_WIDTH.open}`}
+      // Hasta la primera medida el muelle no se pinta en ningún sitio: enseñarlo
+      // en la esquina de la ventana durante un cuadro y moverlo al lienzo en el
+      // siguiente es un salto visible, y en una captura sale a medio camino.
+      style={
+        anchor
+          ? { top: anchor.top, right: anchor.right }
+          : { visibility: "hidden" }
+      }
       data-testid="cad-collab-dock"
     >
       <div className="flex items-center justify-between gap-2">

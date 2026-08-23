@@ -38,7 +38,7 @@ export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
     label: "Pan",
     shortcut: "Space",
     group: "navigate",
-    description: "Navegar el plano sin cambiar geometria.",
+    description: "Navegar el plano sin cambiar la geometria.",
   },
   {
     id: "measure",
@@ -66,7 +66,7 @@ export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
     label: "Rect",
     shortcut: "B",
     group: "draw",
-    description: "Dibujar una zona/room rectangular desde dos esquinas.",
+    description: "Dibujar un rectangulo desde dos esquinas.",
   },
   {
     id: "circle",
@@ -104,24 +104,24 @@ export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
   },
   {
     id: "aisle",
-    label: "Aisle",
+    label: "Corridor",
     shortcut: "A",
     group: "draw",
-    description: "Preparar creacion de pasillos/holguras.",
+    description: "Preparar un pasillo o una holgura entre dos objetos.",
   },
   {
     id: "zone",
-    label: "Zone",
+    label: "Area",
     shortcut: "Z",
     group: "insert",
-    description: "Insertar zona/rectangulo de layout.",
+    description: "Insertar un area rectangular editable.",
   },
   {
     id: "equipment",
-    label: "Equipment",
+    label: "Symbols",
     shortcut: "I",
     group: "insert",
-    description: "Abrir paleta de equipo.",
+    description: "Abrir la biblioteca de simbolos y bloques.",
   },
   {
     id: "text",
@@ -135,7 +135,7 @@ export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
     label: "Fit",
     shortcut: "F",
     group: "navigate",
-    description: "Enfocar el layout.",
+    description: "Encuadrar el dibujo completo.",
   },
   {
     id: "undo",

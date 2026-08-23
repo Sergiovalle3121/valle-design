@@ -79,7 +79,7 @@ export const CAD_KEYBOARD_SHORTCUTS: CadKeyboardShortcut[] = [
     id: "rect",
     label: "Rectangle",
     key: "b",
-    description: "Dibujar zona rectangular desde dos esquinas.",
+    description: "Dibujar un rectangulo desde dos esquinas.",
   },
   {
     id: "circle",
@@ -96,28 +96,28 @@ export const CAD_KEYBOARD_SHORTCUTS: CadKeyboardShortcut[] = [
   },
   {
     id: "aisle",
-    label: "Aisle",
+    label: "Corridor",
     key: "a",
-    description: "Preparar pasillo/holgura desde el comando CAD.",
+    description: "Preparar un pasillo o una holgura desde el comando CAD.",
   },
   {
     id: "connector",
     label: "Connector",
     key: "l",
     shift: true,
-    description: "Conectar flujo de la linea seleccionada.",
+    description: "Unir con una polilinea los objetos seleccionados.",
   },
   {
     id: "zone",
-    label: "Zone",
+    label: "Area",
     key: "z",
-    description: "Insertar zona rectangular editable.",
+    description: "Insertar un area rectangular editable.",
   },
   {
     id: "equipment",
-    label: "Equipment",
+    label: "Symbols",
     key: "i",
-    description: "Abrir biblioteca de equipo y simbolos.",
+    description: "Abrir la biblioteca de simbolos y bloques.",
   },
   {
     id: "text",
@@ -129,7 +129,7 @@ export const CAD_KEYBOARD_SHORTCUTS: CadKeyboardShortcut[] = [
     id: "fit_view",
     label: "Fit view",
     key: "f",
-    description: "Enfocar layout.",
+    description: "Encuadrar el dibujo completo.",
   },
   { id: "undo", label: "Undo", key: "z", ctrl: true, description: "Deshacer." },
   {

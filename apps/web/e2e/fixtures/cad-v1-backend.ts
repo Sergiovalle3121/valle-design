@@ -43,6 +43,15 @@ export interface LegacyFootprint {
 export interface CadV1DocumentSeed {
   model: string;
   revision?: string;
+  /**
+   * Nombre visible del documento. Por defecto es el `model`, que en los goldens
+   * es cómodo y en una CAPTURA es un desastre: el estudio pinta este texto como
+   * título, y el modelo de los documentos históricos es `AXOS-CAD-STUDIO` —un
+   * identificador congelado del ERP del que nació el producto, que en la portada
+   * se lee como el nombre del programa. El nombre y el modelo son cosas
+   * distintas; que coincidieran era una comodidad del fixture, no del producto.
+   */
+  name?: string;
   /** Documento canónico (null = fila creada pero nunca guardada, versión 0). */
   document?: Record<string, unknown> | null;
   /** cadDocumentVersion inicial (token CAS). */
@@ -183,7 +192,7 @@ export class CadV1Backend {
         : (seed.document ?? null);
     const row: DocRow = {
       id: `00000000-0000-4000-8000-${String(++this.seq).padStart(12, "0")}`,
-      name: seed.model,
+      name: seed.name ?? seed.model,
       projectId: null,
       model: seed.model,
       revision: seed.revision ?? "UNIVERSAL",
@@ -728,6 +737,8 @@ export async function installCadV1Backend(
     footprint?: LegacyFootprint;
     model?: string;
     revision?: string;
+    /** Nombre visible; por defecto el modelo. Ver `CadV1DocumentSeed.name`. */
+    name?: string;
   },
 ): Promise<{
   backend: CadV1Backend;
@@ -739,6 +750,7 @@ export async function installCadV1Backend(
     {
       model,
       revision,
+      name: seed.name,
       document: seed.document,
       version: seed.version ?? 0,
       footprint: seed.footprint,

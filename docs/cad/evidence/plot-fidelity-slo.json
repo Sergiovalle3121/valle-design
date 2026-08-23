@@ -2,8 +2,8 @@
   "$schema": "urn:valle-design:schema:cad-plot-fidelity-evidence:v1",
   "schemaVersion": 1,
   "evidenceId": "valle-design-plot-fidelity-v1",
-  "startedAt": "2026-08-20T15:48:17.013Z",
-  "finishedAt": "2026-08-20T15:49:14.032Z",
+  "startedAt": "2026-08-22T18:32:35.096Z",
+  "finishedAt": "2026-08-22T18:33:50.539Z",
   "enforcement": "report-only",
   "enforcementRationale": "Las afirmaciones de FIDELIDAD (escala, geometría, fuentes, numeración) están cerradas por specs ejecutables —plot-fidelity.spec.ts, title-block.spec.ts, sheet-set-cover.spec.ts— que fallan si cambian. Los TIEMPOS de este artefacto no fijan presupuesto: están medidos en un portátil de desarrollo con otros agentes trabajando en paralelo, y calibrarlos como umbral de CI produciría un gate que falla por contención de máquina y no por una regresión del producto.",
   "environment": {
@@ -17,7 +17,7 @@
     "logicalCpuCount": 12,
     "availableParallelism": 12,
     "totalMemoryBytes": 7896625152,
-    "freeMemoryBytesAtStart": 1797632000,
+    "freeMemoryBytesAtStart": 1766817792,
     "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos lógicos), 7.4 GB de RAM, Windows_NT 10.0.26200, portátil de desarrollo con carga vecina (otros agentes trabajando en el mismo equipo)"
   },
   "method": {
@@ -37,29 +37,29 @@
     "note": "Trabajo de CPU desde el documento hasta los bytes del PDF, con la tabla de plumas aplicada y el cajetín compuesto. Incluye la compresión del PDF, porque el archivo que se entrega va comprimido.",
     "singleSheet": {
       "buildJobMs": {
-        "medianMs": 300.48,
+        "medianMs": 284.926,
         "samplesMs": [
-          321.356,
-          300.48,
-          292.866
+          282.953,
+          290.204,
+          284.926
         ],
         "runs": 3
       },
       "emitPdfMs": {
-        "medianMs": 2462.203,
+        "medianMs": 2728.544,
         "samplesMs": [
-          2536.438,
-          2462.203,
-          2433.099
+          2574.671,
+          3393.498,
+          2728.544
         ],
         "runs": 3
       },
       "totalMs": {
-        "medianMs": 2762.683,
+        "medianMs": 3013.47,
         "samplesMs": [
-          2857.794,
-          2762.683,
-          2725.965
+          2857.624,
+          3683.702,
+          3013.47
         ],
         "runs": 3
       },
@@ -70,20 +70,20 @@
       "sheets": 6,
       "pages": 7,
       "totalMs": {
-        "medianMs": 13690.189,
+        "medianMs": 19553.976,
         "samplesMs": [
-          13773.204,
-          13690.189,
-          13111.874
+          18309.595,
+          19553.976,
+          19884.978
         ],
         "runs": 3
       },
       "msPerPage": {
-        "medianMs": 1955.741,
+        "medianMs": 2793.425,
         "samplesMs": [
-          1967.601,
-          1955.741,
-          1873.125
+          2615.656,
+          2793.425,
+          2840.711
         ],
         "runs": 3
       },
