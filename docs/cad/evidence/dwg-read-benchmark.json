@@ -2,7 +2,7 @@
   "$schema": "urn:valle-design:schema:dwg-read-benchmark:v1",
   "schemaVersion": 1,
   "generadoPor": "node scripts/dwg/benchmark-read.mjs",
-  "generadoEn": "2026-08-23T21:41:48.955Z",
+  "generadoEn": "2026-08-23T22:26:18.666Z",
   "alcance": "report-only; sin umbral ni claim productivo",
   "corpus": {
     "commit": "a60ebe2a71dae684ccd6c72d5f1a388be1777585",
@@ -12,15 +12,15 @@
   },
   "rondas": 5,
   "rondasMs": [
-    1528.7,
-    1700.4,
-    1855.1,
-    1784.3,
-    1716.1
+    1531.5,
+    1720.7,
+    1694.4,
+    1650.3,
+    1727
   ],
-  "mejorPasadaMs": 1528.7,
-  "medianaMs": 1716.1,
-  "mbPorSegundo": 1.41,
-  "objetosPorSegundo": 605,
+  "mejorPasadaMs": 1531.5,
+  "medianaMs": 1694.4,
+  "mbPorSegundo": 1.43,
+  "objetosPorSegundo": 613,
   "maquinaDeclarada": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos lógicos), 7.9 GB RAM, Windows_NT 10.0.26200, Node v22.18.0"
 }
