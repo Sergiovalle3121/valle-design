@@ -410,3 +410,54 @@ antes de que mi OLA 0 entrara— da exactamente esos 3 fallos y ningún otro.
 **Y un aviso para quien venga:** la campaña de cimientos cerró sin correr el
 barrido de goldens (lo delegó por escrito a esta OLA). Sus 13 commits nunca se
 midieron contra la suite e2e. Éste es el primer barrido del árbol fusionado.
+
+### OLA 2 — el ERP fuera de la suite
+
+**2.1 El inventario, y por qué salió tan corto.** La cola pedía cruzar los
+campos del fixture con sus consumidores «para evitar adivinar». El cruce salió
+inequívoco: `apps/web/e2e/fixtures/mock-backend.ts` servía **30 rutas** de
+ERP/MES —modelos de producto, listas de materiales, planes, órdenes de trabajo
+con su takt objetivo, surtido a línea con PENDING/STAGED/SHORTAGE, llamadas de
+reabasto, terminal de operador con andon, no conformidades, acciones
+correctivas, inventario— y **ninguna de las 30 aparece en ninguna spec**. Las 61
+specs importan exactamente UN símbolo, `installMockBackend`; ninguna nombra una
+ruta, ninguna lee `state`, ninguna pasa opciones de sembrado.
+
+Y para cerrar la puerta de atrás —una spec no nombra una ruta, pero la PÁGINA
+que conduce sí puede pedirla— se cruzó también contra el código de producto:
+**ninguna de las 30 aparece en `apps/web/src`**. Ninguna página puede pedirlas.
+
+**2.2 y 2.3 — no hubo capas que pelar ni vocabulario que renombrar.** Las dos
+sub-tareas presuponían que algo se consumía. No se consumía nada. Lo que el
+fixture hace de verdad son tres cosas, y son 60 líneas:
+
+1. interceptar el origen de la API entero, para que ninguna petición se escape a
+   un puerto muerto y falle con un tiempo de espera sin nombre;
+2. aplicar la comprobación de primera parte —la MISMA del servidor real: sin
+   sesión o sin CSRF, la respuesta es la de verdad, no un éxito de mentira—;
+3. contestar vacío pero con éxito (`GET` → `[]`, resto → `{ ok: true }`), y
+   nunca 401 ni 403, que dispararían las pantallas de «Sin acceso» y tumbarían
+   una prueba de dibujo por una razón que no está probando.
+
+**739 líneas → 85.** De las 739, las 60 que quedan eran las únicas que hacían
+algo; las otras 679 sembraban un mundo que nadie miraba.
+
+**Verificación.** Primero las specs de más riesgo —las que conducen páginas NO
+CAD: ciclo de vida del documento en el tablero, RBAC del visor, primeros cinco
+minutos y enlace de revisión de invitado—: 18 de 18 verdes. Después, barrido
+completo.
+
+**Barrido completo tras el recorte: 173 verdes de 258 casos** (el resto,
+`e2e/real`, exige NestJS y Postgres vivos y no corre en esta máquina). 10
+fallos, y ninguno del recorte:
+
+| Fallo | Veredicto |
+| --- | --- |
+| `46-cad-pointer-engine:177` (×2) | ANTERIOR. La sesión paralela lo bisecó y lo dejó escrito en el backlog: frágil ante el autohospedaje de fuentes, no es defecto de producto |
+| `20-cad-multiple-viewports:47` (firefox) | ANTERIOR, confirmado con corrida de control sobre `9835240` |
+| `27-cad-dxf-loss-manifest:79` (firefox) | INTERMITENTE. Verde en el barrido de goldens 40 min antes y verde al reintentarlo aislado (2/2) |
+| `public/mobile-accessibility` (×6) | AJENO al recorte y REAL: en móvil, el enlace «Iniciar sesión» sólo existe en la barra de escritorio y dentro del menú cerrado, así que en un viewport de teléfono no hay forma de llegar a él sin abrir el menú. Es exactamente el ítem 6.4 de esta campaña y se atiende allí. Un interceptor de rutas no puede quitar un enlace del DOM |
+
+Nota de método: estos seis fallos del embudo público **no los había visto nadie**
+porque los barridos anteriores corrían sólo `e2e/golden`. `e2e/public` llevaba
+sin medirse desde que se rediseñó la navegación.
