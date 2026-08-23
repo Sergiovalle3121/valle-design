@@ -99,7 +99,41 @@ Workflow `wf_67c109b8-263` completo: 8/8 agentes, 0 errores, 1.46M tokens, 840 t
 - **Hallazgo propio durante la verificación en vivo:** `https://api.example.com` (el literal exacto del fallback viejo) pasaba `check:production-config` sin ser detectado — `isPlaceholderHost` sólo comparaba el hostname COMPLETO contra una lista exacta (`example.com`), y `api.example.com` no es `example.com`. Corregido en `apps/web/src/config/production-readiness.ts` (`isPlaceholderSubdomain`, compara también por sufijo `.dominio-reservado`) con 3 tests adversariales nuevos (el caso exacto, un email en subdominio de placeholder, y un control para no introducir falsos positivos en dominios reales que sólo contienen la palabra "example"). Verificado en vivo con `npm run check:production-config`: vacío→falla nombrando cada campo, `api.example.com`→falla, dominio real→pasa. `production-readiness.spec.ts` sigue en verde con los casos nuevos.
 - Verificado tras el wiring: `npm run check:deploy` PASS (26 invariantes), `typecheck` limpio en `web` y `valle-design-api`.
 
-**En curso:** gates completos (`build`, `lint`, `test`, `check:cad`, `check:dwg`, `check:deploy`) sobre `claude/p0-integration` con árbol quieto, para confirmar que los cuatro frentes + el wiring componen sin sorpresas antes de preparar los PR drafts. Log en `D:\dev\.cache\tmp\integration-gates.log`.
+**Primera corrida de gates completos sobre `claude/p0-integration` (árbol recién fusionado): 2 rojos reales de integración, ninguno una reapertura de P0-A/B/C/D.**
+
+| Gate | Resultado | Causa |
+|---|---|---|
+| `build` | PASS | — |
+| `lint` | PASS | — |
+| `test` | **FAIL** | `console-contract.spec.ts` (real: contrato de A cambió, artefacto derivado no regenerado) + 3 fallos (`seo-surface`, `collab-dock-position`, `plot-host`) por OOM en cascada del servicio esbuild (confirmado ambiental: los tres pasan limpio en aislamiento) |
+| `check_cad` | **FAIL** | trinquete de lint: 5 categorías `no-unsafe-*` sobre presupuesto — los dos archivos nuevos de RLS de B introspeccionan Postgres crudo sin tipar |
+| `check_dwg` | PASS | — |
+| `check_deploy` | PASS | — |
+
+**Correcciones aplicadas (todas commiteadas en `claude/p0-integration`):**
+1. `ed31ea8` — Regenerado `operations.generated.json` + SDK tras el contrato retirado de A. Hallazgo colateral: el parser artesanal de `build-api-console.mjs` no soporta `summary` multilínea (a diferencia de `description`) — se acortó a una línea siguiendo la convención del resto del archivo.
+2. `f6a13d1` — Tipados explícitamente los 8 `dataSource.query()` sin genérico en los dos archivos nuevos de B (`tenant-rls-coverage.pg.spec.ts`, `20260823120000-TenantRuntimeRoleAndDesignBlobsRls.pg.spec.ts`) en vez de subir el presupuesto a ciegas. **Hallazgo colateral serio:** un assert (`is_grantable !== 'YES'`) nunca podía fallar de verdad — la query no seleccionaba esa columna, así que siempre comparaba contra `undefined`. Corregido. Las 2 advertencias restantes (`driverError: expect.objectContaining(...)` dentro de `.rejects.toMatchObject`) son un patrón ya existente e idéntico en el archivo hermano (8 instancias, sin tocar) — se subió el presupuesto +2 con `--update` y esta justificación en el commit, no a ciegas.
+3. `2a86fc7` (wiring de D, ver arriba) + `production-readiness.ts` — **hallazgo propio durante la verificación en vivo del wiring:** `https://api.example.com` (el literal exacto del fallback viejo de `release.yml`) pasaba `check:production-config` sin ser detectado como placeholder. Corregido (`isPlaceholderSubdomain`) con tests adversariales nuevos.
+
+Ambos archivos de B re-verificados contra PostgreSQL 16 real (base aislada `valle_test_p0_coord_verify`, creada y borrada sólo para esta verificación): 13/13 en verde, incluida la corrección del assert de `is_grantable`.
+
+## 4bis. Gates finales — segunda corrida sobre `claude/p0-integration`, árbol quieto (SHA `f6a13d1`)
+
+| Gate | Resultado | Duración |
+|---|---|---|
+| `typecheck` | **PASS** | 71s |
+| `build` | **PASS** | 96s |
+| `lint` | **PASS** | 213s |
+| `test` | **PASS** — API 682/843 (81/112 suites, 0 fallos, 161 skipped); web 0 fallos (incluido `plan-budget.spec.ts`, el rojo preexistente de Campaña 0, verde esta vez — confirma que es ruido de máquina, no un rojo estable) | 534s |
+| `check:cad` | **PASS** | 261s |
+| `check:dwg` | **PASS** | 66s |
+| `check:deploy` | **PASS** | 1s |
+| `sbom` | **PASS** | 5s |
+| `check:licenses` | **PASS** | 1s |
+
+**Cero rojos.** Ningún número se declaró vigente sin volver a correrlo en este SHA — ver `D:\dev\.cache\tmp\integration-gates2.log` para el log completo.
+
+Pendiente (no ejecutable en este entorno, marcado NOT RUN — MISSING EXTERNAL EVIDENCE en vez de asumido): suite `.pg.spec.ts` completa contra Postgres real (sólo se corrió el subconjunto de B, dos veces, en bases aisladas propias — correr la suite completa es un riesgo de recursos ya documentado por B), Docker build/smoke real (Docker no disponible en este entorno), E2E navegador real.
 
 **Nota aparte (no causada por esta campaña):** el `main` remoto de GitHub tiene CI en rojo desde antes de esta ola (ver §0bis) por un problema de reproducibilidad de `check:dwg-evidence` ajeno a P0 — la rama de integración va a heredar ese mismo rojo en CI. Escalado a Sergio por la otra sesión activa (campaña DWG paralela).
 
