@@ -43,10 +43,15 @@ const SCALE_TOLERANCE_MM = 1e-3;
  * la comprobación: el camino de incrustación sin probar es exactamente el que
  * produce planos que el municipio rechaza.
  */
+/** Familia bajo la que se registra la fuente incrustada de prueba. */
+const EMBEDDED_FAMILY = "JetBrainsMono";
+
 function embeddableFont(): CadPlotFontProgram {
+  // three 0.185 dejó de traer la fuente de ejemplo; se usa la TTF
+  // AUTOHOSPEDADA del producto (OFL), que está en el repositorio.
   const candidates = [
-    path.resolve(process.cwd(), "../../node_modules/three/examples/fonts/ttf/kenpixel.ttf"),
-    path.resolve(process.cwd(), "node_modules/three/examples/fonts/ttf/kenpixel.ttf"),
+    path.resolve(process.cwd(), "src/fonts/JetBrainsMono-wght.ttf"),
+    path.resolve(process.cwd(), "apps/web/src/fonts/JetBrainsMono-wght.ttf"),
   ];
   const file = candidates.find((candidate) => fs.existsSync(candidate));
   assert.ok(
@@ -54,9 +59,9 @@ function embeddableFont(): CadPlotFontProgram {
     `No se encontró ninguna fuente TTF para probar la incrustación. Buscado en:\n${candidates.join("\n")}`,
   );
   return {
-    family: "KenPixel",
+    family: EMBEDDED_FAMILY,
     style: "normal",
-    fileName: "kenpixel.ttf",
+    fileName: "JetBrainsMono-wght.ttf",
     base64: fs.readFileSync(file).toString("base64"),
   };
 }
@@ -260,14 +265,14 @@ async function specs(): Promise<void> {
       scaleDenominator: 100,
       wallLengthUnits: 30_000,
       wallHeightUnits: 18_000,
-      fontFamily: "KenPixel",
+      fontFamily: EMBEDDED_FAMILY,
       fontPrograms: [embeddableFont()],
     });
     assertFontsDeclared(embedded, "fuente incrustada");
-    assert.deepEqual(embedded.fonts.embedded, ["KenPixel"]);
+    assert.deepEqual(embedded.fonts.embedded, [EMBEDDED_FAMILY]);
     assert.deepEqual(embedded.fonts.substituted, []);
     assert.ok(
-      embedded.fonts.inPdf.some((entry) => entry.baseFont === "KenPixel" && entry.embedded),
+      embedded.fonts.inPdf.some((entry) => entry.baseFont === EMBEDDED_FAMILY && entry.embedded),
       "el programa de la fuente tiene que estar DENTRO del archivo, no sólo declarado",
     );
     // Y ni rastro de la tipografía que jsPDF colaba al pedirle una negrita que
@@ -276,7 +281,7 @@ async function specs(): Promise<void> {
       !embedded.fonts.inPdf.some((entry) => /times/i.test(entry.baseFont)),
       `se coló una fuente que nadie pidió: ${embedded.fonts.inPdf.map((entry) => entry.baseFont).join(", ")}`,
     );
-    measured.push({ label: "KenPixel incrustada", report: embedded });
+    measured.push({ label: `${EMBEDDED_FAMILY} incrustada`, report: embedded });
   }
 
   // --- C3: UN PROGRAMA DE FUENTE ROTO NO TUMBA EL TRAZADO ---------------------
