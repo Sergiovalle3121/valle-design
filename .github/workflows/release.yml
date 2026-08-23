@@ -121,10 +121,21 @@ jobs:
           cache-from: type=gha,scope=api
           cache-to: type=gha,mode=max,scope=api
 
-      # OJO: `NEXT_PUBLIC_API_URL` se incrusta en el bundle. Esta imagen SÓLO
-      # sirve para el origen con el que se construyó; desplegarla contra otro
-      # host produce un web que llama a la API equivocada desde el navegador
-      # del cliente, y el error no aparece en ningún log del servidor.
+      # OJO: TODA variable NEXT_PUBLIC_* se incrusta en el bundle. Esta imagen
+      # SÓLO sirve para el origen y la marca con los que se construyó;
+      # desplegarla contra otro host produce un web que llama a la API
+      # equivocada desde el navegador del cliente, y el error no aparece en
+      # ningún log del servidor.
+      #
+      # `apps/web/Dockerfile` corre `check:production-config` durante el
+      # build: revienta si estas CUATRO llegan vacías o con un dominio de
+      # plantilla (`*.invalid`), así que son OBLIGATORIAS antes del próximo
+      # tag `v*` —configúralas como repository variables (Settings → Secrets
+      # and variables → Actions → Variables), igual que ya existe
+      # `RELEASE_API_URL`—:
+      #   RELEASE_BRAND_WEBSITE_URL, RELEASE_BRAND_SUPPORT_EMAIL,
+      #   RELEASE_BRAND_SALES_EMAIL, RELEASE_BRAND_PRIVACY_EMAIL
+      # El resto de RELEASE_* de este bloque es opcional (default seguro).
       - name: Construir imagen del web
         id: web
         uses: docker/build-push-action@v6
@@ -135,6 +146,33 @@ jobs:
           load: ${{ !(inputs.publicar_imagenes || github.ref_type == 'tag') }}
           build-args: |
             NEXT_PUBLIC_API_URL=${{ inputs.api_url || vars.RELEASE_API_URL || 'https://api.example.com' }}
+            NEXT_PUBLIC_SITE_URL=${{ vars.RELEASE_SITE_URL }}
+            NEXT_PUBLIC_SALES_URL=${{ vars.RELEASE_SALES_URL }}
+            NEXT_PUBLIC_DOCUMENTATION_URL=${{ vars.RELEASE_DOCUMENTATION_URL }}
+            NEXT_PUBLIC_PRICING_URL=${{ vars.RELEASE_PRICING_URL }}
+            NEXT_PUBLIC_SUPPORT_URL=${{ vars.RELEASE_SUPPORT_URL }}
+            NEXT_PUBLIC_STATUS_URL=${{ vars.RELEASE_STATUS_URL }}
+            NEXT_PUBLIC_CONTACT_URL=${{ vars.RELEASE_CONTACT_URL }}
+            NEXT_PUBLIC_PRIVACY_URL=${{ vars.RELEASE_PRIVACY_URL }}
+            NEXT_PUBLIC_TERMS_URL=${{ vars.RELEASE_TERMS_URL }}
+            NEXT_PUBLIC_LICENSES_URL=${{ vars.RELEASE_LICENSES_URL }}
+            NEXT_PUBLIC_BRAND_NAME=${{ vars.RELEASE_BRAND_NAME }}
+            NEXT_PUBLIC_BRAND_LEGAL_ENTITY=${{ vars.RELEASE_BRAND_LEGAL_ENTITY }}
+            NEXT_PUBLIC_BRAND_FOUNDER=${{ vars.RELEASE_BRAND_FOUNDER }}
+            NEXT_PUBLIC_BRAND_DESCRIPTOR=${{ vars.RELEASE_BRAND_DESCRIPTOR }}
+            NEXT_PUBLIC_BRAND_TAGLINE_EN=${{ vars.RELEASE_BRAND_TAGLINE_EN }}
+            NEXT_PUBLIC_BRAND_TAGLINE_ES=${{ vars.RELEASE_BRAND_TAGLINE_ES }}
+            NEXT_PUBLIC_BRAND_SUPPORT_EMAIL=${{ vars.RELEASE_BRAND_SUPPORT_EMAIL }}
+            NEXT_PUBLIC_BRAND_SALES_EMAIL=${{ vars.RELEASE_BRAND_SALES_EMAIL }}
+            NEXT_PUBLIC_BRAND_PRIVACY_EMAIL=${{ vars.RELEASE_BRAND_PRIVACY_EMAIL }}
+            NEXT_PUBLIC_BRAND_WEBSITE_URL=${{ vars.RELEASE_BRAND_WEBSITE_URL }}
+            NEXT_PUBLIC_BRAND_COPYRIGHT=${{ vars.RELEASE_BRAND_COPYRIGHT }}
+            NEXT_PUBLIC_BRAND_COPYRIGHT_YEAR=${{ vars.RELEASE_BRAND_COPYRIGHT_YEAR }}
+            NEXT_PUBLIC_BRAND_TRADEMARK_STATUS=${{ vars.RELEASE_BRAND_TRADEMARK_STATUS }}
+            NEXT_PUBLIC_BRAND_TRADEMARK_SYMBOL=${{ vars.RELEASE_BRAND_TRADEMARK_SYMBOL }}
+            NEXT_PUBLIC_BRAND_LOGO_MARK=${{ vars.RELEASE_BRAND_LOGO_MARK }}
+            NEXT_PUBLIC_BRAND_LOGO_ICON=${{ vars.RELEASE_BRAND_LOGO_ICON }}
+            NEXT_PUBLIC_BRAND_PRODUCT_NAME_DESIGN=${{ vars.RELEASE_BRAND_PRODUCT_NAME_DESIGN }}
           tags: |
             ${{ env.IMAGE_BASE }}/web:${{ steps.version.outputs.version }}
           provenance: false

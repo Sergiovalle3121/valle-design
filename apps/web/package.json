@@ -11,6 +11,7 @@
     "typecheck": "tsc --noEmit",
     "test": "npm run test:specs",
     "test:specs": "node scripts/run-specs.mjs",
+    "check:production-config": "tsx scripts/check-production-config.mts",
     "benchmark:cad:smoke": "tsx scripts/cad-corpus-benchmark.mts --tier smoke",
     "benchmark:cad:scale": "tsx scripts/cad-corpus-benchmark.mts --tier scale",
     "benchmark:cad:render": "cross-env NODE_OPTIONS=\"--expose-gc --max-old-space-size=4096\" tsx scripts/cad-render-benchmark.mts",

@@ -32,17 +32,32 @@ node scripts/deploy/validate-dockerfiles.mjs
 
 ### La imagen del web es específica del entorno
 
-`NEXT_PUBLIC_API_URL` **se incrusta en el bundle durante el build**. No es
-configuración de runtime: cambiarla en el proceso no reescribe el JavaScript ya
-emitido. Consecuencia operativa: la imagen de web de staging **no sirve** para
+TODA variable `NEXT_PUBLIC_*` (API, marca, enlaces comerciales, URL del
+sitio) **se incrusta en el bundle durante el build**. No es configuración de
+runtime: cambiarla en el proceso no reescribe el JavaScript ya emitido.
+Consecuencia operativa: la imagen de web de staging **no sirve** para
 producción. Si se despliega igualmente, el navegador del cliente llamará al
-host equivocado y **no habrá ninguna traza en los logs del servidor**.
+host equivocado (o mostrará la marca/contacto equivocados) y **no habrá
+ninguna traza en los logs del servidor**.
 
 ```bash
 docker build -f apps/web/Dockerfile \
   --build-arg NEXT_PUBLIC_API_URL=https://api.tu-dominio.com \
+  --build-arg NEXT_PUBLIC_BRAND_WEBSITE_URL=https://tu-dominio.com \
+  --build-arg NEXT_PUBLIC_BRAND_SUPPORT_EMAIL=soporte@tu-dominio.com \
+  --build-arg NEXT_PUBLIC_BRAND_SALES_EMAIL=ventas@tu-dominio.com \
+  --build-arg NEXT_PUBLIC_BRAND_PRIVACY_EMAIL=privacidad@tu-dominio.com \
   -t valle-design/web:$VERSION .
 ```
+
+Las cuatro variables de marca del ejemplo son **obligatorias**: el build
+corre `npm run check:production-config --workspace=web` con
+`NODE_ENV=production` ya fijado y revienta si alguna sigue en su default de
+desarrollo (`*.invalid`) o lleva un marcador de plantilla sin completar. El
+resto de `NEXT_PUBLIC_BRAND_*` y de los enlaces comerciales
+(`NEXT_PUBLIC_SALES_URL`, `..._DOCUMENTATION_URL`, etc. — ver
+`apps/web/Dockerfile` para la lista completa) es opcional y cae a un default
+seguro.
 
 ### Construir el release completo
 
@@ -84,6 +99,10 @@ El smoke `scripts/deploy/production-startup-smoke.mjs` lo comprueba en CI.
 | `EMAIL_SENDER_FROM`              | remitente con dominio verificado | ídem — **a medias, el arranque muere**         |
 | `OUTBOX_EMAIL_LINK_BASE_URL`     | origen web público HTTPS       | ídem — **a medias, el arranque muere**           |
 | `NEXT_PUBLIC_API_URL` (build web)| origen público del API         | el web llama al host equivocado                  |
+| `NEXT_PUBLIC_BRAND_WEBSITE_URL` (build web) | URL real del sitio | `check:production-config` revienta el build (dominio de plantilla) |
+| `NEXT_PUBLIC_BRAND_SUPPORT_EMAIL` (build web) | correo real de soporte | ídem |
+| `NEXT_PUBLIC_BRAND_SALES_EMAIL` (build web) | correo real de ventas | ídem |
+| `NEXT_PUBLIC_BRAND_PRIVACY_EMAIL` (build web) | correo real de privacidad | ídem |
 
 Opcionales que cambian el comportamiento operativo:
 

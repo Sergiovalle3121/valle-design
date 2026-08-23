@@ -97,11 +97,26 @@ STRIPE_CHECKOUT_CANCEL_URL=https://app.valledesign.mx/precios
 # Customer Portal, y suscribir los 8 eventos que lista
 # docs/guides/environment-variables.md § «Pasarela de pagos».
 
-# ── 7 · Web: NEXT_PUBLIC_API_URL va INCRUSTADA en la imagen ─────────────────
-# NO es una variable de este .env: se fija al CONSTRUIR la imagen del web
-# (release.yml → vars.RELEASE_API_URL = https://api.valledesign.mx). Una
-# imagen construida con otro valor llama al host equivocado desde el
-# navegador del cliente y no deja traza en ningún log del servidor.
+# ── 7 · Web: TODO NEXT_PUBLIC_* va INCRUSTADO en la imagen ──────────────────
+# NINGUNA de estas es una variable de este .env: se fijan al CONSTRUIR la
+# imagen del web (release.yml → repository variables `vars.RELEASE_*`). Una
+# imagen construida con otro valor llama al host equivocado, o publica la
+# marca/contacto equivocados, desde el navegador del cliente — y no deja
+# traza en ningún log del servidor.
+#
+# NEXT_PUBLIC_API_URL           → vars.RELEASE_API_URL
+#
+# Obligatorias — el build corre check:production-config y revienta si
+# quedan en su default de desarrollo (dominio *.invalid):
+# NEXT_PUBLIC_BRAND_WEBSITE_URL   → vars.RELEASE_BRAND_WEBSITE_URL
+# NEXT_PUBLIC_BRAND_SUPPORT_EMAIL → vars.RELEASE_BRAND_SUPPORT_EMAIL
+# NEXT_PUBLIC_BRAND_SALES_EMAIL   → vars.RELEASE_BRAND_SALES_EMAIL
+# NEXT_PUBLIC_BRAND_PRIVACY_EMAIL → vars.RELEASE_BRAND_PRIVACY_EMAIL
+#
+# Opcionales, con default seguro (nombre, fundador, descriptor, taglines,
+# copyright, estado marcario, logos, nombre de producto, enlaces comerciales
+# y URL del sitio): ver el bloque `build-args` de release.yml para la lista
+# completa de repository variables `vars.RELEASE_*` que las alimentan.
 
 # ── 8 · CFDI: VACÍAS a propósito (emisión manual al inicio) ─────────────────
 CFDI_PAC_NAME=
