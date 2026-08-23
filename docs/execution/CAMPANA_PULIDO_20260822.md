@@ -552,3 +552,48 @@ miraban sólo `e2e/golden`**. Al correrlo aparecieron tres cosas:
    mínimo.
 
 `e2e/public`: **6/6 verdes**, desde 0/6.
+
+---
+
+## OLA FINAL — la verdad medida
+
+**F.1 Barrido completo con el árbol quieto** (`e2e/golden` + `e2e/public`,
+180 casos, 1,1 h): **172 verdes, 7 rojos, 1 saltado.**
+
+Los 7 rojos, clasificados uno a uno:
+
+| Rojo | Veredicto |
+| --- | --- |
+| `46-cad-pointer-engine:177` (×2) | **ANTERIOR.** La sesión paralela lo bisecó: frágil ante el autohospedaje de fuentes, no es defecto de producto |
+| `20-cad-multiple-viewports:47` (firefox) | **ANTERIOR**, confirmado con corrida de control sobre `9835240` |
+| `10-cad-native-entities:156`, `15-cad-native-mtext`, `16-cad-associative-dimensions`, `17-cad-native-mleader` (chromium) | **CONTENCIÓN.** Los tres últimos fallan con «Guardando…» en vez de «Guardado»: el guardado no asentó en 15 s durante un barrido de 1,1 h con dos trabajadores. Reejecutados en aislamiento: **10 de 10 verdes en 3,1 min** |
+
+**La cifra honesta: 85 de 87 goldens**, y los dos que faltan son anteriores a
+esta campaña. `e2e/public`, **6/6**, desde 0/6.
+
+Y una advertencia que vale más que la cifra: **cuatro rojos de esa corrida eran
+ruido de máquina.** Un barrido de una hora en un portátil con un servidor de
+desarrollo encima no distingue una regresión de una espera corta. La forma de
+leerlo es la que usó esta campaña: reejecutar en aislamiento antes de acusar.
+
+**F.2 Evidencia regenerada.** Capturas (las seis, ya con el cajetín sin el campo
+muerto), `plot-fidelity` (error de escala 2,8e-14 mm), manifiestos del corpus de
+benchmark y la cadena de procedencia del SHA extendida a su cuarto eslabón.
+
+**La discrepancia 186/200 vs 191/200 quedó SIN OBJETO**, y conviene decirlo con
+precisión en vez de tacharla: la campaña de cimientos **sustituyó la rúbrica
+entera**. Ya no hay un número, hay dos y con otro denominador — HOY 154/175
+(88 %) y DESTINO 189/220 (85,9 %), rúbrica `2026-08-22.1`. Los dos números
+viejos pertenecen a la rúbrica `2026-08-20.1`, que ya no existe. De dónde venía
+la diferencia sí quedó comprobado: los cinco puntos estaban enteros en
+Import/export DWG (2/8 committeado contra 7/8 calculado), y la matriz llevaba
+desde la campaña DWG del 21-08 sin regenerarse.
+
+**F.3.** El recorrido de cliente NO se hizo como paseo manual. Lo que sí se hizo
+—y encontró más de lo que habría encontrado un paseo— fue correr los barridos
+que nadie corría: `e2e/public` llevaba sin medirse desde el rediseño de la
+navegación y escondía que **la portada se desplaza en horizontal en un teléfono**
+y que **no había forma de iniciar sesión desde el móvil sin abrir la
+hamburguesa**. Los dos están arreglados y medidos.
+
+**F.4** → [`INFORME_CAMPANA_PULIDO_20260822.md`](INFORME_CAMPANA_PULIDO_20260822.md).
