@@ -440,9 +440,18 @@ export class CommercialController {
 
     const plan = await this.plans.findOneBy({ code: subscription.planCode });
     const now = new Date();
+    // `active` NO basta por sí solo (P0-B, campaña de seguridad 2026-08-23):
+    // el estado dice que hubo un ciclo de cobro, no que el ciclo YA PAGADO
+    // siga vigente. Sin `currentPeriodEnd > now` una suscripción activa cuyo
+    // período venció (renovación fallida que aún no llegó por webhook, o una
+    // fila histórica sin período registrado) seguiría contando como
+    // efectiva. `currentPeriodEnd` ausente se trata como «sin vigencia
+    // probada» y falla cerrado, igual que un trial sin `trialEndsAt`.
     const effective =
       !!plan?.active &&
-      (subscription.status === 'active' ||
+      ((subscription.status === 'active' &&
+        !!subscription.currentPeriodEnd &&
+        subscription.currentPeriodEnd > now) ||
         (subscription.status === 'trialing' &&
           !!subscription.trialEndsAt &&
           subscription.trialEndsAt > now));
