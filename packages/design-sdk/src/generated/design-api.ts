@@ -446,8 +446,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Confirma el intent (solo owner/admin) y activa el plan pedido.
-         * @description La decision y el cambio de suscripcion ocurren en la misma transaccion; el evento `commercial.subscription.upgraded` sale por el outbox de dominio con idempotencia por intent.
+         * RETIRADO (P0-A): ningun principal de la organizacion cliente puede confirmar su propio upgrade.
+         * @deprecated
+         * @description Antes activaba la suscripcion sin pasar por un proveedor de pago verificado. `organizationId` siempre se deriva de la membresia activa de quien llama (ADR-0005), asi que el unico principal alcanzable era el owner/admin de la MISMA organizacion que pidio el upgrade - exactamente el actor que nunca debe poder concederse a si mismo un plan pagado. La ruta sigue existiendo (no se retira el path) pero cualquier llamada autenticada recibe 403 sin mutar nada; la activacion real llega por el webhook firmado del proveedor de pagos (ADR-0006, ver `POST /v1/commercial/webhooks/stripe`).
          */
         post: operations["confirmUpgradeIntent"];
         delete?: never;
@@ -1510,10 +1511,6 @@ export interface components {
             /** Format: uuid */
             organizationId: string;
             items: components["schemas"]["UpgradeIntentView"][];
-        };
-        UpgradeIntentConfirmed: {
-            intent: components["schemas"]["UpgradeIntentView"];
-            subscription: components["schemas"]["SubscriptionView"];
         };
         /**
          * @description `external`: el cobro ocurre fuera del producto (asistido) y se registra via upgrade-intents. `hosted`: el proveedor aloja la pagina de pago y el resultado vuelve por webhook firmado.
@@ -3066,20 +3063,9 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Intent confirmado; la suscripcion queda `active`. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["UpgradeIntentConfirmed"];
-                };
-            };
             401: components["responses"]["Unauthorized"];
-            403: components["responses"]["Forbidden"];
-            404: components["responses"]["NotFound"];
-            /** @description El intent ya fue decidido (`upgrade_intent_not_pending`) o el plan dejo de estar disponible (`plan_unavailable`). */
-            409: {
+            /** @description Confirmacion manual retirada (`assisted_checkout_confirmation_retired`), o el llamante no es owner/admin de una organizacion activa. */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
