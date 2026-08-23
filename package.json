@@ -50,7 +50,7 @@
     "check:dwg": "npm run check --workspace=@valle-design/dwg-codec && node scripts/dwg/check-product-boundary.mjs && npm run check:dwg-corpus",
     "corpus:dwg": "node scripts/dwg/fetch-corpus.mjs",
     "check:dwg-corpus": "node scripts/dwg/corpus-consumer.spec.mjs && node scripts/dwg/fetch-corpus.mjs --check",
-    "check:deploy": "node scripts/deploy/validate-dockerfiles.mjs",
+    "check:deploy": "node scripts/deploy/validate-dockerfiles.spec.mjs && node scripts/deploy/validate-dockerfiles.mjs",
     "smoke:deploy": "node scripts/deploy/production-startup-smoke.mjs",
     "ops:backup": "node scripts/ops/backup.mjs",
     "ops:restore-verify": "node scripts/ops/restore-verify.mjs",
