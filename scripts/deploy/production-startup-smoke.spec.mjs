@@ -14,16 +14,36 @@
  * falso que reproduce EXACTAMENTE esa respuesta, sin Docker ni red.
  */
 import assert from 'node:assert/strict';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   ASSET_CONTENT_TYPES,
   WEB_PUBLIC_DIR,
   bundleContainsApiUrl,
   discoverExpectedWebAssets,
+  discoverStaticChunkUrls,
   evaluateAssetResponse,
-  extractScriptUrls,
   runWebAssetsSmoke,
   selectSmokeAssets,
 } from './production-startup-smoke.mjs';
+
+/**
+ * Fixture aislada para `discoverStaticChunkUrls` / `runWebAssetsSmoke`: un
+ * directorio temporal con la forma de `apps/web/.next/static` (subcarpeta
+ * `chunks/` con los `.js` que se piden). Aislada del build real del repo a
+ * propósito — esta spec no debe depender de si `apps/web/.next/static`
+ * existe o de qué contiene en la máquina donde corre.
+ */
+function makeFixtureStaticDir(chunkNames) {
+  const dir = mkdtempSync(join(tmpdir(), 'smoke-static-'));
+  const chunksDir = join(dir, 'chunks');
+  mkdirSync(chunksDir, { recursive: true });
+  for (const name of chunkNames) {
+    writeFileSync(join(chunksDir, name), '// fixture — el contenido real lo pone fetchImpl');
+  }
+  return dir;
+}
 
 let checks = 0;
 const ok = (condition, message) => {
@@ -140,21 +160,46 @@ const wasmAsset = { urlPath: '/wasm/valle-cad-kernel.wasm', contentType: 'applic
   ok(!result.ok, 'un 500 no es un 404 pero tampoco es un pase');
 }
 
-// ─── extractScriptUrls / bundleContainsApiUrl ────────────────────────────────
+// ─── discoverStaticChunkUrls / bundleContainsApiUrl ──────────────────────────
 
 {
-  const html = `<!doctype html><html><head>
-    <script src="/_next/static/chunks/main-abc123.js"></script>
-    <script src="https://cdn.example.com/otro.js" defer></script>
-  </head><body></body></html>`;
-  const urls = extractScriptUrls(html, 'http://127.0.0.1:3000');
+  const dir = makeFixtureStaticDir(['main-abc123.js', 'polyfills-xyz.js']);
+  try {
+    const urls = discoverStaticChunkUrls(dir);
+    eq(
+      urls,
+      ['/_next/static/chunks/main-abc123.js', '/_next/static/chunks/polyfills-xyz.js'],
+      'descubre cada .js bajo staticDir y arma la ruta pública /_next/static/... — sin mirar qué página los enlaza',
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+{
+  // El build-id vive en su propia subcarpeta (junto a `chunks/`) y también
+  // puede llevar .js — discoverStaticChunkUrls debe bajar ahí también, y
+  // debe ignorar lo que no es .js (p. ej. un .js.map).
+  const dir = makeFixtureStaticDir([]);
+  mkdirSync(join(dir, 'abuildid123'), { recursive: true });
+  writeFileSync(join(dir, 'abuildid123', '_buildManifest.js'), '//');
+  writeFileSync(join(dir, 'abuildid123', '_buildManifest.js.map'), '//');
+  try {
+    eq(
+      discoverStaticChunkUrls(dir),
+      ['/_next/static/abuildid123/_buildManifest.js'],
+      'recorre subdirectorios (el del buildId) y descarta archivos que no son .js',
+    );
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+{
   eq(
-    urls,
-    [
-      'http://127.0.0.1:3000/_next/static/chunks/main-abc123.js',
-      'https://cdn.example.com/otro.js',
-    ],
-    'resuelve src relativos contra baseUrl y conserva los absolutos',
+    discoverStaticChunkUrls('/ruta/que/no/existe/en/ningun/lado'),
+    [],
+    'un staticDir inexistente devuelve lista vacía, no lanza',
   );
 }
 
@@ -203,9 +248,12 @@ async function run() {
   // pero todo lo que vive bajo `apps/web/public` responde 404.
   {
     const { calls, checkFn, noteFn } = fakeCollector();
+    // staticDir vacío a propósito: esta spec no depende de si
+    // apps/web/.next/static existe (o qué contiene) en la máquina que corre.
+    const staticDir = makeFixtureStaticDir([]);
     const fetchImpl = async (url) => {
       if (url === 'http://web.invalido') {
-        return { status: 200, text: async () => '<html><body>ok, sin bundle</body></html>' };
+        return { status: 200 };
       }
       return {
         status: 404,
@@ -214,15 +262,20 @@ async function run() {
         arrayBuffer: async () => new ArrayBuffer(0),
       };
     };
-    await runWebAssetsSmoke({
-      baseUrl: 'http://web.invalido',
-      expectedApiUrl: 'https://api.tu-dominio.com',
-      publicDir: WEB_PUBLIC_DIR,
-      fetchImpl,
-      checkFn,
-      noteFn,
-      assetLimit: 3,
-    });
+    try {
+      await runWebAssetsSmoke({
+        baseUrl: 'http://web.invalido',
+        expectedApiUrl: 'https://api.tu-dominio.com',
+        publicDir: WEB_PUBLIC_DIR,
+        staticDir,
+        fetchImpl,
+        checkFn,
+        noteFn,
+        assetLimit: 3,
+      });
+    } finally {
+      rmSync(staticDir, { recursive: true, force: true });
+    }
     const assetChecks = calls.filter((c) => c.name.includes('Content-Type'));
     ok(assetChecks.length > 0, 'se intentó al menos un activo');
     ok(
@@ -231,18 +284,19 @@ async function run() {
     );
   }
 
-  // VERDE: servidor que SÍ sirve public/ y embebe la URL del API correcta.
+  // VERDE: servidor que SÍ sirve public/ y embebe la URL del API correcta —
+  // en un chunk que `/` NO enlaza (su HTML no trae ningún <script src>), tal
+  // como pasa de verdad: NEXT_PUBLIC_API_URL sólo la usa código de
+  // dashboard/CAD/comercial, nunca la landing. Si este caso pasa es porque
+  // el chequeo ya no depende de qué referencia `/`.
   {
     const { calls, checkFn, noteFn } = fakeCollector();
+    const staticDir = makeFixtureStaticDir(['main-abc123.js']);
     const fetchImpl = async (url) => {
       if (url === 'http://web.arreglado') {
-        return {
-          status: 200,
-          text: async () =>
-            '<html><body><script src="/_next/static/chunks/main.js"></script></body></html>',
-        };
+        return { status: 200 }; // sin <script src>: la landing no referencia el chunk
       }
-      if (url === 'http://web.arreglado/_next/static/chunks/main.js') {
+      if (url === 'http://web.arreglado/_next/static/chunks/main-abc123.js') {
         return { status: 200, text: async () => 'fetch("https://api.tu-dominio.com/v1/health")' };
       }
       // cualquier otra cosa es un activo de apps/web/public: se sirve bien,
@@ -257,15 +311,20 @@ async function run() {
         arrayBuffer: async () => new ArrayBuffer(128),
       };
     };
-    await runWebAssetsSmoke({
-      baseUrl: 'http://web.arreglado',
-      expectedApiUrl: 'https://api.tu-dominio.com',
-      publicDir: WEB_PUBLIC_DIR,
-      fetchImpl,
-      checkFn,
-      noteFn,
-      assetLimit: 3,
-    });
+    try {
+      await runWebAssetsSmoke({
+        baseUrl: 'http://web.arreglado',
+        expectedApiUrl: 'https://api.tu-dominio.com',
+        publicDir: WEB_PUBLIC_DIR,
+        staticDir,
+        fetchImpl,
+        checkFn,
+        noteFn,
+        assetLimit: 3,
+      });
+    } finally {
+      rmSync(staticDir, { recursive: true, force: true });
+    }
     ok(calls.length > 0, 'se ejecutaron comprobaciones');
     ok(
       calls.every((c) => c.ok),
@@ -274,6 +333,52 @@ async function run() {
     ok(
       calls.some((c) => c.name.includes('NEXT_PUBLIC_API_URL')),
       'se verificó explícitamente la presencia de NEXT_PUBLIC_API_URL embebida',
+    );
+  }
+
+  // NEGRO: el servidor sirve todos los chunks con 200, pero NINGUNO contiene
+  // el literal de NEXT_PUBLIC_API_URL (build apuntado a otro origen, o
+  // Dockerfile que perdió el ARG). El chequeo debe FALLAR — este es
+  // exactamente el caso que el bug reportado no distinguía del caso VERDE:
+  // antes de este fix, el chequeo fallaba SIEMPRE (incluso en el caso VERDE
+  // de arriba), así que nunca demostraba nada. Ahora sí depende del
+  // contenido real.
+  {
+    const { calls, checkFn, noteFn } = fakeCollector();
+    const staticDir = makeFixtureStaticDir(['main-sinapi.js']);
+    const fetchImpl = async (url) => {
+      if (url === 'http://web.otro-origen') {
+        return { status: 200 };
+      }
+      if (url === 'http://web.otro-origen/_next/static/chunks/main-sinapi.js') {
+        return { status: 200, text: async () => 'fetch("https://otro-origen.example/v1/health")' };
+      }
+      const mimeByExt = { '.wasm': 'application/wasm', '.svg': 'image/svg+xml', '.png': 'image/png' };
+      const ext = url.slice(url.lastIndexOf('.'));
+      return {
+        status: 200,
+        headers: { get: (name) => (name === 'content-type' ? mimeByExt[ext] ?? null : null) },
+        arrayBuffer: async () => new ArrayBuffer(128),
+      };
+    };
+    try {
+      await runWebAssetsSmoke({
+        baseUrl: 'http://web.otro-origen',
+        expectedApiUrl: 'https://api.tu-dominio.com',
+        publicDir: WEB_PUBLIC_DIR,
+        staticDir,
+        fetchImpl,
+        checkFn,
+        noteFn,
+        assetLimit: 3,
+      });
+    } finally {
+      rmSync(staticDir, { recursive: true, force: true });
+    }
+    const apiCheck = calls.find((c) => c.name.includes('NEXT_PUBLIC_API_URL'));
+    ok(
+      apiCheck !== undefined && apiCheck.ok === false,
+      'con un build que apunta a otro origen (o sin la variable incrustada), el chequeo de NEXT_PUBLIC_API_URL FALLA explícitamente',
     );
   }
 

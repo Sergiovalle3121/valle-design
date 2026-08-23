@@ -39,6 +39,15 @@
  *       script, no es ese servidor. Sin `SMOKE_WEB_BASE_URL` el bloque se
  *       anota como no ejercido, nunca como aprobado.
  *
+ *       Sub-chequeo de `NEXT_PUBLIC_API_URL`: busca el literal en TODOS los
+ *       chunks bajo `apps/web/.next/static` (ver `discoverStaticChunkUrls`),
+ *       NO en los `<script src>` que enlaza `/`. La variable sólo la leen
+ *       `apiFetch.ts` y sus importadores (dashboard/CAD/comercial); la
+ *       landing pública nunca los importa, así que parsear `/` producía un
+ *       falso negativo permanente — fallaba incluso contra un build
+ *       correcto, porque el chunk con la URL nunca está entre los que `/`
+ *       referencia.
+ *
  * Sobre `NODE_ENV`: el bloque D corre con `NODE_ENV=test` y no `production`, y
  * la razón es material, no comodidad. Con `NODE_ENV=production`, `orm.options`
  * fuerza TLS contra PostgreSQL, y el contenedor efímero de CI (`postgres:16`)
@@ -174,19 +183,45 @@ export function evaluateAssetResponse(asset, status, contentType, bodyLength) {
   return { ok: true, detail: '' };
 }
 
-/** URLs de `<script src="...">` que el HTML servido referencia, resueltas contra `baseUrl`. */
-export function extractScriptUrls(html, baseUrl) {
+export const WEB_STATIC_DIR = join(ROOT, 'apps', 'web', '.next', 'static');
+
+/**
+ * Recorre `apps/web/.next/static` — el directorio de chunks con hash que
+ * `apps/web/Dockerfile` copia aparte de `standalone` (ver su cabecera) — y
+ * devuelve la ruta pública (`/_next/static/...`) de cada `.js` que contiene.
+ *
+ * Por qué el directorio entero y no los `<script src>` que referencia `/`:
+ * `NEXT_PUBLIC_API_URL` sólo la leen `apiFetch.ts` y sus tres importadores
+ * (`layout-http-adapter.ts`, `cad/repositories/client.ts`,
+ * `commercial/public-catalog.ts`) — código de dashboard/CAD/comercial que la
+ * landing pública no importa nunca. Parsear el HTML de `/` sólo puede ver
+ * los chunks que ESA página concreta enlaza, así que ese chequeo fallaba
+ * SIEMPRE — incluso contra un build correctamente construido — sin medir
+ * nada real. Recorrer `.next/static` no asume qué ruta usa la variable: es
+ * el conjunto completo de chunks que Next generó para TODAS las páginas, así
+ * que si `apiFetch.ts` incrustó la URL en algún bundle, ese bundle está en
+ * esta lista sin importar qué página lo carga ni si esa página exige sesión.
+ * Cada URL, además, se pide contra el servidor real (`baseUrl`) más abajo —
+ * no se lee el archivo del disco — así que esto sigue midiendo lo que el
+ * proceso levantado sirve, igual que el resto del bloque E.
+ */
+export function discoverStaticChunkUrls(staticDir = WEB_STATIC_DIR) {
   const urls = [];
-  const pattern = /<script[^>]+src="([^"]+)"/gi;
-  let match;
-  while ((match = pattern.exec(html))) {
-    try {
-      urls.push(new URL(match[1], baseUrl).toString());
-    } catch {
-      // src no resuelve a una URL válida — no es lo que este bloque mide.
+  function walk(dir, urlPrefix) {
+    if (!existsSync(dir)) return;
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const abs = join(dir, entry.name);
+      const urlPath = `${urlPrefix}/${entry.name}`;
+      if (entry.isDirectory()) {
+        walk(abs, urlPath);
+        continue;
+      }
+      if (extname(entry.name).toLowerCase() !== '.js') continue;
+      urls.push(urlPath);
     }
   }
-  return urls;
+  walk(staticDir, '/_next/static');
+  return urls.sort();
 }
 
 /** ¿Aparece `apiUrl` literalmente en alguno de los bundles servidos? */
@@ -215,11 +250,12 @@ export async function runWebAssetsSmoke({
   baseUrl,
   expectedApiUrl,
   publicDir = WEB_PUBLIC_DIR,
+  staticDir = WEB_STATIC_DIR,
   fetchImpl = fetch,
   checkFn = check,
   noteFn = note,
   assetLimit = 8,
-  scriptFetchLimit = 40,
+  scriptFetchLimit = 200,
 }) {
   if (!baseUrl) {
     noteFn(
@@ -232,10 +268,9 @@ export async function runWebAssetsSmoke({
   console.log(`\nE · activos estáticos del web contra ${baseUrl}`);
 
   const root = await fetchImpl(baseUrl).then(
-    (r) => ({ status: r.status, text: r.text() }),
-    (error) => ({ status: 0, text: Promise.resolve(String(error.message)) }),
+    (r) => ({ status: r.status }),
+    () => ({ status: 0 }),
   );
-  const rootBody = await root.text;
   checkFn(
     'GET / no responde 404',
     root.status !== 0 && root.status !== 404,
@@ -274,7 +309,11 @@ export async function runWebAssetsSmoke({
   // NEXT_PUBLIC_API_URL se INCRUSTA en el bundle en tiempo de build (ver
   // cabecera de apps/web/Dockerfile): la única forma de comprobar que el
   // servidor que responde en `baseUrl` se construyó con el origen correcto
-  // es buscar ese literal en el JS que realmente sirve.
+  // es buscar ese literal en el JS que realmente sirve. Se busca en TODOS
+  // los chunks bajo `.next/static` (ver `discoverStaticChunkUrls`), no sólo
+  // en los que `/` referencia: la variable la usan `apiFetch.ts` y sus
+  // importadores de dashboard/CAD/comercial, código que la landing pública
+  // nunca carga.
   if (!expectedApiUrl) {
     checkFn(
       'NEXT_PUBLIC_API_URL embebida en el bundle servido',
@@ -284,23 +323,23 @@ export async function runWebAssetsSmoke({
     return;
   }
 
-  const scriptUrls = extractScriptUrls(rootBody, baseUrl).slice(0, scriptFetchLimit);
+  const chunkPaths = discoverStaticChunkUrls(staticDir).slice(0, scriptFetchLimit);
   const scriptTexts = [];
-  for (const url of scriptUrls) {
+  for (const chunkPath of chunkPaths) {
     try {
-      const response = await fetchImpl(url);
+      const response = await fetchImpl(new URL(chunkPath, baseUrl).toString());
       scriptTexts.push(await response.text());
     } catch {
-      // un bundle individual que no responde no es lo que esta comprobación
+      // un chunk individual que no responde no es lo que esta comprobación
       // mide — si NINGUNO contiene la URL, el chequeo de abajo lo atrapa.
     }
   }
   checkFn(
     `NEXT_PUBLIC_API_URL (${expectedApiUrl}) embebida en el bundle servido`,
     bundleContainsApiUrl(scriptTexts, expectedApiUrl),
-    scriptUrls.length === 0
-      ? 'GET / no referenció ningún <script src>: no hay bundle que inspeccionar'
-      : `revisados ${scriptTexts.length}/${scriptUrls.length} bundles`,
+    chunkPaths.length === 0
+      ? `${staticDir} no contiene chunks .js — ¿falta compilar el web (NEXT_OUTPUT=standalone) antes de correr este smoke?`
+      : `revisados ${scriptTexts.length}/${chunkPaths.length} chunks bajo /_next/static`,
   );
 }
 
