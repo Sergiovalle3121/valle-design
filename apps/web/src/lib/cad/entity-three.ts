@@ -68,6 +68,28 @@ function scenePoint(
   );
 }
 
+/**
+ * DIMCLRT — el color del RÓTULO de la cota, que no tiene por qué ser el de sus
+ * líneas.
+ *
+ * El rasterizador de texto lee el color de `context.presentation.color.value`,
+ * que es la vía por la que este renderizador lee cualquier color. Así que
+ * DIMCLRT se inyecta ahí y, si la cota no lo trae, se hereda el contexto de la
+ * entidad tal cual: una cota vieja se pinta exactamente como ayer.
+ */
+function cadDimensionTextContext(
+  entity: Extract<CadNativeEntity, { type: "dimension" }>,
+): CadNativeEntity["context"] {
+  if (!entity.textColor) return entity.context;
+  return {
+    ...entity.context,
+    presentation: {
+      ...entity.context?.presentation,
+      color: { source: "explicit", value: entity.textColor },
+    },
+  } as CadNativeEntity["context"];
+}
+
 function entityColor(entity: CadNativeEntity): number {
   const value = entity.context?.presentation?.color?.value;
   if (!value || !/^#[0-9a-f]{6}$/i.test(value)) return DEFAULT_COLOR;
@@ -478,16 +500,32 @@ export function buildCadNativeObject(
         type: "mtext",
         insertion: { ...dimension.textAnchor, z: 0 },
         text: dimension.label,
-        width: Math.max(entity.arrowSize ?? 180, dimension.label.length * (entity.arrowSize ?? 180) * 0.45),
-        height: Math.max(1, (entity.arrowSize ?? 180) * 0.55),
+        /*
+         * DIMTXT gobierna la altura. Antes se DERIVABA del tamaño de flecha
+         * (`arrowSize * 0.55`), así que un despacho podía fijar su altura de
+         * texto en el estilo, verla guardada y viajar por DXF, y el rótulo
+         * salía del mismo tamaño de siempre. El respaldo conserva exactamente
+         * la fórmula anterior para las cotas que no la traen: un documento
+         * viejo se dibuja igual que ayer.
+         */
+        height: Math.max(1, entity.textHeight ?? (entity.arrowSize ?? 180) * 0.55),
+        width: Math.max(
+          entity.arrowSize ?? 180,
+          dimension.label.length *
+            (entity.textHeight ?? (entity.arrowSize ?? 180) * 0.55) *
+            0.85,
+        ),
         rotation: dimension.textAngle,
         alignment: "middle-center",
         paragraphAlignment: "center",
         backgroundMask: true,
         backgroundColor: "#0f172a",
         backgroundPadding: 0.1,
+        // DIMTXSTY y DIMCLRT. El color viaja por el `context` de presentación,
+        // que es la vía por la que este renderizador lee cualquier color.
+        ...(entity.textStyle ? { style: entity.textStyle } : {}),
         layer: entity.layer,
-        context: entity.context,
+        context: cadDimensionTextContext(entity),
       }, viewport, elevation);
       if (sprite) {
         sprite.userData.nativeEntityId = entity.id;

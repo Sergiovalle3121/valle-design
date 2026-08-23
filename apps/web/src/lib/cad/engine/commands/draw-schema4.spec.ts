@@ -16,6 +16,7 @@ import {
   type CadDocument,
   type CadEntity,
 } from "../../cad-document";
+import { CAD_DOCUMENT_SCHEMA } from "../../cad-document-shared";
 import { executeCadEntityCommandBatch, type CadEntityCommand } from "../../entity-commands";
 import { CAD_COMMAND_REGISTRY_V2 } from "../index";
 import type { CadCommandContext, CadCommandInput } from "../command-types";
@@ -375,7 +376,7 @@ const near = (actual: number, expected: number, what: string, epsilon = 1e-6) =>
   assert.equal(reopened.imageDefinitions?.length, 1, "y la definición de imagen también");
   // La migración es aditiva: un documento escrito como v4 se reabre con el
   // esquema vigente sin perder un campo, y lo único que cambia es este número.
-  assert.equal(reopened.meta.schema, 9);
+  assert.equal(reopened.meta.schema, CAD_DOCUMENT_SCHEMA);
   // Un paso de historia por ORDEN, no por entidad: trece órdenes, trece pasos.
   assert.equal(reopened.history.length, 13, "la frontera de deshacer es el comando");
   // El wipeout está por encima de lo que se dibujó antes que él; la imagen, por

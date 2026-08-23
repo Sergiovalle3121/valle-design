@@ -28,6 +28,7 @@ import { cadEntityToDxfPrimitive } from "./dxf-entity-primitives";
 import { blockEntityToDxfPrimitive } from "./dxf-block-primitive";
 import { clampedKnots } from "./dxf-nurbs-knots";
 import { schema4PrimitiveToEntity } from "./dxf-schema4-entities";
+import { cadSchema10ScaledFields } from "./cad-entities-v10";
 export { cadEntityToDxfPrimitive };
 export {
   cadDocumentDxfExportLosses,
@@ -328,7 +329,7 @@ export function cadDxfSemanticDimensionsToNativeEntities(
       "arrowSize",
       "extensionGap",
       "extensionOvershoot",
-      "textGap",
+      "textGap", "textHeight",
       "annotativeHeightMm",
     ].forEach((key) => delete properties[key]);
     return {
@@ -345,7 +346,7 @@ export function cadDxfSemanticDimensionsToNativeEntities(
         | "arrowSize"
         | "extensionGap"
         | "extensionOvershoot"
-        | "textGap"
+        | "textGap" | "textHeight"
       >),
       a: point3(projectedA),
       b: point3(swapAngular ? projectedC : projectedB),
@@ -372,9 +373,8 @@ export function cadDxfSemanticDimensionsToNativeEntities(
       ...(dimension.extensionOvershoot !== undefined
         ? { extensionOvershoot: dimension.extensionOvershoot * scaleFactor }
         : {}),
-      ...(dimension.textGap !== undefined
-        ? { textGap: dimension.textGap * scaleFactor }
-        : {}),
+      ...(dimension.textGap !== undefined ? { textGap: dimension.textGap * scaleFactor } : {}),
+      ...cadSchema10ScaledFields(dimension, scaleFactor),
       associative: false,
       associationStatus: "detached",
       context: {
@@ -449,9 +449,7 @@ export function cadDxfMleadersToNativeEntities(
       ...(mleader.textWidth !== undefined
         ? { textWidth: mleader.textWidth * scaleFactor }
         : {}),
-      ...(mleader.textHeight !== undefined
-        ? { textHeight: mleader.textHeight * scaleFactor }
-        : {}),
+      ...(mleader.textHeight !== undefined ? { textHeight: mleader.textHeight * scaleFactor } : {}),
       textRotation: projectedAngle(
         projection,
         mleader.textPosition,

@@ -28,6 +28,7 @@ import type { CadImageDefinition, CadPositionedAttribute, CadSchema4Entity } fro
 import type { CadSchema5Entity } from "./cad-entities-v5";
 import type { CadSchema6Entity } from "./cad-entities-v6";
 import type { CadSchema7Entity } from "./cad-entities-v7";
+import type { CadSchema10DimensionFields } from "./cad-entities-v10";
 import { byId, byName } from "./cad-document-shared";
 
 // ---------------------------------------------------------------------------
@@ -167,7 +168,7 @@ export type CadEntity =
       rotation?: number;
       context?: CadEntityContext;
     }
-  | {
+  | ({
       id: string;
       type: "dimension";
       a: { x: number; y: number };
@@ -202,7 +203,7 @@ export type CadEntity =
       }>;
       associationStatus?: "associated" | "broken" | "detached";
       context?: CadEntityContext;
-    }
+    } & CadSchema10DimensionFields)
   | {
       id: string;
       type: "connector";
@@ -372,10 +373,8 @@ export type CadEntity =
       layer: string;
       context?: CadEntityContext;
     }
-  /**
-   * Los ocho tipos que estrena el esquema 4 (POINT, XLINE, RAY, SOLID,
-   * WIPEOUT, IMAGE, ATTDEF, TABLE). Se declaran en `cad-entities-v4.ts`.
-   */
+  /** Los ocho del esquema 4 (POINT, XLINE, RAY, SOLID, WIPEOUT, IMAGE,
+   * ATTDEF, TABLE). Se declaran en `cad-entities-v4.ts`. */
   | CadSchema4Entity
   /**
    * Los dos que estrena el esquema 5: SOLID3D —un sólido B-rep descrito por su

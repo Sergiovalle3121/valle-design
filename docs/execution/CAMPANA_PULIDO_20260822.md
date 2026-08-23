@@ -461,3 +461,51 @@ fallos, y ninguno del recorte:
 Nota de método: estos seis fallos del embudo público **no los había visto nadie**
 porque los barridos anteriores corrían sólo `e2e/golden`. `e2e/public` llevaba
 sin medirse desde que se rediseñó la navegación.
+
+### OLA 3 — las cotas dibujan lo que prometen
+
+**3.1 El esquema de la cota sube al 10.** DIMSTYLE ya tenía el núcleo de ~30
+DIMVARs: se definían, se editaban, se persistían y viajaban por DXF como tabla.
+Lo que faltaba era el último tramo, y era el que importa: la ENTIDAD no llevaba
+encima lo que el render necesita leer, así que el plano salía IGUAL con
+cualquier norma de acotación. Siete campos nuevos, opcionales-ausentes:
+
+| DIMVAR | Campo | Antes |
+| --- | --- | --- |
+| DIMTXT | `textHeight` | la altura del rótulo se DERIVABA de `arrowSize × 0,55` |
+| DIMTXSTY | `textStyle` | el estilo de texto no llegaba al rótulo |
+| DIMCLRT | `textColor` | el rótulo heredaba el color de la entidad, sin voz propia |
+| DIMCLRD / DIMCLRE | `dimLineColor`, `extensionLineColor` | definidos y sin pintar |
+| DIMTAD / DIMJUST | `textVertical`, `textJustification` | definidos y sin pintar |
+
+**3.2 Migración aditiva.** Los siete son opcionales-AUSENTES, como `frozen` en
+el v9: una cota que no los trae serializa byte a byte igual que antes y se
+dibuja con los respaldos de siempre. La subida está documentada donde viven las
+otras seis y el spec de migración la mide.
+
+**El coste del entero, pagado con pruebas y no con prosa.** Subir `meta.schema`
+cambia el SHA del corpus de rendimiento y eso pone en rojo `plan-budget`. El
+repositorio ya había resuelto esto TRES veces y dejó el mecanismo montado:
+`corpus-sha-provenance.spec.ts` revierte el dígito sobre el texto de hoy y
+recupera los SHA anteriores exactos. Se extendió la cadena a un cuarto eslabón
+(10→9→8→7→6) y se añadió la coartada del 10, que aquí NO es «no hay cotas»
+—las hay, 13.000 en el corpus de 20k— sino que **ninguna estrena un solo campo
+nuevo**, comprobado cota por cota. Por eso los presupuestos NO se recalibran:
+recalibrar por un entero de metadatos sustituiría una medida buena por una peor.
+El 10 es además la primera subida de DOS CIFRAS, así que la comprobación de
+longitud dejó de ser «cero» y pasó a ser «exactamente un carácter».
+
+**El trinquete volvió a atrapar a su autor, dos veces.** `cad-document.ts` pasó
+de 800 a 825 y `dxf-cad-document.ts` de 970 a 978. No se subió ningún techo: los
+siete campos salieron a `cad-entities-v10.ts` —el mismo patrón que v4, v5, v6 y
+v7— y con ellos la REGLA de qué escala al importar y qué no, que es del esquema
+y no del formato. `cad-document.ts` quedó en 799 y `dxf-cad-document.ts` en 968,
+los dos por DEBAJO de donde empezaron.
+
+**Verificado:** 387/387 specs · 18/18 goldens de cota, gestor de estilos y DXF
+(16, 27, 34, 46, 51, 47-solids, 53) · check:cad, typecheck, lint y build verdes.
+
+**3.4 queda abierto** (no se llegó): `MLEADERSTYLE` y `TABLESTYLE` por DXF, y
+que la tabla gobierne de verdad bordes y filas. También quedan fuera del v10 los
+GROSORES (DIMLWD/DIMLWE), DIMTIH/DIMTOH y los bloques de flecha estándar: el
+render los ignora todavía. Van a PENDIENTES con su nombre.

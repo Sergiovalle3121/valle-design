@@ -190,6 +190,21 @@ export function pushSemanticDimension(lines: string[], dimension: PreparedSemant
     // Cota anotativa: su tamaño de flecha SOBRE PAPEL. Sin la clave, el flag
     // moriría en el fichero y la cota volvería congelada a una sola escala.
     `annotative=${entity.annotativeHeightMm !== undefined ? fmt(entity.annotativeHeightMm) : ""}`,
+    /*
+     * ESQUEMA 10 — los DIMVARs que gobiernan el DIBUJO y no sólo la tabla.
+     * Viajan como override por entidad, igual que los demás: la tabla DIMSTYLE
+     * dice la norma del despacho y esto dice lo que ESTA cota lleva horneado,
+     * que es lo que sobrevive a abrir el DXF en otro programa. Vacío significa
+     * «esta cota no lo trae»; una cota anterior al esquema 10 escribe vacío y
+     * al reimportarla queda exactamente como estaba.
+     */
+    `textHeight=${entity.textHeight !== undefined ? fmt(entity.textHeight) : ""}`,
+    `textStyle=${entity.textStyle ?? ""}`,
+    `textColor=${entity.textColor ?? ""}`,
+    `dimLineColor=${entity.dimLineColor ?? ""}`,
+    `extensionLineColor=${entity.extensionLineColor ?? ""}`,
+    `textVertical=${entity.textVertical ?? ""}`,
+    `textJustification=${entity.textJustification ?? ""}`,
   ];
   metadata.forEach((value) => pushPair(lines, 1000, safeText(value).slice(0, 240)));
 }

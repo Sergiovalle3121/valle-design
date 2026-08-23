@@ -132,7 +132,7 @@ const SOLIDO: CadEntity = {
 
 // --- 1. el censo cubre lo que dice cubrir ------------------------------------
 {
-  assert.equal(CAD_DOCUMENT_SCHEMA, 9, "el esquema canónico vigente es el 9 (frozen + layerStates)");
+  assert.equal(CAD_DOCUMENT_SCHEMA, 10, "el esquema canónico vigente es el 10 (DIMVARs que gobiernan el dibujo)");
   assert.equal(CLASES.length, 4, "el censo debe cubrir las cuatro clases de vista");
   for (const clase of CLASES) {
     assert.equal(VISTAS[clase].kind, clase, `la muestra de ${clase} declara otra clase`);
@@ -206,7 +206,7 @@ const SOLIDO: CadEntity = {
   const v7EnDisco = crudo([MURO, SOLIDO], 7, [lamina([ventanaV7])]);
   const migrado = migrateCadDocument(v7EnDisco);
 
-  assert.equal(migrado.meta.schema, 9, "el v7 debe pasar a declararse el esquema vigente al abrirse");
+  assert.equal(migrado.meta.schema, CAD_DOCUMENT_SCHEMA, "el v7 debe pasar a declararse el esquema vigente al abrirse");
   const censo = cadViewportViewCensus(migrado);
   assert.equal(censo.sinVista, 0, "la migración 7→8 dejó una ventana sin cámara");
   assert.equal(censo.plan, 1, "la ventana del v7 debe abrirse como PLANTA");

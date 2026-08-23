@@ -79,6 +79,18 @@ export function parseRawDxfSemanticDimensions(text: string): CadDxfSemanticDimen
     const textGap = numericMetadata("textGap");
     const textOverride = metadata.get("textOverride") ?? "";
     const annotativeHeightMm = numericMetadata("annotative");
+    /*
+     * ESQUEMA 10. Cada uno entra sólo si viene con valor: la clave vacía
+     * significa «esta cota no lo trae», y fabricar un valor por defecto aquí
+     * cambiaría el dibujo de un DXF exportado antes del esquema 10.
+     */
+    const textHeight = numericMetadata("textHeight");
+    const textStyle = metadata.get("textStyle") ?? "";
+    const textColor = metadata.get("textColor") ?? "";
+    const dimLineColor = metadata.get("dimLineColor") ?? "";
+    const extensionLineColor = metadata.get("extensionLineColor") ?? "";
+    const textVertical = metadata.get("textVertical") ?? "";
+    const textJustification = metadata.get("textJustification") ?? "";
     dimensions.push({
       blockName,
       layer: first(8) || DEFAULT_LAYER,
@@ -102,6 +114,19 @@ export function parseRawDxfSemanticDimensions(text: string): CadDxfSemanticDimen
       ...(extensionGap !== null && extensionGap >= 0 ? { extensionGap } : {}),
       ...(extensionOvershoot !== null && extensionOvershoot >= 0 ? { extensionOvershoot } : {}),
       ...(textGap !== null && textGap >= 0 ? { textGap } : {}),
+      ...(textHeight !== null && textHeight > 0 ? { textHeight } : {}),
+      ...(textStyle ? { textStyle } : {}),
+      ...(textColor ? { textColor } : {}),
+      ...(dimLineColor ? { dimLineColor } : {}),
+      ...(extensionLineColor ? { extensionLineColor } : {}),
+      ...(textVertical === "centered" || textVertical === "above"
+        ? { textVertical }
+        : {}),
+      ...(textJustification === "centered" ||
+      textJustification === "first" ||
+      textJustification === "second"
+        ? { textJustification }
+        : {}),
       ...(textOverride ? { text: textOverride } : {}),
       ...(annotativeHeightMm !== null && annotativeHeightMm > 0
         ? { annotativeHeightMm }

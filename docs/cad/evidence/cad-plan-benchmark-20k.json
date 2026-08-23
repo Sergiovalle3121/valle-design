@@ -50,8 +50,9 @@
       "maxX": 99480.367,
       "maxY": 99050
     },
-    "sha256": "45407772af70744b0308ee791df9d4885befb3e1ce7c944d37a6a6b66322a2ba",
-    "compositionRationale": "Modelo declarado, no censo de archivos reales. Derivación completa y supuestos en la cabecera de src/lib/cad/benchmark/corpus-plano-real-builders.ts."
+    "sha256": "8d6b3e816cd9632ef3fb195b1453ddf82eae8752c4157c64029f34a02425802d",
+    "compositionRationale": "Modelo declarado, no censo de archivos reales. Derivación completa y supuestos en la cabecera de src/lib/cad/benchmark/corpus-plano-real-builders.ts.",
+    "sha256Provenance": "El SHA sigue al ESQUEMA canónico, no al contenido. Esta medida se tomó con el documento declarándose v9 (sha 45407772af70744b0308ee791df9d4885befb3e1ce7c944d37a6a6b66322a2ba); al subir a v10 —los siete DIMVARs opcionales-ausentes que hacen que DIMSTYLE gobierne el dibujo— el único byte distinto del serializado es el dígito del esquema. No se vuelve a medir: `corpus-sha-provenance.spec.ts` revierte 10→9→8→7→6 sobre el texto de hoy y recupera los cuatro SHA anteriores exactos, y comprueba cota por cota que ninguna del corpus estrena los campos nuevos. Recalibrar por un entero de metadatos sustituiría una medida buena por otra peor sin haber medido nada distinto."
   },
   "scenario": {
     "panStops": 12,

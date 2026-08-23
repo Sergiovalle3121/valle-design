@@ -57,10 +57,20 @@ export const DEFAULT_LAYER_ID = "0";
  * en la sesión y no sobrevivían a una recarga. Ningún documento existente
  * cambia un byte de serializado: lo único que sube es `meta.schema`.
  *
- * Todo aditivo, en las seis subidas: un documento v3…v8 migra sin perder un
+ * v10 estrena los DIMVARs que faltaban EN LA ENTIDAD de cota: altura y estilo
+ * de texto, colores de línea, extensión y rótulo, y las dos posiciones del
+ * rótulo (DIMTAD y DIMJUST). No es una entidad nueva ni una sección nueva: son
+ * siete campos opcionales-ausentes sobre `dimension`, exactamente igual que
+ * `frozen` en v9. Estrena algo que no se ve en el serializado: hasta aquí un
+ * despacho podía fijar su norma de acotación completa —definirla, editarla,
+ * guardarla y verla viajar por DXF— y el plano salía IGUAL, porque la entidad
+ * no llevaba encima lo que el render necesitaba leer. Poder fijar una norma que
+ * no se aplica es no poder fijarla.
+ *
+ * Todo aditivo, en las siete subidas: un documento v3…v9 migra sin perder un
  * campo y sin que se reinterprete ninguno de los que ya traía.
  */
-export const CAD_DOCUMENT_SCHEMA = 9;
+export const CAD_DOCUMENT_SCHEMA = 10;
 
 /** Capa estable de las colocaciones de estación. */
 export const STATIONS_LAYER = "Stations";

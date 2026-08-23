@@ -26,7 +26,7 @@ import {
 
 // --- ancla absoluta: el número del esquema vigente ---------------------------
 {
-  assert.equal(CAD_DOCUMENT_SCHEMA, 9, "esta ola sube el esquema canónico a 9");
+  assert.equal(CAD_DOCUMENT_SCHEMA, 10, "esta ola sube el esquema canónico a 10");
 }
 
 /** Documento v3 con una entidad de cada familia que ya existía. */
@@ -76,7 +76,7 @@ function schema3Document(): Record<string, unknown> {
   const source = schema3Document();
   const migrated = migrateCadDocument(source);
 
-  assert.equal(migrated.meta.schema, 9, "el documento pasa a declararse v9");
+  assert.equal(migrated.meta.schema, CAD_DOCUMENT_SCHEMA, "el documento pasa al esquema vigente");
   // Anclas absolutas, campo a campo: no «igual que antes», sino ESTE valor.
   assert.equal(migrated.meta.version, 7, "la versión de contenido NO se toca");
   assert.equal(migrated.meta.unit, "mm");
@@ -220,7 +220,7 @@ function schema3Document(): Record<string, unknown> {
   };
   const migrated = migrateCadDocument(v4);
 
-  assert.equal(migrated.meta.schema, 9, "el v4 pasa a declararse v9");
+  assert.equal(migrated.meta.schema, CAD_DOCUMENT_SCHEMA, "el v4 pasa al esquema vigente");
   assert.equal(migrated.meta.version, 3, "la versión de contenido NO se toca al subir de esquema");
   const stats = cadDocumentStats(migrated);
   assert.equal(stats.polyline, 1, "la polilínea cerrada SIGUE siendo una polilínea");
@@ -348,7 +348,7 @@ function schema3Document(): Record<string, unknown> {
     meta: { version: 4, schema: 8, unit: "mm" },
   };
   const plain = migrateCadDocument(plainV8);
-  assert.equal(plain.meta.schema, 9, "el v8 pasa a declararse v9");
+  assert.equal(plain.meta.schema, CAD_DOCUMENT_SCHEMA, "el v8 pasa al esquema vigente");
   assert.equal(plain.meta.version, 4, "la versión de contenido NO se toca");
   assert.equal(
     plain.layers[0].frozen,
@@ -377,7 +377,7 @@ function schema3Document(): Record<string, unknown> {
     ],
   };
   const rich = migrateCadDocument(richV8);
-  assert.equal(rich.meta.schema, 9);
+  assert.equal(rich.meta.schema, CAD_DOCUMENT_SCHEMA);
   assert.equal(rich.layers[0].frozen, true, "la capa congelada sigue congelada");
   assert.equal(rich.layerStates?.length, 1, "el estado de capa sobrevive");
   assert.equal(rich.layerStates?.[0].name, "Impresión");

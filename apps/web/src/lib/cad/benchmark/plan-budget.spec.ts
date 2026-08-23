@@ -122,21 +122,23 @@ assert.deepEqual(
   },
   "la composición del plano real a 20.000 es EXACTA, no aproximada",
 );
-// El SHA ha cambiado TRES veces por subidas del esquema canónico —a 7 (el hueco
-// alojado), a 8 (la ventana gráfica con cámara) y a 9 (frozen y layerStates)—
-// y las tres veces SÓLO por eso: el único byte distinto del serializado es el
-// dígito del esquema. Se comprueba eslabón a eslabón en
-// `corpus-sha-provenance.spec.ts`, que revierte 9→8→7→6 sobre el texto de hoy
-// y recupera los tres SHA antiguos exactos. El 8 sí escribe una cámara por
-// ventana al abrir, pero este corpus no tiene láminas; el 9 no materializa
-// nada y este corpus ni congela capas ni trae estados — ese spec comprueba
-// ambas coartadas en vez de suponerlas. Ninguna entidad, ningún bloque y
-// ninguna coordenada cambian, así que los presupuestos de `plan-budget.ts` NO
-// se recalibran: recalibrar por un entero de metadatos daría a los números una
-// autoridad de medida que esa corrida no tendría.
+// El SHA ha cambiado CUATRO veces por subidas del esquema canónico —a 7 (el
+// hueco alojado), a 8 (la ventana gráfica con cámara), a 9 (frozen y
+// layerStates) y a 10 (los DIMVARs que gobiernan el dibujo)— y las cuatro veces
+// SÓLO por eso: lo único distinto del serializado es el dígito del esquema. Se
+// comprueba eslabón a eslabón en `corpus-sha-provenance.spec.ts`, que revierte
+// 10→9→8→7→6 sobre el texto de hoy y recupera los cuatro SHA antiguos exactos.
+// Cada subida tiene además su coartada MEDIDA, no supuesta: el 8 escribe una
+// cámara por ventana al abrir, pero este corpus no tiene láminas; el 9 no
+// materializa nada y este corpus ni congela capas ni trae estados; el 10 añade
+// siete campos opcionales-ausentes a la cota, y este corpus SÍ trae cotas, así
+// que ese spec comprueba una por una que ninguna los estrena. Ninguna entidad,
+// ningún bloque y ninguna coordenada cambian, así que los presupuestos de
+// `plan-budget.ts` NO se recalibran: recalibrar por un entero de metadatos daría
+// a los números una autoridad de medida que esa corrida no tendría.
 assert.equal(
   createHash("sha256").update(serializeCadDocument(corpus.document)).digest("hex"),
-  "45407772af70744b0308ee791df9d4885befb3e1ce7c944d37a6a6b66322a2ba",
+  "8d6b3e816cd9632ef3fb195b1453ddf82eae8752c4157c64029f34a02425802d",
   "el corpus de 20.000 cambió de contenido: si es intencionado, actualiza este SHA Y vuelve a calibrar plan-budget.ts con una corrida nueva",
 );
 assert.equal(

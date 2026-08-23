@@ -185,6 +185,14 @@ export function cadDimensionStyleBake(
   extensionGap?: number;
   extensionOvershoot?: number;
   textGap?: number;
+  /* ── Esquema 10: lo que hasta ahora se definía y no se pintaba ─────────── */
+  textHeight?: number;
+  textStyle?: string;
+  textColor?: string;
+  dimLineColor?: string;
+  extensionLineColor?: string;
+  textVertical?: "centered" | "above";
+  textJustification?: "centered" | "first" | "second";
 } {
   const scale = definition.overallScale ?? 1;
   const scaled = (value: number | undefined) =>
@@ -201,6 +209,23 @@ export function cadDimensionStyleBake(
     ...emit(scaled(definition.extensionGap), "extensionGap"),
     ...emit(scaled(definition.extensionOvershoot), "extensionOvershoot"),
     ...emit(scaled(definition.textGap), "textGap"),
+    /*
+     * ESQUEMA 10. Hasta aquí, un despacho podía fijar su altura de texto, sus
+     * colores y la posición del rótulo, guardarlo, verlo viajar por DXF… y el
+     * plano salía exactamente igual. Poder fijar una norma que no se aplica es
+     * no poder fijarla. Estos siete campos son los que faltaban para que
+     * DIMSTYLE gobierne el DIBUJO y no sólo la tabla.
+     *
+     * La altura escala con DIMSCALE como los demás tamaños; los colores y las
+     * posiciones no, porque no son medidas.
+     */
+    ...emit(scaled(definition.textHeight), "textHeight"),
+    ...emit(definition.textStyle, "textStyle"),
+    ...emit(definition.textColor, "textColor"),
+    ...emit(definition.dimLineColor, "dimLineColor"),
+    ...emit(definition.extensionLineColor, "extensionLineColor"),
+    ...emit(definition.textVertical, "textVertical"),
+    ...emit(definition.textJustification, "textJustification"),
   };
 }
 
