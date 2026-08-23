@@ -91,7 +91,17 @@ Workflow `wf_67c109b8-263` completo: 8/8 agentes, 0 errores, 1.46M tokens, 840 t
 - Frente C: chequeo de `NEXT_PUBLIC_API_URL` reescrito para escanear todos los chunks de `.next/static` en vez de depender de qué referencia la landing (commit `e1fcbff`) — verificado por el revisor reconstruyendo dos servidores reales desde cero (con y sin la variable), mismos resultados que el autor. **C queda PASS, 4 commits, sin bloqueos.**
 - Frente D sigue **FAIL**: el wiring Dockerfile/release.yml no se ha hecho todavía — lo toma el coordinador ahora, después de integrar los cuatro frentes (necesita ver el Dockerfile ya corregido de C y el script de D juntos).
 
-**Próximo paso:** merge de A, B, C, D a `claude/p0-integration` (worktree `D:\dev\wt-p0-integration`), luego wiring de D sobre esa rama, luego gates completos sobre árbol quieto.
+**Integración completada.** `claude/p0-integration` (worktree `D:\dev\wt-p0-integration`, base `claude/pulido-ola0`) fusiona A, B, C, D en ese orden — las cuatro fusiones fueron `--no-ff` limpias, cero conflictos (los frentes no tocaron archivos en común).
+
+**Wiring de D (coordinador, commit `2a86fc7`) — cierra el FAIL de la verificación adversarial:**
+- `apps/web/Dockerfile`: reenvía las 17 variables `NEXT_PUBLIC_BRAND_*` como `ARG`/`ENV` (igual que ya hacía `NEXT_PUBLIC_API_URL`) y corre `npm run check:production-config --workspace=web` como paso `RUN` antes del build de Next, con `NODE_ENV=production` ya fijado — cualquier imagen construida por esta vía ahora falla si marca/contacto/API URL siguen en un dominio de plantilla.
+- `.github/workflows/release.yml`: elimina el fallback `'https://api.example.com'` (tanto el default del input `api_url` como el de los build-args) y lo reemplaza por un paso `Resolver configuración pública del web` que falla cerrado (`::error::`) si ni el input ni la variable de repo `RELEASE_API_URL` están configurados. Agrega los build-args de marca desde 17 variables de repo nuevas `RELEASE_BRAND_*` (vacías por defecto — el gate del Dockerfile es quien las rechaza, no se duplica la lista de placeholders en el workflow).
+- **Hallazgo propio durante la verificación en vivo:** `https://api.example.com` (el literal exacto del fallback viejo) pasaba `check:production-config` sin ser detectado — `isPlaceholderHost` sólo comparaba el hostname COMPLETO contra una lista exacta (`example.com`), y `api.example.com` no es `example.com`. Corregido en `apps/web/src/config/production-readiness.ts` (`isPlaceholderSubdomain`, compara también por sufijo `.dominio-reservado`) con 3 tests adversariales nuevos (el caso exacto, un email en subdominio de placeholder, y un control para no introducir falsos positivos en dominios reales que sólo contienen la palabra "example"). Verificado en vivo con `npm run check:production-config`: vacío→falla nombrando cada campo, `api.example.com`→falla, dominio real→pasa. `production-readiness.spec.ts` sigue en verde con los casos nuevos.
+- Verificado tras el wiring: `npm run check:deploy` PASS (26 invariantes), `typecheck` limpio en `web` y `valle-design-api`.
+
+**En curso:** gates completos (`build`, `lint`, `test`, `check:cad`, `check:dwg`, `check:deploy`) sobre `claude/p0-integration` con árbol quieto, para confirmar que los cuatro frentes + el wiring componen sin sorpresas antes de preparar los PR drafts. Log en `D:\dev\.cache\tmp\integration-gates.log`.
+
+**Nota aparte (no causada por esta campaña):** el `main` remoto de GitHub tiene CI en rojo desde antes de esta ola (ver §0bis) por un problema de reproducibilidad de `check:dwg-evidence` ajeno a P0 — la rama de integración va a heredar ese mismo rojo en CI. Escalado a Sergio por la otra sesión activa (campaña DWG paralela).
 
 ## 6. Rojos
 
