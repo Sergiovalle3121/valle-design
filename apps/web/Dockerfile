@@ -2,10 +2,11 @@
 #
 # Imagen del web de Valle Design (Next.js, salida `standalone`).
 #
-# Particularidad que decide todo lo demás: `NEXT_PUBLIC_API_URL` se INCORPORA
-# AL BUNDLE durante el build. No es configuración de runtime; cambiarla en el
-# proceso no reescribe el JavaScript ya emitido. Por eso llega como ARG y por
-# eso una imagen de web es específica del origen de API al que apunta: la
+# Particularidad que decide todo lo demás: TODA variable `NEXT_PUBLIC_*` se
+# INCORPORA AL BUNDLE durante el build (`NEXT_PUBLIC_API_URL`, marca, enlaces
+# comerciales, origen del sitio). No es configuración de runtime; cambiarla en
+# el proceso no reescribe el JavaScript ya emitido. Por eso cada una llega como
+# ARG y por eso una imagen de web es específica del entorno al que apunta: la
 # misma imagen NO sirve para staging y producción.
 #
 # `output: "standalone"` se activa con NEXT_OUTPUT=standalone (opt-in en
@@ -42,6 +43,77 @@ COPY apps/web apps/web
 # del cliente, que es el peor sitio para enterarse.
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
+# Enlaces comerciales de la superficie pública (`apps/web/src/config/commercial.ts`).
+# Todos opcionales: cada uno cae a una página interna real si no se configura.
+ARG NEXT_PUBLIC_SALES_URL
+ARG NEXT_PUBLIC_DOCUMENTATION_URL
+ARG NEXT_PUBLIC_PRICING_URL
+ARG NEXT_PUBLIC_SUPPORT_URL
+ARG NEXT_PUBLIC_STATUS_URL
+ARG NEXT_PUBLIC_CONTACT_URL
+ARG NEXT_PUBLIC_PRIVACY_URL
+ARG NEXT_PUBLIC_TERMS_URL
+ARG NEXT_PUBLIC_LICENSES_URL
+ENV NEXT_PUBLIC_SALES_URL=${NEXT_PUBLIC_SALES_URL}
+ENV NEXT_PUBLIC_DOCUMENTATION_URL=${NEXT_PUBLIC_DOCUMENTATION_URL}
+ENV NEXT_PUBLIC_PRICING_URL=${NEXT_PUBLIC_PRICING_URL}
+ENV NEXT_PUBLIC_SUPPORT_URL=${NEXT_PUBLIC_SUPPORT_URL}
+ENV NEXT_PUBLIC_STATUS_URL=${NEXT_PUBLIC_STATUS_URL}
+ENV NEXT_PUBLIC_CONTACT_URL=${NEXT_PUBLIC_CONTACT_URL}
+ENV NEXT_PUBLIC_PRIVACY_URL=${NEXT_PUBLIC_PRIVACY_URL}
+ENV NEXT_PUBLIC_TERMS_URL=${NEXT_PUBLIC_TERMS_URL}
+ENV NEXT_PUBLIC_LICENSES_URL=${NEXT_PUBLIC_LICENSES_URL}
+
+# Origen público del propio despliegue: lo leen el sitemap, `robots.txt` y las
+# URLs canónicas (`apps/web/src/config/site-routes.ts`). Sin configurar cae al
+# manifiesto de marca y, en última instancia, a `https://example.invalid`.
+ARG NEXT_PUBLIC_SITE_URL
+ENV NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL}
+
+# Manifiesto de marca (`packages/contracts/src/brand.ts`). El gate de más
+# abajo exige un valor REAL (no un dominio `*.invalid`) para la URL del sitio
+# y los tres correos — sus defaults son placeholders y el build revienta si
+# quedan así. La razón social también la valida el gate, pero su default YA
+# es un valor no vacío y sin marcador de plantilla, así que build-arg vacío
+# no rompe el build (aunque sí conviene fijarla: el default es provisional).
+# El resto (nombre, fundador, descriptor, taglines, copyright, estado
+# marcario, logos, nombre de producto) es cosmético y tiene default seguro.
+ARG NEXT_PUBLIC_BRAND_NAME
+ARG NEXT_PUBLIC_BRAND_LEGAL_ENTITY
+ARG NEXT_PUBLIC_BRAND_FOUNDER
+ARG NEXT_PUBLIC_BRAND_DESCRIPTOR
+ARG NEXT_PUBLIC_BRAND_TAGLINE_EN
+ARG NEXT_PUBLIC_BRAND_TAGLINE_ES
+ARG NEXT_PUBLIC_BRAND_SUPPORT_EMAIL
+ARG NEXT_PUBLIC_BRAND_SALES_EMAIL
+ARG NEXT_PUBLIC_BRAND_PRIVACY_EMAIL
+ARG NEXT_PUBLIC_BRAND_WEBSITE_URL
+ARG NEXT_PUBLIC_BRAND_COPYRIGHT
+ARG NEXT_PUBLIC_BRAND_COPYRIGHT_YEAR
+ARG NEXT_PUBLIC_BRAND_TRADEMARK_STATUS
+ARG NEXT_PUBLIC_BRAND_TRADEMARK_SYMBOL
+ARG NEXT_PUBLIC_BRAND_LOGO_MARK
+ARG NEXT_PUBLIC_BRAND_LOGO_ICON
+ARG NEXT_PUBLIC_BRAND_PRODUCT_NAME_DESIGN
+ENV NEXT_PUBLIC_BRAND_NAME=${NEXT_PUBLIC_BRAND_NAME}
+ENV NEXT_PUBLIC_BRAND_LEGAL_ENTITY=${NEXT_PUBLIC_BRAND_LEGAL_ENTITY}
+ENV NEXT_PUBLIC_BRAND_FOUNDER=${NEXT_PUBLIC_BRAND_FOUNDER}
+ENV NEXT_PUBLIC_BRAND_DESCRIPTOR=${NEXT_PUBLIC_BRAND_DESCRIPTOR}
+ENV NEXT_PUBLIC_BRAND_TAGLINE_EN=${NEXT_PUBLIC_BRAND_TAGLINE_EN}
+ENV NEXT_PUBLIC_BRAND_TAGLINE_ES=${NEXT_PUBLIC_BRAND_TAGLINE_ES}
+ENV NEXT_PUBLIC_BRAND_SUPPORT_EMAIL=${NEXT_PUBLIC_BRAND_SUPPORT_EMAIL}
+ENV NEXT_PUBLIC_BRAND_SALES_EMAIL=${NEXT_PUBLIC_BRAND_SALES_EMAIL}
+ENV NEXT_PUBLIC_BRAND_PRIVACY_EMAIL=${NEXT_PUBLIC_BRAND_PRIVACY_EMAIL}
+ENV NEXT_PUBLIC_BRAND_WEBSITE_URL=${NEXT_PUBLIC_BRAND_WEBSITE_URL}
+ENV NEXT_PUBLIC_BRAND_COPYRIGHT=${NEXT_PUBLIC_BRAND_COPYRIGHT}
+ENV NEXT_PUBLIC_BRAND_COPYRIGHT_YEAR=${NEXT_PUBLIC_BRAND_COPYRIGHT_YEAR}
+ENV NEXT_PUBLIC_BRAND_TRADEMARK_STATUS=${NEXT_PUBLIC_BRAND_TRADEMARK_STATUS}
+ENV NEXT_PUBLIC_BRAND_TRADEMARK_SYMBOL=${NEXT_PUBLIC_BRAND_TRADEMARK_SYMBOL}
+ENV NEXT_PUBLIC_BRAND_LOGO_MARK=${NEXT_PUBLIC_BRAND_LOGO_MARK}
+ENV NEXT_PUBLIC_BRAND_LOGO_ICON=${NEXT_PUBLIC_BRAND_LOGO_ICON}
+ENV NEXT_PUBLIC_BRAND_PRODUCT_NAME_DESIGN=${NEXT_PUBLIC_BRAND_PRODUCT_NAME_DESIGN}
+
 ENV NEXT_OUTPUT=standalone
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
@@ -50,8 +122,17 @@ RUN test -n "$NEXT_PUBLIC_API_URL" \
   || (echo "NEXT_PUBLIC_API_URL es obligatorio: se incrusta en el bundle." && exit 1)
 
 RUN npm run build --workspace=@valle-design/contracts \
-  && npm run build --workspace=@valle/design-sdk \
-  && NODE_OPTIONS=--max-old-space-size=4096 npm run build --workspace=web
+  && npm run build --workspace=@valle/design-sdk
+
+# Gate de marca y contacto (`apps/web/scripts/check-production-config.mts`):
+# con NODE_ENV=production ya fijado arriba, revienta el build si razón
+# social, URL del sitio o los correos de marca siguen en su default de
+# desarrollo (`*.invalid`) o llevan un marcador de plantilla sin completar.
+# Corre ANTES del build de `web` para fallar rápido, sin gastar el build caro
+# cuando la imagen de todos modos no se podría publicar.
+RUN npm run check:production-config --workspace=web
+
+RUN NODE_OPTIONS=--max-old-space-size=4096 npm run build --workspace=web
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 2 · runtime
