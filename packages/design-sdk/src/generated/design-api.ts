@@ -613,6 +613,47 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/legal/documents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Publica el registro versionado de terminos y aviso de privacidad.
+         * @description Publica porque el web necesita saber que version mostrar antes de que exista sesion (por ejemplo, en el registro). La version vive en el API y no en el web: es quien registra la aceptacion, y un registro contra una version que solo conoce el cliente no acredita nada.
+         */
+        get: operations["listLegalDocuments"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/legal/acceptances": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lista las aceptaciones registradas del usuario en la organizacion activa. */
+        get: operations["listLegalAcceptances"];
+        put?: never;
+        /**
+         * Registra la aceptacion de una version EXACTA de un documento legal.
+         * @description El actor, el tenant y el instante salen de la sesion verificada, nunca del cuerpo de la peticion. Aceptar dos veces la MISMA version es idempotente (indice unico tenant+usuario+documento+version). Una version desconocida es 400: senal de que el cliente esta desactualizado, no de que el usuario haya aceptado algo.
+         */
+        post: operations["acceptLegalDocument"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/cad/projects": {
         parameters: {
             query?: never;
@@ -1839,6 +1880,44 @@ export interface components {
          * @description Fecha-hora ISO 8601 en UTC.
          */
         Timestamp: string;
+        /** @enum {string} */
+        LegalDocumentId: "terms" | "privacy";
+        LegalDocumentVersion: {
+            documento: components["schemas"]["LegalDocumentId"];
+            /** @description Fecha AAAA-MM-DD de entrada en vigor del texto. */
+            version: string;
+            /**
+             * Format: date
+             * @description Fecha de publicacion (solo fecha).
+             */
+            publicadoEn: string;
+            /** @description Ruta publica donde vive el texto. */
+            url: string;
+            /** @description `true` cuando esta version exige aceptacion explicita. El aviso de privacidad es informativo: acredita entrega, no consentimiento, y tratarlo como aceptable induciria a usarlo como base juridica. */
+            requiereAceptacion: boolean;
+        };
+        LegalDocumentList: {
+            documents: components["schemas"]["LegalDocumentVersion"][];
+        };
+        LegalAcceptanceRecord: {
+            document: components["schemas"]["LegalDocumentId"];
+            version: string;
+            acceptedAt: components["schemas"]["Timestamp"];
+        };
+        LegalAcceptanceList: {
+            acceptances: components["schemas"]["LegalAcceptanceRecord"][];
+        };
+        LegalAcceptanceCreate: {
+            document: components["schemas"]["LegalDocumentId"];
+            /** @description Version EXACTA que el cliente dice haber mostrado. No se acepta "la vigente": una version desconocida responde 400. */
+            version: string;
+        };
+        LegalAcceptanceConfirmed: {
+            document: components["schemas"]["LegalDocumentId"];
+            version: string;
+            /** @description Siempre `true`; aceptar dos veces la misma version es idempotente (el indice unico lo traduce a exito, nunca a 409). */
+            registered: boolean;
+        };
         /** @description Hash SHA-256 en hexadecimal (el servidor lo normaliza a minúsculas). */
         Sha256: string;
         /** @description Cuerpo de error REAL de la API de Design (corrección R3, alineada con la implementación R1): el cuerpo estándar de NestJS conservado por el filtro global, enriquecido con `requestId` de correlación. Los campos contractuales son `code` (catálogo v1) y, según el código, campos adicionales de detalle. NO viaja el sobre `ApiErrorEnvelope` enterprise (sin `success`/`timestamp`). */
@@ -3360,6 +3439,75 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
+        };
+    };
+    listLegalDocuments: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Documentos vigentes (`terms` y `privacy`). */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegalDocumentList"];
+                };
+            };
+        };
+    };
+    listLegalAcceptances: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Aceptaciones de la organizacion activa, de la mas reciente a la mas antigua. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegalAcceptanceList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    acceptLegalDocument: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LegalAcceptanceCreate"];
+            };
+        };
+        responses: {
+            /** @description Aceptacion registrada (o ya existia con la misma version). */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LegalAcceptanceConfirmed"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     listCadProjects: {

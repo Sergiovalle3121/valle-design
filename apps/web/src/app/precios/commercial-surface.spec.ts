@@ -99,6 +99,29 @@ assert.ok(
   "sin sesión, el visitante va a registro/login conservando el plan",
 );
 
+// ── El checkout NO abre el pago sin aceptación legal vigente ──────────────
+// Ver docs/legal/CHECKLIST_PENDIENTES_LEGALES.md, sección "Registro de
+// aceptación", y el spec de comportamiento en
+// e2e/commercial/legal-acceptance-gate.spec.ts.
+assert.ok(
+  starter.includes("designClient.legal.documents()") &&
+    starter.includes("designClient.legal.acceptances.list()"),
+  "antes de elegir medio de pago hay que comprobar GET /v1/legal/documents y /acceptances",
+);
+assert.ok(
+  starter.includes("hasAcceptedCurrentTerms"),
+  "la decisión debe usar la puerta pura ya probada en acceptance-gate.spec.ts",
+);
+assert.ok(
+  starter.includes("designClient.legal.acceptances.accept("),
+  "aceptar debe registrar la versión EXACTA vía POST /v1/legal/acceptances",
+);
+assert.match(
+  starter,
+  /if \(state\.status === "checking-legal" \|\| state\.status === "legal"\) return;/u,
+  "openCheckout debe rehusarse a arrancar mientras la puerta legal no esté clara (defensa en profundidad)",
+);
+
 // ── El portal respeta los roles ────────────────────────────────────────────
 assert.match(
   portal,

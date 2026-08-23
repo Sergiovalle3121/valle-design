@@ -28,6 +28,8 @@ export type Subscription = Schemas["EffectiveSubscriptionView"];
 export type OrganizationRole = Schemas["OrganizationRole"];
 export type PaymentMethod = Schemas["PaymentMethod"];
 export type PendingPayment = Schemas["CommercialPendingPayment"];
+export type LegalDocumentVersion = Schemas["LegalDocumentVersion"];
+export type LegalAcceptanceRecord = Schemas["LegalAcceptanceRecord"];
 
 /** Página pública de precios. */
 export const PRICING_PATH = "/precios";

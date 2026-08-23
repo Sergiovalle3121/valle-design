@@ -63,6 +63,13 @@ export type TaxProfileView = Schemas["TaxProfileView"];
 export type TaxProfileResponse = Schemas["TaxProfileResponse"];
 export type TaxProfileIssue = Schemas["TaxProfileIssue"];
 export type CfdiIssuance = Schemas["CfdiIssuance"];
+export type LegalDocumentId = Schemas["LegalDocumentId"];
+export type LegalDocumentVersion = Schemas["LegalDocumentVersion"];
+export type LegalDocumentList = Schemas["LegalDocumentList"];
+export type LegalAcceptanceRecord = Schemas["LegalAcceptanceRecord"];
+export type LegalAcceptanceList = Schemas["LegalAcceptanceList"];
+export type LegalAcceptanceCreate = Schemas["LegalAcceptanceCreate"];
+export type LegalAcceptanceConfirmed = Schemas["LegalAcceptanceConfirmed"];
 export type CadSheetSet = Schemas["CadSheetSet"];
 export type CadSheetSetSummary = Schemas["CadSheetSetSummary"];
 export type CadSheetSetCreate = Schemas["CadSheetSetCreate"];
@@ -180,7 +187,13 @@ export function createDesignClient(options: DesignClientOptions) {
   const resource = (apiPath: string, query?: ResourceQuery): string => {
     const declaredPrefix =
       apiPath === "/v1/organizations" ||
-      ["/v1/auth/", "/v1/organizations/", "/v1/commercial/", "/v1/cad/"].some(
+      [
+        "/v1/auth/",
+        "/v1/organizations/",
+        "/v1/commercial/",
+        "/v1/legal/",
+        "/v1/cad/",
+      ].some(
         (prefix) => apiPath.startsWith(prefix),
       );
     if (!declaredPrefix) {
@@ -411,6 +424,26 @@ export function createDesignClient(options: DesignClientOptions) {
           resource("/v1/commercial/tax-profile"),
           input,
         ),
+    },
+
+    /**
+     * Documentos legales versionados y registro de aceptacion. `documents` es
+     * PUBLICO (sin sesion); `acceptances` exige sesion y organizacion activa,
+     * igual que el resto de `/v1/commercial/*`.
+     */
+    legal: {
+      documents: () =>
+        call<LegalDocumentList>("GET", resource("/v1/legal/documents")),
+      acceptances: {
+        list: () =>
+          call<LegalAcceptanceList>("GET", resource("/v1/legal/acceptances")),
+        accept: (input: LegalAcceptanceCreate) =>
+          call<LegalAcceptanceConfirmed>(
+            "POST",
+            resource("/v1/legal/acceptances"),
+            input,
+          ),
+      },
     },
 
     projects: {

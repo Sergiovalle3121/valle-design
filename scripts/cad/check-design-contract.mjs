@@ -15,19 +15,27 @@ const clientPath = path.join(root, "packages/design-sdk/src/client.ts");
  * Módulos cuyo router participa de la biyección OpenAPI↔SDK↔Nest. El gate
  * cubría sólo /v1/cad (43 de 77 operaciones); auth, organizations y
  * commercial vivían fuera — una ruta podía divergir del contrato sin que
- * nada lo dijera. Los módulos `legal` y `outbox-receiver` quedan fuera A
- * PROPÓSITO: sus rutas no están en design-api.v1.yaml (superficies internas
- * u operativas, no del SDK del producto).
+ * nada lo dijera. `legal` se sumó cuando `/v1/legal/documents` y
+ * `/v1/legal/acceptances` entraron al contrato. `outbox-receiver` queda
+ * fuera A PROPÓSITO: sus rutas no están en design-api.v1.yaml (superficie
+ * operativa, no del SDK del producto).
  */
 const controllerDirs = [
   "apps/api/src/modules/cad",
   "apps/api/src/modules/identity",
   "apps/api/src/modules/organizations",
   "apps/api/src/modules/commercial/controllers",
+  "apps/api/src/modules/legal",
 ].map((dir) => path.join(root, dir));
 
 /** Familias de paths del contrato que el gate cruza contra el router. */
-const coveredPrefixes = ["/v1/cad", "/v1/auth", "/v1/organizations", "/v1/commercial"];
+const coveredPrefixes = [
+  "/v1/cad",
+  "/v1/auth",
+  "/v1/organizations",
+  "/v1/commercial",
+  "/v1/legal",
+];
 const coveredPath = (p) =>
   coveredPrefixes.some((prefix) => p === prefix || p.startsWith(`${prefix}/`));
 
