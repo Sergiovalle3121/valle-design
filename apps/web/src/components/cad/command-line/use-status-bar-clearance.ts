@@ -33,19 +33,34 @@
  *
  * ## Por qué vive fuera del monolito
  *
- * `Layout3DEditor.tsx` sólo puede encoger. Aquí no le cuesta ni una línea de
- * JSX ni un `useState`: el editor sólo cambió un token de clase,
- * `bottom-14` → `bottom-[var(--cad-command-line-clearance,3.5rem)]`, y sin este
- * módulo montado la variable no existe y el muelle se queda exactamente donde
- * estaba. El respaldo es el comportamiento anterior.
+ * `Layout3DEditor.tsx` sólo puede encoger. Aquí no le cuesta NADA: el editor
+ * conserva su `bottom-14` intacto y quien se desplaza es la línea de comandos,
+ * por su cuenta, con un desfase relativo. Sin este módulo montado la variable no
+ * existe, el desfase es cero y todo se queda exactamente donde estaba.
  */
 import { useEffect } from "react";
 
 /** La barra de estado del estudio. Gancho semántico, no utilidad. */
 const STATUS_BAR = ".cad-shell .cad-status-bar";
 
-/** La variable que lee el envoltorio del muelle en el editor. */
-export const CAD_COMMAND_LINE_CLEARANCE_VAR = "--cad-command-line-clearance";
+/**
+ * La variable que lee LA LÍNEA DE COMANDOS —no su envoltorio—.
+ *
+ * Es lo que MÁS de los 56 px de fábrica hace falta, y se aplica como desfase
+ * RELATIVO sobre la propia línea. La diferencia no es de estilo: el envoltorio
+ * es una columna que la línea comparte con el acompañante de los primeros cinco
+ * minutos y con la consola AutoLISP, así que subir el ENVOLTORIO sube los tres.
+ * Medido con los goldens: subirlo 21 px puso en rojo el 12 (lazo y ventana
+ * sobre el lienzo) y dos casos del 39 (arrastre de grip), porque los BOTONES
+ * del acompañante —que sí reclaman el ratón— aterrizaban sobre las coordenadas
+ * del plano que esas pruebas pinchan. Con los tres en su sitio y la línea
+ * desplazada sola, los catorce casos vuelven a verde.
+ */
+export const CAD_COMMAND_LINE_CLEARANCE_VAR =
+  "--cad-command-line-clearance-extra";
+
+/** Lo que el envoltorio ya reserva por su cuenta (`bottom-14`). */
+const BASE_CLEARANCE_PX = 56;
 
 /** Aire entre el borde inferior del muelle y el superior de la barra. */
 const GAP_PX = 8;
@@ -65,7 +80,7 @@ export function cadStatusBarClearancePx(
   containerBottom: number,
 ): number | null {
   if (!bar || bar.height <= 0) return null;
-  const clearance = containerBottom - bar.top + GAP_PX;
+  const clearance = containerBottom - bar.top + GAP_PX - BASE_CLEARANCE_PX;
   return Number.isFinite(clearance) && clearance > 0
     ? Math.round(clearance)
     : null;

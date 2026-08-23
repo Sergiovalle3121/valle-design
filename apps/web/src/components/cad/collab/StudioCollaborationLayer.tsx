@@ -56,27 +56,34 @@ export interface StudioCollaborationLayerProps {
  * orden correcto.
  */
 const DOCK =
-  "fixed z-[75] flex max-w-[calc(100vw-1.5rem)] flex-col rounded-card border border-border bg-popover/95 text-popover-foreground p-2 shadow-floating backdrop-blur";
+  "fixed right-3 bottom-16 z-[75] flex max-w-[calc(100vw-1.5rem)] flex-col rounded-card border border-border bg-popover/95 text-popover-foreground p-2 shadow-floating backdrop-blur";
 
 /**
- * SE ANCLA AL LIENZO, NO A LA VENTANA.
+ * ABAJO A LA DERECHA, Y NO ES UNA PREFERENCIA ESTÉTICA.
  *
- * Con `fixed right-3 top-24` el muelle caía 304 px dentro del panel derecho del
- * estudio —justo encima de «Selecciona objetos para ver sus propiedades»— y lo
- * dejaba ilegible: dos superficies traslúcidas superpuestas no se leen ni por
- * separado. Se vio en la captura de portada antes que en ninguna prueba, que es
- * la peor forma de enterarse.
+ * Un panel que flota tiene que elegir sobre qué se posa, y las otras dos
+ * elecciones están MEDIDAS con los goldens, no razonadas:
  *
- * El lienzo es la única superficie del estudio que NO tiene texto propio, así
- * que es donde un panel flotante puede vivir sin tapar nada. Y su rectángulo se
- * conoce sin acoplarse a una clase de Tailwind del monolito: el editor ya
- * publica su contenedor (`viewport-registry.ts`), que es el mismo elemento que
- * hospeda las chinchetas. Cuando el panel derecho se ensancha, se pliega o
- * desaparece —modo enfoque, paleta profesional, pantalla estrecha— el muelle lo
- * sigue solo, porque el lienzo cambia de tamaño con él.
+ *  · `right-3 top-24` —donde nació— cae sobre la ESQUINA SUPERIOR del panel
+ *    derecho. Ahí viven el texto de «Selecciona objetos para ver y editar sus
+ *    propiedades», que dejaba ilegible, y la fila de pestañas de la biblioteca:
+ *    el golden 21 llevaba meses en rojo con el mensaje exacto
+ *    «<aside cad-collab-dock> subtree intercepts pointer events» mientras
+ *    intentaba pulsar `cad-library-tab-xrefs`. Nadie lo había leído.
+ *
+ *  · Anclado al LIENZO —el arreglo apresurado de la OLA 0— dejó de tapar texto
+ *    y empezó a comerse los clics del dibujo: seis specs más en rojo, quince
+ *    mensajes nombrando `cad-collab-toggle`.
+ *
+ * La esquina INFERIOR derecha no tiene ninguna de las dos cosas: el contenido
+ * del panel derecho fluye desde arriba y ninguna prueba pulsa ahí. Y en
+ * pantalla estrecha, donde el panel derecho se esconde, `bottom-16` deja libre
+ * la barra de estado, que vive en el contenedor del lienzo y no llega hasta
+ * este borde.
+ *
+ * Abierto crece hacia arriba y sí tapa parte del panel. Está bien: lo abrió el
+ * usuario.
  */
-const DOCK_INSET = 12;
-
 
 /**
  * El ancho es del CONTENIDO, no del muelle. Plegado sólo hay un título y un
@@ -94,12 +101,11 @@ export default function StudioCollaborationLayer({
   /**
    * NACE PLEGADO, y no es timidez del producto.
    *
-   * El muelle es `fixed right-3 top-24 w-[19rem]`: 304 px clavados encima del
-   * panel derecho del estudio, que es donde viven la lista de entidades y las
-   * propiedades. Abierto de entrada no los TAPA visualmente sin más — se queda
-   * sus clics: Playwright lo cazó como «cad-collab-dock subtree intercepts
-   * pointer events» sobre `cad-native-entity-muro-curvo`, y con él caen el
-   * golden 40, el 10 y el 12 (38 goldens tocan ese panel).
+   * Abierto son 304 px flotando sobre el panel derecho del estudio, que es donde
+   * viven la lista de entidades y las propiedades. No los TAPA visualmente sin
+   * más — se queda sus clics: Playwright lo cazó como «cad-collab-dock subtree
+   * intercepts pointer events» sobre `cad-native-entity-muro-curvo`, y con él
+   * caen el golden 40, el 10 y el 12 (38 goldens tocan ese panel).
    *
    * Un panel de colaboración que impide seleccionar una entidad cuesta más de
    * lo que aporta el primer día. Plegado sigue AHÍ, con su «Abrir» a un clic y
@@ -148,54 +154,6 @@ export default function StudioCollaborationLayer({
   useEffect(() => onCadViewportPublished(setSurface), []);
 
   /* ── La esquina del LIENZO donde se posa el muelle ─────────────────────── */
-
-  /**
-   * La posición se escribe DIRECTAMENTE en el nodo, no en un estado de React.
-   *
-   * Dos razones, y las dos importan aquí:
-   *
-   *  · Es lo que un efecto debe hacer. Colocar un elemento flotante sobre otro
-   *    es sincronizar React con el DOM, no derivar estado; llamar a `setState`
-   *    dentro del cuerpo del efecto encadena renders y el trinquete de lint
-   *    (`scripts/check-lint-budget.mjs`) lo cobra, con razón.
-   *
-   *  · El observador se dispara con CADA cambio de tamaño del lienzo, y el
-   *    lienzo de un CAD cambia de tamaño mientras se arrastra el borde de una
-   *    paleta. Un render de React por cuadro de arrastre para mover un panel
-   *    dos píxeles es trabajo que compite con el dibujo.
-   *
-   * Hasta la primera medida el muelle está oculto: enseñarlo en la esquina de
-   * la ventana durante un cuadro y moverlo al lienzo en el siguiente es un
-   * salto visible, y en una captura sale a medio camino.
-   */
-  const dockRef = useRef<HTMLElement | null>(null);
-  useEffect(() => {
-    const dock = dockRef.current;
-    if (!dock) return;
-    if (!surface) {
-      dock.style.visibility = "hidden";
-      return;
-    }
-    const element = surface.container;
-    const measure = () => {
-      const rect = element.getBoundingClientRect();
-      // `right` se cuenta desde el borde derecho de la VENTANA porque el muelle
-      // es `fixed`: así el ancho del propio muelle —que cambia al plegarse— no
-      // entra en la cuenta y no hace falta medirlo.
-      dock.style.top = `${rect.top + DOCK_INSET}px`;
-      dock.style.right = `${Math.max(DOCK_INSET, window.innerWidth - rect.right + DOCK_INSET)}px`;
-      dock.style.visibility = "visible";
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(element);
-    window.addEventListener("resize", measure);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", measure);
-      dock.style.visibility = "hidden";
-    };
-  }, [surface]);
 
   useEffect(() => {
     if (!surface) return;
@@ -280,11 +238,19 @@ export default function StudioCollaborationLayer({
 
   return (
     <aside
-      ref={dockRef}
-      className={`${DOCK} ${collapsed ? DOCK_WIDTH.collapsed : DOCK_WIDTH.open}`}
-      // Nace oculto y en la esquina; el efecto de arriba lo posa sobre el
-      // lienzo en cuanto lo mide. Ver el porqué allí.
-      style={{ visibility: "hidden", top: DOCK_INSET, right: DOCK_INSET }}
+      /*
+        EN MODO COLOCAR EL MUELLE SE APARTA DEL RATÓN.
+        Colocar una chincheta es una orden explícita: «pincha un punto del
+        plano». Cualquier panel que flote encima y se quede ese clic es un fallo,
+        y el propio muelle es el primer candidato porque flota. Playwright lo
+        cazó por su nombre:
+        «<strong>Enlace para el cliente</strong> from <aside cad-collab-dock>
+        subtree intercepts pointer events». No se pierde forma de cancelar: la
+        pista sobre el plano dice «Esc para cancelar» y Escape lo cancela.
+      */
+      className={`${DOCK} ${collapsed ? DOCK_WIDTH.collapsed : DOCK_WIDTH.open} ${
+        placing ? "pointer-events-none" : ""
+      }`}
       data-testid="cad-collab-dock"
     >
       <div className="flex items-center justify-between gap-2">

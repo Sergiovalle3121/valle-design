@@ -56,7 +56,35 @@ export interface CadCollabPinData extends CadCommentPin {
   body: string;
 }
 
-const ROOT_CLASS = "pointer-events-none absolute inset-0 z-20 overflow-hidden";
+/*
+ * La base SIN `pointer-events`, porque esa utilidad se ALTERNA y no se acumula.
+ *
+ * Antes la base la llevaba puesta (`pointer-events-none`) y el modo colocar
+ * añadía `pointer-events-auto` detrás. En el atributo `class` el orden no
+ * decide nada: quien decide es el orden de las reglas en la hoja de Tailwind, y
+ * ahí `pointer-events-none` gana. Resultado: en modo colocar la capa seguía
+ * siendo transparente al ratón, el lienzo de THREE se quedaba el clic
+ * —«<canvas … three.js> intercepts pointer events», literal en el golden 55— y
+ * anclar un comentario sobre el plano NUNCA funcionó. Separar la base de la
+ * utilidad alternada es lo que hace que el comentario del método —«alternar
+ * pointer-events es LO que decide si el clic llega al editor o se queda aquí»—
+ * sea por fin cierto.
+ */
+const ROOT_BASE = "absolute inset-0 z-20 overflow-hidden";
+
+/**
+ * La clase de la capa según esté o no colocando. Exportada para su spec: el
+ * fallo que arregla no se ve en ninguna aserción de dominio —la capa existe, es
+ * visible y está donde toca—, sólo se ve en si el clic llega. Una función pura
+ * con una prueba de una línea es lo que impide que vuelva a colarse.
+ */
+export function cadCollabOverlayRootClass(placing: boolean): string {
+  return placing
+    ? `${ROOT_BASE} pointer-events-auto cursor-crosshair`
+    : `${ROOT_BASE} pointer-events-none`;
+}
+
+const ROOT_CLASS = cadCollabOverlayRootClass(false);
 const PIN_CLASS =
   "pointer-events-auto absolute left-0 top-0 -ml-3 -mt-3 flex h-6 w-6 items-center justify-center rounded-full border text-[10px] font-bold shadow-lg will-change-transform";
 const PIN_OPEN_CLASS = "border-amber-200/70 bg-amber-400 text-gray-950";
@@ -156,9 +184,7 @@ export class CadCollabOverlay {
     this.hint.hidden = !placing;
     // La clase completa se reescribe: alternar `pointer-events` es LO que
     // decide si el clic llega al editor o se queda aquí.
-    this.root.className = placing
-      ? `${ROOT_CLASS} pointer-events-auto cursor-crosshair`
-      : ROOT_CLASS;
+    this.root.className = cadCollabOverlayRootClass(placing);
     this.root.dataset.placing = placing ? "true" : "false";
   }
 

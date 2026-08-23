@@ -16,50 +16,66 @@ const CONTAINER_BOTTOM = 900;
 const WRAPPED_BAR = { top: 831, height: 57 };
 
 const wrapped = cadStatusBarClearancePx(WRAPPED_BAR, CONTAINER_BOTTOM);
-assert.equal(wrapped, 77, "reserva la barra envuelta, su margen y el aire");
-assert.ok(
-  wrapped !== null && CONTAINER_BOTTOM - wrapped < WRAPPED_BAR.top,
-  "el muelle termina POR ENCIMA del borde superior de la barra",
+assert.equal(
+  wrapped,
+  21,
+  "lo que falta POR ENCIMA de los 56 px que el envoltorio ya reserva",
 );
 assert.ok(
-  wrapped !== null && wrapped > 56,
-  "y por encima del 3.5rem de fábrica, que era justo el defecto",
+  wrapped !== null && CONTAINER_BOTTOM - (56 + wrapped) < WRAPPED_BAR.top,
+  "la línea termina POR ENCIMA del borde superior de la barra",
 );
 
-// Un solo renglón pide menos hueco: si el número fuera fijo, la línea de
-// comandos flotaría con un vacío debajo en cuanto la ventana ensanchara.
-const single = cadStatusBarClearancePx({ top: 859, height: 29 }, 900);
-assert.equal(single, 49);
-assert.ok(single !== null && wrapped !== null && single < wrapped);
+// Un solo renglón no pide nada: el `bottom-14` de fábrica ya lo cubre, y
+// desplazar sin motivo dejaría un hueco muerto sobre la barra.
+assert.equal(cadStatusBarClearancePx({ top: 859, height: 29 }, 900), null);
 
 // Tres renglones piden más. Es el caso de la ventana estrecha, que un
 // `bottom-24` clavado habría vuelto a romper.
 const triple = cadStatusBarClearancePx({ top: 803, height: 85 }, 900);
-assert.equal(triple, 105);
+assert.equal(triple, 49);
 assert.ok(triple !== null && wrapped !== null && triple > wrapped);
 
 // Sin barra —modo enfoque— no hay nada de lo que apartarse: `null` significa
-// «quita la variable», y el editor vuelve a su valor de fábrica.
+// «quita la variable», y la línea vuelve a su sitio de fábrica.
 assert.equal(cadStatusBarClearancePx(null, 900), null);
 assert.equal(cadStatusBarClearancePx({ top: 900, height: 0 }, 900), null);
 
 /*
- * EL CONTRATO CON EL MONOLITO. La variable sólo sirve si el envoltorio del
- * muelle la lee, y sólo es segura si lleva el valor de fábrica como respaldo:
- * sin este módulo montado —o antes del primer cuadro— la línea de comandos
- * tiene que quedarse exactamente donde estaba.
+ * EL CONTRATO, Y DÓNDE SE APLICA.
+ *
+ * El desfase es de LA LÍNEA DE COMANDOS, no de su envoltorio. El envoltorio es
+ * una columna que la línea comparte con el acompañante de los primeros cinco
+ * minutos y con la consola AutoLISP: subirlo sube los tres, y los BOTONES del
+ * acompañante —que sí reclaman el ratón— acaban sobre el plano. Medido: subir
+ * el envoltorio 21 px puso en rojo el golden 12 (lazo y ventana sobre el
+ * lienzo) y dos casos del 39 (arrastre de grip); con el envoltorio quieto y la
+ * línea desplazada sola, los catorce casos vuelven a verde.
  */
 const editor = readFileSync(
   "src/components/cad/editor/Layout3DEditor.tsx",
   "utf8",
 );
 assert.ok(
-  editor.includes(`bottom-[var(${CAD_COMMAND_LINE_CLEARANCE_VAR},3.5rem)]`),
-  "el envoltorio del muelle lee la variable con respaldo de 3.5rem",
+  editor.includes("absolute bottom-14 left-3 z-30"),
+  "el envoltorio se queda donde estaba: mover la columna entera cuesta goldens",
+);
+const line = readFileSync(
+  "src/components/cad/command-line/CadCommandLine.tsx",
+  "utf8",
 );
 assert.ok(
-  !editor.includes("absolute bottom-14 left-3 z-30"),
-  "y ya no lleva el 56 px clavado que pisaba la barra de estado",
+  line.includes("bottom: `var(${CAD_COMMAND_LINE_CLEARANCE_VAR}, 0px)`"),
+  "y es la LÍNEA la que lee la variable, por su nombre y con respaldo de 0px",
+);
+assert.equal(
+  CAD_COMMAND_LINE_CLEARANCE_VAR,
+  "--cad-command-line-clearance-extra",
+  "el nombre dice que es un EXTRA sobre el bottom-14, no la holgura entera",
+);
+assert.ok(
+  line.includes("relative"),
+  "como desfase relativo: mueve su caja sin mover el hueco de sus hermanas",
 );
 
 /*

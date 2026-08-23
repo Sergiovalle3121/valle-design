@@ -4,6 +4,7 @@ import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { saveAndSettle } from "../fixtures/cad-save";
 import type { CadDocument, CadEntity, CadSolid3dEntity } from "../../src/lib/cad/cad-document";
+import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
 import {
   clearSolidCache,
   solid3dBody,
@@ -132,10 +133,14 @@ test("un sólido tecleado sobrevive a guardar, cerrar y reabrir — con su árbo
   let baseSolidId = "";
   {
     const saved = backend.snapshot().document;
-    // El esquema sube al vigente (6, desde la ola BIM del muro) en cuanto el
-    // documento viaja: la migración es aditiva y lo único que cambia es este
-    // número.
-    expect(saved.meta.schema).toBe(6);
+    // El esquema sube al VIGENTE en cuanto el documento viaja: la migración es
+    // aditiva y lo único que cambia es este número. Se lee de la constante y no
+    // se clava: el 6 escrito aquí era el vigente el día que se escribió la
+    // prueba, y tres subidas aditivas después —v7 OPENING, v8 cámara de
+    // ventana, v9 estados de capa— la dejó en rojo diciendo una verdad
+    // caducada. El suelo sí es fijo: SOLID3D lo estrenó el 5.
+    expect(saved.meta.schema).toBe(CAD_DOCUMENT_SCHEMA);
+    expect(CAD_DOCUMENT_SCHEMA).toBeGreaterThanOrEqual(5);
     const solids = solidsOf(saved);
     expect(solids).toHaveLength(1);
     baseSolidId = solids[0].id;

@@ -6,6 +6,7 @@ import { saveAndSettle } from "../fixtures/cad-save";
 import { applyNativeProperty } from "../fixtures/dynamic-input";
 import { worldPoint } from "../fixtures/world-point";
 import type { CadDocument, CadWallEntity } from "../../src/lib/cad/cad-document";
+import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
 
 /**
  * EL MURO PARAMÉTRICO de punta a punta — la primera entidad BIM del producto.
@@ -125,7 +126,14 @@ test("un muro tecleado con ratón y teclado sobrevive a guardar y reabrir, y su 
   let savedAxis = { startX: 0, startY: 0, endX: 0, endY: 0 };
   {
     const saved = backend.snapshot().document;
-    expect(saved.meta.schema).toBe(6);
+    expect(saved.meta.schema).toBe(CAD_DOCUMENT_SCHEMA);
+    // El suelo es 6, el esquema que ESTRENÓ el muro: por debajo de eso este
+    // documento no podría existir. El techo es el vigente, y se lee de la
+    // constante en vez de clavarse: escribir el 6 aquí congeló la prueba en el
+    // día que se escribió, y a la tercera subida aditiva —v7 OPENING, v8 cámara
+    // de ventana, v9 estados de capa, todas con su migración probada— llevaba
+    // meses en rojo diciendo una verdad caducada.
+    expect(CAD_DOCUMENT_SCHEMA).toBeGreaterThanOrEqual(6);
     const walls = wallsOf(saved);
     expect(walls).toHaveLength(1);
     const [wall] = walls;

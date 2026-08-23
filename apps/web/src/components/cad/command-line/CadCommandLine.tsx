@@ -20,6 +20,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CadPrompt } from "@/lib/cad/engine/command-types";
 import { formatCadKeyword, formatCadPrompt } from "@/lib/cad/engine/prompt";
+import { CAD_COMMAND_LINE_CLEARANCE_VAR } from "./use-status-bar-clearance";
 
 export interface CadCommandLineEntry {
   /** Lo que se escribió, o el prompt que se resolvió. */
@@ -136,7 +137,16 @@ export function CadCommandLine({
         hace leerse como herramienta profesional, y deja de ser una mancha negra
         en una interfaz clara.
       */
-      className="pointer-events-none flex w-full flex-col rounded-control border border-border bg-popover/95 text-popover-foreground type-caption shadow-floating backdrop-blur"
+      /*
+        EL DESFASE ES SUYO, no del envoltorio. La línea comparte columna con el
+        acompañante de los primeros cinco minutos y con la consola AutoLISP;
+        subir el envoltorio los sube a los tres y sus botones acaban sobre el
+        plano. `relative` + `bottom` mueve ESTA caja y deja el hueco donde
+        estaba, así que las dos de arriba no se enteran. Sin el módulo que
+        publica la variable, el desfase es cero.
+      */
+      style={{ bottom: `var(${CAD_COMMAND_LINE_CLEARANCE_VAR}, 0px)` }}
+      className="pointer-events-none relative flex w-full flex-col rounded-control border border-border bg-popover/95 text-popover-foreground type-caption shadow-floating backdrop-blur"
     >
       <div
         ref={logRef}

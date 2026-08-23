@@ -16902,7 +16902,7 @@ export default function Layout3DEditor({
                 inferior y, con el diálogo lleno, tapaba Undo. Los controles del
                 muelle reactivan el ratón por su cuenta. */}
             {!walk && (
-              <div className="pointer-events-none absolute bottom-[var(--cad-command-line-clearance,3.5rem)] left-3 z-30 w-[min(30rem,42vw)]">
+              <div className="pointer-events-none absolute bottom-14 left-3 z-30 w-[min(30rem,42vw)]">
                 <CadCommandLineDock
                   host={commandEngine}
                   disabled={drawingReadOnly}

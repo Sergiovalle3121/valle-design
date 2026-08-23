@@ -260,3 +260,153 @@ estudio: si el vocabulario del producto muerto vuelve, no hay foto.
 3. `LAYER` y `PROPERTIES` no abren su paleta desde la línea de comandos.
 4. La capa activa de fábrica ya no es `equipment`, pero sigue siendo `layout` y
    no la que la plantilla considera suya (`MUROS` en la mexicana).
+
+---
+
+## Reanudación tras la caída de sesión (23-08)
+
+La sesión murió a las 13:22 con la OLA 0 cerrada y sin commitear. La campaña de
+cimientos la rescató en `298d610` y la subió a `main`. Al retomar:
+
+- **`origin/main` había avanzado** de `fc9ba23` a `298d610`, con la campaña de
+  cimientos encima. `npm ci` fue obligatorio: el árbol nuevo trae dependencias
+  que esta máquina no tenía (`openapi-typescript`).
+- **Un gate NUEVO cobró la OLA 0.** `check:lint-budget` —trinquete de avisos que
+  estrenó cimientos— falló con 10 avisos de `react-hooks/set-state-in-effect`
+  contra un presupuesto de 9. El aviso tenía razón: el muelle de colaboración
+  medía su sitio con `useState` dentro del efecto, y ese efecto se dispara con
+  CADA cambio de tamaño del lienzo —que en un CAD cambia mientras se arrastra el
+  borde de una paleta—, así que era un render de React por cuadro de arrastre.
+  Ahora la posición se escribe en el nodo por una ref. Trinquete: 545/549.
+- **R.7 ya estaba hecho.** `docs/onboarding/GATES.md` documenta que
+  `check:dwg-evidence` necesita `VALLE_DWG_CORPUS_MIRROR` y que sin él es un
+  falso rojo de entorno. Se tacha de la cola de reserva.
+- **F.2 (186/200 vs 191/200) quedó SIN OBJETO.** No hay que reconciliar nada: la
+  campaña de cimientos sustituyó la rúbrica entera. Ya no hay un número, hay
+  dos, y con otro denominador: **HOY 154/175 (88 %)** y **DESTINO 189/220
+  (85,9 %)**, rúbrica `2026-08-22.1`. Los dos números viejos pertenecen a la
+  rúbrica `2026-08-20.1`, que ya no existe. Queda comprobado, eso sí, de dónde
+  venía la diferencia: los cinco puntos estaban enteros en Import/export DWG
+  (2/8 committeado contra 7/8 calculado), y la matriz llevaba desde la campaña
+  DWG del 21-08 sin regenerarse.
+
+**Estado de los gates al cerrar la OLA 0** (base `298d610` + `npm ci`):
+
+| Gate | Resultado |
+| --- | --- |
+| `check:cad` | verde hasta `check:dwg-evidence` |
+| `check:dwg-evidence` | **falso rojo de entorno** — sin `VALLE_DWG_CORPUS_MIRROR`; documentado en `GATES.md`; confirmado con corrida de control sobre HEAD limpio |
+| `check:dwg` | verde (cero bundles admitidos, sin origen configurado) |
+| `check:lint-budget` | verde — 545 avisos, presupuesto 549 |
+| `typecheck` | verde — 6/6 workspaces |
+| `test` | verde — **384/384 specs** |
+| `lint` | verde — 0 errores (545 avisos, dentro del trinquete) |
+| `build` | verde — 5/5 workspaces |
+
+Ojo con `build`: falló una vez por `.next/dev/types/routes.d.ts` corrupto, que
+es basura del servidor de desarrollo, no del código. Borrar `.next` lo arregla.
+
+**Empujado a `main`: `30ae4f6`.**
+
+### OLA 1 — los seis goldens rojos
+
+**Corrida de control primero, como manda el método.** Los seis, sobre HEAD sin
+tocar: 11 fallos de 16 casos. Cuatro causas distintas, no seis.
+
+**Causa 1 — el esquema (3 goldens: 47-solids, 53, 54).** Los tres afirmaban
+`saved.meta.schema).toBe(6)` y el documento guarda 9. La cola pedía averiguar
+quién miente antes de tocar el número, y miente la aserción: `CAD_DOCUMENT_SCHEMA`
+vale 9, la migración escribe esa constante, y su propia spec demuestra que la
+cadena v3→v9 es ADITIVA («ninguna REGION ni SOLID3D fabricados… el 8→9 conserva
+frozen y layerStates sin materializar nada en quien no los traía»). El 6 era el
+vigente el día que se escribieron las pruebas; tres subidas deliberadas y
+documentadas después —v7 OPENING, v8 cámara de ventana, v9 estados de capa— las
+dejó diciendo una verdad caducada. Ahora comparan contra la CONSTANTE y fijan
+además el suelo (`>= 6` para el muro, `>= 5` para el sólido), que es lo que no
+puede bajar. Así no vuelven a pudrirse en la próxima subida.
+
+**Causa 2 — el contador de LISP (47-lisp-appload).** Pedía «1 comando» y el
+encabezado decía «1 rutina · 5 comandos». El contador tenía razón y la interfaz
+mentía: las rutinas son las DEL ESTUDIO y los comandos son TODOS los tecleables,
+incluidos los de las cuatro rutinas de FÁBRICA que el producto trae puestas. Dos
+poblaciones distintas presentadas como una, contradiciendo a la lista de abajo
+—que sí enseña las de fábrica—. El encabezado ahora las nombra: «1 rutina del
+estudio · 5 comandos disponibles». La aserción se queda con la mitad que la
+prueba controla; contar el total ataría el golden al catálogo de fábrica.
+
+**Causa 3 — la capa de comentarios nunca recibió un clic (55).** `setPlacing`
+CONCATENABA `pointer-events-auto` sobre una base que ya llevaba
+`pointer-events-none`. En el atributo `class` el orden no decide nada: decide la
+hoja de Tailwind, y ahí gana `none`. Anclar un comentario sobre el plano no
+funcionó NUNCA —el lienzo de THREE se quedaba el clic— y ninguna aserción de
+dominio podía verlo: la capa existía, era visible y su `data-placing` decía
+«true». Ahora la base no lleva la utilidad y se alterna de verdad. Con spec
+propia (`collab-overlay-pointer.spec.ts`), que es de una línea y no lo habría
+dejado pasar.
+
+**Causa 4 — el muelle de colaboración se comía los clics de media interfaz
+(21).** Éste es el hallazgo gordo, y explica por qué el golden 21 llevaba meses
+en rojo: el globo plegado, en `right-3 top-24`, cae sobre la fila de pestañas de
+la biblioteca. El mensaje estaba escrito desde el principio —«<aside
+cad-collab-dock> subtree intercepts pointer events» intentando pulsar
+`cad-library-tab-xrefs`»— y nadie lo había leído.
+
+### El error propio, medido y corregido
+
+La OLA 0 había movido ese muelle al LIENZO para que dejara de tapar el panel de
+propiedades. **Fue un cambio malo y el barrido lo cobró**: seis specs que no
+tocan la colaboración —12, 20, 27, 39, 46 y 50— con quince mensajes nombrando
+`cad-collab-toggle`. Cambié un texto tapado por los clics del dibujo, que es
+peor, y era exactamente la lección que el autor original había dejado escrita en
+ese archivo.
+
+El segundo intento —reservar sitio en el panel derecho con una variable de CSS—
+también falló, y también medido: empujar la columna 99 px hacia abajo sacó de la
+vista las filas que el golden 39 edita. Tres goldens en rojo (12:117, 39:219,
+39:268), confirmados contra corrida de control sobre `9835240`: **3 fallos allí,
+9 en mi árbol**. Míos.
+
+Y una tercera causa propia, del mismo tipo: la holgura de la barra de estado
+subía el ENVOLTORIO de la línea de comandos, que es una columna compartida con
+el acompañante de los primeros cinco minutos y la consola AutoLISP. Subirlo 21
+px subía los tres, y los BOTONES del acompañante —que sí reclaman el ratón—
+aterrizaban sobre las coordenadas del plano que esas pruebas pinchan. Aislado
+neutralizando el hook: 14 de 14 en verde. Ahora se desplaza **sólo la línea**,
+con `position: relative`, que mueve su caja sin mover el hueco de sus hermanas.
+
+**La salida buena para el muelle no era elegir a quién tapar: era no tapar.**
+Esquina INFERIOR derecha. El contenido del panel derecho fluye desde arriba, así
+que abajo no hay ni texto ni pestañas; y no está sobre el lienzo, así que no
+roba clics. Cero coste para el editor: ni una línea, ni un `useState`, ni un
+token de clase. Con spec que deja escrito por qué no vuelve a ninguno de los dos
+sitios anteriores (`collab-dock-position.spec.ts`).
+
+Y colocando una chincheta el muelle se aparta del ratón entero: es una orden
+explícita —«pincha un punto del plano»— y ningún panel flotante puede quedársela.
+Cancelar sigue estando en Escape, que es lo que anuncia la pista sobre el dibujo.
+
+### OLA 1 — LA CIFRA, con el árbol quieto
+
+**Barrido completo: 170 de 174 casos verdes (49 min).** Son 87 goldens × 2
+navegadores. Quedan 3 fallos, en 2 goldens:
+
+| Golden | Navegador | Estado |
+| --- | --- | --- |
+| `46-cad-pointer-engine:177` | chromium y firefox | rojo ANTES de esta campaña |
+| `20-cad-multiple-viewports:47` | sólo firefox | rojo ANTES de esta campaña |
+
+**85 de 87 goldens en verde**, desde los 81/87 con que empezó la campaña. Los
+seis rojos heredados están cerrados y ninguno se cerró relajando nada: cuatro
+defectos de PRODUCTO arreglados (la capa de comentarios que nunca recibía un
+clic, el muelle que se comía las pestañas, el encabezado de LISP que mezclaba
+dos poblaciones, la holgura que subía la columna entera) y tres aserciones de
+esquema actualizadas contra la constante —no contra un número— con la evidencia
+de que las tres subidas fueron deliberadas, documentadas y aditivas.
+
+Que los dos restantes son anteriores no es una suposición: la **corrida de
+control sobre `9835240`** —el árbol tal y como lo dejó la campaña de cimientos,
+antes de que mi OLA 0 entrara— da exactamente esos 3 fallos y ningún otro.
+
+**Y un aviso para quien venga:** la campaña de cimientos cerró sin correr el
+barrido de goldens (lo delegó por escrito a esta OLA). Sus 13 commits nunca se
+midieron contra la suite e2e. Éste es el primer barrido del árbol fusionado.

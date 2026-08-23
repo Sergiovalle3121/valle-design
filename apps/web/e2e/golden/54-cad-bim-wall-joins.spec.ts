@@ -5,6 +5,7 @@ import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { saveAndSettle } from "../fixtures/cad-save";
 import { worldPoint } from "../fixtures/world-point";
 import type { CadDocument, CadWallEntity } from "../../src/lib/cad/cad-document";
+import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
 
 /**
  * DOS MUROS ENCADENADOS EN L — la unión es receta, no geometría.
@@ -109,7 +110,14 @@ test("dos muros encadenados en L persisten dos ejes que comparten vértice, sin 
   // --- 2. El documento guardado: dos RECETAS y ninguna unión -----------------
   await saveAndSettle(page, backend);
   const saved = backend.snapshot().document;
-  expect(saved.meta.schema).toBe(6);
+  expect(saved.meta.schema).toBe(CAD_DOCUMENT_SCHEMA);
+  // El suelo es 6, el esquema que ESTRENÓ el muro: por debajo de eso este
+  // documento no podría existir. El techo es el vigente, y se lee de la
+  // constante en vez de clavarse: escribir el 6 aquí congeló la prueba en el
+  // día que se escribió, y a la tercera subida aditiva —v7 OPENING, v8 cámara
+  // de ventana, v9 estados de capa, todas con su migración probada— llevaba
+  // meses en rojo diciendo una verdad caducada.
+  expect(CAD_DOCUMENT_SCHEMA).toBeGreaterThanOrEqual(6);
   const walls = wallsOf(saved);
   expect(walls).toHaveLength(2);
 

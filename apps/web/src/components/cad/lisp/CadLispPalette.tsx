@@ -120,9 +120,21 @@ export function CadLispPalette({ runtime, snapshot, host, disabled }: CadLispPal
         <span className="font-mono type-micro font-semibold uppercase tracking-wide text-success-ink">
           AutoLISP
         </span>
+        {/*
+          LOS DOS NÚMEROS NO CUENTAN LO MISMO, y por eso se dicen con todas sus
+          letras. Las rutinas son las DEL ESTUDIO —lo que alguien cargó con
+          APPLOAD—; los comandos son TODOS los que se pueden teclear, incluidos
+          los de las cuatro rutinas de fábrica que vienen puestas. Decir «1
+          rutina · 5 comandos» a secas se leía como que una rutina había traído
+          cinco comandos, y la lista de abajo, que sí enseña las de fábrica,
+          contradecía al encabezado.
+        */}
         <span data-testid="cad-lisp-command-count" className="type-micro text-muted-foreground">
-          {snapshot.files.length} rutina{snapshot.files.length === 1 ? "" : "s"} ·{" "}
-          {snapshot.commands.length} comando{snapshot.commands.length === 1 ? "" : "s"}
+          {snapshot.files.length} rutina{snapshot.files.length === 1 ? "" : "s"} del
+          estudio ·{" "}
+          {snapshot.commands.length} comando
+          {snapshot.commands.length === 1 ? "" : "s"} disponible
+          {snapshot.commands.length === 1 ? "" : "s"}
         </span>
         <div className="ml-auto flex items-center gap-1">
           <button

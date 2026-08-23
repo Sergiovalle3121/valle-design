@@ -109,7 +109,17 @@ test('APPLOAD carga un .lsp, su comando c: se teclea como nativo y la geometría
   await expect(routines).toContainText('murete.lsp');
   await expect(routines).toContainText('v1');
   await expect(routines).toContainText('MURETE');
-  await expect(page.getByTestId('cad-lisp-command-count')).toContainText('1 comando');
+  // El encabezado cuenta DOS poblaciones distintas y las nombra: las rutinas
+  // son las del estudio —ésta, la que acaba de cargarse—, y los comandos son
+  // todos los tecleables, con los de las cuatro rutinas de fábrica dentro. La
+  // aserción se queda con la mitad que esta prueba controla; contar el total de
+  // comandos ataría el golden al catálogo de fábrica, y añadir una rutina de
+  // fábrica lo pondría en rojo sin que nada se hubiera roto. Eso es justo lo
+  // que llevaba meses pasando: la prueba pedía «1 comando» de cuando no había
+  // biblioteca de fábrica.
+  await expect(page.getByTestId('cad-lisp-command-count')).toContainText(
+    '1 rutina del estudio',
+  );
 
   // --- el comando c: se teclea en la línea de comandos, como cualquier nativo -
   await type(page, 'MURETE');
