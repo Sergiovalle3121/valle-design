@@ -81,7 +81,12 @@ Repo DWG conformance: 57 DWG + 57 DXF, 100% sintéticos vía ODA File Converter 
 
 Workflow `wf_67c109b8-263` completo: 8/8 agentes, 0 errores, 1.46M tokens, 840 tool calls, ~54 min. Ningún frente encontró bypass de la lógica de seguridad central que se le encargó — los rojos son de integración/wiring (ver §6), no reaperturas de las vulnerabilidades P0-A/B/C, excepto D donde el wiring faltante ES la vulnerabilidad.
 
-**Siguiente ronda (en curso):** fix de fixture compartida (A, en su propia rama), fix de chequeo roto (C, en su propia rama), wiring Dockerfile/release.yml (coordinador, nueva rama tras integrar C+D).
+**Ronda de cierre completada** (workflow `wf_a6cee6ca-353`, 4/4 agentes, 0 errores):
+- Frente A: fixture compartida arreglada (commit `3d4fe42`) — suite completa de `apps/api` pasó de 24 tests rotos a 0, confirmado por revisor independiente reconstruyendo la corrida (`675/823 passed, 148 skipped, 0 failed`). **A queda PASS, 4 commits, sin bloqueos.**
+- Frente C: chequeo de `NEXT_PUBLIC_API_URL` reescrito para escanear todos los chunks de `.next/static` en vez de depender de qué referencia la landing (commit `e1fcbff`) — verificado por el revisor reconstruyendo dos servidores reales desde cero (con y sin la variable), mismos resultados que el autor. **C queda PASS, 4 commits, sin bloqueos.**
+- Frente D sigue **FAIL**: el wiring Dockerfile/release.yml no se ha hecho todavía — lo toma el coordinador ahora, después de integrar los cuatro frentes (necesita ver el Dockerfile ya corregido de C y el script de D juntos).
+
+**Próximo paso:** merge de A, B, C, D a `claude/p0-integration` (worktree `D:\dev\wt-p0-integration`), luego wiring de D sobre esa rama, luego gates completos sobre árbol quieto.
 
 ## 6. Rojos
 
