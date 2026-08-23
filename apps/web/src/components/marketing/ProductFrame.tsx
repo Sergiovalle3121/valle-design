@@ -37,7 +37,17 @@ export function ProductFrame({
   className?: string;
 }) {
   return (
-    <figure className={cx("relative", className)}>
+    /*
+      `overflow-hidden` NO es cosmético: el halo es `absolute -inset-8`, o sea
+      32 px más ancho que la figura por cada lado. En escritorio sobra sitio; en
+      un teléfono de 390 px la figura mide 376 y el halo 440, y como nadie lo
+      recortaba, la PORTADA ENTERA se desplazaba en horizontal. Medido con
+      `document.documentElement.scrollWidth`: 560 contra 390 de ventana. El
+      barrido que lo habría cazado —`e2e/public/mobile-accessibility.spec.ts`—
+      moría dos aserciones antes, así que el defecto llevaba desde el rediseño
+      sin que nadie lo viera.
+    */
+    <figure className={cx("relative overflow-hidden", className)}>
       {/* Halo bajo el producto: le da peso y lo separa del fondo sin sombra. */}
       <div
         aria-hidden="true"

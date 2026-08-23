@@ -20,8 +20,6 @@ export interface PlotInput {
   equipmentCount: number;
   /** Floor utilisation, 0..100. */
   utilPct: number;
-  /** Total material-flow travel distance, in footprint units (0 = none). */
-  flowLen: number;
   /** Generation timestamp. */
   date: Date | string | number;
   preparedBy?: string;
@@ -131,7 +129,6 @@ export function plotSheetModel(input: PlotInput): PlotSheet {
   const placed = safeInt(input?.placedStations);
   const total = Math.max(placed, safeInt(input?.totalStations));
   const equip = safeInt(input?.equipmentCount);
-  const flow = Number(input?.flowLen) || 0;
   const layerCount = safeInt(input?.layerCount);
   const visibleLayerCount =
     input?.visibleLayerCount == null
@@ -151,11 +148,28 @@ export function plotSheetModel(input: PlotInput): PlotSheet {
     { label: "Modelo", value: model },
     { label: "Revision", value: revision },
     { label: "Huella", value: footprintLabel },
-    { label: "Estaciones", value: `${placed}/${total}` },
-    { label: "Equipos", value: `${equip}` },
+    /*
+     * UN CAJETÍN NO IMPRIME UN RENGLÓN QUE NO DICE NADA.
+     *
+     * «Flujo total» se ha ido del todo: NADIE alimenta `flowLen` —no queda un
+     * solo productor en el árbol— así que imprimía «---» en cada lámina
+     * publicada, y un campo vacío en el cajetín es lo primero que nota un
+     * arquitecto.
+     *
+     * Los tres contadores del planificador de plantas —estaciones, equipos y
+     * conectores— sí pueden tener valor en un documento HEREDADO, así que no se
+     * borran: se emiten sólo cuando tienen algo que contar. En un plano
+     * dibujado con entidades nativas los tres son cero y el cajetín queda
+     * limpio; en un documento viejo siguen diciendo lo que decían.
+     */
+    ...(total > 0
+      ? [{ label: "Estaciones", value: `${placed}/${total}` }]
+      : []),
+    ...(equip > 0 ? [{ label: "Equipos", value: `${equip}` }] : []),
     { label: "Aprovechamiento", value: `${util.toFixed(1)} %` },
-    { label: "Flujo total", value: flow > 0 ? metres(flow, unit) : "---" },
-    { label: "Conectores", value: `${connectorCount}` },
+    ...(connectorCount > 0
+      ? [{ label: "Conectores", value: `${connectorCount}` }]
+      : []),
     {
       label: "Anotaciones",
       value: `${dimensionCount} cotas / ${labelCount} notas`,

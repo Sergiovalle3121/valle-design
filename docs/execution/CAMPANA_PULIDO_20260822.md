@@ -509,3 +509,46 @@ los dos por DEBAJO de donde empezaron.
 que la tabla gobierne de verdad bordes y filas. También quedan fuera del v10 los
 GROSORES (DIMLWD/DIMLWE), DIMTIH/DIMTOH y los bloques de flecha estándar: el
 render los ignora todavía. Van a PENDIENTES con su nombre.
+
+### OLA 5.3 y OLA 6.4 — el cajetín y el embudo en el teléfono
+
+**5.3 «Flujo total» fuera del cajetín, y dos más con él.** `flowLen` no tenía UN
+solo productor en el árbol, así que ese campo imprimía «---» en cada lámina
+publicada. Se retira del todo, con su campo de entrada. Los tres contadores del
+planificador de plantas —estaciones, equipos y conectores— sí pueden valer algo
+en un documento HEREDADO, así que no se borran: se emiten **sólo cuando tienen
+algo que contar**. En un plano dibujado con entidades nativas los tres son cero
+y el cajetín queda limpio; en un documento viejo siguen diciendo lo que decían.
+Un cajetín no imprime un renglón que no dice nada.
+
+**6.4 El embudo en móvil: tres defectos, y el barrido que no los veía.** El
+spec `e2e/public/mobile-accessibility.spec.ts` existía y llevaba sin correrse
+desde el rediseño de la navegación, porque **todos los barridos anteriores
+miraban sólo `e2e/golden`**. Al correrlo aparecieron tres cosas:
+
+1. **No había forma de iniciar sesión desde un teléfono sin abrir el menú.** El
+   enlace vivía sólo en la barra de escritorio y dentro de la hamburguesa
+   plegada. Es la acción del cliente que YA paga y la más repetida del embudo.
+   Ahora está en la barra, con su objetivo táctil de 44 px. Para que quepa a 390
+   px, el conmutador de tema se muda al menú: entre una preferencia y la acción
+   que convierte, la barra es para la segunda.
+
+2. **La portada se desplazaba en horizontal en el teléfono.** Medido:
+   `scrollWidth` 560 contra 390 de ventana — 170 px de desbordamiento. La causa,
+   una sola: el halo decorativo del marco del producto es `absolute -inset-8`,
+   32 px más ancho por lado que su figura, y NADIE lo recortaba. Un
+   `overflow-hidden` en la figura lo deja en 390 = 390. Es ANTERIOR a esta
+   campaña —comprobado midiendo con mi cambio revertido— y llevaba sin verse
+   desde el rediseño porque la prueba moría dos aserciones antes.
+
+3. **Dos aserciones caducadas, corregidas hacia arriba y no hacia abajo.** La
+   portada dejó de publicar tarifas por decisión escrita («para que no haya dos
+   verdades sobre lo mismo») y el spec seguía buscando el texto de la tabla de
+   precios que ya no está; ahora comprueba lo que aquello protegía de verdad —
+   que la portada NO se invente un precio y que lleve al catálogo—, que
+   sobrevive al siguiente rediseño. Y el objetivo táctil se afirmaba con
+   IGUALDAD a 44 px: el botón de envío pasó a 48 y el gate lo dio por roto. Una
+   regla de accesibilidad que castiga superarla está mal escrita; ahora es un
+   mínimo.
+
+`e2e/public`: **6/6 verdes**, desde 0/6.

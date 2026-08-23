@@ -103,7 +103,25 @@ export function PublicNav() {
 
         {/* ── Móvil ─────────────────────────────────────────────────────── */}
         <div className="flex items-center gap-2 md:hidden">
-          <ThemeToggle />
+          {/*
+            INICIAR SESIÓN SE QUEDA A LA VISTA EN EL TELÉFONO.
+
+            Es la acción del cliente que YA paga, y es la más repetida del
+            embudo: esconderla detrás de una hamburguesa le cuesta dos toques
+            cada vez que abre el producto desde el móvil. «Crear cuenta» no la
+            necesita aquí porque el héroe ya la ofrece a pantalla completa.
+
+            Estaba sólo dentro del menú plegado, y así lo cazó
+            `e2e/public/mobile-accessibility.spec.ts`. Ese barrido no se corría
+            desde que se rediseñó la navegación, porque los barridos anteriores
+            miraban únicamente `e2e/golden`.
+          */}
+          <Link
+            href="/login"
+            className={buttonClass({ variant: "ghost" })}
+          >
+            Iniciar sesión
+          </Link>
           <button
             type="button"
             onClick={() => setOpen((value) => !value)}
@@ -133,7 +151,9 @@ export function PublicNav() {
           className="border-t border-border bg-background px-5 pb-6 pt-3 md:hidden"
         >
           <ul className="flex flex-col gap-1">
-            {[...LINKS, ["Iniciar sesión", "/login"] as const].map(
+            {/* «Iniciar sesión» ya vive en la barra: repetirla aquí obligaría a
+              elegir entre dos enlaces idénticos. */}
+          {LINKS.map(
               ([label, href]) => (
                 <li key={href}>
                   <Link
@@ -149,6 +169,17 @@ export function PublicNav() {
                 </li>
               ),
             )}
+            {/*
+              El conmutador de tema vive AQUÍ en el teléfono, no en la barra.
+              A 390 px la barra no da para el logotipo, «Iniciar sesión» con su
+              objetivo táctil de 44 px, el conmutador y la hamburguesa: medido,
+              se iba a 412 px y la portada se desplazaba en horizontal. Entre
+              una PREFERENCIA y la acción del cliente que ya paga, la barra es
+              para la segunda.
+            */}
+            <li className="pt-1">
+              <ThemeToggle className="w-full justify-start" />
+            </li>
           </ul>
           <Link
             href="/register"

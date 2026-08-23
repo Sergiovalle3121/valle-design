@@ -27,7 +27,6 @@ const base = {
   totalStations: 8,
   equipmentCount: 4,
   utilPct: 24.25,
-  flowLen: 5_000,
   date: "2026-06-29T12:00:00.000Z",
 };
 
@@ -132,7 +131,6 @@ const base = {
     placedStations: 2,
     equipmentCount: -9,
     utilPct: 150,
-    flowLen: 0,
     date: "not-a-date",
   });
   ok(
@@ -143,17 +141,32 @@ const base = {
     fieldValue(sheet.fields, "Estaciones") === "2/2",
     "keeps total stations at least placed stations",
   );
+  /*
+   * Un cajetín no imprime un renglón que no dice nada. Con el contador de
+   * equipos en cero —el caso de CUALQUIER plano dibujado con entidades
+   * nativas— el campo no se emite, en vez de imprimir un «0» que sólo cuenta
+   * la historia del producto del que esto se separó.
+   */
   ok(
-    fieldValue(sheet.fields, "Equipos") === "0",
-    "clamps negative equipment count",
+    fieldValue(sheet.fields, "Equipos") === undefined,
+    "omits the equipment counter when there is nothing to count",
   );
   ok(
     fieldValue(sheet.fields, "Aprovechamiento") === "100.0 %",
     "clamps utilization to 100",
   );
+  /*
+   * «Flujo total» ya no existe: NADIE alimentaba `flowLen`, así que imprimía
+   * «---» en cada lámina publicada. Un campo que no puede llenarse nunca no es
+   * un campo, es un hueco.
+   */
   ok(
-    fieldValue(sheet.fields, "Flujo total") === "---",
-    "does not fake zero flow distance",
+    fieldValue(sheet.fields, "Flujo total") === undefined,
+    "the dead flow field is gone from the title block",
+  );
+  ok(
+    !JSON.stringify(sheet.fields).includes("Flujo"),
+    "and it does not come back under another spelling",
   );
 }
 
