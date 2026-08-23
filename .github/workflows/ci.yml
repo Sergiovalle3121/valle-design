@@ -131,6 +131,27 @@ jobs:
       - name: Contract lint (Redocly)
         run: npx redocly lint packages/contracts/specs/design-api.v1.yaml
 
+      # check:cad (vía check:dwg-evidence) y check:dwg comparan contra
+      # docs/cad/evidence/dwg-*.json, que se generó en local CON el corpus
+      # hermano montado. Sin este paso, CI recalcula "cero bundles" en frío
+      # y el deepStrictEqual contra la evidencia comiteada revienta — no es
+      # una regresión de código, es que CI nunca vio el corpus. El repo
+      # hermano es público hoy, así que el checkout no necesita credencial;
+      # se fija al commit exacto del pin para no depender de su HEAD.
+      - name: Leer el pin del corpus DWG
+        id: dwg-corpus-pin
+        run: echo "commit=$(node -p "require('./scripts/dwg/corpus-pin.json').commit")" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout del espejo del corpus DWG (repo hermano, sólo lectura)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: Sergiovalle3121/valle-design-dwg-conformance
+          ref: ${{ steps.dwg-corpus-pin.outputs.commit }}
+          path: .dwg-corpus-mirror
+
+      - name: Exportar VALLE_DWG_CORPUS_MIRROR
+        run: echo "VALLE_DWG_CORPUS_MIRROR=$GITHUB_WORKSPACE/.dwg-corpus-mirror" >> "$GITHUB_ENV"
+
       - name: CAD contract and legacy-route gates
         run: npm run check:cad
 

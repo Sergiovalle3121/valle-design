@@ -2,10 +2,15 @@
 
 ## Alcance y activos
 
-La frontera actual recibe un `Uint8Array` no confiable y produce un probe
-discriminado con error tipado, diagnostics y un manifiesto de pérdidas vacío.
-Sólo detecta la firma: no produce una object database ni `CadDocument` y no se
-ejecuta en el producto durante DWG-0.
+La frontera pública recibe un `Uint8Array` no confiable y produce un probe
+discriminado con error tipado, diagnostics y un manifiesto de pérdidas. Para
+AC1015/AC1018 el laboratorio ya construye una base de objetos completa
+(capas, bloques, entidades, tablas de símbolos) contra un corpus verificado, y
+ya emite un writer AC1015 validado por un oráculo externo para un
+subconjunto de entidades — ver `CAPABILITIES.md` para el corte exacto y sus
+límites. Ninguna de las dos rutas produce `CadDocument` ni se ejecuta en el
+producto durante DWG-0: no hay provider, endpoint, upload, feature flag ni
+integración runtime.
 
 Se protegen:
 
@@ -37,8 +42,13 @@ vista no confiable
   -> detección de firma estricta
   -> versión conocida/desconocida + resultado unsupported/error
   -> [fundamentos internos] cursores/budgets/aritmética comprobada
-  -X-> decoder y base de objetos completa (todavía unsupported)
-  -X-> filesystem, red, comandos, OLE, scripts, URLs, CadDocument o UI
+  -> decoder y base de objetos (AC1015/AC1018, corpus verificado, todavía
+     experimental-lab; AC1024/1027/1032 quedan en fallo cerrado tipado en el
+     cuerpo de objeto — ver CAPABILITIES.md)
+  -> writer AC1015 (subconjunto de entidades, validado por oráculo externo,
+     sigue siendo laboratorio)
+  -X-> filesystem, red, comandos, OLE, scripts, URLs, CadDocument, provider,
+     endpoint, upload o UI
 ```
 
 ## Amenazas y controles requeridos
@@ -93,10 +103,16 @@ o excepciones sin tipar.
 
 ## Fuera de alcance de DWG-0
 
-Object database completa, entidades, geometría, mapping a `CadDocument`, writer,
-round-trip, macros, OLE, descompresión moderna, provider, endpoint, upload, UI y
-disponibilidad productiva. La ausencia de esas rutas reduce superficie; no es
-evidencia de seguridad o compatibilidad para una fase posterior.
+Mapping runtime a `CadDocument`, macros, OLE, cuerpo de objeto de
+AC1024/1027/1032 (BOT/UMC/string-stream UTF-16 sin construir; el contenedor
+sí decodifica), AC1021 (excluido por diseño), provider, endpoint, upload, UI
+e integración/disponibilidad productiva. La base de objetos AC1015/AC1018 y
+el writer AC1015 SÍ están construidos y probados en el laboratorio (ver
+`CAPABILITIES.md`), pero permanecen desconectados del producto: su presencia
+en el laboratorio no es evidencia de seguridad o compatibilidad para una
+integración runtime, que exige su propio análisis (superficie de writer con
+entrada de grafo neutral hostil, resolución de handles, presupuestos de
+emisión) antes de cualquier promoción.
 
 ## Riesgo residual y revisión
 
