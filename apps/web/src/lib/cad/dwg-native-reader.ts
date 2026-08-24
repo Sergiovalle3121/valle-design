@@ -43,6 +43,8 @@ import {
   type DwgDatabase,
   type DwgDatabaseBlock,
   type DwgDatabaseEntityRecord,
+  type DwgError,
+  type DwgErrorCode,
   type DwgGeometryEntity,
 } from "@valle-design/dwg-codec";
 import type {
@@ -218,6 +220,60 @@ export interface DwgNeutralDatabaseReaderOptions {
 }
 
 /**
+ * `readDwg`/`probeDwg` sólo lanzan `DwgParseError` en su frontera pública
+ * (regla del laboratorio: "ninguna entrada malformada puede escapar... sin
+ * tipar"). La clase no se exporta desde `@valle-design/dwg-codec`, pero su
+ * `.detail: DwgError` sí es un campo público y enumerable — se lee por forma
+ * (duck typing) en vez de `instanceof` para no depender de una clase que el
+ * paquete no expone.
+ */
+function dwgErrorDetail(error: unknown): DwgError | undefined {
+  if (
+    typeof error !== "object" ||
+    error === null ||
+    !("detail" in error) ||
+    typeof (error as { detail?: unknown }).detail !== "object" ||
+    (error as { detail: unknown }).detail === null
+  ) {
+    return undefined;
+  }
+  return (error as { detail: DwgError }).detail;
+}
+
+/**
+ * Un mensaje en español por código de error tipado, para que "demasiado
+ * grande", "presupuesto de trabajo agotado", "tiempo interno agotado",
+ * "cancelado", "corrupto" y "firma inválida/truncada" no colapsen todos en
+ * el mismo texto genérico (hallazgo P2 de la campaña de producto: antes de
+ * este cambio, un archivo simplemente grande recibía el mismo mensaje que
+ * uno con la firma inválida — `probe.probe===null` en los dos casos).
+ * `undefined` deja al llamador decidir su propio mensaje de reserva.
+ */
+function describeDwgErrorCode(code: DwgErrorCode | undefined): string | undefined {
+  switch (code) {
+    case "DWG_FILE_LIMIT_EXCEEDED":
+      return "El archivo supera el tamaño máximo admitido por esta beta.";
+    case "DWG_WORK_LIMIT_EXCEEDED":
+      return (
+        "El archivo exige más trabajo del presupuesto permitido en esta beta " +
+        "(estructura inusualmente grande o compleja para el perfil actual)."
+      );
+    case "DWG_DEADLINE_EXCEEDED":
+      return "La lectura superó el tiempo máximo interno asignado a esta beta.";
+    case "DWG_CANCELLED":
+      return "La importación fue cancelada.";
+    case "DWG_STRUCTURE_CORRUPT":
+      return "El archivo está dañado: su estructura interna no se pudo leer.";
+    case "DWG_SIGNATURE_TRUNCATED":
+      return "El archivo está truncado: no tiene suficientes bytes para reconocer su firma DWG.";
+    case "DWG_SIGNATURE_INVALID":
+      return "El archivo no se reconoce como DWG (firma inválida).";
+    default:
+      return undefined;
+  }
+}
+
+/**
  * Lee bytes DWG hostiles y devuelve la base neutral del perfil vigente, o
  * falla tipado y en español. Ésta es la función que se registra como
  * `DwgNeutralDatabaseReader` (`dwg-neutral-model.ts`) en el worker.
@@ -238,11 +294,20 @@ export function readDwgNeutralDatabase(
   // `probe.probe` sigue viniendo poblado en ese caso, con la versión y todo.
   // Comprobar sólo `probe.probe === null` es lo que de verdad distingue
   // «no es un DWG» de «es un DWG de una versión que esta beta no lee», que
-  // es justo la distinción que este comentario ya prometía más abajo.
+  // es justo la distinción que este comentario ya prometía más abajo. Entre
+  // los casos que SÍ caen aquí (`probe.probe===null`), `probe.error.code`
+  // todavía distingue "archivo demasiado grande" de "firma inválida" — antes
+  // de este cambio los dos decían lo mismo.
   if (probe.probe === null) {
+    // `probe.probe===null` sólo ocurre en la rama de fallo, pero TypeScript
+    // discrimina `DwgProbeResult` por `probe.ok`, no por `probe.probe` — el
+    // ternario sobre `probe.ok` es el que de verdad estrecha el tipo para
+    // que `.error` sea accesible; en runtime siempre toma la rama derecha.
+    const specific = probe.ok ? undefined : describeDwgErrorCode(probe.error.code);
     throw new Error(
-      "El archivo no se reconoce como DWG (firma inválida o archivo truncado). " +
-        "Verifica que sea un .dwg y vuelve a intentarlo.",
+      (specific ??
+        "El archivo no se reconoce como DWG (firma inválida o archivo truncado).") +
+        " Verifica que sea un .dwg y vuelve a intentarlo.",
     );
   }
   if (probe.probe.versionKind !== "known") {
@@ -267,10 +332,13 @@ export function readDwgNeutralDatabase(
   try {
     database = readDwg(bytes);
   } catch (error) {
+    const specific = describeDwgErrorCode(dwgErrorDetail(error)?.code);
     throw new Error(
-      `El archivo se reconoce como ${probe.probe.version.code} pero su estructura interna ` +
-        `no se pudo leer (${error instanceof Error ? error.message : "error desconocido"}). ` +
-        "El archivo puede estar dañado o usar una característica que este perfil de beta no cubre.",
+      specific !== undefined
+        ? `El archivo se reconoce como ${probe.probe.version.code}. ${specific}`
+        : `El archivo se reconoce como ${probe.probe.version.code} pero su estructura interna ` +
+            `no se pudo leer (${error instanceof Error ? error.message : "error desconocido"}). ` +
+            "El archivo puede estar dañado o usar una característica que este perfil de beta no cubre.",
     );
   }
   return toBetaProfileDatabase(database);

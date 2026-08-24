@@ -22,6 +22,7 @@ import { shapefileToCadEntities } from "./geo-cad-document";
 import { readGeoDataset } from "../geo";
 import { dwgBetaImportIsEnabled, dwgImportIsEnabled } from "./dwg-interop-flag";
 import { dwgNeutralDatabaseToCadDocument } from "./dwg-document-bridge";
+import { DWG_MAX_IMPORT_BYTES } from "./dwg-import-limits";
 import type { DwgNeutralDatabaseReader } from "./dwg-neutral-model";
 
 export const MAX_DXF_IMPORT_BYTES = 12_000_000;
@@ -38,13 +39,15 @@ export const MAX_JSON_IMPORT_BYTES = 20_000_000;
 export const MAX_SHP_IMPORT_BYTES = 8_000_000;
 
 /**
- * Límite del binario, declarado aunque hoy no se pueda alcanzar.
- *
- * Un DWG comprime, así que pesa menos que el DXF equivalente y aun así trae más
- * dentro: el límite es mayor que el de DXF y sigue siendo un tope, porque un
- * archivo sin tope es una denegación de servicio con extensión.
+ * Límite del binario — igual al tope real del códec
+ * (`DEFAULT_DWG_LIMITS.maxFileBytes`), no un número independiente. Antes de
+ * esta corrección era 24.000.000: un archivo entre 16.777.216 y 24.000.000
+ * bytes pasaba esta validación y el códec lo rechazaba después de todos
+ * modos, con un mensaje que encima decía "firma inválida" en vez de
+ * "demasiado grande". Ver `dwg-import-limits.ts` para la fuente del número y
+ * dónde vive la comprobación cruzada contra el códec.
  */
-export const MAX_DWG_IMPORT_BYTES = 24_000_000;
+export const MAX_DWG_IMPORT_BYTES = DWG_MAX_IMPORT_BYTES;
 
 export type DocumentImportFormat = "dxf" | "json" | "shp" | "dwg";
 
