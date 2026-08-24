@@ -12,8 +12,8 @@ objectDatabase: experimental-lab
 headerVariables: experimental-lab
 symbolTables: experimental-lab
 r2004Container: experimental-lab
-entityImport: unsupported
-cadDocumentMapping: experimental-lab-mapping
+entityImport: product-beta-flag-gated
+cadDocumentMapping: product-beta-flag-gated
 dwgExport: experimental-lab-writer
 roundTrip: external-oracle-verified
 productionAvailable: false
@@ -121,3 +121,47 @@ en `decoderStatus: "unsupported"`.
 
 La promoción al producto sigue exigiendo la firma del ADR-0009:
 `productionAvailable: false`, provider no disponible y `.dwg` rechazado.
+
+## Evidencia del corte 2026-08-24 (integración de producto: beta V1→V3, AC1018)
+
+Este corte SUPERA el límite `entityImport: unsupported`/`cadDocumentMapping:
+experimental-lab-mapping` de la tabla del corte 2026-08-14 — para el perfil
+exacto descrito abajo, no para DWG en general. El dueño firmó ADR-0009
+§6-bis (2026-08-24): la importación DWG entra al producto real, detrás de
+dos flags apagados por defecto en producción pública
+(`NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA`, `NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA`).
+
+- **Punto único de entrada en runtime**: `apps/web/src/lib/cad/dwg-native-reader.ts`,
+  el único archivo autorizado a importar `@valle-design/dwg-codec` fuera del
+  propio paquete (`scripts/dwg/check-product-boundary.mjs` falla si cualquier
+  otro archivo lo referencia). Consumido únicamente por
+  `document-import.worker.ts` (Web Worker, import dinámico sólo para `.dwg`).
+- **Perfil de entidades `AC1015_MODELSPACE_2D_V3`**: LINE, POINT, CIRCLE,
+  ARC, LWPOLYLINE, TEXT, INSERT (§6-bis/V1), ELLIPSE y SPLINE no racional de
+  escenario 1 (§6-ter/V2), MTEXT, DIMENSION salvo angular de dos líneas, y
+  HATCH de contorno poligonal (§6-quater/V3). Model space únicamente: dentro
+  de un bloque, MTEXT/DIMENSION/HATCH caen al mismo diagnóstico genérico que
+  cualquier tipo sin representación ahí (tampoco lo tienen para DXF).
+- **AC1018 (2004)**: mecanismo de autorización DISTINTO
+  (`DWG_AC1018_BETA_AUTHORIZATION`, ADR-0009 §7), su propia variable de
+  build, y exige la beta base también encendida — nunca una ampliación
+  silenciosa. `readDwg` ya despachaba AC1018 al mismo `DwgDatabase` que
+  AC1015 desde antes de esta integración (§1.2); el perfil de entidades no
+  cambia por versión.
+- **Mapeo al documento canónico**: `apps/web/src/lib/cad/dwg-document-bridge.ts`
+  (más `dwg-document-bridge-primitives.ts`) proyecta la base neutral al mismo
+  `CadDocument` que DXF, reutilizando los consumidores ya probados
+  (`cadDxfPrimitivesToCanonicalEntities`, `cadDxfMTextsToNativeEntities`,
+  `cadDxfSemanticDimensionsToNativeEntities`, `cadDxfHatchesToNativeEntities`).
+  Falla cerrado si el mapeo no produce ni una entidad ni un bloque.
+- **Límite honesto sin suavizar**: `productionAvailable` sigue `false` — esto
+  es una beta acotada, no disponibilidad general. `legalReviewCleared` sigue
+  `false` en `DWG_PROMOTION_GATES` (dictamen jurídico en paralelo, no
+  resuelto). Unidades (INSUNITS) se asumen en milímetros sin poder
+  confirmarlas contra el archivo — el camino de LECTURA del laboratorio
+  todavía no decodifica esa variable de cabecera (sólo el de escritura la
+  usa) — declarado como pérdida en cada importación, no adivinado en
+  silencio. `stateFlags` de capa viaja crudo por la misma razón que ya
+  declaraba el corte 2026-08-14: su semántica bit a bit no está confirmada
+  contra corpus real para el binario DWG. Sin exportación conectada al
+  producto: el writer AC1015 sigue siendo capacidad de laboratorio.
