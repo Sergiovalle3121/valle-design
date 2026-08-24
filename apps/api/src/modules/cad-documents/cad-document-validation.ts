@@ -24,9 +24,19 @@ export type PersistedCadDocument = Record<string, unknown>;
  * el primer guardado, y un servidor que se quedara en el anterior convertiría
  * cada guardado en un 400 sin que nada estuviera roto. El 8 estrena la cámara
  * de la ventana gráfica, que valida `assertViewportView`; el 9 es puramente
- * aditivo — `frozen` en la capa y la sección opcional `layerStates`.
+ * aditivo — `frozen` en la capa y la sección opcional `layerStates`; el 10
+ * añade siete campos de presentación a `dimension`, también aditivos.
+ *
+ * Este número se quedó en 9 mientras el cliente ya llevaba semanas en 10
+ * (`CAD_DOCUMENT_SCHEMA` en `cad-document-shared.ts`) — exactamente el modo
+ * de fallo que este comentario lleva años advirtiendo: cualquier documento
+ * que pasara por `migrateCadDocument` en el cliente (TODOS, al abrirse — ver
+ * su comentario: escribe `meta.schema = CAD_DOCUMENT_SCHEMA` sin excepción)
+ * y se guardara después, recibía un 400 sin que nada estuviera roto. Corregido
+ * al detectarlo durante la campaña 3D-M1; ver
+ * `docs/execution/CAMPANA_3D_M1_20260824.md` para la evidencia completa.
  */
-export const CAD_DOCUMENT_MAX_SCHEMA = 9;
+export const CAD_DOCUMENT_MAX_SCHEMA = 10;
 export const CAD_DOCUMENT_MAX_INLINE_BYTES = 8_000_000;
 /**
  * Techo del documento DESCOMPRIMIDO (gzip aparte, 20 MiB comprimidos). Bajó de
