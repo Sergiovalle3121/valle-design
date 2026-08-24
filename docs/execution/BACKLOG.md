@@ -128,6 +128,34 @@ guarda de vuelta con `replace` de la definición + regeneración de inserciones
 criterio `blocks.bedit` de la rúbrica pasa con evidencia real.
 **Estimación:** 2–3 días.
 
+### P1-8 · `e2e/real/*`: 5 specs fallan por una carrera en verify-email, no por el producto
+- **Qué falla:** encontrado en el barrido de goldens con árbol quieto de la
+  campaña de cierre de ramas (2026-08-24, `docs/execution/CIERRE_RAMAS_20260824.md`
+  Ola Final), reproducido IDÉNTICO en 3 corridas independientes (dos en CI de
+  GitHub, una local en máquina distinta): `studio-real-api.spec.ts`,
+  `commercial-fiscal-checkout.spec.ts`, `cad-conflict-per-document.spec.ts`,
+  `cad-offline-multitab.spec.ts`, `cad-recovery-lanes.spec.ts` fallan todos en
+  su fase de arranque compartida (registro + verificación de correo).
+- **Causa raíz, YA diagnosticada** (no queda por investigar el "qué", sólo el
+  arreglo): `e2e/real/studio-real-api.spec.ts:274` espera
+  `page.getByLabel("Token")).toHaveValue(verificationToken)` ANTES de hacer
+  clic en "Verificar correo". La captura de pantalla del fallo
+  (`error-context.md` del test run) muestra la página YA en el estado
+  "Listo, tu correo está verificado" — la verificación ocurre más rápido que
+  el supuesto del test (probablemente auto-verifica al cargar con el token en
+  la URL, sin esperar el clic), así que el campo `Token` ya no existe en el
+  DOM cuando la aserción corre. **Es una carrera del test contra un producto
+  que mejoró (verificación más rápida), no una regresión de producto.**
+- **Por qué no se arregló en esta campaña:** el fix real (ajustar la
+  aserción a la secuencia real de eventos, o esperar el estado final en vez
+  del intermedio) toca 5 archivos de specs pesados de `e2e/real/` que no
+  forman parte de "los 87 goldens" (`e2e/golden/` está en **85/87**, sin
+  regresión — ver informe de cierre). Ampliar el alcance de esta campaña a
+  reescribir specs de otro dominio no es lo que se pidió.
+- **Criterio:** los 5 specs en verde, 3 corridas seguidas. **Estimación:**
+  medio día — el diagnóstico ya está hecho, sólo falta reescribir la
+  aserción de arranque compartida.
+
 ### P1-5 · Marcar visibilidad por operación en el contrato OpenAPI
 `x-visibility: public|internal|experimental` en las 79 operaciones de
 `packages/contracts/specs/design-api.v1.yaml` + el gate del contrato exige la
