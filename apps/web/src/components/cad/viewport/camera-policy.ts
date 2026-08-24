@@ -43,3 +43,27 @@ export function applyCadCameraPolicy(controls: OrbitControls, mode: "2d" | "3d")
     ? (CAD_TOUCH_ONE_FINGER_IDLE as unknown as THREE.TOUCH)
     : THREE.TOUCH.ROTATE;
 }
+
+export interface CadSceneContext {
+  s: number;
+  W: number;
+  H: number;
+}
+
+// Encuadre inicial de cámara + contexto mundo↔escena, derivados de la huella.
+// Separado del ciclo de vida de la escena en Layout3DEditor: se puede volver
+// a llamar en cada resize real de la huella sin tumbar renderer/controles.
+export function applyInitialCameraFraming(
+  camera: THREE.PerspectiveCamera,
+  controls: OrbitControls,
+  footprintW: number,
+  footprintH: number,
+): CadSceneContext {
+  const W = footprintW || 1;
+  const H = footprintH || 1;
+  const s = 30 / Math.max(W, H);
+  camera.position.set(W * s * 0.45, Math.max(W, H) * s * 0.8, H * s * 1.0 + 10);
+  controls.target.set(0, 0, 0);
+  controls.update();
+  return { s, W, H };
+}

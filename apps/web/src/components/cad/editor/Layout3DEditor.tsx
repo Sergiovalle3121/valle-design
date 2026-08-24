@@ -477,8 +477,7 @@ import {
 import { CadNativeGripController } from "@/components/cad/viewport/native-grip-controller";
 import { CadGripMenuOverlay } from "@/components/cad/viewport/grip-menu-host";
 import { createCadTouchGestures } from "@/components/cad/viewport/touch-gestures";
-import { applyCadCameraPolicy } from "@/components/cad/viewport/camera-policy";
-import { applyInitialCameraFraming } from "@/components/cad/viewport/initial-camera-framing";
+import { applyCadCameraPolicy, applyInitialCameraFraming } from "@/components/cad/viewport/camera-policy";
 import {
   CadRenderPipelineBadge,
   CadRenderPipelineStats,
@@ -7770,14 +7769,10 @@ export default function Layout3DEditor({
       gapsLoadedRef.current = false;
       guidesGroupRef.current = null;
     };
-    // `data !== null` capta la identidad del documento: el efecto de carga (arriba) la resetea a null exactamente cuando esa identidad cambia.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `data !== null` capta la identidad: el efecto de carga (arriba) la resetea a null exactamente cuando esa identidad cambia.
   }, [open, data !== null]);
-
-  // Re-deriva encuadre/ctx con un resize real de huella; no tumba lo de arriba.
-  useEffect(() => {
-    if (!open || !cameraRef.current || !controlsRef.current) return;
-    ctxRef.current = applyInitialCameraFraming(cameraRef.current, controlsRef.current, data?.footprint.footprintW || 1, data?.footprint.footprintH || 1);
+  useEffect(() => { // re-deriva encuadre/ctx con un resize real de huella; no tumba lo de arriba
+    if (open && cameraRef.current && controlsRef.current) ctxRef.current = applyInitialCameraFraming(cameraRef.current, controlsRef.current, data?.footprint.footprintW || 1, data?.footprint.footprintH || 1);
   }, [open, data?.footprint.footprintW, data?.footprint.footprintH]);
 
   // selection highlight refresh
