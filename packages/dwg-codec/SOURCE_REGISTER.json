@@ -201,6 +201,7 @@
         "packages/dwg-codec/package.json",
         "packages/dwg-codec/tsconfig.json",
         "packages/dwg-codec/tsconfig.test.json",
+        "packages/dwg-codec/tsconfig.cjs.json",
         "packages/dwg-codec/src/index.ts",
         "packages/dwg-codec/src/container/signature.ts",
         "packages/dwg-codec/src/container/version-registry.ts",

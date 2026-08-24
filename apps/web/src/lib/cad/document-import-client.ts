@@ -1,6 +1,16 @@
 import type { DocumentImportReport } from "./document-import";
 import { validateImportFile } from "./document-import";
 
+/**
+ * Beta `AC1015_MODELSPACE_2D_V1` (ADR-0009 §6-bis). `NEXT_PUBLIC_*` se
+ * sustituye en tiempo de build, no en runtime: un despliegue público que no
+ * la definió como `"true"` nunca la activa, sin depender de configuración de
+ * servidor ni de que nadie recuerde apagar nada.
+ */
+export function isDwgNativeImportBetaEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA === "true";
+}
+
 type WorkerEvent =
   | { type: "progress"; progress: number; stage: string }
   | { type: "complete"; report: DocumentImportReport }
@@ -50,7 +60,8 @@ export function importDocumentFile(
     sidecars?: { shx?: File; dbf?: File; prj?: File; cpg?: File };
   } = {},
 ): Promise<DocumentImportReport> {
-  validateImportFile(file.name, file.size);
+  const dwgBetaEnabled = isDwgNativeImportBetaEnabled();
+  validateImportFile(file.name, file.size, dwgBetaEnabled);
   return new Promise((resolve, reject) => {
     const worker = new Worker(
       new URL("./document-import.worker.ts", import.meta.url),
@@ -90,6 +101,11 @@ export function importDocumentFile(
       finish(() => reject(new Error("El worker de importación falló.")));
     options.signal?.addEventListener("abort", abort, { once: true });
     if (options.signal?.aborted) abort();
-    else worker.postMessage({ file, sidecars: options.sidecars ?? {} });
+    else
+      worker.postMessage({
+        file,
+        sidecars: options.sidecars ?? {},
+        dwgBetaEnabled,
+      });
   });
 }

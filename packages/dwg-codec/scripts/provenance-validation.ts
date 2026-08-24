@@ -217,7 +217,10 @@ export async function validateProvenance(
   }
 
   const packageFiles = await walkRegularFiles(packageRoot, {
-    ignoredDirectories: [".turbo", "coverage", "dist", "node_modules"],
+    // `dist-cjs/` es build output del mismo `src/` que `dist/`: un segundo
+    // target de módulos (CommonJS) para el único consumidor runtime
+    // autorizado (ADR-0009 §6-bis), no una fuente nueva que gobernar.
+    ignoredDirectories: [".turbo", "coverage", "dist", "dist-cjs", "node_modules"],
   });
   for (const relativePath of packageFiles) {
     const repositoryPath = `packages/dwg-codec/${relativePath}`;

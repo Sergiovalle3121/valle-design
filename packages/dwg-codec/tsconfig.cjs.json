@@ -1,0 +1,22 @@
+// Build CJS secundario, sólo para interoperabilidad de consumidores.
+//
+// El paquete es ESM ("type": "module", dist/ vía tsconfig.json) por
+// diseño. Pero su único consumidor autorizado en runtime
+// (apps/web/src/lib/cad/dwg-native-reader.ts, ADR-0009 §6-bis) vive en un
+// workspace CommonJS-por-defecto, y tanto sus specs (ejecutados con `tsx
+// archivo.ts`, sin loader ESM explícito) como herramientas de terceros que
+// aún no resuelven `exports.import` correctamente necesitan un punto de
+// entrada `require()`-able. Este build NO cambia la fuente ni el
+// comportamiento: mismo código, mismos tipos, sólo la sintaxis de módulos
+// de salida. `dist-cjs/` se ignora en git igual que `dist/`.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "CommonJS",
+    "moduleResolution": "Node10",
+    "outDir": "dist-cjs",
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false
+  }
+}

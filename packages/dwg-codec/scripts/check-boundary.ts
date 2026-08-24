@@ -203,8 +203,20 @@ function checkPackageManifest(manifest: JsonObject): void {
   }
 
   const files = manifest.files;
-  if (!Array.isArray(files) || files.length !== 1 || files[0] !== "dist") {
-    fail("package files must expose only dist");
+  // Dos superficies publicables admitidas, y ninguna otra: "dist" a solas
+  // (el laboratorio, siempre), o "dist" más "dist-cjs" — el build CJS
+  // secundario del único consumidor runtime autorizado (ADR-0009 §6-bis).
+  // Ambos son build output del mismo `src/`, nunca una fuente nueva.
+  const allowedFileSets = [["dist"], ["dist", "dist-cjs"]];
+  const matchesAllowedSet =
+    Array.isArray(files) &&
+    allowedFileSets.some(
+      (allowed) =>
+        allowed.length === files.length &&
+        allowed.every((entry) => files.includes(entry)),
+    );
+  if (!matchesAllowedSet) {
+    fail('package files must expose only "dist", optionally plus "dist-cjs"');
   }
 }
 

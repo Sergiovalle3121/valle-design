@@ -22,6 +22,7 @@ import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import {
   importDocumentFile,
+  isDwgNativeImportBetaEnabled,
   splitDocumentSelection,
 } from "@/lib/cad/document-import-client";
 import type { DocumentImportReport } from "@/lib/cad/document-import";
@@ -588,7 +589,11 @@ export default function DashboardPage() {
                 <input
                   type="file"
                   className="sr-only"
-                  accept=".dxf,.json,.shp,.shx,.dbf,.prj,.cpg"
+                  accept={
+                    isDwgNativeImportBetaEnabled()
+                      ? ".dxf,.json,.shp,.shx,.dbf,.prj,.cpg,.dwg"
+                      : ".dxf,.json,.shp,.shx,.dbf,.prj,.cpg"
+                  }
                   multiple
                   disabled={!selectedProject || busy}
                   onChange={(e) => {
