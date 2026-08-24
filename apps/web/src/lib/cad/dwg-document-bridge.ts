@@ -12,9 +12,12 @@
  *
  * LA SEPARACIÓN ES DELIBERADA, y es lo que permite que esto esté PROBADO hoy:
  *
- * - `dwgNeutralDatabaseToCadDocument` es PURA y siempre invocable. Recibe una
- *   base ya decodificada y produce el informe de importación canónico. Sus
- *   specs corren contra estructuras sintéticas y demuestran el mapeo entero.
+ * - `dwgNeutralDatabaseToCadDocument` es PURA y siempre invocable (no
+ *   decodifica bytes, no habilita nada). No siempre tiene éxito: si el
+ *   mapeo no produce ni una entidad ni un bloque falla cerrado, igual que ya
+ *   hacen DXF y shapefile — un documento vacío "exitoso" sería el peor tipo
+ *   de fallo. Sus specs corren contra estructuras sintéticas y demuestran el
+ *   mapeo entero.
  * - `importDwgDocumentBytes` es la única que tocaría bytes, y falla cerrado
  *   mientras el gate no esté abierto. Hoy falla siempre.
  *
@@ -49,6 +52,10 @@ import {
   type CadLossManifestEntry,
 } from "./cad-document";
 import { MAX_DWG_IMPORT_BYTES, type DocumentImportReport } from "./document-import";
+// Tabla ACI↔RGB real y ya usada por el resto del producto (plotting); el
+// laboratorio deja dicho en su propio mapeo canónico que "la tabla ACI
+// completa es del adaptador de integración" — este archivo es ese adaptador.
+import { aciToHex } from "./plot/aci-palette";
 import {
   cadDxfBlocksToCadDocumentParts,
   cadDxfHatchesToNativeEntities,
@@ -59,16 +66,25 @@ import {
 import type {
   CadDxfHatch,
   CadDxfMText,
-  CadDxfPoint,
   CadDxfPrimitive,
   CadDxfSemanticBlock,
   CadDxfSemanticDimension,
   CadDxfSemanticInsert,
 } from "./dxf-import";
-// El formato de MTEXT (negrita, fuente, alineación de párrafo…) viaja
-// incrustado como códigos de escape dentro del propio texto, igual en DXF
-// que en DWG: el mismo decodificador sirve a los dos sin tocarlo.
-import { decodeMTextContent, mtextAlignment } from "./dxf-read-annotations";
+// Mapeo por entidad (extraído por presupuesto de monolito, Fase 3): las
+// funciones puras que traducen UNA entidad ya viven ahí; reexportadas más
+// abajo para que specs y consumidores existentes no cambien su import.
+import {
+  decodeCodePageBytes,
+  degrees,
+  droppedLwPolylineProperties,
+  droppedTextProperties,
+  dwgDimensionToCadDxfSemanticDimension,
+  dwgGeometryToPrimitive,
+  dwgHatchToCadDxfHatch,
+  dwgMTextToCadDxfMText,
+  point2,
+} from "./dwg-document-bridge-primitives";
 import {
   DWG_IMPORT_DISABLED_REASON,
   dwgImportIsEnabled,
@@ -79,12 +95,8 @@ import type {
   DwgNeutralBlock,
   DwgNeutralDatabase,
   DwgNeutralDatabaseReader,
-  DwgNeutralDimension,
   DwgNeutralEntityRecord,
-  DwgNeutralGeometry,
-  DwgNeutralHatch,
   DwgNeutralLayer,
-  DwgNeutralMText,
 } from "./dwg-neutral-model";
 
 /** Códigos de pérdida del puente. Estables: la interfaz los agrupa por código. */
@@ -95,6 +107,10 @@ export const DWG_BRIDGE_LOSS_CODES = Object.freeze({
   danglingLayer: "dwg_layer_handle_unresolved",
   danglingBlock: "dwg_insert_block_unresolved",
   hatchCurvedBoundary: "dwg_hatch_curved_boundary_dropped",
+  layerStateFlags: "dwg_layer_state_flags_unmapped",
+  unitAssumed: "dwg_unit_assumed",
+  blockBasePointAssumed: "dwg_block_base_point_assumed",
+  primitiveProperty: "dwg_primitive_property_dropped",
 });
 
 /** Error tipado del puente: nunca un `Error` genérico, nunca un éxito a medias. */
@@ -128,310 +144,14 @@ export class DwgBridgeError extends Error {
  * Cada uso anota una pérdida: el usuario tiene que poder ver por qué un nombre
  * de capa salió raro en vez de creer que su archivo estaba mal.
  */
-function decodeCodePageBytes(bytes: readonly number[]): string {
-  let out = "";
-  for (const byte of bytes) out += String.fromCharCode(byte & 0xff);
-  return out;
-}
-
-const point2 = (value: { readonly x: number; readonly y: number }): CadDxfPoint => ({
-  x: value.x,
-  y: value.y,
-});
-
-const degrees = (radians: number): number => (radians * 180) / Math.PI;
-
-// ---------------------------------------------------------------------------
-// Geometría neutral → primitiva intermedia
-// ---------------------------------------------------------------------------
-
-/**
- * Traduce una entidad neutral a la primitiva que el pipeline canónico consume.
- *
- * Devuelve `null` cuando la entidad no tiene primitiva equivalente; el llamador
- * la anota como pérdida. Los INSERT no pasan por aquí: son referencias entre
- * objetos y viajan por el canal de bloques.
- */
-export function dwgGeometryToPrimitive(
-  entity: DwgNeutralGeometry,
-  layer: string,
-): CadDxfPrimitive | null {
-  switch (entity.kind) {
-    case "line":
-      return { kind: "line", layer, points: [point2(entity.start), point2(entity.end)] };
-    case "point":
-      return {
-        kind: "point",
-        layer,
-        points: [point2(entity.position)],
-        schema4: { kind: "point" },
-      };
-    case "circle":
-      return {
-        kind: "circle",
-        layer,
-        points: [point2(entity.center)],
-        radius: entity.radius,
-      };
-    case "arc":
-      // El modelo neutral guarda radianes porque así viajan en el archivo; la
-      // primitiva canónica habla en grados. La conversión se hace UNA vez, aquí.
-      return {
-        kind: "arc",
-        layer,
-        points: [point2(entity.center)],
-        radius: entity.radius,
-        startAngle: degrees(entity.startAngle),
-        endAngle: degrees(entity.endAngle),
-      };
-    case "lwpolyline":
-      return {
-        kind: "polyline",
-        layer,
-        closed: entity.closed,
-        // El bulge pertenece al vértice donde ARRANCA el segmento, igual que el
-        // grupo 42 de DXF: los dos modelos coinciden y no hay que desplazarlo.
-        points: entity.vertices.map((vertex, index) => {
-          const bulge = entity.bulges?.[index];
-          return bulge === undefined || bulge === 0
-            ? point2(vertex)
-            : { ...point2(vertex), bulge };
-        }),
-      };
-    case "text":
-      return {
-        kind: "text",
-        layer,
-        points: [point2(entity.insertion)],
-        text: decodeCodePageBytes(entity.valueBytes),
-        textHeight: entity.height,
-      };
-    case "ellipse":
-      // `majorAxisEndpoint` ya es el vector relativo al centro que la
-      // primitiva espera: mismo contrato que el DXF, sólo cambia de dónde
-      // sale el radián que hay que pasar a grados.
-      return {
-        kind: "ellipse",
-        layer,
-        points: [point2(entity.center)],
-        majorAxis: point2(entity.majorAxisEndpoint),
-        axisRatio: entity.axisRatio,
-        startAngle: degrees(entity.startAngle),
-        endAngle: degrees(entity.endAngle),
-      };
-    case "spline": {
-      // El perfil ya filtró a escenario 1 (nudos + puntos de control) en
-      // `toBetaProfileGeometry`; esta comprobación es sólo por el `undefined`
-      // que el tipo sigue permitiendo (escenario 2 lo deja así), no una
-      // segunda validación de negocio.
-      const controlPoints = entity.controlPoints;
-      if (controlPoints === undefined || controlPoints.length < 2) return null;
-      return {
-        kind: "spline",
-        layer,
-        points: controlPoints.map(point2),
-        degree: entity.degree,
-        ...(entity.knots !== undefined && entity.knots.length > 0
-          ? { knots: [...entity.knots] }
-          : {}),
-      };
-    }
-    default:
-      return null;
-  }
-}
-
-// ---------------------------------------------------------------------------
-// MTEXT, DIMENSION y HATCH: no tienen primitiva plana, cada uno su propio
-// canal intermedio, cada uno su propio conjunto de entidades canónicas ya
-// probado (`cadDxfMTextsToNativeEntities` y compañía en dxf-cad-document.ts).
-// ---------------------------------------------------------------------------
-
-export function dwgMTextToCadDxfMText(entity: DwgNeutralMText, layer: string): CadDxfMText {
-  // El contenido con formato llega en la misma sintaxis de escape que un
-  // MTEXT de DXF una vez decodificada la página de códigos: mismo
-  // decodificador, sin adaptarlo.
-  const decoded = decodeMTextContent(decodeCodePageBytes(entity.valueBytes));
-  return {
-    layer,
-    insertion: point2(entity.insertion),
-    width: entity.rectWidth,
-    height: entity.height,
-    // `xAxisDirection` es el vector de dirección del formato; el ángulo es
-    // su atan2, en radianes como todo lo demás del modelo neutral.
-    rotation: degrees(Math.atan2(entity.xAxisDirection.y, entity.xAxisDirection.x)),
-    alignment: mtextAlignment(entity.attachment),
-    lineSpacing: entity.lineSpacingFactor,
-    ...decoded,
-  };
-}
-
-/**
- * Distancia con signo del punto `p` a la recta `a`→`b`, sobre la normal
- * `(-dir.y, dir.x)`. Es la misma convención que usa la reconstrucción de
- * cotas DXF ajenas (`dxf-read-foreign-dimensions.ts`), portada aquí porque
- * DWG entrega puntos ya tipados en vez de pares de código de grupo: no hay
- * pares que leer, pero la geometría que reconstruye es la misma.
- */
-function signedOffset(a: CadDxfPoint, b: CadDxfPoint, p: CadDxfPoint): number {
-  const direction = { x: b.x - a.x, y: b.y - a.y };
-  const length = Math.hypot(direction.x, direction.y);
-  if (length <= 1e-9) return 0;
-  const normal = { x: -direction.y / length, y: direction.x / length };
-  const delta = { x: p.x - a.x, y: p.y - a.y };
-  return delta.x * normal.x + delta.y * normal.y;
-}
-
-/**
- * Reconstruye una cota DWG como cota VIVA: sus propios puntos medidos, sin
- * XDATA (DWG no la tiene). Entra DESLIGADA, igual que una cota DXF ajena —
- * mide lo suyo, no se entera de que movieron el muro — y por la misma razón:
- * la asociatividad real vive en reactores por handle que no nombran nada de
- * este documento.
- *
- * `null` cuando a la variante le faltan los puntos que la definen o su
- * geometría es degenerada (longitud/radio cero, giro no alineado a eje).
- * ANGULAR DE DOS LÍNEAS no entra nunca: el perfil ya la excluye antes de
- * llegar aquí (intersecar dos rectas es la misma reconstrucción que
- * `dxf-read-foreign-dimensions.ts` declina para DXF, por el mismo riesgo de
- * mandar el vértice al infinito con un par casi paralelo).
- */
-export function dwgDimensionToCadDxfSemanticDimension(
-  entity: DwgNeutralDimension,
-  layer: string,
-): CadDxfSemanticDimension | null {
-  const text = decodeCodePageBytes(entity.userTextBytes).trim();
-  const common = {
-    layer,
-    // No usado por `cadDxfSemanticDimensionsToNativeEntities` (lo borra
-    // antes de construir la entidad): el tipo lo exige, DWG no tiene nada
-    // parecido, y el mismo "" es lo que ya usa la cota DXF ajena.
-    blockName: "",
-    // "<>" es el marcador de AutoCAD para «usa la medida»: copiarlo como
-    // texto dejaría una cota que muestra literalmente esos dos caracteres.
-    ...(text && text !== "<>" ? { text } : {}),
-  };
-  switch (entity.dimensionKind) {
-    case "aligned": {
-      if (!entity.point13 || !entity.point14) return null;
-      const a = point2(entity.point13);
-      const b = point2(entity.point14);
-      if (Math.hypot(b.x - a.x, b.y - a.y) <= 1e-9) return null;
-      return {
-        ...common,
-        dimensionKind: "aligned",
-        a,
-        b,
-        offset: signedOffset(a, b, point2(entity.definitionPoint)),
-      };
-    }
-    case "linear": {
-      if (!entity.point13 || !entity.point14) return null;
-      // El modelo canónico sólo tiene eje X o eje Y; un giro intermedio no
-      // cabe y no se aproxima — igual que para una cota DXF ajena.
-      const rotationDeg = ((degrees(entity.dimensionRotation ?? 0) % 180) + 180) % 180;
-      const axis = Math.abs(rotationDeg) < 1e-6 ? "x" : Math.abs(rotationDeg - 90) < 1e-6 ? "y" : null;
-      if (!axis) return null;
-      const a = point2(entity.point13);
-      const b = point2(entity.point14);
-      if (axis === "x" && Math.abs(b.x - a.x) <= 1e-9) return null;
-      if (axis === "y" && Math.abs(b.y - a.y) <= 1e-9) return null;
-      const d = point2(entity.definitionPoint);
-      const offset = axis === "x" ? d.y - Math.max(a.y, b.y) : d.x - Math.max(a.x, b.x);
-      return { ...common, dimensionKind: "linear", axis, a, b, offset };
-    }
-    case "radius": {
-      if (!entity.point15) return null;
-      const center = point2(entity.point15);
-      const arrow = point2(entity.definitionPoint);
-      const radius = Math.hypot(arrow.x - center.x, arrow.y - center.y);
-      if (!(radius > 1e-9)) return null;
-      return { ...common, dimensionKind: "radius", a: center, b: arrow, radius };
-    }
-    case "diameter": {
-      if (!entity.point15) return null;
-      const p15 = point2(entity.point15);
-      const p10 = point2(entity.definitionPoint);
-      const diameter = Math.hypot(p10.x - p15.x, p10.y - p15.y);
-      if (!(diameter > 1e-9)) return null;
-      const center = { x: (p10.x + p15.x) / 2, y: (p10.y + p15.y) / 2 };
-      return { ...common, dimensionKind: "diameter", a: center, b: p10, radius: diameter / 2 };
-    }
-    case "angular3pt": {
-      if (!entity.point15 || !entity.point13 || !entity.point14) return null;
-      return {
-        ...common,
-        dimensionKind: "angular",
-        a: point2(entity.point15),
-        b: point2(entity.point13),
-        c: point2(entity.point14),
-      };
-    }
-    case "ordinate": {
-      if (!entity.point13) return null;
-      return {
-        ...common,
-        dimensionKind: "ordinate",
-        axis: (entity.flags & 64) === 64 ? "x" : "y",
-        a: point2(entity.definitionPoint),
-        b: point2(entity.point13),
-        ...(entity.point14 ? { c: point2(entity.point14) } : {}),
-      };
-    }
-    case "angular2ln":
-      return null;
-    default:
-      return null;
-  }
-}
-
-/**
- * Proyecta un HATCH a su primitiva, camino por camino. Sólo los caminos
- * POLILÍNEA tienen forma en `CadDxfHatch` — ningún campo representa un
- * contorno curvo, ahí ninguno; los de segmentos (línea/arco/arco
- * elíptico/spline) se cuentan y se descartan, exactamente lo que ya hace el
- * lector de HATCH de DXF con un contorno curvo (`dxf-import.ts`, aviso
- * `hatch_edge_path_partial`). `hatch: null` sólo cuando NINGÚN camino
- * sobrevive: ahí no hay relleno que colocar, no una versión a medias.
- */
-export function dwgHatchToCadDxfHatch(
-  entity: DwgNeutralHatch,
-  layer: string,
-): { hatch: CadDxfHatch | null; droppedPaths: number } {
-  const boundaries: CadDxfPoint[][] = [];
-  let droppedPaths = 0;
-  for (const path of entity.paths) {
-    if (path.kind !== "polyline") {
-      droppedPaths += 1;
-      continue;
-    }
-    const boundary = path.vertices.map((vertex, index) => {
-      const bulge = path.bulges?.[index];
-      return bulge === undefined || bulge === 0 ? point2(vertex) : { ...point2(vertex), bulge };
-    });
-    if (boundary.length >= 3) boundaries.push(boundary);
-  }
-  if (boundaries.length === 0) return { hatch: null, droppedPaths };
-  // El primer punto semilla es también la PRIMERA fuente que usa el lector
-  // de HATCH de DXF para el origen del patrón (antes que el grupo 43/44, que
-  // DWG no decodifica aparte): no es una suposición nueva, es la misma.
-  const origin = entity.seedPoints[0];
-  return {
-    hatch: {
-      layer,
-      pattern: decodeCodePageBytes(entity.nameBytes),
-      solid: entity.solidFill,
-      boundaries,
-      ...(entity.scaleOrSpacing !== undefined && entity.scaleOrSpacing > 0
-        ? { scale: entity.scaleOrSpacing }
-        : {}),
-      ...(entity.angle !== undefined ? { angle: degrees(entity.angle) } : {}),
-      ...(origin !== undefined ? { origin: point2(origin) } : {}),
-      islandStyle: entity.style === 1 ? "outer" : entity.style === 2 ? "ignore" : "normal",
-    },
-    droppedPaths,
-  };
-}
+// Reexportadas desde el módulo de primitivas: mismo punto de entrada público
+// para specs y otros consumidores existentes.
+export {
+  dwgDimensionToCadDxfSemanticDimension,
+  dwgGeometryToPrimitive,
+  dwgHatchToCadDxfHatch,
+  dwgMTextToCadDxfMText,
+};
 
 // ---------------------------------------------------------------------------
 // Base neutral → informe de importación canónico
@@ -590,6 +310,24 @@ function mapRecords(
       });
       continue;
     }
+    // `CadDxfPrimitive` es una forma plana compartida con DXF: lo que no cabe
+    // ahí (rotación/alineación de TEXT, elevación/ancho de LWPOLYLINE…) se
+    // descarta en el mapeo de arriba. Se declara aquí en vez de callarlo —
+    // vacío cuando el archivo usaba sólo los valores por defecto.
+    const droppedProperties =
+      record.entity.kind === "text"
+        ? droppedTextProperties(record.entity)
+        : record.entity.kind === "lwpolyline"
+          ? droppedLwPolylineProperties(record.entity)
+          : [];
+    if (droppedProperties.length > 0) {
+      losses.push({
+        code: DWG_BRIDGE_LOSS_CODES.primitiveProperty,
+        sourceType: record.entity.kind,
+        detail: `El objeto ${record.handle} (${record.entity.kind}) conserva su geometría pero no: ${droppedProperties.join(", ")}.`,
+        severity: "warning",
+      });
+    }
     primitives.push(primitive);
   }
 
@@ -601,12 +339,14 @@ function mapLayers(layers: readonly DwgNeutralLayer[]): {
   definitions: CadLayerDef[];
   losses: CadLossManifestEntry[];
 } {
-  const palette = ["#ffffff", "#ff5252", "#4fc3f7", "#ffd54f", "#81c784"];
   const names = new Map<number, string>();
   const losses: CadLossManifestEntry[] = [];
   const seen = new Set<string>(["0"]);
   const definitions: CadLayerDef[] = [
-    { id: "0", name: "0", color: palette[0], visible: true, locked: false },
+    // ACI 7 es el color por defecto tradicional de la capa "0" (blanco/negro
+    // según fondo) — no es un dato del archivo, es el bootstrap sintético que
+    // existe aunque la base neutral no traiga ninguna capa.
+    { id: "0", name: "0", color: aciToHex(7), visible: true, locked: false },
   ];
 
   for (const layer of layers) {
@@ -620,12 +360,28 @@ function mapLayers(layers: readonly DwgNeutralLayer[]): {
         severity: "warning",
       });
     }
+    // El laboratorio expone `stateFlags` CRUDO a propósito: su semántica bit a
+    // bit (apagada/congelada/bloqueada/trazado) queda pendiente de corpus real
+    // que la confirme para el binario DWG (regla registrada junto a la tabla
+    // de capas del códec). Interpretarla aquí sería adivinar exactamente lo
+    // que esa regla prohíbe — se declara la pérdida en vez de fingir
+    // off/frozen/locked.
+    if (layer.stateFlags !== 0) {
+      losses.push({
+        code: DWG_BRIDGE_LOSS_CODES.layerStateFlags,
+        sourceType: "layer",
+        detail: `La capa "${name}" (handle ${layer.handle}) trae banderas de estado con valor crudo ${layer.stateFlags} (posible apagada/congelada/bloqueada/trazado): su significado bit a bit no está confirmado contra corpus real todavía, así que no se aplican al documento — la capa se importa visible y desbloqueada.`,
+        severity: "warning",
+      });
+    }
     if (seen.has(name)) continue;
     seen.add(name);
     definitions.push({
       id: name,
       name,
-      color: palette[definitions.length % palette.length],
+      // ACI real del archivo (índices 1–9/250–255 exactos, 10–249 por rampa
+      // reproducible) en vez de una paleta rotatoria inventada por posición.
+      color: aciToHex(layer.colorIndex),
       visible: true,
       locked: false,
     });
@@ -642,10 +398,19 @@ function mapBlocks(
   for (const block of blocks) {
     const mapped = mapRecords(block.entities, layerNames, "block");
     losses.push(...mapped.losses);
+    const name = decodeCodePageBytes(block.name);
+    // El punto base real vive en el registro del bloque, que el laboratorio
+    // todavía no decodifica: el origen es la única suposición honesta — pero
+    // se declara, no se esconde. Un INSERT de este bloque puede aparecer
+    // desplazado si el punto base real del archivo no era {0,0}.
+    losses.push({
+      code: DWG_BRIDGE_LOSS_CODES.blockBasePointAssumed,
+      sourceType: "block",
+      detail: `El bloque "${name}" (handle ${block.handle}) usa el punto base {x:0,y:0} sin confirmar contra el archivo: el laboratorio todavía no decodifica el punto base real del registro del bloque.`,
+      severity: "warning",
+    });
     semantic.push({
-      name: decodeCodePageBytes(block.name),
-      // El punto base real vive en el registro del bloque, que el laboratorio
-      // todavía no decodifica: el origen es la única suposición honesta.
+      name,
       basePoint: { x: 0, y: 0 },
       primitives: mapped.primitives,
       inserts: mapped.inserts,
@@ -658,8 +423,10 @@ function mapBlocks(
 /**
  * Mapea una base neutral ya decodificada al informe de importación canónico.
  *
- * PURA y siempre invocable: no decodifica nada, no lee bytes y por tanto no
- * habilita nada. Es la mitad del puente que se puede probar hoy.
+ * PURA: no decodifica nada, no lee bytes y por tanto no habilita nada. Es la
+ * mitad del puente que se puede probar hoy. Lanza `Error` (fallo cerrado, no
+ * un `Error` sin tipar que se filtre por accidente) cuando el mapeo no
+ * produce ni una entidad ni un bloque — ver la nota más abajo.
  */
 export function dwgNeutralDatabaseToCadDocument(
   database: DwgNeutralDatabase,
@@ -672,6 +439,21 @@ export function dwgNeutralDatabaseToCadDocument(
   const blockMap = mapBlocks(database.blocks, names);
 
   const lossManifest: CadLossManifestEntry[] = [
+    // El laboratorio todavía no decodifica INSUNITS (variable de unidades del
+    // dibujo) en el camino de LECTURA — sí lo hace en el de escritura, pero
+    // eso no ayuda aquí. Asumir milímetros sin poder confirmarlo contra el
+    // archivo es una suposición, y una suposición silenciosa es justo lo que
+    // esta campaña prohíbe: se declara siempre, no sólo cuando "algo salió
+    // mal". Prominente y persistente porque vive en el manifiesto del
+    // documento, no en un toast que desaparece.
+    {
+      code: DWG_BRIDGE_LOSS_CODES.unitAssumed,
+      sourceType: "document",
+      detail:
+        "Las unidades del dibujo (INSUNITS) no se leen todavía en esta beta: el documento se " +
+        "asume en milímetros sin poder confirmarlo contra el archivo.",
+      severity: "warning" as const,
+    },
     ...layerLosses,
     ...model.losses,
     ...blockMap.losses,
@@ -705,6 +487,19 @@ export function dwgNeutralDatabaseToCadDocument(
     ...cadDxfSemanticDimensionsToNativeEntities(model.dimensions, { idPrefix: prefix, provider }),
     ...cadDxfHatchesToNativeEntities(model.hatches, { idPrefix: prefix, provider }),
   ];
+
+  // Fallo cerrado: un archivo del que no sale ni una entidad ni un bloque.
+  // Aplicarlo se vería como un éxito silencioso — la peor forma de fallar en
+  // una importación, exactamente como ya lo tratan DXF y shapefile en este
+  // mismo módulo (`importDocumentText`/`importDocumentBytes`); DWG quedaba
+  // como la única excepción, con una spec que afirmaba la asimetría como
+  // comportamiento correcto.
+  if (!entities.length && !blockParts.blocks.length) {
+    throw new Error(
+      "El DWG se leyó, pero ninguna de sus entidades produjo algo importable en el perfil " +
+        "actual de esta beta. Nada ha cambiado en el plano.",
+    );
+  }
 
   const empty = layoutToCadDocument({}, { unit: "mm" });
   const document = migrateCadDocument({
