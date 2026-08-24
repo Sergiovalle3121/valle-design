@@ -104,7 +104,7 @@ propósito.
 | `claude/dwg-campaign-integration` | 2/2 | 2026-08-23 16:23 | **RES** (primero, desbloquea) | CI espejo del corpus + fix gobernanza — PR #88 |
 | `claude/dwg-read-performance` | 5/2 | 2026-08-23 16:56 | **RES** | Ya trae merge de dwg-campaign-integration. PR #90 |
 | `claude/dwg-r2010-envelope` | 6/2 | 2026-08-23 16:56 | **RES** | `r2010-object-envelope.ts` nuevo (125 líneas) + spec — no existen en main. Ya trae merge de dwg-campaign-integration. PR #92 |
-| `claude/dwg-entidades` | 2/55 | 2026-08-23 14:19 | **RES** (revisar conflicto) | 55 detrás — mucho más desfasada que las otras 3. Diff de contenido grande (2 archivos, +2715/-6353) — probable choque con JSON/worklog ya tocados por campañas posteriores. Revisar en Ola 2 antes de fusionar |
+| `claude/dwg-entidades` | 2/55 | 2026-08-23 14:19 | **DESC** (pin roto — ver hallazgo) | Sus 2 commits sólo tocan `scripts/dwg/corpus-pin.json` (bump a`b531540b...`) y la evidencia JSON regenerada a partir de ese pin. **`b531540b245ad3b5aae4d0305b2c96fc02ca3a79` no existe** en `valle-design-dwg-conformance` — ni local (con historia completa desshallowed) ni vía API de GitHub ("No commit found for SHA"). El pin actual de main (`a60ebe2a`) sí es válido y es ancestro directo del HEAD real del corpus. Fusionar el pin roto dejaría los gates DWG verificando contra un commit fantasma. No se fusiona: se descarta el bump, y el hallazgo real que documentaba (15/15 AC1015 abren, 7 tipos nuevos faltantes) pasa a BACKLOG.md para remedirse contra el pin válido |
 
 ### Respaldos de emergencia (Ola 3 — pendiente)
 
