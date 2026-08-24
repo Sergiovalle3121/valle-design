@@ -1,5 +1,9 @@
 # ADR-0012: DWG a doble vía — licenciar para vender, códec propio para poseer
 
+- **Nota 2026-08-24**: la vía «proveedor licenciado» de la Decisión §1
+  queda SUSTITUIDA por [ADR-0013](0013-dwg-via-propia-unica.md). El resto
+  de esta ADR —el activo propio, el corpus, el criterio de cambio de
+  §3— sigue vigente y es ahora la única vía.
 - Estado: aceptado
 - Fecha: 2026-08-22 (campaña de cimientos, por directiva del anexo de
   crecimiento del titular)
