@@ -113,7 +113,7 @@ GIS (3) es otro producto.
 > Editarla a mano es reintroducir el defecto que motivó el script: la prosa
 > manual envejeció dos veces y en las dos direcciones.
 
-**Puntuación (rúbrica 2026-08-22.1).** **Alcance de HOY: 154/175 (88 %)** — el flujo diario de dibujo 2D técnico, la cifra que se enseña a un cliente. **Alcance de DESTINO: 189/220 (85.9 %)** — AutoCAD completo con sus verticales, la cifra que mide el camino; lo excluido de hoy es «todavía no», nunca «nunca». 5 pt provienen de evidencia INDEPENDIENTE y 184 pt sólo de evidencia propia; 17 fila(s) retienen 1 pt hasta tener evidencia independiente. 0 de 27 filas están en su tope. Una fila sólo llega a su tope cuando TODOS sus criterios verifican, incluidos los que nombran gaps documentados; un gap conocido se declara como criterio que falla, no como nota al pie.
+**Puntuación (rúbrica 2026-08-22.1).** **Alcance de HOY: 154/175 (88 %)** — el flujo diario de dibujo 2D técnico, la cifra que se enseña a un cliente. **Alcance de DESTINO: 189/220 (85.9 %)** — AutoCAD completo con sus verticales, la cifra que mide el camino; lo excluido de hoy es «todavía no», nunca «nunca». 5 pt provienen de evidencia INDEPENDIENTE y 184 pt sólo de evidencia propia; 18 fila(s) retienen 1 pt hasta tener evidencia independiente. 0 de 27 filas están en su tope. Una fila sólo llega a su tope cuando TODOS sus criterios verifican, incluidos los que nombran gaps documentados; un gap conocido se declara como criterio que falla, no como nota al pie.
 
 ### Núcleo del plano entregable — 98/110
 
@@ -147,7 +147,7 @@ GIS (3) es otro producto.
 | --- | ---: | --- | --- | --- |
 | API y SDK de automatización | 6/7 | Parcial | OpenAPI 3.1 versionado con gate de contrato en CI; SDK generado desde el contrato con test de compatibilidad; El web consume el SDK a través de repositorios tipados; Consola pública en /docs/api, pruebas de límite y carga publicadas con máquina declarada, y política de extensiones de terceros | Nada pendiente: todos los criterios declarados verifican |
 | Automatización: AutoLISP y plugins JS | 6/8 | Parcial | Intérprete AutoLISP: lector, evaluador, entorno y errores; Funciones de CAD y de entidad por códigos DXF; Sandbox con presupuesto de ejecución y superficie declarada; DCL y manifiesto de plugins; El editor puede cargar y ejecutar un .lsp: algo fuera de lib/lisp lo importa | Puente .NET/VBA para rutinas heredadas de despacho (2 pt) |
-| Eventos e integración asíncrona | 3/4 | Parcial | Outbox transaccional con leases, reintentos y cola muerta; Contrato de eventos versionado | Evidencia operacional sostenida y replay auditado con receptor externo (1 pt) |
+| Eventos e integración asíncrona | 3/4 | Parcial | Outbox transaccional con leases, reintentos y cola muerta; Contrato de eventos versionado; Evidencia operacional sostenida y replay auditado con receptor externo | Nada pendiente: todos los criterios declarados verifican |
 | Asistencia NL→CAD y Vision→CAD | 3/4 | Parcial | Puerto de proveedor opcional con validación y previsualización antes de aplicar; Contrato del copiloto con specs deterministas; Banco de calidad NL→CAD medido: corpus de despacho mexicano y mitad adversarial, sobre umbrales de acierto, de rechazo TIPADO y de cero fallos graves | Nada pendiente: todos los criterios declarados verifican |
 | Almacenamiento de objetos | 2/3 | Parcial | Puerto de blob store desacoplado del almacenamiento concreto; Adaptador BYTEA con aislamiento por organización y specs; Adaptador S3/MinIO cableado, con migración y operación documentadas | Nada pendiente: todos los criterios declarados verifican |
 
@@ -179,11 +179,11 @@ declarados. Reproducible con `node scripts/cad/rubric.mjs --priorities`.
 | 3 | 2 | 10 | Import/export DXF de texto | Corpus DXF de terceros, autorizado y diverso, con matriz por entidad y pérdidas aceptadas |
 | 4 | 1 | 5 | Selección y modificación | Estrés de navegador con trazos densos (100k) sobre selección y modificación, con artefacto versionado por corrida |
 | 5 | 1 | 6 | MTEXT y texto | Una fuente de trazos (SHX o equivalente de dominio público) resuelve glifos de verdad en vez de sustituirse |
-| 6 | 1 | 8 | Eventos e integración asíncrona | Evidencia operacional sostenida y replay auditado con receptor externo |
-| 7 | 1 | 8 | Rendimiento 10k/100k | La mezcla architecture@100k cumple el mismo SLO: detalle completo ≤5 s y paneo ≥30 fps p95 |
-| 8 | 1 | 12 | Bloques y atributos | Bloques dinámicos (parámetros y acciones de AutoCAD) y comportamiento anotativo |
-| 9 | 1 | 20 | Import/export DWG | Integración en runtime con gates legal, de seguridad y de fidelidad superados |
-| 10 | 2 | 60 | Automatización: AutoLISP y plugins JS | Puente .NET/VBA para rutinas heredadas de despacho |
+| 6 | 1 | 8 | Rendimiento 10k/100k | La mezcla architecture@100k cumple el mismo SLO: detalle completo ≤5 s y paneo ≥30 fps p95 |
+| 7 | 1 | 12 | Bloques y atributos | Bloques dinámicos (parámetros y acciones de AutoCAD) y comportamiento anotativo |
+| 8 | 1 | 20 | Import/export DWG | Integración en runtime con gates legal, de seguridad y de fidelidad superados |
+| 9 | 2 | 60 | Automatización: AutoLISP y plugins JS | Puente .NET/VBA para rutinas heredadas de despacho |
+| 10 | 1 | 30 | Kernel Rust/WASM | Kernel WASM con paridad numérica verde Y enchufado: alguien fuera de lib/cad/wasm lo importa (regla 6) |
 
 <!-- rubric:end -->
 

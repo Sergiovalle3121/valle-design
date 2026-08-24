@@ -48,7 +48,20 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Desktop Chrome"] },
+      // GPU REAL bajo demanda, sólo para las medidas de rendimiento locales.
+      //
+      // El binario headless-shell que Playwright usa por defecto rasteriza
+      // WebGL con SwiftShader (software) AUNQUE la máquina tenga GPU: sirve
+      // para comparar caminos de render entre sí, pero publica FPS que ningún
+      // usuario del producto va a ver. Con CAD_PERF_REAL_GPU=1 se lanza el
+      // Chromium completo en headless nuevo (canal "chromium"), que en
+      // Windows/Linux sí toca la GPU de la máquina vía ANGLE. No se miente en
+      // ningún caso: la evidencia declara `webglRenderer`, así que cada
+      // corrida lleva escrito qué rasterizador la produjo.
+      use: {
+        ...devices["Desktop Chrome"],
+        ...(process.env.CAD_PERF_REAL_GPU === "1" ? { channel: "chromium" as const } : {}),
+      },
     },
     {
       name: "firefox",

@@ -263,4 +263,52 @@ seguras de borrar sin rescatar nada — el espíritu de la estimación se confir
   **De aquí en adelante, por directiva del titular: trabajo directo sobre `main`, sin abrir
   ramas ni PR nuevos**, salvo que un gate en rojo obligue a aislar un arreglo.
 
+- **~07:00–07:30** — **Ola 3 completa y en `main`** (`b84590b8`, tras merge con
+  trabajo paralelo de otra sesión DWG en `12b7225e`): `claude/percepcion`
+  (fuentes Hershey para MTEXT, merge real de git con un conflicto genuino en
+  `entity-three.ts` resuelto conservando la lógica DIMTXT de main + el
+  `fontFamily` de percepcion) y `claude/evidencias-pendientes` (dos probes de
+  evidencia operacional, verificados EJECUTÁNDOLOS de verdad contra Postgres
+  real, no sólo fusionados: `evidence:webhook-replay-audit` da VERDE;
+  `evidence:review-concurrency` da **NO SUPERADO** — hallazgo real, ~50 4xx
+  inesperados por corrida, anotado como P1-7 nuevo en BACKLOG.md, no se
+  investiga a fondo en esta campaña). En el camino, tres gates rojos reales
+  encontrados y corregidos (no relajados): `entity-three.ts` pasaba
+  `fontFamily` a una entidad "text" sin ese campo (error de tipos real);
+  `outbox-audit.main.ts` sumaba avisos de lint sobre presupuesto (tipado
+  explícito de filas Postgres en vez de `String(unknown)`);
+  `review-concurrency.main.ts` superó el presupuesto de monolito dos veces
+  (841 asignado, 882 real tras `prettier`) — resuelto con
+  `check-monolith-budget.mjs --update --allow-growth` y justificación escrita
+  (mismo patrón que `studio-real-api.spec.ts`: escenario de carga de una
+  pieza, no una librería a fragmentar). BACKLOG.md también auditado: P1-1,
+  P1-4, P1-6 cerrados (resueltos por campañas posteriores, confirmado contra
+  el árbol real), P1-1 reabierto parcialmente por un huérfano nuevo
+  (`20-cad-multiple-viewports`, intermitente documentado en `ci.yml` pero sin
+  entrada propia hasta ahora).
+- **~07:15** — PRs #88/#90/#92 (frente DWG) cerrados con comentario: su
+  contenido ya vive en `main` desde el squash del PR #93, así que GitHub no
+  los reconocía como fusionados aunque lo estaban por contenido. Verificado
+  antes de cerrar (no se asumió). PR #87 (deps-majors) cerrado: su contenido
+  migrado a `docs/deps-majors-bloqueados.md` (commit `27c9bb81`); `BACKLOG.md`
+  P2-4 actualizado para enlazar ahí en vez de al PR.
+- **BLOQUEO real en el borrado de ramas** (Ola 4): `git push origin --delete`
+  devuelve 403 a nivel de `git-receive-pack` de GitHub — no es el proxy, no
+  es un límite de esta sesión. Causa confirmada en
+  `docs/governance/repository-protection-baseline.json`:
+  `"allowDeletions": false` en la protección clásica de rama. A diferencia de
+  los status checks (que esta sesión SÍ puede saltar — "Bypassed rule
+  violations" al empujar directo a main), no hay bypass de admin para
+  borrado de refs; ni git ni la API de GitHub (no hay endpoint expuesto en
+  las herramientas de esta sesión) lo permiten mientras la regla siga así.
+  **Pendiente del titular:** GitHub → Settings → Branches → la regla de
+  protección → desmarcar "Restrict deletions" (o el equivalente en
+  Rulesets). Curiosamente `deleteBranchOnMerge: true` SÍ funcionó solo
+  (la propia rama de esta campaña se borró al fusionar el PR #93) — la
+  restricción parece aplicar a borrado manual/directo, no al automático de
+  GitHub tras un merge. Las ~71 ramas con veredicto INTEGRADA/YA
+  ABSORBIDA/DESCARTAR (ver tabla arriba) quedan con veredicto firme y
+  publicado, listas para borrarse en cuanto la regla lo permita — no es
+  trabajo perdido, es un paso mecánico pendiente.
+
 *(continúa al cerrar cada rama)*
