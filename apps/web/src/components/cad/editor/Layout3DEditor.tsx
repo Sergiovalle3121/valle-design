@@ -3177,15 +3177,21 @@ export default function Layout3DEditor({
       const selectionIndex = nativeSelectionIndexRef.current;
       if (!document || !group || !context || !synchronizer || !selectionIndex)
         return;
+      // Un solo viewport para las tres proyecciones de este ciclo (lote de
+      // inserts, objeto legado, overview): las tres tienen que caer en el
+      // MISMO origen flotante, o el minimapa y los inserts se desalinearían
+      // de la geometría por lotes que sí lo usa.
+      const viewport = {
+        scale: context.s,
+        width: context.W,
+        height: context.H,
+        origin: renderPipelineHostRef.current?.renderOrigin,
+      };
       if (nativeInsertBatchRef.current) {
         group.remove(nativeInsertBatchRef.current);
         disposeCadNativeObject(nativeInsertBatchRef.current);
       }
-      const insertBatches = buildCadInsertBatchObject(document, {
-        scale: context.s,
-        width: context.W,
-        height: context.H,
-      });
+      const insertBatches = buildCadInsertBatchObject(document, viewport);
       group.add(insertBatches);
       nativeInsertBatchRef.current = insertBatches;
       const batchedInsertIds = new Set<string>(
@@ -3195,11 +3201,7 @@ export default function Layout3DEditor({
       const render = (entity: CadNativeEntity) => {
         const object = buildCadNativeObject(
           entity,
-          {
-            scale: context.s,
-            width: context.W,
-            height: context.H,
-          },
+          viewport,
           nativeSelectionIdsRef.current.includes(entity.id),
           document,
         );
@@ -3328,11 +3330,7 @@ export default function Layout3DEditor({
           disposeCadNativeObject(nativeOverviewRef.current);
         const overview = buildCadNativeOverviewObject(
           nativeDocumentEntities,
-          {
-            scale: context.s,
-            width: context.W,
-            height: context.H,
-          },
+          viewport,
           8,
           cadHiddenLayerIds(document.layers),
         );

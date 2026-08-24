@@ -14,6 +14,7 @@
  */
 import { CAD_ENTITY_REGISTRY, type CadNativeEntity } from "../entity-runtime";
 import type { CadDocument } from "../cad-document";
+import { CAD_RENDER_ORIGIN_ZERO, type CadRenderOrigin } from "./render-origin";
 
 export interface CadTessellateWorkerRequest {
   id: number;
@@ -21,6 +22,8 @@ export interface CadTessellateWorkerRequest {
   /** Segmentos por entidad, ya resueltos por el escalón de LOD. */
   segments: number[];
   document?: CadDocument;
+  /** Origen flotante a restar antes de empaquetar. Cero si se omite. */
+  origin?: CadRenderOrigin;
 }
 
 export interface CadTessellatedEntityPayload {
@@ -47,6 +50,7 @@ export function tessellateCadEntityBatch(
   entities: readonly CadNativeEntity[],
   segments: readonly number[],
   document?: CadDocument,
+  origin: CadRenderOrigin = CAD_RENDER_ORIGIN_ZERO,
 ): { results: CadTessellatedEntityPayload[]; transfer: ArrayBufferLike[] } {
   const results: CadTessellatedEntityPayload[] = [];
   const transfer: ArrayBufferLike[] = [];
@@ -63,8 +67,14 @@ export function tessellateCadEntityBatch(
       if (path.points.length < 2) continue;
       const xy = new Float32Array(path.points.length * 2);
       for (let point = 0; point < path.points.length; point += 1) {
-        xy[point * 2] = path.points[point].x;
-        xy[point * 2 + 1] = path.points[point].y;
+        // Misma resta, mismo motivo que `tessellateCadEntity` en
+        // `tessellation-cache.ts`: ANTES de tocar el Float32Array, en JS
+        // doubles. Las dos implementaciones son independientes (el worker no
+        // puede importar la del hilo principal) y tienen que restar el MISMO
+        // origen o el camino síncrono y el de worker divergirían en dónde
+        // aparece cada entidad.
+        xy[point * 2] = path.points[point].x - origin.x;
+        xy[point * 2 + 1] = path.points[point].y - origin.y;
       }
       paths.push(xy);
       closed.push(path.closed);
@@ -77,13 +87,19 @@ export function tessellateCadEntityBatch(
 
 const workerScope = globalThis as unknown as {
   onmessage: ((event: MessageEvent<CadTessellateWorkerRequest>) => void) | null;
-  postMessage: (message: CadTessellateWorkerResponse, transfer?: Transferable[]) => void;
+  postMessage: (
+    message: CadTessellateWorkerResponse,
+    transfer?: Transferable[],
+  ) => void;
   // `document` sólo existe en el hilo principal; su ausencia es lo que
   // distingue a un worker de un módulo importado por una prueba en Node.
   document?: unknown;
 };
 
-if (typeof workerScope.postMessage === "function" && workerScope.document === undefined) {
+if (
+  typeof workerScope.postMessage === "function" &&
+  workerScope.document === undefined
+) {
   workerScope.onmessage = (event) => {
     const request = event.data;
     try {
@@ -91,6 +107,7 @@ if (typeof workerScope.postMessage === "function" && workerScope.document === un
         request.entities,
         request.segments,
         request.document,
+        request.origin,
       );
       workerScope.postMessage(
         { id: request.id, ok: true, results },
@@ -100,7 +117,10 @@ if (typeof workerScope.postMessage === "function" && workerScope.document === un
       workerScope.postMessage({
         id: request.id,
         ok: false,
-        error: cause instanceof Error ? cause.message : "Falló el worker de teselado CAD.",
+        error:
+          cause instanceof Error
+            ? cause.message
+            : "Falló el worker de teselado CAD.",
       });
     }
   };

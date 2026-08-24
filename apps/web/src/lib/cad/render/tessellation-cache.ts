@@ -31,11 +31,9 @@
  *
  * Puro: sin THREE y sin DOM.
  */
-import {
-  CAD_ENTITY_REGISTRY,
-  type CadNativeEntity,
-} from "../entity-runtime";
+import { CAD_ENTITY_REGISTRY, type CadNativeEntity } from "../entity-runtime";
 import type { CadDocument } from "../cad-document";
+import { CAD_RENDER_ORIGIN_ZERO, type CadRenderOrigin } from "./render-origin";
 
 export type CadRenderLodTier = 0 | 1 | 2;
 
@@ -45,7 +43,9 @@ export const CAD_RENDER_LOD_COARSE_MAX_PX = 24;
 export const CAD_RENDER_LOD_MEDIUM_MAX_PX = 320;
 
 /** Segmentos por vuelta completa en cada escalón. */
-export const CAD_RENDER_LOD_SEGMENTS: readonly [number, number, number] = [8, 32, 128];
+export const CAD_RENDER_LOD_SEGMENTS: readonly [number, number, number] = [
+  8, 32, 128,
+];
 
 export interface CadTessellatedPath {
   /** Coordenadas de dibujo intercaladas x,y. Un Float32Array, no objetos. */
@@ -82,7 +82,10 @@ export function cadRenderLodTier(screenSpanPx: number): CadRenderLodTier {
 }
 
 /** Segmentos que gasta un barrido de `sweepRatio` vueltas en un escalón dado. */
-export function cadRenderSegmentBudget(tier: CadRenderLodTier, sweepRatio = 1): number {
+export function cadRenderSegmentBudget(
+  tier: CadRenderLodTier,
+  sweepRatio = 1,
+): number {
   const full = CAD_RENDER_LOD_SEGMENTS[tier];
   return Math.max(2, Math.ceil(full * Math.min(1, Math.max(0, sweepRatio))));
 }
@@ -109,10 +112,19 @@ export function cadRenderSegmentsForSagitta(
  * entidad; este módulo sólo decide CUÁNTOS segmentos pedirle y guarda el
  * resultado.
  */
+/**
+ * Teselado de una entidad, con las coordenadas de dibujo ya reducidas al
+ * ORIGEN FLOTANTE antes de empaquetarlas a `Float32Array` — es el punto donde
+ * de verdad se pierde precisión con coordenadas grandes (ver
+ * `render-origin.ts`), así que es aquí donde hay que restar, no después.
+ * `origin` es opcional y CERO por defecto: sin él, este teselado es
+ * bit-idéntico al de antes de que existiera el origen flotante.
+ */
 export function tessellateCadEntity(
   entity: CadNativeEntity,
   segments: number,
   document?: CadDocument,
+  origin: CadRenderOrigin = CAD_RENDER_ORIGIN_ZERO,
 ): CadTessellation {
   const paths: CadTessellatedPath[] = [];
   let pointCount = 0;
@@ -125,8 +137,11 @@ export function tessellateCadEntity(
     if (path.points.length < 2) continue;
     const xy = new Float32Array(path.points.length * 2);
     for (let index = 0; index < path.points.length; index += 1) {
-      xy[index * 2] = path.points[index].x;
-      xy[index * 2 + 1] = path.points[index].y;
+      // La resta ocurre en JS doubles, ANTES de tocar el Float32Array: es
+      // exactamente la técnica de origen flotante — lo que entra al array ya
+      // es pequeño, sea cual sea la magnitud absoluta del documento.
+      xy[index * 2] = path.points[index].x - origin.x;
+      xy[index * 2 + 1] = path.points[index].y - origin.y;
     }
     paths.push({ xy, closed: path.closed });
     pointCount += path.points.length;
@@ -171,7 +186,10 @@ export class CadTessellationCache {
   private invalidations = 0;
 
   constructor(options: CadTessellationCacheOptions = {}) {
-    this.maxPoints = Math.max(1, options.maxPoints ?? CAD_TESSELLATION_CACHE_DEFAULT_MAX_POINTS);
+    this.maxPoints = Math.max(
+      1,
+      options.maxPoints ?? CAD_TESSELLATION_CACHE_DEFAULT_MAX_POINTS,
+    );
     this.maxEntries = Math.max(
       1,
       options.maxEntries ?? CAD_TESSELLATION_CACHE_DEFAULT_MAX_ENTRIES,
@@ -183,7 +201,10 @@ export class CadTessellationCache {
   }
 
   peek(entityId: string, tier: CadRenderLodTier): CadTessellation | null {
-    return this.entries.get(CadTessellationCache.key(entityId, tier))?.tessellation ?? null;
+    return (
+      this.entries.get(CadTessellationCache.key(entityId, tier))
+        ?.tessellation ?? null
+    );
   }
 
   get(
@@ -214,7 +235,8 @@ export class CadTessellationCache {
 
   private evictWhileOverBudget(): void {
     while (
-      (this.retainedPoints > this.maxPoints || this.entries.size > this.maxEntries) &&
+      (this.retainedPoints > this.maxPoints ||
+        this.entries.size > this.maxEntries) &&
       this.entries.size > 1
     ) {
       const oldest = this.entries.keys().next();

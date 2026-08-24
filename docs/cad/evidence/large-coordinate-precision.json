@@ -1,6 +1,6 @@
 {
   "generatedBy": "apps/web/scripts/large-coordinate-precision-probe.mts",
-  "conclusion": "CONFIRMADO: a magnitud 10⁷ el camino de render pierde hasta 0.375 unidades de dibujo por cuantización float32 (en metros UTM, 0.375 m). El documento y la exportación no pierden nada (float64 de punta a punta). El arreglo es el origen flotante de escena (backlog P0).",
+  "conclusion": "ARREGLADO (P0-2): con el origen flotante (`render/render-origin.ts`) restado ANTES de empaquetar a Float32Array, el peor error a 10⁷ es 0.0000028759241104125977 unidades de dibujo — antes del arreglo eran 0,375 (37,5 cm en metros UTM). El documento y la exportación siguen en float64 puro, sin pérdida.",
   "reports": [
     {
       "label": "planta local (mm)",
@@ -22,32 +22,32 @@
       "label": "coordenadas municipales (10⁵)",
       "offset": 100000,
       "ulp": 0.0078125,
-      "maxAbsErrorDrawingUnits": 0.002604499997687526,
-      "maxRelativeSpanError": 0.00002604499997687526,
+      "maxAbsErrorDrawingUnits": 0.0000028764625312760472,
+      "maxRelativeSpanError": 2.8764625312760473e-8,
       "exportRoundTripError": 0
     },
     {
       "label": "UTM este (5·10⁵)",
       "offset": 500000,
       "ulp": 0.03125,
-      "maxAbsErrorDrawingUnits": 0.01041699998313561,
-      "maxRelativeSpanError": 0.0001041699998313561,
+      "maxAbsErrorDrawingUnits": 0.000002876447979360819,
+      "maxRelativeSpanError": 2.876447979360819e-8,
       "exportRoundTripError": 0
     },
     {
       "label": "UTM norte México (2·10⁶)",
       "offset": 2000000,
       "ulp": 0.125,
-      "maxAbsErrorDrawingUnits": 0.04166699992492795,
-      "maxRelativeSpanError": 0.0004166699992492795,
+      "maxAbsErrorDrawingUnits": 0.0000028763897716999054,
+      "maxRelativeSpanError": 2.8763897716999055e-8,
       "exportRoundTripError": 0
     },
     {
       "label": "UTM norte alto (10⁷)",
       "offset": 10000000,
       "ulp": 1,
-      "maxAbsErrorDrawingUnits": 0.375,
-      "maxRelativeSpanError": 0.00375,
+      "maxAbsErrorDrawingUnits": 0.0000028759241104125977,
+      "maxRelativeSpanError": 2.8759241104125976e-8,
       "exportRoundTripError": 0
     }
   ]
