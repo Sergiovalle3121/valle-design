@@ -264,6 +264,43 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "3D-M1-CAMPAIGN-2026-08-24",
+      "date": "2026-08-24",
+      "initiative": "3D-M1: vista arquitectónica 3D paramétrica — rescate de cámara/autosave y validación vertical de vanos",
+      "branch": "claude/valle-design-3d-campaign-t0zzad",
+      "assistants": [
+        {
+          "name": "Claude Code (Anthropic)",
+          "role": "ejecución autónoma supervisada por directiva escrita del titular (prompt de campaña 3D de 9 horas): auditoría read-only paralela del estado real de muros/vanos/solid3d en 3D, corrección de la causa raíz del reset de cámara en autosave (efecto de montaje de escena indexado por identidad de `data` en vez de por su presencia), extracción de rebuildAssets a un host reconciliable en scene-objects.ts, y cierre de la validación vertical de vanos (sill+height<=wall.height) en cliente y servidor — verificado contra PR #94 (cerrado, no fusionado) por fetch/diff/merge-tree de sólo lectura, sin copiar su código"
+        }
+      ],
+      "authority": "Prompt maestro de campaña 3D de 9 horas del titular Sergio Valle Zárate en esta conversación del 2026-08-24, con la condición explícita de exclusividad de escritura verificada antes de empezar (origin/main sincronizado en 946c5dbe2ac1b4e3d783090cb45cd3de0ec50dcb, sin otro escritor activo). El entorno de esta sesión remota fija además la rama de trabajo listada y exige PR en vez de push directo a main; se documenta la desviación frente al prompt original en docs/execution/CAMPANA_3D_M1_20260824.md",
+      "firstPartyInputs": [
+        "Repositorio Valle Design en 946c5dbe2ac1b4e3d783090cb45cd3de0ec50dcb",
+        "Tres auditorías read-only paralelas de esta misma sesión sobre el mismo commit",
+        "PR #94 (dcbe200a42029b7af5228f5360c0ca446fa88650) inspeccionado por fetch/diff/merge-tree de sólo lectura, sin checkout ni merge"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "ciclo de vida de la escena 3D (Layout3DEditor.tsx)",
+        "encuadre de cámara (components/cad/viewport/camera-policy.ts)",
+        "continuidad de cámara (lib/cad/view/camera-continuity.ts, nuevo)",
+        "reconciliación del grupo de activos heredado (components/cad/viewport/scene-objects.ts)",
+        "invariantes de vano (apps/api cad-opening-invariants.ts, lib/cad/wall-openings.ts)"
+      ],
+      "fixtures": [],
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: el titular revisa el PR de esta rama y sus checks (typecheck 7/7 paquetes, check:monolith-budget verde sin subir techo, 393/393 specs de apps/web incluidos los nuevos, Jest de la API 11/11); la adopción se registra al revisar."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
