@@ -111,10 +111,11 @@ futuro debe implementar está escrito en `docs/interop/CONTRATO-INTEROP.md`.
 `packages/dwg-codec/` es el laboratorio clean-room gobernado por ADR-0007.
 Su códec lee AC1015/AC1018 a la base neutral con diagnósticos y pérdidas
 declaradas, y escribe un AC1015 completo aceptado por oráculo externo.
-Desde ADR-0009 §6-bis (2026-08-24) tiene un ÚNICO consumidor runtime
-autorizado, `apps/web/src/lib/cad/dwg-native-reader.ts`, que expone
-exactamente el perfil de importación `AC1015_MODELSPACE_2D_V1` detrás del
-flag `DWG_NATIVE_IMPORT_BETA` (apagado en producción pública por defecto,
+Desde ADR-0009 §6-bis (2026-08-24), ampliado el mismo día por §6-ter, tiene
+un ÚNICO consumidor runtime autorizado,
+`apps/web/src/lib/cad/dwg-native-reader.ts`, que expone exactamente el
+perfil de importación `AC1015_MODELSPACE_2D_V2` detrás del flag
+`DWG_NATIVE_IMPORT_BETA` (apagado en producción pública por defecto,
 gate verificado por `scripts/dwg/check-product-boundary.mjs`). El resto del
 laboratorio —AC1018 en producto, 1024/1027/1032, escritura— sigue sin
 consumidor. Toda la vía es códec propio: ADR-0013 retiró la opción de
@@ -131,7 +132,7 @@ CIDE es un puerto opcional para intent y vision: si falta, la respuesta es
   interacción profesional sostenida ni 60 FPS.
 - No hay receptor webhook, proveedor de correo ni broker dentro del repo.
 - La cobertura DXF no equivale a round-trip universal. La beta DWG
-  (`DWG_NATIVE_IMPORT_BETA`, perfil `AC1015_MODELSPACE_2D_V1`, sólo
+  (`DWG_NATIVE_IMPORT_BETA`, perfil `AC1015_MODELSPACE_2D_V2`, sólo
   importación) está apagada en producción pública por defecto y su
   cobertura real es exactamente ese perfil, no DWG general; no hay
   exportación DWG en ningún estado.

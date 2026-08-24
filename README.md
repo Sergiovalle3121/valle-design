@@ -28,8 +28,9 @@ envían como archivos gzip y se guardan en PostgreSQL mediante blobs
 content-addressed. DWG no está disponible públicamente: por defecto la
 interfaz detecta el formato y lo dice, sin fingir soporte. Existe una beta
 interna acotada —`DWG_NATIVE_IMPORT_BETA`, perfil
-`AC1015_MODELSPACE_2D_V1`, sólo importación, apagada en producción pública
-por defecto (ADR-0009 §6-bis)— que conecta el códec propio clean-room
+`AC1015_MODELSPACE_2D_V2`, sólo importación, apagada en producción pública
+por defecto (ADR-0009 §6-bis, ampliada §6-ter)— que conecta el códec propio
+clean-room
 (`packages/dwg-codec`) al documento canónico a través de un único
 adaptador autorizado (`apps/web/src/lib/cad/dwg-native-reader.ts`). El
 códec lee AC1015/AC1018 (2000/2004) a una base neutral con cero
@@ -160,7 +161,7 @@ siendo pruebas útiles, pero no sustituyen el recorrido full-stack.
 
 - No hay disponibilidad DWG pública ni paridad general con AutoCAD: existe
   una beta interna de SOLO IMPORTACIÓN (`DWG_NATIVE_IMPORT_BETA`, perfil
-  `AC1015_MODELSPACE_2D_V1`), apagada en producción pública por defecto y sin
+  `AC1015_MODELSPACE_2D_V2`), apagada en producción pública por defecto y sin
   escritura; detectar una firma o mantener un laboratorio desconectado ya no
   describe el estado del códec, pero tampoco autoriza afirmar «DWG propio» de
   forma general — eso exige que ADR-0012 §3 se cumpla completo. Lo que SÍ

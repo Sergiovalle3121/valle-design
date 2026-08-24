@@ -396,6 +396,83 @@ const poli = dwgGeometryToPrimitive(
 assert.equal(poli?.points[0].bulge, 0.25, "el bulge se queda en el vértice donde arranca el segmento");
 assert.equal(poli?.points[1].bulge, undefined, "un bulge cero no se escribe: ausencia es recto");
 
+// ELLIPSE: mismo criterio de ángulos que ARC, y el vector de eje mayor pasa
+// intacto —ya es relativo al centro en el modelo neutral, igual que en DXF.
+const elipse = dwgGeometryToPrimitive(
+  {
+    kind: "ellipse",
+    center: p3(1, 1),
+    majorAxisEndpoint: p3(5, 0),
+    extrusion: p3(0, 0, 1),
+    axisRatio: 0.4,
+    startAngle: 0,
+    endAngle: Math.PI,
+  },
+  "0",
+);
+assert.equal(elipse?.kind, "ellipse");
+assert.deepEqual(elipse?.points[0], { x: 1, y: 1 }, "el centro es el punto base de la primitiva");
+assert.deepEqual(
+  elipse?.majorAxis,
+  { x: 5, y: 0 },
+  "el vector de eje mayor pasa intacto, relativo al centro",
+);
+assert.equal(elipse?.axisRatio, 0.4);
+assert.equal(elipse?.endAngle, 180, "también en grados, mismo criterio que ARC");
+
+// SPLINE: puntos de control y grado pasan tal cual. El filtro de escenario
+// vive en el adaptador autorizado, no aquí: esta función mapea cualquier
+// spline que le llegue con puntos de control, sea cual sea su origen.
+const spline = dwgGeometryToPrimitive(
+  {
+    kind: "spline",
+    scenario: 1,
+    degree: 3,
+    rational: false,
+    closed: false,
+    periodic: false,
+    knotTolerance: undefined,
+    controlTolerance: undefined,
+    knots: [0, 0, 0, 1, 1, 1],
+    controlPoints: [p3(0, 0), p3(2, 4), p3(4, 0)],
+    weights: undefined,
+    fitTolerance: undefined,
+    startTangent: undefined,
+    endTangent: undefined,
+    fitPoints: undefined,
+  },
+  "0",
+);
+assert.equal(spline?.kind, "spline");
+assert.equal(spline?.points.length, 3, "los puntos de control pasan como points");
+assert.equal(spline?.degree, 3);
+assert.deepEqual(spline?.knots, [0, 0, 0, 1, 1, 1]);
+
+// Sin puntos de control —el campo que el tipo permite dejar `undefined`
+// porque es del escenario 2— no hay primitiva que fabricar: `null`, nunca un
+// array vacío que finja geometría donde no la hay.
+const splineSinControlPoints = dwgGeometryToPrimitive(
+  {
+    kind: "spline",
+    scenario: 1,
+    degree: 3,
+    rational: false,
+    closed: undefined,
+    periodic: undefined,
+    knotTolerance: undefined,
+    controlTolerance: undefined,
+    knots: undefined,
+    controlPoints: undefined,
+    weights: undefined,
+    fitTolerance: undefined,
+    startTangent: undefined,
+    endTangent: undefined,
+    fitPoints: undefined,
+  },
+  "0",
+);
+assert.equal(splineSinControlPoints, null, "sin puntos de control no hay primitiva que fabricar");
+
 console.log(
   "dwg-document-bridge: bandera APAGADA, gate cerrado con 7 bloqueos, .dwg rechazado, mapeo neutral→canónico probado con sus pérdidas declaradas",
 );

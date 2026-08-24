@@ -2,22 +2,24 @@
  * El ÚNICO punto del producto que importa el códec DWG propio en runtime.
  *
  * Autorizado por la firma del dueño de 2026-08-24 (`docs/adr/0009-dwg-promotion-package.md`
- * §6-bis), acotada al perfil `AC1015_MODELSPACE_2D_V1`: importación únicamente,
- * AC1015 (AutoCAD 2000), model space 2D. `scripts/dwg/check-product-boundary.mjs`
- * verifica que ningún otro archivo de `apps/web` ni `apps/api` referencie
- * `@valle-design/dwg-codec` — este archivo es la excepción nombrada, y sólo
- * el worker de importación (`document-import.worker.ts`) lo consume. Ningún
- * componente de React lo importa, directa ni transitivamente.
+ * §6-bis, ampliada §6-ter), acotada al perfil `AC1015_MODELSPACE_2D_V2`:
+ * importación únicamente, AC1015 (AutoCAD 2000), model space 2D.
+ * `scripts/dwg/check-product-boundary.mjs` verifica que ningún otro archivo
+ * de `apps/web` ni `apps/api` referencie `@valle-design/dwg-codec` — este
+ * archivo es la excepción nombrada, y sólo el worker de importación
+ * (`document-import.worker.ts`) lo consume. Ningún componente de React lo
+ * importa, directa ni transitivamente.
  *
  * QUÉ HACE Y QUÉ NO. Llama al lector real (`readDwg`) y estrecha su base de
- * datos de 33 tipos de entidad decodificados al perfil de 7 que la beta V1
- * declara soportado (LINE, POINT, CIRCLE, ARC, LWPOLYLINE, TEXT, INSERT) —
- * el mismo conjunto que `dwg-neutral-model.ts` modela y `dwg-document-bridge.ts`
- * sabe proyectar al documento canónico. Una entidad que el laboratorio SÍ
- * decodifica (MTEXT, DIMENSION, HATCH, SPLINE, …) pero que el perfil V1 no
- * cubre NO se cuenta como «no decodificada»: sería falso, el laboratorio la
- * leyó. Se declara aparte, en diagnósticos, con su propio código y razón —
- * fuera de perfil, no fuera de alcance del decodificador.
+ * datos de 33 tipos de entidad decodificados al perfil que la beta V2
+ * declara soportado (LINE, POINT, CIRCLE, ARC, LWPOLYLINE, TEXT, INSERT,
+ * ELLIPSE, SPLINE no racional de escenario 1) — el mismo conjunto que
+ * `dwg-neutral-model.ts` modela y `dwg-document-bridge.ts` sabe proyectar al
+ * documento canónico. Una entidad que el laboratorio SÍ decodifica (MTEXT,
+ * DIMENSION, HATCH, spline racional o de puntos de ajuste, …) pero que el
+ * perfil V2 no cubre NO se cuenta como «no decodificada»: sería falso, el
+ * laboratorio la leyó. Se declara aparte, en diagnósticos, con su propio
+ * código y razón — fuera de perfil, no fuera de alcance del decodificador.
  *
  * Sólo AC1015 pasa. Otra firma reconocida (AC1018 incluido, que el
  * laboratorio también lee) se rechaza con un error tipado que nombra la
@@ -42,7 +44,7 @@ import type {
   DwgNeutralLayer,
 } from "./dwg-neutral-model";
 
-/** Las siete entidades del perfil `AC1015_MODELSPACE_2D_V1`. */
+/** Las entidades del perfil `AC1015_MODELSPACE_2D_V2`. */
 const BETA_PROFILE_ENTITY_KINDS = new Set<DwgGeometryEntity["kind"]>([
   "line",
   "point",
@@ -51,14 +53,22 @@ const BETA_PROFILE_ENTITY_KINDS = new Set<DwgGeometryEntity["kind"]>([
   "lwpolyline",
   "text",
   "insert",
+  "ellipse",
+  "spline",
 ]);
 
 /**
- * Estrecha una entidad ya decodificada al subconjunto del perfil V1.
+ * Estrecha una entidad ya decodificada al subconjunto del perfil V2.
  *
- * Los siete tipos del perfil son estructuralmente idénticos entre el modelo
- * del laboratorio y el espejo del producto (mismos campos, mismo nombre): no
- * hay conversión que hacer, sólo un filtro tipado. `null` = fuera de perfil.
+ * Los tipos del perfil son estructuralmente idénticos entre el modelo del
+ * laboratorio y el espejo del producto (mismos campos, mismo nombre): no hay
+ * conversión que hacer, sólo un filtro tipado. `null` = fuera de perfil.
+ *
+ * SPLINE es la excepción: sólo el escenario 1 (nudos + puntos de control) NO
+ * racional entra, porque es lo único que la primitiva canónica de destino
+ * sabe representar hoy (`CadDxfPrimitive` no lleva pesos ni puntos de
+ * ajuste). Un fit-spline o una spline racional SÍ las decodifica el
+ * laboratorio — por eso caen a "fuera de perfil", nunca a "no decodificado".
  */
 function toBetaProfileGeometry(entity: DwgGeometryEntity): DwgNeutralGeometry | null {
   if (!BETA_PROFILE_ENTITY_KINDS.has(entity.kind)) return null;
@@ -70,7 +80,10 @@ function toBetaProfileGeometry(entity: DwgGeometryEntity): DwgNeutralGeometry | 
     case "lwpolyline":
     case "text":
     case "insert":
+    case "ellipse":
       return entity;
+    case "spline":
+      return entity.scenario === 1 && entity.rational !== true ? entity : null;
     default:
       return null;
   }
@@ -83,7 +96,7 @@ function outOfProfileDiagnostic(handle: number, kind: string): DwgNeutralDiagnos
     offset: handle,
     message:
       `Entidad "${kind}" (handle 0x${handle.toString(16)}) decodificada por el ` +
-      `laboratorio pero fuera del perfil AC1015_MODELSPACE_2D_V1 de esta beta; ` +
+      `laboratorio pero fuera del perfil AC1015_MODELSPACE_2D_V2 de esta beta; ` +
       "no se importa en este release.",
   };
 }

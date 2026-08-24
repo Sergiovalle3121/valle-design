@@ -38,8 +38,9 @@ const forbiddenCodecReferences = [
   "..\\dwg-codec",
 ];
 /**
- * La beta `AC1015_MODELSPACE_2D_V1` (ADR-0009 §6-bis, firmada 2026-08-24)
- * autoriza EXACTAMENTE un punto de importación runtime: `dwg-native-reader.ts`
+ * La beta (ADR-0009 §6-bis, firmada 2026-08-24; perfil ampliado a
+ * `AC1015_MODELSPACE_2D_V2` por §6-ter el mismo día) autoriza EXACTAMENTE
+ * un punto de importación runtime: `dwg-native-reader.ts`
  * y su propia spec. Ningún otro archivo del árbol runtime puede referenciar
  * el códec — si mañana otro perfil necesita otro punto, este array crece con
  * su propia ADR, nunca por comodidad.

@@ -14,7 +14,7 @@ silencio. Formato: `NNNN-titulo.md`, estado en la segunda línea.
 | [0006](0006-transactional-outbox-signed-webhooks.md) | Los eventos salen por outbox transaccional y los webhooks van firmados. | Aceptada |
 | [0007](0007-dwg-clean-room-experimental-research.md) | El laboratorio DWG es clean-room y vive AISLADO del producto (hoy: repo `valle-design-dwg-conformance`). | Aceptada |
 | [0008](0008-receptor-outbox-en-api.md) | El receptor del outbox corre dentro de la misma API: un proceso menos que operar. | Aceptada |
-| [0009](0009-dwg-promotion-package.md) | Paquete de evidencia para promover el códec DWG propio a producto. | Aceptada — firmada 2026-08-24, alcance acotado a la beta `AC1015_MODELSPACE_2D_V1` |
+| [0009](0009-dwg-promotion-package.md) | Paquete de evidencia para promover el códec DWG propio a producto. | Aceptada — firmada 2026-08-24, alcance acotado a la beta `AC1015_MODELSPACE_2D_V2` (V1 ampliado el mismo día por §6-ter) |
 | [0010](0010-identificadores-persistidos-congelados.md) | Los identificadores persistidos heredados están CONGELADOS: renombrarlos rompe documentos de clientes. | Aceptada |
 | [0011](0011-migracion-aditiva-invariante.md) | La migración aditiva del documento canónico es INVARIANTE del producto: abrir viejo sin perder un campo, para siempre. | Aceptada |
 | [0012](0012-dwg-doble-via.md) | DWG a doble vía: licenciar para VENDER, códec propio para POSEER, con criterio de cambio escrito. | Aceptada — vía licenciada sustituida por 0013 |

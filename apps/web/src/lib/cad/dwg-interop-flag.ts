@@ -136,17 +136,24 @@ export const DWG_IMPORT_DISABLED_REASON =
   "conserva y lo que se pierde.";
 
 // ---------------------------------------------------------------------------
-// Beta acotada AC1015_MODELSPACE_2D_V1 — firmada 2026-08-24 (ADR-0009 §6-bis)
+// Beta acotada AC1015_MODELSPACE_2D_V2 — firmada 2026-08-24 (ADR-0009
+// §6-bis), ampliada el mismo día (§6-ter)
 // ---------------------------------------------------------------------------
 
 /**
- * Autorización del titular para la beta de SÓLO IMPORTACIÓN
- * `AC1015_MODELSPACE_2D_V1`. NO es `DWG_PROMOTION_GATES`: es un mecanismo
- * DISTINTO y más estrecho, con el mismo patrón de riesgo aceptado por
- * escrito que la Enmienda 2026-08-20 de `CORPUS_POLICY.md` en el repositorio
- * de conformidad — el titular decidió encargar el dictamen jurídico externo
- * EN PARALELO en vez de antes, y acotó lo que autoriza mientras tanto a un
- * perfil, una versión y un sentido (importar, no exportar).
+ * Autorización del titular para la beta de SÓLO IMPORTACIÓN. NO es
+ * `DWG_PROMOTION_GATES`: es un mecanismo DISTINTO y más estrecho, con el
+ * mismo patrón de riesgo aceptado por escrito que la Enmienda 2026-08-20 de
+ * `CORPUS_POLICY.md` en el repositorio de conformidad — el titular decidió
+ * encargar el dictamen jurídico externo EN PARALELO en vez de antes, y
+ * acotó lo que autoriza mientras tanto a un perfil, una versión y un
+ * sentido (importar, no exportar).
+ *
+ * El perfil es V2 desde §6-ter: §6-bis fijó V1 (LINE/POINT/CIRCLE/ARC/
+ * LWPOLYLINE/TEXT/INSERT) y autorizó, como parte de la misma firma, una
+ * hoja de ruta secuencial de ampliaciones (M2/M3/M4/M5) condicionada a que
+ * cada hito tuviera su propio end-to-end en verde antes del siguiente. V2
+ * es M2a: suma ELLIPSE y SPLINE no racional de escenario 1.
  *
  * `legalReviewStatus` se queda en `"pending_parallel"` a propósito: cambiar
  * este archivo no puede convertirlo en `legalReviewCleared: true` en
@@ -157,7 +164,7 @@ export interface DwgBetaAuthorization {
   readonly ownerSigned: true;
   readonly adrRef: "0009";
   readonly signedDate: "2026-08-24";
-  readonly profile: "AC1015_MODELSPACE_2D_V1";
+  readonly profile: "AC1015_MODELSPACE_2D_V2";
   readonly legalReviewStatus: "pending_parallel";
 }
 
@@ -165,7 +172,7 @@ export const DWG_BETA_AUTHORIZATION: DwgBetaAuthorization = Object.freeze({
   ownerSigned: true,
   adrRef: "0009",
   signedDate: "2026-08-24",
-  profile: "AC1015_MODELSPACE_2D_V1",
+  profile: "AC1015_MODELSPACE_2D_V2",
   legalReviewStatus: "pending_parallel",
 });
 
