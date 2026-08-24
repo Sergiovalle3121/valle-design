@@ -1705,13 +1705,12 @@ export default function Layout3DEditor({
   const [activeCadLayer, setActiveCadLayer] =
     useState<CadLayerId>(DEFAULT_ACTIVE_CAD_LAYER);
   /**
-   * El efecto de la escena se monta una vez por documento y captura las
-   * funciones de dibujo de ese render. Leer `activeCadLayer` (estado) desde
-   * dentro de esa clausura devolvía la capa ACTIVA AL MONTAR: cambiar de capa
-   * y dibujar con el ratón seguía escribiendo en la anterior, y el usuario
-   * sólo lo descubría al recargar. El commit consulta el ref, así que ratón,
-   * entrada dinámica y entrada de precisión comparten una única frontera
-   * canónica.
+   * El efecto de la escena se monta con `[open, data]` y captura las funciones
+   * de dibujo de ese render. Leer `activeCadLayer` (estado) desde dentro de esa
+   * clausura devolvía la capa ACTIVA AL MONTAR: cambiar de capa y dibujar con
+   * el ratón seguía escribiendo en la anterior, y el usuario sólo lo descubría
+   * al recargar. El commit consulta el ref, así que ratón, entrada dinámica y
+   * entrada de precisión comparten una única frontera canónica.
    */
   const activeCadLayerRef = useRef<CadLayerId>(activeCadLayer);
   useEffect(() => {
@@ -6042,11 +6041,7 @@ export default function Layout3DEditor({
     [activeCadLayer, data?.footprint.gridSize, insertNativeEntities, toast],
   );
 
-  // ---- scene lifecycle ----
-  // Indexado por identidad de documento (`Layout` no trae `id`; documentId,
-  // o model+revision — ver el efecto de carga arriba), NUNCA por `data`:
-  // `data` cambia de identidad en cada autosave sin que el documento cambie,
-  // y tumbar/reconstruir todo por eso resetea la cámara del usuario.
+  // ---- scene lifecycle (por identidad de documento — `data` cambia de identidad en cada autosave sin que el documento cambie, y reconstruir por eso reseteaba la cámara del usuario) ----
   useEffect(() => {
     const mount = mountRef.current;
     if (!open || !data || !mount) return;
@@ -7775,20 +7770,14 @@ export default function Layout3DEditor({
       gapsLoadedRef.current = false;
       guidesGroupRef.current = null;
     };
+    // `data !== null` capta la identidad del documento: el efecto de carga (arriba) la resetea a null exactamente cuando esa identidad cambia.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, model, revision, documentId, reloadTick, data !== null]);
+  }, [open, data !== null]);
 
-  // ---- initial camera framing ----
+  // Re-deriva encuadre/ctx con un resize real de huella; no tumba lo de arriba.
   useEffect(() => {
-    const camera = cameraRef.current,
-      controls = controlsRef.current;
-    if (!open || !camera || !controls) return;
-    ctxRef.current = applyInitialCameraFraming(
-      camera,
-      controls,
-      data?.footprint.footprintW || 1,
-      data?.footprint.footprintH || 1,
-    );
+    if (!open || !cameraRef.current || !controlsRef.current) return;
+    ctxRef.current = applyInitialCameraFraming(cameraRef.current, controlsRef.current, data?.footprint.footprintW || 1, data?.footprint.footprintH || 1);
   }, [open, data?.footprint.footprintW, data?.footprint.footprintH]);
 
   // selection highlight refresh
