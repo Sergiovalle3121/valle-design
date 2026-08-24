@@ -149,6 +149,14 @@ export function buildAssetGroup(
   H: number,
   selected: boolean,
   alert = false,
+  // El pool compartido cuelga aquí, no del `group` del activo: un `rebuildAssets()`
+  // incremental (asset-scene-host.ts) borra grupos de activo uno a uno, y si el
+  // `InstancedMesh` compartido viviera dentro del PRIMERO que lo pidió, borrar
+  // ESE activo se llevaría por delante las instancias de todos los demás que lo
+  // comparten. Sin `instancingHousing` (specs que no reconcilian, sólo
+  // construyen y demuelen el grupo entero) el `group` del propio activo sigue
+  // sirviendo de anfitrión, como antes.
+  instancingHousing?: THREE.Object3D,
 ): THREE.Group {
   const def = assetMeta(a.kind);
   const wS = Math.max(0.2, a.w * s);
@@ -170,7 +178,8 @@ export function buildAssetGroup(
   buildCadAssetArchetype(def.archetype, wS, dS, h3d, def.color, shape).forEach(
     (o, partIndex) => {
       const pooled = poolAssetPart(
-        group,
+        instancingHousing ?? group,
+        a.id,
         def.archetype,
         partIndex,
         shape,

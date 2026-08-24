@@ -30,7 +30,13 @@ export type AssetArchetype =
   | "desk" // workstation desk with a monitor
   | "bin" // open-top tote / scrap bin
   | "gantry" // overhead crane / gantry: legs + top beam
-  | "path"; // franja de piso (andador, eje, ruta marcada)
+  | "path" // franja de piso (andador, eje, ruta marcada)
+  | "stairs" // escalera: tramo de peldaños ascendentes
+  | "railing" // baranda: postes + pasamanos + balaustres
+  | "sofa" // sofá: asiento + respaldo + brazos
+  | "bed" // cama: base + colchón + cabecera
+  | "toilet" // inodoro: tanque + taza
+  | "sink"; // lavabo: cubeta + pedestal + llave
 
 /** Broad grouping used to organise the palette into sections. */
 export type AssetCategory =
@@ -40,7 +46,8 @@ export type AssetCategory =
   | "zona"
   | "seguridad"
   | "utilidades"
-  | "persona";
+  | "persona"
+  | "arquitectura";
 
 export interface AssetDef {
   kind: string;
@@ -372,6 +379,95 @@ export const ASSET_CATALOG: AssetDef[] = [
     archetype: "shelf",
     category: "utilidades",
   },
+  // ── Arquitectura / mobiliario ──────────────────────────────────────────────
+  {
+    kind: "stairs",
+    label: "Escalera",
+    color: "#a1a1aa",
+    fill: "rgba(161,161,170,0.18)",
+    w: 1100,
+    h: 3600,
+    height: 3000,
+    archetype: "stairs",
+    category: "arquitectura",
+  },
+  {
+    kind: "railing",
+    label: "Baranda",
+    color: "#52525b",
+    fill: "rgba(82,82,91,0.16)",
+    w: 2000,
+    h: 100,
+    height: 1000,
+    archetype: "railing",
+    category: "arquitectura",
+  },
+  {
+    kind: "sofa",
+    label: "Sofá",
+    color: "#0d9488",
+    fill: "rgba(13,148,136,0.12)",
+    w: 1900,
+    h: 900,
+    height: 850,
+    archetype: "sofa",
+    category: "arquitectura",
+  },
+  {
+    kind: "bed",
+    label: "Cama",
+    color: "#a16207",
+    fill: "rgba(161,98,7,0.12)",
+    w: 1500,
+    h: 2000,
+    height: 1100,
+    archetype: "bed",
+    category: "arquitectura",
+  },
+  {
+    kind: "toilet",
+    label: "Inodoro",
+    color: "#e2e8f0",
+    fill: "rgba(226,232,240,0.16)",
+    w: 400,
+    h: 650,
+    height: 800,
+    archetype: "toilet",
+    category: "arquitectura",
+  },
+  {
+    kind: "sink",
+    label: "Lavabo",
+    color: "#f8fafc",
+    fill: "rgba(248,250,252,0.16)",
+    w: 550,
+    h: 450,
+    height: 850,
+    archetype: "sink",
+    category: "arquitectura",
+  },
+  {
+    kind: "kitchen_counter",
+    label: "Mueble de cocina",
+    color: "#e7e5e4",
+    fill: "rgba(231,229,228,0.12)",
+    w: 600,
+    h: 600,
+    height: 900,
+    archetype: "cabinet",
+    category: "arquitectura",
+  },
+  {
+    kind: "kitchen_cabinet",
+    label: "Alacena",
+    color: "#78350f",
+    fill: "rgba(120,53,15,0.12)",
+    w: 700,
+    h: 350,
+    height: 2000,
+    archetype: "cabinet",
+    category: "arquitectura",
+  },
   // ── Zona / Persona ─────────────────────────────────────────────────────────
   {
     kind: "room",
@@ -427,6 +523,7 @@ export const ASSET_CATEGORIES: {
     { category: "estructura", label: "Estructura" },
     { category: "seguridad", label: "Seguridad / EHS" },
     { category: "utilidades", label: "Utilidades" },
+    { category: "arquitectura", label: "Arquitectura y mobiliario" },
     { category: "zona", label: "Zonas" },
     { category: "persona", label: "Personas" },
   ];

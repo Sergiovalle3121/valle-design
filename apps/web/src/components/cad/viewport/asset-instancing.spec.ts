@@ -12,7 +12,11 @@
 import assert from "node:assert/strict";
 import * as THREE from "three";
 import { buildAssetGroup, disposeObject, type Asset } from "./scene-objects";
-import { resetAssetInstancePool } from "./asset-instancing";
+import {
+  poolAssetPart,
+  releaseAssetInstances,
+  resetAssetInstancePool,
+} from "./asset-instancing";
 
 let checks = 0;
 function ok(condition: boolean, message: string): void {
@@ -32,11 +36,38 @@ function workbench(id: string, index: number): Asset {
   };
 }
 
+/** Arquetipo arquitectónico nuevo (B.3): mismas partes Box/MeshStandardMaterial que workbench. */
+function stair(id: string, index: number): Asset {
+  return {
+    id,
+    kind: "stairs",
+    x: (index % 10) * 4500,
+    y: Math.floor(index / 10) * 4500,
+    w: 1100,
+    h: 3600,
+    rotation: 0,
+  };
+}
+
+/** Otro arquetipo nuevo, con una silueta (asiento+respaldo+brazos+patas) muy distinta a stairs. */
+function sofa(id: string, index: number): Asset {
+  return {
+    id,
+    kind: "sofa",
+    x: 60_000 + (index % 10) * 2500,
+    y: Math.floor(index / 10) * 2500,
+    w: 1900,
+    h: 900,
+    rotation: 0,
+  };
+}
+
 /** Todas las `InstancedMesh` colgadas bajo `root`, en cualquier profundidad. */
 function collectInstancedMeshes(root: THREE.Object3D): THREE.InstancedMesh[] {
   const found: THREE.InstancedMesh[] = [];
   root.traverse((o) => {
-    if ((o as THREE.InstancedMesh).isInstancedMesh) found.push(o as THREE.InstancedMesh);
+    if ((o as THREE.InstancedMesh).isInstancedMesh)
+      found.push(o as THREE.InstancedMesh);
   });
   return found;
 }
@@ -45,7 +76,8 @@ function collectInstancedMeshes(root: THREE.Object3D): THREE.InstancedMesh[] {
 function collectPlainMeshes(root: THREE.Object3D): THREE.Mesh[] {
   const found: THREE.Mesh[] = [];
   root.traverse((o) => {
-    if (o instanceof THREE.Mesh && !(o as THREE.InstancedMesh).isInstancedMesh) found.push(o);
+    if (o instanceof THREE.Mesh && !(o as THREE.InstancedMesh).isInstancedMesh)
+      found.push(o);
   });
   return found;
 }
@@ -58,7 +90,10 @@ function collectPlainMeshes(root: THREE.Object3D): THREE.Mesh[] {
  * vive ENTRE llamadas de `buildAssetGroup` dentro de una pasada y se resetea
  * en la demolición, no en cada build.
  */
-function buildScene(count: number, previous?: THREE.Group): { assetsGroup: THREE.Group; s: number } {
+function buildScene(
+  count: number,
+  previous?: THREE.Group,
+): { assetsGroup: THREE.Group; s: number } {
   const s = 0.001; // mm de documento -> metros de escena, igual que el editor
   const W = 60_000,
     H = 60_000;
@@ -79,9 +114,15 @@ function buildScene(count: number, previous?: THREE.Group): { assetsGroup: THREE
 // ---- El conteo de InstancedMesh (draw calls) NO escala con el número de activos ----
 {
   const shared = new THREE.Group();
-  const keys3 = collectInstancedMeshes(buildScene(3, shared).assetsGroup).length;
-  const keys30 = collectInstancedMeshes(buildScene(30, shared).assetsGroup).length;
-  const keys300 = collectInstancedMeshes(buildScene(300, shared).assetsGroup).length;
+  const keys3 = collectInstancedMeshes(
+    buildScene(3, shared).assetsGroup,
+  ).length;
+  const keys30 = collectInstancedMeshes(
+    buildScene(30, shared).assetsGroup,
+  ).length;
+  const keys300 = collectInstancedMeshes(
+    buildScene(300, shared).assetsGroup,
+  ).length;
   ok(keys3 > 0, "3 mesas ya deberían compartir al menos un InstancedMesh");
   ok(
     keys3 === keys30 && keys30 === keys300,
@@ -89,7 +130,10 @@ function buildScene(count: number, previous?: THREE.Group): { assetsGroup: THREE
   );
   // "table" hornea el tablero (1 clave) + 4 patas en posiciones fijas
   // (índice-de-parte distinto por esquina, tal como pide la clave): 5 claves.
-  ok(keys3 === 5, `una mesa reparte en 5 claves (tablero + 4 patas por esquina), no ${keys3}`);
+  ok(
+    keys3 === 5,
+    `una mesa reparte en 5 claves (tablero + 4 patas por esquina), no ${keys3}`,
+  );
 }
 
 // ---- Las instancias SÍ crecen 1:1 con los activos, dentro de cada clave ----
@@ -110,8 +154,13 @@ function buildScene(count: number, previous?: THREE.Group): { assetsGroup: THREE
   resetAssetInstancePool();
   const { assetsGroup } = buildScene(12);
   const plainMeshes = collectPlainMeshes(assetsGroup);
-  const hitboxes = plainMeshes.filter((m) => typeof m.userData.assetId === "string");
-  ok(hitboxes.length === 12, `debe haber una hitbox por activo, no ${hitboxes.length}`);
+  const hitboxes = plainMeshes.filter(
+    (m) => typeof m.userData.assetId === "string",
+  );
+  ok(
+    hitboxes.length === 12,
+    `debe haber una hitbox por activo, no ${hitboxes.length}`,
+  );
 }
 
 // ---- Cada instancia lleva su posición absoluta propia, no la del "anfitrión" ----
@@ -122,7 +171,12 @@ function buildScene(count: number, previous?: THREE.Group): { assetsGroup: THREE
     H = 60_000;
   const assetsGroup = new THREE.Group();
   const a1 = workbench("a1", 0);
-  const a2: Asset = { ...workbench("a2", 1), x: 30_000, y: 30_000, rotation: 0 };
+  const a2: Asset = {
+    ...workbench("a2", 1),
+    x: 30_000,
+    y: 30_000,
+    rotation: 0,
+  };
   const g1 = buildAssetGroup(a1, s, W, H, false, false);
   const g2 = buildAssetGroup(a2, s, W, H, false, false);
   assetsGroup.add(g1);
@@ -155,7 +209,10 @@ function buildScene(count: number, previous?: THREE.Group): { assetsGroup: THREE
 {
   resetAssetInstancePool();
   const { assetsGroup } = buildScene(20);
-  const before = collectInstancedMeshes(assetsGroup).reduce((sum, m) => sum + m.count, 0);
+  const before = collectInstancedMeshes(assetsGroup).reduce(
+    (sum, m) => sum + m.count,
+    0,
+  );
   ok(before === 20 * 5, "línea base de 100 instancias antes de reciclar");
   while (assetsGroup.children.length) {
     const child = assetsGroup.children[assetsGroup.children.length - 1];
@@ -163,13 +220,57 @@ function buildScene(count: number, previous?: THREE.Group): { assetsGroup: THREE
     disposeObject(child);
   }
   for (let i = 0; i < 7; i++) {
-    const g = buildAssetGroup(workbench(`bench2-${i}`, i), 0.001, 60_000, 60_000, false, false);
+    const g = buildAssetGroup(
+      workbench(`bench2-${i}`, i),
+      0.001,
+      60_000,
+      60_000,
+      false,
+      false,
+    );
     assetsGroup.add(g);
   }
-  const after = collectInstancedMeshes(assetsGroup).reduce((sum, m) => sum + m.count, 0);
+  const after = collectInstancedMeshes(assetsGroup).reduce(
+    (sum, m) => sum + m.count,
+    0,
+  );
   ok(
     after === 7 * 5,
     `tras demoler y reconstruir, sólo deben quedar las instancias de la pasada nueva (35), no ${after}`,
+  );
+}
+
+// ---- Los arquetipos arquitectónicos nuevos (B.3) entran al mismo pool compartido ----
+{
+  resetAssetInstancePool();
+  const s = 0.001;
+  const W = 60_000,
+    H = 60_000;
+  const assetsGroup = new THREE.Group();
+  for (let i = 0; i < 4; i++)
+    assetsGroup.add(
+      buildAssetGroup(stair(`stair-${i}`, i), s, W, H, false, false),
+    );
+  for (let i = 0; i < 4; i++)
+    assetsGroup.add(
+      buildAssetGroup(sofa(`sofa-${i}`, i), s, W, H, false, false),
+    );
+  const totalInstances = collectInstancedMeshes(assetsGroup).reduce(
+    (sum, m) => sum + m.count,
+    0,
+  );
+  // catalog: stairs (H=3000mm*0.001=3m) reparte en 16 peldaños; sofa siempre en 8 partes
+  // (asiento+respaldo+2 brazos+4 patas) — ambos verificados en asset-archetypes.spec.ts.
+  ok(
+    totalInstances === 4 * 16 + 4 * 8,
+    `4 escaleras + 4 sofás deben sumar ${4 * 16 + 4 * 8} instancias en el pool, no ${totalInstances}`,
+  );
+  const hitboxes = collectPlainMeshes(assetsGroup).filter(
+    (m) => typeof m.userData.assetId === "string",
+  );
+  ok(
+    hitboxes.length === 8,
+    `debe haber una hitbox sin instanciar por activo (8), no ${hitboxes.length}`,
   );
 }
 
@@ -187,6 +288,97 @@ function buildScene(count: number, previous?: THREE.Group): { assetsGroup: THREE
   ok(
     collectInstancedMeshes(assetsGroup).length === 10,
     "dos tamaños claramente distintos deben abrir sus propias 5+5 claves, no fundirse",
+  );
+}
+
+// ---- releaseAssetInstances(): swap-remove por dueño, sin huecos ----
+{
+  resetAssetInstancePool();
+  const housing = new THREE.Group(); // ancla ESTABLE, no un grupo por activo (asset-scene-host.ts)
+  const s = 0.001;
+  const W = 60_000,
+    H = 60_000;
+  const owners = ["owner-a", "owner-b", "owner-c"];
+  const groupByOwner = new Map<string, THREE.Group>();
+  owners.forEach((id, i) => {
+    const asset = {
+      id,
+      kind: "workbench",
+      x: i * 1500,
+      y: 0,
+      w: 1200,
+      h: 800,
+      rotation: 0,
+    } as Asset;
+    const g = buildAssetGroup(asset, s, W, H, false, false, housing);
+    groupByOwner.set(id, g);
+  });
+  const countByKey = () => {
+    const counts = new Map<string, number>();
+    housing.traverse((o) => {
+      const mesh = o as THREE.InstancedMesh;
+      if (mesh.isInstancedMesh) counts.set(mesh.uuid, mesh.count);
+    });
+    return [...counts.values()].reduce((sum, n) => sum + n, 0);
+  };
+  const before = countByKey();
+  ok(
+    before === owners.length * 5,
+    `3 mesas deben dejar 15 instancias antes de liberar, no ${before}`,
+  );
+
+  // Libera al dueño del MEDIO: el hueco que deja debe llenarlo la última
+  // instancia activa de cada clave (swap-remove), no dejar un hueco muerto.
+  releaseAssetInstances("owner-b");
+  const afterMiddleRelease = countByKey();
+  ok(
+    afterMiddleRelease === (owners.length - 1) * 5,
+    `liberar 1 de 3 dueños debe dejar 10 instancias, no ${afterMiddleRelease}`,
+  );
+
+  // Liberar un dueño SIN instancias en el pool es un no-op, no un error.
+  releaseAssetInstances("owner-nunca-existió");
+  ok(
+    countByKey() === afterMiddleRelease,
+    "liberar un dueño inexistente no debe tocar el pool",
+  );
+
+  // Las instancias que quedan (a y c) se pueden seguir liberando limpio.
+  releaseAssetInstances("owner-a");
+  releaseAssetInstances("owner-c");
+  ok(
+    countByKey() === 0,
+    "liberar los dueños restantes debe dejar el pool en cero instancias activas",
+  );
+}
+
+// ---- poolAssetPart() sin housing propio del activo: acepta un ancla ajena ----
+{
+  resetAssetInstancePool();
+  const housing = new THREE.Group();
+  const part = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshStandardMaterial({ color: 0x888888 }),
+  );
+  const pooled = poolAssetPart(
+    housing,
+    "solo-owner",
+    "table",
+    0,
+    "rect",
+    part,
+    new THREE.Matrix4(),
+  );
+  ok(pooled, "una caja con MeshStandardMaterial debe aceptar instancing");
+  ok(
+    housing.children.length === 1,
+    "el InstancedMesh debe colgar del housing pasado, no de un grupo propio",
+  );
+  releaseAssetInstances("solo-owner");
+  const mesh = housing.children[0] as THREE.InstancedMesh;
+  ok(
+    mesh.count === 0,
+    "liberar al único dueño debe dejar la instancia en cero",
   );
 }
 

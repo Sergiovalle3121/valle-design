@@ -83,33 +83,69 @@ interface PoolEntry {
   mesh: THREE.InstancedMesh;
   count: number;
   capacity: number;
+  /** `owners[i]` es el id del activo dueño de la instancia activa `i` (< count). */
+  owners: string[];
 }
 
 let pool = new Map<string, PoolEntry>();
 
 /**
- * `rebuildAssets()` (Layout3DEditor.tsx, fuera de alcance) tira TODO
- * `assetsGroup` y lo reconstruye entero en cada pasada — no hay diffing
- * incremental todavía (eso es tarea aparte). `disposeObject()` llama aquí al
- * encontrar uno de nuestros `InstancedMesh` en esa demolición: es la única
- * señal fiable de que arranca una pasada nueva y el pool anterior ya no sirve,
- * sin necesidad de tocar ese archivo para anunciarlo explícitamente.
+ * `rebuildAssets()` (Layout3DEditor.tsx) ya NO tira `assetsGroup` entero en
+ * cada pasada — reconcilia por diff (`asset-scene-diff.ts`) y llama a
+ * `releaseAssetInstances()` para lo que cambia o se borra. Este reset sigue
+ * existiendo para la pasada de carga completa (documento nuevo) y para que los
+ * specs que reusan un mismo `THREE.Group` entre llamadas (ver
+ * `asset-instancing.spec.ts`) puedan reproducir una demolición total sin
+ * arrastrar instancias de la corrida anterior.
  */
 export function resetAssetInstancePool(): void {
   pool = new Map();
 }
 
 /**
- * El `InstancedMesh` se cuelga del `Group` del PRIMER activo que pide su
- * clave —no hay forma de llegar al contenedor de nivel superior sin tocar
- * Layout3DEditor.tsx—, y ese `Group` es justo el que `repositionItem()` sigue
- * moviendo en vivo durante el arrastre (mutando `.position` sin rebuild). Si
- * el `InstancedMesh` heredara esa transformación, arrastrar CUALQUIER activo
- * que resultara ser el "anfitrión" de una clave desplazaría a todas las demás
- * instancias de esa clave con él. `matrixWorldAutoUpdate = false` saca al
- * mesh de esa herencia: su `matrixWorld` se queda en la identidad para
- * siempre, y cada instancia ya lleva su posición absoluta en su propia
- * matriz (ver `poolAssetPart`).
+ * Libera todas las instancias de `ownerId` en TODAS las claves del pool, con
+ * swap-remove: la última instancia activa de la clave ocupa el hueco que deja
+ * la que se libera, así el `InstancedMesh` nunca tiene huecos entre `0` y
+ * `count`. Es lo que permite que actualizar o borrar UN activo no obligue a
+ * reconstruir el pool entero — la contraparte de `poolAssetPart` que
+ * `rebuildAssets()` necesita para reconciliar en vez de demoler.
+ */
+export function releaseAssetInstances(ownerId: string): void {
+  for (const entry of pool.values()) {
+    let index = entry.owners.indexOf(ownerId);
+    while (index !== -1) {
+      const last = entry.count - 1;
+      if (index !== last) {
+        const matrix = new THREE.Matrix4();
+        entry.mesh.getMatrixAt(last, matrix);
+        entry.mesh.setMatrixAt(index, matrix);
+        if (entry.mesh.instanceColor) {
+          const color = new THREE.Color();
+          entry.mesh.getColorAt(last, color);
+          entry.mesh.setColorAt(index, color);
+        }
+        entry.owners[index] = entry.owners[last];
+      }
+      entry.count = last;
+      entry.owners.length = entry.count;
+      entry.mesh.count = entry.count;
+      entry.mesh.instanceMatrix.needsUpdate = true;
+      if (entry.mesh.instanceColor) entry.mesh.instanceColor.needsUpdate = true;
+      index = entry.owners.indexOf(ownerId);
+    }
+  }
+}
+
+/**
+ * Sin `housing` propio (llamador que no reconcilia — specs, o el `group` del
+ * propio activo por defecto en `buildAssetGroup`) el `InstancedMesh` se cuelga
+ * de un `THREE.Group` que SIGUE moviéndose en vivo durante el arrastre
+ * (`repositionItem()` muta `.position` sin rebuild). Si el `InstancedMesh`
+ * heredara esa transformación, arrastrar CUALQUIER activo que resultara ser el
+ * "anfitrión" de una clave desplazaría a todas las demás instancias de esa
+ * clave con él. `matrixWorldAutoUpdate = false` saca al mesh de esa herencia:
+ * su `matrixWorld` se queda en la identidad para siempre, y cada instancia ya
+ * lleva su posición absoluta en su propia matriz (ver `poolAssetPart`).
  */
 function anchorToWorldSpace(mesh: THREE.InstancedMesh): void {
   mesh.matrixAutoUpdate = false;
@@ -140,13 +176,14 @@ function growPoolEntry(key: string, entry: PoolEntry): PoolEntry {
   // los envolvía (nunca llegó a renderizarse — la pasada entera es síncrona).
   housing.remove(entry.mesh);
   housing.add(mesh);
-  const grown: PoolEntry = { mesh, count: entry.count, capacity };
+  const grown: PoolEntry = { mesh, count: entry.count, capacity, owners: entry.owners.slice() };
   pool.set(key, grown);
   return grown;
 }
 
 function acquireInstance(
   housing: THREE.Object3D,
+  ownerId: string,
   key: string,
   geometry: THREE.BufferGeometry,
   makeMaterial: () => THREE.Material,
@@ -164,12 +201,13 @@ function acquireInstance(
     mesh.userData.assetInstancePool = true;
     anchorToWorldSpace(mesh);
     housing.add(mesh);
-    entry = { mesh, count: 0, capacity: INITIAL_CAPACITY };
+    entry = { mesh, count: 0, capacity: INITIAL_CAPACITY, owners: [] };
     pool.set(key, entry);
   }
   if (entry.count >= entry.capacity) entry = growPoolEntry(key, entry);
   const index = entry.count;
   entry.count += 1;
+  entry.owners.push(ownerId);
   entry.mesh.count = entry.count;
   return { mesh: entry.mesh, index };
 }
@@ -186,9 +224,14 @@ function acquireInstance(
  * rotación) — se compone con la matriz local de `part` para hornear, de una
  * vez, la matriz de instancia absoluta que compensa el `matrixWorld` fijo en
  * identidad del `InstancedMesh` (ver `anchorToWorldSpace`).
+ *
+ * `ownerId` es el id del activo: `releaseAssetInstances(ownerId)` es la única
+ * forma de liberar esta instancia después, así que sin un id que la ligue a su
+ * activo una actualización o un borrado no tendría qué liberar.
  */
 export function poolAssetPart(
   housing: THREE.Object3D,
+  ownerId: string,
   archetype: AssetArchetype,
   partIndex: number,
   shape: "rect" | "circle",
@@ -223,7 +266,7 @@ export function poolAssetPart(
     return shared;
   };
 
-  const { mesh, index } = acquireInstance(housing, key, part.geometry, makeSharedMaterial);
+  const { mesh, index } = acquireInstance(housing, ownerId, key, part.geometry, makeSharedMaterial);
   mesh.setMatrixAt(index, instanceMatrix);
   mesh.instanceMatrix.needsUpdate = true;
   mesh.setColorAt(index, material.color);
