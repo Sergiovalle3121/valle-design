@@ -79,10 +79,11 @@ verifica contra la API real y PostgreSQL en
   rendimiento.
 - DWG no se abre ni se escribe en el producto público. Existe una beta
   interna de sólo importación (`DWG_NATIVE_IMPORT_BETA`, perfil
-  `AC1015_MODELSPACE_2D_V1`, ADR-0009 §6-bis), apagada por defecto y sin
-  ninguna promoción a disponibilidad general — ver `docs/adr/0013-dwg-via-propia-unica.md`
-  para la vía única propia. DXF es un subconjunto de texto con pérdidas
-  explícitas; no se promete fidelidad universal.
+  `AC1015_MODELSPACE_2D_V2`, ADR-0009 §6-bis, ampliada §6-ter), apagada por
+  defecto y sin ninguna promoción a disponibilidad general — ver
+  `docs/adr/0014-dwg-via-propia-unica.md` para la vía única propia. DXF es
+  un subconjunto de texto con pérdidas explícitas; no se promete fidelidad
+  universal.
 - No existe compatibilidad .NET/VBA, GIS, raster georreferenciado, nubes de
   puntos, IFC ni object storage S3 conectado.
 - Sí existen, y por eso ya no se niegan aquí: un modelador sólido B-rep

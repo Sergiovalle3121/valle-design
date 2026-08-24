@@ -188,6 +188,36 @@ export function dwgGeometryToPrimitive(
         text: decodeCodePageBytes(entity.valueBytes),
         textHeight: entity.height,
       };
+    case "ellipse":
+      // `majorAxisEndpoint` ya es el vector relativo al centro que la
+      // primitiva espera: mismo contrato que el DXF, sólo cambia de dónde
+      // sale el radián que hay que pasar a grados.
+      return {
+        kind: "ellipse",
+        layer,
+        points: [point2(entity.center)],
+        majorAxis: point2(entity.majorAxisEndpoint),
+        axisRatio: entity.axisRatio,
+        startAngle: degrees(entity.startAngle),
+        endAngle: degrees(entity.endAngle),
+      };
+    case "spline": {
+      // El perfil ya filtró a escenario 1 (nudos + puntos de control) en
+      // `toBetaProfileGeometry`; esta comprobación es sólo por el `undefined`
+      // que el tipo sigue permitiendo (escenario 2 lo deja así), no una
+      // segunda validación de negocio.
+      const controlPoints = entity.controlPoints;
+      if (controlPoints === undefined || controlPoints.length < 2) return null;
+      return {
+        kind: "spline",
+        layer,
+        points: controlPoints.map(point2),
+        degree: entity.degree,
+        ...(entity.knots !== undefined && entity.knots.length > 0
+          ? { knots: [...entity.knots] }
+          : {}),
+      };
+    }
     default:
       return null;
   }

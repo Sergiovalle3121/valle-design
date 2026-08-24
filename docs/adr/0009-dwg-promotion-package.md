@@ -1,9 +1,11 @@
 # ADR-0009: Paquete de promoción del códec DWG propio
 
 - Estado: ACEPTADA — firmada por el dueño 2026-08-24 para el alcance
-  acotado de §6-bis (beta de importación `AC1015_MODELSPACE_2D_V1`); no es
+  acotado de §6-bis (beta de importación `AC1015_MODELSPACE_2D_V1`),
+  ampliada el mismo día por §6-ter a `AC1015_MODELSPACE_2D_V2`; no es
   la promoción general de §5, que sigue con gates pendientes
-- Fecha: 2026-08-21 (paquete); firma real 2026-08-24 (§6-bis)
+- Fecha: 2026-08-21 (paquete); firma real 2026-08-24 (§6-bis); ampliación
+  2026-08-24 (§6-ter)
 - Decide sobre: llevar la importación DWG del laboratorio clean-room al
   producto, detrás de un feature flag apagado
 - No preautorizado por: ADR-0004 (DWG fuera del producto), ADR-0007 (el
@@ -145,8 +147,10 @@ trabajo de esa fecha:
    `AC1015_MODELSPACE_2D_V1` (importación únicamente; modelspace 2D;
    layers, colores y propiedades básicas; LINE/POINT/CIRCLE/ARC/
    LWPOLYLINE/TEXT/INSERT según lo que el reader actual entrega completo).
-   Ver `docs/adr/0013-dwg-via-propia-unica.md` para el retiro simultáneo de
-   la vía de proveedor licenciado que ADR-0012 dejaba abierta.
+   Ver `docs/adr/0014-dwg-via-propia-unica.md` para el retiro simultáneo de
+   la vía de proveedor licenciado que ADR-0012 dejaba abierta (numerada
+   0014: otro frente registró, el mismo día, una ADR-0013 distinta y no
+   relacionada — rol runtime `valle_app` para RLS).
 2. **Decide** encargar el dictamen jurídico externo EN PARALELO, no antes:
    la integración técnica avanza ya, detrás de un flag apagado en
    producción pública por defecto, mientras el dictamen se gestiona por
@@ -168,3 +172,46 @@ Lo que esta firma NO autoriza: disponibilidad pública/GA, exportación DWG,
 ni ninguna afirmación de compatibilidad general con DWG o con AutoCAD.
 `productionAvailable` global permanece `false` hasta que §5 esté completo
 y firmado aparte.
+
+## 6-ter. Ampliación de perfil — 2026-08-24 — `AC1015_MODELSPACE_2D_V2`
+
+§6-bis ya autorizaba, dentro del mismo perfil, una hoja de ruta secuencial
+para el laboratorio (M2: más entidades AC1015; M3: AC1018; M4: versiones
+modernas AC1024+; M5: exportación), condicionada explícitamente a que cada
+hito sólo avanzara DESPUÉS de que el anterior tuviera su propia evidencia
+end-to-end en verde. Ésta es esa condición cumplida: V1 mergeó con su
+spec de Node y su E2E de navegador pasando contra un DWG real
+(PR #95), y el titular, en la misma sesión de trabajo, instruyó
+explícitamente continuar con la siguiente fase en cascada, directamente
+contra `main`, sin abrir rama ni detenerse a confirmar cada paso.
+
+Esta sección no es una firma nueva sobre alcance nuevo: es el registro de
+M2a, el primer paso de la hoja de ruta ya firmada en §6-bis, con la
+decisión de ingeniería —qué dos tipos de entidad entran primero— dejada
+por escrito porque §6-bis no los nombraba uno a uno.
+
+1. **Amplía** el perfil de §6-bis de `AC1015_MODELSPACE_2D_V1` a
+   `AC1015_MODELSPACE_2D_V2`: se suman ELLIPSE completa y SPLINE
+   ESCENARIO 1 (nudos + puntos de control) NO RACIONAL. Se eligieron estas
+   dos por ser las siguientes que el laboratorio ya decodifica con
+   fidelidad exacta (§1.1) y para las que la primitiva canónica intermedia
+   (`CadDxfPrimitive`, ya usada por el importador DXF) tiene campos que
+   representan la forma sin pérdida geométrica.
+2. **Deja fuera, explícitamente, del perfil V2** —y por tanto declaradas
+   como diagnóstico "fuera de perfil", nunca como "no decodificado"—:
+   SPLINE racional, SPLINE de escenario 2 (puntos de ajuste), MTEXT,
+   DIMENSION, HATCH, y todo lo demás que §1.1 lista como decodificado por
+   el laboratorio pero que la primitiva canónica actual no representa sin
+   inventar semántica. Quedan para un M2b posterior, que necesita una ruta
+   de mapeo "semántica" además de la de primitiva plana.
+3. **No toca** ninguno de los límites de §6-bis.3: sigue AC1015 únicamente,
+   sigue model space 2D, sigue sólo importación, sigue apagada en
+   producción pública por defecto, sigue sin `legalReviewCleared`, sigue
+   con el mismo mecanismo `DWG_BETA_AUTHORIZATION` — distinto de
+   `DWG_PROMOTION_GATES` — y no mueve un bit la promoción general de §5.
+
+Lo que esta ampliación NO autoriza: ningún hito posterior a M2a de la hoja
+de ruta (M2b, M3, M4, M5) se da por autorizado por adelantado más allá de
+lo que §6-bis ya autorizaba como secuencia condicionada — cada uno sigue
+necesitando su propia evidencia end-to-end en verde antes de empezar el
+siguiente.

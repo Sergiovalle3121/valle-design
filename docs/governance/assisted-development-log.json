@@ -136,7 +136,7 @@
       "assistants": [
         {
           "name": "Claude Code (Anthropic)",
-          "role": "ejecución autónoma supervisada por directiva escrita del titular en conversación 2026-08-24: diagnóstico del laboratorio DWG y el corpus de conformidad, redacción de ADR-0013 y firma de ADR-0009 §6-bis, cableado del perfil de importación al producto (adaptador, gate de beta, worker, UI), build CJS secundario del códec, y pruebas unitarias y E2E con bytes DWG reales"
+          "role": "ejecución autónoma supervisada por directiva escrita del titular en conversación 2026-08-24: diagnóstico del laboratorio DWG y el corpus de conformidad, redacción de ADR-0014 (numerada así, no 0013, para no chocar con la ADR de rol runtime valle_app registrada el mismo día por otro frente) y firma de ADR-0009 §6-bis, cableado del perfil de importación al producto (adaptador, gate de beta, worker, UI), build CJS secundario del códec, y pruebas unitarias y E2E con bytes DWG reales"
         }
       ],
       "authority": "Conversación con Sergio Valle Zárate del 2026-08-24: instrucción inicial de construir un sistema DWG propio sin licencias, aclaración explícita de que el destino es producto real (no otro laboratorio), confirmación por pregunta estructurada de abandonar la vía licenciada de ADR-0012 y de proceder con la integración en paralelo a la revisión jurídica externa, y directiva posterior detallada de Integration Captain para el perfil AC1015_MODELSPACE_2D_V1 (revalidada contra HEAD y los PR #88/#90/#92 reales antes de actuar)",
@@ -148,9 +148,36 @@
       "externalSources": [],
       "adoption": {
         "required": true,
+        "status": "adopted",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "PR #95 fusionado 2026-08-24 (squash dd42452a513c30b01b259f26a5546052f0c81ca en main) tras instrucción explícita del titular en la misma conversación de mergear y continuar con la siguiente fase en cascada; checks en verde (check:dwg completo, 390/390 specs de apps/web, E2E con NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA=true)."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-BETA-PROFILE-V2-2026-08-24",
+      "date": "2026-08-24",
+      "initiative": "M2a: amplía el perfil de la beta de AC1015_MODELSPACE_2D_V1 a V2 (suma ELLIPSE y SPLINE no racional de escenario 1)",
+      "branch": "main",
+      "assistants": [
+        {
+          "name": "Claude Code (Anthropic)",
+          "role": "ejecución autónoma directamente contra main (sin rama nueva), por instrucción explícita del titular tras la fusión de PR #95: ampliación del modelo neutral y el adaptador con ELLIPSE/SPLINE, mapeo en el puente canónico (dwg-document-bridge.ts), redacción de ADR-0009 §6-ter, y pruebas unitarias directas (bytes reales para las siete entidades ya escribibles; la mitad pura del adaptador para ELLIPSE/SPLINE, que el writer del laboratorio todavía no fabrica)"
+        }
+      ],
+      "authority": "Conversación con Sergio Valle Zárate del 2026-08-24, continuación directa de la autorización que registra DWG-NATIVE-IMPORT-BETA-2026-08-24: la hoja de ruta de esa misma directiva ya preautorizaba M2 (\"más entidades AC1015\") condicionado a que V1 tuviera su propio end-to-end en verde, y la instrucción posterior explícita fue mergear y seguir con la siguiente fase en cascada directamente contra main, sin abrir rama ni detenerse a confirmar cada paso",
+      "firstPartyInputs": [
+        "Repositorio valle-design en main (dd42452, tras la fusión de PR #95)",
+        "packages/dwg-codec/src/model/entity-geometry.ts (forma exacta de DwgEllipseEntity/DwgSplineEntity)",
+        "apps/web/src/lib/cad/dxf-import.ts (primitiva CadDxfPrimitive ya usada por el importador DXF, reutilizada sin segundo camino)"
+      ],
+      "externalSources": [],
+      "adoption": {
+        "required": true,
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
-        "evidence": "Pendiente: el titular revisa el PR de la rama claude/dwg-sistema-propio-saqx1g, sus dos commits (gobernanza e implementación) y los checks (check:dwg completo, 390/390 specs de apps/web, E2E con NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA=true); la adopción se registra al aprobar/fusionar."
+        "evidence": "Pendiente: el titular revisa el commit empujado directamente a main y sus checks (check:dwg completo, 390/390 specs de apps/web, typecheck y lint en verde); la adopción se registra al revisar."
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false

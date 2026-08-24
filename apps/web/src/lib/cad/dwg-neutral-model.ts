@@ -118,6 +118,48 @@ export interface DwgNeutralInsert {
   readonly attributesFollow: boolean;
 }
 
+/**
+ * Elipse: centro, extremo del eje mayor como VECTOR relativo al centro,
+ * extrusión, razón de ejes y ángulos paramétricos en RADIANES.
+ */
+export interface DwgNeutralEllipse {
+  readonly kind: "ellipse";
+  readonly center: DwgNeutralPoint3;
+  readonly majorAxisEndpoint: DwgNeutralPoint3;
+  readonly extrusion: DwgNeutralPoint3;
+  readonly axisRatio: number;
+  readonly startAngle: number;
+  readonly endAngle: number;
+}
+
+/**
+ * Spline. El formato guarda dos escenarios excluyentes: 1 = nudos + puntos
+ * de control (con pesos opcionales, splines racionales), 2 = puntos de
+ * ajuste con tangentes. Los campos del escenario ausente llegan
+ * `undefined`. El perfil de producto V2 sólo PROYECTA escenario 1 no
+ * racional (ver el único adaptador autorizado a estrechar este tipo); el
+ * resto llega hasta aquí para que el puente pueda declarar la pérdida con
+ * precisión si algún día cambia el filtro, pero hoy nunca cruza
+ * `toBetaProfileGeometry` con otra forma.
+ */
+export interface DwgNeutralSpline {
+  readonly kind: "spline";
+  readonly scenario: number;
+  readonly degree: number;
+  readonly rational: boolean | undefined;
+  readonly closed: boolean | undefined;
+  readonly periodic: boolean | undefined;
+  readonly knotTolerance: number | undefined;
+  readonly controlTolerance: number | undefined;
+  readonly knots: readonly number[] | undefined;
+  readonly controlPoints: readonly DwgNeutralPoint3[] | undefined;
+  readonly weights: readonly number[] | undefined;
+  readonly fitTolerance: number | undefined;
+  readonly startTangent: DwgNeutralPoint3 | undefined;
+  readonly endTangent: DwgNeutralPoint3 | undefined;
+  readonly fitPoints: readonly DwgNeutralPoint3[] | undefined;
+}
+
 export type DwgNeutralGeometry =
   | DwgNeutralLine
   | DwgNeutralPointEntity
@@ -125,7 +167,9 @@ export type DwgNeutralGeometry =
   | DwgNeutralArc
   | DwgNeutralLwPolyline
   | DwgNeutralText
-  | DwgNeutralInsert;
+  | DwgNeutralInsert
+  | DwgNeutralEllipse
+  | DwgNeutralSpline;
 
 export interface DwgNeutralLayer {
   readonly handle: number;
