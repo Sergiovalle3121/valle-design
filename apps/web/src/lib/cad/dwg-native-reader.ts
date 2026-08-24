@@ -2,24 +2,29 @@
  * El ÚNICO punto del producto que importa el códec DWG propio en runtime.
  *
  * Autorizado por la firma del dueño de 2026-08-24 (`docs/adr/0009-dwg-promotion-package.md`
- * §6-bis, ampliada §6-ter), acotada al perfil `AC1015_MODELSPACE_2D_V2`:
- * importación únicamente, AC1015 (AutoCAD 2000), model space 2D.
- * `scripts/dwg/check-product-boundary.mjs` verifica que ningún otro archivo
- * de `apps/web` ni `apps/api` referencie `@valle-design/dwg-codec` — este
- * archivo es la excepción nombrada, y sólo el worker de importación
- * (`document-import.worker.ts`) lo consume. Ningún componente de React lo
- * importa, directa ni transitivamente.
+ * §6-bis, ampliada §6-ter y §6-quater), acotada al perfil
+ * `AC1015_MODELSPACE_2D_V3`: importación únicamente, AC1015 (AutoCAD 2000),
+ * model space 2D. `scripts/dwg/check-product-boundary.mjs` verifica que
+ * ningún otro archivo de `apps/web` ni `apps/api` referencie
+ * `@valle-design/dwg-codec` — este archivo es la excepción nombrada, y sólo
+ * el worker de importación (`document-import.worker.ts`) lo consume. Ningún
+ * componente de React lo importa, directa ni transitivamente.
  *
  * QUÉ HACE Y QUÉ NO. Llama al lector real (`readDwg`) y estrecha su base de
- * datos de 33 tipos de entidad decodificados al perfil que la beta V2
+ * datos de 33 tipos de entidad decodificados al perfil que la beta V3
  * declara soportado (LINE, POINT, CIRCLE, ARC, LWPOLYLINE, TEXT, INSERT,
- * ELLIPSE, SPLINE no racional de escenario 1) — el mismo conjunto que
- * `dwg-neutral-model.ts` modela y `dwg-document-bridge.ts` sabe proyectar al
- * documento canónico. Una entidad que el laboratorio SÍ decodifica (MTEXT,
- * DIMENSION, HATCH, spline racional o de puntos de ajuste, …) pero que el
- * perfil V2 no cubre NO se cuenta como «no decodificada»: sería falso, el
- * laboratorio la leyó. Se declara aparte, en diagnósticos, con su propio
- * código y razón — fuera de perfil, no fuera de alcance del decodificador.
+ * ELLIPSE, SPLINE no racional de escenario 1, MTEXT, DIMENSION salvo
+ * angular de dos líneas, HATCH de contorno poligonal) — el mismo conjunto
+ * que `dwg-neutral-model.ts` modela y `dwg-document-bridge.ts` sabe
+ * proyectar al documento canónico. Una entidad que el laboratorio SÍ
+ * decodifica (spline racional o de puntos de ajuste, cota angular de dos
+ * líneas, contorno de HATCH curvo, …) pero que el perfil V3 no cubre NO se
+ * cuenta como «no decodificada»: sería falso, el laboratorio la leyó. Se
+ * declara aparte, en diagnósticos, con su propio código y razón — fuera de
+ * perfil, no fuera de alcance del decodificador. MTEXT y DIMENSION y HATCH
+ * sólo se proyectan en MODEL SPACE: dentro de un bloque caen al mismo
+ * diagnóstico genérico que cualquier entidad sin primitiva, porque el
+ * modelo de bloques del producto tampoco las admite hoy para DXF.
  *
  * Sólo AC1015 pasa. Otra firma reconocida (AC1018 incluido, que el
  * laboratorio también lee) se rechaza con un error tipado que nombra la
@@ -44,7 +49,7 @@ import type {
   DwgNeutralLayer,
 } from "./dwg-neutral-model";
 
-/** Las entidades del perfil `AC1015_MODELSPACE_2D_V2`. */
+/** Las entidades del perfil `AC1015_MODELSPACE_2D_V3`. */
 const BETA_PROFILE_ENTITY_KINDS = new Set<DwgGeometryEntity["kind"]>([
   "line",
   "point",
@@ -55,10 +60,13 @@ const BETA_PROFILE_ENTITY_KINDS = new Set<DwgGeometryEntity["kind"]>([
   "insert",
   "ellipse",
   "spline",
+  "mtext",
+  "dimension",
+  "hatch",
 ]);
 
 /**
- * Estrecha una entidad ya decodificada al subconjunto del perfil V2.
+ * Estrecha una entidad ya decodificada al subconjunto del perfil V3.
  *
  * Los tipos del perfil son estructuralmente idénticos entre el modelo del
  * laboratorio y el espejo del producto (mismos campos, mismo nombre): no hay
@@ -69,6 +77,17 @@ const BETA_PROFILE_ENTITY_KINDS = new Set<DwgGeometryEntity["kind"]>([
  * sabe representar hoy (`CadDxfPrimitive` no lleva pesos ni puntos de
  * ajuste). Un fit-spline o una spline racional SÍ las decodifica el
  * laboratorio — por eso caen a "fuera de perfil", nunca a "no decodificado".
+ *
+ * DIMENSION tiene su propia excepción: la angular DE DOS LÍNEAS necesitaría
+ * intersecar dos rectas para hallar el vértice, y un par casi paralelo la
+ * manda al infinito sin que nada falle — el mismo riesgo por el que
+ * `dxf-read-foreign-dimensions.ts` ya declina esa variante para cotas DXF
+ * ajenas. Las otras seis variantes SÍ entran: el puente porta esa misma
+ * reconstrucción por puntos.
+ *
+ * HATCH entra siempre a este filtro: un HATCH puede traer una mezcla de
+ * caminos poligonales (proyectables) y curvos (no); decidir camino por
+ * camino es trabajo del puente, no de este filtro por tipo.
  */
 function toBetaProfileGeometry(entity: DwgGeometryEntity): DwgNeutralGeometry | null {
   if (!BETA_PROFILE_ENTITY_KINDS.has(entity.kind)) return null;
@@ -81,9 +100,13 @@ function toBetaProfileGeometry(entity: DwgGeometryEntity): DwgNeutralGeometry | 
     case "text":
     case "insert":
     case "ellipse":
+    case "mtext":
+    case "hatch":
       return entity;
     case "spline":
       return entity.scenario === 1 && entity.rational !== true ? entity : null;
+    case "dimension":
+      return entity.dimensionKind !== "angular2ln" ? entity : null;
     default:
       return null;
   }
@@ -96,7 +119,7 @@ function outOfProfileDiagnostic(handle: number, kind: string): DwgNeutralDiagnos
     offset: handle,
     message:
       `Entidad "${kind}" (handle 0x${handle.toString(16)}) decodificada por el ` +
-      `laboratorio pero fuera del perfil AC1015_MODELSPACE_2D_V2 de esta beta; ` +
+      `laboratorio pero fuera del perfil AC1015_MODELSPACE_2D_V3 de esta beta; ` +
       "no se importa en este release.",
   };
 }
@@ -146,7 +169,7 @@ const toBetaProfileLayer = (layer: DwgDatabase["layers"][number]): DwgNeutralLay
 /**
  * Lo único de `DwgDatabase` que este módulo lee. Un `Pick` en vez del tipo
  * completo: la base real del laboratorio también trae `tables`,
- * `dictionaries` y `classMap` (fase D5), que el perfil V1 no proyecta —
+ * `dictionaries` y `classMap` (fase D5), que el perfil V3 no proyecta —
  * exigirlos aquí sería acoplarse a campos que esta función nunca toca, y
  * fabricarlos en una prueba sería ruido sin señal.
  */
@@ -156,7 +179,7 @@ type DwgDatabaseSlice = Pick<
 >;
 
 /**
- * Estrecha la base neutral completa del laboratorio al perfil V1. Función
+ * Estrecha la base neutral completa del laboratorio al perfil V3. Función
  * pura: la misma base de entrada produce siempre la misma base de salida.
  */
 export function toBetaProfileDatabase(database: DwgDatabaseSlice): DwgNeutralDatabase {
@@ -179,7 +202,7 @@ export function toBetaProfileDatabase(database: DwgDatabaseSlice): DwgNeutralDat
 }
 
 /**
- * Lee bytes DWG hostiles y devuelve la base neutral del perfil V1, o falla
+ * Lee bytes DWG hostiles y devuelve la base neutral del perfil V3, o falla
  * tipado y en español. Ésta es la función que se registra como
  * `DwgNeutralDatabaseReader` (`dwg-neutral-model.ts`) en el worker.
  *

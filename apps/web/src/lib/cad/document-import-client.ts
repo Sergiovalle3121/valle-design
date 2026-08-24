@@ -2,11 +2,11 @@ import type { DocumentImportReport } from "./document-import";
 import { validateImportFile } from "./document-import";
 
 /**
- * Beta `AC1015_MODELSPACE_2D_V2` (ADR-0009 §6-bis, ampliada §6-ter).
- * `NEXT_PUBLIC_*` se sustituye en tiempo de build, no en runtime: un
- * despliegue público que no la definió como `"true"` nunca la activa, sin
- * depender de configuración de servidor ni de que nadie recuerde apagar
- * nada.
+ * Beta `AC1015_MODELSPACE_2D_V3` (ADR-0009 §6-bis, ampliada §6-ter y
+ * §6-quater). `NEXT_PUBLIC_*` se sustituye en tiempo de build, no en
+ * runtime: un despliegue público que no la definió como `"true"` nunca la
+ * activa, sin depender de configuración de servidor ni de que nadie
+ * recuerde apagar nada.
  */
 export function isDwgNativeImportBetaEnabled(): boolean {
   return process.env.NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA === "true";

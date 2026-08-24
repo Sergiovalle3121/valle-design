@@ -6,12 +6,12 @@ import {
 } from "./fixtures/standalone-identity";
 
 /**
- * Beta `AC1015_MODELSPACE_2D_V2` (ADR-0009 §6-bis, ampliada §6-ter): la
- * ruta vertical real, en un navegador de verdad, no en Node. Lo que un spec
- * de Node NO puede probar es exactamente lo que este spec existe para
- * probar: que el bundle de producción de Next.js resuelve el códec DWG
- * propio dentro de un Web Worker real y que `File.arrayBuffer()` —nunca
- * `File.text()`— es la vía que toca los bytes.
+ * Beta `AC1015_MODELSPACE_2D_V3` (ADR-0009 §6-bis, ampliada §6-ter y
+ * §6-quater): la ruta vertical real, en un navegador de verdad, no en Node.
+ * Lo que un spec de Node NO puede probar es exactamente lo que este spec
+ * existe para probar: que el bundle de producción de Next.js resuelve el
+ * códec DWG propio dentro de un Web Worker real y que
+ * `File.arrayBuffer()` —nunca `File.text()`— es la vía que toca los bytes.
  *
  * Bytes del fixture: un AC1015 sintético (LINE+CIRCLE+TEXT, capa MUROS)
  * escrito con el propio `writeDwg` del laboratorio, en base64. Nace y muere

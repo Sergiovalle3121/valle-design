@@ -2,10 +2,11 @@
 
 - Estado: ACEPTADA — firmada por el dueño 2026-08-24 para el alcance
   acotado de §6-bis (beta de importación `AC1015_MODELSPACE_2D_V1`),
-  ampliada el mismo día por §6-ter a `AC1015_MODELSPACE_2D_V2`; no es
-  la promoción general de §5, que sigue con gates pendientes
-- Fecha: 2026-08-21 (paquete); firma real 2026-08-24 (§6-bis); ampliación
-  2026-08-24 (§6-ter)
+  ampliada el mismo día por §6-ter a `AC1015_MODELSPACE_2D_V2` y por
+  §6-quater a `AC1015_MODELSPACE_2D_V3`; no es la promoción general de §5,
+  que sigue con gates pendientes
+- Fecha: 2026-08-21 (paquete); firma real 2026-08-24 (§6-bis); ampliaciones
+  2026-08-24 (§6-ter, §6-quater)
 - Decide sobre: llevar la importación DWG del laboratorio clean-room al
   producto, detrás de un feature flag apagado
 - No preautorizado por: ADR-0004 (DWG fuera del producto), ADR-0007 (el
@@ -215,3 +216,50 @@ de ruta (M2b, M3, M4, M5) se da por autorizado por adelantado más allá de
 lo que §6-bis ya autorizaba como secuencia condicionada — cada uno sigue
 necesitando su propia evidencia end-to-end en verde antes de empezar el
 siguiente.
+
+## 6-quater. Ampliación de perfil — 2026-08-24 — `AC1015_MODELSPACE_2D_V3`
+
+M2a (§6-ter) cerró con su propia evidencia en verde: `check:dwg` completo,
+typecheck y lint del producto, y las specs de Node del adaptador y del
+puente contra bytes reales más geometría hecha a mano. Ésa es la condición
+que §6-bis exige para avanzar al siguiente paso de la hoja de ruta. Éste es
+M2b, el paso que §1.1 ya señalaba como pendiente en §6-ter.2: MTEXT,
+DIMENSION y HATCH necesitaban una ruta de mapeo "semántica" —un intermedio
+distinto de `CadDxfPrimitive`— que no existía todavía.
+
+1. **Amplía** el perfil de §6-ter de `AC1015_MODELSPACE_2D_V2` a
+   `AC1015_MODELSPACE_2D_V3`: se suman MTEXT completo, DIMENSION salvo la
+   variante angular DE DOS LÍNEAS, y HATCH de contorno poligonal. El mapeo
+   reutiliza los mismos consumidores probados que ya usa el importador DXF
+   (`cadDxfMTextsToNativeEntities`, `cadDxfSemanticDimensionsToNativeEntities`,
+   `cadDxfHatchesToNativeEntities`) — ningún segundo camino hacia el
+   documento canónico. DIMENSION entra DESLIGADA de su geometría (mide sus
+   propios puntos, no se entera si mueves el muro), exactamente con el mismo
+   criterio y las mismas variantes que ya acepta una cota DXF que llega sin
+   la XDATA propia del producto (`dxf-read-foreign-dimensions.ts`) — DWG no
+   tiene XDATA en absoluto, así que ninguna cota DWG puede entrar de otra
+   forma.
+2. **Deja fuera, explícitamente, del perfil V3** —fuera de perfil, nunca "no
+   decodificado"—: DIMENSION angular de dos líneas (intersecar dos rectas
+   arrastra el mismo riesgo de vértice al infinito que ya declina la cota
+   DXF ajena), los contornos curvos de un HATCH (línea/arco/arco
+   elíptico/spline: ningún campo de la primitiva de destino los representa,
+   el propio lector de HATCH de DXF ya los descarta con aviso), el estilo de
+   texto de MTEXT y DIMENSION (son nombres resueltos por handle que el
+   laboratorio no decodifica todavía) y todo lo que las cotas propias del
+   producto normalmente traen por su XDATA registrada (precisión, unidades,
+   prefijo/sufijo, colores, flecha…) — DWG no tiene ese canal y nunca lo
+   tendrá para un archivo que no pasó por el exportador de este producto.
+3. **No toca** ninguno de los límites de §6-bis.3 ni de §6-ter.3: sigue
+   AC1015 únicamente, sigue model space 2D, sigue sólo importación, sigue
+   apagada en producción pública por defecto, sigue sin
+   `legalReviewCleared`, sigue con `DWG_BETA_AUTHORIZATION` y no mueve un
+   bit la promoción general de §5. Además, MTEXT/DIMENSION/HATCH sólo se
+   proyectan en MODEL SPACE: dentro de un bloque caen al mismo diagnóstico
+   genérico que cualquier tipo sin representación ahí, porque
+   `CadDxfSemanticBlock` tampoco los admite para DXF.
+
+Lo que esta ampliación NO autoriza: como en §6-ter, ningún hito posterior de
+la hoja de ruta (M3, M4, M5) se da por autorizado por adelantado — cada uno
+sigue necesitando su propia evidencia end-to-end en verde antes de empezar
+el siguiente.

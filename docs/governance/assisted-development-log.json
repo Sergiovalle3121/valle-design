@@ -209,6 +209,34 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-BETA-PROFILE-V3-2026-08-24",
+      "date": "2026-08-24",
+      "initiative": "M2b: amplía el perfil de la beta de AC1015_MODELSPACE_2D_V2 a V3 (suma MTEXT, DIMENSION salvo angular de dos líneas, y HATCH de contorno poligonal)",
+      "branch": "main",
+      "assistants": [
+        {
+          "name": "Claude Code (Anthropic)",
+          "role": "ejecución autónoma directamente contra main (sin rama nueva), continuando la cascada de fases DWG: ampliación del modelo neutral y el adaptador con MTEXT/DIMENSION/HATCH, tres nuevos caminos de mapeo en el puente canónico que reutilizan los consumidores de entidades nativas que ya usa el importador DXF (cadDxfMTextsToNativeEntities, cadDxfSemanticDimensionsToNativeEntities, cadDxfHatchesToNativeEntities), redacción de ADR-0009 §6-quater, y pruebas unitarias directas con geometría calculada a mano para las seis variantes de cota reconstruibles; en el camino, detectada y resuelta una colisión real de numeración de ADR con otra sesión de Claude Code que trabajaba en paralelo (rol runtime valle_app), renumerando mi ADR de 0013 a 0014 y actualizando todas sus referencias cruzadas"
+        }
+      ],
+      "authority": "Conversación con Sergio Valle Zárate del 2026-08-24, continuación directa de la autorización que registra DWG-NATIVE-IMPORT-BETA-2026-08-24: la hoja de ruta de esa misma directiva preautoriza M2 (\"más entidades AC1015\") condicionado a que cada hito tenga su propio end-to-end en verde antes del siguiente, y la instrucción explícita del titular fue mergear y seguir con la siguiente fase en cascada directamente contra main, sin abrir rama ni detenerse a confirmar cada paso — M2a (V2) ya cerró con esa evidencia, y éste es el siguiente paso de la misma hoja de ruta",
+      "firstPartyInputs": [
+        "Repositorio valle-design en main (d1ff313, tras la campaña de cierre de ramas y la ampliación a V2)",
+        "packages/dwg-codec/src/model/entity-geometry.ts (forma exacta de DwgMTextEntity/DwgDimensionEntity/DwgHatchEntity y sus caminos anidados)",
+        "apps/web/src/lib/cad/dxf-cad-document.ts y dxf-read-annotations.ts (consumidores de entidades nativas y decodificador de contenido MTEXT que ya usa el importador DXF, reutilizados sin segundo camino)",
+        "apps/web/src/lib/cad/dxf-read-foreign-dimensions.ts (plantilla de reconstrucción de cotas por puntos, sin XDATA, ya probada para DXF ajeno)"
+      ],
+      "externalSources": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: el titular revisa el commit empujado directamente a main y sus checks (check:dwg completo, 390/390 specs de apps/web, typecheck y lint en verde); la adopción se registra al revisar."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

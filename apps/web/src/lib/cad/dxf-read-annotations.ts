@@ -230,7 +230,7 @@ export function parseRawDxfSemanticMleaders(text: string): CadDxfSemanticMleader
  * negrita, el enmascaramiento— y sin eso llega un párrafo plano donde había un
  * bloque de notas maquetado.
  */
-function mtextAlignment(value: number): NonNullable<CadDxfMText["alignment"]> {
+export function mtextAlignment(value: number): NonNullable<CadDxfMText["alignment"]> {
   return [
     "top-left", "top-center", "top-right",
     "middle-left", "middle-center", "middle-right",
@@ -238,7 +238,7 @@ function mtextAlignment(value: number): NonNullable<CadDxfMText["alignment"]> {
   ][Math.max(1, Math.min(9, value)) - 1] as NonNullable<CadDxfMText["alignment"]>;
 }
 
-function decodeMTextContent(value: string): Pick<CadDxfMText, "text" | "fontFamily" | "bold" | "italic" | "underline" | "paragraphAlignment"> {
+export function decodeMTextContent(value: string): Pick<CadDxfMText, "text" | "fontFamily" | "bold" | "italic" | "underline" | "paragraphAlignment"> {
   const font = /\\f([^|;]+)\|b([01])\|i([01]);/i.exec(value);
   const paragraph = /\\p([crj]);/i.exec(value)?.[1]?.toLowerCase();
   const underline = /\\L/.test(value);

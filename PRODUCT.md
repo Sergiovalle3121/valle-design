@@ -79,8 +79,8 @@ verifica contra la API real y PostgreSQL en
   rendimiento.
 - DWG no se abre ni se escribe en el producto público. Existe una beta
   interna de sólo importación (`DWG_NATIVE_IMPORT_BETA`, perfil
-  `AC1015_MODELSPACE_2D_V2`, ADR-0009 §6-bis, ampliada §6-ter), apagada por
-  defecto y sin ninguna promoción a disponibilidad general — ver
+  `AC1015_MODELSPACE_2D_V3`, ADR-0009 §6-bis, ampliada §6-ter y §6-quater),
+  apagada por defecto y sin ninguna promoción a disponibilidad general — ver
   `docs/adr/0014-dwg-via-propia-unica.md` para la vía única propia. DXF es
   un subconjunto de texto con pérdidas explícitas; no se promete fidelidad
   universal.

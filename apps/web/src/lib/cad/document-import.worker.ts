@@ -18,10 +18,10 @@ type WorkerInput = {
   file: File;
   sidecars?: { shx?: File; dbf?: File; prj?: File; cpg?: File };
   /**
-   * Beta `AC1015_MODELSPACE_2D_V2` (ADR-0009 §6-bis, ampliada §6-ter). La
-   * decide el hilo principal a partir de una variable de build no pública
-   * por defecto (`document-import-client.ts`); este worker sólo la
-   * reenvía.
+   * Beta `AC1015_MODELSPACE_2D_V3` (ADR-0009 §6-bis, ampliada §6-ter y
+   * §6-quater). La decide el hilo principal a partir de una variable de
+   * build no pública por defecto (`document-import-client.ts`); este
+   * worker sólo la reenvía.
    */
   dwgBetaEnabled?: boolean;
 };

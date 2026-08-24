@@ -101,11 +101,11 @@ export function validateImportFile(
    * - `dwgImportIsEnabled()`: la promoción general de ADR-0007/0009 (7
    *   gates, incluida revisión jurídica externa). Sigue apagada.
    * - `dwgBetaImportIsEnabled(dwgBetaEnabled)`: la beta acotada
-   *   `AC1015_MODELSPACE_2D_V2` que el dueño firmó 2026-08-24 (ADR-0009
-   *   §6-bis, ampliada §6-ter), con el dictamen jurídico en paralelo.
-   *   `dwgBetaEnabled` lo decide quien llama —el worker, a partir de una
-   *   variable de build no pública por defecto— nunca este módulo, que no
-   *   lee entorno.
+   *   `AC1015_MODELSPACE_2D_V3` que el dueño firmó 2026-08-24 (ADR-0009
+   *   §6-bis, ampliada §6-ter y §6-quater), con el dictamen jurídico en
+   *   paralelo. `dwgBetaEnabled` lo decide quien llama —el worker, a partir
+   *   de una variable de build no pública por defecto— nunca este módulo,
+   *   que no lee entorno.
    *
    * El mensaje SÍ cambió al integrar, y a propósito: el shapefile ya se admite,
    * así que callarlo dejaría al usuario sin saber que su `.shp` entra. Un
@@ -177,7 +177,7 @@ export function importDocumentBytes(
 }
 
 /**
- * DWG → documento canónico, perfil de beta `AC1015_MODELSPACE_2D_V2`.
+ * DWG → documento canónico, perfil de beta `AC1015_MODELSPACE_2D_V3`.
  *
  * `validateImportFile` ya comprobó el gate y el tamaño: si esta función se
  * alcanza es porque la beta está habilitada. `reader` decodifica los bytes

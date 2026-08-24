@@ -160,6 +160,182 @@ export interface DwgNeutralSpline {
   readonly fitPoints: readonly DwgNeutralPoint3[] | undefined;
 }
 
+/**
+ * Texto con formato (MTEXT). El formato (negrita, fuente, alineación de
+ * párrafo…) no viaja en campos propios: va incrustado como códigos de escape
+ * dentro de `valueBytes`, igual que en DXF — por eso el puente puede
+ * reutilizar el mismo decodificador de contenido sin tocarlo.
+ */
+export interface DwgNeutralMText {
+  readonly kind: "mtext";
+  readonly insertion: DwgNeutralPoint3;
+  readonly extrusion: DwgNeutralPoint3;
+  readonly xAxisDirection: DwgNeutralPoint3;
+  readonly rectWidth: number;
+  readonly height: number;
+  readonly attachment: number;
+  readonly drawingDirection: number;
+  readonly extentsHeight: number;
+  readonly extentsWidth: number;
+  readonly valueBytes: readonly number[];
+  readonly lineSpacingStyle: number;
+  readonly lineSpacingFactor: number;
+  readonly trailingBit: number;
+}
+
+/** Las siete variantes de cota del formato R2000. */
+export type DwgNeutralDimensionKind =
+  | "ordinate"
+  | "linear"
+  | "aligned"
+  | "angular3pt"
+  | "angular2ln"
+  | "radius"
+  | "diameter";
+
+/**
+ * Cota (familia DIMENSION). Los puntos usan los nombres de grupo del dibujo
+ * (10/13/14/15/16: `definitionPoint`/`point13`/`point14`/`point15`/`point16`)
+ * porque su papel geométrico depende de la variante — igual que en DXF, y por
+ * eso el puente porta la misma reconstrucción por puntos que ya existe para
+ * cotas DXF ajenas (sin XDATA propia). El texto de usuario llega como bytes.
+ */
+export interface DwgNeutralDimension {
+  readonly kind: "dimension";
+  readonly dimensionKind: DwgNeutralDimensionKind;
+  readonly extrusion: DwgNeutralPoint3;
+  readonly textMidpoint: DwgNeutralPoint2;
+  readonly elevation: number;
+  readonly flags: number;
+  readonly userTextBytes: readonly number[];
+  readonly textRotation: number;
+  readonly horizontalDirection: number;
+  readonly insertScale: DwgNeutralPoint3;
+  readonly insertRotation: number;
+  readonly attachment: number;
+  readonly lineSpacingStyle: number;
+  readonly lineSpacingFactor: number;
+  readonly actualMeasurement: number;
+  readonly clonePoint: DwgNeutralPoint2;
+  readonly definitionPoint: DwgNeutralPoint3;
+  readonly point13: DwgNeutralPoint3 | undefined;
+  readonly point14: DwgNeutralPoint3 | undefined;
+  readonly point15: DwgNeutralPoint3 | undefined;
+  readonly point16: DwgNeutralPoint2 | undefined;
+  readonly extensionLineRotation: number | undefined;
+  readonly dimensionRotation: number | undefined;
+  readonly leaderLength: number | undefined;
+  readonly ordinateFlags: number | undefined;
+}
+
+/** Segmento recto de un camino de HATCH. */
+export interface DwgNeutralHatchLineSegment {
+  readonly kind: "line";
+  readonly start: DwgNeutralPoint2;
+  readonly end: DwgNeutralPoint2;
+}
+
+/** Segmento de arco circular de un camino de HATCH. */
+export interface DwgNeutralHatchArcSegment {
+  readonly kind: "arc";
+  readonly center: DwgNeutralPoint2;
+  readonly radius: number;
+  readonly startAngle: number;
+  readonly endAngle: number;
+  readonly counterClockwise: boolean;
+}
+
+/** Segmento de arco elíptico: el extremo mayor es un VECTOR desde el centro. */
+export interface DwgNeutralHatchEllipticArcSegment {
+  readonly kind: "ellipticArc";
+  readonly center: DwgNeutralPoint2;
+  readonly majorAxisEndpoint: DwgNeutralPoint2;
+  readonly axisRatio: number;
+  readonly startAngle: number;
+  readonly endAngle: number;
+  readonly counterClockwise: boolean;
+}
+
+/** Segmento spline 2D de un camino de HATCH; pesos sólo si es racional. */
+export interface DwgNeutralHatchSplineSegment {
+  readonly kind: "spline";
+  readonly degree: number;
+  readonly rational: boolean;
+  readonly periodic: boolean;
+  readonly knots: readonly number[];
+  readonly controlPoints: readonly DwgNeutralPoint2[];
+  readonly weights: readonly number[] | undefined;
+}
+
+export type DwgNeutralHatchSegment =
+  | DwgNeutralHatchLineSegment
+  | DwgNeutralHatchArcSegment
+  | DwgNeutralHatchEllipticArcSegment
+  | DwgNeutralHatchSplineSegment;
+
+/**
+ * Camino de HATCH en su forma polilínea: vértices 2D con bulges opcionales
+ * (`undefined` = el bit de bulges no viajó). Es la única forma que la
+ * primitiva canónica de destino sabe representar hoy.
+ */
+export interface DwgNeutralHatchPolylinePath {
+  readonly kind: "polyline";
+  readonly flags: number;
+  readonly closed: boolean;
+  readonly vertices: readonly DwgNeutralPoint2[];
+  readonly bulges: readonly number[] | undefined;
+  readonly boundaryObjectCount: number;
+}
+
+/**
+ * Camino de HATCH como lista de segmentos tipados (línea/arco/arco
+ * elíptico/spline). El perfil de producto no proyecta esta forma — ningún
+ * campo de `CadDxfHatch` representa un contorno curvo — pero el laboratorio
+ * SÍ la decodifica, así que llega completa hasta aquí por la misma razón que
+ * el escenario 2 de SPLINE: para que el puente declare la pérdida con
+ * precisión, no para que se use hoy.
+ */
+export interface DwgNeutralHatchSegmentsPath {
+  readonly kind: "segments";
+  readonly flags: number;
+  readonly segments: readonly DwgNeutralHatchSegment[];
+  readonly boundaryObjectCount: number;
+}
+
+export type DwgNeutralHatchPath = DwgNeutralHatchPolylinePath | DwgNeutralHatchSegmentsPath;
+
+/** Línea de definición del patrón de un HATCH no sólido. */
+export interface DwgNeutralHatchDefinitionLine {
+  readonly angle: number;
+  readonly basePoint: DwgNeutralPoint2;
+  readonly offset: DwgNeutralPoint2;
+  readonly dashes: readonly number[];
+}
+
+/**
+ * Sombreado (HATCH). El nombre del patrón viaja como BYTES; los caminos son
+ * un discriminante polyline/segments; los campos de patrón (ángulo, escala,
+ * doble trama, líneas de definición) sólo existen cuando NO es relleno
+ * sólido, y `pixelSize` sólo cuando algún camino lleva el bit de derivado.
+ */
+export interface DwgNeutralHatch {
+  readonly kind: "hatch";
+  readonly elevation: number;
+  readonly extrusion: DwgNeutralPoint3;
+  readonly nameBytes: readonly number[];
+  readonly solidFill: boolean;
+  readonly associative: boolean;
+  readonly paths: readonly DwgNeutralHatchPath[];
+  readonly style: number;
+  readonly patternType: number;
+  readonly angle: number | undefined;
+  readonly scaleOrSpacing: number | undefined;
+  readonly doubleHatch: boolean | undefined;
+  readonly definitionLines: readonly DwgNeutralHatchDefinitionLine[] | undefined;
+  readonly pixelSize: number | undefined;
+  readonly seedPoints: readonly DwgNeutralPoint2[];
+}
+
 export type DwgNeutralGeometry =
   | DwgNeutralLine
   | DwgNeutralPointEntity
@@ -169,7 +345,10 @@ export type DwgNeutralGeometry =
   | DwgNeutralText
   | DwgNeutralInsert
   | DwgNeutralEllipse
-  | DwgNeutralSpline;
+  | DwgNeutralSpline
+  | DwgNeutralMText
+  | DwgNeutralDimension
+  | DwgNeutralHatch;
 
 export interface DwgNeutralLayer {
   readonly handle: number;

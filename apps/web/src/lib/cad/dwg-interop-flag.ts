@@ -136,8 +136,8 @@ export const DWG_IMPORT_DISABLED_REASON =
   "conserva y lo que se pierde.";
 
 // ---------------------------------------------------------------------------
-// Beta acotada AC1015_MODELSPACE_2D_V2 — firmada 2026-08-24 (ADR-0009
-// §6-bis), ampliada el mismo día (§6-ter)
+// Beta acotada AC1015_MODELSPACE_2D_V3 — firmada 2026-08-24 (ADR-0009
+// §6-bis), ampliada el mismo día (§6-ter, §6-quater)
 // ---------------------------------------------------------------------------
 
 /**
@@ -149,11 +149,13 @@ export const DWG_IMPORT_DISABLED_REASON =
  * acotó lo que autoriza mientras tanto a un perfil, una versión y un
  * sentido (importar, no exportar).
  *
- * El perfil es V2 desde §6-ter: §6-bis fijó V1 (LINE/POINT/CIRCLE/ARC/
+ * El perfil es V3 desde §6-quater: §6-bis fijó V1 (LINE/POINT/CIRCLE/ARC/
  * LWPOLYLINE/TEXT/INSERT) y autorizó, como parte de la misma firma, una
  * hoja de ruta secuencial de ampliaciones (M2/M3/M4/M5) condicionada a que
  * cada hito tuviera su propio end-to-end en verde antes del siguiente. V2
- * es M2a: suma ELLIPSE y SPLINE no racional de escenario 1.
+ * (§6-ter, M2a) sumó ELLIPSE y SPLINE no racional de escenario 1; V3
+ * (§6-quater, M2b) suma MTEXT, DIMENSION (salvo angular de dos líneas) y
+ * HATCH de contorno poligonal.
  *
  * `legalReviewStatus` se queda en `"pending_parallel"` a propósito: cambiar
  * este archivo no puede convertirlo en `legalReviewCleared: true` en
@@ -164,7 +166,7 @@ export interface DwgBetaAuthorization {
   readonly ownerSigned: true;
   readonly adrRef: "0009";
   readonly signedDate: "2026-08-24";
-  readonly profile: "AC1015_MODELSPACE_2D_V2";
+  readonly profile: "AC1015_MODELSPACE_2D_V3";
   readonly legalReviewStatus: "pending_parallel";
 }
 
@@ -172,7 +174,7 @@ export const DWG_BETA_AUTHORIZATION: DwgBetaAuthorization = Object.freeze({
   ownerSigned: true,
   adrRef: "0009",
   signedDate: "2026-08-24",
-  profile: "AC1015_MODELSPACE_2D_V2",
+  profile: "AC1015_MODELSPACE_2D_V3",
   legalReviewStatus: "pending_parallel",
 });
 
