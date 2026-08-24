@@ -16,9 +16,10 @@
  * proceso, así que no hay derechos que pedir ni bytes que versionar.
  */
 import { strict as assert } from "node:assert";
-import { writeDwg, type DwgGeometryEntity } from "@valle-design/dwg-codec";
+import { DEFAULT_DWG_LIMITS, writeDwg, type DwgGeometryEntity } from "@valle-design/dwg-codec";
 import { readDwgNeutralDatabase, toBetaProfileDatabase } from "./dwg-native-reader";
 import { dwgNeutralDatabaseToCadDocument } from "./dwg-document-bridge";
+import { DWG_MAX_IMPORT_BYTES } from "./dwg-import-limits";
 
 /** Sólo `DwgGeometryEntity` (la unión) es pública; se extrae cada variante. */
 type EntityOfKind<K extends DwgGeometryEntity["kind"]> = Extract<
@@ -441,8 +442,59 @@ assert.throws(
   "otra firma reconocida y ajena se sigue rechazando igual, aunque AC1018 esté permitido",
 );
 
+// ─── 7. Fase 2: una sola fuente de verdad para el tope de bytes ───────────
+// `dwg-import-limits.ts` (usado por la UI vía document-import.ts) declara el
+// mismo número que el códec por separado, a propósito (el boundary de
+// producto impide que ese archivo importe el códec directamente). Esta
+// comprobación cruzada es lo único que impide que diverjan en silencio.
+assert.equal(
+  DWG_MAX_IMPORT_BYTES,
+  DEFAULT_DWG_LIMITS.maxFileBytes,
+  "el tope de bytes de la UI (dwg-import-limits.ts) debe coincidir exactamente con " +
+    "DEFAULT_DWG_LIMITS.maxFileBytes del códec — si el códec cambia su límite sin que " +
+    "este número se actualice, la UI vuelve a aceptar archivos que el códec rechaza",
+);
+
+// ─── 8. Fase 2: mensajes distintos por código, no todo "firma inválida" ───
+// Antes de este arreglo, un archivo demasiado grande y uno con firma inválida
+// producían EL MISMO mensaje ("firma inválida o archivo truncado"), porque
+// probe.probe===null en los dos casos y sólo eso se comprobaba.
+{
+  const tooLarge = new Uint8Array(DEFAULT_DWG_LIMITS.maxFileBytes + 1);
+  assert.throws(
+    () => readDwgNeutralDatabase(tooLarge),
+    /supera el tamaño máximo/,
+    "un archivo por encima del tope de bytes dice 'supera el tamaño máximo', no 'firma inválida'",
+  );
+  assert.throws(
+    () => readDwgNeutralDatabase(tooLarge),
+    (error: unknown) => error instanceof Error && !/firma inválida/.test(error.message),
+    "el mensaje de tamaño NUNCA menciona 'firma inválida': son dos causas distintas",
+  );
+}
+{
+  // Firma genuinamente TRUNCADA (menos de 6 bytes, pero lo que hay coincide
+  // con el prefijo "AC1"): distinta de una firma presente pero equivocada.
+  const truncated = new Uint8Array(ascii("AC1"));
+  assert.throws(
+    () => readDwgNeutralDatabase(truncated),
+    /truncado/,
+    "una firma truncada (menos de 6 bytes) dice 'truncado', no el genérico de firma inválida",
+  );
+}
+{
+  // Firma presente, de longitud suficiente, pero con contenido que no es
+  // "AC10dd" desde el primer byte: firma INVÁLIDA, no truncada.
+  assert.throws(
+    () => readDwgNeutralDatabase(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8])),
+    /no se reconoce como DWG \(firma inválida\)/,
+    "basura de longitud suficiente dice 'firma inválida', no 'truncado'",
+  );
+}
+
 console.log(
   "dwg-native-reader: perfil V3 completo (bytes reales + ELLIPSE/SPLINE/MTEXT/DIMENSION/HATCH " +
     "puros), fuera-de-perfil declarado, versión ajena nombrada, AC1018 opcional verificado, " +
-    "puente canónico verificado",
+    "puente canónico verificado, tope de bytes con fuente única (Fase 2), mensajes de error " +
+    "distinguibles por código (Fase 2)",
 );

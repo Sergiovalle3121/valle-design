@@ -36,6 +36,7 @@ RUN npm ci --no-audit --no-fund --ignore-scripts
 
 COPY packages/contracts packages/contracts
 COPY packages/design-sdk packages/design-sdk
+COPY packages/dwg-codec packages/dwg-codec
 COPY apps/web apps/web
 
 # El origen PÚBLICO exacto de la API. No tiene default: un valor por omisión
@@ -114,6 +115,18 @@ ENV NEXT_PUBLIC_BRAND_LOGO_MARK=${NEXT_PUBLIC_BRAND_LOGO_MARK}
 ENV NEXT_PUBLIC_BRAND_LOGO_ICON=${NEXT_PUBLIC_BRAND_LOGO_ICON}
 ENV NEXT_PUBLIC_BRAND_PRODUCT_NAME_DESIGN=${NEXT_PUBLIC_BRAND_PRODUCT_NAME_DESIGN}
 
+# Flags DWG beta (ADR-0009 §6-bis/ter/quater/§7), apagados por defecto a
+# propósito: sin `default` en el ARG, un build que no las pasa deja la ENV
+# vacía, y `isDwgNativeImportBetaEnabled`/`isDwgAc1018ImportBetaEnabled`
+# (`document-import-client.ts`) comparan contra la cadena exacta "true" —
+# vacío es "false". AC1018 exige ADEMÁS que la beta base esté encendida
+# (`dwgAc1018BetaImportIsEnabled`, `dwg-interop-flag.ts`): pasar sólo esta
+# variable no habilita nada por sí sola.
+ARG NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA
+ARG NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA
+ENV NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA=${NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA}
+ENV NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA=${NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA}
+
 ENV NEXT_OUTPUT=standalone
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=production
@@ -121,8 +134,17 @@ ENV NODE_ENV=production
 RUN test -n "$NEXT_PUBLIC_API_URL" \
   || (echo "NEXT_PUBLIC_API_URL es obligatorio: se incrusta en el bundle." && exit 1)
 
+# El worker de importación (`document-import.worker.ts`) importa
+# DINÁMICAMENTE `dwg-native-reader.ts`, que a su vez importa
+# `@valle-design/dwg-codec` de forma estática. Next.js resuelve el grafo de
+# módulos de un `import()` dinámico en tiempo de BUILD para crear su chunk,
+# aunque la carga sea perezosa en runtime: sin este build, `dist/` y
+# `dist-cjs/` no existen y `npm run build --workspace=web` falla con
+# "Cannot find module" al empaquetar el worker — sin importar el valor de
+# los flags NEXT_PUBLIC_DWG_* de arriba.
 RUN npm run build --workspace=@valle-design/contracts \
-  && npm run build --workspace=@valle/design-sdk
+  && npm run build --workspace=@valle/design-sdk \
+  && npm run build --workspace=@valle-design/dwg-codec
 
 # Gate de marca y contacto (`apps/web/scripts/check-production-config.mts`):
 # con NODE_ENV=production ya fijado arriba, revienta el build si razón

@@ -118,9 +118,30 @@ describe('schema 4 entity invariants', () => {
     // Rechazar el esquema vigente convertiría cada guardado del editor en un
     // 400. Ancla contra la CONSTANTE, no contra el número que fuera el techo
     // el día que esto se escribió: fijarlo a mano es justo lo que dejó esta
-    // prueba en rojo la vez que el techo subió y nadie la tocó — el mismo
-    // modo de fallo que dejó al SERVIDOR en 9 mientras el cliente ya escribía
-    // 10 (ver cad-document-validation.ts).
+    // prueba en rojo la vez que el techo subió y nadie la tocó.
+    //
+    // El techo subió a 10 con los siete DIMVARs de `dimension`
+    // (DIMTXT/DIMTXSTY/DIMCLRT/DIMCLRD/DIMCLRE/DIMTAD/DIMJUST,
+    // `cad-entities-v10.ts` en el cliente): puramente aditivo, ninguno
+    // introduce una forma nueva que este validador deba comprobar por
+    // campo. Este mismo par de aserciones, con 8/9 en vez de 9/10, se
+    // quedó verde después de que el cliente subiera a
+    // `CAD_DOCUMENT_SCHEMA = 10` (commit b3fada9): confirmaba que el
+    // esquema 10 se RECHAZABA, cuando el cliente ya lo escribía en cada
+    // guardado nuevo. La prueba pasaba y el guardado real fallaba con 400
+    // — exactamente el modo de fallo que describe el comentario de
+    // `CAD_DOCUMENT_MAX_SCHEMA`, y que la campaña 3D-M1 y el cierre M1 de
+    // DWG encontraron cada una por su lado, de forma independiente: aquí
+    // (DWG) por un E2E real (API + Postgres, no mockeado) al guardar un
+    // documento importado; allá por un agente de investigación sobre el
+    // precedente de migración de esquema. El techo desactualizado no era
+    // específico de DWG: afectaba cualquier guardado.
+    expect(() =>
+      validateCadDocumentPayload({
+        ...withEntities([sound.point]),
+        meta: { schema: CAD_DOCUMENT_MAX_SCHEMA - 1, version: 1, unit: 'mm' },
+      }),
+    ).not.toThrow();
     expect(() =>
       validateCadDocumentPayload({
         ...withEntities([sound.point]),

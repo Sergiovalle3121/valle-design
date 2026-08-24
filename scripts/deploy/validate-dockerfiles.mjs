@@ -135,6 +135,73 @@ export function missingRequiredCopies(copyEntries, required) {
 }
 
 /**
+ * ¿Hay, entre las COPY del stage de build, una que copie la FUENTE de
+ * `packages/dwg-codec` (no sólo su `package.json`, ya copiado antes del
+ * `npm ci` para que el workspace resuelva)? `entries` son instrucciones COPY
+ * ya filtradas al stage que corresponda por quien llama.
+ */
+export function hasDwgCodecSourceCopy(entries) {
+  return entries.some((entry) => {
+    const { srcs, dest } = parseCopyInstruction(entry.text);
+    return (
+      dest !== undefined &&
+      /packages\/dwg-codec\/?$/.test(dest) &&
+      srcs.some((src) => /packages\/dwg-codec$/.test(src))
+    );
+  });
+}
+
+/**
+ * Localiza el RUN que construye `@valle-design/dwg-codec` y el que construye
+ * `web`, y si el primero corre ANTES del segundo (por número de línea; una
+ * instrucción con continuaciones `\` reporta la línea donde EMPIEZA). Ambos
+ * `undefined` o en el orden equivocado son el mismo defecto: `web` empaqueta
+ * el worker de importación sin que el códec exista todavía compilado.
+ */
+export function dwgCodecBuildOrder(runEntries) {
+  const webBuildRun = runEntries.find((entry) =>
+    /npm\s+run\s+build\s+--workspace=web\b/.test(entry.text),
+  );
+  const dwgBuildRun = runEntries.find((entry) =>
+    /npm\s+run\s+build\s+--workspace=@valle-design\/dwg-codec\b/.test(entry.text),
+  );
+  return {
+    webBuildRun,
+    dwgBuildRun,
+    orderedCorrectly:
+      Boolean(dwgBuildRun) && Boolean(webBuildRun) && dwgBuildRun.line < webBuildRun.line,
+  };
+}
+
+/** Los dos flags de build que gobiernan la beta de importación DWG (ADR-0009). */
+export const DWG_BUILD_FLAG_NAMES = [
+  'NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA',
+  'NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA',
+];
+
+/**
+ * De `DWG_BUILD_FLAG_NAMES`, cuáles NO están declarados como `ARG` Y
+ * propagados como `ENV nombre=${nombre}` ANTES del build de `web` (si se
+ * conoce esa línea). Un ARG sin su ENV nunca llega al proceso de Next.js: los
+ * build-args de Docker sólo son visibles al `RUN` como variable de entorno si
+ * alguna instrucción `ENV` los reenvía explícitamente.
+ */
+export function missingDwgBuildFlags(allEntries, envEntries, webBuildRun) {
+  const flagWired = (name) => {
+    const argDeclared = allEntries.some((entry) =>
+      new RegExp(`^ARG\\s+${name}\\b`).test(entry.text),
+    );
+    const envLine = envEntries.find((entry) =>
+      new RegExp(`^ENV\\s+${name}=\\$\\{${name}\\}`).test(entry.text),
+    );
+    return (
+      argDeclared && envLine !== undefined && (!webBuildRun || envLine.line < webBuildRun.line)
+    );
+  };
+  return DWG_BUILD_FLAG_NAMES.filter((name) => !flagWired(name));
+}
+
+/**
  * Patrones de secreto embebido. Deliberadamente conservadores: buscan una
  * ASIGNACIÓN de valor literal a una clave sensible, no la mera aparición de
  * la palabra (un comentario que explica por qué NO hay secretos debe pasar).
@@ -360,6 +427,37 @@ export function validate(target, nodeMajor) {
     secretHits.length === 0,
     `${secretHits.join('; ')} — una capa conserva el valor aunque otra lo borre`,
   );
+
+  // ── 11 · el códec DWG se copia y se construye en el stage de build ────────
+  // `document-import.worker.ts` importa dinámicamente `dwg-native-reader.ts`,
+  // que importa estáticamente `@valle-design/dwg-codec`. Next.js resuelve ese
+  // grafo en tiempo de BUILD para crear el chunk del worker, así que sin la
+  // fuente copiada y `dist/`/`dist-cjs/` construidos el build de `web` falla
+  // — el caso real que motivó este bloque (P1, campaña DWG producto).
+  if (target.path === 'apps/web/Dockerfile') {
+    const buildStageCopies = copies.filter((entry) => entry.line <= lastFromLine);
+    check(
+      'dwg-codec-copia-fuente',
+      hasDwgCodecSourceCopy(buildStageCopies),
+      '`packages/dwg-codec` (fuente, no sólo su package.json) no se copia al stage de build: sin `dist/`/`dist-cjs/` construidos el build de `web` falla con "Cannot find module" al empaquetar el worker de importación, sin importar el valor de los flags NEXT_PUBLIC_DWG_*',
+    );
+
+    const { webBuildRun, dwgBuildRun, orderedCorrectly } = dwgCodecBuildOrder(runs);
+    check(
+      'dwg-codec-build',
+      orderedCorrectly,
+      !dwgBuildRun
+        ? 'no hay `RUN npm run build --workspace=@valle-design/dwg-codec`: el códec nunca se compila y el build de `web` falla al resolver el import dinámico del worker'
+        : 'el build de `@valle-design/dwg-codec` no corre ANTES del build de `web`: `web` necesita `dist/`/`dist-cjs/` ya construidos cuando empaqueta el worker',
+    );
+
+    const missingFlags = missingDwgBuildFlags(instr, envs, webBuildRun);
+    check(
+      'dwg-flags-cableados',
+      missingFlags.length === 0,
+      `falta declarar (ARG) y propagar (ENV) antes del build de web: ${missingFlags.join(', ')} — sin las dos cosas, Next.js nunca ve la variable en tiempo de build y la beta queda inalcanzable aunque el códec ya esté compilado`,
+    );
+  }
 
   return { file: target.path, name: target.name, failures, checks };
 }

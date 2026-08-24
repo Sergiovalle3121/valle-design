@@ -21,7 +21,10 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  dwgCodecBuildOrder,
+  hasDwgCodecSourceCopy,
   instructions,
+  missingDwgBuildFlags,
   missingRequiredCopies,
   parseCopyInstruction,
   REQUIRED_COPIES,
@@ -184,6 +187,149 @@ COPY --from=build --chown=node:node /app/apps/web/public-old ./apps/web/public
   ok(
     missing.some((m) => m.id === 'copia:public'),
     'un origen "apps/web/public-old" no debe confundirse con "apps/web/public" (ancla $ al final del patrón)',
+  );
+}
+
+// ─── ROJO: el Dockerfile pre-P1 no copiaba/construía el códec DWG ni cableaba
+//           sus flags — el hallazgo que abrió esta campaña ────────────────
+
+{
+  // Fixture INLINE del Dockerfile tal como estaba antes de P1 (campaña DWG
+  // producto): copiaba sólo el package.json del códec (para que `npm ci`
+  // resuelva el workspace), nunca su código, nunca lo construía, y no
+  // declaraba los flags de build. Texto minimal — sólo lo que las tres
+  // funciones nuevas necesitan para decidir.
+  const preP1Source = `
+FROM node:20-bookworm-slim AS build
+WORKDIR /app
+COPY packages/dwg-codec/package.json packages/dwg-codec/
+RUN npm ci --ignore-scripts
+COPY apps/web apps/web
+RUN npm run build --workspace=@valle-design/contracts \\
+  && npm run build --workspace=@valle/design-sdk
+RUN npm run build --workspace=web
+FROM node:20-bookworm-slim AS runtime
+`;
+  const instr = instructions(preP1Source);
+  const froms = instr.filter((entry) => /^FROM\b/i.test(entry.text));
+  const lastFromLine = froms[froms.length - 1].line;
+  const buildStageCopies = instr.filter(
+    (entry) => /^COPY\b/i.test(entry.text) && entry.line <= lastFromLine,
+  );
+  const runEntries = instr.filter((entry) => /^RUN\b/i.test(entry.text));
+  const envEntries = instr.filter((entry) => /^ENV\b/i.test(entry.text));
+
+  ok(
+    !hasDwgCodecSourceCopy(buildStageCopies),
+    'el Dockerfile pre-P1 (sólo copia package.json del códec) no cuenta como fuente copiada — éste es el rojo que reprodujo el hallazgo P1',
+  );
+
+  const order = dwgCodecBuildOrder(runEntries);
+  ok(
+    !order.orderedCorrectly && order.dwgBuildRun === undefined,
+    'el Dockerfile pre-P1 no tiene ningún RUN que construya @valle-design/dwg-codec',
+  );
+
+  const missingFlags = missingDwgBuildFlags(instr, envEntries, order.webBuildRun);
+  eq(
+    missingFlags,
+    ['NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA', 'NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA'],
+    'el Dockerfile pre-P1 no declara ni propaga ninguno de los dos flags de build DWG',
+  );
+}
+
+// ─── VERDE: el Dockerfile actual del repositorio ya copia+construye el
+//            códec y cablea los dos flags en el orden correcto ─────────────
+
+{
+  const webSource = readFileSync(join(ROOT, 'apps/web/Dockerfile'), 'utf8');
+  const instr = instructions(webSource);
+  const froms = instr.filter((entry) => /^FROM\b/i.test(entry.text));
+  const lastFromLine = froms[froms.length - 1].line;
+  const buildStageCopies = instr.filter(
+    (entry) => /^COPY\b/i.test(entry.text) && entry.line <= lastFromLine,
+  );
+  const runEntries = instr.filter((entry) => /^RUN\b/i.test(entry.text));
+  const envEntries = instr.filter((entry) => /^ENV\b/i.test(entry.text));
+
+  ok(
+    hasDwgCodecSourceCopy(buildStageCopies),
+    'el Dockerfile actual copia la fuente de packages/dwg-codec al stage de build',
+  );
+
+  const order = dwgCodecBuildOrder(runEntries);
+  ok(
+    order.orderedCorrectly,
+    'el Dockerfile actual construye @valle-design/dwg-codec ANTES de construir web',
+  );
+
+  eq(
+    missingDwgBuildFlags(instr, envEntries, order.webBuildRun),
+    [],
+    'el Dockerfile actual declara y propaga los dos flags NEXT_PUBLIC_DWG_* antes del build de web',
+  );
+}
+
+// ─── Adversarial: build del códec presente pero DESPUÉS del build de web ───
+
+{
+  const wrongOrderSource = `
+FROM node:20-bookworm-slim AS build
+COPY packages/dwg-codec packages/dwg-codec
+RUN npm run build --workspace=web
+RUN npm run build --workspace=@valle-design/dwg-codec
+FROM node:20-bookworm-slim AS runtime
+`;
+  const instr = instructions(wrongOrderSource);
+  const runEntries = instr.filter((entry) => /^RUN\b/i.test(entry.text));
+  const order = dwgCodecBuildOrder(runEntries);
+  ok(
+    !order.orderedCorrectly,
+    'construir el códec DESPUÉS de web no cuenta como correcto: web ya empaquetó el worker sin dist/ listo',
+  );
+}
+
+// ─── Adversarial: ARG declarado pero nunca promovido a ENV (Docker jamás lo
+//                  expone al proceso de `npm run build`) ───────────────────
+
+{
+  const argWithoutEnvSource = `
+FROM node:20-bookworm-slim AS build
+ARG NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA
+ARG NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA
+RUN npm run build --workspace=web
+FROM node:20-bookworm-slim AS runtime
+`;
+  const instr = instructions(argWithoutEnvSource);
+  const runEntries = instr.filter((entry) => /^RUN\b/i.test(entry.text));
+  const envEntries = instr.filter((entry) => /^ENV\b/i.test(entry.text));
+  const order = dwgCodecBuildOrder(runEntries);
+  eq(
+    missingDwgBuildFlags(instr, envEntries, order.webBuildRun),
+    ['NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA', 'NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA'],
+    'un ARG sin su ENV correspondiente no cuenta como cableado: Docker no lo expone como variable de entorno a `RUN`',
+  );
+}
+
+// ─── Adversarial: ENV declarado DESPUÉS del build de web (llega tarde) ─────
+
+{
+  const envAfterBuildSource = `
+FROM node:20-bookworm-slim AS build
+ARG NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA
+RUN npm run build --workspace=web
+ENV NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA=\${NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA}
+FROM node:20-bookworm-slim AS runtime
+`;
+  const instr = instructions(envAfterBuildSource);
+  const runEntries = instr.filter((entry) => /^RUN\b/i.test(entry.text));
+  const envEntries = instr.filter((entry) => /^ENV\b/i.test(entry.text));
+  const order = dwgCodecBuildOrder(runEntries);
+  ok(
+    missingDwgBuildFlags(instr, envEntries, order.webBuildRun).includes(
+      'NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA',
+    ),
+    'un ENV declarado DESPUÉS del RUN que construye web llega tarde: Next.js ya horneó el bundle sin verlo',
   );
 }
 

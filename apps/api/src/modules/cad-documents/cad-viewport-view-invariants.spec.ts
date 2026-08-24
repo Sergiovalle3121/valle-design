@@ -162,9 +162,15 @@ describe('schema 8 viewport view invariants', () => {
     ).toThrow(BadRequestException);
   });
 
-  it('acepta el esquema vigente y rechaza el siguiente, que todavía no existe', () => {
+  it('acepta hasta el esquema vigente y rechaza el siguiente, que todavía no existe', () => {
     expect(() =>
       validateCadDocumentPayload(withViewport(planta)),
+    ).not.toThrow();
+    expect(() =>
+      validateCadDocumentPayload({
+        ...withViewport(planta),
+        meta: { schema: CAD_DOCUMENT_MAX_SCHEMA - 1, version: 1, unit: 'mm' },
+      }),
     ).not.toThrow();
     expect(() =>
       validateCadDocumentPayload({

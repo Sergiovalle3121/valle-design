@@ -86,10 +86,19 @@ describe('schema 5 solid invariants', () => {
 
   // Ancla contra la CONSTANTE, no contra un número que quedó fijo la última
   // vez que alguien lo tocó a mano: ese mismo descuido es justo lo que dejó
-  // esta prueba probando 9/10 bajo un título que todavía hablaba de 5/6/7.
-  it('acepta el esquema vigente; uno más allá es futuro y se rechaza', () => {
+  // esta prueba probando 9/10 bajo un título que todavía hablaba de 5/6/7 —
+  // y es también, de forma independiente, la causa raíz que la campaña
+  // 3D-M1 y el cierre M1 de DWG encontraron cada una por su lado en el
+  // propio `CAD_DOCUMENT_MAX_SCHEMA`.
+  it('acepta hasta el esquema vigente; uno más allá es futuro y se rechaza', () => {
     expect(() =>
       validateCadDocumentPayload(withEntities([soundSolid()])),
+    ).not.toThrow();
+    expect(() =>
+      validateCadDocumentPayload({
+        ...withEntities([]),
+        meta: { schema: CAD_DOCUMENT_MAX_SCHEMA - 1, version: 1, unit: 'mm' },
+      }),
     ).not.toThrow();
     expect(() =>
       validateCadDocumentPayload({

@@ -271,11 +271,13 @@ test.describe("recorrido comercial CAD first-party contra PostgreSQL", () => {
     await page.goto(
       `/verify-email?token=${encodeURIComponent(verificationToken)}`,
     );
-    await expect(page.getByLabel("Token")).toHaveValue(verificationToken);
-    await expect(page).not.toHaveURL(/(?:\?|&)token=/u);
-    await page.getByRole("button", { name: "Verificar correo" }).click();
+    // La verificación se envía sola al montar con un token válido en la URL:
+    // ya no hay un campo "Token" visible ni un botón que pulsar — verificado
+    // empíricamente contra el servidor real. Ver
+    // e2e/real/dwg-import-real.spec.ts, hallado con el mismo patrón.
     await expect(page.getByRole("status")).toContainText(
       /correo qued.* verificado/iu,
+      { timeout: 30_000 },
     );
 
     await loginThroughUi(page, email, E2E_PASSWORD);
@@ -289,21 +291,17 @@ test.describe("recorrido comercial CAD first-party contra PostgreSQL", () => {
     ).toBeNull();
 
     organizationName = `Valle E2E ${runId}`;
-    await expect(
-      page.getByRole("heading", { name: "Elige tu organización" }),
-    ).toBeVisible();
-    await page.locator("#organization-name").fill(organizationName);
-    await page
-      .locator("#organization-slug")
-      .fill(`valle-e2e-${runId}`.toLowerCase());
+    // El slug se genera solo a partir del nombre en la UI actual (verificado
+    // empíricamente: ya no hay campo de slug separado ni el selector de dos
+    // tarjetas trae un encabezado "Elige tu organización"). Mismo patrón que
+    // e2e/real/dwg-import-real.spec.ts.
+    await page.getByLabel("Nombre del despacho").fill(organizationName);
     const creation = page.waitForResponse(
       (response) =>
         response.url() === `${API_ORIGIN}/v1/organizations` &&
         response.request().method() === "POST",
     );
-    await page
-      .getByRole("button", { name: "Crear organización y comenzar" })
-      .click();
+    await page.getByRole("button", { name: "Crear organización" }).click();
     const creationResponse = await creation;
     expect(creationResponse.status()).toBe(201);
     const created = (await creationResponse.json()) as OrganizationCreated;

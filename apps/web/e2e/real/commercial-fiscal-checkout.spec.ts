@@ -104,9 +104,13 @@ test.describe("captura fiscal CFDI 4.0 y compra autoservicio", () => {
     await page.goto(
       `/verify-email?token=${encodeURIComponent(capturedToken(verification))}`,
     );
-    await page.getByRole("button", { name: "Verificar correo" }).click();
+    // La verificación se envía sola al montar con un token válido en la URL
+    // (sin botón que pulsar): verificado empíricamente contra el servidor
+    // real. Ver e2e/real/dwg-import-real.spec.ts, hallado con el mismo
+    // patrón.
     await expect(page.getByRole("status")).toContainText(
       /correo qued.* verificado/iu,
+      { timeout: 30_000 },
     );
 
     await page.goto("/login?returnTo=/dashboard");
