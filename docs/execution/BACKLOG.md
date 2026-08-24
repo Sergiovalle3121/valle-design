@@ -25,6 +25,12 @@ cola viva, no el museo (el museo es `docs/history/`).
   protocolo del titular ya la sustituyen operativamente); (b) GitHub Pro u
   organización: privado CON protección (~4 USD/mes); (c) público deliberado,
   asumiendo exposición del código propietario.
+- **Runbook listo para ejecutar en cuanto se decida:** `docs/ops/runbook-repo-protection.md`
+  (rescatado 2026-08-24 de `claude/pulido-ola0`) trae los comandos exactos —
+  confirmar visibilidad actual, convertir a privado, verificar que branch
+  protection/CODEOWNERS sobrevivan el cambio, escanear secretos en TODO el
+  historial (no sólo HEAD, un repo público pudo haber sido clonado/forkeado
+  antes), inventariar forks/releases/packages ya expuestos.
 - **Criterio de aceptación:** la baseline registra la decisión con fecha y el
   gate `check:governance` la refleja; NOTICE y REPOSITORY_PROTECTION dejan de
   tener un asterisco.
