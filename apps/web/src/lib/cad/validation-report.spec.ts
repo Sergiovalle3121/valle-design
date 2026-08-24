@@ -238,4 +238,79 @@ assertEqual(
 );
 assertEqual(noDocReport.severity, "ok", "empty report stays ok");
 
+// --- geometría nativa (Corte F): un muro/masa sin volumen 3D avisa, no desaparece ---
+
+// Sin `invalidGeometry`, ningún hallazgo — compatibilidad hacia atrás con
+// cualquier llamador que no conozca el visor 3D nativo.
+const noGeometryReport = buildCadValidationReport({ boxes: [] });
+assertEqual(
+  noGeometryReport.geometry.length,
+  0,
+  "no invalidGeometry input → no geometry findings",
+);
+
+const wallGeometryReport = buildCadValidationReport({
+  boxes: [],
+  invalidGeometry: { wallIds: ["muro-degenerado"] },
+});
+assertEqual(
+  wallGeometryReport.geometry.length,
+  1,
+  "an invalid wall id produces exactly one geometry finding",
+);
+assertEqual(
+  wallGeometryReport.geometry[0]?.code,
+  "wall_geometry_invalid",
+  "invalid wall finding carries the wall-specific code",
+);
+assertEqual(
+  wallGeometryReport.geometry[0]?.severity,
+  "critical",
+  "an invalid WALL is critical: persisted geometry vanished silently",
+);
+assertOk(
+  wallGeometryReport.geometry[0]?.affectedObjectIds.includes("muro-degenerado"),
+  "the finding names the actual wall id, selectable like any other issue",
+);
+assertEqual(
+  wallGeometryReport.severity,
+  "critical",
+  "an invalid wall alone marks the whole report critical",
+);
+assertOk(
+  wallGeometryReport.issues.some(
+    (row) => row.category === "geometry" && row.severity === "critical",
+  ),
+  "invalid wall surfaces as an actionable issue row",
+);
+
+const massGeometryReport = buildCadValidationReport({
+  boxes: [],
+  invalidGeometry: { massKinds: ["roof"] },
+});
+assertEqual(
+  massGeometryReport.geometry.length,
+  1,
+  "an invalid mass kind produces exactly one geometry finding",
+);
+assertEqual(
+  massGeometryReport.geometry[0]?.code,
+  "architectural_mass_invalid",
+  "invalid mass finding carries the mass-specific code",
+);
+assertEqual(
+  massGeometryReport.geometry[0]?.severity,
+  "warning",
+  "an invalid MASS is only a warning: it's derived, not persisted data",
+);
+assertOk(
+  massGeometryReport.geometry[0]?.title.includes("Cubierta"),
+  "the finding names which mass kind failed, in Spanish, not the raw code",
+);
+assertEqual(
+  massGeometryReport.severity,
+  "warning",
+  "an invalid mass alone marks the report warning, not critical",
+);
+
 console.log("cad validation report specs passed");

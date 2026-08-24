@@ -116,6 +116,23 @@ export class CadArchitecturalMassHost {
     return this.objects.length;
   }
 
+  /**
+   * Qué masas (de las que se intentó construir) no produjeron un sólido
+   * válido (`group.userData.invalid`, ver `buildCadArchitecturalMassObject`)
+   * — para que quien reconcilie la escena pueda avisar en vez de dejarlas
+   * desaparecer en silencio (`validation-report.ts`). Cada objeto se
+   * etiqueta con su propio `architecturalMassKind`, así que no hace falta
+   * llevar cuenta aparte de cuál es cuál.
+   */
+  invalidKinds(): CadArchitecturalMassKind[] {
+    return this.objects
+      .filter((object) => object.userData.invalid === true)
+      .map(
+        (object) =>
+          object.userData.architecturalMassKind as CadArchitecturalMassKind,
+      );
+  }
+
   dispose(): void {
     this.teardown();
     this.walls = [];

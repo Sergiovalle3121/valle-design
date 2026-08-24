@@ -8664,6 +8664,8 @@ export default function Layout3DEditor({
       // documento (ids duplicados, fuera del área — estaciones incluidas).
       document: snapshotDocument(),
       footprint: { w: fp.footprintW, h: fp.footprintH },
+      // Muro/masa nativo sin sólido válido: avisar en vez de desaparecer.
+      invalidGeometry: nativeMassHostsRef.current?.invalidGeometry(),
       dimensionCount: [...annotationsRef.current.values()].filter(
         (a) => a.type === "dim",
       ).length,

@@ -196,6 +196,67 @@ const shell = (height = 2_400): CadWallEntity[] => [
   host.dispose();
 }
 
+// --- invalidKinds(): expone lo que buildCadArchitecturalMassObject marcó ----
+// Provocar un `null` REAL de `architecturalSlabBodyLocal` a través de
+// `sync()` no es realista: `detectCadRooms` ya descarta cualquier anillo
+// degenerado antes de exponerlo como `exteriorRing`, y los rangos de Z de
+// piso/cielorraso/cubierta son constantes de módulo siempre positivas — el
+// único camino real a `userData.invalid` es una excepción del kernel ante un
+// anillo patológico, que `room-solid-three.spec.ts` ya cubre directamente
+// sobre `buildCadArchitecturalMassObject`. Lo que hace falta probar AQUÍ es
+// la lectura: que `invalidKinds()` reporta fielmente lo que cada objeto
+// lleve en `userData`, sin llevar cuenta aparte. Como `sync()` añade cada
+// objeto a la vez a `group.children` (público) y a la lista privada que
+// `invalidKinds()` recorre, marcar la malla ya construida a través de
+// `group.children` simula justo lo que una construcción fallida habría
+// dejado, sin tocar estado privado.
+{
+  const host = new CadArchitecturalMassHost(() => viewport);
+  const walls = shell();
+  host.sync(documentWith(walls));
+  assert.deepEqual(
+    host.invalidKinds(),
+    [],
+    "un contorno rectangular corriente produce tres losas válidas",
+  );
+
+  const roof = host.group.children.find(
+    (child) => child.userData.architecturalMassKind === "roof",
+  )!;
+  roof.userData.invalid = true;
+  assert.deepEqual(
+    host.invalidKinds(),
+    ["roof"],
+    "invalidKinds() lee la marca de cada objeto: sólo la cubierta sale",
+  );
+
+  // Los MISMOS muros no reconstruyen nada (misma referencia) — la marca
+  // sintética sigue en pie, tal como quedaría una masa realmente inválida
+  // hasta que algo en la planta cambie de verdad.
+  host.sync(documentWith(walls));
+  assert.deepEqual(
+    host.invalidKinds(),
+    ["roof"],
+    "sin cambios en los muros, la masa inválida no se limpia sola",
+  );
+
+  // Cualquier cambio real reconstruye las tres desde cero, con el contorno
+  // real (válido): la marca sintética desaparece.
+  const wallsMutated = [
+    { ...walls[0], thickness: 300 },
+    walls[1],
+    walls[2],
+    walls[3],
+  ];
+  host.sync(documentWith(wallsMutated));
+  assert.deepEqual(
+    host.invalidKinds(),
+    [],
+    "una reconstrucción real repone las tres masas, todas válidas otra vez",
+  );
+  host.dispose();
+}
+
 console.log(
   "room-solid-host.spec: piso, cielorraso y cubierta se reconcilian juntos por el grafo de muros",
 );

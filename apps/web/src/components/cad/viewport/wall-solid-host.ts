@@ -153,6 +153,19 @@ export class CadWallSolidHost {
     return this.built.size;
   }
 
+  /**
+   * Ids de los muros cuya receta no produjo un sólido válido
+   * (`group.userData.invalid`, ver `buildCadWallSolidObject`) — para que
+   * quien reconcilie la escena pueda avisar en vez de dejarlos desaparecer
+   * en silencio (`validation-report.ts`).
+   */
+  invalidIds(): string[] {
+    const ids: string[] = [];
+    for (const [id, entry] of this.built)
+      if (entry.object.userData.invalid === true) ids.push(id);
+    return ids;
+  }
+
   dispose(): void {
     for (const entry of this.built.values())
       disposeCadWallSolidObject(entry.object);

@@ -34,6 +34,19 @@ export class CadNativeMassHosts {
     this.masses.sync(document);
   }
 
+  /**
+   * Qué muros y qué masas, de los ya sincronizados, no tienen un volumen 3D
+   * válido — para `buildCadValidationReport({ invalidGeometry })`, y así un
+   * muro o una masa que no se pudo construir avisa en vez de desaparecer en
+   * silencio.
+   */
+  invalidGeometry(): { wallIds: string[]; massKinds: string[] } {
+    return {
+      wallIds: this.walls.invalidIds(),
+      massKinds: this.masses.invalidKinds(),
+    };
+  }
+
   dispose(): void {
     this.walls.dispose();
     this.masses.dispose();

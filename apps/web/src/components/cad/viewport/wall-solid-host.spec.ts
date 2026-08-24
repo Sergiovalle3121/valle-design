@@ -248,6 +248,34 @@ const none: ReadonlySet<string> = new Set();
   host.dispose();
 }
 
+// --- invalidIds(): un muro degenerado avisa, no desaparece en silencio -----
+{
+  const host = new CadWallSolidHost(() => viewport);
+  const sound = wall("m1", 4_000);
+  const degenerate: CadWallEntity = {
+    ...wall("m2", 4_000),
+    // Eje de longitud cero: la misma condición fail-closed de
+    // wallSolidBodyLocal (ver wall-solid.spec.ts).
+    end: { x: 0, y: 0, z: 0 },
+  };
+  host.sync(documentWith([sound, degenerate]), none);
+  assert.deepEqual(
+    host.invalidIds(),
+    ["m2"],
+    "sólo el muro degenerado sale en invalidIds; el sano no",
+  );
+
+  // Arreglarlo lo saca de la lista, sin quedar fantasma.
+  const fixed: CadWallEntity = { ...degenerate, end: { x: 4_000, y: 0, z: 0 } };
+  host.sync(documentWith([sound, fixed]), none);
+  assert.deepEqual(
+    host.invalidIds(),
+    [],
+    "arreglar el eje lo saca de invalidIds",
+  );
+  host.dispose();
+}
+
 console.log(
   "wall-solid-host.spec: reconciliación por firma (muro + vanos alojados)",
 );
