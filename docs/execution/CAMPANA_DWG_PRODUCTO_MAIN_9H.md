@@ -252,3 +252,57 @@ ADR — sólo Docker/release/validador.
   Bug real encontrado: `DONACIONES.md` instruye `origin:"donated"` pero
   `build-manifest.mjs` sólo acepta `"donated-original"` — la primera
   donación real fallaría el intake tal como está hoy (task #9, Fase 5).
+
+### 5.3 Fase 2 — límites (CERRADA con un gap conocido registrado)
+
+Implementado, usando los hallazgos exactos del subagente A:
+
+1. **Fuente única del tope de bytes**: `apps/web/src/lib/cad/dwg-import-limits.ts`
+   (nuevo) declara `DWG_MAX_IMPORT_BYTES = 16 * 1024 * 1024`, igual al
+   `DEFAULT_DWG_LIMITS.maxFileBytes` real del códec. `document-import.ts`
+   ahora deriva `MAX_DWG_IMPORT_BYTES` de ahí (antes: `24_000_000`
+   independiente). Comprobación cruzada en `dwg-native-reader.spec.ts`
+   (único spec autorizado a importar el códec) que falla si diverge.
+   **No se creó un import directo al códec desde el archivo nuevo**: el
+   boundary de producto (`check-product-boundary.mjs`) lo prohíbe — ni
+   siquiera se puede mencionar la ruta del paquete en un comentario sin que
+   el gate lo marque (lo aprendí en rojo dos veces y lo corregí).
+2. **Mensajes distinguibles por código tipado**: `dwg-native-reader.ts` gana
+   `describeDwgErrorCode(code)` y lee `probe.error.code` /
+   `error.detail.code` (por forma, sin depender de una clase no exportada)
+   en vez de colapsar todo en "firma inválida o archivo truncado". Ahora
+   "demasiado grande", "presupuesto de trabajo agotado", "tiempo interno
+   agotado", "cancelado", "corrupto", "firma truncada" y "firma inválida"
+   son mensajes DISTINTOS. Preserva sin debilitar la prueba de regresión
+   preexistente que esperaba `/estructura interna/` para bytes basura con
+   AC1018.
+3. **Pruebas de frontera con el número REAL** (no sintético): exacto, uno
+   por debajo, uno por encima de 16.777.216 en `document-import.spec.ts`;
+   archivo de 16.777.217 bytes y firma truncada de 3 bytes en
+   `dwg-native-reader.spec.ts`.
+
+**Gap conocido, registrado y NO cerrado esta fase** (decisión conservadora:
+no reescribir el núcleo del parser bajo presión de tiempo sin auditoría
+propia primero): la cancelación NO es cooperativa a nivel códec.
+`readDwg`/`readAc1015Database`/`readR2004Database` no aceptan
+`signal`/`deadlineMs` (sólo `probeDwg` sí, y `dwg-native-reader.ts` no se
+lo pasa). El único mecanismo real hoy es `worker.terminate()` — efectivo
+para detener el hilo, pero no cooperativo con el códec (no hay forma de que
+el parser note la cancelación y retorne limpio). Cerrar esto de verdad
+exige tocar los tres puntos de entrada del lector, que esta sesión no ha
+auditado a profundidad; se deja para una sesión dedicada a esa superficie
+específica, no se improvisa aquí. Tampoco se añadió una prueba E2E de
+"cancelación efectiva + terminación del worker" (nivel navegador, no
+Node) — se prioriza en la Fase 4 si el tiempo alcanza.
+
+Comandos y resultados:
+
+| Comando | Exit | Nota |
+| --- | --- | --- |
+| `npx tsx src/lib/cad/dwg-native-reader.spec.ts` (cwd apps/web) | 0 | incl. las 3 pruebas nuevas de Fase 2 |
+| `npx tsx src/lib/cad/document-import.spec.ts` | 0 | incl. las 3 pruebas de frontera nuevas |
+| `npx tsx src/lib/cad/dwg-document-bridge.spec.ts` | 0 | sin regresión |
+| `node scripts/dwg/check-product-boundary.mjs` | 0 | tras corregir 2 rojos reales de referencias prohibidas en comentarios (ver arriba) |
+| `npx tsc --noEmit -p apps/web/tsconfig.json` | 0 | tras corregir un error real de estrechamiento de tipos (`probe.ok` como discriminante) |
+| `npm run check:dwg` | 0 | |
+| `npm run lint --workspace=web` | 0 | 202 warnings preexistentes, 0 en archivos tocados, 0 errores |
