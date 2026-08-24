@@ -452,6 +452,7 @@ import {
   CadSolidShadeHost,
   cadSolidEntityIds,
 } from "@/components/cad/viewport/solid-shade-host";
+import { CadArchitecturalMassHost } from "@/components/cad/viewport/architectural-mass-host";
 import { CadAssetSceneHost } from "@/components/cad/viewport/asset-scene-host";
 import {
   HELP_SECTIONS,
@@ -537,6 +538,8 @@ import {
   type CadSelectionGeometryMode,
 } from "@/components/cad/palettes/CadSelectionPalette";
 import { CadHatchPalette } from "@/components/cad/palettes/CadHatchPalette";
+import { CadMaterialPalette } from "@/components/cad/palettes/CadMaterialPalette";
+import { ARCHITECTURAL_MATERIALS } from "@/lib/cad/materials/architectural-material-library";
 import {
   CadMTextEditor,
   type CadMTextDraft,
@@ -935,6 +938,8 @@ interface SelSnap {
   subtitle: string;
   kind?: string;
   height?: number;
+  /** Id de `architectural-material-library.ts`; `undefined` = color plano. */
+  materialId?: string;
   canDuplicate: boolean;
 }
 
@@ -1947,6 +1952,7 @@ export default function Layout3DEditor({
   const renderPipelineResolvedRef = useRef(false);
   const renderPipelineHostRef = useRef<CadViewportRenderHost | null>(null);
   const solidShadeHostRef = useRef<CadSolidShadeHost | null>(null);
+  const architecturalMassHostRef = useRef<CadArchitecturalMassHost | null>(null);
   /**
    * Reproyecta los objetos heredados de la SELECCIÓN.
    *
@@ -2507,6 +2513,7 @@ export default function Layout3DEditor({
       subtitle: `Equipo · ${a.kind}${a.label ? ` · ${def.label}` : ""}`,
       kind: a.kind,
       height: def.height,
+      materialId: a.materialId,
       canDuplicate: true,
     };
   }, []);
@@ -3264,6 +3271,7 @@ export default function Layout3DEditor({
         document,
         new Set(nativeSelectionIdsRef.current),
       );
+      architecturalMassHostRef.current?.sync(document);
       const batchedHost = renderPipelineHostRef.current;
       if (batchedHost) {
         if (patch && batchedHost.loaded)
@@ -6180,6 +6188,9 @@ export default function Layout3DEditor({
     );
     nativeGroup.add(solidShadeHost.group);
     solidShadeHostRef.current = solidShadeHost;
+    // Piso/cielorraso/techo desde los muros cerrados; sin puente de vista, no engancha.
+    architecturalMassHostRef.current = new CadArchitecturalMassHost(() => ({ scale: s, width: W, height: H }));
+    nativeGroup.add(architecturalMassHostRef.current.group);
     const connsGroup = new THREE.Group();
     scene.add(connsGroup);
     connsGroupRef.current = connsGroup;
@@ -7736,6 +7747,8 @@ export default function Layout3DEditor({
       renderPipelineHostRef.current = null;
       solidShadeHostRef.current?.dispose();
       solidShadeHostRef.current = null;
+      architecturalMassHostRef.current?.dispose();
+      architecturalMassHostRef.current = null;
       assetSceneHostRef.current?.dispose();
       assetSceneHostRef.current = null;
       nativeSelectionProjectionRef.current = null;
@@ -11164,6 +11177,21 @@ export default function Layout3DEditor({
     if (!asset) return;
     beginFieldEdit(`label:${cur.id}`);
     asset.label = value.trim() || undefined;
+    markDirty();
+    refreshSnap();
+    rebuildAll();
+  };
+  const updateSelectedAssetMaterial = (materialId: string | undefined) => {
+    const cur = selList[0];
+    if (!cur || cur.type !== "asset") return;
+    if (isItemLayerLocked(cur)) {
+      toast.error("La capa del objeto está bloqueada. Desbloquéala para editar el material.", "Capas");
+      return;
+    }
+    const asset = assetsRef.current.get(cur.id);
+    if (!asset) return;
+    pushHistory();
+    asset.materialId = materialId;
     markDirty();
     refreshSnap();
     rebuildAll();
@@ -16604,6 +16632,14 @@ export default function Layout3DEditor({
                 >
                   Native {nativeEntities.length}
                 </span>
+                <span
+                  data-testid="cad-architectural-mass-count"
+                  data-rooms={architecturalMassHostRef.current?.roomCount ?? 0}
+                  data-roof={architecturalMassHostRef.current?.hasRoof ? "true" : "false"}
+                  title="Piso/cielorraso por habitación cerrada y techo, extruidos desde los muros"
+                >
+                  Masa {architecturalMassHostRef.current?.roomCount ?? 0}
+                </span>
                 {/* QUÉ pipeline dibuja y CUÁNTO lleva materializado. El benchmark
                   midió un camino que el producto no ejecutaba; publicarlo en el
                   DOM es lo que impide que vuelva a pasar sin que nadie lo note. */}
@@ -18167,6 +18203,14 @@ export default function Layout3DEditor({
                             className="w-full resize-none rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground placeholder:text-muted-foreground outline-none"
                           />
                         </label>
+                        {selSnap.type === "asset" && (
+                          <CadMaterialPalette
+                            docked
+                            materials={ARCHITECTURAL_MATERIALS}
+                            selectedMaterialId={selSnap.materialId}
+                            onSelect={updateSelectedAssetMaterial}
+                          />
+                        )}
                         <div className="grid grid-cols-2 gap-2">
                           <ReadField
                             label="Área"
