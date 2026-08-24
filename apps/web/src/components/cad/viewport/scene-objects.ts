@@ -28,6 +28,9 @@ export interface Asset {
   label?: string;
   shape?: "rect" | "circle";
   tags?: string[];
+  /** Id de `architectural-material-library.ts`. Ausente = color plano, como
+   *  antes de que existiera este campo — aditivo, no-op en migración. */
+  materialId?: string;
 }
 
 /** Una anotación: texto suelto o cota entre dos puntos. */
@@ -100,8 +103,19 @@ export function disposeObject(o: THREE.Object3D) {
     const mat = mesh.material;
     if (mat)
       (Array.isArray(mat) ? mat : [mat]).forEach((mm) => {
-        const t = (mm as THREE.Material & { map?: THREE.Texture | null }).map;
-        if (t) t.dispose();
+        const std = mm as THREE.Material & {
+          map?: THREE.Texture | null;
+          // Mapas que sólo aparecen en materiales con textura elegida
+          // (cadTexturedAssetMaterial): cada activo tiene su PROPIA
+          // instancia de Texture (architectural-material-library.ts las crea
+          // por superficie, no las comparte), así que liberarlas aquí nunca
+          // se lleva por delante la de otro activo.
+          normalMap?: THREE.Texture | null;
+          roughnessMap?: THREE.Texture | null;
+        };
+        std.map?.dispose();
+        std.normalMap?.dispose();
+        std.roughnessMap?.dispose();
         mm.dispose();
       });
   });
@@ -175,7 +189,7 @@ export function buildAssetGroup(
     new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotY),
     new THREE.Vector3(1, 1, 1),
   );
-  buildCadAssetArchetype(def.archetype, wS, dS, h3d, def.color, shape).forEach(
+  buildCadAssetArchetype(def.archetype, wS, dS, h3d, def.color, shape, a.materialId).forEach(
     (o, partIndex) => {
       const pooled = poolAssetPart(
         instancingHousing ?? group,

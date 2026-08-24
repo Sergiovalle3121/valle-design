@@ -14,6 +14,9 @@
  */
 import * as THREE from "three";
 import type { AssetArchetype } from "./asset-catalog";
+// cadTexturedAssetMaterial() vive en la biblioteca de materiales (este
+// archivo ya rozaba el presupuesto de check:monolith-budget.mjs).
+import { cadTexturedAssetMaterial } from "@/lib/cad/materials/architectural-material-library";
 
 // ── 3D asset geometry factory ────────────────────────────────────────────────
 // Builds a distinctive mesh group per archetype. Geometry is centred in X/Z with
@@ -52,6 +55,9 @@ export function buildCadAssetArchetype(
   H: number,
   colorHex: string,
   shape: "rect" | "circle" = "rect",
+  /** Id opcional de architectural-material-library.ts; sólo lo usan los
+   *  arquetipos con superficie arquitectónica dominante (hoy, "wall"). */
+  materialId?: string,
 ): THREE.Object3D[] {
   const c = new THREE.Color(colorHex);
   const dark = c.clone().multiplyScalar(0.6);
@@ -241,7 +247,10 @@ export function buildCadAssetArchetype(
       out.push(
         cadAssetPart(
           new THREE.BoxGeometry(wS, H, dS),
-          cadAssetMaterial(c, 0.9, 0.02),
+          // wS×H (frente/atrás) es la cara dominante; fija el repeat.
+          materialId
+            ? cadTexturedAssetMaterial(materialId, wS, H, c, 0.9, 0.02)
+            : cadAssetMaterial(c, 0.9, 0.02),
           0,
           H / 2,
           0,

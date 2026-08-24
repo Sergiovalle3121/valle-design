@@ -47,6 +47,8 @@ export interface CadEditorAsset {
   rotation: number;
   label?: string;
   shape?: "rect" | "circle";
+  /** Acabado elegido (id de `materials/architectural-material-library.ts`). */
+  materialId?: string;
 }
 export interface CadEditorAnnotation {
   id: string;
@@ -134,6 +136,7 @@ export function editorSnapshotToCadDocument(
     };
     if (a.label !== undefined) asset.label = a.label;
     if (a.shape !== undefined) asset.shape = a.shape;
+    if (a.materialId !== undefined) asset.materialId = a.materialId;
     const layer = snap.layers[a.id];
     if (layer !== undefined) asset.layer = layer;
     const tags = splitTags(snap.tags[a.id]);
@@ -218,6 +221,7 @@ export function cadDocumentToEditorSnapshot<L extends string = string>(
       };
       if (e.label !== undefined) asset.label = e.label;
       if (e.shape === "circle") asset.shape = "circle";
+      if (e.materialId !== undefined) asset.materialId = e.materialId;
       snap.assets.push(asset);
       if (e.layer !== DEFAULT_LAYER_ID) snap.layers[e.id] = e.layer as L;
       if (e.tags?.length) snap.tags[e.id] = joinTags(e.tags);
@@ -235,6 +239,7 @@ export function cadDocumentToEditorSnapshot<L extends string = string>(
         shape: "circle",
       };
       if (e.legacy.label !== undefined) asset.label = e.legacy.label;
+      if (e.legacy.materialId !== undefined) asset.materialId = e.legacy.materialId;
       snap.assets.push(asset);
       if (e.layer !== DEFAULT_LAYER_ID) snap.layers[e.id] = e.layer as L;
       if (e.legacy.tags?.length) snap.tags[e.id] = joinTags(e.legacy.tags);

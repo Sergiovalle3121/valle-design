@@ -32,6 +32,8 @@ export interface LegacyAsset {
   layer?: string;
   group?: string;
   tags?: string[];
+  /** Acabado elegido (id de `lib/cad/materials/architectural-material-library.ts`). */
+  materialId?: string;
 }
 
 export interface DocumentSummary {

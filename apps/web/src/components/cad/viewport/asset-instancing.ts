@@ -241,6 +241,13 @@ export function poolAssetPart(
   if (!(part instanceof THREE.Mesh)) return false;
   const material = part.material;
   if (Array.isArray(material) || !(material instanceof THREE.MeshStandardMaterial)) return false;
+  // Con textura queda FUERA del pool a propósito: el material compartido de
+  // una clave lleva un único mapa con un único `.repeat`, y dos activos con
+  // texturas o tamaños de superficie distintos bajo la misma clave pisarían
+  // el mapa (y el repeat) del otro. Un muro con textura es grande y poco
+  // frecuente — pagar su propio draw call es aceptable; ver el resumen de la
+  // tarea de materiales para la decisión completa.
+  if (material.map || material.normalMap || material.roughnessMap) return false;
   const kind = poolableKind(part.geometry);
   if (!kind) return false;
 

@@ -52,6 +52,8 @@ export interface LayoutAssetInput {
   tags?: string[];
   /** Nota libre del objeto (owner, restricción, pendiente…). */
   notes?: string;
+  /** Acabado elegido (id de `lib/cad/materials/architectural-material-library.ts`). */
+  materialId?: string;
 }
 /** Colocación de una estación de línea en el plano (el catálogo vive aparte). */
 export interface LayoutStationPlacementInput {
@@ -140,6 +142,7 @@ export function layoutToCadDocument(
       if (a.group !== undefined) circle.legacy!.group = a.group;
       if (a.tags !== undefined) circle.legacy!.tags = [...a.tags];
       if (a.notes !== undefined) circle.legacy!.notes = a.notes;
+      if (a.materialId !== undefined) circle.legacy!.materialId = a.materialId;
       entities.push(circle);
       continue;
     }
@@ -159,6 +162,7 @@ export function layoutToCadDocument(
     if (a.group !== undefined) box.group = a.group;
     if (a.tags !== undefined) box.tags = [...a.tags];
     if (a.notes !== undefined) box.notes = a.notes;
+    if (a.materialId !== undefined) box.materialId = a.materialId;
     entities.push(box);
   }
 
@@ -284,6 +288,7 @@ export function cadDocumentToLayout(doc: CadDocument): Required<LayoutInput> {
       if (e.shape === "circle") a.shape = "circle";
       if (e.tags !== undefined) a.tags = [...e.tags];
       if (e.notes !== undefined) a.notes = e.notes;
+      if (e.materialId !== undefined) a.materialId = e.materialId;
       assets.push(a);
     } else if (e.type === "circle" && e.legacy) {
       const a: LayoutAssetInput = {
@@ -301,6 +306,7 @@ export function cadDocumentToLayout(doc: CadDocument): Required<LayoutInput> {
       if (e.legacy.group !== undefined) a.group = e.legacy.group;
       if (e.legacy.tags !== undefined) a.tags = [...e.legacy.tags];
       if (e.legacy.notes !== undefined) a.notes = e.legacy.notes;
+      if (e.legacy.materialId !== undefined) a.materialId = e.legacy.materialId;
       assets.push(a);
     } else if (e.type === "station") {
       const s: LayoutStationPlacementInput = { id: e.id, x: e.x, y: e.y, w: e.w, h: e.h, rotation: e.rotation };
