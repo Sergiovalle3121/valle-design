@@ -456,6 +456,7 @@ import {
   CadSolidShadeHost,
   cadSolidEntityIds,
 } from "@/components/cad/viewport/solid-shade-host";
+import { CadNativeMassHosts } from "@/components/cad/viewport/native-mass-hosts";
 import {
   HELP_SECTIONS,
   THEMES,
@@ -1949,6 +1950,7 @@ export default function Layout3DEditor({
   const renderPipelineResolvedRef = useRef(false);
   const renderPipelineHostRef = useRef<CadViewportRenderHost | null>(null);
   const solidShadeHostRef = useRef<CadSolidShadeHost | null>(null);
+  const nativeMassHostsRef = useRef<CadNativeMassHosts | null>(null);
   /**
    * Reproyecta los objetos heredados de la SELECCIÓN.
    *
@@ -3250,10 +3252,9 @@ export default function Layout3DEditor({
        * que este camino existe para eliminar.
        */
       const shadedSolidIds = new Set(cadSolidEntityIds(document));
-      solidShadeHostRef.current?.sync(
-        document,
-        new Set(nativeSelectionIdsRef.current),
-      );
+      const nativeSelectionSet = new Set(nativeSelectionIdsRef.current);
+      nativeMassHostsRef.current?.sync(document, nativeSelectionSet);
+      solidShadeHostRef.current?.sync(document, nativeSelectionSet);
       const batchedHost = renderPipelineHostRef.current;
       if (batchedHost) {
         if (patch && batchedHost.loaded)
@@ -6157,12 +6158,16 @@ export default function Layout3DEditor({
     }
     // Sólidos SOMBREADOS: grupo aparte con z real y luz, excluidos del batch
     // (que vive comprimido en una lámina de profundidad NDC). Patrón INSERT.
+    const sceneViewport = () => ({ scale: s, width: W, height: H });
     const solidShadeHost = new CadSolidShadeHost(
-      () => ({ scale: s, width: W, height: H }),
+      sceneViewport,
       () => viewControllerRef.current,
     );
     nativeGroup.add(solidShadeHost.group);
     solidShadeHostRef.current = solidShadeHost;
+    const nativeMassHosts = new CadNativeMassHosts(sceneViewport);
+    nativeGroup.add(nativeMassHosts.group);
+    nativeMassHostsRef.current = nativeMassHosts;
     const connsGroup = new THREE.Group();
     scene.add(connsGroup);
     connsGroupRef.current = connsGroup;
@@ -7720,6 +7725,8 @@ export default function Layout3DEditor({
       renderPipelineHostRef.current = null;
       solidShadeHostRef.current?.dispose();
       solidShadeHostRef.current = null;
+      nativeMassHostsRef.current?.dispose();
+      nativeMassHostsRef.current = null;
       nativeSelectionProjectionRef.current = null;
       nativeInsertBatchRef.current = null;
       nativeOverviewRef.current = null;
@@ -7750,9 +7757,10 @@ export default function Layout3DEditor({
       gapsLoadedRef.current = false;
       guidesGroupRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `data !== null`,
-    // no `data`: autosave cambia la referencia sin cambiar el plano y este
-    // efecto reconstruye TODA la escena. El reencuadre por huella real vive aparte.
+    // `data !== null`, no `data`: autosave cambia la referencia sin cambiar el
+    // plano y este efecto reconstruye TODA la escena. El reencuadre por huella
+    // real vive aparte, justo abajo.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, data !== null]);
   useEffect(() => {
     if (!open || !cameraRef.current || !controlsRef.current) return;
@@ -7762,7 +7770,6 @@ export default function Layout3DEditor({
       data?.footprint.footprintW || 1,
       data?.footprint.footprintH || 1,
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, data?.footprint.footprintW, data?.footprint.footprintH]);
 
   // selection highlight refresh
