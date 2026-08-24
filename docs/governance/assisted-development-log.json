@@ -129,6 +129,33 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "DWG-NATIVE-IMPORT-BETA-2026-08-24",
+      "date": "2026-08-24",
+      "initiative": "Beta AC1015_MODELSPACE_2D_V1: conecta el códec DWG propio al producto",
+      "branch": "claude/dwg-sistema-propio-saqx1g",
+      "assistants": [
+        {
+          "name": "Claude Code (Anthropic)",
+          "role": "ejecución autónoma supervisada por directiva escrita del titular en conversación 2026-08-24: diagnóstico del laboratorio DWG y el corpus de conformidad, redacción de ADR-0013 y firma de ADR-0009 §6-bis, cableado del perfil de importación al producto (adaptador, gate de beta, worker, UI), build CJS secundario del códec, y pruebas unitarias y E2E con bytes DWG reales"
+        }
+      ],
+      "authority": "Conversación con Sergio Valle Zárate del 2026-08-24: instrucción inicial de construir un sistema DWG propio sin licencias, aclaración explícita de que el destino es producto real (no otro laboratorio), confirmación por pregunta estructurada de abandonar la vía licenciada de ADR-0012 y de proceder con la integración en paralelo a la revisión jurídica externa, y directiva posterior detallada de Integration Captain para el perfil AC1015_MODELSPACE_2D_V1 (revalidada contra HEAD y los PR #88/#90/#92 reales antes de actuar)",
+      "firstPartyInputs": [
+        "Repositorio valle-design en 2a2c8ac (rama claude/dwg-sistema-propio-saqx1g)",
+        "Repositorio valle-design-dwg-conformance como corpus de conformidad",
+        "packages/dwg-codec/CAPABILITIES.md, SOURCE_REGISTER.json y evidencia en docs/cad/evidence/"
+      ],
+      "externalSources": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: el titular revisa el PR de la rama claude/dwg-sistema-propio-saqx1g, sus dos commits (gobernanza e implementación) y los checks (check:dwg completo, 390/390 specs de apps/web, E2E con NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA=true); la adopción se registra al aprobar/fusionar."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "CIERRE-RAMAS-2026-08-24",
       "date": "2026-08-24",
       "initiative": "Campaña de integración y cierre de ramas — 74 ramas remotas, frente P0 y frente DWG",

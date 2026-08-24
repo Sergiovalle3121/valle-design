@@ -12,6 +12,7 @@ __pycache__/
 *.a
 *.out
 dist/
+dist-cjs/
 build/
 target/
 .turbo/

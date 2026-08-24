@@ -25,14 +25,20 @@ canónico, guardar con control de concurrencia CAS, consultar versiones,
 publicar hojas, usar review links y comentarios, importar DXF de texto o JSON
 canónico y exportar el subconjunto DXF implementado. Los documentos grandes se
 envían como archivos gzip y se guardan en PostgreSQL mediante blobs
-content-addressed. DWG no está disponible en el producto: la interfaz detecta
-el formato y lo dice, sin fingir soporte. El repositorio contiene un
-laboratorio clean-room AISLADO (`packages/dwg-codec`) cuyo códec propio hoy
-lee AC1015/AC1018 (2000/2004) a una base neutral con cero discrepancias
-contra su corpus con oráculo externo, y escribe un archivo AC1015 completo
-que ODA File Converter acepta; NADA de eso está conectado a UI, API, provider
-ni al documento canónico — la estrategia de dos vías está en
-`docs/adr/0012-dwg-doble-via.md`.
+content-addressed. DWG no está disponible públicamente: por defecto la
+interfaz detecta el formato y lo dice, sin fingir soporte. Existe una beta
+interna acotada —`DWG_NATIVE_IMPORT_BETA`, perfil
+`AC1015_MODELSPACE_2D_V1`, sólo importación, apagada en producción pública
+por defecto (ADR-0009 §6-bis)— que conecta el códec propio clean-room
+(`packages/dwg-codec`) al documento canónico a través de un único
+adaptador autorizado (`apps/web/src/lib/cad/dwg-native-reader.ts`). El
+códec lee AC1015/AC1018 (2000/2004) a una base neutral con cero
+discrepancias contra su corpus con oráculo externo, y escribe un archivo
+AC1015 completo que ODA File Converter acepta; la beta sólo conecta el
+subconjunto de lectura AC1015 descrito arriba, no la capacidad completa del
+laboratorio. Todo el esfuerzo DWG es del códec propio:
+`docs/adr/0013-dwg-via-propia-unica.md` retiró la vía de proveedor
+licenciado que `docs/adr/0012-dwg-doble-via.md` dejaba abierta.
 
 ## Repositorio
 
@@ -152,9 +158,13 @@ siendo pruebas útiles, pero no sustituyen el recorrido full-stack.
 
 ## Límites declarados
 
-- No existe importación/exportación DWG productiva ni paridad general con
-  AutoCAD; detectar una firma o mantener un laboratorio desconectado no cambia
-  ese estado. Lo que SÍ existe se dice con su límite: hay modelador de sólidos
+- No hay disponibilidad DWG pública ni paridad general con AutoCAD: existe
+  una beta interna de SOLO IMPORTACIÓN (`DWG_NATIVE_IMPORT_BETA`, perfil
+  `AC1015_MODELSPACE_2D_V1`), apagada en producción pública por defecto y sin
+  escritura; detectar una firma o mantener un laboratorio desconectado ya no
+  describe el estado del códec, pero tampoco autoriza afirmar «DWG propio» de
+  forma general — eso exige que ADR-0012 §3 se cumpla completo. Lo que SÍ
+  existe se dice con su límite: hay modelador de sólidos
   B-rep FACETADO (booleanas, extrusión, STEP/IGES; no es 3D exacto), hay
   intérprete AutoLISP con biblioteca de rutinas y plugins JS con manifiesto
   versionado (no hay .NET ni VBA), y hay lectura LAS/GeoTIFF/SHP con

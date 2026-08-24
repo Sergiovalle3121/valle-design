@@ -1,7 +1,9 @@
 # ADR-0009: Paquete de promoción del códec DWG propio
 
-- Estado: PROPUESTO — pendiente de la firma del dueño
-- Fecha: 2026-08-21
+- Estado: ACEPTADA — firmada por el dueño 2026-08-24 para el alcance
+  acotado de §6-bis (beta de importación `AC1015_MODELSPACE_2D_V1`); no es
+  la promoción general de §5, que sigue con gates pendientes
+- Fecha: 2026-08-21 (paquete); firma real 2026-08-24 (§6-bis)
 - Decide sobre: llevar la importación DWG del laboratorio clean-room al
   producto, detrás de un feature flag apagado
 - No preautorizado por: ADR-0004 (DWG fuera del producto), ADR-0007 (el
@@ -133,3 +135,36 @@ comparación campo a campo del DXF regenerado.
 Sin la firma, todo lo anterior permanece como investigación:
 `productionAvailable: false`, provider no disponible y `.dwg` rechazado en
 el producto — exactamente como hoy.
+
+## 6-bis. Firma real — 2026-08-24
+
+El titular firma, en conversación directa registrada en la sesión de
+trabajo de esa fecha:
+
+1. **Autoriza** la integración descrita en §4, acotada al perfil
+   `AC1015_MODELSPACE_2D_V1` (importación únicamente; modelspace 2D;
+   layers, colores y propiedades básicas; LINE/POINT/CIRCLE/ARC/
+   LWPOLYLINE/TEXT/INSERT según lo que el reader actual entrega completo).
+   Ver `docs/adr/0013-dwg-via-propia-unica.md` para el retiro simultáneo de
+   la vía de proveedor licenciado que ADR-0012 dejaba abierta.
+2. **Decide** encargar el dictamen jurídico externo EN PARALELO, no antes:
+   la integración técnica avanza ya, detrás de un flag apagado en
+   producción pública por defecto, mientras el dictamen se gestiona por
+   separado. `legalReviewCleared` en `DWG_PROMOTION_GATES` sigue `false`
+   — no se falsea. La autorización de esta beta vive en un mecanismo
+   DISTINTO y más estrecho, `DWG_BETA_AUTHORIZATION`
+   (`apps/web/src/lib/cad/dwg-interop-flag.ts`), con el mismo patrón de
+   riesgo aceptado por escrito que la Enmienda 2026-08-20 de
+   `CORPUS_POLICY.md` en el repositorio de conformidad. La promoción
+   general de §5 sigue exigiendo `legalReviewCleared: true` sin excepción.
+3. **Acepta** los límites de §3 como estado inicial: cobertura AC1015
+   parcial y sin escritura, sin AC1018+, sin espacio papel, sin XDATA, sin
+   objetos proxy, un solo oráculo (ODA File Converter) detrás del corpus
+   admitido, y la advertencia de representatividad de `CORPUS_POLICY.md`
+   (interoperable con ODA, no verificado contra AutoCAD real) se traslada
+   íntegra a cualquier texto de producto que describa esta beta.
+
+Lo que esta firma NO autoriza: disponibilidad pública/GA, exportación DWG,
+ni ninguna afirmación de compatibilidad general con DWG o con AutoCAD.
+`productionAvailable` global permanece `false` hasta que §5 esté completo
+y firmado aparte.

@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@valle-design/contracts": "*",
+    "@valle-design/dwg-codec": "*",
     "@valle/design-sdk": "*",
     "dxf-parser": "^1.1.2",
     "framer-motion": "^13.1.0",

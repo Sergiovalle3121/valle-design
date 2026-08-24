@@ -134,3 +134,50 @@ export const DWG_IMPORT_DISABLED_REASON =
   "Este editor todavía no lee archivos .dwg. Expórtalo a DXF (R12 o posterior) " +
   "desde tu CAD e impórtalo: DXF entra completo, con su informe de lo que se " +
   "conserva y lo que se pierde.";
+
+// ---------------------------------------------------------------------------
+// Beta acotada AC1015_MODELSPACE_2D_V1 — firmada 2026-08-24 (ADR-0009 §6-bis)
+// ---------------------------------------------------------------------------
+
+/**
+ * Autorización del titular para la beta de SÓLO IMPORTACIÓN
+ * `AC1015_MODELSPACE_2D_V1`. NO es `DWG_PROMOTION_GATES`: es un mecanismo
+ * DISTINTO y más estrecho, con el mismo patrón de riesgo aceptado por
+ * escrito que la Enmienda 2026-08-20 de `CORPUS_POLICY.md` en el repositorio
+ * de conformidad — el titular decidió encargar el dictamen jurídico externo
+ * EN PARALELO en vez de antes, y acotó lo que autoriza mientras tanto a un
+ * perfil, una versión y un sentido (importar, no exportar).
+ *
+ * `legalReviewStatus` se queda en `"pending_parallel"` a propósito: cambiar
+ * este archivo no puede convertirlo en `legalReviewCleared: true` en
+ * `DWG_PROMOTION_GATES` de arriba, que sigue exigiendo la revisión real para
+ * la promoción general/GA. Los dos gates son preguntas distintas.
+ */
+export interface DwgBetaAuthorization {
+  readonly ownerSigned: true;
+  readonly adrRef: "0009";
+  readonly signedDate: "2026-08-24";
+  readonly profile: "AC1015_MODELSPACE_2D_V1";
+  readonly legalReviewStatus: "pending_parallel";
+}
+
+export const DWG_BETA_AUTHORIZATION: DwgBetaAuthorization = Object.freeze({
+  ownerSigned: true,
+  adrRef: "0009",
+  signedDate: "2026-08-24",
+  profile: "AC1015_MODELSPACE_2D_V1",
+  legalReviewStatus: "pending_parallel",
+});
+
+/**
+ * ¿Está autorizada la beta de importación DWG en ESTE entorno?
+ *
+ * `betaFlagOn` lo decide quien llama, no este módulo: un módulo que no lee
+ * DOM ni proceso no puede saber si el entorno actual es público o de beta.
+ * Quien SÍ lo sabe (`document-import-client.ts`, a partir de una variable de
+ * build) pasa el booleano ya resuelto. Igual que `dwgImportIsEnabled`, es una
+ * conjunción: la bandera sola no basta si el titular no hubiera firmado.
+ */
+export function dwgBetaImportIsEnabled(betaFlagOn: boolean): boolean {
+  return betaFlagOn === true && DWG_BETA_AUTHORIZATION.ownerSigned;
+}

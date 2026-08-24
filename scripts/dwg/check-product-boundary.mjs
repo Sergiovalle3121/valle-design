@@ -1,3 +1,4 @@
+import { existsSync } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import { spawnSync } from "node:child_process";
 import { dirname, extname, join, relative, resolve } from "node:path";
@@ -26,6 +27,8 @@ const expectedSpecs = [
   "src/components/cad/interop/cad-format-detect.spec.ts",
   "src/lib/cad/interop-provider.spec.ts",
   "src/lib/cad/document-import.spec.ts",
+  "src/lib/cad/dwg-document-bridge.spec.ts",
+  "src/lib/cad/dwg-native-reader.spec.ts",
 ];
 const forbiddenCodecReferences = [
   "@valle-design/dwg-codec",
@@ -34,6 +37,33 @@ const forbiddenCodecReferences = [
   "../dwg-codec",
   "..\\dwg-codec",
 ];
+/**
+ * La beta `AC1015_MODELSPACE_2D_V1` (ADR-0009 §6-bis, firmada 2026-08-24)
+ * autoriza EXACTAMENTE un punto de importación runtime: `dwg-native-reader.ts`
+ * y su propia spec. Ningún otro archivo del árbol runtime puede referenciar
+ * el códec — si mañana otro perfil necesita otro punto, este array crece con
+ * su propia ADR, nunca por comodidad.
+ */
+const authorizedCodecReferenceFiles = new Set([
+  join("apps", "web", "src", "lib", "cad", "dwg-native-reader.ts"),
+  join("apps", "web", "src", "lib", "cad", "dwg-native-reader.spec.ts"),
+]);
+/**
+ * Y exactamente estos archivos pueden IMPORTAR ese punto autorizado: el
+ * worker de importación (el `apps/web/src/lib/cad/**` fuera del worker no
+ * puede tocar bytes hostiles de DWG por diseño) y la propia spec del
+ * adaptador. Ni un componente de React ni ningún otro módulo aparecen aquí.
+ */
+const authorizedDwgNativeReaderImporters = new Set([
+  join("apps", "web", "src", "lib", "cad", "dwg-native-reader.ts"),
+  join("apps", "web", "src", "lib", "cad", "dwg-native-reader.spec.ts"),
+  join("apps", "web", "src", "lib", "cad", "document-import.worker.ts"),
+]);
+/**
+ * `apps/web/package.json` declara la dependencia real hacia el códec (así
+ * npm la enlaza en `node_modules`); es la única manifiesto autorizada.
+ */
+const authorizedManifestFiles = new Set([join("apps", "web", "package.json")]);
 const ignoredRuntimeDirectories = new Set([
   // Worktrees efímeros del harness de agentes: copias del árbol dentro del repo.
   ".claude",
@@ -135,22 +165,42 @@ async function assertNoRuntimeIntegration() {
         );
       }
       manifestCount += 1;
-      if (hasCodecReference(JSON.stringify(manifest))) {
-        fail(
-          `runtime manifest references the laboratory: ${relative(repositoryRoot, manifestPath)}`,
-        );
+      const manifestRelPath = relative(repositoryRoot, manifestPath);
+      if (
+        hasCodecReference(JSON.stringify(manifest)) &&
+        !authorizedManifestFiles.has(manifestRelPath)
+      ) {
+        fail(`runtime manifest references the laboratory: ${manifestRelPath}`);
       }
 
       const sourceFiles = await collectRuntimeSourceFiles(workspaceRoot);
       sourceFileCount += sourceFiles.length;
       for (const path of sourceFiles) {
+        const relPath = relative(repositoryRoot, path);
         const source = await readFile(path, "utf8");
-        if (hasCodecReference(source)) {
+        if (hasCodecReference(source) && !authorizedCodecReferenceFiles.has(relPath)) {
           fail(
-            `runtime import/reference found in ${relative(repositoryRoot, path)}`,
+            `runtime import/reference found in ${relPath} (only dwg-native-reader.ts ` +
+              "is authorized by ADR-0009 §6-bis)",
+          );
+        }
+        if (
+          source.includes("dwg-native-reader") &&
+          !authorizedDwgNativeReaderImporters.has(relPath)
+        ) {
+          fail(
+            `${relPath} references the authorized DWG adapter, but only the import ` +
+              "worker and the adapter's own spec may do so",
           );
         }
       }
+    }
+  }
+
+  for (const authorized of authorizedCodecReferenceFiles) {
+    const fullPath = join(repositoryRoot, authorized);
+    if (!existsSync(fullPath)) {
+      fail(`authorized DWG adapter file is missing: ${authorized}`);
     }
   }
 
@@ -207,5 +257,8 @@ for (const [code, label] of webVersions) {
 const runtimeBoundary = await assertNoRuntimeIntegration();
 runProductSpecs();
 console.log(
-  `DWG product boundary OK: ${codecVersions.size} signatures, 3 product specs, ${runtimeBoundary.workspaceCount} runtime workspaces, ${runtimeBoundary.manifestCount} manifests, ${runtimeBoundary.sourceFileCount} source files, 0 runtime imports`,
+  `DWG product boundary OK: ${codecVersions.size} signatures, ${expectedSpecs.length} product specs, ` +
+    `${runtimeBoundary.workspaceCount} runtime workspaces, ${runtimeBoundary.manifestCount} manifests, ` +
+    `${runtimeBoundary.sourceFileCount} source files, ${authorizedCodecReferenceFiles.size} authorized ` +
+    "runtime import site(s) (ADR-0009 §6-bis), 0 unauthorized",
 );

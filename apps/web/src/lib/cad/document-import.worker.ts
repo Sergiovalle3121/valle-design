@@ -6,6 +6,7 @@ import {
   isBinaryImportFormat,
   validateImportFile,
 } from "./document-import";
+import type { DwgNeutralDatabaseReader } from "./dwg-neutral-model";
 
 /**
  * `sidecars` son los acompañantes del shapefile que el usuario haya elegido
@@ -16,12 +17,18 @@ import {
 type WorkerInput = {
   file: File;
   sidecars?: { shx?: File; dbf?: File; prj?: File; cpg?: File };
+  /**
+   * Beta `AC1015_MODELSPACE_2D_V1` (ADR-0009 §6-bis). La decide el hilo
+   * principal a partir de una variable de build no pública por defecto
+   * (`document-import-client.ts`); este worker sólo la reenvía.
+   */
+  dwgBetaEnabled?: boolean;
 };
 
 self.onmessage = async (event: MessageEvent<WorkerInput>) => {
   try {
-    const { file, sidecars } = event.data;
-    validateImportFile(file.name, file.size);
+    const { file, sidecars, dwgBetaEnabled } = event.data;
+    validateImportFile(file.name, file.size, dwgBetaEnabled ?? false);
     self.postMessage({
       type: "progress",
       progress: 0.15,
@@ -37,12 +44,27 @@ self.onmessage = async (event: MessageEvent<WorkerInput>) => {
         progress: 0.45,
         stage: "Analizando geometría",
       });
-      const binaryReport = importDocumentBytes(file.name, bytes, {
-        ...(sidecars?.shx ? { shx: await sidecars.shx.arrayBuffer() } : {}),
-        ...(sidecars?.dbf ? { dbf: await sidecars.dbf.arrayBuffer() } : {}),
-        ...(sidecars?.prj ? { prj: await sidecars.prj.text() } : {}),
-        ...(sidecars?.cpg ? { cpg: await sidecars.cpg.text() } : {}),
-      });
+      // El adaptador DWG se importa DINÁMICAMENTE, sólo cuando el archivo es
+      // .dwg: SHP/DXF/JSON son la mayoría de las importaciones y no tienen
+      // por qué pagar el peso del códec en su chunk. Static import aquí
+      // también rompía el worker entero si el módulo fallaba al cargar — el
+      // fallo de un formato tumbaba los demás sin decir por qué.
+      let dwg: { betaEnabled: boolean; reader: DwgNeutralDatabaseReader } | undefined;
+      if (file.name.trim().toLowerCase().endsWith(".dwg")) {
+        const { readDwgNeutralDatabase } = await import("./dwg-native-reader");
+        dwg = { betaEnabled: dwgBetaEnabled ?? false, reader: readDwgNeutralDatabase };
+      }
+      const binaryReport = importDocumentBytes(
+        file.name,
+        bytes,
+        {
+          ...(sidecars?.shx ? { shx: await sidecars.shx.arrayBuffer() } : {}),
+          ...(sidecars?.dbf ? { dbf: await sidecars.dbf.arrayBuffer() } : {}),
+          ...(sidecars?.prj ? { prj: await sidecars.prj.text() } : {}),
+          ...(sidecars?.cpg ? { cpg: await sidecars.cpg.text() } : {}),
+        },
+        dwg,
+      );
       self.postMessage({
         type: "progress",
         progress: 0.9,

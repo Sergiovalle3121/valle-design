@@ -20,7 +20,9 @@ import {
 } from "./dxf-import-report";
 import { shapefileToCadEntities } from "./geo-cad-document";
 import { readGeoDataset } from "../geo";
-import { dwgImportIsEnabled } from "./dwg-interop-flag";
+import { dwgBetaImportIsEnabled, dwgImportIsEnabled } from "./dwg-interop-flag";
+import { dwgNeutralDatabaseToCadDocument } from "./dwg-document-bridge";
+import type { DwgNeutralDatabaseReader } from "./dwg-neutral-model";
 
 export const MAX_DXF_IMPORT_BYTES = 12_000_000;
 export const MAX_JSON_IMPORT_BYTES = 20_000_000;
@@ -82,17 +84,27 @@ export function importLimitForFileName(fileName: string): number {
  * lector ya no son los bytes del archivo.
  */
 export function isBinaryImportFormat(fileName: string): boolean {
-  return extension(fileName) === "shp";
+  const kind = extension(fileName);
+  return kind === "shp" || kind === "dwg";
 }
 
-export function validateImportFile(fileName: string, size: number): void {
+export function validateImportFile(
+  fileName: string,
+  size: number,
+  dwgBetaEnabled = false,
+): void {
   const kind = extension(fileName);
   /**
-   * `.dwg` sólo entra si el gate de promoción está abierto, y hoy NO lo está:
-   * la bandera nace apagada y sus gates son hechos que todavía son falsos. Este
-   * `if` no habilita nada; lo que hace es que el día que el dueño firme, la
-   * extensión deje de rechazarse aquí en vez de tener que descubrir este punto
-   * a base de leer el árbol entero.
+   * `.dwg` entra por CUALQUIERA de dos gates, y hoy ninguno está abierto por
+   * defecto:
+   *
+   * - `dwgImportIsEnabled()`: la promoción general de ADR-0007/0009 (7
+   *   gates, incluida revisión jurídica externa). Sigue apagada.
+   * - `dwgBetaImportIsEnabled(dwgBetaEnabled)`: la beta acotada
+   *   `AC1015_MODELSPACE_2D_V1` que el dueño firmó 2026-08-24 (ADR-0009
+   *   §6-bis), con el dictamen jurídico en paralelo. `dwgBetaEnabled` lo
+   *   decide quien llama —el worker, a partir de una variable de build no
+   *   pública por defecto— nunca este módulo, que no lee entorno.
    *
    * El mensaje SÍ cambió al integrar, y a propósito: el shapefile ya se admite,
    * así que callarlo dejaría al usuario sin saber que su `.shp` entra. Un
@@ -103,7 +115,7 @@ export function validateImportFile(fileName: string, size: number): void {
     kind === "dxf" ||
     kind === "json" ||
     kind === "shp" ||
-    (kind === "dwg" && dwgImportIsEnabled());
+    (kind === "dwg" && (dwgImportIsEnabled() || dwgBetaImportIsEnabled(dwgBetaEnabled)));
   if (!admitted) {
     throw new Error(
       "Formato no soportado. Usa DXF de texto, JSON canónico o shapefile (.shp).",
@@ -126,7 +138,7 @@ export function importDocumentText(
   validateImportFile(fileName, new TextEncoder().encode(content).byteLength);
   if (isBinaryImportFormat(fileName))
     throw new Error(
-      "Un shapefile es binario: no se puede importar como texto. Vuelve a elegir el archivo .shp.",
+      "Este formato es binario: no se puede importar como texto. Vuelve a elegir el archivo.",
     );
   return extension(fileName) === "dxf"
     ? importDxfDocument(content)
@@ -150,10 +162,36 @@ export function importDocumentBytes(
     prj?: string;
     cpg?: string;
   } = {},
+  dwg?: { readonly betaEnabled: boolean; readonly reader: DwgNeutralDatabaseReader },
 ): DocumentImportReport {
   const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-  validateImportFile(fileName, data.byteLength);
+  validateImportFile(fileName, data.byteLength, dwg?.betaEnabled ?? false);
+  if (extension(fileName) === "dwg") {
+    if (dwg === undefined) {
+      throw new Error("No hay lector DWG registrado para esta importación.");
+    }
+    return importDwgDocument(data, dwg.reader);
+  }
   return importShapefileDocument(fileName, data, sidecars);
+}
+
+/**
+ * DWG → documento canónico, perfil de beta `AC1015_MODELSPACE_2D_V1`.
+ *
+ * `validateImportFile` ya comprobó el gate y el tamaño: si esta función se
+ * alcanza es porque la beta está habilitada. `reader` decodifica los bytes
+ * hostiles a la base neutral; lo inyecta el worker desde el único adaptador
+ * del producto autorizado a tocar el códec (`scripts/dwg/check-product-boundary.mjs`
+ * lo verifica) — este archivo nunca lo importa directamente.
+ * `dwgNeutralDatabaseToCadDocument` (`dwg-document-bridge.ts`) es la mitad
+ * PURA del puente, ya probada, que proyecta esa base al documento canónico
+ * con su manifiesto de pérdidas.
+ */
+function importDwgDocument(
+  bytes: Uint8Array,
+  reader: DwgNeutralDatabaseReader,
+): DocumentImportReport {
+  return dwgNeutralDatabaseToCadDocument(reader(bytes));
 }
 
 function importCanonicalJson(content: string): DocumentImportReport {
