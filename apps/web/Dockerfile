@@ -156,6 +156,15 @@ COPY --from=build --chown=node:node /app/apps/web/.next/standalone ./
 # en muchos despliegues); sin esta copia el servidor arranca y devuelve 404
 # para todo el JS de la página.
 COPY --from=build --chown=node:node /app/apps/web/.next/static ./apps/web/.next/static
+# `public/` TAMPOCO viaja dentro de `standalone` — es el mismo motivo que los
+# estáticos con hash, documentado por Next.js para la salida `standalone`.
+# Sin esta copia el servidor arranca y devuelve 404 para el kernel WASM
+# (`/wasm/valle-cad-kernel.wasm`), los SVG de marca (`/brand/*.svg`, usados
+# por el favicon y el manifiesto de la PWA) y las capturas de producto que
+# sirve la landing. El destino replica la ruta relativa que ya usa
+# `apps/web/.next/static` arriba, porque `server.js` (CMD, abajo) resuelve
+# `public/` junto a sí mismo, es decir bajo `apps/web/`.
+COPY --from=build --chown=node:node /app/apps/web/public ./apps/web/public
 
 USER node
 

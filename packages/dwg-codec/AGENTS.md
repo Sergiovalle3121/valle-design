@@ -102,8 +102,12 @@ Lee completamente `CLEAN_ROOM_POLICY.md`, `SOURCE_REGISTER.json`,
 
 - Actualiza `CAPABILITIES.md` con evidencia exacta; no promociones capacidades
   por código sin integración o fixtures autocreados.
-- Reconocer `AC1015` no significa leer R2000. Leer un header no significa
-  importar geometría. No hay writer en DWG-0.
+- Reconocer `AC1015` no significa leer R2000 completo. El laboratorio ya lee
+  una base de objetos completa para AC1015/AC1018 y ya emite un writer AC1015
+  validado por un oráculo externo (ODA File Converter, subconjunto de
+  entidades) — ver `CAPABILITIES.md` para el corte exacto. Ninguna de las dos
+  cosas es importación/exportación en producto: eso sigue exigiendo el ADR de
+  promoción (ADR-0009) firmado por el dueño.
 - No uses “TrustedDWG”, sellos ajenos, afirmaciones de certificación Autodesk,
   paridad, 100% de compatibilidad ni propiedad sobre DWG.
 - Cada PR declara fuentes consultadas, archivos derivados, fixtures,

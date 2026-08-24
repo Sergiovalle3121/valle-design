@@ -78,6 +78,42 @@ const REAL_API_URL = "https://api.valledesign.mx";
   assert.equal(issues[0]?.field, "NEXT_PUBLIC_BRAND_WEBSITE_URL");
 }
 
+// ── Adversarial: un SUBDOMINIO de un dominio placeholder también lo es ─────
+// (hallazgo real de campaña: "https://api.example.com" — el fallback que
+// tenía .github/workflows/release.yml antes de este cambio — no coincidía
+// con el hostname exacto "example.com" y se colaba como si fuera un dominio
+// real. api.example.com/sub.example.org/etc. deben rechazarse igual.)
+{
+  const issues = assessProductionBrandConfig({
+    manifest: REAL_MANIFEST,
+    apiUrl: "https://api.example.com",
+  });
+  assert.deepEqual(
+    issues.map((i) => i.field),
+    ["NEXT_PUBLIC_API_URL"],
+  );
+  assert.match(issues[0]!.reason, /marcador de posición/u);
+}
+{
+  const issues = assessProductionBrandConfig({
+    manifest: { ...REAL_MANIFEST, supportEmail: "soporte@mail.example.org" },
+    apiUrl: REAL_API_URL,
+  });
+  assert.deepEqual(
+    issues.map((i) => i.field),
+    ["NEXT_PUBLIC_BRAND_SUPPORT_EMAIL"],
+  );
+}
+// ── Control: un dominio real que SÓLO CONTIENE la palabra "example" en otra
+// posición (no como sufijo de dominio reservado) no debe dispararse.
+{
+  const issues = assessProductionBrandConfig({
+    manifest: REAL_MANIFEST,
+    apiUrl: "https://api.example-consulting.mx",
+  });
+  assert.deepEqual(issues, []);
+}
+
 // ── Adversarial: razón social en blanco (espacios) cuenta como ausente ─────
 {
   const issues = assessProductionBrandConfig({

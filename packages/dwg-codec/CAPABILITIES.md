@@ -87,5 +87,37 @@ roundtrip, r2004-container, structural-fuzz, read-benchmark) y bitácora en
 | `cadDocumentMapping` | Mapeo PURO base-neutral ↔ JSON con la forma del `CadDocument` (esquema 9) con manifiesto de pérdidas en ambos sentidos y round-trip hermético verde; tablas proyectadas (patrones .lin exactos). | Tipos espejo: el codec sigue sin importar el producto (ADR-0007). El adaptador de integración y el núcleo de DIMVARs son del producto (ADR-0009). |
 | Blindaje | 1200 mutaciones estructurales de DWG reales: 0 excepciones sin tipar, 0 internal, 0 cuelgues (peor caso 87.5 ms); 8 propiedades encode/decode de bitcodes; benchmark report-only 0.69 MB/s (con la decodificación completa de tablas y diccionarios). | El corpus mutado sigue siendo derivado de dibujos propios; el corpus adversarial de archivos del mundo real es cola de reserva. |
 
+## Evidencia del intake 2026-08-23 (AC1024/27/32: dos hechos del envoltorio, BOT bloqueado)
+
+Intento de decodificar cuerpos de objeto R2010+ (AC1024). Dos hechos nuevos
+confirmados por medición original sobre el corpus admitido (commit `a60ebe2`,
+430 objetos reales) y registrados en `SOURCE_REGISTER.json` antes del código
+(ADR-0007) — detalle completo en `DWG0_WORKLOG.md`:
+
+- El marco de sección de datos R2010+ (AcDb:Header/AcDb:Classes) usa un
+  campo de tamaño de 8 bytes, no 4 (`readR2004SectionFrame` acepta
+  `sizeFieldWidth`). 7/7 mediciones, 0 discrepancias.
+- La envoltura de objeto R2010+ dentro de AcDb:AcDbObjects NO lleva tamaño en
+  bytes al frente: el CRC-16 cubre el cuerpo completo y el límite de cada
+  objeto lo da el offset del siguiente en el mapa de handles. Nuevo
+  `container/r2010-object-envelope.ts`. 430/430 objetos reales, coincidencia
+  única, 0 discrepancias.
+- Dentro de ese envoltorio se identificó de forma independiente (búsqueda bit
+  a bit de sus extremos IEEE-754) el objeto LINEA real de `02-una-linea.dwg`
+  (AC1024): confirma que la codificación por campo de la geometría no cambia
+  para R2010+.
+
+**Límite honesto sin suavizar**: la codificación BOT (2 bits + valor) del
+tipo de objeto sigue **sin fuente registrada suficiente** para decodificarse
+sin adivinar — el hecho ya registrado la nombra pero no fija la tabla
+selector→ancho de valor. Con el LINE ya identificado, las descomposiciones
+más simples de los bits que preceden a su handle propio (anchos de valor 8,
+16 y 32 bits) NO reprodujeron el código LINE=0x13 ya confirmado para
+R2000/AC1018. Esta línea se detiene declarada `BLOCKED_BY_SOURCE_GATE`: los
+dos módulos nuevos NO se conectan a `readR2004Database`, que sigue lanzando
+`DWG_VERSION_DECODER_UNSUPPORTED` para AC1024/AC1027/AC1032 sin cambio de
+comportamiento observable. `DWG_VERSION_REGISTRY` mantiene las tres versiones
+en `decoderStatus: "unsupported"`.
+
 La promoción al producto sigue exigiendo la firma del ADR-0009:
 `productionAvailable: false`, provider no disponible y `.dwg` rechazado.
