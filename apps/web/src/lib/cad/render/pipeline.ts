@@ -43,9 +43,12 @@ import {
 } from "../entity-runtime";
 import { CadRenderDependencyLane } from "./pipeline-dependents";
 import type { CadDocument } from "../cad-document";
-import { buildCadDimensionGeometry } from "../associative-dimension";
-import { buildCadMleaderGeometry } from "../associative-mleader";
-import { resolveCadInsert } from "../professional-blocks";
+import {
+  pushCadDimensionTextRequest,
+  pushCadInsertTextRequests,
+  pushCadMleaderTextRequest,
+  pushCadMtextTextRequest,
+} from "./pipeline-text-requests";
 import {
   CadRenderTileIndex,
   diffCadTiles,
@@ -85,10 +88,7 @@ import { cadRenderCount, cadRenderMark, cadRenderStage } from "./render-profile"
 import { defaultCadRenderStyle } from "./render-style";
 
 export type { CadOffThreadTessellator, CadRenderOrigin, CadRenderTessellationSource };
-export {
-  CAD_RENDER_DEFAULT_COLOR,
-  CAD_RENDER_DEFAULT_HALF_WIDTH_PX,
-} from "./render-style";
+export { CAD_RENDER_DEFAULT_COLOR, CAD_RENDER_DEFAULT_HALF_WIDTH_PX } from "./render-style";
 
 /**
  * Segmentos que materializa como mucho una tarea del planificador.
@@ -524,33 +524,22 @@ export class CadRenderPipeline {
       }
       const depth = cadDrawOrderDepth(this.drawOrder.get(id) ?? 0, this.drawOrderCount);
       if (entity.type === "mtext") {
-        // El texto no se tesela: viaja como petición de quads para el atlas.
-        // Los productores de geometría de MText, cotas y mleader se conservan;
-        // este pipeline sólo cambia CÓMO se materializa el resultado.
-        const textStarted = cadRenderMark();
+        // El texto no se tesela: viaja como petición de quads para el atlas
+        // (síntesis en `pipeline-text-requests.ts`); nada más que teselar.
         resident.cursor += 1;
-        resident.textRequests.push({
-          text: entity.text,
-          fontKey: entity.fontFamily ?? "Arial",
-          fontSize: entity.height ?? 120,
-          x: entity.insertion.x - this.originValue.x,
-          y: entity.insertion.y - this.originValue.y,
-          rotationDeg: entity.rotation ?? 0,
-          color: this.styleOf(entity).color,
-          depth,
-        });
+        pushCadMtextTextRequest(resident.textRequests, entity, depth, this.originValue, this.styleOf);
         resident.entityIds.push(id);
-        cadRenderStage("textRequest", textStarted);
         continue;
       }
-      // Cota, mleader e insert dibujan su rótulo COMO ADEMÁS de su geometría de
-      // línea (flechas, guía, contorno del bloque), así que aquí no hay
-      // `continue`: la petición de texto se encola y la entidad sigue el camino
-      // normal de teselado más abajo.
-      if (entity.type === "dimension") this.pushDimensionTextRequest(resident, entity, depth);
-      else if (entity.type === "mleader") this.pushMleaderTextRequest(resident, entity, depth);
+      // Cota, mleader e insert dibujan su rótulo ADEMÁS de su geometría de línea
+      // (flechas, guía, contorno del bloque): sin `continue`, la entidad sigue el
+      // camino normal de teselado. La síntesis vive en `pipeline-text-requests.ts`.
+      if (entity.type === "dimension")
+        pushCadDimensionTextRequest(resident.textRequests, entity, depth, this.originValue, this.styleOf);
+      else if (entity.type === "mleader")
+        pushCadMleaderTextRequest(resident.textRequests, entity, depth, this.originValue, this.styleOf);
       else if (entity.type === "insert" && this.document)
-        this.pushInsertTextRequests(resident, entity, this.document, depth);
+        pushCadInsertTextRequests(resident.textRequests, entity, this.document, depth, this.originValue, this.styleOf);
       const tier = this.lodTierFor(id);
       // Con worker, un teselado que falta se PIDE en vez de calcularse aquí: el
       // cursor no avanza, la petición viaja y la respuesta reencola este tile,
@@ -667,103 +656,6 @@ export class CadRenderPipeline {
       }))
       .filter((batch) => batch.instanceCount > 0);
     return resident.batches;
-  }
-
-  /**
-   * DIMCLRT: el color del RÓTULO de la cota puede diferir del de sus líneas.
-   * Réplica mínima de `cadDimensionTextContext` (entity-three.ts) — no se
-   * importa de ahí porque ese módulo arrastra THREE y este pipeline es puro.
-   */
-  private dimensionTextColor(entity: Extract<CadNativeEntity, { type: "dimension" }>): number {
-    if (entity.textColor && /^#[0-9a-f]{6}$/i.test(entity.textColor))
-      return Number.parseInt(entity.textColor.slice(1), 16);
-    return this.styleOf(entity).color;
-  }
-
-  private pushDimensionTextRequest(
-    resident: ResidentTile,
-    entity: Extract<CadNativeEntity, { type: "dimension" }>,
-    depth: number,
-  ): void {
-    const dimension = buildCadDimensionGeometry(entity);
-    if (!dimension) return;
-    const textStarted = cadRenderMark();
-    resident.textRequests.push({
-      text: dimension.label,
-      fontKey: "Arial",
-      // DIMTXT, con el mismo respaldo que `buildCadNativeObject`: una cota sin
-      // altura propia hereda `arrowSize * 0.55`, como siempre.
-      fontSize: Math.max(1, entity.textHeight ?? (entity.arrowSize ?? 180) * 0.55),
-      x: dimension.textAnchor.x - this.originValue.x,
-      y: dimension.textAnchor.y - this.originValue.y,
-      rotationDeg: dimension.textAngle,
-      color: this.dimensionTextColor(entity),
-      depth,
-    });
-    cadRenderStage("textRequest", textStarted);
-  }
-
-  private pushMleaderTextRequest(
-    resident: ResidentTile,
-    entity: Extract<CadNativeEntity, { type: "mleader" }>,
-    depth: number,
-  ): void {
-    if (!entity.text.trim()) return;
-    const geometry = buildCadMleaderGeometry(entity);
-    if (!geometry) return;
-    const textStarted = cadRenderMark();
-    resident.textRequests.push({
-      text: entity.text,
-      fontKey: entity.fontFamily ?? "Arial",
-      fontSize: entity.textHeight ?? 120,
-      x: geometry.textAnchor.x - this.originValue.x,
-      y: geometry.textAnchor.y - this.originValue.y,
-      rotationDeg: entity.textRotation ?? 0,
-      color: this.styleOf(entity).color,
-      depth,
-    });
-    cadRenderStage("textRequest", textStarted);
-  }
-
-  private pushInsertTextRequests(
-    resident: ResidentTile,
-    entity: Extract<CadNativeEntity, { type: "insert" }>,
-    document: CadDocument,
-    depth: number,
-  ): void {
-    for (const child of resolveCadInsert(document, entity).entities) {
-      if (child.type !== "text" && child.type !== "mtext") continue;
-      // Mismo aplanado que `buildCadNativeObject`: un TEXT hijo de un bloque no
-      // tiene adaptador propio, así que viaja como el MTEXT sintético que ya
-      // sabe pintar el resto del pipeline de texto.
-      const nativeChild: Extract<CadNativeEntity, { type: "mtext" }> =
-        child.type === "mtext"
-          ? child
-          : {
-              id: child.id,
-              type: "mtext",
-              insertion: { x: child.x, y: child.y, z: 0 },
-              text: child.text,
-              height: child.height,
-              rotation: child.rotation,
-              style: child.style,
-              layer: child.layer,
-              context: child.context,
-            };
-      if (!nativeChild.text.trim()) continue;
-      const textStarted = cadRenderMark();
-      resident.textRequests.push({
-        text: nativeChild.text,
-        fontKey: nativeChild.fontFamily ?? "Arial",
-        fontSize: nativeChild.height ?? 120,
-        x: nativeChild.insertion.x - this.originValue.x,
-        y: nativeChild.insertion.y - this.originValue.y,
-        rotationDeg: nativeChild.rotation ?? 0,
-        color: this.styleOf(nativeChild).color,
-        depth,
-      });
-      cadRenderStage("textRequest", textStarted);
-    }
   }
 
   private lodTierFor(entityId: string): CadRenderLodTier {
