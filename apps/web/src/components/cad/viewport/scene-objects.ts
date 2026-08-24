@@ -14,6 +14,7 @@
 import * as THREE from "three";
 import { assetMeta } from "./asset-catalog";
 import { buildCadAssetArchetype } from "./asset-archetypes";
+import { poolAssetPart, resetAssetInstancePool } from "./asset-instancing";
 
 /** Un activo colocado en la planta del editor heredado. */
 export interface Asset {
@@ -88,6 +89,10 @@ export function makeLabel(text: string, scale = 1.5): THREE.Sprite {
 
 export function disposeObject(o: THREE.Object3D) {
   o.traverse((c) => {
+    // Señal de que arranca una demolición: el pool de instancing de
+    // asset-instancing.ts no tiene otra forma de enterarse de que la
+    // próxima pasada de `buildAssetGroup` es nueva sin tocar el llamador.
+    if (c.userData?.assetInstancePool) resetAssetInstancePool();
     const mesh = c as THREE.Mesh & {
       material?: THREE.Material | THREE.Material[];
     };
@@ -150,14 +155,31 @@ export function buildAssetGroup(
   const dS = Math.max(0.2, a.h * s);
   const h3d = Math.max(0.05, def.height * s);
   const group = new THREE.Group();
-  buildCadAssetArchetype(
-    def.archetype,
-    wS,
-    dS,
-    h3d,
-    def.color,
-    a.shape,
-  ).forEach((o) => group.add(o));
+  const shape = a.shape ?? "rect";
+  const cx = (a.x + a.w / 2 - W / 2) * s;
+  const cz = (a.y + a.h / 2 - H / 2) * s;
+  const rotY = -((a.rotation || 0) * Math.PI) / 180;
+  // Transform absoluta del activo, para hornear la matriz de instancia de
+  // cada parte compartida ANTES de que el grupo cargue esta misma transform
+  // (ver el comentario de `anchorToWorldSpace` en asset-instancing.ts).
+  const worldTransform = new THREE.Matrix4().compose(
+    new THREE.Vector3(cx, 0, cz),
+    new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), rotY),
+    new THREE.Vector3(1, 1, 1),
+  );
+  buildCadAssetArchetype(def.archetype, wS, dS, h3d, def.color, shape).forEach(
+    (o, partIndex) => {
+      const pooled = poolAssetPart(
+        group,
+        def.archetype,
+        partIndex,
+        shape,
+        o,
+        worldTransform,
+      );
+      if (!pooled) group.add(o);
+    },
+  );
 
   // invisible, forgiving hit box covering the whole bounding volume
   const flat = def.archetype === "zone" || def.archetype === "path";
@@ -197,10 +219,8 @@ export function buildAssetGroup(
   }
 
   group.userData.assetId = a.id;
-  const cx = (a.x + a.w / 2 - W / 2) * s;
-  const cz = (a.y + a.h / 2 - H / 2) * s;
   group.position.set(cx, 0, cz);
-  group.rotation.y = -((a.rotation || 0) * Math.PI) / 180;
+  group.rotation.y = rotY;
   return group;
 }
 
