@@ -294,6 +294,58 @@ test("gemelos tristes del marco: centinela, CRC y tamaño mentiroso", () => {
   );
 });
 
+/**
+ * Un marco R2010+ con campo de tamaño de 8 bytes little-endian (hecho medido
+ * VALLE-CORPUS-INTAKE-A60EBE2, intake 2026-08-23: los 4 bytes altos miden 0
+ * en los 7/7 casos reales medidos, pero el lector los porta con aritmética
+ * comprobada como cualquier otro tamaño no confiable).
+ */
+function buildWideFrame(payload: number[], slack: number[], highBytes = [0, 0, 0, 0]): Uint8Array {
+  const bytes: number[] = [...AC1015_HEADER_VARIABLES_SENTINELS.begin];
+  const sized = [
+    payload.length & 0xff,
+    (payload.length >> 8) & 0xff,
+    (payload.length >> 16) & 0xff,
+    (payload.length >> 24) & 0xff,
+    ...highBytes,
+    ...payload,
+  ];
+  bytes.push(...sized);
+  const crc = crc16Dwg(Uint8Array.from(sized), AC1015_SECTION_CRC_SEED);
+  bytes.push(crc & 0xff, (crc >> 8) & 0xff);
+  bytes.push(...AC1015_HEADER_VARIABLES_SENTINELS.end);
+  bytes.push(...slack);
+  return Uint8Array.from(bytes);
+}
+
+test("un marco R2010+ de 8 bytes de tamaño entrega su payload igual que el de 4", () => {
+  const frame = readR2004SectionFrame(
+    buildWideFrame([9, 8, 7, 6, 5], [0xaa]),
+    AC1015_HEADER_VARIABLES_SENTINELS,
+    8,
+  );
+  assert.deepEqual([...frame.payload], [9, 8, 7, 6, 5]);
+  assert.equal(frame.declaredSize, 5);
+  assert.equal(frame.slackLength, 1);
+});
+
+test("gemelo triste: un tamaño R2010+ de 8 bytes fuera de rango entero seguro falla cerrado", () => {
+  const wide = buildWideFrame([1, 2, 3], [], [0, 0, 0, 0x01]); // desborda MAX_SAFE_INTEGER de sobra
+  assertDwgError(
+    () => readR2004SectionFrame(wide, AC1015_HEADER_VARIABLES_SENTINELS, 8),
+    "DWG_STRUCTURE_CORRUPT",
+  );
+});
+
+test("gemelo triste: el ancho de 4 bytes sigue siendo el valor por defecto para AC1018", () => {
+  // Un marco de 4 bytes leído como si fuera de 8 no cuadra: el tamaño
+  // declarado se lee corrido y el CRC no valida — falla cerrado, no silencioso.
+  assertDwgError(
+    () => readR2004SectionFrame(buildFrame([1, 2, 3, 4], []), AC1015_HEADER_VARIABLES_SENTINELS, 8),
+    "DWG_STRUCTURE_CORRUPT",
+  );
+});
+
 test("la sección de clases R2004 decodifica sus registros extendidos", () => {
   const emitter = new DwgBitEmitter();
   emitter.emitBS(0x1f4); // número de clase máximo

@@ -802,7 +802,7 @@
       "operationId": "confirmUpgradeIntent",
       "method": "POST",
       "path": "/v1/commercial/upgrade-intents/{intentId}/confirm",
-      "summary": "Confirma el intent (solo owner/admin) y activa el plan pedido.",
+      "summary": "RETIRADO (P0-A): ningun principal de organizacion cliente puede confirmar su propio upgrade.",
       "tags": [
         "commercial"
       ],
@@ -818,11 +818,8 @@
       ],
       "requestBody": null,
       "responses": [
-        "200",
         "401",
-        "403",
-        "404",
-        "409"
+        "403"
       ]
     },
     {

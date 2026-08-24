@@ -704,3 +704,76 @@ docs/history/execution/CAMPANA_DWG_20260821.md y la evidencia en docs/cad/eviden
 
 El producto permanece available:false; la promocion es la firma del
 ADR-0009, no un efecto colateral de esta campana.
+
+## Intake 2026-08-23 — AC1024: dos hechos confirmados, BOT queda BLOCKED_BY_SOURCE_GATE
+
+Objetivo de la sesion: decodificar cuerpos de objeto AC1024 (R2010). El hecho
+ya registrado en `ODA-ODS-DWG-5.4.1-PUBLIC` ("AC1024/AC1027/AC1032... codifican
+el tipo de objeto como par de 2 bits + valor (BOT) y el tamano del flujo de
+handles como UMC tras el dato") nombra el mecanismo pero no fija su disposicion
+exacta de bits — no hay tabla de que selector de 2 bits implica que ancho de
+valor, a diferencia de BS/BL que si la tienen registrada. Sin esa tabla no hay
+forma de decodificar NINGUN tipo de objeto sin adivinar.
+
+Disciplina seguida: medicion original sobre el corpus admitido (commit
+`a60ebe2`, bundles `valle.fundacional.ac1024.001`/`.ac1027.001`), permitida por
+`CLEAN_ROOM_POLICY.md` ("mediciones originales realizadas sobre fixtures
+autorizados"). Nunca se consulto una implementacion, SDK o especificacion
+ajena no registrada.
+
+**Hecho 1 — marco de seccion de datos R2010+ de 8 bytes de tamano** (registrado
+en `VALLE-CORPUS-INTAKE-A60EBE2`, commit `75c2467`): a diferencia de R2000/
+AC1018 (RL de 4 bytes), AcDb:Header y AcDb:Classes usan un campo de tamano de
+8 bytes little-endian. Confirmado por coincidencia EXACTA del CRC-16
+almacenado en 7/7 mediciones (AC1024 x2 fixtures x2 secciones, AC1027 y AC1032
+x1 fixture x2 secciones). `readR2004SectionFrame` acepta ahora `sizeFieldWidth`
+(4 u 8).
+
+**Hecho 2 — envoltura de objeto R2010+ sin tamano al frente** (registrado en la
+misma entrada, commit `f644321`): a diferencia de R2000/AC1018 (tamano MS +
+cuerpo + CRC-16), el cuerpo NO lleva tamano en bytes al frente; el CRC-16
+cubre el cuerpo completo desde su primer byte y termina exactamente 2 bytes
+antes del offset del SIGUIENTE objeto del mapa de handles (o el fin del
+payload para el ultimo). Medido por busqueda exhaustiva del rango candidato:
+coincidencia UNICA y aterrizaje EXACTO en 430/430 objetos reales (148/148 en
+AC1024 02-una-linea, 165/165 en AC1024 08-plano-mini, 117/117 en AC1027
+08-plano-mini). Nuevo `container/r2010-object-envelope.ts`
+(`pairR2010ObjectBounds` + `readR2010ObjectBody`) delimita y verifica el
+cuerpo opaco; NO decodifica su tipo.
+
+**Identificacion independiente de una LINEA real** (misma entrada): dentro de
+ese envoltorio, el objeto handle=34 de `02-una-linea.dwg` (AC1024) se
+identifico como la entidad LINEA del oraculo DXF (extremo 100,50,0) por
+busqueda BIT A BIT (no alineada a byte) de los dobles IEEE-754 100.0 y 50.0:
+ambos aparecen en las posiciones que predice el orden YA REGISTRADO de los
+campos de LINEA en R2000 (Z-nulas, RD X0, DD X1, RD Y0, DD Y1) — el hueco de
+64 bits entre los dos DD es exactamente un RD (Y0=0.0). Esto confirma que la
+codificacion POR CAMPO de la geometria no cambia para R2010+.
+
+**BOT — intentado y NO resuelto, declarado bloqueado.** Con el objeto LINEA ya
+identificado, se localizo su handle propio H (patron codigo=0/contador=1/
+valor=34, coincidencia UNICA a nivel de bit) 34 bits despues del inicio del
+cuerpo. Se probaron las descomposiciones mas simples de esos 34 bits en
+selector BOT de 2 bits + valor de ancho fijo (8, 16 y 32 bits, ambos ordenes
+de bit ya establecidos en el codec): NINGUNA reproduce el codigo LINE=0x13 ya
+registrado y confirmado para R2000/AC1018. Sin una fuente registrada que fije
+la tabla selector→ancho de BOT (ni la posicion exacta del campo UMC del
+tamano del flujo de handles, que depende de resolver BOT primero), continuar
+exigiria adivinar una disposicion de bits — la regla mas importante del
+laboratorio lo prohibe explicitamente. Se detiene ESTA linea de trabajo.
+
+**Efecto en el producto**: ninguno observable. `readR2004Database` sigue
+lanzando `DWG_VERSION_DECODER_UNSUPPORTED` para AC1024/AC1027/AC1032 antes de
+llegar a los nuevos modulos (no estan conectados: conectar un envoltorio que
+no puede identificar el TIPO no aportaria una base de datos, solo una lista de
+cuerpos opacos sin clasificar). `DWG_VERSION_REGISTRY` mantiene
+`decoderStatus: "unsupported"` para las tres versiones y `CAPABILITIES.md` no
+cambia su estado, solo su columna de evidencia.
+
+**Para retomar esta linea**: la unica entrada que faltaria en
+`SOURCE_REGISTER.json` es la tabla exacta selector-de-2-bits→ancho-de-valor de
+BOT (y, tras eso, la posicion exacta del campo UMC y el algoritmo del flujo de
+strings separado). Esa tabla no es derivable por medicion pura sin mas
+anclas independientes que una sola entidad conocida; hacen falta mas
+identificaciones independientes (mas tipos, no solo LINE) para acotar el
+espacio de hipotesis sin adivinar, o una fuente documental que la registre.
