@@ -157,18 +157,18 @@ describePostgres('CommercialController upgrade intents (PostgreSQL)', () => {
     });
 
     // Un member no decide ni audita la lista; owner sí (sin cambios).
-    await expect(
+    expect(() =>
       controller.confirmUpgradeIntent(created.id, request('member', memberId)),
-    ).rejects.toThrow(ForbiddenException);
+    ).toThrow(ForbiddenException);
     await expect(
       controller.listUpgradeIntents(request('viewer', memberId)),
     ).rejects.toThrow(ForbiddenException);
 
     // El propio owner de la organización cliente TAMBIÉN es rechazado: es
     // exactamente el actor que P0-A cierra. Nada muta.
-    await expect(
+    expect(() =>
       controller.confirmUpgradeIntent(created.id, request('owner', ownerId)),
-    ).rejects.toThrow(ForbiddenException);
+    ).toThrow(ForbiddenException);
     await expect(
       harness.dataSource
         .getRepository(SubscriptionUpgradeIntent)
@@ -199,9 +199,9 @@ describePostgres('CommercialController upgrade intents (PostgreSQL)', () => {
     expect(cancelled).toMatchObject({ status: 'cancelled' });
 
     // Ya decidido (cancelado): ni confirmar ni volver a cancelar.
-    await expect(
+    expect(() =>
       controller.confirmUpgradeIntent(created.id, request('owner', ownerId)),
-    ).rejects.toThrow(ForbiddenException);
+    ).toThrow(ForbiddenException);
     await expect(
       controller.cancelUpgradeIntent(created.id, request('owner', ownerId)),
     ).rejects.toThrow(ConflictException);
@@ -219,12 +219,12 @@ describePostgres('CommercialController upgrade intents (PostgreSQL)', () => {
       request('owner', ownerId),
     );
 
-    await expect(
+    expect(() =>
       controller.confirmUpgradeIntent(created.id, request('owner', ownerId)),
-    ).rejects.toThrow(ForbiddenException);
-    await expect(
+    ).toThrow(ForbiddenException);
+    expect(() =>
       controller.confirmUpgradeIntent(created.id, request('admin', ownerId)),
-    ).rejects.toThrow(ForbiddenException);
+    ).toThrow(ForbiddenException);
 
     await expect(
       harness.dataSource
@@ -315,9 +315,9 @@ describePostgres('CommercialController upgrade intents (PostgreSQL)', () => {
     // Antes de P0-A esto habría sido un 409 `plan_unavailable` (la
     // confirmación llegaba a mirar el plan). Ahora la autorización se decide
     // ANTES de tocar cualquier repositorio: sigue siendo el mismo 403.
-    await expect(
+    expect(() =>
       controller.confirmUpgradeIntent(created.id, request('owner', ownerId)),
-    ).rejects.toThrow(ForbiddenException);
+    ).toThrow(ForbiddenException);
 
     await expect(
       harness.dataSource
@@ -359,12 +359,12 @@ describePostgres('CommercialController upgrade intents (PostgreSQL)', () => {
     // el intent es de otra organización. Fail-closed sin necesidad de una
     // consulta cross-tenant (ADR-0005 la habría exigido no-enumerativa de
     // todas formas).
-    await expect(
+    expect(() =>
       controller.confirmUpgradeIntent(
         created.id,
         request('owner', otherOwner.id, otherOrganization.id),
       ),
-    ).rejects.toThrow(ForbiddenException);
+    ).toThrow(ForbiddenException);
     await expect(
       harness.dataSource
         .getRepository(SubscriptionUpgradeIntent)
