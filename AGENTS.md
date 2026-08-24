@@ -222,3 +222,19 @@ Y tres costumbres operativas que las campañas paralelas pagaron caro:
   media edición produce rojos falsos que cuestan más que esperar.
 - `VALLE_DWG_CORPUS_MIRROR` apunta al clon local de
   `valle-design-dwg-conformance` o los gates DWG mienten por entorno.
+
+## La regla que la campaña de cierre de ramas del 2026-08-24 dejó escrita
+
+74 ramas remotas vivas, 4 PR abiertos sin dueño claro: no fue un accidente,
+fue el efecto de sesiones paralelas que abrían una rama y la dejaban ahí. La
+regla, para toda sesión futura (ver `CONTRIBUTING.md` "Política de ramas" y
+`scripts/branch-audit.mjs`, que la vigila cada semana):
+
+**Al terminar una campaña, cierre su propia rama en la MISMA sesión —
+fusionada o borrada. Dejar la rama abierta es dejar el trabajo a medias**,
+aunque el código en sí esté terminado y probado. Una rama sin dueño activo
+que nadie cierra es exactamente el tipo de ruido que le costó un día entero
+de campaña dedicada a limpiar. Si el cambio es pequeño y autocontenido,
+sáltese la rama: los seis gates locales verdes bastan para empujar directo a
+`main` (ver `ownerMergeProtocol` en
+`docs/governance/repository-protection-baseline.json`).

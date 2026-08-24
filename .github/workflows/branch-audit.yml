@@ -1,0 +1,52 @@
+name: Branch audit
+
+# Monitor SEMANAL de higiene del repositorio -- no el CI de cada commit. La
+# campaña de cierre de ramas del 2026-08-24
+# (docs/execution/CIERRE_RAMAS_20260824.md) encontró 74 ramas remotas vivas,
+# efecto de muchas sesiones paralelas sin nadie vigilando el conteo. Este
+# workflow es la vigilancia: corre scripts/branch-audit.mjs, que cuenta y
+# clasifica por CONTENIDO (no por nombre), y falla ruidosamente si el número
+# de ramas vivas supera el umbral declarado o si alguna lleva más de dos
+# semanas sin un commit.
+#
+# Un fallo aquí NO bloquea ningún PR ni ningún push a main -- sólo manda el
+# correo de "workflow failed" al dueño del repo, igual que monitor.yml hace
+# con el SLA de producción. Ver CONTRIBUTING.md "Política de ramas".
+
+on:
+  schedule:
+    # Lunes 09:00 UTC. Ajustar aquí si el ritmo de campañas cambia -- no
+    # aflojar el umbral de scripts/branch-audit.mjs para acomodar un número
+    # que ya se sabe alto.
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Contar y clasificar ramas remotas
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout (historia completa de refs, sin blobs)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
+
+      - name: Auditar ramas
+        run: |
+          set +e
+          node scripts/branch-audit.mjs | tee informe.txt
+          CODIGO=${PIPESTATUS[0]}
+          set -e
+          {
+            echo "## Auditoría de ramas remotas"
+            echo ""
+            echo '```'
+            cat informe.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$CODIGO"
