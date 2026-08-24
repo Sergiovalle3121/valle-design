@@ -453,6 +453,7 @@ import {
   cadSolidEntityIds,
 } from "@/components/cad/viewport/solid-shade-host";
 import { CadArchitecturalMassHost } from "@/components/cad/viewport/architectural-mass-host";
+import { CadArchitecturalMassBadge } from "@/components/cad/viewport/ArchitecturalMassBadge";
 import { CadAssetSceneHost } from "@/components/cad/viewport/asset-scene-host";
 import {
   HELP_SECTIONS,
@@ -539,6 +540,7 @@ import {
 } from "@/components/cad/palettes/CadSelectionPalette";
 import { CadHatchPalette } from "@/components/cad/palettes/CadHatchPalette";
 import { CadMaterialPalette } from "@/components/cad/palettes/CadMaterialPalette";
+import { CadObjectMetadataPanel } from "@/components/cad/palettes/CadObjectMetadataPanel";
 import { ARCHITECTURAL_MATERIALS } from "@/lib/cad/materials/architectural-material-library";
 import {
   CadMTextEditor,
@@ -11131,19 +11133,20 @@ export default function Layout3DEditor({
     toast.success(`${label} creado.`, "Safety");
   };
 
+  // Repetida en cada mutador de "objeto seleccionado" de más abajo: capa
+  // bloqueada -> toast + return, con el único mensaje variando.
+  const blockedByLockedLayer = (cur: SelItem, message: string): boolean => {
+    if (!isItemLayerLocked(cur)) return false;
+    toast.error(message, "Capas");
+    return true;
+  };
   const setField = (
     field: "x" | "y" | "w" | "h" | "rotation",
     value: number,
   ) => {
     const cur = selList[0];
     if (!cur) return;
-    if (isItemLayerLocked(cur)) {
-      toast.error(
-        "La capa del objeto está bloqueada. Desbloquéala para editar propiedades.",
-        "Capas",
-      );
-      return;
-    }
+    if (blockedByLockedLayer(cur, "La capa del objeto está bloqueada. Desbloquéala para editar propiedades.")) return;
     const p =
       cur.type === "station"
         ? placementsRef.current.get(cur.id)
@@ -11166,13 +11169,7 @@ export default function Layout3DEditor({
   const updateSelectedAssetLabel = (value: string) => {
     const cur = selList[0];
     if (!cur || cur.type !== "asset") return;
-    if (isItemLayerLocked(cur)) {
-      toast.error(
-        "La capa del objeto está bloqueada. Desbloquéala para renombrar.",
-        "Capas",
-      );
-      return;
-    }
+    if (blockedByLockedLayer(cur, "La capa del objeto está bloqueada. Desbloquéala para renombrar.")) return;
     const asset = assetsRef.current.get(cur.id);
     if (!asset) return;
     beginFieldEdit(`label:${cur.id}`);
@@ -11184,10 +11181,7 @@ export default function Layout3DEditor({
   const updateSelectedAssetMaterial = (materialId: string | undefined) => {
     const cur = selList[0];
     if (!cur || cur.type !== "asset") return;
-    if (isItemLayerLocked(cur)) {
-      toast.error("La capa del objeto está bloqueada. Desbloquéala para editar el material.", "Capas");
-      return;
-    }
+    if (blockedByLockedLayer(cur, "La capa del objeto está bloqueada. Desbloquéala para editar el material.")) return;
     const asset = assetsRef.current.get(cur.id);
     if (!asset) return;
     pushHistory();
@@ -11199,13 +11193,7 @@ export default function Layout3DEditor({
   const updateSelectedTags = (value: string) => {
     const cur = selList[0];
     if (!cur) return;
-    if (isItemLayerLocked(cur)) {
-      toast.error(
-        "La capa del objeto está bloqueada. Desbloquéala para editar tags.",
-        "Capas",
-      );
-      return;
-    }
+    if (blockedByLockedLayer(cur, "La capa del objeto está bloqueada. Desbloquéala para editar tags.")) return;
     beginFieldEdit(`tags:${cur.id}`);
     setObjectTags((state) => {
       const next = { ...state, [cur.id]: value };
@@ -11218,13 +11206,7 @@ export default function Layout3DEditor({
   const updateSelectedNotes = (value: string) => {
     const cur = selList[0];
     if (!cur) return;
-    if (isItemLayerLocked(cur)) {
-      toast.error(
-        "La capa del objeto esta bloqueada. Desbloqueala para editar notas.",
-        "Capas",
-      );
-      return;
-    }
+    if (blockedByLockedLayer(cur, "La capa del objeto esta bloqueada. Desbloqueala para editar notas.")) return;
     beginFieldEdit(`notes:${cur.id}`);
     setObjectNotes((state) => {
       const next = { ...state, [cur.id]: value };
@@ -11289,13 +11271,7 @@ export default function Layout3DEditor({
   const resetSelectedRotation = () => {
     const cur = selList[0];
     if (!cur) return;
-    if (isItemLayerLocked(cur)) {
-      toast.error(
-        "La capa del objeto está bloqueada. Desbloquéala para rotar.",
-        "Capas",
-      );
-      return;
-    }
+    if (blockedByLockedLayer(cur, "La capa del objeto está bloqueada. Desbloquéala para rotar.")) return;
     const p = getPlaceRef(cur);
     if (!p) return;
     pushHistory();
@@ -11308,13 +11284,7 @@ export default function Layout3DEditor({
     const cur = selList[0];
     const ctx = ctxRef.current;
     if (!cur || !ctx) return;
-    if (isItemLayerLocked(cur)) {
-      toast.error(
-        "La capa del objeto está bloqueada. Desbloquéala para mover.",
-        "Capas",
-      );
-      return;
-    }
+    if (blockedByLockedLayer(cur, "La capa del objeto está bloqueada. Desbloquéala para mover.")) return;
     const p = getPlaceRef(cur);
     if (!p) return;
     pushHistory();
@@ -16632,14 +16602,7 @@ export default function Layout3DEditor({
                 >
                   Native {nativeEntities.length}
                 </span>
-                <span
-                  data-testid="cad-architectural-mass-count"
-                  data-rooms={architecturalMassHostRef.current?.roomCount ?? 0}
-                  data-roof={architecturalMassHostRef.current?.hasRoof ? "true" : "false"}
-                  title="Piso/cielorraso por habitación cerrada y techo, extruidos desde los muros"
-                >
-                  Masa {architecturalMassHostRef.current?.roomCount ?? 0}
-                </span>
+                <CadArchitecturalMassBadge hostRef={architecturalMassHostRef} />
                 {/* QUÉ pipeline dibuja y CUÁNTO lleva materializado. El benchmark
                   midió un camino que el producto no ejecutaba; publicarlo en el
                   DOM es lo que impide que vuelva a pasar sin que nadie lo note. */}
@@ -18221,73 +18184,9 @@ export default function Layout3DEditor({
                             value={`${Math.round(selSnap.w)} × ${Math.round(selSnap.h)}`}
                           />
                         </div>
-                        {selectedObjectProperties && (
-                          <div className="rounded-lg border border-border bg-surface/80 p-2">
-                            <div className="mb-2 type-micro uppercase tracking-wide text-muted-foreground">
-                              Metadata CAD
-                            </div>
-                            <div className="grid grid-cols-2 gap-2">
-                              <ReadField
-                                label="Centro"
-                                value={`${Math.round(selectedObjectProperties.center.x)}, ${Math.round(selectedObjectProperties.center.y)}`}
-                              />
-                              <ReadField
-                                label="Origen"
-                                value={
-                                  selectedObjectProperties.source.source ===
-                                  "dxf"
-                                    ? "DXF editable"
-                                    : selectedObjectProperties.source.source ===
-                                        "generated"
-                                      ? "Generado"
-                                      : "Manual"
-                                }
-                              />
-                              {selectedObjectProperties.source.dxfLayer && (
-                                <ReadField
-                                  label="DXF layer"
-                                  value={
-                                    selectedObjectProperties.source.dxfLayer
-                                  }
-                                />
-                              )}
-                              <ReadField
-                                label="Safety"
-                                value={
-                                  selectedObjectProperties.safetyClassification
-                                }
-                              />
-                            </div>
-                            {selectedObjectProperties.architecture && (
-                              <div className="mt-2 rounded-lg border border-slate-300/10 bg-slate-300/[0.04] p-2">
-                                <div className="mb-1.5 flex items-center justify-between gap-2">
-                                  <span className="type-micro uppercase tracking-wide text-slate-300">
-                                    Engineering CAD
-                                  </span>
-                                  <span className="rounded-full bg-muted/60 px-1.5 py-0.5 type-micro text-slate-200">
-                                    {selectedObjectProperties.architecture.role}
-                                  </span>
-                                </div>
-                                <div className="grid grid-cols-2 gap-2">
-                                  {selectedObjectProperties.architecture.technical
-                                    .slice(0, 4)
-                                    .map((item) => (
-                                      <ReadField
-                                        key={`${item.label}-${item.value}`}
-                                        label={item.label}
-                                        value={item.value}
-                                      />
-                                    ))}
-                                </div>
-                              </div>
-                            )}
-                            {selectedObjectProperties.warnings.length > 0 && (
-                              <div className="mt-2 rounded-md border border-amber-300/15 bg-amber-400/[0.06] px-2 py-1 type-micro text-warning-ink">
-                                {selectedObjectProperties.warnings[0]}
-                              </div>
-                            )}
-                          </div>
-                        )}
+                        <CadObjectMetadataPanel
+                          properties={selectedObjectProperties}
+                        />
                         <div className="grid grid-cols-3 gap-1.5 pt-1">
                           <button
                             onClick={assignSelectedToActiveLayer}
