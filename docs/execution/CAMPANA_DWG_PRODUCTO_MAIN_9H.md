@@ -306,3 +306,394 @@ Comandos y resultados:
 | `npx tsc --noEmit -p apps/web/tsconfig.json` | 0 | tras corregir un error real de estrechamiento de tipos (`probe.ok` como discriminante) |
 | `npm run check:dwg` | 0 | |
 | `npm run lint --workspace=web` | 0 | 202 warnings preexistentes, 0 en archivos tocados, 0 errores |
+
+### 5.4 Fase 3 — fidelidad (CERRADA para lo verificado seguro; unidades queda con warning explícito, no resuelto de raíz)
+
+Usando los hallazgos exactos del subagente B (fidelidad/manifiesto de
+pérdidas), implementado en `dwg-document-bridge.ts` (y extraído a
+`dwg-document-bridge-primitives.ts` por presupuesto de monolito — ver
+abajo):
+
+1. **Capas: color ACI real, no paleta rotatoria inventada.** `mapLayers`
+   usaba `palette[definitions.length % palette.length]` (5 colores fijos por
+   POSICIÓN, no por dato). Ahora usa `aciToHex(layer.colorIndex)` —
+   reutiliza `apps/web/src/lib/cad/plot/aci-palette.ts`, la tabla ACI↔RGB
+   real ya usada por plotting, exactamente lo que el propio códec pide en su
+   comentario ("la tabla ACI completa es del adaptador de integración").
+   ACI 1-9/250-255 exactos, 10-249 por rampa reproducible documentada.
+2. **Capas: `stateFlags` — declarado, NO adivinado.** Verifiqué
+   directamente el código del laboratorio: `stateFlags` viaja CRUDO a
+   propósito ("la semántica bit a bit... queda pendiente de corpus real; el
+   modelo expone el valor ENTERO sin fingir interpretarlo"). Interpretar
+   bits de apagada/congelada/bloqueada aquí habría sido exactamente la
+   adivinanza que esa regla prohíbe — aunque la semántica DXF (código 70)
+   sea bien conocida, la codificación BINARIA de DWG no está confirmada
+   contra corpus real para este códec. Se declara una pérdida específica por
+   capa cuando `stateFlags!==0`, con el valor crudo, y la capa se importa
+   visible/desbloqueada en vez de fingir un estado.
+3. **Unidades: de `unit:"mm"` silencioso a `unit:"mm"` DECLARADO.**
+   Verificado: el camino de LECTURA del códec no decodifica INSUNITS en
+   absoluto (`ac1015-database-reader.ts` sólo consume centinelas del frame
+   de cabecera, no su contenido — la decodificación de INSUNITS existe pero
+   sólo la usa el camino de ESCRITURA). Cerrar esto de raíz exigiría nueva
+   decodificación en el laboratorio bajo el protocolo completo de
+   registro-de-hecho-antes-de-código, que esta sesión no va a improvisar
+   bajo presión de tiempo. Se aplicó la alternativa conservadora que la
+   propia campaña prescribe: la suposición de milímetros ahora genera una
+   entrada de pérdida SIEMPRE presente, prominente y persistente (vive en
+   `document.lossManifest`, no en un toast), en vez de una suposición
+   silenciosa. **Gap real, registrado, no cerrado.**
+4. **Bloques: punto base `{0,0}` — declarado.** Antes: hardcodeado sin
+   ninguna entrada en `losses` (confirmado: 0 de 10 `losses.push` lo
+   mencionaban). Ahora cada bloque declara la suposición con su handle y una
+   advertencia de que un INSERT puede aparecer desplazado.
+5. **TEXT/LWPOLYLINE: propiedades descartadas, declaradas una por una.**
+   `CadDxfPrimitive` (compartida con DXF) no representa rotación/factor de
+   ancho/ángulo oblicuo/alineación/generación de TEXT ni elevación/grosor/
+   ancho constante/anchos-por-vértice de LWPOLYLINE. Nuevas funciones
+   `droppedTextProperties`/`droppedLwPolylineProperties` (puras) detectan
+   cuándo el valor real difiere del default y declaran EXACTAMENTE qué se
+   perdió, por entidad — nunca un aviso genérico, y CERO ruido cuando el
+   archivo sólo usaba valores por defecto (verificado con la entidad "SALÓN"
+   de la base de prueba, que es todo-default y no genera pérdida nueva).
+6. **Éxito vacío: cerrado.** `dwgNeutralDatabaseToCadDocument` ahora falla
+   cerrado (`throw new Error`) cuando el mapeo no produce ni una entidad ni
+   un bloque — mismo criterio que ya usan DXF y shapefile en el mismo
+   módulo. Antes: `dwg-document-bridge.spec.ts` afirmaba EXPLÍCITAMENTE que
+   una base vacía producía un documento "exitoso" — ese test se corrigió
+   para esperar el fallo (no se debilitó ninguna aserción: se corrigió una
+   que codificaba el comportamiento incorrecto). Una base con SÓLO un bloque
+   definido (sin nada en model space) sigue contando como contenido real —
+   mismo criterio que DXF.
+7. **ATTRIB (hallazgo del subagente, NO cerrado esta fase):** el comentario
+   del puente decía "los ATTRIB no los decodifica el laboratorio" — inexacto:
+   el laboratorio SÍ los decodifica (`Ac1015DatabaseEntityRecord.attributes`),
+   pero `DwgNeutralEntityRecord` (la frontera de producto) no tiene ese
+   campo, así que se descarta antes de llegar al puente. El cuello de
+   botella está en `dwg-native-reader.ts`/`dwg-neutral-model.ts`, no aquí.
+   Registrado para una fase futura; no se tocó esta sesión (fuera del
+   alcance ya cerrado de esta fase, y tocar la frontera del perfil V3
+   exigiría su propia evidencia end-to-end antes de ampliar, por la misma
+   disciplina de ADR-0009 que ya rige el resto del perfil).
+
+**Efecto colateral real: presupuesto de monolito.** Los cambios llevaron
+`dwg-document-bridge.ts` de ~770 a 920 líneas (máximo 800 para un archivo
+no presupuestado). Se corrigió por EXTRACCIÓN, no por ampliar el
+presupuesto (la opción que `AGENTS.md` pide explícitamente): nuevo archivo
+`dwg-document-bridge-primitives.ts` (385 líneas) con el mapeo puro por
+entidad (`dwgGeometryToPrimitive`, `dwgMTextToCadDxfMText`,
+`dwgDimensionToCadDxfSemanticDimension`, `dwgHatchToCadDxfHatch`, los dos
+`dropped*Properties` nuevos, y los helpers `decodeCodePageBytes`/`point2`/
+`degrees`), reexportado desde el módulo principal (581 líneas) para que
+`dwg-document-bridge.spec.ts`/`dwg-document-bridge-entities.spec.ts` no
+cambien su import. Límite acíclico verificado: el archivo nuevo no importa
+nada del principal. Precedente directo en el propio repo:
+`dwg-document-bridge-entities.spec.ts` ya se había separado de
+`dwg-document-bridge.spec.ts` por la misma razón, documentado en su propio
+encabezado.
+
+Comandos y resultados:
+
+| Comando | Exit | Nota |
+| --- | --- | --- |
+| `npx tsx src/lib/cad/dwg-document-bridge.spec.ts` | 0 | incl. 8 bloques de pruebas nuevas de Fase 3 |
+| `npx tsx src/lib/cad/dwg-document-bridge-entities.spec.ts` | 0 | sin regresión |
+| `npx tsx src/lib/cad/dwg-native-reader.spec.ts` | 0 | sin regresión |
+| `npx tsx src/lib/cad/document-import.spec.ts` | 0 | sin regresión |
+| `node scripts/dwg/check-product-boundary.mjs` | 0 | tras corregir 1 rojo real (mención de ruta del paquete en un comentario) |
+| `npx tsc --noEmit -p apps/web/tsconfig.json` | 0 | |
+| `node scripts/cad/check-monolith-budget.mjs` | 0 | 1759 archivos, tras la extracción |
+| `npm run check:dwg` | 0 | |
+| `npm run check:cad` | 0 | tras corregir el presupuesto de lint (23→18 avisos: 5 imports de tipo que quedaron sin uso tras la extracción) |
+
+### 5.5 Fase 4 — E2E real no circular (API + PostgreSQL): un bug de producto real, PREVIO a esta sesión, encontrado por dejar de mockear
+
+Infraestructura levantada de verdad para esta fase (nada de esto existía al
+empezar la sesión, y nada estaba en el brief como disponible):
+PostgreSQL 16 arrancado (estaba instalado pero apagado), rol `valle` con
+`CREATEROLE`/superusuario en este sandbox desechable, las 34 migraciones
+corridas contra él, API NestJS real en `:4000`
+(`IDENTITY_TEST_HARNESS=true`), build de producción de `apps/web` con
+`NEXT_PUBLIC_API_URL=http://localhost:4000` y ambos flags DWG en `true`,
+servida con `E2E_PROD=1`. `VALLE_DWG_CORPUS_MIRROR` apuntando al clon local
+de `valle-design-dwg-conformance` para leer el fixture real
+`valle.fundacional.ac1015.001/fixtures/08-plano-mini.dwg` sin copiarlo al
+árbol (sus términos de redistribución lo prohíben).
+
+Nuevo spec: `apps/web/e2e/real/dwg-import-real.spec.ts` — a diferencia del
+spec DWG existente (`dashboard-dwg-import-beta.spec.ts`, modo GOLDENS,
+`.dwg` generado por el propio `writeDwg` del laboratorio, circular por
+diseño, intercepta TODO `/v1/cad/**`), este habla con la API real y
+PostgreSQL real, verifica conteos de entidad contra un oráculo DXF
+independiente (parseado aquí mismo, no con el importador DXF del
+producto), y prueba seleccionar→editar→guardar→cerrar sesión→nueva
+sesión→confirmar persistencia contra PostgreSQL, no sólo contra la URL.
+
+**Tres problemas reales de UI corregidos en el camino** (deriva de la UI
+frente al spec de referencia `e2e/real/studio-real-api.spec.ts`, no bugs
+nuevos): verificación de correo ahora se auto-envía al montar con el token
+de la URL (ya no hay botón que pulsar); el formulario de alta de
+organización se rediseñó (selector de dos tarjetas, `Nombre del despacho`
+sin campo de slug separado, botón "Crear organización"); la compilación
+bajo demanda de Turbopack en modo dev del chunk del worker + códec DWG
+excede cualquier timeout razonable de prueba — diagnosticado
+diferencialmente (el worker SÍ cargaba, el mismo spec en modo GOLDENS
+fallaba rápido por una razón no relacionada, así que el entorno no estaba
+roto en general) y evitado corriendo contra un build de producción
+(`E2E_PROD=1`) en vez de dev.
+
+**El hallazgo real, con la infraestructura ya funcionando**: al llegar a
+`PUT /v1/cad/documents/:id/content` (guardar el documento canónico que
+produce la importación DWG), la API real respondía:
+
+```json
+{"message":"CadDocument schema no soportado.","error":"Bad Request","statusCode":400,"requestId":"..."}
+```
+
+Root-caused sin adivinar (secuencia real, cada paso verificado antes del
+siguiente):
+
+1. `apps/api/src/modules/cad-documents/cad-document-validation.ts` rechaza
+   cualquier `meta.schema` fuera de `[1, CAD_DOCUMENT_MAX_SCHEMA]`, y
+   `CAD_DOCUMENT_MAX_SCHEMA` valía `9`.
+2. `apps/web/src/lib/cad/cad-document-shared.ts` declara
+   `CAD_DOCUMENT_SCHEMA = 10` — el número que el cliente escribe en
+   `meta.schema` de CADA documento nuevo o migrado, DWG o no.
+3. `git log -p -S"CAD_DOCUMENT_SCHEMA = 10"` identifica el commit exacto:
+   `b3fada9` ("Las cotas dibujan lo que prometen: el esquema 10 lleva los
+   DIMVARs hasta el render"), 2026-08-23 — un día antes de esta sesión,
+   autoría de Sergio Valle Zarate con Claude Opus 5. `git show b3fada9 --
+   apps/api/src/modules/cad-documents/cad-document-validation.ts` no
+   devuelve nada: ese commit NUNCA tocó el techo del servidor.
+4. **Esto no es un bug de DWG.** No toqué `cad-document.ts`,
+   `layoutToCadDocument` ni `migrateCadDocument` en las fases 1-3, y el
+   patrón de llamada del puente DWG a esas funciones ya existía antes de
+   esta sesión. Desde que `b3fada9` se fusionó, **cualquier guardado de
+   CUALQUIER documento nuevo** (DXF, JSON, dibujo en blanco, no sólo DWG)
+   habría chocado con este mismo 400 contra la API real — el propio
+   comentario que ya vivía junto a `CAD_DOCUMENT_MAX_SCHEMA` lo describe
+   literalmente: *"un servidor que se quedara en el anterior convertiría
+   cada guardado en un 400 sin que nada estuviera roto"*. Nadie lo había
+   visto porque el E2E existente para esta ruta corre mockeado.
+5. La propia prueba que hacía de gate del techo anterior
+   (`cad-schema4-invariants.spec.ts`) CODIFICABA el bug como correcto: tras
+   `b3fada9`, seguía en verde afirmando `toThrow(BadRequestException)` para
+   `meta.schema: 10` — el mismo patrón que el "éxito vacío" que corregí en
+   Fase 3 (una prueba que blinda el comportamiento incorrecto en vez de
+   detectarlo). Confirmado corriéndola ANTES de tocar código: verde
+   (`Tests: 12 passed, 12 total`, exit 0) — verde significaba "el techo
+   viejo sigue en pie", no "no hay bug".
+6. Grep repo-completo encontró un TERCER lugar con el mismo número
+   duplicado: `packages/contracts/src/design-contracts.ts`,
+   `CAD_DOCUMENT_LIMITS.maxSchema`, documentado en su propio comentario
+   como "espejo de `cad-document-validation.ts`" — pero con el valor `3`,
+   ocho subidas de esquema por detrás. Confirmado con grep que este
+   `CAD_DOCUMENT_LIMITS` NO se importa desde ningún código de runtime de
+   `apps/web` ni `apps/api` (sólo desde su propio archivo y desde
+   `packages/design-sdk/src/compat.spec.ts`), así que no participa en el
+   400 real — es documentación de contrato muerta, no un segundo gate
+   activo. Y ese mismo spec de compatibilidad confirma que `minSchema`/
+   `maxSchema` NUNCA estuvieron en su arreglo de comprobación contra el
+   YAML (`expectations`), a diferencia de `maxEntities`/`maxBlocks`/etc.:
+   por eso su deriva nunca hizo fallar nada.
+
+**Corrección quirúrgica aplicada** (mismo patrón que las subidas 7→8→9 ya
+en el repo, sin inventar mecanismo nuevo):
+
+- `CAD_DOCUMENT_MAX_SCHEMA`: `9` → `10`, comentario actualizado explicando
+  que el 10 es puramente aditivo (7 campos opcionales-ausentes sobre
+  `dimension`, igual que `frozen`/`layerStates` en el 9 — ningún campo
+  nuevo exige una invariante propia, mismo criterio que el propio código ya
+  aplicaba para el 9).
+- Tres pruebas que codificaban el techo viejo como correcto, corregidas
+  para trinquetear un paso adelante (9 y 10 aceptados, 11 —el futuro— se
+  rechaza), con un comentario explícito de qué pasó y por qué:
+  `cad-schema4-invariants.spec.ts`, `cad-solid-invariants.spec.ts`,
+  `cad-viewport-view-invariants.spec.ts`. Verificado ROJO antes (la
+  aserción `toThrow` para `schema:10` pasaba porque el bug era real) y
+  VERDE después en cada una.
+- `packages/contracts/src/design-contracts.ts`:
+  `CAD_DOCUMENT_LIMITS.maxSchema` `3` → `10` — corrección de exactitud del
+  contrato documentado (no corrige el 400 real, que ya vivía sólo en la
+  API; corrige que el "espejo" mienta sobre lo que el backend acepta).
+  **NO** se tocó `CAD_DOCUMENT_LIMITS.maxArchiveBytes` (`128 MiB`) ni la
+  cota `maximum: 134217728` del YAML de OpenAPI
+  (`packages/contracts/specs/design-api.v1.yaml:4093`), aunque ambas están
+  IGUAL de obsoletas frente al techo real de la API
+  (`CAD_DOCUMENT_MAX_ARCHIVE_BYTES = 32 * 1024 * 1024`, bajado en la
+  campaña 2026-08-20): es un hallazgo real, separado, pre-existente, de la
+  MISMA clase (un número que dejó de estar sincronizado) pero de un tema
+  distinto (bytes, no versión de esquema) que tocar exige regenerar el SDK
+  y verificar igualdad de bytes contra el router real (archivo delicado
+  por `AGENTS.md`) — fuera del alcance quirúrgico de esta corrección.
+  Queda anotado en los próximos 10 pendientes del informe de cierre, no
+  fabricado ni resuelto a medias aquí.
+
+Comandos y resultados:
+
+| Comando | Exit | Nota |
+| --- | --- | --- |
+| `npm test --workspace=valle-design-api -- cad-schema4-invariants.spec.ts` (ANTES del fix) | 0 | verde codificando el bug: `schema:10` esperaba y obtenía 400 |
+| `npm test --workspace=valle-design-api -- cad-schema4-invariants.spec.ts` (DESPUÉS) | 0 | verde real: 9 y 10 aceptados, 11 rechazado |
+| `npm test --workspace=valle-design-api -- cad-documents` (con las 3 specs sin corregir) | 1 | 2 rojos reales: `cad-solid-invariants.spec.ts`, `cad-viewport-view-invariants.spec.ts`, mismo patrón, encontrados por no limitar el grep a un solo archivo |
+| `npm test --workspace=valle-design-api -- cad-documents` (las 3 corregidas) | 0 | 21 suites, 181 tests, 0 fallos |
+| `npm test --workspace=valle-design-api` (suite completa) | 0 | 81 suites, 682 tests, 31 suites Postgres-only omitidas (`REQUIRE_POSTGRES_TESTS` no fijado en esta corrida) |
+| `npm test --workspace=@valle/design-sdk` | 0 | 9/9 — el compat spec no referencia `minSchema`/`maxSchema`, confirmado que no se rompió nada al corregir el valor |
+
+E2E real (`dwg-import-real.spec.ts`, `--project=chromium`): primer intento
+sin `E2E_API_ORIGIN` — error de configuración de ESTA sesión, no del
+producto (`fixtures/first-party.ts` habló contra el origen mockeado
+`:4010` por defecto en vez de la API real). Reintentado con el entorno
+completo. Test 1 y test 2 en verde: registro/verificación/login/organización
+funcionan, y **el 400 de `meta.schema` está cerrado de verdad** —
+`PUT /v1/cad/documents/:id/content` respondió `200` con el documento
+DWG-importado real (log: `[response] 200 PUT
+http://localhost:4000/v1/cad/documents/1bc3a3a9-.../content`), donde antes
+del fix de esta sección respondía `400`.
+
+### 5.6 Segundo hallazgo real de Fase 4: `type:"text"` no es una entidad nativa de Studio — para NINGÚN formato, no es un bug de DWG
+
+Test 3 (abrir Studio, seleccionar la entidad "COCINA" por su texto) falló:
+`getByText("COCINA", {exact:true})` nunca apareció, con timeout de 30s. El
+panel "Entidades nativas" del snapshot de error mostraba exactamente 6
+entidades (`dwg:entity:000000` POLYLINE, `000001`/`000002` LINE,
+`000005` LINE, `dwg:insert:000000`/`000001` INSERT) — un salto en la
+numeración (`000002`→`000005`) que delataba dos entidades consumiendo
+índice sin aparecer.
+
+Root-caused sin adivinar, siguiendo la cadena real hasta la causa (cada
+paso confirmado antes de seguir al siguiente, con `npx tsx` contra el
+fixture real y consultas directas a PostgreSQL — nunca inferido):
+
+1. El oráculo DXF (`08-plano-mini.dxf`) tiene 8 entidades en ENTITIES:
+   POLYLINE, LINE×3, INSERT×2, TEXT×2 ("SALA" en (20,45), "COCINA" en
+   (80,45), ambas capa TEXTOS, sin rotación/ancho/alineación — de las más
+   simples posibles).
+2. El códec (`readDwg`, invocado directo contra el fixture) decodifica los
+   DOS TEXT exactos: `valueBytes` decodifica a "SALA"/"COCINA" byte a byte,
+   inserción y altura correctas. `toBetaProfileDatabase` los deja pasar sin
+   diagnóstico (TEXT está en el perfil V3).
+3. `dwgNeutralDatabaseToCadDocument` (el puente completo, invocado directo)
+   produce el documento CORRECTO: 8 entidades, `dwg:entity:000003 text
+   SALA`, `000004 text COCINA`, `importedEntityCount: 8`, sin hueco en la
+   numeración.
+4. `SELECT cad_document->'entities' FROM cad_documents WHERE id=...`
+   directo a PostgreSQL confirma que lo PERSISTIDO tiene los 8, con
+   `"text":"SALA"`/`"COCINA"` intactos. **Decodificación, mapeo y guardado
+   están completos y correctos** — el corte no está ahí.
+5. La causa real vive en Studio: `entity-runtime.ts` declara
+   `CadNativeEntity` como una unión explícita de tipos con adaptador
+   registrado (`line, polyline, circle, arc, ellipse, spline, hatch, mtext,
+   dimension, mleader, insert, point, xline, ray, solid, wipeout, image,
+   attdef, table, solid3d, region, wall, opening`) — **`"text"` no está en
+   esa lista, y no existe ningún `textAdapter`** en todo el árbol de
+   `apps/web/src` (sí existe `mtextAdapter`, para MTEXT). `Layout3DEditor.tsx`
+   construye `nativeEntities` filtrando `document.entities` por
+   `CAD_ENTITY_REGISTRY.supports(entity)` en los CINCO puntos donde carga o
+   aplica un documento — un `type:"text"` nunca sobrevive ese filtro, así
+   que nunca llega al lienzo, al panel ni a la selección. Sin renderer, sin
+   hitTester, sin grips, sin propiedades: no es que falle, es que la
+   entidad NUNCA se registró como nativa.
+6. **No es un hueco de DWG.** `apps/web/src/lib/cad/dxf-import.ts:521-527`
+   colapsa el TEXT y el MTEXT de un DXF real al MISMO `kind:"text"` — el
+   importador de PRODUCCIÓN de DXF, la vía que `AGENTS.md` describe como
+   soportada sin beta, produce el mismo `type:"text"` que este fixture DWG.
+   Un DXF real con una entidad TEXT (no MTEXT) tiene, con altísima
+   probabilidad, este mismo hueco — nadie lo había visto porque ningún test
+   existente (goldens ni E2E) intentaba seleccionar en un Studio
+   REALMENTE renderizado una entidad importada de tipo `text` por su
+   contenido. Esta campaña lo encontró por ser DWG la primera vía cuyo E2E
+   real llegó tan lejos.
+
+**Decisión de alcance, no arreglo apurado**: implementar `textAdapter`
+completo (renderer + hitTester + grips + snaps + properties + commands,
+igual que cualquier otro tipo en `CadEntityAdapter`) es una función nueva
+de calado general — toca selección, render 3D, snapping, historial y el
+panel de propiedades para CUALQUIER importador, no sólo DWG — y exige su
+propia batería de goldens y pruebas adversariales, igual que cada uno de
+los 22 adaptadores ya registrados las tiene. Improvisarla ahora, bajo
+presión de tiempo y fuera del alcance ya cerrado `DWG-M1-PRODUCT-RC`,
+violaría la misma disciplina que esta campaña ha seguido en las fases
+1-3 ("no amplíes soporte de formato antes de cerrar los gates de nivel de
+producto" — y esto ni siquiera es soporte de formato, es una capacidad
+general del editor). Se registra aquí como hallazgo verificado y se corrige
+SÓLO lo que estaba mal en mi propio spec: `dwg-import-real.spec.ts` ya NO
+asume que `"text"` es seleccionable — el test 2 verifica el contenido
+decodificado de "SALA"/"COCINA" contra la API (prueba que la
+decodificación de página de códigos sigue siendo correcta, sin depender de
+render), y los tests 3-5 seleccionan/editan/verifican persistencia sobre
+una LINE real (tipo SÍ nativo), con `cad-native-property-endX` en vez de la
+propiedad de TEXT. Candidato directo para el próximo-10 del informe de
+cierre.
+
+### 5.7 Tercer hallazgo real de Fase 4: el ciclo de guardado corrompe la capa de cualquier entidad `text` presente — consecuencia directa del hallazgo 5.6, no un bug nuevo independiente
+
+Con el spec ajustado (test 3 seleccionando la LINE `dwg:entity:000001` en
+vez de "COCINA"), test 3 pasó — pero segundos después, sin que el test
+pidiera ningún guardado todavía, apareció en el log:
+
+```
+[request] PUT http://localhost:4000/v1/cad/documents/660423ae-.../content
+[response] 400 PUT http://localhost:4000/v1/cad/documents/660423ae-.../content
+[response body 400] {"message":"CadDocument: la entidad dwg:entity:000003
+referencia la capa inexistente Text.","statusCode":400,...}
+```
+
+`dwg:entity:000003` es el TEXT "SALA" — su `layer` real es `"TEXTOS"`, pero
+el documento que intentó guardarse llevaba `layer:"Text"` (el bucket inglés
+del sistema de anotaciones LEGADO). Test 4 quedó colgado 60 s esperando una
+respuesta `2xx` a `PUT .../content` que nunca llegó (todo intento posterior
+choca con el mismo 400: el documento queda efectivamente NO GUARDABLE en
+Studio en cuanto se abre, para cualquier edición, no sólo para el TEXT).
+
+Rastreado (sin llegar a fijar la línea exacta — ver más abajo por qué se
+decidió no seguir):
+
+1. `entity-runtime.ts` no registra `"text"` como `CadNativeEntity` (hallazgo
+   5.6). Como consecuencia, `Layout3DEditor.tsx` trata cualquier
+   `type:"text"` del documento canónico como una anotación del sistema
+   LEGADO (`Asset`/`Annotation`), no como una entidad nativa.
+2. Ese sistema legado tiene su propio snapshot invertible
+   (`cadDocumentToEditorSnapshot`/`editorSnapshotToCadDocument`,
+   `editor-snapshot.ts`) para el historial de deshacer, con un bucket de
+   capa por defecto `TEXT_LAYER = "Text"` para anotaciones de texto SIN
+   capa asignada explícita. Leí las dos direcciones del round-trip
+   (`cadDocumentToEditorSnapshot` líneas 248-252, `editorSnapshotToCadDocument`
+   líneas 166-175, más `cadDocumentToLayout`/`layoutToCadDocument` en
+   `cad-document-legacy-adapter.ts`): cada tramo, LEÍDO AISLADO, parece
+   preservar `"TEXTOS"` correctamente (la condición `e.layer !== TEXT_LAYER`
+   es cierta para `"TEXTOS"`, así que sí se escribe en el mapa de capas por
+   objeto). No aislé el tramo exacto donde la capa real se pierde y cae al
+   bucket por defecto — probablemente un tramo adicional no leído
+   (`CanonicalHistory`, o cómo se reconstruye el payload de guardado a
+   partir de `layerAssignmentsRef` en vez de `loadedCadDocumentRef.current`
+   directamente).
+3. **Decisión de alcance**: no seguí acotando la línea exacta ni apliqué un
+   parche puntual al mecanismo de snapshot legado. La causa RAÍZ es la
+   misma del hallazgo 5.6 (`"text"` nunca se integró al sistema nativo), y
+   la reparación correcta y completa es la misma: el adaptador nativo de
+   texto — no un parche aislado a un mecanismo de historial que sirve a
+   otros 20+ tipos y que un cambio apresurado, sin el mismo nivel de
+   pruebas que tiene cada adaptador ya registrado, podría romper de forma
+   más amplia y más difícil de detectar que el bug que arregla.
+
+**Consecuencia para esta prueba**: el ciclo completo
+seleccionar→editar→guardar→cerrar sesión→recargar→confirmar persistencia
+NO se puede demostrar hoy sobre `08-plano-mini.dwg` (por las dos entidades
+TEXT que trae). Se añadió una segunda importación real en el mismo test
+(`04-capas.dwg`, mismo bundle admitido, oráculo DXF propio, 5 LINE + 1
+CIRCLE en 6 capas reales, CERO entidades TEXT — verificado antes de
+escribir la prueba) exclusivamente para los tests 3-5, dejando
+`08-plano-mini.dwg` para lo que el test 2 ya verifica (conteo de entidad,
+manifiesto de pérdidas, contenido decodificado de los dos TEXT contra la
+API). Ningún test se debilitó para evitar el hallazgo: se documentó, se
+decidió no arreglarlo por estar fuera de alcance quirúrgico, y se demostró
+el ciclo completo con un fixture real donde el hallazgo no aplica.
+
+Los tres hallazgos de Fase 4 (techo de esquema, adaptador de texto
+ausente, corrupción de capa al guardar) son PRE-EXISTENTES a esta campaña:
+ninguno lo introdujeron las fases 1-3 de trabajo DWG de esta sesión. Los
+tres se hicieron visibles porque esta es la primera vez que un E2E real
+(API + PostgreSQL, sin mocks) ejecuta el ciclo completo de guardado sobre
+un documento con contenido real — exactamente la tesis que motivó la Fase
+4 del brief.
