@@ -414,6 +414,10 @@ import {
   propagateCadConstraintsByDiff,
 } from "@/lib/cad/constraint-propagation";
 import { CadViewController } from "@/lib/cad/view/view-controller";
+import {
+  snapshotCadCamera,
+  type CadCameraSnapshot,
+} from "@/lib/cad/view/camera-continuity";
 import { publishCadViewport } from "@/lib/cad/collab/viewport-registry";
 import { CadCommandLineDock } from "@/components/cad/command-line/CadCommandLineDock";
 import { useCadCommandEngine } from "@/components/cad/command-line/use-command-engine";
@@ -458,10 +462,10 @@ import {
   type Theme3D,
 } from "@/components/cad/studio/editor-presentation";
 import {
-  buildAssetGroup,
   buildDim,
   disposeObject,
   makeLabel,
+  rebuildCadAssetGroup,
   makeNoteLabel,
   type Ann,
   type Asset,
@@ -477,7 +481,10 @@ import {
 import { CadNativeGripController } from "@/components/cad/viewport/native-grip-controller";
 import { CadGripMenuOverlay } from "@/components/cad/viewport/grip-menu-host";
 import { createCadTouchGestures } from "@/components/cad/viewport/touch-gestures";
-import { applyCadCameraPolicy } from "@/components/cad/viewport/camera-policy";
+import {
+  applyCadCameraPolicy,
+  applyInitialCameraFraming,
+} from "@/components/cad/viewport/camera-policy";
 import {
   CadRenderPipelineBadge,
   CadRenderPipelineStats,
@@ -1903,14 +1910,10 @@ export default function Layout3DEditor({
   const walkYawRef = useRef(0);
   const walkPitchRef = useRef(0);
   const walkKeysRef = useRef({ f: false, b: false, l: false, r: false });
-  const savedCamRef = useRef<{
-    px: number;
-    py: number;
-    pz: number;
-    tx: number;
-    ty: number;
-    tz: number;
-  } | null>(null);
+  const savedCamRef = useRef<CadCameraSnapshot | null>(null);
+  // Última cámara conocida, para que un re-montaje de la escena restaure el
+  // encuadre del usuario en vez del de fábrica (`view/camera-continuity.ts`).
+  const lastCamRef = useRef<CadCameraSnapshot | null>(null);
   const previewLineRef = useRef<THREE.Line | null>(null);
   const snapMarkerRef = useRef<THREE.Mesh | null>(null); // ring shown when the cursor snaps to the DXF underlay (Fase 60)
   const dxfSnapRef = useRef<{ x: number; y: number }[]>([]); // precomputed DXF snap targets (footprint coords)
@@ -2548,14 +2551,7 @@ export default function Layout3DEditor({
       const next = !prev;
       walkRef.current = next;
       if (next) {
-        savedCamRef.current = {
-          px: cam.position.x,
-          py: cam.position.y,
-          pz: cam.position.z,
-          tx: ctrl.target.x,
-          ty: ctrl.target.y,
-          tz: ctrl.target.z,
-        };
+        savedCamRef.current = snapshotCadCamera(cam.position, ctrl.target);
         ctrl.enabled = false;
         const eyeY = Math.max(ctx.W, ctx.H) * ctx.s * 0.06;
         cam.position.set(0, eyeY, Math.max(ctx.W, ctx.H) * ctx.s * 0.4);
@@ -2568,8 +2564,8 @@ export default function Layout3DEditor({
       } else {
         const s = savedCamRef.current;
         if (s) {
-          cam.position.set(s.px, s.py, s.pz);
-          ctrl.target.set(s.tx, s.ty, s.tz);
+          cam.position.set(s.position.x, s.position.y, s.position.z);
+          ctrl.target.set(s.target.x, s.target.y, s.target.z);
         }
         ctrl.enabled = true;
         ctrl.update();
@@ -3042,28 +3038,17 @@ export default function Layout3DEditor({
     const group = assetsGroupRef.current;
     const ctx = ctxRef.current;
     if (!group || !ctx) return;
-    while (group.children.length) {
-      const o = group.children[group.children.length - 1];
-      group.remove(o);
-      disposeObject(o);
-    }
-    groupByAssetRef.current = new Map();
-    const { s, W, H } = ctx;
-    assetsRef.current.forEach((a) => {
-      const isSel = selRef.current.some(
-        (s) => s.type === "asset" && s.id === a.id,
-      );
-      const g = buildAssetGroup(
-        a,
-        s,
-        W,
-        H,
-        isSel,
-        validationHighlightRef.current.has(a.id),
-      );
-      group.add(g);
-      groupByAssetRef.current.set(a.id, g);
-    });
+    const selectedAssetIds = new Set(
+      selRef.current.filter((it) => it.type === "asset").map((it) => it.id),
+    );
+    rebuildCadAssetGroup(
+      group,
+      groupByAssetRef.current,
+      assetsRef.current.values(),
+      ctx,
+      selectedAssetIds,
+      validationHighlightRef.current,
+    );
   }, []);
 
   // ---- (re)build the dimension/cota overlay (preserves the live preview line) ----
@@ -6068,11 +6053,6 @@ export default function Layout3DEditor({
     sceneRef.current = scene;
 
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 4000);
-    camera.position.set(
-      W * s * 0.45,
-      Math.max(W, H) * s * 0.8,
-      H * s * 1.0 + 10,
-    );
     cameraRef.current = camera;
 
     // THREE.WebGLRenderer LANZA si no consigue contexto. Sin este guard la
@@ -6265,9 +6245,9 @@ export default function Layout3DEditor({
     controls.enableDamping = true;
     controls.dampingFactor = 0.1;
     controls.maxPolarAngle = Math.PI / 2.05;
-    controls.target.set(0, 0, 0);
-    controls.update();
+    applyInitialCameraFraming(camera, controls, W, H, lastCamRef.current);
     controlsRef.current = controls;
+    lastCamRef.current = snapshotCadCamera(camera.position, controls.target);
 
     const viewController = new CadViewController(
       { scale: s, width: W, height: H },
@@ -6312,6 +6292,7 @@ export default function Layout3DEditor({
     controls.addEventListener("change", () => {
       syncViewFromOrbit();
       queueNativeViewportSync();
+      lastCamRef.current = snapshotCadCamera(camera.position, controls.target);
     });
     queueNativeViewportSync();
 
@@ -7769,8 +7750,20 @@ export default function Layout3DEditor({
       gapsLoadedRef.current = false;
       guidesGroupRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `data !== null`,
+    // no `data`: autosave cambia la referencia sin cambiar el plano y este
+    // efecto reconstruye TODA la escena. El reencuadre por huella real vive aparte.
+  }, [open, data !== null]);
+  useEffect(() => {
+    if (!open || !cameraRef.current || !controlsRef.current) return;
+    ctxRef.current = applyInitialCameraFraming(
+      cameraRef.current,
+      controlsRef.current,
+      data?.footprint.footprintW || 1,
+      data?.footprint.footprintH || 1,
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, data]);
+  }, [open, data?.footprint.footprintW, data?.footprint.footprintH]);
 
   // selection highlight refresh
   useEffect(() => {
