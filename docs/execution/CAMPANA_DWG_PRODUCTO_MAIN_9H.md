@@ -697,3 +697,72 @@ tres se hicieron visibles porque esta es la primera vez que un E2E real
 (API + PostgreSQL, sin mocks) ejecuta el ciclo completo de guardado sobre
 un documento con contenido real — exactamente la tesis que motivó la Fase
 4 del brief.
+
+### 5.8 Fase 5 — calidad del intake de corpus/evidencia (verificado, no fabricado)
+
+Auditoría directa de `valle-design-dwg-conformance` (repositorio hermano,
+misma sesión, misma rama `claude/valle-design-dwg-main-lnqf7t`):
+
+1. **`packages/dwg-codec/SOURCE_REGISTER.json`** (valle-design; el registro
+   de hechos-antes-de-código de ADR-0007, no un registro de corpus): 8
+   entradas, todas con `owner`/`title`/`terms`/`status`/`factsConsulted`/
+   `derivedFiles`/`reviewer`/`reviewedAt` presentes. Comprobación
+   automática (no visual) de las 8: campos requeridos completos en todas.
+   7 de 8 no llevan `origin.sha256` — verificado que NO es un hueco: esas
+   7 usan `origin.type: "first-party-repository"|"original-measurement"
+   |"public-documentation"` con la URL apuntando a un COMMIT SHA exacto
+   (equivalente en garantía a un hash de contenido) o, para el único caso
+   sin ancla criptográfica (`ODA-ODS-DWG-5.4.1-PUBLIC`, un PDF público sin
+   commit ni hash), sólo URL + fecha de acceso — más débil que el resto
+   pero no fabricado, y de severidad menor (un documento público de
+   referencia, no una autorización ni un corpus).
+2. **Verificación de hashes del corpus, no asumida**: recalculé
+   SHA-256 y `byteLength` de los 8 fixtures de `valle.fundacional.ac1015.001`
+   contra sus bytes reales en disco (no contra el manifest) — 8/8 coinciden
+   exactamente. `npm run check` del propio repositorio de conformidad
+   (`scripts/check-corpus.mjs`, cubre los 7 bundles admitidos, no sólo el
+   que yo inspeccioné a mano): `{"bundles":7,"status":"ok"}`.
+3. **Formato de oráculo**: verificado empíricamente en las Fases 2-4 de
+   esta misma sesión (parseo manual de grupos DXF contra 3 fixtures reales
+   distintas — `08-plano-mini`, `04-capas`, y antes `03-figuras-basicas`
+   para ground-truth de test) — consistente, parseable sin el importador
+   del producto, sin sorpresas.
+4. **Guía de donación (`docs/DONACIONES.md`) — completa como proceso, pero
+   con un bug real que habría bloqueado la primera donación**: el
+   documento pide, promete y detalla un procedimiento de 4 pasos, pero
+   instruía `origin: "donated"` — un valor que
+   `scripts/build-manifest.mjs` (`ORIGINS`) NUNCA aceptó (sólo
+   `donated-original`). Cero donaciones reales existían para chocar con
+   esto (tabla de registro vacía, confirmado, no asumido), pero el primer
+   donante real sí lo habría hecho — lo opuesto exacto de lo que el propio
+   documento afirma ("el mecanismo queda listo antes que el primer
+   cliente"). **Corregido** en PR draft #4 de
+   `valle-design-dwg-conformance` (rama `claude/valle-design-dwg-main-lnqf7t`,
+   nueva — este repositorio no tenía commits de esta campaña antes de este
+   punto): las dos menciones del valor incorrecto, más una aclaración
+   nueva de que el par de validaciones independientes que exige el esquema
+   para un `donated-original` no puede apoyarse en un oráculo DXF fuente
+   (ese gemelo sólo existe para `tool-converted-original`) — el par
+   concreto para cada donado real queda a criterio documentado de su
+   propio revisor, sin inventar aquí un procedimiento sin un donado real
+   delante que lo ponga a prueba. `npm test` 24/24, `npm run check` verde
+   tras el cambio.
+5. **Bloqueo externo real, registrado sin fabricar evidencia**: el corpus
+   independiente admitido sigue siendo enteramente `tool-converted-original`
+   (7 bundles, 0 `donated-original`, 0 `licensed-third-party`) — el
+   caveat de representatividad que `CORPUS_POLICY.md` ya declara por
+   escrito ("ODA File Converter... no es AutoCAD... ninguna evidencia
+   derivada de este corpus puede afirmar «compatible con AutoCAD»") sigue
+   plenamente vigente. Este bloqueo no se puede cerrar dentro de esta
+   sesión: depende de que un despacho real done un archivo, que es
+   exactamente lo que el mecanismo recién reparado en el punto 4 existe
+   para permitir. Registrado como pendiente real, no como "resuelto".
+
+Comandos y resultados:
+
+| Comando | Exit | Nota |
+| --- | --- | --- |
+| Verificación de hash (script ad hoc, 8 fixtures de `valle.fundacional.ac1015.001` contra bytes reales) | — | 8/8 sha256+byteLength coinciden |
+| `npm run check` (valle-design-dwg-conformance) | 0 | `{"bundles":7,"status":"ok"}`, antes y después del fix de DONACIONES.md |
+| `npm test` (valle-design-dwg-conformance) | 0 | 24/24, antes y después |
+| `git push -u origin claude/valle-design-dwg-main-lnqf7t` (valle-design-dwg-conformance) | 0 | rama nueva; PR draft #4 abierto y suscrito |
