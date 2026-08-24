@@ -17,8 +17,9 @@ silencio. Formato: `NNNN-titulo.md`, estado en la segunda línea.
 | [0009](0009-dwg-promotion-package.md) | Paquete de evidencia para promover el códec DWG propio a producto. | Aceptada — firmada 2026-08-24, alcance acotado a la beta `AC1015_MODELSPACE_2D_V2` (V1 ampliado el mismo día por §6-ter) |
 | [0010](0010-identificadores-persistidos-congelados.md) | Los identificadores persistidos heredados están CONGELADOS: renombrarlos rompe documentos de clientes. | Aceptada |
 | [0011](0011-migracion-aditiva-invariante.md) | La migración aditiva del documento canónico es INVARIANTE del producto: abrir viejo sin perder un campo, para siempre. | Aceptada |
-| [0012](0012-dwg-doble-via.md) | DWG a doble vía: licenciar para VENDER, códec propio para POSEER, con criterio de cambio escrito. | Aceptada — vía licenciada sustituida por 0013 |
-| [0013](0013-dwg-via-propia-unica.md) | DWG a vía única propia: se retira el proveedor licenciado que ADR-0012 dejaba abierto. | Aceptada |
+| [0012](0012-dwg-doble-via.md) | DWG a doble vía: licenciar para VENDER, códec propio para POSEER, con criterio de cambio escrito. | Aceptada — vía licenciada sustituida por 0014 |
+| [0013](0013-rol-runtime-valle-app-no-dueno.md) | Rol runtime `valle_app`, no dueño de las tablas, para que RLS sujete también a la aplicación. | Aceptada (preparado; corte de tráfico no activado en el mismo cambio) |
+| [0014](0014-dwg-via-propia-unica.md) | DWG a vía única propia: se retira el proveedor licenciado que ADR-0012 dejaba abierto. | Aceptada |
 
 ## Cómo se añade una
 

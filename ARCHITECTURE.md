@@ -118,7 +118,7 @@ perfil de importación `AC1015_MODELSPACE_2D_V2` detrás del flag
 `DWG_NATIVE_IMPORT_BETA` (apagado en producción pública por defecto,
 gate verificado por `scripts/dwg/check-product-boundary.mjs`). El resto del
 laboratorio —AC1018 en producto, 1024/1027/1032, escritura— sigue sin
-consumidor. Toda la vía es códec propio: ADR-0013 retiró la opción de
+consumidor. Toda la vía es códec propio: ADR-0014 retiró la opción de
 proveedor licenciado que ADR-0012 dejaba abierta.
 
 CIDE es un puerto opcional para intent y vision: si falta, la respuesta es

@@ -38,7 +38,7 @@ discrepancias contra su corpus con oráculo externo, y escribe un archivo
 AC1015 completo que ODA File Converter acepta; la beta sólo conecta el
 subconjunto de lectura AC1015 descrito arriba, no la capacidad completa del
 laboratorio. Todo el esfuerzo DWG es del códec propio:
-`docs/adr/0013-dwg-via-propia-unica.md` retiró la vía de proveedor
+`docs/adr/0014-dwg-via-propia-unica.md` retiró la vía de proveedor
 licenciado que `docs/adr/0012-dwg-doble-via.md` dejaba abierta.
 
 ## Repositorio

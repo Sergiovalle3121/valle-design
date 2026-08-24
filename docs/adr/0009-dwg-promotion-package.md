@@ -147,8 +147,10 @@ trabajo de esa fecha:
    `AC1015_MODELSPACE_2D_V1` (importación únicamente; modelspace 2D;
    layers, colores y propiedades básicas; LINE/POINT/CIRCLE/ARC/
    LWPOLYLINE/TEXT/INSERT según lo que el reader actual entrega completo).
-   Ver `docs/adr/0013-dwg-via-propia-unica.md` para el retiro simultáneo de
-   la vía de proveedor licenciado que ADR-0012 dejaba abierta.
+   Ver `docs/adr/0014-dwg-via-propia-unica.md` para el retiro simultáneo de
+   la vía de proveedor licenciado que ADR-0012 dejaba abierta (numerada
+   0014: otro frente registró, el mismo día, una ADR-0013 distinta y no
+   relacionada — rol runtime `valle_app` para RLS).
 2. **Decide** encargar el dictamen jurídico externo EN PARALELO, no antes:
    la integración técnica avanza ya, detrás de un flag apagado en
    producción pública por defecto, mientras el dictamen se gestiona por

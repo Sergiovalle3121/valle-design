@@ -136,7 +136,7 @@
       "assistants": [
         {
           "name": "Claude Code (Anthropic)",
-          "role": "ejecución autónoma supervisada por directiva escrita del titular en conversación 2026-08-24: diagnóstico del laboratorio DWG y el corpus de conformidad, redacción de ADR-0013 y firma de ADR-0009 §6-bis, cableado del perfil de importación al producto (adaptador, gate de beta, worker, UI), build CJS secundario del códec, y pruebas unitarias y E2E con bytes DWG reales"
+          "role": "ejecución autónoma supervisada por directiva escrita del titular en conversación 2026-08-24: diagnóstico del laboratorio DWG y el corpus de conformidad, redacción de ADR-0014 (numerada así, no 0013, para no chocar con la ADR de rol runtime valle_app registrada el mismo día por otro frente) y firma de ADR-0009 §6-bis, cableado del perfil de importación al producto (adaptador, gate de beta, worker, UI), build CJS secundario del códec, y pruebas unitarias y E2E con bytes DWG reales"
         }
       ],
       "authority": "Conversación con Sergio Valle Zárate del 2026-08-24: instrucción inicial de construir un sistema DWG propio sin licencias, aclaración explícita de que el destino es producto real (no otro laboratorio), confirmación por pregunta estructurada de abandonar la vía licenciada de ADR-0012 y de proceder con la integración en paralelo a la revisión jurídica externa, y directiva posterior detallada de Integration Captain para el perfil AC1015_MODELSPACE_2D_V1 (revalidada contra HEAD y los PR #88/#90/#92 reales antes de actuar)",
