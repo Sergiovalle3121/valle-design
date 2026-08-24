@@ -90,12 +90,30 @@ export interface CadRoomAreaRow {
   perimeter: number;
   /** Muros que cierran el local, sin repetir. */
   wallIds: string[];
+  /**
+   * El anillo a EJES, en sentido antihorario (área con signo positiva) — la
+   * misma cara que produce `axisArea`/`perimeter`. Es el contorno que usa
+   * `room-solid.ts` para extruir piso y cielorraso: derivarlo de un recorrido
+   * DISTINTO habría arriesgado que el cuadro de áreas 2D y la losa 3D
+   * discreparan sobre qué es un local, que es justo lo que este módulo existe
+   * para impedir en las tablas.
+   */
+  ring: CadPoint2[];
 }
 
 export interface CadBimSchedule {
   walls: CadWallQuantityRow[];
   openings: CadOpeningQuantityRow[];
   rooms: CadRoomAreaRow[];
+  /**
+   * El contorno exterior de TODA la planta, a ejes, en el mismo sentido
+   * positivo que `CadRoomAreaRow.ring` — la cara de área negativa del mismo
+   * recorrido que produce los locales, invertida. Es el anillo que extruye la
+   * cubierta en `room-solid.ts`: tiene que cubrir la huella entera del
+   * edificio, no el interior de un único local. `null` si los muros no
+   * cierran ningún contorno.
+   */
+  exteriorRing: CadPoint2[] | null;
   /** Lo que no se pudo contar, y por qué. Nunca vacío por conveniencia. */
   problems: string[];
 }
@@ -134,11 +152,16 @@ export function buildCadBimSchedule(document: CadDocument): CadBimSchedule {
     }
     const fit = wallOpeningFit(host, opening);
     if (!fit.ok) {
-      problems.push(`El hueco ${opening.id} no cabe en el muro ${host.id}: ${fit.problem} No se cuenta.`);
+      problems.push(
+        `El hueco ${opening.id} no cabe en el muro ${host.id}: ${fit.problem} No se cuenta.`,
+      );
       continue;
     }
     const area = opening.width * opening.height;
-    openingAreaByWall.set(host.id, (openingAreaByWall.get(host.id) ?? 0) + area);
+    openingAreaByWall.set(
+      host.id,
+      (openingAreaByWall.get(host.id) ?? 0) + area,
+    );
     const mark = openingMark(opening);
     const row = openingRows.get(mark);
     if (row) row.count += 1;
@@ -195,8 +218,11 @@ export function buildCadBimSchedule(document: CadDocument): CadBimSchedule {
     walls: [...wallRows.values()].sort(
       (a, b) => a.layer.localeCompare(b.layer) || a.thickness - b.thickness,
     ),
-    openings: [...openingRows.values()].sort((a, b) => a.mark.localeCompare(b.mark)),
+    openings: [...openingRows.values()].sort((a, b) =>
+      a.mark.localeCompare(b.mark),
+    ),
     rooms: rooms.rooms,
+    exteriorRing: rooms.exteriorRing,
     problems: [...problems, ...rooms.problems],
   };
 }
@@ -208,7 +234,9 @@ export function buildCadBimSchedule(document: CadDocument): CadBimSchedule {
  * carpintería, y porque sin redondear dos puertas de 900 y 900,0001 —lo que deja
  * un escalado— saldrían como dos tipos distintos en la tabla.
  */
-export function openingMark(opening: Pick<CadOpeningEntity, "kind" | "width" | "height">): string {
+export function openingMark(
+  opening: Pick<CadOpeningEntity, "kind" | "width" | "height">,
+): string {
   const cm = (value: number) => String(Math.round(value / 10)).padStart(3, "0");
   return `${opening.kind === "door" ? "P" : "V"}-${cm(opening.width)}x${cm(opening.height)}`;
 }
@@ -241,6 +269,7 @@ interface GraphEdge {
 export function detectCadRooms(walls: readonly WallLike[]): {
   rooms: CadRoomAreaRow[];
   problems: string[];
+  exteriorRing: CadPoint2[] | null;
 } {
   const problems: string[] = [];
   const points = new Map<string, CadPoint2>();
@@ -257,8 +286,12 @@ export function detectCadRooms(walls: readonly WallLike[]): {
       a: { x: wall.start.x, y: wall.start.y },
       b: { x: wall.end.x, y: wall.end.y },
     }))
-    .filter((axis) => Math.hypot(axis.b.x - axis.a.x, axis.b.y - axis.a.y) > CAD_ROOM_NODE_TOLERANCE);
-  if (axes.length === 0) return { rooms: [], problems };
+    .filter(
+      (axis) =>
+        Math.hypot(axis.b.x - axis.a.x, axis.b.y - axis.a.y) >
+        CAD_ROOM_NODE_TOLERANCE,
+    );
+  if (axes.length === 0) return { rooms: [], problems, exteriorRing: null };
 
   const ends = axes.flatMap((axis) => [axis.a, axis.b]);
   const edges: GraphEdge[] = [];
@@ -275,10 +308,15 @@ export function detectCadRooms(walls: readonly WallLike[]): {
       const from = key(chain[index - 1]);
       const to = key(chain[index]);
       if (from === to) continue;
-      edges.push({ from, to, wallId: axis.wall.id, thickness: axis.wall.thickness });
+      edges.push({
+        from,
+        to,
+        wallId: axis.wall.id,
+        thickness: axis.wall.thickness,
+      });
     }
   }
-  if (edges.length === 0) return { rooms: [], problems };
+  if (edges.length === 0) return { rooms: [], problems, exteriorRing: null };
 
   /** Semi-aristas salientes por nudo, ordenadas por ángulo. */
   const outgoing = new Map<string, GraphEdge[]>();
@@ -296,7 +334,8 @@ export function detectCadRooms(walls: readonly WallLike[]): {
     const to = points.get(edge.to)!;
     return Math.atan2(to.y - from.y, to.x - from.x);
   };
-  for (const list of outgoing.values()) list.sort((left, right) => angleOf(left) - angleOf(right));
+  for (const list of outgoing.values())
+    list.sort((left, right) => angleOf(left) - angleOf(right));
 
   const visited = new Set<string>();
   const half = (edge: GraphEdge) => `${edge.from}>${edge.to}`;
@@ -319,14 +358,32 @@ export function detectCadRooms(walls: readonly WallLike[]): {
         current = siblings[(back - 1 + siblings.length) % siblings.length];
         if (half(current) === half(start)) break;
       }
-      if (ring.length >= 3) faces.push({ ring, area: signedArea(ring, points) });
+      if (ring.length >= 3)
+        faces.push({ ring, area: signedArea(ring, points) });
     }
 
   const rooms: CadRoomAreaRow[] = [];
+  let exteriorFace: { ring: GraphEdge[]; area: number } | null = null;
   for (const face of faces) {
     // El contorno EXTERIOR de la planta sale con área negativa en este recorrido
-    // y no es un local: es el aire de alrededor.
-    if (!(face.area > 0)) continue;
+    // y no es un local: es el aire de alrededor. Si hubiera más de una cara
+    // negativa —muros en más de una componente conexa—, se queda la de área
+    // más negativa: el envolvente de todo el conjunto.
+    //
+    // Área EXACTAMENTE cero es un caso distinto y no es el exterior: sale de
+    // una planta que no cierra —un muro suelto, una U abierta— cuyo recorrido
+    // traza el mismo tramo de ida y de vuelta y cancela a área nula. Tratar
+    // ese cero como "el exterior" expondría un anillo degenerado (con puntos
+    // repetidos, encierra nada) a `room-solid.ts`; se descarta igual que un
+    // local de área nula, sin volverse el contorno de nada.
+    if (!(face.area > 0)) {
+      if (
+        face.area < 0 &&
+        (exteriorFace === null || face.area < exteriorFace.area)
+      )
+        exteriorFace = face;
+      continue;
+    }
     const ring = face.ring.map((edge) => points.get(edge.from)!);
     const perimeter = ringPerimeter(ring);
     const wallIds = [...new Set(face.ring.map((edge) => edge.wallId))].sort();
@@ -337,6 +394,7 @@ export function detectCadRooms(walls: readonly WallLike[]): {
       ...(clear === null ? {} : { clearArea: clear }),
       perimeter,
       wallIds,
+      ring,
     });
     if (clear === null)
       problems.push(
@@ -351,7 +409,12 @@ export function detectCadRooms(walls: readonly WallLike[]): {
   rooms.forEach((room, index) => {
     room.id = `L-${String(index + 1).padStart(2, "0")}`;
   });
-  return { rooms, problems };
+  // Mismo sentido positivo que los anillos de local: la cara exterior circula
+  // al revés que las caras que encierra, así que se invierte al exponerla.
+  const exteriorRing = exteriorFace
+    ? exteriorFace.ring.map((edge) => points.get(edge.from)!).reverse()
+    : null;
+  return { rooms, problems, exteriorRing };
 }
 
 function round(value: number): string {
@@ -369,13 +432,17 @@ function projectOnSegment(
   const length = Math.hypot(dx, dy);
   if (!(length > CAD_ROOM_NODE_TOLERANCE)) return null;
   const t = ((point.x - a.x) * dx + (point.y - a.y) * dy) / (length * length);
-  if (t <= CAD_ROOM_NODE_TOLERANCE || t >= 1 - CAD_ROOM_NODE_TOLERANCE) return null;
+  if (t <= CAD_ROOM_NODE_TOLERANCE || t >= 1 - CAD_ROOM_NODE_TOLERANCE)
+    return null;
   const foot = { x: a.x + dx * t, y: a.y + dy * t };
   const distance = Math.hypot(point.x - foot.x, point.y - foot.y);
   return distance <= CAD_ROOM_NODE_TOLERANCE ? { t, point: foot } : null;
 }
 
-function signedArea(ring: readonly GraphEdge[], points: Map<string, CadPoint2>): number {
+function signedArea(
+  ring: readonly GraphEdge[],
+  points: Map<string, CadPoint2>,
+): number {
   let total = 0;
   for (const edge of ring) {
     const from = points.get(edge.from)!;
@@ -404,7 +471,10 @@ function ringPerimeter(ring: readonly CadPoint2[]): number {
  * `null` cuando dos lados consecutivos son paralelos: no hay intersección y no
  * hay esquina. Véase la cabecera sobre por qué no se aproxima.
  */
-function clearArea(ring: readonly GraphEdge[], points: Map<string, CadPoint2>): number | null {
+function clearArea(
+  ring: readonly GraphEdge[],
+  points: Map<string, CadPoint2>,
+): number | null {
   const lines = ring.map((edge) => {
     const from = points.get(edge.from)!;
     const to = points.get(edge.to)!;
@@ -428,7 +498,9 @@ function clearArea(ring: readonly GraphEdge[], points: Map<string, CadPoint2>): 
   for (let index = 0; index < lines.length; index += 1) {
     const current = lines[index]!;
     const next = lines[(index + 1) % lines.length]!;
-    const cross = current.direction.x * next.direction.y - current.direction.y * next.direction.x;
+    const cross =
+      current.direction.x * next.direction.y -
+      current.direction.y * next.direction.x;
     if (Math.abs(cross) < 1e-9) return null;
     const dx = next.point.x - current.point.x;
     const dy = next.point.y - current.point.y;
