@@ -634,29 +634,29 @@ paths:
     post:
       operationId: confirmUpgradeIntent
       tags: [commercial]
-      summary: Confirma el intent (solo owner/admin) y activa el plan pedido.
+      deprecated: true
+      summary: "RETIRADO (P0-A): ningun principal de organizacion cliente puede confirmar su propio upgrade."
       description: >-
-        La decision y el cambio de suscripcion ocurren en la misma
-        transaccion; el evento `commercial.subscription.upgraded` sale por el
-        outbox de dominio con idempotencia por intent.
+        Antes activaba la suscripcion sin pasar por un proveedor de pago
+        verificado. `organizationId` siempre se deriva de la membresia activa
+        de quien llama (ADR-0005), asi que el unico principal alcanzable era
+        el owner/admin de la MISMA organizacion que pidio el upgrade -
+        exactamente el actor que nunca debe poder concederse a si mismo un
+        plan pagado. La ruta sigue existiendo (no se retira el path) pero
+        cualquier llamada autenticada recibe 403 sin mutar nada; la
+        activacion real llega por el webhook firmado del proveedor de pagos
+        (ADR-0006, ver `POST /v1/commercial/webhooks/stripe`).
       parameters:
         - name: intentId
           in: path
           required: true
           schema: { type: string, format: uuid }
       responses:
-        "200":
-          description: Intent confirmado; la suscripcion queda `active`.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/UpgradeIntentConfirmed" }
         "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409":
+        "403":
           description: >-
-            El intent ya fue decidido (`upgrade_intent_not_pending`) o el plan
-            dejo de estar disponible (`plan_unavailable`).
+            Confirmacion manual retirada (`assisted_checkout_confirmation_retired`),
+            o el llamante no es owner/admin de una organizacion activa.
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiError" }
@@ -2879,13 +2879,6 @@ components:
           type: array
           maxItems: 200
           items: { $ref: "#/components/schemas/UpgradeIntentView" }
-    UpgradeIntentConfirmed:
-      type: object
-      additionalProperties: false
-      required: [intent, subscription]
-      properties:
-        intent: { $ref: "#/components/schemas/UpgradeIntentView" }
-        subscription: { $ref: "#/components/schemas/SubscriptionView" }
     CommercialCheckoutMode:
       type: string
       enum: [external, hosted]

@@ -22,24 +22,117 @@
  *     producción ejecuta con otra: los fallos no se reproducen);
  *   · no es multistage (el compilador y las fuentes viajan a producción);
  *   · usa `latest` o una etiqueta móvil (la imagen deja de ser derivable del
- *     commit).
+ *     commit);
+ *   · el stage de runtime deja de copiar un artefacto que el servidor
+ *     necesita para responder — el caso real que motivó esta regla: el
+ *     Dockerfile del web copiaba `.next/standalone` y `.next/static` pero NO
+ *     `apps/web/public`, así que la imagen arrancaba, pasaba el healthcheck
+ *     (que sólo pide `/`) y devolvía 404 para el kernel WASM y los SVG de
+ *     marca — un fallo silencioso, exactamente la clase que este archivo
+ *     existe para atrapar.
  *
  * Uso:
  *   node scripts/deploy/validate-dockerfiles.mjs [--json]
  *   exit 1 si algún invariante se incumple.
  */
 import { readFileSync, existsSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const JSON_OUTPUT = process.argv.includes('--json');
+
+/**
+ * Copias que el stage de runtime DEBE contener. No es "el Dockerfile copia
+ * algo": es "copia ESTO, desde AHÍ, hacia ALLÁ" — un artefacto que falta o
+ * que aterriza en el destino equivocado dentro del árbol que Next.js
+ * `standalone` espera produce el mismo 404 silencioso que un artefacto que
+ * nunca se copió.
+ */
+export const REQUIRED_COPIES = {
+  'apps/web/Dockerfile': [
+    {
+      id: 'copia:standalone',
+      src: /apps\/web\/\.next\/standalone$/,
+      dest: /^\.\/?$/,
+      detail:
+        '`.next/standalone` (servidor Next.js con su propio node_modules mínimo) no se copia al runtime',
+    },
+    {
+      id: 'copia:static',
+      src: /apps\/web\/\.next\/static$/,
+      dest: /apps\/web\/\.next\/static\/?$/,
+      detail:
+        '`.next/static` (JS/CSS con hash) no se copia al runtime: standalone arranca pero sirve 404 para todo el bundle',
+    },
+    {
+      id: 'copia:public',
+      src: /apps\/web\/public$/,
+      dest: /apps\/web\/public\/?$/,
+      detail:
+        '`apps/web/public` no se copia al runtime: standalone NO la incluye por sí solo (es un comportamiento documentado de Next.js, no un descuido de configuración), así que el kernel WASM, los SVG de marca y las capturas de producto responden 404 aunque el healthcheck de `/` pase',
+    },
+  ],
+  'apps/api/Dockerfile': [
+    {
+      id: 'copia:node_modules',
+      src: /\/app\/node_modules$/,
+      dest: /node_modules\/?$/,
+      detail: 'node_modules podado no se copia al runtime',
+    },
+    {
+      id: 'copia:dist',
+      src: /apps\/api\/dist$/,
+      dest: /apps\/api\/dist\/?$/,
+      detail: '`apps/api/dist` (compilado) no se copia al runtime',
+    },
+  ],
+};
 
 /** Dockerfiles gobernados por este gate y su puerto esperado. */
 const TARGETS = [
   { path: 'apps/api/Dockerfile', name: 'API (NestJS)', expectedPort: 4000 },
   { path: 'apps/web/Dockerfile', name: 'Web (Next.js)', expectedPort: 3000 },
 ];
+
+/**
+ * Descompone una instrucción `COPY` en orígenes, destino y stage de origen.
+ * Deliberadamente simple (split por espacio): las instrucciones que este
+ * repositorio escribe no llevan rutas citadas con espacios, y una gramática
+ * completa de Dockerfile es una dependencia que este gate no necesita.
+ */
+export function parseCopyInstruction(text) {
+  const withoutKeyword = text.replace(/^COPY\s+/i, '');
+  const tokens = withoutKeyword.split(/\s+/).filter(Boolean);
+  const flags = tokens.filter((token) => token.startsWith('--'));
+  const paths = tokens.filter((token) => !token.startsWith('--'));
+  const dest = paths.length ? paths[paths.length - 1] : undefined;
+  const srcs = paths.slice(0, -1);
+  const fromFlag = flags.find((flag) => flag.startsWith('--from='));
+  return {
+    srcs,
+    dest,
+    from: fromFlag ? fromFlag.slice('--from='.length) : undefined,
+  };
+}
+
+/**
+ * De la lista `required` (ver `REQUIRED_COPIES`), cuáles no tienen ninguna
+ * instrucción `COPY` cuyo origen y destino casen sus patrones. Vacío
+ * significa "el runtime copia todo lo que se declaró que necesita".
+ */
+export function missingRequiredCopies(copyEntries, required) {
+  const parsed = copyEntries.map((entry) => parseCopyInstruction(entry.text));
+  return required.filter(
+    (req) =>
+      !parsed.some(
+        (p) =>
+          p.dest !== undefined &&
+          req.dest.test(p.dest) &&
+          p.srcs.some((src) => req.src.test(src)),
+      ),
+  );
+}
 
 /**
  * Patrones de secreto embebido. Deliberadamente conservadores: buscan una
@@ -84,7 +177,7 @@ function readNvmrcMajor() {
 }
 
 /** Líneas sin comentarios ni continuaciones: una instrucción por entrada. */
-function instructions(source) {
+export function instructions(source) {
   const out = [];
   const lines = source.split(/\r?\n/);
   let buffer = '';
@@ -104,7 +197,7 @@ function instructions(source) {
   return out;
 }
 
-function validate(target, nodeMajor) {
+export function validate(target, nodeMajor) {
   const absolute = join(ROOT, target.path);
   const failures = [];
   const checks = [];
@@ -135,6 +228,7 @@ function validate(target, nodeMajor) {
   const users = directive('USER');
   const envs = directive('ENV');
   const runs = directive('RUN');
+  const copies = directive('COPY');
 
   // ── 1 · multistage ───────────────────────────────────────────────────────
   check(
@@ -234,6 +328,18 @@ function validate(target, nodeMajor) {
     `EXPOSE ${exposed.join(', ') || '<ninguno>'} y se esperaba ${target.expectedPort}`,
   );
 
+  // ── 9b · el runtime copia todos los artefactos que necesita ─────────────
+  const runtimeCopies = copies.filter((entry) => entry.line > lastFromLine);
+  const missingCopies = missingRequiredCopies(
+    runtimeCopies,
+    REQUIRED_COPIES[target.path] ?? [],
+  );
+  check(
+    'copias-runtime',
+    missingCopies.length === 0,
+    missingCopies.map((m) => m.detail).join('; '),
+  );
+
   // ── 10 · sin secretos embebidos ──────────────────────────────────────────
   const secretHits = [];
   for (const entry of instructions(source)) {
@@ -258,7 +364,7 @@ function validate(target, nodeMajor) {
   return { file: target.path, name: target.name, failures, checks };
 }
 
-function validateDockerignore() {
+export function validateDockerignore() {
   const failures = [];
   const path = join(ROOT, '.dockerignore');
   if (!existsSync(path)) {
@@ -344,4 +450,6 @@ function main() {
   );
 }
 
-main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main();
+}
