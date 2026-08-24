@@ -28,6 +28,14 @@ on:
         description: 'Desplegar a STAGING tras publicar (exige publicar_imagenes)'
         type: boolean
         default: false
+      dwg_native_import_beta:
+        description: 'NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA — activa la beta de importación DWG AC1015 (ADR-0009 §6-bis/ter/quater). Apagada por defecto.'
+        type: boolean
+        default: false
+      dwg_ac1018_import_beta:
+        description: 'NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA — ADEMÁS acepta AC1018/2004 (ADR-0009 §7). Exige dwg_native_import_beta también activo; sin la beta base no habilita nada.'
+        type: boolean
+        default: false
   push:
     tags:
       - 'v*'
@@ -146,6 +154,8 @@ jobs:
           load: ${{ !(inputs.publicar_imagenes || github.ref_type == 'tag') }}
           build-args: |
             NEXT_PUBLIC_API_URL=${{ inputs.api_url || vars.RELEASE_API_URL || 'https://api.example.com' }}
+            NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA=${{ (inputs.dwg_native_import_beta && 'true') || vars.RELEASE_DWG_NATIVE_IMPORT_BETA || 'false' }}
+            NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA=${{ (inputs.dwg_ac1018_import_beta && 'true') || vars.RELEASE_DWG_AC1018_IMPORT_BETA || 'false' }}
             NEXT_PUBLIC_SITE_URL=${{ vars.RELEASE_SITE_URL }}
             NEXT_PUBLIC_SALES_URL=${{ vars.RELEASE_SALES_URL }}
             NEXT_PUBLIC_DOCUMENTATION_URL=${{ vars.RELEASE_DOCUMENTATION_URL }}
@@ -201,7 +211,9 @@ jobs:
               "web": {
                 "referencia": "${{ env.IMAGE_BASE }}/web:${{ steps.version.outputs.version }}",
                 "digest": "${{ steps.web.outputs.digest }}",
-                "apiUrlIncrustada": "${{ inputs.api_url || vars.RELEASE_API_URL || 'https://api.example.com' }}"
+                "apiUrlIncrustada": "${{ inputs.api_url || vars.RELEASE_API_URL || 'https://api.example.com' }}",
+                "dwgNativeImportBeta": "${{ (inputs.dwg_native_import_beta && 'true') || vars.RELEASE_DWG_NATIVE_IMPORT_BETA || 'false' }}",
+                "dwgAc1018ImportBeta": "${{ (inputs.dwg_ac1018_import_beta && 'true') || vars.RELEASE_DWG_AC1018_IMPORT_BETA || 'false' }}"
               }
             },
             "ultimaMigracion": "${LAST_MIGRATION}",
