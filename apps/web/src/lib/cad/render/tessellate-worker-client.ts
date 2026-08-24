@@ -38,7 +38,11 @@ import {
   type CadTessellateWorkerResponse,
   type CadTessellatedEntityPayload,
 } from "./tessellate.worker";
-import type { CadTessellation } from "./tessellation-cache";
+import {
+  CAD_RENDER_ORIGIN_ZERO,
+  type CadRenderOrigin,
+  type CadTessellation,
+} from "./tessellation-cache";
 
 /**
  * Lo que el pool necesita de un `Worker`, y nada más. Existe para que los
@@ -208,6 +212,7 @@ export async function tessellateCadEntitiesOffThread(
   entities: readonly CadNativeEntity[],
   segments: readonly number[],
   document?: CadDocument,
+  origin: CadRenderOrigin = CAD_RENDER_ORIGIN_ZERO,
 ): Promise<CadTessellateOffThreadResult> {
   const slot = leastLoadedSlot();
   if (slot) {
@@ -221,6 +226,7 @@ export async function tessellateCadEntitiesOffThread(
           entities: entities as CadNativeEntity[],
           segments: [...segments],
           document,
+          origin,
         });
       });
       return { results, source: "worker" };
@@ -235,7 +241,10 @@ export async function tessellateCadEntitiesOffThread(
       // Cae a la reserva: mejor teselar en el hilo principal que no dibujar.
     }
   }
-  return { results: tessellateCadEntityBatch(entities, segments, document).results, source: "fallback" };
+  return {
+    results: tessellateCadEntityBatch(entities, segments, document, origin).results,
+    source: "fallback",
+  };
 }
 
 /** Cierra el pool entero. Se llama al desmontar el editor. */

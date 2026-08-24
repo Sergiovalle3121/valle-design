@@ -14,6 +14,7 @@
  */
 import { CAD_ENTITY_REGISTRY, type CadNativeEntity } from "../entity-runtime";
 import type { CadDocument } from "../cad-document";
+import { CAD_RENDER_ORIGIN_ZERO, type CadRenderOrigin } from "./tessellation-cache";
 
 export interface CadTessellateWorkerRequest {
   id: number;
@@ -21,6 +22,8 @@ export interface CadTessellateWorkerRequest {
   /** Segmentos por entidad, ya resueltos por el escalón de LOD. */
   segments: number[];
   document?: CadDocument;
+  /** Origen flotante de escena: ver `tessellation-cache.ts`. */
+  origin?: CadRenderOrigin;
 }
 
 export interface CadTessellatedEntityPayload {
@@ -47,6 +50,7 @@ export function tessellateCadEntityBatch(
   entities: readonly CadNativeEntity[],
   segments: readonly number[],
   document?: CadDocument,
+  origin: CadRenderOrigin = CAD_RENDER_ORIGIN_ZERO,
 ): { results: CadTessellatedEntityPayload[]; transfer: ArrayBufferLike[] } {
   const results: CadTessellatedEntityPayload[] = [];
   const transfer: ArrayBufferLike[] = [];
@@ -63,8 +67,8 @@ export function tessellateCadEntityBatch(
       if (path.points.length < 2) continue;
       const xy = new Float32Array(path.points.length * 2);
       for (let point = 0; point < path.points.length; point += 1) {
-        xy[point * 2] = path.points[point].x;
-        xy[point * 2 + 1] = path.points[point].y;
+        xy[point * 2] = path.points[point].x - origin.x;
+        xy[point * 2 + 1] = path.points[point].y - origin.y;
       }
       paths.push(xy);
       closed.push(path.closed);
@@ -91,6 +95,7 @@ if (typeof workerScope.postMessage === "function" && workerScope.document === un
         request.entities,
         request.segments,
         request.document,
+        request.origin,
       );
       workerScope.postMessage(
         { id: request.id, ok: true, results },

@@ -33,6 +33,7 @@
  */
 import {
   CAD_ENTITY_REGISTRY,
+  type CadBounds,
   type CadNativeEntity,
 } from "../entity-runtime";
 import type { CadDocument } from "../cad-document";
@@ -51,6 +52,39 @@ export interface CadTessellatedPath {
   /** Coordenadas de dibujo intercaladas x,y. Un Float32Array, no objetos. */
   readonly xy: Float32Array;
   readonly closed: boolean;
+}
+
+/**
+ * Origen flotante de escena: se resta ANTES de empaquetar a `Float32Array`.
+ *
+ * float32 tiene 24 bits de mantisa: a magnitud UTM (10⁶–10⁷) su ulp es de
+ * varios centímetros a un metro, y esa cuantización ocurre aquí, al escribir
+ * el búfer — restar el centro DESPUÉS (en el shader) ya llega tarde, porque el
+ * valor absoluto que se resta ya perdió precisión al entrar al búfer. Restar
+ * el origen antes deja SIEMPRE una magnitud pequeña en el búfer, sea cual sea
+ * la magnitud absoluta del documento. El cadCenter de la cámara se recalcula
+ * en JS doubles con el mismo origen (ver `pipeline.ts`), así que la resta
+ * completa —origen fuera del búfer, origen fuera del uniforme— cancela sin
+ * pasar nunca por un número grande en float32.
+ */
+export interface CadRenderOrigin {
+  readonly x: number;
+  readonly y: number;
+}
+
+export const CAD_RENDER_ORIGIN_ZERO: CadRenderOrigin = { x: 0, y: 0 };
+
+/**
+ * Centroide REDONDEADO de unos límites, en JS doubles. El redondeo no es por
+ * estética: un origen entero dibujado en pantalla (una grilla, una cota) sigue
+ * cayendo en una coordenada legible si alguien lo imprime para depurar.
+ */
+export function cadRenderOriginFromBounds(bounds: CadBounds | null): CadRenderOrigin {
+  if (!bounds) return CAD_RENDER_ORIGIN_ZERO;
+  return {
+    x: Math.round((bounds.minX + bounds.maxX) / 2),
+    y: Math.round((bounds.minY + bounds.maxY) / 2),
+  };
 }
 
 export interface CadTessellation {
@@ -113,6 +147,7 @@ export function tessellateCadEntity(
   entity: CadNativeEntity,
   segments: number,
   document?: CadDocument,
+  origin: CadRenderOrigin = CAD_RENDER_ORIGIN_ZERO,
 ): CadTessellation {
   const paths: CadTessellatedPath[] = [];
   let pointCount = 0;
@@ -125,8 +160,8 @@ export function tessellateCadEntity(
     if (path.points.length < 2) continue;
     const xy = new Float32Array(path.points.length * 2);
     for (let index = 0; index < path.points.length; index += 1) {
-      xy[index * 2] = path.points[index].x;
-      xy[index * 2 + 1] = path.points[index].y;
+      xy[index * 2] = path.points[index].x - origin.x;
+      xy[index * 2 + 1] = path.points[index].y - origin.y;
     }
     paths.push({ xy, closed: path.closed });
     pointCount += path.points.length;

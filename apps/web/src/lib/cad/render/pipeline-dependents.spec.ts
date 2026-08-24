@@ -112,16 +112,21 @@ const VIEW = {
   pipeline.replace([a, b], ["a", "b"], before);
   pipeline.setView(VIEW);
   pipeline.settle();
+  // El origen flotante se ancla en `replace()` y no se mueve con las
+  // ediciones que siguen (recalcularlo en cada `invalidate` obligaría a
+  // reteselar el dibujo entero en cada edición): un único valor sirve para
+  // las tres comparaciones de este bloque.
+  const origin = pipeline.origin;
 
   const first = cachedOf(cache, "a");
   assert.ok(first, "A tiene teselado cacheado tras el primer dibujo");
   const budget = cadRenderSegmentBudget(first.tier);
   assert.ok(
-    sameGeometry(first.tessellation, tessellateCadEntity(a, budget, before)),
+    sameGeometry(first.tessellation, tessellateCadEntity(a, budget, before, origin)),
     "y es el que le corresponde con la L en pie",
   );
   assert.ok(
-    !sameGeometry(first.tessellation, tessellateCadEntity(a, budget)),
+    !sameGeometry(first.tessellation, tessellateCadEntity(a, budget, undefined, origin)),
     "que NO es el del muro suelto: el inglete está dentro",
   );
 
@@ -141,11 +146,11 @@ const VIEW = {
   assert.ok(rebuilt, "A se reconstruye");
   const rebuiltBudget = cadRenderSegmentBudget(rebuilt.tier);
   assert.ok(
-    sameGeometry(rebuilt.tessellation, tessellateCadEntity(a, rebuiltBudget, after)),
+    sameGeometry(rebuilt.tessellation, tessellateCadEntity(a, rebuiltBudget, after, origin)),
     "y trae el inglete NUEVO, el de la L a 45°",
   );
   assert.ok(
-    !sameGeometry(rebuilt.tessellation, tessellateCadEntity(a, rebuiltBudget, before)),
+    !sameGeometry(rebuilt.tessellation, tessellateCadEntity(a, rebuiltBudget, before, origin)),
     "no el de antes de girar B, que es exactamente lo que se quedaba en pantalla",
   );
   ok(true, "mover B invalida el teselado de A y A vuelve con el inglete nuevo");
@@ -162,7 +167,7 @@ const VIEW = {
   assert.ok(solitary, "A sigue dibujándose sin su vecino");
   const soloBudget = cadRenderSegmentBudget(solitary.tier);
   assert.ok(
-    sameGeometry(solitary.tessellation, tessellateCadEntity(a, soloBudget)),
+    sameGeometry(solitary.tessellation, tessellateCadEntity(a, soloBudget, undefined, origin)),
     "y es el contorno cerrado del muro suelto: el testero volvió",
   );
   assert.equal(pipeline.stats().totalEntities, 1, "y B desapareció del dibujo");

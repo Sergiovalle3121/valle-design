@@ -26,7 +26,11 @@ import {
   type CadTessellateOffThreadResult,
 } from "./tessellate-worker-client";
 import type { CadTessellatedEntityPayload } from "./tessellate.worker";
-import { cadRenderSegmentBudget, type CadRenderLodTier } from "./tessellation-cache";
+import {
+  cadRenderSegmentBudget,
+  type CadRenderLodTier,
+  type CadRenderOrigin,
+} from "./tessellation-cache";
 import { cadRenderCount, cadRenderMark, cadRenderStage } from "./render-profile";
 
 /**
@@ -53,6 +57,7 @@ export type CadOffThreadTessellator = (
   entities: readonly CadNativeEntity[],
   segments: readonly number[],
   document?: CadDocument,
+  origin?: CadRenderOrigin,
 ) => Promise<CadTessellateOffThreadResult>;
 
 /**
@@ -221,12 +226,17 @@ export class CadOffThreadTessellationLane {
     this.inflight.clear();
   }
 
-  request(tileId: string, batch: CadOffThreadBatch, hooks: CadOffThreadHooks): void {
+  request(
+    tileId: string,
+    batch: CadOffThreadBatch,
+    origin: CadRenderOrigin,
+    hooks: CadOffThreadHooks,
+  ): void {
     const tessellator = this.tessellator;
     if (!tessellator) return;
     const epoch = this.epoch;
     this.inflight.add(tileId);
-    tessellator(batch.entities, batch.segments)
+    tessellator(batch.entities, batch.segments, undefined, origin)
       .then((outcome) => {
         this.inflight.delete(tileId);
         this.sourceValue = outcome.source;

@@ -53,11 +53,14 @@ import {
   type CadTileId,
 } from "./tile-index";
 import {
+  CAD_RENDER_ORIGIN_ZERO,
   CadTessellationCache,
   cadRenderLodTier,
+  cadRenderOriginFromBounds,
   cadRenderSegmentBudget,
   tessellateCadEntity,
   type CadRenderLodTier,
+  type CadRenderOrigin,
   type CadTessellationCacheStats,
 } from "./tessellation-cache";
 import {
@@ -81,7 +84,7 @@ import type { CadTextQuadRequest } from "./text-atlas";
 import { cadRenderCount, cadRenderMark, cadRenderStage } from "./render-profile";
 import { defaultCadRenderStyle } from "./render-style";
 
-export type { CadOffThreadTessellator, CadRenderTessellationSource };
+export type { CadOffThreadTessellator, CadRenderOrigin, CadRenderTessellationSource };
 export {
   CAD_RENDER_DEFAULT_COLOR,
   CAD_RENDER_DEFAULT_HALF_WIDTH_PX,
@@ -225,6 +228,13 @@ export class CadRenderPipeline {
   private readonly dependencies: CadRenderDependencyLane;
   private index: CadRenderTileIndex;
   private document?: CadDocument;
+  /**
+   * Origen flotante de escena: el centroide redondeado del documento vigente,
+   * en doubles. Se resta en la teselación (ver `tessellation-cache.ts`) y en
+   * los uniformes posicionales del lado THREE, para que un documento en
+   * coordenadas UTM no cuantice a float32 sobre un valor absoluto grande.
+   */
+  private originValue: CadRenderOrigin = CAD_RENDER_ORIGIN_ZERO;
   private visibleTiles: CadTileId[] = [];
   /** Espejo en Set de `visibleTiles`: la respuesta del worker pregunta O(1). */
   private visibleTileSet = new Set<CadTileId>();
@@ -294,6 +304,7 @@ export class CadRenderPipeline {
           }
         : { ...entityBounds };
     }
+    this.originValue = cadRenderOriginFromBounds(bounds);
     drawOrderIds.forEach((id, position) => this.drawOrder.set(id, position));
     this.drawOrderCount = Math.max(drawOrderIds.length, this.entities.size);
     this.index = new CadRenderTileIndex(
@@ -306,6 +317,11 @@ export class CadRenderPipeline {
 
   get tileSize(): number {
     return this.index.tileSize;
+  }
+
+  /** Origen flotante vigente. El lado THREE lo resta de sus uniformes de cámara. */
+  get origin(): CadRenderOrigin {
+    return this.originValue;
   }
 
   /**
@@ -517,8 +533,8 @@ export class CadRenderPipeline {
           text: entity.text,
           fontKey: entity.fontFamily ?? "Arial",
           fontSize: entity.height ?? 120,
-          x: entity.insertion.x,
-          y: entity.insertion.y,
+          x: entity.insertion.x - this.originValue.x,
+          y: entity.insertion.y - this.originValue.y,
           rotationDeg: entity.rotation ?? 0,
           color: this.styleOf(entity).color,
           depth,
@@ -551,7 +567,7 @@ export class CadRenderPipeline {
       resident.cursor += 1;
       const tessellationStarted = cadRenderMark();
       const tessellation = this.cache.get(id, tier, () =>
-        tessellateCadEntity(entity, cadRenderSegmentBudget(tier), this.document),
+        tessellateCadEntity(entity, cadRenderSegmentBudget(tier), this.document, this.originValue),
       );
       cadRenderStage("tessellate", tessellationStarted);
       if (tessellation.segmentCount === 0) continue;
@@ -618,7 +634,7 @@ export class CadRenderPipeline {
       this.enqueueTile(tileId);
       return;
     }
-    this.offThread.request(tileId, batch, {
+    this.offThread.request(tileId, batch, this.originValue, {
       seed: (payload, tier) => {
         const started = cadRenderMark();
         if (!this.entities.has(payload.entityId)) return;
@@ -678,8 +694,8 @@ export class CadRenderPipeline {
       // DIMTXT, con el mismo respaldo que `buildCadNativeObject`: una cota sin
       // altura propia hereda `arrowSize * 0.55`, como siempre.
       fontSize: Math.max(1, entity.textHeight ?? (entity.arrowSize ?? 180) * 0.55),
-      x: dimension.textAnchor.x,
-      y: dimension.textAnchor.y,
+      x: dimension.textAnchor.x - this.originValue.x,
+      y: dimension.textAnchor.y - this.originValue.y,
       rotationDeg: dimension.textAngle,
       color: this.dimensionTextColor(entity),
       depth,
@@ -700,8 +716,8 @@ export class CadRenderPipeline {
       text: entity.text,
       fontKey: entity.fontFamily ?? "Arial",
       fontSize: entity.textHeight ?? 120,
-      x: geometry.textAnchor.x,
-      y: geometry.textAnchor.y,
+      x: geometry.textAnchor.x - this.originValue.x,
+      y: geometry.textAnchor.y - this.originValue.y,
       rotationDeg: entity.textRotation ?? 0,
       color: this.styleOf(entity).color,
       depth,
@@ -740,8 +756,8 @@ export class CadRenderPipeline {
         text: nativeChild.text,
         fontKey: nativeChild.fontFamily ?? "Arial",
         fontSize: nativeChild.height ?? 120,
-        x: nativeChild.insertion.x,
-        y: nativeChild.insertion.y,
+        x: nativeChild.insertion.x - this.originValue.x,
+        y: nativeChild.insertion.y - this.originValue.y,
         rotationDeg: nativeChild.rotation ?? 0,
         color: this.styleOf(nativeChild).color,
         depth,

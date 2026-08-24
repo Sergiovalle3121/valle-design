@@ -25,7 +25,7 @@
  * mirar.
  */
 import * as THREE from "three";
-import type { CadThreeViewport } from "../entity-three";
+import { cadViewportCenter, type CadThreeViewport } from "../entity-three";
 import {
   CAD_LINETYPE_SLOTS,
   type CadLineBatch,
@@ -179,10 +179,11 @@ function linetypeUniformValue(
 export function createCadLineBatchMaterial(
   options: CadLineBatchMaterialOptions,
 ): { material: THREE.ShaderMaterial; uniforms: CadLineBatchUniforms } {
+  const center = cadViewportCenter(options.viewport);
   const uniforms: CadLineBatchUniforms = {
     cadScale: { value: options.viewport.scale },
     cadCenter: {
-      value: new THREE.Vector2(options.viewport.width / 2, options.viewport.height / 2),
+      value: new THREE.Vector2(center.x, center.y),
     },
     cadElevation: { value: options.viewport.elevation ?? 0.11 },
     cadWorldPerPixel: { value: 1 / Math.max(options.pixelsPerUnit, 1e-6) },
@@ -215,8 +216,9 @@ export function updateCadLineBatchUniforms(
   viewport: CadThreeViewport,
   pixelsPerUnit: number,
 ): void {
+  const center = cadViewportCenter(viewport);
   uniforms.cadScale.value = viewport.scale;
-  uniforms.cadCenter.value.set(viewport.width / 2, viewport.height / 2);
+  uniforms.cadCenter.value.set(center.x, center.y);
   uniforms.cadElevation.value = viewport.elevation ?? 0.11;
   uniforms.cadWorldPerPixel.value = 1 / Math.max(pixelsPerUnit, 1e-6);
 }

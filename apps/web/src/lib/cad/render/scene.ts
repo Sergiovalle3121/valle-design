@@ -23,7 +23,7 @@
  * entero de que exista el índice de tiles.
  */
 import * as THREE from "three";
-import type { CadThreeViewport } from "../entity-three";
+import { cadViewportCenter, type CadThreeViewport } from "../entity-three";
 import {
   buildCadLineBatchMesh,
   createCadLineBatchMaterial,
@@ -131,7 +131,20 @@ export class CadRenderScene {
     document?: CadDocument,
   ): void {
     this.pipeline.replace(entities, drawOrderIds, document);
+    // El origen flotante cambia con el documento (es su centroide redondeado):
+    // los uniformes de cámara tienen que recalcularse con el nuevo origen, o
+    // el búfer (ya restado en el pipeline) y `cadCenter` (con el origen viejo)
+    // dejarían de cancelar entre sí.
+    this.applyOrigin();
     this.clearMeshes();
+  }
+
+  /** Sincroniza `this.viewport.origin` con el del pipeline y refresca cadCenter. */
+  private applyOrigin(): void {
+    this.viewport = { ...this.viewport, origin: this.pipeline.origin };
+    const center = cadViewportCenter(this.viewport);
+    this.uniforms.cadCenter.value.set(center.x, center.y);
+    this.textUniforms.cadCenter.value.set(center.x, center.y);
   }
 
   /** El documento acompaña a la edición: ver `CadRenderPipeline.invalidate`. */
@@ -150,9 +163,9 @@ export class CadRenderScene {
   setView(view: CadRenderView, viewport?: CadThreeViewport): CadRenderViewUpdate {
     if (viewport) this.viewport = viewport;
     this.pixelsPerUnit = view.pixelsPerUnit;
+    this.applyOrigin();
     updateCadLineBatchUniforms(this.uniforms, this.viewport, view.pixelsPerUnit);
     this.textUniforms.cadScale.value = this.viewport.scale;
-    this.textUniforms.cadCenter.value.set(this.viewport.width / 2, this.viewport.height / 2);
     return this.pipeline.setView(view);
   }
 

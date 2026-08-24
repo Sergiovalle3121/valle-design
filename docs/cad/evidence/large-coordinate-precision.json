@@ -1,53 +1,53 @@
 {
   "generatedBy": "apps/web/scripts/large-coordinate-precision-probe.mts",
-  "conclusion": "CONFIRMADO: a magnitud 10⁷ el camino de render pierde hasta 0.375 unidades de dibujo por cuantización float32 (en metros UTM, 0.375 m). El documento y la exportación no pierden nada (float64 de punta a punta). El arreglo es el origen flotante de escena (backlog P0).",
+  "conclusion": "CORREGIDO: con el origen flotante de escena, el error a magnitud 10⁷ baja a 9.387731552124023e-7 unidades de dibujo (antes, 0,375). El documento y la exportación siguen sin perder nada (float64 de punta a punta).",
   "reports": [
     {
       "label": "planta local (mm)",
       "offset": 0,
       "ulp": 1.401298464324817e-45,
-      "maxAbsErrorDrawingUnits": 0.000002876464847645366,
-      "maxRelativeSpanError": 2.8764648476453657e-8,
+      "maxAbsErrorDrawingUnits": 9.382324250850615e-7,
+      "maxRelativeSpanError": 9.382324250850615e-9,
       "exportRoundTripError": 0
     },
     {
       "label": "nave grande (10⁴)",
       "offset": 10000,
       "ulp": 0.0009765625,
-      "maxAbsErrorDrawingUnits": 0.00032518750049348455,
-      "maxRelativeSpanError": 0.0000032518750049348454,
+      "maxAbsErrorDrawingUnits": 9.382329153595492e-7,
+      "maxRelativeSpanError": 9.382329153595492e-9,
       "exportRoundTripError": 0
     },
     {
       "label": "coordenadas municipales (10⁵)",
       "offset": 100000,
       "ulp": 0.0078125,
-      "maxAbsErrorDrawingUnits": 0.002604499997687526,
-      "maxRelativeSpanError": 0.00002604499997687526,
+      "maxAbsErrorDrawingUnits": 9.382347343489528e-7,
+      "maxRelativeSpanError": 9.382347343489528e-9,
       "exportRoundTripError": 0
     },
     {
       "label": "UTM este (5·10⁵)",
       "offset": 500000,
       "ulp": 0.03125,
-      "maxAbsErrorDrawingUnits": 0.01041699998313561,
-      "maxRelativeSpanError": 0.0001041699998313561,
+      "maxAbsErrorDrawingUnits": 9.382492862641811e-7,
+      "maxRelativeSpanError": 9.382492862641811e-9,
       "exportRoundTripError": 0
     },
     {
       "label": "UTM norte México (2·10⁶)",
       "offset": 2000000,
       "ulp": 0.125,
-      "maxAbsErrorDrawingUnits": 0.04166699992492795,
-      "maxRelativeSpanError": 0.0004166699992492795,
+      "maxAbsErrorDrawingUnits": 9.383074939250946e-7,
+      "maxRelativeSpanError": 9.383074939250945e-9,
       "exportRoundTripError": 0
     },
     {
       "label": "UTM norte alto (10⁷)",
       "offset": 10000000,
       "ulp": 1,
-      "maxAbsErrorDrawingUnits": 0.375,
-      "maxRelativeSpanError": 0.00375,
+      "maxAbsErrorDrawingUnits": 9.387731552124023e-7,
+      "maxRelativeSpanError": 9.387731552124024e-9,
       "exportRoundTripError": 0
     }
   ]

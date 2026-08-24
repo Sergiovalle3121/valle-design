@@ -12,7 +12,7 @@
  * `text-atlas.ts` y se repite aquí porque es donde se elige `emPixels`.
  */
 import * as THREE from "three";
-import type { CadThreeViewport } from "../entity-three";
+import { cadViewportCenter, type CadThreeViewport } from "../entity-three";
 import {
   CAD_TEXT_ATLAS_DEFAULT_SIZE,
   CadGlyphAtlas,
@@ -217,10 +217,11 @@ export function createCadTextAtlasMaterial(options: {
   depthBias?: number;
   depthScale?: number;
 }): { material: THREE.ShaderMaterial; uniforms: CadTextAtlasUniforms } {
+  const center = cadViewportCenter(options.viewport);
   const uniforms: CadTextAtlasUniforms = {
     cadScale: { value: options.viewport.scale },
     cadCenter: {
-      value: new THREE.Vector2(options.viewport.width / 2, options.viewport.height / 2),
+      value: new THREE.Vector2(center.x, center.y),
     },
     cadElevation: { value: (options.viewport.elevation ?? 0.11) + 0.005 },
     cadDepthBias: { value: options.depthBias ?? 0 },

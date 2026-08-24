@@ -404,12 +404,15 @@ async function main(): Promise<void> {
     .find((entry) => entry.tessellation !== null)!;
   assert.ok(cached, "el muro A tiene teselado en caché");
   const budget = cadRenderSegmentBudget(cached.tier);
+  // El pipeline resta su origen flotante (el centroide redondeado del
+  // documento) ANTES de teselar: la comparación tiene que pasarle el mismo
+  // origen o compararía coordenadas absolutas contra coordenadas ya offset.
   assert.ok(
-    sameGeometry(cached.tessellation!, tessellateCadEntity(wallA, budget, ele)),
+    sameGeometry(cached.tessellation!, tessellateCadEntity(wallA, budget, ele, pipeline.origin)),
     "el teselado servido es el de la reserva síncrona CON documento: el muro trae su inglete",
   );
   assert.ok(
-    !sameGeometry(cached.tessellation!, tessellateCadEntity(wallA, budget)),
+    !sameGeometry(cached.tessellation!, tessellateCadEntity(wallA, budget, undefined, pipeline.origin)),
     "y no el que habría producido el worker sin documento, que es el contorno sin uniones",
   );
   ok(

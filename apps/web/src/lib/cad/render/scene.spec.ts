@@ -157,12 +157,16 @@ assert.ok(
 const newX = movedEntity.start.x;
 const newY = movedEntity.start.y;
 const oldX = originalEntity.start.x;
+// El origen flotante de escena se resta ANTES de teselar (ver
+// `tessellation-cache.ts`), así que lo que llega al búfer de instancias es
+// (x - origen), no el x absoluto del documento.
+const origin = scene.pipeline.origin;
 const hasPoint = (x: number, y: number) =>
   scene.pipeline.visibleBatches().some((batch) => {
     for (let index = 0; index < batch.instanceCount; index += 1)
       if (
-        Math.abs(batch.instanceStart[index * 2] - x) < 0.05 &&
-        Math.abs(batch.instanceStart[index * 2 + 1] - y) < 0.05
+        Math.abs(batch.instanceStart[index * 2] - (x - origin.x)) < 0.05 &&
+        Math.abs(batch.instanceStart[index * 2 + 1] - (y - origin.y)) < 0.05
       )
         return true;
     return false;

@@ -14,6 +14,28 @@ export interface CadThreeViewport {
   width: number;
   height: number;
   elevation?: number;
+  /**
+   * Origen flotante de escena (ver `render/tessellation-cache.ts`): el
+   * centroide redondeado del documento, en doubles. Sin él, `cadCenter` y
+   * `scenePoint` calculan `width/2` como si fuera el centro del documento —
+   * cierto sólo mientras el documento vive cerca de (0,0). Con documentos en
+   * coordenadas UTM (10⁶–10⁷) ese supuesto es lo que perdía precisión.
+   */
+  origin?: { x: number; y: number };
+}
+
+/**
+ * Centro de cámara en unidades de dibujo, ya con el origen flotante restado.
+ * Ambos operandos son JS doubles, así que la resta es exacta: lo que sale es
+ * pequeño por construcción cuando `origin` es el centroide del documento, y
+ * es exactamente `width/2, height/2` (el comportamiento de siempre) cuando no
+ * hay origen.
+ */
+export function cadViewportCenter(viewport: CadThreeViewport): { x: number; y: number } {
+  return {
+    x: viewport.width / 2 - (viewport.origin?.x ?? 0),
+    y: viewport.height / 2 - (viewport.origin?.y ?? 0),
+  };
 }
 
 interface CadNativeOverviewState {
@@ -61,10 +83,11 @@ function scenePoint(
   viewport: CadThreeViewport,
   elevation: number,
 ): THREE.Vector3 {
+  const center = cadViewportCenter(viewport);
   return new THREE.Vector3(
-    (point.x - viewport.width / 2) * viewport.scale,
+    (point.x - center.x) * viewport.scale,
     elevation,
-    (point.y - viewport.height / 2) * viewport.scale,
+    (point.y - center.y) * viewport.scale,
   );
 }
 
@@ -329,10 +352,13 @@ export function buildCadInsertBatchObject(
       geometry.setAttribute("instanceLinear", new THREE.InstancedBufferAttribute(linear, 4));
       geometry.setAttribute("instanceTranslate", new THREE.InstancedBufferAttribute(translate, 2));
       geometry.instanceCount = batch.matrices.length;
+      const insertBatchCenter = cadViewportCenter(viewport);
       const material = new THREE.ShaderMaterial({
         uniforms: {
           cadScale: { value: viewport.scale },
-          cadCenter: { value: new THREE.Vector2(viewport.width / 2, viewport.height / 2) },
+          cadCenter: {
+            value: new THREE.Vector2(insertBatchCenter.x, insertBatchCenter.y),
+          },
           cadElevation: { value: viewport.elevation ?? 0.105 },
           cadColor: { value: new THREE.Color(style.color) },
           cadOpacity: { value: 0.9 },
