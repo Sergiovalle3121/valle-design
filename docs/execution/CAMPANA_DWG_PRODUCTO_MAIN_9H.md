@@ -766,3 +766,63 @@ Comandos y resultados:
 | `npm run check` (valle-design-dwg-conformance) | 0 | `{"bundles":7,"status":"ok"}`, antes y después del fix de DONACIONES.md |
 | `npm test` (valle-design-dwg-conformance) | 0 | 24/24, antes y después |
 | `git push -u origin claude/valle-design-dwg-main-lnqf7t` (valle-design-dwg-conformance) | 0 | rama nueva; PR draft #4 abierto y suscrito |
+
+### 5.9 Fase 6 — seguridad/robustez/perf: re-verificado en verde, ningún hueco nuevo cerrado
+
+Ningún archivo dentro de `packages/dwg-codec/src` cambió en esta sesión
+(fases 1-5 sólo tocaron `apps/web`, `apps/api`, `packages/contracts` y
+`docs/`) — confirmado con `git log --stat` de los commits de esta sesión.
+Por eso esta fase es de RE-VERIFICACIÓN fresca de lo ya reclamado, no de
+extensión: correr de nuevo la batería para confirmar que sigue siendo
+cierto, no asumirlo porque un corte anterior (2026-08-21) ya lo midió.
+
+- `npm run check` (`packages/dwg-codec`: provenance → fixtures → no-io →
+  boundary → build → typecheck → unit → adversarial → fuzz): **verde**.
+  Provenance 8/8 fuentes cubren 145 archivos + 21 fixtures; fixtures 21
+  sintéticos con 21 SHA-256 únicos; adversarial **349/349** (incl.
+  truncamiento exhaustivo byte a byte de cada firma reconocida, límites de
+  tamaño físico antes de leer a memoria, presupuesto de JSON canónico
+  acotado antes de parsear, y 6 casos de procedencia rechazando SDKs/EULAs
+  prohibidas); `fuzz:smoke` 20 000 ejecuciones (2 pasadas × 10 000,
+  generador determinista por semilla) — histograma sin sorpresas
+  (`DWG_SIGNATURE_INVALID`/`TRUNCATED`/`VERSION_UNKNOWN`/
+  `VERSION_DECODER_UNSUPPORTED`/`ok`), cero excepciones sin tipar, `"status":
+  "ok"`.
+- `npm run benchmark:smoke` (probeDwg, report-only, `"status":
+  "measured-no-threshold"` — nunca bloquea): 0.44-1257 MiB/s según perfil
+  (tiny/mixed/max-snapshot de 16 MiB), medido en ESTE hardware declarado
+  (Xeon 2.10GHz, 4 núcleos lógicos, Linux) — NO se compara contra el
+  0.69 MB/s de lectura completa de tablas/diccionarios que ya vive en
+  `docs/cad/evidence/` del corte 2026-08-21: son benchmarks DISTINTOS
+  (sondeo de cabecera vs. decodificación completa) en hardware distinto, y
+  mezclar sus números sería exactamente la comparación fabricada que esta
+  campaña prohíbe. No se re-ejecutó el benchmark de lectura completa
+  porque ningún código que mide toca esta sesión — re-correrlo habría
+  producido una medición nueva de código SIN CAMBIOS, no evidencia de
+  nada.
+- **Gap de cancelación cooperativa — re-confirmado SIN CAMBIOS, no
+  cerrado**: `readDwg`/`readAc1015Database`/`readR2004Database` (grep
+  fresco de sus firmas) siguen sin aceptar `signal`/`deadlineMs`; el único
+  mecanismo real sigue siendo `worker.terminate()`, no cooperativo con el
+  códec. Misma decisión que en Fase 2, ahora con más peso: tocar los tres
+  puntos de entrada del lector bajo presión de tiempo, al final de una
+  sesión ya larga y sin la auditoría dedicada que ese cambio necesita,
+  sería exactamente el tipo de parche apresurado al núcleo del parser que
+  esta campaña ya decidió NO hacer en la Fase 2. Queda para una sesión
+  dedicada a esa superficie específica — anotado en los próximos 10
+  pendientes del informe de cierre.
+- **No se construyó infraestructura adversarial nueva** (fuzzers nuevos,
+  corpus de mutación nuevo): la ya existente (1200 mutaciones
+  estructurales del corte 2026-08-21, batería adversarial de 349 casos
+  reverificada arriba) se juzgó suficientemente amplia para esta fase; el
+  tiempo se priorizó en re-verificar honestamente lo existente en vez de
+  añadir superficie nueva sin la misma profundidad de prueba que ya tiene
+  el resto.
+
+Comandos y resultados:
+
+| Comando | Exit | Nota |
+| --- | --- | --- |
+| `npm run check` (packages/dwg-codec) | 0 | provenance+fixtures+no-io+boundary+build+typecheck+349 tests adversariales+fuzz, todo verde |
+| `npm run benchmark:smoke` | 0 | report-only, `measured-no-threshold`, 3 perfiles medidos en este hardware |
+| grep de firmas de `readDwg`/`readAc1015Database`/`readR2004Database` | — | confirma sin `signal`/`deadlineMs`, gap sin cambios desde Fase 2 |
