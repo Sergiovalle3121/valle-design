@@ -122,7 +122,10 @@ describe('schema 7 opening invariants', () => {
 
   it('rechaza una ventana que remata por encima de la altura del muro', () => {
     rejects(
-      [wall({ height: 2_400 }), opening({ kind: 'window', sill: 2_000, height: 1_000 })],
+      [
+        wall({ height: 2_400 }),
+        opening({ kind: 'window', sill: 2_000, height: 1_000 }),
+      ],
       /no cabe verticalmente en su anfitrión/,
     );
   });
