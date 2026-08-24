@@ -243,4 +243,24 @@ seguras de borrar sin rescatar nada — el espíritu de la estimación se confir
     `docs/ops/runbook-repo-protection.md`) son notas de sesión, no código; pendiente de decidir
     en el cierre de la campaña si migran a `docs/` o se descartan (Ola Final).
 
+- **~06:36** — **PR #93 fusionado a `main` (squash, `4459dce8`).** Ola 1 (frente P0 completo:
+  tenant-rls, billing-entitlements, deploy-release, legal-acceptance-gate) y Ola 2 parcial
+  (dwg-campaign-integration, dwg-read-performance, dwg-r2010-envelope) ya viven en `main`.
+  Verificación previa: dos corridas completas de `check:cad && check:dwg && typecheck && test
+  && test:pg && lint && build` en verde contra Postgres 16 real (la primera reveló y corrigió
+  un bug real — `commercial-upgrade-intents.pg.spec.ts` esperaba rechazo de promesa de un
+  método que P0-A volvió síncrono, ver commit `b30ded23`). En el camino: otra sesión de Claude
+  Code fusionó en paralelo el PR #95 (`DWG_NATIVE_IMPORT_BETA`) directo a `main`; se resolvió
+  un conflicto real (aditivo, ambas entradas conservadas) en
+  `docs/governance/assisted-development-log.json`. El job E2E de CI mostró 7 fallos en dos
+  corridas (2 documentados como intermitentes preexistentes —`20-cad-multiple-viewports` y
+  `46-cad-pointer-engine`, ver `ci.yml` y `BACKLOG.md` P1-1b— y 5 con firma de timeout genérico
+  agrupados al final de corridas de 40+ min, sin relación funcional entre sí ni con el diff);
+  sin permiso para relanzar el job vía API (403), y por directiva expresa del titular de
+  fusionar sin seguir esperando, se fusionó con esa verificación local como evidencia. Pendiente
+  de vigilar: si el patrón de 5 timeouts se repite en la próxima corrida real de E2E, investigar
+  a fondo (candidato: costo acumulado de RLS en queries tras horas de datos de prueba).
+  **De aquí en adelante, por directiva del titular: trabajo directo sobre `main`, sin abrir
+  ramas ni PR nuevos**, salvo que un gate en rojo obligue a aislar un arreglo.
+
 *(continúa al cerrar cada rama)*
