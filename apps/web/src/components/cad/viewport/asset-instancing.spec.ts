@@ -12,6 +12,7 @@
 import assert from "node:assert/strict";
 import * as THREE from "three";
 import { buildAssetGroup, disposeObject, type Asset } from "./scene-objects";
+import { resetAssetInstancePool } from "./asset-instancing";
 
 let checks = 0;
 function ok(condition: boolean, message: string): void {
@@ -49,11 +50,24 @@ function collectPlainMeshes(root: THREE.Object3D): THREE.Mesh[] {
   return found;
 }
 
-function buildScene(count: number): { assetsGroup: THREE.Group; s: number } {
+/**
+ * Simula una pasada de `rebuildAssets()`: demuele el grupo anterior (si lo
+ * hay, disparando `resetAssetInstancePool()` vía `disposeObject`) y
+ * reconstruye `count` mesas desde cero. Reusar el mismo `THREE.Group` entre
+ * llamadas reproduce el patrón real — el pool es un singleton de módulo que
+ * vive ENTRE llamadas de `buildAssetGroup` dentro de una pasada y se resetea
+ * en la demolición, no en cada build.
+ */
+function buildScene(count: number, previous?: THREE.Group): { assetsGroup: THREE.Group; s: number } {
   const s = 0.001; // mm de documento -> metros de escena, igual que el editor
   const W = 60_000,
     H = 60_000;
-  const assetsGroup = new THREE.Group();
+  const assetsGroup = previous ?? new THREE.Group();
+  while (assetsGroup.children.length) {
+    const child = assetsGroup.children[assetsGroup.children.length - 1];
+    assetsGroup.remove(child);
+    disposeObject(child);
+  }
   for (let i = 0; i < count; i++) {
     const a = workbench(`bench-${i}`, i);
     const g = buildAssetGroup(a, s, W, H, false, false);
@@ -64,23 +78,23 @@ function buildScene(count: number): { assetsGroup: THREE.Group; s: number } {
 
 // ---- El conteo de InstancedMesh (draw calls) NO escala con el número de activos ----
 {
-  const scene3 = buildScene(3);
-  const scene30 = buildScene(30);
-  const scene300 = buildScene(300);
-  const keys3 = collectInstancedMeshes(scene3.assetsGroup).length;
-  const keys30 = collectInstancedMeshes(scene30.assetsGroup).length;
-  const keys300 = collectInstancedMeshes(scene300.assetsGroup).length;
+  const shared = new THREE.Group();
+  const keys3 = collectInstancedMeshes(buildScene(3, shared).assetsGroup).length;
+  const keys30 = collectInstancedMeshes(buildScene(30, shared).assetsGroup).length;
+  const keys300 = collectInstancedMeshes(buildScene(300, shared).assetsGroup).length;
   ok(keys3 > 0, "3 mesas ya deberían compartir al menos un InstancedMesh");
   ok(
     keys3 === keys30 && keys30 === keys300,
     `el conteo de InstancedMesh debe ser constante frente al número de activos: 3→${keys3} 30→${keys30} 300→${keys300}`,
   );
-  // "table" hornea el tablero (1 clave) y las 4 patas (1 clave más): 2 claves.
-  ok(keys3 === 2, `una mesa reparte en 2 claves (tablero+patas), no ${keys3}`);
+  // "table" hornea el tablero (1 clave) + 4 patas en posiciones fijas
+  // (índice-de-parte distinto por esquina, tal como pide la clave): 5 claves.
+  ok(keys3 === 5, `una mesa reparte en 5 claves (tablero + 4 patas por esquina), no ${keys3}`);
 }
 
 // ---- Las instancias SÍ crecen 1:1 con los activos, dentro de cada clave ----
 {
+  resetAssetInstancePool();
   const { assetsGroup } = buildScene(50);
   const meshes = collectInstancedMeshes(assetsGroup);
   const totalInstances = meshes.reduce((sum, m) => sum + m.count, 0);
@@ -93,6 +107,7 @@ function buildScene(count: number): { assetsGroup: THREE.Group; s: number } {
 
 // ---- La hitbox de selección se queda SIN instanciar, una por activo ----
 {
+  resetAssetInstancePool();
   const { assetsGroup } = buildScene(12);
   const plainMeshes = collectPlainMeshes(assetsGroup);
   const hitboxes = plainMeshes.filter((m) => typeof m.userData.assetId === "string");
@@ -101,6 +116,7 @@ function buildScene(count: number): { assetsGroup: THREE.Group; s: number } {
 
 // ---- Cada instancia lleva su posición absoluta propia, no la del "anfitrión" ----
 {
+  resetAssetInstancePool();
   const s = 0.001;
   const W = 60_000,
     H = 60_000;
@@ -137,6 +153,7 @@ function buildScene(count: number): { assetsGroup: THREE.Group; s: number } {
 
 // ---- Reset de pasada: una segunda pasada de rebuild no acumula instancias viejas ----
 {
+  resetAssetInstancePool();
   const { assetsGroup } = buildScene(20);
   const before = collectInstancedMeshes(assetsGroup).reduce((sum, m) => sum + m.count, 0);
   ok(before === 20 * 5, "línea base de 100 instancias antes de reciclar");
@@ -158,6 +175,7 @@ function buildScene(count: number): { assetsGroup: THREE.Group; s: number } {
 
 // ---- Dimensiones que caen fuera del paso de cuantización abren una clave nueva ----
 {
+  resetAssetInstancePool();
   const s = 0.001;
   const W = 60_000,
     H = 60_000;
@@ -167,8 +185,8 @@ function buildScene(count: number): { assetsGroup: THREE.Group; s: number } {
   assetsGroup.add(buildAssetGroup(small, s, W, H, false, false));
   assetsGroup.add(buildAssetGroup(big, s, W, H, false, false));
   ok(
-    collectInstancedMeshes(assetsGroup).length === 4,
-    "dos tamaños claramente distintos deben abrir sus propias 2+2 claves, no fundirse",
+    collectInstancedMeshes(assetsGroup).length === 10,
+    "dos tamaños claramente distintos deben abrir sus propias 5+5 claves, no fundirse",
   );
 }
 
