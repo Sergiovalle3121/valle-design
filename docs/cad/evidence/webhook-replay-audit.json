@@ -1,0 +1,386 @@
+{
+  "$schema": "urn:valle-design:schema:webhook-replay-audit:v1",
+  "schemaVersion": 1,
+  "evidenceId": "valle-design-webhook-replay-audit-v1",
+  "startedAt": "2026-08-20T17:40:55.765Z",
+  "finishedAt": "2026-08-20T17:44:33.187Z",
+  "enforcement": "report-only",
+  "enforcementRationale": "Las latencias salen de un portátil compartido y no fijan umbral de CI. Lo que SÍ está cerrado por specs es el comportamiento aquí observado: el lease, el backoff, la cola muerta y la deduplicación del receptor se prueban en apps/api (outbox-dispatcher, outbox-receiver.pg.spec, outbox-receiver.circuit.pg.spec) sin depender de esta corrida.",
+  "environment": {
+    "node": "v22.18.0",
+    "platform": "win32",
+    "architecture": "x64",
+    "osType": "Windows_NT",
+    "osRelease": "10.0.26200",
+    "cpuModel": "AMD Ryzen 5 5500U with Radeon Graphics         ",
+    "logicalCpuCount": 12,
+    "totalMemoryBytes": 7896625152,
+    "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics, 7,4 GB de RAM, Windows_NT 10.0.26200, portátil de desarrollo. Node v22.18.0. PostgreSQL 16 local en localhost:5432, sin Docker.",
+    "neighbours": {
+      "declared": true,
+      "statement": "LA CORRIDA TIENE VECINOS: otros agentes de desarrollo trabajaban en la misma máquina. Las latencias son un suelo observable, no una capacidad.",
+      "nodeProcessesBefore": 11,
+      "nodeProcessesAfter": 11
+    },
+    "database": "valle_design_outbox_audit recreada antes de la corrida (DROP SCHEMA public CASCADE) y poblada por las migraciones reales."
+  },
+  "method": {
+    "generator": "scripts/ops/webhook-replay-audit-evidence.mjs + apps/api/src/load-probe/outbox-audit.main.ts",
+    "applicationUnderTest": "AppModule COMPLETO sobre HTTP real con el worker de outbox encendido (OUTBOX_DISPATCHER_ENABLED=true) y el receptor de webhooks de este mismo repositorio apuntado a sí mismo, firmado HMAC-SHA256.",
+    "trafficOrigin": "Caminos de producto, no INSERTs: registro/verificación de usuarios → email_outbox; guardados del documento CAD → domain_outbox (design.document.saved).",
+    "failureInjection": "Ninguna en la base. El incidente es OUTBOX_DOMAIN_WEBHOOK_URL apuntando a un puerto sin servicio: cada intento es una conexión rechazada real y el backoff exponencial del dispatcher agota los 8 intentos.",
+    "replayTool": "scripts/ops/outbox-replay.mjs, exactamente como lo usaría el operador del RUNBOOK (INC-2); su JSON de auditoría se publica íntegro en replay.toolAuditJson.",
+    "singleRun": "UNA corrida, deliberadamente: esta evidencia demuestra un CIRCUITO (entrega → muerte → replay → recuperación → dedupe), no una distribución de latencias. Las latencias que publica llevan su tamaño de muestra al lado."
+  },
+  "run": {
+    "runStartedAt": "2026-08-20T17:41:43.309Z",
+    "runFinishedAt": "2026-08-20T17:44:32.568Z",
+    "configuration": {
+      "receiver": "esta misma API (/v1/outbox/email, /v1/outbox/domain), firma HMAC-SHA256",
+      "deadEndpoint": "http://127.0.0.1:9/v1/outbox/domain",
+      "pollIntervalMs": 250,
+      "webhookTimeoutMs": 2000,
+      "maxAttempts": 8,
+      "backoff": "exponencial base 1 s, tope 15 min, jitter 20 % (valores por defecto del dispatcher)"
+    },
+    "timeline": [
+      {
+        "at": "2026-08-20T17:42:08.673Z",
+        "phase": "operacion",
+        "detail": "registro del integrador (encola identity.verify-email)"
+      },
+      {
+        "at": "2026-08-20T17:42:09.918Z",
+        "phase": "operacion",
+        "detail": "10 guardados → design.document.saved"
+      },
+      {
+        "at": "2026-08-20T17:42:11.677Z",
+        "phase": "operacion",
+        "detail": "entregados 10 eventos de dominio al receptor propio"
+      },
+      {
+        "at": "2026-08-20T17:42:11.677Z",
+        "phase": "incidente",
+        "detail": "OUTBOX_DOMAIN_WEBHOOK_URL → http://127.0.0.1:9/v1/outbox/domain"
+      },
+      {
+        "at": "2026-08-20T17:44:30.409Z",
+        "phase": "incidente",
+        "detail": "3 filas dead en domain_outbox"
+      },
+      {
+        "at": "2026-08-20T17:44:30.410Z",
+        "phase": "replay",
+        "detail": "causa corregida: OUTBOX_DOMAIN_WEBHOOK_URL → http://127.0.0.1:4330/v1/outbox/domain"
+      },
+      {
+        "at": "2026-08-20T17:44:31.968Z",
+        "phase": "replay",
+        "detail": "3 filas recuperadas a sent"
+      },
+      {
+        "at": "2026-08-20T17:44:32.044Z",
+        "phase": "dedupe",
+        "detail": "reenvío con la misma clave → HTTP 200 {\"received\":true,\"status\":\"duplicate\",\"outcome\":\"duplicate\"}; recibos 13→13"
+      }
+    ],
+    "sustained": {
+      "savesIssued": 10,
+      "registrationsIssued": 3,
+      "allDomainDelivered": true,
+      "domainDeliveryLatencyMs": {
+        "samples": 10,
+        "minMs": 0,
+        "medianMs": 0,
+        "maxMs": 1000,
+        "note": "sent_at - created_at leídos de la fila: incluye la espera del sondeo del worker (250 ms), no sólo el HTTP."
+      }
+    },
+    "incident": {
+      "startedAt": "2026-08-20T17:42:11.677Z",
+      "eventsPoisoned": 3,
+      "allPoisonedWentDead": true,
+      "emailQueueSettled": true,
+      "deadRowsAtPeak": [
+        {
+          "id": "c690a226-00c2-488a-9cbf-8aecac181a4f",
+          "status": "dead",
+          "attemptCount": 8,
+          "createdAt": "2026-08-20T17:42:11.000Z",
+          "sentAt": null,
+          "failedAt": "2026-08-20T17:44:30.000Z",
+          "lastError": "TypeError: fetch failed"
+        },
+        {
+          "id": "f0001b06-1778-4ff1-b1cb-8cb88a70a722",
+          "status": "dead",
+          "attemptCount": 8,
+          "createdAt": "2026-08-20T17:42:11.000Z",
+          "sentAt": null,
+          "failedAt": "2026-08-20T17:44:20.000Z",
+          "lastError": "TypeError: fetch failed"
+        },
+        {
+          "id": "d2d671c9-d815-4d03-bd3b-41e3c9d81f68",
+          "status": "dead",
+          "attemptCount": 8,
+          "createdAt": "2026-08-20T17:42:11.000Z",
+          "sentAt": null,
+          "failedAt": "2026-08-20T17:44:20.000Z",
+          "lastError": "TypeError: fetch failed"
+        }
+      ]
+    },
+    "replay": {
+      "startedAt": "2026-08-20T17:44:30.410Z",
+      "toolAuditJson": {
+        "herramienta": "outbox-replay",
+        "ejecutadoEn": "2026-08-20T17:44:31.411Z",
+        "base": "postgres://postgres:***@localhost:5432/valle_design_outbox_audit",
+        "cola": "domain",
+        "modo": "replay (filas devueltas a pending)",
+        "seleccion": "all-dead",
+        "filas": [
+          {
+            "id": "c690a226-00c2-488a-9cbf-8aecac181a4f",
+            "estadoPrevio": "dead",
+            "intentos": 8,
+            "creadaEn": "2026-08-20T17:42:11Z",
+            "falloEn": "2026-08-20T17:44:30Z",
+            "ultimoError": "TypeError: fetch failed"
+          },
+          {
+            "id": "f0001b06-1778-4ff1-b1cb-8cb88a70a722",
+            "estadoPrevio": "dead",
+            "intentos": 8,
+            "creadaEn": "2026-08-20T17:42:11Z",
+            "falloEn": "2026-08-20T17:44:20Z",
+            "ultimoError": "TypeError: fetch failed"
+          },
+          {
+            "id": "d2d671c9-d815-4d03-bd3b-41e3c9d81f68",
+            "estadoPrevio": "dead",
+            "intentos": 8,
+            "creadaEn": "2026-08-20T17:42:11Z",
+            "falloEn": "2026-08-20T17:44:20Z",
+            "ultimoError": "TypeError: fetch failed"
+          }
+        ],
+        "total": 3
+      },
+      "allRecovered": true,
+      "recoveredRows": [
+        {
+          "id": "c690a226-00c2-488a-9cbf-8aecac181a4f",
+          "status": "sent",
+          "attemptCount": 1,
+          "createdAt": "2026-08-20T17:42:11.000Z",
+          "sentAt": "2026-08-20T17:44:31.000Z",
+          "failedAt": null,
+          "lastError": null
+        },
+        {
+          "id": "f0001b06-1778-4ff1-b1cb-8cb88a70a722",
+          "status": "sent",
+          "attemptCount": 1,
+          "createdAt": "2026-08-20T17:42:11.000Z",
+          "sentAt": "2026-08-20T17:44:31.000Z",
+          "failedAt": null,
+          "lastError": null
+        },
+        {
+          "id": "d2d671c9-d815-4d03-bd3b-41e3c9d81f68",
+          "status": "sent",
+          "attemptCount": 1,
+          "createdAt": "2026-08-20T17:42:11.000Z",
+          "sentAt": "2026-08-20T17:44:31.000Z",
+          "failedAt": null,
+          "lastError": null
+        }
+      ],
+      "recoveryLatencyFromReplayMs": {
+        "samples": 3,
+        "minMs": 590,
+        "maxMs": 590
+      }
+    },
+    "deduplication": {
+      "method": "reenvío de una entrega ya recibida con el MISMO idempotencyKey del cuerpo firmado (firma fresca, mismo secreto): la re-entrega at-least-once que el replay da por segura.",
+      "httpStatus": 200,
+      "receiverResponse": {
+        "received": true,
+        "status": "duplicate",
+        "outcome": "duplicate"
+      },
+      "receiptsBefore": 13,
+      "receiptsAfter": 13,
+      "verified": true
+    },
+    "emailQueue": {
+      "rows": [
+        {
+          "id": "9e0c4bac-e047-4c41-8129-b04df51419d4",
+          "status": "dead",
+          "attemptCount": 8,
+          "createdAt": "2026-08-20T17:42:09.000Z",
+          "sentAt": null,
+          "failedAt": "2026-08-20T17:44:23.000Z",
+          "lastError": "OutboxWebhookDeliveryError: Outbox webhook rejected delivery with HTTP 503."
+        },
+        {
+          "id": "2ce8fd00-a5ba-428d-a44a-551078f2132a",
+          "status": "dead",
+          "attemptCount": 8,
+          "createdAt": "2026-08-20T17:42:09.000Z",
+          "sentAt": null,
+          "failedAt": "2026-08-20T17:44:16.000Z",
+          "lastError": "OutboxWebhookDeliveryError: Outbox webhook rejected delivery with HTTP 503."
+        },
+        {
+          "id": "5a6e6472-6c38-42a2-9867-b4bf3b8e54c5",
+          "status": "dead",
+          "attemptCount": 8,
+          "createdAt": "2026-08-20T17:42:09.000Z",
+          "sentAt": null,
+          "failedAt": "2026-08-20T17:44:18.000Z",
+          "lastError": "OutboxWebhookDeliveryError: Outbox webhook rejected delivery with HTTP 503."
+        }
+      ],
+      "replayDryRunAudit": {
+        "herramienta": "outbox-replay",
+        "ejecutadoEn": "2026-08-20T17:44:32.361Z",
+        "base": "postgres://postgres:***@localhost:5432/valle_design_outbox_audit",
+        "cola": "email",
+        "modo": "dry-run (nada tocado)",
+        "seleccion": "all-dead",
+        "filas": [
+          {
+            "id": "9e0c4bac-e047-4c41-8129-b04df51419d4",
+            "estadoPrevio": "dead",
+            "intentos": 8,
+            "creadaEn": "2026-08-20T17:42:09Z",
+            "falloEn": "2026-08-20T17:44:23Z",
+            "ultimoError": "OutboxWebhookDeliveryError: Outbox webhook rejected delivery with HTTP 503."
+          },
+          {
+            "id": "2ce8fd00-a5ba-428d-a44a-551078f2132a",
+            "estadoPrevio": "dead",
+            "intentos": 8,
+            "creadaEn": "2026-08-20T17:42:09Z",
+            "falloEn": "2026-08-20T17:44:16Z",
+            "ultimoError": "OutboxWebhookDeliveryError: Outbox webhook rejected delivery with HTTP 503."
+          },
+          {
+            "id": "5a6e6472-6c38-42a2-9867-b4bf3b8e54c5",
+            "estadoPrevio": "dead",
+            "intentos": 8,
+            "creadaEn": "2026-08-20T17:42:09Z",
+            "falloEn": "2026-08-20T17:44:18Z",
+            "ultimoError": "OutboxWebhookDeliveryError: Outbox webhook rejected delivery with HTTP 503."
+          }
+        ],
+        "total": 3
+      },
+      "whyNoLiveReplay": "Este despliegue no tiene proveedor de correo (EMAIL_SENDER_* vacías): el receptor responde 503 email_sender_unavailable por diseño y los correos mueren al agotar reintentos. El RUNBOOK ordena corregir la causa ANTES de reinyectar; la causa exige una clave real de un tercero, así que el replay de email se audita en seco (--dry-run) y no se finge una entrega."
+    },
+    "final": {
+      "domainOutbox": {
+        "total": 13,
+        "byStatus": {
+          "sent": 13
+        }
+      },
+      "emailOutbox": {
+        "total": 3,
+        "byStatus": {
+          "dead": 3
+        }
+      },
+      "webhookReceiptsByQueue": [
+        {
+          "queue": "domain",
+          "total": 13
+        }
+      ],
+      "commercialMetrics": {
+        "time": "2026-08-20T17:44:32.548Z",
+        "startedAt": "2026-08-20T17:42:08.376Z",
+        "outbox": {
+          "domain": {
+            "byStatus": {
+              "sent": 13
+            },
+            "oldestUnsentAgeSeconds": null
+          },
+          "email": {
+            "byStatus": {
+              "dead": 3
+            },
+            "oldestUnsentAgeSeconds": null
+          }
+        },
+        "dispatcher": {
+          "domain": {
+            "claimed": 37,
+            "sent": 13,
+            "retries": 21,
+            "dead": 3,
+            "leaseLost": 0,
+            "retriesByKind": {
+              "TypeError": 21
+            },
+            "deadByKind": {
+              "TypeError": 3
+            },
+            "delivery": {
+              "count": 13,
+              "totalMs": 480,
+              "maxMs": 98,
+              "lastMs": 12
+            }
+          },
+          "email": {
+            "claimed": 24,
+            "sent": 0,
+            "retries": 21,
+            "dead": 3,
+            "leaseLost": 0,
+            "retriesByKind": {
+              "OutboxWebhookDeliveryError": 21
+            },
+            "deadByKind": {
+              "OutboxWebhookDeliveryError": 3
+            },
+            "delivery": {
+              "count": 0,
+              "totalMs": 0,
+              "maxMs": 0,
+              "lastMs": 0
+            }
+          }
+        },
+        "http": {}
+      }
+    }
+  },
+  "verdict": {
+    "passed": true,
+    "criteria": [
+      "todos los eventos de dominio de la fase sostenida entregados al receptor propio",
+      "todos los eventos envenenados terminaron dead tras agotar reintentos reales",
+      "el replay auditado devolvió las filas dead a pending y TODAS se entregaron",
+      "la re-entrega con el mismo idempotency-key respondió duplicate sin recibo nuevo"
+    ],
+    "latencyNote": "El veredicto es FUNCIONAL: juzga el circuito, no las latencias. Las latencias se publican como dato con su contaminación declarada."
+  },
+  "scope": {
+    "notMeasured": [
+      "Red real y TLS: emisor y receptor comparten proceso y loopback; el trayecto de internet y el handshake no están incluidos.",
+      "Proveedor de correo: este despliegue no tiene EMAIL_SENDER_* y los correos mueren por diseño (503 del receptor); la evidencia lo declara en run.emailQueue en vez de fingir entregas.",
+      "Operación sostenida de semanas: la ventana medida dura minutos. Lo sostenido aquí es el circuito completo bajo un incidente real, no la estadística de un trimestre.",
+      "Varios workers compitiendo por el lease: corre UN worker; la exclusión multi-worker está probada por specs PG, no por esta corrida.",
+      "Saturación del outbox: decenas de filas, no miles; esta corrida no busca el techo del dispatcher."
+    ]
+  }
+}
