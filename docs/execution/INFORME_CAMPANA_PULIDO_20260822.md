@@ -101,7 +101,7 @@ BIM que son la bandera del producto, desaparecían del PDF sin una advertencia.
 
 | Ítem | Estado |
 | --- | --- |
-| **OLA 4 — rendimiento** (`architecture@100k` en 25,3 s contra meta de 15 s) | **NO EMPEZADA.** Es trabajo de pipeline de render con medición en GPU real, y la campaña se quedó sin margen tras absorber los defectos que fueron apareciendo. Ninguna línea tocada, ninguna cifra movida. |
+| **OLA 4 — rendimiento** (`architecture@100k` en 25,3 s y 8,57 fps contra meta de ≤5 s / ≥30 fps p95, `docs/competitive/rubric.json` criterio `performance.architecture-100k`) | **NO EMPEZADA.** Es trabajo de pipeline de render con medición en GPU real, y la campaña se quedó sin margen tras absorber los defectos que fueron apareciendo. Ninguna línea tocada, ninguna cifra movida. |
 | **OLA 5.1** — migrar controles a primitivas, bajar los 27 `shadow-2xl` | no hecha |
 | **OLA 5.4** — barrido de nombres internos (`station`, `asset`, `flow`) | no hecha |
 | **OLA 5.5** — modo presentación | no hecha |
@@ -186,8 +186,10 @@ Un gate que no se corre no es un gate.
 
 ## 6. Los diez siguientes pasos
 
-1. **OLA 4 entera**: `architecture@100k` tarda 25,3 s contra meta de 15 s, y
-   panea a 8,6 fps. El perfil por etapas ya señala teselado y subida de
+1. **OLA 4 entera**: `architecture@100k` tarda 25,3 s y panea a 8,6 fps contra
+   la meta autoritativa de ≤5 s / ≥30 fps p95 (`docs/competitive/rubric.json`,
+   criterio `performance.architecture-100k` — es el que `scripts/cad/rubric.mjs`
+   realmente puntúa). El perfil por etapas ya señala teselado y subida de
    geometría.
 2. **El texto no se pinta en el LIENZO.** Rótulos MTEXT y etiquetas de cota se
    crean, se guardan y se imprimen en la lámina, pero no aparecen sobre el

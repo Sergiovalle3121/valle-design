@@ -32,9 +32,10 @@ La corrección fue estructural, no cosmética:
    definición** que `rubric.spec.mjs` bloquea en CI.
 2. Los gaps documentados que no puntuaban se volvieron **criterios que
    fallan**: capas sin `frozen` en el documento canónico, PAGESETUP que no
-   recoloca la ventana gráfica, sombreado sin patrón en el PDF, BEDIT
-   inexistente, F7/F9/F12 ausentes, ninguna `.shx` resuelta, y el kernel WASM
-   que nadie importa.
+   recoloca la ventana gráfica y sombreado sin patrón en el PDF (los tres
+   cerrados desde entonces, ver `docs/competitive/rubric.json`), además de
+   BEDIT inexistente, F7/F9/F12 ausentes, ninguna `.shx` resuelta, y el kernel
+   WASM que nadie importa.
 3. La prosa fila a fila de este documento pasó a ser **generada** entre los
    marcadores de abajo, porque envejeció dos veces y en las dos direcciones.
 
@@ -300,9 +301,11 @@ esconder que una categoría subió cuatro puntos y otra se cayó cuatro.
    la cadencia de presentación después.
 2. Enchufar el kernel Rust/WASM o dejar de contarlo: paridad verde y cero
    importadores es exactamente el patrón que la regla 6 existe para detectar.
-3. `frozen` en el documento canónico, PAGESETUP que recoloque la ventana
-   gráfica y el patrón de sombreado en el PDF: los tres están medidos o
-   declarados por los propios artefactos de evidencia.
+3. ~~`frozen` en el documento canónico, PAGESETUP que recoloque la ventana
+   gráfica y el patrón de sombreado en el PDF~~ — **cerrados** (Ola 2 de capas
+   y Ola 2 de layouts; `docs/competitive/rubric.json` criterios
+   `layers.frozen`, `layouts.pagesetup-viewport` y `layouts.hatch-pattern-pdf`
+   verifican en el corte vigente).
 4. BEDIT y BLEND: los 2 alias colgantes de la tabla acad.pgp.
 5. Construir un corpus DXF autorizado y diverso de terceros con matriz por
    entidad, round-trip y pérdidas aceptadas. No promover DXF por un único
