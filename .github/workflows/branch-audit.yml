@@ -2,7 +2,7 @@ name: Branch audit
 
 # Monitor SEMANAL de higiene del repositorio -- no el CI de cada commit. La
 # campaña de cierre de ramas del 2026-08-24
-# (docs/execution/CIERRE_RAMAS_20260824.md) encontró 74 ramas remotas vivas,
+# (docs/history/execution/CIERRE_RAMAS_20260824.md) encontró 74 ramas remotas vivas,
 # efecto de muchas sesiones paralelas sin nadie vigilando el conteo. Este
 # workflow es la vigilancia: corre scripts/branch-audit.mjs, que cuenta y
 # clasifica por CONTENIDO (no por nombre), y falla ruidosamente si el número

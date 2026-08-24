@@ -238,3 +238,15 @@ de campaña dedicada a limpiar. Si el cambio es pequeño y autocontenido,
 sáltese la rama: los seis gates locales verdes bastan para empujar directo a
 `main` (ver `ownerMergeProtocol` en
 `docs/governance/repository-protection-baseline.json`).
+
+Misma lógica para la bitácora de una campaña larga (el diario de ejecución
+día a día en `docs/execution/<NOMBRE>.md`): es estado vivo mientras la
+campaña corre, pero en cuanto su informe de cierre se publica deja de
+describir "lo que está pasando" y pasa a describir "lo que pasó". **Archívela
+a `docs/history/execution/` en el mismo commit que publica el informe de
+cierre** — no en una campaña de limpieza aparte después (ver
+`docs/history/README.md`). El `INFORME_*` de cierre NO se archiva: se queda
+en `docs/execution/` a propósito, porque es evidencia medida, no un plan
+vencido. Un `docs/` que acumula diarios de campañas ya cerradas junto a los
+documentos que sí describen el estado actual es el mismo desorden que las
+ramas sin cerrar, sólo que en documentación en vez de en git.

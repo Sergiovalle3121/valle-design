@@ -130,8 +130,9 @@ criterio `blocks.bedit` de la rúbrica pasa con evidencia real.
 
 ### P1-8 · `e2e/real/*`: 5 specs fallan por una carrera en verify-email, no por el producto
 - **Qué falla:** encontrado en el barrido de goldens con árbol quieto de la
-  campaña de cierre de ramas (2026-08-24, `docs/execution/CIERRE_RAMAS_20260824.md`
-  Ola Final), reproducido IDÉNTICO en 3 corridas independientes (dos en CI de
+  campaña de cierre de ramas (2026-08-24,
+  `docs/history/execution/CIERRE_RAMAS_20260824.md` Ola Final), reproducido
+  IDÉNTICO en 3 corridas independientes (dos en CI de
   GitHub, una local en máquina distinta): `studio-real-api.spec.ts`,
   `commercial-fiscal-checkout.spec.ts`, `cad-conflict-per-document.spec.ts`,
   `cad-offline-multitab.spec.ts`, `cad-recovery-lanes.spec.ts` fallan todos en
@@ -258,6 +259,25 @@ exige retirarla al sanar).
 artefacto envejece hasta la siguiente corrida con --write. **Criterio:** el
 gate compara el artefacto committeado contra lo computado (patrón
 `dwg-evidence`) y falla si difieren. **Estimación:** 1 hora.
+
+### P2-11 · Auditoría de veracidad de los `.md` vivos + índice de 30 segundos
+- **Qué falta:** no hay una pasada sistemática que confirme que cada `.md`
+  vivo bajo `docs/` (fuera de `docs/history/`, que ya se sabe archivo)
+  describe el estado REAL del repo y no residuo de una decisión superada; ni
+  un `docs/README.md` que oriente en 30 segundos a quien llega, con el mismo
+  patrón que `docs/history/README.md` ya usa para sí mismo ("la verdad de
+  hoy empieza en `IDENTITY.md` y sigue en `ARCHITECTURE.md`, `PRODUCT.md`,
+  `REPOSITORY_SCOPE.md`…").
+- **Origen:** se inició con subagentes en paralelo durante la campaña de
+  cierre de ramas del 2026-08-24, pero no sobrevivió a una compactación de
+  contexto (sin hallazgos recuperables en disco) y no respondía a un pedido
+  explícito del titular — se documenta aquí en vez de relanzarse a ciegas
+  sobre una premisa no verificada o perderse en silencio.
+- **Alcance si se retoma:** pasada doc por doc bajo `docs/` contra el
+  código/tests reales (no asumir, verificar cada afirmación como el resto de
+  esta campaña); escribir `docs/README.md`.
+- **Estimación:** medio día de auditoría + lo que cueste cada corrección
+  real que aparezca.
 
 ---
 

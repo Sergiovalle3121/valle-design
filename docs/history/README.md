@@ -33,8 +33,10 @@ trae sus datos a Valle Design.
 ## `execution/` — campañas y trackers vencidos
 
 Planes y bitácoras de cortes cerrados: los _Grand Leap_, el _native core_, el
-_daily driver_, las diez sesiones de la Ola 2, la campaña 10/10 y las bitácoras
-operativas de las campañas de 8 h y de DWG.
+_daily driver_, las diez sesiones de la Ola 2, la campaña 10/10, las bitácoras
+operativas de las campañas de 8 h y de DWG, y el diario de la campaña de
+cierre de ramas del 24-08 (`CIERRE_RAMAS_20260824.md`; su informe de cierre
+medido se quedó en `docs/execution/`, ver el párrafo siguiente).
 
 Cuidado al leerlos: uno de ellos cita un baseline de 8 761 líneas para
 `Layout3DEditor.tsx` cuando el archivo real tiene más de 22 000, y otro fija una

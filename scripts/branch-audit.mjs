@@ -4,7 +4,7 @@
  * vuelvan 74.
  *
  * La campaña de cierre de ramas del 2026-08-24
- * (docs/execution/CIERRE_RAMAS_20260824.md) no fue un accidente: fue el
+ * (docs/history/execution/CIERRE_RAMAS_20260824.md) no fue un accidente: fue el
  * efecto de muchas sesiones paralelas sin nadie vigilando el conteo. Este
  * script es la vigilancia — corre en el monitor semanal
  * (.github/workflows/branch-audit.yml), NO en el CI de cada commit, porque

@@ -45,7 +45,7 @@ brief tenía razón:
   cerrar.
 - **`main` sin raíz histórica única:** descubierto en la Ola 0. `main` fue reescrita/consolidada
   en algún punto de agosto 2026; comparar ramas viejas contra ella exigió dos métodos distintos
-  según si compartían ancestro común o no (ver `docs/execution/CIERRE_RAMAS_20260824.md` §0.1).
+  según si compartían ancestro común o no (ver `docs/history/execution/CIERRE_RAMAS_20260824.md` §0.1).
 - **Sesiones paralelas activas durante la campaña, no sólo antes:** el brief describe el
   desorden como algo ya ocurrido. En vivo, durante esta misma campaña, otra sesión de Claude
   Code fusionó el PR #95 (`DWG_NATIVE_IMPORT_BETA`) y siguió empujando commits directo a `main`
@@ -151,15 +151,30 @@ se ganó veredicto.
 
 1. **Desbloquear el borrado de ramas:** GitHub → Settings → Branches → la regla de protección →
    desmarcar "Restrict deletions" (o el Ruleset equivalente). En cuanto esté hecho, las ~71
-   ramas con veredicto firme en `docs/execution/CIERRE_RAMAS_20260824.md` se pueden borrar en
+   ramas con veredicto firme en `docs/history/execution/CIERRE_RAMAS_20260824.md` se pueden borrar en
    tandas sin re-auditar nada — el veredicto ya está publicado.
 2. **P1-7** (`review-concurrency` NO SUPERADO, ~50 4xx inesperados/corrida) y **P1-8** (5 specs
    de `e2e/real/` con una carrera de test diagnosticada pero no arreglada) — ambos en
    `BACKLOG.md`, con toda la evidencia para atacarlos sin re-investigar.
 3. **PR #94** (campaña 3D de otra sesión) sigue activo — no se tocó, no se revisó, es de otro
    dueño de sesión.
-4. Ver `docs/execution/CIERRE_RAMAS_20260824.md` para el veredicto completo, rama por rama, de
+4. Ver `docs/history/execution/CIERRE_RAMAS_20260824.md` para el veredicto completo, rama por rama, de
    las 74 originales, y su bitácora de ejecución con cada decisión y su evidencia.
+
+## 9. Adenda posterior al cierre
+
+Con `main` ya en el estado de este informe, Dependabot abrió el PR #96: el
+mismo bloque de seis mayores de §8.2/`docs/deps-majors-bloqueados.md`
+(typescript 7, eslint 10, typeorm 1.1, next 16.3, `@types/node` 26,
+`@playwright/test` 1.62), reempaquetado porque el grupo semanal
+`npm-semanal` no excluía nada. Se cerró sin fusionar (fusionarlo habría
+relajado los seis bloqueos verificados a la vez) y se agregó un bloque
+`ignore` a `.github/dependabot.yml` para que no se repita cada lunes —
+detalle completo en `docs/history/execution/CIERRE_RAMAS_20260824.md`. La
+propia bitácora de esta campaña se archivó ahí mismo en el mismo commit
+(`fe5eaa7d` + el commit de archivo), siguiendo la política que esta campaña
+dejó escrita en `AGENTS.md`: el diario se archiva, este informe de cierre se
+queda aquí como evidencia medida.
 
 ---
 _Campaña ejecutada por sesión autónoma de Claude Code, 2026-08-24. Ver

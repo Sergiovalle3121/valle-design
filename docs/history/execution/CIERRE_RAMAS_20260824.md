@@ -323,5 +323,15 @@ seguras de borrar sin rescatar nada — el espíritu de la estimación se confir
   ahora el grupo semanal sólo agrupará lo que sí sea seguro. Cambio pequeño
   y autocontenido, empujado directo a `main` (sin rama) por instrucción
   explícita del titular de trabajar directo de `main`.
+- **Archivo de esta bitácora** — con el PR #96 resuelto y sin más eventos
+  pendientes de esta campaña salvo el bloqueo de borrado de ramas (que
+  depende del titular, no de más ejecución), esta bitácora se archiva a
+  `docs/history/execution/` en el mismo commit que la mueve, siguiendo la
+  política que la propia campaña dejó escrita en `AGENTS.md`. El informe de
+  cierre (`docs/execution/INFORME_CIERRE_RAMAS_20260824.md`) se queda donde
+  está — es evidencia medida, no un diario. Este archivo deja de actualizarse
+  aquí; cualquier trabajo nuevo relacionado (desbloqueo de borrado, P1-7,
+  P1-8, la auditoría de veracidad de `.md` en BACKLOG P2-11) abre su propio
+  registro cuando se retome.
 
-*(continúa al cerrar cada rama)*
+*(bitácora cerrada — ver el informe de cierre para el estado final)*
