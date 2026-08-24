@@ -156,6 +156,34 @@ export function buildCadWallSolidObject(
   return group;
 }
 
+/**
+ * Recolorea un sólido YA CONSTRUIDO sin retesellar. Designar o soltar un
+ * muro no mueve un solo vértice de su malla — sólo cambia qué color pinta
+ * la misma cara —, así que `CadWallSolidHost.sync()` llama a esto en vez de
+ * `disposeCadWallSolidObject` + `buildCadWallSolidObject` cuando lo único
+ * que cambió es la selección: la reconstrucción completa (recortar vanos,
+ * retesellar el B-rep) es cara y aquí no hace ninguna falta.
+ *
+ * `false` cuando el objeto es el grupo «inválido» sin malla (receta
+ * degenerada, ver `buildCadWallSolidObject`) — no hay material que
+ * recolorear, y quien llama no tiene nada que actualizar.
+ */
+export function recolorCadWallSolidObject(
+  object: THREE.Object3D,
+  wall: Pick<CadWallEntity, "material">,
+  selected: boolean,
+): boolean {
+  const mesh = object.children.find(
+    (child): child is THREE.Mesh => (child as THREE.Mesh).isMesh === true,
+  );
+  const material = mesh?.material as THREE.MeshLambertMaterial | undefined;
+  if (!material) return false;
+  material.color.set(
+    selected ? WALL_SELECTED_COLOR : cadWallMaterialStyle(wall.material).color,
+  );
+  return true;
+}
+
 /** Libera geometría y material del objeto del muro. */
 export function disposeCadWallSolidObject(object: THREE.Object3D): void {
   object.traverse((child) => {
@@ -163,8 +191,19 @@ export function disposeCadWallSolidObject(object: THREE.Object3D): void {
     mesh.geometry?.dispose?.();
     const material = mesh.material as
       THREE.Material | THREE.Material[] | undefined;
-    if (Array.isArray(material)) material.forEach((item) => item.dispose());
-    else material?.dispose();
+    const materials = Array.isArray(material)
+      ? material
+      : material
+        ? [material]
+        : [];
+    // `.map` no lo pone hoy ningún material de muro (`cadWallMaterialStyle`
+    // es un color plano) — pero si algún día lleva una muestra de textura,
+    // esto ya lo libera: el mismo hueco que tiene `disposeObject` genérico
+    // de `scene-objects.ts`, cerrado aquí antes de que haga falta.
+    for (const item of materials) {
+      (item as THREE.MeshLambertMaterial).map?.dispose?.();
+      item.dispose();
+    }
   });
   object.removeFromParent();
 }

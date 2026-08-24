@@ -13,6 +13,7 @@ import { check, checkClose, report } from "../brep/spec-support";
 import {
   buildCadWallSolidGeometry,
   buildCadWallSolidObject,
+  recolorCadWallSolidObject,
 } from "./wall-solid-three";
 import { CAD_WALL_MATERIAL_DEFAULT, cadWallMaterialStyle } from "./wall-materials";
 import type { CadThreeViewport } from "./entity-three";
@@ -263,4 +264,53 @@ const door = { position: 2_000, width: 900, sill: 0, height: 2_100 };
   );
 }
 
-report("wall-solid-three", 11);
+// --- recolorCadWallSolidObject: mismo objeto, color en vivo, sin retesellar --
+{
+  const solidWall = {
+    id: "wall-recolor-spec",
+    start: { x: 0, y: 0, z: 0 },
+    end: { x: 3_000, y: 0, z: 0 },
+    thickness: 200,
+    height: 2_700,
+    material: "wood" as const,
+  };
+  const object = buildCadWallSolidObject(solidWall, [], viewport);
+  const mesh = object.children.find(
+    (child) => (child as THREE.Mesh).isMesh,
+  ) as THREE.Mesh;
+  const colorHex = () =>
+    (mesh.material as THREE.MeshLambertMaterial).color.getHex();
+
+  check(
+    "recién construido, ya pinta el color de su material declarado",
+    colorHex() === cadWallMaterialStyle("wood").color,
+  );
+
+  const selectedOnSameMesh = recolorCadWallSolidObject(object, solidWall, true);
+  check("recolorear devuelve true cuando SÍ hay malla", selectedOnSameMesh === true);
+  check(
+    "seleccionar recolorea al color de selección, en el MISMO objeto Mesh",
+    colorHex() === 0x22d3ee,
+  );
+  check(
+    "sigue siendo el mismo Mesh: no se reconstruyó geometría ni material",
+    object.children.find((child) => (child as THREE.Mesh).isMesh) === mesh,
+  );
+
+  recolorCadWallSolidObject(object, solidWall, false);
+  check(
+    "soltar la selección vuelve al color del material declarado, no al genérico",
+    colorHex() === cadWallMaterialStyle("wood").color,
+  );
+
+  // El grupo «inválido» (receta degenerada) no tiene malla: recolorear no
+  // debe lanzar, y debe decir que no hizo nada.
+  const flat = { ...solidWall, id: "flat", end: { x: 0, y: 0, z: 0 } };
+  const invalid = buildCadWallSolidObject(flat, [], viewport);
+  check(
+    "el grupo inválido no tiene malla que recolorear, y no lanza",
+    recolorCadWallSolidObject(invalid, solidWall, true) === false,
+  );
+}
+
+report("wall-solid-three", 17);

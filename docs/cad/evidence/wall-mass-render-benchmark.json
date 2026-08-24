@@ -1,0 +1,58 @@
+{
+  "generatedBy": "apps/web/scripts/cad-wall-mass-render-benchmark.mts",
+  "node": "v22.22.2",
+  "conclusion": "OK: el camino de recoloreado (selección/material) evita retesellar en las tres escalas medidas — ver `materialEditSpeedupVsCold` por reporte. `massRebuildMs` confirma el costo, ya conocido y fijado por su propio spec, del rediseño todo-o-nada de piso/cielorraso/cubierta ante CUALQUIER cambio de muro; no es un defecto de esta pieza, es lo que costaría afinarlo si se decide hacerlo. `disposeLeavesZero` es true en las tres escalas: sin fuga de bookkeeping JS detectable sin un contexto WebGL real.",
+  "reports": [
+    {
+      "rows": 3,
+      "cols": 3,
+      "wallCount": 24,
+      "coldWallSyncMs": 21.796,
+      "coldMassSyncMs": 7.98,
+      "materialEditSyncMs": 0.206,
+      "geometryEditSyncMs": 0.758,
+      "massRebuildMs": 3.813,
+      "materialEditSpeedupVsCold": 105.9,
+      "wallCountAfterCold": 24,
+      "massCountAfterCold": 3,
+      "wallCountAfterEdits": 24,
+      "massCountAfterEdits": 3,
+      "disposeLeavesZero": true,
+      "approximateHeapDeltaBytes": 0
+    },
+    {
+      "rows": 10,
+      "cols": 10,
+      "wallCount": 220,
+      "coldWallSyncMs": 102.13,
+      "coldMassSyncMs": 33.869,
+      "materialEditSyncMs": 0.338,
+      "geometryEditSyncMs": 0.768,
+      "massRebuildMs": 16.735,
+      "materialEditSpeedupVsCold": 302.4,
+      "wallCountAfterCold": 220,
+      "massCountAfterCold": 3,
+      "wallCountAfterEdits": 220,
+      "massCountAfterEdits": 3,
+      "disposeLeavesZero": true,
+      "approximateHeapDeltaBytes": 2588048
+    },
+    {
+      "rows": 20,
+      "cols": 20,
+      "wallCount": 840,
+      "coldWallSyncMs": 185.493,
+      "coldMassSyncMs": 136.776,
+      "materialEditSyncMs": 0.986,
+      "geometryEditSyncMs": 1.2,
+      "massRebuildMs": 130.346,
+      "materialEditSpeedupVsCold": 188.2,
+      "wallCountAfterCold": 840,
+      "massCountAfterCold": 3,
+      "wallCountAfterEdits": 840,
+      "massCountAfterEdits": 3,
+      "disposeLeavesZero": true,
+      "approximateHeapDeltaBytes": 1508024
+    }
+  ]
+}

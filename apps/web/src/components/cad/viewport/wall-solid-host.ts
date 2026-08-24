@@ -16,6 +16,18 @@
  * elemento, es barato porque las mutaciones canónicas no clonan lo que no
  * tocan, y es exacto porque cualquier vano nuevo, borrado o editado cambia al
  * menos una referencia de la lista.
+ *
+ * La SELECCIÓN y el MATERIAL no entran en la firma a propósito: designar o
+ * soltar un muro, o cambiarle el material, no mueven un solo vértice de su
+ * malla — sólo qué color pinta su cara —, así que `sync()` los resuelve
+ * recoloreando el sólido ya construido (`recolorCadWallSolidObject`) en vez
+ * de tratarlos como cambios que ameriten retesellar el B-rep entero.
+ * `wallGeometryUnchanged` es deliberadamente explícita sobre qué campos SÍ
+ * importan (eje, grosor, altura) en vez de comparar el objeto entero: un
+ * campo nuevo que afecte la malla tiene que sumarse ahí a mano, y eso es
+ * más seguro que un `===` de referencia que se volvería falso —y forzaría
+ * una reconstrucción de sobra— por cualquier campo que cambie, geometría o
+ * no.
  */
 import * as THREE from "three";
 import type { CadDocument } from "@/lib/cad/cad-document";
@@ -24,6 +36,7 @@ import type { CadOpeningEntity } from "@/lib/cad/cad-entities-v7";
 import {
   buildCadWallSolidObject,
   disposeCadWallSolidObject,
+  recolorCadWallSolidObject,
 } from "@/lib/cad/wall-solid-three";
 import type { CadThreeViewport } from "@/lib/cad/entity-three";
 
@@ -40,6 +53,24 @@ function sameOpenings(
 ): boolean {
   if (a.length !== b.length) return false;
   return a.every((entity, index) => entity === b[index]);
+}
+
+/**
+ * Sólo los campos que de verdad mueven un vértice de la malla del muro:
+ * eje, grosor, altura. `material`/`layer`/`context` cambian la entidad
+ * (nueva referencia) pero no la geometría — ver la cabecera del archivo.
+ */
+function wallGeometryUnchanged(a: CadWallEntity, b: CadWallEntity): boolean {
+  return (
+    a.start.x === b.start.x &&
+    a.start.y === b.start.y &&
+    a.start.z === b.start.z &&
+    a.end.x === b.end.x &&
+    a.end.y === b.end.y &&
+    a.end.z === b.end.z &&
+    a.thickness === b.thickness &&
+    a.height === b.height
+  );
 }
 
 export class CadWallSolidHost {
@@ -78,10 +109,22 @@ export class CadWallSolidHost {
       const selected = selectedIds.has(id);
       if (
         next &&
-        next.wall === entry.wall &&
-        selected === entry.selected &&
-        sameOpenings(next.openings, entry.openings)
+        sameOpenings(next.openings, entry.openings) &&
+        wallGeometryUnchanged(next.wall, entry.wall)
       ) {
+        // Ni los vanos ni la geometría del muro cambiaron: la malla sigue
+        // siendo válida. Lo que pudo cambiar —selección, material— es un
+        // color, no un vértice: se recolorea el sólido ya construido en vez
+        // de retesellarlo entero (`recolorCadWallSolidObject`).
+        if (selected !== entry.selected || next.wall.material !== entry.wall.material) {
+          recolorCadWallSolidObject(entry.object, next.wall, selected);
+        }
+        // La entrada se refresca a las referencias MÁS RECIENTES aunque no
+        // haga falta recolorear (p. ej. sólo cambió `layer`): si no, una
+        // futura llamada compararía contra una entidad ya obsoleta.
+        entry.wall = next.wall;
+        entry.openings = next.openings;
+        entry.selected = selected;
         wanted.delete(id);
         continue;
       }

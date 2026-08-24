@@ -10,6 +10,7 @@
  * hueco vive en la malla del muro, no en una capa aparte.
  */
 import assert from "node:assert/strict";
+import * as THREE from "three";
 import type { CadDocument, CadEntity } from "@/lib/cad/cad-document";
 import { CAD_DOCUMENT_SCHEMA } from "@/lib/cad/cad-document";
 import type { CadWallEntity } from "@/lib/cad/cad-entities-v6";
@@ -151,16 +152,89 @@ const none: ReadonlySet<string> = new Set();
   host.dispose();
 }
 
-// --- la designación reconstruye sólo al designado ----------------------------
+// --- la designación RECOLOREA sin retesellar; el color cambia de verdad ------
 {
   const host = new CadWallSolidHost(() => viewport);
   const m1 = wall("m1", 4_000);
   const m2 = wall("m2", 3_000);
   host.sync(documentWith([m1, m2]), none);
   const before = [...host.group.children];
+  const m1Object = before.find((child) => child.userData.nativeEntityId === "m1")!;
+  const meshOf = (object: THREE.Object3D) =>
+    object.children.find(
+      (child): child is THREE.Mesh => (child as THREE.Mesh).isMesh === true,
+    );
+  const colorOf = (object: THREE.Object3D) =>
+    (meshOf(object)?.material as THREE.MeshLambertMaterial | undefined)?.color.getHex();
+  const genericColor = colorOf(m1Object);
+
   host.sync(documentWith([m1, m2]), new Set(["m1"]));
   const kept = host.group.children.filter((child) => before.includes(child));
-  assert.equal(kept.length, 1, "designar m1 lo reconstruye y respeta m2");
+  assert.equal(
+    kept.length,
+    2,
+    "designar NO reconstruye a nadie: ni el designado ni el que no lo es cambian de objeto",
+  );
+  assert.equal(
+    colorOf(m1Object),
+    0x22d3ee,
+    "el MISMO objeto de m1 recolorea a color de selección",
+  );
+
+  host.sync(documentWith([m1, m2]), none);
+  assert.equal(
+    colorOf(m1Object),
+    genericColor,
+    "soltar la selección devuelve el color genérico, sin reconstruir tampoco",
+  );
+  host.dispose();
+}
+
+// --- cambiar el MATERIAL tampoco reconstruye: recolorea el mismo objeto -----
+{
+  const host = new CadWallSolidHost(() => viewport);
+  const m1 = wall("m1", 4_000);
+  host.sync(documentWith([m1]), none);
+  const before = host.group.children[0];
+  const meshOf = (object: THREE.Object3D) =>
+    object.children.find(
+      (child): child is THREE.Mesh => (child as THREE.Mesh).isMesh === true,
+    );
+  const colorOf = (object: THREE.Object3D) =>
+    (meshOf(object)?.material as THREE.MeshLambertMaterial | undefined)?.color.getHex();
+  const genericColor = colorOf(before);
+
+  // Nueva REFERENCIA de m1 (como haría una edición real), pero con el MISMO
+  // eje/grosor/altura y sólo el material distinto.
+  const m1WithMaterial: CadWallEntity = { ...m1, material: "brick" };
+  host.sync(documentWith([m1WithMaterial]), none);
+  assert.equal(
+    host.group.children[0],
+    before,
+    "un material nuevo no reconstruye el objeto: sigue siendo el mismo Mesh",
+  );
+  assert.notEqual(
+    colorOf(before),
+    genericColor,
+    "…pero el color SÍ cambió: el material se pintó de verdad",
+  );
+  host.dispose();
+}
+
+// --- cambiar la GEOMETRÍA (grosor) sí reconstruye, aunque el material siga --
+{
+  const host = new CadWallSolidHost(() => viewport);
+  const m1 = wall("m1", 4_000);
+  host.sync(documentWith([m1]), none);
+  const before = host.group.children[0];
+
+  const m1Thicker: CadWallEntity = { ...m1, thickness: 400 };
+  host.sync(documentWith([m1Thicker]), none);
+  assert.notEqual(
+    host.group.children[0],
+    before,
+    "un grosor nuevo SÍ reconstruye: recolorear no basta para una malla distinta",
+  );
   host.dispose();
 }
 

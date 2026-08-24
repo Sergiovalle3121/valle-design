@@ -117,8 +117,17 @@ export function disposeCadArchitecturalMassObject(
     mesh.geometry?.dispose?.();
     const material = mesh.material as
       THREE.Material | THREE.Material[] | undefined;
-    if (Array.isArray(material)) material.forEach((item) => item.dispose());
-    else material?.dispose();
+    const materials = Array.isArray(material)
+      ? material
+      : material
+        ? [material]
+        : [];
+    // `.map` no lo pone ningún material de losa hoy (color plano) — mismo
+    // hueco cerrado por la misma razón en `wall-solid-three.ts`.
+    for (const item of materials) {
+      (item as THREE.MeshLambertMaterial).map?.dispose?.();
+      item.dispose();
+    }
   });
   object.removeFromParent();
 }
