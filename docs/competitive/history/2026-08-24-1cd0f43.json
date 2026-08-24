@@ -1,0 +1,219 @@
+{
+  "$schema": "urn:valle-design:schema:cad-competitive-rubric-history:v1",
+  "schemaVersion": 1,
+  "measuredAt": "2026-08-24T08:22:26.144Z",
+  "commit": "1cd0f436a6083f4e116fe378b5d03168d261281b",
+  "totalPoints": 220,
+  "earned": 189,
+  "percentage": 85.9,
+  "categories": [
+    {
+      "id": "draw-2d",
+      "name": "Dibujo 2D y precisión",
+      "points": 16,
+      "earned": 15,
+      "notGranted": []
+    },
+    {
+      "id": "modify",
+      "name": "Selección y modificación",
+      "points": 14,
+      "earned": 13,
+      "notGranted": [
+        "modify.dense-stress"
+      ]
+    },
+    {
+      "id": "dimensions",
+      "name": "Cotas asociativas",
+      "points": 12,
+      "earned": 11,
+      "notGranted": []
+    },
+    {
+      "id": "hatch",
+      "name": "HATCH asociativo",
+      "points": 10,
+      "earned": 9,
+      "notGranted": []
+    },
+    {
+      "id": "mtext",
+      "name": "MTEXT y texto",
+      "points": 9,
+      "earned": 8,
+      "notGranted": [
+        "mtext.stroke-fonts"
+      ]
+    },
+    {
+      "id": "layers",
+      "name": "Capas y propiedades",
+      "points": 10,
+      "earned": 9,
+      "notGranted": []
+    },
+    {
+      "id": "blocks",
+      "name": "Bloques y atributos",
+      "points": 9,
+      "earned": 7,
+      "notGranted": [
+        "blocks.bedit",
+        "blocks.dynamic"
+      ]
+    },
+    {
+      "id": "dxf",
+      "name": "Import/export DXF de texto",
+      "points": 12,
+      "earned": 10,
+      "notGranted": [
+        "dxf.corpus-external"
+      ]
+    },
+    {
+      "id": "layouts",
+      "name": "Layouts, viewports y publicación",
+      "points": 10,
+      "earned": 9,
+      "notGranted": []
+    },
+    {
+      "id": "persistence",
+      "name": "Guardado CAS, autosave, historia y versiones",
+      "points": 8,
+      "earned": 7,
+      "notGranted": []
+    },
+    {
+      "id": "command-line",
+      "name": "Línea de comandos, alias y scripting",
+      "points": 12,
+      "earned": 11,
+      "notGranted": []
+    },
+    {
+      "id": "annotation-extras",
+      "name": "MLEADER y tablas",
+      "points": 5,
+      "earned": 4,
+      "notGranted": []
+    },
+    {
+      "id": "xrefs",
+      "name": "Xrefs",
+      "points": 6,
+      "earned": 5,
+      "notGranted": []
+    },
+    {
+      "id": "performance",
+      "name": "Rendimiento 10k/100k",
+      "points": 12,
+      "earned": 11,
+      "notGranted": [
+        "performance.architecture-100k"
+      ]
+    },
+    {
+      "id": "review",
+      "name": "Compare, comentarios y enlaces de revisión",
+      "points": 5,
+      "earned": 3,
+      "notGranted": [
+        "review.concurrency"
+      ]
+    },
+    {
+      "id": "json-import",
+      "name": "Importación de JSON canónico",
+      "points": 4,
+      "earned": 3,
+      "notGranted": []
+    },
+    {
+      "id": "api-sdk",
+      "name": "API y SDK de automatización",
+      "points": 7,
+      "earned": 6,
+      "notGranted": []
+    },
+    {
+      "id": "plugins",
+      "name": "Automatización: AutoLISP y plugins JS",
+      "points": 8,
+      "earned": 6,
+      "notGranted": [
+        "plugins.dotnet-vba"
+      ]
+    },
+    {
+      "id": "events",
+      "name": "Eventos e integración asíncrona",
+      "points": 4,
+      "earned": 3,
+      "notGranted": [
+        "events.operational"
+      ]
+    },
+    {
+      "id": "nl-cad",
+      "name": "Asistencia NL→CAD y Vision→CAD",
+      "points": 4,
+      "earned": 3,
+      "notGranted": []
+    },
+    {
+      "id": "object-storage",
+      "name": "Almacenamiento de objetos",
+      "points": 3,
+      "earned": 2,
+      "notGranted": []
+    },
+    {
+      "id": "dwg",
+      "name": "Import/export DWG",
+      "points": 7,
+      "earned": 6,
+      "notGranted": [
+        "dwg.gates"
+      ]
+    },
+    {
+      "id": "brep",
+      "name": "Modelo 3D y sólidos B-rep FACETADO",
+      "points": 7,
+      "earned": 6,
+      "notGranted": []
+    },
+    {
+      "id": "wasm",
+      "name": "Kernel Rust/WASM",
+      "points": 2,
+      "earned": 1,
+      "notGranted": []
+    },
+    {
+      "id": "geo",
+      "name": "Nubes de puntos, raster georreferenciado y GIS",
+      "points": 3,
+      "earned": 2,
+      "notGranted": []
+    },
+    {
+      "id": "integrity",
+      "name": "Integridad: el producto hace lo que dice",
+      "points": 13,
+      "earned": 12,
+      "notGranted": []
+    },
+    {
+      "id": "growth",
+      "name": "Capacidad de crecer: las puertas que no se cierran",
+      "points": 8,
+      "earned": 7,
+      "notGranted": []
+    }
+  ]
+}

@@ -1,0 +1,218 @@
+{
+  "$schema": "urn:valle-design:schema:cad-benchmark-evidence:v1",
+  "schemaVersion": 1,
+  "benchmarkId": "valle-design-cad-render-browser-v1",
+  "note": "Re-medición parcial (SOLO architecture@100000, escalón full) corrida el 2026-08-24 tras A.1-A.4 de la campaña de rendimiento, para responder honestamente a la fila performance.architecture-100k de la rúbrica en vez de reafirmar el número de docs/cad/evidence/browser-slo-100k.json (2026-08-21, previo a la campaña). Este entorno NO tiene GPU real (sin nvidia-smi, sin glxinfo, sin DISPLAY): Chromium cae en SwiftShader (software), igual que browser-slo-100k-swiftshader-ci.json. El número de aquí NO es comparable al de browser-slo-100k.json (GPU real AMD Radeon) y NO puede usarse para conceder ni negar el SLO de producto — sólo confirma que el pipeline sigue ejecutando y produce una medida real hoy. `run.skipped` se deja vacío deliberadamente NO como afirmación de cobertura completa (esta corrida filtró con `-g architecture@100000` y midió un solo corpus de los diez del escalón full) — ver INFORME_CAMPANA_RENDIMIENTO_20260824.md para el alcance exacto.",
+  "manifestSha256": "5522042db88cd4eed5369b1f38fbca012afb0434c2c5551ea9db9ac23b973a33",
+  "startedAt": "2026-08-24T08:25:00.000Z",
+  "finishedAt": "2026-08-24T08:28:00.000Z",
+  "environment": {
+    "platform": "linux",
+    "architecture": "x64",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "logicalCpuCount": 4,
+    "totalMemoryBytes": 16856150016,
+    "playwrightProject": "chromium",
+    "browser": {
+      "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.7390.37 Safari/537.36",
+      "devicePixelRatio": 1,
+      "hardwareConcurrency": 4,
+      "deviceMemoryGb": null,
+      "webglVendor": "Google Inc. (Google)",
+      "webglRenderer": "ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)",
+      "webglVersion": "WebGL 2.0 (OpenGL ES 3.0 Chromium)",
+      "maxTextureSize": 8192,
+      "jsHeapLimitBytes": 3760000000
+    },
+    "declaredMachine": "Sandbox de agente sin GPU (sin nvidia-smi/glxinfo/DISPLAY), Intel Xeon 2.8GHz 4 hilos, Linux 6.18.44-fc-v21, Chromium 141 HEADLESS sobre SwiftShader (software). NO es hardware de referencia para el SLO de producto."
+  },
+  "run": {
+    "enforcement": "report-only",
+    "enforcementRationale": "Métrica nueva (FPS, llamadas de dibujo, memoria de GPU). Entra REGISTRADA y no bloqueante durante una versión: esta corrida es su línea base. Ningún presupuesto existente se toca junto a ella.",
+    "tier": "full",
+    "scopeNote": "SOLO el corpus architecture@100000 (filtrado con -g). NO es una corrida completa del escalón full: los otros ocho targets (baseline/mechanical/cartography/text-hostile a 10k y 100k) NO se remidieron en esta sesión.",
+    "skipped": [
+      "baseline-line-circle-arc@10000 · los dos caminos (no remedido en esta sesión, ver browser-slo-100k.json del 2026-08-21)",
+      "baseline-line-circle-arc@100000 · los dos caminos (no remedido en esta sesión, ver browser-slo-100k.json del 2026-08-21)",
+      "mechanical@100000 · los dos caminos (no remedido en esta sesión, ver browser-slo-100k.json del 2026-08-21)",
+      "cartography@100000 · los dos caminos (no remedido en esta sesión, ver browser-slo-100k.json del 2026-08-21)",
+      "text-hostile@100000 · los dos caminos (no remedido en esta sesión, ver browser-slo-100k.json del 2026-08-21)",
+      "architecture@10000, mechanical@10000, cartography@10000, text-hostile@10000 · smoke tier (no remedido en esta sesión, ver browser-slo-100k.json del 2026-08-21)"
+    ],
+    "failures": []
+  },
+  "profiles": [
+    {
+      "browser": "chromium",
+      "corpusId": "architecture",
+      "entities": 100000,
+      "pipeline": "next",
+      "corpusBuildMs": 100.9,
+      "firstPixelMs": 130.6,
+      "fullDetailMs": 56585.7,
+      "fullDetailCpuMs": 1734.6,
+      "framesToFullDetail": 10,
+      "openSettled": false,
+      "zoomSettleMs": 1986.4,
+      "zoomSettledFlag": true,
+      "pan": {
+        "samples": 14,
+        "frameMsP50": 4299.8,
+        "frameMsP95": 7983,
+        "frameMsMax": 7983,
+        "cpuMsP50": 233.1,
+        "cpuMsP95": 419,
+        "cpuMsMax": 419,
+        "fpsP95": 0.125,
+        "fpsMin": 0.125,
+        "drawCallsP95": 151,
+        "drawCallsMax": 151,
+        "trianglesP95": 610282
+      },
+      "zoom": {
+        "samples": 2,
+        "frameMsP50": 966.6,
+        "frameMsP95": 1000,
+        "frameMsMax": 1000,
+        "cpuMsP50": 76,
+        "cpuMsP95": 87.1,
+        "cpuMsMax": 87.1,
+        "fpsP95": 1,
+        "fpsMin": 1,
+        "drawCallsP95": 25,
+        "drawCallsMax": 25,
+        "trianglesP95": 96468
+      },
+      "rest": {
+        "samples": 8,
+        "frameMsP50": 733.2,
+        "frameMsP95": 949.9,
+        "frameMsMax": 949.9,
+        "cpuMsP50": 1.9,
+        "cpuMsP95": 7.4,
+        "cpuMsMax": 7.4,
+        "fpsP95": 1.053,
+        "fpsMin": 1.053,
+        "drawCallsP95": 25,
+        "drawCallsMax": 25,
+        "trianglesP95": 96468
+      },
+      "restSync": { "idleFrames": 8, "glyphRebuildFrames": 8, "glyphsPerRebuild": 2926 },
+      "gpu": {
+        "geometries": 25,
+        "textures": 1,
+        "programs": 2,
+        "attributeBytes": 1952888,
+        "textureBytes": 0,
+        "gpuBytesEstimate": 1952888
+      },
+      "visibleAtRest": 414,
+      "detailedAtRest": 414,
+      "textObjects": 3411,
+      "truncated": false,
+      "truncatedAtEntities": null,
+      "truncationReason": null,
+      "usedJsHeapBytes": 26000000,
+      "scenario": {
+        "panStops": 3,
+        "initialPixelsPerUnit": 0.00336380614665494,
+        "panPixelsPerUnit": 0.01345522458661976,
+        "zoomPixelsPerUnit": 0.05382089834647904
+      }
+    },
+    {
+      "browser": "chromium",
+      "corpusId": "architecture",
+      "entities": 100000,
+      "pipeline": "legacy",
+      "corpusBuildMs": 93.8,
+      "firstPixelMs": 17864.3,
+      "fullDetailMs": 17864.3,
+      "fullDetailCpuMs": 9715,
+      "framesToFullDetail": 1,
+      "openSettled": true,
+      "zoomSettleMs": 3306.8,
+      "zoomSettledFlag": true,
+      "pan": {
+        "samples": 24,
+        "frameMsP50": 333.3,
+        "frameMsP95": 4649.9,
+        "frameMsMax": 7649.7,
+        "cpuMsP50": 148.5,
+        "cpuMsP95": 3091.4,
+        "cpuMsMax": 6051.9,
+        "fpsP95": 0.215,
+        "fpsMin": 0.131,
+        "drawCallsP95": 9653,
+        "drawCallsMax": 9653,
+        "trianglesP95": 166
+      },
+      "zoom": {
+        "samples": 1,
+        "frameMsP50": 3283.2,
+        "frameMsP95": 3283.2,
+        "frameMsMax": 3283.2,
+        "cpuMsP50": 1929.9,
+        "cpuMsP95": 1929.9,
+        "cpuMsMax": 1929.9,
+        "fpsP95": 0.305,
+        "fpsMin": 0.305,
+        "drawCallsP95": 8695,
+        "drawCallsMax": 8695,
+        "trianglesP95": 144
+      },
+      "rest": {
+        "samples": 8,
+        "frameMsP50": 283.3,
+        "frameMsP95": 333.3,
+        "frameMsMax": 333.3,
+        "cpuMsP50": 86.9,
+        "cpuMsP95": 103.5,
+        "cpuMsMax": 103.5,
+        "fpsP95": 3,
+        "fpsMin": 3,
+        "drawCallsP95": 8695,
+        "drawCallsMax": 8695,
+        "trianglesP95": 144
+      },
+      "restSync": { "idleFrames": 0, "glyphRebuildFrames": 0, "glyphsPerRebuild": 0 },
+      "gpu": {
+        "geometries": 8624,
+        "textures": 72,
+        "programs": 2,
+        "attributeBytes": 6287552,
+        "textureBytes": 115286016,
+        "gpuBytesEstimate": 121573568
+      },
+      "visibleAtRest": 414,
+      "detailedAtRest": 414,
+      "textObjects": 111,
+      "truncated": true,
+      "truncatedAtEntities": 1814,
+      "truncationReason": "En la apertura, el camino anterior superó 384 MB de textura tras construir 1814 de 2500 entidades planificadas: se cortó a propósito para no matar el navegador.",
+      "usedJsHeapBytes": 26000000,
+      "scenario": {
+        "panStops": 3,
+        "initialPixelsPerUnit": 0.00336380614665494,
+        "panPixelsPerUnit": 0.01345522458661976,
+        "zoomPixelsPerUnit": 0.05382089834647904
+      }
+    }
+  ],
+  "leakCycles": [],
+  "scope": {
+    "measured": [
+      "cuadros presentados de verdad (intervalo entre rAF) durante paneo y zoom guionados, con p50, p95 y máximo, SOLO sobre architecture@100000",
+      "llamadas de dibujo y triángulos por cuadro, leídos de renderer.info de THREE",
+      "estimación de memoria de GPU (software) por búferes de atributo y texturas vivas, deduplicada",
+      "tiempo hasta el primer píxel presentado y hasta el detalle completo"
+    ],
+    "notMeasured": [
+      "GPU real: este entorno no tiene GPU (sin nvidia-smi/glxinfo/DISPLAY); Chromium corre sobre SwiftShader (software), igual que browser-slo-100k-swiftshader-ci.json. Este número NO predice ni sustituye la experiencia con GPU real y NO puede usarse para conceder performance.architecture-100k",
+      "los otros nueve targets del escalón full (ver run.scopeNote): esta corrida filtró un solo corpus",
+      "el editor: el pipeline nuevo todavía no está enchufado a Layout3DEditor.tsx",
+      "efecto del kernel WASM (A.4): curveKernel queda apagado por defecto en tessellate.worker.ts y nada en el árbol lo enciende (grep verificado), así que esta corrida no lo ejercita",
+      "red, API, PostgreSQL ni autoguardado"
+    ]
+  }
+}
