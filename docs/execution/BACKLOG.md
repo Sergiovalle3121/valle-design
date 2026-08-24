@@ -215,8 +215,7 @@ gate compara el artefacto committeado contra lo computado (patrón
 ## Herencias verificables de campañas anteriores (dueño: revisar informes)
 
 - Bloques dinámicos (R.1 de pulido, criterio `blocks.dynamic` de la rúbrica).
-- Nota de crédito CFDI; rol no-dueño + `SET app.tenant_id` (reservas de
-  pulido).
+- Nota de crédito CFDI (reserva de pulido).
 - Kernel WASM con paridad verde Y enchufado (criterio `wasm` de la rúbrica:
   hoy nadie lo importa).
 - Descomposición del monolito: método y meta en

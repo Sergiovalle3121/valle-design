@@ -214,5 +214,33 @@ seguras de borrar sin rescatar nada — el espíritu de la estimación se confir
   (dwg1-*, pr77, integration/olas-5-7, worktree-agent-a1044299019d5a941/a608ba7097f1dc9d1).
   Mientras se resuelven, se publica este inventario (63 de 74 con veredicto firme) y arranca
   Ola 1 (frente P0), que no depende de esa cohorte.
+- **~04:41** — Ambos agentes vuelven: las 10 ramas de historia disjunta son **ABS**, con
+  evidencia de contenido concreta (ver tabla arriba). Ola 0 completa: 74/74 con veredicto.
+- **~04:25–04:39** — **Ola 1, frente P0.** `claude/p0-final` (behind=0, ya contenía main de hoy)
+  fusionado en `claude/valle-design-branch-closure-4ydx10` — merge limpio, sin conflictos.
+  Postgres 16 real levantado localmente (`service postgresql start`, rol `valle` + BD
+  `valle_design_dev`/`valle_design_test`), `VALLE_DWG_CORPUS_MIRROR` apuntando al clon de
+  `valle-design-dwg-conformance`. Primera corrida de gates: rojo en `check:dwg-evidence` por
+  falta de `VALLE_DWG_CORPUS_MIRROR` (falso rojo de entorno, documentado en
+  `docs/onboarding/GATES.md`). Corregido y relanzado: **`check:cad && check:dwg && typecheck
+  && test && lint && build` → EXIT_CODE=0, todo verde**, incluyendo las suites PostgreSQL
+  reales (no SQLite) para la migración RLS y el rol `valle_app`.
+  - PR #93 (borrador) abierto para la rama de la campaña, con veredicto vigilado. CI de GitHub
+    marcó rojo el mismo `check:dwg-evidence` — confirmado como rojo PREEXISTENTE en main (el
+    propio HEAD de main, commit `2a2c8ac`, lo declara en su mensaje: "ya fallaba en main antes
+    de este cambio y es ajeno a este trabajo"); CI no tiene `VALLE_DWG_CORPUS_MIRROR`
+    configurado. No se le empuja parche — anotado en el PR y en BACKLOG.md como pendiente de
+    infraestructura de CI, no de código.
+  - Backlog cerrado: "rol no-dueño + `SET app.tenant_id`" (bajo "Herencias verificables") —
+    resuelto por `claude/p0-tenant-rls` dentro de `p0-final`: rol runtime `valle_app` no
+    propietario + RLS en `design_blobs` + `tenant-rls-coverage.pg.spec.ts` escaneando el
+    esquema real + ADR-0013. Queda "Nota de crédito CFDI", que sigue pendiente (no tocada por
+    este frente).
+  - `claude/p0-integration-v2` → **ABS en p0-final** (confirmado: mismo diff exacto).
+    `claude/p0-commercial-surface` y `claude/p0-legal-acceptance-gate` → **ABS** (diff de dos
+    puntos vacío contra main, confirmado antes de fusionar).
+  - `claude/pulido-ola0`: sus 4 archivos (todos `docs/campaigns/*` y
+    `docs/ops/runbook-repo-protection.md`) son notas de sesión, no código; pendiente de decidir
+    en el cierre de la campaña si migran a `docs/` o se descartan (Ola Final).
 
 *(continúa al cerrar cada rama)*

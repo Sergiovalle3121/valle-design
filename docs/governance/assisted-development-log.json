@@ -127,6 +127,34 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CIERRE-RAMAS-2026-08-24",
+      "date": "2026-08-24",
+      "initiative": "Campaña de integración y cierre de ramas — 74 ramas remotas, frente P0 y frente DWG",
+      "branch": "claude/valle-design-branch-closure-4ydx10",
+      "assistants": [
+        {
+          "name": "Claude Code (Claude Sonnet 5, Anthropic)",
+          "role": "ejecución autónoma supervisada por directiva escrita del titular: inventario y veredicto por contenido de 74 ramas remotas, rescate del frente P0 (tenant-rls, billing-entitlements, deploy-release, legal-acceptance-gate), rescate del frente DWG, limpieza de ramas y PR, política anti-recurrencia"
+        }
+      ],
+      "authority": "Directiva escrita de Sergio Valle Zárate del 2026-08-24 (prompt de la campaña de cierre de ramas), bajo las reglas de no-detención y decisión conservadora documentada en docs/execution/CIERRE_RAMAS_20260824.md",
+      "firstPartyInputs": [
+        "Repositorio Valle Design en 2a2c8ac y sus políticas",
+        "Las 74 ramas remotas propias del repositorio (ninguna fuente externa)",
+        "Repositorio valle-design-dwg-conformance como espejo del corpus"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": false,
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: el titular revisa docs/execution/INFORME_CIERRE_RAMAS_20260824.md y los SHA empujados durante la campaña; la adopción se registra al cerrar la revisión."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
