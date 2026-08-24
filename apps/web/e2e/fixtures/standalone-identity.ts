@@ -28,6 +28,23 @@ import {
 
 const EXPIRES_AT = "2099-12-31T23:59:59.000Z";
 const TRIAL_ENDS_AT = "2099-01-31T23:59:59.000Z";
+/** Espejo de `LEGAL_DOCUMENTS` (`apps/api/src/modules/legal/legal-documents.ts`). */
+const MOCK_LEGAL_DOCUMENTS = [
+  {
+    documento: "terms",
+    version: "2026-08-15",
+    publicadoEn: "2026-08-15",
+    url: "/terms",
+    requiereAceptacion: true,
+  },
+  {
+    documento: "privacy",
+    version: "2026-08-15",
+    publicadoEn: "2026-08-15",
+    url: "/privacy",
+    requiereAceptacion: false,
+  },
+] as const;
 const CAD_PERMISSIONS = [
   "cad:view",
   "cad:edit",
@@ -44,6 +61,11 @@ export class StandaloneIdentityBackend {
   private authenticated = false;
   private role: MockOrganizationRole = "owner";
   private permissions: readonly string[] = CAD_PERMISSIONS;
+  private legalAcceptances: Array<{
+    document: string;
+    version: string;
+    acceptedAt: string;
+  }> = [];
 
   constructor(private readonly context: BrowserContext) {}
 
@@ -93,8 +115,20 @@ export class StandaloneIdentityBackend {
     const isOrganizationRoute =
       path === "/v1/organizations" || path.startsWith("/v1/organizations/");
     const isCommercialRoute = path.startsWith("/v1/commercial/");
-    if (!isIdentityRoute && !isOrganizationRoute && !isCommercialRoute) {
+    const isLegalRoute = path.startsWith("/v1/legal/");
+    if (
+      !isIdentityRoute &&
+      !isOrganizationRoute &&
+      !isCommercialRoute &&
+      !isLegalRoute
+    ) {
       return route.fallback();
+    }
+
+    // Publico, como en la API real: el web necesita saber que version
+    // mostrar antes de que exista sesion.
+    if (path === "/v1/legal/documents" && method === "GET") {
+      return json({ documents: MOCK_LEGAL_DOCUMENTS });
     }
 
     if (path === "/v1/auth/session" && method === "GET") {
@@ -190,6 +224,57 @@ export class StandaloneIdentityBackend {
 
     if (path === "/v1/commercial/entitlements" && method === "GET") {
       return json({ organizationId: ORGANIZATION_ID, items: ["design.cad"] });
+    }
+
+    if (path === "/v1/commercial/checkout-sessions" && method === "POST") {
+      return json(
+        {
+          provider: "stripe",
+          checkout: "hosted",
+          intentId: "00000000-0000-4000-8000-0000000000c1",
+          reference: "cs_mock_session",
+          url: "https://checkout.example.test/session/mock",
+          seats: 1,
+          paymentMethod: "card",
+          asynchronous: false,
+        },
+        201,
+      );
+    }
+
+    if (path === "/v1/legal/acceptances" && method === "GET") {
+      return json({ acceptances: this.legalAcceptances });
+    }
+
+    if (path === "/v1/legal/acceptances" && method === "POST") {
+      const body = readJson(request);
+      const known = MOCK_LEGAL_DOCUMENTS.some(
+        (doc) =>
+          doc.documento === body.document && doc.version === body.version,
+      );
+      if (!known) {
+        return json(
+          {
+            statusCode: 400,
+            message: "Version de documento legal desconocida.",
+          },
+          400,
+        );
+      }
+      const document = String(body.document);
+      const version = String(body.version);
+      if (
+        !this.legalAcceptances.some(
+          (row) => row.document === document && row.version === version,
+        )
+      ) {
+        this.legalAcceptances.push({
+          document,
+          version,
+          acceptedAt: "2026-08-23T00:00:00.000Z",
+        });
+      }
+      return json({ document, version, registered: true }, 201);
     }
 
     return json(

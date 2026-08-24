@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
@@ -11,6 +11,7 @@ import {
 import { COMMERCIAL_LINKS } from "@/config/commercial";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import { designClient } from "@/lib/cad/repositories/client";
+import { hasAcceptedCurrentTerms } from "@/lib/legal/acceptance-gate";
 import {
   authPathForCheckout,
   availablePaymentMethods,
@@ -21,11 +22,16 @@ import {
   BILLING_PATH,
   PRICING_PATH,
   type CheckoutProblem,
+  type LegalDocumentVersion,
   type PaymentMethod,
 } from "@/lib/commercial/checkout";
 import { TaxProfileForm } from "../../cuenta/facturacion/TaxProfileForm";
 
 type StarterState =
+  /** Comprobando `GET /v1/legal/documents` + `/acceptances` (una vez). */
+  | { status: "checking-legal" }
+  /** Términos vigentes sin aceptar: NADA de lo de abajo puede arrancar. */
+  | { status: "legal"; terms: LegalDocumentVersion }
   /** Eligiendo medio de pago: la compra NO arranca sola. */
   | { status: "choosing" }
   | { status: "opening" }
@@ -55,9 +61,12 @@ export function CheckoutStarter() {
     const values: Record<string, string | null> = { plan, periodo, moneda };
     return parsePlanSelection((key) => values[key] ?? null);
   }, [plan, periodo, moneda]);
-  const [state, setState] = useState<StarterState>({ status: "choosing" });
+  const [state, setState] = useState<StarterState>({
+    status: "checking-legal",
+  });
   const [method, setMethod] = useState<PaymentMethod>("card");
   const opening = useRef(false);
+  const legalChecked = useRef(false);
 
   const ready =
     !!selection &&
@@ -71,6 +80,53 @@ export function CheckoutStarter() {
     : [];
 
   /**
+   * PUERTA LEGAL: se corre UNA vez, en cuanto `ready` es cierto, y decide si
+   * la pantalla de medios de pago puede siquiera aparecer. Sin este efecto la
+   * compra se abría sin que nadie hubiera comprobado nunca `GET
+   * /v1/legal/documents` + `/acceptances` — el hueco que documenta
+   * `docs/legal/CHECKLIST_PENDIENTES_LEGALES.md`.
+   */
+  useEffect(() => {
+    if (!ready || legalChecked.current) return;
+    legalChecked.current = true;
+    (async () => {
+      try {
+        const [{ documents }, { acceptances }] = await Promise.all([
+          designClient.legal.documents(),
+          designClient.legal.acceptances.list(),
+        ]);
+        if (hasAcceptedCurrentTerms(documents, acceptances)) {
+          setState({ status: "choosing" });
+          return;
+        }
+        const terms = documents.find((doc) => doc.documento === "terms");
+        // Sin fila `terms` en la respuesta el gate falla CERRADO: nunca se
+        // trata como "no aplica".
+        setState(
+          terms
+            ? { status: "legal", terms }
+            : { status: "problem", problem: checkoutProblem({}) },
+        );
+      } catch (error) {
+        legalChecked.current = false;
+        setState({ status: "problem", problem: checkoutProblem(error) });
+      }
+    })();
+  }, [ready]);
+
+  const acceptLegalTerms = async (terms: LegalDocumentVersion) => {
+    try {
+      await designClient.legal.acceptances.accept({
+        document: terms.documento,
+        version: terms.version,
+      });
+      setState({ status: "choosing" });
+    } catch (error) {
+      setState({ status: "problem", problem: checkoutProblem(error) });
+    }
+  };
+
+  /**
    * La compra ya NO arranca sola al montar.
    *
    * Antes bastaba llegar a esta URL para que el producto abriera un cobro. Con
@@ -80,6 +136,9 @@ export function CheckoutStarter() {
    */
   const openCheckout = async () => {
     if (!ready || !selection || opening.current) return;
+    // Defensa en profundidad: la pantalla de pago sólo se pinta tras la
+    // puerta legal, pero `openCheckout` no confía en eso — se repite aquí.
+    if (state.status === "checking-legal" || state.status === "legal") return;
     // Una sola apertura en vuelo: cada llamada crea (o reutiliza) un intent
     // auditable, y disparar dos llenaría la auditoría de ruido.
     opening.current = true;
@@ -196,6 +255,44 @@ export function CheckoutStarter() {
         <Link className={publicActionClass} href={PRICING_PATH}>
           Volver a los planes
         </Link>
+      </Shell>
+    );
+  }
+
+  if (state.status === "checking-legal") {
+    return (
+      <Shell title="Comprobando los términos">
+        <p role="status">Un momento…</p>
+      </Shell>
+    );
+  }
+
+  if (state.status === "legal") {
+    return (
+      <Shell title="Antes de continuar, acepta los términos">
+        <p>
+          Para contratar necesitamos que aceptes la versión vigente de los
+          términos de servicio, publicada el {state.terms.publicadoEn}. No se
+          te ha cobrado nada.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            className={publicActionClass}
+            href={state.terms.url}
+            target="_blank"
+            rel="noreferrer"
+          >
+            Leer los términos
+          </Link>
+          <button
+            type="button"
+            className={publicActionClass}
+            data-testid="accept-legal-terms"
+            onClick={() => void acceptLegalTerms(state.terms)}
+          >
+            Acepto los términos
+          </button>
+        </div>
       </Shell>
     );
   }

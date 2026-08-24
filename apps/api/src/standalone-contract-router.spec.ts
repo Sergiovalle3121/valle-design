@@ -42,6 +42,8 @@ import {
 import { OrganizationAccessService } from './modules/organizations/organization-access.service';
 import { OrganizationCommercialConfiguration } from './modules/organizations/organization-commercial.configuration';
 import { OrganizationsController } from './modules/organizations/organizations.controller';
+import { LegalAcceptance } from './modules/legal/entities/legal-acceptance.entity';
+import { LegalController } from './modules/legal/legal.controller';
 
 interface ExpressRouteLayer {
   route?: {
@@ -54,6 +56,7 @@ const STANDALONE_PREFIXES = [
   '/v1/auth/',
   '/v1/organizations',
   '/v1/commercial/',
+  '/v1/legal/',
 ] as const;
 
 describe('standalone OpenAPI contract against the real Nest router', () => {
@@ -73,6 +76,7 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
       Invoice,
       TaxProfile,
       CfdiReceipt,
+      LegalAcceptance,
     ];
     const moduleRef = await Test.createTestingModule({
       controllers: [
@@ -84,6 +88,7 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
         BillingWebhookController,
         TaxProfileController,
         CfdiController,
+        LegalController,
       ],
       providers: [
         { provide: IdentityService, useValue: {} },
@@ -156,8 +161,9 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
     // alimenta la página de precios sin exigir sesión + las 4 de la ola
     // mexicana: los catálogos del SAT, leer y guardar los datos fiscales del
     // CFDI 4.0, y el portal del proveedor para arreglar el medio de pago
-    // + las 2 del rastro fiscal (listado de CFDI y descarga de archivos).
-    expect(expected).toHaveLength(36);
+    // + las 2 del rastro fiscal (listado de CFDI y descarga de archivos)
+    // + las 3 de /v1/legal (documentos, listar y registrar aceptación).
+    expect(expected).toHaveLength(39);
     expect([...actual].sort()).toEqual(expected.sort());
   });
 });

@@ -8,7 +8,7 @@
  * operación retirada y la mete en su ERP descubre el error en producción, no
  * aquí. Este spec regenera desde el YAML y compara byte a byte.
  *
- * También ancla los DOS recuentos que el repositorio publica —77 operaciones
+ * También ancla los DOS recuentos que el repositorio publica —82 operaciones
  * totales, 43 bajo /v1/cad— para que añadir superficie sea un cambio
  * DELIBERADO: si sube el número, este spec obliga a mirarlo y a actualizar
  * también `check-design-contract.mjs` y el spec del router standalone.
@@ -57,10 +57,10 @@ void (async () => {
     "operations.generated.json no coincide con el contrato: ejecuta `node scripts/cad/build-api-console.mjs`",
   );
 
-  // 77 + las 2 del rastro fiscal (listado de CFDI y descarga de archivos).
+  // 79 + las 3 de /v1/legal (documentos, listar y registrar aceptación).
   assert.equal(
     regenerated.operationCount,
-    79,
+    82,
     "cambió el número de operaciones del contrato; actualiza este spec Y los recuentos de check-design-contract.mjs / standalone-contract-router.spec.ts",
   );
   assert.equal(
@@ -107,6 +107,7 @@ void (async () => {
   assert.deepEqual(
     anonymous.map((operation) => operation.operationId).sort(),
     [
+      "listLegalDocuments",
       "listPublicCommercialPlans",
       "listSatTaxCatalogs",
       "loginIdentity",
