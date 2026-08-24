@@ -51,6 +51,15 @@ test('creates, edits, undoes, reloads and DXF round-trips semantic MTEXT', async
   await page.keyboard.press('Control+Shift+z');
   await expect(page.getByTestId('cad-native-property-text')).toHaveValue('Instrucción editada\nSegunda línea');
 
+  // El pipeline por lotes (activo por defecto) proyecta el texto de las
+  // entidades NO seleccionadas por su propio camino de tiles, distinto del que
+  // usa la selección. Deseleccionar y comprobar `data-glyphs` es lo que
+  // distingue «se pinta porque está seleccionado» de «se pinta siempre».
+  await page.getByTestId('cad-native-properties').getByRole('button', { name: 'Deseleccionar' }).click();
+  await expect.poll(async () =>
+    Number(await page.getByTestId('cad-render-pipeline').getAttribute('data-glyphs')),
+  ).toBeGreaterThan(0);
+
   await saveAndSettle(page, backend);
   const stored = backend.snapshot().document.entities.find((entity) => entity.type === 'mtext');
   expect(stored?.type).toBe('mtext');

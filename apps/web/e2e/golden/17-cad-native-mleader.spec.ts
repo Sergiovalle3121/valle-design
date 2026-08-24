@@ -66,6 +66,12 @@ test('MLEADER is unitary, associative, editable, persistent and DXF semantic', a
   await expect(page.getByTestId('cad-native-property-text')).toHaveValue('Inspect connection\nTorque verified');
 
   await properties.getByRole('button', { name: 'Deseleccionar' }).click();
+  // El pipeline por lotes (activo por defecto) sólo sintetizaba el contenido
+  // del MLEADER para la entidad SELECCIONADA; `data-glyphs` en 0 aquí sería la
+  // regresión exacta que este golden existe para atrapar.
+  await expect.poll(async () =>
+    Number(await page.getByTestId('cad-render-pipeline').getAttribute('data-glyphs')),
+  ).toBeGreaterThan(0);
   await page.getByTestId('cad-native-entity-mleader-source-line').click();
   await applyNativeProperty(page, 'endX', '6100');
   const firstSavedVersion = await saveAndSettle(page, backend);

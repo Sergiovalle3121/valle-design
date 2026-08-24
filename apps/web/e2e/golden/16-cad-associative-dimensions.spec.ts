@@ -66,6 +66,12 @@ test('associated DIMENSION follows source edits, survives undo/reload/DXF and re
   await expect(properties).toContainText('associated');
 
   await properties.getByRole('button', { name: 'Deseleccionar' }).click();
+  // El pipeline por lotes (activo por defecto) sólo sintetizaba el rótulo de la
+  // cota para la entidad SELECCIONADA; `data-glyphs` en 0 aquí sería la
+  // regresión exacta que este golden existe para atrapar.
+  await expect.poll(async () =>
+    Number(await page.getByTestId('cad-render-pipeline').getAttribute('data-glyphs')),
+  ).toBeGreaterThan(0);
   await page.getByTestId('cad-native-entity-dimension-source-line').click();
   const endX = page.getByTestId('cad-native-property-endX');
   await endX.fill('6260');
