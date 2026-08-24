@@ -17,7 +17,10 @@
  *    exactos, y los que NO entiende —que se conservan visibles en vez de
  *    desaparecer del plano—.
  * 2. **Qué se DIBUJA.** Qué familia acaba pintando el rótulo, y cuándo eso NO
- *    es la que pedía el dibujo. Ninguna `.shx` se resuelve, y se dice por qué.
+ *    es la que pedía el dibujo. Ninguna `.shx` se interpreta; las cinco más
+ *    comunes se sustituyen por su familia de trazos Hershey cuando el
+ *    anfitrión las declara —la maqueta de pantalla lo hace—, y el resto por la
+ *    TTF más parecida. Siempre se dice por cuál.
  *
  * La frontera entre las dos —lo que se lee bien pero todavía no se dibuja
  * tramo a tramo— se afirma también, para que no se pueda confundir «el
@@ -444,17 +447,30 @@ function mtext(text: string, extra: Partial<CadMTextEntity> = {}): CadMTextEntit
 
 // --- La sustitución de fuente llega al DIBUJO, no se queda en el informe -----
 {
+  // La maqueta de PANTALLA declara disponibles las familias Hershey (van
+  // compiladas), así que `txt.shx` ya no cae en la sans: va a trazos, y la
+  // resolución lo dice entero — sigue siendo una sustitución con métrica
+  // distinta de la .shx original, no un «soportamos SHX».
   const withShx = layoutCadMText(mtext("COTA", { fontFamily: "txt.shx" } as Partial<CadMTextEntity>));
   eq(withShx.font.disposition, "substituted", "la maqueta declara la sustitución");
-  eq(withShx.font.substitutedBy, "Arial", "y por cuál");
+  eq(withShx.font.substitutedBy, "Hershey Simplex", "y por cuál: los trazos Hershey");
+  eq(withShx.font.strokeFamily, "Hershey Simplex", "con la familia de trazos para quien pinta");
+  eq(withShx.font.metricsDiffer, true, "sin fingir la métrica del binario original");
   ok(
     !withShx.fontStack.toLowerCase().includes(".shx"),
     `la pila que va al lienzo no pide una .shx: ${withShx.fontStack}`,
   );
-  ok(withShx.fontStack.startsWith("Arial"), "pide directamente la sustituta");
+  ok(
+    withShx.fontStack.startsWith("Arial"),
+    "y la pila de RESPALDO es una sans de verdad, porque «Hershey Simplex» no es una fuente CSS",
+  );
+  // La anchura del renglón es la métrica de trazos, no la estimación sans:
+  // la suma de avances Hershey de C+O+T+A (21+22+16+18 = 77 unidades).
+  eq(withShx.lines[0].width, 77 * (100 / 21), "el renglón mide la suma de avances Hershey");
 
   const withTtf = layoutCadMText(mtext("COTA", { fontFamily: "Arial" } as Partial<CadMTextEntity>));
   eq(withTtf.font.disposition, "resolved", "y una TTF corriente se declara resuelta");
+  eq(withTtf.font.strokeFamily, null, "sin trazos: la pinta el lienzo con su pila");
 }
 
 // --- La frontera: qué se LEE y qué todavía no se DIBUJA ---------------------
@@ -485,5 +501,6 @@ function mtext(text: string, extra: Partial<CadMTextEntity> = {}): CadMTextEntit
 console.log(
   `mtext-rich-format: ${checks} comprobaciones verdes · códigos \\P \\S(^ / #) \\f \\H \\W \\Q \\C ` +
     "\\L\\l \\O\\o \\A \\~ \\\\ y llaves anidadas; \\T y \\p declarados sin interpretar; " +
-    "SHX SIEMPRE sustituida (gdt/ltypeshp/symath como símbolos perdidos), TTF resuelta sólo si está.",
+    "SHX SIEMPRE sustituida (las cinco comunes a trazos Hershey en pantalla; " +
+    "gdt/ltypeshp/symath como símbolos perdidos), TTF resuelta sólo si está.",
 );

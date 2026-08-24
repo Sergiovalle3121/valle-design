@@ -1,6 +1,11 @@
 import type { CadEntity, CadPoint2 } from './cad-document';
+import { cadHersheyTextWidth } from './fonts/hershey-fonts';
 import { cadMTextPlainText } from './mtext-codes';
-import { resolveCadMTextFont, type CadMTextFontResolution } from './mtext-fonts';
+import {
+  CAD_MTEXT_SCREEN_FONT_OPTIONS,
+  resolveCadMTextFont,
+  type CadMTextFontResolution,
+} from './mtext-fonts';
 
 export type CadMTextEntity = Extract<CadEntity, { type: 'mtext' }>;
 
@@ -47,7 +52,8 @@ const MAX_MEASUREMENT_CACHE = 4_096;
  * un sitio, se puede consultar, y la maqueta la publica en `font`.
  */
 export function cadMTextFontStack(fontFamily?: string): string {
-  return resolveCadMTextFont(fontFamily?.replace(/["']/g, '')).fontStack;
+  return resolveCadMTextFont(fontFamily?.replace(/["']/g, ''), CAD_MTEXT_SCREEN_FONT_OPTIONS)
+    .fontStack;
 }
 
 export function clearCadMTextMeasurementCache(): void {
@@ -67,15 +73,27 @@ export function measureCadMText(
   const key = `${text}\u0000${height}\u0000${options.fontFamily ?? ''}\u0000${options.bold ? 1 : 0}${options.italic ? 1 : 0}`;
   const cached = measurementCache.get(key);
   if (cached !== undefined) return cached;
-  let units = 0;
-  for (const character of text) {
-    if (/\s/.test(character)) units += 0.33;
-    else if (/[ilI1.,:;!'|]/.test(character)) units += 0.3;
-    else if (/[MW@#%&]/.test(character)) units += 0.9;
-    else if (character.charCodeAt(0) > 255) units += 1;
-    else units += 0.58;
+  // Con una familia de trazos Hershey la anchura NO se estima: es la suma de
+  // avances de los glifos que se van a dibujar (`fonts/hershey-fonts.ts`).
+  // La negrita y la cursiva de un trazo único engordan o inclinan la pluma,
+  // no el avance, así que ahí no llevan factor.
+  const stroke = resolveCadMTextFont(
+    options.fontFamily?.replace(/["']/g, ''),
+    CAD_MTEXT_SCREEN_FONT_OPTIONS,
+  ).strokeFamily;
+  let value: number;
+  if (stroke) value = cadHersheyTextWidth(stroke, text, height);
+  else {
+    let units = 0;
+    for (const character of text) {
+      if (/\s/.test(character)) units += 0.33;
+      else if (/[ilI1.,:;!'|]/.test(character)) units += 0.3;
+      else if (/[MW@#%&]/.test(character)) units += 0.9;
+      else if (character.charCodeAt(0) > 255) units += 1;
+      else units += 0.58;
+    }
+    value = units * height * (options.bold ? 1.05 : 1) * (options.italic ? 1.02 : 1);
   }
-  const value = units * height * (options.bold ? 1.05 : 1) * (options.italic ? 1.02 : 1);
   if (measurementCache.size >= MAX_MEASUREMENT_CACHE)
     measurementCache.delete(measurementCache.keys().next().value as string);
   measurementCache.set(key, value);
@@ -134,7 +152,10 @@ function attachmentOffset(alignment: NonNullable<CadMTextEntity['alignment']>, w
 }
 
 export function layoutCadMText(entity: CadMTextEntity): CadMTextLayout {
-  const font = resolveCadMTextFont(entity.fontFamily?.replace(/["']/g, ''));
+  const font = resolveCadMTextFont(
+    entity.fontFamily?.replace(/["']/g, ''),
+    CAD_MTEXT_SCREEN_FONT_OPTIONS,
+  );
   const fontSize = Math.max(1e-6, entity.height ?? DEFAULT_FONT_SIZE);
   const lineHeight = fontSize * Math.max(0.5, entity.lineSpacing ?? DEFAULT_LINE_SPACING);
   const columns = Math.max(1, Math.min(8, Math.floor(entity.columns ?? 1)));

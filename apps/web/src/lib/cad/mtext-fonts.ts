@@ -31,19 +31,31 @@
  *
  * ## SHX y TTF: qué se resuelve y qué se sustituye, aquí, sin adornos
  *
- * **Ninguna `.shx` se resuelve.** Una SHX no es una fuente de contornos: es un
- * programa de trazos compilado, con su propio formato binario, y dibujarla
+ * **Ninguna `.shx` se INTERPRETA.** Una SHX no es una fuente de contornos: es
+ * un programa de trazos compilado, con su propio formato binario, y dibujarla
  * exige un intérprete de formas que este producto NO tiene. Todas las `.shx`
- * salen `substituted` —o `symbols-lost` si son de símbolos—, cada una por la
- * TTF de métrica más parecida, y la sustitución se declara. Decir que se
- * «soporta SHX» porque se dibuja algo parecido sería exactamente el tipo de
- * afirmación que este repositorio no admite.
+ * salen `substituted` —o `symbols-lost` si son de símbolos— y la sustitución
+ * se declara. Lo que SÍ cambia desde `fonts/hershey-fonts.ts`: cuando el
+ * anfitrión declara disponibles las familias Hershey (dominio público, del
+ * mismo linaje de trazo único que las SHX de texto), las cinco `.shx` más
+ * comunes —txt, simplex, romans, isocp, monotxt— se sustituyen por SU familia
+ * Hershey y se dibujan con métrica de trazos (`strokeFamily`), no con una sans
+ * de contornos. Sigue siendo una sustitución y sigue diciéndose: la métrica es
+ * la de Hershey, no la del binario `.shx` original. Decir que se «soporta SHX»
+ * porque se dibuja algo parecido sería exactamente el tipo de afirmación que
+ * este repositorio no admite.
  *
  * **De las TTF se resuelven las que están.** Las nueve familias que cualquier
  * sistema operativo trae, más las que el anfitrión declare disponibles. El
  * resto —`ISOCPEUR`, `RomanS`, `City Blueprint`, las de estudio— se sustituyen
  * por la más cercana de las tres estándar y se dice por cuál.
  */
+import {
+  CAD_HERSHEY_FAMILIES,
+  cadHersheyFamilyByName,
+  cadHersheyFamilyForShx,
+  type CadHersheyFamily,
+} from "./fonts/hershey-fonts";
 import { parseCadMText } from "./mtext-codes";
 
 export type CadMTextFontKind = "shx" | "ttf" | "unnamed";
@@ -188,6 +200,13 @@ export interface CadMTextFontResolution {
    * disposición: una sustitución sin cambio de métrica no rompe una casilla.
    */
   metricsDiffer: boolean;
+  /**
+   * Familia de trazos Hershey con la que se dibuja DE VERDAD, cuando el texto
+   * no va con una fuente del sistema sino con polilíneas
+   * (`fonts/hershey-fonts.ts`). `null` en todo lo demás. Quien pinta el rótulo
+   * decide con este campo: con él, traza; sin él, `fontStack` al lienzo.
+   */
+  strokeFamily: CadHersheyFamily | null;
 }
 
 export interface CadMTextFontOptions {
@@ -200,6 +219,19 @@ export interface CadMTextFontOptions {
    */
   available?: readonly string[];
 }
+
+/**
+ * Lo que el anfitrión de PANTALLA declara disponible: las familias Hershey.
+ *
+ * No es una lista escrita de memoria — esas familias van COMPILADAS en la
+ * aplicación (`fonts/hershey-simplex-data.ts`), así que declararlas siempre es
+ * decir la verdad. La maqueta de pantalla (`mtext-layout.ts`) resuelve con
+ * esto; quien resuelva para OTRO medio (el PDF, por ejemplo) debe declarar lo
+ * suyo, que es exactamente la razón de que el enchufe sea un parámetro.
+ */
+export const CAD_MTEXT_SCREEN_FONT_OPTIONS: CadMTextFontOptions = {
+  available: CAD_HERSHEY_FAMILIES,
+};
 
 /** Nombre sin extensión ni ruta: `C:\\fuentes\\ISOCP.shx` → `isocp`. */
 function bareName(family: string): string {
@@ -248,12 +280,36 @@ export function resolveCadMTextFont(
       substitutedBy: null,
       reason: null,
       metricsDiffer: false,
+      strokeFamily: null,
     };
 
   const kind = kindOf(name);
   const bare = bareName(name);
 
   if (kind === "shx") {
+    // Las cinco SHX con familia Hershey van con trazos cuando el anfitrión
+    // declara esas familias disponibles. Es el mismo enchufe `available` que
+    // usan las TTF del anfitrión: quien sabe qué hay cargado lo dice, y este
+    // módulo no da por presente nada que no le hayan declarado.
+    const hershey = cadHersheyFamilyForShx(bare);
+    if (hershey && extra.has(bareName(hershey)))
+      return {
+        requested: name,
+        kind,
+        disposition: "substituted",
+        family: hershey,
+        // Pila de respaldo para quien ignore `strokeFamily`: una sans normal.
+        // «Hershey Simplex» no es una fuente CSS y pedírsela al lienzo sería
+        // pedir nada.
+        fontStack: stackFor(CAD_MTEXT_DEFAULT_FAMILY),
+        substitutedBy: hershey,
+        reason:
+          `se dibuja con los trazos ${hershey} (fuentes Hershey, dominio público del ` +
+          `gobierno de EE.UU.): trazo único como la .shx original, pero las anchuras ` +
+          `son las de Hershey, no las del binario que el dibujo nombraba.`,
+        metricsDiffer: true,
+        strokeFamily: hershey,
+      };
     const known = SHX_SUBSTITUTIONS[bare];
     const by = known?.by ?? nearestStandard(bare);
     const why = known?.reason ?? "no hay tabla para esta .shx";
@@ -270,20 +326,28 @@ export function resolveCadMTextFont(
         : `una .shx es un programa de trazos y este producto no lo interpreta; se dibuja con ${by} ` +
           `(${why}) y las anchuras no son las del original.`,
       metricsDiffer: true,
+      strokeFamily: null,
     };
   }
 
-  if (RESOLVED_TTF.has(bare) || extra.has(bare))
+  if (RESOLVED_TTF.has(bare) || extra.has(bare)) {
+    // Pedir «Hershey Simplex» por su nombre también existe: son las familias
+    // propias del producto y se dibujan con sus trazos, no con una TTF.
+    const hershey = cadHersheyFamilyByName(bare);
     return {
       requested: name,
       kind,
       disposition: "resolved",
-      family: name.replace(/\.(ttf|otf|ttc)$/i, ""),
-      fontStack: stackFor(name.replace(/\.(ttf|otf|ttc)$/i, "")),
+      family: hershey ?? name.replace(/\.(ttf|otf|ttc)$/i, ""),
+      fontStack: hershey
+        ? stackFor(CAD_MTEXT_DEFAULT_FAMILY)
+        : stackFor(name.replace(/\.(ttf|otf|ttc)$/i, "")),
       substitutedBy: null,
       reason: null,
       metricsDiffer: false,
+      strokeFamily: hershey,
     };
+  }
 
   const by = nearestStandard(bare);
   return {
@@ -299,6 +363,7 @@ export function resolveCadMTextFont(
     reason: `"${name}" no es una de las familias que todo sistema tiene; donde no esté instalada ` +
       `se dibuja con ${by} y las anchuras cambian.`,
     metricsDiffer: true,
+    strokeFamily: null,
   };
 }
 
