@@ -67,11 +67,25 @@ function emailHost(value: string): string | null {
   return value.slice(at + 1).trim().toLowerCase();
 }
 
+/**
+ * `api.example.com` NO está en `PLACEHOLDER_DOMAIN_NAMES` (sólo lo está
+ * `example.com`), pero sigue siendo un subdominio de un dominio didáctico
+ * reservado — exactamente la forma que toma un valor real cuando alguien
+ * antepone un servicio (`api.`, `www.`) a un placeholder que copió sin
+ * pensar. Comparar también por sufijo `.dominio` cierra ese hueco sin
+ * arriesgar falsos positivos: un dominio real nunca TERMINA en
+ * `.example.com` salvo que sea, de nuevo, un placeholder.
+ */
+function isPlaceholderSubdomain(host: string): boolean {
+  for (const reserved of PLACEHOLDER_DOMAIN_NAMES) {
+    if (host === reserved || host.endsWith(`.${reserved}`)) return true;
+  }
+  return false;
+}
+
 function isPlaceholderHost(host: string | null): boolean {
   if (!host) return true;
-  return (
-    PLACEHOLDER_TLD_PATTERN.test(host) || PLACEHOLDER_DOMAIN_NAMES.has(host)
-  );
+  return PLACEHOLDER_TLD_PATTERN.test(host) || isPlaceholderSubdomain(host);
 }
 
 function pushIfEmpty(

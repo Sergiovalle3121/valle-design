@@ -34,8 +34,13 @@ import type { MigrationInterface, QueryRunner } from 'typeorm';
  * Reversible: `down` elimina políticas, desactiva RLS y devuelve NULLABLE.
  */
 
-/** Tablas CAD con tenant obligatorio (el carril NULL deja de existir). */
-const TENANT_REQUIRED_TABLES = [
+/**
+ * Tablas CAD con tenant obligatorio (el carril NULL deja de existir).
+ * Exportada para que otras migraciones/tests (p. ej. la cobertura de RLS de
+ * `design_blobs` en 20260823120000) no dupliquen esta lista a mano — "ninguna
+ * cifra vive en dos lugares".
+ */
+export const TENANT_REQUIRED_TABLES = [
   'cad_projects',
   'cad_documents',
   'cad_document_versions',
@@ -46,9 +51,9 @@ const TENANT_REQUIRED_TABLES = [
 ] as const;
 
 /** Todas las tablas CAD que reciben RLS (las 7 + la biblioteca de sistema). */
-const RLS_TABLES = [...TENANT_REQUIRED_TABLES, 'sf_cad_blocks'] as const;
+export const RLS_TABLES = [...TENANT_REQUIRED_TABLES, 'sf_cad_blocks'] as const;
 
-const TENANT_SETTING = `current_setting('app.tenant_id', true)`;
+export const TENANT_SETTING = `current_setting('app.tenant_id', true)`;
 
 export class TenantIntegrityRls20260820120000 implements MigrationInterface {
   name = 'TenantIntegrityRls20260820120000';

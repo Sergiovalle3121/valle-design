@@ -116,8 +116,21 @@ export class PostgresEntitlementService implements EntitlementService {
       .andWhere('subscription.tenantId = :tenantId', {
         tenantId: context.tenantId,
       })
+      // `active` no basta por sí solo (P0-B, campaña de seguridad
+      // 2026-08-23): el estado dice que hubo un ciclo de cobro, no que el
+      // período YA PAGADO siga vigente — sin comparar `currentPeriodEnd`
+      // contra el reloj, una suscripción cuya renovación falló (o que nunca
+      // tuvo un período registrado) seguía concediendo `design.cad`. La
+      // comparación es UTC contra UTC: las columnas `timestamptz` de
+      // PostgreSQL normalizan a UTC en el almacenamiento y `:now` llega como
+      // un `Date` (instante absoluto, sin zona), así que no hace falta
+      // convertir nada aquí. `currentPeriodEnd IS NULL` hace que
+      // `currentPeriodEnd > :now` evalúe a UNKNOWN en PostgreSQL —ni
+      // verdadero ni falso— y el WHERE lo descarta igual que si fuera falso:
+      // ausencia de vigencia probada falla cerrado sin necesitar un
+      // `IS NOT NULL` explícito.
       .andWhere(
-        '(subscription.status = :active OR (subscription.status = :trialing AND subscription.trialEndsAt > :now))',
+        '((subscription.status = :active AND subscription.currentPeriodEnd > :now) OR (subscription.status = :trialing AND subscription.trialEndsAt > :now))',
         { active: 'active', trialing: 'trialing', now },
       )
       .select('1', 'entitled')

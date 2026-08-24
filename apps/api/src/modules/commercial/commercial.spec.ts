@@ -96,6 +96,27 @@ describe('commercial policy', () => {
     );
   });
 
+  it('also compares an active subscription against the clock, not only its status (P0-B)', async () => {
+    const { db, query } = entitlementDatabase(false);
+    const service = new PostgresEntitlementService(db);
+    const now = new Date('2026-08-02T00:00:00Z');
+    await expect(
+      service.hasEntitlement('design.cad', {
+        organizationId: 'o',
+        tenantId: 'o',
+        now,
+      }),
+    ).resolves.toBe(false);
+    // `active` sola, sin comparar `currentPeriodEnd`, era exactamente el
+    // defecto de P0-B: la condición debe atar el estado A LA FECHA.
+    expect(query.andWhere).toHaveBeenCalledWith(
+      expect.stringMatching(
+        /status = :active AND subscription\.currentPeriodEnd > :now/,
+      ),
+      { active: 'active', trialing: 'trialing', now },
+    );
+  });
+
   it('requires the requested entitlement to be attached to the selected active plan', async () => {
     const { db, query } = entitlementDatabase(false);
     await new PostgresEntitlementService(db).hasEntitlement('design.export', {
