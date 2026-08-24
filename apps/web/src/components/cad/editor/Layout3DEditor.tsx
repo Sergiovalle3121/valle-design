@@ -452,13 +452,13 @@ import {
   CadSolidShadeHost,
   cadSolidEntityIds,
 } from "@/components/cad/viewport/solid-shade-host";
+import { CadAssetSceneHost } from "@/components/cad/viewport/asset-scene-host";
 import {
   HELP_SECTIONS,
   THEMES,
   type Theme3D,
 } from "@/components/cad/studio/editor-presentation";
 import {
-  buildAssetGroup,
   buildDim,
   disposeObject,
   makeLabel,
@@ -1874,6 +1874,7 @@ export default function Layout3DEditor({
   const controlsRef = useRef<OrbitControls | null>(null);
   const blocksRef = useRef<THREE.Group | null>(null);
   const assetsGroupRef = useRef<THREE.Group | null>(null);
+  const assetSceneHostRef = useRef<CadAssetSceneHost | null>(null);
   const nativeGroupRef = useRef<THREE.Group | null>(null);
   const nativeInsertBatchRef = useRef<THREE.Group | null>(null);
   const nativeOverviewRef = useRef<THREE.LineSegments | null>(null);
@@ -2230,6 +2231,13 @@ export default function Layout3DEditor({
     if (assetsGroupRef.current) {
       assetsGroupRef.current.visible = true;
       assetsGroupRef.current.children.forEach((child) => {
+        // Ancla del pool de instancing (asset-scene-host.ts): un InstancedMesh
+        // mezcla partes de activos en capas distintas, así que sólo obedece el
+        // interruptor maestro "Equipment", no `cadVisible` por activo.
+        if (child.userData?.assetInstancingHousing === true) {
+          child.visible = L.equipment;
+          return;
+        }
         const assetId = child.userData?.assetId as string | undefined;
         if (assetId)
           child.visible =
@@ -3037,33 +3045,20 @@ export default function Layout3DEditor({
     applyLayersRef.current();
   }, [data]);
 
-  // ---- (re)build the equipment/asset group ----
+  // ---- reconcile the asset group against the current Asset[] (was full teardown+rebuild on ~49 call sites; CadAssetSceneHost diffs by id) ----
   const rebuildAssets = useCallback(() => {
-    const group = assetsGroupRef.current;
     const ctx = ctxRef.current;
-    if (!group || !ctx) return;
-    while (group.children.length) {
-      const o = group.children[group.children.length - 1];
-      group.remove(o);
-      disposeObject(o);
-    }
-    groupByAssetRef.current = new Map();
-    const { s, W, H } = ctx;
-    assetsRef.current.forEach((a) => {
-      const isSel = selRef.current.some(
-        (s) => s.type === "asset" && s.id === a.id,
-      );
-      const g = buildAssetGroup(
-        a,
-        s,
-        W,
-        H,
-        isSel,
-        validationHighlightRef.current.has(a.id),
-      );
-      group.add(g);
-      groupByAssetRef.current.set(a.id, g);
-    });
+    const host = assetSceneHostRef.current;
+    if (!ctx || !host) return;
+    const selectedAssetIds = new Set(
+      selRef.current.filter((item) => item.type === "asset").map((item) => item.id),
+    );
+    host.sync(
+      [...assetsRef.current.values()],
+      ctx,
+      selectedAssetIds,
+      validationHighlightRef.current,
+    );
   }, []);
 
   // ---- (re)build the dimension/cota overlay (preserves the live preview line) ----
@@ -6153,6 +6148,8 @@ export default function Layout3DEditor({
     const assetsGroup = new THREE.Group();
     scene.add(assetsGroup);
     assetsGroupRef.current = assetsGroup;
+    groupByAssetRef.current = new Map();
+    assetSceneHostRef.current = new CadAssetSceneHost(assetsGroup, groupByAssetRef.current);
     const nativeGroup = new THREE.Group();
     scene.add(nativeGroup);
     nativeGroupRef.current = nativeGroup;
@@ -7739,6 +7736,8 @@ export default function Layout3DEditor({
       renderPipelineHostRef.current = null;
       solidShadeHostRef.current?.dispose();
       solidShadeHostRef.current = null;
+      assetSceneHostRef.current?.dispose();
+      assetSceneHostRef.current = null;
       nativeSelectionProjectionRef.current = null;
       nativeInsertBatchRef.current = null;
       nativeOverviewRef.current = null;
