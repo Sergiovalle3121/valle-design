@@ -117,19 +117,28 @@ async function snapshotRows(
   table: 'domain_outbox' | 'email_outbox',
   where = '',
 ): Promise<OutboxRowSnapshot[]> {
+  interface RawOutboxRow {
+    id: string;
+    status: string;
+    attempt_count: number;
+    created_at: Date | null;
+    sent_at: Date | null;
+    failed_at: Date | null;
+    last_error: string | null;
+  }
   const rows: unknown = await dataSource.query(
     `SELECT id, status, attempt_count, created_at, sent_at, failed_at,
             left(last_error, 160) AS last_error
        FROM ${table} ${where} ORDER BY created_at`,
   );
-  return (rows as Record<string, unknown>[]).map((row) => ({
-    id: String(row.id),
-    status: String(row.status),
-    attemptCount: Number(row.attempt_count),
-    createdAt: row.created_at ? new Date(String(row.created_at)).toISOString() : null,
-    sentAt: row.sent_at ? new Date(String(row.sent_at)).toISOString() : null,
-    failedAt: row.failed_at ? new Date(String(row.failed_at)).toISOString() : null,
-    lastError: row.last_error ? String(row.last_error) : null,
+  return (rows as RawOutboxRow[]).map((row) => ({
+    id: row.id,
+    status: row.status,
+    attemptCount: row.attempt_count,
+    createdAt: row.created_at ? row.created_at.toISOString() : null,
+    sentAt: row.sent_at ? row.sent_at.toISOString() : null,
+    failedAt: row.failed_at ? row.failed_at.toISOString() : null,
+    lastError: row.last_error,
   }));
 }
 
@@ -154,7 +163,10 @@ async function waitFor(
 
 /** Lanza el replay auditado REAL del RUNBOOK y devuelve su JSON tal cual. */
 function runReplayTool(args: string[]): unknown {
-  const script = path.resolve(__dirname, '../../../../scripts/ops/outbox-replay.mjs');
+  const script = path.resolve(
+    __dirname,
+    '../../../../scripts/ops/outbox-replay.mjs',
+  );
   const run = spawnSync(process.execPath, [script, ...args], {
     encoding: 'utf8',
     env: { ...process.env },
@@ -212,8 +224,10 @@ async function main(): Promise<void> {
   process.env.OUTBOX_EMAIL_WEBHOOK_URL = selfEmailUrl;
   process.env.OUTBOX_DOMAIN_WEBHOOK_URL = selfDomainUrl;
   process.env.OUTBOX_DISPATCHER_ENABLED = 'true';
-  process.env.OUTBOX_POLL_INTERVAL_MS = process.env.OUTBOX_POLL_INTERVAL_MS ?? '250';
-  process.env.OUTBOX_WEBHOOK_TIMEOUT_MS = process.env.OUTBOX_WEBHOOK_TIMEOUT_MS ?? '2000';
+  process.env.OUTBOX_POLL_INTERVAL_MS =
+    process.env.OUTBOX_POLL_INTERVAL_MS ?? '250';
+  process.env.OUTBOX_WEBHOOK_TIMEOUT_MS =
+    process.env.OUTBOX_WEBHOOK_TIMEOUT_MS ?? '2000';
 
   const runStartedAt = new Date().toISOString();
   const app = await bootApplication();
@@ -311,7 +325,10 @@ async function main(): Promise<void> {
     const deliveryLatenciesMs = sustainedRows
       .filter((row) => row.status === 'sent' && row.sentAt && row.createdAt)
       .map((row) =>
-        round(Date.parse(row.sentAt as string) - Date.parse(row.createdAt as string)),
+        round(
+          Date.parse(row.sentAt as string) -
+            Date.parse(row.createdAt as string),
+        ),
       )
       .sort((a, b) => a - b);
     mark(
@@ -355,7 +372,10 @@ async function main(): Promise<void> {
     mark('incidente', `${deadRows.length} filas dead en domain_outbox`);
 
     /* ── Fase 3 · CAUSA CORREGIDA + REPLAY AUDITADO ──────────────────────── */
-    mark('replay', `causa corregida: OUTBOX_DOMAIN_WEBHOOK_URL → ${selfDomainUrl}`);
+    mark(
+      'replay',
+      `causa corregida: OUTBOX_DOMAIN_WEBHOOK_URL → ${selfDomainUrl}`,
+    );
     process.env.OUTBOX_DOMAIN_WEBHOOK_URL = selfDomainUrl;
     const replayStartedAt = new Date().toISOString();
     const domainReplayAudit = runReplayTool([
@@ -385,7 +405,9 @@ async function main(): Promise<void> {
     );
     const recoveryLatenciesMs = recoveredRows
       .filter((row) => row.status === 'sent' && row.sentAt)
-      .map((row) => round(Date.parse(row.sentAt as string) - Date.parse(replayStartedAt)))
+      .map((row) =>
+        round(Date.parse(row.sentAt as string) - Date.parse(replayStartedAt)),
+      )
       .sort((a, b) => a - b);
     mark('replay', `${recoveryLatenciesMs.length} filas recuperadas a sent`);
 
@@ -397,7 +419,9 @@ async function main(): Promise<void> {
     const sentRow: unknown = await dataSource.query(
       `SELECT idempotency_key, payload FROM domain_outbox WHERE status = 'sent' ORDER BY sent_at DESC LIMIT 1`,
     );
-    const dedupTarget = (sentRow as { idempotency_key: string; payload: unknown }[])[0];
+    const dedupTarget = (
+      sentRow as { idempotency_key: string; payload: unknown }[]
+    )[0];
     if (!dedupTarget) {
       throw new LoadProbeSetupError('No hay fila sent para verificar dedupe.');
     }
@@ -427,7 +451,8 @@ async function main(): Promise<void> {
     const receiptsAfter: unknown = await dataSource.query(
       `SELECT count(*)::int AS total FROM webhook_receipts WHERE queue = 'domain'`,
     );
-    const receiptsBeforeCount = (receiptsBefore as { total: number }[])[0].total;
+    const receiptsBeforeCount = (receiptsBefore as { total: number }[])[0]
+      .total;
     const receiptsAfterCount = (receiptsAfter as { total: number }[])[0].total;
     mark(
       'dedupe',
@@ -447,7 +472,9 @@ async function main(): Promise<void> {
     /* ── Informe ─────────────────────────────────────────────────────────── */
     const metricsResponse = await fetch(`${baseUrl}/health/metrics/commercial`);
     const commercialMetrics =
-      metricsResponse.status === 200 ? await metricsResponse.json() : null;
+      metricsResponse.status === 200
+        ? ((await metricsResponse.json()) as unknown)
+        : null;
     const finalDomain = await tally(dataSource, 'domain_outbox');
     const finalEmail = await tally(dataSource, 'email_outbox');
     const emailRows = await snapshotRows(dataSource, 'email_outbox');
@@ -459,12 +486,14 @@ async function main(): Promise<void> {
       runStartedAt,
       runFinishedAt: new Date().toISOString(),
       configuration: {
-        receiver: 'esta misma API (/v1/outbox/email, /v1/outbox/domain), firma HMAC-SHA256',
+        receiver:
+          'esta misma API (/v1/outbox/email, /v1/outbox/domain), firma HMAC-SHA256',
         deadEndpoint: deadDomainUrl,
         pollIntervalMs: Number(process.env.OUTBOX_POLL_INTERVAL_MS),
         webhookTimeoutMs: Number(process.env.OUTBOX_WEBHOOK_TIMEOUT_MS),
         maxAttempts: 8,
-        backoff: 'exponencial base 1 s, tope 15 min, jitter 20 % (valores por defecto del dispatcher)',
+        backoff:
+          'exponencial base 1 s, tope 15 min, jitter 20 % (valores por defecto del dispatcher)',
       },
       timeline,
       sustained: {

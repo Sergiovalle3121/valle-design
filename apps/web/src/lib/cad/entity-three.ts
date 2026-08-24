@@ -635,7 +635,7 @@ export function buildCadNativeObject(
       const sprite = buildCadMTextSprite(child.type === "mtext" ? child : {
         id: child.id, type: "mtext", insertion: { x: child.x, y: child.y, z: 0 }, text: child.text,
         width: Math.max(child.height ?? 120, child.text.length * (child.height ?? 120) * 0.6), height: child.height ?? 120,
-        rotation: child.rotation ?? 0, style: child.style, fontFamily: child.fontFamily,
+        rotation: child.rotation ?? 0, style: child.style,
         layer: child.layer, context: child.context,
       }, viewport, elevation);
       if (sprite) { sprite.userData.nativeEntityId = entity.id; group.add(sprite); }

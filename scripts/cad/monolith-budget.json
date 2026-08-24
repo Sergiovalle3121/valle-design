@@ -24,17 +24,18 @@
     "packages/design-sdk/src/generated/design-api.ts"
   ],
   "allowances": {
-    "apps/api/src/migration-cli/import.ts": 810,
+    "apps/api/src/load-probe/review-concurrency.main.ts": 882,
+    "apps/api/src/migration-cli/import.ts": 809,
     "apps/web/e2e/real/studio-real-api.spec.ts": 821,
-    "apps/web/src/components/cad/editor/Layout3DEditor.tsx": 20248,
-    "apps/web/src/lib/cad/commands/parser.ts": 1517,
+    "apps/web/src/components/cad/editor/Layout3DEditor.tsx": 20245,
+    "apps/web/src/lib/cad/commands/parser.ts": 1515,
     "apps/web/src/lib/cad/commands/registry.spec.ts": 2908,
     "apps/web/src/lib/cad/commands/registry.ts": 2052,
-    "apps/web/src/lib/cad/dxf-cad-document.ts": 970,
+    "apps/web/src/lib/cad/dxf-cad-document.ts": 968,
     "apps/web/src/lib/cad/dxf-export.ts": 971,
     "apps/web/src/lib/cad/dxf-import.ts": 1044,
     "apps/web/src/lib/cad/legacy/layout-http-adapter.ts": 871,
-    "apps/web/src/lib/cad/paper-space.ts": 909,
+    "apps/web/src/lib/cad/paper-space.ts": 896,
     "apps/web/src/lib/cad/symbols.ts": 1547,
     "apps/web/src/lib/cad/templates.ts": 4982
   },

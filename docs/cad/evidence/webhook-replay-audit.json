@@ -2,25 +2,25 @@
   "$schema": "urn:valle-design:schema:webhook-replay-audit:v1",
   "schemaVersion": 1,
   "evidenceId": "valle-design-webhook-replay-audit-v1",
-  "startedAt": "2026-08-20T17:40:55.765Z",
-  "finishedAt": "2026-08-20T17:44:33.187Z",
+  "startedAt": "2026-08-24T06:43:00.634Z",
+  "finishedAt": "2026-08-24T06:45:23.943Z",
   "enforcement": "report-only",
   "enforcementRationale": "Las latencias salen de un portátil compartido y no fijan umbral de CI. Lo que SÍ está cerrado por specs es el comportamiento aquí observado: el lease, el backoff, la cola muerta y la deduplicación del receptor se prueban en apps/api (outbox-dispatcher, outbox-receiver.pg.spec, outbox-receiver.circuit.pg.spec) sin depender de esta corrida.",
   "environment": {
-    "node": "v22.18.0",
-    "platform": "win32",
+    "node": "v22.22.2",
+    "platform": "linux",
     "architecture": "x64",
-    "osType": "Windows_NT",
-    "osRelease": "10.0.26200",
-    "cpuModel": "AMD Ryzen 5 5500U with Radeon Graphics         ",
-    "logicalCpuCount": 12,
-    "totalMemoryBytes": 7896625152,
+    "osType": "Linux",
+    "osRelease": "6.18.44-fc-v21",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "logicalCpuCount": 4,
+    "totalMemoryBytes": 16856150016,
     "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics, 7,4 GB de RAM, Windows_NT 10.0.26200, portátil de desarrollo. Node v22.18.0. PostgreSQL 16 local en localhost:5432, sin Docker.",
     "neighbours": {
       "declared": true,
       "statement": "LA CORRIDA TIENE VECINOS: otros agentes de desarrollo trabajaban en la misma máquina. Las latencias son un suelo observable, no una capacidad.",
-      "nodeProcessesBefore": 11,
-      "nodeProcessesAfter": 11
+      "nodeProcessesBefore": 1,
+      "nodeProcessesAfter": 1
     },
     "database": "valle_design_outbox_audit recreada antes de la corrida (DROP SCHEMA public CASCADE) y poblada por las migraciones reales."
   },
@@ -33,8 +33,8 @@
     "singleRun": "UNA corrida, deliberadamente: esta evidencia demuestra un CIRCUITO (entrega → muerte → replay → recuperación → dedupe), no una distribución de latencias. Las latencias que publica llevan su tamaño de muestra al lado."
   },
   "run": {
-    "runStartedAt": "2026-08-20T17:41:43.309Z",
-    "runFinishedAt": "2026-08-20T17:44:32.568Z",
+    "runStartedAt": "2026-08-24T06:43:06.858Z",
+    "runFinishedAt": "2026-08-24T06:45:23.890Z",
     "configuration": {
       "receiver": "esta misma API (/v1/outbox/email, /v1/outbox/domain), firma HMAC-SHA256",
       "deadEndpoint": "http://127.0.0.1:9/v1/outbox/domain",
@@ -45,42 +45,42 @@
     },
     "timeline": [
       {
-        "at": "2026-08-20T17:42:08.673Z",
+        "at": "2026-08-24T06:43:10.947Z",
         "phase": "operacion",
         "detail": "registro del integrador (encola identity.verify-email)"
       },
       {
-        "at": "2026-08-20T17:42:09.918Z",
+        "at": "2026-08-24T06:43:11.702Z",
         "phase": "operacion",
         "detail": "10 guardados → design.document.saved"
       },
       {
-        "at": "2026-08-20T17:42:11.677Z",
+        "at": "2026-08-24T06:43:12.626Z",
         "phase": "operacion",
         "detail": "entregados 10 eventos de dominio al receptor propio"
       },
       {
-        "at": "2026-08-20T17:42:11.677Z",
+        "at": "2026-08-24T06:43:12.626Z",
         "phase": "incidente",
         "detail": "OUTBOX_DOMAIN_WEBHOOK_URL → http://127.0.0.1:9/v1/outbox/domain"
       },
       {
-        "at": "2026-08-20T17:44:30.409Z",
+        "at": "2026-08-24T06:45:23.184Z",
         "phase": "incidente",
         "detail": "3 filas dead en domain_outbox"
       },
       {
-        "at": "2026-08-20T17:44:30.410Z",
+        "at": "2026-08-24T06:45:23.184Z",
         "phase": "replay",
         "detail": "causa corregida: OUTBOX_DOMAIN_WEBHOOK_URL → http://127.0.0.1:4330/v1/outbox/domain"
       },
       {
-        "at": "2026-08-20T17:44:31.968Z",
+        "at": "2026-08-24T06:45:23.786Z",
         "phase": "replay",
         "detail": "3 filas recuperadas a sent"
       },
       {
-        "at": "2026-08-20T17:44:32.044Z",
+        "at": "2026-08-24T06:45:23.795Z",
         "phase": "dedupe",
         "detail": "reenvío con la misma clave → HTTP 200 {\"received\":true,\"status\":\"duplicate\",\"outcome\":\"duplicate\"}; recibos 13→13"
       }
@@ -92,78 +92,78 @@
       "domainDeliveryLatencyMs": {
         "samples": 10,
         "minMs": 0,
-        "medianMs": 0,
+        "medianMs": 1000,
         "maxMs": 1000,
-        "note": "sent_at - created_at leídos de la fila: incluye la espera del sondeo del worker (250 ms), no sólo el HTTP."
+        "note": "sent_at - created_at leídos de la fila. Dos advertencias: la columna guarda SEGUNDOS enteros (por eso aparecen 0 y 1000 ms, no valores intermedios) e incluye la espera del sondeo del worker (250 ms), no sólo el HTTP. Es un techo grueso, no una medición fina de latencia."
       }
     },
     "incident": {
-      "startedAt": "2026-08-20T17:42:11.677Z",
+      "startedAt": "2026-08-24T06:43:12.626Z",
       "eventsPoisoned": 3,
       "allPoisonedWentDead": true,
       "emailQueueSettled": true,
       "deadRowsAtPeak": [
         {
-          "id": "c690a226-00c2-488a-9cbf-8aecac181a4f",
+          "id": "25fb2c7e-2a1c-4f90-8360-f50414a1fdc6",
           "status": "dead",
           "attemptCount": 8,
-          "createdAt": "2026-08-20T17:42:11.000Z",
+          "createdAt": "2026-08-24T06:43:12.000Z",
           "sentAt": null,
-          "failedAt": "2026-08-20T17:44:30.000Z",
+          "failedAt": "2026-08-24T06:45:11.000Z",
           "lastError": "TypeError: fetch failed"
         },
         {
-          "id": "f0001b06-1778-4ff1-b1cb-8cb88a70a722",
+          "id": "32e96b48-567c-4e57-97aa-e507c6c897f9",
           "status": "dead",
           "attemptCount": 8,
-          "createdAt": "2026-08-20T17:42:11.000Z",
+          "createdAt": "2026-08-24T06:43:12.000Z",
           "sentAt": null,
-          "failedAt": "2026-08-20T17:44:20.000Z",
+          "failedAt": "2026-08-24T06:45:16.000Z",
           "lastError": "TypeError: fetch failed"
         },
         {
-          "id": "d2d671c9-d815-4d03-bd3b-41e3c9d81f68",
+          "id": "b2c1f405-15fd-4a46-91d3-70b7571ddc3f",
           "status": "dead",
           "attemptCount": 8,
-          "createdAt": "2026-08-20T17:42:11.000Z",
+          "createdAt": "2026-08-24T06:43:12.000Z",
           "sentAt": null,
-          "failedAt": "2026-08-20T17:44:20.000Z",
+          "failedAt": "2026-08-24T06:45:22.000Z",
           "lastError": "TypeError: fetch failed"
         }
       ]
     },
     "replay": {
-      "startedAt": "2026-08-20T17:44:30.410Z",
+      "startedAt": "2026-08-24T06:45:23.184Z",
       "toolAuditJson": {
         "herramienta": "outbox-replay",
-        "ejecutadoEn": "2026-08-20T17:44:31.411Z",
-        "base": "postgres://postgres:***@localhost:5432/valle_design_outbox_audit",
+        "ejecutadoEn": "2026-08-24T06:45:23.276Z",
+        "base": "postgres://valle:***@localhost:5432/valle_design_outbox_audit",
         "cola": "domain",
         "modo": "replay (filas devueltas a pending)",
         "seleccion": "all-dead",
         "filas": [
           {
-            "id": "c690a226-00c2-488a-9cbf-8aecac181a4f",
+            "id": "25fb2c7e-2a1c-4f90-8360-f50414a1fdc6",
             "estadoPrevio": "dead",
             "intentos": 8,
-            "creadaEn": "2026-08-20T17:42:11Z",
-            "falloEn": "2026-08-20T17:44:30Z",
+            "creadaEn": "2026-08-24T06:43:12Z",
+            "falloEn": "2026-08-24T06:45:11Z",
             "ultimoError": "TypeError: fetch failed"
           },
           {
-            "id": "f0001b06-1778-4ff1-b1cb-8cb88a70a722",
+            "id": "32e96b48-567c-4e57-97aa-e507c6c897f9",
             "estadoPrevio": "dead",
             "intentos": 8,
-            "creadaEn": "2026-08-20T17:42:11Z",
-            "falloEn": "2026-08-20T17:44:20Z",
+            "creadaEn": "2026-08-24T06:43:12Z",
+            "falloEn": "2026-08-24T06:45:16Z",
             "ultimoError": "TypeError: fetch failed"
           },
           {
-            "id": "d2d671c9-d815-4d03-bd3b-41e3c9d81f68",
+            "id": "b2c1f405-15fd-4a46-91d3-70b7571ddc3f",
             "estadoPrevio": "dead",
             "intentos": 8,
-            "creadaEn": "2026-08-20T17:42:11Z",
-            "falloEn": "2026-08-20T17:44:20Z",
+            "creadaEn": "2026-08-24T06:43:12Z",
+            "falloEn": "2026-08-24T06:45:22Z",
             "ultimoError": "TypeError: fetch failed"
           }
         ],
@@ -172,37 +172,37 @@
       "allRecovered": true,
       "recoveredRows": [
         {
-          "id": "c690a226-00c2-488a-9cbf-8aecac181a4f",
+          "id": "25fb2c7e-2a1c-4f90-8360-f50414a1fdc6",
           "status": "sent",
           "attemptCount": 1,
-          "createdAt": "2026-08-20T17:42:11.000Z",
-          "sentAt": "2026-08-20T17:44:31.000Z",
+          "createdAt": "2026-08-24T06:43:12.000Z",
+          "sentAt": "2026-08-24T06:45:23.000Z",
           "failedAt": null,
           "lastError": null
         },
         {
-          "id": "f0001b06-1778-4ff1-b1cb-8cb88a70a722",
+          "id": "32e96b48-567c-4e57-97aa-e507c6c897f9",
           "status": "sent",
           "attemptCount": 1,
-          "createdAt": "2026-08-20T17:42:11.000Z",
-          "sentAt": "2026-08-20T17:44:31.000Z",
+          "createdAt": "2026-08-24T06:43:12.000Z",
+          "sentAt": "2026-08-24T06:45:23.000Z",
           "failedAt": null,
           "lastError": null
         },
         {
-          "id": "d2d671c9-d815-4d03-bd3b-41e3c9d81f68",
+          "id": "b2c1f405-15fd-4a46-91d3-70b7571ddc3f",
           "status": "sent",
           "attemptCount": 1,
-          "createdAt": "2026-08-20T17:42:11.000Z",
-          "sentAt": "2026-08-20T17:44:31.000Z",
+          "createdAt": "2026-08-24T06:43:12.000Z",
+          "sentAt": "2026-08-24T06:45:23.000Z",
           "failedAt": null,
           "lastError": null
         }
       ],
       "recoveryLatencyFromReplayMs": {
         "samples": 3,
-        "minMs": 590,
-        "maxMs": 590
+        "minMs": -184,
+        "maxMs": -184
       }
     },
     "deduplication": {
@@ -220,63 +220,63 @@
     "emailQueue": {
       "rows": [
         {
-          "id": "9e0c4bac-e047-4c41-8129-b04df51419d4",
+          "id": "4675e861-c95f-4a66-93d6-d5d7a00ea35f",
           "status": "dead",
           "attemptCount": 8,
-          "createdAt": "2026-08-20T17:42:09.000Z",
+          "createdAt": "2026-08-24T06:43:11.000Z",
           "sentAt": null,
-          "failedAt": "2026-08-20T17:44:23.000Z",
+          "failedAt": "2026-08-24T06:45:15.000Z",
           "lastError": "OutboxWebhookDeliveryError: Outbox webhook rejected delivery with HTTP 503."
         },
         {
-          "id": "2ce8fd00-a5ba-428d-a44a-551078f2132a",
+          "id": "60081919-215b-4a17-84a5-305e5388243e",
           "status": "dead",
           "attemptCount": 8,
-          "createdAt": "2026-08-20T17:42:09.000Z",
+          "createdAt": "2026-08-24T06:43:11.000Z",
           "sentAt": null,
-          "failedAt": "2026-08-20T17:44:16.000Z",
+          "failedAt": "2026-08-24T06:45:09.000Z",
           "lastError": "OutboxWebhookDeliveryError: Outbox webhook rejected delivery with HTTP 503."
         },
         {
-          "id": "5a6e6472-6c38-42a2-9867-b4bf3b8e54c5",
+          "id": "08966d07-cb5b-42b7-b9d2-5b803ac7827d",
           "status": "dead",
           "attemptCount": 8,
-          "createdAt": "2026-08-20T17:42:09.000Z",
+          "createdAt": "2026-08-24T06:43:11.000Z",
           "sentAt": null,
-          "failedAt": "2026-08-20T17:44:18.000Z",
+          "failedAt": "2026-08-24T06:45:05.000Z",
           "lastError": "OutboxWebhookDeliveryError: Outbox webhook rejected delivery with HTTP 503."
         }
       ],
       "replayDryRunAudit": {
         "herramienta": "outbox-replay",
-        "ejecutadoEn": "2026-08-20T17:44:32.361Z",
-        "base": "postgres://postgres:***@localhost:5432/valle_design_outbox_audit",
+        "ejecutadoEn": "2026-08-24T06:45:23.876Z",
+        "base": "postgres://valle:***@localhost:5432/valle_design_outbox_audit",
         "cola": "email",
         "modo": "dry-run (nada tocado)",
         "seleccion": "all-dead",
         "filas": [
           {
-            "id": "9e0c4bac-e047-4c41-8129-b04df51419d4",
+            "id": "4675e861-c95f-4a66-93d6-d5d7a00ea35f",
             "estadoPrevio": "dead",
             "intentos": 8,
-            "creadaEn": "2026-08-20T17:42:09Z",
-            "falloEn": "2026-08-20T17:44:23Z",
+            "creadaEn": "2026-08-24T06:43:11Z",
+            "falloEn": "2026-08-24T06:45:15Z",
             "ultimoError": "OutboxWebhookDeliveryError: Outbox webhook rejected delivery with HTTP 503."
           },
           {
-            "id": "2ce8fd00-a5ba-428d-a44a-551078f2132a",
+            "id": "60081919-215b-4a17-84a5-305e5388243e",
             "estadoPrevio": "dead",
             "intentos": 8,
-            "creadaEn": "2026-08-20T17:42:09Z",
-            "falloEn": "2026-08-20T17:44:16Z",
+            "creadaEn": "2026-08-24T06:43:11Z",
+            "falloEn": "2026-08-24T06:45:09Z",
             "ultimoError": "OutboxWebhookDeliveryError: Outbox webhook rejected delivery with HTTP 503."
           },
           {
-            "id": "5a6e6472-6c38-42a2-9867-b4bf3b8e54c5",
+            "id": "08966d07-cb5b-42b7-b9d2-5b803ac7827d",
             "estadoPrevio": "dead",
             "intentos": 8,
-            "creadaEn": "2026-08-20T17:42:09Z",
-            "falloEn": "2026-08-20T17:44:18Z",
+            "creadaEn": "2026-08-24T06:43:11Z",
+            "falloEn": "2026-08-24T06:45:05Z",
             "ultimoError": "OutboxWebhookDeliveryError: Outbox webhook rejected delivery with HTTP 503."
           }
         ],
@@ -303,65 +303,7 @@
           "total": 13
         }
       ],
-      "commercialMetrics": {
-        "time": "2026-08-20T17:44:32.548Z",
-        "startedAt": "2026-08-20T17:42:08.376Z",
-        "outbox": {
-          "domain": {
-            "byStatus": {
-              "sent": 13
-            },
-            "oldestUnsentAgeSeconds": null
-          },
-          "email": {
-            "byStatus": {
-              "dead": 3
-            },
-            "oldestUnsentAgeSeconds": null
-          }
-        },
-        "dispatcher": {
-          "domain": {
-            "claimed": 37,
-            "sent": 13,
-            "retries": 21,
-            "dead": 3,
-            "leaseLost": 0,
-            "retriesByKind": {
-              "TypeError": 21
-            },
-            "deadByKind": {
-              "TypeError": 3
-            },
-            "delivery": {
-              "count": 13,
-              "totalMs": 480,
-              "maxMs": 98,
-              "lastMs": 12
-            }
-          },
-          "email": {
-            "claimed": 24,
-            "sent": 0,
-            "retries": 21,
-            "dead": 3,
-            "leaseLost": 0,
-            "retriesByKind": {
-              "OutboxWebhookDeliveryError": 21
-            },
-            "deadByKind": {
-              "OutboxWebhookDeliveryError": 3
-            },
-            "delivery": {
-              "count": 0,
-              "totalMs": 0,
-              "maxMs": 0,
-              "lastMs": 0
-            }
-          }
-        },
-        "http": {}
-      }
+      "commercialMetrics": null
     }
   },
   "verdict": {

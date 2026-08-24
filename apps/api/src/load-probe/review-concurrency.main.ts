@@ -285,7 +285,10 @@ function casEntity(id: string, y: number): Record<string, unknown> {
   };
 }
 
-function withEntity(document: WireDocument, entity: Record<string, unknown>): WireDocument {
+function withEntity(
+  document: WireDocument,
+  entity: Record<string, unknown>,
+): WireDocument {
   const copy = JSON.parse(JSON.stringify(document)) as WireDocument;
   copy.entities.push(entity);
   copy.modelSpace.entityIds.push(String(entity.id));
@@ -318,14 +321,21 @@ async function main(): Promise<void> {
       [owner.organizationId],
     );
 
-    const invitees: { role: Exclude<OrgRole, 'owner'>; session: IntegratorSession }[] = [];
+    const invitees: {
+      role: Exclude<OrgRole, 'owner'>;
+      session: IntegratorSession;
+    }[] = [];
     for (const role of ['admin', 'member', 'viewer'] as const) {
       const email = `${role}-${suffix}@revision.valle.design`;
       await expectStatus(
-        await apiCall(owner, `/v1/organizations/${owner.organizationId}/invitations`, {
-          method: 'POST',
-          body: { email, role },
-        }),
+        await apiCall(
+          owner,
+          `/v1/organizations/${owner.organizationId}/invitations`,
+          {
+            method: 'POST',
+            body: { email, role },
+          },
+        ),
         [200, 201],
         `invitar ${role}`,
       );
@@ -365,7 +375,10 @@ async function main(): Promise<void> {
     const project = (await expectStatus(
       await apiCall(owner, '/v1/cad/projects', {
         method: 'POST',
-        body: { name: 'Proyecto de revisión concurrente', description: 'probe' },
+        body: {
+          name: 'Proyecto de revisión concurrente',
+          description: 'probe',
+        },
       }),
       [200, 201],
       'crear proyecto',
@@ -407,13 +420,18 @@ async function main(): Promise<void> {
 
     const actors: Actor[] = [
       { role: 'owner', session: owner },
-      ...invitees.map(({ role, session }) => ({ role: role as Role, session })),
+      ...invitees.map(({ role, session }) => ({ role: role, session })),
       { role: 'link', session: null, reviewToken: shareToken },
     ];
 
     /* ── Fase A · carga concurrente: 5 roles × N clientes, mismo documento ─ */
     const samples: OpSample[] = [];
-    const record = (role: Role, op: string, ms: number, status: number): void => {
+    const record = (
+      role: Role,
+      op: string,
+      ms: number,
+      status: number,
+    ): void => {
       samples.push({ role, op, ms: round(ms), status });
     };
 
@@ -485,7 +503,9 @@ async function main(): Promise<void> {
 
     const linkWorker = async (actor: Actor): Promise<void> => {
       while (performance.now() < deadline) {
-        await timed(actor.role, 'open', () => linkCall('/v1/cad/review/context'));
+        await timed(actor.role, 'open', () =>
+          linkCall('/v1/cad/review/context'),
+        );
         await timed(actor.role, 'listComments', () =>
           linkCall('/v1/cad/review/comments'),
         );
@@ -519,8 +539,9 @@ async function main(): Promise<void> {
     const stormFinishedAt = new Date().toISOString();
 
     /* ── Fronteras de rol: lo que NO deben poder hacer ───────────────────── */
-    const viewerSession = invitees.find((entry) => entry.role === 'viewer')!
-      .session;
+    const viewerSession = invitees.find(
+      (entry) => entry.role === 'viewer',
+    )!.session;
     const currentVersionResponse = (await readJson(
       await apiCall(owner, `/v1/cad/documents/${documentId}`),
     )) as { cadDocumentVersion: number; cadDocument: WireDocument };
@@ -536,13 +557,16 @@ async function main(): Promise<void> {
       },
     );
     await viewerWrite.text();
-    const linkWrite = await linkCall(`/v1/cad/documents/${documentId}/content`, {
-      method: 'PUT',
-      body: {
-        cadDocument: currentVersionResponse.cadDocument,
-        expectedCadDocumentVersion: currentVersionResponse.cadDocumentVersion,
+    const linkWrite = await linkCall(
+      `/v1/cad/documents/${documentId}/content`,
+      {
+        method: 'PUT',
+        body: {
+          cadDocument: currentVersionResponse.cadDocument,
+          expectedCadDocumentVersion: currentVersionResponse.cadDocumentVersion,
+        },
       },
-    });
+    );
     await linkWrite.text();
     const boundaries = {
       viewerSaveStatus: viewerWrite.status,
@@ -552,8 +576,9 @@ async function main(): Promise<void> {
     };
 
     /* ── Fase B · dos escritores CAS + fusión semántica real ─────────────── */
-    const memberSession = invitees.find((entry) => entry.role === 'member')!
-      .session;
+    const memberSession = invitees.find(
+      (entry) => entry.role === 'member',
+    )!.session;
     interface CasRound {
       round: number;
       kind: 'disjoint' | 'collision';
@@ -619,8 +644,14 @@ async function main(): Promise<void> {
       const ownerId = `cas-owner-${index}`;
       const memberId = `cas-member-${index}`;
       if (kind === 'disjoint') {
-        ownerDoc = withEntity(base.document, casEntity(ownerId, 90_000 + index * 200));
-        memberDoc = withEntity(base.document, casEntity(memberId, 95_000 + index * 200));
+        ownerDoc = withEntity(
+          base.document,
+          casEntity(ownerId, 90_000 + index * 200),
+        );
+        memberDoc = withEntity(
+          base.document,
+          casEntity(memberId, 95_000 + index * 200),
+        );
         expectedEntityIds.push(ownerId, memberId);
       } else {
         // Colisión tipada: ambos mueven el MISMO muro a sitios distintos.
@@ -628,8 +659,7 @@ async function main(): Promise<void> {
         memberDoc = JSON.parse(JSON.stringify(base.document)) as WireDocument;
         const target = (doc: WireDocument) =>
           doc.entities.find((entity) => entity.id === 'muro-0') as
-            | { end?: { x?: number } }
-            | undefined;
+            { end?: { x?: number } } | undefined;
         const ownerTarget = target(ownerDoc);
         const memberTarget = target(memberDoc);
         if (ownerTarget?.end) ownerTarget.end.x = 111;
@@ -687,7 +717,9 @@ async function main(): Promise<void> {
         resolvedSaveStatus = retried.status;
         const final = await openDocument();
         if (kind === 'disjoint') {
-          const ids = new Set(final.document.entities.map((entity) => String(entity.id)));
+          const ids = new Set(
+            final.document.entities.map((entity) => String(entity.id)),
+          );
           bothChangesPresent = ids.has(ownerId) && ids.has(memberId);
         } else {
           const wall = final.document.entities.find(
@@ -731,7 +763,9 @@ async function main(): Promise<void> {
       ),
     )) as { items: { resolved: boolean }[] };
     const commentsListed = listed.items.length;
-    const commentsResolved = listed.items.filter((item) => item.resolved).length;
+    const commentsResolved = listed.items.filter(
+      (item) => item.resolved,
+    ).length;
 
     const finalDocument = await openDocument();
     const finalIds = new Set(
@@ -744,7 +778,10 @@ async function main(): Promise<void> {
     const ops = ['open', 'listComments', 'comment', 'resolve'];
     const perRole: Record<
       string,
-      Record<string, { statusCounts: Record<string, number>; latencyMs: LatencyStats }>
+      Record<
+        string,
+        { statusCounts: Record<string, number>; latencyMs: LatencyStats }
+      >
     > = {};
     for (const role of roles) {
       perRole[role] = {};
@@ -763,7 +800,9 @@ async function main(): Promise<void> {
         };
       }
     }
-    const serverErrors = samples.filter((sample) => sample.status >= 500).length;
+    const serverErrors = samples.filter(
+      (sample) => sample.status >= 500,
+    ).length;
     const unexpectedClientErrors = samples.filter(
       (sample) => sample.status >= 400 && sample.status !== 409,
     ).length;
@@ -772,7 +811,9 @@ async function main(): Promise<void> {
         const cell = perRole[role][op];
         const successes =
           (cell.statusCounts['200'] ?? 0) + (cell.statusCounts['201'] ?? 0);
-        return cell.latencyMs.samples > 0 && successes === cell.latencyMs.samples;
+        return (
+          cell.latencyMs.samples > 0 && successes === cell.latencyMs.samples
+        );
       }),
     );
     const casClean = casRounds.every(

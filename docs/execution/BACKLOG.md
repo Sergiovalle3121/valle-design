@@ -68,12 +68,21 @@ cola viva, no el museo (el museo es `docs/history/`).
 
 ## P1 — bloquea flujos que un despacho espera
 
-### P1-1 · Los seis goldens rojos (81/87)
-`21-cad-xrefs`, `47-cad-lisp-appload`, `47-cad-solids`, `53-cad-bim-wall`,
-`54-cad-bim-wall-joins`, `55-cad-anchored-comments`. La campaña de pulido del
-22-08 los tenía en su OLA 1: revisar su informe antes de tocar; lo que quede
-rojo se ataca spec por spec. **Criterio:** 87/87 con árbol quieto dos corridas
-seguidas. **Estimación:** 0.5–2 días según lo que deje pulido.
+### P1-1 · ~~Los seis goldens rojos~~ — CERRADO 2026-08-23, queda un huérfano nuevo
+Los seis originales (`21-cad-xrefs`, `47-cad-lisp-appload`, `47-cad-solids`,
+`53-cad-bim-wall`, `54-cad-bim-wall-joins`, `55-cad-anchored-comments`) cerraron
+en el commit `64d1ee28` ("Los seis goldens heredados cierran…"), confirmado en
+`f5e36ca4` ("85 de 87 goldens, desde 81/87"). Verificado por auditoría
+2026-08-24 contra el árbol real. Pero el criterio literal ("87/87 dos corridas
+seguidas") sigue sin cumplirse por dos rojos DISTINTOS a los seis originales:
+`46-cad-pointer-engine` (ya trackeado abajo, P1-1b) y **`20-cad-multiple-viewports`**,
+que quedó huérfano — documentado como intermitente conocido en
+`.github/workflows/ci.yml` ("los tres intermitentes que costaron un día entero
+(goldens 18, 33 y 20)") pero nunca tuvo entrada propia aquí. Reproducido de
+nuevo el 2026-08-24 en CI (Chromium, PR #93, dos corridas de E2E, ambas con
+timeout en el mismo test). **Criterio:** 87/87 con árbol quieto dos corridas
+seguidas, contando este huérfano. **Estimación:** medio día de diagnóstico
+(mismo patrón de intermitencia que P1-1b — no asumir causa común sin medir).
 
 ### P1-1b · golden 46 test 2 (LINE por ratón) frágil ante el cambio de fuentes
 - **Qué falla:** `e2e/golden/46-cad-pointer-engine.spec.ts:177` («con el motor
@@ -119,13 +128,6 @@ guarda de vuelta con `replace` de la definición + regeneración de inserciones
 criterio `blocks.bedit` de la rúbrica pasa con evidencia real.
 **Estimación:** 2–3 días.
 
-### P1-4 · Variables de acotación que no dibujan (DIMVARs al render)
-Herencia declarada de campañas previas; la campaña de pulido lo tenía en su
-OLA 3 (DIMVARs completos al render por cota + migración aditiva + golden del
-ciclo estilo→render→DXF→reimportar). Revisar su informe; lo pendiente sigue
-aquí. **Criterio:** el golden del ciclo completo verde. **Estimación:** lo que
-deje pulido.
-
 ### P1-5 · Marcar visibilidad por operación en el contrato OpenAPI
 `x-visibility: public|internal|experimental` en las 79 operaciones de
 `packages/contracts/specs/design-api.v1.yaml` + el gate del contrato exige la
@@ -133,11 +135,28 @@ marca en operaciones nuevas + publicar la lista `public` inicial (propuesta en
 `docs/api/POLITICA-API-PUBLICA.md`). **Criterio:** `check:cad-contract` falla
 ante operación sin marca. **Estimación:** medio día.
 
-### P1-6 · Fixture de ERP fuera de la suite
-`apps/web/e2e/fixtures/mock-backend.ts` conserva dominio del producto origen.
-La campaña de pulido lo tenía (OLA 2: inventario por campo, borrado por capas,
-renombrar lo que se consuma). Revisar su informe; lo que quede, aquí.
-**Criterio:** cero vocabulario ERP en fixtures; goldens verdes.
+### P1-7 · Concurrencia de review: ~50 4xx inesperados por corrida bajo tormenta real
+- **Qué falla:** `npm run evidence:review-concurrency` (rescatado 2026-08-24 de
+  `claude/evidencias-pendientes`, corrido por primera vez contra Postgres real)
+  mide 10 clientes concurrentes (owner/admin/member/viewer/enlace, 2 por rol)
+  sobre el mismo documento y la misma sesión de revisión: **veredicto NO
+  SUPERADO** — el único criterio que falla es "cero 4xx inesperados" (el 409
+  del CAS es el único 4xx legítimo). ~50 errores inesperados de ~1100
+  peticiones por corrida, estable en 3 corridas (51/50/49).
+- **Qué SÍ pasa:** los cinco roles completan abrir/listar/comentar/resolver;
+  las fronteras de rol se respetan (viewer/enlace no guardan); cada carrera
+  CAS tiene un ganador y se resuelve con la fusión semántica real
+  (`planCadConflictResolution`); los conteos íntegros cierran.
+- **Dónde:** evidencia completa con metodología, entorno y criterios en
+  `docs/cad/evidence/review-concurrency.json`; generador en
+  `scripts/cad/review-concurrency-evidence.mjs` +
+  `apps/api/src/load-probe/review-concurrency.main.ts`.
+- **Qué falta:** identificar la ruta que produce los 4xx inesperados (no
+  investigado todavía — la evidencia los cuenta pero no los clasifica por
+  código/endpoint; ese es el primer paso, no adivinar la causa).
+- **Criterio:** `evidence:review-concurrency` en VERDE (cero 4xx inesperados)
+  en 3 corridas. **Estimación:** medio día de diagnóstico + lo que cueste el
+  arreglo real.
 
 ---
 
