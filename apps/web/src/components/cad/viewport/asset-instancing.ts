@@ -149,11 +149,11 @@ function acquireInstance(
   housing: THREE.Object3D,
   key: string,
   geometry: THREE.BufferGeometry,
-  material: THREE.Material,
+  makeMaterial: () => THREE.Material,
 ): { mesh: THREE.InstancedMesh; index: number } {
   let entry = pool.get(key);
   if (!entry) {
-    const mesh = new THREE.InstancedMesh(geometry, material, INITIAL_CAPACITY);
+    const mesh = new THREE.InstancedMesh(geometry, makeMaterial(), INITIAL_CAPACITY);
     mesh.instanceColor = new THREE.InstancedBufferAttribute(
       new Float32Array(INITIAL_CAPACITY * 3).fill(1),
       3,
@@ -215,10 +215,15 @@ export function poolAssetPart(
 
   // Material neutro y compartido; el color real de esta parte viaja por
   // instancia via `instanceColor`, tal como pide el diseño de instancing.
-  const sharedMaterial = material.clone();
-  sharedMaterial.color.set(0xffffff);
+  // Sólo se clona si la clave es nueva — `acquireInstance` no llama a esta
+  // fábrica en un acierto de caché.
+  const makeSharedMaterial = () => {
+    const shared = material.clone();
+    shared.color.set(0xffffff);
+    return shared;
+  };
 
-  const { mesh, index } = acquireInstance(housing, key, part.geometry, sharedMaterial);
+  const { mesh, index } = acquireInstance(housing, key, part.geometry, makeSharedMaterial);
   mesh.setMatrixAt(index, instanceMatrix);
   mesh.instanceMatrix.needsUpdate = true;
   mesh.setColorAt(index, material.color);
