@@ -31,6 +31,8 @@
     "evidence:dense-editing": "node scripts/cad/dense-editing-evidence.mjs",
     "evidence:touch-support": "node scripts/cad/touch-support-evidence.mjs",
     "evidence:api-load": "node scripts/cad/api-load-tests.mjs",
+    "evidence:review-concurrency": "node scripts/cad/review-concurrency-evidence.mjs",
+    "evidence:webhook-replay-audit": "node scripts/ops/webhook-replay-audit-evidence.mjs",
     "console:api": "node scripts/cad/build-api-console.mjs",
     "check:api-console": "node scripts/cad/build-api-console.mjs --check",
     "evidence:nl-cad": "node scripts/cad/nl-cad-quality.mjs",
