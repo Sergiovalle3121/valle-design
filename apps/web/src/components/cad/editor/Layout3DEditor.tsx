@@ -1704,13 +1704,12 @@ export default function Layout3DEditor({
   const [activeCadLayer, setActiveCadLayer] =
     useState<CadLayerId>(DEFAULT_ACTIVE_CAD_LAYER);
   /**
-   * El efecto de la escena se monta una vez por generación de documento y
-   * captura las funciones de dibujo de ese render. Leer `activeCadLayer`
-   * (estado) desde dentro de esa clausura devolvía la capa ACTIVA AL MONTAR:
-   * cambiar de capa y dibujar con el ratón seguía escribiendo en la anterior,
-   * y el usuario sólo lo descubría al recargar. El commit consulta el ref,
-   * así que ratón, entrada dinámica y entrada de precisión comparten una
-   * única frontera canónica.
+   * El efecto de la escena se monta con `[open, data]` y captura las funciones
+   * de dibujo de ese render. Leer `activeCadLayer` (estado) desde dentro de esa
+   * clausura devolvía la capa ACTIVA AL MONTAR: cambiar de capa y dibujar con
+   * el ratón seguía escribiendo en la anterior, y el usuario sólo lo descubría
+   * al recargar. El commit consulta el ref, así que ratón, entrada dinámica y
+   * entrada de precisión comparten una única frontera canónica.
    */
   const activeCadLayerRef = useRef<CadLayerId>(activeCadLayer);
   useEffect(() => {
@@ -6042,16 +6041,6 @@ export default function Layout3DEditor({
   );
 
   // ---- scene lifecycle ----
-  // Indexado por la identidad del documento (documentId, o model+revision
-  // cuando no hay documentId — `Layout` no trae un campo `id`; ver el efecto
-  // de carga más arriba, que resetea `data` a null exactamente en estos
-  // mismos casos) más la transición null→cargado, NUNCA por `data` en sí.
-  // `data` cambia de identidad en cada autosave (setData(saved) con la
-  // respuesta del servidor) sin que el documento cambie: indexar por `data`
-  // tumbaba y reconstruía renderer/cámara/OrbitControls en cada autosave, y
-  // el usuario perdía el encuadre de cámara colocando una sola puerta. El
-  // encuadre inicial de cámara derivado de fp.footprintW/H vive aparte, más
-  // abajo, y sí se re-deriva cuando esas dimensiones cambian.
   useEffect(() => {
     const mount = mountRef.current;
     if (!open || !data || !mount) return;
@@ -7781,32 +7770,7 @@ export default function Layout3DEditor({
       guidesGroupRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, model, revision, documentId, reloadTick, data !== null]);
-
-  // ---- initial camera framing ----
-  // Separado del ciclo de vida de arriba a propósito: esto SÍ debe re-
-  // derivarse cuando cambia el tamaño de la planta (redimensionar desde el
-  // panel de vista, un preset de fábrica), pero sin tumbar renderer/escena/
-  // OrbitControls para hacerlo — sólo reposiciona la cámara que el efecto de
-  // arriba ya construyó. Las piezas del pipeline que capturan escala en su
-  // cierre al construirse (viewController, solidShadeHost, el host por
-  // lotes) no se reajustan aquí; sólo lo hace en el próximo ciclo de vida
-  // completo (abrir el documento de nuevo). Es un costo aceptado: mucho más
-  // barato que el reset de cámara en cada autosave que este split arregla.
-  useEffect(() => {
-    if (!open) return;
-    const camera = cameraRef.current;
-    const controls = controlsRef.current;
-    if (!camera || !controls) return;
-    const W = data?.footprint.footprintW || 1;
-    const H = data?.footprint.footprintH || 1;
-    const s = 30 / Math.max(W, H);
-    ctxRef.current = { s, W, H };
-    nativeViewportBoundsRef.current = { minX: 0, minY: 0, maxX: W, maxY: H };
-    camera.position.set(W * s * 0.45, Math.max(W, H) * s * 0.8, H * s * 1.0 + 10);
-    controls.target.set(0, 0, 0);
-    controls.update();
-  }, [open, data?.footprint.footprintW, data?.footprint.footprintH]);
+  }, [open, data]);
 
   // selection highlight refresh
   useEffect(() => {
