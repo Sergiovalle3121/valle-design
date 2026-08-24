@@ -127,6 +127,45 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "3D-CAMPAIGN-2026-08-24",
+      "date": "2026-08-24",
+      "initiative": "Campaña 3D — rendimiento (OLA 4) y completitud arquitectónica",
+      "branch": "claude/valle-design-3d-performance-sllcty",
+      "assistants": [
+        {
+          "name": "Claude Code (Claude Sonnet 5, Anthropic)",
+          "role": "ejecución autónoma supervisada por directiva escrita del titular en modo plan (investigación, diseño de plan revisado y aprobado, e implementación orquestada como 12 subagentes en paralelo vía la herramienta Workflow): fix de texto de cotas/mleader/insert sin pintar, origen flotante de escena (precisión float32), enchufado del kernel Rust/WASM tras las 8 puertas de ADR-0003, fix de reseteo de cámara en autosave, diffing incremental de activos, InstancedMesh para muebles/equipo, generación de piso/cielorraso/techo desde muros, arquetipos de mobiliario arquitectónico, sistema de materiales/texturas, y reconciliación de documentación"
+        }
+      ],
+      "authority": "Directiva expresa de Sergio Valle Zárate en esta conversación (modo plan con plan revisado, preguntas de alcance resueltas explícitamente, y aprobación vía ExitPlanMode): pidió explícitamente no autolimitar el alcance y ejecutar en paralelo ('no te limites... abre mas sesiones si crees necesario... en paralelo'); excluyó DWG explícitamente del alcance (otra sesión lo construye por separado, sin licencia de pago); confirmó mantener sin cambios las guardas de CI contra afirmaciones de paridad con AutoCAD, compatibilidad DWG o soporte BIM",
+      "firstPartyInputs": [
+        "Repositorio Valle Design en el commit base 2a2c8ac y sus políticas (PRODUCT.md, IDENTITY.md, ARCHITECTURE.md)",
+        "docs/execution/BACKLOG.md, docs/competitive/autocad-2027-gap-matrix.md, docs/cad/CAD_RENDER_PIPELINE.md, docs/cad/VALLE_CAD_ARCHITECTURE_LAYER.md, docs/execution/DEUDA-MONOLITO.md",
+        "docs/adr/0003-native-kernel-and-rust-wasm-entry-gate.md y docs/adr/0012-dwg-doble-via.md",
+        "Línea base propia del rubric competitivo (docs/competitive/history/2026-08-24-2a2c8ac.json), medida en este mismo commit antes de iniciar la campaña"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "pipeline de render (lib/cad/render)",
+        "ciclo de vida de escena en Layout3DEditor.tsx",
+        "arquetipos de activos 3D y mobiliario",
+        "generación de masa arquitectónica (piso/cielorraso/techo)",
+        "sistema de materiales/texturas",
+        "kernel Rust/WASM de teselado"
+      ],
+      "fixtures": [],
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: campaña en curso al momento de este registro. El titular revisa el PR de la rama claude/valle-design-3d-performance-sllcty, los informes INFORME_CAMPANA_RENDIMIENTO_20260824.md e INFORME_CAMPANA_ARQUITECTURA3D_20260824.md, y los checks del SHA candidato antes de fusionar."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
