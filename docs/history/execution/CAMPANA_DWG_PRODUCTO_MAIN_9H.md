@@ -1,9 +1,12 @@
 # Campaña DWG producto — bitácora de ejecución
 
-Estado: **EN CURSO**. Este archivo es estado vivo mientras la campaña corre
-(ver la regla de archivado en `AGENTS.md` § "cierre de ramas 2026-08-24" —
-se archiva a `docs/history/execution/` en el mismo commit que publique un
-informe de cierre `INFORME_*`).
+Estado: **CERRADA** (2026-08-24). Archivada aquí en el mismo commit que
+publica su informe de cierre —
+`docs/execution/INFORME_DWG_PRODUCTO_MAIN_2026-08-24.md` — por la regla de
+`AGENTS.md` § "cierre de ramas 2026-08-24". Este archivo es el diario
+día-a-día tal y como se escribió mientras la campaña corría: no se edita en
+retrospectiva salvo esta cabecera. El informe de cierre es la fuente
+autoritativa del estado final.
 
 ## 0. Desviaciones registradas respecto al prompt original
 
