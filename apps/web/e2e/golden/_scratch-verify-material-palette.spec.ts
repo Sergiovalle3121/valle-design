@@ -66,6 +66,8 @@ test("CadMaterialPalette wired: se ve, se puede clicar, y materialId sobrevive a
   const backend = await installCadBackend(context);
   await page.goto("/legacy/studio");
   await expect(page.getByTestId("cad-canvas")).toBeVisible();
+  const skipTour = page.getByRole("button", { name: "Saltar", exact: true });
+  if (await skipTour.isVisible().catch(() => false)) await skipTour.click();
 
   await selectObjectsOfLayer(page, "0");
 
