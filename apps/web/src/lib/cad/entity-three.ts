@@ -3,6 +3,11 @@ import {
   CAD_ENTITY_REGISTRY,
   type CadNativeEntity,
 } from "./entity-runtime";
+import {
+  cadHersheyTextStrokes,
+  cadHersheyTextWidth,
+  type CadHersheyFamily,
+} from "./fonts/hershey-fonts";
 import { layoutCadMText } from "./mtext-layout";
 import { buildCadDimensionGeometry } from "./associative-dimension";
 import { buildCadMleaderGeometry } from "./associative-mleader";
@@ -74,6 +79,41 @@ function entityColor(entity: CadNativeEntity): number {
   return Number.parseInt(value.slice(1), 16);
 }
 
+/**
+ * Un renglón con trazos Hershey: polilíneas con la pluma, no `fillText`.
+ *
+ * `y` es la LÍNEA BASE en coordenadas de lienzo (hacia abajo); los trazos
+ * llegan con `y` hacia arriba desde la base y aquí se invierten. La negrita de
+ * un trazo único es pluma más gorda y la cursiva es inclinar la pluma
+ * (cizalla sobre la altura), porque un trazo no tiene «peso» que fingir.
+ */
+function strokeCadHersheyLine(
+  context: CanvasRenderingContext2D,
+  family: CadHersheyFamily,
+  text: string,
+  x: number,
+  y: number,
+  capHeightPx: number,
+  options: { bold?: boolean; italic?: boolean },
+): void {
+  const { strokes } = cadHersheyTextStrokes(family, text, capHeightPx);
+  context.save();
+  context.strokeStyle =
+    typeof context.fillStyle === "string" ? context.fillStyle : "#e2e8f0";
+  context.lineWidth = Math.max(1, capHeightPx / (options.bold ? 8 : 14));
+  context.lineCap = "round";
+  context.lineJoin = "round";
+  const skew = options.italic ? 0.2 : 0;
+  context.beginPath();
+  for (const stroke of strokes) {
+    context.moveTo(x + stroke[0].x + skew * stroke[0].y, y - stroke[0].y);
+    for (let index = 1; index < stroke.length; index += 1)
+      context.lineTo(x + stroke[index].x + skew * stroke[index].y, y - stroke[index].y);
+  }
+  context.stroke();
+  context.restore();
+}
+
 function buildCadMTextSprite(
   entity: Extract<CadNativeEntity, { type: "mtext" }>,
   viewport: CadThreeViewport,
@@ -103,19 +143,33 @@ function buildCadMTextSprite(
   context.font = `${entity.italic ? "italic " : ""}${entity.bold ? "bold " : ""}${Math.max(1, layout.fontSize * pixelsPerUnit)}px ${layout.fontStack}`;
   const localMinX = Math.min(...layout.lines.map((line) => line.x), 0);
   const localMaxY = Math.max(...layout.lines.map((line) => line.y + layout.fontSize), 0);
+  // Con familia de trazos Hershey (una .shx mapeada, `mtext-fonts.ts`) el
+  // renglón se TRAZA con la métrica de sus avances; `fillText` dibujaría la
+  // sans de respaldo y desharía exactamente lo que la resolución declara.
+  const strokeFamily = layout.font.strokeFamily;
+  const capHeightPx = layout.fontSize * pixelsPerUnit;
+  const measureLine = (text: string): number =>
+    strokeFamily
+      ? cadHersheyTextWidth(strokeFamily, text, capHeightPx)
+      : context.measureText(text).width;
+  const paintLine = (text: string, atX: number, atY: number): void => {
+    if (strokeFamily)
+      strokeCadHersheyLine(context, strokeFamily, text, atX, atY, capHeightPx, entity);
+    else context.fillText(text, atX, atY);
+  };
   for (const line of layout.lines) {
     const x = (line.x - localMinX + paddingWorld) * pixelsPerUnit;
     const y = (localMaxY - line.y + paddingWorld) * pixelsPerUnit;
     const words = line.justify ? line.text.trim().split(/\s+/).filter(Boolean) : [];
     if (words.length > 1) {
-      const wordWidths = words.map((word) => context.measureText(word).width);
+      const wordWidths = words.map((word) => measureLine(word));
       const gap = Math.max(0, (layout.columnWidth * pixelsPerUnit - wordWidths.reduce((sum, width) => sum + width, 0)) / (words.length - 1));
       let cursor = x;
       words.forEach((word, index) => {
-        context.fillText(word, cursor, y);
+        paintLine(word, cursor, y);
         cursor += wordWidths[index] + gap;
       });
-    } else context.fillText(line.text, x, y);
+    } else paintLine(line.text, x, y);
     if (entity.underline && line.width > 0) {
       context.fillRect(x, y + Math.max(1, layout.fontSize * pixelsPerUnit * 0.08), line.width * pixelsPerUnit, Math.max(1, layout.fontSize * pixelsPerUnit * 0.04));
     }
@@ -473,11 +527,22 @@ export function buildCadNativeObject(
   if (entity.type === "dimension") {
     const dimension = buildCadDimensionGeometry(entity);
     if (dimension) {
+      // La cota hereda su fuente del estilo del documento: estilo de cota →
+      // estilo de texto → familia. Sin este viaje, una cota de un DXF con
+      // `romans.shx` en su DIMSTYLE se rotulaba con la Arial por defecto y la
+      // resolución de fuentes nunca llegaba a enterarse.
+      const dimensionStyle = entity.style
+        ? document?.styles?.dimension?.[entity.style]
+        : undefined;
+      const dimensionFontFamily = dimensionStyle?.textStyle
+        ? document?.styles?.text?.[dimensionStyle.textStyle]?.fontFamily
+        : undefined;
       const sprite = buildCadMTextSprite({
         id: `${entity.id}:label`,
         type: "mtext",
         insertion: { ...dimension.textAnchor, z: 0 },
         text: dimension.label,
+        fontFamily: dimensionFontFamily,
         width: Math.max(entity.arrowSize ?? 180, dimension.label.length * (entity.arrowSize ?? 180) * 0.45),
         height: Math.max(1, (entity.arrowSize ?? 180) * 0.55),
         rotation: dimension.textAngle,
@@ -532,7 +597,8 @@ export function buildCadNativeObject(
       const sprite = buildCadMTextSprite(child.type === "mtext" ? child : {
         id: child.id, type: "mtext", insertion: { x: child.x, y: child.y, z: 0 }, text: child.text,
         width: Math.max(child.height ?? 120, child.text.length * (child.height ?? 120) * 0.6), height: child.height ?? 120,
-        rotation: child.rotation ?? 0, style: child.style, layer: child.layer, context: child.context,
+        rotation: child.rotation ?? 0, style: child.style, fontFamily: child.fontFamily,
+        layer: child.layer, context: child.context,
       }, viewport, elevation);
       if (sprite) { sprite.userData.nativeEntityId = entity.id; group.add(sprite); }
     }
