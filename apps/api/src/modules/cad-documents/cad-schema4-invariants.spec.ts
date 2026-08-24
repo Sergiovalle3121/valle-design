@@ -1,5 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
-import { validateCadDocumentPayload } from './cad-document-validation';
+import {
+  CAD_DOCUMENT_MAX_SCHEMA,
+  validateCadDocumentPayload,
+} from './cad-document-validation';
 
 /**
  * Invariantes de los ocho tipos que estrena el esquema 4.
@@ -113,18 +116,21 @@ describe('schema 4 entity invariants', () => {
       validateCadDocumentPayload(withEntities([sound.point])),
     ).not.toThrow();
     // Rechazar el esquema vigente convertiría cada guardado del editor en un
-    // 400. El techo subió a 9 con frozen y layerStates, así que el 9 se acepta
-    // y el que se rechaza es el 10: un esquema del FUTURO no se adivina.
+    // 400. Ancla contra la CONSTANTE, no contra el número que fuera el techo
+    // el día que esto se escribió: fijarlo a mano es justo lo que dejó esta
+    // prueba en rojo la vez que el techo subió y nadie la tocó — el mismo
+    // modo de fallo que dejó al SERVIDOR en 9 mientras el cliente ya escribía
+    // 10 (ver cad-document-validation.ts).
     expect(() =>
       validateCadDocumentPayload({
         ...withEntities([sound.point]),
-        meta: { schema: 9, version: 1, unit: 'mm' },
+        meta: { schema: CAD_DOCUMENT_MAX_SCHEMA, version: 1, unit: 'mm' },
       }),
     ).not.toThrow();
     expect(() =>
       validateCadDocumentPayload({
         ...withEntities([sound.point]),
-        meta: { schema: 10, version: 1, unit: 'mm' },
+        meta: { schema: CAD_DOCUMENT_MAX_SCHEMA + 1, version: 1, unit: 'mm' },
       }),
     ).toThrow(BadRequestException);
   });

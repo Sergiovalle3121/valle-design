@@ -1,5 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
-import { validateCadDocumentPayload } from './cad-document-validation';
+import {
+  CAD_DOCUMENT_MAX_SCHEMA,
+  validateCadDocumentPayload,
+} from './cad-document-validation';
 
 /**
  * Invariantes de SOLID3D y REGION en la frontera del servidor.
@@ -81,20 +84,23 @@ describe('schema 5 solid invariants', () => {
     ).not.toThrow();
   });
 
-  it('acepta el esquema 5 y el 6 vigentes; el 7 es futuro y se rechaza', () => {
+  // Ancla contra la CONSTANTE, no contra un número que quedó fijo la última
+  // vez que alguien lo tocó a mano: ese mismo descuido es justo lo que dejó
+  // esta prueba probando 9/10 bajo un título que todavía hablaba de 5/6/7.
+  it('acepta el esquema vigente; uno más allá es futuro y se rechaza', () => {
     expect(() =>
       validateCadDocumentPayload(withEntities([soundSolid()])),
     ).not.toThrow();
     expect(() =>
       validateCadDocumentPayload({
         ...withEntities([]),
-        meta: { schema: 9, version: 1, unit: 'mm' },
+        meta: { schema: CAD_DOCUMENT_MAX_SCHEMA, version: 1, unit: 'mm' },
       }),
     ).not.toThrow();
     expect(() =>
       validateCadDocumentPayload({
         ...withEntities([]),
-        meta: { schema: 10, version: 1, unit: 'mm' },
+        meta: { schema: CAD_DOCUMENT_MAX_SCHEMA + 1, version: 1, unit: 'mm' },
       }),
     ).toThrow(BadRequestException);
   });
