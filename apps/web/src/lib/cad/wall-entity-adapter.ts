@@ -29,6 +29,7 @@ import {
   pointsBounds,
 } from "./entity-hit-geometry";
 import { cadTransformPoint3, cadTransformScaleFactor } from "./transform2d";
+import { isCadWallMaterialId } from "./wall-materials";
 import {
   wallFillSegments,
   wallFootprint,
@@ -305,6 +306,14 @@ const wallAdapter: CadEntityAdapter<WallEntity> = {
       thickness: entity.thickness,
       height: entity.height,
       length: wallLength(entity),
+      // A diferencia de `symbolBlock` del hueco (que se omite si no está),
+      // `material` SIEMPRE aparece en la bolsa, vacío si no hay uno: es la
+      // única vía para DESCUBRIR y fijar el material de un muro por primera
+      // vez desde el panel de propiedades genérico — `commonKeys` sólo
+      // ofrece una fila para claves que YA están en la bolsa de los sujetos
+      // designados, así que una clave omitida en un muro sin material nunca
+      // llegaría a mostrarse para poder teclearla.
+      material: entity.material ?? "",
       layer: entity.layer,
     }),
     /**
@@ -312,6 +321,12 @@ const wallAdapter: CadEntityAdapter<WallEntity> = {
      * recompensa de persistir la receta. `length` es derivada y no se
      * escribe — no hay una forma única de alargar un eje para que mida lo
      * pedido sin decidir qué extremo se queda quieto.
+     *
+     * `material` es de un conjunto FINITO (`wall-materials.ts`): lo que no
+     * resuelve no se escribe, mismo criterio que `kind`/`swing`/`hinge` del
+     * hueco. Cadena vacía BORRA el campo (vuelve al genérico) en vez de
+     * contar como inválida — es la única forma de quitarle el material a un
+     * muro desde un campo de texto libre, mientras no hay selector.
      */
     write: (entity, patch) => ({
       ...entity,
@@ -327,6 +342,12 @@ const wallAdapter: CadEntityAdapter<WallEntity> = {
       },
       thickness: positive(patch.thickness, entity.thickness),
       height: positive(patch.height, entity.height),
+      material:
+        patch.material === ""
+          ? undefined
+          : isCadWallMaterialId(patch.material)
+            ? patch.material
+            : entity.material,
       layer: typeof patch.layer === "string" ? patch.layer : entity.layer,
     }),
   },

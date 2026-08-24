@@ -337,3 +337,31 @@ export async function applyNativeProperty(
     await expect(field).toHaveValue(value, { timeout: ATTEMPT_MS });
   }).toPass({ timeout: SETTLE_MS });
 }
+
+/**
+ * La misma garantía que `applyNativeProperty`, para una fila `kind: "select"`
+ * (`CadPropertiesPalette.tsx`) — un material de muro, por ahora la única.
+ *
+ * No es `applyNativeProperty` con un `if`: un `<select>` no admite `.fill()`
+ * (Playwright lo rechaza porque no es un input de texto/textarea), y su
+ * commit va por `onChange` en cuanto `selectOption` dispara el evento — no
+ * hay un `blur` que confirme un valor ya tecleado, así que no hace falta
+ * simularlo. El resto del riesgo es idéntico: el panel puede remontarse entre
+ * elegir la opción y que este helper vuelva, y por eso se reintenta la
+ * PRECONDICIÓN —que el `<select>` sostenga lo elegido— con la misma ventana
+ * de quietud, nunca la aserción bajo prueba.
+ */
+export async function applyNativeSelectProperty(
+  page: Page,
+  name: string,
+  value: string,
+): Promise<void> {
+  const field = page.getByTestId(`cad-native-property-${name}`);
+  await expect(async () => {
+    await expect(field).toBeVisible({ timeout: ATTEMPT_MS });
+    await field.selectOption(value);
+    await expect(field).toHaveValue(value, { timeout: ATTEMPT_MS });
+    await page.waitForTimeout(QUIET_MS);
+    await expect(field).toHaveValue(value, { timeout: ATTEMPT_MS });
+  }).toPass({ timeout: SETTLE_MS });
+}

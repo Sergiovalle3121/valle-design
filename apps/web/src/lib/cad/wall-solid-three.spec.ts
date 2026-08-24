@@ -10,8 +10,13 @@
  * de kernel) también quede atrapado.
  */
 import { check, checkClose, report } from "../brep/spec-support";
-import { buildCadWallSolidGeometry } from "./wall-solid-three";
+import {
+  buildCadWallSolidGeometry,
+  buildCadWallSolidObject,
+} from "./wall-solid-three";
+import { CAD_WALL_MATERIAL_DEFAULT, cadWallMaterialStyle } from "./wall-materials";
 import type { CadThreeViewport } from "./entity-three";
+import * as THREE from "three";
 
 const viewport: CadThreeViewport = {
   scale: 0.01,
@@ -191,4 +196,71 @@ const door = { position: 2_000, width: 900, sill: 0, height: 2_100 };
   );
 }
 
-report("wall-solid-three", 6);
+// --- material: sin declarar pinta el genérico, declarado pinta EL SUYO, y la
+// selección manda sobre cualquiera de los dos -------------------------------
+{
+  const solidWall = {
+    id: "wall-material-spec",
+    start: { x: 0, y: 0, z: 0 },
+    end: { x: 3_000, y: 0, z: 0 },
+    thickness: 200,
+    height: 2_700,
+  };
+  const faces = (group: THREE.Group) =>
+    group.children.find(
+      (child) => (child as THREE.Mesh).isMesh,
+    ) as THREE.Mesh | undefined;
+  const colorOf = (mesh: THREE.Mesh | undefined) =>
+    (mesh?.material as THREE.MeshLambertMaterial | undefined)?.color.getHex();
+
+  const undeclared = faces(buildCadWallSolidObject(solidWall, [], viewport));
+  check(
+    "sin `material`, la cara pinta el genérico de siempre",
+    colorOf(undeclared) === CAD_WALL_MATERIAL_DEFAULT.color,
+  );
+
+  const brick = faces(
+    buildCadWallSolidObject(
+      { ...solidWall, material: "brick" },
+      [],
+      viewport,
+    ),
+  );
+  check(
+    "con `material: brick`, la cara pinta el color de ladrillo de la paleta",
+    colorOf(brick) === cadWallMaterialStyle("brick").color,
+  );
+  check(
+    "el color de ladrillo NO es el genérico (la paleta sí distingue)",
+    cadWallMaterialStyle("brick").color !== CAD_WALL_MATERIAL_DEFAULT.color,
+  );
+
+  const garbage = faces(
+    // Documento heredado o corrupto con un valor fuera de la paleta: el
+    // render no debe reventar, cae al genérico igual que "sin declarar".
+    buildCadWallSolidObject(
+      { ...solidWall, material: "unobtainium" as never },
+      [],
+      viewport,
+    ),
+  );
+  check(
+    "un `material` fuera de la paleta cae al genérico, no revienta el render",
+    colorOf(garbage) === CAD_WALL_MATERIAL_DEFAULT.color,
+  );
+
+  const selectedBrick = faces(
+    buildCadWallSolidObject(
+      { ...solidWall, material: "brick" },
+      [],
+      viewport,
+      { selected: true },
+    ),
+  );
+  check(
+    "seleccionado manda sobre el material: pinta el color de selección",
+    colorOf(selectedBrick) === 0x22d3ee,
+  );
+}
+
+report("wall-solid-three", 11);

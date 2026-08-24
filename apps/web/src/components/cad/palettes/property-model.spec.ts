@@ -239,6 +239,74 @@ const circle = {
   assert.equal(row(model, "layer").value, "0");
 }
 
+// --- material del muro: desplegable, no texto libre ---------------------------
+{
+  const wallWithMaterial = {
+    id: "wall-a",
+    type: "wall",
+    properties: { thickness: 150, height: 2_400, material: "brick", layer: "0" },
+  };
+  const model = buildCadPropertyModel([wallWithMaterial]);
+  const materialRow = row(model, "material");
+  assert.equal(materialRow.kind, "select", "un conjunto finito, no texto libre");
+  assert.equal(materialRow.category, "Geometría", "mismo cajón que el grosor");
+  assert.equal(materialRow.value, "brick");
+  assert.equal(materialRow.varies, false);
+  assert.deepEqual(
+    materialRow.options?.map((option) => option.value),
+    ["", "concrete", "brick", "drywall", "wood", "stucco"],
+    "'Genérico' (vacío) primero, luego la paleta completa de wall-materials.ts",
+  );
+  assert.equal(
+    materialRow.options?.find((option) => option.value === "brick")?.label,
+    "Ladrillo",
+    "la etiqueta sale de wall-materials.ts, no se reinventa aquí",
+  );
+}
+
+// --- material sin declarar: la fila EXISTE igual, con valor vacío -------------
+{
+  const wallGeneric = {
+    id: "wall-b",
+    type: "wall",
+    properties: { thickness: 150, height: 2_400, material: "", layer: "0" },
+  };
+  const model = buildCadPropertyModel([wallGeneric]);
+  assert.equal(
+    row(model, "material").value,
+    "",
+    "sin material declarado, la opción 'Genérico' — la fila existe para poder elegir una",
+  );
+}
+
+// --- dos muros con materiales distintos: *VARIES*, coerción pasa el valor tal cual --
+{
+  const wallBrick = {
+    id: "wall-c",
+    type: "wall",
+    properties: { thickness: 150, height: 2_400, material: "brick", layer: "0" },
+  };
+  const wallWood = {
+    id: "wall-d",
+    type: "wall",
+    properties: { thickness: 150, height: 2_400, material: "wood", layer: "0" },
+  };
+  const model = buildCadPropertyModel([wallBrick, wallWood]);
+  const materialRow = row(model, "material");
+  assert.equal(materialRow.varies, true, "ladrillo contra madera: difiere");
+  assert.equal(materialRow.value, null);
+  assert.equal(
+    coerceCadPropertyInput(materialRow, "concrete"),
+    "concrete",
+    "elegir una opción real de un desplegable en *VARIES* se aplica tal cual, como un texto",
+  );
+  assert.equal(
+    coerceCadPropertyInput(materialRow, CAD_PROPERTY_VARIES),
+    null,
+    "el propio marcador de mixto tampoco es un valor aquí",
+  );
+}
+
 console.log(
-  "cad properties palette model specs passed: intersección entre tipos, *VARIES* por valor divergente, categorías General/Geometría/Texto/Atributos, derivadas en sólo lectura y coerción que rechaza NaN",
+  "cad properties palette model specs passed: intersección entre tipos, *VARIES* por valor divergente, categorías General/Geometría/Texto/Atributos, derivadas en sólo lectura, coerción que rechaza NaN, y el material del muro como desplegable de un conjunto finito",
 );

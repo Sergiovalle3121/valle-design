@@ -36,6 +36,7 @@
  * estilos de cota.
  */
 import type { CadEntityContext, CadPoint3 } from "./cad-document";
+import type { CadWallMaterialId } from "./wall-materials";
 
 /**
  * WALL — muro paramétrico definido por su eje.
@@ -46,6 +47,10 @@ import type { CadEntityContext, CadPoint3 } from "./cad-document";
  * de extrusión; ambos en unidades del documento y estrictamente positivos —
  * la validación del servidor rechaza lo demás, porque un muro de grosor cero
  * no es un muro delgado: es un contorno degenerado que rompe el hit-testing.
+ *
+ * `material` es OPCIONAL y aditivo (campo nuevo, sin bump de esquema: ver
+ * `wall-materials.ts`). Ausente, el muro dibuja el gris genérico de siempre
+ * — ningún documento existente cambia de aspecto por este campo.
  */
 export interface CadWallEntity {
   id: string;
@@ -54,6 +59,7 @@ export interface CadWallEntity {
   end: CadPoint3;
   thickness: number;
   height: number;
+  material?: CadWallMaterialId;
   layer: string;
   context?: CadEntityContext;
 }

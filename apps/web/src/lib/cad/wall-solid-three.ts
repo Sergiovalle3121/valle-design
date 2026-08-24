@@ -18,10 +18,10 @@ import * as THREE from "three";
 import { tessellateBody } from "../brep";
 import type { CadWallEntity } from "./cad-entities-v6";
 import type { CadThreeViewport } from "./entity-three";
+import { cadWallMaterialStyle } from "./wall-materials";
 import { wallAxisFrame, type CadWallAxisFrame } from "./wall-openings";
 import { wallSolidBodyLocal, type CadWallSolidOpening } from "./wall-solid";
 
-const WALL_COLOR = 0xcbd5e1;
 const WALL_SELECTED_COLOR = 0x22d3ee;
 
 /** Punto LOCAL (eje, a través, altura) llevado a coordenadas de ESCENA. */
@@ -115,7 +115,10 @@ export interface CadWallSolidObjectOptions {
  * selección lo resuelvan sin caso especial.
  */
 export function buildCadWallSolidObject(
-  wall: Pick<CadWallEntity, "id" | "start" | "end" | "thickness" | "height">,
+  wall: Pick<
+    CadWallEntity,
+    "id" | "start" | "end" | "thickness" | "height" | "material"
+  >,
   openings: readonly CadWallSolidOpening[],
   viewport: CadThreeViewport,
   options: CadWallSolidObjectOptions = {},
@@ -139,7 +142,9 @@ export function buildCadWallSolidObject(
   }
 
   const material = new THREE.MeshLambertMaterial({
-    color: options.selected ? WALL_SELECTED_COLOR : WALL_COLOR,
+    color: options.selected
+      ? WALL_SELECTED_COLOR
+      : cadWallMaterialStyle(wall.material).color,
     side: THREE.FrontSide,
   });
   const mesh = new THREE.Mesh(geometry, material);
