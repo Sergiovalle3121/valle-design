@@ -295,3 +295,28 @@ verificada sobre el SHA final — ninguno es un placeholder. La única fila
 sin exit code (el E2E de CI en Firefox) lo declara explícitamente como "en
 curso, no mandatado", no como un resultado inventado ni omitido en
 silencio.*
+
+## 10. Adenda posterior al cierre (misma sesión, misma suscripción a PR #98)
+
+El job de CI mencionado en la nota de arriba terminó en rojo (`26b4490`,
+E2E Playwright, 5 tests fallidos) minutos después de publicado este
+informe. Investigado en la MISMA sesión, vía la suscripción activa al PR:
+ninguno de los 5 fallos está en `dwg-import-real.spec.ts`. Dos compartían
+la misma deriva de UI (verificación de correo / alta de organización) ya
+encontrada y corregida en el spec nuevo de esta campaña — corregidos con
+el mismo patrón ya probado, verificados contra API real + PostgreSQL, y
+empujados en `ddbc9ae`. Los otros tres (un redirect `/studio`→`/dashboard`
+tras activar el trial, un "No existe un documento histórico compatible"
+en la capa de compatibilidad de `/legacy/studio`, y un timeout de
+simulación de `Page.crash` vía CDP en el runner de CI) son root-caused
+pero deliberadamente NO corregidos: ninguno lo toca esta campaña de DWG, y
+cada uno exige entender una superficie ajena (routing de `/studio`,
+la capa legada, el sandbox del runner) que esta sesión no auditó a
+profundidad. Detalle completo y decisión explícita en el comentario de
+cierre de PR #98 en GitHub, no duplicado aquí.
+
+No se re-abre ninguna sección anterior de este informe por esto: los diez
+gates locales mandatados (§6) y los cuatro indicadores (§7) siguen siendo
+exactamente lo que se midió al cerrar la campaña. Esta adenda documenta
+trabajo de seguimiento sobre la suscripción al PR, que continúa
+independientemente de que el informe de cierre ya esté publicado.
