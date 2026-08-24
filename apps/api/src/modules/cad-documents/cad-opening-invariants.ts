@@ -95,6 +95,7 @@ export function assertOpeningInvariants(
 
 interface HostAxis {
   length: number;
+  height: number;
 }
 
 /**
@@ -121,7 +122,10 @@ export function assertOpeningHosts(entities: unknown[]): void {
       const end = objectValue(entity.end);
       const dx = (numberValue(end?.x) ?? 0) - (numberValue(start?.x) ?? 0);
       const dy = (numberValue(end?.y) ?? 0) - (numberValue(start?.y) ?? 0);
-      walls.set(id, { length: Math.hypot(dx, dy) });
+      walls.set(id, {
+        length: Math.hypot(dx, dy),
+        height: numberValue(entity.height) ?? 0,
+      });
     } else if (entity.type === 'opening') {
       openings.push({ id, entity });
     }
@@ -146,6 +150,14 @@ export function assertOpeningHosts(entities: unknown[]): void {
     if (from < -FIT_EPSILON || to > host.length + FIT_EPSILON) {
       throw new BadRequestException(
         `CadDocument: el hueco ${id} ocupa de ${from} a ${to} sobre un muro de ${host.length}: no cabe en su anfitrión.`,
+      );
+    }
+    const sill = numberValue(entity.sill) ?? 0;
+    const openingHeight = numberValue(entity.height) ?? 0;
+    const top = sill + openingHeight;
+    if (top > host.height + FIT_EPSILON) {
+      throw new BadRequestException(
+        `CadDocument: el hueco ${id} remata a ${top} de antepecho+altura sobre un muro de ${host.height} de altura: no cabe verticalmente en su anfitrión.`,
       );
     }
     const siblings = taken.get(hostId) ?? [];
