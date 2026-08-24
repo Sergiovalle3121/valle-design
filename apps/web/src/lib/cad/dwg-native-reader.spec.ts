@@ -419,7 +419,30 @@ assert.throws(
   "una firma inválida se rechaza como tal, no como una versión conocida",
 );
 
+// ─── 6. M3: AC1018 sólo entra con `allowAc1018: true`, nunca por defecto ──
+assert.throws(
+  () => readDwgNeutralDatabase(ac1018Like, {}),
+  /2004|AC1018/,
+  "un options vacío se comporta exactamente igual que no pasar options: AC1018 sigue fuera",
+);
+assert.throws(
+  () => readDwgNeutralDatabase(ac1018Like, { allowAc1018: true }),
+  /estructura interna/,
+  "con allowAc1018 el gate de versión ya no lo rechaza: falla más adelante, al decodificar " +
+    "128 ceros que no son un AC1018 real — otro error, no el mismo",
+);
+// AC1021 (2007) sigue fuera aunque allowAc1018 esté encendido: ese booleano
+// amplía la lista a AC1015+AC1018, no la vacía de contenido.
+const ac1021Like = new Uint8Array(128);
+ac1021Like.set(ascii("AC1021"), 0);
+assert.throws(
+  () => readDwgNeutralDatabase(ac1021Like, { allowAc1018: true }),
+  /2007|AC1021/,
+  "otra firma reconocida y ajena se sigue rechazando igual, aunque AC1018 esté permitido",
+);
+
 console.log(
   "dwg-native-reader: perfil V3 completo (bytes reales + ELLIPSE/SPLINE/MTEXT/DIMENSION/HATCH " +
-    "puros), fuera-de-perfil declarado, versión ajena nombrada, puente canónico verificado",
+    "puros), fuera-de-perfil declarado, versión ajena nombrada, AC1018 opcional verificado, " +
+    "puente canónico verificado",
 );

@@ -111,15 +111,17 @@ futuro debe implementar está escrito en `docs/interop/CONTRATO-INTEROP.md`.
 `packages/dwg-codec/` es el laboratorio clean-room gobernado por ADR-0007.
 Su códec lee AC1015/AC1018 a la base neutral con diagnósticos y pérdidas
 declaradas, y escribe un AC1015 completo aceptado por oráculo externo.
-Desde ADR-0009 §6-bis (2026-08-24), ampliado el mismo día por §6-ter, tiene
-un ÚNICO consumidor runtime autorizado,
-`apps/web/src/lib/cad/dwg-native-reader.ts`, que expone exactamente el
-perfil de importación `AC1015_MODELSPACE_2D_V3` detrás del flag
-`DWG_NATIVE_IMPORT_BETA` (apagado en producción pública por defecto,
-gate verificado por `scripts/dwg/check-product-boundary.mjs`). El resto del
-laboratorio —AC1018 en producto, 1024/1027/1032, escritura— sigue sin
-consumidor. Toda la vía es códec propio: ADR-0014 retiró la opción de
-proveedor licenciado que ADR-0012 dejaba abierta.
+Desde ADR-0009 §6-bis (2026-08-24), ampliado el mismo día por §6-ter/§6-quater
+y por §7 para AC1018, tiene un ÚNICO consumidor runtime autorizado,
+`apps/web/src/lib/cad/dwg-native-reader.ts`, que expone el perfil de
+importación `AC1015_MODELSPACE_2D_V3` detrás del flag
+`DWG_NATIVE_IMPORT_BETA` (apagado en producción pública por defecto, gate
+verificado por `scripts/dwg/check-product-boundary.mjs`); AC1018 entra al
+MISMO perfil de entidades detrás de una SEGUNDA variable propia
+(`NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA`, también apagada por defecto). El
+resto del laboratorio —1024/1027/1032, escritura— sigue sin consumidor.
+Toda la vía es códec propio: ADR-0014 retiró la opción de proveedor
+licenciado que ADR-0012 dejaba abierta.
 
 CIDE es un puerto opcional para intent y vision: si falta, la respuesta es
 `available: false` y el editor sigue funcionando.

@@ -12,6 +12,16 @@ export function isDwgNativeImportBetaEnabled(): boolean {
   return process.env.NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA === "true";
 }
 
+/**
+ * AC1018 (2004), ADR-0009 §7. Variable DISTINTA a propósito: encender la
+ * beta base no enciende ésta, y viceversa no tendría efecto (sin la beta
+ * base, `dwgAc1018BetaImportIsEnabled` sigue cerrado por la conjunción de
+ * `dwg-interop-flag.ts`).
+ */
+export function isDwgAc1018ImportBetaEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA === "true";
+}
+
 type WorkerEvent =
   | { type: "progress"; progress: number; stage: string }
   | { type: "complete"; report: DocumentImportReport }
@@ -62,6 +72,7 @@ export function importDocumentFile(
   } = {},
 ): Promise<DocumentImportReport> {
   const dwgBetaEnabled = isDwgNativeImportBetaEnabled();
+  const dwgAc1018BetaEnabled = isDwgAc1018ImportBetaEnabled();
   validateImportFile(file.name, file.size, dwgBetaEnabled);
   return new Promise((resolve, reject) => {
     const worker = new Worker(
@@ -107,6 +118,7 @@ export function importDocumentFile(
         file,
         sidecars: options.sidecars ?? {},
         dwgBetaEnabled,
+        dwgAc1018BetaEnabled,
       });
   });
 }

@@ -35,9 +35,11 @@ códec propio clean-room
 adaptador autorizado (`apps/web/src/lib/cad/dwg-native-reader.ts`). El
 códec lee AC1015/AC1018 (2000/2004) a una base neutral con cero
 discrepancias contra su corpus con oráculo externo, y escribe un archivo
-AC1015 completo que ODA File Converter acepta; la beta sólo conecta el
-subconjunto de lectura AC1015 descrito arriba, no la capacidad completa del
-laboratorio. Todo el esfuerzo DWG es del códec propio:
+AC1015 completo que ODA File Converter acepta; la beta conecta ese perfil
+para AC1015, y —detrás de su propia variable de entorno, apagada por
+defecto (ADR-0009 §7)— también para AC1018, pero no la capacidad completa
+del laboratorio (AC1021 en adelante sigue sin consumidor de producto).
+Todo el esfuerzo DWG es del códec propio:
 `docs/adr/0014-dwg-via-propia-unica.md` retiró la vía de proveedor
 licenciado que `docs/adr/0012-dwg-doble-via.md` dejaba abierta.
 
@@ -161,7 +163,8 @@ siendo pruebas útiles, pero no sustituyen el recorrido full-stack.
 
 - No hay disponibilidad DWG pública ni paridad general con AutoCAD: existe
   una beta interna de SOLO IMPORTACIÓN (`DWG_NATIVE_IMPORT_BETA`, perfil
-  `AC1015_MODELSPACE_2D_V3`), apagada en producción pública por defecto y sin
+  `AC1015_MODELSPACE_2D_V3`, con AC1018 opcional detrás de su propia
+  variable, ADR-0009 §7), apagada en producción pública por defecto y sin
   escritura; detectar una firma o mantener un laboratorio desconectado ya no
   describe el estado del códec, pero tampoco autoriza afirmar «DWG propio» de
   forma general — eso exige que ADR-0012 §3 se cumpla completo. Lo que SÍ

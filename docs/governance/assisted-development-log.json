@@ -237,6 +237,33 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-AC1018-BETA-2026-08-24",
+      "date": "2026-08-24",
+      "initiative": "M3: acepta AC1018 (AutoCAD 2004) en la beta de importación, detrás de su propio flag, mismo perfil de entidades V3",
+      "branch": "main",
+      "assistants": [
+        {
+          "name": "Claude Code (Anthropic)",
+          "role": "ejecución autónoma directamente contra main (sin rama nueva), continuando la cascada de fases DWG: verificación directa de que readDwg ya despacha AC1018 al mismo contrato DwgDatabase que AC1015 (cero cambio de mapeo), DWG_AC1018_BETA_AUTHORIZATION como mecanismo de autorización distinto del de la beta base, ampliación de readDwgNeutralDatabase con un parámetro allowAc1018 que nace en false, cableado del nuevo flag por el mismo camino que el flag DWG existente (cliente→worker→lector, vía closure), redacción de ADR-0009 §7, y pruebas del gate de versión; en el camino, encontrado y corregido un defecto real preexistente (desde V1) en readDwgNeutralDatabase: comprobaba probe.ok además de probe.probe===null, lo que hacía que una firma reconocida con decodificador no implementado (AC1021 y la familia 2010+) cayera al mensaje genérico de 'archivo no reconocido' en vez de nombrar la versión detectada"
+        }
+      ],
+      "authority": "Conversación con Sergio Valle Zárate del 2026-08-24, continuación directa de la autorización que registra DWG-NATIVE-IMPORT-BETA-2026-08-24: la hoja de ruta original nombra M3=AC1018 como hito hermano de M2, condicionado a que M2 (a y b) cerraran con su propio end-to-end en verde — ya lo hicieron —, y la instrucción explícita del titular fue mergear y seguir con la siguiente fase en cascada directamente contra main, sin abrir rama ni detenerse a confirmar cada paso",
+      "firstPartyInputs": [
+        "Repositorio valle-design en main (49aa348, tras la campaña de cierre de ramas Ola 5 y la ampliación a V3)",
+        "packages/dwg-codec/src/api/read.ts (punto de entrada real del códec: confirma que AC1018 despacha al mismo tipo DwgDatabase que AC1015)",
+        "packages/dwg-codec/src/api/probe.ts y container/version-registry.ts (forma exacta de DwgProbeResult y decoderStatus por versión, que reveló el defecto preexistente)"
+      ],
+      "externalSources": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: el titular revisa el commit empujado directamente a main y sus checks (check:dwg completo, 391/391 specs de apps/web, typecheck y lint en verde); la adopción se registra al revisar."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

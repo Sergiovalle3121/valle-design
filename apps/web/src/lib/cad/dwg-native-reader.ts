@@ -3,12 +3,12 @@
  *
  * Autorizado por la firma del dueño de 2026-08-24 (`docs/adr/0009-dwg-promotion-package.md`
  * §6-bis, ampliada §6-ter y §6-quater), acotada al perfil
- * `AC1015_MODELSPACE_2D_V3`: importación únicamente, AC1015 (AutoCAD 2000),
- * model space 2D. `scripts/dwg/check-product-boundary.mjs` verifica que
- * ningún otro archivo de `apps/web` ni `apps/api` referencie
- * `@valle-design/dwg-codec` — este archivo es la excepción nombrada, y sólo
- * el worker de importación (`document-import.worker.ts`) lo consume. Ningún
- * componente de React lo importa, directa ni transitivamente.
+ * `AC1015_MODELSPACE_2D_V3`: importación únicamente, model space 2D.
+ * `scripts/dwg/check-product-boundary.mjs` verifica que ningún otro archivo
+ * de `apps/web` ni `apps/api` referencie `@valle-design/dwg-codec` — este
+ * archivo es la excepción nombrada, y sólo el worker de importación
+ * (`document-import.worker.ts`) lo consume. Ningún componente de React lo
+ * importa, directa ni transitivamente.
  *
  * QUÉ HACE Y QUÉ NO. Llama al lector real (`readDwg`) y estrecha su base de
  * datos de 33 tipos de entidad decodificados al perfil que la beta V3
@@ -26,11 +26,16 @@
  * diagnóstico genérico que cualquier entidad sin primitiva, porque el
  * modelo de bloques del producto tampoco las admite hoy para DXF.
  *
- * Sólo AC1015 pasa. Otra firma reconocida (AC1018 incluido, que el
- * laboratorio también lee) se rechaza con un error tipado que nombra la
- * versión detectada: anunciarla aquí adelantaría una promoción que ADR-0009
- * no ha hecho para ese perfil. AC1018 tiene su propio hito (M3) y su propio
- * flag cuando llegue.
+ * VERSIÓN: AC1015 siempre pasa. AC1018 (2004) pasa TAMBIÉN cuando quien
+ * llama pide `allowAc1018: true` — su propio hito (M3), su propio flag
+ * (`dwgAc1018BetaImportIsEnabled`, ADR-0009 §7), NUNCA una ampliación
+ * silenciosa del gate de V3. El perfil de entidades es el mismo para las
+ * dos firmas: `readDwg` ya devuelve la misma forma de base neutral para
+ * AC1015 y AC1018 (confirmado en `packages/dwg-codec/src/api/read.ts`), así
+ * que nada de este archivo por debajo de la versión distingue una de otra.
+ * Cualquier OTRA firma reconocida (AC1021, la familia 2010+) se rechaza con
+ * un error tipado que nombra la versión detectada: anunciarla aquí
+ * adelantaría una promoción que ADR-0009 no ha hecho para ese perfil.
  */
 import {
   probeDwg,
@@ -202,18 +207,39 @@ export function toBetaProfileDatabase(database: DwgDatabaseSlice): DwgNeutralDat
 }
 
 /**
- * Lee bytes DWG hostiles y devuelve la base neutral del perfil V3, o falla
- * tipado y en español. Ésta es la función que se registra como
+ * `allowAc1018` nace y por defecto queda `false`: quien no lo pasa —el resto
+ * de este archivo, cualquier spec anterior a M3— sigue viendo exactamente el
+ * comportamiento de siempre, sólo AC1015. Sólo el worker lo enciende, y sólo
+ * cuando `dwgAc1018BetaImportIsEnabled` (`dwg-interop-flag.ts`) ya dijo que
+ * sí — este módulo no lee flags ni entorno, recibe el booleano ya resuelto.
+ */
+export interface DwgNeutralDatabaseReaderOptions {
+  readonly allowAc1018?: boolean;
+}
+
+/**
+ * Lee bytes DWG hostiles y devuelve la base neutral del perfil vigente, o
+ * falla tipado y en español. Ésta es la función que se registra como
  * `DwgNeutralDatabaseReader` (`dwg-neutral-model.ts`) en el worker.
  *
- * Sólo AC1015. Se prueba la firma ANTES de decodificar para poder nombrar la
- * versión detectada en el mensaje de error — «archivo corrupto» y «versión
- * no soportada en esta beta» son cosas distintas y el usuario tiene que poder
+ * AC1015 siempre; AC1018 sólo con `allowAc1018: true` (ADR-0009 §7). Se
+ * prueba la firma ANTES de decodificar para poder nombrar la versión
+ * detectada en el mensaje de error — «archivo corrupto» y «versión no
+ * soportada en esta beta» son cosas distintas y el usuario tiene que poder
  * distinguirlas.
  */
-export function readDwgNeutralDatabase(bytes: Uint8Array): DwgNeutralDatabase {
+export function readDwgNeutralDatabase(
+  bytes: Uint8Array,
+  options: DwgNeutralDatabaseReaderOptions = {},
+): DwgNeutralDatabase {
   const probe = probeDwg(bytes);
-  if (!probe.ok || probe.probe === null) {
+  // OJO: `probe.ok` es `false` para una firma RECONOCIDA cuyo decodificador
+  // el laboratorio aún no implementa (AC1021, la familia 1024/1027/1032) —
+  // `probe.probe` sigue viniendo poblado en ese caso, con la versión y todo.
+  // Comprobar sólo `probe.probe === null` es lo que de verdad distingue
+  // «no es un DWG» de «es un DWG de una versión que esta beta no lee», que
+  // es justo la distinción que este comentario ya prometía más abajo.
+  if (probe.probe === null) {
     throw new Error(
       "El archivo no se reconoce como DWG (firma inválida o archivo truncado). " +
         "Verifica que sea un .dwg y vuelve a intentarlo.",
@@ -225,11 +251,16 @@ export function readDwgNeutralDatabase(bytes: Uint8Array): DwgNeutralDatabase {
         "a ninguna versión de AutoCAD reconocida.",
     );
   }
-  if (probe.probe.version.code !== "AC1015") {
+  const acceptedVersions =
+    options.allowAc1018 === true ? new Set(["AC1015", "AC1018"]) : new Set(["AC1015"]);
+  if (!acceptedVersions.has(probe.probe.version.code)) {
     throw new Error(
       `Se detectó un DWG de AutoCAD ${probe.probe.version.label} (${probe.probe.version.code}). ` +
-        "Esta beta sólo lee AutoCAD 2000 (AC1015). Guarda el archivo como 2000 desde tu " +
-        "CAD, o expórtalo a DXF e impórtalo: DXF entra completo, con su informe de pérdidas.",
+        (options.allowAc1018 === true
+          ? "Esta beta sólo lee AutoCAD 2000 (AC1015) y 2004 (AC1018)."
+          : "Esta beta sólo lee AutoCAD 2000 (AC1015).") +
+        " Guarda el archivo con esa versión desde tu CAD, o expórtalo a DXF e impórtalo: " +
+        "DXF entra completo, con su informe de pérdidas.",
     );
   }
   let database: DwgDatabase;
@@ -237,9 +268,9 @@ export function readDwgNeutralDatabase(bytes: Uint8Array): DwgNeutralDatabase {
     database = readDwg(bytes);
   } catch (error) {
     throw new Error(
-      "El archivo se reconoce como AC1015 pero su estructura interna no se pudo leer " +
-        `(${error instanceof Error ? error.message : "error desconocido"}). El archivo ` +
-        "puede estar dañado o usar una característica que este perfil de beta no cubre.",
+      `El archivo se reconoce como ${probe.probe.version.code} pero su estructura interna ` +
+        `no se pudo leer (${error instanceof Error ? error.message : "error desconocido"}). ` +
+        "El archivo puede estar dañado o usar una característica que este perfil de beta no cubre.",
     );
   }
   return toBetaProfileDatabase(database);

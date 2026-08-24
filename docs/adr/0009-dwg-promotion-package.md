@@ -2,11 +2,12 @@
 
 - Estado: ACEPTADA — firmada por el dueño 2026-08-24 para el alcance
   acotado de §6-bis (beta de importación `AC1015_MODELSPACE_2D_V1`),
-  ampliada el mismo día por §6-ter a `AC1015_MODELSPACE_2D_V2` y por
-  §6-quater a `AC1015_MODELSPACE_2D_V3`; no es la promoción general de §5,
-  que sigue con gates pendientes
+  ampliada el mismo día por §6-ter a `AC1015_MODELSPACE_2D_V2`, por
+  §6-quater a `AC1015_MODELSPACE_2D_V3`, y por §7 a aceptar TAMBIÉN AC1018
+  (`AC1018_MODELSPACE_2D_V1`, mismo perfil de entidades V3); no es la
+  promoción general de §5, que sigue con gates pendientes
 - Fecha: 2026-08-21 (paquete); firma real 2026-08-24 (§6-bis); ampliaciones
-  2026-08-24 (§6-ter, §6-quater)
+  2026-08-24 (§6-ter, §6-quater, §7)
 - Decide sobre: llevar la importación DWG del laboratorio clean-room al
   producto, detrás de un feature flag apagado
 - No preautorizado por: ADR-0004 (DWG fuera del producto), ADR-0007 (el
@@ -263,3 +264,60 @@ Lo que esta ampliación NO autoriza: como en §6-ter, ningún hito posterior de
 la hoja de ruta (M3, M4, M5) se da por autorizado por adelantado — cada uno
 sigue necesitando su propia evidencia end-to-end en verde antes de empezar
 el siguiente.
+
+## 7. M3 — AC1018 (AutoCAD 2004) — 2026-08-24
+
+M2b (§6-quater) cerró con su propia evidencia end-to-end en verde. M3 es el
+siguiente hito de la misma hoja de ruta de §6-bis, y es distinto en NATURALEZA
+de M2a/M2b: no amplía qué ENTIDADES lee la beta dentro de AC1015, amplía qué
+VERSIÓN de contenedor acepta. Por eso no es «§6-quinquies» sino una sección
+propia: la hoja de ruta original ya lo nombraba como hito hermano de M2, no
+hijo («M2=más entidades AC1015; M3=AC1018»).
+
+**Lo que ya existía, verificado antes de tocar el producto.** El laboratorio
+lee AC1018 desde antes de esta sesión (§1.2), y `readDwg` (el punto de
+entrada real del códec, `packages/dwg-codec/src/api/read.ts`) ya despachaba
+AC1018 al lector R2004 devolviendo el MISMO tipo `DwgDatabase` que AC1015 —
+confirmado leyendo el archivo, no supuesto. Eso significa que el perfil de
+entidades de §6-quater (qué se proyecta al documento canónico) no necesita
+ningún cambio para AC1018: `toBetaProfileGeometry` y el puente
+(`dwg-document-bridge.ts`) no miran de qué versión vino la entidad, sólo su
+forma, y la forma es la misma. M3 es, en el producto, casi enteramente un
+cambio de GATE: qué firma se acepta antes de decodificar.
+
+1. **Autoriza** que `readDwgNeutralDatabase` (`dwg-native-reader.ts`) acepte
+   TAMBIÉN la firma AC1018, exclusivamente cuando quien llama pasa
+   `allowAc1018: true` — nunca por defecto, nunca como ampliación silenciosa
+   del gate de §6-quater. La autorización vive en un mecanismo DISTINTO,
+   `DWG_AC1018_BETA_AUTHORIZATION` (`dwg-interop-flag.ts`), con su propia
+   variable de build (`NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA`) y su propia
+   función de conjunción (`dwgAc1018BetaImportIsEnabled`), que exige la beta
+   base encendida Y esta variable encendida Y la firma del titular — tres
+   condiciones, no una ampliación de las dos que ya tenía §6-bis.
+2. **Deja fuera, explícitamente**: AC1021 (2007, contenedor Reed-Solomon
+   distinto, ya rechazado con su propio mensaje) y la familia 1024/1027/1032
+   (2010/2013/2018): el contenedor de esos abre, pero sus cuerpos de objeto
+   no decodifican todavía (§1.2) — `readDwg` ya falla tipado para ellos, y
+   `readDwgNeutralDatabase` no cambia eso. Sólo AC1015 y AC1018 pasan el gate
+   de esta beta.
+3. **Nota de cautela que consta por escrito**: la vía R2004/AC1018 del
+   laboratorio es la parte MÁS NUEVA de todo lo que esta beta expone —
+   aterrizó el mismo día que esta ampliación, por un frente de trabajo
+   paralelo, no por la sesión que construyó y firmó §6-bis/ter/quater. Su
+   evidencia (§1.2, corpus de 8 AC1018 reales) es la misma que documenta
+   ADR-0009 desde antes; lo que es nuevo es la integración al producto,
+   exactamente como lo fue AC1015 en su momento. Se acepta como el mismo
+   tipo de riesgo que ya aceptó §6-bis para AC1015: código propio,
+   corpus propio, sin dependencia externa, cero razón para tratarlo distinto
+   una vez que su propio flag está apagado por defecto.
+4. **No toca** ninguno de los límites de §6-bis.3/§6-ter.3/§6-quater.3: sigue
+   sólo importación, sigue model space 2D, sigue apagada en producción
+   pública por defecto (las DOS variables, base y AC1018, nacen `false`),
+   sigue sin `legalReviewCleared`, y no mueve un bit la promoción general de
+   §5. El perfil de ENTIDADES sigue siendo exactamente V3 — AC1018 amplía la
+   lista de firmas que llegan a ese perfil, no el perfil mismo.
+
+Lo que esta ampliación NO autoriza: M4 (versiones modernas 2010+, que
+necesitaría primero que el laboratorio decodifique sus cuerpos de objeto,
+hoy bloqueado) y M5 (exportación) siguen sin autorizar por adelantado —
+cada uno, otra vez, con su propia evidencia end-to-end en verde primero.

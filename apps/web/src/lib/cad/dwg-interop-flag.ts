@@ -190,3 +190,67 @@ export const DWG_BETA_AUTHORIZATION: DwgBetaAuthorization = Object.freeze({
 export function dwgBetaImportIsEnabled(betaFlagOn: boolean): boolean {
   return betaFlagOn === true && DWG_BETA_AUTHORIZATION.ownerSigned;
 }
+
+// ---------------------------------------------------------------------------
+// AC1018 (AutoCAD 2004) — SU PROPIO flag, distinto del de arriba —
+// firmada 2026-08-24 (ADR-0009 §7)
+// ---------------------------------------------------------------------------
+
+/**
+ * Autorización del titular para aceptar TAMBIÉN firmas AC1018 dentro de la
+ * beta de sólo importación — un mecanismo DISTINTO de `DWG_BETA_AUTHORIZATION`
+ * a propósito, no un campo más ahí.
+ *
+ * POR QUÉ SEPARADO. El adaptador autorizado del códec ya documentaba, desde
+ * la firma de V1, que "AC1018 tiene su propio hito (M3) y su propio flag
+ * cuando llegue":
+ * ampliar en silencio el flag de la beta AC1015 para que también cuele
+ * AC1018 habría sido exactamente la comodidad que esa frase existía para
+ * impedir. El lector del laboratorio (`readDwg`) ya despacha AC1018 al
+ * mismo contrato `DwgDatabase` que AC1015 —confirmado leyendo el punto de
+ * entrada real del códec, cero cambio de mapeo hace falta— pero es una vía
+ * de código MÁS NUEVA (container R2004, aterrizada por otro
+ * frente de trabajo el mismo día que ésta) y con un límite ya conocido: sólo
+ * AC1018 decodifica objetos hoy, la familia AC1024/1027/1032 abre el
+ * contenedor pero no sus cuerpos (ver ADR-0009 §1.2). Encender esto no
+ * enciende eso: cada firma reconocida se sigue verificando una a una en
+ * `readDwgNeutralDatabase`.
+ *
+ * `legalReviewStatus` en `"pending_parallel"` por la misma razón que en
+ * `DWG_BETA_AUTHORIZATION`: no convierte `legalReviewCleared` en `true` en
+ * `DWG_PROMOTION_GATES`, que sigue exigiendo la revisión real para la
+ * promoción general.
+ */
+export interface DwgAc1018BetaAuthorization {
+  readonly ownerSigned: true;
+  readonly adrRef: "0009";
+  readonly signedDate: "2026-08-24";
+  readonly profile: "AC1018_MODELSPACE_2D_V1";
+  readonly legalReviewStatus: "pending_parallel";
+}
+
+export const DWG_AC1018_BETA_AUTHORIZATION: DwgAc1018BetaAuthorization = Object.freeze({
+  ownerSigned: true,
+  adrRef: "0009",
+  signedDate: "2026-08-24",
+  profile: "AC1018_MODELSPACE_2D_V1",
+  legalReviewStatus: "pending_parallel",
+});
+
+/**
+ * ¿Está autorizada la aceptación de AC1018 en ESTE entorno? Conjunción de
+ * TRES cosas, no dos: la bandera de este flag, la firma del titular para
+ * AC1018 específicamente, Y la beta base (`dwgBetaImportIsEnabled`) sigue
+ * siendo quien decide si DWG entra en absoluto — AC1018 es una AMPLIACIÓN de
+ * qué firmas acepta esa beta, nunca una vía independiente para saltarla.
+ */
+export function dwgAc1018BetaImportIsEnabled(
+  ac1018FlagOn: boolean,
+  baseBetaFlagOn: boolean,
+): boolean {
+  return (
+    ac1018FlagOn === true &&
+    DWG_AC1018_BETA_AUTHORIZATION.ownerSigned &&
+    dwgBetaImportIsEnabled(baseBetaFlagOn)
+  );
+}

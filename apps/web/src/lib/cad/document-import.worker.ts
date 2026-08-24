@@ -6,6 +6,7 @@ import {
   isBinaryImportFormat,
   validateImportFile,
 } from "./document-import";
+import { dwgAc1018BetaImportIsEnabled } from "./dwg-interop-flag";
 import type { DwgNeutralDatabaseReader } from "./dwg-neutral-model";
 
 /**
@@ -24,11 +25,13 @@ type WorkerInput = {
    * worker sólo la reenvía.
    */
   dwgBetaEnabled?: boolean;
+  /** AC1018 (2004), ADR-0009 §7. Su propia variable, su propio flag. */
+  dwgAc1018BetaEnabled?: boolean;
 };
 
 self.onmessage = async (event: MessageEvent<WorkerInput>) => {
   try {
-    const { file, sidecars, dwgBetaEnabled } = event.data;
+    const { file, sidecars, dwgBetaEnabled, dwgAc1018BetaEnabled } = event.data;
     validateImportFile(file.name, file.size, dwgBetaEnabled ?? false);
     self.postMessage({
       type: "progress",
@@ -53,7 +56,17 @@ self.onmessage = async (event: MessageEvent<WorkerInput>) => {
       let dwg: { betaEnabled: boolean; reader: DwgNeutralDatabaseReader } | undefined;
       if (file.name.trim().toLowerCase().endsWith(".dwg")) {
         const { readDwgNeutralDatabase } = await import("./dwg-native-reader");
-        dwg = { betaEnabled: dwgBetaEnabled ?? false, reader: readDwgNeutralDatabase };
+        // La conjunción de los dos flags vive en `dwg-interop-flag.ts`, no
+        // aquí: este worker no decide autorizaciones, sólo las reenvía ya
+        // resueltas a la única opción que el lector entiende.
+        const allowAc1018 = dwgAc1018BetaImportIsEnabled(
+          dwgAc1018BetaEnabled ?? false,
+          dwgBetaEnabled ?? false,
+        );
+        dwg = {
+          betaEnabled: dwgBetaEnabled ?? false,
+          reader: (dwgBytes) => readDwgNeutralDatabase(dwgBytes, { allowAc1018 }),
+        };
       }
       const binaryReport = importDocumentBytes(
         file.name,
