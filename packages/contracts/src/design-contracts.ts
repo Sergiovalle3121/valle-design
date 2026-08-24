@@ -139,7 +139,7 @@ export interface CadDocumentVersionConflictDetails {
 export const CAD_DOCUMENT_LIMITS = {
   /** Versiones de formato del documento soportadas (`meta.schema`). */
   minSchema: 1,
-  maxSchema: 3,
+  maxSchema: 10,
   maxEntities: 100_000,
   maxBlocks: 2_000,
   maxConstraints: 250_000,
