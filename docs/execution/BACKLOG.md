@@ -182,13 +182,15 @@ y RESTA hasta cumplirse. La campaña de pulido atacó el cuello el 22-08
 evidencia con máquina declarada. **Estimación:** heredar de pulido + 1 día de
 medición honesta.
 
-### P2-4 · Los majors de dependencias diferidos (PR #87)
-TS7 (migración de tsconfig ×4), ESLint 10, TypeORM 1.x, @nestjs 11.2 (esperar
-peers de @nestjs/typeorm), next 16.3 (política de App Control o `--webpack`),
-Playwright 1.62 + framer-motion 13 + three 0.185 + lucide 1.32 (ventana visual
-dedicada con regeneración de goldens en frío), @types/node 26 (cuando el
-runtime sea 26), redocly 2. El PR #87 tiene la tabla con el desbloqueo de cada
-uno. **Regla:** una ventana por grupo, nunca en mitad de campañas de goldens.
+### P2-4 · Los majors de dependencias diferidos
+TS7 (migración de tsconfig ×4), ESLint 10, TypeORM 1.x, next 16.3 (política de
+App Control o `--webpack`), @types/node 26 (cuando el runtime sea 26),
+Playwright 1.62 (ventana dedicada con regeneración de goldens en frío). Tabla
+completa con el desbloqueo verificado de cada uno en
+`docs/deps-majors-bloqueados.md` (migrado 2026-08-24 desde el PR #87, cerrado
+sin fusionar — su `package.json` fijaba versiones bloqueadas, fusionarlo
+habría sido una regresión). **Regla:** una ventana por grupo, nunca en mitad
+de campañas de goldens.
 
 ### P2-5 · Bajar los avisos de lint por familias (presupuesto en `scripts/lint-budget.json`)
 Web: 163 `react-hooks/refs` viven en el monolito — bajan al ritmo de
