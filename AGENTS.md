@@ -84,11 +84,20 @@ a feature; it states what Valle Design is and, explicitly, what it is not.
   not leave partial state.
 - New documents use generated UUIDs and `/studio/[documentId]`. Historical
   model/revision sentinels are lookup-only compatibility values.
-- Product runtime imports only DXF text and canonical JSON within their
-  declared limits. Keep warnings and loss manifests visible. DWG remains
-  unsupported in UI, API and providers. Isolated clean-room research under
-  `packages/dwg-codec/` follows ADR-0007 and its scoped `AGENTS.md`; its
-  presence never implies product availability.
+- Product runtime imports DXF text, canonical JSON and shapefile within
+  their declared limits, plus a narrow DWG **import-only** beta (AC1015
+  always, AC1018 behind its own separate flag; model space 2D; profile
+  `AC1015_MODELSPACE_2D_V3` — LINE/POINT/CIRCLE/ARC/LWPOLYLINE/TEXT/INSERT/
+  ELLIPSE/SPLINE-scenario-1/MTEXT/DIMENSION/HATCH; ADR-0009 §6-bis/ter/
+  quater/§7). Both DWG flags are off by default in public production; the
+  single authorized runtime entry point is
+  `apps/web/src/lib/cad/dwg-native-reader.ts`, enforced by
+  `scripts/dwg/check-product-boundary.mjs`. Keep warnings and loss
+  manifests visible. DWG remains unsupported for export, paper space,
+  xrefs, versions beyond AC1015/AC1018, and any general/GA availability
+  claim. The broader clean-room research under `packages/dwg-codec/`
+  follows ADR-0007 and its scoped `AGENTS.md`; its presence never implies
+  more product availability than the specific beta flags above authorize.
 
 ## Outbox invariants
 

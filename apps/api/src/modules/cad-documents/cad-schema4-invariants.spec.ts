@@ -113,8 +113,19 @@ describe('schema 4 entity invariants', () => {
       validateCadDocumentPayload(withEntities([sound.point])),
     ).not.toThrow();
     // Rechazar el esquema vigente convertiría cada guardado del editor en un
-    // 400. El techo subió a 9 con frozen y layerStates, así que el 9 se acepta
-    // y el que se rechaza es el 10: un esquema del FUTURO no se adivina.
+    // 400. El techo subió a 10 con los siete DIMVARs de `dimension`
+    // (cad-entities-v10.ts en el cliente), así que el 9 y el 10 se aceptan
+    // y el que se rechaza es el 11: un esquema del FUTURO no se adivina.
+    //
+    // Este mismo par de aserciones, con 9/10 en vez de 10/11, estuvo en pie
+    // desde el techo anterior y se quedó verde después de que el cliente
+    // subiera a `CAD_DOCUMENT_SCHEMA = 10` (commit b3fada9): confirmaba que
+    // el esquema 10 se RECHAZABA, cuando el cliente ya lo escribía en cada
+    // guardado nuevo. La prueba pasaba y el guardado real fallaba con 400 —
+    // exactamente el escenario que describe el comentario de
+    // `CAD_DOCUMENT_MAX_SCHEMA`. Encontrado por un E2E real (API + Postgres,
+    // no mockeado) al guardar un documento importado de DWG; el techo
+    // desactualizado no es específico de DWG, afecta cualquier guardado.
     expect(() =>
       validateCadDocumentPayload({
         ...withEntities([sound.point]),
@@ -125,6 +136,12 @@ describe('schema 4 entity invariants', () => {
       validateCadDocumentPayload({
         ...withEntities([sound.point]),
         meta: { schema: 10, version: 1, unit: 'mm' },
+      }),
+    ).not.toThrow();
+    expect(() =>
+      validateCadDocumentPayload({
+        ...withEntities([sound.point]),
+        meta: { schema: 11, version: 1, unit: 'mm' },
       }),
     ).toThrow(BadRequestException);
   });

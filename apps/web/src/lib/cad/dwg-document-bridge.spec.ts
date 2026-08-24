@@ -222,12 +222,52 @@ const vacia: DwgNeutralDatabase = {
   unsupported: [],
   diagnostics: [],
 };
-const informeVacio = dwgNeutralDatabaseToCadDocument(vacia);
-assert.equal(informeVacio.format, "dwg", "el informe declara su formato de origen");
-assert.equal(informeVacio.importedEntityCount, 0, "una base vacía produce un documento vacío");
+// Fallo cerrado (Fase 3, hallazgo del subagente de fidelidad): antes de este
+// arreglo una base vacía producía un documento "exitoso" con cero entidades
+// — exactamente el éxito silencioso que DXF y shapefile ya rechazan en este
+// mismo producto. Ahora DWG hace lo mismo, sin excepción.
+assert.throws(
+  () => dwgNeutralDatabaseToCadDocument(vacia),
+  /ninguna de sus entidades produjo algo importable/,
+  "una base sin entidades ni bloques falla cerrado, no produce un documento vacío 'exitoso'",
+);
+// Una base con SÓLO un bloque (sin nada en model space) sigue contando como
+// contenido útil — mismo criterio que ya usa el importador DXF.
+const soloBloque: DwgNeutralDatabase = {
+  layers: [],
+  blocks: [
+    {
+      handle: 0x50,
+      name: bytesDe("MARCO"),
+      blockBeginHandle: 0x51,
+      blockEndHandle: 0x52,
+      entities: [
+        registro(
+          0x53,
+          { kind: "line", start: p3(0, 0), end: p3(10, 0), thickness: 0, extrusion: p3(0, 0, 1) },
+        ),
+      ],
+    },
+  ],
+  modelSpaceEntities: [],
+  unsupported: [],
+  diagnostics: [],
+};
+const informeSoloBloque = dwgNeutralDatabaseToCadDocument(soloBloque);
+assert.equal(
+  informeSoloBloque.importedBlockCount,
+  1,
+  "una base sin nada en model space pero con un bloque definido no falla: el bloque es contenido real",
+);
 assert.ok(
-  informeVacio.document.layers.some((layer) => layer.id === "0"),
+  informeSoloBloque.document.layers.some((layer) => layer.id === "0"),
   "la capa 0 existe siempre, como en cualquier dibujo",
+);
+assert.ok(
+  informeSoloBloque.document.lossManifest.some(
+    (entry) => entry.code === DWG_BRIDGE_LOSS_CODES.unitAssumed,
+  ),
+  "las unidades asumidas se declaran SIEMPRE, prominente y persistente, no sólo cuando algo falta",
 );
 
 const base: DwgNeutralDatabase = {
@@ -398,6 +438,126 @@ assert.ok(
     (entry) => entry.code === DWG_BRIDGE_LOSS_CODES.danglingBlock && entry.severity === "error",
   ),
   "un INSERT sin bloque es error, no aviso: falta geometría en el plano",
+);
+
+// ─── Fase 3: color ACI real, no una paleta rotatoria inventada ─────────────
+const muros = informe.document.layers.find((layer) => layer.id === "MUROS");
+const cotas = informe.document.layers.find((layer) => layer.id === "COTASÑ");
+assert.equal(muros?.color, "#ff0000", "ACI 1 es rojo exacto — la tabla real, no una posición de array");
+assert.equal(cotas?.color, "#ffff00", "ACI 2 es amarillo exacto");
+assert.equal(
+  informe.document.layers.find((layer) => layer.id === "0")?.color,
+  "#ffffff",
+  "la capa 0 sintética usa ACI 7 (blanco), el default tradicional de AutoCAD",
+);
+
+// ─── Fase 3: unidades asumidas, siempre declaradas ─────────────────────────
+assert.ok(
+  codigos.has(DWG_BRIDGE_LOSS_CODES.unitAssumed),
+  "las unidades asumidas (INSUNITS no leído) se declaran en todo import, no sólo cuando falla algo",
+);
+
+// ─── Fase 3: punto base de bloque, declarado como suposición ──────────────
+assert.ok(
+  codigos.has(DWG_BRIDGE_LOSS_CODES.blockBasePointAssumed),
+  "el punto base {0,0} del bloque PUERTA se declara como suposición, no se esconde",
+);
+
+// ─── Fase 3: stateFlags de capa crudo, sin adivinar su semántica ──────────
+const conBanderas: DwgNeutralDatabase = {
+  ...base,
+  layers: [
+    { handle: 0x10, name: bytesDe("MUROS"), colorIndex: 1, stateFlags: 1 },
+    { handle: 0x11, name: bytesDe("COTASÑ"), colorIndex: 2, stateFlags: 0 },
+  ],
+};
+const informeBanderas = dwgNeutralDatabaseToCadDocument(conBanderas);
+assert.ok(
+  informeBanderas.document.lossManifest.some(
+    (entry) => entry.code === DWG_BRIDGE_LOSS_CODES.layerStateFlags && entry.detail.includes("MUROS"),
+  ),
+  "stateFlags!=0 en MUROS se declara como pérdida específica de esa capa",
+);
+assert.equal(
+  informeBanderas.document.lossManifest.filter(
+    (entry) => entry.code === DWG_BRIDGE_LOSS_CODES.layerStateFlags,
+  ).length,
+  1,
+  "COTASÑ tiene stateFlags=0: no genera pérdida — sólo se declara lo que de verdad está presente",
+);
+assert.equal(
+  informeBanderas.document.layers.find((layer) => layer.id === "MUROS")?.visible,
+  true,
+  "sin semántica de bit confirmada, la capa se importa visible en vez de adivinar 'apagada'",
+);
+
+// ─── Fase 3: propiedades de TEXT/LWPOLYLINE que no caben en la primitiva ──
+const conPropiedadesNoDefault: DwgNeutralDatabase = {
+  layers: [],
+  blocks: [],
+  modelSpaceEntities: [
+    registro(0x60, {
+      kind: "text",
+      insertion: p3(0, 0),
+      elevation: undefined,
+      alignment: undefined,
+      thickness: 0,
+      extrusion: p3(0, 0, 1),
+      obliqueAngle: 0.2,
+      rotation: Math.PI / 4,
+      height: 2.5,
+      widthFactor: 0.8,
+      valueBytes: bytesDe("ROTADO"),
+      generation: undefined,
+      horizontalAlignment: 1,
+      verticalAlignment: 0,
+    }),
+    registro(0x61, {
+      kind: "lwpolyline",
+      closed: false,
+      vertices: [p3(0, 0), p3(5, 0)],
+      bulges: undefined,
+      widths: undefined,
+      constantWidth: 1.5,
+      elevation: 3,
+      thickness: undefined,
+      extrusion: undefined,
+    }),
+  ],
+  unsupported: [],
+  diagnostics: [],
+};
+const informeNoDefault = dwgNeutralDatabaseToCadDocument(conPropiedadesNoDefault);
+const perdidasPrimitiva = informeNoDefault.document.lossManifest.filter(
+  (entry) => entry.code === DWG_BRIDGE_LOSS_CODES.primitiveProperty,
+);
+assert.equal(perdidasPrimitiva.length, 2, "TEXT y LWPOLYLINE con propiedades no-default declaran cada uno su pérdida");
+assert.ok(
+  perdidasPrimitiva.some(
+    (entry) =>
+      entry.sourceType === "text" &&
+      /rotación/.test(entry.detail) &&
+      /factor de ancho/.test(entry.detail) &&
+      /ángulo oblicuo/.test(entry.detail) &&
+      /alineación/.test(entry.detail),
+  ),
+  "el TEXT rotado declara CADA propiedad que se descartó, no un aviso genérico",
+);
+assert.ok(
+  perdidasPrimitiva.some(
+    (entry) =>
+      entry.sourceType === "lwpolyline" &&
+      /elevación/.test(entry.detail) &&
+      /ancho constante/.test(entry.detail),
+  ),
+  "la LWPOLYLINE con elevación/ancho constante declara ambas propiedades",
+);
+// El TEXT "SALÓN" de la base original es todo-default: no debe generar ruido.
+assert.ok(
+  !informe.document.lossManifest.some(
+    (entry) => entry.code === DWG_BRIDGE_LOSS_CODES.primitiveProperty,
+  ),
+  "un TEXT/LWPOLYLINE con sólo valores por defecto no genera una pérdida falsa",
 );
 
 // Ángulos: el modelo neutral habla radianes y el canónico grados.

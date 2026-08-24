@@ -264,6 +264,34 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-PRODUCTO-MAIN-CAMPANA-2026-08-24",
+      "date": "2026-08-24",
+      "initiative": "Campaña DWG producto: build/Docker/release, límites, fidelidad, E2E, corpus y documentación del perfil AC1015/AC1018 ya autorizado (ADR-0009 §6-bis/ter/quater/§7)",
+      "branch": "claude/valle-design-dwg-main-lnqf7t",
+      "assistants": [
+        {
+          "name": "Claude Code (Claude Sonnet 5, Anthropic)",
+          "role": "ejecución autónoma supervisada por directiva escrita del titular del 2026-08-24 (\"PROMPT MAESTRO ... Campaña autónoma de nueve horas\"): auditoría read-only con 3 subagentes en paralelo (build/Docker/Railway, fidelidad/manifiesto de pérdidas, corpus/E2E/evidencia), corrección quirúrgica del build de Docker/release para el códec DWG ya wireado por sesiones previas (P1: apps/web/Dockerfile no copiaba ni construía packages/dwg-codec, y ninguno de los dos flags de build llegaba a Next.js), y continuación por las fases de límites, fidelidad, E2E y documentación en el mismo orden de prioridad del prompt"
+        }
+      ],
+      "authority": "Directiva escrita de Sergio Valle Zárate del 2026-08-24 en esta conversación, bajo reglas explícitas de no-detención, decisión conservadora fail-closed, prohibición de licencias DWG externas y máximo 3 subagentes read-only. La sesión desvía dos puntos del prompt por restricción de su propio entorno (rama dedicada + PR en vez de push directo a main; reloj de prioridad en vez de reloj literal de pared) y lo deja registrado en docs/execution/CAMPANA_DWG_PRODUCTO_MAIN_9H.md §0 antes de actuar, no en silencio.",
+      "firstPartyInputs": [
+        "Repositorio valle-design en main (946c5dbe2ac1b4e3d783090cb45cd3de0ec50dcb) y valle-design-dwg-conformance en main (3c456d7efb1017517ddf6996255a957262dacc90), ambos verificados al arrancar",
+        "packages/dwg-codec/CAPABILITIES.md, SOURCE_REGISTER.json, AGENTS.md, CLEAN_ROOM_POLICY.md, THREAT_MODEL.md",
+        "docs/adr/0009-dwg-promotion-package.md (§6-bis/ter/quater/§7) y docs/adr/0014-dwg-via-propia-unica.md",
+        "Hallazgos verificados de los tres subagentes read-only lanzados por esta sesión (auditorías de límites/deploy, fidelidad, y E2E/corpus)"
+      ],
+      "externalSources": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: el titular revisa el PR abierto sobre claude/valle-design-dwg-main-lnqf7t y sus checks (check:deploy, check:dwg y demás gates registrados en docs/execution/CAMPANA_DWG_PRODUCTO_MAIN_9H.md); la adopción se registra al revisar/fusionar."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

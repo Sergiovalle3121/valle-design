@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import {
   importDocumentText,
+  MAX_DWG_IMPORT_BYTES,
   MAX_DXF_IMPORT_BYTES,
   validateImportFile,
 } from "./document-import";
@@ -70,6 +71,25 @@ assert.throws(() => validateImportFile("drawing.dwg", 100), /no soportado/i);
 assert.throws(
   () => validateImportFile("drawing.dxf", MAX_DXF_IMPORT_BYTES + 1),
   /límite/i,
+);
+
+// ─── Fase 2: fronteras exactas del tope de bytes DWG (16 MiB) ─────────────
+// `dwgBetaEnabled: true` en las tres llamadas para aislar el chequeo de
+// TAMAÑO del chequeo de formato (que ya tiene su propia prueba, línea 69).
+assert.doesNotThrow(
+  () => validateImportFile("plano.dwg", MAX_DWG_IMPORT_BYTES, true),
+  "exactamente en el tope, el archivo entra",
+);
+assert.doesNotThrow(
+  () => validateImportFile("plano.dwg", MAX_DWG_IMPORT_BYTES - 1, true),
+  "un byte por debajo del tope, el archivo entra",
+);
+assert.throws(
+  () => validateImportFile("plano.dwg", MAX_DWG_IMPORT_BYTES + 1, true),
+  /límite/i,
+  "un byte por encima del tope, la UI ya lo rechaza — antes de este arreglo el códec " +
+    "aceptaba hasta 24.000.000 y el códec sólo hasta 16.777.216: esta prueba fija el número " +
+    "real, no uno sintético",
 );
 
 console.log("document-import: extensión, tamaño y límites de importación");
