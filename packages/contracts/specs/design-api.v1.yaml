@@ -96,6 +96,11 @@ tags:
     description: >-
       Estado de suscripcion, entitlements efectivos y catalogo de planes con
       sus precios publicados; sin datos de pago ni secretos.
+  - name: legal
+    description: >-
+      Registro versionado de documentos legales (terminos, aviso de
+      privacidad) y registro de aceptacion server-owned, append-only por
+      tenant+usuario+documento+version.
   - name: projects
     description: Proyectos CAD (`cad_projects`) — contenedor organizativo de documentos.
   - name: documents
@@ -901,6 +906,62 @@ paths:
           content:
             application/json:
               schema: { $ref: "#/components/schemas/ApiError" }
+  /v1/legal/documents:
+    get:
+      operationId: listLegalDocuments
+      tags: [legal]
+      summary: Publica el registro versionado de terminos y aviso de privacidad.
+      description: >-
+        Publica porque el web necesita saber que version mostrar antes de que
+        exista sesion (por ejemplo, en el registro). La version vive en el
+        API y no en el web: es quien registra la aceptacion, y un registro
+        contra una version que solo conoce el cliente no acredita nada.
+      security: []
+      responses:
+        "200":
+          description: Documentos vigentes (`terms` y `privacy`).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LegalDocumentList" }
+  /v1/legal/acceptances:
+    get:
+      operationId: listLegalAcceptances
+      tags: [legal]
+      summary: Lista las aceptaciones registradas del usuario en la organizacion activa.
+      responses:
+        "200":
+          description: >-
+            Aceptaciones de la organizacion activa, de la mas reciente a la
+            mas antigua.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LegalAcceptanceList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    post:
+      operationId: acceptLegalDocument
+      tags: [legal]
+      summary: Registra la aceptacion de una version EXACTA de un documento legal.
+      description: >-
+        El actor, el tenant y el instante salen de la sesion verificada,
+        nunca del cuerpo de la peticion. Aceptar dos veces la MISMA version es
+        idempotente (indice unico tenant+usuario+documento+version). Una
+        version desconocida es 400: senal de que el cliente esta
+        desactualizado, no de que el usuario haya aceptado algo.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/LegalAcceptanceCreate" }
+      responses:
+        "201":
+          description: Aceptacion registrada (o ya existia con la misma version).
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LegalAcceptanceConfirmed" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
   /v1/cad/projects:
     get:
       operationId: listCadProjects
@@ -3505,6 +3566,82 @@ components:
       type: string
       format: date-time
       description: Fecha-hora ISO 8601 en UTC.
+    LegalDocumentId:
+      type: string
+      enum: [terms, privacy]
+    LegalDocumentVersion:
+      type: object
+      additionalProperties: false
+      required: [documento, version, publicadoEn, url, requiereAceptacion]
+      properties:
+        documento: { $ref: "#/components/schemas/LegalDocumentId" }
+        version:
+          type: string
+          maxLength: 40
+          description: Fecha AAAA-MM-DD de entrada en vigor del texto.
+        publicadoEn:
+          type: string
+          format: date
+          description: Fecha de publicacion (solo fecha).
+        url:
+          type: string
+          maxLength: 200
+          description: Ruta publica donde vive el texto.
+        requiereAceptacion:
+          type: boolean
+          description: >-
+            `true` cuando esta version exige aceptacion explicita. El aviso
+            de privacidad es informativo: acredita entrega, no
+            consentimiento, y tratarlo como aceptable induciria a usarlo como
+            base juridica.
+    LegalDocumentList:
+      type: object
+      additionalProperties: false
+      required: [documents]
+      properties:
+        documents:
+          type: array
+          items: { $ref: "#/components/schemas/LegalDocumentVersion" }
+    LegalAcceptanceRecord:
+      type: object
+      additionalProperties: false
+      required: [document, version, acceptedAt]
+      properties:
+        document: { $ref: "#/components/schemas/LegalDocumentId" }
+        version: { type: string, maxLength: 40 }
+        acceptedAt: { $ref: "#/components/schemas/Timestamp" }
+    LegalAcceptanceList:
+      type: object
+      additionalProperties: false
+      required: [acceptances]
+      properties:
+        acceptances:
+          type: array
+          items: { $ref: "#/components/schemas/LegalAcceptanceRecord" }
+    LegalAcceptanceCreate:
+      type: object
+      additionalProperties: false
+      required: [document, version]
+      properties:
+        document: { $ref: "#/components/schemas/LegalDocumentId" }
+        version:
+          type: string
+          maxLength: 40
+          description: >-
+            Version EXACTA que el cliente dice haber mostrado. No se acepta
+            "la vigente": una version desconocida responde 400.
+    LegalAcceptanceConfirmed:
+      type: object
+      additionalProperties: false
+      required: [document, version, registered]
+      properties:
+        document: { $ref: "#/components/schemas/LegalDocumentId" }
+        version: { type: string, maxLength: 40 }
+        registered:
+          type: boolean
+          description: >-
+            Siempre `true`; aceptar dos veces la misma version es idempotente
+            (el indice unico lo traduce a exito, nunca a 409).
     Sha256:
       type: string
       pattern: "^[A-Fa-f0-9]{64}$"
