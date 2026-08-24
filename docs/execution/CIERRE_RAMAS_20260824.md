@@ -310,5 +310,18 @@ seguras de borrar sin rescatar nada — el espíritu de la estimación se confir
   ABSORBIDA/DESCARTAR (ver tabla arriba) quedan con veredicto firme y
   publicado, listas para borrarse en cuanto la regla lo permita — no es
   trabajo perdido, es un paso mecánico pendiente.
+- **Post Ola Final** — con `main` ya en `52527e57`, apareció un PR nuevo
+  (#96), abierto por Dependabot: el mismo bloque de seis mayores ya probado
+  roto en `docs/deps-majors-bloqueados.md` (typescript 7, eslint 10, typeorm
+  1.1, next 16.3, @types/node 26, @playwright/test 1.62), reempaquetado por
+  el grupo semanal `npm-semanal` (`patterns: "*"`, sin exclusiones). Se
+  verificó el diff real del PR contra la tabla ya publicada — coincide
+  paquete por paquete — y se cerró sin fusionar (fusionarlo habría sido
+  relajar seis bloqueos verificados a la vez, justo lo que la regla de oro
+  prohíbe). Para que no vuelva a repetirse cada lunes, se agregó un bloque
+  `ignore` a `.github/dependabot.yml` con los seis paquetes de la tabla —
+  ahora el grupo semanal sólo agrupará lo que sí sea seguro. Cambio pequeño
+  y autocontenido, empujado directo a `main` (sin rama) por instrucción
+  explícita del titular de trabajar directo de `main`.
 
 *(continúa al cerrar cada rama)*

@@ -27,3 +27,25 @@ updates:
           - "*"
     commit-message:
       prefix: "deps"
+    # Bloqueos mayores verificados empíricamente — ver docs/deps-majors-bloqueados.md.
+    # No quitar una fila de aquí sin tachar la fila correspondiente en ese documento
+    # con la evidencia de que el bloqueo se resolvió. Sin esto, el grupo semanal
+    # (patterns: "*") vuelve a proponer el mismo paquete roto cada lunes.
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@eslint/js"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "globals"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typeorm"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "next"
+        versions: [">= 16.3.0"]
+      - dependency-name: "eslint-config-next"
+        versions: [">= 16.3.0"]
+      - dependency-name: "@playwright/test"

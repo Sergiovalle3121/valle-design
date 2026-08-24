@@ -28,3 +28,16 @@ más verificados entraron en `9ab69f8`; queda esta tabla.
 
 **Regla:** una ventana dedicada por grupo, nunca en mitad de una campaña de
 goldens (ver `docs/execution/BACKLOG.md` P2-4).
+
+## Reincidencia y cierre mecánico (2026-08-24)
+
+El grupo semanal de Dependabot (`npm-semanal`, `patterns: "*"`) no excluía
+nada, así que volvió a proponer exactamente este mismo bloque roto en un PR
+nuevo (#96) el mismo día que se migró esta tabla desde el #87 — habría
+repetido cada lunes indefinidamente. Se cerró el #96 sin fusionar (mismos
+seis bloqueos, verificados de nuevo contra el diff real del PR) y se agregó
+un bloque `ignore` a `.github/dependabot.yml` para los seis paquetes de esta
+tabla, para que el grupo semanal deje de re-proponer lo ya probado roto y
+sólo agrupe lo que sí es seguro. Al tachar una fila de esta tabla con
+evidencia de que el bloqueo se resolvió, quitar también su entrada
+`ignore` correspondiente en `dependabot.yml`.
