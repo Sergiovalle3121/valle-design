@@ -338,23 +338,40 @@ const evidence = {
         "cargador tiene una vía por fetch, pero el rendimiento EN EL NAVEGADOR no se mide aquí y no se declara.",
       "SIMD, hilos ni memoria compartida: el binario es wasm32 MVP a propósito, para que cargue en " +
         "cualquier navegador sin banderas.",
-      "el kernel enchufado al pipeline de render: hoy es un módulo con su contrato, su paridad y su " +
-        "fallback probados, NO una ruta de producción. Ver `integrationGap`.",
+      "el kernel enchufado al pipeline de render EN PRODUCCIÓN: hoy está cableado detrás de una " +
+        "bandera apagada por defecto (ver `integrationGap`), así que ese ×3 sigue sin llegar a la " +
+        "pantalla de nadie salvo que alguien active la bandera.",
       "compatibilidad DWG",
     ],
   },
   integrationGap: {
     statement:
-      "El kernel NO está cableado al pipeline de render. Lo que se publica es un núcleo compilado, " +
-      "verificado numéricamente contra el teselador que el producto sí ejecuta, con su fallback " +
-      "probado y su rendimiento medido — no una mejora que el arquitecto note hoy.",
+      "El kernel está cableado — no sólo compilado — pero DETRÁS DE UNA BANDERA APAGADA POR " +
+      "DEFECTO, y sólo en el carril fuera de hilo (`tessellate.worker.ts`, vía " +
+      "`tessellateCadEntityBatch`). El camino síncrono principal (`pipeline.ts` → " +
+      "`tessellateCadEntity`) no lo toca. ADR-0003 exige ocho prerrequisitos antes de activarlo " +
+      "por defecto — cuello de botella probado, benchmark antes/después, diferenciales y goldens, " +
+      "memoria/cancelación, fallback retenido, SBOM/licencias — y ese cierre no es este cambio.",
     whyItIsSaidHere:
-      "Porque la alternativa sería publicar «×3 más rápido» sin decir que ese ×3 no llega a la " +
-      "pantalla de nadie todavía, y eso sería un número cierto contando una cosa falsa.",
+      "Porque la alternativa sería publicar «×3 más rápido» sin decir que ese ×3 sigue sin llegar a " +
+      "la pantalla de nadie salvo que alguien active la bandera, y eso sería un número cierto " +
+      "contando una cosa falsa.",
     whatItWouldTake:
-      "Sustituir las llamadas a tessellateArc/tessellateEllipse/tessellateSpline dentro del " +
-      "pipeline por el kernel, agrupando por lote las curvas de cada tile. El contrato por lotes " +
-      "de este módulo está diseñado para eso; el trabajo pendiente es el agrupado, no el kernel.",
+      "Lo mecánico ya está: agrupar por lote las curvas de cada tile —arco/círculo, elipse, " +
+      "spline— es exactamente lo que `tessellateCadEntityBatch` hace hoy cuando recibe un kernel. " +
+      "Lo que falta para pasar la bandera a encendida por defecto es el resto de la lista de " +
+      "ADR-0003: benchmark del camino de PRODUCCIÓN (no sólo del kernel aislado), goldens E2E a " +
+      "10k/100k en navegador y revisión de cadena de suministro.",
+    wiredIn: {
+      file: "apps/web/src/lib/cad/render/tessellate.worker.ts",
+      entryPoint: "tessellateCadEntityBatch(entities, segments, document, origin, kernel)",
+      flag: "CadTessellateWorkerRequest.curveKernel — undefined/false por defecto",
+      families: ["arc", "circle", "ellipse", "spline"],
+      verifiedBySpec:
+        "apps/web/src/lib/cad/wasm/curve-kernel-parity.spec.ts (secciones 6-9: paridad del " +
+        "cableado, reutilización de memoria en 40 lotes, cancelación con el motor wasm)",
+      benchmarkEvidence: "docs/cad/evidence/cad-curve-kernel-worker-benchmark.json",
+    },
   },
 };
 

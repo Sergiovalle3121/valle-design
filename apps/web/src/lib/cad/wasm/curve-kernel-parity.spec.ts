@@ -48,6 +48,16 @@ import {
   ulpDistance,
   type CadKernelParityReport,
 } from "./curve-kernel-corpus";
+import { tessellateCadEntityBatch } from "../render/tessellate.worker";
+import { CadRenderPipeline, type CadOffThreadTessellator } from "../render/pipeline";
+import {
+  cadRenderSegmentBudget,
+  CadTessellationCache,
+  tessellateCadEntity,
+  type CadRenderLodTier,
+  type CadTessellation,
+} from "../render/tessellation-cache";
+import type { CadNativeEntity } from "../entity-runtime";
 
 let checks = 0;
 const ok = (condition: boolean, message: string) => {
@@ -254,8 +264,243 @@ async function main(): Promise<void> {
     `spline: ${spline.comparedValues - spline.identicalValues} coordenadas no idénticas bit a bit`,
   );
 
+  // La utilidad de ULP tiene que cruzar el cero sin discontinuidad: si no, el
+  // peor caso publicado lo fijaría un `-0` y no un defecto.
+  ok(ulpDistance(0, -0) === 0, "+0 y -0 distan cero ULP");
+  ok(ulpDistance(1, 1 + Number.EPSILON) === 1, "un ULP en 1.0 debe medir 1");
+
+  // ---------------------------------------------------------------------------
+  // 6 · El cableado del worker (A.4): el mismo binario, por el camino que de
+  // verdad usa el carril fuera de hilo — agrupado por familia y por `steps`,
+  // no curva a curva — da la MISMA geometría que sin kernel.
+  //
+  // Va ANTES de liberar `wasm` (más abajo): las secciones 7 y 8 lo siguen
+  // usando de verdad, y la 9 es la única que lo agota a propósito.
+  // ---------------------------------------------------------------------------
+  const mixedEntities: CadNativeEntity[] = [
+    { id: "c1", type: "circle", center: { x: 12, y: -8, z: 0 }, radius: 40, layer: "0" },
+    { id: "c2", type: "circle", center: { x: -200, y: 300, z: 0 }, radius: 5, layer: "0" },
+    { id: "a1", type: "arc", center: { x: 0, y: 0, z: 0 }, radius: 25, startAngle: 10, endAngle: 260, layer: "0" },
+    { id: "a2", type: "arc", center: { x: 500, y: -500, z: 0 }, radius: 90, startAngle: 350, endAngle: 10, layer: "0" },
+    {
+      id: "e1",
+      type: "ellipse",
+      center: { x: 30, y: 30, z: 0 },
+      majorAxis: { x: 40, y: 10, z: 0 },
+      ratio: 0.4,
+      startParameter: 0,
+      endParameter: 360,
+      layer: "0",
+    },
+    {
+      id: "e2",
+      type: "ellipse",
+      center: { x: -50, y: 10, z: 0 },
+      majorAxis: { x: 20, y: -5, z: 0 },
+      ratio: 0.7,
+      startParameter: 45,
+      endParameter: 200,
+      layer: "0",
+    },
+    {
+      id: "s1",
+      type: "spline",
+      degree: 3,
+      controlPoints: [
+        { x: 0, y: 0, z: 0 },
+        { x: 10, y: 30, z: 0 },
+        { x: 25, y: -10, z: 0 },
+        { x: 40, y: 20, z: 0 },
+        { x: 55, y: 5, z: 0 },
+      ],
+      knots: [],
+      layer: "0",
+    },
+    {
+      id: "s2",
+      type: "spline",
+      degree: 2,
+      controlPoints: [
+        { x: -30, y: 0, z: 0 },
+        { x: -10, y: 20, z: 0 },
+        { x: 10, y: -20, z: 0 },
+        { x: 30, y: 0, z: 0 },
+      ],
+      knots: [],
+      closed: false,
+      layer: "0",
+    },
+  ];
+  const mixedSegments = [64, 8, 32, 32, 96, 24, 24, 16];
+  // Origen no nulo: el kernel resta el mismo origen ANTES de entrar a
+  // `Float32Array` que el camino sin kernel (ver `tessellation-cache.ts`).
+  const wiringOrigin = { x: 100, y: -100 };
+  const withoutKernel = tessellateCadEntityBatch(mixedEntities, mixedSegments, undefined, wiringOrigin, null);
+  const withKernel = tessellateCadEntityBatch(mixedEntities, mixedSegments, undefined, wiringOrigin, wasm);
+  ok(
+    withKernel.results.length === withoutKernel.results.length,
+    `el cableado del kernel debe dar ${withoutKernel.results.length} resultados, no ${withKernel.results.length}`,
+  );
+  const byId = new Map(withKernel.results.map((result) => [result.entityId, result]));
+  // f32 de por medio: la divergencia sin/cos entre motores (~1e-16 relativo en
+  // f64) se pierde en el redondeo a 24 bits de mantisa casi siempre, pero la
+  // tolerancia absoluta —no cero— es la honesta para coordenadas de esta escala.
+  const WIRING_TOLERANCE = 1e-3;
+  for (const expected of withoutKernel.results) {
+    const actual = byId.get(expected.entityId);
+    ok(actual !== undefined, `${expected.entityId}: el kernel también debe teselarla`);
+    if (!actual) continue;
+    ok(
+      actual.paths.length === expected.paths.length,
+      `${expected.entityId}: ${actual.paths.length} caminos frente a ${expected.paths.length}`,
+    );
+    for (let path = 0; path < expected.paths.length; path += 1) {
+      ok(actual.closed[path] === expected.closed[path], `${expected.entityId}: mismo cerrado/abierto`);
+      ok(
+        actual.paths[path].length === expected.paths[path].length,
+        `${expected.entityId}: ${actual.paths[path].length} coordenadas frente a ${expected.paths[path].length}`,
+      );
+      let worst = 0;
+      for (let coordinate = 0; coordinate < expected.paths[path].length; coordinate += 1)
+        worst = Math.max(worst, Math.abs(actual.paths[path][coordinate] - expected.paths[path][coordinate]));
+      ok(
+        worst <= WIRING_TOLERANCE,
+        `${expected.entityId}: el kernel se separa ${worst} del camino sin kernel (tope ${WIRING_TOLERANCE})`,
+      );
+    }
+  }
+  ok(
+    true,
+    "tessellateCadEntityBatch con el kernel wasm da la MISMA geometría —círculo, arco, elipse y spline, " +
+      "agrupados por steps— que sin kernel, con origen flotante restado igual en los dos caminos",
+  );
+
+  // ---------------------------------------------------------------------------
+  // 7 · Manejo de memoria del motor WASM: el MISMO kernel, reutilizado en
+  // decenas de lotes de tamaño variable, para que `ensure()` en `curve-kernel.ts`
+  // crezca (`valle_alloc`) y libere (`valle_free`) reservas repetidamente en
+  // vez de una sola vez. Un fallo de alojamiento cruzado entre lotes saldría
+  // aquí como una excepción o una cuenta de resultados equivocada.
+  // ---------------------------------------------------------------------------
+  for (let iteration = 0; iteration < 40; iteration += 1) {
+    const size = 1 + (iteration % mixedEntities.length);
+    const subset = mixedEntities.slice(0, size);
+    const subsetSegments = mixedSegments.slice(0, size);
+    const out = tessellateCadEntityBatch(subset, subsetSegments, undefined, wiringOrigin, wasm);
+    assert.equal(
+      out.results.length,
+      subset.length,
+      `iteración ${iteration}: ${out.results.length} resultados de ${subset.length} entidades`,
+    );
+  }
+  checks += 1;
+  ok(
+    true,
+    "el kernel wasm cargado una vez se reutiliza en 40 lotes de tamaño variable sin perder resultados " +
+      "(valle_alloc crece y valle_free libera entre llamadas, nunca por curva)",
+  );
+
+  // ---------------------------------------------------------------------------
+  // 8 · Cancelación contra el motor WASM: una entidad que sale de vista —o se
+  // edita— A MEDIO TESELAR no debe resucitar en caché. El carril fuera de hilo
+  // ya descarta respuestas de época vieja (`pipeline-offthread.ts`); esto
+  // prueba que la propiedad se sostiene cuando quien teseló fue el kernel, no
+  // el motor JavaScript.
+  // ---------------------------------------------------------------------------
+  {
+    const flush = () => new Promise<void>((resolve) => setImmediate(resolve));
+    interface RecordedWasmRequest {
+      entities: CadNativeEntity[];
+      segments: number[];
+      resolve: (outcome: { results: ReturnType<typeof tessellateCadEntityBatch>["results"]; source: "worker" }) => void;
+    }
+    const requests: RecordedWasmRequest[] = [];
+    const offThread: CadOffThreadTessellator = (entities, segments) =>
+      new Promise((resolve) => {
+        requests.push({ entities: [...entities], segments: [...segments], resolve });
+      });
+    const cache = new CadTessellationCache();
+    const pipeline = new CadRenderPipeline({ offThread, cache });
+    const curves: CadNativeEntity[] = [
+      { id: "arc-a", type: "arc", center: { x: 0, y: 0, z: 0 }, radius: 30, startAngle: 0, endAngle: 180, layer: "0" },
+      { id: "circle-b", type: "circle", center: { x: 200, y: 0, z: 0 }, radius: 20, layer: "0" },
+    ];
+    pipeline.replace(curves, ["arc-a", "circle-b"]);
+    pipeline.setView({ bounds: { minX: -50, minY: -50, maxX: 250, maxY: 50 }, pixelsPerUnit: 2 });
+    let guard = 0;
+    while (requests.length === 0 && pipeline.runFrame().ran > 0) {
+      if (++guard > 10_000) throw new Error("el arco/círculo nunca piden teselado");
+    }
+    ok(requests.length > 0, "el arco y el círculo piden teselado al carril fuera de hilo");
+    const stale = requests.splice(0);
+
+    // La entidad se edita —el mismo efecto, visto desde la caché, que salir de
+    // vista a medio teselar: la petición en vuelo ya no describe lo que hay
+    // que dibujar— ANTES de que llegue la respuesta.
+    const moved: CadNativeEntity = {
+      id: "arc-a",
+      type: "arc",
+      center: { x: 5, y: 5, z: 0 },
+      radius: 30,
+      startAngle: 0,
+      endAngle: 180,
+      layer: "0",
+    };
+    pipeline.invalidate(["arc-a"], [moved]);
+
+    // La respuesta VIEJA llega tarde, teselada por el motor WASM de verdad.
+    for (const request of stale)
+      request.resolve({
+        results: tessellateCadEntityBatch(request.entities, request.segments, undefined, undefined, wasm).results,
+        source: "worker",
+      });
+    await flush();
+
+    let settleGuard = 0;
+    while (!pipeline.settled) {
+      if (++settleGuard > 10_000) throw new Error("el pipeline no asienta tras la edición");
+      if (pipeline.runFrame().ran === 0) {
+        if (requests.length > 0) {
+          const request = requests.shift()!;
+          request.resolve({
+            results: tessellateCadEntityBatch(request.entities, request.segments, undefined, undefined, wasm)
+              .results,
+            source: "worker",
+          });
+        }
+        await flush();
+      }
+    }
+    const settled = pipeline.stats();
+    assert.equal(settled.renderedEntities, settled.visibleEntities, "asienta con las dos entidades detalladas");
+
+    let cached: CadTessellation | null = null;
+    let cachedTier: CadRenderLodTier | null = null;
+    for (const tier of [0, 1, 2] as const) {
+      cached = cache.peek("arc-a", tier);
+      if (cached) {
+        cachedTier = tier;
+        break;
+      }
+    }
+    ok(cached !== null && cachedTier !== null, "la entidad editada tiene teselado wasm en caché");
+    const expectedAfterEdit = tessellateCadEntity(moved, cadRenderSegmentBudget(cachedTier!));
+    assert.deepEqual(
+      [...cached!.paths[0].xy],
+      [...expectedAfterEdit.paths[0].xy],
+      "el teselado en caché es el de DESPUÉS de la edición, no la respuesta wasm vieja",
+    );
+    ok(
+      true,
+      "una respuesta wasm pedida antes de una edición se descarta y no resucita la geometría de antes " +
+        "— la cancelación del carril fuera de hilo se sostiene con el motor WASM, no sólo con JavaScript",
+    );
+    pipeline.dispose();
+  }
+
   // -------------------------------------------------------------------------
-  // 6 · La ABI falla cerrado
+  // 9 · La ABI falla cerrado. Va AL FINAL a propósito: agota el kernel de
+  // verdad (`dispose()`) y todo lo de arriba lo necesitaba vivo.
   // -------------------------------------------------------------------------
   // Un `steps` de cero no debe producir coordenadas raras: produce cero puntos.
   const vacio = wasm.tessellateArcs(corpus.arcs, 4, 0);
@@ -273,11 +518,6 @@ async function main(): Promise<void> {
     "usar el kernel después de liberarlo debe ser un error tipado",
   );
   checks += 1;
-
-  // La utilidad de ULP tiene que cruzar el cero sin discontinuidad: si no, el
-  // peor caso publicado lo fijaría un `-0` y no un defecto.
-  ok(ulpDistance(0, -0) === 0, "+0 y -0 distan cero ULP");
-  ok(ulpDistance(1, 1 + Number.EPSILON) === 1, "un ULP en 1.0 debe medir 1");
 
   console.log(
     `curve-kernel-parity: ${checks} comprobaciones verdes — ` +

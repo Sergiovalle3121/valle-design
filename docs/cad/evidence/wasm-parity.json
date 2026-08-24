@@ -2,8 +2,8 @@
   "$schema": "urn:valle-design:schema:cad-wasm-parity-evidence:v1",
   "schemaVersion": 1,
   "evidenceId": "valle-design-wasm-curve-kernel-v1",
-  "startedAt": "2026-08-19T21:18:16.585Z",
-  "finishedAt": "2026-08-19T21:19:27.706Z",
+  "startedAt": "2026-08-24T07:08:50.905Z",
+  "finishedAt": "2026-08-24T07:09:50.938Z",
   "enforcement": "gate-en-spec, report-only en tiempos",
   "enforcementRationale": "La PARIDAD sí bloquea: la comprueba curve-kernel-parity.spec.ts en cada npm run test:specs, con la misma tolerancia que se publica aquí, y falla si el binario del árbol no es el de su manifiesto o si una curva cambia de forma. Los TIEMPOS no fijan presupuesto: están medidos en un portátil de desarrollo con otros agentes trabajando en paralelo, y convertirlos en umbral produciría un gate que falla por contención de máquina y no por una regresión del producto. Se publican con su dispersión entre pasadas para que se vea de qué se está hablando.",
   "verdict": {
@@ -11,18 +11,18 @@
     "violations": []
   },
   "environment": {
-    "node": "v22.18.0",
-    "v8": "12.4.254.21-node.27",
-    "platform": "win32",
+    "node": "v22.22.2",
+    "v8": "12.4.254.21-node.39",
+    "platform": "linux",
     "architecture": "x64",
-    "osType": "Windows_NT",
-    "osRelease": "10.0.26200",
-    "cpuModel": "AMD Ryzen 5 5500U with Radeon Graphics         ",
-    "logicalCpuCount": 12,
-    "availableParallelism": 12,
-    "totalMemoryBytes": 7896625152,
-    "freeMemoryBytesAtStart": 2707644416,
-    "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos lógicos), 7.4 GB de RAM, Windows_NT 10.0.26200, portátil de desarrollo CON CARGA VECINA: otros agentes compilando y ejecutando suites en el mismo equipo durante la medición."
+    "osType": "Linux",
+    "osRelease": "6.18.44-fc-v21",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "logicalCpuCount": 4,
+    "availableParallelism": 4,
+    "totalMemoryBytes": 16856150016,
+    "freeMemoryBytesAtStart": 10204962816,
+    "declaredMachine": "Intel(R) Xeon(R) Processor @ 2.80GHz (4 hilos lógicos), 15.7 GB de RAM, Linux 6.18.44-fc-v21, portátil de desarrollo CON CARGA VECINA: otros agentes compilando y ejecutando suites en el mismo equipo durante la medición."
   },
   "method": {
     "runs": 3,
@@ -64,13 +64,13 @@
     "sources": [
       {
         "path": "crates/valle-cad-kernel/Cargo.toml",
-        "bytes": 1557,
-        "sha256": "064b29aa764c8fb6af55b982ace623b0e6ce279c11ee2ea33f308f2568882d4e"
+        "bytes": 1520,
+        "sha256": "4fd2f5fb90d80f6bb40d5df5c62edf7590a4f7c20a5241b455ff9e883f56a8cf"
       },
       {
         "path": "crates/valle-cad-kernel/src/lib.rs",
-        "bytes": 20720,
-        "sha256": "368b931ca79cc93268ce16a1e15df43edf2c16dbab0d930bebebf311d178bb56"
+        "bytes": 20157,
+        "sha256": "f9852273dd1bce54dc39690c36968a0dc996e808f9c074f22a597e16f7390246"
       }
     ],
     "binary": {
@@ -262,7 +262,7 @@
   "parityVerifiedBySpec": {
     "spec": "apps/web/src/lib/cad/wasm/curve-kernel-parity.spec.ts",
     "passed": true,
-    "lastLine": "curve-kernel-parity: 33 comprobaciones verdes — 900138 coordenadas comparadas, spline exacta (26840 valores, 0 ULP), peor desviación relativa 2.166e-16 (tope 8.882e-16).",
+    "lastLine": "curve-kernel-parity: 80 comprobaciones verdes — 900138 coordenadas comparadas, spline exacta (26840 valores, 0 ULP), peor desviación relativa 2.166e-16 (tope 8.882e-16).",
     "detail": null
   },
   "benchmark": [
@@ -271,68 +271,68 @@
       "arcs": 100000,
       "pointsProduced": 1915068,
       "javascript": {
-        "medianMs": 557.33,
+        "medianMs": 499.051,
         "samplesMs": [
-          915.786,
-          557.33,
-          459.218
+          574.211,
+          473.667,
+          499.051
         ],
         "runs": 3,
-        "spreadMs": 456.568,
-        "spreadPercentOfMedian": 81.9
+        "spreadMs": 100.544,
+        "spreadPercentOfMedian": 20.1
       },
       "wasm": {
-        "medianMs": 167.387,
+        "medianMs": 120.769,
         "samplesMs": [
-          272.816,
-          149.42,
-          167.387
+          120.769,
+          127.621,
+          118.773
         ],
         "runs": 3,
-        "spreadMs": 123.396,
-        "spreadPercentOfMedian": 73.7
+        "spreadMs": 8.848,
+        "spreadPercentOfMedian": 7.3
       },
-      "speedupMedian": 3.33,
+      "speedupMedian": 4.132,
       "speedupPerRun": [
-        3.357,
-        3.73,
-        2.743
+        4.755,
+        3.712,
+        4.202
       ],
-      "speedupFloor": 2.743
+      "speedupFloor": 3.712
     },
     {
       "steps": 96,
       "arcs": 100000,
       "pointsProduced": 7203446,
       "javascript": {
-        "medianMs": 2200.099,
+        "medianMs": 1943.308,
         "samplesMs": [
-          3168.969,
-          2119.028,
-          2200.099
+          1926.159,
+          1943.308,
+          2743.612
         ],
         "runs": 3,
-        "spreadMs": 1049.941,
-        "spreadPercentOfMedian": 47.7
+        "spreadMs": 817.453,
+        "spreadPercentOfMedian": 42.1
       },
       "wasm": {
-        "medianMs": 520.615,
+        "medianMs": 617.209,
         "samplesMs": [
-          971.909,
-          511.078,
-          520.615
+          495.058,
+          617.209,
+          1130.761
         ],
         "runs": 3,
-        "spreadMs": 460.831,
-        "spreadPercentOfMedian": 88.5
+        "spreadMs": 635.703,
+        "spreadPercentOfMedian": 103
       },
-      "speedupMedian": 4.226,
+      "speedupMedian": 3.149,
       "speedupPerRun": [
-        3.261,
-        4.146,
-        4.226
+        3.891,
+        3.149,
+        2.426
       ],
-      "speedupFloor": 3.261
+      "speedupFloor": 2.426
     }
   ],
   "benchmarkNote": "Trabajo de CPU en Node teselando un lote de 100.000 arcos, ida y vuelta por la frontera JS↔wasm incluida (copia de la entrada a la memoria lineal y copia de la salida de vuelta). El motor de JavaScript empaqueta su resultado en el MISMO formato plano aunque no lo necesite: comparar formatos distintos sería comparar dos empaquetados y no dos matemáticas.",
@@ -352,13 +352,26 @@
     "notMeasured": [
       "el navegador: estas cifras son de Node. El binario se sirve desde apps/web/public/wasm y el cargador tiene una vía por fetch, pero el rendimiento EN EL NAVEGADOR no se mide aquí y no se declara.",
       "SIMD, hilos ni memoria compartida: el binario es wasm32 MVP a propósito, para que cargue en cualquier navegador sin banderas.",
-      "el kernel enchufado al pipeline de render: hoy es un módulo con su contrato, su paridad y su fallback probados, NO una ruta de producción. Ver `integrationGap`.",
+      "el kernel enchufado al pipeline de render EN PRODUCCIÓN: hoy está cableado detrás de una bandera apagada por defecto (ver `integrationGap`), así que ese ×3 sigue sin llegar a la pantalla de nadie salvo que alguien active la bandera.",
       "compatibilidad DWG"
     ]
   },
   "integrationGap": {
-    "statement": "El kernel NO está cableado al pipeline de render. Lo que se publica es un núcleo compilado, verificado numéricamente contra el teselador que el producto sí ejecuta, con su fallback probado y su rendimiento medido — no una mejora que el arquitecto note hoy.",
-    "whyItIsSaidHere": "Porque la alternativa sería publicar «×3 más rápido» sin decir que ese ×3 no llega a la pantalla de nadie todavía, y eso sería un número cierto contando una cosa falsa.",
-    "whatItWouldTake": "Sustituir las llamadas a tessellateArc/tessellateEllipse/tessellateSpline dentro del pipeline por el kernel, agrupando por lote las curvas de cada tile. El contrato por lotes de este módulo está diseñado para eso; el trabajo pendiente es el agrupado, no el kernel."
+    "statement": "El kernel está cableado — no sólo compilado — pero DETRÁS DE UNA BANDERA APAGADA POR DEFECTO, y sólo en el carril fuera de hilo (`tessellate.worker.ts`, vía `tessellateCadEntityBatch`). El camino síncrono principal (`pipeline.ts` → `tessellateCadEntity`) no lo toca. ADR-0003 exige ocho prerrequisitos antes de activarlo por defecto — cuello de botella probado, benchmark antes/después, diferenciales y goldens, memoria/cancelación, fallback retenido, SBOM/licencias — y ese cierre no es este cambio.",
+    "whyItIsSaidHere": "Porque la alternativa sería publicar «×3 más rápido» sin decir que ese ×3 sigue sin llegar a la pantalla de nadie salvo que alguien active la bandera, y eso sería un número cierto contando una cosa falsa.",
+    "whatItWouldTake": "Lo mecánico ya está: agrupar por lote las curvas de cada tile —arco/círculo, elipse, spline— es exactamente lo que `tessellateCadEntityBatch` hace hoy cuando recibe un kernel. Lo que falta para pasar la bandera a encendida por defecto es el resto de la lista de ADR-0003: benchmark del camino de PRODUCCIÓN (no sólo del kernel aislado), goldens E2E a 10k/100k en navegador y revisión de cadena de suministro.",
+    "wiredIn": {
+      "file": "apps/web/src/lib/cad/render/tessellate.worker.ts",
+      "entryPoint": "tessellateCadEntityBatch(entities, segments, document, origin, kernel)",
+      "flag": "CadTessellateWorkerRequest.curveKernel — undefined/false por defecto",
+      "families": [
+        "arc",
+        "circle",
+        "ellipse",
+        "spline"
+      ],
+      "verifiedBySpec": "apps/web/src/lib/cad/wasm/curve-kernel-parity.spec.ts (secciones 6-9: paridad del cableado, reutilización de memoria en 40 lotes, cancelación con el motor wasm)",
+      "benchmarkEvidence": "docs/cad/evidence/cad-curve-kernel-worker-benchmark.json"
+    }
   }
 }

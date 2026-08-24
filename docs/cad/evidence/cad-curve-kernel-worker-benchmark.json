@@ -1,0 +1,191 @@
+{
+  "$schema": "urn:valle-design:schema:cad-curve-kernel-worker-benchmark:v1",
+  "schemaVersion": 1,
+  "benchmarkId": "valle-design-cad-curve-kernel-worker-wiring-v1",
+  "startedAt": "2026-08-24T07:08:41.681Z",
+  "enforcement": "report-only",
+  "enforcementRationale": "Métrica nueva sin línea base versionada: no bloquea. El gate de paridad numérica (curve-kernel-parity.spec.ts) sí bloquea y es el que impide que el cableado divergiera del camino sin kernel.",
+  "adr": "docs/adr/0003-native-kernel-and-rust-wasm-entry-gate.md",
+  "flagState": "APAGADA por defecto en producción — CadTessellateWorkerRequest.curveKernel es undefined salvo que quien construye la petición lo active explícitamente. Este benchmark la activa a mano para medir el cableado, no describe el comportamiento por defecto.",
+  "environment": {
+    "node": "v22.22.2",
+    "v8": "12.4.254.21-node.39",
+    "platform": "linux",
+    "architecture": "x64",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "logicalCpuCount": 4,
+    "availableParallelism": 4,
+    "totalMemoryBytes": 16856150016
+  },
+  "corpus": {
+    "entities": 100000,
+    "entityMix": {
+      "line": 49870,
+      "polyline": 0,
+      "circle": 24966,
+      "arc": 25164,
+      "ellipse": 0,
+      "spline": 0,
+      "hatch": 0,
+      "mtext": 0,
+      "dimension": 0,
+      "mleader": 0,
+      "insert": 0,
+      "point": 0,
+      "xline": 0,
+      "ray": 0,
+      "solid": 0,
+      "wipeout": 0,
+      "image": 0,
+      "attdef": 0,
+      "table": 0,
+      "solid3d": 0,
+      "region": 0,
+      "wall": 0,
+      "opening": 0
+    },
+    "bounds": {
+      "minX": 1.6500000000000004,
+      "minY": 5.641,
+      "maxX": 20281.829362665158,
+      "maxY": 20217.030000000002
+    },
+    "origin": {
+      "x": 10142,
+      "y": 10111
+    },
+    "note": "Generador de línea/círculo/arco de `benchmark/corpus.ts`, el mismo que usa `cad-render-benchmark.mts` — circle+arc son las familias que el kernel agrupa; line pasa por el camino sin kernel dentro del MISMO lote, igual que en producción."
+  },
+  "method": {
+    "entryPoint": "tessellateCadEntityBatch(entities, segments, document, origin, kernel)",
+    "batchSize": 512,
+    "batchSizeSource": "CAD_RENDER_OFFTHREAD_BATCH_MAX_ENTITIES — el tope real de un mensaje de worker",
+    "lodTiersInterleaved": [
+      0,
+      1,
+      2
+    ],
+    "repeat": 5,
+    "warmupRunsDiscarded": 1,
+    "aggregation": "mediana de las corridas por totalMs; speedupPerRun y speedupFloor por corrida"
+  },
+  "withoutKernel": {
+    "runs": [
+      {
+        "totalMs": 379.758,
+        "batches": 196,
+        "perBatchP50Ms": 1.248,
+        "perBatchP95Ms": 4.579,
+        "perBatchMaxMs": 11.14
+      },
+      {
+        "totalMs": 367.043,
+        "batches": 196,
+        "perBatchP50Ms": 1.214,
+        "perBatchP95Ms": 4.823,
+        "perBatchMaxMs": 6.441
+      },
+      {
+        "totalMs": 374.545,
+        "batches": 196,
+        "perBatchP50Ms": 1.258,
+        "perBatchP95Ms": 4.604,
+        "perBatchMaxMs": 6.995
+      },
+      {
+        "totalMs": 329.667,
+        "batches": 196,
+        "perBatchP50Ms": 1.175,
+        "perBatchP95Ms": 3.587,
+        "perBatchMaxMs": 9.045
+      },
+      {
+        "totalMs": 363.373,
+        "batches": 196,
+        "perBatchP50Ms": 1.297,
+        "perBatchP95Ms": 3.861,
+        "perBatchMaxMs": 8.313
+      }
+    ],
+    "medianTotalMs": 367.043,
+    "totalsMs": [
+      379.758,
+      367.043,
+      374.545,
+      329.667,
+      363.373
+    ]
+  },
+  "withKernel": {
+    "backend": "wasm",
+    "abi": 1,
+    "runs": [
+      {
+        "totalMs": 276.612,
+        "batches": 196,
+        "perBatchP50Ms": 1.124,
+        "perBatchP95Ms": 2.885,
+        "perBatchMaxMs": 7.423
+      },
+      {
+        "totalMs": 301.642,
+        "batches": 196,
+        "perBatchP50Ms": 1.16,
+        "perBatchP95Ms": 3.627,
+        "perBatchMaxMs": 8.587
+      },
+      {
+        "totalMs": 289.695,
+        "batches": 196,
+        "perBatchP50Ms": 1.192,
+        "perBatchP95Ms": 3.196,
+        "perBatchMaxMs": 4.165
+      },
+      {
+        "totalMs": 296.675,
+        "batches": 196,
+        "perBatchP50Ms": 1.222,
+        "perBatchP95Ms": 3.222,
+        "perBatchMaxMs": 4.54
+      },
+      {
+        "totalMs": 287.271,
+        "batches": 196,
+        "perBatchP50Ms": 1.188,
+        "perBatchP95Ms": 3.215,
+        "perBatchMaxMs": 3.464
+      }
+    ],
+    "medianTotalMs": 289.695,
+    "totalsMs": [
+      276.612,
+      301.642,
+      289.695,
+      296.675,
+      287.271
+    ]
+  },
+  "speedupMedian": 1.267,
+  "speedupPerRun": [
+    1.373,
+    1.217,
+    1.293,
+    1.111,
+    1.265
+  ],
+  "speedupFloor": 1.111,
+  "citeThisNumber": "speedupFloor, no speedupMedian — mismo criterio que docs/cad/evidence/wasm-parity.json: el peor caso de las corridas es defendible con máquina compartida, la mediana puede caer del lado favorable por suerte de planificación del sistema operativo.",
+  "interpretation": "El número de aquí es MODESTO comparado con el ×2–×4 de wasm-parity.json, y la diferencia es honesta, no ruido: aquel benchmark tesela 100.000 arcos EN UNA SOLA llamada al kernel; éste los reparte en lotes de 512 entidades —el tope real de un mensaje de worker— y dentro de cada lote los subdivide otra vez por familia y por `steps` (LOD mezclado), así que cada llamada real al kernel tesela decenas de curvas, no cientos de miles. La frontera JS↔wasm se paga por llamada; con grupos pequeños esa cuota se amortiza peor. Con corpus más chicos (≤60k) la dispersión entre corridas incluso cruza 1× en alguna muestra — la mejora es real pero pequeña a esta granularidad, y NO respalda extrapolar el ×2–×4 del kernel aislado al camino de producción. Esto es exactamente el tipo de brecha que ADR-0003 exige medir antes de considerar activar la bandera por defecto.",
+  "scope": {
+    "measured": [
+      "trabajo de CPU en Node de tessellateCadEntityBatch, con y sin el kernel wasm, en el mismo proceso",
+      "el camino REAL del cableado: lotes de CAD_RENDER_OFFTHREAD_BATCH_MAX_ENTITIES entidades, LOD mezclado dentro de cada lote, agrupado por familia y por steps tal como lo hace cadKernelCurvePayloads"
+    ],
+    "notMeasured": [
+      "FPS ni cuadros de navegador — ADR-0003 prohíbe afirmar 60 FPS a partir de una medida de Node, y aquí no se afirma ningún número de FPS",
+      "GPU, composición ni postMessage/clonado estructural real (eso lo mide cad-render-benchmark.mts --stages)",
+      "el camino síncrono principal (pipeline.ts → tessellateCadEntity): no lleva el kernel y esto no lo mide"
+    ]
+  },
+  "finishedAt": "2026-08-24T07:08:41.681Z"
+}
