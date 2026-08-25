@@ -41,23 +41,33 @@ cola viva, no el museo (el museo es `docs/history/`).
   plano automáticamente SIN registrar el desplazamiento (pérdida de
   georreferencia silenciosa — viola la garantía 5 del contrato de interop);
   tope de 50,000 entidades (`apps/web/src/lib/cad/dxf-import.ts:267`) y corte
-  de ~850 objetos en la ruta editable. Además —hallado cerrando P0-2, mismo
-  origen—: "Ajustar a la planta" y el encuadre inicial encuadran sobre
-  `[0,W]×[0,H]` del footprint declarado (`nativeViewportBoundsRef` en
-  `Layout3DEditor.tsx`), NUNCA sobre los límites reales de las entidades; un
-  documento con entidades a magnitud UTM y un footprint de sitio normal
-  (12×10 m, sin extenderlo a mano) encuadra una cámara que no ve nada —
-  reproducido en `e2e/golden/57-cad-utm-precision.spec.ts` (que rodea el gap
-  extendiendo el footprint declarado a propósito, con la razón escrita en el
-  propio golden).
+  de ~850 objetos en la ruta editable.
+- **Parte YA CERRADA de este hallazgo** (2026-08-25, campaña post-3D-M1, PR
+  #99 + #102): el sub-hallazgo de encuadre de cámara (hallado cerrando P0-2,
+  mismo origen) resultó ser dos cosas DISTINTAS, no una — investigado a fondo
+  antes de tocar código (ver `docs/execution/CAMPANA_3D_POST_M1_20260825.md`).
+  "Ajustar a la planta" (Shift+F) usa el footprint declarado A PROPÓSITO; NO
+  es un bug, es un comando distinto de "Ajustar a contenido" (F), que ya
+  usaba los límites reales desde antes. El bug real, más angosto: sólo el
+  **encuadre inicial** al abrir un documento ignoraba el contenido — arreglado
+  con un `useEffect` en `Layout3DEditor.tsx` que reencuadra sobre el contenido
+  real cuando es disjunto del footprint (`boundsIntersect`); los seis presets
+  de cámara con nombre tenían el mismo problema y se cerraron en la misma
+  fase (`camera-view-presets.ts`, quinto parámetro `content`).
+  `e2e/golden/57-cad-utm-precision.spec.ts` ya no rodea el gap: prueba el
+  arreglo con un footprint de sitio real (12×10 m) en vez de uno extendido a
+  mano.
+- **Qué queda abierto** (el núcleo real de P0-3, sin tocar): las DOS rutas de
+  importación DXF siguen sin unificar bajo `docs/interop/CONTRATO-INTEROP.md`
+  — el re-encuadre silencioso al IMPORTAR (distinto del encuadre de cámara ya
+  cerrado arriba: esto pierde el desplazamiento del propio documento, no sólo
+  el punto de vista), el tope de 50,000 entidades y el corte de ~850 objetos
+  en la ruta editable, sin declarar ninguno al usuario cuando se alcanzan.
 - **Criterio:** UNA ruta bajo `docs/interop/CONTRATO-INTEROP.md`: manifiesto
   de pérdidas obligatorio, desplazamiento registrado y reversible al exportar,
-  topes DECLARADOS al usuario cuando se alcanzan (no silencio); el encuadre
-  inicial y "Ajustar a la planta" consideran los límites reales de las
-  entidades, no sólo el footprint declarado.
+  topes DECLARADOS al usuario cuando se alcanzan (no silencio).
 - **Prueba:** spec de round-trip UTM (importar→exportar→comparar coordenadas
-  absolutas) + spec del aviso de tope + golden de encuadre sobre un documento
-  UTM con footprint pequeño sin extender a mano. **Estimación:** 2–3 días.
+  absolutas) + spec del aviso de tope. **Estimación:** 2–3 días.
   Depende de: nada.
 
 ---
