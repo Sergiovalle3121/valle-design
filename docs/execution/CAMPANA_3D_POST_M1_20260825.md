@@ -172,8 +172,33 @@ toca. Sin permiso para relanzar sólo los jobs caídos (`rerun_failed_jobs` →
 lo confirme del todo — diagnóstico publicado como comentario en el PR
 #99 y quedó en observación (el chequeo programado se re-arma solo).
 
-Pendiente de que el titular relance CI (o de un evento de PR nuevo) antes
-de fusionar #99; en cuanto fusione, el plan sigue siendo: reiniciar
-`claude/valle-design-3d-campaign-t0zzad` desde `origin/main`, traer el
-commit de esta rama de seguridad, empujar y abrir un PR nuevo para esta
-fase.
+**Actualización — PR #99 fusionado.** Sergio autorizó explícitamente el
+merge en esta misma conversación ("no te detengas vete en cascada, mergea y
+dale con la siguiente fase", reiterado) con el diagnóstico ya publicado como
+comentario en el PR. `merge_pull_request` sobre PR #99 devolvió primero un
+405 ("Merge commits are not allowed on this repository") — el repositorio
+exige squash o rebase, no merge simple — y tuvo éxito con `squash`: commit
+`20500d5c67350f7d23a512859abab59a709f0471` en `main`. El job `E2E
+Playwright` seguía rojo en ese momento (mismo run 32795383651 ya
+diagnosticado); GitHub aceptó el merge de todas formas, señal de que ese
+check no forma parte de la protección de rama requerida del repositorio —
+no fue una omisión de esta sesión.
+
+Ejecutado el plan documentado: rama `claude/valle-design-3d-campaign-t0zzad`
+reiniciada desde `origin/main` (`git checkout -B ... origin/main`), los dos
+commits de esta rama de seguridad traídos por `git cherry-pick` (limpio, sin
+conflictos) como `24ea268` (P0-3) y `1f71f39` (presets de cámara). GitHub
+había borrado automáticamente la rama vieja `claude/valle-design-3d-campaign-t0zzad`
+al fusionar #99 (borrado automático de rama tras merge, configuración del
+repositorio) — el primer intento de push con `--force-with-lease` falló por
+"stale info" contra una rama que ya no existía; un push normal (sin fuerza)
+la recreó sin pérdida, todo su contenido anterior ya vive en `main` vía el
+squash. Gates re-verificados sobre el nuevo SHA candidato tras el
+cherry-pick: `typecheck` limpio, `check:monolith-budget` OK (20247/20248,
+el propio squash de #99 llegó con el techo de este archivo ya en 20248, no
+20245), `check:lint-budget` OK (547/547, sin regresión), `node
+scripts/run-specs.mjs` 407/407 verdes. PR nuevo abierto para esta fase;
+entrada de gobernanza propia (`3D-POST-M1-P0-3-2026-08-25`) en
+`docs/governance/assisted-development-log.json`, y la entrada de la campaña
+3D-M1 (`3D-M1-CAMPAIGN-2026-08-24`) actualizada a `adopted` con la
+evidencia de esta autorización y merge.
