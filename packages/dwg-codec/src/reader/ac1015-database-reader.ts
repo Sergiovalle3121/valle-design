@@ -36,6 +36,7 @@ import {
   AC1015_HEADER_VARIABLES_SENTINELS,
   readAc1015SectionFrame,
 } from "../container/ac1015-section-frame.js";
+import { decodeAc1015HeaderVariables } from "../container/ac1015-header-variables.js";
 import { detectDwgSignature } from "../container/signature.js";
 import { decodeAc1015ClassesSection } from "../objects/objects-dictionary.js";
 import { createInputSnapshot } from "../security/input-snapshot.js";
@@ -98,9 +99,13 @@ export function readAc1015Database(
   const classesRecord = requireRecord(header.records, CLASSES_RECORD_ID);
   const objectMapRecord = requireRecord(header.records, OBJECT_MAP_RECORD_ID);
 
-  // Los marcos se VERIFICAN (centinelas + CRC); el payload de variables sigue
-  // opaco y el de clases se DECODIFICA (D5): decide los objetos de clase.
-  readAc1015SectionFrame(cursor, headerVariablesRecord, AC1015_HEADER_VARIABLES_SENTINELS);
+  // Los marcos se VERIFICAN (centinelas + CRC). El payload de variables de
+  // cabecera SÍ se decodifica (antes sólo se validaba el marco y el payload
+  // quedaba opaco): hoy sólo INSUNITS cruza al puente del producto, el resto
+  // de variables viaja decodificado aquí pero sin consumidor todavía. El de
+  // clases se DECODIFICA (D5): decide los objetos de clase.
+  const headerVariablesFrame = readAc1015SectionFrame(cursor, headerVariablesRecord, AC1015_HEADER_VARIABLES_SENTINELS);
+  const headerVariables = decodeAc1015HeaderVariables(headerVariablesFrame.payload);
   const classesFrame = readAc1015SectionFrame(cursor, classesRecord, AC1015_CLASSES_SENTINELS);
   const classRecords = decodeAc1015ClassesSection(classesFrame.payload);
   const classNames = new Map(classRecords.map((record) => [record.classNumber, record.dxfClassName]));
@@ -124,7 +129,7 @@ export function readAc1015Database(
     decodedObjects.push(decoded);
   }
 
-  return assembleDatabase(decodedObjects, unsupported, classRecords);
+  return assembleDatabase(decodedObjects, unsupported, classRecords, headerVariables.insunits);
 }
 
 /** Exactamente un registro del directorio con el id pedido. */

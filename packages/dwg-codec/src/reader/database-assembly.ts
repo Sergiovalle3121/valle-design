@@ -144,6 +144,8 @@ export interface Ac1015NeutralDatabase {
   readonly layers: readonly Ac1015DatabaseLayer[];
   readonly blocks: readonly Ac1015DatabaseBlock[];
   readonly modelSpaceEntities: readonly Ac1015DatabaseEntityRecord[];
+  /** BS crudo de INSUNITS (variables de cabecera, capítulo 9): unidades del dibujo. */
+  readonly insunits: number;
   /** Fase D5: tablas de símbolos, diccionarios (nombre → handle) y el mapa de clases (número → nombre). */
   readonly tables: Ac1015DatabaseSymbolTables;
   readonly dictionaries: readonly Ac1015DatabaseDictionary[];
@@ -385,6 +387,7 @@ export function assembleDatabase(
   decodedObjects: readonly DecodedObject[],
   unsupported: readonly Ac1015UnsupportedDatabaseObject[],
   classRecords: readonly Ac1015ClassRecord[],
+  insunits: number,
 ): Ac1015NeutralDatabase {
   const diagnostics: DwgDiagnostic[] = [];
   const layers: Ac1015DatabaseLayer[] = [];
@@ -569,6 +572,7 @@ export function assembleDatabase(
       ),
     ),
     modelSpaceEntities: Object.freeze(modelSpace.map(freezeEntityRecord)),
+    insunits,
     tables,
     dictionaries,
     classMap: Object.freeze([...classRecords]),

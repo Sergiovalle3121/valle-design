@@ -219,6 +219,7 @@ const vacia: DwgNeutralDatabase = {
   layers: [],
   blocks: [],
   modelSpaceEntities: [],
+  insunits: 0,
   unsupported: [],
   diagnostics: [],
 };
@@ -250,6 +251,7 @@ const soloBloque: DwgNeutralDatabase = {
     },
   ],
   modelSpaceEntities: [],
+  insunits: 0,
   unsupported: [],
   diagnostics: [],
 };
@@ -271,6 +273,7 @@ assert.ok(
 );
 
 const base: DwgNeutralDatabase = {
+  insunits: 0,
   layers: [
     { handle: 0x10, name: bytesDe("MUROS"), colorIndex: 1, stateFlags: 0 },
     { handle: 0x11, name: bytesDe("COTASÑ"), colorIndex: 2, stateFlags: 0 },
@@ -451,10 +454,39 @@ assert.equal(
   "la capa 0 sintética usa ACI 7 (blanco), el default tradicional de AutoCAD",
 );
 
-// ─── Fase 3: unidades asumidas, siempre declaradas ─────────────────────────
+// ─── Fase 3: unidades asumidas cuando INSUNITS no es representable ────────
 assert.ok(
   codigos.has(DWG_BRIDGE_LOSS_CODES.unitAssumed),
-  "las unidades asumidas (INSUNITS no leído) se declaran en todo import, no sólo cuando falla algo",
+  "INSUNITS=0 (sin unidad, el valor de `base`) no es representable: se asume mm y se declara",
+);
+assert.equal(
+  informe.document.meta.unit,
+  "mm",
+  "sin unidad representable, el documento sigue asumiendo milímetros",
+);
+
+// ─── INSUNITS mapeado: unidad real, sin pérdida inventada ──────────────────
+const enMetros: DwgNeutralDatabase = { ...base, insunits: 6 };
+const informeEnMetros = dwgNeutralDatabaseToCadDocument(enMetros);
+assert.equal(
+  informeEnMetros.document.meta.unit,
+  "m",
+  "INSUNITS=6 (metros) se lee de verdad: el documento nace en metros, no en el mm por defecto",
+);
+assert.ok(
+  !informeEnMetros.document.lossManifest.some(
+    (entry) => entry.code === DWG_BRIDGE_LOSS_CODES.unitAssumed,
+  ),
+  "con una unidad representable, no hay nada que asumir: la pérdida no se declara",
+);
+const sinUnidadDeclarada: DwgNeutralDatabase = { ...base, insunits: 7 };
+const informeSinUnidadDeclarada = dwgNeutralDatabaseToCadDocument(sinUnidadDeclarada);
+assert.ok(
+  informeSinUnidadDeclarada.document.lossManifest.some(
+    (entry) =>
+      entry.code === DWG_BRIDGE_LOSS_CODES.unitAssumed && entry.detail.includes("INSUNITS=7"),
+  ),
+  "INSUNITS=7 (kilómetros) se leyó, pero el perfil no lo representa: la pérdida nombra el valor real, no un genérico",
 );
 
 // ─── Fase 3: punto base de bloque, declarado como suposición ──────────────
@@ -495,6 +527,7 @@ assert.equal(
 const conPropiedadesNoDefault: DwgNeutralDatabase = {
   layers: [],
   blocks: [],
+  insunits: 0,
   modelSpaceEntities: [
     registro(0x60, {
       kind: "text",

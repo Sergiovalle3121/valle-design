@@ -320,6 +320,34 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-INSUNITS-READ-PATH-2026-08-25",
+      "date": "2026-08-25",
+      "initiative": "Decodifica INSUNITS (unidades del dibujo) en el camino de LECTURA del códec DWG y lo proyecta al documento canónico — tarea #4 de la lista de próximas tareas del informe de cierre de la campaña DWG anterior",
+      "branch": "claude/valle-design-dwg-main-lnqf7t",
+      "assistants": [
+        {
+          "name": "Claude Code (Claude Sonnet 5, Anthropic)",
+          "role": "ejecución autónoma bajo directiva escrita del titular (\"mergea y vete en cascada no te detengas, dale con la siguiente fase hasta llegar al 10/10 en el DWG\"), continuación directa de la campaña DWG: tras fusionar el PR del adaptador nativo de TEXT, tomó la tarea #4 de la lista de próximas tareas del informe de cierre. Encontró que el lector de variables de cabecera (`decodeAc1015HeaderVariables`/`decodeR2004HeaderVariables`) ya existía y estaba probado en aislamiento, pero ningún lector de base de datos lo invocaba — el payload sólo se verificaba a nivel de marco (centinelas+CRC), nunca se decodificaba. Lo conectó en los dos lectores (`readAc1015Database`, `readR2004Database`), añadió `insunits` a la base neutral compartida, lo hizo cruzar la frontera de producto (`dwg-native-reader.ts`, `dwg-neutral-model.ts`) y lo consumió en el puente (`dwg-document-bridge.ts`) para fijar la unidad real del documento (pulgadas/pies/mm/cm/m) y declarar la pérdida sólo cuando INSUNITS no es representable en el perfil de hoy, en vez de asumir milímetros siempre. Conectar el decodificador reveló que el payload placeholder por defecto del writer de pruebas (`ac1015HeaderVariablesPlaceholder`, un rótulo opaco de 16 bytes) nunca había sido decodificable de verdad — 12 tests lo daban por válido sólo a nivel de marco; se corrigió para emitir un juego completo y decodificable (`createAc1015HeaderVariables`+`encodeAc1015HeaderVariables`, valores medidos del corpus), y los tamaños/offsets que varios tests hardcodeaban contra el tamaño viejo se recalcularon como derivados, no como números fijos. Verificado además end-to-end contra los dos .dwg reales del corpus admitido con la API NestJS real y PostgreSQL reales (9/9 passed), no sólo con specs unitarios."
+        }
+      ],
+      "authority": "Directiva escrita de Sergio Valle Zárate en esta conversación (\"mergea y vete en cascada no te detengas, dale con la siguiente fase hasta llegar al 10/10 en el DWG\"), bajo las mismas reglas de no-detención, decisión conservadora fail-closed y verificación empírica establecidas para la campaña DWG de la que este trabajo es continuación directa",
+      "firstPartyInputs": [
+        "Repositorio valle-design en main (2223256 tras fusionar el PR del adaptador nativo de TEXT)",
+        "docs/execution/INFORME_DWG_PRODUCTO_MAIN_2026-08-24.md §8, tarea #4 de la lista de próximas tareas",
+        "Código existente del lector de variables de cabecera (`ac1015-header-variables.ts`, `r2004-header-variables.ts`) y de su escritor espejo (`ac1015-header-writer.ts`), ya decodificaba/emitía INSUNITS pero sin consumidor en el pipeline de lectura real",
+        "Los dos fixtures DWG reales del corpus admitido (08-plano-mini.dwg, 04-capas.dwg, bundle valle.fundacional.ac1015.001), leídos en runtime desde el espejo local, nunca copiados al árbol"
+      ],
+      "externalSources": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: el titular revisa el PR abierto sobre claude/valle-design-dwg-main-lnqf7t y sus checks (typecheck y test completos de dwg-codec incl. fuzz/adversarial/provenance, typecheck y test:specs de apps/web, check:cad, y el E2E real contra API/PostgreSQL reconstruido con el cambio); la adopción se registra al revisar/fusionar."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

@@ -113,6 +113,28 @@ export const DWG_BRIDGE_LOSS_CODES = Object.freeze({
   primitiveProperty: "dwg_primitive_property_dropped",
 });
 
+/**
+ * INSUNITS (variables de cabecera, capítulo 9) → unidad del documento
+ * canónico. La semántica del entero es del propio sistema de variables de
+ * AutoCAD (pública, la misma para DXF y DWG) — no un hecho de la capa
+ * binaria. Sólo se listan las cinco unidades que el documento canónico sabe
+ * representar hoy (`UNIT_TO_MM` en `associative-dimension.ts`): el resto
+ * (0=sin unidad, millas, kilómetros, unidades astronómicas…) es capacidad
+ * ausente de este perfil de producto, y `resolveDwgUnit` devuelve
+ * `undefined` para que la pérdida se declare en vez de inventar una unidad.
+ */
+const INSUNITS_TO_CAD_UNIT: Readonly<Record<number, string>> = Object.freeze({
+  1: "in",
+  2: "ft",
+  4: "mm",
+  5: "cm",
+  6: "m",
+});
+
+function resolveDwgUnit(insunits: number): string | undefined {
+  return INSUNITS_TO_CAD_UNIT[insunits];
+}
+
 /** Error tipado del puente: nunca un `Error` genérico, nunca un éxito a medias. */
 export class DwgBridgeError extends Error {
   readonly code: "DWG_IMPORT_DISABLED" | "DWG_NO_DECODER" | "DWG_INPUT_REJECTED";
@@ -437,23 +459,33 @@ export function dwgNeutralDatabaseToCadDocument(
   const { names, definitions, losses: layerLosses } = mapLayers(database.layers);
   const model = mapRecords(database.modelSpaceEntities, names, "modelSpace");
   const blockMap = mapBlocks(database.blocks, names);
+  const resolvedUnit = resolveDwgUnit(database.insunits);
 
   const lossManifest: CadLossManifestEntry[] = [
-    // El laboratorio todavía no decodifica INSUNITS (variable de unidades del
-    // dibujo) en el camino de LECTURA — sí lo hace en el de escritura, pero
-    // eso no ayuda aquí. Asumir milímetros sin poder confirmarlo contra el
-    // archivo es una suposición, y una suposición silenciosa es justo lo que
-    // esta campaña prohíbe: se declara siempre, no sólo cuando "algo salió
-    // mal". Prominente y persistente porque vive en el manifiesto del
+    // INSUNITS SÍ se lee en el camino de lectura (ver `decodeAc1015HeaderVariables`
+    // / `decodeR2004HeaderVariables`, ya wireados en los dos lectores). Lo que
+    // sigue siendo una suposición es la unidad cuando el archivo declara un
+    // valor que el documento canónico todavía no representa (`resolveDwgUnit`
+    // devuelve `undefined`) — y una suposición silenciosa es justo lo que esta
+    // campaña prohíbe: se declara siempre que se asume, no sólo cuando "algo
+    // salió mal". Prominente y persistente porque vive en el manifiesto del
     // documento, no en un toast que desaparece.
-    {
-      code: DWG_BRIDGE_LOSS_CODES.unitAssumed,
-      sourceType: "document",
-      detail:
-        "Las unidades del dibujo (INSUNITS) no se leen todavía en esta beta: el documento se " +
-        "asume en milímetros sin poder confirmarlo contra el archivo.",
-      severity: "warning" as const,
-    },
+    ...(resolvedUnit === undefined
+      ? [
+          {
+            code: DWG_BRIDGE_LOSS_CODES.unitAssumed,
+            sourceType: "document",
+            detail:
+              database.insunits === 0
+                ? "El archivo no declara unidades de dibujo (INSUNITS=0, sin unidad): el documento se " +
+                  "asume en milímetros sin poder confirmarlo contra el archivo."
+                : `El archivo declara INSUNITS=${database.insunits}, una unidad que esta beta todavía ` +
+                  "no representa (sólo pulgadas, pies, milímetros, centímetros y metros): el documento " +
+                  "se asume en milímetros sin poder confirmarlo contra el archivo.",
+            severity: "warning" as const,
+          },
+        ]
+      : []),
     ...layerLosses,
     ...model.losses,
     ...blockMap.losses,
@@ -501,7 +533,7 @@ export function dwgNeutralDatabaseToCadDocument(
     );
   }
 
-  const empty = layoutToCadDocument({}, { unit: "mm" });
+  const empty = layoutToCadDocument({}, { unit: resolvedUnit ?? "mm" });
   const document = migrateCadDocument({
     ...empty,
     layers: definitions,

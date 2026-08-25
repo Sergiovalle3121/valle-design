@@ -6,10 +6,13 @@
  * clases enmarcadas con centinelas + tamaño + CRC, y el mapa de objetos — por
  * defecto VACÍO (sólo su página terminadora big-endian) y, desde la fase D1,
  * POBLADO cuando el llamador pide objetos sintéticos opacos, que se emiten en
- * la región sin mapear previa al mapa. Los payloads de las dos primeras
- * secciones son OPACOS aquí: el contenido real de las variables de cabecera y
- * de las clases es de fases posteriores, y por eso el placeholder por defecto
- * es un rótulo first-party evidente, no un remedo de datos reales.
+ * la región sin mapear previa al mapa. El payload de clases sigue OPACO aquí
+ * (vacío por defecto: cero clases es una sección de clases legítima). El de
+ * variables de cabecera YA NO lo es — desde que `readAc1015Database` decodifica
+ * ese payload de verdad (no sólo el marco), el placeholder por defecto tiene
+ * que ser un juego COMPLETO y decodificable (`createAc1015HeaderVariables` +
+ * `encodeAc1015HeaderVariables`, los valores medidos del fixture 01-vacio), no
+ * el rótulo first-party opaco que bastaba cuando nada leía ese contenido.
  *
  * El writer existe para una cosa: ser la mitad emisora del round-trip que
  * mantiene honesto al lector. Por eso no inventa constantes propias — importa
@@ -48,6 +51,10 @@ import {
   inspectOrdinaryByteView,
 } from "../security/byte-view.js";
 import { throwDwgError } from "../security/parse-error.js";
+import {
+  createAc1015HeaderVariables,
+  encodeAc1015HeaderVariables,
+} from "./ac1015-header-writer.js";
 import type { Ac1015ObjectMapEntry } from "../container/ac1015-object-map.js";
 import type { DwgGeometryEntity } from "../model/entity-geometry.js";
 import {
@@ -169,11 +176,7 @@ export const AC1015_WRITER_MAX_SECTION_PAYLOAD = 0xffff;
  * compartido de todos los demás.
  */
 export function ac1015HeaderVariablesPlaceholder(): Uint8Array {
-  // "VALLE-DWG0-HVARS"
-  return Uint8Array.from([
-    0x56, 0x41, 0x4c, 0x4c, 0x45, 0x2d, 0x44, 0x57, 0x47, 0x30, 0x2d, 0x48,
-    0x56, 0x41, 0x52, 0x53,
-  ]);
+  return encodeAc1015HeaderVariables(createAc1015HeaderVariables());
 }
 
 export interface Ac1015ContainerWriteOptions {

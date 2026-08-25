@@ -145,12 +145,13 @@ export function readR2004Database(
 
   // Variables de cabecera: marco con centinelas + CRC y la secuencia del
   // capítulo 9 en sabor R2004. Se decodifican para VALIDAR la sección
-  // completa (fallo cerrado); la base neutral aún no las expone.
+  // completa (fallo cerrado) y hoy además para proyectar INSUNITS al puente
+  // del producto — el resto de variables sigue sin consumidor.
   const headerFrame = readR2004SectionFrame(
     headerPayload,
     AC1015_HEADER_VARIABLES_SENTINELS,
   );
-  decodeR2004HeaderVariables(headerFrame.payload);
+  const headerVariables = decodeR2004HeaderVariables(headerFrame.payload);
 
   const classesFrame = readR2004SectionFrame(
     classesPayload,
@@ -214,7 +215,7 @@ export function readR2004Database(
     decodedObjects.push(decoded);
   }
 
-  return assembleDatabase(decodedObjects, unsupported, classRecords);
+  return assembleDatabase(decodedObjects, unsupported, classRecords, headerVariables.insunits);
 }
 
 /**

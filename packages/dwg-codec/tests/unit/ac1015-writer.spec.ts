@@ -28,10 +28,14 @@ import {
 } from "../../src/writer/ac1015-container-writer.js";
 import { assertDwgError } from "../support/assert.js";
 
-/** Disposición del contenedor mínimo por defecto (placeholder de 16 bytes). */
+/**
+ * Disposición del contenedor mínimo por defecto. `HV_SIZE` se DERIVA del
+ * placeholder real (juego completo y decodificable de variables de
+ * cabecera), no de un tamaño fijo de conveniencia.
+ */
 const HEADER_LENGTH = 0x46;
 const HV_START = HEADER_LENGTH;
-const HV_SIZE = AC1015_SECTION_FRAME_OVERHEAD + 16;
+const HV_SIZE = AC1015_SECTION_FRAME_OVERHEAD + ac1015HeaderVariablesPlaceholder().length;
 const CLASSES_START = HV_START + HV_SIZE;
 const CLASSES_SIZE = AC1015_SECTION_FRAME_OVERHEAD;
 const MAP_START = CLASSES_START + CLASSES_SIZE;
@@ -63,7 +67,7 @@ test("round-trip: el lector abre y verifica todo lo que el writer emite", () => 
     header.records[0]!,
     AC1015_HEADER_VARIABLES_SENTINELS,
   );
-  assert.equal(headerVariables.declaredSize, 16);
+  assert.equal(headerVariables.declaredSize, ac1015HeaderVariablesPlaceholder().length);
   assert.deepEqual(headerVariables.payload, ac1015HeaderVariablesPlaceholder());
 
   const classes = readAc1015SectionFrame(
@@ -178,7 +182,7 @@ test("opciones fuera de rango fallan cerradas antes de emitir un byte", () => {
 
 test("gemelo triste: el CRC roto de un marco delata su byte exacto", () => {
   const file = writeAc1015Container();
-  const crcOffset = HV_START + 16 + 4 + 16; // apertura + RL + payload
+  const crcOffset = HV_START + 16 + 4 + ac1015HeaderVariablesPlaceholder().length; // apertura + RL + payload
   file[crcOffset]! ^= 0x55;
   try {
     readAc1015SectionFrame(

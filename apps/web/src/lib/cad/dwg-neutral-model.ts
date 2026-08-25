@@ -394,6 +394,8 @@ export interface DwgNeutralDatabase {
   readonly layers: readonly DwgNeutralLayer[];
   readonly blocks: readonly DwgNeutralBlock[];
   readonly modelSpaceEntities: readonly DwgNeutralEntityRecord[];
+  /** BS crudo de INSUNITS (variables de cabecera): unidades del dibujo. */
+  readonly insunits: number;
   readonly unsupported: readonly DwgNeutralUnsupportedObject[];
   readonly diagnostics: readonly DwgNeutralDiagnostic[];
 }

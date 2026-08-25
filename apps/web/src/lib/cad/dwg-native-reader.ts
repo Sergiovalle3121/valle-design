@@ -182,7 +182,7 @@ const toBetaProfileLayer = (layer: DwgDatabase["layers"][number]): DwgNeutralLay
  */
 type DwgDatabaseSlice = Pick<
   DwgDatabase,
-  "layers" | "blocks" | "modelSpaceEntities" | "unsupported" | "diagnostics"
+  "layers" | "blocks" | "modelSpaceEntities" | "insunits" | "unsupported" | "diagnostics"
 >;
 
 /**
@@ -200,6 +200,9 @@ export function toBetaProfileDatabase(database: DwgDatabaseSlice): DwgNeutralDat
     layers: database.layers.map(toBetaProfileLayer),
     blocks: database.blocks.map((block) => toBetaProfileBlock(block, diagnostics)),
     modelSpaceEntities,
+    // Escalar de documento, no de entidad: no hay nada de perfil V3 que
+    // filtrar aquí, viaja igual para toda versión/perfil.
+    insunits: database.insunits,
     unsupported: database.unsupported.map((object) => ({
       handle: object.handle,
       type: object.type,
