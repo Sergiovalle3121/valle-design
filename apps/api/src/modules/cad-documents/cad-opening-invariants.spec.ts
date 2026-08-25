@@ -80,7 +80,13 @@ describe('schema 7 opening invariants', () => {
         withEntities([
           wall(),
           opening(),
-          opening({ id: 'o2', position: 3_000, kind: 'window', sill: 900 }),
+          opening({
+            id: 'o2',
+            position: 3_000,
+            kind: 'window',
+            sill: 900,
+            height: 1_200,
+          }),
         ]),
       ),
     ).not.toThrow();
@@ -112,6 +118,27 @@ describe('schema 7 opening invariants', () => {
   it('rechaza un hueco que se sale del muro por cualquiera de los dos extremos', () => {
     rejects([wall(), opening({ position: 300 })], /no cabe en su anfitrión/);
     rejects([wall(), opening({ position: 3_800 })], /no cabe en su anfitrión/);
+  });
+
+  it('rechaza una ventana que remata por encima de la altura del muro', () => {
+    rejects(
+      [
+        wall({ height: 2_400 }),
+        opening({ kind: 'window', sill: 2_000, height: 1_000 }),
+      ],
+      /no cabe verticalmente en su anfitrión/,
+    );
+  });
+
+  it('acepta una ventana cuyo antepecho+altura llega justo a la altura del muro', () => {
+    expect(() =>
+      validateCadDocumentPayload(
+        withEntities([
+          wall({ height: 2_400 }),
+          opening({ kind: 'window', sill: 900, height: 1_500 }),
+        ]),
+      ),
+    ).not.toThrow();
   });
 
   it('rechaza dos huecos superpuestos en el mismo muro', () => {

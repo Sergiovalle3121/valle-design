@@ -14,12 +14,15 @@ import { buildCadDimensionGeometry } from "./associative-dimension";
 import { buildCadMleaderGeometry } from "./associative-mleader";
 import type { CadDocument } from "./cad-document";
 import { buildCadInsertBatches, resolveCadInsert } from "./professional-blocks";
+import type { CadRenderOrigin } from "./render/render-origin";
 
 export interface CadThreeViewport {
   scale: number;
   width: number;
   height: number;
   elevation?: number;
+  /** Origen flotante a restar ANTES de escalar (`render/render-origin.ts`). Ausente = (0,0). */
+  origin?: CadRenderOrigin;
 }
 
 interface CadNativeOverviewState {
@@ -67,10 +70,14 @@ function scenePoint(
   viewport: CadThreeViewport,
   elevation: number,
 ): THREE.Vector3 {
+  // Origen restado PRIMERO, en JS doubles, antes de cualquier Float32Array
+  // que construya el llamador. Sin `origin` es exactamente lo de siempre.
+  const originX = viewport.origin?.x ?? 0;
+  const originY = viewport.origin?.y ?? 0;
   return new THREE.Vector3(
-    (point.x - viewport.width / 2) * viewport.scale,
+    (point.x - originX - viewport.width / 2) * viewport.scale,
     elevation,
-    (point.y - viewport.height / 2) * viewport.scale,
+    (point.y - originY - viewport.height / 2) * viewport.scale,
   );
 }
 
@@ -371,11 +378,15 @@ export function buildCadInsertBatchObject(
     }
     if (!styles.size) continue;
 
+    const originX = viewport.origin?.x ?? 0;
+    const originY = viewport.origin?.y ?? 0;
     const linear = new Float32Array(batch.matrices.length * 4);
     const translate = new Float32Array(batch.matrices.length * 2);
     batch.matrices.forEach(([a, b, c, d, e, f], index) => {
       linear.set([a, b, c, d], index * 4);
-      translate.set([e, f], index * 2);
+      // `e, f` es la traslación ABSOLUTA de cada INSERT: mismo punto de fuga
+      // que `tessellateCadEntity`, misma resta antes del Float32Array.
+      translate.set([e - originX, f - originY], index * 2);
     });
     for (const style of styles.values()) {
       if (!style.positions.length) continue;

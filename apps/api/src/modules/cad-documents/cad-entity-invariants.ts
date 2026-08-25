@@ -20,6 +20,20 @@ import { assertOpeningInvariants } from './cad-opening-invariants';
  * render, en el índice espacial o en la exportación, lejos de su causa.
  */
 
+/**
+ * Mismo conjunto que `CAD_WALL_MATERIAL_IDS` de `wall-materials.ts` en el
+ * cliente, repetido a propósito en vez de importado: la API no depende del
+ * cliente, igual que `kind` de OPENING se compara aquí contra literales
+ * ("door"/"window") y no contra el tipo `CadOpeningKind` importado.
+ */
+const CAD_WALL_MATERIAL_IDS = [
+  'concrete',
+  'brick',
+  'drywall',
+  'wood',
+  'stucco',
+] as const;
+
 export function objectValue(value: unknown): Record<string, unknown> | null {
   return value && typeof value === 'object' && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -185,6 +199,19 @@ export function assertEntityInvariants(
       ) {
         throw new BadRequestException(
           `CadDocument: el muro ${id} requiere una altura positiva.`,
+        );
+      }
+      // `material` es OPCIONAL y de un conjunto FINITO y cerrado (ver
+      // wall-materials.ts del cliente, que declara el mismo conjunto sin
+      // importar este módulo — la API no depende del cliente). Un id que no
+      // resuelve no cruza la frontera: el cliente lo pintaría con su color
+      // genérico y nadie notaría el typo hasta la tabla de cantidades.
+      if (
+        entity.material !== undefined &&
+        !CAD_WALL_MATERIAL_IDS.includes(entity.material as never)
+      ) {
+        throw new BadRequestException(
+          `CadDocument: el muro ${id} declara un material desconocido (${JSON.stringify(entity.material)}).`,
         );
       }
     }

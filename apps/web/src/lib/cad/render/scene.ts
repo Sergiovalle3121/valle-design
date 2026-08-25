@@ -41,6 +41,7 @@ import {
 import { buildCadTextQuads, type CadScreenYSign } from "./text-atlas";
 import {
   CadRenderPipeline,
+  type CadRenderOrigin,
   type CadRenderPipelineOptions,
   type CadRenderPipelineStats,
   type CadRenderView,
@@ -114,7 +115,10 @@ export class CadRenderScene {
     });
     this.material = line.material;
     this.uniforms = line.uniforms;
-    this.textAtlas = new CadCanvasTextAtlas(options.atlasSize, options.atlasEmPixels);
+    this.textAtlas = new CadCanvasTextAtlas(
+      options.atlasSize,
+      options.atlasEmPixels,
+    );
     const text = createCadTextAtlasMaterial({
       viewport: options.viewport,
       texture: this.textAtlas.texture,
@@ -147,12 +151,22 @@ export class CadRenderScene {
    * Cambia la vista. Un paneo o un zoom que NO cambia el conjunto de tiles no
    * reconstruye nada: escribe cuatro uniformes y termina.
    */
-  setView(view: CadRenderView, viewport?: CadThreeViewport): CadRenderViewUpdate {
+  setView(
+    view: CadRenderView,
+    viewport?: CadThreeViewport,
+  ): CadRenderViewUpdate {
     if (viewport) this.viewport = viewport;
     this.pixelsPerUnit = view.pixelsPerUnit;
-    updateCadLineBatchUniforms(this.uniforms, this.viewport, view.pixelsPerUnit);
+    updateCadLineBatchUniforms(
+      this.uniforms,
+      this.viewport,
+      view.pixelsPerUnit,
+    );
     this.textUniforms.cadScale.value = this.viewport.scale;
-    this.textUniforms.cadCenter.value.set(this.viewport.width / 2, this.viewport.height / 2);
+    this.textUniforms.cadCenter.value.set(
+      this.viewport.width / 2,
+      this.viewport.height / 2,
+    );
     return this.pipeline.setView(view);
   }
 
@@ -162,6 +176,11 @@ export class CadRenderScene {
 
   get settled(): boolean {
     return this.pipeline.settled;
+  }
+
+  /** Origen flotante vigente del pipeline — ver `CadRenderPipeline.renderOrigin`. */
+  get renderOrigin(): CadRenderOrigin {
+    return this.pipeline.renderOrigin;
   }
 
   /** Reconcilia las mallas del grupo con los lotes visibles del pipeline. */
@@ -217,9 +236,15 @@ export class CadRenderScene {
       this.textMesh = null;
     }
     if (requests.length > 0) {
-      const quads = buildCadTextQuads(requests, this.textAtlas.atlas, this.textAtlas.source, {
-        yScreenSign: this.yScreenSign,
-      });
+      const quads = buildCadTextQuads(
+        requests,
+        this.textAtlas.atlas,
+        this.textAtlas.source,
+        {
+          yScreenSign: this.yScreenSign,
+          origin: this.pipeline.renderOrigin,
+        },
+      );
       this.textAtlas.sync();
       this.textUniforms.cadAtlas.value = this.textAtlas.texture;
       glyphs = quads.instanceCount;

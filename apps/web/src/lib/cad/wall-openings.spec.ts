@@ -25,7 +25,7 @@ import type { CadWallEntity } from "./cad-entities-v6";
 import { executeCadEntityCommandBatch } from "./entity-commands";
 import { CAD_ENTITY_REGISTRY, type CadNativeEntity } from "./entity-runtime";
 import { buildCadBimSchedule } from "./bim-schedule";
-import { wallOpeningFit, wallOpeningSpan } from "./wall-openings";
+import { wallOpeningFit, wallOpeningSpan, wallOpeningVerticalFit } from "./wall-openings";
 
 let checks = 0;
 function ok(condition: unknown, message: string): void {
@@ -418,12 +418,29 @@ function jambMid(
   );
 }
 
+// --- 9. lo que no cabe VERTICALMENTE tampoco pasa en silencio -----------------
+{
+  const shortWall = { height: 2_400 };
+  const tooTall = wallOpeningVerticalFit(shortWall, { sill: 2_000, height: 1_000 });
+  ok(!tooTall.ok, "una ventana que remata por encima del muro no cabe");
+  ok(
+    !tooTall.ok && /no cabe verticalmente/.test(tooTall.problem),
+    `y el motivo lo dice en el eje correcto: ${tooTall.ok ? "" : tooTall.problem}`,
+  );
+
+  const exact = wallOpeningVerticalFit(shortWall, { sill: 900, height: 1_500 });
+  ok(exact.ok, "un remate que llega EXACTO a la altura del muro sí cabe");
+
+  const doorFit = wallOpeningVerticalFit(shortWall, { sill: 0, height: 2_100 });
+  ok(doorFit.ok, "una puerta corriente (antepecho 0) cabe bajo un muro de 2.4 m");
+}
+
 console.log(
   `wall-openings: ${checks} aserciones verdes. Un hueco parte la cara del muro en su intervalo ` +
     `exacto y cruza con sus jambas de cara a cara; mover el muro arrastra la puerta sin cambiarle ` +
     `un campo; borrar el muro se lleva sus dos huecos en el mismo commit y sin dejar id fantasma; ` +
     `borrar la puerta devuelve el contorno cerrado byte a byte; lo que no cabe no se dibuja y se ` +
-    `nombra; escalar escala y reflejar cambia la mano; y un bloque del estudio sustituye al ` +
-    `símbolo sin tocar el alojamiento; y con la esquina en inglete el vano se abre en el mismo ` +
-    `parámetro de eje en las dos caras, que tienen longitudes distintas.`,
+    `nombra, en el eje horizontal y en el vertical; escalar escala y reflejar cambia la mano; y un ` +
+    `bloque del estudio sustituye al símbolo sin tocar el alojamiento; y con la esquina en inglete ` +
+    `el vano se abre en el mismo parámetro de eje en las dos caras, que tienen longitudes distintas.`,
 );

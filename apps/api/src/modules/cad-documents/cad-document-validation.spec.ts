@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import {
   CAD_DOCUMENT_MAX_ARCHIVE_BYTES,
+  CAD_DOCUMENT_MAX_SCHEMA,
   redactCadDocumentSecrets,
   validateCadDocumentPayload,
 } from './cad-document-validation';
@@ -39,6 +40,28 @@ describe('validateCadDocumentPayload', () => {
       BadRequestException,
     );
     expect(() => validateCadDocumentPayload(payload)).toThrow(message);
+  });
+
+  // El cliente escribe `meta.schema = CAD_DOCUMENT_SCHEMA` en CADA documento
+  // que migra (todos, al abrirse) — así que el servidor tiene que aceptar
+  // exactamente ese número o cada guardado se vuelve un 400 sin que nada
+  // esté roto. Ancla absoluta contra el número en sí, no contra "algún
+  // número grande": así este spec se rompe el día que alguien vuelva a subir
+  // el esquema del cliente sin tocar este archivo — el mismo modo de fallo
+  // que dejó el servidor en 9 mientras el cliente ya llevaba semanas en 10.
+  it('accepts the current client schema and rejects the one right above it', () => {
+    const atMax = {
+      ...valid,
+      meta: { ...valid.meta, schema: CAD_DOCUMENT_MAX_SCHEMA },
+    };
+    expect(() => validateCadDocumentPayload(atMax)).not.toThrow();
+    const overMax = {
+      ...valid,
+      meta: { ...valid.meta, schema: CAD_DOCUMENT_MAX_SCHEMA + 1 },
+    };
+    expect(() => validateCadDocumentPayload(overMax)).toThrow(
+      BadRequestException,
+    );
   });
 
   it('validates bounded paper spaces, viewports and publication receipts', () => {

@@ -25,6 +25,10 @@ import type {
   CadPropertyBag,
   CadPropertyValue,
 } from "@/lib/cad/entity-runtime";
+import {
+  CAD_WALL_MATERIAL_IDS,
+  cadWallMaterialStyle,
+} from "@/lib/cad/wall-materials";
 
 export type { CadPropertyValue };
 
@@ -40,7 +44,12 @@ export interface CadPropertySubject {
 }
 
 export type CadPropertyEditorKind =
-  "text" | "multiline" | "number" | "boolean" | "readonly";
+  "text" | "multiline" | "number" | "boolean" | "readonly" | "select";
+
+export interface CadPropertyOption {
+  value: string;
+  label: string;
+}
 
 export interface CadPropertyRow {
   key: string;
@@ -49,6 +58,8 @@ export interface CadPropertyRow {
   /** Valor común, o `null` cuando difiere entre los objetos designados. */
   value: CadPropertyValue | null;
   varies: boolean;
+  /** Sólo en filas `kind: "select"`: las opciones que ofrece el desplegable. */
+  options?: readonly CadPropertyOption[];
   /**
    * Objetos a los que va una escritura de esta fila. Es la designación entera
    * porque las filas son la intersección, pero se expone explícito para que la
@@ -137,6 +148,7 @@ const CATEGORY_BY_KEY: Record<string, string> = {
   // clave la comparte MTEXT (altura de texto, categoría Texto) y la categoría
   // se resuelve por clave, no por tipo.
   thickness: GEOMETRY,
+  material: GEOMETRY,
 
   text: TEXT,
   height: TEXT,
@@ -207,6 +219,22 @@ const READONLY_KEYS = new Set([
   "block",
 ]);
 
+/**
+ * Claves de un conjunto FINITO, con desplegable en vez de texto libre. La
+ * opción vacía siempre es "sin declarar" — no hace falta que cada dueño de
+ * campo la repita — así que se antepone aquí, una sola vez, para las claves
+ * que la ofrecen.
+ */
+const SELECT_OPTIONS_BY_KEY: Record<string, readonly CadPropertyOption[]> = {
+  material: [
+    { value: "", label: "Genérico" },
+    ...CAD_WALL_MATERIAL_IDS.map((id) => ({
+      value: id,
+      label: cadWallMaterialStyle(id).label,
+    })),
+  ],
+};
+
 /** El prefijo de los atributos de un INSERT: `attribute:MARK`. */
 const ATTRIBUTE_PREFIX = "attribute:";
 
@@ -220,6 +248,7 @@ function editorKindOf(
   value: CadPropertyValue,
 ): CadPropertyEditorKind {
   if (READONLY_KEYS.has(key) || key.endsWith("Count")) return "readonly";
+  if (key in SELECT_OPTIONS_BY_KEY) return "select";
   if (typeof value === "boolean") return "boolean";
   if (key === "text") return "multiline";
   if (typeof value === "number") return "number";
@@ -271,12 +300,14 @@ export function buildCadPropertyModel(
     const varies = subjects.some(
       (subject) => !Object.is(subject.properties[key], first),
     );
+    const kind = editorKindOf(key, first);
     const row: CadPropertyRow = {
       key,
       category: categoryOf(key),
-      kind: editorKindOf(key, first),
+      kind,
       value: varies ? null : first,
       varies,
+      ...(kind === "select" ? { options: SELECT_OPTIONS_BY_KEY[key] } : {}),
       entityIds: [...entityIds],
     };
     const rows = byCategory.get(row.category);

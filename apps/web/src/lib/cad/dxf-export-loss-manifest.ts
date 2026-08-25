@@ -177,8 +177,9 @@ const SCHEMA4_LOSS_RULES: Record<string, Schema4LossRule> = {
       detail:
         "WALL — el muro se exporta como su CONTORNO en planta (polilínea cerrada), no como muro " +
         "paramétrico: el DXF plano no tiene entidad de muro, así que el eje, el grosor editable " +
-        `(${entity.thickness}) y la altura (${entity.height}) no viajan. Al reimportar volverá como ` +
-        "polilínea. Conserva el documento canónico como original.",
+        `(${entity.thickness}) y la altura (${entity.height}) no viajan` +
+        (entity.material ? ` (tampoco el material "${entity.material}")` : "") +
+        ". Al reimportar volverá como polilínea. Conserva el documento canónico como original.",
     };
   },
   wipeout: (entity, _document, scoped) => {

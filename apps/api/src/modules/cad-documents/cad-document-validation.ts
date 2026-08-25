@@ -30,6 +30,19 @@ export type PersistedCadDocument = Record<string, unknown>;
  * `cad-entities-v10.ts` en el cliente): ninguno introduce una forma nueva que
  * este validador deba comprobar por campo, igual que `frozen`/`layerStates`
  * en el 9.
+ *
+ * Este número se quedó en 9 mientras el cliente ya llevaba semanas en 10
+ * (`CAD_DOCUMENT_SCHEMA` en `cad-document-shared.ts`) — exactamente el modo
+ * de fallo que este comentario lleva años advirtiendo: cualquier documento
+ * que pasara por `migrateCadDocument` en el cliente (TODOS, al abrirse — ver
+ * su comentario: escribe `meta.schema = CAD_DOCUMENT_SCHEMA` sin excepción)
+ * y se guardara después, recibía un 400 sin que nada estuviera roto.
+ * Encontrado y corregido dos veces, de forma independiente y por vías
+ * distintas: durante la campaña 3D-M1 (ver
+ * `docs/execution/CAMPANA_3D_M1_20260824.md` para la evidencia completa) y
+ * durante el cierre M1 de DWG, ahí por un E2E real (API + Postgres, no
+ * mockeado) al guardar un documento importado — el techo desactualizado no
+ * era específico de DWG, afectaba cualquier guardado.
  */
 export const CAD_DOCUMENT_MAX_SCHEMA = 10;
 export const CAD_DOCUMENT_MAX_INLINE_BYTES = 8_000_000;

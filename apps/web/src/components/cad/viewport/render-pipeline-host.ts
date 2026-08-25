@@ -52,6 +52,7 @@ import type { CadNativeEntity } from "@/lib/cad/entity-runtime";
 import { CAD_ENTITY_REGISTRY } from "@/lib/cad/entity-runtime";
 import type { CadThreeViewport } from "@/lib/cad/entity-three";
 import { CadRenderScene } from "@/lib/cad/render/scene";
+import type { CadRenderOrigin } from "@/lib/cad/render/pipeline";
 import {
   CAD_RENDER_DEFAULT_COLOR,
   CAD_RENDER_DEFAULT_HALF_WIDTH_PX,
@@ -211,6 +212,16 @@ export class CadViewportRenderHost {
     return this.scene.group.visible;
   }
 
+  /**
+   * Origen flotante vigente del pipeline por lotes. Lo necesita quien dibuja
+   * FUERA de este anfitrión pero tiene que coincidir con él en dónde cae cada
+   * punto — hoy, el lote de INSERTs (`buildCadInsertBatchObject`), que corre
+   * siempre, esté o no activo el pipeline por lotes.
+   */
+  get renderOrigin(): CadRenderOrigin {
+    return this.scene.renderOrigin;
+  }
+
   setVisible(visible: boolean): void {
     this.scene.group.visible = visible;
   }
@@ -330,7 +341,10 @@ export class CadViewportRenderHost {
    * que se deselecciona—, que es el conjunto mínimo que hay que reteselar para
    * que el color nuevo llegue a la GPU.
    */
-  setSelection(entityIds: readonly string[], document: CadDocument | null): void {
+  setSelection(
+    entityIds: readonly string[],
+    document: CadDocument | null,
+  ): void {
     if (this.disposed) return;
     const next = new Set(entityIds);
     const touched: string[] = [];
@@ -378,8 +392,15 @@ export class CadViewportRenderHost {
     let viewMoved = false;
     if (viewport || this.viewChanged(view)) {
       const update = this.scene.setView(view, viewport);
-      this.lastView = { bounds: { ...view.bounds }, pixelsPerUnit: view.pixelsPerUnit };
-      if (update.addedTiles > 0 || update.removedTiles > 0 || update.lodChanged) {
+      this.lastView = {
+        bounds: { ...view.bounds },
+        pixelsPerUnit: view.pixelsPerUnit,
+      };
+      if (
+        update.addedTiles > 0 ||
+        update.removedTiles > 0 ||
+        update.lodChanged
+      ) {
         this.dirty = true;
         viewMoved = true;
       }

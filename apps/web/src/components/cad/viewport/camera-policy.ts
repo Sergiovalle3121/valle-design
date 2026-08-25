@@ -31,7 +31,10 @@ import { CAD_TOUCH_ONE_FINGER_IDLE } from "./touch-gestures";
  *
  * El ratón no se toca: en plano su botón izquierdo panea como siempre.
  */
-export function applyCadCameraPolicy(controls: OrbitControls, mode: "2d" | "3d"): void {
+export function applyCadCameraPolicy(
+  controls: OrbitControls,
+  mode: "2d" | "3d",
+): void {
   const plan = mode === "2d";
   controls.minPolarAngle = 0;
   // En plano la cámara queda clavada mirando hacia abajo; en 3D se le deja
@@ -42,4 +45,57 @@ export function applyCadCameraPolicy(controls: OrbitControls, mode: "2d" | "3d")
   controls.touches.ONE = plan
     ? (CAD_TOUCH_ONE_FINGER_IDLE as unknown as THREE.TOUCH)
     : THREE.TOUCH.ROTATE;
+}
+
+/** Contexto mundo↔escena que deriva de la huella: escala y medio lienzo lógico. */
+export interface CadSceneContext {
+  s: number;
+  W: number;
+  H: number;
+}
+
+/** Punto o target de cámara, plano — ver `lib/cad/view/camera-continuity.ts`. */
+export interface CadCameraPose {
+  readonly position: {
+    readonly x: number;
+    readonly y: number;
+    readonly z: number;
+  };
+  readonly target: {
+    readonly x: number;
+    readonly y: number;
+    readonly z: number;
+  };
+}
+
+/**
+ * Encuadre de cámara para una huella dada: la última cámara conocida si hay
+ * una (`restore`), o el encuadre por defecto si no.
+ *
+ * Vive fuera del ciclo de vida de la escena (`Layout3DEditor.tsx`) para poder
+ * volver a llamarse en un cambio REAL de huella (un footprint distinto, no un
+ * `data` que cambió de referencia por autosave) sin tumbar renderer, workers
+ * ni el resto de anfitriones montados. `restore` es lo que permite además que
+ * un remontaje conserve el encuadre del usuario en vez de reiniciarlo.
+ */
+export function applyInitialCameraFraming(
+  camera: THREE.PerspectiveCamera,
+  controls: OrbitControls,
+  footprintW: number,
+  footprintH: number,
+  restore?: CadCameraPose | null,
+): CadSceneContext {
+  const W = footprintW || 1;
+  const H = footprintH || 1;
+  const s = 30 / Math.max(W, H);
+  const position = restore?.position ?? {
+    x: W * s * 0.45,
+    y: Math.max(W, H) * s * 0.8,
+    z: H * s * 1.0 + 10,
+  };
+  const target = restore?.target ?? { x: 0, y: 0, z: 0 };
+  camera.position.set(position.x, position.y, position.z);
+  controls.target.set(target.x, target.y, target.z);
+  controls.update();
+  return { s, W, H };
 }

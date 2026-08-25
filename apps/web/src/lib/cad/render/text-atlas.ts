@@ -33,6 +33,7 @@
  * para que este módulo se pueda probar entero en Node.
  */
 import { packCadColor } from "./line-batch";
+import type { CadRenderOrigin } from "./render-origin";
 
 export interface CadAtlasSlot {
   /** Píxeles dentro del atlas. */
@@ -190,6 +191,12 @@ export type CadScreenYSign = 1 | -1;
 export interface CadTextQuadOptions {
   /** Por defecto `1`: la convención que el editor usa hoy. */
   yScreenSign?: CadScreenYSign;
+  /**
+   * Origen flotante a restar de `request.x`/`request.y` ANTES de empaquetar
+   * a `Float32Array` (ver `render-origin.ts`). Ausente = (0,0), idéntico al
+   * comportamiento de antes de que existiera el origen flotante.
+   */
+  origin?: CadRenderOrigin;
 }
 
 export interface CadTextQuadArrays {
@@ -235,12 +242,19 @@ export function buildCadTextQuads(
   const style = new Float32Array(capacity * 2);
   let count = 0;
   let dropped = 0;
+  const originX = options.origin?.x ?? 0;
+  const originY = options.origin?.y ?? 0;
 
   for (const request of requests) {
     const radians = ((request.rotationDeg ?? 0) * Math.PI) / 180;
     const cos = Math.cos(radians);
     const sin = Math.sin(radians);
     const packedColor = packCadColor(request.color);
+    // Resta ANTES de empaquetar, como en `tessellateCadEntity`: la base del
+    // rótulo es la única coordenada absoluta aquí, así que sólo ella se
+    // desplaza — el avance de cada glifo (`localX`/`localY`) ya es pequeño.
+    const baseX = request.x - originX;
+    const baseY = request.y - originY;
     let pen = 0;
     for (const character of request.text) {
       const metrics = source.metrics(character, request.fontKey);
@@ -262,8 +276,8 @@ export function buildCadTextQuads(
       const localY = metrics.bearingY * request.fontSize * flipY;
       const width = metrics.emWidth * request.fontSize;
       const height = metrics.emHeight * request.fontSize * flipY;
-      origin[count * 2] = request.x + localX * cos - localY * sin;
-      origin[count * 2 + 1] = request.y + localX * sin + localY * cos;
+      origin[count * 2] = baseX + localX * cos - localY * sin;
+      origin[count * 2 + 1] = baseY + localX * sin + localY * cos;
       right[count * 2] = width * cos;
       right[count * 2 + 1] = width * sin;
       up[count * 2] = -height * sin;
@@ -326,6 +340,9 @@ export function cadLegacySpriteBytes(
 ): number {
   let bytes = 0;
   for (const label of labels)
-    bytes += Math.max(2, Math.ceil(label.widthPx)) * Math.max(2, Math.ceil(label.heightPx)) * 4;
+    bytes +=
+      Math.max(2, Math.ceil(label.widthPx)) *
+      Math.max(2, Math.ceil(label.heightPx)) *
+      4;
   return bytes;
 }

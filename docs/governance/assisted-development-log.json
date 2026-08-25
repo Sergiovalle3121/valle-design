@@ -266,6 +266,56 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "3D-M1-CAMPAIGN-2026-08-24",
+      "date": "2026-08-24",
+      "initiative": "3D-M1: vista arquitectónica 3D paramétrica de punta a punta — rescate de cámara/autosave y origen flotante de escena, validación vertical de vanos, volumen 3D nativo de muros/recintos/piso/cielorraso/cubierta, selección 3D y edición con deshacer/rehacer, material nativo de muro, diff incremental y disposal, UX de geometría inválida, vistas estándar adicionales del visor 3D en vivo, y fixture de aceptación de punta a punta contra la API real y PostgreSQL",
+      "branch": "claude/valle-design-3d-campaign-t0zzad",
+      "assistants": [
+        {
+          "name": "Claude Code (Anthropic)",
+          "role": "ejecución autónoma supervisada por directiva escrita del titular (prompt de campaña 3D de 9 horas), en los cortes documentados en docs/execution/CAMPANA_3D_M1_20260824.md: (A) auditoría read-only paralela del estado real de muros/vanos/solid3d en 3D, corrección de la causa raíz del reset de cámara en autosave, extracción de rebuildAssets a un host reconciliable en scene-objects.ts, cierre de la validación vertical de vanos en cliente y servidor (verificado contra PR #94 por fetch/diff/merge-tree de sólo lectura, sin copiar su código), y origen flotante de escena (cierra P0-2 del backlog); (B) volumen B-rep real de muros con vanos recortados como agujero pasante; (C) extensión de detectCadRooms para exponer anillo de local y contorno exterior (con corrección de un bug propio: una planta abierta producía una cara degenerada de área cero confundida con el contorno exterior), y extrusión de piso/cielorraso/cubierta sobre ese contorno vía el kernel B-rep existente; (D) selección 3D sobre el sólido real del muro, material nativo aditivo (sin bump de esquema) editable de punta a punta con deshacer/rehacer y guardar/recargar, más el hallazgo y arreglo independiente de un bug de producción preexistente (CAD_DOCUMENT_MAX_SCHEMA desactualizado en la API, convergente con el PR #98 fusionado en paralelo); (E) recoloreado sin retesellado ante selección/material, disposal endurecido, primer benchmark del camino nativo, e instancing investigado y descartado por razones estructurales; (F) UX de geometría 3D inválida (avisa en vez de desaparecer en silencio) y tres presets nuevos de cámara (posterior/lateral izquierda/lateral derecha), extraídos a un módulo propio para no exceder el presupuesto de líneas del monolito; y una fixture de aceptación de punta a punta (muros/vano/material) verificada contra la API NestJS real y PostgreSQL 16 corriendo en el propio entorno de esta sesión, no sólo contra los fixtures herméticos de intercepción de red"
+        }
+      ],
+      "authority": "Prompt maestro de campaña 3D de 9 horas del titular Sergio Valle Zárate en esta conversación del 2026-08-24, con la condición explícita de exclusividad de escritura verificada antes de empezar (origin/main sincronizado en 946c5dbe2ac1b4e3d783090cb45cd3de0ec50dcb, sin otro escritor activo). El entorno de esta sesión remota fija además la rama de trabajo listada y exige PR en vez de push directo a main; se documenta la desviación frente al prompt original en docs/execution/CAMPANA_3D_M1_20260824.md",
+      "firstPartyInputs": [
+        "Repositorio Valle Design en 946c5dbe2ac1b4e3d783090cb45cd3de0ec50dcb",
+        "Tres auditorías read-only paralelas de esta misma sesión sobre el mismo commit",
+        "PR #94 (dcbe200a42029b7af5228f5360c0ca446fa88650) inspeccionado por fetch/diff/merge-tree de sólo lectura, sin checkout ni merge",
+        "PR #98 (e0503e7, campaña DWG producto/main) fusionado en paralelo a la misma base — conflicto de merge resuelto comparando ambos lados con git show, no confiando en el auto-merge de git",
+        "Agentes de exploración read-only propios de esta sesión antes de cada corte (Corte D, E y F), para no reconstruir lo que ya existía"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "ciclo de vida de la escena 3D (Layout3DEditor.tsx)",
+        "encuadre de cámara (components/cad/viewport/camera-policy.ts)",
+        "continuidad de cámara (lib/cad/view/camera-continuity.ts, nuevo)",
+        "reconciliación del grupo de activos heredado (components/cad/viewport/scene-objects.ts)",
+        "invariantes de vano (apps/api cad-opening-invariants.ts, lib/cad/wall-openings.ts)",
+        "volumen 3D de muro (lib/cad/wall-solid.ts, wall-solid-three.ts, nuevos)",
+        "anfitrión de escena de muros nativos (components/cad/viewport/wall-solid-host.ts, nuevo)",
+        "cuadro de áreas y detección de recintos (lib/cad/bim-schedule.ts: anillo de local y contorno exterior nuevos)",
+        "volumen 3D de piso/cielorraso/cubierta (lib/cad/room-solid.ts, room-solid-three.ts, nuevos)",
+        "anfitrión de escena de masas arquitectónicas y su fachada unificadora (components/cad/viewport/room-solid-host.ts, native-mass-hosts.ts, nuevos)",
+        "material nativo de muro (lib/cad/wall-materials.ts, nuevo; wall-entity-adapter.ts, cad-entity-invariants.ts en apps/api)",
+        "editor de propiedades genérico de tipo finito (components/cad/palettes/property-model.ts, CadPropertiesPalette.tsx: kind \"select\")",
+        "esquema máximo del documento CAD en la API (apps/api cad-document-validation.ts: CAD_DOCUMENT_MAX_SCHEMA, bug de producción preexistente corregido)",
+        "reporte de validación del documento (lib/cad/validation-report.ts: categoría \"geometry\" nueva)",
+        "presets de cámara del visor 3D en vivo (components/cad/viewport/camera-view-presets.ts, nuevo)",
+        "fixture de aceptación 3D-M1 contra la API real (apps/web/e2e/real/cad-3d-m1-real.spec.ts, nuevo)"
+      ],
+      "fixtures": [],
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: el titular revisa el PR de esta rama y sus checks (typecheck limpio en apps/web y apps/api, check:monolith-budget verde, trinquete de lint verde sin regresión, batería completa de specs de apps/web y apps/api verde, y la fixture de aceptación 3D-M1 contra la API real/PostgreSQL verde en 4 corridas consecutivas — ver docs/execution/INFORME_CAMPANA_3D_M1_20260824.md para el detalle numérico); la adopción se registra al revisar."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "DWG-PRODUCTO-MAIN-CAMPANA-2026-08-24",
       "date": "2026-08-24",
       "initiative": "Campaña DWG producto: build/Docker/release, límites, fidelidad, E2E, corpus y documentación del perfil AC1015/AC1018 ya autorizado (ADR-0009 §6-bis/ter/quater/§7)",

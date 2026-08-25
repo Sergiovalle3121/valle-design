@@ -136,6 +136,48 @@ const PropertyField = React.memo(function PropertyField({
       </label>
     );
 
+  if (row.kind === "select")
+    return (
+      <label
+        key={fieldKey}
+        className="type-micro text-muted-foreground dark:text-muted-foreground"
+      >
+        {row.key}
+        <select
+          data-testid={testId}
+          data-varies={row.varies ? "true" : undefined}
+          // Sin valor propio para "mixto": un desplegable no admite un valor
+          // seleccionado que no sea una de sus opciones, así que *VARIES* es
+          // una opción MÁS, deshabilitada, que sólo se pinta mientras nadie
+          // eligió — elegir cualquier opción real (incluida "Genérico") la
+          // reemplaza y aplica a los objetos designados, igual que un texto
+          // que se teclea encima del marcador.
+          value={
+            row.varies
+              ? CAD_PROPERTY_VARIES
+              : String(row.value ?? "")
+          }
+          disabled={readOnly}
+          onChange={(event) => {
+            if (event.target.value === CAD_PROPERTY_VARIES) return;
+            onEdit(row, event.target.value);
+          }}
+          className={fieldClass(row.varies)}
+        >
+          {row.varies && (
+            <option value={CAD_PROPERTY_VARIES} disabled hidden>
+              {CAD_PROPERTY_VARIES}
+            </option>
+          )}
+          {row.options?.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+    );
+
   if (row.kind === "multiline")
     return (
       <label

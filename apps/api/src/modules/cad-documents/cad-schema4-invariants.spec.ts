@@ -1,5 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
-import { validateCadDocumentPayload } from './cad-document-validation';
+import {
+  CAD_DOCUMENT_MAX_SCHEMA,
+  validateCadDocumentPayload,
+} from './cad-document-validation';
 
 /**
  * Invariantes de los ocho tipos que estrena el esquema 4.
@@ -113,35 +116,42 @@ describe('schema 4 entity invariants', () => {
       validateCadDocumentPayload(withEntities([sound.point])),
     ).not.toThrow();
     // Rechazar el esquema vigente convertiría cada guardado del editor en un
-    // 400. El techo subió a 10 con los siete DIMVARs de `dimension`
-    // (cad-entities-v10.ts en el cliente), así que el 9 y el 10 se aceptan
-    // y el que se rechaza es el 11: un esquema del FUTURO no se adivina.
+    // 400. Ancla contra la CONSTANTE, no contra el número que fuera el techo
+    // el día que esto se escribió: fijarlo a mano es justo lo que dejó esta
+    // prueba en rojo la vez que el techo subió y nadie la tocó.
     //
-    // Este mismo par de aserciones, con 9/10 en vez de 10/11, estuvo en pie
-    // desde el techo anterior y se quedó verde después de que el cliente
-    // subiera a `CAD_DOCUMENT_SCHEMA = 10` (commit b3fada9): confirmaba que
-    // el esquema 10 se RECHAZABA, cuando el cliente ya lo escribía en cada
-    // guardado nuevo. La prueba pasaba y el guardado real fallaba con 400 —
-    // exactamente el escenario que describe el comentario de
-    // `CAD_DOCUMENT_MAX_SCHEMA`. Encontrado por un E2E real (API + Postgres,
-    // no mockeado) al guardar un documento importado de DWG; el techo
-    // desactualizado no es específico de DWG, afecta cualquier guardado.
+    // El techo subió a 10 con los siete DIMVARs de `dimension`
+    // (DIMTXT/DIMTXSTY/DIMCLRT/DIMCLRD/DIMCLRE/DIMTAD/DIMJUST,
+    // `cad-entities-v10.ts` en el cliente): puramente aditivo, ninguno
+    // introduce una forma nueva que este validador deba comprobar por
+    // campo. Este mismo par de aserciones, con 8/9 en vez de 9/10, se
+    // quedó verde después de que el cliente subiera a
+    // `CAD_DOCUMENT_SCHEMA = 10` (commit b3fada9): confirmaba que el
+    // esquema 10 se RECHAZABA, cuando el cliente ya lo escribía en cada
+    // guardado nuevo. La prueba pasaba y el guardado real fallaba con 400
+    // — exactamente el modo de fallo que describe el comentario de
+    // `CAD_DOCUMENT_MAX_SCHEMA`, y que la campaña 3D-M1 y el cierre M1 de
+    // DWG encontraron cada una por su lado, de forma independiente: aquí
+    // (DWG) por un E2E real (API + Postgres, no mockeado) al guardar un
+    // documento importado; allá por un agente de investigación sobre el
+    // precedente de migración de esquema. El techo desactualizado no era
+    // específico de DWG: afectaba cualquier guardado.
     expect(() =>
       validateCadDocumentPayload({
         ...withEntities([sound.point]),
-        meta: { schema: 9, version: 1, unit: 'mm' },
+        meta: { schema: CAD_DOCUMENT_MAX_SCHEMA - 1, version: 1, unit: 'mm' },
       }),
     ).not.toThrow();
     expect(() =>
       validateCadDocumentPayload({
         ...withEntities([sound.point]),
-        meta: { schema: 10, version: 1, unit: 'mm' },
+        meta: { schema: CAD_DOCUMENT_MAX_SCHEMA, version: 1, unit: 'mm' },
       }),
     ).not.toThrow();
     expect(() =>
       validateCadDocumentPayload({
         ...withEntities([sound.point]),
-        meta: { schema: 11, version: 1, unit: 'mm' },
+        meta: { schema: CAD_DOCUMENT_MAX_SCHEMA + 1, version: 1, unit: 'mm' },
       }),
     ).toThrow(BadRequestException);
   });

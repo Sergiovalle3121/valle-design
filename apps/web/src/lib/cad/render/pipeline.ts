@@ -70,6 +70,7 @@ import {
   cadEntityTessellatesWithoutDocument,
   collectCadOffThreadBatch,
   resolveCadOffThreadTessellator,
+  type CadOffThreadHooks,
   type CadOffThreadTessellator,
   type CadRenderTessellationSource,
 } from "./pipeline-offthread";
@@ -77,8 +78,9 @@ import { cadTessellationFromPayload } from "./tessellate-worker-client";
 import type { CadTextQuadRequest } from "./text-atlas";
 import { cadRenderCount, cadRenderMark, cadRenderStage } from "./render-profile";
 import { defaultCadRenderStyle } from "./render-style";
+import { CAD_RENDER_ORIGIN_ZERO, cadRenderOriginFromBounds, type CadRenderOrigin } from "./render-origin";
 
-export type { CadOffThreadTessellator, CadRenderTessellationSource };
+export type { CadOffThreadTessellator, CadRenderTessellationSource, CadRenderOrigin };
 export {
   CAD_RENDER_DEFAULT_COLOR,
   CAD_RENDER_DEFAULT_HALF_WIDTH_PX,
@@ -231,6 +233,8 @@ export class CadRenderPipeline {
   };
   private zoomOctaveValue = 0;
   private drawOrderCount = 0;
+  /** Origen flotante vigente (`render-origin.ts`). Sólo `replace()` lo mueve. */
+  private origin: CadRenderOrigin = CAD_RENDER_ORIGIN_ZERO;
 
   constructor(options: CadRenderPipelineOptions = {}) {
     this.cache = options.cache ?? new CadTessellationCache();
@@ -291,6 +295,7 @@ export class CadRenderPipeline {
           }
         : { ...entityBounds };
     }
+    this.origin = cadRenderOriginFromBounds(bounds);
     drawOrderIds.forEach((id, position) => this.drawOrder.set(id, position));
     this.drawOrderCount = Math.max(drawOrderIds.length, this.entities.size);
     this.index = new CadRenderTileIndex(
@@ -303,6 +308,11 @@ export class CadRenderPipeline {
 
   get tileSize(): number {
     return this.index.tileSize;
+  }
+
+  /** Origen flotante vigente — lo necesita quien más empaqueta geometría contra el mismo marco. */
+  get renderOrigin(): CadRenderOrigin {
+    return this.origin;
   }
 
   /**
@@ -540,7 +550,7 @@ export class CadRenderPipeline {
       resident.cursor += 1;
       const tessellationStarted = cadRenderMark();
       const tessellation = this.cache.get(id, tier, () =>
-        tessellateCadEntity(entity, cadRenderSegmentBudget(tier), this.document),
+        tessellateCadEntity(entity, cadRenderSegmentBudget(tier), this.document, this.origin),
       );
       cadRenderStage("tessellate", tessellationStarted);
       if (tessellation.segmentCount === 0) continue;
@@ -607,7 +617,7 @@ export class CadRenderPipeline {
       this.enqueueTile(tileId);
       return;
     }
-    this.offThread.request(tileId, batch, {
+    const hooks: CadOffThreadHooks = {
       seed: (payload, tier) => {
         const started = cadRenderMark();
         if (!this.entities.has(payload.entityId)) return;
@@ -617,7 +627,8 @@ export class CadRenderPipeline {
       finished: (finishedTileId) => {
         if (this.visibleTileSet.has(finishedTileId)) this.enqueueTile(finishedTileId);
       },
-    });
+    };
+    this.offThread.request(tileId, batch, hooks, this.origin);
   }
 
   /**

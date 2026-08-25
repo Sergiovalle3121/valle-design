@@ -153,6 +153,23 @@ assert.equal(wallLosses[0].code, "dxf_export_wall_parametric_degraded");
 assert.equal(wallLosses[0].severity, "warning", "la geometría viaja: es degradación, no descarte");
 assert.match(wallLosses[0].detail, /150/, "el aviso nombra el grosor que deja de ser editable");
 assert.match(wallLosses[0].detail, /2400/, "y la altura que no viaja");
+assert.doesNotMatch(
+  wallLosses[0].detail,
+  /material/,
+  "sin material declarado, el aviso no inventa una pérdida que no hubo",
+);
+
+// Con material declarado, el mismo aviso nombra TAMBIÉN esa pérdida: el DXF
+// plano no tiene dónde guardar un acabado que no es ni color ni capa.
+const wallWithMaterial: CadEntity = { ...wall, id: "muro-2", material: "brick" } as CadEntity;
+const wallWithMaterialLosses = cadDocumentDxfExportLosses(documentWith([wallWithMaterial]));
+assert.equal(wallWithMaterialLosses.length, 1);
+assert.equal(wallWithMaterialLosses[0].code, "dxf_export_wall_parametric_degraded");
+assert.match(
+  wallWithMaterialLosses[0].detail,
+  /material "brick"/,
+  "con material declarado, el mismo aviso YA existente nombra también esa pérdida",
+);
 
 // Y su primitiva ES el contorno que el usuario ve: polilínea cerrada de 4 puntos.
 const wallPrimitive = cadEntityToDxfPrimitive(wall);

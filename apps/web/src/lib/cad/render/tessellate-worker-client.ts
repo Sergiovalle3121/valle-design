@@ -39,6 +39,7 @@ import {
   type CadTessellatedEntityPayload,
 } from "./tessellate.worker";
 import type { CadTessellation } from "./tessellation-cache";
+import type { CadRenderOrigin } from "./render-origin";
 
 /**
  * Lo que el pool necesita de un `Worker`, y nada más. Existe para que los
@@ -51,7 +52,10 @@ export interface CadTessellateWorkerLike {
     type: "message",
     listener: (event: { data: CadTessellateWorkerResponse }) => void,
   ): void;
-  addEventListener(type: "error", listener: (event: { message?: string }) => void): void;
+  addEventListener(
+    type: "error",
+    listener: (event: { message?: string }) => void,
+  ): void;
   terminate(): void;
 }
 
@@ -64,8 +68,14 @@ export interface CadTessellateWorkerLike {
  * que gana en paralelo. Si el navegador no declara núcleos, 1: exactamente el
  * singleton de antes.
  */
-export function cadTessellateWorkerPoolSize(hardwareConcurrency?: number): number {
-  if (typeof hardwareConcurrency !== "number" || !Number.isFinite(hardwareConcurrency)) return 1;
+export function cadTessellateWorkerPoolSize(
+  hardwareConcurrency?: number,
+): number {
+  if (
+    typeof hardwareConcurrency !== "number" ||
+    !Number.isFinite(hardwareConcurrency)
+  )
+    return 1;
   return Math.min(4, Math.max(1, Math.floor(hardwareConcurrency) - 1));
 }
 
@@ -117,14 +127,20 @@ function attachSlot(slot: PoolSlot): void {
     if (!request) return;
     pending.delete(event.data.id);
     request.slot.inflight -= 1;
-    if (event.data.ok && event.data.results) request.resolve(event.data.results);
-    else request.reject(new Error(event.data.error ?? "Falló el worker de teselado CAD."));
+    if (event.data.ok && event.data.results)
+      request.resolve(event.data.results);
+    else
+      request.reject(
+        new Error(event.data.error ?? "Falló el worker de teselado CAD."),
+      );
   });
   slot.worker.addEventListener("error", (event) => {
     // Muerte LOCAL: se rechaza lo que este worker tenía en vuelo (el catch del
     // que llama degrada cada una a la reserva síncrona) y se termina SÓLO este
     // worker. Los demás siguen sirviendo sus peticiones como si nada.
-    const error = new Error(event.message || "Falló el worker de teselado CAD.");
+    const error = new Error(
+      event.message || "Falló el worker de teselado CAD.",
+    );
     for (const [id, request] of pending) {
       if (request.slot !== slot) continue;
       pending.delete(id);
@@ -143,7 +159,9 @@ function tessellatePool(): PoolSlot[] | null {
   const size = override
     ? override.size
     : cadTessellateWorkerPoolSize(
-        typeof navigator === "undefined" ? undefined : navigator.hardwareConcurrency,
+        typeof navigator === "undefined"
+          ? undefined
+          : navigator.hardwareConcurrency,
       );
   const slots: PoolSlot[] = [];
   try {
@@ -208,21 +226,25 @@ export async function tessellateCadEntitiesOffThread(
   entities: readonly CadNativeEntity[],
   segments: readonly number[],
   document?: CadDocument,
+  origin?: CadRenderOrigin,
 ): Promise<CadTessellateOffThreadResult> {
   const slot = leastLoadedSlot();
   if (slot) {
     const id = nextRequestId++;
     try {
-      const results = await new Promise<CadTessellatedEntityPayload[]>((resolve, reject) => {
-        pending.set(id, { resolve, reject, slot });
-        slot.inflight += 1;
-        slot.worker.postMessage({
-          id,
-          entities: entities as CadNativeEntity[],
-          segments: [...segments],
-          document,
-        });
-      });
+      const results = await new Promise<CadTessellatedEntityPayload[]>(
+        (resolve, reject) => {
+          pending.set(id, { resolve, reject, slot });
+          slot.inflight += 1;
+          slot.worker.postMessage({
+            id,
+            entities: entities as CadNativeEntity[],
+            segments: [...segments],
+            document,
+            origin,
+          });
+        },
+      );
       return { results, source: "worker" };
     } catch {
       // Si el rechazo vino del propio `postMessage` (y no del worker), la
@@ -235,7 +257,11 @@ export async function tessellateCadEntitiesOffThread(
       // Cae a la reserva: mejor teselar en el hilo principal que no dibujar.
     }
   }
-  return { results: tessellateCadEntityBatch(entities, segments, document).results, source: "fallback" };
+  return {
+    results: tessellateCadEntityBatch(entities, segments, document, origin)
+      .results,
+    source: "fallback",
+  };
 }
 
 /** Cierra el pool entero. Se llama al desmontar el editor. */

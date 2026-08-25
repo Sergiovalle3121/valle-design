@@ -36,39 +36,29 @@ cola viva, no el museo (el museo es `docs/history/`).
   tener un asterisco.
 - **Estimación:** 15 minutos una vez decidido.
 
-### P0-2 · Precisión float32 con coordenadas grandes (topografía/UTM)
-- **Qué falla:** el camino de render cuantiza a float32 desde la TESELACIÓN
-  (`CadTessellatedPath.xy`); a magnitud 2·10⁶ (UTM norte México) el error
-  medido es 4.2 cm y a 10⁷ es 37.5 cm. Documento y exportación pierden CERO.
-- **Reproducir:** `npx tsx scripts/large-coordinate-precision-probe.mts`
-  (desde `apps/web`); evidencia committeada en
-  `docs/cad/evidence/large-coordinate-precision.json`.
-- **Diseño (completo, listo para ejecutar):** origen flotante de escena — (1)
-  anclar el marco al centro del documento redondeado (doubles); (2) restar ese
-  origen ANTES de teselar/empaquetar; (3) `cadCenter` y todo uniforme
-  posicional se calculan en JS doubles como (centroVista − origen) pequeño;
-  (4) idéntico en `text-atlas-three`, `entity-three` y el mapeo de cámara del
-  monolito; (5) el snap/selección ya operan en doubles del documento — no se
-  tocan. La sonda existente es la evidencia «después».
-- **Por qué no se hizo el 22-08:** colisión directa con la campaña de pulido,
-  que estaba optimizando `line-batch`/`text-atlas`/pipeline ese mismo día.
-- **Criterio:** error ≤1e-3 unidades a magnitud 10⁷ en la sonda; goldens de
-  render sin cambio en planos locales.
-- **Prueba requerida:** la sonda como spec con umbral + un golden con
-  documento UTM. **Estimación:** 1–2 días.
-
 ### P0-3 · Las dos rutas de importación DXF divergen y una re-encuadra en silencio
 - **Qué falla:** dos rutas con comportamiento distinto; una re-encuadra el
   plano automáticamente SIN registrar el desplazamiento (pérdida de
   georreferencia silenciosa — viola la garantía 5 del contrato de interop);
   tope de 50,000 entidades (`apps/web/src/lib/cad/dxf-import.ts:267`) y corte
-  de ~850 objetos en la ruta editable.
+  de ~850 objetos en la ruta editable. Además —hallado cerrando P0-2, mismo
+  origen—: "Ajustar a la planta" y el encuadre inicial encuadran sobre
+  `[0,W]×[0,H]` del footprint declarado (`nativeViewportBoundsRef` en
+  `Layout3DEditor.tsx`), NUNCA sobre los límites reales de las entidades; un
+  documento con entidades a magnitud UTM y un footprint de sitio normal
+  (12×10 m, sin extenderlo a mano) encuadra una cámara que no ve nada —
+  reproducido en `e2e/golden/57-cad-utm-precision.spec.ts` (que rodea el gap
+  extendiendo el footprint declarado a propósito, con la razón escrita en el
+  propio golden).
 - **Criterio:** UNA ruta bajo `docs/interop/CONTRATO-INTEROP.md`: manifiesto
   de pérdidas obligatorio, desplazamiento registrado y reversible al exportar,
-  topes DECLARADOS al usuario cuando se alcanzan (no silencio).
+  topes DECLARADOS al usuario cuando se alcanzan (no silencio); el encuadre
+  inicial y "Ajustar a la planta" consideran los límites reales de las
+  entidades, no sólo el footprint declarado.
 - **Prueba:** spec de round-trip UTM (importar→exportar→comparar coordenadas
-  absolutas) + spec del aviso de tope. **Estimación:** 2–3 días. Depende de:
-  nada; habilita: P0-2 completo para DXF georreferenciado.
+  absolutas) + spec del aviso de tope + golden de encuadre sobre un documento
+  UTM con footprint pequeño sin extender a mano. **Estimación:** 2–3 días.
+  Depende de: nada.
 
 ---
 

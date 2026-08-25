@@ -70,4 +70,29 @@ describe('schema 6 wall invariants', () => {
       /necesita coordenadas numéricas finitas/,
     );
   });
+
+  // `material` es opcional y de un conjunto FINITO — mismo criterio que
+  // `kind` de OPENING ("door"/"window"): un valor fuera del conjunto no
+  // cruza la frontera, porque el cliente lo pintaría con su color genérico
+  // sin que nadie notara el typo hasta la tabla de cantidades.
+  it('acepta cada material de la paleta declarada, uno por uno', () => {
+    for (const material of ['concrete', 'brick', 'drywall', 'wood', 'stucco']) {
+      expect(() =>
+        validateCadDocumentPayload(withEntities([soundWall({ material })])),
+      ).not.toThrow();
+    }
+  });
+
+  it('acepta un muro sin `material`: sigue siendo el genérico de siempre', () => {
+    expect(() =>
+      validateCadDocumentPayload(withEntities([soundWall()])),
+    ).not.toThrow();
+  });
+
+  it('rechaza un `material` fuera de la paleta declarada', () => {
+    rejects(
+      soundWall({ material: 'marble' }),
+      /declara un material desconocido/,
+    );
+  });
 });

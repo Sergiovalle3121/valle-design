@@ -27,12 +27,14 @@ export interface CadValidationReport {
   architecture: CadArchitectureValidationIssue[];
   /** Hallazgos del motor de reglas canónico sobre el CadDocument (CAD-NEXT-101). */
   document: RuleFinding[];
+  /** Muros/masas cuyo volumen 3D no se pudo generar (Corte F, campaña 3D-M1). */
+  geometry: CadGeometryValidationIssue[];
   issues: CadValidationIssueRow[];
   severity: "ok" | "warning" | "critical";
 }
 
 export type CadValidationIssueCategory =
-  "collision" | "clearance" | "safety" | "architecture" | "document";
+  "collision" | "clearance" | "safety" | "architecture" | "document" | "geometry";
 
 export interface CadValidationIssueRow {
   id: string;
@@ -62,6 +64,80 @@ export interface CadArchitectureValidationIssue {
   message: string;
   affectedObjectIds: string[];
   suggestedFix: string;
+}
+
+/**
+ * Un muro o una masa arquitectónica (piso/cielorraso/cubierta) cuya receta
+ * no produjo un sólido 3D válido: `wallSolidBodyLocal`/
+ * `architecturalSlabBodyLocal` devolvieron `null` (eje degenerado, grosor o
+ * altura no positivos, o una booleana de vano irrecuperable) y el anfitrión
+ * de escena lo marcó `userData.invalid` — antes de esta pieza, ese objeto
+ * desaparecía de la vista 3D SIN ningún aviso, indistinguible de un muro
+ * borrado a propósito. Esto es lo que lo hace visible.
+ *
+ * No se puede derivar sólo del `CadDocument`: la receta puede pasar cada
+ * invariante del servidor (eje con dos extremos, grosor/altura positivos,
+ * vanos que caben) y aun así fallar en el kernel B-rep del cliente al
+ * recortar un vano concreto — por eso esto se COMPUTA en el visor, tras
+ * intentar construir la geometría de verdad, y se pasa a
+ * `buildCadValidationReport` en vez de derivarse aquí.
+ */
+export type CadGeometryValidationIssueCode =
+  | "wall_geometry_invalid"
+  | "architectural_mass_invalid";
+
+export interface CadGeometryValidationIssue {
+  code: CadGeometryValidationIssueCode;
+  severity: "critical" | "warning";
+  title: string;
+  message: string;
+  affectedObjectIds: string[];
+  suggestedFix: string;
+}
+
+const ARCHITECTURAL_MASS_LABEL: Record<string, string> = {
+  floor: "Piso",
+  ceiling: "Cielorraso",
+  roof: "Cubierta",
+};
+
+/**
+ * Un muro inválido es CRÍTICO —geometría persistida que desapareció de la
+ * vista sin decirlo—; una masa inválida es warning —es DERIVADA, no
+ * persistida, y su ausencia no oculta un dato del documento, sólo un
+ * volumen calculado.
+ */
+function buildGeometryValidationIssues(input?: {
+  invalidWallIds?: readonly string[];
+  invalidMassKinds?: readonly string[];
+}): CadGeometryValidationIssue[] {
+  if (!input) return [];
+  const issues: CadGeometryValidationIssue[] = [];
+  for (const id of input.invalidWallIds ?? []) {
+    issues.push({
+      code: "wall_geometry_invalid",
+      severity: "critical",
+      title: `Muro ${id}: sin volumen 3D`,
+      message:
+        "El eje, el grosor o la altura del muro no forman un sólido válido, o alguno de sus vanos no se pudo recortar. El muro no aparece en la vista 3D hasta que se corrija.",
+      affectedObjectIds: [id],
+      suggestedFix:
+        "Revisa el eje, el grosor y la altura del muro, y el tamaño y la posición de sus vanos.",
+    });
+  }
+  for (const kind of input.invalidMassKinds ?? []) {
+    const label = ARCHITECTURAL_MASS_LABEL[kind] ?? kind;
+    issues.push({
+      code: "architectural_mass_invalid",
+      severity: "warning",
+      title: `${label}: sin volumen 3D`,
+      message:
+        "El contorno exterior del edificio no produjo un sólido válido para esta masa. No aparece en la vista 3D hasta que se corrija la planta.",
+      affectedObjectIds: [],
+      suggestedFix: "Revisa que los muros cierren un contorno exterior válido.",
+    });
+  }
+  return issues;
 }
 
 interface CadArchitectureValidationOptions {
@@ -445,6 +521,7 @@ function buildIssueRows(input: {
   safety: CadSafetyIssue[];
   architecture: CadArchitectureValidationIssue[];
   document: RuleFinding[];
+  geometry: CadGeometryValidationIssue[];
 }): CadValidationIssueRow[] {
   const rows: CadValidationIssueRow[] = [];
 
@@ -524,6 +601,21 @@ function buildIssueRows(input: {
     });
   }
 
+  for (const issue of input.geometry) {
+    rows.push({
+      id: `geometry:${issue.code}:${issue.affectedObjectIds.join(":") || "global"}`,
+      category: "geometry",
+      severity: issue.severity,
+      title: issue.title,
+      detail: issue.message,
+      affectedObjectIds: issue.affectedObjectIds,
+      actionLabel: issue.affectedObjectIds.length
+        ? "Select geometry issue"
+        : "Review architectural mass",
+      suggestedFix: issue.suggestedFix,
+    });
+  }
+
   return rows.sort((a, b) => {
     const severity =
       Number(b.severity === "critical") - Number(a.severity === "critical");
@@ -547,6 +639,16 @@ export function buildCadValidationReport(input: {
   document?: CadDocument;
   /** Área de trabajo (para la regla fuera-de-límites del documento). */
   footprint?: { w: number; h: number };
+  /**
+   * Muros/masas cuyo volumen 3D falló al construirse, tal como los reportan
+   * `CadWallSolidHost.invalidIds()`/`CadArchitecturalMassHost.invalidKinds()`
+   * (o la fachada `CadNativeMassHosts.invalidGeometry()`) TRAS intentar
+   * construir la geometría real — no se deriva del documento a secas.
+   */
+  invalidGeometry?: {
+    wallIds?: readonly string[];
+    massKinds?: readonly string[];
+  };
 }): CadValidationReport {
   const collisions = detectCadCollisions(input.boxes);
   const clearances = input.requiredClearance
@@ -566,16 +668,26 @@ export function buildCadValidationReport(input: {
       : undefined,
   );
   const document = runDocumentRules(input.document, input.footprint);
+  const geometry = buildGeometryValidationIssues(
+    input.invalidGeometry
+      ? {
+          invalidWallIds: input.invalidGeometry.wallIds,
+          invalidMassKinds: input.invalidGeometry.massKinds,
+        }
+      : undefined,
+  );
   const severity =
     collisions.length ||
     safety.some((issue) => issue.code === "zone_invasion") ||
     architecture.some((issue) => issue.severity === "critical") ||
-    document.some((finding) => finding.level === "error")
+    document.some((finding) => finding.level === "error") ||
+    geometry.some((issue) => issue.severity === "critical")
       ? "critical"
       : clearances.length ||
           safety.length ||
           architecture.length ||
-          document.length
+          document.length ||
+          geometry.length
         ? "warning"
         : "ok";
   const issues = buildIssueRows({
@@ -584,6 +696,7 @@ export function buildCadValidationReport(input: {
     safety,
     architecture,
     document,
+    geometry,
   });
   return {
     collisions,
@@ -591,6 +704,7 @@ export function buildCadValidationReport(input: {
     safety,
     architecture,
     document,
+    geometry,
     issues,
     severity,
   };

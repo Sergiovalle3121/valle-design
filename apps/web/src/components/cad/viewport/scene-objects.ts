@@ -256,3 +256,39 @@ export function buildDim(
   out.push(label);
   return out;
 }
+
+/**
+ * Reconstruye el grupo de activos del editor heredado desde cero.
+ *
+ * Es la lógica que `rebuildAssets` ejecutaba inline en el monolito, sacada
+ * TAL CUAL —mismo comportamiento, sin diseño nuevo— por la misma razón que el
+ * resto de este archivo: el trinquete de `check:cad` sólo permite que
+ * `Layout3DEditor.tsx` encoja.
+ */
+export function rebuildCadAssetGroup(
+  group: THREE.Group,
+  groupByAsset: Map<string, THREE.Group>,
+  assets: Iterable<Asset>,
+  ctx: { s: number; W: number; H: number },
+  selectedIds: ReadonlySet<string>,
+  highlightedIds: ReadonlySet<string>,
+): void {
+  while (group.children.length) {
+    const child = group.children[group.children.length - 1];
+    group.remove(child);
+    disposeObject(child);
+  }
+  groupByAsset.clear();
+  for (const asset of assets) {
+    const built = buildAssetGroup(
+      asset,
+      ctx.s,
+      ctx.W,
+      ctx.H,
+      selectedIds.has(asset.id),
+      highlightedIds.has(asset.id),
+    );
+    group.add(built);
+    groupByAsset.set(asset.id, built);
+  }
+}

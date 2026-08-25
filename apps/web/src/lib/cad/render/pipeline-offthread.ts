@@ -26,8 +26,16 @@ import {
   type CadTessellateOffThreadResult,
 } from "./tessellate-worker-client";
 import type { CadTessellatedEntityPayload } from "./tessellate.worker";
-import { cadRenderSegmentBudget, type CadRenderLodTier } from "./tessellation-cache";
-import { cadRenderCount, cadRenderMark, cadRenderStage } from "./render-profile";
+import {
+  cadRenderSegmentBudget,
+  type CadRenderLodTier,
+} from "./tessellation-cache";
+import {
+  cadRenderCount,
+  cadRenderMark,
+  cadRenderStage,
+} from "./render-profile";
+import type { CadRenderOrigin } from "./render-origin";
 
 /**
  * Tope del LOTE que viaja al worker de teselado, en segmentos ESTIMADOS.
@@ -53,6 +61,7 @@ export type CadOffThreadTessellator = (
   entities: readonly CadNativeEntity[],
   segments: readonly number[],
   document?: CadDocument,
+  origin?: CadRenderOrigin,
 ) => Promise<CadTessellateOffThreadResult>;
 
 /**
@@ -90,7 +99,9 @@ export type CadRenderTessellationSource = "sync" | "worker" | "fallback";
  * (Los INSERT, además, ya van excluidos del pipeline por lotes en el editor:
  * los dibuja `buildCadInsertBatches`.)
  */
-export function cadEntityTessellatesWithoutDocument(entity: CadNativeEntity): boolean {
+export function cadEntityTessellatesWithoutDocument(
+  entity: CadNativeEntity,
+): boolean {
   return CAD_ENTITY_REGISTRY.adapter(entity).renderer.needsDocument !== true;
 }
 
@@ -221,12 +232,21 @@ export class CadOffThreadTessellationLane {
     this.inflight.clear();
   }
 
-  request(tileId: string, batch: CadOffThreadBatch, hooks: CadOffThreadHooks): void {
+  request(
+    tileId: string,
+    batch: CadOffThreadBatch,
+    hooks: CadOffThreadHooks,
+    origin?: CadRenderOrigin,
+  ): void {
     const tessellator = this.tessellator;
     if (!tessellator) return;
     const epoch = this.epoch;
     this.inflight.add(tileId);
-    tessellator(batch.entities, batch.segments)
+    // El documento nunca viaja (ver cabecera del módulo); el origen flotante
+    // sí — son dos números, no el dibujo entero, y sin él el lote llegaría
+    // en coordenadas absolutas y desentonaría con lo que el carril síncrono
+    // ya redujo al origen antes de teselar.
+    tessellator(batch.entities, batch.segments, undefined, origin)
       .then((outcome) => {
         this.inflight.delete(tileId);
         this.sourceValue = outcome.source;

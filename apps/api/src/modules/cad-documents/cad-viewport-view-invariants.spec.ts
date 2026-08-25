@@ -1,5 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
-import { validateCadDocumentPayload } from './cad-document-validation';
+import {
+  CAD_DOCUMENT_MAX_SCHEMA,
+  validateCadDocumentPayload,
+} from './cad-document-validation';
 
 /**
  * Invariantes de la CÁMARA de una ventana gráfica en la frontera del servidor.
@@ -159,26 +162,26 @@ describe('schema 8 viewport view invariants', () => {
     ).toThrow(BadRequestException);
   });
 
-  it('acepta el esquema 9 y el 10 vigentes; rechaza el 11, que no existe', () => {
+  it('acepta hasta el esquema vigente y rechaza el siguiente, que todavía no existe', () => {
     expect(() =>
       validateCadDocumentPayload(withViewport(planta)),
     ).not.toThrow();
     expect(() =>
       validateCadDocumentPayload({
         ...withViewport(planta),
-        meta: { schema: 9, version: 1, unit: 'mm' },
+        meta: { schema: CAD_DOCUMENT_MAX_SCHEMA - 1, version: 1, unit: 'mm' },
       }),
     ).not.toThrow();
     expect(() =>
       validateCadDocumentPayload({
         ...withViewport(planta),
-        meta: { schema: 10, version: 1, unit: 'mm' },
+        meta: { schema: CAD_DOCUMENT_MAX_SCHEMA, version: 1, unit: 'mm' },
       }),
     ).not.toThrow();
     expect(() =>
       validateCadDocumentPayload({
         ...withViewport(planta),
-        meta: { schema: 11, version: 1, unit: 'mm' },
+        meta: { schema: CAD_DOCUMENT_MAX_SCHEMA + 1, version: 1, unit: 'mm' },
       }),
     ).toThrow(BadRequestException);
   });

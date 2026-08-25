@@ -31,6 +31,7 @@
  */
 import type { CadEntity, CadPoint2 } from "./cad-document";
 import type { CadOpeningEntity } from "./cad-entities-v7";
+import type { CadWallEntity } from "./cad-entities-v6";
 import type { CadWallPlanRecipe } from "./wall-geometry";
 
 /** Lo mínimo del hueco para situarlo: dónde está su centro y cuánto mide. */
@@ -134,6 +135,37 @@ export function wallOpeningFit(
 
 function round(value: number): string {
   return Number.isFinite(value) ? String(Math.round(value * 1000) / 1000) : String(value);
+}
+
+/** La parte de la receta del muro que importa para el encaje VERTICAL: su altura. */
+export type CadWallVerticalRecipe = Pick<CadWallEntity, "height">;
+
+/** La parte de la receta del hueco que importa para el encaje VERTICAL. */
+export type CadOpeningVerticalRecipe = Pick<CadOpeningEntity, "sill" | "height">;
+
+/**
+ * ¿Remata este hueco dentro de la altura del muro?
+ *
+ * El eje horizontal lo resuelve `wallOpeningFit`; éste es el mismo contrato
+ * para el eje vertical —el que decide si una ventana sale por encima de la
+ * cubierta del muro— y vive aparte porque la receta de planta
+ * (`wall-geometry.ts`) declara con toda intención que `height` no le
+ * pertenece: mezclarlo ahí habría hecho que todo consumidor de planta
+ * cargara con un campo que no usa.
+ */
+export function wallOpeningVerticalFit(
+  wall: CadWallVerticalRecipe,
+  opening: CadOpeningVerticalRecipe,
+): { ok: true } | { ok: false; problem: string } {
+  const top = opening.sill + opening.height;
+  if (top > wall.height)
+    return {
+      ok: false,
+      problem:
+        `El hueco remata a ${round(top)} de antepecho+altura y el muro mide ${round(wall.height)} ` +
+        `de alto: no cabe verticalmente en su anfitrión.`,
+    };
+  return { ok: true };
 }
 
 /**
