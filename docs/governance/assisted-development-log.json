@@ -582,6 +582,62 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-GAP-MATRIX-STALE-PROSE-2026-08-25",
+      "date": "2026-08-25",
+      "initiative": "Corrige una nota de prosa desactualizada en docs/competitive/autocad-2027-gap-matrix.md que seguía describiendo DWG como \"detecta y rechaza, 2 puntos por honestidad\" cuando la fila auto-generada ya muestra 6/7 con decoder y export propios verificados de verdad (corpus independiente, oráculo externo ODA). Surge de una petición directa del titular de analizar qué le falta a DWG \"sin laboratorios, algo real\": la propia prosa pública del proyecto sobre DWG estaba desactualizada respecto a su propio trabajo reciente.",
+      "branch": "claude/valle-design-dwg-main-lnqf7t",
+      "assistants": [
+        {
+          "name": "Claude Code (Claude Sonnet 5, Anthropic)",
+          "role": "Investigación directa (sin agente) en respuesta a la petición del titular de auditar honestamente el estado real de DWG. Leyó rubric.json (categoría dwg, 4 criterios, 6/7 puntos), docs/cad/evidence/dwg-decoder-matrix.json y dwg-roundtrip.json (ambos con disponibilidadEnProducto:false explícito), ADR-0009 (paquete de promoción, incluida la firma real §6-bis/ter/quater y M3 AC1018 §7) y ADR-0012/ADR-0014 (retiro de la vía de proveedor licenciado por decisión expresa del titular, por presupuesto). Confirmó que el párrafo de prosa en gap-matrix.md, escrito antes de que existiera el decoder/export propios con evidencia real, seguía describiendo la puntuación DWG como si sólo viniera de detectar-y-rechazar el formato — desactualizado respecto al propio rubric.json del repositorio. Confirmó con node scripts/cad/rubric.mjs --markdown que la sección auto-generada (entre los marcadores rubric:begin/rubric:end) es la única que ese script reescribe; la prosa corregida vive fuera de esos marcadores, así que el cambio no interfiere con la regeneración automática (\"Matriz ya al día\" tras el cambio, confirmado)."
+        }
+      ],
+      "authority": "Directiva escrita de Sergio Valle Zárate en esta conversación (\"analiza que más le falta al DWG no quiero laboratorios quiero algo real\"): corrección de exactitud documental encontrada durante esa auditoría, de alcance obviamente seguro (prosa fuera de la sección auto-generada, sin cambio de código ni de comportamiento).",
+      "firstPartyInputs": [
+        "docs/competitive/rubric.json (categoría dwg) y scripts/cad/rubric.mjs/rubric-report.mjs",
+        "docs/cad/evidence/dwg-decoder-matrix.json y dwg-roundtrip.json",
+        "docs/adr/0009-dwg-promotion-package.md, 0012-dwg-doble-via.md, 0014-dwg-via-propia-unica.md"
+      ],
+      "externalSources": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: se incluye en el próximo PR de esta rama para revisión del titular junto con la respuesta a su pregunta sobre qué le falta a DWG. node scripts/cad/rubric.mjs --markdown confirma que la sección auto-generada de la matriz no cambió (\"Matriz ya al día\")."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-M5-EXPORT-AUTHORIZATION-2026-08-25",
+      "date": "2026-08-25",
+      "initiative": "Registra en ADR-0009 §8 la autorización explícita del titular para EMPEZAR M5 (exportación DWG al producto), dada en respuesta a un análisis honesto del estado real de DWG que él mismo pidió (\"analiza qué más le falta al DWG, no quiero laboratorios quiero algo real\"). No es código de producto: es el acta de una decisión de gobernanza — la misma clase de firma que ya llevan §6-bis/ter/quater/7 — sin la cual ADR-0009 §6-bis prohibía explícitamente construir esta integración (\"Lo que esta firma NO autoriza: ... exportación DWG\").",
+      "branch": "claude/valle-design-dwg-main-lnqf7t",
+      "assistants": [
+        {
+          "name": "Claude Code (Claude Sonnet 5, Anthropic)",
+          "role": "Investigación directa (sin agente) del estado real de DWG a petición del titular: leyó rubric.json (categoría dwg, 6/7), docs/cad/evidence/dwg-decoder-matrix.json y dwg-roundtrip.json (ambos con disponibilidadEnProducto:false explícito, y capacidades entityImport/cadDocumentMapping/dwgExport marcadas product-beta-flag-gated / experimental-lab-writer, no \"supported\", en la propia bookkeeping del laboratorio), y ADR-0009/0012/0014 completos, incluida la nota del 2026-08-24 en ADR-0012 que sustituye su vía de proveedor licenciado por ADR-0014 (retirada explícita, por presupuesto, instruida por el propio titular un día antes). Presentó el hallazgo con precisión: los dos flags de beta (NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA, NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA) nacen `false` en todo release real (confirmado en .github/workflows/release.yml), así que ningún usuario real importa DWG hoy; y que el 1/7 que falta en la rúbrica (dwg.gates) es una revisión jurídica externa pendiente de que el titular la encargue, no una carencia de ingeniería. Presentó tres opciones honestas (autorizar exportación, encargar la revisión jurídica, o ninguna por ahora) vía AskUserQuestion, dado que ambas decisiones grandes están reservadas al titular por su propia firma anterior; el titular escogió autorizar exportación. Antes de escribir la autorización, confirmó de primera mano —leyendo el código, no asumiendo— el alcance real de lo que YA existe: ac1015-entity-writer.ts escribe LINE/POINT/CIRCLE/ARC/LWPOLYLINE/TEXT/INSERT (el mismo subconjunto que autorizó §6-bis para lectura V1, no el perfil V3 completo); canonicalDocumentToDwgEntities y writeAc1015MinimalFile (api/canonical.ts, writer/ac1015-minimal-file-writer.ts) arman un archivo real desde el canónico DEL LABORATORIO; no existe hoy una función pública writeDwg equivalente a readDwg ni un adaptador CadDocument→canónico-de-escritura del lado del producto — ambos son trabajo nuevo de este hito, no algo que ya existiera sin decirlo. Redactó ADR-0009 §8 con la misma disciplina que §6-bis/ter/quater/7: qué se autoriza (empezar M5, acotado al subconjunto V1, AC1015 únicamente, con manifiesto de pérdidas para el resto, su propio flag apagado por defecto, distinto de los dos de lectura), qué NO autoriza (declarar M5 cumplido, cualquier afirmación de compatibilidad DWG sin calificar, mover la promoción general de §5), y qué límites de §6-bis.3 se heredan sin cambio. Creó las tareas #24-28 (fase 0 de alcance hasta fase 4 de evidencia E2E/rúbrica) para ejecutar la autorización en fases atómicas verificadas, replicando el patrón que ya funcionó para BEDIT en esta misma sesión."
+        }
+      ],
+      "authority": "Directiva escrita de Sergio Valle Zárate en esta conversación: en respuesta a la pregunta explícita por AskUserQuestion sobre cuál de las dos decisiones reservadas a él (exportación DWG o revisión jurídica externa) mover, o ninguna, escogió \"Autorizar exportación DWG\" con el alcance descrito en la opción presentada (writer ya verificado por ODA File Converter; se cablea detrás de su propio flag apagado por defecto; evidencia primero, flag después; nunca DWG propio sin calificar).",
+      "firstPartyInputs": [
+        "docs/adr/0009-dwg-promotion-package.md (completo, incluidas todas las firmas previas §6-bis/ter/quater/7)",
+        "docs/adr/0012-dwg-doble-via.md y 0014-dwg-via-propia-unica.md",
+        "docs/competitive/rubric.json (categoría dwg) y docs/cad/evidence/dwg-decoder-matrix.json, dwg-roundtrip.json",
+        ".github/workflows/release.yml (valores por defecto de los flags de beta DWG)",
+        "packages/dwg-codec/src/writer/ac1015-entity-writer.ts, src/api/canonical.ts, src/writer/ac1015-minimal-file-writer.ts (lectura directa para confirmar alcance real del writer antes de escribir la autorización)"
+      ],
+      "externalSources": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "La autorización misma ES la adopción — ocurrió en esta conversación vía AskUserQuestion, no está pendiente de revisión de PR como el resto de entradas de este registro. Se incluye aquí para que quede trazada junto con el ADR que firma, y se abre un PR de todos modos para que el titular vea el texto exacto de §8 antes de que el trabajo de las fases 1-4 empiece a construir sobre él."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

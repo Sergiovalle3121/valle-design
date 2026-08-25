@@ -187,11 +187,26 @@ declarados. Reproducible con `node scripts/cad/rubric.mjs --priorities`.
 
 <!-- rubric:end -->
 
-Los dos puntos que DWG sí obtiene merecen una nota, porque parecen caridad y no
-lo son: un producto que **detecta el DWG y lo rechaza con un mensaje claro** es
-materialmente mejor que uno que lo acepta y produce basura, y la decisión de no
-entrar sin proveedor autorizado está documentada en un ADR. Puntuar eso es
-puntuar honestidad de producto, no funcionalidad.
+Los 6/7 puntos que DWG obtiene hoy merecen una nota, porque no son ya los 2 de
+«detecta y rechaza» de una versión anterior de esta matriz — esa nota quedó
+desactualizada cuando el laboratorio pasó de detectar DWG a decodificarlo de
+verdad. Hoy el decoder propio lee AC1015 (AutoCAD 2000) y AC1018 (2004) con
+cero discrepancias contra un corpus independiente, y el writer propio escribe
+archivos que un lector externo (ODA File Converter, nunca el propio código
+como oráculo) acepta en round-trip — ambos con evidencia real, no fabricada
+(`docs/cad/evidence/dwg-decoder-matrix.json`, `dwg-roundtrip.json`). El único
+punto que falta, `dwg.gates`, no es trabajo de laboratorio pendiente: exige
+una revisión jurídica externa que el dueño aún no ha encargado (ADR-0009 §5) y
+que es, por diseño, una decisión suya, no de ingeniería. Dos cosas concretas
+siguen SIN autorizar por el propio dueño, aun con toda esa evidencia en
+verde: disponibilidad general del import (hoy vive apagado por defecto detrás
+de dos flags de beta, `NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA` y
+`NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA`) y la exportación DWG en el producto (el
+writer y su verificación externa existen íntegros en el laboratorio; nadie
+los ha conectado a una ruta que un usuario pueda tocar) — ver ADR-0009
+§6-bis, línea «Lo que esta firma NO autoriza». Puntuar 6/7 es puntuar
+progreso real y verificado; el 1/7 que falta puntúa una firma pendiente, no
+una carencia de código.
 
 ## Benchmarks que sí existen, y qué máquina los produjo
 
