@@ -113,6 +113,7 @@ export function emptyLayout(model: string, revision: string) {
     cadDocument: null,
     cadDocumentVersion: 0,
     approval: defaultApproval(),
+    entityLayers: {} as Record<string, string>,
   };
 }
 
@@ -176,5 +177,16 @@ export function layoutFromDocument(
     connectors: snapshot.connectors,
     dxf: dxf ? placementFields(dxf) : null,
     cadDocument: row.cadDocument,
+    // `snapshot.layers` cubre TANTO activos como anotaciones — arriba sólo se
+    // consume para activos (se mezcla dentro de cada `asset`). Una anotación
+    // `type:"text"` no tiene dónde llevar la suya propia (`Ann`/
+    // `CadEditorAnnotation` no tienen campo `layer`: es la razón por la que
+    // `cadDocumentToEditorSnapshot` la saca aparte, a este mapa). Quien
+    // reconstruya el documento canónico a partir de esta proyección
+    // (`Layout3DEditor.tsx`) necesita este mapa completo para las anotaciones
+    // igual que ya lo usa para los activos — sin él, `layoutToCadDocument`
+    // cae a su defecto `"Text"` para CUALQUIER anotación en una capa real, en
+    // cuanto el documento se abre.
+    entityLayers: snapshot.layers,
   };
 }

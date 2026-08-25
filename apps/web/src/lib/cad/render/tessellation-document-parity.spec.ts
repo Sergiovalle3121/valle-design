@@ -96,6 +96,15 @@ const SAMPLES: Record<CadNativeEntityType, CadNativeEntity> = {
     knots: [0, 0, 0, 0, 1, 1, 1, 1],
     layer,
   },
+  text: {
+    id: "text",
+    type: "text",
+    x: 5_900,
+    y: -200,
+    text: "PARIDAD",
+    height: 120,
+    layer,
+  },
   mtext: {
     id: "mtext",
     type: "mtext",

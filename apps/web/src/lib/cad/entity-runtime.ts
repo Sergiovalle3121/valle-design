@@ -20,6 +20,7 @@ import type { CadAffine2 } from "./transform2d";
 import { circleAdapter, isLegacyCircle, isLegacyDimension, lineAdapter } from "./basic-native-adapters";
 import { arcAdapter, ellipseAdapter } from "./curve-entity-adapters";
 import { insertAdapter, mtextAdapter } from "./block-text-adapters";
+import { textAdapter } from "./text-entity-adapter";
 import { dimensionAdapter } from "./dimension-entity-adapter";
 import { hatchAdapter } from "./hatch-entity-adapter";
 import { polylineAdapter } from "./polyline-entity-adapter";
@@ -35,7 +36,7 @@ import type { CadBoundaryPath } from "./hatch-associativity";
 
 export type CadNativeEntity = Extract<
   CadEntity,
-  { type: "line" | "polyline" | "circle" | "arc" | "ellipse" | "spline" | "hatch" | "mtext" | "dimension" | "mleader" | "insert"
+  { type: "line" | "polyline" | "circle" | "arc" | "ellipse" | "spline" | "hatch" | "text" | "mtext" | "dimension" | "mleader" | "insert"
     // Esquema 4. Cada uno tiene su adaptador registrado abajo; un tipo que
     // entra en esta unión sin adaptador revienta en `adapter()` la primera vez
     // que alguien lo dibuja, así que las dos listas se editan juntas.
@@ -258,6 +259,7 @@ export const CAD_ENTITY_REGISTRY = new CadEntityRegistry()
   .register(arcAdapter)
   .register(ellipseAdapter)
   .register(splineAdapter)
+  .register(textAdapter)
   .register(mtextAdapter)
   .register(hatchAdapter)
   .register(dimensionAdapter)
@@ -316,6 +318,7 @@ export function cadEntityBoundaryPaths(
   if (!registry.supports(entity)) return [];
   if (entity.type === "hatch")
     return entity.boundaries.map((points) => ({ sourceId: entity.id, points, closed: true }));
+  if (entity.type === "text") return [];
   if (entity.type === "mtext") return [];
   if (entity.type === "dimension") return [];
   if (entity.type === "mleader") return [];

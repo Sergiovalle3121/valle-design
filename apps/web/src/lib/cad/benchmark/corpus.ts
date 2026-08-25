@@ -92,6 +92,7 @@ export function createEmptyCadEntityMix(): Record<
     ellipse: 0,
     spline: 0,
     hatch: 0,
+    text: 0,
     mtext: 0,
     dimension: 0,
     mleader: 0,

@@ -113,7 +113,10 @@ function compileFilter(filter: LispValue): EntityPredicate[] {
 }
 
 function dxfTypeOfEntity(entity: CadEntity): string | null {
-  if (!CAD_ENTITY_REGISTRY.supports(entity)) return entity.type === "text" ? "TEXT" : null;
+  // TEXT ya tiene adaptador nativo: `dxfTypeOf` lo cubre como a cualquier
+  // otro tipo del registro. El carril aparte que tenía —era el único tipo sin
+  // adaptador con forma DXF honesta— ya no puede alcanzarse.
+  if (!CAD_ENTITY_REGISTRY.supports(entity)) return null;
   return dxfTypeOf(entity);
 }
 
