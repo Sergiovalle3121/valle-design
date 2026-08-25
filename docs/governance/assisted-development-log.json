@@ -640,6 +640,34 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "DWG-M5-WRITE-CANONICAL-DWG-2026-08-25",
+      "date": "2026-08-25",
+      "initiative": "Fase 1 de M5 (exportación DWG, ADR-0009 §8): entrega la función pública de escritura del laboratorio que §8.2 exige antes de cablear nada al producto — `writeCanonicalDwg`, documento canónico → archivo AC1015 completo — junto con el round-trip propio que la verifica, íntegramente dentro de packages/dwg-codec. No toca apps/web, no toca check-product-boundary.mjs, no reclama la mitad del oráculo externo (ODA File Converter) que sigue pendiente de que el titular la corra en su máquina.",
+      "branch": "claude/valle-design-dwg-main-lnqf7t",
+      "assistants": [
+        {
+          "name": "Claude Code (Claude Sonnet 5, Anthropic)",
+          "role": "Delegó la implementación completa a un agente con acceso de shell, tras completar ella misma el diseño arquitectónico (qué nombre usar dado que `writeDwg` ya estaba tomado por el writer de bajo nivel; qué función encadenar con qué; el contrato exacto de entrada/salida) y verificar de primera mano, antes de delegar, los dos hechos más consecuentes del informe de alcance previo: que `packages/dwg-codec/src/index.ts:10` en efecto ya exporta `writeAc1015MinimalFile as writeDwg` con un comentario explicando el repunte deliberado tras un hallazgo de auditoría externa, y que `canonicalDocumentToDwgEntities` en efecto no tenía `case \"point\"` pese a que `ac1015-entity-writer.ts` ya escribe POINT completo. El agente entregó: el `case \"point\"` faltante (confirmado contra el `CadPointEntity` real de `apps/web/src/lib/cad/cad-entities-v4.ts`, sólo como referencia de lectura, sin tocar ese árbol); `writeCanonicalDwg` nueva en `api/write.ts`, tan delgada como `readDwg`, resolviendo la única pieza que faltaba entre las dos funciones ya verificadas que encadena — nombres de capa/bloque, STRING en el documento canónico contra `readonly number[]`+índice en el archivo mínimo — con un límite ASCII declarado (1-255 caracteres, ninguno por encima de 127) y tres códigos de pérdida nuevos para cuando ese límite no se cumple, cada uno con su propio manejo deliberado (una capa no-ASCII cae a \"0\" con la entidad viva; un bloque no-ASCII omite el INSERT entero, porque insertar en \"0\" dibujaría algo distinto de lo pedido); el contenido de un bloque de usuario declarado como pendiente de una fase posterior en vez de mapeado a medias o fingido. Cinco pruebas nuevas de round-trip propio (documento → `writeCanonicalDwg` → `readDwg` público, tolerancia 1e-6, las siete clases autorizadas de una vez, con verificación de handle de capa real no sólo de existencia) más los tres casos límite (capa no-ASCII, bloque no-ASCII, clase fuera de perfil) y determinismo. Actualizó el registro de procedencia (SOURCE_REGISTER.json, mismos dos archivos añadidos a la entrada de autoría propia ya existente, sin inventar ninguna nueva), la lista dorada de exports públicos (seis a siete nombres) y CAPABILITIES.md con una sección fechada que declara sin suavizar qué falta: la mitad del oráculo externo, que este entorno no puede correr. Amplió también `scripts/dwg/oda-roundtrip.mjs` con un caso POINT, sin ejecutarlo (requiere el ODA File Converter, sólo en la máquina del titular) — verificado en su lugar contra el lector propio de este entorno. Esta sesión verificó el trabajo del agente de forma independiente antes de aceptarlo, no sólo su informe: leyó el diff completo línea por línea (los nueve archivos), confirmó por separado —contra el propio `cad-entities-v4.ts`, no confiando en la palabra del agente— que el campo `position` de `CadPointEntity` es exactamente el que el nuevo `case \"point\"` lee, confirmó la simetría con el espejo de lectura ya existente en la línea ~361 del mismo archivo, verificó a mano la aritmética de índices de capa (1-based con offset) contra la de bloque (0-based) que el código nuevo usa —dos convenciones DISTINTAS que el código respeta correctamente—, y re-corrió ella misma, de forma independiente, `npm run check` completo del paquete: provenance 8/8, fixtures 21/21, no-io OK, boundary OK, build limpio, typecheck limpio, 385/385 unit, 349/349 adversarial, fuzz smoke OK — exit code 0, coincidiendo exactamente con lo que el agente había reportado."
+        }
+      ],
+      "authority": "Directiva escrita de Sergio Valle Zárate en esta conversación: autorización de ADR-0009 §8 (\"Autorizar exportación DWG\", escogida vía AskUserQuestion sobre un análisis honesto de DWG que él mismo pidió) más la instrucción de campaña ya vigente de continuar fase por fase sin detenerse a confirmar cada paso salvo en decisiones reservadas explícitamente a él.",
+      "firstPartyInputs": [
+        "docs/adr/0009-dwg-promotion-package.md §8 (la autorización que rige esta fase)",
+        "Informe de alcance de la fase 0 de esta misma sesión (agente de investigación, no comprometido con código)",
+        "Lectura directa de packages/dwg-codec/src/index.ts, api/canonical.ts, writer/ac1015-minimal-file-writer.ts, writer/ac1015-entity-writer.ts, tests/unit/api.spec.ts, scripts/dwg/oda-roundtrip.mjs",
+        "apps/web/src/lib/cad/cad-entities-v4.ts (sólo lectura, para confirmar el campo `position` de CadPointEntity — ningún archivo bajo apps/web se modificó)"
+      ],
+      "externalSources": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: el titular revisa el PR en borrador sobre claude/valle-design-dwg-main-lnqf7t y sus checks (npm run check de packages/dwg-codec en verde, confirmado independientemente por esta sesión ademas del agente). La mitad de evidencia que ADR-0009 §8.2 exige y que sólo el titular puede producir —correr scripts/dwg/oda-roundtrip.mjs con el ODA File Converter en su propia máquina, incluido el caso POINT nuevo— sigue pendiente y se declara así, no se falsea ni se da por hecha."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "REVIEW-CONCURRENCY-RATE-LIMIT-RETRY-2026-08-25",
       "date": "2026-08-25",
       "initiative": "Cierra P1-7 del backlog y el criterio review.concurrency de la rúbrica competitiva (2pt, el segundo de mayor valor comercial pendiente): evidence:review-concurrency medía ~50 4xx inesperados por corrida bajo 10 clientes concurrentes; diagnosticados como 429 legítimos de reviewCommentsPerSession (VD-RL-001) sin reintento en ningún cliente, ni el probe ni — más importante — el navegador real",
