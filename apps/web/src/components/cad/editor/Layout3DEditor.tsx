@@ -532,6 +532,7 @@ import {
 } from "@/lib/cad/world-scale";
 import CadOverviewMinimap from "@/components/cad/viewport/CadOverviewMinimap";
 import ScaleBar from "./ScaleBar";
+import { mergeAnnotationLayers, syncLegacyTextShadow } from "./legacy-text-shadow-sync";
 import {
   CadSelectionPalette,
   type CadSelectionGeometryMode,
@@ -2736,6 +2737,7 @@ export default function Layout3DEditor({
           if (group) restoredGroups[a.id] = group;
           if (a.tags?.length) restoredTags[a.id] = a.tags.join(", ");
         });
+        mergeAnnotationLayers(restoredLayers, (d as { entityLayers?: Record<string, string> }).entityLayers, an.keys()); // legacy-text-shadow-sync.ts
         // El documento CANÓNICO manda para los grupos cuando existe: el
         // guardado canónico los escribe en `box.group`, mientras que
         // `d.assets[].group` sólo lo actualiza la vía heredada y por tanto se
@@ -4810,6 +4812,7 @@ export default function Layout3DEditor({
           CAD_ENTITY_REGISTRY.supports(entity),
         ),
       );
+      syncLegacyTextShadow(annotationsRef.current, layerAssignmentsRef, setLayerAssignments, options.upsert ?? [], options.remove ?? []); // legacy-text-shadow-sync.ts
       setNativeDocumentRevision((value) => value + 1);
       markDirty();
       syncNativeScene(document, {
