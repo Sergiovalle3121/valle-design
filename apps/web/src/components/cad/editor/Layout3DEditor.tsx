@@ -401,6 +401,7 @@ import {
   type CadPropertyBag,
   type CadScenePatch,
 } from "@/lib/cad/entity-runtime";
+import { boundsIntersect } from "@/lib/cad/entity-hit-geometry";
 import {
   executeCadEntityCommand,
   executeCadEntityCommandBatch,
@@ -12654,6 +12655,14 @@ export default function Layout3DEditor({
     },
     [worldBounds, fitToBounds],
   );
+  // Footprint sin las entidades (p.ej. UTM) encuadraría al vacío — P0-3.
+  useEffect(() => {
+    const ctx = ctxRef.current;
+    const content = open ? worldBounds("all") : null;
+    if (!ctx || !content) return;
+    if (!boundsIntersect(content, { minX: 0, minY: 0, maxX: ctx.W, maxY: ctx.H }))
+      fitToBounds(content);
+  }, [open, data?.footprint.footprintW, data?.footprint.footprintH, worldBounds, fitToBounds]);
   // ---- 2D⇄3D view toggle: the CAD unifica plano (2D) y modelo (3D) (unify) ----
   // 2D = vista superior bloqueada (solo pan+zoom), como un plano CAD; 3D = órbita libre.
   const saveCurrentViewportBookmark = () => {
