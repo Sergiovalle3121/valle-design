@@ -106,6 +106,7 @@ export type ApiError = Schemas["ApiError"];
 export type EntitlementRequiredError = Schemas["EntitlementRequiredError"];
 export type CadDocumentVersionConflictError =
   Schemas["CadDocumentVersionConflictError"];
+export type RateLimitedError = Schemas["RateLimitedError"];
 export type CadIntentRequest = Schemas["CadIntentRequest"];
 export type CadIntentResponse = Schemas["CadIntentResponse"];
 export type CadVisionRequest = Schemas["CadVisionRequest"];
@@ -155,6 +156,15 @@ export class DesignApiError extends Error {
     body: CadDocumentVersionConflictError;
   } {
     return this.code === "cad_document_version_conflict";
+  }
+
+  /**
+   * ¿Es un 429 de `ApiRateLimitService`? Si sí, `retryAfterSeconds` dice
+   * cuánto esperar. El techo es generoso a propósito (VD-RL-001): un
+   * cliente correcto reintenta pasado ese plazo en vez de fallar.
+   */
+  isRateLimited(): this is DesignApiError & { body: RateLimitedError } {
+    return this.code === "rate_limited";
   }
 }
 

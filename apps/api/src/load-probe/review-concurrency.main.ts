@@ -107,6 +107,12 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+/** Tope defensivo por si `retryAfterSeconds` llegara con un valor patológico. */
+const RATE_LIMIT_MAX_WAIT_MS = 65_000;
+/** Techo de reintentos: es un probe de fondo, no una interfaz interactiva, pero un bucle real no debe colgarse para siempre. */
+const RATE_LIMIT_MAX_RETRIES = 5;
+
 async function expectStatus(
   response: Response,
   expected: readonly number[],
@@ -426,6 +432,7 @@ async function main(): Promise<void> {
 
     /* ── Fase A · carga concurrente: 5 roles × N clientes, mismo documento ─ */
     const samples: OpSample[] = [];
+    let rateLimitRetries = 0;
     const record = (
       role: Role,
       op: string,
@@ -464,6 +471,40 @@ async function main(): Promise<void> {
       const body = await readJson(response);
       record(role, op, performance.now() - began, response.status);
       return body;
+    };
+
+    /**
+     * Como `timed`, pero para la ÚNICA superficie con techo por minuto que
+     * este probe ejerce (`reviewCommentsPerSession`, VD-RL-001): un 429 aquí
+     * es el techo funcionando, no un fallo. Reintenta pasado
+     * `retryAfterSeconds` y sólo registra el desenlace FINAL — a la
+     * integridad de la corrida le importa si el comentario se creó, no
+     * cuántas peticiones HTTP hicieron falta.
+     */
+    const timedWithRateLimitRetry = async (
+      role: Role,
+      op: string,
+      call: () => Promise<Response>,
+    ): Promise<unknown> => {
+      const began = performance.now();
+      for (let attempt = 0; ; attempt += 1) {
+        const response = await call();
+        if (response.status === 429 && attempt < RATE_LIMIT_MAX_RETRIES) {
+          rateLimitRetries += 1;
+          const body = (await readJson(response)) as
+            | { retryAfterSeconds?: number }
+            | null;
+          const waitMs = Math.min(
+            Math.max(1, Number(body?.retryAfterSeconds) || 1) * 1000,
+            RATE_LIMIT_MAX_WAIT_MS,
+          );
+          await sleep(waitMs);
+          continue;
+        }
+        const body = await readJson(response);
+        record(role, op, performance.now() - began, response.status);
+        return body;
+      }
     };
 
     const anchor = { entityId: 'muro-0', point: { x: 120, y: 80 } };
@@ -509,7 +550,7 @@ async function main(): Promise<void> {
         await timed(actor.role, 'listComments', () =>
           linkCall('/v1/cad/review/comments'),
         );
-        const comment = (await timed(actor.role, 'comment', () =>
+        const comment = (await timedWithRateLimitRetry(actor.role, 'comment', () =>
           linkCall('/v1/cad/review/comments', {
             method: 'POST',
             body: {
@@ -836,6 +877,11 @@ async function main(): Promise<void> {
         totalRequests: samples.length,
         serverErrors,
         unexpectedClientErrors,
+        // Veces que un POST de comentario del enlace se topó con el techo
+        // por sesión y se reintentó (VD-RL-001). Cero aquí NO sería raro
+        // fuera de una tormenta sintética; que no sea 0 en esta corrida
+        // demuestra que el techo se ejerció de verdad, no que se esquivó.
+        rateLimitRetries,
         perRole,
       },
       boundaries,

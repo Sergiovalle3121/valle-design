@@ -1923,13 +1923,20 @@ export interface components {
             statusCode?: number;
             /** @description Mensaje humano; la validación de payload (class-validator) puede responder un array de mensajes. */
             message: string | string[];
-            /** @description Código de error estable y contractual. Catálogo v1: `cad_document_version_required`, `cad_document_version_conflict`, `cad_publications_server_managed`, `entitlement_required`, `review_token_invalid`, `review_token_expired`, `review_token_revoked`, `review_session_closed`, `review_read_only`, `review_comments_disabled`. */
+            /** @description Código de error estable y contractual. Catálogo v1: `cad_document_version_required`, `cad_document_version_conflict`, `cad_publications_server_managed`, `entitlement_required`, `review_token_invalid`, `review_token_expired`, `review_token_revoked`, `review_session_closed`, `review_read_only`, `review_comments_disabled`, `rate_limited`. */
             code?: string;
             details?: unknown;
             /** @description Correlación con los logs del servidor (`x-request-id`). */
             requestId?: string;
         } & {
             [key: string]: unknown;
+        };
+        /** @description 429 de cualquiera de las superficies acotadas por `ApiRateLimitService` (guardado de contenido, archivo, visión, checkout, comentarios de review). El techo es generoso a propósito — no mide uso legítimo, sólo acota abuso o un cliente roto en bucle — así que un cliente correcto reintenta pasado `retryAfterSeconds` en vez de tratarlo como fallo. */
+        RateLimitedError: components["schemas"]["ApiError"] & {
+            /** @constant */
+            code: "rate_limited";
+            /** @description Segundos hasta que la ventana de la superficie se libere. */
+            retryAfterSeconds: number;
         };
         EntitlementRequiredError: components["schemas"]["ApiError"] & {
             /** @constant */
