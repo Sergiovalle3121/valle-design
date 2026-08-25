@@ -348,6 +348,34 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-REAL-E2E-CI-WIRING-2026-08-25",
+      "date": "2026-08-25",
+      "initiative": "Investiga y cierra por qué el E2E real de DWG (dwg-import-real.spec.ts) nunca se había ejercitado de verdad en CI, en ningún navegador — tarea #10 de la lista de próximas tareas del informe de cierre de la campaña DWG anterior, reencuadrada por lo que la investigación encontró",
+      "branch": "claude/valle-design-dwg-main-lnqf7t",
+      "assistants": [
+        {
+          "name": "Claude Code (Claude Sonnet 5, Anthropic)",
+          "role": "ejecución autónoma bajo directiva escrita del titular (\"mergea y vete en cascada no te detengas, dale con la siguiente fase hasta llegar al 10/10 en el DWG\"). La tarea #10 pedía extender dwg-import-real.spec.ts a Firefox; la investigación (delegada a un agente con acceso de shell completo, y verificada por esta sesión) encontró que playwright.config.ts ya define los proyectos chromium y firefox y que el spec no tiene lógica de salto específica de Chromium — el hallazgo real es más grave: el job `e2e` de .github/workflows/ci.yml nunca fijó NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA (ni en el paso de build que lo inlinea al bundle de Next.js, ni en el paso de Playwright, que el propio spec también comprueba en el proceso de Node) ni exportó VALLE_DWG_CORPUS_MIRROR (ese job no hereda el checkout del repo hermano que sólo hace `quality-gates`) — así que el spec se auto-saltaba con sus propios test.skip en TODO run de CI, en cualquier navegador, desde que existe. Se corrige cableando ambas cosas en el job `e2e`, verificado corriendo el spec real (reconstruyendo el build con las mismas variables) contra la API NestJS y PostgreSQL reales de este entorno: 9/9 passed en Chromium. Firefox en sí no se pudo verificar EN ESTE ENTORNO: la descarga del binario de Firefox de Playwright fue rechazada con 403 por la política de salida de red de este sandbox (confirmado con $HTTPS_PROXY/__agentproxy/status, y con el paquete alternativo @playwright/browser-firefox de npm, que resultó ser el mismo descargador bloqueado) — un límite de infraestructura del entorno de ejecución, no del producto ni de este spec; con el cableado ya corregido, el próximo push a main ejercitará Firefox de verdad por la política de navegadores que CI ya tenía (Chromium en PR, Chromium+Firefox en main)."
+        }
+      ],
+      "authority": "Directiva escrita de Sergio Valle Zárate en esta conversación (\"mergea y vete en cascada no te detengas, dale con la siguiente fase hasta llegar al 10/10 en el DWG\"), bajo las mismas reglas de no-detención, decisión conservadora fail-closed y verificación empírica establecidas para la campaña DWG de la que este trabajo es continuación directa",
+      "firstPartyInputs": [
+        "Repositorio valle-design en la rama de esta campaña, tras el commit del cableado de INSUNITS (tarea #4)",
+        "docs/execution/INFORME_DWG_PRODUCTO_MAIN_2026-08-24.md §8, tarea #10 de la lista de próximas tareas",
+        ".github/workflows/ci.yml (jobs quality-gates y e2e) y apps/web/playwright.config.ts, leídos directamente para localizar la causa real",
+        "Los dos fixtures DWG reales del corpus admitido (08-plano-mini.dwg, 04-capas.dwg, bundle valle.fundacional.ac1015.001) para la verificación end-to-end contra Chromium"
+      ],
+      "externalSources": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: el titular revisa el PR abierto sobre claude/valle-design-dwg-main-lnqf7t; la adopción se registra al revisar/fusionar. El veredicto de Firefox en CI (bloqueado en este sandbox, no verificable aquí) se confirma con la primera corrida real del job `e2e` sobre `main` tras fusionar."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
