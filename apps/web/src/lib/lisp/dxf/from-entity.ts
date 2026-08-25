@@ -45,6 +45,7 @@ const DXF_TYPE: Record<CadNativeEntity["type"], string> = {
   arc: "ARC",
   ellipse: "ELLIPSE",
   spline: "SPLINE",
+  text: "TEXT",
   mtext: "MTEXT",
   hatch: "HATCH",
   dimension: "DIMENSION",

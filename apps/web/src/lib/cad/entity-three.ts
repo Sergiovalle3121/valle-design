@@ -9,6 +9,7 @@ import {
   type CadHersheyFamily,
 } from "./fonts/hershey-fonts";
 import { layoutCadMText } from "./mtext-layout";
+import { asMText } from "./text-entity-adapter";
 import { buildCadDimensionGeometry } from "./associative-dimension";
 import { buildCadMleaderGeometry } from "./associative-mleader";
 import type { CadDocument } from "./cad-document";
@@ -546,6 +547,10 @@ export function buildCadNativeObject(
     const sprite = buildCadMTextSprite(entity, viewport, elevation);
     if (sprite) group.add(sprite);
   }
+  if (entity.type === "text") {
+    const sprite = buildCadMTextSprite(asMText(entity), viewport, elevation);
+    if (sprite) group.add(sprite);
+  }
   if (entity.type === "dimension") {
     const dimension = buildCadDimensionGeometry(entity);
     if (dimension) {
@@ -632,12 +637,7 @@ export function buildCadNativeObject(
   if (entity.type === "insert" && document) {
     for (const child of resolveCadInsert(document, entity).entities) {
       if (child.type !== "text" && child.type !== "mtext") continue;
-      const sprite = buildCadMTextSprite(child.type === "mtext" ? child : {
-        id: child.id, type: "mtext", insertion: { x: child.x, y: child.y, z: 0 }, text: child.text,
-        width: Math.max(child.height ?? 120, child.text.length * (child.height ?? 120) * 0.6), height: child.height ?? 120,
-        rotation: child.rotation ?? 0, style: child.style,
-        layer: child.layer, context: child.context,
-      }, viewport, elevation);
+      const sprite = buildCadMTextSprite(child.type === "mtext" ? child : asMText(child), viewport, elevation);
       if (sprite) { sprite.userData.nativeEntityId = entity.id; group.add(sprite); }
     }
   }

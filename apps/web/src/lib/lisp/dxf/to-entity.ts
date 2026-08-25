@@ -419,6 +419,7 @@ export function expectedDxfType(entity: CadNativeEntity): string {
     arc: "ARC",
     ellipse: "ELLIPSE",
     spline: "SPLINE",
+    text: "TEXT",
     mtext: "MTEXT",
     hatch: "HATCH",
     dimension: "DIMENSION",

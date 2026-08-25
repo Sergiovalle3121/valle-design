@@ -107,7 +107,7 @@ export type CadDxfImportPlan =
  * reventaría al dibujarse, así que se convierte o se declara — nunca se cuela.
  */
 const INSERTABLE_TYPES: ReadonlySet<string> = new Set([
-  "line", "polyline", "circle", "arc", "ellipse", "spline", "hatch", "mtext",
+  "line", "polyline", "circle", "arc", "ellipse", "spline", "hatch", "text", "mtext",
   "dimension", "mleader", "insert", "point", "xline", "ray", "solid", "wipeout",
   "image", "attdef", "table", "solid3d", "region", "wall",
 ]);
@@ -163,27 +163,7 @@ export function planCadDxfImport(
   const blockParts = cadDxfBlocksToCadDocumentParts(result.blocks, result.inserts, importOptions);
 
   const entities: CadNativeEntity[] = [];
-  let upgradedTexts = 0;
   for (const entity of canonical) {
-    // El TEXT simple del DXF es la única entidad canónica sin adaptador nativo:
-    // vive en el documento como tipo `text` heredado y el lote de comandos no
-    // lo puede transportar. Entra como MTEXT de una línea —que sí es nativo y
-    // dibuja el mismo texto en el mismo sitio— y la conversión se DECLARA.
-    if (entity.type === "text") {
-      upgradedTexts += 1;
-      entities.push({
-        id: entity.id,
-        type: "mtext",
-        insertion: { x: entity.x, y: entity.y, z: 0 },
-        text: entity.text,
-        ...(entity.height !== undefined ? { height: entity.height } : {}),
-        ...(entity.rotation !== undefined ? { rotation: entity.rotation } : {}),
-        ...(entity.style !== undefined ? { style: entity.style } : {}),
-        layer: entity.layer,
-        ...(entity.context ? { context: entity.context } : {}),
-      });
-      continue;
-    }
     if (isInsertable(entity)) entities.push(entity);
   }
   entities.push(
@@ -215,15 +195,6 @@ export function planCadDxfImport(
   for (const entity of entities) commands.push({ type: "insert", entity });
 
   const extraRows: CadDxfImportReportRow[] = [];
-  if (upgradedTexts > 0)
-    extraRows.push({
-      fidelity: "degraded",
-      code: "text_as_mtext",
-      count: upgradedTexts,
-      detail:
-        `${upgradedTexts} texto(s) de una línea entran como texto con formato: se leen igual y en el ` +
-        "mismo sitio, pero al volver a exportar saldrán como MTEXT y no como TEXT.",
-    });
 
   return {
     ok: true,

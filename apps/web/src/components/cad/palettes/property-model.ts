@@ -103,6 +103,7 @@ const CATEGORY_BY_KEY: Record<string, string> = {
   closed: GENERAL,
   solid: GENERAL,
   style: GENERAL,
+  color: GENERAL,
   associative: GENERAL,
   associationStatus: GENERAL,
 
