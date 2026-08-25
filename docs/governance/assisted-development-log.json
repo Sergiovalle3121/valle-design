@@ -292,6 +292,34 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-TEXT-NATIVE-ADAPTER-2026-08-25",
+      "date": "2026-08-25",
+      "initiative": "Adaptador nativo de TEXT en CAD_ENTITY_REGISTRY (siguiente tarea de la lista de la campaña DWG anterior) y los dos defectos reales de captura/guardado de capa en el editor legado que quedaron alcanzables al registrarlo",
+      "branch": "claude/valle-design-dwg-main-lnqf7t",
+      "assistants": [
+        {
+          "name": "Claude Code (Claude Sonnet 5, Anthropic)",
+          "role": "ejecución autónoma bajo directiva escrita del titular (\"mergea y dale con la siguiente fase\", continuación de la campaña DWG registrada en DWG-PRODUCTO-MAIN-CAMPANA-2026-08-24): fusión de los PR de esa campaña, seguida de la tarea #1 de su propia lista de próximos pasos — implementar el adaptador nativo de `type:\"text\"` (renderer/hitTester/grips/snaps/properties/commands) — y, al verificarlo con un DWG real de punta a punta en Studio, el hallazgo, diagnóstico exacto y arreglo de dos defectos reales y hasta entonces latentes en `Layout3DEditor.tsx` (pérdida de la capa real de un TEXT al abrir; reversión de su edición al guardar), ninguno de los dos alcanzable antes de que el tipo tuviera adaptador"
+        }
+      ],
+      "authority": "Directiva escrita de Sergio Valle Zárate en esta conversación (\"mergea y dale con la siguiente fase\"), bajo las mismas reglas de no-detención, decisión conservadora fail-closed y verificación empírica establecidas para la campaña DWG de la que este trabajo es continuación directa",
+      "firstPartyInputs": [
+        "Repositorio valle-design en main (946c5dbe2ac1b4e3d783090cb45cd3de0ec50dcb tras fusionar el PR de la campaña anterior)",
+        "docs/execution/CAMPANA_DWG_PRODUCTO_MAIN_9H.md / docs/history/execution/CAMPANA_DWG_PRODUCTO_MAIN_9H.md §5.6-5.7 (los hallazgos que dejaron pendiente esta tarea) e INFORME_DWG_PRODUCTO_MAIN_2026-08-24.md §8 (tarea #1 de la lista de próximas tareas)",
+        "Código existente del registro de adaptadores nativos (entity-runtime.ts y sus ~22 adaptadores hermanos) como plantilla de contrato y convención",
+        "El fixture DWG real 08-plano-mini.dwg del corpus admitido (valle.fundacional.ac1015.001), leído en runtime desde el espejo local, nunca copiado al árbol"
+      ],
+      "externalSources": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: el titular revisa el PR abierto sobre claude/valle-design-dwg-main-lnqf7t y sus checks (typecheck, test:specs, check:cad, suite dorada e2e/golden, y el E2E real contra API/PostgreSQL); la adopción se registra al revisar/fusionar."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
