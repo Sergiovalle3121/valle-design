@@ -4,10 +4,13 @@
   acotado de §6-bis (beta de importación `AC1015_MODELSPACE_2D_V1`),
   ampliada el mismo día por §6-ter a `AC1015_MODELSPACE_2D_V2`, por
   §6-quater a `AC1015_MODELSPACE_2D_V3`, y por §7 a aceptar TAMBIÉN AC1018
-  (`AC1018_MODELSPACE_2D_V1`, mismo perfil de entidades V3); no es la
-  promoción general de §5, que sigue con gates pendientes
+  (`AC1018_MODELSPACE_2D_V1`, mismo perfil de entidades V3); el 2026-08-25,
+  §8 autoriza EMPEZAR M5 (exportación DWG, subconjunto V1, AC1015
+  únicamente, su propio flag apagado por defecto) — no lo da por cumplido,
+  sólo abre la puerta a construirlo con evidencia propia; ninguna de estas
+  es la promoción general de §5, que sigue con gates pendientes
 - Fecha: 2026-08-21 (paquete); firma real 2026-08-24 (§6-bis); ampliaciones
-  2026-08-24 (§6-ter, §6-quater, §7)
+  2026-08-24 (§6-ter, §6-quater, §7); autorización M5 2026-08-25 (§8)
 - Decide sobre: llevar la importación DWG del laboratorio clean-room al
   producto, detrás de un feature flag apagado
 - No preautorizado por: ADR-0004 (DWG fuera del producto), ADR-0007 (el
@@ -321,3 +324,70 @@ Lo que esta ampliación NO autoriza: M4 (versiones modernas 2010+, que
 necesitaría primero que el laboratorio decodifique sus cuerpos de objeto,
 hoy bloqueado) y M5 (exportación) siguen sin autorizar por adelantado —
 cada uno, otra vez, con su propia evidencia end-to-end en verde primero.
+
+## 8. M5 — Exportación DWG — 2026-08-25
+
+El titular, en conversación directa registrada en la sesión de trabajo de
+esa fecha, respondió a un análisis honesto del estado de DWG (a petición
+suya: "analiza qué más le falta al DWG, no quiero laboratorios quiero algo
+real") escogiendo explícitamente autorizar M5 sobre las otras dos opciones
+presentadas (encargar la revisión jurídica externa de §5, o no tocar DWG y
+seguir con otra iniciativa), con el alcance descrito así en el momento de
+la firma: el writer ya existe y está verificado por ODA File Converter
+(oráculo externo real, no el propio código); se cablea un "Exportar como
+DWG" al producto, detrás de su propio flag apagado por defecto, con el
+mismo patrón cuidadoso que el import — evidencia primero, flag después,
+nunca "DWG propio" sin calificar.
+
+**Lo que ya existe, verificado antes de tocar el producto.** El laboratorio
+escribe AC1015 con LINE/POINT/CIRCLE/ARC/LWPOLYLINE/TEXT/INSERT
+(`ac1015-entity-writer.ts`, confirmado leyendo el archivo) — el mismo
+subconjunto que autorizó §6-bis para lectura V1, no el perfil V3 completo
+que lee hoy la beta. `canonicalDocumentToDwgEntities` y
+`writeAc1015MinimalFile` (`packages/dwg-codec/src/api/canonical.ts`,
+`writer/ac1015-minimal-file-writer.ts`) ya arman un archivo real a partir
+de un documento canónico DEL LABORATORIO — no hay hoy una función pública
+`writeDwg` equivalente a `readDwg`, ni un adaptador del lado del producto
+que traduzca `CadDocument` a ese canónico (el equivalente inverso de
+`dwg-document-bridge.ts`): ambos son trabajo de esta autorización, no algo
+que ya existiera sin decirlo.
+
+1. **Autoriza** diseñar y construir la integración de exportación DWG en el
+   producto, acotada al mismo subconjunto de entidades que el writer ya
+   escribe (LINE/POINT/CIRCLE/ARC/LWPOLYLINE/TEXT/INSERT) y a AC1015
+   únicamente — igual que M1 lo hizo para lectura, la escritura empieza por
+   el subconjunto más angosto con evidencia real, no por el perfil V3
+   completo. Cualquier entidad del documento fuera de ese subconjunto se
+   declara en un manifiesto de pérdidas al exportar, con el mismo mecanismo
+   ya usado en la exportación DXF — nunca se omite en silencio.
+2. **Exige, antes de cablear nada al producto**, que exista una función
+   pública de escritura en el laboratorio (equivalente a `readDwg` en
+   `api/read.ts`) y que su salida se verifique contra el mismo oráculo
+   externo (ODA File Converter) sobre el corpus admitido, con la misma
+   disciplina de `check:dwg` que ya rige la lectura — la evidencia previa de
+   §1.3 cubre el contenedor y el round-trip de la librería de prueba, no
+   nombra un contrato de API público, así que ese contrato es parte de este
+   hito, no algo que se dé por hecho.
+3. **Feature flag propio, apagado por defecto**, distinto de
+   `DWG_BETA_AUTHORIZATION` y de `DWG_AC1018_BETA_AUTHORIZATION` — exportar
+   y leer son capacidades distintas con superficies de riesgo distintas
+   (leer un archivo hostil arriesga el parser; escribir arriesga entregarle
+   al cliente un archivo que dice ser DWG y no lo es del todo). Nunca se
+   activa por defecto en producción pública, igual que las dos de lectura.
+4. **No autoriza** ninguna afirmación de "exportación DWG" sin calificar el
+   subconjunto de entidades y la versión exacta, ni tratar esto como
+   equivalente a que el import complete su perfil V3 en escritura, ni mueve
+   un bit la promoción general de §5 (`legalReviewCleared` sigue en
+   `false`, sin fecha). El archivo original que un usuario importó sigue
+   preservándose intacto como corresponde; exportar es una capacidad nueva,
+   no un reemplazo de esa garantía.
+5. **Acepta los mismos límites de §6-bis.3** que ya rigen la lectura:
+   interoperable con ODA, no verificado contra AutoCAD real; un solo
+   oráculo externo; la advertencia de representatividad de
+   `CORPUS_POLICY.md` se traslada íntegra a cualquier texto de producto que
+   describa esta capacidad.
+
+Lo que esta autorización NO hace: no declara M5 cumplido — sólo abre la
+puerta a construirlo con su propia evidencia end-to-end en verde, exacto
+al mismo criterio que exigieron M2a/M2b/M3. Tampoco toca M4 (2010+), que
+sigue bloqueado en el laboratorio, ni GA/disponibilidad general de nada.
