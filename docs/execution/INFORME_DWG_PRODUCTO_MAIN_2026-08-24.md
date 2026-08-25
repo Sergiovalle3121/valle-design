@@ -320,3 +320,103 @@ gates locales mandatados (§6) y los cuatro indicadores (§7) siguen siendo
 exactamente lo que se midió al cerrar la campaña. Esta adenda documenta
 trabajo de seguimiento sobre la suscripción al PR, que continúa
 independientemente de que el informe de cierre ya esté publicado.
+
+## 11. Cascada de continuación (misma sesión, directiva "dale con la
+    siguiente fase") — las diez tareas de §8, una a una
+
+Directiva del titular tras fusionar el PR de esta campaña: "mergea y dale
+con la siguiente fase" y, más tarde en la misma sesión, "mergea y vete en
+cascada no te detengas, dale con la siguiente fase hasta llegar al 10/10 en
+el DWG". Esta sección cierra el lazo de las diez tareas de §8: qué se
+implementó, qué se confirmó genuinamente bloqueado y por qué — ninguna se
+deja sin tocar en silencio.
+
+**Implementadas y fusionadas (2 PR, 6 commits atómicos, verificación
+independiente en cada una — no sólo el resultado reportado por quien
+implementó):**
+
+1. **Tarea #1 (adaptador nativo de `text`)** — PR #98 (esta campaña) más
+   PR #100: el adaptador, y dos defectos reales de captura/guardado de capa
+   en `Layout3DEditor.tsx` que sólo un comando nativo sobre un TEXT podía
+   disparar y que este adaptador dejó alcanzables.
+2. **Tarea #4 (INSUNITS en lectura)** — PR #101. El lector de variables de
+   cabecera existía y estaba probado, pero ningún lector de base de datos lo
+   invocaba. Conectado; efecto colateral encontrado y cerrado (el
+   placeholder de pruebas del writer nunca fue decodificable de verdad, 12
+   tests lo daban por válido sólo a nivel de marco).
+3. **Tarea #10 (E2E real para Firefox)** — PR #101, reencuadrada. El pedido
+   original suponía un spec limitado a Chromium; la investigación encontró
+   que el job `e2e` de CI nunca ejercitaba `dwg-import-real.spec.ts` EN
+   ABSOLUTO, en ningún navegador, desde que existe — dos variables de
+   entorno ausentes. Cableado y verificado (9/9 local contra el stack real
+   tras reconstruir el build). Firefox en sí sigue sin verificar: bloqueo de
+   infraestructura del sandbox de ejecución (descarga de Playwright
+   rechazada por la política de salida de red), no del producto.
+4. **Tarea #2 (cancelación cooperativa)** — PR #101. `ResourceBudget` ya
+   tenía el contrato completo; los tres lectores no lo usaban, y la segunda
+   pasada de ensamblado (`assembleDatabase`) no tocaba el presupuesto en
+   absoluto. Cerrado lo auditado como seguro (parámetro aditivo,
+   `assembleDatabase` ahora cobra por objeto); el cruce hasta el worker del
+   producto queda declarado fuera de alcance — el parseo corre en una sola
+   pila síncrona y un mensaje de cancelación no se entregaría hasta que
+   termine, así que cerrarlo de verdad exige trocear el bucle caliente para
+   ceder al bucle de eventos, cambio estructural mayor que esta tarea no
+   audita.
+5. **Tarea #6 (ATTRIB de INSERT)** — PR #101. Expuesto por el mismo camino
+   que ya usa DXF (`attributes: Record<string,string>`), sin mapeo
+   paralelo. `positionedAttributes` (con geometría real) queda sin poblar:
+   ni DXF lo hace en import ni el propio mapeador de referencia del
+   laboratorio lo intenta. Ningún fixture DWG real del corpus admitido
+   contiene un ATTRIB hoy — la evidencia es unitaria, no de un `.dwg` real,
+   y se declara así.
+
+**Confirmadas genuinamente bloqueadas por un acto externo real, no por
+falta de esfuerzo de ingeniería — evaluadas de nuevo en esta sesión, no
+asumidas del informe original:**
+
+6. **Tarea #3 (primera donación real)** — sigue en cero. El mecanismo
+   (`DONACIONES.md`) está reparado desde P5b, pero conseguir una donación
+   real exige un donante externo real con permiso escrito; ningún agente
+   puede fabricar eso. `incoming/` del repo hermano sigue vacío.
+7. **Tarea #5 (fuente de la codificación BOT R2010+)** — reconfirmada
+   bloqueada, con una lectura completa de `SOURCE_REGISTER.json` en esta
+   sesión, no repetida de memoria. El intake 2026-08-23 ya intentó de forma
+   exhaustiva derivar la codificación por búsqueda bit a bit contra el
+   propio corpus (3 anchos de valor probados contra un tipo LINE conocido,
+   430 mediciones de envoltura sin discrepancias en OTRAS piezas del
+   formato) y **falló**, documentándolo como frontera declarada, no como
+   hecho. La única fuente que resolvería esto de verdad es la especificación
+   de ODA/RealDWG/LibreDWG — exactamente lo que la política clean-room de
+   este laboratorio excluye por nombre. No existe una especificación pública
+   independiente de esas tres. Repetir la búsqueda empírica sin datos ni
+   técnica nuevos no sería "intentarlo más", sería adivinar sin poder
+   falsarlo — lo que la disciplina de este mismo archivo prohíbe
+   explícitamente ("sin evidencia, cero").
+8. **Tarea #9 (extender el corpus admitido)** — bloqueada en este entorno de
+   ejecución por dos razones acumulativas, ambas verificadas, no supuestas:
+   la única herramienta que la política del repo hermano autoriza para
+   producir bytes DWG de autoría propia (ODA File Converter 27.1) es un
+   instalador `.msi` de Windows, ausente de este sandbox Linux y no apto
+   para instalarse aquí sin la vigilancia deliberada que `CORPUS_POLICY.md`
+   ya exige para esa herramienta exacta; y la admisión de CUALQUIER bundle
+   — incluido el origen más laxo, `tool-converted-original` — exige por
+   política firmada un revisor-propietario humano, que ningún agente puede
+   sustituir. Autor DXF de escena nueva sin poder convertirlo ni admitirlo
+   no sería progreso real, sería inventario a medias.
+9. **Tarea #7 (dictamen legal)** — sin cambio, ya declarada fuera del
+   alcance de ingeniería en §7.3 del cierre original. Ningún programa firma
+   un dictamen jurídico.
+10. **Tarea #8 (ampliar guía de `DONACIONES.md`)** — sigue dependiendo de la
+    tarea #3: la propia tarea original pide NO inventarla hasta que exista
+    un primer caso real que la ponga a prueba. Diseñarla contra un caso
+    hipotético sería exactamente la anticipación sin evidencia que este
+    archivo lleva evitando desde §0.
+
+**Ningún indicador de madurez (§7) cambia por esta adenda** salvo lo ya
+verificado con evidencia ejecutable: el indicador 1 (preparación de
+ingeniería) mejora con el cierre de las tareas #1/#2/#4/#6; el indicador 2
+(independencia de evidencia) NO se mueve — sigue 100% `tool-converted-
+original`, exactamente lo que la tarea #3 bloqueada explica; el indicador 3
+(DWG comercial) NO se mueve — depende de la tarea #7, fuera de alcance; el
+indicador 4 (paridad AutoCAD) se recalcula con `node scripts/cad/rubric.mjs`
+sobre cada commit, no se copia a mano aquí.

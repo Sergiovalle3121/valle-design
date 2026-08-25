@@ -119,6 +119,37 @@ export interface DwgNeutralInsert {
 }
 
 /**
+ * Atributo con valor de un INSERT (ATTRIB): los mismos campos que TEXT —
+ * comparten disposición en el formato, hecho registrado en el laboratorio—
+ * más el tag que lo identifica, la longitud de campo y las banderas crudas
+ * del atributo. Sólo aparece dentro de `DwgNeutralEntityRecord.attributes`:
+ * el ensamblado del laboratorio lo ata a su INSERT propietario antes de que
+ * llegue aquí, nunca como entidad suelta de model space o de bloque.
+ */
+export interface DwgNeutralAttrib {
+  readonly kind: "attrib";
+  readonly insertion: DwgNeutralPoint2;
+  readonly elevation: number | undefined;
+  readonly alignment: DwgNeutralPoint2 | undefined;
+  readonly thickness: number;
+  readonly extrusion: DwgNeutralPoint3;
+  readonly obliqueAngle: number | undefined;
+  /** Radianes. */
+  readonly rotation: number | undefined;
+  readonly height: number;
+  readonly widthFactor: number | undefined;
+  /** Bytes en la página de códigos del dibujo, sin decodificar. */
+  readonly valueBytes: readonly number[];
+  readonly generation: number | undefined;
+  readonly horizontalAlignment: number | undefined;
+  readonly verticalAlignment: number | undefined;
+  /** El nombre identificador del atributo (p.ej. "PARTNO"), bytes sin decodificar. */
+  readonly tagBytes: readonly number[];
+  readonly fieldLength: number;
+  readonly attributeFlags: number;
+}
+
+/**
  * Elipse: centro, extremo del eje mayor como VECTOR relativo al centro,
  * extrusión, razón de ejes y ángulos paramétricos en RADIANES.
  */
@@ -344,6 +375,7 @@ export type DwgNeutralGeometry =
   | DwgNeutralLwPolyline
   | DwgNeutralText
   | DwgNeutralInsert
+  | DwgNeutralAttrib
   | DwgNeutralEllipse
   | DwgNeutralSpline
   | DwgNeutralMText
@@ -365,6 +397,8 @@ export interface DwgNeutralEntityRecord {
   readonly layerHandle: number | undefined;
   /** Sólo INSERT: nombre del bloque insertado, resuelto por su handle. */
   readonly insertedBlockName: readonly number[] | undefined;
+  /** Sólo INSERT con ATTRIBs: los atributos atados por su propietario. */
+  readonly attributes: readonly DwgNeutralEntityRecord[] | undefined;
 }
 
 export interface DwgNeutralBlock {
@@ -394,6 +428,8 @@ export interface DwgNeutralDatabase {
   readonly layers: readonly DwgNeutralLayer[];
   readonly blocks: readonly DwgNeutralBlock[];
   readonly modelSpaceEntities: readonly DwgNeutralEntityRecord[];
+  /** BS crudo de INSUNITS (variables de cabecera): unidades del dibujo. */
+  readonly insunits: number;
   readonly unsupported: readonly DwgNeutralUnsupportedObject[];
   readonly diagnostics: readonly DwgNeutralDiagnostic[];
 }

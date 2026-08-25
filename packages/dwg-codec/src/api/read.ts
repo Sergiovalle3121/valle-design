@@ -9,6 +9,7 @@ import {
 } from "../reader/ac1015-database-reader.js";
 import { readR2004Database } from "../reader/r2004-database-reader.js";
 import { throwDwgError } from "../security/parse-error.js";
+import type { ResourceBudgetOptions } from "../security/resource-budget.js";
 
 /**
  * Base neutral que `readDwg` devuelve. El contrato es el MISMO para todas
@@ -37,16 +38,20 @@ const R2007_SIGNATURE = "AC1021";
  * decodificador (`DWG_VERSION_DECODER_UNSUPPORTED`), estructura corrupta con
  * offset (`DWG_STRUCTURE_CORRUPT`), o presupuesto agotado. Nunca lanza un
  * error crudo del runtime.
+ *
+ * `cancellation` (`{clock?, signal?, deadlineMs?}`, mismo contrato que
+ * `probeDwg`) es ADITIVO y se reenvía tal cual al lector que corresponda.
  */
 export function readDwg(
   input: Uint8Array,
   limits?: DwgLimitOverrides,
+  cancellation?: ResourceBudgetOptions,
 ): DwgDatabase {
   const code = peekSignature(input);
   if (code !== null && R2004_FAMILY_SIGNATURES.includes(code)) {
     return limits === undefined
-      ? readR2004Database(input)
-      : readR2004Database(input, limits);
+      ? readR2004Database(input, undefined, cancellation)
+      : readR2004Database(input, limits, cancellation);
   }
   if (code === R2007_SIGNATURE) {
     throwDwgError(
@@ -59,8 +64,8 @@ export function readDwg(
   // Todo lo demás — AC1015 incluido — sigue el camino R2000, que valida la
   // firma con su propio gate y rechaza tipado las versiones que no abre.
   return limits === undefined
-    ? readAc1015Database(input)
-    : readAc1015Database(input, limits);
+    ? readAc1015Database(input, undefined, cancellation)
+    : readAc1015Database(input, limits, cancellation);
 }
 
 /**

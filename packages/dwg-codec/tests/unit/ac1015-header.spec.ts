@@ -17,6 +17,7 @@ import { parseAc1015FileHeader } from "../../src/container/ac1015-file-header.js
 import { AC1015_SECTION_FRAME_OVERHEAD } from "../../src/container/ac1015-section-frame.js";
 import {
   AC1015_DEFAULT_CODEPAGE,
+  ac1015HeaderVariablesPlaceholder,
   writeAc1015Container,
 } from "../../src/writer/ac1015-container-writer.js";
 import { assertDwgError } from "../support/assert.js";
@@ -29,9 +30,14 @@ const CRC_OFFSET = 0x34;
 const SENTINEL_OFFSET = 0x36;
 const HEADER_LENGTH = 0x46;
 
-/** Disposición del contenedor mínimo por defecto del writer. */
+/**
+ * Disposición del contenedor mínimo por defecto del writer. `HV_SIZE` se
+ * DERIVA del placeholder real (no un `16` fijo): desde que las variables de
+ * cabecera por defecto son un juego completo y decodificable, su tamaño es
+ * el que ese juego mide, no un número de conveniencia.
+ */
 const HV_START = HEADER_LENGTH;
-const HV_SIZE = AC1015_SECTION_FRAME_OVERHEAD + 16;
+const HV_SIZE = AC1015_SECTION_FRAME_OVERHEAD + ac1015HeaderVariablesPlaceholder().length;
 const CLASSES_START = HV_START + HV_SIZE;
 const CLASSES_SIZE = AC1015_SECTION_FRAME_OVERHEAD;
 const MAP_START = CLASSES_START + CLASSES_SIZE;

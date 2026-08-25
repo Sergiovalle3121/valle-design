@@ -24,7 +24,10 @@ import {
   AC1015_SECTION_FRAME_OVERHEAD,
   readAc1015EmptyObjectMap,
 } from "../../src/container/ac1015-section-frame.js";
-import { writeAc1015Container } from "../../src/writer/ac1015-container-writer.js";
+import {
+  ac1015HeaderVariablesPlaceholder,
+  writeAc1015Container,
+} from "../../src/writer/ac1015-container-writer.js";
 import {
   buildAc1015ObjectMapSection,
   encodeDwgSignedModularChar,
@@ -33,9 +36,13 @@ import {
 } from "../../src/writer/ac1015-object-writer.js";
 import { assertDwgError } from "../support/assert.js";
 
-/** Disposición del contenedor por defecto (mismas cuentas que fases B/C). */
+/**
+ * Disposición del contenedor por defecto (mismas cuentas que fases B/C).
+ * `HV_SIZE` se DERIVA del placeholder real, no de un `16` fijo — ver la nota
+ * gemela en `ac1015-header.spec.ts`.
+ */
 const HEADER_LENGTH = 0x46;
-const HV_SIZE = AC1015_SECTION_FRAME_OVERHEAD + 16;
+const HV_SIZE = AC1015_SECTION_FRAME_OVERHEAD + ac1015HeaderVariablesPlaceholder().length;
 const CLASSES_SIZE = AC1015_SECTION_FRAME_OVERHEAD;
 const OBJECTS_START = HEADER_LENGTH + HV_SIZE + CLASSES_SIZE;
 
