@@ -611,33 +611,6 @@
       "aiClaimsAuthorship": false
     },
     {
-      "id": "DWG-GAP-MATRIX-STALE-PROSE-2026-08-25",
-      "date": "2026-08-25",
-      "initiative": "Corrige una nota de prosa desactualizada en docs/competitive/autocad-2027-gap-matrix.md que seguía describiendo DWG como \"detecta y rechaza, 2 puntos por honestidad\" cuando la fila auto-generada ya muestra 6/7 con decoder y export propios verificados de verdad (corpus independiente, oráculo externo ODA). Surge de una petición directa del titular de analizar qué le falta a DWG \"sin laboratorios, algo real\": la propia prosa pública del proyecto sobre DWG estaba desactualizada respecto a su propio trabajo reciente.",
-      "branch": "claude/valle-design-dwg-main-lnqf7t",
-      "assistants": [
-        {
-          "name": "Claude Code (Claude Sonnet 5, Anthropic)",
-          "role": "Investigación directa (sin agente) en respuesta a la petición del titular de auditar honestamente el estado real de DWG. Leyó rubric.json (categoría dwg, 4 criterios, 6/7 puntos), docs/cad/evidence/dwg-decoder-matrix.json y dwg-roundtrip.json (ambos con disponibilidadEnProducto:false explícito), ADR-0009 (paquete de promoción, incluida la firma real §6-bis/ter/quater y M3 AC1018 §7) y ADR-0012/ADR-0014 (retiro de la vía de proveedor licenciado por decisión expresa del titular, por presupuesto). Confirmó que el párrafo de prosa en gap-matrix.md, escrito antes de que existiera el decoder/export propios con evidencia real, seguía describiendo la puntuación DWG como si sólo viniera de detectar-y-rechazar el formato — desactualizado respecto al propio rubric.json del repositorio. Confirmó con node scripts/cad/rubric.mjs --markdown que la sección auto-generada (entre los marcadores rubric:begin/rubric:end) es la única que ese script reescribe; la prosa corregida vive fuera de esos marcadores, así que el cambio no interfiere con la regeneración automática (\"Matriz ya al día\" tras el cambio, confirmado)."
-        }
-      ],
-      "authority": "Directiva escrita de Sergio Valle Zárate en esta conversación (\"analiza que más le falta al DWG no quiero laboratorios quiero algo real\"): corrección de exactitud documental encontrada durante esa auditoría, de alcance obviamente seguro (prosa fuera de la sección auto-generada, sin cambio de código ni de comportamiento).",
-      "firstPartyInputs": [
-        "docs/competitive/rubric.json (categoría dwg) y scripts/cad/rubric.mjs/rubric-report.mjs",
-        "docs/cad/evidence/dwg-decoder-matrix.json y dwg-roundtrip.json",
-        "docs/adr/0009-dwg-promotion-package.md, 0012-dwg-doble-via.md, 0014-dwg-via-propia-unica.md"
-      ],
-      "externalSources": [],
-      "adoption": {
-        "required": true,
-        "status": "proposed",
-        "adopter": "Sergio Valle Zárate",
-        "evidence": "Pendiente: se incluye en el próximo PR de esta rama para revisión del titular junto con la respuesta a su pregunta sobre qué le falta a DWG. node scripts/cad/rubric.mjs --markdown confirma que la sección auto-generada de la matriz no cambió (\"Matriz ya al día\")."
-      },
-      "aiCoAuthorTrailers": true,
-      "aiClaimsAuthorship": false
-    },
-    {
       "id": "DWG-M5-EXPORT-AUTHORIZATION-2026-08-25",
       "date": "2026-08-25",
       "initiative": "Registra en ADR-0009 §8 la autorización explícita del titular para EMPEZAR M5 (exportación DWG al producto), dada en respuesta a un análisis honesto del estado real de DWG que él mismo pidió (\"analiza qué más le falta al DWG, no quiero laboratorios quiero algo real\"). No es código de producto: es el acta de una decisión de gobernanza — la misma clase de firma que ya llevan §6-bis/ter/quater/7 — sin la cual ADR-0009 §6-bis prohibía explícitamente construir esta integración (\"Lo que esta firma NO autoriza: ... exportación DWG\").",
@@ -662,6 +635,34 @@
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
         "evidence": "La autorización misma ES la adopción — ocurrió en esta conversación vía AskUserQuestion, no está pendiente de revisión de PR como el resto de entradas de este registro. Se incluye aquí para que quede trazada junto con el ADR que firma, y se abre un PR de todos modos para que el titular vea el texto exacto de §8 antes de que el trabajo de las fases 1-4 empiece a construir sobre él."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-M5-WRITE-CANONICAL-DWG-2026-08-25",
+      "date": "2026-08-25",
+      "initiative": "Fase 1 de M5 (exportación DWG, ADR-0009 §8): entrega la función pública de escritura del laboratorio que §8.2 exige antes de cablear nada al producto — `writeCanonicalDwg`, documento canónico → archivo AC1015 completo — junto con el round-trip propio que la verifica, íntegramente dentro de packages/dwg-codec. No toca apps/web, no toca check-product-boundary.mjs, no reclama la mitad del oráculo externo (ODA File Converter) que sigue pendiente de que el titular la corra en su máquina.",
+      "branch": "claude/valle-design-dwg-main-lnqf7t",
+      "assistants": [
+        {
+          "name": "Claude Code (Claude Sonnet 5, Anthropic)",
+          "role": "Delegó la implementación completa a un agente con acceso de shell, tras completar ella misma el diseño arquitectónico (qué nombre usar dado que `writeDwg` ya estaba tomado por el writer de bajo nivel; qué función encadenar con qué; el contrato exacto de entrada/salida) y verificar de primera mano, antes de delegar, los dos hechos más consecuentes del informe de alcance previo: que `packages/dwg-codec/src/index.ts:10` en efecto ya exporta `writeAc1015MinimalFile as writeDwg` con un comentario explicando el repunte deliberado tras un hallazgo de auditoría externa, y que `canonicalDocumentToDwgEntities` en efecto no tenía `case \"point\"` pese a que `ac1015-entity-writer.ts` ya escribe POINT completo. El agente entregó: el `case \"point\"` faltante (confirmado contra el `CadPointEntity` real de `apps/web/src/lib/cad/cad-entities-v4.ts`, sólo como referencia de lectura, sin tocar ese árbol); `writeCanonicalDwg` nueva en `api/write.ts`, tan delgada como `readDwg`, resolviendo la única pieza que faltaba entre las dos funciones ya verificadas que encadena — nombres de capa/bloque, STRING en el documento canónico contra `readonly number[]`+índice en el archivo mínimo — con un límite ASCII declarado (1-255 caracteres, ninguno por encima de 127) y tres códigos de pérdida nuevos para cuando ese límite no se cumple, cada uno con su propio manejo deliberado (una capa no-ASCII cae a \"0\" con la entidad viva; un bloque no-ASCII omite el INSERT entero, porque insertar en \"0\" dibujaría algo distinto de lo pedido); el contenido de un bloque de usuario declarado como pendiente de una fase posterior en vez de mapeado a medias o fingido. Cinco pruebas nuevas de round-trip propio (documento → `writeCanonicalDwg` → `readDwg` público, tolerancia 1e-6, las siete clases autorizadas de una vez, con verificación de handle de capa real no sólo de existencia) más los tres casos límite (capa no-ASCII, bloque no-ASCII, clase fuera de perfil) y determinismo. Actualizó el registro de procedencia (SOURCE_REGISTER.json, mismos dos archivos añadidos a la entrada de autoría propia ya existente, sin inventar ninguna nueva), la lista dorada de exports públicos (seis a siete nombres) y CAPABILITIES.md con una sección fechada que declara sin suavizar qué falta: la mitad del oráculo externo, que este entorno no puede correr. Amplió también `scripts/dwg/oda-roundtrip.mjs` con un caso POINT, sin ejecutarlo (requiere el ODA File Converter, sólo en la máquina del titular) — verificado en su lugar contra el lector propio de este entorno. Esta sesión verificó el trabajo del agente de forma independiente antes de aceptarlo, no sólo su informe: leyó el diff completo línea por línea (los nueve archivos), confirmó por separado —contra el propio `cad-entities-v4.ts`, no confiando en la palabra del agente— que el campo `position` de `CadPointEntity` es exactamente el que el nuevo `case \"point\"` lee, confirmó la simetría con el espejo de lectura ya existente en la línea ~361 del mismo archivo, verificó a mano la aritmética de índices de capa (1-based con offset) contra la de bloque (0-based) que el código nuevo usa —dos convenciones DISTINTAS que el código respeta correctamente—, y re-corrió ella misma, de forma independiente, `npm run check` completo del paquete: provenance 8/8, fixtures 21/21, no-io OK, boundary OK, build limpio, typecheck limpio, 385/385 unit, 349/349 adversarial, fuzz smoke OK — exit code 0, coincidiendo exactamente con lo que el agente había reportado."
+        }
+      ],
+      "authority": "Directiva escrita de Sergio Valle Zárate en esta conversación: autorización de ADR-0009 §8 (\"Autorizar exportación DWG\", escogida vía AskUserQuestion sobre un análisis honesto de DWG que él mismo pidió) más la instrucción de campaña ya vigente de continuar fase por fase sin detenerse a confirmar cada paso salvo en decisiones reservadas explícitamente a él.",
+      "firstPartyInputs": [
+        "docs/adr/0009-dwg-promotion-package.md §8 (la autorización que rige esta fase)",
+        "Informe de alcance de la fase 0 de esta misma sesión (agente de investigación, no comprometido con código)",
+        "Lectura directa de packages/dwg-codec/src/index.ts, api/canonical.ts, writer/ac1015-minimal-file-writer.ts, writer/ac1015-entity-writer.ts, tests/unit/api.spec.ts, scripts/dwg/oda-roundtrip.mjs",
+        "apps/web/src/lib/cad/cad-entities-v4.ts (sólo lectura, para confirmar el campo `position` de CadPointEntity — ningún archivo bajo apps/web se modificó)"
+      ],
+      "externalSources": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: el titular revisa el PR en borrador sobre claude/valle-design-dwg-main-lnqf7t y sus checks (npm run check de packages/dwg-codec en verde, confirmado independientemente por esta sesión ademas del agente). La mitad de evidencia que ADR-0009 §8.2 exige y que sólo el titular puede producir —correr scripts/dwg/oda-roundtrip.mjs con el ODA File Converter en su propia máquina, incluido el caso POINT nuevo— sigue pendiente y se declara así, no se falsea ni se da por hecha."
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false

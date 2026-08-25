@@ -21,6 +21,13 @@ export type {
   CanonicalToDwgEntity,
   CanonicalToDwgResult,
 } from "./api/canonical.js";
+// `writeCanonicalDwg` es el equivalente de ESCRITURA de `readDwg`, pero
+// partiendo del documento canónico en vez de opciones de bajo nivel
+// (ADR-0009 §8.2): encadena `canonicalDocumentToDwgEntities` con
+// `writeAc1015MinimalFile` y resuelve nombres de capa/bloque ASCII. Ver el
+// comentario de cabecera de `api/write.ts` para su límite declarado.
+export { writeCanonicalDwg } from "./api/write.js";
+export type { WriteCanonicalDwgResult } from "./api/write.js";
 export { DEFAULT_DWG_LIMITS } from "./api/limits.js";
 export { DWG_VERSION_REGISTRY } from "./container/version-registry.js";
 

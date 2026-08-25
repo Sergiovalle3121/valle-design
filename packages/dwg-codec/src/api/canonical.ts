@@ -676,6 +676,27 @@ export function canonicalDocumentToDwgEntities(
           }),
         });
         break;
+      // El `CadPointEntity` real del producto (apps/web/src/lib/cad/
+      // cad-entities-v4.ts) guarda la posición en el mismo campo "position"
+      // que ya usa el espejo DWG→canónico (línea ~361 de este archivo); no
+      // lleva `xAxisAngle` (ese campo es propio del formato, sin equivalente
+      // de producto todavía), así que por defecto es 0 — igual que `style`/
+      // `size` del punto de producto no tienen equivalente aquí y se pierden
+      // en esta dirección, simétrico a como ya se pierden thickness/extrusion/
+      // xAxisAngle al proyectar DWG→canónico.
+      case "point":
+        entities.push({
+          canonicalId: id,
+          layerName,
+          entity: Object.freeze({
+            kind: "point" as const,
+            position: canonicalPoint(raw["position"]),
+            thickness: 0,
+            extrusion: defaultExtrusion,
+            xAxisAngle: Number(raw["xAxisAngle"] ?? 0),
+          }),
+        });
+        break;
       case "polyline": {
         const vertices = (raw["vertices"] as { x: number; y: number; bulge?: number }[]) ?? [];
         const bulges = vertices.map((v) => v.bulge ?? 0);
