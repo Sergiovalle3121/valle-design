@@ -25,11 +25,31 @@ import type { CadDocument } from "../../src/lib/cad/cad-document";
  * coordenadas PERSISTIDAS siguen siendo las UTM exactas — el origen flotante
  * es puramente de render, nunca toca el documento.
  *
- * El footprint declarado (ver `openStudio`) no es el sitio real de 12 × 10 m
- * que sugeriría un caso de uso típico: hay que extenderlo hasta cubrir las
- * entidades UTM porque "Ajustar a la planta" encuadra sobre `[0,W]×[0,H]`,
- * no sobre los límites reales de las entidades. Es un gap real, aparte, que
- * este golden expone pero no arregla — ver la nota en `openStudio`.
+ * El footprint declarado (ver `openStudio`) es el sitio real de 12 × 10 m que
+ * sugeriría un caso de uso típico — DELIBERADAMENTE sin extenderlo para
+ * cubrir las entidades UTM. Hasta el cierre de P0-3, "Ajustar a la planta" y
+ * el encuadre inicial encuadraban sobre `[0,W]×[0,H]`, nunca sobre los
+ * límites reales de las entidades, así que este mismo footprint pequeño
+ * habría dejado la cámara viendo el vacío. Ahora el encuadre inicial
+ * (`Layout3DEditor.tsx`, el efecto que sigue a `applyInitialCameraFraming`)
+ * compara el footprint declarado contra `worldBounds("all")` con
+ * `boundsIntersect`, y si son disjuntos —exactamente este caso— encuadra
+ * sobre el contenido real en vez de sobre el footprint. Las primeras cuatro
+ * aserciones NO hacen clic en "Ajustar a la planta" ni en ningún preset de
+ * cámara a propósito: sólo pasan si el encuadre AUTOMÁTICO al abrir el
+ * documento ya trajo las entidades a la vista, sin que el usuario tenga que
+ * saber que hace falta pulsar algo.
+ *
+ * La quinta aserción cierra un hallazgo aparte de la misma fase: los seis
+ * presets de cámara del visor 3D en vivo (`viewPreset()`/
+ * `camera-view-presets.ts`, Corte F de 3D-M1) encuadraban puramente sobre el
+ * footprint — un clic en "Vista superior" u otro preset DESPUÉS de que el
+ * encuadre automático trajera el contenido UTM a la vista devolvía la cámara
+ * al vacío. `applyCadCameraViewPreset` ahora recibe el mismo `worldBounds`
+ * que el encuadre inicial y prefiere el contenido cuando es disjunto del
+ * footprint, preservando la DIRECCIÓN nombrada de cada preset (esto último
+ * probado con aritmética exacta en `camera-view-presets.spec.ts`; aquí sólo
+ * se confirma que las entidades siguen visibles tras el clic).
  */
 function utmDocument(): CadDocument {
   const east = 500_000;
@@ -78,18 +98,16 @@ function utmDocument(): CadDocument {
 async function openStudio(context: BrowserContext, page: Page) {
   await installMockBackend(context);
   await loginAsStandaloneOwner(context);
-  // El footprint del sitio se ancla en (0,0) por diseño (ver Layout3DEditor.tsx,
-  // `nativeViewportBoundsRef`): "Ajustar a la planta" encuadra sobre
-  // `[0,W]×[0,H]`, no sobre los límites reales de las entidades — un gap
-  // aparte (georreferenciación, P0-3), no el que prueba este golden. Para que
-  // el encuadre SÍ llegue a las entidades UTM sin tocar esa lógica, el
-  // footprint declarado se extiende hasta cubrirlas.
+  // El footprint del sitio se ancla en (0,0), como cualquier plano nuevo — el
+  // sitio real de 12 × 10 m que sugeriría un caso de uso típico, DELIBERADAMENTE
+  // sin extender para cubrir las entidades UTM (ver cabecera del archivo: cierra
+  // P0-3, el encuadre inicial ya trae el contenido real a la vista).
   const backend = await installCadStudioBackend<CadDocument>(
     context,
     utmDocument(),
     {
-      footprintW: 520_000,
-      footprintH: 2_160_000,
+      footprintW: 12_000,
+      footprintH: 10_000,
       unit: "mm",
       gridSize: 100,
     },
@@ -116,9 +134,10 @@ test("líneas y un círculo a magnitud UTM (~2,15·10⁶) se dibujan enteros, si
   page,
 }) => {
   test.setTimeout(180_000);
+  // Sin clic en ningún preset de cámara ni en "Ajustar a la planta": el
+  // encuadre automático al abrir (cierra P0-3) es lo único que trae las
+  // entidades UTM a la vista, sobre el footprint pequeño y sin extender.
   const backend = await openStudio(context, page);
-  await page.getByTitle(/Vista superior/).click();
-  await page.getByTitle(/Ajustar a la planta/).click();
   await settled(page);
 
   // 1. El pipeline por lotes —el que restó el origen flotante antes de
@@ -151,4 +170,12 @@ test("líneas y un círculo a magnitud UTM (~2,15·10⁶) se dibujan enteros, si
   expect(line?.start.x).toBe(500_000);
   expect(line?.start.y).toBe(2_150_000);
   expect(line?.end.x).toBe(508_000);
+
+  // 5. Hallazgo aparte de esta misma fase (ver cabecera): un preset de
+  //    cámara DESPUÉS del encuadre automático ya no vuelve a apuntar al
+  //    vacío — el propio preset prefiere el contenido real cuando el
+  //    footprint no lo alcanza (mismo criterio que el encuadre inicial).
+  await page.getByTitle(/Vista superior/).click();
+  await settled(page);
+  expect(await numberOf(page, "data-visible")).toBe(3);
 });

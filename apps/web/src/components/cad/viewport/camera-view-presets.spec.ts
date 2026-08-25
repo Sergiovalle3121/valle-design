@@ -92,6 +92,60 @@ function apply(preset: CadCameraViewPreset) {
   );
 }
 
+// --- content que se SUPERPONE al footprint: mismo resultado que sin content -
+// (P0-3, hallado aparte tras la campaña 3D-M1: los presets también deben
+// preferir el contenido real cuando el footprint no lo alcanza.)
+{
+  const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+  const controls = fakeControls();
+  // Completamente dentro de [0,4]×[0,3]: se superpone, así que el footprint
+  // sigue siendo lo que se encuadra — bit-idéntico al caso sin `content`.
+  applyCadCameraViewPreset(camera, controls, ctx, "front", {
+    minX: 1,
+    minY: 1,
+    maxX: 2,
+    maxY: 2,
+  });
+  checkPointClose(
+    "front con content SUPERPUESTO: mismo resultado que sin content",
+    camera.position,
+    { x: 0, y: 2, z: 5.2 },
+  );
+}
+
+// --- content DISJUNTO del footprint: el preset encuadra sobre el contenido -
+{
+  // d = max(106-100, 104-100) = 6; centro de escena = (centro_mundo - mitad
+  // del footprint) * s.
+  const content = { minX: 100, minY: 100, maxX: 106, maxY: 104 };
+  const cx = ((100 + 106) / 2 - ctx.W / 2) * ctx.s;
+  const cz = ((100 + 104) / 2 - ctx.H / 2) * ctx.s;
+  const d = 6;
+
+  const front = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+  const frontControls = fakeControls();
+  applyCadCameraViewPreset(front, frontControls, ctx, "front", content);
+  checkPointClose(
+    "front con content DISJUNTO: encuadra el contenido, no el footprint vacío",
+    front.position,
+    { x: cx, y: d * 0.5, z: cz + d * 1.3 },
+  );
+  checkPointClose(
+    "front con content disjunto: el target es el centro del contenido",
+    frontControls.target,
+    { x: cx, y: 0, z: cz },
+  );
+
+  const top = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+  const topControls = fakeControls();
+  applyCadCameraViewPreset(top, topControls, ctx, "top", content);
+  checkPointClose(
+    "top con content disjunto: sigue casi vertical, pero sobre el contenido",
+    top.position,
+    { x: cx, y: d * 1.5, z: cz + 0.01 },
+  );
+}
+
 // --- CAD_CAMERA_VIEW_PRESET_BUTTONS: lo que pinta la barra ------------------
 {
   check(
@@ -113,4 +167,4 @@ function apply(preset: CadCameraViewPreset) {
   );
 }
 
-report("camera-view-presets", 12);
+report("camera-view-presets", 16);

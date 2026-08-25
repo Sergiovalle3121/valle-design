@@ -308,9 +308,9 @@
       "dependenciesAdded": [],
       "adoption": {
         "required": true,
-        "status": "proposed",
+        "status": "adopted",
         "adopter": "Sergio Valle Zárate",
-        "evidence": "Pendiente: el titular revisa el PR de esta rama y sus checks (typecheck limpio en apps/web y apps/api, check:monolith-budget verde, trinquete de lint verde sin regresión, batería completa de specs de apps/web y apps/api verde, y la fixture de aceptación 3D-M1 contra la API real/PostgreSQL verde en 4 corridas consecutivas — ver docs/execution/INFORME_CAMPANA_3D_M1_20260824.md para el detalle numérico); la adopción se registra al revisar."
+        "evidence": "Adoptado el 2026-08-25: Sergio autorizó explícitamente en esta misma conversación (\"no te detengas vete en cascada, mergea y dale con la siguiente fase\", reiterado) el merge del PR #99 sobre el SHA candidato a5ff050 con sus checks ya presentados (typecheck limpio, check:monolith-budget y trinquete de lint verdes, batería completa de specs de apps/web y apps/api verde, fixture de aceptación 3D-M1 contra la API real/PostgreSQL verde en 4 corridas — docs/execution/INFORME_CAMPANA_3D_M1_20260824.md). PR #99 fusionado (squash) a main en 20500d5c67350f7d23a512859abab59a709f0471. El job E2E Playwright de ese run había vuelto rojo por 5 fallas ajenas al diff (diagnóstico publicado en el PR); GitHub aceptó el merge porque ese check no es requerido por la protección de rama del repositorio."
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
@@ -507,6 +507,42 @@
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
         "evidence": "Pendiente: el titular revisa el PR en borrador sobre claude/valle-design-dwg-main-lnqf7t y sus checks (typecheck y test:specs de apps/web verdes; check:cad verde salvo la excepción preexistente y no relacionada de check:dwg-evidence documentada arriba, confirmada por comparación contra el commit ya fusionado). Esta fase no toca la interfaz ni el documento real fuera de un guardado explícito y no tiene todavía ningún punto de entrada desde la UI, así que no hay superficie de producto que probar manualmente hasta la fase 4."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "3D-POST-M1-P0-3-2026-08-25",
+      "date": "2026-08-25",
+      "initiative": "Continuación directa de la campaña 3D-M1 tras el merge del PR #99: cierre de P0-3 del backlog (el encuadre inicial de cámara al abrir un documento ignoraba el contenido real y sólo consideraba el footprint declarado, dejando en blanco documentos con entidades a magnitud UTM) más un segundo hallazgo cerrado en la misma fase (los seis presets de cámara con nombre del visor 3D en vivo tenían el mismo problema)",
+      "branch": "claude/valle-design-3d-campaign-t0zzad",
+      "assistants": [
+        {
+          "name": "Claude Code (Anthropic)",
+          "role": "ejecución autónoma bajo la misma directiva de campaña, documentada en docs/execution/CAMPANA_3D_POST_M1_20260825.md: diagnóstico de que el backlog describía el hallazgo de forma imprecisa (existen dos comandos de encuadre distintos y deliberadamente diferentes, `fitView(\"all\")` y `fitView(\"plant\")`; el bug real era más angosto, sólo el encuadre inicial al abrir); arreglo conservador en Layout3DEditor.tsx que sólo actúa cuando contenido y footprint son completamente disjuntos (boundsIntersect ya existente, reusado); extensión de camera-view-presets.ts con un quinto parámetro opcional de contenido, bit-idéntica sin él; dos hallazgos del compilador de React (react-hooks/immutability y, indirectamente, react-hooks/preserve-manual-memoization) por referencias hacia adelante a worldBounds/fitToBounds, corregidos reubicando el código en vez de silenciar el lint"
+        }
+      ],
+      "authority": "Directiva de Sergio Valle Zárate en esta misma conversación (\"no te detengas vete en cascada, mergea y dale con la siguiente fase\", reiterada), interpretada — a falta de una fase más específica — como autorización para retomar el ítem de mayor severidad ya documentado como abierto (P0-3) en vez de arrancar una pieza nueva más grande; continuación directa de la autoridad de la campaña 3D-M1",
+      "firstPartyInputs": [
+        "Repositorio valle-design en main tras fusionar el PR #99 (20500d5c67350f7d23a512859abab59a709f0471)",
+        "docs/execution/INFORME_CAMPANA_3D_M1_20260824.md (sección de próximos pasos, donde P0-3 quedó priorizado) y BACKLOG.md",
+        "e2e/golden/57-cad-utm-precision.spec.ts de la campaña 3D-M1, que rodeaba el bug con un footprint artificialmente extendido en vez de exponerlo",
+        "camera-view-presets.ts y su spec, de la campaña 3D-M1 (Corte F)"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "encuadre inicial de cámara (components/cad/editor/Layout3DEditor.tsx: nuevo useEffect tras fitView)",
+        "presets de cámara del visor 3D en vivo (components/cad/viewport/camera-view-presets.ts: quinto parámetro opcional `content`)",
+        "golden de precisión UTM (apps/web/e2e/golden/57-cad-utm-precision.spec.ts, reescrito para probar el arreglo en vez de rodearlo)"
+      ],
+      "fixtures": [],
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: PR nuevo abierto sobre claude/valle-design-3d-campaign-t0zzad (rama reiniciada desde main con el PR #99 ya fusionado dentro) con los checks re-ejecutados sobre el SHA candidato (typecheck limpio, check:monolith-budget 20247/20248, trinquete de lint 547/547 sin regresión, 407/407 specs de apps/web); la adopción se registra al revisar/fusionar ese PR."
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false

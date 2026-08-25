@@ -25,6 +25,7 @@ import {
   ArrowLeftToLine,
   ArrowRightToLine,
 } from "lucide-react";
+import { boundsIntersect } from "@/lib/cad/entity-hit-geometry";
 
 export type CadCameraViewPreset =
   | "top"
@@ -61,24 +62,45 @@ export interface CadCameraSceneContext {
   H: number;
 }
 
+/** Caja mundo (unidades de planta) — el mismo shape que `worldBounds()`. */
+export interface CadWorldBounds {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
 /**
- * Posiciona `camera` y apunta `controls` al origen según `preset`. Todas las
- * vistas laterales/alzado comparten la misma altura y distancia que
- * "front" — sólo cambia de qué lado del origen se mira.
+ * Posiciona `camera` y apunta `controls` según `preset`. Todas las vistas
+ * laterales/alzado comparten la misma altura y distancia que "front" — sólo
+ * cambia de qué lado se mira.
+ *
+ * `content`, si se da y NO se toca en absoluto con el footprint (p. ej. un
+ * documento a magnitud UTM sobre un footprint de sitio normal — el mismo
+ * caso de P0-3), sustituye al footprint como lo que el preset encuadra: la
+ * DIRECCIÓN nombrada del preset se conserva, pero apunta y mide distancia
+ * sobre el contenido real en vez de sobre un footprint que no lo contiene.
+ * Sin `content`, o cuando se superpone al footprint, el resultado es
+ * bit-idéntico al de antes de P0-3 (el footprint sigue siendo el default).
  */
 export function applyCadCameraViewPreset(
   camera: THREE.PerspectiveCamera,
   controls: OrbitControls,
   ctx: CadCameraSceneContext,
   preset: CadCameraViewPreset,
+  content?: CadWorldBounds | null,
 ): void {
-  const d = Math.max(ctx.W, ctx.H) * ctx.s;
-  if (preset === "top") camera.position.set(0, d * 1.5, 0.01);
-  else if (preset === "front") camera.position.set(0, d * 0.5, d * 1.3);
-  else if (preset === "back") camera.position.set(0, d * 0.5, -d * 1.3);
-  else if (preset === "left") camera.position.set(-d * 1.3, d * 0.5, 0);
-  else if (preset === "right") camera.position.set(d * 1.3, d * 0.5, 0);
-  else camera.position.set(d * 0.6, d * 0.85, d * 1.0);
-  controls.target.set(0, 0, 0);
+  const footprint: CadWorldBounds = { minX: 0, minY: 0, maxX: ctx.W, maxY: ctx.H };
+  const frame = content && !boundsIntersect(content, footprint) ? content : footprint;
+  const cx = ((frame.minX + frame.maxX) / 2 - ctx.W / 2) * ctx.s;
+  const cz = ((frame.minY + frame.maxY) / 2 - ctx.H / 2) * ctx.s;
+  const d = Math.max(frame.maxX - frame.minX, frame.maxY - frame.minY) * ctx.s;
+  if (preset === "top") camera.position.set(cx, d * 1.5, cz + 0.01);
+  else if (preset === "front") camera.position.set(cx, d * 0.5, cz + d * 1.3);
+  else if (preset === "back") camera.position.set(cx, d * 0.5, cz - d * 1.3);
+  else if (preset === "left") camera.position.set(cx - d * 1.3, d * 0.5, cz);
+  else if (preset === "right") camera.position.set(cx + d * 1.3, d * 0.5, cz);
+  else camera.position.set(cx + d * 0.6, d * 0.85, cz + d * 1.0);
+  controls.target.set(cx, 0, cz);
   controls.update();
 }
