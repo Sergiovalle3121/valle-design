@@ -21,23 +21,48 @@
  *    grupos de código minimalista, no con el importador DXF del producto).
  *  - Abre Studio, selecciona una entidad importada, edita una propiedad,
  *    guarda, cierra sesión, inicia una nueva sesión y confirma que la edición
- *    persistió en PostgreSQL — no sólo que cambió la URL.
+ *    persistió en PostgreSQL — no sólo que cambió la URL. Lo hace dos veces:
+ *    una LINE (tests 3-5) y un TEXT (tests 6-8).
  *
  * Por qué DOS fixtures y no uno: `08-plano-mini.dwg` es el más rico (8
  * entidades de 4 tipos, incluye dos TEXT) y se usa para la verificación de
  * import/decodificación (test 2) — incluido el contenido de sus dos TEXT,
- * verificado contra la API. Pero un documento con una entidad `type:"text"`
- * NUNCA puede completar el ciclo seleccionar→editar→guardar en Studio hoy:
- * es un hallazgo real de esta campaña, no un bug de esta prueba ni de DWG
- * (`type:"text"` nunca se registró como `CadNativeEntity` para NINGÚN
- * formato, y el intento de guardado dispara además una corrupción de capa
- * separada al pasar por el snapshot del editor legado — los dos hallazgos
- * están documentados en detalle en
- * `docs/execution/CAMPANA_DWG_PRODUCTO_MAIN_9H.md`, sección 5.6). Así que la
- * prueba de selección/edición/guardado/recarga (tests 3-5) usa
- * `04-capas.dwg` — igual de real, igual de verificado contra su propio
- * oráculo DXF, del mismo bundle admitido — que no tiene ningún TEXT y por
- * tanto no pisa ese hallazgo separado.
+ * verificado primero contra la API (antes de que Studio entre en escena) y
+ * luego, en los tests 6-8, seleccionando uno de verdad en el lienzo. Hasta
+ * esta campaña `type:"text"` no tenía adaptador nativo — vivía en el
+ * documento pero ningún formato lo hacía seleccionable en Studio (hallazgo de
+ * la campaña anterior, `docs/history/execution/CAMPANA_DWG_PRODUCTO_MAIN_9H.md`
+ * §5.6) — así que la prueba de selección/edición/guardado/recarga original
+ * (tests 3-5) usaba `04-capas.dwg`, que no tiene TEXT, para no depender de
+ * ese hueco.
+ *
+ * Ese hueco ya se cerró (`text-entity-adapter.ts`), y tests 3-5 se dejan
+ * intactos porque siguen siendo una verificación válida e independiente
+ * sobre una LINE. Los tests 6-8 añaden la misma prueba de punta a punta para
+ * un TEXT real de `08-plano-mini.dwg` — y ESTA prueba, al ser la primera vez
+ * que algo selecciona/edita/guarda un TEXT en Studio, encontró dos defectos
+ * reales y hasta entonces latentes en `Layout3DEditor.tsx` (el mismo
+ * componente aloja el editor legado de planta Y el lienzo nativo moderno;
+ * ninguno de los dos existía como problema porque ningún comando nativo
+ * podía tocar un TEXT antes de este adaptador):
+ *
+ *  1. Al ABRIR: `legacy/layout-mapper.ts`'s `layoutFromDocument` descartaba
+ *     la capa de las anotaciones `text` (`cadDocumentToEditorSnapshot` la
+ *     saca a un mapa aparte porque `Ann` no tiene campo `layer`; el mapa
+ *     nunca llegaba al llamador). `editorSnapshotToCadDocument` caía
+ *     entonces a su defecto `"Text"` para CUALQUIER TEXT en una capa real —
+ *     `TEXTOS`, en este fixture — en cuanto el documento se abría.
+ *  2. Al GUARDAR: `snapshotDocument()` (el checkpoint de cada guardado Y de
+ *     cada comando nativo) reconstruye siempre desde la sombra legada
+ *     (`annotationsRef`/`layerAssignmentsRef`), que un comando nativo de
+ *     propiedades nunca actualizaba. La sombra, todavía con el contenido
+ *     viejo, ganaba sobre la edición fresca en el guardado siguiente.
+ *
+ * Los dos se corrigieron (`layout-mapper.ts` expone el mapa completo;
+ * `commitCanonicalDocument` resincroniza la sombra tras cada comando nativo
+ * que toque un TEXT) y los tests 6-8 son la evidencia — contra la API real,
+ * no una suposición — de que el ciclo completo sobrevive con la capa real
+ * intacta.
  *
  * Requiere `E2E_REAL_API=1`, la API real, PostgreSQL 16, el servidor de Next
  * con `NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA=true`, y `VALLE_DWG_CORPUS_MIRROR`
@@ -128,6 +153,8 @@ test.describe("importación DWG AC1015 real contra PostgreSQL (no circular)", ()
   let importedDocumentId: string;
   let importedDocumentId2: string;
   let savedEndX = "";
+  let textEntityId = "";
+  let savedTextContent = "";
 
   test.beforeAll(async ({ browser, browserName }, testInfo) => {
     testInfo.setTimeout(120_000);
@@ -268,7 +295,7 @@ test.describe("importación DWG AC1015 real contra PostgreSQL (no circular)", ()
     const opened = await apiGet<{
       cadDocument: {
         lossManifest: Array<{ code: string; detail: string }>;
-        entities: Array<{ id: string; type: string; text?: string }>;
+        entities: Array<{ id: string; type: string; text?: string; layer?: string }>;
       } | null;
     }>(context, `/v1/cad/documents/${importedDocumentId}`);
     const lossManifest = opened.body.cadDocument?.lossManifest ?? [];
@@ -277,23 +304,18 @@ test.describe("importación DWG AC1015 real contra PostgreSQL (no circular)", ()
       true,
     );
 
-    // Los dos TEXT del fixture ("SALA", "COCINA") se verifican aquí, contra la
-    // API/PostgreSQL, y NO seleccionándolos en el lienzo de Studio: `type:
-    // "text"` (a diferencia de `"mtext"`) nunca fue registrado como
-    // `CadNativeEntity` (`entity-runtime.ts`, arreglo de adaptadores) — no
-    // tiene renderer/hitTester/grips/properties, así que NINGÚN formato lo
-    // hace seleccionable hoy (`dxf-import.ts` colapsa TEXT y MTEXT al mismo
-    // `kind:"text"`, así que un DXF con un TEXT plano cae en el mismo hueco).
-    // No es un bug de DWG ni de esta importación: es un hueco general y
-    // previo del producto, hallado por esta prueba real por ser la primera
-    // en intentar seleccionar una entidad `text` en un Studio realmente
-    // renderizado. Registrado en `docs/execution/CAMPANA_DWG_PRODUCTO_MAIN_9H.md`;
-    // implementar el adaptador que faltaría es una función nueva de alcance
-    // general, no un fix quirúrgico de esta campaña de DWG.
+    // Los dos TEXT del fixture ("SALA", "COCINA"), verificados aquí contra la
+    // API/PostgreSQL — antes de que Studio entre en escena — y otra vez en los
+    // tests 6-8, seleccionando "SALA" de verdad en el lienzo. El oráculo
+    // (`08-plano-mini.dxf`) declara los dos en la capa TEXTOS (código de grupo
+    // 8), no en la capa "0" ni en ninguna con el nombre "Text".
     const textEntities = (opened.body.cadDocument?.entities ?? []).filter(
       (entity) => entity.type === "text",
     );
     expect(textEntities.map((entity) => entity.text).sort()).toEqual(["COCINA", "SALA"]);
+    expect(textEntities.every((entity) => entity.layer === "TEXTOS")).toBe(true);
+    textEntityId = textEntities.find((entity) => entity.text === "SALA")!.id;
+    expect(textEntityId).toBeTruthy();
   });
 
   test("2b: importa un segundo .dwg real (04-capas, sin TEXT) para la prueba de edición", async () => {
@@ -417,5 +439,97 @@ test.describe("importación DWG AC1015 real contra PostgreSQL (no circular)", ()
         (entity) => entity.type === "line" && String(entity.end?.x) === savedEndX,
       ),
     ).toBe(true);
+  });
+
+  test("6: abre el plano CON texto y selecciona un TEXT real por su id", async () => {
+    test.setTimeout(120_000);
+    await page.goto(`/studio/${importedDocumentId}`);
+    await expect(page).toHaveURL(new RegExp(`/studio/${importedDocumentId}$`, "u"));
+
+    // Hasta que existió `text-entity-adapter.ts`, `type:"text"` no estaba en
+    // `CAD_ENTITY_REGISTRY` y este elemento nunca llegaba a crearse en el
+    // lienzo (`entity-three.ts` no tenía rama para él): que aparezca es la
+    // prueba en sí, no un detalle de implementación.
+    const textEntity = page.getByTestId(`cad-native-entity-${textEntityId}`);
+    await expect(textEntity).toBeVisible({ timeout: 60_000 });
+    await textEntity.click();
+
+    const textField = page.getByTestId("cad-native-property-text");
+    await expect(textField).toBeVisible({ timeout: 15_000 });
+    await expect(textField).toHaveValue("SALA");
+    await expect(page.getByTestId("cad-native-property-layer")).toHaveValue("TEXTOS");
+  });
+
+  test("7: edita el contenido del TEXT y lo guarda; la capa real no se corrompe", async () => {
+    test.setTimeout(120_000);
+    savedTextContent = "SALA DE ESTAR";
+
+    const saveResponse = page.waitForResponse(
+      (response) =>
+        response.request().method() === "PUT" &&
+        response.url() === `${API_ORIGIN}/v1/cad/documents/${importedDocumentId}/content` &&
+        response.ok(),
+      { timeout: 60_000 },
+    );
+    await page.getByTestId("cad-native-property-text").fill(savedTextContent);
+    await page.getByTestId("cad-native-property-text").blur();
+    await page.getByTestId("cad-save").click();
+    await saveResponse;
+
+    await expect
+      .poll(
+        async () => {
+          const reopened = await apiGet<{
+            cadDocument: { entities: Array<{ id: string; type: string; text?: string; layer?: string }> } | null;
+          }>(context, `/v1/cad/documents/${importedDocumentId}`);
+          const entity = reopened.body.cadDocument?.entities.find((e) => e.id === textEntityId);
+          // Contenido Y capa a la vez: es exactamente el guardado que
+          // exponía el defecto #2 del docblock (la sombra legada, nunca
+          // resincronizada, ganaba sobre la edición fresca). Contra la API
+          // real, no una suposición.
+          return entity?.type === "text" && entity.text === savedTextContent && entity.layer === "TEXTOS";
+        },
+        { timeout: 30_000 },
+      )
+      .toBe(true);
+  });
+
+  test("8: cierra sesión, abre una NUEVA sesión y confirma que la edición del TEXT persistió", async () => {
+    test.setTimeout(120_000);
+    await page.goto("/dashboard");
+    await page.getByRole("button", { name: /Cerrar sesi.*n/iu }).click();
+    await expect
+      .poll(async () => (await context.request.get(`${API_ORIGIN}/v1/auth/session`)).status())
+      .toBe(401);
+
+    await page.goto("/login?returnTo=/dashboard");
+    await page.getByLabel(/Correo electr.*nico/iu).fill(email);
+    await page.getByLabel(/Contrase.*a/iu).fill(E2E_PASSWORD);
+    await Promise.all([
+      page.waitForURL((url) => url.pathname === "/dashboard"),
+      page.getByRole("button", { name: /Iniciar sesi.*n/iu }).click(),
+    ]);
+    await context.request.post(`${API_ORIGIN}/v1/organizations/active`, {
+      data: { organizationId },
+      headers: { "x-csrf-token": (await context.cookies(API_ORIGIN)).find((c) => c.name === "valle_csrf")!.value },
+    });
+
+    await page.goto(`/studio/${importedDocumentId}`);
+    const textEntity = page.getByTestId(`cad-native-entity-${textEntityId}`);
+    await expect(textEntity).toBeVisible({ timeout: 60_000 });
+    await textEntity.click();
+    await expect(page.getByTestId("cad-native-property-text")).toHaveValue(savedTextContent, {
+      timeout: 15_000,
+    });
+    await expect(page.getByTestId("cad-native-property-layer")).toHaveValue("TEXTOS");
+
+    // No "cambió la URL": lectura directa a la API real, que a su vez lee
+    // PostgreSQL — sin caché de navegador de por medio.
+    const persisted = await apiGet<{
+      cadDocument: { entities: Array<{ id: string; type: string; text?: string; layer?: string }> } | null;
+    }>(context, `/v1/cad/documents/${importedDocumentId}`);
+    const entity = persisted.body.cadDocument?.entities.find((e) => e.id === textEntityId);
+    expect(entity?.text).toBe(savedTextContent);
+    expect(entity?.layer).toBe("TEXTOS");
   });
 });
