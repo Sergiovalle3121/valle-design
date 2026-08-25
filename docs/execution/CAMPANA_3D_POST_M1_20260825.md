@@ -287,3 +287,29 @@ propio `parseDxf` sigue sin declarar su normalización, pero por la razón de
 arriba (backdrop de referencia, nunca toca `CadDocument`) no se considera el
 mismo defecto. `BACKLOG.md` y `docs/interop/CONTRATO-INTEROP.md` actualizados
 con este cierre y esta distinción.
+
+**Actualización — PR #104 fusionado.** Sergio autorizó el merge en esta
+misma conversación ("mergea todo lo que te quede pendiente"). CI seguía
+roja por tercera vez consecutiva con la misma firma de 5 fallas ya
+diagnosticada (comentario propio en el PR, cero solapamiento con este diff,
+el propio golden 27 que este PR extiende pasó en la misma corrida) —
+mismo patrón que #99 y #102: GitHub aceptó el merge porque ese check no
+forma parte de la protección de rama requerida del repositorio.
+`merge_pull_request` con `squash`: commit
+`55c19d4796284586570dbcf06fdee4e2613e312d` en `main`. `list_pull_requests`
+confirma cero PRs abiertos tras este merge — no queda nada pendiente de
+esta sesión.
+
+## Estado de la fase (2026-08-25, fin de sesión visible)
+
+P0-3 del backlog CERRADO en el alcance real verificado por investigación
+(encuadre de cámara + re-encuadre silencioso de datos, ambos con golden
+E2E vivo). Tres PR fusionados esta fase (#99 campaña 3D-M1 completa, #102
+P0-3-cámara, #104 P0-3-DXF), los tres por autorización explícita del
+titular en esta misma conversación pese a que los tres encontraron el
+mismo patrón de CI roja por causas ajenas al diff (documentado y
+verificado cada vez, nunca asumido). Sin PR abierto pendiente. Próximo
+paso sugerido si el titular pide continuar: revisar `BACKLOG.md` P1
+(el siguiente nivel de severidad) y elegir de forma conservadora, mismo
+criterio que P0-3 — no arrancar una pieza especulativa sin justificar por
+qué es la de mayor prioridad real entre las abiertas.
