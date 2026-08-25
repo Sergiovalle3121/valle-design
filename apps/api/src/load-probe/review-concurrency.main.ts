@@ -491,9 +491,9 @@ async function main(): Promise<void> {
         const response = await call();
         if (response.status === 429 && attempt < RATE_LIMIT_MAX_RETRIES) {
           rateLimitRetries += 1;
-          const body = (await readJson(response)) as
-            | { retryAfterSeconds?: number }
-            | null;
+          const body = (await readJson(response)) as {
+            retryAfterSeconds?: number;
+          } | null;
           const waitMs = Math.min(
             Math.max(1, Number(body?.retryAfterSeconds) || 1) * 1000,
             RATE_LIMIT_MAX_WAIT_MS,
@@ -550,14 +550,17 @@ async function main(): Promise<void> {
         await timed(actor.role, 'listComments', () =>
           linkCall('/v1/cad/review/comments'),
         );
-        const comment = (await timedWithRateLimitRetry(actor.role, 'comment', () =>
-          linkCall('/v1/cad/review/comments', {
-            method: 'POST',
-            body: {
-              body: `Observación del enlace ${randomUUID().slice(0, 6)}`,
-              anchor,
-            },
-          }),
+        const comment = (await timedWithRateLimitRetry(
+          actor.role,
+          'comment',
+          () =>
+            linkCall('/v1/cad/review/comments', {
+              method: 'POST',
+              body: {
+                body: `Observación del enlace ${randomUUID().slice(0, 6)}`,
+                anchor,
+              },
+            }),
         )) as { id?: string } | null;
         if (comment?.id) {
           await timed(actor.role, 'resolve', () =>

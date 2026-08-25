@@ -113,7 +113,7 @@ GIS (3) es otro producto.
 > Editarla a mano es reintroducir el defecto que motivó el script: la prosa
 > manual envejeció dos veces y en las dos direcciones.
 
-**Puntuación (rúbrica 2026-08-22.1).** **Alcance de HOY: 154/175 (88 %)** — el flujo diario de dibujo 2D técnico, la cifra que se enseña a un cliente. **Alcance de DESTINO: 189/220 (85.9 %)** — AutoCAD completo con sus verticales, la cifra que mide el camino; lo excluido de hoy es «todavía no», nunca «nunca». 5 pt provienen de evidencia INDEPENDIENTE y 184 pt sólo de evidencia propia; 18 fila(s) retienen 1 pt hasta tener evidencia independiente. 0 de 27 filas están en su tope. Una fila sólo llega a su tope cuando TODOS sus criterios verifican, incluidos los que nombran gaps documentados; un gap conocido se declara como criterio que falla, no como nota al pie.
+**Puntuación (rúbrica 2026-08-22.1).** **Alcance de HOY: 155/175 (88.6 %)** — el flujo diario de dibujo 2D técnico, la cifra que se enseña a un cliente. **Alcance de DESTINO: 190/220 (86.4 %)** — AutoCAD completo con sus verticales, la cifra que mide el camino; lo excluido de hoy es «todavía no», nunca «nunca». 5 pt provienen de evidencia INDEPENDIENTE y 185 pt sólo de evidencia propia; 19 fila(s) retienen 1 pt hasta tener evidencia independiente. 0 de 27 filas están en su tope. Una fila sólo llega a su tope cuando TODOS sus criterios verifican, incluidos los que nombran gaps documentados; un gap conocido se declara como criterio que falla, no como nota al pie.
 
 ### Núcleo del plano entregable — 98/110
 
@@ -130,7 +130,7 @@ GIS (3) es otro producto.
 | Layouts, viewports y publicación | 9/10 | Parcial | Paper space con múltiples viewports; Hoja de ploteo y adaptador de exportación del layout; Publicaciones versionadas y consultables desde el cliente; LAYOUT, MVIEW, MSPACE, PSPACE, PLOT y PAGESETUP tecleables; Fidelidad geométrica de publicación MEDIDA sobre los bytes del PDF: error de escala bajo la tolerancia de 0,001 mm y veredicto verde, con máquina declarada; PAGESETUP recoloca la ventana gráfica al cambiar el papel: cero segmentos fuera del área imprimible en el caso medido A1→A3; El sombreado llega al PDF publicado con su patrón, no sólo el contorno | Nada pendiente: todos los criterios declarados verifican |
 | Guardado CAS, autosave, historia y versiones | 7/8 | Parcial | Cola de un solo escritor con CAS y conflicto 409 explícito; Journal de recuperación con códec e integridad verificada; Recorrido real contra API y PostgreSQL: logout, reapertura y documento >1 MB; Offline, multi-pestaña y cierre forzado sin pérdida, con presupuesto de documento y memoria publicado | Nada pendiente: todos los criterios declarados verifican |
 
-### Productividad profesional — 37/44
+### Productividad profesional — 38/44
 
 | Categoría | Puntos | Estado | Qué verifica hoy | Qué falta exactamente |
 | --- | ---: | --- | --- | --- |
@@ -138,7 +138,7 @@ GIS (3) es otro producto.
 | MLEADER y tablas | 4/5 | Parcial | MLEADER canónico con asociatividad; TABLE tecleable como descriptor del motor; MLEADER, MLEADERSTYLE y TABLESTYLE tecleables con estilos aplicables | Nada pendiente: todos los criterios declarados verifican |
 | Xrefs | 5/6 | Parcial | Referencias externas declaradas en el documento canónico; Resolución de recursos, capas de xref y bind con round-trip; XREF, XATTACH, XBIND y XCLIP tecleables | Nada pendiente: todos los criterios declarados verifican |
 | Rendimiento 10k/100k | 11/12 | Parcial | Índice espacial, nivel de detalle y presupuesto de render en el editor; Corpus determinista versionado por sha256 y benchmark reproducible; Spec Playwright a 100k con artefacto JSON por corrida; Pipeline por lotes y tiles medido: primer detalle <1 s y asentado del zoom <100 ms sobre 100k, con máquina declarada; El editor USA ese pipeline: algo fuera de lib/cad/render lo importa; SLO de navegador CUMPLIDO, no sólo publicado: detalle completo ≤5 s, paneo ≥30 fps p95 y zoom asentado ≤500 ms sobre el corpus architecture (perfil next, 10k), con hardware y navegador declarados | La mezcla architecture@100k cumple el mismo SLO: detalle completo ≤5 s y paneo ≥30 fps p95 (1 pt) |
-| Compare, comentarios y enlaces de revisión | 3/5 | Parcial | Enlaces de revisión con hash, caducidad, revocación y aislamiento por organización; Comentarios anclados a la geometría, con spec de anclaje | Carga concurrente medida y merge semántico con recorrido de todos los roles, con veredicto verde en el artefacto (2 pt) |
+| Compare, comentarios y enlaces de revisión | 4/5 | Parcial | Enlaces de revisión con hash, caducidad, revocación y aislamiento por organización; Comentarios anclados a la geometría, con spec de anclaje; Carga concurrente medida y merge semántico con recorrido de todos los roles, con veredicto verde en el artefacto | Nada pendiente: todos los criterios declarados verifican |
 | Importación de JSON canónico | 3/4 | Parcial | Worker con progreso, cancelación y límites declarados; Transporte de documentos grandes con gzip y blobs; Corpus hostil y fuzzing ejecutados en navegador, no sólo en Node | Nada pendiente: todos los criterios declarados verifican |
 
 ### Extensibilidad e integración — 20/26
@@ -175,15 +175,14 @@ declarados. Reproducible con `node scripts/cad/rubric.mjs --priorities`.
 | # | Puntos | Días | Categoría | Criterio |
 | ---: | ---: | ---: | --- | --- |
 | 1 | 1 | 4 | Bloques y atributos | Editor de bloques EN SITIO (BEDIT como editor real, no como puerta al panel) |
-| 2 | 2 | 8 | Compare, comentarios y enlaces de revisión | Carga concurrente medida y merge semántico con recorrido de todos los roles, con veredicto verde en el artefacto |
-| 3 | 2 | 10 | Import/export DXF de texto | Corpus DXF de terceros, autorizado y diverso, con matriz por entidad y pérdidas aceptadas |
-| 4 | 1 | 5 | Selección y modificación | Estrés de navegador con trazos densos (100k) sobre selección y modificación, con artefacto versionado por corrida |
-| 5 | 1 | 6 | MTEXT y texto | Una fuente de trazos (SHX o equivalente de dominio público) resuelve glifos de verdad en vez de sustituirse |
-| 6 | 1 | 8 | Rendimiento 10k/100k | La mezcla architecture@100k cumple el mismo SLO: detalle completo ≤5 s y paneo ≥30 fps p95 |
-| 7 | 1 | 12 | Bloques y atributos | Bloques dinámicos (parámetros y acciones de AutoCAD) y comportamiento anotativo |
-| 8 | 1 | 20 | Import/export DWG | Integración en runtime con gates legal, de seguridad y de fidelidad superados |
-| 9 | 2 | 60 | Automatización: AutoLISP y plugins JS | Puente .NET/VBA para rutinas heredadas de despacho |
-| 10 | 1 | 30 | Kernel Rust/WASM | Kernel WASM con paridad numérica verde Y enchufado: alguien fuera de lib/cad/wasm lo importa (regla 6) |
+| 2 | 2 | 10 | Import/export DXF de texto | Corpus DXF de terceros, autorizado y diverso, con matriz por entidad y pérdidas aceptadas |
+| 3 | 1 | 5 | Selección y modificación | Estrés de navegador con trazos densos (100k) sobre selección y modificación, con artefacto versionado por corrida |
+| 4 | 1 | 6 | MTEXT y texto | Una fuente de trazos (SHX o equivalente de dominio público) resuelve glifos de verdad en vez de sustituirse |
+| 5 | 1 | 8 | Rendimiento 10k/100k | La mezcla architecture@100k cumple el mismo SLO: detalle completo ≤5 s y paneo ≥30 fps p95 |
+| 6 | 1 | 12 | Bloques y atributos | Bloques dinámicos (parámetros y acciones de AutoCAD) y comportamiento anotativo |
+| 7 | 1 | 20 | Import/export DWG | Integración en runtime con gates legal, de seguridad y de fidelidad superados |
+| 8 | 2 | 60 | Automatización: AutoLISP y plugins JS | Puente .NET/VBA para rutinas heredadas de despacho |
+| 9 | 1 | 30 | Kernel Rust/WASM | Kernel WASM con paridad numérica verde Y enchufado: alguien fuera de lib/cad/wasm lo importa (regla 6) |
 
 <!-- rubric:end -->
 

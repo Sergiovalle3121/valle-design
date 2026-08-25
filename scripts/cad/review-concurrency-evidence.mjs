@@ -261,6 +261,13 @@ async function main() {
       unexpectedClientErrorsPerRun: reports.map(
         (report) => report.storm.unexpectedClientErrors,
       ),
+      // Veces que link/comment se topó con reviewCommentsPerSession (VD-RL-001)
+      // y se reintentó tras retryAfterSeconds en vez de contar como fallo. Cero
+      // en las tres corridas sería sospechoso para esta tormenta sintética —
+      // demostraría que el techo nunca se ejerció, no que el cliente lo maneja.
+      rateLimitRetriesPerRun: reports.map(
+        (report) => report.storm.rateLimitRetries ?? 0,
+      ),
       perRole: buildPerRole(reports),
     },
     roleBoundaries: {

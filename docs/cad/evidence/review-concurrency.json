@@ -2,8 +2,8 @@
   "$schema": "urn:valle-design:schema:cad-review-concurrency:v1",
   "schemaVersion": 1,
   "evidenceId": "valle-design-review-concurrency-v1",
-  "startedAt": "2026-08-24T06:45:44.138Z",
-  "finishedAt": "2026-08-24T06:46:47.624Z",
+  "startedAt": "2026-08-25T19:54:57.352Z",
+  "finishedAt": "2026-08-25T19:58:47.004Z",
   "enforcement": "report-only en latencias; el veredicto es funcional",
   "enforcementRationale": "Las latencias salen de un portátil de desarrollo con otros agentes en paralelo: convertirlas en umbral produciría un gate que falla por contención de máquina. El veredicto exige sólo lo que no depende de la máquina (éxitos, fronteras de rol, un ganador por carrera CAS, fusión aplicada, conteos íntegros).",
   "environment": {
@@ -12,7 +12,7 @@
     "architecture": "x64",
     "osType": "Linux",
     "osRelease": "6.18.44-fc-v21",
-    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.10GHz",
     "logicalCpuCount": 4,
     "totalMemoryBytes": 16856150016,
     "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics, 7,4 GB de RAM, Windows_NT 10.0.26200, portátil de desarrollo. Node v22.18.0. PostgreSQL 16 local en localhost:5432, sin Docker.",
@@ -20,7 +20,7 @@
       "declared": true,
       "statement": "LA CORRIDA TIENE VECINOS: otros agentes trabajaban en la misma máquina. Las latencias son un suelo observable, no una capacidad.",
       "nodeProcessesBefore": 1,
-      "nodeProcessesAfter": 1
+      "nodeProcessesAfter": 8
     },
     "database": "valle_design_review_conc recreada ANTES de cada corrida (DROP SCHEMA public CASCADE) y poblada por las migraciones reales."
   },
@@ -64,9 +64,9 @@
   },
   "concurrentLoad": {
     "totalRequestsPerRun": [
-      1109,
-      1094,
-      1087
+      816,
+      928,
+      996
     ],
     "serverErrorsPerRun": [
       0,
@@ -74,54 +74,59 @@
       0
     ],
     "unexpectedClientErrorsPerRun": [
-      51,
-      50,
-      49
+      0,
+      0,
+      0
+    ],
+    "rateLimitRetriesPerRun": [
+      2,
+      2,
+      2
     ],
     "perRole": {
       "owner": {
         "open": {
           "requestsPerRun": [
-            53,
-            52,
-            52
+            44,
+            51,
+            55
           ],
           "statusCountsPerRun": [
             {
-              "200": 53
+              "200": 44
             },
             {
-              "200": 52
+              "200": 51
             },
             {
-              "200": 52
+              "200": 55
             }
           ],
           "latencyMs": {
             "p50": {
-              "median": 69.744,
+              "median": 68.032,
               "samples": [
-                67.53,
-                69.976,
-                69.744
+                74.254,
+                68.032,
+                63.616
               ],
               "runs": 3
             },
             "p95": {
-              "median": 83.005,
+              "median": 103.844,
               "samples": [
-                85.975,
-                82.28,
-                83.005
+                110.995,
+                103.844,
+                90.721
               ],
               "runs": 3
             },
             "max": {
-              "median": 90.666,
+              "median": 114.293,
               "samples": [
-                87.715,
-                111.077,
-                90.666
+                137.438,
+                114.293,
+                92.444
               ],
               "runs": 3
             }
@@ -130,46 +135,46 @@
         },
         "listComments": {
           "requestsPerRun": [
-            53,
-            52,
-            52
+            44,
+            51,
+            55
           ],
           "statusCountsPerRun": [
             {
-              "200": 53
+              "200": 44
             },
             {
-              "200": 52
+              "200": 51
             },
             {
-              "200": 52
+              "200": 55
             }
           ],
           "latencyMs": {
             "p50": {
-              "median": 73.775,
+              "median": 69.949,
               "samples": [
-                72.175,
-                74.695,
-                73.775
+                77.765,
+                69.949,
+                66.012
               ],
               "runs": 3
             },
             "p95": {
-              "median": 89.417,
+              "median": 91.42,
               "samples": [
-                87.055,
-                96.529,
-                89.417
+                138.537,
+                91.106,
+                91.42
               ],
               "runs": 3
             },
             "max": {
-              "median": 102.95,
+              "median": 181.935,
               "samples": [
-                147.379,
-                102.95,
-                93.844
+                221.295,
+                181.935,
+                149.669
               ],
               "runs": 3
             }
@@ -178,46 +183,46 @@
         },
         "comment": {
           "requestsPerRun": [
-            53,
-            52,
-            52
+            44,
+            51,
+            55
           ],
           "statusCountsPerRun": [
             {
-              "201": 53
+              "201": 44
             },
             {
-              "201": 52
+              "201": 51
             },
             {
-              "201": 52
+              "201": 55
             }
           ],
           "latencyMs": {
             "p50": {
-              "median": 92.024,
+              "median": 90.393,
               "samples": [
-                91.601,
-                94.565,
-                92.024
+                114.865,
+                90.393,
+                83.977
               ],
               "runs": 3
             },
             "p95": {
-              "median": 126.652,
+              "median": 170.442,
               "samples": [
-                126.652,
-                131.541,
-                122.901
+                187.337,
+                170.442,
+                153.357
               ],
               "runs": 3
             },
             "max": {
-              "median": 146.889,
+              "median": 233.861,
               "samples": [
-                146.889,
-                169.236,
-                139.897
+                211.049,
+                233.861,
+                333.524
               ],
               "runs": 3
             }
@@ -226,46 +231,46 @@
         },
         "resolve": {
           "requestsPerRun": [
-            53,
-            52,
-            52
+            44,
+            51,
+            55
           ],
           "statusCountsPerRun": [
             {
-              "201": 53
+              "201": 44
             },
             {
-              "201": 52
+              "201": 51
             },
             {
-              "201": 52
+              "201": 55
             }
           ],
           "latencyMs": {
             "p50": {
-              "median": 73.204,
+              "median": 70.98,
               "samples": [
-                74.14,
-                70.994,
-                73.204
+                78.02,
+                70.98,
+                67.004
               ],
               "runs": 3
             },
             "p95": {
-              "median": 86.782,
+              "median": 98.331,
               "samples": [
-                86.782,
-                86.967,
-                85.891
+                137.892,
+                98.331,
+                93.179
               ],
               "runs": 3
             },
             "max": {
-              "median": 107.295,
+              "median": 135.013,
               "samples": [
-                124.432,
-                107.295,
-                92.011
+                154.005,
+                135.013,
+                109.843
               ],
               "runs": 3
             }
@@ -276,46 +281,46 @@
       "admin": {
         "open": {
           "requestsPerRun": [
-            52,
-            52,
-            51
+            43,
+            50,
+            54
           ],
           "statusCountsPerRun": [
             {
-              "200": 52
+              "200": 43
             },
             {
-              "200": 52
+              "200": 50
             },
             {
-              "200": 51
+              "200": 54
             }
           ],
           "latencyMs": {
             "p50": {
-              "median": 69.929,
+              "median": 72.317,
               "samples": [
-                69.784,
-                69.929,
-                72.832
+                78.915,
+                72.317,
+                66.071
               ],
               "runs": 3
             },
             "p95": {
-              "median": 100.295,
+              "median": 122.823,
               "samples": [
-                102.87,
-                92.413,
-                100.295
+                145.594,
+                122.823,
+                94.457
               ],
               "runs": 3
             },
             "max": {
-              "median": 172.273,
+              "median": 187.125,
               "samples": [
-                173.754,
-                172.273,
-                161.999
+                313.781,
+                179.113,
+                187.125
               ],
               "runs": 3
             }
@@ -324,46 +329,46 @@
         },
         "listComments": {
           "requestsPerRun": [
-            52,
-            52,
-            51
+            43,
+            50,
+            54
           ],
           "statusCountsPerRun": [
             {
-              "200": 52
+              "200": 43
             },
             {
-              "200": 52
+              "200": 50
             },
             {
-              "200": 51
+              "200": 54
             }
           ],
           "latencyMs": {
             "p50": {
-              "median": 73.207,
+              "median": 69.847,
               "samples": [
-                71.293,
-                73.243,
-                73.207
+                75.556,
+                69.847,
+                66.316
               ],
               "runs": 3
             },
             "p95": {
-              "median": 94.541,
+              "median": 94.346,
               "samples": [
-                103.688,
-                94.541,
-                89.556
+                104.819,
+                94.346,
+                81.369
               ],
               "runs": 3
             },
             "max": {
-              "median": 104.68,
+              "median": 105.965,
               "samples": [
-                119.337,
-                104.68,
-                90.526
+                152.7,
+                105.965,
+                87.647
               ],
               "runs": 3
             }
@@ -372,46 +377,46 @@
         },
         "comment": {
           "requestsPerRun": [
-            52,
-            52,
-            51
+            43,
+            50,
+            54
           ],
           "statusCountsPerRun": [
             {
-              "201": 52
+              "201": 43
             },
             {
-              "201": 52
+              "201": 50
             },
             {
-              "201": 51
+              "201": 54
             }
           ],
           "latencyMs": {
             "p50": {
-              "median": 89.58,
+              "median": 93.431,
               "samples": [
-                89.002,
-                89.58,
-                91.698
+                113.924,
+                93.431,
+                89.319
               ],
               "runs": 3
             },
             "p95": {
-              "median": 136.015,
+              "median": 161.962,
               "samples": [
-                136.015,
-                140.279,
-                123.889
+                185.649,
+                161.962,
+                154.062
               ],
               "runs": 3
             },
             "max": {
-              "median": 162.842,
+              "median": 180.446,
               "samples": [
-                162.842,
-                164.908,
-                150.199
+                340.902,
+                180.446,
+                171.354
               ],
               "runs": 3
             }
@@ -420,46 +425,46 @@
         },
         "resolve": {
           "requestsPerRun": [
-            52,
-            52,
-            51
+            43,
+            50,
+            54
           ],
           "statusCountsPerRun": [
             {
-              "201": 52
+              "201": 43
             },
             {
-              "201": 52
+              "201": 50
             },
             {
-              "201": 51
+              "201": 54
             }
           ],
           "latencyMs": {
             "p50": {
-              "median": 70.009,
+              "median": 72.456,
               "samples": [
-                70.009,
-                69.826,
-                72.53
+                78.949,
+                72.456,
+                68.2
               ],
               "runs": 3
             },
             "p95": {
-              "median": 87.503,
+              "median": 100.927,
               "samples": [
-                88.848,
-                86.796,
-                87.503
+                115.256,
+                100.927,
+                92.893
               ],
               "runs": 3
             },
             "max": {
-              "median": 97.527,
+              "median": 116.331,
               "samples": [
-                120.536,
-                89.198,
-                97.527
+                161.528,
+                116.331,
+                94.383
               ],
               "runs": 3
             }
@@ -470,46 +475,46 @@
       "member": {
         "open": {
           "requestsPerRun": [
-            52,
-            51,
-            51
+            42,
+            50,
+            54
           ],
           "statusCountsPerRun": [
             {
-              "200": 52
+              "200": 42
             },
             {
-              "200": 51
+              "200": 50
             },
             {
-              "200": 51
+              "200": 54
             }
           ],
           "latencyMs": {
             "p50": {
-              "median": 69.243,
+              "median": 69.065,
               "samples": [
-                68.197,
-                69.243,
-                70.994
+                76.868,
+                69.065,
+                65.7
               ],
               "runs": 3
             },
             "p95": {
-              "median": 101.631,
+              "median": 102.206,
               "samples": [
-                104.193,
-                101.631,
-                95.292
+                120.093,
+                98.483,
+                102.206
               ],
               "runs": 3
             },
             "max": {
-              "median": 175.65,
+              "median": 188.026,
               "samples": [
-                168.148,
-                187.342,
-                175.65
+                277.782,
+                188.026,
+                185.29
               ],
               "runs": 3
             }
@@ -518,46 +523,46 @@
         },
         "listComments": {
           "requestsPerRun": [
-            52,
-            51,
-            51
+            42,
+            50,
+            54
           ],
           "statusCountsPerRun": [
             {
-              "200": 52
+              "200": 42
             },
             {
-              "200": 51
+              "200": 50
             },
             {
-              "200": 51
+              "200": 54
             }
           ],
           "latencyMs": {
             "p50": {
-              "median": 71.714,
+              "median": 73.817,
               "samples": [
-                68.922,
-                71.714,
-                72.486
+                80.131,
+                73.817,
+                68.446
               ],
               "runs": 3
             },
             "p95": {
-              "median": 96.42,
+              "median": 90.87,
               "samples": [
-                96.42,
-                97.043,
-                92.943
+                106.065,
+                90.87,
+                90.802
               ],
               "runs": 3
             },
             "max": {
-              "median": 107.001,
+              "median": 106.619,
               "samples": [
-                107.001,
-                111.139,
-                94.782
+                120.866,
+                106.619,
+                91.344
               ],
               "runs": 3
             }
@@ -566,46 +571,46 @@
         },
         "comment": {
           "requestsPerRun": [
-            52,
-            51,
-            51
+            42,
+            50,
+            54
           ],
           "statusCountsPerRun": [
             {
-              "201": 52
+              "201": 42
             },
             {
-              "201": 51
+              "201": 50
             },
             {
-              "201": 51
+              "201": 54
             }
           ],
           "latencyMs": {
             "p50": {
-              "median": 94.558,
+              "median": 94.013,
               "samples": [
-                97.623,
-                94.558,
-                93.106
+                112.436,
+                94.013,
+                82.519
               ],
               "runs": 3
             },
             "p95": {
-              "median": 137.657,
+              "median": 200.59,
               "samples": [
-                148.959,
-                137.391,
-                137.657
+                200.59,
+                204.195,
+                145.12
               ],
               "runs": 3
             },
             "max": {
-              "median": 156.765,
+              "median": 263.712,
               "samples": [
-                162.839,
-                148.1,
-                156.765
+                328.889,
+                263.712,
+                250.485
               ],
               "runs": 3
             }
@@ -614,46 +619,46 @@
         },
         "resolve": {
           "requestsPerRun": [
-            52,
-            51,
-            51
+            42,
+            50,
+            54
           ],
           "statusCountsPerRun": [
             {
-              "201": 52
+              "201": 42
             },
             {
-              "201": 51
+              "201": 50
             },
             {
-              "201": 51
+              "201": 54
             }
           ],
           "latencyMs": {
             "p50": {
-              "median": 71.993,
+              "median": 72.019,
               "samples": [
-                70.217,
-                72.467,
-                71.993
+                82.855,
+                72.019,
+                67.422
               ],
               "runs": 3
             },
             "p95": {
-              "median": 86.68,
+              "median": 98.56,
               "samples": [
-                85.347,
-                86.68,
-                89.057
+                129.605,
+                98.56,
+                89.323
               ],
               "runs": 3
             },
             "max": {
-              "median": 94.005,
+              "median": 121.032,
               "samples": [
-                100.083,
-                92.62,
-                94.005
+                150.901,
+                121.032,
+                100.393
               ],
               "runs": 3
             }
@@ -664,46 +669,46 @@
       "viewer": {
         "open": {
           "requestsPerRun": [
-            52,
-            51,
-            51
+            43,
+            49,
+            54
           ],
           "statusCountsPerRun": [
             {
-              "200": 52
+              "200": 43
             },
             {
-              "200": 51
+              "200": 49
             },
             {
-              "200": 51
+              "200": 54
             }
           ],
           "latencyMs": {
             "p50": {
-              "median": 70.153,
+              "median": 73.189,
               "samples": [
-                69.347,
-                70.153,
-                72.597
+                77.206,
+                73.189,
+                63.388
               ],
               "runs": 3
             },
             "p95": {
-              "median": 91.556,
+              "median": 94.936,
               "samples": [
-                111.817,
-                91.254,
-                91.556
+                122.54,
+                94.326,
+                94.936
               ],
               "runs": 3
             },
             "max": {
-              "median": 182.012,
+              "median": 238.341,
               "samples": [
-                184.256,
-                182.012,
-                179.342
+                251.009,
+                238.341,
+                191.323
               ],
               "runs": 3
             }
@@ -712,46 +717,46 @@
         },
         "listComments": {
           "requestsPerRun": [
-            52,
-            51,
-            51
+            43,
+            49,
+            54
           ],
           "statusCountsPerRun": [
             {
-              "200": 52
+              "200": 43
             },
             {
-              "200": 51
+              "200": 49
             },
             {
-              "200": 51
+              "200": 54
             }
           ],
           "latencyMs": {
             "p50": {
-              "median": 73.768,
+              "median": 73.255,
               "samples": [
-                73.768,
-                73.964,
-                72.898
+                78.19,
+                73.255,
+                66.766
               ],
               "runs": 3
             },
             "p95": {
-              "median": 92.218,
+              "median": 94.761,
               "samples": [
-                92.218,
-                96.77,
-                90.831
+                118.093,
+                94.761,
+                87.122
               ],
               "runs": 3
             },
             "max": {
-              "median": 112.538,
+              "median": 100.591,
               "samples": [
-                128.751,
-                112.538,
-                107.729
+                132.156,
+                100.591,
+                91.124
               ],
               "runs": 3
             }
@@ -760,46 +765,46 @@
         },
         "comment": {
           "requestsPerRun": [
-            52,
-            51,
-            51
+            43,
+            49,
+            54
           ],
           "statusCountsPerRun": [
             {
-              "201": 52
+              "201": 43
             },
             {
-              "201": 51
+              "201": 49
             },
             {
-              "201": 51
+              "201": 54
             }
           ],
           "latencyMs": {
             "p50": {
-              "median": 92.339,
+              "median": 96.429,
               "samples": [
-                84.599,
-                92.339,
-                92.46
+                120.39,
+                96.429,
+                85.175
               ],
               "runs": 3
             },
             "p95": {
-              "median": 129.228,
+              "median": 165.536,
               "samples": [
-                128.16,
-                129.228,
-                134.651
+                216.722,
+                165.536,
+                151.694
               ],
               "runs": 3
             },
             "max": {
-              "median": 177.501,
+              "median": 205.582,
               "samples": [
-                189.675,
-                177.501,
-                176.376
+                249.353,
+                203.719,
+                205.582
               ],
               "runs": 3
             }
@@ -808,46 +813,46 @@
         },
         "resolve": {
           "requestsPerRun": [
-            52,
-            51,
-            51
+            43,
+            49,
+            54
           ],
           "statusCountsPerRun": [
             {
-              "201": 52
+              "201": 43
             },
             {
-              "201": 51
+              "201": 49
             },
             {
-              "201": 51
+              "201": 54
             }
           ],
           "latencyMs": {
             "p50": {
-              "median": 72.232,
+              "median": 73.035,
               "samples": [
-                69.591,
-                72.232,
-                72.653
+                78.905,
+                73.035,
+                65.776
               ],
               "runs": 3
             },
             "p95": {
-              "median": 88.568,
+              "median": 98.101,
               "samples": [
-                84.492,
-                88.568,
-                91.363
+                123.842,
+                98.101,
+                96.603
               ],
               "runs": 3
             },
             "max": {
-              "median": 94.448,
+              "median": 112.155,
               "samples": [
-                88.233,
-                110.824,
-                94.448
+                219.584,
+                112.155,
+                103.944
               ],
               "runs": 3
             }
@@ -858,46 +863,46 @@
       "link": {
         "open": {
           "requestsPerRun": [
-            81,
-            80,
-            79
+            32,
+            32,
+            32
           ],
           "statusCountsPerRun": [
             {
-              "200": 81
+              "200": 32
             },
             {
-              "200": 80
+              "200": 32
             },
             {
-              "200": 79
+              "200": 32
             }
           ],
           "latencyMs": {
             "p50": {
-              "median": 71.43,
+              "median": 81.581,
               "samples": [
-                71.315,
-                71.43,
-                72.167
+                87.214,
+                81.581,
+                78.69
               ],
               "runs": 3
             },
             "p95": {
-              "median": 95.439,
+              "median": 145.301,
               "samples": [
-                87.857,
-                95.439,
-                95.647
+                159.523,
+                145.301,
+                123.735
               ],
               "runs": 3
             },
             "max": {
-              "median": 198.4,
+              "median": 215.971,
               "samples": [
-                198.4,
-                208.94,
-                186.722
+                269.607,
+                215.971,
+                207.945
               ],
               "runs": 3
             }
@@ -906,46 +911,46 @@
         },
         "listComments": {
           "requestsPerRun": [
-            81,
-            80,
-            79
+            32,
+            32,
+            32
           ],
           "statusCountsPerRun": [
             {
-              "200": 81
+              "200": 32
             },
             {
-              "200": 80
+              "200": 32
             },
             {
-              "200": 79
+              "200": 32
             }
           ],
           "latencyMs": {
             "p50": {
-              "median": 53.168,
+              "median": 50.093,
               "samples": [
-                51.835,
-                54.262,
-                53.168
+                50.093,
+                53.108,
+                48.361
               ],
               "runs": 3
             },
             "p95": {
-              "median": 67.501,
+              "median": 65.829,
               "samples": [
-                67.501,
-                64.978,
-                68.521
+                87.699,
+                65.829,
+                62.129
               ],
               "runs": 3
             },
             "max": {
-              "median": 92.827,
+              "median": 78.628,
               "samples": [
-                111.348,
-                88.471,
-                92.827
+                92.727,
+                78.628,
+                64.26
               ],
               "runs": 3
             }
@@ -954,49 +959,46 @@
         },
         "comment": {
           "requestsPerRun": [
-            81,
-            80,
-            79
+            32,
+            32,
+            32
           ],
           "statusCountsPerRun": [
             {
-              "201": 30,
-              "429": 51
+              "201": 32
             },
             {
-              "201": 30,
-              "429": 50
+              "201": 32
             },
             {
-              "201": 30,
-              "429": 49
+              "201": 32
             }
           ],
           "latencyMs": {
             "p50": {
-              "median": 31.21,
+              "median": 112.865,
               "samples": [
-                30.432,
-                31.21,
-                32.199
+                144.324,
+                112.865,
+                108.856
               ],
               "runs": 3
             },
             "p95": {
-              "median": 114.635,
+              "median": 56061.5,
               "samples": [
-                114.581,
-                114.635,
-                117.539
+                55042.965,
+                56061.5,
+                56088.483
               ],
               "runs": 3
             },
             "max": {
-              "median": 150.672,
+              "median": 56068.273,
               "samples": [
-                133.031,
-                156.639,
-                150.672
+                55084.164,
+                56068.273,
+                56134.509
               ],
               "runs": 3
             }
@@ -1005,46 +1007,46 @@
         },
         "resolve": {
           "requestsPerRun": [
-            30,
-            30,
-            30
+            32,
+            32,
+            32
           ],
           "statusCountsPerRun": [
             {
-              "201": 30
+              "201": 32
             },
             {
-              "201": 30
+              "201": 32
             },
             {
-              "201": 30
+              "201": 32
             }
           ],
           "latencyMs": {
             "p50": {
-              "median": 55.367,
+              "median": 61.348,
               "samples": [
-                55.367,
-                55.288,
-                57.181
+                67.468,
+                61.348,
+                56.931
               ],
               "runs": 3
             },
             "p95": {
-              "median": 67.105,
+              "median": 79.515,
               "samples": [
-                67.105,
-                67.063,
-                73.763
+                110.209,
+                78.547,
+                79.515
               ],
               "runs": 3
             },
             "max": {
-              "median": 69.86,
+              "median": 85.002,
               "samples": [
-                69.036,
-                69.86,
-                74.564
+                160.773,
+                80.834,
+                85.002
               ],
               "runs": 3
             }
@@ -1093,29 +1095,29 @@
           200,
           409
         ],
-        "conflictPutMs": 46.122,
-        "resolutionMs": 704.046,
+        "conflictPutMs": 76.551,
+        "resolutionMs": 521.049,
         "autoMerged": 1,
         "collisions": [],
-        "bothChangesPresent": false,
-        "resolvedSaveStatus": 400
+        "bothChangesPresent": true,
+        "resolvedSaveStatus": 200
       },
       {
         "run": 1,
         "round": 1,
         "kind": "disjoint",
-        "winner": "owner",
-        "loser": "member",
+        "winner": "member",
+        "loser": "owner",
         "statuses": [
-          200,
-          409
+          409,
+          200
         ],
-        "conflictPutMs": 45.339,
-        "resolutionMs": 464.654,
+        "conflictPutMs": 80.072,
+        "resolutionMs": 524.751,
         "autoMerged": 1,
         "collisions": [],
-        "bothChangesPresent": false,
-        "resolvedSaveStatus": 400
+        "bothChangesPresent": true,
+        "resolvedSaveStatus": 200
       },
       {
         "run": 1,
@@ -1127,12 +1129,12 @@
           200,
           409
         ],
-        "conflictPutMs": 53.924,
-        "resolutionMs": 448.523,
+        "conflictPutMs": 52.431,
+        "resolutionMs": 483.151,
         "autoMerged": 1,
         "collisions": [],
-        "bothChangesPresent": false,
-        "resolvedSaveStatus": 400
+        "bothChangesPresent": true,
+        "resolvedSaveStatus": 200
       },
       {
         "run": 1,
@@ -1144,12 +1146,12 @@
           200,
           409
         ],
-        "conflictPutMs": 44.302,
-        "resolutionMs": 460.297,
+        "conflictPutMs": 50.835,
+        "resolutionMs": 514.658,
         "autoMerged": 1,
         "collisions": [],
-        "bothChangesPresent": false,
-        "resolvedSaveStatus": 400
+        "bothChangesPresent": true,
+        "resolvedSaveStatus": 200
       },
       {
         "run": 1,
@@ -1161,14 +1163,14 @@
           200,
           409
         ],
-        "conflictPutMs": 44.07,
-        "resolutionMs": 498.565,
+        "conflictPutMs": 46.06,
+        "resolutionMs": 521.18,
         "autoMerged": 0,
         "collisions": [
           "muro-0"
         ],
-        "bothChangesPresent": false,
-        "resolvedSaveStatus": 400
+        "bothChangesPresent": true,
+        "resolvedSaveStatus": 200
       },
       {
         "run": 2,
@@ -1180,33 +1182,16 @@
           200,
           409
         ],
-        "conflictPutMs": 45.544,
-        "resolutionMs": 492.352,
+        "conflictPutMs": 81.856,
+        "resolutionMs": 508.498,
         "autoMerged": 1,
         "collisions": [],
-        "bothChangesPresent": false,
-        "resolvedSaveStatus": 400
+        "bothChangesPresent": true,
+        "resolvedSaveStatus": 200
       },
       {
         "run": 2,
         "round": 1,
-        "kind": "disjoint",
-        "winner": "owner",
-        "loser": "member",
-        "statuses": [
-          200,
-          409
-        ],
-        "conflictPutMs": 37.436,
-        "resolutionMs": 451.156,
-        "autoMerged": 1,
-        "collisions": [],
-        "bothChangesPresent": false,
-        "resolvedSaveStatus": 400
-      },
-      {
-        "run": 2,
-        "round": 2,
         "kind": "disjoint",
         "winner": "member",
         "loser": "owner",
@@ -1214,16 +1199,16 @@
           409,
           200
         ],
-        "conflictPutMs": 49.429,
-        "resolutionMs": 445.961,
+        "conflictPutMs": 69.439,
+        "resolutionMs": 555.313,
         "autoMerged": 1,
         "collisions": [],
-        "bothChangesPresent": false,
-        "resolvedSaveStatus": 400
+        "bothChangesPresent": true,
+        "resolvedSaveStatus": 200
       },
       {
         "run": 2,
-        "round": 3,
+        "round": 2,
         "kind": "disjoint",
         "winner": "owner",
         "loser": "member",
@@ -1231,12 +1216,29 @@
           200,
           409
         ],
-        "conflictPutMs": 42.822,
-        "resolutionMs": 466.802,
+        "conflictPutMs": 60.354,
+        "resolutionMs": 535.838,
         "autoMerged": 1,
         "collisions": [],
-        "bothChangesPresent": false,
-        "resolvedSaveStatus": 400
+        "bothChangesPresent": true,
+        "resolvedSaveStatus": 200
+      },
+      {
+        "run": 2,
+        "round": 3,
+        "kind": "disjoint",
+        "winner": "member",
+        "loser": "owner",
+        "statuses": [
+          409,
+          200
+        ],
+        "conflictPutMs": 51.342,
+        "resolutionMs": 498.379,
+        "autoMerged": 1,
+        "collisions": [],
+        "bothChangesPresent": true,
+        "resolvedSaveStatus": 200
       },
       {
         "run": 2,
@@ -1248,31 +1250,31 @@
           200,
           409
         ],
-        "conflictPutMs": 43.273,
-        "resolutionMs": 448.65,
+        "conflictPutMs": 46.707,
+        "resolutionMs": 591.418,
         "autoMerged": 0,
         "collisions": [
           "muro-0"
         ],
-        "bothChangesPresent": false,
-        "resolvedSaveStatus": 400
+        "bothChangesPresent": true,
+        "resolvedSaveStatus": 200
       },
       {
         "run": 3,
         "round": 0,
         "kind": "disjoint",
-        "winner": "member",
-        "loser": "owner",
+        "winner": "owner",
+        "loser": "member",
         "statuses": [
-          409,
-          200
+          200,
+          409
         ],
-        "conflictPutMs": 50.503,
-        "resolutionMs": 476.607,
+        "conflictPutMs": 131.36,
+        "resolutionMs": 991.46,
         "autoMerged": 1,
         "collisions": [],
-        "bothChangesPresent": false,
-        "resolvedSaveStatus": 400
+        "bothChangesPresent": true,
+        "resolvedSaveStatus": 200
       },
       {
         "run": 3,
@@ -1284,12 +1286,12 @@
           200,
           409
         ],
-        "conflictPutMs": 48.205,
-        "resolutionMs": 467.685,
+        "conflictPutMs": 76.114,
+        "resolutionMs": 740.15,
         "autoMerged": 1,
         "collisions": [],
-        "bothChangesPresent": false,
-        "resolvedSaveStatus": 400
+        "bothChangesPresent": true,
+        "resolvedSaveStatus": 200
       },
       {
         "run": 3,
@@ -1301,12 +1303,12 @@
           200,
           409
         ],
-        "conflictPutMs": 56.804,
-        "resolutionMs": 493.011,
+        "conflictPutMs": 72.391,
+        "resolutionMs": 738.325,
         "autoMerged": 1,
         "collisions": [],
-        "bothChangesPresent": false,
-        "resolvedSaveStatus": 400
+        "bothChangesPresent": true,
+        "resolvedSaveStatus": 200
       },
       {
         "run": 3,
@@ -1318,102 +1320,87 @@
           200,
           409
         ],
-        "conflictPutMs": 49.204,
-        "resolutionMs": 457.012,
+        "conflictPutMs": 69.36,
+        "resolutionMs": 889.658,
         "autoMerged": 1,
         "collisions": [],
-        "bothChangesPresent": false,
-        "resolvedSaveStatus": 400
+        "bothChangesPresent": true,
+        "resolvedSaveStatus": 200
       },
       {
         "run": 3,
         "round": 4,
         "kind": "collision",
-        "winner": "owner",
-        "loser": "member",
+        "winner": "member",
+        "loser": "owner",
         "statuses": [
-          200,
-          409
+          409,
+          200
         ],
-        "conflictPutMs": 40.135,
-        "resolutionMs": 498.261,
+        "conflictPutMs": 61.728,
+        "resolutionMs": 908.732,
         "autoMerged": 0,
         "collisions": [
           "muro-0"
         ],
-        "bothChangesPresent": false,
-        "resolvedSaveStatus": 400
+        "bothChangesPresent": true,
+        "resolvedSaveStatus": 200
       }
     ],
     "conflictPutMs": {
-      "median": 45.339,
+      "median": 60.354,
       "samples": [
-        45.339,
-        43.273,
-        49.204
+        52.431,
+        60.354,
+        72.391
       ],
       "runs": 3
     },
     "resolutionMs": {
-      "median": 464.654,
+      "median": 535.838,
       "samples": [
-        464.654,
-        451.156,
-        476.607
+        521.049,
+        535.838,
+        889.658
       ],
       "runs": 3
     },
     "resolutionMsNote": "Incluye re-lectura del documento, el proceso tsx de la fusión (arranque de Node incluido) y el guardado. El arranque de tsx domina: en el editor la fusión corre en la misma pestaña y no paga ese coste.",
-    "allClean": false
+    "allClean": true
   },
   "integrity": {
     "perRun": [
       {
-        "commentPostsOk": 239,
-        "commentsListed": 239,
+        "commentPostsOk": 204,
+        "commentsListed": 204,
         "commentsMatch": true,
-        "resolvesOk": 239,
-        "commentsResolved": 239,
+        "resolvesOk": 204,
+        "commentsResolved": 204,
         "resolvesMatch": true,
-        "missingCasIds": [
-          "cas-member-0",
-          "cas-member-1",
-          "cas-member-2",
-          "cas-member-3"
-        ],
-        "finalVersion": 6,
+        "missingCasIds": [],
+        "finalVersion": 11,
         "initialVersion": 1
       },
       {
-        "commentPostsOk": 236,
-        "commentsListed": 236,
+        "commentPostsOk": 232,
+        "commentsListed": 232,
         "commentsMatch": true,
-        "resolvesOk": 236,
-        "commentsResolved": 236,
+        "resolvesOk": 232,
+        "commentsResolved": 232,
         "resolvesMatch": true,
-        "missingCasIds": [
-          "cas-member-0",
-          "cas-member-1",
-          "cas-owner-2",
-          "cas-member-3"
-        ],
-        "finalVersion": 6,
+        "missingCasIds": [],
+        "finalVersion": 11,
         "initialVersion": 1
       },
       {
-        "commentPostsOk": 235,
-        "commentsListed": 235,
+        "commentPostsOk": 249,
+        "commentsListed": 249,
         "commentsMatch": true,
-        "resolvesOk": 235,
-        "commentsResolved": 235,
+        "resolvesOk": 249,
+        "commentsResolved": 249,
         "resolvesMatch": true,
-        "missingCasIds": [
-          "cas-owner-0",
-          "cas-member-1",
-          "cas-member-2",
-          "cas-member-3"
-        ],
-        "finalVersion": 6,
+        "missingCasIds": [],
+        "finalVersion": 11,
         "initialVersion": 1
       }
     ],
@@ -1424,7 +1411,7 @@
     ]
   },
   "verdict": {
-    "passed": false,
+    "passed": true,
     "criteria": [
       "cero 5xx y cero 4xx inesperados en la tormenta concurrente (el único 4xx legítimo es el 409 del CAS)",
       "los cinco roles completaron abrir/listar/comentar/resolver con éxito dentro de la ventana",

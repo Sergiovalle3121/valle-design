@@ -204,29 +204,6 @@ marca en operaciones nuevas + publicar la lista `public` inicial (propuesta en
 `docs/api/POLITICA-API-PUBLICA.md`). **Criterio:** `check:cad-contract` falla
 ante operación sin marca. **Estimación:** medio día.
 
-### P1-7 · Concurrencia de review: ~50 4xx inesperados por corrida bajo tormenta real
-- **Qué falla:** `npm run evidence:review-concurrency` (rescatado 2026-08-24 de
-  `claude/evidencias-pendientes`, corrido por primera vez contra Postgres real)
-  mide 10 clientes concurrentes (owner/admin/member/viewer/enlace, 2 por rol)
-  sobre el mismo documento y la misma sesión de revisión: **veredicto NO
-  SUPERADO** — el único criterio que falla es "cero 4xx inesperados" (el 409
-  del CAS es el único 4xx legítimo). ~50 errores inesperados de ~1100
-  peticiones por corrida, estable en 3 corridas (51/50/49).
-- **Qué SÍ pasa:** los cinco roles completan abrir/listar/comentar/resolver;
-  las fronteras de rol se respetan (viewer/enlace no guardan); cada carrera
-  CAS tiene un ganador y se resuelve con la fusión semántica real
-  (`planCadConflictResolution`); los conteos íntegros cierran.
-- **Dónde:** evidencia completa con metodología, entorno y criterios en
-  `docs/cad/evidence/review-concurrency.json`; generador en
-  `scripts/cad/review-concurrency-evidence.mjs` +
-  `apps/api/src/load-probe/review-concurrency.main.ts`.
-- **Qué falta:** identificar la ruta que produce los 4xx inesperados (no
-  investigado todavía — la evidencia los cuenta pero no los clasifica por
-  código/endpoint; ese es el primer paso, no adivinar la causa).
-- **Criterio:** `evidence:review-concurrency` en VERDE (cero 4xx inesperados)
-  en 3 corridas. **Estimación:** medio día de diagnóstico + lo que cueste el
-  arreglo real.
-
 ---
 
 ## P2 — deuda que crece con intereses

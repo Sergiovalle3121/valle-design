@@ -638,6 +638,45 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "REVIEW-CONCURRENCY-RATE-LIMIT-RETRY-2026-08-25",
+      "date": "2026-08-25",
+      "initiative": "Cierra P1-7 del backlog y el criterio review.concurrency de la rúbrica competitiva (2pt, el segundo de mayor valor comercial pendiente): evidence:review-concurrency medía ~50 4xx inesperados por corrida bajo 10 clientes concurrentes; diagnosticados como 429 legítimos de reviewCommentsPerSession (VD-RL-001) sin reintento en ningún cliente, ni el probe ni — más importante — el navegador real",
+      "branch": "claude/valle-design-3d-campaign-t0zzad",
+      "assistants": [
+        {
+          "name": "Claude Code (Anthropic)",
+          "role": "ejecución autónoma bajo la misma directiva de campaña, documentada en docs/execution/CAMPANA_REVIEW_CONCURRENCY_20260825.md: consultó rubric.mjs --priorities para elegir la siguiente prioridad real; encontró que el punto más barato (blocks.bedit, BEDIT en sitio) ya tenía fase 1 fusionada HOY por otra sesión con autorización propia y fases 2/3 explícitamente pendientes — decidió NO construir una versión paralela (habría sido el trabajo de laboratorio descoordinado que el titular pidió evitar) y pasó a la siguiente prioridad sin riesgo de colisión (review.concurrency, subsistema de API ajeno a CAD/bloques). Leyó el artefacto de evidencia existente directamente en vez de adivinar la causa: los ~50 4xx eran EXACTAMENTE 429 en link.comment, ningún otro rol/operación. Encontró en cad-review-link.controller.ts que el rate limit es deliberado (comentario propio del código: \"generoso a propósito, no mide uso legítimo\") y decidió NO subir el techo (habría sido tratar el síntoma y reabrir una decisión de seguridad VD-RL-001 sin evidencia que la justificara) sino cerrar el hueco real: ningún cliente reintentaba un 429 con retryAfterSeconds, ni el load-probe ni el navegador real. Cerró por capas: schema RateLimitedError aditivo en el contrato OpenAPI (mismo patrón que EntitlementRequiredError/CadDocumentVersionConflictError ya establecidos), SDK regenerado con DesignApiError.isRateLimited(), reintento único con aviso visible en use-cad-comments.ts (el hook compartido por autor e invitado del review link, exportado como función pura para probarlo sin montar React), y reintento acotado (5) en el load-probe con un contador rateLimitRetries nuevo para que el artefacto pruebe que el techo se ejerció de verdad bajo la tormenta, no que se esquivó. Verificó con dos corridas reales completas de evidence:review-concurrency contra PostgreSQL 16 (la segunda sólo para propagar el nuevo contador al artefacto, sin cambio de lógica entre ambas): verdict.passed=true en las dos, 0 errores inesperados, rateLimitRetries=[2,2,2] confirmando que el rate limiter se disparó y fue absorbido. Confirmó la ganancia de forma independiente corriendo rubric.mjs (no confiando en su propia bitácora): review.concurrency pasa de fallar a 2/2pt, rúbrica total 189→190/220. Al fusionar main (avanzado por otra sesión, PR #106/#107, sin relación) encontró y corrigió un efecto colateral ajeno: una entrada duplicada preexistente en este mismo registro (DWG-GAP-MATRIX-STALE-PROSE-2026-08-25, dos copias byte-idénticas) — corregida como parte natural de la resolución del conflicto de merge, no perpetuada"
+        }
+      ],
+      "authority": "Directiva de Sergio Valle Zárate en esta misma conversación (\"dale con la siguiente fase aún falta mucho para construir para competir contra autocad\"), interpretada — con el mismo criterio conservador de toda esta campaña — como autorización para retomar la siguiente prioridad real de la rúbrica competitiva sin riesgo de colisión con trabajo ya en curso de otra sesión",
+      "firstPartyInputs": [
+        "docs/competitive/rubric.json y su script scripts/cad/rubric.mjs --priorities",
+        "docs/execution/BACKLOG.md (entrada P1-7, mismo hallazgo documentado de forma independiente antes de esta fase)",
+        "docs/cad/evidence/review-concurrency.json de una corrida anterior (2026-08-24), leído directamente para diagnosticar en vez de adivinar",
+        "apps/api/src/modules/cad/cad-review-link.controller.ts, apps/api/src/modules/identity/api-rate-limit.service.ts y su comentario de diseño propio (VD-RL-001) como fuente de la decisión de no tocar el techo",
+        "packages/design-sdk/src/client.ts: isVersionConflict() como patrón exacto a replicar para isRateLimited()",
+        "docs/governance/assisted-development-log.json de la entrada BEDIT-PHASE1-SESSION-DOCUMENT-2026-08-25 (leída antes de decidir no construir sobre esa área)"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "contrato OpenAPI de errores (packages/contracts/specs/design-api.v1.yaml: schema RateLimitedError nuevo)",
+        "SDK de diseño (packages/design-sdk/src/client.ts: DesignApiError.isRateLimited())",
+        "hilos de comentario compartidos autor/invitado (apps/web/src/components/cad/collab/use-cad-comments.ts: createWithRateLimitRetry, nuevo)",
+        "probe de concurrencia de review (apps/api/src/load-probe/review-concurrency.main.ts: timedWithRateLimitRetry, nuevo; scripts/cad/review-concurrency-evidence.mjs: rateLimitRetriesPerRun, nuevo)"
+      ],
+      "fixtures": [],
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: PR abierto sobre claude/valle-design-3d-campaign-t0zzad con los checks re-ejecutados (typecheck limpio en todo el monorepo, check:cad-contract verde, 688/688 specs de apps/api, 410/410 specs de apps/web, y dos corridas reales de evidence:review-concurrency contra PostgreSQL con verdict.passed=true, 0 errores inesperados, rateLimitRetries=[2,2,2]); confirmado de forma independiente con rubric.mjs (review.concurrency 2/2pt, total 189→190/220); la adopción se registra al revisar/fusionar ese PR."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
