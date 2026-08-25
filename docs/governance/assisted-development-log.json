@@ -372,6 +372,118 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "DWG-INSUNITS-READ-PATH-2026-08-25",
+      "date": "2026-08-25",
+      "initiative": "Decodifica INSUNITS (unidades del dibujo) en el camino de LECTURA del códec DWG y lo proyecta al documento canónico — tarea #4 de la lista de próximas tareas del informe de cierre de la campaña DWG anterior",
+      "branch": "claude/valle-design-dwg-main-lnqf7t",
+      "assistants": [
+        {
+          "name": "Claude Code (Claude Sonnet 5, Anthropic)",
+          "role": "ejecución autónoma bajo directiva escrita del titular (\"mergea y vete en cascada no te detengas, dale con la siguiente fase hasta llegar al 10/10 en el DWG\"), continuación directa de la campaña DWG: tras fusionar el PR del adaptador nativo de TEXT, tomó la tarea #4 de la lista de próximas tareas del informe de cierre. Encontró que el lector de variables de cabecera (`decodeAc1015HeaderVariables`/`decodeR2004HeaderVariables`) ya existía y estaba probado en aislamiento, pero ningún lector de base de datos lo invocaba — el payload sólo se verificaba a nivel de marco (centinelas+CRC), nunca se decodificaba. Lo conectó en los dos lectores (`readAc1015Database`, `readR2004Database`), añadió `insunits` a la base neutral compartida, lo hizo cruzar la frontera de producto (`dwg-native-reader.ts`, `dwg-neutral-model.ts`) y lo consumió en el puente (`dwg-document-bridge.ts`) para fijar la unidad real del documento (pulgadas/pies/mm/cm/m) y declarar la pérdida sólo cuando INSUNITS no es representable en el perfil de hoy, en vez de asumir milímetros siempre. Conectar el decodificador reveló que el payload placeholder por defecto del writer de pruebas (`ac1015HeaderVariablesPlaceholder`, un rótulo opaco de 16 bytes) nunca había sido decodificable de verdad — 12 tests lo daban por válido sólo a nivel de marco; se corrigió para emitir un juego completo y decodificable (`createAc1015HeaderVariables`+`encodeAc1015HeaderVariables`, valores medidos del corpus), y los tamaños/offsets que varios tests hardcodeaban contra el tamaño viejo se recalcularon como derivados, no como números fijos. Verificado además end-to-end contra los dos .dwg reales del corpus admitido con la API NestJS real y PostgreSQL reales (9/9 passed), no sólo con specs unitarios."
+        }
+      ],
+      "authority": "Directiva escrita de Sergio Valle Zárate en esta conversación (\"mergea y vete en cascada no te detengas, dale con la siguiente fase hasta llegar al 10/10 en el DWG\"), bajo las mismas reglas de no-detención, decisión conservadora fail-closed y verificación empírica establecidas para la campaña DWG de la que este trabajo es continuación directa",
+      "firstPartyInputs": [
+        "Repositorio valle-design en main (2223256 tras fusionar el PR del adaptador nativo de TEXT)",
+        "docs/execution/INFORME_DWG_PRODUCTO_MAIN_2026-08-24.md §8, tarea #4 de la lista de próximas tareas",
+        "Código existente del lector de variables de cabecera (`ac1015-header-variables.ts`, `r2004-header-variables.ts`) y de su escritor espejo (`ac1015-header-writer.ts`), ya decodificaba/emitía INSUNITS pero sin consumidor en el pipeline de lectura real",
+        "Los dos fixtures DWG reales del corpus admitido (08-plano-mini.dwg, 04-capas.dwg, bundle valle.fundacional.ac1015.001), leídos en runtime desde el espejo local, nunca copiados al árbol"
+      ],
+      "externalSources": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: el titular revisa el PR abierto sobre claude/valle-design-dwg-main-lnqf7t y sus checks (typecheck y test completos de dwg-codec incl. fuzz/adversarial/provenance, typecheck y test:specs de apps/web, check:cad, y el E2E real contra API/PostgreSQL reconstruido con el cambio); la adopción se registra al revisar/fusionar."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-REAL-E2E-CI-WIRING-2026-08-25",
+      "date": "2026-08-25",
+      "initiative": "Investiga y cierra por qué el E2E real de DWG (dwg-import-real.spec.ts) nunca se había ejercitado de verdad en CI, en ningún navegador — tarea #10 de la lista de próximas tareas del informe de cierre de la campaña DWG anterior, reencuadrada por lo que la investigación encontró",
+      "branch": "claude/valle-design-dwg-main-lnqf7t",
+      "assistants": [
+        {
+          "name": "Claude Code (Claude Sonnet 5, Anthropic)",
+          "role": "ejecución autónoma bajo directiva escrita del titular (\"mergea y vete en cascada no te detengas, dale con la siguiente fase hasta llegar al 10/10 en el DWG\"). La tarea #10 pedía extender dwg-import-real.spec.ts a Firefox; la investigación (delegada a un agente con acceso de shell completo, y verificada por esta sesión) encontró que playwright.config.ts ya define los proyectos chromium y firefox y que el spec no tiene lógica de salto específica de Chromium — el hallazgo real es más grave: el job `e2e` de .github/workflows/ci.yml nunca fijó NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA (ni en el paso de build que lo inlinea al bundle de Next.js, ni en el paso de Playwright, que el propio spec también comprueba en el proceso de Node) ni exportó VALLE_DWG_CORPUS_MIRROR (ese job no hereda el checkout del repo hermano que sólo hace `quality-gates`) — así que el spec se auto-saltaba con sus propios test.skip en TODO run de CI, en cualquier navegador, desde que existe. Se corrige cableando ambas cosas en el job `e2e`, verificado corriendo el spec real (reconstruyendo el build con las mismas variables) contra la API NestJS y PostgreSQL reales de este entorno: 9/9 passed en Chromium. Firefox en sí no se pudo verificar EN ESTE ENTORNO: la descarga del binario de Firefox de Playwright fue rechazada con 403 por la política de salida de red de este sandbox (confirmado con $HTTPS_PROXY/__agentproxy/status, y con el paquete alternativo @playwright/browser-firefox de npm, que resultó ser el mismo descargador bloqueado) — un límite de infraestructura del entorno de ejecución, no del producto ni de este spec; con el cableado ya corregido, el próximo push a main ejercitará Firefox de verdad por la política de navegadores que CI ya tenía (Chromium en PR, Chromium+Firefox en main)."
+        }
+      ],
+      "authority": "Directiva escrita de Sergio Valle Zárate en esta conversación (\"mergea y vete en cascada no te detengas, dale con la siguiente fase hasta llegar al 10/10 en el DWG\"), bajo las mismas reglas de no-detención, decisión conservadora fail-closed y verificación empírica establecidas para la campaña DWG de la que este trabajo es continuación directa",
+      "firstPartyInputs": [
+        "Repositorio valle-design en la rama de esta campaña, tras el commit del cableado de INSUNITS (tarea #4)",
+        "docs/execution/INFORME_DWG_PRODUCTO_MAIN_2026-08-24.md §8, tarea #10 de la lista de próximas tareas",
+        ".github/workflows/ci.yml (jobs quality-gates y e2e) y apps/web/playwright.config.ts, leídos directamente para localizar la causa real",
+        "Los dos fixtures DWG reales del corpus admitido (08-plano-mini.dwg, 04-capas.dwg, bundle valle.fundacional.ac1015.001) para la verificación end-to-end contra Chromium"
+      ],
+      "externalSources": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: el titular revisa el PR abierto sobre claude/valle-design-dwg-main-lnqf7t; la adopción se registra al revisar/fusionar. El veredicto de Firefox en CI (bloqueado en este sandbox, no verificable aquí) se confirma con la primera corrida real del job `e2e` sobre `main` tras fusionar."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-COOPERATIVE-CANCELLATION-2026-08-25",
+      "date": "2026-08-25",
+      "initiative": "Cancelación cooperativa real (signal/deadlineMs) en los tres puntos de entrada de lectura del códec DWG — tarea #2 de la lista de próximas tareas del informe de cierre de la campaña DWG anterior, acotada a lo que un agente de investigación dedicado (delegado por esta sesión) determinó seguro de tocar sin auditar además el cruce a worker",
+      "branch": "claude/valle-design-dwg-main-lnqf7t",
+      "assistants": [
+        {
+          "name": "Claude Code (Claude Sonnet 5, Anthropic)",
+          "role": "ejecución autónoma bajo directiva escrita del titular (\"mergea y vete en cascada no te detengas, dale con la siguiente fase hasta llegar al 10/10 en el DWG\"). Antes de tocar el núcleo del parser (la propia tarea #2 lo pedía explícitamente: \"auditoría propia antes de tocar el núcleo del parser\"), delegó una auditoría de sólo-lectura a un agente con acceso de shell completo. Esa auditoría encontró que `ResourceBudget` (la primitiva de presupuesto/cancelación) YA tenía el contrato completo (`clock`/`signal`/`deadlineMs`) y que `probeDwg` ya lo cableaba de punta a punta como patrón de referencia — pero `readAc1015Database`/`readR2004Database` construían su `ResourceBudget` sin opciones, así que ningún llamador podía pasar una señal o un deadline propio. Encontró además un segundo gap más fino: `assembleDatabase` (la segunda pasada, ensamblado por referencias) nunca tocaba el presupuesto en absoluto — ni siquiera el deadline por defecto aplicaba ahí — y documentó por qué cablear una señal VIVA hasta el worker del producto no sería, por sí solo, cancelación responsiva de verdad: el parseo corre en una sola pila síncrona dentro de `self.onmessage`, así que un mensaje de cancelación quedaría en cola sin entregar mientras el parseo síncrono siga corriendo — eso exigiría trocear el bucle caliente para ceder al bucle de eventos, un cambio estructural mayor y sensible a rendimiento, fuera del auditado hoy. Con ese mapa, esta sesión implementó el cierre acotado: un tercer parámetro ADITIVO (`cancellation?: ResourceBudgetOptions`, mismo contrato que `probeDwg`, sin romper ningún llamador existente) en los tres puntos de entrada, y `budget` cableado dentro de `assembleDatabase` con una unidad de trabajo cobrada por objeto en sus tres bucles — la única forma en que esa segunda pasada nota hoy una cancelación o un deadline. Añadió pruebas deterministas (reloj falso congelado, señal ya cancelada, señal que cuenta lecturas) que antes no existían en ningún punto de entrada de lectura completa, incluida una que aísla `assembleDatabase` directamente para probar que la segunda pasada específicamente quedó cubierta. El cableado hasta el worker del producto (`document-import-client.ts`/`document-import.worker.ts`) queda deliberadamente sin tocar — declarado, no escondido — por la razón estructural de arriba."
+        }
+      ],
+      "authority": "Directiva escrita de Sergio Valle Zárate en esta conversación (\"mergea y vete en cascada no te detengas, dale con la siguiente fase hasta llegar al 10/10 en el DWG\"), bajo las mismas reglas de no-detención, decisión conservadora fail-closed y verificación empírica establecidas para la campaña DWG de la que este trabajo es continuación directa",
+      "firstPartyInputs": [
+        "Repositorio valle-design en la rama de esta campaña, tras los commits de la tarea #4 (INSUNITS) y el cableado de CI de la tarea #10",
+        "docs/execution/INFORME_DWG_PRODUCTO_MAIN_2026-08-24.md §8, tarea #2 de la lista de próximas tareas",
+        "Informe del agente de investigación de sólo lectura (delegado por esta sesión, sin escribir código): mapa completo de `ResourceBudget`, `probeDwg` como patrón de referencia, la brecha de `assembleDatabase`, y el riesgo estructural del cruce a worker",
+        "Código existente de `probeDwg`/`ResourceBudget`/`tests/adversarial/resource-limits.spec.ts` como plantilla de contrato, opciones y patrón de prueba determinista (reloj falso, señal que cuenta lecturas)"
+      ],
+      "externalSources": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: el titular revisa el PR abierto sobre claude/valle-design-dwg-main-lnqf7t y sus checks (`packages/dwg-codec`: build+typecheck+test+adversarial+fuzz completos, incl. las 3 pruebas nuevas de cancelación); la adopción se registra al revisar/fusionar."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-INSERT-ATTRIB-2026-08-25",
+      "date": "2026-08-25",
+      "initiative": "Expone los ATTRIB de un INSERT (ya decodificados por el laboratorio) al documento canónico, por el mismo camino que ya usa DXF — tarea #6 de la lista de próximas tareas del informe de cierre de la campaña DWG anterior",
+      "branch": "claude/valle-design-dwg-main-lnqf7t",
+      "assistants": [
+        {
+          "name": "Claude Code (Claude Sonnet 5, Anthropic)",
+          "role": "ejecución autónoma bajo directiva escrita del titular (\"mergea y vete en cascada no te detengas, dale con la siguiente fase hasta llegar al 10/10 en el DWG\"). Delegó la investigación y la implementación completas a un agente con acceso de shell (sin escribir código él mismo primero), verificado después de punta a punta por esta sesión antes de aceptarlo: re-corridos independientes de typecheck/test:specs/check:cad y lectura línea a línea del diff, no sólo el informe del agente. El agente encontró que `Ac1015DatabaseEntityRecord.attributes` (fase D4 del laboratorio) SÍ decodifica ATTRIB con su propio tipo distinguible (`kind: \"attrib\"`, con `tagBytes` propio — no un TEXT genérico) pero `toBetaProfileRecord` (la frontera de producto en `dwg-native-reader.ts`) lo descartaba al construir `DwgNeutralEntityRecord`, sin razón técnica. Investigó primero cómo DXF ya resuelve el mismo problema (dos mecanismos separados y nunca fusionados: `attributes: Record<string,string>` poblado en import, y `positionedAttributes` con geometría real calculado sólo en runtime por comandos de bloque, nunca en import) y replicó exactamente el primero, el que corresponde a \"importar un DWG\". `positionedAttributes` queda deliberadamente sin poblar: ni DXF lo hace en import, ni el propio mapeador de referencia del laboratorio (`packages/dwg-codec/src/api/canonical.ts`, no conectado al producto) lo intenta — tres implementaciones independientes convergen en el mismo límite, y forzarlo habría exigido ampliar el perfil de entidades (ATTDEF) o inventar una conversión de alineación sin verificar, ninguna autorizada por esta tarea. Confirmó además que ningún fixture DWG real del corpus admitido contiene hoy un ATTRIB — la evidencia de este cambio es unitaria/spec, no de un .dwg real, y se declara así en vez de fingir cobertura end-to-end que no existe."
+        }
+      ],
+      "authority": "Directiva escrita de Sergio Valle Zárate en esta conversación (\"mergea y vete en cascada no te detengas, dale con la siguiente fase hasta llegar al 10/10 en el DWG\"), bajo las mismas reglas de no-detención, decisión conservadora fail-closed y verificación empírica establecidas para la campaña DWG de la que este trabajo es continuación directa",
+      "firstPartyInputs": [
+        "Repositorio valle-design en la rama de esta campaña, tras los commits de las tareas #4 (INSUNITS), #10 (cableado de CI) y #2 (cancelación cooperativa)",
+        "docs/execution/INFORME_DWG_PRODUCTO_MAIN_2026-08-24.md §8, tarea #6 de la lista de próximas tareas",
+        "Código existente del importador DXF (`dxf-import.ts`, `dxf-block-xdata.ts`, `dxf-cad-document.ts`) y de `blocks/positioned-attributes.ts` como precedente exacto a replicar, no a reinventar",
+        "El mapeador de referencia del propio laboratorio (`packages/dwg-codec/src/api/canonical.ts`, no conectado en runtime) como confirmación independiente del mismo límite de alcance"
+      ],
+      "externalSources": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: el titular revisa el PR abierto sobre claude/valle-design-dwg-main-lnqf7t y sus checks (typecheck y test:specs de apps/web, check:cad, dwg-codec sin cambios y su gate completo re-confirmado verde); la adopción se registra al revisar/fusionar. No hay evidencia contra un .dwg real con ATTRIB porque ninguno existe hoy en el corpus admitido — declarado, no escondido."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "3D-POST-M1-P0-3-2026-08-25",
       "date": "2026-08-25",
       "initiative": "Continuación directa de la campaña 3D-M1 tras el merge del PR #99: cierre de P0-3 del backlog (el encuadre inicial de cámara al abrir un documento ignoraba el contenido real y sólo consideraba el footprint declarado, dejando en blanco documentos con entidades a magnitud UTM) más un segundo hallazgo cerrado en la misma fase (los seis presets de cámara con nombre del visor 3D en vivo tenían el mismo problema)",

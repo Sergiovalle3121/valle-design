@@ -316,6 +316,7 @@ const mkRecord = (handle: number, entity: DwgGeometryEntity) => ({
 const perfilV3 = toBetaProfileDatabase({
   layers: [],
   blocks: [],
+  insunits: 4,
   modelSpaceEntities: [
     mkRecord(0x50, ELLIPSE),
     mkRecord(0x51, SPLINE_OK),
@@ -343,6 +344,11 @@ assert.equal(
   excluded.length,
   4,
   "spline racional, spline de escenario 2, la angular de dos líneas y RAY quedan fuera del perfil",
+);
+assert.equal(
+  perfilV3.insunits,
+  4,
+  "INSUNITS es un escalar de documento, no de entidad: el estrechado al perfil V3 lo pasa igual",
 );
 assert.ok(
   excluded.some((d) => d.offset === 0x52 && d.message.includes("spline")),

@@ -41,6 +41,7 @@ import {
   importLimitForFileName,
   validateImportFile,
 } from "./document-import";
+import type { CadEntity } from "./cad-document";
 import type {
   DwgNeutralDatabase,
   DwgNeutralEntityRecord,
@@ -213,12 +214,14 @@ const registro = (
   entity: DwgNeutralEntityRecord["entity"],
   layerHandle?: number,
   insertedBlockName?: number[],
-): DwgNeutralEntityRecord => ({ handle, entity, layerHandle, insertedBlockName });
+  attributes?: DwgNeutralEntityRecord[],
+): DwgNeutralEntityRecord => ({ handle, entity, layerHandle, insertedBlockName, attributes });
 
 const vacia: DwgNeutralDatabase = {
   layers: [],
   blocks: [],
   modelSpaceEntities: [],
+  insunits: 0,
   unsupported: [],
   diagnostics: [],
 };
@@ -250,6 +253,7 @@ const soloBloque: DwgNeutralDatabase = {
     },
   ],
   modelSpaceEntities: [],
+  insunits: 0,
   unsupported: [],
   diagnostics: [],
 };
@@ -271,6 +275,7 @@ assert.ok(
 );
 
 const base: DwgNeutralDatabase = {
+  insunits: 0,
   layers: [
     { handle: 0x10, name: bytesDe("MUROS"), colorIndex: 1, stateFlags: 0 },
     { handle: 0x11, name: bytesDe("COTASÑ"), colorIndex: 2, stateFlags: 0 },
@@ -451,10 +456,39 @@ assert.equal(
   "la capa 0 sintética usa ACI 7 (blanco), el default tradicional de AutoCAD",
 );
 
-// ─── Fase 3: unidades asumidas, siempre declaradas ─────────────────────────
+// ─── Fase 3: unidades asumidas cuando INSUNITS no es representable ────────
 assert.ok(
   codigos.has(DWG_BRIDGE_LOSS_CODES.unitAssumed),
-  "las unidades asumidas (INSUNITS no leído) se declaran en todo import, no sólo cuando falla algo",
+  "INSUNITS=0 (sin unidad, el valor de `base`) no es representable: se asume mm y se declara",
+);
+assert.equal(
+  informe.document.meta.unit,
+  "mm",
+  "sin unidad representable, el documento sigue asumiendo milímetros",
+);
+
+// ─── INSUNITS mapeado: unidad real, sin pérdida inventada ──────────────────
+const enMetros: DwgNeutralDatabase = { ...base, insunits: 6 };
+const informeEnMetros = dwgNeutralDatabaseToCadDocument(enMetros);
+assert.equal(
+  informeEnMetros.document.meta.unit,
+  "m",
+  "INSUNITS=6 (metros) se lee de verdad: el documento nace en metros, no en el mm por defecto",
+);
+assert.ok(
+  !informeEnMetros.document.lossManifest.some(
+    (entry) => entry.code === DWG_BRIDGE_LOSS_CODES.unitAssumed,
+  ),
+  "con una unidad representable, no hay nada que asumir: la pérdida no se declara",
+);
+const sinUnidadDeclarada: DwgNeutralDatabase = { ...base, insunits: 7 };
+const informeSinUnidadDeclarada = dwgNeutralDatabaseToCadDocument(sinUnidadDeclarada);
+assert.ok(
+  informeSinUnidadDeclarada.document.lossManifest.some(
+    (entry) =>
+      entry.code === DWG_BRIDGE_LOSS_CODES.unitAssumed && entry.detail.includes("INSUNITS=7"),
+  ),
+  "INSUNITS=7 (kilómetros) se leyó, pero el perfil no lo representa: la pérdida nombra el valor real, no un genérico",
 );
 
 // ─── Fase 3: punto base de bloque, declarado como suposición ──────────────
@@ -495,6 +529,7 @@ assert.equal(
 const conPropiedadesNoDefault: DwgNeutralDatabase = {
   layers: [],
   blocks: [],
+  insunits: 0,
   modelSpaceEntities: [
     registro(0x60, {
       kind: "text",
@@ -560,6 +595,118 @@ assert.ok(
   "un TEXT/LWPOLYLINE con sólo valores por defecto no genera una pérdida falsa",
 );
 
+// ─── ATTRIB de INSERT: el mapa tag→valor que ya decodifica el laboratorio ──
+// `record.attributes` (fase D4 del laboratorio, ya estrechada al perfil V3
+// por la frontera de producto) llega al mismo destino que ya usa DXF: el
+// `attributes: Record<string,string>` de `CadDxfSemanticInsert`, proyectado
+// por las mismas `cadDxfBlocksToCadDocumentParts`/`semanticInsertToEntity`.
+const numeroDeParte = registro(
+  0x71,
+  {
+    kind: "attrib",
+    insertion: { x: 55, y: 52 },
+    elevation: undefined,
+    alignment: undefined,
+    thickness: 0,
+    extrusion: p3(0, 0, 1),
+    obliqueAngle: undefined,
+    rotation: undefined,
+    height: 2.5,
+    widthFactor: undefined,
+    valueBytes: bytesDe("HB-2026-014"),
+    generation: undefined,
+    horizontalAlignment: undefined,
+    verticalAlignment: undefined,
+    tagBytes: bytesDe("PARTNO"),
+    fieldLength: 0,
+    attributeFlags: 0,
+  },
+  0x10,
+);
+const modelo = registro(
+  0x72,
+  {
+    kind: "attrib",
+    insertion: { x: 55, y: 49 },
+    elevation: undefined,
+    alignment: undefined,
+    thickness: 0,
+    extrusion: p3(0, 0, 1),
+    obliqueAngle: undefined,
+    rotation: undefined,
+    height: 2.5,
+    widthFactor: undefined,
+    valueBytes: bytesDe("PVC-60"),
+    generation: undefined,
+    horizontalAlignment: undefined,
+    verticalAlignment: undefined,
+    tagBytes: bytesDe("MODELO"),
+    fieldLength: 0,
+    attributeFlags: 0,
+  },
+  0x10,
+);
+const conAtributos: DwgNeutralDatabase = {
+  layers: [],
+  blocks: [
+    {
+      handle: 0x70,
+      name: bytesDe("CAJETIN"),
+      blockBeginHandle: 0x73,
+      blockEndHandle: 0x74,
+      entities: [],
+    },
+  ],
+  insunits: 0,
+  modelSpaceEntities: [
+    registro(
+      0x75,
+      {
+        kind: "insert",
+        position: p3(55, 55),
+        scale: p3(1, 1, 1),
+        rotation: 0,
+        extrusion: p3(0, 0, 1),
+        attributesFollow: true,
+      },
+      undefined,
+      bytesDe("CAJETIN"),
+      [numeroDeParte, modelo],
+    ),
+  ],
+  unsupported: [],
+  diagnostics: [],
+};
+const informeAtributos = dwgNeutralDatabaseToCadDocument(conAtributos);
+const insertConAtributos = informeAtributos.document.entities.find(
+  (entity) => entity.type === "insert",
+) as Extract<CadEntity, { type: "insert" }> | undefined;
+assert.deepEqual(
+  insertConAtributos?.attributes,
+  { PARTNO: "HB-2026-014", MODELO: "PVC-60" },
+  "los ATTRIB atados al INSERT llegan como el mismo mapa tag→valor que ya usa DXF",
+);
+assert.ok(
+  !informeAtributos.document.lossManifest.some(
+    (entry) =>
+      entry.code === DWG_BRIDGE_LOSS_CODES.unsupportedObject && entry.sourceType === "attrib",
+  ),
+  "con los atributos resueltos, ya no se declara la pérdida de 'atributos sin atar'",
+);
+
+// La anomalía real —`attributesFollow` en `true` sin ningún ATTRIB atado, el
+// INSERT 0x35 de `base` (arriba)— sigue constando, con el motivo correcto en
+// vez del genérico "todavía no lee" que ya no es verdad.
+assert.ok(
+  informe.document.lossManifest.some(
+    (entry) =>
+      entry.code === DWG_BRIDGE_LOSS_CODES.unsupportedObject &&
+      entry.sourceType === "attrib" &&
+      entry.detail.includes("ninguno se pudo atar"),
+  ),
+  "un INSERT que declara atributos sin ninguno atado sigue constando, con el motivo correcto",
+);
+
 // Ángulos: el modelo neutral habla radianes y el canónico grados.
 const arco = dwgGeometryToPrimitive(
   {
@@ -596,6 +743,7 @@ assert.equal(poli?.points[1].bulge, undefined, "un bulge cero no se escribe: aus
 
 console.log(
   "dwg-document-bridge: bandera APAGADA, gate cerrado con 7 bloqueos, .dwg rechazado, mapeo " +
-    "neutral→canónico probado con sus pérdidas declaradas (ver dwg-document-bridge-entities.spec.ts " +
-    "para ELLIPSE/SPLINE/MTEXT/DIMENSION/HATCH)",
+    "neutral→canónico probado con sus pérdidas declaradas, ATTRIB de INSERT proyectado al mismo " +
+    "mapa tag→valor que DXF (ver dwg-document-bridge-entities.spec.ts para " +
+    "ELLIPSE/SPLINE/MTEXT/DIMENSION/HATCH)",
 );

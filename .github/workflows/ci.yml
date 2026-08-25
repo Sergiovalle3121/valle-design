@@ -459,6 +459,26 @@ jobs:
         if: steps.deps.outputs.cache-hit != 'true'
         run: npm ci
 
+      # `dwg-import-real.spec.ts` (e2e/real) exige VALLE_DWG_CORPUS_MIRROR
+      # apuntando a un clon local del repo hermano — sin esto se auto-salta
+      # con su propio test.skip, silenciosamente, en todo run. Mismo patrón
+      # (pin exacto, checkout de sólo lectura) que `quality-gates` ya usa
+      # para `check:dwg-evidence`; este job es OTRO runner y no hereda su
+      # checkout ni su VALLE_DWG_CORPUS_MIRROR.
+      - name: Leer el pin del corpus DWG
+        id: dwg-corpus-pin
+        run: echo "commit=$(node -p "require('./scripts/dwg/corpus-pin.json').commit")" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout del espejo del corpus DWG (repo hermano, sólo lectura)
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: Sergiovalle3121/valle-design-dwg-conformance
+          ref: ${{ steps.dwg-corpus-pin.outputs.commit }}
+          path: .dwg-corpus-mirror
+
+      - name: Exportar VALLE_DWG_CORPUS_MIRROR
+        run: echo "VALLE_DWG_CORPUS_MIRROR=$GITHUB_WORKSPACE/.dwg-corpus-mirror" >> "$GITHUB_ENV"
+
       # Los navegadores pesan cientos de megas y no cambian entre corridas: la
       # clave los ata a la versión de Playwright del lockfile.
       - name: Restaurar navegadores de Playwright
@@ -523,9 +543,17 @@ jobs:
       # origen de la API real que este job arranca (localhost:4000). Los
       # goldens interceptan ese origen en la frontera de red (herméticos);
       # e2e/real NO intercepta nada.
+      #
+      # NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA también se INLINEA aquí, no en el
+      # paso de Playwright: sin ella, `dwg-import-real.spec.ts` se auto-salta
+      # con su propio test.skip pase lo que pase después — faltaba en este
+      # job y la beta de import DWG nunca se había ejercitado de verdad en
+      # CI, en ningún navegador (hallazgo verificado corriendo el spec real
+      # contra este mismo stack fuera de CI, no asumido).
       - name: Build (turbo, web en modo E2E real)
         env:
           NEXT_PUBLIC_API_URL: http://localhost:4000
+          NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA: "true"
         run: npx turbo run build
 
       # API real (R1) contra PostgreSQL 16: mismas migraciones y rutas
@@ -559,6 +587,12 @@ jobs:
           E2E_PROD: "1"
           E2E_API_ORIGIN: http://localhost:4000
           E2E_REAL_API: "1"
+          # `dwg-import-real.spec.ts` comprueba esta bandera DIRECTAMENTE en su
+          # propio test.skip (proceso de Node de Playwright, no sólo el bundle
+          # del navegador) — verificado corriendo el spec real: sin ella aquí
+          # TAMBIÉN, además de en el paso de build, los 9 tests se saltan en
+          # silencio pase lo que pase arriba.
+          NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA: "true"
           E2E_IDENTITY_HARNESS_KEY: valle-design-e2e-harness-key-32-characters-minimum
           # La suite de rendimiento SÓLO fuera de los PR. No es una prueba de
           # corrección: es una medida, y mide lo que ya está en `main`.

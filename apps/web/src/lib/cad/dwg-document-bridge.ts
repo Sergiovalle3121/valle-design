@@ -113,6 +113,28 @@ export const DWG_BRIDGE_LOSS_CODES = Object.freeze({
   primitiveProperty: "dwg_primitive_property_dropped",
 });
 
+/**
+ * INSUNITS (variables de cabecera, capítulo 9) → unidad del documento
+ * canónico. La semántica del entero es del propio sistema de variables de
+ * AutoCAD (pública, la misma para DXF y DWG) — no un hecho de la capa
+ * binaria. Sólo se listan las cinco unidades que el documento canónico sabe
+ * representar hoy (`UNIT_TO_MM` en `associative-dimension.ts`): el resto
+ * (0=sin unidad, millas, kilómetros, unidades astronómicas…) es capacidad
+ * ausente de este perfil de producto, y `resolveDwgUnit` devuelve
+ * `undefined` para que la pérdida se declare en vez de inventar una unidad.
+ */
+const INSUNITS_TO_CAD_UNIT: Readonly<Record<number, string>> = Object.freeze({
+  1: "in",
+  2: "ft",
+  4: "mm",
+  5: "cm",
+  6: "m",
+});
+
+function resolveDwgUnit(insunits: number): string | undefined {
+  return INSUNITS_TO_CAD_UNIT[insunits];
+}
+
 /** Error tipado del puente: nunca un `Error` genérico, nunca un éxito a medias. */
 export class DwgBridgeError extends Error {
   readonly code: "DWG_IMPORT_DISABLED" | "DWG_NO_DECODER" | "DWG_INPUT_REJECTED";
@@ -190,6 +212,28 @@ function layerNameFor(
 }
 
 /**
+ * Los ATTRIB de un INSERT (`record.attributes`, ya estrechados al perfil V3
+ * por la frontera de producto) como el mismo mapa tag→valor que ya usa DXF
+ * (`CadDxfSemanticInsert.attributes`). Esa frontera garantiza que cada
+ * miembro es `kind: "attrib"`; se comprueba de todos modos en vez de
+ * forzarlo con un `as`, por la misma razón que allí: un cambio futuro en esa
+ * garantía no debe colar un tipo ajeno en el mapa sin que el puente lo note.
+ */
+function insertAttributeMap(
+  attributes: readonly DwgNeutralEntityRecord[] | undefined,
+): Record<string, string> {
+  if (attributes === undefined || attributes.length === 0) return {};
+  const map: Record<string, string> = {};
+  for (const attribute of attributes) {
+    if (attribute.entity.kind !== "attrib") continue;
+    map[decodeCodePageBytes(attribute.entity.tagBytes)] = decodeCodePageBytes(
+      attribute.entity.valueBytes,
+    );
+  }
+  return map;
+}
+
+/**
  * `context` distingue model space de contenido de bloque. MTEXT/DIMENSION/
  * HATCH sólo se proyectan en model space: `CadDxfSemanticBlock` no tiene
  * campo para ninguno de los tres —ni siquiera para DXF, donde un bloque sólo
@@ -227,15 +271,19 @@ function mapRecords(
         scaleY: record.entity.scale.y,
         rotation: degrees(record.entity.rotation),
         layer,
-        // Los ATTRIB del formato no los decodifica el laboratorio: la bandera
-        // se conserva como pérdida en vez de fingir un mapa de atributos vacío.
-        attributes: {},
+        attributes: insertAttributeMap(record.attributes),
       });
-      if (record.entity.attributesFollow) {
+      // `attributesFollow` es la bandera del FORMATO; `record.attributes` es
+      // lo que el laboratorio de verdad ató a este INSERT (fase D4, ya
+      // decodificada). Si el archivo declara atributos y ninguno se ató —el
+      // ATTRIB no resolvió a su propietario, una anomalía real del archivo,
+      // no una limitación del decodificador— se declara igual, con el motivo
+      // correcto en vez del genérico "todavía no lee" que ya no es verdad.
+      if (record.entity.attributesFollow && (record.attributes?.length ?? 0) === 0) {
         losses.push({
           code: DWG_BRIDGE_LOSS_CODES.unsupportedObject,
           sourceType: "attrib",
-          detail: `El INSERT ${record.handle} declara atributos que el decodificador todavía no lee.`,
+          detail: `El INSERT ${record.handle} declara atributos, pero ninguno se pudo atar a este INSERT.`,
           severity: "warning",
         });
       }
@@ -437,23 +485,33 @@ export function dwgNeutralDatabaseToCadDocument(
   const { names, definitions, losses: layerLosses } = mapLayers(database.layers);
   const model = mapRecords(database.modelSpaceEntities, names, "modelSpace");
   const blockMap = mapBlocks(database.blocks, names);
+  const resolvedUnit = resolveDwgUnit(database.insunits);
 
   const lossManifest: CadLossManifestEntry[] = [
-    // El laboratorio todavía no decodifica INSUNITS (variable de unidades del
-    // dibujo) en el camino de LECTURA — sí lo hace en el de escritura, pero
-    // eso no ayuda aquí. Asumir milímetros sin poder confirmarlo contra el
-    // archivo es una suposición, y una suposición silenciosa es justo lo que
-    // esta campaña prohíbe: se declara siempre, no sólo cuando "algo salió
-    // mal". Prominente y persistente porque vive en el manifiesto del
+    // INSUNITS SÍ se lee en el camino de lectura (ver `decodeAc1015HeaderVariables`
+    // / `decodeR2004HeaderVariables`, ya wireados en los dos lectores). Lo que
+    // sigue siendo una suposición es la unidad cuando el archivo declara un
+    // valor que el documento canónico todavía no representa (`resolveDwgUnit`
+    // devuelve `undefined`) — y una suposición silenciosa es justo lo que esta
+    // campaña prohíbe: se declara siempre que se asume, no sólo cuando "algo
+    // salió mal". Prominente y persistente porque vive en el manifiesto del
     // documento, no en un toast que desaparece.
-    {
-      code: DWG_BRIDGE_LOSS_CODES.unitAssumed,
-      sourceType: "document",
-      detail:
-        "Las unidades del dibujo (INSUNITS) no se leen todavía en esta beta: el documento se " +
-        "asume en milímetros sin poder confirmarlo contra el archivo.",
-      severity: "warning" as const,
-    },
+    ...(resolvedUnit === undefined
+      ? [
+          {
+            code: DWG_BRIDGE_LOSS_CODES.unitAssumed,
+            sourceType: "document",
+            detail:
+              database.insunits === 0
+                ? "El archivo no declara unidades de dibujo (INSUNITS=0, sin unidad): el documento se " +
+                  "asume en milímetros sin poder confirmarlo contra el archivo."
+                : `El archivo declara INSUNITS=${database.insunits}, una unidad que esta beta todavía ` +
+                  "no representa (sólo pulgadas, pies, milímetros, centímetros y metros): el documento " +
+                  "se asume en milímetros sin poder confirmarlo contra el archivo.",
+            severity: "warning" as const,
+          },
+        ]
+      : []),
     ...layerLosses,
     ...model.losses,
     ...blockMap.losses,
@@ -501,7 +559,7 @@ export function dwgNeutralDatabaseToCadDocument(
     );
   }
 
-  const empty = layoutToCadDocument({}, { unit: "mm" });
+  const empty = layoutToCadDocument({}, { unit: resolvedUnit ?? "mm" });
   const document = migrateCadDocument({
     ...empty,
     layers: definitions,
