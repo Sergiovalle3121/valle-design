@@ -376,6 +376,34 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-COOPERATIVE-CANCELLATION-2026-08-25",
+      "date": "2026-08-25",
+      "initiative": "Cancelación cooperativa real (signal/deadlineMs) en los tres puntos de entrada de lectura del códec DWG — tarea #2 de la lista de próximas tareas del informe de cierre de la campaña DWG anterior, acotada a lo que un agente de investigación dedicado (delegado por esta sesión) determinó seguro de tocar sin auditar además el cruce a worker",
+      "branch": "claude/valle-design-dwg-main-lnqf7t",
+      "assistants": [
+        {
+          "name": "Claude Code (Claude Sonnet 5, Anthropic)",
+          "role": "ejecución autónoma bajo directiva escrita del titular (\"mergea y vete en cascada no te detengas, dale con la siguiente fase hasta llegar al 10/10 en el DWG\"). Antes de tocar el núcleo del parser (la propia tarea #2 lo pedía explícitamente: \"auditoría propia antes de tocar el núcleo del parser\"), delegó una auditoría de sólo-lectura a un agente con acceso de shell completo. Esa auditoría encontró que `ResourceBudget` (la primitiva de presupuesto/cancelación) YA tenía el contrato completo (`clock`/`signal`/`deadlineMs`) y que `probeDwg` ya lo cableaba de punta a punta como patrón de referencia — pero `readAc1015Database`/`readR2004Database` construían su `ResourceBudget` sin opciones, así que ningún llamador podía pasar una señal o un deadline propio. Encontró además un segundo gap más fino: `assembleDatabase` (la segunda pasada, ensamblado por referencias) nunca tocaba el presupuesto en absoluto — ni siquiera el deadline por defecto aplicaba ahí — y documentó por qué cablear una señal VIVA hasta el worker del producto no sería, por sí solo, cancelación responsiva de verdad: el parseo corre en una sola pila síncrona dentro de `self.onmessage`, así que un mensaje de cancelación quedaría en cola sin entregar mientras el parseo síncrono siga corriendo — eso exigiría trocear el bucle caliente para ceder al bucle de eventos, un cambio estructural mayor y sensible a rendimiento, fuera del auditado hoy. Con ese mapa, esta sesión implementó el cierre acotado: un tercer parámetro ADITIVO (`cancellation?: ResourceBudgetOptions`, mismo contrato que `probeDwg`, sin romper ningún llamador existente) en los tres puntos de entrada, y `budget` cableado dentro de `assembleDatabase` con una unidad de trabajo cobrada por objeto en sus tres bucles — la única forma en que esa segunda pasada nota hoy una cancelación o un deadline. Añadió pruebas deterministas (reloj falso congelado, señal ya cancelada, señal que cuenta lecturas) que antes no existían en ningún punto de entrada de lectura completa, incluida una que aísla `assembleDatabase` directamente para probar que la segunda pasada específicamente quedó cubierta. El cableado hasta el worker del producto (`document-import-client.ts`/`document-import.worker.ts`) queda deliberadamente sin tocar — declarado, no escondido — por la razón estructural de arriba."
+        }
+      ],
+      "authority": "Directiva escrita de Sergio Valle Zárate en esta conversación (\"mergea y vete en cascada no te detengas, dale con la siguiente fase hasta llegar al 10/10 en el DWG\"), bajo las mismas reglas de no-detención, decisión conservadora fail-closed y verificación empírica establecidas para la campaña DWG de la que este trabajo es continuación directa",
+      "firstPartyInputs": [
+        "Repositorio valle-design en la rama de esta campaña, tras los commits de la tarea #4 (INSUNITS) y el cableado de CI de la tarea #10",
+        "docs/execution/INFORME_DWG_PRODUCTO_MAIN_2026-08-24.md §8, tarea #2 de la lista de próximas tareas",
+        "Informe del agente de investigación de sólo lectura (delegado por esta sesión, sin escribir código): mapa completo de `ResourceBudget`, `probeDwg` como patrón de referencia, la brecha de `assembleDatabase`, y el riesgo estructural del cruce a worker",
+        "Código existente de `probeDwg`/`ResourceBudget`/`tests/adversarial/resource-limits.spec.ts` como plantilla de contrato, opciones y patrón de prueba determinista (reloj falso, señal que cuenta lecturas)"
+      ],
+      "externalSources": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: el titular revisa el PR abierto sobre claude/valle-design-dwg-main-lnqf7t y sus checks (`packages/dwg-codec`: build+typecheck+test+adversarial+fuzz completos, incl. las 3 pruebas nuevas de cancelación); la adopción se registra al revisar/fusionar."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

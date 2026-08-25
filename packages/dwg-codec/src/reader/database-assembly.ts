@@ -92,6 +92,7 @@ import {
   type Ac1015DecodedDictionaryFamily,
 } from "../objects/objects-dictionary.js";
 import { DwgParseError, throwDwgError } from "../security/parse-error.js";
+import type { ResourceBudget } from "../security/resource-budget.js";
 
 /** Una capa de la base neutral. */
 export interface Ac1015DatabaseLayer {
@@ -383,11 +384,23 @@ export function assertBodyHandleMatchesMap(
 }
 
 /** Segunda pasada: resolver referencias y ensamblar la base neutral. */
+/**
+ * `budget` es el MISMO presupuesto que ya cobró el byte a byte de la
+ * primera pasada — aquí se le cobra 1 unidad de trabajo por objeto en cada
+ * bucle que lo recorre, la única forma en que esta segunda pasada nota una
+ * cancelación o un deadline: antes de esto, `assembleDatabase` corría entera
+ * fuera del presupuesto (ver la nota del lector sobre `readAc1015Database`).
+ * `findBlockByName`, dentro del bucle principal, es O(bloques) por llamada
+ * — cobrar por ITERACIÓN del bucle exterior es la misma granularidad que ya
+ * usa el resto del laboratorio (nada comprueba a mitad de una operación
+ * primitiva), no una comprobación parcial.
+ */
 export function assembleDatabase(
   decodedObjects: readonly DecodedObject[],
   unsupported: readonly Ac1015UnsupportedDatabaseObject[],
   classRecords: readonly Ac1015ClassRecord[],
   insunits: number,
+  budget: ResourceBudget,
 ): Ac1015NeutralDatabase {
   const diagnostics: DwgDiagnostic[] = [];
   const layers: Ac1015DatabaseLayer[] = [];
@@ -415,6 +428,7 @@ export function assembleDatabase(
     readonly record: MutableEntityRecord;
   }[] = [];
   for (const object of decodedObjects) {
+    budget.consume(1, object.offset);
     if (object.kind !== "blockRecord") continue;
     const block: MutableBlock = {
       handle: object.handle,
@@ -428,6 +442,7 @@ export function assembleDatabase(
   }
 
   for (const object of decodedObjects) {
+    budget.consume(1, object.offset);
     switch (object.kind) {
       case "blockRecord":
       case "control":
@@ -531,6 +546,7 @@ export function assembleDatabase(
   // POLYLINE clásica. Lo que no resuelve cae al camino normal (bloque o
   // model space) CON su diagnóstico — nunca se descarta.
   for (const { object, record } of pendingSequenceMembers) {
+    budget.consume(1, object.offset);
     const { references, common } = object.decoded;
     const ownerReference = references.owner;
     const target =

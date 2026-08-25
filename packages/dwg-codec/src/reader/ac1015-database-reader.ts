@@ -41,7 +41,7 @@ import { detectDwgSignature } from "../container/signature.js";
 import { decodeAc1015ClassesSection } from "../objects/objects-dictionary.js";
 import { createInputSnapshot } from "../security/input-snapshot.js";
 import { throwDwgError } from "../security/parse-error.js";
-import { ResourceBudget } from "../security/resource-budget.js";
+import { ResourceBudget, type ResourceBudgetOptions } from "../security/resource-budget.js";
 import {
   assembleDatabase,
   decodeMappedObject,
@@ -69,13 +69,19 @@ const OBJECT_MAP_RECORD_ID = 2;
  * Lee la base de datos neutral completa de un archivo AC1015. `input` son los
  * bytes hostiles del archivo; `limitOverrides` ajusta los topes de
  * `createDwgLimits` (el presupuesto se cobra por byte y por objeto).
+ * `cancellation` es ADITIVO (tercer parámetro, no fusionado con
+ * `limitOverrides`) para que todo llamador existente —incluidos los
+ * `readAc1015Database(file, { maxObjects: 2 })` de las specs— siga
+ * compilando y comportándose igual: `{}` es el default y `ResourceBudget`
+ * ya sabe qué hacer con él, es el mismo mecanismo que `probeDwg` expone hoy.
  */
 export function readAc1015Database(
   input: Uint8Array,
   limitOverrides?: DwgLimitOverrides,
+  cancellation: ResourceBudgetOptions = {},
 ): Ac1015NeutralDatabase {
   const limits = createDwgLimits(limitOverrides);
-  const budget = new ResourceBudget(limits);
+  const budget = new ResourceBudget(limits, cancellation);
   const snapshot = createInputSnapshot(input, limits, budget);
 
   // El probe de firma decide ANTES de tocar estructura: otra versión
@@ -129,7 +135,7 @@ export function readAc1015Database(
     decodedObjects.push(decoded);
   }
 
-  return assembleDatabase(decodedObjects, unsupported, classRecords, headerVariables.insunits);
+  return assembleDatabase(decodedObjects, unsupported, classRecords, headerVariables.insunits, budget);
 }
 
 /** Exactamente un registro del directorio con el id pedido. */

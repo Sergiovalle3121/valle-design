@@ -11,6 +11,7 @@
  */
 import assert from "node:assert/strict";
 import test from "node:test";
+import { createDwgLimits } from "../../src/api/limits.js";
 import type {
   DwgArcEntity,
   DwgCircleEntity,
@@ -19,8 +20,12 @@ import type {
   DwgPointEntity,
 } from "../../src/model/entity-geometry.js";
 import { readAc1015Database } from "../../src/reader/ac1015-database-reader.js";
+import { assembleDatabase } from "../../src/reader/database-assembly.js";
+import type { DwgCancellationSignal } from "../../src/security/resource-budget.js";
+import { ResourceBudget } from "../../src/security/resource-budget.js";
 import { writeAc1015Container } from "../../src/writer/ac1015-container-writer.js";
 import { ascii, assertDwgError } from "../support/assert.js";
+import { FixedClock } from "../support/fake-clock.js";
 
 const PUERTA = [0x50, 0x55, 0x45, 0x52, 0x54, 0x41] as const; // "PUERTA"
 const MUROS = [0x4d, 0x55, 0x52, 0x4f, 0x53] as const; // "MUROS"
@@ -286,6 +291,72 @@ test("gemelo triste: límites bajos caen con el error tipado de recursos", () =>
   assertDwgError(
     () => readAc1015Database(file, { maxFileBytes: 16 }),
     "DWG_FILE_LIMIT_EXCEEDED",
+  );
+});
+
+/**
+ * Cuenta lecturas de `aborted` y sólo se anuncia cancelada a partir de la
+ * N-ésima — determinista, sin reloj de pared. Deja pasar la comprobación de
+ * construcción de `ResourceBudget` (lectura 1) y corta en una lectura
+ * posterior, la de la pasada que se quiera aislar.
+ */
+class CountingCancellation implements DwgCancellationSignal {
+  private reads = 0;
+  public constructor(private readonly abortAtRead: number) {}
+  public get aborted(): boolean {
+    this.reads += 1;
+    return this.reads >= this.abortAtRead;
+  }
+}
+
+test("una señal ya cancelada aborta la lectura completa, tipado", () => {
+  const file = buildPhaseGoalFile();
+  assertDwgError(
+    () =>
+      readAc1015Database(
+        file,
+        { workPollInterval: 1 },
+        { signal: { aborted: true } },
+      ),
+    "DWG_CANCELLED",
+  );
+});
+
+test("un deadline de reloj falso expira de forma determinista, sin dormir", () => {
+  const file = buildPhaseGoalFile();
+  const run = () =>
+    readAc1015Database(
+      file,
+      { workPollInterval: 1 },
+      { clock: new FixedClock(1_000), deadlineMs: 1_000 },
+    );
+  // Corrido dos veces: el mismo reloj CONGELADO da el mismo resultado las
+  // dos, nunca depende de cuánto tarde de verdad esta máquina.
+  assertDwgError(run, "DWG_DEADLINE_EXCEEDED");
+  assertDwgError(run, "DWG_DEADLINE_EXCEEDED");
+});
+
+test("assembleDatabase (segunda pasada) también nota la cancelación — antes corría fuera del presupuesto", () => {
+  // La lectura 1 es la comprobación de construcción de ResourceBudget (deja
+  // pasar); la lectura 2 cae YA DENTRO del primer bucle de assembleDatabase,
+  // que hoy cobra 1 unidad de trabajo por objeto — antes de este cambio esa
+  // pasada no llamaba a `budget` ni una sola vez, así que nada la habría
+  // podido cortar aquí, sin importar cuántos objetos tuviera.
+  const limits = createDwgLimits({ workPollInterval: 1 });
+  const budget = new ResourceBudget(limits, {
+    signal: new CountingCancellation(2),
+  });
+  const layer = {
+    kind: "layer" as const,
+    handle: 0x10,
+    offset: 0,
+    name: [...MUROS],
+    colorIndex: 1,
+    stateFlags: 0,
+  };
+  assertDwgError(
+    () => assembleDatabase([layer], [], [], 0, budget),
+    "DWG_CANCELLED",
   );
 });
 

@@ -67,7 +67,7 @@ import { detectDwgSignature } from "../container/signature.js";
 import type { Ac1015ClassRecord } from "../objects/objects-dictionary.js";
 import { createInputSnapshot } from "../security/input-snapshot.js";
 import { DwgParseError, throwDwgError } from "../security/parse-error.js";
-import { ResourceBudget } from "../security/resource-budget.js";
+import { ResourceBudget, type ResourceBudgetOptions } from "../security/resource-budget.js";
 import {
   assembleDatabase,
   decodeMappedObject,
@@ -89,13 +89,15 @@ const OBJECTS_SECTION_PRELUDE = 0x0dca;
  * Lee la base de datos neutral completa de un archivo de la familia R2004.
  * Hoy decodifica objetos SOLO para AC1018; las versiones R2010+ de la
  * familia fallan cerradas con el motivo exacto (ver cabecera del módulo).
+ * `cancellation` es ADITIVO, mismo contrato que en `readAc1015Database`.
  */
 export function readR2004Database(
   input: Uint8Array,
   limitOverrides?: DwgLimitOverrides,
+  cancellation: ResourceBudgetOptions = {},
 ): Ac1015NeutralDatabase {
   const limits = createDwgLimits(limitOverrides);
-  const budget = new ResourceBudget(limits);
+  const budget = new ResourceBudget(limits, cancellation);
   const snapshot = createInputSnapshot(input, limits, budget);
 
   const signature = detectDwgSignature(snapshot, budget);
@@ -215,7 +217,7 @@ export function readR2004Database(
     decodedObjects.push(decoded);
   }
 
-  return assembleDatabase(decodedObjects, unsupported, classRecords, headerVariables.insunits);
+  return assembleDatabase(decodedObjects, unsupported, classRecords, headerVariables.insunits, budget);
 }
 
 /**
