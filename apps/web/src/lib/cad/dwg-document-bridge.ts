@@ -213,9 +213,9 @@ function layerNameFor(
 
 /**
  * Los ATTRIB de un INSERT (`record.attributes`, ya estrechados al perfil V3
- * por `dwg-native-reader.ts`) como el mismo mapa tag→valor que ya usa DXF
- * (`CadDxfSemanticInsert.attributes`). `dwg-native-reader.ts` garantiza que
- * cada miembro es `kind: "attrib"`; se comprueba de todos modos en vez de
+ * por la frontera de producto) como el mismo mapa tag→valor que ya usa DXF
+ * (`CadDxfSemanticInsert.attributes`). Esa frontera garantiza que cada
+ * miembro es `kind: "attrib"`; se comprueba de todos modos en vez de
  * forzarlo con un `as`, por la misma razón que allí: un cambio futuro en esa
  * garantía no debe colar un tipo ajeno en el mapa sin que el puente lo note.
  */

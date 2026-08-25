@@ -597,7 +597,7 @@ assert.ok(
 
 // ─── ATTRIB de INSERT: el mapa tag→valor que ya decodifica el laboratorio ──
 // `record.attributes` (fase D4 del laboratorio, ya estrechada al perfil V3
-// por `dwg-native-reader.ts`) llega al mismo destino que ya usa DXF: el
+// por la frontera de producto) llega al mismo destino que ya usa DXF: el
 // `attributes: Record<string,string>` de `CadDxfSemanticInsert`, proyectado
 // por las mismas `cadDxfBlocksToCadDocumentParts`/`semanticInsertToEntity`.
 const numeroDeParte = registro(
