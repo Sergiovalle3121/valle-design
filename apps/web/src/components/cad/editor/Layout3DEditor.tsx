@@ -26,10 +26,7 @@ import {
   FlipVertical,
   BrickWall,
   Box as BoxIcon,
-  Eye,
   MapPin,
-  Maximize2,
-  Layers,
   Copy,
   Crosshair,
   Settings2,
@@ -457,6 +454,11 @@ import {
   cadSolidEntityIds,
 } from "@/components/cad/viewport/solid-shade-host";
 import { CadNativeMassHosts } from "@/components/cad/viewport/native-mass-hosts";
+import {
+  applyCadCameraViewPreset,
+  CAD_CAMERA_VIEW_PRESET_BUTTONS,
+  type CadCameraViewPreset,
+} from "@/components/cad/viewport/camera-view-presets";
 import {
   HELP_SECTIONS,
   THEMES,
@@ -12533,17 +12535,12 @@ export default function Layout3DEditor({
     });
     rebuildAll();
   };
-  const viewPreset = (preset: "top" | "iso" | "front") => {
+  const viewPreset = (preset: CadCameraViewPreset) => {
     const cam = cameraRef.current;
     const ctrl = controlsRef.current;
     const ctx = ctxRef.current;
     if (!cam || !ctrl || !ctx) return;
-    const d = Math.max(ctx.W, ctx.H) * ctx.s;
-    if (preset === "top") cam.position.set(0, d * 1.5, 0.01);
-    else if (preset === "front") cam.position.set(0, d * 0.5, d * 1.3);
-    else cam.position.set(d * 0.6, d * 0.85, d * 1.0);
-    ctrl.target.set(0, 0, 0);
-    ctrl.update();
+    applyCadCameraViewPreset(cam, ctrl, ctx, preset);
   };
 
   // World-space bounding box (footprint coords) of all content, or just the
@@ -15415,18 +15412,11 @@ export default function Layout3DEditor({
         <div className="w-px h-5 bg-muted mx-1" />
         {viewMode === "3d" && (
           <>
-            <T3Btn onClick={() => viewPreset("iso")} title="Vista isométrica">
-              <Maximize2 className="w-4 h-4" />
-            </T3Btn>
-            <T3Btn
-              onClick={() => viewPreset("top")}
-              title="Vista superior (planta)"
-            >
-              <Eye className="w-4 h-4" />
-            </T3Btn>
-            <T3Btn onClick={() => viewPreset("front")} title="Vista frontal">
-              <Layers className="w-4 h-4" />
-            </T3Btn>
+            {CAD_CAMERA_VIEW_PRESET_BUTTONS.map(([preset, title, Icon]) => (
+              <T3Btn key={preset} onClick={() => viewPreset(preset)} title={title}>
+                <Icon className="w-4 h-4" />
+              </T3Btn>
+            ))}
             <T3Btn
               active={walk}
               onClick={toggleWalk}
