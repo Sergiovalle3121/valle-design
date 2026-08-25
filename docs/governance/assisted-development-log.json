@@ -582,6 +582,33 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-GAP-MATRIX-STALE-PROSE-2026-08-25",
+      "date": "2026-08-25",
+      "initiative": "Corrige una nota de prosa desactualizada en docs/competitive/autocad-2027-gap-matrix.md que seguía describiendo DWG como \"detecta y rechaza, 2 puntos por honestidad\" cuando la fila auto-generada ya muestra 6/7 con decoder y export propios verificados de verdad (corpus independiente, oráculo externo ODA). Surge de una petición directa del titular de analizar qué le falta a DWG \"sin laboratorios, algo real\": la propia prosa pública del proyecto sobre DWG estaba desactualizada respecto a su propio trabajo reciente.",
+      "branch": "claude/valle-design-dwg-main-lnqf7t",
+      "assistants": [
+        {
+          "name": "Claude Code (Claude Sonnet 5, Anthropic)",
+          "role": "Investigación directa (sin agente) en respuesta a la petición del titular de auditar honestamente el estado real de DWG. Leyó rubric.json (categoría dwg, 4 criterios, 6/7 puntos), docs/cad/evidence/dwg-decoder-matrix.json y dwg-roundtrip.json (ambos con disponibilidadEnProducto:false explícito), ADR-0009 (paquete de promoción, incluida la firma real §6-bis/ter/quater y M3 AC1018 §7) y ADR-0012/ADR-0014 (retiro de la vía de proveedor licenciado por decisión expresa del titular, por presupuesto). Confirmó que el párrafo de prosa en gap-matrix.md, escrito antes de que existiera el decoder/export propios con evidencia real, seguía describiendo la puntuación DWG como si sólo viniera de detectar-y-rechazar el formato — desactualizado respecto al propio rubric.json del repositorio. Confirmó con node scripts/cad/rubric.mjs --markdown que la sección auto-generada (entre los marcadores rubric:begin/rubric:end) es la única que ese script reescribe; la prosa corregida vive fuera de esos marcadores, así que el cambio no interfiere con la regeneración automática (\"Matriz ya al día\" tras el cambio, confirmado)."
+        }
+      ],
+      "authority": "Directiva escrita de Sergio Valle Zárate en esta conversación (\"analiza que más le falta al DWG no quiero laboratorios quiero algo real\"): corrección de exactitud documental encontrada durante esa auditoría, de alcance obviamente seguro (prosa fuera de la sección auto-generada, sin cambio de código ni de comportamiento).",
+      "firstPartyInputs": [
+        "docs/competitive/rubric.json (categoría dwg) y scripts/cad/rubric.mjs/rubric-report.mjs",
+        "docs/cad/evidence/dwg-decoder-matrix.json y dwg-roundtrip.json",
+        "docs/adr/0009-dwg-promotion-package.md, 0012-dwg-doble-via.md, 0014-dwg-via-propia-unica.md"
+      ],
+      "externalSources": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: se incluye en el próximo PR de esta rama para revisión del titular junto con la respuesta a su pregunta sobre qué le falta a DWG. node scripts/cad/rubric.mjs --markdown confirma que la sección auto-generada de la matriz no cambió (\"Matriz ya al día\")."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
