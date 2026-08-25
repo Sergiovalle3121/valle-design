@@ -58,15 +58,31 @@ inventa un segundo modelo — declara el que el DXF propio ya practica.)
    reloj, azar ni red durante la conversión.
 5. **Sin re-encuadre silencioso.** Trasladar coordenadas (p. ej. UTM → marco
    local) sólo con el desplazamiento REGISTRADO en el documento, reversible al
-   exportar. (Deuda conocida: una de las dos rutas DXF actuales re-encuadra
-   sin registrar — unificarlas bajo este contrato es la entrada R.1/backlog.)
+   exportar. (Actualizado 2026-08-25, P0-3/backlog: la ruta de conversión a
+   editable del DXF de fondo, `convertDxfPrimitivesToEditable` en
+   `Layout3DEditor.tsx`, sí re-encuadraba en silencio al normalizar contra el
+   backdrop — YA declara el desplazamiento exacto en `lossManifest`
+   [`dxf_import:origin_shifted`, `components/cad/interop/dxf-editable-import-losses.ts`].
+   Sigue SIN ser reversible automáticamente al reexportar — esa ruta nunca fue
+   un importador fiel de ida y vuelta [la mitad de lo que produce son `Asset`
+   sin representación DXF propia], así que prometerlo sería fingir una
+   fidelidad que no tiene; la reversión automática exigiría un campo nuevo a
+   nivel de documento, deuda aparte y no bloqueante. `DXFIN`/la importación
+   del dashboard nunca tuvieron este defecto: usan proyección identidad.)
 
-## Estado real hoy (2026-08-22)
+## Estado real hoy (actualizado 2026-08-25, P0-3)
 
 - **DXF**: lectura y escritura propias en `apps/web/src/lib/cad/` con
-  manifiesto de pérdidas — el adaptador de referencia, aunque aún con DOS
-  rutas de importación por unificar (backlog) y tope de 50,000 entidades
-  declarado en código.
+  manifiesto de pérdidas — el adaptador de referencia. Dos rutas de lectura,
+  no una: `DXFIN`/la importación del dashboard (fiel, proyección identidad,
+  la que este contrato describe) y la conversión del DXF-de-fondo a entidades
+  editables (`convertDxfPrimitivesToEditable`, una función de TRAZADO
+  deliberadamente distinta — simplifica a muros/zonas, no compite con la
+  primera). "Unificarlas" en el sentido de eliminar la segunda no es el
+  arreglo correcto (investigado y descartado, ver BACKLOG P0-3); lo que sí se
+  cerró es que su re-encuadre ya no es silencioso (guarantía 5, arriba). Los
+  cuatro topes de entidades del código (50.000/40.000/850/1.500) ya estaban
+  declarados cada uno por el mecanismo que le corresponde a su ruta.
 - **DWG**: detectar-y-decir-no en el producto; laboratorio y códec propio
   aparte (ADR-0012 define las dos vías y el criterio de cambio).
 - **PDF**: exportación propia (trazado); importación con corpus propio.

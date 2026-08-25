@@ -36,39 +36,73 @@ cola viva, no el museo (el museo es `docs/history/`).
   tener un asterisco.
 - **Estimación:** 15 minutos una vez decidido.
 
-### P0-3 · Las dos rutas de importación DXF divergen y una re-encuadra en silencio
-- **Qué falla:** dos rutas con comportamiento distinto; una re-encuadra el
-  plano automáticamente SIN registrar el desplazamiento (pérdida de
-  georreferencia silenciosa — viola la garantía 5 del contrato de interop);
-  tope de 50,000 entidades (`apps/web/src/lib/cad/dxf-import.ts:267`) y corte
-  de ~850 objetos en la ruta editable.
-- **Parte YA CERRADA de este hallazgo** (2026-08-25, campaña post-3D-M1, PR
-  #99 + #102): el sub-hallazgo de encuadre de cámara (hallado cerrando P0-2,
-  mismo origen) resultó ser dos cosas DISTINTAS, no una — investigado a fondo
-  antes de tocar código (ver `docs/execution/CAMPANA_3D_POST_M1_20260825.md`).
+### P0-3 · Las dos rutas de importación DXF divergen — encuadre de cámara YA cerrado; el re-encuadre de datos y el alcance de "unificar" quedan acotados por investigación real
+- **Qué decía originalmente:** dos rutas con comportamiento distinto; una
+  re-encuadra el plano automáticamente SIN registrar el desplazamiento
+  (pérdida de georreferencia silenciosa — viola la garantía 5 del contrato de
+  interop); tope de 50,000 entidades (`apps/web/src/lib/cad/dxf-import.ts:267`)
+  y corte de ~850 objetos en la ruta editable, ninguno declarado.
+- **Parte YA CERRADA — encuadre de cámara** (2026-08-25, campaña post-3D-M1,
+  PR #99 + #102): el sub-hallazgo de encuadre de cámara (hallado cerrando
+  P0-2, mismo origen) resultó ser dos cosas DISTINTAS, no una — investigado a
+  fondo antes de tocar código (`docs/execution/CAMPANA_3D_POST_M1_20260825.md`).
   "Ajustar a la planta" (Shift+F) usa el footprint declarado A PROPÓSITO; NO
-  es un bug, es un comando distinto de "Ajustar a contenido" (F), que ya
-  usaba los límites reales desde antes. El bug real, más angosto: sólo el
-  **encuadre inicial** al abrir un documento ignoraba el contenido — arreglado
-  con un `useEffect` en `Layout3DEditor.tsx` que reencuadra sobre el contenido
-  real cuando es disjunto del footprint (`boundsIntersect`); los seis presets
-  de cámara con nombre tenían el mismo problema y se cerraron en la misma
-  fase (`camera-view-presets.ts`, quinto parámetro `content`).
-  `e2e/golden/57-cad-utm-precision.spec.ts` ya no rodea el gap: prueba el
-  arreglo con un footprint de sitio real (12×10 m) en vez de uno extendido a
-  mano.
-- **Qué queda abierto** (el núcleo real de P0-3, sin tocar): las DOS rutas de
-  importación DXF siguen sin unificar bajo `docs/interop/CONTRATO-INTEROP.md`
-  — el re-encuadre silencioso al IMPORTAR (distinto del encuadre de cámara ya
-  cerrado arriba: esto pierde el desplazamiento del propio documento, no sólo
-  el punto de vista), el tope de 50,000 entidades y el corte de ~850 objetos
-  en la ruta editable, sin declarar ninguno al usuario cuando se alcanzan.
-- **Criterio:** UNA ruta bajo `docs/interop/CONTRATO-INTEROP.md`: manifiesto
-  de pérdidas obligatorio, desplazamiento registrado y reversible al exportar,
-  topes DECLARADOS al usuario cuando se alcanzan (no silencio).
-- **Prueba:** spec de round-trip UTM (importar→exportar→comparar coordenadas
-  absolutas) + spec del aviso de tope. **Estimación:** 2–3 días.
-  Depende de: nada.
+  es un bug. El bug real, más angosto: sólo el **encuadre inicial** al abrir
+  un documento ignoraba el contenido — arreglado con un `useEffect` que
+  reencuadra sobre el contenido real cuando es disjunto del footprint
+  (`boundsIntersect`); los seis presets de cámara con nombre tenían el mismo
+  problema y se cerraron en la misma fase (`camera-view-presets.ts`, quinto
+  parámetro `content`). `e2e/golden/57-cad-utm-precision.spec.ts` ya no rodea
+  el gap: prueba el arreglo con un footprint de sitio real (12×10 m).
+- **Parte YA CERRADA — re-encuadre silencioso de DATOS al convertir** (mismo
+  día, mismo PR de seguimiento): un agente de exploración read-only mapeó las
+  dos rutas con cita `file:line` antes de tocar nada (evita repetir el error
+  de asumir la causa desde la prosa del backlog). Hallazgo: hay realmente
+  CUATRO caminos de lectura DXF, agrupables en dos — Route A (`DXFIN` +
+  importación del dashboard, `dxf-import.ts`/`dxf-cad-document.ts`, proyección
+  IDENTIDAD, sin re-encuadre) y Route B (`convertDxfPrimitivesToEditable` en
+  `Layout3DEditor.tsx`, conversión del DXF de fondo a entidades editables +
+  `Asset` de muro/zona heredados). El re-encuadre silencioso vive SÓLO en
+  Route B, en `projectDxfPoint`/`dxfPrimitiveBounds`: resta el rectángulo
+  envolvente del DXF para alinear con el backdrop, y ese desplazamiento nunca
+  quedaba registrado. Cerrado: `describeDxfOriginOffsetLoss`/
+  `buildDxfConversionLossManifest`
+  (`components/cad/interop/dxf-editable-import-losses.ts`, 20 aserciones
+  unitarias) declara el desplazamiento exacto (`dxf_import:origin_shifted`)
+  en `document.lossManifest` — visible en el paquete de entrega y en el
+  preflight de exportación, igual que el resto de las pérdidas de este mismo
+  flujo. `e2e/golden/27-cad-dxf-loss-manifest.spec.ts` extendido, 3 corridas
+  verdes. **Honesto sobre el límite:** esta ruta nunca fue un importador fiel
+  de ida y vuelta (medio de lo que produce son `Asset` sin representación DXF
+  propia, texto truncado a 80 caracteres) — el desplazamiento queda
+  DECLARADO, no auto-revertido al reexportar; prometer lo segundo sería
+  fingir una fidelidad que Route B nunca tuvo.
+- **Hallazgo que CORRIGE la redacción original — los topes YA estaban
+  declarados:** la misma investigación confirmó, cita por cita, que los
+  cuatro topes numéricos del código (50.000 en `dxf-import.ts:267`, 40.000 en
+  `components/cad/interop/dxf.ts:20`, 850 en `Layout3DEditor.tsx` y 1.500 en
+  `dxf-walls.ts`) YA se declaraban al usuario cada uno por el mecanismo que le
+  corresponde a su ruta (informe de fidelidad / `lossManifest` / toast — el
+  modelo `Asset` heredado no tiene `lossManifest`, así que el toast es su
+  mecanismo correcto, no uno degradado). El backlog original afirmaba lo
+  contrario sin haberlo verificado contra el código; corregido aquí en vez de
+  dejarlo pasar.
+- **Qué queda abierto de verdad:** "UNA ruta" en el sentido literal de
+  eliminar Route B no es el arreglo correcto — es una función de TRAZADO
+  deliberadamente distinta (simplifica a muros/zonas editables desde un
+  backdrop), no un segundo importador fiel compitiendo con `DXFIN`. Lo que
+  sigue pendiente, si alguien lo prioriza: (a) reversión automática del
+  desplazamiento de Route B al reexportar a DXF — exigiría un campo nuevo a
+  nivel de documento (bump de esquema) más lógica de exportación, deuda
+  aparte, no bloqueante; (b) el propio `parseDxf` (`components/cad/interop/dxf.ts`)
+  también re-encuadra en silencio, pero sólo afecta el backdrop de referencia
+  —de su propio comentario: "para usar como fondo, no para re-ingenierarlo"—
+  nunca escribe en `CadDocument`, así que no es el defecto de pérdida de
+  datos que temía esta entrada.
+- **Prueba:** `components/cad/interop/dxf-editable-import-losses.spec.ts`
+  (20/20) + `e2e/golden/27-cad-dxf-loss-manifest.spec.ts` (3/3 corridas
+  vivas). **Estado:** cerrado en el alcance real verificado; lo que queda
+  (a/b arriba) es deuda de seguimiento, no bloquea nada hoy.
 
 ---
 

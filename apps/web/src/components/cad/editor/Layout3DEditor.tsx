@@ -100,6 +100,7 @@ import {
   dxfToWalls,
 } from "@/components/cad/interop/dxf-walls";
 import { dxfSnapPoints } from "@/components/cad/interop/dxf-snap";
+import { buildDxfConversionLossManifest } from "@/components/cad/interop/dxf-editable-import-losses";
 import { autoDimensions, type DimBox } from "@/lib/cad/auto-dimensions";
 import {
   CadDiagnosticsReadout,
@@ -10232,21 +10233,12 @@ export default function Layout3DEditor({
       );
       rebuildDims();
     }
-    const importLossManifest = preview.warnings.map((warning) => ({
-      code: `dxf_import:${warning.code}`,
-      sourceType: warning.entityType ?? "DXF",
-      detail: warning.layer
-        ? `${warning.message} · layer ${warning.layer}`
-        : warning.message,
-      severity: "warning" as const,
-    }));
-    if (truncated)
-      importLossManifest.push({
-        code: "dxf_import:conversion_truncated",
-        sourceType: "DXF",
-        detail: `La conversión editable se limitó a ${cap} entidades por seguridad.`,
-        severity: "warning",
-      });
+    // P0-3: incluye el desplazamiento silencioso de `projectDxfPoint` — ver dxf-editable-import-losses.ts.
+    const importLossManifest = buildDxfConversionLossManifest(
+      preview.warnings,
+      { truncated, cap },
+      { dx: -bounds.minX, dy: -bounds.maxY },
+    );
     if (nativeCreated.length || importLossManifest.length) {
       const current = snapshotDocument();
       const nativeIds = new Set(nativeCreated.map((entity) => entity.id));
@@ -10294,8 +10286,11 @@ export default function Layout3DEditor({
     if (!nativeCreated.length && created.length) select(created.slice(0, 80));
     markDirty();
     rebuildAll();
+    const originShifted = importLossManifest.some(
+      (entry) => entry.code === "dxf_import:origin_shifted",
+    );
     toast.success(
-      `${created.length} objeto(s), ${nativeCreated.length} entidad(es) nativa(s), ${importedBlockParts.blocks.length} bloque(s) y ${notes} nota(s) convertidos${truncated ? " (recortado por seguridad)" : ""}.`,
+      `${created.length} objeto(s), ${nativeCreated.length} entidad(es) nativa(s), ${importedBlockParts.blocks.length} bloque(s) y ${notes} nota(s) convertidos${truncated ? " (recortado por seguridad)" : ""}${originShifted ? " (origen desplazado, ver detalle en pérdidas)" : ""}.`,
       "DXF editable",
     );
   };

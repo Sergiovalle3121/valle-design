@@ -106,9 +106,14 @@ test('DXF import remains editable/exportable and persists an explicit loss manif
   await test.step('45. Verificar loss manifest', async () => {
     expect(backend.snapshot().document.lossManifest).toEqual(expect.arrayContaining([
       expect.objectContaining({ code: 'dxf_import:unsupported_entity', sourceType: '3DFACE', severity: 'warning' }),
+      // P0-3: el ARC de este DXF vive en (1000,1000), no en el origen — la
+      // conversión a editable lo desplaza para alinear con el backdrop, y
+      // ese desplazamiento ya no es mudo (dxf-editable-import-losses.ts).
+      expect.objectContaining({ code: 'dxf_import:origin_shifted', sourceType: 'DXF', severity: 'warning' }),
     ]));
     await page.getByTitle(/Paquete de entrega/).click();
     await expect(page.getByTestId('cad-sheet-package-manifest')).toContainText('dxf_import:unsupported_entity');
+    await expect(page.getByTestId('cad-sheet-package-manifest')).toContainText('dxf_import:origin_shifted');
     await page.getByLabel('Cerrar paquete de entrega').click();
   });
 
