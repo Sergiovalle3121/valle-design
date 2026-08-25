@@ -106,7 +106,16 @@ expuesta de la API. Esto también evita reabrir una decisión de seguridad
 - `use-cad-comments.spec.ts` — 10/10.
 - `node scripts/run-specs.mjs` (apps/web) — 410/410 verdes (incluye trabajo
   fusionado de otras sesiones vía el merge de `main`, no sólo lo de esta fase).
-- `npm test` (apps/api) — 688/688 verdes.
+- `npm test` (apps/api) — 688/688 verdes; 694/694 tras el arreglo de
+  presupuesto de monolito (+6 de `rate-limit-retry.spec.ts`).
+- `node scripts/cad/check-monolith-budget.mjs` — verde (887/887, ver más
+  abajo). `npx eslint` limpio sobre los tres archivos tocados/nuevos de
+  `load-probe`. `npm run typecheck` (monorepo, turbo) — 7/7 tareas verdes.
+  `check:cad` completo hasta `check:dwg-evidence` (que exige el espejo del
+  corpus DWG que sólo CI monta; falla igual con estos cambios apartados vía
+  `git stash`, confirmando que es hueco de entorno local, no regresión) y
+  desde ahí en adelante (`check:command-integrity`, `rubric.spec.mjs`,
+  `rubric.mjs`) también verde, rúbrica total sin cambios (190/220).
 - **`npm run evidence:review-concurrency` contra PostgreSQL 16 real, 3
   corridas, DOS pasadas** (la segunda sólo para propagar
   `rateLimitRetriesPerRun` al artefacto — ningún cambio de lógica entre
@@ -130,6 +139,40 @@ resolverlo por unión por `id` se encontró que `origin/main` YA traía una
 entrada duplicada por accidente (`DWG-GAP-MATRIX-STALE-PROSE-2026-08-25`,
 dos copias byte-idénticas, preexistente a este merge, ajena a esta fase). Se
 corrigió como parte natural de la misma resolución en vez de perpetuarlo.
+
+## CI en rojo al abrir el PR: presupuesto de monolito
+
+`review-concurrency.main.ts` no es sólo el probe — tiene su propia asignación
+explícita en `scripts/cad/monolith-budget.json` (882 líneas, la MISMA
+disciplina que `Layout3DEditor.tsx` pero para un archivo mucho más chico).
+Estaba exactamente en su techo en `main` (882/882, cero holgura) antes de
+esta fase; añadir el reintento en línea lo llevó a 931 y CI de GitHub
+Actions lo bloqueó en "Contrato · Build · Test · Lint · Smoke" — un fallo
+genuino del propio diff, no el patrón de flake E2E conocido de PRs
+anteriores.
+
+Arreglo, misma disciplina de extracción que ya se usó toda la campaña para
+`Layout3DEditor.tsx` ("mueve el código nuevo a un módulo aparte", el mensaje
+del propio gate): `apps/api/src/load-probe/rate-limit-retry.ts` (nuevo) saca
+`callWithRateLimitRetry` (el primitivo puro de reintento) y
+`createTimedRateLimitRetry` (una fábrica que produce un `timed` con
+reintento y su propio contador — para que quien llama no necesite una
+variable mutable propia sólo para leerlo al final). Bajó el archivo de 931 a
+892 líneas; el resto (import, la asignación del `const` que devuelve la
+fábrica, y el campo nuevo del reporte) es la huella MÍNIMA irreducible de la
+función en un archivo que partía sin holgura — no hay forma de añadir nada
+aquí, por pequeño que sea, con cero líneas netas.
+
+Por esas últimas 5 líneas (887 finales) se usó el mecanismo que el propio
+script declara para exactamente este caso —
+`check-monolith-budget.mjs --update --allow-growth`, que sube el techo de
+UN archivo y deja el delta visible en el manifiesto (882 → 887) en vez de
+crecer en silencio. Nuevo módulo cubierto con su propio spec
+(`rate-limit-retry.spec.ts`, 6/6, temporizadores falsos: éxito sin
+reintento, reintento respetando `retryAfterSeconds`, `maxRetries` agotado
+devolviendo el último 429 sin colgarse, tope por `maxWaitMs`, default de 1s
+cuando el cuerpo no trae el campo, y el contrato de `createTimedRateLimitRetry`
+— un solo `record` con el desenlace final, contador de reintentos correcto).
 
 ## Qué queda abierto, declarado y no escondido
 
