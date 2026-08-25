@@ -165,3 +165,74 @@ dos flags apagados por defecto en producción pública
   declaraba el corte 2026-08-14: su semántica bit a bit no está confirmada
   contra corpus real para el binario DWG. Sin exportación conectada al
   producto: el writer AC1015 sigue siendo capacidad de laboratorio.
+
+## Evidencia del corte 2026-08-25 (M5: `writeCanonicalDwg`, función pública de escritura)
+
+ADR-0009 §8 autorizó EMPEZAR M5 (exportación DWG) el 2026-08-25, exigiendo
+explícitamente, ANTES de cablear nada al producto, "que exista una función
+pública de escritura en el laboratorio (equivalente a `readDwg` en
+`api/read.ts`)" verificada con la misma disciplina de `check:dwg` que ya
+rige la lectura (§8.2). Este corte entrega esa función — **no** la
+integración de producto, que sigue siendo trabajo posterior y su propia
+autorización, ni tampoco declara cumplido §8.2 (ver el límite honesto abajo).
+
+- **`writeCanonicalDwg`** (`packages/dwg-codec/src/api/write.ts`, exportada
+  desde `index.ts`): documento canónico → archivo AC1015 completo, tan
+  delgada como `readDwg` — sin I/O, determinista, cero geometría propia.
+  Encadena dos piezas YA VERIFICADAS: `canonicalDocumentToDwgEntities`
+  (documento → entidades escribibles) y `writeAc1015MinimalFile` (entidades
+  → archivo completo). Cubre las siete clases que autoriza ADR-0009 §8.1:
+  LINE, POINT, CIRCLE, ARC, LWPOLYLINE, TEXT, INSERT — el mismo subconjunto
+  que el writer de bajo nivel, ni una clase más.
+- **POINT cerrado en `canonicalDocumentToDwgEntities`**: el mapeo
+  documento-canónico→DWG tenía un `case` faltante para POINT pese a que el
+  writer de bajo nivel ya lo escribía completo (confirmado leyendo
+  `ac1015-entity-writer.ts` antes de tocar código) y pese a que el propio
+  comentario de la función ya lo listaba como soportado — una promesa
+  documentada sin implementación, cerrada en este corte, no una capacidad
+  nueva más allá de lo que ADR-0009 §8.1 ya nombraba.
+- **Límite ASCII declarado de nombres de capa/bloque**: el archivo mínimo
+  exige `readonly number[]` (bytes), no `string`, para nombres; esta fase
+  sólo resuelve nombres ASCII (1 a 255 caracteres, ninguno por encima de
+  127) — el mismo límite que hoy sólo vivía ad-hoc en el helper `ascii()`
+  de `oda-roundtrip.mjs`, aquí hecho explícito y con pérdida declarada. Un
+  nombre fuera de ese límite nunca se trunca ni se transcribe a medias: una
+  capa así declarada cae a la capa "0" (pérdida `layer-name-not-ascii`, la
+  entidad se sigue escribiendo) y un INSERT hacia un bloque así declarado
+  se omite del archivo entero (pérdida `insert-block-name-not-ascii`) —
+  insertar en "0" en vez del bloque pedido dibujaría algo distinto, así que
+  ahí no hay *fallback*, sólo omisión declarada.
+- **El contenido de un bloque de usuario no viaja todavía**: un INSERT
+  referenciado obtiene un `BLOCK_RECORD` real y vacío (para que la
+  referencia resuelva) con su propia pérdida declarada
+  (`insert-block-content-not-written`); mapear `document.blocks[].entities`
+  queda pendiente de una fase posterior de esta ola de escritura, no de
+  este primer contrato público.
+- **Round-trip PROPIO verde**: `tests/unit/write-canonical-dwg.spec.ts`
+  cubre las siete clases autorizadas ida y vuelta por `writeCanonicalDwg` →
+  `readDwg` (tolerancia 1e-6, la misma que usa el harness del oráculo), el
+  límite ASCII de capa Y de bloque con su pérdida declarada, una clase
+  fuera de perfil (`canonical-type-not-writable`, código ya existente, sin
+  necesidad de uno nuevo) y determinismo. `npm run check` del paquete
+  (provenance, fixtures, no-io, boundary, build, typecheck, unit,
+  adversarial, fuzz) queda en verde con este contrato incluido.
+- **`scripts/dwg/oda-roundtrip.mjs` ampliado, sin ejecutar aquí**: el caso
+  `figuras` suma una entidad POINT (antes sin cobertura en ese harness) y
+  su comparador gana un `case "point"`. Verificado de forma independiente
+  contra el lector propio en este entorno (archivo bien formado, abre sin
+  diagnósticos, POINT recuperado exacto) — lo único que este entorno no
+  puede hacer es invocar el binario del ODA File Converter.
+
+**Límite honesto sin suavizar — lo que este corte NO entrega**: la mitad
+del oráculo EXTERNO que exige ADR-0009 §8.2 sigue PENDIENTE. El ODA File
+Converter sólo corre en Windows (máquina del propietario) y no está
+disponible en este entorno; el caso POINT añadido a `oda-roundtrip.mjs`
+queda listo pero SIN CORRER. Los cuatro casos ya verificados en
+`docs/cad/evidence/dwg-oda-roundtrip.json` son ANTERIORES a
+`writeCanonicalDwg` y sólo prueban `writeAc1015MinimalFile` con sus
+opciones de bajo nivel armadas a mano — no ejercitan la resolución de
+nombres ni el manifiesto de pérdidas que esta función añade, así que no se
+reclaman como evidencia de este contrato nuevo. Sigue sin existir ninguna
+integración de producto, ningún flag, ningún botón "Exportar como DWG":
+tanto el writer AC1015 de bajo nivel como `writeCanonicalDwg` siguen siendo
+capacidad de laboratorio.

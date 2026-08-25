@@ -68,6 +68,13 @@ const LINE = {
   thickness: 0,
   extrusion: { x: 0, y: 0, z: 1 },
 };
+const POINT = {
+  kind: "point",
+  position: { x: -6, y: 8.5, z: 0 },
+  thickness: 0,
+  extrusion: { x: 0, y: 0, z: 1 },
+  xAxisAngle: 0,
+};
 const CIRCLE = {
   kind: "circle",
   center: { x: 10, y: 10, z: 0 },
@@ -150,6 +157,7 @@ const CASES = [
     name: "figuras",
     options: {
       entities: [
+        { entity: POINT },
         { entity: CIRCLE },
         { entity: ARC },
         { entity: TEXT },
@@ -158,6 +166,7 @@ const CASES = [
     },
     expectedLayers: [{ name: "0", color: 7 }],
     expectedEntities: [
+      { kind: "point", layer: "0", entity: POINT },
       { kind: "circle", layer: "0", entity: CIRCLE },
       { kind: "arc", layer: "0", entity: ARC },
       { kind: "text", layer: "0", entity: TEXT },
@@ -207,6 +216,14 @@ function compareEntity(expected, normalized, mismatches, label) {
     case "line":
       if (!near3(f.start, e.start)) push(`start ${JSON.stringify(f.start)}`);
       if (!near3(f.end, e.end)) push(`end ${JSON.stringify(f.end)}`);
+      return;
+    case "point":
+      // El helper del oráculo (expectedFromOracle, importado sin modificar)
+      // sólo expone la posición del grupo 10/20/30 de un POINT DXF; el
+      // ángulo del eje X (grupo 50) no tiene campo en su normalización, así
+      // que esta comparación se limita a lo que el helper entrega — igual
+      // que INSERT más abajo ignora la extrusión por la misma razón.
+      if (!near3(f.position, e.position)) push(`position ${JSON.stringify(f.position)}`);
       return;
     case "circle":
       if (!near3(f.center, e.center)) push(`center ${JSON.stringify(f.center)}`);

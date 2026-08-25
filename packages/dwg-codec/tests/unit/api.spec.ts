@@ -35,7 +35,7 @@ function expectError(result: DwgProbeResult): DwgError {
   return result.error;
 }
 
-test("the package exposes exactly six callable public boundaries", () => {
+test("the package exposes exactly seven callable public boundaries", () => {
   const functions = Object.entries(publicApi).filter(
     ([, value]) => typeof value === "function",
   );
@@ -52,6 +52,12 @@ test("the package exposes exactly six callable public boundaries", () => {
       // público apuntaba al contenedor — la mentira por omisión que la
       // auditoría señaló y que esta lista impide reintroducir.
       "writeAc1015Container",
+      // `writeCanonicalDwg` (ADR-0009 §8, M5) es el equivalente de ESCRITURA
+      // de `canonicalDocumentToDwgEntities`/`dwgDatabaseToCanonicalDocument`:
+      // documento canónico → archivo AC1015 completo. Distinto de `writeDwg`
+      // (que parte de las opciones de bajo nivel del archivo mínimo, no de
+      // un documento canónico) y nunca reutiliza ese nombre.
+      "writeCanonicalDwg",
       "writeDwg",
     ],
   );

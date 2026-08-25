@@ -23,3 +23,4 @@ import "./unit/security.spec.js";
 import "./unit/table-block.spec.js";
 import "./unit/table-layer.spec.js";
 import "./unit/tables-symbol.spec.js";
+import "./unit/write-canonical-dwg.spec.js";
