@@ -131,6 +131,33 @@ function outOfProfileDiagnostic(handle: number, kind: string): DwgNeutralDiagnos
   };
 }
 
+/**
+ * Un ATTRIB atado a un INSERT (`record.attributes` del laboratorio). No pasa
+ * por `toBetaProfileGeometry`: ese filtro decide qué entra como entidad de
+ * NIVEL SUPERIOR del perfil V3, y un ATTRIB nunca lo es — vive colgado de un
+ * INSERT que ya está en perfil, igual que `insertedBlockName`.
+ *
+ * El ensamblado del laboratorio (`pendingSequenceMembers` en
+ * `database-assembly.ts`) sólo ata AC1015_TYPE_ATTRIB a `attributes`: este
+ * miembro siempre decodifica a `kind: "attrib"`. Se comprueba en vez de
+ * forzarlo con un `as`, para que un cambio futuro en esa garantía no cuele un
+ * tipo ajeno en silencio.
+ */
+function toBetaProfileAttributeRecord(
+  record: DwgDatabaseEntityRecord,
+): DwgNeutralEntityRecord | null {
+  if (record.entity.kind !== "attrib") return null;
+  return {
+    handle: record.handle,
+    entity: record.entity,
+    layerHandle: record.layerHandle,
+    insertedBlockName: undefined,
+    // Un ATTRIB nunca es propietario de otra secuencia (sólo un INSERT lo
+    // es): siempre llega sin atributos propios.
+    attributes: undefined,
+  };
+}
+
 function toBetaProfileRecord(
   record: DwgDatabaseEntityRecord,
   diagnostics: DwgNeutralDiagnostic[],
@@ -140,11 +167,15 @@ function toBetaProfileRecord(
     diagnostics.push(outOfProfileDiagnostic(record.handle, record.entity.kind));
     return null;
   }
+  const attributes = record.attributes
+    ?.map(toBetaProfileAttributeRecord)
+    .filter((attribute): attribute is DwgNeutralEntityRecord => attribute !== null);
   return {
     handle: record.handle,
     entity: geometry,
     layerHandle: record.layerHandle,
     insertedBlockName: record.insertedBlockName,
+    attributes: attributes !== undefined && attributes.length > 0 ? attributes : undefined,
   };
 }
 

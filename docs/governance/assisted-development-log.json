@@ -404,6 +404,34 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-INSERT-ATTRIB-2026-08-25",
+      "date": "2026-08-25",
+      "initiative": "Expone los ATTRIB de un INSERT (ya decodificados por el laboratorio) al documento canónico, por el mismo camino que ya usa DXF — tarea #6 de la lista de próximas tareas del informe de cierre de la campaña DWG anterior",
+      "branch": "claude/valle-design-dwg-main-lnqf7t",
+      "assistants": [
+        {
+          "name": "Claude Code (Claude Sonnet 5, Anthropic)",
+          "role": "ejecución autónoma bajo directiva escrita del titular (\"mergea y vete en cascada no te detengas, dale con la siguiente fase hasta llegar al 10/10 en el DWG\"). Delegó la investigación y la implementación completas a un agente con acceso de shell (sin escribir código él mismo primero), verificado después de punta a punta por esta sesión antes de aceptarlo: re-corridos independientes de typecheck/test:specs/check:cad y lectura línea a línea del diff, no sólo el informe del agente. El agente encontró que `Ac1015DatabaseEntityRecord.attributes` (fase D4 del laboratorio) SÍ decodifica ATTRIB con su propio tipo distinguible (`kind: \"attrib\"`, con `tagBytes` propio — no un TEXT genérico) pero `toBetaProfileRecord` (la frontera de producto en `dwg-native-reader.ts`) lo descartaba al construir `DwgNeutralEntityRecord`, sin razón técnica. Investigó primero cómo DXF ya resuelve el mismo problema (dos mecanismos separados y nunca fusionados: `attributes: Record<string,string>` poblado en import, y `positionedAttributes` con geometría real calculado sólo en runtime por comandos de bloque, nunca en import) y replicó exactamente el primero, el que corresponde a \"importar un DWG\". `positionedAttributes` queda deliberadamente sin poblar: ni DXF lo hace en import, ni el propio mapeador de referencia del laboratorio (`packages/dwg-codec/src/api/canonical.ts`, no conectado al producto) lo intenta — tres implementaciones independientes convergen en el mismo límite, y forzarlo habría exigido ampliar el perfil de entidades (ATTDEF) o inventar una conversión de alineación sin verificar, ninguna autorizada por esta tarea. Confirmó además que ningún fixture DWG real del corpus admitido contiene hoy un ATTRIB — la evidencia de este cambio es unitaria/spec, no de un .dwg real, y se declara así en vez de fingir cobertura end-to-end que no existe."
+        }
+      ],
+      "authority": "Directiva escrita de Sergio Valle Zárate en esta conversación (\"mergea y vete en cascada no te detengas, dale con la siguiente fase hasta llegar al 10/10 en el DWG\"), bajo las mismas reglas de no-detención, decisión conservadora fail-closed y verificación empírica establecidas para la campaña DWG de la que este trabajo es continuación directa",
+      "firstPartyInputs": [
+        "Repositorio valle-design en la rama de esta campaña, tras los commits de las tareas #4 (INSUNITS), #10 (cableado de CI) y #2 (cancelación cooperativa)",
+        "docs/execution/INFORME_DWG_PRODUCTO_MAIN_2026-08-24.md §8, tarea #6 de la lista de próximas tareas",
+        "Código existente del importador DXF (`dxf-import.ts`, `dxf-block-xdata.ts`, `dxf-cad-document.ts`) y de `blocks/positioned-attributes.ts` como precedente exacto a replicar, no a reinventar",
+        "El mapeador de referencia del propio laboratorio (`packages/dwg-codec/src/api/canonical.ts`, no conectado en runtime) como confirmación independiente del mismo límite de alcance"
+      ],
+      "externalSources": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: el titular revisa el PR abierto sobre claude/valle-design-dwg-main-lnqf7t y sus checks (typecheck y test:specs de apps/web, check:cad, dwg-codec sin cambios y su gate completo re-confirmado verde); la adopción se registra al revisar/fusionar. No hay evidencia contra un .dwg real con ATTRIB porque ninguno existe hoy en el corpus admitido — declarado, no escondido."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

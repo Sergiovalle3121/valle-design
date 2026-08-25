@@ -212,6 +212,28 @@ function layerNameFor(
 }
 
 /**
+ * Los ATTRIB de un INSERT (`record.attributes`, ya estrechados al perfil V3
+ * por `dwg-native-reader.ts`) como el mismo mapa tag→valor que ya usa DXF
+ * (`CadDxfSemanticInsert.attributes`). `dwg-native-reader.ts` garantiza que
+ * cada miembro es `kind: "attrib"`; se comprueba de todos modos en vez de
+ * forzarlo con un `as`, por la misma razón que allí: un cambio futuro en esa
+ * garantía no debe colar un tipo ajeno en el mapa sin que el puente lo note.
+ */
+function insertAttributeMap(
+  attributes: readonly DwgNeutralEntityRecord[] | undefined,
+): Record<string, string> {
+  if (attributes === undefined || attributes.length === 0) return {};
+  const map: Record<string, string> = {};
+  for (const attribute of attributes) {
+    if (attribute.entity.kind !== "attrib") continue;
+    map[decodeCodePageBytes(attribute.entity.tagBytes)] = decodeCodePageBytes(
+      attribute.entity.valueBytes,
+    );
+  }
+  return map;
+}
+
+/**
  * `context` distingue model space de contenido de bloque. MTEXT/DIMENSION/
  * HATCH sólo se proyectan en model space: `CadDxfSemanticBlock` no tiene
  * campo para ninguno de los tres —ni siquiera para DXF, donde un bloque sólo
@@ -249,15 +271,19 @@ function mapRecords(
         scaleY: record.entity.scale.y,
         rotation: degrees(record.entity.rotation),
         layer,
-        // Los ATTRIB del formato no los decodifica el laboratorio: la bandera
-        // se conserva como pérdida en vez de fingir un mapa de atributos vacío.
-        attributes: {},
+        attributes: insertAttributeMap(record.attributes),
       });
-      if (record.entity.attributesFollow) {
+      // `attributesFollow` es la bandera del FORMATO; `record.attributes` es
+      // lo que el laboratorio de verdad ató a este INSERT (fase D4, ya
+      // decodificada). Si el archivo declara atributos y ninguno se ató —el
+      // ATTRIB no resolvió a su propietario, una anomalía real del archivo,
+      // no una limitación del decodificador— se declara igual, con el motivo
+      // correcto en vez del genérico "todavía no lee" que ya no es verdad.
+      if (record.entity.attributesFollow && (record.attributes?.length ?? 0) === 0) {
         losses.push({
           code: DWG_BRIDGE_LOSS_CODES.unsupportedObject,
           sourceType: "attrib",
-          detail: `El INSERT ${record.handle} declara atributos que el decodificador todavía no lee.`,
+          detail: `El INSERT ${record.handle} declara atributos, pero ninguno se pudo atar a este INSERT.`,
           severity: "warning",
         });
       }
