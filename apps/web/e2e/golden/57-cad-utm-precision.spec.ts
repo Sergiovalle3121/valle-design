@@ -34,20 +34,22 @@ import type { CadDocument } from "../../src/lib/cad/cad-document";
  * (`Layout3DEditor.tsx`, el efecto que sigue a `applyInitialCameraFraming`)
  * compara el footprint declarado contra `worldBounds("all")` con
  * `boundsIntersect`, y si son disjuntos —exactamente este caso— encuadra
- * sobre el contenido real en vez de sobre el footprint. Esta prueba NO hace
- * clic en "Ajustar a la planta" ni en ningún preset de cámara a propósito:
- * las aserciones de abajo (visibilidad/render) sólo pasan si el encuadre
- * AUTOMÁTICO al abrir el documento ya trajo las entidades a la vista, sin
- * que el usuario tenga que saber que hace falta pulsar algo.
+ * sobre el contenido real en vez de sobre el footprint. Las primeras cuatro
+ * aserciones NO hacen clic en "Ajustar a la planta" ni en ningún preset de
+ * cámara a propósito: sólo pasan si el encuadre AUTOMÁTICO al abrir el
+ * documento ya trajo las entidades a la vista, sin que el usuario tenga que
+ * saber que hace falta pulsar algo.
  *
- * Hallazgo aparte, NO arreglado aquí: los seis presets de cámara del visor 3D
- * en vivo (`viewPreset()`/`camera-view-presets.ts`, Corte F de 3D-M1) siguen
- * encuadrando puramente sobre el footprint — si el usuario hiciera clic en
- * "Vista superior" u otro preset DESPUÉS de que el encuadre automático trajo
- * el contenido UTM a la vista, la cámara volvería a apuntar al vacío. Hacer
- * los presets conscientes del contenido real es un cambio de forma distinta
- * (cada preset fija una DIRECCIÓN con nombre, no sólo un encuadre) y queda
- * fuera del alcance de este corte.
+ * La quinta aserción cierra un hallazgo aparte de la misma fase: los seis
+ * presets de cámara del visor 3D en vivo (`viewPreset()`/
+ * `camera-view-presets.ts`, Corte F de 3D-M1) encuadraban puramente sobre el
+ * footprint — un clic en "Vista superior" u otro preset DESPUÉS de que el
+ * encuadre automático trajera el contenido UTM a la vista devolvía la cámara
+ * al vacío. `applyCadCameraViewPreset` ahora recibe el mismo `worldBounds`
+ * que el encuadre inicial y prefiere el contenido cuando es disjunto del
+ * footprint, preservando la DIRECCIÓN nombrada de cada preset (esto último
+ * probado con aritmética exacta en `camera-view-presets.spec.ts`; aquí sólo
+ * se confirma que las entidades siguen visibles tras el clic).
  */
 function utmDocument(): CadDocument {
   const east = 500_000;
@@ -168,4 +170,12 @@ test("líneas y un círculo a magnitud UTM (~2,15·10⁶) se dibujan enteros, si
   expect(line?.start.x).toBe(500_000);
   expect(line?.start.y).toBe(2_150_000);
   expect(line?.end.x).toBe(508_000);
+
+  // 5. Hallazgo aparte de esta misma fase (ver cabecera): un preset de
+  //    cámara DESPUÉS del encuadre automático ya no vuelve a apuntar al
+  //    vacío — el propio preset prefiere el contenido real cuando el
+  //    footprint no lo alcanza (mismo criterio que el encuadre inicial).
+  await page.getByTitle(/Vista superior/).click();
+  await settled(page);
+  expect(await numberOf(page, "data-visible")).toBe(3);
 });

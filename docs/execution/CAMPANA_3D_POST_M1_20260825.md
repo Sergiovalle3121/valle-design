@@ -110,9 +110,70 @@ corte futuro; no bloquea el cierre de esta fase.
   no interfiere con documentos cuyo contenido SÍ vive dentro del footprint,
   el caso común): 47, 48, 53, 54, 58 — 7/7 pruebas verdes.
 
+## Pieza 2: los presets de cámara también prefieren el contenido real
+
+El hallazgo aparte documentado en la pieza 1 (golden 57) se cerró en la
+misma fase, sin esperar a un corte separado: los seis presets de cámara del
+visor 3D en vivo (`viewPreset()`, `camera-view-presets.ts` de Corte F)
+encuadraban puramente sobre el footprint — un clic en cualquiera de ellos
+DESPUÉS de que el encuadre automático trajera contenido UTM a la vista
+devolvía la cámara al vacío.
+
+`applyCadCameraViewPreset` gana un quinto parámetro OPCIONAL, `content`: si
+se da y es disjunto del footprint (mismo criterio que P0-3,
+`boundsIntersect`), sustituye al footprint como lo que el preset encuadra —
+la DIRECCIÓN nombrada del preset (arriba/frente/atrás/izquierda/derecha) se
+conserva, sólo cambia el centro y la distancia. Sin `content`, o cuando se
+superpone al footprint, el resultado es bit-idéntico al de antes (probado
+explícitamente). `Layout3DEditor.tsx`: `viewPreset()` ahora pasa
+`worldBounds("all")` como ese quinto argumento — cambio de una sola línea,
+sin costo de presupuesto de monolito.
+
+**Segundo hallazgo del compilador de React, mismo tipo que en la pieza 1**:
+`viewPreset` (una función plana, no un hook) estaba declarada ANTES que
+`worldBounds`/`fitToBounds` en el monolito. A diferencia del primer hallazgo
+(que rompía `react-hooks/immutability` directamente), aquí el efecto fue
+indirecto — el trinquete de lint bajó por `react-hooks/preserve-manual-memoization`
+(3 avisos nuevos, presupuesto 1): el compilador dejó de poder preservar la
+memoización de `fitView` y del efecto de encuadre inicial, ambos genuinamente
+memoizados, porque ya no podía razonar con confianza sobre todo el grafo de
+dependencias que pasa por `worldBounds`. Mismo diagnóstico, mismo arreglo:
+reubicar `viewPreset` después de `worldBounds`/`fitToBounds` (no silenciar),
+trinquete de vuelta a 547/547 tras el cambio.
+
+Cubierto con:
+- `camera-view-presets.spec.ts`: 5 aserciones nuevas (16 en total) —
+  contenido superpuesto al footprint da el mismo resultado que sin contenido
+  (aritmética exacta, presets "front" y "top"); contenido disjunto encuadra
+  sobre el contenido real conservando la dirección del preset, con el target
+  en su centro.
+- Golden 57 extendido con una quinta aserción: tras las cuatro que prueban
+  el encuadre automático, un clic en "Vista superior" y las tres entidades
+  siguen visibles — antes de este cambio, ese clic las habría sacado de
+  vista. **3 corridas consecutivas, verde las tres** (incluida esta quinta
+  aserción). Goldens 47/48/53/54/58 re-ejecutados sin cambio.
+
 ## Estado
 
-Fix completo, verificado, listo para commit y push. Pendiente: PR #99 de la
-campaña 3D-M1 sigue esperando que termine su E2E de CI (Chromium+Firefox
-contra PostgreSQL real) antes de mergear — este corte se desarrolla en la
-misma rama mientras tanto y se empuja junto con ese cierre.
+Ambas piezas completas y verificadas, en un solo commit (fix + spec + golden
+extendido), en la rama de seguridad `claude/valle-design-p0-3-encuadre-utm`
+(empujada), NO en `claude/valle-design-3d-campaign-t0zzad` (la de PR #99):
+mezclarlas habría reabierto el alcance ya cerrado y documentado de ese PR.
+
+**PR #99 volvió rojo**: el job `E2E Playwright` falló con 5 pruebas caídas,
+ninguna tocando el diff de 3D-M1 — dos ya documentadas como intermitentes
+preexistentes en `BACKLOG.md` (P1-1/P1-1b) y tres en dominios sin relación
+(multipestaña offline, checkout fiscal, CRUD genérico de documentos),
+cada una ya reintentada una vez por CI y roja las dos veces — consistente
+con contención de recursos en una corrida de 124 pruebas/~42 min contra
+Postgres real, no con 5 regresiones reales en subsistemas que este PR no
+toca. Sin permiso para relanzar sólo los jobs caídos (`rerun_failed_jobs` →
+403 de esta integración), así que no hay una re-corrida limpia propia que
+lo confirme del todo — diagnóstico publicado como comentario en el PR
+#99 y quedó en observación (el chequeo programado se re-arma solo).
+
+Pendiente de que el titular relance CI (o de un evento de PR nuevo) antes
+de fusionar #99; en cuanto fusione, el plan sigue siendo: reiniciar
+`claude/valle-design-3d-campaign-t0zzad` desde `origin/main`, traer el
+commit de esta rama de seguridad, empujar y abrir un PR nuevo para esta
+fase.
