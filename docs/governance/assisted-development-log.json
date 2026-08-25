@@ -542,7 +542,43 @@
         "required": true,
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
-        "evidence": "Pendiente: PR nuevo abierto sobre claude/valle-design-3d-campaign-t0zzad (rama reiniciada desde main con el PR #99 ya fusionado dentro) con los checks re-ejecutados sobre el SHA candidato (typecheck limpio, check:monolith-budget 20247/20248, trinquete de lint 547/547 sin regresión, 407/407 specs de apps/web); la adopción se registra al revisar/fusionar ese PR."
+        "evidence": "Adoptado el 2026-08-25: Sergio autorizó explícitamente en esta misma conversación (\"mergea y sigue avanzando no te detengas no quiero laboratorios quiero un sistema real y funcional\") el merge del PR #102 sobre el SHA candidato 8fe3379 con sus checks ya presentados (typecheck limpio, check:monolith-budget 20247/20248, trinquete de lint 547/547, 408→ N/A en ese momento 407/407 specs de apps/web verdes, golden 57 con 3 corridas consecutivas). PR #102 fusionado (squash) a main en 51e0104524a80fdc400a9bff7ffd1f0ffb67196e. El job E2E Playwright de ese run seguía rojo por la misma firma de 5 fallas ya diagnosticada en #99 (comentario propio publicado en el PR); GitHub aceptó el merge de todas formas, mismo patrón que #99: ese check no forma parte de la protección de rama requerida del repositorio."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DXF-EDITABLE-ORIGIN-OFFSET-2026-08-25",
+      "date": "2026-08-25",
+      "initiative": "Declara el re-encuadre silencioso de coordenadas de la ruta de conversión DXF-de-fondo-a-editable — cierra el núcleo real de P0-3 del backlog (el sub-hallazgo de encuadre de cámara del mismo ítem ya se había cerrado en la campaña post-3D-M1, PR #99/#102)",
+      "branch": "claude/valle-design-3d-campaign-t0zzad",
+      "assistants": [
+        {
+          "name": "Claude Code (Anthropic)",
+          "role": "ejecución autónoma bajo la misma directiva de campaña, documentada en docs/execution/CAMPANA_3D_POST_M1_20260825.md (Pieza 3): delegó una investigación read-only a un agente de exploración (95 herramientas, cita file:line para cada afirmación) antes de tocar código, en vez de asumir la causa desde la prosa del backlog. El agente mapeó las cuatro rutas de lectura DXF del producto, agrupadas en dos comportamientos: Route A (DXFIN + importación del dashboard, proyección identidad, fiel) y Route B (convertDxfPrimitivesToEditable en Layout3DEditor.tsx, conversión del DXF de fondo a entidades editables + Asset heredados), y localizó el re-encuadre silencioso exacto (projectDxfPoint/dxfPrimitiveBounds) — distinto del re-encuadre de parseDxf, que sólo coloca la imagen de referencia del backdrop y nunca escribe en CadDocument. El agente también encontró que los cuatro topes numéricos del código (50k/40k/850/1.5k entidades) ya estaban declarados al usuario cada uno por el mecanismo de su propia ruta, corrigiendo una afirmación del backlog que nunca se había verificado contra el código. Con ese mapa, esta sesión implementó el cierre acotado: describeDxfOriginOffsetLoss/buildDxfConversionLossManifest declaran el desplazamiento exacto en document.lossManifest, deliberadamente sin reversión automática al reexportar (Route B nunca fue un importador fiel de ida y vuelta — prometerlo habría sido fingir una fidelidad que no tiene), extraído a módulo aparte por presupuesto de líneas del monolito y para que la lógica sea comprobable sin React ni Three.js"
+        }
+      ],
+      "authority": "Directiva de Sergio Valle Zárate en esta misma conversación (\"mergea y sigue avanzando no te detengas no quiero laboratorios quiero un sistema real y funcional\"), interpretada como autorización para retomar el núcleo real de P0-3 (la severidad más alta documentada como abierta y accionable sin decisión del titular — P0-1 requiere esa decisión) con el mismo criterio conservador de esta campaña: investigar a fondo, acotar el arreglo a lo que se puede dejar completo y verificado en la sesión, declarar honestamente lo que queda fuera",
+      "firstPartyInputs": [
+        "Repositorio valle-design en main tras fusionar el PR #102 (51e0104524a80fdc400a9bff7ffd1f0ffb67196e)",
+        "docs/execution/BACKLOG.md (entrada P0-3) y docs/interop/CONTRATO-INTEROP.md (garantía 5)",
+        "Informe del agente de exploración read-only de esta misma sesión: mapa completo de las cuatro rutas de lectura DXF con cita file:line, localización exacta del re-encuadre silencioso y de los cuatro topes numéricos",
+        "e2e/golden/27-cad-dxf-loss-manifest.spec.ts de campañas anteriores, cuyo fixture (un ARC en coordenadas no-cero) ya ejercitaba el desplazamiento sin necesitar un fixture nuevo"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "manifiesto de pérdidas de la conversión DXF a editable (components/cad/interop/dxf-editable-import-losses.ts, nuevo)",
+        "conversión de DXF de fondo a entidades editables (components/cad/editor/Layout3DEditor.tsx: convertDxfPrimitivesToEditable, cableado del nuevo manifiesto)",
+        "golden de manifiesto de pérdidas DXF (apps/web/e2e/golden/27-cad-dxf-loss-manifest.spec.ts, extendido)"
+      ],
+      "fixtures": [],
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: PR #104 abierto sobre claude/valle-design-3d-campaign-t0zzad con los checks re-ejecutados sobre el SHA candidato 4b4ba6b (typecheck limpio en todo el monorepo, check:monolith-budget 20242/20248 — bajó pese a la funcionalidad nueva —, trinquete de lint 547/547 sin regresión, 408/408 specs de apps/web, golden 27 extendido con 3 corridas consecutivas en navegador real); la adopción se registra al revisar/fusionar ese PR."
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false

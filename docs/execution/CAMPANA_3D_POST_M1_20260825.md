@@ -202,3 +202,88 @@ entrada de gobernanza propia (`3D-POST-M1-P0-3-2026-08-25`) en
 `docs/governance/assisted-development-log.json`, y la entrada de la campaña
 3D-M1 (`3D-M1-CAMPAIGN-2026-08-24`) actualizada a `adopted` con la
 evidencia de esta autorización y merge.
+
+**Actualización — PR #102 fusionado.** Mismo patrón que #99: Sergio
+autorizó explícitamente el merge en esta misma conversación ("mergea y
+sigue avanzando no te detengas no quiero laboratorios quiero un sistema
+real y funcional"), CI seguía roja por la misma firma de 5 fallas ya
+diagnosticada (comentario propio en el PR, mismo patrón de contención de
+recursos que #99, cero solapamiento con este diff), `merge_pull_request`
+con `squash` tuvo éxito: commit `51e0104524a80fdc400a9bff7ffd1f0ffb67196e`
+en `main`. Rama reiniciada de nuevo desde `origin/main` para la siguiente
+pieza.
+
+## Pieza 3: el re-encuadre silencioso de datos en la conversión a editable (núcleo real de P0-3)
+
+Por directiva explícita del titular de no hacer trabajo de "laboratorio" —
+investigar sin cerrar— esta pieza se acotó a lo que se pudiera dejar
+COMPLETO y verificado en la misma sesión, no a un rediseño especulativo.
+
+**Investigación antes de tocar código** (agente de exploración read-only,
+95 herramientas, cita `file:line` para cada afirmación): el backlog nombraba
+"dos rutas DXF" en singular; el código tiene CUATRO caminos de lectura, mejor
+agrupados en dos comportamientos: Route A (`DXFIN` + importación del
+dashboard, proyección identidad, fiel) y Route B
+(`convertDxfPrimitivesToEditable` en `Layout3DEditor.tsx`, conversión del
+DXF-de-fondo a entidades editables + `Asset` heredados). El re-encuadre
+silencioso vive sólo en Route B (`projectDxfPoint`/`dxfPrimitiveBounds`,
+resta el rectángulo envolvente del DXF para alinear con el backdrop, nunca
+registra ese desplazamiento). El OTRO re-encuadre silencioso que el código
+tiene (`parseDxf`, `components/cad/interop/dxf.ts`) resultó ser un caso
+aparte: sólo coloca la imagen de referencia del backdrop, nunca escribe en
+`CadDocument`, y su propio comentario ya declara que es aproximado ("para
+usar como fondo, no para re-ingenierarlo") — no es el defecto de pérdida de
+datos que el backlog temía, así que se dejó fuera del arreglo a propósito.
+
+**Hallazgo que corrige al backlog, no lo confirma:** los cuatro topes
+numéricos del código (50.000/40.000/850/1.500 entidades, cuatro constantes
+sin relación entre sí en cuatro archivos distintos) YA estaban declarados al
+usuario, cada uno por el mecanismo de su propia ruta — el `lossManifest` para
+las que tienen `CadDocument`, un toast para las que sólo tienen el modelo
+`Asset` heredado (que no tiene concepto de `lossManifest`, así que el toast
+es su mecanismo CORRECTO, no uno degradado). El backlog original afirmaba lo
+contrario sin haberlo verificado línea por línea; se corrigió en vez de
+repetirlo.
+
+**El arreglo real, acotado a proporción:** `describeDxfOriginOffsetLoss` +
+`buildDxfConversionLossManifest`
+(`components/cad/interop/dxf-editable-import-losses.ts`, nuevo) declaran el
+desplazamiento exacto aplicado (`dxf_import:origin_shifted`) en
+`document.lossManifest`, con las mismas cifras que la conversión usó — ya
+visible en el paquete de entrega y en el preflight de exportación DXF, sin
+tocar ninguna otra pieza. Deliberadamente NO se construyó una reversión
+automática al reexportar: Route B nunca fue un importador fiel (la mitad de
+lo que produce son `Asset` sin representación DXF propia, el texto se trunca
+a 80 caracteres) — prometer una reversión perfecta habría sido fingir una
+fidelidad que esta vía nunca tuvo. El mensaje de la entrada lo dice con
+todas sus letras: declarado, no auto-revertido.
+
+Extraído a módulo aparte (no inline en el monolito) por dos razones, no una:
+presupuesto de líneas (`Layout3DEditor.tsx` estaba a 6 líneas de su techo
+antes de este cambio) y para que la lógica de negocio —qué se declara y
+cómo— se pueda probar sin levantar React ni Three.js. El propio cableado en el
+monolito reemplazó 18 líneas por una llamada de 5, así que el archivo bajó
+de línea neta pese a la funcionalidad nueva.
+
+**Verificación:**
+- `dxf-editable-import-losses.spec.ts`: 20/20 aserciones nuevas (casos: sin
+  desplazamiento → `null`; sólo un eje desplazado; ambos ejes; el agregador
+  con warnings+truncado+desplazamiento juntos, en el mismo orden en que el
+  monolito los apilaba a mano).
+- `npm run typecheck`, `check:monolith-budget` (20242/20248, BAJÓ pese a la
+  función nueva), `check:lint-budget` (547/547) — los tres limpios.
+- `node scripts/run-specs.mjs`: 408/408 verdes (407 + 1).
+- `e2e/golden/27-cad-dxf-loss-manifest.spec.ts` extendido con la aserción
+  del nuevo código de pérdida (el ARC del fixture de este golden ya vive en
+  coordenadas no-cero, así que ejercita el desplazamiento sin fixture nuevo)
+  — **3 corridas consecutivas en navegador real, verdes las tres**.
+  `e2e/golden/38-cad-dxf-placement.spec.ts` (feature vecina, colocación del
+  backdrop) re-ejecutado sin cambio.
+
+**Qué queda genuinamente abierto, declarado y no escondido:** reversión
+automática del desplazamiento de Route B al reexportar (exigiría un campo
+nuevo a nivel de documento, bump de esquema, deuda aparte no bloqueante); el
+propio `parseDxf` sigue sin declarar su normalización, pero por la razón de
+arriba (backdrop de referencia, nunca toca `CadDocument`) no se considera el
+mismo defecto. `BACKLOG.md` y `docs/interop/CONTRATO-INTEROP.md` actualizados
+con este cierre y esta distinción.
