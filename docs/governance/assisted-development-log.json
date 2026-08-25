@@ -576,9 +576,9 @@
       "dependenciesAdded": [],
       "adoption": {
         "required": true,
-        "status": "proposed",
+        "status": "adopted",
         "adopter": "Sergio Valle Zárate",
-        "evidence": "Pendiente: PR #104 abierto sobre claude/valle-design-3d-campaign-t0zzad con los checks re-ejecutados sobre el SHA candidato 4b4ba6b (typecheck limpio en todo el monorepo, check:monolith-budget 20242/20248 — bajó pese a la funcionalidad nueva —, trinquete de lint 547/547 sin regresión, 408/408 specs de apps/web, golden 27 extendido con 3 corridas consecutivas en navegador real); la adopción se registra al revisar/fusionar ese PR."
+        "evidence": "Adoptado el 2026-08-25: Sergio autorizó explícitamente en esta misma conversación (\"mergea todo lo que te quede pendiente\") el merge del PR #104 sobre el SHA candidato c570548 con sus checks ya presentados (typecheck limpio en todo el monorepo, check:monolith-budget 20242/20248, trinquete de lint 547/547, 408/408 specs de apps/web, golden 27 extendido con 3 corridas consecutivas en navegador real). PR #104 fusionado (squash) a main en 55c19d4796284586570dbcf06fdee4e2613e312d. El job E2E Playwright de ese run seguía rojo por tercera vez consecutiva con la misma firma de 5 fallas ya diagnosticada en #99/#102 (comentario propio publicado en el PR, golden 27 —el que este PR extiende— pasó en la misma corrida); GitHub aceptó el merge de todas formas, mismo patrón que #99/#102: ese check no forma parte de la protección de rama requerida del repositorio. list_pull_requests confirma cero PRs abiertos tras este merge."
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
