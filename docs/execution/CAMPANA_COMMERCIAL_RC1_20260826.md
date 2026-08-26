@@ -374,3 +374,47 @@ diff de pura organización cazado por el tope de 800 líneas en CI.
 Ocho causas raíz medidas y corregidas para llegar aquí; el detalle de cada
 una está arriba. Pendiente de Fase 0: dos pasadas completas de gates locales
 sobre el SHA final, fusión y CI de main verde (Chromium+Firefox+e2e-perf).
+
+## El primer E2E COMPLETO en meses: lo que destapó (13:00-16:00 UTC)
+
+Con el estrés denso fuera del job E2E, el PR corrió por primera vez desde
+el 20-08 las suites REALES (contra API y PostgreSQL de verdad) y los
+goldens completos. Cuatro asertos caducados frente a cambios que main hizo
+el 22-08 — ninguno era de esta campaña, y ninguno había podido fallar antes
+porque el cuelgue del denso mataba el job antes de llegar:
+
+- **fiscal-checkout 7**: `/studio` sin documento manda al TABLERO desde
+  c83a9e1 (el estudio abre por documento); el aserto afirmaba la conducta
+  retirada.
+- **studio-real-api 5-12/18/20**: el selector del importador clavaba la
+  lista `accept` exacta y shapefile la creció — pasa a CONTENencia. Además
+  la importación publica ahora DOS «status» (conteo + completitud) y el
+  modo estricto exigía acotar el locator.
+- **studio-real-api 16**: el campo se llama «Código de verificación» desde
+  el rediseño de identidad; `getByLabel("Token")` ya no existía.
+- **legal**: el mock de identidad y el spec del gate de aceptación clavaban
+  la versión 2026-08-15 retirada — ahora LEEN el espejo
+  `LEGAL_PAGE_VERSIONS` (publicar versión nueva no vuelve a romperlos).
+
+Y una REGRESIÓN de esta campaña que el golden 24 cazó (para eso están):
+la purga de selección al commit usaba el conjunto no-designable entero y
+soltaba lo designado al APAGAR una capa — pero apagar es sólo display
+(mover una selección previa sobre capa apagada es flujo AutoCAD que el
+golden fija) y bloquear veta la edición con aviso SIN soltar la
+designación. La purga queda acotada a lo inexistente y a la capa CONGELADA.
+
+Último rojo: el propio mecanismo del arnés en `offline-multitab` — en el
+runner de CI ni `Page.crash` ni `chrome://crash` estrellan el renderizador
+(dos corridas × dos intentos; en local estrella al instante). El guion
+intenta el estrellamiento 15 s y, si el entorno no lo permite, cae al
+cierre sin `beforeunload` — el MISMO escenario declarado del ramal de
+Firefox — diciéndolo por consola. La afirmación del producto (el checkpoint
+confirmado sobrevive a la reapertura) se ejercita en ambos caminos.
+
+Estado a las 16:40 UTC: `e6c4609` con las DOS pasadas locales de gates
+completas TODO-VERDE (PASE1D/PASE2D) y el run 497 de CI **encolado ~100
+minutos** por el backlog/atasco de runners de GitHub — sin permiso de
+Actions para cancelarlo/relanzarlo desde esta sesión; este mismo commit lo
+sustituye vía el grupo de concurrencia del PR. Los 141 tests del E2E
+anterior ya estaban verdes con el único rojo en el mecanismo de
+estrellamiento ya corregido.
