@@ -7290,7 +7290,8 @@ export default function Layout3DEditor({
             points,
             pathMode,
             pathMode !== "polygon",
-            300,
+            // SIN tope: el 300 truncaba EN SILENCIO (native-selection-index).
+            Number.POSITIVE_INFINITY,
             "selection",
           ) ?? []
         ).map((entity) => `native:${entity.id}`);
@@ -7358,7 +7359,8 @@ export default function Layout3DEditor({
           nativeSelectionIndexRef.current?.intersecting(
             nativeWindow,
             crossing,
-            300,
+            // SIN tope, como el lazo: el tope de 300 truncaba en silencio.
+            Number.POSITIVE_INFINITY,
             "selection",
           ) ?? []
         ).map((entity) => entity.id);
@@ -12766,9 +12768,7 @@ export default function Layout3DEditor({
   const exportGltf = async () => {
     // Lista, plan y serialización viven en `lib/cad/glb-export.ts` con su
     // spec de round-trip: el GLB lleva el modelo heredado Y la arquitectura
-    // nativa (muros con vanos recortados, piso/cielorraso/cubierta, SOLID3D).
-    // Antes sólo viajaban los grupos heredados: el botón entregaba una escena
-    // sin edificio y ningún spec lo miraba.
+    // nativa — antes sólo viajaban los grupos heredados y ningún spec miraba.
     const plan = planCadGlbExport(
       {
         legacy: [

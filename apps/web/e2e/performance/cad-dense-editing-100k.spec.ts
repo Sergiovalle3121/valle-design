@@ -92,13 +92,18 @@ const SETTLE_BUDGET_MS = 900_000;
 test.describe("CAD dense editing stress · 100k", () => {
   test.skip(process.env.CAD_PERF_E2E !== "1", "Run explicitly with CAD_PERF_E2E=1.");
   // Techo del PROCESO, no presupuesto. Quien juzga si el producto cumple son
-  // los invariantes funcionales del final. 35 minutos y no una hora: con el
-  // presupuesto de proyección de selección (selection-projection-budget.ts)
-  // ninguna fase legítima se acerca a esto, y el guion vuelca su artefacto
+  // los invariantes funcionales del final, y el guion vuelca su artefacto
   // tras CADA fase — un cuelgue publica hasta dónde llegó en vez de consumir
-  // el techo del job entero (que es exactamente lo que pasó en CI del 21 al
-  // 26 de agosto, con la hora de techo + retry matando el job a los 100 min).
-  test.setTimeout(2_100_000);
+  // el techo del job entero (lo que pasó en CI del 21 al 26 de agosto con la
+  // hora de techo + retry matando el job a los 100 min). 45 min NO es un
+  // número cómodo sino ARITMÉTICA MEDIDA (corrida 2026-08-26, REPEATS=1,
+  // 4 vCPU): ~8 min de fases medidas (lazo 198 s incluido) + ~100 s de arnés
+  // por cambio de modo (abrir/cerrar la paleta a 100k, medido con sonda) ×
+  // 5 modos + apertura/asentado/encuadre ≈ 35-38 min de punta a punta; la
+  // corrida que rozó 35:00 murió despachando la última fase. El margen
+  // restante es varianza de runner, no escondite: las fases legítimas están
+  // contadas arriba y ninguna puede acercarse sola a este techo.
+  test.setTimeout(2_700_000);
 
   test("selects and modifies 100k dense strokes", async ({ context, page }, testInfo) => {
     const measurements: Record<string, DenseSeries> = {};

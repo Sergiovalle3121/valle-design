@@ -304,3 +304,24 @@ los visuales nativos ya los refresca `applyProfessionalSelection` →
 `refreshNativeSelectionVisuals`. Ahora la marquesina reconstruye sólo lo
 heredado (`rebuildLegacy`: bloques, activos, cotas, notas, celdas);
 `rebuildAll` queda para los caminos que sí mutan el documento.
+
+### Causa raíz 7 — la selección geométrica truncaba a 300 EN SILENCIO
+
+La corrida con el tour despachado (dense7, 10/11 fases — el LAZO midió por
+primera vez: 198,3 s) publicó en sus hallazgos el defecto que faltaba: una
+ventana sobre 64 habitaciones encierra 1.280 trazos y la selección devolvía
+**300** — el tope por defecto de `intersecting`/`path` en
+`native-selection-index.ts`. «Mover lo designado» movía 300 de 1.280 y el
+producto no lo decía. La vía masiva («Todo», quick-select) SÍ designa
+100.000 sin truncar: el tope era exclusivo del camino geométrico.
+
+Arreglo: el tope por defecto pasa a infinito (designar es designar TODO lo
+encerrado); queda como parámetro para consumidores que pidan una muestra
+acotada explícitamente. El coste visual de una selección masiva ya lo
+gobierna el presupuesto de proyección. Regresión en
+`native-selection-index.spec.ts` (999/999 sin tope; 300 sólo si se pide).
+
+El techo del estrés denso pasa de 35 a 45 min por ARITMÉTICA MEDIDA, no por
+comodidad (el detalle en el propio spec): dense7 murió a 35:00 despachando
+la última fase con las 10 anteriores verdes. Ninguna fase individual puede
+acercarse al techo.

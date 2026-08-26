@@ -241,10 +241,19 @@ export class CadNativeSelectionIndex {
       .slice(0, limit);
   }
 
+  /**
+   * Designar es designar TODO lo encerrado. El tope por defecto era 300 y
+   * truncaba EN SILENCIO — medido en el estrés denso: una ventana sobre 64
+   * habitaciones encierra 1.280 trazos, la selección devolvía 300 y «mover lo
+   * designado» movía 300 de 1.280 sin decirlo. El tope queda como parámetro
+   * para consumidores que de verdad quieran una muestra acotada (y lo digan);
+   * el coste VISUAL de una selección masiva lo gobierna el presupuesto de
+   * proyección (`selection-projection-budget.ts`), no este recorte de datos.
+   */
   intersecting(
     bounds: CadBounds,
     crossing: boolean,
-    limit = 300,
+    limit = Number.POSITIVE_INFINITY,
     filter: CadIndexLayerFilter = "none",
   ): CadNativeEntity[] {
     const result: CadNativeEntity[] = [];
@@ -261,11 +270,12 @@ export class CadNativeSelectionIndex {
     return result;
   }
 
+  /** Misma regla que `intersecting`: sin tope silencioso por defecto. */
   path(
     points: readonly { x: number; y: number }[],
     mode: CadPathSelectionMode,
     crossing = mode !== "polygon",
-    limit = 300,
+    limit = Number.POSITIVE_INFINITY,
     filter: CadIndexLayerFilter = "none",
   ): CadNativeEntity[] {
     if (points.length < (mode === "fence" ? 2 : 3)) return [];
