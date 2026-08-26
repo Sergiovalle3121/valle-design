@@ -343,6 +343,101 @@ const none: ReadonlySet<string> = new Set();
   host.dispose();
 }
 
+// --- las uniones L/T entran en la firma: mover al VECINO rehace la esquina ---
+// La dependencia que la firma por referencias no puede ver: m1 no cambió de
+// referencia y aun así su malla debe cambiar, porque la esquina que
+// compartía con m2 ya no existe.
+{
+  const host = new CadWallSolidHost(() => viewport);
+  const m1 = wall("m1", 4_000);
+  const m2: CadWallEntity = {
+    ...wall("m2", 3_000),
+    end: { x: 0, y: 3_000, z: 0 },
+  };
+  host.sync(documentWith([m1, m2]), none);
+  const meshOf = (object: THREE.Object3D | undefined) =>
+    object?.children.find(
+      (child): child is THREE.Mesh => (child as THREE.Mesh).isMesh === true,
+    );
+  const minSceneX = (object: THREE.Object3D | undefined): number => {
+    const mesh = meshOf(object)!;
+    mesh.geometry.computeBoundingBox();
+    return mesh.geometry.boundingBox!.min.x;
+  };
+  const m1Of = () =>
+    host.group.children.find((child) => child.userData.nativeEntityId === "m1");
+  const baseSceneX = (0 - viewport.width / 2) * viewport.scale;
+  assert.ok(
+    minSceneX(m1Of()) < baseSceneX - 1e-6,
+    `el inglete de la L extiende la cara exterior de m1 más allá de su arranque (min.x=${minSceneX(m1Of())})`,
+  );
+
+  const before = [...host.group.children];
+  host.sync(documentWith([m1, m2]), none);
+  assert.deepEqual(
+    [...host.group.children],
+    before,
+    "las uniones se comparan por VALOR: el mismo documento no reconstruye nada",
+  );
+
+  const m1Before = m1Of();
+  const m2Lejos: CadWallEntity = {
+    ...m2,
+    start: { x: 6_000, y: 1_000, z: 0 },
+    end: { x: 6_000, y: 4_000, z: 0 },
+  };
+  // m1 conserva su referencia; sólo el vecino se fue.
+  host.sync(documentWith([m1, m2Lejos]), none);
+  assert.notEqual(
+    m1Of(),
+    m1Before,
+    "mover al VECINO reconstruye la esquina de m1 aunque m1 no cambiara",
+  );
+  assert.ok(
+    Math.abs(minSceneX(m1Of()) - baseSceneX) <= 1e-6,
+    "sin vecino, m1 vuelve exactamente a su caja base",
+  );
+  host.dispose();
+}
+
+// --- un vecino de capa APAGADA no se construye… pero SÍ forma la esquina ----
+// Paridad con la planta: `wallDocumentJoins` deriva contra el documento
+// entero sin mirar capas, y el 3D debe contar la MISMA historia que el 2D.
+{
+  const host = new CadWallSolidHost(() => viewport);
+  const m1 = wall("m1", 4_000);
+  const m2: CadWallEntity = {
+    ...wall("m2", 3_000),
+    end: { x: 0, y: 3_000, z: 0 },
+    layer: "MUROS-B",
+  };
+  const doc: CadDocument = {
+    ...documentWith([m1, m2]),
+    layers: [
+      layer,
+      {
+        id: "MUROS-B",
+        name: "MUROS-B",
+        color: "#94a3b8",
+        visible: false,
+        locked: false,
+      },
+    ],
+  };
+  host.sync(doc, none);
+  assert.equal(host.count, 1, "el muro de capa apagada no se construye");
+  const mesh = host.group.children[0].children.find(
+    (child): child is THREE.Mesh => (child as THREE.Mesh).isMesh === true,
+  )!;
+  mesh.geometry.computeBoundingBox();
+  assert.ok(
+    mesh.geometry.boundingBox!.min.x <
+      (0 - viewport.width / 2) * viewport.scale - 1e-6,
+    "…pero sigue dando forma a la esquina de su vecino, igual que en planta",
+  );
+  host.dispose();
+}
+
 console.log(
-  "wall-solid-host.spec: reconciliación por firma (muro + vanos alojados)",
+  "wall-solid-host.spec: reconciliación por firma (muro + vanos alojados + uniones por valor)",
 );

@@ -18,6 +18,7 @@ import * as THREE from "three";
 import { tessellateBody } from "../brep";
 import type { CadWallEntity } from "./cad-entities-v6";
 import type { CadThreeViewport } from "./entity-three";
+import type { CadWallJoins } from "./wall-joins";
 import { cadWallMaterialStyle } from "./wall-materials";
 import { wallAxisFrame, type CadWallAxisFrame } from "./wall-openings";
 import {
@@ -68,14 +69,23 @@ function sceneDirectionFromLocal(
  * Geometría de escena del muro con sus vanos recortados, o `null` si la
  * receta es degenerada o el eje del muro no se puede orientar (longitud
  * nula) — el mismo criterio fail-closed que `wallFootprint`.
+ *
+ * `joins` (opcional): las uniones L/T contra los vecinos, las mismas de la
+ * planta 2D — con ellas el sólido extruye el contorno ajustado y la esquina
+ * se ve limpia también en 3D (`wallSolidBodyLocal`).
  */
 export function buildCadWallSolidGeometry(
   wall: Pick<CadWallEntity, "start" | "end" | "thickness" | "height">,
   openings: readonly CadWallSolidOpening[],
   viewport: CadThreeViewport,
+  joins?: CadWallJoins | null,
 ): THREE.BufferGeometry | null {
-  return buildCadWallSolidGeometryWithDiagnostics(wall, openings, viewport)
-    .geometry;
+  return buildCadWallSolidGeometryWithDiagnostics(
+    wall,
+    openings,
+    viewport,
+    joins,
+  ).geometry;
 }
 
 export interface CadWallSolidGeometryResult {
@@ -89,11 +99,13 @@ export function buildCadWallSolidGeometryWithDiagnostics(
   wall: Pick<CadWallEntity, "start" | "end" | "thickness" | "height">,
   openings: readonly CadWallSolidOpening[],
   viewport: CadThreeViewport,
+  joins?: CadWallJoins | null,
 ): CadWallSolidGeometryResult {
   const frame = wallAxisFrame(wall);
   const { body, diagnostics } = wallSolidBodyLocalWithDiagnostics(
     wall,
     openings,
+    joins,
   );
   if (!frame || !body) return { geometry: null, diagnostics };
   const mesh = tessellateBody(body);
@@ -133,6 +145,8 @@ export function buildCadWallSolidGeometryWithDiagnostics(
 
 export interface CadWallSolidObjectOptions {
   selected?: boolean;
+  /** Uniones L/T del muro (las de la planta 2D); sin ellas, la caja base. */
+  joins?: CadWallJoins | null;
 }
 
 /**
@@ -161,6 +175,7 @@ export function buildCadWallSolidObject(
       wall,
       openings,
       viewport,
+      options.joins,
     );
     geometry = result.geometry;
     diagnostics = result.diagnostics;

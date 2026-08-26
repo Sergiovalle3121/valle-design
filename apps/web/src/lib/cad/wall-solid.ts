@@ -31,10 +31,17 @@
  * Z — nunca una rotación 3D completa. Los vanos cortan a través de Y (el
  * grosor), que es exactamente por dónde pasa una puerta o una ventana.
  */
-import { booleanDifference, makeBox, vec3, type BrepBody } from "../brep";
+import {
+  booleanDifference,
+  extrudeProfile,
+  makeBox,
+  vec3,
+  type BrepBody,
+} from "../brep";
 import type { CadWallEntity } from "./cad-entities-v6";
 import type { CadOpeningEntity } from "./cad-entities-v7";
 import { wallLength } from "./wall-geometry";
+import type { CadWallJoins } from "./wall-joins";
 import { wallOpeningFit, wallOpeningVerticalFit } from "./wall-openings";
 import type { CadWallOpeningCutDiagnostic } from "./wall-solid-diagnostics";
 
@@ -48,6 +55,49 @@ export type CadWallSolidOpening = Pick<
 >;
 
 /**
+ * Contorno LOCAL del muro con sus uniones aplicadas, o `null` cuando la caja
+ * de siempre es la respuesta correcta (sin uniones, o uniones sin ajuste).
+ *
+ * Es `wallJoinedFootprint` en el marco local: cada esquina se desliza POR SU
+ * CARA la extensión firmada de su extremo — X negativa extiende el arranque,
+ * X > longitud extiende el remate. El anillo resultante siempre es simple:
+ * las dos caras largas viven en las rectas paralelas y = ±grosor/2, y con
+ * cada cara conservando longitud positiva los testeros no pueden cruzarse
+ * (la separación entre ambos es lineal en y, positiva en las dos caras).
+ * Si un recorte CONSUME una cara entera, se devuelve `null` y el cuerpo cae
+ * a la caja base — exactamente el mismo `?? footprint` con el que la planta
+ * 2D degrada un anillo invertido, nunca un sólido del revés.
+ */
+function wallJoinedLocalOutline(
+  length: number,
+  half: number,
+  joins: CadWallJoins | null | undefined,
+): { x: number; y: number }[] | null {
+  if (!joins) return null;
+  const { start, end } = joins;
+  if (
+    start.leftExtension === 0 &&
+    start.rightExtension === 0 &&
+    end.leftExtension === 0 &&
+    end.rightExtension === 0
+  )
+    return null;
+  const startLeft = -start.leftExtension;
+  const startRight = -start.rightExtension;
+  const endLeft = length + end.leftExtension;
+  const endRight = length + end.rightExtension;
+  if (!(endLeft - startLeft > 1e-9) || !(endRight - startRight > 1e-9))
+    return null;
+  // Antihorario, mismo orden que `wallFootprint`: [SL, SR, ER, EL].
+  return [
+    { x: startLeft, y: half },
+    { x: startRight, y: -half },
+    { x: endRight, y: -half },
+    { x: endLeft, y: half },
+  ];
+}
+
+/**
  * Cuerpo B-rep del muro en coordenadas LOCALES (ver cabecera del módulo).
  *
  * Cada vano se resta como agujero pasante SÓLO si encaja horizontal y
@@ -59,14 +109,22 @@ export type CadWallSolidOpening = Pick<
  * `assertOpeningHosts` en la frontera del servidor, así que llegar aquí con
  * ese defecto sólo puede pasar mientras el documento vive en memoria.
  *
+ * `joins` (opcional) son las uniones L/T del muro contra sus vecinos, las
+ * MISMAS que la planta 2D deriva con `wallJoins`: con ellas el volumen se
+ * extruye del contorno ajustado — el inglete de la L y el empalme de la T se
+ * ven en 3D igual que en planta, y la masa que un recorte cede al vecino no
+ * se cuenta dos veces. Sin `joins`, la caja de siempre: el muro solitario no
+ * paga las uniones ni en vértices ni en tiempo.
+ *
  * `null` para una receta degenerada — eje de longitud nula, grosor o altura
  * no positivos — igual que `wallFootprint`.
  */
 export function wallSolidBodyLocal(
   wall: CadWallSolidRecipe,
   openings: readonly CadWallSolidOpening[],
+  joins?: CadWallJoins | null,
 ): BrepBody | null {
-  return wallSolidBodyLocalWithDiagnostics(wall, openings).body;
+  return wallSolidBodyLocalWithDiagnostics(wall, openings, joins).body;
 }
 
 export interface CadWallSolidBodyResult {
@@ -85,6 +143,7 @@ export interface CadWallSolidBodyResult {
 export function wallSolidBodyLocalWithDiagnostics(
   wall: CadWallSolidRecipe,
   openings: readonly CadWallSolidOpening[],
+  joins?: CadWallJoins | null,
 ): CadWallSolidBodyResult {
   const diagnostics: CadWallOpeningCutDiagnostic[] = [];
   const length = wallLength(wall);
@@ -96,10 +155,13 @@ export function wallSolidBodyLocalWithDiagnostics(
   // kernel de booleanas tropieza más a menudo.
   const overshoot = Math.max(half * 0.5, 1e-3);
 
-  let body = makeBox({
-    min: vec3(0, -half, 0),
-    max: vec3(length, half, wall.height),
-  });
+  const outline = wallJoinedLocalOutline(length, half, joins);
+  let body = outline
+    ? extrudeProfile({ profile: { outer: outline }, height: wall.height })
+    : makeBox({
+        min: vec3(0, -half, 0),
+        max: vec3(length, half, wall.height),
+      });
 
   openings.forEach((opening, openingIndex) => {
     if (!(opening.width > 0) || !(opening.height > 0)) {

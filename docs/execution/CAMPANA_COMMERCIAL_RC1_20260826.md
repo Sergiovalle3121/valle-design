@@ -563,3 +563,47 @@ de pérdidas ✓, estados éxito/éxito-con-pérdidas/rechazado ✓, flag apagad
 por defecto ✓, el archivo del cliente nunca se sobrescribe ✓ (la exportación
 produce bytes nuevos). El cableado de interfaz queda POST-oráculo por
 mandato de §8.2 — cablearlo hoy sería fingir que el gate no existe.
+
+## FASE 1 (remanente) — uniones L/T con volumen: la esquina limpia llega al 3D
+
+La planta 2D ya derivaba el inglete de la L y el empalme de la T
+(`wall-joins.ts`, función pura de las recetas, nunca persistida) — pero el
+volumen 3D de cada muro se extruía de su RECTÁNGULO crudo: dos cajas
+solapadas en la esquina (volumen doble visible + z-fighting en caras
+coincidentes) y una MUESCA abierta en la escuadra exterior. La corrección es
+cableado, no matemática nueva — el mismo modelo probado de la planta, ahora
+extruido:
+
+- `wall-solid.ts`: `wallSolidBodyLocal` acepta las uniones y extruye el
+  contorno AJUSTADO (cada esquina deslizada por su cara la extensión firmada
+  de su extremo, en el marco local del muro). El anillo siempre es simple —
+  las caras largas viven en rectas paralelas y con longitud positiva los
+  testeros no pueden cruzarse — y si un recorte consume una cara entera,
+  degrada a la caja base, el mismo `?? footprint` de la planta: nunca un
+  sólido del revés. Sin uniones, la caja de siempre: el muro solitario no
+  paga nada.
+- `wall-solid-host.ts`: la firma de reconciliación pasa de par a TERNA
+  (muro por referencia, vanos por referencia, uniones POR VALOR): mover un
+  VECINO reconstruye la esquina de este muro aunque este muro no cambiara de
+  referencia — la dependencia que las referencias no pueden ver. Las
+  uniones se derivan contra el documento entero SIN filtrar por capa,
+  paridad exacta con `wallDocumentJoins` de la planta: un muro de capa
+  apagada no se construye, pero sigue dando forma a la esquina del vecino.
+- Probado con números, no con capturas (`wall-solid.spec.ts`, 37 verdes):
+  el inglete simétrico CONSERVA el volumen del muro (cede un triángulo, gana
+  el otro); un rayo por el triángulo interior cedido ya no toca al muro
+  (volumen doble eliminado) y la escuadra exterior que las cajas dejaban
+  abierta ahora se rellena; el par en L suma EXACTAMENTE sus volúmenes
+  nominales; el que llega a la T se recorta hasta la cara del pasante
+  (1.375×200×2.400 exacto) y el pasante no se toca; el vano sigue restando
+  exactamente su volumen en un muro con inglete. El anfitrión probado en
+  `wall-solid-host.spec.ts`: mover al vecino reconstruye, mismo documento no
+  reconstruye, capa apagada forma la esquina.
+- El GLB exporta estos mismos grupos de escena (`glb-export.ts`), así que el
+  edificio exportado lleva las esquinas limpias sin tocar el exportador.
+- La X (cruce por el interior de ambos ejes) queda como está EN AMBAS
+  vistas por decisión previa del modelo 2D («dos pasantes por el mismo
+  punto es un cruce, no una T»): los volúmenes se interpenetran sin
+  z-fighting y las CANTIDADES ya descuentan el solape por otra vía. Igual
+  que los ingletes de 3+ muros en un punto: ola 2, declarado en
+  `wall-joins.ts`.
