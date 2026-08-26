@@ -173,3 +173,28 @@ Abierto (declarado, no escondido):
 - `OWNER ACTION: PILOTOS` — mínimo cinco arquitectos externos con proyectos
   reales para declarar GA (Claude no puede simular validación humana).
 - `OWNER ACTION: SENTRY/OBSERVABILIDAD` — DSN/cuenta si se contrata.
+
+### Causa raíz 4 — moveMassive: la historia expulsaba el checkpoint recién grabado
+
+La fase `moveMassive` del estrés denso nunca había funcionado — ni en CI ni en
+local — y el porqué no era rendimiento: instrumentado el camino completo, el
+commit de mover 100.000 entidades tarda **1,5 s** (snapshot 154 ms, lote
+376 ms, canónico 938 ms). El movimiento SE APLICABA… sin dejar paso de
+deshacer: el documento denso estima ~51 MB, `CanonicalHistory` tenía
+`maxRetainedBytes: 32 MB`, y `enforceBudget()` expulsaba la entrada RECIÉN
+grabada. `recordCurrent` devolvía `false` y nadie lo miraba. Un usuario con un
+plano grande movía todo y Ctrl+Z no tenía nada que deshacer — pérdida
+silenciosa de seguridad de datos, la clase exacta de defecto que esta campaña
+existe para eliminar.
+
+**Arreglo:** el presupuesto de bytes acota la PROFUNDIDAD retenida, nunca el
+último paso — `enforceBudget` jamás baja de una entrada. Un checkpoint que por
+sí solo excede el presupuesto se retiene (suelo de seguridad); el techo sigue
+gobernando cuántos pasos MÁS se conservan. Regresión fijada en
+`canonical-history.spec.ts` (nuevo) y verificada con los consumidores reales
+(document-lifecycle, grips, block-edit-session — verdes).
+
+Del mismo diagnóstico queda MEDIDO y pendiente (Fase 2): con 100.000
+designadas el hilo principal encadena tareas de 10-24 s con el editor «en
+reposo» (SwiftShader + churn de render), y `paletteOpen` cuesta ~44 s. Ambos
+números van al informe de rendimiento; no bloquean el veredicto funcional.

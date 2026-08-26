@@ -108,42 +108,24 @@ cola viva, no el museo (el museo es `docs/history/`).
 
 ## P1 — bloquea flujos que un despacho espera
 
-### P1-1 · ~~Los seis goldens rojos~~ — CERRADO 2026-08-23, queda un huérfano nuevo
-Los seis originales (`21-cad-xrefs`, `47-cad-lisp-appload`, `47-cad-solids`,
-`53-cad-bim-wall`, `54-cad-bim-wall-joins`, `55-cad-anchored-comments`) cerraron
-en el commit `64d1ee28` ("Los seis goldens heredados cierran…"), confirmado en
-`f5e36ca4` ("85 de 87 goldens, desde 81/87"). Verificado por auditoría
-2026-08-24 contra el árbol real. Pero el criterio literal ("87/87 dos corridas
-seguidas") sigue sin cumplirse por dos rojos DISTINTOS a los seis originales:
-`46-cad-pointer-engine` (ya trackeado abajo, P1-1b) y **`20-cad-multiple-viewports`**,
-que quedó huérfano — documentado como intermitente conocido en
-`.github/workflows/ci.yml` ("los tres intermitentes que costaron un día entero
-(goldens 18, 33 y 20)") pero nunca tuvo entrada propia aquí. Reproducido de
-nuevo el 2026-08-24 en CI (Chromium, PR #93, dos corridas de E2E, ambas con
-timeout en el mismo test). **Criterio:** 87/87 con árbol quieto dos corridas
-seguidas, contando este huérfano. **Estimación:** medio día de diagnóstico
-(mismo patrón de intermitencia que P1-1b — no asumir causa común sin medir).
-
-### P1-1b · golden 46 test 2 (LINE por ratón) frágil ante el cambio de fuentes
-- **Qué falla:** `e2e/golden/46-cad-pointer-engine.spec.ts:177` («con el motor
-  abierto, la máquina heredada no recibe el clic») espera `Native 2` tras dos
-  clics de ratón + Enter y recibe `Native 1`: el segundo punto de LINE no entra.
-- **Bisección RIGUROSA (3× cada variante, caché `.next` limpia, puerto propio):**
-  la ÚNICA variable es el cambio `next/font/google` → `next/font/local` de la
-  OLA 3 de cimientos (fuentes autohospedadas). Fuentes de Google: 3/3 verde.
-  Fuentes propias: 3/3 rojo. Mismo commit, mismo layout salvo la *fuente* de las
-  variables CSS. `document.fonts.status` es `loaded` al fallar (NO es timing de
-  carga); quitar `adjustFontFallback` no lo cambia; añadir `fonts.ready` + doble
-  `requestAnimationFrame` en `openStudio` tampoco. El test 1 del mismo archivo
-  (PLINE, cierra por menú) SÍ pasa; sólo el test 2 (LINE, cierra por Enter).
-- **Por qué NO se revierten las fuentes:** el autohospedaje es requisito del
-  build offline (P0 de la campaña); las otras 384 specs y los otros 80 goldens
-  lo toleran. Revertir reintroduce la dependencia de Google en el build.
-- **Criterio:** el test vuelve a verde con las fuentes propias. Es fragilidad de
-  la PRUEBA ante métricas de fuente, no un defecto de producto (dibujar con LINE
-  funciona en el producto vivo). El arreglo probablemente vive en cómo
-  `screenPointFor` fija la caja del lienzo, no en un warm-up. **Estimación:**
-  medio día de diagnóstico dirigido con trazas del motor.
+### P1-1 · ~~Los seis goldens rojos~~ — los DOS restantes con causa raíz y arreglo (2026-08-26, campaña COMMERCIAL-RC1)
+Los seis originales cerraron el 23-08. Los dos que quedaban:
+- **`20-cad-multiple-viewports`**: los `fill()` previos al drag desplazan el
+  scroll del panel del paquete de entrega; la miniatura quedaba fuera del área
+  visible y el drag manual caía sobre la pestaña «Model» del encabezado, que
+  CIERRA el panel. Determinista con contenido lo bastante alto (métricas de
+  fuente). Arreglo: `scrollIntoViewIfNeeded()` antes de medir la caja para los
+  dos drags manuales. Verificado local 2026-08-26 (verde).
+- **`46-cad-pointer-engine` test 2 (P1-1b)**: NO era fragilidad del test — la
+  barra flotante del dibujo en curso (`draft-toolbar.tsx`) capturaba el pick
+  en TODO su rectángulo, y su altura depende de la métrica de la fuente por el
+  `flex-wrap` de la entrada dinámica: por eso la bisección culpaba a
+  `next/font/local`. Un usuario dibujando bajo la barra PERDÍA el clic.
+  Arreglo de producto: `pointer-events-none` en el contenedor,
+  `pointer-events-auto` sólo en los controles (patrón del dock del tour).
+  Sondeado con `elementFromPoint` y verificado local (verde).
+**Criterio (sin cambio):** 87/87 dos corridas seguidas en CI. **Estado:**
+arreglos en la rama de campaña COMMERCIAL-RC1; pendiente el veredicto de CI.
 
 ### P1-2 · XATTACH por línea de comandos no puede adjuntar (falta la biblioteca)
 - **Qué falla:** la orden está completa pero `context.xrefCatalog` nunca se
