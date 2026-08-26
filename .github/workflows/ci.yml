@@ -712,7 +712,21 @@ jobs:
           E2E_PROD: "1"
           E2E_API_ORIGIN: http://localhost:4000
           CAD_PERF_E2E: "1"
-        run: npx playwright test e2e/performance --project=chromium --retries=0
+          # UNA repetición por gesto en CI: con el valor por defecto (3, para
+          # medianas) la sola fase geométrica del estrés denso excede su techo
+          # de 35 min en un runner sin GPU — medido en local con REPEATS=1
+          # rozando el techo. La evidencia con medianas de 3 repeticiones es
+          # la corrida manual documentada (scripts/cad/dense-editing-evidence);
+          # el papel de este job es el VEREDICTO funcional acotado, y el
+          # artefacto publica repeats=1 en vez de disimularlo.
+          CAD_DENSE_REPEATS: "1"
+        # SÓLO el estrés denso — el veredicto funcional cuya ausencia dejó a
+        # main sin ejecutar ~200 tests del 12 al 26 de agosto. Los otros tres
+        # specs de e2e/performance (viewport-100k, render-browser,
+        # import-fuzzing) suman techos por encima del techo del job y siguen
+        # siendo corridas MANUALES documentadas (CAD_PERF_E2E=1 en local);
+        # dejarlos fuera se declara aquí en vez de descubrirse en un timeout.
+        run: npx playwright test e2e/performance/cad-dense-editing-100k --project=chromium --retries=0
 
       - name: Upload performance artifacts
         if: always()
