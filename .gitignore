@@ -86,6 +86,10 @@ htmlcov/
 sbom.cdx.json
 sbom.full.cdx.json
 
+# Sondas temporales de diagnóstico (zz-*): viven bajo e2e/ sólo porque
+# Playwright exige su testDir; no son producto y no deben correr en CI.
+apps/web/e2e/**/zz-*.spec.ts
+
 # Salidas de Playwright y artefactos POR CORRIDA del estrés denso. Lo que se
 # versiona es la evidencia agregada de `docs/cad/evidence/`, que sale de cruzar
 # tres corridas; las corridas sueltas son insumo y caducan con la máquina.
