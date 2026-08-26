@@ -607,3 +607,48 @@ extruido:
   z-fighting y las CANTIDADES ya descuentan el solape por otra vía. Igual
   que los ingletes de 3+ muros en un punto: ola 2, declarado en
   `wall-joins.ts`.
+
+## FASE 6 — Aceptación comercial: los tres proyectos canónicos, de punta a punta
+
+`e2e/real/cad-acceptance-projects.spec.ts` + `e2e/fixtures/acceptance-projects.ts`
+(carril real: `E2E_REAL_API=1`, API NestJS + PostgreSQL 16, cero mocks).
+Corrida local Chromium: **4/4 verdes en 50,9 s**. Tres corridas para llegar —
+las dos primeras cayeron en el MISMO sitio y el fallo enseñó el producto:
+
+- **El contrato del preflight DXF, ejercitado de verdad.** La primera
+  pulsación de «Descargar DXF» sobre un documento con pérdidas ENSEÑA el
+  manifiesto y no descarga nada; una pérdida que elimina geometría (muros
+  paramétricos) exige además la casilla de aceptación, y la segunda
+  pulsación es la que descarga. El guion inicial asumía descarga directa
+  (como el documento de arco de `studio-real-api`); el de aceptación ahora
+  recorre el contrato como lo haría el piloto: mira el informe, acepta con
+  conocimiento, descarga.
+- **Proyecto 1 · VIVIENDA (22 entidades nativas, a mano):** perímetro en L,
+  particiones en T, vanos alojados, ejes, luminarias, rótulos. Registro→
+  organización→proyecto por el harness real; contenido por CAS; los seis
+  muros visibles como SÓLIDOS nativos en 3D (las uniones de esta misma
+  cascada, vivas contra la API real); DXF por navegador (con manifiesto
+  aceptado) y por el endpoint del servidor; relectura íntegra.
+  openMs 1.824 · exportDxfMs 4.869.
+- **Proyecto 2 · PLANO REAL (8.000 entidades):** la mezcla `plano-real` del
+  banco de pruebas (modelo declarado de archivo de despacho mexicano:
+  caras de muro cortas, cadenas de cotas, carpintería repetida, achurados,
+  rótulos) importada por la interfaz («Importado: 8000 entidades»), abierta
+  entera (HUD Native 8000) y releída íntegra por la API.
+  importMs 2.160 · openMs 2.567.
+- **Proyecto 3 · OFICINA (2.000 entidades):** mezcla `architecture`
+  (carga dirigida: expansión de bloques, hatch, atlas) — importa, abre,
+  exporta DXF (>50 KB reales) y relee íntegro.
+  importMs 2.240 · openMs 2.034 · exportDxfMs 17.915.
+- **Métricas publicadas, no gateadas:** artefacto JSON
+  (`urn:valle-design:schema:cad-acceptance-projects-run:v1`) con hardware
+  declarado (Xeon 2,10 GHz · SwiftShader). Lo funcional BLOQUEA (recuentos
+  exactos, CAS, relecturas, sólidos, secciones DXF); los milisegundos se
+  publican con su máquina al lado. Los proyectos 2-3 corren sólo en
+  Chromium por criterio de carril (igual que e2e-perf, declarado en el
+  spec); la vivienda corre en ambos navegadores.
+- Ambos generadores de corpus VALIDADOS contra el validador real de la API
+  antes de escribir el guion (sonda directa a `validateCadDocumentPayload`).
+
+Los PILOTOS con despachos reales siguen siendo OWNER ACTION — esto es la
+evidencia previa: el recorrido que un piloto haría, verde y medido.
