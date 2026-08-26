@@ -345,3 +345,32 @@ goldens; el golden 11 (recovery-journal) enruta esa ruta a nivel de página y
 conserva la precedencia. Tres sondas dirigidas (apertura, paleta, mutación
 suelta) no lo habían reproducido porque el autoguardado es PERIÓDICO: sólo
 una corrida larga lo dispara.
+
+## FASE 0 — CIERRE: el estrés denso VERDE de punta a punta (12:01 UTC)
+
+Corrida `chromium-2026-08-26T11-30-42-390Z` (REPEATS=1, 4 vCPU, servidor de
+producción, API real en :4000): **1 passed (37,5 min)** — la primera corrida
+verde de la suite en su historia. `complete: true`, 0 fallos, **0 errores de
+navegador**, y los ONCE gestos con sus invariantes exactos:
+
+| fase | mediana | observado |
+|---|---|---|
+| paletteOpen | 38,6 s | 100.000 en el universo |
+| selectAll | 21,0 s | 100000/100000 |
+| moveMassive | 6,6 s | deshacer 0→1 |
+| undoMassive | 11,1 s | deshacer 1→0 |
+| eraseLayer | 6,8 s | 100000→80000 (−20000 exactos) |
+| undoErase | 9,2 s | 80000→100000 |
+| windowSmall | 67,8 s | 80/80 |
+| windowLarge | 63,3 s | **1280/1280** (antes 300, en silencio) |
+| crossingLarge | 57,6 s | **1280/1280** |
+| lasso | 196,1 s | **180/180** (antes: nunca llegó a ejecutarse) |
+| pickAndGrips | 7,3 s | 1 designado, paleta de propiedades poblada |
+
+Nota de honestidad: la corrida se lanzó con el manejador de archivo del
+fixture ANTES de su división en módulo propio (fa494e6) — conducta idéntica,
+diff de pura organización cazado por el tope de 800 líneas en CI.
+
+Ocho causas raíz medidas y corregidas para llegar aquí; el detalle de cada
+una está arriba. Pendiente de Fase 0: dos pasadas completas de gates locales
+sobre el SHA final, fusión y CI de main verde (Chromium+Firefox+e2e-perf).
