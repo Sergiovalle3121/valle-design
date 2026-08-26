@@ -238,8 +238,8 @@ import { planCadNativeRenderBudget } from "@/lib/cad/native-render-budget";
 import { CadNativeSelectionIndex } from "@/lib/cad/native-selection-index";
 // Apagada O congelada (esquema 9): la regla vive en un solo módulo.
 import {
+  cadFrozenLayerIds,
   cadHiddenLayerIds,
-  cadUnselectableLayerIds,
 } from "@/lib/cad/cad-layer-visibility";
 import {
   EMPTY_CAD_SELECTION,
@@ -4782,14 +4782,14 @@ export default function Layout3DEditor({
     ) => {
       recordHistoryDocument(checkpoint, options.groupKey);
       loadedCadDocumentRef.current = document;
-      // La selección sobrevive al commit sólo si la entidad sigue existiendo
-      // Y sigue siendo designable: ocultar, congelar o bloquear una capa
-      // suelta lo suyo de la designación actual (misma regla única de
-      // `cadUnselectableLayerIds` que aplican el pickbox y la ventana).
-      const unselectableLayers = cadUnselectableLayerIds(document.layers);
+      // Sobrevive al commit lo que existe y no está en capa CONGELADA («no
+      // cuenta»). Apagada/bloqueada NO purgan lo YA designado: apagar es
+      // display (mover selección previa es flujo AutoCAD — golden 24) y
+      // bloquear veta la edición con aviso; designar de NUEVO sigue vetado.
+      const frozenLayers = cadFrozenLayerIds(document.layers);
       const selectableById = new Map(
         document.entities
-          .filter((entity) => !unselectableLayers.has(entity.layer))
+          .filter((entity) => !frozenLayers.has(entity.layer))
           .map((entity) => [entity.id, entity] as const),
       );
       const selected = options.selection.filter((id) =>
