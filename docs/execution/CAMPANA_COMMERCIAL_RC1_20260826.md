@@ -418,3 +418,62 @@ Actions para cancelarlo/relanzarlo desde esta sesión; este mismo commit lo
 sustituye vía el grupo de concurrencia del PR. Los 141 tests del E2E
 anterior ya estaban verdes con el único rojo en el mecanismo de
 estrellamiento ya corregido.
+
+---
+
+# INFORME FINAL — VALLE-DESIGN-COMMERCIAL-RC1 (corte 16:50 UTC)
+
+## Estado global: RC TÉCNICO LOCAL DEMOSTRADO · fusión pendiente de infra de GitHub
+
+`main` sigue estable en `bc4dda1` (intacto). La rama de campaña
+`claude/valle-design-commercial-rc1-izgdxb` (`2a52daa`) tiene:
+
+- **Dos pasadas consecutivas COMPLETAS de gates locales TODO-VERDE** sobre el
+  SHA final y sobre los tres SHAs previos (19 gates × 2: check:cad completo
+  con espejo del corpus, check:dwg, governance, audit, Redocly,
+  sbom+licencias, build, typecheck API/web, tests API unit + pg 166/166,
+  lint API/web, 413/413 specs web, 3 benchmarks bloqueantes).
+- El último run E2E COMPLETO de CI: **141 verdes, 1 rojo** — y ese rojo era
+  el mecanismo de estrellamiento del arnés, corregido y verificado local
+  (4/4) en el SHA final.
+- El run 497 de CI lleva ~100 min ENCOLADO (incidente/backlog de runners de
+  GitHub; sin permiso de Actions desde esta sesión para cancelar/relanzar) y
+  el push de este informe tampoco generó run en minutos — la fusión queda
+  AUTOMATIZADA (trigger + suscripción del PR): en cuanto Actions despierte y
+  el run salga verde, se saca el PR de borrador, se fusiona por squash, se
+  verifica main CI (quality-gates + e2e Chromium+Firefox + e2e-perf denso),
+  se cierra #108 como adoptado y se borran las ramas absorbidas.
+
+## Score verdadero: 60/100
+
+| Fase | Estado | Evidencia |
+|---|---|---|
+| 0 · Baseline verde | **HECHA** (local + 141/142 CI) | 8 causas raíz medidas; estrés denso 11/11 por primera vez en su historia; gates 2× mismo SHA |
+| 1 · 3D honesto | **SUSTANCIAL** | booleanas fail-closed con diagnóstico, capas por entidad en 3D, GLB con edificio (spec round-trip + E2E del botón), cantidades sin volumen doble. Abierto: uniones L/T/X visuales, cutaway, espesores de losa |
+| 2 · Rendimiento vivo | **MEDIDA, no gateada** | selectAll 21-28 s, move 6,5-9 s, ventana 50-73 s (constante: hilo principal), lazo 187-198 s, paleta 32-43 s a 100k SwiftShader — declarado, nunca presentado como GPU real. Falta memoria ×20 y objetivo ≤100 ms a 10k |
+| 3 · DWG beta | **NO ABORDADA** | writeCanonicalDwg existe (lab); sin flag/preflight/manifest. **PRÓXIMO P0** |
+| 4 · Railway/prod | **HECHA salvo OWNER ACTION** | migraciones pre-deploy ensayadas, restore RTO 1,47 s, cabeceras, railway.json+docs |
+| 5 · Legal/cobro | **CANDADO HECHO** | contentHash+gate en CI (negativo probado), versión visible, contradicción comercial corregida; Stripe test/live = OWNER ACTION |
+| 6 · Aceptación | **NO ABORDADA** | OWNER ACTION: PILOTOS |
+
+Hard-caps respetados: ninguna prueba borrada ni saltada; ningún timeout
+subido «a secas» (cada techo con aritmética medida y arreglos de algoritmo
+antes); ninguna pérdida silenciosa — al contrario: DOS pérdidas silenciosas
+de datos ENCONTRADAS y corregidas (deshacer expulsado a 100k; selección
+geométrica truncada a 300).
+
+## Próximos P0 exactos
+
+1. Al despertar Actions: veredicto del run sobre `2a52daa` → fusión → main
+   CI verde con Firefox y e2e-perf (la automatización queda armada).
+2. Fase 2 formal: ciclo de memoria ×20 y selección ≤100 ms a 10k; atacar la
+   RESPONSIVIDAD del hilo principal a 100k (arrastre ~66 s: tareas largas de
+   render/teselación — medido con sonda).
+3. Fase 3 DWG beta: flag de producto sobre writeCanonicalDwg + preflight +
+   manifest de pérdidas + round-trip. OWNER ACTION: CORPUS REAL para GA.
+
+## OWNER ACTIONS pendientes (registro completo arriba)
+
+RAILWAY (cuenta+secretos+dominio), DNS/TLS, SMTP, STRIPE test y live, texto
+legal definitivo (razón social/RFC/jurisdicción), CORPUS REAL DWG, PILOTOS,
+SENTRY.
