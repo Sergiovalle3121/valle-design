@@ -386,9 +386,12 @@ test.describe("recorrido comercial CAD first-party contra PostgreSQL", () => {
       mimeType: "application/json",
       buffer: Buffer.from(JSON.stringify(canonicalDocument()), "utf8"),
     });
-    await expect(page.getByRole("status")).toContainText(/Importado: 1 entidades/iu, {
-      timeout: 90_000,
-    });
+    // Con .filter: la importación publica DOS «status» (el conteo y la línea
+    // de completitud «Entró completo…» que main añadió) y el modo estricto
+    // rechaza el locator ambiguo.
+    await expect(
+      page.getByRole("status").filter({ hasText: /Importado: 1 entidades/iu }),
+    ).toBeVisible({ timeout: 90_000 });
 
     const importedPage = await apiGet<PageResult<CadDocumentSummary>>(
       context,
@@ -679,10 +682,11 @@ test.describe("recorrido comercial CAD first-party contra PostgreSQL", () => {
       entityCount: 12_000,
       storedAsBlobPointer: true,
     });
-    await expect(page.getByRole("status")).toContainText(
-      /Importado: 12000 entidades/iu,
-      { timeout: 120_000 },
-    );
+    await expect(
+      page
+        .getByRole("status")
+        .filter({ hasText: /Importado: 12000 entidades/iu }),
+    ).toBeVisible({ timeout: 120_000 });
 
     const large = await openDocument(context, receipt.cadDocumentId);
     expect(large.status).toBe(200);
@@ -805,9 +809,9 @@ test.describe("recorrido comercial CAD first-party contra PostgreSQL", () => {
       buffer: browserDxf,
     });
     const roundTripSave = (await (await saveResponse).json()) as CadSaveReceipt;
-    await expect(page.getByRole("status")).toContainText(/Importado:/iu, {
-      timeout: 90_000,
-    });
+    await expect(
+      page.getByRole("status").filter({ hasText: /Importado:/iu }),
+    ).toBeVisible({ timeout: 90_000 });
 
     const roundTrip = await openDocument(context, roundTripSave.cadDocumentId);
     expect(roundTrip.status).toBe(200);
