@@ -3554,20 +3554,20 @@ export default function Layout3DEditor({
     }
   }, [showGaps, loadGaps]);
 
-  const rebuildAll = useCallback(() => {
+  // Sólo lo HEREDADO: lo que un gesto de designación puede repintar. La
+  // resincronización nativa NO va aquí — re-hashear 100.000 entidades por
+  // una marquesina que no cambió el documento medía segundos (estrés denso).
+  const rebuildLegacy = useCallback(() => {
     rebuildBlocks();
     rebuildAssets();
     rebuildDims();
     rebuildNotes();
-    syncNativeScene();
     rebuildCellsRef.current();
-  }, [
-    rebuildBlocks,
-    rebuildAssets,
-    rebuildDims,
-    rebuildNotes,
-    syncNativeScene,
-  ]);
+  }, [rebuildBlocks, rebuildAssets, rebuildDims, rebuildNotes]);
+  const rebuildAll = useCallback(() => {
+    rebuildLegacy();
+    syncNativeScene();
+  }, [rebuildLegacy, syncNativeScene]);
 
   const buildSelectionUniverse = useCallback(
     (): CadSelectableItem[] =>
@@ -7371,7 +7371,7 @@ export default function Layout3DEditor({
           operation:
             explicitMode === "pick" ? "add" : selectionOperationRef.current,
         });
-        rebuildAll();
+        rebuildLegacy(); // los visuales nativos ya los refrescó el apply
         if (found.length + nativeFound.length)
           toast.success(
             `${found.length + nativeFound.length} objeto(s) seleccionados por ${crossing ? "cruce" : "ventana"}.`,

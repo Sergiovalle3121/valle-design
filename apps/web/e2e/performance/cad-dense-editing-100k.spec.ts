@@ -274,6 +274,25 @@ test.describe("CAD dense editing stress · 100k", () => {
     open = { documentReadyMs, firstDetailMs, settledWithinBudget: settled, atRest, payloadBytes };
     await flush(false, testInfo);
 
+    // El tour guiado de primer arranque FLOTA SOBRE EL PLANO y captura el
+    // pointerdown en su rectángulo. Medido con sonda (2026-08-26): las dos
+    // esquinas superiores del bloque del lazo —mundo (36000,27000) y
+    // (37800,27000)— caían en pantalla sobre su botón «Saltar», el lazo nunca
+    // empezaba y el sondeo de `selection > 0` moría de hambre hasta el techo:
+    // dos corridas enteras muertas en la fase `lasso` por un botón. Un usuario
+    // real despacha el tour antes de trabajar; este guion también.
+    const tourSkip = page.getByTestId("cad-guided-tour-skip");
+    try {
+      await tourSkip.waitFor({ state: "visible", timeout: 60_000 });
+      await tourSkip.click();
+      await expect(tourSkip).toBeHidden();
+    } catch {
+      findings.push(
+        "El tour guiado no apareció en 60 s: nada que despachar (si reaparece " +
+          "a mitad de guion, cualquier gesto sobre su rectángulo se lo comerá).",
+      );
+    }
+
     // -----------------------------------------------------------------------
     // 2 · Abrir la paleta de selección. El universo se reconstruye entero.
     // -----------------------------------------------------------------------

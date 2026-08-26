@@ -266,3 +266,41 @@ medida: ventana/captura cuestan ~70 s CONSTANTES (independiente del área
 seleccionada) — huella de recorrido completo del documento, no del índice
 espacial. Corrida limpia (máquina quieta) en curso para el veredicto del
 smoke.
+
+### Causa raíz 6 — el LAZO nunca empezaba: el tour guiado flotaba sobre su esquina
+
+Dos corridas limpias del estrés denso murieron en la fase `lasso` (>6 min sin
+designar, techo de 35 min consumido). Una sonda dedicada (v2, con
+`elementFromPoint` bajo cada esquina) lo cerró sin ambigüedad:
+
+- Las dos esquinas SUPERIORES del bloque del lazo — mundo (36000,27000) y
+  (37800,27000) → pantalla (689,427) y (706,427) — caían sobre
+  `BUTTON[cad-guided-tour-skip]`: el dock del tour guiado de primer arranque
+  flota SOBRE el plano y captura el pointerdown. El lazo EMPIEZA en esa
+  esquina: el gesto pulsaba el botón, ninguna marquesina nacía y el sondeo de
+  `selection > 0` moría de hambre.
+- El lazo del PRODUCTO está bien: sobre un bloque sin obstruir designó
+  **exactamente 180/180** (9 habitaciones × 20 trazos) con su toast
+  «180 objeto(s) por lasso.».
+
+Arreglo en el guion (no en el producto: un dock interactivo debe capturar sus
+propios clics): el estrés despacha el tour con «Saltar» antes de medir, como
+haría cualquier usuario. Si no aparece en 60 s se publica como hallazgo.
+
+La sonda también DESCOMPUSO el coste de las fases geométricas (~67 s medidos):
+
+- `setSelectionMode` (abrir paleta + modo + cerrar): **~100 s** a 100k —
+  coste de arnés por fase que ninguna medición registraba.
+- El ARRASTRE en sí (`dragWorld`, 6 pasos por segmento): **~66 s** — cada
+  `mouse.move` espera a que el hilo principal suelte sus tareas largas.
+  El hit-test y la aplicación son rápidos; la señal de Fase 2 es la
+  RESPONSIVIDAD del hilo principal a 100k, no la selección.
+
+### Arreglo de producto: la marquesina resincronizaba la escena nativa entera
+
+`rebuildAll()` tras cada ventana/captura re-hasheaba las 100.000 entidades
+(`syncNativeScene()` sin argumentos) por un gesto que NO cambió el documento —
+los visuales nativos ya los refresca `applyProfessionalSelection` →
+`refreshNativeSelectionVisuals`. Ahora la marquesina reconstruye sólo lo
+heredado (`rebuildLegacy`: bloques, activos, cotas, notas, celdas);
+`rebuildAll` queda para los caminos que sí mutan el documento.
