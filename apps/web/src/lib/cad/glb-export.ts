@@ -75,3 +75,72 @@ export function cadGlbExportIncludesArchitecture(
     (object) => !!object && hasRenderableContent(object),
   );
 }
+
+export type CadGlbExportPlan =
+  | { kind: "empty" }
+  /** El documento tiene muros/sólidos y la escena 3D aún no los materializó:
+   * un GLB sin la arquitectura sería el defecto original, no una exportación. */
+  | { kind: "architecture-missing" }
+  | { kind: "ready"; objects: THREE.Object3D[] };
+
+/** La decisión completa del botón «Exportar .glb», ejecutable en un spec. */
+export function planCadGlbExport(
+  groups: CadGlbExportGroups,
+  documentHasArchitecture: boolean,
+): CadGlbExportPlan {
+  const objects = collectCadGlbExportObjects(groups);
+  if (objects.length === 0) return { kind: "empty" };
+  if (documentHasArchitecture && !cadGlbExportIncludesArchitecture(groups))
+    return { kind: "architecture-missing" };
+  return { kind: "ready", objects };
+}
+
+/**
+ * Oculta los overlays que no deben viajar en el GLB (etiquetas, línea de
+ * previsualización) y devuelve la función que los restaura. Sólo apaga lo que
+ * estaba visible, para que restaurar no encienda nada que ya estaba apagado.
+ */
+export function hideCadGlbOverlays(
+  root: THREE.Object3D | null | undefined,
+  isOverlay: (object: THREE.Object3D) => boolean,
+): () => void {
+  const hidden: THREE.Object3D[] = [];
+  root?.traverse((object) => {
+    if (isOverlay(object) && object.visible) {
+      object.visible = false;
+      hidden.push(object);
+    }
+  });
+  return () => {
+    for (const object of hidden) object.visible = true;
+  };
+}
+
+/**
+ * Serializa los objetos a un Blob GLB binario. `hide` aparta los overlays
+ * durante la serialización y su restauración corre SIEMPRE, también cuando el
+ * exportador falla — dejar el 3D sin etiquetas tras un fallo sería un segundo
+ * defecto encima del primero.
+ */
+export async function serializeCadGlbBlob(
+  objects: readonly THREE.Object3D[],
+  options: { hide?: () => () => void } = {},
+): Promise<Blob> {
+  const { GLTFExporter } = await import(
+    "three/examples/jsm/exporters/GLTFExporter.js"
+  );
+  const restore = options.hide?.() ?? (() => {});
+  try {
+    const result = await new Promise<ArrayBuffer>((resolve, reject) => {
+      new GLTFExporter().parse(
+        [...objects],
+        (value) => resolve(value as ArrayBuffer),
+        reject,
+        { binary: true, onlyVisible: true },
+      );
+    });
+    return new Blob([result], { type: "model/gltf-binary" });
+  } finally {
+    restore();
+  }
+}

@@ -56,7 +56,7 @@ async function main(): Promise<void> {
 main().catch((error: unknown) => {
   console.error(
     'Migraciones: FALLO — el despliegue debe abortarse.',
-    error instanceof Error ? error.stack ?? error.message : error,
+    error instanceof Error ? (error.stack ?? error.message) : error,
   );
   process.exitCode = 1;
 });

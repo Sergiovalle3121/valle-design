@@ -253,9 +253,11 @@ import { cadSelectionPathMatchesPolygon } from "@/lib/cad/selection-shapes";
 import { planCadSelectionProjection } from "@/lib/cad/selection-projection-budget";
 import { buildCadSelectionUniverse } from "@/components/cad/editor/selection-universe";
 import {
-  cadGlbExportIncludesArchitecture,
-  collectCadGlbExportObjects,
+  hideCadGlbOverlays,
+  planCadGlbExport,
+  serializeCadGlbBlob,
 } from "@/lib/cad/glb-export";
+import { assertCadCommandsNotOnLockedLayers } from "@/lib/cad/entity-command-locks";
 import {
   acquireCadTrackingPoint,
   resolveCadPolarTracking,
@@ -4824,36 +4826,10 @@ export default function Layout3DEditor({
       if (!commands.length) return false;
       const checkpoint = snapshotDocument();
       try {
-        // Capa bloqueada: se comprueba TODO el lote contra el estado de
-        // partida, antes de aplicar nada. Un lote es atómico respecto de su
-        // punto de partida, así que preguntar por el documento intermedio no
-        // añadía información y obligaba a aplicar los comandos de uno en uno.
-        //
-        // Con MAPAS, no con `find` por comando: la versión anterior hacía un
-        // recorrido lineal del documento por CADA comando — mover las 100.000
-        // designadas eran 10^10 comparaciones y la orden no volvía en 10
-        // minutos (medido en cad-dense-editing-100k, fase moveMassive).
-        const entityById = new Map(
-          checkpoint.entities.map((entity) => [entity.id, entity] as const),
-        );
-        const lockedLayerIds = new Set(
-          checkpoint.layers
-            .filter((layer) => layer.locked)
-            .map((layer) => layer.id),
-        );
-        for (const command of commands) {
-          // `insert` trae su entidad; `image-definition` no toca ninguna capa.
-          const target =
-            "entityId" in command
-              ? entityById.get(command.entityId)
-              : "entity" in command
-                ? command.entity
-                : undefined;
-          if (target && lockedLayerIds.has(target.layer))
-            throw new Error(
-              `Layer ${target.layer} is locked. Unlock it before editing ${target.id}.`,
-            );
-        }
+        // Capa bloqueada: TODO el lote se comprueba contra el estado de
+        // partida y con índices, no con `find` por comando (la regla, su
+        // porqué y la medición viven en `lib/cad/entity-command-locks.ts`).
+        assertCadCommandsNotOnLockedLayers(checkpoint, commands);
         /**
          * UN lote, UN `commitChange`.
          *
@@ -12788,35 +12764,30 @@ export default function Layout3DEditor({
   // publishSheetSetPdf (conjunto de hojas).
   // Export the 3D model as binary glTF (.glb) — opens in Blender, other CAD, etc.
   const exportGltf = async () => {
-    // La lista es EXPLÍCITA y vive en `lib/cad/glb-export.ts` con su spec de
-    // round-trip: el GLB lleva el modelo heredado Y la arquitectura nativa
-    // (muros con vanos recortados, piso/cielorraso/cubierta, SOLID3D). Antes
-    // sólo viajaban los grupos heredados: el botón entregaba una escena sin
-    // edificio y ningún spec lo miraba.
-    const exportGroups = {
-      legacy: [
-        blocksRef.current,
-        assetsGroupRef.current,
-        connsGroupRef.current,
-        groundRef.current,
-      ],
-      architecture: [
-        nativeMassHostsRef.current?.group,
-        solidShadeHostRef.current?.group,
-      ],
-    };
-    const groups = collectCadGlbExportObjects(exportGroups);
-    if (!groups.length) return;
-    const documentHasArchitecture = (
-      loadedCadDocumentRef.current?.entities ?? []
-    ).some((entity) => entity.type === "wall" || entity.type === "solid3d");
-    if (
-      documentHasArchitecture &&
-      !cadGlbExportIncludesArchitecture(exportGroups)
-    ) {
-      // El documento tiene muros/sólidos y la escena 3D aún no los
-      // materializó: un GLB sin la arquitectura sería el defecto original,
-      // no una exportación.
+    // Lista, plan y serialización viven en `lib/cad/glb-export.ts` con su
+    // spec de round-trip: el GLB lleva el modelo heredado Y la arquitectura
+    // nativa (muros con vanos recortados, piso/cielorraso/cubierta, SOLID3D).
+    // Antes sólo viajaban los grupos heredados: el botón entregaba una escena
+    // sin edificio y ningún spec lo miraba.
+    const plan = planCadGlbExport(
+      {
+        legacy: [
+          blocksRef.current,
+          assetsGroupRef.current,
+          connsGroupRef.current,
+          groundRef.current,
+        ],
+        architecture: [
+          nativeMassHostsRef.current?.group,
+          solidShadeHostRef.current?.group,
+        ],
+      },
+      (loadedCadDocumentRef.current?.entities ?? []).some(
+        (entity) => entity.type === "wall" || entity.type === "solid3d",
+      ),
+    );
+    if (plan.kind === "empty") return;
+    if (plan.kind === "architecture-missing") {
       toast.error(
         "La vista 3D aún no materializó la arquitectura; abre la vista 3D y reintenta.",
         "3D",
@@ -12824,49 +12795,27 @@ export default function Layout3DEditor({
       return;
     }
     try {
-      const { GLTFExporter } =
-        await import("three/examples/jsm/exporters/GLTFExporter.js");
-      // hide labels + the live preview line so the model is clean geometry
-      const hidden: THREE.Object3D[] = [];
-      sceneRef.current?.traverse((o) => {
-        if (
-          (o.userData?.isLabel || o === previewLineRef.current) &&
-          o.visible
-        ) {
-          o.visible = false;
-          hidden.push(o);
-        }
+      const blob = await serializeCadGlbBlob(plan.objects, {
+        // Etiquetas y línea de previsualización fuera: geometría limpia.
+        hide: () =>
+          hideCadGlbOverlays(
+            sceneRef.current,
+            (object) =>
+              !!object.userData?.isLabel || object === previewLineRef.current,
+          ),
       });
-      const restore = () =>
-        hidden.forEach((o) => {
-          o.visible = true;
-        });
-      new GLTFExporter().parse(
-        groups,
-        (result) => {
-          restore();
-          const blob = new Blob([result as ArrayBuffer], {
-            type: "model/gltf-binary",
-          });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `layout3d-${model}-${revision}.glb`.replace(
-            /[^\w.\-]+/g,
-            "_",
-          );
-          a.click();
-          URL.revokeObjectURL(url);
-          toast.success("Modelo 3D exportado (.glb).", "3D");
-        },
-        (err) => {
-          restore();
-          console.error(err);
-          toast.error("No se pudo exportar el modelo 3D.", "3D");
-        },
-        { binary: true, onlyVisible: true },
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `layout3d-${model}-${revision}.glb`.replace(
+        /[^\w.\-]+/g,
+        "_",
       );
-    } catch {
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Modelo 3D exportado (.glb).", "3D");
+    } catch (error) {
+      console.error(error);
       toast.error("No se pudo exportar el modelo 3D.", "3D");
     }
   };
@@ -14217,6 +14166,32 @@ export default function Layout3DEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, data]);
 
+  // Memoizado por documento, no recalculado por render: reconstruir el
+  // universo entero costaba ~medio minuto de paleta a 100.000 entidades.
+  // `nativeEntities` y `data` son los estados que cambian cuando el contenido
+  // puede cambiar de verdad. ANTES del `return null` de editor cerrado: un
+  // hook tras un return condicional rompe el orden de hooks (rules-of-hooks).
+  const professionalSelectionUniverse = useMemo(
+    () => (showSelectionPalette ? buildSelectionUniverse() : []),
+    // nativeEntities y data: espejos reactivos de los refs que lee el builder.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [showSelectionPalette, buildSelectionUniverse, nativeEntities, data],
+  );
+  const { professionalSelectionTypes, professionalSelectionLayers } = useMemo(
+    () => ({
+      professionalSelectionTypes: [
+        ...new Set(professionalSelectionUniverse.map((item) => item.type)),
+      ].sort(),
+      professionalSelectionLayers: [
+        ...new Set(
+          professionalSelectionUniverse
+            .map((item) => item.layer)
+            .filter((layer): layer is string => !!layer),
+        ),
+      ].sort(),
+    }),
+    [professionalSelectionUniverse],
+  );
   if (!open || typeof document === "undefined") return null;
 
   const allNativeEntities = nativeEntities;
@@ -14333,32 +14308,6 @@ export default function Layout3DEditor({
         ),
       }
     : { x: 0, y: 0 };
-  // Memoizado por documento, no recalculado por render: con la paleta abierta
-  // el editor renderiza en cada interacción, y reconstruir el universo entero
-  // (una pasada con lectura de propiedades por entidad) costaba ~medio minuto
-  // de paleta a 100.000 entidades. `nativeEntities` y `data` son los estados
-  // que cambian cuando el contenido del universo puede cambiar de verdad.
-  const professionalSelectionUniverse = useMemo(
-    () => (showSelectionPalette ? buildSelectionUniverse() : []),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- nativeEntities y
-    // data son los espejos reactivos de los refs que lee buildSelectionUniverse
-    [showSelectionPalette, buildSelectionUniverse, nativeEntities, data],
-  );
-  const { professionalSelectionTypes, professionalSelectionLayers } = useMemo(
-    () => ({
-      professionalSelectionTypes: [
-        ...new Set(professionalSelectionUniverse.map((item) => item.type)),
-      ].sort(),
-      professionalSelectionLayers: [
-        ...new Set(
-          professionalSelectionUniverse
-            .map((item) => item.layer)
-            .filter((layer): layer is string => !!layer),
-        ),
-      ].sort(),
-    }),
-    [professionalSelectionUniverse],
-  );
   const activeProfessionalDock = showSelectionPalette
     ? "selection"
     : showHatchPalette

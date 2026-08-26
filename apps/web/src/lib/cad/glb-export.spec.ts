@@ -17,7 +17,6 @@
  */
 import assert from "node:assert/strict";
 import * as THREE from "three";
-import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { CadDocument, CadEntity } from "./cad-document";
 import { CAD_DOCUMENT_SCHEMA } from "./cad-document";
@@ -27,6 +26,9 @@ import { CadNativeMassHosts } from "@/components/cad/viewport/native-mass-hosts"
 import {
   cadGlbExportIncludesArchitecture,
   collectCadGlbExportObjects,
+  hideCadGlbOverlays,
+  planCadGlbExport,
+  serializeCadGlbBlob,
 } from "./glb-export";
 import { cadWallMaterialStyle } from "./wall-materials";
 
@@ -101,6 +103,18 @@ function documentWith(entities: readonly CadEntity[]): CadDocument {
 
 const viewport = { scale: 0.01, width: 10_000, height: 10_000 };
 
+/** Un grupo heredado CON geometría, para aislar el caso architecture-missing. */
+function makeLegacyBox(): THREE.Group {
+  const group = new THREE.Group();
+  group.add(
+    new THREE.Mesh(
+      new THREE.BoxGeometry(1, 1, 1),
+      new THREE.MeshBasicMaterial(),
+    ),
+  );
+  return group;
+}
+
 // Vivienda mínima: cuatro muros que cierran 5×4 m y una puerta en el muro sur.
 const door: CadOpeningEntity = {
   id: "puerta",
@@ -156,15 +170,45 @@ assert.equal(
   "una escena sin geometría de arquitectura se detecta (la firma del defecto)",
 );
 
-// 2 · Export → re-read.
-const exported: ArrayBuffer = await new Promise((resolve, reject) => {
-  new GLTFExporter().parse(
-    objects,
-    (result) => resolve(result as ArrayBuffer),
-    reject,
-    { binary: true, onlyVisible: true },
-  );
-});
+// 1b · El PLAN del botón — las dos negativas y la afirmativa, sin editor.
+const plan = planCadGlbExport(groups, true);
+assert.ok(plan.kind === "ready", "documento con arquitectura materializada: listo");
+assert.ok(plan.objects.includes(hosts.group), "el plan lleva la arquitectura");
+assert.equal(
+  planCadGlbExport({ legacy: [new THREE.Group()], architecture: [] }, false).kind,
+  "empty",
+  "sin nada renderable no hay exportación",
+);
+assert.equal(
+  planCadGlbExport(
+    { legacy: [makeLegacyBox()], architecture: [new THREE.Group()] },
+    true,
+  ).kind,
+  "architecture-missing",
+  "documento con muros y escena sin arquitectura: se RECHAZA (hard-cap RC1)",
+);
+
+// 1c · Los overlays se apagan durante la exportación y se restauran después,
+// sin encender lo que ya estaba apagado.
+{
+  const root = new THREE.Group();
+  const label = new THREE.Group();
+  label.userData.isLabel = true;
+  const alreadyHidden = new THREE.Group();
+  alreadyHidden.userData.isLabel = true;
+  alreadyHidden.visible = false;
+  root.add(label, alreadyHidden);
+  const restore = hideCadGlbOverlays(root, (o) => !!o.userData?.isLabel);
+  assert.equal(label.visible, false, "el overlay queda oculto para exportar");
+  restore();
+  assert.equal(label.visible, true, "restaurar vuelve a encender el overlay");
+  assert.equal(alreadyHidden.visible, false, "lo ya apagado sigue apagado");
+}
+
+// 2 · Export → re-read, por la MISMA función que usa el botón del editor.
+const exported: ArrayBuffer = await (
+  await serializeCadGlbBlob(objects)
+).arrayBuffer();
 assert.ok(exported.byteLength > 1_000, "el GLB tiene contenido real");
 
 const reread = await new Promise<THREE.Group>((resolve, reject) => {
