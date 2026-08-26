@@ -325,3 +325,23 @@ El techo del estrés denso pasa de 35 a 45 min por ARITMÉTICA MEDIDA, no por
 comodidad (el detalle en el propio spec): dense7 murió a 35:00 despachando
 la última fase con las 10 anteriores verdes. Ninguna fase individual puede
 acercarse al techo.
+
+### Causa raíz 8 — los 7 «404» del estrés: el autoguardado escapaba del fixture
+
+Con el registro de red (≥400 con método y URL) el artefacto se explicó solo a
+la primera corrida: `PUT /v1/cad/documents/<id>/archive` — el ARCHIVO DE
+RECUPERACIÓN que el editor sube en caliente cada pocos minutos. El fixture de
+E2E intercepta `/v1/cad/**` pero no conocía esa ruta y su manejador caía al
+404 genérico; el error llegaba a la consola sin URL («Failed to load
+resource») y el invariante «sin errores de navegador» tumbaba una corrida
+por lo demás verde (dense8: las ONCE fases completas por primera vez, con
+undo masivo real, 1280/1280 en ventana y captura, lazo 186,9 s a 180/180 y
+pickbox 8,2 s).
+
+Es un hueco del ARNÉS, no del producto: el producto autoguarda con juicio.
+El fixture acusa ahora el archivo (200, la misma forma que `/content`) SIN
+tocar la versión — bumpearla rompería por CAS los saves explícitos de los
+goldens; el golden 11 (recovery-journal) enruta esa ruta a nivel de página y
+conserva la precedencia. Tres sondas dirigidas (apertura, paleta, mutación
+suelta) no lo habían reproducido porque el autoguardado es PERIÓDICO: sólo
+una corrida larga lo dispara.
