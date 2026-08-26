@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { installMockBackend } from "../fixtures/mock-backend";
 import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
@@ -198,4 +199,68 @@ test("un muro tecleado con ratón y teclado sobrevive a guardar y reabrir, y su 
       saved.history.filter((entry) => entry.label === "properties:wall"),
     ).toHaveLength(1);
   }
+});
+
+test("el GLB del botón lleva el edificio, y con la capa del muro congelada se NIEGA en vez de entregar una escena vacía", async ({
+  context,
+  page,
+}) => {
+  test.setTimeout(240_000);
+  await installMockBackend(context);
+  await loginAsStandaloneOwner(context);
+  await installCadBackend(context);
+  await page.goto("/legacy/studio");
+  await expect(page.getByTestId("cad-command-line")).toBeVisible();
+  await settlePlanView(page);
+
+  // Un muro por el MISMO camino del test anterior: WA + dos clics + Enter.
+  await type(page, "WA");
+  const start = await worldPoint(page, { x: 2_000, y: 2_000 });
+  await page.mouse.click(start.x, start.y);
+  const end = await worldPoint(page, { x: 8_000, y: 2_000 });
+  await page.mouse.click(end.x, end.y);
+  await page.keyboard.press("Enter");
+  await expect(page.getByTestId("cad-native-document-count")).toHaveText(
+    "Native 1",
+  );
+
+  // --- 1. El botón entrega un GLB v2 REAL con mallas dentro ------------------
+  // Este era el hard-cap de COMMERCIAL-RC1: el botón exportaba sólo los grupos
+  // del modelo heredado y un plano con muros salía como escena sin edificio.
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByTitle(/Exportar modelo 3D/).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/\.glb$/);
+  const bytes = readFileSync((await download.path())!);
+  // Cabecera binaria de glTF 2.0: magic «glTF», versión 2, primer chunk JSON.
+  expect(bytes.subarray(0, 4).toString("latin1")).toBe("glTF");
+  expect(bytes.readUInt32LE(4)).toBe(2);
+  const jsonLength = bytes.readUInt32LE(12);
+  const gltf = JSON.parse(
+    bytes.subarray(20, 20 + jsonLength).toString("utf8"),
+  ) as { meshes?: unknown[] };
+  // Con MALLAS — no un grafo de nodos fantasma. El round-trip completo
+  // (bounding box, material, hueco por raycast) vive en glb-export.spec.ts;
+  // aquí se prueba lo que aquel no puede: el botón real, el fichero real.
+  expect(gltf.meshes?.length ?? 0).toBeGreaterThanOrEqual(1);
+  const toasts = page.locator("div.fixed.top-4.right-4");
+  await expect(toasts).toContainText("Modelo 3D exportado (.glb).");
+
+  // --- 2. Capa del muro CONGELADA → el export se niega, no entrega vacío ----
+  // Congelar la capa activa está prohibido (regla del producto), así que se
+  // crea una capa nueva, se activa, y entonces se congela la «0» del muro.
+  await page.getByTitle(/Vista, capas/).click();
+  await page.getByTestId("cad-layer-new-name").fill("TEMP");
+  await page.getByTestId("cad-layer-create").click();
+  await expect(page.getByTestId("cad-layer-row-TEMP")).toBeVisible();
+  await page.getByTestId("cad-layer-active-TEMP").click();
+  await page.getByTestId("cad-layer-frozen-0").click();
+
+  await page.getByTitle(/Exportar modelo 3D/).click();
+  // Fail-closed: el documento TIENE arquitectura (el muro sigue en el
+  // documento) pero la escena 3D ya no la materializa — entregar ese GLB
+  // sería exactamente el defecto original, así que el botón lo rehúsa.
+  await expect(toasts).toContainText(
+    "aún no materializó la arquitectura",
+  );
 });

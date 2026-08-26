@@ -6,6 +6,54 @@ import createNextIntlPlugin from "next-intl/plugin";
 // ese archivo de configuración.
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
+/**
+ * Cabeceras de seguridad del FRONTEND (COMMERCIAL-RC1, Fase 4). Las sirve el
+ * propio servidor de Next — producción, `next start` de E2E y desarrollo por
+ * igual — para no depender de que un proxy delante las ponga.
+ *
+ * La CSP es COMPATIBLE con cómo este producto funciona de verdad, no la más
+ * estricta imaginable, y cada permiso tiene su porqué:
+ *  - `script-src 'unsafe-inline'`: el runtime inline de Next (sin nonces en
+ *    App Router estático). `'wasm-unsafe-eval'` porque el repo compila un
+ *    kernel WASM (`scripts/wasm/`) cuyo enchufe está previsto.
+ *  - `style-src 'unsafe-inline'`: styled-jsx/Tailwind inyectan estilos inline.
+ *  - `img-src data: blob:`: exportar PNG y las miniaturas del editor usan
+ *    object-URLs; los iconos van inline.
+ *  - `connect-src *`: la API vive en OTRO origen configurable por despliegue
+ *    (`NEXT_PUBLIC_API_URL` se inlinea en build); fijarlo aquí a un host
+ *    concreto rompería cualquier build reutilizado en staging. El dato
+ *    sensible no es a dónde conecta el cliente sino qué scripts corren — y
+ *    esos sí quedan restringidos a 'self'.
+ *  - `worker-src blob:`: el teselado corre en workers creados desde blobs.
+ *  - `frame-ancestors 'none'`: nadie embebe el editor (anti-clickjacking).
+ * HSTS sólo tiene efecto sobre HTTPS; en local el navegador la ignora.
+ */
+const securityHeaders = [
+  {
+    key: "Content-Security-Policy",
+    value: [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval'",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: blob:",
+      "font-src 'self' data:",
+      "connect-src *",
+      "worker-src 'self' blob:",
+      "frame-ancestors 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "object-src 'none'",
+    ].join("; "),
+  },
+  { key: "Strict-Transport-Security", value: "max-age=31536000; includeSubDomains" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=(), payment=()",
+  },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+];
+
 const nextConfig: NextConfig = {
   // Salida `standalone` SÓLO cuando el build la pide (apps/web/Dockerfile).
   // Es opt-in a propósito: `standalone` cambia el artefacto emitido —
@@ -21,6 +69,9 @@ const nextConfig: NextConfig = {
     // lucide-react se importa con decenas de iconos nombrados en el editor CAD:
     // optimizePackageImports hace tree-shaking de los imports nombrados.
     optimizePackageImports: ["lucide-react"],
+  },
+  async headers() {
+    return [{ source: "/:path*", headers: securityHeaders }];
   },
 };
 

@@ -60,6 +60,7 @@ import {
   type IntegratorSession,
 } from './integrator-session';
 import { buildLoadDocument } from './load-corpus';
+import { createTimedRateLimitRetry } from './rate-limit-retry';
 
 const PORT = Number(process.env.REVIEW_PROBE_PORT ?? 4340);
 /** Ventana de la fase concurrente de lectura/comentario, por corrida. */
@@ -466,6 +467,8 @@ async function main(): Promise<void> {
       return body;
     };
 
+    const { timedWithRetry, retries: rateLimitRetryCount } =
+      createTimedRateLimitRetry<Role>(record, readJson);
     const anchor = { entityId: 'muro-0', point: { x: 120, y: 80 } };
     const deadline = performance.now() + WINDOW_MS;
 
@@ -509,7 +512,7 @@ async function main(): Promise<void> {
         await timed(actor.role, 'listComments', () =>
           linkCall('/v1/cad/review/comments'),
         );
-        const comment = (await timed(actor.role, 'comment', () =>
+        const comment = (await timedWithRetry(actor.role, 'comment', () =>
           linkCall('/v1/cad/review/comments', {
             method: 'POST',
             body: {
@@ -836,6 +839,8 @@ async function main(): Promise<void> {
         totalRequests: samples.length,
         serverErrors,
         unexpectedClientErrors,
+        // Reintentos por 429 del techo de sesión (VD-RL-001); 0 sería raro aquí.
+        rateLimitRetries: rateLimitRetryCount(),
         perRole,
       },
       boundaries,

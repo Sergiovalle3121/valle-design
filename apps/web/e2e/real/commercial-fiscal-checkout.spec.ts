@@ -267,7 +267,12 @@ test.describe("captura fiscal CFDI 4.0 y compra autoservicio", () => {
     // Sin pago asíncrono en curso no se inventa ninguno.
     expect(subscription.body.pendingPayment).toBeNull();
 
+    // `/studio` sin documento ya no abre ni crea nada: desde c83a9e1 manda
+    // al TABLERO (el estudio abre POR DOCUMENTO — /studio/<uuid>; el
+    // recorrido completo vive en studio-real-api). Lo que este paso afirma
+    // es que el entitlement vivo deja ENTRAR: la sesión aterriza en el
+    // tablero — no en el login ni en una pantalla de cobro.
     await page.goto("/studio");
-    await expect(page).toHaveURL(/\/studio/u);
+    await expect(page).toHaveURL(/\/dashboard/u);
   });
 });

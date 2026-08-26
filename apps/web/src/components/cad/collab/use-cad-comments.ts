@@ -29,11 +29,21 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { CadComment } from "@valle/design-sdk";
+import { DesignApiError } from "@/lib/cad/repositories/client";
 import {
   readCadCommentAnchor,
   type CadCommentAnchorPoint,
   type CadCommentAnchorRead,
 } from "@/lib/cad/collab/comment-anchor";
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Techo defensivo sobre `retryAfterSeconds`: el servidor ya lo acota a un
+ * entero ≥1 (VD-RL-001), pero una interfaz interactiva no debe quedar
+ * esperando un valor inesperadamente grande sin decírselo al usuario.
+ */
+const MAX_RATE_LIMIT_WAIT_MS = 65_000;
 
 /** Cada cuánto se relee el hilo mientras la pestaña está a la vista. */
 export const CAD_COMMENTS_POLL_MS = 5_000;
@@ -161,7 +171,7 @@ export function useCadComments(
       }
       setBusy(true);
       try {
-        await current.create({ body: text, anchor });
+        await createWithRateLimitRetry(current, { body: text, anchor }, setError);
         setError(null);
         // Relee: el servidor es quien ordena el hilo y quien decide el número
         // de cada chincheta si mientras tanto entró otro comentario.
@@ -234,6 +244,36 @@ function toThreads(items: readonly CadComment[]): CadCommentThread[] {
     anchor: readCadCommentAnchor(item.anchor ?? null),
     ordinal: index + 1,
   }));
+}
+
+/**
+ * Un comentario nunca debe fallar en seco por una tormenta legítima —el
+ * techo de `reviewCommentsPerSession` es GENEROSO a propósito (VD-RL-001),
+ * no mide uso real— así que un 429 con `retryAfterSeconds` se espera y se
+ * reintenta UNA vez, con el motivo visible mientras tanto. Si el reintento
+ * también falla, lo decide el `catch` de quien llama, igual que cualquier
+ * otro error.
+ */
+/** Exportada para probarla sin montar el hook — es lógica pura, no React. */
+export async function createWithRateLimitRetry(
+  source: CadCommentSource,
+  input: { body: string; anchor?: CadCommentAnchorPoint | null },
+  setError: (message: string | null) => void,
+): Promise<CadComment> {
+  try {
+    return await source.create(input);
+  } catch (cause) {
+    if (!(cause instanceof DesignApiError) || !cause.isRateLimited()) throw cause;
+    const waitMs = Math.min(
+      cause.body.retryAfterSeconds * 1000,
+      MAX_RATE_LIMIT_WAIT_MS,
+    );
+    setError(
+      `Mucha actividad en esta sesión ahora mismo — reintentando en ${Math.ceil(waitMs / 1000)}s…`,
+    );
+    await sleep(waitMs);
+    return source.create(input);
+  }
 }
 
 function messageOf(cause: unknown, fallback: string): string {

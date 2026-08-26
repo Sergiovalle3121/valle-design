@@ -237,7 +237,10 @@ import {
 import { planCadNativeRenderBudget } from "@/lib/cad/native-render-budget";
 import { CadNativeSelectionIndex } from "@/lib/cad/native-selection-index";
 // Apagada O congelada (esquema 9): la regla vive en un solo módulo.
-import { cadHiddenLayerIds } from "@/lib/cad/cad-layer-visibility";
+import {
+  cadFrozenLayerIds,
+  cadHiddenLayerIds,
+} from "@/lib/cad/cad-layer-visibility";
 import {
   EMPTY_CAD_SELECTION,
   reduceCadSelection,
@@ -247,6 +250,14 @@ import {
   type CadSelectionState,
 } from "@/lib/cad/selection-controller";
 import { cadSelectionPathMatchesPolygon } from "@/lib/cad/selection-shapes";
+import { planCadSelectionProjection } from "@/lib/cad/selection-projection-budget";
+import { buildCadSelectionUniverse } from "@/components/cad/editor/selection-universe";
+import {
+  hideCadGlbOverlays,
+  planCadGlbExport,
+  serializeCadGlbBlob,
+} from "@/lib/cad/glb-export";
+import { assertCadCommandsNotOnLockedLayers } from "@/lib/cad/entity-command-locks";
 import {
   acquireCadTrackingPoint,
   resolveCadPolarTracking,
@@ -3298,19 +3309,22 @@ export default function Layout3DEditor({
         // La proyección de la selección queda disponible para que designar la
         // vuelva a ejecutar sin repetir el lote de INSERT ni recorrer el
         // documento entero: designar es frecuente y el documento no cambia.
+        // Presupuestada (`planCadSelectionProjection`): una selección masiva
+        // suprime los objetos por entidad —el realce lo da el lote— en vez de
+        // construir cien mil objetos THREE en el hilo principal.
         let projected: string | null = null;
         const projectSelection = (selected: ReadonlySet<string>) => {
           // Sin esta memoria, `refreshNativeSelectionVisuals` reproyectaría
           // dentro de la propia proyección: una vuelta de más en cada
           // designación, sobre el documento entero.
-          const key = [...selected].sort().join("|");
-          if (key === projected) return;
-          projected = key;
+          const plan = planCadSelectionProjection(selected);
+          if (plan.key === projected) return;
+          projected = plan.key;
           synchronizer.sync(
             {
               ...document,
               entities: nativeDocumentEntities.filter((entity) =>
-                selected.has(entity.id),
+                plan.projected.has(entity.id),
               ),
             },
             sink,
@@ -3540,58 +3554,35 @@ export default function Layout3DEditor({
     }
   }, [showGaps, loadGaps]);
 
-  const rebuildAll = useCallback(() => {
+  // Sólo lo HEREDADO: lo que un gesto de designación puede repintar. La
+  // resincronización nativa NO va aquí — re-hashear 100.000 entidades por
+  // una marquesina que no cambió el documento medía segundos (estrés denso).
+  const rebuildLegacy = useCallback(() => {
     rebuildBlocks();
     rebuildAssets();
     rebuildDims();
     rebuildNotes();
-    syncNativeScene();
     rebuildCellsRef.current();
-  }, [
-    rebuildBlocks,
-    rebuildAssets,
-    rebuildDims,
-    rebuildNotes,
-    syncNativeScene,
-  ]);
+  }, [rebuildBlocks, rebuildAssets, rebuildDims, rebuildNotes]);
+  const rebuildAll = useCallback(() => {
+    rebuildLegacy();
+    syncNativeScene();
+  }, [rebuildLegacy, syncNativeScene]);
 
-  const buildSelectionUniverse = useCallback((): CadSelectableItem[] => {
-    const result: CadSelectableItem[] = [];
-    placementsRef.current.forEach((_placement, id) => {
-      const station = stationsByIdRef.current.get(id);
-      result.push({
-        key: `station:${id}`,
-        type: "station",
-        layer: layerAssignmentsRef.current[id] ?? "layout",
-        label: station?.station ?? id,
-        properties: { line: station?.line ?? "", ctq: station?.ctq ?? false },
-      });
-    });
-    assetsRef.current.forEach((asset, id) => {
-      result.push({
-        key: `asset:${id}`,
-        type: "asset",
-        layer: layerAssignmentsRef.current[id] ?? defaultLayerForAsset(id),
-        label: asset.label || assetMeta(asset.kind).label,
-        properties: {
-          kind: asset.kind,
-          tags: objectTagsRef.current[id] ?? "",
-          notes: objectNotesRef.current[id] ?? "",
-        },
-      });
-    });
-    for (const entity of loadedCadDocumentRef.current?.entities ?? []) {
-      if (!CAD_ENTITY_REGISTRY.supports(entity)) continue;
-      result.push({
-        key: `native:${entity.id}`,
-        type: entity.type,
-        layer: entity.layer,
-        label: `${entity.type.toUpperCase()} ${entity.id}`,
-        properties: CAD_ENTITY_REGISTRY.adapter(entity).properties.read(entity),
-      });
-    }
-    return result;
-  }, [defaultLayerForAsset]);
+  const buildSelectionUniverse = useCallback(
+    (): CadSelectableItem[] =>
+      buildCadSelectionUniverse({
+        placedIds: placementsRef.current.keys(),
+        stationsById: stationsByIdRef.current,
+        assets: assetsRef.current,
+        layerAssignments: layerAssignmentsRef.current,
+        objectTags: objectTagsRef.current,
+        objectNotes: objectNotesRef.current,
+        document: loadedCadDocumentRef.current,
+        defaultLayerForAsset,
+      }),
+    [defaultLayerForAsset],
+  );
 
   const applyProfessionalSelection = useCallback(
     (action: CadSelectionAction) => {
@@ -4791,8 +4782,19 @@ export default function Layout3DEditor({
     ) => {
       recordHistoryDocument(checkpoint, options.groupKey);
       loadedCadDocumentRef.current = document;
-      const existing = new Set(document.entities.map((entity) => entity.id));
-      const selected = options.selection.filter((id) => existing.has(id));
+      // Sobrevive al commit lo que existe y no está en capa CONGELADA («no
+      // cuenta»). Apagada/bloqueada NO purgan lo YA designado: apagar es
+      // display (mover selección previa es flujo AutoCAD — golden 24) y
+      // bloquear veta la edición con aviso; designar de NUEVO sigue vetado.
+      const frozenLayers = cadFrozenLayerIds(document.layers);
+      const selectableById = new Map(
+        document.entities
+          .filter((entity) => !frozenLayers.has(entity.layer))
+          .map((entity) => [entity.id, entity] as const),
+      );
+      const selected = options.selection.filter((id) =>
+        selectableById.has(id),
+      );
       nativeSelectionIdsRef.current = selected;
       setNativeSelectionIds(selected);
       setNativeEntities(
@@ -4824,29 +4826,10 @@ export default function Layout3DEditor({
       if (!commands.length) return false;
       const checkpoint = snapshotDocument();
       try {
-        // Capa bloqueada: se comprueba TODO el lote contra el estado de
-        // partida, antes de aplicar nada. Un lote es atómico respecto de su
-        // punto de partida, así que preguntar por el documento intermedio no
-        // añadía información y obligaba a aplicar los comandos de uno en uno.
-        for (const command of commands) {
-          // `insert` trae su entidad; `image-definition` no toca ninguna capa.
-          const target =
-            "entityId" in command
-              ? checkpoint.entities.find(
-                  (entity) => entity.id === command.entityId,
-                )
-              : "entity" in command
-                ? command.entity
-                : undefined;
-          const lockedLayer =
-            target &&
-            checkpoint.layers.find((layer) => layer.id === target.layer)
-              ?.locked;
-          if (lockedLayer)
-            throw new Error(
-              `Layer ${target.layer} is locked. Unlock it before editing ${target.id}.`,
-            );
-        }
+        // Capa bloqueada: TODO el lote se comprueba contra el estado de
+        // partida y con índices, no con `find` por comando (la regla, su
+        // porqué y la medición viven en `lib/cad/entity-command-locks.ts`).
+        assertCadCommandsNotOnLockedLayers(checkpoint, commands);
         /**
          * UN lote, UN `commitChange`.
          *
@@ -4885,13 +4868,16 @@ export default function Layout3DEditor({
           (entity): entity is CadNativeEntity =>
             touchedIds.has(entity.id) && CAD_ENTITY_REGISTRY.supports(entity),
         );
+        // Un Set y no `.some` por entidad tocada: borrar una capa de 20.000
+        // trazos sobre un documento de 100.000 hacía 1,6×10⁹ comparaciones
+        // aquí (medido en cad-dense-editing-100k, fase eraseLayer).
+        const remainingIds = new Set(
+          document.entities.map((entity) => entity.id),
+        );
         const remove = checkpoint.entities
           .filter(
             (entity) =>
-              touchedIds.has(entity.id) &&
-              !document.entities.some(
-                (candidate) => candidate.id === entity.id,
-              ),
+              touchedIds.has(entity.id) && !remainingIds.has(entity.id),
           )
           .map((entity) => entity.id);
         commitCanonicalDocument(checkpoint, document, {
@@ -7304,7 +7290,8 @@ export default function Layout3DEditor({
             points,
             pathMode,
             pathMode !== "polygon",
-            300,
+            // SIN tope: el 300 truncaba EN SILENCIO (native-selection-index).
+            Number.POSITIVE_INFINITY,
             "selection",
           ) ?? []
         ).map((entity) => `native:${entity.id}`);
@@ -7372,7 +7359,8 @@ export default function Layout3DEditor({
           nativeSelectionIndexRef.current?.intersecting(
             nativeWindow,
             crossing,
-            300,
+            // SIN tope, como el lazo: el tope de 300 truncaba en silencio.
+            Number.POSITIVE_INFINITY,
             "selection",
           ) ?? []
         ).map((entity) => entity.id);
@@ -7385,7 +7373,7 @@ export default function Layout3DEditor({
           operation:
             explicitMode === "pick" ? "add" : selectionOperationRef.current,
         });
-        rebuildAll();
+        rebuildLegacy(); // los visuales nativos ya los refrescó el apply
         if (found.length + nativeFound.length)
           toast.success(
             `${found.length + nativeFound.length} objeto(s) seleccionados por ${crossing ? "cruce" : "ventana"}.`,
@@ -12778,57 +12766,56 @@ export default function Layout3DEditor({
   // publishSheetSetPdf (conjunto de hojas).
   // Export the 3D model as binary glTF (.glb) — opens in Blender, other CAD, etc.
   const exportGltf = async () => {
-    const groups = [
-      blocksRef.current,
-      assetsGroupRef.current,
-      connsGroupRef.current,
-      groundRef.current,
-    ].filter(Boolean) as THREE.Object3D[];
-    if (!groups.length) return;
-    try {
-      const { GLTFExporter } =
-        await import("three/examples/jsm/exporters/GLTFExporter.js");
-      // hide labels + the live preview line so the model is clean geometry
-      const hidden: THREE.Object3D[] = [];
-      sceneRef.current?.traverse((o) => {
-        if (
-          (o.userData?.isLabel || o === previewLineRef.current) &&
-          o.visible
-        ) {
-          o.visible = false;
-          hidden.push(o);
-        }
-      });
-      const restore = () =>
-        hidden.forEach((o) => {
-          o.visible = true;
-        });
-      new GLTFExporter().parse(
-        groups,
-        (result) => {
-          restore();
-          const blob = new Blob([result as ArrayBuffer], {
-            type: "model/gltf-binary",
-          });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `layout3d-${model}-${revision}.glb`.replace(
-            /[^\w.\-]+/g,
-            "_",
-          );
-          a.click();
-          URL.revokeObjectURL(url);
-          toast.success("Modelo 3D exportado (.glb).", "3D");
-        },
-        (err) => {
-          restore();
-          console.error(err);
-          toast.error("No se pudo exportar el modelo 3D.", "3D");
-        },
-        { binary: true, onlyVisible: true },
+    // Lista, plan y serialización viven en `lib/cad/glb-export.ts` con su
+    // spec de round-trip: el GLB lleva el modelo heredado Y la arquitectura
+    // nativa — antes sólo viajaban los grupos heredados y ningún spec miraba.
+    const plan = planCadGlbExport(
+      {
+        legacy: [
+          blocksRef.current,
+          assetsGroupRef.current,
+          connsGroupRef.current,
+          groundRef.current,
+        ],
+        architecture: [
+          nativeMassHostsRef.current?.group,
+          solidShadeHostRef.current?.group,
+        ],
+      },
+      (loadedCadDocumentRef.current?.entities ?? []).some(
+        (entity) => entity.type === "wall" || entity.type === "solid3d",
+      ),
+    );
+    if (plan.kind === "empty") return;
+    if (plan.kind === "architecture-missing") {
+      toast.error(
+        "La vista 3D aún no materializó la arquitectura; abre la vista 3D y reintenta.",
+        "3D",
       );
-    } catch {
+      return;
+    }
+    try {
+      const blob = await serializeCadGlbBlob(plan.objects, {
+        // Etiquetas y línea de previsualización fuera: geometría limpia.
+        hide: () =>
+          hideCadGlbOverlays(
+            sceneRef.current,
+            (object) =>
+              !!object.userData?.isLabel || object === previewLineRef.current,
+          ),
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `layout3d-${model}-${revision}.glb`.replace(
+        /[^\w.\-]+/g,
+        "_",
+      );
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Modelo 3D exportado (.glb).", "3D");
+    } catch (error) {
+      console.error(error);
       toast.error("No se pudo exportar el modelo 3D.", "3D");
     }
   };
@@ -14179,6 +14166,32 @@ export default function Layout3DEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, data]);
 
+  // Memoizado por documento, no recalculado por render: reconstruir el
+  // universo entero costaba ~medio minuto de paleta a 100.000 entidades.
+  // `nativeEntities` y `data` son los estados que cambian cuando el contenido
+  // puede cambiar de verdad. ANTES del `return null` de editor cerrado: un
+  // hook tras un return condicional rompe el orden de hooks (rules-of-hooks).
+  const professionalSelectionUniverse = useMemo(
+    () => (showSelectionPalette ? buildSelectionUniverse() : []),
+    // nativeEntities y data: espejos reactivos de los refs que lee el builder.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [showSelectionPalette, buildSelectionUniverse, nativeEntities, data],
+  );
+  const { professionalSelectionTypes, professionalSelectionLayers } = useMemo(
+    () => ({
+      professionalSelectionTypes: [
+        ...new Set(professionalSelectionUniverse.map((item) => item.type)),
+      ].sort(),
+      professionalSelectionLayers: [
+        ...new Set(
+          professionalSelectionUniverse
+            .map((item) => item.layer)
+            .filter((layer): layer is string => !!layer),
+        ),
+      ].sort(),
+    }),
+    [professionalSelectionUniverse],
+  );
   if (!open || typeof document === "undefined") return null;
 
   const allNativeEntities = nativeEntities;
@@ -14295,19 +14308,6 @@ export default function Layout3DEditor({
         ),
       }
     : { x: 0, y: 0 };
-  const professionalSelectionUniverse = showSelectionPalette
-    ? buildSelectionUniverse()
-    : [];
-  const professionalSelectionTypes = [
-    ...new Set(professionalSelectionUniverse.map((item) => item.type)),
-  ].sort();
-  const professionalSelectionLayers = [
-    ...new Set(
-      professionalSelectionUniverse
-        .map((item) => item.layer)
-        .filter((layer): layer is string => !!layer),
-    ),
-  ].sort();
   const activeProfessionalDock = showSelectionPalette
     ? "selection"
     : showHatchPalette

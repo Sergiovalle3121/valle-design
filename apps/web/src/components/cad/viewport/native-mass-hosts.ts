@@ -14,6 +14,7 @@
 import * as THREE from "three";
 import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadThreeViewport } from "@/lib/cad/entity-three";
+import type { CadWallOpeningCutReport } from "@/lib/cad/wall-solid-diagnostics";
 import { CadWallSolidHost } from "./wall-solid-host";
 import { CadArchitecturalMassHost } from "./room-solid-host";
 
@@ -40,10 +41,17 @@ export class CadNativeMassHosts {
    * muro o una masa que no se pudo construir avisa en vez de desaparecer en
    * silencio.
    */
-  invalidGeometry(): { wallIds: string[]; massKinds: string[] } {
+  invalidGeometry(): {
+    wallIds: string[];
+    massKinds: string[];
+    openingCuts: CadWallOpeningCutReport[];
+  } {
     return {
       wallIds: this.walls.invalidIds(),
       massKinds: this.masses.invalidKinds(),
+      // Vanos no recortados con identidad completa (muro + vano + causa):
+      // el informe de validación los enseña en vez de callarlos.
+      openingCuts: this.walls.openingCutReports(),
     };
   }
 

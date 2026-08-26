@@ -32,6 +32,7 @@ import type { BrowserContext, Route } from "@playwright/test";
 import { API_ORIGIN } from "./constants";
 import { firstPartyRequestFailure } from "./standalone-identity";
 import { CadReviewCommentStore } from "./cad-review-comments";
+import { acknowledgeCadArchive } from "./cad-archive-fixture";
 
 export interface LegacyFootprint {
   footprintW: number;
@@ -508,6 +509,10 @@ export class CadV1Backend {
           storedAsBlobPointer: false,
         });
       }
+
+      // ── Archivo de recuperación (autosave): ACUSE sin CAS — ver helper ──
+      if (rest === "archive" && method === "PUT")
+        return acknowledgeCadArchive(row, json);
 
       // ── Listado de revisiones del documento (el autor gestiona sus enlaces) ──
       if (rest === "review-sessions" && method === "GET") {

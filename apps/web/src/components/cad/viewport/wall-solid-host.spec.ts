@@ -276,6 +276,73 @@ const none: ReadonlySet<string> = new Set();
   host.dispose();
 }
 
+// --- capas: apagada/congelada no se construye; el vano corta sin mirar la suya ---
+{
+  const host = new CadWallSolidHost(() => viewport);
+  const m1 = wall("m1", 4_000);
+  const m2: CadWallEntity = { ...wall("m2", 3_000), layer: "MUROS-B" };
+  const base = documentWith([m1, m2]);
+  const withLayers = (
+    visible: boolean,
+    frozen: boolean | undefined,
+  ): CadDocument => ({
+    ...base,
+    layers: [
+      layer,
+      {
+        id: "MUROS-B",
+        name: "MUROS-B",
+        color: "#94a3b8",
+        visible,
+        locked: false,
+        ...(frozen === undefined ? {} : { frozen }),
+      },
+    ],
+  });
+
+  host.sync(withLayers(true, undefined), none);
+  assert.equal(host.count, 2, "dos capas visibles → dos sólidos");
+
+  host.sync(withLayers(false, undefined), none);
+  assert.equal(host.count, 1, "capa apagada → su muro se libera de la escena");
+
+  host.sync(withLayers(true, true), none);
+  assert.equal(host.count, 1, "capa congelada → su muro tampoco se construye");
+
+  host.sync(withLayers(true, false), none);
+  assert.equal(host.count, 2, "descongelar la capa lo reconstruye");
+
+  // El VANO corta a su anfitrión aunque la capa DEL VANO esté apagada — la
+  // misma regla que la planta 2D (`wallHostedOpenings` no filtra por capa).
+  const hiddenOpening: CadOpeningEntity = {
+    ...door("d1", "m1", 1_200),
+    layer: "MUROS-B",
+  };
+  const docHiddenOpening: CadDocument = {
+    ...documentWith([m1, m2, hiddenOpening]),
+    layers: withLayers(false, undefined).layers,
+  };
+  host.sync(docHiddenOpening, none);
+  const m1Object = host.group.children.find(
+    (child) => child.userData.nativeEntityId === "m1",
+  );
+  const triangleCount = (() => {
+    let triangles = 0;
+    m1Object?.traverse((child) => {
+      const mesh = child as THREE.Mesh;
+      if (mesh.isMesh) triangles += (mesh.geometry.index?.count ?? 0) / 3;
+    });
+    return triangles;
+  })();
+  // Un prisma macizo tesela a 12 triángulos; con un vano pasante salen más
+  // caras. Si el vano de capa apagada NO cortara, esto daría exactamente 12.
+  assert.ok(
+    triangleCount > 12,
+    `el vano de capa apagada sigue cortando a su muro (triángulos=${triangleCount})`,
+  );
+  host.dispose();
+}
+
 console.log(
   "wall-solid-host.spec: reconciliación por firma (muro + vanos alojados)",
 );

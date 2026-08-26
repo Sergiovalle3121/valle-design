@@ -68,6 +68,12 @@ test('multiple paper viewports persist, preflight and publish as one audited vec
 
   const viewport = manager.locator('[data-testid^="cad-paper-viewport-"]').nth(1);
   const viewportStyle = await viewport.getAttribute('style');
+  // Los `fill` de arriba desplazan el scroll del panel (Playwright enfoca cada
+  // control), y la miniatura puede quedar FUERA del área visible: su
+  // boundingBox se lee igual, pero el drag manual de abajo aterrizaría sobre lo
+  // que esté visualmente ahí (la pestaña «Model» del encabezado, que cierra el
+  // panel). Se devuelve la miniatura a la vista antes de medirla.
+  await viewport.scrollIntoViewIfNeeded();
   const viewportBox = await viewport.boundingBox();
   await page.mouse.move(viewportBox!.x + 20, viewportBox!.y + 28);
   await page.mouse.down();
@@ -76,6 +82,7 @@ test('multiple paper viewports persist, preflight and publish as one audited vec
   await expect(viewport).not.toHaveAttribute('style', viewportStyle!);
 
   const resizeGrip = manager.locator('[data-testid^="cad-viewport-resize-"]').nth(0);
+  await resizeGrip.scrollIntoViewIfNeeded();
   const gripBox = await resizeGrip.boundingBox();
   const movedStyle = await viewport.getAttribute('style');
   await page.mouse.move(gripBox!.x + gripBox!.width / 2, gripBox!.y + gripBox!.height / 2);

@@ -7,6 +7,7 @@ import {
 import { BRAND } from "@/config/brand";
 import { COMMERCIAL_CONTACTS } from "@/config/commercial";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
+import { legalVersionLine } from "@/lib/legal/legal-versions";
 
 export const metadata: Metadata = publicPageMetadata({
   path: "/privacy",
@@ -62,6 +63,15 @@ export default function PrivacyPage() {
             debe habilitar un canal antes de ofrecer el servicio a terceros.
           </p>
         )}
+      </PublicSection>
+
+      <PublicSection title="Versión de este documento">
+        <p>{legalVersionLine("privacy")}</p>
+        <p>
+          Una versión publicada nunca se edita: cualquier cambio de texto se
+          publica como versión nueva con su propia fecha, y el registro de
+          versiones lo custodia el servidor.
+        </p>
       </PublicSection>
     </PublicPageShell>
   );

@@ -666,6 +666,88 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "REVIEW-CONCURRENCY-RATE-LIMIT-RETRY-2026-08-25",
+      "date": "2026-08-25",
+      "initiative": "Cierra P1-7 del backlog y el criterio review.concurrency de la rúbrica competitiva (2pt, el segundo de mayor valor comercial pendiente): evidence:review-concurrency medía ~50 4xx inesperados por corrida bajo 10 clientes concurrentes; diagnosticados como 429 legítimos de reviewCommentsPerSession (VD-RL-001) sin reintento en ningún cliente, ni el probe ni — más importante — el navegador real",
+      "branch": "claude/valle-design-3d-campaign-t0zzad",
+      "assistants": [
+        {
+          "name": "Claude Code (Anthropic)",
+          "role": "ejecución autónoma bajo la misma directiva de campaña, documentada en docs/execution/CAMPANA_REVIEW_CONCURRENCY_20260825.md: consultó rubric.mjs --priorities para elegir la siguiente prioridad real; encontró que el punto más barato (blocks.bedit, BEDIT en sitio) ya tenía fase 1 fusionada HOY por otra sesión con autorización propia y fases 2/3 explícitamente pendientes — decidió NO construir una versión paralela (habría sido el trabajo de laboratorio descoordinado que el titular pidió evitar) y pasó a la siguiente prioridad sin riesgo de colisión (review.concurrency, subsistema de API ajeno a CAD/bloques). Leyó el artefacto de evidencia existente directamente en vez de adivinar la causa: los ~50 4xx eran EXACTAMENTE 429 en link.comment, ningún otro rol/operación. Encontró en cad-review-link.controller.ts que el rate limit es deliberado (comentario propio del código: \"generoso a propósito, no mide uso legítimo\") y decidió NO subir el techo (habría sido tratar el síntoma y reabrir una decisión de seguridad VD-RL-001 sin evidencia que la justificara) sino cerrar el hueco real: ningún cliente reintentaba un 429 con retryAfterSeconds, ni el load-probe ni el navegador real. Cerró por capas: schema RateLimitedError aditivo en el contrato OpenAPI (mismo patrón que EntitlementRequiredError/CadDocumentVersionConflictError ya establecidos), SDK regenerado con DesignApiError.isRateLimited(), reintento único con aviso visible en use-cad-comments.ts (el hook compartido por autor e invitado del review link, exportado como función pura para probarlo sin montar React), y reintento acotado (5) en el load-probe con un contador rateLimitRetries nuevo para que el artefacto pruebe que el techo se ejerció de verdad bajo la tormenta, no que se esquivó. Verificó con dos corridas reales completas de evidence:review-concurrency contra PostgreSQL 16 (la segunda sólo para propagar el nuevo contador al artefacto, sin cambio de lógica entre ambas): verdict.passed=true en las dos, 0 errores inesperados, rateLimitRetries=[2,2,2] confirmando que el rate limiter se disparó y fue absorbido. Confirmó la ganancia de forma independiente corriendo rubric.mjs (no confiando en su propia bitácora): review.concurrency pasa de fallar a 2/2pt, rúbrica total 189→190/220. Al fusionar main (avanzado por otra sesión, PR #106/#107, sin relación) encontró y corrigió un efecto colateral ajeno: una entrada duplicada preexistente en este mismo registro (DWG-GAP-MATRIX-STALE-PROSE-2026-08-25, dos copias byte-idénticas) — corregida como parte natural de la resolución del conflicto de merge, no perpetuada"
+        }
+      ],
+      "authority": "Directiva de Sergio Valle Zárate en esta misma conversación (\"dale con la siguiente fase aún falta mucho para construir para competir contra autocad\"), interpretada — con el mismo criterio conservador de toda esta campaña — como autorización para retomar la siguiente prioridad real de la rúbrica competitiva sin riesgo de colisión con trabajo ya en curso de otra sesión",
+      "firstPartyInputs": [
+        "docs/competitive/rubric.json y su script scripts/cad/rubric.mjs --priorities",
+        "docs/execution/BACKLOG.md (entrada P1-7, mismo hallazgo documentado de forma independiente antes de esta fase)",
+        "docs/cad/evidence/review-concurrency.json de una corrida anterior (2026-08-24), leído directamente para diagnosticar en vez de adivinar",
+        "apps/api/src/modules/cad/cad-review-link.controller.ts, apps/api/src/modules/identity/api-rate-limit.service.ts y su comentario de diseño propio (VD-RL-001) como fuente de la decisión de no tocar el techo",
+        "packages/design-sdk/src/client.ts: isVersionConflict() como patrón exacto a replicar para isRateLimited()",
+        "docs/governance/assisted-development-log.json de la entrada BEDIT-PHASE1-SESSION-DOCUMENT-2026-08-25 (leída antes de decidir no construir sobre esa área)"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "contrato OpenAPI de errores (packages/contracts/specs/design-api.v1.yaml: schema RateLimitedError nuevo)",
+        "SDK de diseño (packages/design-sdk/src/client.ts: DesignApiError.isRateLimited())",
+        "hilos de comentario compartidos autor/invitado (apps/web/src/components/cad/collab/use-cad-comments.ts: createWithRateLimitRetry, nuevo)",
+        "probe de concurrencia de review (apps/api/src/load-probe/review-concurrency.main.ts: timedWithRateLimitRetry, nuevo; scripts/cad/review-concurrency-evidence.mjs: rateLimitRetriesPerRun, nuevo)"
+      ],
+      "fixtures": [],
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: PR abierto sobre claude/valle-design-3d-campaign-t0zzad con los checks re-ejecutados (typecheck limpio en todo el monorepo, check:cad-contract verde, 688/688 specs de apps/api, 410/410 specs de apps/web, y dos corridas reales de evidence:review-concurrency contra PostgreSQL con verdict.passed=true, 0 errores inesperados, rateLimitRetries=[2,2,2]); confirmado de forma independiente con rubric.mjs (review.concurrency 2/2pt, total 189→190/220); la adopción se registra al revisar/fusionar ese PR."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "COMMERCIAL-RC1-FASE0-BASELINE-VERDE-2026-08-26",
+      "date": "2026-08-26",
+      "initiative": "Fase 0 de la campaña COMMERCIAL-RC1: recuperar un baseline verde en main, rojo sin excepción desde el 12 de agosto (ultimo run verde: 288). Tres causas raiz vivas verificadas en logs de CI: (1) cad-dense-editing-100k colgaba 1 h + retry y cancelaba el job E2E a los 100 min en todos los runs desde su primera ejecucion (nunca paso en CI), dejando ~200 tests -- Firefox completo incluido -- sin ejecutar desde el 21-08; (2) golden 20-cad-multiple-viewports roto; (3) golden 46-cad-pointer-engine test 2 roto",
+      "branch": "claude/valle-design-commercial-rc1-izgdxb",
+      "assistants": [
+        {
+          "name": "Claude Code (Anthropic)",
+          "role": "ejecucion autonoma bajo el prompt maestro COMMERCIAL-RC1 del titular. Diagnostico por reproduccion local instrumentada, no por suposicion: (a) dense-100k -- reproduccion con artefactos por fase; apertura sana (documentReady 10,7 s, detalle 21,1 s) pero selectAll sin terminar tras >25 min; lectura de codigo dirigida por el sintoma encontro TRES O(n^2)/O(n) sin presupuesto en el camino de seleccion/edicion masiva: la proyeccion de seleccion creaba un objeto THREE por entidad seleccionada (100.000 objetos en el hilo principal al designar Todo), el pre-check de capas bloqueadas hacia entities.find por comando (10^10 comparaciones al mover 100k) y el calculo de remove hacia document.entities.some por entidad tocada (1,6x10^9 al borrar la capa MURO). Arreglos: politica GRIPOBJLIMIT en lib/cad/selection-projection-budget.ts (seleccion >400 suprime la proyeccion por entidad; el realce lo da el lote y el recuento del HUD sigue exacto; la seleccion nunca se trunca), mapas O(n+m) en el pre-check y en remove, universo de seleccion memoizado por documento y extraido a components/cad/editor/selection-universe.ts (monolito 20242 -> 20237 lineas). Medido tras el primer arreglo: selectAll 25,9 s COMPLETO con las 100.000 (antes: sin terminar; en CI 1,0 h de techo consumido). (b) golden 46 test 2 -- sondeo con elementFromPoint: la barra flotante del dibujo en curso (draft-toolbar.tsx) capturaba el pick en TODO su rectangulo, y su altura depende de la metrica de la fuente por el flex-wrap de la entrada dinamica -- explica la biseccion de P1-1b que culpaba a next/font/local; defecto de producto real (un usuario pierde el clic bajo la barra), corregido con pointer-events-none en el contenedor y pointer-events-auto solo en los controles (mismo patron que el dock del tour). (c) golden 20 -- los fill() previos desplazan el scroll del panel y la miniatura queda fuera del area visible; el drag manual aterrizaba en la pestana Model que cierra el panel; corregido en el spec con scrollIntoViewIfNeeded antes de cada drag manual. (d) politica de capacidad en CI: la suite e2e/performance sale del job e2e (CAD_PERF_E2E=0 siempre ahi) a un job propio e2e-perf solo para push/dispatch, Chromium, sin retries, techo 75 min, artefactos siempre -- sigue bloqueando el veredicto de main pero ya no puede dejar sin ejecutar el resto de la suite; el techo del spec dense baja de 60 a 35 min. Ademas adopto el PR #108 (revisado por diff y pruebas; su rojo E2E era el preexistente de main) por fast-forward en la rama de campana"
+        }
+      ],
+      "authority": "Prompt maestro VALLE-DESIGN-COMMERCIAL-RC1 de Sergio Valle Zarate (2026-08-26), que ordena Fase 0 (baseline verde) antes que cualquier feature, prohibe resolver el test de 100k solo subiendo timeouts y exige politica de capacidad explicita sin esconder la regresion",
+      "firstPartyInputs": [
+        "logs de CI de los runs 288-479 (ci.yml) leidos via API de GitHub: la cronologia completa de eras de rojo con job/test exacto por run",
+        "apps/web/e2e/performance/cad-dense-editing-100k.spec.ts y e2e/fixtures/dense-editing-harness.ts (instrumento por fases reutilizado tal cual para la reproduccion)",
+        "artefactos por fase de las reproducciones locales antes y despues del arreglo (documentReady/firstDetail/paletteOpen/selectAll)",
+        "trazas de Playwright de los fallos de goldens 20 y 46 (trace.zip, error-context.md, screenshots) y sondeos elementFromPoint escritos ad hoc",
+        "docs/execution/BACKLOG.md entradas P1-1 y P1-1b (biseccion de fuentes previa, confirmada y explicada por el hallazgo del flex-wrap)",
+        "scripts/cad/check-monolith-budget.mjs y monolith-budget.json (presupuesto del monolito respetado: 20237 <= 20242)"
+      ],
+      "externalSources": [
+        "Semantica GRIPOBJLIMIT de AutoCAD como referencia de politica de supresion de grips en seleccion masiva (concepto, no codigo)"
+      ],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "presupuesto de proyeccion de seleccion (apps/web/src/lib/cad/selection-projection-budget.ts, nuevo, con spec)",
+        "universo de seleccion profesional (apps/web/src/components/cad/editor/selection-universe.ts, extraccion real del monolito)",
+        "Layout3DEditor.tsx: projectSelection presupuestada, universo memoizado, pre-check de capas bloqueadas y remove con mapas",
+        "barra del dibujo en curso (apps/web/src/components/cad/studio/draft-toolbar.tsx: pointer-events)",
+        "CI (.github/workflows/ci.yml: job e2e-perf nuevo; e2e con CAD_PERF_E2E=0)",
+        "specs E2E (golden/20 scrollIntoViewIfNeeded; performance/cad-dense-editing-100k techo 35 min)"
+      ],
+      "fixtures": [],
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: PR de la campana COMMERCIAL-RC1 con la suite E2E completa (Chromium+Firefox) y los gates locales verdes sobre el SHA candidato; la adopcion se registra al revisar/fusionar ese PR."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

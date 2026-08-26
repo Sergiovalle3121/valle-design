@@ -63,21 +63,29 @@ export function CadDraftToolbar({
   onClose,
 }: CadDraftToolbarProps) {
   return (
-    <div className="absolute top-12 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-full border border-border bg-surface/90 px-2 py-1.5 backdrop-blur">
+    // `pointer-events-none` en el contenedor, `pointer-events-auto` sólo en
+    // los controles: la píldora flota SOBRE el lienzo y su fondo/padding se
+    // tragaba el pick que cayera debajo — un segundo punto de LINE bajo la
+    // barra nunca llegaba al motor (medido: golden 46, test 2; el tamaño del
+    // área muerta dependía hasta de la métrica de la fuente). El mismo patrón
+    // que ya usa el dock del tour guiado.
+    <div className="pointer-events-none absolute top-12 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-full border border-border bg-surface/90 px-2 py-1.5 backdrop-blur">
       <button
         onClick={onToggleOrtho}
         title="Orto: restringe los muros a 0/90/180/270 (como F8 de AutoCAD)"
-        className={`rounded-full px-2 py-0.5 type-micro font-semibold ${orthoLock ? "bg-amber-400 text-gray-900" : "bg-muted/60 text-foreground hover:bg-muted"}`}
+        className={`pointer-events-auto rounded-full px-2 py-0.5 type-micro font-semibold ${orthoLock ? "bg-amber-400 text-gray-900" : "bg-muted/60 text-foreground hover:bg-muted"}`}
       >
         ORTO
       </button>
       {dynamicInputEnabled && (
-        <CadDynamicInput key={dynamicInputKey} {...dynamicInput} />
+        <span className="pointer-events-auto flex items-center gap-1.5">
+          <CadDynamicInput key={dynamicInputKey} {...dynamicInput} />
+        </span>
       )}
       {chaining && (
         <button
           onClick={onFinish}
-          className="rounded-control border border-border px-2 py-1 type-micro text-foreground hover:bg-muted"
+          className="pointer-events-auto rounded-control border border-border px-2 py-1 type-micro text-foreground hover:bg-muted"
         >
           Terminar
         </button>
@@ -86,7 +94,7 @@ export function CadDraftToolbar({
         <button
           data-testid="cad-polyline-close"
           onClick={onClose}
-          className="rounded-control border border-primary/30 bg-primary/15 px-2 py-1 type-micro font-semibold text-primary-ink hover:bg-primary/15"
+          className="pointer-events-auto rounded-control border border-primary/30 bg-primary/15 px-2 py-1 type-micro font-semibold text-primary-ink hover:bg-primary/15"
         >
           Cerrar
         </button>

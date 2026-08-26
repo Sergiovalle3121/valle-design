@@ -92,8 +92,18 @@ const SETTLE_BUDGET_MS = 900_000;
 test.describe("CAD dense editing stress · 100k", () => {
   test.skip(process.env.CAD_PERF_E2E !== "1", "Run explicitly with CAD_PERF_E2E=1.");
   // Techo del PROCESO, no presupuesto. Quien juzga si el producto cumple son
-  // los invariantes funcionales del final.
-  test.setTimeout(3_600_000);
+  // los invariantes funcionales del final, y el guion vuelca su artefacto
+  // tras CADA fase — un cuelgue publica hasta dónde llegó en vez de consumir
+  // el techo del job entero (lo que pasó en CI del 21 al 26 de agosto con la
+  // hora de techo + retry matando el job a los 100 min). 45 min NO es un
+  // número cómodo sino ARITMÉTICA MEDIDA (corrida 2026-08-26, REPEATS=1,
+  // 4 vCPU): ~8 min de fases medidas (lazo 198 s incluido) + ~100 s de arnés
+  // por cambio de modo (abrir/cerrar la paleta a 100k, medido con sonda) ×
+  // 5 modos + apertura/asentado/encuadre ≈ 35-38 min de punta a punta; la
+  // corrida que rozó 35:00 murió despachando la última fase. El margen
+  // restante es varianza de runner, no escondite: las fases legítimas están
+  // contadas arriba y ninguna puede acercarse sola a este techo.
+  test.setTimeout(2_700_000);
 
   test("selects and modifies 100k dense strokes", async ({ context, page }, testInfo) => {
     const measurements: Record<string, DenseSeries> = {};
@@ -244,6 +254,16 @@ test.describe("CAD dense editing stress · 100k", () => {
     page.on("console", (message) => {
       if (message.type() === "error") browserErrors.push(message.text());
     });
+    // La consola dice «Failed to load resource: 404» SIN el URL — un error que
+    // no se puede diagnosticar no es evidencia. La red sí lo sabe: cada
+    // respuesta ≥400 se registra con método y URL junto al error de consola
+    // que la acompaña, para que el artefacto se explique solo.
+    page.on("response", (response) => {
+      if (response.status() >= 400)
+        browserErrors.push(
+          `${response.status()} ${response.request().method()} ${response.url()}`,
+        );
+    });
 
     const openedAt = Date.now();
     await page.goto("/legacy/studio");
@@ -268,6 +288,25 @@ test.describe("CAD dense editing stress · 100k", () => {
     const atRest = await denseSnapshot(page);
     open = { documentReadyMs, firstDetailMs, settledWithinBudget: settled, atRest, payloadBytes };
     await flush(false, testInfo);
+
+    // El tour guiado de primer arranque FLOTA SOBRE EL PLANO y captura el
+    // pointerdown en su rectángulo. Medido con sonda (2026-08-26): las dos
+    // esquinas superiores del bloque del lazo —mundo (36000,27000) y
+    // (37800,27000)— caían en pantalla sobre su botón «Saltar», el lazo nunca
+    // empezaba y el sondeo de `selection > 0` moría de hambre hasta el techo:
+    // dos corridas enteras muertas en la fase `lasso` por un botón. Un usuario
+    // real despacha el tour antes de trabajar; este guion también.
+    const tourSkip = page.getByTestId("cad-guided-tour-skip");
+    try {
+      await tourSkip.waitFor({ state: "visible", timeout: 60_000 });
+      await tourSkip.click();
+      await expect(tourSkip).toBeHidden();
+    } catch {
+      findings.push(
+        "El tour guiado no apareció en 60 s: nada que despachar (si reaparece " +
+          "a mitad de guion, cualquier gesto sobre su rectángulo se lo comerá).",
+      );
+    }
 
     // -----------------------------------------------------------------------
     // 2 · Abrir la paleta de selección. El universo se reconstruye entero.

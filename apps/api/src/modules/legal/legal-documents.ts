@@ -56,6 +56,15 @@ export interface LegalDocumentVersion {
    * marcarlo como aceptable induciría a tratarlo como base jurídica.
    */
   requiereAceptacion: boolean;
+  /**
+   * SHA-256 (hex) del ARCHIVO fuente que renderiza el texto de esta versión
+   * (`apps/web/src/app/<url>/page.tsx`). Es el candado de inmutabilidad que
+   * exige COMMERCIAL-RC1: el gate `scripts/legal/check-legal-content.mjs`
+   * recalcula el hash en CI y falla si la prosa cambió sin publicar versión
+   * nueva. Las entradas históricas anteriores al candado no lo llevan — su
+   * texto ya no está en el árbol y fingirles un hash sería fabricar evidencia.
+   */
+  contentHash?: string;
 }
 
 /**
@@ -64,19 +73,32 @@ export interface LegalDocumentVersion {
  * texto no vale más que no tener registro.
  */
 export const LEGAL_DOCUMENTS: readonly LegalDocumentVersion[] = [
+  // 2026-08-26 (COMMERCIAL-RC1): sustituye a la versión 2026-08-15 — las
+  // páginas pasan a mostrar versión y fecha, los términos corrigen la sección
+  // comercial (las tarifas SÍ se publican en /precios y el checkout de
+  // autoservicio existe; el texto anterior lo negaba y contradecía a la
+  // página de precios), y cada versión queda candada por contentHash
+  // (`scripts/legal/check-legal-content.mjs`). El registro guarda UNA fila por
+  // documento — la vigente (el validador de abajo lo exige): las versiones
+  // anteriores viven en el historial de git y en las filas de aceptación que
+  // las nombran.
   {
     documento: 'terms',
-    version: '2026-08-15',
-    publicadoEn: '2026-08-15',
+    version: '2026-08-26',
+    publicadoEn: '2026-08-26',
     url: '/terms',
     requiereAceptacion: true,
+    contentHash:
+      'a30140a43309079765f5c697155885f372662ec1aece4ddd6cc83c2ec0cc3046',
   },
   {
     documento: 'privacy',
-    version: '2026-08-15',
-    publicadoEn: '2026-08-15',
+    version: '2026-08-26',
+    publicadoEn: '2026-08-26',
     url: '/privacy',
     requiereAceptacion: false,
+    contentHash:
+      '1a2ae1186b15665ca60a2c356eb9441c41bf00cc8b98e82dca992b61a6229dfc',
   },
 ] as const;
 

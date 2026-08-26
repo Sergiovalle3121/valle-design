@@ -347,10 +347,21 @@ const shell = (): CadWallEntity[] => [
     18_000 * 2_400 - (900 * 2_100 + 1_200 * 1_200),
     "paramento neto",
   );
+  // Las CUATRO esquinas en L del cascarón: cada una comparte un prisma de
+  // 125×125 mm en planta (la mitad del grosor de cada muro se mete en la
+  // huella del vecino) por 2400 de alto. Antes ese volumen se cobraba DOS
+  // veces — una por muro — y la tabla presupuestaba 0,15 m³ de fábrica de más
+  // en una vivienda mínima.
+  const cornerOverlap = 125 * 125 * 2_400 * 4;
+  near(
+    row.junctionVolume,
+    cornerOverlap,
+    "el solape de las cuatro esquinas se declara para poder auditarlo",
+  );
   near(
     row.volume,
-    row.faceArea * 250,
-    "volumen de fábrica sobre el paramento neto",
+    row.faceArea * 250 - cornerOverlap,
+    "volumen de fábrica sobre el paramento neto, sin doble conteo de esquinas",
   );
 
   ok(schedule.openings.length === 2, "dos tipos de carpintería");

@@ -39,6 +39,11 @@ import {
   recolorCadWallSolidObject,
 } from "@/lib/cad/wall-solid-three";
 import type { CadThreeViewport } from "@/lib/cad/entity-three";
+import type {
+  CadWallOpeningCutDiagnostic,
+  CadWallOpeningCutReport,
+} from "@/lib/cad/wall-solid-diagnostics";
+import { cadHiddenLayerIds } from "@/lib/cad/cad-layer-visibility";
 
 interface CadWallSolidEntry {
   wall: CadWallEntity;
@@ -86,6 +91,12 @@ export class CadWallSolidHost {
    * cambió (por firma) y libera lo que ya no está.
    */
   sync(document: CadDocument, selectedIds: ReadonlySet<string>): void {
+    // Capas: un muro en capa apagada o congelada no se construye (y si ya
+    // estaba construido, se libera — el bucle de abajo lo trata como ausente).
+    // Los VANOS cortan a su anfitrión sin mirar su propia capa, igual que la
+    // planta 2D (`wallHostedOpenings` tampoco filtra): la capa del vano
+    // gobierna su símbolo, no el agujero del muro que lo aloja.
+    const hiddenLayers = cadHiddenLayerIds(document.layers);
     const openingsByHost = new Map<string, CadOpeningEntity[]>();
     for (const entity of document.entities) {
       if (entity.type !== "opening") continue;
@@ -99,6 +110,7 @@ export class CadWallSolidHost {
     >();
     for (const entity of document.entities) {
       if (entity.type !== "wall") continue;
+      if (hiddenLayers.has(entity.layer)) continue;
       wanted.set(entity.id, {
         wall: entity,
         openings: openingsByHost.get(entity.id) ?? [],
@@ -164,6 +176,30 @@ export class CadWallSolidHost {
     for (const [id, entry] of this.built)
       if (entry.object.userData.invalid === true) ids.push(id);
     return ids;
+  }
+
+  /**
+   * Vanos que NO se recortaron en el volumen de su muro, con identidad
+   * completa (muro + vano + motivo tipado + causa). Sale de los diagnósticos
+   * que `buildCadWallSolidObject` dejó en `userData.openingCutDiagnostics`;
+   * el índice se traduce aquí al id real del vano porque el anfitrión es
+   * quien conserva la lista con la que se construyó cada muro.
+   */
+  openingCutReports(): CadWallOpeningCutReport[] {
+    const reports: CadWallOpeningCutReport[] = [];
+    for (const [wallId, entry] of this.built) {
+      const diagnostics = entry.object.userData.openingCutDiagnostics as
+        | CadWallOpeningCutDiagnostic[]
+        | undefined;
+      if (!diagnostics) continue;
+      for (const diagnostic of diagnostics)
+        reports.push({
+          ...diagnostic,
+          wallId,
+          openingId: entry.openings[diagnostic.openingIndex]?.id ?? null,
+        });
+    }
+    return reports;
   }
 
   dispose(): void {

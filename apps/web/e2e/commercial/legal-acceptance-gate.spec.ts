@@ -13,6 +13,7 @@
 
 import { expect, test } from "@playwright/test";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
+import { LEGAL_PAGE_VERSIONS } from "../../src/lib/legal/legal-versions";
 
 const CHECKOUT_URL =
   "/precios/checkout?plan=individual&periodo=monthly&moneda=MXN";
@@ -81,7 +82,7 @@ test.describe("puerta legal del checkout", () => {
     // registrada contra la versión EXACTA que el registro versionado publica.
     await expect(page.getByTestId("payment-methods")).toBeVisible();
     expect(acceptanceRequests).toEqual([
-      { document: "terms", version: "2026-08-15" },
+      { document: "terms", version: LEGAL_PAGE_VERSIONS.terms.version },
     ]);
     expect(checkoutRequests).toHaveLength(0);
 

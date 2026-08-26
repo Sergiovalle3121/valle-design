@@ -128,6 +128,31 @@ assert.equal(index.size, 999);
   );
 }
 
+// Regresión COMMERCIAL-RC1: designar es designar TODO lo encerrado. El tope
+// por defecto era 300 y truncaba EN SILENCIO (medido en el estrés denso: una
+// ventana sobre 64 habitaciones encierra 1.280 trazos y devolvía 300 — mover
+// «lo designado» movía 300 de 1.280 sin decirlo). Con las 1.000 de este spec:
+{
+  const everything = index.intersecting(
+    { minX: -100, minY: -100, maxX: 1_000 * 20 + 100, maxY: 300 },
+    true,
+  );
+  assert.equal(
+    everything.length,
+    999, // las 1.000 del corpus menos la baja aplicada arriba
+    "una ventana que encierra 999 entidades designa las 999 — sin tope silencioso",
+  );
+  assert.equal(
+    index.intersecting(
+      { minX: -100, minY: -100, maxX: 1_000 * 20 + 100, maxY: 300 },
+      true,
+      300,
+    ).length,
+    300,
+    "el tope sigue disponible para quien lo pida EXPLÍCITAMENTE",
+  );
+}
+
 console.log(
   "native-selection-index: el índice espacial sigue altas, bajas y movimientos, " +
     "y las capas apagadas no imantan ni se designan (las bloqueadas imantan sin designarse)",

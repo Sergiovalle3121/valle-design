@@ -234,9 +234,19 @@ export class CanonicalHistory<T> {
   }
 
   private enforceBudget() {
+    // El presupuesto de bytes acota la PROFUNDIDAD retenida, nunca el último
+    // paso: expulsar la entrada recién grabada convertía «mover 100.000
+    // entidades» en una edición SIN deshacer, en silencio — el documento
+    // denso estima por encima de los 32 MB del presupuesto y `recordCurrent`
+    // devolvía false que nadie miraba (medido en cad-dense-editing-100k,
+    // fase moveMassive: el movimiento se aplicaba y Ctrl+Z no tenía nada que
+    // deshacer). Un único checkpoint puede exceder el presupuesto; retenerlo
+    // es el suelo de seguridad de datos y el techo sigue gobernando cuántos
+    // pasos MÁS se conservan.
     while (
-      this.undoItems.length > this.maxEntries ||
-      this.retainedBytes > this.maxRetainedBytes
+      this.undoItems.length > 1 &&
+      (this.undoItems.length > this.maxEntries ||
+        this.retainedBytes > this.maxRetainedBytes)
     ) {
       const removed = this.undoItems.shift();
       if (!removed) break;

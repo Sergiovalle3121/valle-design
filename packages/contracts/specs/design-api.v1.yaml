@@ -3677,11 +3677,30 @@ components:
             `cad_publications_server_managed`, `entitlement_required`,
             `review_token_invalid`, `review_token_expired`,
             `review_token_revoked`, `review_session_closed`,
-            `review_read_only`, `review_comments_disabled`.
+            `review_read_only`, `review_comments_disabled`, `rate_limited`.
         details: {}
         requestId:
           type: string
           description: Correlación con los logs del servidor (`x-request-id`).
+    RateLimitedError:
+      description: >-
+        429 de cualquiera de las superficies acotadas por `ApiRateLimitService`
+        (guardado de contenido, archivo, visión, checkout, comentarios de
+        review). El techo es generoso a propósito — no mide uso legítimo, sólo
+        acota abuso o un cliente roto en bucle — así que un cliente correcto
+        reintenta pasado `retryAfterSeconds` en vez de tratarlo como fallo.
+      allOf:
+        - $ref: "#/components/schemas/ApiError"
+        - type: object
+          required: [code, retryAfterSeconds]
+          properties:
+            code:
+              type: string
+              const: rate_limited
+            retryAfterSeconds:
+              type: integer
+              minimum: 1
+              description: Segundos hasta que la ventana de la superficie se libere.
     EntitlementRequiredError:
       allOf:
         - $ref: "#/components/schemas/ApiError"

@@ -45,6 +45,7 @@ import type { CadDocument, CadPoint2 } from "./cad-document";
 import type { CadOpeningEntity, CadOpeningKind } from "./cad-entities-v7";
 import type { CadWallEntity } from "./cad-entities-v6";
 import { wallLength } from "./wall-geometry";
+import { cadWallJunctionOverlaps } from "./wall-junction-overlap";
 import { wallOpeningFit } from "./wall-openings";
 
 /**
@@ -64,10 +65,18 @@ export interface CadWallQuantityRow {
   length: number;
   /** Superficie de paramento por UNA cara, ya descontados los huecos. */
   faceArea: number;
-  /** Volumen de fábrica, ya descontado el de los huecos. */
+  /** Volumen de fábrica, ya descontados huecos Y solapes de unión. */
   volume: number;
   /** Superficie de hueco descontada. Se enseña para poder auditar la resta. */
   openingArea: number;
+  /**
+   * Volumen de SOLAPE de unión descontado (L/T/X): el prisma que dos muros
+   * comparten en la esquina, medido con `cadWallJunctionOverlaps` y repartido
+   * a partes iguales entre los dos muros. Se enseña para auditar la resta —
+   * sin este campo, el descuento sería invisible y el número no se podría
+   * defender delante de un presupuesto.
+   */
+  junctionVolume: number;
 }
 
 export interface CadOpeningQuantityRow {
@@ -175,6 +184,20 @@ export function buildCadBimSchedule(document: CadDocument): CadBimSchedule {
       });
   }
 
+  // Solape de unión por muro: el volumen compartido de cada pareja se parte
+  // a la mitad entre sus dos muros — la suma total descuenta el solape UNA vez.
+  const junctionVolumeByWall = new Map<string, number>();
+  for (const overlap of cadWallJunctionOverlaps(walls)) {
+    junctionVolumeByWall.set(
+      overlap.aId,
+      (junctionVolumeByWall.get(overlap.aId) ?? 0) + overlap.volume / 2,
+    );
+    junctionVolumeByWall.set(
+      overlap.bId,
+      (junctionVolumeByWall.get(overlap.bId) ?? 0) + overlap.volume / 2,
+    );
+  }
+
   const wallRows = new Map<string, CadWallQuantityRow>();
   for (const wall of walls) {
     const length = wallLength(wall);
@@ -185,6 +208,12 @@ export function buildCadBimSchedule(document: CadDocument): CadBimSchedule {
         `Los huecos del muro ${wall.id} suman más superficie que el propio muro: se descuenta el muro entero, no un negativo.`,
       );
     const net = gross - discounted;
+    const wallGrossVolume = net * wall.thickness;
+    const junctionDiscount = Math.min(
+      junctionVolumeByWall.get(wall.id) ?? 0,
+      wallGrossVolume,
+    );
+    const wallVolume = wallGrossVolume - junctionDiscount;
     // Clave compuesta capa+espesor. El separador se escribe con el escape
     // `\u0000` y NO como byte crudo: un NUL literal en el fuente hace que git
     // clasifique el archivo como binario, y ahí se pierden el diff, el merge a
@@ -198,8 +227,9 @@ export function buildCadBimSchedule(document: CadDocument): CadBimSchedule {
       row.count += 1;
       row.length += length;
       row.faceArea += net;
-      row.volume += net * wall.thickness;
+      row.volume += wallVolume;
       row.openingArea += discounted;
+      row.junctionVolume += junctionDiscount;
     } else {
       wallRows.set(key, {
         layer: wall.layer,
@@ -207,8 +237,9 @@ export function buildCadBimSchedule(document: CadDocument): CadBimSchedule {
         count: 1,
         length,
         faceArea: net,
-        volume: net * wall.thickness,
+        volume: wallVolume,
         openingArea: discounted,
+        junctionVolume: junctionDiscount,
       });
     }
   }

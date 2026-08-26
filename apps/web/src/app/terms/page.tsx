@@ -6,6 +6,7 @@ import {
 } from "../docs/PublicPageShell";
 import { COMMERCIAL_LINKS } from "@/config/commercial";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
+import { legalVersionLine } from "@/lib/legal/legal-versions";
 
 export const metadata: Metadata = publicPageMetadata({
   path: "/terms",
@@ -45,14 +46,27 @@ export default function TermsPage() {
 
       <PublicSection title="Condiciones comerciales y disponibilidad">
         <p>
-          No se publican tarifas, compra automática ni un nivel de servicio en
-          esta web. Una evaluación, piloto o uso comercial requiere un acuerdo
-          escrito con el titular. La página de estado sólo es autoritativa
-          cuando el despliegue configura una fuente real de telemetría.
+          Las tarifas publicadas en la página de precios las sirve el catálogo
+          real del despliegue, y la compra por autoservicio —cuando el
+          despliegue la tiene habilitada— se procesa mediante el checkout
+          hospedado del proveedor de pagos; los datos de pago no pasan por
+          Valle Design. No se publica un nivel de servicio (SLA): un
+          compromiso de disponibilidad requiere un acuerdo escrito con el
+          titular. La página de estado sólo es autoritativa cuando el
+          despliegue configura una fuente real de telemetría.
         </p>
         <a className={publicActionClass} href={COMMERCIAL_LINKS.contact}>
           Consultar contacto
         </a>
+      </PublicSection>
+
+      <PublicSection title="Versión de este documento">
+        <p>{legalVersionLine("terms")}</p>
+        <p>
+          Una versión publicada nunca se edita: cualquier cambio de texto se
+          publica como versión nueva con su propia fecha, y el registro de
+          versiones lo custodia el servidor.
+        </p>
       </PublicSection>
     </PublicPageShell>
   );
