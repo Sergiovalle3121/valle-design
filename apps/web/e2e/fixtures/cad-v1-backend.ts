@@ -32,6 +32,7 @@ import type { BrowserContext, Route } from "@playwright/test";
 import { API_ORIGIN } from "./constants";
 import { firstPartyRequestFailure } from "./standalone-identity";
 import { CadReviewCommentStore } from "./cad-review-comments";
+import { acknowledgeCadArchive } from "./cad-archive-fixture";
 
 export interface LegacyFootprint {
   footprintW: number;
@@ -509,25 +510,9 @@ export class CadV1Backend {
         });
       }
 
-      // ── Archivo de recuperación (autosave gzip): ACUSE sin CAS ──
-      // El editor lo sube en caliente cada pocos minutos. El fixture lo acusa
-      // (200, la misma forma que /content) SIN tocar la fila: bumpear
-      // `version` aquí rompería por CAS los saves explícitos de los goldens,
-      // y ningún spec asierta sobre el contenido archivado. Antes esta ruta
-      // caía al 404 genérico y cada autosave ensuciaba la consola — el
-      // invariante «sin errores de navegador» del estrés denso caía por 7 de
-      // esos por corrida (causa raíz 8, COMMERCIAL-RC1). El golden 11
-      // (recovery-journal) enruta esta misma ruta a nivel de página y
-      // conserva la precedencia.
-      if (rest === "archive" && method === "PUT") {
-        const entities = (row.document as { entities?: unknown[] }).entities;
-        return json({
-          cadDocumentId: row.id,
-          cadDocumentVersion: row.version,
-          entityCount: Array.isArray(entities) ? entities.length : 0,
-          storedAsBlobPointer: false,
-        });
-      }
+      // ── Archivo de recuperación (autosave): ACUSE sin CAS — ver helper ──
+      if (rest === "archive" && method === "PUT")
+        return acknowledgeCadArchive(row, json);
 
       // ── Listado de revisiones del documento (el autor gestiona sus enlaces) ──
       if (rest === "review-sessions" && method === "GET") {
