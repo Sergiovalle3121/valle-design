@@ -652,3 +652,44 @@ las dos primeras cayeron en el MISMO sitio y el fallo enseñó el producto:
 
 Los PILOTOS con despachos reales siguen siendo OWNER ACTION — esto es la
 evidencia previa: el recorrido que un piloto haría, verde y medido.
+
+---
+
+# VEREDICTO DE LA CASCADA (corte 18:57 UTC)
+
+## Los dos veredictos de CI que faltaban — ambos VERDES
+
+- **main run 499 (`848e0d3`): SUCCESS completo** (18:11 UTC). Los cinco
+  jobs verdes: gitleaks, quality-gates (34 pasos), **E2E Chromium +
+  Firefox completo**, **e2e-perf denso 100k** (11,5 min con
+  `CAD_DENSE_REPEATS=1`) y despliegue reproducible. `main` recuperó su
+  veredicto con la campaña fusionada — el objetivo central de GATES
+  FINALES, cumplido y verificado.
+- **PR #111 run 502 (`0fa09b1`, la cascada entera): SUCCESS a la primera**
+  (41 min, 18:57 UTC). La misma matriz, ahora con las cuatro entregas de
+  la cascada dentro — incluida la VIVIENDA de aceptación corriendo en
+  Firefox por primera vez en CI, y el spec del writer DWG dentro de los
+  415/415.
+
+## Score verdadero actualizado: 70/100
+
+| Fase | Estado | Qué cambió en la cascada |
+|---|---|---|
+| 0 · Baseline verde | **HECHA y RATIFICADA** | main CI verde completo (run 499); estrés denso verde también en main |
+| 1 · 3D honesto | **HECHA salvo ola 2** | + uniones L/T con volumen (inglete probado por rayos y volúmenes exactos, 37 aserciones; vecino en la firma). Abierto declarado: cutaway, espesores de losa editables (piden esquema), X/nudos 3+ (ola 2 del modelo 2D) |
+| 2 · Rendimiento vivo | **MEDIDA COMPLETA, no gateada** | + memoria ×20 VERDE (1,7 de 25 MB, margen 14×); + selección 10k publicada (6,35 s SwiftShader vs objetivo 100 ms — NO cumple ahí; hardware declarado). Producto pendiente: responsividad del hilo principal |
+| 3 · DWG beta | **NÚCLEO HECHO, gate cerrado** | flag fallo-cerrado + preflight + 3 estados + manifiesto + round-trip verde; frontera de importadores ampliada. OWNER ACTION: oráculo ODA §8.2 (y recién entonces, interfaz) |
+| 4 · Railway/prod | **HECHA salvo OWNER ACTION** | sin cambios: cuenta/secretos/dominio del titular |
+| 5 · Legal/cobro | **CANDADO HECHO** | sin cambios: Stripe test/live = OWNER ACTION (claves); guardianes de claims ya en main (BIM, DWG-compat, reemplaza-AutoCAD, contentHash legal) |
+| 6 · Aceptación | **EVIDENCIA HECHA; pilotos OWNER** | + tres proyectos canónicos de punta a punta contra la API real, 4/4 verdes local y en CI (vivienda también Firefox); métricas publicadas con hardware |
+
+Hard-caps respetados en toda la cascada: ninguna prueba borrada ni
+saltada; ningún umbral inventado (el de selección se publica, no se gatea,
+con la razón escrita); ninguna pérdida silenciosa — al contrario, el guion
+de aceptación EJERCITA el contrato de pérdida declarada del DXF de punta a
+punta. El documento del cliente no se sobrescribe en ningún camino nuevo.
+
+## OWNER ACTIONS (sin cambios, registro completo arriba)
+
+RAILWAY, DNS/TLS, SMTP, STRIPE test y live, texto legal definitivo,
+ORÁCULO ODA (§8.2) + corpus DWG real, PILOTOS, SENTRY.
