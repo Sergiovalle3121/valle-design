@@ -477,3 +477,219 @@ geométrica truncada a 300).
 RAILWAY (cuenta+secretos+dominio), DNS/TLS, SMTP, STRIPE test y live, texto
 legal definitivo (razón social/RFC/jurisdicción), CORPUS REAL DWG, PILOTOS,
 SENTRY.
+
+---
+
+# CASCADA POST-FUSIÓN (orden del titular: «mergear e integrar todo y seguir»)
+
+## Fusión ejecutada
+
+Actions despertó, el run del PR #110 salió **verde completo** (quality-gates,
+E2E Chromium + Firefox, e2e-perf denso 100k, gitleaks) y el PR se fusionó
+por **squash**: `main = 848e0d3`. El PR #108 se cerró como ADOPTADO (su
+contenido viaja dentro de la fusión). La rama de campaña se reinició desde
+`origin/main` para la cascada. El run 499 de CI sobre `main@848e0d3` quedó
+en marcha con verificación automatizada (trigger re-armado); su veredicto se
+registra abajo cuando termine.
+
+## FASE 2 — cerrada la parte medible en este entorno
+
+`e2e/performance/cad-editor-memory-cycles.spec.ts` (nuevo, carril
+`CAD_PERF_E2E=1`), corrido DOS veces — la primera destapó dos defectos del
+propio guion, corregidos antes de aceptar número alguno:
+
+- **Memoria ×20 (INVARIANTE BLOQUEANTE — verde).** 20 ciclos de
+  abrir/cerrar el estudio con un dibujo de 10.000 entidades; GC forzado por
+  CDP (2 pasadas) + `JSHeapUsedSize` tras cada ciclo. Cerrar el estudio ES
+  navegación completa en este producto (`window.location.assign`), así que
+  el ciclo navega al tablero — mismo sitio, mismo proceso de renderer — y
+  mide la retención posible por diseño. Resultado: base 4,1 MB → final
+  5,8 MB, **crecimiento 1,7 MB** contra presupuesto max(25 MB, 10 %) =
+  25 MB. **CUMPLE con margen 14×.** (La primera versión navegaba a
+  `about:blank` — reino nuevo, número trivial de 1,3 MB; corregida.)
+- **Selección por ventana a 10k (PUBLICADA, no gateada).** Modo VENTANA
+  explícito por la paleta (la primera corrida cayó SOBRE un trazo y midió un
+  move-drag de 1 entidad — inválida y dicha). Marquesina de 160×120 px en el
+  centro: **1.023 entidades designadas en 6.349,5 ms** — objetivo comercial
+  ≤100 ms → **NO CUMPLE en Intel Xeon 2,10 GHz · SwiftShader (raster por
+  software, sin GPU real)**. El número se publica con su hardware al lado y
+  NO se presenta como GPU real; el veredicto en hardware de cliente queda
+  como medición pendiente del piloto. El trabajo de producto que este número
+  señala (responsividad del hilo principal en designación masiva) ya está en
+  Próximos P0.
+- Artefacto JSON: `e2e/.artifacts/cad-editor-memory-cycles/` (esquema
+  `urn:valle-design:schema:cad-memory-cycles-run:v1`, hardware declarado).
+
+Sigue abierto de Fase 2: responsividad del hilo principal a 100k (tareas
+largas de teselación medidas con sonda) — producto, no medición.
+
+## FASE 3 — DWG beta controlada (núcleo entregado, §8 al pie de la letra)
+
+Tres piezas nuevas + el guardián actualizado:
+
+- **`src/lib/cad/dwg-export-flag.ts`** — espejo de escritura de
+  `dwg-interop-flag.ts`: `DWG_EXPORT_FLAG` nace apagada; gates congelados
+  como hechos (`publicWriterExists: true`, `externalOracleVerified: false`);
+  autorización del titular registrada (ADR-0009 §8, firma 2026-08-25,
+  perfil `AC1015_EXPORT_2D_V1`, legal `pending_parallel`);
+  `dwgBetaExportIsEnabled` = bandera ∧ firma ∧ CERO bloqueos — **fallo
+  cerrado**: encender la bandera sin el oráculo externo (§8.2, ODA File
+  Converter — OWNER ACTION) deja la exportación rechazada y los bloqueos lo
+  dicen por su nombre.
+- **`src/lib/cad/dwg-native-writer.ts`** — el SEGUNDO punto autorizado que
+  importa el códec (el de escritura). Preflight puro contra el subconjunto
+  §8.1 (qué viaja y qué no, SIN escribir); proyección campo a campo al
+  canónico del laboratorio (nada de `as` al documento entero; espacios de
+  papel se vacían Y se declaran como pérdida); TRES estados, nunca dos:
+  `exito` / `exito_con_perdidas` (bytes + manifiesto que nombra EXACTAMENTE
+  qué no viajó) / `rechazado` (gate cerrado o cero entidades escribibles —
+  un DWG vacío que dice ser tu plano es peor que un error). El documento
+  original NUNCA se toca: función pura, bytes nuevos o nada.
+- **`src/lib/cad/dwg-native-writer.spec.ts`** — verde: (1) con los gates
+  REALES la exportación se rechaza aunque la bandera esté encendida y los
+  bloqueos nombran el oráculo y la OWNER ACTION; (2) round-trip con gates
+  inyectados como si el oráculo hubiera pasado: línea/círculo/arco + MURO →
+  `exito_con_perdidas`, el muro en el manifiesto por su tipo, `readDwg`
+  relee exactamente lo escribible con coordenadas intactas (<1e-6);
+  (3) documento sólo-muros → `rechazado` sin archivo; (4) preflight puro.
+- **`scripts/dwg/check-product-boundary.mjs`** — el writer y su spec son
+  ahora los ÚNICOS importadores autorizados del adaptador de escritura
+  (verificación paralela a la del lector); el botón del producto se añade a
+  la lista el día que el oráculo §8.2 esté corrido, no antes.
+
+Cumplimiento del prompt: AC1015 ✓ (writer del laboratorio, clean-room — sin
+ODA/RealDWG/Teigha/SDK de Autodesk/servicio pagado), preflight ✓, manifiesto
+de pérdidas ✓, estados éxito/éxito-con-pérdidas/rechazado ✓, flag apagada
+por defecto ✓, el archivo del cliente nunca se sobrescribe ✓ (la exportación
+produce bytes nuevos). El cableado de interfaz queda POST-oráculo por
+mandato de §8.2 — cablearlo hoy sería fingir que el gate no existe.
+
+## FASE 1 (remanente) — uniones L/T con volumen: la esquina limpia llega al 3D
+
+La planta 2D ya derivaba el inglete de la L y el empalme de la T
+(`wall-joins.ts`, función pura de las recetas, nunca persistida) — pero el
+volumen 3D de cada muro se extruía de su RECTÁNGULO crudo: dos cajas
+solapadas en la esquina (volumen doble visible + z-fighting en caras
+coincidentes) y una MUESCA abierta en la escuadra exterior. La corrección es
+cableado, no matemática nueva — el mismo modelo probado de la planta, ahora
+extruido:
+
+- `wall-solid.ts`: `wallSolidBodyLocal` acepta las uniones y extruye el
+  contorno AJUSTADO (cada esquina deslizada por su cara la extensión firmada
+  de su extremo, en el marco local del muro). El anillo siempre es simple —
+  las caras largas viven en rectas paralelas y con longitud positiva los
+  testeros no pueden cruzarse — y si un recorte consume una cara entera,
+  degrada a la caja base, el mismo `?? footprint` de la planta: nunca un
+  sólido del revés. Sin uniones, la caja de siempre: el muro solitario no
+  paga nada.
+- `wall-solid-host.ts`: la firma de reconciliación pasa de par a TERNA
+  (muro por referencia, vanos por referencia, uniones POR VALOR): mover un
+  VECINO reconstruye la esquina de este muro aunque este muro no cambiara de
+  referencia — la dependencia que las referencias no pueden ver. Las
+  uniones se derivan contra el documento entero SIN filtrar por capa,
+  paridad exacta con `wallDocumentJoins` de la planta: un muro de capa
+  apagada no se construye, pero sigue dando forma a la esquina del vecino.
+- Probado con números, no con capturas (`wall-solid.spec.ts`, 37 verdes):
+  el inglete simétrico CONSERVA el volumen del muro (cede un triángulo, gana
+  el otro); un rayo por el triángulo interior cedido ya no toca al muro
+  (volumen doble eliminado) y la escuadra exterior que las cajas dejaban
+  abierta ahora se rellena; el par en L suma EXACTAMENTE sus volúmenes
+  nominales; el que llega a la T se recorta hasta la cara del pasante
+  (1.375×200×2.400 exacto) y el pasante no se toca; el vano sigue restando
+  exactamente su volumen en un muro con inglete. El anfitrión probado en
+  `wall-solid-host.spec.ts`: mover al vecino reconstruye, mismo documento no
+  reconstruye, capa apagada forma la esquina.
+- El GLB exporta estos mismos grupos de escena (`glb-export.ts`), así que el
+  edificio exportado lleva las esquinas limpias sin tocar el exportador.
+- La X (cruce por el interior de ambos ejes) queda como está EN AMBAS
+  vistas por decisión previa del modelo 2D («dos pasantes por el mismo
+  punto es un cruce, no una T»): los volúmenes se interpenetran sin
+  z-fighting y las CANTIDADES ya descuentan el solape por otra vía. Igual
+  que los ingletes de 3+ muros en un punto: ola 2, declarado en
+  `wall-joins.ts`.
+
+## FASE 6 — Aceptación comercial: los tres proyectos canónicos, de punta a punta
+
+`e2e/real/cad-acceptance-projects.spec.ts` + `e2e/fixtures/acceptance-projects.ts`
+(carril real: `E2E_REAL_API=1`, API NestJS + PostgreSQL 16, cero mocks).
+Corrida local Chromium: **4/4 verdes en 50,9 s**. Tres corridas para llegar —
+las dos primeras cayeron en el MISMO sitio y el fallo enseñó el producto:
+
+- **El contrato del preflight DXF, ejercitado de verdad.** La primera
+  pulsación de «Descargar DXF» sobre un documento con pérdidas ENSEÑA el
+  manifiesto y no descarga nada; una pérdida que elimina geometría (muros
+  paramétricos) exige además la casilla de aceptación, y la segunda
+  pulsación es la que descarga. El guion inicial asumía descarga directa
+  (como el documento de arco de `studio-real-api`); el de aceptación ahora
+  recorre el contrato como lo haría el piloto: mira el informe, acepta con
+  conocimiento, descarga.
+- **Proyecto 1 · VIVIENDA (22 entidades nativas, a mano):** perímetro en L,
+  particiones en T, vanos alojados, ejes, luminarias, rótulos. Registro→
+  organización→proyecto por el harness real; contenido por CAS; los seis
+  muros visibles como SÓLIDOS nativos en 3D (las uniones de esta misma
+  cascada, vivas contra la API real); DXF por navegador (con manifiesto
+  aceptado) y por el endpoint del servidor; relectura íntegra.
+  openMs 1.824 · exportDxfMs 4.869.
+- **Proyecto 2 · PLANO REAL (8.000 entidades):** la mezcla `plano-real` del
+  banco de pruebas (modelo declarado de archivo de despacho mexicano:
+  caras de muro cortas, cadenas de cotas, carpintería repetida, achurados,
+  rótulos) importada por la interfaz («Importado: 8000 entidades»), abierta
+  entera (HUD Native 8000) y releída íntegra por la API.
+  importMs 2.160 · openMs 2.567.
+- **Proyecto 3 · OFICINA (2.000 entidades):** mezcla `architecture`
+  (carga dirigida: expansión de bloques, hatch, atlas) — importa, abre,
+  exporta DXF (>50 KB reales) y relee íntegro.
+  importMs 2.240 · openMs 2.034 · exportDxfMs 17.915.
+- **Métricas publicadas, no gateadas:** artefacto JSON
+  (`urn:valle-design:schema:cad-acceptance-projects-run:v1`) con hardware
+  declarado (Xeon 2,10 GHz · SwiftShader). Lo funcional BLOQUEA (recuentos
+  exactos, CAS, relecturas, sólidos, secciones DXF); los milisegundos se
+  publican con su máquina al lado. Los proyectos 2-3 corren sólo en
+  Chromium por criterio de carril (igual que e2e-perf, declarado en el
+  spec); la vivienda corre en ambos navegadores.
+- Ambos generadores de corpus VALIDADOS contra el validador real de la API
+  antes de escribir el guion (sonda directa a `validateCadDocumentPayload`).
+
+Los PILOTOS con despachos reales siguen siendo OWNER ACTION — esto es la
+evidencia previa: el recorrido que un piloto haría, verde y medido.
+
+---
+
+# VEREDICTO DE LA CASCADA (corte 18:57 UTC)
+
+## Los dos veredictos de CI que faltaban — ambos VERDES
+
+- **main run 499 (`848e0d3`): SUCCESS completo** (18:11 UTC). Los cinco
+  jobs verdes: gitleaks, quality-gates (34 pasos), **E2E Chromium +
+  Firefox completo**, **e2e-perf denso 100k** (11,5 min con
+  `CAD_DENSE_REPEATS=1`) y despliegue reproducible. `main` recuperó su
+  veredicto con la campaña fusionada — el objetivo central de GATES
+  FINALES, cumplido y verificado.
+- **PR #111 run 502 (`0fa09b1`, la cascada entera): SUCCESS a la primera**
+  (41 min, 18:57 UTC). La misma matriz, ahora con las cuatro entregas de
+  la cascada dentro — incluida la VIVIENDA de aceptación corriendo en
+  Firefox por primera vez en CI, y el spec del writer DWG dentro de los
+  415/415.
+
+## Score verdadero actualizado: 70/100
+
+| Fase | Estado | Qué cambió en la cascada |
+|---|---|---|
+| 0 · Baseline verde | **HECHA y RATIFICADA** | main CI verde completo (run 499); estrés denso verde también en main |
+| 1 · 3D honesto | **HECHA salvo ola 2** | + uniones L/T con volumen (inglete probado por rayos y volúmenes exactos, 37 aserciones; vecino en la firma). Abierto declarado: cutaway, espesores de losa editables (piden esquema), X/nudos 3+ (ola 2 del modelo 2D) |
+| 2 · Rendimiento vivo | **MEDIDA COMPLETA, no gateada** | + memoria ×20 VERDE (1,7 de 25 MB, margen 14×); + selección 10k publicada (6,35 s SwiftShader vs objetivo 100 ms — NO cumple ahí; hardware declarado). Producto pendiente: responsividad del hilo principal |
+| 3 · DWG beta | **NÚCLEO HECHO, gate cerrado** | flag fallo-cerrado + preflight + 3 estados + manifiesto + round-trip verde; frontera de importadores ampliada. OWNER ACTION: oráculo ODA §8.2 (y recién entonces, interfaz) |
+| 4 · Railway/prod | **HECHA salvo OWNER ACTION** | sin cambios: cuenta/secretos/dominio del titular |
+| 5 · Legal/cobro | **CANDADO HECHO** | sin cambios: Stripe test/live = OWNER ACTION (claves); guardianes de claims ya en main (BIM, DWG-compat, reemplaza-AutoCAD, contentHash legal) |
+| 6 · Aceptación | **EVIDENCIA HECHA; pilotos OWNER** | + tres proyectos canónicos de punta a punta contra la API real, 4/4 verdes local y en CI (vivienda también Firefox); métricas publicadas con hardware |
+
+Hard-caps respetados en toda la cascada: ninguna prueba borrada ni
+saltada; ningún umbral inventado (el de selección se publica, no se gatea,
+con la razón escrita); ninguna pérdida silenciosa — al contrario, el guion
+de aceptación EJERCITA el contrato de pérdida declarada del DXF de punta a
+punta. El documento del cliente no se sobrescribe en ningún camino nuevo.
+
+## OWNER ACTIONS (sin cambios, registro completo arriba)
+
+RAILWAY, DNS/TLS, SMTP, STRIPE test y live, texto legal definitivo,
+ORÁCULO ODA (§8.2) + corpus DWG real, PILOTOS, SENTRY.

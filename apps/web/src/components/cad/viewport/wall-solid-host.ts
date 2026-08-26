@@ -9,13 +9,14 @@
  * ## Por qué reconcilia por FIRMA y no sólo por identidad de referencia
  *
  * Un muro no se dibuja solo: sus vanos alojados también entran en su malla
- * (el hueco se recorta ahí, no en una capa aparte). Que el MURO no haya
- * cambiado de referencia no basta para saltarse la reconstrucción — uno de
- * sus vanos sí pudo cambiar. La firma es el par (referencia del muro,
- * referencias de sus vanos en orden): comparar por referencia, elemento a
- * elemento, es barato porque las mutaciones canónicas no clonan lo que no
- * tocan, y es exacto porque cualquier vano nuevo, borrado o editado cambia al
- * menos una referencia de la lista.
+ * (el hueco se recorta ahí, no en una capa aparte), y sus UNIONES L/T contra
+ * los vecinos también (el inglete vive en sus vértices). Que el MURO no haya
+ * cambiado de referencia no basta para saltarse la reconstrucción — un vano
+ * suyo o un VECINO pudieron cambiar. La firma es la terna (referencia del
+ * muro, referencias de sus vanos en orden, uniones por VALOR): las dos
+ * primeras por referencia porque las mutaciones canónicas no clonan lo que
+ * no tocan; las uniones por valor porque se rederivan en cada sync y es su
+ * contenido el que dice si la esquina cambió (`sameJoins`).
  *
  * La SELECCIÓN y el MATERIAL no entran en la firma a propósito: designar o
  * soltar un muro, o cambiarle el material, no mueven un solo vértice de su
@@ -34,6 +35,11 @@ import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadWallEntity } from "@/lib/cad/cad-entities-v6";
 import type { CadOpeningEntity } from "@/lib/cad/cad-entities-v7";
 import {
+  wallJoins,
+  type CadWallJoinEnd,
+  type CadWallJoins,
+} from "@/lib/cad/wall-joins";
+import {
   buildCadWallSolidObject,
   disposeCadWallSolidObject,
   recolorCadWallSolidObject,
@@ -48,6 +54,7 @@ import { cadHiddenLayerIds } from "@/lib/cad/cad-layer-visibility";
 interface CadWallSolidEntry {
   wall: CadWallEntity;
   openings: CadOpeningEntity[];
+  joins: CadWallJoins | null;
   selected: boolean;
   object: THREE.Object3D;
 }
@@ -58,6 +65,46 @@ function sameOpenings(
 ): boolean {
   if (a.length !== b.length) return false;
   return a.every((entity, index) => entity === b[index]);
+}
+
+/**
+ * Las uniones se comparan por VALOR, no por referencia: se rederivan en cada
+ * `sync()` (son función pura de los ejes vecinos) y compararlas campo a campo
+ * es lo que detecta que un VECINO movido cambió la esquina de este muro sin
+ * que este muro cambiara de referencia — la dependencia que la firma por
+ * referencias no puede ver.
+ */
+function sameJoinEnd(a: CadWallJoinEnd, b: CadWallJoinEnd): boolean {
+  return (
+    a.kind === b.kind &&
+    a.otherId === b.otherId &&
+    a.leftExtension === b.leftExtension &&
+    a.rightExtension === b.rightExtension &&
+    a.cap === b.cap
+  );
+}
+
+function sameJoins(a: CadWallJoins | null, b: CadWallJoins | null): boolean {
+  if (a === null || b === null) return a === b;
+  return sameJoinEnd(a.start, b.start) && sameJoinEnd(a.end, b.end);
+}
+
+/**
+ * Uniones del muro contra los demás muros del documento, o `null` si ningún
+ * extremo une — el MISMO contrato que `wallDocumentJoins` en el adaptador de
+ * planta (`wall-entity-adapter.ts`), incluida la decisión de NO filtrar por
+ * capa: un muro de capa apagada no se construye, pero sigue dando forma a la
+ * esquina de su vecino, igual que en 2D. Con `null` el sólido es la caja de
+ * siempre: el muro solitario no paga las uniones.
+ */
+function wallSolidJoins(
+  entity: CadWallEntity,
+  allWalls: readonly CadWallEntity[],
+): CadWallJoins | null {
+  if (allWalls.length < 2) return null;
+  const joins = wallJoins(entity, allWalls);
+  if (joins.start.kind === "free" && joins.end.kind === "free") return null;
+  return joins;
 }
 
 /**
@@ -98,7 +145,13 @@ export class CadWallSolidHost {
     // gobierna su símbolo, no el agujero del muro que lo aloja.
     const hiddenLayers = cadHiddenLayerIds(document.layers);
     const openingsByHost = new Map<string, CadOpeningEntity[]>();
+    // TODOS los muros — también los de capa apagada — porque las uniones se
+    // derivan contra el documento entero, como en planta (`wallSolidJoins`).
+    // El coste es O(muros²) por sync, el mismo barrido lineal por muro que ya
+    // paga el adaptador 2D al derivar cada uno.
+    const allWalls: CadWallEntity[] = [];
     for (const entity of document.entities) {
+      if (entity.type === "wall") allWalls.push(entity);
       if (entity.type !== "opening") continue;
       const list = openingsByHost.get(entity.hostId);
       if (list) list.push(entity);
@@ -106,14 +159,18 @@ export class CadWallSolidHost {
     }
     const wanted = new Map<
       string,
-      { wall: CadWallEntity; openings: CadOpeningEntity[] }
+      {
+        wall: CadWallEntity;
+        openings: CadOpeningEntity[];
+        joins: CadWallJoins | null;
+      }
     >();
-    for (const entity of document.entities) {
-      if (entity.type !== "wall") continue;
+    for (const entity of allWalls) {
       if (hiddenLayers.has(entity.layer)) continue;
       wanted.set(entity.id, {
         wall: entity,
         openings: openingsByHost.get(entity.id) ?? [],
+        joins: wallSolidJoins(entity, allWalls),
       });
     }
     for (const [id, entry] of [...this.built]) {
@@ -122,7 +179,8 @@ export class CadWallSolidHost {
       if (
         next &&
         sameOpenings(next.openings, entry.openings) &&
-        wallGeometryUnchanged(next.wall, entry.wall)
+        wallGeometryUnchanged(next.wall, entry.wall) &&
+        sameJoins(next.joins, entry.joins)
       ) {
         // Ni los vanos ni la geometría del muro cambiaron: la malla sigue
         // siendo válida. Lo que pudo cambiar —selección, material— es un
@@ -136,6 +194,7 @@ export class CadWallSolidHost {
         // futura llamada compararía contra una entidad ya obsoleta.
         entry.wall = next.wall;
         entry.openings = next.openings;
+        entry.joins = next.joins;
         entry.selected = selected;
         wanted.delete(id);
         continue;
@@ -145,20 +204,22 @@ export class CadWallSolidHost {
       if (!next) wanted.delete(id);
     }
     for (const [id, entry] of wanted)
-      this.add(id, entry.wall, entry.openings, selectedIds.has(id));
+      this.add(id, entry.wall, entry.openings, entry.joins, selectedIds.has(id));
   }
 
   private add(
     id: string,
     wall: CadWallEntity,
     openings: CadOpeningEntity[],
+    joins: CadWallJoins | null,
     selected: boolean,
   ): void {
     const object = buildCadWallSolidObject(wall, openings, this.viewport(), {
       selected,
+      joins,
     });
     this.group.add(object);
-    this.built.set(id, { wall, openings, selected, object });
+    this.built.set(id, { wall, openings, joins, selected, object });
   }
 
   get count(): number {

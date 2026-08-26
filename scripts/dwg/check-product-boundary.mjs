@@ -48,6 +48,10 @@ const forbiddenCodecReferences = [
 const authorizedCodecReferenceFiles = new Set([
   join("apps", "web", "src", "lib", "cad", "dwg-native-reader.ts"),
   join("apps", "web", "src", "lib", "cad", "dwg-native-reader.spec.ts"),
+  // ADR-0009 §8 (firma 2026-08-25): el punto de ESCRITURA y su spec — la
+  // exportación M5, fallo cerrado hasta el oráculo externo de §8.2.
+  join("apps", "web", "src", "lib", "cad", "dwg-native-writer.ts"),
+  join("apps", "web", "src", "lib", "cad", "dwg-native-writer.spec.ts"),
 ]);
 /**
  * Y exactamente estos archivos pueden IMPORTAR ese punto autorizado: el
@@ -59,6 +63,15 @@ const authorizedDwgNativeReaderImporters = new Set([
   join("apps", "web", "src", "lib", "cad", "dwg-native-reader.ts"),
   join("apps", "web", "src", "lib", "cad", "dwg-native-reader.spec.ts"),
   join("apps", "web", "src", "lib", "cad", "document-import.worker.ts"),
+]);
+/**
+ * Y el punto de ESCRITURA (§8) sólo lo consume su propia spec: el botón del
+ * producto llega con el oráculo de §8.2 corrido (OWNER ACTION), y ese día
+ * este array crece con el módulo de interfaz que lo cablee — nunca antes.
+ */
+const authorizedDwgNativeWriterImporters = new Set([
+  join("apps", "web", "src", "lib", "cad", "dwg-native-writer.ts"),
+  join("apps", "web", "src", "lib", "cad", "dwg-native-writer.spec.ts"),
 ]);
 /**
  * `apps/web/package.json` declara la dependencia real hacia el códec (así
@@ -182,7 +195,7 @@ async function assertNoRuntimeIntegration() {
         if (hasCodecReference(source) && !authorizedCodecReferenceFiles.has(relPath)) {
           fail(
             `runtime import/reference found in ${relPath} (only dwg-native-reader.ts ` +
-              "is authorized by ADR-0009 §6-bis)",
+              "— §6-bis — and dwg-native-writer.ts — §8 — are authorized by ADR-0009)",
           );
         }
         if (
@@ -192,6 +205,15 @@ async function assertNoRuntimeIntegration() {
           fail(
             `${relPath} references the authorized DWG adapter, but only the import ` +
               "worker and the adapter's own spec may do so",
+          );
+        }
+        if (
+          source.includes("dwg-native-writer") &&
+          !authorizedDwgNativeWriterImporters.has(relPath)
+        ) {
+          fail(
+            `${relPath} references the authorized DWG writer adapter, but only ` +
+              "its own spec may do so until the §8.2 oracle clears",
           );
         }
       }

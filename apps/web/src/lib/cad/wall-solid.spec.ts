@@ -16,6 +16,7 @@
  */
 import { check, checkClose, report } from "../brep/spec-support";
 import { bodyBounds, bodyMassProperties, tessellateBody } from "../brep";
+import { wallJoins, type CadWallJoinWall } from "./wall-joins";
 import {
   wallSolidBodyLocal,
   wallSolidBodyLocalWithDiagnostics,
@@ -312,4 +313,182 @@ const door: CadWallSolidOpening = {
   );
 }
 
-report("wall-solid", 24);
+// --- 7. unión en L: el inglete de la planta, ahora con volumen ---------------
+// Dos muros perpendiculares que comparten (0,0). El eje de A es el eje X del
+// marco local Y del mundo a la vez (u=(1,0), n=(0,1)), así que las
+// coordenadas locales del cuerpo de A SON coordenadas del mundo y los rayos
+// se pueden apuntar con números de planta.
+{
+  const jointWallA: CadWallJoinWall = {
+    id: "A",
+    start: { x: 0, y: 0, z: 0 },
+    end: { x: 4_000, y: 0, z: 0 },
+    thickness: 250,
+  };
+  const jointWallB: CadWallJoinWall = {
+    id: "B",
+    start: { x: 0, y: 0, z: 0 },
+    end: { x: 0, y: 3_000, z: 0 },
+    thickness: 250,
+  };
+  const joinsA = wallJoins(jointWallA, [jointWallB]);
+  const joinsB = wallJoins(jointWallB, [jointWallA]);
+  check(
+    "la esquina compartida deriva corner en el arranque y free en el remate",
+    joinsA.start.kind === "corner" && joinsA.end.kind === "free",
+  );
+  const bodyA = wallSolidBodyLocal(
+    { ...wall, thickness: 250 },
+    [],
+    joinsA,
+  )!;
+  const bodyB = wallSolidBodyLocal(
+    {
+      start: { x: 0, y: 0, z: 0 },
+      end: { x: 0, y: 3_000, z: 0 },
+      thickness: 250,
+      height: 2_400,
+    },
+    [],
+    joinsB,
+  )!;
+  const volA = bodyMassProperties(bodyA).volume;
+  const volB = bodyMassProperties(bodyB).volume;
+  const naiveA = 4_000 * 250 * 2_400;
+  const naiveB = 3_000 * 250 * 2_400;
+  checkClose(
+    "el inglete simétrico conserva el volumen del muro (cede un triángulo, gana el otro)",
+    volA,
+    naiveA,
+    naiveA * 1e-9,
+  );
+  const boundsA = bodyBounds(bodyA);
+  checkClose(
+    "la cara exterior de A se EXTIENDE hasta la cara exterior de B",
+    boundsA.min.x,
+    -125,
+  );
+  // El triángulo interior de la esquina (por encima de la diagonal y=x) es
+  // de B: un rayo vertical ahí no debe tocar A — sin inglete, la caja de A
+  // lo llenaría y habría VOLUMEN DOBLE con B.
+  const insideCeded = rayHitsCount(bodyA, [30, 100, -10], [0, 0, 1]);
+  check(
+    "A ya no ocupa el triángulo interior cedido a B (volumen doble eliminado)",
+    insideCeded === 0,
+    `se esperaban 0 impactos y hubo ${insideCeded}`,
+  );
+  // La escuadra exterior (x<0, y<0, del lado x≥y de la diagonal) era una
+  // MUESCA en las cajas ingenuas: el inglete la rellena.
+  const outerFilled = rayHitsCount(bodyA, [-60, -100, -10], [0, 0, 1]);
+  check(
+    "A rellena la escuadra exterior que las cajas ingenuas dejaban abierta",
+    outerFilled > 0,
+    `se esperaban impactos y hubo ${outerFilled}`,
+  );
+  checkClose(
+    "el par en L suma EXACTAMENTE sus dos volúmenes nominales: ni doble ni hueco",
+    volA + volB,
+    naiveA + naiveB,
+    (naiveA + naiveB) * 1e-9,
+  );
+}
+
+// --- 8. empalme en T: el que llega termina contra la cara del pasante --------
+{
+  const through: CadWallJoinWall = {
+    id: "A",
+    start: { x: 0, y: 0, z: 0 },
+    end: { x: 4_000, y: 0, z: 0 },
+    thickness: 250,
+  };
+  const incoming: CadWallJoinWall = {
+    id: "C",
+    start: { x: 2_000, y: 0, z: 0 },
+    end: { x: 2_000, y: 1_500, z: 0 },
+    thickness: 200,
+  };
+  const joinsC = wallJoins(incoming, [through]);
+  const joinsA = wallJoins(through, [incoming]);
+  check(
+    "el que llega deriva tee con el testero absorbido",
+    joinsC.start.kind === "tee" && joinsC.start.cap === false,
+  );
+  check(
+    "el pasante no se toca: sus dos extremos siguen libres",
+    joinsA.start.kind === "free" && joinsA.end.kind === "free",
+  );
+  const bodyC = wallSolidBodyLocal(
+    {
+      start: { x: 2_000, y: 0, z: 0 },
+      end: { x: 2_000, y: 1_500, z: 0 },
+      thickness: 200,
+      height: 2_400,
+    },
+    [],
+    joinsC,
+  )!;
+  const expected = (1_500 - 125) * 200 * 2_400;
+  checkClose(
+    "el volumen del que llega se recorta hasta la cara del pasante: cero masa dentro de él",
+    bodyMassProperties(bodyC).volume,
+    expected,
+    expected * 1e-9,
+  );
+}
+
+// --- 9. uniones que degeneran caen a la caja base; los vanos siguen cortando --
+{
+  const consumed = {
+    start: {
+      kind: "corner" as const,
+      otherId: "x",
+      leftExtension: -5_000,
+      rightExtension: -5_000,
+      cap: false,
+    },
+    end: {
+      kind: "free" as const,
+      otherId: null,
+      leftExtension: 0,
+      rightExtension: 0,
+      cap: true,
+    },
+  };
+  const naive = wallSolidVolume(wall)!;
+  const fallback = wallSolidBodyLocal(wall, [], consumed)!;
+  checkClose(
+    "un recorte que consume la cara entera degrada a la caja base, nunca a un sólido del revés",
+    bodyMassProperties(fallback).volume,
+    naive,
+    naive * 1e-9,
+  );
+
+  const jointWallA: CadWallJoinWall = {
+    id: "A",
+    start: { x: 0, y: 0, z: 0 },
+    end: { x: 4_000, y: 0, z: 0 },
+    thickness: 250,
+  };
+  const jointWallB: CadWallJoinWall = {
+    id: "B",
+    start: { x: 0, y: 0, z: 0 },
+    end: { x: 0, y: 3_000, z: 0 },
+    thickness: 250,
+  };
+  const joinsA = wallJoins(jointWallA, [jointWallB]);
+  const joined = wallSolidBodyLocal({ ...wall, thickness: 250 }, [], joinsA)!;
+  const joinedWithDoor = wallSolidBodyLocal(
+    { ...wall, thickness: 250 },
+    [door],
+    joinsA,
+  )!;
+  const doorVolume = door.width * door.height * 250;
+  checkClose(
+    "en un muro con inglete, el vano sigue restando EXACTAMENTE su volumen",
+    bodyMassProperties(joined).volume - bodyMassProperties(joinedWithDoor).volume,
+    doorVolume,
+    doorVolume * 1e-4,
+  );
+}
+
+report("wall-solid", 35);
