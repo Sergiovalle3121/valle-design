@@ -91,7 +91,9 @@ sbom.full.cdx.json
 # tres corridas; las corridas sueltas son insumo y caducan con la máquina.
 apps/web/e2e/.artifacts/
 apps/web/e2e/.report/
-apps/web/e2e/.test-results/
+# Con comodín: las corridas con `--output` propio (.test-results-dense6, …)
+# son igual de por-corrida que la carpeta por defecto.
+apps/web/e2e/.test-results*/
 # Cache local del corpus DWG descargado: bytes con derechos que NUNCA se
 # versionan en este repositorio publico. El pin y los hashes si; los bytes no.
 .cache/
