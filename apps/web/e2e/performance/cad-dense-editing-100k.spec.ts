@@ -254,6 +254,16 @@ test.describe("CAD dense editing stress · 100k", () => {
     page.on("console", (message) => {
       if (message.type() === "error") browserErrors.push(message.text());
     });
+    // La consola dice «Failed to load resource: 404» SIN el URL — un error que
+    // no se puede diagnosticar no es evidencia. La red sí lo sabe: cada
+    // respuesta ≥400 se registra con método y URL junto al error de consola
+    // que la acompaña, para que el artefacto se explique solo.
+    page.on("response", (response) => {
+      if (response.status() >= 400)
+        browserErrors.push(
+          `${response.status()} ${response.request().method()} ${response.url()}`,
+        );
+    });
 
     const openedAt = Date.now();
     await page.goto("/legacy/studio");
