@@ -198,3 +198,71 @@ Del mismo diagnóstico queda MEDIDO y pendiente (Fase 2): con 100.000
 designadas el hilo principal encadena tareas de 10-24 s con el editor «en
 reposo» (SwiftShader + churn de render), y `paletteOpen` cuesta ~44 s. Ambos
 números van al informe de rendimiento; no bloquean el veredicto funcional.
+
+### Causa raíz 5 — el primer run de CI del PR #110: el monolito había crecido
+
+El run 32944747190 (quality-gates, rojo en ~60 s) murió en
+`check-monolith-budget`: `Layout3DEditor.tsx` en **20293 líneas** sobre su
+asignación de 20242. Las correcciones de la campaña habían engordado el
+monolito y la corrida local de gates previa al push no lo cubrió (lección
+anotada abajo). Regla respetada — el monolito sólo encoge, el techo no se
+toca:
+
+- La exportación GLB completa sale a `lib/cad/glb-export.ts`:
+  `planCadGlbExport` (la decisión del botón con sus dos negativas),
+  `hideCadGlbOverlays` y `serializeCadGlbBlob` (serialización con
+  restauración garantizada). El spec de round-trip pasa ahora por la MISMA
+  función que usa el editor.
+- El candado de capas bloqueadas del lote sale a
+  `lib/cad/entity-command-locks.ts` (nuevo — `entity-commands.ts` está a 21
+  líneas de su tope de 800).
+
+Reproducir la cadena COMPLETA de CI en local destapó además, antes de que la
+CI llegara a verlos:
+
+- **rules-of-hooks real**: los dos `useMemo` del universo de selección
+  (memoización de esta campaña) quedaban DESPUÉS del `return null` de editor
+  cerrado — orden de hooks cambiante entre renders. Subieron antes del
+  return.
+- **Trinquete de avisos de lint**: el `eslint-disable` de `exhaustive-deps`
+  abarcaba dos líneas de comentario y no aplicaba a la lista de dependencias
+  (7 avisos > presupuesto 6, más 1 directiva sin uso). Recolocado.
+- **Prettier en `run-migrations.ts`** (paréntesis) — bloqueaba `lint:check`
+  del API.
+- `check:dwg-evidence` en local exige el espejo del corpus en el pin exacto
+  (`VALLE_DWG_CORPUS_MIRROR` → clon de `valle-design-dwg-conformance` en
+  `a60ebe2`); sin él el árbol «sostiene» 0 bundles y el gate falla. No es un
+  fallo de producto: es el entorno de CI que hay que reproducir.
+
+**Lección de proceso (fijada como protocolo):** antes de CADA push, la cadena
+entera de quality-gates con el espejo del corpus exportado — no un
+subconjunto. Sobre `7030a19` quedó verde completa: check:cad · check:dwg ·
+check:governance · audit · Redocly · sbom+licencias · turbo build ·
+typecheck API/web · tests API unit + pg (166/166) · lint API/web ·
+413/413 specs web.
+
+### Estrés denso tras los arreglos (corrida bajo carga, 08:33 UTC)
+
+Con presupuesto de proyección + mapas + historia corregida, la corrida
+(REPEATS=1, chromium, servidor de producción, API real en :4000) completó
+**9 de 11 fases** antes del techo de 35 min — compartiendo los 4 CPU con la
+propia cadena de gates (turbo build + 413 specs + tests pg corrían en
+paralelo; anotado en el artefacto como carga vecina):
+
+| fase | mediana |
+|---|---|
+| paletteOpen | 32,6 s |
+| selectAll | 27,9 s |
+| **moveMassive** | **7,2 s** (antes: no volvía en 10 min) |
+| **undoMassive** | **8,5 s** (antes: no existía paso que deshacer) |
+| eraseLayer | 7,7 s |
+| undoErase | 10,0 s |
+| windowSmall | 73,1 s |
+| windowLarge | 74,3 s |
+| crossingLarge | 63,5 s |
+
+`lasso` y `pickAndGrips` no llegaron a ejecutarse. Señal de Fase 2 ya
+medida: ventana/captura cuestan ~70 s CONSTANTES (independiente del área
+seleccionada) — huella de recorrido completo del documento, no del índice
+espacial. Corrida limpia (máquina quieta) en curso para el veredicto del
+smoke.
