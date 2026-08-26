@@ -18,10 +18,12 @@ import { check, checkClose, report } from "../brep/spec-support";
 import { bodyBounds, bodyMassProperties, tessellateBody } from "../brep";
 import {
   wallSolidBodyLocal,
+  wallSolidBodyLocalWithDiagnostics,
   wallSolidVolume,
   type CadWallSolidRecipe,
   type CadWallSolidOpening,
 } from "./wall-solid";
+import { cadWallOpeningCutBlocksSolid } from "./wall-solid-diagnostics";
 
 const wall: CadWallSolidRecipe = {
   start: { x: 0, y: 0, z: 0 },
@@ -220,4 +222,94 @@ const door: CadWallSolidOpening = {
   );
 }
 
-report("wall-solid", 14);
+// --- 6. diagnóstico tipado: ningún vano se salta EN SILENCIO ------------------
+// El criterio COMMERCIAL-RC1: cada operación devuelve resultado geométrico +
+// diagnóstico tipado con la causa conservada. Un vano válido se recorta (y el
+// volumen lo demuestra); uno inválido deja SU motivo, no un hueco fantasma.
+{
+  const door: CadWallSolidOpening = {
+    position: 1_000,
+    width: 900,
+    sill: 0,
+    height: 2_100,
+  };
+  const window: CadWallSolidOpening = {
+    position: 2_800,
+    width: 1_200,
+    sill: 900,
+    height: 1_200,
+  };
+  const tooWide: CadWallSolidOpening = {
+    position: 2_000,
+    width: 4_200,
+    sill: 0,
+    height: 2_100,
+  };
+  const clean = wallSolidBodyLocalWithDiagnostics(wall, [door, window]);
+  check("dos vanos válidos → cero diagnósticos", clean.diagnostics.length === 0);
+  const gross = wallSolidVolume(wall)!;
+  const holes =
+    door.width * wall.thickness * door.height +
+    window.width * wall.thickness * window.height;
+  checkClose(
+    "volumen = bruto − suma de huecos (dos vanos válidos)",
+    bodyMassProperties(clean.body!).volume,
+    gross - holes,
+    gross * 1e-9,
+  );
+
+  const mixed = wallSolidBodyLocalWithDiagnostics(wall, [door, tooWide, window]);
+  check(
+    "el vano imposible deja UN diagnóstico con su índice",
+    mixed.diagnostics.length === 1 &&
+      mixed.diagnostics[0].openingIndex === 1 &&
+      mixed.diagnostics[0].kind === "horizontal-misfit",
+  );
+  check(
+    "la causa del encaje viaja en el diagnóstico",
+    (mixed.diagnostics[0].cause ?? "").includes("jamba"),
+  );
+  checkClose(
+    "los vanos válidos del lote SÍ cortan aunque otro no encaje",
+    bodyMassProperties(mixed.body!).volume,
+    gross - holes,
+    gross * 1e-9,
+  );
+
+  const degenerate = wallSolidBodyLocalWithDiagnostics(wall, [
+    { position: 1_000, width: 0, sill: 0, height: 2_100 },
+  ]);
+  check(
+    "tamaño degenerado → diagnóstico degenerate-size",
+    degenerate.diagnostics.length === 1 &&
+      degenerate.diagnostics[0].kind === "degenerate-size",
+  );
+  const tooTall = wallSolidBodyLocalWithDiagnostics(wall, [
+    { position: 1_500, width: 900, sill: 2_000, height: 1_000 },
+  ]);
+  check(
+    "remate por encima del muro → diagnóstico vertical-misfit con causa",
+    tooTall.diagnostics.length === 1 &&
+      tooTall.diagnostics[0].kind === "vertical-misfit" &&
+      (tooTall.diagnostics[0].cause ?? "").length > 0,
+  );
+
+  check(
+    "los desajustes de encaje NO bloquean la representación",
+    cadWallOpeningCutBlocksSolid(mixed.diagnostics) === false,
+  );
+  check(
+    "una booleana fallida sobre un vano válido SÍ la bloquea",
+    cadWallOpeningCutBlocksSolid([
+      { openingIndex: 0, kind: "boolean-failed", cause: "kernel" },
+    ]) === true,
+  );
+  checkClose(
+    "wallSolidBodyLocal (sin diagnósticos) produce el MISMO cuerpo",
+    bodyMassProperties(wallSolidBodyLocal(wall, [door, window])!).volume,
+    bodyMassProperties(clean.body!).volume,
+    1e-6,
+  );
+}
+
+report("wall-solid", 24);

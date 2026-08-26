@@ -36,6 +36,7 @@ import type { CadWallEntity } from "./cad-entities-v6";
 import type { CadOpeningEntity } from "./cad-entities-v7";
 import { wallLength } from "./wall-geometry";
 import { wallOpeningFit, wallOpeningVerticalFit } from "./wall-openings";
+import type { CadWallOpeningCutDiagnostic } from "./wall-solid-diagnostics";
 
 export type CadWallSolidRecipe = Pick<
   CadWallEntity,
@@ -65,9 +66,30 @@ export function wallSolidBodyLocal(
   wall: CadWallSolidRecipe,
   openings: readonly CadWallSolidOpening[],
 ): BrepBody | null {
+  return wallSolidBodyLocalWithDiagnostics(wall, openings).body;
+}
+
+export interface CadWallSolidBodyResult {
+  body: BrepBody | null;
+  /** Un elemento por vano que NO se recortó, con su motivo tipado. */
+  diagnostics: CadWallOpeningCutDiagnostic[];
+}
+
+/**
+ * Igual que `wallSolidBodyLocal`, pero cada vano que NO se recorta deja un
+ * diagnóstico tipado con su índice y su causa (`wall-solid-diagnostics.ts`)
+ * en vez de desaparecer en silencio. La geometría resultante es idéntica a la
+ * de la variante sin diagnósticos — este contrato no cambia qué se corta,
+ * cambia qué se CALLA.
+ */
+export function wallSolidBodyLocalWithDiagnostics(
+  wall: CadWallSolidRecipe,
+  openings: readonly CadWallSolidOpening[],
+): CadWallSolidBodyResult {
+  const diagnostics: CadWallOpeningCutDiagnostic[] = [];
   const length = wallLength(wall);
   if (!(length > 1e-9) || !(wall.thickness > 0) || !(wall.height > 0))
-    return null;
+    return { body: null, diagnostics };
   const half = wall.thickness / 2;
   // Sobre-corte: evita caras EXACTAMENTE coincidentes entre la caja
   // recortadora y las caras del muro, la clase de degenerado con la que un
@@ -79,22 +101,39 @@ export function wallSolidBodyLocal(
     max: vec3(length, half, wall.height),
   });
 
-  for (const opening of openings) {
-    if (!(opening.width > 0) || !(opening.height > 0)) continue;
-    if (
-      !wallOpeningFit(wall, {
-        position: opening.position,
-        width: opening.width,
-      }).ok
-    )
-      continue;
-    if (
-      !wallOpeningVerticalFit(wall, {
-        sill: opening.sill,
-        height: opening.height,
-      }).ok
-    )
-      continue;
+  openings.forEach((opening, openingIndex) => {
+    if (!(opening.width > 0) || !(opening.height > 0)) {
+      diagnostics.push({
+        openingIndex,
+        kind: "degenerate-size",
+        cause: `width=${opening.width}, height=${opening.height}`,
+      });
+      return;
+    }
+    const horizontal = wallOpeningFit(wall, {
+      position: opening.position,
+      width: opening.width,
+    });
+    if (!horizontal.ok) {
+      diagnostics.push({
+        openingIndex,
+        kind: "horizontal-misfit",
+        cause: horizontal.problem,
+      });
+      return;
+    }
+    const vertical = wallOpeningVerticalFit(wall, {
+      sill: opening.sill,
+      height: opening.height,
+    });
+    if (!vertical.ok) {
+      diagnostics.push({
+        openingIndex,
+        kind: "vertical-misfit",
+        cause: vertical.problem,
+      });
+      return;
+    }
     const from = opening.position - opening.width / 2;
     const to = opening.position + opening.width / 2;
     const cutter = makeBox({
@@ -103,11 +142,17 @@ export function wallSolidBodyLocal(
     });
     try {
       body = booleanDifference(body, cutter);
-    } catch {
-      continue;
+    } catch (error) {
+      // La causa del kernel se CONSERVA: es la diferencia entre «el muro
+      // salió macizo, quién sabe por qué» y un defecto accionable.
+      diagnostics.push({
+        openingIndex,
+        kind: "boolean-failed",
+        cause: error instanceof Error ? error.message : String(error),
+      });
     }
-  }
-  return body;
+  });
+  return { body, diagnostics };
 }
 
 /** Volumen exacto del muro MACIZO (sin vanos), para contrastar la booleana. */

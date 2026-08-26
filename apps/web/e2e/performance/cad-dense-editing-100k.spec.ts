@@ -92,8 +92,13 @@ const SETTLE_BUDGET_MS = 900_000;
 test.describe("CAD dense editing stress · 100k", () => {
   test.skip(process.env.CAD_PERF_E2E !== "1", "Run explicitly with CAD_PERF_E2E=1.");
   // Techo del PROCESO, no presupuesto. Quien juzga si el producto cumple son
-  // los invariantes funcionales del final.
-  test.setTimeout(3_600_000);
+  // los invariantes funcionales del final. 35 minutos y no una hora: con el
+  // presupuesto de proyección de selección (selection-projection-budget.ts)
+  // ninguna fase legítima se acerca a esto, y el guion vuelca su artefacto
+  // tras CADA fase — un cuelgue publica hasta dónde llegó en vez de consumir
+  // el techo del job entero (que es exactamente lo que pasó en CI del 21 al
+  // 26 de agosto, con la hora de techo + retry matando el job a los 100 min).
+  test.setTimeout(2_100_000);
 
   test("selects and modifies 100k dense strokes", async ({ context, page }, testInfo) => {
     const measurements: Record<string, DenseSeries> = {};

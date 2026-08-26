@@ -311,6 +311,38 @@ const door = { position: 2_000, width: 900, sill: 0, height: 2_100 };
     "el grupo inválido no tiene malla que recolorear, y no lanza",
     recolorCadWallSolidObject(invalid, solidWall, true) === false,
   );
+
+  // --- el recorte declarado viaja con el objeto (COMMERCIAL-RC1) -------------
+  // Un vano que no encaja deja su diagnóstico en `userData` (para que el
+  // anfitrión lo suba al informe de validación) SIN volver inválido al muro:
+  // el mismo criterio que la planta 2D, ahora dicho en vez de callado.
+  const misfit = buildCadWallSolidObject(
+    solidWall,
+    [{ position: 2_000, width: 99_000, sill: 0, height: 2_100 }],
+    viewport,
+  );
+  const misfitDiagnostics = misfit.userData.openingCutDiagnostics as
+    | { kind: string; openingIndex: number; cause?: string }[]
+    | undefined;
+  check(
+    "un vano que no encaja deja su diagnóstico en userData",
+    misfitDiagnostics?.length === 1 &&
+      misfitDiagnostics[0].kind === "horizontal-misfit" &&
+      misfitDiagnostics[0].openingIndex === 0,
+  );
+  check(
+    "el desajuste NO vuelve inválido al muro: la malla sigue ahí",
+    misfit.userData.invalid !== true &&
+      misfit.children.some((child) => (child as THREE.Mesh).isMesh === true),
+  );
+  check(
+    "un muro con vano válido no arrastra diagnósticos",
+    buildCadWallSolidObject(
+      solidWall,
+      [{ position: 2_000, width: 900, sill: 0, height: 2_100 }],
+      viewport,
+    ).userData.openingCutDiagnostics === undefined,
+  );
 }
 
-report("wall-solid-three", 17);
+report("wall-solid-three", 20);

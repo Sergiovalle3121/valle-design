@@ -313,4 +313,62 @@ assertEqual(
   "an invalid mass alone marks the report warning, not critical",
 );
 
+// --- vanos no recortados (COMMERCIAL-RC1): identidad completa y severidad por causa ---
+
+const openingCutReport = buildCadValidationReport({
+  boxes: [],
+  invalidGeometry: {
+    openingCuts: [
+      {
+        wallId: "muro-1",
+        openingId: "vano-1",
+        openingIndex: 0,
+        kind: "boolean-failed",
+        cause: "boolean difference produced an open shell",
+      },
+      {
+        wallId: "muro-1",
+        openingId: "vano-2",
+        openingIndex: 1,
+        kind: "vertical-misfit",
+        cause: "El hueco remata a 3000 y el muro mide 2400 de alto",
+      },
+    ],
+  },
+});
+assertEqual(
+  openingCutReport.geometry.length,
+  2,
+  "each uncut opening produces its own finding",
+);
+assertEqual(
+  openingCutReport.geometry[0]?.code,
+  "wall_opening_not_cut",
+  "uncut opening carries its own code",
+);
+assertEqual(
+  openingCutReport.geometry[0]?.severity,
+  "critical",
+  "a VALID opening the kernel could not cut is critical: the wall is blocked",
+);
+assertOk(
+  openingCutReport.geometry[0]?.affectedObjectIds.includes("muro-1") &&
+    openingCutReport.geometry[0]?.affectedObjectIds.includes("vano-1"),
+  "the finding names BOTH the wall and the opening ids",
+);
+assertOk(
+  (openingCutReport.geometry[0]?.message ?? "").includes("open shell"),
+  "the kernel cause is preserved verbatim in the message",
+);
+assertEqual(
+  openingCutReport.geometry[1]?.severity,
+  "warning",
+  "a misfit opening is a warning: it does not cut in 2D either, but now it is SAID",
+);
+assertEqual(
+  openingCutReport.severity,
+  "critical",
+  "a blocked wall marks the whole report critical",
+);
+
 console.log("cad validation report specs passed");

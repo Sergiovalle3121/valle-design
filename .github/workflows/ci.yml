@@ -594,18 +594,15 @@ jobs:
           # silencio pase lo que pase arriba.
           NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA: "true"
           E2E_IDENTITY_HARNESS_KEY: valle-design-e2e-harness-key-32-characters-minimum
-          # La suite de rendimiento SÓLO fuera de los PR. No es una prueba de
-          # corrección: es una medida, y mide lo que ya está en `main`.
-          # Su coste está documentado por el propio #75 — `detailReady` 296 s y
-          # `zoomSettle` 188 s a 100.000 entidades sin GPU—, o sea ~8 minutos de
-          # los ~35 del job, cada vez que alguien empuja una rama.
-          #
-          # En `main`, en el cron diario y en `workflow_dispatch` sigue corriendo
-          # entera y bloqueando: una regresión de rendimiento se detecta en la
-          # rama principal y en la serie, que es donde el número significa algo.
-          # Quien toque el pipeline de render puede pedirla en su PR con
-          # `workflow_dispatch`.
-          CAD_PERF_E2E: ${{ github.event_name == 'pull_request' && '0' || '1' }}
+          # La suite de rendimiento vive en su PROPIO job (`e2e-perf`, abajo):
+          # aquí SIEMPRE apagada. La historia que obligó a separarla:
+          # `cad-dense-editing-100k` consumía su techo de una hora, Playwright
+          # lo reintentaba (retries=1 en CI) y el job entero moría cancelado a
+          # los 100 minutos — TODO lo posterior al test ~99 (incluido el
+          # proyecto Firefox completo) llevó del 21 al 26 de agosto sin
+          # ejecutarse ni una vez, y `main` sin veredicto. Un job de medida no
+          # puede costarle el veredicto al job de corrección.
+          CAD_PERF_E2E: "0"
           # Fuerza el rasterizador software de Mesa (llvmpipe) para que Firefox
           # obtenga contexto WebGL sin GPU. Chromium no lo necesita y no le
           # afecta: ya usa su propio SwiftShader.
@@ -646,6 +643,88 @@ jobs:
       - name: API log (diagnóstico)
         if: failure()
         run: cat /tmp/design-api.log || true
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # La suite de RENDIMIENTO, en su propio carril acotado.
+  #
+  # Medida ≠ corrección: estos specs (e2e/performance) publican números y
+  # invariantes a 100k, y su coste es de decenas de minutos. Dentro del job
+  # `e2e` convertían cualquier regresión de rendimiento en un job cancelado a
+  # los 100 minutos SIN veredicto para el resto de la suite (así estuvo `main`
+  # del 21 al 26 de agosto). Aquí: sólo Chromium (Firefox no añade señal a una
+  # medida SwiftShader), sin retries (reintentar una medida de 20 minutos es
+  # pagar dos veces por el mismo número) y con techo propio. Sigue BLOQUEANDO
+  # el veredicto de `main`: un fallo aquí pone el run en rojo, sólo que ya no
+  # arrastra al resto de la suite ni la deja sin ejecutar.
+  # ───────────────────────────────────────────────────────────────────────────
+  e2e-perf:
+    name: E2E rendimiento (100k · Chromium · SwiftShader)
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    needs: quality-gates
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Setup Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Restaurar node_modules
+        id: deps
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: |
+            node_modules
+            apps/*/node_modules
+            packages/*/node_modules
+          key: deps-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        if: steps.deps.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Restaurar navegadores de Playwright
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-perf-chromium
+
+      - name: Install Playwright browsers
+        working-directory: apps/web
+        run: npx playwright install --with-deps chromium
+
+      # Mismo build E2E que el job `e2e`: los perf specs interceptan la red en
+      # la frontera (no necesitan la API real), pero el bundle debe apuntar al
+      # mismo origen para que la intercepción case.
+      - name: Build (turbo, web en modo E2E real)
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4000
+        run: npx turbo run build
+
+      - name: Playwright performance suite (Chromium, sin retries)
+        working-directory: apps/web
+        env:
+          E2E_PROD: "1"
+          E2E_API_ORIGIN: http://localhost:4000
+          CAD_PERF_E2E: "1"
+        run: npx playwright test e2e/performance --project=chromium --retries=0
+
+      - name: Upload performance artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: e2e-perf-${{ github.sha }}
+          path: |
+            apps/web/e2e/.artifacts
+            apps/web/e2e/.report
+            apps/web/e2e/.test-results
+          include-hidden-files: true
+          retention-days: 30
 
   gitleaks:
     name: Gitleaks (historial completo)

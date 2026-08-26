@@ -23,6 +23,7 @@ import * as THREE from "three";
 import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadWallEntity } from "@/lib/cad/cad-entities-v6";
 import { detectCadRooms } from "@/lib/cad/bim-schedule";
+import { cadFrozenLayerIds } from "@/lib/cad/cad-layer-visibility";
 import { conservativeWallTop } from "@/lib/cad/room-solid";
 import {
   buildCadArchitecturalMassObject,
@@ -63,9 +64,16 @@ export class CadArchitecturalMassHost {
    * queda ninguna losa, no una a medio construir.
    */
   sync(document: CadDocument): void {
+    // Capas, con la distinción canónica de `cad-layer-visibility.ts`: la
+    // CONGELADA «no se regenera ni cuenta» — sus muros salen de la derivación
+    // de piso/cielorraso/cubierta, igual que salen de ZOOM Extensión. La
+    // APAGADA sí cuenta (es sólo display): su muro no se dibuja, pero la
+    // cubierta que apoya en él no desaparece.
+    const frozenLayers = cadFrozenLayerIds(document.layers);
     const walls: CadWallEntity[] = [];
     for (const entity of document.entities)
-      if (entity.type === "wall") walls.push(entity);
+      if (entity.type === "wall" && !frozenLayers.has(entity.layer))
+        walls.push(entity);
     if (sameWalls(walls, this.walls)) return;
     this.teardown();
     this.walls = walls;

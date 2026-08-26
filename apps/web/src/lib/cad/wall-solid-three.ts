@@ -20,7 +20,14 @@ import type { CadWallEntity } from "./cad-entities-v6";
 import type { CadThreeViewport } from "./entity-three";
 import { cadWallMaterialStyle } from "./wall-materials";
 import { wallAxisFrame, type CadWallAxisFrame } from "./wall-openings";
-import { wallSolidBodyLocal, type CadWallSolidOpening } from "./wall-solid";
+import {
+  wallSolidBodyLocalWithDiagnostics,
+  type CadWallSolidOpening,
+} from "./wall-solid";
+import {
+  cadWallOpeningCutBlocksSolid,
+  type CadWallOpeningCutDiagnostic,
+} from "./wall-solid-diagnostics";
 
 const WALL_SELECTED_COLOR = 0x22d3ee;
 
@@ -67,9 +74,28 @@ export function buildCadWallSolidGeometry(
   openings: readonly CadWallSolidOpening[],
   viewport: CadThreeViewport,
 ): THREE.BufferGeometry | null {
+  return buildCadWallSolidGeometryWithDiagnostics(wall, openings, viewport)
+    .geometry;
+}
+
+export interface CadWallSolidGeometryResult {
+  geometry: THREE.BufferGeometry | null;
+  /** Un elemento por vano NO recortado (`wall-solid-diagnostics.ts`). */
+  diagnostics: CadWallOpeningCutDiagnostic[];
+}
+
+/** Igual que `buildCadWallSolidGeometry`, con el recorte de vanos declarado. */
+export function buildCadWallSolidGeometryWithDiagnostics(
+  wall: Pick<CadWallEntity, "start" | "end" | "thickness" | "height">,
+  openings: readonly CadWallSolidOpening[],
+  viewport: CadThreeViewport,
+): CadWallSolidGeometryResult {
   const frame = wallAxisFrame(wall);
-  const body = wallSolidBodyLocal(wall, openings);
-  if (!frame || !body) return null;
+  const { body, diagnostics } = wallSolidBodyLocalWithDiagnostics(
+    wall,
+    openings,
+  );
+  if (!frame || !body) return { geometry: null, diagnostics };
   const mesh = tessellateBody(body);
   const count = mesh.positions.length / 3;
   const positions = new Float32Array(mesh.positions.length);
@@ -102,7 +128,7 @@ export function buildCadWallSolidGeometry(
   geometry.setAttribute("normal", new THREE.BufferAttribute(normals, 3));
   geometry.setIndex(Array.from(mesh.indices));
   geometry.computeBoundingSphere();
-  return geometry;
+  return { geometry, diagnostics };
 }
 
 export interface CadWallSolidObjectOptions {
@@ -129,9 +155,34 @@ export function buildCadWallSolidObject(
   group.userData.nativeEntityType = "wall";
 
   let geometry: THREE.BufferGeometry | null;
+  let diagnostics: CadWallOpeningCutDiagnostic[] = [];
   try {
-    geometry = buildCadWallSolidGeometry(wall, openings, viewport);
-  } catch {
+    const result = buildCadWallSolidGeometryWithDiagnostics(
+      wall,
+      openings,
+      viewport,
+    );
+    geometry = result.geometry;
+    diagnostics = result.diagnostics;
+  } catch (error) {
+    geometry = null;
+    diagnostics = [
+      {
+        openingIndex: -1,
+        kind: "boolean-failed",
+        cause: error instanceof Error ? error.message : String(error),
+      },
+    ];
+  }
+  // El recorte declarado viaja con el objeto: el anfitrión lo recoge para el
+  // informe de validación con muro y vano identificados.
+  if (diagnostics.length) group.userData.openingCutDiagnostics = diagnostics;
+  if (geometry && cadWallOpeningCutBlocksSolid(diagnostics)) {
+    // Un vano VÁLIDO que el kernel no pudo recortar: presentar el muro macizo
+    // mentiría. Se bloquea la representación (grupo inválido, sin malla) y el
+    // informe de validación lo hace visible con su causa — nunca una pérdida
+    // silenciosa de geometría.
+    geometry.dispose();
     geometry = null;
   }
   if (!geometry) {

@@ -13,6 +13,7 @@ import {
 import type { CadSafetyIssue, CadSafetyZone } from "./safety-zones";
 import { evaluateSafetyZones } from "./safety-zones";
 import type { CadDocument } from "./cad-document";
+import type { CadWallOpeningCutReport } from "./wall-solid-diagnostics";
 import {
   duplicateIdsRule,
   RuleEngine,
@@ -84,7 +85,8 @@ export interface CadArchitectureValidationIssue {
  */
 export type CadGeometryValidationIssueCode =
   | "wall_geometry_invalid"
-  | "architectural_mass_invalid";
+  | "architectural_mass_invalid"
+  | "wall_opening_not_cut";
 
 export interface CadGeometryValidationIssue {
   code: CadGeometryValidationIssueCode;
@@ -107,12 +109,45 @@ const ARCHITECTURAL_MASS_LABEL: Record<string, string> = {
  * persistida, y su ausencia no oculta un dato del documento, sólo un
  * volumen calculado.
  */
+const OPENING_CUT_KIND_LABEL: Record<string, string> = {
+  "degenerate-size": "tamaño degenerado",
+  "horizontal-misfit": "no cabe a lo largo del muro",
+  "vertical-misfit": "no cabe en la altura del muro",
+  "boolean-failed": "el kernel no pudo recortarlo",
+};
+
 function buildGeometryValidationIssues(input?: {
   invalidWallIds?: readonly string[];
   invalidMassKinds?: readonly string[];
+  openingCuts?: readonly CadWallOpeningCutReport[];
 }): CadGeometryValidationIssue[] {
   if (!input) return [];
   const issues: CadGeometryValidationIssue[] = [];
+  for (const cut of input.openingCuts ?? []) {
+    // `boolean-failed` es crítico: el vano era VÁLIDO y su muro quedó
+    // bloqueado (sin volumen 3D) para no presentarse macizo. Los desajustes
+    // de encaje son warning: el vano no corta ni en 2D ni en 3D — mismo
+    // criterio en ambas vistas — pero ahora se DICE en vez de callarse.
+    const critical = cut.kind === "boolean-failed";
+    issues.push({
+      code: "wall_opening_not_cut",
+      severity: critical ? "critical" : "warning",
+      title: `Vano ${cut.openingId ?? `#${cut.openingIndex}`} del muro ${cut.wallId}: sin recortar`,
+      message:
+        `${OPENING_CUT_KIND_LABEL[cut.kind] ?? cut.kind}` +
+        (cut.cause ? ` — ${cut.cause}` : "") +
+        (critical
+          ? ". El muro no se muestra en 3D para no presentarse macizo."
+          : ""),
+      affectedObjectIds: [
+        cut.wallId,
+        ...(cut.openingId ? [cut.openingId] : []),
+      ],
+      suggestedFix: critical
+        ? "Revisa la geometría del vano (bordes coincidentes o solapes con otro vano) y ajusta su posición o tamaño."
+        : "Ajusta la posición, el ancho, el antepecho o la altura del vano para que encaje en su muro.",
+    });
+  }
   for (const id of input.invalidWallIds ?? []) {
     issues.push({
       code: "wall_geometry_invalid",
@@ -648,6 +683,8 @@ export function buildCadValidationReport(input: {
   invalidGeometry?: {
     wallIds?: readonly string[];
     massKinds?: readonly string[];
+    /** Vanos no recortados con identidad completa (muro + vano + causa). */
+    openingCuts?: readonly CadWallOpeningCutReport[];
   };
 }): CadValidationReport {
   const collisions = detectCadCollisions(input.boxes);
@@ -673,6 +710,7 @@ export function buildCadValidationReport(input: {
       ? {
           invalidWallIds: input.invalidGeometry.wallIds,
           invalidMassKinds: input.invalidGeometry.massKinds,
+          openingCuts: input.invalidGeometry.openingCuts,
         }
       : undefined,
   );

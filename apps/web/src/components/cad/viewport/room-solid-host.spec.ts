@@ -257,6 +257,61 @@ const shell = (height = 2_400): CadWallEntity[] => [
   host.dispose();
 }
 
+// --- capas: la CONGELADA sale de la derivación; la APAGADA sigue contando ----
+{
+  const host = new CadArchitecturalMassHost(() => viewport);
+  const walls = shell();
+  const base = documentWith(walls);
+  const withPartitionLayer = (
+    visible: boolean,
+    frozen: boolean,
+  ): CadDocument => ({
+    ...base,
+    entities: base.entities.map((entity, index) =>
+      index === 0 ? { ...entity, layer: "TABIQUES" } : entity,
+    ),
+    layers: [
+      layer,
+      {
+        id: "TABIQUES",
+        name: "TABIQUES",
+        color: "#94a3b8",
+        visible,
+        locked: false,
+        ...(frozen ? { frozen } : {}),
+      },
+    ],
+  });
+
+  // Con las cuatro paredes visibles el contorno cierra y hay tres masas.
+  host.sync(withPartitionLayer(true, false));
+  assert.equal(host.count, 3, "contorno cerrado → piso+cielorraso+cubierta");
+
+  // APAGAR la capa de un muro no rompe la cubierta: apagada sigue contando
+  // para la derivación (sólo es display), como cuenta para ZOOM Extensión.
+  host.sync(withPartitionLayer(false, false));
+  assert.equal(
+    host.count,
+    3,
+    "capa apagada: el muro no se ve, pero la cubierta que apoya en él sigue",
+  );
+
+  // CONGELAR sí lo excluye de la derivación: sin ese muro el contorno ya no
+  // cierra y las masas desaparecen enteras — no una cubierta fantasma apoyada
+  // en un muro que «no se regenera ni cuenta».
+  host.sync(withPartitionLayer(true, true));
+  assert.equal(
+    host.count,
+    0,
+    "capa congelada: el muro sale del grafo y las masas caen con él",
+  );
+
+  // Descongelar lo devuelve todo.
+  host.sync(withPartitionLayer(true, false));
+  assert.equal(host.count, 3, "descongelar restituye la derivación");
+  host.dispose();
+}
+
 console.log(
   "room-solid-host.spec: piso, cielorraso y cubierta se reconcilian juntos por el grafo de muros",
 );
