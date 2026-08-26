@@ -18,6 +18,10 @@ import {
   csrfHeaders,
   latestCapturedEmail,
 } from "../fixtures/first-party";
+import {
+  canonicalDocument,
+  largeCanonicalDocument,
+} from "../fixtures/real-canonical-documents";
 
 test.describe.configure({ mode: "serial" });
 test.skip(
@@ -82,70 +86,6 @@ interface PageResult<T> {
   total: number;
 }
 
-function canonicalDocument(radius = 120) {
-  return {
-    meta: {
-      version: 1,
-      schema: 3,
-      unit: "mm",
-      footprintW: 12_000,
-      footprintH: 10_000,
-      gridSize: 100,
-    },
-    layers: [
-      { id: "0", name: "0", color: "#ffffff", visible: true, locked: false },
-      { id: "REAL", name: "REAL", color: "#60a5fa", visible: true, locked: false },
-    ],
-    entities: [
-      {
-        id: "real-arc",
-        type: "arc",
-        center: { x: 4_000, y: 3_000, z: 0 },
-        radius,
-        startAngle: 0,
-        endAngle: 180,
-        layer: "REAL",
-      },
-    ],
-    history: [],
-    modelSpace: { entityIds: ["real-arc"] },
-    paperSpaces: [],
-    styles: { text: {}, dimension: {}, table: {}, plot: {} },
-    blocks: [],
-    constraints: [],
-    externalReferences: [],
-    unsupportedEntities: [],
-    lossManifest: [],
-    publications: [],
-  };
-}
-
-function largeCanonicalDocument(entityCount = 12_000) {
-  const entities = Array.from({ length: entityCount }, (_, index) => ({
-    id: `bulk-${String(index).padStart(6, "0")}`,
-    type: "arc" as const,
-    center: {
-      x: (index % 1_000) * 20 + 10,
-      y: Math.floor(index / 1_000) * 20 + 10,
-      z: 0,
-    },
-    radius: 8,
-    startAngle: 0,
-    endAngle: 180,
-    layer: "REAL",
-    context: {
-      metadata: {
-        corpus: `professional-large-document-${String(index).padStart(6, "0")}`,
-      },
-    },
-  }));
-  return {
-    ...canonicalDocument(),
-    entities,
-    modelSpace: { entityIds: entities.map((entity) => entity.id) },
-  };
-}
-
 async function loginThroughUi(
   page: Page,
   email: string,
@@ -179,6 +119,11 @@ async function activateOrganization(
   expect(activated.body.permissions).toEqual(
     expect.arrayContaining(["cad:view", "cad:edit"]),
   );
+}
+
+/** La importación publica DOS «status»; el modo estricto exige acotar. */
+function importStatus(target: Page, pattern: RegExp) {
+  return target.getByRole("status").filter({ hasText: pattern });
 }
 
 async function openDocument(
@@ -378,20 +323,15 @@ test.describe("recorrido comercial CAD first-party contra PostgreSQL", () => {
     await page.goto("/dashboard");
     await expect(page.getByLabel("Nombre del documento")).toBeVisible();
     const importName = `canonical-${runId}`;
-    // Por CONTENencia y no igualdad exacta: la lista `accept` del importador
-    // crece con los formatos (shapefile entró el 22-08) y clavarla aquí dejó
-    // esta suite muerta esperando un selector que ya no existía.
+    // accept por CONTENencia: la lista crece con los formatos (shapefile 22-08).
     await page.locator('input[type="file"][accept*=".dxf"][accept*=".json"]').setInputFiles({
       name: `${importName}.json`,
       mimeType: "application/json",
       buffer: Buffer.from(JSON.stringify(canonicalDocument()), "utf8"),
     });
-    // Con .filter: la importación publica DOS «status» (el conteo y la línea
-    // de completitud «Entró completo…» que main añadió) y el modo estricto
-    // rechaza el locator ambiguo.
-    await expect(
-      page.getByRole("status").filter({ hasText: /Importado: 1 entidades/iu }),
-    ).toBeVisible({ timeout: 90_000 });
+    await expect(importStatus(page, /Importado: 1 entidades/iu)).toBeVisible({
+      timeout: 90_000,
+    });
 
     const importedPage = await apiGet<PageResult<CadDocumentSummary>>(
       context,
@@ -557,8 +497,7 @@ test.describe("recorrido comercial CAD first-party contra PostgreSQL", () => {
     const resetToken = capturedToken(resetMessage);
 
     await page.goto(`/reset-password?token=${encodeURIComponent(resetToken)}`);
-    // El campo se llama «Código de verificación» desde el rediseño del
-    // formulario de identidad (main, 22-08); esta suite no corría desde antes.
+    // «Código de verificación» desde el rediseño de identidad (main, 22-08).
     await expect(page.getByLabel(/C.digo de verificaci.n/iu)).toHaveValue(
       resetToken,
     );
@@ -682,11 +621,9 @@ test.describe("recorrido comercial CAD first-party contra PostgreSQL", () => {
       entityCount: 12_000,
       storedAsBlobPointer: true,
     });
-    await expect(
-      page
-        .getByRole("status")
-        .filter({ hasText: /Importado: 12000 entidades/iu }),
-    ).toBeVisible({ timeout: 120_000 });
+    await expect(importStatus(page, /Importado: 12000 entidades/iu)).toBeVisible(
+      { timeout: 120_000 },
+    );
 
     const large = await openDocument(context, receipt.cadDocumentId);
     expect(large.status).toBe(200);
@@ -809,9 +746,9 @@ test.describe("recorrido comercial CAD first-party contra PostgreSQL", () => {
       buffer: browserDxf,
     });
     const roundTripSave = (await (await saveResponse).json()) as CadSaveReceipt;
-    await expect(
-      page.getByRole("status").filter({ hasText: /Importado:/iu }),
-    ).toBeVisible({ timeout: 90_000 });
+    await expect(importStatus(page, /Importado:/iu)).toBeVisible({
+      timeout: 90_000,
+    });
 
     const roundTrip = await openDocument(context, roundTripSave.cadDocumentId);
     expect(roundTrip.status).toBe(200);
