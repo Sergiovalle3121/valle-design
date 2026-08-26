@@ -378,7 +378,10 @@ test.describe("recorrido comercial CAD first-party contra PostgreSQL", () => {
     await page.goto("/dashboard");
     await expect(page.getByLabel("Nombre del documento")).toBeVisible();
     const importName = `canonical-${runId}`;
-    await page.locator('input[type="file"][accept=".dxf,.json"]').setInputFiles({
+    // Por CONTENencia y no igualdad exacta: la lista `accept` del importador
+    // crece con los formatos (shapefile entró el 22-08) y clavarla aquí dejó
+    // esta suite muerta esperando un selector que ya no existía.
+    await page.locator('input[type="file"][accept*=".dxf"][accept*=".json"]').setInputFiles({
       name: `${importName}.json`,
       mimeType: "application/json",
       buffer: Buffer.from(JSON.stringify(canonicalDocument()), "utf8"),
@@ -551,7 +554,11 @@ test.describe("recorrido comercial CAD first-party contra PostgreSQL", () => {
     const resetToken = capturedToken(resetMessage);
 
     await page.goto(`/reset-password?token=${encodeURIComponent(resetToken)}`);
-    await expect(page.getByLabel("Token")).toHaveValue(resetToken);
+    // El campo se llama «Código de verificación» desde el rediseño del
+    // formulario de identidad (main, 22-08); esta suite no corría desde antes.
+    await expect(page.getByLabel(/C.digo de verificaci.n/iu)).toHaveValue(
+      resetToken,
+    );
     await expect(page).not.toHaveURL(/(?:\?|&)token=/u);
     await page.getByLabel(/Contrase.*a nueva/iu).fill(RESET_PASSWORD);
     await page.getByRole("button", { name: /Guardar contrase.*a/iu }).click();
@@ -657,7 +664,7 @@ test.describe("recorrido comercial CAD first-party contra PostgreSQL", () => {
         ),
       { timeout: 180_000 },
     );
-    await page.locator('input[type="file"][accept=".dxf,.json"]').setInputFiles({
+    await page.locator('input[type="file"][accept*=".dxf"][accept*=".json"]').setInputFiles({
       name: `${largeName}.json`,
       mimeType: "application/json",
       buffer: largePayload,
@@ -792,7 +799,7 @@ test.describe("recorrido comercial CAD first-party contra PostgreSQL", () => {
         response.ok(),
       { timeout: 120_000 },
     );
-    await page.locator('input[type="file"][accept=".dxf,.json"]').setInputFiles({
+    await page.locator('input[type="file"][accept*=".dxf"][accept*=".json"]').setInputFiles({
       name: `${roundTripName}.dxf`,
       mimeType: "application/dxf",
       buffer: browserDxf,

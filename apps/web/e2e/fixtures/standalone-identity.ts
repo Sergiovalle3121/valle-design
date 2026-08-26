@@ -25,22 +25,27 @@ import {
   SESSION_COOKIE,
   SESSION_COOKIE_VALUE,
 } from "./constants";
+import { LEGAL_PAGE_VERSIONS } from "../../src/lib/legal/legal-versions";
 
 const EXPIRES_AT = "2099-12-31T23:59:59.000Z";
 const TRIAL_ENDS_AT = "2099-01-31T23:59:59.000Z";
-/** Espejo de `LEGAL_DOCUMENTS` (`apps/api/src/modules/legal/legal-documents.ts`). */
+/**
+ * Espejo de `LEGAL_DOCUMENTS` (`apps/api/src/modules/legal/legal-documents.ts`)
+ * con la versión LEÍDA del espejo de presentación del web en vez de clavada:
+ * publicar una versión nueva (regla del candado legal) dejaba este mock
+ * sirviendo la retirada y los specs que la aceptaban morían contra el API
+ * real, que ya no la reconoce.
+ */
 const MOCK_LEGAL_DOCUMENTS = [
   {
     documento: "terms",
-    version: "2026-08-15",
-    publicadoEn: "2026-08-15",
+    ...LEGAL_PAGE_VERSIONS.terms,
     url: "/terms",
     requiereAceptacion: true,
   },
   {
     documento: "privacy",
-    version: "2026-08-15",
-    publicadoEn: "2026-08-15",
+    ...LEGAL_PAGE_VERSIONS.privacy,
     url: "/privacy",
     requiereAceptacion: false,
   },
