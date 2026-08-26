@@ -477,3 +477,89 @@ geométrica truncada a 300).
 RAILWAY (cuenta+secretos+dominio), DNS/TLS, SMTP, STRIPE test y live, texto
 legal definitivo (razón social/RFC/jurisdicción), CORPUS REAL DWG, PILOTOS,
 SENTRY.
+
+---
+
+# CASCADA POST-FUSIÓN (orden del titular: «mergear e integrar todo y seguir»)
+
+## Fusión ejecutada
+
+Actions despertó, el run del PR #110 salió **verde completo** (quality-gates,
+E2E Chromium + Firefox, e2e-perf denso 100k, gitleaks) y el PR se fusionó
+por **squash**: `main = 848e0d3`. El PR #108 se cerró como ADOPTADO (su
+contenido viaja dentro de la fusión). La rama de campaña se reinició desde
+`origin/main` para la cascada. El run 499 de CI sobre `main@848e0d3` quedó
+en marcha con verificación automatizada (trigger re-armado); su veredicto se
+registra abajo cuando termine.
+
+## FASE 2 — cerrada la parte medible en este entorno
+
+`e2e/performance/cad-editor-memory-cycles.spec.ts` (nuevo, carril
+`CAD_PERF_E2E=1`), corrido DOS veces — la primera destapó dos defectos del
+propio guion, corregidos antes de aceptar número alguno:
+
+- **Memoria ×20 (INVARIANTE BLOQUEANTE — verde).** 20 ciclos de
+  abrir/cerrar el estudio con un dibujo de 10.000 entidades; GC forzado por
+  CDP (2 pasadas) + `JSHeapUsedSize` tras cada ciclo. Cerrar el estudio ES
+  navegación completa en este producto (`window.location.assign`), así que
+  el ciclo navega al tablero — mismo sitio, mismo proceso de renderer — y
+  mide la retención posible por diseño. Resultado: base 4,1 MB → final
+  5,8 MB, **crecimiento 1,7 MB** contra presupuesto max(25 MB, 10 %) =
+  25 MB. **CUMPLE con margen 14×.** (La primera versión navegaba a
+  `about:blank` — reino nuevo, número trivial de 1,3 MB; corregida.)
+- **Selección por ventana a 10k (PUBLICADA, no gateada).** Modo VENTANA
+  explícito por la paleta (la primera corrida cayó SOBRE un trazo y midió un
+  move-drag de 1 entidad — inválida y dicha). Marquesina de 160×120 px en el
+  centro: **1.023 entidades designadas en 6.349,5 ms** — objetivo comercial
+  ≤100 ms → **NO CUMPLE en Intel Xeon 2,10 GHz · SwiftShader (raster por
+  software, sin GPU real)**. El número se publica con su hardware al lado y
+  NO se presenta como GPU real; el veredicto en hardware de cliente queda
+  como medición pendiente del piloto. El trabajo de producto que este número
+  señala (responsividad del hilo principal en designación masiva) ya está en
+  Próximos P0.
+- Artefacto JSON: `e2e/.artifacts/cad-editor-memory-cycles/` (esquema
+  `urn:valle-design:schema:cad-memory-cycles-run:v1`, hardware declarado).
+
+Sigue abierto de Fase 2: responsividad del hilo principal a 100k (tareas
+largas de teselación medidas con sonda) — producto, no medición.
+
+## FASE 3 — DWG beta controlada (núcleo entregado, §8 al pie de la letra)
+
+Tres piezas nuevas + el guardián actualizado:
+
+- **`src/lib/cad/dwg-export-flag.ts`** — espejo de escritura de
+  `dwg-interop-flag.ts`: `DWG_EXPORT_FLAG` nace apagada; gates congelados
+  como hechos (`publicWriterExists: true`, `externalOracleVerified: false`);
+  autorización del titular registrada (ADR-0009 §8, firma 2026-08-25,
+  perfil `AC1015_EXPORT_2D_V1`, legal `pending_parallel`);
+  `dwgBetaExportIsEnabled` = bandera ∧ firma ∧ CERO bloqueos — **fallo
+  cerrado**: encender la bandera sin el oráculo externo (§8.2, ODA File
+  Converter — OWNER ACTION) deja la exportación rechazada y los bloqueos lo
+  dicen por su nombre.
+- **`src/lib/cad/dwg-native-writer.ts`** — el SEGUNDO punto autorizado que
+  importa el códec (el de escritura). Preflight puro contra el subconjunto
+  §8.1 (qué viaja y qué no, SIN escribir); proyección campo a campo al
+  canónico del laboratorio (nada de `as` al documento entero; espacios de
+  papel se vacían Y se declaran como pérdida); TRES estados, nunca dos:
+  `exito` / `exito_con_perdidas` (bytes + manifiesto que nombra EXACTAMENTE
+  qué no viajó) / `rechazado` (gate cerrado o cero entidades escribibles —
+  un DWG vacío que dice ser tu plano es peor que un error). El documento
+  original NUNCA se toca: función pura, bytes nuevos o nada.
+- **`src/lib/cad/dwg-native-writer.spec.ts`** — verde: (1) con los gates
+  REALES la exportación se rechaza aunque la bandera esté encendida y los
+  bloqueos nombran el oráculo y la OWNER ACTION; (2) round-trip con gates
+  inyectados como si el oráculo hubiera pasado: línea/círculo/arco + MURO →
+  `exito_con_perdidas`, el muro en el manifiesto por su tipo, `readDwg`
+  relee exactamente lo escribible con coordenadas intactas (<1e-6);
+  (3) documento sólo-muros → `rechazado` sin archivo; (4) preflight puro.
+- **`scripts/dwg/check-product-boundary.mjs`** — el writer y su spec son
+  ahora los ÚNICOS importadores autorizados del adaptador de escritura
+  (verificación paralela a la del lector); el botón del producto se añade a
+  la lista el día que el oráculo §8.2 esté corrido, no antes.
+
+Cumplimiento del prompt: AC1015 ✓ (writer del laboratorio, clean-room — sin
+ODA/RealDWG/Teigha/SDK de Autodesk/servicio pagado), preflight ✓, manifiesto
+de pérdidas ✓, estados éxito/éxito-con-pérdidas/rechazado ✓, flag apagada
+por defecto ✓, el archivo del cliente nunca se sobrescribe ✓ (la exportación
+produce bytes nuevos). El cableado de interfaz queda POST-oráculo por
+mandato de §8.2 — cablearlo hoy sería fingir que el gate no existe.
