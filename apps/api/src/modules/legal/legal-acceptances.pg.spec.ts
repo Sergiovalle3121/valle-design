@@ -205,8 +205,16 @@ describe('registro versionado de documentos legales', () => {
   });
 
   it('una versión desconocida no se reconoce como aceptable', () => {
-    expect(isKnownLegalVersion('terms', '2026-08-15')).toBe(true);
+    // La versión VIGENTE se lee del propio registro en vez de fijarse aquí:
+    // publicar una versión nueva (regla del candado legal, COMMERCIAL-RC1) no
+    // debe exigir tocar este spec. Una versión RETIRADA deja de reconocerse —
+    // 2026-08-15 fue la inicial y ya no está en el registro, así que sirve de
+    // caso real de versión conocida-en-su-día que hoy obliga a re-aceptar.
+    const vigente = currentLegalDocument('terms')?.version;
+    expect(vigente).toBeDefined();
+    expect(isKnownLegalVersion('terms', vigente as string)).toBe(true);
+    expect(isKnownLegalVersion('terms', '2026-08-15')).toBe(false);
     expect(isKnownLegalVersion('terms', '1999-01-01')).toBe(false);
-    expect(isKnownLegalVersion('inventado', '2026-08-15')).toBe(false);
+    expect(isKnownLegalVersion('inventado', vigente as string)).toBe(false);
   });
 });

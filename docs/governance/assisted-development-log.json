@@ -705,6 +705,49 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "COMMERCIAL-RC1-FASE0-BASELINE-VERDE-2026-08-26",
+      "date": "2026-08-26",
+      "initiative": "Fase 0 de la campaña COMMERCIAL-RC1: recuperar un baseline verde en main, rojo sin excepción desde el 12 de agosto (ultimo run verde: 288). Tres causas raiz vivas verificadas en logs de CI: (1) cad-dense-editing-100k colgaba 1 h + retry y cancelaba el job E2E a los 100 min en todos los runs desde su primera ejecucion (nunca paso en CI), dejando ~200 tests -- Firefox completo incluido -- sin ejecutar desde el 21-08; (2) golden 20-cad-multiple-viewports roto; (3) golden 46-cad-pointer-engine test 2 roto",
+      "branch": "claude/valle-design-commercial-rc1-izgdxb",
+      "assistants": [
+        {
+          "name": "Claude Code (Anthropic)",
+          "role": "ejecucion autonoma bajo el prompt maestro COMMERCIAL-RC1 del titular. Diagnostico por reproduccion local instrumentada, no por suposicion: (a) dense-100k -- reproduccion con artefactos por fase; apertura sana (documentReady 10,7 s, detalle 21,1 s) pero selectAll sin terminar tras >25 min; lectura de codigo dirigida por el sintoma encontro TRES O(n^2)/O(n) sin presupuesto en el camino de seleccion/edicion masiva: la proyeccion de seleccion creaba un objeto THREE por entidad seleccionada (100.000 objetos en el hilo principal al designar Todo), el pre-check de capas bloqueadas hacia entities.find por comando (10^10 comparaciones al mover 100k) y el calculo de remove hacia document.entities.some por entidad tocada (1,6x10^9 al borrar la capa MURO). Arreglos: politica GRIPOBJLIMIT en lib/cad/selection-projection-budget.ts (seleccion >400 suprime la proyeccion por entidad; el realce lo da el lote y el recuento del HUD sigue exacto; la seleccion nunca se trunca), mapas O(n+m) en el pre-check y en remove, universo de seleccion memoizado por documento y extraido a components/cad/editor/selection-universe.ts (monolito 20242 -> 20237 lineas). Medido tras el primer arreglo: selectAll 25,9 s COMPLETO con las 100.000 (antes: sin terminar; en CI 1,0 h de techo consumido). (b) golden 46 test 2 -- sondeo con elementFromPoint: la barra flotante del dibujo en curso (draft-toolbar.tsx) capturaba el pick en TODO su rectangulo, y su altura depende de la metrica de la fuente por el flex-wrap de la entrada dinamica -- explica la biseccion de P1-1b que culpaba a next/font/local; defecto de producto real (un usuario pierde el clic bajo la barra), corregido con pointer-events-none en el contenedor y pointer-events-auto solo en los controles (mismo patron que el dock del tour). (c) golden 20 -- los fill() previos desplazan el scroll del panel y la miniatura queda fuera del area visible; el drag manual aterrizaba en la pestana Model que cierra el panel; corregido en el spec con scrollIntoViewIfNeeded antes de cada drag manual. (d) politica de capacidad en CI: la suite e2e/performance sale del job e2e (CAD_PERF_E2E=0 siempre ahi) a un job propio e2e-perf solo para push/dispatch, Chromium, sin retries, techo 75 min, artefactos siempre -- sigue bloqueando el veredicto de main pero ya no puede dejar sin ejecutar el resto de la suite; el techo del spec dense baja de 60 a 35 min. Ademas adopto el PR #108 (revisado por diff y pruebas; su rojo E2E era el preexistente de main) por fast-forward en la rama de campana"
+        }
+      ],
+      "authority": "Prompt maestro VALLE-DESIGN-COMMERCIAL-RC1 de Sergio Valle Zarate (2026-08-26), que ordena Fase 0 (baseline verde) antes que cualquier feature, prohibe resolver el test de 100k solo subiendo timeouts y exige politica de capacidad explicita sin esconder la regresion",
+      "firstPartyInputs": [
+        "logs de CI de los runs 288-479 (ci.yml) leidos via API de GitHub: la cronologia completa de eras de rojo con job/test exacto por run",
+        "apps/web/e2e/performance/cad-dense-editing-100k.spec.ts y e2e/fixtures/dense-editing-harness.ts (instrumento por fases reutilizado tal cual para la reproduccion)",
+        "artefactos por fase de las reproducciones locales antes y despues del arreglo (documentReady/firstDetail/paletteOpen/selectAll)",
+        "trazas de Playwright de los fallos de goldens 20 y 46 (trace.zip, error-context.md, screenshots) y sondeos elementFromPoint escritos ad hoc",
+        "docs/execution/BACKLOG.md entradas P1-1 y P1-1b (biseccion de fuentes previa, confirmada y explicada por el hallazgo del flex-wrap)",
+        "scripts/cad/check-monolith-budget.mjs y monolith-budget.json (presupuesto del monolito respetado: 20237 <= 20242)"
+      ],
+      "externalSources": [
+        "Semantica GRIPOBJLIMIT de AutoCAD como referencia de politica de supresion de grips en seleccion masiva (concepto, no codigo)"
+      ],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "presupuesto de proyeccion de seleccion (apps/web/src/lib/cad/selection-projection-budget.ts, nuevo, con spec)",
+        "universo de seleccion profesional (apps/web/src/components/cad/editor/selection-universe.ts, extraccion real del monolito)",
+        "Layout3DEditor.tsx: projectSelection presupuestada, universo memoizado, pre-check de capas bloqueadas y remove con mapas",
+        "barra del dibujo en curso (apps/web/src/components/cad/studio/draft-toolbar.tsx: pointer-events)",
+        "CI (.github/workflows/ci.yml: job e2e-perf nuevo; e2e con CAD_PERF_E2E=0)",
+        "specs E2E (golden/20 scrollIntoViewIfNeeded; performance/cad-dense-editing-100k techo 35 min)"
+      ],
+      "fixtures": [],
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: PR de la campana COMMERCIAL-RC1 con la suite E2E completa (Chromium+Firefox) y los gates locales verdes sobre el SHA candidato; la adopcion se registra al revisar/fusionar ese PR."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
