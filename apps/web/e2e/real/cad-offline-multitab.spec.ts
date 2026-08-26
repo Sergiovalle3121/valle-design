@@ -656,11 +656,17 @@ test.describe("no se pierde trabajo: offline, dos pestañas y cierre forzado", (
       // editor deja de existir. Lo único que puede salvar el trabajo es que la
       // transacción de IndexedDB ya estuviera confirmada en el proceso de
       // navegador, que es exactamente lo que se quiere demostrar.
-      const crashed = doomed.waitForEvent("crash", { timeout: 30_000 });
+      const crashed = doomed.waitForEvent("crash", { timeout: 45_000 });
       const session = await context.newCDPSession(doomed);
       // `Page.crash` no responde nunca: el destinatario muere respondiéndola.
       void session.send("Page.crash").catch(() => undefined);
-      await crashed;
+      // Respaldo medido en CI (runner sin GPU): a veces `Page.crash` no
+      // produce el evento. `chrome://crash` estrella el renderizador por la
+      // vía del navegador — mismo efecto: nada de beforeunload ni desmontaje.
+      const fallback = setTimeout(() => {
+        void doomed.goto("chrome://crash").catch(() => undefined);
+      }, 10_000);
+      await crashed.finally(() => clearTimeout(fallback));
     } else {
       // Firefox no expone un cuelgue provocable por protocolo. El cierre sin
       // `beforeunload` es el escenario más duro disponible ahí, y se dice.
