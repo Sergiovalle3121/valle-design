@@ -26,6 +26,7 @@ const controllerDirs = [
   "apps/api/src/modules/organizations",
   "apps/api/src/modules/commercial/controllers",
   "apps/api/src/modules/legal",
+  "apps/api/src/modules/support",
 ].map((dir) => path.join(root, dir));
 
 /** Familias de paths del contrato que el gate cruza contra el router. */
@@ -35,6 +36,7 @@ const coveredPrefixes = [
   "/v1/organizations",
   "/v1/commercial",
   "/v1/legal",
+  "/v1/support",
 ];
 const coveredPath = (p) =>
   coveredPrefixes.some((prefix) => p === prefix || p.startsWith(`${prefix}/`));

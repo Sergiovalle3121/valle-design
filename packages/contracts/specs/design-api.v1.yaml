@@ -1081,6 +1081,30 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/EntitlementRequired" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /v1/support/incidents:
+    post:
+      operationId: reportSupportIncident
+      tags: [support]
+      summary: Reporta un problema desde el estudio, con su diagnostico.
+      description: >
+        El boton «algo salio mal» del estudio. Viaja SIEMPRE version, navegador y
+        comando en curso; el identificador del documento viaja SOLO si la persona
+        lo autoriza explicitamente, y nunca su contenido. Se entrega por el outbox
+        transaccional, con la misma idempotencia que el resto del correo.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/SupportIncidentRequest" }
+      responses:
+        "202":
+          description: Reporte aceptado y encolado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AcceptedResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
   /v1/cad/documents:
     get:
       operationId: listCadDocuments
@@ -2429,6 +2453,34 @@ components:
       properties:
         token: { $ref: "#/components/schemas/OpaqueOneTimeToken" }
         password: { $ref: "#/components/schemas/Password" }
+    SupportIncidentRequest:
+      type: object
+      additionalProperties: false
+      required: [summary, appVersion, userAgent, documentAuthorized]
+      properties:
+        summary:
+          type: string
+          minLength: 10
+          maxLength: 2000
+          description: Lo que la persona escribe. Es el unico campo que redacta.
+        appVersion: { type: string, minLength: 1, maxLength: 120 }
+        userAgent: { type: string, minLength: 1, maxLength: 400 }
+        activeCommand:
+          type: string
+          maxLength: 64
+          nullable: true
+          description: El comando en curso cuando fallo, si habia uno.
+        documentId:
+          type: string
+          format: uuid
+          nullable: true
+          description: >
+            Solo viaja con documentAuthorized=true. Es el IDENTIFICADOR, nunca el
+            contenido del plano: adjuntar el dibujo a un correo seria peor para la
+            privacidad, no mejor.
+        documentAuthorized:
+          type: boolean
+          description: La persona autorizo explicitamente mirar su documento.
     AcceptedResponse:
       type: object
       additionalProperties: false

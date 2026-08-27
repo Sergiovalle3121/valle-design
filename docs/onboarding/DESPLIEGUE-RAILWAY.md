@@ -81,6 +81,7 @@ arranca mal es peor que uno que no arranca, porque nadie recibe una alerta.
 | `EMAIL_SENDER_API_KEY` | 🔑 `re_…` | panel de Resend |
 | `EMAIL_SENDER_FROM` | 🔑 `Valle Design <hola@valledesign.mx>` | **dominio verificado en Resend** |
 | `DB_SSL_STRICT` | `true` | ver §2.3 |
+| `SUPPORT_EMAIL` | 🔑 `soporte@valledesign.mx` | Buzón del botón «algo salió mal» del estudio. **Sin él el endpoint responde 503 y lo dice**, en vez de aceptar reportes que nadie leería: un 202 sin buzón configurado es el peor de los mundos, porque la persona cree que reportó. Es la única forma de enterarse de lo que rompen los primeros arquitectos. |
 
 ### 2.2 · La variable del lanzamiento
 
@@ -129,6 +130,7 @@ por quien esté en la ruta.
 | `NEXT_PUBLIC_BRAND_SALES_EMAIL` | 🔑 correo real de ventas | ídem |
 | `NEXT_PUBLIC_BRAND_PRIVACY_EMAIL` | 🔑 correo real de privacidad | ídem |
 | `NEXT_PUBLIC_LAUNCH_MODE` | `free` | es el **default**; ponerlo explícito documenta la intención |
+| `NEXT_PUBLIC_APP_VERSION` | la fecha o el SHA del despliegue | Viaja en cada reporte de «algo salió mal». Sin ella los reportes dicen «desarrollo» y no se puede saber contra qué despliegue pasó el problema, que es la mitad de poder reproducirlo. **Se incrusta al compilar**, así que cada despliegue debe pasar la suya. |
 | `PORT` | `${{PORT}}` | Railway lo inyecta |
 
 `NEXT_PUBLIC_LAUNCH_MODE=free` es lo que mantiene el checkout fuera de la

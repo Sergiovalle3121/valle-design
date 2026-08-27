@@ -590,6 +590,7 @@ import type {
 } from "@/components/cad/palettes/property-model";
 import { CadDraftStatusBar } from "@/components/cad/palettes/CadDraftStatusBar";
 import { CadPaletteOverlays } from "@/components/cad/palettes/CadPaletteOverlays";
+import { CadIncidentReporter } from "@/components/cad/studio/CadIncidentReporter";
 import {
   CAD_OSNAP_HUD_LABELS,
   CAD_POLAR_INCREMENTS,
@@ -13394,8 +13395,6 @@ export default function Layout3DEditor({
         }
         return null;
       }
-      // Lo que se enseña NO es `saveError.message`: eso era «Failed to fetch»
-      // en un corte de red y «Design API respondió 401» con la sesión caducada.
       const aviso = describeCadSaveFailure(saveError);
       if (requestIsActive) {
         if (aviso.kind === "offline") setConnectionState("offline");
@@ -20159,6 +20158,7 @@ export default function Layout3DEditor({
       {/* Cuadros flotantes de las paletas. Su estado vive fuera de React
           (`components/cad/palettes`), así que abrirlos no cuesta un `useState`
           en una función que ya tiene demasiados. */}
+      <CadIncidentReporter documentId={documentId} activeCommand={engineCommand} />
       <CadPaletteOverlays
         open={activePalette}
         paletteHost={paletteHost}

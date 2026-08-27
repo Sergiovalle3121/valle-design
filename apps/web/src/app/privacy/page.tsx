@@ -78,6 +78,25 @@ export default function PrivacyPage() {
         </p>
       </PublicSection>
 
+      <PublicSection title="Reportes de problemas («algo salió mal»)">
+        <p>
+          El estudio tiene un botón para contarnos que algo falló. Lo que se
+          envía se te enseña <strong>entero, antes de enviarlo</strong>: el
+          texto que escribes, la versión del estudio, el navegador y el comando
+          que tenías en curso. Nada se recoge en segundo plano.
+        </p>
+        <p>
+          <strong>Tu plano no viaja.</strong> Si marcas la casilla —que nace
+          apagada— autorizas a que revisemos ese dibujo para entender el
+          problema: en el reporte viaja su identificador, nunca su contenido.
+          Sin esa casilla, ni el identificador sale de tu navegador.
+        </p>
+        <p>
+          Los reportes se entregan al correo de soporte y se conservan mientras
+          el problema siga abierto.
+        </p>
+      </PublicSection>
+
       <PublicSection title="Borrador pendiente de revisión legal">
         <p>
           Este aviso lo redactó el equipo de producto describiendo lo que el

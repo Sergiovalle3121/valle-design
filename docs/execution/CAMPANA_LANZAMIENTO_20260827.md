@@ -61,8 +61,8 @@ Prohibido el cuarto estado: **visible y no verificada**.
 | 3 | 3.3 GLB a escala 1:1 verificado | **cerrado** |
 | 3 | 3.4 DWG apagado y sin promesas en la superficie | **cerrado** |
 | 3 | 3.5 Descargas en modo solo-lectura y desde review link | **cerrado** |
-| 4 | 4.1 La primera hora de un desconocido | pendiente |
-| 4 | 4.2 Botón «algo salió mal» | pendiente |
+| 4 | 4.1 La primera hora de un desconocido | **cerrado** |
+| 4 | 4.2 Botón «algo salió mal» | **cerrado** |
 | 4 | 4.3 Telemetría mínima decente y declarada | **cerrado** |
 | 4 | 4.4 Móvil: embudo público y dashboard | pendiente |
 | 5 | 5.1 `DESPLIEGUE-RAILWAY.md` probado | **cerrado** |
@@ -396,3 +396,107 @@ PostgreSQL reales.
 **Estado del árbol:** `npm test --workspace=web` **430/430** · `npm run check:cad`
 EXIT=0 (monolito en 20 242 líneas y 140 `useState`, sin crecer) · regresión en el
 stack real: barrido de cables + Jornada Real **9/9**.
+
+### OLA 4.1 — La primera hora de un desconocido
+
+**Se recorrió el camino entero contra el stack real**, sin inyectar nada por
+API: portada → registro → verificación → despacho → **primer plano abierto**.
+
+**El número, que ahora se puede decir en público:** el plano de ejemplo abre en
+**1,6 s con 18 entidades en pantalla** (navegador headless en contenedor
+compartido, que es más lento que cualquier portátil). Se afirma con un techo
+generoso de 45 s: lo que este gate tiene que cazar no es medio segundo, es el
+día en que abrir el ejemplo tarde un minuto.
+
+**DEFECTO — ARREGLADO. El panel «Atajos y ayuda» mentía sobre una tecla.**
+Anunciaba **«L — Conectar flujo»**. En el registro real `L` es LINE —trazar
+muros encadenados— y el conector es `Shift+L`, que el panel **no mencionaba**.
+Alguien en su primera hora pulsaba L para unir dos objetos y le salía un muro; y
+al no encontrar el conector por ningún lado, concluía que no existe.
+
+Se callaba además **veinte atajos que sí existen**: `Ctrl+S`, la paleta `Ctrl+K`,
+el offset, el círculo, el rectángulo, la polilínea, el rotar/escalar/espejo y las
+siete teclas de función que un dibujante que viene de AutoCAD usa sin mirar el
+teclado. El panel pasa de 14 filas (una falsa) a **47 filas contrastadas contra
+los 33 atajos reales**.
+
+**Lo que estaba bien y se comprobó en vez de suponerse.** El recorrido guiado de
+cinco pasos manda teclear `WA`, `I`, `DIM` y `PLOT`: **los cuatro existen** en el
+registro real, la opción `G` de grosor existe dentro de `WALL`, y la biblioteca
+sabe fabricar la «Puerta abatible» que el paso nombra. El recorrido sale una vez,
+se puede saltar y saltarlo **persiste**: recargar no lo trae de vuelta. `Ctrl+K`
+abre y encuentra comandos de verdad. El tablero vacío invita en vez de intimidar
+(`FirstMinute`: ejemplo, documento en blanco, importar).
+
+**Evidencia permanente.**
+
+* `apps/web/e2e/real/primera-hora.spec.ts` — **6/6 verdes**, con el cronómetro.
+* `src/lib/cad/onboarding/tour-accuracy.spec.ts` — 22 comprobaciones: cada
+  comando que el recorrido manda teclear existe en el registro REAL, cada
+  palabra en mayúsculas de su prosa también, el bloque de la puerta existe, y
+  ningún paso promete DWG.
+* `src/components/cad/studio/shortcuts-help.spec.ts` — 67 comprobaciones **en
+  las dos direcciones**: lo que se anuncia hace lo que dice, y lo que existe se
+  anuncia (o se declara con su razón).
+
+### OLA 4.2 — El botón «algo salió mal»
+
+No existía: sólo un `mailto:` en la página de soporte, que obliga a salir del
+estudio y a redactar a mano el contexto que nadie sabe de antemano. Los primeros
+arquitectos van a chocar con cosas que ninguna prueba de este repositorio ha
+imaginado; sin un camino de vuelta esa información se pierde entera.
+
+**La decisión que ordena el diseño: se ve TODO lo que se manda.** El cuadro
+enseña, campo por campo, lo que va a salir de ese navegador. Versión, navegador
+y comando en curso viajan siempre —sin ellos «no me funciona» no se puede
+reproducir—. **El plano no viaja nunca**, ni su contenido ni su identificador,
+salvo que la persona marque una casilla que **nace apagada**. Y lo que se
+autoriza es MIRAR el documento, no mandarlo: viaja su identificador, jamás el
+dibujo. Adjuntar el plano a un correo sería peor para la privacidad, no mejor:
+el documento ya vive en el servidor con su control de acceso; una copia en un
+buzón no lo tiene. El servidor **descarta** un identificador que llegue sin
+permiso, en vez de deducir el permiso de que el dato esté presente.
+
+Entrega por el **outbox transaccional**, con su idempotencia y sus reintentos:
+un reporte que se pierde porque el proveedor de correo estaba caído en ese
+segundo es exactamente el reporte que hacía falta. Permiso `cad:view`, el más
+bajo a propósito: quien está en solo-lectura tras expirar su prueba es
+precisamente quien más necesita poder decir que algo no funciona.
+
+**Lo que PostgreSQL enseñó.** La primera versión ponía marca de tiempo al
+milisegundo y agrupaba la idempotencia por minuto: dos clics separados por medio
+segundo producían la MISMA clave con cargas DISTINTAS, y el outbox lo rechazó
+—con razón: una clave que promete «esto ya se guardó» no puede tapar un
+contenido diferente—. La marca pasa al minuto, que es la granularidad de la
+clave; el segundo exacto no le hace falta a nadie para reproducir un problema.
+
+**Y se declaró antes de existir.** El aviso de privacidad estrena la sección
+«Reportes de problemas» diciendo exactamente lo anterior. Como el candado legal
+prohíbe editar una versión publicada —y lo dijo, en su mensaje de error—, se
+publica **privacy 2026-08-27.2** en vez de retocar la anterior. Para que una
+segunda revisión del mismo día fuera representable se amplió el FORMATO de
+versión (`AAAA-MM-DD` → `AAAA-MM-DD[.N]`) en el candado y en su spec: no se
+afloja ninguna comprobación —siguen exigiéndose hash, espejo y coincidencia—,
+sólo deja de obligar a elegir entre fechar el documento en el futuro o editar
+una versión publicada.
+
+**Evidencia permanente.**
+
+* `support-incident.payload.spec.ts` — 10 comprobaciones sobre el límite de
+  privacidad, en Node.
+* `support-incident.pg.spec.ts` — 7 contra **PostgreSQL real**: queda escrito en
+  el outbox, sin autorización el plano no viaja, con ella viaja el identificador
+  y nunca el dibujo, el correo no se marca con el inquilino (o quien debe leerlo
+  no lo vería), un doble clic no manda dos correos, un problema distinto sí
+  llega, y **sin buzón configurado lo dice en vez de tragarse el reporte**.
+* `primera-hora.spec.ts` prueba 5 — el botón pulsado en el navegador real y el
+  reporte **leído del outbox**, con `documentId: null` porque nadie marcó nada.
+
+Variables nuevas, documentadas en `DESPLIEGUE-RAILWAY.md` y en CI:
+`SUPPORT_EMAIL` (sin él la API responde **503 y lo dice**) y
+`NEXT_PUBLIC_APP_VERSION` (se hornea al compilar; sin ella los reportes dirían
+«desarrollo» y no se sabría contra qué despliegue pasó el problema).
+
+**Estado del árbol:** web **432/432** · API **704** pasadas + **7** contra
+PostgreSQL real · `check:cad` EXIT=0 · monolito clavado en 20 242 líneas y 140
+`useState` (el montaje del botón es UNA línea; el cuadro entero vive fuera).

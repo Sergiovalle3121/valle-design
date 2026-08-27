@@ -4,7 +4,7 @@
   "openapi": "3.1.0",
   "apiTitle": "Valle Design — API standalone (v1)",
   "apiVersion": "1.0.0",
-  "operationCount": 82,
+  "operationCount": 83,
   "cadOperationCount": 43,
   "groups": [
     {
@@ -79,6 +79,13 @@
         "getCadProject",
         "updateCadProject",
         "archiveCadProject"
+      ]
+    },
+    {
+      "family": "commercial",
+      "tag": "support",
+      "operations": [
+        "reportSupportIncident"
       ]
     },
     {
@@ -1212,6 +1219,29 @@
         "401",
         "403",
         "404"
+      ]
+    },
+    {
+      "operationId": "reportSupportIncident",
+      "method": "POST",
+      "path": "/v1/support/incidents",
+      "summary": "Reporta un problema desde el estudio, con su diagnostico.",
+      "tags": [
+        "support"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "SupportIncidentRequest"
+      },
+      "responses": [
+        "202",
+        "400",
+        "401",
+        "429"
       ]
     },
     {

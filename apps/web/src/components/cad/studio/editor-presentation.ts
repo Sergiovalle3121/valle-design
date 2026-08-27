@@ -54,23 +54,50 @@ export const THEMES: Record<
   },
 };
 
-/** Keyboard + tool reference shown in the help overlay. */
+/**
+ * Los atajos que el panel «Atajos y ayuda (?)» anuncia.
+ *
+ * ── Por qué esta lista merece un gate propio ──────────────────────────────
+ *
+ * Es la primera cosa que abre alguien que viene de AutoCAD, y es TEXTO: no
+ * compila, no se rompe cuando cambia lo que describe. Al auditarla contra el
+ * registro real (`lib/cad/keyboard-shortcuts.ts`) decía que **L conecta flujo**,
+ * cuando `L` es LINE —trazar muros— y el conector es `Shift+L`. Alguien en su
+ * primera hora pulsaba L esperando unir dos objetos y le salía un muro. Además
+ * se callaba veinte atajos que sí existen, entre ellos Ctrl+S, la paleta Ctrl+K
+ * y las siete teclas de función que un dibujante usa sin mirar.
+ *
+ * `shortcuts-help.spec.ts` compara ahora fila por fila contra el registro: lo
+ * que se anuncie tiene que hacer lo que dice, y lo que exista tiene que estar
+ * anunciado o declarado.
+ *
+ * Las teclas que NO viven en el registro —W, ?, \, las flechas, el recorrido a
+ * pie— las atiende el propio editor y se marcan en el gate como tales.
+ */
 export const HELP_SECTIONS: { title: string; rows: [string, string][] }[] = [
+  {
+    title: "Dibujar",
+    rows: [
+      ["W", "Dibujar muros (Shift = 45°)"],
+      ["L", "Trazar líneas encadenadas"],
+      ["P", "Trazar polilínea de muros"],
+      ["B", "Rectángulo desde dos esquinas"],
+      ["C", "Círculo por centro y radio"],
+      ["Z", "Insertar un área editable"],
+      ["T", "Agregar nota de texto"],
+      ["I", "Biblioteca de símbolos y bloques"],
+    ],
+  },
   {
     title: "Herramientas",
     rows: [
       ["V", "Seleccionar / mover"],
       ["M", "Medir / acotar"],
       ["A", "Preparar pasillo / holgura"],
-      ["L", "Conectar flujo"],
-      ["Z", "Insertar zona"],
-      ["I", "Abrir equipo / simbolos"],
-      ["T", "Agregar nota"],
-      ["W", "Dibujar muros (Shift = 45°)"],
-      ["F", "Enfocar layout"],
-      ["G", "Mostrar / ocultar grilla"],
-      ["O", "Activar / desactivar object snap"],
-      ["Shift+V", "Validar layout"],
+      ["Shift+L", "Unir la selección con una polilínea"],
+      ["Shift+O", "Desfasar la selección (offset)"],
+      ["Ctrl/⌘+K", "Paleta de comandos"],
+      ["Shift+V", "Revisión de diseño"],
       ["E", "Exportar DXF"],
       ["Recorrido", "Caminar en primera persona"],
     ],
@@ -89,10 +116,28 @@ export const HELP_SECTIONS: { title: string; rows: [string, string][] }[] = [
     rows: [
       ["Arrastrar", "Mover (en grupo si hay varios)"],
       ["← → ↑ ↓", "Ajustar (Shift = ×5)"],
-      ["R / Shift+R", "Rotar ±15°"],
+      ["R", "Rotar la selección (pide grados)"],
+      ["S", "Escalar la selección (pide factor)"],
+      ["X", "Espejo de la selección"],
       ["Ctrl/⌘+D", "Duplicar"],
       ["Supr", "Borrar selección"],
-      ["Ctrl/⌘+Z / ⇧+Z", "Deshacer / Rehacer"],
+      ["Ctrl/⌘+Z", "Deshacer"],
+      ["Ctrl/⌘+Shift+Z", "Rehacer"],
+      ["Ctrl/⌘+S", "Guardar"],
+    ],
+  },
+  {
+    title: "Ayudas al dibujo",
+    rows: [
+      ["G", "Mostrar / ocultar la grilla"],
+      ["O", "Snap a objetos y al plano DXF"],
+      ["F3", "Snap a objetos"],
+      ["F7", "Grilla"],
+      ["F8", "Ortho"],
+      ["F9", "Forzar el cursor a la rejilla"],
+      ["F10", "Rastreo polar"],
+      ["F11", "Rastreo desde puntos OSNAP"],
+      ["F12", "Entrada dinámica junto al cursor"],
     ],
   },
   {

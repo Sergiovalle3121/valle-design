@@ -91,3 +91,13 @@ export const FREE_LAUNCH_PROMISE =
 
 /** Días antes del vencimiento en que el aviso empieza a aparecer. */
 export const EXPIRY_NOTICE_DAYS = 14;
+
+/**
+ * La versión que viaja en un reporte de «algo salió mal».
+ *
+ * Sin ella, «no me funciona» no se puede reproducir: hay que saber contra qué
+ * despliegue pasó. Se inyecta en el build (`NEXT_PUBLIC_*` se hornea, no se lee
+ * en caliente) y en desarrollo dice «desarrollo», que es la verdad.
+ */
+export const APP_VERSION: string =
+  process.env.NEXT_PUBLIC_APP_VERSION?.trim() || "desarrollo";

@@ -697,6 +697,26 @@ export interface paths {
         patch: operations["updateCadProject"];
         trace?: never;
     };
+    "/v1/support/incidents": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reporta un problema desde el estudio, con su diagnostico.
+         * @description El boton «algo salio mal» del estudio. Viaja SIEMPRE version, navegador y comando en curso; el identificador del documento viaja SOLO si la persona lo autoriza explicitamente, y nunca su contenido. Se entrega por el outbox transaccional, con la misma idempotencia que el resto del correo.
+         */
+        post: operations["reportSupportIncident"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/cad/documents": {
         parameters: {
             query?: never;
@@ -1290,6 +1310,21 @@ export interface components {
         PasswordResetRequest: {
             token: components["schemas"]["OpaqueOneTimeToken"];
             password: components["schemas"]["Password"];
+        };
+        SupportIncidentRequest: {
+            /** @description Lo que la persona escribe. Es el unico campo que redacta. */
+            summary: string;
+            appVersion: string;
+            userAgent: string;
+            /** @description El comando en curso cuando fallo, si habia uno. */
+            activeCommand?: string | null;
+            /**
+             * Format: uuid
+             * @description Solo viaja con documentAuthorized=true. Es el IDENTIFICADOR, nunca el contenido del plano: adjuntar el dibujo a un correo seria peor para la privacidad, no mejor.
+             */
+            documentId?: string | null;
+            /** @description La persona autorizo explicitamente mirar su documento. */
+            documentAuthorized: boolean;
         };
         AcceptedResponse: {
             /** @constant */
@@ -3649,6 +3684,33 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["EntitlementRequired"];
             404: components["responses"]["NotFound"];
+        };
+    };
+    reportSupportIncident: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SupportIncidentRequest"];
+            };
+        };
+        responses: {
+            /** @description Reporte aceptado y encolado. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AcceptedResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            429: components["responses"]["TooManyRequests"];
         };
     };
     listCadDocuments: {

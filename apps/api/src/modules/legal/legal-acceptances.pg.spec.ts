@@ -186,7 +186,13 @@ describe('registro versionado de documentos legales', () => {
   it('cada documento declara versión, fecha de publicación y URL', () => {
     expect(LEGAL_DOCUMENTS.length).toBeGreaterThan(0);
     for (const documento of LEGAL_DOCUMENTS) {
-      expect(documento.version).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      // Fecha, con sufijo `.N` opcional para una segunda revisión del MISMO
+      // día. Publicar dos veces en una jornada es raro y legítimo: pasó al
+      // declarar el botón «algo salió mal» horas después de la primera
+      // publicación. Sin poder expresarlo, las únicas salidas eran fechar el
+      // documento en el futuro o editar una versión ya publicada — que es
+      // exactamente lo que el candado de contenido existe para impedir.
+      expect(documento.version).toMatch(/^\d{4}-\d{2}-\d{2}(\.\d+)?$/);
       expect(documento.publicadoEn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
       expect(documento.url.startsWith('/')).toBe(true);
     }

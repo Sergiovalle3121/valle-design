@@ -103,14 +103,19 @@ export const LEGAL_DOCUMENTS: readonly LegalDocumentVersion[] = [
     contentHash:
       'de5ffcbe352e93b7fe8f32198196fa1d082f2ff496f53f537ae78bd81e77f712',
   },
+  // 2026-08-27.2 (campaña de lanzamiento, OLA 4.2): sustituye a 2026-08-27 —
+  // el estudio estrena el botón «algo salió mal», y lo que ese botón envía
+  // tiene que estar declarado ANTES de que exista una forma de pulsarlo. La
+  // versión anterior no se editó: se publica una nueva, que es lo que exige el
+  // candado y lo que merece quien aceptó la anterior.
   {
     documento: 'privacy',
-    version: '2026-08-27',
+    version: '2026-08-27.2',
     publicadoEn: '2026-08-27',
     url: '/privacy',
     requiereAceptacion: false,
     contentHash:
-      '004a6f1eb9e40db5419adde9e164355018aa70c2aa552df36eb0c16d917d3b61',
+      'dfcaea169cab631e335c17bf728ca8da17d2b59214787a3b36e245517a8997ac',
   },
 ] as const;
 

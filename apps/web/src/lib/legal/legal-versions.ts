@@ -12,7 +12,7 @@
  */
 export const LEGAL_PAGE_VERSIONS = {
   terms: { version: "2026-08-27", publicadoEn: "2026-08-27" },
-  privacy: { version: "2026-08-27", publicadoEn: "2026-08-27" },
+  privacy: { version: "2026-08-27.2", publicadoEn: "2026-08-27" },
 } as const;
 
 export function legalVersionLine(document: keyof typeof LEGAL_PAGE_VERSIONS): string {

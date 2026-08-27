@@ -38,6 +38,7 @@ export type OrganizationInvitationAccepted =
 export type CommercialSubscriptionResponse =
   Schemas["CommercialSubscriptionResponse"];
 export type EffectiveEntitlementList = Schemas["EffectiveEntitlementList"];
+export type SupportIncidentRequest = Schemas["SupportIncidentRequest"];
 export type CommercialPlan = Schemas["CommercialPlan"];
 export type CommercialPlanPrice = Schemas["CommercialPlanPrice"];
 export type CommercialPlanList = Schemas["CommercialPlanList"];
@@ -203,6 +204,7 @@ export function createDesignClient(options: DesignClientOptions) {
         "/v1/commercial/",
         "/v1/legal/",
         "/v1/cad/",
+        "/v1/support/",
       ].some(
         (prefix) => apiPath.startsWith(prefix),
       );
@@ -454,6 +456,20 @@ export function createDesignClient(options: DesignClientOptions) {
             input,
           ),
       },
+    },
+
+    support: {
+      /**
+       * El botón «algo salió mal» del estudio. Devuelve 202: el reporte queda
+       * encolado en el outbox, no entregado — prometer entrega aquí sería
+       * afirmar algo que el proveedor de correo decide después.
+       */
+      report: (input: SupportIncidentRequest) =>
+        call<Schemas["AcceptedResponse"]>(
+          "POST",
+          resource("/v1/support/incidents"),
+          input,
+        ),
     },
 
     projects: {

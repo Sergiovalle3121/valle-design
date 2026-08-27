@@ -554,6 +554,10 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: http://localhost:4000
           NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA: "true"
+          # Se incrusta al compilar y viaja en cada reporte de «algo salió mal».
+          # En CI vale el SHA: si un reporte llegara desde una ejecución, diría
+          # exactamente contra qué código se produjo.
+          NEXT_PUBLIC_APP_VERSION: ci-${{ github.sha }}
         run: npx turbo run build
 
       # API real (R1) contra PostgreSQL 16: mismas migraciones y rutas
@@ -583,6 +587,11 @@ jobs:
           # de prueba. La Jornada Real y el embudo leen la duración del catálogo
           # público, así que el CI ejercita la oferta que se anuncia, no otra.
           TRIAL_DAYS: "90"
+          # El buzón del botón «algo salió mal». Sin él la API responde 503 —a
+          # propósito, para no tragarse reportes— y la prueba de la primera hora
+          # lo cazaría, que es exactamente lo que debe pasar si producción se
+          # despliega sin configurarlo.
+          SUPPORT_EMAIL: soporte@valledesign.test
           AI_MOCK: "1"
 
       # ── LA JORNADA REAL, PRIMERO Y SOLA ──────────────────────────────────
