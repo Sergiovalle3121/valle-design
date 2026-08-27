@@ -166,6 +166,54 @@ ante operación sin marca. **Estimación:** medio día.
   pasa con una brecha ~0% en vez de con un techo de tolerancia.
 - **Estimación:** medio día una vez decidido el criterio de facturación.
 
+### P1-7 · Canal "algo salió mal" dentro del producto, vía outbox (OLA 3.2 de Paridad)
+- **Qué falta:** hoy el único canal de soporte es pasivo — `apps/web/src/app/support/page.tsx`
+  es un `mailto:` a `COMMERCIAL_CONTACTS.support` y un enlace a la página de
+  contacto. No hay forma de reportar un problema DESDE el editor con
+  contexto automático (qué comando corría, qué documento, qué versión) —
+  el usuario tiene que describirlo de memoria en un correo aparte, y
+  la mayoría de los "algo salió mal" silenciosos nunca se reportan.
+- **Investigado antes de diseñar a ciegas:** el producto YA tiene un
+  patrón de outbox maduro para entrega asíncrona —
+  `apps/api/src/modules/commercial/outbox-dispatcher.service.ts` +
+  `outbox-worker.service.ts` (leases anti-doble-entrega en PostgreSQL,
+  corre dentro del proceso de la API, documentado en
+  `docs/ops/railway.md`), y `webhook-outbox.transport.ts`/
+  `email-outbox.controller.ts` como los dos consumidores existentes
+  (webhooks firmados, correo). Un canal de reporte de errores debería
+  ser un TERCER tipo de evento del MISMO outbox, no un mecanismo de
+  entrega nuevo.
+- **Diseño esbozado (no implementado):**
+  1. Un comando/botón en el editor ("Reportar problema") que arma un
+     paquete de diagnóstico: documento actual (o su id, nunca el
+     contenido completo sin consentimiento explícito — ver riesgo de
+     privacidad abajo), los últimos N comandos del historial, versión
+     del producto, navegador. Captura, NO envía sola: el usuario
+     confirma qué se manda antes de mandarlo.
+  2. Un endpoint nuevo en `apps/api` (patrón de
+     `email-outbox.controller.ts` para la forma, no para el propósito)
+     que valida el payload y encola un evento de outbox tipo
+     `UserReportedIssue`.
+  3. El dispatcher existente lo entrega — probablemente a un correo/canal
+     del titular, reusando `WebhookCommercialOutboxTransport` o un
+     transporte de correo ya existente en vez de escribir uno nuevo.
+  4. Migración nueva para el tipo de evento si el esquema de outbox lo
+     exige (revisar `20260820100000-WebhookReceipts.ts` y similares
+     antes de asumir que hace falta una tabla aparte).
+- **Por qué no se implementó ya en esta campaña:** toca DOS aplicaciones
+  (api + web), una migración de base de datos potencial, y una decisión
+  de privacidad real (qué parte del documento del cliente viaja en un
+  reporte de bug) que merece la misma disciplina de prueba negativa que
+  el resto de esta campaña — apurarlo sin esa disciplina para cerrar la
+  ola sería exactamente el tipo de atajo que esta campaña existe para
+  no tomar.
+- **Criterio de aceptación:** un usuario reporta un problema desde el
+  editor sin salir de la aplicación; el reporte incluye contexto útil
+  con consentimiento explícito sobre qué se envía; llega al titular por
+  el outbox existente, no por un canal paralelo.
+- **Estimación:** 2-3 días (incluye la decisión de privacidad, que no es
+  sólo código).
+
 ---
 
 ## P2 — deuda que crece con intereses

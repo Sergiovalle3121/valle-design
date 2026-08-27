@@ -694,3 +694,72 @@ un solo punto).
 
 `npm run typecheck`, `rubric.spec.mjs` (57/57) y una corrida de
 `rubric.mjs --markdown` confirmando el enlace nuevo, todos verdes.
+
+## OLA 3 — el volante
+
+Las cuatro piezas, con su decisión explícita cuando no se implementaron
+completas (regla 1: decidir y seguir, nunca dejarlo mudo):
+
+**3.4 (revisar/actualizar `sesion-con-arquitecto.md`)** — revisado a
+fondo, no sólo leído: verificados los dos enlaces
+(`CAD_ACCEPTANCE_JOURNEY_IV.md`, `IDENTITY.md`, ambos existen) y los
+CUATRO ids de plantilla que la guía promete para los otros oficios
+(`pieza-mecanica`, `diagrama-unifilar`, `levantamiento-predio`,
+`despiece-carpinteria`) — la primera búsqueda dio negativo en
+`starter-templates.ts` (sólo 6 plantillas arquitectónicas), pero SÍ
+existen en `templates-disciplines.ts`: la guía es precisa, sin cambios
+de fondo necesarios. Efecto lateral real de esta revisión: al verificar
+los otros documentos de onboarding en la misma pasada,
+`PRIMER-DIA.md` decía "api (Nest, puerto 3001)" — el puerto real por
+defecto es 4000 (`apps/api/src/main.ts:174`,
+`process.env.PORT ?? '4000'`; 3001 es sólo un origen CORS de
+conveniencia adicional, `main.ts:95-97`, no el puerto de escucha).
+Corregido en una línea.
+
+**3.3 (procedimiento de corpus donado con procedencia)** — investigado
+antes de escribir: `CORPUS_POLICY.md` YA EXISTE, completo y firmado,
+en `Sergiovalle3121/valle-design-dwg-conformance` (repo añadido a la
+sesión y verificado con `git rev-parse HEAD`), con cuatro categorías de
+origen admisible (incluida `donated-original`, exactamente el caso de
+un despacho externo) y su enmienda `tool-converted-original`. El hueco
+real no era la política — era que NADIE en `valle-design` señala dónde
+está ni resume los pasos en lenguaje operativo: `PROPRIETARY_CONTRIBUTIONS.md`
+sólo dice "según `CORPUS_POLICY.md` del repositorio de conformidad" sin
+más. Escrito `docs/guides/donar-corpus-dwg.md` — resume, no duplica, y
+enlaza la política original en cada sección donde el detalle legal
+manda. Enlazado desde `PROPRIETARY_CONTRIBUTIONS.md`.
+
+**3.1 (`docs/onboarding/DESPLIEGUE-EN-UNA-TARDE.md` + `npm run doctor`)**
+— `DEPLOYMENT.md`/`RUNBOOK.md`/`docs/ops/railway.md` YA documentaban el
+despliegue con detalle técnico completo; lo que faltaba era el camino
+condensado para alguien que nunca lo ha hecho — escrito, señalando esos
+tres en vez de repetirlos. `scripts/doctor.mjs` nuevo: diagnóstico de
+sólo lectura (Node, workspaces instalados, PostgreSQL declarado
+alcanzable o SQLite documentado, puertos 3000/4000 libres, espejo del
+corpus DWG, aviso de Windows) — seis comprobaciones, ninguna bloquea
+salvo Node <22 o dependencias sin instalar. Refactorizado con
+`runDiagnostics(options)` inyectable (raíz, entorno, versión de Node,
+plataforma, puertos) para que `doctor.spec.mjs` pruebe cada rama con un
+entorno FALSO — nunca depende de qué esté corriendo de verdad en la
+máquina que ejecuta la spec. Wireado a `check:doctor` y sumado a
+`check:cad` (rápido, puramente lógico, sin motivo para dejarlo fuera).
+
+**3.2 (canal "algo salió mal" vía outbox)** — INVESTIGADO, NO
+IMPLEMENTADO, por decisión explícita. Confirmado que el único canal de
+soporte hoy es pasivo (`app/support/page.tsx`, un `mailto:`) y que el
+producto YA tiene un patrón de outbox maduro
+(`outbox-dispatcher.service.ts`/`outbox-worker.service.ts`, leases
+anti-doble-entrega en Postgres) que un canal de reporte debería
+reusar como tercer tipo de evento, no reinventar. No se construyó
+porque toca DOS aplicaciones, una migración posible, y sobre todo una
+decisión de PRIVACIDAD real (qué parte del documento del cliente viaja
+en un reporte) que merece la misma disciplina de prueba negativa que
+el resto de esta campaña — apurarlo para cerrar la ola habría sido
+exactamente el atajo que esta campaña existe para no tomar. Diseño
+completo con las citas de archivo reales en BACKLOG P1-7.
+
+`npm run doctor` corrido y verificado con negativas reales (servidor
+falso ocupando un puerto, `DATABASE_URL` apuntando a un puerto muerto)
+antes de escribir la spec automatizada; `doctor.spec.mjs` (7 bloques,
+cada uno con su rama positiva y negativa) verde. `npm run typecheck`
+limpio.
