@@ -771,6 +771,10 @@ if (invokedDirectly) {
         ? `Matriz regenerada: ${path.relative(process.cwd(), file)}`
         : `Matriz ya al día: ${path.relative(process.cwd(), file)}`,
     );
+    // Propia vs independiente (arriba) es el corte de HOY; la escalera dice
+    // qué falta para que una fila propia se vuelva independiente y qué se
+    // puede prometer en cada peldaño mientras tanto — no la repite, la explica.
+    console.log("Escalera de paridad (qué peldaño de evidencia por fila, qué se puede prometer): docs/parity/ESCALERA.md");
   }
   if (options.history)
     console.log(`Histórico: ${writeHistory(scored, { root: options.root })}`);

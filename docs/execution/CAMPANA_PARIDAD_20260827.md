@@ -607,3 +607,90 @@ resultado que ya declara `check:dwg-corpus` cuando no hay mirror, así
 que esa pieza específica SÍ está en su estado esperado (a diferencia de
 `dwg-evidence.mjs`, que compara contra un archivo que SÍ tiene
 evidencia real comprometida).
+
+### 2026-08-27T13:15Z — 0.5+1.3: gate de paridad geométrica interna (cantidades vs. sólido real)
+
+Construido `wall-takeoff-solid-parity.spec.ts` — mide, no arregla, per la
+decisión ya tomada al planear el orden de esta campaña (el arreglo de
+`bim-schedule.ts` cambia qué se factura por muro, decisión de negocio).
+Reproduce la investigación 0.5 con código real: `buildCadBimSchedule`
+contra `wallSolidBodyLocalWithDiagnostics` +
+`bodyMassProperties` (integración por teselado — el mismo camino que
+dibuja la vista 3D) sobre el mismo cuarto de 4 muros de 250 mm con una
+puerta que ya usa `glb-export.spec.ts`. Midió 10,178 m³ (cuadro) vs
+10,328 m³ (sólido real) — 1,452% de brecha, mismo orden de magnitud
+que el 1,39% investigado sobre el cascarón sin puerta.
+
+Tres aserciones, no una: (1) el cuadro sub-factura, nunca sobre-factura
+— si se invirtiera, la geometría de prueba cambió de forma, no sólo el
+kernel; (2) la brecha cae en el rango de vigilancia 0,5%–3% (confirma
+que se está midiendo LA MISMA brecha investigada, no una distinta por
+accidente); (3) el techo real, 2% — el que convierte esto en gate de
+REGRESIÓN: si una unión de muros nueva o un cambio en
+`cadWallJunctionOverlaps`/`bim-schedule.ts` empeorara el sub-conteo,
+esto rompe. Prueba de que el techo discrimina de verdad: bajado a mano
+a 1% (por debajo de la brecha medida), la aserción falla nombrando el
+1,452% exacto; restaurado a 2%, vuelve a verde.
+
+BACKLOG P1-6 documenta la causa raíz completa (el inglete extiende la
+cara exterior y recorta la interior por igual; el cuadro sólo resta la
+segunda) y dice explícitamente que el arreglo espera decisión del
+titular sobre el criterio de facturación — el gate existe para que
+mientras tanto la brecha no crezca en silencio, no para forzar un
+arreglo no autorizado.
+
+`npm run typecheck` limpio; el spec corre dentro de `npm test`
+(417/417, confirmado).
+
+## Cierre de OLA 0 y OLA 1
+
+Las seis piezas de OLA 0 (instrumento de verdad) y los siete ítems de
+OLA 1 (defectos de confianza) quedan así: 0.1/0.2/0.3/0.4/0.6 y
+1.1/1.2/1.4 CERRADOS con arreglo + prueba negativa + gate; 0.5/1.3
+CERRADO como GATE DE MEDICIÓN (el arreglo de fondo es decisión de
+negocio, BACKLOG P1-6); 1.5 CONFIRMADO ya resuelto por infraestructura
+previa (`render-origin.ts`), sin cambio de código necesario; 1.6
+INVESTIGADO y BACKLOGUEADO (P2-14, hueco latente, no manifestado hoy);
+1.7 (escritor DWG en fallo cerrado) cerrado PARCIALMENTE por el arreglo
+de radianes de 0.1 — el resto (fallo cerrado contra el oráculo externo)
+ya era correcto antes de esta campaña, confirmado en la spec 1 de
+`dwg-native-writer.spec.ts`, no tocado. Deuda declarada, no oculta:
+P2-12 (esquema 4 DXF), P2-13 (oráculo unificado), P2-14 (hosts 3D),
+P1-6 (fórmula de facturación de esquina).
+
+Gate suite completa corrida a mano (regla 4): `check:cad` (verde salvo
+`check:dwg-evidence`, limitación de credenciales de ESTE sandbox —
+investigado y documentado arriba, no del repo), `check:dwg` (verde
+salvo el mismo hueco de credenciales en `check:dwg-corpus`, que
+reporta correctamente `unavailable` sin mentir), `npm run typecheck`,
+`npm test` (417/417), `npm run lint` + `check:lint-budget` (202
+avisos totales / 547 del trinquete de familias, sin avisos nuevos),
+`npm run build` (verde, 5/5 tareas). Push hecho tras cerrar 0.1
+(commit `32df1dd`); 0.5+1.3 y OLA 2 se empujan juntos a continuación.
+
+## OLA 2 — la escalera de paridad
+
+Escrito `docs/parity/ESCALERA.md`: siete peldaños de evidencia (0 · no
+existe, 1 · prototipo sin enchufar, 2 · enchufado sin prueba, 3 ·
+probado con datos propios, 4 · verificado con oráculo independiente,
+5 · gate de regresión activo, 6 · legal y autorizado para producción,
+7 · en producción medido en vivo), cada uno con qué se puede prometer /
+no prometer y un ejemplo REAL del repositorio — no generalizaciones
+inventadas: los ejemplos de los peldaños 4 y 5 son literalmente los
+gates que esta misma campaña construyó (`glb-export.spec.ts` releyendo
+con `GLTFLoader` real, `wall-takeoff-solid-parity.spec.ts` con su
+techo de ratchet). La escalera generaliza el criterio de promoción que
+`dwg-evidence.mjs` YA aplicaba sólo a DWG (`estadoLaboratorio:
+"supported"` + ≥1 bundle admitido + ≥2 validaciones independientes) al
+resto del producto, y el corte propia/independiente que
+`rubric.mjs:569-613` ya usa es exactamente el corte 3-vs-4 de esta
+escalera — no un sistema paralelo.
+
+Enlazada desde `rubric.mjs --markdown` (una línea informativa nueva
+tras "Matriz ya al día", nunca toca el código de salida ni la
+puntuación — verificado con `rubric.spec.mjs`, 57 comprobaciones sin
+cambio, y con una corrida real del CLI que confirma 190/220 sin mover
+un solo punto).
+
+`npm run typecheck`, `rubric.spec.mjs` (57/57) y una corrida de
+`rubric.mjs --markdown` confirmando el enlace nuevo, todos verdes.

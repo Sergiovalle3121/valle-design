@@ -138,6 +138,34 @@ marca en operaciones nuevas + publicar la lista `public` inicial (propuesta en
 `docs/api/POLITICA-API-PUBLICA.md`). **Criterio:** `check:cad-contract` falla
 ante operación sin marca. **Estimación:** medio día.
 
+### P1-6 · El cuadro de cantidades SUB-factura fábrica en cada esquina (~1,4%)
+- **Qué falla:** `buildCadBimSchedule` (`bim-schedule.ts`) calcula el volumen
+  de fábrica de un muro restando el solape de unión medido por
+  `cadWallJunctionOverlaps`, pero el sólido 3D real (`wallSolidBodyLocal`) NO
+  recorta ese mismo volumen sin más: el inglete de esquina EXTIENDE la cara
+  EXTERIOR del muro y RECORTA la interior en la misma medida (conserva el
+  área propia de cada muro en planta). El cuadro resta la extensión interior
+  y nunca suma de vuelta la exterior equivalente — sub-factura fábrica real.
+  Cuantificado (campaña Paridad, 2026-08-27, OLA 0.5/1.3): en un cuarto de
+  5,0×4,0 m con muros de 250 mm y una puerta, el cuadro da 10,178 m³ y el
+  sólido real da 10,328 m³ — 1,45% de brecha, del mismo orden que la cifra
+  original investigada (cuarto sin puerta: 10,65 vs 10,80 m³, 1,39%).
+- **Dónde:** `apps/web/src/lib/cad/bim-schedule.ts` (líneas ~187-216, el
+  descuento de `junctionVolumeByWall`); el sólido real de referencia vive en
+  `wall-solid.ts` (`wallSolidBodyLocalWithDiagnostics`) +
+  `lib/brep/mass-properties.ts` (`bodyMassProperties`).
+- **Por qué no se arregló ya:** cambiar la fórmula cambia qué se FACTURA por
+  muro — decisión de negocio (¿se cobra la extensión exterior de esquina o
+  no?), no una corrección técnica unilateral. Se midió y se puso un gate de
+  regresión (`wall-takeoff-solid-parity.spec.ts`, techo 2%) para que la
+  brecha NUNCA CREZCA en silencio mientras nadie decide arreglarla; el
+  arreglo en sí necesita que el titular decida el criterio de facturación.
+- **Criterio de aceptación:** el titular decide la fórmula correcta de
+  esquina (probablemente: sumar de vuelta la extensión exterior en vez de
+  sólo restar el solape interior) y `wall-takeoff-solid-parity.spec.ts`
+  pasa con una brecha ~0% en vez de con un techo de tolerancia.
+- **Estimación:** medio día una vez decidido el criterio de facturación.
+
 ---
 
 ## P2 — deuda que crece con intereses
