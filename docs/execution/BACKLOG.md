@@ -108,25 +108,6 @@ cola viva, no el museo (el museo es `docs/history/`).
 
 ## P1 — bloquea flujos que un despacho espera
 
-### P1-1 · ~~Los seis goldens rojos~~ — los DOS restantes con causa raíz y arreglo (2026-08-26, campaña COMMERCIAL-RC1)
-Los seis originales cerraron el 23-08. Los dos que quedaban:
-- **`20-cad-multiple-viewports`**: los `fill()` previos al drag desplazan el
-  scroll del panel del paquete de entrega; la miniatura quedaba fuera del área
-  visible y el drag manual caía sobre la pestaña «Model» del encabezado, que
-  CIERRA el panel. Determinista con contenido lo bastante alto (métricas de
-  fuente). Arreglo: `scrollIntoViewIfNeeded()` antes de medir la caja para los
-  dos drags manuales. Verificado local 2026-08-26 (verde).
-- **`46-cad-pointer-engine` test 2 (P1-1b)**: NO era fragilidad del test — la
-  barra flotante del dibujo en curso (`draft-toolbar.tsx`) capturaba el pick
-  en TODO su rectángulo, y su altura depende de la métrica de la fuente por el
-  `flex-wrap` de la entrada dinámica: por eso la bisección culpaba a
-  `next/font/local`. Un usuario dibujando bajo la barra PERDÍA el clic.
-  Arreglo de producto: `pointer-events-none` en el contenedor,
-  `pointer-events-auto` sólo en los controles (patrón del dock del tour).
-  Sondeado con `elementFromPoint` y verificado local (verde).
-**Criterio (sin cambio):** 87/87 dos corridas seguidas en CI. **Estado:**
-arreglos en la rama de campaña COMMERCIAL-RC1; pendiente el veredicto de CI.
-
 ### P1-2 · XATTACH por línea de comandos no puede adjuntar (falta la biblioteca)
 - **Qué falla:** la orden está completa pero `context.xrefCatalog` nunca se
   provee; la vía gráfica sí adjunta (fetch asíncrono del asset del tenant).
@@ -149,35 +130,6 @@ guarda de vuelta con `replace` de la definición + regeneración de inserciones
 (el camino de `redefineProfessionalBlock` ya existe). **Criterio:** el
 criterio `blocks.bedit` de la rúbrica pasa con evidencia real.
 **Estimación:** 2–3 días.
-
-### P1-8 · `e2e/real/*`: 5 specs fallan por una carrera en verify-email, no por el producto
-- **Qué falla:** encontrado en el barrido de goldens con árbol quieto de la
-  campaña de cierre de ramas (2026-08-24,
-  `docs/history/execution/CIERRE_RAMAS_20260824.md` Ola Final), reproducido
-  IDÉNTICO en 3 corridas independientes (dos en CI de
-  GitHub, una local en máquina distinta): `studio-real-api.spec.ts`,
-  `commercial-fiscal-checkout.spec.ts`, `cad-conflict-per-document.spec.ts`,
-  `cad-offline-multitab.spec.ts`, `cad-recovery-lanes.spec.ts` fallan todos en
-  su fase de arranque compartida (registro + verificación de correo).
-- **Causa raíz, YA diagnosticada** (no queda por investigar el "qué", sólo el
-  arreglo): `e2e/real/studio-real-api.spec.ts:274` espera
-  `page.getByLabel("Token")).toHaveValue(verificationToken)` ANTES de hacer
-  clic en "Verificar correo". La captura de pantalla del fallo
-  (`error-context.md` del test run) muestra la página YA en el estado
-  "Listo, tu correo está verificado" — la verificación ocurre más rápido que
-  el supuesto del test (probablemente auto-verifica al cargar con el token en
-  la URL, sin esperar el clic), así que el campo `Token` ya no existe en el
-  DOM cuando la aserción corre. **Es una carrera del test contra un producto
-  que mejoró (verificación más rápida), no una regresión de producto.**
-- **Por qué no se arregló en esta campaña:** el fix real (ajustar la
-  aserción a la secuencia real de eventos, o esperar el estado final en vez
-  del intermedio) toca 5 archivos de specs pesados de `e2e/real/` que no
-  forman parte de "los 87 goldens" (`e2e/golden/` está en **85/87**, sin
-  regresión — ver informe de cierre). Ampliar el alcance de esta campaña a
-  reescribir specs de otro dominio no es lo que se pidió.
-- **Criterio:** los 5 specs en verde, 3 corridas seguidas. **Estimación:**
-  medio día — el diagnóstico ya está hecho, sólo falta reescribir la
-  aserción de arranque compartida.
 
 ### P1-5 · Marcar visibilidad por operación en el contrato OpenAPI
 `x-visibility: public|internal|experimental` en las 79 operaciones de
