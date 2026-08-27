@@ -106,6 +106,28 @@ const mixedDocument = baseDocument([
   const end = (line as { end: { x: number; y: number } }).end;
   assert.ok(Math.abs(start.x - 100) < 1e-6 && Math.abs(start.y - 200) < 1e-6, "coordenadas de inicio intactas");
   assert.ok(Math.abs(end.x - 900) < 1e-6 && Math.abs(end.y - 200) < 1e-6, "coordenadas de fin intactas");
+
+  // `readDwg` es el códec crudo: NO convierte grados↔radianes (ver el
+  // comentario de `toCanonicalEntity` en dwg-native-writer.ts) — lee EXACTAMENTE
+  // lo que el writer escribió en el campo de ángulo, en RADIANES. El
+  // documento del producto guarda 180° (`mixedDocument` arriba); si el
+  // writer los escribiera crudos como si ya fueran radianes (el bug que
+  // esto cierra), este valor releído sería 180, no π. `check:dwg` prohíbe
+  // que este archivo importe el adaptador de LECTURA (ADR-0009 §6/§8, ver
+  // scripts/dwg/check-product-boundary.mjs), así que la prueba se queda del
+  // lado del códec crudo en vez de cruzar esa frontera.
+  const arcRecord = reread.modelSpaceEntities.find(
+    (record) => record.entity.kind === "arc",
+  )!.entity as { startAngle: number; endAngle: number };
+  assert.ok(
+    Math.abs(arcRecord.startAngle - 0) < 1e-9,
+    `startAngle crudo: ${arcRecord.startAngle} rad (esperado 0)`,
+  );
+  assert.ok(
+    Math.abs(arcRecord.endAngle - Math.PI) < 1e-9,
+    `endAngle crudo: ${arcRecord.endAngle} rad (esperado π ≈ ${Math.PI}; ` +
+      `180 crudo delataría el bug de grados-como-radianes)`,
+  );
 }
 
 // 3 · RECHAZO por documento sin nada escribible.

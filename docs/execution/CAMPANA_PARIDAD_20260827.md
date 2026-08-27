@@ -357,3 +357,44 @@ presupuesto sin subirlo.
 `npm run typecheck`, `npm test` (415/415), `npm run check:cad`
 completo (incluye `check:lint-budget` y `check:monolith-budget`),
 todos verdes.
+
+### 2026-08-27T10:20Z — 0.1, primer defecto: DWG escribe ángulos en radianes de verdad
+
+Confirmado y arreglado el primero de los tres bugs de 0.1. El sitio real
+NO era `packages/dwg-codec/src/api/canonical.ts` (ese archivo es
+simétrico radianes-adentro-radianes-afuera, correcto para SU propio
+contrato) — era `apps/web/src/lib/cad/dwg-native-writer.ts:110-124`
+(`toCanonicalDocument`), el puente producto→códec, que hacía un spread
+ciego `{...entity}` sobre CADA entidad sin convertir nada. El lado de
+LECTURA (`dwg-document-bridge-primitives.ts:38`, `degrees()`) sí
+convierte; el de ESCRITURA no tenía su inverso.
+
+Arreglo: `toCanonicalEntity()`, explícito por tipo (no un mapeo
+genérico sobre todos los campos numéricos) — sólo `arc`
+(`startAngle`/`endAngle`) e `insert` (`rotation`) tienen un ángulo
+dentro del subconjunto que este writer escribe hoy
+(`DWG_EXPORT_WRITABLE_TYPES` no incluye `ellipse`, así que
+`startParameter`/`endParameter` no aplican todavía). Multiplica por
+`Math.PI / 180`, el inverso exacto de `degrees()`.
+
+**Evidencia real:** extendida la sección 2 (round-trip) de
+`dwg-native-writer.spec.ts` para leer el ángulo CRUDO del arco vía
+`readDwg` (el códec, sin conversión en ningún sentido) y comparar
+contra `Math.PI` (180° en radianes) en vez de 180 — si el bug
+reapareciera, este valor sería 180 crudo, no π. Primer intento cruzó
+la frontera producto/códec de LECTURA (`dwg-document-bridge.ts`,
+`dwg-native-reader.ts`) para probar el round-trip completo hasta
+`CadDocument`; `check:dwg` lo rechazó correctamente
+(`check-product-boundary.mjs`, ADR-0009 §6/§8: sólo el import worker y
+la spec del propio adaptador de lectura pueden importarlo) —
+reescrito para quedarse del lado crudo del códec, sin cruzar esa
+frontera. Prueba negativa real: revertido el arreglo con `git stash`,
+la aserción falla con el número exacto que delata el bug (-126,76°
+tras envolver 10313,24° — el mismo orden de magnitud que confirma la
+mentira); restaurado, vuelve a verde.
+
+`npm run typecheck`, `npm test` (415/415), `npm run check:dwg`
+(incluye `check-product-boundary.mjs`) y `npm run check:cad` completo,
+todos verdes. Quedan 1.5 (fuga de espacio papel DXF) y 1.4 (escala
+GLB) del resto de 0.1, más el oráculo unificado de ida y vuelta que
+los liga a los cuatro formatos.
