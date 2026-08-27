@@ -87,3 +87,84 @@ cinco defectos citados en la tesis (grados-como-radianes, fuga de espacio
 papel, GLB con escala arbitraria). Antes de escribir código: barrido
 read-only para localizar qué arneses de round-trip YA existen por formato
 (DXF/DWG/PDF/GLB) y qué comparan hoy, para extender en vez de duplicar.
+
+### 2026-08-27T07:33Z — barrido read-only completo de los 6 ítems de OLA 0
+
+Seis investigaciones read-only en paralelo (una por 0.1-0.6), cada una
+citando código real (`file:line`), no prosa. Resultado — TODOS los
+defectos que la tesis nombra están confirmados y localizados con
+precisión quirúrgica:
+
+- **0.1** — DWG: `packages/dwg-codec/src/api/canonical.ts:356-357,674-675`
+  pasa ángulos sin convertir grados↔radianes (bug real, confirmado
+  asimétrico: la importación SÍ convierte, la exportación no).
+  DXF: cero conciencia de espacio papel en
+  `dxf-cad-document.ts`/`dxf-document-export.ts`/`document-import.ts:316,398`
+  — exportar "Todo" mezcla espacio papel sin marcarlo, reimportar
+  reclasifica todo a espacio modelo. GLB:
+  `Layout3DEditor.tsx:6029-6031` (`s = 30/Math.max(W,H)`) hornea una
+  escala dependiente del footprint del documento en el archivo
+  exportado — sin contrato de "1 unidad GLB = X unidades reales".
+- **0.2** — el check de botones es real y exactamente como se describe
+  (`Layout3DEditor.tsx:17527-17558`, `.slice(0,20)`, sin relación con
+  si se construyó una sola malla). `CadNativeMassHosts` no publica
+  ningún diagnóstico al DOM.
+- **0.3** — DOS mentiras confirmadas: Bug A, QSELECT/FILTER
+  (`select-query.ts` + `Layout3DEditor.tsx:3159-3180` `selectNative`,
+  tope 300) reporta el conteo ANTES del truncamiento. Bug B,
+  selección por capa (`Layout3DEditor.tsx:12342-12368`, tope 200) igual,
+  y peor: el truncamiento es explícito y el toast lo ignora en la línea
+  de al lado. El mismo bug YA se diagnosticó y arregló para
+  ventana/cruce/lazo (`Layout3DEditor.tsx:7357-7382`, comentario propio:
+  "SIN tope, como el lazo: el tope de 300 truncaba en silencio") —
+  QSELECT y selección-por-capa quedaron fuera de ese arreglo.
+- **0.4** — la hipótesis original (muros/masas) era incorrecta: esos
+  DOS hosts SÍ filtran por capa y están probados. Los dos hosts reales
+  sin filtro son `CadSolidShadeHost` (`solid-shade-host.ts:307-330`) y
+  `CadSolidSnapHost` (`solid-snap-host.ts:97-140`) — CERO referencia a
+  capa/visible/congelada en ningún sitio del archivo; un sólido en capa
+  apagada o congelada se sigue renderizando Y sigue imantando el
+  cursor en 3D — la violación literal de la doctrina propia del
+  código. Efecto río abajo: `glb-export.ts` incluye el grupo de
+  `CadSolidShadeHost` sin filtro propio, así que el GLB también fuga.
+- **0.5** — confirmado y CUANTIFICADO con código real (no estimado): en
+  un cuarto de 5,0×4,0 m con muros de 250 mm, `buildCadBimSchedule()` da
+  10,65 m³ y el sólido 3D real (`wallSolidBodyLocal` + `bodyMassProperties`,
+  integración independiente por teselado) da 10,80 m³ — **1,39% de
+  brecha total, exactamente igual a la suma de los descuentos de
+  solape** que `cadWallJunctionOverlaps` resta. Causa raíz: el inglete
+  EXTIENDE la cara exterior de un muro en la esquina y RECORTA la
+  interior en la misma medida — conserva el área propia de cada muro —
+  pero el camino de cantidades sólo resta el solape interior medido y
+  nunca agrega de vuelta la extensión exterior equivalente. La cifra
+  literal "0,90% por esquina" del prompt no aparece en el repo (grep
+  vacío) pero el mecanismo real confirmado es del mismo orden de
+  magnitud.
+- **0.6** — los 3 artefactos confirmados sin regenerar-y-comparar:
+  `check-command-integrity.mjs` sólo escribe con `--write`, nunca
+  compara en el paso normal. La sonda de precisión
+  (`large-coordinate-precision-probe.mts:65-87`) arma su propio Float32Array
+  restando el origen a mano — nunca llama a `tessellateCadEntity`
+  (`tessellation-cache.ts:123-151`), el teselador real. El oráculo ODA
+  (`scripts/dwg/oda-roundtrip.mjs`) no está enchufado a ningún script
+  npm y además requiere un binario Windows que no existe en este
+  contenedor — su `--check` sólo podrá ser parcial (declarar cuándo se
+  saltea, nunca pasar en silencio).
+
+Informes completos con cita exacta línea por línea, riesgos y plan
+recomendado por ítem: ver el resultado del workflow
+`wf_e7ad1e39-db4` (journal en el directorio de transcripciones de la
+sesión) — no se copian aquí completos por tamaño; cada commit de
+implementación cita las líneas relevantes de nuevo al tocarlas.
+
+**Orden de ejecución elegido** (más aislado/barato primero, según mi
+propio juicio — regla 1, nunca preguntar): 0.6a (check de
+comando-integridad, ~1h, cero riesgo) → 0.6b (sonda de precisión) →
+0.4+1.2 (hosts de sólidos, arreglo acotado y ya tiene el patrón
+correcto en wall-solid-host.ts para copiar) → 0.3+1.1 (mentira de
+truncamiento, empezar por el Bug A que no toca el monolito) → 0.2
+(diagnóstico 3D, aditivo) → 0.5+1.3 (gate de paridad; el ARREGLO de
+`bim-schedule.ts` cambia qué se factura por muro — decisión de
+negocio, no técnica; se documenta la brecha, NO se cambia la
+facturación sin autorización explícita) → 0.1 (el oráculo completo,
+el más grande y el que más monolito/DWG/DXF toca).
