@@ -18,6 +18,7 @@
  * puede afirmar sobre un plan se prueba aquí.
  */
 import type { components } from "@valle/design-sdk";
+import type { LaunchMode } from "@/config/launch";
 
 type Schemas = components["schemas"];
 
@@ -211,8 +212,16 @@ export function taxLabel(plan: Pick<PublicPlan, "taxIncluded">): string {
 export function canStartCheckout(
   catalog: Pick<PublicCatalog, "checkout">,
   plan: Pick<PublicPlan, "kind" | "prices">,
+  launch: LaunchMode = "commercial",
 ): boolean {
   return (
+    // TERCERA condición, añadida por la campaña de lanzamiento: durante el
+    // lanzamiento gratuito el producto no ofrece cobro aunque la pasarela esté
+    // configurada. El código de Stripe sigue intacto y probado; lo que se
+    // apaga es la VISIBILIDAD. El parámetro es explícito y su defecto es
+    // `commercial` para que este módulo siga siendo puro —no lee `process.env`
+    // — y para que quien llame tenga que decidir a la vista.
+    launch === "commercial" &&
     catalog.checkout === "hosted" &&
     plan.kind === "paid" &&
     plan.prices.length > 0
@@ -258,6 +267,7 @@ export function planView(
   catalog: Pick<PublicCatalog, "checkout">,
   plan: PublicPlan,
   currency: string,
+  launch: LaunchMode = "commercial",
 ): PlanView {
   const periods: PlanPeriodView[] = [];
   for (const period of PERIOD_ORDER) {
@@ -293,6 +303,6 @@ export function planView(
         : null,
     seatsNote: seatsMinimumLabel(plan),
     taxNote: taxLabel(plan),
-    purchasable: canStartCheckout(catalog, plan),
+    purchasable: canStartCheckout(catalog, plan, launch),
   };
 }

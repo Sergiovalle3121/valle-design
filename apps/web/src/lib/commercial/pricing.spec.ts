@@ -54,10 +54,12 @@ const prueba: PublicPlan = {
 const hosted: PublicCatalog = {
   checkout: "hosted",
   items: [individual, despacho, prueba],
+  trialDays: 90,
 };
 const external: PublicCatalog = {
   checkout: "external",
   items: [individual, despacho, prueba],
+  trialDays: 90,
 };
 
 // ── Céntimos → pesos mexicanos ─────────────────────────────────────────────
@@ -130,6 +132,14 @@ assert.equal(
   "un plan de pago sin precio publicado tampoco se puede comprar",
 );
 assert.equal(canStartCheckout({ checkout: "external" }, prueba), false);
+
+// ── El modo de lanzamiento gratuito veta la compra aunque TODO lo demás esté
+// listo: pasarela alojada, plan de pago y precio publicado. Es la única
+// condición que puede apagar un botón que el catálogo sí permitiría.
+assert.equal(canStartCheckout(hosted, individual, "commercial"), true);
+assert.equal(canStartCheckout(hosted, individual, "free"), false);
+assert.equal(planView(hosted, despacho, "MXN", "free").purchasable, false);
+assert.equal(planView(hosted, despacho, "MXN", "commercial").purchasable, true);
 
 // ── Vista completa del plan ─────────────────────────────────────────────────
 const viewHosted = planView(hosted, despacho, "MXN");

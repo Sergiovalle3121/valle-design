@@ -6,6 +6,7 @@ import {
   PlanPrice,
 } from '../entities/commercial.entities';
 import { PublicCatalogController } from './public-catalog.controller';
+import { OrganizationCommercialConfiguration } from '../../organizations/organization-commercial.configuration';
 
 /**
  * Proveedor doble: el catálogo público sólo le pide el modo de cobro, y ese
@@ -42,8 +43,18 @@ describe('PublicCatalogController', () => {
   function controller(
     mode = 'hosted',
     clock: () => number = () => 1_000,
+    trialDays = 90,
   ): PublicCatalogController {
-    return new PublicCatalogController(plans, prices, paymentsIn(mode), clock);
+    return new PublicCatalogController(
+      plans,
+      prices,
+      paymentsIn(mode),
+      // La configuración REAL parsea `TRIAL_DAYS` al construirse y revienta el
+      // arranque con un valor inválido; aquí se inyecta el resultado ya
+      // resuelto para poder fijar la duración por caso.
+      { trialDays } as OrganizationCommercialConfiguration,
+      clock,
+    );
   }
 
   async function seedPaidPlan(

@@ -83,6 +83,40 @@ export const CAD_PERMISSIONS = [
 
 export type CadPermission = (typeof CAD_PERMISSIONS)[number];
 
+/**
+ * LA REGLA DE ORO — los datos del usuario JAMÁS quedan rehenes.
+ *
+ * Estos son los permisos que SOBREVIVEN al vencimiento del entitlement. Con la
+ * prueba vencida el usuario entra, ve sus documentos, los exporta a DXF y los
+ * imprime; lo que no puede es editar. Es una decisión de producto, no una
+ * concesión de seguridad: el aislamiento por tenant, la membresía verificada
+ * server-side y el RBAC de la organización siguen imponiéndose igual — lo
+ * único que cambia es que la ausencia de un cobro deja de ser motivo para
+ * negarle a alguien el acceso a su propio trabajo.
+ *
+ * El conjunto es deliberadamente MÍNIMO y de una sola entrada: `cad:view` es
+ * el permiso que exigen abrir un documento, listar versiones y
+ * `GET /v1/cad/documents/:id/export/dxf`. Todo lo demás —`cad:edit`,
+ * `cad:publish`, `cad:admin`, `cad:review`— sigue negado con
+ * `reason: read_only_after_lapse`, que es un 403 que la interfaz sabe
+ * traducir a «tu prueba terminó» en vez de a una pantalla técnica.
+ */
+export const READ_ONLY_AFTER_LAPSE_PERMISSIONS = ["cad:view"] as const;
+
+export type ReadOnlyAfterLapsePermission =
+  (typeof READ_ONLY_AFTER_LAPSE_PERMISSIONS)[number];
+
+/**
+ * ¿Este permiso sobrevive al vencimiento? Se pregunta con la lista, nunca con
+ * una comparación literal repartida por el código: el día que alguien añada
+ * un permiso de lectura nuevo, el sitio donde decidirlo es uno solo.
+ */
+export function survivesEntitlementLapse(permission: string): boolean {
+  return (READ_ONLY_AFTER_LAPSE_PERMISSIONS as readonly string[]).includes(
+    permission,
+  );
+}
+
 export function isCadPermission(value: unknown): value is CadPermission {
   return (
     typeof value === "string" &&

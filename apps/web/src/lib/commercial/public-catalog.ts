@@ -157,7 +157,18 @@ export function parsePublicCatalog(payload: unknown): PublicCatalog {
   if (!Array.isArray(body.items)) {
     throw new CatalogContractError("items no es una lista.");
   }
-  return { checkout, items: body.items.map(parsePlan) };
+  // La duración de la oferta la publica el backend (`TRIAL_DAYS`). Se valida
+  // con el mismo rigor que un precio y por la misma razón: «3 meses gratis» es
+  // una promesa comercial, y una que el producto no pueda cumplir es peor que
+  // no anunciar nada. Fuera del rango que el backend acepta, se rechaza el
+  // catálogo entero en vez de publicar una oferta inventada.
+  const trialDays = readInteger(body.trialDays, "trialDays");
+  if (trialDays < 1 || trialDays > 90) {
+    throw new CatalogContractError(
+      `trialDays fuera del rango que el producto concede: ${trialDays}`,
+    );
+  }
+  return { checkout, items: body.items.map(parsePlan), trialDays };
 }
 
 /**

@@ -1528,6 +1528,8 @@ export interface components {
             /** @description Modo de cobro derivado del proveedor configurado. `external` significa que la web no puede cobrar todavia y debe decirlo en vez de ofrecer un boton que no lleva a ninguna parte. */
             checkout: components["schemas"]["CommercialCheckoutMode"];
             items: components["schemas"]["PublicCommercialPlan"][];
+            /** @description Duracion REAL de la prueba, en dias, tal y como la resuelve `TRIAL_DAYS` al arrancar el proceso. La superficie publica anuncia la oferta LEYENDO este numero: con `TRIAL_DAYS=90` la pagina dice "3 meses gratis" porque el backend concede 90 dias, no porque alguien haya escrito "3 meses" en una plantilla. Ninguna cifra vive en dos lugares. */
+            trialDays: number;
         };
         /** @enum {string} */
         UpgradeIntentStatus: "pending" | "confirmed" | "cancelled";
@@ -1945,10 +1947,17 @@ export interface components {
                 /** @constant */
                 entitlement?: "design.cad";
                 /**
-                 * @description `not_entitled`: el tenant no contrató Design; `payment_required`: grant en `past_due` (ofrecer portal de pago); `permission_denied`: entitlement OK pero el usuario no tiene el permiso `cad:*` requerido.
+                 * @description `not_entitled`: el tenant no contrató Design; `payment_required`: grant en `past_due` (ofrecer portal de pago); `permission_denied`: entitlement OK pero el usuario no tiene el permiso `cad:*` requerido; `read_only_after_lapse`: LA REGLA DE ORO — el entitlement EXISTIÓ y venció, así que la sesión conserva `cad:view` (abrir, listar versiones y `GET .../export/dxf` siguen respondiendo 200) y sólo la ESCRITURA responde este 403. Los datos del usuario nunca quedan rehenes de un cobro.
                  * @enum {string}
                  */
-                reason?: "not_entitled" | "payment_required" | "permission_denied";
+                reason?: "not_entitled" | "payment_required" | "permission_denied" | "read_only_after_lapse";
+                /** @description Sólo con `read_only_after_lapse`: instante en que el entitlement dejó de estar vigente. */
+                lapsedAt?: components["schemas"]["Timestamp"];
+                /**
+                 * @description Sólo con `read_only_after_lapse`: si lo que terminó fue la prueba o el periodo pagado.
+                 * @enum {string}
+                 */
+                lapseReason?: "trial_ended" | "period_ended";
                 /** @enum {string} */
                 requiredPermission?: "cad:view" | "cad:edit" | "cad:review" | "cad:publish" | "cad:admin";
             };

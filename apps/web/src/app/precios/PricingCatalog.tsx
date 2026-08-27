@@ -10,6 +10,12 @@ import {
 } from "../docs/PublicPageShell";
 import { Badge, buttonClass, cx, Surface } from "@/components/ui";
 import { COMMERCIAL_LINKS } from "@/config/commercial";
+import {
+  FREE_LAUNCH_PROMISE,
+  LAUNCH_MODE,
+  checkoutIsVisible,
+  freeOfferHeadline,
+} from "@/config/launch";
 import { checkoutPath, type PlanSelection } from "@/lib/commercial/checkout";
 import {
   planView,
@@ -71,6 +77,76 @@ function FiscalSeal() {
         </li>
       ))}
     </ul>
+  );
+}
+
+/**
+ * LA OFERTA DE FUNDADORES — la cabecera del lanzamiento.
+ *
+ * Dice tres cosas y ninguna es un adorno:
+ *
+ * 1. **Cuánto dura**, con el número que concede el backend. `trialDays` viene
+ *    del catálogo público, que lo lee de `TRIAL_DAYS`. Si el operador arranca
+ *    con otro valor, este titular cambia solo. Aquí no hay un «90» escrito.
+ * 2. **Que no hay tarjeta**, porque es la primera pregunta de quien ha sido
+ *    quemado por una prueba gratuita antes.
+ * 3. **Qué pasa después**, que es la pregunta que casi nadie responde. El
+ *    precio futuro NO se escribe aquí: está en las tarjetas de abajo, que
+ *    salen del catálogo real. Esta sección enlaza a ellas.
+ *
+ * Y la promesa que sostiene todo lo demás: al terminar, los planos siguen
+ * siendo del usuario. Eso no es copy — es la regla de oro del guard, probada
+ * en `entitlement-read-only.pg.spec.ts`.
+ */
+function FoundersOffer({ trialDays }: { trialDays: number }) {
+  if (LAUNCH_MODE !== "free") return null;
+  const headline = freeOfferHeadline(trialDays);
+  if (!headline) return null;
+  return (
+    <Surface
+      as="section"
+      elevation="elevated"
+      data-testid="founders-offer"
+      className="border-brand-strong ring-1 ring-brand-strong"
+    >
+      <Badge tone="brand">Oferta de fundadores</Badge>
+      <h2 className="type-title mt-4" data-testid="founders-headline">
+        {headline}, sin tarjeta
+      </h2>
+      <p className="type-lead mt-3 text-muted-foreground">
+        {FREE_LAUNCH_PROMISE}
+      </p>
+      <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+        {[
+          `Acceso completo al editor durante ${freeOfferHeadline(trialDays).replace(" gratis", "")}`,
+          "No pedimos ni guardamos ningún medio de pago para empezar",
+          "Tus documentos se exportan a DXF y se imprimen a PDF desde el primer día",
+          "Cuando termine, seguirás pudiendo abrirlos y exportarlos",
+        ].map((item) => (
+          <li key={item} className="flex items-start gap-2.5">
+            <Check
+              aria-hidden="true"
+              className="mt-0.5 h-4 w-4 shrink-0 text-success-ink"
+            />
+            <span className="type-small text-foreground">{item}</span>
+          </li>
+        ))}
+      </ul>
+      <div className="mt-7 flex flex-wrap gap-3">
+        <Link
+          href="/register"
+          data-testid="founders-cta"
+          className={buttonClass({ variant: "primary", size: "lg" })}
+        >
+          Empezar gratis
+        </Link>
+      </div>
+      <p className="type-caption mt-5 text-muted-foreground">
+        Los importes de abajo son los que el producto cobrará cuando termine el
+        lanzamiento; hoy no se cobra ninguno. Quien entre ahora conserva la
+        tarifa de fundador al activar un plan.
+      </p>
+    </Surface>
   );
 }
 
@@ -149,9 +225,13 @@ export function PricingCatalog() {
         </PublicSection>
       )}
 
+      {state.status === "ready" && (
+        <FoundersOffer trialDays={state.catalog.trialDays} />
+      )}
+
       {state.status === "ready" && state.catalog.items.length > 0 && (
         <>
-          {state.catalog.checkout === "external" && (
+          {state.catalog.checkout === "external" && checkoutIsVisible() && (
             <p
               role="status"
               data-testid="checkout-external-note"
@@ -179,7 +259,12 @@ export function PricingCatalog() {
             {state.catalog.items.map((plan, index) => (
               <PlanCard
                 key={plan.code}
-                view={planView(state.catalog, plan, CATALOG_CURRENCY)}
+                view={planView(
+                  state.catalog,
+                  plan,
+                  CATALOG_CURRENCY,
+                  LAUNCH_MODE,
+                )}
                 period={period}
                 currency={CATALOG_CURRENCY}
                 // El destacado es el PRIMER plan de pago del catálogo, en el
@@ -327,6 +412,15 @@ function PlanCard({
           <p className="mt-1 type-small text-muted-foreground">
             {view.taxNote}
           </p>
+          {!checkoutIsVisible() && (
+            <p
+              className="mt-2 type-small font-medium text-primary-ink"
+              data-testid="plan-future-price"
+            >
+              Precio anunciado para cuando termine el lanzamiento. Hoy no se
+              cobra.
+            </p>
+          )}
           {view.seatsNote && (
             <p className="mt-1 type-small font-medium" data-testid="plan-seats">
               {view.seatsNote}
@@ -381,7 +475,7 @@ function PlanCard({
           >
             Empezar la prueba
           </Link>
-        ) : (
+        ) : checkoutIsVisible() ? (
           <a
             data-testid="plan-sales-cta"
             href={COMMERCIAL_LINKS.sales}
@@ -389,6 +483,23 @@ function PlanCard({
           >
             Contratar con el equipo comercial
           </a>
+        ) : (
+          // MODO LANZAMIENTO GRATUITO. Un botón «Contratar» aquí sería una
+          // mentira en los dos sentidos: hoy no se cobra, y quien lo pulsara
+          // acabaría en un camino que el despliegue no puede completar. El
+          // importe se sigue publicando —es el precio real de después, y
+          // decirlo por adelantado es lo honesto— pero la acción que se ofrece
+          // es la única que funciona hoy.
+          <Link
+            href="/register"
+            data-testid="plan-free-launch-cta"
+            className={buttonClass({
+              variant: recommended ? "primary" : "secondary",
+              fullWidth: true,
+            })}
+          >
+            Empezar gratis
+          </Link>
         )}
       </div>
     </Surface>

@@ -7,6 +7,7 @@ import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import { localReturnTo } from "@/lib/session";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import { AuthShell } from "@/components/AuthShell";
+import { FreeLaunchNote } from "@/components/marketing/FreeLaunchNote";
 import { ResendTimerButton } from "@/components/ResendTimerButton";
 import { Button, Input } from "@/components/ui";
 
@@ -134,6 +135,16 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
         </>
       }
     >
+      {/*
+        La oferta se enseña ANTES del formulario, no debajo del botón: quien
+        llega aquí decide si teclea su correo en los tres primeros segundos, y
+        «sin tarjeta» es la frase que desbloquea esa decisión. El alta nunca ha
+        pedido un medio de pago —tres campos: nombre, correo y contraseña— y
+        `free-launch-funnel.spec.ts` lo vigila contra el stack real para que
+        siga siendo verdad.
+      */}
+      {register && <FreeLaunchNote className="mt-6 type-small text-muted-foreground" />}
+
       <form method="post" onSubmit={submit} className="mt-8 space-y-5">
         {register && (
           <Input

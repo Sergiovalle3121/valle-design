@@ -65,11 +65,13 @@ import { CfdiIssuanceService } from './cfdi-issuance.service';
 import { CfdiController } from './controllers/cfdi.controller';
 import { CfdiReceipt } from './entities/cfdi-receipt.entity';
 import { RenewalReminderService } from './renewal-reminder.service';
+import { TrialExpiryReminderService } from './trial-expiry-reminder.service';
 import { WebhookCommercialOutboxTransport } from './webhook-outbox.transport';
 import { CommercialCatalogBootstrap } from './commercial-catalog.bootstrap';
 import { CommercialTelemetryService } from './commercial-telemetry.service';
 import { SubscriptionLifecycleService } from './subscription-lifecycle.service';
 import { SeatEntitlementService } from './seat-entitlement.service';
+import { OrganizationCommercialConfiguration } from '../organizations/organization-commercial.configuration';
 
 @Module({
   imports: [
@@ -98,6 +100,10 @@ import { SeatEntitlementService } from './seat-entitlement.service';
     EmailOutboxController,
   ],
   providers: [
+    // El catálogo público publica `trialDays` leyéndolo de aquí: la duración
+    // de la oferta la resuelve UNA clase, al arrancar, y falla el arranque si
+    // el valor no es válido. Nadie la escribe a mano en una pantalla.
+    OrganizationCommercialConfiguration,
     { provide: ENTITLEMENT_SERVICE, useClass: PostgresEntitlementService },
     { provide: SUBSCRIPTION_PROVIDER, useClass: PostgresSubscriptionProvider },
     { provide: USAGE_METER, useClass: PostgresUsageMeter },
@@ -170,6 +176,7 @@ import { SeatEntitlementService } from './seat-entitlement.service';
     // horaria dentro del servicio). OXXO/SPEI no se renuevan solos; sin este
     // aviso el cliente de efectivo descubre el vencimiento cuando ya venció.
     RenewalReminderService,
+    TrialExpiryReminderService,
     CfdiIssuanceService,
     CommercialOutboxWorker,
     CommercialCatalogBootstrap,
