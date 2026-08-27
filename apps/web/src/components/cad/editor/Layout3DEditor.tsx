@@ -505,6 +505,7 @@ import {
   CadRenderPipelineBadge,
   CadRenderPipelineStats,
 } from "@/components/cad/viewport/RenderPipelineBadge";
+import { Cad3DSolidDiagnostics } from "@/components/cad/viewport/Cad3DSolidDiagnostics";
 import {
   resolveCadRenderPipeline,
   type CadRenderPipelineChoice,
@@ -16611,6 +16612,7 @@ export default function Layout3DEditor({
                     slot={renderPipelineSlotRef.current!}
                   />
                 )}
+                <Cad3DSolidDiagnostics hostsRef={nativeMassHostsRef} />
                 {/* La profundidad del historial es OBSERVABLE: una acción de
                   dibujo tiene que dejar exactamente una entrada, y una acción
                   rechazada ninguna. Sin esto, "el primer Undo no deshace nada"

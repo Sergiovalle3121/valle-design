@@ -298,3 +298,62 @@ limpios contra un servidor fresco.
 `npm run typecheck`, `npm test` (415/415), `node
 scripts/cad/check-monolith-budget.mjs` y `npm run check:cad` completo,
 todos verdes.
+
+### 2026-08-27T09:55Z — cierra 0.2: evidencia real de malla 3D, no botones
+
+Confirmado el hallazgo de la investigación: la lista de botones
+(`cad-native-entity-*`, `Layout3DEditor.tsx:17527-17558`, recortada a
+20) se llena desde el JSON del documento (`nativeEntities`), sin
+relación alguna con si `CadNativeMassHosts` llegó a montar una sola
+malla en la escena Three.js — un muro en capa apagada o congelada
+seguía apareciendo como botón mientras la escena 3D real no dibujaba
+nada.
+
+Arreglo aditivo, sin tocar la lista de botones (se le agrega evidencia
+real al lado, no se reemplaza):
+
+- `CadNativeMassHosts.getSnapshot()` (nuevo, `native-mass-hosts.ts`):
+  recorre `this.group` de verdad (no `this.walls.count`/`this.masses.count`,
+  que confían en que el host hizo lo que dice) y cuenta mallas y
+  vértices reales de la escena Three.js.
+- `Cad3DSolidDiagnostics.tsx` (nuevo componente, patrón de
+  `CadRenderPipelineBadge` pero con `useState` propio + sondeo por
+  `requestAnimationFrame` en vez de un slot `subscribe`/`getSnapshot`
+  compartido — más simple, y el presupuesto de `useState` que evita
+  tocar es el del MONOLITO, no el de un componente hoja aparte).
+  Publica `data-mesh-count`/`data-vertex-count` en
+  `cad-3d-solid-diagnostics`.
+- Montado en el editor con 2 líneas (import + JSX) — el presupuesto del
+  monolito estaba exactamente en su tope (20242/20242, cero holgura,
+  agotada por los arreglos de 0.3/1.1 de esta misma campaña), así que
+  se subió a mano con `check-monolith-budget.mjs --update
+  --allow-growth` (20242 → 20244), mismo mecanismo y mismo espíritu que
+  el precedente de `CAMPANA_REVIEW_CONCURRENCY_20260825.md`: la huella
+  mínima irreducible de una capacidad nueva, declarada en el manifiesto,
+  no escondida.
+
+**Evidencia real:** nuevo golden
+`apps/web/e2e/golden/60-cad-3d-solid-diagnostics.spec.ts` — dibuja un
+muro, entra a 3D, confirma `data-mesh-count="1"` y vértices > 0 CON el
+botón heredado también presente (aditivo, no sustitutivo); luego
+congela la capa del muro y confirma `data-mesh-count="0"` — el
+escenario exacto donde el botón viejo habría seguido existiendo (no
+filtra por capa) mientras la malla real ya no se construye. Prueba
+negativa real: revertidos `native-mass-hosts.ts`/el montaje en el
+monolito/el componente nuevo (moviendo el archivo aparte, ya que
+`git stash` no toca no-trackeados sin `-u`), el golden falla
+exactamente en la aserción de `data-mesh-count`. Restaurado, vuelve a
+verde.
+
+Efecto secundario descubierto y corregido: la primera versión mutaba un
+`useRef` durante el render (`snapshotRef.current = snapshot`), que
+`react-hooks/refs` marca y que `check:lint-budget` convirtió en un
+FALLO real de trinquete (164→165 avisos) — no un capricho de estilo:
+es la regla que este mismo programa pide respetar. Reescrito con el
+patrón de actualizador funcional de `setSnapshot` (compara contra
+`prev` sin leer una ref en render); `check:lint-budget` vuelve a su
+presupuesto sin subirlo.
+
+`npm run typecheck`, `npm test` (415/415), `npm run check:cad`
+completo (incluye `check:lint-budget` y `check:monolith-budget`),
+todos verdes.
