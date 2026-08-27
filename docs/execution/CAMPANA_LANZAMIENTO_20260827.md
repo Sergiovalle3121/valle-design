@@ -53,14 +53,14 @@ Prohibido el cuarto estado: **visible y no verificada**.
 | 1 | 1.5 Unidades y escala de punta a punta | **cerrado** |
 | 1 | 1.6 Precisión en coordenadas grandes (UTM + lámina de papel) | **cerrado** |
 | 2 | 2.1 La Jornada Real (E2E sin un solo mock) | **cerrado** |
-| 2 | 2.2 La Jornada Real en CI en cada push a main | pendiente |
+| 2 | 2.2 La Jornada Real en CI en cada push a main | **cerrado** |
 | 2 | 2.3 Barrido de cables sueltos en la UI | pendiente |
 | 2 | 2.4 Los errores hablan español humano | pendiente |
 | 3 | 3.1 Verificador de contenido del PDF | **cerrado** |
-| 3 | 3.2 Round-trip numérico DXF + lector independiente | pendiente |
-| 3 | 3.3 GLB a escala 1:1 verificado | pendiente |
-| 3 | 3.4 DWG apagado y sin promesas en la superficie | pendiente |
-| 3 | 3.5 Descargas en modo solo-lectura y desde review link | pendiente |
+| 3 | 3.2 Round-trip numérico DXF + lector independiente | **cerrado** |
+| 3 | 3.3 GLB a escala 1:1 verificado | **cerrado** |
+| 3 | 3.4 DWG apagado y sin promesas en la superficie | **cerrado** |
+| 3 | 3.5 Descargas en modo solo-lectura y desde review link | **cerrado** |
 | 4 | 4.1 La primera hora de un desconocido | pendiente |
 | 4 | 4.2 Botón «algo salió mal» | pendiente |
 | 4 | 4.3 Telemetría mínima decente y declarada | pendiente |
@@ -190,3 +190,27 @@ nunca se tocaban.
    guardas que el capturador de correo) y entonces ABRIR responde 200, EXPORTAR
    responde 200, y sólo ESCRIBIR responde 403 con
    `reason: read_only_after_lapse`.
+
+
+### OLA 3 — los descargables, verificados por contenido
+
+**767 casos numéricos contra oráculo independiente** tras esta ola.
+
+- **3.2 DXF.** Los 21 tipos que viajan hoy, cada uno con su caso NUMÉRICO, y
+  todos leídos por `dxf-parser` — biblioteca de TERCEROS, que no conoce las
+  convenciones de este producto y no tiene motivo para ser indulgente con él.
+  Es lo más cerca de «AutoCAD lo abre» que se puede estar sin AutoCAD. Más el
+  round-trip por el importador propio, que mide otra cosa: fidelidad. El ODA
+  File Converter no está en esta máquina, así que el peldaño DXF→DWG→DXF queda
+  DECLARADO, no fingido.
+- **3.3 GLB.** El muro de 3.5 m mide 3.5 en el archivo, en los TRES ejes, y el
+  MISMO muro dentro de un predio diez veces mayor sigue midiendo 3.5 — que es
+  la afirmación entera, porque el defecto original hacía que cada archivo
+  saliera con una escala distinta según el tamaño de su predio. La primera
+  versión de este spec aplicaba la escala dos veces y midió 0.035: se corrigió
+  a sí mismo antes de acusar al producto.
+- **3.4 DWG.** Gate que audita las 9 menciones de DWG en la superficie pública
+  y exige que cada una lleve su límite declarado a menos de 240 caracteres. Y
+  que la bandera de exportación siga naciendo apagada EN EL CÓDIGO.
+- **3.5 Descargas sin rehenes.** Probado en la Jornada Real: con el entitlement
+  vencido, `GET /export/dxf` responde 200.
