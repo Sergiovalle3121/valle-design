@@ -181,3 +181,31 @@ falló con exit 1 y el mensaje exacto `total: 999 → 192` /
 `verdicts.muta: 1 → 63`; restauré el artefacto original, corrió verde de
 nuevo. `npm run check:command-integrity` verde sobre el árbol real.
 Cierra BACKLOG P2-10.
+
+### 2026-08-27T08:05Z — cierra 0.6b: la sonda de precisión ya ejercita el teselador real
+
+`apps/web/scripts/large-coordinate-precision-probe.mts` construía su
+propio `Float32Array` restando el origen a mano
+(`x1 - origin.x, …`) — probaba su propia aritmética, nunca
+`tessellateCadEntity` (`render/tessellation-cache.ts:123-151`), el
+teselador que realmente corre en producción. Reescrita para construir
+entidades `CadNativeEntity` de tipo `line` reales y llamar a
+`tessellateCadEntity` por cada una (`renderer.paths()` del registro de
+adaptadores produce los puntos, la resta de origen ocurre dentro de esa
+función, no en la sonda). Resultado, corrido contra el árbol real:
+**bit a bit idéntico** al artefacto previamente committeado (incluida la
+cifra atípica de "nave grande 10⁴", 0,000325 unidades — confirma que no
+era un error de mi reescritura sino un rasgo real del sistema). Prueba
+de que el teselador real ya se comporta como la sonda fabricada
+asumía — ahora demostrado, no supuesto.
+
+Agregado modo `--check` (recomputa y compara contra
+`docs/cad/evidence/large-coordinate-precision.json`, mismo patrón
+`stable()`/`checkArtifact()` de `dwg-evidence.mjs`), envoltorio
+`scripts/cad/check-precision-evidence.mjs`, y dos scripts npm nuevos:
+`evidence:precision` (escribe) y `check:precision-evidence` (compara,
+encadenado en `check:cad` junto a `check:dwg-evidence`). Verificado con
+prueba negativa real: corrompí el número committeado, el gate falló con
+exit 1 y el mensaje correcto; restauré, volvió a verde.
+`npm run check:cad` completo, verde de punta a punta con el gate nuevo
+adentro.

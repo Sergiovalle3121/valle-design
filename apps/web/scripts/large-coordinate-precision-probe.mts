@@ -14,25 +14,36 @@
  * documento ANTES de empaquetar, en JS doubles, así que lo que llega al
  * `Float32Array` es siempre pequeño — sea cual sea la magnitud absoluta.
  *
- * La sonda reproduce esa misma resta (mismo `cadRenderOriginFromBounds` que
- * usa `CadRenderPipeline.replace()`) y atraviesa el empaquetador REAL
- * (`buildCadLineBatches`) con la geometría YA reducida, a varias magnitudes.
- * Reconstruye la coordenada absoluta sumando el origen de vuelta, en doubles
- * —la misma operación que hace la escena real al posicionar cámara y
- * uniformes— y mide el desplazamiento máximo contra la canónica. El error de
- * EXPORTACIÓN también se mide (serialización del documento): debe ser CERO,
- * porque el documento nunca pasa por float32 ni por el origen flotante — el
- * origen es puramente de RENDER.
+ * La sonda reproduce esa misma resta llamando al TESELADOR REAL
+ * (`tessellateCadEntity`, `render/tessellation-cache.ts`) sobre entidades
+ * `CadNativeEntity` de verdad — no reimplementando la resta a mano. Antes
+ * (hasta 2026-08-27) esta sonda construía su propio `Float32Array` restando
+ * el origen por su cuenta (`x1 - origin.x`, …): eso probaba que SU PROPIA
+ * aritmética era correcta, nunca que `tessellateCadEntity` lo fuera — un
+ * cambio de signo o una regresión en `CAD_ENTITY_REGISTRY.adapter(entity)
+ * .renderer.paths(...)` habría seguido reportando error cero. La sonda
+ * atraviesa después el empaquetador REAL (`buildCadLineBatches`) con la
+ * geometría YA teselada y reducida, a varias magnitudes. Reconstruye la
+ * coordenada absoluta sumando el origen de vuelta, en doubles —la misma
+ * operación que hace la escena real al posicionar cámara y uniformes— y mide
+ * el desplazamiento máximo contra la canónica. El error de EXPORTACIÓN
+ * también se mide (serialización del documento): debe ser CERO, porque el
+ * documento nunca pasa por float32 ni por el origen flotante — el origen es
+ * puramente de RENDER.
  *
  * La sonda de ANTES del arreglo (sin restar origen) vive en
  * `git log` de este archivo si hace falta comparar; el propio backlog (P0-2)
  * documentaba 4,2 cm a 2·10⁶ y 37,5 cm a 10⁷ — los números que esta versión
  * de la sonda ya no reproduce.
  */
-import { writeFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { buildCadLineBatches } from "../src/lib/cad/render/line-batch";
-import type { CadTessellation } from "../src/lib/cad/render/tessellation-cache";
+import {
+  tessellateCadEntity,
+  type CadTessellation,
+} from "../src/lib/cad/render/tessellation-cache";
 import { cadRenderOriginFromBounds } from "../src/lib/cad/render/render-origin";
+import type { CadNativeEntity } from "../src/lib/cad/entity-runtime";
 
 interface MagnitudeReport {
   label: string;
@@ -62,28 +73,40 @@ function fixture(offset: number): Array<[number, number, number, number]> {
   ]);
 }
 
-function tessellationOf(
+/** Una entidad `line` canónica mínima — misma forma que `basic-native-adapters.ts` exige. */
+function lineEntity(
+  id: string,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number,
+): CadNativeEntity {
+  return {
+    id,
+    type: "line",
+    start: { x: x1, y: y1, z: 0 },
+    end: { x: x2, y: y2, z: 0 },
+    layer: "0",
+  } as CadNativeEntity;
+}
+
+function tessellationsOf(
   segments: Array<[number, number, number, number]>,
   origin: { x: number; y: number },
-): CadTessellation {
-  // `CadTessellatedPath.xy` ES Float32Array en el contrato real: la
-  // cuantización empieza en la teselación, no en el empaquetado. Construirla
-  // igual que el producto —restando el origen ANTES, en doubles, como hace
-  // `tessellateCadEntity`— es exactamente lo que esta sonda quiere medir.
-  const paths = segments.map(([x1, y1, x2, y2]) => ({
-    xy: Float32Array.from([
-      x1 - origin.x,
-      y1 - origin.y,
-      x2 - origin.x,
-      y2 - origin.y,
-    ]),
-    closed: false,
-  }));
-  return {
-    paths,
-    pointCount: segments.length * 2,
-    segmentCount: segments.length,
-  };
+): CadTessellation[] {
+  // Llama al TESELADOR REAL por cada segmento — `renderer.paths()` del
+  // registro de adaptadores produce los puntos, y `tessellateCadEntity` resta
+  // el origen en JS doubles antes de empaquetar a `Float32Array` (ver su
+  // propio comentario en `tessellation-cache.ts`). Esta sonda no repite esa
+  // resta: la EJERCITA.
+  return segments.map(([x1, y1, x2, y2], index) =>
+    tessellateCadEntity(
+      lineEntity(`probe-${index}`, x1, y1, x2, y2),
+      2,
+      undefined,
+      origin,
+    ),
+  );
 }
 
 function ulpAt(value: number): number {
@@ -109,14 +132,21 @@ function measure(label: string, offset: number): MagnitudeReport {
     { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity },
   );
   const origin = cadRenderOriginFromBounds(bounds);
-  const tessellation = tessellationOf(segments, origin);
+  const tessellations = tessellationsOf(segments, origin);
   const style = {
     color: 0xffffff,
     halfWidthPx: 1,
     linetypeIndex: 0,
     layer: "0",
   };
-  const batches = buildCadLineBatches([{ tessellation, style, depth: 0 }]);
+  // Un item por segmento, mismo estilo para todos: `buildCadLineBatches` los
+  // agrupa por clave de estilo en UN solo bucket y los apila en el mismo
+  // orden de entrada, así que el índice de instancia sigue correspondiendo
+  // 1:1 con `segments[index]` exactamente como cuando era una sola
+  // teselación combinada.
+  const batches = buildCadLineBatches(
+    tessellations.map((tessellation) => ({ tessellation, style, depth: 0 })),
+  );
   let maxAbs = 0;
   for (const batch of batches) {
     for (let index = 0; index < batch.instanceCount; index += 1) {
@@ -176,7 +206,40 @@ const summary = {
   reports,
 };
 
-const target = process.argv[2];
+const DEFAULT_ARTIFACT = new URL(
+  "../../../docs/cad/evidence/large-coordinate-precision.json",
+  import.meta.url,
+).pathname;
+
+const args = process.argv.slice(2);
 const json = JSON.stringify(summary, null, 2);
-if (target) writeFileSync(target, `${json}\n`);
-else process.stdout.write(`${json}\n`);
+
+if (args.includes("--check")) {
+  // Regenerar y comparar contra lo committeado — mismo patrón que
+  // `scripts/dwg/dwg-evidence.mjs`'s `checkArtifact`. Sin campos volátiles
+  // que limpiar: la sonda es determinista para una fixture fija (confirmado
+  // bit a bit corriendo dos veces sobre el mismo árbol).
+  if (!existsSync(DEFAULT_ARTIFACT)) {
+    process.stderr.write(
+      `precisión: no existe ${DEFAULT_ARTIFACT} — corre "npm run evidence:precision"\n`,
+    );
+    process.exit(1);
+  }
+  const onDisk = readFileSync(DEFAULT_ARTIFACT, "utf8");
+  if (onDisk !== `${json}\n`) {
+    process.stderr.write(
+      `docs/cad/evidence/large-coordinate-precision.json no coincide con lo que el árbol genera hoy — corre "npm run evidence:precision"\n`,
+    );
+    process.exit(1);
+  }
+  process.stdout.write(
+    `precisión de coordenadas grandes al día: peor error ${worst.maxAbsErrorDrawingUnits} unidades de dibujo a magnitud 10⁷.\n`,
+  );
+} else {
+  // Sin argumentos: imprime a stdout (uso manual/interactivo, sin tocar
+  // disco) — el comportamiento de siempre, documentado en las bitácoras de
+  // campañas anteriores. Con una ruta: la escribe ahí.
+  const target = args[0];
+  if (target) writeFileSync(target, `${json}\n`);
+  else process.stdout.write(`${json}\n`);
+}
