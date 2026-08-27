@@ -16,7 +16,7 @@
  * revisable en cada PR en vez de crecer en silencio.
  */
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -83,20 +83,57 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-// Con --write, además deja el ARTEFACTO de evidencia que consume la rúbrica
-// (fila de integridad). Sin el flag no escribe nada: el gate de CI compara
-// contra el árbol quieto y no debe ensuciarlo.
+// El artefacto de evidencia que consume la rúbrica (fila de integridad) se
+// escribe SOLO con --write, pero se COMPARA siempre — un archivo que sólo se
+// escribe y nunca se revisa envejece en silencio (BACKLOG P2-10). El patrón
+// es el mismo que scripts/dwg/dwg-evidence.mjs: recomputar en el proceso y
+// comparar contra lo committeado; sin campos volátiles que limpiar aquí,
+// porque `total`/`verdicts`/`exemptions` son deterministas para un árbol
+// dado (a diferencia de dwg-evidence.mjs, este artefacto no lleva timestamp
+// ni datos de entorno).
+const artifact = path.join(root, "docs/cad/evidence/command-integrity.json");
+const payload = {
+  generatedBy: "scripts/cad/check-command-integrity.mjs --write",
+  total: report.total,
+  verdicts: report.verdicts,
+  exemptions: Object.keys(exemptions.noConcluyentes ?? {}).sort(),
+};
+
 if (process.argv.includes("--write")) {
-  const artifact = path.join(root, "docs/cad/evidence/command-integrity.json");
-  const payload = {
-    generatedBy: "scripts/cad/check-command-integrity.mjs --write",
-    total: report.total,
-    verdicts: report.verdicts,
-    exemptions: Object.keys(exemptions.noConcluyentes ?? {}).sort(),
-  };
   const { writeFileSync } = await import("node:fs");
   writeFileSync(artifact, `${JSON.stringify(payload, null, 2)}\n`);
   console.log(`Artefacto escrito: ${path.relative(root, artifact)}`);
+} else if (existsSync(artifact)) {
+  const onDisk = JSON.parse(readFileSync(artifact, "utf8"));
+  if (JSON.stringify(onDisk) !== JSON.stringify(payload)) {
+    const fields = [];
+    if (onDisk.total !== payload.total) fields.push(`total: ${onDisk.total} → ${payload.total}`);
+    for (const key of new Set([
+      ...Object.keys(onDisk.verdicts ?? {}),
+      ...Object.keys(payload.verdicts ?? {}),
+    ])) {
+      const before = onDisk.verdicts?.[key];
+      const after = payload.verdicts?.[key];
+      if (before !== after) fields.push(`verdicts.${key}: ${before} → ${after}`);
+    }
+    const beforeExemptions = new Set(onDisk.exemptions ?? []);
+    const afterExemptions = new Set(payload.exemptions ?? []);
+    const added = payload.exemptions.filter((name) => !beforeExemptions.has(name));
+    const removed = (onDisk.exemptions ?? []).filter((name) => !afterExemptions.has(name));
+    if (added.length > 0) fields.push(`exemptions agregadas: ${added.join(", ")}`);
+    if (removed.length > 0) fields.push(`exemptions retiradas: ${removed.join(", ")}`);
+    console.error(
+      `${path.relative(root, artifact)} no coincide con lo que el árbol genera hoy — ` +
+        `corre "node scripts/cad/check-command-integrity.mjs --write":`,
+    );
+    for (const field of fields) console.error(`  - ${field}`);
+    process.exit(1);
+  }
+} else {
+  console.error(
+    `${path.relative(root, artifact)} no existe — corre "node scripts/cad/check-command-integrity.mjs --write"`,
+  );
+  process.exit(1);
 }
 
 const verdicts = report.verdicts;

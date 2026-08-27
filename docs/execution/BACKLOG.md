@@ -204,13 +204,6 @@ referencia por ruta). **Criterio:** `logo-geometry` a un módulo neutro
 (config/brand), social-card junto a sus rutas OG, exención retirada (el gate
 exige retirarla al sanar).
 
-### P2-10 · El artefacto de integridad se regenera a mano
-`docs/cad/evidence/command-integrity.json` se escribe con
-`check:command-integrity --write`. Si el registro de comandos cambia, el
-artefacto envejece hasta la siguiente corrida con --write. **Criterio:** el
-gate compara el artefacto committeado contra lo computado (patrón
-`dwg-evidence`) y falla si difieren. **Estimación:** 1 hora.
-
 ### P2-11 · Auditoría de veracidad de los `.md` vivos + índice de 30 segundos
 - **Qué falta:** no hay una pasada sistemática que confirme que cada `.md`
   vivo bajo `docs/` (fuera de `docs/history/`, que ya se sabe archivo)

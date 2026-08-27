@@ -168,3 +168,16 @@ truncamiento, empezar por el Bug A que no toca el monolito) → 0.2
 negocio, no técnica; se documenta la brecha, NO se cambia la
 facturación sin autorización explícita) → 0.1 (el oráculo completo,
 el más grande y el que más monolito/DWG/DXF toca).
+
+### 2026-08-27T07:45Z — cierra 0.6a: gate de comando-integridad ya compara
+
+`scripts/cad/check-command-integrity.mjs` construye el payload SIEMPRE
+(antes sólo bajo `--write`) y, sin el flag, lo compara contra
+`docs/cad/evidence/command-integrity.json` — falla con el campo exacto
+que difiere (`total`, cada `verdicts.*`, exenciones agregadas/retiradas)
+si no coincide. Verificado con prueba negativa real: corrompí `total` a
+999 y `verdicts.muta` a 1 en el artefacto committeado, corrí el gate —
+falló con exit 1 y el mensaje exacto `total: 999 → 192` /
+`verdicts.muta: 1 → 63`; restauré el artefacto original, corrió verde de
+nuevo. `npm run check:command-integrity` verde sobre el árbol real.
+Cierra BACKLOG P2-10.
