@@ -1,6 +1,7 @@
 # BACKLOG — ordenado por lo que impide vender
 
-Actualizado: 2026-08-22, campaña de cimientos. Cada entrada dice qué falla,
+Actualizado: 2026-08-27, campaña Paridad (`docs/execution/CAMPANA_PARIDAD_20260827.md`).
+Cada entrada dice qué falla,
 dónde, cómo se reproduce, qué criterio la cierra y qué prueba lo fija. El
 orden dentro de cada nivel es el orden recomendado de ataque. Una entrada que
 se cierre se BORRA de aquí con su commit en el mensaje — este archivo es la
