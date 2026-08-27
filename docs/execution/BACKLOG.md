@@ -142,12 +142,19 @@ ante operación sin marca. **Estimación:** medio día.
 
 ## P2 — deuda que crece con intereses
 
-### P2-1 · Techos silenciosos de snap y selección (medir antes de subir)
-`maxSegments: 96` del osnap, `search(..., 48)` de candidatos, tope 300 de
-`selectNative` (QSELECT grande designa 300 y no lo dice), 4_096 del boundary.
-**Criterio:** cada tope o se elimina con medición de coste, o se DECLARA al
-usuario al alcanzarse. **Prueba:** spec de un QSELECT con 500 coincidencias.
-**Estimación:** 1 día con mediciones.
+### P2-1 · Techos silenciosos de snap (medir antes de subir)
+`maxSegments: 96` del osnap, `search(..., 48)` de candidatos, 4_096 del
+boundary. **Cerrado 2026-08-27 (campaña Paridad, OLA 0.3/1.1):** el tope
+300 de `selectNative` y el tope 200 de `selectCadLayerObjects` —los que
+mentían al usuario (designaban menos de lo que el mensaje anunciaba)—
+se ELIMINARON, no se declararon; ver
+`docs/execution/CAMPANA_PARIDAD_20260827.md` y
+`e2e/golden/59-cad-selection-no-truncation.spec.ts` (350 coincidencias,
+QSELECT y "Sel" de capa, prueba negativa real). Quedan abiertos los tres
+topes de snap/boundary de arriba, que son técnicos (coste de cómputo),
+no mentiras al usuario. **Criterio:** cada tope o se elimina con
+medición de coste, o se DECLARA al usuario al alcanzarse. **Estimación:**
+1 día con mediciones.
 
 ### P2-2 · Intersecciones de snap sobre teselado en vez de analíticas
 `curve-model.ts` tiene intersecciones analíticas; el snap de intersección usa
