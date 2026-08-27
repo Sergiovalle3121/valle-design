@@ -50,6 +50,7 @@ import {
 } from './adapters/stripe-payment.provider';
 import { BillingWebhookService } from './billing-webhook.service';
 import { EmailOutboxController } from './controllers/email-outbox.controller';
+import { TrialHarnessController } from './controllers/trial-harness.controller';
 import { BillingController } from './controllers/billing.controller';
 import { BillingWebhookController } from './controllers/billing-webhook.controller';
 import { CommercialController } from './controllers/commercial.controller';
@@ -98,6 +99,9 @@ import { OrganizationCommercialConfiguration } from '../organizations/organizati
     TaxProfileController,
     CfdiController,
     EmailOutboxController,
+    // Arnés de pruebas: apagado por completo sin IDENTITY_TEST_HARNESS=true y
+    // en producción. Ver la cabecera del controlador.
+    TrialHarnessController,
   ],
   providers: [
     // El catálogo público publica `trialDays` leyéndolo de aquí: la duración

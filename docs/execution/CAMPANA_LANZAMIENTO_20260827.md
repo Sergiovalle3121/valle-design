@@ -52,7 +52,7 @@ Prohibido el cuarto estado: **visible y no verificada**.
 | 1 | 1.4 Ángulos en TODAS las fronteras entre subsistemas | **cerrado** |
 | 1 | 1.5 Unidades y escala de punta a punta | **cerrado** |
 | 1 | 1.6 Precisión en coordenadas grandes (UTM + lámina de papel) | **cerrado** |
-| 2 | 2.1 La Jornada Real (E2E sin un solo mock) | pendiente |
+| 2 | 2.1 La Jornada Real (E2E sin un solo mock) | **cerrado** |
 | 2 | 2.2 La Jornada Real en CI en cada push a main | pendiente |
 | 2 | 2.3 Barrido de cables sueltos en la UI | pendiente |
 | 2 | 2.4 Los errores hablan español humano | pendiente |
@@ -158,3 +158,35 @@ Tres defectos de este mismo verificador y del cajetín, encontrados al usarlo:
 
 Un campo vacío en un plano es un plano sin identificar; el gate ahora exige
 cero «—» en el cajetín de un juego que declara sus datos.
+
+
+### OLA 2.1 — La Jornada Real, en verde
+
+`apps/web/e2e/real/jornada-real.spec.ts`. **7 de 7 contra Next.js + NestJS +
+PostgreSQL 16 reales, sin un solo `route()`.** Cierra el hallazgo estructural
+que seguía vivo: los goldens que teclean comandos usaban backend simulado y las
+pruebas contra el backend real inyectaban documentos por API — las dos mitades
+nunca se tocaban.
+
+1. Registro → verificación por enlace → organización con la prueba vigente,
+   confirmada por `effective: true` del servidor.
+2. Proyecto y documento por la UI; guardado por el CAS real declarando la
+   versión leída.
+3. El estudio REAL (`/studio/[documentId]`, no el legacy con mocks) abre el
+   documento que vino de PostgreSQL y su línea de comandos responde.
+4. Cierra sesión, vuelve a entrar y se comparan los números UNO A UNO: el muro
+   mide 3500, el corto 2400, la cota conserva sus extremos, el hatch su
+   contorno y el texto sus acentos carácter a carácter.
+5. **DXF verificado por CONTENIDO NUMÉRICO**: se leen los códigos de grupo
+   10/20/11/21 de cada LINE y se miden. No se busca la palabra «LINE» — que la
+   palabra esté no dice que el muro mida lo que medía. Se comprueban también
+   las COORDENADAS de la esquina: un dibujo trasladado tendría las mismas
+   longitudes y estaría mal.
+6. Review link emitido, abierto en un SEGUNDO contexto de navegador sin sesión,
+   con el token en el fragmento; el invitado ve la geometría y comenta. Y se
+   comprueba que el token NO reaparece al listar las sesiones.
+7. **LA REGLA DE ORO, probada de punta a punta el día 91**: se vence la prueba
+   en la base real (arnés `_development/expire-trial`, con las mismas cuatro
+   guardas que el capturador de correo) y entonces ABRIR responde 200, EXPORTAR
+   responde 200, y sólo ESCRIBIR responde 403 con
+   `reason: read_only_after_lapse`.
