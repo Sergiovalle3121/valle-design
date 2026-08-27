@@ -108,25 +108,6 @@ cola viva, no el museo (el museo es `docs/history/`).
 
 ## P1 — bloquea flujos que un despacho espera
 
-### P1-1 · ~~Los seis goldens rojos~~ — los DOS restantes con causa raíz y arreglo (2026-08-26, campaña COMMERCIAL-RC1)
-Los seis originales cerraron el 23-08. Los dos que quedaban:
-- **`20-cad-multiple-viewports`**: los `fill()` previos al drag desplazan el
-  scroll del panel del paquete de entrega; la miniatura quedaba fuera del área
-  visible y el drag manual caía sobre la pestaña «Model» del encabezado, que
-  CIERRA el panel. Determinista con contenido lo bastante alto (métricas de
-  fuente). Arreglo: `scrollIntoViewIfNeeded()` antes de medir la caja para los
-  dos drags manuales. Verificado local 2026-08-26 (verde).
-- **`46-cad-pointer-engine` test 2 (P1-1b)**: NO era fragilidad del test — la
-  barra flotante del dibujo en curso (`draft-toolbar.tsx`) capturaba el pick
-  en TODO su rectángulo, y su altura depende de la métrica de la fuente por el
-  `flex-wrap` de la entrada dinámica: por eso la bisección culpaba a
-  `next/font/local`. Un usuario dibujando bajo la barra PERDÍA el clic.
-  Arreglo de producto: `pointer-events-none` en el contenedor,
-  `pointer-events-auto` sólo en los controles (patrón del dock del tour).
-  Sondeado con `elementFromPoint` y verificado local (verde).
-**Criterio (sin cambio):** 87/87 dos corridas seguidas en CI. **Estado:**
-arreglos en la rama de campaña COMMERCIAL-RC1; pendiente el veredicto de CI.
-
 ### P1-2 · XATTACH por línea de comandos no puede adjuntar (falta la biblioteca)
 - **Qué falla:** la orden está completa pero `context.xrefCatalog` nunca se
   provee; la vía gráfica sí adjunta (fetch asíncrono del asset del tenant).
