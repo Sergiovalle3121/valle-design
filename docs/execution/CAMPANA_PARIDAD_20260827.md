@@ -209,3 +209,32 @@ prueba negativa real: corrompí el número committeado, el gate falló con
 exit 1 y el mensaje correcto; restauré, volvió a verde.
 `npm run check:cad` completo, verde de punta a punta con el gate nuevo
 adentro.
+
+### 2026-08-27T08:35Z — cierra 0.4+1.2: los dos hosts de sólidos ya filtran por capa
+
+`CadSolidShadeHost.sync()` (`solid-shade-host.ts`) y
+`CadSolidSnapHost.sync()` (`solid-snap-host.ts`, enchufado dentro del
+anterior) filtran ahora por `cadHiddenLayerIds`/`cadUnsnappableLayerIds`
+antes de construir `wanted`/`solids` — mismo patrón que
+`CadWallSolidHost` ya usaba. Un sólido en capa apagada o congelada ya NO
+se renderiza en 3D ni imanta el cursor. La reconciliación por identidad
+de referencia sigue correcta con el filtro: al excluir una entidad de
+`wanted`/`solids`, el bucle de diff existente la libera igual que si
+hubiera desaparecido del documento, y togglear la capa de vuelta la
+reconstruye — verificado con un caso explícito de "apagar y volver a
+encender" en el spec nuevo.
+
+Nuevo `apps/web/src/components/cad/viewport/layer-visibility-gate.spec.ts`
+(15 comprobaciones): los dos hosts con VIVA/APAGADA/CONGELADA por
+separado y mezcladas, más una exhaustividad barata (glob de
+`viewport/*-host.ts`, cada archivo con su razón de cobertura escrita —
+patrón `EXEMPT` de `check-import-direction.mjs` — para que un host nuevo
+sin fila aquí rompa la suite). Verificado con prueba negativa real:
+`git stash` de los dos archivos de host (revierte el arreglo), corrí el
+spec — falló exactamente en la aserción de APAGADA con
+`AssertionError`, `git stash pop` restauró el arreglo, volvió a verde.
+`npm run typecheck` limpio, `npm test` (`test:specs`) **415/415 specs
+verdes** (incluye los dos specs previos de cada host, sin regresión), y
+`npm run check:cad` completo sin cambios de puntaje (la rúbrica no tiene
+fila propia para este defecto — era un defecto de integridad, no un
+criterio con peso).

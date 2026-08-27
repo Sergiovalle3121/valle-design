@@ -25,6 +25,7 @@
  */
 import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadSolid3dEntity } from "@/lib/cad/cad-entities-v5";
+import { cadUnsnappableLayerIds } from "@/lib/cad/cad-layer-visibility";
 import { solid3dBody } from "@/lib/cad/solid3d-build";
 import type { BrepBody } from "@/lib/brep";
 import {
@@ -99,8 +100,16 @@ export class CadSolidSnapHost {
       this.clear();
       return;
     }
+    // Lo que no se ve no puede ser un imán: un sólido en capa apagada o
+    // congelada no entra al índice. La firma se calcula DESPUÉS de filtrar,
+    // así que apagar/encender una capa cambia la firma (el sólido aparece o
+    // desaparece de la lista) y fuerza la reconstrucción del índice aunque el
+    // propio sólido no haya cambiado — no hace falta meter el estado de capa
+    // en la firma por separado.
+    const hiddenLayers = cadUnsnappableLayerIds(document.layers);
     const solids = document.entities.filter(
-      (entity): entity is CadSolid3dEntity => entity.type === "solid3d",
+      (entity): entity is CadSolid3dEntity =>
+        entity.type === "solid3d" && !hiddenLayers.has(entity.layer),
     );
     if (solids.length === 0) {
       this.clear();
