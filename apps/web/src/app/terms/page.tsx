@@ -44,20 +44,44 @@ export default function TermsPage() {
         </p>
       </PublicSection>
 
-      <PublicSection title="Condiciones comerciales y disponibilidad">
+      <PublicSection title="Lanzamiento gratuito: qué se cobra y qué no">
         <p>
-          Las tarifas publicadas en la página de precios las sirve el catálogo
-          real del despliegue, y la compra por autoservicio —cuando el
-          despliegue la tiene habilitada— se procesa mediante el checkout
-          hospedado del proveedor de pagos; los datos de pago no pasan por
-          Valle Design. No se publica un nivel de servicio (SLA): un
-          compromiso de disponibilidad requiere un acuerdo escrito con el
-          titular. La página de estado sólo es autoritativa cuando el
-          despliegue configura una fuente real de telemetría.
+          Durante el lanzamiento el acceso es gratuito por el periodo que
+          anuncia la página de precios, y <strong>no se solicita ni se
+          almacena ningún medio de pago</strong> para crear una cuenta. Al
+          terminar ese periodo no se realiza ningún cargo automático: no hay
+          nada que cobrar porque no se capturó nada con qué hacerlo.
+        </p>
+        <p>
+          <strong>Tus documentos no quedan condicionados al pago.</strong>{" "}
+          Cuando el periodo gratuito termina, la cuenta pasa a modo de sólo
+          lectura: puedes seguir entrando, abrir tus documentos, imprimirlos y
+          exportarlos a DXF. Lo que requiere un plan activo es continuar
+          editándolos. Esta condición es una obligación del servicio, no una
+          cortesía revocable.
+        </p>
+        <p>
+          Las tarifas que la página de precios publica las sirve el catálogo
+          real del despliegue y describen lo que costará un plan cuando el
+          cobro se active; hoy no hay contratación en línea disponible. No se
+          publica un nivel de servicio (SLA): un compromiso de disponibilidad
+          requiere un acuerdo escrito con el titular. La página de estado sólo
+          es autoritativa cuando el despliegue configura una fuente real de
+          telemetría.
         </p>
         <a className={publicActionClass} href={COMMERCIAL_LINKS.contact}>
           Consultar contacto
         </a>
+      </PublicSection>
+
+      <PublicSection title="Borrador pendiente de revisión legal">
+        <p>
+          Este texto lo redactó el equipo de producto para que la web no
+          prometa nada que el software no haga. <strong>No ha pasado revisión
+          legal profesional</strong> y no sustituye el acuerdo escrito que
+          requiere un uso comercial. Se publica así, dicho en voz alta, en vez
+          de aparentar una solidez jurídica que todavía no tiene.
+        </p>
       </PublicSection>
 
       <PublicSection title="Versión de este documento">

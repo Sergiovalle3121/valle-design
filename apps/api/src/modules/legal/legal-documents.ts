@@ -73,6 +73,18 @@ export interface LegalDocumentVersion {
  * texto no vale más que no tener registro.
  */
 export const LEGAL_DOCUMENTS: readonly LegalDocumentVersion[] = [
+  // 2026-08-27 (campaña de lanzamiento gratuito): sustituye a la versión
+  // 2026-08-26. Los TÉRMINOS pasan a describir el lanzamiento gratuito —no se
+  // pide medio de pago, no hay cargo automático al terminar, y los documentos
+  // NO quedan condicionados al pago: la cuenta vencida conserva abrir,
+  // imprimir y exportar—, que es la regla de oro del guard puesta por escrito
+  // donde el cliente la puede leer. El AVISO DE PRIVACIDAD declara las
+  // métricas de activación que se publicaron en el mismo cambio
+  // (`health/activation-metrics.controller.ts`): conteos agregados derivados
+  // de datos que la aplicación ya guardaba, sin contenido de planos ni
+  // rastreadores. Los dos añaden, además, que son BORRADOR pendiente de
+  // revisión legal: decirlo es más honesto que aparentar solidez jurídica.
+
   // 2026-08-26 (COMMERCIAL-RC1): sustituye a la versión 2026-08-15 — las
   // páginas pasan a mostrar versión y fecha, los términos corrigen la sección
   // comercial (las tarifas SÍ se publican en /precios y el checkout de
@@ -84,21 +96,21 @@ export const LEGAL_DOCUMENTS: readonly LegalDocumentVersion[] = [
   // las nombran.
   {
     documento: 'terms',
-    version: '2026-08-26',
-    publicadoEn: '2026-08-26',
+    version: '2026-08-27',
+    publicadoEn: '2026-08-27',
     url: '/terms',
     requiereAceptacion: true,
     contentHash:
-      'a30140a43309079765f5c697155885f372662ec1aece4ddd6cc83c2ec0cc3046',
+      'de5ffcbe352e93b7fe8f32198196fa1d082f2ff496f53f537ae78bd81e77f712',
   },
   {
     documento: 'privacy',
-    version: '2026-08-26',
-    publicadoEn: '2026-08-26',
+    version: '2026-08-27',
+    publicadoEn: '2026-08-27',
     url: '/privacy',
     requiereAceptacion: false,
     contentHash:
-      '1a2ae1186b15665ca60a2c356eb9441c41bf00cc8b98e82dca992b61a6229dfc',
+      '004a6f1eb9e40db5419adde9e164355018aa70c2aa552df36eb0c16d917d3b61',
   },
 ] as const;
 

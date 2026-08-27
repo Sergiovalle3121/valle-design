@@ -13,6 +13,7 @@ import { TenantModule } from './common/tenant/tenant.module';
 import { HttpMetricsMiddleware } from './observability/http-metrics.middleware';
 import { ObservabilityModule } from './observability/observability.module';
 import { CommercialMetricsController } from './health/commercial-metrics.controller';
+import { ActivationMetricsController } from './health/activation-metrics.controller';
 import { HealthController } from './health/health.controller';
 import { AuthModule } from './modules/auth/auth.module';
 import { CadAuthGuard } from './modules/auth/guards/cad-auth.guard';
@@ -56,7 +57,13 @@ import { OutboxReceiverModule } from './modules/outbox-receiver/outbox-receiver.
     CadDocumentsModule,
     CadModule,
   ],
-  controllers: [HealthController, CommercialMetricsController],
+  controllers: [
+    HealthController,
+    CommercialMetricsController,
+    // Activación: conteos agregados derivados de lo que ya se guarda. Mismo
+    // bearer que las otras métricas; sin METRICS_TOKEN no existe.
+    ActivationMetricsController,
+  ],
   providers: [
     HttpStatusTelemetryMiddleware,
     ReadinessState,

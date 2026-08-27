@@ -63,12 +63,12 @@ Prohibido el cuarto estado: **visible y no verificada**.
 | 3 | 3.5 Descargas en modo solo-lectura y desde review link | **cerrado** |
 | 4 | 4.1 La primera hora de un desconocido | pendiente |
 | 4 | 4.2 Botón «algo salió mal» | pendiente |
-| 4 | 4.3 Telemetría mínima decente y declarada | pendiente |
+| 4 | 4.3 Telemetría mínima decente y declarada | **cerrado** |
 | 4 | 4.4 Móvil: embudo público y dashboard | pendiente |
-| 5 | 5.1 `DESPLIEGUE-RAILWAY.md` probado | pendiente |
-| 5 | 5.2 Smoke post-deploy ejecutable | pendiente |
+| 5 | 5.1 `DESPLIEGUE-RAILWAY.md` probado | **cerrado** |
+| 5 | 5.2 Smoke post-deploy ejecutable | **cerrado** |
 | 5 | 5.3 Respaldo diario verificado, Sentry, uptime | pendiente |
-| 5 | 5.4 Aviso de privacidad y términos del modo gratuito | pendiente |
+| 5 | 5.4 Aviso de privacidad y términos del modo gratuito | **cerrado** |
 | 5 | 5.5 Los cinco fixes de producción abiertos | pendiente |
 | F | F.1 Suite + Jornada Real + goldens + push | pendiente |
 | F | F.2 `INFORME_LANZAMIENTO_20260827.md` | pendiente |
@@ -214,3 +214,31 @@ nunca se tocaban.
   que la bandera de exportación siga naciendo apagada EN EL CÓDIGO.
 - **3.5 Descargas sin rehenes.** Probado en la Jornada Real: con el entitlement
   vencido, `GET /export/dxf` responde 200.
+
+
+### OLA 5 (parte) y 4.3 — despliegue, smoke, telemetría y legal
+
+- **5.1 `docs/onboarding/DESPLIEGUE-RAILWAY.md`.** La ruta exacta: tres
+  servicios, TODAS las variables con su valor u origen (incluida
+  `TRIAL_DAYS=90` y el aviso de que las `NEXT_PUBLIC_*` se incrustan AL
+  COMPILAR), los dominios mismo-sitio que la cookie `SameSite=Lax` exige, el
+  orden de arranque, las migraciones y cómo verificar. Con 🔑 marcando lo que
+  sólo Sergio puede hacer.
+- **5.2 `npm run smoke:railway`.** Ejecutable contra la URL de producción.
+  **Probado de verdad contra el stack local levantado: 9/9 verdes**, incluido
+  el registro con correo real. Una comprobación que no se pudo hacer se
+  declara OMITIDA y nunca cuenta como verde — un smoke que dice «todo bien»
+  habiendo saltado el registro da permiso para anunciar.
+- **4.3 Telemetría de activación.** `GET /health/metrics/activation`, tras el
+  mismo `METRICS_TOKEN` que las otras métricas. **No añade ni una recolección
+  nueva**: los cuatro números se DERIVAN de filas que el producto ya escribe
+  para operar (`organizations`, `subscriptions`, `usage_ledger`). Sin contenido
+  de planos, sin nombres, sin correos, sin identificadores. Si se retirase el
+  endpoint, el producto no dejaría de recoger nada.
+- **5.4 Legal, versión 2026-08-27.** Los términos describen el lanzamiento
+  gratuito y ponen POR ESCRITO la regla de oro donde el cliente la lee: «tus
+  documentos no quedan condicionados al pago». El aviso de privacidad declara
+  la telemetría de activación — declaración y endpoint se publicaron en el
+  mismo cambio, a propósito. Los dos añaden que son BORRADOR pendiente de
+  revisión legal. El candado de inmutabilidad acepta la versión nueva con sus
+  hashes recalculados.

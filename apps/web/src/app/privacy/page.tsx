@@ -49,6 +49,44 @@ export default function PrivacyPage() {
         </p>
       </PublicSection>
 
+      <PublicSection title="Métricas de activación">
+        <p>
+          El servicio calcula unas pocas cifras <strong>agregadas</strong> para
+          saber si quien se registra llega a dibujar: cuántas organizaciones
+          existen, cuántas están en periodo gratuito, cuántas han guardado su
+          primer dibujo y cuántas han publicado un entregable.
+        </p>
+        <p>
+          Estas cifras se <strong>derivan de datos que la aplicación ya guarda
+          para funcionar</strong> —la organización, su suscripción y el
+          registro de uso que ya cuenta los guardados—: no se recoge ni un dato
+          nuevo para medirlas. Son conteos: no incluyen el contenido de ningún
+          plano, ni nombres de proyectos o documentos, ni correos, ni
+          identificadores de organización, y no se comparten con terceros.
+        </p>
+        <p>
+          No se utilizan cookies de analítica, ni rastreadores de terceros, ni
+          se crea un perfil de comportamiento de ninguna persona.
+        </p>
+      </PublicSection>
+
+      <PublicSection title="Datos de pago durante el lanzamiento gratuito">
+        <p>
+          Durante el lanzamiento gratuito <strong>no se solicita ni se almacena
+          ningún medio de pago</strong>. La aplicación no recibe, procesa ni
+          conserva números de tarjeta en ningún momento del alta.
+        </p>
+      </PublicSection>
+
+      <PublicSection title="Borrador pendiente de revisión legal">
+        <p>
+          Este aviso lo redactó el equipo de producto describiendo lo que el
+          software hace de verdad. <strong>No ha pasado revisión legal
+          profesional</strong>: el operador debe completar plazos, bases
+          jurídicas y derechos aplicables antes de prestar un servicio público.
+        </p>
+      </PublicSection>
+
       <PublicSection title="Consultas sobre datos">
         {COMMERCIAL_CONTACTS.privacy ? (
           <a

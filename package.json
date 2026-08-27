@@ -68,7 +68,8 @@
     "check:fonts": "node scripts/check-self-hosted-fonts.mjs",
     "check:lint-budget": "node scripts/check-lint-budget.mjs",
     "check:conventions": "node scripts/check-import-direction.mjs",
-    "check:cad-math": "node scripts/cad/check-cad-math.mjs"
+    "check:cad-math": "node scripts/cad/check-cad-math.mjs",
+    "smoke:railway": "node scripts/deploy/railway-smoke.mjs"
   },
   "devDependencies": {
     "@redocly/cli": "2.47.0",
