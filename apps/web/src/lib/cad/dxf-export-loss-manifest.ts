@@ -48,6 +48,13 @@ export type CadDxfExportSource = Pick<CadDocument, "entities" | "blocks"> &
 /** Tipos con su PROPIO camino de exportación, fuera de las primitivas. */
 const DXF_NON_PRIMITIVE_TYPES = new Set([
   "hatch",
+  // TEXT y MTEXT viajan por su propio escritor (`pushText` / `pushMText`), no
+  // como primitiva geométrica: preguntarle a `cadEntityToDxfPrimitive` por
+  // ellos devuelve `null` y eso NO significa que se caigan del fichero. TEXT
+  // se añade a esta lista en la campaña de lanzamiento, al mismo tiempo que
+  // `cadDocumentNativeDxfTexts` lo empieza a escribir de verdad; antes el
+  // manifiesto acertaba al declararlo perdido.
+  "text",
   "mtext",
   "dimension",
   "mleader",

@@ -25,6 +25,7 @@ import type { CadNativeEntity } from "./entity-runtime";
 // pierde viven en sus propios módulos: este archivo ENSAMBLA el modelo de
 // exportación, y mezclar las tres cosas era lo que lo tenía en su techo.
 import { cadEntityToDxfPrimitive } from "./dxf-entity-primitives";
+import { cadDxfTextPrimitiveToEntity } from "./dxf-text-entities";
 import { blockEntityToDxfPrimitive } from "./dxf-block-primitive";
 import { clampedKnots } from "./dxf-nurbs-knots";
 import { schema4PrimitiveToEntity } from "./dxf-schema4-entities";
@@ -667,17 +668,9 @@ function dxfPrimitiveToBlockEntity(
       context,
     };
   }
-  if (primitive.kind === "text" && primitive.points[0]) {
-    const insertion = projection.point(primitive.points[0]);
-    return {
-      id,
-      type: "text",
-      x: insertion.x,
-      y: insertion.y,
-      text: primitive.text ?? "",
-      layer: primitive.layer,
-      context,
-    };
+  if (primitive.kind === "text") {
+    const text = cadDxfTextPrimitiveToEntity(primitive, id, projection, context);
+    if (text) return text;
   }
   if (
     primitive.kind === "circle" &&

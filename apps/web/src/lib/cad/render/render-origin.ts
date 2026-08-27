@@ -68,3 +68,51 @@ export function cadRenderOriginFromBounds(
     y: Math.round(cy / CAD_RENDER_ORIGIN_GRID) * CAD_RENDER_ORIGIN_GRID,
   };
 }
+
+/** Unión de dos cajas; la izquierda puede faltar (primer elemento). */
+export function unionCadBounds(
+  into: CadBounds | null,
+  next: CadBounds,
+): CadBounds {
+  if (!into) return { ...next };
+  return {
+    minX: Math.min(into.minX, next.minX),
+    minY: Math.min(into.minY, next.minY),
+    maxX: Math.max(into.maxX, next.maxX),
+    maxY: Math.max(into.maxY, next.maxY),
+  };
+}
+
+/**
+ * Los ids que viven en un ESPACIO PAPEL, que son los que NO deben anclar el
+ * origen flotante.
+ *
+ * ─── Por qué esto importa tanto ────────────────────────────────────────────
+ *
+ * El anfitrión del render entrega al pipeline TODAS las entidades del
+ * documento y limita a espacio modelo únicamente el ORDEN DE DIBUJO. Una
+ * lámina de papel vive en coordenadas de hoja (0…297 mm) y un documento
+ * georreferenciado en UTM (~2·10⁶): juntarlas en unos mismos límites pone el
+ * centroide a medio camino, en torno a 10⁶, y el origen flotante deja de estar
+ * cerca de lo que se dibuja.
+ *
+ * No es una degradación teórica. Medido con la sonda de precisión
+ * (`docs/cad/evidence/large-coordinate-precision.json`, fila «UTM con lámina
+ * de papel») y con el gate de regresión
+ * (`lib/cad/verification/large-coordinates.spec.ts`): el error de empaquetado
+ * a `Float32Array` pasaba de 2.9 µm a 2.1 cm de unidad de dibujo — 7243 veces
+ * peor— por el solo hecho de que el documento tuviera una hoja. Es exactamente
+ * el caso de un topógrafo que abre su levantamiento y le añade una lámina para
+ * imprimirlo.
+ *
+ * Los límites de CULLING siguen incluyéndolo todo: ahí el papel no molesta, y
+ * recortarlos sería cambiar QUÉ se dibuja, que es otro asunto.
+ */
+export function cadPaperSpaceEntityIds(
+  document: { paperSpaces?: ReadonlyArray<{ entityIds: readonly string[] }> } | null | undefined,
+): ReadonlySet<string> {
+  const ids = new Set<string>();
+  for (const paperSpace of document?.paperSpaces ?? [])
+    for (const id of paperSpace.entityIds) ids.add(id);
+  return ids;
+}

@@ -78,7 +78,7 @@ import { cadTessellationFromPayload } from "./tessellate-worker-client";
 import type { CadTextQuadRequest } from "./text-atlas";
 import { cadRenderCount, cadRenderMark, cadRenderStage } from "./render-profile";
 import { defaultCadRenderStyle } from "./render-style";
-import { CAD_RENDER_ORIGIN_ZERO, cadRenderOriginFromBounds, type CadRenderOrigin } from "./render-origin";
+import { CAD_RENDER_ORIGIN_ZERO, cadPaperSpaceEntityIds, cadRenderOriginFromBounds, unionCadBounds, type CadRenderOrigin } from "./render-origin";
 
 export type { CadOffThreadTessellator, CadRenderTessellationSource, CadRenderOrigin };
 export {
@@ -275,7 +275,12 @@ export class CadRenderPipeline {
     this.offThread.reset();
     this.dependencies.clear();
     this.document = document ?? this.document;
+    // Dos uniones: `bounds` incluye TODO (culling, tiles) y `originBounds`
+    // excluye el espacio papel, que es lo que ancla el origen flotante. El
+    // porqué —y los 7243× que costaba mezclarlos— en `cadPaperSpaceEntityIds`.
     let bounds: CadBounds | null = null;
+    let originBounds: CadBounds | null = null;
+    const paperSpaceIds = cadPaperSpaceEntityIds(this.document);
     const boundsById = new Map<string, CadBounds>();
     for (const entity of entities) {
       if (!CAD_ENTITY_REGISTRY.supports(entity)) continue;
@@ -286,16 +291,13 @@ export class CadRenderPipeline {
       );
       boundsById.set(entity.id, entityBounds);
       this.dependencies.track(entity, entityBounds);
-      bounds = bounds
-        ? {
-            minX: Math.min(bounds.minX, entityBounds.minX),
-            minY: Math.min(bounds.minY, entityBounds.minY),
-            maxX: Math.max(bounds.maxX, entityBounds.maxX),
-            maxY: Math.max(bounds.maxY, entityBounds.maxY),
-          }
-        : { ...entityBounds };
+      bounds = unionCadBounds(bounds, entityBounds);
+      if (!paperSpaceIds.has(entity.id))
+        originBounds = unionCadBounds(originBounds, entityBounds);
     }
-    this.origin = cadRenderOriginFromBounds(bounds);
+    // `?? bounds`: un documento que fuese SÓLO papel (plantilla de cajetín sin
+    // dibujo) no tiene modelo que anclar; su hoja es mejor que nada.
+    this.origin = cadRenderOriginFromBounds(originBounds ?? bounds);
     drawOrderIds.forEach((id, position) => this.drawOrder.set(id, position));
     this.drawOrderCount = Math.max(drawOrderIds.length, this.entities.size);
     this.index = new CadRenderTileIndex(
