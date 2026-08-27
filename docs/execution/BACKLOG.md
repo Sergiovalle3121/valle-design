@@ -386,6 +386,45 @@ exige retirarla al sanar).
 - **Estimación:** medio día (cuatro hosts, uno por uno, con su prueba
   negativa cada uno).
 
+### P2-15 · `10-cad-native-entities.spec.ts` sólo pasa en modo prod, no en `npm run dev`
+- **Qué falla:** el golden falla de forma reproducible y determinista con
+  `npm run dev` (modo desarrollo, el default de `playwright.config.ts`)
+  con `expect(browserErrors).toEqual([])`: React emite en cada carga de
+  página "eval() is not supported in this environment... React requires
+  eval() in development mode for various debugging features" —un aviso
+  del PROPIO React sobre su mecanismo de depuración bajo CSP, sin
+  relación con CAD/DXF—. La propia librería dice "React will never use
+  eval() in production mode", y `playwright.config.ts` documenta que CI
+  corre con `E2E_PROD=1` (`next start`), así que en CI este golden
+  debería pasar limpio.
+- **Investigado antes de tocar el test (campaña Paridad, OLA FINAL,
+  2026-08-27):** confirmado que NINGÚN otro golden usa
+  `collectBrowserErrors`/verifica `browserErrors` — es el único de los
+  64 con esta aserción, sin filtro de ningún tipo (ni un solo mensaje
+  exento), lo que explica por qué es el único que la detecta. No se
+  relajó la aserción (regla 5 de la campaña): un `toEqual([])` que
+  ignorara mensajes de React sería exactamente el tipo de gate
+  debilitado que esta campaña existe para no crear. Se intentó
+  reproducir en modo `E2E_PROD=1` para confirmar la hipótesis con
+  certeza total, pero la build de este sandbox no tiene el
+  `NEXT_PUBLIC_API_URL` que el arnés e2e espera en producción (falla
+  antes, en `cad-native-entity-list` sin cargar) — la hipótesis queda
+  fundamentada por lectura de código (React declara explícitamente que
+  el mensaje es exclusivo de desarrollo) y por descarte (ningún cambio
+  de esta campaña toca CSP, cabeceras o configuración de Next), no por
+  reproducción directa en prod local.
+- **Dónde:** `apps/web/e2e/golden/10-cad-native-entities.spec.ts:91-98`
+  (`collectBrowserErrors`, sin filtro) y :153 (la aserción).
+- **Criterio de aceptación:** o bien confirmar con una corrida
+  `E2E_PROD=1` real (arreglando primero el `NEXT_PUBLIC_API_URL` del
+  build local) que el golden pasa limpio en prod, cerrando esto como "no
+  es un defecto, es una limitación conocida de correr goldens con
+  `next dev`"; o bien, si algún día se corre goldens en dev por defecto
+  en CI, filtrar EXPLÍCITAMENTE este mensaje exacto de React (nunca un
+  filtro genérico que trague avisos reales).
+- **Estimación:** 1 hora si el `NEXT_PUBLIC_API_URL` de build local se
+  resuelve rápido; si no, es sólo lectura de un log de CI ya existente.
+
 ---
 
 ## Herencias verificables de campañas anteriores (dueño: revisar informes)

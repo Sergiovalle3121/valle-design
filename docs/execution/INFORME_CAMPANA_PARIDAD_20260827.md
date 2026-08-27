@@ -158,20 +158,93 @@ la dirección contraria a la intuición.
 | `Layout3DEditor.tsx` | 20.244 líneas / 141 useState | **20.256** líneas / 141 useState (+12, capacidad nueva documentada: diagnóstico 3D) |
 | `dxf-import.ts` | 1.044 líneas | **1.105** (+61, capacidad nueva documentada: detección de espacio papel) |
 | Hosts 3D con invariante de capa | 2 de 4 (`wall-solid-host`, `room-solid-host`) | **4 de 4** |
-| Goldens Playwright (`e2e/golden`) | sin barrer completo esta campaña hasta ahora | **VER SECCIÓN 4** |
-| Commits de la campaña | — | 10 (`dc93d7b`…`d89d76d`), 4 push |
+| Goldens Playwright (`e2e/golden`, chromium) | sin barrer completo esta campaña hasta ahora | **93/94 verde** (ver sección 4) |
+| Commits de la campaña | — | 12 (`dc93d7b`…HEAD), 5 push |
 | Entradas de BACKLOG cerradas | — | 1 (P2-1, parcial — sólo la mitad que mentía) |
-| Entradas de BACKLOG nuevas | — | 5 (P1-6, P1-7, P2-12, P2-13, P2-14) |
+| Entradas de BACKLOG nuevas | — | 6 (P1-6, P1-7, P2-12, P2-13, P2-14, P2-15) |
 
 ---
 
 ## 4. El barrido de goldens en árbol quieto (regla 4, obligatorio)
 
-_(Completar tras la corrida — ver `apps/web/e2e/.report`.)_
+`npx playwright test e2e/golden` sobre el árbol quieto (nada más
+cambiando mientras corría), en dos pasadas:
+
+- **Chromium (el navegador real de este sandbox):** **93 de 94 verdes**.
+  El único rojo, `10-cad-native-entities.spec.ts` ("edits ARC, undo/redo,
+  saves, reloads and round-trips native DXF"), es un hallazgo REAL pero
+  **no causado por esta campaña** — investigado a fondo, no descartado a
+  la ligera (ver BACKLOG P2-15 para la investigación completa). Resumen:
+  el único golden de los 64 que verifica cero errores de consola del
+  navegador atrapa un aviso del propio React sobre su uso de `eval()` en
+  modo DESARROLLO bajo CSP — mensaje que React mismo declara exclusivo
+  de desarrollo ("React will never use eval() in production mode"), y
+  `playwright.config.ts` documenta que CI corre en modo prod
+  (`E2E_PROD=1`). No se relajó la aserción para forzar el verde: eso
+  habría sido exactamente el tipo de gate debilitado que esta campaña
+  existe para cazar en el producto, no para crear en sus propias
+  pruebas.
+- **Firefox:** NO corrido — el binario no está instalado en este
+  sandbox (`Executable doesn't exist at /opt/pw-browsers/firefox-1495/…`),
+  consistente con la instrucción del entorno de esta sesión de que sólo
+  Chromium viene preinstalado y de no correr `playwright install`. La
+  primera pasada completa (los dos proyectos configurados) midió 93
+  pasados / 1 saltado / 94 fallados — el desglose por proyecto (arriba)
+  confirma que los 94 fallos son ENTERAMENTE del proyecto firefox por el
+  binario ausente, cero fallos reales de Firefox medidos. Limitación de
+  ESTE sandbox, no evaluada aquí; CI si instala ambos navegadores.
+
+**Nota de método, igual que la de la campaña anterior (Pulido,
+2026-08-22):** un gate que no se corre no es un gate. Esta es la
+PRIMERA corrida completa del barrido de goldens en toda esta campaña —
+las verificaciones de cada ola individual usaron goldens NUEVOS o
+específicos (59, 60), nunca el barrido de los 64. Correrlo al cierre,
+como manda la regla 4, es lo que encontró P2-15 — un hallazgo que
+ninguna verificación dirigida a un golden específico podía haber
+encontrado.
 
 ---
 
-## 5. Nota de método
+## 5. La rúbrica, leída con la escalera
+
+`node scripts/cad/rubric.mjs --markdown` (corrida limpia, post-campaña):
+**190/220 (86,4 %)**, idéntico al arranque — como debe ser: esta campaña
+arregla defectos de confianza y construye verificación, no capacidad
+nueva puntuable por la rúbrica. `docs/parity/ESCALERA.md` (OLA 2) no
+cambia esa cifra; cambia cómo se LEE.
+
+- **185 pt con evidencia sólo propia** son, en el lenguaje de la
+  escalera, peldaño 3 como mucho: probadas contra fixtures que el propio
+  laboratorio generó. Puede decirse "lo probamos"; nunca "un tercero lo
+  confirmó".
+- **5 pt con evidencia independiente** son peldaño 4: un oráculo AJENO
+  al laboratorio (`dxf-parser` real en `dxf-roundtrip.spec.ts`,
+  `GLTFLoader` real en `glb-export.spec.ts`) confirma el resultado.
+- Los dos gates NUEVOS de esta campaña
+  (`wall-takeoff-solid-parity.spec.ts`, `layer-visibility-gate.spec.ts`)
+  son peldaño 5: no sólo se probaron una vez, corren en CADA cambio y
+  FALLAN el build si el número empeora — la promesa más fuerte que la
+  ingeniería sola puede dar, y ninguno de los dos suma un punto de
+  rúbrica todavía porque un gate de regresión no es, por sí mismo, una
+  fila de capacidad nueva.
+- La exportación DWG beta sigue en peldaño 6 sin cruzar: código
+  completo y probado (peldaño 5 cumplido, confirmado por el arreglo de
+  radianes de esta campaña), pero `dwgBetaExportIsEnabled` se queda en
+  `false` en producción hasta el oráculo externo ODA — una OWNER ACTION
+  explícita, no un defecto técnico pendiente.
+- Ninguna fila del producto llega hoy al peldaño 7 (producción medida en
+  vivo) — el canal "algo salió mal" que esta campaña dejó diseñado sin
+  implementar (P1-7) es exactamente la instrumentación que faltaría para
+  que una fila pudiera llegar ahí algún día.
+
+La lectura honesta: 190/220 no dice cuánto de esos 190 puntos resistiría
+a un cliente real usándolo sin ayuda. La escalera es la herramienta para
+esa pregunta distinta, y esta campaña deja tres gates nuevos (peldaño 5)
+y tres defectos de confianza menos (los tres de 0.1/1.4) subiendo piezas
+concretas del producto un peldaño real, aunque el número de la rúbrica
+no se mueva.
+
+## 6. Nota de método
 
 Esta campaña sostuvo, de punta a punta, la disciplina de "implementar →
 verificar verde → revertir con `git stash` → confirmar que el fallo
@@ -192,7 +265,7 @@ de mentira que esta campaña entera existe para cazar en el producto.
 
 ---
 
-## 6. Lo que sigue (backlog nuevo de esta campaña)
+## 7. Lo que sigue (backlog nuevo de esta campaña)
 
 1. **P1-6** — el cuadro de cantidades sub-factura ~1,4% de fábrica en
    cada esquina de muro. Requiere que el titular decida el criterio de
@@ -208,7 +281,12 @@ de mentira que esta campaña entera existe para cazar en el producto.
 5. **P2-14** — los cuatro hosts de sólidos 3D no escopan por
    `modelSpace.entityIds` — hueco latente, con su criterio de aceptación
    exacto ya escrito.
-6. **Configurar `VALLE_DWG_CORPUS_MIRROR`** en el entorno de desarrollo —
+6. **P2-15** — `10-cad-native-entities.spec.ts` falla en `npm run dev`
+   por un aviso de React exclusivo de desarrollo (`eval()` bajo CSP);
+   probablemente ya pasa limpio en CI (modo prod), sin confirmar aquí
+   porque el build local de este sandbox no tiene el
+   `NEXT_PUBLIC_API_URL` que el arnés e2e de producción exige.
+7. **Configurar `VALLE_DWG_CORPUS_MIRROR`** en el entorno de desarrollo —
    sigue pendiente desde el 22 de agosto (informe anterior, punto 10);
    sin él, `check:dwg-evidence` seguirá rojo por entorno en cada campaña
    que lo corra fuera de CI.

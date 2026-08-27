@@ -763,3 +763,38 @@ falso ocupando un puerto, `DATABASE_URL` apuntando a un puerto muerto)
 antes de escribir la spec automatizada; `doctor.spec.mjs` (7 bloques,
 cada uno con su rama positiva y negativa) verde. `npm run typecheck`
 limpio.
+
+## OLA FINAL — la verdad medida
+
+**F.1 (suite completa + goldens en árbol quieto + push):** primer
+barrido COMPLETO de `e2e/golden` de toda la campaña (las verificaciones
+por ola usaron goldens nuevos o específicos — 59, 60 — nunca el barrido
+de los 64). Chromium: 93/94 verdes; el único rojo
+(`10-cad-native-entities.spec.ts`) es un hallazgo real, investigado a
+fondo, NO causado por esta campaña — nuevo BACKLOG P2-15 con la
+investigación completa (React emite un aviso exclusivo de modo
+desarrollo bajo CSP; ningún otro golden de los 64 verifica cero errores
+de consola, así que ninguno más lo atrapaba). Firefox: binario no
+instalado en este sandbox, consistente con la instrucción del entorno
+de sólo traer Chromium preinstalado; confirmado con el desglose por
+proyecto que los 94 "fallos" de la primera pasada combinada eran
+enteramente el proyecto firefox por el binario ausente, no fallos
+reales. `check:cad`/`check:dwg`/`typecheck`/`test`/`lint`/`build`
+corridos de nuevo, completos, como cierre — ver el archivo de gates
+(`ola-final-gates.log`, resultado en el INFORME).
+
+**F.2 (rúbrica con lectura de la escalera):** `rubric.mjs --markdown`
+confirma 190/220 (86,4 %) sin cambio — correcto, esta campaña arregla
+confianza, no agrega capacidad puntuable. Lectura completa por peldaño
+de la escalera en la sección 5 del informe.
+
+**F.3 (backlog actualizado):** sello de fecha al 2026-08-27; P2-1
+cerrado parcialmente (commit `86710ae`, ya reflejado); seis entradas
+nuevas con su investigación real citada (P1-6, P1-7, P2-12, P2-13,
+P2-14, P2-15).
+
+**F.4:** este informe y `docs/execution/INFORME_CAMPANA_PARIDAD_20260827.md`.
+
+Campaña cerrada. Cola de reserva (R.1-R.4) NO atacada — el tiempo se
+fue en OLA 0-3 completas más la investigación que F.1 exigió del hallazgo
+de goldens; quedan en su propia cola, sin tocar, para quien retome.
