@@ -12796,6 +12796,17 @@ export default function Layout3DEditor({
       return;
     }
     try {
+      // `s` es la escala de AJUSTE DE CÁMARA con la que se construyó TODA la
+      // geometría de la escena (línea 6032: `s = 30 / Math.max(W, H)`), no una
+      // conversión de unidades: un predio de 4 m y uno de 400 m ocupan el
+      // mismo cubo de cámara. Exportar esas coordenadas tal cual entregaba un
+      // GLB cuyo metro no medía un metro real — glTF declara 1 unidad = 1
+      // metro — y la distorsión cambiaba con el tamaño de CADA predio. Se
+      // deshace aquí, no en el visor: el visor necesita el ajuste de cámara.
+      const unit = (data?.footprint.unit || "mm") as WorldUnit;
+      const exportScale = ctxRef.current
+        ? unitToMeters(1, unit) / ctxRef.current.s
+        : 1;
       const blob = await serializeCadGlbBlob(plan.objects, {
         // Etiquetas y línea de previsualización fuera: geometría limpia.
         hide: () =>
@@ -12804,6 +12815,7 @@ export default function Layout3DEditor({
             (object) =>
               !!object.userData?.isLabel || object === previewLineRef.current,
           ),
+        exportScale,
       });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");

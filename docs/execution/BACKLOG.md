@@ -230,6 +230,85 @@ exige retirarla al sanar).
 - **Estimación:** medio día de auditoría + lo que cueste cada corrección
   real que aparezca.
 
+### P2-12 · Espacio papel DXF: el arreglo cubre 6 de 7 familias de entidad
+- **Qué falta:** el cierre de la fuga de espacio papel DXF (campaña Paridad,
+  2026-08-27) lee el código de grupo 67 en primitivas (línea/polilínea/
+  círculo/arco/elipse/spline/texto), HATCH, MTEXT, cotas y directrices
+  semánticas, e INSERT de nivel superior — `paperSpace?: boolean` en
+  `dxf-import.ts`/`dxf-read-annotations.ts`, excluidas por
+  `dxf-model-space-scope.ts`. NO cubre los ocho tipos del esquema 4
+  (POINT/XLINE/RAY/SOLID/WIPEOUT/IMAGE/ATTDEF, leídos en
+  `dxf-read-schema4.ts` sobre pares crudos con su propia clase
+  `EntityPairs`): una IMAGE de logotipo o un WIPEOUT de cajetín en espacio
+  papel todavía se cuela al espacio modelo sin declararse. Menos frecuente
+  que líneas/textos de marco, pero la misma clase de mentira.
+- **Dónde:** `apps/web/src/lib/cad/dxf-read-schema4.ts` — añadir
+  `paperSpace` a `CadDxfPrimitive` (ya existe el campo) leyendo
+  `entity.first(67) === "1"` en cada uno de los seis `primitives.push(...)`;
+  ya lo filtraría `dxf-model-space-scope.ts` sin cambios (los primitivos de
+  esquema 4 llegan con `primitiveSources: "entity"`, el mismo camino que
+  línea/círculo/arco).
+- **Criterio de aceptación:** un spec con un WIPEOUT o IMAGE con código 67=1
+  no aparece en `document.entities` ni en `modelSpace.entityIds`, y
+  `dxfReport` lo declara con el mismo código `dxf_paper_space_excluded`.
+- **Estimación:** una hora — el patrón y el módulo de recorte ya existen;
+  falta repetir la lectura del código 67 en el sexto parser.
+
+### P2-13 · Oráculo geométrico unificado de ida y vuelta (DXF/DWG/PDF/GLB)
+- **Qué falta:** OLA 0.1 de la campaña Paridad (2026-08-27) pedía un arnés
+  único que tome UN documento fijo, lo exporte a los cuatro formatos, lo
+  vuelva a importar y compare geometría contra el original — para cazar
+  clases enteras de bug (como los tres que sí se encontraron y cerraron esa
+  campaña: ángulos DWG en grados-como-radianes, fuga de espacio papel DXF,
+  escala GLB sin corregir) con una sola prueba en vez de una por formato.
+  No se construyó: el tiempo de la campaña se fue en los tres defectos
+  reales que la investigación inicial ya había confirmado, y duplicar
+  cobertura que las specs de round-trip existentes
+  (`dwg-native-writer.spec.ts`, `dxf-roundtrip.spec.ts`,
+  `dxf-paper-space-scope.spec.ts`, `glb-export.spec.ts`) ya ejercen por
+  separado no valía más que cerrar los bugs reales primero.
+- **Alcance si se retoma:** un documento de fixture con geometría de los
+  cuatro tipos con ángulo (arco, elipse, inserción rotada) más muros/masas
+  3D; cuatro pares exportar/reimportar; una función de comparación de
+  geometría con tolerancia compartida por los cuatro. Vive bien como spec
+  nuevo, no como script aparte — así corre en `npm test` como el resto.
+- **Estimación:** medio día.
+
+### P2-14 · Los hosts 3D no escopan por `modelSpace.entityIds` (1.6 de la campaña Paridad)
+- **Qué falta:** `wall-solid-host.ts:153`, `room-solid-host.ts:74`,
+  `solid-shade-host.ts:322` y `solid-snap-host.ts:110` recorren
+  `document.entities` DIRECTO — sin filtrar por
+  `document.modelSpace.entityIds`. Sólo `render-pipeline-host.ts` (2D) sí
+  escopa por `modelSpace.entityIds` (línea 304-310). `CadPaperSpace` ya
+  declara su PROPIO `entityIds: string[]` (`cad-paper-viewport.ts:269`) —
+  entidades que viven en `document.entities` pero pertenecen a una hoja,
+  no al modelo (un texto de nota escrito directo sobre el layout, por
+  ejemplo). Investigado sin encontrar HOY un camino de comando que cree
+  una entidad exclusivamente en `paperSpaces[i].entityIds` sin también
+  sumarla a `modelSpace.entityIds` — así que el hueco es LATENTE, no
+  manifestado: el día que "anotar directo sobre la hoja" se cablee de
+  verdad (`paper-space.ts` ya trae el modelo de datos y el plotter),
+  esa nota se colaría a la vista 3D sin que ningún test lo cazara.
+- **Dónde:** los cuatro archivos de host arriba, mismo patrón que ya
+  usó esta campaña para 0.4/1.2 (invariante de capa aplicado a TODOS
+  los hosts vía `cad-layer-visibility.ts`) — aquí el invariante es
+  "sólo `modelSpace.entityIds`", no capa.
+- **Por qué no se tocó en esta campaña:** verificar que
+  `modelSpace.entityIds` sea de verdad el invariante correcto para
+  CADA host (algunos podrían depender de recorrer bloques/inserciones
+  cuyos hijos no tienen id propio en `modelSpace.entityIds`) exige
+  leer los cuatro anfitriones a fondo antes de tocar código de
+  render 3D en producción — más riesgo que el resto de los cierres de
+  esta campaña, que tocaban módulos puros con specs de Node. Con OLA
+  FINAL obligatoria por delante, se prioriza cerrar la ola completa
+  antes que profundizar en un hueco que hoy no se manifiesta.
+- **Criterio de aceptación:** un spec por host con un documento que
+  tenga una entidad SOLO en `paperSpaces[0].entityIds` (nunca en
+  `modelSpace.entityIds`) confirma que el host correspondiente NO la
+  materializa en 3D.
+- **Estimación:** medio día (cuatro hosts, uno por uno, con su prueba
+  negativa cada uno).
+
 ---
 
 ## Herencias verificables de campañas anteriores (dueño: revisar informes)

@@ -114,6 +114,15 @@ export interface CadDxfPrimitive {
    * direcciones, y una propiedad que sólo existe a un lado se pierde al volver.
    */
   presentation?: CadEntityPresentation;
+  /**
+   * `true` cuando la entidad de origen traía el código de grupo 67 en 1 —
+   * espacio PAPEL, no modelo. `dxf-parser` ya lo captura como
+   * `entity.inPaperSpace`; sin este campo, `document-import.ts` mezclaba una
+   * hoja de plano con el dibujo del arquitecto en la misma lista de
+   * entidades, indistinguibles. Ausente o `false` = espacio modelo, la
+   * inmensa mayoría de los ficheros.
+   */
+  paperSpace?: boolean;
 }
 export interface CadDxfHatch {
   layer: string;
@@ -124,10 +133,14 @@ export interface CadDxfHatch {
   angle?: number;
   origin?: CadDxfPoint;
   islandStyle?: "normal" | "outer" | "ignore";
+  /** Ver `CadDxfPrimitive.paperSpace`: mismo código 67, mismo significado. */
+  paperSpace?: boolean;
 }
 export interface CadDxfMText {
   layer: string;
   insertion: CadDxfPoint;
+  /** Ver `CadDxfPrimitive.paperSpace`: mismo código 67, mismo significado. */
+  paperSpace?: boolean;
   text: string;
   width?: number;
   height?: number;
@@ -149,11 +162,11 @@ export type CadDxfSemanticDimension = Omit<
   CadDimensionEntity,
   "id" | "type" | "context" | "references" | "associative" | "associationStatus"
   /** annotativeHeightMm: flecha SOBRE PAPEL (mm) si la cota es anotativa. */
-> & { blockName: string; annotativeHeightMm?: number };
+> & { blockName: string; annotativeHeightMm?: number; paperSpace?: boolean };
 export type CadDxfSemanticMleader = Omit<
   CadMleaderEntity,
   "id" | "type" | "context" | "references" | "associative" | "associationStatus"
-> & { sourceOrdinal: number };
+> & { sourceOrdinal: number; paperSpace?: boolean };
 export interface CadDxfBlockAttributeDefinition {
   defaultValue?: string;
   prompt?: string;
@@ -172,6 +185,8 @@ export interface CadDxfSemanticInsert {
   attributes: Record<string, string>;
   /** Tipo de línea y grosor de la INSERCIÓN: de aquí tira el BYBLOCK de dentro. */
   presentation?: CadEntityPresentation;
+  /** Ver `CadDxfPrimitive.paperSpace`: mismo código 67, mismo significado. */
+  paperSpace?: boolean;
 }
 export interface CadDxfSemanticBlock {
   name: string;
@@ -349,6 +364,10 @@ export function mapDxfEntityToPrimitive(entity: any): {
 } {
   const type = String(entity?.type || "").toUpperCase();
   const layer = String(entity?.layer || DEFAULT_LAYER);
+  // Código de grupo 67, ya decodificado por `dxf-parser` como booleano. Se
+  // consulta UNA vez y se añade a cada primitiva que esta función devuelva:
+  // ver el comentario de `CadDxfPrimitive.paperSpace`.
+  const paperSpace = entity?.inPaperSpace === true;
   if (type === "LINE") {
     const verts = Array.isArray(entity.vertices)
       ? (entity.vertices.map(pt).filter(Boolean) as CadDxfPoint[])
@@ -357,7 +376,14 @@ export function mapDxfEntityToPrimitive(entity: any): {
           pt(entity.endPoint ?? entity.end),
         ].filter(Boolean) as CadDxfPoint[]);
     if (verts.length >= 2)
-      return { primitive: { kind: "line", layer, points: verts.slice(0, 2) } };
+      return {
+        primitive: {
+          kind: "line",
+          layer,
+          points: verts.slice(0, 2),
+          ...(paperSpace ? { paperSpace } : {}),
+        },
+      };
     return {
       warning: {
         code: "invalid_line",
@@ -406,6 +432,7 @@ export function mapDxfEntityToPrimitive(entity: any): {
         layer,
         points: vertices,
         closed,
+        ...(paperSpace ? { paperSpace } : {}),
       },
     };
   }
@@ -414,7 +441,13 @@ export function mapDxfEntityToPrimitive(entity: any): {
     const radius = num(entity.radius);
     if (center && radius != null && radius > 0)
       return {
-        primitive: { kind: "circle", layer, points: [center], radius },
+        primitive: {
+          kind: "circle",
+          layer,
+          points: [center],
+          radius,
+          ...(paperSpace ? { paperSpace } : {}),
+        },
       };
     return {
       warning: {
@@ -448,6 +481,7 @@ export function mapDxfEntityToPrimitive(entity: any): {
           radius,
           startAngle: (startRad * 180) / Math.PI,
           endAngle: (endRad * 180) / Math.PI,
+          ...(paperSpace ? { paperSpace } : {}),
         },
       };
     return {
@@ -478,6 +512,7 @@ export function mapDxfEntityToPrimitive(entity: any): {
           axisRatio: ratio,
           startAngle: (startRad * 180) / Math.PI,
           endAngle: (endRad * 180) / Math.PI,
+          ...(paperSpace ? { paperSpace } : {}),
         },
       };
     }
@@ -506,6 +541,7 @@ export function mapDxfEntityToPrimitive(entity: any): {
           points: control,
           degree,
           ...(knots.length ? { knots } : {}),
+          ...(paperSpace ? { paperSpace } : {}),
         },
       };
     }
@@ -524,7 +560,15 @@ export function mapDxfEntityToPrimitive(entity: any): {
       entity.text ?? entity.string ?? entity.value ?? "",
     ).trim();
     if (pos && text)
-      return { primitive: { kind: "text", layer, points: [pos], text } };
+      return {
+        primitive: {
+          kind: "text",
+          layer,
+          points: [pos],
+          text,
+          ...(paperSpace ? { paperSpace } : {}),
+        },
+      };
     return {
       warning: {
         code: "invalid_text",
@@ -635,12 +679,18 @@ function expandDimension(
   const layer = String(entity?.layer || DEFAULT_LAYER);
   const blockName = String(entity?.block ?? "");
   const block = blockName ? blocks[blockName] : undefined;
+  // La DIMENSION en sí lleva el 67, no las líneas/flechas de su bloque *D:
+  // se hereda al padre a los hijos expandidos.
+  const paperSpace = entity?.inPaperSpace === true;
   if (block && Array.isArray(block.entities) && block.entities.length) {
     const expanded: CadDxfPrimitive[] = [];
     for (const child of block.entities) {
       const mapped = mapDxfEntityToPrimitive(child);
       if (mapped.warning) warnings.push(mapped.warning);
-      if (mapped.primitive) expanded.push(mapped.primitive);
+      if (mapped.primitive)
+        expanded.push(
+          paperSpace ? { ...mapped.primitive, paperSpace } : mapped.primitive,
+        );
     }
     if (expanded.length) return expanded;
   }
@@ -656,7 +706,15 @@ function expandDimension(
     layer,
   });
   return anchor && label
-    ? [{ kind: "text", layer, points: [anchor], text: label }]
+    ? [
+        {
+          kind: "text",
+          layer,
+          points: [anchor],
+          text: label,
+          ...(paperSpace ? { paperSpace } : {}),
+        },
+      ]
     : [];
 }
 
@@ -680,6 +738,7 @@ function semanticInsert(
     layer: String(entity?.layer || DEFAULT_LAYER),
     attributes,
     ...(presentation ? { presentation } : {}),
+    ...(entity?.inPaperSpace === true ? { paperSpace: true } : {}),
   };
 }
 
@@ -779,6 +838,7 @@ export function parseRawDxfHatches(text: string): {
       : patternOriginX !== null && patternOriginY !== null
         ? { x: patternOriginX, y: patternOriginY }
         : undefined;
+    const paperSpace = first(67) === "1";
     const boundaries: CadDxfPoint[][] = [];
     let unsupportedEdgePath = false;
     for (let cursor = 0; cursor < entityPairs.length; cursor += 1) {
@@ -817,6 +877,7 @@ export function parseRawDxfHatches(text: string): {
         ...(angle !== null ? { angle } : {}),
         ...(origin ? { origin } : {}),
         islandStyle,
+        ...(paperSpace ? { paperSpace } : {}),
       });
       if (unsupportedEdgePath)
         warnings.push({

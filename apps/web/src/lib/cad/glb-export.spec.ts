@@ -285,8 +285,48 @@ assert.ok(
   "un rayo por el muro macizo sí choca con la malla releída",
 );
 
+// 5 · `exportScale` corrige la escala de AJUSTE DE CÁMARA del visor
+// (campaña Paridad, OLA 0.1/1.4): sin corregirla, el GLB salía a la escala
+// arbitraria con la que `Layout3DEditor` encuadra el predio en cámara, no en
+// metros reales — glTF declara 1 unidad = 1 metro.
+{
+  const half: ArrayBuffer = await (
+    await serializeCadGlbBlob(objects, { exportScale: 0.5 })
+  ).arrayBuffer();
+  const rereadHalf = await new Promise<THREE.Group>((resolve, reject) => {
+    new GLTFLoader().parse(half, "", (gltf) => resolve(gltf.scene), reject);
+  });
+  const halfBox = new THREE.Box3().setFromObject(rereadHalf);
+  const halfSize = halfBox.getSize(new THREE.Vector3());
+  const fullSize = rereadBox.getSize(new THREE.Vector3());
+  for (const axis of ["x", "y", "z"] as const) {
+    assert.ok(
+      Math.abs(halfSize[axis] - fullSize[axis] * 0.5) < 1e-3,
+      `exportScale 0.5 reduce a la mitad el eje ${axis}: ${halfSize[axis]} vs ${fullSize[axis] * 0.5}`,
+    );
+  }
+  // Prueba negativa: SIN `exportScale` (o en 1), el tamaño es el mismo que
+  // el de la sección 2 — la corrección no se aplica sola.
+  const unscaled: ArrayBuffer = await (
+    await serializeCadGlbBlob(objects, { exportScale: 1 })
+  ).arrayBuffer();
+  const rereadUnscaled = await new Promise<THREE.Group>((resolve, reject) => {
+    new GLTFLoader().parse(unscaled, "", (gltf) => resolve(gltf.scene), reject);
+  });
+  const unscaledSize = new THREE.Box3().setFromObject(rereadUnscaled).getSize(new THREE.Vector3());
+  for (const axis of ["x", "y", "z"] as const) {
+    assert.ok(
+      Math.abs(unscaledSize[axis] - fullSize[axis]) < 1e-3,
+      `exportScale 1 no cambia el eje ${axis}: ${unscaledSize[axis]} vs ${fullSize[axis]}`,
+    );
+  }
+  // La escena VIVA (`hosts.group`) no se tocó al exportar escalado: se
+  // exportan CLONES, nunca los objetos reales.
+  assert.equal(hosts.group.scale.x, 1, "el grupo real de la escena sigue a escala 1 tras exportar escalado");
+}
+
 hosts.dispose();
-console.log("glb-export.spec: el edificio viaja en el GLB y el hueco es real");
+console.log("glb-export.spec: el edificio viaja en el GLB, el hueco es real y exportScale corrige la escala de cámara");
 }
 
 void main();

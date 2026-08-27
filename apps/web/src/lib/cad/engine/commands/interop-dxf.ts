@@ -60,6 +60,7 @@ import {
   type CadDxfImportReport,
   type CadDxfImportReportRow,
 } from "../../dxf-import-report";
+import { scopeDxfImportToModelSpace } from "../../dxf-model-space-scope";
 import {
   CAD_ACCEPT_KEYWORD,
   CAD_ACCEPT_TEXT,
@@ -155,22 +156,22 @@ export function planCadDxfImport(
   const importOptions = { idPrefix: options.newEntityId(), provider: IMPORT_PROVIDER };
   // Las primitivas que vienen de expandir un INSERT NO se insertan sueltas: el
   // bloque viaja entero por `cadDxfBlocksToCadDocumentParts` y meter además su
-  // geometría explotada dejaría cada mueble dibujado dos veces.
-  const canonical = cadDxfPrimitivesToCanonicalEntities(
-    result.primitives.filter((_, index) => result.primitiveSources[index] !== "insert"),
-    importOptions,
-  );
-  const blockParts = cadDxfBlocksToCadDocumentParts(result.blocks, result.inserts, importOptions);
+  // geometría explotada dejaría cada mueble dibujado dos veces. Las de espacio
+  // papel tampoco: ver `dxf-model-space-scope.ts` — DXFIN mete un archivo
+  // ajeno DENTRO de este dibujo, y su hoja de plano no es parte del dibujo.
+  const scoped = scopeDxfImportToModelSpace(result);
+  const canonical = cadDxfPrimitivesToCanonicalEntities(scoped.primitives, importOptions);
+  const blockParts = cadDxfBlocksToCadDocumentParts(result.blocks, scoped.inserts, importOptions);
 
   const entities: CadNativeEntity[] = [];
   for (const entity of canonical) {
     if (isInsertable(entity)) entities.push(entity);
   }
   entities.push(
-    ...cadDxfHatchesToNativeEntities(result.hatches, importOptions),
-    ...cadDxfMTextsToNativeEntities(result.mtexts, importOptions),
-    ...cadDxfSemanticDimensionsToNativeEntities(result.semanticDimensions, importOptions),
-    ...cadDxfMleadersToNativeEntities(result.mleaders, importOptions),
+    ...cadDxfHatchesToNativeEntities(scoped.hatches, importOptions),
+    ...cadDxfMTextsToNativeEntities(scoped.mtexts, importOptions),
+    ...cadDxfSemanticDimensionsToNativeEntities(scoped.semanticDimensions, importOptions),
+    ...cadDxfMleadersToNativeEntities(scoped.mleaders, importOptions),
     ...blockParts.inserts,
   );
 

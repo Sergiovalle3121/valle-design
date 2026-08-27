@@ -91,9 +91,11 @@ export function parseRawDxfSemanticDimensions(text: string): CadDxfSemanticDimen
     const extensionLineColor = metadata.get("extensionLineColor") ?? "";
     const textVertical = metadata.get("textVertical") ?? "";
     const textJustification = metadata.get("textJustification") ?? "";
+    const paperSpace = first(67) === "1";
     dimensions.push({
       blockName,
       layer: first(8) || DEFAULT_LAYER,
+      ...(paperSpace ? { paperSpace } : {}),
       dimensionKind: kind,
       a,
       b,
@@ -187,9 +189,11 @@ export function parseRawDxfSemanticMleaders(text: string): CadDxfSemanticMleader
     const lineSpacing = numeric("lineSpacing"); const backgroundPadding = numeric("backgroundPadding");
     const doglegLength = numeric("doglegLength"); const arrowSize = numeric("arrowSize");
     const alignment = metadata.get("textAlignment");
+    const paperSpace = first(67) === "1";
     mleaders.push({
       sourceOrdinal,
       layer: first(8) || DEFAULT_LAYER,
+      ...(paperSpace ? { paperSpace } : {}),
       vertices: leaderLines[0].map((point) => ({ ...point, z: 0 })),
       leaderLines: leaderLines.map((line) => line.map((point) => ({ ...point, z: 0 }))),
       text: decode(textChunks),
@@ -275,9 +279,11 @@ export function parseRawDxfMTexts(text: string): CadDxfMText[] {
     if (x !== null && y !== null && decoded.text) {
       const trueColor = num(first(420));
       const backgroundPadding = num(first(45));
+      const paperSpace = first(67) === "1";
       result.push({
         layer: first(8) || DEFAULT_LAYER,
         insertion: { x, y },
+        ...(paperSpace ? { paperSpace } : {}),
         ...decoded,
         ...(num(first(41)) !== null ? { width: num(first(41))! } : {}),
         ...(num(first(40)) !== null ? { height: num(first(40))! } : {}),

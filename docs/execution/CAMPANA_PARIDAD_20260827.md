@@ -398,3 +398,212 @@ mentira); restaurado, vuelve a verde.
 todos verdes. Quedan 1.5 (fuga de espacio papel DXF) y 1.4 (escala
 GLB) del resto de 0.1, más el oráculo unificado de ida y vuelta que
 los liga a los cuatro formatos.
+
+### 2026-08-27T11:45Z — 0.1/1.5, segundo defecto: fuga de espacio papel DXF (import y export)
+
+`document-import.ts:316` hacía
+`modelSpace: { entityIds: entities.map((entity) => entity.id) }` sin
+mirar el código de grupo 67 del DXF de origen: el cajetín, el marco y
+cualquier entidad de una hoja de layout (espacio PAPEL) entraban
+mezclados en el mismo espacio MODELO que el dibujo del arquitecto,
+indistinguibles — un recuento de entidades o un metrado calculado
+sobre `modelSpace.entityIds` contaba de más sin que nada lo delatara.
+La misma fuga existía en la orden `DXFIN`
+(`engine/commands/interop-dxf.ts`) y, en la dirección contraria, en
+`exportCadDocumentDxf` (`dxf-document-export.ts`): "Todo" mezclaba
+entidades de espacio papel en la sección ENTITIES del DXF exportado.
+
+Confirmado que `dxf-parser` (la librería real, no la nuestra) YA
+decodifica el código 67 como `entity.inPaperSpace` en cada entidad
+parseada (`node_modules/dxf-parser/dist/ParseHelpers.js`); el dato
+estaba disponible y nadie lo leía.
+
+Arreglo, en las dos direcciones, con el mismo patrón "excluir y
+declarar" que ya usa el escritor DWG para su propia limitación de fase
+(`dwg-native-writer.ts`, "espacios de papel no escritos"):
+
+- **Import** (`dxf-import.ts`): campo `paperSpace?: boolean` añadido a
+  `CadDxfPrimitive`, `CadDxfHatch`, `CadDxfMText`,
+  `CadDxfSemanticDimension`, `CadDxfSemanticMleader` y
+  `CadDxfSemanticInsert`; poblado desde `entity.inPaperSpace` en
+  `mapDxfEntityToPrimitive`, `expandDimension` (heredado de la
+  DIMENSION padre a su geometría expandida), `semanticInsert` y los
+  cuatro parsers de pares crudos de `dxf-read-annotations.ts`
+  (HATCH/MTEXT/DIMENSION semántica/MLEADER semántico, cada uno con su
+  propio `first(67) === "1"`). NO cubre los ocho tipos del esquema 4
+  (XLINE/RAY/SOLID/WIPEOUT/IMAGE/ATTDEF/POINT,
+  `dxf-read-schema4.ts`) — hueco declarado, no descubierto en
+  silencio; ver backlog.
+- **Módulo nuevo** `dxf-model-space-scope.ts`
+  (`scopeDxfImportToModelSpace`): recorta las seis familias a espacio
+  modelo y cuenta cuántas quedaron fuera. Compartido por
+  `document-import.ts` (importar archivo completo) y
+  `engine/commands/interop-dxf.ts` (DXFIN) — las dos construían
+  entidades desde el MISMO resultado crudo y las dos tenían la misma
+  fuga; sin este módulo se habría duplicado el filtro (y con él, el
+  riesgo de que uno de los dos sitios se arreglara y el otro no).
+  `document-import.ts` declara la exclusión en
+  `document.lossManifest` (`dxf_paper_space_excluded`).
+- **Informe en español** (`dxf-import-report.ts`): sin este cambio, el
+  informe seguía diciendo "conservado" sobre entidades que el
+  documento ya había excluido — la misma clase de mentira, un nivel
+  más arriba. Nueva regla `dxf_paper_space_excluded` en
+  `WARNING_RULES`; `countPrimitives` y los recuentos "kept" de
+  hatch/mtext/dimensión/directriz/inserción ahora restan las
+  marcadas `paperSpace` antes de anunciarlas como íntegras.
+- **Export** (`dxf-document-export.ts`, hecho en el turno anterior,
+  probado en éste): `CadDxfDocumentExportSource.paperSpaces` opcional;
+  `cadDocumentToDxfExportModel`/`exportCadDocumentDxf` excluyen los
+  ids ahí listados de las seis familias exportadas y declaran
+  `dxf_export_paper_space_excluded` cuando algo quedó fuera.
+
+**Evidencia real:** nuevo
+`apps/web/src/lib/cad/dxf-paper-space-scope.spec.ts`, cuatro bloques
+con su prueba negativa cada uno — (1) exportación: una entidad
+declarada en `paperSpaces` no viaja al DXF y se cuenta en `losses`;
+SIN declararla, la misma entidad SÍ viaja y no se inventa una pérdida;
+(2) importación de archivo completo: una LINE con código 67=1 en el
+DXF crudo no entra al documento ni a `modelSpace.entityIds`, se
+declara en `lossManifest` y en `dxfReport`; SIN el código 67, entra
+normal; (3) el recuento `kept_line` del informe no cuenta la línea de
+papel; (4) DXFIN (`planCadDxfImport`) tiene la misma fuga cerrada por
+el mismo módulo. Prueba negativa real de más alto nivel: con
+`git stash` sobre los seis archivos tocados (import.ts,
+document-import.ts, interop-dxf.ts, dxf-import-report.ts,
+dxf-read-annotations.ts, dxf-document-export.ts) y el módulo nuevo
+apartado con `mv`, el spec falla en la primera aserción
+("solo el muro de espacio modelo se escribe", 2 !== 1); restaurado,
+vuelve a verde.
+
+`npm run typecheck`, los specs de DXF afectados
+(`dxf-import-report.spec.ts`, `dxf-roundtrip.spec.ts`,
+`interop-dxf.spec.ts`, `dxf-cad-document.spec.ts`,
+`document-import.spec.ts`, el nuevo `dxf-paper-space-scope.spec.ts`) y
+`npm test` completo (416/416, incluye el spec nuevo), todos verdes.
+
+### 2026-08-27T12:30Z — 0.1/1.4, tercer defecto: el GLB no salía a 1:1
+
+`Layout3DEditor.tsx:6032` (`s = 30 / Math.max(W, H)`) es la escala de
+AJUSTE DE CÁMARA con la que se construye TODA la geometría de la
+escena 3D — para que un predio de 4 m y uno de 400 m quepan igual de
+bien en la pantalla, no una conversión de unidades. `exportGltf`
+(línea ~12769) serializaba esos mismos objetos de escena tal cual al
+GLB. glTF declara 1 unidad = 1 METRO; el resultado era un archivo cuyo
+metro no medía un metro real, y la distorsión cambiaba con el tamaño
+de CADA predio — el mismo edificio de 40×30 m y uno de 4×3 m no
+salían a la misma escala relativa entre sí en el archivo exportado.
+
+Arreglo: `serializeCadGlbBlob` (`glb-export.ts`) acepta un
+`exportScale` opcional (por defecto 1, sin efecto, para cualquier otro
+llamador). Cuando no es 1, envuelve los objetos a exportar en un
+`THREE.Group` con `scale.setScalar(exportScale)` que contiene CLONES
+—nunca los objetos vivos de la escena: `Object3D.add()` saca al hijo
+de su padre anterior, y reparentar la escena real la habría dejado
+rota tras exportar—. El clon comparte geometría/material por
+referencia (sin duplicar memoria) y hereda la visibilidad ya apagada
+por `hideCadGlbOverlays` un instante antes. `exportGltf` calcula el
+factor con `unitToMeters(1, unit) / ctxRef.current.s`
+(`unitToMeters` ya vivía en `world-scale.ts`, con su propio spec y con
+`data.footprint.unit` como fuente de la unidad real del editor — que
+SÍ puede ser "m", no siempre "mm", confirmado leyendo los usos
+existentes de `data?.footprint.unit` en el mismo archivo).
+
+**Evidencia real:** extendida `glb-export.spec.ts` (que ya hacía
+round-trip real: exportar con el `GLTFExporter` real, releer con
+`GLTFLoader`, medir sobre lo LEÍDO) con una sección 5 — exportar con
+`exportScale: 0.5` y confirmar que la bounding box releída mide
+exactamente la mitad de la exportada sin escalar, en los tres ejes;
+exportar con `exportScale: 1` y confirmar que el tamaño no cambia
+(la corrección no se aplica sola); confirmar que `hosts.group.scale.x`
+sigue en 1 tras exportar escalado — la escena viva no se tocó. Prueba
+negativa real: `git stash` sobre `glb-export.ts` y
+`Layout3DEditor.tsx`, la sección 5 falla exactamente en la primera
+aserción ("exportScale 0.5 reduce a la mitad el eje x", 52.5 vs
+26.25 — el `exportScale` se ignoraba en silencio); restaurado, vuelve
+a verde.
+
+Presupuesto de monolito: `Layout3DEditor.tsx` y `dxf-import.ts`
+llegaron a sus techos exactos por los dos arreglos de esta entrada y
+la anterior (0 y 61 líneas de holgura respectivamente); subidos con
+`check-monolith-budget.mjs --update --allow-growth`
+(20244→20256, 1044→1105), mismo mecanismo documentado que en la
+entrada anterior — capacidad nueva y real, no relleno.
+
+`npm run typecheck`, `npm run lint` + `check:lint-budget` (547/547,
+sin avisos nuevos), `check-monolith-budget.mjs` (verde tras el
+`--update --allow-growth`) y `npm test` completo, todos verdes.
+
+Cierra 0.1 en sus tres defectos confirmados (DWG radianes, fuga de
+espacio papel DXF, escala GLB). Pendiente, declarado en vez de hecho
+en silencio: el oráculo unificado de ida y vuelta que los ligue a los
+cuatro formatos en un solo arnés, y la cobertura de espacio papel para
+los ocho tipos del esquema 4 DXF — quedan en el backlog (P2-12, P2-13)
+si el tiempo de esta campaña no alcanza.
+
+**Hallazgo durante el barrido de gates, investigado antes de descartarlo
+como ajeno:** `npm run check:cad` falla en `check:dwg-evidence` — pero
+NO por nada de esta campaña. Investigado a fondo (no asumido):
+1. Revertido con `git stash` TODO lo no comprometido de hoy y repetido
+   el check: sigue fallando igual. No es esta campaña.
+2. `node -e` directo comparando `generateDwgEvidence()` (computado, en
+   vivo) contra `docs/cad/evidence/dwg-decoder-matrix.json` (comprometido):
+   el ARCHIVO dice `bundlesAdmitidos: 7, capacidadesPromovidas: 2`; lo
+   COMPUTADO en este sandbox dice `bundlesAdmitidos: 0, capacidadesPromovidas: 0`
+   — la dirección importa: el archivo comprometido es el que tiene MÁS
+   evidencia, no menos. `node scripts/dwg/fetch-corpus.mjs --check`
+   confirma por qué: `"reason": "sin VALLE_DWG_CORPUS_MIRROR y sin
+   VALLE_DWG_CORPUS_TOKEN: no se descargó nada y no se afirma nada"`.
+3. `.github/workflows/ci.yml:152-153` exporta `VALLE_DWG_CORPUS_MIRROR`
+   antes de correr esta cadena; este sandbox de campaña no tiene ese
+   mirror ni el token — no es un secreto que le falte al REPOSITORIO, es
+   un secreto que le falta a ESTA SESIÓN.
+
+Conclusión: el gate está haciendo exactamente su trabajo (0.6:
+"evidencia que no puede envejecer" — regenerar y comparar, nunca creer
+un archivo comprometido a ciegas) y correctamente se niega a bendecir
+una promoción de capacidad DWG que este sandbox no puede reproducir de
+forma independiente sin las credenciales del corpus. Regenerar aquí con
+`--write` SERÍA relajar la evidencia real (borraría 7 bundles/2
+capacidades promovidas y las reemplazaría por cero) — exactamente lo
+que la regla 5 prohíbe, sólo que en la dirección contraria a la
+intuición. No se toca. En CI (con el mirror configurado) este mismo
+gate reproduce el archivo comprometido sin diferencia. No requiere
+entrada del backlog: es una limitación de ESTE sandbox, ya cubierta por
+la configuración de CI existente, no un defecto del repositorio.
+
+**1.5 y 1.6, investigados antes de tocar código (rule 1, decidir y
+seguir):** "origen flotante en 3D" YA EXISTE — `render-origin.ts`
+(centroide, rejilla de 100 m, con su propia `render-origin.spec.ts`)
+resuelve exactamente la pérdida de precisión float32 a magnitud UTM que
+1.5 nombra; no es un hueco de esta campaña. "Límites del dibujo
+excluyendo espacio papel": el único consumidor de esos límites
+(`render/pipeline.ts:278-298`, alimentado por
+`render-pipeline-host.ts:304-310`) YA escopa por
+`document.modelSpace.entityIds` antes de calcular el bounding box — 1.5
+cerrado, sin cambio de código necesario, sólo confirmado. 1.6
+("espacio modelo/papel separados de verdad en TODOS los hosts 3D") es
+distinto: los CUATRO anfitriones de sólidos 3D
+(`wall-solid-host.ts`/`room-solid-host.ts`/`solid-shade-host.ts`/
+`solid-snap-host.ts`) recorren `document.entities` sin ese mismo
+filtro — un hueco real pero LATENTE (ningún camino de comando de hoy
+crea una entidad que viva SÓLO en `paperSpaces[i].entityIds` sin
+también estar en `modelSpace.entityIds`, así que nada se manifiesta
+todavía). Backlogueado como P2-14 con su criterio de aceptación exacto
+en vez de tocar cuatro anfitriones de render 3D en producción sin el
+tiempo para la disciplina de prueba negativa que el resto de esta
+campaña sí se dio — con OLA FINAL obligatoria por delante, cerrar la
+ola completa pesa más que profundizar en un hueco que hoy no muerde a
+nadie.
+
+Resto de la cadena `check:cad` corrido a mano, uno por uno, todo verde:
+`check:precision-evidence`, `check:legal`, `check:command-integrity`,
+`rubric.spec.mjs` (57 comprobaciones), `rubric.mjs --markdown`
+(190/220, 86.4% — sin cambio, estas correcciones no suman puntos de
+rúbrica, son de confianza). `check:dwg` también corrido a mano:
+`check --workspace=@valle-design/dwg-codec`,
+`check-product-boundary.mjs` y `corpus-consumer.spec.mjs` verdes;
+`fetch-corpus.mjs --check` reporta `"status": "unavailable"` — el MISMO
+resultado que ya declara `check:dwg-corpus` cuando no hay mirror, así
+que esa pieza específica SÍ está en su estado esperado (a diferencia de
+`dwg-evidence.mjs`, que compara contra un archivo que SÍ tiene
+evidencia real comprometida).
