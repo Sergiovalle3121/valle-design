@@ -3159,14 +3159,14 @@ export default function Layout3DEditor({
   const selectNative = useCallback(
     (ids: string[]) => {
       const document = loadedCadDocumentRef.current;
-      const next = [...new Set(ids)]
-        .filter((id) => {
-          const entity =
-            nativeSelectionIndexRef.current?.entity(id) ??
-            document?.entities.find((candidate) => candidate.id === id);
-          return !!entity && CAD_ENTITY_REGISTRY.supports(entity);
-        })
-        .slice(0, 300);
+      // SIN tope, como ventana/cruce/lazo: el tope de 300 truncaba en silencio
+      // mientras QSELECT/capa anunciaban el total real sin truncar.
+      const next = [...new Set(ids)].filter((id) => {
+        const entity =
+          nativeSelectionIndexRef.current?.entity(id) ??
+          document?.entities.find((candidate) => candidate.id === id);
+        return !!entity && CAD_ENTITY_REGISTRY.supports(entity);
+      });
       nativeSelectionIdsRef.current = next;
       setNativeSelectionIds(next);
       selRef.current = [];
@@ -12359,8 +12359,8 @@ export default function Layout3DEditor({
       toast.error("No hay objetos visibles en esa capa.", "Capas");
       return;
     }
-    if (nativeIds.length) selectNative(nativeIds.slice(0, 200));
-    else select(items.slice(0, 200));
+    if (nativeIds.length) selectNative(nativeIds); // sin tope, y sin "else": perdía los heredados
+    if (items.length) select(items);
     toast.success(
       `${items.length + nativeIds.length} objeto(s) seleccionados en la capa.`,
       "Capas",

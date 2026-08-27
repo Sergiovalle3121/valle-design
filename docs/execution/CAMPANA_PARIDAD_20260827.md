@@ -238,3 +238,63 @@ verdes** (incluye los dos specs previos de cada host, sin regresión), y
 `npm run check:cad` completo sin cambios de puntaje (la rúbrica no tiene
 fila propia para este defecto — era un defecto de integridad, no un
 criterio con peso).
+
+### 2026-08-27T09:20Z — cierra 0.3+1.1: QSELECT y "Sel" de capa ya no mienten
+
+Confirmados y arreglados los dos Bugs A y B que la investigación
+localizó con cita exacta.
+
+**Bug A** (`selectNative`, `Layout3DEditor.tsx:3159-3180`): el
+`.slice(0, 300)` truncaba la selección en silencio mientras
+`select-query.ts` (QSELECT/FILTER) seguía anunciando el total real sin
+truncar — "300 de 300" cuando en realidad matcheaban 500. Investigado
+a fondo el porqué antes de tocar código: `select-query.ts` NUNCA mentía
+por sí solo (su `text` y su `entityIds` derivan del MISMO
+`outcome.selection`, no pueden divergir); la mentira nacía río abajo,
+sólo cuando el host aplicaba el tope a la mitad del efecto y no a la
+otra. Arreglo: quitar el tope de `selectNative`, exactamente el mismo
+arreglo que ventana/cruce/lazo ya usaban (`Layout3DEditor.tsx:7357-7382`,
+`applyProfessionalSelection`, sin tope desde la campaña COMMERCIAL-RC1).
+Verificado que es seguro: la proyección visual (grips) ya se presupuesta
+aparte en `refreshNativeSelectionVisuals` vía `planCadSelectionProjection`
+— el tope de `selectNative` no protegía nada que esa capa no proteja ya.
+
+**Bug B** (`selectCadLayerObjects`, `Layout3DEditor.tsx:12342-12368`,
+el botón «Sel» del gestor de capas): tenía SU PROPIO tope adicional de
+200, y además una exclusión mutua real (`if (nativeIds.length)
+selectNative(...) else select(...)`) que perdía los objetos heredados
+en silencio cuando había nativos de por medio, mientras el toast de
+abajo seguía anunciando `items.length + nativeIds.length` (el total
+real, siempre — nunca mintió sobre el número, sólo sobre lo que de
+verdad quedaba seleccionado). Arreglo: quitar el tope y cambiar el
+`if/else` por dos `if` independientes (con `selectNative` primero,
+porque limpia la selección heredada antes de que `select` la repueble).
+
+Los dos arreglos caben en 20242/20242 líneas del monolito — exactamente
+en su presupuesto, cero holgura, cada comentario recortado a una línea
+para no pasarse ni un carácter.
+
+**Evidencia real, no de Node:** nuevo golden
+`apps/web/e2e/golden/59-cad-selection-no-truncation.spec.ts`, dos
+pruebas contra el producto real (Playwright + `next dev`, sin API real
+—herméticas—): documento con 350 líneas, QSELECT por capa (test 1) y
+botón «Sel» (test 2), en ambos casos ERASE inmediato después y se
+verifica `cad-native-document-count` — no el mensaje, el EFECTO. Ambas
+verdes con el arreglo. Prueba negativa real con `git stash` del
+arreglo: **el golden no sólo falla, los números confirman el mecanismo
+exacto del bug** — test 2 sin el arreglo deja "Native 150" tras el
+ERASE (350 − 200 = 150 sobrevivientes, el tope de `selectCadLayerObjects`
+exacto). `git stash pop` restaura el arreglo, vuelve a verde.
+
+Nota operativa: al arrancar los goldens se descubrió que un servidor
+Next.js de producción y una API Nest, ambos de sesiones de verificación
+anteriores de ESTA MISMA sesión (P1-8, ~06:10 y el benchmark de estrés
+denso, ~06:58), seguían vivos en los puertos 3000/4000 y
+`reuseExistingServer` de Playwright los reutilizaba en vez de levantar
+un `next dev` fresco — el golden 35 fallaba contra ese build viejo por
+razones ajenas al código. Matados ambos procesos, los goldens corren
+limpios contra un servidor fresco.
+
+`npm run typecheck`, `npm test` (415/415), `node
+scripts/cad/check-monolith-budget.mjs` y `npm run check:cad` completo,
+todos verdes.
