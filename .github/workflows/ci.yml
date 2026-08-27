@@ -579,7 +579,36 @@ jobs:
           IDENTITY_TEST_HARNESS: "true"
           IDENTITY_TEST_HARNESS_KEY: valle-design-e2e-harness-key-32-characters-minimum
           IDENTITY_RATE_LIMIT_KEY_SECRET: valle-design-e2e-rate-limit-key-32chars
+          # El modo de lanzamiento, tal y como va a salir a producción: 90 días
+          # de prueba. La Jornada Real y el embudo leen la duración del catálogo
+          # público, así que el CI ejercita la oferta que se anuncia, no otra.
+          TRIAL_DAYS: "90"
           AI_MOCK: "1"
+
+      # ── LA JORNADA REAL, PRIMERO Y SOLA ──────────────────────────────────
+      #
+      # Corre antes que el resto y falla rápido a propósito. Es LA prueba de
+      # que el producto está vivo: registro, dibujo, guardado, re-login con los
+      # mismos números, DXF verificado por contenido numérico, review link en un
+      # segundo navegador y la regla de oro del día 91.
+      #
+      # Ponerla aquí y no confiar en que la barra la recoja más tarde es una
+      # decisión de SEÑAL: la suite completa tarda ~40 minutos, y enterarse a
+      # los 40 de que el registro está roto cuesta una corrida entera. Aquí el
+      # veredicto llega en menos de un minuto.
+      #
+      # Sí, se ejecuta dos veces (el barrido de abajo la vuelve a incluir).
+      # Cuesta segundos y compra el fallo temprano; el día que eso moleste, se
+      # excluye del barrido, no de aquí.
+      - name: La Jornada Real (E2E full-stack, sin mocks) — falla rápido
+        working-directory: apps/web
+        env:
+          E2E_PROD: "1"
+          E2E_API_ORIGIN: http://localhost:4000
+          E2E_REAL_API: "1"
+          E2E_IDENTITY_HARNESS_KEY: valle-design-e2e-harness-key-32-characters-minimum
+          CAD_PERF_E2E: "0"
+        run: npx playwright test e2e/real/jornada-real.spec.ts e2e/real/free-launch-funnel.spec.ts --project=chromium --retries=0
 
       - name: Playwright E2E (goldens + performance + full-stack real)
         working-directory: apps/web
