@@ -785,6 +785,63 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CAMPANA-PARIDAD-20260827",
+      "date": "2026-08-27",
+      "initiative": "Campaña 'Paridad — la máquina de verdad' (docs/execution/CAMPANA_PARIDAD_20260827.md), continuación directa de la sesión que ya había cerrado PROGRAMA-10X-VERIFICACION-BACKLOG-2026-08-27 sobre la misma rama. Tesis: la paridad no se construye agregando comandos, se construye haciendo que cada capacidad sea digna de confianza y no vuelva a romperse — la campaña arregla la máquina de verificación (gates de evidencia, verificadores, oráculos) antes que cualquier función nueva. Cuatro olas: 0 (instrumento de verdad — check-command-integrity.mjs pasa a comparar el artefacto comprometido contra lo computado en vez de sólo escribirlo; la sonda de precisión de coordenadas grandes ejercita el teselador real en vez de armar su propio Float32Array a mano; Cad3DSolidDiagnostics.tsx da evidencia real de malla 3D en vez de la lista de botones recortada a 20; invariante de capa aplicado a los cuatro hosts de sólidos 3D vía layer-visibility-gate.spec.ts; gate de paridad geométrica interna cantidades-vs-3D nuevo). Ola 1 (tres defectos de confianza reales encontrados y cerrados, cada uno con prueba negativa real vía git stash confirmando que el fallo nombra el mecanismo exacto: el escritor DWG escribía ángulos en grados como si ya fueran radianes; DXF mezclaba espacio papel con espacio modelo al importar —archivo completo y DXFIN— y al exportar, sin leer el código de grupo 67 en ningún lado; el GLB exportaba con la escala de ajuste de cámara del visor en vez de metros reales 1:1). Ola 2 (docs/parity/ESCALERA.md, siete peldaños de evidencia que generalizan al resto del producto el criterio de promoción que ya usaba en solitario el corpus DWG). Ola 3 (npm run doctor + guía de despliegue condensada + guía de donación de corpus DWG + revisión verificada de la guía de sesión con arquitecto, con hallazgo y corrección de un puerto documentado mal; un canal de reporte de errores investigado a fondo —incluida la infraestructura de outbox ya existente que debería reusar— y dejado SIN implementar por decisión explícita, declarada en BACKLOG, porque toca dos aplicaciones y una decisión de privacidad real que no es sólo técnica). Cierre con el primer barrido COMPLETO de goldens Playwright de toda la campaña (93/94 en Chromium; el único rojo es un hallazgo real —un aviso de React exclusivo de modo desarrollo bajo CSP— investigado a fondo, confirmado no causado por esta campaña, y declarado en BACKLOG en vez de forzar el verde relajando la aserción; Firefox no corrido por binario ausente en este sandbox) y la rúbrica releída a través de la escalera nueva (190/220, sin cambio — correcto: la campaña arregla confianza, no agrega capacidad puntuable).",
+      "branch": "claude/valle-design-10-10-program-bmvvcf",
+      "assistants": [
+        {
+          "name": "Claude Code (Anthropic)",
+          "role": "Ejecución autónoma end-to-end bajo el prompt maestro 'CAMPAÑA MAESTRA — LA MÁQUINA DE PARIDAD'. Disciplina sostenida en cada arreglo real: implementar, verificar en verde, revertir con git stash, confirmar que el fallo nombra el número/mecanismo exacto del defecto, restaurar, verde de nuevo, batería de gates completa, commit. Investigó antes de tocar código en cada ítem con posibilidad de estar ya resuelto (1.5 del prompt, confirmado resuelto por render-origin.ts/render-pipeline-host.ts sin cambio de código) o de exigir una decisión ajena a la campaña (1.3/fórmula de facturación de esquina, 3.2/privacidad del canal de reporte) — declarado en BACKLOG en vez de forzado. Encontró y documentó, sin tocarlos, dos límites de ESTE sandbox de sesión que no son defectos del repositorio: check:dwg-evidence sin VALLE_DWG_CORPUS_MIRROR/TOKEN configurado (ya señalado en el informe de la campaña Pulido del 22 de agosto, sigue sin resolverse) y el binario de Firefox de Playwright ausente en este contenedor."
+        }
+      ],
+      "authority": "Prompt maestro 'CAMPAÑA MAESTRA — LA MÁQUINA DE PARIDAD — VALLE DESIGN' de Sergio Valle Zárate (2026-08-27), sobre la sesión que ya había cerrado PROGRAMA-10X-VERIFICACION-BACKLOG-2026-08-27 en la misma rama.",
+      "firstPartyInputs": [
+        "docs/execution/CAMPANA_PARIDAD_20260827.md (bitácora propia de esta campaña, fuente primaria de cada decisión)",
+        "docs/execution/BACKLOG.md (cola viva, antes y después de esta campaña)",
+        "apps/web/src/lib/cad/dwg-native-writer.ts y dwg-document-bridge-primitives.ts (asimetría grados/radianes entre escritura y lectura DWG)",
+        "apps/web/src/lib/cad/dxf-import.ts, dxf-read-annotations.ts, dxf-cad-document.ts, document-import.ts, dxf-document-export.ts, engine/commands/interop-dxf.ts (fuga de espacio papel DXF)",
+        "node_modules/dxf-parser (librería de terceros ya declarada en package.json; sólo lectura de su código fuente para confirmar que expone entity.inPaperSpace — sin modificarla)",
+        "apps/web/src/components/cad/editor/Layout3DEditor.tsx y apps/web/src/lib/cad/glb-export.ts (escala de exportación GLB)",
+        "apps/web/src/components/cad/viewport/{solid-shade-host,solid-snap-host,wall-solid-host,room-solid-host}.ts y cad-layer-visibility.ts (invariante de capa en hosts 3D)",
+        "apps/web/src/lib/cad/bim-schedule.ts, wall-solid.ts, wall-joins.ts y apps/web/src/lib/brep/mass-properties.ts (gate de paridad geométrica cantidades-vs-3D)",
+        "scripts/dwg/dwg-evidence.mjs, corpus-consumer.mjs, corpus-pin.json y .github/workflows/ci.yml (investigación del hallazgo de credenciales del sandbox en check:dwg-evidence)",
+        "Sergiovalle3121/valle-design-dwg-conformance — CORPUS_POLICY.md (repositorio hermano del mismo titular, añadido a la sesión de sólo lectura para verificar y resumir el procedimiento de donación de corpus ya vigente, sin modificar ese repositorio)",
+        "docs/execution/INFORME_CAMPANA_PULIDO_20260822.md (precedente de la nota sobre VALLE_DWG_CORPUS_MIRROR pendiente de configurar)",
+        "apps/web/playwright.config.ts, apps/web/e2e/golden/*.spec.ts (barrido completo de goldens en árbol quieto)"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "scripts/cad/check-command-integrity.mjs (regenerar-y-comparar en vez de sólo escribir)",
+        "apps/web/scripts/large-coordinate-precision-probe.mts, scripts/cad/check-precision-evidence.mjs (sonda de precisión sobre el teselador real)",
+        "apps/web/src/components/cad/viewport/{solid-shade-host,solid-snap-host}.ts, layer-visibility-gate.spec.ts nuevo (invariante de capa)",
+        "apps/web/src/components/cad/viewport/native-mass-hosts.ts, Cad3DSolidDiagnostics.tsx nuevo (evidencia real de malla 3D)",
+        "apps/web/src/lib/cad/dwg-native-writer.ts, dwg-native-writer.spec.ts (conversión grados→radianes al escribir DWG)",
+        "apps/web/src/lib/cad/dxf-import.ts, dxf-read-annotations.ts, dxf-model-space-scope.ts nuevo, dxf-paper-space-scope.spec.ts nuevo, document-import.ts, engine/commands/interop-dxf.ts, dxf-import-report.ts, dxf-document-export.ts (fuga de espacio papel DXF, importación y exportación)",
+        "apps/web/src/lib/cad/glb-export.ts, glb-export.spec.ts, apps/web/src/components/cad/editor/Layout3DEditor.tsx (escala GLB 1:1; también: selectNative/selectCadLayerObjects sin tope de truncamiento silencioso; mount de Cad3DSolidDiagnostics)",
+        "apps/web/e2e/golden/59-cad-selection-no-truncation.spec.ts, 60-cad-3d-solid-diagnostics.spec.ts nuevos",
+        "apps/web/src/lib/cad/wall-takeoff-solid-parity.spec.ts nuevo (gate de regresión, sin cambiar bim-schedule.ts)",
+        "docs/parity/ESCALERA.md nuevo, scripts/cad/rubric.mjs (línea de enlace en el reporte)",
+        "scripts/doctor.mjs y scripts/doctor.spec.mjs nuevos, package.json (scripts doctor/check:doctor)",
+        "docs/onboarding/DESPLIEGUE-EN-UNA-TARDE.md nuevo, docs/onboarding/PRIMER-DIA.md (corrección de puerto de la API en desarrollo)",
+        "docs/guides/donar-corpus-dwg.md nuevo, docs/governance/PROPRIETARY_CONTRIBUTIONS.md (enlace)",
+        "scripts/cad/monolith-budget.json (dos techos subidos a mano, documentados: Layout3DEditor.tsx y dxf-import.ts)",
+        "docs/execution/BACKLOG.md (P2-1 cerrado parcialmente; P1-6, P1-7, P2-12, P2-13, P2-14, P2-15 nuevas)",
+        "docs/execution/CAMPANA_PARIDAD_20260827.md, docs/execution/INFORME_CAMPANA_PARIDAD_20260827.md nuevo"
+      ],
+      "fixtures": [],
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: revisión/fusión del PR de esta rama sobre el SHA candidato."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
