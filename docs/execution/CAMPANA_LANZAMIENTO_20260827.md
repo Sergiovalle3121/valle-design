@@ -55,7 +55,7 @@ Prohibido el cuarto estado: **visible y no verificada**.
 | 2 | 2.1 La Jornada Real (E2E sin un solo mock) | **cerrado** |
 | 2 | 2.2 La Jornada Real en CI en cada push a main | **cerrado** |
 | 2 | 2.3 Barrido de cables sueltos en la UI | **cerrado** |
-| 2 | 2.4 Los errores hablan español humano | pendiente |
+| 2 | 2.4 Los errores hablan español humano | **cerrado** |
 | 3 | 3.1 Verificador de contenido del PDF | **cerrado** |
 | 3 | 3.2 Round-trip numérico DXF + lector independiente | **cerrado** |
 | 3 | 3.3 GLB a escala 1:1 verificado | **cerrado** |
@@ -323,3 +323,76 @@ a leer el documento **por la API**: la capa está en PostgreSQL, con su nombre.
 **Estado del árbol:** `npm test --workspace=web` 429/429 · `npm run check:cad`
 EXIT=0 (trinquete de monolito **apretado**: 141 → 140 `useState`, porque el
 selector huérfano se fue).
+
+### OLA 2.4 — Los errores hablan español humano
+
+**El método.** No leer código: provocar los fallos. La red se cortó de verdad
+(`setOffline`), la sesión se invalidó de verdad (un `logout` contra la API con el
+estudio abierto y trabajo sin guardar), el conflicto lo emitió PostgreSQL con su
+contador CAS, y los dos DXF entraron por el mismo `input` que usa una persona.
+
+**Lo primero que salió, y era exactamente lo que se buscaba.** Al cortar la red
+guardando, el aviso en pantalla decía:
+
+> **Sin conexión**
+> Failed to fetch
+
+El título estaba bien y el cuerpo era el `TypeError` del navegador, en inglés,
+tal cual. El editor tomaba `saveError.message` y lo pintaba: para un corte de red
+eso es la frase de la librería; para un 401, «Design API respondió 401». Tres
+formas distintas de enseñarle a un arquitecto el registro de depuración.
+
+**DEFECTO 1 — ARREGLADO.** `document-lifecycle/save-failure.ts`: un módulo puro
+que convierte cualquier fallo de guardado en un aviso con las **tres** cosas que
+tiene que tener, siempre las tres — qué pasó, **qué pasa con su trabajo** y qué
+puede hacer. Siete casos: sin red, sesión caducada, periodo gratuito terminado,
+sin permiso, demasiado grande, demasiadas peticiones, y el resto. Su spec (59
+comprobaciones) no juzga la redacción: exige las tres partes y prohíbe la jerga.
+
+La prueba encontró un fallo en mis propias frases —el caso «sin permiso» no
+decía qué pasaba con los cambios sin guardar— y se corrigió antes de entrar.
+
+Y el caso del 403 por expiración dice la **regla de oro de la campaña en el
+instante exacto en que el usuario duda de ella**: «tus planos siguen siendo
+tuyos: puedes abrirlos y exportarlos a DXF y a PDF cuando quieras».
+
+**DEFECTO 2 — ARREGLADO. Los errores duraban lo mismo que un acuse de recibo.**
+Toda tarjeta se iba a los 3,5 s. Un «Guardado» se entiende de un vistazo; «Tu
+sesión expiró, vuelve a iniciar sesión» pide una DECISIÓN, y desaparecía antes de
+que nadie la leyera: en pantalla sólo quedaba «Error de guardado · cambios
+pendientes», sin decir por qué. Los errores viven ahora 12 s. Un mensaje que no
+da tiempo a leerse no es un mensaje.
+
+**DEFECTO 3 — ARREGLADO. 33 avisos titulados «3D».** Un usuario leía «**3D** — No
+se pudo guardar la versión» o «**3D** — El DXF supera 12 MB»: una etiqueta interna
+del editor encabezando mensajes que no tenían nada que ver con 3D. Cada título
+pasa a nombrar lo que el usuario estaba haciendo: *Plano DXF*, *Versiones*,
+*Plantillas*, *Revisión*, *Guardado*, *Cotas*, *Celdas*, *Cantidades*, *Modelo 3D*.
+
+**Lo que ya estaba bien y se comprobó en vez de suponerse.** El informe de
+importación DXF (`dxf-import-report.ts`) ya traducía cada pérdida a español llano
+con sus tres columnas, incluido el recorte por límite de entidades; el conflicto
+CAS ya se contaba como un choque de versiones y no como un 409; el botón de
+importar vuelve a habilitarse siempre (`finally`), así que un DXF roto no deja la
+interfaz muerta.
+
+**Evidencia permanente.**
+
+* `apps/web/e2e/real/errores-en-espanol.spec.ts` — **5/5 verdes** contra el stack
+  real. Para cada fallo exige: que HAYA mensaje (un fallo silencioso es peor:
+  el usuario sigue dibujando creyéndose a salvo), que sea HUMANO (una lista de
+  ocho patrones de jerga que jamás deben llegar a un ojo — trazas, `[object
+  Object]`, códigos HTTP desnudos, `Failed to fetch`, `Unauthorized`…) y que
+  haya SALIDA (nada de «Guardando…» eterno). En el caso de la red, además,
+  demuestra la vuelta: se restablece, se guarda y la capa dibujada durante el
+  corte aparece en PostgreSQL.
+* `save-failure.spec.ts` — 59 comprobaciones en `npm test`.
+
+**El diario offline y la recuperación multipestaña, verificados con la red
+genuinamente cortada:** `cad-offline-multitab` + `cad-recovery-lanes` +
+`cad-conflict-per-document` → **13/13 verdes** contra Next.js + NestJS +
+PostgreSQL reales.
+
+**Estado del árbol:** `npm test --workspace=web` **430/430** · `npm run check:cad`
+EXIT=0 (monolito en 20 242 líneas y 140 `useState`, sin crecer) · regresión en el
+stack real: barrido de cables + Jornada Real **9/9**.

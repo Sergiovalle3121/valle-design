@@ -24,9 +24,27 @@ const ToastCtx = createContext<ToastApi | null>(null);
 
 /**
  * Notificaciones estilo Apple: tarjetas limpias arriba a la derecha, con blur,
- * borde sutil y entrada/salida con spring. Auto-descartan a los ~3.5s. Respeta
+ * borde sutil y entrada/salida con spring. Los acuses se descartan solos a los
+ * ~3.5 s; los ERRORES viven cuatro veces más, porque piden una decisión. Respeta
  * prefers-reduced-motion. Reutilizable en toda la app vía useToast().
  */
+/**
+ * Cuánto vive una tarjeta, según lo que tenga que hacer quien la lee.
+ *
+ * Un «Guardado» se entiende de un vistazo y estorba si se queda. Un ERROR es
+ * lo contrario: pide una decisión —volver a iniciar sesión, esperar, exportar
+ * una copia— y hasta ahora se iba a los 3,5 s igual que un acuse. Provocando
+ * de verdad una sesión caducada a media edición, el aviso que explicaba qué
+ * hacer desaparecía antes de que nadie pudiera leerlo y en pantalla sólo
+ * quedaba «Error de guardado · cambios pendientes», sin decir por qué. Un
+ * mensaje que no da tiempo a leerse no es un mensaje.
+ */
+const LIFETIME_MS: Record<Kind, number> = {
+  success: 3_500,
+  info: 3_500,
+  error: 12_000,
+};
+
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const reduce = useReducedMotion();
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -52,11 +70,11 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       const existing = liveRef.current.get(key);
       if (existing) {
         clearTimeout(existing.timer);
-        existing.timer = setTimeout(() => remove(existing.id), 3500);
+        existing.timer = setTimeout(() => remove(existing.id), LIFETIME_MS[kind]);
         return;
       }
       const id = Date.now() + Math.random();
-      const timer = setTimeout(() => remove(id), 3500);
+      const timer = setTimeout(() => remove(id), LIFETIME_MS[kind]);
       liveRef.current.set(key, { id, timer });
       setToasts((t) => [...t, { id, kind, title: opts?.title, message }]);
     },
@@ -78,6 +96,13 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           {toasts.map((t) => (
             <motion.div
               key={t.id}
+              // Identificador NUEVO (no renombra ninguno): la OLA 2.4 mide los
+              // mensajes de error contra el stack real, y hasta ahora la única
+              // forma de encontrarlos era buscar su texto literal — lo que
+              // obliga a que la prueba conozca de antemano el mensaje que está
+              // auditando, que es justo lo contrario de auditarlo.
+              data-testid="app-toast"
+              data-toast-kind={t.kind}
               layout
               initial={reduce ? { opacity: 0 } : { opacity: 0, y: -16, scale: 0.96 }}
               animate={reduce ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
