@@ -54,7 +54,7 @@ Prohibido el cuarto estado: **visible y no verificada**.
 | 1 | 1.6 Precisión en coordenadas grandes (UTM + lámina de papel) | **cerrado** |
 | 2 | 2.1 La Jornada Real (E2E sin un solo mock) | **cerrado** |
 | 2 | 2.2 La Jornada Real en CI en cada push a main | **cerrado** |
-| 2 | 2.3 Barrido de cables sueltos en la UI | pendiente |
+| 2 | 2.3 Barrido de cables sueltos en la UI | **cerrado** |
 | 2 | 2.4 Los errores hablan español humano | pendiente |
 | 3 | 3.1 Verificador de contenido del PDF | **cerrado** |
 | 3 | 3.2 Round-trip numérico DXF + lector independiente | **cerrado** |
@@ -242,3 +242,84 @@ nunca se tocaban.
   mismo cambio, a propósito. Los dos añaden que son BORRADOR pendiente de
   revisión legal. El candado de inmutabilidad acepta la versión nueva con sus
   hashes recalculados.
+
+### OLA 2.3 — Barrido de cables sueltos
+
+**Lo que se buscaba.** La clase de defecto que la campaña nombró y que ya había
+aparecido dos veces: «calculan pero el anfitrión no las deja aplicar». Un
+control impecable —controlado, con su etiqueta, con su `title`— cuyo efecto no
+llega a ninguna parte.
+
+**Cómo se buscó.** No leyendo código: pulsando. Se enumeraron los **81 controles
+visibles** del estudio contra el stack real (Next.js + NestJS + PostgreSQL) y se
+pulsó cada uno sobre una carga LIMPIA, midiendo cinco señales, porque un botón
+de CAD puede trabajar sin tocar el DOM:
+
+| Señal | Por qué hace falta |
+| --- | --- |
+| DOM/texto | lo obvio, y lo único que ve una prueba normal |
+| píxeles del lienzo | cambiar de vista repinta y no toca el DOM |
+| descarga iniciada | exportar PNG/GLB no cambia la pantalla |
+| selector de archivos | importar DXF abre el diálogo del navegador |
+| petición a la API | abrir la paleta de revisión sólo consulta |
+
+**Lo que encontró.**
+
+**DEFECTO 1 — ARREGLADO. El selector «Papel del plano» de la barra superior era
+un cable suelto.** Guardaba la elección en un `useState` (`plotPaper`) que **no
+leía nadie**: `publishSheetSetPdf()` construye las hojas desde los espacios de
+papel del documento y jamás consultaba esa variable. El usuario elegía A0 y
+salía lo que dijera cada hoja. Y el copiloto en lenguaje natural empeoraba la
+mentira: la orden «imprime en A3» (VD-CAD-PLOT-003) escribía en ese mismo estado
+muerto y su comentario afirmaba que «el papel pedido se pasa directo».
+
+Resolución, con la regla FIX-OR-HIDE y sin funciones nuevas:
+
+* el selector huérfano **se retira de la superficie**. El papel se elige POR HOJA
+  en el panel de layouts (`changeActivePaper`), que escribe en el documento, es
+  deshacible y es el único que la publicación lee — que además es la semántica
+  correcta: un conjunto mezcla planos A1 con detalles A3;
+* «imprime en A3» **pasa a ser verdad**: aplica el papel a la hoja activa por esa
+  misma vía canónica antes de publicar.
+
+**DEFECTO 2 — DECLARADO. `aiBusy`, estado de sólo escritura.** El gate estático
+nuevo lo cazó en cuanto se escribió. No es un control que mienta: el bloque
+entero del copiloto IA heredado (`requestAiProposal`, `applyAiProposal`,
+`applyAiIntent`) es **inalcanzable** — ninguna llamada lo invoca, ningún botón lo
+expone. Como no hay superficie visible que prometa nada, no hay nada que ocultar;
+queda declarado con su razón en `EXENTOS` y anotado en el backlog (cablearlo con
+su indicador de «pensando…» o retirar el bloque).
+
+**Los cinco sin efecto, declarados uno a uno.** Un «0 muertos» sólo vale si la
+lista de excepciones es corta y está razonada:
+
+| Control | Por qué no opera |
+| --- | --- |
+| Vista 3D | el estudio carga ya en vista 3D |
+| Model | la pestaña de espacio modelo ya está seleccionada |
+| Seleccionar / mover | es la herramienta activa al cargar |
+| Puntos | es la pestaña abierta del panel izquierdo |
+| Guardar | sobre un documento **sin cambios**, `persistCanonicalSave` corta antes de la red a propósito (idempotencia documentada). Su cableado lo prueba la segunda prueba, que lo pulsa CON un cambio y comprueba el PUT |
+
+Y el barrido exige que los declarados **sigan existiendo**: una excepción que
+sobrevive al control que la justificaba es basura que esconde defectos.
+
+**La otra mitad, que es la que importa.** Que pase algo en pantalla no basta: la
+campaña exige que el efecto llegue al documento PERSISTIDO. La segunda prueba
+crea una capa desde el gestor de capas, guarda con el botón del estudio y vuelve
+a leer el documento **por la API**: la capa está en PostgreSQL, con su nombre.
+
+**Evidencia permanente.**
+
+* `apps/web/e2e/real/cables-sueltos.spec.ts` — el barrido y la prueba de
+  persistencia. **2/2 verdes**: 81 controles · 67 con efecto · 5 sin efecto (5
+  declarados) · 3 no localizables (deshabilitados con razón: nada que deshacer,
+  nada que rehacer, nada seleccionado que encuadrar).
+* `apps/web/src/components/cad/editor/ui-wiring.spec.ts` — el gate estático de
+  la MISMA forma del defecto, en `npm test`: **180 estados auditados, 0
+  huérfanos**. El barrido tarda seis minutos y necesita PostgreSQL; este corre en
+  un segundo en cada commit.
+
+**Estado del árbol:** `npm test --workspace=web` 429/429 · `npm run check:cad`
+EXIT=0 (trinquete de monolito **apretado**: 141 → 140 `useState`, porque el
+selector huérfano se fue).

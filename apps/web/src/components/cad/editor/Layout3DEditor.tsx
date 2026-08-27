@@ -275,10 +275,6 @@ import {
 import { cadViewportBoundsChanged } from "@/lib/cad/native-viewport";
 import { exportCadLayoutDxf } from "@/lib/cad/layout-export-adapter";
 import {
-  CAD_PAPER_SIZES,
-  type CadPaperId,
-} from "@/lib/cad/plot-sheet";
-import {
   evaluateCadDxfExportReadiness,
   type CadDxfExportLayerSummary,
   type CadDxfExportReadinessEntity,
@@ -1415,7 +1411,6 @@ export default function Layout3DEditor({
   const [dxfImportPreview, setDxfImportPreview] =
     useState<CadDxfImportResult | null>(null);
   const [showDxfExport, setShowDxfExport] = useState(false);
-  const [plotPaper, setPlotPaper] = useState<CadPaperId>("A4");
   const [showSheetPackage, setShowSheetPackage] = useState(false);
   const [paperSpaces, setPaperSpaces] = useState<CadPaperSpace[]>([]);
   const [paperSpaceLayers, setPaperSpaceLayers] = useState<CadLayerDef[]>([]);
@@ -11620,11 +11615,14 @@ export default function Layout3DEditor({
       void save();
       return true;
     } else if (op.type === "studio_export") {
-      // 'imprime en a3' (VD-CAD-PLOT-003): dispara el export real; el papel
-      // pedido se sincroniza al selector y se pasa directo (el estado es async).
+      // 'imprime en a3' (VD-CAD-PLOT-003): dispara el export real. El papel
+      // pedido se aplica a la HOJA ACTIVA por la vía canónica —la misma que
+      // el selector «Papel» del panel de layouts—, que es la única que la
+      // publicación lee. Antes se guardaba en un estado de la barra que nadie
+      // consultaba: el usuario pedía A3 y salía lo que dijera la hoja.
       if (op.format === "pdf") {
-        const paper = op.paper as CadPaperId | undefined;
-        if (paper) setPlotPaper(paper);
+        const paper = op.paper as CadSheetPaper | undefined;
+        if (paper) changeActivePaper(paper);
         void publishSheetSetPdf();
       } else if (op.format === "dxf") {
         void exportDxf();
@@ -15782,18 +15780,6 @@ export default function Layout3DEditor({
         >
           <Stamp className="w-4 h-4" />
         </T3Btn>
-        <select
-          value={plotPaper}
-          onChange={(e) => setPlotPaper(e.target.value as CadPaperId)}
-          title="Papel del plano (A4–A0, carta, tabloide) — la escala estándar se elige sola"
-          className="h-7 self-center rounded-lg border border-border bg-muted/60 px-1 type-micro text-foreground focus:outline-none"
-        >
-          {(Object.keys(CAD_PAPER_SIZES) as CadPaperId[]).map((id) => (
-            <option key={id} value={id} className="bg-surface">
-              {CAD_PAPER_SIZES[id].label}
-            </option>
-          ))}
-        </select>
         <T3Btn
           disabled={drawingReadOnly}
           onClick={() => void publishSheetSetPdf()}
