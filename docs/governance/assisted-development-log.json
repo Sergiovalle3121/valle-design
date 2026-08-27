@@ -748,6 +748,43 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "PROGRAMA-10X-VERIFICACION-BACKLOG-2026-08-27",
+      "date": "2026-08-27",
+      "initiative": "Sesion de continuacion del programa acumulativo 'Valle Design 10/10' (paridad verificable contra AutoCAD). El prompt de arranque citaba una linea base desactualizada (SHA 51538db, paridad ~3/10, lista generica de P0); fetch + npm ci + rubric.mjs confirmaron 190/220 real. En vez de reescribir trabajo ya hecho por campanas anteriores, la sesion audito el BACKLOG.md vivo y verifico dos entradas P1 contra el stack real antes de tocar codigo de producto.",
+      "branch": "claude/valle-design-10-10-program-bmvvcf",
+      "assistants": [
+        {
+          "name": "Claude Code (Anthropic)",
+          "role": "ejecucion autonoma, sin cambios de codigo de producto en esta entrada (solo docs/execution/BACKLOG.md, docs/execution/CAMPANA_10X_20260827.md y este log). (1) P1-1 (goldens 20-cad-multiple-viewports/46-cad-pointer-engine): verificado por lectura de codigo que scrollIntoViewIfNeeded() y el patron pointer-events-none/auto de la campana COMMERCIAL-RC1 ya estan en el arbol de main; entrada borrada del backlog por su propia regla ('una entrada que se cierre se BORRA de aqui'). (2) P1-8 (5 specs de e2e/real con presunta carrera de verify-email): en vez de confiar en el diagnostico escrito, se replico el job e2e de ci.yml fuera de CI -- PostgreSQL 16 nativo (el daemon de Docker no esta disponible en este contenedor), build de produccion con las mismas variables de CI, API NestJS real con migraciones, y las 5 specs corridas 3 veces seguidas contra el stack real: 28/28 en cada corrida. La causa raiz documentada (esperar el campo Token antes de hacer clic en Verificar correo) ya no aplica -- 2 de las 5 specs esperan el estado final y las otras 3 verifican por API directa y nunca tuvieron esa carrera; el arreglo llego en una campana anterior sin que el backlog se cerrara. Entrada borrada. (3) Intento de conseguir la segunda corrida verde de CI sobre el SHA final que exige el programa: actions_run_trigger (run_workflow y rerun_workflow_run) devuelve 403 Resource not accessible by integration -- registrado como OWNER ACTION en vez de forzarlo con un commit vacio o cierre/reapertura de PR (prohibido explicitamente por el programa). (4) Calibracion para modify.dense-stress (1pt, evidencia docs/cad/evidence/cad-dense-editing-100k.json inexistente): sonda de un proceso a CAD_DENSE_REPEATS=1 para medir el costo real en esta maquina antes de comprometer el tiempo de sesion a las 3 corridas separadas que exige scripts/cad/dense-editing-evidence.mjs; ver docs/execution/CAMPANA_10X_20260827.md para las cifras y el estado exacto de esa generacion al cerrar la sesion."
+        }
+      ],
+      "authority": "Prompt maestro 'Valle Design 10/10' de Sergio Valle Zarate (2026-08-27), programa acumulativo de paridad verificable; continuacion directa del hilo de campanas registrado en docs/execution/",
+      "firstPartyInputs": [
+        "docs/execution/BACKLOG.md (entradas P1-1 y P1-8 antes de esta sesion)",
+        "apps/web/e2e/golden/20-cad-multiple-viewports.spec.ts y apps/web/src/components/cad/studio/draft-toolbar.tsx (verificacion de P1-1)",
+        "apps/web/e2e/real/{studio-real-api,commercial-fiscal-checkout,cad-conflict-per-document,cad-offline-multitab,cad-recovery-lanes}.spec.ts corridos contra el stack real, 3 veces (verificacion de P1-8)",
+        ".github/workflows/ci.yml (recetas exactas replicadas localmente: variables de entorno, orden de build/start, DATABASE_URL)",
+        "docs/execution/CAMPANA_COMMERCIAL_RC1_20260826.md (numeros de referencia de la sonda de estres denso: paleta 32-43 s, lazo 187-198 s a 100k SwiftShader)",
+        "scripts/cad/rubric.mjs, docs/competitive/rubric.json, scripts/branch-audit.mjs (lectura del estado real, sin cambios)"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "docs/execution/BACKLOG.md (dos entradas P1 cerradas)",
+        "docs/execution/CAMPANA_10X_20260827.md (nueva bitacora de campana)"
+      ],
+      "fixtures": [],
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: revision/fusion del PR de esta rama sobre el SHA candidato."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
