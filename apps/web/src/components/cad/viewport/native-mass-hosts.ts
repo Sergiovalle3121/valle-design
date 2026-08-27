@@ -36,6 +36,26 @@ export class CadNativeMassHosts {
   }
 
   /**
+   * Evidencia REAL de que se construyó geometría 3D — no una lista de botones
+   * recortada a 20, que existe independientemente de si una sola malla llegó
+   * a montarse (campaña Paridad, OLA 0.2). Recorre `this.group` en vez de
+   * fiarse de `this.walls.count`/`this.masses.count`: cuenta lo que
+   * REALMENTE está en la escena Three.js, así que un anfitrión que reporte
+   * "construido" sin agregar su objeto al grupo también queda en cero aquí.
+   */
+  getSnapshot(): { meshCount: number; vertexCount: number } {
+    let meshCount = 0;
+    let vertexCount = 0;
+    this.group.traverse((object) => {
+      const mesh = object as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      meshCount += 1;
+      vertexCount += mesh.geometry?.attributes?.position?.count ?? 0;
+    });
+    return { meshCount, vertexCount };
+  }
+
+  /**
    * Qué muros y qué masas, de los ya sincronizados, no tienen un volumen 3D
    * válido — para `buildCadValidationReport({ invalidGeometry })`, y así un
    * muro o una masa que no se pudo construir avisa en vez de desaparecer en

@@ -74,4 +74,5 @@ repositorio no concede licencias ni relaja procedencia, secretos o privacidad.
 Contratos, secretos, datos personales y planos de clientes no se incorporan al
 control de versiones. Todo fixture o dato del corpus debe superar su gate de
 derechos y procedencia antes de incorporarse, según `CORPUS_POLICY.md` del
-repositorio de conformidad.
+repositorio de conformidad — resumido en pasos concretos, con el propósito de
+cada uno, en [`docs/guides/donar-corpus-dwg.md`](../guides/donar-corpus-dwg.md).

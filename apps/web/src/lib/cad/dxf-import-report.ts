@@ -230,6 +230,12 @@ const WARNING_RULES: Readonly<Record<string, WarningRule>> = {
       `${count} cota(s) llegaron sin su geometría: se conserva el TEXTO de la medida, pero no las ` +
       "líneas ni las flechas.",
   },
+  dxf_paper_space_excluded: {
+    fidelity: "lost",
+    detail: (count) =>
+      `${count} entidad(es) de espacio PAPEL (cajetín, marco, hojas) no entraron: este importador trae ` +
+      "SOLO espacio modelo — el archivo de origen sigue teniendo sus hojas intactas.",
+  },
 };
 
 /** Avisos agrupados por código, con los tipos DXF que los provocaron. */
@@ -260,19 +266,26 @@ function groupWarnings(
 function countPrimitives(result: CadDxfImportResult): {
   byKind: Map<string, number>;
   flattenedDimensions: number;
+  /** Primitivas de espacio papel: no entraron, y NO son "kept". */
+  paperSpaceExcluded: number;
 } {
   const byKind = new Map<string, number>();
   let flattenedDimensions = 0;
+  let paperSpaceExcluded = 0;
   result.primitives.forEach((primitive, index) => {
     const source = result.primitiveSources[index];
     if (source === "insert") return;
+    if (primitive.paperSpace) {
+      paperSpaceExcluded += 1;
+      return;
+    }
     if (source === "dimension") {
       flattenedDimensions += 1;
       return;
     }
     byKind.set(primitive.kind, (byKind.get(primitive.kind) ?? 0) + 1);
   });
-  return { byKind, flattenedDimensions };
+  return { byKind, flattenedDimensions, paperSpaceExcluded };
 }
 
 const ORDER: Readonly<Record<CadDxfFidelity, number>> = {
@@ -299,7 +312,25 @@ export function buildCadDxfImportReport(
   extraRows: readonly CadDxfImportReportRow[] = [],
 ): CadDxfImportReport {
   const rows: CadDxfImportReportRow[] = [...extraRows];
-  const { byKind, flattenedDimensions } = countPrimitives(result);
+  const { byKind, flattenedDimensions, paperSpaceExcluded: paperSpacePrimitives } =
+    countPrimitives(result);
+  // Espacio papel, por familia: cada una se cuenta aparte porque cada una
+  // alimenta un recuento "kept" distinto más abajo — sumarlas ANTES perdería
+  // qué lista hay que filtrar para no mentir sobre lo que sí entró.
+  const modelSpaceHatches = result.hatches.filter((hatch) => !hatch.paperSpace);
+  const modelSpaceMTexts = result.mtexts.filter((mtext) => !mtext.paperSpace);
+  const modelSpaceDimensions = result.semanticDimensions.filter(
+    (dimension) => !dimension.paperSpace,
+  );
+  const modelSpaceMleaders = result.mleaders.filter((mleader) => !mleader.paperSpace);
+  const modelSpaceInserts = result.inserts.filter((insert) => !insert.paperSpace);
+  const paperSpaceExcluded =
+    paperSpacePrimitives +
+    (result.hatches.length - modelSpaceHatches.length) +
+    (result.mtexts.length - modelSpaceMTexts.length) +
+    (result.semanticDimensions.length - modelSpaceDimensions.length) +
+    (result.mleaders.length - modelSpaceMleaders.length) +
+    (result.inserts.length - modelSpaceInserts.length);
 
   // --- lo que no entró o entró peor, por avisos del importador ---------------
   for (const [code, group] of groupWarnings(result.warnings)) {
@@ -334,6 +365,21 @@ export function buildCadDxfImportReport(
     });
   }
 
+  // --- espacio papel: no entró, y no lo dice ningún aviso del importador -----
+  // El código 67 no produce `CadDxfImportWarning` —lo excluye
+  // `dxf-model-space-scope.ts`, silenciosamente en cuanto a avisos—, así que
+  // si no se declarara aquí, no se declararía en ningún sitio: exactamente el
+  // hueco que este informe existe para cerrar.
+  if (paperSpaceExcluded > 0) {
+    const rule = WARNING_RULES.dxf_paper_space_excluded;
+    rows.push({
+      fidelity: rule.fidelity,
+      code: "dxf_paper_space_excluded",
+      count: paperSpaceExcluded,
+      detail: rule.detail(paperSpaceExcluded, []),
+    });
+  }
+
   // --- lo que entró íntegro --------------------------------------------------
   for (const [kind, count] of [...byKind.entries()].sort(([a], [b]) => a.localeCompare(b)))
     rows.push({
@@ -342,33 +388,33 @@ export function buildCadDxfImportReport(
       count,
       detail: `${primitiveLabel(kind, count)} con su geometría exacta.`,
     });
-  if (result.hatches.length)
+  if (modelSpaceHatches.length)
     rows.push({
       fidelity: "kept",
       code: "kept_hatch",
-      count: result.hatches.length,
-      detail: `${plural(result.hatches.length, ["sombreado", "sombreados"])} con su patrón, su escala y sus islas.`,
+      count: modelSpaceHatches.length,
+      detail: `${plural(modelSpaceHatches.length, ["sombreado", "sombreados"])} con su patrón, su escala y sus islas.`,
     });
-  if (result.mtexts.length)
+  if (modelSpaceMTexts.length)
     rows.push({
       fidelity: "kept",
       code: "kept_mtext",
-      count: result.mtexts.length,
-      detail: `${plural(result.mtexts.length, ["texto con formato", "textos con formato"])} con su tipografía, su ancho y su alineación.`,
+      count: modelSpaceMTexts.length,
+      detail: `${plural(modelSpaceMTexts.length, ["texto con formato", "textos con formato"])} con su tipografía, su ancho y su alineación.`,
     });
-  if (result.semanticDimensions.length)
+  if (modelSpaceDimensions.length)
     rows.push({
       fidelity: "kept",
       code: "kept_dimension",
-      count: result.semanticDimensions.length,
-      detail: `${plural(result.semanticDimensions.length, ["cota asociativa", "cotas asociativas"])} que siguen midiendo al mover la geometría.`,
+      count: modelSpaceDimensions.length,
+      detail: `${plural(modelSpaceDimensions.length, ["cota asociativa", "cotas asociativas"])} que siguen midiendo al mover la geometría.`,
     });
-  if (result.mleaders.length)
+  if (modelSpaceMleaders.length)
     rows.push({
       fidelity: "kept",
       code: "kept_mleader",
-      count: result.mleaders.length,
-      detail: `${plural(result.mleaders.length, ["directriz", "directrices"])} con su texto y sus vértices.`,
+      count: modelSpaceMleaders.length,
+      detail: `${plural(modelSpaceMleaders.length, ["directriz", "directrices"])} con su texto y sus vértices.`,
     });
   if (result.blocks.length)
     rows.push({
@@ -377,7 +423,7 @@ export function buildCadDxfImportReport(
       count: result.blocks.length,
       detail:
         `${plural(result.blocks.length, ["bloque", "bloques"])} con sus atributos, insertados ` +
-        `${plural(result.inserts.length, ["vez", "veces"])}: siguen siendo bloques editables, no geometría suelta.`,
+        `${plural(modelSpaceInserts.length, ["vez", "veces"])}: siguen siendo bloques editables, no geometría suelta.`,
     });
   if (result.imageDefinitions.length)
     rows.push({

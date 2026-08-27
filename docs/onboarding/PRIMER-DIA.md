@@ -29,7 +29,7 @@ autoritativa, no este párrafo).
 
 ```bash
 npm ci          # ~3-4 min. Instala TODOS los workspaces desde el lockfile.
-npm run dev     # arranca web (Next, puerto 3000) y api (Nest, puerto 3001) juntos
+npm run dev     # arranca web (Next, puerto 3000) y api (Nest, puerto 4000) juntos
 ```
 
 Abrir <http://localhost:3000>. La tercera cosa no es un comando: copia

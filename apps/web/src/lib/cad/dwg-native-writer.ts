@@ -29,6 +29,31 @@ import {
   type DwgExportGates,
 } from "./dwg-export-flag";
 
+const RADIANS_PER_DEGREE = Math.PI / 180;
+
+/**
+ * El documento del producto guarda ángulos en GRADOS (confirmado por
+ * `dxf-roundtrip.spec.ts`); el canónico del laboratorio los espera en
+ * RADIANES (`packages/dwg-codec/src/model/entity-geometry.ts`, que documenta
+ * el binario real). El lado de LECTURA ya convierte
+ * (`dwg-document-bridge-primitives.ts:38`, `degrees()`); este lado de
+ * ESCRITURA no lo hacía — pasaba el valor crudo, grados etiquetados como
+ * radianes. Explícito por tipo, no un `map` genérico sobre todos los campos
+ * numéricos: sólo ARC e INSERT tienen un ángulo en el subconjunto que este
+ * writer escribe (`DWG_EXPORT_WRITABLE_TYPES` no incluye `ellipse`).
+ */
+function toCanonicalEntity(entity: CadDocument["entities"][number]): Record<string, unknown> {
+  if (entity.type === "arc")
+    return {
+      ...entity,
+      startAngle: entity.startAngle * RADIANS_PER_DEGREE,
+      endAngle: entity.endAngle * RADIANS_PER_DEGREE,
+    };
+  if (entity.type === "insert")
+    return { ...entity, rotation: entity.rotation * RADIANS_PER_DEGREE };
+  return { ...entity };
+}
+
 /** El subconjunto §8.1 — el preflight cuenta contra ESTA lista, no adivina. */
 export const DWG_EXPORT_WRITABLE_TYPES = new Set([
   "line",
@@ -107,9 +132,7 @@ function toCanonicalDocument(document: CadDocument): {
       visible: layer.visible,
       locked: layer.locked,
     })),
-    entities: document.entities.map(
-      (entity) => ({ ...entity }) as Record<string, unknown>,
-    ),
+    entities: document.entities.map(toCanonicalEntity),
     history: [],
     modelSpace: { entityIds: [...document.modelSpace.entityIds] },
     paperSpaces: [],
@@ -118,9 +141,7 @@ function toCanonicalDocument(document: CadDocument): {
       id: block.id,
       name: block.name,
       basePoint: { ...block.basePoint },
-      entities: block.entities.map(
-        (entity) => ({ ...entity }) as Record<string, unknown>,
-      ),
+      entities: block.entities.map(toCanonicalEntity),
     })),
     constraints: [],
     externalReferences: [],

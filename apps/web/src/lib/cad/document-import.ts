@@ -18,6 +18,7 @@ import {
   buildCadDxfImportReport,
   type CadDxfImportReport,
 } from "./dxf-import-report";
+import { scopeDxfImportToModelSpace } from "./dxf-model-space-scope";
 import { shapefileToCadEntities } from "./geo-cad-document";
 import { readGeoDataset } from "../geo";
 import { dwgBetaImportIsEnabled, dwgImportIsEnabled } from "./dwg-interop-flag";
@@ -233,32 +234,31 @@ function importDxfDocument(content: string): DocumentImportReport {
     throw new Error("El DXF está corrupto o no es un DXF de texto válido.");
   }
 
-  const primitiveEntities = cadDxfPrimitivesToCanonicalEntities(
-    imported.primitives.filter(
-      (_, index) => imported.primitiveSources[index] !== "insert",
-    ),
-    { idPrefix: "dxf", provider: "native-dxf" },
-  );
+  const scoped = scopeDxfImportToModelSpace(imported);
+  const primitiveEntities = cadDxfPrimitivesToCanonicalEntities(scoped.primitives, {
+    idPrefix: "dxf",
+    provider: "native-dxf",
+  });
   const blockParts = cadDxfBlocksToCadDocumentParts(
     imported.blocks,
-    imported.inserts,
+    scoped.inserts,
     { idPrefix: "dxf", provider: "native-dxf" },
   );
   const entities = [
     ...primitiveEntities,
-    ...cadDxfHatchesToNativeEntities(imported.hatches, {
+    ...cadDxfHatchesToNativeEntities(scoped.hatches, {
       idPrefix: "dxf",
       provider: "native-dxf",
     }),
-    ...cadDxfMTextsToNativeEntities(imported.mtexts, {
+    ...cadDxfMTextsToNativeEntities(scoped.mtexts, {
       idPrefix: "dxf",
       provider: "native-dxf",
     }),
-    ...cadDxfSemanticDimensionsToNativeEntities(imported.semanticDimensions, {
+    ...cadDxfSemanticDimensionsToNativeEntities(scoped.semanticDimensions, {
       idPrefix: "dxf",
       provider: "native-dxf",
     }),
-    ...cadDxfMleadersToNativeEntities(imported.mleaders, {
+    ...cadDxfMleadersToNativeEntities(scoped.mleaders, {
       idPrefix: "dxf",
       provider: "native-dxf",
     }),
@@ -277,6 +277,15 @@ function importDxfDocument(content: string): DocumentImportReport {
       severity: "warning",
     }),
   );
+  if (scoped.excludedCount > 0)
+    lossManifest.push({
+      code: "dxf_paper_space_excluded",
+      sourceType: "PAPER_SPACE",
+      severity: "warning",
+      detail:
+        `${scoped.excludedCount} entidad(es) de espacio papel del DXF no se importaron: este ` +
+        "importador trae SOLO espacio modelo — el archivo de origen sigue teniendo sus hojas intactas.",
+    });
   const linetypeCatalog = Object.fromEntries(
     imported.linetypes.map((entry) => [
       entry.name,

@@ -1,6 +1,7 @@
 # BACKLOG — ordenado por lo que impide vender
 
-Actualizado: 2026-08-22, campaña de cimientos. Cada entrada dice qué falla,
+Actualizado: 2026-08-27, campaña Paridad (`docs/execution/CAMPANA_PARIDAD_20260827.md`).
+Cada entrada dice qué falla,
 dónde, cómo se reproduce, qué criterio la cierra y qué prueba lo fija. El
 orden dentro de cada nivel es el orden recomendado de ataque. Una entrada que
 se cierre se BORRA de aquí con su commit en el mensaje — este archivo es la
@@ -138,16 +139,99 @@ marca en operaciones nuevas + publicar la lista `public` inicial (propuesta en
 `docs/api/POLITICA-API-PUBLICA.md`). **Criterio:** `check:cad-contract` falla
 ante operación sin marca. **Estimación:** medio día.
 
+### P1-6 · El cuadro de cantidades SUB-factura fábrica en cada esquina (~1,4%)
+- **Qué falla:** `buildCadBimSchedule` (`bim-schedule.ts`) calcula el volumen
+  de fábrica de un muro restando el solape de unión medido por
+  `cadWallJunctionOverlaps`, pero el sólido 3D real (`wallSolidBodyLocal`) NO
+  recorta ese mismo volumen sin más: el inglete de esquina EXTIENDE la cara
+  EXTERIOR del muro y RECORTA la interior en la misma medida (conserva el
+  área propia de cada muro en planta). El cuadro resta la extensión interior
+  y nunca suma de vuelta la exterior equivalente — sub-factura fábrica real.
+  Cuantificado (campaña Paridad, 2026-08-27, OLA 0.5/1.3): en un cuarto de
+  5,0×4,0 m con muros de 250 mm y una puerta, el cuadro da 10,178 m³ y el
+  sólido real da 10,328 m³ — 1,45% de brecha, del mismo orden que la cifra
+  original investigada (cuarto sin puerta: 10,65 vs 10,80 m³, 1,39%).
+- **Dónde:** `apps/web/src/lib/cad/bim-schedule.ts` (líneas ~187-216, el
+  descuento de `junctionVolumeByWall`); el sólido real de referencia vive en
+  `wall-solid.ts` (`wallSolidBodyLocalWithDiagnostics`) +
+  `lib/brep/mass-properties.ts` (`bodyMassProperties`).
+- **Por qué no se arregló ya:** cambiar la fórmula cambia qué se FACTURA por
+  muro — decisión de negocio (¿se cobra la extensión exterior de esquina o
+  no?), no una corrección técnica unilateral. Se midió y se puso un gate de
+  regresión (`wall-takeoff-solid-parity.spec.ts`, techo 2%) para que la
+  brecha NUNCA CREZCA en silencio mientras nadie decide arreglarla; el
+  arreglo en sí necesita que el titular decida el criterio de facturación.
+- **Criterio de aceptación:** el titular decide la fórmula correcta de
+  esquina (probablemente: sumar de vuelta la extensión exterior en vez de
+  sólo restar el solape interior) y `wall-takeoff-solid-parity.spec.ts`
+  pasa con una brecha ~0% en vez de con un techo de tolerancia.
+- **Estimación:** medio día una vez decidido el criterio de facturación.
+
+### P1-7 · Canal "algo salió mal" dentro del producto, vía outbox (OLA 3.2 de Paridad)
+- **Qué falta:** hoy el único canal de soporte es pasivo — `apps/web/src/app/support/page.tsx`
+  es un `mailto:` a `COMMERCIAL_CONTACTS.support` y un enlace a la página de
+  contacto. No hay forma de reportar un problema DESDE el editor con
+  contexto automático (qué comando corría, qué documento, qué versión) —
+  el usuario tiene que describirlo de memoria en un correo aparte, y
+  la mayoría de los "algo salió mal" silenciosos nunca se reportan.
+- **Investigado antes de diseñar a ciegas:** el producto YA tiene un
+  patrón de outbox maduro para entrega asíncrona —
+  `apps/api/src/modules/commercial/outbox-dispatcher.service.ts` +
+  `outbox-worker.service.ts` (leases anti-doble-entrega en PostgreSQL,
+  corre dentro del proceso de la API, documentado en
+  `docs/ops/railway.md`), y `webhook-outbox.transport.ts`/
+  `email-outbox.controller.ts` como los dos consumidores existentes
+  (webhooks firmados, correo). Un canal de reporte de errores debería
+  ser un TERCER tipo de evento del MISMO outbox, no un mecanismo de
+  entrega nuevo.
+- **Diseño esbozado (no implementado):**
+  1. Un comando/botón en el editor ("Reportar problema") que arma un
+     paquete de diagnóstico: documento actual (o su id, nunca el
+     contenido completo sin consentimiento explícito — ver riesgo de
+     privacidad abajo), los últimos N comandos del historial, versión
+     del producto, navegador. Captura, NO envía sola: el usuario
+     confirma qué se manda antes de mandarlo.
+  2. Un endpoint nuevo en `apps/api` (patrón de
+     `email-outbox.controller.ts` para la forma, no para el propósito)
+     que valida el payload y encola un evento de outbox tipo
+     `UserReportedIssue`.
+  3. El dispatcher existente lo entrega — probablemente a un correo/canal
+     del titular, reusando `WebhookCommercialOutboxTransport` o un
+     transporte de correo ya existente en vez de escribir uno nuevo.
+  4. Migración nueva para el tipo de evento si el esquema de outbox lo
+     exige (revisar `20260820100000-WebhookReceipts.ts` y similares
+     antes de asumir que hace falta una tabla aparte).
+- **Por qué no se implementó ya en esta campaña:** toca DOS aplicaciones
+  (api + web), una migración de base de datos potencial, y una decisión
+  de privacidad real (qué parte del documento del cliente viaja en un
+  reporte de bug) que merece la misma disciplina de prueba negativa que
+  el resto de esta campaña — apurarlo sin esa disciplina para cerrar la
+  ola sería exactamente el tipo de atajo que esta campaña existe para
+  no tomar.
+- **Criterio de aceptación:** un usuario reporta un problema desde el
+  editor sin salir de la aplicación; el reporte incluye contexto útil
+  con consentimiento explícito sobre qué se envía; llega al titular por
+  el outbox existente, no por un canal paralelo.
+- **Estimación:** 2-3 días (incluye la decisión de privacidad, que no es
+  sólo código).
+
 ---
 
 ## P2 — deuda que crece con intereses
 
-### P2-1 · Techos silenciosos de snap y selección (medir antes de subir)
-`maxSegments: 96` del osnap, `search(..., 48)` de candidatos, tope 300 de
-`selectNative` (QSELECT grande designa 300 y no lo dice), 4_096 del boundary.
-**Criterio:** cada tope o se elimina con medición de coste, o se DECLARA al
-usuario al alcanzarse. **Prueba:** spec de un QSELECT con 500 coincidencias.
-**Estimación:** 1 día con mediciones.
+### P2-1 · Techos silenciosos de snap (medir antes de subir)
+`maxSegments: 96` del osnap, `search(..., 48)` de candidatos, 4_096 del
+boundary. **Cerrado 2026-08-27 (campaña Paridad, OLA 0.3/1.1):** el tope
+300 de `selectNative` y el tope 200 de `selectCadLayerObjects` —los que
+mentían al usuario (designaban menos de lo que el mensaje anunciaba)—
+se ELIMINARON, no se declararon; ver
+`docs/execution/CAMPANA_PARIDAD_20260827.md` y
+`e2e/golden/59-cad-selection-no-truncation.spec.ts` (350 coincidencias,
+QSELECT y "Sel" de capa, prueba negativa real). Quedan abiertos los tres
+topes de snap/boundary de arriba, que son técnicos (coste de cómputo),
+no mentiras al usuario. **Criterio:** cada tope o se elimina con
+medición de coste, o se DECLARA al usuario al alcanzarse. **Estimación:**
+1 día con mediciones.
 
 ### P2-2 · Intersecciones de snap sobre teselado en vez de analíticas
 `curve-model.ts` tiene intersecciones analíticas; el snap de intersección usa
@@ -204,13 +288,6 @@ referencia por ruta). **Criterio:** `logo-geometry` a un módulo neutro
 (config/brand), social-card junto a sus rutas OG, exención retirada (el gate
 exige retirarla al sanar).
 
-### P2-10 · El artefacto de integridad se regenera a mano
-`docs/cad/evidence/command-integrity.json` se escribe con
-`check:command-integrity --write`. Si el registro de comandos cambia, el
-artefacto envejece hasta la siguiente corrida con --write. **Criterio:** el
-gate compara el artefacto committeado contra lo computado (patrón
-`dwg-evidence`) y falla si difieren. **Estimación:** 1 hora.
-
 ### P2-11 · Auditoría de veracidad de los `.md` vivos + índice de 30 segundos
 - **Qué falta:** no hay una pasada sistemática que confirme que cada `.md`
   vivo bajo `docs/` (fuera de `docs/history/`, que ya se sabe archivo)
@@ -229,6 +306,124 @@ gate compara el artefacto committeado contra lo computado (patrón
   esta campaña); escribir `docs/README.md`.
 - **Estimación:** medio día de auditoría + lo que cueste cada corrección
   real que aparezca.
+
+### P2-12 · Espacio papel DXF: el arreglo cubre 6 de 7 familias de entidad
+- **Qué falta:** el cierre de la fuga de espacio papel DXF (campaña Paridad,
+  2026-08-27) lee el código de grupo 67 en primitivas (línea/polilínea/
+  círculo/arco/elipse/spline/texto), HATCH, MTEXT, cotas y directrices
+  semánticas, e INSERT de nivel superior — `paperSpace?: boolean` en
+  `dxf-import.ts`/`dxf-read-annotations.ts`, excluidas por
+  `dxf-model-space-scope.ts`. NO cubre los ocho tipos del esquema 4
+  (POINT/XLINE/RAY/SOLID/WIPEOUT/IMAGE/ATTDEF, leídos en
+  `dxf-read-schema4.ts` sobre pares crudos con su propia clase
+  `EntityPairs`): una IMAGE de logotipo o un WIPEOUT de cajetín en espacio
+  papel todavía se cuela al espacio modelo sin declararse. Menos frecuente
+  que líneas/textos de marco, pero la misma clase de mentira.
+- **Dónde:** `apps/web/src/lib/cad/dxf-read-schema4.ts` — añadir
+  `paperSpace` a `CadDxfPrimitive` (ya existe el campo) leyendo
+  `entity.first(67) === "1"` en cada uno de los seis `primitives.push(...)`;
+  ya lo filtraría `dxf-model-space-scope.ts` sin cambios (los primitivos de
+  esquema 4 llegan con `primitiveSources: "entity"`, el mismo camino que
+  línea/círculo/arco).
+- **Criterio de aceptación:** un spec con un WIPEOUT o IMAGE con código 67=1
+  no aparece en `document.entities` ni en `modelSpace.entityIds`, y
+  `dxfReport` lo declara con el mismo código `dxf_paper_space_excluded`.
+- **Estimación:** una hora — el patrón y el módulo de recorte ya existen;
+  falta repetir la lectura del código 67 en el sexto parser.
+
+### P2-13 · Oráculo geométrico unificado de ida y vuelta (DXF/DWG/PDF/GLB)
+- **Qué falta:** OLA 0.1 de la campaña Paridad (2026-08-27) pedía un arnés
+  único que tome UN documento fijo, lo exporte a los cuatro formatos, lo
+  vuelva a importar y compare geometría contra el original — para cazar
+  clases enteras de bug (como los tres que sí se encontraron y cerraron esa
+  campaña: ángulos DWG en grados-como-radianes, fuga de espacio papel DXF,
+  escala GLB sin corregir) con una sola prueba en vez de una por formato.
+  No se construyó: el tiempo de la campaña se fue en los tres defectos
+  reales que la investigación inicial ya había confirmado, y duplicar
+  cobertura que las specs de round-trip existentes
+  (`dwg-native-writer.spec.ts`, `dxf-roundtrip.spec.ts`,
+  `dxf-paper-space-scope.spec.ts`, `glb-export.spec.ts`) ya ejercen por
+  separado no valía más que cerrar los bugs reales primero.
+- **Alcance si se retoma:** un documento de fixture con geometría de los
+  cuatro tipos con ángulo (arco, elipse, inserción rotada) más muros/masas
+  3D; cuatro pares exportar/reimportar; una función de comparación de
+  geometría con tolerancia compartida por los cuatro. Vive bien como spec
+  nuevo, no como script aparte — así corre en `npm test` como el resto.
+- **Estimación:** medio día.
+
+### P2-14 · Los hosts 3D no escopan por `modelSpace.entityIds` (1.6 de la campaña Paridad)
+- **Qué falta:** `wall-solid-host.ts:153`, `room-solid-host.ts:74`,
+  `solid-shade-host.ts:322` y `solid-snap-host.ts:110` recorren
+  `document.entities` DIRECTO — sin filtrar por
+  `document.modelSpace.entityIds`. Sólo `render-pipeline-host.ts` (2D) sí
+  escopa por `modelSpace.entityIds` (línea 304-310). `CadPaperSpace` ya
+  declara su PROPIO `entityIds: string[]` (`cad-paper-viewport.ts:269`) —
+  entidades que viven en `document.entities` pero pertenecen a una hoja,
+  no al modelo (un texto de nota escrito directo sobre el layout, por
+  ejemplo). Investigado sin encontrar HOY un camino de comando que cree
+  una entidad exclusivamente en `paperSpaces[i].entityIds` sin también
+  sumarla a `modelSpace.entityIds` — así que el hueco es LATENTE, no
+  manifestado: el día que "anotar directo sobre la hoja" se cablee de
+  verdad (`paper-space.ts` ya trae el modelo de datos y el plotter),
+  esa nota se colaría a la vista 3D sin que ningún test lo cazara.
+- **Dónde:** los cuatro archivos de host arriba, mismo patrón que ya
+  usó esta campaña para 0.4/1.2 (invariante de capa aplicado a TODOS
+  los hosts vía `cad-layer-visibility.ts`) — aquí el invariante es
+  "sólo `modelSpace.entityIds`", no capa.
+- **Por qué no se tocó en esta campaña:** verificar que
+  `modelSpace.entityIds` sea de verdad el invariante correcto para
+  CADA host (algunos podrían depender de recorrer bloques/inserciones
+  cuyos hijos no tienen id propio en `modelSpace.entityIds`) exige
+  leer los cuatro anfitriones a fondo antes de tocar código de
+  render 3D en producción — más riesgo que el resto de los cierres de
+  esta campaña, que tocaban módulos puros con specs de Node. Con OLA
+  FINAL obligatoria por delante, se prioriza cerrar la ola completa
+  antes que profundizar en un hueco que hoy no se manifiesta.
+- **Criterio de aceptación:** un spec por host con un documento que
+  tenga una entidad SOLO en `paperSpaces[0].entityIds` (nunca en
+  `modelSpace.entityIds`) confirma que el host correspondiente NO la
+  materializa en 3D.
+- **Estimación:** medio día (cuatro hosts, uno por uno, con su prueba
+  negativa cada uno).
+
+### P2-15 · `10-cad-native-entities.spec.ts` sólo pasa en modo prod, no en `npm run dev`
+- **Qué falla:** el golden falla de forma reproducible y determinista con
+  `npm run dev` (modo desarrollo, el default de `playwright.config.ts`)
+  con `expect(browserErrors).toEqual([])`: React emite en cada carga de
+  página "eval() is not supported in this environment... React requires
+  eval() in development mode for various debugging features" —un aviso
+  del PROPIO React sobre su mecanismo de depuración bajo CSP, sin
+  relación con CAD/DXF—. La propia librería dice "React will never use
+  eval() in production mode", y `playwright.config.ts` documenta que CI
+  corre con `E2E_PROD=1` (`next start`), así que en CI este golden
+  debería pasar limpio.
+- **Investigado antes de tocar el test (campaña Paridad, OLA FINAL,
+  2026-08-27):** confirmado que NINGÚN otro golden usa
+  `collectBrowserErrors`/verifica `browserErrors` — es el único de los
+  64 con esta aserción, sin filtro de ningún tipo (ni un solo mensaje
+  exento), lo que explica por qué es el único que la detecta. No se
+  relajó la aserción (regla 5 de la campaña): un `toEqual([])` que
+  ignorara mensajes de React sería exactamente el tipo de gate
+  debilitado que esta campaña existe para no crear. Se intentó
+  reproducir en modo `E2E_PROD=1` para confirmar la hipótesis con
+  certeza total, pero la build de este sandbox no tiene el
+  `NEXT_PUBLIC_API_URL` que el arnés e2e espera en producción (falla
+  antes, en `cad-native-entity-list` sin cargar) — la hipótesis queda
+  fundamentada por lectura de código (React declara explícitamente que
+  el mensaje es exclusivo de desarrollo) y por descarte (ningún cambio
+  de esta campaña toca CSP, cabeceras o configuración de Next), no por
+  reproducción directa en prod local.
+- **Dónde:** `apps/web/e2e/golden/10-cad-native-entities.spec.ts:91-98`
+  (`collectBrowserErrors`, sin filtro) y :153 (la aserción).
+- **Criterio de aceptación:** o bien confirmar con una corrida
+  `E2E_PROD=1` real (arreglando primero el `NEXT_PUBLIC_API_URL` del
+  build local) que el golden pasa limpio en prod, cerrando esto como "no
+  es un defecto, es una limitación conocida de correr goldens con
+  `next dev`"; o bien, si algún día se corre goldens en dev por defecto
+  en CI, filtrar EXPLÍCITAMENTE este mensaje exacto de React (nunca un
+  filtro genérico que trague avisos reales).
+- **Estimación:** 1 hora si el `NEXT_PUBLIC_API_URL` de build local se
+  resuelve rápido; si no, es sólo lectura de un log de CI ya existente.
 
 ---
 

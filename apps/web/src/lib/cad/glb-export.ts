@@ -121,19 +121,36 @@ export function hideCadGlbOverlays(
  * durante la serialización y su restauración corre SIEMPRE, también cuando el
  * exportador falla — dejar el 3D sin etiquetas tras un fallo sería un segundo
  * defecto encima del primero.
+ *
+ * `exportScale` corrige la escala de AJUSTE DE CÁMARA con la que el visor 3D
+ * construye toda su geometría (`Layout3DEditor`: `s = 30 / Math.max(W, H)`,
+ * para que un predio de 4 m y uno de 400 m quepan igual de bien en la
+ * pantalla) — necesaria para el visor, mentirosa para el archivo. glTF
+ * declara 1 unidad = 1 metro; sin corregirla, un editor con un predio de
+ * 40×30 m exportaba un GLB cuyo metro no medía un metro real, y cada plano
+ * salía con una escala distinta según el tamaño de SU predio. Por defecto es
+ * 1 (sin corregir), para quien llame sin conocer esa escala.
  */
 export async function serializeCadGlbBlob(
   objects: readonly THREE.Object3D[],
-  options: { hide?: () => () => void } = {},
+  options: { hide?: () => () => void; exportScale?: number } = {},
 ): Promise<Blob> {
   const { GLTFExporter } = await import(
     "three/examples/jsm/exporters/GLTFExporter.js"
   );
   const restore = options.hide?.() ?? (() => {});
   try {
+    const scale = options.exportScale ?? 1;
+    // Clones, nunca los objetos vivos: `Object3D.add()` saca al hijo de su
+    // padre anterior, y reparentar la escena real para exportarla la dejaría
+    // rota en cuanto terminara. El clon comparte geometría y material por
+    // referencia (no duplica memoria) y copia la visibilidad ya apagada por
+    // `hide` un instante antes.
+    const exportRoots =
+      scale === 1 ? [...objects] : [await scaledExportWrapper(objects, scale)];
     const result = await new Promise<ArrayBuffer>((resolve, reject) => {
       new GLTFExporter().parse(
-        [...objects],
+        exportRoots,
         (value) => resolve(value as ArrayBuffer),
         reject,
         { binary: true, onlyVisible: true },
@@ -143,4 +160,22 @@ export async function serializeCadGlbBlob(
   } finally {
     restore();
   }
+}
+
+/**
+ * Un único grupo raíz a `scale`, con CLONES de `objects` como hijos. Import
+ * dinámico de `three` a propósito: el import de arriba es de SOLO TIPOS, y
+ * este módulo entra en el bundle de specs de Node que no cargan el runtime
+ * de three salvo que de verdad exporten un GLB (igual que ya hace
+ * `GLTFExporter` un par de líneas arriba).
+ */
+async function scaledExportWrapper(
+  objects: readonly THREE.Object3D[],
+  scale: number,
+): Promise<THREE.Object3D> {
+  const { Group } = await import("three");
+  const wrapper = new Group();
+  wrapper.scale.setScalar(scale);
+  for (const object of objects) wrapper.add(object.clone(true));
+  return wrapper;
 }

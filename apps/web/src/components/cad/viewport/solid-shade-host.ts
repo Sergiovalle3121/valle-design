@@ -31,6 +31,7 @@
 import * as THREE from "three";
 import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadSolid3dEntity } from "@/lib/cad/cad-entities-v5";
+import { cadHiddenLayerIds } from "@/lib/cad/cad-layer-visibility";
 import {
   buildCadSolidObject,
   disposeCadSolidObject,
@@ -312,9 +313,15 @@ export class CadSolidShadeHost {
     // Primera oportunidad real de encontrar la cámara: cuando el editor
     // reconcilia, el lienzo ya está montado.
     this.ensureSubscribed();
+    // Lo que no se ve no puede ser un imán ni renderizarse — un sólido en
+    // capa apagada o congelada no se construye (y si ya estaba construido, el
+    // bucle de reconciliación de abajo lo libera al no encontrarlo en
+    // `wanted`, exactamente igual que `CadWallSolidHost.sync()` ya hace).
+    const hiddenLayers = cadHiddenLayerIds(document.layers);
     const wanted = new Map<string, CadSolid3dEntity>();
     for (const entity of document.entities)
-      if (entity.type === "solid3d") wanted.set(entity.id, entity);
+      if (entity.type === "solid3d" && !hiddenLayers.has(entity.layer))
+        wanted.set(entity.id, entity);
     for (const [id, entry] of [...this.built]) {
       const next = wanted.get(id);
       const selected = selectedIds.has(id);

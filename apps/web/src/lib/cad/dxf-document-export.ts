@@ -45,7 +45,26 @@ export type CadDxfDocumentExportSource = CadDxfExportSource & {
   layers: readonly CadLayerDef[];
   styles?: Partial<Pick<CadStyleTable, "linetype" | "dimension">>;
   meta?: { linetypeScale?: number };
+  /**
+   * Sin esto, "Todo" mezclaba entidades de espacio papel en la sección de
+   * ENTITIES de espacio modelo, indistinguibles — la fuga que
+   * `document-import.ts` reclasificaba de vuelta como modelo al reimportar.
+   * Este DXF NO escribe layouts de papel todavía (perfil futuro, como el
+   * DWG de esta fase); mientras tanto, sus entidades se EXCLUYEN y se
+   * DECLARAN, nunca se cuelan sin marcar.
+   */
+  paperSpaces?: readonly { entityIds: readonly string[] }[];
 };
+
+/** Ids de TODAS las entidades que pertenecen a algún espacio papel. */
+function paperSpaceEntityIds(
+  document: Pick<CadDxfDocumentExportSource, "paperSpaces">,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const paperSpace of document.paperSpaces ?? [])
+    for (const id of paperSpace.entityIds) ids.add(id);
+  return ids;
+}
 
 export interface CadDxfDocumentExport {
   content: string;
@@ -55,22 +74,30 @@ export interface CadDxfDocumentExport {
   losses: readonly CadLossManifestEntry[];
 }
 
-/** Ensambla el modelo de exportación. `filter` acota el ámbito (selección). */
+/**
+ * Ensambla el modelo de exportación. `filter` acota el ámbito (selección);
+ * las entidades de espacio papel se excluyen SIEMPRE, las pase o no el
+ * filtro del llamador (ver el campo `paperSpaces` de
+ * `CadDxfDocumentExportSource`).
+ */
 export function cadDocumentToDxfExportModel(
   document: CadDxfDocumentExportSource,
   filter?: (entity: CadEntity) => boolean,
 ): CadDxfExportModel {
+  const paperIds = paperSpaceEntityIds(document);
+  const scoped = (entity: CadEntity) =>
+    !paperIds.has(entity.id) && (filter ? filter(entity) : true);
   return {
-    primitives: cadDocumentNativeDxfPrimitives(document, filter),
-    hatches: cadDocumentNativeDxfHatches(document, filter),
-    mtexts: cadDocumentNativeDxfMTexts(document, filter),
-    semanticDimensions: cadDocumentNativeDxfSemanticDimensions(document, filter),
-    mleaders: cadDocumentNativeDxfMleaders(document, filter),
+    primitives: cadDocumentNativeDxfPrimitives(document, scoped),
+    hatches: cadDocumentNativeDxfHatches(document, scoped),
+    mtexts: cadDocumentNativeDxfMTexts(document, scoped),
+    semanticDimensions: cadDocumentNativeDxfSemanticDimensions(document, scoped),
+    mleaders: cadDocumentNativeDxfMleaders(document, scoped),
     // Las DEFINICIONES de bloque no pasan por el filtro: una inserción dentro
     // del ámbito cuya definición se quedara fuera produciría un INSERT que
     // apunta a un bloque inexistente, y eso no lo abre ningún visor.
     blocks: cadDocumentDxfBlocks(document),
-    inserts: cadDocumentDxfInserts(document, filter),
+    inserts: cadDocumentDxfInserts(document, scoped),
     // El grosor cruza aquí su frontera de unidades: la paleta de capas guarda
     // MILÍMETROS con −1 por «por defecto» y el fichero pide CENTÉSIMAS con −3.
     // La conversión de ida vive en el importador y la resolución en
@@ -112,11 +139,31 @@ export function exportCadDocumentDxf(
   filter?: (entity: CadEntity) => boolean,
   options?: CadDxfExportOptions,
 ): CadDxfDocumentExport {
-  const exported = exportCadDxf(cadDocumentToDxfExportModel(document, filter), options ?? {});
+  const paperIds = paperSpaceEntityIds(document);
+  const modelSpaceOnly = (entity: CadEntity) =>
+    !paperIds.has(entity.id) && (filter ? filter(entity) : true);
+  const exported = exportCadDxf(
+    cadDocumentToDxfExportModel(document, filter),
+    options ?? {},
+  );
+  const scopedPaperCount = document.entities.filter(
+    (entity) => paperIds.has(entity.id) && (filter ? filter(entity) : true),
+  ).length;
+  const losses = cadDocumentDxfExportLosses(document, modelSpaceOnly);
+  if (scopedPaperCount > 0)
+    losses.push({
+      code: "dxf_export_paper_space_excluded",
+      sourceType: "PAPER_SPACE",
+      severity: "warning",
+      detail:
+        `${scopedPaperCount} entidad(es) de espacio papel quedaron fuera del ` +
+        "DXF: este exportador escribe SOLO espacio modelo — las hojas siguen " +
+        "intactas en el documento y en el PDF.",
+    });
   return {
     content: exported.content,
     entityCount: exported.entityCount,
     layers: exported.layers,
-    losses: cadDocumentDxfExportLosses(document, filter),
+    losses,
   };
 }
