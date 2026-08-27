@@ -64,12 +64,12 @@ Prohibido el cuarto estado: **visible y no verificada**.
 | 4 | 4.1 La primera hora de un desconocido | **cerrado** |
 | 4 | 4.2 Botón «algo salió mal» | **cerrado** |
 | 4 | 4.3 Telemetría mínima decente y declarada | **cerrado** |
-| 4 | 4.4 Móvil: embudo público y dashboard | pendiente |
+| 4 | 4.4 Móvil: embudo público y dashboard | **cerrado** |
 | 5 | 5.1 `DESPLIEGUE-RAILWAY.md` probado | **cerrado** |
 | 5 | 5.2 Smoke post-deploy ejecutable | **cerrado** |
-| 5 | 5.3 Respaldo diario verificado, Sentry, uptime | pendiente |
+| 5 | 5.3 Respaldo diario verificado, Sentry, uptime | **cerrado** |
 | 5 | 5.4 Aviso de privacidad y términos del modo gratuito | **cerrado** |
-| 5 | 5.5 Los cinco fixes de producción abiertos | pendiente |
+| 5 | 5.5 Los cinco fixes de producción abiertos | **cerrado** |
 | F | F.1 Suite + Jornada Real + goldens + push | pendiente |
 | F | F.2 `INFORME_LANZAMIENTO_20260827.md` | pendiente |
 | F | F.3 «Lo que sólo Sergio puede hacer» | pendiente |
@@ -500,3 +500,91 @@ Variables nuevas, documentadas en `DESPLIEGUE-RAILWAY.md` y en CI:
 **Estado del árbol:** web **432/432** · API **704** pasadas + **7** contra
 PostgreSQL real · `check:cad` EXIT=0 · monolito clavado en 20 242 líneas y 140
 `useState` (el montaje del botón es UNA línea; el cuadro entero vive fuera).
+
+### OLA 4.4 — El producto en un teléfono
+
+**Lo que se exige y lo que no.** El embudo público y el tablero tienen que ser
+legibles y operables en un teléfono: es donde llega el enlace que alguien
+comparte por WhatsApp. Dibujar con precisión en 390 px no es un objetivo
+razonable para el lanzamiento, y fingir que sí lo sería es la clase de promesa
+que esta campaña quita.
+
+**Lo que se midió.** El **desbordamiento horizontal**, que es el síntoma número
+uno de una página que nadie miró en un móvil, y el tamaño de letra. Portada,
+precios, registro, acceso y tablero: **0 px de desbordamiento**, ningún texto
+por debajo de 11 px, y la llamada a la acción de la portada se toca con el
+pulgar y lleva al registro.
+
+**DEFECTO — ARREGLADO. El estudio se encogía en silencio.** Arranca en 390 px
+—el lienzo se pinta, la línea de comandos responde, nada se sale—, pero a partir
+de `max-[1100px]` los muelles laterales se ocultan **por CSS y sin decir una
+palabra**: el gestor de capas, el de propiedades, la bandeja de símbolos.
+Para quien lo abre en el móvil eso no se lee como «esta pantalla es estrecha»,
+se lee como **«este programa no tiene gestor de capas»**: el producto pareciendo
+menos de lo que es, sin que nadie pueda saberlo.
+
+Ahora lo dice, con un aviso que se descarta de un toque y no vuelve en esa
+pestaña. No bloquea: el estudio sirve en un móvil para lo que la gente hace en
+un móvil, que es abrir el plano que le acaban de mandar y mirarlo.
+
+El aviso se monta desde `CadPaletteOverlays` y **no le cuesta ni una línea al
+monolito**, cuyo presupuesto sigue clavado.
+
+**Evidencia:** `apps/web/e2e/real/movil.spec.ts` — **8/8 verdes** en viewport de
+iPhone 14 con `hasTouch`.
+
+### OLA 5.5 — Los cinco ajustes de producción: verificados, no rehechos
+
+Al mirarlos, **cuatro ya estaban puestos**: la campaña de 8 h dejó el SSL
+estricto por defecto en producción, los cuatro presupuestos de conexión
+(`max`, `statement_timeout`, `idle_in_transaction_session_timeout`,
+`lock_timeout`) y el 404 —no 401— sin `METRICS_TOKEN`. Rehacerlos habría sido
+gastar el tiempo en trabajo hecho, que es justo lo que la regla de herencias de
+esta campaña existe para impedir.
+
+Lo que faltaba no era código: era **evidencia**. Que un default esté escrito hoy
+no impide que alguien lo cambie mañana «para probar algo» y se quede.
+
+Y el quinto sí necesitaba pensarse. «Límites de tasa razonables que no estorben
+a un usuario legítimo dibujando» no se comprueba mirando el número: 120 sólo
+significa algo comparado con lo que el producto **mismo** genera. El estudio
+guarda con un rebote de 2 s, así que un arquitecto dibujando sin levantar la
+mano produce **como mucho 30 guardados por minuto y por documento**. El techo
+deja **4× de holgura** sobre eso — sitio para un guardado manual entre
+autosaves, dos pestañas del mismo plano y un reintento al volver la red, que son
+las tres cosas que de verdad multiplican el ritmo de una persona.
+
+**Evidencia:** `apps/api/src/production-readiness.spec.ts` — **8/8**, incluida
+la comprobación de que ningún techo baja de 10/min y de que las cinco variables
+están nombradas en `DESPLIEGUE-RAILWAY.md` (un ajuste que el operador no ve es
+un ajuste que no se pondrá).
+
+### OLA 5.3 — Respaldo verificado, Sentry y uptime
+
+**Los scripts existían y nadie los había ejecutado.** Se ejecutaron, contra
+PostgreSQL 16 real:
+
+```
+[1/5] sha256 OK
+[2/5] pg_restore --exit-on-error OK (0.46 s)
+[3/5] 35 tablas restauradas, incluidas las 14 críticas
+[4/5] migraciones: 26 (última: TenantRuntimeRoleAndDesignBlobsRls20260823120000)
+[5/5] recuentos idénticos al origen en 35 tablas (885 filas)
+RTO medido: 1.15 s
+```
+
+El paso [5] es el que importa: compara **fila a fila** contra el manifiesto que
+el respaldo grabó en su momento. Es la única comprobación que detecta una
+restauración parcial silenciosa —`pg_restore` puede terminar en 0 habiendo
+omitido objetos— y la única que responde la pregunta del día del incidente:
+*¿lo que restauré es lo que había?*
+
+**El procedimiento de Railway, escrito** (`DESPLIEGUE-RAILWAY.md` §7.1, §7.2 y
+§7bis): Railway no tiene cron del sistema sino servicios con horario, así que se
+documenta el servicio nuevo, su `DATABASE_URL` por referencia al plugin (sin
+exponer la base a internet), `bash scripts/ops/backup-cron.sh` como arranque
+—que **falla ruidoso** si la restauración de prueba no cuadra— y el horario
+`0 8 * * *`. Más Sentry con la advertencia de comprobarlo provocando un error
+(un Sentry que nadie ha visto recibir un evento es un Sentry que no sabes si
+funciona) y el monitor de uptime apuntando a **`/health/ready`, no a `/health`**:
+el primero distingue «el proceso vive» de «el producto sirve».

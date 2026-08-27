@@ -231,9 +231,83 @@ DATABASE_URL="postgres://…" npm run ops:backup
 DATABASE_URL="postgres://…" npm run ops:restore-verify
 ```
 
-Programa el respaldo diario (`scripts/ops/backup-cron.sh`) y **restaura uno al
-mes**. La fecha de la última restauración verificada vale más que el número de
-respaldos que tengas.
+### 7.1 · Probado, no supuesto
+
+Los dos scripts se ejecutaron de verdad contra PostgreSQL 16 durante la campaña
+de lanzamiento, y esto es lo que dieron:
+
+```
+[1/5] sha256 OK
+[2/5] pg_restore --exit-on-error OK (0.46 s)
+[3/5] 35 tablas restauradas, incluidas las 14 críticas
+[4/5] migraciones: 26 (última: TenantRuntimeRoleAndDesignBlobsRls20260823120000)
+[5/5] recuentos idénticos al origen en 35 tablas (885 filas)
+RTO medido: 1.15 s (crear + restaurar + verificar)
+```
+
+El paso [5] es el que de verdad importa: compara **fila a fila** contra el
+manifiesto que el respaldo grabó en su momento. Es la única comprobación que
+detecta una restauración parcial silenciosa —`pg_restore` puede terminar en 0
+habiendo omitido objetos— y la única que responde la pregunta del día del
+incidente: *¿lo que restauré es lo que había?*
+
+> ⚠️ Si tu base comparte servidor con suites de prueba que crean esquemas
+> efímeros, el respaldo avisa de los esquemas que NO incluyó. El runtime
+> materializa todo en `public`; los demás son ajenos y quedarse con `public` es
+> correcto, no una economía.
+
+### 7.2 · Cómo se programa EN RAILWAY
+
+Railway no tiene cron del sistema: tiene **servicios con horario**. La receta,
+en cuatro pasos:
+
+1. **Un servicio nuevo** en el mismo proyecto, desde este mismo repositorio.
+   Comparte red privada con el plugin de PostgreSQL, así que no hace falta
+   exponer la base a internet.
+2. **Variables**: `DATABASE_URL = ${{Postgres.DATABASE_URL}}` (referencia al
+   plugin, igual que la api) y, si quieres que la copia salga de Railway,
+   `RCLONE_REMOTE` apuntando a un bucket. Un respaldo que vive en el mismo
+   disco que la base comparte destino con ella.
+3. **Comando de arranque**: `bash scripts/ops/backup-cron.sh`. Crea, verifica,
+   sube y rota —en ese orden—, y **falla ruidoso**: si la restauración de prueba
+   no cuadra, el servicio termina en error y Railway lo marca en rojo. Un cron
+   que falla en silencio es peor que no tenerlo, porque mantiene la sensación
+   de tener copia.
+4. **Horario**: en la pestaña *Settings → Cron Schedule*, `0 8 * * *` (03:00 en
+   Ciudad de México; Railway programa en UTC). Un servicio con horario arranca,
+   hace su trabajo y se apaga: no consume mientras duerme.
+
+Desde una máquina propia, con la URL pública del plugin (*Connect → Public
+Network*), el mismo par de comandos sirve para una restauración manual de
+prueba. **Restaura uno al mes a mano**: la fecha de la última restauración
+verificada vale más que el número de respaldos que tengas.
+
+---
+
+## 7bis · Sentry y monitor de uptime 🔑
+
+Dos cosas que no son opcionales el día que el sitio es público, y que se ponen
+en diez minutos.
+
+**Sentry.** Crea el proyecto (plataforma *Node.js* para la api) y pega su DSN en
+`SENTRY_DSN` del servicio **api**. Sin esa variable el reporte de errores es
+inerte —no falla, no avisa: simplemente no existe—, así que compruébalo
+provocando un error a propósito la primera vez. Un Sentry que nadie ha visto
+recibir un evento es un Sentry que no sabes si funciona.
+
+**Monitor de uptime.** Cualquiera sirve (UptimeRobot, Better Stack, Cronitor).
+Lo que importa es **qué se vigila**:
+
+| Vigila | NO vigiles |
+| --- | --- |
+| `https://api.valledesign.mx/health/ready` cada 5 min | `/health` a secas |
+| `https://valledesign.mx/` cada 5 min | una página con sesión |
+
+`/health` sólo dice que el proceso arrancó. **`/health/ready` es el que
+distingue «el proceso vive» de «el producto sirve»**: responde en verde sólo con
+la base contestando y la cadena de migraciones al día, que son las dos formas
+en que esto se cae de verdad. Manda las alertas al mismo correo que
+`SUPPORT_EMAIL` para no tener dos buzones que revisar.
 
 ---
 

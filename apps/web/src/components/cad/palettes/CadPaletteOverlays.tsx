@@ -15,6 +15,7 @@
 import React from "react";
 import type { CadDocument } from "@/lib/cad/cad-document";
 import { CadDraftSettingsDialog } from "./CadDraftSettingsDialog";
+import { CadSmallScreenNotice } from "@/components/cad/studio/CadSmallScreenNotice";
 import { CadStyleManagerPalette } from "./CadStyleManagerPalette";
 import {
   CAD_OSNAP_MODES,
@@ -74,9 +75,27 @@ function Backdrop({
   );
 }
 
+/**
+ * Los overlays del estudio.
+ *
+ * Además de las paletas flotantes monta el AVISO DE PANTALLA ESTRECHA, que no
+ * es una paleta pero sí es algo que flota sobre el lienzo y que el editor no
+ * tiene por qué saber pintar. Montarlo aquí le ahorra al monolito las líneas
+ * que su presupuesto ya no le deja gastar, y no necesita ninguna propiedad: se
+ * decide solo, mirando el ancho de la ventana.
+ */
 export const CadPaletteOverlays = React.memo(function CadPaletteOverlays(
   props: CadPaletteOverlaysProps,
 ) {
+  return (
+    <>
+      <CadSmallScreenNotice />
+      <CadPaletteDialogs {...props} />
+    </>
+  );
+});
+
+function CadPaletteDialogs(props: CadPaletteOverlaysProps) {
   if (props.open === "draft-settings")
     return (
       <Backdrop onClose={props.paletteHost.close}>
@@ -131,4 +150,4 @@ export const CadPaletteOverlays = React.memo(function CadPaletteOverlays(
   }
 
   return null;
-});
+}
