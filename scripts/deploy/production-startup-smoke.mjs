@@ -376,12 +376,19 @@ async function main() {
         NODE_ENV: 'production',
         PORT: String(PORT + 1),
         METRICS_TOKEN: '',
-        // Los guardas se evalúan en cadena y el del secreto de rate limiting
-        // salta al CARGAR el módulo, antes que ninguno de la base. Se
-        // proporciona salvo cuando es justo el guarda bajo prueba, para que
-        // cada caso muera por el motivo que dice medir.
+        // Los guardas se evalúan en cadena y DOS de ellos saltan al CARGAR el
+        // módulo, antes que ninguno de la base. Los dos se proporcionan aquí
+        // salvo cuando son justo el guarda bajo prueba, para que cada caso
+        // muera por el motivo que dice medir.
+        //
+        // Cuando el de MFA se añadió sin ponerlo en esta lista, los tres
+        // primeros casos siguieron saliendo con código 1 —así que «no arranca»
+        // pasaba— pero el log traía el motivo EQUIVOCADO y sus tres asertos de
+        // «...y el motivo queda escrito» se cayeron a la vez. Es el aviso de
+        // este comentario, cobrado.
         IDENTITY_RATE_LIMIT_KEY_SECRET:
           'smoke-rate-limit-secret-de-32-caracteres',
+        IDENTITY_MFA_ENCRYPTION_KEY: 'smoke-mfa-encryption-key-de-32-caracteres',
         OUTBOX_DISPATCHER_ENABLED: 'true',
         OUTBOX_EMAIL_WEBHOOK_URL: 'https://receptor.invalido/valle/outbox',
         OUTBOX_DOMAIN_WEBHOOK_URL: 'https://receptor.invalido/valle/outbox',
