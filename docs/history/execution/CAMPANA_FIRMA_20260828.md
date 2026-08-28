@@ -2,8 +2,10 @@
 
 **Fecha:** 2026-08-28 · **Base:** `main @ a7a33d8` · **Rama:** `claude/valle-design-premium-identity-4hnemt`
 
-> Bitácora de una campaña cerrada. El informe medido, con lo que NO se hizo y
-> por qué, está en `docs/execution/INFORME_CAMPANA_FIRMA_20260828.md`.
+> **Campaña CERRADA.** Bitácora archivada: es una fotografía con fecha, no un
+> inventario vigente. El informe medido, con lo que NO se hizo y por qué, está
+> en `docs/execution/INFORME_CAMPANA_FIRMA_20260828.md`; los pendientes vivos,
+> en `docs/execution/BACKLOG.md` (P1-F1 a P1-F4).
 
 ## El veredicto del dueño (el encargo)
 
@@ -631,3 +633,47 @@ Y hay un detalle en el «antes» que vale por todo el informe: en
 `portada-fold-dark-firma-antes.png`, el panel derecho del editor enseña
 dieciocho filas de `cad_mt60y4ol_uzfo`. Ése era el estado real del producto que
 el dueño estaba mirando cuando dijo que no lo sentía suyo.
+
+### 12:50 — Cierre: la corrida sucia, la limpia, y por qué hubo que hacer las dos
+
+La primera pasada completa de la suite de navegador terminó en **170 pasadas y
+2 fallos**. Los dos —el golden 22 y la prueba de accesibilidad móvil— se
+arreglaron DESPUÉS de que corrieran, y cada uno se verificó por separado en
+verde. Con eso bastaba para saber que estaban resueltos; no bastaba para
+publicar un número.
+
+Un recuento al que se le quitan los fallos a mano no es una medida, es una
+opinión con formato de tabla: nada garantiza que el arreglo de uno no rompa algo
+que corrió antes que él. Se reconstruyó el árbol entero y se volvió a correr la
+suite completa: **172 / 172, cero fallos, 39,7 minutos**. Ése es el número que
+va al informe.
+
+**Y lo que esa corrida NO cubrió, escrito en el informe en vez de dejado
+implícito.** 19 pruebas saltadas por las dos razones declaradas del repositorio:
+diez de `e2e/performance/` (por `CAD_PERF_E2E=0`, igual que en CI, donde la
+suite de medida vive en su propio carril) y nueve de `dwg-import-real` (exigen
+el espejo del corpus DWG, que CI clona y esta máquina no tiene). Con una
+consecuencia concreta: el retoque de `cad-viewport-100k.spec.ts` no llegó a
+ejecutarse. Se declara, y se declara también lo único que sí está verificado de
+él — la forma del localizador, que es la misma que usan los goldens 12 y 22.
+
+**Las capturas del producto, redibujadas** (3.5). El script también reescribe
+`sample-plan.json`, y se revirtió: su geometría es idéntica y lo único distinto
+eran los 41 identificadores, que llevan dentro la marca de tiempo de la
+ejecución. Un diff que dice «41 líneas cambiadas» sobre un plano idéntico miente
+sobre lo que pasó, y `cad_mt60y4ol_uzfo` es el ejemplo canónico de esta campaña
+—lo citan cuatro módulos, dos goldens, esta bitácora y el README del
+antes/después—, así que regenerarlo convertiría una evidencia comprobable en
+anécdota.
+
+**Dos rojos de CI durante el cierre, los dos míos.** El primero, la Jornada Real
+(entrada de las 08:05). El segundo, `Lint API`: ocho errores de prettier en los
+dos archivos nuevos del modo universitario. El error de método está anotado
+porque es el que se repite: verifiqué `tsc`, las pruebas y los gates de diseño,
+y no corrí el linter del API después de añadir un módulo. El paso de lint de web
+ni llegó a ejecutarse —falla antes el del API—, así que se corrió también en
+local para no gastar otra corrida entera.
+
+**Campaña cerrada.** Bitácora archivada en `docs/history/execution/`; el informe
+medido se queda en `docs/execution/INFORME_CAMPANA_FIRMA_20260828.md` y los
+cuatro pendientes viven en `docs/execution/BACKLOG.md`, que es la cola viva.

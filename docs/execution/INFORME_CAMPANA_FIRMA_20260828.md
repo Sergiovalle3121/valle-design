@@ -325,9 +325,34 @@ Todo lo de esta tabla se corrió en esta máquina, no se estimó.
 | Candado legal | versión vigente con hash íntegro y espejo web/API coincidente |
 | Dirección de imports | **566** archivos de `lib/` sin dependencias hacia `components/` ni `app/` |
 | **La Jornada Real** (full-stack, sin mocks) | **10 / 10** contra la API NestJS real y PostgreSQL |
+| **Suite de navegador completa** (goldens + público + full-stack real) | **172 / 172**, 0 fallos, en 39,7 min |
 
-El barrido completo de navegador —goldens, público y full-stack real— se corrió
-contra este mismo stack; su recuento se anota abajo, en el cierre.
+### Qué NO cubrió esa corrida, dicho por su nombre
+
+19 pruebas se saltaron, y las dos razones son las declaradas del repositorio, no
+un descuido:
+
+- **10 de `e2e/performance/`**, por `CAD_PERF_E2E=0` — que es exactamente lo que
+  pone el job de E2E en CI: la suite de medida vive en su propio carril
+  (`e2e-perf`) desde que consumir su techo de una hora dejó a `main` cinco días
+  sin veredicto de corrección.
+- **9 de `dwg-import-real.spec.ts`**, que exigen `VALLE_DWG_CORPUS_MIRROR`
+  apuntando al repo hermano; CI lo clona, esta máquina no lo tiene.
+
+Con una consecuencia que conviene escribir en vez de dejar implícita: el retoque
+de `cad-viewport-100k.spec.ts` —lee el identificador del detalle técnico, porque
+salió del titular del panel— **no se ejecutó**. Corre en el job de rendimiento,
+que sólo se dispara fuera de los pull requests. Lo que sí está verificado es la
+forma del localizador: el mismo patrón `[title^="Identificador técnico:"]` es el
+que usan los goldens 12 y 22, y los dos pasan.
+
+### La corrida sucia y la limpia
+
+La primera pasada terminó en **170 / 2**. Los dos fallos —el golden 22 y la
+prueba de accesibilidad móvil— se arreglaron DESPUÉS de que corrieran, así que
+ese 170 era un número parcheado, no un veredicto. Se reconstruyó el árbol y se
+volvió a correr la suite entera: **172 / 172**. Un recuento al que se le quitan
+los fallos a mano no es una medida; es una opinión con formato de tabla.
 
 ---
 
