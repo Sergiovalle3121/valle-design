@@ -60,10 +60,10 @@ composiciones que evoquen su identidad, ni la palabra AutoCAD en el branding.
 | 2 | 2.3 MFA opcional (TOTP) | **hecho** (API + evidencia PG) |
 | 2 | 2.4 La cuenta muestra su seguridad | **hecho** |
 | 2 | 2.5 Verificación por enlace pulida | **hecho** (hereda la identidad y el shell nuevo) |
-| 3 | 3.1 Nombres humanos de entidades | pendiente |
-| 3 | 3.2 Primera impresión en 2D | pendiente |
-| 3 | 3.3 Cromo del estudio con la identidad nueva | pendiente |
-| 3 | 3.4 Microfeedback de acción | pendiente |
+| 3 | 3.1 Nombres humanos de entidades | **hecho** |
+| 3 | 3.2 Primera impresión en 2D | **hecho** |
+| 3 | 3.3 Cromo del estudio con la identidad nueva | **hecho** |
+| 3 | 3.4 Microfeedback de acción | **hecho** |
 | 3 | 3.5 Regenerar capturas | pendiente |
 | 4 | 4.1 Centro de comentarios en el producto | pendiente |
 | 4 | 4.2 Panel de administración de comentarios | pendiente |
@@ -388,3 +388,47 @@ número publicado, y lo que sólo se puede comprobar dibujando.
 **Verdad medida:** `436/436` specs web · `756` API unidad · `207/207` API contra
 PostgreSQL real · SDK 9/9 · contrato 90 operaciones · contraste 70 pares ·
 superficie pública OK · monolito OK · trinquete de lint 547/547 · `tsc` limpio.
+
+### 06:50 — OLA 3: el estudio deja de hablar en identificadores
+
+**3.1 · Nombres humanos.** El panel de propiedades enseñaba `cad_mt60y4ol_uzfo`
+justo donde el usuario mira para saber qué ha designado — y ese identificador
+concreto era, literalmente, el de la primera entidad del plano de ejemplo, así
+que era el que veía todo el mundo. La lista de entidades tenía el mismo problema
+multiplicado por veinte filas indistinguibles.
+
+Ahora: **«Muro 3», «Cota 12», «Texto 5»** — tipo en español del gremio (`opening`
+es «Vano», no «Abertura») más ordinal por tipo. El id no desaparece: viaja en el
+`title`, a un puntero de distancia, porque un reporte de fallo lo necesita. Y el
+`data-testid` sigue llevando el id, que es la identidad real.
+
+El límite está declarado y probado, no escondido: **borrar renumera**. La
+alternativa —un contador persistido— convierte el nombre en estado que hay que
+migrar, versionar y resolver en conflictos de guardado, y produce «Muro 47»
+siendo el tercero de la lista. El nombre es una etiqueta de lectura; la identidad
+sigue siendo el id.
+
+**3.2 · Primera impresión en 2D.** El estudio abría SIEMPRE en 3D. Es la peor
+bienvenida posible para un CAD 2D: lo primero que ve quien entra a dibujar un
+plano es una perspectiva, y su primer gesto es buscar el botón que la apaga. El
+3D de este producto está para COMPROBAR volumen, no para diseñar — lo dice su
+propia documentación. Ahora abre en 2D y **la elección se recuerda**
+(`viewMode` entra en las preferencias del espacio de trabajo), así que quien de
+verdad trabaja en 3D lo deja puesto una vez.
+
+**3.4 · Microfeedback.** El editor ya decía «Guardando… → Guardado» y lo decía
+inerte. Ahora el indicador RESPIRA mientras guarda —un latido lento es lo que
+distingue «trabajando» de «colgado»— y da un pulso único al terminar con la
+curva de confirmación de la casa. El pulso se dispara porque la `key` cambia con
+el estado y React remonta: sin efecto que compare el estado anterior y sin
+temporizador que limpiar.
+
+**Dos extracciones que el gate del monolito forzó, y agradecidas.**
+`Layout3DEditor.tsx` sólo puede ENCOGER. Al añadir los nombres se pasó 22 líneas,
+y la instrucción del gate es explícita: «mueve el código nuevo a un módulo
+aparte». Salieron `CadNativeEntityList` y `CadSaveStatus` — dos bloques de
+presentación sin estado que dentro de veinte mil líneas nadie volvía a mirar.
+**El monolito bajó de 20 242 a 20 206 líneas** y el presupuesto quedó actualizado.
+
+**Verdad medida:** `437/437` specs web · build verde · contraste 70 pares ·
+superficie OK · monolito OK (y más bajo) · lint 547/547 · `tsc` limpio.

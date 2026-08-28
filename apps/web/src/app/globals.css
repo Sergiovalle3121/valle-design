@@ -803,6 +803,30 @@
   }
 
   /**
+   * EL PULSO DEL TRABAJO EN CURSO.
+   *
+   * Un latido lento mientras algo pasa. Es lo que distingue «trabajando» de
+   * «colgado», que es la pregunta real de alguien cuyo plano lleva dos segundos
+   * sin confirmar el guardado. Sólo opacidad: es la propiedad más barata que
+   * existe de animar y no fuerza al navegador a rehacer el layout de una barra
+   * de estado que además es pegajosa.
+   */
+  .pulse-working {
+    animation: valle-pulse-working 1.6s var(--ease-out-expo) infinite;
+  }
+
+  /**
+   * EL PULSO DE CONFIRMACIÓN — una sola vez, con la curva que dice «hecho».
+   *
+   * `ease-spring` pasa de largo y vuelve. Ese rebote mínimo es lo que el ojo
+   * lee como cierre de una acción; una transición que sólo llega y se para se
+   * percibe como que algo sigue pasando.
+   */
+  .pulse-confirm {
+    animation: valle-pulse-confirm var(--duration-slow) var(--ease-spring) 1;
+  }
+
+  /**
    * LA FIRMA DE LA CASA — el trazo que se dibuja solo.
    *
    * `stroke-dashoffset` animado de la longitud del trazo a cero: la línea
@@ -838,6 +862,27 @@
     opacity: 0;
     animation: valle-draw-fade var(--duration-slow) var(--ease-out-expo) forwards;
     animation-delay: var(--draw-delay, 0ms);
+  }
+}
+
+@keyframes valle-pulse-working {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes valle-pulse-confirm {
+  from {
+    opacity: 0.4;
+    transform: translateY(1px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
   }
 }
 
