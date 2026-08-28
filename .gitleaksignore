@@ -9,3 +9,12 @@ a753aa4af18562eaa231600e37743f2a04a0c98e:apps/api/src/modules/commercial/outbox-
 # introducida en 9990183. No es una credencial: el usuario sólo existe durante la corrida
 # de api-load-tests contra una base local. El código actual la construye en runtime.
 9990183dce96f68bee51e39e3d8d8e18c3b46957:apps/api/src/load-probe/main.ts:generic-api-key:366
+
+# Marcador sintético de la clave de cifrado del segundo factor, introducido en
+# 9c5a6e8 al añadir su guarda al smoke de arranque productivo. No es una
+# credencial: sólo existía para que el proceso llegara vivo hasta el guarda que
+# el caso mide. El código ACTUAL la construye con `randomBytes` en tiempo de
+# ejecución (6591bbe), así que ningún commit nuevo puede reintroducirla; esta
+# huella sólo tapa el commit donde llegó a escribirse, que el escaneo del
+# historial completo sigue viendo.
+9c5a6e891075b1af9830b5c6c8aefdce0b4fd9bf:scripts/deploy/production-startup-smoke.mjs:generic-api-key:391
