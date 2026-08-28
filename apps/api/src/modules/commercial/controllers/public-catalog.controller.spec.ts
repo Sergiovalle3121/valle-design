@@ -6,7 +6,6 @@ import {
   PlanPrice,
 } from '../entities/commercial.entities';
 import { PublicCatalogController } from './public-catalog.controller';
-import { OrganizationCommercialConfiguration } from '../../organizations/organization-commercial.configuration';
 
 /**
  * Proveedor doble: el catálogo público sólo le pide el modo de cobro, y ese
