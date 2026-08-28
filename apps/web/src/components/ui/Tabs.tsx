@@ -101,7 +101,9 @@ export function Tabs({
             onClick={() => onChange(item.id)}
             className={cx(
               "inline-flex shrink-0 items-center gap-2 border-b-2 -mb-px",
-              size === "sm" ? "type-caption px-2.5 py-2" : "type-small px-3.5 py-2.5",
+              size === "sm"
+                ? "type-caption px-2.5 py-2"
+                : "type-small px-3.5 py-2.5",
               "font-medium",
               motionBase,
               focusRing,
@@ -143,7 +145,12 @@ export function TabPanel({
 }) {
   if (!active) return null;
   return (
-    <div id={`panel-${id}`} role="tabpanel" tabIndex={0} className={cx(focusRing, className)}>
+    <div
+      id={`panel-${id}`}
+      role="tabpanel"
+      tabIndex={0}
+      className={cx(focusRing, className)}
+    >
       {children}
     </div>
   );

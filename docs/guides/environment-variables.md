@@ -33,6 +33,10 @@ worker multi-réplica. Para cualquier gate de release usa PostgreSQL 16.
 | `IDENTITY_RATE_LIMIT_KEY_SECRET` | Sí en producción | Secreto compartido entre réplicas, mínimo 32 caracteres. Deriva claves HMAC opacas para los contadores PostgreSQL. Un valor diferente por réplica rompe la coordinación. |
 | `TRIAL_DAYS`                     | No               | Duración del trial creado con cada organización; entero de 1 a 90, default `14`. Valores inválidos usan 14.                                                              |
 | `REVIEW_LINK_TTL_MINUTES`        | No               | TTL predeterminado de review links; default 10,080 minutos (7 días), acotado entre 5 minutos y 90 días.                                                                  |
+| `IDENTITY_MFA_ENCRYPTION_KEY`    | Sí en producción | Cifra en reposo el secreto del segundo factor (AES-256-GCM), mínimo 32 caracteres. **El arranque muere sin ella**: la alternativa sería cifrar con la clave de desarrollo, que vive en el repositorio, y entonces un volcado de la base descifra todos los segundos factores. |
+| `PRODUCT_OPERATOR_EMAILS`        | No               | Correos separados por comas que pueden leer los comentarios de todas las organizaciones en `/comentarios/admin`. Falla **cerrado**: sin la variable no hay operadores y el panel responde 403 a todo el mundo. Cambiarla exige reiniciar el proceso, que es el listón correcto para conceder ese acceso. |
+| `EDUCATION_MODE`                 | No               | `true` enciende el modo universitario. Apagado por defecto; cualquier otro valor es «no». |
+| `EDUCATION_EMAIL_DOMAINS`        | No               | Dominios institucionales aceptados, separados por comas. Con `EDUCATION_MODE` apagado la lista se ignora por completo. Se acepta el dominio **y sus subdominios por segmentos de etiqueta**: `alumnos.unam.mx` entra, `malicioso-unam.mx` no. Sin lista, nadie es elegible aunque el modo esté encendido. |
 
 Las cookies no tienen variables de nombre o seguridad configurables. En
 producción se usa `__Host-valle_session` Secure/HttpOnly y `valle_csrf`; el

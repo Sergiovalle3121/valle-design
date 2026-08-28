@@ -13,7 +13,13 @@
  * componente.
  */
 export { Button, type ButtonProps } from "./Button";
-export { Card, CardHeader, Surface, type SurfaceProps } from "./Card";
+export {
+  Card,
+  CardHeader,
+  Surface,
+  type SurfaceProps,
+  type SurfaceTexture,
+} from "./Card";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
 export { controlClass, FieldShell } from "./Field";
 export {
@@ -35,6 +41,8 @@ export {
   type TextareaProps,
 } from "./Input";
 export { Modal, type ModalProps } from "./Modal";
+export { PasswordField, type PasswordFieldProps } from "./PasswordField";
+export { QrCode } from "./QrCode";
 export { Spinner, type SpinnerProps } from "./Spinner";
 export { TabPanel, Tabs, type TabItem, type TabsProps } from "./Tabs";
 export { Checkbox, Switch, type CheckboxProps, type SwitchProps } from "./Toggle";

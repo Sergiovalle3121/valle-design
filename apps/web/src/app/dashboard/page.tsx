@@ -2,11 +2,21 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FilePlus2, FolderPlus, LogIn, LogOut, Upload } from "lucide-react";
+import Link from "next/link";
+import {
+  FilePlus2,
+  FolderPlus,
+  LogIn,
+  LogOut,
+  ShieldCheck,
+  Upload,
+  Users,
+} from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { SkipLink } from "@/components/SkipLink";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button, Surface, buttonClass, cx } from "@/components/ui";
+import { FeedbackButton } from "@/components/feedback/FeedbackDialog";
 import { DashboardSkeleton } from "./DashboardSkeleton";
 import { FirstMinute } from "./FirstMinute";
 import { OrganizationOnboarding } from "./OrganizationOnboarding";
@@ -487,6 +497,31 @@ export default function DashboardPage() {
                 ))}
               </select>
             )}
+            {/*
+              La página de seguridad de la cuenta no era alcanzable desde
+              NINGUNA navegación del producto: existía la ruta y no había cómo
+              llegar. Una función de seguridad que el usuario no encuentra es
+              una función que no protege a nadie.
+            */}
+            {/*
+              El canal de vuelta, en el cromo y no flotando sobre nada. La
+              lección del aviso de tableta: cualquier cosa encima del área de
+              trabajo acaba robando un clic que el usuario quería dar.
+            */}
+            <FeedbackButton />
+            {/*
+              Misma lección que la de arriba, y el mismo hueco: el producto
+              sabía invitar a una organización desde su primer día y no había
+              una sola pantalla donde hacerlo.
+            */}
+            <Link href="/equipo" className={buttonClass({ variant: "ghost" })}>
+              <Users aria-hidden="true" className="h-4 w-4" />
+              Equipo
+            </Link>
+            <Link href="/cuenta" className={buttonClass({ variant: "ghost" })}>
+              <ShieldCheck aria-hidden="true" className="h-4 w-4" />
+              Seguridad
+            </Link>
             <Button
               variant="ghost"
               onClick={auth.logout}

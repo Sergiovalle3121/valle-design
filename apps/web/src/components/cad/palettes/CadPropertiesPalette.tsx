@@ -28,6 +28,7 @@ import {
   type CadPropertyRow,
   type CadPropertyValue,
 } from "./property-model";
+import { cadTypeName } from "@/lib/cad/entity-labels";
 
 export interface CadPropertiesPaletteProps {
   model: CadPropertyModel;
@@ -40,7 +41,16 @@ export interface CadPropertiesPaletteProps {
   readOnly?: boolean;
   /** Resumen del objeto único designado; ausente en designación múltiple. */
   summary?: {
+    /**
+     * Identificador técnico. Sigue siendo la identidad del objeto y sigue
+     * estando disponible —hace falta para soporte, para un reporte de fallo y
+     * para el manifiesto de pérdidas de un DXF— pero ya no ocupa el sitio donde
+     * el usuario busca «qué he seleccionado». Ahora viaja en el `title` del
+     * nombre, a un puntero de distancia.
+     */
     id: string;
+    /** El nombre humano: «Muro 3», «Cota 12». Ver `lib/cad/entity-labels.ts`. */
+    label: string;
     layer: string;
     bounds: string;
     gripCount: number;
@@ -81,12 +91,15 @@ const PropertyField = React.memo(function PropertyField({
    * se sincroniza por efecto, y NUNCA sobre un campo con el foco: lo que el
    * usuario está escribiendo manda sobre cualquier estado que llegue de fuera.
    */
-  const writableRef = React.useRef<HTMLInputElement | HTMLTextAreaElement | null>(null);
+  const writableRef = React.useRef<
+    HTMLInputElement | HTMLTextAreaElement | null
+  >(null);
   const fieldValue = cadPropertyFieldValue(row);
   React.useEffect(() => {
     const node = writableRef.current;
     if (!node) return;
-    if (typeof document !== "undefined" && document.activeElement === node) return;
+    if (typeof document !== "undefined" && document.activeElement === node)
+      return;
     if (node.value !== fieldValue) node.value = fieldValue;
   }, [fieldValue, revision]);
 
@@ -152,11 +165,7 @@ const PropertyField = React.memo(function PropertyField({
           // eligió — elegir cualquier opción real (incluida "Genérico") la
           // reemplaza y aplica a los objetos designados, igual que un texto
           // que se teclea encima del marcador.
-          value={
-            row.varies
-              ? CAD_PROPERTY_VARIES
-              : String(row.value ?? "")
-          }
+          value={row.varies ? CAD_PROPERTY_VARIES : String(row.value ?? "")}
           disabled={readOnly}
           onChange={(event) => {
             if (event.target.value === CAD_PROPERTY_VARIES) return;
@@ -260,7 +269,21 @@ export const CadPropertiesPalette = React.memo(function CadPropertiesPalette({
       <div className="mb-3 grid grid-cols-2 gap-2 rounded-card border border-primary/30 bg-primary/15 p-2.5">
         {summary ? (
           <>
-            <ReadOnlyCell label="ID" value={summary.id} />
+            {/*
+              «Objeto» y no «ID». Lo que había aquí era `cad_mt60y4ol_uzfo`:
+              un identificador de máquina —prefijo, milisegundos en base 36 y
+              cuatro caracteres al azar— puesto justo donde el usuario mira
+              para saber qué ha designado. No se lee, no se dice por teléfono y
+              no se compara de un vistazo con el de al lado.
+
+              El id no desaparece: viaja en el `title`, así que soporte lo tiene
+              a un puntero de distancia y el usuario no lo tiene en la cara.
+            */}
+            <ReadOnlyCell
+              label="Objeto"
+              value={summary.label}
+              title={`Identificador técnico: ${summary.id}`}
+            />
             <ReadOnlyCell label="Capa" value={summary.layer} />
             <ReadOnlyCell label="Bounds" value={summary.bounds} />
             <ReadOnlyCell label="Grips" value={`${summary.gripCount}`} />
@@ -268,7 +291,11 @@ export const CadPropertiesPalette = React.memo(function CadPropertiesPalette({
         ) : (
           <>
             <ReadOnlyCell label="Objetos" value={`${model.count}`} />
-            <ReadOnlyCell label="Tipos" value={model.types.join(", ")} />
+            {/* Los tipos también salían en inglés crudo: «wall, mtext». */}
+            <ReadOnlyCell
+              label="Tipos"
+              value={model.types.map(cadTypeName).join(", ")}
+            />
             <div
               className="col-span-2 type-micro text-muted-foreground"
               data-testid="cad-properties-multi-hint"
@@ -324,13 +351,25 @@ export const CadPropertiesPalette = React.memo(function CadPropertiesPalette({
   );
 });
 
-function ReadOnlyCell({ label, value }: { label: string; value: string }) {
+function ReadOnlyCell({
+  label,
+  value,
+  title,
+}: {
+  label: string;
+  value: string;
+  /** Detalle técnico bajo el puntero. Sin él, la celda se comporta igual. */
+  title?: string;
+}) {
   return (
     <div>
       <span className="mb-0.5 block type-micro uppercase tracking-wide text-muted-foreground">
         {label}
       </span>
-      <div className="w-full rounded-control border border-border bg-muted/40 px-2 py-1 type-small text-muted-foreground dark:text-muted-foreground">
+      <div
+        title={title}
+        className="w-full truncate rounded-control border border-border bg-muted/40 px-2 py-1 type-small text-muted-foreground dark:text-muted-foreground"
+      >
         {value}
       </div>
     </div>

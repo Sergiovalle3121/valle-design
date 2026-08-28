@@ -32,6 +32,7 @@
 import { useState } from "react";
 import { APP_VERSION } from "@/config/launch";
 import { designClient } from "@/lib/cad/repositories/client";
+import { FeedbackDialog } from "@/components/feedback/FeedbackDialog";
 
 export interface CadIncidentReporterProps {
   /** Versión del estudio. Por defecto la del build, que es la que hace falta. */
@@ -54,6 +55,8 @@ export function CadIncidentReporter({
   className,
 }: CadIncidentReporterProps) {
   const [estado, setEstado] = useState<Estado>("cerrado");
+  /** El centro de comentarios, que es el OTRO canal. Ver la nota de abajo. */
+  const [comentarios, setComentarios] = useState(false);
   const [texto, setTexto] = useState("");
   const [autorizado, setAutorizado] = useState(false);
   const [problema, setProblema] = useState<string | null>(null);
@@ -83,7 +86,7 @@ export function CadIncidentReporter({
       setProblema(
         error && typeof error === "object" && "body" in error
           ? ((error as { body?: { message?: string } }).body?.message ??
-            "No se pudo enviar el reporte.")
+              "No se pudo enviar el reporte.")
           : "No se pudo enviar el reporte.",
       );
     }
@@ -91,21 +94,48 @@ export function CadIncidentReporter({
 
   if (estado === "cerrado")
     return (
-      <button
-        type="button"
-        data-testid="cad-incident-open"
-        onClick={() => setEstado("abierto")}
-        title="Algo salió mal — cuéntanoslo sin salir del plano"
-        className={
-          className ??
-          // Abajo a la izquierda, despejado de la barra de estado. Fijo para
-          // que el estudio lo monte con una sola línea: el monolito sólo puede
-          // encoger, y cada línea que no se le añade cuenta.
-          "fixed bottom-14 left-3 z-[70] rounded-lg border border-border bg-surface/80 px-2.5 py-1 type-micro text-muted-foreground shadow hover:text-foreground"
-        }
-      >
-        Algo salió mal
-      </button>
+      /*
+        LOS DOS CANALES, JUNTOS. Este botón reporta un INCIDENTE —algo se rompió
+        y alguien tiene que mirarlo hoy— y manda un correo. El de al lado abre el
+        centro de comentarios, que GUARDA con estado y sirve para lo otro: la
+        sugerencia, la duda, la falla pequeña que no justifica un incidente.
+
+        Van pegados a propósito. Son dos cosas distintas y el usuario no tiene
+        por qué saber cuál es cuál antes de decidir escribir: encuentra el sitio
+        donde se habla con nosotros, y elige ahí.
+
+        Y van AQUÍ, en el mismo montaje, porque `Layout3DEditor.tsx` sólo puede
+        encoger: cada línea que no se le añade cuenta, y este componente ya
+        estaba montado con una sola.
+      */
+      <div className="fixed bottom-14 left-3 z-[70] flex items-center gap-1.5">
+        <button
+          type="button"
+          data-testid="cad-incident-open"
+          onClick={() => setEstado("abierto")}
+          title="Algo salió mal — cuéntanoslo sin salir del plano"
+          className={
+            className ??
+            "rounded-lg border border-border bg-surface/80 px-2.5 py-1 type-micro text-muted-foreground shadow hover:text-foreground"
+          }
+        >
+          Algo salió mal
+        </button>
+        <button
+          type="button"
+          data-testid="cad-feedback-open"
+          onClick={() => setComentarios(true)}
+          title="Una idea, una duda o algo que podríamos hacer mejor"
+          className="rounded-lg border border-border bg-surface/80 px-2.5 py-1 type-micro text-muted-foreground shadow hover:text-foreground"
+        >
+          Comentarios
+        </button>
+        <FeedbackDialog
+          open={comentarios}
+          onClose={() => setComentarios(false)}
+          documentId={documentId}
+        />
+      </div>
     );
 
   return (
@@ -124,9 +154,12 @@ export function CadIncidentReporter({
 
         {estado === "enviado" ? (
           <>
-            <p data-testid="cad-incident-sent" className="type-small mt-3 text-foreground">
-              Gracias: el reporte va en camino. No hace falta que hagas nada
-              más — si necesitamos algo, te escribimos al correo de tu cuenta.
+            <p
+              data-testid="cad-incident-sent"
+              className="type-small mt-3 text-foreground"
+            >
+              Gracias: el reporte va en camino. No hace falta que hagas nada más
+              — si necesitamos algo, te escribimos al correo de tu cuenta.
             </p>
             <div className="mt-5 flex justify-end">
               <button
@@ -188,7 +221,11 @@ export function CadIncidentReporter({
             )}
 
             {problema && (
-              <p role="alert" data-testid="cad-incident-error" className="mt-3 type-small text-danger-ink">
+              <p
+                role="alert"
+                data-testid="cad-incident-error"
+                className="mt-3 type-small text-danger-ink"
+              >
                 {problema}
               </p>
             )}

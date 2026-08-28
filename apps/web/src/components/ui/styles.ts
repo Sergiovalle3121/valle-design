@@ -43,13 +43,22 @@ export const focusRing =
 export const touchTarget = "min-h-11";
 
 /**
- * TRANSICIÓN DEL SISTEMA. Dos curvas, ninguna más (ver `@theme` en globals).
+ * TRANSICIÓN DEL SISTEMA. Tres curvas y cinco duraciones, ninguna más (ver el
+ * bloque «EL SISTEMA DE MOVIMIENTO» en `globals.css`).
+ *
+ * La duración ya no se escribe aquí como `duration-200`: se pide por nombre con
+ * `motion-fast`, que es una clase del sistema. Un número de milisegundos en un
+ * componente es una decisión que el componente de al lado no puede copiar sin
+ * copiar también el criterio; un nombre sí se copia. `motion-fast` (150 ms) es
+ * la velocidad de un control que responde al puntero; lo que se MUEVE de sitio
+ * usa `motion-base` y lo que aparece por primera vez, `motion-slow`.
+ *
  * Sólo se animan propiedades baratas — color, sombra, opacidad, transformación —
  * porque animar `height` o `width` obliga al navegador a rehacer el layout en
  * cada cuadro. `prefers-reduced-motion` la neutraliza en `globals.css`.
  */
 export const motionBase =
-  "transition-[background-color,border-color,color,box-shadow,opacity,transform] duration-200 ease-out-expo";
+  "transition-[background-color,border-color,color,box-shadow,opacity,transform] motion-fast";
 
 /** Un control deshabilitado se ve deshabilitado y no acepta el puntero. */
 export const disabledBase =
@@ -100,19 +109,31 @@ export type Radius = keyof typeof radius;
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
 
+/**
+ * LAS CUATRO VARIANTES — y el relieve que la campaña de firma les añadió.
+ *
+ * La v1 resolvía los estados con `brightness-95` al pulsar: el botón se
+ * oscurecía y nada más. Funciona y no se siente. Un control que se pulsa de
+ * verdad hace DOS cosas a la vez —se hunde un píxel y pierde su filo de luz—,
+ * y ese par es la diferencia entre un rectángulo de color y una tecla.
+ *
+ * `shadow-control` es ese filo (`--shadow-btn` en globals.css: un `inset` de
+ * luz arriba más la sombra proyectada). `active:translate-y-px` es el hundido.
+ * Al soltarlos los dos a la vez en `:active`, el botón vuelve solo.
+ */
 export const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
   /** La acción principal de la pantalla. Como mucho una por vista. */
   primary:
-    "bg-brand-strong text-primary-foreground hover:bg-brand-hover active:brightness-95",
+    "bg-brand-strong text-primary-foreground shadow-control hover:bg-brand-hover active:translate-y-px active:shadow-none",
   /** La alternativa legítima: mismo peso de decisión, menos peso visual. */
   secondary:
-    "border border-border bg-card text-foreground hover:bg-muted active:bg-muted",
+    "border border-border bg-card text-foreground shadow-resting hover:bg-muted hover:border-muted-foreground/40 active:translate-y-px active:shadow-none",
   /** Acción terciaria y todo el `chrome`: no compite con nada. */
   ghost:
     "text-muted-foreground hover:bg-muted hover:text-foreground active:bg-muted",
   /** Destructiva. Rojo SÓLO aquí: si el rojo está en todas partes, no avisa. */
   danger:
-    "bg-danger text-danger-foreground hover:brightness-110 active:brightness-95",
+    "bg-danger text-danger-foreground shadow-control hover:brightness-110 active:translate-y-px active:shadow-none",
 };
 
 /**
@@ -120,11 +141,17 @@ export const BUTTON_VARIANTS: Record<ButtonVariant, string> = {
  * de objetivo táctil sin ayuda; `sm` existe para el chrome denso del estudio,
  * donde la regla `@media (pointer: coarse)` de `globals.css` ya lo agranda solo
  * cuando hay dedo en vez de ratón.
+ *
+ * El relleno horizontal subió un escalón en los tres (2,5→3, 4→5, 6→7) por una
+ * razón que sólo se ve en la página entera: un botón con poco aire lateral se
+ * lee como un control de formulario, y la portada necesita que su llamada
+ * principal se lea como una PUERTA. El alto no se toca — es el que cumple los
+ * 44 px.
  */
 export const BUTTON_SIZES: Record<ButtonSize, string> = {
-  sm: "type-caption min-h-8 gap-1.5 px-2.5 font-medium",
-  md: "type-small min-h-11 gap-2 px-4 font-semibold",
-  lg: "type-body min-h-12 gap-2.5 px-6 font-semibold",
+  sm: "type-caption min-h-8 gap-1.5 px-3 font-medium",
+  md: "type-small min-h-11 gap-2 px-5 font-semibold",
+  lg: "type-body min-h-12 gap-2.5 px-7 font-semibold",
 };
 
 /**

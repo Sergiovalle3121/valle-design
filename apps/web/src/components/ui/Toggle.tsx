@@ -1,13 +1,20 @@
 "use client";
 
-import { forwardRef, useId, type InputHTMLAttributes, type ReactNode } from "react";
+import {
+  forwardRef,
+  useId,
+  type InputHTMLAttributes,
+  type ReactNode,
+} from "react";
 import { Check } from "lucide-react";
 import { cx, focusRing, motionBase } from "./styles";
 
 /* ── CHECKBOX ───────────────────────────────────────────────────────────── */
 
-export interface CheckboxProps
-  extends Omit<InputHTMLAttributes<HTMLInputElement>, "type"> {
+export interface CheckboxProps extends Omit<
+  InputHTMLAttributes<HTMLInputElement>,
+  "type"
+> {
   label: ReactNode;
   hint?: ReactNode;
   error?: string | null;
@@ -64,16 +71,26 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(
               <Check className="h-3.5 w-3.5 text-current" />
             </span>
           </span>
-          <label htmlFor={id} className="type-small cursor-pointer text-foreground">
+          <label
+            htmlFor={id}
+            className="type-small cursor-pointer text-foreground"
+          >
             {label}
           </label>
         </div>
         {error ? (
-          <p id={`${id}-error`} role="alert" className="type-caption pl-[1.875rem] text-danger-ink">
+          <p
+            id={`${id}-error`}
+            role="alert"
+            className="type-caption pl-[1.875rem] text-danger-ink"
+          >
             {error}
           </p>
         ) : hint ? (
-          <p id={`${id}-hint`} className="type-caption pl-[1.875rem] text-muted-foreground">
+          <p
+            id={`${id}-hint`}
+            className="type-caption pl-[1.875rem] text-muted-foreground"
+          >
             {hint}
           </p>
         ) : null}
@@ -119,7 +136,9 @@ export function Switch({
         <label htmlFor={id} className="type-small font-medium text-foreground">
           {label}
         </label>
-        {hint ? <span className="type-caption text-muted-foreground">{hint}</span> : null}
+        {hint ? (
+          <span className="type-caption text-muted-foreground">{hint}</span>
+        ) : null}
       </span>
       <button
         {...rest}

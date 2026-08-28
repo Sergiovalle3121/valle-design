@@ -23,6 +23,7 @@ import { saveAndSettle } from "../fixtures/cad-save";
 import { applyDynamicInput } from "../fixtures/dynamic-input";
 import { worldPoint } from "../fixtures/world-point";
 import type { CadDocument, CadEntity } from "../../src/lib/cad/cad-document";
+import { enter3DView } from '../fixtures/view-mode';
 
 type CadArc = Extract<CadEntity, { type: "arc" }>;
 
@@ -88,6 +89,7 @@ test("OFFSET sobre un arco produce un arco concéntrico y lo persiste", async ({
   // La secuencia del MOTOR: OFFSET es command-first — distancia, objeto, Enter.
   // La selección previa ya no forma parte del comando; el arco se designa con
   // el pickbox sobre su punto a 45° (4000+1000·cos45, 3000+1000·sin45).
+  await enter3DView(page);
   await page.getByTitle(/Vista superior/).click();
   await page.getByTitle(/Ajustar a la planta/).click();
   await page.getByRole("button", { name: "Offset", exact: true }).click();

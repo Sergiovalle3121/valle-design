@@ -35,7 +35,12 @@ export interface BadgeProps {
  * como color de letra «porque es el mismo estado» es la forma más común de
  * fallar accesibilidad sin enterarse.
  */
-export function Badge({ tone = "neutral", children, className, dot }: BadgeProps) {
+export function Badge({
+  tone = "neutral",
+  children,
+  className,
+  dot,
+}: BadgeProps) {
   return (
     <span
       className={cx(
@@ -45,7 +50,10 @@ export function Badge({ tone = "neutral", children, className, dot }: BadgeProps
       )}
     >
       {dot ? (
-        <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-current" />
+        <span
+          aria-hidden="true"
+          className="h-1.5 w-1.5 rounded-full bg-current"
+        />
       ) : null}
       {children}
     </span>
@@ -106,7 +114,9 @@ export function Tooltip({
       >
         <span className="type-caption font-medium">{label}</span>
         {shortcut ? (
-          <span className="type-mono type-micro text-muted-foreground">{shortcut}</span>
+          <span className="type-mono type-micro text-muted-foreground">
+            {shortcut}
+          </span>
         ) : null}
       </span>
     </span>
@@ -140,7 +150,11 @@ export function Skeleton({ className, lines }: SkeletonProps) {
         {Array.from({ length: lines }, (_, index) => (
           <Skeleton
             key={index}
-            className={cx("h-3.5", index === lines - 1 ? "w-3/5" : "w-full", className)}
+            className={cx(
+              "h-3.5",
+              index === lines - 1 ? "w-3/5" : "w-full",
+              className,
+            )}
           />
         ))}
       </div>
@@ -196,7 +210,9 @@ export function ProgressBar({
     <div className={cx("flex flex-col gap-1.5", className)}>
       {label || showCount ? (
         <div className="flex items-baseline justify-between gap-3">
-          {label ? <span className="type-caption text-muted-foreground">{label}</span> : null}
+          {label ? (
+            <span className="type-caption text-muted-foreground">{label}</span>
+          ) : null}
           {showCount ? (
             <span className="type-mono type-caption text-muted-foreground">
               {clamped} de {safeMax}

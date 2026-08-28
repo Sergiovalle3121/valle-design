@@ -410,6 +410,10 @@ import {
   type CadPropertyBag,
   type CadScenePatch,
 } from "@/lib/cad/entity-runtime";
+import { cadEntityLabels } from "@/lib/cad/entity-labels";
+import { CadNativeSelectionHeading } from "../palettes/CadNativeSelectionHeading";
+import { CadNativeEntityList } from "../palettes/CadNativeEntityList";
+import { CadSaveStatus } from "../studio/CadSaveStatus";
 import { boundsIntersect } from "@/lib/cad/entity-hit-geometry";
 import {
   executeCadEntityCommand,
@@ -1652,7 +1656,7 @@ export default function Layout3DEditor({
    * repinta con cada movimiento del cursor.
    */
   const [diagnosticsEnabled] = useState(cadDiagnosticsRequested);
-  const [viewMode, setViewMode] = useState<"3d" | "2d">("3d"); // 2D = locked top-down plan view (CAD unificado)
+  const [viewMode, setViewMode] = useState(CAD_WORKSPACE_DEFAULTS.viewMode); // 2D primero
   const [walk, setWalk] = useState(false); // first-person walkthrough mode
   const [showHelp, setShowHelp] = useState(false); // keyboard shortcuts overlay
   const [focusMode, setFocusMode] = useState(false); // hide side panels — maximise the canvas (EPIC 0)
@@ -2116,6 +2120,7 @@ export default function Layout3DEditor({
     setWorkspacePreferences(restored);
     setShowCommand(restored.commandDock);
     setShowMinimap(restored.minimap);
+    setViewMode(restored.viewMode);
     setWorkspaceHydratedKey(workspacePreferenceKey);
   }, [open, tenantId, userId, workspacePreferenceKey]);
   useEffect(() => {
@@ -6238,7 +6243,7 @@ export default function Layout3DEditor({
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.1;
-    controls.maxPolarAngle = Math.PI / 2.05;
+    applyCadCameraPolicy(controls, viewModeRef.current);
     applyInitialCameraFraming(camera, controls, W, H, lastCamRef.current);
     controlsRef.current = controls;
     lastCamRef.current = snapshotCadCamera(camera.position, controls.target);
@@ -11595,9 +11600,9 @@ export default function Layout3DEditor({
       else redo();
       return true;
     } else if (op.type === "studio_view") {
-      // 'vista 2d' / 'vista 3d' (VD-CAD-VIEW-001): el mismo toggle del toolbar.
-      setViewMode(op.mode);
-      applyViewMode(op.mode);
+      // 'vista 2d' / 'vista 3d' (VD-CAD-VIEW-001): por el MISMO toggle del
+      // toolbar — duplicarlo perdía el recuerdo y el reencuadre georreferenciado.
+      if (viewModeRef.current !== op.mode) toggleViewMode();
       return true;
     } else if (op.type === "rename") {
       // "renombra la mesa a 'Mesa VIP'" (VD-CAD-RENAME-001): solo assets —
@@ -12744,12 +12749,33 @@ export default function Layout3DEditor({
     ctrl.update();
   }, []);
   const toggleViewMode = useCallback(() => {
-    setViewMode((m) => {
-      const next = m === "3d" ? "2d" : "3d";
-      applyViewMode(next);
-      return next;
-    });
-  }, [applyViewMode]);
+    // Fuera del actualizador: React puede invocarlo dos veces y duplicaría todo.
+    const next = viewModeRef.current === "3d" ? "2d" : "3d";
+    setViewMode(next);
+    applyViewMode(next);
+    // MISMA REGLA QUE EL ENCUADRE DE APERTURA (P0-3), aquí también.
+    //
+    // `applyViewMode` deja la cámara sobre el ORIGEN DEL FOOTPRINT: mira a
+    // (0,0,0) y se aleja según `ctx.W`/`ctx.H`. En un plano cuyo contenido está
+    // lejos de la huella —el caso georreferenciado, coordenadas UTM del orden
+    // de 2·10⁶— eso es apuntar al vacío, y el usuario cambia de 2D a 3D y ve
+    // negro. El efecto de apertura de más arriba ya corregía justo esto, pero
+    // sólo al abrir; el conmutador no pasaba por él.
+    //
+    // No se re-encuadra siempre: sólo cuando el contenido es DISJUNTO de la
+    // huella. Un plano normal vive dentro de su huella y ahí el encuadre por
+    // footprint es el correcto — re-encuadrar al contenido en cada cambio de
+    // modo le movería la cámara al usuario sin que lo pidiera.
+    const ctx = ctxRef.current;
+    const content = worldBounds("all");
+    if (
+      ctx &&
+      content &&
+      !boundsIntersect(content, { minX: 0, minY: 0, maxX: ctx.W, maxY: ctx.H })
+    )
+      fitToBounds(content);
+    updateWorkspacePreferences({ ...workspacePreferencesRef.current, viewMode: next });
+  }, [applyViewMode, updateWorkspacePreferences, worldBounds, fitToBounds]);
   const exportPng = () => {
     const r = rendererRef.current,
       sc = sceneRef.current,
@@ -14208,6 +14234,7 @@ export default function Layout3DEditor({
   const nativeById = new Map(
     allNativeEntities.map((entity) => [entity.id, entity]),
   );
+  const nativeEntityLabels = cadEntityLabels(allNativeEntities); // «Muro 3»
   const nativeSelectedEntities = nativeSelectionIds
     .map((id) => nativeById.get(id))
     .filter((entity): entity is CadNativeEntity => !!entity);
@@ -15855,7 +15882,7 @@ export default function Layout3DEditor({
         )}
         <T3Btn
           onClick={openDxfExport}
-          title="Exportar a DXF (AutoCAD) — opciones de capas, selección y cotas"
+          title="Exportar a DXF — el formato estándar de intercambio; opciones de capas, selección y cotas"
         >
           <FileDown className="w-4 h-4" />
         </T3Btn>
@@ -16659,35 +16686,20 @@ export default function Layout3DEditor({
               <span title="Modelo, revisión funcional y versión CAS">
                 {model} · {revision} · v{data?.cadDocumentVersion ?? 0}
               </span>
-              <span
-                data-testid="cad-save-status"
-                className={
-                  saving
-                    ? "text-primary-ink"
-                    : saveIssue
-                      ? "text-danger-ink"
-                      : dirty
-                        ? "text-warning-ink"
-                        : "text-success-ink"
-                }
-                title={saveIssue?.message}
-              >
-                {saving
-                  ? "Guardando…"
-                  : saveIssue?.kind === "conflict"
-                    ? cadConflictIncidentLabel({
-                        documentId: documentId ?? "",
-                        baseVersion: 0,
-                        serverVersion: saveIssue.serverVersion ?? null,
-                      })
-                    : saveIssue?.kind === "offline"
-                      ? "Sin conexión · cambios pendientes"
-                      : saveIssue
-                        ? "Error de guardado · cambios pendientes"
-                        : dirty || saveStatus === "scheduled"
-                          ? "Modificado · autosave pendiente"
-                          : "Guardado"}
-              </span>
+              <CadSaveStatus
+                saving={saving}
+                dirty={dirty}
+                scheduled={saveStatus === "scheduled"}
+                issue={saveIssue}
+                issueLabel={cadConflictIncidentLabel({
+                  documentId: documentId ?? "",
+                  baseVersion: 0,
+                  serverVersion:
+                    saveIssue?.kind === "conflict"
+                      ? (saveIssue.serverVersion ?? null)
+                      : null,
+                })}
+              />
               {dirty && recoverySavedAt && (
                 <span className="text-primary-ink" title={recoverySavedAt}>
                   Recovery local activo
@@ -17075,18 +17087,10 @@ export default function Layout3DEditor({
               <>
                 {nativeSelectedEntities.length > 0 ? (
                   <div className="p-3.5" data-testid="cad-native-properties">
-                    <div className="mb-1 flex items-center gap-2">
-                      <Spline className="h-4 w-4 text-primary-ink" />
-                      <span className="text-sm font-semibold">
-                        {primaryNativeEntity
-                          ? primaryNativeEntity.type.toUpperCase()
-                          : `${nativeSelectedEntities.length} curvas nativas`}
-                      </span>
-                    </div>
-                    <div className="mb-3 type-micro text-muted-foreground dark:text-muted-foreground">
-                      Geometría canónica · selección, grips, snaps y DXF sin
-                      aproximación persistida.
-                    </div>
+                    <CadNativeSelectionHeading
+                      type={primaryNativeEntity?.type ?? null}
+                      count={nativeSelectedEntities.length}
+                    />
                     {selectedNativeLineIds ? (
                       <div className="space-y-2">
                         <div
@@ -17125,7 +17129,7 @@ export default function Layout3DEditor({
                             >
                               {selectedNativeLineIds.map((id) => (
                                 <option key={id} value={id}>
-                                  {id}
+                                  {nativeEntityLabels.get(id) ?? id}
                                 </option>
                               ))}
                             </select>
@@ -17523,39 +17527,13 @@ export default function Layout3DEditor({
                         <b>Shift</b>+clic agrega o quita.
                       </p>
                     </div>
-                    {allNativeEntities.length > 0 && (
-                      <div
-                        className="rounded-xl border border-indigo-400/15 bg-indigo-400/[0.04] p-2.5"
-                        data-testid="cad-native-entity-list"
-                      >
-                        <div className="mb-2 flex items-center justify-between gap-2">
-                          <span className="type-micro uppercase tracking-wide text-primary-ink">
-                            Entidades nativas
-                          </span>
-                          <span className="rounded-full bg-muted/60 px-1.5 py-0.5 type-micro text-foreground">
-                            {allNativeEntities.length}
-                          </span>
-                        </div>
-                        <div className="space-y-1">
-                          {allNativeEntities.slice(0, 20).map((entity) => (
-                            <button
-                              key={entity.id}
-                              data-testid={`cad-native-entity-${entity.id}`}
-                              onClick={() => {
-                                selectNative([entity.id]);
-                                syncNativeScene();
-                              }}
-                              className="flex w-full items-center justify-between gap-2 rounded-lg bg-surface/80 px-2 py-1.5 text-left type-micro text-foreground hover:bg-muted/60"
-                            >
-                              <span className="truncate">{entity.id}</span>
-                              <span className="type-micro text-primary-ink">
-                                {entity.type.toUpperCase()}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
+                    <CadNativeEntityList
+                      entities={allNativeEntities}
+                      onSelect={(id) => {
+                        selectNative([id]);
+                        syncNativeScene();
+                      }}
+                    />
                     <div className="rounded-xl border border-border bg-muted/40 p-2.5">
                       <div className="mb-2 flex items-center justify-between gap-2">
                         <div className="inline-flex items-center gap-1.5 type-micro uppercase tracking-wide text-primary-ink">

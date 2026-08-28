@@ -9,6 +9,23 @@ export type CadWorkspaceProfile = 'drafting' | 'review' | 'presentation' | 'focu
 export type CadToolbarDensity = 'compact' | 'comfortable';
 export type CadRightClickAction = 'context' | 'enter' | 'repeat';
 
+/**
+ * La vista con la que abre un documento.
+ *
+ * ── POR QUÉ ES UNA PREFERENCIA Y NO UNA CONSTANTE ───────────────────────────
+ * El estudio abría SIEMPRE en 3D. Es la peor primera impresión posible para un
+ * CAD 2D: lo primero que ve quien entra a dibujar un plano es una perspectiva,
+ * y su primer gesto tiene que ser buscar el botón que la apaga. El 3D de este
+ * producto está para COMPROBAR el volumen de lo dibujado, no para diseñar — así
+ * lo dice la propia documentación — y una vista de comprobación no puede ser la
+ * bienvenida.
+ *
+ * Ahora abre en 2D, que es el plano. Y se guarda la elección: quien de verdad
+ * trabaja en 3D lo deja puesto una vez y no vuelve a tocarlo, en vez de pelearse
+ * con el valor por defecto en cada documento que abre.
+ */
+export type CadViewMode = '2d' | '3d';
+
 export interface CadWorkspacePreferences {
   schema: 1;
   profile: CadWorkspaceProfile;
@@ -21,6 +38,8 @@ export interface CadWorkspacePreferences {
   pickBoxPx: number;
   aperturePx: number;
   rightClickAction: CadRightClickAction;
+  /** Vista con la que abre un documento. Ver `CadViewMode`. */
+  viewMode: CadViewMode;
   shortcutOverrides: Partial<Record<CadKeyboardShortcutId, string>>;
 }
 
@@ -36,6 +55,8 @@ export const CAD_WORKSPACE_DEFAULTS: CadWorkspacePreferences = {
   pickBoxPx: 8,
   aperturePx: 12,
   rightClickAction: 'context',
+  // 2D por defecto: es un CAD de planos, y el 3D es la comprobación.
+  viewMode: '2d',
   shortcutOverrides: {},
 };
 
@@ -55,6 +76,9 @@ export function normalizeCadWorkspacePreferences(value: unknown): CadWorkspacePr
   const raw = value && typeof value === 'object' ? value as Partial<CadWorkspacePreferences> : {};
   const profile = raw.profile && raw.profile in CAD_WORKSPACE_PROFILES ? raw.profile : CAD_WORKSPACE_DEFAULTS.profile;
   const rightClickAction: CadRightClickAction = raw.rightClickAction === 'enter' || raw.rightClickAction === 'repeat' ? raw.rightClickAction : 'context';
+  // Sólo '3d' explícito cambia el defecto: cualquier valor corrupto o ausente
+  // devuelve el plano, que es la vista que no puede sorprender a nadie.
+  const viewMode: CadViewMode = raw.viewMode === '3d' ? '3d' : '2d';
   const overrides = raw.shortcutOverrides && typeof raw.shortcutOverrides === 'object'
     ? Object.fromEntries(Object.entries(raw.shortcutOverrides).filter(([key, binding]) =>
         CAD_KEYBOARD_SHORTCUTS.some((shortcut) => shortcut.id === key) && typeof binding === 'string' && binding.trim().length <= 32,
@@ -72,6 +96,7 @@ export function normalizeCadWorkspacePreferences(value: unknown): CadWorkspacePr
     pickBoxPx: clamp(raw.pickBoxPx, 3, 24, CAD_WORKSPACE_DEFAULTS.pickBoxPx),
     aperturePx: clamp(raw.aperturePx, 4, 40, CAD_WORKSPACE_DEFAULTS.aperturePx),
     rightClickAction,
+    viewMode,
     shortcutOverrides: overrides,
   };
 }

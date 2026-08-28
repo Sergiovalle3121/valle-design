@@ -22,6 +22,8 @@ const REQUIRED_FONTS = [
   "apps/web/src/fonts/InterVariable-Italic.woff2",
   "apps/web/src/fonts/JetBrainsMono-wght.ttf",
   "apps/web/src/fonts/JetBrainsMono-Italic-wght.ttf",
+  // Display de la marca desde la campaña de firma propia (2026-08-28).
+  "apps/web/src/fonts/SpaceGrotesk-wght.ttf",
   "apps/web/src/fonts/LICENSE.txt",
 ];
 

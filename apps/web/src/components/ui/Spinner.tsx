@@ -29,7 +29,11 @@ export interface SpinnerProps {
  * El movimiento lo neutraliza `prefers-reduced-motion` desde `globals.css`; el
  * anillo sigue viéndose, sólo deja de girar.
  */
-export function Spinner({ size = "sm", className, label = "Cargando" }: SpinnerProps) {
+export function Spinner({
+  size = "sm",
+  className,
+  label = "Cargando",
+}: SpinnerProps) {
   return (
     <span
       role={label ? "status" : undefined}

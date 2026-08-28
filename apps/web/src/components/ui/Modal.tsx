@@ -80,7 +80,9 @@ export function Modal({
       if (!panel) return;
       const targets = Array.from(
         panel.querySelectorAll<HTMLElement>(FOCUSABLE),
-      ).filter((node) => node.offsetParent !== null || node === document.activeElement);
+      ).filter(
+        (node) => node.offsetParent !== null || node === document.activeElement,
+      );
       if (targets.length === 0) {
         event.preventDefault();
         panel.focus();
@@ -129,7 +131,8 @@ export function Modal({
         veilPressRef.current = event.target === event.currentTarget;
       }}
       onMouseUp={(event) => {
-        if (veilPressRef.current && event.target === event.currentTarget) onClose();
+        if (veilPressRef.current && event.target === event.currentTarget)
+          onClose();
         veilPressRef.current = false;
       }}
     >
@@ -150,7 +153,9 @@ export function Modal({
           <div className="min-w-0">
             <h2 className="type-heading text-foreground">{title}</h2>
             {description ? (
-              <p className="type-small mt-1.5 text-muted-foreground">{description}</p>
+              <p className="type-small mt-1.5 text-muted-foreground">
+                {description}
+              </p>
             ) : null}
           </div>
           {hideCloseButton ? null : (

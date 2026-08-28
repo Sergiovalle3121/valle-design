@@ -2,6 +2,7 @@ import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
+import { enter3DView } from '../fixtures/view-mode';
 
 const cadDocument = {
   meta: { version: 1, schema: 3, unit: 'mm' },
@@ -137,6 +138,7 @@ test('professional selection executes window, crossing, lasso and overlap cyclin
     await selectionTool.click();
     await expect(palette).toBeHidden();
     await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    await enter3DView(page);
     await page.getByTitle(/Vista superior/).click();
     await page.getByTitle(/Ajustar a la planta/).click();
   };
@@ -165,10 +167,15 @@ test('professional selection executes window, crossing, lasso and overlap cyclin
   await expect(statusCount).toHaveText('1 sel');
   const properties = page.getByTestId('cad-native-properties');
   await expect(properties).toBeVisible();
-  const first = await properties.textContent();
+  // El panel dejó de enseñar `cad_mt60y4ol_uzfo` donde el usuario mira para
+  // saber qué designó: ahora dice «Línea 1» y el identificador técnico viaja
+  // en el detalle de la celda. Se lee de ahí, que además es una aserción MÁS
+  // exacta que buscar la cadena dentro del texto del panel entero.
+  const identificador = properties.locator('[title^="Identificador técnico:"]');
+  const first = await identificador.getAttribute('title');
   await page.mouse.click(overlap.x, overlap.y);
   await expect(statusCount).toHaveText('1 sel');
-  const second = await properties.textContent();
+  const second = await identificador.getAttribute('title');
   expect(first).not.toBe(second);
   expect(`${first} ${second}`).toContain('overlap-a');
   expect(`${first} ${second}`).toContain('overlap-b');

@@ -1,6 +1,7 @@
 # BACKLOG — ordenado por lo que impide vender
 
-Actualizado: 2026-08-27, campaña Paridad (`docs/execution/CAMPANA_PARIDAD_20260827.md`).
+Actualizado: 2026-08-28, campaña de firma propia
+(`docs/execution/INFORME_CAMPANA_FIRMA_20260828.md`).
 Cada entrada dice qué falla,
 dónde, cómo se reproduce, qué criterio la cierra y qué prueba lo fija. El
 orden dentro de cada nivel es el orden recomendado de ataque. Una entrada que
@@ -225,9 +226,106 @@ ante operación sin marca. **Estimación:** medio día.
 - **Estimación:** 2-3 días (incluye la decisión de privacidad, que no es
   sólo código).
 
+### P1-F1 · `reset-password` sigue con el campo de contraseña sencillo
+- **Qué falla:** la campaña de firma puso `PasswordField` —mostrar/ocultar,
+  `autoComplete` correcto y medidor de entropía— en registro y login, pero NO en
+  `/reset-password`, que es la OTRA pantalla donde alguien elige una contraseña.
+  Quien llega ahí lo hace después de haber olvidado la anterior, es decir en el
+  peor momento posible para teclear a ciegas doce caracteres.
+- **Dónde:** `apps/web/src/components/IdentityActionForm.tsx` (el `Input
+  type="password"` con `label="Contraseña nueva"`).
+- **Por qué no se hizo en la campaña:** límite de alcance, no de diseño. Ese
+  formulario lo conducen tres pruebas de navegador (`studio-real-api.spec.ts`
+  entre ellas) y no se abre esa puerta en el cierre de una campaña.
+- **Criterio de aceptación:** el campo usa `PasswordField` con
+  `autoComplete="new-password"` y `showStrength`; `studio-real-api.spec.ts`
+  sigue verde con su localizador ANCLADO (`/^Contrase/iu`), porque el botón de
+  mostrar/ocultar vuelve a introducir la ambigüedad de nombre accesible que
+  costó tres corridas de CI.
+- **Estimación:** 30 minutos.
+
+### P1-F5 · Dar de alta el segundo factor sólo pide la sesión; quitarlo pide la contraseña
+- **Qué falla:** `POST /v1/auth/mfa/setup` y `/mfa/activate` se contentan con
+  sesión + CSRF, mientras `disableMfa` y `regenerateBackupCodes` exigen la
+  contraseña. La asimetría va al revés de lo que el propio módulo argumenta
+  para desactivar: «no basta con estar dentro». Dar de alta un segundo factor
+  cambia los requisitos de autenticación de la cuenta tanto como quitarlo.
+- **Escenario:** quien roba una sesión (XSS, cookie copiada, portátil abierto)
+  ata SU propio autenticador a la cuenta ajena. El dueño legítimo conserva la
+  contraseña y puede desactivarlo, así que no es un secuestro permanente — pero
+  es acceso persistente para el atacante y una pantalla de «segundo factor
+  activo» que el dueño no reconoce.
+- **Por qué no se arregló en la campaña de firma:** exige contraseña en el
+  cuerpo de dos operaciones, o sea cambio de contrato (OpenAPI + SDK + consola)
+  más la pantalla de alta. Es el mismo criterio que dejó OAuth fuera: media
+  reautenticación es peor que ninguna, y esto merece su propio pase.
+- **Criterio de aceptación:** las cuatro operaciones que tocan el segundo factor
+  exigen contraseña reciente; `check:cad-contract` verde; la prueba que hoy
+  cubre «desactivar exige contraseña» tiene su gemela para dar de alta.
+- **Estimación:** medio día con contrato.
+
+### P1-F2 · Invitación por lote en el servidor
+- **Qué falla:** `/equipo` manda las invitaciones de una en una contra
+  `POST /v1/organizations/:id/invitations`, en serie. Funciona y es honesto,
+  pero el límite de asientos se descubre en la invitación número doce en vez de
+  antes de mandar ninguna, y no hay atomicidad: veinte entran y diez no.
+- **Dónde:** `apps/api/src/modules/organizations/organizations.controller.ts`;
+  consumo en `apps/web/src/app/equipo/TeamRoom.tsx`.
+- **Criterio de aceptación:** una operación de lote en la OpenAPI (con su SDK y
+  su consola regenerados, el gate `check:cad-contract` verde) que valide los
+  asientos UNA vez para toda la lista y responda qué entró y qué no; la pantalla
+  deja de iterar.
+- **Estimación:** medio día, contrato incluido.
+
+### P1-F3 · Entrar con Google y Microsoft
+- **Qué falla:** el alta sólo admite correo y contraseña. Es lo que más subiría
+  la conversión del embudo.
+- **Por qué NO se hizo:** OAuth no es una pantalla, es un proveedor de
+  identidad. Antes de la primera línea hay que decidir y probar: fusión de
+  cuentas cuando alguien se registró con contraseña y luego entra con Google
+  desde el mismo correo; verificación de correo heredada del proveedor; qué
+  ocurre si el proveedor deja de confirmarlo; revocación; y el segundo factor
+  cuando el proveedor ya hizo uno. Media implementación crea un segundo camino
+  de autenticación con la mitad de las defensas del primero.
+- **Decisión del titular que lo desbloquea:** qué hacer cuando el correo del
+  proveedor coincide con una cuenta de contraseña ya verificada.
+- **Criterio de aceptación:** campaña propia, con suite contra los dos
+  proveedores reales y las cinco decisiones de arriba probadas una a una.
+- **Estimación:** una campaña, no un ítem.
+
+### P1-F4 · Encender el modo universitario
+- **Qué falta:** dos decisiones que no son técnicas — qué dominios
+  institucionales se aceptan y con qué capacidad de soporte se atiende el pico
+  de altas de principio de semestre.
+- **Qué YA está listo:** `apps/api/src/modules/education/education-mode.ts` con
+  su lista por segmentos de etiqueta (probada contra el ataque del dominio
+  parecido), el aviso al arrancar la API que dice qué falta, y la prueba que
+  impide sembrar el plan en el catálogo mientras esté apagado.
+- **Criterio de aceptación:** `EDUCATION_MODE=true` y `EDUCATION_EMAIL_DOMAINS`
+  en el despliegue, más una migración revisada que dé de alta la fila del plan
+  con `EDUCATION_PLAN_CODE`; `/educacion` deja de decir «todavía no está
+  abierto».
+- **Estimación:** una hora de código una vez tomadas las dos decisiones.
+
 ---
 
 ## P2 — deuda que crece con intereses
+
+### P2-F5 · El barrido de cables sueltos es sensible al orden en el par 2D/3D
+- **Qué falla:** `cables-sueltos.spec.ts` pulsa los 76 controles del estudio en
+  serie y SIN restaurar el estado entre uno y otro, así que en el par
+  «Vista de plano 2D» / «Vista 3D» el que resulte inerte depende de en qué modo
+  esté el visor al llegar a él. Medido: en dos corridas locales consecutivas del
+  MISMO commit el inerte cambió de uno al otro; en CI sale siempre el 2D, que es
+  lo que coincide con el estado real de carga (una sonda sobre el estudio recién
+  abierto devuelve la clase de activo en «2D»).
+- **Por qué importa:** un gate que cambia de veredicto sin que cambie el código
+  es un gate que la gente aprende a re-ejecutar hasta que pase, y entonces deja
+  de proteger.
+- **Criterio de aceptación:** el barrido deja el visor en un modo conocido antes
+  de medir cada control de vista —o mide ese par aparte, declarando el modo de
+  partida—, y dos corridas seguidas dan el mismo conjunto de inertes.
+- **Estimación:** 1 hora, más una corrida de 7 minutos por verificación.
 
 ### P2-1 · Techos silenciosos de snap (medir antes de subir)
 `maxSegments: 96` del osnap, `search(..., 48)` de candidatos, 4_096 del

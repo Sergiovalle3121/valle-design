@@ -89,6 +89,7 @@ El smoke `scripts/deploy/production-startup-smoke.mjs` lo comprueba en CI.
 | `DATABASE_URL`                   | URL PostgreSQL 16              | **el arranque muere** (no hay respaldo a SQLite) |
 | `SYNCHRONIZE`                    | `false` EXACTO                 | **el arranque muere** (no se asume por omisión)  |
 | `IDENTITY_RATE_LIMIT_KEY_SECRET` | ≥32 chars, igual en réplicas   | **el arranque muere**                            |
+| `IDENTITY_MFA_ENCRYPTION_KEY`    | ≥32 chars, igual en réplicas   | **el arranque muere** (si no, el secreto del segundo factor se cifraría con la clave de desarrollo, que está en el repositorio) |
 | `ALLOWED_ORIGIN`                 | origen web exacto, sin path    | todo cross-origin se rechaza                     |
 | `OUTBOX_DISPATCHER_ENABLED`      | `true`                         | **el arranque muere**                            |
 | `OUTBOX_EMAIL_WEBHOOK_URL`       | HTTPS absoluta (puede ser esta misma API: `/v1/outbox/email`) | el worker no puede entregar |

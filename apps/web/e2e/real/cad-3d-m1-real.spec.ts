@@ -128,7 +128,7 @@ async function skipGuidedTour(page: Page): Promise<void> {
 async function loginThroughUi(page: Page, email: string, password: string): Promise<void> {
   await page.goto("/login?returnTo=/dashboard");
   await page.getByLabel(/Correo electr.*nico/iu).fill(email);
-  await page.getByLabel(/Contrase.*a/iu).fill(password);
+  await page.getByLabel(/^Contrase/iu).fill(password);
   await Promise.all([
     page.waitForURL((url) => url.pathname === "/dashboard"),
     page.getByRole("button", { name: /Iniciar sesi.*n/iu }).click(),
@@ -181,7 +181,7 @@ test.describe("3D-M1: muros/vanos/material nativos de punta a punta contra Postg
     await page.goto("/register");
     await page.getByLabel("Nombre").fill("Valle E2E 3D-M1");
     await page.getByLabel(/Correo electr.*nico/iu).fill(email);
-    await page.getByLabel(/Contrase.*a/iu).fill(E2E_PASSWORD);
+    await page.getByLabel(/^Contrase/iu).fill(E2E_PASSWORD);
     await page.getByRole("button", { name: "Crear cuenta" }).click();
     await expect(page.getByRole("status")).toContainText(/Cuenta creada/iu);
 

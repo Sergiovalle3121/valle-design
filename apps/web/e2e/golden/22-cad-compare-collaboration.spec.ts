@@ -42,20 +42,28 @@ async function closeDock(page: Page) {
   await page.getByLabel('Cerrar panel profesional').click();
 }
 
+/**
+ * Designa una entidad por su identificador y le cambia el radio.
+ *
+ * Antes buscaba el id como TEXTO —en el panel y recorriendo todos los botones
+ * del documento con `page.evaluate`—, porque el estudio enseñaba
+ * `cad_mt60y4ol_uzfo` tanto en la ficha como en cada fila de la lista. Desde
+ * que la lista y la ficha hablan en español («Arco 1»), el id vive donde
+ * siempre debió estar para una prueba: en el `data-testid` de la fila, que ES
+ * la identidad del objeto y no cambia cuando cambia el idioma de la interfaz.
+ * La designación pasa de barrer el DOM a señalar una fila concreta.
+ */
 async function setRadius(page: Page, entityId: string, value: number) {
   const properties = page.getByTestId('cad-native-properties');
+  const identificador = properties.locator(`[title="Identificador técnico: ${entityId}"]`);
   const alreadySelected = await properties.isVisible().catch(() => false)
-    && await properties.getByText(entityId, { exact: true }).isVisible().catch(() => false);
+    && await identificador.isVisible().catch(() => false);
   if (!alreadySelected) {
     const deselect = page.getByRole('button', { name: 'Deseleccionar' });
     if (await deselect.isVisible().catch(() => false)) await deselect.click();
-    await expect.poll(() => page.evaluate((targetId) => [...document.querySelectorAll('button')].some((button) => button.textContent?.includes(targetId)), entityId)).toBe(true);
-    const clicked = await page.evaluate((targetId) => {
-      const button = [...document.querySelectorAll('button')].find((candidate) => candidate.textContent?.includes(targetId));
-      button?.click();
-      return !!button;
-    }, entityId);
-    expect(clicked).toBe(true);
+    const fila = page.getByTestId(`cad-native-entity-${entityId}`);
+    await expect(fila).toBeVisible();
+    await fila.click();
   }
   const radius = page.getByTestId('cad-native-property-radius');
   await radius.fill(String(value));
@@ -76,7 +84,10 @@ test('canonical Base/Mine/Theirs compare, collision review, comments, links and 
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
-  await expect(page.getByRole('button', { name: /^arc-a\s+ARC$/i })).toBeVisible();
+  // La fila de la lista se señala por su `data-testid`, que lleva el id: el
+  // nombre visible pasó a ser «Arco 1» cuando el estudio dejó de hablar en
+  // identificadores, y el id es lo que identifica al objeto de verdad.
+  await expect(page.getByTestId('cad-native-entity-arc-a')).toBeVisible();
 
   await openCollaboration(page);
   await checkpoint(page, 'Base');
@@ -195,7 +206,7 @@ test('canonical Base/Mine/Theirs compare, collision review, comments, links and 
   // posible); ahora el token llega de verdad y es la REVOCACIÓN la que lo tumba.
   const revoked = await context.newPage();
   await revoked.goto(`/legacy/studio#cadReview=${encodeURIComponent(shareToken)}`);
-  await expect(revoked.getByRole('button', { name: /^arc-a\s+ARC$/i })).toBeVisible();
+  await expect(revoked.getByTestId('cad-native-entity-arc-a')).toBeVisible();
   await expect(revoked.getByTestId('cad-review-banner')).toHaveCount(0);
   await revoked.close();
 });

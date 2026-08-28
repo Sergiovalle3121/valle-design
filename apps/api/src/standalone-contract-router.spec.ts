@@ -33,6 +33,7 @@ import { User } from './modules/identity/entities/identity.entity';
 import { IdentityController } from './modules/identity/identity.controller';
 import { ApiRateLimitService } from './modules/identity/api-rate-limit.service';
 import { IDENTITY_RATE_LIMIT_STORE } from './modules/identity/identity-rate-limit.store';
+import { IdentityMfaService } from './modules/identity/identity-mfa.service';
 import { IdentityService } from './modules/identity/identity.service';
 import {
   Invitation,
@@ -92,6 +93,7 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
       ],
       providers: [
         { provide: IdentityService, useValue: {} },
+        { provide: IdentityMfaService, useValue: {} },
         { provide: OrganizationAccessService, useValue: {} },
         {
           provide: OrganizationCommercialConfiguration,
@@ -162,8 +164,12 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
     // mexicana: los catálogos del SAT, leer y guardar los datos fiscales del
     // CFDI 4.0, y el portal del proveedor para arreglar el medio de pago
     // + las 2 del rastro fiscal (listado de CFDI y descarga de archivos)
-    // + las 3 de /v1/legal (documentos, listar y registrar aceptación).
-    expect(expected).toHaveLength(39);
+    // + las 3 de /v1/legal (documentos, listar y registrar aceptación)
+    // + las 7 de la campaña de firma propia: el segundo acto del inicio de
+    //   sesión (`login/mfa`), las cinco de administrar el segundo factor
+    //   (estado, alta, activación, baja y códigos de respaldo) y la actividad
+    //   reciente de la cuenta.
+    expect(expected).toHaveLength(46);
     expect([...actual].sort()).toEqual(expected.sort());
   });
 });

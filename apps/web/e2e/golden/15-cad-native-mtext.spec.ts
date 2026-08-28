@@ -67,8 +67,11 @@ test('creates, edits, undoes, reloads and DXF round-trips semantic MTEXT', async
 
   await page.reload();
   const list = page.getByTestId('cad-native-entity-list');
-  await expect(list).toContainText('MTEXT');
-  await list.getByRole('button').filter({ hasText: 'MTEXT' }).click();
+  // La lista dejó de hablar en identificadores: cada fila dice «Texto 1», no
+  // el slug en inglés. El `data-testid` sigue llevando el id, que es la
+  // identidad real; lo que cambió es la etiqueta que el usuario lee.
+  await expect(list).toContainText('Texto');
+  await list.getByRole('button').filter({ hasText: 'Texto' }).click();
   await expect(page.getByTestId('cad-native-property-text')).toHaveValue('Instrucción editada\nSegunda línea');
 
   await page.getByTitle(/Exportar a DXF/).click();

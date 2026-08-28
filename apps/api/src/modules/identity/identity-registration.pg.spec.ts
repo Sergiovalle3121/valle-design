@@ -10,10 +10,13 @@ import { Organization } from '../organizations/entities/organization.entity';
 import {
   Credential,
   IdentityAuditEvent,
+  IdentityBackupCode,
+  IdentityMfaFactor,
   OneTimeToken,
   Session,
   User,
 } from './entities/identity.entity';
+import { IdentityMfaService } from './identity-mfa.service';
 import { IdentityService } from './identity.service';
 
 describePostgres('Identity registration atomicity', () => {
@@ -30,6 +33,8 @@ describePostgres('Identity registration atomicity', () => {
         Session,
         OneTimeToken,
         IdentityAuditEvent,
+        IdentityMfaFactor,
+        IdentityBackupCode,
         Organization,
         EmailOutbox,
       ],
@@ -42,6 +47,12 @@ describePostgres('Identity registration atomicity', () => {
       harness.dataSource.getRepository(Session),
       harness.dataSource.getRepository(OneTimeToken),
       harness.dataSource.getRepository(IdentityAuditEvent),
+      new IdentityMfaService(
+        harness.dataSource,
+        harness.dataSource.getRepository(Credential),
+        harness.dataSource.getRepository(IdentityMfaFactor),
+        harness.dataSource.getRepository(IdentityBackupCode),
+      ),
       new PostgresEmailService(),
     );
   });

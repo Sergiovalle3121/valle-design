@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, useRef, useState } from "react";
 import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
+import { loginRequiresMfa } from "@valle/design-sdk";
 import { localReturnTo } from "@/lib/session";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import { AuthShell } from "@/components/AuthShell";
 import { FreeLaunchNote } from "@/components/marketing/FreeLaunchNote";
 import { ResendTimerButton } from "@/components/ResendTimerButton";
-import { Button, Input } from "@/components/ui";
+import { Button, Input, PasswordField } from "@/components/ui";
 
 type AuthMode = "login" | "register";
 
@@ -36,6 +37,14 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
   const [busy, setBusy] = useState(false);
   const submitting = useRef(false);
   const [registeredEmail, setRegisteredEmail] = useState<string | null>(null);
+  /**
+   * El desafío de segundo factor. Cuando existe, la pantalla cambia entera: la
+   * contraseña ya se validó y lo único que queda es el código. Se guarda en
+   * estado y NO en la URL a propósito — un desafío en la barra de direcciones
+   * acaba en el historial, en un registro de servidor y en el portapapeles de
+   * quien comparte el enlace «para que veas el error».
+   */
+  const [mfaChallenge, setMfaChallenge] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -55,8 +64,20 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
     };
 
     try {
-      if (register) await designClient.identity.register(body);
-      else await designClient.identity.login(body);
+      if (register) {
+        await designClient.identity.register(body);
+      } else {
+        const resultado = await designClient.identity.login(body);
+        // La respuesta del inicio de sesión es una de dos: sesión creada, o
+        // desafío de segundo factor. Sin cookie en el segundo caso — la
+        // contraseña sola no abre nada en una cuenta protegida.
+        if (loginRequiresMfa(resultado)) {
+          setMfaChallenge(resultado.challenge);
+          submitting.current = false;
+          setBusy(false);
+          return;
+        }
+      }
 
       if (register) {
         // El correo se guarda ANTES de limpiar el formulario: la pantalla de
@@ -102,6 +123,20 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
     return <CheckYourInbox email={registeredEmail} />;
   }
 
+  if (mfaChallenge) {
+    return (
+      <MfaChallenge
+        challenge={mfaChallenge}
+        onCancel={() => setMfaChallenge(null)}
+        onSuccess={async () => {
+          await auth.refresh();
+          router.replace(localReturnTo(returnTo));
+          router.refresh();
+        }}
+      />
+    );
+  }
+
   return (
     <AuthShell
       title={register ? "Crea tu cuenta" : "Te damos la bienvenida"}
@@ -111,6 +146,10 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
           : "Accede a tus dibujos, revisiones y entregables."
       }
       error={error}
+      // El panel del producto, sólo en el embudo de alta y sólo en escritorio.
+      // Responde las dos preguntas que se hace quien está a punto de teclear su
+      // correo —«¿qué es esto?» y «¿puedo fiarme?»— justo mientras las piensa.
+      showcase
       footer={
         <>
           <p className="type-small mt-6 text-center text-muted-foreground">
@@ -143,7 +182,9 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
         `free-launch-funnel.spec.ts` lo vigila contra el stack real para que
         siga siendo verdad.
       */}
-      {register && <FreeLaunchNote className="mt-6 type-small text-muted-foreground" />}
+      {register && (
+        <FreeLaunchNote className="mt-6 type-small text-muted-foreground" />
+      )}
 
       <form method="post" onSubmit={submit} className="mt-8 space-y-5">
         {register && (
@@ -164,22 +205,31 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
           maxLength={254}
           required
         />
-        <Input
+        {/*
+          `PasswordField` en vez de `Input type="password"`: añade mostrar/
+          ocultar —la razón número uno por la que alguien falla al registrarse
+          es teclear mal algo que no puede ver, y en un teléfono con teclado
+          predictivo pasa constantemente— y, al ELEGIR contraseña, un medidor
+          que mide entropía en vez de premiar la mayúscula-número-símbolo que
+          empuja a la gente hacia `P@ssw0rd1`. Al ENTRAR no hay medidor: juzgar
+          la contraseña que ya existe no ayuda a nadie y sólo distrae.
+        */}
+        <PasswordField
           label="Contraseña"
           name="password"
-          type="password"
-          minLength={12}
-          maxLength={128}
           autoComplete={register ? "new-password" : "current-password"}
+          showStrength={register}
           required
           hint={register ? "Mínimo 12 caracteres." : undefined}
         />
-        <Button type="submit" variant="primary" size="lg" fullWidth loading={busy}>
-          {busy
-            ? "Procesando…"
-            : register
-              ? "Crear cuenta"
-              : "Iniciar sesión"}
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          fullWidth
+          loading={busy}
+        >
+          {busy ? "Procesando…" : register ? "Crear cuenta" : "Iniciar sesión"}
         </Button>
       </form>
     </AuthShell>
@@ -227,7 +277,8 @@ function CheckYourInbox({ email }: { email: string }) {
             <ul className="type-small mt-2 list-disc space-y-1 pl-4 text-muted-foreground">
               <li>Mira en la carpeta de correo no deseado.</li>
               <li>
-                Tarda hasta un par de minutos: el envío se encola y se reintenta.
+                Tarda hasta un par de minutos: el envío se encola y se
+                reintenta.
               </li>
               <li>
                 Si escribiste mal la dirección, vuelve a{" "}
@@ -250,12 +301,14 @@ function CheckYourInbox({ email }: { email: string }) {
           */}
           <ResendTimerButton
             onResend={async () => {
-              await designClient.identity.resendVerification(email).catch(() => {
-                /* La API responde igual exista o no la cuenta: no se filtra
+              await designClient.identity
+                .resendVerification(email)
+                .catch(() => {
+                  /* La API responde igual exista o no la cuenta: no se filtra
                    quién está registrado, y un fallo de red aquí no debe
                    convertirse en un error rojo que asuste — el usuario ya tiene
                    el primer correo en camino. */
-              });
+                });
             }}
           />
           <p className="type-small text-center text-muted-foreground">
@@ -270,6 +323,98 @@ function CheckYourInbox({ email }: { email: string }) {
       }
     >
       <div className="mt-8" />
+    </AuthShell>
+  );
+}
+
+/**
+ * EL SEGUNDO ACTO DEL INICIO DE SESIÓN.
+ *
+ * Pantalla propia y no un campo más del formulario, por la misma razón que
+ * «revisa tu correo» es pantalla propia: son dos PASOS distintos, no dos
+ * estados de un mismo formulario. Mezclarlos obliga al usuario a releer una
+ * pantalla que ya rellenó para encontrar el único campo que ahora importa.
+ *
+ * El campo acepta las dos formas de entrar —los seis dígitos de la aplicación o
+ * un código de respaldo— sin preguntar cuál es cuál: el servidor lo distingue
+ * solo, y obligar a elegir en un menú desplegable es trabajo que el usuario no
+ * tiene por qué hacer justo cuando ya está bloqueado fuera.
+ *
+ * `autoComplete="one-time-code"` es lo que permite que iOS y Android ofrezcan
+ * el código desde el teclado; sin él, el usuario cambia de aplicación, lo
+ * memoriza y vuelve, y a veces se le pasa la ventana de treinta segundos.
+ */
+function MfaChallenge({
+  challenge,
+  onCancel,
+  onSuccess,
+}: {
+  challenge: string;
+  onCancel: () => void;
+  onSuccess: () => Promise<void>;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    const code = String(new FormData(event.currentTarget).get("code") ?? "");
+    try {
+      await designClient.identity.completeMfaLogin({ challenge, code });
+      await onSuccess();
+    } catch (cause) {
+      setError(
+        cause instanceof DesignApiError && cause.status === 429
+          ? "Demasiados intentos. Espera un momento."
+          : "El código no es válido o ya caducó. Pide uno nuevo a tu aplicación.",
+      );
+      setBusy(false);
+    }
+  }
+
+  return (
+    <AuthShell
+      title="Confirma que eres tú"
+      description="Tu cuenta pide un segundo factor. Escribe el código de seis dígitos de tu aplicación, o uno de tus códigos de respaldo."
+      titleId="mfa-title"
+      error={error}
+      footer={
+        <p className="type-small mt-6 text-center">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="text-muted-foreground underline underline-offset-4 hover:text-foreground"
+          >
+            Volver a empezar
+          </button>
+        </p>
+      }
+    >
+      <form onSubmit={submit} className="mt-8 space-y-5">
+        <Input
+          label="Código"
+          name="code"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          minLength={6}
+          maxLength={32}
+          mono
+          autoFocus
+          required
+          hint="Seis dígitos, o un código de respaldo con su guion."
+        />
+        <Button
+          type="submit"
+          variant="primary"
+          size="lg"
+          fullWidth
+          loading={busy}
+        >
+          {busy ? "Comprobando…" : "Entrar"}
+        </Button>
+      </form>
     </AuthShell>
   );
 }

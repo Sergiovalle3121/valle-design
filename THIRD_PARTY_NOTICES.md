@@ -20,13 +20,23 @@ no hay SDK/proveedor DWG incluido.
 
 ## Fuentes tipográficas autohospedadas
 
-`apps/web/src/fonts/` versiona Inter (© The Inter Project Authors,
-https://github.com/rsms/inter) y JetBrains Mono (© The JetBrains Mono Project
-Authors, https://github.com/JetBrains/JetBrainsMono), ambas bajo SIL Open Font
-License 1.1. Se descargaron una vez (2026-08-22) para que el build no dependa
-de Google Fonts; detalles y procedencia exacta en
-`apps/web/src/fonts/LICENSE.txt`. La OFL permite redistribuirlas con software
-propietario conservando su aviso; no se venden por separado.
+`apps/web/src/fonts/` versiona tres familias, todas bajo SIL Open Font
+License 1.1:
+
+- **Inter** — © The Inter Project Authors, <https://github.com/rsms/inter>
+  (cuerpo y prosa; descargada 2026-08-22).
+- **JetBrains Mono** — © The JetBrains Mono Project Authors,
+  <https://github.com/JetBrains/JetBrainsMono> (cotas, coordenadas, línea de
+  comandos; descargada 2026-08-22).
+- **Space Grotesk** — © 2020 The Space Grotesk Project Authors,
+  <https://github.com/floriankarsten/space-grotesk> (titulares de la marca desde
+  la campaña de firma propia; descargada 2026-08-28 desde `google/fonts`, rama
+  `main`, `ofl/spacegrotesk/SpaceGrotesk[wght].ttf`).
+
+Se descargaron una vez para que el build no dependa de Google Fonts; detalles y
+procedencia exacta en `apps/web/src/fonts/LICENSE.txt`. La OFL permite
+redistribuirlas con software propietario conservando su aviso; no se venden por
+separado.
 
 ## Datos incorporados que no salen del lockfile
 

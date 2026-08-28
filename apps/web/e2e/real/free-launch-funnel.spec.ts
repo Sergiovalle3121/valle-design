@@ -147,7 +147,7 @@ test.describe("el embudo gratuito, medido contra el stack real", () => {
     await screen("registro");
     await page.getByLabel("Nombre").fill("Arquitecta fundadora");
     await page.getByLabel(/Correo electr.*nico/iu).fill(email);
-    await page.getByLabel(/Contrase.*a/iu).fill(E2E_PASSWORD);
+    await page.getByLabel(/^Contrase/iu).fill(E2E_PASSWORD);
     // TRES campos. Ni uno más. Un cuarto campo en el alta de un producto
     // gratuito es un porcentaje de gente que no llega al editor.
     expect(await page.locator("form input").count()).toBe(3);
@@ -171,7 +171,7 @@ test.describe("el embudo gratuito, medido contra el stack real", () => {
     await page.goto("/login?returnTo=/dashboard");
     await screen("acceso");
     await page.getByLabel(/Correo electr.*nico/iu).fill(email);
-    await page.getByLabel(/Contrase.*a/iu).fill(E2E_PASSWORD);
+    await page.getByLabel(/^Contrase/iu).fill(E2E_PASSWORD);
     await Promise.all([
       page.waitForURL((url) => url.pathname === "/dashboard"),
       click(page.getByRole("button", { name: /Iniciar sesi.*n/iu })),

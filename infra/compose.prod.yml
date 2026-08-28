@@ -59,6 +59,10 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       SYNCHRONIZE: 'false'
       IDENTITY_RATE_LIMIT_KEY_SECRET: ${IDENTITY_RATE_LIMIT_KEY_SECRET:?minimo 32 caracteres}
+      # Cifra en reposo el secreto del segundo factor. Sin ella el arranque
+      # muere: la alternativa es cifrar con la clave de desarrollo, que es
+      # pública, y entonces un volcado de la base los descifra todos.
+      IDENTITY_MFA_ENCRYPTION_KEY: ${IDENTITY_MFA_ENCRYPTION_KEY:?minimo 32 caracteres}
       ALLOWED_ORIGIN: https://app.${DOMAIN:?Define DOMAIN (p.ej. valledesign.mx)}
       # El worker entrega contra ESTA misma API, a través de Caddy: las URLs
       # de outbox exigen HTTPS en producción y el receptor vive aquí (ADR-0008).

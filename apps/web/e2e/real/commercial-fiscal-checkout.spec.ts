@@ -95,7 +95,7 @@ test.describe("captura fiscal CFDI 4.0 y compra autoservicio", () => {
     await page.goto("/register");
     await page.getByLabel("Nombre").fill("Despacho Fiscal E2E");
     await page.getByLabel(/Correo electr.*nico/iu).fill(email);
-    await page.getByLabel(/Contrase.*a/iu).fill(E2E_PASSWORD);
+    await page.getByLabel(/^Contrase/iu).fill(E2E_PASSWORD);
     await page.getByRole("button", { name: "Crear cuenta" }).click();
     await expect(page.getByRole("status")).toContainText(/Cuenta creada/iu);
 
@@ -115,7 +115,7 @@ test.describe("captura fiscal CFDI 4.0 y compra autoservicio", () => {
 
     await page.goto("/login?returnTo=/dashboard");
     await page.getByLabel(/Correo electr.*nico/iu).fill(email);
-    await page.getByLabel(/Contrase.*a/iu).fill(E2E_PASSWORD);
+    await page.getByLabel(/^Contrase/iu).fill(E2E_PASSWORD);
     await Promise.all([
       page.waitForURL((url) => url.pathname === "/dashboard"),
       page.getByRole("button", { name: /Iniciar sesi.*n/iu }).click(),

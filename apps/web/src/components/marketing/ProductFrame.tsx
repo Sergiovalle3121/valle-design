@@ -62,9 +62,18 @@ export function ProductFrame({
       >
         {/* Barra de ventana. `select-none` para que nadie arrastre los puntos. */}
         <div className="flex select-none items-center gap-1.5 border-b border-border bg-muted/60 px-3.5 py-2.5">
-          <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-danger/70" />
-          <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-warning/70" />
-          <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full bg-success/70" />
+          <span
+            aria-hidden="true"
+            className="h-2.5 w-2.5 rounded-full bg-danger/70"
+          />
+          <span
+            aria-hidden="true"
+            className="h-2.5 w-2.5 rounded-full bg-warning/70"
+          />
+          <span
+            aria-hidden="true"
+            className="h-2.5 w-2.5 rounded-full bg-success/70"
+          />
           <span className="type-mono type-micro ml-2 truncate text-muted-foreground">
             {alt}
           </span>

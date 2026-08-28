@@ -14,6 +14,7 @@ import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { installMockBackend } from "../fixtures/mock-backend";
 import { installCadV1Backend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
+import { enter3DView } from '../fixtures/view-mode';
 
 const cadDocument = {
   meta: { version: 1, schema: 3, unit: "mm" },
@@ -107,6 +108,7 @@ test("apagar un modo OSNAP en DSETTINGS deja de capturar por él", async ({
   await installCadBackend(context);
   await page.goto("/legacy/studio");
   await expect(page.getByTestId("cad-native-entity-list")).toBeVisible();
+  await enter3DView(page);
   await page.getByTitle(/Vista superior/).click();
   await page.getByTitle(/Ajustar a la planta/).click();
 

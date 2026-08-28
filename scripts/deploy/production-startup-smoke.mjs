@@ -68,6 +68,7 @@
  *   DATABASE_URL=postgres://... node scripts/deploy/production-startup-smoke.mjs
  */
 import { spawn, spawnSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { existsSync, readdirSync } from 'node:fs';
 import { dirname, extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -75,6 +76,21 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const ENTRY = join(ROOT, 'apps', 'api', 'dist', 'main.js');
 const IS_WINDOWS = process.platform === 'win32';
+
+/**
+ * Clave de relleno para el guarda de cifrado del segundo factor.
+ *
+ * SE CONSTRUYE EN TIEMPO DE EJECUCIÓN a propósito, no es un literal. Una cadena
+ * de 32+ caracteres asignada a algo que se llama `*_ENCRYPTION_KEY` es
+ * exactamente lo que un escáner de secretos debe marcar —y marcarla estaría
+ * BIEN HECHO—, así que la respuesta correcta no es una excepción en la
+ * allowlist sino no escribir el literal. Es la convención que el propio
+ * `.gitleaksignore` documenta para los fixtures anteriores del repositorio.
+ *
+ * El valor no necesita ser estable entre corridas: al guarda sólo le importa
+ * que exista y mida al menos 32 caracteres.
+ */
+const SMOKE_MFA_KEY = randomBytes(24).toString('hex');
 
 const PORT = Number(process.env.SMOKE_PORT ?? 4319);
 const BASE = `http://127.0.0.1:${PORT}`;
@@ -376,12 +392,19 @@ async function main() {
         NODE_ENV: 'production',
         PORT: String(PORT + 1),
         METRICS_TOKEN: '',
-        // Los guardas se evalúan en cadena y el del secreto de rate limiting
-        // salta al CARGAR el módulo, antes que ninguno de la base. Se
-        // proporciona salvo cuando es justo el guarda bajo prueba, para que
-        // cada caso muera por el motivo que dice medir.
+        // Los guardas se evalúan en cadena y DOS de ellos saltan al CARGAR el
+        // módulo, antes que ninguno de la base. Los dos se proporcionan aquí
+        // salvo cuando son justo el guarda bajo prueba, para que cada caso
+        // muera por el motivo que dice medir.
+        //
+        // Cuando el de MFA se añadió sin ponerlo en esta lista, los tres
+        // primeros casos siguieron saliendo con código 1 —así que «no arranca»
+        // pasaba— pero el log traía el motivo EQUIVOCADO y sus tres asertos de
+        // «...y el motivo queda escrito» se cayeron a la vez. Es el aviso de
+        // este comentario, cobrado.
         IDENTITY_RATE_LIMIT_KEY_SECRET:
           'smoke-rate-limit-secret-de-32-caracteres',
+        IDENTITY_MFA_ENCRYPTION_KEY: SMOKE_MFA_KEY,
         OUTBOX_DISPATCHER_ENABLED: 'true',
         OUTBOX_EMAIL_WEBHOOK_URL: 'https://receptor.invalido/valle/outbox',
         OUTBOX_DOMAIN_WEBHOOK_URL: 'https://receptor.invalido/valle/outbox',
@@ -430,6 +453,16 @@ async function main() {
       IDENTITY_RATE_LIMIT_KEY_SECRET: '',
     },
     /IDENTITY_RATE_LIMIT_KEY_SECRET/,
+  );
+
+  bootExpectingFailure(
+    'sin IDENTITY_MFA_ENCRYPTION_KEY no arranca (el secreto TOTP quedaría legible en un volcado)',
+    {
+      DATABASE_URL,
+      SYNCHRONIZE: 'false',
+      IDENTITY_MFA_ENCRYPTION_KEY: '',
+    },
+    /IDENTITY_MFA_ENCRYPTION_KEY/,
   );
 
   // El guarda de `OUTBOX_DISPATCHER_ENABLED` NO se puede ejercer aquí: vive en

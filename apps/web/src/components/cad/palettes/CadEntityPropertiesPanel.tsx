@@ -26,6 +26,7 @@ import {
   type CadNativeEntity,
 } from "@/lib/cad/entity-runtime";
 import type { CadDocument } from "@/lib/cad/cad-document";
+import { cadEntityLabel } from "@/lib/cad/entity-labels";
 import { CadPropertiesPalette } from "./CadPropertiesPalette";
 import {
   buildCadPropertyModel,
@@ -97,6 +98,11 @@ export const CadEntityPropertiesPanel = React.memo(
       const grips = adapter.grips.grips(only);
       summary = {
         id: only.id,
+        // El nombre se calcula sobre TODAS las entidades del documento, no
+        // sobre la selección: el ordinal de «Muro 3» sólo significa algo dentro
+        // del plano entero. Calcularlo sobre la designación daría «Muro 1» a
+        // cualquier muro seleccionado solo.
+        label: cadEntityLabel(only, document?.entities ?? [only]),
         layer: only.layer,
         bounds: `${Math.round(bounds.maxX - bounds.minX)} × ${Math.round(bounds.maxY - bounds.minY)}`,
         gripCount: grips.length,

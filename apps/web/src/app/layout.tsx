@@ -48,6 +48,29 @@ const inter = localFont({
   adjustFontFallback: "Arial",
 });
 
+/**
+ * LA DISPLAY DE LA MARCA (campaña de firma propia, 2026-08-28).
+ *
+ * Space Grotesk es la hermana PROPORCIONAL de una monoespaciada, así que el
+ * titular y la cota comparten esqueleto: la marca pasa a tener una sola voz
+ * tipográfica en dos anchos en vez de dos tipos sin parentesco. Se carga con
+ * el mismo mecanismo que las otras dos —`next/font/local`, archivo versionado,
+ * cero dependencia de Google en tiempo de build— y sólo la consumen los tres
+ * escalones de titular de `globals.css`.
+ *
+ * `adjustFontFallback: "Arial"` sincroniza las métricas del respaldo: mientras
+ * la variable llega, el titular ya ocupa el sitio que va a ocupar, así que la
+ * portada no da el salto de layout que delata una fuente mal cargada.
+ */
+const spaceGrotesk = localFont({
+  src: [
+    { path: "../fonts/SpaceGrotesk-wght.ttf", style: "normal", weight: "300 700" },
+  ],
+  display: "swap",
+  variable: "--font-space-grotesk",
+  adjustFontFallback: "Arial",
+});
+
 const jetbrainsMono = localFont({
   src: [
     { path: "../fonts/JetBrainsMono-wght.ttf", style: "normal", weight: "100 800" },
@@ -103,18 +126,30 @@ export const metadata: Metadata = {
  */
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f4f5f8" },
-    { media: "(prefers-color-scheme: dark)", color: "#0c1017" },
+    { media: "(prefers-color-scheme: light)", color: "#f7f5f2" },
+    { media: "(prefers-color-scheme: dark)", color: "#0c0b0b" },
   ],
-  colorScheme: "light dark",
+  colorScheme: "dark light",
 };
 
 /**
- * Anti-flash (patrón del origen): fija la clase `.dark` en <html> ANTES del
- * primer paint, leyendo la preferencia guardada (`valle_theme`) o la del
- * sistema. El ThemeProvider sólo re-sincroniza después.
+ * Anti-flash: fija la clase `.dark` en <html> ANTES del primer paint, leyendo
+ * la preferencia guardada (`valle_theme`). El ThemeProvider sólo re-sincroniza
+ * después.
+ *
+ * EL DEFAULT ES OSCURO desde la campaña de firma propia. Antes, sin preferencia
+ * guardada, la app seguía a `prefers-color-scheme`, y como la mayoría de los
+ * equipos vienen en claro de fábrica, la primera impresión del producto era la
+ * cara que MENOS lo representa. Un CAD se dibuja sobre fondo oscuro; ésa es la
+ * convención del oficio y ahora también la puerta de entrada.
+ *
+ * Sigue habiendo tres opciones y «seguir al sistema» sigue existiendo: lo que
+ * cambia es que ahora se PIDE en el conmutador en vez de ser el silencio. Una
+ * preferencia guardada —incluida `system`— manda siempre sobre este default, y
+ * la clave antigua `axos_theme` se sigue leyendo para no reiniciarle el tema a
+ * quien ya visitó el producto.
  */
-const themeInitScript = `(function(){try{var s=localStorage.getItem('valle_theme')||localStorage.getItem('axos_theme');var d=s==='dark'||((!s||s==='system')&&window.matchMedia('(prefers-color-scheme: dark)').matches);var r=document.documentElement;r.classList.toggle('dark',d);r.style.colorScheme=d?'dark':'light';}catch(e){}})();`;
+const themeInitScript = `(function(){try{var s=localStorage.getItem('valle_theme')||localStorage.getItem('axos_theme');var d=s==='dark'||(!s)||(s==='system'&&window.matchMedia('(prefers-color-scheme: dark)').matches);var r=document.documentElement;r.classList.toggle('dark',d);r.style.colorScheme=d?'dark':'light';}catch(e){var r2=document.documentElement;r2.classList.add('dark');r2.style.colorScheme='dark';}})();`;
 
 export default async function RootLayout({
   children,
@@ -128,7 +163,7 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={`h-full antialiased ${inter.variable} ${jetbrainsMono.variable}`}
+      className={`h-full antialiased ${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
       suppressHydrationWarning
     >
       <head>

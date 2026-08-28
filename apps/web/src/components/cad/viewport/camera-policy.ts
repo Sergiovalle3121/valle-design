@@ -30,6 +30,19 @@ import { CAD_TOUCH_ONE_FINGER_IDLE } from "./touch-gestures";
  * con un dedo es también el gesto universal en ese contexto.
  *
  * El ratón no se toca: en plano su botón izquierdo panea como siempre.
+ *
+ * ── SE APLICA TAMBIÉN AL CREAR LOS CONTROLES, no sólo al conmutar de modo ──
+ *
+ * Durante un tiempo no fue así y no se notaba: el estudio abría siempre en 3D y
+ * el valor que el editor escribía a mano —`maxPolarAngle = Math.PI / 2.05`—
+ * coincidía por casualidad con lo que esta política pone para 3D. Al pasar el
+ * defecto a planta, el modo decía «2D», el render SÍ era ortográfico (el
+ * controlador de vista arranca así) y en cambio el ratón seguía configurado
+ * para orbitar: `enableRotate` activo y botón izquierdo en ROTATE, o sea el
+ * paneo —el gesto primario de un CAD de planos— muerto nada más abrir.
+ *
+ * La lección: una política que sólo se aplica en las TRANSICIONES deja el
+ * estado inicial a merced de que alguien haya copiado sus valores a mano.
  */
 export function applyCadCameraPolicy(
   controls: OrbitControls,

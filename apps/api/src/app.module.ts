@@ -26,6 +26,7 @@ import { IdentityModule } from './modules/identity/identity.module';
 import { LegalModule } from './modules/legal/legal.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
 import { CommercialModule } from './modules/commercial/commercial.module';
+import { FeedbackModule } from './modules/feedback/feedback.module';
 import { SupportModule } from './modules/support/support.module';
 import { OutboxReceiverModule } from './modules/outbox-receiver/outbox-receiver.module';
 
@@ -55,6 +56,7 @@ import { OutboxReceiverModule } from './modules/outbox-receiver/outbox-receiver.
     BlobStoreModule,
     CommercialModule,
     SupportModule,
+    FeedbackModule,
     OutboxReceiverModule,
     CadDocumentsModule,
     CadModule,

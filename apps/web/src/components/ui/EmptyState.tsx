@@ -51,7 +51,12 @@ export function EmptyState({
         </div>
       ) : null}
       <div className="max-w-md">
-        <p className={cx(size === "sm" ? "type-small font-semibold" : "type-heading", "text-foreground")}>
+        <p
+          className={cx(
+            size === "sm" ? "type-small font-semibold" : "type-heading",
+            "text-foreground",
+          )}
+        >
           {title}
         </p>
         {description ? (

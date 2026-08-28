@@ -4,6 +4,7 @@ import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
+import { enter3DView } from '../fixtures/view-mode';
 
 /**
  * FASE 2 — el PUNTERO entra en el motor de comandos.
@@ -109,6 +110,7 @@ test('dibujar una polilínea CON EL RATÓN captura un extremo existente y cierra
 }) => {
   test.setTimeout(180_000);
   const backend = await openStudio(context, page);
+  await enter3DView(page);
   await page.getByTitle(/Vista superior/).click();
   await page.getByTitle(/Ajustar a la planta/).click();
 
@@ -177,6 +179,7 @@ test('dibujar una polilínea CON EL RATÓN captura un extremo existente y cierra
 test('con el motor abierto, la máquina heredada no recibe el clic', async ({ context, page }) => {
   test.setTimeout(180_000);
   await openStudio(context, page);
+  await enter3DView(page);
   await page.getByTitle(/Vista superior/).click();
   await page.getByTitle(/Ajustar a la planta/).click();
 

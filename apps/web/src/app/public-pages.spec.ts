@@ -50,15 +50,29 @@ for (const route of ["login", "register"] as const) {
   );
 }
 
+/**
+ * LA REGLA DE HONESTIDAD, y por qué desde la campaña de firma cubre DOS
+ * archivos.
+ *
+ * El centro de preguntas se llevó el texto del FAQ a `lib/marketing/faq.ts`
+ * para que la página, el buscador y el JSON-LD digan literalmente lo mismo. Ese
+ * módulo es superficie pública: se PINTA en la portada. Si la comprobación se
+ * quedara mirando sólo `page.tsx`, la regla habría seguido en verde mientras la
+ * treintena de respuestas nuevas podía prometer lo que quisiera — que es
+ * exactamente cómo un gate deja de proteger sin que nadie lo desactive.
+ */
+const publicCopy = `${landing}
+${readFileSync("src/lib/marketing/faq.ts", "utf8")}`;
+
 assert.doesNotMatch(
-  landing,
+  publicCopy,
   /\bIA\b|inteligencia artificial|certificaci[oó]n|reviews|historial de versiones/i,
-  "la landing no debe anunciar capacidades no demostradas",
+  "la superficie pública no debe anunciar capacidades no demostradas",
 );
 assert.doesNotMatch(
-  landing,
+  publicCopy,
   /[$€]\s*\d|\d+(?:[.,]\d+)?\s*(?:USD|MXN|EUR)|approvedPrice/i,
-  "la landing no debe publicar precios sin aprobación",
+  "la superficie pública no debe publicar precios sin aprobación",
 );
 assert.doesNotMatch(
   commercial,
@@ -74,4 +88,6 @@ assert.ok(licenses.includes("THIRD_PARTY_NOTICES.md"));
 const status = readFileSync("src/app/status/page.tsx", "utf8");
 assert.match(status, /No se declara ningún estado operativo/);
 
-console.log("public-pages: rutas, enlaces y claims públicos verificados");
+console.log(
+  "public-pages: rutas, enlaces y claims públicos verificados (portada + centro de preguntas)",
+);

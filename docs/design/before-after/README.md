@@ -1,4 +1,48 @@
-# Antes y después — campaña de diseño 2026-08-21
+# Antes y después
+
+Dos campañas viven en esta carpeta. El sufijo del archivo dice cuál:
+
+| Campaña | Sufijo | Base del «antes» |
+| ------- | ------ | ---------------- |
+| **Firma propia** (2026-08-28) — identidad ultra premium, cuenta segura, voz del usuario | `-firma-antes` / `-firma-despues` | `a7a33d8` |
+| Diseño (2026-08-21) — el sistema | `-antes` / `-despues` | `7982cf3` |
+
+---
+
+## Campaña de firma propia — 2026-08-28
+
+**Qué mirar, en este orden:**
+
+1. **`portada-fold-{dark,light}-firma-{antes,despues}.png`.** El sustrato pasa de
+   un azul-gris frío a **grafito cálido**, y el acento de índigo genérico a
+   **violeta eléctrico**. El titular estrena display propia (Space Grotesk) y
+   gana un escalón de tamaño. La entradilla del «antes» dice «Una alternativa a
+   AutoCAD en la nube»; en el «después» no hay comparación con nadie.
+2. **El visor del hero.** Antes: una captura del editor. Después: **una lámina
+   que se dibuja sola** —numeración `A-01`, cajetín, cotas con marca oblicua—.
+   El producto contado por lo que hace, y las capturas reales del editor siguen
+   justo debajo en la página completa.
+3. **`registro-{dark,light}-firma-{antes,despues}.png`.** De un formulario
+   centrado a **pantalla partida** con el plano trazándose y los sellos de
+   confianza, y el campo de contraseña con mostrar/ocultar y medidor de
+   entropía.
+4. **`portada-{dark,light}-firma-despues.png`** (completa) trae el centro de
+   preguntas: de 7 a 36 respuestas en 6 categorías.
+5. **El detalle que delata la ola 3:** en `portada-fold-dark-firma-antes.png`,
+   el panel derecho del editor enseña dieciocho filas de
+   `cad_mt60y4ol_uzfo`. Ése era el estado real del producto, y es lo que la ola
+   3 sustituyó por «Muro 1 · Muro 2 · Texto 5».
+
+```bash
+# «después», contra el árbol de la campaña
+npx tsx apps/web/scripts/capture-public-shots.mts docs/design/before-after firma-despues
+npx tsx apps/web/scripts/capture-funnel-shots.mts docs/design/before-after firma-despues
+# «antes», con LOS MISMOS scripts corriendo en un worktree en `a7a33d8`
+```
+
+---
+
+## Campaña de diseño — 2026-08-21
 
 La prueba de la campaña, y material de venta.
 

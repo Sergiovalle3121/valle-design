@@ -39,7 +39,21 @@ import {
   SECURE_SESSION_COOKIE,
   SESSION_COOKIE,
 } from './identity-security';
+import { totpUri } from './identity-mfa';
+import { IdentityMfaService } from './identity-mfa.service';
 import { IdentityService } from './identity.service';
+
+/**
+ * El emisor que ve el usuario en su aplicación de autenticación.
+ *
+ * Configurable porque un despliegue con marca propia no puede llamarse igual
+ * que el nuestro en la lista del teléfono de su cliente; con un valor por
+ * defecto porque olvidarlo no puede dejar la entrada sin nombre. Se recorta a
+ * lo que cabe en una línea de esa lista.
+ */
+const MFA_ISSUER = (
+  process.env.IDENTITY_MFA_ISSUER?.trim() || 'Valle Design'
+).slice(0, 48);
 
 const MAX_COOKIE_HEADER_LENGTH = 8_192;
 const MAX_COOKIE_VALUE_LENGTH = 1_024;
@@ -75,6 +89,40 @@ export class TokenDto {
   @MinLength(32)
   @MaxLength(MAX_TOKEN_LENGTH)
   token!: string;
+}
+
+/**
+ * El código del segundo factor. `MaxLength(32)` y no 6 a propósito: un código de
+ * respaldo mide once caracteres con su guion y la gente pega espacios al
+ * copiar. La validación estricta la hace el servicio, que sabe distinguir un
+ * TOTP de un código de respaldo; aquí sólo se corta lo absurdo.
+ */
+export class MfaCodeDto {
+  @IsString()
+  @MinLength(6)
+  @MaxLength(32)
+  code!: string;
+}
+
+/** El segundo acto del inicio de sesión: el desafío más el código. */
+export class MfaLoginDto extends MfaCodeDto {
+  @IsString()
+  @MinLength(32)
+  @MaxLength(256)
+  challenge!: string;
+}
+
+/**
+ * Desactivar el segundo factor o rehacer los códigos de respaldo exige la
+ * CONTRASEÑA. Ver el porqué en `IdentityService.disableMfa`: una sesión abierta
+ * en una máquina desatendida es justo el escenario contra el que sirve el
+ * factor, así que estar dentro no puede bastar para quitarlo.
+ */
+export class PasswordConfirmationDto {
+  @IsString()
+  @MinLength(12)
+  @MaxLength(128)
+  password!: string;
 }
 
 export class ResetDto extends TokenDto {
@@ -188,6 +236,7 @@ export function cookie(req: Request, name: string): string | undefined {
 export class IdentityController {
   constructor(
     private readonly identity: IdentityService,
+    private readonly mfa: IdentityMfaService,
     @Inject(IDENTITY_RATE_LIMIT_STORE)
     private readonly rateLimits: IdentityRateLimitStore,
   ) {}
@@ -326,6 +375,52 @@ export class IdentityController {
       req.ip,
       req.header('user-agent'),
     );
+    if (result.kind === 'mfa') {
+      // Ni cookie ni sesión: la contraseña sola no abre nada en una cuenta con
+      // segundo factor. El desafío viaja en el cuerpo porque no autentica —sólo
+      // sirve para volver con el código— y una cookie habría invitado a
+      // tratarlo como si autenticara.
+      return {
+        mfaRequired: true,
+        challenge: result.challenge,
+        expiresAt: result.expiresAt,
+      };
+    }
+    this.setCookies(req, res, result.cookie, result.csrf);
+    return {
+      user: { id: result.user.id, email: result.user.email },
+      expiresAt: result.session.expiresAt,
+    };
+  }
+
+  /**
+   * Segundo acto del inicio de sesión.
+   *
+   * Lleva su propio límite de peticiones y es más estrecho que el de la
+   * contraseña: seis dígitos son un espacio de un millón, y sin techo un
+   * atacante con el desafío en la mano lo recorre. Con diez intentos por minuto
+   * y un desafío que se consume al primer uso, la fuerza bruta deja de ser un
+   * camino.
+   */
+  @Public()
+  @Post('login/mfa')
+  @HttpCode(200)
+  async loginMfa(
+    @Body() body: MfaLoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    this.getCookiePolicy(req);
+    await this.limit('login-mfa.ip', [req.ip || 'unknown'], 10);
+    const result = await this.identity.completeMfaLogin(
+      body.challenge,
+      body.code,
+      req.ip,
+      req.header('user-agent'),
+    );
+    if (!result) {
+      throw new UnauthorizedException('Desafío inválido o expirado.');
+    }
     this.setCookies(req, res, result.cookie, result.csrf);
     return {
       user: { id: result.user.id, email: result.user.email },
@@ -421,6 +516,123 @@ export class IdentityController {
     const auth = await this.current(req);
     this.csrf(req, auth.session.csrfHash);
     await this.identity.revokeAll(auth.user.id, auth.session.id);
+  }
+
+  /* ═══ SEGUNDO FACTOR ════════════════════════════════════════════════════ */
+
+  @Public()
+  @Get('mfa')
+  async mfaStatus(@Req() req: Request) {
+    const auth = await this.current(req);
+    return this.mfa.mfaStatus(auth.user.id);
+  }
+
+  /**
+   * Empieza el alta. Devuelve el secreto y la URI del QR, y NADA más: los
+   * códigos de respaldo se entregan al confirmar, no aquí, porque un alta que
+   * se abandona a la mitad no debe dejar códigos válidos por ahí.
+   */
+  @Public()
+  @Post('mfa/setup')
+  @HttpCode(200)
+  async mfaSetup(@Req() req: Request) {
+    const auth = await this.current(req);
+    this.csrf(req, auth.session.csrfHash);
+    await this.limit('mfa-setup.account', [auth.user.id], 10);
+    const secret = await this.mfa.beginMfaEnrollment(auth.user.id);
+    return {
+      secret,
+      uri: totpUri({
+        issuer: MFA_ISSUER,
+        account: auth.user.email,
+        secretBase32: secret,
+      }),
+    };
+  }
+
+  @Public()
+  @Post('mfa/activate')
+  @HttpCode(200)
+  async mfaActivate(@Body() body: MfaCodeDto, @Req() req: Request) {
+    const auth = await this.current(req);
+    this.csrf(req, auth.session.csrfHash);
+    await this.limit('mfa-activate.account', [auth.user.id], 10);
+    const codes = await this.mfa.confirmMfaEnrollment(auth.user.id, body.code);
+    if (!codes) {
+      throw new BadRequestException({
+        code: 'mfa_code_invalid',
+        message:
+          'El código no coincide. Revisa que la hora de tu teléfono esté al día y vuelve a intentarlo.',
+      });
+    }
+    // La ÚNICA vez que estos códigos salen del servidor. Se guardan en hash.
+    return { enabled: true, backupCodes: codes };
+  }
+
+  @Public()
+  @Post('mfa/disable')
+  @HttpCode(200)
+  async mfaDisable(@Body() body: PasswordConfirmationDto, @Req() req: Request) {
+    const auth = await this.current(req);
+    this.csrf(req, auth.session.csrfHash);
+    await this.limit('mfa-disable.account', [auth.user.id], 5);
+    if (!(await this.mfa.disableMfa(auth.user.id, body.password))) {
+      throw new UnauthorizedException('Contraseña incorrecta.');
+    }
+    return { enabled: false };
+  }
+
+  @Public()
+  @Post('mfa/backup-codes')
+  @HttpCode(200)
+  async mfaBackupCodes(
+    @Body() body: PasswordConfirmationDto,
+    @Req() req: Request,
+  ) {
+    const auth = await this.current(req);
+    this.csrf(req, auth.session.csrfHash);
+    await this.limit('mfa-backup.account', [auth.user.id], 5);
+    const codes = await this.mfa.regenerateBackupCodes(
+      auth.user.id,
+      body.password,
+    );
+    if (!codes) {
+      throw new UnauthorizedException(
+        'Contraseña incorrecta o segundo factor no activo.',
+      );
+    }
+    return { backupCodes: codes };
+  }
+
+  /**
+   * ACTIVIDAD RECIENTE de la cuenta.
+   *
+   * Sale de la tabla de auditoría de identidad. Se devuelve la acción, la fecha
+   * y un metadato acotado —el método y el agente de usuario— y NUNCA la
+   * dirección IP: se persiste para investigar un abuso, pero mostrarla en una
+   * página de cuenta la expone a cualquiera que se siente delante de una sesión
+   * abierta, y no ayuda al usuario a decidir nada que el dispositivo no diga ya.
+   */
+  @Public()
+  @Get('activity')
+  async activity(@Req() req: Request) {
+    const auth = await this.current(req);
+    const events = await this.identity.recentActivity(auth.user.id);
+    return {
+      events: events.map((event) => ({
+        id: event.id,
+        action: event.action,
+        createdAt: event.createdAt,
+        method:
+          typeof event.metadata?.method === 'string'
+            ? event.metadata.method
+            : null,
+        userAgent:
+          typeof event.metadata?.userAgent === 'string'
+            ? event.metadata.userAgent
+            : null,
+      })),
+    };
   }
 
   @Public()

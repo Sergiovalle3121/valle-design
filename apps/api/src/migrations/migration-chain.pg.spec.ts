@@ -31,6 +31,8 @@ import { WebhookReceipts20260820100000 } from './20260820100000-WebhookReceipts'
 import { TenantIntegrityRls20260820120000 } from './20260820120000-TenantIntegrityRls';
 import { CfdiReceipts20260820140000 } from './20260820140000-CfdiReceipts';
 import { TenantRuntimeRoleAndDesignBlobsRls20260823120000 } from './20260823120000-TenantRuntimeRoleAndDesignBlobsRls';
+import { IdentityMfaAndLoginActivity20260828120000 } from './20260828120000-IdentityMfaAndLoginActivity';
+import { ProductFeedback20260828140000 } from './20260828140000-ProductFeedback';
 
 const LEGACY_MIGRATIONS: Array<new () => MigrationInterface> = [
   AddCadBlocks20260706180000,
@@ -66,6 +68,8 @@ const ALL_MIGRATIONS: Array<new () => MigrationInterface> = [
   TenantIntegrityRls20260820120000,
   CfdiReceipts20260820140000,
   TenantRuntimeRoleAndDesignBlobsRls20260823120000,
+  IdentityMfaAndLoginActivity20260828120000,
+  ProductFeedback20260828140000,
 ];
 
 /**
@@ -98,6 +102,28 @@ describePostgres('migration chain (previous main -> latest)', () => {
 
   const url = postgresTestUrl()!;
   const schema = `migration_chain_${randomBytes(6).toString('hex')}`;
+
+  /**
+   * Esta suite construye su PROPIO DataSource —necesita controlar qué
+   * migraciones corren— y por eso se saltaba la señal que `createPostgresHarness`
+   * pone para todas las demás. Sin ella, invocar `npx jest` a mano con sólo
+   * `TEST_DATABASE_URL` deja las entidades mapeadas al dialecto de SQLite y la
+   * cadena muere en la tercera migración con
+   *
+   *     QueryFailedError: syntax error at or near "-"
+   *
+   * que no menciona ninguna variable de entorno y cuesta media hora. La misma
+   * comprobación del arnés, aquí.
+   */
+  beforeAll(() => {
+    if (!process.env.DATABASE_URL && !process.env.DB_HOST) {
+      throw new Error(
+        'La cadena de migraciones necesita DATABASE_URL (o DB_HOST) definido ANTES ' +
+          'de cargar las entidades: de él dependen los tipos de columna ' +
+          '(timestamp/jsonb). Ejecútala con `npm run test:pg`.',
+      );
+    }
+  });
   let bootstrap: DataSource;
   let dataSource: DataSource;
 
