@@ -12753,8 +12753,29 @@ export default function Layout3DEditor({
     const next = viewModeRef.current === "3d" ? "2d" : "3d";
     setViewMode(next);
     applyViewMode(next);
+    // MISMA REGLA QUE EL ENCUADRE DE APERTURA (P0-3), aquí también.
+    //
+    // `applyViewMode` deja la cámara sobre el ORIGEN DEL FOOTPRINT: mira a
+    // (0,0,0) y se aleja según `ctx.W`/`ctx.H`. En un plano cuyo contenido está
+    // lejos de la huella —el caso georreferenciado, coordenadas UTM del orden
+    // de 2·10⁶— eso es apuntar al vacío, y el usuario cambia de 2D a 3D y ve
+    // negro. El efecto de apertura de más arriba ya corregía justo esto, pero
+    // sólo al abrir; el conmutador no pasaba por él.
+    //
+    // No se re-encuadra siempre: sólo cuando el contenido es DISJUNTO de la
+    // huella. Un plano normal vive dentro de su huella y ahí el encuadre por
+    // footprint es el correcto — re-encuadrar al contenido en cada cambio de
+    // modo le movería la cámara al usuario sin que lo pidiera.
+    const ctx = ctxRef.current;
+    const content = worldBounds("all");
+    if (
+      ctx &&
+      content &&
+      !boundsIntersect(content, { minX: 0, minY: 0, maxX: ctx.W, maxY: ctx.H })
+    )
+      fitToBounds(content);
     updateWorkspacePreferences({ ...workspacePreferencesRef.current, viewMode: next });
-  }, [applyViewMode, updateWorkspacePreferences]);
+  }, [applyViewMode, updateWorkspacePreferences, worldBounds, fitToBounds]);
   const exportPng = () => {
     const r = rendererRef.current,
       sc = sceneRef.current,
