@@ -587,3 +587,42 @@ exponer la base a internet), `bash scripts/ops/backup-cron.sh` como arranque
 (un Sentry que nadie ha visto recibir un evento es un Sentry que no sabes si
 funciona) y el monitor de uptime apuntando a **`/health/ready`, no a `/health`**:
 el primero distingue «el proceso vive» de «el producto sirve».
+
+### OLA FINAL — GO/NO-GO
+
+**F.1 · La suite completa, con árbol quieto.** `check:cad` EXIT=0 (**761 casos
+numéricos contra oráculo independiente, 0 desviaciones**; la frontera
+documento↔DWG se mide en la spec del adaptador autorizado, ver abajo) ·
+`check:dwg` EXIT=0 · web **432/432** · API **712** · PostgreSQL real **192** ·
+barrido Playwright local **170 pasadas** · **CI en verde en sus cuatro jobs**,
+incluida la suite E2E en **Chromium y Firefox**.
+
+**Y el CI llevaba rojo desde el primer commit de la rama.** Seis intentos hasta
+el verde, seis defectos, todos míos, ninguno heredado:
+
+| # | Gate | Qué era |
+| --- | --- | --- |
+| 1 | `redocly lint` | `nullable: true` en un spec OpenAPI **3.1**, donde ya no existe |
+| 2 | `check:cad-math` | el `dist/` del códec DWG está en `.gitignore` y el gate corre ANTES del build |
+| 3 | `check:dwg` | ADR-0009: la suite de ángulos importaba —y luego sólo nombraba— el laboratorio DWG |
+| 4 | `lint:check` (API) | prettier en once archivos míos; nunca había corrido ese gate |
+| 5 | `check:lint-budget` | un import huérfano que dejó mi propio `--fix`; presupuesto CERO |
+| 6 | golden de tableta | **una regresión real**: el aviso de pantalla estrecha robaba el primer toque en 1024 px |
+
+El tercero merece constar aparte: había una salida cómoda —añadir mi spec a la
+lista de autorizados de ADR-0009— y era exactamente la prohibida. La frontera
+clean-room no se ensancha para acomodar una prueba: la prueba se muda a donde la
+política ya la permite, y un guardia en `check:cad-math` impide que desaparezca
+de allí (verificado borrándola a propósito).
+
+El sexto es el que un usuario habría notado, y sólo lo cazó el barrido ENTERO.
+
+**F.2 · `docs/execution/INFORME_LANZAMIENTO_20260827.md`** — publicado, con las
+tres columnas de FIX-OR-HIDE completas, los números, el estado de los tres
+descargables, la lista GO/NO-GO enlazada a su evidencia y la sección «El hueco
+que este informe casi tiene», que cuenta los seis fallos sin adornos.
+
+**F.3 · «Lo que sólo Sergio puede hacer»** — nueve puntos en orden, empezando
+por poner los repositorios EN PRIVADO.
+
+**Veredicto: GO técnico.** Lo que falta no es código.

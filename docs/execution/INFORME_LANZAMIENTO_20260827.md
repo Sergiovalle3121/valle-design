@@ -11,8 +11,14 @@ base `main` @ `9592869` (tras COMMERCIAL-RC1 y la campaña de paridad)
 ## El veredicto
 
 **GO técnico.** Todo lo que se puede verificar desde este repositorio está en
-verde, con números. Lo que falta para que el sitio exista no es código: es la
-lista de §8, y ninguna línea de ella se puede hacer desde aquí.
+verde, con números, **y lo verifica un servidor que empieza de cero**: los cuatro
+jobs de CI —contrato, build, pruebas, lint, smoke, la suite E2E en Chromium y
+Firefox contra PostgreSQL, el escaneo de secretos y el arranque productivo de la
+imagen— pasan sobre el SHA candidato. Costó seis intentos llegar ahí, y
+«El hueco que este informe casi tiene» (§5) cuenta por qué sin adornos.
+
+Lo que falta para que el sitio exista no es código: es la lista de §8, y ninguna
+línea de ella se puede hacer desde aquí.
 
 La vara era ésta:
 
@@ -176,6 +182,7 @@ y un fallo del almacén deniega.
 | Legal coherente con el modo gratuito | ⚠️ | Publicado y candado, **marcado «borrador pendiente de revisión legal»** |
 | Repositorios privados | ❌ | **Sólo Sergio** (§8) |
 | Dominio, DNS y despliegue | ❌ | **Sólo Sergio** (§8) |
+| CI verde sobre el SHA candidato | ✅ | Los cuatro jobs, incluida la suite E2E en **Chromium y Firefox** contra PostgreSQL |
 
 Las dos últimas no son deuda técnica: son actos de cuenta y de propiedad que
 este repositorio no puede ejecutar. La legal tampoco lo es —el texto está
@@ -194,6 +201,8 @@ la revisión profesional antes de prestar un servicio público.
 | Presupuesto de monolito | OK — `Layout3DEditor.tsx` clavado en **20 242 líneas / 140 `useState`** (bajó de 141) |
 | Trinquete de lint | 547/547 |
 | Candado legal | OK — `terms` 2026-08-27, `privacy` 2026-08-27.2 |
+| **CI sobre el SHA candidato** | **Los cuatro jobs en verde**: `Contrato · Build · Test · Lint · Smoke`, `E2E Playwright (PostgreSQL · Chromium + Firefox)`, `Gitleaks (historial completo)` y `Despliegue · Imagen reproducible + arranque productivo` |
+| Barrido Playwright local (chromium) | 170 pasadas · 1 fallo, que resultó ser **una regresión mía** (el aviso de pantalla estrecha robaba toques en tableta): corregida y verificada 9/9 |
 
 ### El hueco que este informe casi tiene
 
@@ -253,9 +262,45 @@ Y arreglar el segundo destapó un tercero, que es el más instructivo:
    casos de esa frontera se miden fuera de la carpeta de verificación, y decir
    767 sería contarlos dos veces.
 
-La lección, escrita para la próxima campaña: **un gate que sólo se ha corrido en
-la máquina de quien lo escribió no es evidencia todavía** —y **la lista de gates
-que hay que correr no es la que uno recuerda**, es la que ejecuta el servidor.
+Y hubo un cuarto y un quinto, ya sin sorpresa conceptual pero con la misma
+raíz: **`lint:check` de la API es bloqueante y ninguno de mis archivos había
+pasado por él** (prettier tenía queja en once), y al arreglarlo con `--fix`
+automático se quedó un import huérfano que **el trinquete de lint** rechazó,
+porque su presupuesto de `no-unused-vars` en `apps/api` es CERO y la curva sólo
+baja. Lección menor y útil: un `--fix` automático es el principio de la
+comprobación, no el final.
+
+### Y una regresión que sólo cazó el barrido completo
+
+Con el CI ya en verde, el barrido local de 171 pruebas encontró **una regresión
+mía**, y de las que importan: el aviso de pantalla estrecha de la OLA 4.4 se
+pintaba ARRIBA y **capturaba el puntero**. Una tableta mide 1024 px —por debajo
+del umbral de 1100 con el que el aviso sale—, así que en una tableta el cartel
+se ponía encima de la barra de herramientas y **se comía el primer gesto de cada
+sesión**. Lo cazó el golden «un arquitecto abre el plano en la tableta … sólo con
+los dedos».
+
+No es un detalle de estilo: un arquitecto en obra habría perdido su toque
+inicial contra un cartel informativo. El aviso existía para que el producto no
+pareciera menos de lo que es, y acababa impidiendo usarlo.
+
+Lo peor —y lo más instructivo— es que **la regla ya estaba escrita en este
+repositorio**, en `ToastContext`: «una notificación NUNCA debe robar un clic a un
+control real; la tarjeta no captura puntero y sólo el botón de cerrar vuelve a
+habilitarlo». Estaba ahí, con su razón, y no la apliqué. Ahora la tarjeta deja
+pasar el puntero, sólo su botón lo captura, se pinta abajo, y `movil.spec.ts`
+comprueba el `pointer-events` computado para que no vuelva.
+
+**La lección, escrita para la próxima campaña**, en tres partes:
+
+1. **Un gate que sólo se ha corrido en la máquina de quien lo escribió no es
+   evidencia todavía.**
+2. **La lista de gates que hay que correr no es la que uno recuerda**, es la que
+   ejecuta el servidor.
+3. **Una suite completa no es un trámite**: de las seis cosas que salieron mal,
+   la única que un usuario habría notado —el toque robado en la tableta— la cazó
+   el barrido entero, no ninguna prueba dirigida.
+
 Las cifras de arriba valen porque ahora también las produce un servidor que
 empieza de cero.
 
