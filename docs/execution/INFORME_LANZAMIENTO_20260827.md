@@ -192,6 +192,41 @@ la revisión profesional antes de prestar un servicio público.
 | Trinquete de lint | 547/547 |
 | Candado legal | OK — `terms` 2026-08-27, `privacy` 2026-08-27.2 |
 
+### El hueco que este informe casi tiene
+
+Mientras se escribía todo lo anterior, **el CI de esta rama llevaba rojo desde
+su primer commit** y yo no lo estaba mirando. Los gates locales daban verde; el
+servidor, no. Merece constar, porque es justo la clase de distancia entre «lo
+medí» y «es verdad» que esta campaña existe para cerrar.
+
+Eran dos defectos, los dos míos, y los dos **sólo visibles en una máquina
+limpia**:
+
+1. **`redocly` rechazaba el contrato.** El spec es OpenAPI 3.1, donde `nullable`
+   ya no existe; el esquema que añadí para el botón «algo salió mal» lo usaba en
+   dos propiedades. El resto del archivo ya escribía la nulabilidad como
+   `type: [string, "null"]`. El SDK generado no cambia con la corrección —
+   `openapi-typescript` producía `string | null` de las dos formas—, lo que
+   confirma que era sólo la gramática del documento.
+2. **`check:cad-math` moría con `Cannot find module …/dist-cjs/index.js`.**
+   `angle-frontiers.spec.ts` cruza la frontera documento↔DWG, así que importa
+   `@valle-design/dwg-codec`, que se publica **compilado** y cuyo `dist/` está
+   en `.gitignore`, con razón. En una máquina de desarrollo lleva rato
+   construido; en CI, `check:cad` corre **antes** de `turbo run build`, así que
+   no existía.
+
+   La salida no podía ser saltarse esa suite cuando el códec falta: eso
+   convertiría «767 casos, 0 desviaciones» en una cifra que depende de la
+   máquina donde se mide. El gate construye ahora lo que necesita, una vez y
+   sólo si falta.
+
+Los dos se **reprodujeron antes de arreglarlos** —borrando `dist` para provocar
+el mismo error del servidor— y se verificaron desde ese estado limpio.
+
+La lección, escrita para la próxima campaña: **un gate que sólo se ha corrido en
+la máquina de quien lo escribió no es evidencia todavía.** Las cifras de arriba
+valen porque ahora también las produce un servidor que empieza de cero.
+
 ---
 
 ## 6 · Lo que se decidió y por qué, cuando había duda
