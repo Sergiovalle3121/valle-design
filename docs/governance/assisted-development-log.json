@@ -882,6 +882,48 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CAMPANA-FIRMA-20260828",
+      "date": "2026-08-28",
+      "initiative": "Campaña «de firma propia — estética ultra premium, seguridad de cuenta y comunidad» (docs/execution/CAMPANA_FIRMA_20260828.md), sobre main tras la campaña de lanzamiento gratuito. El encargo es el veredicto del dueño sobre el producto corriendo: «muy minimalista, le falta vida, movimiento y contraste; parece heredado; quiero algo ultra premium con mi propia firma, inspirado en la estética de un CAD profesional pero mío». Cinco frentes: (1) identidad visual propia —paleta de grafito cálido, display autohospedada, movimiento tokenizado y textura técnica— evolucionando el sistema de diseño existente en vez de esquivarlo; (2) reposicionamiento: el producto deja de presentarse por comparación con otro CAD y se describe solo, con la línea de marcas del pie conservada y un gate que lo vigila; (3) el embudo de alta, que es donde el cliente entrega sus datos, hecho lo más seguro Y lo más bello posible; (4) un canal de comentarios dentro del producto; (5) los cimientos de un modo universitario tras flag.",
+      "branch": "claude/valle-design-premium-identity-4hnemt",
+      "assistants": [
+        {
+          "name": "Claude Code (Anthropic)",
+          "role": "Ejecución autónoma end-to-end bajo el prompt maestro «CAMPAÑA DE FIRMA PROPIA». Disciplina de la campaña: todo cambio visual pasa por los tokens del sistema (globals.css + components/ui) y ninguno por un valor suelto en un componente; toda afirmación de contraste se MIDE con un gate construido para ello en vez de razonarse a ojo; ningún data-testid cambia y los 761 casos de matemática quedan intactos."
+        }
+      ],
+      "authority": "Prompt maestro «CAMPAÑA DE FIRMA PROPIA — ESTÉTICA ULTRA PREMIUM, SEGURIDAD DE CUENTA Y COMUNIDAD — VALLE DESIGN» de Sergio Valle Zárate (2026-08-28).",
+      "firstPartyInputs": [
+        "docs/execution/CAMPANA_FIRMA_20260828.md (bitácora propia de esta campaña)",
+        "docs/design/BRAND.md y docs/design/DESIGN_SYSTEM.md (el sistema que esta campaña EVOLUCIONA, no reemplaza)",
+        "apps/web/src/app/globals.css (los 831 renglones de tokens de la campaña de diseño anterior, con su razonamiento escrito al lado)",
+        "docs/guides/ (materia prima propia del centro de preguntas)",
+        "docs/execution/INFORME_LANZAMIENTO_20260827.md (estado heredado y backlog abierto)"
+      ],
+      "externalSources": [
+        "Space Grotesk v2.0 — © 2020 The Space Grotesk Project Authors (Florian Karsten), SIL Open Font License 1.1. Descargada una vez desde google/fonts (rama main, ofl/spacegrotesk/SpaceGrotesk[wght].ttf) y versionada en apps/web/src/fonts/. La OFL permite empaquetar y redistribuir la fuente con software propietario conservando su aviso; no se vende por separado. Procedencia y licencia en apps/web/src/fonts/LICENSE.txt y THIRD_PARTY_NOTICES.md.",
+        "WCAG 2.1 (W3C Recommendation) — fórmulas de luminancia relativa y razón de contraste, y los umbrales 1.4.3 (4,5:1 texto) y 1.4.11 (3:1 no-texto). Especificación pública; la implementación de scripts/design/contrast.mjs se escribió desde la fórmula, no portando código de nadie."
+      ],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "apps/web/src/app/globals.css (paleta v2, tipografía display, sistema de movimiento, textura técnica)",
+        "apps/web/src/components/ui/ (styles.ts, Card.tsx, Field.tsx, Button.tsx: relieve de control, textura de superficie y foco encendido)",
+        "apps/web/src/app/layout.tsx y src/contexts/ThemeContext.tsx (el oscuro pasa a ser el default del producto)",
+        "scripts/design/ (contrast.mjs, check-contrast.mjs, check-public-surface.mjs y sus pruebas: los dos gates nuevos)",
+        "apps/web/src/components/brand/PlanDrawing.tsx y components/marketing/ (la firma de movimiento y el aviso de marcas extraído a su propio módulo)"
+      ],
+      "fixtures": [],
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: revisión/fusión del PR de esta rama sobre el SHA candidato."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
