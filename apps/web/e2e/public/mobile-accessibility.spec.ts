@@ -10,7 +10,17 @@ test.describe("landing pública en móvil", () => {
 
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(page.getByRole("navigation", { name: "Navegación principal" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Preguntas frecuentes" })).toBeVisible();
+    /*
+     * El centro de preguntas se comprueba por su ANCLA, no por su titular. El
+     * titular es copy —hoy «La duda concreta que te está frenando», con
+     * «Centro de preguntas» de antetítulo— y cambia con cada campaña; `#faq`
+     * es lo que la sección promete: el `id` del `<h2>` al que apunta el
+     * `aria-labelledby` de la banda y al que enlaza la navegación. Es la misma
+     * lección que el bloque de precios de más abajo: fijar una cadena
+     * decorativa hace que el siguiente rediseño rompa una prueba que en
+     * realidad no medía nada roto.
+     */
+    await expect(page.locator("h2#faq")).toBeVisible();
     await expect(page.getByRole("link", { name: "Crear cuenta" }).first()).toHaveAttribute("href", "/register");
     await expect(page.getByRole("link", { name: "Iniciar sesión" })).toHaveAttribute("href", "/login");
     /*
