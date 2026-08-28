@@ -27,6 +27,9 @@ const controllerDirs = [
   "apps/api/src/modules/commercial/controllers",
   "apps/api/src/modules/legal",
   "apps/api/src/modules/support",
+  // El centro de comentarios (campaña de firma propia): su superficie es
+  // pública para quien tiene sesión, así que va en el contrato como las demás.
+  "apps/api/src/modules/feedback",
 ].map((dir) => path.join(root, dir));
 
 /** Familias de paths del contrato que el gate cruza contra el router. */
@@ -37,6 +40,7 @@ const coveredPrefixes = [
   "/v1/commercial",
   "/v1/legal",
   "/v1/support",
+  "/v1/feedback",
 ];
 const coveredPath = (p) =>
   coveredPrefixes.some((prefix) => p === prefix || p.startsWith(`${prefix}/`));

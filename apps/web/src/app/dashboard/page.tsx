@@ -15,6 +15,7 @@ import { Logo } from "@/components/brand/Logo";
 import { SkipLink } from "@/components/SkipLink";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button, Surface, buttonClass, cx } from "@/components/ui";
+import { FeedbackButton } from "@/components/feedback/FeedbackDialog";
 import { DashboardSkeleton } from "./DashboardSkeleton";
 import { FirstMinute } from "./FirstMinute";
 import { OrganizationOnboarding } from "./OrganizationOnboarding";
@@ -501,10 +502,13 @@ export default function DashboardPage() {
               llegar. Una función de seguridad que el usuario no encuentra es
               una función que no protege a nadie.
             */}
-            <Link
-              href="/cuenta"
-              className={buttonClass({ variant: "ghost" })}
-            >
+            {/*
+              El canal de vuelta, en el cromo y no flotando sobre nada. La
+              lección del aviso de tableta: cualquier cosa encima del área de
+              trabajo acaba robando un clic que el usuario quería dar.
+            */}
+            <FeedbackButton />
+            <Link href="/cuenta" className={buttonClass({ variant: "ghost" })}>
               <ShieldCheck aria-hidden="true" className="h-4 w-4" />
               Seguridad
             </Link>

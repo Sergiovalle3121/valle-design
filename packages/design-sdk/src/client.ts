@@ -211,7 +211,11 @@ export function createDesignClient(options: DesignClientOptions) {
   /** Construye una URL desde la ruta canónica literal del contrato. */
   const resource = (apiPath: string, query?: ResourceQuery): string => {
     const declaredPrefix =
+      // Las dos rutas raíz del contrato. Se listan aparte porque la
+      // comprobación de familia usa la barra final, y `/v1/feedback` a secas
+      // —el listado del operador— no la lleva.
       apiPath === "/v1/organizations" ||
+      apiPath === "/v1/feedback" ||
       [
         "/v1/auth/",
         "/v1/organizations/",
@@ -219,6 +223,7 @@ export function createDesignClient(options: DesignClientOptions) {
         "/v1/legal/",
         "/v1/cad/",
         "/v1/support/",
+        "/v1/feedback/",
       ].some((prefix) => apiPath.startsWith(prefix));
     if (!declaredPrefix) {
       throw new TypeError(`Ruta Design v1 no declarada: ${apiPath}`);
@@ -281,6 +286,36 @@ export function createDesignClient(options: DesignClientOptions) {
 
   return {
     identity: createIdentitySurface({ call, resource }),
+
+    /**
+     * EL CENTRO DE COMENTARIOS.
+     *
+     * Separado de `support`, que manda un correo y se olvida. Esto GUARDA: el
+     * comentario tiene estado y su autor lo ve. `all` y `setStatus` son del
+     * operador del producto y devuelven 403 a cualquier otro.
+     */
+    feedback: {
+      create: (input: Schemas["FeedbackRequest"]) =>
+        call<Schemas["FeedbackEntry"]>("POST", resource("/v1/feedback"), input),
+      mine: () =>
+        call<Schemas["FeedbackList"]>("GET", resource("/v1/feedback/mine")),
+      all: (filtro: { status?: string; kind?: string } = {}) => {
+        const query = new URLSearchParams();
+        if (filtro.status) query.set("status", filtro.status);
+        if (filtro.kind) query.set("kind", filtro.kind);
+        const sufijo = query.toString();
+        return call<Schemas["FeedbackAdminList"]>(
+          "GET",
+          `${resource("/v1/feedback")}${sufijo ? `?${sufijo}` : ""}`,
+        );
+      },
+      setStatus: (feedbackId: string, status: string) =>
+        call<Schemas["FeedbackEntry"]>(
+          "PATCH",
+          resource(`/v1/feedback/${feedbackId}`),
+          { status },
+        ),
+    },
 
     organizations: {
       list: () => call<OrganizationList>("GET", resource("/v1/organizations")),

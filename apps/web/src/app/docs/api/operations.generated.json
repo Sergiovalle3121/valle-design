@@ -4,7 +4,7 @@
   "openapi": "3.1.0",
   "apiTitle": "Valle Design — API standalone (v1)",
   "apiVersion": "1.0.0",
-  "operationCount": 90,
+  "operationCount": 94,
   "cadOperationCount": 43,
   "groups": [
     {
@@ -92,7 +92,11 @@
       "family": "commercial",
       "tag": "support",
       "operations": [
-        "reportSupportIncident"
+        "reportSupportIncident",
+        "createProductFeedback",
+        "listAllProductFeedback",
+        "listMyProductFeedback",
+        "updateProductFeedbackStatus"
       ]
     },
     {
@@ -1425,6 +1429,107 @@
         "400",
         "401",
         "429"
+      ]
+    },
+    {
+      "operationId": "createProductFeedback",
+      "method": "POST",
+      "path": "/v1/feedback",
+      "summary": "Envia un comentario sobre el producto y lo GUARDA con estado.",
+      "tags": [
+        "support"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "FeedbackRequest"
+      },
+      "responses": [
+        "201",
+        "400",
+        "401",
+        "429"
+      ]
+    },
+    {
+      "operationId": "listAllProductFeedback",
+      "method": "GET",
+      "path": "/v1/feedback",
+      "summary": "Todos los comentarios, de todas las organizaciones.",
+      "tags": [
+        "support"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "status",
+          "in": "query",
+          "required": false
+        },
+        {
+          "name": "kind",
+          "in": "query",
+          "required": false
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403"
+      ]
+    },
+    {
+      "operationId": "listMyProductFeedback",
+      "method": "GET",
+      "path": "/v1/feedback/mine",
+      "summary": "Los comentarios propios, con su estado visible.",
+      "tags": [
+        "support"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401"
+      ]
+    },
+    {
+      "operationId": "updateProductFeedbackStatus",
+      "method": "PATCH",
+      "path": "/v1/feedback/{feedbackId}",
+      "summary": "Cambia el estado de un comentario. Solo operadores del producto.",
+      "tags": [
+        "support"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "feedbackId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "FeedbackStatusRequest"
+      },
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "403",
+        "404"
       ]
     },
     {

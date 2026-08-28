@@ -32,6 +32,7 @@ import { TenantIntegrityRls20260820120000 } from './20260820120000-TenantIntegri
 import { CfdiReceipts20260820140000 } from './20260820140000-CfdiReceipts';
 import { TenantRuntimeRoleAndDesignBlobsRls20260823120000 } from './20260823120000-TenantRuntimeRoleAndDesignBlobsRls';
 import { IdentityMfaAndLoginActivity20260828120000 } from './20260828120000-IdentityMfaAndLoginActivity';
+import { ProductFeedback20260828140000 } from './20260828140000-ProductFeedback';
 
 const LEGACY_MIGRATIONS: Array<new () => MigrationInterface> = [
   AddCadBlocks20260706180000,
@@ -68,6 +69,7 @@ const ALL_MIGRATIONS: Array<new () => MigrationInterface> = [
   CfdiReceipts20260820140000,
   TenantRuntimeRoleAndDesignBlobsRls20260823120000,
   IdentityMfaAndLoginActivity20260828120000,
+  ProductFeedback20260828140000,
 ];
 
 /**

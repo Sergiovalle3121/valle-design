@@ -111,6 +111,18 @@ export default function EducacionPage() {
               por dónde empezar.
             </p>
           </div>
+          {/*
+            Va al canal de contacto y NO al centro de comentarios del producto,
+            aunque ese centro exista y guarde con estado. La razón es que el
+            centro exige sesión, y quien llega a esta página es justo quien
+            todavía no tiene cuenta: un profesor evaluando si esto sirve para su
+            taller. Pedirle que se registre para poder decir que le interesa
+            invierte el orden de la conversación.
+
+            Cuando el plan educativo se encienda, el interés recogido aquí y los
+            comentarios del producto acabarán en el mismo sitio; hoy la vía que
+            funciona sin cuenta es ésta, y es la que se ofrece.
+          */}
           <Link
             href={COMMERCIAL_LINKS.contact}
             className={buttonClass({ variant: "primary" })}

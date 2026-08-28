@@ -168,6 +168,13 @@ export const PUBLIC_ROUTES: readonly PublicRoute[] = [
  */
 export const PRIVATE_ROUTE_PREFIXES: readonly string[] = [
   "/dashboard",
+  // El área de cuenta y el centro de comentarios. Sus páginas ya declaran
+  // `robots: noindex` por su cuenta, pero declararlas también aquí es lo que
+  // hace que la regla viva en un sitio comprobable: `seo-surface.spec.ts`
+  // verifica que ninguna ruta privada acabe en el sitemap, y una ruta que sólo
+  // se protege desde su propio archivo depende de que nadie lo edite sin mirar.
+  "/cuenta",
+  "/comentarios",
   "/studio",
   "/legacy",
   "/logout",

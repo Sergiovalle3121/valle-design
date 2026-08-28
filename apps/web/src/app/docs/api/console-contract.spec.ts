@@ -59,12 +59,13 @@ void (async () => {
 
   // 79 + las 3 de /v1/legal (documentos, listar y registrar aceptación)
   // + 1 de /v1/support (el botón «algo salió mal» del estudio)
-  // + las 7 de la campaña de firma propia (2026-08-28): el segundo acto del
-  //   inicio de sesión con segundo factor, las cinco de administrar ese factor
-  //   y la actividad reciente de la cuenta.
+  // + las 7 del segundo factor y la actividad de la cuenta (campaña de firma
+  //   propia, 2026-08-28)
+  // + las 4 del centro de comentarios: crear, los míos, todos (operador) y
+  //   cambiar estado (operador).
   assert.equal(
     regenerated.operationCount,
-    90,
+    94,
     "cambió el número de operaciones del contrato; actualiza este spec Y los recuentos de check-design-contract.mjs / standalone-contract-router.spec.ts",
   );
   assert.equal(

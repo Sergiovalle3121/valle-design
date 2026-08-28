@@ -836,6 +836,69 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/feedback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Todos los comentarios, de todas las organizaciones.
+         * @description La materia prima del backlog. Cruza la frontera de inquilino que el resto del producto respeta a rajatabla, y por eso su puerta es la mas estrecha que existe aqui: solo los correos declarados en `PRODUCT_OPERATOR_EMAILS`, que es configuracion del despliegue y no un rol de la base de datos. Sin esa variable no hay operadores y devuelve 403 a todo el mundo.
+         */
+        get: operations["listAllProductFeedback"];
+        put?: never;
+        /**
+         * Envia un comentario sobre el producto y lo GUARDA con estado.
+         * @description El centro de comentarios. A diferencia de `/v1/support/incidents` —que manda un correo y se olvida— esto persiste: el comentario tiene estado y su autor lo ve en `/v1/feedback/mine`. El contexto tecnico es opcional, viaja solo con permiso explicito y el servidor lo recorta a cinco campos declarados; nunca contiene el dibujo. Permiso `cad:view`, el mas bajo: quien esta en solo-lectura tras vencer su periodo es justo quien mas necesita poder decir que algo no funciona.
+         */
+        post: operations["createProductFeedback"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/feedback/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Los comentarios propios, con su estado visible.
+         * @description La vuelta del canal. Saber que alguien leyo lo que escribiste es la mitad de lo que pides cuando te tomas la molestia de escribir; un canal sin esa mitad se queda vacio solo.
+         */
+        get: operations["listMyProductFeedback"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/feedback/{feedbackId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                feedbackId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Cambia el estado de un comentario. Solo operadores del producto. */
+        patch: operations["updateProductFeedbackStatus"];
+        trace?: never;
+    };
     "/v1/cad/documents": {
         parameters: {
             query?: never;
@@ -1429,6 +1492,48 @@ export interface components {
         PasswordResetRequest: {
             token: components["schemas"]["OpaqueOneTimeToken"];
             password: components["schemas"]["Password"];
+        };
+        FeedbackRequest: {
+            /** @enum {string} */
+            kind: "falla" | "sugerencia" | "duda";
+            message: string;
+            /** @description Contexto tecnico opcional. Solo viaja con permiso explicito y el servidor lo recorta a ruta, navegador, version, documento y tamano de ventana. Nunca contiene el dibujo. */
+            context?: {
+                ruta?: string;
+                navegador?: string;
+                version?: string;
+                documentoId?: string;
+                ventana?: string;
+            };
+        };
+        FeedbackStatusRequest: {
+            /** @enum {string} */
+            status: "nuevo" | "leido" | "planeado" | "resuelto";
+        };
+        FeedbackEntry: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "falla" | "sugerencia" | "duda";
+            message: string;
+            /** @enum {string} */
+            status: "nuevo" | "leido" | "planeado" | "resuelto";
+            createdAt: components["schemas"]["Timestamp"];
+            updatedAt: components["schemas"]["Timestamp"];
+        };
+        FeedbackList: {
+            items: components["schemas"]["FeedbackEntry"][];
+        };
+        FeedbackAdminEntry: components["schemas"]["FeedbackEntry"] & {
+            authorEmail: components["schemas"]["EmailAddress"];
+            /** Format: uuid */
+            organizationId: string | null;
+            context: {
+                [key: string]: unknown;
+            } | null;
+        };
+        FeedbackAdminList: {
+            items: components["schemas"]["FeedbackAdminEntry"][];
         };
         SupportIncidentRequest: {
             /** @description Lo que la persona escribe. Es el unico campo que redacta. */
@@ -4069,6 +4174,109 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             429: components["responses"]["TooManyRequests"];
+        };
+    };
+    listAllProductFeedback: {
+        parameters: {
+            query?: {
+                status?: "nuevo" | "leido" | "planeado" | "resuelto";
+                kind?: "falla" | "sugerencia" | "duda";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Comentarios de todos los inquilinos. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackAdminList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createProductFeedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackRequest"];
+            };
+        };
+        responses: {
+            /** @description Comentario guardado. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackEntry"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    listMyProductFeedback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Comentarios del usuario autenticado. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackList"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    updateProductFeedbackStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                feedbackId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FeedbackStatusRequest"];
+            };
+        };
+        responses: {
+            /** @description Estado actualizado. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeedbackEntry"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
     listCadDocuments: {

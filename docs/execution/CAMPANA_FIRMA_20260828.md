@@ -65,8 +65,8 @@ composiciones que evoquen su identidad, ni la palabra AutoCAD en el branding.
 | 3 | 3.3 Cromo del estudio con la identidad nueva | **hecho** |
 | 3 | 3.4 Microfeedback de acción | **hecho** |
 | 3 | 3.5 Regenerar capturas | pendiente |
-| 4 | 4.1 Centro de comentarios en el producto | pendiente |
-| 4 | 4.2 Panel de administración de comentarios | pendiente |
+| 4 | 4.1 Centro de comentarios en el producto | **hecho** |
+| 4 | 4.2 Panel de administración de comentarios | **hecho** |
 | 4 | 4.3 `/novedades` | **hecho** |
 | 5 | 5.1 Plan educativo tras flag | pendiente |
 | 5 | 5.2 El aula como organización | pendiente |
@@ -432,3 +432,66 @@ presentación sin estado que dentro de veinte mil líneas nadie volvía a mirar.
 
 **Verdad medida:** `437/437` specs web · build verde · contraste 70 pares ·
 superficie OK · monolito OK (y más bajo) · lint 547/547 · `tsc` limpio.
+
+### 08:10 — OLA 4: la voz del usuario, con vuelta
+
+**El encargo, con su remate.** «Un canal donde los usuarios reporten fallas y
+sugerencias desde dentro del producto» — y la parte que se suele olvidar: **«que
+se sienta escuchado es el punto»**.
+
+**Por qué no bastaba el botón que ya había.** `/v1/support/incidents` manda un
+correo y se olvida. Sirve para un INCIDENTE: algo se rompió y alguien tiene que
+mirarlo hoy. No sirve para la sugerencia que a alguien se le ocurre un martes
+dibujando, que sin nadie que la guarde deja de existir en cuanto se cierra la
+pestaña de quien la leyó.
+
+**Lo que se construyó.** Tabla `product_feedback` con organización, autor,
+clase, mensaje, contexto opcional y **cuatro estados** (nuevo · leído · planeado
+· resuelto). Cuatro y no nueve: un tablero con nueve columnas se abandona; con
+cuatro, el dueño clasifica cien comentarios en diez minutos, que es la única
+forma de que el canal siga vivo dentro de seis meses.
+
+Cuatro operaciones en el contrato (94 en total), su SDK y tres superficies:
+el diálogo dentro del estudio y del panel, `/comentarios` («mis comentarios», con
+el estado y **qué significa** cada uno) y `/comentarios/admin` para quien opera.
+
+**Cinco decisiones que valen más que el CRUD:**
+
+* **La fila y el aviso, en la misma transacción.** Un aviso sin fila manda al
+  dueño a buscar en un panel algo que no existe; una fila sin aviso espera a que
+  alguien entre por casualidad.
+* **Sin buzón configurado, se guarda igual.** Al revés que el botón de
+  incidentes, que falla ruidoso porque allí el correo ES la entrega. Aquí la
+  entrega es la fila, y negarse a guardar por falta de configuración sería tirar
+  lo que el usuario se molestó en escribir.
+* **El contexto técnico se recorta EN EL SERVIDOR** a cinco campos declarados.
+  Lo que manda el navegador no se cree. La prueba manda un documento de 40 000
+  caracteres y una cookie de sesión, y comprueba que ninguno de los dos llega.
+* **La casilla enseña la lista literal de lo que enviaría.** Un «adjuntar
+  información de diagnóstico» que no dice qué adjunta es lo que hace que la
+  gente lo desmarque por si acaso — y entonces el reporte llega sin nada útil.
+* **El comentario sobrevive a su organización pero se va con su autor.**
+  `SET NULL` y `CASCADE`: lo que dice sobre el producto sigue siendo cierto
+  aunque el despacho ya no exista; el comentario, en cambio, es de quien lo
+  escribió.
+
+**La puerta del panel del dueño.** No hay —ni debe haber— un rol de
+superadministrador en la base de datos: los cuatro papeles del producto son POR
+ORGANIZACIÓN y esa frontera es la que protege el plano de un despacho del de
+otro. La lista de operadores vive en configuración (`PRODUCT_OPERATOR_EMAILS`),
+no se puede conceder desde dentro del producto, y **falla cerrado**: sin la
+variable no hay operadores y el panel devuelve 403 a todo el mundo, incluido
+quien lo escribió. Su prueba encontró un defecto real en el primer corte —el
+filtro sólo pedía que la cadena contuviera una arroba, así que `@` a secas
+entraba en la lista— y ahora exige forma de correo.
+
+**Otro defecto que las pruebas encontraron y que valía la pena.** El arnés de
+PostgreSQL construye el esquema desde las ENTIDADES y producción desde las
+MIGRACIONES. La entidad no declaraba sus claves foráneas, así que el `ON DELETE
+SET NULL` que la migración escribe con cuidado no existía en las pruebas: la
+prueba que lo verificaba fallaba sin motivo aparente. Las relaciones están ahora
+declaradas, con la nota de por qué.
+
+**Verdad medida:** `437/437` specs web · `760` API unidad · **`217/217` API
+contra PostgreSQL real** (10 pruebas nuevas del canal) · contrato 94 operaciones
+· build verde · contraste 70 pares · superficie OK · monolito OK · lint 547/547.

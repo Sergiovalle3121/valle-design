@@ -1244,6 +1244,106 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
+  /v1/feedback:
+    post:
+      operationId: createProductFeedback
+      tags: [support]
+      summary: Envia un comentario sobre el producto y lo GUARDA con estado.
+      description: >
+        El centro de comentarios. A diferencia de `/v1/support/incidents` —que
+        manda un correo y se olvida— esto persiste: el comentario tiene estado y
+        su autor lo ve en `/v1/feedback/mine`. El contexto tecnico es opcional,
+        viaja solo con permiso explicito y el servidor lo recorta a cinco campos
+        declarados; nunca contiene el dibujo. Permiso `cad:view`, el mas bajo:
+        quien esta en solo-lectura tras vencer su periodo es justo quien mas
+        necesita poder decir que algo no funciona.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FeedbackRequest" }
+      responses:
+        "201":
+          description: Comentario guardado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FeedbackEntry" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+    get:
+      operationId: listAllProductFeedback
+      tags: [support]
+      summary: Todos los comentarios, de todas las organizaciones.
+      description: >
+        La materia prima del backlog. Cruza la frontera de inquilino que el
+        resto del producto respeta a rajatabla, y por eso su puerta es la mas
+        estrecha que existe aqui: solo los correos declarados en
+        `PRODUCT_OPERATOR_EMAILS`, que es configuracion del despliegue y no un
+        rol de la base de datos. Sin esa variable no hay operadores y devuelve
+        403 a todo el mundo.
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [nuevo, leido, planeado, resuelto]
+        - name: kind
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [falla, sugerencia, duda]
+      responses:
+        "200":
+          description: Comentarios de todos los inquilinos.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FeedbackAdminList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/feedback/mine:
+    get:
+      operationId: listMyProductFeedback
+      tags: [support]
+      summary: Los comentarios propios, con su estado visible.
+      description: >
+        La vuelta del canal. Saber que alguien leyo lo que escribiste es la mitad
+        de lo que pides cuando te tomas la molestia de escribir; un canal sin esa
+        mitad se queda vacio solo.
+      responses:
+        "200":
+          description: Comentarios del usuario autenticado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FeedbackList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/feedback/{feedbackId}:
+    parameters:
+      - name: feedbackId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    patch:
+      operationId: updateProductFeedbackStatus
+      tags: [support]
+      summary: Cambia el estado de un comentario. Solo operadores del producto.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FeedbackStatusRequest" }
+      responses:
+        "200":
+          description: Estado actualizado.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FeedbackEntry" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /v1/cad/documents:
     get:
       operationId: listCadDocuments
@@ -2592,6 +2692,87 @@ components:
       properties:
         token: { $ref: "#/components/schemas/OpaqueOneTimeToken" }
         password: { $ref: "#/components/schemas/Password" }
+    FeedbackRequest:
+      type: object
+      additionalProperties: false
+      required: [kind, message]
+      properties:
+        kind:
+          type: string
+          enum: [falla, sugerencia, duda]
+        message:
+          type: string
+          minLength: 10
+          maxLength: 4000
+        context:
+          description: >
+            Contexto tecnico opcional. Solo viaja con permiso explicito y el
+            servidor lo recorta a ruta, navegador, version, documento y tamano de
+            ventana. Nunca contiene el dibujo.
+          type: object
+          additionalProperties: false
+          properties:
+            ruta: { type: string, maxLength: 200 }
+            navegador: { type: string, maxLength: 200 }
+            version: { type: string, maxLength: 200 }
+            documentoId: { type: string, maxLength: 200 }
+            ventana: { type: string, maxLength: 200 }
+    FeedbackStatusRequest:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [nuevo, leido, planeado, resuelto]
+    FeedbackEntry:
+      type: object
+      additionalProperties: false
+      required: [id, kind, message, status, createdAt, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        kind:
+          type: string
+          enum: [falla, sugerencia, duda]
+        message:
+          type: string
+          maxLength: 4000
+        status:
+          type: string
+          enum: [nuevo, leido, planeado, resuelto]
+        createdAt: { $ref: "#/components/schemas/Timestamp" }
+        updatedAt: { $ref: "#/components/schemas/Timestamp" }
+    FeedbackList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 100
+          items: { $ref: "#/components/schemas/FeedbackEntry" }
+    FeedbackAdminEntry:
+      allOf:
+        - $ref: "#/components/schemas/FeedbackEntry"
+        - type: object
+          required: [authorEmail, organizationId, context]
+          properties:
+            authorEmail: { $ref: "#/components/schemas/EmailAddress" }
+            organizationId:
+              type: [string, "null"]
+              format: uuid
+            context:
+              type: [object, "null"]
+              additionalProperties: true
+    FeedbackAdminList:
+      type: object
+      additionalProperties: false
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 500
+          items: { $ref: "#/components/schemas/FeedbackAdminEntry" }
     SupportIncidentRequest:
       type: object
       additionalProperties: false
