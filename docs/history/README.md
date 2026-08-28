@@ -36,7 +36,11 @@ Planes y bitácoras de cortes cerrados: los _Grand Leap_, el _native core_, el
 _daily driver_, las diez sesiones de la Ola 2, la campaña 10/10, las bitácoras
 operativas de las campañas de 8 h y de DWG, y el diario de la campaña de
 cierre de ramas del 24-08 (`CIERRE_RAMAS_20260824.md`; su informe de cierre
-medido se quedó en `docs/execution/`, ver el párrafo siguiente).
+medido se quedó en `docs/execution/`, ver el párrafo siguiente) y el diario de
+la campaña de lanzamiento gratuito del 27-08
+(`CAMPANA_LANZAMIENTO_20260827.md`; su informe, con las tres columnas de
+FIX-OR-HIDE y la lista GO/NO-GO, es
+`docs/execution/INFORME_LANZAMIENTO_20260827.md`).
 
 Cuidado al leerlos: uno de ellos cita un baseline de 8 761 líneas para
 `Layout3DEditor.tsx` cuando el archivo real tiene más de 22 000, y otro fija una

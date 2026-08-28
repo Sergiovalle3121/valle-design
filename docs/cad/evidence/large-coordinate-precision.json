@@ -1,6 +1,6 @@
 {
   "generatedBy": "apps/web/scripts/large-coordinate-precision-probe.mts",
-  "conclusion": "ARREGLADO (P0-2): con el origen flotante (`render/render-origin.ts`) restado ANTES de empaquetar a Float32Array, el peor error a 10⁷ es 0.0000028759241104125977 unidades de dibujo — antes del arreglo eran 0,375 (37,5 cm en metros UTM). El documento y la exportación siguen en float64 puro, sin pérdida.",
+  "conclusion": "ARREGLADO (P0-2): con el origen flotante (`render/render-origin.ts`) restado ANTES de empaquetar a Float32Array, el peor error a 10⁷ es 0.0000028763897716999054 unidades de dibujo — antes del arreglo eran 0,375 (37,5 cm en metros UTM). El documento y la exportación siguen en float64 puro, sin pérdida.",
   "reports": [
     {
       "label": "planta local (mm)",
@@ -48,6 +48,14 @@
       "ulp": 1,
       "maxAbsErrorDrawingUnits": 0.0000028759241104125977,
       "maxRelativeSpanError": 2.8759241104125976e-8,
+      "exportRoundTripError": 0
+    },
+    {
+      "label": "UTM con lámina de papel (caso mixto, por el pipeline real)",
+      "offset": 2000000,
+      "ulp": 0.125,
+      "maxAbsErrorDrawingUnits": 0.0000028763897716999054,
+      "maxRelativeSpanError": 2.8763897716999055e-8,
       "exportRoundTripError": 0
     }
   ]

@@ -11,6 +11,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { IsOptional, IsString, Matches } from 'class-validator';
 import { In, Repository } from 'typeorm';
 import { Public } from '../../auth/decorators/public.decorator';
+import { OrganizationCommercialConfiguration } from '../../organizations/organization-commercial.configuration';
 import { PlanCatalog, PlanPrice } from '../entities/commercial.entities';
 import { SAT_CFDI_USES, SAT_TAX_REGIMES } from '../fiscal/sat-catalogs';
 import {
@@ -76,6 +77,17 @@ interface PublicPlanView {
 interface PublicCatalogView {
   checkout: string;
   items: PublicPlanView[];
+  /**
+   * Duración REAL de la prueba, en días, tal y como la resuelve
+   * `TRIAL_DAYS` al arrancar el proceso.
+   *
+   * Está aquí por la cuarta regla de la campaña de cimientos —«ninguna cifra
+   * vive en dos lugares»—. La página pública tiene que poder decir «tres
+   * meses gratis» sin que nadie escriba «90» en un `.tsx`: el día que el
+   * operador arranque con `TRIAL_DAYS=30`, la oferta anunciada cambia sola en
+   * vez de convertirse en una promesa que el backend no cumple.
+   */
+  trialDays: number;
 }
 
 /** Metadata de presentación que el operador deja en `plan_catalog.metadata`. */
@@ -125,6 +137,7 @@ export class PublicCatalogController {
     private readonly planPrices: Repository<PlanPrice>,
     @Inject(PAYMENT_PROVIDER)
     private readonly payments: PaymentProvider,
+    private readonly commercial: OrganizationCommercialConfiguration,
     @Optional()
     @Inject(PUBLIC_CATALOG_CLOCK)
     private readonly clock: () => number = Date.now,
@@ -214,7 +227,11 @@ export class PublicCatalogController {
       const view = this.toPublicView(plan, prices, currency);
       if (view) items.push(view);
     }
-    return { checkout: this.payments.descriptor().mode, items };
+    return {
+      checkout: this.payments.descriptor().mode,
+      items,
+      trialDays: this.commercial.trialDays,
+    };
   }
 
   /**

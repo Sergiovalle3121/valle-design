@@ -17,6 +17,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { PublicNav } from "@/components/PublicNav";
 import { SkipLink } from "@/components/SkipLink";
 import { Logo } from "@/components/brand/Logo";
+import { FreeLaunchNote } from "@/components/marketing/FreeLaunchNote";
 import { HeroBackdrop } from "@/components/marketing/HeroBackdrop";
 import { ProductFrame } from "@/components/marketing/ProductFrame";
 import { buttonClass } from "@/components/ui";
@@ -354,6 +355,13 @@ export default function LandingPage() {
                   Ver precios
                 </Link>
               </div>
+              {/*
+                Debajo del botón, no encima: el titular vende el producto y
+                esta línea quita el miedo a pulsar. El número lo publica el
+                backend, así que la portada no puede prometer una duración que
+                el alta luego no conceda.
+              */}
+              <FreeLaunchNote className="mt-6 max-w-xl type-small text-muted-foreground" />
               <p className="type-small mt-6 max-w-xl text-muted-foreground">
                 Antes de que lo preguntes: no abrimos archivos DWG. Importamos y
                 exportamos DXF, que es el formato con el que cualquier programa

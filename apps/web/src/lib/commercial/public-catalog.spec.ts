@@ -11,6 +11,7 @@ import {
 
 const body = {
   checkout: "external",
+  trialDays: 90,
   items: [
     {
       code: "despacho",
@@ -32,24 +33,50 @@ assert.equal(parsed.checkout, "external");
 assert.equal(parsed.items.length, 1);
 assert.equal(parsed.items[0].seatsMinimum, 3);
 assert.equal(parsed.items[0].prices[1].amountCents, 169000);
-assert.deepEqual(parsePublicCatalog({ checkout: "hosted", items: [] }), {
-  checkout: "hosted",
-  items: [],
-});
+assert.equal(parsed.trialDays, 90);
+assert.deepEqual(
+  parsePublicCatalog({ checkout: "hosted", items: [], trialDays: 14 }),
+  { checkout: "hosted", items: [], trialDays: 14 },
+);
 
 // Un cuerpo que no encaja NO se pinta a medias.
 const rejected: unknown[] = [
   null,
   [],
   { items: [] },
-  { checkout: "manual", items: [] },
-  { checkout: "hosted" },
-  { checkout: "hosted", items: [{ ...body.items[0], name: "" }] },
-  { checkout: "hosted", items: [{ ...body.items[0], kind: "gratis" }] },
-  { checkout: "hosted", items: [{ ...body.items[0], perSeat: "sí" }] },
-  { checkout: "hosted", items: [{ ...body.items[0], seatsMinimum: 2.5 }] },
+  { checkout: "manual", items: [], trialDays: 90 },
+  { checkout: "hosted", trialDays: 90 },
+  // La duración de la oferta se valida como un precio: sin ella, fuera de
+  // rango o fraccionaria, el catálogo entero se rechaza. «3 meses gratis» es
+  // una promesa comercial y no se publica a ojo.
+  { checkout: "hosted", items: [] },
+  { checkout: "hosted", items: [], trialDays: 0 },
+  { checkout: "hosted", items: [], trialDays: 91 },
+  { checkout: "hosted", items: [], trialDays: 14.5 },
+  { checkout: "hosted", items: [], trialDays: "90" },
   {
     checkout: "hosted",
+    trialDays: 90,
+    items: [{ ...body.items[0], name: "" }],
+  },
+  {
+    checkout: "hosted",
+    trialDays: 90,
+    items: [{ ...body.items[0], kind: "gratis" }],
+  },
+  {
+    checkout: "hosted",
+    trialDays: 90,
+    items: [{ ...body.items[0], perSeat: "sí" }],
+  },
+  {
+    checkout: "hosted",
+    trialDays: 90,
+    items: [{ ...body.items[0], seatsMinimum: 2.5 }],
+  },
+  {
+    checkout: "hosted",
+    trialDays: 90,
     items: [
       {
         ...body.items[0],
@@ -61,6 +88,7 @@ const rejected: unknown[] = [
   },
   {
     checkout: "hosted",
+    trialDays: 90,
     items: [
       {
         ...body.items[0],
@@ -70,6 +98,7 @@ const rejected: unknown[] = [
   },
   {
     checkout: "hosted",
+    trialDays: 90,
     items: [
       {
         ...body.items[0],

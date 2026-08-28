@@ -159,6 +159,78 @@ const mixedDocument = baseDocument([
   assert.deepEqual(preflight.unwritableByType, { wall: 1 });
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   5 · LA FRONTERA DE ÁNGULO documento ↔ DWG, a 37,5°
+   ══════════════════════════════════════════════════════════════════════════
+
+   Esta comprobación pertenece a la OLA 1.4 de la campaña de lanzamiento —una
+   prueba de ida y vuelta por CADA frontera donde un ángulo cambia de
+   subsistema— y vive AQUÍ, no en `verification/angle-frontiers.spec.ts`, por
+   una razón que no es de comodidad: ADR-0009 autoriza a importar el códec y
+   el punto de escritura sólo a estos dos módulos y a sus specs. El primer
+   intento la escribió en la suite de verificación y `check:dwg` lo rechazó,
+   con razón. La frontera clean-room no se ensancha para acomodar una prueba;
+   la prueba se muda a donde la política ya la permite.
+
+   Por qué 37,5°: es el ángulo que delata la confusión grados↔radianes sin
+   ambigüedad. El documento del producto guarda GRADOS; el canónico del
+   laboratorio espera RADIANES. Antes de la campaña de paridad el lado de
+   ESCRITURA no convertía, y un arco de 180° salía escrito como «180» en un
+   campo que el formato lee como radianes (≈10,31°, envuelto).                */
+
+{
+  const DEG = 37.5;
+  const RAD = 0.6544984694978736;
+  const arcDocument = baseDocument([
+    {
+      id: "arc-frontera",
+      type: "arc",
+      center: { x: 0, y: 0, z: 0 },
+      radius: 50,
+      startAngle: DEG,
+      endAngle: DEG + 90,
+      layer: "0",
+    },
+  ] as CadDocument["entities"]);
+
+  // El candado primero: con los gates REALES esto no exporta, y así se queda
+  // para el lanzamiento (OLA 3.4).
+  const locked = exportCadDocumentToDwg(arcDocument, { betaFlagOn: true });
+  assert.equal(locked.estado, "rechazado");
+  assert.equal(locked.motivo, "gate_cerrado");
+
+  const written = exportCadDocumentToDwg(arcDocument, {
+    betaFlagOn: true,
+    gates: ORACLE_PASSED,
+  });
+  assert.ok(
+    written.estado === "exito" || written.estado === "exito_con_perdidas",
+    `con el oráculo inyectado el arco se escribe (${written.estado})`,
+  );
+  assert.ok("bytes" in written, "la exportación con oráculo entrega bytes");
+
+  // `readDwg` es el códec CRUDO: no convierte nada, así que el número que
+  // salga es literalmente el que el writer puso en el archivo.
+  const reread = readDwg((written as { bytes: Uint8Array }).bytes);
+  const arc = reread.modelSpaceEntities.find(
+    (record) => record.entity.kind === "arc",
+  )!.entity as { startAngle: number; endAngle: number };
+
+  assert.ok(
+    Math.abs(arc.startAngle - RAD) < 1e-9,
+    `el DWG guarda 37,5° como ${RAD} RADIANES (obtenido ${arc.startAngle}): un 37.5 crudo aquí sería el defecto de vuelta`,
+  );
+  assert.ok(
+    Math.abs(arc.startAngle - DEG) > 30,
+    "y el valor escrito no se parece en nada al grado, que es por lo que 37,5° delata la confusión",
+  );
+  assert.ok(
+    Math.abs(arc.endAngle - ((DEG + 90) * Math.PI) / 180) < 1e-9,
+    "y el ángulo final también viaja en radianes",
+  );
+}
+
 console.log(
-  "dwg-native-writer.spec: gate cerrado hasta el oráculo, round-trip íntegro y pérdidas con nombre",
+  "dwg-native-writer.spec: gate cerrado hasta el oráculo, round-trip íntegro, " +
+    "pérdidas con nombre y la frontera de ángulo documento↔DWG a 37,5°",
 );

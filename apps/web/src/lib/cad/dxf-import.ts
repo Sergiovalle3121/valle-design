@@ -84,8 +84,9 @@ export interface CadDxfPrimitive {
    */
   closed?: boolean;
   text?: string;
-  /** Altura del texto, sólo para kind "text". Sin ella se usa la del exportador. */
+  /** Altura (sin ella, la del exportador) y rotación en GRADOS (código 50) del texto. */
   textHeight?: number;
+  textRotation?: number;
   /** Radio, sólo para kind "circle" y "arc". */
   radius?: number;
   /** Ángulo inicial en grados (CCW desde +X), sólo para kind "arc" y "ellipse". */
@@ -559,6 +560,9 @@ export function mapDxfEntityToPrimitive(entity: any): {
     const text = String(
       entity.text ?? entity.string ?? entity.value ?? "",
     ).trim();
+    // Grupos 40 y 50; `num` da `null` para lo no usable. Ver `dxf-text-entities.ts`.
+    const height = num(entity.height ?? entity.textHeight) ?? undefined;
+    const rotation = num(entity.rotation) ?? undefined;
     if (pos && text)
       return {
         primitive: {
@@ -566,6 +570,8 @@ export function mapDxfEntityToPrimitive(entity: any): {
           layer,
           points: [pos],
           text,
+          ...(height !== undefined && height > 0 ? { textHeight: height } : {}),
+          ...(rotation !== undefined ? { textRotation: rotation } : {}),
           ...(paperSpace ? { paperSpace } : {}),
         },
       };

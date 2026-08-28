@@ -19,6 +19,8 @@ import type {
   OrganizationList,
 } from "@valle/design-sdk";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
+import { TrialBanner } from "@/components/commercial/TrialBanner";
+import { trialStatus } from "@/lib/commercial/trial-phase";
 import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import {
   importDocumentFile,
@@ -86,7 +88,17 @@ export default function DashboardPage() {
    * ramas de validación que tiene detrás.
    */
   const documentNameRef = useRef<HTMLInputElement>(null);
-  const canEdit = auth.permissions.includes("cad:edit");
+  /**
+   * DOS condiciones, no una. El permiso `cad:edit` sale de la membresía; la
+   * vigencia sale de la suscripción. Con la prueba vencida el servidor
+   * conserva el permiso y niega la escritura (`read_only_after_lapse`), así
+   * que enseñar aquí el formulario de «Nuevo proyecto» sería ofrecer un botón
+   * que responde 403 — la clase de mentira que esta campaña existe para
+   * quitar. Lo que NO se toca es la lectura: la lista de documentos, abrir y
+   * exportar siguen exactamente igual.
+   */
+  const canEdit =
+    auth.permissions.includes("cad:edit") && trialStatus(subscription).canEdit;
 
   const load = useCallback(async () => {
     if (auth.isLoading) return;
@@ -498,6 +510,14 @@ export default function DashboardPage() {
           validaciones que cuelgan de ellos, y la copia de abajo empieza a
           divergir el día que alguien arregle sólo la de arriba.
         */}
+        {/*
+          EL AVISO VA ARRIBA DEL TODO, antes de los formularios y de la lista.
+          Con la prueba a punto de terminar —o terminada— es la información más
+          importante de la pantalla, y enterrarla bajo el contenido es la forma
+          educada de ocultarla.
+        */}
+        <TrialBanner subscription={subscription} className="mt-8" />
+
         <div className="flex flex-col">
         {canEdit ? (
           <section

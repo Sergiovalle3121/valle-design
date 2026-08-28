@@ -83,6 +83,7 @@ import {
   CadCasConflictError,
   DocumentLifecycleController,
 } from "@/components/cad/document-lifecycle/controller";
+import { describeCadSaveFailure } from "@/components/cad/document-lifecycle/save-failure";
 import {
   createDebouncedAutosave,
   type AutosaveStatus,
@@ -274,10 +275,6 @@ import {
 } from "@/lib/cad/hatch-associativity";
 import { cadViewportBoundsChanged } from "@/lib/cad/native-viewport";
 import { exportCadLayoutDxf } from "@/lib/cad/layout-export-adapter";
-import {
-  CAD_PAPER_SIZES,
-  type CadPaperId,
-} from "@/lib/cad/plot-sheet";
 import {
   evaluateCadDxfExportReadiness,
   type CadDxfExportLayerSummary,
@@ -593,6 +590,7 @@ import type {
 } from "@/components/cad/palettes/property-model";
 import { CadDraftStatusBar } from "@/components/cad/palettes/CadDraftStatusBar";
 import { CadPaletteOverlays } from "@/components/cad/palettes/CadPaletteOverlays";
+import { CadIncidentReporter } from "@/components/cad/studio/CadIncidentReporter";
 import {
   CAD_OSNAP_HUD_LABELS,
   CAD_POLAR_INCREMENTS,
@@ -1415,7 +1413,6 @@ export default function Layout3DEditor({
   const [dxfImportPreview, setDxfImportPreview] =
     useState<CadDxfImportResult | null>(null);
   const [showDxfExport, setShowDxfExport] = useState(false);
-  const [plotPaper, setPlotPaper] = useState<CadPaperId>("A4");
   const [showSheetPackage, setShowSheetPackage] = useState(false);
   const [paperSpaces, setPaperSpaces] = useState<CadPaperSpace[]>([]);
   const [paperSpaceLayers, setPaperSpaceLayers] = useState<CadLayerDef[]>([]);
@@ -3677,7 +3674,7 @@ export default function Layout3DEditor({
       .filter((it) => it.type === "station")
       .map((it) => it.id);
     if (ids.length === 0) {
-      toast.error("Selecciona puntos para agrupar en una celda.", "3D");
+      toast.error("Selecciona puntos para agrupar en una celda.", "Celdas");
       return;
     }
     const palette = [
@@ -3703,7 +3700,7 @@ export default function Layout3DEditor({
       ],
       "crear celda",
     );
-    toast.success("Celda creada.", "3D");
+    toast.success("Celda creada.", "Celdas");
   };
   const deleteCell = (id: string) => {
     commitCells(
@@ -6854,7 +6851,7 @@ export default function Layout3DEditor({
         );
         markDirty();
         rebuildDims();
-        toast.success("Cota eliminada.", "3D");
+        toast.success("Cota eliminada.", "Cotas");
         return;
       }
       // clicking a text note removes it
@@ -6867,7 +6864,7 @@ export default function Layout3DEditor({
         annotationsRef.current.delete(id);
         markDirty();
         rebuildNotes();
-        toast.success("Nota eliminada.", "3D");
+        toast.success("Nota eliminada.", "Notas");
         return;
       }
       const stationHits = raycaster
@@ -9846,7 +9843,7 @@ export default function Layout3DEditor({
       select(created);
       markDirty();
       rebuildAll();
-      toast.success(`${created.length} ${msg}`, "3D");
+      toast.success(`${created.length} ${msg}`, "Dibujo");
     }
   };
   // ---- trace the DXF backdrop into editable walls (Fase 58) ----
@@ -10319,7 +10316,7 @@ export default function Layout3DEditor({
       {},
     );
     if (!dims.length) {
-      toast.error("No hay nada que acotar todavía.", "3D");
+      toast.error("No hay nada que acotar todavía.", "Cotas");
       return;
     }
     pushHistory();
@@ -10342,7 +10339,7 @@ export default function Layout3DEditor({
     rebuildDims();
     toast.success(
       `${dims.length} ${dims.length === 1 ? "cota generada" : "cotas generadas"}${sel.length ? " (selección)" : ""}`,
-      "3D",
+      "Cotas",
     );
   };
   // ---- DXF backdrop upload / remove (ported from 2D, unify) ----
@@ -10352,7 +10349,7 @@ export default function Layout3DEditor({
     try {
       const text = await file.text();
       if (text.length > 12_000_000) {
-        toast.error("El DXF supera 12 MB.", "3D");
+        toast.error("El DXF supera 12 MB.", "Plano DXF");
         return;
       }
       // Detección de formato (Fase 74 cableada, ADR §222): un DWG binario jamás
@@ -10376,7 +10373,7 @@ export default function Layout3DEditor({
         );
       const dxfModel = parseDxf(text);
       if (!dxfModel) {
-        toast.error("No se reconocieron líneas en el DXF.", "3D");
+        toast.error("No se reconocieron líneas en el DXF.", "Plano DXF");
         return;
       }
       // La colocación se calcula ANTES de subir y viaja CON la subida. Antes se
@@ -10411,7 +10408,7 @@ export default function Layout3DEditor({
         }),
       });
       if (!res.ok) {
-        toast.error("No se pudo guardar el DXF.", "3D");
+        toast.error("No se pudo guardar el DXF.", "Plano DXF");
         return;
       }
       dxfModelRef.current = dxfModel;
@@ -10420,9 +10417,9 @@ export default function Layout3DEditor({
       dxfSnapRef.current = dxfSnapPoints(dxfModel, meta);
       rebuildDxfRef.current();
       markDirty();
-      toast.success("Plano DXF cargado de fondo.", "3D");
+      toast.success("Plano DXF cargado de fondo.", "Plano DXF");
     } catch {
-      toast.error("No se pudo leer el archivo DXF.", "3D");
+      toast.error("No se pudo leer el archivo DXF.", "Plano DXF");
     } finally {
       setDxfBusy(false);
     }
@@ -10435,7 +10432,7 @@ export default function Layout3DEditor({
         { method: "DELETE" },
       );
       if (!res.ok) {
-        toast.error("No se pudo quitar el DXF.", "3D");
+        toast.error("No se pudo quitar el DXF.", "Plano DXF");
         return;
       }
       dxfModelRef.current = null;
@@ -10446,9 +10443,9 @@ export default function Layout3DEditor({
       setDxfImportPreview(null);
       rebuildDxfRef.current();
       markDirty();
-      toast.success("Plano DXF quitado.", "3D");
+      toast.success("Plano DXF quitado.", "Plano DXF");
     } catch {
-      toast.error("Error de red.", "3D");
+      toast.error("Error de red.", "Plano DXF");
     } finally {
       setDxfBusy(false);
     }
@@ -10660,14 +10657,14 @@ export default function Layout3DEditor({
         }),
       });
       if (!r.ok) {
-        toast.error("No se pudo guardar la versión.", "3D");
+        toast.error("No se pudo guardar la versión.", "Versiones");
         return;
       }
       setVersName("");
-      toast.success("Versión guardada.", "3D");
+      toast.success("Versión guardada.", "Versiones");
       loadVersions();
     } catch {
-      toast.error("Error de red.", "3D");
+      toast.error("Error de red.", "Versiones");
     } finally {
       setVersBusy(false);
     }
@@ -10681,14 +10678,14 @@ export default function Layout3DEditor({
         { method: "POST" },
       );
       if (!r.ok) {
-        toast.error("No se pudo restaurar la versión.", "3D");
+        toast.error("No se pudo restaurar la versión.", "Versiones");
         return;
       }
-      toast.success("Versión restaurada.", "3D");
+      toast.success("Versión restaurada.", "Versiones");
       setShowVersions(false);
       setReloadTick((t) => t + 1); // re-run the load effect
     } catch {
-      toast.error("Error de red.", "3D");
+      toast.error("Error de red.", "Versiones");
     } finally {
       setVersBusy(false);
     }
@@ -10722,14 +10719,14 @@ export default function Layout3DEditor({
       });
       if (!r.ok) {
         const d = await r.json().catch(() => ({}));
-        toast.error(d?.message || "No se pudo clonar.", "3D");
+        toast.error(d?.message || "No se pudo clonar.", "Plantillas");
         return;
       }
-      toast.success("Layout clonado desde la plantilla.", "3D");
+      toast.success("Layout clonado desde la plantilla.", "Plantillas");
       setShowClone(false);
       setReloadTick((t) => t + 1);
     } catch {
-      toast.error("Error de red.", "3D");
+      toast.error("Error de red.", "Plantillas");
     } finally {
       setCloneBusy(false);
     }
@@ -10745,14 +10742,14 @@ export default function Layout3DEditor({
         body: JSON.stringify({ model, revision, status }),
       });
       if (!r.ok) {
-        toast.error("No se pudo cambiar el estado.", "3D");
+        toast.error("No se pudo cambiar el estado.", "Revisión");
         return;
       }
       const d = (await r.json()) as { approval?: LayoutApproval };
       setApproval(d.approval ?? { status, by: null, at: null, note: null });
-      toast.success(`Layout: ${APPROVAL_META[status].label}.`, "3D");
+      toast.success(`Layout: ${APPROVAL_META[status].label}.`, "Revisión");
     } catch {
-      toast.error("Error de red.", "3D");
+      toast.error("Error de red.", "Revisión");
     } finally {
       setApprovalBusy(false);
     }
@@ -11620,11 +11617,14 @@ export default function Layout3DEditor({
       void save();
       return true;
     } else if (op.type === "studio_export") {
-      // 'imprime en a3' (VD-CAD-PLOT-003): dispara el export real; el papel
-      // pedido se sincroniza al selector y se pasa directo (el estado es async).
+      // 'imprime en a3' (VD-CAD-PLOT-003): dispara el export real. El papel
+      // pedido se aplica a la HOJA ACTIVA por la vía canónica —la misma que
+      // el selector «Papel» del panel de layouts—, que es la única que la
+      // publicación lee. Antes se guardaba en un estado de la barra que nadie
+      // consultaba: el usuario pedía A3 y salía lo que dijera la hoja.
       if (op.format === "pdf") {
-        const paper = op.paper as CadPaperId | undefined;
-        if (paper) setPlotPaper(paper);
+        const paper = op.paper as CadSheetPaper | undefined;
+        if (paper) changeActivePaper(paper);
         void publishSheetSetPdf();
       } else if (op.format === "dxf") {
         void exportDxf();
@@ -12791,7 +12791,7 @@ export default function Layout3DEditor({
     if (plan.kind === "architecture-missing") {
       toast.error(
         "La vista 3D aún no materializó la arquitectura; abre la vista 3D y reintenta.",
-        "3D",
+        "Vista 3D",
       );
       return;
     }
@@ -12826,10 +12826,10 @@ export default function Layout3DEditor({
       );
       a.click();
       URL.revokeObjectURL(url);
-      toast.success("Modelo 3D exportado (.glb).", "3D");
+      toast.success("Modelo 3D exportado (.glb).", "Modelo 3D");
     } catch (error) {
       console.error(error);
-      toast.error("No se pudo exportar el modelo 3D.", "3D");
+      toast.error("No se pudo exportar el modelo 3D.", "Modelo 3D");
     }
   };
   const computeDxfExportSummary = (
@@ -13365,7 +13365,7 @@ export default function Layout3DEditor({
           bytes > CAD_DOCUMENT_ARCHIVE_THRESHOLD_BYTES
             ? `Dibujo grande guardado (${(bytes / 1_000_000).toFixed(1)} MB).`
             : "Layout 3D guardado.",
-          "3D",
+          "Guardado",
         );
       }
       if (requestIsActive) onSaved?.();
@@ -13395,16 +13395,14 @@ export default function Layout3DEditor({
         }
         return null;
       }
-      const message =
-        saveError instanceof Error ? saveError.message : "Error de red.";
-      const offline =
-        (typeof navigator !== "undefined" && !navigator.onLine) ||
-        saveError instanceof TypeError ||
-        /network|fetch|red\b/i.test(message);
+      const aviso = describeCadSaveFailure(saveError);
       if (requestIsActive) {
-        if (offline) setConnectionState("offline");
-        setSaveIssue({ kind: offline ? "offline" : "server", message });
-        toast.error(message, offline ? "Sin conexión" : "3D");
+        if (aviso.kind === "offline") setConnectionState("offline");
+        setSaveIssue({
+          kind: aviso.kind === "offline" ? "offline" : "server",
+          message: aviso.message,
+        });
+        toast.error(aviso.message, aviso.title);
       }
       return null;
     }
@@ -13489,7 +13487,7 @@ export default function Layout3DEditor({
       setConnectionState("online");
       if (!r.ok) {
         const d = await r.json().catch(() => ({}));
-        toast.error(d?.message || "No se pudo guardar.", "3D");
+        toast.error(d?.message || "No se pudo guardar.", "Guardado");
         return null;
       }
       const saved = (await r.json()) as Layout;
@@ -13514,7 +13512,7 @@ export default function Layout3DEditor({
         serializedCadDocument.useArchive
           ? `Dibujo grande guardado (${(serializedCadDocument.bytes / 1_000_000).toFixed(1)} MB).`
           : "Layout 3D guardado.",
-        "3D",
+        "Guardado",
       );
       loadedPlacedRef.current = new Set(placementsRef.current.keys());
       dirtyRef.current = false;
@@ -13537,10 +13535,9 @@ export default function Layout3DEditor({
         toast.error(saveError.message, "Conflicto CAS");
         return null;
       }
-      const message =
-        saveError instanceof Error ? saveError.message : "Error de red.";
-      if (message === "Error de red.") setConnectionState("offline");
-      toast.error(message, "3D");
+      const aviso = describeCadSaveFailure(saveError);
+      if (aviso.kind === "offline") setConnectionState("offline");
+      toast.error(aviso.message, aviso.title);
       return null;
     } finally {
       setSaving(false);
@@ -15782,18 +15779,6 @@ export default function Layout3DEditor({
         >
           <Stamp className="w-4 h-4" />
         </T3Btn>
-        <select
-          value={plotPaper}
-          onChange={(e) => setPlotPaper(e.target.value as CadPaperId)}
-          title="Papel del plano (A4–A0, carta, tabloide) — la escala estándar se elige sola"
-          className="h-7 self-center rounded-lg border border-border bg-muted/60 px-1 type-micro text-foreground focus:outline-none"
-        >
-          {(Object.keys(CAD_PAPER_SIZES) as CadPaperId[]).map((id) => (
-            <option key={id} value={id} className="bg-surface">
-              {CAD_PAPER_SIZES[id].label}
-            </option>
-          ))}
-        </select>
         <T3Btn
           disabled={drawingReadOnly}
           onClick={() => void publishSheetSetPdf()}
@@ -19286,8 +19271,8 @@ export default function Layout3DEditor({
                     );
                     const csv = rows.map((r) => r.join(",")).join("\n");
                     navigator.clipboard?.writeText(csv).then(
-                      () => toast.success("Cantidades copiadas (CSV).", "3D"),
-                      () => toast.error("No se pudo copiar.", "3D"),
+                      () => toast.success("Cantidades copiadas (CSV).", "Cantidades"),
+                      () => toast.error("No se pudo copiar.", "Cantidades"),
                     );
                   }}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/60 hover:bg-muted type-caption"
@@ -20173,6 +20158,7 @@ export default function Layout3DEditor({
       {/* Cuadros flotantes de las paletas. Su estado vive fuera de React
           (`components/cad/palettes`), así que abrirlos no cuesta un `useState`
           en una función que ya tiene demasiados. */}
+      <CadIncidentReporter documentId={documentId} activeCommand={engineCommand} />
       <CadPaletteOverlays
         open={activePalette}
         paletteHost={paletteHost}

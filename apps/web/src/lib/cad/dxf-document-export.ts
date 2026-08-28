@@ -33,6 +33,7 @@ import {
   type CadDxfExportSource,
 } from "./dxf-cad-document";
 import { exportCadDxf, type CadDxfExportModel, type CadDxfExportOptions } from "./dxf-export";
+import { cadDocumentNativeDxfTexts } from "./dxf-text-entities";
 
 /**
  * Lo que hace falta leer para escribir un DXF: entidades, bloques, capas y —
@@ -90,6 +91,7 @@ export function cadDocumentToDxfExportModel(
   return {
     primitives: cadDocumentNativeDxfPrimitives(document, scoped),
     hatches: cadDocumentNativeDxfHatches(document, scoped),
+    texts: cadDocumentNativeDxfTexts(document, scoped),
     mtexts: cadDocumentNativeDxfMTexts(document, scoped),
     semanticDimensions: cadDocumentNativeDxfSemanticDimensions(document, scoped),
     mleaders: cadDocumentNativeDxfMleaders(document, scoped),

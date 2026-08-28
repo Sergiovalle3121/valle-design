@@ -83,6 +83,14 @@ export interface CadDxfExportText {
   position: CadDxfPoint;
   text: string;
   height?: number;
+  /**
+   * Rotación en GRADOS, la unidad del documento y la del código de grupo 50.
+   * Sin ella, un rótulo girado —el nombre de un eje inclinado, una cota de
+   * nivel siguiendo una rampa— volvía horizontal al reimportar.
+   */
+  rotation?: number;
+  /** Nombre del estilo de texto (código 7). */
+  style?: string;
 }
 export interface CadDxfExportMText {
   layer?: string;
@@ -402,6 +410,7 @@ function pushText(
   text: string,
   height = 250,
   presentation?: CadEntityPresentation,
+  rotation?: number, style?: string,
 ) {
   const content = safeText(text);
   if (!content) return false;
@@ -411,6 +420,9 @@ function pushText(
   pushPoint(lines, position);
   pushPair(lines, 40, fmt(height));
   pushPair(lines, 1, content);
+  // Opcionales los dos: un `50 0` en cada rótulo horizontal sería ruido.
+  if (style) pushPair(lines, 7, safeStyleName(style));
+  if (rotation) pushPair(lines, 50, fmt(rotation));
   return true;
 }
 
@@ -934,16 +946,11 @@ export function exportCadDxf(
     entityCount += 1;
   }
   for (const text of model.texts ?? []) {
-    if (
-      pushText(
-        lines,
-        safeLayerName(text.layer ?? TEXT_LAYER),
-        text.position,
-        text.text,
-        text.height,
-      )
-    )
-      entityCount += 1;
+    const written = pushText(
+      lines, safeLayerName(text.layer ?? TEXT_LAYER), text.position,
+      text.text, text.height, undefined, text.rotation, text.style,
+    );
+    if (written) entityCount += 1;
   }
   for (const text of model.mtexts ?? [])
     if (pushMText(lines, safeLayerName(text.layer ?? TEXT_LAYER), text)) entityCount += 1;

@@ -8,6 +8,14 @@
  * rojo de CI:
  *
  *   1. La entrada VIGENTE de cada documento en
+ *      El número de versión es la FECHA, con un sufijo `.N` opcional para una
+ *      segunda revisión del mismo día: publicar dos veces en una jornada es
+ *      raro pero legítimo —pasó al declarar el botón «algo salió mal» horas
+ *      después de la primera publicación—, y sin poder expresarlo las únicas
+ *      salidas eran fechar el documento en el futuro o editar una versión ya
+ *      publicada, que es justo lo que este candado existe para impedir. El
+ *      sufijo NO afloja nada: siguen exigiéndose hash, espejo y coincidencia.
+ *
  *      `apps/api/src/modules/legal/legal-documents.ts` lleva `contentHash`
  *      (SHA-256 del archivo fuente de la página) — se recalcula aquí y debe
  *      coincidir byte a byte.
@@ -38,7 +46,7 @@ const mirrorSource = read('apps/web/src/lib/legal/legal-versions.ts');
 /** Primera entrada (= vigente, contrato de `currentLegalDocument`) por doc. */
 function currentEntry(documento) {
   const pattern = new RegExp(
-    `\\{\\s*documento:\\s*'${documento}',\\s*version:\\s*'([0-9-]+)',\\s*publicadoEn:\\s*'([0-9-]+)',\\s*url:\\s*'([^']+)',\\s*requiereAceptacion:\\s*(true|false),\\s*contentHash:\\s*\\n?\\s*'([0-9a-f]{64})',`,
+    `\\{\\s*documento:\\s*'${documento}',\\s*version:\\s*'([0-9.-]+)',\\s*publicadoEn:\\s*'([0-9-]+)',\\s*url:\\s*'([^']+)',\\s*requiereAceptacion:\\s*(true|false),\\s*contentHash:\\s*\\n?\\s*'([0-9a-f]{64})',`,
     'u',
   );
   const match = registrySource.match(pattern);
@@ -59,7 +67,7 @@ function currentEntry(documento) {
 
 function mirrorEntry(documento) {
   const pattern = new RegExp(
-    `${documento}:\\s*\\{\\s*version:\\s*"([0-9-]+)",\\s*publicadoEn:\\s*"([0-9-]+)"`,
+    `${documento}:\\s*\\{\\s*version:\\s*"([0-9.-]+)",\\s*publicadoEn:\\s*"([0-9-]+)"`,
     'u',
   );
   const match = mirrorSource.match(pattern);

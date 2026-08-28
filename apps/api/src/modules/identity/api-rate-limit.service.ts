@@ -67,4 +67,10 @@ export const API_RATE_LIMITS = {
   checkoutSessionsPerOrganization: 10,
   /** Comentarios por sesión de review: la superficie anónima-con-token. */
   reviewCommentsPerSession: 30,
+  /**
+   * Reportes de «algo salió mal» por cuenta. Diez por minuto es holgadísimo
+   * para una persona y estrecho para un bucle: el botón manda correo, y un
+   * cliente que se atasque reintentando no puede inundar el buzón de soporte.
+   */
+  supportIncidentsPerAccount: 10,
 } as const;

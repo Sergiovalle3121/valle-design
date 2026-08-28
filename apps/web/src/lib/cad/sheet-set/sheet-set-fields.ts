@@ -138,14 +138,50 @@ export function resolveCadSheetTitleBlock(
   // Sólo cuando faltan. Pisarlos siempre destrozaría una plantilla que ya los
   // compone a su manera —«Hoja %<SheetOf>%» quedaría reducido a «1 de 4»— y el
   // sentido de tener plantilla es precisamente que el estudio decida el texto.
+  /**
+   * Rellena `key` sólo si nadie lo trajo.
+   *
+   * «Nadie lo trajo» incluye el GUION SUELTO. `createCadPaperSpace` siembra
+   * `"-"` en las casillas de personas (`PREPARED_BY`, `CHECKED_BY`…) como
+   * marca de hueco, y tratarlo como dato hacía que el valor real del conjunto
+   * —el DRO que sí revisó el plano— no llegara nunca al cajetín: la casilla
+   * salía impresa vacía mientras el dato estaba a un campo de distancia.
+   * Un guion aislado no es el nombre de nadie.
+   */
+  const placeholder = (value: string | undefined) => {
+    const trimmed = value?.trim() ?? "";
+    return trimmed === "" || trimmed === "-" || trimmed === "—";
+  };
   const fill = (key: string, value: string) => {
     if (!value) return;
-    if (!attributes[key]?.trim()) attributes[key] = value;
+    if (placeholder(attributes[key])) attributes[key] = value;
   };
   fill("SHEET_NO", context.sheet.number);
   fill("TITLE", context.sheet.title);
   fill("REVISION", context.sheet.revision);
   fill("SHEET_OF", values.sheetof);
+
+  // LOS COMUNES DEL CONJUNTO, por la misma regla de «sólo cuando faltan».
+  //
+  // El conjunto ya lleva cliente, fecha, quién dibujó y quién revisó —son sus
+  // `fields`— y el cajetín tiene una casilla para cada uno. Hasta la campaña
+  // de lanzamiento los dos datos no se encontraban: los `fields` sólo servían
+  // para sustituir marcadores `%<Client>%` DENTRO de los atributos que la
+  // presentación ya trajera, y una lámina creada con `createCadPaperSpace`
+  // —que no escribe ninguno de ellos— salía impresa con «—» en CLIENTE,
+  // FECHA y REVISÓ. Se descubrió leyendo el content stream de un PDF real
+  // (`verification/pdf-content.spec.ts`), no auditando este archivo.
+  //
+  // Sigue siendo «sólo cuando faltan»: una plantilla que componga su propio
+  // texto de cliente conserva el suyo intacto.
+  fill("CLIENT", values.client ?? "");
+  fill("DATE", values.date ?? "");
+  fill("PREPARED_BY", values.prepared_by ?? values.drawnby ?? "");
+  fill("CHECKED_BY", values.checked_by ?? values.checkedby ?? "");
+  fill("UNITS", values.units ?? "");
+  fill("DISCIPLINE", values.discipline ?? "");
+  fill("LOCATION", values.location ?? "");
+  fill("PROJECT", values.project ?? "");
 
   return { attributes, unresolved: [...unresolved].sort() };
 }

@@ -842,6 +842,46 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CAMPANA-LANZAMIENTO-20260827",
+      "date": "2026-08-27",
+      "initiative": "Campaña 'Lanzamiento gratuito — barrido funcional total' (docs/history/execution/CAMPANA_LANZAMIENTO_20260827.md), sobre main tras COMMERCIAL-RC1 y la campaña de paridad. Tesis: Valle Design sale a internet con una oferta de tres meses gratis sin tarjeta, y antes de promocionarlo todo lo que un usuario pueda tocar debe funcionar de verdad — la matemática correcta al cien, el frontend hablando con el backend sin costuras, y los planos descargándose completos y exactos. La regla que ordena la campaña es FIX-OR-HIDE: cada capacidad visible queda VERIFICADA (con evidencia numérica), ARREGLADA (con evidencia nueva) u OCULTA (fuera de la superficie hasta ganar su evidencia, con entrada en el backlog); queda prohibido el cuarto estado, visible y no verificada.",
+      "branch": "claude/valle-design-launch-campaign-yhxse6",
+      "assistants": [
+        {
+          "name": "Claude Code (Anthropic)",
+          "role": "Ejecución autónoma end-to-end bajo el prompt maestro 'CAMPAÑA DE LANZAMIENTO GRATUITO — BARRIDO FUNCIONAL TOTAL'. Disciplina sostenida: cada afirmación numérica se verifica contra un oráculo INDEPENDIENTE (resultado analítico calculado a mano o implementación de fuerza bruta escrita aparte que no importa el código bajo prueba), nunca contra un golden de la corrida anterior; cada defecto real se cierra con la evidencia que lo delató regenerada; el stack real (Next.js + NestJS + PostgreSQL 16) se levanta y se ejercita en vez de simularse."
+        }
+      ],
+      "authority": "Prompt maestro 'CAMPAÑA DE LANZAMIENTO GRATUITO — BARRIDO FUNCIONAL TOTAL — VALLE DESIGN' de Sergio Valle Zárate (2026-08-27).",
+      "firstPartyInputs": [
+        "docs/history/execution/CAMPANA_LANZAMIENTO_20260827.md (bitácora propia de esta campaña)",
+        "docs/execution/INFORME_CAMPANA_PARIDAD_20260827.md y su bitácora (herencias verificadas antes de rehacer)",
+        "docs/execution/BACKLOG.md (cola viva)",
+        "packages/contracts/specs/design-api.v1.yaml (contrato propio; los dos cambios de esta campaña son ADITIVOS)",
+        "docs/cad/evidence/dxf-external-corpus-matrix.json y large-coordinate-precision.json (artefactos propios regenerados con el comportamiento real)"
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": false,
+      "derivedAreas": [
+        "apps/api/src/modules/auth/guards/permissions.guard.ts + commercial/ports y adapters (modo solo-lectura post-expiración: la regla de oro)",
+        "apps/api/src/modules/commercial/trial-expiry-reminder.service.ts (aviso de fin de prueba por el outbox existente)",
+        "apps/web/src/config/launch.ts, lib/commercial/trial-phase.ts, components/commercial/TrialBanner.tsx (modo de lanzamiento y avisos)",
+        "apps/web/src/lib/cad/verification/ (675 casos numéricos contra oráculo independiente) + scripts/cad/check-cad-math.mjs",
+        "apps/web/src/lib/cad/dxf-text-entities.ts y las dos mitades del round-trip de TEXT (dxf-export.ts, dxf-import.ts, dxf-cad-document.ts)",
+        "apps/web/src/lib/cad/render/pipeline.ts y render-origin.ts (origen flotante sin contaminación del espacio papel)"
+      ],
+      "fixtures": [],
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: revisión/fusión del PR de esta rama sobre el SHA candidato."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

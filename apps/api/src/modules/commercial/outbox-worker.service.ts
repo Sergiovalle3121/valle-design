@@ -12,6 +12,7 @@ import {
 } from './outbox-dispatcher.service';
 import { CfdiIssuanceService } from './cfdi-issuance.service';
 import { RenewalReminderService } from './renewal-reminder.service';
+import { TrialExpiryReminderService } from './trial-expiry-reminder.service';
 import { WebhookCommercialOutboxTransport } from './webhook-outbox.transport';
 
 const DEFAULT_POLL_INTERVAL_MS = 1_000;
@@ -36,6 +37,8 @@ export class CommercialOutboxWorker
     private readonly renewalReminders?: RenewalReminderService,
     @Optional()
     private readonly cfdiIssuance?: CfdiIssuanceService,
+    @Optional()
+    private readonly trialReminders?: TrialExpiryReminderService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -94,6 +97,16 @@ export class CommercialOutboxWorker
     } catch (error) {
       const kind = error instanceof Error ? error.name : 'RenewalReminderError';
       this.logger.error(`Renewal reminder pass failed (${kind}).`);
+    }
+    // Aviso de fin de prueba, con su propio try/catch por la misma razón: el
+    // correo que evita la sorpresa del día 91 no puede caerse porque falle
+    // otra pasada, ni tumbar a las demás si falla él.
+    try {
+      await this.trialReminders?.maybeRun();
+    } catch (error) {
+      const kind =
+        error instanceof Error ? error.name : 'TrialExpiryReminderError';
+      this.logger.error(`Trial expiry reminder pass failed (${kind}).`);
     }
     // Emisión de CFDI, con la misma independencia: un PAC caído no toca el
     // correo ni los recordatorios, y su compuerta horaria vive dentro.

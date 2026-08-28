@@ -5,6 +5,7 @@ import type {
   EmailService,
   EntitlementContext,
   EntitlementService,
+  LapsedEntitlement,
   SubscriptionProvider,
   TransactionContext,
   UsageMeter,
@@ -138,6 +139,97 @@ export class PostgresEntitlementService implements EntitlementService {
       .getRawOne<{ entitled: number }>();
     return !!entitled;
   }
+
+  /**
+   * LA REGLA DE ORO — ¿esto es una prueba vencida o alguien que nunca contrató?
+   *
+   * La consulta es la MISMA de `hasEntitlement` con la vigencia invertida: el
+   * plan tiene que seguir publicando `design.cad` (si el operador retiró la
+   * capacidad del plan, no hay nada que conservar) y la suscripción tiene que
+   * existir con una fecha REAL en el pasado. Sin fecha registrada no hay
+   * vencimiento probado y se responde `null`: fallo cerrado, igual que arriba.
+   *
+   * `IS NOT NULL` sí es explícito aquí, al revés que en `hasEntitlement`. Allí
+   * el `NULL` se descartaba solo porque `> :now` evalúa a UNKNOWN; aquí la
+   * comparación es `<= :now`, que con `NULL` también da UNKNOWN — pero el
+   * resultado que queremos de un `NULL` no es «descártalo por si acaso», es
+   * «no sabemos cuándo venció», y decirlo con el predicado en vez de confiar
+   * en la lógica ternaria es lo que hace que se lea igual dentro de un año.
+   */
+  async lapsedEntitlement(
+    code: string,
+    context: EntitlementContext = {},
+  ): Promise<LapsedEntitlement | null> {
+    if (
+      !context.organizationId ||
+      context.organizationId !== context.tenantId
+    ) {
+      return null;
+    }
+    const now = context.now ?? new Date();
+    const row = await this.db
+      .getRepository(Subscription)
+      .createQueryBuilder('subscription')
+      .innerJoin(
+        PlanCatalog,
+        'plan',
+        'plan.code = subscription.planCode AND plan.active = :planActive',
+        { planActive: true },
+      )
+      .innerJoin(
+        PlanEntitlement,
+        'entitlement',
+        'entitlement.planCode = plan.code AND entitlement.entitlementCode = :code',
+        { code },
+      )
+      .where('subscription.organizationId = :organizationId', {
+        organizationId: context.organizationId,
+      })
+      .andWhere('subscription.tenantId = :tenantId', {
+        tenantId: context.tenantId,
+      })
+      .andWhere(
+        '((subscription.trialEndsAt IS NOT NULL AND subscription.trialEndsAt <= :now) OR (subscription.currentPeriodEnd IS NOT NULL AND subscription.currentPeriodEnd <= :now))',
+        { now },
+      )
+      .select([
+        'subscription.planCode AS "planCode"',
+        'subscription.status AS "status"',
+        'subscription.trialEndsAt AS "trialEndsAt"',
+        'subscription.currentPeriodEnd AS "currentPeriodEnd"',
+      ])
+      .limit(1)
+      .getRawOne<{
+        planCode: string;
+        status: string;
+        trialEndsAt: Date | null;
+        currentPeriodEnd: Date | null;
+      }>();
+    if (!row) return null;
+
+    // El vencimiento que manda es el MÁS RECIENTE de los dos: una cuenta que
+    // pasó de prueba a periodo pagado y luego venció tiene las dos fechas en
+    // el pasado, y la que el usuario reconoce es la última.
+    const trialEnd = toPastDate(row.trialEndsAt, now);
+    const periodEnd = toPastDate(row.currentPeriodEnd, now);
+    if (!trialEnd && !periodEnd) return null;
+    const usePeriod =
+      !!periodEnd && (!trialEnd || periodEnd.getTime() >= trialEnd.getTime());
+    return {
+      planCode: row.planCode,
+      status: row.status,
+      lapsedAt: usePeriod ? periodEnd : trialEnd!,
+      reason: usePeriod ? 'period_ended' : 'trial_ended',
+    };
+  }
+}
+
+/** Una fecha sólo cuenta como vencimiento si es real y ya pasó. */
+function toPastDate(value: Date | string | null, now: Date): Date | null {
+  if (!value) return null;
+  const parsed = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.getTime() <= now.getTime() ? parsed : null;
 }
 
 @Injectable()

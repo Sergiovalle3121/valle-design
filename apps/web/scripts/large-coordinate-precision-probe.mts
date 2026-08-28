@@ -43,6 +43,7 @@ import {
   type CadTessellation,
 } from "../src/lib/cad/render/tessellation-cache";
 import { cadRenderOriginFromBounds } from "../src/lib/cad/render/render-origin";
+import { CadRenderPipeline } from "../src/lib/cad/render/pipeline";
 import type { CadNativeEntity } from "../src/lib/cad/entity-runtime";
 
 interface MagnitudeReport {
@@ -118,10 +119,28 @@ function ulpAt(value: number): number {
   return Math.abs(bits.getFloat32(0) - f);
 }
 
+/**
+ * Una lámina de papel A4 apaisada, en coordenadas de HOJA (0…297 mm).
+ *
+ * Es el segundo habitante del caso mixto: un documento georreferenciado en UTM
+ * al que su autor le añade una hoja para imprimirlo. Los dos conjuntos son
+ * legítimos y viven a siete órdenes de magnitud de distancia.
+ */
+const PAPER_SHEET: Array<[number, number, number, number]> = [
+  [0, 0, 297, 0],
+  [297, 0, 297, 210],
+  [297, 210, 0, 210],
+  [0, 210, 0, 0],
+];
+
 function measure(label: string, offset: number): MagnitudeReport {
   const segments = fixture(offset);
-  // El mismo origen que calcularía `CadRenderPipeline.replace()` sobre los
-  // límites reales del documento: el centroide de la fixture, redondeado.
+  // El mismo origen que calcularía `CadRenderPipeline.replace()`.
+  //
+  // El caso MIXTO (documento UTM + lámina de papel) no se mide aquí sino en
+  // `measureMixed`, que pasa por el pipeline REAL en vez de reproducir su
+  // decisión: quién entra en el origen flotante es precisamente lo que hay
+  // que verificar, y una sonda que lo reimplemente no verifica nada.
   const bounds = segments.reduce(
     (acc, [x1, y1, x2, y2]) => ({
       minX: Math.min(acc.minX, x1, x2),
@@ -187,6 +206,95 @@ function measure(label: string, offset: number): MagnitudeReport {
   };
 }
 
+/**
+ * EL CASO MIXTO — documento UTM con una lámina de papel presente.
+ *
+ * Un topógrafo abre su levantamiento (coordenadas UTM, ~2·10⁶) y le añade una
+ * hoja A4 para imprimirlo (coordenadas de papel, 0…297 mm). Los dos conjuntos
+ * son legítimos y viven a siete órdenes de magnitud de distancia.
+ *
+ * Hasta la campaña de lanzamiento, `CadRenderPipeline.replace()` calculaba el
+ * origen flotante sobre TODAS las entidades que le entregaba el anfitrión —y
+ * el anfitrión le entrega el documento entero, limitando a espacio modelo sólo
+ * el ORDEN DE DIBUJO—. El centroide quedaba a medio camino entre el
+ * levantamiento y la hoja, en torno a 10⁶, así que el origen dejaba de estar
+ * cerca de lo que se dibuja y el empaquetado a `Float32Array` perdía
+ * CENTÍMETROS de unidad de dibujo donde antes perdía micras.
+ *
+ * ─── Por qué esta medida pasa por el pipeline REAL ─────────────────────────
+ *
+ * Porque lo que se verifica es JUSTAMENTE la decisión de qué entra en el
+ * origen. Una sonda que reprodujera esa decisión por su cuenta —restando el
+ * papel a mano— demostraría que SU propia aritmética es correcta y seguiría
+ * verde el día que el pipeline volviese a incluirlo. Es el mismo error que
+ * esta sonda ya cometió una vez (fabricaba su propia resta en vez de llamar al
+ * teselador real) y que la campaña de paridad corrigió.
+ */
+function measureMixed(): MagnitudeReport {
+  const offset = 2_000_000;
+  const model = fixture(offset);
+  const entities: CadNativeEntity[] = [
+    ...model.map((segment, index) =>
+      lineEntity(`modelo-${index}`, ...segment),
+    ),
+    ...PAPER_SHEET.map((segment, index) => lineEntity(`papel-${index}`, ...segment)),
+  ];
+  const paperIds = PAPER_SHEET.map((_, index) => `papel-${index}`);
+  const document = {
+    meta: { version: 1, schema: 7, unit: "mm" },
+    layers: [{ name: "0", color: 7, visible: true, frozen: false, locked: false }],
+    entities,
+    history: [],
+    modelSpace: { entityIds: model.map((_, index) => `modelo-${index}`) },
+    paperSpaces: [{ id: "hoja", name: "A4", entityIds: paperIds }],
+    styles: {},
+    blocks: [],
+    constraints: [],
+    externalReferences: [],
+    unsupportedEntities: [],
+    lossManifest: [],
+    publications: [],
+  } as unknown as Parameters<CadRenderPipeline["replace"]>[2];
+
+  const pipeline = new CadRenderPipeline();
+  pipeline.replace(
+    entities,
+    model.map((_, index) => `modelo-${index}`),
+    document,
+  );
+  // EL ORIGEN QUE EL PRODUCTO ELIGIÓ, no el que esta sonda calcularía.
+  const origin = pipeline.renderOrigin;
+
+  const tessellations = tessellationsOf(model, origin);
+  const style = { color: 0xffffff, halfWidthPx: 1, linetypeIndex: 0, layer: "0" };
+  const batches = buildCadLineBatches(
+    tessellations.map((tessellation) => ({ tessellation, style, depth: 0 })),
+  );
+  let maxAbs = 0;
+  for (const batch of batches) {
+    for (let index = 0; index < batch.instanceCount; index += 1) {
+      const expected = model[index]!;
+      const got = [
+        batch.instanceStart[index * 2]! + origin.x,
+        batch.instanceStart[index * 2 + 1]! + origin.y,
+        batch.instanceEnd[index * 2]! + origin.x,
+        batch.instanceEnd[index * 2 + 1]! + origin.y,
+      ];
+      for (let axis = 0; axis < 4; axis += 1)
+        maxAbs = Math.max(maxAbs, Math.abs(got[axis]! - expected[axis]!));
+    }
+  }
+  return {
+    label: "UTM con lámina de papel (caso mixto, por el pipeline real)",
+    offset,
+    ulp: ulpAt(offset),
+    maxAbsErrorDrawingUnits: maxAbs,
+    maxRelativeSpanError: maxAbs / 100,
+    // El documento sigue en float64: el origen flotante es puramente de RENDER.
+    exportRoundTripError: 0,
+  };
+}
+
 const reports = [
   measure("planta local (mm)", 0),
   measure("nave grande (10⁴)", 10_000),
@@ -194,6 +302,7 @@ const reports = [
   measure("UTM este (5·10⁵)", 500_000),
   measure("UTM norte México (2·10⁶)", 2_000_000),
   measure("UTM norte alto (10⁷)", 10_000_000),
+  measureMixed(),
 ];
 
 const worst = reports[reports.length - 1]!;

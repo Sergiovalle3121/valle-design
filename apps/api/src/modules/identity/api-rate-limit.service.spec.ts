@@ -71,6 +71,7 @@ describe('ApiRateLimitService', () => {
       cadVisionPerAccount: 10,
       checkoutSessionsPerOrganization: 10,
       reviewCommentsPerSession: 30,
+      supportIncidentsPerAccount: 10,
     });
   });
 });

@@ -9,7 +9,10 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { DESIGN_CAD_ENTITLEMENT } from '@valle-design/contracts';
+import {
+  DESIGN_CAD_ENTITLEMENT,
+  survivesEntitlementLapse,
+} from '@valle-design/contracts';
 import type { Request } from 'express';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 import { REVIEW_LINK_SURFACE_KEY } from '../decorators/review-link-surface.decorator';
@@ -18,6 +21,7 @@ import { DesignAuditLog } from '../../audit-log/design-audit-log.service';
 import {
   ENTITLEMENT_SERVICE,
   type EntitlementService,
+  type LapsedEntitlement,
 } from '../../commercial/ports/commercial.ports';
 import type { ReviewAccessContext } from '../../cad-documents/review-link.service';
 import {
@@ -104,15 +108,48 @@ export class PermissionsGuard implements CanActivate {
       },
     );
     if (!entitled) {
-      await this.logDenial(user, 'ENTITLEMENT_DENIED', requiredPermissions);
-      throw new ForbiddenException({
-        code: 'entitlement_required',
-        message: `El tenant no tiene el entitlement ${DESIGN_CAD_ENTITLEMENT} vigente.`,
-        details: {
-          entitlement: DESIGN_CAD_ENTITLEMENT,
-          reason: 'not_entitled',
-        },
-      });
+      // LA REGLA DE ORO: los datos del usuario JAMÁS quedan rehenes.
+      //
+      // Hasta esta campaña el vencimiento cerraba TODO, incluido abrir y
+      // exportar. Para un producto que sale con tres meses gratis y sin
+      // tarjeta eso es letal: el día 91 el arquitecto descubre que sus planos
+      // están dentro de un programa que ya no le deja entrar. Ahora el
+      // vencimiento degrada a SOLO LECTURA — entra, ve, exporta DXF, imprime
+      // — y sólo la ESCRITURA queda detrás del cobro.
+      //
+      // Sólo aplica a un entitlement que EXISTIÓ y venció (`lapsedEntitlement`
+      // lo prueba contra la suscripción real y el reloj). Quien nunca contrató
+      // nada sigue viendo el 403 completo de siempre: esto no abre el producto
+      // a un desconocido, le devuelve su trabajo a un cliente.
+      const lapsed = await this.resolveLapse(user);
+      const readable =
+        !!lapsed && requiredPermissions.every(survivesEntitlementLapse);
+      if (!readable) {
+        await this.logDenial(user, 'ENTITLEMENT_DENIED', requiredPermissions);
+        throw new ForbiddenException({
+          code: 'entitlement_required',
+          message: lapsed
+            ? `Tu acceso de edición terminó. Puedes seguir abriendo y exportando tus documentos; para volver a editar hace falta el entitlement ${DESIGN_CAD_ENTITLEMENT} vigente.`
+            : `El tenant no tiene el entitlement ${DESIGN_CAD_ENTITLEMENT} vigente.`,
+          details: {
+            entitlement: DESIGN_CAD_ENTITLEMENT,
+            reason: lapsed ? 'read_only_after_lapse' : 'not_entitled',
+            ...(lapsed
+              ? {
+                  lapsedAt: lapsed.lapsedAt.toISOString(),
+                  lapseReason: lapsed.reason,
+                }
+              : {}),
+          },
+        });
+      }
+      // La petición sigue, pero MARCADA: el resto del backend puede leer
+      // `request.entitlementLapse` para no ofrecer una acción de escritura
+      // que el guard va a rechazar dos capas más abajo.
+      (
+        request as Request & { entitlementLapse?: LapsedEntitlement }
+      ).entitlementLapse = lapsed!;
+      await this.logDenial(user, 'ENTITLEMENT_READ_ONLY', requiredPermissions);
     }
 
     // 2) Admin pasa el RBAC funcional (el entitlement ya quedó verificado).
@@ -139,13 +176,40 @@ export class PermissionsGuard implements CanActivate {
   }
 
   /**
+   * El vencimiento probado, o `null`.
+   *
+   * Fallo cerrado por triplicado: un adaptador que no implemente el método
+   * (los dobles de prueba, cualquier adaptador futuro) responde `null` y el
+   * guard vuelve al 403 completo; una excepción del almacén también responde
+   * `null` en vez de propagar. Un error de infraestructura no puede terminar
+   * CONCEDIENDO acceso — ni siquiera de lectura.
+   */
+  private async resolveLapse(
+    user: AuthenticatedUser,
+  ): Promise<LapsedEntitlement | null> {
+    if (!this.entitlements.lapsedEntitlement) return null;
+    try {
+      return await this.entitlements.lapsedEntitlement(DESIGN_CAD_ENTITLEMENT, {
+        tenantId: user.tenant_id,
+        organizationId: user.organization_id,
+      });
+    } catch (err) {
+      this.logger.warn(
+        `No se pudo resolver el vencimiento del entitlement: ${(err as Error)?.message}`,
+      );
+      return null;
+    }
+  }
+
+  /**
    * Bitácora de la denegación con el tenant del actor estampado (contexto
    * ALS abierto a mano — el guard corre antes del TenantInterceptor); jamás
    * rompe la respuesta 403 (fail-soft).
    */
   private async logDenial(
     user: AuthenticatedUser,
-    action: 'ENTITLEMENT_DENIED' | 'PERMISSION_DENIED',
+    action:
+      'ENTITLEMENT_DENIED' | 'ENTITLEMENT_READ_ONLY' | 'PERMISSION_DENIED',
     requiredPermissions: string[],
   ): Promise<void> {
     if (!this.audit) return;

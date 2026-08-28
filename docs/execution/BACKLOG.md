@@ -167,7 +167,17 @@ ante operación sin marca. **Estimación:** medio día.
   pasa con una brecha ~0% en vez de con un techo de tolerancia.
 - **Estimación:** medio día una vez decidido el criterio de facturación.
 
-### P1-7 · Canal "algo salió mal" dentro del producto, vía outbox (OLA 3.2 de Paridad)
+### ~~P1-7 · Canal "algo salió mal" dentro del producto, vía outbox~~ — CERRADO (campaña de lanzamiento, OLA 4.2)
+
+> Cerrado el 2026-08-27. El estudio tiene el botón, con su cuadro que enseña
+> campo por campo lo que va a mandar, la casilla de autorización del plano
+> apagada por defecto y entrega por el outbox transaccional. Evidencia:
+> `support-incident.payload.spec.ts` (10), `support-incident.pg.spec.ts` (7,
+> contra PostgreSQL real) y `e2e/real/primera-hora.spec.ts` prueba 5, que pulsa
+> el botón en el navegador y lee el reporte del outbox. El aviso de privacidad
+> lo declara (versión 2026-08-27.2).
+
+### P1-7 (histórico) · Canal "algo salió mal" dentro del producto, vía outbox (OLA 3.2 de Paridad)
 - **Qué falta:** hoy el único canal de soporte es pasivo — `apps/web/src/app/support/page.tsx`
   es un `mailto:` a `COMMERCIAL_CONTACTS.support` y un enlace a la página de
   contacto. No hay forma de reportar un problema DESDE el editor con

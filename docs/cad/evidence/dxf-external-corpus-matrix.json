@@ -147,14 +147,13 @@
       "idaYVuelta": {
         "completado": true,
         "entidadesTrasImportar": 3,
-        "entidadesTrasReexportar": 2,
+        "entidadesTrasReexportar": 3,
         "supervivientes": {
           "LINE": 1,
+          "TEXT": 1,
           "POINT": 1
         },
-        "perdidasDeclaradas": {
-          "dxf_export_entity_dropped": 1
-        }
+        "perdidasDeclaradas": {}
       }
     },
     {
