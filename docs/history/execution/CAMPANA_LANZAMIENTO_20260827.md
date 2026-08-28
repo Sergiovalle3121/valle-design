@@ -4,10 +4,9 @@
 (tras COMMERCIAL-RC1 y la campaña de paridad) ·
 **Rama:** `claude/valle-design-launch-campaign-yhxse6`
 
-> Bitácora VIVA mientras la campaña corre. Al publicar
-> `INFORME_LANZAMIENTO_20260827.md` este archivo se archiva a
-> `docs/history/execution/` en el mismo commit (regla del cierre de ramas,
-> `AGENTS.md`).
+> **ARCHIVADA.** Fue la bitácora viva mientras la campaña corría; describe lo
+> que pasó, no lo que está pasando. El informe de cierre —evidencia medida— vive
+> en `docs/execution/INFORME_LANZAMIENTO_20260827.md`.
 
 ## La vara
 
@@ -70,9 +69,9 @@ Prohibido el cuarto estado: **visible y no verificada**.
 | 5 | 5.3 Respaldo diario verificado, Sentry, uptime | **cerrado** |
 | 5 | 5.4 Aviso de privacidad y términos del modo gratuito | **cerrado** |
 | 5 | 5.5 Los cinco fixes de producción abiertos | **cerrado** |
-| F | F.1 Suite + Jornada Real + goldens + push | pendiente |
-| F | F.2 `INFORME_LANZAMIENTO_20260827.md` | pendiente |
-| F | F.3 «Lo que sólo Sergio puede hacer» | pendiente |
+| F | F.1 Suite + Jornada Real + goldens + push | **cerrado** |
+| F | F.2 `INFORME_LANZAMIENTO_20260827.md` | **cerrado** |
+| F | F.3 «Lo que sólo Sergio puede hacer» | **cerrado** |
 
 ## Bitácora
 

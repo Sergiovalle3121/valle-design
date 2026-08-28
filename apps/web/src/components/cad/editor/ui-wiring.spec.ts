@@ -64,7 +64,7 @@ const EXENTOS: Record<string, string> = {
     "que lo escribe no se puede disparar, no porque haya un control que mienta: " +
     "no hay superficie visible que prometa nada. Backlog: cablearlo con su " +
     "indicador de «pensando…» o retirar el bloque. Ver " +
-    "`docs/execution/CAMPANA_LANZAMIENTO_20260827.md`, OLA 2.3.",
+    "`docs/history/execution/CAMPANA_LANZAMIENTO_20260827.md`, OLA 2.3.",
 };
 
 /** La superficie del estudio: donde vive el estado de los controles. */

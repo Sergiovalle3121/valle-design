@@ -1,0 +1,277 @@
+# Informe de lanzamiento — barrido funcional total
+
+**27 de agosto de 2026** · rama `claude/valle-design-launch-campaign-yhxse6` ·
+base `main` @ `9592869` (tras COMMERCIAL-RC1 y la campaña de paridad)
+
+> Bitácora de la campaña archivada en
+> `docs/history/execution/CAMPANA_LANZAMIENTO_20260827.md`.
+
+---
+
+## El veredicto
+
+**GO técnico.** Todo lo que se puede verificar desde este repositorio está en
+verde, con números. Lo que falta para que el sitio exista no es código: es la
+lista de §8, y ninguna línea de ella se puede hacer desde aquí.
+
+La vara era ésta:
+
+> Un arquitecto que no conocemos, en una computadora que no controlamos, dibuja
+> una planta, la acota, la imprime a PDF, la exporta a DXF, y **los tres
+> archivos dicen la verdad**.
+
+Se cumple, y se cumple medida. La Jornada Real ejecuta ese recorrido de punta a
+punta contra Next.js + NestJS + PostgreSQL reales, sin un solo mock, y verifica
+los dos archivos de la vara **por contenido**: las coordenadas del DXF (el muro
+sigue midiendo 3500) y los trazos del PDF (70 mm exactos a 1:50), nunca su
+forma. El tercer descargable, el GLB, se mide en su propia suite —un muro
+conocido medido dentro del archivo exportado— porque no forma parte de esa
+frase; §3 los recoge los tres.
+
+---
+
+## 1 · La regla que ordenó todo: FIX-OR-HIDE
+
+Cada capacidad visible pasó por una de tres puertas, y sólo tres. **No queda
+ninguna en el cuarto estado —visible y no verificada—**, que era la prohibición
+central de esta campaña.
+
+### 1.1 · ARREGLADAS — tenían defecto, se corrigió, hay evidencia nueva
+
+| # | Defecto | Qué le pasaba al usuario | Evidencia |
+| --- | --- | --- | --- |
+| 1 | TEXT canónico ausente de la exportación DXF | Escribía una nota y no salía en el archivo que manda al cliente | `dxf-roundtrip.spec.ts` (52) · corpus de terceros 3-de-3 |
+| 2 | Origen flotante contaminado por el espacio papel | Un plano georreferenciado con lámina degradaba la precisión **7 243×** | `large-coordinates.spec.ts` (13) |
+| 3 | El cajetín imprimía «—» en CLIENTE, FECHA y REVISÓ | Entregaba un PDF con el cajetín a medias | `pdf-content.spec.ts` (28) |
+| 4 | El selector «Papel del plano» no lo leía **nadie** | Elegía A0 y salía lo que dijera la hoja | `cables-sueltos.spec.ts` · `ui-wiring.spec.ts` |
+| 5 | «imprime en A3» escribía en ese mismo estado muerto | La orden decía haber hecho algo que no hacía | idem |
+| 6 | «Failed to fetch» como mensaje de error | Al caerse el wifi leía el `TypeError` del navegador, en inglés | `save-failure.spec.ts` (59) · `errores-en-espanol.spec.ts` |
+| 7 | Los errores duraban 3,5 s, igual que un acuse | «Tu sesión expiró» se iba antes de poder leerla | idem |
+| 8 | 33 avisos titulados «3D» | Leía «**3D** — No se pudo guardar la versión» | idem |
+| 9 | El panel de atajos decía «L — Conectar flujo» | Pulsaba L para unir dos objetos y le salía un muro | `shortcuts-help.spec.ts` (67) |
+| 10 | El panel callaba 20 atajos reales | `Ctrl+S`, `Ctrl+K` y las siete teclas de función, invisibles | idem |
+| 11 | El estudio se encogía en silencio en un móvil | Los paneles laterales desaparecían sin explicación: parecía que el producto no los tenía | `movil.spec.ts` (8) |
+| 12 | El entitlement vencido cerraba **también** abrir y exportar | Dejaba de pagar y perdía el acceso a su propio trabajo | `entitlement-read-only.pg.spec.ts` (10) |
+
+Y un defecto **en mis propias herramientas**, que merece constar porque estuvo a
+punto de dar por bueno un producto roto: el extractor de PDF nuevo se
+desincronizaba con datos comprimidos y perdía en silencio 38 de 50 trazos. Se
+arregló anclando en `N 0 obj` y leyendo el `/Length` de cada objeto.
+
+### 1.2 · OCULTAS — no se pudo verificar o no procede, y desaparecen de la superficie
+
+| Qué | Por qué | Entrada de backlog |
+| --- | --- | --- |
+| Selector «Papel del plano» de la barra | El control que **sí** funciona vive en el panel de layouts, por hoja, que además es la semántica correcta (un conjunto mezcla A1 con A3) | cerrado, no reaparece |
+| Checkout de Stripe | Decisión del lanzamiento, no defecto. **El código no se toca ni se borra**: se apaga su visibilidad tras `NEXT_PUBLIC_LAUNCH_MODE` | reversible con una variable |
+| Exportación DWG | Sigue apagada, y los candados no se tocaron. Un gate audita las 9 menciones de DWG en la superficie pública y exige el límite declarado a menos de 240 caracteres | `dwg-surface-honesty.spec.ts` |
+| Copiloto IA heredado (`aiBusy`) | **Inalcanzable**: ninguna llamada lo invoca, ningún botón lo expone. No hay superficie que prometa nada, así que no hay nada que ocultar | declarado en `ui-wiring.spec.ts` con su razón |
+| Paso DXF→DWG→DXF con ODA File Converter | La herramienta no está en esta máquina. **Declarado, no fingido** | queda como peldaño de evidencia |
+
+### 1.3 · VERIFICADAS — funcionan, con evidencia numérica
+
+* **767 casos numéricos** contra oráculo independiente, **0 desviaciones fuera
+  de tolerancia** (§2).
+* **192 comandos** del registro, **0 éxitos falsos** (`check:command-integrity`).
+* **82 controles visibles** del estudio pulsados uno a uno contra el stack real:
+  68 con efecto medido, 5 sin efecto **declarados uno a uno con su razón**, 3
+  deshabilitados con motivo. **0 muertos sin declarar.**
+* Los **tres descargables**, verificados por contenido (§3).
+* El **modo sin rehenes** (§4).
+* El recorrido guiado: sus cuatro comandos existen en el registro real, su
+  bloque de puerta existe, sale una vez y saltarlo persiste.
+* El embudo sin tarjeta: **6 clics, 7 pantallas, cero campos de pago**.
+* El plano de ejemplo abre en **1,6 s con 18 entidades**.
+
+---
+
+## 2 · La matemática
+
+**767 casos numéricos verificados contra oráculo independiente · 0 desviaciones
+fuera de tolerancia.**
+
+| Suite | Casos | Qué compara |
+| --- | --- | --- |
+| `construction-geometry.spec.ts` | 48 | Intersecciones **analíticas** (no sobre teselado), tangencias, OSNAP |
+| `modification.spec.ts` | 400 | TRIM/EXTEND/BREAK, FILLET medido por distancia centro-línea, OFFSET a N puntos, ARRAY, MIRROR, ROTATE/SCALE |
+| `measurement.spec.ts` | 134 | DIST, AREA con huecos y arcos (segmento circular en forma cerrada), y **20 cotas cuyo valor mostrado se compara con el medido** |
+| `angle-frontiers.spec.ts` | 44 | **8 fronteras entre subsistemas** a 37,5°, ida y vuelta |
+| `units-and-scale.spec.ts` | 36 | Un muro de 3,5 m en las **cuatro** representaciones a la vez |
+| `large-coordinates.spec.ts` | 13 | UTM + lámina de papel, por el teselador **real** |
+| `pdf-content.spec.ts` | 28 | Trazos extraídos del content-stream |
+| `dxf-roundtrip.spec.ts` | 52 | 21 tipos, ida y vuelta numérica + lector de terceros |
+| `glb-scale.spec.ts` | 8 | Metros medidos dentro del archivo |
+| `dwg-surface-honesty.spec.ts` | 4 | Ninguna promesa sin su límite |
+
+**Qué hace que valga:** los oráculos no importan nada del código bajo prueba.
+Son resultados analíticos calculados a mano —dos circunferencias de radio 5 con
+centros a 8 se cortan en puntos que se pueden escribir en un papel— e
+implementaciones de fuerza bruta escritas aparte. El *golden de regresión* está
+explícitamente prohibido en esa carpeta: comparar el producto consigo mismo no
+prueba nada.
+
+Durante la ola, **cinco de mis propias expectativas resultaron equivocadas y el
+producto tenía razón** (el sentido del TRIM sobre un arco, la dirección del
+OFFSET, el área de un polígono de 192 lados, el bulge de una semicircunferencia,
+la forma de `cadDistanceBetween`). Se corrigieron los oráculos, no el producto.
+
+---
+
+## 3 · Los tres descargables, verificados por contenido
+
+| Formato | Cómo se verifica | Resultado |
+| --- | --- | --- |
+| **PDF** | Se extraen los **trazos** del content-stream (inflate, pila `q`/`Q`, `cm`/`m`/`l`/`re`/`c`/`h`) y se miden | El muro de 3,5 m mide **70 mm exactos a 1:50**. Cajetín completo, acentos intactos, márgenes ISO |
+| **DXF** | Ida y vuelta numérica entidad por entidad **y** apertura con `dxf-parser`, biblioteca de **terceros** que no conoce las convenciones de este producto | Los 21 tipos que viajan, cada uno con su caso numérico. Cero pérdidas declaradas |
+| **GLB** | Se **mide un muro conocido dentro del archivo exportado**, en los tres ejes | 3,5 × 2,4 × 0,25 m, y el **mismo** muro en un predio diez veces mayor sigue midiendo 3,5 — que es la afirmación entera |
+
+Ninguno se valida por su forma. El DXF no pasa porque contenga la palabra
+`LINE`: pasa porque el muro sigue midiendo 3500.
+
+**Los tres funcionan también con la prueba vencida** (§4) y desde un enlace de
+revisión donde aplica.
+
+---
+
+## 4 · La regla de oro: los datos nunca son rehenes
+
+Antes de esta campaña, el entitlement `design.cad` vencido cerraba **todo**,
+incluida la apertura y la exportación. Un arquitecto que dejaba de pagar perdía
+el acceso a sus propios planos.
+
+Ahora el guard **degrada a solo lectura**: entra, ve sus documentos, **exporta
+DXF y PDF** y se lo lleva todo; lo único que no puede es editar. Y falla
+cerrado por triple vía: sin fecha de vencimiento **probada** no hay concesión,
+un adaptador que no implemente la consulta conserva el comportamiento anterior,
+y un fallo del almacén deniega.
+
+* `entitlement-read-only.pg.spec.ts` — 10 comprobaciones contra **PostgreSQL
+  real**, porque en SQLite las fechas son texto y una suite verde ahí no
+  probaría que el arquitecto puede abrir sus planos el día 91.
+* Está **por escrito donde el cliente lo lee**: los términos 2026-08-27 dicen
+  que sus documentos no quedan condicionados al pago.
+* Y el aviso de guardado lo repite **en el instante en que el usuario duda de
+  ello**: al fallar por expiración, el mensaje dice que puede seguir abriendo y
+  exportando.
+
+---
+
+## 5 · La lista GO/NO-GO
+
+| Criterio | Estado | Evidencia |
+| --- | --- | --- |
+| La Jornada Real, verde contra el stack real | ✅ | `e2e/real/jornada-real.spec.ts` — **7/7**, cero mocks, en CI en cada push |
+| Cero mentiras conocidas en la superficie visible | ✅ | Barrido de 82 controles (0 muertos sin declarar) · gates de DWG, atajos y recorrido |
+| Los tres descargables verificados **por contenido** | ✅ | §3 |
+| El modo 90 días sin rehenes, probado | ✅ | §4 |
+| La matemática contra oráculo independiente | ✅ | **767 casos, 0 desviaciones** |
+| Los errores hablan español con salida | ✅ | `errores-en-espanol.spec.ts` — **5/5**, cinco fallos provocados de verdad |
+| No se pierde trabajo: offline, dos pestañas, cierre forzado | ✅ | **13/13** con la red genuinamente cortada |
+| Registro sin tarjeta, medido | ✅ | **6 clics · 7 pantallas · 0 campos de pago** |
+| Ruta de despliegue escrita y probada | ✅ | `DESPLIEGUE-RAILWAY.md` · `smoke:railway` **9/9 en vivo** |
+| Respaldo con restauración verificada | ✅ | 35 tablas, 885 filas, recuentos idénticos, **RTO 1,15 s** |
+| Legal coherente con el modo gratuito | ⚠️ | Publicado y candado, **marcado «borrador pendiente de revisión legal»** |
+| Repositorios privados | ❌ | **Sólo Sergio** (§8) |
+| Dominio, DNS y despliegue | ❌ | **Sólo Sergio** (§8) |
+
+Las dos últimas no son deuda técnica: son actos de cuenta y de propiedad que
+este repositorio no puede ejecutar. La legal tampoco lo es —el texto está
+publicado, candado y coherente con el modo gratuito—, pero lo escribió el equipo
+de producto describiendo lo que el software hace, y lo dice de sí mismo: falta
+la revisión profesional antes de prestar un servicio público.
+
+### El árbol, en números
+
+| Suite | Resultado |
+| --- | --- |
+| `npm run check:cad` (17 gates) | **EXIT=0** |
+| Specs del web | **432/432** |
+| Suite de la API (SQLite) | **712 pasadas** |
+| Suites contra **PostgreSQL real** | **192 pasadas**, 36 suites |
+| Presupuesto de monolito | OK — `Layout3DEditor.tsx` clavado en **20 242 líneas / 140 `useState`** (bajó de 141) |
+| Trinquete de lint | 547/547 |
+| Candado legal | OK — `terms` 2026-08-27, `privacy` 2026-08-27.2 |
+
+---
+
+## 6 · Lo que se decidió y por qué, cuando había duda
+
+* **El papel del plano se elige por hoja, no en la barra.** Un conjunto de
+  entrega mezcla planos A1 con detalles A3; un desplegable global habría sido
+  cómodo y equivocado.
+* **El reporte de «algo salió mal» manda el identificador del plano, nunca el
+  dibujo.** Adjuntarlo a un correo sería peor para la privacidad, no mejor: el
+  documento ya vive en el servidor con su control de acceso; una copia en un
+  buzón no lo tiene.
+* **La telemetría no añade ni una recolección nueva.** Los cuatro números se
+  derivan de filas que el producto ya escribe para operar. Si se retirase el
+  endpoint, no dejaría de recogerse absolutamente nada.
+* **Cuatro de los cinco «ajustes de producción» ya estaban puestos.** Se
+  verificaron en vez de rehacerse. Lo que faltaba era evidencia, no código.
+* **El estudio en un móvil no se bloquea.** Sirve para lo que la gente hace en
+  un móvil —abrir el plano que le acaban de mandar y mirarlo—; lo que se
+  arregló fue que dejara de callarse lo que faltaba.
+
+---
+
+## 7 · Límites declarados (lo que este informe **no** afirma)
+
+* **DWG sigue apagado.** No se abre, no se escribe. La superficie lo dice donde
+  lo nombra.
+* **DXF→DWG→DXF con ODA File Converter no se ejecutó**: la herramienta no está
+  en esta máquina. El peldaño queda declarado.
+* **Los textos legales no han pasado revisión profesional** y lo dicen ellos
+  mismos.
+* **Sentry y el monitor de uptime están documentados, no encendidos**: dependen
+  de cuentas que sólo Sergio tiene.
+* **El respaldo diario está escrito para Railway, no programado**: el servicio
+  con horario hay que crearlo en el proyecto.
+* Las cifras de rendimiento salen de **un contenedor compartido**, más lento que
+  cualquier portátil. Son techos, no marcas.
+
+---
+
+## 8 · Lo que sólo Sergio puede hacer, en orden
+
+1. **Poner los dos repositorios EN PRIVADO.** Es lo primero porque hoy son
+   públicos mientras toda la gobernanza los llama confidenciales (`P0-1` del
+   backlog). Va antes que el dominio: publicar el sitio dirige atención al
+   código.
+2. **Crear el proyecto en Railway** con los tres servicios y seguir
+   `docs/onboarding/DESPLIEGUE-RAILWAY.md` de arriba abajo. Las variables 🔑 son
+   exactamente las que nadie más puede generar.
+3. **Dominio y DNS**: `valledesign.mx` y `api.valledesign.mx`. Tienen que ser
+   **mismo sitio**: la cookie de sesión es `SameSite=Lax` y con dominios
+   distintos el acceso no funciona. No es una preferencia estética.
+4. **Clave de Resend** y verificación del dominio de correo. Sin ella nadie
+   recibe el enlace de verificación y **nadie llega a entrar**.
+5. **Los secretos**: `IDENTITY_RATE_LIMIT_KEY_SECRET`, `OUTBOX_WEBHOOK_SECRET`,
+   `METRICS_TOKEN` (`openssl rand -base64 48` cada uno), `SUPPORT_EMAIL` y
+   `TRIAL_DAYS=90`.
+6. **Correr el smoke** en cuanto haya URL:
+   `npm run smoke:railway -- --web https://valledesign.mx --api https://api.valledesign.mx --email tu-correo@dominio.mx`.
+   Dos minutos para saber si el sitio está vivo. Las omitidas **no cuentan como
+   verdes**.
+7. **Programar el respaldo diario** (§7.2 del documento de despliegue) y
+   **restaurar uno a mano** para ver el verde con tus propios ojos.
+8. **Sentry y el monitor de uptime**, apuntando a `/health/ready` —no a
+   `/health`—, que es la diferencia entre «el proceso vive» y «el producto
+   sirve».
+9. **Mandar el enlace a los primeros cinco arquitectos**, con el guion de sesión
+   que ya existe. A partir de ahí, el botón «algo salió mal» y
+   `GET /health/metrics/activation` cuentan lo que pasa de verdad: de los que se
+   registran, cuántos llegan a dibujar.
+
+---
+
+## 9 · Lo primero que hay que mirar cuando entren
+
+De todo lo que se construyó hoy, dos cosas contestan la única pregunta que
+importa la primera semana:
+
+* **La tasa de activación.** `GET /health/metrics/activation` dice, de los que
+  se registraron, cuántos llegaron a **guardar su primer dibujo**. Un embudo
+  roto se ve ahí en un número, no en la ausencia de clientes tres semanas
+  después.
+* **Los reportes de «algo salió mal».** Van a describir cosas que ninguna prueba
+  de este repositorio imaginó. Ésa es exactamente su utilidad.
