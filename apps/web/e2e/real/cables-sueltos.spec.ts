@@ -77,7 +77,13 @@ const FUERA_DEL_BARRIDO: Record<string, string> = {
  * y la lista de muertos dejaría de significar algo.
  */
 const NO_OPERAN_POR_ESTAR_ACTIVOS: Record<string, string> = {
-  "Vista 3D (órbita libre)": "el estudio carga ya en vista 3D",
+  // Era «Vista 3D»: el estudio cargaba en volumen. Desde la campaña de firma
+  // abre en PLANTA —la primera impresión de un CAD de planos es un plano—, así
+  // que el botón ya activo al cargar es el otro. Comprobado, no supuesto: una
+  // sonda sobre el estudio recién abierto devuelve la clase de activo en «2D» y
+  // la de inactivo en «3D».
+  "Vista de plano 2D (superior, solo paneo y zoom)":
+    "el estudio carga ya en vista de planta",
   Model: "la pestaña de espacio modelo ya está seleccionada",
   "Seleccionar / mover (V)": "es la herramienta activa al cargar",
   Puntos: "es la pestaña abierta del panel izquierdo",

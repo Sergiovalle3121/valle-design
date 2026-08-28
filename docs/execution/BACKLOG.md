@@ -291,6 +291,22 @@ ante operación sin marca. **Estimación:** medio día.
 
 ## P2 — deuda que crece con intereses
 
+### P2-F5 · El barrido de cables sueltos es sensible al orden en el par 2D/3D
+- **Qué falla:** `cables-sueltos.spec.ts` pulsa los 76 controles del estudio en
+  serie y SIN restaurar el estado entre uno y otro, así que en el par
+  «Vista de plano 2D» / «Vista 3D» el que resulte inerte depende de en qué modo
+  esté el visor al llegar a él. Medido: en dos corridas locales consecutivas del
+  MISMO commit el inerte cambió de uno al otro; en CI sale siempre el 2D, que es
+  lo que coincide con el estado real de carga (una sonda sobre el estudio recién
+  abierto devuelve la clase de activo en «2D»).
+- **Por qué importa:** un gate que cambia de veredicto sin que cambie el código
+  es un gate que la gente aprende a re-ejecutar hasta que pase, y entonces deja
+  de proteger.
+- **Criterio de aceptación:** el barrido deja el visor en un modo conocido antes
+  de medir cada control de vista —o mide ese par aparte, declarando el modo de
+  partida—, y dos corridas seguidas dan el mismo conjunto de inertes.
+- **Estimación:** 1 hora, más una corrida de 7 minutos por verificación.
+
 ### P2-1 · Techos silenciosos de snap (medir antes de subir)
 `maxSegments: 96` del osnap, `search(..., 48)` de candidatos, 4_096 del
 boundary. **Cerrado 2026-08-27 (campaña Paridad, OLA 0.3/1.1):** el tope
