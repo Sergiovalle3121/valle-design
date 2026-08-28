@@ -176,9 +176,12 @@ export function milestoneFor(
   trialEndsAt: Date,
   now: Date,
 ): TrialReminderMilestone | null {
-  const daysLeft = Math.ceil((trialEndsAt.getTime() - now.getTime()) / MS_PER_DAY);
+  const daysLeft = Math.ceil(
+    (trialEndsAt.getTime() - now.getTime()) / MS_PER_DAY,
+  );
   if (daysLeft <= 0) return null;
   return (
-    TRIAL_REMINDER_MILESTONES.find((milestone) => daysLeft === milestone) ?? null
+    TRIAL_REMINDER_MILESTONES.find((milestone) => daysLeft === milestone) ??
+    null
   );
 }

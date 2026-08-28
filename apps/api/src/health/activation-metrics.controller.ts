@@ -90,9 +90,7 @@ export class ActivationMetricsController {
    * publicaron algo — entregar es la razón por la que existe el producto.
    */
   private async snapshot() {
-    const organizations = await this.db
-      .getRepository(Organization)
-      .count();
+    const organizations = await this.db.getRepository(Organization).count();
     const trialing = await this.db
       .getRepository(Subscription)
       .count({ where: { status: 'trialing' } });
@@ -123,9 +121,7 @@ export class ActivationMetricsController {
       entregaron: delivered,
       /** Tasa de activación: de las que se registraron, cuántas dibujaron. */
       tasaDeActivacion:
-        organizations > 0
-          ? Number((drew / organizations).toFixed(4))
-          : null,
+        organizations > 0 ? Number((drew / organizations).toFixed(4)) : null,
       medidoEn: new Date().toISOString(),
     };
   }

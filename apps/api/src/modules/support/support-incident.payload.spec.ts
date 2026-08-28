@@ -78,7 +78,9 @@ describe('el reporte de «algo salió mal»', () => {
       { ...BASE, documentAuthorized: false },
       CONTEXTO,
     );
-    expect(payload.summary).toBe('Al acotar un muro largo la cota sale del revés');
+    expect(payload.summary).toBe(
+      'Al acotar un muro largo la cota sale del revés',
+    );
   });
 
   it('recorta un texto desmedido en vez de rechazarlo', () => {

@@ -30,7 +30,8 @@ import { ormOptions } from './orm.options';
  */
 
 const root = path.resolve(__dirname, '../../..');
-const read = (relative: string) => readFileSync(path.join(root, relative), 'utf8');
+const read = (relative: string) =>
+  readFileSync(path.join(root, relative), 'utf8');
 
 /**
  * El rebote del autosave del estudio, en milisegundos.
@@ -42,8 +43,13 @@ const read = (relative: string) => readFileSync(path.join(root, relative), 'utf8
  */
 const AUTOSAVE_DEBOUNCE_MS = 2_000;
 
-const withEnv = <T,>(env: Record<string, string | undefined>, fn: () => T): T => {
-  const previous = new Map(Object.keys(env).map((key) => [key, process.env[key]]));
+const withEnv = <T>(
+  env: Record<string, string | undefined>,
+  fn: () => T,
+): T => {
+  const previous = new Map(
+    Object.keys(env).map((key) => [key, process.env[key]]),
+  );
   for (const [key, value] of Object.entries(env)) {
     if (value === undefined) delete process.env[key];
     else process.env[key] = value;
@@ -163,7 +169,9 @@ describe('Ajustes de producción — los cinco, con evidencia', () => {
   it('5 · el techo de guardado deja holgura sobre lo que el propio estudio genera', () => {
     // Un arquitecto dibujando sin levantar la mano no puede producir más
     // guardados que los que su rebote permite.
-    const guardadosPorMinutoDeUnHumano = Math.ceil(60_000 / AUTOSAVE_DEBOUNCE_MS);
+    const guardadosPorMinutoDeUnHumano = Math.ceil(
+      60_000 / AUTOSAVE_DEBOUNCE_MS,
+    );
     expect(guardadosPorMinutoDeUnHumano).toBe(30);
 
     // Holgura de al menos 3×: deja sitio a un guardado manual entre autosaves,

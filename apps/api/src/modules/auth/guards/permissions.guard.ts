@@ -189,13 +189,10 @@ export class PermissionsGuard implements CanActivate {
   ): Promise<LapsedEntitlement | null> {
     if (!this.entitlements.lapsedEntitlement) return null;
     try {
-      return await this.entitlements.lapsedEntitlement(
-        DESIGN_CAD_ENTITLEMENT,
-        {
-          tenantId: user.tenant_id,
-          organizationId: user.organization_id,
-        },
-      );
+      return await this.entitlements.lapsedEntitlement(DESIGN_CAD_ENTITLEMENT, {
+        tenantId: user.tenant_id,
+        organizationId: user.organization_id,
+      });
     } catch (err) {
       this.logger.warn(
         `No se pudo resolver el vencimiento del entitlement: ${(err as Error)?.message}`,
@@ -212,9 +209,7 @@ export class PermissionsGuard implements CanActivate {
   private async logDenial(
     user: AuthenticatedUser,
     action:
-      | 'ENTITLEMENT_DENIED'
-      | 'ENTITLEMENT_READ_ONLY'
-      | 'PERMISSION_DENIED',
+      'ENTITLEMENT_DENIED' | 'ENTITLEMENT_READ_ONLY' | 'PERMISSION_DENIED',
     requiredPermissions: string[],
   ): Promise<void> {
     if (!this.audit) return;

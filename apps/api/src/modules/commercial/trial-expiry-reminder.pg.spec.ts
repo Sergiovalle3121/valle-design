@@ -176,8 +176,9 @@ describePostgres('Aviso de fin de prueba (PostgreSQL)', () => {
     await expect(service.runOnce()).resolves.toBe(1);
     const rows = await emailRows();
     expect(rows).toHaveLength(2);
-    expect(rows.map((row) => (row.payload as { daysLeft: number }).daysLeft).sort())
-      .toEqual([1, 7]);
+    expect(
+      rows.map((row) => (row.payload as { daysLeft: number }).daysLeft).sort(),
+    ).toEqual([1, 7]);
   });
 
   it('a 30 días de una prueba de tres meses no se molesta a nadie', async () => {

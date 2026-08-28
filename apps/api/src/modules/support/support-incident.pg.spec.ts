@@ -45,7 +45,10 @@ describePostgres('Reportes de soporte — el camino de vuelta', () => {
   beforeEach(async () => {
     await harness.truncateAll();
     process.env.SUPPORT_EMAIL = 'soporte@valledesign.test';
-    service = new SupportService(harness.dataSource, new PostgresEmailService());
+    service = new SupportService(
+      harness.dataSource,
+      new PostgresEmailService(),
+    );
   });
 
   const reporte = (extra: Record<string, unknown> = {}) => ({
@@ -63,7 +66,9 @@ describePostgres('Reportes de soporte — el camino de vuelta', () => {
   };
 
   const filas = () =>
-    harness.dataSource.getRepository(EmailOutbox).find({ order: { id: 'ASC' } });
+    harness.dataSource
+      .getRepository(EmailOutbox)
+      .find({ order: { id: 'ASC' } });
 
   it('queda escrito en el outbox, listo para salir', async () => {
     await service.report(reporte(), contexto);

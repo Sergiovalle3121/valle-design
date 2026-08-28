@@ -52,7 +52,7 @@ describe('PublicCatalogController', () => {
       // La configuración REAL parsea `TRIAL_DAYS` al construirse y revienta el
       // arranque con un valor inválido; aquí se inyecta el resultado ya
       // resuelto para poder fijar la duración por caso.
-      { trialDays } as OrganizationCommercialConfiguration,
+      { trialDays },
       clock,
     );
   }

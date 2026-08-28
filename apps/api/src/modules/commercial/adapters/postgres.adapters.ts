@@ -218,7 +218,7 @@ export class PostgresEntitlementService implements EntitlementService {
     return {
       planCode: row.planCode,
       status: row.status,
-      lapsedAt: usePeriod ? periodEnd! : trialEnd!,
+      lapsedAt: usePeriod ? periodEnd : trialEnd!,
       reason: usePeriod ? 'period_ended' : 'trial_ended',
     };
   }

@@ -1,11 +1,5 @@
 import { timingSafeEqual } from 'node:crypto';
-import {
-  Body,
-  Controller,
-  NotFoundException,
-  Post,
-  Req,
-} from '@nestjs/common';
+import { Body, Controller, NotFoundException, Post, Req } from '@nestjs/common';
 import { IsUUID } from 'class-validator';
 import type { Request } from 'express';
 import { DataSource } from 'typeorm';
