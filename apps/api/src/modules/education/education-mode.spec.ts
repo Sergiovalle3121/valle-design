@@ -53,7 +53,8 @@ describe('modo universitario', () => {
     it('descarta la basura en vez de guardarla', () => {
       const dominios = institutionalDomains({
         EDUCATION_MODE: 'true',
-        EDUCATION_EMAIL_DOMAINS: 'unam.mx,,@,sinpunto,-mal.mx,mal-.mx,a b.mx,x@y.mx',
+        EDUCATION_EMAIL_DOMAINS:
+          'unam.mx,,@,sinpunto,-mal.mx,mal-.mx,a b.mx,x@y.mx',
       });
       expect([...dominios]).toEqual(['unam.mx']);
     });
@@ -65,7 +66,16 @@ describe('modo universitario', () => {
     });
 
     it('rechaza lo que no es un correo', () => {
-      for (const basura of ['', '@', 'ana@', '@unam.mx', 'ana@@unam.mx', 'ana@unam', null, undefined]) {
+      for (const basura of [
+        '',
+        '@',
+        'ana@',
+        '@unam.mx',
+        'ana@@unam.mx',
+        'ana@unam',
+        null,
+        undefined,
+      ]) {
         expect(emailDomain(basura)).toBeNull();
       }
     });
@@ -75,15 +85,21 @@ describe('modo universitario', () => {
     it('acepta el dominio raíz y sus subdominios', () => {
       expect(isInstitutionalEmail('profesor@unam.mx', ENCENDIDO)).toBe(true);
       expect(isInstitutionalEmail('ana@alumnos.unam.mx', ENCENDIDO)).toBe(true);
-      expect(isInstitutionalEmail('luis@fi.posgrado.unam.mx', ENCENDIDO)).toBe(true);
+      expect(isInstitutionalEmail('luis@fi.posgrado.unam.mx', ENCENDIDO)).toBe(
+        true,
+      );
       expect(isInstitutionalEmail('pau@uni.es', ENCENDIDO)).toBe(true);
     });
 
     it('NO acepta un dominio que sólo termina igual', () => {
       // Doce dólares es lo que cuesta comprar `malicioso-unam.mx`. Un
       // `endsWith` sin el punto lo habría dejado pasar.
-      expect(isInstitutionalEmail('quien@malicioso-unam.mx', ENCENDIDO)).toBe(false);
-      expect(isInstitutionalEmail('quien@unam.mx.example.com', ENCENDIDO)).toBe(false);
+      expect(isInstitutionalEmail('quien@malicioso-unam.mx', ENCENDIDO)).toBe(
+        false,
+      );
+      expect(isInstitutionalEmail('quien@unam.mx.example.com', ENCENDIDO)).toBe(
+        false,
+      );
       expect(isInstitutionalEmail('quien@notunam.mx', ENCENDIDO)).toBe(false);
     });
 
@@ -97,7 +113,9 @@ describe('modo universitario', () => {
     });
 
     it('NO acepta a nadie con el modo encendido y la lista vacía', () => {
-      expect(isInstitutionalEmail('profesor@unam.mx', { EDUCATION_MODE: 'true' })).toBe(false);
+      expect(
+        isInstitutionalEmail('profesor@unam.mx', { EDUCATION_MODE: 'true' }),
+      ).toBe(false);
     });
   });
 
@@ -126,7 +144,9 @@ describe('modo universitario', () => {
     // la comparación directa sería estáticamente falsa y no compilaría. Se
     // compara sobre la lista ensanchada: lo que se quiere probar es el HECHO en
     // tiempo de ejecución, no lo que el compilador ya sabe.
-    const codigos: readonly string[] = PUBLISHABLE_PLANS.map((plan) => plan.code);
+    const codigos: readonly string[] = PUBLISHABLE_PLANS.map(
+      (plan) => plan.code,
+    );
     expect(codigos).not.toContain(EDUCATION_PLAN_CODE);
   });
 });

@@ -38,7 +38,8 @@ function normalizar(valor: string): string {
  * espacios ni arrobas. No valida que exista; descarta la basura de una lista
  * mal escrita, que es lo que hace que una lista se pueda leer con confianza.
  */
-const FORMA_DE_DOMINIO = /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/u;
+const FORMA_DE_DOMINIO =
+  /^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/u;
 
 /** ¿Está encendido el modo? Cualquier valor que no sea `true` es «no». */
 export function isEducationModeEnabled(
