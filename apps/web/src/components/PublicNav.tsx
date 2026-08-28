@@ -26,9 +26,17 @@ import { buttonClass, cx, focusRing, motionBase } from "@/components/ui";
  * cierra, scroll bloqueado— y no cuatro enlaces envueltos en dos renglones.
  */
 
+/**
+ * Cuatro enlaces y ni uno más. La barra pública no es un mapa del sitio: es la
+ * ruta corta a las cuatro cosas que decide un visitante —cuánto cuesta, cómo se
+ * usa, si esto está vivo y si sirve para su escuela—. Todo lo demás vive en el
+ * pie, que es donde se busca lo que no se decide.
+ */
 const LINKS: ReadonlyArray<[label: string, href: string]> = [
   ["Precios", PRICING_PATH],
   ["Guías", "/docs"],
+  ["Novedades", "/novedades"],
+  ["Educación", "/educacion"],
 ];
 
 export function PublicNav() {

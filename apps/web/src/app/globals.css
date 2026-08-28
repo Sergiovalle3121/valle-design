@@ -170,6 +170,22 @@
     --accent-soft: #b9a7fd; /* violeta claro para veladuras y trazos guía */
     --accent-glow: rgba(107, 77, 239, 0.2);
 
+    /* ── AMBIENTE ──────────────────────────────────────────────────────────
+       Las capas atmosféricas del hero (aurora, orbes, malla cónica, halo del
+       producto) llevaban el índigo de la v1 escrito a mano en SEIS `rgba()`
+       dentro de la hoja. Sobrevivieron a la campaña de diseño porque el gate
+       del sistema prohíbe el hex en los COMPONENTES y estos vivían en el CSS,
+       que es su único hueco legal — y por eso siguieron pintando el acento
+       viejo cuando la paleta ya era otra.
+
+       Ahora son tokens con tema. La regla que queda escrita: si un color se
+       repite en la hoja, es un token; «está en globals.css» no basta. */
+    --ambient-tint: rgba(107, 77, 239, 0.07);
+    --ambient-tint-deep: rgba(86, 55, 225, 0.05);
+    --ambient-tint-soft: rgba(107, 77, 239, 0.04);
+    --halo-tint: rgba(107, 77, 239, 0.34);
+    --conic-tint: rgba(107, 77, 239, 0.16);
+
     /* === Tipografía ========================================================
        Inter variable (servida por next/font, sin petición a terceros en
        runtime) con el stack de sistema sólo como red de seguridad mientras
@@ -309,6 +325,15 @@
     /* Veladura de acento en oscuro: más alfa porque el sustrato se la come. */
     --accent-soft: #a992fd;
     --accent-glow: rgba(140, 115, 252, 0.26);
+
+    /* Ambiente en oscuro: el mismo violeta, más claro y con menos alfa. Sobre
+       grafito, una veladura con la alfa del tema claro se lee como una mancha
+       sucia en vez de como luz. */
+    --ambient-tint: rgba(140, 115, 252, 0.06);
+    --ambient-tint-deep: rgba(107, 77, 239, 0.05);
+    --ambient-tint-soft: rgba(140, 115, 252, 0.035);
+    --halo-tint: rgba(140, 115, 252, 0.3);
+    --conic-tint: rgba(140, 115, 252, 0.14);
 
     /* Elevación en oscuro: negro más profundo Y un filo de luz arriba.
        Una sombra sola no separa planos sobre un fondo casi negro —no hay
@@ -835,52 +860,33 @@
   }
 }
 
-/* OLA 3 · fondo ambiental de la portada y del embudo de alta. */
-/* --- Fondo "aurora" (estilo Apple) --- */
-/* Tintes pastel muy tenues en las esquinas sobre el fondo base del tema; en
-   oscuro, misma idea a ~.07 de alfa. Base anclada a `--background` (una sola
-   fuente de verdad). OLA 3: lo consume `<AmbientBackdrop/>` bajo el hero y el
-   panel de alta (capa fija en -z-10); sigue `.dark`. */
+/* Fondo ambiental de la portada y del embudo de alta.
+   Tres veladuras muy tenues en las esquinas sobre el fondo base del tema, con
+   la base anclada a `--background` para que no haya una segunda fuente de
+   verdad sobre el color del sustrato. Los tintes salen de `--ambient-tint*`,
+   que cambian con el tema: por eso ya no hace falta una regla `.dark` aparte. */
 .aurora-bg {
   background:
     radial-gradient(
       1100px 620px at 12% -8%,
-      rgba(99, 102, 241, 0.07),
+      var(--ambient-tint),
       transparent 62%
     ),
     radial-gradient(
       1000px 560px at 100% 0%,
-      rgba(79, 70, 229, 0.05),
+      var(--ambient-tint-deep),
       transparent 58%
     ),
     radial-gradient(
       900px 600px at 50% 120%,
-      rgba(99, 102, 241, 0.04),
+      var(--ambient-tint-soft),
       transparent 58%
     ),
     hsl(var(--background));
 }
 
-.dark .aurora-bg {
-  background:
-    radial-gradient(
-      1100px 620px at 12% -8%,
-      rgba(99, 102, 241, 0.05),
-      transparent 62%
-    ),
-    radial-gradient(
-      1000px 560px at 100% 0%,
-      rgba(79, 70, 229, 0.04),
-      transparent 58%
-    ),
-    radial-gradient(
-      900px 600px at 50% 120%,
-      rgba(99, 102, 241, 0.03),
-      transparent 58%
-    ),
-    hsl(var(--background));
-}
-
+/* `.dark .aurora-bg` ya no existe: los tintes son tokens con tema, así que la
+   regla clara sirve para los dos. Duplicarla era mantener dos verdades. */
 /* ===========================================================================
    LANDING PREMIUM — aurora viva + producto flotante
    Movimiento traslúcido y continuo (estilo OpenAI / Google) para que la primera
@@ -958,11 +964,11 @@
   animation: hero-spin 48s linear infinite;
   background: conic-gradient(
     from 0deg,
-    rgba(99, 102, 241, 0.16),
+    var(--conic-tint),
     rgba(168, 85, 247, 0.12),
     rgba(56, 189, 248, 0.14),
     rgba(16, 185, 129, 0.1),
-    rgba(99, 102, 241, 0.16)
+    var(--conic-tint)
   );
   filter: blur(70px);
   opacity: 0.55;
@@ -990,7 +996,7 @@
 .product-halo {
   background: radial-gradient(
     60% 60% at 50% 40%,
-    rgba(99, 102, 241, 0.35),
+    var(--halo-tint),
     transparent 70%
   );
   filter: blur(60px);

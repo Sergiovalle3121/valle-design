@@ -145,6 +145,12 @@ export const PUBLIC_ROUTES: readonly PublicRoute[] = [
       priority: 0.7,
     }),
   ),
+  // Las dos páginas que la campaña de firma propia añadió a la superficie
+  // pública. `/novedades` demuestra que el producto está vivo, que en una beta
+  // es un argumento de venta; `/educacion` recoge el interés de las escuelas
+  // mientras el plan educativo sigue tras flag.
+  { path: "/novedades", changeFrequency: "weekly", priority: 0.6 },
+  { path: "/educacion", changeFrequency: "monthly", priority: 0.6 },
   { path: "/register", changeFrequency: "monthly", priority: 0.6 },
   { path: "/login", changeFrequency: "monthly", priority: 0.4 },
   { path: "/support", changeFrequency: "monthly", priority: 0.4 },

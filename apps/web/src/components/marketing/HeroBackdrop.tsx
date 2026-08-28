@@ -9,8 +9,9 @@
  *
  * PROFUNDIDAD, NO DECORACIÓN. Las tres capas hacen tres trabajos distintos:
  *
- *   · La retícula da la textura de papel de plano. Es lo que dice «esto es una
- *     herramienta de dibujo» antes de leer una palabra.
+ *   · La retícula da la textura de papel de plano, a dos frecuencias como el
+ *     papel milimetrado. Es lo que dice «esto es una herramienta de dibujo»
+ *     antes de leer una palabra.
  *   · Los orbes y la malla cónica dan color y movimiento lentísimo, para que la
  *     primera impresión se sienta viva en vez de impresa.
  *   · La máscara de desvanecido corta la retícula antes del final de la sección;
@@ -29,9 +30,17 @@ export function HeroBackdrop() {
     >
       <div className="aurora-bg absolute inset-0" />
 
-      {/* Retícula de plano, desvanecida hacia abajo. */}
+      {/*
+        Retícula de plano, desvanecida hacia abajo. Desde la campaña de firma es
+        `.blueprint-grid` y no `.mission-grid`: dos frecuencias —malla fina de
+        8 px con malla gruesa de 64 px encima— en vez de una sola cuadrícula de
+        44 px. Es exactamente la convención del papel milimetrado, y es la
+        diferencia entre que el fondo se lea «plano» o se lea «fondo con
+        cuadros». La opacidad sube en oscuro porque el sustrato de grafito se
+        come más textura que el papel claro.
+      */}
       <div
-        className="mission-grid absolute inset-0 opacity-70 dark:opacity-50"
+        className="blueprint-grid absolute inset-0 opacity-70 dark:opacity-60"
         style={{
           maskImage:
             "linear-gradient(to bottom, black 0%, black 45%, transparent 92%)",

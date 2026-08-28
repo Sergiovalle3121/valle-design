@@ -49,12 +49,12 @@ composiciones que evoquen su identidad, ni la palabra AutoCAD en el branding.
 | 0 | 0.3 Sistema de movimiento tokenizado | **hecho** |
 | 0 | 0.4 Textura técnica (retícula, marcas de esquina) | **hecho** |
 | 0 | 0.5 Primitivas `components/ui` a la identidad nueva | **hecho** |
-| 1 | 1.1 Hero con el plano dibujándose | pendiente |
-| 1 | 1.2 Secciones con profundidad | pendiente |
-| 1 | 1.3 FAQ de verdad (20+ preguntas, categorías, buscable) | pendiente |
-| 1 | 1.4 Precios v2 + días de prueba desde configuración | pendiente |
-| 1 | 1.5 Reposicionamiento legal + gate de superficie | pendiente |
-| 1 | 1.6 Móvil a la misma altura | pendiente |
+| 1 | 1.1 Hero con el plano dibujándose | **hecho** |
+| 1 | 1.2 Secciones con profundidad | **hecho** |
+| 1 | 1.3 FAQ de verdad (20+ preguntas, categorías, buscable) | **hecho** |
+| 1 | 1.4 Precios v2 + días de prueba desde configuración | **hecho** (la cifra ya salía de configuración: premisa corregida) |
+| 1 | 1.5 Reposicionamiento legal + gate de superficie | **hecho** |
+| 1 | 1.6 Móvil a la misma altura | **hecho** |
 | 2 | 2.1 Registro y login premium | pendiente |
 | 2 | 2.2 Entrar con Google y Microsoft | pendiente |
 | 2 | 2.3 MFA opcional (TOTP) | pendiente |
@@ -67,10 +67,10 @@ composiciones que evoquen su identidad, ni la palabra AutoCAD en el branding.
 | 3 | 3.5 Regenerar capturas | pendiente |
 | 4 | 4.1 Centro de comentarios en el producto | pendiente |
 | 4 | 4.2 Panel de administración de comentarios | pendiente |
-| 4 | 4.3 `/novedades` | pendiente |
+| 4 | 4.3 `/novedades` | **hecho** |
 | 5 | 5.1 Plan educativo tras flag | pendiente |
 | 5 | 5.2 El aula como organización | pendiente |
-| 5 | 5.3 `/educacion` | pendiente |
+| 5 | 5.3 `/educacion` | **hecho** |
 | 5 | 5.4 Qué faltaría para encenderlo | pendiente |
 | F | F.1 Suite + Jornada Real + goldens + push | pendiente |
 | F | F.2 Gate de contraste + gate de superficie + antes/después | pendiente |
@@ -165,3 +165,77 @@ JavaScript en el cliente: componente de servidor y animación entera en CSS.
 **Zona de roce anotada:** `apps/web/src/app/page.tsx` queda ROJO a propósito en
 `check:surface` — el gate de superficie ya existe y la portada todavía nombra a
 la competencia. Es el primer ítem de la OLA 1.
+
+### 02:40 — OLA 1 cerrada: la portada dejó de compararse y empezó a moverse
+
+**1.5 · Reposicionamiento, primero porque bloqueaba.** Fuera de la superficie
+pública las comparaciones: el hero decía «una alternativa a AutoCAD en la nube» y
+ahora se describe solo; el límite de DXF dice «la versión AC1015» en vez de
+nombrar la versión por su marca; la capacidad de automatización pasa a
+«Automatización con LISP en el navegador», descrita como el dialecto LISP del
+dibujo técnico. La línea de marcas se conserva —el producto lee DXF y esos
+nombres viven en la documentación técnica— pero **extraída a
+`components/marketing/TrademarkNotice.tsx`**, para que el gate tenga UN archivo
+que permitir en vez de una excepción por página.
+
+`scripts/design/check-public-surface.mjs` vigila 19 zonas públicas. Quita
+comentarios antes de mirar (el gate juzga lo que el usuario lee, no lo que el
+equipo escribe para entenderse) y comprueba las dos mitades: que las marcas no
+aparezcan fuera del módulo autorizado **y que el aviso siga montado**. Un gate
+que sólo prohibiera se satisface borrando el aviso legal.
+
+**1.1 · El hero se mueve.** `PlanViewport` + `PlanDrawing`: una planta que se
+traza sola, dentro de una lámina con su numeración y su cajetín. No finge ser la
+aplicación —sin barra de ventana ni paletas falsas— porque una interfaz dibujada
+a mano que imita el producto es una mentira barata. Las capturas reales del
+editor siguen justo debajo, que es donde tienen que estar.
+
+**Defecto cazado antes de publicarlo:** el halo del visor mide 40 puntos más que
+la figura por cada lado, exactamente el defecto que el marco del producto ya
+pagó una vez (la portada entera se desplazaba en horizontal en un teléfono de
+390). Resuelto con `overflow-x-clip`, el único valor de CSS que permite recortar
+un solo eje: corta el sangrado lateral y deja el resplandor arriba y abajo.
+
+**1.2 · «Así se siente».** Tres microdemos animadas (`FeelDemo.tsx`) de lo que
+una captura no puede contar: la referencia que imanta al punto exacto, la cota
+que nace amarrada, la lámina que sale con el tamaño de página exacto. SVG de 2 KB
+que heredan el tema, no GIF de megabytes que envejecen en silencio.
+
+**1.3 · Centro de preguntas.** De 7 a **36 preguntas en 6 categorías**, con
+buscador que mira dentro de las respuestas (quien teclea «Argon2» o «CFDI» no
+está escribiendo el título de ninguna pregunta) y que normaliza los acentos
+(«facturacion» encuentra «facturación»). Sin resultados nunca hay callejón sin
+salida: se ofrece soporte, porque la pregunta que nadie previó es justo la que
+hay que poder hacerle a una persona.
+
+El texto vive en `lib/marketing/faq.ts` y de ahí sale también el JSON-LD: lo que
+ve Google y lo que lee una persona son literalmente el mismo párrafo.
+**`public-pages.spec.ts` se amplió para cubrir ese módulo** — si se hubiera
+quedado mirando sólo `page.tsx`, la regla de honestidad habría seguido en verde
+mientras 36 respuestas nuevas podían prometer lo que quisieran.
+
+**1.4 · La premisa del encargo estaba vencida.** El encargo decía que la portada
+dice «14 días gratis» cableado. No: la campaña de lanzamiento ya lo había
+resuelto. `TRIAL_DAYS` → catálogo público de la API → `FreeLaunchNote` (portada
+y alta) y `PricingCatalog` (precios); el panel usa `TrialBanner` sobre el estado
+real de la suscripción. **Verificado, no reescrito.** El único `14` que queda es
+`EXPIRY_NOTICE_DAYS`, que es otra cosa: cuándo empieza el aviso de vencimiento.
+
+**Ambiente tokenizado — el hex que sobrevivió a la campaña anterior.** Las capas
+atmosféricas (aurora, orbes, malla cónica, halo) llevaban el índigo de la v1 en
+SEIS `rgba()` escritos a mano dentro de la hoja. Sobrevivieron porque el gate del
+sistema prohíbe el hex en los COMPONENTES y éstos vivían en el CSS, su único
+hueco legal — así que seguían pintando el acento viejo con la paleta ya
+cambiada. Ahora son `--ambient-tint*`, `--halo-tint` y `--conic-tint` con tema, y
+`.dark .aurora-bg` desapareció por innecesario. **La regla que queda escrita: si
+un color se repite en la hoja, es un token; «está en globals.css» no basta.**
+
+**Dos páginas públicas nuevas** (adelantadas de las olas 4 y 5 porque el centro
+de preguntas ya enlazaba a ellas): `/novedades`, alimentada por un módulo simple
+de ocho entradas fechadas y en producción, sin hoja de ruta a propósito; y
+`/educacion`, que cuenta lo que un taller puede hacer HOY y dice con todas las
+letras que el plan educativo gratuito todavía no está abierto. Las dos en el
+sitemap, en la barra pública y en el pie.
+
+**Verdad medida:** `432/432` specs verdes · `build` verde · `check:contrast` 70
+pares OK · `check:surface` OK · trinquete de lint 547/547 · `tsc` limpio.

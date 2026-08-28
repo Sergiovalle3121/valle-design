@@ -17,10 +17,18 @@ import { JsonLd } from "@/components/JsonLd";
 import { PublicNav } from "@/components/PublicNav";
 import { SkipLink } from "@/components/SkipLink";
 import { Logo } from "@/components/brand/Logo";
+import { FaqCenter } from "@/components/marketing/FaqCenter";
+import { FeelDemos } from "@/components/marketing/FeelDemo";
 import { FreeLaunchNote } from "@/components/marketing/FreeLaunchNote";
 import { HeroBackdrop } from "@/components/marketing/HeroBackdrop";
+import { PlanViewport } from "@/components/marketing/PlanViewport";
 import { ProductFrame } from "@/components/marketing/ProductFrame";
+import { TrademarkNotice } from "@/components/marketing/TrademarkNotice";
 import { buttonClass } from "@/components/ui";
+import {
+  FAQ_COUNT,
+  FAQ_FOR_STRUCTURED_DATA,
+} from "@/lib/marketing/faq";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import {
   faqPageJsonLd,
@@ -61,6 +69,37 @@ import {
  * pudor: `public-pages.spec.ts` prohíbe una cifra en esta página, y con razón —
  * el catálogo vive en `/precios` y lo publica el propio producto desde su tabla
  * vigente. Dos verdades sobre el mismo importe es una de más.
+ *
+ * ── LO QUE CAMBIA EN LA CAMPAÑA DE FIRMA PROPIA (2026-08-28) ─────────────────
+ *
+ * 1 · EL REPOSICIONAMIENTO. Esta página decía «una alternativa a AutoCAD en la
+ *     nube». La referencia nominativa con aviso de marcas es legal y aun así se
+ *     retira, porque el dueño decidió que su producto no se presenta por
+ *     comparación: «que la página diga lo que hace, no contra quién compite».
+ *     Comercialmente además es lo correcto — definirse contra otro le regala el
+ *     marco al otro, y el comprador recuerda el nombre grande. Donde hace falta
+ *     hablar de intercambio se habla del FORMATO. La única mención que queda es
+ *     la línea de marcas del pie, en `<TrademarkNotice/>`, y `check:surface`
+ *     falla si alguna vuelve a aparecer en cualquier otra superficie pública.
+ *
+ * 2 · EL HERO SE MUEVE. Había capturas reales —el arreglo de la campaña
+ *     anterior, y siguen aquí porque son la prueba más fuerte de la página—
+ *     pero una captura enseña un RESULTADO. Ahora la pieza central es el plano
+ *     DIBUJÁNDOSE: muros, vanos, puertas, cotas y cajetín en el orden del
+ *     oficio. Un plano terminado demuestra que el programa existe; una línea
+ *     apareciendo demuestra que dibuja.
+ *
+ * 3 · EL FAQ SE VUELVE UN CENTRO DE PREGUNTAS. De siete preguntas a treinta y
+ *     tantas en seis categorías, con buscador. Siete preguntas no son un FAQ:
+ *     son la lista de objeciones que se le ocurrieron a quien escribió la
+ *     página. El texto vive en `lib/marketing/faq.ts` porque el mismo párrafo
+ *     viaja a la página, al buscador y al JSON-LD, y tres copias del mismo
+ *     texto divergen en la primera edición apurada.
+ *
+ * 4 · «ASÍ SE SIENTE». Tres microdemos animadas de lo que una captura no puede
+ *     contar: la referencia que imanta, la cota que nace amarrada, la lámina
+ *     que sale a escala. Es el TACTO del producto, que es lo que un dibujante
+ *     compra.
  */
 
 const description =
@@ -130,14 +169,14 @@ const capabilities = [
   {
     icon: FileDown,
     title: "DXF de ida y de vuelta",
-    text: "Importa y exporta DXF de texto con comprobación previa y un manifiesto de pérdidas que dice, entidad por entidad, qué no viajó igual. Casi nada se degrada en silencio, y lo que sí, está listado abajo.",
+    text: "DXF de texto —el formato estándar de intercambio que cualquier programa de dibujo abre— importado y exportado con comprobación previa y un manifiesto de pérdidas que dice, entidad por entidad, qué no viajó igual. Casi nada se degrada en silencio, y lo que sí, está listado abajo.",
     limite:
-      "Se escribe DXF de AutoCAD 2000 (AC1015) y sólo geometría plana: la Z se aplana. La importación admite hasta 12 MB y 50.000 entidades por archivo, y el corpus de ida y vuelta es propio: aún no hay uno de archivos de terceros con licencia para publicar una matriz de interoperabilidad.",
+      "Se escribe DXF en la versión AC1015 y sólo geometría plana: la Z se aplana. La importación admite hasta 12 MB y 50.000 entidades por archivo, y el corpus de ida y vuelta es propio: aún no hay uno de archivos de terceros con licencia para publicar una matriz de interoperabilidad.",
   },
   {
     icon: Terminal,
-    title: "AutoLISP dentro del navegador",
-    text: "Un intérprete AutoLISP con lector, evaluador, funciones de entidad por códigos DXF, conjuntos de selección y diálogos DCL, ejecutándose en tu navegador dentro de un entorno aislado con presupuesto de pasos y de tiempo. Las rutinas que automatizan tu trabajo repetitivo dejan de estar atadas a una instalación de escritorio.",
+    title: "Automatización con LISP en el navegador",
+    text: "Un intérprete del dialecto LISP del dibujo técnico —lector, evaluador, funciones de entidad por códigos DXF, conjuntos de selección y diálogos DCL— ejecutándose en tu navegador dentro de un entorno aislado con presupuesto de pasos y de tiempo. Las rutinas que automatizan tu trabajo repetitivo dejan de estar atadas a una instalación de escritorio.",
     limite:
       "Es un subconjunto del lenguaje: una rutina que dependa de funciones fuera de esa superficie necesita adaptarse. Tus rutinas se guardan en el navegador, no en el servidor, así que hoy no viajan solas a otra computadora.",
   },
@@ -179,7 +218,7 @@ const licensing = [
 const limits = [
   [
     "No abrimos ni escribimos DWG",
-    "El editor detecta el formato y lo rechaza con un mensaje claro en lugar de fingir que lo entiende y devolverte un dibujo roto. El intercambio se hace en DXF de texto, que es el formato que sí sabemos leer y escribir con manifiesto de pérdidas.",
+    "El editor detecta ese formato y lo rechaza con un mensaje claro en lugar de fingir que lo entiende y devolverte un dibujo roto. Un plano degradado en silencio es peor que un plano que no abre, porque el error viaja hasta la obra. El intercambio se hace en DXF de texto, que sí leemos y escribimos con manifiesto de pérdidas.",
   ],
   [
     "No es un editor colaborativo en vivo",
@@ -220,40 +259,18 @@ const audiences = [
 ] as const;
 
 /**
- * FAQ. Responde a las preguntas que de verdad frenan la compra, incluidas las
- * incómodas. Se exporta la misma estructura al JSON-LD para que lo que ve
- * Google y lo que ve la persona sean, literalmente, el mismo texto.
+ * EL CENTRO DE PREGUNTAS vive en `lib/marketing/faq.ts`.
+ *
+ * Aquí había siete preguntas escritas a mano en un array. Se movieron a un
+ * módulo por una razón que sólo se ve con el tiempo: el MISMO párrafo tiene que
+ * llegar a tres sitios —la página, el buscador del centro de preguntas y el
+ * JSON-LD de `FAQPage`— y tres copias del mismo texto divergen en la primera
+ * edición apurada. Cuando lo que ve Google y lo que lee una persona dejan de
+ * coincidir, el visitante llega sintiéndose engañado antes de ver el producto.
+ *
+ * `FAQ_FOR_STRUCTURED_DATA` es exactamente la misma prosa que se pinta, sin
+ * resumir ni reescribir.
  */
-const faq = [
-  [
-    "¿Puedo abrir mis archivos DWG?",
-    "No. Valle Design no abre ni escribe DWG: el editor detecta ese formato y lo rechaza en lugar de producir un dibujo degradado sin avisar. El intercambio se hace con DXF de texto, que sí importamos y exportamos con comprobación previa y manifiesto de pérdidas. Casi cualquier programa de dibujo puede guardar una copia en DXF.",
-  ],
-  [
-    "¿En qué se diferencia de un CAD de escritorio?",
-    "En que no instalas nada y el dibujo no vive en un disco duro concreto. Entras con un navegador, abres el proyecto y sigues donde lo dejaste. A cambio, hay funciones de un CAD de escritorio maduro que todavía no tenemos, y están enumeradas arriba sin adornos.",
-  ],
-  [
-    "¿Dónde quedan mis planos y quién los ve?",
-    "En el servidor del despliegue, aislados por organización. El acceso exige sesión verificada y pertenencia comprobada en el servidor; lo que se comparte fuera se comparte con enlaces que caducan y se pueden revocar.",
-  ],
-  [
-    "¿Puedo imprimir a escala de verdad?",
-    "Sí. Colocas el dibujo en una presentación, eliges tamaño de papel y escala, y la lámina sale a PDF con el tamaño de página exacto, su cajetín y su escala gráfica. Una unidad de dibujo mide en el papel lo que la escala dice que mide.",
-  ],
-  [
-    "¿Funcionan mis rutinas de AutoLISP?",
-    "Las que se apoyen en el subconjunto del lenguaje implementado, sí: hay lector, evaluador, funciones de entidad por códigos DXF, conjuntos de selección y diálogos DCL, todo dentro de un entorno aislado con presupuesto de ejecución. Una rutina que use funciones fuera de esa superficie necesitará adaptarse, y por ahora tus rutinas se guardan en el navegador y no viajan solas a otra computadora. Pruébala antes de darla por migrada.",
-  ],
-  [
-    "¿Necesito internet todo el tiempo?",
-    "Sí. Está pensado para trabajar conectado y no prometemos un modo sin conexión que no hemos medido.",
-  ],
-  [
-    "¿Cuánto cuesta?",
-    "Los planes y sus condiciones están en la página de precios. Esta página no publica tarifas por su cuenta para que no haya dos verdades sobre lo mismo.",
-  ],
-] as const;
 
 const featureList = [
   "Dibujo 2D con referencias a objetos y línea de comandos",
@@ -262,7 +279,7 @@ const featureList = [
   "Espacio papel con varias ventanas y escalas",
   "Impresión a PDF con tamaño de papel y tabla de plumas",
   "Importación y exportación DXF con manifiesto de pérdidas",
-  "Intérprete AutoLISP con DCL en entorno aislado",
+  "Intérprete LISP con DCL en entorno aislado",
   "Documentos en la nube con versiones y diario de recuperación",
 ] as const;
 
@@ -319,26 +336,32 @@ export default function LandingPage() {
       <main id="contenido" className="text-foreground">
         <JsonLd data={softwareApplicationJsonLd({ description, featureList })} />
         <JsonLd data={productJsonLd({ description })} />
-        <JsonLd data={faqPageJsonLd(faq)} />
+        <JsonLd data={faqPageJsonLd(FAQ_FOR_STRUCTURED_DATA)} />
 
         {/* ── HERO ───────────────────────────────────────────────────────── */}
         <section aria-labelledby="hero-title" className="relative">
           <HeroBackdrop />
-          <div className="mx-auto grid max-w-7xl items-center gap-14 px-5 pb-20 pt-12 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)] lg:pb-28 lg:pt-20">
+          <div className="mx-auto grid max-w-7xl items-center gap-14 px-5 pb-20 pt-12 sm:px-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:pb-28 lg:pt-20">
             <div>
-              <p className="type-eyebrow text-primary-ink">
-                CAD en línea para arquitectura e ingeniería
+              {/*
+                La numeración de lámina delante del eyebrow. Cuesta once píxeles
+                y cambia la impresión entera: la página deja de leerse como un
+                scroll de tarjetas y empieza a leerse como un juego de láminas.
+              */}
+              <p className="flex items-center gap-3 type-eyebrow text-primary-ink">
+                <span className="type-sheet-number opacity-60">00</span>
+                CAD profesional en tu navegador
               </p>
               <h1 id="hero-title" className="type-display mt-5 max-w-2xl">
                 Dibuja tus planos en el navegador. Sin instalar nada.
               </h1>
               <p className="type-lead mt-6 max-w-xl text-muted-foreground">
-                {PRODUCT_LABEL.design} es un software de dibujo arquitectónico
-                que corre donde ya trabajas: capas, bloques, cotas asociativas,
-                espacio papel e intercambio DXF, con tus proyectos guardados en
-                la nube en vez de en una computadora concreta. Una alternativa a
-                AutoCAD en la nube para quien necesita entregar planos, no
-                administrar licencias.
+                {PRODUCT_LABEL.design} es un software de dibujo técnico que corre
+                donde ya trabajas: precisión de dibujo con referencias a objetos
+                y línea de comandos, capas, bloques, cotas asociativas, espacio
+                papel e intercambio DXF, con tus proyectos guardados en la nube
+                en vez de en una computadora concreta. Entras, dibujas y
+                entregas.
               </p>
               <div className="mt-9 flex flex-col gap-3 sm:flex-row">
                 <Link
@@ -364,16 +387,35 @@ export default function LandingPage() {
               <FreeLaunchNote className="mt-6 max-w-xl type-small text-muted-foreground" />
               <p className="type-small mt-6 max-w-xl text-muted-foreground">
                 Antes de que lo preguntes: no abrimos archivos DWG. Importamos y
-                exportamos DXF, que es el formato con el que cualquier programa
-                de dibujo puede entregarte una copia.
+                exportamos DXF, el formato estándar de intercambio con el que
+                cualquier programa de dibujo puede entregarte una copia.
               </p>
             </div>
 
-            <ProductFrame
-              priority
-              src="/product/estudio-dark.png"
-              alt="Valle Design · planta arquitectónica acotada"
-            />
+            {/*
+              LA PIEZA CENTRAL ES EL ACTO DE DIBUJAR, no un dibujo terminado.
+              Un plano acabado demuestra que el programa existe; una línea
+              apareciendo demuestra que dibuja. Las capturas REALES del editor
+              siguen en la banda de abajo, que es donde tienen que estar: esto
+              se presenta por lo que es —una lámina— y no finge ser la
+              aplicación.
+            */}
+            {/*
+              `overflow-x-clip` y no `overflow-hidden`: el halo mide 40 puntos
+              más que la figura por cada lado, y en un teléfono de 390 eso
+              desplazaba la PORTADA ENTERA en horizontal — el mismo defecto que
+              el marco del producto ya pagó una vez y dejó anotado. `clip` es el
+              único valor que permite recortar sólo un eje: corta el sangrado
+              lateral y deja que el resplandor siga saliendo por arriba y por
+              abajo, que es donde da profundidad y no molesta a nadie.
+            */}
+            <div className="relative overflow-x-clip">
+              <div
+                aria-hidden="true"
+                className="product-halo pointer-events-none absolute -inset-10 -z-10"
+              />
+              <PlanViewport className="float-slow" />
+            </div>
           </div>
         </section>
 
@@ -396,6 +438,17 @@ export default function LandingPage() {
               />
             ))}
           </div>
+        </Band>
+
+        {/* ── ASÍ SE SIENTE ──────────────────────────────────────────────── */}
+        <Band id="tacto">
+          <SectionHead
+            id="tacto"
+            eyebrow="Así se siente"
+            title="Lo que una captura no puede enseñarte"
+            lead="Un plano terminado demuestra que el programa existe. Estas tres cosas son las que de verdad decides al usarlo: si el cursor se pega al punto exacto, si la cota sigue diciendo la verdad después de mover el muro, y si la lámina sale con el tamaño de página que pediste."
+          />
+          <FeelDemos className="mt-12" />
         </Band>
 
         {/* ── EL MODELO ──────────────────────────────────────────────────── */}
@@ -530,36 +583,15 @@ export default function LandingPage() {
           </ul>
         </Band>
 
-        {/* ── FAQ ────────────────────────────────────────────────────────── */}
+        {/* ── CENTRO DE PREGUNTAS ────────────────────────────────────────── */}
         <Band id="faq" tinted>
-          <div className="mx-auto max-w-4xl">
-            <SectionHead
-              id="faq"
-              eyebrow="Dudas"
-              title="Preguntas frecuentes"
-              lead="Las que de verdad frenan la compra, incluidas las incómodas."
-            />
-            <div className="mt-10 divide-y divide-border border-y border-border">
-              {faq.map(([question, answer]) => (
-                <details key={question} className="group py-5">
-                  <summary className="type-heading cursor-pointer list-none marker:content-none focus-visible:outline-2 focus-visible:outline-offset-4">
-                    <span className="flex items-start justify-between gap-4">
-                      {question}
-                      <span
-                        aria-hidden="true"
-                        className="mt-1 shrink-0 text-muted-foreground transition-transform duration-200 ease-out-expo group-open:rotate-45"
-                      >
-                        +
-                      </span>
-                    </span>
-                  </summary>
-                  <p className="type-body mt-3 max-w-3xl text-muted-foreground">
-                    {answer}
-                  </p>
-                </details>
-              ))}
-            </div>
-          </div>
+          <SectionHead
+            id="faq"
+            eyebrow="Centro de preguntas"
+            title="La duda concreta que te está frenando"
+            lead={`${FAQ_COUNT} respuestas en seis categorías, con buscador. Las incómodas también: lo que no hacemos está aquí con el mismo tamaño de letra que lo que sí.`}
+          />
+          <FaqCenter />
         </Band>
 
         {/* ── CTA FINAL ──────────────────────────────────────────────────── */}
@@ -602,14 +634,14 @@ export default function LandingPage() {
                 {BRAND.copyright}
               </p>
               {/*
-                Aviso de marcas: nombrar a la competencia para posicionarse es
-                legítimo; dejar que alguien deduzca una afiliación que no existe,
-                no. Va en el pie, visible en todas las secciones.
+                Aviso de marcas. Ya no está aquí en línea: vive en su propio
+                componente porque es la ÚNICA superficie pública autorizada a
+                nombrar marcas ajenas, y `check:surface` necesita un archivo que
+                permitir en vez de una excepción por página. La línea se queda
+                —el producto lee DXF y esos nombres aparecen en la documentación
+                técnica— aunque el posicionamiento por comparación se haya ido.
               */}
-              <p className="type-small mt-2 max-w-md text-muted-foreground">
-                AutoCAD y DWG son marcas de Autodesk, Inc. {BRAND.brandName} no
-                está afiliado a Autodesk ni respaldado por Autodesk.
-              </p>
+              <TrademarkNotice className="type-small mt-2 max-w-md text-muted-foreground" />
             </div>
             <nav
               aria-label="Enlaces legales y de ayuda"
@@ -618,6 +650,8 @@ export default function LandingPage() {
               {[
                 ["Precios", PRICING_PATH],
                 ["Documentación", COMMERCIAL_LINKS.documentation],
+                ["Novedades", "/novedades"],
+                ["Educación", "/educacion"],
                 ["Soporte", COMMERCIAL_LINKS.support],
                 ["Estado", COMMERCIAL_LINKS.status],
                 ["Contacto", COMMERCIAL_LINKS.contact],
