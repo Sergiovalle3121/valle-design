@@ -183,7 +183,13 @@ export function TeamRoom() {
     } finally {
       setResultados(hechos);
       setEnviando(false);
-      setLista("");
+      // La lista se vacía SÓLO si salieron todas. Si alguna falló —el límite de
+      // asientos, un correo rechazado— borrarla obligaría a volver a pegar
+      // treinta líneas para reintentar dos, que es la forma más rápida de que
+      // esas dos personas se queden fuera para siempre.
+      if (hechos.every((resultado) => resultado.estado === "enviada")) {
+        setLista("");
+      }
       await recargar();
     }
   }

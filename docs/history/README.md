@@ -40,7 +40,10 @@ medido se quedó en `docs/execution/`, ver el párrafo siguiente) y el diario de
 la campaña de lanzamiento gratuito del 27-08
 (`CAMPANA_LANZAMIENTO_20260827.md`; su informe, con las tres columnas de
 FIX-OR-HIDE y la lista GO/NO-GO, es
-`docs/execution/INFORME_LANZAMIENTO_20260827.md`).
+`docs/execution/INFORME_LANZAMIENTO_20260827.md`), y el de la campaña de firma
+propia del 28-08 (`CAMPANA_FIRMA_20260828.md` — paleta v2, cuenta segura, canal
+de comentarios y los cimientos del modo universitario; su informe es
+`docs/execution/INFORME_CAMPANA_FIRMA_20260828.md`).
 
 Cuidado al leerlos: uno de ellos cita un baseline de 8 761 líneas para
 `Layout3DEditor.tsx` cuando el archivo real tiene más de 22 000, y otro fija una

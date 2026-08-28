@@ -74,16 +74,34 @@ bg-success        el RELLENO (badge, barra, punto)
 text-success-ink  el TEXTO del mismo estado sobre una superficie normal
 ```
 
-Medido sobre tarjeta blanca, el color de relleno usado como letra da **3,02:1**
-(verde), **2,13:1** (ámbar) y **3,78:1** (rojo), cuando AA exige 4,5. Reutilizar
-el color del relleno como color de letra «porque es el mismo estado» es la forma
-más común de fallar accesibilidad sin enterarse.
+Reutilizar el color del relleno como color de letra «porque es el mismo estado»
+es la forma más común de fallar accesibilidad sin enterarse: en claro, el ámbar
+de relleno usado como texto sobre tarjeta da 3,37:1 cuando AA exige 4,5.
 
 > `bg-*` para rellenar, `text-*-ink` para escribir.
 
-Lo mismo con la marca: `bg-brand-strong` para rellenar (6,29:1 con texto
-blanco), `text-primary-ink` para escribir. `--primary` a secas mide 4,41:1 y **no
-sirve como relleno de botón**.
+Lo mismo con la marca: `bg-brand-strong` para rellenar (**6,93:1** con su letra),
+`text-primary-ink` para escribir (**7,72:1** en claro, **5,85:1** en oscuro).
+
+### El gate que lo mide, y por qué manda
+
+```bash
+npm run check:contrast     # 35 pares × 2 temas = 70, y falla la corrida entera
+```
+
+Se construyó ANTES de cortar la paleta v2 —primero la regla, después el corte— y
+encontró dos fallos en el primer intento: un borde claro con 1,23:1 de relieve y
+el violeta de hover con 4,21:1 sobre blanco. Cada par lleva escrito QUÉ ES EN
+PANTALLA («el pie de una tarjeta», «el anillo de foco sobre la página»), para
+que un fallo se pueda arreglar sin abrir el navegador. `--markdown` imprime la
+tabla completa.
+
+### El oscuro es el modo por defecto
+
+No es una cortesía nocturna: es el sustrato del oficio, y `system` sigue
+existiendo pero ahora se pide. El script anti-parpadeo de `layout.tsx` cae a
+oscuro también cuando falla, porque un destello blanco en un producto oscuro es
+peor que el contrario.
 
 ### La excepción: los colores ACI
 
@@ -97,9 +115,9 @@ Lo mismo la paleta categórica de celdas del editor.
 
 | Clase           | Tamaño            | Para qué                                       |
 | --------------- | ----------------- | ---------------------------------------------- |
-| `.type-display` | clamp 33 → 68 px  | El titular de la portada. Uno por página.       |
-| `.type-title`   | clamp 28 → 44 px  | Encabezado de sección.                          |
-| `.type-heading` | clamp 18 → 22 px  | Encabezado de tarjeta o subsección.             |
+| `.type-display` | clamp 38 → 84 px  | El titular de la portada. Uno por página. **Space Grotesk.** |
+| `.type-title`   | clamp 30 → 52 px  | Encabezado de sección. **Space Grotesk.**       |
+| `.type-heading` | clamp 19 → 24 px  | Encabezado de tarjeta o subsección. **Space Grotesk.** |
 | `.type-lead`    | clamp 16 → 19 px  | Entradilla bajo un titular.                     |
 | `.type-body`    | 16 px             | Texto corrido. El tamaño por defecto de lo que se lee. |
 | `.type-small`   | 14 px             | Texto secundario, ayudas, pies de ficha.        |
@@ -107,6 +125,14 @@ Lo mismo la paleta categórica de celdas del editor.
 | `.type-micro`   | **11 px — el piso** | Barra de estado y etiquetas de paleta. Nunca prosa. |
 | `.type-mono`    | hereda            | Cifras, coordenadas, comandos y códigos.        |
 | `.type-eyebrow` | 11 px mono caja alta | La etiqueta técnica sobre un titular.        |
+| `.type-sheet-number` | 11 px mono, tabular | El número de lámina que numera una sección: `01`, `02`. |
+
+**Tres familias, tres trabajos.** La display (`--font-display`, Space Grotesk)
+manda en los tres escalones de encabezado; Inter lleva todo lo que se lee de
+corrido; la mono, todo lo que se mide. Con una sola familia un título era texto
+grande y nada más — correcto y sin firma. La display se autohospeda igual que
+las otras dos: ni una petición a un tercero en tiempo de ejecución, y el gate
+`npm run check:fonts` lo comprueba.
 
 **El piso son 11 px y no se negocia.** Por debajo, una grotesca deja de leerse de
 un vistazo, y quien dibuja NO se acerca a la pantalla: tiene la mano en el ratón
@@ -163,17 +189,57 @@ con esquinas distintas parecen venir de dos programas.
 
 ## 6. Movimiento
 
-Dos curvas y ninguna más: `ease-out-expo` para lo que entra y sale (paletas,
-modales), `ease-spring` para lo que confirma una acción del usuario.
+### Cinco duraciones y tres curvas, todas con nombre
+
+| Token                  | Valor  | Para qué |
+| ---------------------- | ------ | -------- |
+| `--duration-instant`   | 90 ms  | Lo que debe sentirse como que ya estaba: un `hover`. |
+| `--duration-fast`      | 150 ms | La respuesta de un control al pulsarlo. |
+| `--duration-base`      | 240 ms | Lo que entra y sale: paletas, popovers. |
+| `--duration-slow`      | 420 ms | Un modal, un panel grande. |
+| `--duration-deliberate`| 720 ms | Lo que quiere que lo mires. |
+| `--duration-draw`      | 2,6 s  | El trazo que se dibuja solo. |
+
+Curvas: `ease-out-expo` para lo que entra y sale, `ease-spring` para lo que
+confirma una acción del usuario, y **`--ease-draw`** para el trazo:
+`cubic-bezier(0.65, 0, 0.35, 1)`, una ease-in-out simétrica, porque una plumilla
+arranca y para — no aparece a media velocidad ni se corta en seco.
+
+Utilidades: `.motion-instant`, `.motion-fast`, `.motion-base`, `.motion-slow`,
+`.motion-confirm`. Un componente no escribe `duration-200`: pide la intención.
+
+### La firma: el trazo que se dibuja solo
+
+`.stroke-draw` y `.stroke-draw-loop` animan `stroke-dashoffset` sobre un `path`
+con `pathLength={1}`, y `--draw-delay` escalona los trazos para que el dibujo se
+construya en el orden en que lo haría una mano. Es la firma de movimiento del
+producto: lo que hace, contado por lo que hace.
+
+### Textura técnica
+
+| Utilidad | Qué pinta |
+| -------- | --------- |
+| `.blueprint-grid` | La retícula del sustrato: `--grid-fine` (8 px) y `--grid-major` (64 px). |
+| `.corner-marks`   | Las marcas de registro de las cuatro esquinas de una lámina. |
+| `.construction-line` / `-vertical` | La línea de construcción, con su degradado a los extremos. |
+| `.focus-glow`     | El halo del foco sobre fondo oscuro, donde un anillo sólido se pierde. |
+
+### `prefers-reduced-motion`: respetarlo NO es apagarlo
+
+Se respeta en dos capas que ya existían: una regla global en `globals.css` que
+neutraliza toda animación y transición CSS, y `useReducedMotion` de Framer
+Motion en los componentes que animan con JS.
+
+**Y una excepción que hubo que escribir a mano.** Un trazo animado que
+simplemente deja de animarse DESAPARECE: `stroke-dashoffset` se queda en su
+valor inicial y el dibujo no llega a verse. La regla fuerza
+`stroke-dashoffset: 0` y `opacity: 1` para `.stroke-draw`, `.stroke-draw-loop` y
+`.draw-fade-in`. Sin movimiento, el dibujo **completo** — que es lo que la
+preferencia pide, no un lienzo en blanco.
 
 Se animan sólo propiedades baratas —color, sombra, opacidad, transformación—
 porque animar `height` o `width` obliga al navegador a rehacer el layout en cada
 cuadro.
-
-**`prefers-reduced-motion` se respeta en dos capas** y las dos ya existen: una
-regla global en `globals.css` que neutraliza toda animación y transición CSS, y
-`useReducedMotion` de Framer Motion en los componentes que animan con JS. Una
-animación nueva no necesita hacer nada: hereda.
 
 ---
 
@@ -185,7 +251,8 @@ animación nueva no necesita hacer nada: hereda.
 | `buttonClass()`                 | La misma piel para un `<Link>`. Vive en `styles.ts` y NO en `Button.tsx`: una función exportada desde un módulo con `"use client"` no se puede invocar desde un componente de servidor. |
 | `Input` / `Textarea` / `Select` | `label` obligatorio, `hint`, `error`. El error se enlaza por `aria-describedby`: un error pintado en rojo pero no enlazado NO EXISTE para un lector de pantalla. |
 | `Checkbox` / `Switch`           | La casilla dice «se aplicará al enviar»; el conmutador dice «ya está aplicado». Por eso el segundo es `role="switch"`. |
-| `Surface` / `Card`              | `elevation` + `radius` + `padded`. `as` para elegir la semántica (`article`, `li`, `section`). |
+| `Surface` / `Card`              | `elevation` + `radius` + `padded` + **`texture`** (`none` \| `corners` \| `grid`). `as` para elegir la semántica (`article`, `li`, `section`). |
+| `PasswordField`                 | Mostrar/ocultar con `aria-pressed`, `autoComplete` correcto y medidor de ENTROPÍA. El medidor informa y no bloquea el envío: la regla de longitud la impone el servidor. |
 | `Modal`                         | Foco atrapado, foco devuelto al abridor, scroll bloqueado, Escape cierra, portal a `<body>`. El clic en el velo cierra sólo si EMPEZÓ en el velo. |
 | `Badge`                         | Fondo tintado al 10 % y texto a la TINTA del estado. |
 | `Tooltip`                       | CSS puro (`group-hover` + `group-focus-within`). Sin estado: dieciocho herramientas serían dieciocho re-renders. |

@@ -2,6 +2,9 @@
 
 **Fecha:** 2026-08-28 · **Base:** `main @ a7a33d8` · **Rama:** `claude/valle-design-premium-identity-4hnemt`
 
+> Bitácora de una campaña cerrada. El informe medido, con lo que NO se hizo y
+> por qué, está en `docs/execution/INFORME_CAMPANA_FIRMA_20260828.md`.
+
 ## El veredicto del dueño (el encargo)
 
 > «Muy minimalista, le falta vida, movimiento y contraste; no siento que sea MI
@@ -64,18 +67,18 @@ composiciones que evoquen su identidad, ni la palabra AutoCAD en el branding.
 | 3 | 3.2 Primera impresión en 2D | **hecho** |
 | 3 | 3.3 Cromo del estudio con la identidad nueva | **hecho** |
 | 3 | 3.4 Microfeedback de acción | **hecho** |
-| 3 | 3.5 Regenerar capturas | pendiente |
+| 3 | 3.5 Regenerar capturas | **hecho** |
 | 4 | 4.1 Centro de comentarios en el producto | **hecho** |
 | 4 | 4.2 Panel de administración de comentarios | **hecho** |
 | 4 | 4.3 `/novedades` | **hecho** |
-| 5 | 5.1 Plan educativo tras flag | pendiente |
-| 5 | 5.2 El aula como organización | pendiente |
+| 5 | 5.1 Plan educativo tras flag | **hecho** (mecanismo probado, interruptor apagado) |
+| 5 | 5.2 El aula como organización | **hecho** (`/equipo`, invitación pegando la lista) |
 | 5 | 5.3 `/educacion` | **hecho** |
-| 5 | 5.4 Qué faltaría para encenderlo | pendiente |
-| F | F.1 Suite + Jornada Real + goldens + push | pendiente |
-| F | F.2 Gate de contraste + gate de superficie + antes/después | pendiente |
-| F | F.3 Informe de cierre | pendiente |
-| F | F.4 BRAND.md y DESIGN_SYSTEM.md actualizados | pendiente |
+| 5 | 5.4 Qué faltaría para encenderlo | **hecho** (informe + aviso al arrancar la API) |
+| F | F.1 Suite + Jornada Real + goldens + push | **hecho** |
+| F | F.2 Gate de contraste + gate de superficie + antes/después | **hecho** (16 pares nuevos) |
+| F | F.3 Informe de cierre | **hecho** |
+| F | F.4 BRAND.md y DESIGN_SYSTEM.md actualizados | **hecho** |
 
 ## Bitácora
 
@@ -495,3 +498,136 @@ declaradas, con la nota de por qué.
 **Verdad medida:** `437/437` specs web · `760` API unidad · **`217/217` API
 contra PostgreSQL real** (10 pruebas nuevas del canal) · contrato 94 operaciones
 · build verde · contraste 70 pares · superficie OK · monolito OK · lint 547/547.
+
+### 08:05 — El rojo de la Jornada Real, y por qué era culpa de la campaña
+
+Las tres corridas de CI de las olas 2, 3 y 4 fallaron en el MISMO sitio y por la
+misma línea, la primera de la Jornada Real:
+
+```
+strict mode violation: getByLabel('/Contrase.*a/iu') resolved to 2 elements:
+  1) <input type="password" name="password" …>
+  2) <button aria-label="Mostrar la contraseña" …>
+```
+
+**Qué pasó de verdad.** `PasswordField` metió DENTRO del campo un segundo control
+—el botón de mostrar/ocultar— cuyo nombre accesible contiene, necesariamente, la
+palabra «contraseña». Veinte llamadas repartidas por nueve specs pedían la
+etiqueta con un patrón suelto, y desde la ola 2 ese patrón casa con dos
+elementos. Playwright, con razón, se niega a elegir por su cuenta.
+
+**Lo que NO se hizo: cambiar el producto.** «Mostrar la contraseña» es el nombre
+correcto para ese botón —es el que usan los gestores de contraseñas y el que un
+lector de pantalla necesita oír— y rebautizarlo para que un localizador de
+pruebas no se confunda sería degradar la accesibilidad real por comodidad de la
+herramienta. El defecto está en el localizador, no en la interfaz.
+
+**Un rodeo que hay que registrar porque casi cuela.** El primer arreglo fue
+`getByLabel("Contraseña", { exact: true })` y dejó los mismos specs en rojo, esta
+vez por tiempo agotado: `getByLabel` mira el TEXTO RENDERIZADO de la `<label>`, y
+`FieldShell` le pega el asterisco de campo obligatorio. La etiqueta real es
+`Contraseña*`, no `Contraseña`. Se comprobó con una sonda —una prueba de usar y
+tirar que imprime `["Nombre*","Correo electrónico*","Contraseña*"]`— en vez de
+volver a suponer. El arreglo definitivo ancla el principio y no exige igualdad:
+`getByLabel(/^Contrase/iu)`, que resuelve a un único `INPUT`.
+
+**Verdad medida:** Jornada Real `10/10` en verde contra el stack real (API NestJS
++ PostgreSQL 16 local), incluido el embudo gratuito.
+
+### 09:20 — OLA 5: los cimientos del modo universitario, y otro hueco del tamaño del de la ola 2
+
+**5.1 · El mecanismo, con el interruptor apagado.**
+`modules/education/education-mode.ts`. `EDUCATION_MODE` apagado por defecto y
+`EDUCATION_EMAIL_DOMAINS` vacía; con el modo apagado la lista está vacía AUNQUE
+esté escrita, para que ninguna ruta futura pueda usarla saltándose el
+interruptor. Catorce pruebas escritas como acusaciones, y la que importa:
+`malicioso-unam.mx` NO entra. Un `endsWith('unam.mx')` lo habría dejado pasar, y
+ese dominio cuesta doce dólares. La comparación es por segmentos de etiqueta.
+
+El plan educativo **no se siembra en el catálogo**, y hay una prueba que lo
+comprueba: un plan gratuito publicado mientras el modo está apagado sería una
+oferta en la página de precios que ningún alta puede conceder.
+
+**5.2 · El aula como organización — y el hueco.** `GET /v1/organizations/:id/
+memberships` y `POST …/invitations` existen desde el primer día, con control de
+asientos y correo transaccional, y **el web no llamaba a ninguno**. El producto
+sabía invitar a una organización y no había un solo sitio donde hacerlo,
+mientras `/educacion` afirmaba «invitas a tus alumnos por correo».
+
+`/equipo` lo arregla por donde un profesor lo necesita: **pegando la lista**.
+`lib/education/roster.ts` (25 comprobaciones) acepta comas, líneas,
+`Nombre <correo>` y columnas con tabulador; el espacio NO separa, porque si
+separara «Ana Ruiz <ana@x.mx>» daría tres entradas rotas y el profesor vería
+descartes que no existen. Los descartes **se devuelven con su motivo**: pegar
+treinta líneas, ver veintiocho invitaciones y no saber cuáles dos faltan es la
+peor forma posible de fallar.
+
+Las invitaciones se mandan en SERIE. El límite de asientos se comprueba en el
+servidor y treinta peticiones simultáneas contra ese límite reparten
+arbitrariamente quién entra; además, una ráfaga desde el navegador es
+indistinguible de un abuso. Al primer 409 se para y se dice cuántas quedaron sin
+mandar.
+
+**5.4 · Qué falta para encenderlo**, escrito en el informe: dos decisiones que
+no son técnicas —qué dominios se aceptan y con qué capacidad de soporte se
+atiende el pico de altas de principio de semestre—. El arranque de la API lo
+anuncia en cada despliegue: «Modo universitario: apagado — falta EDUCATION_MODE
+y EDUCATION_EMAIL_DOMAINS». Una bandera que sólo se ve leyendo el código es una
+bandera que un día alguien cree encendida.
+
+### 10:30 — Los trece goldens en rojo, y por qué ninguno se arregló bajando la prueba
+
+La suite de navegador completa contra el stack real destapó trece fallos. Cero
+defectos de producto; cinco causas, y las cinco decisiones vale la pena
+escribirlas:
+
+**1 · El panel decía `CIRCLE` y pasó a decir `CÍRCULO`.** La primera reacción
+—actualizar ocho aserciones— era la equivocada. Ese panel presume, literalmente
+en su subtítulo, de «geometría canónica … DXF sin aproximación persistida», y el
+tipo DXF es el dato que sostiene esa promesa: es lo que el profesional va a
+encontrar dentro del fichero y lo que nombra un manual. Enseñar sólo `CÍRCULO`
+le quitaba esa palabra; enseñar sólo `CIRCLE` era el defecto que la ola 3
+arregla. **Se enseñan los dos**, con jerarquía. Ocho goldens vuelven a verde sin
+tocarlos, y el producto quedó mejor que antes de la ola.
+
+La cabecera salió a `CadNativeSelectionHeading.tsx` porque el presupuesto del
+monolito lo pidió en el momento exacto: al añadir la etiqueta el archivo se pasó
+cuatro líneas. El gate no es burocracia — es lo que convierte «añado dos líneas
+aquí» en «extraigo el bloque de presentación que nunca debió estar dentro».
+
+**2 · El estudio abre en 2D y los presets de cámara son chrome del 3D.** Siete
+goldens medían el pipeline de render, el motor de puntero y la inversión
+mundo↔pantalla DEL VISOR 3D, y pulsaban «Vista superior» sin pedir el modo
+porque antes venía puesto. Quitarles el preset y dejarlos correr en 2D los
+habría dejado VERDES MIDIENDO OTRA COSA, que es la peor forma de arreglar una
+prueba. Ahora piden el modo que ejercitan (`e2e/fixtures/view-mode.ts`).
+
+**3 · El id salió del titular del panel.** Dos specs lo buscaban como subcadena
+en el texto del panel —uno de ellos barriendo TODOS los botones del documento
+con `page.evaluate`—. Ahora lo leen del detalle técnico y designan por
+`data-testid`, que es la identidad real y no cambia cuando cambia el idioma de
+la interfaz. Las dos aserciones pasaron de aproximadas a exactas.
+
+**4 · La lista de entidades habla en español.** Un golden esperaba `MTEXT` donde
+el usuario lee «Texto 1». Se cambió la aserción: el `data-testid` sigue llevando
+el id.
+
+**5 · El campo de contraseña ganó un botón que dice «contraseña».** Ver la
+entrada de las 08:05.
+
+La regla que se siguió en los cinco: **una prueba se cambia cuando el producto
+cambió a propósito y la prueba deja de describirlo; nunca para que deje de
+fallar.**
+
+### 11:15 — Antes y después, con el mismo script y dos árboles
+
+Dieciséis pares en `docs/design/before-after/` con sufijo `-firma-antes` /
+`-firma-despues`. El «antes» NO son capturas viejas: es `a7a33d8` construido en
+un worktree y fotografiado con **los mismos scripts, misma resolución, mismo
+tema, mismo encuadre**. Lo único que cambia entre las dos columnas es el
+producto.
+
+Y hay un detalle en el «antes» que vale por todo el informe: en
+`portada-fold-dark-firma-antes.png`, el panel derecho del editor enseña
+dieciocho filas de `cad_mt60y4ol_uzfo`. Ése era el estado real del producto que
+el dueño estaba mirando cuando dijo que no lo sentía suyo.

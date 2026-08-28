@@ -84,7 +84,10 @@ test('canonical Base/Mine/Theirs compare, collision review, comments, links and 
   await loginAsStandaloneOwner(context);
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
-  await expect(page.getByRole('button', { name: /^arc-a\s+ARC$/i })).toBeVisible();
+  // La fila de la lista se señala por su `data-testid`, que lleva el id: el
+  // nombre visible pasó a ser «Arco 1» cuando el estudio dejó de hablar en
+  // identificadores, y el id es lo que identifica al objeto de verdad.
+  await expect(page.getByTestId('cad-native-entity-arc-a')).toBeVisible();
 
   await openCollaboration(page);
   await checkpoint(page, 'Base');
@@ -203,7 +206,7 @@ test('canonical Base/Mine/Theirs compare, collision review, comments, links and 
   // posible); ahora el token llega de verdad y es la REVOCACIÓN la que lo tumba.
   const revoked = await context.newPage();
   await revoked.goto(`/legacy/studio#cadReview=${encodeURIComponent(shareToken)}`);
-  await expect(revoked.getByRole('button', { name: /^arc-a\s+ARC$/i })).toBeVisible();
+  await expect(revoked.getByTestId('cad-native-entity-arc-a')).toBeVisible();
   await expect(revoked.getByTestId('cad-review-banner')).toHaveCount(0);
   await revoked.close();
 });
