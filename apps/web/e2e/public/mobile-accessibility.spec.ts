@@ -48,7 +48,7 @@ for (const route of ["/login", "/register"] as const) {
 
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
     await expect(page.getByLabel("Correo electrónico")).toBeVisible();
-    await expect(page.getByLabel("Contraseña")).toBeVisible();
+    await expect(page.getByLabel(/^Contrase/iu)).toBeVisible();
     /*
       El botón que importa es el de ENVIAR, no cualquiera. `getByRole("button")`
       a secas dejó de ser único cuando la página ganó un segundo botón, y una

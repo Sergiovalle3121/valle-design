@@ -410,7 +410,8 @@ import {
   type CadPropertyBag,
   type CadScenePatch,
 } from "@/lib/cad/entity-runtime";
-import { cadEntityLabels, cadTypeName } from "@/lib/cad/entity-labels";
+import { cadEntityLabels } from "@/lib/cad/entity-labels";
+import { CadNativeSelectionHeading } from "../palettes/CadNativeSelectionHeading";
 import { CadNativeEntityList } from "../palettes/CadNativeEntityList";
 import { CadSaveStatus } from "../studio/CadSaveStatus";
 import { boundsIntersect } from "@/lib/cad/entity-hit-geometry";
@@ -15860,7 +15861,7 @@ export default function Layout3DEditor({
         )}
         <T3Btn
           onClick={openDxfExport}
-          title="Exportar a DXF (AutoCAD) — opciones de capas, selección y cotas"
+          title="Exportar a DXF — el formato estándar de intercambio; opciones de capas, selección y cotas"
         >
           <FileDown className="w-4 h-4" />
         </T3Btn>
@@ -17065,18 +17066,10 @@ export default function Layout3DEditor({
               <>
                 {nativeSelectedEntities.length > 0 ? (
                   <div className="p-3.5" data-testid="cad-native-properties">
-                    <div className="mb-1 flex items-center gap-2">
-                      <Spline className="h-4 w-4 text-primary-ink" />
-                      <span className="text-sm font-semibold">
-                        {primaryNativeEntity
-                          ? cadTypeName(primaryNativeEntity.type).toUpperCase()
-                          : `${nativeSelectedEntities.length} curvas nativas`}
-                      </span>
-                    </div>
-                    <div className="mb-3 type-micro text-muted-foreground dark:text-muted-foreground">
-                      Geometría canónica · selección, grips, snaps y DXF sin
-                      aproximación persistida.
-                    </div>
+                    <CadNativeSelectionHeading
+                      type={primaryNativeEntity?.type ?? null}
+                      count={nativeSelectedEntities.length}
+                    />
                     {selectedNativeLineIds ? (
                       <div className="space-y-2">
                         <div

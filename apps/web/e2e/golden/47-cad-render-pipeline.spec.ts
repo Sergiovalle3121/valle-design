@@ -3,6 +3,7 @@ import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
+import { enter3DView } from '../fixtures/view-mode';
 
 /**
  * FASE 1 — el pipeline de render por lotes DIBUJA el producto.
@@ -169,6 +170,7 @@ test('un documento con MTEXT, sombreado e inserción se dibuja con el pipeline p
 }) => {
   test.setTimeout(180_000);
   await openStudio(context, page);
+  await enter3DView(page);
   await page.getByTitle(/Vista superior/).click();
   await page.getByTitle(/Ajustar a la planta/).click();
 
@@ -217,6 +219,7 @@ test('apagar una capa no reconstruye la escena: es un booleano por lote', async 
 }) => {
   test.setTimeout(180_000);
   await openStudio(context, page);
+  await enter3DView(page);
   await page.getByTitle(/Vista superior/).click();
   await page.getByTitle(/Ajustar a la planta/).click();
   await settled(page);

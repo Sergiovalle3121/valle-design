@@ -6,6 +6,7 @@ import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { applyDynamicInput, applyDynamicPoint } from '../fixtures/dynamic-input';
 import { worldPoint } from '../fixtures/world-point';
+import { enter3DView } from '../fixtures/view-mode';
 
 /**
  * FASE 0 — la autoría canónica es TRANSACCIONAL y respeta el orden de dibujo.
@@ -331,6 +332,7 @@ test('editing, copying and deleting preserve adversarial draw order through save
 test('switching the active layer changes where the MOUSE draws, and it survives reload', async ({ context, page }) => {
   test.setTimeout(180_000);
   const backend = await openStudio(context, page);
+  await enter3DView(page);
   await page.getByTitle(/Vista superior/).click();
   await page.getByTitle(/Ajustar a la planta/).click();
 

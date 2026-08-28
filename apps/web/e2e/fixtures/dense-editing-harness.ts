@@ -33,6 +33,7 @@
  * inventarse precisión.
  */
 import { expect, type Page } from "@playwright/test";
+import { enter3DView } from './view-mode';
 
 // ---------------------------------------------------------------------------
 // Corpus
@@ -469,6 +470,7 @@ export async function dragWorld(
 /** Reencuadra en planta cenital, que es donde la afín se puede invertir. */
 export async function frameTopDown(page: Page): Promise<void> {
   await page.evaluate(() => window.dispatchEvent(new Event("resize")));
+  await enter3DView(page);
   await page.getByTitle(/Vista superior/).click();
   await page.getByTitle(/Ajustar a la planta/).click();
 }

@@ -93,7 +93,7 @@ async function loginThroughUi(
 ): Promise<void> {
   await page.goto("/login?returnTo=/dashboard");
   await page.getByLabel(/Correo electr.*nico/iu).fill(email);
-  await page.getByLabel(/Contrase.*a/iu).fill(password);
+  await page.getByLabel(/^Contrase/iu).fill(password);
   await Promise.all([
     // NO usar /\/dashboard$/: la propia URL de partida es
     // `/login?returnTo=/dashboard`, que TERMINA en "/dashboard", así que la
@@ -202,7 +202,7 @@ test.describe("recorrido comercial CAD first-party contra PostgreSQL", () => {
     await page.goto("/register");
     await page.getByLabel("Nombre").fill("Valle E2E Owner");
     await page.getByLabel(/Correo electr.*nico/iu).fill(email);
-    await page.getByLabel(/Contrase.*a/iu).fill(E2E_PASSWORD);
+    await page.getByLabel(/^Contrase/iu).fill(E2E_PASSWORD);
     await page.getByRole("button", { name: "Crear cuenta" }).click();
     await expect(page.getByRole("status")).toContainText(/Cuenta creada/iu);
 

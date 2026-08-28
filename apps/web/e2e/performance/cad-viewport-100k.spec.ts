@@ -297,7 +297,12 @@ test.describe('CAD viewport performance · 10k/100k', () => {
     await palette.getByTestId('cad-quick-select-apply').click();
     await expect(page.getByTestId('cad-selection-count')).toHaveText('1 seleccionados');
     await page.getByTitle(/Selecci.n profesional/).click();
-    await expect(page.getByTestId('cad-native-properties')).toContainText('perf-arc-099999');
+    // El identificador técnico salió del titular del panel —ahí ahora se lee
+    // «Arco 100000»— y vive en el detalle de la celda. Se comprueba donde está,
+    // y de paso la aserción pasa a ser exacta en vez de por subcadena.
+    await expect(
+      page.getByTestId('cad-native-properties').locator('[title^="Identificador técnico:"]'),
+    ).toHaveAttribute('title', 'Identificador técnico: perf-arc-099999');
     const heap = await page.evaluate(() => {
       const memory = (performance as Performance & {
         memory?: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number };

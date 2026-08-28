@@ -205,7 +205,12 @@ async function type(page: Page, value: string): Promise<void> {
 async function loginThroughUi(page: Page, email: string): Promise<void> {
   await page.goto("/login?returnTo=/dashboard");
   await page.getByLabel(/Correo electr.*nico/iu).fill(email);
-  await page.getByLabel(/Contrase.*a/iu).fill(E2E_PASSWORD);
+  // El ancla del principio no es adorno: el campo lleva dentro el botón de
+  // mostrar/ocultar, cuyo nombre accesible es «Mostrar la contraseña», así que
+  // un patrón suelto casa con los dos y el modo estricto de Playwright —con
+  // razón— se niega a elegir. Anclar y no exigir igualdad exacta, porque la
+  // etiqueta renderizada lleva pegado el asterisco de campo obligatorio.
+  await page.getByLabel(/^Contrase/iu).fill(E2E_PASSWORD);
   await Promise.all([
     page.waitForURL((url) => url.pathname === "/dashboard"),
     page.getByRole("button", { name: /Iniciar sesi.*n/iu }).click(),
@@ -249,7 +254,7 @@ test.describe("La Jornada Real: de cuenta nueva a plano entregado", () => {
     await page.goto("/register");
     await page.getByLabel("Nombre").fill("Arquitecta de la jornada");
     await page.getByLabel(/Correo electr.*nico/iu).fill(email);
-    await page.getByLabel(/Contrase.*a/iu).fill(E2E_PASSWORD);
+    await page.getByLabel(/^Contrase/iu).fill(E2E_PASSWORD);
     await page.getByRole("button", { name: "Crear cuenta" }).click();
     await expect(page.getByRole("status")).toContainText(/Cuenta creada/iu);
 
