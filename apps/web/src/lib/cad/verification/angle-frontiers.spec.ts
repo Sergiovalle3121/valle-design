@@ -1,8 +1,6 @@
 import { strict as assert } from "node:assert";
 import { exportCadDocumentDxf } from "../dxf-document-export";
 import { importDxfPrimitives } from "../dxf-import";
-import { exportCadDocumentToDwg } from "../dwg-native-writer";
-import { readDwg } from "@valle-design/dwg-codec";
 import { curvePointAt, type CadCurve } from "../curve-model";
 import { cadEntityCurves } from "../curve-model";
 import { rotatePrimitive } from "../primitives";
@@ -173,71 +171,29 @@ function document(entities: CadEntity[]): CadDocument {
 
 /* ══════════════════════════════════════════════════════════════════════════
    FRONTERA 3 — documento ↔ DWG (donde vivía el defecto)
-   ══════════════════════════════════════════════════════════════════════════ */
+   ══════════════════════════════════════════════════════════════════════════
 
-{
-  /**
-   * LA FRONTERA DEL DEFECTO ORIGINAL, verificada de ida y vuelta.
-   *
-   * El documento del producto guarda GRADOS; el canónico del laboratorio DWG
-   * espera RADIANES. Antes de la campaña de paridad el lado de ESCRITURA no
-   * convertía: un arco de 180° salía escrito como «180» en un campo que el
-   * formato lee como radianes (≈10.31°, envuelto).
-   *
-   * Aquí se escribe un arco que empieza en 37.5° y se RELEE con el códec
-   * crudo, que no convierte nada: el número que salga es literalmente el que
-   * el writer puso en el archivo. Tiene que ser 0.6544984694978736, no 37.5.
-   *
-   * Los gates se inyectan como «oráculo pasado» (mismo patrón que
-   * `dwg-native-writer.spec.ts`) porque lo que se verifica es la CONVERSIÓN,
-   * no la disponibilidad: la exportación DWG sigue apagada en producción y
-   * así se queda para el lanzamiento (OLA 3.4). Que siga apagada se comprueba
-   * abajo, con los gates REALES.
-   */
-  const arc = {
-    id: "arc-dwg",
-    type: "arc",
-    center: { x: 0, y: 0, z: 0 },
-    radius: 50,
-    startAngle: A,
-    endAngle: A + 90,
-    layer: "0",
-  } as CadEntity;
+   ESTA FRONTERA SE MIDE EN OTRO ARCHIVO, Y NO POR COMODIDAD.
 
-  // El candado, primero: con los gates de producción esto NO exporta.
-  const locked = exportCadDocumentToDwg(document([arc]), { betaFlagOn: true });
-  ok(
-    locked.estado === "rechazado" && locked.motivo === "gate_cerrado",
-    "con los gates reales la exportación DWG sigue cerrada — el candado no se toca en esta campaña",
-  );
+   ADR-0009 autoriza a tocar el laboratorio DWG —el códec y el punto de
+   escritura— a exactamente cuatro archivos: los dos adaptadores y sus dos
+   specs. Ni siquiera se les puede NOMBRAR desde fuera: el gate del límite de
+   producto (`scripts/dwg/check-product-boundary.mjs`) busca la mención como
+   texto, a propósito, porque una referencia es el primer paso de un import.
 
-  // Y ahora la conversión, con el oráculo inyectado como pasado.
-  const written = exportCadDocumentToDwg(document([arc]), {
-    betaFlagOn: true,
-    gates: { publicWriterExists: true, externalOracleVerified: true },
-  });
-  ok(
-    written.estado === "exito" || written.estado === "exito_con_perdidas",
-    `con el oráculo inyectado el arco sí se escribe (${written.estado})`,
-  );
-  ok("bytes" in written, "la exportación con oráculo entrega bytes");
-  const reread = readDwg((written as { bytes: Uint8Array }).bytes);
-  const arcRecord = reread.modelSpaceEntities.find(
-    (record) => record.entity.kind === "arc",
-  )!.entity as { startAngle: number; endAngle: number };
-  ok(
-    near(arcRecord.startAngle, A_RAD, 1e-9),
-    `el DWG guarda 37.5° como ${A_RAD} RADIANES (obtenido ${arcRecord.startAngle}) — un 37.5 crudo aquí sería el defecto de vuelta`,
-  );
-  ok(
-    Math.abs(arcRecord.startAngle - A) > 30,
-    "y el valor escrito no se parece en nada al grado: por eso 37.5° es el ángulo de esta suite",
-  );
-  ok(
-    near(arcRecord.endAngle, rad(A + 90), 1e-9),
-    `y el ángulo final también viaja en radianes (${rad(A + 90)})`,
-  );
-}
+   La primera versión de esta suite escribía aquí la prueba de ida y vuelta, y
+   ese gate la rechazó dos veces —primero por importar, después por nombrar—.
+   Tenía razón las dos: la frontera clean-room no se ensancha para acomodar
+   una prueba; la prueba se muda a donde la política ya la permite. Vive en la
+   spec del adaptador de ESCRITURA (ADR-0009 §8), §5, con el mismo 37,5° y
+   comparando el radián que quedó escrito en el archivo.
+
+   Que siga viva allí no depende de la buena memoria de nadie: lo comprueba
+   `scripts/cad/check-cad-math.mjs`, que corre en `check:cad` y que, por vivir
+   fuera de `apps/` y `packages/`, sí puede nombrar el archivo. Sin esa
+   comprobación, borrar aquella prueba dejaría esta suite diciendo «8
+   fronteras» con siete medidas — justo la clase de afirmación que la campaña
+   existe para quitar.                                                        */
 
 /* ══════════════════════════════════════════════════════════════════════════
    FRONTERA 4 — comandos ↔ motor (ROTATE)

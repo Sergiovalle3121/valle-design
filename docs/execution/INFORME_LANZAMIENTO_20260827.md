@@ -70,8 +70,9 @@ arregló anclando en `N 0 obj` y leyendo el `/Length` de cada objeto.
 
 ### 1.3 · VERIFICADAS — funcionan, con evidencia numérica
 
-* **767 casos numéricos** contra oráculo independiente, **0 desviaciones fuera
-  de tolerancia** (§2).
+* **761 casos numéricos** contra oráculo independiente, **0 desviaciones fuera
+  de tolerancia**, más la frontera documento↔DWG medida donde ADR-0009 la
+  permite (§2).
 * **192 comandos** del registro, **0 éxitos falsos** (`check:command-integrity`).
 * **82 controles visibles** del estudio pulsados uno a uno contra el stack real:
   68 con efecto medido, 5 sin efecto **declarados uno a uno con su razón**, 3
@@ -87,15 +88,17 @@ arregló anclando en `N 0 obj` y leyendo el `/Length` de cada objeto.
 
 ## 2 · La matemática
 
-**767 casos numéricos verificados contra oráculo independiente · 0 desviaciones
-fuera de tolerancia.**
+**761 casos numéricos verificados contra oráculo independiente · 0 desviaciones
+fuera de tolerancia**, más la frontera documento↔DWG, que se mide en la spec del
+adaptador de escritura porque ADR-0009 no permite tocar ese laboratorio desde
+ninguna otra parte (ver «El hueco…» abajo).
 
 | Suite | Casos | Qué compara |
 | --- | --- | --- |
 | `construction-geometry.spec.ts` | 48 | Intersecciones **analíticas** (no sobre teselado), tangencias, OSNAP |
 | `modification.spec.ts` | 400 | TRIM/EXTEND/BREAK, FILLET medido por distancia centro-línea, OFFSET a N puntos, ARRAY, MIRROR, ROTATE/SCALE |
 | `measurement.spec.ts` | 134 | DIST, AREA con huecos y arcos (segmento circular en forma cerrada), y **20 cotas cuyo valor mostrado se compara con el medido** |
-| `angle-frontiers.spec.ts` | 44 | **8 fronteras entre subsistemas** a 37,5°, ida y vuelta |
+| `angle-frontiers.spec.ts` | 38 | **8 fronteras entre subsistemas** a 37,5°, ida y vuelta. La de DWG se mide en la spec del adaptador autorizado; un guardia en `check:cad-math` impide que desaparezca de allí |
 | `units-and-scale.spec.ts` | 36 | Un muro de 3,5 m en las **cuatro** representaciones a la vez |
 | `large-coordinates.spec.ts` | 13 | UTM + lámina de papel, por el teselador **real** |
 | `pdf-content.spec.ts` | 28 | Trazos extraídos del content-stream |
@@ -164,7 +167,7 @@ y un fallo del almacén deniega.
 | Cero mentiras conocidas en la superficie visible | ✅ | Barrido de 82 controles (0 muertos sin declarar) · gates de DWG, atajos y recorrido |
 | Los tres descargables verificados **por contenido** | ✅ | §3 |
 | El modo 90 días sin rehenes, probado | ✅ | §4 |
-| La matemática contra oráculo independiente | ✅ | **767 casos, 0 desviaciones** |
+| La matemática contra oráculo independiente | ✅ | **761 casos, 0 desviaciones** + la frontera DWG en su sitio autorizado |
 | Los errores hablan español con salida | ✅ | `errores-en-espanol.spec.ts` — **5/5**, cinco fallos provocados de verdad |
 | No se pierde trabajo: offline, dos pestañas, cierre forzado | ✅ | **13/13** con la red genuinamente cortada |
 | Registro sin tarjeta, medido | ✅ | **6 clics · 7 pantallas · 0 campos de pago** |
@@ -216,16 +219,45 @@ limpia**:
    no existía.
 
    La salida no podía ser saltarse esa suite cuando el códec falta: eso
-   convertiría «767 casos, 0 desviaciones» en una cifra que depende de la
+   convertiría «761 casos, 0 desviaciones» en una cifra que depende de la
    máquina donde se mide. El gate construye ahora lo que necesita, una vez y
    sólo si falta.
 
 Los dos se **reprodujeron antes de arreglarlos** —borrando `dist` para provocar
 el mismo error del servidor— y se verificaron desde ese estado limpio.
 
+Y arreglar el segundo destapó un tercero, que es el más instructivo:
+
+3. **`check:dwg` rechazaba la suite de ángulos, y tenía razón.** ADR-0009 —la
+   política clean-room del laboratorio DWG— autoriza a tocar el códec y el
+   punto de escritura a exactamente cuatro archivos: los dos adaptadores y sus
+   dos specs. `angle-frontiers.spec.ts` importaba ambos para medir la frontera
+   documento↔DWG. El gate lo rechazó **dos veces**: primero por importarlos y,
+   tras el primer intento de arreglo, por **nombrarlos** — busca la mención como
+   texto, a propósito, porque una referencia es el primer paso de un import.
+
+   Yo nunca había corrido `check:dwg`: es un script aparte de `check:cad`, y
+   sólo miraba el que había encadenado yo. Ésa es la parte que más me importa
+   del hallazgo.
+
+   Había una salida cómoda —añadir mi spec a la lista de autorizados— y era
+   exactamente la prohibida: **relajar un gate**, y encima el más sensible que
+   tiene el repositorio, que es una frontera legal. La frontera clean-room no se
+   ensancha para acomodar una prueba; **la prueba se muda a donde la política ya
+   la permite**. Vive ahora en la spec del adaptador de escritura, con el mismo
+   37,5°, comparando el radián que quedó ESCRITO en el archivo.
+
+   Y para que mudarla no fuera perderla, `check:cad-math` comprueba que siga
+   allí: si alguien la borra, el gate falla nombrando lo que falta. Se verificó
+   borrándola a propósito. Por eso la cifra de §2 son **761** y no 767 — los seis
+   casos de esa frontera se miden fuera de la carpeta de verificación, y decir
+   767 sería contarlos dos veces.
+
 La lección, escrita para la próxima campaña: **un gate que sólo se ha corrido en
-la máquina de quien lo escribió no es evidencia todavía.** Las cifras de arriba
-valen porque ahora también las produce un servidor que empieza de cero.
+la máquina de quien lo escribió no es evidencia todavía** —y **la lista de gates
+que hay que correr no es la que uno recuerda**, es la que ejecuta el servidor.
+Las cifras de arriba valen porque ahora también las produce un servidor que
+empieza de cero.
 
 ---
 

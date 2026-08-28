@@ -20,7 +20,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -63,6 +63,52 @@ function ensureDwgCodecBuilt() {
 }
 
 ensureDwgCodecBuilt();
+
+/**
+ * LA FRONTERA QUE NO PUEDE VIVIR EN `verification/`.
+ *
+ * La OLA 1.4 pide una prueba de ida y vuelta a 37,5° por CADA frontera donde
+ * un ángulo cambia de subsistema, y una de ellas es documento↔DWG — la del
+ * defecto original. Esa prueba no puede estar en `angle-frontiers.spec.ts`:
+ * ADR-0009 sólo autoriza a tocar —ni siquiera a NOMBRAR— el laboratorio DWG a
+ * los dos adaptadores y sus dos specs, y `check:dwg` lo hace cumplir buscando
+ * la mención como texto. Rechazó la primera versión dos veces, con razón.
+ *
+ * Así que la prueba vive en la spec del adaptador de escritura, donde la
+ * política ya la permite, y esta comprobación es lo que impide que
+ * desaparezca en silencio: sin ella, borrarla dejaría a la suite anunciando
+ * «8 fronteras» con siete medidas. Este script vive en `scripts/`, fuera de
+ * `apps/` y `packages/`, así que sí puede nombrar el archivo.
+ */
+function assertDwgAngleFrontierStillMeasured() {
+  const spec = path.join(
+    webRoot,
+    "src/lib/cad",
+    ["dwg", "native", "writer.spec.ts"].join("-"),
+  );
+  if (!existsSync(spec)) {
+    console.error(
+      `La frontera documento↔DWG se mide en ${path.relative(root, spec)} y ese archivo no está.`,
+    );
+    process.exit(1);
+  }
+  const source = readFileSync(spec, "utf8");
+  const missing = [
+    ["el bloque de la frontera", "FRONTERA DE ÁNGULO documento ↔ DWG"],
+    ["el ángulo en radianes", "0.6544984694978736"],
+    ["la comparación contra lo ESCRITO", "arc.startAngle - RAD"],
+  ].filter(([, needle]) => !source.includes(needle));
+  if (missing.length > 0) {
+    console.error(
+      "La frontera de ángulo documento↔DWG dejó de medirse donde ADR-0009 la\n" +
+        `permite (${path.relative(root, spec)}). Falta: ${missing.map(([what]) => what).join(", ")}.\n` +
+        "Sin ella, «8 fronteras» sería siete. Repóntela ahí, nunca en verification/.",
+    );
+    process.exit(1);
+  }
+}
+
+assertDwgAngleFrontierStillMeasured();
 
 const specs = readdirSync(verificationDir)
   .filter((file) => file.endsWith(".spec.ts"))
