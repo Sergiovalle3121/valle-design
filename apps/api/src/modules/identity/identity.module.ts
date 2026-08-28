@@ -5,6 +5,8 @@ import { CommercialModule } from '../commercial/commercial.module';
 import {
   Credential,
   IdentityAuditEvent,
+  IdentityBackupCode,
+  IdentityMfaFactor,
   IdentityRateLimit,
   OneTimeToken,
   Session,
@@ -30,6 +32,8 @@ import { PostgresIdentityRateLimitStore } from './postgres-identity-rate-limit.s
       OneTimeToken,
       IdentityAuditEvent,
       IdentityRateLimit,
+      IdentityMfaFactor,
+      IdentityBackupCode,
     ]),
   ],
   controllers: [IdentityController],

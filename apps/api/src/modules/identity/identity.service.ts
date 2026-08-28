@@ -1,7 +1,13 @@
-import { Inject, Injectable, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
-import { DataSource, EntityManager, Repository } from 'typeorm';
+import { DataSource, EntityManager, IsNull, Repository } from 'typeorm';
 import { isUniqueViolation } from '../../common/database/unique-violation';
 import {
   EMAIL_SERVICE,
@@ -15,6 +21,8 @@ import { permissionsForOrganizationRole } from '../organizations/organization-pe
 import {
   Credential,
   IdentityAuditEvent,
+  IdentityBackupCode,
+  IdentityMfaFactor,
   OneTimeToken,
   OneTimeTokenPurpose,
   Session,
@@ -27,6 +35,16 @@ import {
   MAX_TOKEN_LENGTH,
   verifyArgon2idPassword,
 } from './identity-security';
+import {
+  BACKUP_CODE_COUNT,
+  decryptMfaSecret,
+  encryptMfaSecret,
+  generateBackupCode,
+  generateTotpSecret,
+  hashBackupCode,
+  totpCounter,
+  verifyTotp,
+} from './identity-mfa';
 
 export { CSRF_COOKIE, SESSION_COOKIE } from './identity-security';
 
@@ -38,6 +56,8 @@ const SESSION_COOKIE_PATTERN =
 
 @Injectable()
 export class IdentityService {
+  private readonly logger = new Logger(IdentityService.name);
+
   constructor(
     private readonly dataSource: DataSource,
     @InjectRepository(User) private readonly users: Repository<User>,
@@ -48,6 +68,10 @@ export class IdentityService {
     private readonly tokens: Repository<OneTimeToken>,
     @InjectRepository(IdentityAuditEvent)
     private readonly audit: Repository<IdentityAuditEvent>,
+    @InjectRepository(IdentityMfaFactor)
+    private readonly mfaFactors: Repository<IdentityMfaFactor>,
+    @InjectRepository(IdentityBackupCode)
+    private readonly backupCodes: Repository<IdentityBackupCode>,
     @Inject(EMAIL_SERVICE) private readonly email: EmailService,
   ) {}
 
@@ -151,12 +175,35 @@ export class IdentityService {
     return { accepted: true };
   }
 
+  /**
+   * INICIO DE SESIÓN, en uno o en dos actos.
+   *
+   * Cuando la cuenta NO tiene segundo factor, esto se comporta exactamente como
+   * antes: contraseña correcta ⇒ sesión. Cuando SÍ lo tiene, la contraseña por
+   * sí sola ya no abre nada: se emite un DESAFÍO de vida corta y el llamador
+   * tiene que volver con el código.
+   *
+   * El desafío es un token de un solo uso, guardado en hash como todos los
+   * demás. Es deliberado que no sea una sesión «a medias» marcada con una
+   * bandera: una sesión parcial es una sesión, y basta un endpoint que se
+   * olvide de mirar la bandera para que el segundo factor deje de existir. Un
+   * desafío que no es sesión no puede autenticar nada por accidente.
+   */
   async login(
     email: string,
     password: string,
     ip?: string,
     userAgent?: string,
-  ) {
+  ): Promise<
+    | {
+        kind: 'session';
+        session: Session;
+        user: User;
+        cookie: string;
+        csrf: string;
+      }
+    | { kind: 'mfa'; challenge: string; expiresAt: Date }
+  > {
     const user = await this.users.findOneBy({
       email: this.normalizeEmail(email),
     });
@@ -174,7 +221,53 @@ export class IdentityService {
       throw new UnauthorizedException('Credenciales inválidas.');
     }
 
-    return this.createSession(user, ip, userAgent);
+    const factor = await this.confirmedMfaFactor(user.id);
+    if (factor) {
+      return { kind: 'mfa', ...(await this.issueMfaChallenge(user)) };
+    }
+
+    const created = await this.createSession(user, ip, userAgent);
+    await this.recordSignIn(user, created.session, 'password');
+    return { kind: 'session', ...created };
+  }
+
+  /**
+   * Segundo acto: el código. Cierra el desafío y abre la sesión.
+   *
+   * Acepta un código TOTP o uno de respaldo, y en los dos casos el desafío se
+   * consume ANTES de validar nada: si se consumiera después, un atacante con el
+   * desafío tendría intentos ilimitados dentro de sus cinco minutos. Así cada
+   * desafío vale exactamente un intento, que es lo que convierte el límite de
+   * peticiones en un límite de verdad.
+   */
+  async completeMfaLogin(
+    challenge: string,
+    code: string,
+    ip?: string,
+    userAgent?: string,
+  ): Promise<{
+    session: Session;
+    user: User;
+    cookie: string;
+    csrf: string;
+  } | null> {
+    if (!this.validOpaqueToken(challenge)) return null;
+    const consumed = await this.dataSource.transaction((manager) =>
+      this.consumeTokenWithManager(manager, challenge, 'mfa_challenge'),
+    );
+    if (!consumed) return null;
+
+    const user = await this.users.findOneBy({ id: consumed.subjectId });
+    if (!user) return null;
+
+    const method = await this.consumeSecondFactor(user.id, code);
+    if (!method) {
+      throw new UnauthorizedException('Código inválido o ya utilizado.');
+    }
+
+    const created = await this.createSession(user, ip, userAgent);
+    await this.recordSignIn(user, created.session, method);
+    return created;
   }
 
   async createSession(user: User, ip?: string, userAgent?: string) {
@@ -366,6 +459,372 @@ export class IdentityService {
         }),
       );
       return true;
+    });
+  }
+
+  /* ═══ SEGUNDO FACTOR ════════════════════════════════════════════════════ */
+
+  /** El factor sólo cuenta cuando el usuario demostró que su aplicación funciona. */
+  private async confirmedMfaFactor(
+    userId: string,
+  ): Promise<IdentityMfaFactor | null> {
+    const factor = await this.mfaFactors.findOneBy({ userId });
+    return factor?.confirmedAt ? factor : null;
+  }
+
+  /** ¿Tiene esta cuenta segundo factor activo? Lo consulta la página de cuenta. */
+  async mfaStatus(userId: string): Promise<{
+    enabled: boolean;
+    pending: boolean;
+    confirmedAt: Date | null;
+    backupCodesRemaining: number;
+  }> {
+    const factor = await this.mfaFactors.findOneBy({ userId });
+    const backupCodesRemaining = factor?.confirmedAt
+      ? await this.backupCodes.count({
+          where: { userId, consumedAt: IsNull() },
+        })
+      : 0;
+    return {
+      enabled: Boolean(factor?.confirmedAt),
+      pending: Boolean(factor && !factor.confirmedAt),
+      confirmedAt: factor?.confirmedAt ?? null,
+      backupCodesRemaining,
+    };
+  }
+
+  /**
+   * Empieza el alta: secreto nuevo, cifrado y SIN confirmar.
+   *
+   * Volver a llamar mientras el alta está a medias sustituye el secreto — es lo
+   * que pasa cuando alguien cierra la página a mitad y vuelve a entrar, y la
+   * alternativa (fallar con «ya empezaste un alta») obligaría a inventar un
+   * botón de cancelar para un estado que no le importa a nadie.
+   *
+   * Lo que NO se puede hacer es sustituir un factor YA CONFIRMADO: eso sería
+   * desactivar el segundo factor sin pedir ni el código ni la contraseña, o
+   * sea, exactamente el agujero que el factor viene a tapar.
+   */
+  async beginMfaEnrollment(userId: string): Promise<string> {
+    if (await this.confirmedMfaFactor(userId)) {
+      throw new BadRequestException({
+        code: 'mfa_already_enabled',
+        message:
+          'Esta cuenta ya tiene segundo factor. Desactívalo antes de dar de alta otro.',
+      });
+    }
+    const secret = generateTotpSecret();
+    const existing = await this.mfaFactors.findOneBy({ userId });
+    if (existing) {
+      await this.mfaFactors.update(
+        { id: existing.id },
+        { secretCiphertext: encryptMfaSecret(secret), lastUsedStep: null },
+      );
+    } else {
+      await this.mfaFactors.save(
+        this.mfaFactors.create({
+          userId,
+          type: 'totp',
+          secretCiphertext: encryptMfaSecret(secret),
+        }),
+      );
+    }
+    return secret;
+  }
+
+  /**
+   * Confirma el alta con un código y ENTREGA los códigos de respaldo.
+   *
+   * Los códigos se devuelven aquí y en ningún otro sitio nunca más: se guardan
+   * en hash, así que el servidor no puede volver a enseñarlos. Es incómodo a
+   * propósito — un producto que puede reimprimir tus códigos de respaldo es un
+   * producto que puede entregárselos a quien se haga pasar por ti.
+   */
+  async confirmMfaEnrollment(
+    userId: string,
+    code: string,
+  ): Promise<string[] | null> {
+    const factor = await this.mfaFactors.findOneBy({ userId });
+    if (!factor || factor.confirmedAt) return null;
+    const secret = decryptMfaSecret(factor.secretCiphertext);
+    if (!secret || !verifyTotp(secret, code, Date.now())) return null;
+
+    const codes = Array.from({ length: BACKUP_CODE_COUNT }, () =>
+      generateBackupCode(),
+    );
+    await this.dataSource.transaction(async (manager) => {
+      await manager.update(
+        IdentityMfaFactor,
+        { id: factor.id },
+        {
+          confirmedAt: new Date(),
+          lastUsedStep: String(totpCounter(Date.now())),
+          lastUsedAt: new Date(),
+        },
+      );
+      await manager.delete(IdentityBackupCode, { userId });
+      await manager.save(
+        IdentityBackupCode,
+        codes.map((code) =>
+          manager.create(IdentityBackupCode, {
+            userId,
+            codeHash: hashBackupCode(code),
+          }),
+        ),
+      );
+      await manager.save(
+        IdentityAuditEvent,
+        manager.create(IdentityAuditEvent, {
+          actorUserId: userId,
+          action: 'identity.mfa_enabled',
+        }),
+      );
+    });
+    return codes;
+  }
+
+  /**
+   * Un código válido, TOTP o de respaldo, consumido de forma que no se repita.
+   *
+   * TOTP: se rechaza cualquier paso de tiempo menor o IGUAL al último aceptado.
+   * Ésa es la defensa contra repetición, y sin ella un código visto de reojo o
+   * copiado de un registro sigue sirviendo durante los noventa segundos de la
+   * ventana de tolerancia.
+   *
+   * Respaldo: el consumo es un UPDATE condicional sobre `consumedAt IS NULL`,
+   * así que dos peticiones simultáneas con el mismo código sólo pueden ganar
+   * una. Un `SELECT` seguido de `UPDATE` habría dejado pasar las dos.
+   */
+  private async consumeSecondFactor(
+    userId: string,
+    code: string,
+  ): Promise<'totp' | 'backup_code' | null> {
+    const factor = await this.confirmedMfaFactor(userId);
+    if (!factor) return null;
+
+    const secret = decryptMfaSecret(factor.secretCiphertext);
+    if (secret && verifyTotp(secret, code, Date.now())) {
+      const step = totpCounter(Date.now());
+      const last = factor.lastUsedStep ? Number(factor.lastUsedStep) : -1;
+      if (step <= last) return null;
+      await this.mfaFactors.update(
+        { id: factor.id },
+        { lastUsedStep: String(step), lastUsedAt: new Date() },
+      );
+      return 'totp';
+    }
+
+    const result = await this.backupCodes
+      .createQueryBuilder()
+      .update()
+      .set({ consumedAt: new Date() })
+      .where('userId = :userId AND codeHash = :hash AND consumedAt IS NULL', {
+        userId,
+        hash: hashBackupCode(code),
+      })
+      .execute();
+    return result.affected ? 'backup_code' : null;
+  }
+
+  /**
+   * Desactivar exige la CONTRASEÑA, no sólo la sesión.
+   *
+   * Una sesión abierta en una máquina desatendida es justo el escenario contra
+   * el que sirve un segundo factor. Si bastara con estar dentro para quitarlo,
+   * quien se sienta delante de esa pantalla lo apaga en dos clics y ya no hay
+   * factor. Pedir la contraseña convierte «tengo su pantalla» en «además tengo
+   * su contraseña», que es un listón muy distinto.
+   */
+  async disableMfa(userId: string, password: string): Promise<boolean> {
+    const credential = await this.credentials.findOneBy({ userId });
+    const valid = await this.verifyPassword(
+      credential?.algorithm === 'argon2id'
+        ? credential.passwordHash
+        : DUMMY_PASSWORD_HASH,
+      password,
+    );
+    if (!credential || !valid) return false;
+
+    await this.dataSource.transaction(async (manager) => {
+      await manager.delete(IdentityMfaFactor, { userId });
+      await manager.delete(IdentityBackupCode, { userId });
+      await manager.save(
+        IdentityAuditEvent,
+        manager.create(IdentityAuditEvent, {
+          actorUserId: userId,
+          action: 'identity.mfa_disabled',
+        }),
+      );
+    });
+    return true;
+  }
+
+  /** Códigos nuevos: los viejos dejan de valer en la misma transacción. */
+  async regenerateBackupCodes(
+    userId: string,
+    password: string,
+  ): Promise<string[] | null> {
+    const credential = await this.credentials.findOneBy({ userId });
+    const valid = await this.verifyPassword(
+      credential?.algorithm === 'argon2id'
+        ? credential.passwordHash
+        : DUMMY_PASSWORD_HASH,
+      password,
+    );
+    if (!credential || !valid || !(await this.confirmedMfaFactor(userId))) {
+      return null;
+    }
+    const codes = Array.from({ length: BACKUP_CODE_COUNT }, () =>
+      generateBackupCode(),
+    );
+    await this.dataSource.transaction(async (manager) => {
+      await manager.delete(IdentityBackupCode, { userId });
+      await manager.save(
+        IdentityBackupCode,
+        codes.map((code) =>
+          manager.create(IdentityBackupCode, {
+            userId,
+            codeHash: hashBackupCode(code),
+          }),
+        ),
+      );
+    });
+    return codes;
+  }
+
+  /**
+   * El desafío entre la contraseña y el código. Cinco minutos.
+   *
+   * Suficiente para abrir la aplicación de autenticación y teclear seis
+   * dígitos, incluso buscando el teléfono; corto como para que un desafío
+   * filtrado no sirva de nada al rato. Reutiliza la tabla de tokens de un solo
+   * uso, así que emitir uno invalida el anterior por construcción.
+   */
+  private async issueMfaChallenge(
+    user: User,
+  ): Promise<{ challenge: string; expiresAt: Date }> {
+    const raw = this.newToken();
+    const expiresAt = new Date(Date.now() + 5 * 60_000);
+    await this.dataSource.transaction(async (manager) => {
+      await this.lockIdentitySubject(manager, user.id);
+      await manager
+        .createQueryBuilder()
+        .update(OneTimeToken)
+        .set({ consumedAt: new Date() })
+        .where(
+          'subjectId = :userId AND purpose = :purpose AND consumedAt IS NULL',
+          { userId: user.id, purpose: 'mfa_challenge' },
+        )
+        .execute();
+      await manager.save(
+        OneTimeToken,
+        manager.create(OneTimeToken, {
+          subjectId: user.id,
+          purpose: 'mfa_challenge',
+          tokenHash: this.hashToken(raw),
+          expiresAt,
+        }),
+      );
+    });
+    return { challenge: raw, expiresAt };
+  }
+
+  /* ═══ ACTIVIDAD DE LA CUENTA ═════════════════════════════════════════════ */
+
+  /**
+   * Deja constancia del inicio de sesión y AVISA por correo.
+   *
+   * Dos cosas que el producto no hacía y que son la base de que un usuario
+   * pueda vigilar su propia cuenta: la tabla de auditoría no registraba ni un
+   * inicio de sesión —sólo alta, verificación y restablecimiento— así que la
+   * página de cuenta no tenía nada que enseñar.
+   *
+   * El aviso por correo va por el outbox transaccional, igual que la
+   * verificación y el restablecimiento. Y NO se envía en el primer inicio tras
+   * el alta: el usuario acaba de registrarse, sabe perfectamente que entró, y
+   * un correo de «inicio de sesión nuevo» a los diez segundos de otro de
+   * bienvenida enseña a la gente a ignorar exactamente el aviso que algún día
+   * tendrá que leer con atención.
+   *
+   * Ni el fallo del registro ni el del correo pueden tumbar un inicio de sesión
+   * válido: se registran y se sigue. Que la auditoría estorbe a la función que
+   * audita es cambiar un problema pequeño por uno grande.
+   */
+  private async recordSignIn(
+    user: User,
+    session: Session,
+    method: 'password' | 'totp' | 'backup_code',
+  ): Promise<void> {
+    try {
+      const previous = await this.audit.count({
+        where: { actorUserId: user.id, action: 'identity.signed_in' },
+      });
+      const userAgent = session.userAgent?.slice(0, 200) ?? null;
+      // El registro y el aviso van en la MISMA transacción, igual que la
+      // verificación de correo: o queda constancia y sale el aviso, o no pasa
+      // ninguna de las dos cosas. Un aviso enviado sin fila en el historial
+      // manda al usuario a una página de actividad que no le enseña el suceso
+      // del que acaba de recibir un correo.
+      await this.dataSource.transaction(async (manager) => {
+        await manager.save(
+          IdentityAuditEvent,
+          manager.create(IdentityAuditEvent, {
+            actorUserId: user.id,
+            action: 'identity.signed_in',
+            metadata: {
+              method,
+              sessionId: session.id,
+              // El agente de usuario ya se guarda en la sesión; aquí viaja
+              // recortado para que el historial se pueda leer sin unir tablas.
+              userAgent,
+            },
+          }),
+        );
+        if (previous > 0) {
+          await this.email.enqueue(
+            {
+              organizationId: null,
+              tenantId: null,
+              to: user.email,
+              template: 'identity.new-sign-in',
+              payload: {
+                method,
+                at: new Date().toISOString(),
+                userAgent,
+              },
+              // La sesión es única, así que un reintento del mismo inicio no
+              // puede producir dos correos.
+              idempotencyKey: `identity.new-sign-in:${session.id}`,
+            },
+            { native: manager },
+          );
+        }
+      });
+    } catch (error) {
+      this.logger.warn(
+        `No se pudo registrar el inicio de sesión de ${user.id}: ${
+          error instanceof Error ? error.message : 'causa desconocida'
+        }`,
+      );
+    }
+  }
+
+  /**
+   * El historial reciente que enseña la página de cuenta.
+   *
+   * Sale de la tabla de auditoría que ya existía. Se limita a los sucesos de
+   * IDENTIDAD del propio usuario y a un tope de filas: un historial infinito en
+   * una página de cuenta es una consulta cara para responder a una pregunta
+   * («¿entró alguien más?») que sólo mira los últimos días.
+   */
+  async recentActivity(
+    userId: string,
+    limit = 25,
+  ): Promise<IdentityAuditEvent[]> {
+    return this.audit.find({
+      where: { actorUserId: userId },
+      order: { createdAt: 'DESC' },
+      take: Math.min(Math.max(limit, 1), 100),
     });
   }
 

@@ -38,6 +38,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/auth/login/mfa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Cierra el desafio de segundo factor y crea la sesion. */
+        post: operations["completeIdentityMfaLogin"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/auth/session": {
         parameters: {
             query?: never;
@@ -137,6 +154,108 @@ export interface paths {
         post?: never;
         /** Revoca una sesion propia por UUID. */
         delete: operations["revokeIdentitySession"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/mfa": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Estado del segundo factor de la cuenta autenticada. */
+        get: operations["getIdentityMfaStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/mfa/setup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Emite un secreto TOTP sin confirmar y su URI para el codigo QR. */
+        post: operations["beginIdentityMfaEnrollment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/mfa/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Confirma el alta con un codigo y entrega los codigos de respaldo. */
+        post: operations["activateIdentityMfa"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/mfa/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Desactiva el segundo factor. Exige la contrasena, no solo la sesion. */
+        post: operations["disableIdentityMfa"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/mfa/backup-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Emite codigos de respaldo nuevos e invalida los anteriores. */
+        post: operations["regenerateIdentityBackupCodes"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/auth/activity": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sucesos recientes de identidad de la cuenta autenticada. */
+        get: operations["listIdentityActivity"];
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -1364,6 +1483,59 @@ export interface components {
         IdentitySessionList: {
             sessions: components["schemas"]["IdentitySession"][];
         };
+        MfaChallengeResponse: {
+            /** @enum {boolean} */
+            mfaRequired: true;
+            challenge: string;
+            expiresAt: components["schemas"]["Timestamp"];
+        };
+        MfaCodeRequest: {
+            /** @description Codigo TOTP de seis digitos o codigo de respaldo. El limite alto cubre el guion y los espacios con los que se copia un respaldo. */
+            code: string;
+        };
+        MfaLoginRequest: {
+            challenge: string;
+            code: string;
+        };
+        PasswordConfirmationRequest: {
+            password: string;
+        };
+        MfaStatus: {
+            enabled: boolean;
+            /** @description Hay un alta empezada y sin confirmar con un codigo. */
+            pending: boolean;
+            confirmedAt: components["schemas"]["Timestamp"] | null;
+            backupCodesRemaining: number;
+        };
+        MfaSetupResponse: {
+            /** @description Secreto en base32 (RFC 4648), para teclearlo a mano. */
+            secret: string;
+            /** @description URI otpauth que se pinta como codigo QR. */
+            uri: string;
+        };
+        MfaActivationResponse: {
+            /** @enum {boolean} */
+            enabled: true;
+            backupCodes: string[];
+        };
+        MfaDisabledResponse: {
+            /** @enum {boolean} */
+            enabled: false;
+        };
+        MfaBackupCodesResponse: {
+            backupCodes: string[];
+        };
+        IdentityActivityEvent: {
+            /** Format: uuid */
+            id: string;
+            action: string;
+            createdAt: components["schemas"]["Timestamp"];
+            method: string | null;
+            userAgent: string | null;
+        };
+        IdentityActivityList: {
+            events: components["schemas"]["IdentityActivityEvent"][];
+        };
         SessionRotationResponse: {
             expiresAt: components["schemas"]["Timestamp"];
         };
@@ -2533,7 +2705,35 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Sesion creada; el secreto viaja solo en Set-Cookie HttpOnly. */
+            /** @description Sesion creada (el secreto viaja solo en Set-Cookie HttpOnly), o desafio de segundo factor cuando la cuenta lo tiene activo. En el segundo caso NO se emite cookie: la contrasena sola no abre nada. */
+            200: {
+                headers: {
+                    "Set-Cookie"?: string;
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LoginResponse"] | components["schemas"]["MfaChallengeResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    completeIdentityMfaLogin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaLoginRequest"];
+            };
+        };
+        responses: {
+            /** @description Sesion creada tras validar el codigo. */
             200: {
                 headers: {
                     "Set-Cookie"?: string;
@@ -2683,6 +2883,164 @@ export interface operations {
                 content?: never;
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getIdentityMfaStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Estado del segundo factor. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MfaStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    beginIdentityMfaEnrollment: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Token de doble envio igual a la cookie legible valle_csrf. */
+                "X-CSRF-Token": components["parameters"]["csrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Secreto y URI otpauth. El factor NO protege nada hasta confirmarlo con un codigo; los codigos de respaldo se entregan al activar. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MfaSetupResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    activateIdentityMfa: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Token de doble envio igual a la cookie legible valle_csrf. */
+                "X-CSRF-Token": components["parameters"]["csrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MfaCodeRequest"];
+            };
+        };
+        responses: {
+            /** @description Segundo factor activo. Los codigos de respaldo se devuelven UNA sola vez: el servidor los guarda en hash y no puede volver a mostrarlos. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MfaActivationResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    disableIdentityMfa: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Token de doble envio igual a la cookie legible valle_csrf. */
+                "X-CSRF-Token": components["parameters"]["csrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordConfirmationRequest"];
+            };
+        };
+        responses: {
+            /** @description Segundo factor desactivado y codigos de respaldo borrados. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MfaDisabledResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    regenerateIdentityBackupCodes: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Token de doble envio igual a la cookie legible valle_csrf. */
+                "X-CSRF-Token": components["parameters"]["csrfToken"];
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PasswordConfirmationRequest"];
+            };
+        };
+        responses: {
+            /** @description Codigos nuevos; los anteriores dejaron de valer. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MfaBackupCodesResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    listIdentityActivity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Hasta 25 sucesos, del mas reciente al mas antiguo. Nunca incluye la direccion IP: se persiste para investigar abusos, no para mostrarla a quien se siente delante de una sesion abierta. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["IdentityActivityList"];
+                };
+            };
             401: components["responses"]["Unauthorized"];
         };
     };

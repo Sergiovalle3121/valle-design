@@ -57,7 +57,7 @@ composiciones que evoquen su identidad, ni la palabra AutoCAD en el branding.
 | 1 | 1.6 Móvil a la misma altura | **hecho** |
 | 2 | 2.1 Registro y login premium | pendiente |
 | 2 | 2.2 Entrar con Google y Microsoft | pendiente |
-| 2 | 2.3 MFA opcional (TOTP) | pendiente |
+| 2 | 2.3 MFA opcional (TOTP) | **hecho** (API + evidencia PG) |
 | 2 | 2.4 La cuenta muestra su seguridad | pendiente |
 | 2 | 2.5 Verificación por enlace pulida | pendiente |
 | 3 | 3.1 Nombres humanos de entidades | pendiente |
@@ -239,3 +239,80 @@ sitemap, en la barra pública y en el pie.
 
 **Verdad medida:** `432/432` specs verdes · `build` verde · `check:contrast` 70
 pares OK · `check:surface` OK · trinquete de lint 547/547 · `tsc` limpio.
+
+### 04:20 — El segundo factor, y el codificador de QR que lo hace escaneable
+
+**2.3 · MFA (TOTP) — el núcleo, la API y la evidencia.** Escrito a mano y no
+importado, porque TOTP son treinta líneas cuya corrección se puede DEMOSTRAR
+contra los vectores del propio RFC — un oráculo externo de verdad, no un golden
+generado por la misma implementación. `identity-mfa.spec.ts`: **41 aserciones**,
+los seis vectores de RFC 6238 §B y los siete de RFC 4648 §10.
+
+Cuatro decisiones que valen más que el algoritmo:
+
+* **El secreto va cifrado** (AES-256-GCM, clave fuera de la base de datos). Un
+  secreto TOTP no puede guardarse en hash —hay que reproducir el código— y en
+  claro convierte cualquier volcado en la derrota total del factor. GCM y no CBC
+  porque además autentica: un secreto manipulado falla al descifrar en vez de
+  producir códigos silenciosamente equivocados que el usuario viviría como «mi
+  teléfono dejó de funcionar». En producción la clave es obligatoria.
+* **`lastUsedStep` contra repetición.** La parte que casi todas las
+  implementaciones caseras olvidan: sin ella un código robado sigue sirviendo
+  durante los noventa segundos de la ventana de tolerancia.
+* **El desafío NO es una sesión a medias.** Es un token de un solo uso en la
+  tabla que ya existe. Una sesión con una bandera se convierte en un agujero en
+  cuanto un endpoint se olvida de mirar la bandera; una fila que no está en la
+  tabla de sesiones no puede autenticar nada por accidente.
+* **Desactivar exige la contraseña.** Una sesión abierta en una máquina
+  desatendida es justo el escenario contra el que sirve el factor.
+
+**Evidencia contra PostgreSQL real:** se levantó un PostgreSQL 16 local y se
+corrió la suite completa. `identity-mfa.pg.spec.ts` ejerce el flujo entero —
+**15 pruebas** incluida la carrera de dos peticiones simultáneas con el mismo
+código de respaldo, que sobre SQLite no se puede probar porque el motor
+serializa toda escritura y la carrera sencillamente no ocurre. Total:
+**207/207 en `test:pg`, 37 suites**, con la cadena de migraciones completa
+(up → down → up) sobre la base real.
+
+**2.4 · Actividad de la cuenta.** La tabla de auditoría no registraba ni un
+inicio de sesión —sólo alta, verificación y restablecimiento— así que la página
+de cuenta no tenía nada que enseñar. Ahora hay `identity.signed_in` con su
+método, `GET /v1/auth/activity`, y aviso por correo por el outbox transaccional.
+El aviso NO se manda en el primer inicio tras el alta: un correo de «inicio de
+sesión nuevo» a los diez segundos del de bienvenida enseña a la gente a ignorar
+justo el aviso que algún día tendrá que leer con atención.
+
+**El contrato, movido entero.** 7 operaciones nuevas en la OpenAPI, SDK
+regenerado, consola de la API regenerada, y los **cuatro** recuentos que el
+repositorio mantiene a mano movidos a la vez (`check-design-contract`,
+`standalone-contract-router`, `console-contract` ×2). `completeIdentityMfaLogin`
+entra en la lista de operaciones sin sesión con su razón escrita: es el segundo
+acto del inicio de sesión y ocurre antes de que exista sesión.
+
+**Un error propio, corregido en el acto y convertido en guardia.** Al levantar
+PostgreSQL para verificar la migración, la cadena murió con `syntax error at or
+near "-"`. Diagnostiqué mal —creí que `json-column-type.ts` debía reconocer
+`TEST_DATABASE_URL`— y ese «arreglo» puso **51 suites en rojo**, porque las
+entidades pasaron a mapearse a `jsonb` para todo el proceso, incluidas las que
+corren sobre SQLite. Revertido.
+
+La causa real era mía: invoqué `npx jest` en vez de `npm run test:pg`. El
+repositorio ya tenía la trampa señalizada por dos sitios —el lanzador define
+`DATABASE_URL`, y `createPostgresHarness` falla con un mensaje que nombra el
+comando correcto—. El único hueco real: `migration-chain.pg.spec.ts` construye
+su propio DataSource y se saltaba esa señal. Ahora pasa por ella, y
+`json-column-type.spec.ts` fija la frontera para que el próximo que intente
+ampliarla se encuentre la explicación en rojo.
+
+**Activo nuevo verificado: el codificador de QR.** Sin dependencias, en
+`apps/web/src/lib/qr/`. **1005 comprobaciones verdes**: aritmética de GF(256)
+contra una implementación independiente, síndromes nulos en todos los bloques
+leídos DE LA MATRIZ (y no nulos al corromperlos), ida y vuelta con un
+decodificador escrito aparte, barrido de las 40 versiones, e información de
+formato, versión, alineación y capacidades contra los vectores publicados del
+estándar.
+
+**Verdad medida:** `433/433` specs web · `756` API (unidad) · `207/207` API
+contra PostgreSQL real · contrato 90 operaciones sincronizadas · contraste 70
+pares · superficie pública OK · trinquete de lint 547/547 · `tsc` limpio en los
+dos workspaces.

@@ -4,7 +4,7 @@
   "openapi": "3.1.0",
   "apiTitle": "Valle Design — API standalone (v1)",
   "apiVersion": "1.0.0",
-  "operationCount": 83,
+  "operationCount": 90,
   "cadOperationCount": 43,
   "groups": [
     {
@@ -13,12 +13,19 @@
       "operations": [
         "registerIdentity",
         "loginIdentity",
+        "completeIdentityMfaLogin",
         "getIdentitySession",
         "logoutIdentity",
         "listIdentitySessions",
         "rotateIdentitySession",
         "revokeOtherIdentitySessions",
         "revokeIdentitySession",
+        "getIdentityMfaStatus",
+        "beginIdentityMfaEnrollment",
+        "activateIdentityMfa",
+        "disableIdentityMfa",
+        "regenerateIdentityBackupCodes",
+        "listIdentityActivity",
         "verifyIdentityEmail",
         "resendIdentityVerification",
         "requestIdentityPasswordReset",
@@ -222,6 +229,29 @@
       ]
     },
     {
+      "operationId": "completeIdentityMfaLogin",
+      "method": "POST",
+      "path": "/v1/auth/login/mfa",
+      "summary": "Cierra el desafio de segundo factor y crea la sesion.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "public",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "MfaLoginRequest"
+      },
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "429"
+      ]
+    },
+    {
       "operationId": "getIdentitySession",
       "method": "GET",
       "path": "/v1/auth/session",
@@ -363,6 +393,159 @@
       "responses": [
         "204",
         "400",
+        "401"
+      ]
+    },
+    {
+      "operationId": "getIdentityMfaStatus",
+      "method": "GET",
+      "path": "/v1/auth/mfa",
+      "summary": "Estado del segundo factor de la cuenta autenticada.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401"
+      ]
+    },
+    {
+      "operationId": "beginIdentityMfaEnrollment",
+      "method": "POST",
+      "path": "/v1/auth/mfa/setup",
+      "summary": "Emite un secreto TOTP sin confirmar y su URI para el codigo QR.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "X-CSRF-Token",
+          "in": "header",
+          "required": true,
+          "description": "Token de doble envio igual a la cookie legible valle_csrf."
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "429"
+      ]
+    },
+    {
+      "operationId": "activateIdentityMfa",
+      "method": "POST",
+      "path": "/v1/auth/mfa/activate",
+      "summary": "Confirma el alta con un codigo y entrega los codigos de respaldo.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "X-CSRF-Token",
+          "in": "header",
+          "required": true,
+          "description": "Token de doble envio igual a la cookie legible valle_csrf."
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "MfaCodeRequest"
+      },
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "429"
+      ]
+    },
+    {
+      "operationId": "disableIdentityMfa",
+      "method": "POST",
+      "path": "/v1/auth/mfa/disable",
+      "summary": "Desactiva el segundo factor. Exige la contrasena, no solo la sesion.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "X-CSRF-Token",
+          "in": "header",
+          "required": true,
+          "description": "Token de doble envio igual a la cookie legible valle_csrf."
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "PasswordConfirmationRequest"
+      },
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "429"
+      ]
+    },
+    {
+      "operationId": "regenerateIdentityBackupCodes",
+      "method": "POST",
+      "path": "/v1/auth/mfa/backup-codes",
+      "summary": "Emite codigos de respaldo nuevos e invalida los anteriores.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "X-CSRF-Token",
+          "in": "header",
+          "required": true,
+          "description": "Token de doble envio igual a la cookie legible valle_csrf."
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "PasswordConfirmationRequest"
+      },
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "429"
+      ]
+    },
+    {
+      "operationId": "listIdentityActivity",
+      "method": "GET",
+      "path": "/v1/auth/activity",
+      "summary": "Sucesos recientes de identidad de la cuenta autenticada.",
+      "tags": [
+        "identity"
+      ],
+      "entitlement": null,
+      "permission": null,
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
         "401"
       ]
     },

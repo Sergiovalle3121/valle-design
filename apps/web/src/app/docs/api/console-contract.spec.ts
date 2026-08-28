@@ -58,10 +58,13 @@ void (async () => {
   );
 
   // 79 + las 3 de /v1/legal (documentos, listar y registrar aceptación)
-  // + 1 de /v1/support (el botón «algo salió mal» del estudio).
+  // + 1 de /v1/support (el botón «algo salió mal» del estudio)
+  // + las 7 de la campaña de firma propia (2026-08-28): el segundo acto del
+  //   inicio de sesión con segundo factor, las cinco de administrar ese factor
+  //   y la actividad reciente de la cuenta.
   assert.equal(
     regenerated.operationCount,
-    83,
+    90,
     "cambió el número de operaciones del contrato; actualiza este spec Y los recuentos de check-design-contract.mjs / standalone-contract-router.spec.ts",
   );
   assert.equal(
@@ -102,12 +105,23 @@ void (async () => {
   // `c_RegimenFiscal` y el subconjunto de `c_UsoCFDI` son idénticos para todo
   // México y se sirven desde constantes del producto, sin un solo dato de nadie.
   // Si algún día otra operación declara `security: []`, que sea decisión vista.
+  //
+  // DECISIÓN VISTA (campaña de firma propia, 2026-08-28):
+  // `completeIdentityMfaLogin` es el segundo acto del inicio de sesión y por
+  // definición ocurre ANTES de que exista sesión — exigirla sería exigir lo que
+  // esa llamada viene a crear. No queda desprotegida: para llegar hay que
+  // presentar un desafío de un solo uso, emitido sólo tras validar la
+  // contraseña, que caduca en cinco minutos, se consume al primer intento y
+  // lleva su propio techo de peticiones. Las otras cinco rutas del segundo
+  // factor (estado, alta, activación, baja y códigos de respaldo) y la
+  // actividad reciente SÍ exigen sesión, y por eso no aparecen en esta lista.
   const anonymous = regenerated.operations.filter(
     (operation) => operation.authentication === "public",
   );
   assert.deepEqual(
     anonymous.map((operation) => operation.operationId).sort(),
     [
+      "completeIdentityMfaLogin",
       "listLegalDocuments",
       "listPublicCommercialPlans",
       "listSatTaxCatalogs",
