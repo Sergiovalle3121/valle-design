@@ -48,7 +48,19 @@ import { contrastRatio, extractBlock, formatRatio, resolveToken } from "./contra
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "../..");
-const CSS_PATH = path.join(root, "apps/web/src/app/globals.css");
+/**
+ * La hoja que se mide. `VALLE_CONTRAST_CSS` sólo lo usa la propia prueba del
+ * gate, y existe por una razón concreta: sin él, comprobar que el gate FALLA
+ * ante una paleta ilegible obligaba a mutar `globals.css` en el árbol de
+ * trabajo —una prueba que puede dejar la hoja rota si el proceso muere a la
+ * mitad— o a no ejercer el gate en absoluto. Se hacía lo segundo: la prueba
+ * recalculaba el cociente con el módulo de aritmética, así que demostraba que
+ * la ARITMÉTICA detecta el fallo, no que el GATE salga con código 1. Un gate
+ * que hubiera perdido su `process.exit(1)` habría seguido pareciendo sano.
+ */
+const CSS_PATH =
+  process.env.VALLE_CONTRAST_CSS ||
+  path.join(root, "apps/web/src/app/globals.css");
 
 /** Texto normal: el umbral AA de toda la vida. */
 const TEXT = 4.5;

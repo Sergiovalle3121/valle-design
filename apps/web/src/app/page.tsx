@@ -233,8 +233,8 @@ const limits = [
     "El producto está pensado para trabajar conectado. El comportamiento con la red caída, en varias pestañas o con cierre forzado no está medido todavía, así que no lo prometemos.",
   ],
   [
-    "No tenemos nubes de puntos, raster georreferenciado ni GIS",
-    "Nada de LAS, GeoTIFF o SHP. Si tu flujo depende de eso, hoy no somos tu herramienta.",
+    "No tenemos nubes de puntos ni raster georreferenciado",
+    "Nada de LAS ni GeoTIFF. Shapefile sí se importa —con sus archivos acompañantes .shx, .dbf y .prj— pero si tu flujo vive en una nube de puntos o en un ortofoto, hoy no somos tu herramienta.",
   ],
 ] as const;
 

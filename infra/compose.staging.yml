@@ -60,6 +60,7 @@ services:
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       SYNCHRONIZE: 'false'
       IDENTITY_RATE_LIMIT_KEY_SECRET: ${IDENTITY_RATE_LIMIT_KEY_SECRET:?distinto del de produccion}
+      IDENTITY_MFA_ENCRYPTION_KEY: ${IDENTITY_MFA_ENCRYPTION_KEY:?distinto del de produccion}
       ALLOWED_ORIGIN: https://app-staging.${DOMAIN:?}
       OUTBOX_DISPATCHER_ENABLED: 'true'
       OUTBOX_EMAIL_WEBHOOK_URL: https://api-staging.${DOMAIN}/v1/outbox/email

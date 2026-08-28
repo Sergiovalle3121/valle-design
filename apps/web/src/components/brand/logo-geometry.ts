@@ -59,9 +59,17 @@ export const STROKE = { dimension: 2, valley: 3.4 } as const;
  *   accent   = --brand-primary-strong
  */
 export const BRAND_INK = {
-  light: "#172036",
-  dark: "#f3f5f7",
-  accent: "#4f46e5",
+  // Los tokens v2 ya convertidos, no una paleta paralela: `--foreground` en
+  // claro y en oscuro, y `--valle-accent`. Se quedaron en los valores v1 —azul
+  // frío e índigo— una campaña entera después de que el producto se moviera a
+  // grafito cálido y violeta, así que el favicon, la tarjeta social y los siete
+  // SVG seguían vistiendo la identidad anterior. Son las superficies de marca
+  // MÁS vistas: la pestaña del navegador y la miniatura que sale al compartir
+  // el enlace. Si estos tres valores cambian, hay que regenerar los archivos
+  // (`node scripts/brand/build-brand-assets.mjs`) o el gate `--check` lo dice.
+  light: "#251f18",
+  dark: "#f7f5f3",
+  accent: "#6b4def",
 } as const;
 
 export const WORDMARK = "Valle Design";

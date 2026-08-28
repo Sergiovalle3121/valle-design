@@ -18,8 +18,7 @@ import {
   generateBackupCode,
   generateTotpSecret,
   hashBackupCode,
-  totpCounter,
-  verifyTotp,
+  matchTotpCounter,
 } from './identity-mfa';
 
 /**
@@ -151,7 +150,12 @@ export class IdentityMfaService {
     const factor = await this.mfaFactors.findOneBy({ userId });
     if (!factor || factor.confirmedAt) return null;
     const secret = decryptMfaSecret(factor.secretCiphertext);
-    if (!secret || !verifyTotp(secret, code, Date.now())) return null;
+    // El alta sella la misma marca de consumo que el inicio de sesión, y por la
+    // misma razón: el código con el que se confirma el alta NO puede servir
+    // luego para entrar. Tiene que ser el paso QUE CASÓ (ver el comentario de
+    // `consumeSecondFactor`), no el actual.
+    const matched = secret ? matchTotpCounter(secret, code, Date.now()) : null;
+    if (matched === null) return null;
 
     const codes = Array.from({ length: BACKUP_CODE_COUNT }, () =>
       generateBackupCode(),
@@ -162,7 +166,7 @@ export class IdentityMfaService {
         { id: factor.id },
         {
           confirmedAt: new Date(),
-          lastUsedStep: String(totpCounter(Date.now())),
+          lastUsedStep: String(matched),
           lastUsedAt: new Date(),
         },
       );
@@ -207,14 +211,32 @@ export class IdentityMfaService {
     if (!factor) return null;
 
     const secret = decryptMfaSecret(factor.secretCiphertext);
-    if (secret && verifyTotp(secret, code, Date.now())) {
-      const step = totpCounter(Date.now());
+    const matched = secret ? matchTotpCounter(secret, code, Date.now()) : null;
+    if (matched !== null) {
+      // EL PASO QUE CASÓ, no el paso actual. La versión anterior guardaba
+      // `totpCounter(Date.now())`, y con la ventana de deriva ±1 eso dejaba un
+      // agujero de reutilización de un minuto entero: el código del paso N,
+      // aceptado en N, volvía a casar en N+1 por deriva −1 y la comprobación
+      // `N+1 > N` no lo veía. Cada código valía dos veces.
       const last = factor.lastUsedStep ? Number(factor.lastUsedStep) : -1;
-      if (step <= last) return null;
-      await this.mfaFactors.update(
-        { id: factor.id },
-        { lastUsedStep: String(step), lastUsedAt: new Date() },
-      );
+      if (matched <= last) return null;
+      // Compare-and-set sobre el valor que se leyó: dos peticiones simultáneas
+      // con el mismo código leen el mismo `last` y las dos pasarían la
+      // comprobación de arriba. Sólo una gana el UPDATE; la otra ve
+      // `affected === 0` y se va con las manos vacías. Es la misma forma que ya
+      // usan los códigos de respaldo un poco más abajo.
+      const claimed = await this.mfaFactors
+        .createQueryBuilder()
+        .update()
+        .set({ lastUsedStep: String(matched), lastUsedAt: new Date() })
+        .where(
+          factor.lastUsedStep === null
+            ? 'id = :id AND lastUsedStep IS NULL'
+            : 'id = :id AND lastUsedStep = :previous',
+          { id: factor.id, previous: factor.lastUsedStep },
+        )
+        .execute();
+      if (!claimed.affected) return null;
       return 'totp';
     }
 

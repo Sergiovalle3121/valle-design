@@ -244,6 +244,26 @@ ante operación sin marca. **Estimación:** medio día.
   costó tres corridas de CI.
 - **Estimación:** 30 minutos.
 
+### P1-F5 · Dar de alta el segundo factor sólo pide la sesión; quitarlo pide la contraseña
+- **Qué falla:** `POST /v1/auth/mfa/setup` y `/mfa/activate` se contentan con
+  sesión + CSRF, mientras `disableMfa` y `regenerateBackupCodes` exigen la
+  contraseña. La asimetría va al revés de lo que el propio módulo argumenta
+  para desactivar: «no basta con estar dentro». Dar de alta un segundo factor
+  cambia los requisitos de autenticación de la cuenta tanto como quitarlo.
+- **Escenario:** quien roba una sesión (XSS, cookie copiada, portátil abierto)
+  ata SU propio autenticador a la cuenta ajena. El dueño legítimo conserva la
+  contraseña y puede desactivarlo, así que no es un secuestro permanente — pero
+  es acceso persistente para el atacante y una pantalla de «segundo factor
+  activo» que el dueño no reconoce.
+- **Por qué no se arregló en la campaña de firma:** exige contraseña en el
+  cuerpo de dos operaciones, o sea cambio de contrato (OpenAPI + SDK + consola)
+  más la pantalla de alta. Es el mismo criterio que dejó OAuth fuera: media
+  reautenticación es peor que ninguna, y esto merece su propio pase.
+- **Criterio de aceptación:** las cuatro operaciones que tocan el segundo factor
+  exigen contraseña reciente; `check:cad-contract` verde; la prueba que hoy
+  cubre «desactivar exige contraseña» tiene su gemela para dar de alta.
+- **Estimación:** medio día con contrato.
+
 ### P1-F2 · Invitación por lote en el servidor
 - **Qué falla:** `/equipo` manda las invitaciones de una en una contra
   `POST /v1/organizations/:id/invitations`, en serie. Funciona y es honesto,

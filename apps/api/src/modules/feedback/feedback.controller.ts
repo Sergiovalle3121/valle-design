@@ -61,13 +61,25 @@ export class FeedbackController {
   ) {}
 
   private actor(request: Request) {
+    // `userId`, NO `id`. Lo que el guard adjunta es un `AuthenticatedUser`
+    // (ver cad-auth.guard.ts), cuyo campo se llama `userId`; leer `id` devolvía
+    // `undefined` siempre y el actor viajaba con el autor en cadena vacía.
+    // No era cosmético: la columna es `uuid NOT NULL` con clave foránea, así
+    // que PostgreSQL rechazaba la cadena vacía y CADA envío de comentario
+    // respondía 500. Las pruebas no lo vieron porque llaman al servicio
+    // directamente, con un id válido en la mano; la de más abajo entra por
+    // donde entra el navegador.
     const user = (
       request as Request & {
-        user?: { id?: string; email?: string; organization_id?: string | null };
+        user?: {
+          userId?: string;
+          email?: string;
+          organization_id?: string | null;
+        };
       }
     ).user;
     return {
-      userId: user?.id ?? '',
+      userId: user?.userId ?? '',
       email: user?.email ?? '',
       organizationId: user?.organization_id ?? null,
     };

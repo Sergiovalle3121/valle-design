@@ -165,22 +165,22 @@ export function totp(
  * repositorio es que las comparaciones de secretos son constantes; ésta no es
  * la excepción.
  */
-export function verifyTotp(
+export function matchTotpCounter(
   secretBase32: string,
   code: string,
   atMs: number,
   window = TOTP_WINDOW_STEPS,
-): boolean {
+): number | null {
   const normalized = code.replace(/\s+/gu, '');
   if (!new RegExp(`^[0-9]{${TOTP_DIGITS}}$`, 'u').test(normalized)) {
-    return false;
+    return null;
   }
   const secret = decodeBase32(secretBase32);
   if (!secret || secret.length === 0) {
-    return false;
+    return null;
   }
   const base = totpCounter(atMs);
-  let matched = false;
+  let matched: number | null = null;
   for (let drift = -window; drift <= window; drift += 1) {
     const candidate = hotp(secret, base + drift);
     // Sin cortocircuito: se recorren todos los pasos de la ventana siempre, así
@@ -191,10 +191,35 @@ export function verifyTotp(
         Buffer.from(normalized, 'utf8'),
       )
     ) {
-      matched = true;
+      // El MÁS ALTO de los que casen. Que dos pasos de la misma ventana
+      // produzcan el mismo código es de una entre un millón, pero si pasa,
+      // quedarse con el mayor es lo que cierra la puerta: la marca de consumo
+      // deja fuera también al paso pequeño.
+      matched =
+        matched === null ? base + drift : Math.max(matched, base + drift);
     }
   }
   return matched;
+}
+
+/**
+ * ¿Es válido el código? Envoltorio de `matchTotpCounter` para quien sólo
+ * necesita el sí/no.
+ *
+ * OJO A QUIÉN LO USA: quien tenga que MARCAR el código como gastado NO puede
+ * usar esta función. Necesita el contador que casó, y esa distinción no es
+ * teórica — fue exactamente el defecto que se coló en esta campaña: al guardar
+ * el paso ACTUAL en vez del que casó, un código del paso N reenviado en el paso
+ * N+1 casaba por deriva −1 y la comprobación `N+1 > N` lo dejaba pasar. Cada
+ * código valía dos veces y la ventana real de reutilización era de un minuto.
+ */
+export function verifyTotp(
+  secretBase32: string,
+  code: string,
+  atMs: number,
+  window = TOTP_WINDOW_STEPS,
+): boolean {
+  return matchTotpCounter(secretBase32, code, atMs, window) !== null;
 }
 
 /**
@@ -281,6 +306,18 @@ export function assertMfaConfiguration(environment: NodeJS.ProcessEnv): void {
     );
   }
 }
+
+/*
+ * SE EJECUTA AL CARGAR EL MÓDULO, igual que
+ * `assertIdentitySecurityConfiguration` en `identity-security.ts`.
+ *
+ * Sin esta línea la función existía y no la llamaba nadie: producción arrancaba
+ * tan feliz cifrando los secretos del segundo factor con la clave de
+ * DESARROLLO, que está escrita doce líneas más arriba y es pública porque el
+ * repositorio lo es. Un volcado de la base bastaba para descifrar todos los
+ * secretos TOTP. La comprobación no vale nada si nadie la invoca.
+ */
+assertMfaConfiguration(process.env);
 
 function mfaKey(): Buffer {
   const configured = process.env.IDENTITY_MFA_ENCRYPTION_KEY?.trim();

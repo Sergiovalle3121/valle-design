@@ -219,6 +219,53 @@ describePostgres('segundo factor (PostgreSQL real)', () => {
     ).rejects.toThrow();
   });
 
+  it('UN CÓDIGO TOTP NO VALE EN EL PASO SIGUIENTE (la deriva no es una segunda vida)', async () => {
+    // LA PRUEBA QUE FALTABA, y su ausencia dejó pasar un agujero real.
+    //
+    // La de arriba reintenta en el MISMO paso de tiempo, donde cualquier
+    // implementación —incluida la rota— acierta. El agujero vivía un paso más
+    // allá: la ventana de deriva es ±1, así que el código del paso N sigue
+    // casando en el paso N+1. Si la marca de consumo guarda el paso ACTUAL en
+    // vez del que CASÓ, la comparación es `N+1 > N` y el código pasa otra vez.
+    // Cada código valía dos veces y la ventana real de reutilización era de un
+    // minuto, no de cero.
+    //
+    // Se viaja en el tiempo en vez de esperar 30 s de reloj: una prueba que
+    // duerme medio minuto es una prueba que alguien acaba marcando como lenta y
+    // saltándose. El alta gasta el código de SU paso, así que el inicio de
+    // sesión legítimo tiene que ocurrir en un paso POSTERIOR — eso también es el
+    // invariante, y por eso el primer viaje no es decorativo.
+    const usuario = await cuenta();
+    const { secreto } = await conSegundoFactor(usuario);
+
+    const siguiente = Date.now() + 30_000;
+    const codigo = totp(secreto, siguiente) as string;
+
+    const primero = await identity.login(CORREO, CONTRASENA);
+    if (primero.kind !== 'mfa') throw new Error('se esperaba un desafío');
+    jest.spyOn(Date, 'now').mockReturnValue(siguiente);
+    try {
+      expect(
+        await identity.completeMfaLogin(primero.challenge, codigo),
+      ).not.toBeNull();
+    } finally {
+      jest.restoreAllMocks();
+    }
+
+    // Un paso más: el MISMO código sigue dentro de la ventana de deriva y tiene
+    // que ser rechazado igualmente.
+    const segundo = await identity.login(CORREO, CONTRASENA);
+    if (segundo.kind !== 'mfa') throw new Error('se esperaba un desafío');
+    jest.spyOn(Date, 'now').mockReturnValue(siguiente + 30_000);
+    try {
+      await expect(
+        identity.completeMfaLogin(segundo.challenge, codigo),
+      ).rejects.toThrow();
+    } finally {
+      jest.restoreAllMocks();
+    }
+  });
+
   it('un código de respaldo entra una vez y sólo una', async () => {
     const usuario = await cuenta();
     const { respaldos } = await conSegundoFactor(usuario);

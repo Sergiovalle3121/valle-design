@@ -45,7 +45,16 @@ import { globSync } from "glob";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "../..");
-const webSrc = path.join(root, "apps/web/src");
+/**
+ * El árbol que se barre. `VALLE_SURFACE_SRC` sólo lo usa la prueba del propio
+ * gate, y existe por lo mismo que su gemelo en `check-contrast.mjs`: sin él,
+ * comprobar que el gate FALLA ante una marca ajena obligaba a ensuciar
+ * `apps/web/src` de verdad. La prueba no lo hacía, así que el camino de fallo
+ * —la mitad que importa— no estaba ejercido: los siete casos miraban el TEXTO
+ * FUENTE del gate con expresiones regulares en vez de ejecutarlo.
+ */
+const webSrc =
+  process.env.VALLE_SURFACE_SRC || path.join(root, "apps/web/src");
 
 /**
  * LA SUPERFICIE PÚBLICA, enumerada a mano.
@@ -74,7 +83,20 @@ const PUBLIC_GLOBS = [
   "components/AuthPage.tsx",
   "config/brand.ts",
   "config/commercial.ts",
-  "lib/seo/**/*.ts",
+  // `.{ts,tsx}` y no `.ts`: la tarjeta social —lo que se ve al compartir el
+  // enlace— es `opengraph-image.tsx`, y con el patrón antiguo el barrido no la
+  // leía nunca. Una zona pública que el gate no abre es una zona sin gate.
+  "lib/seo/**/*.{ts,tsx}",
+  // EL TEXTO DEL CENTRO DE PREGUNTAS. Son 36 respuestas que se pintan en la
+  // portada y viajan al JSON-LD, o sea superficie pública de pleno derecho; la
+  // campaña las sacó del `.tsx` a este módulo y el barrido se quedó mirando el
+  // archivo del que ya no cuelga el texto. La cabecera de `faq.ts` llegó a
+  // afirmar que `check:surface` la vigilaba mientras no la leía nadie.
+  "lib/marketing/**/*.ts",
+  "app/opengraph-image.tsx",
+  "app/twitter-image.tsx",
+  "app/sitemap.ts",
+  "app/robots.ts",
 ];
 
 /** El único archivo autorizado a nombrarlas, y por qué (ver su cabecera). */

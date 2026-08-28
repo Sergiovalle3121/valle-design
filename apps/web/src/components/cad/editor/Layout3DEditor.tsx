@@ -6243,7 +6243,7 @@ export default function Layout3DEditor({
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.1;
-    controls.maxPolarAngle = Math.PI / 2.05;
+    applyCadCameraPolicy(controls, viewModeRef.current);
     applyInitialCameraFraming(camera, controls, W, H, lastCamRef.current);
     controlsRef.current = controls;
     lastCamRef.current = snapshotCadCamera(camera.position, controls.target);
@@ -11600,9 +11600,9 @@ export default function Layout3DEditor({
       else redo();
       return true;
     } else if (op.type === "studio_view") {
-      // 'vista 2d' / 'vista 3d' (VD-CAD-VIEW-001): el mismo toggle del toolbar.
-      setViewMode(op.mode);
-      applyViewMode(op.mode);
+      // 'vista 2d' / 'vista 3d' (VD-CAD-VIEW-001): por el MISMO toggle del
+      // toolbar — duplicarlo perdía el recuerdo y el reencuadre georreferenciado.
+      if (viewModeRef.current !== op.mode) toggleViewMode();
       return true;
     } else if (op.type === "rename") {
       // "renombra la mesa a 'Mesa VIP'" (VD-CAD-RENAME-001): solo assets —

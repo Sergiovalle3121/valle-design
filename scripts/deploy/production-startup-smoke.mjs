@@ -432,6 +432,16 @@ async function main() {
     /IDENTITY_RATE_LIMIT_KEY_SECRET/,
   );
 
+  bootExpectingFailure(
+    'sin IDENTITY_MFA_ENCRYPTION_KEY no arranca (el secreto TOTP quedaría legible en un volcado)',
+    {
+      DATABASE_URL,
+      SYNCHRONIZE: 'false',
+      IDENTITY_MFA_ENCRYPTION_KEY: '',
+    },
+    /IDENTITY_MFA_ENCRYPTION_KEY/,
+  );
+
   // El guarda de `OUTBOX_DISPATCHER_ENABLED` NO se puede ejercer aquí: vive en
   // `onApplicationBootstrap`, o sea DESPUÉS de conectar, y con
   // NODE_ENV=production la conexión exige TLS que el PostgreSQL efímero no

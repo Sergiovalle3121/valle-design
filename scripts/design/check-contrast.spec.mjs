@@ -14,7 +14,8 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
@@ -116,9 +117,15 @@ test("el gate PASA sobre la hoja vigente", () => {
 });
 
 test("el gate DETECTA una paleta ilegible", () => {
-  // La prueba que de verdad importa: se degrada el texto secundario hasta
-  // fundirlo con la tarjeta y el gate tiene que decirlo. Sin esta prueba, un
-  // gate que siempre imprime OK pasaría por bueno para siempre.
+  // LA PRUEBA QUE DE VERDAD IMPORTA: se degrada el texto secundario hasta
+  // fundirlo con la tarjeta y se ejecuta EL GATE, no su aritmética. Sin
+  // ejecutarlo, un gate que perdiera su `process.exit(1)` seguiría imprimiendo
+  // «OK» y esta prueba lo habría bendecido para siempre.
+  //
+  // La hoja degradada se escribe en un fichero temporal y el gate se apunta a
+  // ella con `VALLE_CONTRAST_CSS`: mutar `globals.css` en el árbol de trabajo
+  // es lo que la versión anterior quiso evitar —con razón— renunciando a
+  // ejecutar el gate. No hacía falta renunciar: hacía falta un parámetro.
   const cssPath = path.join(root, "apps/web/src/app/globals.css");
   const original = readFileSync(cssPath, "utf8");
   const broken = original.replace(
@@ -126,14 +133,29 @@ test("el gate DETECTA una paleta ilegible", () => {
     "--muted-foreground: 30 8% 92%;",
   );
   assert.notEqual(broken, original, "no se encontró el token que había que degradar");
-  // El gate lee una ruta fija, así que la comprobación se hace sobre el módulo
-  // de aritmética con los tokens degradados: mismo criterio, sin escribir en el
-  // árbol —una prueba que muta `globals.css` es una prueba que puede dejarlo
-  // roto si el proceso muere a la mitad.
-  const light = extractBlock(broken, ":root {");
-  const ratio = contrastRatio(
-    resolveToken(light, "--muted-foreground"),
-    resolveToken(light, "--card"),
+
+  const temporal = path.join(
+    mkdtempSync(path.join(tmpdir(), "valle-contraste-")),
+    "globals.css",
   );
-  assert.ok(ratio < 4.5, `el texto degradado debería fallar y mide ${formatRatio(ratio)}`);
+  writeFileSync(temporal, broken, "utf8");
+
+  let fallo = null;
+  try {
+    execFileSync(process.execPath, [path.join(here, "check-contrast.mjs")], {
+      encoding: "utf8",
+      env: { ...process.env, VALLE_CONTRAST_CSS: temporal },
+    });
+  } catch (error) {
+    fallo = error;
+  } finally {
+    rmSync(path.dirname(temporal), { recursive: true, force: true });
+  }
+
+  assert.ok(fallo, "el gate NO falló sobre una paleta ilegible");
+  assert.equal(fallo.status, 1, "el gate tiene que salir con código 1");
+  const salida = `${fallo.stdout ?? ""}${fallo.stderr ?? ""}`;
+  assert.match(salida, /--muted-foreground/);
+  // Y el árbol queda intacto: es la mitad del motivo de existir del parámetro.
+  assert.equal(readFileSync(cssPath, "utf8"), original);
 });

@@ -114,7 +114,7 @@ donde ninguna sombra proyectada se ve.
 | ------------------------- | --------- | --------- | ------ |
 | `--valle-accent`          | `#6b4def` | `#6b4def` | el acento de identidad |
 | `--brand-primary-strong`  | `#5637e1` | `#5637e1` | relleno del botón primario · **6,93:1** con su letra |
-| `--brand-primary-hover`   | `#3e1bda` | `#7457f4` | **8,85:1** claro · **5,15:1** oscuro |
+| `--brand-primary-hover`   | `#3e1bda` | `#7457f4` | **8,85:1** claro · **4,76:1** oscuro |
 | `--primary`               | `#6b4def` | `#8c73fc` | trazo y herramienta activa |
 | `--primary-ink`           | `#4d2cdd` | `#9d87fd` | **texto** de marca · 7,72:1 / 5,85:1 |
 

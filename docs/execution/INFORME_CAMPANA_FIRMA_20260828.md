@@ -258,7 +258,11 @@ de la siguiente.
 
 ---
 
-## 4. Los tres errores propios que valen más que los aciertos
+## 4. Los tres errores de MÉTODO que valen más que los aciertos
+
+> Los defectos de código que se me colaron están en la sección 6 bis: los
+> encontró una auditoría adversaria del diff, ya con el informe escrito y la
+> suite en verde. Éstos de aquí son de método — cómo trabajé, no qué escribí.
 
 **1 · Diagnostiqué mal un error de PostgreSQL y «arreglé» lo que no estaba
 roto.** Un `syntax error at or near "-"` me llevó a tocar `json-column-type.ts`
@@ -313,14 +317,14 @@ Todo lo de esta tabla se corrió en esta máquina, no se estimó.
 | Qué | Resultado |
 | --- | --------- |
 | Specs de `apps/web` | **438 / 438** |
-| API, pruebas de unidad | **774** pasadas (36 suites de PostgreSQL omitidas fuera de su carril) |
+| API, pruebas de unidad | **780** pasadas (36 suites de PostgreSQL omitidas fuera de su carril) |
 | API contra **PostgreSQL 16 real** | **217 / 217** en 38 suites |
 | Contrato de diseño | **94** operaciones OpenAPI = SDK = router Nest |
 | Gate de contraste | **70** pares en dos temas; el más ajustado, 1,09:1 sobre un mínimo de 1,05:1 |
-| Gate de superficie pública | **19** zonas, cero marcas ajenas fuera del aviso del pie |
+| Gate de superficie pública | **24** zonas, cero marcas ajenas fuera del aviso del pie |
 | Fuentes autohospedadas | 5 archivos, cero imports a un tercero |
-| Presupuesto de monolito | OK — `Layout3DEditor.tsx` **20 199** líneas (bajó desde 20 206) |
-| Trinquete de lint | **547 / 547**, la curva no subió |
+| Presupuesto de monolito | OK — `Layout3DEditor.tsx` **20 220** líneas, en el techo exacto (la base era 20 242) |
+| Trinquete de lint | **546 / 547**, la curva bajó |
 | Integridad de comandos | **192** comandos, **0** éxitos falsos |
 | Candado legal | versión vigente con hash íntegro y espejo web/API coincidente |
 | Dirección de imports | **566** archivos de `lib/` sin dependencias hacia `components/` ni `app/` |
@@ -356,6 +360,63 @@ los fallos a mano no es una medida; es una opinión con formato de tabla.
 
 ---
 
+## 6 bis. La auditoría de pre-fusión, y por qué esta campaña no se cerró con el informe
+
+Antes de fusionar 16 500 líneas a `main` se corrió una auditoría adversaria del
+diff entero: siete auditores por dimensión —integridad de las pruebas, seguridad
+de identidad, migraciones, regresiones de producto, residuos y secretos,
+veracidad de los documentos, solidez de los gates— y dos escépticos por hallazgo
+cuyo trabajo era REFUTARLO. De 33 hallazgos mayores, 16 sobrevivieron.
+
+**Cinco eran bloqueantes, y los cinco eran míos.** Lo que sigue no es una lista
+de tareas: es lo que estuvo a punto de entrar en producción con el sello de
+«172/172 verde».
+
+| Defecto | Consecuencia real |
+| ------- | ----------------- |
+| La marca antirrepetición del TOTP guardaba el paso ACTUAL, no el que CASÓ | Con ventana de deriva ±1, **cada código valía dos veces**: el del paso N volvía a entrar en N+1. La ventana real de reutilización era de un minuto, no de cero — justo lo contrario de lo que la cabecera del método afirmaba |
+| `assertMfaConfiguration` no lo llamaba nadie | Producción arrancaba cifrando los secretos TOTP con la **clave de desarrollo escrita en el repositorio**. Un volcado de la base los descifra todos |
+| La política de cámara sólo se aplicaba al CONMUTAR de modo | Con el nuevo defecto en planta, el estudio abría con el ratón configurado para orbitar: **el paneo con botón izquierdo, muerto** nada más abrir |
+| El controlador de comentarios leía `user.id` y el guard escribe `userId` | La columna es `uuid NOT NULL` con clave foránea: **cada envío de comentario respondía 500**. La función estrella de su ola estaba rota de punta a punta |
+| La prueba «el gate de contraste DETECTA una paleta ilegible» no ejecutaba el gate | Recalculaba el cociente con el módulo de aritmética. Un gate que hubiera perdido su `process.exit(1)` seguía pareciendo sano |
+
+**El patrón, que es la lección.** Cuatro de los cinco vivían en el hueco entre
+dos piezas que se creían la una a la otra: una función que verifica y otra que
+marca; un guard que escribe un nombre y un controlador que lee otro; una
+política que se aplica en las transiciones y un estado inicial que nadie
+inicializa; una comprobación escrita y ningún llamador. Ninguno se ve leyendo un
+archivo entero, y todas mis pruebas los rodeaban: entraban por el servicio con
+el id ya en la mano, reintentaban en el mismo paso de tiempo, medían la
+aritmética en vez del gate.
+
+**Lo que cambió a raíz de esto, además de los arreglos.** Cada bloqueante lleva
+ahora la prueba que lo habría cazado, y cada prueba se verificó ROMPIENDO el
+arreglo a propósito para confirmar que falla. Los dos gates de la campaña
+—contraste y superficie— pasaron a poder ejecutarse contra un árbol temporal
+(`VALLE_CONTRAST_CSS`, `VALLE_SURFACE_SRC`), que es lo que permite probar su
+camino de FALLO sin ensuciar el repositorio; era la excusa por la que no se
+probaba. El barrido de superficie pasó de 19 a 24 zonas: el texto de las 36
+preguntas y la tarjeta social —lo que se ve al compartir el enlace— estaban
+fuera, pese a que la cabecera del propio módulo afirmaba lo contrario.
+
+**Y tres afirmaciones de documentación que eran falsas**, todas escritas por mí
+de memoria en vez de medidas: `BRAND.md` publicaba 5,15:1 para el violeta de
+hover en oscuro donde el gate mide **4,76:1**; este informe declaraba 20 199
+líneas de monolito cuando el árbol tenía 20 220; y la portada listaba «Nada de
+LAS, GeoTIFF o SHP» entre lo que el producto NO hace, mientras el panel acepta
+`.shp` con sus archivos acompañantes y existe un lector probado. Esa última es
+la peor de las tres: está en la sección de límites honestos, que es un activo
+comercial precisamente porque se puede creer.
+
+**La marca estática seguía en la paleta anterior.** `BRAND_INK` conservaba el
+azul frío y el índigo de la v1 una campaña entera después de que el producto se
+moviera a grafito cálido y violeta, así que el favicon, el icono de Apple, los
+siete SVG y la tarjeta social vestían la identidad vieja — y `BRAND.md` afirmaba
+que llevaban los tokens nuevos. Son las superficies de marca más vistas que
+existen: la pestaña del navegador y la miniatura de un enlace compartido.
+
+---
+
 ## 7. Antes y después
 
 Dieciséis pares en [`../design/before-after/`](../design/before-after/) con
@@ -388,13 +449,16 @@ cd apps/web && npx playwright test      # goldens + full-stack real
 
 ## 9. Lo que sigue, en orden de valor
 
-1. **`reset-password` con `PasswordField`.** Es la otra pantalla donde alguien
+1. **Simetría del segundo factor** (P1-F5): dar de alta exige sólo la sesión,
+   quitarlo exige la contraseña. Cerrarlo es cambio de contrato y por eso no
+   entró aquí, pero es lo primero de la lista.
+2. **`reset-password` con `PasswordField`.** Es la otra pantalla donde alguien
    ELIGE una contraseña y hoy no tiene ni mostrar/ocultar ni medidor.
-2. **Invitación por lote en el servidor**, con atomicidad y un solo veredicto de
+3. **Invitación por lote en el servidor**, con atomicidad y un solo veredicto de
    asientos.
-3. **Entrar con Google y Microsoft**, con la decisión de fusión de cuentas
+4. **Entrar con Google y Microsoft**, con la decisión de fusión de cuentas
    tomada antes de escribir la primera línea.
-4. **Encender el modo universitario**: dos variables de entorno y una migración,
+5. **Encender el modo universitario**: dos variables de entorno y una migración,
    cuando el dueño decida los dominios y la capacidad de soporte.
-5. **Regenerar las capturas del producto** cada vez que el cromo del estudio
+6. **Regenerar las capturas del producto** cada vez que el cromo del estudio
    cambie: el script existe justamente para que no envejezcan en silencio.

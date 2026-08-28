@@ -18,7 +18,14 @@
 import { strict as assert } from "node:assert";
 import test from "node:test";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -109,4 +116,85 @@ test("el gate PASA sobre el árbol vigente", () => {
     { encoding: "utf8", cwd: root },
   );
   assert.match(salida, /Gate de superficie pública OK/);
+});
+
+test("el gate FALLA cuando una zona pública nombra la marca", () => {
+  // EL CAMINO QUE FALTABA. Los otros siete casos leen el texto fuente del gate
+  // con expresiones regulares: comprueban lo que el gate DICE, no lo que hace.
+  // Un gate que hubiera perdido su código de salida los habría pasado todos.
+  //
+  // Se monta un árbol mínimo en un temporal y se apunta el gate a él con
+  // `VALLE_SURFACE_SRC`. Mínimo pero COMPLETO: lleva su aviso de marcas real,
+  // porque si no el gate fallaría por la otra mitad —«el aviso desapareció»— y
+  // la prueba pasaría por el motivo equivocado.
+  const raiz = mkdtempSync(path.join(tmpdir(), "valle-superficie-"));
+  const avisoReal = readFileSync(
+    path.join(root, "apps/web/src/components/marketing/TrademarkNotice.tsx"),
+    "utf8",
+  );
+  mkdirSync(path.join(raiz, "components/marketing"), { recursive: true });
+  mkdirSync(path.join(raiz, "app"), { recursive: true });
+  writeFileSync(
+    path.join(raiz, "components/marketing/TrademarkNotice.tsx"),
+    avisoReal,
+    "utf8",
+  );
+  writeFileSync(
+    path.join(raiz, "app/page.tsx"),
+    'export default function P() {\n  return <p>La alternativa a AutoCAD en la nube.</p>;\n}\n',
+    "utf8",
+  );
+
+  let fallo = null;
+  try {
+    execFileSync(
+      process.execPath,
+      [path.join(here, "check-public-surface.mjs")],
+      { encoding: "utf8", cwd: root, env: { ...process.env, VALLE_SURFACE_SRC: raiz } },
+    );
+  } catch (error) {
+    fallo = error;
+  } finally {
+    rmSync(raiz, { recursive: true, force: true });
+  }
+
+  assert.ok(fallo, "el gate NO falló con una marca ajena en la portada");
+  assert.equal(fallo.status, 1, "el gate tiene que salir con código 1");
+  const salida = `${fallo.stdout ?? ""}${fallo.stderr ?? ""}`;
+  assert.match(salida, /app\/page\.tsx/);
+  assert.match(salida, /AutoCAD/i);
+});
+
+test("el gate FALLA si el aviso de marcas deja de declarar la no afiliación", () => {
+  // La otra mitad, también ejecutada de verdad: un gate que sólo prohíbe se
+  // satisface borrando el aviso legal.
+  const raiz = mkdtempSync(path.join(tmpdir(), "valle-superficie-"));
+  mkdirSync(path.join(raiz, "components/marketing"), { recursive: true });
+  mkdirSync(path.join(raiz, "app"), { recursive: true });
+  writeFileSync(
+    path.join(raiz, "components/marketing/TrademarkNotice.tsx"),
+    'export function TrademarkNotice() {\n  return <p>Sin declaración.</p>;\n}\n',
+    "utf8",
+  );
+  writeFileSync(
+    path.join(raiz, "app/page.tsx"),
+    "export default function P() {\n  return <p>Hola.</p>;\n}\n",
+    "utf8",
+  );
+
+  let fallo = null;
+  try {
+    execFileSync(
+      process.execPath,
+      [path.join(here, "check-public-surface.mjs")],
+      { encoding: "utf8", cwd: root, env: { ...process.env, VALLE_SURFACE_SRC: raiz } },
+    );
+  } catch (error) {
+    fallo = error;
+  } finally {
+    rmSync(raiz, { recursive: true, force: true });
+  }
+
+  assert.ok(fallo, "el gate NO falló con el aviso mutilado");
+  assert.match(`${fallo.stdout ?? ""}${fallo.stderr ?? ""}`, /no afiliaci|NO afiliaci/i);
 });
