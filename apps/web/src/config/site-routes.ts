@@ -175,6 +175,7 @@ export const PRIVATE_ROUTE_PREFIXES: readonly string[] = [
   // se protege desde su propio archivo depende de que nadie lo edite sin mirar.
   "/cuenta",
   "/comentarios",
+  "/equipo",
   "/studio",
   "/legacy",
   "/logout",

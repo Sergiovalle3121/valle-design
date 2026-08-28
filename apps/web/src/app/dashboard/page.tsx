@@ -10,6 +10,7 @@ import {
   LogOut,
   ShieldCheck,
   Upload,
+  Users,
 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { SkipLink } from "@/components/SkipLink";
@@ -508,6 +509,15 @@ export default function DashboardPage() {
               trabajo acaba robando un clic que el usuario quería dar.
             */}
             <FeedbackButton />
+            {/*
+              Misma lección que la de arriba, y el mismo hueco: el producto
+              sabía invitar a una organización desde su primer día y no había
+              una sola pantalla donde hacerlo.
+            */}
+            <Link href="/equipo" className={buttonClass({ variant: "ghost" })}>
+              <Users aria-hidden="true" className="h-4 w-4" />
+              Equipo
+            </Link>
             <Link href="/cuenta" className={buttonClass({ variant: "ghost" })}>
               <ShieldCheck aria-hidden="true" className="h-4 w-4" />
               Seguridad

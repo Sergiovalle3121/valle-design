@@ -20,6 +20,7 @@ import {
   ERROR_REPORTER,
   type ErrorReporter,
 } from './observability/error-reporter.port';
+import { educationModeStatus } from './modules/education/education-mode';
 
 function parseAllowedOrigins(raw: string): string[] {
   const value = (raw || '').trim();
@@ -187,6 +188,15 @@ async function bootstrap() {
   );
   console.log(
     `Timeouts: keepAlive=${timeouts.keepAliveTimeoutMs}ms headers=${timeouts.headersTimeoutMs}ms request=${timeouts.requestTimeoutMs}ms; apagado: drenaje=${timeouts.drainDelayMs}ms techo=${timeouts.shutdownGraceMs}ms`,
+  );
+  // El modo universitario se anuncia al arrancar, encendido o apagado, y
+  // cuando está apagado DICE QUÉ FALTA. Una bandera que sólo se ve leyendo el
+  // código es una bandera que un día alguien cree encendida.
+  const educacion = educationModeStatus();
+  console.log(
+    educacion.enabled && educacion.domainCount > 0
+      ? `Modo universitario: ENCENDIDO con ${educacion.domainCount} dominio(s) institucional(es).`
+      : `Modo universitario: apagado — falta ${educacion.missing.join(' y ')}.`,
   );
 }
 
