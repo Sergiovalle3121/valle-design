@@ -2466,14 +2466,12 @@ components:
         appVersion: { type: string, minLength: 1, maxLength: 120 }
         userAgent: { type: string, minLength: 1, maxLength: 400 }
         activeCommand:
-          type: string
+          type: [string, "null"]
           maxLength: 64
-          nullable: true
           description: El comando en curso cuando fallo, si habia uno.
         documentId:
-          type: string
+          type: [string, "null"]
           format: uuid
-          nullable: true
           description: >
             Solo viaja con documentAuthorized=true. Es el IDENTIFICADOR, nunca el
             contenido del plano: adjuntar el dibujo a un correo seria peor para la

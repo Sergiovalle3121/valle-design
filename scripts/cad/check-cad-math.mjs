@@ -20,13 +20,49 @@
  */
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { readdirSync } from "node:fs";
+import { existsSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const webRoot = path.join(root, "apps/web");
 const verificationDir = path.join(webRoot, "src/lib/cad/verification");
+
+/**
+ * EL PREREQUISITO QUE ESTE GATE SE PAGA SOLO.
+ *
+ * `angle-frontiers.spec.ts` cruza la frontera documento↔DWG, así que importa
+ * `@valle-design/dwg-codec`. Ese paquete se publica COMPILADO —`dist/` y
+ * `dist-cjs/`— y su salida está en `.gitignore`, con razón: es un artefacto.
+ *
+ * En una máquina de desarrollo el paquete lleva rato construido y el spec
+ * corre. En CI no: `check:cad` va ANTES de `turbo run build`, así que el
+ * primer intento moría con `Cannot find module …/dist-cjs/index.js` — verde en
+ * local, rojo en el servidor, que es el peor modo de fallo que hay porque se
+ * descubre después de empujar.
+ *
+ * La salida NO es saltarse esa suite cuando el códec no está: eso convertiría
+ * «767 casos, 0 desviaciones» en una cifra que depende de la máquina. Es que
+ * el gate construya lo que necesita, una vez, y sólo si falta.
+ */
+function ensureDwgCodecBuilt() {
+  const pkg = path.join(root, "packages/dwg-codec");
+  const built =
+    existsSync(path.join(pkg, "dist/index.js")) &&
+    existsSync(path.join(pkg, "dist-cjs/index.js"));
+  if (built) return;
+  console.log(
+    "· @valle-design/dwg-codec sin compilar: se construye antes de medir\n" +
+      "  (la frontera documento↔DWG se verifica igual que las demás).",
+  );
+  execFileSync(
+    process.platform === "win32" ? "npm.cmd" : "npm",
+    ["run", "build", "--workspace=@valle-design/dwg-codec"],
+    { cwd: root, stdio: "inherit" },
+  );
+}
+
+ensureDwgCodecBuilt();
 
 const specs = readdirSync(verificationDir)
   .filter((file) => file.endsWith(".spec.ts"))
