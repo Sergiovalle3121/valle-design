@@ -278,6 +278,19 @@ test.describe("Con la sesión abierta, en un teléfono", () => {
       "los paneles plegados tienen que explicarse: una degradación silenciosa hace parecer al producto menos de lo que es",
     ).toBeVisible({ timeout: 30_000 });
 
+    // Y NO ROBA TOQUES. Esto no es un detalle de estilo: la primera versión se
+    // pintaba sobre la barra de herramientas y en una tableta de 1024 px —por
+    // debajo del umbral, así que el aviso sale— se comía el primer gesto de la
+    // sesión. Lo cazó el golden de la tableta. Un cartel informativo que
+    // intercepta un toque es peor que no avisar.
+    const capturaPuntero = await page
+      .getByTestId("cad-small-screen-notice")
+      .evaluate((element) => getComputedStyle(element).pointerEvents !== "none");
+    expect(
+      capturaPuntero,
+      "la tarjeta del aviso deja pasar el puntero: sólo su botón lo captura",
+    ).toBe(false);
+
     // Y se quita de en medio de un toque: un aviso que no se puede cerrar es
     // peor que no tenerlo.
     await page.getByTestId("cad-small-screen-dismiss").tap();

@@ -65,7 +65,21 @@ export function CadSmallScreenNotice() {
     <div
       data-testid="cad-small-screen-notice"
       role="status"
-      className="fixed inset-x-2 top-2 z-[92] rounded-xl border border-border bg-surface/95 px-3 py-2 shadow-lg backdrop-blur"
+      /*
+       * NO CAPTURA EL PUNTERO, y va abajo.
+       *
+       * La primera versión se pintaba arriba y sí capturaba: en una tableta de
+       * 1024 px —por debajo del umbral, así que el aviso sale— se ponía encima
+       * de la barra de herramientas y se comía los toques. El golden de la
+       * tableta lo cazó, y tenía razón: un arquitecto en obra habría perdido el
+       * primer gesto de cada sesión contra un cartel informativo.
+       *
+       * Es exactamente la regla que el propio `ToastContext` ya tenía escrita
+       * —«una notificación NUNCA debe robar un clic a un control real»— y que
+       * yo no apliqué aquí. La tarjeta deja pasar el puntero y sólo el botón de
+       * cerrar lo vuelve a capturar.
+       */
+      className="pointer-events-none fixed inset-x-2 bottom-24 z-[92] rounded-xl border border-border bg-surface/95 px-3 py-2 shadow-lg backdrop-blur"
     >
       <p className="type-caption text-foreground">
         Esta pantalla es estrecha, así que los paneles laterales —capas,
@@ -85,7 +99,7 @@ export function CadSmallScreenNotice() {
             }
             setVisible(false);
           }}
-          className="rounded-lg px-2 py-1 type-micro font-semibold text-primary-ink"
+          className="pointer-events-auto rounded-lg px-2 py-1 type-micro font-semibold text-primary-ink"
         >
           Entendido
         </button>
