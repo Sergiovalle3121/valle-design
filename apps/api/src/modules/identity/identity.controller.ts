@@ -40,6 +40,7 @@ import {
   SESSION_COOKIE,
 } from './identity-security';
 import { totpUri } from './identity-mfa';
+import { IdentityMfaService } from './identity-mfa.service';
 import { IdentityService } from './identity.service';
 
 /**
@@ -235,6 +236,7 @@ export function cookie(req: Request, name: string): string | undefined {
 export class IdentityController {
   constructor(
     private readonly identity: IdentityService,
+    private readonly mfa: IdentityMfaService,
     @Inject(IDENTITY_RATE_LIMIT_STORE)
     private readonly rateLimits: IdentityRateLimitStore,
   ) {}
@@ -520,9 +522,9 @@ export class IdentityController {
 
   @Public()
   @Get('mfa')
-  async mfa(@Req() req: Request) {
+  async mfaStatus(@Req() req: Request) {
     const auth = await this.current(req);
-    return this.identity.mfaStatus(auth.user.id);
+    return this.mfa.mfaStatus(auth.user.id);
   }
 
   /**
@@ -537,7 +539,7 @@ export class IdentityController {
     const auth = await this.current(req);
     this.csrf(req, auth.session.csrfHash);
     await this.limit('mfa-setup.account', [auth.user.id], 10);
-    const secret = await this.identity.beginMfaEnrollment(auth.user.id);
+    const secret = await this.mfa.beginMfaEnrollment(auth.user.id);
     return {
       secret,
       uri: totpUri({
@@ -555,10 +557,7 @@ export class IdentityController {
     const auth = await this.current(req);
     this.csrf(req, auth.session.csrfHash);
     await this.limit('mfa-activate.account', [auth.user.id], 10);
-    const codes = await this.identity.confirmMfaEnrollment(
-      auth.user.id,
-      body.code,
-    );
+    const codes = await this.mfa.confirmMfaEnrollment(auth.user.id, body.code);
     if (!codes) {
       throw new BadRequestException({
         code: 'mfa_code_invalid',
@@ -577,7 +576,7 @@ export class IdentityController {
     const auth = await this.current(req);
     this.csrf(req, auth.session.csrfHash);
     await this.limit('mfa-disable.account', [auth.user.id], 5);
-    if (!(await this.identity.disableMfa(auth.user.id, body.password))) {
+    if (!(await this.mfa.disableMfa(auth.user.id, body.password))) {
       throw new UnauthorizedException('Contraseña incorrecta.');
     }
     return { enabled: false };
@@ -593,7 +592,7 @@ export class IdentityController {
     const auth = await this.current(req);
     this.csrf(req, auth.session.csrfHash);
     await this.limit('mfa-backup.account', [auth.user.id], 5);
-    const codes = await this.identity.regenerateBackupCodes(
+    const codes = await this.mfa.regenerateBackupCodes(
       auth.user.id,
       body.password,
     );

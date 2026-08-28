@@ -74,12 +74,23 @@ export interface QrRawRead {
  * estándar y no como el algoritmo del codificador.
  */
 export function functionModuleMap(version: number): boolean[][] {
-  if (!Number.isInteger(version) || version < QR_MIN_VERSION || version > QR_MAX_VERSION) {
+  if (
+    !Number.isInteger(version) ||
+    version < QR_MIN_VERSION ||
+    version > QR_MAX_VERSION
+  ) {
     throw new Error(`Versión de QR inválida: ${version}.`);
   }
   const size = versionSize(version);
-  const map = Array.from({ length: size }, () => new Array<boolean>(size).fill(false));
-  const fill = (fromRow: number, toRow: number, fromCol: number, toCol: number): void => {
+  const map = Array.from({ length: size }, () =>
+    new Array<boolean>(size).fill(false),
+  );
+  const fill = (
+    fromRow: number,
+    toRow: number,
+    fromCol: number,
+    toCol: number,
+  ): void => {
     for (let row = fromRow; row <= toRow; row += 1) {
       for (let col = fromCol; col <= toCol; col += 1) map[row][col] = true;
     }
@@ -106,8 +117,18 @@ export function functionModuleMap(version: number): boolean[][] {
   const last = positions.length - 1;
   for (let i = 0; i < positions.length; i += 1) {
     for (let j = 0; j < positions.length; j += 1) {
-      if ((i === 0 && j === 0) || (i === 0 && j === last) || (i === last && j === 0)) continue;
-      fill(positions[i] - 2, positions[i] + 2, positions[j] - 2, positions[j] + 2);
+      if (
+        (i === 0 && j === 0) ||
+        (i === 0 && j === last) ||
+        (i === last && j === 0)
+      )
+        continue;
+      fill(
+        positions[i] - 2,
+        positions[i] + 2,
+        positions[j] - 2,
+        positions[j] + 2,
+      );
     }
   }
 
@@ -129,7 +150,8 @@ export function functionModuleMap(version: number): boolean[][] {
 function encodeFormatWord(data: number): number {
   let remainder = data << 10;
   for (let bit = 14; bit >= 10; bit -= 1) {
-    if ((remainder >>> bit) & 1) remainder ^= FORMAT_BCH_GENERATOR << (bit - 10);
+    if ((remainder >>> bit) & 1)
+      remainder ^= FORMAT_BCH_GENERATOR << (bit - 10);
   }
   return (((data << 10) | remainder) ^ FORMAT_MASK) & 0x7fff;
 }
@@ -209,7 +231,8 @@ function isMasked(maskId: number, row: number, col: number): boolean {
   if (maskId === 1) return row % 2 === 0;
   if (maskId === 2) return col % 3 === 0;
   if (maskId === 3) return (row + col) % 3 === 0;
-  if (maskId === 4) return (Math.floor(row / 2) + Math.floor(col / 3)) % 2 === 0;
+  if (maskId === 4)
+    return (Math.floor(row / 2) + Math.floor(col / 3)) % 2 === 0;
   if (maskId === 5) return ((row * col) % 2) + ((row * col) % 3) === 0;
   if (maskId === 6) return (((row * col) % 2) + ((row * col) % 3)) % 2 === 0;
   if (maskId === 7) return (((row + col) % 2) + ((row * col) % 3)) % 2 === 0;
@@ -221,7 +244,10 @@ function isMasked(maskId: number, row: number, col: number): boolean {
  * de derecha a izquierda; el sentido lo da la PARIDAD del par (el primero va
  * hacia arriba) y la columna 6 se salta entera porque es temporización.
  */
-function readingOrder(size: number, functionMap: readonly (readonly boolean[])[]): number[][] {
+function readingOrder(
+  size: number,
+  functionMap: readonly (readonly boolean[])[],
+): number[][] {
   const rightColumns: number[] = [];
   for (let right = size - 1; right >= 1; right -= 2) {
     if (right === 6) right = 5;
@@ -254,10 +280,14 @@ function readingOrder(size: number, functionMap: readonly (readonly boolean[])[]
 export function readQrRaw(matrix: QrMatrix): QrRawRead {
   const { modules, size } = matrix;
   if (size !== modules.length) {
-    throw new Error(`La matriz dice medir ${size} y tiene ${modules.length} filas.`);
+    throw new Error(
+      `La matriz dice medir ${size} y tiene ${modules.length} filas.`,
+    );
   }
   if ((size - 17) % 4 !== 0) {
-    throw new Error(`Un lado de ${size} módulos no corresponde a ninguna versión (4·v+17).`);
+    throw new Error(
+      `Un lado de ${size} módulos no corresponde a ninguna versión (4·v+17).`,
+    );
   }
   const version = (size - 17) / 4;
   if (version < QR_MIN_VERSION || version > QR_MAX_VERSION) {
@@ -267,8 +297,13 @@ export function readQrRaw(matrix: QrMatrix): QrRawRead {
   const copies = formatCopies(size);
   const format = decodeFormatWord(readWord(modules, copies.first));
   const secondFormat = decodeFormatWord(readWord(modules, copies.second));
-  if (format.maskId !== secondFormat.maskId || format.ecLevelBits !== secondFormat.ecLevelBits) {
-    throw new Error("Las dos copias de la información de formato no coinciden.");
+  if (
+    format.maskId !== secondFormat.maskId ||
+    format.ecLevelBits !== secondFormat.ecLevelBits
+  ) {
+    throw new Error(
+      "Las dos copias de la información de formato no coinciden.",
+    );
   }
 
   const functionMap = functionModuleMap(version);
@@ -299,7 +334,9 @@ export function readQrRaw(matrix: QrMatrix): QrRawRead {
   // cortos simplemente no aportan nada en la última columna.
   const blockDataLengths: number[] = [];
   for (let b = 0; b < layout.blocks; b += 1) {
-    blockDataLengths.push(b < layout.shortBlocks ? layout.shortDataLength : layout.longDataLength);
+    blockDataLengths.push(
+      b < layout.shortBlocks ? layout.shortDataLength : layout.longDataLength,
+    );
   }
   const data: number[][] = blockDataLengths.map(() => []);
   let cursor = 0;
@@ -358,7 +395,9 @@ export function decodeQrText(matrix: QrMatrix): string {
 
   const mode = take(4);
   if (mode !== 0b0100) {
-    throw new Error(`Modo ${mode.toString(2)} inesperado: este oráculo sólo lee modo BYTE (0100).`);
+    throw new Error(
+      `Modo ${mode.toString(2)} inesperado: este oráculo sólo lee modo BYTE (0100).`,
+    );
   }
   const length = take(characterCountBits(raw.version));
   const bytes = new Uint8Array(length);

@@ -19,7 +19,21 @@ type Schemas = components["schemas"];
 
 export type RegisterRequest = Schemas["RegisterRequest"];
 export type LoginRequest = Schemas["LoginRequest"];
-export type LoginResponse = Schemas["LoginResponse"];
+/**
+ * La superficie de identidad vive en `identity.ts` desde que el segundo factor
+ * la hizo crecer por encima del techo del gate del monolito. Sus tipos se
+ * reexportan desde aquí para no romper a quien ya los importaba de `client`.
+ */
+import { createIdentitySurface } from "./identity";
+
+export {
+  createIdentitySurface,
+  loginRequiresMfa,
+  type IdentityTransport,
+  type LoginOutcome,
+  type LoginResponse,
+  type MfaChallengeResponse,
+} from "./identity";
 export type AuthSessionResponse = Schemas["AuthSessionResponse"];
 export type IdentitySession = Schemas["IdentitySession"];
 export type IdentitySessionList = Schemas["IdentitySessionList"];
@@ -205,9 +219,7 @@ export function createDesignClient(options: DesignClientOptions) {
         "/v1/legal/",
         "/v1/cad/",
         "/v1/support/",
-      ].some(
-        (prefix) => apiPath.startsWith(prefix),
-      );
+      ].some((prefix) => apiPath.startsWith(prefix));
     if (!declaredPrefix) {
       throw new TypeError(`Ruta Design v1 no declarada: ${apiPath}`);
     }
@@ -268,56 +280,7 @@ export function createDesignClient(options: DesignClientOptions) {
   }
 
   return {
-    identity: {
-      register: (input: RegisterRequest) =>
-        call<Schemas["AcceptedResponse"]>(
-          "POST",
-          resource("/v1/auth/register"),
-          input,
-        ),
-      login: (input: LoginRequest) =>
-        call<LoginResponse>("POST", resource("/v1/auth/login"), input),
-      currentSession: () =>
-        call<AuthSessionResponse>("GET", resource("/v1/auth/session")),
-      logout: () => call<void>("POST", resource("/v1/auth/logout")),
-      verifyEmail: (token: string) =>
-        call<Schemas["EmailVerificationResponse"]>(
-          "POST",
-          resource("/v1/auth/verify-email"),
-          { token },
-        ),
-      resendVerification: (email: string) =>
-        call<Schemas["AcceptedResponse"]>(
-          "POST",
-          resource("/v1/auth/verify-email/resend"),
-          { email },
-        ),
-      requestPasswordReset: (email: string) =>
-        call<Schemas["AcceptedResponse"]>(
-          "POST",
-          resource("/v1/auth/password/forgot"),
-          { email },
-        ),
-      resetPassword: (input: Schemas["PasswordResetRequest"]) =>
-        call<Schemas["PasswordResetResponse"]>(
-          "POST",
-          resource("/v1/auth/password/reset"),
-          input,
-        ),
-      sessions: {
-        list: () =>
-          call<IdentitySessionList>("GET", resource("/v1/auth/sessions")),
-        rotate: () =>
-          call<Schemas["SessionRotationResponse"]>(
-            "POST",
-            resource("/v1/auth/sessions/rotate"),
-          ),
-        revoke: (sessionId: string) =>
-          call<void>("DELETE", resource(`/v1/auth/sessions/${sessionId}`)),
-        revokeOthers: () =>
-          call<void>("POST", resource("/v1/auth/sessions/revoke-all")),
-      },
-    },
+    identity: createIdentitySurface({ call, resource }),
 
     organizations: {
       list: () => call<OrganizationList>("GET", resource("/v1/organizations")),

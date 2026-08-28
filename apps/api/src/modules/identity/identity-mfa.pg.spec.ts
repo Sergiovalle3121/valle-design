@@ -15,6 +15,7 @@ import {
   Session,
   User,
 } from './entities/identity.entity';
+import { IdentityMfaService } from './identity-mfa.service';
 import { IdentityService } from './identity.service';
 import { totp, TOTP_STEP_SECONDS } from './identity-mfa';
 
@@ -39,6 +40,7 @@ describePostgres('segundo factor (PostgreSQL real)', () => {
 
   let harness: PostgresHarness;
   let identity: IdentityService;
+  let mfa: IdentityMfaService;
 
   const CORREO = 'dibujante@ejemplo.mx';
   const CONTRASENA = 'contrasena-larga-y-buena';
@@ -58,6 +60,12 @@ describePostgres('segundo factor (PostgreSQL real)', () => {
       ],
       { schemaPrefix: 'identity_mfa' },
     );
+    mfa = new IdentityMfaService(
+      harness.dataSource,
+      harness.dataSource.getRepository(Credential),
+      harness.dataSource.getRepository(IdentityMfaFactor),
+      harness.dataSource.getRepository(IdentityBackupCode),
+    );
     identity = new IdentityService(
       harness.dataSource,
       harness.dataSource.getRepository(User),
@@ -65,8 +73,7 @@ describePostgres('segundo factor (PostgreSQL real)', () => {
       harness.dataSource.getRepository(Session),
       harness.dataSource.getRepository(OneTimeToken),
       harness.dataSource.getRepository(IdentityAuditEvent),
-      harness.dataSource.getRepository(IdentityMfaFactor),
-      harness.dataSource.getRepository(IdentityBackupCode),
+      mfa,
       new PostgresEmailService(),
     );
   });
@@ -93,9 +100,9 @@ describePostgres('segundo factor (PostgreSQL real)', () => {
 
   /** Da de alta el factor y lo deja confirmado. Devuelve secreto y respaldos. */
   async function conSegundoFactor(usuario: User) {
-    const secreto = await identity.beginMfaEnrollment(usuario.id);
+    const secreto = await mfa.beginMfaEnrollment(usuario.id);
     const codigo = totp(secreto, Date.now()) as string;
-    const respaldos = await identity.confirmMfaEnrollment(usuario.id, codigo);
+    const respaldos = await mfa.confirmMfaEnrollment(usuario.id, codigo);
     expect(respaldos).not.toBeNull();
     return { secreto, respaldos: respaldos as string[] };
   }
@@ -110,8 +117,8 @@ describePostgres('segundo factor (PostgreSQL real)', () => {
     // El estado intermedio es el peligroso: un factor a medias que ya exigiera
     // código dejaría al usuario fuera de su propia cuenta.
     const usuario = await cuenta();
-    await identity.beginMfaEnrollment(usuario.id);
-    expect(await identity.mfaStatus(usuario.id)).toMatchObject({
+    await mfa.beginMfaEnrollment(usuario.id);
+    expect(await mfa.mfaStatus(usuario.id)).toMatchObject({
       enabled: false,
       pending: true,
     });
@@ -121,11 +128,9 @@ describePostgres('segundo factor (PostgreSQL real)', () => {
 
   it('un código equivocado no confirma el alta', async () => {
     const usuario = await cuenta();
-    await identity.beginMfaEnrollment(usuario.id);
-    expect(
-      await identity.confirmMfaEnrollment(usuario.id, '000000'),
-    ).toBeNull();
-    expect((await identity.mfaStatus(usuario.id)).enabled).toBe(false);
+    await mfa.beginMfaEnrollment(usuario.id);
+    expect(await mfa.confirmMfaEnrollment(usuario.id, '000000')).toBeNull();
+    expect((await mfa.mfaStatus(usuario.id)).enabled).toBe(false);
   });
 
   it('confirmar entrega diez códigos de respaldo y activa el factor', async () => {
@@ -133,7 +138,7 @@ describePostgres('segundo factor (PostgreSQL real)', () => {
     const { respaldos } = await conSegundoFactor(usuario);
     expect(respaldos).toHaveLength(10);
     expect(new Set(respaldos).size).toBe(10);
-    expect(await identity.mfaStatus(usuario.id)).toMatchObject({
+    expect(await mfa.mfaStatus(usuario.id)).toMatchObject({
       enabled: true,
       pending: false,
       backupCodesRemaining: 10,
@@ -223,7 +228,7 @@ describePostgres('segundo factor (PostgreSQL real)', () => {
     expect(
       await identity.completeMfaLogin(primero.challenge, respaldos[0]),
     ).not.toBeNull();
-    expect((await identity.mfaStatus(usuario.id)).backupCodesRemaining).toBe(9);
+    expect((await mfa.mfaStatus(usuario.id)).backupCodesRemaining).toBe(9);
 
     const segundo = await identity.login(CORREO, CONTRASENA);
     if (segundo.kind !== 'mfa') throw new Error('se esperaba un desafío');
@@ -264,13 +269,13 @@ describePostgres('segundo factor (PostgreSQL real)', () => {
     // contra el que sirve el factor.
     const usuario = await cuenta();
     await conSegundoFactor(usuario);
-    expect(await identity.disableMfa(usuario.id, 'otra-contrasena-larga')).toBe(
+    expect(await mfa.disableMfa(usuario.id, 'otra-contrasena-larga')).toBe(
       false,
     );
-    expect((await identity.mfaStatus(usuario.id)).enabled).toBe(true);
+    expect((await mfa.mfaStatus(usuario.id)).enabled).toBe(true);
 
-    expect(await identity.disableMfa(usuario.id, CONTRASENA)).toBe(true);
-    expect(await identity.mfaStatus(usuario.id)).toMatchObject({
+    expect(await mfa.disableMfa(usuario.id, CONTRASENA)).toBe(true);
+    expect(await mfa.mfaStatus(usuario.id)).toMatchObject({
       enabled: false,
       backupCodesRemaining: 0,
     });
@@ -284,7 +289,7 @@ describePostgres('segundo factor (PostgreSQL real)', () => {
   it('rehacer los respaldos invalida los anteriores', async () => {
     const usuario = await cuenta();
     const { respaldos } = await conSegundoFactor(usuario);
-    const nuevos = await identity.regenerateBackupCodes(usuario.id, CONTRASENA);
+    const nuevos = await mfa.regenerateBackupCodes(usuario.id, CONTRASENA);
     expect(nuevos).toHaveLength(10);
     expect(nuevos).not.toEqual(respaldos);
 
@@ -300,7 +305,7 @@ describePostgres('segundo factor (PostgreSQL real)', () => {
     // contraseña: exactamente el agujero que el factor viene a tapar.
     const usuario = await cuenta();
     await conSegundoFactor(usuario);
-    await expect(identity.beginMfaEnrollment(usuario.id)).rejects.toThrow(
+    await expect(mfa.beginMfaEnrollment(usuario.id)).rejects.toThrow(
       /ya tiene segundo factor/u,
     );
   });

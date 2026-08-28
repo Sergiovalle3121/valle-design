@@ -56,7 +56,11 @@ export function LanguageSwitcher({
     >
       <Languages
         aria-hidden
-        className={compact ? "ml-1 mr-0.5 h-3 w-3 opacity-60" : "ml-1.5 mr-1 h-3.5 w-3.5 opacity-60"}
+        className={
+          compact
+            ? "ml-1 mr-0.5 h-3 w-3 opacity-60"
+            : "ml-1.5 mr-1 h-3.5 w-3.5 opacity-60"
+        }
       />
       {locales.map((locale) => {
         const isActive = locale === activeLocale;

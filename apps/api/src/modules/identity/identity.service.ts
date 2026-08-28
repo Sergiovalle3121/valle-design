@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Inject,
   Injectable,
   Logger,
@@ -7,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomBytes } from 'crypto';
-import { DataSource, EntityManager, IsNull, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { isUniqueViolation } from '../../common/database/unique-violation';
 import {
   EMAIL_SERVICE,
@@ -21,8 +20,6 @@ import { permissionsForOrganizationRole } from '../organizations/organization-pe
 import {
   Credential,
   IdentityAuditEvent,
-  IdentityBackupCode,
-  IdentityMfaFactor,
   OneTimeToken,
   OneTimeTokenPurpose,
   Session,
@@ -30,26 +27,16 @@ import {
 } from './entities/identity.entity';
 import {
   constantTimeEqual,
+  DUMMY_PASSWORD_HASH,
   hashArgon2idPassword,
   hashOpaqueToken,
   MAX_TOKEN_LENGTH,
   verifyArgon2idPassword,
 } from './identity-security';
-import {
-  BACKUP_CODE_COUNT,
-  decryptMfaSecret,
-  encryptMfaSecret,
-  generateBackupCode,
-  generateTotpSecret,
-  hashBackupCode,
-  totpCounter,
-  verifyTotp,
-} from './identity-mfa';
+import { IdentityMfaService } from './identity-mfa.service';
 
 export { CSRF_COOKIE, SESSION_COOKIE } from './identity-security';
 
-const DUMMY_PASSWORD_HASH =
-  '$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$3mLRJY9dq8R2kBmPQ2tM1IQaxaW0GFgm1AF2DeWNLMc';
 const OPAQUE_TOKEN_PATTERN = /^[A-Za-z0-9_-]{43}$/u;
 const SESSION_COOKIE_PATTERN =
   /^([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\.([A-Za-z0-9_-]{43})$/iu;
@@ -68,10 +55,7 @@ export class IdentityService {
     private readonly tokens: Repository<OneTimeToken>,
     @InjectRepository(IdentityAuditEvent)
     private readonly audit: Repository<IdentityAuditEvent>,
-    @InjectRepository(IdentityMfaFactor)
-    private readonly mfaFactors: Repository<IdentityMfaFactor>,
-    @InjectRepository(IdentityBackupCode)
-    private readonly backupCodes: Repository<IdentityBackupCode>,
+    private readonly mfa: IdentityMfaService,
     @Inject(EMAIL_SERVICE) private readonly email: EmailService,
   ) {}
 
@@ -221,7 +205,7 @@ export class IdentityService {
       throw new UnauthorizedException('Credenciales inválidas.');
     }
 
-    const factor = await this.confirmedMfaFactor(user.id);
+    const factor = await this.mfa.confirmedMfaFactor(user.id);
     if (factor) {
       return { kind: 'mfa', ...(await this.issueMfaChallenge(user)) };
     }
@@ -260,7 +244,7 @@ export class IdentityService {
     const user = await this.users.findOneBy({ id: consumed.subjectId });
     if (!user) return null;
 
-    const method = await this.consumeSecondFactor(user.id, code);
+    const method = await this.mfa.consumeSecondFactor(user.id, code);
     if (!method) {
       throw new UnauthorizedException('Código inválido o ya utilizado.');
     }
@@ -460,236 +444,6 @@ export class IdentityService {
       );
       return true;
     });
-  }
-
-  /* ═══ SEGUNDO FACTOR ════════════════════════════════════════════════════ */
-
-  /** El factor sólo cuenta cuando el usuario demostró que su aplicación funciona. */
-  private async confirmedMfaFactor(
-    userId: string,
-  ): Promise<IdentityMfaFactor | null> {
-    const factor = await this.mfaFactors.findOneBy({ userId });
-    return factor?.confirmedAt ? factor : null;
-  }
-
-  /** ¿Tiene esta cuenta segundo factor activo? Lo consulta la página de cuenta. */
-  async mfaStatus(userId: string): Promise<{
-    enabled: boolean;
-    pending: boolean;
-    confirmedAt: Date | null;
-    backupCodesRemaining: number;
-  }> {
-    const factor = await this.mfaFactors.findOneBy({ userId });
-    const backupCodesRemaining = factor?.confirmedAt
-      ? await this.backupCodes.count({
-          where: { userId, consumedAt: IsNull() },
-        })
-      : 0;
-    return {
-      enabled: Boolean(factor?.confirmedAt),
-      pending: Boolean(factor && !factor.confirmedAt),
-      confirmedAt: factor?.confirmedAt ?? null,
-      backupCodesRemaining,
-    };
-  }
-
-  /**
-   * Empieza el alta: secreto nuevo, cifrado y SIN confirmar.
-   *
-   * Volver a llamar mientras el alta está a medias sustituye el secreto — es lo
-   * que pasa cuando alguien cierra la página a mitad y vuelve a entrar, y la
-   * alternativa (fallar con «ya empezaste un alta») obligaría a inventar un
-   * botón de cancelar para un estado que no le importa a nadie.
-   *
-   * Lo que NO se puede hacer es sustituir un factor YA CONFIRMADO: eso sería
-   * desactivar el segundo factor sin pedir ni el código ni la contraseña, o
-   * sea, exactamente el agujero que el factor viene a tapar.
-   */
-  async beginMfaEnrollment(userId: string): Promise<string> {
-    if (await this.confirmedMfaFactor(userId)) {
-      throw new BadRequestException({
-        code: 'mfa_already_enabled',
-        message:
-          'Esta cuenta ya tiene segundo factor. Desactívalo antes de dar de alta otro.',
-      });
-    }
-    const secret = generateTotpSecret();
-    const existing = await this.mfaFactors.findOneBy({ userId });
-    if (existing) {
-      await this.mfaFactors.update(
-        { id: existing.id },
-        { secretCiphertext: encryptMfaSecret(secret), lastUsedStep: null },
-      );
-    } else {
-      await this.mfaFactors.save(
-        this.mfaFactors.create({
-          userId,
-          type: 'totp',
-          secretCiphertext: encryptMfaSecret(secret),
-        }),
-      );
-    }
-    return secret;
-  }
-
-  /**
-   * Confirma el alta con un código y ENTREGA los códigos de respaldo.
-   *
-   * Los códigos se devuelven aquí y en ningún otro sitio nunca más: se guardan
-   * en hash, así que el servidor no puede volver a enseñarlos. Es incómodo a
-   * propósito — un producto que puede reimprimir tus códigos de respaldo es un
-   * producto que puede entregárselos a quien se haga pasar por ti.
-   */
-  async confirmMfaEnrollment(
-    userId: string,
-    code: string,
-  ): Promise<string[] | null> {
-    const factor = await this.mfaFactors.findOneBy({ userId });
-    if (!factor || factor.confirmedAt) return null;
-    const secret = decryptMfaSecret(factor.secretCiphertext);
-    if (!secret || !verifyTotp(secret, code, Date.now())) return null;
-
-    const codes = Array.from({ length: BACKUP_CODE_COUNT }, () =>
-      generateBackupCode(),
-    );
-    await this.dataSource.transaction(async (manager) => {
-      await manager.update(
-        IdentityMfaFactor,
-        { id: factor.id },
-        {
-          confirmedAt: new Date(),
-          lastUsedStep: String(totpCounter(Date.now())),
-          lastUsedAt: new Date(),
-        },
-      );
-      await manager.delete(IdentityBackupCode, { userId });
-      await manager.save(
-        IdentityBackupCode,
-        codes.map((code) =>
-          manager.create(IdentityBackupCode, {
-            userId,
-            codeHash: hashBackupCode(code),
-          }),
-        ),
-      );
-      await manager.save(
-        IdentityAuditEvent,
-        manager.create(IdentityAuditEvent, {
-          actorUserId: userId,
-          action: 'identity.mfa_enabled',
-        }),
-      );
-    });
-    return codes;
-  }
-
-  /**
-   * Un código válido, TOTP o de respaldo, consumido de forma que no se repita.
-   *
-   * TOTP: se rechaza cualquier paso de tiempo menor o IGUAL al último aceptado.
-   * Ésa es la defensa contra repetición, y sin ella un código visto de reojo o
-   * copiado de un registro sigue sirviendo durante los noventa segundos de la
-   * ventana de tolerancia.
-   *
-   * Respaldo: el consumo es un UPDATE condicional sobre `consumedAt IS NULL`,
-   * así que dos peticiones simultáneas con el mismo código sólo pueden ganar
-   * una. Un `SELECT` seguido de `UPDATE` habría dejado pasar las dos.
-   */
-  private async consumeSecondFactor(
-    userId: string,
-    code: string,
-  ): Promise<'totp' | 'backup_code' | null> {
-    const factor = await this.confirmedMfaFactor(userId);
-    if (!factor) return null;
-
-    const secret = decryptMfaSecret(factor.secretCiphertext);
-    if (secret && verifyTotp(secret, code, Date.now())) {
-      const step = totpCounter(Date.now());
-      const last = factor.lastUsedStep ? Number(factor.lastUsedStep) : -1;
-      if (step <= last) return null;
-      await this.mfaFactors.update(
-        { id: factor.id },
-        { lastUsedStep: String(step), lastUsedAt: new Date() },
-      );
-      return 'totp';
-    }
-
-    const result = await this.backupCodes
-      .createQueryBuilder()
-      .update()
-      .set({ consumedAt: new Date() })
-      .where('userId = :userId AND codeHash = :hash AND consumedAt IS NULL', {
-        userId,
-        hash: hashBackupCode(code),
-      })
-      .execute();
-    return result.affected ? 'backup_code' : null;
-  }
-
-  /**
-   * Desactivar exige la CONTRASEÑA, no sólo la sesión.
-   *
-   * Una sesión abierta en una máquina desatendida es justo el escenario contra
-   * el que sirve un segundo factor. Si bastara con estar dentro para quitarlo,
-   * quien se sienta delante de esa pantalla lo apaga en dos clics y ya no hay
-   * factor. Pedir la contraseña convierte «tengo su pantalla» en «además tengo
-   * su contraseña», que es un listón muy distinto.
-   */
-  async disableMfa(userId: string, password: string): Promise<boolean> {
-    const credential = await this.credentials.findOneBy({ userId });
-    const valid = await this.verifyPassword(
-      credential?.algorithm === 'argon2id'
-        ? credential.passwordHash
-        : DUMMY_PASSWORD_HASH,
-      password,
-    );
-    if (!credential || !valid) return false;
-
-    await this.dataSource.transaction(async (manager) => {
-      await manager.delete(IdentityMfaFactor, { userId });
-      await manager.delete(IdentityBackupCode, { userId });
-      await manager.save(
-        IdentityAuditEvent,
-        manager.create(IdentityAuditEvent, {
-          actorUserId: userId,
-          action: 'identity.mfa_disabled',
-        }),
-      );
-    });
-    return true;
-  }
-
-  /** Códigos nuevos: los viejos dejan de valer en la misma transacción. */
-  async regenerateBackupCodes(
-    userId: string,
-    password: string,
-  ): Promise<string[] | null> {
-    const credential = await this.credentials.findOneBy({ userId });
-    const valid = await this.verifyPassword(
-      credential?.algorithm === 'argon2id'
-        ? credential.passwordHash
-        : DUMMY_PASSWORD_HASH,
-      password,
-    );
-    if (!credential || !valid || !(await this.confirmedMfaFactor(userId))) {
-      return null;
-    }
-    const codes = Array.from({ length: BACKUP_CODE_COUNT }, () =>
-      generateBackupCode(),
-    );
-    await this.dataSource.transaction(async (manager) => {
-      await manager.delete(IdentityBackupCode, { userId });
-      await manager.save(
-        IdentityBackupCode,
-        codes.map((code) =>
-          manager.create(IdentityBackupCode, {
-            userId,
-            codeHash: hashBackupCode(code),
-          }),
-        ),
-      );
-    });
-    return codes;
   }
 
   /**

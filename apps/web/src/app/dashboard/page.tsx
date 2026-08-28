@@ -2,7 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { FilePlus2, FolderPlus, LogIn, LogOut, Upload } from "lucide-react";
+import Link from "next/link";
+import {
+  FilePlus2,
+  FolderPlus,
+  LogIn,
+  LogOut,
+  ShieldCheck,
+  Upload,
+} from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { SkipLink } from "@/components/SkipLink";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -487,6 +495,19 @@ export default function DashboardPage() {
                 ))}
               </select>
             )}
+            {/*
+              La página de seguridad de la cuenta no era alcanzable desde
+              NINGUNA navegación del producto: existía la ruta y no había cómo
+              llegar. Una función de seguridad que el usuario no encuentra es
+              una función que no protege a nadie.
+            */}
+            <Link
+              href="/cuenta"
+              className={buttonClass({ variant: "ghost" })}
+            >
+              <ShieldCheck aria-hidden="true" className="h-4 w-4" />
+              Seguridad
+            </Link>
             <Button
               variant="ghost"
               onClick={auth.logout}

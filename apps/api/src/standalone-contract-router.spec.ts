@@ -33,6 +33,7 @@ import { User } from './modules/identity/entities/identity.entity';
 import { IdentityController } from './modules/identity/identity.controller';
 import { ApiRateLimitService } from './modules/identity/api-rate-limit.service';
 import { IDENTITY_RATE_LIMIT_STORE } from './modules/identity/identity-rate-limit.store';
+import { IdentityMfaService } from './modules/identity/identity-mfa.service';
 import { IdentityService } from './modules/identity/identity.service';
 import {
   Invitation,
@@ -92,6 +93,7 @@ describe('standalone OpenAPI contract against the real Nest router', () => {
       ],
       providers: [
         { provide: IdentityService, useValue: {} },
+        { provide: IdentityMfaService, useValue: {} },
         { provide: OrganizationAccessService, useValue: {} },
         {
           provide: OrganizationCommercialConfiguration,

@@ -18,6 +18,7 @@ import {
   BoundedMemoryIdentityRateLimitStore,
   IDENTITY_RATE_LIMIT_STORE,
 } from './identity-rate-limit.store';
+import { IdentityMfaService } from './identity-mfa.service';
 import { IdentityService } from './identity.service';
 import { PostgresIdentityRateLimitStore } from './postgres-identity-rate-limit.store';
 
@@ -39,6 +40,7 @@ import { PostgresIdentityRateLimitStore } from './postgres-identity-rate-limit.s
   controllers: [IdentityController],
   providers: [
     IdentityService,
+    IdentityMfaService,
     ApiRateLimitService,
     {
       provide: IDENTITY_RATE_LIMIT_STORE,
@@ -49,6 +51,11 @@ import { PostgresIdentityRateLimitStore } from './postgres-identity-rate-limit.s
           : new BoundedMemoryIdentityRateLimitStore(),
     },
   ],
-  exports: [IdentityService, IDENTITY_RATE_LIMIT_STORE, ApiRateLimitService],
+  exports: [
+    IdentityService,
+    IdentityMfaService,
+    IDENTITY_RATE_LIMIT_STORE,
+    ApiRateLimitService,
+  ],
 })
 export class IdentityModule {}

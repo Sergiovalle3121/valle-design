@@ -1,303 +1,47 @@
 /**
- * CODIFICADOR DE CÓDIGOS QR — entrega la MATRIZ de módulos, sin dependencias.
+ * EL CODIFICADOR DE CÓDIGOS QR — el ensamblado de la matriz.
  *
- * QUÉ PROBLEMA RESUELVE. El alta de segundo factor (MFA/TOTP) enseña un
- * `otpauth://` en la página de cuenta, y ese URI lleva DENTRO el secreto
- * compartido. Eso descarta las dos salidas fáciles: un generador remoto (los
- * `api.…/qr?data=` de turno) entrega el secreto a un tercero en el query
- * string, y una dependencia de npm añade superficie de suministro permanente
- * a cambio de aritmética congelada desde 2006. Queda escribirla.
+ * Las tablas y la aritmética del estándar viven en `qr-tables.ts` y se
+ * reexportan desde aquí, para que este módulo siga siendo la única puerta:
+ * quien pinta un QR importa `encodeQr` y nada más.
  *
- * QUÉ ENTREGA Y QUÉ NO. Sólo la matriz booleana; pintarla —SVG, canvas,
- * tabla— es de la capa de presentación, y traerlo aquí ataría el codificador
- * a React. Tampoco incluye la «zona tranquila»: son 4 módulos de margen que
- * el que pinta añade como padding, y devolverlos como filas falsas obligaría
- * a todo consumidor a recortarlas.
+ * Lo que SÍ está aquí es todo lo que sólo se puede comprobar dibujando: los
+ * patrones de función, el recorrido en zigzag de los módulos de datos, las
+ * ocho máscaras con su penalización, y el ensamblado final con entrelazado de
+ * bloques.
  *
- * ALCANCE DELIBERADO. Modo BYTE (UTF-8), nivel M, versiones 1 a 40. Los modos
- * numérico y alfanumérico comprimirían más, pero cada modo es otra tabla de
- * capacidades y otro camino de pruebas, y ninguno sirve para un URI con
- * minúsculas y signos. Nivel M (~15% de recuperación) es el de los
- * autenticadores: L se degrada mal impreso y Q/H agrandan la matriz sin que
- * nadie lo necesite en pantalla.
+ * ── LO QUE HACE FALTA SABER PARA TOCARLO ────────────────────────────────────
+ * Un codificador de QR falla de una forma especialmente cruel: produce una
+ * matriz de aspecto impecable que ningún teléfono lee. No hay excepción, no hay
+ * salida corrupta, no hay nada que mirar. Por eso `qr-encode.spec.ts` y
+ * `qr-roundtrip.spec.ts` no comprueban que devuelva algo: contrastan cada pieza
+ * contra algo que NO es este codificador —una aritmética independiente, un
+ * lector escrito aparte, y los vectores publicados del estándar—. Si cambias
+ * algo aquí, esas suites son el único aviso que vas a tener.
  */
+import {
+  alignmentPatternPositions,
+  assertVersionInRange,
+  MODE_BYTE,
+  PAD_BYTES,
+  reedSolomonGenerator,
+  reedSolomonRemainder,
+  blockLayout,
+  byteCapacity,
+  characterCountBits,
+  formatInfoBits,
+  gfMul,
+  QR_MAX_VERSION,
+  QR_MIN_VERSION,
+  remainderBits,
+  totalCodewords,
+  versionInfoBits,
+  versionSize,
+  type QrEncodeOptions,
+  type QrMatrix,
+} from "./qr-tables";
 
-/** Matriz cuadrada de módulos. `true` es módulo oscuro. */
-export interface QrMatrix {
-  size: number;
-  modules: readonly (readonly boolean[])[];
-  version: number;
-}
-
-export interface QrEncodeOptions {
-  /** Fuerza un tamaño mínimo. Útil para que una matriz no «baile» de tamaño. */
-  minVersion?: number;
-}
-
-export const QR_MIN_VERSION = 1;
-export const QR_MAX_VERSION = 40;
-
-/** Indicador de modo BYTE (4 bits) según ISO/IEC 18004 tabla 2. */
-const MODE_BYTE = 0b0100;
-
-/** Los dos bits de nivel de corrección para M. L=01, M=00, Q=11, H=10. */
-const EC_LEVEL_M_BITS = 0b00;
-
-/** Bytes de relleno alternados que exige el estándar tras el terminador. */
-const PAD_BYTES = [0xec, 0x11] as const;
-
-// ───────────────────────────────────────────────────────────────────────────
-// Aritmética en GF(256)
-// ───────────────────────────────────────────────────────────────────────────
-
-/**
- * Polinomio primitivo x^8 + x^4 + x^3 + x^2 + 1. No es una preferencia: es el
- * que fija el estándar, y con otro los codewords de corrección saldrían
- * distintos y ningún lector podría leerlos.
- */
-const GF_PRIMITIVE = 0x11d;
-
-/**
- * Tablas de antilogaritmo y logaritmo en base α = 2. Multiplicar es sumar
- * exponentes, y por eso `GF_EXP` se duplica hasta 512: así la suma de dos
- * logaritmos (máximo 254 + 254) se indexa sin un módulo por operación.
- */
-const GF_EXP = new Uint8Array(512);
-const GF_LOG = new Uint8Array(256);
-
-{
-  let value = 1;
-  for (let i = 0; i < 255; i += 1) {
-    GF_EXP[i] = value;
-    GF_LOG[value] = i;
-    value <<= 1;
-    if (value & 0x100) value ^= GF_PRIMITIVE;
-  }
-  for (let i = 255; i < 512; i += 1) GF_EXP[i] = GF_EXP[i - 255];
-}
-
-/** Producto en GF(256). El cero no tiene logaritmo, de ahí el caso aparte. */
-export function gfMul(a: number, b: number): number {
-  if (a === 0 || b === 0) return 0;
-  return GF_EXP[GF_LOG[a] + GF_LOG[b]];
-}
-
-/**
- * Polinomio generador mónico de grado `degree`, coeficientes de mayor a menor
- * grado: g(x) = (x - α^0)(x - α^1)…(x - α^(degree-1)).
- *
- * OJO CON LA CONVENCIÓN. QR arranca las raíces en α^0, no en α^1 como la
- * literatura genérica de Reed-Solomon (fcr = 1). Quien compruebe síndromes
- * contra α^1..α^2t sobre un bloque de QR obtendrá valores NO nulos aunque el
- * ECC esté perfecto; hay que evaluar en α^0..α^(2t-1).
- */
-export function reedSolomonGenerator(degree: number): number[] {
-  if (degree < 1) throw new Error(`Grado ${degree} inválido para el polinomio generador.`);
-  let generator = [1];
-  for (let i = 0; i < degree; i += 1) {
-    const root = GF_EXP[i % 255];
-    const next = new Array<number>(generator.length + 1).fill(0);
-    for (let j = 0; j < generator.length; j += 1) {
-      next[j] ^= generator[j];
-      next[j + 1] ^= gfMul(generator[j], root);
-    }
-    generator = next;
-  }
-  return generator;
-}
-
-/**
- * Resto de dividir el mensaje (multiplicado por x^ecLen) entre el generador:
- * los codewords de corrección. División sintética con acarreo XOR; se procesa
- * un byte por vuelta para no materializar el dividendo completo.
- */
-function reedSolomonRemainder(data: readonly number[], generator: readonly number[]): number[] {
-  const ecLength = generator.length - 1;
-  const result = new Array<number>(ecLength).fill(0);
-  for (const byte of data) {
-    const factor = byte ^ result[0];
-    result.shift();
-    result.push(0);
-    for (let i = 0; i < ecLength; i += 1) result[i] ^= gfMul(generator[i + 1], factor);
-  }
-  return result;
-}
-
-// ───────────────────────────────────────────────────────────────────────────
-// Geometría y capacidades por versión
-// ───────────────────────────────────────────────────────────────────────────
-
-/** Lado de la matriz. La relación 4·versión+17 es la definición de versión. */
-export function versionSize(version: number): number {
-  return version * 4 + 17;
-}
-
-/**
- * Módulos disponibles para datos + corrección, ya descontados los patrones de
- * función. Se CALCULA en vez de tabularse porque la tabla son 40 números que
- * nadie puede revisar de un vistazo, mientras que la fórmula se deriva de la
- * geometría: área total, menos los tres localizadores con separador, menos
- * las líneas de temporización, menos los alineamientos (que se solapan con la
- * temporización de forma regular), menos la información de versión.
- */
-function rawDataModules(version: number): number {
-  let modules = (16 * version + 128) * version + 64;
-  if (version >= 2) {
-    const alignmentCount = Math.floor(version / 7) + 2;
-    modules -= (25 * alignmentCount - 10) * alignmentCount - 55;
-    if (version >= 7) modules -= 36;
-  }
-  return modules;
-}
-
-/** Codewords totales (datos + corrección) que caben en la versión. */
-export function totalCodewords(version: number): number {
-  return Math.floor(rawDataModules(version) / 8);
-}
-
-/**
- * Bits sobrantes al final del recorrido: la matriz no siempre es múltiplo de
- * 8 módulos de datos. Se dejan claros y el lector los ignora.
- */
-export function remainderBits(version: number): number {
-  return rawDataModules(version) - totalCodewords(version) * 8;
-}
-
-/**
- * Codewords de corrección por bloque y número de bloques, nivel M.
- *
- * POR QUÉ SÓLO DOS NÚMEROS POR VERSIÓN. Las tablas publicadas traen cinco
- * columnas (EC por bloque, y bloques y datos de los grupos 1 y 2). Las tres
- * últimas son DERIVABLES: los datos totales son `total - bloques × EC`, y el
- * estándar los reparte en bloques que difieren como mucho en un codeword.
- * Copiar 200 números a mano es una fuente de erratas silenciosas; copiar 80 y
- * derivar el resto convierte media tabla en una invariante comprobable, y las
- * pruebas la comprueban contra las cinco columnas publicadas.
- *
- * Dos listas paralelas indexadas por `versión - 1`, y no pares, porque
- * cuarenta parejas ocupan cuarenta renglones y dejan de leerse como tabla.
- */
-const EC_CODEWORDS_PER_BLOCK_M: readonly number[] = [
-  10, 16, 26, 18, 24, 16, 18, 22, 22, 26, 30, 22, 22, 24, 24, 28, 28, 26, 26, 26, 26, 28, 28, 28,
-  28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28, 28,
-];
-const EC_BLOCKS_M: readonly number[] = [
-  1, 1, 1, 2, 2, 4, 4, 4, 5, 5, 5, 8, 9, 9, 10, 10, 11, 13, 14, 16, 17, 17, 18, 20, 21, 23, 25, 26,
-  28, 29, 31, 33, 35, 37, 38, 40, 43, 45, 47, 49,
-];
-
-export interface QrBlockLayout {
-  ecPerBlock: number;
-  blocks: number;
-  /** Bloques «cortos»; los demás llevan un codeword de datos más. */
-  shortBlocks: number;
-  shortDataLength: number;
-  longDataLength: number;
-  totalDataCodewords: number;
-  totalCodewords: number;
-}
-
-export function blockLayout(version: number): QrBlockLayout {
-  assertVersionInRange(version);
-  const ecPerBlock = EC_CODEWORDS_PER_BLOCK_M[version - 1];
-  const blocks = EC_BLOCKS_M[version - 1];
-  const total = totalCodewords(version);
-  const totalDataCodewords = total - ecPerBlock * blocks;
-  const shortDataLength = Math.floor(totalDataCodewords / blocks);
-  const longBlocks = totalDataCodewords % blocks;
-  return {
-    ecPerBlock,
-    blocks,
-    shortBlocks: blocks - longBlocks,
-    shortDataLength,
-    longDataLength: shortDataLength + 1,
-    totalDataCodewords,
-    totalCodewords: total,
-  };
-}
-
-/**
- * Bits del indicador de cuenta de caracteres en modo byte: 8 hasta la versión
- * 9 y 16 a partir de la 10. El salto importa porque cambia la capacidad justo
- * en la frontera y una versión elegida con el ancho equivocado desborda.
- */
-export function characterCountBits(version: number): number {
-  return version < 10 ? 8 : 16;
-}
-
-/** Bytes UTF-8 que caben en la versión, nivel M, modo byte. */
-export function byteCapacity(version: number): number {
-  const layout = blockLayout(version);
-  const usableBits = layout.totalDataCodewords * 8 - 4 - characterCountBits(version);
-  return Math.floor(usableBits / 8);
-}
-
-/**
- * Centros de los patrones de alineación. El primero siempre en 6 y el último
- * en `size-7`; los intermedios se reparten con paso PAR (los centros han de
- * caer en coordenada par para no romper la temporización). La versión 32 es la
- * excepción documentada del estándar: el reparto uniforme daría 28 y la tabla
- * publicada dice 26.
- */
-export function alignmentPatternPositions(version: number): number[] {
-  assertVersionInRange(version);
-  if (version === 1) return [];
-  const count = Math.floor(version / 7) + 2;
-  const step = version === 32 ? 26 : Math.ceil((version * 4 + 4) / (count * 2 - 2)) * 2;
-  const positions = [6];
-  for (let pos = version * 4 + 10; positions.length < count; pos -= step) {
-    positions.splice(1, 0, pos);
-  }
-  return positions;
-}
-
-function assertVersionInRange(version: number): void {
-  if (!Number.isInteger(version) || version < QR_MIN_VERSION || version > QR_MAX_VERSION) {
-    throw new Error(
-      `Versión de QR inválida: ${version}. Sólo existen las versiones ${QR_MIN_VERSION} a ${QR_MAX_VERSION}.`,
-    );
-  }
-}
-
-// ───────────────────────────────────────────────────────────────────────────
-// Información de formato y de versión (códigos BCH)
-// ───────────────────────────────────────────────────────────────────────────
-
-/**
- * 15 bits de información de formato: 2 de nivel de corrección + 3 de máscara,
- * protegidos con BCH(15,5) —generador 0x537— y enmascarados con 0x5412.
- *
- * POR QUÉ LA MÁSCARA 0x5412. Sin ella, el formato (M, máscara 0) sería quince
- * ceros: una región uniforme pegada al localizador, justo lo que confunde a un
- * lector. La XOR garantiza que ninguna combinación de las 32 posibles salga
- * toda clara ni toda oscura.
- */
-export function formatInfoBits(maskId: number): number {
-  if (!Number.isInteger(maskId) || maskId < 0 || maskId > 7) {
-    throw new Error(`Máscara ${maskId} fuera del rango 0-7.`);
-  }
-  const data = (EC_LEVEL_M_BITS << 3) | maskId;
-  let remainder = data;
-  for (let i = 0; i < 10; i += 1) remainder = (remainder << 1) ^ ((remainder >>> 9) * 0x537);
-  return ((data << 10) | remainder) ^ 0x5412;
-}
-
-/**
- * 18 bits de información de versión (sólo versión >= 7): 6 de versión con
- * BCH(18,6), generador 0x1F25. Aquí NO hay máscara final: el estándar no la
- * define porque estos bloques quedan lejos de los localizadores.
- */
-export function versionInfoBits(version: number): number {
-  assertVersionInRange(version);
-  if (version < 7) {
-    throw new Error(
-      `La versión ${version} no lleva información de versión; sólo la 7 en adelante.`,
-    );
-  }
-  let remainder = version;
-  for (let i = 0; i < 12; i += 1) remainder = (remainder << 1) ^ ((remainder >>> 11) * 0x1f25);
-  return (version << 12) | remainder;
-}
+export * from "./qr-tables";
 
 // ───────────────────────────────────────────────────────────────────────────
 // Trazado de la matriz
@@ -311,10 +55,17 @@ interface Canvas {
 }
 
 function createGrid(size: number): boolean[][] {
-  return Array.from({ length: size }, () => new Array<boolean>(size).fill(false));
+  return Array.from({ length: size }, () =>
+    new Array<boolean>(size).fill(false),
+  );
 }
 
-function setFunctionModule(canvas: Canvas, row: number, col: number, dark: boolean): void {
+function setFunctionModule(
+  canvas: Canvas,
+  row: number,
+  col: number,
+  dark: boolean,
+): void {
   canvas.modules[row][col] = dark;
   canvas.isFunction[row][col] = true;
 }
@@ -326,12 +77,17 @@ function setFunctionModule(canvas: Canvas, row: number, col: number, dark: boole
  * tener que recortar a mano el separador en las tres esquinas, donde se sale
  * de la matriz por dos lados distintos según la esquina.
  */
-function drawFinderPattern(canvas: Canvas, centerRow: number, centerCol: number): void {
+function drawFinderPattern(
+  canvas: Canvas,
+  centerRow: number,
+  centerCol: number,
+): void {
   for (let dr = -4; dr <= 4; dr += 1) {
     for (let dc = -4; dc <= 4; dc += 1) {
       const row = centerRow + dr;
       const col = centerCol + dc;
-      if (row < 0 || row >= canvas.size || col < 0 || col >= canvas.size) continue;
+      if (row < 0 || row >= canvas.size || col < 0 || col >= canvas.size)
+        continue;
       const distance = Math.max(Math.abs(dr), Math.abs(dc));
       setFunctionModule(canvas, row, col, distance !== 2 && distance !== 4);
     }
@@ -339,7 +95,11 @@ function drawFinderPattern(canvas: Canvas, centerRow: number, centerCol: number)
 }
 
 /** Alineación 5x5: núcleo oscuro, anillo claro (distancia 1), marco oscuro. */
-function drawAlignmentPattern(canvas: Canvas, centerRow: number, centerCol: number): void {
+function drawAlignmentPattern(
+  canvas: Canvas,
+  centerRow: number,
+  centerCol: number,
+): void {
   for (let dr = -2; dr <= 2; dr += 1) {
     for (let dc = -2; dc <= 2; dc += 1) {
       const distance = Math.max(Math.abs(dr), Math.abs(dc));
@@ -349,7 +109,9 @@ function drawAlignmentPattern(canvas: Canvas, centerRow: number, centerCol: numb
 }
 
 /** Coordenadas de los 15 módulos de formato, en orden de bit 0 a bit 14. */
-function formatModulePositions(size: number): ReadonlyArray<readonly [row: number, col: number]> {
+function formatModulePositions(
+  size: number,
+): ReadonlyArray<readonly [row: number, col: number]> {
   const first: Array<[number, number]> = [];
   for (let i = 0; i <= 5; i += 1) first.push([i, 8]);
   first.push([7, 8], [8, 8], [8, 7]);
@@ -360,7 +122,11 @@ function formatModulePositions(size: number): ReadonlyArray<readonly [row: numbe
   return [...first, ...second];
 }
 
-function drawFormatInfo(modules: boolean[][], size: number, maskId: number): void {
+function drawFormatInfo(
+  modules: boolean[][],
+  size: number,
+  maskId: number,
+): void {
   const bits = formatInfoBits(maskId);
   const positions = formatModulePositions(size);
   for (let i = 0; i < 15; i += 1) {
@@ -390,7 +156,9 @@ function drawFunctionPatterns(canvas: Canvas, version: number): void {
     for (let j = 0; j < positions.length; j += 1) {
       // Las tres esquinas ya están ocupadas por los localizadores.
       const overlapsFinder =
-        (i === 0 && j === 0) || (i === 0 && j === last) || (i === last && j === 0);
+        (i === 0 && j === 0) ||
+        (i === 0 && j === last) ||
+        (i === last && j === 0);
       if (overlapsFinder) continue;
       drawAlignmentPattern(canvas, positions[i], positions[j]);
     }
@@ -527,7 +295,8 @@ export function penaltyScore(modules: readonly (readonly boolean[])[]): number {
   let score = 0;
 
   // ── N1: tramos de 5 o más módulos iguales, en filas y en columnas ────────
-  const scoreRun = (length: number): number => (length >= 5 ? PENALTY_N1 + (length - 5) : 0);
+  const scoreRun = (length: number): number =>
+    length >= 5 ? PENALTY_N1 + (length - 5) : 0;
   for (let i = 0; i < size; i += 1) {
     let rowColor = modules[i][0];
     let rowRun = 1;
@@ -609,7 +378,8 @@ function buildDataCodewords(data: Uint8Array, version: number): number[] {
   const capacityBits = layout.totalDataCodewords * 8;
   const bits: boolean[] = [];
   const appendBits = (value: number, length: number): void => {
-    for (let i = length - 1; i >= 0; i -= 1) bits.push(((value >>> i) & 1) === 1);
+    for (let i = length - 1; i >= 0; i -= 1)
+      bits.push(((value >>> i) & 1) === 1);
   };
 
   appendBits(MODE_BYTE, 4);
@@ -646,7 +416,10 @@ function buildDataCodewords(data: Uint8Array, version: number): number[] {
  * t errores POR BLOQUE; sin entrelazar, un borrón local supera ese límite en un
  * bloque mientras los otros salen intactos.
  */
-function buildInterleavedCodewords(dataCodewords: readonly number[], version: number): number[] {
+function buildInterleavedCodewords(
+  dataCodewords: readonly number[],
+  version: number,
+): number[] {
   const layout = blockLayout(version);
   const generator = reedSolomonGenerator(layout.ecPerBlock);
   const dataBlocks: number[][] = [];
@@ -654,7 +427,8 @@ function buildInterleavedCodewords(dataCodewords: readonly number[], version: nu
 
   let offset = 0;
   for (let b = 0; b < layout.blocks; b += 1) {
-    const length = b < layout.shortBlocks ? layout.shortDataLength : layout.longDataLength;
+    const length =
+      b < layout.shortBlocks ? layout.shortDataLength : layout.longDataLength;
     const block = dataCodewords.slice(offset, offset + length);
     offset += length;
     dataBlocks.push(block);
@@ -704,7 +478,10 @@ function prepare(text: string, options?: QrEncodeOptions): PreparedCode {
   const data = new TextEncoder().encode(text);
   const version = chooseVersion(data.length, minVersion);
   const canvas = createCanvas(version);
-  placeCodewords(canvas, buildInterleavedCodewords(buildDataCodewords(data, version), version));
+  placeCodewords(
+    canvas,
+    buildInterleavedCodewords(buildDataCodewords(data, version), version),
+  );
   return { version, canvas };
 }
 
@@ -728,7 +505,10 @@ function renderWithMask(canvas: Canvas, maskId: number): boolean[][] {
  * `encodeQr` elige de verdad el mínimo, sin tener que reimplementar la
  * selección.
  */
-export function maskPenalties(text: string, options?: QrEncodeOptions): number[] {
+export function maskPenalties(
+  text: string,
+  options?: QrEncodeOptions,
+): number[] {
   const { canvas } = prepare(text, options);
   const penalties: number[] = [];
   for (let maskId = 0; maskId < 8; maskId += 1) {
@@ -782,6 +562,8 @@ export function encodeQr(text: string, options?: QrEncodeOptions): QrMatrix {
     }
   }
   if (best === null)
-    throw new Error("No se pudo evaluar ninguna máscara; esto no debería ocurrir.");
+    throw new Error(
+      "No se pudo evaluar ninguna máscara; esto no debería ocurrir.",
+    );
   return { size: canvas.size, modules: best, version };
 }

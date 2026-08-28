@@ -60,11 +60,13 @@ export interface TaxProfileFormProps {
 export function TaxProfileForm({ onSaved, submitLabel }: TaxProfileFormProps) {
   const [phase, setPhase] = useState<Phase>({ status: "loading" });
   const [catalogs, setCatalogs] = useState<SatTaxCatalogs | null>(null);
-  const [issuance, setIssuance] = useState<TaxProfileResponse["issuance"] | null>(
-    null,
-  );
+  const [issuance, setIssuance] = useState<
+    TaxProfileResponse["issuance"] | null
+  >(null);
   const [values, setValues] = useState<TaxProfileSave>(toFormValues(null));
-  const [issues, setIssues] = useState<Partial<Record<FiscalField, string>>>({});
+  const [issues, setIssues] = useState<Partial<Record<FiscalField, string>>>(
+    {},
+  );
 
   // Catálogos y perfil se leen a la vez: el formulario no puede pintarse sin
   // los primeros, y sin el segundo no sabría si está capturando o corrigiendo.

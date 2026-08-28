@@ -50,7 +50,12 @@ function Demo({
           className="block h-auto w-full"
         >
           {/* Retícula del papel, quieta, como fondo del concepto. */}
-          <g className="text-border" stroke="currentColor" strokeWidth={0.5} opacity={0.6}>
+          <g
+            className="text-border"
+            stroke="currentColor"
+            strokeWidth={0.5}
+            opacity={0.6}
+          >
             <path d="M0 30H240M0 60H240M0 90H240M0 120H240M30 0V150M60 0V150M90 0V150M120 0V150M150 0V150M180 0V150M210 0V150" />
           </g>
           {children}
@@ -75,12 +80,27 @@ export function FeelDemos({ className }: { className?: string }) {
         texto="No se dibuja «cerca de» la esquina: se dibuja EN la esquina. El editor indexa los puntos notables de la geometría y el cursor salta al que corresponde, con su marcador diciendo cuál es. Un plano cuyos vértices no coinciden es un plano que falla al acotar y al exportar."
       >
         <g className="text-foreground" stroke="currentColor" strokeWidth={2.4}>
-          <path pathLength={1} className="stroke-draw-loop" style={delay(0)} d="M40 118 L40 46 L128 46" />
+          <path
+            pathLength={1}
+            className="stroke-draw-loop"
+            style={delay(0)}
+            d="M40 118 L40 46 L128 46"
+          />
         </g>
         {/* Marcador de punto final: el cuadrado que el oficio reconoce. */}
         <g className="text-primary" stroke="currentColor" strokeWidth={2}>
-          <path pathLength={1} className="stroke-draw-loop" style={delay(900)} d="M33 39H47V53H33Z" />
-          <path pathLength={1} className="stroke-draw-loop" style={delay(1300)} d="M40 46 L196 104" />
+          <path
+            pathLength={1}
+            className="stroke-draw-loop"
+            style={delay(900)}
+            d="M33 39H47V53H33Z"
+          />
+          <path
+            pathLength={1}
+            className="stroke-draw-loop"
+            style={delay(1300)}
+            d="M40 46 L196 104"
+          />
         </g>
         <g className="fill-current text-primary type-mono" fontSize={9}>
           <text x={54} y={34} className="draw-fade-in" style={delay(1700)}>
@@ -97,10 +117,20 @@ export function FeelDemos({ className }: { className?: string }) {
         texto="Acotas una vez y el número queda unido a la geometría: mueves el muro y la cifra cambia sola. Una medida escrita a mano encima de una línea acaba mintiendo el día que alguien mueve esa línea, y nadie se entera hasta que está construido."
       >
         <g className="text-foreground" stroke="currentColor" strokeWidth={3}>
-          <path pathLength={1} className="stroke-draw-loop" style={delay(0)} d="M44 40H196M44 52H196" />
+          <path
+            pathLength={1}
+            className="stroke-draw-loop"
+            style={delay(0)}
+            d="M44 40H196M44 52H196"
+          />
         </g>
         <g className="text-primary" stroke="currentColor" strokeWidth={1.6}>
-          <path pathLength={1} className="stroke-draw-loop" style={delay(700)} d="M44 60V104M196 60V104" />
+          <path
+            pathLength={1}
+            className="stroke-draw-loop"
+            style={delay(700)}
+            d="M44 60V104M196 60V104"
+          />
           <path
             pathLength={1}
             className="stroke-draw-loop"
@@ -109,7 +139,13 @@ export function FeelDemos({ className }: { className?: string }) {
           />
         </g>
         <g className="fill-current text-primary type-mono" fontSize={12}>
-          <text x={120} y={86} textAnchor="middle" className="draw-fade-in" style={delay(1600)}>
+          <text
+            x={120}
+            y={86}
+            textAnchor="middle"
+            className="draw-fade-in"
+            style={delay(1600)}
+          >
             4.20
           </text>
         </g>
@@ -123,12 +159,31 @@ export function FeelDemos({ className }: { className?: string }) {
       >
         {/* La hoja. */}
         <g className="text-foreground" stroke="currentColor" strokeWidth={2}>
-          <path pathLength={1} className="stroke-draw-loop" style={delay(0)} d="M46 18H194V132H46Z" />
+          <path
+            pathLength={1}
+            className="stroke-draw-loop"
+            style={delay(0)}
+            d="M46 18H194V132H46Z"
+          />
         </g>
         {/* La ventana de presentación y lo que encuadra. */}
-        <g className="text-muted-foreground" stroke="currentColor" strokeWidth={1.4}>
-          <path pathLength={1} className="stroke-draw-loop" style={delay(600)} d="M58 30H150V96H58Z" />
-          <path pathLength={1} className="stroke-draw-loop" style={delay(1000)} d="M70 84V44H116V84Z M116 62H138" />
+        <g
+          className="text-muted-foreground"
+          stroke="currentColor"
+          strokeWidth={1.4}
+        >
+          <path
+            pathLength={1}
+            className="stroke-draw-loop"
+            style={delay(600)}
+            d="M58 30H150V96H58Z"
+          />
+          <path
+            pathLength={1}
+            className="stroke-draw-loop"
+            style={delay(1000)}
+            d="M70 84V44H116V84Z M116 62H138"
+          />
         </g>
         {/* El cajetín. */}
         <g className="text-primary" stroke="currentColor" strokeWidth={1.4}>
@@ -147,7 +202,10 @@ export function FeelDemos({ className }: { className?: string }) {
             A-01
           </text>
         </g>
-        <g className="fill-current text-muted-foreground type-mono" fontSize={8}>
+        <g
+          className="fill-current text-muted-foreground type-mono"
+          fontSize={8}
+        >
           <text x={160} y={28} className="draw-fade-in" style={delay(2400)}>
             A3
           </text>

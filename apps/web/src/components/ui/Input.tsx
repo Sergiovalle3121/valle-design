@@ -23,8 +23,7 @@ interface Common {
 /* ── INPUT ──────────────────────────────────────────────────────────────── */
 
 export interface InputProps
-  extends Omit<InputHTMLAttributes<HTMLInputElement>, "size">,
-    Common {
+  extends Omit<InputHTMLAttributes<HTMLInputElement>, "size">, Common {
   /**
    * Tipografía monoespaciada para el contenido. Un token, una coordenada o una
    * clave se leen carácter a carácter, y una grotesca proporcional convierte
@@ -66,12 +65,20 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
 /* ── TEXTAREA ───────────────────────────────────────────────────────────── */
 
 export interface TextareaProps
-  extends TextareaHTMLAttributes<HTMLTextAreaElement>,
-    Common {}
+  extends TextareaHTMLAttributes<HTMLTextAreaElement>, Common {}
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
   function Textarea(
-    { label, hint, error, hideLabel, wrapperClassName, className, rows = 4, ...rest },
+    {
+      label,
+      hint,
+      error,
+      hideLabel,
+      wrapperClassName,
+      className,
+      rows = 4,
+      ...rest
+    },
     ref,
   ) {
     return (
@@ -105,8 +112,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(
 /* ── SELECT ─────────────────────────────────────────────────────────────── */
 
 export interface SelectProps
-  extends SelectHTMLAttributes<HTMLSelectElement>,
-    Common {
+  extends SelectHTMLAttributes<HTMLSelectElement>, Common {
   children: ReactNode;
 }
 
@@ -121,7 +127,16 @@ export interface SelectProps
  */
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(
   function Select(
-    { label, hint, error, hideLabel, wrapperClassName, className, children, ...rest },
+    {
+      label,
+      hint,
+      error,
+      hideLabel,
+      wrapperClassName,
+      className,
+      children,
+      ...rest
+    },
     ref,
   ) {
     return (

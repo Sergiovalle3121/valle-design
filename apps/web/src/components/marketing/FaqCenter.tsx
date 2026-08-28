@@ -66,7 +66,9 @@ export function FaqCenter() {
       if (filtro !== "todas" && entrada.categoria !== filtro) return false;
       if (!aguja) return true;
       // Se busca en pregunta Y respuesta: ver la decisión 1 de la cabecera.
-      return normalizar(`${entrada.pregunta} ${entrada.respuesta}`).includes(aguja);
+      return normalizar(`${entrada.pregunta} ${entrada.respuesta}`).includes(
+        aguja,
+      );
     });
   }, [consulta, filtro]);
 
@@ -126,7 +128,11 @@ export function FaqCenter() {
 
       {/* El recuento se anuncia: sin esto, teclear no produce ningún cambio
           perceptible para quien no ve la lista moverse. */}
-      <p role="status" aria-live="polite" className="mt-5 type-small text-muted-foreground">
+      <p
+        role="status"
+        aria-live="polite"
+        className="mt-5 type-small text-muted-foreground"
+      >
         {resultados.length === 0
           ? "Ninguna respuesta coincide con esa búsqueda."
           : `${resultados.length} ${resultados.length === 1 ? "respuesta" : "respuestas"}${

@@ -1,5 +1,12 @@
 import type { ElementType, HTMLAttributes, ReactNode } from "react";
-import { cx, elevation, motionBase, radius, type Elevation, type Radius } from "./styles";
+import {
+  cx,
+  elevation,
+  motionBase,
+  radius,
+  type Elevation,
+  type Radius,
+} from "./styles";
 
 /**
  * LA SUPERFICIE. Tarjeta, panel, paleta y aviso son la misma cosa con distinta
@@ -132,7 +139,9 @@ export function CardHeader({
           <p className="type-small mt-2 text-muted-foreground">{description}</p>
         ) : null}
       </div>
-      {actions ? <div className="flex shrink-0 items-center gap-2">{actions}</div> : null}
+      {actions ? (
+        <div className="flex shrink-0 items-center gap-2">{actions}</div>
+      ) : null}
     </div>
   );
 }

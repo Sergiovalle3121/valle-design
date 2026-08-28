@@ -55,11 +55,11 @@ composiciones que evoquen su identidad, ni la palabra AutoCAD en el branding.
 | 1 | 1.4 Precios v2 + días de prueba desde configuración | **hecho** (la cifra ya salía de configuración: premisa corregida) |
 | 1 | 1.5 Reposicionamiento legal + gate de superficie | **hecho** |
 | 1 | 1.6 Móvil a la misma altura | **hecho** |
-| 2 | 2.1 Registro y login premium | pendiente |
-| 2 | 2.2 Entrar con Google y Microsoft | pendiente |
+| 2 | 2.1 Registro y login premium | **hecho** |
+| 2 | 2.2 Entrar con Google y Microsoft | **backlog razonado** (ver informe) |
 | 2 | 2.3 MFA opcional (TOTP) | **hecho** (API + evidencia PG) |
-| 2 | 2.4 La cuenta muestra su seguridad | pendiente |
-| 2 | 2.5 Verificación por enlace pulida | pendiente |
+| 2 | 2.4 La cuenta muestra su seguridad | **hecho** |
+| 2 | 2.5 Verificación por enlace pulida | **hecho** (hereda la identidad y el shell nuevo) |
 | 3 | 3.1 Nombres humanos de entidades | pendiente |
 | 3 | 3.2 Primera impresión en 2D | pendiente |
 | 3 | 3.3 Cromo del estudio con la identidad nueva | pendiente |
@@ -316,3 +316,75 @@ estándar.
 contra PostgreSQL real · contrato 90 operaciones sincronizadas · contraste 70
 pares · superficie pública OK · trinquete de lint 547/547 · `tsc` limpio en los
 dos workspaces.
+
+### 05:40 — OLA 2: la pantalla donde el cliente entrega sus datos
+
+**2.1 · Registro y login premium.** `AuthShell` pasa a ser una pantalla partida
+en escritorio: el formulario a la izquierda y a la derecha el PRODUCTO —el plano
+dibujándose— con los sellos de confianza debajo. En móvil el panel desaparece
+entero: un panel decorativo que empuja el formulario bajo el pliegue convierte
+una ayuda en un obstáculo.
+
+Tres piezas nuevas, cada una con su prueba:
+
+* **`PasswordField`** — mostrar/ocultar (la razón número uno por la que alguien
+  falla al registrarse es teclear mal algo que no puede ver), `autocomplete`
+  correcto para que los gestores de contraseñas ofrezcan generar y guardar, y el
+  medidor sólo al ELEGIR contraseña, nunca al entrar.
+* **`lib/password-strength.ts`** — mide ENTROPÍA y castiga los patrones que un
+  atacante explota, en vez de premiar clases de carácter. Las pruebas están
+  escritas como acusaciones: `P@ssw0rd12` sale **muy débil** (es «password»
+  disfrazada) y `caballo grapa bateria correcto` sale **fuerte**. Un medidor que
+  felicita a `P@ssw0rd1` empuja a la gente hacia la contraseña que el atacante
+  prueba primero.
+* **`TrustSeals`** — cuatro afirmaciones, cero escudos decorativos. Cada línea
+  nombra un mecanismo concreto que existe en el repositorio y se puede ir a leer.
+  La forma fácil de cumplir «que se vea segura» es un escudo verde; es también la
+  que destruye lo que venía a construir, porque quien sabe algo reconoce el
+  adorno y deduce que lo demás también puede serlo.
+
+**2.4 · La cuenta muestra su seguridad — y el hueco que había.** El API llevaba
+desde el primer día ofreciendo `GET /v1/auth/sessions`, el SDK tenía las cuatro
+operaciones de sesión tipadas, **y el web no llamaba a ninguna**. Había un
+producto que sabía decir «éstas son tus sesiones abiertas y puedes cerrar
+cualquiera» y ningún sitio donde lo dijera. `/cuenta` lo dice: sesiones con su
+dispositivo aproximado y botón de cerrar, actividad reciente, el segundo factor,
+y —por fin escrito— que cambiar la contraseña cierra todas las demás sesiones.
+Una defensa que el usuario no conoce es una defensa que no usa.
+
+La página tampoco era **alcanzable**: ninguna navegación del producto enlazaba a
+`/cuenta`. Añadido al panel.
+
+**`lib/user-agent.ts`** traduce la cadena cruda a «Chrome en Mac». Probado
+contra agentes REALES, incluidos los tres que se hacen pasar por otro: Edge dice
+ser Chrome, Chrome de iOS dice ser Safari, y el Safari de un iPad dice ser un
+Macintosh.
+
+**El QR, verificado contra un oráculo externo de verdad.** El agente auditor
+instaló `qrcode` de npm **sólo en el scratchpad** (nunca en el repositorio, que
+es justo lo que este codificador existe para evitar) y comparó la matriz
+completa, módulo a módulo, para 49 textos incluyendo uno de capacidad exacta por
+cada una de las 40 versiones: **cero discrepancias, máscara elegida incluida**.
+
+Y encontró un defecto real que la ida y vuelta no podía ver: los centros de los
+patrones de alineación son lógica CALCULADA compartida entre codificador y
+lector, y sólo estaban fijados en 7 de las 40 versiones. Un centro equivocado
+desplaza por igual lo que dibuja uno y lo que salta el otro — ida y vuelta en
+verde, síndromes nulos, y matriz ilegible. Se demostró con mutación (288 módulos
+de diferencia contra un lector real en la v15), se arregló fijando las 40 filas
+de la tabla E.1, y la batería de mutación pasó de 6/9 a **9/9 detectadas**.
+
+**Tres cortes por el gate del monolito, y ninguno fue «añadirlo al manifiesto».**
+`identity.service.ts` llegó a 931 líneas: el segundo factor salió a
+`identity-mfa.service.ts`, con la frontera donde el acoplamiento es real —el
+FACTOR aquí, el DESAFÍO y la SESIÓN allá— y la flecha de dependencia en un solo
+sentido, porque un `forwardRef` habría sido la señal de que la frontera está mal
+puesta. `client.ts` del SDK llegó a 852: la superficie de identidad salió a
+`identity.ts`, recibiendo el transporte por parámetro para que la política de
+CSRF siga teniendo una sola verdad. Y la suite de QR se partió en dos por la
+misma costura por la que se partió el codificador: lo que se contrasta contra un
+número publicado, y lo que sólo se puede comprobar dibujando.
+
+**Verdad medida:** `436/436` specs web · `756` API unidad · `207/207` API contra
+PostgreSQL real · SDK 9/9 · contrato 90 operaciones · contraste 70 pares ·
+superficie pública OK · monolito OK · trinquete de lint 547/547 · `tsc` limpio.

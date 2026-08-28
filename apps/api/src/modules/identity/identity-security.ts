@@ -22,6 +22,18 @@ const ARGON2_PARALLELISM = 1;
 const ARGON2_OUTPUT_LENGTH = 32;
 const ARGON2_SALT_LENGTH = 16;
 
+/**
+ * HASH SEÑUELO, para que el tiempo de respuesta no delate si la cuenta existe.
+ *
+ * Vive aquí y no en un servicio porque lo usan DOS: el inicio de sesión (cuando
+ * no hay credencial) y la confirmación de contraseña del segundo factor. Dos
+ * copias de esta constante podrían divergir en parámetros, y una derivación con
+ * parámetros distintos tarda un tiempo distinto — que es exactamente el canal
+ * lateral que la constante existe para cerrar.
+ */
+export const DUMMY_PASSWORD_HASH =
+  '$argon2id$v=19$m=19456,t=2,p=1$AAAAAAAAAAAAAAAAAAAAAA$3mLRJY9dq8R2kBmPQ2tM1IQaxaW0GFgm1AF2DeWNLMc';
+
 const PHC_PATTERN =
   /^\$argon2id\$v=(\d+)\$m=(\d+),t=(\d+),p=(\d+)\$([A-Za-z0-9+/]+)\$([A-Za-z0-9+/]+)$/u;
 
