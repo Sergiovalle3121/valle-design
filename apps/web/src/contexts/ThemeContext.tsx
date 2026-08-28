@@ -54,8 +54,29 @@ function systemPrefersDark(): boolean {
   return window.matchMedia("(prefers-color-scheme: dark)").matches;
 }
 
+/**
+ * EL DEFAULT DEL PRODUCTO (campaña de firma propia, 2026-08-28).
+ *
+ * Antes, sin preferencia guardada, esto devolvía `"system"` y la app abría en
+ * el tema del sistema operativo. Como la mayoría de los equipos vienen en
+ * claro de fábrica, la primera impresión del producto acababa siendo la cara
+ * que menos lo representa: un CAD se dibuja sobre fondo oscuro, ésa es la
+ * convención del oficio, y el modo oscuro es donde esta paleta cuenta su
+ * historia.
+ *
+ * `"system"` NO desaparece: sigue siendo una de las tres opciones y quien la
+ * elige la ve respetada, incluidos los cambios del SO en vivo. Lo que cambia
+ * es que ahora hay que PEDIRLA en vez de recibirla por silencio.
+ *
+ * El mismo default está escrito en el script anti-flash de `layout.tsx`. Son
+ * dos sitios y no uno porque el script tiene que correr antes de que exista
+ * React; si alguna vez divergen, el síntoma es un parpadeo de tema en la
+ * primera carga.
+ */
+const DEFAULT_SCHEME: ColorScheme = "dark";
+
 function readStoredScheme(): ColorScheme {
-  if (typeof window === "undefined") return "system";
+  if (typeof window === "undefined") return DEFAULT_SCHEME;
   try {
     const raw = window.localStorage.getItem(THEME_STORAGE_KEY);
     if (raw === "light" || raw === "dark" || raw === "system") return raw;
@@ -68,7 +89,7 @@ function readStoredScheme(): ColorScheme {
   } catch {
     /* almacenamiento no disponible */
   }
-  return "system";
+  return DEFAULT_SCHEME;
 }
 
 function resolveScheme(scheme: ColorScheme): ResolvedScheme {

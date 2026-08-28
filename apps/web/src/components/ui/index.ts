@@ -13,7 +13,13 @@
  * componente.
  */
 export { Button, type ButtonProps } from "./Button";
-export { Card, CardHeader, Surface, type SurfaceProps } from "./Card";
+export {
+  Card,
+  CardHeader,
+  Surface,
+  type SurfaceProps,
+  type SurfaceTexture,
+} from "./Card";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
 export { controlClass, FieldShell } from "./Field";
 export {

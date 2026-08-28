@@ -87,13 +87,19 @@ export function FieldShell({
  */
 export function controlClass(invalid: boolean, className?: string): string {
   return cx(
-    "w-full rounded-control border bg-card px-3 text-foreground",
+    "w-full rounded-control border bg-card px-3.5 text-foreground",
     "placeholder:text-muted-foreground",
     motionBase,
     focusRing,
+    // El campo enfocado no sólo se marca: se ENCIENDE. `focus-glow` añade la
+    // veladura del acento por fuera del anillo y el borde salta al color de
+    // marca, así que el ojo encuentra el campo activo sin buscarlo. Es la
+    // diferencia entre un formulario correcto y uno que se siente vivo, y en
+    // el embudo de alta —donde el cliente entrega sus datos— eso vale dinero.
+    "focus-glow focus-visible:border-primary",
     "disabled:cursor-not-allowed disabled:opacity-60",
     invalid
-      ? "border-danger focus-visible:ring-danger"
+      ? "border-danger focus-visible:ring-danger focus-visible:border-danger"
       : "border-input hover:border-muted-foreground/50",
     className,
   );

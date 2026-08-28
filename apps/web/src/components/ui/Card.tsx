@@ -14,6 +14,26 @@ import { cx, elevation, motionBase, radius, type Elevation, type Radius } from "
  * a veces una `<section>`: la semántica la decide el contenido, no el estilo.
  */
 
+/**
+ * LA TEXTURA TÉCNICA — el detalle de tarjeta premium de la campaña de firma.
+ *
+ * Tres opciones y no más, porque una textura que se puede elegir de siete
+ * maneras deja de significar nada:
+ *
+ *   · `none`    lo normal. El 90% de las tarjetas de la app.
+ *   · `corners` marcas de escuadra en las cuatro esquinas, como las marcas de
+ *               registro de una lámina. Para lo que hay que MIRAR: el marco
+ *               del producto, la tarjeta de un plan, el panel de alta.
+ *   · `grid`    retícula de plano de fondo. Para superficies grandes y vacías
+ *               —estados vacíos, secciones de fondo— donde el vacío es el
+ *               problema y la textura es lo que lo llena sin añadir ruido.
+ *
+ * Ninguna de las dos toca el contenido: la retícula va detrás y las marcas van
+ * en un `::before` con `pointer-events: none`, así que una tarjeta con textura
+ * sigue siendo pulsable exactamente igual.
+ */
+export type SurfaceTexture = "none" | "corners" | "grid";
+
 export interface SurfaceProps extends HTMLAttributes<HTMLElement> {
   as?: ElementType;
   elevation?: Elevation;
@@ -23,6 +43,8 @@ export interface SurfaceProps extends HTMLAttributes<HTMLElement> {
   /** Sube un nivel de elevación bajo el puntero. Sólo si la tarjeta ES pulsable. */
   interactive?: boolean;
   padded?: boolean | "sm" | "lg";
+  /** Textura técnica de fondo. Ver `SurfaceTexture`. */
+  texture?: SurfaceTexture;
   children?: ReactNode;
 }
 
@@ -33,6 +55,15 @@ const PADDING = {
   lg: "p-8 sm:p-10",
 } as const;
 
+const TEXTURE: Record<SurfaceTexture, string> = {
+  none: "",
+  corners: "corner-marks",
+  // La retícula sale al pleno del token de borde (ver `.blueprint-grid`); la
+  // sutileza la pone la opacidad, aquí y no en la utilidad, para que una
+  // sección oscura pueda pedir más presencia que una tarjeta clara.
+  grid: "blueprint-grid bg-blend-normal",
+};
+
 export function Surface({
   as: Tag = "div",
   elevation: level = "resting",
@@ -40,6 +71,7 @@ export function Surface({
   bordered = true,
   interactive = false,
   padded = true,
+  texture = "none",
   className,
   children,
   ...rest
@@ -52,7 +84,16 @@ export function Surface({
         elevation[level],
         bordered && "border border-border",
         PADDING[String(padded) as keyof typeof PADDING],
-        interactive && cx(motionBase, "hover:shadow-elevated hover:border-primary/40"),
+        TEXTURE[texture],
+        // Una tarjeta pulsable ahora SE LEVANTA además de iluminarse. Un
+        // píxel y medio de traslación es imperceptible como movimiento y
+        // perfectamente perceptible como respuesta: el ojo lee «esto se puede
+        // tocar» antes de que el cerebro lea la etiqueta.
+        interactive &&
+          cx(
+            motionBase,
+            "hover:shadow-elevated hover:border-primary/40 hover:-translate-y-0.5",
+          ),
         className,
       )}
       {...rest}

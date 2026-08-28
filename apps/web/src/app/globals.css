@@ -1,98 +1,145 @@
 @import "tailwindcss";
 
 /* ===========================================================================
-   VALLE DESIGN — SISTEMA DE DISEÑO · CLARO / OSCURO (una sola fuente de verdad)
+   VALLE DESIGN — SISTEMA DE DISEÑO v2 · «INSTRUMENTO PROFESIONAL»
    ---------------------------------------------------------------------------
-   El modo OSCURO es el INVERSO FIEL del claro: mismos componentes, misma
-   jerarquía y los MISMOS acentos de marca (índigo) — sólo cambian fondo y
-   texto. CERO neón, cero gradientes llamativos.
+   Una sola fuente de verdad para color, tipo, movimiento y textura.
+
+   LA DIRECCIÓN DE ARTE, en una frase: la mesa de un dibujante de noche.
+   Sustrato de grafito cálido, la geometría brillando encima, retícula técnica
+   por debajo, y acentos que cortan como una plumilla. No es la estética de un
+   SaaS claro y aireado; es la de una herramienta seria de dibujo técnico.
+
+   QUÉ CAMBIÓ Y POR QUÉ (campaña de firma propia, 2026-08-28). La v1 tenía un
+   claro de banca y un oscuro que era su INVERSO FIEL: mismo esqueleto, mismos
+   acentos índigo, sólo cambiaban fondo y texto. Era coherente y era anónima —
+   «parece heredado», dijo el dueño, y tenía razón: esa paleta la puede llevar
+   cualquier panel de administración. La v2 conserva la disciplina (tokens,
+   escala, tres elevaciones, tres radios) y le pone una VOZ:
+
+     · el sustrato tiene temperatura — grafito CÁLIDO, no azul marino;
+     · el acento tiene voltaje — violeta eléctrico, no índigo institucional;
+     · el oscuro es el DEFAULT, no una cortesía nocturna;
+     · el movimiento tiene firma — el trazo que se dibuja solo (`.stroke-draw`);
+     · la textura tiene oficio — retícula de plano y marcas de esquina.
+
+   CUATRO BLOQUES, en este orden: (1) color por tema, (2) mapeo a utilidades
+   Tailwind, (3) tokens sin tema —radio, interletraje, movimiento—, (4) textura
+   y escala tipográfica. Nada de esto se toca desde un componente.
+
    El toggle (ThemeContext) añade/quita la clase `.dark` en <html>; este
    `@custom-variant` hace que TODA utilidad `dark:` siga esa clase (en vez de
    `prefers-color-scheme`), de modo que un único switch gobierna toda la app.
-   La preferencia del sistema se respeta en el primer render (script en
-   layout.tsx fija la clase desde `prefers-color-scheme` si no hay elección).
+   Sin elección guardada la app entra en OSCURO (script en layout.tsx); quien
+   prefiera seguir al sistema lo pide explícitamente en el conmutador.
    =========================================================================== */
 @custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
   :root {
-    /* === Paleta semántica (canales HSL → usar con hsl(var(--token))) ======
-       CLARO: sobrio estilo banca — blancos, gris pizarra, acento índigo. */
-    /* Confort de lectura prolongada: fondo off-white calmado (menos glare que el
-       blanco puro) y texto slate algo más suave que el casi-negro. Las tarjetas
-       siguen casi blancas, así "flotan" con suavidad sobre el fondo. */
-    --background: 220 24% 96.5%;
-    --foreground: 222 40% 15%;
+    /* === Paleta semántica v2 · «MESA DE DIBUJANTE» (canales HSL) ==========
+       CLARO = el papel a plena luz. Es el modo secundario y sigue completo,
+       porque hay quien dibuja de día; pero el DEFAULT del producto es el
+       oscuro (ver `.dark` y el script anti-flash de `layout.tsx`).
+
+       La v1 era un claro de banca —blancos fríos, gris pizarra, índigo— y su
+       oscuro era su inverso fiel. Funcionaba y no significaba nada: cualquier
+       SaaS podía llevar esa paleta, y el dueño lo dijo con esas palabras
+       («parece heredado»). La v2 elige una temperatura y la sostiene en los
+       dos modos: el sustrato es GRAFITO CÁLIDO —el gris del lápiz sobre papel,
+       no el azul marino de un panel de administración— y el acento es un
+       VIOLETA ELÉCTRICO que corta ese sustrato como la plumilla corta el
+       papel. Cálido abajo, frío arriba: esa tensión es la firma.
+
+       Todo par de esta paleta está MEDIDO, no razonado a ojo:
+       `npm run check:contrast` recalcula 44 pares en los dos temas y falla por
+       debajo de 4,5:1 (texto) o 3:1 (gráfico). Los números que aparecen en los
+       comentarios salen de ahí y no de una preferencia. */
+    --background: 36 24% 96%;
+    --foreground: 30 20% 12%;
     --card: 0 0% 100%;
-    --card-foreground: 222 40% 15%;
+    --card-foreground: 30 20% 12%;
     --surface: 0 0% 100%;
-    --surface-foreground: 222 40% 15%;
+    --surface-foreground: 30 20% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 222 40% 15%;
-    --muted: 220 16% 93%;
-    --muted-foreground: 220 10% 40%;
-    --border: 220 13% 89%;
-    --input: 220 13% 91%;
+    --popover-foreground: 30 20% 12%;
+    --muted: 36 18% 93%;
+    --muted-foreground: 30 8% 38%;
+    /* El borde claro se oscureció dos puntos respecto del primer corte de la
+       v2: a 87% de luz no despegaba la tarjeta del fondo (1,23:1 contra el
+       1,3 que pide el gate de relieve) y ese es literalmente el defecto que
+       abrió la campaña. `check:contrast` lo cazó antes que el ojo. */
+    --border: 32 14% 84%;
+    --input: 32 14% 86%;
 
-    /* Acento de marca (índigo) — IDÉNTICO en claro y oscuro. Nada de cyan. */
-    --primary: 239 84% 67%;
+    /* Acento de marca: VIOLETA ELÉCTRICO. La v1 usaba índigo 239 al 84% y el
+       encargo pedía «más voltaje»: el tono sube a 251 (violeta, no azul) y la
+       luz sube en oscuro hasta 72%, que es donde deja de ser un azul serio y
+       empieza a ser un acento que se ve a un metro de la pantalla. */
+    --primary: 251 84% 62%;
     --primary-foreground: 0 0% 100%;
-    --ring: 239 84% 67%;
+    --ring: 251 84% 62%;
 
-    /* Estados semánticos.
+    /* Estados semánticos — VERDE DE CONFIRMACIÓN Y ÁMBAR DE PLUMILLA.
        Cada estado tiene DOS tonos y no es redundancia:
 
          --success     el RELLENO (badge, barra, punto). Lleva texto encima, así
                        que su trabajo es ser reconocible, no legible.
          --success-ink el TEXTO del mismo estado sobre una superficie normal.
 
-       Medido: el verde de relleno como texto sobre tarjeta blanca da 3,02:1 —
-       AA pide 4,5 para texto normal. El ámbar es peor: 2,13:1, prácticamente
-       ilegible, y es justo el color con el que se escriben los avisos. Esa es
-       la forma más común de fallar accesibilidad sin enterarse: reutilizar el
-       color del relleno como color de letra porque «es el mismo estado».
+       La razón de la separación no ha cambiado y sigue siendo la forma más
+       común de fallar accesibilidad sin enterarse: reutilizar el color del
+       relleno como color de letra «porque es el mismo estado». En la v1 el
+       verde de relleno medía 3,02:1 como texto sobre tarjeta blanca y el ámbar
+       2,13:1 — ilegible, y justo el color con el que se escriben los avisos.
 
-       Los tonos de tinta son el MÍNIMO desplazamiento desde el relleno que
-       despeja 4,5:1 contra las tres superficies claras (card, background,
-       muted); en oscuro los rellenos ya pasan y la tinta coincide con ellos. */
-    --success: 160 84% 36%;
-    --success-ink: 160 84% 26%;
+       Lo que SÍ cambió en la v2 es que ahora el RELLENO también se mide: un
+       badge verde con letra blanca encima es texto normal y le toca 4,5:1
+       igual que a todo lo demás. Por eso el verde de relleno claro bajó a 26%
+       de luz (blanco encima: 5,47:1) y el ámbar a 42% con tinta oscura encima
+       (4,84:1) en vez del amarillo de señalización que no aguanta ninguna de
+       las dos letras. `check:contrast` cubre los dos sentidos. */
+    --success: 152 82% 26%;
+    --success-ink: 152 84% 22%;
     --success-foreground: 0 0% 100%;
-    --warning: 38 92% 50%;
-    --warning-ink: 38 92% 30%;
-    --warning-foreground: 222 47% 11%;
-    --danger: 0 84% 60%;
-    --danger-ink: 0 84% 45%;
+    --warning: 33 94% 42%;
+    --warning-ink: 30 90% 30%;
+    --warning-foreground: 30 20% 12%;
+    --danger: 358 74% 46%;
+    --danger-ink: 358 74% 40%;
     --danger-foreground: 0 0% 100%;
-    /* Tinta de marca sobre superficie clara: el acento base da 4,46:1. */
-    --primary-ink: 243 75% 59%;
+    /* Tinta de marca sobre superficie clara. El acento base da 4,91:1 y ya
+       pasaría; la tinta baja igualmente a 52% de luz porque un enlace dentro
+       de un párrafo se lee mejor con más cuerpo que el mismo tono del botón. */
+    --primary-ink: 251 72% 52%;
 
     /* Alias de compatibilidad (shadcn/ui) — apuntan al mismo sistema. */
-    --secondary: 220 16% 96%;
-    --secondary-foreground: 222 47% 11%;
-    --accent: 239 84% 67%;
+    --secondary: 36 18% 95%;
+    --secondary-foreground: 30 20% 12%;
+    --accent: 251 84% 62%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 84% 60%;
+    --destructive: 358 74% 46%;
     --destructive-foreground: 0 0% 100%;
 
     /* === Marca white-label (el tenant la sobrescribe vía ThemeContext) ====
-       El default = acento índigo de la app (NO cyan). */
-    --valle-primary: #1a1a1a;
-    --valle-accent: #6366f1;
-    --valle-warning: #f59e0b;
-    --valle-danger: #ef4444;
+       El default = el violeta eléctrico de Valle. Nunca cyan, nunca el rojo
+       corporativo de nadie: la firma es propia y se define aquí. */
+    --valle-primary: #17130f;
+    --valle-accent: #6b4def;
+    --valle-warning: #d07506;
+    --valle-danger: #cc1e24;
     --brand-primary: var(--valle-accent);
     /* Variante oscurecida del acento para fondos con TEXTO PEQUEÑO en blanco:
-       el acento base da 4.46:1, por debajo del 4.5 que exige WCAG AA. Se define
-       como token para que la corrección sea reutilizable y no un valor suelto
-       escondido en un componente. */
-    --brand-primary-strong: #4f46e5;
+       el acento base da 4,15:1 en su forma clara, por debajo del 4,5 que exige
+       WCAG AA. Se define como token para que la corrección sea reutilizable y
+       no un valor suelto escondido en un componente. */
+    --brand-primary-strong: #5637e1;
     /* Estado hover del relleno de marca. Medido con texto blanco encima:
-       reposo #4f46e5 = 6,29:1 · hover #4338ca = 7,90:1. El hover OSCURECE en
+       reposo #5637e1 = 6,93:1 · hover #3e1bda = 8,85:1. El hover OSCURECE en
        claro y ACLARA en oscuro (ver `.dark`), que es la dirección que el ojo
        espera; lo que no cambia es que los dos extremos pasan AA, porque un
        botón no deja de tener que leerse mientras el puntero está encima. */
-    --brand-primary-hover: #4338ca;
+    --brand-primary-hover: #3e1bda;
     --brand-logo: none;
     --border-radius-custom: 1rem;
     --glass-opacity: 0.34;
@@ -119,9 +166,9 @@
 
     /* Acento "vivo" (compat con utilidades previas). Los easings viven en
        `@theme` porque no dependen del tema y sí generan utilidad. */
-    --accent-strong: #4f46e5; /* indigo-600 */
-    --accent-soft: #a5b4fc; /* indigo-300 */
-    --accent-glow: rgba(99, 102, 241, 0.18);
+    --accent-strong: #5637e1; /* violeta eléctrico, relleno AA */
+    --accent-soft: #b9a7fd; /* violeta claro para veladuras y trazos guía */
+    --accent-glow: rgba(107, 77, 239, 0.2);
 
     /* === Tipografía ========================================================
        Inter variable (servida por next/font, sin petición a terceros en
@@ -139,75 +186,148 @@
     --font-mono:
       var(--font-jetbrains), ui-monospace, SFMono-Regular, "SF Mono", Menlo,
       Consolas, monospace;
+    /* LA VOZ DE LOS TITULARES (campaña de firma propia).
+       Inter es una grotesca neutra excelente y ése es exactamente su problema
+       como display: no dice nada. Compone bien un párrafo y compone anónimo un
+       titular, y el encargo era que el producto sonara a alguien.
+
+       Space Grotesk es la hermana PROPORCIONAL de una monoespaciada (Space
+       Mono): terminales cortadas a escuadra, ojo estrecho, la «g» de una sola
+       planta y unas cifras que parecen salidas de un instrumento de medida.
+       No es una elección decorativa: comparte esqueleto con la mono que ya
+       compone las cotas, las coordenadas y la línea de comandos, así que la
+       marca pasa a tener UNA voz tipográfica en dos anchos —proporcional para
+       hablar, monoespaciada para medir— en vez de dos tipos sin parentesco.
+
+       Se usa SÓLO en display, title, heading y eyebrow. El cuerpo sigue en
+       Inter porque un párrafo largo en una grotesca de ojo estrecho se lee
+       peor, y aquí hay documentación que la gente lee de verdad. */
+    --font-display:
+      var(--font-space-grotesk), var(--font-inter), ui-sans-serif, system-ui,
+      -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
 
     /* === Elevación NEUTRA (materialidad, no glow) =========================
-       Tres niveles tokenizados; sombra de negro a baja opacidad, jamás teñida
-       de color. Reposo → elevado → flotante (dock/menús/paleta/modal). */
+       Tres niveles tokenizados. La sombra ya no es negro puro: lleva el mismo
+       matiz cálido del sustrato (41,30,20) porque una sombra gris-azul sobre
+       un fondo cálido se lee como suciedad, no como profundidad. Reposo →
+       elevado → flotante (dock/menús/paleta/modal). */
+    /* RELIEVE DE CONTROL. Un botón sólido sin filo de luz arriba es un
+       rectángulo de color; con él es una tecla. Es el detalle más barato que
+       separa un control «de sistema de diseño» de uno que parece pulsable. */
+    --shadow-btn:
+      inset 0 1px 0 rgba(255, 255, 255, 0.18),
+      0 1px 2px rgba(41, 30, 20, 0.18), 0 2px 6px -2px rgba(41, 30, 20, 0.14);
+
     --shadow-sm:
-      0 1px 2px rgba(15, 23, 42, 0.05), 0 1px 3px rgba(15, 23, 42, 0.04);
+      0 1px 2px rgba(41, 30, 20, 0.06), 0 1px 3px rgba(41, 30, 20, 0.05);
     --shadow-md:
-      0 4px 12px -2px rgba(15, 23, 42, 0.08),
-      0 2px 6px -2px rgba(15, 23, 42, 0.05);
+      0 6px 16px -3px rgba(41, 30, 20, 0.1),
+      0 2px 6px -2px rgba(41, 30, 20, 0.07);
     --shadow-lg:
-      0 18px 40px -16px rgba(15, 23, 42, 0.22),
-      0 4px 12px -4px rgba(15, 23, 42, 0.08);
+      0 24px 48px -18px rgba(41, 30, 20, 0.26),
+      0 6px 14px -5px rgba(41, 30, 20, 0.1);
 
   }
 
-  /* INVERSO FIEL: oscuro sobrio (deep slate), MISMOS acentos índigo. */
+  /* ===========================================================================
+     EL MODO POR DEFECTO — grafito cálido, el sustrato de la casa
+     ---------------------------------------------------------------------------
+     Aquí ya no hay «inverso fiel». El oscuro dejó de ser la cortesía nocturna
+     del claro y pasó a ser la cara principal del producto, así que se diseña
+     como tal y no como una inversión aritmética.
+
+     EL SUSTRATO. `#0c0b0b` — grafito CÁLIDO, no negro puro y no azul marino.
+     El negro puro apaga el color que se pone encima y en un panel OLED produce
+     bordes duros donde debería haber materia; el azul marino de la v1 era la
+     decisión por defecto de todo panel de administración de la década. El
+     matiz cálido (tono 30, saturación 8%) hace dos cosas medibles: da al gris
+     la temperatura del grafito sobre papel, y deja al violeta del acento en
+     tensión fría contra él, que es de donde sale la sensación de plumilla.
+
+     EL RELIEVE. La queja fue «le falta contraste», y en oscuro el contraste no
+     se consigue subiendo el texto —ya estaba en 17:1— sino SEPARANDO planos.
+     El fondo baja a 4,5% de luz y la tarjeta sube a 11,5%: siete puntos de luz
+     entre plano y plano donde la v1 tenía tres. Con el borde al 24% y las tres
+     sombras, una tarjeta ya se ve apoyada sobre algo en vez de flotar en un
+     vacío del mismo color.
+
+     LAS TINTAS. En oscuro los rellenos de estado se usan al revés que en
+     claro: el verde y el ámbar son BRILLANTES y llevan tinta OSCURA encima
+     (9,54:1 y 10,02:1), que es como se comporta una señal luminosa sobre un
+     panel apagado. Sólo el rojo conserva letra blanca, porque un rojo lo
+     bastante claro para llevar tinta oscura deja de leerse como alarma.
+     =========================================================================== */
   .dark {
-    --background: 222 30% 7%;
-    --foreground: 210 20% 96%;
-    --card: 222 24% 10%;
-    --card-foreground: 210 20% 96%;
-    --surface: 222 24% 10%;
-    --surface-foreground: 210 20% 96%;
-    --popover: 222 26% 9%;
-    --popover-foreground: 210 20% 96%;
-    --muted: 220 18% 15%;
-    --muted-foreground: 218 14% 68%;
-    --border: 220 16% 22%;
-    --input: 220 16% 22%;
+    --background: 30 8% 4.5%;
+    --foreground: 36 22% 96%;
+    --card: 30 6% 11.5%;
+    --card-foreground: 36 22% 96%;
+    --surface: 30 6% 11.5%;
+    --surface-foreground: 36 22% 96%;
+    --popover: 30 7% 9%;
+    --popover-foreground: 36 22% 96%;
+    --muted: 28 6% 18%;
+    --muted-foreground: 32 8% 74%;
+    --border: 28 6% 24%;
+    --input: 28 6% 21%;
 
-    /* Acento índigo: en oscuro se baja la saturación para atenuar el "neón"
-       sobre el fondo profundo — mismo tono índigo, brillo casi idéntico. */
-    --primary: 239 72% 60%;
+    /* Acento violeta: en oscuro SUBE de luz en vez de bajar de saturación. La
+       v1 desaturaba «para atenuar el neón» y el resultado fue un acento que
+       sobre el fondo profundo casi no se distinguía del texto: 3,11:1. Aquí el
+       tono se mantiene y la luz sube a 72% — 6,18:1 contra el fondo, visible
+       de un vistazo, que es el trabajo de un acento. */
+    --primary: 251 96% 72%;
     --primary-foreground: 0 0% 100%;
-    --ring: 239 72% 70%;
+    --ring: 251 96% 74%;
 
-    /* En oscuro los rellenos YA pasan AA como texto sobre la superficie
-       profunda (7,37 · 9,00 · 5,45): la tinta es el mismo tono y no hay
-       segunda decisión que mantener. El índigo es la excepción — 3,11:1 sobre
-       la tarjeta oscura—, así que su tinta se aclara ocho puntos. */
-    --success: 158 64% 45%;
-    --success-ink: 158 64% 45%;
-    --success-foreground: 0 0% 100%;
-    --warning: 38 92% 55%;
-    --warning-ink: 38 92% 55%;
-    --warning-foreground: 222 47% 11%;
-    --danger: 0 84% 65%;
-    --danger-ink: 0 84% 65%;
+    /* Rellenos luminosos con tinta oscura encima (ver cabecera del bloque).
+       Las tintas de texto se aclaran por separado hasta despejar 4,5:1 contra
+       la tarjeta: 9,68 · 10,10 · 6,79 · 5,85. */
+    --success: 152 68% 52%;
+    --success-ink: 152 68% 58%;
+    --success-foreground: 160 30% 8%;
+    --warning: 38 96% 60%;
+    --warning-ink: 38 96% 66%;
+    --warning-foreground: 30 40% 8%;
+    --danger: 358 72% 52%;
+    --danger-ink: 358 88% 74%;
     --danger-foreground: 0 0% 100%;
-    --primary-ink: 239 72% 68%;
+    --primary-ink: 251 96% 76%;
 
-    --secondary: 220 18% 15%;
-    --secondary-foreground: 210 20% 96%;
-    --accent: 239 72% 70%;
-    --accent-foreground: 0 0% 100%;
-    --destructive: 0 84% 65%;
+    --secondary: 28 6% 18%;
+    --secondary-foreground: 36 22% 96%;
+    --accent: 251 96% 74%;
+    --accent-foreground: 30 40% 8%;
+    --destructive: 358 72% 52%;
     --destructive-foreground: 0 0% 100%;
 
-    /* Relleno de marca en oscuro: el hover ACLARA. #5b54ea con texto blanco
-       mide 5,38:1 — el índigo base (#6366f1) se queda en 4,46 y no pasa. */
-    --brand-primary-hover: #5b54ea;
+    /* Relleno de marca en oscuro: el hover ACLARA. #7457f4 con texto blanco
+       mide 4,76:1; el reposo #6b4def mide 5,34:1. Los dos pasan AA, que es lo
+       que impide que un botón deje de leerse justo cuando el puntero llega. */
+    --brand-primary-hover: #7457f4;
 
+    /* Veladura de acento en oscuro: más alfa porque el sustrato se la come. */
+    --accent-soft: #a992fd;
+    --accent-glow: rgba(140, 115, 252, 0.26);
 
-    /* Elevación neutra en oscuro: negro más profundo, misma intención. */
-    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.32), 0 1px 3px rgba(0, 0, 0, 0.28);
+    /* Elevación en oscuro: negro más profundo Y un filo de luz arriba.
+       Una sombra sola no separa planos sobre un fondo casi negro —no hay
+       dónde proyectarla—; el `inset` de la primera línea es el canto
+       iluminado del borde superior, que es lo que de verdad hace que una
+       tarjeta se lea como un objeto físico apoyado sobre otro. */
+    --shadow-btn:
+      inset 0 1px 0 rgba(255, 248, 240, 0.16),
+      0 1px 2px rgba(0, 0, 0, 0.6), 0 2px 8px -3px rgba(0, 0, 0, 0.5);
+
+    --shadow-sm:
+      inset 0 1px 0 rgba(255, 248, 240, 0.045),
+      0 1px 2px rgba(0, 0, 0, 0.5), 0 1px 3px rgba(0, 0, 0, 0.4);
     --shadow-md:
-      0 4px 14px -2px rgba(0, 0, 0, 0.42), 0 2px 6px -2px rgba(0, 0, 0, 0.32);
+      inset 0 1px 0 rgba(255, 248, 240, 0.06),
+      0 6px 18px -4px rgba(0, 0, 0, 0.62), 0 2px 6px -2px rgba(0, 0, 0, 0.45);
     --shadow-lg:
-      0 20px 44px -16px rgba(0, 0, 0, 0.6), 0 4px 12px -4px rgba(0, 0, 0, 0.4);
+      inset 0 1px 0 rgba(255, 248, 240, 0.075),
+      0 28px 56px -18px rgba(0, 0, 0, 0.78), 0 6px 16px -6px rgba(0, 0, 0, 0.55);
   }
 
   * {
@@ -343,6 +463,9 @@
   --shadow-resting: var(--shadow-sm);
   --shadow-elevated: var(--shadow-md);
   --shadow-floating: var(--shadow-lg);
+  /* `shadow-control` — el relieve de una tecla. Sólo para controles con
+     relleno propio (botón primario, destructivo, conmutador activo). */
+  --shadow-control: var(--shadow-btn);
 
 }
 
@@ -375,10 +498,55 @@
   --tracking-body: -0.011em;
   --tracking-label: 0.04em;
 
-  /* Movimiento: dos curvas y ninguna más. `expo` para lo que entra y sale
-     (paletas, modales); `spring` para lo que confirma una acción del usuario. */
+  /* ═══ EL SISTEMA DE MOVIMIENTO ═══════════════════════════════════════════
+     Tres curvas y cinco duraciones, y ninguna más.
+
+     Antes de esto había DOS curvas tokenizadas y las duraciones escritas a
+     mano en cada componente (`duration-200` aquí, `duration-150` allá, un
+     `duration-300` suelto en un panel). Una duración escrita a ojo no es un
+     error visible —nadie mide 50 ms— pero la suma sí lo es: la interfaz se
+     mueve a velocidades que no significan nada, y el movimiento deja de ser
+     información y pasa a ser ruido.
+
+     LAS CURVAS
+       · expo   — lo que ENTRA y SALE: paletas, modales, menús. Arranca rápido
+                  y frena largo, que es como se mueve algo con masa.
+       · spring — lo que CONFIRMA una acción del usuario: el pulso del guardado,
+                  el check que aparece. Pasa de largo y vuelve: eso es lo que el
+                  ojo lee como «hecho».
+       · draw   — la firma de la casa: el trazo que se dibuja solo. Simétrica
+                  (`in-out`) porque una línea que se traza acelerando al final
+                  parece un fallo de render, no una plumilla.
+
+     LAS DURACIONES — cada una tiene un trabajo, no un tamaño.
+       · instant (90 ms)     el color de un hover. Por debajo de ~80 ms el ojo
+                             no ve transición; por encima de ~120 el control se
+                             siente pegajoso bajo el puntero.
+       · fast (150 ms)       foco, cambio de estado de un control, tooltip.
+       · base (240 ms)       lo que se mueve de sitio: panel, ficha, acordeón.
+       · slow (420 ms)       lo que entra por primera vez: modal, hoja lateral.
+       · deliberate (720 ms) lo que el usuario debe MIRAR: un aviso que aparece.
+       · draw (2600 ms)      un trazo completo del plano dibujándose.
+
+     `prefers-reduced-motion` las neutraliza todas más abajo, en un solo sitio.
+     ══════════════════════════════════════════════════════════════════════ */
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --ease-draw: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --duration-instant: 90ms;
+  --duration-fast: 150ms;
+  --duration-base: 240ms;
+  --duration-slow: 420ms;
+  --duration-deliberate: 720ms;
+  --duration-draw: 2600ms;
+
+  /* ═══ LA RETÍCULA DEL PLANO ══════════════════════════════════════════════
+     Paso de la retícula fina y de la gruesa. Van aquí y no en la utilidad
+     porque una sección puede querer la retícula a otra escala sin reescribir
+     el degradado: cambia el paso, no el dibujo. */
+  --grid-fine: 8px;
+  --grid-major: 64px;
 }
 
 /* Respeta prefers-reduced-motion en TODA animación (CSS + scroll). Framer Motion
@@ -394,6 +562,31 @@
   }
   html {
     scroll-behavior: auto;
+  }
+
+  /**
+   * EL CASO QUE LA REGLA GENERAL SE COME.
+   *
+   * Aplastar la duración a 0,001 ms deja cada animación en su fotograma
+   * final, y para casi todo eso es lo correcto: el elemento aparece ya
+   * colocado. Para el trazo del plano NO: el bucle `valle-stroke-cycle`
+   * termina con el trazo BORRADO (`stroke-dashoffset: -1`, el fotograma de
+   * salida), así que quien pide menos movimiento se quedaría mirando un plano
+   * en blanco — peor accesibilidad, no mejor.
+   *
+   * Aquí se cancela la animación y se fija el estado dibujado a mano. Es la
+   * lección de que «respetar prefers-reduced-motion» no es apagar el motor:
+   * es entregar el MISMO contenido sin el movimiento.
+   */
+  .stroke-draw,
+  .stroke-draw-loop {
+    animation: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+
+  .draw-fade-in {
+    animation: none !important;
+    opacity: 1 !important;
   }
 }
 
@@ -420,6 +613,226 @@
     background-size: 44px 44px;
   }
 
+  /* ═════════════════════════════════════════════════════════════════════════
+     TEXTURA TÉCNICA — la retícula de plano, las marcas de esquina y el trazo
+     ---------------------------------------------------------------------------
+     Todo en CSS puro: cero imágenes, cero peticiones, cero kilobytes de red.
+     Una textura de fondo que cuesta una descarga es una textura que la primera
+     visita no ve, y la primera visita es justo la que hay que convencer.
+     ═════════════════════════════════════════════════════════════════════════ */
+
+  /**
+   * LA RETÍCULA DEL PLANO — dos frecuencias, como el papel milimetrado.
+   *
+   * `.mission-grid` (arriba) es una cuadrícula sola de 44 px y sirve para lo
+   * que servía. Ésta es la textura de la campaña de firma: una malla FINA de
+   * 8 px con una malla GRUESA de 64 px encima, que es exactamente la
+   * convención del papel de dibujo — y la razón por la que se lee «plano» en
+   * vez de «fondo con cuadros».
+   *
+   * La opacidad la pone quien la usa (`opacity-40`, una máscara, lo que sea);
+   * aquí las líneas salen al pleno del token de borde. Diluirlas en la propia
+   * utilidad fue el error de la versión anterior: sobre el sustrato oscuro la
+   * retícula desaparecía del todo y una textura invisible es peso muerto.
+   */
+  .blueprint-grid {
+    background-image:
+      linear-gradient(hsl(var(--border) / 0.55) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.55) 1px, transparent 1px),
+      linear-gradient(hsl(var(--border) / 0.28) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.28) 1px, transparent 1px);
+    background-size:
+      var(--grid-major) var(--grid-major),
+      var(--grid-major) var(--grid-major),
+      var(--grid-fine) var(--grid-fine),
+      var(--grid-fine) var(--grid-fine);
+    background-position: -1px -1px;
+  }
+
+  /**
+   * MARCAS DE ESQUINA — el detalle de tarjeta premium.
+   *
+   * Cuatro escuadras en las esquinas, como las marcas de registro de una
+   * lámina. Se dibujan con un solo pseudo-elemento y cuatro degradados
+   * cónicos… no: con cuatro degradados lineales sobre un `::before` absoluto,
+   * porque así la tarjeta conserva su `background` y sus hijos, y la marca no
+   * puede tapar contenido (`pointer-events: none`).
+   */
+  .corner-marks {
+    position: relative;
+  }
+
+  .corner-marks::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    border-radius: inherit;
+    background:
+      linear-gradient(hsl(var(--primary) / 0.55), hsl(var(--primary) / 0.55))
+        left top / 1px 14px no-repeat,
+      linear-gradient(90deg, hsl(var(--primary) / 0.55), hsl(var(--primary) / 0.55))
+        left top / 14px 1px no-repeat,
+      linear-gradient(hsl(var(--primary) / 0.55), hsl(var(--primary) / 0.55))
+        right top / 1px 14px no-repeat,
+      linear-gradient(90deg, hsl(var(--primary) / 0.55), hsl(var(--primary) / 0.55))
+        right top / 14px 1px no-repeat,
+      linear-gradient(hsl(var(--primary) / 0.55), hsl(var(--primary) / 0.55))
+        left bottom / 1px 14px no-repeat,
+      linear-gradient(90deg, hsl(var(--primary) / 0.55), hsl(var(--primary) / 0.55))
+        left bottom / 14px 1px no-repeat,
+      linear-gradient(hsl(var(--primary) / 0.55), hsl(var(--primary) / 0.55))
+        right bottom / 1px 14px no-repeat,
+      linear-gradient(90deg, hsl(var(--primary) / 0.55), hsl(var(--primary) / 0.55))
+        right bottom / 14px 1px no-repeat;
+  }
+
+  /**
+   * LÍNEA DE CONSTRUCCIÓN — el rayado que en un plano marca un eje o una
+   * referencia auxiliar. Discontinua, fina y del color del acento a media
+   * fuerza: se ve que está y no compite con lo que rodea.
+   */
+  .construction-line {
+    background-image: repeating-linear-gradient(
+      90deg,
+      hsl(var(--primary) / 0.45) 0 6px,
+      transparent 6px 12px
+    );
+    height: 1px;
+  }
+
+  .construction-line-vertical {
+    background-image: repeating-linear-gradient(
+      180deg,
+      hsl(var(--primary) / 0.45) 0 6px,
+      transparent 6px 12px
+    );
+    width: 1px;
+  }
+
+  /* ═════════════════════════════════════════════════════════════════════════
+     MOVIMIENTO — las cinco duraciones como clase, para que nadie escriba ms
+     ---------------------------------------------------------------------------
+     `duration-200` escrito en un componente es un número sin significado que
+     el siguiente componente no puede copiar sin copiar también la decisión.
+     Estas cinco clases son las duraciones del sistema con su curva por
+     defecto ya puesta; se combinan con `transition-*` de Tailwind, que sigue
+     decidiendo QUÉ propiedad se anima.
+     ═════════════════════════════════════════════════════════════════════════ */
+  /**
+   * EL FOCO CON ENERGÍA.
+   *
+   * El anillo de foco del sistema (`focusRing` en `ui/styles.ts`) cumple: dos
+   * píxeles del color del acento, con hueco. Cumplir no es la queja del dueño.
+   * Esta clase le añade la VELADURA —cuatro píxeles del acento a alfa baja,
+   * fuera del anillo— que es lo que hace que un campo enfocado se sienta
+   * encendido en vez de simplemente marcado.
+   *
+   * Va como box-shadow y no como `outline` porque el `outline` ya está
+   * ocupado por el anillo accesible, y porque la sombra puede llevar alfa: la
+   * veladura tiene que dejar ver el borde del campo por debajo o el control
+   * pierde su forma justo cuando el usuario lo está mirando.
+   */
+  .focus-glow:focus-visible {
+    box-shadow: 0 0 0 4px var(--accent-glow);
+  }
+
+  .motion-instant {
+    transition-duration: var(--duration-instant);
+    transition-timing-function: var(--ease-out-expo);
+  }
+
+  .motion-fast {
+    transition-duration: var(--duration-fast);
+    transition-timing-function: var(--ease-out-expo);
+  }
+
+  .motion-base {
+    transition-duration: var(--duration-base);
+    transition-timing-function: var(--ease-out-expo);
+  }
+
+  .motion-slow {
+    transition-duration: var(--duration-slow);
+    transition-timing-function: var(--ease-out-expo);
+  }
+
+  /** Para lo que CONFIRMA: rebota y vuelve. Nunca para lo que sólo aparece. */
+  .motion-confirm {
+    transition-duration: var(--duration-base);
+    transition-timing-function: var(--ease-spring);
+  }
+
+  /**
+   * LA FIRMA DE LA CASA — el trazo que se dibuja solo.
+   *
+   * `stroke-dashoffset` animado de la longitud del trazo a cero: la línea
+   * aparece como si una plumilla la estuviera recorriendo. Es el gesto que
+   * mejor cuenta lo que hace el producto sin una sola palabra, y por eso está
+   * en el hero, en los estados vacíos, en el logotipo y en las ilustraciones.
+   *
+   * CÓMO SE USA. El elemento SVG lleva `pathLength="1"` —así la longitud es
+   * siempre 1 y no hay que medir el trazo en JavaScript— más la clase; el
+   * retardo de cada trazo se pasa con la variable `--draw-delay` en línea, que
+   * es lo único que cambia entre un muro y la cota que lo mide.
+   *
+   * `stroke-dasharray: 1` + `pathLength="1"` es la combinación que hace que
+   * esto funcione con cualquier geometría sin tocar el CSS.
+   */
+  .stroke-draw {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: valle-stroke-draw var(--duration-draw) var(--ease-draw) forwards;
+    animation-delay: var(--draw-delay, 0ms);
+  }
+
+  /** Igual, pero en bucle lento: el plano se dibuja, se sostiene y vuelve. */
+  .stroke-draw-loop {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: valle-stroke-cycle 14s var(--ease-draw) infinite;
+    animation-delay: var(--draw-delay, 0ms);
+  }
+
+  /** Lo que acompaña al trazo: rótulos y cotas que aparecen cuando toca. */
+  .draw-fade-in {
+    opacity: 0;
+    animation: valle-draw-fade var(--duration-slow) var(--ease-out-expo) forwards;
+    animation-delay: var(--draw-delay, 0ms);
+  }
+}
+
+@keyframes valle-stroke-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/**
+ * El ciclo del bucle en porcentajes, no en dos animaciones encadenadas: 0-18%
+ * dibuja, 18-82% sostiene el plano terminado (que es lo que hay que MIRAR),
+ * 82-100% lo borra en sentido contrario. Un bucle que dibuja y salta a cero de
+ * golpe se lee como un fallo; éste se lee como una respiración.
+ */
+@keyframes valle-stroke-cycle {
+  0% {
+    stroke-dashoffset: 1;
+  }
+  18% {
+    stroke-dashoffset: 0;
+  }
+  82% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -1;
+  }
+}
+
+@keyframes valle-draw-fade {
+  to {
+    opacity: 1;
+  }
 }
 
 /* OLA 3 · fondo ambiental de la portada y del embudo de alta. */
@@ -617,17 +1030,31 @@
    * vw. Con `5.6vw` a secas, un teléfono de 390 px caía siempre en el mínimo:
    * el H1 se componía a 40 px y ocupaba seis renglones. La constante levanta el
    * extremo estrecho sin tocar el ancho, que es donde la escala ya funcionaba.
+   *
+   * LA CAMPAÑA DE FIRMA SUBE LOS TITULARES Y BAJA EL INTERLÍNEA. El display
+   * pasa de un techo de 68 px a uno de 84 px y de 1,04 de interlínea a 0,98:
+   * más grande Y más denso, que es la combinación que separa un titular caro
+   * de uno grande a secas. Con interlínea por debajo de 1 las líneas de un
+   * titular de dos renglones se traban en un bloque, y ese bloque es lo que se
+   * lee como una PIEZA en vez de como dos frases sueltas. A 76 px una
+   * grotesca de ojo estrecho lo aguanta; a 16 px reventaría, y por eso el
+   * cuerpo no se toca.
+   *
+   * Los tres escalones de titular pasan además a la tipografía display. El
+   * cuerpo se queda en Inter: el contraste entre las dos voces es deliberado.
    */
   .type-display {
-    font-size: clamp(2.0625rem, 4.4vw + 0.75rem, 4.25rem);
-    line-height: 1.04;
+    font-family: var(--font-display);
+    font-size: clamp(2.375rem, 5.2vw + 0.6rem, 5.25rem);
+    line-height: 0.98;
     letter-spacing: var(--tracking-display);
     font-weight: 700;
   }
 
   .type-title {
-    font-size: clamp(1.75rem, 2.4vw + 0.5rem, 2.75rem);
-    line-height: 1.1;
+    font-family: var(--font-display);
+    font-size: clamp(1.875rem, 2.9vw + 0.55rem, 3.25rem);
+    line-height: 1.06;
     letter-spacing: var(--tracking-title);
     font-weight: 650;
   }
@@ -662,6 +1089,27 @@
     font-weight: 500;
     letter-spacing: var(--tracking-label);
     text-transform: uppercase;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /**
+   * NUMERACIÓN DE LÁMINA — el detalle tipográfico de la dirección de arte.
+   *
+   * En un plano cada vista lleva su número y su rótulo; aquí cada sección
+   * lleva el suyo. Es una etiqueta mono, tabular y a media tinta que se pone
+   * DELANTE del eyebrow («01 · CAPACIDADES»), y su trabajo es que la página se
+   * lea como un juego de láminas ordenado en vez de como un scroll infinito de
+   * tarjetas. Cuesta once píxeles y cambia la impresión entera.
+   */
+  .type-sheet-number {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    font-weight: 500;
+    letter-spacing: var(--tracking-label);
+    font-variant-numeric: tabular-nums;
+    font-feature-settings:
+      "tnum" 1,
+      "zero" 1;
   }
 
   /** Cifras que se comparan o se apilan: ancho fijo para que las columnas cuadren. */
@@ -698,8 +1146,9 @@
      ─────────────────────────────────────────────────────────────────────────── */
 
   .type-heading {
-    font-size: clamp(1.125rem, 0.45vw + 1rem, 1.375rem);
-    line-height: 1.28;
+    font-family: var(--font-display);
+    font-size: clamp(1.1875rem, 0.5vw + 1.0625rem, 1.5rem);
+    line-height: 1.24;
     letter-spacing: var(--tracking-title);
     font-weight: 600;
   }

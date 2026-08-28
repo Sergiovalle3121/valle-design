@@ -22,11 +22,13 @@ import {
  * es variedad: es que nadie podía reutilizar el de al lado, así que cada
  * pantalla escribía el suyo y ninguno envejecía igual.
  *
- * CONTRASTE. El relleno primario NO usa `--primary`: ese acento mide 4,46:1 con
- * texto blanco y AA pide 4,5. Usa `--brand-primary-strong`, que existe en el
- * sistema exactamente para esto y mide 6,29:1; el hover mide 7,90:1 en claro y
- * 5,38:1 en oscuro. Los tres estados pasan AA, porque un botón no deja de tener
- * que leerse mientras el puntero está encima.
+ * CONTRASTE. El relleno primario NO usa `--primary`: ese acento es el tono
+ * VISIBLE de la marca, no el legible. Usa `--brand-primary-strong`, que existe
+ * en el sistema exactamente para esto. Medido por `npm run check:contrast`:
+ * reposo 6,93:1 en claro y 5,34:1 en oscuro; hover 8,85:1 y 4,76:1. Los cuatro
+ * estados pasan AA, porque un botón no deja de tener que leerse mientras el
+ * puntero está encima — y desde la campaña de firma esos números ya no se
+ * mantienen a mano: si alguien mueve el token, el gate lo dice.
  */
 
 const SPINNER_SIZE = { sm: "xs", md: "sm", lg: "md" } as const;
