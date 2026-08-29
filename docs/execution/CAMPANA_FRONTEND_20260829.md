@@ -492,3 +492,101 @@ extracción real que queda pendiente.
 
 **Decisión: no se introduce store. Sin ADR, porque no hay decisión que registrar más que ésta.**
 
+## OLA 1.5 · Lighthouse como gate, y OLA 1.6 · el veredicto del React Compiler
+
+### 1.5 · Lighthouse CI
+
+`scripts/perf/lighthouse-gate.mjs` levanta el **mismo build de producción** que mide el presupuesto
+de bundle y corre Lighthouse tres veces por ruta, en **dos pasadas**: escritorio y móvil. Lo segundo
+no es celo — el emulado móvil ralentiza la CPU 4× y estrangula la red, y ahí es donde un bundle que
+«va bien» deja de ir bien.
+
+El servidor lo arranca el script y no `startServerCommand` de lhci: dejar que lhci levante el suyo
+duplicaría el arranque en un job que ya va largo y, peor, abriría la puerta a medir un build distinto
+del que se publica.
+
+Un fallo del propio medidor, encontrado al usarlo: `lhci collect` vuelca **siempre** en
+`.lighthouseci/` si no se le dice otra cosa (`upload.outputDir` es de otro paso), así que la primera
+versión dejaba la pasada móvil pisando la de escritorio y publicó una tabla con los números
+mezclados. Cada pasada lleva ahora su `--outputDir`.
+
+**Medido en escritorio, con la máquina en reposo:**
+
+| Ruta | Rendimiento | Accesibilidad | Buenas prácticas | SEO | LCP | CLS | TBT |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `/` | **93** | 100 | 96 | 100 | 1 711 ms | 0,000 | 19 ms |
+| `/register` | **94** | 100 | 96 | 100 | 1 668 ms | 0,000 | 23 ms |
+| `/precios` | **95** | 100 | 96 | 100 | 1 564 ms | 0,022 | 0 ms |
+
+Los umbrales quedan en 90 (rendimiento) y 95 (accesibilidad), que es lo que el enunciado pide y lo
+que lo medido sostiene con margen en escritorio.
+
+> **Lo que falta decir, y se dice:** la pasada **móvil** no está calibrada. La única medida móvil que
+> tomé salió con la máquina ocupada por la suite de navegador y dio 61-71 de rendimiento con un LCP
+> de 9,8 s — un número del contenedor, no del producto. Publicarlo como línea base sería inventar.
+> Queda en el backlog **P1-FE1**: medir móvil con la máquina en reposo y calibrar ese umbral. El gate
+> queda escrito y funcionando; el umbral móvil hay que ganárselo con una medida limpia.
+
+### 1.6 · React Compiler: **NO se adopta**
+
+Evaluado como pedía el enunciado: tras flag, medido antes y después sobre el mismo código, y con la
+decisión escrita.
+
+**Cómo se encendió.** `reactCompiler` va en el **nivel superior** de `next.config.ts`, no bajo
+`experimental`: en Next 16 la opción salió de experimental y el typecheck lo dice a la cara. Queda
+tras `VALLE_REACT_COMPILER=1`, apagado por defecto.
+
+| Medida | Sin compilador | Con compilador | Δ |
+| --- | ---: | ---: | ---: |
+| JS de la landing (bruto, distinto) | 811,6 KB | 795,1 KB | **−16,5 KB** |
+| JS del estudio (bruto, distinto) | 3 835,8 KB | 3 893,8 KB | **+58,0 KB** |
+| Estudio usable | 1 418 ms | 1 473 ms | +55 ms |
+| Chunks totales en disco | 6 115,0 KB | 6 159,6 KB | +44,6 KB |
+| Compilación del build | 14,5 s | 24,0 s | **+66 %** |
+| Interacción p50 / p75 / p95 | 152 / 160 / **168 ms** | 152 / 160 / **168 ms** | **0** |
+| Peor interacción | 184 ms | 208 ms | +24 ms (ruido) |
+
+**Los goldens no se rompen** — el subconjunto de 13 pruebas que ejercita el editor pasa entero con el
+compilador encendido. El criterio del enunciado era «se adopta sólo si **mejora** y no rompe
+goldens». No rompe; **no mejora**.
+
+**Y se sabe por qué, que es lo que hace útil el veredicto.** La latencia de interacción del estudio
+en esta máquina la domina el rasterizado WebGL por software y el pipeline de escena, no el trabajo de
+React: el compilador puede memoizar todo lo que quiera y el número no se mueve porque el cuello no
+está ahí. Además, el propio ESLint del compilador cuenta hoy en `apps/web` **164 avisos
+`react-hooks/refs`**, 9 `set-state-in-effect`, 3 `immutability` y 1 `purity` — concentrados en el
+editor, que es justo el componente que más se beneficiaría. Cada uno es un punto donde el compilador
+se desactiva para ese componente o, peor, memoiza algo que el código muta por debajo.
+
+**Decisión: apagado, con el flag y esta tabla en su sitio.** Se reevalúa cuando los avisos
+`react-hooks/refs` del editor bajen de forma sustancial — es decir, cuando las extracciones de
+`DEUDA-MONOLITO.md` hayan avanzado. Reevaluarlo antes es repetir esta medida.
+
+## OLA 2 — Rendimiento de interacción
+
+### 2.1 · Ahora se mide lo que el usuario llama «va lento»
+
+El repo medía dos cosas del cliente: cuánto pesa el JavaScript y cuánto tarda el pipeline de escena.
+Ninguna es la latencia de interacción — el intervalo entre soltar el ratón y ver el resultado, con
+todo lo que hay en medio dentro del número. `lib/cad/telemetry/interaction-latency.ts` la recoge con
+la API que define INP (`PerformanceObserver`, `type: "event"`, `durationThreshold: 16`) y la resume
+en percentiles.
+
+**Percentiles y no media, con la trampa escrita en el spec.** Cien clics de 30 ms y cinco de 900 dan
+una media de 71 ms —«va bien»— mientras el usuario ve el editor colgarse cinco veces. Pero el spec
+deja fijada además la lección incómoda: con 5 atascos de 105 muestras (4,8 %), **el p95 tampoco los
+ve** — vale 30 ms, igual que el p50. No es un fallo del cálculo, es la definición de percentil. Por
+eso el informe publica el **peor** al lado y los cinco peores con su tipo de evento: un panel que
+enseñe sólo percentiles deja invisible justo el caso por el que alguien escribe a soporte.
+
+**Foto de partida** (400 líneas canónicas; 12 clics, 4 ventanas de selección arrastradas, 10 pasos de
+rueda; 165 muestras):
+
+| p50 | p75 | p95 | Peor |
+| ---: | ---: | ---: | ---: |
+| 152 ms | 160 ms | 168 ms | 184 ms |
+
+Con el techo en 220 ms de p95 y 320 ms del peor — ~30 % de margen. El techo no persigue la marca:
+persigue la **regresión gruesa**, el render en cascada que alguien reintroduce y multiplica la
+latencia, que es el fallo que nadie ve venir en una revisión de código.
+

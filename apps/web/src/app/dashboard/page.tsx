@@ -39,6 +39,7 @@ import {
   splitDocumentSelection,
 } from "@/lib/cad/document-import-client";
 import { EMPTY_CAD_STARTER_CHOICE } from "./starter-choice";
+import { prefetchCadStudio } from "@/lib/cad/prefetch-studio";
 
 /**
  * El formulario de plantilla de arranque llega cuando el usuario abre
@@ -102,6 +103,15 @@ export default function DashboardPage() {
    * encima no quiere capas inventadas de por medio.
    */
   const [starter, setStarter] = useState(EMPTY_CAD_STARTER_CHOICE);
+
+  /**
+   * Quien llega al tablero va a abrir un plano: es lo único que se hace aquí.
+   * El editor son ~3,8 MB que hoy empezaban a bajar en el momento del clic, con
+   * la persona ya mirando la pantalla de carga. Se piden antes, cuando el
+   * navegador esté ocioso — y no se piden si el usuario activó el ahorro de
+   * datos o va por 2G (ver `prefetch-studio.ts`).
+   */
+  useEffect(() => prefetchCadStudio(), []);
   const [selectedProject, setSelectedProject] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);

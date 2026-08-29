@@ -70,6 +70,27 @@ const nextConfig: NextConfig = {
     // optimizePackageImports hace tree-shaking de los imports nombrados.
     optimizePackageImports: ["lucide-react"],
   },
+  /**
+   * REACT COMPILER — TRAS FLAG, APAGADO POR DEFECTO.
+   *
+   * El compilador memoiza solo, lo que sobre un editor con 140 `useState` y
+   * 128 `useCallback` a mano suena a la mejora obvia. La evaluación medida
+   * está en `docs/execution/CAMPANA_FRONTEND_20260829.md`; el veredicto vive
+   * ahí y no en un comentario, para que quien lo encienda vea los números
+   * antes que la opinión.
+   *
+   * Se enciende con `VALLE_REACT_COMPILER=1` en el build. Nunca por defecto:
+   * el ESLint del propio compilador cuenta hoy 164 avisos `react-hooks/refs`
+   * y 9 `set-state-in-effect` en `apps/web`, y cada uno es un punto donde el
+   * compilador se desactiva para ese componente o —peor— memoiza algo que el
+   * código muta por debajo.
+   *
+   * Va en el NIVEL SUPERIOR y no bajo `experimental`: en Next 16 la opción
+   * salió de experimental (`ExperimentalConfig` ya no la declara y el
+   * typecheck lo dice a la cara). Es el tipo de detalle que una guía de
+   * internet desactualizada convierte en media hora de build roto.
+   */
+  reactCompiler: process.env.VALLE_REACT_COMPILER === "1",
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

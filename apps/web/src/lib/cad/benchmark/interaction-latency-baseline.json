@@ -1,0 +1,32 @@
+{
+  "descripcion": "Techos de latencia de interacción del estudio, en milisegundos. Son TECHOS de este contenedor, no marcas del producto.",
+  "condiciones": {
+    "maquina": "contenedor efimero de Claude Code on the web, 4 nucleos, 15 GiB",
+    "navegador": "Chromium de Playwright, headless, WebGL por software (SwiftShader)",
+    "documento": "400 lineas canonicas",
+    "guion": "12 clics, 4 ventanas de seleccion arrastradas, 10 pasos de rueda",
+    "medidor": "e2e/performance/interaccion-estudio.spec.ts",
+    "margen": "~30 % sobre lo medido. El techo no persigue la marca: persigue la regresión gruesa (el render en cascada que multiplica la latencia), que es la que nadie ve venir en una revisión de código. Un margen apretado en un contenedor compartido sólo produce rojos que no son del producto."
+  },
+  "gate": {
+    "p95Ms": 220,
+    "peorMs": 320
+  },
+  "observado": {
+    "20260829-sin-compilador": {
+      "p50Ms": 152,
+      "p75Ms": 160,
+      "p95Ms": 168,
+      "peorMs": 184,
+      "muestras": 165
+    },
+    "20260829-con-react-compiler": {
+      "p50Ms": 152,
+      "p75Ms": 160,
+      "p95Ms": 168,
+      "peorMs": 208,
+      "muestras": 165,
+      "nota": "identico en p50/p75/p95. La latencia aqui la domina el rasterizado por software y el pipeline de escena, no el trabajo de React."
+    }
+  }
+}
