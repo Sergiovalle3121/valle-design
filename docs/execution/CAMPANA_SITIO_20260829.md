@@ -39,10 +39,10 @@
 | 5.3 | P1-FE2 usePaperSpaces (+3 controladores si alcanza) | ✅ anfitrión (135 useState, 19 134 líneas, trinquetes abajo); los otros 3 quedan mapeados |
 | 5.4 | Hoja de atajos imprimible | ✅ (A4 apaisada de 3 columnas verificada en PDF) |
 | 5.5 | Microfeedback restante del estudio | ✅ verificado: el pulso de guardado YA existía (CadSaveStatus); nada que duplicar |
-| F.1 | Suite completa + Jornada Real + gates + push | pendiente |
-| F.2 | Tabla antes/después | pendiente |
-| F.3 | Capturas/OG/manifiesto regenerados | pendiente |
-| F.4 | INFORME_CAMPANA_SITIO_20260829.md | pendiente |
+| F.1 | Suite completa + Jornada Real + gates + push | ✅ Jornada 10/10 · barrido 212✅/1 flake confirmado/19 salt. · unit 447/447 · lint 0 err · check:cad · bundle 14/14 · Lighthouse OK (99·99·99 / 80·90·87) |
+| F.2 | Tabla antes/después | ✅ (en el informe, todo medido) |
+| F.3 | Capturas/OG/manifiesto regenerados | ✅ 6/6 con guardia de vocabulario; renders/OG son al vuelo; manifiesto ya committeado |
+| F.4 | INFORME_CAMPANA_SITIO_20260829.md | ✅ |
 
 ## BITÁCORA
 
@@ -156,3 +156,16 @@ Investigado en el código, no supuesto:
   - **CI (run 566, primero que pasó de `check:conventions`) cazó el tercer rojo**: `react-hooks/rules-of-hooks` BLOQUEANTE sobre `useCaseProfile` — mi búsqueda pura de la OLA 4 llevaba nombre de Hook («use»+Mayúscula) y `generateMetadata` (async, ni componente ni Hook) la llama. Renombrada a `findUseCaseProfile` con el porqué en el doc-comment. **Por qué el gate local no lo vio**: `check:lint-budget` traga el exit 1 de eslint A PROPÓSITO (solo presupuesta AVISOS; los errores los bloquea el `npm run lint` de CI) — y mi «suite completa» local nunca corrió ese `npm run lint`. Lección a receta: la final corre `npm run lint` del workspace web tal cual CI, además del presupuesto.
   - **Barrido E2E completo (chromium, API real): 212 ✅ · 1 ✘ · 19 saltadas (43.2 min)**. La única roja —golden 15, MTEXT— cayó EXACTAMENTE mientras el eslint de 4 GB del check:cad corría en paralelo (error mío de orquestación), en código byte-idéntico a main (goldens, fixtures y las dos paletas sin tocar por la campaña). **En aislamiento con la máquina quieta: 3/3 en verde.** Veredicto: flake por carga, no regresión; CI (run 567) la corre además en su propio hierro como confirmación independiente.
   - `npm run lint` del workspace web (el BLOQUEANTE de CI, ahora en la receta local): **0 errores**, 201 avisos dentro del trinquete. Unit web tras el arreglo de session-storage: **447/447**.
+  - **Lighthouse (gate 0,95/0,78): OK.** Escritorio 99·99·99 (LCP 1,04/0,90/0,90 s); móvil 80·90·87 (LCP 5,11/3,61/4,06 s); accesibilidad 100 en las 6 medianas; CLS 0,000. /precios móvil sube a 90 (85 en la ola 0); / móvil 80 con las capturas nuevas (81 en la ola 0 — ruido de corrida, umbral 78).
+  - **Presupuesto de bundle: 14/14 rutas bajo techo** (portada 290,4/295,2 · /plantillas 346,2/356,5 · ficha 272,5/280,7 · /demo 280,9/289,2 KB gzip).
+  - **F.3**: 6/6 capturas regeneradas con la guardia de vocabulario muerto en verde; `sample-plan.json` regenerado por el MISMO guion (la captura del hero y el ejemplo del tablero siguen siendo el mismo dibujo).
+  - **Cierre**: informe en `INFORME_CAMPANA_SITIO_20260829.md` (tabla antes/después incluida). CI: los dos gates que cegaban la rama quedan arreglados; el run del cierre corre la suite completa sobre el SHA final.
+
+### CAMPAÑA CERRADA — 2026-08-29
+
+Seis olas ejecutadas + final medida. Ni una foto de stock, ni un testimonio
+inventado, ni un movimiento sin propósito. Los trinquetes solo bajaron
+(useState 140→135, líneas 19 137→19 134) y los umbrales solo subieron
+(móvil 0,70→0,78, escritorio 0,90→0,95). Tres gates cazaron cuatro defectos
+míos durante la propia campaña y los cuatro quedaron arreglados con la
+lección escrita — que es exactamente para lo que están los gates.
