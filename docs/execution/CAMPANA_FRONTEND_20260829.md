@@ -297,3 +297,55 @@ El estudio también bajó sin tocarlo: los módulos que el tablero dejó de arra
 en el chunk compartido. Verde: 438/438 specs de `apps/web`, y los tres E2E del tablero
 (ciclo de vida de documento, beta DWG, RBAC de lector).
 
+## OLA 4 (adelantada) — Accesibilidad como gate
+
+Se adelantó porque el gate encontró defectos reales en las mismas superficies que la OLA 1 estaba
+midiendo, y arreglarlos antes de seguir moviendo bundles evita re-medir dos veces.
+
+### 4.1 · axe-core sobre las superficies que un cliente ve
+
+`e2e/a11y/axe-superficies.spec.ts`: nueve superficies × dos temas = **18 comprobaciones**. Falla ante
+cualquier violación **seria o crítica**; las `moderate`/`minor` se imprimen como deuda visible y no
+bloquean. Sin lista de excepciones, a propósito: una excepción es una violación que ya no se ve.
+
+Los dos temas no son celo: casi toda regla de contraste depende del color computado, y un componente
+puede cumplir en claro y fallar en oscuro porque los tokens cambian de valor y no de nombre. El tema
+se fija **antes de la primera pintura** con `addInitScript` sobre `localStorage['valle_theme']` —la
+misma clave del script anti-flash— para que axe no analice nunca el tema equivocado.
+
+**Primera corrida: 8 fallos de 18.** Todos de la misma familia y todos reales.
+
+| Qué | Medido | Dónde |
+| --- | ---: | --- |
+| `type-sheet-number opacity-60` sobre la página, claro | 3,10:1 | landing, registro, acceso, cuenta, equipo, comentarios |
+| lo mismo en oscuro | 3,09:1 | ídem |
+| numeración dentro de la pestaña activa del FAQ (`opacity-70`) | 4,19:1 | landing |
+| numeración dentro de la pestaña en reposo (`opacity-70`) | 3,15:1 | landing |
+
+### 4.2 · Por qué el gate de contraste no lo había visto
+
+Esto es lo que importa del hallazgo. `scripts/design/check-contrast.mjs` existe, mide 35 pares en dos
+temas y está verde. `contrast.mjs` **sabía componer sobre el fondo desde el primer día** — exporta
+`composite(fg, bg, alpha)`. Pero **ningún par declaraba una atenuación**, así que la tinta se medía
+siempre a opacidad plena: `--primary-ink` sobre `--background` mide 7,10:1 y pasaba, mientras que en
+pantalla, con `opacity-60` encima, medía 3,10:1.
+
+El gate no estaba roto: estaba **incompleto**, y de la peor manera — verde sobre un color que no es
+el que se ve.
+
+La corrección va en dos partes, y la segunda es la que impide que vuelva:
+
+1. **El color.** `opacity-60` → `opacity-85` en las seis superficies que llevan la numeración de
+   lámina. 0,85 y no 0,8: `0,8` medía 4,24:1 sobre `--card` en oscuro. **Eso lo encontró el gate, no
+   axe** — axe sólo ve las páginas que se le enseñan; el gate ve todos los pares declarados.
+   En la pestaña del FAQ la atenuación se retira entera: su color en reposo ya es
+   `--muted-foreground`, el atenuado del sistema, y ni a 0,85 llegaba al mínimo. Atenuar lo atenuado
+   es la forma de perder un texto.
+2. **El metro.** `PAIRS` gana un quinto campo opcional, `alfa`. Con él, la fila mide el color
+   **compuesto sobre su fondo** — el que llega al ojo — en vez del que dice el token. Tres filas
+   nuevas cubren la numeración de lámina sobre página, sobre tarjeta y dentro del botón principal.
+   El gate mide ahora 38 pares por tema, 76 en total.
+
+**Resultado: 18/18 en verde**, y una regresión de opacidad vuelve a fallar en dos sitios distintos
+(el gate de tokens, en milisegundos; axe, en el navegador).
+

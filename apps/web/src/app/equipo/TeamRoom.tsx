@@ -400,7 +400,7 @@ function Marco({ children }: { children: React.ReactNode }) {
     >
       <header>
         <p className="type-eyebrow flex items-center gap-3 text-primary-ink">
-          <span className="type-sheet-number opacity-60">00</span>
+          <span className="type-sheet-number opacity-85">00</span>
           Tu equipo
         </p>
         <h1 className="type-title mt-4">Quién dibuja contigo</h1>

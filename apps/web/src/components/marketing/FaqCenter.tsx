@@ -232,7 +232,15 @@ function FiltroChip({
           : "border-border bg-card text-muted-foreground hover:border-muted-foreground/40 hover:text-foreground",
       )}
     >
-      <span className="type-sheet-number opacity-70">{numero}</span>
+      {/*
+        SIN atenuación, a diferencia del resto de numeraciones de lámina. Esta
+        vive dentro de una pestaña que ya cambia de tinta según su estado: con
+        `text-muted-foreground` (pestaña en reposo) la atenuación medía 3,15:1
+        sobre la tarjeta —violación seria de axe— y ni siquiera a 0,85 llegaba
+        al mínimo, porque el color de partida YA es el atenuado del sistema.
+        Atenuar lo atenuado es la forma de perder un texto.
+      */}
+      <span className="type-sheet-number">{numero}</span>
       {label}
     </button>
   );

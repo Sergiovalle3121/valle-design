@@ -190,7 +190,7 @@ function Marco({ children }: { children: React.ReactNode }) {
     >
       <header className="mb-10">
         <p className="type-eyebrow flex items-center gap-3 text-primary-ink">
-          <span className="type-sheet-number opacity-60">00</span>
+          <span className="type-sheet-number opacity-85">00</span>
           Tu cuenta
         </p>
         <div className="mt-4 flex flex-wrap items-end justify-between gap-4">

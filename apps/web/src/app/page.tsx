@@ -349,7 +349,7 @@ export default function LandingPage() {
                 scroll de tarjetas y empieza a leerse como un juego de láminas.
               */}
               <p className="flex items-center gap-3 type-eyebrow text-primary-ink">
-                <span className="type-sheet-number opacity-60">00</span>
+                <span className="type-sheet-number opacity-85">00</span>
                 CAD profesional en tu navegador
               </p>
               <h1 id="hero-title" className="type-display mt-5 max-w-2xl">
