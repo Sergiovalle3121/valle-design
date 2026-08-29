@@ -1,0 +1,5 @@
+{
+  "descripcion": "Clases con `outline-none` y ningún sustituto visible del anillo de foco. Sólo baja.",
+  "maximo": 27,
+  "nota": "Casi todas viven en las paletas del editor CAD. Se bajan sacando cada paleta a su componente y dándole el anillo del sistema; ver P1-FE5 en docs/execution/BACKLOG.md."
+}

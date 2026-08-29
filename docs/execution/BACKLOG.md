@@ -392,6 +392,31 @@ ante operación sin marca. **Estimación:** medio día.
   `e2e/a11y/teclado-embudo.spec.ts`.
 - **Estimación:** medio día, la mayor parte en pruebas.
 
+### P1-FE5 · Veintisiete controles del estudio se pueden enfocar y no se ven
+- **Qué falla:** `globals.css` define el anillo de foco en `@layer base` con
+  `:focus-visible`, pero Tailwind v4 emite `outline-none` en la capa
+  `utilities`, que gana a `base`. Cualquier clase con `outline-none` apaga el
+  anillo del sistema, y si no pone otro en su lugar deja un control que recibe
+  el foco **sin ninguna señal de tenerlo**. Para quien navega con teclado, eso
+  es no saber dónde está.
+- **Cuántos y dónde:** 27 clases, medidas por
+  `src/components/ui/foco-visible.spec.ts`. Casi todas son campos de texto de
+  las paletas del editor CAD (hatch, xref, colaboración, línea de comandos) y
+  del propio `Layout3DEditor.tsx`.
+- **Por qué no lo cazaba nada:** no es un color mal elegido (gate de contraste),
+  no es un token fuera de escala (gate del sistema de diseño), y axe no lo ve
+  porque mira una página concreta y estos controles viven detrás de paletas que
+  hay que abrir.
+- **Estado:** hay **trinquete** desde 2026-08-29 —`foco-visible-budget.json`,
+  27, y sólo baja—. No se puso en cero para no romper el repo de golpe y
+  provocar una lista de excepciones, que es como se muere un gate.
+- **Cómo se cierra:** cada paleta que salga del monolito (P1-FE2) se lleva sus
+  campos y les pone `focus-visible:ring-2 ring-ring`; el trinquete baja en el
+  mismo commit.
+- **Criterio de aceptación:** el presupuesto llega a 0 y el gate pasa a
+  prohibición.
+- **Estimación:** se paga a plazos, con las extracciones.
+
 ### P2-FE5 · Las plantillas no se pueden diferir desde la paleta
 - **Qué se descubrió:** `lib/cad/templates.ts` son 4 982 líneas de datos que
   parecían un `import()` fácil. No lo son: `lib/cad/engine/index.ts` importa

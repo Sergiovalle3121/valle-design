@@ -658,3 +658,22 @@ anatomía exacta de la sesión actual, y la decisión de producto que lo desbloq
 el correo de Google ya tiene una cuenta con contraseña verificada, que hoy se resuelve con un
 silencio deliberado que no sirve para el caso federado.
 
+### 4.3 · El foco que se apaga solo — un gate más, con trinquete
+
+Al auditar el teclado apareció algo que ningún gate podía ver. `globals.css` define el anillo de foco
+en `@layer base` con `:focus-visible`; Tailwind v4 emite `outline-none` en la capa `utilities`, que
+**gana a `base`**. Así que toda clase con `outline-none` apaga el anillo del sistema, y si no pone
+otro en su lugar deja un control que recibe el foco sin señal de tenerlo.
+
+No lo veía el gate de contraste (no es un color), ni el del sistema de diseño (no es un token fuera
+de escala), ni axe (mira una página concreta, y estos controles viven detrás de paletas del editor
+que hay que abrir).
+
+`src/components/ui/foco-visible.spec.ts` los cuenta: **27 clases**, casi todas campos de texto de las
+paletas del CAD. Se aceptan como sustituto un anillo, un borde de foco o una sombra de foco
+declarados en la misma clase; lo que no se acepta es nada. **Trinquete y no prohibición**: ponerlo en
+cero rompería el repo de golpe y la reacción sería una lista de excepciones, que es como se muere un
+gate. El número sólo baja, y baja con cada paleta que salga del monolito (P1-FE5).
+
+Verificado por mutación: una clase nueva con `outline-none` y sin anillo lo pone en rojo.
+
