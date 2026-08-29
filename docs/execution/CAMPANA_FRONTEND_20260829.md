@@ -198,19 +198,27 @@ Playwright headless, red local sin latencia. **Son techos, no marcas.**
 | Pantalla | JS descargado (bruto) | Hasta usable |
 | --- | ---: | ---: |
 | Landing | 806,9 KB | — |
-| Estudio con documento | **4 456,9 KB** | 1 394 ms |
+| Estudio con documento | **4 019,3 KB** | 1 486 ms |
 
 #### Qué pesa dentro del estudio
 
 | Chunk | Bruto | Huellas encontradas dentro |
 | --- | ---: | --- |
 | `0myuc3yko1yb2.js` | **1 918,9 KB** | three · plantillas · DXF · LISP |
-| `0zvhl6h0ab67c.js` | 197,4 KB ×3 = 592,2 | (worker; se descarga **tres veces**) |
+| `0zvhl6h0ab67c.js` | 197,4 KB | teselado (servido 3×, ver nota) |
 | `3e4vdz-eu_0w1.js` | 370,5 KB | three |
 | `0djdkp88-sld8.js` | 346,8 KB | three |
-| `3utngkl8dgi2r.js` | 197,4 KB | — |
+| `3utngkl8dgi2r.js` | 197,4 KB | teselado (segundo worker) |
 | `0221vbwwh7ja9.js` | 227,1 KB | react-dom |
 | `1q6oj3x1dkx-e.js` | 163,5 KB | framer-motion + next-intl |
+
+> **Corrección sobre la primera medida.** La versión inicial del contador sumaba *todas* las
+> respuestas `.js`, y daba 4 456,9 KB para el estudio. Estaba mal: los tres workers de teselado se
+> crean desde la misma URL y Playwright emite un evento `response` por cada uno aunque las dos
+> últimas las sirva la caché de memoria — `/_next/static/**` va con `Cache-Control: immutable`,
+> comprobado con `curl -I`. Sumarlas publicaba como «descarga» 394 KB que no cruzan la red. El
+> contador cuenta ahora **bytes distintos**: cada URL suma una vez, y las repeticiones se reportan
+> aparte como información. La cifra buena es **4 019,3 KB**.
 
 ### 1.2 · Corrección al plan: three.js **no** es «un clic»
 
@@ -240,4 +248,52 @@ techos con la máquina escrita al lado. Ambos son **trinquetes**: `--write` sól
 niega a subirlo; para subir uno hay que editar el JSON a mano y explicarlo en el commit. Es el mismo
 patrón del presupuesto del monolito y del de lint, por la misma razón: que una regresión no se
 «arregle» ejecutando el actualizador.
+
+### 1.4 · El tablero pesaba lo que pesa un editor, y no lo era
+
+La medida de 1.1 dejaba una anomalía: `/dashboard` pedía **430,1 KB gzip**, 145 KB más que la
+landing, para pintar una lista de documentos. `scripts/perf/module-weight.mjs` —nuevo, mide el peso
+transitivo de fuente de un módulo y lo que cuelga **sólo** de él— dijo por qué:
+
+```
+node scripts/perf/module-weight.mjs --exclusivo src/app/dashboard/page.tsx src/app/page.tsx
+→ 143 ficheros, 1 577,9 KB de fuente
+    42,7 KB  lib/cad/dxf-import.ts
+    33,1 KB  lib/cad/professional-blocks.ts
+    31,6 KB  lib/cad/dxf-cad-document.ts
+    27,0 KB  lib/geo/crs.ts
+    25,9 KB  lib/geo/shapefile.ts
+    25,6 KB  lib/cad/dwg-document-bridge.ts
+    20,1 KB  lib/geo/las.ts          ← lector de nubes de puntos
+```
+
+Listar documentos descargaba el importador DXF completo, el puente DWG, el lector de shapefiles, el
+de nubes de puntos LAS, las proyecciones cartográficas y el catálogo entero de plantillas. Nada de
+eso hace falta hasta que hay un archivo que importar o un documento que crear.
+
+Tres costuras, ninguna inventada — las tres estaban ya dentro de un `async`:
+
+1. **`document-import-validation.ts`** (nuevo). El tablero necesita responder «¿este archivo entra?»
+   antes de leer nada: extensión, tope de tamaño, si es binario, si el formato se admite. Eso son
+   cuatro funciones que no miran dentro del archivo. Vivían dentro de `document-import.ts`, cuyo
+   árbol pesa 539 KB, así que preguntar costaba descargar el importador entero.
+   `document-import.ts` reexporta todo lo movido: **ningún consumidor cambia de import**.
+2. **`starter-choice.ts`** (nuevo). `CadStarterChoice` y `EMPTY_CAD_STARTER_CHOICE` son el estado
+   inicial de un `useState`, así que se necesitan en el primer render; el formulario que los edita
+   sólo aparece al abrir «documento nuevo». Separarlos deja el formulario en `next/dynamic` con un
+   marcador de su misma altura (sin salto de layout) y el catálogo de plantillas fuera de la carga.
+3. **`createCadStarterDocument` y `serializeCadDocument`** pasan a `await import()` en su punto de
+   uso, con el usuario ya comprometido a crear o importar. `import()` cachea el módulo: el segundo
+   documento no vuelve a pagarlo.
+
+| | Antes | Después | |
+| --- | ---: | ---: | ---: |
+| `/dashboard` primera carga (gzip) | 430,1 KB | **302,1 KB** | **−128,0 KB (−30 %)** |
+| chunks de `/dashboard` | 22 | **18** | −4 |
+| fuente exclusiva del tablero | 1 577,9 KB | **132,5 KB** | −92 % |
+| JS del estudio (bruto, distinto) | 4 019,3 KB | **3 826,1 KB** | −193,2 KB |
+
+El estudio también bajó sin tocarlo: los módulos que el tablero dejó de arrastrar dejaron de estar
+en el chunk compartido. Verde: 438/438 specs de `apps/web`, y los tres E2E del tablero
+(ciclo de vida de documento, beta DWG, RBAC de lector).
 

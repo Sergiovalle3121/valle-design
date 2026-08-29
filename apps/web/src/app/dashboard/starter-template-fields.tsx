@@ -35,22 +35,15 @@
  */
 import { CAD_MEXICAN_PAPERS } from "@/lib/cad/standards/mexican-sheets";
 import { CAD_STARTER_TEMPLATES } from "@/lib/cad/starter-templates";
+import type { CadStarterChoice } from "./starter-choice";
 
-export interface CadStarterChoice {
-  /** Vacío = lienzo en blanco, que sigue siendo una opción legítima. */
-  templateId: string;
-  /** Vacío = el papel que trae la plantilla. */
-  paper: string;
-  location: string;
-  dro: string;
-}
-
-export const EMPTY_CAD_STARTER_CHOICE: CadStarterChoice = {
-  templateId: "",
-  paper: "",
-  location: "",
-  dro: "",
-};
+// El tipo y el valor vacío viven en `starter-choice.ts`, sin dependencias, para
+// que el tablero pueda usarlos como estado inicial sin descargar este catálogo.
+// Se reexportan aquí para no romper ningún import existente.
+export {
+  type CadStarterChoice,
+  EMPTY_CAD_STARTER_CHOICE,
+} from "./starter-choice";
 
 const FIELD = "mt-2 w-full rounded-xl border bg-transparent px-3 py-2 text-sm";
 

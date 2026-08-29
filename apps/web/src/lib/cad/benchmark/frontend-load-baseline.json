@@ -1,5 +1,5 @@
 {
-  "descripcion": "Techos de JS descargado por el navegador, en KB sin comprimir (cuerpo de respuesta). Sólo bajan.",
+  "descripcion": "Techos de JS DISTINTO que el navegador necesita, en KB sin comprimir. Cada URL cuenta una vez. Sólo bajan.",
   "condiciones": {
     "maquina": "contenedor efimero de Claude Code on the web, 4 nucleos, 15 GiB",
     "navegador": "Chromium de Playwright, headless",
@@ -9,14 +9,20 @@
   },
   "gate": {
     "landingJsKB": 840.0,
-    "estudioJsKB": 4650.0
+    "estudioJsKB": 3980.0
   },
   "observado": {
     "20260829-antes": {
       "landingJsKB": 806.9,
-      "estudioJsKB": 4456.9,
-      "estudioUsableMs": 1394,
+      "estudioJsKB": 4019.3,
+      "estudioUsableMs": 1486,
       "nota": "medida de partida de la campana de frontend, antes de dividir el chunk del editor"
+    },
+    "20260829-ola1-tablero": {
+      "landingJsKB": 806.9,
+      "estudioJsKB": 3826.1,
+      "estudioUsableMs": 1497,
+      "nota": "tras sacar del tablero el catalogo de plantillas y el importador"
     }
   }
 }

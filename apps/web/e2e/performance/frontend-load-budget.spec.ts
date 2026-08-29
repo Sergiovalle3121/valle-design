@@ -65,25 +65,36 @@ function documentoMinimo() {
 }
 
 /**
- * Contador de JS descargado. Se engancha a `response` y suma el cuerpo real de
- * cada `.js` del propio origen. Devuelve también el desglose por chunk para que
- * un exceso venga con el culpable señalado, no sólo con el total.
+ * Contador de JS que el navegador NECESITA.
+ *
+ * Cuenta **bytes distintos**: cada URL suma una sola vez, aunque el navegador
+ * emita varias respuestas para ella. Esto no es un detalle de estilo. Los tres
+ * workers de teselado se crean desde la misma URL, y Playwright emite un evento
+ * `response` por cada uno aunque las dos últimas las sirva la caché de memoria
+ * (`/_next/static/**` va con `Cache-Control: immutable`). Sumar las repeticiones
+ * inflaba el chunk de teselado de 197 KB a 592 KB y habría publicado como
+ * "descarga" algo que no cruza la red.
+ *
+ * `repeticiones` se reporta aparte, como información: una repetición alta señala
+ * un patrón de carga que merece mirarse, pero no es peso de bundle.
  */
 function contarJs(page: Page, origen: string) {
   const porChunk = new Map<string, number>();
+  const repeticiones = new Map<string, number>();
   const pendientes: Promise<void>[] = [];
   page.on('response', (respuesta) => {
     const url = respuesta.url();
     if (!url.startsWith(origen)) return;
-    if (!/\.js(\?|$)/.test(new URL(url).pathname + (url.includes('?') ? '?' : ''))) {
-      if (!new URL(url).pathname.endsWith('.js')) return;
-    }
+    const ruta = new URL(url).pathname;
+    if (!ruta.endsWith('.js')) return;
+    repeticiones.set(ruta, (repeticiones.get(ruta) ?? 0) + 1);
+    if (porChunk.has(ruta)) return;
+    porChunk.set(ruta, 0);
     pendientes.push(
       respuesta
         .body()
         .then((cuerpo) => {
-          const clave = new URL(url).pathname;
-          porChunk.set(clave, (porChunk.get(clave) ?? 0) + cuerpo.byteLength);
+          porChunk.set(ruta, cuerpo.byteLength);
         })
         .catch(() => {
           /* una respuesta abortada no suma; el editor no la usó */
@@ -102,7 +113,10 @@ function contarJs(page: Page, origen: string) {
       return [...porChunk.entries()]
         .sort((a, b) => b[1] - a[1])
         .slice(0, 8)
-        .map(([ruta, bytes]) => `${(bytes / 1024).toFixed(1)} KB  ${ruta}`);
+        .map(([ruta, bytes]) => {
+          const veces = repeticiones.get(ruta) ?? 1;
+          return `${(bytes / 1024).toFixed(1)} KB  ${ruta}${veces > 1 ? `  (servido ${veces}×)` : ''}`;
+        });
     },
   };
 }

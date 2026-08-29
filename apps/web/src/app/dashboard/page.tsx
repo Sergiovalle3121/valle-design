@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   FilePlus2,
@@ -38,12 +39,29 @@ import {
   splitDocumentSelection,
 } from "@/lib/cad/document-import-client";
 import type { DocumentImportReport } from "@/lib/cad/document-import";
-import { serializeCadDocument } from "@/lib/cad/cad-document";
-import { createCadStarterDocument } from "@/lib/cad/starter-templates";
-import {
-  CadStarterTemplateFields,
-  EMPTY_CAD_STARTER_CHOICE,
-} from "./starter-template-fields";
+import { EMPTY_CAD_STARTER_CHOICE } from "./starter-choice";
+
+/**
+ * El formulario de plantilla de arranque llega cuando el usuario abre
+ * «documento nuevo», no al listar documentos. Arrastra `CAD_STARTER_TEMPLATES`
+ * y con él 1 036 KB de fuente —capas normalizadas, cajetín, papeles mexicanos,
+ * operaciones de layout— que no hacen falta para ver una lista.
+ *
+ * `ssr: false` porque el formulario es puro cliente y su hueco lo ocupa un
+ * marcador de la misma altura: sin salto de layout cuando llega el código.
+ */
+const CadStarterTemplateFields = dynamic(
+  () => import("./starter-template-fields").then((m) => m.CadStarterTemplateFields),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        className="mt-4 h-[4.5rem] animate-pulse rounded-xl bg-muted/40"
+        aria-hidden="true"
+      />
+    ),
+  },
+);
 import {
   abortError,
   gzipDocument,
@@ -238,6 +256,13 @@ export default function DashboardPage() {
       // documento llega al estudio ya configurado y el editor sólo lo lee.
       if (starter.templateId) {
         const project = projects.find((item) => item.id === selectedProject);
+        // El generador viaja con el catálogo de plantillas: se trae aquí, con
+        // el usuario ya comprometido a crear el documento, y no al abrir la
+        // página. `import()` cachea el módulo, así que el segundo documento no
+        // vuelve a pagarlo.
+        const { createCadStarterDocument } = await import(
+          "@/lib/cad/starter-templates"
+        );
         await designClient.documents.saveContent(
           document.id,
           createCadStarterDocument({
@@ -362,6 +387,7 @@ export default function DashboardPage() {
         projectId: selectedProject,
       });
 
+      const { serializeCadDocument } = await import("@/lib/cad/cad-document");
       const serialized = serializeCadDocument(report.document);
       const serializedBytes = new Blob([serialized]).size;
       if (serializedBytes > 1_000_000) {
