@@ -15,6 +15,15 @@
  * respuesta `.js` servida por el propio origen — no `transferSize`, que en
  * Playwright vuelve 0 para lo servido desde la caché del proceso.
  *
+ * ## Por qué NO lleva la guarda `CAD_PERF_E2E`
+ *
+ * El resto de `e2e/performance/` se salta salvo con `CAD_PERF_E2E=1`, porque
+ * son suites de decenas de minutos que viven en su propio job y que en un PR ni
+ * se lanzan. Ésta tarda seis segundos y mide exactamente lo que un PR puede
+ * romper sin darse cuenta: un `import` descuidado que devuelve el mundo a la
+ * primera carga. Ponerla tras la misma guarda la habría dejado sin correr justo
+ * cuando hace falta.
+ *
  * ## Qué es un fallo
  *
  * El techo vive en `src/lib/cad/benchmark/frontend-load-baseline.json` con la

@@ -5,8 +5,7 @@
     "react-hooks/refs": 164,
     "react-hooks/exhaustive-deps": 6,
     "react-hooks/purity": 1,
-    "react-hooks/immutability": 3,
-    "react-hooks/preserve-manual-memoization": 1
+    "react-hooks/immutability": 3
   },
   "apps/api": {
     "@typescript-eslint/no-unsafe-argument": 3,

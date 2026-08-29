@@ -10,37 +10,37 @@
   },
   "rutas": {
     "/": {
-      "gzipKB": 284.9
+      "gzipKB": 295.2
     },
     "/register": {
-      "gzipKB": 284.7
+      "gzipKB": 296.0
     },
     "/login": {
-      "gzipKB": 284.7
+      "gzipKB": 296.0
     },
     "/precios": {
-      "gzipKB": 288.4
+      "gzipKB": 299.8
     },
     "/contact": {
-      "gzipKB": 280.1
+      "gzipKB": 291.3
     },
     "/docs": {
-      "gzipKB": 270.6
+      "gzipKB": 280.5
     },
     "/dashboard": {
-      "gzipKB": 302.1
+      "gzipKB": 314.0
     },
     "/studio": {
-      "gzipKB": 272.3
+      "gzipKB": 283.1
     },
     "/studio/demo-123": {
-      "gzipKB": 277.7
+      "gzipKB": 288.8
     },
     "/cuenta": {
-      "gzipKB": 280.9
+      "gzipKB": 292.0
     },
     "/educacion": {
-      "gzipKB": 270.6
+      "gzipKB": 280.5
     }
   }
 }

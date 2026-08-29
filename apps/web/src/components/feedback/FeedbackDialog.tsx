@@ -72,15 +72,30 @@ export function FeedbackDialog({
   open,
   onClose,
   documentId,
+  claseInicial,
+  mensajeInicial,
 }: {
   open: boolean;
   onClose: () => void;
   /** Sólo en el estudio. Viaja únicamente si se marca la casilla. */
   documentId?: string | null;
+  /**
+   * Con qué clase abre el diálogo. Lo usa la frontera de error: cuando un panel
+   * se cae, la clase ya se sabe —es una falla— y preguntarla otra vez es hacerle
+   * al usuario el trabajo del programa.
+   */
+  claseInicial?: (typeof CLASES)[number]["kind"];
+  /**
+   * Texto con el que abre el cuadro de mensaje. Precargado, no fijo: el usuario
+   * puede borrarlo entero. Existe porque un reporte de fallo llega vacío o no
+   * llega, y lo que hace falta —qué panel, qué error, qué digest— lo sabe el
+   * programa y no la persona.
+   */
+  mensajeInicial?: string;
 }) {
   const [kind, setKind] =
-    useState<(typeof CLASES)[number]["kind"]>("sugerencia");
-  const [mensaje, setMensaje] = useState("");
+    useState<(typeof CLASES)[number]["kind"]>(claseInicial ?? "sugerencia");
+  const [mensaje, setMensaje] = useState(mensajeInicial ?? "");
   const [conContexto, setConContexto] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [enviado, setEnviado] = useState(false);
@@ -268,27 +283,48 @@ export function FeedbackDialog({
 export function FeedbackButton({
   documentId,
   className,
+  etiqueta = "Comentarios",
+  claseInicial,
+  mensajeInicial,
+  variant = "ghost",
 }: {
   documentId?: string | null;
   className?: string;
+  /** El texto del botón. La frontera de error lo cambia a «Reportar el fallo». */
+  etiqueta?: string;
+  claseInicial?: "falla" | "sugerencia" | "duda";
+  mensajeInicial?: string;
+  variant?: "ghost" | "secondary";
 }) {
   const [open, setOpen] = useState(false);
   return (
     <>
       <Button
-        variant="ghost"
+        variant={variant}
         size="sm"
         className={className}
         data-testid="feedback-open"
         onClick={() => setOpen(true)}
         iconLeft={<MessageSquarePlus aria-hidden="true" className="h-4 w-4" />}
       >
-        Comentarios
+        {etiqueta}
       </Button>
+      {/*
+        `key` atada a `open`: al abrir, el diálogo se REMONTA y su estado vuelve
+        a nacer de las props. Es lo que hace que la precarga funcione la segunda
+        vez y la tercera —la frontera de error manda un mensaje distinto en cada
+        caída— sin un efecto que sincronice props con estado. Un `useEffect` que
+        llama a `setState` haría exactamente esto, con un render de más y con el
+        aviso que el trinquete de lint del repo lleva bajando desde hace
+        campañas.
+      */}
       <FeedbackDialog
+        key={open ? "abierto" : "cerrado"}
         open={open}
         onClose={() => setOpen(false)}
         documentId={documentId}
+        claseInicial={claseInicial}
+        mensajeInicial={mensajeInicial}
       />
     </>
   );

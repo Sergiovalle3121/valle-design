@@ -186,6 +186,14 @@ jobs:
       - name: Build (turbo)
         run: npx turbo run build
 
+      # Presupuesto de bundle por ruta. Va AQUÍ y no en el job de E2E porque
+      # necesita exactamente lo que este job acaba de producir —el `.next` de
+      # producción— y porque un exceso de peso debe verse en minutos, no al
+      # final de los ~40 que tarda la suite de navegador. El script levanta su
+      # propio `next start` en un puerto suyo y lo mata al terminar.
+      - name: Presupuesto de bundle por ruta (bloqueante)
+        run: node scripts/perf/bundle-budget.mjs
+
       - name: Typecheck (API)
         working-directory: apps/api
         run: npm run typecheck

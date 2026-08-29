@@ -16,7 +16,7 @@ import {
 import { Logo } from "@/components/brand/Logo";
 import { SkipLink } from "@/components/SkipLink";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Button, Surface, buttonClass, cx } from "@/components/ui";
+import { Button, ErrorBoundary, Surface, buttonClass, cx } from "@/components/ui";
 import { FeedbackButton } from "@/components/feedback/FeedbackDialog";
 import { DashboardSkeleton } from "./DashboardSkeleton";
 import { FirstMinute } from "./FirstMinute";
@@ -660,11 +660,19 @@ export default function DashboardPage() {
                 tiempo que ahorra. Lo que se pinta vive en `starter-template-fields`
                 por el presupuesto de tamaño de esta página.
               */}
-              <CadStarterTemplateFields
-                value={starter}
-                onChange={setStarter}
-                disabled={busy}
-              />
+              {/*
+                El formulario de plantilla llega por red (import dinámico) y
+                pinta un catálogo entero. Su frontera es compacta porque vive
+                dentro del formulario de creación: si se cae, se puede seguir
+                creando el documento en blanco, que es la ruta que más se usa.
+              */}
+              <ErrorBoundary zona="Plantilla de arranque" compacta className="mt-4">
+                <CadStarterTemplateFields
+                  value={starter}
+                  onChange={setStarter}
+                  disabled={busy}
+                />
+              </ErrorBoundary>
               <label className="type-small mt-4 inline-flex cursor-pointer items-center gap-2 font-medium text-primary-ink">
                 <Upload className="h-4 w-4" /> Importar como documento
                 <input

@@ -21,7 +21,6 @@ import {
 import { scopeDxfImportToModelSpace } from "./dxf-model-space-scope";
 import { shapefileToCadEntities } from "./geo-cad-document";
 import { readGeoDataset } from "../geo";
-import { dwgBetaImportIsEnabled, dwgImportIsEnabled } from "./dwg-interop-flag";
 import { dwgNeutralDatabaseToCadDocument } from "./dwg-document-bridge";
 import {
   importFileExtension as extension,

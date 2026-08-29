@@ -30,6 +30,13 @@
  * puede BAJAR. `--write` se niega a subir un techo; para subirlo hay que
  * editar el JSON a mano y explicar por qué en el commit. Así una regresión no
  * se "arregla" ejecutando el actualizador.
+ *
+ * EL TECHO NO ES LA MEDIDA. `--write` escribe `medido × MARGEN`, no `medido`.
+ * La primera versión escribía la medida exacta y el resultado fue inmediato:
+ * el commit siguiente —2,7 KB de una frontera de error nueva— rompió las once
+ * rutas a la vez. Un trinquete sin holgura no mide regresiones, mide ruido de
+ * build: convierte cualquier cambio, incluso uno querido, en un fallo rojo. El
+ * margen es la diferencia entre «esto creció» y «esto creció DE MÁS».
  */
 import { spawn } from "node:child_process";
 import { readFileSync, writeFileSync, existsSync, statSync } from "node:fs";
@@ -47,6 +54,12 @@ const flag = (n) => args.find((a) => a.startsWith(`--${n}=`))?.split("=").slice(
 const tiene = (n) => args.includes(`--${n}`);
 
 const ESCRIBIR = tiene("write");
+/**
+ * Holgura del techo sobre lo medido. 3 % cubre la variación de build entre
+ * corridas del mismo commit; no es permiso para crecer — cualquier subida real
+ * se come el margen y falla en la siguiente.
+ */
+const MARGEN = 1.03;
 const BASE_EXTERNA = flag("base-url");
 const PUERTO = Number(flag("port") ?? 3131);
 
@@ -182,7 +195,7 @@ async function main() {
     let bajadas = 0;
     for (const f of filas) {
       const techo = presupuesto.rutas[f.ruta].gzipKB;
-      const nuevo = Number(f.gzipKB.toFixed(1));
+      const nuevo = Number((f.gzipKB * MARGEN).toFixed(1));
       if (nuevo < techo) {
         presupuesto.rutas[f.ruta].gzipKB = nuevo;
         bajadas += 1;

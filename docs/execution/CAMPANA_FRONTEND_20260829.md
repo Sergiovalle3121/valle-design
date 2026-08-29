@@ -349,3 +349,84 @@ La corrección va en dos partes, y la segunda es la que impide que vuelva:
 **Resultado: 18/18 en verde**, y una regresión de opacidad vuelve a fallar en dos sitios distintos
 (el gate de tokens, en milisegundos; axe, en el navegador).
 
+## OLA 3 — Robustez de la capa vista
+
+### 3.1 · Qué había ya, y qué faltaba de verdad
+
+Antes de escribir nada: `app/error.tsx` y `app/global-error.tsx` **ya existen** y están bien
+resueltos — `reset()` en vez de recargar, `digest` a la vista para soporte, y el `global-error`
+pintado con estilos en línea porque sustituye el documento entero y no hay `ThemeProvider` debajo.
+Lo que faltaba no era una pantalla de error: era **acotar el daño**.
+
+Una frontera de ruta sustituye la pantalla entera. Para la landing eso es correcto — no hay nada
+detrás que salvar. Para el estudio es un desastre: si la paleta de propiedades lanza al pintar una
+entidad rara, el usuario pierde el lienzo, la selección, el historial local y el guardado pendiente
+por un fallo ocurrido en una columna de 320 píxeles.
+
+### 3.2 · `ErrorBoundary`, la primitiva
+
+`components/ui/ErrorBoundary.tsx`. Envuelve un subárbol, y cuando ese subárbol lanza durante el
+render lo sustituye por una tarjeta de recuperación. Tres decisiones que la hacen usable:
+
+- **Los hijos pasan sin envolver.** Sin error, `render()` devuelve `this.props.children` tal cual —
+  ni un `div` de más. Una frontera que envuelve rompe cualquier rejilla en la que se meta, y eso se
+  descubre en pantalla, tarde. Hay un spec que lo fija.
+- **`role="alert"`.** Sin él, un lector de pantalla no anuncia nada y media sala se queda sin saber
+  que algo se cayó. También con spec.
+- **El botón de reporte llega precargado** — zona, mensaje y digest los sabe el programa, no la
+  persona — y **se carga perezoso**: el diálogo de comentarios arrastra el cliente de la API, y
+  meterlo estáticamente en la primitiva lo metería en toda pantalla que use una frontera, es decir,
+  en todas. Llega justo cuando hay algo que reportar.
+
+Y una honestidad explícita en el propio doc del componente: **no captura** errores de manejadores de
+eventos, de `setTimeout` ni de promesas rechazadas. Ninguna frontera de React lo hace. Prometer una
+red que no existe es peor que no tenerla, porque nadie busca la de verdad.
+
+Spec: `src/components/ui/error-boundary.spec.ts`, 4 casos, **verificado por mutación** — quitar
+`role="alert"` y envolver a los hijos hacen fallar cada uno a su prueba.
+
+### 3.3 · Dónde se colocaron
+
+| Zona | Por qué ahí |
+| --- | --- |
+| Capa de colaboración (`CadStudioHost`) | Se alimenta de datos de **otros** usuarios que llegan por red y este cliente no controla. Un comentario con forma inesperada tumbaba el estudio entero, dibujo incluido. |
+| Formulario de plantilla de arranque (tablero) | Llega por import dinámico y pinta un catálogo entero. Si se cae, se puede seguir creando el documento en blanco, que es la ruta más usada. |
+
+### 3.4 · Modo degradado sin WebGL: ya estaba, y está bien
+
+El enunciado lo pide como trabajo nuevo. **No lo es, y conviene no fingir que sí.**
+`Layout3DEditor.tsx:6053-6070` envuelve la creación del `WebGLRenderer` en un `try/catch` con el
+comentario que explica el fallo original —la excepción escapaba del efecto, tumbaba el árbol React y
+el usuario perdía el editor entero sin mensaje— y conmuta `webglUnavailable` para dar el aviso
+honesto. Dos goldens lo fijan: `29-cad-webgl-unavailable` (el editor se degrada y el resto sigue
+utilizable) y `31-cad-no-webgl-authoring` (se puede seguir editando sin render). Queda **verificado,
+no reescrito**.
+
+### 3.5 · El guardián de almacenamiento se hizo preciso, no más laxo
+
+El spec de accesibilidad necesita fijar el tema antes de la primera pintura, y el tema vive en
+`localStorage['valle_theme']` por diseño del producto — es la clave que lee el script anti-flash de
+`layout.tsx`. Pero `session-storage.spec.ts` prohibía la palabra `localStorage` en **todo** `e2e/`.
+
+Es una red de arrastre: pesca el token de sesión, que es lo que se busca, y también una preferencia
+de presentación. La tentación es quitar la regla. Lo que se hizo es lo contrario — **hacerla
+precisa**: sigue prohibido cualquier uso de `localStorage` en los fixtures herméticos, con una única
+excepción nombrada y medida (`valle_theme`), y el mensaje de fallo enumera el fichero y el fragmento
+exactos. Una clave que se llame `valle_session` falla igual que antes. **Verificado por mutación.**
+
+### 3.6 · El trinquete de bundle tenía un defecto, y lo destapó su primer uso real
+
+Al medir tras añadir la frontera de error, **las once rutas fallaron a la vez** por entre 1,7 y
+2,8 KB. La causa no era la frontera: era que `--write` escribía el **valor medido exacto** como
+techo, sin holgura. Un trinquete sin margen no mide regresiones, mide ruido de build — cualquier
+cambio, incluso uno querido, sale rojo.
+
+Corregido: `--write` escribe `medido × 1,03`. El 3 % cubre la variación entre corridas del mismo
+commit y no es permiso para crecer — una subida real se come el margen y falla en la siguiente.
+
+La subida de 2,7 KB **es real y se paga a sabiendas**: `ErrorBoundary` se exporta desde el barril de
+`components/ui`, que es la convención del repo («punto único de importación»), así que la pagan todas
+las rutas. Romper la convención para ahorrar 2,7 KB sería un mal cambio; lo que importa es que el
+gate lo hizo visible en vez de dejarlo pasar. Los techos se reabren a la medida nueva con su margen,
+y `--write` los volverá a apretar en cuanto algo adelgace.
+
