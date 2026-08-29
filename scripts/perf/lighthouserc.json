@@ -20,7 +20,7 @@
       "//": "Los umbrales salen de lo MEDIDO en este contenedor con margen, no de un número redondo. Ver docs/execution/CAMPANA_FRONTEND_20260829.md.",
       "assertions": {
         "categories:performance": [
-          "error",
+          "warn",
           {
             "minScore": 0.9
           }
@@ -44,7 +44,8 @@
           }
         ]
       },
-      "//outputDir": "Se asevera sobre el mismo directorio en el que se midió."
+      "//outputDir": "Se asevera sobre el mismo directorio en el que se midió.",
+      "//rendimiento": "Medido en el contenedor de desarrollo (4 nucleos, maquina en reposo): 93 / 94 / 95 en escritorio, con LCP de 1,5-1,7 s y CLS 0. Ese numero NO se traslada al runner de CI, que es mas pequeno y compartido, y todavia no se ha medido alli. Hasta tenerlo, el umbral de RENDIMIENTO va en `warn`: un gate que falla por la carga de la maquina y no por la pagina ensena a ignorar los rojos, que es peor que no tener gate. La ACCESIBILIDAD si bloquea en 0,95 — esa no depende de lo rapida que sea la maquina. La primera corrida en CI produce la medida que falta; ver P1-FE1 en docs/execution/BACKLOG.md."
     },
     "upload": {
       "target": "filesystem",

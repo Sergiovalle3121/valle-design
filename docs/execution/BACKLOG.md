@@ -322,12 +322,19 @@ ante operación sin marca. **Estimación:** medio día.
 
 ---
 
-### P1-FE1 · El umbral móvil de Lighthouse está sin calibrar
+### P1-FE1 · Los umbrales de rendimiento de Lighthouse están sin calibrar
 - **Qué falta:** el gate `npm run check:lighthouse` corre dos pasadas —
-  escritorio y móvil— y el umbral de **rendimiento móvil** está en `warn` y no
-  en `error` porque nunca se midió limpio: la única medida móvil de la campaña
-  se tomó con la máquina ocupada por la suite de navegador y dio 61-71 con un
-  LCP de 9,8 s, que es un número del contenedor y no del producto.
+  escritorio y móvil— y el umbral de **rendimiento** está en `warn` y no en
+  `error` en las dos, por dos razones distintas. **Móvil:** nunca se midió
+  limpio — la única medida se tomó con la máquina ocupada por la suite de
+  navegador y dio 61-71 con un LCP de 9,8 s, que es un número del contenedor y
+  no del producto. **Escritorio:** sí se midió limpio (93 / 94 / 95, LCP
+  1,5-1,7 s, CLS 0) pero **en el contenedor de desarrollo**, y ese número no se
+  traslada al runner de CI, que es más pequeño y compartido. Un umbral heredado
+  de otra máquina produce rojos que nadie sabe interpretar, y eso enseña a
+  ignorar los rojos.
+- **La accesibilidad SÍ bloquea** en 0,95 en ambas pasadas: esa no depende de lo
+  rápida que sea la máquina.
 - **Dónde:** `scripts/perf/lighthouserc.mobile.json`, clave
   `categories:performance`.
 - **Cómo se cierra:** correr `node scripts/perf/lighthouse-gate.mjs --collect`

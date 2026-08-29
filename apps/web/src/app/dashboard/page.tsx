@@ -7,7 +7,6 @@ import Link from "next/link";
 import {
   FilePlus2,
   FolderPlus,
-  LogIn,
   LogOut,
   ShieldCheck,
   Upload,
@@ -21,7 +20,6 @@ import { FeedbackButton } from "@/components/feedback/FeedbackDialog";
 import { DashboardSkeleton } from "./DashboardSkeleton";
 import { FirstMinute } from "./FirstMinute";
 import { OrganizationOnboarding } from "./OrganizationOnboarding";
-import SAMPLE_PLAN from "@/lib/cad/sample-plan.json";
 import type {
   CadDocumentInline,
   CadDocumentSummary,
@@ -39,6 +37,8 @@ import {
   splitDocumentSelection,
 } from "@/lib/cad/document-import-client";
 import { EMPTY_CAD_STARTER_CHOICE } from "./starter-choice";
+import { Status } from "./Status";
+import { abrirPlanoDeEjemplo } from "./sample-plan";
 import { prefetchCadStudio } from "@/components/cad/prefetch-studio";
 
 /**
@@ -333,28 +333,17 @@ export default function DashboardPage() {
     setBusy(true);
     setActionError(null);
     try {
-      // El ejemplo necesita un proyecto donde vivir. Si la organización está
-      // recién creada no hay ninguno, así que se crea uno con nombre propio en
-      // vez de pedirle al usuario que lo invente antes de ver nada.
-      let projectId = selectedProject || projects[0]?.id;
-      if (!projectId) {
-        const project = await designClient.projects.create({
-          name: "Ejemplos",
-        });
-        setProjects((items) => [...items, project]);
-        projectId = project.id;
-        setSelectedProject(project.id);
-      }
-      const document = await designClient.documents.create({
-        name: "Planta de ejemplo",
-        projectId,
-      });
-      await designClient.documents.saveContent(
-        document.id,
-        SAMPLE_PLAN as unknown as CadDocumentInline,
-        0,
+      // La secuencia (crear proyecto si hace falta, crear documento, escribir
+      // el contenido) vive en `sample-plan.ts`: aquí sólo queda lo que es de
+      // esta pantalla — el estado ocupado, el error y a dónde se va después.
+      const { documentId, proyectoCreado } = await abrirPlanoDeEjemplo(
+        selectedProject || projects[0]?.id,
       );
-      router.push(`/studio/${document.id}`);
+      if (proyectoCreado) {
+        setProjects((items) => [...items, proyectoCreado]);
+        setSelectedProject(proyectoCreado.id);
+      }
+      router.push(`/studio/${documentId}`);
     } catch (error) {
       setActionError(
         error instanceof Error
@@ -791,30 +780,5 @@ export default function DashboardPage() {
         </div>
       </main>
     </>
-  );
-}
-
-function Status({ text, action }: { text: string; action?: () => void }) {
-  return (
-    <main
-      id="contenido"
-      className="relative grid min-h-screen place-items-center p-6"
-    >
-      <div aria-hidden="true" className="aurora-bg fixed inset-0 -z-10" />
-      <div className="max-w-md text-center">
-        <Logo />
-        <p role="status" className="type-body mt-8 text-muted-foreground">
-          {text}
-        </p>
-        {action && (
-          <button
-            onClick={action}
-            className={`${buttonClass({ variant: "primary", size: "lg" })} mt-6`}
-          >
-            <LogIn className="h-4 w-4" /> Continuar
-          </button>
-        )}
-      </div>
-    </main>
   );
 }

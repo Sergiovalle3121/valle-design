@@ -198,10 +198,13 @@ jobs:
       # página es útil, que es lo que el peso no ve — una fuente que bloquea el
       # pintado o un script que ocupa el hilo principal salen bien en KB y mal
       # en pantalla. Dos pasadas, escritorio y móvil, tres corridas por ruta.
-      # El umbral de RENDIMIENTO móvil está en aviso hasta calibrarlo con la
-      # máquina en reposo (P1-FE1); el de accesibilidad bloquea en ambas, que
-      # ése no depende de la carga del runner.
-      - name: Lighthouse (escritorio + móvil, bloqueante en escritorio)
+      # El umbral de RENDIMIENTO va en AVISO en las dos pasadas hasta medirlo
+      # en este runner: en el contenedor de desarrollo da 93-95, pero ese número
+      # no se traslada a una máquina más pequeña y compartida, y un gate que
+      # falla por la carga del runner enseña a ignorar los rojos. La primera
+      # corrida aquí produce esa medida (P1-FE1). La ACCESIBILIDAD sí bloquea:
+      # no depende de lo rápida que sea la máquina.
+      - name: Lighthouse (accesibilidad bloqueante; rendimiento en aviso hasta calibrar)
         run: npm run check:lighthouse
 
       - name: Typecheck (API)
