@@ -972,6 +972,49 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CAMPANA-SITIO-20260829",
+      "date": "2026-08-29",
+      "initiative": "Campaña «de sitio comercial de clase mundial» (docs/execution/CAMPANA_SITIO_20260829.md), sobre main tras la fusión de la campaña de ingeniería frontend (#116). El encargo del titular: convertir el sitio en un escaparate comercial premium — más imágenes (del producto real, nunca stock), más fluidez, más movimiento con propósito y más contraste — con cada mejora medida y cero regresión. Frentes: (0) tipografía en subconjuntos woff2 con precarga quirúrgica y umbrales de Lighthouse al alza; (1) el catálogo de 149 plantillas como galería pública dibujada por el motor con lámina PDF del pipeline real; (2) modo demostración sin cuenta si el spike lo permite; (3) movimiento tokenizado y sección de evidencia de ingeniería; (4) páginas comerciales (/casos-de-uso, /seguridad, /soporte, footer); (5) endurecimiento del estudio (foco, axe, controladores del monolito).",
+      "branch": "claude/valle-design-premium-campaign-24joj2",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate encargó la campaña y revisará/adoptará el PR resultante.",
+      "firstPartyInputs": [
+        "El catálogo propio de plantillas (apps/web/src/lib/cad/templates.ts) y el documento de arranque de la norma mexicana (starter-templates.ts).",
+        "La proyección de plan del propio motor (collab/plan-projection.ts) y el pipeline de trazado (plot-job/plot-pdf).",
+        "Los tokens del sistema de diseño (globals.css) y las fuentes autohospedadas ya versionadas en el repositorio.",
+        "Los informes y bitácoras de campañas anteriores en docs/execution/."
+      ],
+      "externalSources": [
+        "Documentación pública de fonttools/pyftsubset (subconjuntos woff2, ejes variables, layout features) — herramienta OFL-compatible usada para generar activos, no dependencia del build.",
+        "Especificación CSS Fonts (font-display, métricas ascent/descent/size-adjust) y comportamiento documentado de preload de fuentes con CORS.",
+        "schema.org (ItemList, CreativeWork, BreadcrumbList) para el marcado de la galería."
+      ],
+      "externalImplementationConsulted": "Ninguna. El conversor plantilla→documento, el renderizador SVG y el subconjuntador se escribieron sobre las API propias del repositorio y los contratos públicos de fonttools/schema.org; no se leyó código de terceros restringido.",
+      "derivedAreas": [
+        "scripts/design/subset-fonts.py (generador de subconjuntos y de src/app/fonts.css + fonts-generated.ts)",
+        "apps/web/src/lib/cad/template-document.ts y template-render.ts (plantilla → documento nativo → SVG)",
+        "apps/web/src/app/plantillas/ (galería, ficha, renders y lámina al vuelo)",
+        "apps/web/src/lib/marketing/template-gallery.ts y template-giros.ts (clasificación comercial derivada)",
+        "apps/web/scripts/template-gallery-evidence.mts (manifiesto con gate de deriva)",
+        "apps/web/src/lib/design/theme-colors.ts (tokens resueltos para generadores)"
+      ],
+      "fixtures": "Ninguno nuevo: los renders y PDFs se generan al vuelo desde el catálogo propio; el manifiesto docs/cad/evidence/template-gallery.json es un artefacto derivado committeado.",
+      "dependenciesAdded": [
+        "sharp ^0.34 (devDependency de apps/web) — rasterizado de SVG para inspección y pipeline de imágenes, Apache-2.0.",
+        "fonttools + brotli (herramientas de contenedor para generar subconjuntos; NO son dependencias del proyecto ni del build)."
+      ],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: revisión/fusión del PR de esta rama sobre el SHA candidato."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
