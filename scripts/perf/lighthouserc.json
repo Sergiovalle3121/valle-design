@@ -16,10 +16,10 @@
       }
     },
     "assert": {
-      "//": "Los umbrales salen de lo MEDIDO en este contenedor con margen, no de un número redondo. Ver docs/execution/CAMPANA_FRONTEND_20260829.md.",
+      "//": "Los umbrales salen de lo MEDIDO EN EL RUNNER con margen, no de un numero redondo. La tabla completa esta en docs/execution/CAMPANA_FRONTEND_20260829.md, seccion 1.5, y la publica en cada corrida el job `resumen-lighthouse`.",
       "assertions": {
         "categories:performance": [
-          "warn",
+          "error",
           {
             "minScore": 0.9
           }
@@ -31,20 +31,20 @@
           }
         ],
         "categories:best-practices": [
-          "warn",
+          "error",
           {
             "minScore": 0.9
           }
         ],
         "categories:seo": [
-          "warn",
+          "error",
           {
             "minScore": 0.9
           }
         ]
       },
       "//outputDir": "`lhci collect` NO admite `outputDir` —es de `upload --target=filesystem`— y lo ignoraba en silencio, así que los informes siempre caían en `.lighthouseci/` y la pasada móvil pisaba la de escritorio. El archivado a `informes-lighthouse/escritorio/` y `informes-lighthouse/movil/` lo hace ahora scripts/perf/lighthouse-gate.mjs, que además comprueba que lo archivado contiene informes. Sin punto delante a propósito: actions/upload-artifact descarta los ficheros ocultos por omisión, y con las rutas anteriores el artefacto salía vacío.",
-      "//rendimiento": "Medido en el contenedor de desarrollo (4 nucleos, maquina en reposo): 93 / 94 / 95 en escritorio la primera vez y 93 / 94 / 94 en la corrida del 2026-08-29 con el gate arreglado, con LCP de 1,6-1,8 s y CLS 0 — el numero es estable. Ese numero NO se traslada al runner de CI, que es mas pequeno y compartido, y todavia no se ha medido alli. Hasta tenerlo, el umbral de RENDIMIENTO va en `warn`: un gate que falla por la carga de la maquina y no por la pagina ensena a ignorar los rojos, que es peor que no tener gate. La ACCESIBILIDAD si bloquea en 0,95 — esa no depende de lo rapida que sea la maquina. El job publica ahora la tabla del runner en su resumen; ver P1-FE1 en docs/execution/BACKLOG.md."
+      "//rendimiento": "Medido EN EL RUNNER de CI (ubuntu-latest, mediana de tres corridas por ruta, run 33252353725 sobre 3ffc7a1): 94 / 94 / 94 de rendimiento con LCP de 1,62-1,69 s, CLS 0-0,022 y TBT 0 ms; accesibilidad 100, buenas practicas 96, SEO 100 en las tres rutas. El contenedor de desarrollo daba 93/94/94: la cifra del runner y la de la maquina de trabajo COINCIDEN, porque el estrangulamiento de Lighthouse es SIMULADO y normaliza la maquina — la razon por la que este umbral estuvo en aviso toda la campana (que el numero no se trasladaria a un runner mas pequeno y compartido) resulto ser falsa, y se comprobo midiendo. Umbral en 0,90: tres puntos por debajo de la peor observacion de cuatro sesiones de medida (93). Bloquea."
     }
   }
 }

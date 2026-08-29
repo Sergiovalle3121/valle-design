@@ -15,7 +15,7 @@ Esto es el resumen: qué se decidió, qué se midió, qué quedó fuera y qué s
 | **React Compiler** | **NO** | No mejora nada medible y cuesta +58 KB en el estudio y +66 % de build. |
 | **Store ligero (zustand)** | **NO** | La condición era que el prop-drilling doliera al extraer. No dolió: siete cuadros salieron con 2-22 props. |
 | **Radix** | **NO hizo falta** | El barrido no encontró ningún overlay propio irreparable; lo que faltaba —rol, título, Escape— se arregló en un marco común propio. |
-| **Umbral móvil de Lighthouse** | **Sin fijar** | No se pudo medir limpio. Publicar un número contaminado sería inventar. Queda como P1-FE1. |
+| **Umbral móvil de Lighthouse** | **Fijado en 0,70 y bloqueando** *(cerrado tras el informe)* | Medido en el runner: 73 / 74 / 75. No se pone en 90 porque el producto no está en 90; bajar el listón en silencio no vale y dejarlo en aviso tampoco. Lo que hay que adelgazar es P1-FE6. |
 | **Meta del monolito (< 18 500 líneas)** | **No alcanzada** | Se bajó 1 083 líneas; forzar el resto habría producido un componente de 40 props, que es el monolito con otra sintaxis. |
 
 ### React Compiler, con los números delante
@@ -148,7 +148,7 @@ cartográficas y el catálogo entero de plantillas. Tres costuras, las tres ya d
 | **Entrar con Google** (OLA 6.1) | No cabía. Es una campaña, no un ítem: fusión de cuentas, verificación heredada, revocación, segundo factor. El terreno queda **mapeado** en `BACKLOG.md` P1-F3 con la anatomía exacta de la sesión de hoy. |
 | **Monolito < 18 500 y `useState` < 130** | Se bajó 1 083 líneas. El resto exige controladores de estado antes que extracciones de vista; el mapa medido está en `DEUDA-MONOLITO.md` y la entrada en `BACKLOG.md` P1-FE2. |
 | **Web Vitals de campo** (OLA 2.4) | El medidor existe y tiene spec; falta la cadena servidor entera (entidad + migración + controlador + contrato + SDK, con biyección exacta exigida por `check:cad-contract`) y una decisión de producto sobre un endpoint de escritura sin sesión. P1-FE3. |
-| **Umbral móvil de Lighthouse** | No se midió limpio. P1-FE1. |
+| **Umbral móvil de Lighthouse** | ~~P1-FE1~~ **cerrado el mismo día**, después de arreglar cuatro fallos encadenados en la cadena de publicación de la medida. Los cuatro umbrales de las dos pasadas bloquean con el número del runner delante. |
 | **Trampa de foco en los cuadros del estudio** | `CadDialogShell` da rol, título y Escape —que no tenían— pero no mueve el foco. Hacerlo a medias es peor. P1-FE4. |
 | **Virtualizar listas** (OLA 2.2) | La medición no lo señaló como el cuello: la latencia la domina el rasterizado. Virtualizar sin que la medida lo pida es optimizar a ciegas. |
 
@@ -175,7 +175,7 @@ medir con la máquina limpia cambió el veredicto de «diez goldens rotos» a «
 
 ## 7. Los diez siguientes
 
-1. **P1-FE1** — medir Lighthouse móvil con la máquina en reposo y fijar el umbral (20 min).
+1. ~~**P1-FE1**~~ — **hecho**: los cuatro umbrales bloquean con la medida del runner. En su lugar entra **P1-FE6** — adelgazar la portada, donde el 74 % de los bytes son tipografías (1 093 de 1 476 KB) y tres de las cinco van en TTF sin convertir. Es lo que sube el 73 móvil.
 2. **P1-FE4** — trampa de foco en `CadDialogShell`, copiando lo que `Modal` ya hace bien.
 3. **P1-FE2 (a)** — `usePaperSpaces`: el controlador que desbloquea el cuadro de 525 líneas.
 4. **P1-FE2 (b)** — los otros tres controladores (DXF, versiones, validación): ~23 `useState`.

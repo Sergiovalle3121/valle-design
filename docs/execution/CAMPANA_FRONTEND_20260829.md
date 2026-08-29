@@ -576,34 +576,59 @@ arreglo es un job propio, `resumen-lighthouse`, que no monta servicios: su log c
 líneas y la tabla se lee de un vistazo. Cuesta un job de treinta segundos y resuelve el problema
 para cualquiera que no pueda bajarse doce megas, que incluye a las personas.
 
-**Medido con el gate ya arreglado, las dos pasadas del mismo arranque, contenedor de desarrollo de
-4 núcleos con la máquina en reposo. Cada celda es la MEDIANA de tres corridas:**
+**Medido EN EL RUNNER DE CI** (`ubuntu-latest`, run 33252353725 sobre `3ffc7a1`), que es la máquina
+donde el umbral va a bloquear. Cada celda es la MEDIANA de tres corridas por ruta:
 
 | Pasada | Ruta | Rendimiento | Accesibilidad | Buenas prácticas | SEO | LCP | CLS | TBT |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| escritorio | `/` | **93** | 100 | 96 | 100 | 1 797 ms | 0,000 | 0 ms |
-| escritorio | `/precios` | **94** | 100 | 96 | 100 | 1 615 ms | 0,022 | 0 ms |
+| escritorio | `/` | **94** | 100 | 96 | 100 | 1 690 ms | 0,000 | 0 ms |
+| escritorio | `/precios` | **94** | 100 | 96 | 100 | 1 660 ms | 0,022 | 0 ms |
 | escritorio | `/register` | **94** | 100 | 96 | 100 | 1 620 ms | 0,000 | 0 ms |
-| móvil | `/` | **73** | 100 | 96 | 100 | 8 940 ms | 0,000 | 159 ms |
-| móvil | `/precios` | **74** | 100 | 96 | 100 | 8 712 ms | 0,061 | 108 ms |
-| móvil | `/register` | **75** | 100 | 96 | 100 | 9 017 ms | 0,000 | 98 ms |
+| móvil | `/` | **73** | 100 | 96 | 100 | 8 870 ms | 0,000 | 166 ms |
+| móvil | `/precios` | **74** | 100 | 96 | 100 | 9 170 ms | 0,060 | 87 ms |
+| móvil | `/register` | **75** | 100 | 96 | 100 | 9 170 ms | 0,000 | 78 ms |
 
-La pasada de escritorio confirma la medida anterior de la campaña (93 / 94 / 95, LCP 1,5-1,7 s) con
-otra corrida distinta: el número es estable, no fue suerte.
+Y la misma medida en el **contenedor de desarrollo** (4 núcleos, máquina en reposo), para comparar:
 
-La pasada **móvil** es la que faltaba: la única medida previa —61-71, LCP 9,8 s— se había tomado con
-la máquina ocupada por la suite de navegador, y era la razón por la que el umbral móvil seguía sin
-calibrar. Con la máquina quieta el producto da **73-75**, no 90. Eso no se disimula: **el umbral móvil no se pone en 90 porque el
-producto no está en 90**, y el gate seguirá en aviso en esa pasada hasta que se fije donde
-corresponde, con la medida del runner delante. Lo que hay que adelgazar tiene entrada propia
-(**P1-FE6**), y el número que lo explica es el LCP: casi nueve segundos con la CPU 4× más lenta y la
-red estrangulada. La accesibilidad, en cambio, da **100 en las seis medidas** y bloquea en las dos
-pasadas — esa no depende de lo rápida que sea la máquina.
+| Pasada | Rendimiento | LCP |
+| --- | ---: | ---: |
+| escritorio | 93 / 94 / 94 | 1 615-1 797 ms |
+| móvil | **73 / 74 / 75** | 8 712-9 017 ms |
 
-> **Lo que falta, y se dice:** estas seis cifras son de **este contenedor**, no del runner de CI, y
-> para un umbral que bloquea hace falta el número de la máquina donde va a bloquear. Hasta ahora no
-> se tenía porque el artefacto salía vacío; a partir de este commit el propio job lo publica en su
-> resumen. **P1-FE1** se cierra con esa lectura: umbral en lo medido en el runner menos margen.
+**Las dos máquinas dan el mismo número.** El móvil es idéntico, cifra por cifra, y el escritorio se
+mueve un punto. Eso desmonta la premisa que mantuvo estos umbrales en aviso durante toda la campaña
+—«el runner es más pequeño y compartido, así que la medida del contenedor no se traslada»—: el
+estrangulamiento de Lighthouse es **simulado**, no aplicado, y por eso normaliza la máquina. Es
+justamente para lo que existe. La cautela era razonable de escribir y era falsa, y sólo se supo
+midiendo; el precio de averiguarlo fueron cuatro correcciones seguidas de la cadena de publicación.
+
+**Los umbrales quedan así, y BLOQUEAN los cuatro:**
+
+| Categoría | Escritorio | Móvil | Medido | Margen |
+| --- | ---: | ---: | ---: | ---: |
+| Rendimiento | **0,90** | **0,70** | 94 / 73 | 4 y 3 puntos |
+| Accesibilidad | 0,95 | 0,95 | 100 | 5 puntos |
+| Buenas prácticas | **0,90** | **0,90** | 96 | 6 puntos |
+| SEO | **0,90** | **0,90** | 100 | 10 puntos |
+
+El margen sale de la peor observación de cuatro sesiones de medida, no de un número redondo. El
+móvil se fija en **0,70 y no en 90 porque el producto no está en 90**: bajar el listón en silencio no
+vale, pero dejarlo en aviso tampoco —un gate que no bloquea no es un gate—. Sube cuando suba el
+producto, y lo que hay que adelgazar para eso es **P1-FE6**.
+
+Comprobado que muerde: subiendo el umbral móvil a 0,80 contra los informes reales, `lhci assert`
+falla en las tres rutas y devuelve 1. Con 0,70, pasa.
+
+La medida móvil previa de la campaña —61-71, LCP 9,8 s— se había tomado con la máquina ocupada por
+la suite de navegador y no valía nada. Con la máquina quieta, y con el runner, el producto da
+**73-75**. El número que lo explica es el LCP: casi nueve segundos con la CPU 4× más lenta y la red
+estrangulada, sobre un **párrafo de texto** cuyo desglose da 95 % de *render delay*. La
+accesibilidad, en cambio, da **100 en las seis medidas** de las dos máquinas — esa nunca dependió de
+lo rápida que fuera la máquina, y ya bloqueaba.
+
+Con esto **P1-FE1 queda cerrado**: los cuatro umbrales bloquean con el número del runner medido
+delante, y el job `resumen-lighthouse` republica esa tabla en cada corrida, así que la próxima
+recalibración empieza con el dato ya en la mano en vez de con cuatro rondas de fontanería.
 
 ### 1.6 · React Compiler: **NO se adopta**
 

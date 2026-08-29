@@ -15,9 +15,9 @@
     "assert": {
       "assertions": {
         "categories:performance": [
-          "warn",
+          "error",
           {
-            "minScore": 0.9
+            "minScore": 0.7
           }
         ],
         "categories:accessibility": [
@@ -27,20 +27,21 @@
           }
         ],
         "categories:best-practices": [
-          "warn",
+          "error",
           {
             "minScore": 0.9
           }
         ],
         "categories:seo": [
-          "warn",
+          "error",
           {
             "minScore": 0.9
           }
         ]
       },
       "//outputDir": "`lhci collect` NO admite `outputDir` —es de `upload --target=filesystem`— y lo ignoraba en silencio, así que los informes siempre caían en `.lighthouseci/` y la pasada móvil pisaba la de escritorio. El archivado a `informes-lighthouse/escritorio/` y `informes-lighthouse/movil/` lo hace ahora scripts/perf/lighthouse-gate.mjs, que además comprueba que lo archivado contiene informes. Sin punto delante a propósito: actions/upload-artifact descarta los ficheros ocultos por omisión, y con las rutas anteriores el artefacto salía vacío.",
-      "//rendimiento": "MEDIDO limpio el 2026-08-29 en el contenedor de desarrollo (4 nucleos, maquina en reposo, mediana de tres corridas por ruta): 73 / 74 / 75 de rendimiento con LCP de 8,7-9,0 s y accesibilidad 100. La medida anterior (61-71, LCP 9,8 s) se habia tomado con la maquina ocupada por la suite de navegador y no valia. El umbral sigue en `warn` por DOS razones, y las dos hay que resolverlas antes de pasarlo a `error`: (1) el producto no esta en 90 en movil y bajar el liston en silencio no vale — lo que hay que adelgazar esta en P1-FE6 del BACKLOG, con el desglose de bytes: el 74 % de la portada son tipografias; (2) este numero es del contenedor, no del runner de CI, y un umbral que bloquea se fija con el numero de la maquina donde bloquea. El job publica ahora esa tabla en su resumen; ver P1-FE1. La ACCESIBILIDAD si bloquea en 0,95: esa no depende de lo rapida que sea la maquina."
+      "//rendimiento": "Medido EN EL RUNNER de CI (ubuntu-latest, mediana de tres corridas por ruta, run 33252353725 sobre 3ffc7a1): 73 / 74 / 75 de rendimiento con LCP de 8,87-9,17 s; accesibilidad 100, buenas practicas 96, SEO 100 en las tres rutas. El contenedor de desarrollo dio 73/74/75, IDENTICO, porque el estrangulamiento de Lighthouse es simulado. El umbral se fija en 0,70 —tres puntos por debajo de la peor observacion— y NO en 0,90: el producto no esta en 90 en movil y bajar el liston en silencio no vale, pero dejar el gate en aviso tampoco. Lo que hay que adelgazar para subir esta cifra es P1-FE6 del BACKLOG, con la causa medida: el 74 % de los bytes de la portada son tipografias (1 093 de 1 476 KB), tres de las cinco en TTF sin convertir, y el desglose del LCP da 95 % de render delay sobre un parrafo de texto. Cuando esa entrada se cierre, este umbral sube con la nueva medida delante.",
+      "//": "Los umbrales salen de lo MEDIDO EN EL RUNNER con margen, no de un numero redondo. La tabla completa esta en docs/execution/CAMPANA_FRONTEND_20260829.md, seccion 1.5, y la publica en cada corrida el job `resumen-lighthouse`."
     }
   }
 }

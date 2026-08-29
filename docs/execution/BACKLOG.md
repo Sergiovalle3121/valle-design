@@ -322,50 +322,37 @@ ante operación sin marca. **Estimación:** medio día.
 
 ---
 
-### P1-FE1 · Los umbrales de rendimiento de Lighthouse están sin calibrar
-- **Qué falta:** el gate `npm run check:lighthouse` corre dos pasadas —
-  escritorio y móvil— y el umbral de **rendimiento** está en `warn` y no en
-  `error` en las dos. **Ya no falta la medida limpia:** el 2026-08-29, con el
-  gate arreglado y la máquina en reposo, las dos pasadas salieron del mismo
-  arranque y dieron **escritorio 93 / 94 / 94** (LCP 1,6-1,8 s) y **móvil
-  73 / 74 / 75** (LCP 8,7-9,0 s), con accesibilidad **100 en las seis**. Lo que
-  falta es el número del **runner**: el contenedor de desarrollo no es la
-  máquina donde el umbral va a bloquear, y un umbral heredado de otra máquina
-  produce rojos que nadie sabe interpretar, que es lo que enseña a ignorarlos.
-  **Y el móvil no llega a 90 porque el producto no está en 90** — eso no se
-  arregla con el umbral: tiene entrada propia en **P1-FE6**, con el desglose de
-  bytes que lo explica.
-- **La accesibilidad SÍ bloquea** en 0,95 en ambas pasadas: esa no depende de lo
-  rápida que sea la máquina.
-- **Dónde:** `scripts/perf/lighthouserc.mobile.json`, clave
-  `categories:performance`.
-- **Cómo se cierra:** el gate **ya corre en CI y pasa** (primera corrida verde
-  sobre `58e0dd8`). El artefacto `lighthouse-<sha>` que debía traer el número se
-  añadió en `b16008f` y **salió vacío**: `lhci collect` no admite `--outputDir`
-  —esa opción es de `lhci upload --target=filesystem`— y yargs la ignoraba en
-  silencio, así que los informes caían siempre en `.lighthouseci/`, la pasada
-  móvil borraba la de escritorio y el paso de subida no encontraba nada; con
-  `if-no-files-found: warn` terminaba en verde en un segundo. **Y detrás había
-  un segundo fallo encadenado:** `actions/upload-artifact` trae
-  `include-hidden-files: false` y descartaba las tres rutas por empezar por
-  punto, diciendo sólo «no files were found». Arreglado lo uno y lo otro: el
-  script archiva cada pasada él mismo y **falla si lo archivado no trae
-  informes**, los informes van a `informes-lighthouse/` —sin punto, porque un
-  informe que se publica para leerlo no es un fichero oculto—, la mediana por
-  ruta sale por consola, en `informes-lighthouse/resumen.json` y en el resumen
-  del job, y el paso de CI está en `if-no-files-found: error`. Con eso, leer la
-  mediana de las tres corridas por ruta y fijar el umbral en lo medido menos
-  margen. Para una medida local equivalente:
-  `node scripts/perf/lighthouse-gate.mjs --collect` con la máquina en reposo
-  (sin suite, sin build en paralelo).
-  El producto NO llega a 90 en móvil (73-75 medido en reposo), así que el umbral
-  móvil se fija donde esté —no en 90— y lo que hay que adelgazar va en
-  **P1-FE6**. Bajar el listón sin decirlo es lo único que no vale; fijarlo donde
-  está la realidad, con la entrada de mejora abierta al lado, sí.
-- **Criterio de aceptación:** los dos umbrales de rendimiento pasan a `error`
-  con el número del runner menos margen escrito en su JSON, y la bitácora de la
-  campaña recoge la tabla del runner junto a la del contenedor.
-- **Estimación:** 20 minutos de máquina en reposo.
+### ~~P1-FE1 · Los umbrales de rendimiento de Lighthouse están sin calibrar~~ · CERRADO 2026-08-29
+
+- **Cerrado.** Los cuatro umbrales de las dos pasadas **bloquean**, con el número
+  del runner medido delante:
+
+  | Categoría | Escritorio | Móvil | Medido en el runner | Margen |
+  | --- | ---: | ---: | ---: | ---: |
+  | Rendimiento | **0,90** | **0,70** | 94 / 73 | 4 y 3 puntos |
+  | Accesibilidad | 0,95 | 0,95 | 100 | 5 puntos |
+  | Buenas prácticas | **0,90** | **0,90** | 96 | 6 puntos |
+  | SEO | **0,90** | **0,90** | 100 | 10 puntos |
+
+- **La medida** (`ubuntu-latest`, run 33252353725 sobre `3ffc7a1`, mediana de tres
+  corridas por ruta): escritorio **94 / 94 / 94** con LCP 1,62-1,69 s; móvil
+  **73 / 74 / 75** con LCP 8,87-9,17 s; accesibilidad 100 y SEO 100 en las seis.
+- **Lo que se aprendió, y desmonta la razón por la que esta entrada existía:** el
+  runner y el contenedor de desarrollo dan **el mismo número** —móvil idéntico,
+  escritorio un punto—. El estrangulamiento de Lighthouse es *simulado*, no
+  aplicado, así que normaliza la máquina; la premisa de que «el número del
+  contenedor no se traslada a un runner más pequeño y compartido» era falsa. Sólo
+  se supo midiendo, y para poder medirlo hubo que arreglar cuatro fallos
+  encadenados en la cadena de publicación (ver la sección 1.5 de la bitácora de
+  campaña). El job `resumen-lighthouse` publica ahora esa tabla en cada corrida,
+  en un log de veinte líneas, para que la próxima recalibración no cueste lo
+  mismo.
+- **El móvil se fija en 0,70 y no en 90** porque el producto no está en 90.
+  Bajar el listón en silencio no vale; dejar el gate en aviso tampoco, porque un
+  gate que no bloquea no es un gate. Sube cuando suba el producto: lo que hay que
+  adelgazar es **P1-FE6**.
+- **Comprobado que muerde:** subiendo el umbral móvil a 0,80 contra los informes
+  reales, `lhci assert` falla en las tres rutas y devuelve 1; con 0,70 pasa.
 
 ### P1-FE2 · El monolito del editor: los tres bloques que quedan
 - **Qué falta:** `Layout3DEditor.tsx` bajó de 20 220 a 19 137 líneas con siete
