@@ -337,9 +337,15 @@ ante operación sin marca. **Estimación:** medio día.
   rápida que sea la máquina.
 - **Dónde:** `scripts/perf/lighthouserc.mobile.json`, clave
   `categories:performance`.
-- **Cómo se cierra:** correr `node scripts/perf/lighthouse-gate.mjs --collect`
-  con la máquina en reposo (sin suite, sin build en paralelo), leer la mediana
-  de las tres corridas por ruta, y fijar el umbral en lo medido menos margen.
+- **Cómo se cierra:** el gate **ya corre en CI y pasa** (primera corrida verde
+  sobre `58e0dd8`), y desde ese mismo commit el job publica los informes como
+  artefacto `lighthouse-<sha>` — hizo falta porque el log del job se trunca
+  antes de llegar a ese paso, así que el gate medía y nadie podía leer el
+  número. Descargar ese artefacto, leer la mediana de las tres corridas por ruta
+  en `.lighthouseci-escritorio/` y `.lighthouseci-movil/`, y fijar el umbral en
+  lo medido menos margen. Para una medida local equivalente:
+  `node scripts/perf/lighthouse-gate.mjs --collect` con la máquina en reposo
+  (sin suite, sin build en paralelo).
   Si el producto no llega a 90 en móvil, el umbral se fija donde esté y se abre
   una entrada propia con lo que hay que adelgazar — bajar el listón sin decirlo
   es lo único que no vale.

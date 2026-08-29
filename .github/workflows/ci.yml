@@ -207,6 +207,22 @@ jobs:
       - name: Lighthouse (accesibilidad bloqueante; rendimiento en aviso hasta calibrar)
         run: npm run check:lighthouse
 
+      # Los informes, SIEMPRE, pase o falle el paso de arriba. Sin esto las
+      # puntuaciones del runner sólo existen dentro del log del job, que se
+      # trunca antes de llegar a ellas: el gate corre y nadie puede leer lo que
+      # midió. Es exactamente el dato que le falta a P1-FE1 para calibrar el
+      # umbral de rendimiento, que hoy está en aviso por no tenerlo.
+      - name: Subir informes de Lighthouse
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: lighthouse-${{ github.sha }}
+          path: |
+            .lighthouseci-escritorio/
+            .lighthouseci-movil/
+          if-no-files-found: warn
+          retention-days: 14
+
       - name: Typecheck (API)
         working-directory: apps/api
         run: npm run typecheck
