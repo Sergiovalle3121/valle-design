@@ -19,13 +19,28 @@
  * job que ya va largo, y peor: abriría la puerta a medir un build distinto del
  * que se está publicando.
  *
- * ## Cada pasada escribe en su propio directorio
+ * ## Cada pasada se archiva en su propio directorio (y por qué a mano)
  *
- * `lhci collect` vuelca SIEMPRE en `.lighthouseci/` si no se le dice otra cosa
- * —`upload.outputDir` es de otro paso—, así que la primera versión de este
- * script dejaba la pasada móvil pisando la de escritorio y publicaba una tabla
- * con los números de una mezclados con los de la otra. Cada pasada lleva ahora
- * su `--outputDir`.
+ * `lhci collect` vuelca SIEMPRE en `.lighthouseci/` y BORRA lo que hubiera
+ * antes, así que la pasada móvil pisa la de escritorio. La primera versión de
+ * este script creía resolverlo pasando `--outputDir` a `collect`: esa opción NO
+ * EXISTE en `lhci collect` —es de `upload --target=filesystem`— y yargs la
+ * ignora sin decir nada, de modo que el gate seguía aseverando bien mientras el
+ * paso de CI que subía `.lighthouseci-escritorio/` no encontraba nada y pasaba
+ * en verde con un aviso. Dos números en aviso durante una campaña que existía
+ * para medirlos. La lección es la de siempre: una opción aceptada en silencio
+ * no es una opción aplicada. Ahora el archivado lo hace este script —copia
+ * `.lighthouseci/` a `.lighthouseci-<pasada>/` en cuanto termina de medir— y
+ * comprueba que el directorio archivado contiene informes; si no, falla.
+ *
+ * ## El resumen se imprime, no sólo se guarda
+ *
+ * El log del job se trunca antes de llegar a las puntuaciones, y un artefacto
+ * puede no subirse. Por eso el script calcula él mismo la MEDIANA de las tres
+ * corridas por ruta y la deja en tres sitios: la salida estándar, el fichero
+ * `.lighthouseci-resumen.json` y, si corre en Actions, el resumen del job
+ * (`GITHUB_STEP_SUMMARY`). La medida no puede depender de que alguien acierte
+ * a descargar un zip.
  *
  * ## Sobre los umbrales
  *
@@ -38,7 +53,15 @@
  *   node scripts/perf/lighthouse-gate.mjs --collect  # sólo mide, no asevera
  */
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import {
+  appendFileSync,
+  cpSync,
+  existsSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -128,6 +151,150 @@ async function esperar(base, intentos = 100) {
   return false;
 }
 
+/**
+ * Donde `lhci collect` deja SIEMPRE los informes, digan lo que digan las opciones.
+ * Absoluto y anclado en RAIZ, que es el `cwd` con el que se lanza lhci: si se
+ * resolviera contra `process.cwd()`, lanzar el script desde `apps/web` haría que
+ * lhci escribiera en un sitio y el resumen leyera en otro.
+ */
+const CRUDO = join(RAIZ, ".lighthouseci");
+
+/**
+ * La mediana, no la media: tres corridas y una que se cruza con el recolector
+ * de basura del runner. La media se lleva ese pico a la nota publicada; la
+ * mediana lo deja donde está, en una corrida de tres.
+ */
+export function mediana(valores) {
+  const orden = [...valores].sort((a, b) => a - b);
+  if (orden.length === 0) return null;
+  const medio = Math.floor(orden.length / 2);
+  return orden.length % 2 === 1 ? orden[medio] : (orden[medio - 1] + orden[medio]) / 2;
+}
+
+function ruta(url) {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return url;
+  }
+}
+
+/**
+ * Lee los `lhr-*.json` de la pasada recién medida y devuelve una fila por ruta
+ * con la mediana de cada categoría y de las tres métricas que explican la nota
+ * de rendimiento cuando baja. Sin esto, para saber qué midió el runner hay que
+ * descargar un zip de 20 MB y abrir nueve JSON a mano.
+ */
+export function resumirPasada(pasada, crudo = CRUDO) {
+  const ficheros = readdirSync(crudo).filter((f) => f.startsWith("lhr-") && f.endsWith(".json"));
+  const porRuta = new Map();
+  for (const fichero of ficheros) {
+    let lhr;
+    try {
+      lhr = JSON.parse(readFileSync(join(crudo, fichero), "utf8"));
+    } catch {
+      continue;
+    }
+    const clave = ruta(lhr.requestedUrl ?? lhr.finalDisplayedUrl ?? lhr.finalUrl ?? "?");
+    if (!porRuta.has(clave)) porRuta.set(clave, []);
+    porRuta.get(clave).push(lhr);
+  }
+  const filas = [];
+  const entradas = [...porRuta.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+  for (const [camino, corridas] of entradas) {
+    const cat = (nombre) =>
+      mediana(corridas.map((l) => l.categories?.[nombre]?.score).filter((v) => typeof v === "number"));
+    const aud = (nombre) =>
+      mediana(
+        corridas.map((l) => l.audits?.[nombre]?.numericValue).filter((v) => typeof v === "number"),
+      );
+    filas.push({
+      pasada,
+      ruta: camino,
+      corridas: corridas.length,
+      rendimiento: cat("performance"),
+      accesibilidad: cat("accessibility"),
+      buenasPracticas: cat("best-practices"),
+      seo: cat("seo"),
+      lcpMs: aud("largest-contentful-paint"),
+      cls: aud("cumulative-layout-shift"),
+      tbtMs: aud("total-blocking-time"),
+    });
+  }
+  return filas;
+}
+
+/**
+ * Copia la pasada a su propio directorio ANTES de que la siguiente la borre, y
+ * comprueba que lo copiado son informes de verdad. Que el directorio exista no
+ * basta: el fallo que esto arregla consistía justamente en un directorio que
+ * nunca llegó a existir mientras todo salía en verde.
+ */
+export function archivarPasada(salida, filas, crudo = CRUDO) {
+  rmSync(salida, { recursive: true, force: true });
+  cpSync(crudo, salida, { recursive: true });
+  const informes = readdirSync(salida).filter((f) => f.startsWith("lhr-") && f.endsWith(".json"));
+  if (informes.length === 0 || filas.length === 0) {
+    console.error(
+      `Lighthouse: se archivó ${salida} pero no contiene ningún informe \`lhr-*.json\`.\n` +
+        "Sin informes no hay medida que publicar, y un gate que mide y no publica no sirve.",
+    );
+    return false;
+  }
+  console.log(`   informes archivados en ${salida} (${informes.length})`);
+  return true;
+}
+
+const pct = (v) => (typeof v === "number" ? Math.round(v * 100) : "—");
+/** LCP en segundos, que es como se lee. */
+const seg = (v) => (typeof v === "number" ? `${(v / 1000).toFixed(2)} s` : "—");
+/** TBT en milisegundos: en segundos, un bloqueo de 159 ms se imprime «0.16 s» y parece nada. */
+const mseg = (v) => (typeof v === "number" ? `${Math.round(v)} ms` : "—");
+const cls3 = (v) => (typeof v === "number" ? v.toFixed(3) : "—");
+
+/**
+ * Publica el resumen por triplicado: consola, fichero y resumen del job. El log
+ * se trunca, el artefacto puede no subirse; el resumen del job sobrevive a los
+ * dos y es donde alguien mira primero cuando el gate se pone rojo.
+ */
+function publicarResumen(filas) {
+  if (filas.length === 0) return;
+  console.log("\n── Mediana de las corridas ──");
+  console.log("pasada      ruta        rend  a11y  bp   seo  LCP      CLS    TBT");
+  for (const f of filas) {
+    console.log(
+      `${f.pasada.padEnd(11)} ${f.ruta.padEnd(11)} ${String(pct(f.rendimiento)).padStart(4)}` +
+        ` ${String(pct(f.accesibilidad)).padStart(5)} ${String(pct(f.buenasPracticas)).padStart(4)}` +
+        ` ${String(pct(f.seo)).padStart(4)}  ${seg(f.lcpMs).padStart(7)} ${cls3(f.cls).padStart(6)}` +
+        ` ${mseg(f.tbtMs).padStart(7)}`,
+    );
+  }
+  writeFileSync(
+    join(RAIZ, ".lighthouseci-resumen.json"),
+    `${JSON.stringify({ generado: "por scripts/perf/lighthouse-gate.mjs", filas }, null, 2)}\n`,
+    "utf8",
+  );
+  const resumenJob = process.env.GITHUB_STEP_SUMMARY;
+  if (!resumenJob) return;
+  const lineas = [
+    "### Lighthouse — mediana de tres corridas por ruta",
+    "",
+    "| pasada | ruta | rendimiento | accesibilidad | buenas prácticas | SEO | LCP | CLS | TBT |",
+    "| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ...filas.map(
+      (f) =>
+        `| ${f.pasada} | \`${f.ruta}\` | ${pct(f.rendimiento)} | ${pct(f.accesibilidad)} |` +
+        ` ${pct(f.buenasPracticas)} | ${pct(f.seo)} | ${seg(f.lcpMs)} | ${cls3(f.cls)} | ${mseg(f.tbtMs)} |`,
+    ),
+    "",
+  ];
+  try {
+    appendFileSync(resumenJob, `${lineas.join("\n")}\n`, "utf8");
+  } catch {
+    /* el resumen es un extra: si no se puede escribir, la tabla ya salió por consola */
+  }
+}
+
 async function main() {
   if (!existsSync(join(WEB, ".next", "BUILD_ID"))) {
     console.error(`No hay build en ${join(WEB, ".next")}. Corre \`npm run build\` antes.`);
@@ -160,24 +327,34 @@ async function main() {
   const soloMedir = process.argv.includes("--collect");
   const env = { ...process.env, CHROME_PATH: chrome };
   let codigo = 0;
+  const filas = [];
   try {
     for (const { nombre, fichero, salida } of CONFIGS) {
       console.log(`\n── Lighthouse · ${nombre} ──`);
-      const medir = spawnSync(
-        "npx",
-        ["--yes", "@lhci/cli", "collect", `--config=${fichero}`, `--outputDir=${salida}`],
-        { cwd: RAIZ, stdio: "inherit", env },
-      );
+      // Sin `--outputDir`: `lhci collect` no la tiene y la ignoraba en silencio.
+      const medir = spawnSync("npx", ["--yes", "@lhci/cli", "collect", `--config=${fichero}`], {
+        cwd: RAIZ,
+        stdio: "inherit",
+        env,
+      });
       if ((medir.status ?? 1) !== 0) {
         codigo = medir.status ?? 1;
         break;
       }
+      // Resumir y archivar ANTES de aseverar: si la aseveración corta la pasada,
+      // la medida que la explica ya está guardada.
+      const filasPasada = resumirPasada(nombre);
+      filas.push(...filasPasada);
+      if (!archivarPasada(join(RAIZ, salida), filasPasada)) {
+        codigo = 1;
+        break;
+      }
       if (soloMedir) continue;
-      const aseverar = spawnSync(
-        "npx",
-        ["--yes", "@lhci/cli", "assert", `--config=${fichero}`, `--outputDir=${salida}`],
-        { cwd: RAIZ, stdio: "inherit", env },
-      );
+      const aseverar = spawnSync("npx", ["--yes", "@lhci/cli", "assert", `--config=${fichero}`], {
+        cwd: RAIZ,
+        stdio: "inherit",
+        env,
+      });
       if ((aseverar.status ?? 1) !== 0) {
         console.error(`Lighthouse ${nombre}: por debajo del umbral.`);
         codigo = aseverar.status ?? 1;
@@ -185,11 +362,13 @@ async function main() {
     }
   } finally {
     matarGrupo(servidor);
+    publicarResumen(filas);
   }
 
   if (codigo !== 0) {
     console.error(
-      "\nGate de Lighthouse: FALLÓ. El informe completo está en `.lighthouseci/`.\n" +
+      "\nGate de Lighthouse: FALLÓ. Los informes están en `.lighthouseci-escritorio/` y\n" +
+        "`.lighthouseci-movil/`, y la tabla de medianas de arriba dice qué ruta y qué métrica.\n" +
         "Antes de tocar la página, comprueba si el fallo es de la página o de la máquina: " +
         "un runner cargado hunde la puntuación de rendimiento sin que el producto haya cambiado.",
     );
@@ -199,7 +378,12 @@ async function main() {
   process.exit(codigo);
 }
 
-main().catch((e) => {
-  console.error(e?.stack ?? String(e));
-  process.exit(1);
-});
+// Sólo se mide cuando se EJECUTA este fichero. Su spec lo importa para
+// ejercitar las funciones puras, y sin esta guarda cada `node --test` arrancaría
+// un `next start` y cuatro minutos de Chrome.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((e) => {
+    console.error(e?.stack ?? String(e));
+    process.exit(1);
+  });
+}

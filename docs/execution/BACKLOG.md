@@ -325,32 +325,42 @@ ante operación sin marca. **Estimación:** medio día.
 ### P1-FE1 · Los umbrales de rendimiento de Lighthouse están sin calibrar
 - **Qué falta:** el gate `npm run check:lighthouse` corre dos pasadas —
   escritorio y móvil— y el umbral de **rendimiento** está en `warn` y no en
-  `error` en las dos, por dos razones distintas. **Móvil:** nunca se midió
-  limpio — la única medida se tomó con la máquina ocupada por la suite de
-  navegador y dio 61-71 con un LCP de 9,8 s, que es un número del contenedor y
-  no del producto. **Escritorio:** sí se midió limpio (93 / 94 / 95, LCP
-  1,5-1,7 s, CLS 0) pero **en el contenedor de desarrollo**, y ese número no se
-  traslada al runner de CI, que es más pequeño y compartido. Un umbral heredado
-  de otra máquina produce rojos que nadie sabe interpretar, y eso enseña a
-  ignorar los rojos.
+  `error` en las dos. **Ya no falta la medida limpia:** el 2026-08-29, con el
+  gate arreglado y la máquina en reposo, las dos pasadas salieron del mismo
+  arranque y dieron **escritorio 93 / 94 / 94** (LCP 1,6-1,8 s) y **móvil
+  73 / 74 / 75** (LCP 8,7-9,0 s), con accesibilidad **100 en las seis**. Lo que
+  falta es el número del **runner**: el contenedor de desarrollo no es la
+  máquina donde el umbral va a bloquear, y un umbral heredado de otra máquina
+  produce rojos que nadie sabe interpretar, que es lo que enseña a ignorarlos.
+  **Y el móvil no llega a 90 porque el producto no está en 90** — eso no se
+  arregla con el umbral: tiene entrada propia en **P1-FE6**, con el desglose de
+  bytes que lo explica.
 - **La accesibilidad SÍ bloquea** en 0,95 en ambas pasadas: esa no depende de lo
   rápida que sea la máquina.
 - **Dónde:** `scripts/perf/lighthouserc.mobile.json`, clave
   `categories:performance`.
 - **Cómo se cierra:** el gate **ya corre en CI y pasa** (primera corrida verde
-  sobre `58e0dd8`), y desde ese mismo commit el job publica los informes como
-  artefacto `lighthouse-<sha>` — hizo falta porque el log del job se trunca
-  antes de llegar a ese paso, así que el gate medía y nadie podía leer el
-  número. Descargar ese artefacto, leer la mediana de las tres corridas por ruta
-  en `.lighthouseci-escritorio/` y `.lighthouseci-movil/`, y fijar el umbral en
-  lo medido menos margen. Para una medida local equivalente:
+  sobre `58e0dd8`). El artefacto `lighthouse-<sha>` que debía traer el número se
+  añadió en `b16008f` y **salió vacío**: `lhci collect` no admite `--outputDir`
+  —esa opción es de `lhci upload --target=filesystem`— y yargs la ignoraba en
+  silencio, así que los informes caían siempre en `.lighthouseci/`, la pasada
+  móvil borraba la de escritorio y el paso de subida no encontraba nada; con
+  `if-no-files-found: warn` terminaba en verde en un segundo. Arreglado: el
+  script archiva cada pasada él mismo y **falla si lo archivado no trae
+  informes**, publica la mediana por ruta en consola, en
+  `.lighthouseci-resumen.json` y en el resumen del job, y el paso de CI pasa a
+  `if-no-files-found: error`. Con eso, leer la mediana de las tres corridas por
+  ruta y fijar el umbral en lo medido menos margen. Para una medida local
+  equivalente:
   `node scripts/perf/lighthouse-gate.mjs --collect` con la máquina en reposo
   (sin suite, sin build en paralelo).
-  Si el producto no llega a 90 en móvil, el umbral se fija donde esté y se abre
-  una entrada propia con lo que hay que adelgazar — bajar el listón sin decirlo
-  es lo único que no vale.
-- **Criterio de aceptación:** el umbral móvil pasa a `error` con su número
-  medido escrito en el JSON, y la bitácora de la campaña lo recoge.
+  El producto NO llega a 90 en móvil (73-75 medido en reposo), así que el umbral
+  móvil se fija donde esté —no en 90— y lo que hay que adelgazar va en
+  **P1-FE6**. Bajar el listón sin decirlo es lo único que no vale; fijarlo donde
+  está la realidad, con la entrada de mejora abierta al lado, sí.
+- **Criterio de aceptación:** los dos umbrales de rendimiento pasan a `error`
+  con el número del runner menos margen escrito en su JSON, y la bitácora de la
+  campaña recoge la tabla del runner junto a la del contenedor.
 - **Estimación:** 20 minutos de máquina en reposo.
 
 ### P1-FE2 · El monolito del editor: los tres bloques que quedan
@@ -429,6 +439,72 @@ ante operación sin marca. **Estimación:** medio día.
 - **Criterio de aceptación:** el presupuesto llega a 0 y el gate pasa a
   prohibición.
 - **Estimación:** se paga a plazos, con las extracciones.
+
+### P1-FE6 · El 74 % de la portada son tipografías, y por eso el móvil da 74
+
+- **Qué pasa:** medido con Lighthouse en el contenedor de desarrollo, máquina en
+  reposo, mediana de tres corridas (ver la tabla completa en
+  `docs/execution/CAMPANA_FRONTEND_20260829.md`, sección 1.5): en **móvil** la
+  portada da **73** de rendimiento con un **LCP de 8,9 s**. Escritorio da 93. La
+  diferencia no es misteriosa y no está en el JavaScript.
+- **El desglose de bytes de la portada** (misma corrida, `/`, emulado móvil):
+
+  | Tipo | Peso transferido |
+  | --- | ---: |
+  | **Tipografías** | **1 093,1 KB** |
+  | Script | 262,3 KB |
+  | Documento | 55,9 KB |
+  | Imagen | 26,2 KB |
+  | Hoja de estilo | 21,1 KB |
+  | Resto | 17,6 KB |
+  | **Total** | **1 476,3 KB** |
+
+  **El 74 % de la portada son tipografías.** El presupuesto de bundle y el gate
+  de bytes descargados estaban vigilando los 262 KB de script mientras el
+  megabyte largo pasaba por delante sin que nadie lo mirara.
+- **Y la fase lo confirma:** el desglose del LCP de ese informe da **TTFB 458 ms,
+  Load Delay 0, Load Time 0, Render Delay 8 333 ms (95 %)**. El elemento LCP es
+  un párrafo de texto (`p.type-lead` del hero), no una imagen: no hay nada que
+  descargar para pintarlo. Las tres familias van con `display: "swap"`, así que
+  el texto pinta pronto con el respaldo —FCP 1,1 s, Speed Index 1,7 s, CLS 0—
+  pero **vuelve a pintar cuando llega la variable**, y ese repintado es el que
+  se anota como LCP. Con 1,09 MB de fuentes en una red 4G estrangulada, eso cae
+  a los ocho segundos y pico.
+- **Dónde está el peso, fichero a fichero** (`apps/web/src/fonts/`):
+
+  | Fichero | Formato | Peso |
+  | --- | --- | ---: |
+  | `InterVariable-Italic.woff2` | WOFF2 | 378,9 KB |
+  | `InterVariable.woff2` | WOFF2 | 344,0 KB |
+  | `JetBrainsMono-Italic-wght.ttf` | **TTF** | 301,6 KB |
+  | `JetBrainsMono-wght.ttf` | **TTF** | 293,1 KB |
+  | `SpaceGrotesk-wght.ttf` | **TTF** | 133,5 KB |
+
+- **Las tres cosas que se ven a simple vista, en orden de rendimiento por
+  esfuerzo:**
+  1. **Tres de las cinco fuentes se sirven en TTF, no en WOFF2** (728 KB de las
+     1 093). WOFF2 es el mismo contorno con compresión Brotli: la conversión no
+     toca el diseño de la letra ni la identidad, y suele dejar el fichero en
+     torno a un tercio. Es la mitad del problema y no cambia ni un píxel.
+  2. **Las dos cursivas suman 681 KB** y la portada no usa cursiva. `next/font`
+     precarga todas las variantes declaradas en el `layout`, se usen o no en la
+     ruta que se está sirviendo.
+  3. **JetBrains Mono es del estudio, no de la portada**: existe por la línea de
+     órdenes, las coordenadas del cursor y las cifras en columna. Un visitante
+     que sólo lee la portada se descarga 595 KB de una mono que no aparece.
+- **Lo que NO se hace:** cambiar las familias. La voz tipográfica la fijó la
+  campaña de firma y no se reabre por rendimiento; lo que se ataca es el formato
+  y el alcance, no el diseño.
+- **Cuidado con el gate que ya existe:** `check:fonts` prohíbe que
+  `next/font/google` vuelva. La conversión a WOFF2 y el recorte de variantes se
+  hacen dentro de `next/font/local`, con los ficheros versionados en el repo,
+  sin tocar esa prohibición.
+- **Criterio de aceptación:** la portada baja de 1 093 KB de tipografía a menos
+  de 350 KB, el LCP móvil baja de 8,9 s a menos de 4 s, y el rendimiento móvil
+  medido en reposo sube por encima de 85. Los tres números se publican con su
+  máquina y sus condiciones, como todos los demás.
+- **Estimación:** 2 horas — la conversión es mecánica, el recorte de alcance
+  pide mirar dónde se usa cada familia.
 
 ### P2-FE5 · Las plantillas no se pueden diferir desde la paleta
 - **Qué se descubrió:** `lib/cad/templates.ts` son 4 982 líneas de datos que

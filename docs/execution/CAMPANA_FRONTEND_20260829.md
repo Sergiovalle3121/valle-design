@@ -506,26 +506,64 @@ duplicaría el arranque en un job que ya va largo y, peor, abriría la puerta a 
 del que se publica.
 
 Un fallo del propio medidor, encontrado al usarlo: `lhci collect` vuelca **siempre** en
-`.lighthouseci/` si no se le dice otra cosa (`upload.outputDir` es de otro paso), así que la primera
-versión dejaba la pasada móvil pisando la de escritorio y publicó una tabla con los números
-mezclados. Cada pasada lleva ahora su `--outputDir`.
+`.lighthouseci/` y **borra** lo que hubiera antes, así que la primera versión dejaba la pasada móvil
+pisando la de escritorio y publicó una tabla con los números mezclados.
 
-**Medido en escritorio, con la máquina en reposo:**
+Y aquí viene el segundo fallo, que es el interesante, porque el arreglo del primero fue falso
+durante dos commits. Le pasé `--outputDir` a `collect` y di el asunto por cerrado. **Esa opción no
+existe en `lhci collect`** —es de `lhci upload --target=filesystem`— y yargs la acepta sin protestar.
+El gate siguió aseverando bien, porque `assert` lee el mismo `.lighthouseci/` donde `collect` acababa
+de escribir; lo que dejó de funcionar fue todo lo demás. Cuando en `b16008f` añadí el paso de CI que
+sube `.lighthouseci-escritorio/` y `.lighthouseci-movil/`, ese paso terminó **en verde, en un
+segundo, sin subir nada**, porque esos directorios nunca habían existido. Con `if-no-files-found:
+warn`, el aviso murió dentro de un log que se trunca antes de llegar a él: el gate medía
+correctamente y nadie podía leer lo que medía, que es justo el dato que le faltaba a **P1-FE1**.
 
-| Ruta | Rendimiento | Accesibilidad | Buenas prácticas | SEO | LCP | CLS | TBT |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `/` | **93** | 100 | 96 | 100 | 1 711 ms | 0,000 | 19 ms |
-| `/register` | **94** | 100 | 96 | 100 | 1 668 ms | 0,000 | 23 ms |
-| `/precios` | **95** | 100 | 96 | 100 | 1 564 ms | 0,022 | 0 ms |
+**La lección, escrita para la próxima:** una opción aceptada en silencio no es una opción aplicada.
+Ni `--outputDir` en la línea de órdenes ni `collect.outputDir` en el JSON produjeron el más mínimo
+error; produjeron exactamente el mismo verde que si hubieran funcionado. Verificar que un comando
+sale con código 0 no verifica que haya hecho lo que le pediste — hay que mirar el efecto. Un `ls` del
+directorio que debía crearse habría bastado, y no lo hice.
 
-Los umbrales quedan en 90 (rendimiento) y 95 (accesibilidad), que es lo que el enunciado pide y lo
-que lo medido sostiene con margen en escritorio.
+El arreglo, en tres sitios porque un solo sitio se vuelve a romper en silencio:
 
-> **Lo que falta decir, y se dice:** la pasada **móvil** no está calibrada. La única medida móvil que
-> tomé salió con la máquina ocupada por la suite de navegador y dio 61-71 de rendimiento con un LCP
-> de 9,8 s — un número del contenedor, no del producto. Publicarlo como línea base sería inventar.
-> Queda en el backlog **P1-FE1**: medir móvil con la máquina en reposo y calibrar ese umbral. El gate
-> queda escrito y funcionando; el umbral móvil hay que ganárselo con una medida limpia.
+1. **El archivado lo hace el script**, que copia `.lighthouseci/` a `.lighthouseci-<pasada>/` en
+   cuanto termina de medir y **falla si lo archivado no contiene informes**. Que el directorio exista
+   no basta: el fallo consistía precisamente en un directorio que nunca llegó a existir.
+2. **El resumen se publica por triplicado** —consola, `.lighthouseci-resumen.json` y el resumen del
+   job de Actions— con la **mediana** de las tres corridas por ruta. Mediana y no media: tres
+   corridas y una que se cruza con el recolector de basura del runner, y la media se lleva ese pico a
+   la nota publicada. La medida no puede depender de que alguien acierte a descargar un zip.
+3. **El paso de CI pasa a `if-no-files-found: error`.** Un aviso en un log truncado no es una señal.
+
+**Medido con el gate ya arreglado, las dos pasadas del mismo arranque, contenedor de desarrollo de
+4 núcleos con la máquina en reposo. Cada celda es la MEDIANA de tres corridas:**
+
+| Pasada | Ruta | Rendimiento | Accesibilidad | Buenas prácticas | SEO | LCP | CLS | TBT |
+| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| escritorio | `/` | **93** | 100 | 96 | 100 | 1 797 ms | 0,000 | 0 ms |
+| escritorio | `/precios` | **94** | 100 | 96 | 100 | 1 615 ms | 0,022 | 0 ms |
+| escritorio | `/register` | **94** | 100 | 96 | 100 | 1 620 ms | 0,000 | 0 ms |
+| móvil | `/` | **73** | 100 | 96 | 100 | 8 940 ms | 0,000 | 159 ms |
+| móvil | `/precios` | **74** | 100 | 96 | 100 | 8 712 ms | 0,061 | 108 ms |
+| móvil | `/register` | **75** | 100 | 96 | 100 | 9 017 ms | 0,000 | 98 ms |
+
+La pasada de escritorio confirma la medida anterior de la campaña (93 / 94 / 95, LCP 1,5-1,7 s) con
+otra corrida distinta: el número es estable, no fue suerte.
+
+La pasada **móvil** es la que faltaba: la única medida previa —61-71, LCP 9,8 s— se había tomado con
+la máquina ocupada por la suite de navegador, y era la razón por la que el umbral móvil seguía sin
+calibrar. Con la máquina quieta el producto da **73-75**, no 90. Eso no se disimula: **el umbral móvil no se pone en 90 porque el
+producto no está en 90**, y el gate seguirá en aviso en esa pasada hasta que se fije donde
+corresponde, con la medida del runner delante. Lo que hay que adelgazar tiene entrada propia
+(**P1-FE6**), y el número que lo explica es el LCP: casi nueve segundos con la CPU 4× más lenta y la
+red estrangulada. La accesibilidad, en cambio, da **100 en las seis medidas** y bloquea en las dos
+pasadas — esa no depende de lo rápida que sea la máquina.
+
+> **Lo que falta, y se dice:** estas seis cifras son de **este contenedor**, no del runner de CI, y
+> para un umbral que bloquea hace falta el número de la máquina donde va a bloquear. Hasta ahora no
+> se tenía porque el artefacto salía vacío; a partir de este commit el propio job lo publica en su
+> resumen. **P1-FE1** se cierra con esa lectura: umbral en lo medido en el runner menos margen.
 
 ### 1.6 · React Compiler: **NO se adopta**
 

@@ -10,8 +10,7 @@
       "numberOfRuns": 3,
       "settings": {
         "chromeFlags": "--no-sandbox --headless=new --disable-dev-shm-usage"
-      },
-      "outputDir": "./.lighthouseci-movil"
+      }
     },
     "assert": {
       "assertions": {
@@ -40,12 +39,8 @@
           }
         ]
       },
-      "//outputDir": "Se asevera sobre el mismo directorio en el que se midió.",
-      "//rendimiento": "El umbral de RENDIMIENTO movil esta en `warn` y no en `error` a proposito, y es temporal: la unica medida movil que tenemos se tomo con la maquina ocupada por la suite de navegador (61-71 de rendimiento, LCP 9,8 s) y no representa al producto. Poner un `error` sobre un numero que no se ha medido limpio es fabricar rojos que nadie sabe interpretar. La accesibilidad SI bloquea: esa no depende de la carga de la maquina. Ver P1-FE1 en docs/execution/BACKLOG.md."
-    },
-    "upload": {
-      "target": "filesystem",
-      "outputDir": "./.lighthouseci-movil"
+      "//outputDir": "`lhci collect` NO admite `outputDir` —es de `upload --target=filesystem`— y lo ignoraba en silencio, así que los informes siempre caían en `.lighthouseci/` y la pasada móvil pisaba la de escritorio. El archivado a `.lighthouseci-escritorio/` y `.lighthouseci-movil/` lo hace ahora scripts/perf/lighthouse-gate.mjs, que además comprueba que lo archivado contiene informes.",
+      "//rendimiento": "MEDIDO limpio el 2026-08-29 en el contenedor de desarrollo (4 nucleos, maquina en reposo, mediana de tres corridas por ruta): 73 / 74 / 75 de rendimiento con LCP de 8,7-9,0 s y accesibilidad 100. La medida anterior (61-71, LCP 9,8 s) se habia tomado con la maquina ocupada por la suite de navegador y no valia. El umbral sigue en `warn` por DOS razones, y las dos hay que resolverlas antes de pasarlo a `error`: (1) el producto no esta en 90 en movil y bajar el liston en silencio no vale — lo que hay que adelgazar esta en P1-FE6 del BACKLOG, con el desglose de bytes: el 74 % de la portada son tipografias; (2) este numero es del contenedor, no del runner de CI, y un umbral que bloquea se fija con el numero de la maquina donde bloquea. El job publica ahora esa tabla en su resumen; ver P1-FE1. La ACCESIBILIDAD si bloquea en 0,95: esa no depende de lo rapida que sea la maquina."
     }
   }
 }

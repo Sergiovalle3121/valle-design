@@ -212,6 +212,11 @@ jobs:
       # trunca antes de llegar a ellas: el gate corre y nadie puede leer lo que
       # midió. Es exactamente el dato que le falta a P1-FE1 para calibrar el
       # umbral de rendimiento, que hoy está en aviso por no tenerlo.
+      #
+      # `if-no-files-found: error`, y no `warn`, porque la primera versión de
+      # este paso subió CERO ficheros y terminó en verde en un segundo: el gate
+      # medía y nadie podía leerlo, que es el fallo exacto que este paso existe
+      # para evitar. Un aviso en un log truncado no es una señal.
       - name: Subir informes de Lighthouse
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -220,7 +225,8 @@ jobs:
           path: |
             .lighthouseci-escritorio/
             .lighthouseci-movil/
-          if-no-files-found: warn
+            .lighthouseci-resumen.json
+          if-no-files-found: error
           retention-days: 14
 
       - name: Typecheck (API)

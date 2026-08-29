@@ -13,8 +13,7 @@
         "//": "El emulado por defecto de Lighthouse es un móvil de gama media con red 4G lenta. Es el caso que importa: el arquitecto con el wifi del café, no el portátil del equipo.",
         "preset": "desktop",
         "chromeFlags": "--no-sandbox --headless=new --disable-dev-shm-usage"
-      },
-      "outputDir": "./.lighthouseci-escritorio"
+      }
     },
     "assert": {
       "//": "Los umbrales salen de lo MEDIDO en este contenedor con margen, no de un número redondo. Ver docs/execution/CAMPANA_FRONTEND_20260829.md.",
@@ -44,12 +43,8 @@
           }
         ]
       },
-      "//outputDir": "Se asevera sobre el mismo directorio en el que se midió.",
-      "//rendimiento": "Medido en el contenedor de desarrollo (4 nucleos, maquina en reposo): 93 / 94 / 95 en escritorio, con LCP de 1,5-1,7 s y CLS 0. Ese numero NO se traslada al runner de CI, que es mas pequeno y compartido, y todavia no se ha medido alli. Hasta tenerlo, el umbral de RENDIMIENTO va en `warn`: un gate que falla por la carga de la maquina y no por la pagina ensena a ignorar los rojos, que es peor que no tener gate. La ACCESIBILIDAD si bloquea en 0,95 — esa no depende de lo rapida que sea la maquina. La primera corrida en CI produce la medida que falta; ver P1-FE1 en docs/execution/BACKLOG.md."
-    },
-    "upload": {
-      "target": "filesystem",
-      "outputDir": "./.lighthouseci-escritorio"
+      "//outputDir": "`lhci collect` NO admite `outputDir` —es de `upload --target=filesystem`— y lo ignoraba en silencio, así que los informes siempre caían en `.lighthouseci/` y la pasada móvil pisaba la de escritorio. El archivado a `.lighthouseci-escritorio/` y `.lighthouseci-movil/` lo hace ahora scripts/perf/lighthouse-gate.mjs, que además comprueba que lo archivado contiene informes.",
+      "//rendimiento": "Medido en el contenedor de desarrollo (4 nucleos, maquina en reposo): 93 / 94 / 95 en escritorio la primera vez y 93 / 94 / 94 en la corrida del 2026-08-29 con el gate arreglado, con LCP de 1,6-1,8 s y CLS 0 — el numero es estable. Ese numero NO se traslada al runner de CI, que es mas pequeno y compartido, y todavia no se ha medido alli. Hasta tenerlo, el umbral de RENDIMIENTO va en `warn`: un gate que falla por la carga de la maquina y no por la pagina ensena a ignorar los rojos, que es peor que no tener gate. La ACCESIBILIDAD si bloquea en 0,95 — esa no depende de lo rapida que sea la maquina. El job publica ahora la tabla del runner en su resumen; ver P1-FE1 en docs/execution/BACKLOG.md."
     }
   }
 }
