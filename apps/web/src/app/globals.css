@@ -629,6 +629,92 @@
   }
 }
 
+/* La primitiva única de aparición por scroll (RevealOnScroll, campaña de
+   sitio). Solo transform/opacity; el estado oculto lo pone el OBSERVADOR al
+   montar (`reveal-pending`), nunca el servidor — sin JavaScript la página es
+   visible entera. `prefers-reduced-motion` la aplasta desde la regla global
+   de arriba: transición de 0,001 ms = aparece colocada. */
+.reveal-on-scroll {
+  transition:
+    opacity var(--duration-slow) var(--ease-out-expo),
+    transform var(--duration-slow) var(--ease-out-expo),
+    visibility 0s;
+}
+.reveal-on-scroll.reveal-pending {
+  opacity: 0;
+  transform: translateY(14px);
+  /* `visibility` además de `opacity`, con razón de accesibilidad: un texto a
+     opacity 0 sigue siendo «contenido» para las herramientas (axe lo mide
+     mezclado contra el fondo y da 1:1); oculto de verdad no se evalúa ni se
+     anuncia. La transición lo voltea a visible en el mismo frame del reveal. */
+  visibility: hidden;
+}
+
+/* ===========================================================================
+   SHOWCASE PEGAJOSO (portada, campaña de sitio) — comandos tecleándose.
+   Cada carácter es un <span> con su retraso: SOLO opacity (cero layout, cero
+   clip). El caret late con transform/opacity. Las escenas se re-animan al
+   activarse porque `is-active` reinicia las animaciones CSS del subárbol.
+   `prefers-reduced-motion` aplasta todo al fotograma final desde la regla
+   global (texto completo, trazos dibujados) — misma información, sin teatro.
+   =========================================================================== */
+@keyframes valle-char-in {
+  to {
+    opacity: 1;
+  }
+}
+.showcase-scene .cmd-char {
+  opacity: 0;
+}
+.showcase-scene.is-active .cmd-char {
+  animation: valle-char-in 1ms steps(1) forwards;
+  animation-delay: var(--char-delay, 0ms);
+}
+@keyframes valle-caret-blink {
+  0%,
+  55% {
+    opacity: 1;
+  }
+  56%,
+  100% {
+    opacity: 0;
+  }
+}
+.showcase-scene.is-active .cmd-caret {
+  animation: valle-caret-blink 1.1s steps(1) infinite;
+}
+/* Trazo que se dibuja UNA vez al activar la escena, con retraso propio. */
+.showcase-scene .scene-draw {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  pathLength: 1;
+}
+.showcase-scene.is-active .scene-draw {
+  animation: valle-stroke-draw var(--duration-draw) var(--ease-draw) forwards;
+  animation-delay: var(--draw-delay, 0ms);
+}
+.showcase-scene .scene-fade {
+  opacity: 0;
+}
+.showcase-scene.is-active .scene-fade {
+  animation: valle-draw-fade var(--duration-slow) var(--ease-out-expo) forwards;
+  animation-delay: var(--draw-delay, 0ms);
+}
+@media (prefers-reduced-motion: reduce) {
+  .showcase-scene .cmd-char,
+  .showcase-scene .scene-fade {
+    opacity: 1 !important;
+    animation: none !important;
+  }
+  .showcase-scene .scene-draw {
+    animation: none !important;
+    stroke-dashoffset: 0 !important;
+  }
+  .showcase-scene .cmd-caret {
+    animation: none !important;
+  }
+}
+
 /* ===========================================================================
    DISEÑO ESCRITO QUE AÚN NO SE CONSUME — inventario con dueño
    ---------------------------------------------------------------------------

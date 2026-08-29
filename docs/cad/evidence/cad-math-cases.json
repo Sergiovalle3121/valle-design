@@ -1,0 +1,6 @@
+{
+  "generatedBy": "scripts/cad/check-cad-math.mjs --write",
+  "totalCases": 761,
+  "outOfTolerance": 0,
+  "suites": 10
+}

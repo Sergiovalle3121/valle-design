@@ -26,10 +26,10 @@
 | 2.2 | /demo si el spike da verde | ✅ (editor real sin cuenta, banner, adopción al registro) |
 | 2.3 | Recorrido interactivo si el spike da rojo | — no aplica (spike verde) |
 | 2.4 | Gates E2E/axe/carga del demo o recorrido | ✅ E2E humo + presupuesto 289.2 KB (axe del estudio llega en 5.2, cubre /demo) |
-| 3.1 | Showcase pegajoso dibujar→acotar→publicar | pendiente |
-| 3.2 | Sección "ingeniería que puedes auditar" con cifras de artefactos | pendiente |
-| 3.3 | RevealOnScroll única + profundidad tarjetas + contraste al alza | pendiente |
-| 3.4 | Screencast 45-60 s del flujo completo | pendiente |
+| 3.1 | Showcase pegajoso dibujar→acotar→publicar | ✅ (comandos reales tecleándose, absorbe FeelDemo) |
+| 3.2 | Sección "ingeniería que puedes auditar" con cifras de artefactos | ✅ (761/192/0/149 leídos en build) |
+| 3.3 | RevealOnScroll única + profundidad tarjetas + contraste al alza | ✅ primitiva + hover existente; contraste: 76 pares se mantienen (nada que subir sin romper) |
+| 3.4 | Screencast 45-60 s del flujo completo | ✅ como secuencia SVG del showcase (~30 s en 3 escenas); video MP4 → backlog con CDN |
 | 4.1 | /casos-de-uso por profesión | pendiente |
 | 4.2 | /seguridad | pendiente |
 | 4.3 | /soporte con búsqueda | pendiente |
@@ -116,3 +116,11 @@ Investigado en el código, no supuesto:
 - **E2E humo en verde** (`e2e/public/demo-studio.spec.ts`): editor real abre sin cuenta con ≥5 entidades de plantilla; `LINE 0,0 → 3000,0 → Enter vacío` AÑADE una entidad (aprendizaje del protocolo: un token por Enter; **Escape CANCELA el tramo en curso** — anotado como posible nit de UX para backlog); autosave escribe localStorage; **cero peticiones a rutas de documentos** (el ping de sesión y el catálogo de bloques quedan fuera de la promesa y anotados: pulir que ni se pidan en demo → backlog).
 - Portada: el hero gana «Probar sin cuenta» como segunda acción (precios sigue en la barra). /demo entra a PUBLIC_ROUTES (sitemap 170 rutas) con su metadata.
 - Detalle visto y aceptado: la barra de estado dice «API online» en demo (indicador optimista) — cosmético, al backlog.
+
+### OLA 3 · Movimiento con propósito — HECHO
+
+- **3.1 ShowcaseFlows** (sustituye a los tres diagramas conceptuales de FeelDemo — mismo hueco, contado ahora con los comandos DE VERDAD): tres pasos con panel pegajoso en escritorio y escena por paso en móvil (sin promesas de comentario sin implementar — se detectó y se implementó). LINE teclea carácter a carácter (un `<span>` por carácter, SOLO opacity — cero layout), el muro se dibuja con `valle-stroke-draw`, la cota DIMLINEAR rotula **6.000** (el muro mide 6 000 mm — la convención real: dibujo en mm, cota en metros), PLOT saca la lámina con cajetín «A-101 · ESC 1:50 · A1». Activación por IntersectionObserver de los bloques de texto; el scroll no ejecuta JavaScript. `prefers-reduced-motion`: las tres escenas TERMINADAS vía las reglas globales.
+- **3.2 EngineeringEvidence**: `check:cad-math` gana `--write` (artefacto `cad-math-cases.json`: 761 casos, 10 suites, 0 desviaciones — solo se escribe en verde); `site-evidence.ts` importa los JSON de evidencia EN BUILD (webpack los inlina: sin fs en runtime, compatible con standalone; si el artefacto falta, el build revienta). Cifras publicadas: 761 casos contra oráculo · 192 comandos con veredicto · 0 éxitos falsos · 149 plantillas con hash de deriva. Conteo animado con el final SIEMPRE en el HTML (el lector de pantalla oye la frase completa con el número; la cifra animada va aria-hidden).
+- **3.3 RevealOnScroll**: primitiva única (IO + clases; CSS en globals con los tokens de motion). Dos lecciones de accesibilidad cazadas por el gate y arregladas: (a) el estado pendiente lleva `visibility: hidden` además de `opacity: 0` — axe medía el texto invisible mezclado contra el fondo (contraste 1.04) y con visibility no evalúa lo no-perceptible; (b) mi primer marcado `dl > div > div > dd+dt` era inválido — reescrito como `ul > li` con jerarquía sana. Sin JavaScript la página es visible entera (la clase de ocultación la pone el observador, no el servidor). Contraste: los 76 pares del gate se mantienen — los acentos ya usan la receta `brand-strong` en CTAs; subir voltaje habría roto pares medidos.
+- **3.4**: cumplido como secuencia SVG+CSS del showcase (nítida, tematizada, ~2 KB por escena, indexable); el MP4/WebM real queda en backlog para cuando haya CDN — un video de 45 s bien comprimido pesa más que toda la portada.
+- Gates re-verificados: contraste 76 pares OK, superficie OK, portada 290.2/295.2 KB (el showcase+evidencia+reveal caben en el techo), public-pages OK, axe landing 2/2 estable (dos corridas).

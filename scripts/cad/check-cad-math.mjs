@@ -20,7 +20,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -170,3 +170,28 @@ if (failed > 0) {
 console.log(
   `\n${total} casos numéricos verificados contra oráculo independiente · 0 desviaciones fuera de tolerancia.`,
 );
+
+/**
+ * `--write` publica el recuento como ARTEFACTO para que la superficie pública
+ * («ingeniería que puedes auditar», campaña de sitio) lea la cifra medida en
+ * vez de escribirla a mano. Solo se escribe cuando TODO está en verde: un
+ * artefacto de evidencia con suites en rojo no existe.
+ */
+if (process.argv.includes("--write")) {
+  const artifact = path.join(root, "docs/cad/evidence/cad-math-cases.json");
+  writeFileSync(
+    artifact,
+    `${JSON.stringify(
+      {
+        generatedBy: "scripts/cad/check-cad-math.mjs --write",
+        totalCases: total,
+        outOfTolerance: 0,
+        suites: specs.length,
+      },
+      null,
+      2,
+    )}\n`,
+    "utf8",
+  );
+  console.log(`Artefacto escrito: ${path.relative(root, artifact)}`);
+}

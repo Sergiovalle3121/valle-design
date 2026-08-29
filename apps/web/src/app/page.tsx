@@ -17,9 +17,10 @@ import { JsonLd } from "@/components/JsonLd";
 import { PublicNav } from "@/components/PublicNav";
 import { SkipLink } from "@/components/SkipLink";
 import { Logo } from "@/components/brand/Logo";
+import { EngineeringEvidence } from "@/components/marketing/EngineeringEvidence";
 import { FaqCenter } from "@/components/marketing/FaqCenter";
 import { FeaturedTemplates } from "@/components/gallery/FeaturedTemplates";
-import { FeelDemos } from "@/components/marketing/FeelDemo";
+import { ShowcaseFlows } from "@/components/marketing/ShowcaseFlows";
 import { FreeLaunchNote } from "@/components/marketing/FreeLaunchNote";
 import { HeroBackdrop } from "@/components/marketing/HeroBackdrop";
 import { PlanViewport } from "@/components/marketing/PlanViewport";
@@ -453,11 +454,11 @@ export default function LandingPage() {
         <Band id="tacto">
           <SectionHead
             id="tacto"
-            eyebrow="Así se siente"
-            title="Lo que una captura no puede enseñarte"
-            lead="Un plano terminado demuestra que el programa existe. Estas tres cosas son las que de verdad decides al usarlo: si el cursor se pega al punto exacto, si la cota sigue diciendo la verdad después de mover el muro, y si la lámina sale con el tamaño de página que pediste."
+            eyebrow="Dibujar · acotar · publicar"
+            title="Así se trabaja, con los comandos de verdad"
+            lead="Un plano terminado demuestra que el programa existe; esto enseña cómo se llega a él. Tres pasos con los comandos reales del producto: la línea de comandos tecleándose, la cota naciendo con su valor verdadero y la lámina saliendo a escala con su cajetín."
           />
-          <FeelDemos className="mt-12" />
+          <ShowcaseFlows />
         </Band>
 
         {/* ── EL PLANO YA ESTÁ EMPEZADO ──────────────────────────────────── */}
@@ -569,6 +570,17 @@ export default function LandingPage() {
               </div>
             ))}
           </dl>
+        </Band>
+
+        {/* ── INGENIERÍA AUDITABLE ───────────────────────────────────────── */}
+        <Band id="evidencia">
+          <SectionHead
+            id="evidencia"
+            eyebrow="Prueba social de ingeniería"
+            title="Ingeniería que puedes auditar"
+            lead="Un producto nuevo no tiene testimonios; tiene evidencia. Estas cifras las genera la integración continua en cada corrida y viven como artefactos en el repositorio — la página las lee de ahí, no puede inventarlas."
+          />
+          <EngineeringEvidence />
         </Band>
 
         {/* ── GUÍAS ──────────────────────────────────────────────────────── */}
