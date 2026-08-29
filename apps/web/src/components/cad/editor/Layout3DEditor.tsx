@@ -412,6 +412,20 @@ import {
 } from "@/lib/cad/entity-runtime";
 import { cadEntityLabels } from "@/lib/cad/entity-labels";
 import { CadNativeSelectionHeading } from "../palettes/CadNativeSelectionHeading";
+import {
+  CadCellsDialog,
+  CadCloneFromTemplateDialog,
+  CadHelpOverlay,
+} from "../dialogs/CadStudioDialogs";
+import {
+  CadTakeoffDialog,
+  type CadLocalTakeoff,
+} from "../dialogs/CadTakeoffDialog";
+import { CadVersionsDialog } from "../dialogs/CadVersionsDialog";
+import { CadDxfExportDialog } from "../dialogs/CadDxfExportDialog";
+import { CadDesignReportDialog } from "../dialogs/CadDesignReportDialog";
+import { fmtArea, fmtDist } from "../studio/format-units";
+import { guardCadWebglContext } from "../viewport/webgl-context-guard";
 import { CadNativeEntityList } from "../palettes/CadNativeEntityList";
 import { CadSaveStatus } from "../studio/CadSaveStatus";
 import { boundsIntersect } from "@/lib/cad/entity-hit-geometry";
@@ -537,7 +551,6 @@ import {
 import {
   buildCadArchitectureTakeoff,
   defaultCadLayerForAssetKind,
-  type CadArchitectureTakeoffSummary,
 } from "@/lib/cad/architecture";
 import {
   buildCadValidationReport,
@@ -932,23 +945,6 @@ interface CadSheetPackageDraft {
   approvedBy: string;
   notes: string;
 }
-/** Live quantity take-off computed from the editor's current state. */
-interface LocalTakeoff {
-  unit: string;
-  footprintArea: number;
-  totalStations: number;
-  placedStations: number;
-  stationArea: number;
-  equipmentCount: number;
-  equipArea: number;
-  usedArea: number;
-  util: number;
-  wallLen: number;
-  dimCount: number;
-  architecture: CadArchitectureTakeoffSummary;
-  byKind: { kind: string; label: string; count: number; area: number }[];
-  byLayer: { id: CadLayerId; label: string; count: number; area: number }[];
-}
 /** A render-safe snapshot of the current selection for the properties panel. */
 interface SelSnap {
   type: "station" | "asset";
@@ -1096,16 +1092,6 @@ const DXF_LABEL_REQUIRED_ASSET_KINDS = new Set([
 /** Registro de Industry Packs (CAD-NEXT-090): objetos inteligentes por industria. */
 const newId = (p: string) =>
   `${p}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
-const fmtDist = (d: number, unit: string) =>
-  `${Math.round(d).toLocaleString("es-MX")} ${unit}`;
-const fmtArea = (v: number, unit: string) => {
-  const m2 = unit === "mm" ? v / 1e6 : unit === "cm" ? v / 1e4 : v; // → m²
-  return `${m2.toLocaleString("es-MX", { maximumFractionDigits: m2 < 100 ? 2 : 0 })} m²`;
-};
-const fmtLen = (v: number, unit: string) => {
-  const m = unit === "mm" ? v / 1000 : unit === "cm" ? v / 100 : v; // → m
-  return `${m.toLocaleString("es-MX", { maximumFractionDigits: 2 })} m`;
-};
 const defaultCadClearance = (unit: string) => {
   if (unit === "m") return 0.8;
   if (unit === "cm") return 80;
@@ -1771,7 +1757,7 @@ export default function Layout3DEditor({
   const objectNotesRef = useRef<Record<string, string>>({});
   const [aisleWidth, setAisleWidth] = useState(1200);
   const [hist, setHist] = useState({ undo: 0, redo: 0 }); // depths, for button enablement
-  const [takeoff, setTakeoff] = useState<LocalTakeoff | null>(null); // quantities panel (null = closed)
+  const [takeoff, setTakeoff] = useState<CadLocalTakeoff | null>(null); // quantities panel (null = closed)
   const [report, setReport] = useState<DesignReport | null>(null); // design-check report (null = closed) (Fase 63)
   const [collisionHits, setCollisionHits] = useState<CadCollisionHit[]>([]);
   const [clearanceIssues, setClearanceIssues] = useState<CadClearanceIssue[]>(
@@ -1896,7 +1882,18 @@ export default function Layout3DEditor({
   // deshabilitado, sin GPU, headless sin fallback software) NO se puede
   // romper el editor completo: el documento, las paletas y las propiedades
   // siguen siendo utilizables sin render. Este flag conmuta el aviso honesto.
-  const [webglUnavailable, setWebglUnavailable] = useState(false);
+  /**
+   * Por qué el viewport no se puede pintar. Es una unión y no un booleano
+   * porque las dos causas piden mensajes distintos: «este navegador no da
+   * WebGL» es cierto al arrancar y MENTIRA cuando el contexto se pierde en
+   * marcha —el navegador sí puede, lo acaba de perder— y decirle a alguien que
+   * su navegador no sirve cuando lo que falló fue el driver le manda a cambiar
+   * de programa por un problema que se arregla solo. No cuesta un `useState`
+   * más: es el mismo, con más información.
+   */
+  const [webglUnavailable, setWebglUnavailable] = useState<
+    "ok" | "sin-webgl" | "contexto-perdido"
+  >("ok");
   const controlsRef = useRef<OrbitControls | null>(null);
   const blocksRef = useRef<THREE.Group | null>(null);
   const assetsGroupRef = useRef<THREE.Group | null>(null);
@@ -6071,10 +6068,10 @@ export default function Layout3DEditor({
       // DOM real). Detectarla en render provocaría un desajuste de hidratación
       // entre servidor y cliente, así que aquí el setState es deliberado.
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setWebglUnavailable(true);
+      setWebglUnavailable("sin-webgl");
       return;
     }
-    setWebglUnavailable(false);
+    setWebglUnavailable("ok");
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     renderer.setSize(width, height);
     renderer.domElement.style.cursor = "none";
@@ -7620,6 +7617,22 @@ export default function Layout3DEditor({
     const ro = new ResizeObserver(onResize);
     ro.observe(mount);
 
+    // El contexto se puede perder EN MARCHA (driver reiniciado, GPU sin
+    // memoria con un plano denso, portátil cambiando de tarjeta). Sin esto, el
+    // bucle seguía llamando a `render()` sobre un contexto muerto y el lienzo
+    // se quedaba congelado con el último fotograma: ni error, ni aviso, y el
+    // usuario editando encima de un plano que ya no ve.
+    const soltarGuardiaWebgl = guardCadWebglContext(renderer.domElement, {
+      onLost: () => {
+        cancelAnimationFrame(raf);
+        setWebglUnavailable("contexto-perdido");
+      },
+      onRestored: () => {
+        setWebglUnavailable("ok");
+        animate();
+      },
+    });
+
     const animate = () => {
       if (disposed) return;
       if (walkRef.current) {
@@ -7688,6 +7701,7 @@ export default function Layout3DEditor({
 
     return () => {
       disposed = true;
+      soltarGuardiaWebgl();
       cancelAnimationFrame(raf);
       if (viewportSyncTimer) clearTimeout(viewportSyncTimer);
       ro.disconnect();
@@ -8311,7 +8325,14 @@ export default function Layout3DEditor({
     setPrecisionText("");
   };
   // Live quantity take-off from the current (possibly unsaved) editor state.
-  const openTakeoff = useCallback(() => {
+  //
+  // Sin `useCallback`: es el manejador de UN botón de este mismo componente, así
+  // que su identidad no viaja a ningún hijo memoizado y envolverlo no ahorra un
+  // render. Lo llevaba, y al adelgazar el fichero 1 119 líneas el plugin del
+  // compilador de React empezó a analizar esta función y avisó de que no podía
+  // preservar esa memoización manual. La respuesta correcta a ese aviso no es
+  // subir el presupuesto de lint: es quitar la memoización que no servía.
+  const openTakeoff = () => {
     const fp = data?.footprint;
     if (!fp) return;
     const placements = [...placementsRef.current.values()];
@@ -8407,7 +8428,7 @@ export default function Layout3DEditor({
       byKind,
       byLayer,
     });
-  }, [data, cadLayers]);
+  };
 
   const currentCollisionBoxes = useCallback(() => {
     const boxes = [
@@ -16314,7 +16335,7 @@ export default function Layout3DEditor({
             onPointerDown={() => setCadContextMenu(null)}
           >
             <div ref={mountRef} className="absolute inset-0" />
-            {webglUnavailable && (
+            {webglUnavailable !== "ok" && (
               <div
                 data-testid="cad-webgl-unavailable"
                 role="status"
@@ -16328,13 +16349,14 @@ export default function Layout3DEditor({
               >
                 <div className="max-w-md space-y-2">
                   <p className="text-sm font-medium text-foreground">
-                    Este navegador no puede mostrar el viewport 3D
+                    {webglUnavailable === "contexto-perdido"
+                      ? "Se perdió la aceleración gráfica"
+                      : "Este navegador no puede mostrar el viewport 3D"}
                   </p>
                   <p className="type-caption leading-relaxed text-foreground/70">
-                    Valle Design necesita WebGL para dibujar en pantalla. El
-                    documento, las capas, las propiedades y el guardado siguen
-                    funcionando, pero no verás la geometría hasta que actives
-                    WebGL o uses un navegador con aceleración disponible.
+                    {webglUnavailable === "contexto-perdido"
+                      ? "El navegador soltó el contexto de dibujo — suele pasar cuando la tarjeta gráfica se reinicia o se queda sin memoria. El documento, las capas, las propiedades y el guardado siguen funcionando, y el dibujo vuelve solo en cuanto el navegador devuelva el contexto."
+                      : "Valle Design necesita WebGL para dibujar en pantalla. El documento, las capas, las propiedades y el guardado siguen funcionando, pero no verás la geometría hasta que actives WebGL o uses un navegador con aceleración disponible."}
                   </p>
                 </div>
               </div>
@@ -18966,1171 +18988,115 @@ export default function Layout3DEditor({
 
       {/* Quantities / take-off panel */}
       {takeoff && (
-        <div
-          className="absolute inset-0 z-[80] grid place-items-center bg-black/50 p-4"
-          onClick={() => setTakeoff(null)}
-        >
-          <div
-            className="w-[420px] max-w-full max-h-[80vh] overflow-y-auto rounded-2xl border border-border bg-surface shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-              <ClipboardList className="w-4 h-4" />
-              <span className="text-sm font-semibold">
-                Cantidades · {model} · {revision}
-              </span>
-              <div className="flex-1" />
-              <button
-                onClick={() => setTakeoff(null)}
-                className="p-1 rounded-lg hover:bg-muted"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="p-4">
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <Stat
-                  label="Puntos"
-                  value={`${takeoff.placedStations}/${takeoff.totalStations}`}
-                />
-                <Stat label="Equipos" value={`${takeoff.equipmentCount}`} />
-                <Stat
-                  label="Área huella"
-                  value={fmtArea(takeoff.footprintArea, takeoff.unit)}
-                />
-                <Stat
-                  label="Aprovechamiento"
-                  value={`${takeoff.util.toFixed(1)} %`}
-                  highlight
-                />
-                <Stat
-                  label="Área usada"
-                  value={fmtArea(takeoff.usedArea, takeoff.unit)}
-                />
-                <Stat
-                  label="Muro total"
-                  value={fmtLen(takeoff.wallLen, takeoff.unit)}
-                />
-                <Stat
-                  label="Cuartos"
-                  value={`${takeoff.architecture.roomCount} - ${fmtArea(takeoff.architecture.roomArea, takeoff.unit)}`}
-                />
-                <Stat
-                  label="Piso libre"
-                  value={fmtArea(
-                    takeoff.architecture.openFloorArea,
-                    takeoff.unit,
-                  )}
-                />
-                <Stat
-                  label="Pasillos"
-                  value={fmtArea(takeoff.architecture.aisleArea, takeoff.unit)}
-                />
-                <Stat
-                  label="Safety/no-go"
-                  value={fmtArea(takeoff.architecture.safetyArea, takeoff.unit)}
-                />
-                <Stat
-                  label="Utilidades"
-                  value={`${takeoff.architecture.utilityCount} - ${fmtArea(takeoff.architecture.utilityArea, takeoff.unit)}`}
-                />
-                <Stat
-                  label="Puertas/cols"
-                  value={`${takeoff.architecture.doorCount}/${takeoff.architecture.columnCount}`}
-                />
-              </div>
-              {takeoff.byKind.length > 0 ? (
-                <div className="rounded-xl border border-border overflow-hidden">
-                  <table className="w-full type-caption">
-                    <thead>
-                      <tr className="text-muted-foreground dark:text-muted-foreground bg-muted/40">
-                        <th className="text-left font-medium px-3 py-1.5">
-                          Equipo
-                        </th>
-                        <th className="text-right font-medium px-3 py-1.5">
-                          Cant.
-                        </th>
-                        <th className="text-right font-medium px-3 py-1.5">
-                          Área
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {takeoff.byKind.map((r) => (
-                        <tr key={r.kind} className="border-t border-border">
-                          <td className="px-3 py-1.5">{r.label}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums">
-                            {r.count}
-                          </td>
-                          <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground dark:text-muted-foreground">
-                            {fmtArea(r.area, takeoff.unit)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="type-caption text-muted-foreground text-center py-3">
-                  Aún no hay equipo en el layout.
-                </p>
-              )}
-              {takeoff.byLayer.length > 0 && (
-                <div className="mt-3 rounded-xl border border-border overflow-hidden">
-                  <div className="bg-muted/40 px-3 py-1.5 type-micro font-semibold uppercase tracking-wide text-muted-foreground dark:text-muted-foreground">
-                    Uso por capa CAD
-                  </div>
-                  <table className="w-full type-caption">
-                    <tbody>
-                      {takeoff.byLayer.map((r) => (
-                        <tr key={r.id} className="border-t border-border">
-                          <td className="px-3 py-1.5">{r.label}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums">
-                            {r.count}
-                          </td>
-                          <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground dark:text-muted-foreground">
-                            {fmtArea(r.area, takeoff.unit)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              {takeoff.architecture.byRoomUse.length > 0 && (
-                <div className="mt-3 rounded-xl border border-border overflow-hidden">
-                  <div className="bg-muted/40 px-3 py-1.5 type-micro font-semibold uppercase tracking-wide text-muted-foreground dark:text-muted-foreground">
-                    Áreas por uso
-                  </div>
-                  <table className="w-full type-caption">
-                    <tbody>
-                      {takeoff.architecture.byRoomUse.map((r) => (
-                        <tr key={r.key} className="border-t border-border">
-                          <td className="px-3 py-1.5">{r.label}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums">
-                            {r.count}
-                          </td>
-                          <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground dark:text-muted-foreground">
-                            {fmtArea(r.area, takeoff.unit)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              {takeoff.architecture.byDepartment.length > 0 && (
-                <div className="mt-3 rounded-xl border border-border overflow-hidden">
-                  <div className="bg-muted/40 px-3 py-1.5 type-micro font-semibold uppercase tracking-wide text-muted-foreground dark:text-muted-foreground">
-                    Áreas por departamento
-                  </div>
-                  <table className="w-full type-caption">
-                    <tbody>
-                      {takeoff.architecture.byDepartment.map((r) => (
-                        <tr key={r.key} className="border-t border-border">
-                          <td className="px-3 py-1.5">{r.label}</td>
-                          <td className="px-3 py-1.5 text-right tabular-nums">
-                            {r.count}
-                          </td>
-                          <td className="px-3 py-1.5 text-right tabular-nums text-muted-foreground dark:text-muted-foreground">
-                            {fmtArea(r.area, takeoff.unit)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-              <div className="flex items-center justify-between mt-3">
-                <span className="type-micro text-muted-foreground">
-                  {takeoff.dimCount} {takeoff.dimCount === 1 ? "cota" : "cotas"}
-                </span>
-                <button
-                  onClick={() => {
-                    const rows = [["Concepto", "Cantidad", "Área (m²)"]];
-                    takeoff.byKind.forEach((r) =>
-                      rows.push([
-                        r.label,
-                        String(r.count),
-                        fmtArea(r.area, takeoff.unit).replace(" m²", ""),
-                      ]),
-                    );
-                    rows.push(["--- Capas CAD ---", "", ""]);
-                    takeoff.byLayer.forEach((r) =>
-                      rows.push([
-                        `Capa: ${r.label}`,
-                        String(r.count),
-                        fmtArea(r.area, takeoff.unit).replace(" m²", ""),
-                      ]),
-                    );
-                    rows.push([
-                      "Puntos colocados",
-                      `${takeoff.placedStations}/${takeoff.totalStations}`,
-                      fmtArea(takeoff.stationArea, takeoff.unit).replace(
-                        " m²",
-                        "",
-                      ),
-                    ]);
-                    rows.push([
-                      "Aprovechamiento",
-                      `${takeoff.util.toFixed(1)}%`,
-                      "",
-                    ]);
-                    rows.push([
-                      "Muro total",
-                      fmtLen(takeoff.wallLen, takeoff.unit),
-                      "",
-                    ]);
-                    rows.push([
-                      "Cuartos",
-                      `${takeoff.architecture.roomCount}`,
-                      fmtArea(
-                        takeoff.architecture.roomArea,
-                        takeoff.unit,
-                      ).replace(" m²", ""),
-                    ]);
-                    rows.push([
-                      "Piso libre",
-                      "",
-                      fmtArea(
-                        takeoff.architecture.openFloorArea,
-                        takeoff.unit,
-                      ).replace(" m²", ""),
-                    ]);
-                    rows.push([
-                      "Pasillos",
-                      "",
-                      fmtArea(
-                        takeoff.architecture.aisleArea,
-                        takeoff.unit,
-                      ).replace(" m²", ""),
-                    ]);
-                    rows.push([
-                      "Safety/no-go",
-                      "",
-                      fmtArea(
-                        takeoff.architecture.safetyArea,
-                        takeoff.unit,
-                      ).replace(" m²", ""),
-                    ]);
-                    rows.push([
-                      "Utilidades",
-                      `${takeoff.architecture.utilityCount}`,
-                      fmtArea(
-                        takeoff.architecture.utilityArea,
-                        takeoff.unit,
-                      ).replace(" m²", ""),
-                    ]);
-                    rows.push([
-                      "Puertas",
-                      `${takeoff.architecture.doorCount}`,
-                      "",
-                    ]);
-                    rows.push([
-                      "Columnas",
-                      `${takeoff.architecture.columnCount}`,
-                      "",
-                    ]);
-                    rows.push(["--- Uso de cuartos ---", "", ""]);
-                    takeoff.architecture.byRoomUse.forEach((r) =>
-                      rows.push([
-                        `Uso: ${r.label}`,
-                        String(r.count),
-                        fmtArea(r.area, takeoff.unit).replace(" m²", ""),
-                      ]),
-                    );
-                    rows.push(["--- Departamentos ---", "", ""]);
-                    takeoff.architecture.byDepartment.forEach((r) =>
-                      rows.push([
-                        `Dept: ${r.label}`,
-                        String(r.count),
-                        fmtArea(r.area, takeoff.unit).replace(" m²", ""),
-                      ]),
-                    );
-                    const csv = rows.map((r) => r.join(",")).join("\n");
-                    navigator.clipboard?.writeText(csv).then(
-                      () => toast.success("Cantidades copiadas (CSV).", "Cantidades"),
-                      () => toast.error("No se pudo copiar.", "Cantidades"),
-                    );
-                  }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted/60 hover:bg-muted type-caption"
-                >
-                  <Copy className="w-3.5 h-3.5" /> Copiar CSV
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
+        <CadTakeoffDialog
+          takeoff={takeoff}
+          onClose={() => setTakeoff(null)}
+          model={model}
+          revision={revision}
+          onCopiado={() =>
+            toast.success("Cantidades copiadas (CSV).", "Cantidades")
+          }
+          onFalloAlCopiar={() => toast.error("No se pudo copiar.", "Cantidades")}
+        />
       )}
 
       {showDxfExport && (
-        <div
-          className="absolute inset-0 z-[80] grid place-items-center bg-black/50 p-4"
-          onClick={() => setShowDxfExport(false)}
-        >
-          <div
-            className="max-h-[82vh] w-[520px] max-w-full overflow-y-auto rounded-2xl border border-border bg-surface shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-2 border-b border-border px-4 py-3">
-              <FileDown className="h-4 w-4 text-primary-ink" />
-              <span className="text-sm font-semibold">Exportar DXF</span>
-              <span
-                className={`rounded-full px-2 py-0.5 type-micro font-semibold ${dxfExportSummary.canExport ? "bg-emerald-400/10 text-success-ink" : "bg-rose-400/10 text-danger-ink"}`}
-              >
-                {dxfExportSummary.canExport ? "Listo" : "Bloqueado"}
-              </span>
-              <div className="flex-1" />
-              <button
-                onClick={() => setShowDxfExport(false)}
-                className="rounded-lg p-1 hover:bg-muted"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="space-y-3 p-4 type-caption">
-              <label className="block text-muted-foreground dark:text-muted-foreground">
-                Nombre de archivo
-                <input
-                  value={dxfExportOptions.fileName}
-                  onChange={(e) => setDxfOption({ fileName: e.target.value })}
-                  className="mt-1 w-full rounded-lg border border-border bg-surface/80 px-2.5 py-2 text-foreground outline-none"
-                />
-              </label>
-              <div className="grid grid-cols-2 gap-2">
-                <label className="rounded-lg bg-muted/40 p-2 text-foreground">
-                  <span className="mb-1 block text-muted-foreground">
-                    Alcance
-                  </span>
-                  <select
-                    value={dxfExportOptions.scope}
-                    onChange={(e) =>
-                      setDxfOption({
-                        scope: e.target.value as DxfExportOptions["scope"],
-                      })
-                    }
-                    className="w-full bg-transparent text-foreground outline-none"
-                  >
-                    <option className="text-foreground" value="all">
-                      Todo
-                    </option>
-                    <option className="text-foreground" value="selection">
-                      Selección
-                    </option>
-                  </select>
-                </label>
-                <label className="rounded-lg bg-muted/40 p-2 text-foreground">
-                  <span className="mb-1 block text-muted-foreground">
-                    Unidades
-                  </span>
-                  <select
-                    value={dxfExportOptions.units}
-                    onChange={(e) =>
-                      setDxfOption({
-                        units: e.target.value as DxfExportOptions["units"],
-                      })
-                    }
-                    className="w-full bg-transparent text-foreground outline-none"
-                  >
-                    <option className="text-foreground" value="mm">
-                      mm
-                    </option>
-                    <option className="text-foreground" value="m">
-                      m
-                    </option>
-                  </select>
-                </label>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                {(
-                  [
-                    ["includeHidden", "Incluir capas ocultas"],
-                    ["includeMeasurements", "Incluir cotas"],
-                    ["includeLabels", "Incluir notas"],
-                  ] as const
-                ).map(([key, label]) => (
-                  <label
-                    key={key}
-                    className="inline-flex items-center gap-2 rounded-lg bg-muted/40 px-2 py-1.5 text-foreground"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={dxfExportOptions[key]}
-                      onChange={(e) =>
-                        setDxfOption({ [key]: e.target.checked })
-                      }
-                      className="accent-indigo-500"
-                    />
-                    {label}
-                  </label>
-                ))}
-              </div>
-              <div className="rounded-xl border border-indigo-400/15 bg-indigo-400/[0.05] p-3">
-                <div className="mb-2 type-micro font-semibold uppercase tracking-wide text-primary-ink">
-                  Resumen
-                </div>
-                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-foreground">
-                  <span>Objetos</span>
-                  <b className="text-right">{dxfExportSummary.objects}</b>
-                  <span>Conectores</span>
-                  <b className="text-right">{dxfExportSummary.connectors}</b>
-                  <span>Cotas</span>
-                  <b className="text-right">{dxfExportSummary.measurements}</b>
-                  <span>Notas</span>
-                  <b className="text-right">{dxfExportSummary.labels}</b>
-                  <span>Capas</span>
-                  <b className="text-right">{dxfExportSummary.layers}</b>
-                </div>
-              </div>
-              <div className="rounded-xl border border-border bg-muted/40 p-3">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <div className="type-micro font-semibold uppercase tracking-wide text-primary-ink">
-                    Paquete de capas
-                  </div>
-                  <span className="type-micro text-muted-foreground">
-                    {dxfExportSummary.includedLayers.join(" · ") || "Sin capas"}
-                  </span>
-                </div>
-                {dxfExportLayerRows.length ? (
-                  <div className="space-y-1">
-                    {dxfExportLayerRows.map((layer) => (
-                      <div
-                        key={layer.layer}
-                        className="flex items-center justify-between gap-2 rounded-lg bg-surface/80 px-2 py-1.5 type-micro"
-                      >
-                        <span className="truncate text-foreground">
-                          {layer.layer}
-                        </span>
-                        <span className="shrink-0 text-muted-foreground">
-                          {layer.included}/{layer.total} incl.
-                          {layer.hidden ? ` · ${layer.hidden} ocultas` : ""}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="rounded-lg bg-surface/80 px-2 py-1.5 type-micro text-muted-foreground">
-                    No hay entidades exportables con estas opciones.
-                  </div>
-                )}
-              </div>
-              <div className="rounded-xl border border-border bg-muted/40 p-3">
-                <div className="mb-2 type-micro font-semibold uppercase tracking-wide text-primary-ink">
-                  Preflight
-                </div>
-                {dxfExportIssueRows.length ? (
-                  <div className="space-y-1">
-                    {dxfExportIssueRows.map((issue) => (
-                      <div
-                        key={issue.code}
-                        className={`flex items-start gap-2 rounded-lg px-2 py-1.5 type-micro ${issue.level === "blocker" ? "bg-rose-400/10 text-rose-100" : issue.level === "warning" ? "bg-amber-400/10 text-warning-ink" : "bg-muted/40 text-foreground"}`}
-                      >
-                        {issue.level === "blocker" ? (
-                          <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                        ) : issue.level === "warning" ? (
-                          <CircleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                        ) : (
-                          <CircleCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                        )}
-                        <span className="min-w-0 flex-1">
-                          {issue.message}
-                          {issue.count ? ` (${issue.count})` : ""}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 rounded-lg bg-emerald-400/10 px-2 py-1.5 type-micro text-success-ink">
-                    <CircleCheck className="h-3.5 w-3.5" />
-                    DXF listo para descargar.
-                  </div>
-                )}
-              </div>
-              {/* MANIFIESTO DE PÉRDIDAS — se muestra ANTES de descargar, no
-                  después. Cada fila dice qué entidad, de qué gravedad y por
-                  qué, para que la decisión sea informada y no un mensaje que
-                  llega cuando el fichero ya está en la carpeta de descargas. */}
-              {dxfPreflight && (
-                <div
-                  data-testid="cad-dxf-loss-manifest"
-                  data-blocking={dxfPreflight.blocking ? "true" : "false"}
-                  data-losses={dxfPreflight.losses.length}
-                  className={`space-y-1.5 rounded-lg border px-2 py-2 type-micro ${dxfPreflight.blocking ? "border-rose-400/30 bg-rose-400/10 text-rose-100" : "border-amber-400/30 bg-amber-400/10 text-warning-ink"}`}
-                >
-                  <div className="font-semibold">
-                    {dxfPreflight.blocking
-                      ? "Este DXF perdería geometría"
-                      : "Este DXF degrada parte del dibujo"}
-                  </div>
-                  <div className="max-h-40 space-y-1 overflow-y-auto">
-                    {dxfPreflight.losses.slice(0, 40).map((loss, index) => (
-                      <div
-                        key={`${loss.code}:${loss.entityId ?? index}`}
-                        data-testid="cad-dxf-loss-row"
-                        className="flex items-start gap-1.5"
-                      >
-                        <span className="mt-0.5 shrink-0 font-mono type-micro uppercase opacity-70">
-                          {loss.severity}
-                        </span>
-                        <span className="min-w-0 flex-1">
-                          {loss.entityId ? (
-                            <b className="font-mono type-micro">
-                              {loss.entityId}
-                            </b>
-                          ) : null}{" "}
-                          {loss.detail}
-                        </span>
-                      </div>
-                    ))}
-                    {dxfPreflight.losses.length > 40 && (
-                      <div className="opacity-70">
-                        …y {dxfPreflight.losses.length - 40} más.
-                      </div>
-                    )}
-                  </div>
-                  <label className="flex items-start gap-1.5">
-                    <input
-                      data-testid="cad-dxf-loss-accept"
-                      type="checkbox"
-                      checked={dxfPreflightAccepted === dxfPreflight.token}
-                      onChange={(event) =>
-                        setDxfPreflightAccepted(
-                          event.target.checked ? dxfPreflight.token : null,
-                        )
-                      }
-                      className="mt-0.5"
-                    />
-                    <span>
-                      Entiendo lo que este DXF no representa y quiero
-                      descargarlo igualmente. El documento de Valle Design sigue
-                      siendo el original.
-                    </span>
-                  </label>
-                </div>
-              )}
-              <button
-                data-testid="cad-dxf-download"
-                disabled={
-                  !dxfExportSummary.canExport ||
-                  (dxfPreflight?.blocking === true &&
-                    dxfPreflightAccepted !== dxfPreflight.token)
-                }
-                onClick={() => exportDxf(dxfExportOptions)}
-                className={`w-full rounded-lg px-3 py-2 type-caption font-semibold text-foreground ${dxfExportSummary.canExport && !(dxfPreflight?.blocking === true && dxfPreflightAccepted !== dxfPreflight.token) ? "bg-indigo-600 hover:bg-indigo-500" : "cursor-not-allowed bg-gray-700 text-muted-foreground dark:text-muted-foreground"}`}
-              >
-                {dxfPreflight && dxfPreflightAccepted === dxfPreflight.token
-                  ? "Descargar DXF de todos modos"
-                  : "Descargar DXF"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <CadDxfExportDialog
+          onClose={() => setShowDxfExport(false)}
+          opciones={dxfExportOptions}
+          onOpcionChange={setDxfOption}
+          resumen={dxfExportSummary}
+          filasDeCapa={dxfExportLayerRows}
+          filasDeAviso={dxfExportIssueRows}
+          preflight={dxfPreflight}
+          preflightAceptado={dxfPreflightAccepted}
+          onAceptarPreflight={setDxfPreflightAccepted}
+          onExportar={exportDxf}
+        />
       )}
 
       {/* Design-check / validation report */}
       {report && (
-        <div
-          className="absolute inset-0 z-[80] grid place-items-center bg-black/50 p-4"
-          onClick={() => setReport(null)}
-        >
-          <div
-            className="w-[440px] max-w-full max-h-[80vh] overflow-y-auto rounded-2xl border border-border bg-surface shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-              <ShieldCheck
-                className="w-4 h-4 text-primary"
-                style={{
-                  color:
-                    report.score === "ok"
-                      ? "#34d399"
-                      : report.score === "warn"
-                        ? "#fbbf24"
-                        : "#f87171",
-                }}
-              />
-              <span className="text-sm font-semibold">
-                Revisión de diseño · {model} · {revision}
-              </span>
-              <div className="flex-1" />
-              {validationHighlightIds.size > 0 && (
-                <button
-                  onClick={clearValidationHighlights}
-                  className="rounded-lg border border-border px-2 py-1 type-micro text-foreground hover:bg-muted"
-                >
-                  Ocultar highlights
-                </button>
-              )}
-              <button
-                onClick={() => setReport(null)}
-                className="p-1 rounded-lg hover:bg-muted"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="p-4 space-y-2">
-              <div className="type-caption mb-1">
-                {report.score === "ok" ? (
-                  <span className="text-emerald-400">
-                    Sin problemas detectados.
-                  </span>
-                ) : (
-                  <span
-                    className={
-                      report.score === "error"
-                        ? "text-danger-ink"
-                        : "text-amber-400"
-                    }
-                  >
-                    {report.errors} {report.errors === 1 ? "error" : "errores"}{" "}
-                    · {report.warnings}{" "}
-                    {report.warnings === 1 ? "aviso" : "avisos"}
-                  </span>
-                )}
-              </div>
-              <div className="mb-3 rounded-xl border border-border bg-muted/40 p-3">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <div>
-                    <div className="type-micro uppercase tracking-wide text-muted-foreground">
-                      Release readiness
-                    </div>
-                    <div className={`text-sm font-semibold ${releaseTone}`}>
-                      {releaseState}
-                    </div>
-                  </div>
-                  <div className="text-right type-micro text-muted-foreground dark:text-muted-foreground">
-                    <div>{releaseBlockers} bloqueos</div>
-                    <div>{releaseWarnings} avisos</div>
-                  </div>
-                </div>
-                <div className="grid gap-1.5">
-                  {releaseChecks.map((check) => (
-                    <div
-                      key={check.label}
-                      className="flex items-center justify-between gap-2 rounded-lg bg-surface/80 px-2 py-1.5 type-micro"
-                    >
-                      <span className="text-foreground">{check.label}</span>
-                      <span className={check.tone}>{check.value}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              {cadValidationReport && (
-                <div className="mb-3 rounded-xl border border-indigo-400/20 bg-indigo-400/10 p-3">
-                  <div className="mb-2 flex items-center justify-between gap-2 type-caption font-semibold text-primary-ink">
-                    <span>CAD validation center</span>
-                    <span
-                      className={
-                        cadValidationReport.severity === "critical"
-                          ? "text-danger-ink"
-                          : cadValidationReport.severity === "warning"
-                            ? "text-warning-ink"
-                            : "text-success-ink"
-                      }
-                    >
-                      {cadValidationReport.severity}
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 gap-1.5 type-micro">
-                    <div className="rounded-lg bg-surface/80 px-2 py-1.5">
-                      <span className="text-muted-foreground">Collisions</span>
-                      <b className="ml-2 tabular-nums text-foreground">
-                        {cadValidationReport.collisions.length}
-                      </b>
-                    </div>
-                    <div className="rounded-lg bg-surface/80 px-2 py-1.5">
-                      <span className="text-muted-foreground">Clearance</span>
-                      <b className="ml-2 tabular-nums text-foreground">
-                        {cadValidationReport.clearances.length}
-                      </b>
-                    </div>
-                    <div className="rounded-lg bg-surface/80 px-2 py-1.5">
-                      <span className="text-muted-foreground">Safety</span>
-                      <b className="ml-2 tabular-nums text-foreground">
-                        {cadValidationReport.safety.length}
-                      </b>
-                    </div>
-                    <div className="rounded-lg bg-surface/80 px-2 py-1.5">
-                      <span className="text-muted-foreground">
-                        Architecture
-                      </span>
-                      <b className="ml-2 tabular-nums text-foreground">
-                        {cadValidationReport.architecture.length}
-                      </b>
-                    </div>
-                  </div>
-                  {cadValidationReport.issues.length > 0 && (
-                    <div className="mt-2 space-y-1.5">
-                      {cadValidationReport.issues.slice(0, 4).map((issue) => (
-                        <button
-                          key={issue.id}
-                          onClick={() => selectValidationIssue(issue)}
-                          className={`w-full rounded-lg border px-2 py-1.5 text-left type-micro transition ${issue.severity === "critical" ? "border-rose-400/20 bg-rose-400/10 hover:bg-rose-400/15" : "border-amber-400/20 bg-amber-400/10 hover:bg-amber-400/15"}`}
-                        >
-                          <span
-                            className={
-                              issue.severity === "critical"
-                                ? "block font-medium text-rose-100"
-                                : "block font-medium text-warning-ink"
-                            }
-                          >
-                            {issue.title}
-                          </span>
-                          <span className="block text-foreground">
-                            {issue.suggestedFix}
-                          </span>
-                          <span className="block pt-0.5 type-micro text-muted-foreground">
-                            {issue.actionLabel}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              )}
-              {collisionHits.length > 0 && (
-                <div className="mb-3 rounded-xl border border-rose-400/20 bg-rose-400/10 p-3">
-                  <div className="mb-2 flex items-center justify-between gap-2 type-caption font-semibold text-rose-100">
-                    <span>Colisiones detectadas · {collisionHits.length}</span>
-                    <button
-                      onClick={() => setCollisionHits([])}
-                      className="type-micro text-danger-ink/70 hover:text-foreground"
-                    >
-                      Ocultar
-                    </button>
-                  </div>
-                  <div className="max-h-36 space-y-1 overflow-y-auto">
-                    {collisionHits.slice(0, 8).map((hit) => (
-                      <button
-                        key={`${hit.aId}-${hit.bId}`}
-                        onClick={() => selectCollisionPair(hit)}
-                        className="w-full rounded-lg bg-muted/60 px-2 py-1.5 text-left type-micro hover:bg-muted"
-                      >
-                        <span className="block text-rose-100">
-                          {hit.aLabel} ↔ {hit.bLabel}
-                        </span>
-                        <span className="text-muted-foreground dark:text-muted-foreground">
-                          Área aprox.{" "}
-                          {Math.round(hit.area).toLocaleString("es-MX")}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {clearanceIssues.length > 0 && (
-                <div className="mb-3 rounded-xl border border-amber-400/20 bg-amber-400/10 p-3">
-                  <div className="mb-2 flex items-center justify-between gap-2 type-caption font-semibold text-warning-ink">
-                    <span>Clearance warnings - {clearanceIssues.length}</span>
-                    <button
-                      onClick={() => setClearanceIssues([])}
-                      className="type-micro text-warning-ink/70 hover:text-foreground"
-                    >
-                      Ocultar
-                    </button>
-                  </div>
-                  <div className="max-h-36 space-y-1 overflow-y-auto">
-                    {clearanceIssues.slice(0, 8).map((issue) => (
-                      <button
-                        key={`${issue.aId}-${issue.bId}`}
-                        onClick={() => selectClearanceIssue(issue)}
-                        className="w-full rounded-lg bg-muted/60 px-2 py-1.5 text-left type-micro hover:bg-muted"
-                      >
-                        <span className="block text-warning-ink">
-                          {issue.message}
-                        </span>
-                        <span className="text-muted-foreground dark:text-muted-foreground">
-                          Actual{" "}
-                          {fmtLen(issue.distance, data?.footprint.unit || "mm")}{" "}
-                          - minimo{" "}
-                          {fmtLen(issue.required, data?.footprint.unit || "mm")}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {safetyIssues.length > 0 && (
-                <div className="mb-3 rounded-xl border border-amber-400/20 bg-amber-400/10 p-3">
-                  <div className="mb-2 flex items-center justify-between gap-2 type-caption font-semibold text-warning-ink">
-                    <span>Safety issues - {safetyIssues.length}</span>
-                    <button
-                      onClick={() => setSafetyIssues([])}
-                      className="type-micro text-warning-ink/70 hover:text-foreground"
-                    >
-                      Ocultar
-                    </button>
-                  </div>
-                  <div className="max-h-36 space-y-1 overflow-y-auto">
-                    {safetyIssues.slice(0, 8).map((issue) => (
-                      <button
-                        key={`${issue.zoneId}-${issue.objectId}-${issue.code}`}
-                        onClick={() => selectSafetyIssue(issue)}
-                        className="w-full rounded-lg bg-muted/60 px-2 py-1.5 text-left type-micro hover:bg-muted"
-                      >
-                        <span className="block text-warning-ink">
-                          {issue.message}
-                        </span>
-                        <span className="text-muted-foreground dark:text-muted-foreground">
-                          Seleccionar objeto + zona/ruta
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {report.items.map((it) => {
-                const Icon =
-                  it.level === "ok"
-                    ? CircleCheck
-                    : it.level === "warn"
-                      ? CircleAlert
-                      : ShieldAlert;
-                const color =
-                  it.level === "ok"
-                    ? "#34d399"
-                    : it.level === "warn"
-                      ? "#fbbf24"
-                      : "#f87171";
-                return (
-                  <div
-                    key={it.key}
-                    className="flex items-start gap-2.5 rounded-xl border border-border bg-muted/40 px-3 py-2"
-                  >
-                    <Icon
-                      className="w-4 h-4 mt-0.5 shrink-0"
-                      style={{ color }}
-                    />
-                    <div className="min-w-0">
-                      <div className="type-small font-medium">
-                        {it.label}
-                        {it.count > 0 ? ` · ${it.count}` : ""}
-                      </div>
-                      <div className="type-micro text-muted-foreground dark:text-muted-foreground leading-snug">
-                        {it.detail}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-              <p className="type-micro text-muted-foreground pt-1 leading-relaxed">
-                Traslapes y límites se evalúan sobre la caja sin rotación
-                (aproximado).
-              </p>
-            </div>
-          </div>
-        </div>
+        <CadDesignReportDialog
+          onClose={() => setReport(null)}
+          report={report}
+          model={model}
+          revision={revision}
+          unidad={data?.footprint.unit || "mm"}
+          hayHighlights={validationHighlightIds.size > 0}
+          onLimpiarHighlights={clearValidationHighlights}
+          cadValidationReport={cadValidationReport}
+          onSelectValidationIssue={selectValidationIssue}
+          collisionHits={collisionHits}
+          onHideCollisions={() => setCollisionHits([])}
+          onSelectCollisionPair={selectCollisionPair}
+          clearanceIssues={clearanceIssues}
+          onHideClearance={() => setClearanceIssues([])}
+          onSelectClearanceIssue={selectClearanceIssue}
+          safetyIssues={safetyIssues}
+          onHideSafety={() => setSafetyIssues([])}
+          onSelectSafetyIssue={selectSafetyIssue}
+          releaseState={releaseState}
+          releaseTone={releaseTone}
+          releaseChecks={releaseChecks}
+          releaseBlockers={releaseBlockers}
+          releaseWarnings={releaseWarnings}
+        />
       )}
 
       {/* Versions / scenarios modal (unify) */}
       {showVersions && (
-        <div
-          className="absolute inset-0 z-[80] grid place-items-center bg-black/50 p-4"
-          onClick={() => setShowVersions(false)}
-        >
-          <div
-            className="w-[460px] max-w-full max-h-[80vh] overflow-y-auto rounded-2xl border border-border bg-surface shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-              <History className="w-4 h-4" />
-              <span className="text-sm font-semibold">
-                Versiones · {model} · {revision}
-              </span>
-              <div className="flex-1" />
-              <button
-                onClick={() => setShowVersions(false)}
-                className="p-1 rounded-lg hover:bg-muted"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <input
-                  value={versName}
-                  onChange={(e) => setVersName(e.target.value)}
-                  placeholder="Nombre de la versión/snapshot (opcional)"
-                  className="flex-1 bg-muted/60 rounded-lg px-2.5 py-1.5 type-small outline-none focus:ring-1 ring-indigo-500/40"
-                />
-                <button
-                  onClick={saveVersion}
-                  disabled={drawingReadOnly || versBusy}
-                  className="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-brand-strong text-primary-foreground type-caption font-medium disabled:opacity-50"
-                >
-                  Guardar versión
-                </button>
-                <button
-                  onClick={() => saveLocalSnapshot("manual")}
-                  className="px-3 py-1.5 rounded-lg bg-muted/60 hover:bg-muted text-foreground type-caption font-medium"
-                >
-                  Snapshot local
-                </button>
-              </div>
-              <div className="mb-4 rounded-xl border border-indigo-400/15 bg-indigo-400/[0.04] p-3">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <div className="type-micro font-semibold uppercase tracking-wide text-primary-ink">
-                    Snapshots locales de sesión
-                  </div>
-                  <span className="type-micro text-muted-foreground">
-                    {localSnapshots.snapshots.length}/20
-                  </span>
-                </div>
-                {snapshotDiff && (
-                  <div
-                    className={`mb-2 rounded-lg px-2 py-1.5 type-micro ${snapshotDiff.changed ? "bg-amber-400/10 text-warning-ink" : "bg-emerald-400/10 text-success-ink"}`}
-                  >
-                    Comparación:{" "}
-                    {snapshotDiff.changed
-                      ? "hay cambios vs snapshot"
-                      : "sin cambios"}{" "}
-                    · {snapshotDiff.beforeHash} → {snapshotDiff.afterHash}
-                  </div>
-                )}
-                {localSnapshots.snapshots.length === 0 ? (
-                  <p className="type-micro text-muted-foreground">
-                    Guarda puntos de restauración rápidos antes de importar,
-                    acomodar o probar comandos. No salen del navegador.
-                  </p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {[...localSnapshots.snapshots].reverse().map((snap) => (
-                      <div
-                        key={snap.id}
-                        className="flex items-center gap-2 rounded-lg bg-muted/40 px-2 py-1.5"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <div className="truncate type-caption font-medium text-foreground">
-                            {snap.label}
-                          </div>
-                          <div className="type-micro text-muted-foreground">
-                            {new Date(snap.createdAt).toLocaleString("es-MX")} ·{" "}
-                            {snap.reason}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => compareLocalSnapshot(snap.id)}
-                          className="rounded-md bg-muted/60 px-2 py-1 type-micro text-foreground hover:bg-muted"
-                        >
-                          Comparar
-                        </button>
-                        <button
-                          onClick={() => restoreLocalSnapshot(snap.id)}
-                          className="rounded-md bg-indigo-500/15 px-2 py-1 type-micro text-primary-ink hover:bg-indigo-500/25"
-                        >
-                          Restaurar
-                        </button>
-                        <button
-                          onClick={() => deleteLocalSnapshot(snap.id)}
-                          className="rounded-md px-1.5 py-1 text-danger-ink hover:bg-rose-500/20"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              {versions.length === 0 ? (
-                <p className="type-caption text-muted-foreground text-center py-4">
-                  Aún no hay versiones guardadas.
-                </p>
-              ) : (
-                <div className="space-y-1.5">
-                  {versions.map((v) => (
-                    <div
-                      key={v.id}
-                      className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="type-small font-medium truncate">
-                          {v.name || "Sin nombre"}
-                        </div>
-                        <div className="type-micro text-muted-foreground dark:text-muted-foreground">
-                          {new Date(v.createdAt).toLocaleString("es-MX")} ·{" "}
-                          {v.stationCount} est · {v.assetCount} eq
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => restoreVersion(v.id)}
-                        disabled={versBusy}
-                        className="px-2 py-1 rounded-md bg-muted/60 hover:bg-muted type-caption disabled:opacity-50"
-                      >
-                        Restaurar
-                      </button>
-                      <button
-                        onClick={() => deleteVersion(v.id)}
-                        className="p-1 rounded-md text-danger-ink hover:bg-rose-500/20"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <CadVersionsDialog
+          onClose={() => setShowVersions(false)}
+          model={model}
+          revision={revision}
+          versName={versName}
+          onVersNameChange={setVersName}
+          onSaveVersion={saveVersion}
+          guardadoBloqueado={drawingReadOnly}
+          ocupado={versBusy}
+          onSaveLocalSnapshot={() => saveLocalSnapshot("manual")}
+          snapshots={localSnapshots.snapshots}
+          snapshotDiff={snapshotDiff}
+          onCompareSnapshot={compareLocalSnapshot}
+          onRestoreSnapshot={restoreLocalSnapshot}
+          onDeleteSnapshot={deleteLocalSnapshot}
+          versions={versions}
+          onRestoreVersion={restoreVersion}
+          onDeleteVersion={deleteVersion}
+        />
       )}
 
-      {/* Clone-from-template modal (unify) */}
       {showClone && (
-        <div
-          className="absolute inset-0 z-[80] grid place-items-center bg-black/50 p-4"
-          onClick={() => setShowClone(false)}
-        >
-          <div
-            className="w-[420px] max-w-full rounded-2xl border border-border bg-surface shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-              <Copy className="w-4 h-4" />
-              <span className="text-sm font-semibold">
-                Clonar desde plantilla
-              </span>
-              <div className="flex-1" />
-              <button
-                onClick={() => setShowClone(false)}
-                className="p-1 rounded-lg hover:bg-muted"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="p-4">
-              <p className="type-caption text-muted-foreground dark:text-muted-foreground mb-3">
-                Copia el dibujo (puntos, objetos, conexiones, celdas y plano)
-                de otro modelo a{" "}
-                <b className="text-foreground">
-                  {model} · {revision}
-                </b>
-                . Reemplaza el actual.
-              </p>
-              <select
-                value={cloneSrc}
-                onChange={(e) => setCloneSrc(e.target.value)}
-                className="w-full bg-muted/60 rounded-lg px-2.5 py-2 type-small outline-none mb-3 focus:ring-1 ring-indigo-500/40"
-              >
-                <option value="" className="text-foreground">
-                  Elige un modelo origen…
-                </option>
-                {models
-                  .filter(
-                    (m) => !(m.model === model && m.revision === revision),
-                  )
-                  .map((m) => (
-                    <option
-                      key={`${m.model}|${m.revision}`}
-                      value={`${m.model}|${m.revision}`}
-                      className="text-foreground"
-                    >
-                      {m.model} · {m.revision}
-                    </option>
-                  ))}
-              </select>
-              <button
-                onClick={cloneFrom}
-                disabled={!cloneSrc || cloneBusy}
-                className="w-full px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-brand-strong text-primary-foreground type-caption font-medium disabled:opacity-50"
-              >
-                {cloneBusy ? "Clonando…" : "Clonar layout"}
-              </button>
-            </div>
-          </div>
-        </div>
+        <CadCloneFromTemplateDialog
+          onClose={() => setShowClone(false)}
+          model={model}
+          revision={revision}
+          models={models}
+          origen={cloneSrc}
+          onOrigenChange={setCloneSrc}
+          onClonar={cloneFrom}
+          ocupado={cloneBusy}
+        />
       )}
 
-      {/* Cells / zones modal (unify) */}
       {showCells && (
-        <div
-          className="absolute inset-0 z-[80] grid place-items-center bg-black/50 p-4"
-          onClick={() => setShowCells(false)}
-        >
-          <div
-            className="w-[440px] max-w-full max-h-[80vh] overflow-y-auto rounded-2xl border border-border bg-surface shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-              <Group className="w-4 h-4" />
-              <span className="text-sm font-semibold">
-                Celdas / zonas · {model} · {revision}
-              </span>
-              <div className="flex-1" />
-              <button
-                data-testid="cad-cells-close"
-                onClick={() => setShowCells(false)}
-                className="p-1 rounded-lg hover:bg-muted"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="p-4">
-              <button
-                data-testid="cad-cells-create"
-                onClick={createCellFromSelection}
-                className="w-full mb-3 px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-brand-strong text-primary-foreground type-caption font-medium"
-              >
-                Crear celda con la selección
-              </button>
-              {cellsView.length === 0 ? (
-                <p className="type-caption text-muted-foreground text-center py-3">
-                  Selecciona puntos (Shift+clic) y crea una celda para
-                  agruparlas.
-                </p>
-              ) : (
-                <div className="space-y-1.5">
-                  {cellsView.map((c) => (
-                    <div
-                      key={c.id}
-                      data-testid="cad-cell-row"
-                      className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2"
-                    >
-                      <span
-                        className="inline-block w-3 h-3 rounded-sm shrink-0"
-                        style={{ background: c.color }}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <input
-                          data-testid="cad-cell-name"
-                          defaultValue={c.name}
-                          onBlur={(e) => {
-                            const v = e.target.value.trim();
-                            // Crear y borrar ya pasaban por `commitCells`;
-                            // renombrar escribía `cellsRef` a mano y sólo
-                            // marcaba dirty, así que el nombre nuevo no entraba
-                            // en el documento canónico y se perdía en el
-                            // guardado — con el autosave respondiendo 200.
-                            if (v && v !== c.name)
-                              commitCells(
-                                cellsRef.current.map((cell) =>
-                                  cell.id === c.id
-                                    ? { ...cell, name: v }
-                                    : cell,
-                                ),
-                                "renombrar celda",
-                              );
-                          }}
-                          className="w-full bg-transparent type-small font-medium outline-none focus:bg-muted/60 rounded px-1"
-                        />
-                        <div className="type-micro text-muted-foreground dark:text-muted-foreground px-1">
-                          {c.stationIds.length} puntos
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => deleteCell(c.id)}
-                        className="p-1 rounded-md text-danger-ink hover:bg-rose-500/20"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <p className="type-micro text-muted-foreground mt-3">
-                Las celdas tiñen el piso bajo sus objetos agrupados.
-              </p>
-            </div>
-          </div>
-        </div>
+        <CadCellsDialog
+          onClose={() => setShowCells(false)}
+          model={model}
+          revision={revision}
+          celdas={cellsView}
+          onCrearDesdeSeleccion={createCellFromSelection}
+          onRenombrar={(id, nombre) =>
+            commitCells(
+              cellsRef.current.map((cell) =>
+                cell.id === id ? { ...cell, name: nombre } : cell,
+              ),
+              "renombrar celda",
+            )
+          }
+          onBorrar={deleteCell}
+        />
       )}
 
       {/* Cuadros flotantes de las paletas. Su estado vive fuera de React
@@ -20159,60 +19125,11 @@ export default function Layout3DEditor({
         onDeleteStyle={styleActions.remove}
       />
 
-      {/* Keyboard shortcuts / help overlay */}
       {showHelp && (
-        <div
-          className="absolute inset-0 z-[80] grid place-items-center bg-black/55 p-4"
-          onClick={() => setShowHelp(false)}
-        >
-          <div
-            className="w-[640px] max-w-full max-h-[82vh] overflow-y-auto rounded-2xl border border-border bg-surface shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-              <HelpCircle className="w-4 h-4" />
-              <span className="text-sm font-semibold">
-                Atajos y herramientas · CAD 3D
-              </span>
-              <div className="flex-1" />
-              <button
-                onClick={() => setShowHelp(false)}
-                className="p-1 rounded-lg hover:bg-muted"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <div className="p-4 grid grid-cols-2 gap-x-6 gap-y-4 type-caption">
-              {HELP_SECTIONS.map((sec) => (
-                <div key={sec.title}>
-                  <div className="type-micro uppercase tracking-wide text-muted-foreground mb-1.5">
-                    {sec.title}
-                  </div>
-                  <div className="space-y-1">
-                    {sec.rows.map(([k, d]) => (
-                      <div
-                        key={d}
-                        className="flex items-baseline justify-between gap-3"
-                      >
-                        <span className="text-foreground">{d}</span>
-                        <kbd className="shrink-0 px-1.5 py-0.5 rounded-md bg-muted/60 border border-border type-micro text-foreground font-mono">
-                          {k}
-                        </kbd>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="px-4 pb-4 type-micro text-muted-foreground">
-              Abre esta ayuda con{" "}
-              <kbd className="px-1 py-0.5 rounded bg-muted/60 border border-border font-mono">
-                ?
-              </kbd>{" "}
-              en cualquier momento.
-            </div>
-          </div>
-        </div>
+        <CadHelpOverlay
+          onClose={() => setShowHelp(false)}
+          secciones={HELP_SECTIONS}
+        />
       )}
     </div>,
     document.body,

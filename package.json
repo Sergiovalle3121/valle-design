@@ -71,7 +71,8 @@
     "check:lint-budget": "node scripts/check-lint-budget.mjs",
     "check:conventions": "node scripts/check-import-direction.mjs",
     "check:cad-math": "node scripts/cad/check-cad-math.mjs",
-    "smoke:railway": "node scripts/deploy/railway-smoke.mjs"
+    "smoke:railway": "node scripts/deploy/railway-smoke.mjs",
+    "check:lighthouse": "node scripts/perf/lighthouse-gate.mjs"
   },
   "devDependencies": {
     "@lhci/cli": "^0.15.1",

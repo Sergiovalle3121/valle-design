@@ -38,7 +38,6 @@ import {
   isDwgNativeImportBetaEnabled,
   splitDocumentSelection,
 } from "@/lib/cad/document-import-client";
-import type { DocumentImportReport } from "@/lib/cad/document-import";
 import { EMPTY_CAD_STARTER_CHOICE } from "./starter-choice";
 
 /**

@@ -430,3 +430,65 @@ las rutas. Romper la convención para ahorrar 2,7 KB sería un mal cambio; lo qu
 gate lo hizo visible en vez de dejarlo pasar. Los techos se reabren a la medida nueva con su margen,
 y `--write` los volverá a apretar en cuanto algo adelgace.
 
+## OLA 5 — Arquitectura de componentes: el método que queda
+
+### 5.1 · Siete cuadros fuera del monolito
+
+El editor terminaba con **1 779 líneas de JSX** detrás de su render: ocho cuadros modales escritos en
+línea, cada uno con su copia palabra por palabra del mismo marco — velo que cierra al pulsar fuera,
+tarjeta que detiene la propagación, cabecera con icono, título y botón de cerrar.
+
+`components/cad/dialogs/CadDialogShell.tsx` es ese marco, una sola vez. Extraerlo no fue sólo quitar
+líneas: **hizo que el comportamiento sea uno solo**. Antes cada copia podía divergir —y divergía:
+unos velos son `bg-black/50` y otros `bg-black/55`— y una corrección de accesibilidad había que
+aplicarla ocho veces o no aplicarla. Ninguno de los ocho tenía `role="dialog"`, ni título anunciado,
+ni cierre con Escape. Ahora los siete extraídos lo tienen, gratis.
+
+| Cuadro | Destino | Líneas | Dependencias del cierre |
+| --- | --- | ---: | ---: |
+| Ayuda / atajos | `CadStudioDialogs.tsx` | 57 | 2 |
+| Clonar desde plantilla | `CadStudioDialogs.tsx` | 66 | 8 |
+| Celdas / zonas | `CadStudioDialogs.tsx` | 96 | 9 |
+| Cantidades (take-off) | `CadTakeoffDialog.tsx` | 298 | 5 |
+| Versiones y snapshots | `CadVersionsDialog.tsx` | 149 | 17 |
+| Exportar DXF | `CadDxfExportDialog.tsx` | 263 | 10 |
+| Revisión de diseño | `CadDesignReportDialog.tsx` | 293 | 22 |
+
+| | Antes | Después |
+| --- | ---: | ---: |
+| `Layout3DEditor.tsx` | 20 220 líneas | **19 137** |
+| `useState` | 140 | 140 |
+
+**El objetivo de la ola era «< 18 500 y useState < 130». No se alcanzó, y el motivo es medible.**
+
+- **Las líneas.** Quedan tres bloques grandes. El mayor, el paquete premium de entrega
+  (525 líneas), toca **~40 variables del cierre**. Un componente con cuarenta props no es una
+  extracción: es el monolito con otra sintaxis. Sacarlo bien exige primero un controlador de
+  espacios-papel (`usePaperSpaces`), que es trabajo de otra ola. Extraerlo mal habría bajado el
+  número y empeorado el código, que es exactamente lo que un trinquete de tamaño invita a hacer si
+  se persigue la cifra en vez de la costura.
+- **Los `useState`.** No bajan porque **los cuadros extraídos no eran dueños de ningún estado**:
+  lo pintaban. Bajar de 140 exige mover la PROPIEDAD del estado, no la presentación. En
+  `DEUDA-MONOLITO.md` quedan identificadas cuatro agrupaciones (exportación DXF, espacios-papel,
+  versiones, validación) que suman ~23 `useState` y salen con sus controladores.
+
+### 5.2 · El mapa, en el documento que ya existía
+
+La deuda **ya tenía documento**: `docs/execution/DEUDA-MONOLITO.md`, con la meta publicada
+(< 8 000 líneas) y una tabla de registro por campaña. Escribir uno nuevo habría creado una segunda
+fuente de verdad sobre el mismo fichero — el error que esta campaña persigue en el código. El mapa
+medido se **fusionó** en él: cómo se mide una costura (con el comando exacto), el patrón de
+extracción en cuatro pasos, la tabla de lo que ya salió, y los tres bloques que quedan con su
+acoplamiento medido y lo que hace falta antes de tocarlos.
+
+### 5.3 · El store ligero: NO
+
+La condición que la campaña puso para introducir `zustand` era que el prop-drilling **doliera al
+extraer**. No dolió: los siete cuadros salieron con contratos de entre 2 y 22 props, todas ellas
+datos o devoluciones de llamada de un único nivel. No hay estado compartido entre paneles viajando
+por cadenas largas de props; hay estado que vive en el monolito y se pasa una vez. La respuesta a eso
+es un controlador, no un store global — y un store habría hecho más difícil, no más fácil, la
+extracción real que queda pendiente.
+
+**Decisión: no se introduce store. Sin ADR, porque no hay decisión que registrar más que ésta.**
+
