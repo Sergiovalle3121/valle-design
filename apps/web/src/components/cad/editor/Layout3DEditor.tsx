@@ -374,7 +374,6 @@ import {
   createCadPaperSpace,
   createThreeSheetDemo,
   reorderCadPaperSpaces,
-  type CadPublishSheet,
   type CadPublishWarning,
   type CadSheetPaper,
 } from "@/lib/cad/paper-space";
@@ -619,6 +618,8 @@ import {
   useCadLayerManagerHost,
   useCadPalette,
   useCadPaletteHost,
+  useCadPaperSpaces,
+  useCadPaperSpacesHost,
   useCadStyleManager,
   useCadStyleManagerHost,
 } from "@/components/cad/palettes/use-palettes";
@@ -1393,8 +1394,23 @@ export default function Layout3DEditor({
   const [dxfImportPreview, setDxfImportPreview] =
     useState<CadDxfImportResult | null>(null);
   const [showDxfExport, setShowDxfExport] = useState(false);
-  const [showSheetPackage, setShowSheetPackage] = useState(false);
-  const [paperSpaces, setPaperSpaces] = useState<CadPaperSpace[]>([]);
+  // ESPACIOS-PAPEL: estado en su anfitrión (paper-spaces-host.ts, P1-FE2a) y
+  // desestructurado con los nombres de siempre; acciones: DEUDA-MONOLITO.md.
+  const paperSpacesHost = useCadPaperSpacesHost();
+  const {
+    paperSpaces,
+    activePaperSpaceId,
+    activePaperViewportId,
+    showSheetPackage,
+    layoutPreviewSheet,
+  } = useCadPaperSpaces(paperSpacesHost);
+  const {
+    setPaperSpaces,
+    setActivePaperSpaceId,
+    setActivePaperViewportId,
+    setShowSheetPackage,
+    setLayoutPreviewSheet,
+  } = paperSpacesHost;
   const [paperSpaceLayers, setPaperSpaceLayers] = useState<CadLayerDef[]>([]);
   /**
    * Gestor de capas: filtros, borradores y estados de capa.
@@ -1414,14 +1430,6 @@ export default function Layout3DEditor({
   const [publicationRecords, setPublicationRecords] = useState<
     CadPublicationRecord[]
   >([]);
-  const [activePaperSpaceId, setActivePaperSpaceId] = useState<string | null>(
-    null,
-  );
-  const [activePaperViewportId, setActivePaperViewportId] = useState<
-    string | null
-  >(null);
-  const [layoutPreviewSheet, setLayoutPreviewSheet] =
-    useState<CadPublishSheet | null>(null);
   const [cadLibraryTab, setCadLibraryTab] = useState<"blocks" | "xrefs">(
     "blocks",
   );
@@ -3983,6 +3991,7 @@ export default function Layout3DEditor({
     restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
     setHist(history.depths());
   }, [
+    setActivePaperSpaceId, setActivePaperViewportId, setLayoutPreviewSheet, setPaperSpaces,
     applyDocumentFootprint,
     notifyReadOnly,
     restore,
@@ -4027,6 +4036,7 @@ export default function Layout3DEditor({
     restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
     setHist(history.depths());
   }, [
+    setActivePaperSpaceId, setActivePaperViewportId, setLayoutPreviewSheet, setPaperSpaces,
     applyDocumentFootprint,
     notifyReadOnly,
     restore,
@@ -4060,6 +4070,7 @@ export default function Layout3DEditor({
       toast.success(label, "Compare / Merge");
     },
     [
+      setPaperSpaces,
       applyDocumentFootprint,
       drawingReadOnly,
       notifyReadOnly,
@@ -4275,6 +4286,7 @@ export default function Layout3DEditor({
       toast.error("El borrador local no pudo restaurarse.", "CAD");
     }
   }, [
+    setActivePaperSpaceId, setActivePaperViewportId, setLayoutPreviewSheet, setPaperSpaces,
     applyDocumentFootprint,
     notifyReadOnly,
     recoveryCandidate,
@@ -4380,6 +4392,7 @@ export default function Layout3DEditor({
       markDirty();
     },
     [
+      setActivePaperSpaceId, setActivePaperViewportId, setLayoutPreviewSheet, setPaperSpaces,
       activePaperSpaceId,
       markDirty,
       notifyReadOnly,
@@ -4419,7 +4432,7 @@ export default function Layout3DEditor({
     commitPaperSpaces(created, "Crear conjunto de tres hojas");
     setActivePaperSpaceId(created[0]?.id ?? null);
     setActivePaperViewportId(created[0]?.viewports?.[0]?.id ?? null);
-  }, [commitPaperSpaces, data, paperSpaces.length, sheetPackageDraft, toast]);
+  }, [commitPaperSpaces, data, paperSpaces.length, sheetPackageDraft, toast, setActivePaperSpaceId, setActivePaperViewportId]);
 
   const addPaperSpace = useCallback(() => {
     if (!data) return;
@@ -4452,7 +4465,7 @@ export default function Layout3DEditor({
     commitPaperSpaces([...paperSpaces, created], "Agregar espacio de papel");
     setActivePaperSpaceId(id);
     setActivePaperViewportId(created.viewports?.[0]?.id ?? null);
-  }, [commitPaperSpaces, data, paperSpaces, sheetPackageDraft]);
+  }, [commitPaperSpaces, data, paperSpaces, sheetPackageDraft, setActivePaperSpaceId, setActivePaperViewportId]);
 
   const updateActivePaperSpace = useCallback(
     (update: (space: CadPaperSpace) => CadPaperSpace, label: string) => {
@@ -4508,7 +4521,7 @@ export default function Layout3DEditor({
       approvedBy: attributes.APPROVED_BY ?? "",
       notes: attributes.NOTES ?? "",
     }));
-  }, []);
+  }, [setActivePaperSpaceId, setActivePaperViewportId, setLayoutPreviewSheet]);
 
   const changeActivePaper = useCallback(
     (paper: CadSheetPaper) => {
@@ -4634,7 +4647,7 @@ export default function Layout3DEditor({
       "Agregar viewport",
     );
     setActivePaperViewportId(id);
-  }, [activePaperSpaceId, data, updateActivePaperSpace]);
+  }, [activePaperSpaceId, data, updateActivePaperSpace, setActivePaperViewportId]);
 
   const changePaperViewport = useCallback(
     (
@@ -4661,7 +4674,7 @@ export default function Layout3DEditor({
       );
       setActivePaperViewportId(duplicateId);
     },
-    [updateActivePaperSpace],
+    [updateActivePaperSpace, setActivePaperViewportId],
   );
 
   const removePaperViewport = useCallback(
@@ -4678,7 +4691,7 @@ export default function Layout3DEditor({
       );
       setActivePaperViewportId(nextViewport);
     },
-    [activePaperSpaceId, paperSpaces, updateActivePaperSpace],
+    [activePaperSpaceId, paperSpaces, updateActivePaperSpace, setActivePaperViewportId],
   );
 
   const changePaperViewportLayerVisibility = useCallback(
@@ -4725,7 +4738,7 @@ export default function Layout3DEditor({
     setLayoutPreviewSheet(
       plan.sheets.find((sheet) => sheet.id === activePaperSpaceId) ?? null,
     );
-  }, [activePaperSpaceId, paperSpaces, snapshotDocument]);
+  }, [activePaperSpaceId, paperSpaces, snapshotDocument, setLayoutPreviewSheet]);
 
   const movePaperSpace = useCallback(
     (sourceId: string, targetId: string) => {
@@ -4957,12 +4970,6 @@ export default function Layout3DEditor({
     setTool("select");
   }, [engineBusy]);
 
-  const updateNativeProperties = useCallback(
-    (entityId: string, patch: Partial<CadPropertyBag>) => {
-      commitNativeCommands([{ type: "properties", entityId, patch }]);
-    },
-    [commitNativeCommands],
-  );
   /**
    * Edición desde la paleta de propiedades, con selección múltiple.
    *
@@ -15185,7 +15192,6 @@ export default function Layout3DEditor({
     <div
       data-color-scheme={resolvedScheme}
       data-cad-drawing-read-only={drawingReadOnly ? "true" : "false"}
-      aria-readonly={drawingReadOnly}
       onClickCapture={guardReadOnlyUi}
       onChangeCapture={guardReadOnlyUi}
       onInputCapture={guardReadOnlyUi}
@@ -15294,7 +15300,7 @@ export default function Layout3DEditor({
         >
           <button
             onClick={() => setShowSheetPackage(false)}
-            className={`px-2 py-1 ${!showSheetPackage ? "bg-indigo-500/20 text-primary-ink" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+            className={`px-2 py-1 ${!showSheetPackage ? "bg-brand-strong text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
           >
             Model
           </button>
@@ -15305,7 +15311,7 @@ export default function Layout3DEditor({
                 selectPaperSpace(space);
                 setShowSheetPackage(true);
               }}
-              className={`border-l border-border px-2 py-1 ${showSheetPackage && space.id === activePaperSpace?.id ? "bg-indigo-500/20 text-primary-ink" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
+              className={`border-l border-border px-2 py-1 ${showSheetPackage && space.id === activePaperSpace?.id ? "bg-brand-strong text-primary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
             >
               {space.name}
             </button>
@@ -15948,6 +15954,7 @@ export default function Layout3DEditor({
             />
             <select
               value={approval.status}
+              aria-label="Estado de aprobación del plano"
               disabled={approvalBusy || drawingReadOnly}
               onChange={(e) =>
                 setApprovalStatus(e.target.value as ApprovalStatus)

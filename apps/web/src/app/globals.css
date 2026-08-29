@@ -716,6 +716,103 @@
 }
 
 /* ===========================================================================
+   HOJA DE ATAJOS IMPRIMIBLE (overlay de ayuda del estudio, campaña de sitio).
+   En pantalla no existe; al imprimir es lo ÚNICO que existe: el patrón
+   clásico de región de impresión con visibility, que deja al navegador
+   componer una lámina limpia sin abrir otra ventana. Tipografía y retícula
+   del sistema, en tinta sobre papel (la impresión no tiene tema).
+   =========================================================================== */
+/* Tokens de IMPRESIÓN: tinta sobre papel, sin tema — la lámina impresa es la
+   misma bajo cualquier preferencia de pantalla. Se definen como tokens (la
+   regla de la casa: cero hex fuera de una definición con nombre). */
+:root {
+  --print-paper: #ffffff;
+  --print-ink: #1a1712;
+  --print-ink-muted: #6b645a;
+  --print-line: #c9c2b8;
+}
+.cad-print-sheet {
+  display: none;
+}
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .cad-print-sheet,
+  .cad-print-sheet * {
+    visibility: visible;
+  }
+  .cad-print-sheet {
+    display: block;
+    position: fixed;
+    inset: 0;
+    padding: 14mm 16mm;
+    background: var(--print-paper);
+    color: var(--print-ink);
+    font-family: Inter, system-ui, sans-serif;
+    font-size: 9.5pt;
+    line-height: 1.45;
+  }
+  .cad-print-sheet header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    border-bottom: 2px solid var(--print-ink);
+    padding-bottom: 4mm;
+    margin-bottom: 6mm;
+  }
+  .cad-print-sheet header strong {
+    font-family: "Space Grotesk", Inter, sans-serif;
+    font-size: 16pt;
+    letter-spacing: 0.02em;
+  }
+  .cad-print-sheet header span {
+    font-size: 9pt;
+    color: var(--print-ink-muted);
+  }
+  .cad-print-grid {
+    columns: 3;
+    column-gap: 8mm;
+  }
+  .cad-print-sheet section {
+    break-inside: avoid;
+    margin-bottom: 5mm;
+  }
+  .cad-print-sheet h3 {
+    font-size: 8pt;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--print-ink-muted);
+    margin: 0 0 2mm;
+  }
+  .cad-print-sheet p {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 4mm;
+    margin: 0 0 1.2mm;
+  }
+  .cad-print-sheet kbd {
+    font-family: "JetBrains Mono", ui-monospace, monospace;
+    font-size: 8.5pt;
+    border: 1px solid var(--print-line);
+    border-radius: 2px;
+    padding: 0 1.5mm;
+    white-space: nowrap;
+  }
+  .cad-print-sheet footer {
+    position: fixed;
+    bottom: 10mm;
+    left: 16mm;
+    right: 16mm;
+    border-top: 1px solid var(--print-line);
+    padding-top: 2mm;
+    font-size: 8pt;
+    color: var(--print-ink-muted);
+  }
+}
+
+/* ===========================================================================
    DISEÑO ESCRITO QUE AÚN NO SE CONSUME — inventario con dueño
    ---------------------------------------------------------------------------
    Todo lo que sigue estaba escrito y con CERO usos medidos. No es CSS muerto:

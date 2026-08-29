@@ -50,7 +50,7 @@ import { cx } from "./styles";
  * `e2e/a11y/teclado-embudo.spec.ts`.
  */
 
-const FOCUSABLE =
+export const FOCUSABLE =
   'a[href],button:not([disabled]),textarea:not([disabled]),input:not([disabled]):not([type="hidden"]),select:not([disabled]),[tabindex]:not([tabindex="-1"])';
 
 export interface ModalProps {

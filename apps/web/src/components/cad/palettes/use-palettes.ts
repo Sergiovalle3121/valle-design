@@ -119,3 +119,9 @@ export function useCadPalette(host: CadPaletteHost): CadPaletteSnapshot {
     host.getSnapshot,
   );
 }
+
+export {
+  useCadPaperSpaces,
+  useCadPaperSpacesHost,
+  type CadPaperSpacesSnapshot,
+} from "./paper-spaces-host";

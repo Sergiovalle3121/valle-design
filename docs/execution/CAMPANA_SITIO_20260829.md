@@ -34,11 +34,11 @@
 | 4.2 | /seguridad | ✅ (8 hechos verificados en código, detalle técnico plegado) |
 | 4.3 | /soporte con búsqueda | ✅ (búsqueda sobre FAQ+guías en /support, correo visible, estado enlazado) |
 | 4.4 | Footer completo + coherencia | ✅ (SiteFooter 4 columnas en portada+shell → todas las públicas) |
-| 5.1 | P1-FE4 trampa de foco en CadDialogShell | pendiente |
-| 5.2 | Axe del estudio | pendiente |
-| 5.3 | P1-FE2 usePaperSpaces (+3 controladores si alcanza) | pendiente |
-| 5.4 | Hoja de atajos imprimible | pendiente |
-| 5.5 | Microfeedback restante del estudio | pendiente |
+| 5.1 | P1-FE4 trampa de foco en CadDialogShell | ✅ (patrón de Modal; 12 Tabs sin escape verificados en E2E) |
+| 5.2 | Axe del estudio | ✅ (2/2 sobre /demo; 3 defectos reales cazados y arreglados) |
+| 5.3 | P1-FE2 usePaperSpaces (+3 controladores si alcanza) | ✅ anfitrión (135 useState, 19 134 líneas, trinquetes abajo); los otros 3 quedan mapeados |
+| 5.4 | Hoja de atajos imprimible | ✅ (A4 apaisada de 3 columnas verificada en PDF) |
+| 5.5 | Microfeedback restante del estudio | ✅ verificado: el pulso de guardado YA existía (CadSaveStatus); nada que duplicar |
 | F.1 | Suite completa + Jornada Real + gates + push | pendiente |
 | F.2 | Tabla antes/después | pendiente |
 | F.3 | Capturas/OG/manifiesto regenerados | pendiente |
@@ -133,3 +133,11 @@ Investigado en el código, no supuesto:
 - **4.4 SiteFooter**: 4 columnas (Producto/Recursos/Confianza/Contacto) + identidad + línea de marcas. Sustituye los DOS pies (portada inline y el del PublicPageShell) → todas las públicas ganan el mapa a la vez; la coherencia con precios/novedades/educación llega por el shell compartido.
 - **Lección de arquitectura repetida**: los 5 perfiles NO van en PUBLIC_ROUTES (el spec de SEO importa `@/app<ruta>/page` por cada ruta declarada y un segmento dinámico no tiene ese módulo) — van al sitemap desde su módulo, mismo patrón que las 149 fichas. Sitemap: **177 rutas** (23 declaradas + 149 plantillas + 5 perfiles), 22 páginas con metadata verificada.
 - **El gate de superficie me corrigió**: mi texto de evidencia decía «no tiene testimonios» y el regex prohíbe la palabra — reformulado a «no tiene clientes que citar» (la intención del gate es exactamente esa). Axe de las 4 superficies nuevas: 8/8 en Chromium.
+
+### OLA 5 · El estudio — HECHO
+
+- **5.1** `CadDialogShell` gana la trampa de foco con el patrón probado de Modal (`FOCUSABLE` ahora se exporta de ahí — una sola definición): foco al primer control al abrir, Tab/Shift+Tab ciclan dentro (con re-captura si algo movió el foco fuera), foco devuelto al invocador al cerrar. La deuda con nombre de DEUDA-MONOLITO deja de serlo; el marco arregla a los OCHO cuadros de una vez.
+- **5.2** `e2e/a11y/axe-estudio.spec.ts`: audita el editor REAL en /demo (sin backend simulado) + el overlay de atajos, ambos temas, cero serias sin lista de excepciones, Y verifica la trampa de foco de verdad (12 Tabs nunca escapan, Escape cierra). **El gate cazó 3 defectos reales al estrenarse**: `aria-readonly` en un div sin rol (fuera — el data-attr ya existía), el select de estado de aprobación sin nombre accesible (aria-label puesto), y los tabs Model/Planta con `bg-indigo-500/20` crudo bajo contraste (→ receta `bg-brand-strong text-primary-foreground` de la casa, que además quita paleta Tailwind cruda). 2/2 en verde.
+- **5.3** `palettes/paper-spaces-host.ts` (P1-FE2a): los CINCO estados de espacios-papel salen del monolito al patrón host+useSyncExternalStore de la carpeta, con setters de FIRMA REACT (sobrecarga valor|actualizadora — los ~120 usos no cambiaron ni uno). Los 12 arrays de dependencias que ahora exigen los setters (estables) se completaron; una función muerta preexistente que el linter venía señalando (`updateNativeProperties`) se eliminó. **Trinquetes ABAJO y committeados: 140→135 useState, 19 137→19 134 líneas.** Goldens de la zona en verde tras la cirugía: 20-multiple-viewports, 46-layout-plot, demo, axe-estudio. Los otros 3 controladores (b) quedan mapeados en DEUDA-MONOLITO con el siguiente paso escrito (migrar acciones al anfitrión).
+- **5.4** El overlay de atajos gana «Imprimir hoja»: región de impresión con visibility (patrón clásico), lámina A4 apaisada de 3 columnas con cabecera de marca, kbd con la mono y pie del oficio — verificada generando el PDF real. Colores como TOKENS de impresión (`--print-*`: la lámina impresa no tiene tema) — cero hex sueltos.
+- **5.5** Verificado, no duplicado: el pulso de guardado ya existía (`CadSaveStatus`, campaña frontend: respira al guardar, pulso único al confirmar) y la línea de comandos ya confirma cada comando en su log. Nada que añadir era lo correcto.

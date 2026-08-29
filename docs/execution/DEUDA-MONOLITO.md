@@ -128,11 +128,11 @@ estructura visible es idéntica, y el trinquete de `monolith-budget.json` baja *
 
 Un componente con cuarenta props no es una extracción, es el monolito con otra sintaxis.
 
-**Lo que hace falta primero:** un `usePaperSpaces()` (o un anfitrión `paper-space-host.ts` al estilo
-de `viewport/wall-solid-host.ts`) que sea dueño del estado de espacios-papel y exponga las acciones
-como un objeto. Con eso, el cuadro recibiría **dos** props —el anfitrión y el borrador— y sí sería
-una costura. Cálculo aproximado: 525 líneas del cuadro más ~200 de estado y acciones que se irían
-con el controlador.
+**Lo que hacía falta primero — HECHO (campaña de sitio 2026-08-29):** el anfitrión existe
+(`palettes/paper-spaces-host.ts`) y es dueño de los CINCO estados (paperSpaces, activo, viewport
+activo, cuadro abierto, previsualización) con setters de firma React — los ~120 usos del monolito
+no cambiaron. Turno siguiente: migrar las ACCIONES una a una al anfitrión (recibiendo historia y
+borrador por parámetro) y entonces el cuadro del juego de láminas sale con dos props.
 
 ### 2 · La barra de estado y los conmutadores — dentro del bloque `15193`…`15987`
 
