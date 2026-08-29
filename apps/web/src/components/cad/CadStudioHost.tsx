@@ -32,6 +32,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import StudioCollaborationLayer from "@/components/cad/collab/StudioCollaborationLayer";
 import { BRAND } from "@/config/brand";
+import { ErrorBoundary } from "@/components/ui";
 import { cadTourHost } from "@/components/cad/onboarding/tour-host";
 
 /** Props del Host: las del editor SIN las de plataforma (las inyecta el Host),
@@ -126,11 +127,18 @@ export default function CadStudioHost({
         sentinel), y entonces no se monta nada.
       */}
       {documentId ? (
-        <StudioCollaborationLayer
-          documentId={documentId}
-          viewerName={user?.email ?? "Yo"}
-          canReview={permissions.includes("cad:review")}
-        />
+        // La capa de colaboración va dentro de su propia frontera: se alimenta
+        // de datos de OTROS usuarios —comentarios, presencia, revisiones— que
+        // llegan por red y no los controla este cliente. Un comentario con una
+        // forma inesperada tumbaba hasta aquí el estudio entero, dibujo
+        // incluido. Ahora se cae la capa y el lienzo sigue.
+        <ErrorBoundary zona="Colaboración" documentId={documentId} compacta>
+          <StudioCollaborationLayer
+            documentId={documentId}
+            viewerName={user?.email ?? "Yo"}
+            canReview={permissions.includes("cad:review")}
+          />
+        </ErrorBoundary>
       ) : null}
     </>
   );

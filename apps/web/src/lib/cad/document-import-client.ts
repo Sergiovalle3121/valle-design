@@ -1,5 +1,9 @@
 import type { DocumentImportReport } from "./document-import";
-import { validateImportFile } from "./document-import";
+// La validación viene del módulo LIGERO a propósito: `document-import.ts`
+// arrastra 539 KB de fuente (DXF, shapefile, puentes DWG, lectores
+// geográficos) y este cliente sólo necesita saber si el archivo entra. El
+// importador de verdad ya vive en su worker, que se descarga aparte.
+import { validateImportFile } from "./document-import-validation";
 
 /**
  * Beta `AC1015_MODELSPACE_2D_V3` (ADR-0009 §6-bis, ampliada §6-ter y

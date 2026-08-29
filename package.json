@@ -71,9 +71,11 @@
     "check:lint-budget": "node scripts/check-lint-budget.mjs",
     "check:conventions": "node scripts/check-import-direction.mjs",
     "check:cad-math": "node scripts/cad/check-cad-math.mjs",
-    "smoke:railway": "node scripts/deploy/railway-smoke.mjs"
+    "smoke:railway": "node scripts/deploy/railway-smoke.mjs",
+    "check:lighthouse": "node --test scripts/perf/lighthouse-gate.spec.mjs && node scripts/perf/lighthouse-gate.mjs"
   },
   "devDependencies": {
+    "@lhci/cli": "^0.15.1",
     "@redocly/cli": "2.47.0",
     "@types/node": "^22.18.0",
     "eslint": "^9.18.0",

@@ -21,36 +21,32 @@ import {
 import { scopeDxfImportToModelSpace } from "./dxf-model-space-scope";
 import { shapefileToCadEntities } from "./geo-cad-document";
 import { readGeoDataset } from "../geo";
-import { dwgBetaImportIsEnabled, dwgImportIsEnabled } from "./dwg-interop-flag";
 import { dwgNeutralDatabaseToCadDocument } from "./dwg-document-bridge";
-import { DWG_MAX_IMPORT_BYTES } from "./dwg-import-limits";
+import {
+  importFileExtension as extension,
+  isBinaryImportFormat,
+  validateImportFile,
+  type DocumentImportFormat,
+} from "./document-import-validation";
+
+/**
+ * Validación sin lectura: vive en `document-import-validation.ts` para que el
+ * tablero pueda preguntar «¿este archivo entra?» sin descargar el importador
+ * entero (539 KB de fuente). Se reexporta aquí para que ningún consumidor
+ * existente cambie de import.
+ */
+export {
+  importFileExtension,
+  importLimitForFileName,
+  isBinaryImportFormat,
+  validateImportFile,
+  MAX_DXF_IMPORT_BYTES,
+  MAX_JSON_IMPORT_BYTES,
+  MAX_SHP_IMPORT_BYTES,
+  MAX_DWG_IMPORT_BYTES,
+  type DocumentImportFormat,
+} from "./document-import-validation";
 import type { DwgNeutralDatabaseReader } from "./dwg-neutral-model";
-
-export const MAX_DXF_IMPORT_BYTES = 12_000_000;
-export const MAX_JSON_IMPORT_BYTES = 20_000_000;
-/**
- * Tope del `.shp`.
- *
- * Un shapefile es binario y denso: 16 bytes por vértice, sin cabeceras por
- * medio. Ocho megas son medio millón de vértices, que ya es un municipio
- * entero y muy por encima de un predio con su manzana. El lector tiene además
- * su propio tope en vértices; éste corta antes, cuando todavía no se ha leído
- * nada.
- */
-export const MAX_SHP_IMPORT_BYTES = 8_000_000;
-
-/**
- * Límite del binario — igual al tope real del códec
- * (`DEFAULT_DWG_LIMITS.maxFileBytes`), no un número independiente. Antes de
- * esta corrección era 24.000.000: un archivo entre 16.777.216 y 24.000.000
- * bytes pasaba esta validación y el códec lo rechazaba después de todos
- * modos, con un mensaje que encima decía "firma inválida" en vez de
- * "demasiado grande". Ver `dwg-import-limits.ts` para la fuente del número y
- * dónde vive la comprobación cruzada contra el códec.
- */
-export const MAX_DWG_IMPORT_BYTES = DWG_MAX_IMPORT_BYTES;
-
-export type DocumentImportFormat = "dxf" | "json" | "shp" | "dwg";
 
 export interface DocumentImportReport {
   format: DocumentImportFormat;
@@ -69,71 +65,6 @@ export interface DocumentImportReport {
    * canónico es nuestro formato y no degrada nada.
    */
   dxfReport?: CadDxfImportReport;
-}
-
-export function importLimitForFileName(fileName: string): number {
-  const kind = extension(fileName);
-  if (kind === "dxf") return MAX_DXF_IMPORT_BYTES;
-  if (kind === "shp") return MAX_SHP_IMPORT_BYTES;
-  if (kind === "dwg") return MAX_DWG_IMPORT_BYTES;
-  return MAX_JSON_IMPORT_BYTES;
-}
-
-/**
- * ¿Este archivo entra por bytes o por texto?
- *
- * El `.shp` es binario y los otros dos no. La pregunta la hace el worker antes
- * de leer el fichero, porque `File.text()` sobre un binario lo destroza:
- * decodifica como UTF-8 y sustituye cada byte inválido, y lo que llega al
- * lector ya no son los bytes del archivo.
- */
-export function isBinaryImportFormat(fileName: string): boolean {
-  const kind = extension(fileName);
-  return kind === "shp" || kind === "dwg";
-}
-
-export function validateImportFile(
-  fileName: string,
-  size: number,
-  dwgBetaEnabled = false,
-): void {
-  const kind = extension(fileName);
-  /**
-   * `.dwg` entra por CUALQUIERA de dos gates, y hoy ninguno está abierto por
-   * defecto:
-   *
-   * - `dwgImportIsEnabled()`: la promoción general de ADR-0007/0009 (7
-   *   gates, incluida revisión jurídica externa). Sigue apagada.
-   * - `dwgBetaImportIsEnabled(dwgBetaEnabled)`: la beta acotada
-   *   `AC1015_MODELSPACE_2D_V3` que el dueño firmó 2026-08-24 (ADR-0009
-   *   §6-bis, ampliada §6-ter y §6-quater), con el dictamen jurídico en
-   *   paralelo. `dwgBetaEnabled` lo decide quien llama —el worker, a partir
-   *   de una variable de build no pública por defecto— nunca este módulo,
-   *   que no lee entorno.
-   *
-   * El mensaje SÍ cambió al integrar, y a propósito: el shapefile ya se admite,
-   * así que callarlo dejaría al usuario sin saber que su `.shp` entra. Un
-   * mensaje de error que enumera menos formatos de los que acepta el producto
-   * es una mentira pequeña que cuesta una importación.
-   */
-  const admitted =
-    kind === "dxf" ||
-    kind === "json" ||
-    kind === "shp" ||
-    (kind === "dwg" && (dwgImportIsEnabled() || dwgBetaImportIsEnabled(dwgBetaEnabled)));
-  if (!admitted) {
-    throw new Error(
-      "Formato no soportado. Usa DXF de texto, JSON canónico o shapefile (.shp).",
-    );
-  }
-  if (!Number.isSafeInteger(size) || size <= 0) {
-    throw new Error("El archivo está vacío o su tamaño no es válido.");
-  }
-  if (size > importLimitForFileName(fileName)) {
-    throw new Error(
-      `El archivo supera el límite de ${Math.floor(importLimitForFileName(fileName) / 1_000_000)} MB.`,
-    );
-  }
 }
 
 export function importDocumentText(
@@ -487,6 +418,3 @@ function assertSafeJson(root: unknown): void {
   }
 }
 
-function extension(fileName: string): string {
-  return fileName.trim().toLowerCase().split(".").pop() ?? "";
-}

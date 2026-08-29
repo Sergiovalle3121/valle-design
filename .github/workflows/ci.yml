@@ -186,6 +186,52 @@ jobs:
       - name: Build (turbo)
         run: npx turbo run build
 
+      # Presupuesto de bundle por ruta. Va AQUÍ y no en el job de E2E porque
+      # necesita exactamente lo que este job acaba de producir —el `.next` de
+      # producción— y porque un exceso de peso debe verse en minutos, no al
+      # final de los ~40 que tarda la suite de navegador. El script levanta su
+      # propio `next start` en un puerto suyo y lo mata al terminar.
+      - name: Presupuesto de bundle por ruta (bloqueante)
+        run: node scripts/perf/bundle-budget.mjs
+
+      # Lighthouse sobre el MISMO build: no mide bytes sino tiempo hasta que la
+      # página es útil, que es lo que el peso no ve — una fuente que bloquea el
+      # pintado o un script que ocupa el hilo principal salen bien en KB y mal
+      # en pantalla. Dos pasadas, escritorio y móvil, tres corridas por ruta.
+      # El umbral de RENDIMIENTO va en AVISO en las dos pasadas hasta medirlo
+      # en este runner: en el contenedor de desarrollo da 93-95, pero ese número
+      # no se traslada a una máquina más pequeña y compartida, y un gate que
+      # falla por la carga del runner enseña a ignorar los rojos. La primera
+      # corrida aquí produce esa medida (P1-FE1). La ACCESIBILIDAD sí bloquea:
+      # no depende de lo rápida que sea la máquina.
+      - name: Lighthouse (accesibilidad bloqueante; rendimiento en aviso hasta calibrar)
+        run: npm run check:lighthouse
+
+      # Los informes, SIEMPRE, pase o falle el paso de arriba. Sin esto las
+      # puntuaciones del runner sólo existen dentro del log del job, que se
+      # trunca antes de llegar a ellas: el gate corre y nadie puede leer lo que
+      # midió. Es exactamente el dato que le falta a P1-FE1 para calibrar el
+      # umbral de rendimiento, que hoy está en aviso por no tenerlo.
+      #
+      # `if-no-files-found: error`, y no `warn`, porque la primera versión de
+      # este paso subió CERO ficheros y terminó en verde en un segundo: el gate
+      # medía y nadie podía leerlo, que es el fallo exacto que este paso existe
+      # para evitar. Un aviso en un log truncado no es una señal.
+      #
+      # Y la ruta NO empieza por punto, que es lo que costó la segunda corrida:
+      # esta acción trae `include-hidden-files: false` de serie y descarta todo
+      # lo oculto, así que con los informes en `.lighthouseci-*/` el paso decía
+      # «no files were found» sin mencionar que los había excluido él. Los
+      # informes se publican para leerlos: no son ficheros ocultos.
+      - name: Subir informes de Lighthouse
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: lighthouse-${{ github.sha }}
+          path: informes-lighthouse/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: Typecheck (API)
         working-directory: apps/api
         run: npm run typecheck
@@ -323,6 +369,16 @@ jobs:
       # a los que aquí ya están en disco, y la cuota de Actions de este repo
       # está agotándose. Retención de un día: es un insumo entre jobs de la
       # MISMA corrida, no evidencia que haya que conservar.
+      # La tabla de Lighthouse otra vez, aquí, al lado de donde se midió. Para
+      # LEERLA por API no sirve —este job monta un contenedor de servicio de
+      # PostgreSQL y el runner vuelca su log entero DESPUÉS del último paso,
+      # con lo que entierra las últimas líneas del job—, y por eso existe
+      # además el job `resumen-lighthouse`, que no monta servicios. Se queda
+      # porque quien abre el log en el navegador lo quiere aquí, junto al gate.
+      - name: Repetir la tabla de Lighthouse al final del log
+        if: always()
+        run: node scripts/perf/lighthouse-gate.mjs --resumen
+
       - name: Upload API dist (insumo de deploy-readiness)
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
@@ -349,6 +405,48 @@ jobs:
   # Coste: sin `npm ci` (usa la caché del lockfile) y sin build (descarga el
   # `dist` del job anterior). Es del orden de un minuto de runner.
   # ───────────────────────────────────────────────────────────────────────────
+  # ── La tabla de Lighthouse, en un job que se pueda leer ──────────────────
+  #
+  # Existe por un problema de LECTURA, y hace falta un job entero porque los
+  # tres caminos evidentes están cerrados:
+  #
+  #  · El artefacto pesa doce megas y vive en un almacén de blobs que la
+  #    política de red de algunos entornos deniega con 403.
+  #  · El resumen del job (GITHUB_STEP_SUMMARY) no se expone por la API: el
+  #    check run de Actions devuelve `output` vacío.
+  #  · El log de `quality-gates` se trunca por el principio, y sus últimas
+  #    líneas se las come el volcado del contenedor de servicio de PostgreSQL,
+  #    que el runner imprime entero después del último paso.
+  #
+  # Este job NO monta servicios, así que su log completo son veinte líneas: la
+  # tabla se lee de un vistazo, por API o en el navegador. Es lo que permite
+  # calibrar los umbrales con el número de la máquina donde van a bloquear
+  # (P1-FE1) en vez de heredarlos de otra.
+  resumen-lighthouse:
+    name: Resumen de Lighthouse (mediana por ruta)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: quality-gates
+    if: always()
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Descargar los informes medidos por quality-gates
+        id: informes
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: lighthouse-${{ github.sha }}
+          path: informes-lighthouse
+
+      # Sin `npm ci`: el modo `--resumen` sólo lee un JSON con la biblioteca
+      # estándar de Node, que el runner ya trae. Instalar dependencias para
+      # imprimir seis filas costaría más que todo lo demás junto.
+      - name: La tabla
+        run: node scripts/perf/lighthouse-gate.mjs --resumen
+
   deploy-readiness:
     name: Despliegue · Imagen reproducible + arranque productivo
     runs-on: ubuntu-latest

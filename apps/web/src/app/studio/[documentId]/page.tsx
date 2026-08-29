@@ -6,9 +6,14 @@ import { use, useEffect, useState } from "react";
 import { isDocumentId } from "@/lib/cad/document-identity";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
+import { CadStudioSkeleton } from "@/components/cad/studio/CadStudioSkeleton";
 
 const CadStudioHost = dynamic(() => import("@/components/cad/CadStudioHost"), {
   ssr: false,
+  // La carcasa del estudio, no un spinner. Pinta la misma retícula que el
+  // editor —barra, riel, lienzo, panel, estado— así que cuando el editor llega
+  // ocupa los mismos huecos y no hay salto de layout. Ver CadStudioSkeleton.
+  loading: () => <CadStudioSkeleton etapa="Cargando el editor…" />,
 });
 
 type OpenDocument = {
@@ -72,9 +77,15 @@ export default function DocumentStudioPage({
     };
   }, [auth.isAuthenticated, auth.isLoading, documentId]);
 
+  // Cargar NO es un error: es la primera mitad de una apertura que va a salir
+  // bien. Enseñar la misma tarjeta centrada para «cargando» y para «no tienes
+  // permiso» hacía que abrir un plano se pareciera a un fallo.
+  if (state.kind === "loading") {
+    return <CadStudioSkeleton etapa="Abriendo el documento…" />;
+  }
+
   if (state.kind !== "ready") {
-    const messages: Record<Exclude<State["kind"], "ready">, string> = {
-      loading: "Cargando documento…",
+    const messages: Record<Exclude<State["kind"], "ready" | "loading">, string> = {
       invalid: "El identificador del documento no es válido.",
       deleted: "Este documento fue eliminado o ya no existe.",
       forbidden: "No tienes permiso suficiente para abrir este documento.",
@@ -83,17 +94,22 @@ export default function DocumentStudioPage({
       error: "No pudimos cargar el documento.",
     };
     return (
-      <main className="grid min-h-screen place-items-center p-6">
-        <section className="max-w-md rounded-2xl border border-black/10 bg-white p-8 text-center shadow-sm dark:border-white/10 dark:bg-zinc-900">
-          <h1 className="text-xl font-semibold">Valle Design Studio</h1>
+      // Tokens, no paleta cruda. Esta pantalla llevaba `bg-white`,
+      // `text-gray-500`, `border-black/10` y `dark:bg-zinc-900` escritos a mano:
+      // el blanco puro no es el fondo del sistema y el gris no es
+      // `--muted-foreground`, así que la pantalla de error era la única del
+      // producto que no se parecía al producto.
+      <main className="grid min-h-screen place-items-center bg-background p-6">
+        <section className="max-w-md rounded-surface border border-border bg-card p-8 text-center shadow-raised">
+          <h1 className="type-heading">Valle Design Studio</h1>
           <p
             role={state.kind === "error" ? "alert" : "status"}
-            className="mt-3 text-sm text-gray-500"
+            className="type-body mt-3 text-muted-foreground"
           >
             {messages[state.kind]}
           </p>
           <Link
-            className="mt-6 inline-block text-sm font-semibold text-indigo-500"
+            className="type-small mt-6 inline-block font-semibold text-primary-ink underline underline-offset-4"
             href="/dashboard"
           >
             Volver a proyectos

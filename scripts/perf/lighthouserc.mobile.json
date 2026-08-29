@@ -1,0 +1,47 @@
+{
+  "//": "El MISMO gate, con el emulado móvil por defecto de Lighthouse: un teléfono de gama media con 4G lenta y 4× de ralentización de CPU. Es el caso que decide, no el portátil del equipo.",
+  "ci": {
+    "collect": {
+      "url": [
+        "http://127.0.0.1:3141/",
+        "http://127.0.0.1:3141/register",
+        "http://127.0.0.1:3141/precios"
+      ],
+      "numberOfRuns": 3,
+      "settings": {
+        "chromeFlags": "--no-sandbox --headless=new --disable-dev-shm-usage"
+      }
+    },
+    "assert": {
+      "assertions": {
+        "categories:performance": [
+          "error",
+          {
+            "minScore": 0.7
+          }
+        ],
+        "categories:accessibility": [
+          "error",
+          {
+            "minScore": 0.95
+          }
+        ],
+        "categories:best-practices": [
+          "error",
+          {
+            "minScore": 0.9
+          }
+        ],
+        "categories:seo": [
+          "error",
+          {
+            "minScore": 0.9
+          }
+        ]
+      },
+      "//outputDir": "`lhci collect` NO admite `outputDir` —es de `upload --target=filesystem`— y lo ignoraba en silencio, así que los informes siempre caían en `.lighthouseci/` y la pasada móvil pisaba la de escritorio. El archivado a `informes-lighthouse/escritorio/` y `informes-lighthouse/movil/` lo hace ahora scripts/perf/lighthouse-gate.mjs, que además comprueba que lo archivado contiene informes. Sin punto delante a propósito: actions/upload-artifact descarta los ficheros ocultos por omisión, y con las rutas anteriores el artefacto salía vacío.",
+      "//rendimiento": "Medido EN EL RUNNER de CI (ubuntu-latest, mediana de tres corridas por ruta, run 33252353725 sobre 3ffc7a1): 73 / 74 / 75 de rendimiento con LCP de 8,87-9,17 s; accesibilidad 100, buenas practicas 96, SEO 100 en las tres rutas. El contenedor de desarrollo dio 73/74/75, IDENTICO, porque el estrangulamiento de Lighthouse es simulado. El umbral se fija en 0,70 —tres puntos por debajo de la peor observacion— y NO en 0,90: el producto no esta en 90 en movil y bajar el liston en silencio no vale, pero dejar el gate en aviso tampoco. Lo que hay que adelgazar para subir esta cifra es P1-FE6 del BACKLOG, con la causa medida: el 74 % de los bytes de la portada son tipografias (1 093 de 1 476 KB), tres de las cinco en TTF sin convertir, y el desglose del LCP da 95 % de render delay sobre un parrafo de texto. Cuando esa entrada se cierre, este umbral sube con la nueva medida delante.",
+      "//": "Los umbrales salen de lo MEDIDO EN EL RUNNER con margen, no de un numero redondo. La tabla completa esta en docs/execution/CAMPANA_FRONTEND_20260829.md, seccion 1.5, y la publica en cada corrida el job `resumen-lighthouse`."
+    }
+  }
+}

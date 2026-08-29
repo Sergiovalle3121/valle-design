@@ -27,6 +27,27 @@ import { cx } from "./styles";
  *
  * El clic en el velo cierra SÓLO si empezó en el velo: arrastrar una selección
  * de texto desde dentro del diálogo y soltar fuera no debe cerrarlo.
+ *
+ * ── POR QUÉ `onClose` VIVE EN UN REF (2026-08-29) ──────────────────────────
+ *
+ * El efecto que monta el foco, el bloqueo de scroll y el escuchador de teclado
+ * dependía de `onKeyDown`, que a su vez dependía de `onClose`. Casi todos los
+ * consumidores pasan `onClose={() => setOpen(false)}` —una función nueva en
+ * cada render— así que el efecto se desmontaba y se volvía a montar en CADA
+ * render del padre. Y montarlo hace dos cosas destructivas: guarda
+ * `document.activeElement` como elemento al que volver, y mueve el foco al
+ * primer control del diálogo.
+ *
+ * El resultado, en el diálogo de comentarios: cada tecla escrita en el área de
+ * texto devolvía el foco al primer control. Escribir una frase era imposible.
+ * No era un fallo de estilo ni de ARIA — era el diálogo comiéndose lo que el
+ * usuario escribía, en el único canal que el producto tiene para que alguien
+ * cuente que algo se rompió.
+ *
+ * La corrección es la de siempre para este patrón: la devolución de llamada
+ * vive en un ref que se actualiza en su propio efecto, el manejador de teclado
+ * la lee de ahí, y el efecto de montaje depende SÓLO de `open`. Lo fija
+ * `e2e/a11y/teclado-embudo.spec.ts`.
  */
 
 const FOCUSABLE =
@@ -67,12 +88,21 @@ export function Modal({
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
   const veilPressRef = useRef(false);
+  /**
+   * La última `onClose`, sin que su identidad entre en las dependencias del
+   * efecto de montaje. Ver la nota de cabecera: si entra, el diálogo se
+   * remonta en cada render del padre y se lleva el foco por delante.
+   */
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   const onKeyDown = useCallback(
     (event: KeyboardEvent) => {
       if (event.key === "Escape") {
         event.stopPropagation();
-        onClose();
+        onCloseRef.current();
         return;
       }
       if (event.key !== "Tab") return;
@@ -98,7 +128,7 @@ export function Modal({
         first.focus();
       }
     },
-    [onClose],
+    [],
   );
 
   useEffect(() => {

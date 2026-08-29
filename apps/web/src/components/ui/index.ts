@@ -21,6 +21,7 @@ export {
   type SurfaceTexture,
 } from "./Card";
 export { EmptyState, type EmptyStateProps } from "./EmptyState";
+export { ErrorBoundary } from "./ErrorBoundary";
 export { controlClass, FieldShell } from "./Field";
 export {
   Badge,

@@ -105,3 +105,7 @@ apps/web/e2e/.test-results*/
 # Dumps locales del ensayo de backup/restore (ops:backup) — nunca se versionan.
 /backups/
 
+
+# Informes de Lighthouse CI: son evidencia de una corrida, no del repo.
+.lighthouseci*/
+informes-lighthouse/

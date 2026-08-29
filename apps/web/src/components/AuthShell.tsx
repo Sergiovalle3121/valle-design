@@ -139,7 +139,7 @@ export function AuthShell({
           // aquí alargaría el recorrido hasta el campo de correo.
           <aside className="hidden lg:block">
             <p className="type-eyebrow flex items-center gap-3 text-primary-ink">
-              <span className="type-sheet-number opacity-60">00</span>
+              <span className="type-sheet-number opacity-85">00</span>
               Lo que vas a abrir
             </p>
             <div className="mt-5 overflow-hidden rounded-surface border border-border bg-background p-6">

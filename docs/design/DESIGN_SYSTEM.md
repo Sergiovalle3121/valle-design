@@ -278,6 +278,42 @@ cuadro.
   deba seguir siendo alcanzable con teclado (el enlace de salto) o legible por
   una prueba (la telemetría de diagnóstico del estudio).
 
+### 8 bis · El contrato de accesibilidad de cada primitiva
+
+La tabla de arriba dice para qué sirve cada primitiva. Ésta dice **qué promete**:
+qué rol expone, qué teclas maneja y qué anuncia. Lo nuevo nace cumpliendo esto o
+no entra.
+
+Está fijado por dos redes distintas, y la separación importa: lo que se puede
+leer del HTML lo comprueba `src/components/ui/primitives-contract.spec.ts`
+(marcado estático, milisegundos); lo que exige un navegador vivo —trampa de
+foco, flechas entre pestañas, Escape— lo comprueba
+`e2e/a11y/teclado-embudo.spec.ts`. Ninguna de las dos finge lo que la otra sabe.
+
+| Primitiva | Rol expuesto | Teclas | Qué anuncia |
+| --- | --- | --- | --- |
+| `Button` | `button` con `type="button"` explícito | Enter / Espacio (nativo) | La etiqueta; `aria-busy` mientras `loading`, **conservando** el texto |
+| `Input` / `Textarea` / `Select` | el nativo, con `<label for>` | las nativas | La etiqueta; el error por `aria-describedby` y `aria-invalid` |
+| `PasswordField` | `button` con `aria-pressed` para mostrar/ocultar | Enter / Espacio | Si la contraseña está visible; la entropía **informa, no bloquea** |
+| `Checkbox` | `checkbox` | Espacio | «Se aplicará al enviar» |
+| `Switch` | `switch` | Espacio | «Ya está aplicado» — por eso el rol es distinto |
+| `Tabs` | `tablist` con `aria-label`, hijos `tab` | ← → cambian de pestaña, Inicio/Fin a los extremos, **Tab SALE** de la lista | `aria-selected` en la activa; las inactivas con `tabindex="-1"` |
+| `Modal` | `dialog` + `aria-modal` + `aria-label` | Escape cierra; Tab circula **dentro** | El título; el foco entra al primer control y **vuelve al abridor** al cerrar |
+| `ProgressBar` | `progressbar` | — | `aria-valuenow/min/max`: sin ellos es una caja de color |
+| `Skeleton` | `aria-hidden` | — | **Nada.** Es decoración; leerlo anuncia cajas vacías |
+| `Tooltip` | descriptivo, CSS puro | se muestra con `focus-within` | El texto, también a quien llega por teclado |
+| `EmptyState` | `region` con su encabezado | — | El estado y **la salida**: uno sin `action` es un callejón |
+| `ErrorBoundary` | `alert` | — | La zona que se cayó, y que el resto sigue vivo |
+| `CadDialogShell` | `dialog` + `aria-modal` + `aria-labelledby` | Escape cierra (fase de captura, para no cancelar además el comando en curso) | El título del cuadro |
+
+**Lo que estas primitivas NO prometen, dicho aquí para que nadie lo suponga:**
+`CadDialogShell` **no** atrapa el foco ni lo devuelve al cerrar. Hacerlo a medias
+—mover el foco a un sitio equivocado— deja a quien navega con teclado peor que
+antes, así que queda como trabajo con nombre en
+[`DEUDA-MONOLITO.md`](../execution/DEUDA-MONOLITO.md) y no como una casilla
+marcada de más. `Modal` sí lo hace, y es la primitiva que hay que usar cuando el
+diálogo es del producto y no del lienzo.
+
 ---
 
 ## 9. Cómo se añade algo al sistema

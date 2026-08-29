@@ -2,11 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   FilePlus2,
   FolderPlus,
-  LogIn,
   LogOut,
   ShieldCheck,
   Upload,
@@ -15,12 +15,11 @@ import {
 import { Logo } from "@/components/brand/Logo";
 import { SkipLink } from "@/components/SkipLink";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Button, Surface, buttonClass, cx } from "@/components/ui";
+import { Button, ErrorBoundary, Surface, buttonClass, cx } from "@/components/ui";
 import { FeedbackButton } from "@/components/feedback/FeedbackDialog";
 import { DashboardSkeleton } from "./DashboardSkeleton";
 import { FirstMinute } from "./FirstMinute";
 import { OrganizationOnboarding } from "./OrganizationOnboarding";
-import SAMPLE_PLAN from "@/lib/cad/sample-plan.json";
 import type {
   CadDocumentInline,
   CadDocumentSummary,
@@ -37,13 +36,32 @@ import {
   isDwgNativeImportBetaEnabled,
   splitDocumentSelection,
 } from "@/lib/cad/document-import-client";
-import type { DocumentImportReport } from "@/lib/cad/document-import";
-import { serializeCadDocument } from "@/lib/cad/cad-document";
-import { createCadStarterDocument } from "@/lib/cad/starter-templates";
-import {
-  CadStarterTemplateFields,
-  EMPTY_CAD_STARTER_CHOICE,
-} from "./starter-template-fields";
+import { EMPTY_CAD_STARTER_CHOICE } from "./starter-choice";
+import { Status } from "./Status";
+import { abrirPlanoDeEjemplo } from "./sample-plan";
+import { prefetchCadStudio } from "@/components/cad/prefetch-studio";
+
+/**
+ * El formulario de plantilla de arranque llega cuando el usuario abre
+ * «documento nuevo», no al listar documentos. Arrastra `CAD_STARTER_TEMPLATES`
+ * y con él 1 036 KB de fuente —capas normalizadas, cajetín, papeles mexicanos,
+ * operaciones de layout— que no hacen falta para ver una lista.
+ *
+ * `ssr: false` porque el formulario es puro cliente y su hueco lo ocupa un
+ * marcador de la misma altura: sin salto de layout cuando llega el código.
+ */
+const CadStarterTemplateFields = dynamic(
+  () => import("./starter-template-fields").then((m) => m.CadStarterTemplateFields),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        className="mt-4 h-[4.5rem] animate-pulse rounded-xl bg-muted/40"
+        aria-hidden="true"
+      />
+    ),
+  },
+);
 import {
   abortError,
   gzipDocument,
@@ -85,6 +103,15 @@ export default function DashboardPage() {
    * encima no quiere capas inventadas de por medio.
    */
   const [starter, setStarter] = useState(EMPTY_CAD_STARTER_CHOICE);
+
+  /**
+   * Quien llega al tablero va a abrir un plano: es lo único que se hace aquí.
+   * El editor son ~3,8 MB que hoy empezaban a bajar en el momento del clic, con
+   * la persona ya mirando la pantalla de carga. Se piden antes, cuando el
+   * navegador esté ocioso — y no se piden si el usuario activó el ahorro de
+   * datos o va por 2G (ver `prefetch-studio.ts`).
+   */
+  useEffect(() => prefetchCadStudio(), []);
   const [selectedProject, setSelectedProject] = useState("");
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -128,13 +155,25 @@ export default function DashboardPage() {
           designClient.commercial.subscription(),
           designClient.commercial.entitlements(),
         ]);
+      /**
+       * El primer proyecto se resuelve AQUÍ, dentro del `try`, y no dentro del
+       * actualizador perezoso de `setSelectedProject`.
+       *
+       * No es estilo: es dónde cae el error. Un actualizador perezoso se
+       * ejecuta después, durante el render, FUERA de este `try` — así que si la
+       * respuesta llega sin `items` (una API antigua, un proxy que devuelve una
+       * lista pelada, un despliegue a medias), el `TypeError` escapaba del
+       * manejador de errores del tablero, subía hasta la frontera de ruta y
+       * sustituía el tablero entero por «algo se rompió de nuestro lado». Con
+       * la lectura aquí, el mismo fallo cae en el `catch` de abajo y el usuario
+       * ve el estado de error del tablero, con su reintento y su navegación.
+       */
+      const primerProyecto = projectPage.items[0]?.id ?? "";
       setProjects(projectPage.items);
       setDocuments(documentPage.items);
       setSubscription(subscriptionResult.subscription);
       setEntitlements(entitlementResult.items);
-      setSelectedProject(
-        (current) => current || projectPage.items[0]?.id || "",
-      );
+      setSelectedProject((current) => current || primerProyecto);
       setState(
         projectPage.items.length || documentPage.items.length
           ? "ready"
@@ -238,6 +277,13 @@ export default function DashboardPage() {
       // documento llega al estudio ya configurado y el editor sólo lo lee.
       if (starter.templateId) {
         const project = projects.find((item) => item.id === selectedProject);
+        // El generador viaja con el catálogo de plantillas: se trae aquí, con
+        // el usuario ya comprometido a crear el documento, y no al abrir la
+        // página. `import()` cachea el módulo, así que el segundo documento no
+        // vuelve a pagarlo.
+        const { createCadStarterDocument } = await import(
+          "@/lib/cad/starter-templates"
+        );
         await designClient.documents.saveContent(
           document.id,
           createCadStarterDocument({
@@ -287,28 +333,17 @@ export default function DashboardPage() {
     setBusy(true);
     setActionError(null);
     try {
-      // El ejemplo necesita un proyecto donde vivir. Si la organización está
-      // recién creada no hay ninguno, así que se crea uno con nombre propio en
-      // vez de pedirle al usuario que lo invente antes de ver nada.
-      let projectId = selectedProject || projects[0]?.id;
-      if (!projectId) {
-        const project = await designClient.projects.create({
-          name: "Ejemplos",
-        });
-        setProjects((items) => [...items, project]);
-        projectId = project.id;
-        setSelectedProject(project.id);
-      }
-      const document = await designClient.documents.create({
-        name: "Planta de ejemplo",
-        projectId,
-      });
-      await designClient.documents.saveContent(
-        document.id,
-        SAMPLE_PLAN as unknown as CadDocumentInline,
-        0,
+      // La secuencia (crear proyecto si hace falta, crear documento, escribir
+      // el contenido) vive en `sample-plan.ts`: aquí sólo queda lo que es de
+      // esta pantalla — el estado ocupado, el error y a dónde se va después.
+      const { documentId, proyectoCreado } = await abrirPlanoDeEjemplo(
+        selectedProject || projects[0]?.id,
       );
-      router.push(`/studio/${document.id}`);
+      if (proyectoCreado) {
+        setProjects((items) => [...items, proyectoCreado]);
+        setSelectedProject(proyectoCreado.id);
+      }
+      router.push(`/studio/${documentId}`);
     } catch (error) {
       setActionError(
         error instanceof Error
@@ -362,6 +397,7 @@ export default function DashboardPage() {
         projectId: selectedProject,
       });
 
+      const { serializeCadDocument } = await import("@/lib/cad/cad-document");
       const serialized = serializeCadDocument(report.document);
       const serializedBytes = new Blob([serialized]).size;
       if (serializedBytes > 1_000_000) {
@@ -634,11 +670,19 @@ export default function DashboardPage() {
                 tiempo que ahorra. Lo que se pinta vive en `starter-template-fields`
                 por el presupuesto de tamaño de esta página.
               */}
-              <CadStarterTemplateFields
-                value={starter}
-                onChange={setStarter}
-                disabled={busy}
-              />
+              {/*
+                El formulario de plantilla llega por red (import dinámico) y
+                pinta un catálogo entero. Su frontera es compacta porque vive
+                dentro del formulario de creación: si se cae, se puede seguir
+                creando el documento en blanco, que es la ruta que más se usa.
+              */}
+              <ErrorBoundary zona="Plantilla de arranque" compacta className="mt-4">
+                <CadStarterTemplateFields
+                  value={starter}
+                  onChange={setStarter}
+                  disabled={busy}
+                />
+              </ErrorBoundary>
               <label className="type-small mt-4 inline-flex cursor-pointer items-center gap-2 font-medium text-primary-ink">
                 <Upload className="h-4 w-4" /> Importar como documento
                 <input
@@ -736,30 +780,5 @@ export default function DashboardPage() {
         </div>
       </main>
     </>
-  );
-}
-
-function Status({ text, action }: { text: string; action?: () => void }) {
-  return (
-    <main
-      id="contenido"
-      className="relative grid min-h-screen place-items-center p-6"
-    >
-      <div aria-hidden="true" className="aurora-bg fixed inset-0 -z-10" />
-      <div className="max-w-md text-center">
-        <Logo />
-        <p role="status" className="type-body mt-8 text-muted-foreground">
-          {text}
-        </p>
-        {action && (
-          <button
-            onClick={action}
-            className={`${buttonClass({ variant: "primary", size: "lg" })} mt-6`}
-          >
-            <LogIn className="h-4 w-4" /> Continuar
-          </button>
-        )}
-      </div>
-    </main>
   );
 }

@@ -1,7 +1,7 @@
 # BACKLOG — ordenado por lo que impide vender
 
-Actualizado: 2026-08-28, campaña de firma propia
-(`docs/execution/INFORME_CAMPANA_FIRMA_20260828.md`).
+Actualizado: 2026-08-29, campaña de ingeniería frontend
+(`docs/execution/INFORME_CAMPANA_FRONTEND_20260829.md`).
 Cada entrada dice qué falla,
 dónde, cómo se reproduce, qué criterio la cierra y qué prueba lo fija. El
 orden dentro de cada nivel es el orden recomendado de ataque. Una entrada que
@@ -280,6 +280,19 @@ ante operación sin marca. **Estimación:** medio día.
 ### P1-F3 · Entrar con Google y Microsoft
 - **Qué falla:** el alta sólo admite correo y contraseña. Es lo que más subiría
   la conversión del embudo.
+- **Terreno mapeado (campaña de frontend, 2026-08-29):** no hay NADA de OAuth —
+  ni ruta en el contrato (19 rutas `/v1/auth`, ninguna federada), ni botón, ni
+  bandera, ni dependencia; `AuthModule` está vacío. La sesión de hoy es un token
+  opaco cuyo SHA-256 vive en `identity_sessions`, servido en dos cookies (sesión
+  `httpOnly` `SameSite=Lax`, y `valle_csrf` legible por JS para el doble envío),
+  con el hash argon2id en `identity_credentials` y el acceso bloqueado hasta que
+  un token de un solo uso de 24 h sella `User.emailVerifiedAt`. La colisión de
+  correo se resuelve hoy con silencio deliberado —202 `{accepted:true}`, sin
+  correo y con la misma pantalla de «revisa tu correo»— que es exactamente lo
+  que deja **sin definir** qué hacer cuando el correo de Google ya tiene cuenta.
+  Las specs `.pg` siguen un patrón único (`*.pg.spec.ts` + `createPostgresHarness`
+  con esquema desechable) y se corren con
+  `TEST_DATABASE_URL=… npm run test:pg --workspace=valle-design-api`.
 - **Por qué NO se hizo:** OAuth no es una pantalla, es un proveedor de
   identidad. Antes de la primera línea hay que decidir y probar: fusión de
   cuentas cuando alguien se registró con contraseña y luego entra con Google
@@ -308,6 +321,193 @@ ante operación sin marca. **Estimación:** medio día.
 - **Estimación:** una hora de código una vez tomadas las dos decisiones.
 
 ---
+
+### ~~P1-FE1 · Los umbrales de rendimiento de Lighthouse están sin calibrar~~ · CERRADO 2026-08-29
+
+- **Cerrado.** Los cuatro umbrales de las dos pasadas **bloquean**, con el número
+  del runner medido delante:
+
+  | Categoría | Escritorio | Móvil | Medido en el runner | Margen |
+  | --- | ---: | ---: | ---: | ---: |
+  | Rendimiento | **0,90** | **0,70** | 94 / 73 | 4 y 3 puntos |
+  | Accesibilidad | 0,95 | 0,95 | 100 | 5 puntos |
+  | Buenas prácticas | **0,90** | **0,90** | 96 | 6 puntos |
+  | SEO | **0,90** | **0,90** | 100 | 10 puntos |
+
+- **La medida** (`ubuntu-latest`, run 33252353725 sobre `3ffc7a1`, mediana de tres
+  corridas por ruta): escritorio **94 / 94 / 94** con LCP 1,62-1,69 s; móvil
+  **73 / 74 / 75** con LCP 8,87-9,17 s; accesibilidad 100 y SEO 100 en las seis.
+- **Lo que se aprendió, y desmonta la razón por la que esta entrada existía:** el
+  runner y el contenedor de desarrollo dan **el mismo número** —móvil idéntico,
+  escritorio un punto—. El estrangulamiento de Lighthouse es *simulado*, no
+  aplicado, así que normaliza la máquina; la premisa de que «el número del
+  contenedor no se traslada a un runner más pequeño y compartido» era falsa. Sólo
+  se supo midiendo, y para poder medirlo hubo que arreglar cuatro fallos
+  encadenados en la cadena de publicación (ver la sección 1.5 de la bitácora de
+  campaña). El job `resumen-lighthouse` publica ahora esa tabla en cada corrida,
+  en un log de veinte líneas, para que la próxima recalibración no cueste lo
+  mismo.
+- **El móvil se fija en 0,70 y no en 90** porque el producto no está en 90.
+  Bajar el listón en silencio no vale; dejar el gate en aviso tampoco, porque un
+  gate que no bloquea no es un gate. Sube cuando suba el producto: lo que hay que
+  adelgazar es **P1-FE6**.
+- **Comprobado que muerde:** subiendo el umbral móvil a 0,80 contra los informes
+  reales, `lhci assert` falla en las tres rutas y devuelve 1; con 0,70 pasa.
+
+### P1-FE2 · El monolito del editor: los tres bloques que quedan
+- **Qué falta:** `Layout3DEditor.tsx` bajó de 20 220 a 19 137 líneas con siete
+  cuadros extraídos, pero el objetivo declarado de la campaña (< 18 500 y
+  `useState` < 130) NO se alcanzó, y el motivo está medido.
+- **Dónde:** el mapa completo, con el acoplamiento de cada bloque y el comando
+  para volver a medirlo, está en `docs/execution/DEUDA-MONOLITO.md`.
+- **Por qué NO se forzó:** el bloque grande que falta —el paquete premium de
+  entrega, 525 líneas— toca ~40 variables del cierre del componente. Un
+  componente con cuarenta props no es una extracción: es el monolito con otra
+  sintaxis. Y los `useState` no bajan extrayendo cuadros porque los cuadros
+  pintaban estado ajeno; bajarlos exige mover la propiedad del estado.
+- **Cómo se cierra:** primero `usePaperSpaces` (controlador de espacios-papel),
+  y con él el cuadro sale con dos props. Después los otros tres controladores
+  identificados (exportación DXF, versiones, validación), que suman ~23
+  `useState`.
+- **Criterio de aceptación:** monolito < 18 500 y `useState` < 130, con el
+  trinquete bajado en el mismo commit y los goldens verdes.
+- **Estimación:** una ola de campaña por controlador.
+
+### P1-FE3 · Web Vitals de campo: falta el endpoint, no el medidor
+- **Qué falta:** `lib/cad/telemetry/interaction-latency.ts` ya mide la latencia
+  de interacción en el navegador con la API que define INP, y su aritmética
+  tiene spec. Lo que no existe es **dónde publicarla**: la API tiene una capa de
+  métricas completa pero 100 % de servidor —registro Prometheus en proceso, dos
+  endpoints JSON protegidos por `METRICS_TOKEN`— y ni tabla, ni entidad, ni
+  endpoint de escritura para telemetría de cliente.
+- **Por qué NO se hizo en esta campaña:** es una cadena completa, no una
+  pantalla: entidad + migración (con sus tres puntos de aterrizaje obligatorios,
+  incluido el alta en `ALL_MIGRATIONS` de `migration-chain.pg.spec.ts`) +
+  controlador Nest + ruta en el contrato OpenAPI + regeneración del SDK, y el
+  gate `check:cad-contract` exige biyección **exacta** entre las tres cosas.
+  Además hay una decisión de producto delante: un endpoint de escritura sin
+  sesión es superficie nueva de abuso, y hoy los únicos que existen son los de
+  identidad (limitados por IP) y los webhooks firmados por HMAC.
+- **Criterio de aceptación:** el navegador publica CLS/LCP/INP reales, la tabla
+  los guarda con retención declarada, y el panel interno los enseña por
+  percentil. Con límite de tasa y sin dato personal.
+- **Estimación:** media campaña.
+
+### P1-FE4 · La trampa de foco de los cuadros del estudio
+- **Qué falta:** `CadDialogShell` da `role="dialog"`, `aria-modal`,
+  `aria-labelledby` y cierre con Escape a los siete cuadros extraídos — que
+  antes no tenían nada de eso. Lo que **no** hace es mover el foco al abrir,
+  atraparlo dentro ni devolverlo al cerrar.
+- **Por qué NO se hizo a medias:** un foco que salta a un sitio equivocado deja
+  a quien navega con teclado peor que antes. `Modal` (el de `components/ui`) sí
+  lo hace y es la referencia a copiar.
+- **Criterio de aceptación:** los cuadros del estudio pasan el mismo test de
+  trampa de Tab que ya pasa el diálogo de comentarios en
+  `e2e/a11y/teclado-embudo.spec.ts`.
+- **Estimación:** medio día, la mayor parte en pruebas.
+
+### P1-FE5 · Veintisiete controles del estudio se pueden enfocar y no se ven
+- **Qué falla:** `globals.css` define el anillo de foco en `@layer base` con
+  `:focus-visible`, pero Tailwind v4 emite `outline-none` en la capa
+  `utilities`, que gana a `base`. Cualquier clase con `outline-none` apaga el
+  anillo del sistema, y si no pone otro en su lugar deja un control que recibe
+  el foco **sin ninguna señal de tenerlo**. Para quien navega con teclado, eso
+  es no saber dónde está.
+- **Cuántos y dónde:** 27 clases, medidas por
+  `src/components/ui/foco-visible.spec.ts`. Casi todas son campos de texto de
+  las paletas del editor CAD (hatch, xref, colaboración, línea de comandos) y
+  del propio `Layout3DEditor.tsx`.
+- **Por qué no lo cazaba nada:** no es un color mal elegido (gate de contraste),
+  no es un token fuera de escala (gate del sistema de diseño), y axe no lo ve
+  porque mira una página concreta y estos controles viven detrás de paletas que
+  hay que abrir.
+- **Estado:** hay **trinquete** desde 2026-08-29 —`foco-visible-budget.json`,
+  27, y sólo baja—. No se puso en cero para no romper el repo de golpe y
+  provocar una lista de excepciones, que es como se muere un gate.
+- **Cómo se cierra:** cada paleta que salga del monolito (P1-FE2) se lleva sus
+  campos y les pone `focus-visible:ring-2 ring-ring`; el trinquete baja en el
+  mismo commit.
+- **Criterio de aceptación:** el presupuesto llega a 0 y el gate pasa a
+  prohibición.
+- **Estimación:** se paga a plazos, con las extracciones.
+
+### P1-FE6 · El 74 % de la portada son tipografías, y por eso el móvil da 74
+
+- **Qué pasa:** medido con Lighthouse en el contenedor de desarrollo, máquina en
+  reposo, mediana de tres corridas (ver la tabla completa en
+  `docs/execution/CAMPANA_FRONTEND_20260829.md`, sección 1.5): en **móvil** la
+  portada da **73** de rendimiento con un **LCP de 8,9 s**. Escritorio da 93. La
+  diferencia no es misteriosa y no está en el JavaScript.
+- **El desglose de bytes de la portada** (misma corrida, `/`, emulado móvil):
+
+  | Tipo | Peso transferido |
+  | --- | ---: |
+  | **Tipografías** | **1 093,1 KB** |
+  | Script | 262,3 KB |
+  | Documento | 55,9 KB |
+  | Imagen | 26,2 KB |
+  | Hoja de estilo | 21,1 KB |
+  | Resto | 17,6 KB |
+  | **Total** | **1 476,3 KB** |
+
+  **El 74 % de la portada son tipografías.** El presupuesto de bundle y el gate
+  de bytes descargados estaban vigilando los 262 KB de script mientras el
+  megabyte largo pasaba por delante sin que nadie lo mirara.
+- **Y la fase lo confirma:** el desglose del LCP de ese informe da **TTFB 458 ms,
+  Load Delay 0, Load Time 0, Render Delay 8 333 ms (95 %)**. El elemento LCP es
+  un párrafo de texto (`p.type-lead` del hero), no una imagen: no hay nada que
+  descargar para pintarlo. Las tres familias van con `display: "swap"`, así que
+  el texto pinta pronto con el respaldo —FCP 1,1 s, Speed Index 1,7 s, CLS 0—
+  pero **vuelve a pintar cuando llega la variable**, y ese repintado es el que
+  se anota como LCP. Con 1,09 MB de fuentes en una red 4G estrangulada, eso cae
+  a los ocho segundos y pico.
+- **Dónde está el peso, fichero a fichero** (`apps/web/src/fonts/`):
+
+  | Fichero | Formato | Peso |
+  | --- | --- | ---: |
+  | `InterVariable-Italic.woff2` | WOFF2 | 378,9 KB |
+  | `InterVariable.woff2` | WOFF2 | 344,0 KB |
+  | `JetBrainsMono-Italic-wght.ttf` | **TTF** | 301,6 KB |
+  | `JetBrainsMono-wght.ttf` | **TTF** | 293,1 KB |
+  | `SpaceGrotesk-wght.ttf` | **TTF** | 133,5 KB |
+
+- **Las tres cosas que se ven a simple vista, en orden de rendimiento por
+  esfuerzo:**
+  1. **Tres de las cinco fuentes se sirven en TTF, no en WOFF2** (728 KB de las
+     1 093). WOFF2 es el mismo contorno con compresión Brotli: la conversión no
+     toca el diseño de la letra ni la identidad, y suele dejar el fichero en
+     torno a un tercio. Es la mitad del problema y no cambia ni un píxel.
+  2. **Las dos cursivas suman 681 KB** y la portada no usa cursiva. `next/font`
+     precarga todas las variantes declaradas en el `layout`, se usen o no en la
+     ruta que se está sirviendo.
+  3. **JetBrains Mono es del estudio, no de la portada**: existe por la línea de
+     órdenes, las coordenadas del cursor y las cifras en columna. Un visitante
+     que sólo lee la portada se descarga 595 KB de una mono que no aparece.
+- **Lo que NO se hace:** cambiar las familias. La voz tipográfica la fijó la
+  campaña de firma y no se reabre por rendimiento; lo que se ataca es el formato
+  y el alcance, no el diseño.
+- **Cuidado con el gate que ya existe:** `check:fonts` prohíbe que
+  `next/font/google` vuelva. La conversión a WOFF2 y el recorte de variantes se
+  hacen dentro de `next/font/local`, con los ficheros versionados en el repo,
+  sin tocar esa prohibición.
+- **Criterio de aceptación:** la portada baja de 1 093 KB de tipografía a menos
+  de 350 KB, el LCP móvil baja de 8,9 s a menos de 4 s, y el rendimiento móvil
+  medido en reposo sube por encima de 85. Los tres números se publican con su
+  máquina y sus condiciones, como todos los demás.
+- **Estimación:** 2 horas — la conversión es mecánica, el recorte de alcance
+  pide mirar dónde se usa cada familia.
+
+### P2-FE5 · Las plantillas no se pueden diferir desde la paleta
+- **Qué se descubrió:** `lib/cad/templates.ts` son 4 982 líneas de datos que
+  parecían un `import()` fácil. No lo son: `lib/cad/engine/index.ts` importa
+  `CAD_LAYOUT_COMMANDS`, que importa `CAD_LAYOUT_TEMPLATES`, y el motor de
+  comandos es núcleo del estudio. Diferir las plantillas exige diferir los
+  **manejadores de comandos pesados**, uno a uno, detrás de un `import()` en su
+  `run`.
+- **Criterio de aceptación:** el chunk del editor baja de forma medible en
+  `e2e/performance/frontend-load-budget.spec.ts` sin que ningún comando pierda
+  su prueba.
+- **Estimación:** campaña propia.
 
 ## P2 — deuda que crece con intereses
 

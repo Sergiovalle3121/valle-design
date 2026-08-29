@@ -44,7 +44,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { contrastRatio, extractBlock, formatRatio, resolveToken } from "./contrast.mjs";
+import { composite, contrastRatio, extractBlock, formatRatio, resolveToken } from "./contrast.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "../..");
@@ -70,11 +70,18 @@ const GRAPHIC = 3;
 const RELIEF = 1.3;
 
 /**
- * LOS PARES. `[tinta, fondo, mínimo, qué es en pantalla]`.
+ * LOS PARES. `[tinta, fondo, mínimo, qué es en pantalla, alfa?]`.
  *
  * El cuarto campo no es documentación de cortesía: es lo que hace que un fallo
  * se pueda arreglar sin abrir el navegador. «--muted-foreground sobre --card
  * 4,1:1» no dice dónde mirar; «el pie de una tarjeta» sí.
+ *
+ * EL QUINTO CAMPO, `alfa`, existe porque axe-core encontró en 2026-08-29 tres
+ * violaciones serias que este gate no podía ver: una tinta que pasa a plena
+ * opacidad y falla con `opacity-60` encima. `contrast.mjs` sabía componer sobre
+ * el fondo desde el primer día (`composite`), pero ningún par lo declaraba, así
+ * que la atenuación viajaba sin medir. Una fila con alfa mide el color QUE SE
+ * VE, no el que dice el token.
  */
 const PAIRS = [
   // ── Texto sobre las tres superficies ──────────────────────────────────────
@@ -116,6 +123,17 @@ const PAIRS = [
   ["--primary", "--card", GRAPHIC, "la herramienta activa marcada con el acento"],
   ["--primary", "--background", GRAPHIC, "un trazo de acento sobre la página"],
 
+  // ── Tintas ATENUADAS: lo que se ve, no lo que dice el token ───────────────
+  // La numeración de lámina («00 · LO QUE VAS A ABRIR») va atenuada a propósito:
+  // es un adorno de composición delante del eyebrow. A `opacity-60` medía 3,10:1
+  // en claro y 3,09:1 en oscuro — ilegible para quien lo necesita, y una
+  // violación seria de axe en cinco superficies. A 0,85 mide 5,31 en claro y 4,88 sobre tarjeta
+  // en oscuro, que es el par más ajustado de los tres. 0,8 no bastaba: sobre
+  // `--card` en oscuro se quedaba en 4,24 — lo encontró este gate, no axe.
+  ["--primary-ink", "--background", TEXT, "la numeración de lámina atenuada sobre la página", 0.9],
+  ["--primary-ink", "--card", TEXT, "la numeración de lámina atenuada en una tarjeta", 0.9],
+  ["--primary-foreground", "--brand-primary-strong", TEXT, "la numeración dentro del botón principal", 0.9],
+
   // ── Relieve: que los planos se separen ────────────────────────────────────
   ["--border", "--card", RELIEF, "el borde de una tarjeta contra su relleno"],
   ["--border", "--background", RELIEF, "el borde de una tarjeta contra la página"],
@@ -144,21 +162,25 @@ const failures = [];
 const rows = [];
 
 for (const [themeName, tokens] of themes) {
-  for (const [inkToken, bgToken, minimum, what] of PAIRS) {
+  for (const [inkToken, bgToken, minimum, what, alpha] of PAIRS) {
     let ratio;
     try {
+      const fondo = resolveToken(tokens, bgToken);
+      const tinta = resolveToken(tokens, inkToken);
+      // Con alfa se mide el color COMPUESTO sobre su fondo, que es el que
+      // llega al ojo; sin alfa, la tinta tal cual.
       ratio = contrastRatio(
-        resolveToken(tokens, inkToken),
-        resolveToken(tokens, bgToken),
+        alpha === undefined ? tinta : composite(tinta, fondo, alpha),
+        fondo,
       );
     } catch (error) {
       failures.push(`[${themeName}] ${inkToken} sobre ${bgToken}: ${error.message}`);
       continue;
     }
-    rows.push({ themeName, inkToken, bgToken, minimum, what, ratio });
+    rows.push({ themeName, inkToken, bgToken, minimum, what, ratio, alpha });
     if (ratio + 1e-9 < minimum) {
       failures.push(
-        `[${themeName}] ${what}: ${inkToken} sobre ${bgToken} mide ` +
+        `[${themeName}] ${what}: ${inkToken}${alpha === undefined ? "" : ` a opacidad ${alpha}`} sobre ${bgToken} mide ` +
           `${formatRatio(ratio)}:1 y el mínimo es ${formatRatio(minimum)}:1`,
       );
     }
@@ -170,7 +192,7 @@ if (markdown) {
   console.log("| --- | --- | --- | --- | ---: | ---: |");
   for (const row of rows) {
     console.log(
-      `| ${row.themeName} | ${row.what} | \`${row.inkToken}\` | \`${row.bgToken}\` | ` +
+      `| ${row.themeName} | ${row.what} | \`${row.inkToken}\`${row.alpha === undefined ? "" : ` @${row.alpha}`} | \`${row.bgToken}\` | ` +
         `${formatRatio(row.ratio)}:1 | ${formatRatio(row.minimum)}:1 |`,
     );
   }
