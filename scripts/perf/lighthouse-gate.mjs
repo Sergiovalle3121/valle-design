@@ -335,7 +335,10 @@ export function publicarResumen(filas, destino = INFORMES) {
 function reimprimirResumen() {
   const ruta = join(INFORMES, "resumen.json");
   if (!existsSync(ruta)) {
-    console.log(`No hay ${ruta}: la medida no llegó a producirse en esta corrida.`);
+    console.log(
+      `No hay ${ruta}: esta corrida no tiene informes que enseñar.\n` +
+        "Puede ser que la medida no llegara a producirse, o que la descarga del artefacto fallara.",
+    );
     return;
   }
   try {

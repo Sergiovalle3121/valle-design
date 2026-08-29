@@ -555,6 +555,27 @@ adelante sin protestar. Salir con código 0 no es haber hecho lo que se pedía. 
 cadena no fue mirar más código: fue **poner el paso en rojo** y leer lo que la herramienta imprimía
 de sí misma.
 
+**Y una cuarta, que ya no es de la herramienta sino mía.** Con el artefacto por fin subido —doce
+megas, la prueba de que los dos arreglos anteriores funcionaban— resultó que **no se puede
+descargar** desde el contenedor de trabajo: vive en un almacén de blobs que la política de red
+deniega con un 403, y las denegaciones de política no se reintentan. Los otros dos caminos tampoco
+llegan: el resumen del job no se expone por la API (el check run de Actions devuelve `output` vacío,
+comprobado) y el log se trunca por el principio.
+
+Así que añadí un paso final que reimprimía la tabla, con el argumento de que «lo último escrito en
+el log es lo único que siempre se puede leer». **Era falso, y ya tenía delante la prueba de que lo
+era.** El job monta un contenedor de servicio de PostgreSQL, y el runner vuelca el log ENTERO de ese
+contenedor después del último paso: cientos de líneas de violaciones de restricción —que son las que
+los tests provocan a propósito— que entierran el final del job. Lo había visto tapar la cola del log
+dos veces mientras diagnosticaba el fallo de Postgres, y aun así escribí el paso como si el último
+lugar del log fuera mío.
+
+La lección aquí es distinta de las tres anteriores: no es que una herramienta mintiera, es que
+**deduje una propiedad del sistema en vez de comprobarla**, teniendo la comprobación a mano. El
+arreglo es un job propio, `resumen-lighthouse`, que no monta servicios: su log completo son veinte
+líneas y la tabla se lee de un vistazo. Cuesta un job de treinta segundos y resuelve el problema
+para cualquiera que no pueda bajarse doce megas, que incluye a las personas.
+
 **Medido con el gate ya arreglado, las dos pasadas del mismo arranque, contenedor de desarrollo de
 4 núcleos con la máquina en reposo. Cada celda es la MEDIANA de tres corridas:**
 

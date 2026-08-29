@@ -369,14 +369,12 @@ jobs:
       # a los que aquí ya están en disco, y la cuota de Actions de este repo
       # está agotándose. Retención de un día: es un insumo entre jobs de la
       # MISMA corrida, no evidencia que haya que conservar.
-      # La tabla de Lighthouse, OTRA VEZ, al final del log. No es redundancia
-      # ociosa: el artefacto pesa doce megas y vive en un almacén que la
-      # política de red de algunos entornos no deja descargar, el resumen del
-      # job no se puede leer por API, y el log se trunca POR EL PRINCIPIO. Lo
-      # último escrito es lo único que siempre se puede leer. Diez líneas aquí
-      # evitan relanzar una corrida entera para enterarse de lo ya medido.
-      # No falla si no hay resumen: es un paso de lectura, y hacerlo fallar
-      # taparía el fallo de verdad que impidió medir.
+      # La tabla de Lighthouse otra vez, aquí, al lado de donde se midió. Para
+      # LEERLA por API no sirve —este job monta un contenedor de servicio de
+      # PostgreSQL y el runner vuelca su log entero DESPUÉS del último paso,
+      # con lo que entierra las últimas líneas del job—, y por eso existe
+      # además el job `resumen-lighthouse`, que no monta servicios. Se queda
+      # porque quien abre el log en el navegador lo quiere aquí, junto al gate.
       - name: Repetir la tabla de Lighthouse al final del log
         if: always()
         run: node scripts/perf/lighthouse-gate.mjs --resumen
@@ -407,6 +405,48 @@ jobs:
   # Coste: sin `npm ci` (usa la caché del lockfile) y sin build (descarga el
   # `dist` del job anterior). Es del orden de un minuto de runner.
   # ───────────────────────────────────────────────────────────────────────────
+  # ── La tabla de Lighthouse, en un job que se pueda leer ──────────────────
+  #
+  # Existe por un problema de LECTURA, y hace falta un job entero porque los
+  # tres caminos evidentes están cerrados:
+  #
+  #  · El artefacto pesa doce megas y vive en un almacén de blobs que la
+  #    política de red de algunos entornos deniega con 403.
+  #  · El resumen del job (GITHUB_STEP_SUMMARY) no se expone por la API: el
+  #    check run de Actions devuelve `output` vacío.
+  #  · El log de `quality-gates` se trunca por el principio, y sus últimas
+  #    líneas se las come el volcado del contenedor de servicio de PostgreSQL,
+  #    que el runner imprime entero después del último paso.
+  #
+  # Este job NO monta servicios, así que su log completo son veinte líneas: la
+  # tabla se lee de un vistazo, por API o en el navegador. Es lo que permite
+  # calibrar los umbrales con el número de la máquina donde van a bloquear
+  # (P1-FE1) en vez de heredarlos de otra.
+  resumen-lighthouse:
+    name: Resumen de Lighthouse (mediana por ruta)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: quality-gates
+    if: always()
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Descargar los informes medidos por quality-gates
+        id: informes
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          name: lighthouse-${{ github.sha }}
+          path: informes-lighthouse
+
+      # Sin `npm ci`: el modo `--resumen` sólo lee un JSON con la biblioteca
+      # estándar de Node, que el runner ya trae. Instalar dependencias para
+      # imprimir seis filas costaría más que todo lo demás junto.
+      - name: La tabla
+        run: node scripts/perf/lighthouse-gate.mjs --resumen
+
   deploy-readiness:
     name: Despliegue · Imagen reproducible + arranque productivo
     runs-on: ubuntu-latest
