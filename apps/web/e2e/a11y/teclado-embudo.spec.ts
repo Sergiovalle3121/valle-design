@@ -23,11 +23,16 @@
  */
 import { expect, test } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
+import { installDashboardBackend } from '../fixtures/dashboard-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 
 test.describe('Teclado · el embudo y los diálogos', () => {
   test.beforeEach(async ({ context }) => {
     await installMockBackend(context);
+    // Con el genérico a secas el tablero recibe `[]` donde espera `{items}` y
+    // se cae a la frontera de error — que también tiene un `h1`, así que el
+    // fallo se disfrazaba de página cargada. Ver `dashboard-backend.ts`.
+    await installDashboardBackend(context);
     await loginAsStandaloneOwner(context);
   });
 

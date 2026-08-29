@@ -194,6 +194,16 @@ jobs:
       - name: Presupuesto de bundle por ruta (bloqueante)
         run: node scripts/perf/bundle-budget.mjs
 
+      # Lighthouse sobre el MISMO build: no mide bytes sino tiempo hasta que la
+      # página es útil, que es lo que el peso no ve — una fuente que bloquea el
+      # pintado o un script que ocupa el hilo principal salen bien en KB y mal
+      # en pantalla. Dos pasadas, escritorio y móvil, tres corridas por ruta.
+      # El umbral de RENDIMIENTO móvil está en aviso hasta calibrarlo con la
+      # máquina en reposo (P1-FE1); el de accesibilidad bloquea en ambas, que
+      # ése no depende de la carga del runner.
+      - name: Lighthouse (escritorio + móvil, bloqueante en escritorio)
+        run: npm run check:lighthouse
+
       - name: Typecheck (API)
         working-directory: apps/api
         run: npm run typecheck

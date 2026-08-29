@@ -17,6 +17,18 @@
  * clave que usa el script anti-flash del layout: así no hay ventana en la que
  * axe analice el tema equivocado.
  *
+ * ## Por qué cada caso comprueba que está donde dice
+ *
+ * La primera versión esperaba a `h1, h2` y auditaba. Parece razonable y es una
+ * trampa: **la pantalla de error de la aplicación también tiene un `h1`**. Un
+ * fallo de render dejaba a axe auditando la pantalla de «algo se rompió» y el
+ * caso pasaba en verde — el peor resultado posible, un gate que informa de que
+ * una página cumple cuando esa página ni siquiera se está pintando.
+ *
+ * Pasó de verdad, en `/dashboard`, y lo destapó otra spec. Ahora cada caso
+ * comprueba que NO está en la frontera de error y que la página no soltó
+ * ningún error de JavaScript antes de medir nada.
+ *
  * ## Por qué no hay lista de excepciones
  *
  * Porque una lista de excepciones es una violación que ya no se ve. Si algo
@@ -25,6 +37,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
+import { installDashboardBackend } from '../fixtures/dashboard-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 
 type Tema = 'light' | 'dark';
@@ -38,6 +51,21 @@ async function fijarTema(page: Page, tema: Tema) {
       /* un navegador sin storage cae al default; el test sigue siendo válido */
     }
   }, tema);
+}
+
+/**
+ * Comprueba que la página es la que se pidió y no la pantalla de error. Se llama
+ * antes de auditar; sin esto, un gate verde puede significar «la pantalla de
+ * error no tiene violaciones».
+ */
+async function asegurarQueNoEsLaPantallaDeError(page: Page, ruta: string) {
+  const titular = (await page.locator("h1, h2").first().textContent()) ?? "";
+  if (/se rompió|Algo salió mal|Error/i.test(titular)) {
+    throw new Error(
+      `La ruta ${ruta} pintó la frontera de error («${titular.trim()}»), no la página. ` +
+        "Auditarla habría dado un verde que no significa nada.",
+    );
+  }
 }
 
 async function analizar(page: Page) {
@@ -83,8 +111,12 @@ test.describe('Accesibilidad · superficies públicas', () => {
     for (const tema of TEMAS) {
       test(`${nombre} (${ruta}) en tema ${tema} no tiene violaciones serias`, async ({ page }) => {
         await fijarTema(page, tema);
+        const erroresDePagina: string[] = [];
+        page.on('pageerror', (e) => erroresDePagina.push(e.message));
         await page.goto(ruta);
         await page.locator('h1, h2').first().waitFor({ state: 'visible' });
+        await asegurarQueNoEsLaPantallaDeError(page, ruta);
+        expect(erroresDePagina, `${ruta} soltó errores de JavaScript`).toEqual([]);
         const resultado = await analizar(page);
         const graves = resultado.violations.filter(
           (v) => v.impact === 'serious' || v.impact === 'critical',
@@ -110,6 +142,7 @@ test.describe('Accesibilidad · superficies públicas', () => {
 test.describe('Accesibilidad · superficies con sesión', () => {
   test.beforeEach(async ({ context }) => {
     await installMockBackend(context);
+    await installDashboardBackend(context);
     await loginAsStandaloneOwner(context);
   });
 
@@ -117,8 +150,12 @@ test.describe('Accesibilidad · superficies con sesión', () => {
     for (const tema of TEMAS) {
       test(`${nombre} (${ruta}) en tema ${tema} no tiene violaciones serias`, async ({ page }) => {
         await fijarTema(page, tema);
+        const erroresDePagina: string[] = [];
+        page.on('pageerror', (e) => erroresDePagina.push(e.message));
         await page.goto(ruta);
         await page.locator('h1, h2').first().waitFor({ state: 'visible' });
+        await asegurarQueNoEsLaPantallaDeError(page, ruta);
+        expect(erroresDePagina, `${ruta} soltó errores de JavaScript`).toEqual([]);
         const resultado = await analizar(page);
         const graves = resultado.violations.filter(
           (v) => v.impact === 'serious' || v.impact === 'critical',

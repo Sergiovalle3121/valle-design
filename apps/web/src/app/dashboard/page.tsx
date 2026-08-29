@@ -155,13 +155,25 @@ export default function DashboardPage() {
           designClient.commercial.subscription(),
           designClient.commercial.entitlements(),
         ]);
+      /**
+       * El primer proyecto se resuelve AQUÍ, dentro del `try`, y no dentro del
+       * actualizador perezoso de `setSelectedProject`.
+       *
+       * No es estilo: es dónde cae el error. Un actualizador perezoso se
+       * ejecuta después, durante el render, FUERA de este `try` — así que si la
+       * respuesta llega sin `items` (una API antigua, un proxy que devuelve una
+       * lista pelada, un despliegue a medias), el `TypeError` escapaba del
+       * manejador de errores del tablero, subía hasta la frontera de ruta y
+       * sustituía el tablero entero por «algo se rompió de nuestro lado». Con
+       * la lectura aquí, el mismo fallo cae en el `catch` de abajo y el usuario
+       * ve el estado de error del tablero, con su reintento y su navegación.
+       */
+      const primerProyecto = projectPage.items[0]?.id ?? "";
       setProjects(projectPage.items);
       setDocuments(documentPage.items);
       setSubscription(subscriptionResult.subscription);
       setEntitlements(entitlementResult.items);
-      setSelectedProject(
-        (current) => current || projectPage.items[0]?.id || "",
-      );
+      setSelectedProject((current) => current || primerProyecto);
       setState(
         projectPage.items.length || documentPage.items.length
           ? "ready"
