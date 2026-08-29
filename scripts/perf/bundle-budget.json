@@ -47,6 +47,9 @@
     },
     "/plantillas/taqueria": {
       "gzipKB": 280.7
+    },
+    "/demo": {
+      "gzipKB": 289.2
     }
   }
 }

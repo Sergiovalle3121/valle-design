@@ -45,6 +45,12 @@ export type CadStudioHostProps = Omit<
   documentId?: string;
   /** Proyecto CAD activo (alcance de recovery/historial). */
   projectId?: string;
+  /** Puerto de documentos alternativo (modo demostración). Se reexpone aquí
+   *  porque es prop de plataforma y el Omit de arriba la recorta. */
+  documentPort?: Layout3DEditorPlatformProps["documentPort"];
+  /** La capa de colaboración pide presencia y comentarios por red; en el modo
+   *  demostración no hay documento en la nube contra el que colaborar. */
+  withCollaboration?: boolean;
 };
 
 const noopFullscreenChange: NonNullable<
@@ -55,6 +61,8 @@ export default function CadStudioHost({
   documentId,
   projectId,
   readOnly,
+  documentPort,
+  withCollaboration = true,
   ...props
 }: CadStudioHostProps) {
   const toast = useToast();
@@ -116,6 +124,7 @@ export default function CadStudioHost({
         onNotify={onNotify}
         onFullscreenChange={noopFullscreenChange}
         branding={branding}
+        documentPort={documentPort}
         // Edición Design pura: sin paneles de análisis industrial (WP6).
       />
       {/*
@@ -126,7 +135,7 @@ export default function CadStudioHost({
         `documentId` no hay documento contra el que comentar (rutas legacy y
         sentinel), y entonces no se monta nada.
       */}
-      {documentId ? (
+      {documentId && withCollaboration ? (
         // La capa de colaboración va dentro de su propia frontera: se alimenta
         // de datos de OTROS usuarios —comentarios, presencia, revisiones— que
         // llegan por red y no los controla este cliente. Un comentario con una

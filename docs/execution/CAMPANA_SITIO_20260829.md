@@ -22,10 +22,10 @@
 | 1.2 | /plantillas: galería con búsqueda/filtros + página por plantilla + PDF muestra | ✅ (149 fichas prerenderizadas + PDF por el pipeline real) |
 | 1.3 | SEO por oficio: título/OG/sitemap/JSON-LD | ✅ (metadata por ficha, OG por plantilla, sitemap 169 rutas, ItemList+CreativeWork) |
 | 1.4 | Sección galería en portada (6-8 destacadas) | ✅ (8 destacadas, una por giro, cero JS) |
-| 2.1 | Spike modo invitado (45 min, veredicto en bitácora ANTES de construir) | pendiente |
-| 2.2 | /demo si el spike da verde | pendiente |
-| 2.3 | Recorrido interactivo si el spike da rojo | pendiente |
-| 2.4 | Gates E2E/axe/carga del demo o recorrido | pendiente |
+| 2.1 | Spike modo invitado (45 min, veredicto en bitácora ANTES de construir) | ✅ VERDE (veredicto abajo) |
+| 2.2 | /demo si el spike da verde | ✅ (editor real sin cuenta, banner, adopción al registro) |
+| 2.3 | Recorrido interactivo si el spike da rojo | — no aplica (spike verde) |
+| 2.4 | Gates E2E/axe/carga del demo o recorrido | ✅ E2E humo + presupuesto 289.2 KB (axe del estudio llega en 5.2, cubre /demo) |
 | 3.1 | Showcase pegajoso dibujar→acotar→publicar | pendiente |
 | 3.2 | Sección "ingeniería que puedes auditar" con cifras de artefactos | pendiente |
 | 3.3 | RevealOnScroll única + profundidad tarjetas + contraste al alza | pendiente |
@@ -92,3 +92,27 @@
 - **CTA de arranque real**: `returnTo=/dashboard?plantilla=<id>` viaja saneado por AuthPage (cero cambios en auth); el tablero muestra la nota de plantilla y `createDocument` escribe el documento del conversor ANTES de abrir el estudio (mismo patrón anti-409 del starter). Todo lo pesado entra por `import()` — presupuesto del tablero intacto (justo bajo las 800 líneas).
 - **Tema en imágenes sin JS**: `PlanRender` = dos `<img>` lazy (oscuro/claro), la oculta no interseca y no se descarga; width/height declarados por la aritmética del renderizador → CLS 0.
 - **Gates**: axe cubre `/plantillas` y ficha (chip activo corregido a `bg-brand-strong` — la receta de contraste de la casa; 4/4 en Chromium local, Firefox no tiene binario en este contenedor y corre en CI). Presupuesto de bundle: `/plantillas` 346.1 KB → techo 356.5; ficha 272.5 → 280.7. Portada +1.1 KB (sección nueva, bajo techo). Suite de plantillas: 149/149 documentos válidos + render con trazos en 2 temas.
+- PR borrador abierto: #117, con entrada de gobernanza `CAMPANA-SITIO-20260829` en el registro de desarrollo asistido.
+
+### OLA 2 · 2.1 — VEREDICTO DEL SPIKE (antes de construir): **VERDE**
+
+Investigado en el código, no supuesto:
+
+- **La costura existe y es exacta**: `Layout3DEditor` (19 137 líneas) toca la red en EXACTAMENTE 3 puntos — `open`, `saveContent`, `saveArchive` — y los tres viven dentro del adaptador que se le pasa a `DocumentLifecycleController` en su construcción (líneas 1196-1204). Un adaptador alternativo en memoria+localStorage convierte el estudio entero en modo invitado SIN tocar ninguna otra ruta de guardado. El autosave, la recuperación y el historial pasan por el mismo controlador.
+- **El guard de sesión vive en la PÁGINA, no en el editor**: `/studio/[documentId]` marca "expired" sin sesión, pero `CadStudioHost` tolera identidad anónima (`userId: user?.id` → undefined) y `readOnly` explícito por prop GANA sobre los permisos (`readOnly ?? !permissions.includes("cad:edit")`). Una página `/demo` propia monta el Host con `readOnly={false}` y adaptador demo.
+- **Qué se reutiliza**: el conversor de la OLA 1 (`buildCadTemplateDocument("casa-habitacion")`) da el documento de arranque completo con capas de norma y cajetín; el export a PDF es 100 % cliente (jsPDF) y funciona sin sesión; el snapshot local y el historial del editor son en memoria.
+- **Qué se simula**: `open("demo-local")` → documento de plantilla (o el guardado previo del visitante desde localStorage `valle_demo_document`); `saveContent` → memoria + localStorage con versión monotónica (sin CAS que pueda dar 409).
+- **Qué NO va a funcionar en demo (y está bien, se dice en el banner)**: guardar en la nube, colaborar (la capa de colaboración no se monta en demo), historial de versiones del servidor, compartir.
+- **Hallazgo que corrige al encargo**: el "mecanismo de borradores adoptables" que el encargo daba por existente NO existe en el código. La adopción se construye con las piezas de la OLA 1: el CTA del demo viaja `returnTo=/dashboard?demo=1` y el tablero ofrece crear el primer documento desde el dibujo guardado en localStorage (mismo patrón anti-409 de `gallery-start`).
+- **Marca honesta en el PDF**: el documento del demo lleva en su cajetín PROYECTO = «Demostración · Valle Design» — el trazador real lo imprime solo.
+- **Riesgo residual**: la capa de colaboración llama presencia con `documentId`; en /demo no se monta (prop del Host). El tour de onboarding usa identidad null — ya tolerado (`user?.id ?? null`).
+
+### OLA 2 · 2.2-2.4 — /demo CONSTRUIDO Y VERIFICADO
+
+- **La costura, ejecutada limpia**: `Layout3DEditor` gana la prop de plataforma `documentPort` y su puerto REAL se extrajo a `document-lifecycle/design-port.ts` — el monolito ENCOGIÓ 10 líneas netas (19 137 → 19 127) al abrir la costura, como exige su trinquete. `CadStudioHost` pasa el puerto y gana `withCollaboration` (en demo no se monta presencia).
+- **`demo-port.ts`**: open → casa habitación del conversor (o el dibujo previo del visitante desde localStorage), saveContent → memoria+localStorage con versión monotónica, saveArchive → DESCOMPRIME el gzip (el controlador lo manda EN VEZ de saveContent para documentos grandes — sin esto el respaldo local se quedaría viejo). El cajetín del demo dice «Demostración · Valle Design»: el PDF que exporte el visitante lo lleva impreso por el trazador real.
+- **/demo**: esqueleto al instante; el puerto Y el editor llegan por `import()` tras hidratar. Lección de presupuesto medida: el import estático del puerto arrastraba conversor+normas y la primera carga daba 417.5 KB; con el módulo hoja `demo-constants.ts` y el puerto diferido: **280.8 KB (techo 289.2)** — al nivel del estudio real. El tour de primeros cinco minutos dispara solo («Tu lámina ya está puesta»).
+- **Banner permanente** (no cerrable a propósito) con CTA `returnTo=/dashboard?demo=1`; el tablero detecta el dibujo guardado, muestra la nota de adopción y el primer documento de la cuenta NACE de ese dibujo (`startDocumentContent`, patrón anti-409; el borrador local se limpia tras adoptarse). El formulario de arranque completo se mudó a `StartNotes` (gallery-start.tsx) — tablero en 790/800 líneas.
+- **E2E humo en verde** (`e2e/public/demo-studio.spec.ts`): editor real abre sin cuenta con ≥5 entidades de plantilla; `LINE 0,0 → 3000,0 → Enter vacío` AÑADE una entidad (aprendizaje del protocolo: un token por Enter; **Escape CANCELA el tramo en curso** — anotado como posible nit de UX para backlog); autosave escribe localStorage; **cero peticiones a rutas de documentos** (el ping de sesión y el catálogo de bloques quedan fuera de la promesa y anotados: pulir que ni se pidan en demo → backlog).
+- Portada: el hero gana «Probar sin cuenta» como segunda acción (precios sigue en la barra). /demo entra a PUBLIC_ROUTES (sitemap 170 rutas) con su metadata.
+- Detalle visto y aceptado: la barra de estado dice «API online» en demo (indicador optimista) — cosmético, al backlog.

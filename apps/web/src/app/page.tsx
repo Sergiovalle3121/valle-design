@@ -376,11 +376,15 @@ export default function LandingPage() {
                   Crear cuenta gratis
                   <ArrowRight aria-hidden="true" className="h-4 w-4" />
                 </Link>
+                {/* La segunda acción del hero es TOCAR el producto, no leer
+                    precios: la demostración abre el editor real sin cuenta.
+                    Precios sigue a un clic en la barra pública. */}
                 <Link
-                  href={PRICING_PATH}
+                  href="/demo"
+                  data-testid="hero-demo-cta"
                   className={buttonClass({ variant: "secondary", size: "lg" })}
                 >
-                  Ver precios
+                  Probar sin cuenta
                 </Link>
               </div>
               {/*

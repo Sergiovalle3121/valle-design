@@ -71,8 +71,6 @@ import {
   ScanEye,
   GitMerge,
 } from "lucide-react";
-import type { CadDocumentInline } from "@valle/design-sdk";
-import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import { legacyCadFetch } from "@/lib/cad/legacy/layout-http-adapter";
 import {
   layoutFromDocument,
@@ -82,8 +80,10 @@ import {
   CAD_DOCUMENT_ARCHIVE_THRESHOLD_BYTES,
   CadCasConflictError,
   DocumentLifecycleController,
+  type DocumentLifecyclePort,
 } from "@/components/cad/document-lifecycle/controller";
 import { describeCadSaveFailure } from "@/components/cad/document-lifecycle/save-failure";
+import { createDesignDocumentPort } from "@/components/cad/document-lifecycle/design-port";
 import {
   createDebouncedAutosave,
   type AutosaveStatus,
@@ -1141,6 +1141,9 @@ export interface Layout3DEditorPlatformProps {
     legalEntityName: string;
     productLabel: string;
   };
+  /** Puerto de documentos alternativo (demo: memoria+localStorage, sin red).
+   *  Ausente = el cliente Design real (design-port.ts, la única costura de red). */
+  documentPort?: DocumentLifecyclePort;
   /** Paneles de análisis industrial inyectados por el anfitrión (WP6). El menú
    *  "Análisis" se construye desde aquí; ausente o vacío, el menú no aparece. */
 }
@@ -1188,25 +1191,12 @@ export default function Layout3DEditor({
   onNotify,
   onFullscreenChange,
   branding = DEFAULT_BRANDING,
+  documentPort,
 }: Layout3DEditorProps) {
   const documentLifecycle = useMemo(
     () =>
       new DocumentLifecycleController(
-        {
-          open: (id) => designClient.documents.open(id),
-          saveContent: (id, document, expectedVersion) =>
-            designClient.documents.saveContent(
-              id,
-              document as unknown as CadDocumentInline,
-              expectedVersion,
-            ),
-          saveArchive: (id, archive, expectedVersion) =>
-            designClient.documents.saveArchive(id, archive, expectedVersion),
-          versionConflict: (error) =>
-            error instanceof DesignApiError && error.isVersionConflict()
-              ? { current: error.body.current }
-              : null,
-        },
+        documentPort ?? createDesignDocumentPort(),
         {
           record: (name, durationMs, detail) => {
             if (typeof performance !== "undefined")
@@ -1218,7 +1208,7 @@ export default function Layout3DEditor({
           },
         },
       ),
-    [],
+    [documentPort],
   );
   // Plataforma invertida (WP5): identidad, alcance y notificaciones llegan por
   // props. Los nombres locales conservan los del código enterprise original

@@ -153,6 +153,10 @@ export const PUBLIC_ROUTES: readonly PublicRoute[] = [
   // el catálogo de 5 000 líneas al bundle cliente de cada página que importa
   // esta configuración (la barra pública, sin ir más lejos).
   { path: "/plantillas", changeFrequency: "weekly", priority: 0.9 },
+  // La demostración sin cuenta (campaña de sitio): el editor real con la casa
+  // habitación puesta y el guardado en el navegador. Prioridad alta: es la
+  // página que convierte el sitio de folleto a producto que se puede tocar.
+  { path: "/demo", changeFrequency: "weekly", priority: 0.9 },
   // Las dos páginas que la campaña de firma propia añadió a la superficie
   // pública. `/novedades` demuestra que el producto está vivo, que en una beta
   // es un argumento de venta; `/educacion` recoge el interés de las escuelas
