@@ -1,0 +1,1497 @@
+{
+  "generado": "por apps/web/scripts/template-gallery-evidence.mts",
+  "plantillas": 149,
+  "totalEntidades": 3480,
+  "filas": [
+    {
+      "id": "architecture-floor-core",
+      "giro": "tecnico",
+      "escala": 50,
+      "entidades": 47,
+      "trazos": 47,
+      "docHash": "1c4204ec583ab533",
+      "svgOscuro": "5d30b85f0a6379e2",
+      "svgClaro": "a8808d27f71bc87e"
+    },
+    {
+      "id": "civil-site-utilities",
+      "giro": "tecnico",
+      "escala": 75,
+      "entidades": 20,
+      "trazos": 20,
+      "docHash": "219c0cb94497a381",
+      "svgOscuro": "2f12ae1459458c48",
+      "svgClaro": "2a3b6ec4d9664e55"
+    },
+    {
+      "id": "structural-grid-core",
+      "giro": "tecnico",
+      "escala": 50,
+      "entidades": 68,
+      "trazos": 68,
+      "docHash": "e8419205cd37a786",
+      "svgOscuro": "92dd0c9108552b52",
+      "svgClaro": "133f2dcd4aaa57ec"
+    },
+    {
+      "id": "mep-plantroom",
+      "giro": "tecnico",
+      "escala": 50,
+      "entidades": 20,
+      "trazos": 20,
+      "docHash": "f755c916afc7b091",
+      "svgOscuro": "0b0fafa159ee734a",
+      "svgClaro": "372181e4dbcf03b3"
+    },
+    {
+      "id": "casa-habitacion",
+      "giro": "vivienda",
+      "escala": 20,
+      "entidades": 22,
+      "trazos": 22,
+      "docHash": "50ceb7abb1fcb428",
+      "svgOscuro": "ddf65f71c463c626",
+      "svgClaro": "580943351c7f9ab4"
+    },
+    {
+      "id": "local-comercial",
+      "giro": "comercio",
+      "escala": 20,
+      "entidades": 16,
+      "trazos": 16,
+      "docHash": "90ef3f497045fb58",
+      "svgOscuro": "0c2198e11f3d3258",
+      "svgClaro": "a600cc970c0c4845"
+    },
+    {
+      "id": "consultorio",
+      "giro": "salud",
+      "escala": 20,
+      "entidades": 15,
+      "trazos": 15,
+      "docHash": "418999034075d6a6",
+      "svgOscuro": "78850c81d006d7d4",
+      "svgClaro": "92b2a10bb317644f"
+    },
+    {
+      "id": "restaurante",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 22,
+      "trazos": 22,
+      "docHash": "e5094bf8117e9e5c",
+      "svgOscuro": "2c962b6cf3ab5a87",
+      "svgClaro": "b879156d325b5aed"
+    },
+    {
+      "id": "aula-escolar",
+      "giro": "educacion",
+      "escala": 20,
+      "entidades": 20,
+      "trazos": 20,
+      "docHash": "4259f12533910ee6",
+      "svgOscuro": "73917956912c46ba",
+      "svgClaro": "3d6957b3d08ac21c"
+    },
+    {
+      "id": "gimnasio",
+      "giro": "deporte-cultura",
+      "escala": 20,
+      "entidades": 17,
+      "trazos": 17,
+      "docHash": "d97705d593777ead",
+      "svgOscuro": "e03bb1d80f9420f7",
+      "svgClaro": "469a543fd900daa4"
+    },
+    {
+      "id": "oficina-coworking",
+      "giro": "servicios",
+      "escala": 20,
+      "entidades": 20,
+      "trazos": 20,
+      "docHash": "03a2d79ea176d1c6",
+      "svgOscuro": "2d597b6fa26c18cd",
+      "svgClaro": "0520b00a2437bf96"
+    },
+    {
+      "id": "bodega-pyme",
+      "giro": "industria-taller",
+      "escala": 20,
+      "entidades": 22,
+      "trazos": 22,
+      "docHash": "f0be40cd96d80927",
+      "svgOscuro": "01a23850344b549a",
+      "svgClaro": "222253a7be055e53"
+    },
+    {
+      "id": "taller-mecanico",
+      "giro": "industria-taller",
+      "escala": 20,
+      "entidades": 25,
+      "trazos": 25,
+      "docHash": "2c5fc5e65484ca2f",
+      "svgOscuro": "3aa0a5e1e884fdb1",
+      "svgClaro": "665ccca461ff555a"
+    },
+    {
+      "id": "cafeteria",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 23,
+      "trazos": 23,
+      "docHash": "87cf5284b17c8f90",
+      "svgOscuro": "01fd316d5a0caa1c",
+      "svgClaro": "5b85a921a8e647d2"
+    },
+    {
+      "id": "salon-belleza",
+      "giro": "servicios",
+      "escala": 20,
+      "entidades": 20,
+      "trazos": 20,
+      "docHash": "5893d2848d1fd5d8",
+      "svgOscuro": "55160120b619375e",
+      "svgClaro": "742afeef87cd11bf"
+    },
+    {
+      "id": "farmacia",
+      "giro": "salud",
+      "escala": 20,
+      "entidades": 14,
+      "trazos": 14,
+      "docHash": "7984eeff6e3b92c5",
+      "svgOscuro": "4fcb3d52e551c853",
+      "svgClaro": "ed9a687177fc6684"
+    },
+    {
+      "id": "jardin-eventos",
+      "giro": "deporte-cultura",
+      "escala": 50,
+      "entidades": 25,
+      "trazos": 25,
+      "docHash": "a72eec5078f848ab",
+      "svgOscuro": "d3e468cbfc8af0ee",
+      "svgClaro": "e46eed3d554dc5ad"
+    },
+    {
+      "id": "panaderia",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 18,
+      "trazos": 18,
+      "docHash": "db695b095ad9a927",
+      "svgOscuro": "33ac5a187f1f9377",
+      "svgClaro": "434b5cd58cce05a8"
+    },
+    {
+      "id": "veterinaria",
+      "giro": "salud",
+      "escala": 20,
+      "entidades": 20,
+      "trazos": 20,
+      "docHash": "d3b295d8eb901983",
+      "svgOscuro": "3c5d149d568910a8",
+      "svgClaro": "3690d9ad2654703a"
+    },
+    {
+      "id": "lavanderia",
+      "giro": "industria-taller",
+      "escala": 20,
+      "entidades": 17,
+      "trazos": 17,
+      "docHash": "d71ecede045e83ea",
+      "svgOscuro": "3f0135f202d9abec",
+      "svgClaro": "433fa9794caf59be"
+    },
+    {
+      "id": "guarderia",
+      "giro": "educacion",
+      "escala": 20,
+      "entidades": 17,
+      "trazos": 17,
+      "docHash": "a1f052e32ea175cd",
+      "svgOscuro": "bf69fac430c316b2",
+      "svgClaro": "eaea61d3a46fa1ff"
+    },
+    {
+      "id": "ferreteria",
+      "giro": "comercio",
+      "escala": 20,
+      "entidades": 16,
+      "trazos": 16,
+      "docHash": "31c7ba1df166976c",
+      "svgOscuro": "15f19f63000d962b",
+      "svgClaro": "acff262c76dcb974"
+    },
+    {
+      "id": "habitacion-hotel",
+      "giro": "vivienda",
+      "escala": 20,
+      "entidades": 17,
+      "trazos": 17,
+      "docHash": "8d234231590b8997",
+      "svgOscuro": "ef16f1abdd8c4b05",
+      "svgClaro": "6b8207942cf9c225"
+    },
+    {
+      "id": "consultorio-dental",
+      "giro": "salud",
+      "escala": 20,
+      "entidades": 16,
+      "trazos": 16,
+      "docHash": "f3278fa5cff504df",
+      "svgOscuro": "e330da6674a96f92",
+      "svgClaro": "93099a495f559bed"
+    },
+    {
+      "id": "estacionamiento",
+      "giro": "servicios",
+      "escala": 50,
+      "entidades": 19,
+      "trazos": 19,
+      "docHash": "4d117c66ba8cba09",
+      "svgOscuro": "06f9f550acc325e9",
+      "svgClaro": "3ee243338e7015df"
+    },
+    {
+      "id": "cancha-futbol",
+      "giro": "deporte-cultura",
+      "escala": 50,
+      "entidades": 16,
+      "trazos": 16,
+      "docHash": "a03e28a55aeced34",
+      "svgOscuro": "9fa7713bdff30e9a",
+      "svgClaro": "192d83bf1a6cbeed"
+    },
+    {
+      "id": "salon-fiestas",
+      "giro": "deporte-cultura",
+      "escala": 25,
+      "entidades": 21,
+      "trazos": 21,
+      "docHash": "4b4fa8002eb210a5",
+      "svgOscuro": "4474337a67de173b",
+      "svgClaro": "09fbaf160c3f292a"
+    },
+    {
+      "id": "iglesia",
+      "giro": "deporte-cultura",
+      "escala": 25,
+      "entidades": 28,
+      "trazos": 28,
+      "docHash": "77cb5b9942fb79d1",
+      "svgOscuro": "8bb0b85e77c47e7d",
+      "svgClaro": "1822701a6fe052cc"
+    },
+    {
+      "id": "minisuper",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 21,
+      "trazos": 21,
+      "docHash": "2f88ebba0ee4572e",
+      "svgOscuro": "574b6a7e348d26e6",
+      "svgClaro": "5e6c8207f88259f7"
+    },
+    {
+      "id": "taqueria",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 22,
+      "trazos": 22,
+      "docHash": "fd1eb73e5cb2fb4e",
+      "svgOscuro": "4775dfa80c79cc2b",
+      "svgClaro": "3b64740ea82cbd90"
+    },
+    {
+      "id": "carniceria",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 17,
+      "trazos": 17,
+      "docHash": "69eeb66da42e81d5",
+      "svgOscuro": "0dc145c5c02d46cf",
+      "svgClaro": "92192364cd1fa902"
+    },
+    {
+      "id": "fruteria",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 20,
+      "trazos": 20,
+      "docHash": "b1414b9f22b6fec8",
+      "svgOscuro": "9b561f40561ffa0c",
+      "svgClaro": "892d61c8e248f83e"
+    },
+    {
+      "id": "barberia",
+      "giro": "servicios",
+      "escala": 20,
+      "entidades": 19,
+      "trazos": 19,
+      "docHash": "3e60da83e4bb00b5",
+      "svgOscuro": "2e6194528c6f2031",
+      "svgClaro": "c0a26092bd2235b0"
+    },
+    {
+      "id": "tortilleria",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 16,
+      "trazos": 16,
+      "docHash": "d08c06c5c7dd52e2",
+      "svgOscuro": "8f441e5bc25a7f52",
+      "svgClaro": "83b2d472c719a71e"
+    },
+    {
+      "id": "papeleria",
+      "giro": "comercio",
+      "escala": 20,
+      "entidades": 14,
+      "trazos": 14,
+      "docHash": "f4ce66e12d5b0ff8",
+      "svgOscuro": "7fdd7184ea8b9c7e",
+      "svgClaro": "7b4fbdf6e8f1c050"
+    },
+    {
+      "id": "fondita",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 22,
+      "trazos": 22,
+      "docHash": "42b2060d20e93bf2",
+      "svgOscuro": "fa3fc3af9714e5a8",
+      "svgClaro": "2c7b95a72608900b"
+    },
+    {
+      "id": "estetica-canina",
+      "giro": "servicios",
+      "escala": 20,
+      "entidades": 20,
+      "trazos": 20,
+      "docHash": "3dad476ba4f8ce1e",
+      "svgOscuro": "c512a509fa675078",
+      "svgClaro": "5bf41a3a5006cfc2"
+    },
+    {
+      "id": "fisioterapia",
+      "giro": "salud",
+      "escala": 20,
+      "entidades": 20,
+      "trazos": 20,
+      "docHash": "a253e1a53b4ff827",
+      "svgOscuro": "014cf1325b578f61",
+      "svgClaro": "e11ca26a181965a7"
+    },
+    {
+      "id": "spa",
+      "giro": "servicios",
+      "escala": 20,
+      "entidades": 22,
+      "trazos": 22,
+      "docHash": "b7103f7cbf6f19bf",
+      "svgOscuro": "560830aa2144bc3b",
+      "svgClaro": "ae9c5f1287bc9446"
+    },
+    {
+      "id": "cibercafe",
+      "giro": "servicios",
+      "escala": 20,
+      "entidades": 23,
+      "trazos": 23,
+      "docHash": "136d3b8c59a0ff85",
+      "svgOscuro": "f6be0b1d1115e135",
+      "svgClaro": "c78a9a2a105b3053"
+    },
+    {
+      "id": "gimnasio-box",
+      "giro": "deporte-cultura",
+      "escala": 20,
+      "entidades": 22,
+      "trazos": 22,
+      "docHash": "2a5301cbb1065c9d",
+      "svgOscuro": "5dc6ffc4a7528263",
+      "svgClaro": "08fc0b4b80d189b6"
+    },
+    {
+      "id": "polleria",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 16,
+      "trazos": 16,
+      "docHash": "4bb9fd1f7925e244",
+      "svgOscuro": "6c2b2cb245658361",
+      "svgClaro": "025a0d76f16df1ce"
+    },
+    {
+      "id": "floreria",
+      "giro": "comercio",
+      "escala": 20,
+      "entidades": 16,
+      "trazos": 16,
+      "docHash": "bf9afa1ce685eedb",
+      "svgOscuro": "dfd3623e6d9dad94",
+      "svgClaro": "788f2e86e149b8f3"
+    },
+    {
+      "id": "cremeria",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 16,
+      "trazos": 16,
+      "docHash": "3d76d3329194259d",
+      "svgOscuro": "72d5b7b229006566",
+      "svgClaro": "6ed00bacf9d97347"
+    },
+    {
+      "id": "neveria",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 15,
+      "trazos": 15,
+      "docHash": "92adca2ffa2809f1",
+      "svgOscuro": "33c36574a82f707f",
+      "svgClaro": "01f0239605f207f1"
+    },
+    {
+      "id": "jugueria",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 16,
+      "trazos": 16,
+      "docHash": "f08f589259541e7e",
+      "svgOscuro": "88c757383594aaf8",
+      "svgClaro": "cb61b40868ea73ed"
+    },
+    {
+      "id": "pescaderia",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 16,
+      "trazos": 16,
+      "docHash": "8fa672fe290f22a5",
+      "svgOscuro": "8e7662a03d9e99d3",
+      "svgClaro": "dbb047c2a843dc07"
+    },
+    {
+      "id": "boutique",
+      "giro": "comercio",
+      "escala": 20,
+      "entidades": 18,
+      "trazos": 18,
+      "docHash": "6277cbc7742eadc7",
+      "svgOscuro": "c5e645bc6a311f38",
+      "svgClaro": "a7634af179b8f148"
+    },
+    {
+      "id": "hostal",
+      "giro": "hospitalidad",
+      "escala": 20,
+      "entidades": 22,
+      "trazos": 22,
+      "docHash": "352e6c4e2c11b275",
+      "svgOscuro": "daa945f9126db0f6",
+      "svgClaro": "4fdd2b9124416b4d"
+    },
+    {
+      "id": "autolavado",
+      "giro": "industria-taller",
+      "escala": 20,
+      "entidades": 19,
+      "trazos": 19,
+      "docHash": "948c52bd8f095e8b",
+      "svgOscuro": "510b6f9823e4b85a",
+      "svgClaro": "218512e2274ad24d"
+    },
+    {
+      "id": "llantera",
+      "giro": "industria-taller",
+      "escala": 20,
+      "entidades": 19,
+      "trazos": 19,
+      "docHash": "81de10f57a12a2cd",
+      "svgOscuro": "8ee934ff4c7ccde6",
+      "svgClaro": "93d94dd2c4b20a2f"
+    },
+    {
+      "id": "purificadora",
+      "giro": "industria-taller",
+      "escala": 20,
+      "entidades": 17,
+      "trazos": 17,
+      "docHash": "409ac197a8f2c45a",
+      "svgOscuro": "7917ece883c071a1",
+      "svgClaro": "32844ca0361b29ff"
+    },
+    {
+      "id": "optica",
+      "giro": "salud",
+      "escala": 20,
+      "entidades": 18,
+      "trazos": 18,
+      "docHash": "2ff04673dd97f5d4",
+      "svgOscuro": "df1535e4e91d5d38",
+      "svgClaro": "44433e8a58efc5a8"
+    },
+    {
+      "id": "departamento",
+      "giro": "vivienda",
+      "escala": 20,
+      "entidades": 25,
+      "trazos": 25,
+      "docHash": "794c2bcc188842db",
+      "svgOscuro": "3846500dbe772dee",
+      "svgClaro": "a1ff6a12c83e436c"
+    },
+    {
+      "id": "rosticeria",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 16,
+      "trazos": 16,
+      "docHash": "4e55393df3e64158",
+      "svgOscuro": "3eb55bb609946323",
+      "svgClaro": "2499f682a9e75682"
+    },
+    {
+      "id": "terraza-jardin",
+      "giro": "hospitalidad",
+      "escala": 20,
+      "entidades": 17,
+      "trazos": 17,
+      "docHash": "d1ef8a20b751e4c4",
+      "svgOscuro": "1f216e0c5ecf906c",
+      "svgClaro": "15a8b1ea5ea26805"
+    },
+    {
+      "id": "vinateria",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 16,
+      "trazos": 16,
+      "docHash": "7d6e0b95a2ae4591",
+      "svgOscuro": "93c3785570a5e969",
+      "svgClaro": "fefbf48ed1a7f7a3"
+    },
+    {
+      "id": "pasteleria",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 17,
+      "trazos": 17,
+      "docHash": "7bfb59d9b057aa33",
+      "svgOscuro": "1a98b5617cc9ab71",
+      "svgClaro": "ebb8a3829ee2972a"
+    },
+    {
+      "id": "academia-baile",
+      "giro": "educacion",
+      "escala": 20,
+      "entidades": 17,
+      "trazos": 17,
+      "docHash": "da089837a62e9383",
+      "svgOscuro": "c6de23b78dd7bc80",
+      "svgClaro": "458cbbcad0bdde0d"
+    },
+    {
+      "id": "refaccionaria",
+      "giro": "comercio",
+      "escala": 20,
+      "entidades": 16,
+      "trazos": 16,
+      "docHash": "6741aff97c856ebd",
+      "svgOscuro": "bfb5f2f286b63836",
+      "svgClaro": "70f8188604eb391b"
+    },
+    {
+      "id": "imprenta",
+      "giro": "industria-taller",
+      "escala": 20,
+      "entidades": 17,
+      "trazos": 17,
+      "docHash": "eca22048d382fec6",
+      "svgOscuro": "ecc633f9bb5bee89",
+      "svgClaro": "9876bba388d7f218"
+    },
+    {
+      "id": "salon-unas",
+      "giro": "servicios",
+      "escala": 20,
+      "entidades": 19,
+      "trazos": 19,
+      "docHash": "60f2af4cdffd559a",
+      "svgOscuro": "c7e39b8859ed8ba3",
+      "svgClaro": "12a7a3263010235d"
+    },
+    {
+      "id": "taller-celulares",
+      "giro": "industria-taller",
+      "escala": 20,
+      "entidades": 16,
+      "trazos": 16,
+      "docHash": "64e1daeda6a7aa0e",
+      "svgOscuro": "601c505dd94965be",
+      "svgClaro": "c40cb77f0ffdbd6f"
+    },
+    {
+      "id": "mercado",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 23,
+      "trazos": 23,
+      "docHash": "64aaa2675b0083bd",
+      "svgOscuro": "e6214849a4040f69",
+      "svgClaro": "005dc542aadadb0e"
+    },
+    {
+      "id": "parque-vecinal",
+      "giro": "deporte-cultura",
+      "escala": 20,
+      "entidades": 19,
+      "trazos": 19,
+      "docHash": "d409d92c2ca9324c",
+      "svgOscuro": "75f68565c4fe53a1",
+      "svgClaro": "a00ad3b94ae041c6"
+    },
+    {
+      "id": "estancia-adultos",
+      "giro": "salud",
+      "escala": 20,
+      "entidades": 28,
+      "trazos": 28,
+      "docHash": "7211da10971f8e01",
+      "svgOscuro": "e724efc459c0c077",
+      "svgClaro": "cf810461f45928ee"
+    },
+    {
+      "id": "salon-fiestas-infantil",
+      "giro": "deporte-cultura",
+      "escala": 20,
+      "entidades": 22,
+      "trazos": 22,
+      "docHash": "004e0bf979417155",
+      "svgOscuro": "5a08b1f0f6c83c9f",
+      "svgClaro": "abc74ceb53d03f70"
+    },
+    {
+      "id": "marisqueria",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 25,
+      "trazos": 25,
+      "docHash": "804f42968478de59",
+      "svgOscuro": "f5d5ca1d06e4d676",
+      "svgClaro": "fe9c6259f8e20c8d"
+    },
+    {
+      "id": "hamburgueseria",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 25,
+      "trazos": 25,
+      "docHash": "6ae7c8e50c5e933c",
+      "svgOscuro": "4562e340623bba15",
+      "svgClaro": "00d84c1f49970886"
+    },
+    {
+      "id": "laboratorio-clinico",
+      "giro": "salud",
+      "escala": 20,
+      "entidades": 23,
+      "trazos": 23,
+      "docHash": "f4de1d802d1a354c",
+      "svgOscuro": "ac313acf7b3d7b26",
+      "svgClaro": "f049eba3fc0c41bc"
+    },
+    {
+      "id": "funeraria",
+      "giro": "servicios",
+      "escala": 20,
+      "entidades": 25,
+      "trazos": 25,
+      "docHash": "a4aef77f5814e9c6",
+      "svgOscuro": "e4d684efaaab7183",
+      "svgClaro": "689ea3d3915ac82c"
+    },
+    {
+      "id": "notaria",
+      "giro": "servicios",
+      "escala": 20,
+      "entidades": 24,
+      "trazos": 24,
+      "docHash": "f12a82289cbc50c3",
+      "svgOscuro": "abe7afef4eff7308",
+      "svgClaro": "9825890da25b427e"
+    },
+    {
+      "id": "despacho-contable",
+      "giro": "servicios",
+      "escala": 20,
+      "entidades": 25,
+      "trazos": 25,
+      "docHash": "de6967efca8baee9",
+      "svgOscuro": "50033813a401c2bc",
+      "svgClaro": "8eac7edb385cd75e"
+    },
+    {
+      "id": "inmobiliaria",
+      "giro": "servicios",
+      "escala": 20,
+      "entidades": 24,
+      "trazos": 24,
+      "docHash": "f4f27225aaa9d964",
+      "svgOscuro": "62497a111c928cec",
+      "svgClaro": "2639295153876e9f"
+    },
+    {
+      "id": "banco-sucursal",
+      "giro": "comercio",
+      "escala": 20,
+      "entidades": 26,
+      "trazos": 26,
+      "docHash": "cb27f4fce7ab54e5",
+      "svgOscuro": "d5d7bff78a581a86",
+      "svgClaro": "0c1f59449319174f"
+    },
+    {
+      "id": "casa-empeno",
+      "giro": "vivienda",
+      "escala": 20,
+      "entidades": 22,
+      "trazos": 22,
+      "docHash": "979dec8475935c87",
+      "svgOscuro": "ad1dde8d00ce4364",
+      "svgClaro": "aebf87ce9a58393e"
+    },
+    {
+      "id": "biblioteca",
+      "giro": "educacion",
+      "escala": 20,
+      "entidades": 23,
+      "trazos": 23,
+      "docHash": "e53d243ea881403a",
+      "svgOscuro": "7d11fad33f29d436",
+      "svgClaro": "1a0f5c70ce10207e"
+    },
+    {
+      "id": "cine-sala",
+      "giro": "deporte-cultura",
+      "escala": 20,
+      "entidades": 21,
+      "trazos": 21,
+      "docHash": "39cc1e01645202c2",
+      "svgOscuro": "f0d44a0eec4c989f",
+      "svgClaro": "4b356470db568eb6"
+    },
+    {
+      "id": "estudio-fotografico",
+      "giro": "deporte-cultura",
+      "escala": 20,
+      "entidades": 25,
+      "trazos": 25,
+      "docHash": "b7603d70d4502565",
+      "svgOscuro": "4908ab818790e613",
+      "svgClaro": "8c014451cdfcfb4e"
+    },
+    {
+      "id": "estudio-tatuajes",
+      "giro": "servicios",
+      "escala": 20,
+      "entidades": 24,
+      "trazos": 24,
+      "docHash": "86675e1f9a4bebae",
+      "svgOscuro": "054f259c9e25d651",
+      "svgClaro": "4be3d149501defe9"
+    },
+    {
+      "id": "taller-carpinteria",
+      "giro": "industria-taller",
+      "escala": 20,
+      "entidades": 25,
+      "trazos": 25,
+      "docHash": "4c52cb7872eaec34",
+      "svgOscuro": "edc03f09e8a59de0",
+      "svgClaro": "4d729c8348ae0360"
+    },
+    {
+      "id": "zapateria",
+      "giro": "comercio",
+      "escala": 20,
+      "entidades": 22,
+      "trazos": 22,
+      "docHash": "bca9cc51655650b9",
+      "svgOscuro": "2208ab60dc4f3315",
+      "svgClaro": "767831770374c4e6"
+    },
+    {
+      "id": "joyeria",
+      "giro": "comercio",
+      "escala": 20,
+      "entidades": 21,
+      "trazos": 21,
+      "docHash": "e65121b15d1e55a2",
+      "svgOscuro": "70f5eedafe24f6cf",
+      "svgClaro": "156c9d475ce5522f"
+    },
+    {
+      "id": "muebleria",
+      "giro": "comercio",
+      "escala": 20,
+      "entidades": 24,
+      "trazos": 24,
+      "docHash": "2dc20b9edcb5215e",
+      "svgOscuro": "f6885c2238a5488f",
+      "svgClaro": "ba3785f7b0b05e58"
+    },
+    {
+      "id": "tienda-deportes",
+      "giro": "comercio",
+      "escala": 20,
+      "entidades": 22,
+      "trazos": 22,
+      "docHash": "42e5b7a255f14cba",
+      "svgOscuro": "0051580822c72ceb",
+      "svgClaro": "526f951ad021fa24"
+    },
+    {
+      "id": "cocina-fantasma",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 23,
+      "trazos": 23,
+      "docHash": "494ce16734892970",
+      "svgOscuro": "f640aab5e355098e",
+      "svgClaro": "95822e5eb770efd5"
+    },
+    {
+      "id": "estudio-yoga",
+      "giro": "deporte-cultura",
+      "escala": 20,
+      "entidades": 23,
+      "trazos": 23,
+      "docHash": "3bf1ba80f8c32265",
+      "svgOscuro": "59c57e7e0f4b7f29",
+      "svgClaro": "621d0f207674654b"
+    },
+    {
+      "id": "taller-bicicletas",
+      "giro": "industria-taller",
+      "escala": 20,
+      "entidades": 23,
+      "trazos": 23,
+      "docHash": "d562ec570bd4828c",
+      "svgOscuro": "661f9159ee21365e",
+      "svgClaro": "a024b466c45ad610"
+    },
+    {
+      "id": "consultorio-psicologia",
+      "giro": "salud",
+      "escala": 20,
+      "entidades": 24,
+      "trazos": 24,
+      "docHash": "9fe60e0dca428f9b",
+      "svgOscuro": "8df0d9965d784662",
+      "svgClaro": "73d81918a020e292"
+    },
+    {
+      "id": "vivero",
+      "giro": "comercio",
+      "escala": 20,
+      "entidades": 23,
+      "trazos": 23,
+      "docHash": "dd71835718e0d77e",
+      "svgOscuro": "d3186d57130c2ef7",
+      "svgClaro": "27339ca48cbf9078"
+    },
+    {
+      "id": "cerrajeria",
+      "giro": "tecnico",
+      "escala": 20,
+      "entidades": 21,
+      "trazos": 21,
+      "docHash": "4e468074accaaafc",
+      "svgOscuro": "6823dd228b910e3b",
+      "svgClaro": "507ed6d9493ac0f5"
+    },
+    {
+      "id": "material-construccion",
+      "giro": "tecnico",
+      "escala": 20,
+      "entidades": 23,
+      "trazos": 23,
+      "docHash": "fb5a5258a31b9139",
+      "svgOscuro": "c90e38760ecf3ab3",
+      "svgClaro": "872fea468baadd6d"
+    },
+    {
+      "id": "bar-cantina",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 22,
+      "trazos": 22,
+      "docHash": "0e371085927f3e86",
+      "svgOscuro": "06ad1033387b70d9",
+      "svgClaro": "e993550bcd667c0e"
+    },
+    {
+      "id": "gasolinera",
+      "giro": "tecnico",
+      "escala": 20,
+      "entidades": 25,
+      "trazos": 25,
+      "docHash": "e93e18f675343bde",
+      "svgOscuro": "b23993d28d8cf8ad",
+      "svgClaro": "6151b0c0820bf68b"
+    },
+    {
+      "id": "agencia-autos",
+      "giro": "servicios",
+      "escala": 20,
+      "entidades": 25,
+      "trazos": 25,
+      "docHash": "8cd0840b4566291d",
+      "svgOscuro": "2bf0ead9e04e63fa",
+      "svgClaro": "f90ed1ab419a27fe"
+    },
+    {
+      "id": "escuela-primaria",
+      "giro": "educacion",
+      "escala": 25,
+      "entidades": 28,
+      "trazos": 28,
+      "docHash": "13ee05279743aeab",
+      "svgOscuro": "6db8f1225df196b5",
+      "svgClaro": "1d8f0d66eb165016"
+    },
+    {
+      "id": "gimnasio-crossfit",
+      "giro": "deporte-cultura",
+      "escala": 20,
+      "entidades": 28,
+      "trazos": 28,
+      "docHash": "60df64f47c2fa110",
+      "svgOscuro": "49c98b99e9efec75",
+      "svgClaro": "3db56781c1ce9c86"
+    },
+    {
+      "id": "alberca-publica",
+      "giro": "tecnico",
+      "escala": 20,
+      "entidades": 26,
+      "trazos": 26,
+      "docHash": "7a9db1288d60be27",
+      "svgOscuro": "e74adf13ceb932fe",
+      "svgClaro": "65429841fbe51ae6"
+    },
+    {
+      "id": "boliche",
+      "giro": "tecnico",
+      "escala": 25,
+      "entidades": 24,
+      "trazos": 24,
+      "docHash": "008e8751afd2c229",
+      "svgOscuro": "95ae3bbdf6d9064b",
+      "svgClaro": "bc53ad0e1c5ea589"
+    },
+    {
+      "id": "teatro",
+      "giro": "deporte-cultura",
+      "escala": 25,
+      "entidades": 24,
+      "trazos": 24,
+      "docHash": "adbddcd172c8c39f",
+      "svgOscuro": "a6049cf6d007bef8",
+      "svgClaro": "8f002dfefa3c84e9"
+    },
+    {
+      "id": "clinica-dental",
+      "giro": "salud",
+      "escala": 20,
+      "entidades": 27,
+      "trazos": 27,
+      "docHash": "07d94bc1c9c3bbd5",
+      "svgOscuro": "22e63971b5fbbe3b",
+      "svgClaro": "dd7d1ba312e905cc"
+    },
+    {
+      "id": "clinica-urgencias",
+      "giro": "salud",
+      "escala": 20,
+      "entidades": 29,
+      "trazos": 29,
+      "docHash": "9af0ad7059b60d01",
+      "svgOscuro": "2bbf91d273fa44b0",
+      "svgClaro": "24d63aeedd0b6c55"
+    },
+    {
+      "id": "kinder",
+      "giro": "educacion",
+      "escala": 20,
+      "entidades": 27,
+      "trazos": 27,
+      "docHash": "8f5def46f93ba2a2",
+      "svgOscuro": "bb0152dd793fa432",
+      "svgClaro": "a7802f8175553403"
+    },
+    {
+      "id": "nave-industrial",
+      "giro": "industria-taller",
+      "escala": 25,
+      "entidades": 26,
+      "trazos": 26,
+      "docHash": "8303fb91e981b0c8",
+      "svgOscuro": "262b96816df1c98d",
+      "svgClaro": "88c1502a7fff2df5"
+    },
+    {
+      "id": "call-center",
+      "giro": "tecnico",
+      "escala": 20,
+      "entidades": 26,
+      "trazos": 26,
+      "docHash": "8cc39231bd117572",
+      "svgOscuro": "25ec750098fbcd0d",
+      "svgClaro": "532454ab83b5f0ec"
+    },
+    {
+      "id": "cerveceria-artesanal",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 27,
+      "trazos": 27,
+      "docHash": "3b4c6b799962cb73",
+      "svgOscuro": "30ba915909cd19da",
+      "svgClaro": "809c43d997704dc1"
+    },
+    {
+      "id": "karaoke-bar",
+      "giro": "alimentos",
+      "escala": 20,
+      "entidades": 30,
+      "trazos": 30,
+      "docHash": "812028ee6febccef",
+      "svgOscuro": "2fefca9b6bcbc544",
+      "svgClaro": "3924acce8b89326e"
+    },
+    {
+      "id": "estacion-bomberos",
+      "giro": "tecnico",
+      "escala": 25,
+      "entidades": 26,
+      "trazos": 26,
+      "docHash": "83a4b282f5f813b1",
+      "svgOscuro": "44a80f248b586105",
+      "svgClaro": "3b0cd32616a1b618"
+    },
+    {
+      "id": "plaza-comidas",
+      "giro": "tecnico",
+      "escala": 25,
+      "entidades": 29,
+      "trazos": 29,
+      "docHash": "1820b36947cb9c35",
+      "svgOscuro": "201824f2bb4cc70c",
+      "svgClaro": "2d24a77605f6cc6d"
+    },
+    {
+      "id": "estacion-policia",
+      "giro": "tecnico",
+      "escala": 20,
+      "entidades": 28,
+      "trazos": 28,
+      "docHash": "1d6ee25a93754805",
+      "svgOscuro": "f1653bc1007ae2fc",
+      "svgClaro": "bab4e32fd3353a29"
+    },
+    {
+      "id": "invernadero",
+      "giro": "tecnico",
+      "escala": 25,
+      "entidades": 24,
+      "trazos": 24,
+      "docHash": "3a83650031b04d40",
+      "svgOscuro": "5e021ab3f37e50bf",
+      "svgClaro": "c49d561050954638"
+    },
+    {
+      "id": "taller-soldadura",
+      "giro": "industria-taller",
+      "escala": 20,
+      "entidades": 26,
+      "trazos": 26,
+      "docHash": "e5c4f4da5b67b46a",
+      "svgOscuro": "c8187ac72b605116",
+      "svgClaro": "b2fb7a8d6df34a8f"
+    },
+    {
+      "id": "hotel-lobby",
+      "giro": "hospitalidad",
+      "escala": 20,
+      "entidades": 28,
+      "trazos": 28,
+      "docHash": "679ff5dc8bf63ab7",
+      "svgOscuro": "e61d89dd29705530",
+      "svgClaro": "cf6126a7d55bc2f6"
+    },
+    {
+      "id": "supermercado",
+      "giro": "alimentos",
+      "escala": 25,
+      "entidades": 28,
+      "trazos": 28,
+      "docHash": "c2fca6a9a0937ec7",
+      "svgOscuro": "715ce40a3184524a",
+      "svgClaro": "4ca4a20d129a5c5f"
+    },
+    {
+      "id": "central-autobuses",
+      "giro": "tecnico",
+      "escala": 25,
+      "entidades": 26,
+      "trazos": 26,
+      "docHash": "445e030c8d92e7f3",
+      "svgOscuro": "d3765333019b4a1d",
+      "svgClaro": "4b618ce510ea8929"
+    },
+    {
+      "id": "tienda-departamental",
+      "giro": "comercio",
+      "escala": 25,
+      "entidades": 27,
+      "trazos": 27,
+      "docHash": "59fc81def66a616f",
+      "svgOscuro": "123b961b15a09c13",
+      "svgClaro": "c9eb12d3a8354db0"
+    },
+    {
+      "id": "universidad-facultad",
+      "giro": "educacion",
+      "escala": 25,
+      "entidades": 30,
+      "trazos": 30,
+      "docHash": "7aea012057bd491b",
+      "svgOscuro": "a12b8ddeec5b7cf4",
+      "svgClaro": "e1dcd4f08fa24dca"
+    },
+    {
+      "id": "hospital-veterinario",
+      "giro": "salud",
+      "escala": 20,
+      "entidades": 31,
+      "trazos": 31,
+      "docHash": "d879b7504c5874a1",
+      "svgOscuro": "632f6323b927d98f",
+      "svgClaro": "39839390c29011fa"
+    },
+    {
+      "id": "laboratorio-dental",
+      "giro": "salud",
+      "escala": 20,
+      "entidades": 28,
+      "trazos": 28,
+      "docHash": "487b31e23df6d05d",
+      "svgOscuro": "c4f91621485a636a",
+      "svgClaro": "2bcb0dbd63c71914"
+    },
+    {
+      "id": "taller-textil",
+      "giro": "industria-taller",
+      "escala": 20,
+      "entidades": 27,
+      "trazos": 27,
+      "docHash": "957d656c3d43233e",
+      "svgOscuro": "f95c0e1d2d6c02bd",
+      "svgClaro": "dafd0fd5f333bcb6"
+    },
+    {
+      "id": "estacionamiento-multinivel",
+      "giro": "servicios",
+      "escala": 25,
+      "entidades": 28,
+      "trazos": 28,
+      "docHash": "cf4bb3c1fc146d48",
+      "svgOscuro": "c0f6e7bd6f35aea4",
+      "svgClaro": "361bcd2b29d85066"
+    },
+    {
+      "id": "rastro-frigorifico",
+      "giro": "tecnico",
+      "escala": 25,
+      "entidades": 29,
+      "trazos": 29,
+      "docHash": "3ad6af9b0ef6b26f",
+      "svgOscuro": "ef051342c3770ac3",
+      "svgClaro": "54ab77a07761f1d6"
+    },
+    {
+      "id": "clinica-estetica",
+      "giro": "salud",
+      "escala": 20,
+      "entidades": 29,
+      "trazos": 29,
+      "docHash": "6ba69f4b3cc11461",
+      "svgOscuro": "6d75bc62254f446e",
+      "svgClaro": "8cb27b438e20dec0"
+    },
+    {
+      "id": "centro-datos",
+      "giro": "tecnico",
+      "escala": 20,
+      "entidades": 29,
+      "trazos": 29,
+      "docHash": "136fcb0adcdb54ea",
+      "svgOscuro": "eb73ab960a9f5840",
+      "svgClaro": "3a887f9bb821094e"
+    },
+    {
+      "id": "recicladora",
+      "giro": "tecnico",
+      "escala": 25,
+      "entidades": 28,
+      "trazos": 28,
+      "docHash": "717f7845128c21f5",
+      "svgOscuro": "22dd1ded2ca8008d",
+      "svgClaro": "c6f81eae0ce499df"
+    },
+    {
+      "id": "estudio-tv",
+      "giro": "tecnico",
+      "escala": 25,
+      "entidades": 31,
+      "trazos": 31,
+      "docHash": "eb6d4d5ae61c9354",
+      "svgOscuro": "6603ec36a0665151",
+      "svgClaro": "e8c7c8f5c2d8dcdc"
+    },
+    {
+      "id": "club-deportivo",
+      "giro": "tecnico",
+      "escala": 25,
+      "entidades": 28,
+      "trazos": 28,
+      "docHash": "f348da3d0709a7dc",
+      "svgOscuro": "e198b709b1fb5f8a",
+      "svgClaro": "678ea14c300ed308"
+    },
+    {
+      "id": "antro-discoteca",
+      "giro": "tecnico",
+      "escala": 20,
+      "entidades": 29,
+      "trazos": 29,
+      "docHash": "50f8ecefb0bfbb17",
+      "svgOscuro": "0e90c9e1107da82e",
+      "svgClaro": "e47024dd6f160cba"
+    },
+    {
+      "id": "tienda-mascotas",
+      "giro": "comercio",
+      "escala": 20,
+      "entidades": 27,
+      "trazos": 27,
+      "docHash": "acaec5f524f46217",
+      "svgOscuro": "079f239ae9be21a6",
+      "svgClaro": "894c95ad88136259"
+    },
+    {
+      "id": "museo",
+      "giro": "deporte-cultura",
+      "escala": 25,
+      "entidades": 31,
+      "trazos": 31,
+      "docHash": "5911faf26fc40c1b",
+      "svgOscuro": "7f7e3e55f13eeeb3",
+      "svgClaro": "d5263f88c4d24c5b"
+    },
+    {
+      "id": "autoescuela",
+      "giro": "educacion",
+      "escala": 20,
+      "entidades": 26,
+      "trazos": 26,
+      "docHash": "3e34cf8f3ba1d4b6",
+      "svgOscuro": "3a90c4c5b6909833",
+      "svgClaro": "31dac286aedcc936"
+    },
+    {
+      "id": "balneario",
+      "giro": "tecnico",
+      "escala": 25,
+      "entidades": 27,
+      "trazos": 27,
+      "docHash": "a7398b524f3333db",
+      "svgOscuro": "5bcd4986574f3831",
+      "svgClaro": "52a6667a8d2c76ad"
+    },
+    {
+      "id": "planta-tratamiento-agua",
+      "giro": "tecnico",
+      "escala": 25,
+      "entidades": 28,
+      "trazos": 28,
+      "docHash": "4ddcdf3fbc2c5eda",
+      "svgOscuro": "deeb124d544db434",
+      "svgClaro": "fb373eb4cb1869c9"
+    },
+    {
+      "id": "planta-embotelladora",
+      "giro": "tecnico",
+      "escala": 25,
+      "entidades": 30,
+      "trazos": 30,
+      "docHash": "7b15948a1f38a340",
+      "svgOscuro": "c2d996f26ba7dfe6",
+      "svgClaro": "2242b9d3e982d1e5"
+    },
+    {
+      "id": "establo-lecheria",
+      "giro": "tecnico",
+      "escala": 25,
+      "entidades": 29,
+      "trazos": 29,
+      "docHash": "74f1b5bfa6e1efab",
+      "svgOscuro": "51d6624364118bf2",
+      "svgClaro": "1e84c09ff8afcfc2"
+    },
+    {
+      "id": "casino",
+      "giro": "tecnico",
+      "escala": 20,
+      "entidades": 28,
+      "trazos": 28,
+      "docHash": "00413d428af115c3",
+      "svgOscuro": "a77c35f0ce70839c",
+      "svgClaro": "1a9ba0648fd540d0"
+    },
+    {
+      "id": "centro-rehabilitacion",
+      "giro": "tecnico",
+      "escala": 20,
+      "entidades": 31,
+      "trazos": 31,
+      "docHash": "491a8ca428b76594",
+      "svgOscuro": "111f04d54dc6d2ee",
+      "svgClaro": "24cc600fa233de88"
+    },
+    {
+      "id": "centro-distribucion",
+      "giro": "tecnico",
+      "escala": 25,
+      "entidades": 27,
+      "trazos": 27,
+      "docHash": "cccc095f6e7b4a58",
+      "svgOscuro": "845f1acdaa8be097",
+      "svgClaro": "9a7fda7336a70e24"
+    },
+    {
+      "id": "granja-avicola",
+      "giro": "tecnico",
+      "escala": 25,
+      "entidades": 28,
+      "trazos": 28,
+      "docHash": "6165530844acdd38",
+      "svgOscuro": "22dee60839077a63",
+      "svgClaro": "909edc43d7c91477"
+    },
+    {
+      "id": "torre-corporativa",
+      "giro": "servicios",
+      "escala": 20,
+      "entidades": 29,
+      "trazos": 29,
+      "docHash": "7ba0361f7395d18b",
+      "svgOscuro": "3c42b7f783a8d5e6",
+      "svgClaro": "ffdaae605a2a186c"
+    },
+    {
+      "id": "clinica-oftalmologica",
+      "giro": "salud",
+      "escala": 20,
+      "entidades": 30,
+      "trazos": 30,
+      "docHash": "5b577fc871182d69",
+      "svgOscuro": "bfce5a6173e40660",
+      "svgClaro": "3320211d48cde457"
+    },
+    {
+      "id": "estacion-tren",
+      "giro": "servicios",
+      "escala": 25,
+      "entidades": 27,
+      "trazos": 27,
+      "docHash": "8780e493f2dd4aa4",
+      "svgOscuro": "3cd26b5ad6450e89",
+      "svgClaro": "2c1a6568e0e44ebb"
+    },
+    {
+      "id": "estudio-grabacion",
+      "giro": "deporte-cultura",
+      "escala": 20,
+      "entidades": 28,
+      "trazos": 28,
+      "docHash": "18cf36fd60e5fa9e",
+      "svgOscuro": "6a70a13b64f78e45",
+      "svgClaro": "ddcf0b0587bce583"
+    },
+    {
+      "id": "herbolaria",
+      "giro": "salud",
+      "escala": 20,
+      "entidades": 23,
+      "trazos": 23,
+      "docHash": "c008c8007f545d29",
+      "svgOscuro": "21e4387c7e1881dd",
+      "svgClaro": "3086623f474a81d0"
+    },
+    {
+      "id": "centro-idiomas",
+      "giro": "educacion",
+      "escala": 20,
+      "entidades": 30,
+      "trazos": 30,
+      "docHash": "78c8aaf6168ca474",
+      "svgOscuro": "eeb080336e67d369",
+      "svgClaro": "1376387275c66caa"
+    },
+    {
+      "id": "pieza-mecanica",
+      "giro": "industria-taller",
+      "escala": 5,
+      "entidades": 16,
+      "trazos": 16,
+      "docHash": "9979d16e94beb067",
+      "svgOscuro": "995714db4cb045f9",
+      "svgClaro": "f4c855585d30a973"
+    },
+    {
+      "id": "diagrama-unifilar",
+      "giro": "tecnico",
+      "escala": 10,
+      "entidades": 16,
+      "trazos": 16,
+      "docHash": "faf1b6e8854a50c8",
+      "svgOscuro": "623554c4791dee08",
+      "svgClaro": "395bd0c9ca04fd0d"
+    },
+    {
+      "id": "levantamiento-predio",
+      "giro": "tecnico",
+      "escala": 75,
+      "entidades": 24,
+      "trazos": 24,
+      "docHash": "99c3c3d0273510c1",
+      "svgOscuro": "db4e1fdcb84482eb",
+      "svgClaro": "b23a94e6578d5155"
+    },
+    {
+      "id": "despiece-carpinteria",
+      "giro": "industria-taller",
+      "escala": 10,
+      "entidades": 21,
+      "trazos": 21,
+      "docHash": "6c0fc953d4648eaa",
+      "svgOscuro": "4ab1ce50a198a9ea",
+      "svgClaro": "5565231022a40b19"
+    }
+  ]
+}

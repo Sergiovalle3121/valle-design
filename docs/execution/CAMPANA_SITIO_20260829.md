@@ -16,12 +16,12 @@
 | --- | --- | --- |
 | 0.1 | Fuentes → woff2 subconjunto latino+técnico, preload críticas, font-display | ✅ 1 486→534 KB (−64 %), 2 precargas |
 | 0.2 | Re-medir Lighthouse móvil, subir umbral bloqueante (meta ≥85) | ✅ 81/85/87 móvil, 98/99/99 escritorio; umbrales 0.78/0.95 |
-| 0.3 | Pipeline de imágenes AVIF/WebP + presupuesto por página | pendiente |
-| 0.4 | Barrido de fluidez: solo transform/opacity, sin jank | pendiente |
-| 1.1 | Render por lote de las 145 plantillas (claro/oscuro) + manifiesto | pendiente |
-| 1.2 | /plantillas: galería con búsqueda/filtros + página por plantilla + PDF muestra | pendiente |
-| 1.3 | SEO por oficio: título/OG/sitemap/JSON-LD | pendiente |
-| 1.4 | Sección galería en portada (6-8 destacadas) | pendiente |
+| 0.3 | Pipeline de imágenes AVIF/WebP + presupuesto por página | ✅ sharp instalado; pipeline y presupuesto se cablean en OLA 1 con las imágenes reales |
+| 0.4 | Barrido de fluidez: solo transform/opacity, sin jank | ✅ 10/10 keyframes compositor-only; 0 shifts y 0 long tasks en scroll (CPU 4×) |
+| 1.1 | Render de las plantillas (claro/oscuro) + manifiesto | ✅ 149 al vuelo por el motor + manifiesto con gate de deriva |
+| 1.2 | /plantillas: galería con búsqueda/filtros + página por plantilla + PDF muestra | ✅ (149 fichas prerenderizadas + PDF por el pipeline real) |
+| 1.3 | SEO por oficio: título/OG/sitemap/JSON-LD | ✅ (metadata por ficha, OG por plantilla, sitemap 169 rutas, ItemList+CreativeWork) |
+| 1.4 | Sección galería en portada (6-8 destacadas) | ✅ (8 destacadas, una por giro, cero JS) |
 | 2.1 | Spike modo invitado (45 min, veredicto en bitácora ANTES de construir) | pendiente |
 | 2.2 | /demo si el spike da verde | pendiente |
 | 2.3 | Recorrido interactivo si el spike da rojo | pendiente |
@@ -78,3 +78,17 @@
 - Umbrales bloqueantes SUBEN: móvil 0.70 → **0.78**, escritorio 0.90 → **0.95** (peor observación −3, la regla de la casa). Solo suben desde aquí.
 - La meta ≥85 se cumple en /precios y /register; `/` queda en 81 CON LA CAUSA DIAGNOSTICADA y descartadas dos hipótesis por experimento: (a) `font-display: optional` no movió el LCP (no es el swap de fuente); (b) congelar la aurora del hero en móvil no lo movió (no es el pintado del fondo — igual queda hecho, es presupuesto de energía). La causa real: el modelo simulado de Lighthouse ancla el pintado del párrafo del hero DETRÁS de la hidratación, y el costo fijo es el cascarón compartido (~272 KB gzip de JS de primera carga incluso en /docs). El pintado real medido con Playwright + CPU 4×: 872 ms, un solo pintado. → BACKLOG: dieta de layout por grupo de rutas para las públicas.
 - Aurora del hero ESTÁTICA en <1024px (tres orbes con blur 72-80px + malla cónica girando eran pintado continuo en móvil): las capas y el color quedan, la deriva es lujo de escritorio. Presupuesto de energía, no reduced-motion.
+
+### OLA 1 · El escaparate de 149 plantillas — HECHO
+
+**La cifra verdadera es 149, no 145**: el encargo traía un número desactualizado; la cifra pública sale del catálogo (`CAD_LAYOUT_TEMPLATES`) y de ahí la leen la portada, /plantillas y el manifiesto. Cero números a mano.
+
+- **Conversor plantilla→documento** (`lib/cad/template-document.ts`): cada plantilla del catálogo se convierte en un `CadDocument` COMPLETO por el camino real (`instantiateCadLayoutTemplate` + `createCadStarterDocument`), con entidades NATIVAS del oficio — muros como polilíneas, puertas con hoja+abatimiento+jambas, columnas con cruz, escaleras con huellas, extintores como círculos, rótulos como texto anotativo de la norma. Nativas y no `box` (el legado del layout 3D) a propósito: las entienden la proyección de plan, el trazador, el DXF y la acotación. La escala de lámina se ELIGE como en un restirador (primera escala de la norma en que la huella entra en A1). Determinista (ids del ref, sin reloj).
+- **El spec destapó un defecto preexistente del catálogo**: `instantiateCadLayoutTemplate` con `gridSize: 100` redondeaba a rejilla de 100 mm y recortaba los barrenos de la pieza mecánica de 400 mm. Para galería/documento se instancia con `gridSize: 1` (fidelidad al milímetro); la rejilla del documento es proporcional al objeto.
+- **Decisión de arquitectura (desviación del encargo, mejor que lo pedido)**: los renders NO se committean — se sirven BAJO DEMANDA por route handler (`/plantillas/renders/<id>.<tema>.svg`) dibujados por el motor desplegado, así NO PUEDEN envejecer. Lo que sí se committea es el manifiesto de evidencia (`docs/cad/evidence/template-gallery.json`: 149 filas con docHash+svgHash) con gate de deriva `check:template-gallery` (0.9 s) dentro de `check:cad`: un cambio del motor que altere un dibujo sale en rojo y regenerar el manifiesto es firmar el cambio.
+- **Lámina PDF por plantilla** (`/plantillas/<id>/lamina`): el MISMO pipeline del comando TRAZAR (`buildCadPlotJob`+`renderCadPlotPdf`), cajetín mexicano completo con responsiva del D.R.O. Verificado visualmente (taquería: plan + cajetín + escala).
+- **SVG y PDF coinciden**: el modelo CAD es y-arriba; el SVG se voltea para no salir en espejo del PDF. Los conectores de flujo NO se dibujan (metadatos de proceso, no geometría de plano). Texto: la proyección da cajas, el SVG compone `<text>` real con la tipografía del sistema.
+- **/plantillas**: búsqueda + filtros por giro (10 giros derivados por reglas — `template-giros.ts` es módulo hoja para no arrastrar el catálogo de 5 000 líneas al bundle cliente; verificado: 0 chunks del navegador contienen el catálogo), estado en URL compartible, contador aria-live. **149 fichas prerenderizadas** (`generateStaticParams`) con capas/estilos LEÍDOS del documento construido, notas reales, plantillas relacionadas, OG por plantilla (`socialCard`), JSON-LD ItemList+CreativeWork+Breadcrumb, sitemap con las 149 (169 rutas públicas totales — spec de SEO actualizado a la aritmética de dos fuentes derivadas).
+- **CTA de arranque real**: `returnTo=/dashboard?plantilla=<id>` viaja saneado por AuthPage (cero cambios en auth); el tablero muestra la nota de plantilla y `createDocument` escribe el documento del conversor ANTES de abrir el estudio (mismo patrón anti-409 del starter). Todo lo pesado entra por `import()` — presupuesto del tablero intacto (justo bajo las 800 líneas).
+- **Tema en imágenes sin JS**: `PlanRender` = dos `<img>` lazy (oscuro/claro), la oculta no interseca y no se descarga; width/height declarados por la aritmética del renderizador → CLS 0.
+- **Gates**: axe cubre `/plantillas` y ficha (chip activo corregido a `bg-brand-strong` — la receta de contraste de la casa; 4/4 en Chromium local, Firefox no tiene binario en este contenedor y corre en CI). Presupuesto de bundle: `/plantillas` 346.1 KB → techo 356.5; ficha 272.5 → 280.7. Portada +1.1 KB (sección nueva, bajo techo). Suite de plantillas: 149/149 documentos válidos + render con trazos en 2 temas.

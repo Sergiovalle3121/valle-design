@@ -145,6 +145,14 @@ export const PUBLIC_ROUTES: readonly PublicRoute[] = [
       priority: 0.7,
     }),
   ),
+  // El escaparate de plantillas (campaña de sitio 2026-08-29): el catálogo de
+  // arranques mexicanos como directorio público. Prioridad alta: es la página
+  // que responde a «plano de <giro>», la búsqueda con intención más clara que
+  // este producto puede atender. Las 149 fichas hijas NO viven aquí — las
+  // aporta el sitemap desde `lib/marketing/template-gallery` para no arrastrar
+  // el catálogo de 5 000 líneas al bundle cliente de cada página que importa
+  // esta configuración (la barra pública, sin ir más lejos).
+  { path: "/plantillas", changeFrequency: "weekly", priority: 0.9 },
   // Las dos páginas que la campaña de firma propia añadió a la superficie
   // pública. `/novedades` demuestra que el producto está vivo, que en una beta
   // es un argumento de venta; `/educacion` recoge el interés de las escuelas

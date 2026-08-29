@@ -68,6 +68,11 @@ import {
   ImportStatus,
   type ImportState,
 } from "./import-status";
+import {
+  GalleryStartNote,
+  buildGalleryDocumentContent,
+  useGalleryStart,
+} from "./gallery-start";
 
 type Project = CadProject;
 type Document = CadDocumentSummary;
@@ -103,6 +108,7 @@ export default function DashboardPage() {
    * encima no quiere capas inventadas de por medio.
    */
   const [starter, setStarter] = useState(EMPTY_CAD_STARTER_CHOICE);
+  const [galleryStart, clearGalleryStart] = useGalleryStart();
 
   /**
    * Quien llega al tablero va a abrir un plano: es lo único que se hace aquí.
@@ -275,7 +281,13 @@ export default function DashboardPage() {
       // la misma décima de segundo: el guardado inicial del editor y el de la
       // plantilla, con un 409 de CAS como resultado más probable. Aquí el
       // documento llega al estudio ya configurado y el editor sólo lo lee.
-      if (starter.templateId) {
+      if (galleryStart) {
+        await designClient.documents.saveContent(
+          document.id,
+          (await buildGalleryDocumentContent(galleryStart.id)) as unknown as CadDocumentInline,
+          0,
+        );
+      } else if (starter.templateId) {
         const project = projects.find((item) => item.id === selectedProject);
         // El generador viaja con el catálogo de plantillas: se trae aquí, con
         // el usuario ya comprometido a crear el documento, y no al abrir la
@@ -676,13 +688,17 @@ export default function DashboardPage() {
                 dentro del formulario de creación: si se cae, se puede seguir
                 creando el documento en blanco, que es la ruta que más se usa.
               */}
-              <ErrorBoundary zona="Plantilla de arranque" compacta className="mt-4">
-                <CadStarterTemplateFields
-                  value={starter}
-                  onChange={setStarter}
-                  disabled={busy}
-                />
-              </ErrorBoundary>
+              {galleryStart ? (
+                <GalleryStartNote start={galleryStart} onClear={clearGalleryStart} />
+              ) : (
+                <ErrorBoundary zona="Plantilla de arranque" compacta className="mt-4">
+                  <CadStarterTemplateFields
+                    value={starter}
+                    onChange={setStarter}
+                    disabled={busy}
+                  />
+                </ErrorBoundary>
+              )}
               <label className="type-small mt-4 inline-flex cursor-pointer items-center gap-2 font-medium text-primary-ink">
                 <Upload className="h-4 w-4" /> Importar como documento
                 <input

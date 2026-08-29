@@ -97,6 +97,10 @@ const PUBLICAS = [
   { ruta: '/contact', nombre: 'contacto' },
   { ruta: '/forgot-password', nombre: 'recuperar contraseña' },
   { ruta: '/docs', nombre: 'documentación' },
+  // El escaparate de la campaña de sitio: la galería con sus filtros y una
+  // ficha representativa (las 149 comparten plantilla de página).
+  { ruta: '/plantillas', nombre: 'galería de plantillas' },
+  { ruta: '/plantillas/taqueria', nombre: 'ficha de plantilla' },
 ] as const;
 
 const CUENTA = [

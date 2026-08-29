@@ -41,6 +41,12 @@
     },
     "/educacion": {
       "gzipKB": 280.5
+    },
+    "/plantillas": {
+      "gzipKB": 356.5
+    },
+    "/plantillas/taqueria": {
+      "gzipKB": 280.7
     }
   }
 }

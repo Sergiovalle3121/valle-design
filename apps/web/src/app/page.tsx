@@ -18,6 +18,7 @@ import { PublicNav } from "@/components/PublicNav";
 import { SkipLink } from "@/components/SkipLink";
 import { Logo } from "@/components/brand/Logo";
 import { FaqCenter } from "@/components/marketing/FaqCenter";
+import { FeaturedTemplates } from "@/components/gallery/FeaturedTemplates";
 import { FeelDemos } from "@/components/marketing/FeelDemo";
 import { FreeLaunchNote } from "@/components/marketing/FreeLaunchNote";
 import { HeroBackdrop } from "@/components/marketing/HeroBackdrop";
@@ -29,6 +30,7 @@ import {
   FAQ_COUNT,
   FAQ_FOR_STRUCTURED_DATA,
 } from "@/lib/marketing/faq";
+import { galleryTemplates } from "@/lib/marketing/template-gallery";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import {
   faqPageJsonLd,
@@ -104,6 +106,9 @@ import {
 
 const description =
   "CAD 2D en línea para arquitectura e ingeniería: dibuja planos en el navegador con capas, bloques, cotas asociativas, DXF e impresión a PDF a escala.";
+
+/** El total del catálogo, LEÍDO del catálogo: la portada no promete cifras a mano. */
+const GALLERY_TOTAL = galleryTemplates().length;
 
 export const metadata: Metadata = publicPageMetadata({
   path: "/",
@@ -449,6 +454,17 @@ export default function LandingPage() {
             lead="Un plano terminado demuestra que el programa existe. Estas tres cosas son las que de verdad decides al usarlo: si el cursor se pega al punto exacto, si la cota sigue diciendo la verdad después de mover el muro, y si la lámina sale con el tamaño de página que pediste."
           />
           <FeelDemos className="mt-12" />
+        </Band>
+
+        {/* ── EL PLANO YA ESTÁ EMPEZADO ──────────────────────────────────── */}
+        <Band id="plantillas" tinted>
+          <SectionHead
+            id="plantillas"
+            eyebrow="Plantillas por giro"
+            title="El plano de tu giro ya está empezado"
+            lead={`${GALLERY_TOTAL} arranques mexicanos dibujados por el motor: de la casa habitación a la taquería, del consultorio a la nave. Cada uno con sus capas de norma, su escala puesta y su cajetín con responsiva — eliges, abres y dibujas.`}
+          />
+          <FeaturedTemplates total={GALLERY_TOTAL} />
         </Band>
 
         {/* ── EL MODELO ──────────────────────────────────────────────────── */}
