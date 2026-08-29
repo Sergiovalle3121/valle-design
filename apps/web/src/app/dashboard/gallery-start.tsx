@@ -84,7 +84,7 @@ export function useDemoAdoption(): [boolean, () => void] {
   useEffect(() => {
     if (new URLSearchParams(window.location.search).get("demo") !== "1") return;
     let alive = true;
-    void import("@/lib/cad/demo/demo-port").then(({ storedDemoDocument }) => {
+    void import("@/components/cad/document-lifecycle/demo-port").then(({ storedDemoDocument }) => {
       if (alive && storedDemoDocument()) setPending(true);
     });
     return () => {
@@ -97,7 +97,7 @@ export function useDemoAdoption(): [boolean, () => void] {
 /** El dibujo de la demo como contenido del documento; lo limpia tras leerlo. */
 export async function takeDemoDocumentContent() {
   const { storedDemoDocument, clearDemoDocument } =
-    await import("@/lib/cad/demo/demo-port");
+    await import("@/components/cad/document-lifecycle/demo-port");
   const document = storedDemoDocument();
   clearDemoDocument();
   return document;

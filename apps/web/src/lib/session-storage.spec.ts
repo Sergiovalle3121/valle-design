@@ -51,12 +51,20 @@ assert.doesNotMatch(
 );
 
 /**
- * La única clave de `localStorage` autorizada en los fixtures. No es una lista
- * abierta a propósito: cada entrada nueva tiene que justificarse aquí, y la
- * justificación de ésta es que el tema es una preferencia de presentación que
- * el propio producto guarda ahí, no una credencial.
+ * Las claves de `localStorage` autorizadas en los fixtures. No es una lista
+ * abierta a propósito: cada entrada nueva tiene que justificarse aquí.
+ *
+ * - `valle_theme`: preferencia de presentación que el propio producto guarda
+ *   ahí (el script anti-flash de `layout.tsx` la lee antes de pintar), no una
+ *   credencial.
+ * - `valle_demo_document`: el DIBUJO del modo demostración. El contrato del
+ *   demo es exactamente «sin cuenta y sin red»: su puerto de documentos
+ *   (`document-lifecycle/demo-port.ts`) guarda el plano en el navegador, y la
+ *   prueba del demo verifica ese autosave. Es dato del usuario visible para él
+ *   mismo — lo contrario de una credencial escondida. Una clave de sesión
+ *   cualquiera sigue fallando igual que antes.
  */
-const CLAVES_PERMITIDAS = ["valle_theme"];
+const CLAVES_PERMITIDAS = ["valle_theme", "valle_demo_document"];
 
 const usosDeStorage = e2eFiles.flatMap((file) => {
   const texto = readFileSync(`${webRoot}/${file}`, "utf8");
@@ -79,5 +87,5 @@ assert.deepEqual(
 
 console.log(
   `session-storage: la sesión no toca localStorage ni cabeceras Bearer ` +
-    `(${usosDeStorage.length} uso(s) de storage en fixtures, todos de tema)`,
+    `(${usosDeStorage.length} uso(s) de storage en fixtures, todos de claves autorizadas)`,
 );

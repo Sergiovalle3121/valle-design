@@ -4,7 +4,8 @@
  * La promesa pública es triple: (1) el editor REAL abre sin cuenta con la
  * casa habitación puesta; (2) se puede DIBUJAR de verdad (un comando por la
  * línea de comandos muta el documento); (3) nada viaja a la nube — cero
- * peticiones de documentos, el guardado vive en localStorage.
+ * peticiones de documentos, el guardado vive en localStorage (valle_demo_document,
+ * clave autorizada con su porqué en session-storage.spec).
  *
  * La tercera es la que más vale: si un refactor vuelve a colgar el guardado
  * del cliente Design, el demo rompería con un 401 silencioso en producción.
@@ -75,13 +76,16 @@ test.describe('Demostración sin cuenta', () => {
       })
       .toBeGreaterThan(before);
 
-    // El dibujo queda en el navegador (autosave → localStorage), no en la nube.
+    // El dibujo queda en el navegador (autosave → localStorage valle_demo_document),
+    // no en la nube. La clave va LITERAL en cada línea que toca el storage:
+    // el gate de session-storage audita cada uso por su clave visible, y el
+    // guardián de abajo la mantiene atada a la constante del producto.
+    expect(DEMO_STORAGE_KEY).toBe('valle_demo_document');
     await expect
       .poll(
         async () =>
           page.evaluate(
-            (key) => window.localStorage.getItem(key)?.length ?? 0,
-            DEMO_STORAGE_KEY,
+            () => window.localStorage.getItem('valle_demo_document')?.length ?? 0,
           ),
         { message: 'el autosave del demo debe escribir el respaldo local', timeout: 30_000 },
       )

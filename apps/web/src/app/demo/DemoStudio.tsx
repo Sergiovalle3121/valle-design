@@ -39,7 +39,7 @@ export function DemoStudio() {
   const [documentPort, setDocumentPort] = useState<DocumentLifecyclePort | null>(null);
   useEffect(() => {
     let alive = true;
-    void import("@/lib/cad/demo/demo-port").then(({ createDemoDocumentPort }) => {
+    void import("@/components/cad/document-lifecycle/demo-port").then(({ createDemoDocumentPort }) => {
       if (alive) setDocumentPort(createDemoDocumentPort());
     });
     return () => {

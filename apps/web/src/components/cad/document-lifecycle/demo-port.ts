@@ -17,16 +17,23 @@
  * MISMO conversor de la galería, con el cajetín marcando «Demostración» — el
  * PDF que el visitante exporte lo dirá en su propio cajetín, trazado por el
  * pipeline real.
+ *
+ * VIVE AQUÍ y no en `lib/cad/demo/` porque implementa el contrato del
+ * controlador de ciclo de vida, que es de `components/` — igual que su hermano
+ * `design-port.ts`. En `lib/` violaba la dirección de imports (lib nunca
+ * importa de components; `check:conventions` lo caza). Las CONSTANTES sí se
+ * quedan en `lib/cad/demo/demo-constants.ts`: son la hoja sin dependencias que
+ * comparten este puerto, la adopción del tablero y la prueba E2E.
  */
 import type {
   DocumentLifecyclePort,
   DocumentLifecycleResource,
-} from "@/components/cad/document-lifecycle/controller";
-import type { CadDocument } from "../cad-document";
-import { buildCadTemplateDocument } from "../template-document";
+} from "./controller";
+import type { CadDocument } from "@/lib/cad/cad-document";
+import { buildCadTemplateDocument } from "@/lib/cad/template-document";
 
-export { DEMO_DOCUMENT_ID, DEMO_STORAGE_KEY } from "./demo-constants";
-import { DEMO_STORAGE_KEY } from "./demo-constants";
+export { DEMO_DOCUMENT_ID, DEMO_STORAGE_KEY } from "@/lib/cad/demo/demo-constants";
+import { DEMO_STORAGE_KEY } from "@/lib/cad/demo/demo-constants";
 
 interface StoredDemo {
   version: number;
