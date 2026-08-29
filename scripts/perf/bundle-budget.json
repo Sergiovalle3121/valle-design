@@ -1,0 +1,46 @@
+{
+  "descripcion": "Techos de JS de primera carga por ruta, en KB gzip. Sólo bajan.",
+  "condiciones": {
+    "medidor": "scripts/perf/bundle-budget.mjs",
+    "que": "suma gzip -9 de los <script src> del HTML servido por `next start` sobre un build de produccion",
+    "maquina": "contenedor efimero de Claude Code on the web, 4 nucleos, 15 GiB",
+    "build": "NEXT_PUBLIC_API_URL=http://localhost:4010 npm run build (el mismo que usa E2E_PROD)",
+    "margen": "techo = medido +3%, redondeado a una decimal. El 3% cubre la variacion de build entre corridas; no es holgura para crecer.",
+    "trinquete": "--write solo BAJA techos. Subir uno exige editar este fichero a mano y explicarlo en el commit."
+  },
+  "rutas": {
+    "/": {
+      "gzipKB": 293.4
+    },
+    "/register": {
+      "gzipKB": 293.2
+    },
+    "/login": {
+      "gzipKB": 293.2
+    },
+    "/precios": {
+      "gzipKB": 297.1
+    },
+    "/contact": {
+      "gzipKB": 288.6
+    },
+    "/docs": {
+      "gzipKB": 278.7
+    },
+    "/dashboard": {
+      "gzipKB": 443.0
+    },
+    "/studio": {
+      "gzipKB": 280.5
+    },
+    "/studio/demo-123": {
+      "gzipKB": 286.1
+    },
+    "/cuenta": {
+      "gzipKB": 289.3
+    },
+    "/educacion": {
+      "gzipKB": 278.7
+    }
+  }
+}

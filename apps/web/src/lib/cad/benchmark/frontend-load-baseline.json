@@ -1,0 +1,22 @@
+{
+  "descripcion": "Techos de JS descargado por el navegador, en KB sin comprimir (cuerpo de respuesta). Sólo bajan.",
+  "condiciones": {
+    "maquina": "contenedor efimero de Claude Code on the web, 4 nucleos, 15 GiB",
+    "navegador": "Chromium de Playwright, headless",
+    "servidor": "next start sobre build de produccion",
+    "medidor": "e2e/performance/frontend-load-budget.spec.ts",
+    "margen": "gate = medido +4%. Cubre la variacion entre corridas del mismo build; no es holgura para crecer."
+  },
+  "gate": {
+    "landingJsKB": 840.0,
+    "estudioJsKB": 4650.0
+  },
+  "observado": {
+    "20260829-antes": {
+      "landingJsKB": 806.9,
+      "estudioJsKB": 4456.9,
+      "estudioUsableMs": 1394,
+      "nota": "medida de partida de la campana de frontend, antes de dividir el chunk del editor"
+    }
+  }
+}
