@@ -369,6 +369,18 @@ jobs:
       # a los que aquí ya están en disco, y la cuota de Actions de este repo
       # está agotándose. Retención de un día: es un insumo entre jobs de la
       # MISMA corrida, no evidencia que haya que conservar.
+      # La tabla de Lighthouse, OTRA VEZ, al final del log. No es redundancia
+      # ociosa: el artefacto pesa doce megas y vive en un almacén que la
+      # política de red de algunos entornos no deja descargar, el resumen del
+      # job no se puede leer por API, y el log se trunca POR EL PRINCIPIO. Lo
+      # último escrito es lo único que siempre se puede leer. Diez líneas aquí
+      # evitan relanzar una corrida entera para enterarse de lo ya medido.
+      # No falla si no hay resumen: es un paso de lectura, y hacerlo fallar
+      # taparía el fallo de verdad que impidió medir.
+      - name: Repetir la tabla de Lighthouse al final del log
+        if: always()
+        run: node scripts/perf/lighthouse-gate.mjs --resumen
+
       - name: Upload API dist (insumo de deploy-readiness)
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:

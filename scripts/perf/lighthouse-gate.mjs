@@ -273,8 +273,7 @@ const cls3 = (v) => (typeof v === "number" ? v.toFixed(3) : "—");
  * se trunca, el artefacto puede no subirse; el resumen del job sobrevive a los
  * dos y es donde alguien mira primero cuando el gate se pone rojo.
  */
-export function publicarResumen(filas, destino = INFORMES) {
-  if (filas.length === 0) return;
+export function imprimirTabla(filas) {
   console.log("\n── Mediana de las corridas ──");
   console.log("pasada      ruta        rend  a11y  bp   seo  LCP      CLS    TBT");
   for (const f of filas) {
@@ -285,6 +284,11 @@ export function publicarResumen(filas, destino = INFORMES) {
         ` ${mseg(f.tbtMs).padStart(7)}`,
     );
   }
+}
+
+export function publicarResumen(filas, destino = INFORMES) {
+  if (filas.length === 0) return;
+  imprimirTabla(filas);
   // El directorio ya existe si alguna pasada se archivó, pero el resumen no
   // puede depender de ese orden.
   mkdirSync(destino, { recursive: true });
@@ -314,7 +318,43 @@ export function publicarResumen(filas, destino = INFORMES) {
   }
 }
 
+/**
+ * Reimprime la tabla ya medida, sin arrancar servidor ni navegador.
+ *
+ * Existe por un problema de LECTURA, no de medida: el artefacto de Lighthouse
+ * pesa doce megas y vive en un almacén que la política de red de algunos
+ * entornos no deja descargar; el resumen del job de Actions no se puede leer
+ * por API; y el log del job se trunca POR EL PRINCIPIO. La única copia que
+ * siempre se puede leer es la que queda en las ÚLTIMAS líneas del log. Diez
+ * líneas de CI evitan tener que relanzar una corrida entera para enterarse de
+ * lo que ya se midió.
+ *
+ * No falla si no hay resumen: es un paso de lectura, y hacerlo fallar taparía
+ * el fallo de verdad que impidió medir.
+ */
+function reimprimirResumen() {
+  const ruta = join(INFORMES, "resumen.json");
+  if (!existsSync(ruta)) {
+    console.log(`No hay ${ruta}: la medida no llegó a producirse en esta corrida.`);
+    return;
+  }
+  try {
+    const { filas } = JSON.parse(readFileSync(ruta, "utf8"));
+    if (!Array.isArray(filas) || filas.length === 0) {
+      console.log(`${ruta} no contiene filas.`);
+      return;
+    }
+    imprimirTabla(filas);
+  } catch (e) {
+    console.log(`No se pudo leer ${ruta}: ${e?.message ?? e}`);
+  }
+}
+
 async function main() {
+  if (process.argv.includes("--resumen")) {
+    reimprimirResumen();
+    return;
+  }
   if (!existsSync(join(WEB, ".next", "BUILD_ID"))) {
     console.error(`No hay build en ${join(WEB, ".next")}. Corre \`npm run build\` antes.`);
     process.exit(1);

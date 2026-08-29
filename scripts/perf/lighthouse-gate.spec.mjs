@@ -22,7 +22,13 @@ import { tmpdir } from "node:os";
 import { join, sep } from "node:path";
 import { after, describe, it } from "node:test";
 
-import { archivarPasada, mediana, publicarResumen, resumirPasada } from "./lighthouse-gate.mjs";
+import {
+  archivarPasada,
+  imprimirTabla,
+  mediana,
+  publicarResumen,
+  resumirPasada,
+} from "./lighthouse-gate.mjs";
 
 const temporales = [];
 function directorioTemporal() {
@@ -193,5 +199,28 @@ describe("publicarResumen", () => {
     const destino = join(directorioTemporal(), "informes-lighthouse");
     publicarResumen([], destino);
     assert.equal(existsSync(join(destino, "resumen.json")), false);
+  });
+});
+
+describe("imprimirTabla", () => {
+  it("no revienta con métricas ausentes", () => {
+    // Corre en el paso final de CI con `if: always()`. Si reventara ahí,
+    // taparía el fallo de verdad con un error suyo.
+    assert.doesNotThrow(() =>
+      imprimirTabla([
+        {
+          pasada: "móvil",
+          ruta: "/",
+          corridas: 0,
+          rendimiento: null,
+          accesibilidad: null,
+          buenasPracticas: null,
+          seo: null,
+          lcpMs: null,
+          cls: null,
+          tbtMs: null,
+        },
+      ]),
+    );
   });
 });
