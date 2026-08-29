@@ -1006,6 +1006,24 @@
   animation: hero-orb-3 29s ease-in-out infinite;
 }
 
+/* En pantallas pequeñas la aurora queda QUIETA (campaña de sitio, medido):
+   tres orbes desenfocados a 72-80 px + la malla cónica animándose en bucle
+   son trabajo de pintado continuo que en un teléfono con la CPU estrangulada
+   4× se come el hilo principal — y la batería — sin que el ojo lo eche de
+   menos en una pantalla de 6". Las capas, el color y la profundidad se
+   quedan; la deriva es un lujo de escritorio. No es la regla de
+   `prefers-reduced-motion` (esa es una preferencia de la persona y vive en su
+   propia regla global): esta es una decisión de presupuesto de energía. */
+@media (max-width: 1023px) {
+  .hero-orb-1,
+  .hero-orb-2,
+  .hero-orb-3,
+  .hero-conic,
+  .float-slow {
+    animation: none;
+  }
+}
+
 /* Malla cónica que gira lentísimo bajo el hero (el "shimmer" traslúcido). */
 @keyframes hero-spin {
   from {

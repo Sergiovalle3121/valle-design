@@ -1,0 +1,73 @@
+/* GENERADO por scripts/design/subset-fonts.py — no editar a mano; regenerar tras cambiar fuentes o inventario.
+ *
+ * Romana e itálica comparten familia a propósito: el font-matching del
+ * navegador elige la cara itálica REAL dentro de la familia; separarlas
+ * produciría oblicuas sintéticas en el MText del estudio y en docs.
+ * Las familias *Fallback llevan métricas sincronizadas con Arial (los
+ * valores que calculaba next/font para estas caras): el respaldo ocupa
+ * el sitio exacto de la fuente real y el swap no mueve el layout.
+ */
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/InterVariable.subset.d88efde7.woff2") format("woff2");
+  font-display: swap;
+  font-weight: 100 900;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Inter";
+  src: url("/fonts/InterVariable-Italic.subset.3ffcb7be.woff2") format("woff2");
+  font-display: swap;
+  font-weight: 100 900;
+  font-style: italic;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/fonts/JetBrainsMono.subset.6d794660.woff2") format("woff2");
+  font-display: swap;
+  font-weight: 100 800;
+  font-style: normal;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("/fonts/JetBrainsMono-Italic.subset.a8508d33.woff2") format("woff2");
+  font-display: swap;
+  font-weight: 100 800;
+  font-style: italic;
+}
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("/fonts/SpaceGrotesk.subset.5d782427.woff2") format("woff2");
+  font-display: swap;
+  font-weight: 300 700;
+  font-style: normal;
+}
+@font-face {
+  font-family: "Inter Fallback";
+  src: local(Arial);
+  ascent-override: 89.79%;
+  descent-override: 22.36%;
+  line-gap-override: 0.0%;
+  size-adjust: 107.89%;
+}
+@font-face {
+  font-family: "Space Grotesk Fallback";
+  src: local(Arial);
+  ascent-override: 88.78%;
+  descent-override: 26.34%;
+  line-gap-override: 0.0%;
+  size-adjust: 110.84%;
+}
+@font-face {
+  font-family: "JetBrains Mono Fallback";
+  src: local(Arial);
+  ascent-override: 77.57%;
+  descent-override: 22.82%;
+  line-gap-override: 0.0%;
+  size-adjust: 131.49%;
+}
+:root {
+  --font-inter: "Inter", "Inter Fallback";
+  --font-space-grotesk: "Space Grotesk", "Space Grotesk Fallback";
+  --font-jetbrains: "JetBrains Mono", "JetBrains Mono Fallback";
+}

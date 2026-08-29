@@ -17,7 +17,7 @@
         "categories:performance": [
           "error",
           {
-            "minScore": 0.7
+            "minScore": 0.78
           }
         ],
         "categories:accessibility": [
@@ -40,7 +40,8 @@
         ]
       },
       "//outputDir": "`lhci collect` NO admite `outputDir` —es de `upload --target=filesystem`— y lo ignoraba en silencio, así que los informes siempre caían en `.lighthouseci/` y la pasada móvil pisaba la de escritorio. El archivado a `informes-lighthouse/escritorio/` y `informes-lighthouse/movil/` lo hace ahora scripts/perf/lighthouse-gate.mjs, que además comprueba que lo archivado contiene informes. Sin punto delante a propósito: actions/upload-artifact descarta los ficheros ocultos por omisión, y con las rutas anteriores el artefacto salía vacío.",
-      "//rendimiento": "Medido EN EL RUNNER de CI (ubuntu-latest, mediana de tres corridas por ruta, run 33252353725 sobre 3ffc7a1): 73 / 74 / 75 de rendimiento con LCP de 8,87-9,17 s; accesibilidad 100, buenas practicas 96, SEO 100 en las tres rutas. El contenedor de desarrollo dio 73/74/75, IDENTICO, porque el estrangulamiento de Lighthouse es simulado. El umbral se fija en 0,70 —tres puntos por debajo de la peor observacion— y NO en 0,90: el producto no esta en 90 en movil y bajar el liston en silencio no vale, pero dejar el gate en aviso tampoco. Lo que hay que adelgazar para subir esta cifra es P1-FE6 del BACKLOG, con la causa medida: el 74 % de los bytes de la portada son tipografias (1 093 de 1 476 KB), tres de las cinco en TTF sin convertir, y el desglose del LCP da 95 % de render delay sobre un parrafo de texto. Cuando esa entrada se cierre, este umbral sube con la nueva medida delante.",
+      "//rendimiento": "Historia de la medida: run 33252353725 sobre 3ffc7a1 daba 73/74/75 con LCP 8,87-9,17 s y la causa medida era tipografia (1 486 KB precargados, 74 % de los bytes de la portada). La campana de sitio 2026-08-29 la cerro: subconjuntos woff2 con inventario real (scripts/design/subset-fonts.py), @font-face manual con DOS precargas quirurgicas y cache inmutable. Medido tras el arreglo en el contenedor de trabajo (mediana de tres corridas por ruta, misma metodologia que el gate; el estrangulamiento de Lighthouse es SIMULADO y normaliza la maquina, comprobado en la campana anterior con cifras identicas contenedor/runner): / 81, /precios 85, /register 87, LCP 4,1-5,0 s. Umbral en 0,78: tres puntos bajo la peor observacion (81), la regla de siempre. Solo sube desde aqui.",
+      "//siguiente-palanca": "Para llegar a 90 la palanca YA NO es tipografia: el desglose del LCP da ~4,5 s de render delay con red simulada ociosa, y el experimento font-display:optional no movio la cifra — el modelo de Lighthouse ancla el pintado del parrafo del hero DETRAS de la hidratacion completa. El costo fijo es el cascaron compartido: ~272 KB gzip de JS de primera carga hasta en /docs (el suelo de todas las rutas). La entrada de backlog es una dieta de layout por grupo de rutas para las publicas (menos proveedores, hidratacion parcial); cada 50 KB gzip menos son ~0,5 s de LCP movil simulado.",
       "//": "Los umbrales salen de lo MEDIDO EN EL RUNNER con margen, no de un numero redondo. La tabla completa esta en docs/execution/CAMPANA_FRONTEND_20260829.md, seccion 1.5, y la publica en cada corrida el job `resumen-lighthouse`."
     }
   }
