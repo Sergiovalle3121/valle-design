@@ -289,6 +289,12 @@ export const USE_CASE_PROFILES: readonly UseCaseProfile[] = [
   },
 ];
 
-export function useCaseProfile(slug: string): UseCaseProfile | undefined {
+/**
+ * Búsqueda de perfil por slug. El nombre lleva `find` a propósito: la primera
+ * versión se llamó `useCaseProfile` y el linter de hooks la trató como Hook
+ * («use» + mayúscula) — dos errores bloqueantes en `generateMetadata`, que ni
+ * es componente ni puede ser Hook. Es una función pura de módulo, no un Hook.
+ */
+export function findUseCaseProfile(slug: string): UseCaseProfile | undefined {
   return USE_CASE_PROFILES.find((profile) => profile.slug === slug);
 }

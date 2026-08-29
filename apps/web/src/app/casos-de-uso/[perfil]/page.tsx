@@ -10,7 +10,7 @@ import { RevealOnScroll } from "@/components/marketing/RevealOnScroll";
 import { SiteFooter } from "@/components/marketing/SiteFooter";
 import { buttonClass } from "@/components/ui";
 import { galleryTemplates } from "@/lib/marketing/template-gallery";
-import { USE_CASE_PROFILES, useCaseProfile } from "@/lib/marketing/use-cases";
+import { USE_CASE_PROFILES, findUseCaseProfile } from "@/lib/marketing/use-cases";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
 import { breadcrumbJsonLd, faqPageJsonLd } from "@/lib/seo/structured-data";
 
@@ -29,7 +29,7 @@ export async function generateMetadata({
   params: Promise<{ perfil: string }>;
 }): Promise<Metadata> {
   const { perfil } = await params;
-  const profile = useCaseProfile(perfil);
+  const profile = findUseCaseProfile(perfil);
   if (!profile) return {};
   return publicPageMetadata({
     path: `/casos-de-uso/${profile.slug}`,
@@ -44,7 +44,7 @@ export default async function PerfilPage({
   params: Promise<{ perfil: string }>;
 }) {
   const { perfil } = await params;
-  const profile = useCaseProfile(perfil);
+  const profile = findUseCaseProfile(perfil);
   if (!profile) notFound();
 
   const giros = new Set<string>(profile.giros);
