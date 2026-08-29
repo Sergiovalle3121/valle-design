@@ -27,6 +27,26 @@
 import { strict as assert } from "node:assert";
 import { createElement } from "react";
 import { renderToStaticMarkup as render } from "react-dom/server";
+
+/**
+ * `createElement` con los hijos donde van: como argumentos, no como prop.
+ *
+ * Hace falta porque este fichero es `.ts` y no `.tsx` —el runner del repo sólo
+ * recoge `*.spec.ts`, así que un spec en `.tsx` sería un test muerto— y sin JSX
+ * hay un choque entre dos reglas legítimas: TypeScript exige `children` dentro
+ * del objeto de props cuando el componente lo declara obligatorio, y
+ * `react/no-children-prop` prohíbe exactamente eso, con razón (pasarlo como
+ * prop rompe la reconciliación de React en casos sutiles). Este envoltorio
+ * satisface a las dos: los hijos viajan como argumentos y el tipo se resuelve
+ * en un solo sitio en vez de con un `as never` en cada llamada.
+ */
+function elemento<P extends object>(
+  tipo: (props: P) => unknown,
+  props: Omit<P, "children">,
+  ...hijos: unknown[]
+) {
+  return createElement(tipo as never, props as never, ...(hijos as never[]));
+}
 import { Button } from "./Button";
 import { Badge, ProgressBar, Skeleton } from "./Feedback";
 import { Input, Select, Textarea } from "./Input";
@@ -85,14 +105,8 @@ import { Checkbox, Switch } from "./Toggle";
 }
 {
   const html = render(
-    createElement(
-      Select,
-      {
-        label: "Papel",
-        name: "paper",
-        children: createElement("option", { value: "a4" }, "A4"),
-      },
-    ),
+    elemento(Select, { label: "Papel", name: "paper" },
+      createElement("option", { value: "a4" }, "A4")),
   );
   assert.match(html, /<label/);
   assert.match(html, /<select/);
@@ -149,9 +163,7 @@ import { Checkbox, Switch } from "./Toggle";
 
 /* ── Feedback: Badge, ProgressBar, Skeleton ───────────────────────────────── */
 {
-  const html = render(
-    createElement(Badge, { tone: "danger", children: "3 errores" }),
-  );
+  const html = render(elemento(Badge, { tone: "danger" }, "3 errores"));
   assert.match(html, /3 errores/);
 }
 {
