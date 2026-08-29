@@ -42,6 +42,27 @@ import { existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
+
+/**
+ * Mata el árbol entero del servidor, no sólo su raíz. `spawn` con
+ * `detached: true` le da su propio grupo de procesos; un `kill` sobre `-pid`
+ * llega a todos los descendientes. Sin esto, el `next-server` nieto sobrevive
+ * al script y se queda escuchando en su puerto.
+ */
+function matarGrupo(proceso) {
+  if (!proceso || proceso.killed) return;
+  try {
+    process.kill(-proceso.pid, "SIGKILL");
+  } catch {
+    // El grupo ya murió, o el sistema no lo permite: el fallback es el hijo.
+    try {
+      proceso.kill("SIGKILL");
+    } catch {
+      /* nada más que hacer */
+    }
+  }
+}
+
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const RAIZ = resolve(AQUI, "..", "..");
 const WEB = join(RAIZ, "apps", "web");
@@ -120,14 +141,18 @@ async function main() {
     process.exit(1);
   }
 
+  // `detached: true` + matar el GRUPO: `npx` lanza `next start`, que a su vez
+  // lanza `next-server`. Matar sólo el hijo directo deja al nieto escuchando en
+  // su puerto para siempre.
   const servidor = spawn("npx", ["next", "start", "-p", String(PUERTO)], {
     cwd: WEB,
     stdio: "ignore",
     env: process.env,
+    detached: true,
   });
   const vivo = await esperar(BASE);
   if (!vivo) {
-    servidor.kill("SIGKILL");
+    matarGrupo(servidor);
     console.error(`El servidor no respondió en ${BASE}`);
     process.exit(1);
   }
@@ -159,7 +184,7 @@ async function main() {
       }
     }
   } finally {
-    servidor.kill("SIGKILL");
+    matarGrupo(servidor);
   }
 
   if (codigo !== 0) {

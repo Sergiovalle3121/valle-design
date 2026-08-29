@@ -924,6 +924,54 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CAMPANA-FRONTEND-20260829",
+      "date": "2026-08-29",
+      "initiative": "Campaña «de ingeniería frontend — endurecer lo que el usuario ve» (docs/execution/CAMPANA_FRONTEND_20260829.md), sobre main tras la fusión de la campaña de firma propia (#115). El encargo: dar a la parte que el usuario ve las mismas garantías que ya tiene el backend — presupuestos que fallan en CI, evidencia medida y cero degradación silenciosa. Siete frentes: (1) medir el rendimiento de carga con dos medidores independientes y fijarlo con trinquetes; (2) medir la latencia de interacción con la API que define INP; (3) acotar el daño de un fallo de render con fronteras por zona y cerrar el hueco del contexto WebGL perdido en marcha; (4) accesibilidad como gate bloqueante con axe-core sobre nueve superficies en dos temas, más un recorrido con teclado; (5) sacar del monolito del editor los cuadros que se pueden describir con un contrato explícito, y dejar el mapa medido de lo que queda; (6) evaluar el React Compiler con números y decidir; (7) cerrar los pendientes que la campaña anterior dejó anotados. El stack no se migra: Next.js, React, Tailwind con tokens propios, framer-motion, three.js y las primitivas propias se conservan enteros.",
+      "branch": "claude/valle-design-premium-identity-4hnemt",
+      "assistants": [
+        {
+          "name": "Claude Code (Anthropic)",
+          "role": "Ejecución autónoma end-to-end bajo el prompt maestro «CAMPAÑA DE INGENIERÍA FRONTEND». Disciplina de la campaña: ninguna cifra de rendimiento se publica sin la máquina y las condiciones al lado; todo techo de CI se fija con margen sobre lo medido y sólo puede bajar; cada corrección viaja con la prueba que la habría atrapado, y cada una de esas pruebas se verifica por mutación rompiendo la corrección a propósito; ningún data-testid cambia; todo color pasa por tokens."
+        }
+      ],
+      "authority": "Prompt maestro «CAMPAÑA DE INGENIERÍA FRONTEND — ENDURECER LO QUE EL USUARIO VE — 10 HORAS — VALLE DESIGN» de Sergio Valle Zárate (2026-08-29).",
+      "firstPartyInputs": [
+        "docs/execution/CAMPANA_FRONTEND_20260829.md (bitácora propia de esta campaña)",
+        "docs/execution/DEUDA-MONOLITO.md (el compromiso de tamaño del editor, que esta campaña continúa y amplía con el mapa medido)",
+        "docs/design/DESIGN_SYSTEM.md y scripts/design/check-contrast.mjs (el sistema y su metro, que esta campaña completa con la dimensión de opacidad)",
+        "apps/web/e2e/ (el arnés hermético existente, reutilizado por los medidores nuevos en vez de duplicarlo)"
+      ],
+      "externalSources": [
+        "Documentación pública de Next.js 16.2.12 — ubicación de la opción reactCompiler (nivel superior, ya no experimental) y contrato de next/dynamic. Sólo documentación; no se consultó código.",
+        "Especificación WCAG 2.1 (W3C Recommendation) — umbrales 1.4.3 y 1.4.11, ya implementados en scripts/design/contrast.mjs desde la campaña anterior.",
+        "Especificación de WebGL (Khronos) — el comportamiento de webglcontextlost/webglcontextrestored y la exigencia de cancelar el evento de pérdida para que el agente de usuario intente restaurar el contexto.",
+        "Definición pública de INP (Interaction to Next Paint) y de PerformanceObserver type:event con durationThreshold — API estándar del navegador."
+      ],
+      "externalImplementationConsulted": "Ninguna. Los medidores (bundle-budget.mjs, module-weight.mjs, lighthouse-gate.mjs, interaction-latency.ts) se escribieron desde los contratos públicos —el HTML que sirve next start, el grafo de imports del propio repo, la CLI de @lhci/cli y la API PerformanceObserver— sin leer implementaciones de terceros.",
+      "derivedAreas": [
+        "scripts/perf/ (medidores y presupuestos nuevos: bundle por ruta, peso transitivo de módulo, gate de Lighthouse)",
+        "apps/web/e2e/a11y/ y apps/web/e2e/performance/ (gates de accesibilidad, teclado, carga e interacción)",
+        "apps/web/src/components/cad/dialogs/ (siete cuadros extraídos del monolito, con marco común)",
+        "apps/web/src/components/ui/ErrorBoundary.tsx y su spec (frontera de error por zona)",
+        "apps/web/src/lib/cad/telemetry/ (medida de latencia de interacción)",
+        "apps/web/src/components/cad/viewport/webgl-context-guard.ts (pérdida y restauración del contexto)"
+      ],
+      "fixtures": "apps/web/e2e/fixtures/dashboard-backend.ts — respuestas con la forma de página ({items,total}) para que el tablero de las pruebas sea el tablero y no la pantalla de error. Datos sintéticos propios, sin origen externo.",
+      "dependenciesAdded": [
+        "@axe-core/playwright ^4.13.0 (devDependency de apps/web) — motor de reglas de accesibilidad, MPL-2.0.",
+        "@lhci/cli ^0.15.1 (devDependency raíz) — Lighthouse CI, Apache-2.0.",
+        "babel-plugin-react-compiler 1.0.0 (devDependency de apps/web) — necesario para EVALUAR el React Compiler tras flag. El compilador queda APAGADO por defecto; ver el veredicto medido en el informe."
+      ],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Pendiente: revisión/fusión del PR de esta rama sobre el SHA candidato."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

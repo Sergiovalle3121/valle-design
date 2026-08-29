@@ -44,6 +44,27 @@ import { gzipSync } from "node:zlib";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 
+
+/**
+ * Mata el árbol entero del servidor, no sólo su raíz. `spawn` con
+ * `detached: true` le da su propio grupo de procesos; un `kill` sobre `-pid`
+ * llega a todos los descendientes. Sin esto, el `next-server` nieto sobrevive
+ * al script y se queda escuchando en su puerto.
+ */
+function matarGrupo(proceso) {
+  if (!proceso || proceso.killed) return;
+  try {
+    process.kill(-proceso.pid, "SIGKILL");
+  } catch {
+    // El grupo ya murió, o el sistema no lo permite: el fallback es el hijo.
+    try {
+      proceso.kill("SIGKILL");
+    } catch {
+      /* nada más que hacer */
+    }
+  }
+}
+
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const RAIZ = resolve(AQUI, "..", "..");
 const WEB = join(RAIZ, "apps", "web");
@@ -150,14 +171,19 @@ async function main() {
       console.error(`No hay build en ${join(WEB, ".next")}. Corre \`npm run build\` antes.`);
       process.exit(1);
     }
+    // `detached: true` + matar el GRUPO: `npx` lanza `next start`, que a su vez
+    // lanza el proceso `next-server`. Matar sólo el hijo directo dejaba al
+    // nieto escuchando en su puerto para siempre — comprobado: veintiocho
+    // servidores huérfanos tras una tarde de medidas, cada uno con sus 160 MB.
     servidor = spawn("npx", ["next", "start", "-p", String(PUERTO)], {
       cwd: WEB,
       stdio: "ignore",
       env: process.env,
+      detached: true,
     });
     const vivo = await esperarServidor(base);
     if (!vivo) {
-      servidor.kill("SIGKILL");
+      matarGrupo(servidor);
       console.error(`El servidor no respondió en ${base}`);
       process.exit(1);
     }
@@ -167,7 +193,7 @@ async function main() {
   try {
     filas = await medir(base, rutas);
   } finally {
-    if (servidor) servidor.kill("SIGKILL");
+    if (servidor) matarGrupo(servidor);
   }
 
   const ancho = Math.max(...filas.map((f) => f.ruta.length), 6);

@@ -1,7 +1,7 @@
 # BACKLOG — ordenado por lo que impide vender
 
-Actualizado: 2026-08-28, campaña de firma propia
-(`docs/execution/INFORME_CAMPANA_FIRMA_20260828.md`).
+Actualizado: 2026-08-29, campaña de ingeniería frontend
+(`docs/execution/INFORME_CAMPANA_FRONTEND_20260829.md`).
 Cada entrada dice qué falla,
 dónde, cómo se reproduce, qué criterio la cierra y qué prueba lo fija. El
 orden dentro de cada nivel es el orden recomendado de ataque. Una entrada que
@@ -280,6 +280,19 @@ ante operación sin marca. **Estimación:** medio día.
 ### P1-F3 · Entrar con Google y Microsoft
 - **Qué falla:** el alta sólo admite correo y contraseña. Es lo que más subiría
   la conversión del embudo.
+- **Terreno mapeado (campaña de frontend, 2026-08-29):** no hay NADA de OAuth —
+  ni ruta en el contrato (19 rutas `/v1/auth`, ninguna federada), ni botón, ni
+  bandera, ni dependencia; `AuthModule` está vacío. La sesión de hoy es un token
+  opaco cuyo SHA-256 vive en `identity_sessions`, servido en dos cookies (sesión
+  `httpOnly` `SameSite=Lax`, y `valle_csrf` legible por JS para el doble envío),
+  con el hash argon2id en `identity_credentials` y el acceso bloqueado hasta que
+  un token de un solo uso de 24 h sella `User.emailVerifiedAt`. La colisión de
+  correo se resuelve hoy con silencio deliberado —202 `{accepted:true}`, sin
+  correo y con la misma pantalla de «revisa tu correo»— que es exactamente lo
+  que deja **sin definir** qué hacer cuando el correo de Google ya tiene cuenta.
+  Las specs `.pg` siguen un patrón único (`*.pg.spec.ts` + `createPostgresHarness`
+  con esquema desechable) y se corren con
+  `TEST_DATABASE_URL=… npm run test:pg --workspace=valle-design-api`.
 - **Por qué NO se hizo:** OAuth no es una pantalla, es un proveedor de
   identidad. Antes de la primera línea hay que decidir y probar: fusión de
   cuentas cuando alguien se registró con contraseña y luego entra con Google
@@ -308,6 +321,88 @@ ante operación sin marca. **Estimación:** medio día.
 - **Estimación:** una hora de código una vez tomadas las dos decisiones.
 
 ---
+
+### P1-FE1 · El umbral móvil de Lighthouse está sin calibrar
+- **Qué falta:** el gate `npm run check:lighthouse` corre dos pasadas —
+  escritorio y móvil— y el umbral de **rendimiento móvil** está en `warn` y no
+  en `error` porque nunca se midió limpio: la única medida móvil de la campaña
+  se tomó con la máquina ocupada por la suite de navegador y dio 61-71 con un
+  LCP de 9,8 s, que es un número del contenedor y no del producto.
+- **Dónde:** `scripts/perf/lighthouserc.mobile.json`, clave
+  `categories:performance`.
+- **Cómo se cierra:** correr `node scripts/perf/lighthouse-gate.mjs --collect`
+  con la máquina en reposo (sin suite, sin build en paralelo), leer la mediana
+  de las tres corridas por ruta, y fijar el umbral en lo medido menos margen.
+  Si el producto no llega a 90 en móvil, el umbral se fija donde esté y se abre
+  una entrada propia con lo que hay que adelgazar — bajar el listón sin decirlo
+  es lo único que no vale.
+- **Criterio de aceptación:** el umbral móvil pasa a `error` con su número
+  medido escrito en el JSON, y la bitácora de la campaña lo recoge.
+- **Estimación:** 20 minutos de máquina en reposo.
+
+### P1-FE2 · El monolito del editor: los tres bloques que quedan
+- **Qué falta:** `Layout3DEditor.tsx` bajó de 20 220 a 19 137 líneas con siete
+  cuadros extraídos, pero el objetivo declarado de la campaña (< 18 500 y
+  `useState` < 130) NO se alcanzó, y el motivo está medido.
+- **Dónde:** el mapa completo, con el acoplamiento de cada bloque y el comando
+  para volver a medirlo, está en `docs/execution/DEUDA-MONOLITO.md`.
+- **Por qué NO se forzó:** el bloque grande que falta —el paquete premium de
+  entrega, 525 líneas— toca ~40 variables del cierre del componente. Un
+  componente con cuarenta props no es una extracción: es el monolito con otra
+  sintaxis. Y los `useState` no bajan extrayendo cuadros porque los cuadros
+  pintaban estado ajeno; bajarlos exige mover la propiedad del estado.
+- **Cómo se cierra:** primero `usePaperSpaces` (controlador de espacios-papel),
+  y con él el cuadro sale con dos props. Después los otros tres controladores
+  identificados (exportación DXF, versiones, validación), que suman ~23
+  `useState`.
+- **Criterio de aceptación:** monolito < 18 500 y `useState` < 130, con el
+  trinquete bajado en el mismo commit y los goldens verdes.
+- **Estimación:** una ola de campaña por controlador.
+
+### P1-FE3 · Web Vitals de campo: falta el endpoint, no el medidor
+- **Qué falta:** `lib/cad/telemetry/interaction-latency.ts` ya mide la latencia
+  de interacción en el navegador con la API que define INP, y su aritmética
+  tiene spec. Lo que no existe es **dónde publicarla**: la API tiene una capa de
+  métricas completa pero 100 % de servidor —registro Prometheus en proceso, dos
+  endpoints JSON protegidos por `METRICS_TOKEN`— y ni tabla, ni entidad, ni
+  endpoint de escritura para telemetría de cliente.
+- **Por qué NO se hizo en esta campaña:** es una cadena completa, no una
+  pantalla: entidad + migración (con sus tres puntos de aterrizaje obligatorios,
+  incluido el alta en `ALL_MIGRATIONS` de `migration-chain.pg.spec.ts`) +
+  controlador Nest + ruta en el contrato OpenAPI + regeneración del SDK, y el
+  gate `check:cad-contract` exige biyección **exacta** entre las tres cosas.
+  Además hay una decisión de producto delante: un endpoint de escritura sin
+  sesión es superficie nueva de abuso, y hoy los únicos que existen son los de
+  identidad (limitados por IP) y los webhooks firmados por HMAC.
+- **Criterio de aceptación:** el navegador publica CLS/LCP/INP reales, la tabla
+  los guarda con retención declarada, y el panel interno los enseña por
+  percentil. Con límite de tasa y sin dato personal.
+- **Estimación:** media campaña.
+
+### P1-FE4 · La trampa de foco de los cuadros del estudio
+- **Qué falta:** `CadDialogShell` da `role="dialog"`, `aria-modal`,
+  `aria-labelledby` y cierre con Escape a los siete cuadros extraídos — que
+  antes no tenían nada de eso. Lo que **no** hace es mover el foco al abrir,
+  atraparlo dentro ni devolverlo al cerrar.
+- **Por qué NO se hizo a medias:** un foco que salta a un sitio equivocado deja
+  a quien navega con teclado peor que antes. `Modal` (el de `components/ui`) sí
+  lo hace y es la referencia a copiar.
+- **Criterio de aceptación:** los cuadros del estudio pasan el mismo test de
+  trampa de Tab que ya pasa el diálogo de comentarios en
+  `e2e/a11y/teclado-embudo.spec.ts`.
+- **Estimación:** medio día, la mayor parte en pruebas.
+
+### P2-FE5 · Las plantillas no se pueden diferir desde la paleta
+- **Qué se descubrió:** `lib/cad/templates.ts` son 4 982 líneas de datos que
+  parecían un `import()` fácil. No lo son: `lib/cad/engine/index.ts` importa
+  `CAD_LAYOUT_COMMANDS`, que importa `CAD_LAYOUT_TEMPLATES`, y el motor de
+  comandos es núcleo del estudio. Diferir las plantillas exige diferir los
+  **manejadores de comandos pesados**, uno a uno, detrás de un `import()` en su
+  `run`.
+- **Criterio de aceptación:** el chunk del editor baja de forma medible en
+  `e2e/performance/frontend-load-budget.spec.ts` sin que ningún comando pierda
+  su prueba.
+- **Estimación:** campaña propia.
 
 ## P2 — deuda que crece con intereses
 

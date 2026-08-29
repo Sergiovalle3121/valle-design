@@ -590,3 +590,71 @@ Con el techo en 220 ms de p95 y 320 ms del peor — ~30 % de margen. El techo no
 persigue la **regresión gruesa**, el render en cascada que alguien reintroduce y multiplica la
 latencia, que es el fallo que nadie ve venir en una revisión de código.
 
+## OLA 4 (resto) — el teclado y el contrato escrito
+
+### 4.2 · El recorrido con teclado, y el defecto que destapó
+
+`e2e/a11y/teclado-embudo.spec.ts`: cuatro recorridos con un navegador de verdad — escribir en un
+diálogo, cerrarlo con Escape y comprobar que el foco vuelve a su botón, no poder tabular fuera de él,
+y recorrer el tablero entero comprobando que **todo control que recibe el foco lo enseña** (se acepta
+`outline` o `box-shadow`, que es como lo hacen las utilidades `ring-*`; lo que no se acepta es
+ninguno de los dos).
+
+El primero de esos cuatro **falló al escribirlo**, y por una razón que no era de accesibilidad sino
+de producto: `Modal` montaba su efecto de foco con `onClose` en las dependencias, los consumidores
+pasan `onClose={() => setOpen(false)}` —función nueva en cada render— y el efecto se remontaba en
+cada render del padre. Montarlo mueve el foco al primer control. Resultado: **cada tecla escrita en
+el diálogo de comentarios devolvía el foco al principio**, y escribir una frase era imposible. En el
+único canal que el producto tiene para que alguien cuente que algo se rompió.
+
+Corregido con el patrón del ref (la devolución de llamada vive en un `useRef` actualizado en su
+propio efecto; el efecto de montaje depende sólo de `open`). **Verificado por mutación:** con el
+código anterior, el test falla por valor perdido en el área de texto.
+
+### 4.4 · El contrato, escrito donde se busca
+
+`DESIGN_SYSTEM.md` §8 bis: una tabla con **qué rol expone cada primitiva, qué teclas maneja y qué
+anuncia**, más lo que explícitamente **no** promete — `CadDialogShell` da rol, título y Escape a los
+siete cuadros extraídos, pero no atrapa el foco, y eso se dice en la tabla en vez de dejarlo suponer.
+
+## OLA 5.4 — la red que faltaba bajo las primitivas
+
+`src/components/ui/primitives-contract.spec.ts`, 24 aserciones. Hasta hoy `design-system.spec.ts` era
+un gate **estático**: recorría los `.tsx` buscando hexes sueltos y tamaños fuera de escala, y nunca
+renderizaba nada. Así que el sistema tenía red contra la deriva de **estilo** y ninguna contra la
+deriva de **comportamiento**: se podía quitar un `role`, un `aria-selected` o el `type="button"` de
+un botón y todo seguía verde.
+
+Ahora se renderiza a marcado estático y se comprueba lo que el navegador y un lector de pantalla leen
+del HTML. **Verificado por mutación** en tres reglas: quitar `type="button"`, quitar `aria-selected`
+de la pestaña activa y quitar `aria-hidden` del esqueleto hacen fallar cada uno a su aserción.
+
+Las 24 pasaron a la primera. Eso no es que la spec sobre: es que documenta y **fija** una calidad que
+ya existía y que nada impedía perder.
+
+## OLA 6 — lo que la firma dejó pendiente
+
+### 6.3 · El aviso de prueba ya tenía un solo origen — y ahora tiene un gate
+
+Comprobado extremo a extremo: `TRIAL_DAYS` → `OrganizationCommercialConfiguration` → catálogo público
+→ `FreeLaunchNote`, que pide el número a la API y lo traduce con `freeOfferHeadline(trialDays)`. Con
+`TRIAL_DAYS=90` la página dice «3 meses gratis» porque el backend concede 90 días, no porque alguien
+lo escribiera. **No había nada que arreglar.**
+
+Lo que faltaba era lo que impide que se rompa: nada obligaba a que siguiera siendo así. Escribir
+«3 meses gratis» en un JSX es una línea, se lee bien y pasa todos los gates del repo — hasta el día
+en que el operador arranca con `TRIAL_DAYS=30` y el producto anuncia una promesa que no cumple. Ese
+fallo **no lo detecta ningún test de comportamiento**, porque el comportamiento es correcto y el
+texto miente. `src/lib/commercial/oferta-un-solo-origen.spec.ts` revisa 114 ficheros de superficie y
+prohíbe el literal fuera del traductor. Verificado por mutación.
+
+### 6.1 · Entrar con Google: **no se hizo**, y el terreno queda mapeado
+
+No cabía en la campaña y forzarlo habría sido peor que no hacerlo: media implementación de OAuth crea
+un segundo camino de autenticación con la mitad de las defensas del primero. Lo que sí deja esta
+campaña es el mapa, en `BACKLOG.md` P1-F3: no existe **nada** de OAuth hoy (ni ruta en el contrato —
+19 rutas `/v1/auth`, ninguna federada—, ni botón, ni bandera, ni dependencia; `AuthModule` vacío), la
+anatomía exacta de la sesión actual, y la decisión de producto que lo desbloquea — qué hacer cuando
+el correo de Google ya tiene una cuenta con contraseña verificada, que hoy se resuelve con un
+silencio deliberado que no sirve para el caso federado.
+
