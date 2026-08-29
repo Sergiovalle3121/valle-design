@@ -10,13 +10,11 @@ import {
   Ruler,
   Terminal,
 } from "lucide-react";
-import { BRAND, PRODUCT_LABEL } from "@/config/brand";
-import { COMMERCIAL_LINKS } from "@/config/commercial";
+import { PRODUCT_LABEL } from "@/config/brand";
 import { DOC_GUIDES, PRICING_PATH, docGuidePath } from "@/config/site-routes";
 import { JsonLd } from "@/components/JsonLd";
 import { PublicNav } from "@/components/PublicNav";
 import { SkipLink } from "@/components/SkipLink";
-import { Logo } from "@/components/brand/Logo";
 import { EngineeringEvidence } from "@/components/marketing/EngineeringEvidence";
 import { FaqCenter } from "@/components/marketing/FaqCenter";
 import { FeaturedTemplates } from "@/components/gallery/FeaturedTemplates";
@@ -25,7 +23,7 @@ import { FreeLaunchNote } from "@/components/marketing/FreeLaunchNote";
 import { HeroBackdrop } from "@/components/marketing/HeroBackdrop";
 import { PlanViewport } from "@/components/marketing/PlanViewport";
 import { ProductFrame } from "@/components/marketing/ProductFrame";
-import { TrademarkNotice } from "@/components/marketing/TrademarkNotice";
+import { SiteFooter } from "@/components/marketing/SiteFooter";
 import { buttonClass } from "@/components/ui";
 import {
   FAQ_COUNT,
@@ -578,7 +576,7 @@ export default function LandingPage() {
             id="evidencia"
             eyebrow="Prueba social de ingeniería"
             title="Ingeniería que puedes auditar"
-            lead="Un producto nuevo no tiene testimonios; tiene evidencia. Estas cifras las genera la integración continua en cada corrida y viven como artefactos en el repositorio — la página las lee de ahí, no puede inventarlas."
+            lead="Un producto nuevo no tiene clientes que citar; tiene evidencia. Estas cifras las genera la integración continua en cada corrida y viven como artefactos en el repositorio — la página las lee de ahí, no puede inventarlas."
           />
           <EngineeringEvidence />
         </Band>
@@ -658,50 +656,7 @@ export default function LandingPage() {
           </div>
         </Band>
 
-        <footer className="border-t border-border px-5 py-12 sm:px-8">
-          <div className="mx-auto flex max-w-7xl flex-col gap-8 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <Logo />
-              <p className="type-small mt-3 text-muted-foreground">
-                {BRAND.copyright}
-              </p>
-              {/*
-                Aviso de marcas. Ya no está aquí en línea: vive en su propio
-                componente porque es la ÚNICA superficie pública autorizada a
-                nombrar marcas ajenas, y `check:surface` necesita un archivo que
-                permitir en vez de una excepción por página. La línea se queda
-                —el producto lee DXF y esos nombres aparecen en la documentación
-                técnica— aunque el posicionamiento por comparación se haya ido.
-              */}
-              <TrademarkNotice className="type-small mt-2 max-w-md text-muted-foreground" />
-            </div>
-            <nav
-              aria-label="Enlaces legales y de ayuda"
-              className="type-small flex flex-wrap gap-x-5 gap-y-3 text-muted-foreground"
-            >
-              {[
-                ["Precios", PRICING_PATH],
-                ["Documentación", COMMERCIAL_LINKS.documentation],
-                ["Novedades", "/novedades"],
-                ["Educación", "/educacion"],
-                ["Soporte", COMMERCIAL_LINKS.support],
-                ["Estado", COMMERCIAL_LINKS.status],
-                ["Contacto", COMMERCIAL_LINKS.contact],
-                ["Privacidad", COMMERCIAL_LINKS.privacy],
-                ["Términos", COMMERCIAL_LINKS.terms],
-                ["Licencias", COMMERCIAL_LINKS.licenses],
-              ].map(([label, href]) => (
-                <a
-                  key={label}
-                  href={href}
-                  className="underline-offset-4 hover:text-foreground hover:underline"
-                >
-                  {label}
-                </a>
-              ))}
-            </nav>
-          </div>
-        </footer>
+        <SiteFooter />
       </main>
     </>
   );

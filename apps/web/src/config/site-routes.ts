@@ -157,6 +157,14 @@ export const PUBLIC_ROUTES: readonly PublicRoute[] = [
   // habitación puesta y el guardado en el navegador. Prioridad alta: es la
   // página que convierte el sitio de folleto a producto que se puede tocar.
   { path: "/demo", changeFrequency: "weekly", priority: 0.9 },
+  // Las páginas comerciales de la campaña de sitio: el caso por profesión y
+  // la página de confianza que un despacho exige antes de subir sus planos.
+  // Los cinco perfiles hijos NO viven aquí: son segmento dinámico y los
+  // aporta el sitemap desde lib/marketing/use-cases (mismo patrón que las
+  // fichas de plantilla) — el spec de SEO importa @/app<ruta>/page por cada
+  // ruta de esta lista, y un segmento dinámico no tiene ese módulo.
+  { path: "/casos-de-uso", changeFrequency: "monthly", priority: 0.7 },
+  { path: "/seguridad", changeFrequency: "monthly", priority: 0.6 },
   // Las dos páginas que la campaña de firma propia añadió a la superficie
   // pública. `/novedades` demuestra que el producto está vivo, que en una beta
   // es un argumento de venta; `/educacion` recoge el interés de las escuelas

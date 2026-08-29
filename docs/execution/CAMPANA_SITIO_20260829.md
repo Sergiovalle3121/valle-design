@@ -30,10 +30,10 @@
 | 3.2 | Sección "ingeniería que puedes auditar" con cifras de artefactos | ✅ (761/192/0/149 leídos en build) |
 | 3.3 | RevealOnScroll única + profundidad tarjetas + contraste al alza | ✅ primitiva + hover existente; contraste: 76 pares se mantienen (nada que subir sin romper) |
 | 3.4 | Screencast 45-60 s del flujo completo | ✅ como secuencia SVG del showcase (~30 s en 3 escenas); video MP4 → backlog con CDN |
-| 4.1 | /casos-de-uso por profesión | pendiente |
-| 4.2 | /seguridad | pendiente |
-| 4.3 | /soporte con búsqueda | pendiente |
-| 4.4 | Footer completo + coherencia | pendiente |
+| 4.1 | /casos-de-uso por profesión | ✅ (5 perfiles: dolor/flujo real/plantillas del giro/FAQ propia) |
+| 4.2 | /seguridad | ✅ (8 hechos verificados en código, detalle técnico plegado) |
+| 4.3 | /soporte con búsqueda | ✅ (búsqueda sobre FAQ+guías en /support, correo visible, estado enlazado) |
+| 4.4 | Footer completo + coherencia | ✅ (SiteFooter 4 columnas en portada+shell → todas las públicas) |
 | 5.1 | P1-FE4 trampa de foco en CadDialogShell | pendiente |
 | 5.2 | Axe del estudio | pendiente |
 | 5.3 | P1-FE2 usePaperSpaces (+3 controladores si alcanza) | pendiente |
@@ -124,3 +124,12 @@ Investigado en el código, no supuesto:
 - **3.3 RevealOnScroll**: primitiva única (IO + clases; CSS en globals con los tokens de motion). Dos lecciones de accesibilidad cazadas por el gate y arregladas: (a) el estado pendiente lleva `visibility: hidden` además de `opacity: 0` — axe medía el texto invisible mezclado contra el fondo (contraste 1.04) y con visibility no evalúa lo no-perceptible; (b) mi primer marcado `dl > div > div > dd+dt` era inválido — reescrito como `ul > li` con jerarquía sana. Sin JavaScript la página es visible entera (la clase de ocultación la pone el observador, no el servidor). Contraste: los 76 pares del gate se mantienen — los acentos ya usan la receta `brand-strong` en CTAs; subir voltaje habría roto pares medidos.
 - **3.4**: cumplido como secuencia SVG+CSS del showcase (nítida, tematizada, ~2 KB por escena, indexable); el MP4/WebM real queda en backlog para cuando haya CDN — un video de 45 s bien comprimido pesa más que toda la portada.
 - Gates re-verificados: contraste 76 pares OK, superficie OK, portada 290.2/295.2 KB (el showcase+evidencia+reveal caben en el techo), public-pages OK, axe landing 2/2 estable (dos corridas).
+
+### OLA 4 · Páginas comerciales — HECHO
+
+- **4.1 /casos-de-uso** + 5 perfiles (arquitectos, ingeniería civil, interioristas, constructores, estudiantes) en segmento dinámico prerrenderizado. El contrato de honestidad vive en `lib/marketing/use-cases.ts`: cada paso del flujo nombra una capacidad con módulo y spec (cotas asociativas, espacio papel, DXF, diario de recuperación, soporte táctil medido, 761 casos contra oráculo). Las «capturas propias» son los renders del motor de las plantillas del giro — imagen regenerable, jamás stock. FAQ propia por perfil con JSON-LD FAQPage.
+- **4.2 /seguridad**: 8 hechos, cada uno verificado en el código ANTES de escribirse (Argon2id en identity.service, TOTP+códigos de respaldo en identity-mfa.service, sesiones revocables en identity.controller, guard de tenant en cad-auth.guard, respaldos con restore-verify.mjs, cad:view sobrevive al vencimiento por spec, cabeceras CSP/HSTS en next.config, SBOM+gitleaks). **Precisión deliberada anotada**: el aislamiento se describe como verificación de pertenencia por petición y NO como «RLS» — el encargo decía RLS pero el código hace guard de aplicación, y esta casa no redondea hacia arriba. Detalle técnico plegado por hecho con la ruta del módulo.
+- **4.3** decisión de ruta: `/support` YA existía y está en el embudo — se POTENCIA en lugar de duplicar en /soporte: búsqueda instantánea sobre el centro de preguntas + las 5 guías (mismo índice de texto que portada/JSON-LD, cero copias), el correo de soporte ESCRITO además del botón, estado del sistema enlazado en prosa.
+- **4.4 SiteFooter**: 4 columnas (Producto/Recursos/Confianza/Contacto) + identidad + línea de marcas. Sustituye los DOS pies (portada inline y el del PublicPageShell) → todas las públicas ganan el mapa a la vez; la coherencia con precios/novedades/educación llega por el shell compartido.
+- **Lección de arquitectura repetida**: los 5 perfiles NO van en PUBLIC_ROUTES (el spec de SEO importa `@/app<ruta>/page` por cada ruta declarada y un segmento dinámico no tiene ese módulo) — van al sitemap desde su módulo, mismo patrón que las 149 fichas. Sitemap: **177 rutas** (23 declaradas + 149 plantillas + 5 perfiles), 22 páginas con metadata verificada.
+- **El gate de superficie me corrigió**: mi texto de evidencia decía «no tiene testimonios» y el regex prohíbe la palabra — reformulado a «no tiene clientes que citar» (la intención del gate es exactamente esa). Axe de las 4 superficies nuevas: 8/8 en Chromium.

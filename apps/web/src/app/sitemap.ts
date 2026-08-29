@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { PUBLIC_ROUTES, absoluteUrl } from "@/config/site-routes";
 import { galleryTemplates } from "@/lib/marketing/template-gallery";
+import { USE_CASE_PROFILES } from "@/lib/marketing/use-cases";
 
 /**
  * SITEMAP derivado, nunca escrito a mano.
@@ -33,6 +34,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified,
       changeFrequency: "monthly" as const,
       priority: 0.7,
+    })),
+    ...USE_CASE_PROFILES.map((profile) => ({
+      url: absoluteUrl(`/casos-de-uso/${profile.slug}`),
+      lastModified,
+      changeFrequency: "monthly" as const,
+      priority: 0.6,
     })),
   ];
 }

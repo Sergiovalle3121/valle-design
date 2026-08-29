@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { LifeBuoy, Mail, ShieldAlert } from "lucide-react";
 import { PublicPageShell, PublicSection } from "../docs/PublicPageShell";
+import { SupportSearch } from "@/components/marketing/SupportSearch";
 import { Surface, buttonClass } from "@/components/ui";
 import { COMMERCIAL_CONTACTS, COMMERCIAL_LINKS } from "@/config/commercial";
 import { publicPageMetadata } from "@/lib/seo/page-metadata";
@@ -19,6 +20,13 @@ export default function SupportPage() {
       title="Soporte"
       intro="Consulta primero la documentación y comparte sólo la información necesaria para reproducir el problema. Nunca envíes contraseñas ni tokens de sesión, verificación o recuperación."
     >
+      {/* La búsqueda va PRIMERO (campaña de sitio): la mayoría de las dudas ya
+          tienen respuesta escrita en el centro de preguntas o en una guía, y
+          encontrarla es más rápido que esperar un correo. */}
+      <PublicSection title="Busca tu respuesta">
+        <SupportSearch />
+      </PublicSection>
+
       <PublicSection title="Antes de solicitar ayuda">
         <p>
           Cuatro datos convierten «no me funciona» en algo que se puede
@@ -65,13 +73,34 @@ export default function SupportPage() {
 
       <PublicSection title="Canal de soporte">
         {COMMERCIAL_CONTACTS.support ? (
-          <a
-            className={buttonClass({ variant: "primary" })}
-            href={`mailto:${COMMERCIAL_CONTACTS.support}`}
-          >
-            <Mail aria-hidden="true" className="h-4 w-4" />
-            Escribir a soporte
-          </a>
+          <>
+            {/* El correo ESCRITO además del botón: quien copia la dirección a
+                su gestor de correo no debería tener que inspeccionar el HTML. */}
+            <p className="type-body">
+              Escríbenos a{" "}
+              <a
+                className="font-medium text-primary-ink underline underline-offset-4"
+                href={`mailto:${COMMERCIAL_CONTACTS.support}`}
+              >
+                {COMMERCIAL_CONTACTS.support}
+              </a>
+              . El estado del sistema se publica en{" "}
+              <a
+                className="font-medium text-primary-ink underline underline-offset-4"
+                href={COMMERCIAL_LINKS.status}
+              >
+                la página de estado
+              </a>
+              .
+            </p>
+            <a
+              className={buttonClass({ variant: "primary" })}
+              href={`mailto:${COMMERCIAL_CONTACTS.support}`}
+            >
+              <Mail aria-hidden="true" className="h-4 w-4" />
+              Escribir a soporte
+            </a>
+          </>
         ) : (
           <>
             <p>

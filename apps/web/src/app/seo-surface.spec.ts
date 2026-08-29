@@ -65,11 +65,12 @@ void (async () => {
   // Dos fuentes derivadas y ninguna ruta a mano: las páginas declaradas y una
   // ficha por plantilla del catálogo (ver la cabecera de src/app/sitemap.ts).
   const { galleryTemplates } = await import("@/lib/marketing/template-gallery");
+  const { USE_CASE_PROFILES } = await import("@/lib/marketing/use-cases");
   const gallerySize = galleryTemplates().length;
   assert.equal(
     sitemap.length,
-    PUBLIC_ROUTES.length + gallerySize,
-    "el sitemap debe tener exactamente una entrada por ruta declarada más una por plantilla del catálogo",
+    PUBLIC_ROUTES.length + gallerySize + USE_CASE_PROFILES.length,
+    "el sitemap debe tener exactamente una entrada por ruta declarada más una por plantilla y por perfil de caso de uso",
   );
   assert.ok(gallerySize >= 140, "el catálogo de plantillas se encogió: ¿se rompió la galería?");
 
