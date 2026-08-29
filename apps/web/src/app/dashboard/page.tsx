@@ -39,7 +39,7 @@ import {
   splitDocumentSelection,
 } from "@/lib/cad/document-import-client";
 import { EMPTY_CAD_STARTER_CHOICE } from "./starter-choice";
-import { prefetchCadStudio } from "@/lib/cad/prefetch-studio";
+import { prefetchCadStudio } from "@/components/cad/prefetch-studio";
 
 /**
  * El formulario de plantilla de arranque llega cuando el usuario abre

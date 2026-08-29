@@ -24,6 +24,14 @@
  * La API de `navigator.connection` no existe en todos los navegadores; su
  * ausencia se trata como «adelante», que es el caso de la mayoría de los
  * escritorios.
+ *
+ * ## Por qué vive en `components/cad/` y no en `lib/cad/`
+ *
+ * Porque importa un COMPONENTE. La regla de dirección de importaciones del repo
+ * —`check:conventions`— prohíbe que `lib/` dependa de `components/`: `lib` es la
+ * capa que no sabe de React, y una función de `lib` que arrastra el editor
+ * entero invierte la capa. Este módulo nació ahí por costumbre y el gate lo
+ * devolvió a su sitio en el mismo commit.
  */
 
 type ConexionDeRed = {
@@ -63,7 +71,7 @@ export function prefetchCadStudio(): () => void {
     // El fallo se traga a propósito: esto es una optimización, y una red que
     // falla aquí no debe ensuciar la consola ni, peor, escalar a un error de
     // aplicación. Si falla, el clic lo volverá a pedir.
-    void import("@/components/cad/CadStudioHost").catch(() => {
+    void import("./CadStudioHost").catch(() => {
       yaPedido = false;
     });
   };

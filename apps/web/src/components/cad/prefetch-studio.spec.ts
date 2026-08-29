@@ -7,7 +7,7 @@
  * fijar, y es la parte que se rompe en silencio — nadie nota que se dejó de
  * respetar `saveData` hasta que un usuario con datos medidos se queja.
  *
- * Correr:  npx tsx src/lib/cad/prefetch-studio.spec.ts
+ * Correr:  npx tsx src/components/cad/prefetch-studio.spec.ts
  */
 import { strict as assert } from "node:assert";
 import { shouldPrefetchCadStudio } from "./prefetch-studio";
