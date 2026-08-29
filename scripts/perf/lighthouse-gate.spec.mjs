@@ -17,12 +17,12 @@
  *   node --test scripts/perf/lighthouse-gate.spec.mjs
  */
 import { strict as assert } from "node:assert";
-import { mkdtempSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { after, describe, it } from "node:test";
 
-import { archivarPasada, mediana, resumirPasada } from "./lighthouse-gate.mjs";
+import { archivarPasada, mediana, publicarResumen, resumirPasada } from "./lighthouse-gate.mjs";
 
 const temporales = [];
 function directorioTemporal() {
@@ -135,7 +135,7 @@ describe("resumirPasada", () => {
 describe("archivarPasada", () => {
   it("copia los informes a su directorio y lo confirma", () => {
     const crudo = crudoCon([informe({ url: "http://127.0.0.1:3141/", rendimiento: 0.9, lcp: 1800 })]);
-    const salida = join(directorioTemporal(), ".lighthouseci-escritorio");
+    const salida = join(directorioTemporal(), "informes-lighthouse", "escritorio");
     const filas = resumirPasada("escritorio", crudo);
     assert.equal(archivarPasada(salida, filas, crudo), true);
     assert.equal(readdirSync(salida).filter((f) => f.startsWith("lhr-")).length, 1);
@@ -145,13 +145,23 @@ describe("archivarPasada", () => {
     // El estado exacto del defecto: `collect` escribió en otro sitio y aquí sólo
     // quedó el `flags-*.json`. Antes esto salía en verde y subía un artefacto vacío.
     const crudo = crudoCon([]);
-    const salida = join(directorioTemporal(), ".lighthouseci-escritorio");
+    const salida = join(directorioTemporal(), "informes-lighthouse", "escritorio");
     assert.equal(archivarPasada(salida, resumirPasada("escritorio", crudo), crudo), false);
+  });
+
+  it("crea el árbol de destino aunque no exista el padre", () => {
+    // El destino real es `informes-lighthouse/escritorio`, dos niveles que no
+    // existen antes de la primera pasada. Si `cpSync` no creara el padre, el
+    // gate reventaría en CI y no aquí.
+    const crudo = crudoCon([informe({ url: "http://127.0.0.1:3141/", rendimiento: 0.9, lcp: 1800 })]);
+    const salida = join(directorioTemporal(), "informes-lighthouse", "escritorio");
+    assert.equal(archivarPasada(salida, resumirPasada("escritorio", crudo), crudo), true);
+    assert.equal(readdirSync(salida).filter((f) => f.startsWith("lhr-")).length, 1);
   });
 
   it("borra lo que hubiera antes: la pasada de hoy no hereda la de ayer", () => {
     const crudo = crudoCon([informe({ url: "http://127.0.0.1:3141/", rendimiento: 0.9, lcp: 1800 })]);
-    const salida = join(directorioTemporal(), ".lighthouseci-movil");
+    const salida = join(directorioTemporal(), "informes-lighthouse", "movil");
     mkdirSync(salida, { recursive: true });
     writeFileSync(join(salida, "lhr-viejo.json"), "{}", "utf8");
     archivarPasada(salida, resumirPasada("móvil", crudo), crudo);
@@ -159,5 +169,29 @@ describe("archivarPasada", () => {
       !readdirSync(salida).includes("lhr-viejo.json"),
       "un informe de una corrida anterior falsearía la tabla publicada",
     );
+  });
+});
+
+describe("publicarResumen", () => {
+  it("deja el resumen donde CI lo sube, y sin punto delante", () => {
+    const crudo = crudoCon([
+      informe({ url: "http://127.0.0.1:3141/", rendimiento: 0.73, lcp: 8940, tbt: 159 }),
+    ]);
+    const destino = join(directorioTemporal(), "informes-lighthouse");
+    publicarResumen(resumirPasada("móvil", crudo), destino);
+    const guardado = JSON.parse(readFileSync(join(destino, "resumen.json"), "utf8"));
+    assert.equal(guardado.filas.length, 1);
+    assert.equal(guardado.filas[0].rendimiento, 0.73);
+    assert.equal(guardado.filas[0].ruta, "/");
+    // `actions/upload-artifact` descarta lo oculto: ni un componente con punto.
+    for (const parte of destino.split(sep).slice(-1)) {
+      assert.ok(!parte.startsWith("."), `${parte} sería descartado por oculto al subir el artefacto`);
+    }
+  });
+
+  it("sin filas no escribe nada — no hay medida que publicar", () => {
+    const destino = join(directorioTemporal(), "informes-lighthouse");
+    publicarResumen([], destino);
+    assert.equal(existsSync(join(destino, "resumen.json")), false);
   });
 });

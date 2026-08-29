@@ -527,14 +527,33 @@ directorio que debía crearse habría bastado, y no lo hice.
 
 El arreglo, en tres sitios porque un solo sitio se vuelve a romper en silencio:
 
-1. **El archivado lo hace el script**, que copia `.lighthouseci/` a `.lighthouseci-<pasada>/` en
-   cuanto termina de medir y **falla si lo archivado no contiene informes**. Que el directorio exista
-   no basta: el fallo consistía precisamente en un directorio que nunca llegó a existir.
-2. **El resumen se publica por triplicado** —consola, `.lighthouseci-resumen.json` y el resumen del
-   job de Actions— con la **mediana** de las tres corridas por ruta. Mediana y no media: tres
-   corridas y una que se cruza con el recolector de basura del runner, y la media se lleva ese pico a
-   la nota publicada. La medida no puede depender de que alguien acierte a descargar un zip.
+1. **El archivado lo hace el script**, que copia `.lighthouseci/` a `informes-lighthouse/<pasada>/`
+   en cuanto termina de medir y **falla si lo archivado no contiene informes**. Que el directorio
+   exista no basta: el fallo consistía precisamente en un directorio que nunca llegó a existir.
+2. **El resumen se publica por triplicado** —consola, `informes-lighthouse/resumen.json` y el
+   resumen del job de Actions— con la **mediana** de las tres corridas por ruta. Mediana y no media:
+   tres corridas y una que se cruza con el recolector de basura del runner, y la media se lleva ese
+   pico a la nota publicada. La medida no puede depender de que alguien acierte a descargar un zip.
 3. **El paso de CI pasa a `if-no-files-found: error`.** Un aviso en un log truncado no es una señal.
+
+**Y hubo un tercer fallo, encadenado al segundo, que sólo apareció al ponerlo en rojo.** Con el
+archivado ya correcto, el paso de subida siguió sin encontrar nada — pero esta vez falló en vez de
+pasar. La causa la imprime la propia acción entre sus parámetros resueltos:
+`include-hidden-files: false`. `actions/upload-artifact` **descarta todo lo que empiece por punto**,
+y mis tres rutas empezaban por punto. El mensaje que da es «no files were found with the provided
+path», que no menciona en ningún momento que los haya excluido él por ocultos.
+
+Se arregla en una línea poniendo `include-hidden-files: true`, y no es lo que se hizo. Un directorio
+de informes que se publica **para que alguien lo lea** no es un fichero oculto: el error de fondo era
+el nombre. Los informes pasan a `informes-lighthouse/`, sin punto, y el problema no vuelve — ni aquí
+ni en el próximo paso que suba algo. La bandera habría tapado el síntoma en este paso y dejado la
+trampa puesta para el siguiente.
+
+**Las tres veces el mismo patrón**, que es lo que hay que aprender de esto y no los detalles de
+`lhci`: una herramienta aceptó lo que le di —una opción inexistente, unas rutas ocultas— y siguió
+adelante sin protestar. Salir con código 0 no es haber hecho lo que se pedía. Lo que rompió la
+cadena no fue mirar más código: fue **poner el paso en rojo** y leer lo que la herramienta imprimía
+de sí misma.
 
 **Medido con el gate ya arreglado, las dos pasadas del mismo arranque, contenedor de desarrollo de
 4 núcleos con la máquina en reposo. Cada celda es la MEDIANA de tres corridas:**

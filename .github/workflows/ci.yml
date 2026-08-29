@@ -217,15 +217,18 @@ jobs:
       # este paso subió CERO ficheros y terminó en verde en un segundo: el gate
       # medía y nadie podía leerlo, que es el fallo exacto que este paso existe
       # para evitar. Un aviso en un log truncado no es una señal.
+      #
+      # Y la ruta NO empieza por punto, que es lo que costó la segunda corrida:
+      # esta acción trae `include-hidden-files: false` de serie y descarta todo
+      # lo oculto, así que con los informes en `.lighthouseci-*/` el paso decía
+      # «no files were found» sin mencionar que los había excluido él. Los
+      # informes se publican para leerlos: no son ficheros ocultos.
       - name: Subir informes de Lighthouse
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: lighthouse-${{ github.sha }}
-          path: |
-            .lighthouseci-escritorio/
-            .lighthouseci-movil/
-            .lighthouseci-resumen.json
+          path: informes-lighthouse/
           if-no-files-found: error
           retention-days: 14
 

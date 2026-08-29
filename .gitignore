@@ -108,4 +108,4 @@ apps/web/e2e/.test-results*/
 
 # Informes de Lighthouse CI: son evidencia de una corrida, no del repo.
 .lighthouseci*/
-.lighthouseci-resumen.json
+informes-lighthouse/

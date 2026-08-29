@@ -38,7 +38,7 @@
  * El log del job se trunca antes de llegar a las puntuaciones, y un artefacto
  * puede no subirse. Por eso el script calcula él mismo la MEDIANA de las tres
  * corridas por ruta y la deja en tres sitios: la salida estándar, el fichero
- * `.lighthouseci-resumen.json` y, si corre en Actions, el resumen del job
+ * `informes-lighthouse/resumen.json` y, si corre en Actions, el resumen del job
  * (`GITHUB_STEP_SUMMARY`). La medida no puede depender de que alguien acierte
  * a descargar un zip.
  *
@@ -57,6 +57,7 @@ import {
   appendFileSync,
   cpSync,
   existsSync,
+  mkdirSync,
   readFileSync,
   readdirSync,
   rmSync,
@@ -99,14 +100,29 @@ const CONFIGS = [
   {
     nombre: "escritorio",
     fichero: join(AQUI, "lighthouserc.json"),
-    salida: ".lighthouseci-escritorio",
+    salida: "escritorio",
   },
   {
     nombre: "móvil",
     fichero: join(AQUI, "lighthouserc.mobile.json"),
-    salida: ".lighthouseci-movil",
+    salida: "movil",
   },
 ];
+
+/**
+ * Dónde quedan los informes para que alguien los lea. SIN punto delante, y ese
+ * detalle costó una corrida entera de CI: `actions/upload-artifact` trae
+ * `include-hidden-files: false` de serie y descarta todo lo que empiece por
+ * punto. Con los informes en `.lighthouseci-escritorio/` el paso no encontraba
+ * nada y —una vez puesto en `error`— fallaba en rojo sin decir por qué, porque
+ * «no files were found» no menciona que los haya excluido por ocultos.
+ *
+ * Se podría haber añadido `include-hidden-files: true` y seguir. No: un
+ * directorio de informes que se publica para leerlo NO es un fichero oculto, y
+ * llamarlo con punto delante era el error de fondo. Con el nombre correcto el
+ * problema no vuelve, ni aquí ni en el próximo paso que suba algo.
+ */
+const INFORMES = join(RAIZ, "informes-lighthouse");
 const PUERTO = 3141;
 const BASE = `http://127.0.0.1:${PUERTO}`;
 
@@ -257,7 +273,7 @@ const cls3 = (v) => (typeof v === "number" ? v.toFixed(3) : "—");
  * se trunca, el artefacto puede no subirse; el resumen del job sobrevive a los
  * dos y es donde alguien mira primero cuando el gate se pone rojo.
  */
-function publicarResumen(filas) {
+export function publicarResumen(filas, destino = INFORMES) {
   if (filas.length === 0) return;
   console.log("\n── Mediana de las corridas ──");
   console.log("pasada      ruta        rend  a11y  bp   seo  LCP      CLS    TBT");
@@ -269,8 +285,11 @@ function publicarResumen(filas) {
         ` ${mseg(f.tbtMs).padStart(7)}`,
     );
   }
+  // El directorio ya existe si alguna pasada se archivó, pero el resumen no
+  // puede depender de ese orden.
+  mkdirSync(destino, { recursive: true });
   writeFileSync(
-    join(RAIZ, ".lighthouseci-resumen.json"),
+    join(destino, "resumen.json"),
     `${JSON.stringify({ generado: "por scripts/perf/lighthouse-gate.mjs", filas }, null, 2)}\n`,
     "utf8",
   );
@@ -345,7 +364,7 @@ async function main() {
       // la medida que la explica ya está guardada.
       const filasPasada = resumirPasada(nombre);
       filas.push(...filasPasada);
-      if (!archivarPasada(join(RAIZ, salida), filasPasada)) {
+      if (!archivarPasada(join(INFORMES, salida), filasPasada)) {
         codigo = 1;
         break;
       }
@@ -367,8 +386,8 @@ async function main() {
 
   if (codigo !== 0) {
     console.error(
-      "\nGate de Lighthouse: FALLÓ. Los informes están en `.lighthouseci-escritorio/` y\n" +
-        "`.lighthouseci-movil/`, y la tabla de medianas de arriba dice qué ruta y qué métrica.\n" +
+      "\nGate de Lighthouse: FALLÓ. Los informes están en `informes-lighthouse/`, y la tabla\n" +
+        "de medianas de arriba dice qué ruta y qué métrica.\n" +
         "Antes de tocar la página, comprueba si el fallo es de la página o de la máquina: " +
         "un runner cargado hunde la puntuación de rendimiento sin que el producto haya cambiado.",
     );

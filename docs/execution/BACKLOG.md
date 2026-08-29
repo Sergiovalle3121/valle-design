@@ -345,13 +345,17 @@ ante operación sin marca. **Estimación:** medio día.
   —esa opción es de `lhci upload --target=filesystem`— y yargs la ignoraba en
   silencio, así que los informes caían siempre en `.lighthouseci/`, la pasada
   móvil borraba la de escritorio y el paso de subida no encontraba nada; con
-  `if-no-files-found: warn` terminaba en verde en un segundo. Arreglado: el
+  `if-no-files-found: warn` terminaba en verde en un segundo. **Y detrás había
+  un segundo fallo encadenado:** `actions/upload-artifact` trae
+  `include-hidden-files: false` y descartaba las tres rutas por empezar por
+  punto, diciendo sólo «no files were found». Arreglado lo uno y lo otro: el
   script archiva cada pasada él mismo y **falla si lo archivado no trae
-  informes**, publica la mediana por ruta en consola, en
-  `.lighthouseci-resumen.json` y en el resumen del job, y el paso de CI pasa a
-  `if-no-files-found: error`. Con eso, leer la mediana de las tres corridas por
-  ruta y fijar el umbral en lo medido menos margen. Para una medida local
-  equivalente:
+  informes**, los informes van a `informes-lighthouse/` —sin punto, porque un
+  informe que se publica para leerlo no es un fichero oculto—, la mediana por
+  ruta sale por consola, en `informes-lighthouse/resumen.json` y en el resumen
+  del job, y el paso de CI está en `if-no-files-found: error`. Con eso, leer la
+  mediana de las tres corridas por ruta y fijar el umbral en lo medido menos
+  margen. Para una medida local equivalente:
   `node scripts/perf/lighthouse-gate.mjs --collect` con la máquina en reposo
   (sin suite, sin build en paralelo).
   El producto NO llega a 90 en móvil (73-75 medido en reposo), así que el umbral
