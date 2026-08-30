@@ -1,0 +1,95 @@
+{
+  "$comment": "Handlers HTTP sin decorador de autorización cuya barrera es IMPERATIVA. El gate check-handler-authorization.mjs verifica que el cuerpo del método invoca la función declarada en `check`; una entrada obsoleta (handler inexistente) o una barrera declarada que no se invoca ponen el gate en rojo. Añadir un handler nuevo exige decorador O una entrada aquí con su razón.",
+  "apps/api/src/modules/commercial/controllers/billing.controller.ts#createCheckoutSession": {
+    "check": "requireDecider",
+    "reason": "abrir un cobro decide un upgrade: owner/admin con organización activa y tenant verificado (commercial-request-context)"
+  },
+  "apps/api/src/modules/commercial/controllers/billing.controller.ts#createBillingPortalSession": {
+    "check": "requireDecider",
+    "reason": "el portal de facturación expone métodos de pago: owner/admin con organización activa"
+  },
+  "apps/api/src/modules/commercial/controllers/billing.controller.ts#listInvoices": {
+    "check": "requireDecider",
+    "reason": "las facturas son material de decisión comercial: owner/admin con organización activa"
+  },
+  "apps/api/src/modules/commercial/controllers/billing.controller.ts#cancelSubscription": {
+    "check": "requireOwner",
+    "reason": "la baja termina el contrato de la organización entera: sólo el owner"
+  },
+  "apps/api/src/modules/commercial/controllers/cfdi.controller.ts#listReceipts": {
+    "check": "requireDecider",
+    "reason": "importes y folios fiscales son material de decisión: owner/admin con organización activa"
+  },
+  "apps/api/src/modules/commercial/controllers/cfdi.controller.ts#downloadFile": {
+    "check": "requireDecider",
+    "reason": "el XML/PDF timbrado lleva datos fiscales completos: owner/admin con organización activa"
+  },
+  "apps/api/src/modules/commercial/controllers/commercial.controller.ts#listPlans": {
+    "check": "requireSession",
+    "reason": "catálogo publicado, información global del producto sin dato por organización: basta sesión autenticada"
+  },
+  "apps/api/src/modules/commercial/controllers/commercial.controller.ts#subscription": {
+    "check": "snapshot",
+    "reason": "snapshot() exige sesión, organización activa y tenant coincidente antes de leer la suscripción"
+  },
+  "apps/api/src/modules/commercial/controllers/commercial.controller.ts#entitlements": {
+    "check": "snapshot",
+    "reason": "snapshot() exige sesión, organización activa y tenant coincidente antes de leer entitlements"
+  },
+  "apps/api/src/modules/commercial/controllers/commercial.controller.ts#listUpgradeIntents": {
+    "check": "requireDecider",
+    "reason": "los intents de upgrade son material de decisión: owner/admin con organización activa"
+  },
+  "apps/api/src/modules/commercial/controllers/commercial.controller.ts#createUpgradeIntent": {
+    "check": "requireMember",
+    "reason": "cualquier miembro puede PEDIR un upgrade (la decisión la toma un decider después); organización activa y tenant verificados"
+  },
+  "apps/api/src/modules/commercial/controllers/commercial.controller.ts#confirmUpgradeIntent": {
+    "check": "requireDecider",
+    "reason": "superficie retirada: requireDecider conserva el 401/403 histórico y después TODO caller recibe 403 (no existe el principal operador que podría confirmar)"
+  },
+  "apps/api/src/modules/commercial/controllers/commercial.controller.ts#cancelUpgradeIntent": {
+    "check": "requireDecider",
+    "reason": "cancelar un intent decide sobre el upgrade: owner/admin con organización activa"
+  },
+  "apps/api/src/modules/commercial/controllers/tax-profile.controller.ts#readTaxProfile": {
+    "check": "requireDecider",
+    "reason": "el perfil fiscal (RFC, régimen, CP) es dato sensible de la organización: owner/admin"
+  },
+  "apps/api/src/modules/commercial/controllers/tax-profile.controller.ts#saveTaxProfile": {
+    "check": "requireDecider",
+    "reason": "capturar datos fiscales compromete la facturación de la organización: owner/admin"
+  },
+  "apps/api/src/modules/legal/legal.controller.ts#list": {
+    "check": "requireUser",
+    "reason": "los documentos legales vigentes y el estado de aceptación son por USUARIO, no por organización: requireUser exige la sesión y deriva el userId server-side"
+  },
+  "apps/api/src/modules/legal/legal.controller.ts#accept": {
+    "check": "requireUser",
+    "reason": "aceptar términos es un acto del usuario autenticado; requireUser exige la sesión y el userId se deriva server-side"
+  },
+  "apps/api/src/modules/organizations/organizations.controller.ts#list": {
+    "check": "actor",
+    "reason": "actor() autentica la cookie de sesión y falla cerrado; la lista se filtra por las membresías del propio usuario"
+  },
+  "apps/api/src/modules/organizations/organizations.controller.ts#create": {
+    "check": "actor",
+    "reason": "crear una organización es un acto del usuario autenticado (queda como owner); actor() autentica y falla cerrado"
+  },
+  "apps/api/src/modules/organizations/organizations.controller.ts#activate": {
+    "check": "actor",
+    "reason": "actor() autentica; la activación verifica server-side la membresía vigente antes de fijar la organización en la sesión"
+  },
+  "apps/api/src/modules/organizations/organizations.controller.ts#listMemberships": {
+    "check": "actor",
+    "reason": "actor() autentica; el acceso a las membresías se resuelve contra la membresía del propio usuario en esa organización"
+  },
+  "apps/api/src/modules/organizations/organizations.controller.ts#invite": {
+    "check": "actor",
+    "reason": "actor() autentica y el cuerpo resuelve con access.resolve() el rol del usuario en la organización antes de invitar"
+  },
+  "apps/api/src/modules/organizations/organizations.controller.ts#accept": {
+    "check": "actor",
+    "reason": "aceptar una invitación es del usuario autenticado; el token de invitación se verifica por hash server-side"
+  }
+}

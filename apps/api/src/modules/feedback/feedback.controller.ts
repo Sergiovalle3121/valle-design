@@ -139,6 +139,13 @@ export class FeedbackController {
    * TODOS los comentarios, de todas las organizaciones. Es la materia prima del
    * backlog real y por eso cruza la frontera de inquilino que el resto del
    * producto respeta a rajatabla — con la puerta más estrecha que existe aquí.
+   *
+   * OJO con el decorador: `cad:view` NO es el nivel de acceso real de esta
+   * ruta — está aquí para que el guard global exija sesión + entitlement como
+   * línea base. La puerta que de verdad la cierra es `assertOperator()` en la
+   * primera línea del cuerpo. Quien añada un handler a este controller
+   * copiando el decorador SIN copiar la barrera abre los correos de todos los
+   * clientes a cualquier viewer.
    */
   @Get()
   @RequirePermissions('cad:view')

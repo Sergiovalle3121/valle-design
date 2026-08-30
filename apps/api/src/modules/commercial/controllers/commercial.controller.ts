@@ -37,6 +37,7 @@ import {
   type AuthenticatedRequest,
   requireDecider,
   requireMember,
+  requireSession,
 } from './commercial-request-context';
 
 /**
@@ -163,9 +164,7 @@ export class CommercialController {
     checkout: string;
     items: CommercialPlanView[];
   }> {
-    if (!request.user) {
-      throw new UnauthorizedException('Falta una sesión válida.');
-    }
+    requireSession(request);
     const plans = await this.plans.find({
       where: { active: true },
       order: { code: 'ASC' },
