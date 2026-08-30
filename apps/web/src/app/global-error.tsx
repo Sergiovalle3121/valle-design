@@ -1,13 +1,8 @@
 "use client";
 
+import { BrandGlyph } from "@/components/brand/BrandGlyph";
 import {
   BRAND_INK,
-  DIMENSION_LINE,
-  DIMENSION_TICKS,
-  LOGO_VIEWBOX,
-  NODE,
-  STROKE,
-  VALLEY,
 } from "@/components/brand/logo-geometry";
 
 /**
@@ -54,39 +49,11 @@ export default function GlobalError({
         }}
       >
         <div style={{ maxWidth: "34rem" }}>
-          <svg
-            width="40"
-            height="40"
-            viewBox={LOGO_VIEWBOX}
-            fill="none"
+          <BrandGlyph
+            size={40}
             aria-hidden="true"
             style={{ display: "block", margin: "0 auto" }}
-          >
-            <g
-              stroke={BRAND_INK.dark}
-              strokeWidth={STROKE.dimension}
-              strokeLinecap="square"
-            >
-              <path d={DIMENSION_LINE} />
-              {DIMENSION_TICKS.map((d) => (
-                <path key={d} d={d} />
-              ))}
-            </g>
-            <path
-              d={VALLEY}
-              stroke={BRAND_INK.dark}
-              strokeWidth={STROKE.valley}
-              strokeLinecap="square"
-              strokeLinejoin="round"
-            />
-            <rect
-              x={NODE.x}
-              y={NODE.y}
-              width={NODE.size}
-              height={NODE.size}
-              fill={BRAND_INK.accent}
-            />
-          </svg>
+          />
 
           <h1
             style={{
