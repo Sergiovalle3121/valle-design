@@ -24,8 +24,9 @@ El producto permite crear proyectos y documentos, editar un documento CAD
 canónico, guardar con control de concurrencia CAS, consultar versiones,
 publicar hojas, usar review links y comentarios, importar DXF de texto o JSON
 canónico y exportar el subconjunto DXF implementado. Los documentos grandes se
-envían como archivos gzip y se guardan en PostgreSQL mediante blobs
-content-addressed. DWG no está disponible públicamente: por defecto la
+envían como archivos gzip y se guardan como blobs content-addressed — en
+PostgreSQL por defecto, o en S3/MinIO si el operador configura las variables
+`S3_BLOB_*` (el adaptador se selecciona en runtime). DWG no está disponible públicamente: por defecto la
 interfaz detecta el formato y lo dice, sin fingir soporte. Existe una beta
 interna acotada —`DWG_NATIVE_IMPORT_BETA`, perfil
 `AC1015_MODELSPACE_2D_V3`, sólo importación, apagada en producción pública

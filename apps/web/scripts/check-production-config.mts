@@ -13,20 +13,14 @@
  * Uso, igual que `test -n` en el Dockerfile:
  *   npm run check:production-config --workspace=web
  *
- * HALLAZGO DE CAMPAÑA (léase antes de asumir que esto ya corre en el
- * pipeline): `apps/web/Dockerfile` sólo declara `ARG NEXT_PUBLIC_API_URL`.
- * Ninguna otra `NEXT_PUBLIC_*` (marca, contacto, enlaces comerciales) se pasa
- * como `--build-arg` ni se reenvía a `ENV` antes de `npm run build`. Eso
- * significa que, HOY, TODA imagen de producción incrusta los valores por
- * defecto de `DEFAULT_BRAND_MANIFEST`
- * (`packages/contracts/src/brand.ts`: `support@example.invalid`,
- * `https://example.invalid`…) sin importar lo que el operador configure fuera
- * del build — porque nunca llega al proceso de build. Este script, corrido
- * ahora mismo con el Dockerfile actual, FALLA siempre por esa razón exacta:
- * es el gate detectando el hueco, no un falso positivo. Conectarlo
- * (`ARG`/`ENV` por cada `NEXT_PUBLIC_BRAND_*` y `NEXT_PUBLIC_*_URL`, más esta
- * llamada como paso `RUN`) es trabajo de Dockerfile y queda fuera de este
- * frente — ver el informe de campaña.
+ * YA ESTÁ CONECTADO: `apps/web/Dockerfile` declara los `ARG`/`ENV` de cada
+ * `NEXT_PUBLIC_BRAND_*` y `NEXT_PUBLIC_*_URL` y ejecuta este script como paso
+ * `RUN` del build de producción. El hallazgo de campaña que vivió en este
+ * comentario —el Dockerfile sólo pasaba `NEXT_PUBLIC_API_URL` y toda imagen
+ * incrustaba los placeholders de `DEFAULT_BRAND_MANIFEST`— se corrigió ahí;
+ * quedaba este párrafo diciendo que el gate «FALLA siempre», que es la peor
+ * documentación posible: la que enseña a ignorar una alarma legítima. Si este
+ * script falla hoy, la imagen de verdad lleva placeholders — atiéndelo.
  */
 // `require` explícito, no `import { resolveBrandManifest }`: el `dist/index.js`
 // publicado de `@valle-design/contracts` reexporta `brand.ts` con

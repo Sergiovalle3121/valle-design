@@ -16,11 +16,11 @@ bloqueo se resolvió.
 
 | Paquete | Bloqueo verificado | Cómo se destraba |
 |---|---|---|
-| typescript 7.0.2 | `scripts/dwg/check-boundary.ts` usa `ts.SourceFile`/`ts.Node`/`ts.isImportDeclaration` — TS7 los retiró del API de compilador. También ts-jest 29 (peer `<6.1`) y typescript-eslint | migrar el gate al nuevo API + ts-jest con soporte TS7 |
+| typescript 7.0.2 | `packages/dwg-codec/scripts/check-boundary.ts` usa `ts.SourceFile`/`ts.Node`/`ts.isImportDeclaration` — TS7 los retiró del API de compilador. También ts-jest 29 (peer `<6.1`) y typescript-eslint | migrar el gate al nuevo API + ts-jest con soporte TS7 |
 | eslint 10 + @eslint/js 10 + globals 17 | `@typescript-eslint/no-misused-promises` **crashea** (TypeError) bajo ESLint 10 con typescript-eslint 8.67, que es la **última** versión publicada | esperar typescript-eslint con soporte ESLint 10 |
 | typeorm 1.1.0 | `peerOptional better-sqlite3 ^12` en conflicto con better-sqlite3 13 (subido en el mismo grupo, ya en main) | bajar better-sqlite3 a 12, o typeorm que acepte 13 |
 | next 16.3.1 | Turbopack 16.3 es solo-nativo; el Control de aplicaciones de esta máquina bloquea `next-swc.win32-x64-msvc.node` (16.2 compila en WASM) | autorizar el binario, o `next build --webpack`, y medir |
-| @types/node 26 | el runtime real es Node 22 | subir cuando el runtime sea 26 |
+| @types/node 26 | el runtime de release es Node 20 (`.nvmrc`, `ARG NODE_VERSION=20` en ambos Dockerfiles) | subir cuando el runtime sea 26 |
 | @playwright/test 1.62.1 | navegador nuevo invalida las capturas golden | ventana dedicada con regeneración de goldens en frío |
 
 Origen: partición del PR #86. 15 de 32 seguros entraron en `c034e0b`; 3 grupos

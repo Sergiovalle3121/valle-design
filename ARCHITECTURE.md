@@ -129,7 +129,10 @@ CIDE es un puerto opcional para intent y vision: si falta, la respuesta es
 ## Deuda visible
 
 - `Layout3DEditor.tsx` aún concentra demasiado estado e interacción.
-- Los blobs son BYTEA en PostgreSQL; el MinIO de Compose no está conectado.
+- Los blobs viven por defecto como BYTEA en PostgreSQL; el adaptador S3/MinIO
+  EXISTE (`apps/api/src/modules/blob-store`, con firma SigV4 propia y
+  selección en runtime por las variables `S3_BLOB_*` de `.env.example`) y lo
+  que falta es evidencia operativa en producción, no el código.
 - El benchmark 100k usa LOD y presupuestos de decenas de segundos, no demuestra
   interacción profesional sostenida ni 60 FPS.
 - No hay receptor webhook, proveedor de correo ni broker dentro del repo.
