@@ -252,7 +252,7 @@ export const CAD_KEYBOARD_SHORTCUTS: CadKeyboardShortcut[] = [
 
 export function matchCadShortcut(
   event: CadKeyboardEventLike,
-  shortcuts = CAD_KEYBOARD_SHORTCUTS,
+  shortcuts: readonly CadKeyboardShortcut[] = CAD_KEYBOARD_SHORTCUTS,
 ): CadKeyboardShortcut | undefined {
   const key = event.key.toLowerCase();
   const ctrl = !!(event.ctrlKey || event.metaKey);
