@@ -11,6 +11,7 @@
  * Puro (sin DOM/three): todo testeable en Node.
  */
 
+import { normalizeArcSweepDegrees } from "./arc-sweep";
 import type { CadDxfPoint, CadDxfPrimitive } from "./dxf-import";
 
 const DEFAULT_STEPS = 24;
@@ -37,8 +38,7 @@ export function tessellateArc(
   steps = DEFAULT_STEPS,
 ): CadDxfPoint[] {
   if (!(radius > 0) || steps < 1) return [];
-  let sweep = endAngleDeg - startAngleDeg;
-  while (sweep <= 0) sweep += 360;
+  const sweep = normalizeArcSweepDegrees(startAngleDeg, endAngleDeg);
   const n = Math.max(2, Math.ceil((sweep / 360) * steps));
   const points: CadDxfPoint[] = [];
   for (let i = 0; i <= n; i++) {
@@ -63,8 +63,7 @@ export function tessellateEllipse(
 ): CadDxfPoint[] {
   const majorLen = Math.hypot(majorAxis.x, majorAxis.y);
   if (!(majorLen > 0) || !(axisRatio > 0) || steps < 1) return [];
-  let sweep = endParamDeg - startParamDeg;
-  while (sweep <= 0) sweep += 360;
+  const sweep = normalizeArcSweepDegrees(startParamDeg, endParamDeg);
   const minor = { x: -majorAxis.y * axisRatio, y: majorAxis.x * axisRatio };
   const n = Math.max(2, Math.ceil((sweep / 360) * steps));
   const points: CadDxfPoint[] = [];

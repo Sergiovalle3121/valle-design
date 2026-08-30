@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import DxfParser from "dxf-parser";
+import { normalizeArcSweepDegrees } from "@/lib/cad/arc-sweep";
 
 /**
  * Minimal DXF → polylines reader for the layout background (Fase 2, read-only).
@@ -28,8 +29,7 @@ function arcPoints(
   endDeg: number,
 ): Array<[number, number]> {
   const pts: Array<[number, number]> = [];
-  let sweep = endDeg - startDeg;
-  while (sweep <= 0) sweep += 360;
+  const sweep = normalizeArcSweepDegrees(startDeg, endDeg);
   const steps = Math.max(2, Math.ceil((sweep / 360) * ARC_STEPS));
   for (let i = 0; i <= steps; i++) {
     const a = ((startDeg + (sweep * i) / steps) * Math.PI) / 180;
