@@ -20,7 +20,7 @@ import type { ProductCapabilityId } from "./product-catalog";
  * Marca nominal para ids: evita pasar un `cadDocumentId` donde se espera un
  * `cadProjectId` sin costo en runtime (sigue siendo string).
  */
-type Tagged<TTag extends string> = string & { readonly __tag?: TTag };
+type Tagged<TTag extends string> = string & { readonly __tag: TTag };
 
 export type CadProjectId = Tagged<"CadProjectId">;
 export type CadDocumentId = Tagged<"CadDocumentId">;
@@ -165,10 +165,13 @@ export interface CadDocumentVersionConflictDetails {
 /* ──────────────────────────── Límites del documento ───────────────────────── */
 
 /**
- * Límites REALES del documento canónico y sus transportes, espejo de
- * `cad-document-validation.ts` / `cad-document-storage.ts` (apps/api,
- * módulo cad-documents). Se duplican aquí como CONTRATO: el editor y los
- * consumidores validan contra estos números sin importar código del backend.
+ * Límites REALES del documento canónico y sus transportes — y desde la
+ * campaña de optimización 2026-08-30, LA FUENTE: `cad-document-validation.ts`
+ * y `cad-document-storage.ts` (apps/api) IMPORTAN estos números en vez de
+ * redeclararlos. La versión «espejo» anterior demostró por qué: el API bajó
+ * maxArchiveBytes de 128 a 32 MiB en la campaña 2026-08-20 y este contrato
+ * —el que leen el editor y los consumidores externos— siguió prometiendo
+ * 128 MiB durante diez días sin que ningún gate lo viera.
  */
 export const CAD_DOCUMENT_LIMITS = {
   /** Versiones de formato del documento soportadas (`meta.schema`). */
@@ -189,8 +192,16 @@ export const CAD_DOCUMENT_LIMITS = {
   maxCommentBodyLength: 1_000,
   /** JSON serializado máximo para guardar inline. */
   maxInlineBytes: 8_000_000,
-  /** JSON descomprimido máximo vía archivo gzip (128 MiB). */
-  maxArchiveBytes: 128 * 1024 * 1024,
+  /**
+   * JSON descomprimido máximo vía archivo gzip (32 MiB). Bajó de 128 MiB en
+   * la campaña 2026-08-20: con 128 MiB un solo PUT podía hinchar 128 MiB de
+   * heap por réplica (gunzip + parse + validación), y el techo real del
+   * producto es maxEntities, que en la práctica produce documentos muy por
+   * debajo de 32 MiB. Si un documento legítimo de 100k entidades lo roza
+   * algún día, la evidencia de document-limits es donde demostrarlo ANTES de
+   * subirlo.
+   */
+  maxArchiveBytes: 32 * 1024 * 1024,
   /** Archivo gzip máximo en el multipart (20 MiB). */
   maxCompressedUploadBytes: 20 * 1024 * 1024,
   /** Umbral a partir del cual el servidor persiste como puntero a blob. */
