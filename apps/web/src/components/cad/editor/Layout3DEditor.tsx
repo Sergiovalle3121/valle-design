@@ -107,7 +107,23 @@ import {
   CadDiagnosticsReadout,
   cadDiagnosticsRequested,
 } from "@/components/cad/editor/CadDiagnosticsReadout";
+import dynamic from "next/dynamic";
 import { CadToolPalette } from "@/components/cad/editor/CadToolPalette";
+
+// Carga diferida REAL del catálogo de plantillas: la tarjeta (y con ella las
+// 149 plantillas de @/lib/cad/templates) sólo se descarga cuando el panel la
+// pinta. Sin SSR: es UI interna del estudio, que ya entra por next/dynamic.
+const CadTemplateChooserCard = dynamic(
+  () => import("@/components/cad/editor/CadTemplateChooserCard"),
+  {
+    ssr: false,
+    loading: () => (
+      <p className="mb-3 type-micro text-muted-foreground">
+        Cargando plantillas…
+      </p>
+    ),
+  },
+);
 import {
   designChecks,
   type CheckBox,
@@ -313,11 +329,11 @@ import {
   redefineCadBlock,
   replaceCadBlock,
 } from "@/lib/cad/professional-blocks";
-import {
-  CAD_LAYOUT_TEMPLATES,
-  instantiateCadLayoutTemplate,
-  type CadLayoutTemplateId,
-} from "@/lib/cad/templates";
+// El catálogo de plantillas (4.900+ líneas de datos) NO se importa estático:
+// la tarjeta que lo lista viaja en su propio chunk vía next/dynamic y el
+// handler lo trae con import() al aplicar. Abrir un plano existente no paga
+// las 149 plantillas. Sólo el TIPO cruza estáticamente (se borra al compilar).
+import type { CadLayoutTemplateId } from "@/lib/cad/templates";
 import {
   type CadClearanceIssue,
   type CadCollisionHit,
@@ -9344,7 +9360,7 @@ export default function Layout3DEditor({
       toast.success(`${symbol.label} agregado al layout.`, "Símbolos CAD");
     }
   };
-  const applyCadTemplate = (templateId: CadLayoutTemplateId) => {
+  const applyCadTemplate = async (templateId: CadLayoutTemplateId) => {
     const ctx = ctxRef.current;
     const fp = data?.footprint;
     if (!ctx || !fp) {
@@ -9354,6 +9370,9 @@ export default function Layout3DEditor({
       );
       return;
     }
+    // El chunk ya está caliente: la tarjeta que disparó este handler lo cargó
+    // para listar el catálogo. Este import() sólo evita el import estático.
+    const { instantiateCadLayoutTemplate } = await import("@/lib/cad/templates");
     const generated = instantiateCadLayoutTemplate(templateId, {
       width: fp.footprintW || ctx.W,
       height: fp.footprintH || ctx.H,
@@ -16044,38 +16063,11 @@ export default function Layout3DEditor({
                     </>
                   ) : (
                     <>
-                      <div className="mb-3 rounded-xl border border-indigo-400/15 bg-indigo-400/[0.05] p-2.5">
-                        <div className="mb-1.5 flex items-center justify-between gap-2">
-                          <div className="inline-flex items-center gap-1.5 type-micro uppercase tracking-wide text-primary-ink">
-                            <Stamp className="h-3.5 w-3.5" /> Plantillas CAD
-                          </div>
-                          <span className="type-micro text-primary-ink/60">
-                            {CAD_LAYOUT_TEMPLATES.length}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-1 gap-1.5">
-                          {CAD_LAYOUT_TEMPLATES.map((template) => (
-                            <button
-                              key={template.id}
-                              onClick={() => applyCadTemplate(template.id)}
-                              title={template.description}
-                              className="rounded-lg bg-indigo-400/[0.08] px-2 py-1.5 text-left type-micro text-primary-ink hover:bg-indigo-400/[0.14]"
-                            >
-                              <span className="flex items-center justify-between gap-2">
-                                <span className="truncate font-semibold">
-                                  {template.label}
-                                </span>
-                                <span className="shrink-0 type-micro text-primary-ink/70">
-                                  {template.assets.length} obj
-                                </span>
-                              </span>
-                              <span className="mt-0.5 block truncate type-micro text-primary-ink/70">
-                                {template.category} · {template.description}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                      <CadTemplateChooserCard
+                        onApply={(templateId) =>
+                          void applyCadTemplate(templateId)
+                        }
+                      />
                       <div className="mb-3 rounded-xl border border-violet-400/15 bg-violet-400/[0.05] p-2.5">
                         <div className="mb-1.5 flex items-center justify-between gap-2">
                           <div className="inline-flex items-center gap-1.5 type-micro uppercase tracking-wide text-violet-200">

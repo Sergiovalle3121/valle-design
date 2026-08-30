@@ -132,9 +132,22 @@ export function decompressR2004(
         "A copy run overflows the declared decompressed size.",
       );
     }
-    for (let index = 0; index < length; index += 1) {
-      out[state.produced] = out[state.produced - offset]!;
-      state.produced += 1;
+    if (offset >= length) {
+      // Copia SIN solape: memcpy nativo. Sólo cuando la fuente entera ya
+      // está producida — con solape la copia byte a byte progresiva es
+      // SEMÁNTICA del formato (un run autorreferente repite lo que él mismo
+      // va escribiendo) y un copyWithin daría bytes incorrectos.
+      out.copyWithin(
+        state.produced,
+        state.produced - offset,
+        state.produced - offset + length,
+      );
+      state.produced += length;
+    } else {
+      for (let index = 0; index < length; index += 1) {
+        out[state.produced] = out[state.produced - offset]!;
+        state.produced += 1;
+      }
     }
 
     if (literalCount === 0) literalCount = readLiteralLength(state);

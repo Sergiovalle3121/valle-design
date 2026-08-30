@@ -56,8 +56,6 @@ export interface DwgExtrusion {
   readonly z: number;
 }
 
-const FLOAT_SCRATCH = new DataView(new ArrayBuffer(8));
-
 /** Tope de bytes de un entero modular: más de 8 no cabe en ningún campo real. */
 const MODULAR_CHAR_MAX_BYTES = 8;
 /** Tope de palabras de un modular short: dos palabras cubren 30 bits. */
@@ -74,6 +72,13 @@ const HANDLE_MAX_COUNTER_BYTES = 7;
  */
 export class DwgBitReader {
   readonly #bits: BitCursor;
+  /**
+   * Vista de trabajo para armar doubles byte a byte. Por INSTANCIA, no a
+   * nivel de módulo: la versión compartida hacía al lector no reentrante en
+   * un paquete que declara sideEffects:false — funcionaba por casualidad
+   * (JS monohilo, lecturas síncronas), no por diseño.
+   */
+  readonly #floatScratch = new DataView(new ArrayBuffer(8));
 
   constructor(bytes: BoundedByteCursor) {
     if (!(bytes instanceof BoundedByteCursor)) {
@@ -145,9 +150,9 @@ export class DwgBitReader {
   /** RD: double IEEE-754 de 8 bytes, little-endian. */
   readRD(): number {
     for (let index = 0; index < 8; index += 1) {
-      FLOAT_SCRATCH.setUint8(index, this.readRC());
+      this.#floatScratch.setUint8(index, this.readRC());
     }
-    return FLOAT_SCRATCH.getFloat64(0, true);
+    return this.#floatScratch.getFloat64(0, true);
   }
 
   /**
@@ -217,19 +222,19 @@ export class DwgBitReader {
     const flag = this.readBB();
     if (flag === 0) return defaultValue;
     if (flag === 3) return this.readRD();
-    FLOAT_SCRATCH.setFloat64(0, defaultValue, true);
+    this.#floatScratch.setFloat64(0, defaultValue, true);
     if (flag === 1) {
       for (let index = 0; index < 4; index += 1) {
-        FLOAT_SCRATCH.setUint8(index, this.readRC());
+        this.#floatScratch.setUint8(index, this.readRC());
       }
     } else {
-      FLOAT_SCRATCH.setUint8(4, this.readRC());
-      FLOAT_SCRATCH.setUint8(5, this.readRC());
+      this.#floatScratch.setUint8(4, this.readRC());
+      this.#floatScratch.setUint8(5, this.readRC());
       for (let index = 0; index < 4; index += 1) {
-        FLOAT_SCRATCH.setUint8(index, this.readRC());
+        this.#floatScratch.setUint8(index, this.readRC());
       }
     }
-    return FLOAT_SCRATCH.getFloat64(0, true);
+    return this.#floatScratch.getFloat64(0, true);
   }
 
   /** BT (R2000+): un bit a 1 significa grosor cero; a 0 le sigue un BD. */
