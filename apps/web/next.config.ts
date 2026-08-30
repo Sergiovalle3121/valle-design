@@ -92,7 +92,20 @@ const nextConfig: NextConfig = {
    */
   reactCompiler: process.env.VALLE_REACT_COMPILER === "1",
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    return [
+      { source: "/:path*", headers: securityHeaders },
+      // Las fuentes llevan hash de contenido en el nombre (las emite
+      // scripts/design/subset-fonts.py), así que la URL cambia cuando el
+      // archivo cambia: cache inmutable de un año sin riesgo de servir una
+      // cara vieja. Sin esto, /public se sirve sin max-age y cada visita
+      // revalida ~350 KB que no cambian nunca.
+      {
+        source: "/fonts/:path*",
+        headers: [
+          { key: "Cache-Control", value: "public, max-age=31536000, immutable" },
+        ],
+      },
+    ];
   },
 };
 

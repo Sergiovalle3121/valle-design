@@ -1,6 +1,6 @@
 "use client";
 
-import { Copy, Group, HelpCircle, Trash2 } from "lucide-react";
+import { Copy, Group, HelpCircle, Printer, Trash2 } from "lucide-react";
 import { CadDialogShell } from "./CadDialogShell";
 
 /**
@@ -77,12 +77,53 @@ export function CadHelpOverlay({
           </div>
         ))}
       </div>
-      <div className="px-4 pb-4 type-micro text-muted-foreground">
-        Abre esta ayuda con{" "}
-        <kbd className="px-1 py-0.5 rounded bg-muted/60 border border-border font-mono">
-          ?
-        </kbd>{" "}
-        en cualquier momento.
+      <div className="flex items-center gap-3 px-4 pb-4 type-micro text-muted-foreground">
+        <span>
+          Abre esta ayuda con{" "}
+          <kbd className="px-1 py-0.5 rounded bg-muted/60 border border-border font-mono">
+            ?
+          </kbd>{" "}
+          en cualquier momento.
+        </span>
+        <span className="flex-1" />
+        {/* La hoja para pegar junto al monitor: barata, del oficio, premium.
+            `window.print()` + la región de impresión de abajo — el navegador
+            imprime SOLO la hoja (ver `.cad-print-sheet` en globals.css). */}
+        <button
+          type="button"
+          data-testid="cad-help-print"
+          onClick={() => window.print()}
+          className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 font-medium text-foreground hover:bg-muted"
+        >
+          <Printer aria-hidden="true" className="h-3.5 w-3.5" />
+          Imprimir hoja
+        </button>
+      </div>
+
+      {/* LA HOJA IMPRIMIBLE. Invisible en pantalla; en impresión es lo ÚNICO
+          visible. Una lámina A4 con la retícula del sistema: cabecera de
+          marca, columnas por sección y el pie del oficio. */}
+      <div className="cad-print-sheet" aria-hidden="true">
+        <header>
+          <strong>VALLE DESIGN</strong>
+          <span>Atajos del estudio · pégala junto al monitor</span>
+        </header>
+        <div className="cad-print-grid">
+          {secciones.map((sec) => (
+            <section key={sec.title}>
+              <h3>{sec.title}</h3>
+              {sec.rows.map(([k, d]) => (
+                <p key={d}>
+                  <span>{d}</span>
+                  <kbd>{k}</kbd>
+                </p>
+              ))}
+            </section>
+          ))}
+        </div>
+        <footer>
+          Abre la ayuda con « ? » dentro del estudio · valledesign
+        </footer>
       </div>
     </CadDialogShell>
   );

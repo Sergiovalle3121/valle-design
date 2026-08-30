@@ -145,6 +145,26 @@ export const PUBLIC_ROUTES: readonly PublicRoute[] = [
       priority: 0.7,
     }),
   ),
+  // El escaparate de plantillas (campaña de sitio 2026-08-29): el catálogo de
+  // arranques mexicanos como directorio público. Prioridad alta: es la página
+  // que responde a «plano de <giro>», la búsqueda con intención más clara que
+  // este producto puede atender. Las 149 fichas hijas NO viven aquí — las
+  // aporta el sitemap desde `lib/marketing/template-gallery` para no arrastrar
+  // el catálogo de 5 000 líneas al bundle cliente de cada página que importa
+  // esta configuración (la barra pública, sin ir más lejos).
+  { path: "/plantillas", changeFrequency: "weekly", priority: 0.9 },
+  // La demostración sin cuenta (campaña de sitio): el editor real con la casa
+  // habitación puesta y el guardado en el navegador. Prioridad alta: es la
+  // página que convierte el sitio de folleto a producto que se puede tocar.
+  { path: "/demo", changeFrequency: "weekly", priority: 0.9 },
+  // Las páginas comerciales de la campaña de sitio: el caso por profesión y
+  // la página de confianza que un despacho exige antes de subir sus planos.
+  // Los cinco perfiles hijos NO viven aquí: son segmento dinámico y los
+  // aporta el sitemap desde lib/marketing/use-cases (mismo patrón que las
+  // fichas de plantilla) — el spec de SEO importa @/app<ruta>/page por cada
+  // ruta de esta lista, y un segmento dinámico no tiene ese módulo.
+  { path: "/casos-de-uso", changeFrequency: "monthly", priority: 0.7 },
+  { path: "/seguridad", changeFrequency: "monthly", priority: 0.6 },
   // Las dos páginas que la campaña de firma propia añadió a la superficie
   // pública. `/novedades` demuestra que el producto está vivo, que en una beta
   // es un argumento de venta; `/educacion` recoge el interés de las escuelas

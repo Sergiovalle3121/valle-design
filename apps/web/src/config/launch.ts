@@ -101,3 +101,15 @@ export const EXPIRY_NOTICE_DAYS = 14;
  */
 export const APP_VERSION: string =
   process.env.NEXT_PUBLIC_APP_VERSION?.trim() || "desarrollo";
+
+/**
+ * MODO DEMOSTRACIÓN (/demo): el editor real sin cuenta, guardando en el
+ * navegador. ENCENDIDO por defecto — es la pieza que convierte el sitio de
+ * folleto a demostración, y un flag que hay que acordarse de activar es un
+ * flag que un día no se activa. El interruptor existe para poder APAGARLO
+ * (`NEXT_PUBLIC_DEMO_MODE=off`) si una operación lo necesita; como todo
+ * `NEXT_PUBLIC_*`, se hornea al compilar.
+ */
+export function demoIsVisible(): boolean {
+  return process.env.NEXT_PUBLIC_DEMO_MODE !== "off";
+}

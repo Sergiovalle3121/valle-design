@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { X } from "lucide-react";
+import { FOCUSABLE } from "@/components/ui/Modal";
 
 /**
  * EL MARCO COMÚN DE LOS CUADROS DEL ESTUDIO.
@@ -28,10 +29,12 @@ import { X } from "lucide-react";
  *   propagación, para que el Escape que cierra el cuadro no llegue además al
  *   manejador global del editor y cancele de paso el comando en curso.
  * - El clic en el velo cierra; el clic dentro, no.
- *
- * No gestiona la trampa de foco: eso exige mover el foco al abrir y devolverlo
- * al cerrar, y hacerlo a medias es peor que no hacerlo. Queda anotado en
- * `DEUDA-MONOLITO.md` como trabajo con nombre, no como omisión silenciosa.
+ * - **FOCO ATRAPADO Y DEVUELTO** (P1-FE4, campaña de sitio): el mismo patrón
+ *   probado de `Modal` — al abrir, el foco va al primer control del cuadro;
+ *   Tab y Shift+Tab ciclan DENTRO; al cerrar, el foco vuelve al control que
+ *   abrió. Sin esto, quien navega con teclado sobre el editor tabulaba hacia
+ *   la paleta de abajo con el cuadro aún delante. Era la deuda con nombre de
+ *   DEUDA-MONOLITO.md; deja de serlo aquí.
  */
 export function CadDialogShell({
   onClose,
@@ -63,16 +66,60 @@ export function CadDialogShell({
   insignia?: ReactNode;
   children: ReactNode;
 }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  /** El control que abrió el cuadro; el foco vuelve ahí al cerrar. */
+  const restoreRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     const alPulsar = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      event.stopPropagation();
-      onClose();
+      if (event.key === "Escape") {
+        event.stopPropagation();
+        onClose();
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const panel = panelRef.current;
+      if (!panel) return;
+      const targets = Array.from(
+        panel.querySelectorAll<HTMLElement>(FOCUSABLE),
+      ).filter(
+        (node) => node.offsetParent !== null || node === document.activeElement,
+      );
+      if (targets.length === 0) {
+        event.preventDefault();
+        panel.focus();
+        return;
+      }
+      const first = targets[0];
+      const last = targets[targets.length - 1];
+      // El foco puede estar FUERA del cuadro (el editor de abajo) si algo lo
+      // movió: en ese caso también se re-captura hacia el primer control.
+      const active = document.activeElement as HTMLElement | null;
+      const inside = active ? panel.contains(active) : false;
+      if (event.shiftKey && (!inside || active === first)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (!inside || active === last)) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", alPulsar, { capture: true });
     return () =>
       document.removeEventListener("keydown", alPulsar, { capture: true });
   }, [onClose]);
+
+  useEffect(() => {
+    restoreRef.current = document.activeElement as HTMLElement | null;
+    // Al primer control, no al panel: quien abre con teclado quiere actuar,
+    // no tabular una vez más para empezar (misma decisión que Modal).
+    const panel = panelRef.current;
+    const firstControl = panel?.querySelector<HTMLElement>(FOCUSABLE);
+    (firstControl ?? panel)?.focus();
+    return () => {
+      restoreRef.current?.focus?.();
+    };
+  }, []);
 
   return (
     <div
@@ -81,6 +128,8 @@ export function CadDialogShell({
       role="presentation"
     >
       <div
+        ref={panelRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby={`${id}-titulo`}

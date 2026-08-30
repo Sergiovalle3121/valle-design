@@ -1,9 +1,7 @@
 import type { ReactNode } from "react";
-import { Logo } from "@/components/brand/Logo";
 import { PublicNav } from "@/components/PublicNav";
+import { SiteFooter } from "@/components/marketing/SiteFooter";
 import { SkipLink } from "@/components/SkipLink";
-import { BRAND } from "@/config/brand";
-import { COMMERCIAL_LINKS } from "@/config/commercial";
 import { buttonClass } from "@/components/ui";
 
 export function PublicPageShell({
@@ -39,35 +37,7 @@ export function PublicPageShell({
           <div className="mt-12 space-y-12">{children}</div>
         </article>
 
-        <footer className="border-t border-border px-5 py-10 sm:px-8">
-          <div className="mx-auto flex max-w-5xl flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <Logo />
-              <p className="type-small mt-3 text-muted-foreground">
-                {BRAND.copyright}
-              </p>
-            </div>
-            <nav
-              aria-label="Ayuda y contacto"
-              className="type-small flex flex-wrap gap-x-5 gap-y-3 text-muted-foreground"
-            >
-              {[
-                ["Precios", COMMERCIAL_LINKS.pricing],
-                ["Documentación", COMMERCIAL_LINKS.documentation],
-                ["Soporte", COMMERCIAL_LINKS.support],
-                ["Contacto", COMMERCIAL_LINKS.contact],
-              ].map(([label, href]) => (
-                <a
-                  key={label}
-                  className="underline-offset-4 hover:text-foreground hover:underline"
-                  href={href}
-                >
-                  {label}
-                </a>
-              ))}
-            </nav>
-          </div>
-        </footer>
+        <SiteFooter />
       </main>
     </>
   );

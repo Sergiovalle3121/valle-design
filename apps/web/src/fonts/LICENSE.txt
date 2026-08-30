@@ -17,6 +17,23 @@ Google en tiempo de compilación: sin internet, el build moría).
    Origen de la descarga: repositorio oficial JetBrains/JetBrainsMono, rama
    master, fonts/variable/ (2026-08-22)
 
+3. Space Grotesk (SpaceGrotesk-wght.ttf)
+   Copyright 2020 The Space Grotesk Project Authors
+   (https://github.com/floriankarsten/space-grotesk)
+   Licencia: SIL Open Font License 1.1
+   Origen de la descarga: repositorio oficial floriankarsten/space-grotesk,
+   fonts/variable/ (2026-08-28, campaña de firma propia)
+
+Subconjuntos servidos (apps/web/public/fonts/*.subset.*.woff2)
+--------------------------------------------------------------
+Los archivos de este directorio son los ORIGINALES completos y la fuente
+canónica de regeneración. Lo que el navegador descarga son subconjuntos woff2
+generados desde ellos por scripts/design/subset-fonts.py (inventario de
+codepoints del producto, ejes variables intactos). Bajo la SIL OFL 1.1 un
+subconjunto es una «Modified Version» y se redistribuye bajo la misma
+licencia; ninguna de las tres fuentes declara «Reserved Font Name» en su
+licencia de origen, así que conservan su nombre de familia.
+
 La SIL OFL 1.1 permite usar, empaquetar y redistribuir las fuentes con
 software, incluido software comercial y propietario, siempre que no se vendan
 por sí solas y conserven su aviso. El texto completo de la licencia acompaña a

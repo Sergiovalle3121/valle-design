@@ -161,3 +161,59 @@ export function breadcrumbJsonLd(
     })),
   };
 }
+
+/**
+ * El directorio de plantillas como lista: le dice al buscador que /plantillas
+ * es un catálogo navegable y no una página suelta. Cada elemento apunta a su
+ * ficha; el buscador decide cuáles enseñar como sitelinks.
+ */
+export function itemListJsonLd(
+  items: readonly (readonly [name: string, path: string])[],
+): JsonLdNode {
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    numberOfItems: items.length,
+    itemListElement: items.map(([name, path], index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name,
+      url: absoluteUrl(path),
+    })),
+  };
+}
+
+/**
+ * La ficha de UNA plantilla. `CreativeWork` y no `Product`: una plantilla de
+ * plano es una obra que se usa gratis dentro del producto, no un artículo con
+ * oferta — marcarla Product invitaría a un rich result de compra que aquí
+ * sería mentira. `isPartOf` la cuelga del software, que sí tiene su ficha.
+ */
+export function templateCreativeWorkJsonLd({
+  name,
+  description,
+  path,
+  imagePath,
+}: {
+  name: string;
+  description: string;
+  path: string;
+  imagePath: string;
+}): JsonLdNode {
+  return {
+    "@context": "https://schema.org",
+    "@type": "CreativeWork",
+    name,
+    description,
+    url: absoluteUrl(path),
+    image: absoluteUrl(imagePath),
+    inLanguage: "es-MX",
+    isAccessibleForFree: true,
+    publisher: publisherNode(),
+    isPartOf: {
+      "@type": "SoftwareApplication",
+      name: BRAND.productNames.design,
+      url: absoluteUrl("/"),
+    },
+  };
+}

@@ -2,7 +2,6 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import {
   FilePlus2,
@@ -15,7 +14,7 @@ import {
 import { Logo } from "@/components/brand/Logo";
 import { SkipLink } from "@/components/SkipLink";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Button, ErrorBoundary, Surface, buttonClass, cx } from "@/components/ui";
+import { Button, Surface, buttonClass, cx } from "@/components/ui";
 import { FeedbackButton } from "@/components/feedback/FeedbackDialog";
 import { DashboardSkeleton } from "./DashboardSkeleton";
 import { FirstMinute } from "./FirstMinute";
@@ -41,33 +40,18 @@ import { Status } from "./Status";
 import { abrirPlanoDeEjemplo } from "./sample-plan";
 import { prefetchCadStudio } from "@/components/cad/prefetch-studio";
 
-/**
- * El formulario de plantilla de arranque llega cuando el usuario abre
- * «documento nuevo», no al listar documentos. Arrastra `CAD_STARTER_TEMPLATES`
- * y con él 1 036 KB de fuente —capas normalizadas, cajetín, papeles mexicanos,
- * operaciones de layout— que no hacen falta para ver una lista.
- *
- * `ssr: false` porque el formulario es puro cliente y su hueco lo ocupa un
- * marcador de la misma altura: sin salto de layout cuando llega el código.
- */
-const CadStarterTemplateFields = dynamic(
-  () => import("./starter-template-fields").then((m) => m.CadStarterTemplateFields),
-  {
-    ssr: false,
-    loading: () => (
-      <div
-        className="mt-4 h-[4.5rem] animate-pulse rounded-xl bg-muted/40"
-        aria-hidden="true"
-      />
-    ),
-  },
-);
 import {
   abortError,
   gzipDocument,
   ImportStatus,
   type ImportState,
 } from "./import-status";
+import {
+  StartNotes,
+  startDocumentContent,
+  useDemoAdoption,
+  useGalleryStart,
+} from "./gallery-start";
 
 type Project = CadProject;
 type Document = CadDocumentSummary;
@@ -103,6 +87,8 @@ export default function DashboardPage() {
    * encima no quiere capas inventadas de por medio.
    */
   const [starter, setStarter] = useState(EMPTY_CAD_STARTER_CHOICE);
+  const [galleryStart, clearGalleryStart] = useGalleryStart();
+  const [demoAdoption, clearDemoAdoption] = useDemoAdoption();
 
   /**
    * Quien llega al tablero va a abrir un plano: es lo único que se hace aquí.
@@ -275,15 +261,21 @@ export default function DashboardPage() {
       // la misma décima de segundo: el guardado inicial del editor y el de la
       // plantilla, con un 409 de CAS como resultado más probable. Aquí el
       // documento llega al estudio ya configurado y el editor sólo lo lee.
-      if (starter.templateId) {
+      const arranque = await startDocumentContent(demoAdoption, galleryStart);
+      if (arranque) {
+        await designClient.documents.saveContent(
+          document.id,
+          arranque as CadDocumentInline,
+          0,
+        );
+      } else if (starter.templateId) {
         const project = projects.find((item) => item.id === selectedProject);
         // El generador viaja con el catálogo de plantillas: se trae aquí, con
         // el usuario ya comprometido a crear el documento, y no al abrir la
         // página. `import()` cachea el módulo, así que el segundo documento no
         // vuelve a pagarlo.
-        const { createCadStarterDocument } = await import(
-          "@/lib/cad/starter-templates"
-        );
+        const { createCadStarterDocument } =
+          await import("@/lib/cad/starter-templates");
         await designClient.documents.saveContent(
           document.id,
           createCadStarterDocument({
@@ -590,193 +582,200 @@ export default function DashboardPage() {
         <TrialBanner subscription={subscription} className="mt-8" />
 
         <div className="flex flex-col">
-        {canEdit ? (
-          <section
-            className={cx(
-              "mt-10 grid gap-5 md:grid-cols-2",
-              state === "empty" ? "order-3" : "order-1",
-            )}
-          >
-            <Surface as="form" onSubmit={createProject} className="flex flex-col">
-              <h2 className="type-heading">Nuevo proyecto</h2>
-              <p className="type-small mt-1 text-muted-foreground">
-                Un proyecto agrupa los planos de una misma obra.
-              </p>
-              <div className="mt-4 flex gap-2">
-                <input
-                  aria-label="Nombre del proyecto"
-                  value={projectName}
-                  onChange={(e) => setProjectName(e.target.value)}
-                  className="type-small min-h-11 min-w-0 flex-1 rounded-control border border-input bg-card px-3 text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                  placeholder="Ej. Reforma planta norte"
-                />
-                <Button
-                  type="submit"
-                  variant="primary"
-                  disabled={busy}
-                  aria-label="Crear proyecto"
-                  className="px-4"
-                >
-                  <FolderPlus className="h-4 w-4" />
-                </Button>
-              </div>
-            </Surface>
-
-            <Surface
-              as="form"
-              onSubmit={(event: React.FormEvent) => {
-                event.preventDefault();
-                void createDocument(documentName);
-              }}
-              className="flex flex-col"
+          {canEdit ? (
+            <section
+              className={cx(
+                "mt-10 grid gap-5 md:grid-cols-2",
+                state === "empty" ? "order-3" : "order-1",
+              )}
             >
-              <h2 className="type-heading">Nuevo documento</h2>
-              <select
-                aria-label="Proyecto"
-                value={selectedProject}
-                onChange={(e) => setSelectedProject(e.target.value)}
-                className="type-small mt-4 min-h-11 w-full rounded-control border border-input bg-card px-3 text-foreground"
+              <Surface
+                as="form"
+                onSubmit={createProject}
+                className="flex flex-col"
               >
-                <option value="">Selecciona un proyecto</option>
-                {projects.map((project) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
-              </select>
-              <div className="mt-2 flex gap-2">
-                <input
-                  ref={documentNameRef}
-                  aria-label="Nombre del documento"
-                  value={documentName}
-                  onChange={(e) => setDocumentName(e.target.value)}
-                  className="type-small min-h-11 min-w-0 flex-1 rounded-control border border-input bg-card px-3 text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                  placeholder="Plano general"
-                />
-                <Button
-                  type="submit"
-                  variant="primary"
-                  disabled={busy || !selectedProject}
-                  aria-label="Crear documento"
-                  className="px-4"
+                <h2 className="type-heading">Nuevo proyecto</h2>
+                <p className="type-small mt-1 text-muted-foreground">
+                  Un proyecto agrupa los planos de una misma obra.
+                </p>
+                <div className="mt-4 flex gap-2">
+                  <input
+                    aria-label="Nombre del proyecto"
+                    value={projectName}
+                    onChange={(e) => setProjectName(e.target.value)}
+                    className="type-small min-h-11 min-w-0 flex-1 rounded-control border border-input bg-card px-3 text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    placeholder="Ej. Reforma planta norte"
+                  />
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    disabled={busy}
+                    aria-label="Crear proyecto"
+                    className="px-4"
+                  >
+                    <FolderPlus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </Surface>
+
+              <Surface
+                as="form"
+                onSubmit={(event: React.FormEvent) => {
+                  event.preventDefault();
+                  void createDocument(documentName);
+                }}
+                className="flex flex-col"
+              >
+                <h2 className="type-heading">Nuevo documento</h2>
+                <select
+                  aria-label="Proyecto"
+                  value={selectedProject}
+                  onChange={(e) => setSelectedProject(e.target.value)}
+                  className="type-small mt-4 min-h-11 w-full rounded-control border border-input bg-card px-3 text-foreground"
                 >
-                  <FilePlus2 className="h-4 w-4" />
-                </Button>
-              </div>
-              {/*
+                  <option value="">Selecciona un proyecto</option>
+                  {projects.map((project) => (
+                    <option key={project.id} value={project.id}>
+                      {project.name}
+                    </option>
+                  ))}
+                </select>
+                <div className="mt-2 flex gap-2">
+                  <input
+                    ref={documentNameRef}
+                    aria-label="Nombre del documento"
+                    value={documentName}
+                    onChange={(e) => setDocumentName(e.target.value)}
+                    className="type-small min-h-11 min-w-0 flex-1 rounded-control border border-input bg-card px-3 text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                    placeholder="Plano general"
+                  />
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    disabled={busy || !selectedProject}
+                    aria-label="Crear documento"
+                    className="px-4"
+                  >
+                    <FilePlus2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                {/*
                 La plantilla va DEBAJO del nombre y no en un asistente aparte: es
                 una decisión de un segundo que ahorra media hora de configuración,
                 y un asistente de tres pasos para elegirla costaría más que el
                 tiempo que ahorra. Lo que se pinta vive en `starter-template-fields`
                 por el presupuesto de tamaño de esta página.
               */}
-              {/*
+                {/*
                 El formulario de plantilla llega por red (import dinámico) y
                 pinta un catálogo entero. Su frontera es compacta porque vive
                 dentro del formulario de creación: si se cae, se puede seguir
                 creando el documento en blanco, que es la ruta que más se usa.
               */}
-              <ErrorBoundary zona="Plantilla de arranque" compacta className="mt-4">
-                <CadStarterTemplateFields
-                  value={starter}
-                  onChange={setStarter}
-                  disabled={busy}
+                <StartNotes
+                  demo={demoAdoption}
+                  gallery={galleryStart}
+                  onClearDemo={clearDemoAdoption}
+                  onClearGallery={clearGalleryStart}
+                  starter={starter}
+                  onStarterChange={setStarter}
+                  busy={busy}
                 />
-              </ErrorBoundary>
-              <label className="type-small mt-4 inline-flex cursor-pointer items-center gap-2 font-medium text-primary-ink">
-                <Upload className="h-4 w-4" /> Importar como documento
-                <input
-                  type="file"
-                  className="sr-only"
-                  accept={
-                    isDwgNativeImportBetaEnabled()
-                      ? ".dxf,.json,.shp,.shx,.dbf,.prj,.cpg,.dwg"
-                      : ".dxf,.json,.shp,.shx,.dbf,.prj,.cpg"
-                  }
-                  multiple
-                  disabled={!selectedProject || busy}
-                  onChange={(e) => {
-                    // Un shapefile son varios archivos que hay que elegir juntos.
-                    const chosen = splitDocumentSelection([
-                      ...(e.target.files ?? []),
-                    ]);
-                    if (chosen)
-                      void importDocument(chosen.primary, chosen.sidecars);
-                    e.currentTarget.value = "";
-                  }}
+                <label className="type-small mt-4 inline-flex cursor-pointer items-center gap-2 font-medium text-primary-ink">
+                  <Upload className="h-4 w-4" /> Importar como documento
+                  <input
+                    type="file"
+                    className="sr-only"
+                    accept={
+                      isDwgNativeImportBetaEnabled()
+                        ? ".dxf,.json,.shp,.shx,.dbf,.prj,.cpg,.dwg"
+                        : ".dxf,.json,.shp,.shx,.dbf,.prj,.cpg"
+                    }
+                    multiple
+                    disabled={!selectedProject || busy}
+                    onChange={(e) => {
+                      // Un shapefile son varios archivos que hay que elegir juntos.
+                      const chosen = splitDocumentSelection([
+                        ...(e.target.files ?? []),
+                      ]);
+                      if (chosen)
+                        void importDocument(chosen.primary, chosen.sidecars);
+                      e.currentTarget.value = "";
+                    }}
+                  />
+                </label>
+                <ImportStatus
+                  state={importState}
+                  onCancel={() => importAbort.current?.abort()}
+                  onOpen={(documentId) => router.push(`/studio/${documentId}`)}
                 />
-              </label>
-              <ImportStatus
-                state={importState}
-                onCancel={() => importAbort.current?.abort()}
-                onOpen={(documentId) => router.push(`/studio/${documentId}`)}
-              />
-            </Surface>
-          </section>
-        ) : (
-          <p
-            data-testid="dashboard-read-only"
-            className={cx(
-              "type-small mt-10 rounded-card border border-warning/30 bg-warning/10 px-5 py-4 text-warning-ink",
-              state === "empty" ? "order-3" : "order-1",
-            )}
-          >
-            Tu rol permite consultar proyectos y documentos. La creación y la
-            importación requieren permiso de edición.
-          </p>
-        )}
+              </Surface>
+            </section>
+          ) : (
+            <p
+              data-testid="dashboard-read-only"
+              className={cx(
+                "type-small mt-10 rounded-card border border-warning/30 bg-warning/10 px-5 py-4 text-warning-ink",
+                state === "empty" ? "order-3" : "order-1",
+              )}
+            >
+              Tu rol permite consultar proyectos y documentos. La creación y la
+              importación requieren permiso de edición.
+            </p>
+          )}
 
-        {actionError && (
-          <p role="alert" className="order-2 type-small mt-4 text-danger-ink">
-            {actionError}
-          </p>
-        )}
+          {actionError && (
+            <p role="alert" className="order-2 type-small mt-4 text-danger-ink">
+              {actionError}
+            </p>
+          )}
 
-        {state === "empty" ? (
-          <FirstMinute
-            className="order-1"
-            canEdit={canEdit}
-            busy={busy}
-            onOpenSample={() => void openSamplePlan()}
-            onCreateBlank={() => documentNameRef.current?.focus()}
-            onImport={(files) => {
-              const chosen = splitDocumentSelection([...(files ?? [])]);
-              if (chosen) void importDocument(chosen.primary, chosen.sidecars);
-            }}
-          />
-        ) : (
-          <section className="order-3 mt-12" aria-labelledby="documentos">
-            <h2 id="documentos" className="type-heading">
-              Documentos
-            </h2>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {documents.map((document) => (
-                <button
-                  key={document.id}
-                  onClick={() => router.push(`/studio/${document.id}`)}
-                  className={cx(
-                    "rounded-card border border-border bg-card p-4 text-left",
-                    "transition-[border-color,box-shadow] duration-200 ease-out-expo",
-                    "hover:border-primary/50 hover:shadow-elevated",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-                  )}
-                >
-                  <strong className="type-small block font-semibold text-foreground">
-                    {document.name}
-                  </strong>
-                  <span className="type-mono type-micro mt-2 block truncate text-muted-foreground">
-                    {document.id}
-                  </span>
-                </button>
-              ))}
-            </div>
-            {documents.length === 0 && (
-              <p className="type-small mt-4 text-muted-foreground">
-                Este espacio todavía no contiene documentos.
-              </p>
-            )}
-          </section>
-        )}
+          {state === "empty" ? (
+            <FirstMinute
+              className="order-1"
+              canEdit={canEdit}
+              busy={busy}
+              onOpenSample={() => void openSamplePlan()}
+              onCreateBlank={() => documentNameRef.current?.focus()}
+              onImport={(files) => {
+                const chosen = splitDocumentSelection([...(files ?? [])]);
+                if (chosen)
+                  void importDocument(chosen.primary, chosen.sidecars);
+              }}
+            />
+          ) : (
+            <section className="order-3 mt-12" aria-labelledby="documentos">
+              <h2 id="documentos" className="type-heading">
+                Documentos
+              </h2>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                {documents.map((document) => (
+                  <button
+                    key={document.id}
+                    onClick={() => router.push(`/studio/${document.id}`)}
+                    className={cx(
+                      "rounded-card border border-border bg-card p-4 text-left",
+                      "transition-[border-color,box-shadow] duration-200 ease-out-expo",
+                      "hover:border-primary/50 hover:shadow-elevated",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                    )}
+                  >
+                    <strong className="type-small block font-semibold text-foreground">
+                      {document.name}
+                    </strong>
+                    <span className="type-mono type-micro mt-2 block truncate text-muted-foreground">
+                      {document.id}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {documents.length === 0 && (
+                <p className="type-small mt-4 text-muted-foreground">
+                  Este espacio todavía no contiene documentos.
+                </p>
+              )}
+            </section>
+          )}
         </div>
       </main>
     </>

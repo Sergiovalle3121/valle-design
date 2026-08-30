@@ -1,85 +1,48 @@
 import type { Metadata, Viewport } from "next";
-import localFont from "next/font/local";
 import "./globals.css";
+import "./fonts.css";
 import { getLocale, getMessages } from "next-intl/server";
 import { I18nProvider } from "@/components/I18nProvider";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { DesignAuthProvider } from "@/contexts/DesignAuthContext";
 import { ToastProvider } from "@/contexts/ToastContext";
 import { BRAND } from "@/config/brand";
+import { PRELOAD_FONTS } from "@/config/fonts-generated";
 import { SITE_URL } from "@/config/site-routes";
 
 /**
- * TIPOGRAFÍA DE LA MARCA — `next/font` la sirve desde nuestro propio origen.
+ * TIPOGRAFÍA DE LA MARCA — autohospedada y bajo control directo.
  *
- * `globals.css` lleva desde el primer día declarando `var(--font-inter)` y
- * `var(--font-jetbrains)` al frente de `--font-sans` y `--font-mono`… y nadie
- * las definía nunca. El resultado medido: la app se componía con Segoe UI en
- * Windows, San Francisco en Mac y Roboto en Android — tres productos distintos
- * con el mismo código, y ninguna posibilidad de afinar interletraje porque el
- * interletraje depende del tipo.
+ * `globals.css` compone todo con `var(--font-inter)`, `var(--font-jetbrains)`
+ * y `var(--font-space-grotesk)`. Esas variables las define `./fonts.css`, que
+ * GENERA `scripts/design/subset-fonts.py`: subconjuntos woff2 con el
+ * inventario real de codepoints del producto (es-MX, GD&T ⌒ ⌖ ⏤ ⏥, griego de
+ * ingeniería, flechas, matemáticos), ejes variables intactos, servidos desde
+ * `public/fonts/` con hash de contenido en el nombre y cache inmutable
+ * (next.config.ts). Los originales completos siguen en `src/fonts/` como
+ * fuente canónica de regeneración; el gate `check:fonts` exige ambos, prohíbe
+ * que vuelva una cara completa y pone techo de peso a lo servido.
  *
- * · `variable` en vez de `className`: la fuente entra como variable CSS y la
- *   consume el sistema de tokens, no cada componente. Un cambio de tipo es un
- *   cambio en estas dos líneas.
- * · `display: "swap"`: el texto se lee desde el primer paint con el stack de
- *   respaldo y cambia al tipo real al llegar. Nunca hay pantalla en blanco.
- * · AUTOHOSPEDADAS con `next/font/local` (campaña de cimientos): antes
- *   `next/font/google` descargaba de Google EN TIEMPO DE BUILD — sin salida a
- *   internet, o con Google caído, el producto no compilaba. Un producto
- *   comercial no puede depender de un tercero para compilar. Los archivos
- *   viven en `src/fonts/` (OFL 1.1, ver su LICENSE.txt) y se descargaron una
- *   sola vez; el gate `check:fonts` impide que `next/font/google` regrese.
- * · `adjustFontFallback: "Arial"`/`"Times New Roman"` sincroniza las métricas
- *   del respaldo, así que el cambio de tipo no mueve el layout.
+ * POR QUÉ NO `next/font` (lección medida, campaña de sitio 2026-08-29): las
+ * cinco caras precargadas pesaban 1 486 KB y el móvil medía 73-75 con 95 % de
+ * render delay en el LCP. `next/font` decide el preload POR LLAMADA, así que
+ * no puede precargar la romana de Inter sin precargar también su itálica; el
+ * desdoble en dos llamadas emite el archivo duplicado (sufijo `.p.`) con el
+ * @font-face consumido apuntando al que no se precarga — descarga doble. Y
+ * separar la itálica en otra familia haría que el font-matching sintetizara
+ * oblicuas en el MText del estudio. El @font-face manual da lo que un CAD
+ * exige: romana e itálica en la MISMA familia, y precarga QUIRÚRGICA de las
+ * dos caras del primer viewport (Inter romana, Space Grotesk) — las demás
+ * llegan a demanda con `font-display: swap` y métricas de fallback
+ * sincronizadas con Arial (mismos valores que calculaba next/font), así el
+ * primer pintado no espera a nadie y el swap no mueve el layout.
  *
  * La mono NO es decorativa: la línea de comandos, las coordenadas del cursor y
  * las cifras de las tablas son datos que se comparan en columna. JetBrains Mono
- * trae `tnum` de serie y una cifra cero ranurada que distingue 0 de O — que en
- * un plano cotado no es un detalle.
+ * conserva `tnum` y la cifra cero ranurada en el subconjunto — y PIERDE las
+ * ligaduras de código a propósito: quien teclea `->` en la línea de comandos
+ * tiene que ver `->`, no una flecha.
  */
-const inter = localFont({
-  src: [
-    { path: "../fonts/InterVariable.woff2", style: "normal", weight: "100 900" },
-    { path: "../fonts/InterVariable-Italic.woff2", style: "italic", weight: "100 900" },
-  ],
-  display: "swap",
-  variable: "--font-inter",
-  adjustFontFallback: "Arial",
-});
-
-/**
- * LA DISPLAY DE LA MARCA (campaña de firma propia, 2026-08-28).
- *
- * Space Grotesk es la hermana PROPORCIONAL de una monoespaciada, así que el
- * titular y la cota comparten esqueleto: la marca pasa a tener una sola voz
- * tipográfica en dos anchos en vez de dos tipos sin parentesco. Se carga con
- * el mismo mecanismo que las otras dos —`next/font/local`, archivo versionado,
- * cero dependencia de Google en tiempo de build— y sólo la consumen los tres
- * escalones de titular de `globals.css`.
- *
- * `adjustFontFallback: "Arial"` sincroniza las métricas del respaldo: mientras
- * la variable llega, el titular ya ocupa el sitio que va a ocupar, así que la
- * portada no da el salto de layout que delata una fuente mal cargada.
- */
-const spaceGrotesk = localFont({
-  src: [
-    { path: "../fonts/SpaceGrotesk-wght.ttf", style: "normal", weight: "300 700" },
-  ],
-  display: "swap",
-  variable: "--font-space-grotesk",
-  adjustFontFallback: "Arial",
-});
-
-const jetbrainsMono = localFont({
-  src: [
-    { path: "../fonts/JetBrainsMono-wght.ttf", style: "normal", weight: "100 800" },
-    { path: "../fonts/JetBrainsMono-Italic-wght.ttf", style: "italic", weight: "100 800" },
-  ],
-  display: "swap",
-  variable: "--font-jetbrains",
-  adjustFontFallback: "Arial",
-});
 
 /**
  * Metadata: TODA la identidad sale del manifiesto de marca (config/brand).
@@ -163,10 +126,23 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={`h-full antialiased ${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
+      className="h-full antialiased"
       suppressHydrationWarning
     >
       <head>
+        {/* Las dos caras del primer viewport, antes de que el CSS las pida.
+            `crossOrigin` es obligatorio: las fuentes se piden en modo CORS y
+            sin él el navegador descarta la precarga y descarga dos veces. */}
+        {PRELOAD_FONTS.map((href) => (
+          <link
+            key={href}
+            rel="preload"
+            href={href}
+            as="font"
+            type="font/woff2"
+            crossOrigin="anonymous"
+          />
+        ))}
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="min-h-full flex flex-col">
