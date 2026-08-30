@@ -374,7 +374,7 @@ function assertAdmittedManifest(manifest, bundleId) {
       bad("una validación no está aceptada", { validator: validation?.validator });
     if (!SHA256_RE.test(validation?.evidenceSha256 ?? ""))
       bad("una validación no fija el hash de su evidencia");
-    validators.add(`${validation.validator} ${validation.version}`);
+    validators.add(`${validation.validator}\0${validation.version}`);
   }
   if (validators.size < 2) bad("las dos validaciones no son independientes");
 }
@@ -548,7 +548,7 @@ export function fetchAdmittedCorpus({ pin, transport }) {
         sourceFactIds: [...manifest.sourceFactIds],
         reviewers: [...new Set(manifest.reviews)],
         independentValidations: new Set(
-          manifest.validations.map((v) => `${v.validator} ${v.version}`),
+          manifest.validations.map((v) => `${v.validator}\0${v.version}`),
         ).size,
         fixtureCount: artifacts.filter((a) => a.kind === "fixtures").length,
         oracleCount: artifacts.filter((a) => a.kind === "oracles").length,
