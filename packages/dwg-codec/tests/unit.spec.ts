@@ -1,26 +1,21 @@
-import "./unit/ac1015-database.spec.js";
-import "./unit/ac1015-header.spec.js";
-import "./unit/ac1015-minimal-file.spec.js";
-import "./unit/ac1015-header-variables.spec.js";
-import "./unit/ac1015-object-map.spec.js";
-import "./unit/ac1015-writer.spec.js";
-import "./unit/api.spec.js";
-import "./unit/binary.spec.js";
-import "./unit/bitcodes.spec.js";
-import "./unit/bitcodes-properties.spec.js";
-import "./unit/canonical.spec.js";
-import "./unit/entities-annotation.spec.js";
-import "./unit/entities-complex.spec.js";
-import "./unit/entities-core.spec.js";
-import "./unit/entities-poly.spec.js";
-import "./unit/entity-insert.spec.js";
-import "./unit/model.spec.js";
-import "./unit/objects-dictionary.spec.js";
-import "./unit/r2004-container.spec.js";
-import "./unit/r2004-database.spec.js";
-import "./unit/r2010-object-envelope.spec.js";
-import "./unit/security.spec.js";
-import "./unit/table-block.spec.js";
-import "./unit/table-layer.spec.js";
-import "./unit/tables-symbol.spec.js";
-import "./unit/write-canonical-dwg.spec.js";
+/**
+ * Agregador de las specs unitarias POR DIRECTORIO, no por lista manual: una
+ * spec nueva corre por el hecho de existir en `tests/unit/`. La lista escrita
+ * a mano que hubo aquí era una clase entera de fallo esperando turno — una
+ * spec creada y no añadida jamás se ejecutaba, y ningún gate lo detectaba.
+ */
+import { readdirSync } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const unitDir = path.join(path.dirname(fileURLToPath(import.meta.url)), "unit");
+const specs = readdirSync(unitDir)
+  .filter((file) => file.endsWith(".spec.ts"))
+  .sort();
+if (specs.length === 0) {
+  throw new Error(`No hay specs en ${unitDir}: el agregador no tiene qué correr.`);
+}
+for (const file of specs) {
+  // `.js` a propósito: la resolución nodenext mapea el especificador a `.ts`.
+  await import(`./unit/${file.replace(/\.ts$/u, ".js")}`);
+}

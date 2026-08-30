@@ -130,6 +130,28 @@ test("readDwg fails closed with a typed error on foreign signatures", () => {
   }
 });
 
+test("readDwg normalizes raw runtime errors instead of leaking them", () => {
+  // Un Uint8Array cuyo acceso explota simula el error crudo que un lector
+  // podría dejar escapar (RangeError de una reserva imposible, etc.): la
+  // promesa de la API es que eso sale como DWG_INTERNAL_ERROR tipado, sin
+  // detalles de implementación, nunca como el error original.
+  const explosive = new Proxy(new Uint8Array(8), {
+    get() {
+      throw new RangeError("detalle interno que no debe salir");
+    },
+  });
+  try {
+    readDwg(explosive as unknown as Uint8Array);
+    assert.fail("readDwg must throw for an input whose access explodes");
+  } catch (error) {
+    assert.equal((error as { name?: string }).name, "DwgParseError");
+    const detail = (error as { detail?: { code?: string; message?: string } })
+      .detail;
+    assert.equal(detail?.code, "DWG_INTERNAL_ERROR");
+    assert.ok(!String(detail?.message).includes("detalle interno"));
+  }
+});
+
 for (const signature of ["AC1000", "AC1099"] as const) {
   test(`${signature} is syntactically valid and explicitly unknown`, () => {
     const result = probeDwg(ascii(signature));

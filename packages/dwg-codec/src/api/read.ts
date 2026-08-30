@@ -8,7 +8,11 @@ import {
   type Ac1015UnsupportedDatabaseObject,
 } from "../reader/ac1015-database-reader.js";
 import { readR2004Database } from "../reader/r2004-database-reader.js";
-import { throwDwgError } from "../security/parse-error.js";
+import {
+  DwgParseError,
+  normalizeDwgError,
+  throwDwgError,
+} from "../security/parse-error.js";
 import type { ResourceBudgetOptions } from "../security/resource-budget.js";
 
 /**
@@ -43,6 +47,24 @@ const R2007_SIGNATURE = "AC1021";
  * `probeDwg`) es ADITIVO y se reenvía tal cual al lector que corresponda.
  */
 export function readDwg(
+  input: Uint8Array,
+  limits?: DwgLimitOverrides,
+  cancellation?: ResourceBudgetOptions,
+): DwgDatabase {
+  // La promesa de la cabecera —«nunca lanza un error crudo del runtime»— se
+  // cumple AQUÍ, no por fe en los lectores: un DwgParseError propio pasa tal
+  // cual; cualquier otra cosa (un RangeError de una reserva imposible, un
+  // TypeError inesperado) sale normalizada como DWG_INTERNAL_ERROR, sin
+  // detalles de implementación en el mensaje.
+  try {
+    return dispatchRead(input, limits, cancellation);
+  } catch (error) {
+    if (error instanceof DwgParseError) throw error;
+    throw new DwgParseError(normalizeDwgError(error));
+  }
+}
+
+function dispatchRead(
   input: Uint8Array,
   limits?: DwgLimitOverrides,
   cancellation?: ResourceBudgetOptions,
