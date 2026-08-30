@@ -104,24 +104,40 @@ async function bootstrap() {
         ? defaultDevOrigins
         : [];
 
+  // El callback de CORS corre por PETICIÓN, sin autenticar, y el header
+  // `Origin` lo escribe quien llama: antes se volcaba crudo con console.error,
+  // que era inyección de log (saltos de línea, escapes ANSI) y además quedaba
+  // fuera del ErrorReportingLogger que se monta más abajo. Ahora: el origen se
+  // sanea (imprimibles, 200 chars) y se registra con el Logger de Nest — la
+  // mala configuración como error (defecto del operador, debe llegar al
+  // reporter); el rechazo por origen como warn (señal útil en un incidente,
+  // sin dejar que cualquiera infle el reporter mandando cabeceras basura).
+  const corsLogger = new Logger('CORS');
+  const sanitizeOrigin = (value: string): string =>
+    [...value.slice(0, 200)]
+      .filter((ch) => {
+        const code = ch.codePointAt(0) ?? 0;
+        return code >= 0x20 && code !== 0x7f;
+      })
+      .join('');
   app.enableCors({
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
       const normalizedOrigin = origin.replace(/\/+$/, '');
       if (originsToValidate.length === 0) {
-        console.error(
-          '[CORS] Sin orígenes permitidos configurados (ALLOWED_ORIGIN); se rechaza la solicitud cross-origin.',
+        corsLogger.error(
+          'Sin orígenes permitidos configurados (ALLOWED_ORIGIN); se rechaza la solicitud cross-origin.',
         );
         return callback(new Error('CORS not configured'), false);
       }
       if (originsToValidate.includes(normalizedOrigin)) {
         return callback(null, true);
       }
-      console.error(
-        `[CORS] Origen rechazado: ${normalizedOrigin}. Esperado uno de: ${JSON.stringify(originsToValidate)}`,
+      corsLogger.warn(
+        `Origen rechazado: ${sanitizeOrigin(normalizedOrigin)}. Esperado uno de: ${JSON.stringify(originsToValidate)}`,
       );
       return callback(
-        new Error(`Origin not allowed by CORS: ${normalizedOrigin}`),
+        new Error('Origin not allowed by CORS'),
         false,
       );
     },
