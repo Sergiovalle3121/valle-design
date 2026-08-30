@@ -2,8 +2,8 @@
   "$schema": "urn:valle-design:schema:cad-wasm-parity-evidence:v1",
   "schemaVersion": 1,
   "evidenceId": "valle-design-wasm-curve-kernel-v1",
-  "startedAt": "2026-08-19T21:18:16.585Z",
-  "finishedAt": "2026-08-19T21:19:27.706Z",
+  "startedAt": "2026-08-30T06:05:44.052Z",
+  "finishedAt": "2026-08-30T06:06:14.480Z",
   "enforcement": "gate-en-spec, report-only en tiempos",
   "enforcementRationale": "La PARIDAD sí bloquea: la comprueba curve-kernel-parity.spec.ts en cada npm run test:specs, con la misma tolerancia que se publica aquí, y falla si el binario del árbol no es el de su manifiesto o si una curva cambia de forma. Los TIEMPOS no fijan presupuesto: están medidos en un portátil de desarrollo con otros agentes trabajando en paralelo, y convertirlos en umbral produciría un gate que falla por contención de máquina y no por una regresión del producto. Se publican con su dispersión entre pasadas para que se vea de qué se está hablando.",
   "verdict": {
@@ -11,18 +11,18 @@
     "violations": []
   },
   "environment": {
-    "node": "v22.18.0",
-    "v8": "12.4.254.21-node.27",
-    "platform": "win32",
+    "node": "v22.22.2",
+    "v8": "12.4.254.21-node.39",
+    "platform": "linux",
     "architecture": "x64",
-    "osType": "Windows_NT",
-    "osRelease": "10.0.26200",
-    "cpuModel": "AMD Ryzen 5 5500U with Radeon Graphics         ",
-    "logicalCpuCount": 12,
-    "availableParallelism": 12,
-    "totalMemoryBytes": 7896625152,
-    "freeMemoryBytesAtStart": 2707644416,
-    "declaredMachine": "AMD Ryzen 5 5500U with Radeon Graphics (12 hilos lógicos), 7.4 GB de RAM, Windows_NT 10.0.26200, portátil de desarrollo CON CARGA VECINA: otros agentes compilando y ejecutando suites en el mismo equipo durante la medición."
+    "osType": "Linux",
+    "osRelease": "6.18.44-fc-v22",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "logicalCpuCount": 4,
+    "availableParallelism": 4,
+    "totalMemoryBytes": 16856133632,
+    "freeMemoryBytesAtStart": 15250386944,
+    "declaredMachine": "Intel(R) Xeon(R) Processor @ 2.10GHz (4 hilos lógicos), 15.7 GB de RAM, Linux 6.18.44-fc-v22, portátil de desarrollo CON CARGA VECINA: otros agentes compilando y ejecutando suites en el mismo equipo durante la medición."
   },
   "method": {
     "runs": 3,
@@ -34,13 +34,13 @@
     "runToRunDiscrepancies": []
   },
   "toolchain": {
-    "rustc": "rustc 1.97.1 (8bab26f4f 2026-07-14)",
-    "cargo": "cargo 1.97.1 (c980f4866 2026-06-30)",
+    "rustc": "rustc 1.94.1 (e408947bf 2026-03-25)",
+    "cargo": "cargo 1.94.1 (29ea6fb6a 2026-03-24)",
     "rustup": "rustup 1.29.0 (28d1352db 2026-03-05)",
-    "host": "x86_64-pc-windows-msvc",
+    "host": "x86_64-unknown-linux-gnu",
     "targetsInstalled": [
       "wasm32-unknown-unknown",
-      "x86_64-pc-windows-msvc"
+      "x86_64-unknown-linux-gnu"
     ],
     "target": "wasm32-unknown-unknown",
     "profile": "release",
@@ -64,20 +64,22 @@
     "sources": [
       {
         "path": "crates/valle-cad-kernel/Cargo.toml",
-        "bytes": 1557,
-        "sha256": "064b29aa764c8fb6af55b982ace623b0e6ce279c11ee2ea33f308f2568882d4e"
+        "bytes": 1909,
+        "sha256": "16f687737f5af5adcf79195fca2e3dbd2b048dde00862b67e303221945cd9328"
       },
       {
         "path": "crates/valle-cad-kernel/src/lib.rs",
-        "bytes": 20720,
-        "sha256": "368b931ca79cc93268ce16a1e15df43edf2c16dbab0d930bebebf311d178bb56"
+        "bytes": 24255,
+        "sha256": "9fa1c8e6ed7c20bbe81a83b302d8f1f95b31ca05f0e73018bc670cac70bd8e9f"
       }
     ],
     "binary": {
       "path": "apps/web/public/wasm/valle-cad-kernel.wasm",
-      "bytes": 31435,
-      "sha256": "7b1f5ecd917287b45ef88a4421165a24a646e2cd2ac399e5c2791dfa535a762e",
+      "bytes": 29258,
+      "sha256": "09ad4f6e8e1b8ec1092918a86b174eef84871cd5bcbfa7dec2f00b1f7a6ba3a6",
       "exports": [
+        "__data_end:global",
+        "__heap_base:global",
         "memory:memory",
         "valle_alloc:function",
         "valle_free:function",
@@ -90,7 +92,7 @@
       ]
     },
     "abi": 1,
-    "builtAt": "2026-08-19T21:15:10.942Z"
+    "builtAt": "2026-08-30T06:05:38.305Z"
   },
   "kernelScope": {
     "chosen": "teselado de curvas: arco, elipse y B-spline por De Boor",
@@ -271,68 +273,68 @@
       "arcs": 100000,
       "pointsProduced": 1915068,
       "javascript": {
-        "medianMs": 557.33,
+        "medianMs": 258.925,
         "samplesMs": [
-          915.786,
-          557.33,
-          459.218
+          258.925,
+          251.944,
+          278.413
         ],
         "runs": 3,
-        "spreadMs": 456.568,
-        "spreadPercentOfMedian": 81.9
+        "spreadMs": 26.469,
+        "spreadPercentOfMedian": 10.2
       },
       "wasm": {
-        "medianMs": 167.387,
+        "medianMs": 83.259,
         "samplesMs": [
-          272.816,
-          149.42,
-          167.387
+          94.884,
+          83.259,
+          82.966
         ],
         "runs": 3,
-        "spreadMs": 123.396,
-        "spreadPercentOfMedian": 73.7
+        "spreadMs": 11.918,
+        "spreadPercentOfMedian": 14.3
       },
-      "speedupMedian": 3.33,
+      "speedupMedian": 3.11,
       "speedupPerRun": [
-        3.357,
-        3.73,
-        2.743
+        2.729,
+        3.026,
+        3.356
       ],
-      "speedupFloor": 2.743
+      "speedupFloor": 2.729
     },
     {
       "steps": 96,
       "arcs": 100000,
       "pointsProduced": 7203446,
       "javascript": {
-        "medianMs": 2200.099,
+        "medianMs": 1040.254,
         "samplesMs": [
-          3168.969,
-          2119.028,
-          2200.099
+          1040.254,
+          1067.948,
+          1016.89
         ],
         "runs": 3,
-        "spreadMs": 1049.941,
-        "spreadPercentOfMedian": 47.7
+        "spreadMs": 51.058,
+        "spreadPercentOfMedian": 4.9
       },
       "wasm": {
-        "medianMs": 520.615,
+        "medianMs": 334.236,
         "samplesMs": [
-          971.909,
-          511.078,
-          520.615
+          349.353,
+          314.416,
+          334.236
         ],
         "runs": 3,
-        "spreadMs": 460.831,
-        "spreadPercentOfMedian": 88.5
+        "spreadMs": 34.937,
+        "spreadPercentOfMedian": 10.5
       },
-      "speedupMedian": 4.226,
+      "speedupMedian": 3.112,
       "speedupPerRun": [
-        3.261,
-        4.146,
-        4.226
+        2.978,
+        3.397,
+        3.042
       ],
-      "speedupFloor": 3.261
+      "speedupFloor": 2.978
     }
   ],
   "benchmarkNote": "Trabajo de CPU en Node teselando un lote de 100.000 arcos, ida y vuelta por la frontera JS↔wasm incluida (copia de la entrada a la memoria lineal y copia de la salida de vuelta). El motor de JavaScript empaqueta su resultado en el MISMO formato plano aunque no lo necesite: comparar formatos distintos sería comparar dos empaquetados y no dos matemáticas.",

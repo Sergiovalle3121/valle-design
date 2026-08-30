@@ -159,35 +159,46 @@ unsafe fn u32s_mut<'a>(ptr: u32, count: usize) -> &'a mut [u32] {
 /// `Math.max(2, Math.ceil((sweep / 360) * steps))` más el `+1` del bucle
 /// cerrado (`for i in 0..=n`), que es por lo que un arco de 24 pasos completo
 /// devuelve 25 puntos y no 24.
-fn sweep_segments(sweep: f64, steps: u32) -> usize {
+///
+/// Devuelve `None` si la cuenta no cabe en la aritmética de la plataforma —
+/// en wasm32 `usize` es de 32 bits y un `as usize` saturado habría pasado la
+/// comprobación de capacidad con un número inventado. El llamador lo trata
+/// como capacidad insuficiente: nunca se escribe nada.
+fn sweep_segments(sweep: f64, steps: u32) -> Option<usize> {
     let raw = ((sweep / 360.0) * steps as f64).ceil();
-    if raw > 2.0 {
-        raw as usize
-    } else {
-        2
+    // /4 deja sitio para el `+1` de puntos y el `×2` de coordenadas sin
+    // desbordar después.
+    if !raw.is_finite() || raw >= (usize::MAX / 4) as f64 {
+        return None;
     }
+    Some(if raw > 2.0 { raw as usize } else { 2 })
 }
 
-/// Normaliza el barrido a positivo sumando vueltas, convención DXF (siempre
-/// CCW). Se hace con el mismo `while` que el TypeScript: un `rem_euclid` daría
-/// otro número en los casos límite —barrido exactamente 0 o múltiplo de 360— y
-/// esos casos son justamente los que un plano real trae.
+/// Tope del barrido: ~2 778 vueltas. El MISMO número que
+/// `MAX_SWEEP_DEGREES` en `apps/web/src/lib/cad/arc-sweep.ts`.
+const MAX_SWEEP_DEGREES: f64 = 1_000_000.0;
+
+/// Normaliza el barrido a positivo, convención DXF (siempre CCW). Réplica
+/// exacta de `normalizeArcSweepDegrees` en `arc-sweep.ts`, con las mismas
+/// reglas y en el mismo orden:
 ///
-/// DIVERGENCIA DELIBERADA, declarada en el artefacto de paridad: con un ángulo
-/// no finito (`NaN`, `±Infinity`) el bucle del TypeScript no termina nunca —
-/// `-Infinity + 360` sigue siendo `-Infinity`—. En JavaScript eso cuelga una
-/// pestaña, que ya es malo; en wasm cuelga el módulo sin posibilidad de
-/// interrumpirlo. Aquí se corta y la curva sale con cero puntos. Fallo cerrado
-/// antes que fallo colgado.
+/// - no finito → `NaN` → la curva sale con cero puntos (fallo cerrado);
+/// - barrido ≤ 0 → módulo con signo + 360, que da lo mismo que el `while`
+///   histórico también en los casos límite (0 y los múltiplos de -360 dan
+///   360: arco completo) pero termina con `-1e300`, donde el bucle no
+///   terminaba nunca — 360 queda por debajo del ULP y sumar no avanza;
+/// - barrido > 360 → se conserva hasta `MAX_SWEEP_DEGREES` (hay arcos
+///   importados que declaran más de una vuelta) y por encima se recorta:
+///   corrupción acotada, no un desbordamiento de capacidad.
 fn normalized_sweep(start_deg: f64, end_deg: f64) -> f64 {
-    let mut sweep = end_deg - start_deg;
+    let sweep = end_deg - start_deg;
     if !sweep.is_finite() {
         return f64::NAN;
     }
-    while sweep <= 0.0 {
-        sweep += 360.0;
+    if sweep <= 0.0 {
+        return sweep % 360.0 + 360.0;
     }
-    sweep
+    sweep.min(MAX_SWEEP_DEGREES)
 }
 
 /// Arco circular. Escribe pares `x, y` en `out` y devuelve cuántos PUNTOS ha
@@ -208,7 +219,7 @@ fn arc_into(
     if sweep.is_nan() {
         return Some(0);
     }
-    let n = sweep_segments(sweep, steps);
+    let n = sweep_segments(sweep, steps)?;
     let points = n + 1;
     if out.len() < points * 2 {
         return None;
@@ -245,7 +256,7 @@ fn ellipse_into(
     }
     let minor_x = -major_y * axis_ratio;
     let minor_y = major_x * axis_ratio;
-    let n = sweep_segments(sweep, steps);
+    let n = sweep_segments(sweep, steps)?;
     let points = n + 1;
     if out.len() < points * 2 {
         return None;
@@ -379,7 +390,17 @@ pub extern "C" fn valle_tessellate_arcs(
     if count == 0 {
         return 0;
     }
-    if !addressable(in_ptr, count * STRIDE, 8)
+    // La multiplicación se comprueba ANTES de pasarla: en wasm32 `usize` es de
+    // 32 bits y `count * STRIDE` puede envolver, con lo que `addressable`
+    // habría aprobado una región inventada. El retorno se declara en `i32`,
+    // así que una capacidad que no cabe ahí tampoco es honrable.
+    let Some(elems) = count.checked_mul(STRIDE) else {
+        return ERR_ARGS;
+    };
+    if out_cap > i32::MAX as u32 {
+        return ERR_ARGS;
+    }
+    if !addressable(in_ptr, elems, 8)
         || !addressable(counts_ptr, count, 4)
         || !addressable(out_ptr, out_cap as usize, 8)
     {
@@ -387,7 +408,7 @@ pub extern "C" fn valle_tessellate_arcs(
     }
     // SAFETY: las tres regiones han pasado `addressable` y son reservas vivas
     // distintas por contrato de la ABI.
-    let input = unsafe { f64s(in_ptr, count * STRIDE) };
+    let input = unsafe { f64s(in_ptr, elems) };
     let counts = unsafe { u32s_mut(counts_ptr, count) };
     let out = unsafe { f64s_mut(out_ptr, out_cap as usize) };
 
@@ -429,14 +450,21 @@ pub extern "C" fn valle_tessellate_ellipses(
     if count == 0 {
         return 0;
     }
-    if !addressable(in_ptr, count * STRIDE, 8)
+    // Ver `valle_tessellate_arcs`: multiplicación comprobada y techo de `i32`.
+    let Some(elems) = count.checked_mul(STRIDE) else {
+        return ERR_ARGS;
+    };
+    if out_cap > i32::MAX as u32 {
+        return ERR_ARGS;
+    }
+    if !addressable(in_ptr, elems, 8)
         || !addressable(counts_ptr, count, 4)
         || !addressable(out_ptr, out_cap as usize, 8)
     {
         return ERR_ARGS;
     }
     // SAFETY: ver `valle_tessellate_arcs`.
-    let input = unsafe { f64s(in_ptr, count * STRIDE) };
+    let input = unsafe { f64s(in_ptr, elems) };
     let counts = unsafe { u32s_mut(counts_ptr, count) };
     let out = unsafe { f64s_mut(out_ptr, out_cap as usize) };
 
@@ -490,11 +518,18 @@ pub extern "C" fn valle_tessellate_spline(
     if ctrl_count < 2 || steps < 1 {
         return 0;
     }
-    if !addressable(ctrl_ptr, ctrl_count * 2, 8) || !addressable(out_ptr, out_cap as usize, 8) {
+    // Ver `valle_tessellate_arcs`: multiplicación comprobada y techo de `i32`.
+    let Some(ctrl_elems) = ctrl_count.checked_mul(2) else {
+        return ERR_ARGS;
+    };
+    if out_cap > i32::MAX as u32 {
+        return ERR_ARGS;
+    }
+    if !addressable(ctrl_ptr, ctrl_elems, 8) || !addressable(out_ptr, out_cap as usize, 8) {
         return ERR_ARGS;
     }
     // SAFETY: regiones comprobadas y vivas; ver `valle_tessellate_arcs`.
-    let control = unsafe { f64s(ctrl_ptr, ctrl_count * 2) };
+    let control = unsafe { f64s(ctrl_ptr, ctrl_elems) };
 
     // `Math.max(1, Math.min(Math.floor(degree), controlPoints.length - 1))`.
     let floored = degree.floor();
@@ -540,8 +575,13 @@ pub extern "C" fn valle_tessellate_spline(
         }
     };
 
-    let points = steps as usize + 1;
-    if (out_cap as usize) < points * 2 {
+    let Some(points) = (steps as usize).checked_add(1) else {
+        return ERR_CAPACITY;
+    };
+    let Some(coords) = points.checked_mul(2) else {
+        return ERR_CAPACITY;
+    };
+    if (out_cap as usize) < coords {
         return ERR_CAPACITY;
     }
     // SAFETY: capacidad ya comprobada contra lo que se va a escribir.
@@ -559,5 +599,73 @@ pub extern "C" fn valle_tessellate_spline(
         out[i * 2] = x;
         out[i * 2 + 1] = y;
     }
-    (points * 2) as i32
+    coords as i32
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// El bucle histórico, para comprobar la equivalencia en el rango sano.
+    fn sweep_con_bucle(start_deg: f64, end_deg: f64) -> f64 {
+        let mut sweep = end_deg - start_deg;
+        while sweep <= 0.0 {
+            sweep += 360.0;
+        }
+        sweep
+    }
+
+    #[test]
+    fn barrido_equivale_al_bucle_en_el_rango_sano() {
+        for (start, end) in [
+            (0.0, 90.0),
+            (315.0, 45.0),
+            (0.0, 360.0),
+            (0.0, 0.0),
+            (90.0, 90.0),
+            (360.0, 0.0),
+            (720.0, 0.0),
+            (180.0, -180.5),
+            (0.25, -719.5),
+            (0.0, 720.0),
+            (-45.0, 400.0),
+        ] {
+            assert_eq!(
+                normalized_sweep(start, end),
+                sweep_con_bucle(start, end),
+                "equivalencia para ({start}, {end})"
+            );
+        }
+    }
+
+    #[test]
+    fn barrido_hostil_termina_acotado() {
+        let negativo = normalized_sweep(0.0, -1e300);
+        assert!((0.0..=360.0).contains(&negativo) && negativo > 0.0);
+        assert_eq!(normalized_sweep(0.0, 1e300), MAX_SWEEP_DEGREES);
+        assert!(normalized_sweep(0.0, f64::NAN).is_nan());
+        assert!(normalized_sweep(0.0, f64::INFINITY).is_nan());
+        assert!(normalized_sweep(0.0, f64::NEG_INFINITY).is_nan());
+    }
+
+    #[test]
+    fn segmentos_rechazan_cuentas_que_no_caben() {
+        assert_eq!(sweep_segments(90.0, 24), Some(6));
+        assert_eq!(sweep_segments(360.0, 24), Some(24));
+        assert_eq!(sweep_segments(1.0, 24), Some(2));
+        assert_eq!(sweep_segments(f64::NAN, 24), None);
+        assert_eq!(sweep_segments(usize::MAX as f64 * 720.0, u32::MAX), None);
+    }
+
+    #[test]
+    fn arco_hostil_no_escribe_de_mas() {
+        let mut out = [0.0_f64; 64];
+        // NaN → cero puntos, conducta compartida con el TypeScript.
+        assert_eq!(arc_into(0.0, 0.0, 10.0, 0.0, f64::NAN, 24, &mut out), Some(0));
+        // -1e300 → termina y produce un arco acotado.
+        let puntos = arc_into(0.0, 0.0, 10.0, 0.0, -1e300, 24, &mut out).unwrap();
+        assert!((3..=25).contains(&puntos), "puntos = {puntos}");
+        // 1e300 → el tope pide más capacidad de la ofrecida: None, nada escrito.
+        assert_eq!(arc_into(0.0, 0.0, 10.0, 0.0, 1e300, 24, &mut out), None);
+    }
 }
