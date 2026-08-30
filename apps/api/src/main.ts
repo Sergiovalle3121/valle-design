@@ -136,10 +136,7 @@ async function bootstrap() {
       corsLogger.warn(
         `Origen rechazado: ${sanitizeOrigin(normalizedOrigin)}. Esperado uno de: ${JSON.stringify(originsToValidate)}`,
       );
-      return callback(
-        new Error('Origin not allowed by CORS'),
-        false,
-      );
+      return callback(new Error('Origin not allowed by CORS'), false);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

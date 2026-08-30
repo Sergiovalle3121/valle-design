@@ -1,5 +1,5 @@
 import { hash, verify } from '@node-rs/argon2';
-import { createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
+import { createHash, createHmac, randomBytes } from 'crypto';
 
 export const MIN_PASSWORD_LENGTH = 12;
 export const MAX_PASSWORD_LENGTH = 128;
@@ -69,19 +69,10 @@ function decodePhcBase64(value: string): Buffer | null {
   return canonical === value ? decoded : null;
 }
 
-export function constantTimeEqual(left: unknown, right: unknown): boolean {
-  const leftIsString = typeof left === 'string';
-  const rightIsString = typeof right === 'string';
-  const leftDigest = createHash('sha256')
-    .update(leftIsString ? left : '')
-    .digest();
-  const rightDigest = createHash('sha256')
-    .update(rightIsString ? right : '')
-    .digest();
-
-  const equal = timingSafeEqual(leftDigest, rightDigest);
-  return leftIsString && rightIsString && equal;
-}
+// La implementación canónica vive en common/security: era la más fuerte de
+// las seis copias que llegó a haber y ahora es la única. Se re-exporta para
+// que los consumidores de identidad conserven su import.
+export { constantTimeEqual } from '../../common/security/constant-time';
 
 export function hashOpaqueToken(token: string): string {
   return createHash('sha256').update(token).digest('hex');

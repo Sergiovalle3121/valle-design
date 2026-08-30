@@ -1,10 +1,10 @@
-import { timingSafeEqual } from 'node:crypto';
 import { Controller, Get, NotFoundException, Query, Req } from '@nestjs/common';
 import { IsEmail, IsOptional, IsUUID, MaxLength } from 'class-validator';
 import type { Request } from 'express';
 import { IsNull } from 'typeorm';
 import { DataSource } from 'typeorm';
 import { Public } from '../../auth/decorators/public.decorator';
+import { assertHarnessAccess } from './harness-access';
 import { EmailOutbox } from '../entities/commercial.entities';
 
 class EmailHarnessQuery {
@@ -28,7 +28,7 @@ export class EmailOutboxController {
 
   @Get()
   async latest(@Query() query: EmailHarnessQuery, @Req() request: Request) {
-    this.assertHarnessAccess(request);
+    assertHarnessAccess(request);
     const recipient = query.recipient.trim().toLowerCase();
     const row = await this.db.getRepository(EmailOutbox).findOne({
       where: {
@@ -46,23 +46,4 @@ export class EmailOutboxController {
     if (!row) throw new NotFoundException();
     return row;
   }
-
-  private assertHarnessAccess(request: Request): void {
-    const expected = process.env.IDENTITY_TEST_HARNESS_KEY ?? '';
-    const supplied = request.header('x-valle-test-harness') ?? '';
-    if (
-      process.env.NODE_ENV === 'production' ||
-      process.env.IDENTITY_TEST_HARNESS !== 'true' ||
-      expected.length < 32 ||
-      !constantTimeEqual(expected, supplied)
-    ) {
-      throw new NotFoundException();
-    }
-  }
-}
-
-function constantTimeEqual(expected: string, supplied: string): boolean {
-  const left = Buffer.from(expected);
-  const right = Buffer.from(supplied);
-  return left.length === right.length && timingSafeEqual(left, right);
 }
