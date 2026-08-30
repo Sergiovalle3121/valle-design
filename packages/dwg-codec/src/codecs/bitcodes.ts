@@ -201,18 +201,33 @@ export class DwgBitReader {
    * 01 parchea los 4 bytes BAJOS de su representación little-endian; 10
    * parchea 6; 11 trae el RD completo.
    *
-   * El parcheo por los bytes bajos (la cola de la mantisa) es la lectura
-   * simétrica que usará también el escritor de la fase C; el round-trip de
-   * laboratorio la mantiene honesta y el corpus real la validará después.
+   * En la forma 10 el ORDEN no es secuencial: los 2 primeros bytes del flujo
+   * van a las posiciones 4-5 y los 4 siguientes a las posiciones 0-3 (ODS
+   * §2.2). Lo confirmó el corpus real, no solo la especificación: en
+   * 19-dim-radial-diameter.dwg (bundle entity-wave-2-ac1015) las dos únicas
+   * DD 0b10 del corpus producen con este orden líneas de flecha de longitud
+   * EXACTA 3.0 (141−138 y 71.578…−68.578…, misma cola de mantisa), y con el
+   * orden secuencial que había antes producían 2.0000000012 y 0.83… — basura
+   * flotante silenciosa. Ver VALLE-CORPUS-INTAKE-A60EBE2 en
+   * SOURCE_REGISTER.json. El writer sólo emite 00/11, así que ningún
+   * round-trip propio ejercitaba este camino: por eso el test de esta función
+   * usa bytes del corpus, no la aritmética de la implementación.
    */
   readDD(defaultValue: number): number {
     const flag = this.readBB();
     if (flag === 0) return defaultValue;
     if (flag === 3) return this.readRD();
-    const patchBytes = flag === 1 ? 4 : 6;
     FLOAT_SCRATCH.setFloat64(0, defaultValue, true);
-    for (let index = 0; index < patchBytes; index += 1) {
-      FLOAT_SCRATCH.setUint8(index, this.readRC());
+    if (flag === 1) {
+      for (let index = 0; index < 4; index += 1) {
+        FLOAT_SCRATCH.setUint8(index, this.readRC());
+      }
+    } else {
+      FLOAT_SCRATCH.setUint8(4, this.readRC());
+      FLOAT_SCRATCH.setUint8(5, this.readRC());
+      for (let index = 0; index < 4; index += 1) {
+        FLOAT_SCRATCH.setUint8(index, this.readRC());
+      }
     }
     return FLOAT_SCRATCH.getFloat64(0, true);
   }
