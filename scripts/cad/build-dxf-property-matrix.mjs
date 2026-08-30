@@ -37,10 +37,17 @@ try {
   process.exit(1);
 }
 
+// La sonda importa el código FUENTE de apps/web, cuyo tsconfig mapea
+// @valle-design/contracts a packages/contracts/src. Sin ese mapa, tsx cae al
+// export map del paquete (dist/index.js) y el gate se pone rojo en cualquier
+// árbol donde contracts no esté compilado — CI corre check:cad ANTES del
+// build. Con el tsconfig de la web la resolución es una sola y determinista:
+// siempre el fuente.
 const stdout = execFileSync(process.execPath, [tsx, probe], {
   cwd: root,
   encoding: "utf8",
   maxBuffer: 64 * 1024 * 1024,
+  env: { ...process.env, TSX_TSCONFIG_PATH: path.join(root, "apps/web/tsconfig.json") },
 });
 const generated = `${JSON.stringify(JSON.parse(stdout), null, 2)}\n`;
 
