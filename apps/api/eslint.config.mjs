@@ -26,7 +26,11 @@ export default tseslint.config(
   },
   {
     rules: {
-      '@typescript-eslint/no-explicit-any': 'off',
+      // De 'off' a 'error' (campaña 2026-08-30): con strict+noImplicitAny
+      // activos quedaba UN solo any explícito en todo el API (el d.ts local
+      // de pg, con su supresión razonada). Cero es un trinquete mejor que
+      // un presupuesto.
+      '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-floating-promises': 'warn',
       '@typescript-eslint/no-unsafe-argument': 'warn',
       '@typescript-eslint/no-unsafe-assignment': 'warn',

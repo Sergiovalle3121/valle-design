@@ -53,7 +53,8 @@ export type PersistedCadDocument = Record<string, unknown>;
 // al número en el contrato.
 export const CAD_DOCUMENT_MAX_SCHEMA = CAD_DOCUMENT_LIMITS.maxSchema;
 export const CAD_DOCUMENT_MAX_INLINE_BYTES = CAD_DOCUMENT_LIMITS.maxInlineBytes;
-export const CAD_DOCUMENT_MAX_ARCHIVE_BYTES = CAD_DOCUMENT_LIMITS.maxArchiveBytes;
+export const CAD_DOCUMENT_MAX_ARCHIVE_BYTES =
+  CAD_DOCUMENT_LIMITS.maxArchiveBytes;
 const MAX_ENTITIES = CAD_DOCUMENT_LIMITS.maxEntities;
 const MAX_BLOCKS = CAD_DOCUMENT_LIMITS.maxBlocks;
 const MAX_CONSTRAINTS = CAD_DOCUMENT_LIMITS.maxConstraints;

@@ -195,15 +195,16 @@ export class CfdiIssuanceService {
     // Pool del mes anterior aún sin cubrir. Sólo MXN: una global multi-moneda
     // no existe en el SAT; un cobro pooled en otra divisa queda para el
     // operador (y este log lo dice).
-    const pool = await this.database.query(
-      `SELECT r."id", r."amount_cents"
+    const pool: Array<{ id: string; amount_cents: string | number }> =
+      await this.database.query(
+        `SELECT r."id", r."amount_cents"
          FROM ${this.table(CfdiReceipt)} r
          JOIN ${this.table(Invoice)} i ON i."id" = r."invoice_id"
         WHERE r."status" = 'pooled' AND r."global_receipt_id" IS NULL
           AND r."currency" = 'MXN'
           AND i."issued_at" >= $1 AND i."issued_at" < $2`,
-      [periodStart, periodEnd],
-    );
+        [periodStart, periodEnd],
+      );
     if (pool.length === 0) return false;
 
     const totalCents = pool.reduce(
