@@ -88,15 +88,18 @@ export class PostgresSubscriptionProvider implements SubscriptionProvider {
 export class PostgresEntitlementService implements EntitlementService {
   constructor(private readonly db: DataSource) {}
 
-  async hasEntitlement(code: string, context: EntitlementContext = {}) {
-    if (
-      !context.organizationId ||
-      context.organizationId !== context.tenantId
-    ) {
-      return false;
-    }
-    const now = context.now ?? new Date();
-    const entitled = await this.db
+  /**
+   * La base COMPARTIDA de las dos preguntas sobre un entitlement: los joins a
+   * PlanCatalog/PlanEntitlement (el plan tiene que estar activo Y seguir
+   * publicando la capacidad) y el scope organización+tenant. Estos joins SON
+   * la comprobación de licencia — viven en un solo sitio para que
+   * endurecerlos endurezca a `hasEntitlement` y a `lapsedEntitlement` a la
+   * vez; antes eran dos copias de cuarenta líneas y el razonamiento de
+   * seguridad sólo acompañaba a una. La VIGENCIA (o su inversa) es lo único
+   * que cada llamador añade.
+   */
+  private entitlementBaseQuery(code: string, context: EntitlementContext) {
+    return this.db
       .getRepository(Subscription)
       .createQueryBuilder('subscription')
       .innerJoin(
@@ -116,7 +119,18 @@ export class PostgresEntitlementService implements EntitlementService {
       })
       .andWhere('subscription.tenantId = :tenantId', {
         tenantId: context.tenantId,
-      })
+      });
+  }
+
+  async hasEntitlement(code: string, context: EntitlementContext = {}) {
+    if (
+      !context.organizationId ||
+      context.organizationId !== context.tenantId
+    ) {
+      return false;
+    }
+    const now = context.now ?? new Date();
+    const entitled = await this.entitlementBaseQuery(code, context)
       // `active` no basta por sí solo (P0-B, campaña de seguridad
       // 2026-08-23): el estado dice que hubo un ciclo de cobro, no que el
       // período YA PAGADO siga vigente — sin comparar `currentPeriodEnd`
@@ -167,27 +181,7 @@ export class PostgresEntitlementService implements EntitlementService {
       return null;
     }
     const now = context.now ?? new Date();
-    const row = await this.db
-      .getRepository(Subscription)
-      .createQueryBuilder('subscription')
-      .innerJoin(
-        PlanCatalog,
-        'plan',
-        'plan.code = subscription.planCode AND plan.active = :planActive',
-        { planActive: true },
-      )
-      .innerJoin(
-        PlanEntitlement,
-        'entitlement',
-        'entitlement.planCode = plan.code AND entitlement.entitlementCode = :code',
-        { code },
-      )
-      .where('subscription.organizationId = :organizationId', {
-        organizationId: context.organizationId,
-      })
-      .andWhere('subscription.tenantId = :tenantId', {
-        tenantId: context.tenantId,
-      })
+    const row = await this.entitlementBaseQuery(code, context)
       .andWhere(
         '((subscription.trialEndsAt IS NOT NULL AND subscription.trialEndsAt <= :now) OR (subscription.currentPeriodEnd IS NOT NULL AND subscription.currentPeriodEnd <= :now))',
         { now },

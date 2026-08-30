@@ -15,10 +15,24 @@ import { TenantContextService } from './tenant-context.service';
 
 /**
  * A TypeORM repository that AUTOMATICALLY injects `WHERE tenant_id = <ctx tenant>`
- * into every read (`find` / `findOne` / `findBy` / `findOneBy` / `count` /
- * `findAndCount` / `exist`), reading the active tenant from TenantContextService.
+ * into every read it OVERRIDES (`find` / `findOne` / `findBy` / `findOneBy` /
+ * `count` / `findAndCount` / `exists`) and stamps the tenant on `create`,
+ * reading the active tenant from TenantContextService.
  *
- * Isolation no longer depends on each service remembering to filter. Notes:
+ * EL CONTRATO HONESTO — qué cubre y qué NO cubre:
+ * - Cubiertos: los siete métodos de lectura de arriba y `create`.
+ * - NO cubiertos (delegan a Repository y salen SIN filtro de tenant):
+ *   `findOneOrFail`, `findOneByOrFail`, `existsBy`, `countBy`,
+ *   `findAndCountBy`, `update`, `delete`, `softDelete`, `restore`,
+ *   `increment`, `decrement`, `sum`, `average`, `maximum`, `minimum` y todo
+ *   `createQueryBuilder`. Quien use uno de ésos añade el predicado de tenant
+ *   A MANO en el `where` (así lo hacen hoy los tres call sites que los usan)
+ *   — no existe ningún helper mágico que lo haga por ti, y esta cabecera
+ *   llegó a prometer dos (`withTenantScope()`, `applyScope()`) que nunca
+ *   existieron en el repositorio. Extender la cobertura a los métodos de
+ *   mutación es trabajo pendiente declarado, no un hecho.
+ *
+ * Notes:
  * - The tenant comes from the verified first-party session and membership
  *   (via TenantInterceptor → context), never the
  *   request body.
@@ -28,10 +42,8 @@ import { TenantContextService } from './tenant-context.service';
  * - STRICT (fail-closed) mode, opt-in per provider (VD-TEN-001): when the
  *   entity HAS a tenant column and the context has NO tenant, reads are scoped
  *   to the system lane (`tenant IS NULL`) instead of running unscoped — a
- *   missing context can never read another tenant's rows. Mirrors the
- *   `applyScope()` QueryBuilder convention already tested in
- *   tenant-isolation.spec.ts. Entities without tenant column are unaffected.
- * - QueryBuilder reads bypass these methods; for those use `withTenantScope()`.
+ *   missing context can never read another tenant's rows. Entities without
+ *   tenant column are unaffected.
  */
 export interface TenantScopeOptions {
   /** Fail closed cuando falta tenant en contexto (lecturas → lane sistema). */
@@ -133,8 +145,11 @@ export class TenantScopedRepository<
     const prop = this.tenantProp();
     if (!tenant || !prop) return entityLike;
     const rec = entityLike as Record<string, unknown>;
-    if (rec[prop] === undefined || rec[prop] === null) rec[prop] = tenant;
-    return entityLike;
+    if (rec[prop] !== undefined && rec[prop] !== null) return entityLike;
+    // Copia, no mutación: el objeto es del llamante y estampar sobre él era
+    // un efecto lateral observable (un DTO reutilizado quedaba con el tenant
+    // de la primera llamada pegado).
+    return { ...rec, [prop]: tenant } as E;
   }
 
   override create(): T;
