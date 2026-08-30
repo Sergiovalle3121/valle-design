@@ -3953,105 +3953,18 @@ export default function Layout3DEditor({
         : { w, h, g };
     });
   }, []);
-  const undo = useCallback(() => {
-    if (drawingReadOnlyRef.current) {
-      notifyReadOnly();
-      return;
-    }
-    const history = canonicalHistoryRef.current;
-    if (!history || history.depths().undo === 0) return;
-    const document = history.undo(snapshotDocument());
-    loadedCadDocumentRef.current = document;
-    setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
-    syncCadLayerState(document);
-    setCadXrefs(
-      document.externalReferences.map((reference) => ({ ...reference })),
-    );
-    setPublicationRecords([...document.publications]);
-    setActivePaperSpaceId((current) =>
-      document.paperSpaces.some((space) => space.id === current)
-        ? current
-        : (document.paperSpaces[0]?.id ?? null),
-    );
-    setActivePaperViewportId((current) =>
-      document.paperSpaces.some((space) =>
-        space.viewports?.some((viewport) => viewport.id === current),
-      )
-        ? current
-        : (document.paperSpaces[0]?.viewports?.[0]?.id ?? null),
-    );
-    setLayoutPreviewSheet(null);
-    setNativeEntities(
-      document.entities.filter((entity): entity is CadNativeEntity =>
-        CAD_ENTITY_REGISTRY.supports(entity),
-      ),
-    );
-    setNativeDocumentRevision((value) => value + 1);
-    applyDocumentFootprint(document);
-    restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
-    setHist(history.depths());
-  }, [
-    setActivePaperSpaceId, setActivePaperViewportId, setLayoutPreviewSheet, setPaperSpaces,
-    applyDocumentFootprint,
-    notifyReadOnly,
-    restore,
-    snapshotDocument,
-    syncCadLayerState,
-  ]);
-  const redo = useCallback(() => {
-    if (drawingReadOnlyRef.current) {
-      notifyReadOnly();
-      return;
-    }
-    const history = canonicalHistoryRef.current;
-    if (!history || history.depths().redo === 0) return;
-    const document = history.redo(snapshotDocument());
-    loadedCadDocumentRef.current = document;
-    setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
-    syncCadLayerState(document);
-    setCadXrefs(
-      document.externalReferences.map((reference) => ({ ...reference })),
-    );
-    setPublicationRecords([...document.publications]);
-    setActivePaperSpaceId((current) =>
-      document.paperSpaces.some((space) => space.id === current)
-        ? current
-        : (document.paperSpaces[0]?.id ?? null),
-    );
-    setActivePaperViewportId((current) =>
-      document.paperSpaces.some((space) =>
-        space.viewports?.some((viewport) => viewport.id === current),
-      )
-        ? current
-        : (document.paperSpaces[0]?.viewports?.[0]?.id ?? null),
-    );
-    setLayoutPreviewSheet(null);
-    setNativeEntities(
-      document.entities.filter((entity): entity is CadNativeEntity =>
-        CAD_ENTITY_REGISTRY.supports(entity),
-      ),
-    );
-    setNativeDocumentRevision((value) => value + 1);
-    applyDocumentFootprint(document);
-    restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
-    setHist(history.depths());
-  }, [
-    setActivePaperSpaceId, setActivePaperViewportId, setLayoutPreviewSheet, setPaperSpaces,
-    applyDocumentFootprint,
-    notifyReadOnly,
-    restore,
-    snapshotDocument,
-    syncCadLayerState,
-  ]);
-
-  const applyCollaborationDocument = useCallback(
-    (next: CadDocument, label: string) => {
-      if (drawingReadOnly) {
-        notifyReadOnly();
-        return;
-      }
-      pushHistory();
-      const document = commitChange(next, label);
+  /**
+   * Sincroniza TODOS los estados derivados del documento canónico tras
+   * reemplazarlo entero (deshacer, rehacer, fusión de colaboración). La lista
+   * vive en un solo sitio a propósito: deshacer y rehacer eran dos copias de
+   * cuarenta y cinco líneas, y un estado nuevo añadido a una sola de las dos
+   * habría hecho divergir las rutas en silencio. `resetPaperContext` repone
+   * hoja y viewport activos cuando el documento pudo cambiar de espacios de
+   * papel (deshacer/rehacer); la fusión de colaboración conserva el contexto
+   * actual, como siempre hizo.
+   */
+  const applyHistoryDocument = useCallback(
+    (document: CadDocument, resetPaperContext: boolean) => {
       loadedCadDocumentRef.current = document;
       setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
       syncCadLayerState(document);
@@ -4059,6 +3972,21 @@ export default function Layout3DEditor({
         document.externalReferences.map((reference) => ({ ...reference })),
       );
       setPublicationRecords([...document.publications]);
+      if (resetPaperContext) {
+        setActivePaperSpaceId((current) =>
+          document.paperSpaces.some((space) => space.id === current)
+            ? current
+            : (document.paperSpaces[0]?.id ?? null),
+        );
+        setActivePaperViewportId((current) =>
+          document.paperSpaces.some((space) =>
+            space.viewports?.some((viewport) => viewport.id === current),
+          )
+            ? current
+            : (document.paperSpaces[0]?.viewports?.[0]?.id ?? null),
+        );
+        setLayoutPreviewSheet(null);
+      }
       setNativeEntities(
         document.entities.filter((entity): entity is CadNativeEntity =>
           CAD_ENTITY_REGISTRY.supports(entity),
@@ -4067,16 +3995,50 @@ export default function Layout3DEditor({
       setNativeDocumentRevision((value) => value + 1);
       applyDocumentFootprint(document);
       restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
+    },
+    [
+      setActivePaperSpaceId, setActivePaperViewportId, setLayoutPreviewSheet, setPaperSpaces,
+      applyDocumentFootprint,
+      restore,
+      syncCadLayerState,
+    ],
+  );
+  const undo = useCallback(() => {
+    if (drawingReadOnlyRef.current) {
+      notifyReadOnly();
+      return;
+    }
+    const history = canonicalHistoryRef.current;
+    if (!history || history.depths().undo === 0) return;
+    applyHistoryDocument(history.undo(snapshotDocument()), true);
+    setHist(history.depths());
+  }, [applyHistoryDocument, notifyReadOnly, snapshotDocument]);
+  const redo = useCallback(() => {
+    if (drawingReadOnlyRef.current) {
+      notifyReadOnly();
+      return;
+    }
+    const history = canonicalHistoryRef.current;
+    if (!history || history.depths().redo === 0) return;
+    applyHistoryDocument(history.redo(snapshotDocument()), true);
+    setHist(history.depths());
+  }, [applyHistoryDocument, notifyReadOnly, snapshotDocument]);
+
+  const applyCollaborationDocument = useCallback(
+    (next: CadDocument, label: string) => {
+      if (drawingReadOnly) {
+        notifyReadOnly();
+        return;
+      }
+      pushHistory();
+      applyHistoryDocument(commitChange(next, label), false);
       toast.success(label, "Compare / Merge");
     },
     [
-      setPaperSpaces,
-      applyDocumentFootprint,
+      applyHistoryDocument,
       drawingReadOnly,
       notifyReadOnly,
       pushHistory,
-      restore,
-      syncCadLayerState,
       toast,
     ],
   );
@@ -6282,11 +6244,14 @@ export default function Layout3DEditor({
         if (!renderPipelineHostRef.current) syncNativeScene();
       }, 80);
     };
-    controls.addEventListener("change", () => {
+    // Con nombre para que el removeEventListener de la limpieza quite ESTA
+    // función: quitar otra es un no-op silencioso que deja el listener vivo.
+    const onControlsChange = () => {
       syncViewFromOrbit();
       queueNativeViewportSync();
       lastCamRef.current = snapshotCadCamera(camera.position, controls.target);
-    });
+    };
+    controls.addEventListener("change", onControlsChange);
     queueNativeViewportSync();
 
     // ---- drag a station block or an asset on the floor ----
@@ -7720,7 +7685,7 @@ export default function Layout3DEditor({
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("keydown", walkKd);
       window.removeEventListener("keyup", walkKu);
-      controls.removeEventListener("change", queueNativeViewportSync);
+      controls.removeEventListener("change", onControlsChange);
       controls.dispose();
       disposeObject(scene);
       nativeSceneSyncRef.current?.clear({ remove: () => {} });
@@ -13942,9 +13907,13 @@ export default function Layout3DEditor({
   };
 
   // ---- keyboard shortcuts ----
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
+  // El manejador se define en el render (captura el estado ACTUAL: selección,
+  // paso, herramientas) y el efecto de suscripción lee siempre la última
+  // versión a través del ref. La forma anterior —listener suscrito con deps
+  // [open, data] y exhaustive-deps silenciado— dejaba los atajos operando
+  // sobre la clausura vieja: un cambio de selección que no tocara `data` no
+  // re-suscribía y la tecla actuaba sobre la selección anterior.
+  const handleEditorKeyDown = (e: KeyboardEvent) => {
       const tgt = e.target as HTMLElement | null;
       if (
         tgt &&
@@ -14214,11 +14183,17 @@ export default function Layout3DEditor({
           transformNativeSelection({ translation: { x: 0, y: step } });
         else nudgeSelected(0, step);
       }
-    };
+  };
+  const handleEditorKeyDownRef = useRef(handleEditorKeyDown);
+  useEffect(() => {
+    handleEditorKeyDownRef.current = handleEditorKeyDown;
+  });
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => handleEditorKeyDownRef.current(e);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, data]);
+  }, [open]);
 
   // Memoizado por documento, no recalculado por render: reconstruir el
   // universo entero costaba ~medio minuto de paleta a 100.000 entidades.
@@ -17071,6 +17046,8 @@ export default function Layout3DEditor({
               activeTool={tool}
               readOnly={drawingReadOnly}
               isReadOnlyAllowed={(id) => READ_ONLY_TOOLBAR_ACTION_IDS.has(id)}
+              canUndo={hist.undo > 0}
+              canRedo={hist.redo > 0}
               onRun={runToolbarAction}
             />
           </div>

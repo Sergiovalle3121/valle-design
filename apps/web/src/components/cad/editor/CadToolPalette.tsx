@@ -76,13 +76,24 @@ export function CadToolPalette({
   activeTool,
   readOnly,
   isReadOnlyAllowed,
+  canUndo,
+  canRedo,
   onRun,
 }: {
   activeTool: string;
   readOnly: boolean;
   isReadOnlyAllowed: (id: CadToolbarActionId) => boolean;
+  /**
+   * Deshacer y rehacer se deshabilitan sin historia, igual que sus gemelos de
+   * la barra superior: un botón habilitado que no hace nada es un cable suelto
+   * (lo caza `e2e/real/cables-sueltos.spec.ts`); uno deshabilitado es honesto.
+   */
+  canUndo: boolean;
+  canRedo: boolean;
   onRun: (id: CadToolbarActionId) => void;
 }) {
+  const unavailable = (id: CadToolbarActionId): boolean =>
+    (id === "undo" && !canUndo) || (id === "redo" && !canRedo);
   return (
     <div
       data-testid="cad-toolbar"
@@ -94,7 +105,10 @@ export function CadToolPalette({
             key={action.id}
             action={action}
             active={activeTool === action.id}
-            disabled={readOnly && !isReadOnlyAllowed(action.id)}
+            disabled={
+              (readOnly && !isReadOnlyAllowed(action.id)) ||
+              unavailable(action.id)
+            }
             readOnlyAllowed={isReadOnlyAllowed(action.id)}
             onRun={onRun}
           />
