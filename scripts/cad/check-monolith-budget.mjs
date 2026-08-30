@@ -82,9 +82,10 @@ function trackedFiles() {
       .filter((file) => !file.split("/").some((segment) => ignoredDirectorySet.has(segment)))
       // Un archivo borrado pero aún indexado no se puede medir.
       .filter((file) => fs.existsSync(path.join(root, file)));
-  } catch {
+  } catch (error) {
     console.warn(
-      "Aviso: git no disponible; se recorre el disco y el resultado puede incluir archivos generados.",
+      `Aviso: git ls-files falló (${error?.message ?? error}); se recorre el ` +
+        "disco y el resultado puede incluir archivos generados.",
     );
     return walk(root);
   }
