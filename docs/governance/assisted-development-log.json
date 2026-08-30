@@ -1015,6 +1015,81 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CAMPANA-OPTIMIZACION-20260830",
+      "date": "2026-08-30",
+      "initiative": "Campaña de optimización y pulido integral: corrección de bugs P0 (barridos de arco no acotados, readDD forma 0b10, listeners y deps obsoletas del editor), endurecimiento de seguridad (autorización por handler con gate propio, constant-time canónico, CORS saneado, compose y Dockerfiles), una sola fuente para los límites de documento, extracción del intérprete de teclado del monolito con spec, gates nuevos en la cadena local, documentación veraz y arreglo del CI rojo de main (e2e Firefox).",
+      "branch": "claude/valle-design-optimization-bkvqio",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate encargó el análisis a profundidad y la corrección/optimización de ambos repositorios, eligió el alcance (extracción moderada del monolito; dependencias solo por seguridad) y autorizó expresamente en la sesión ejecutar el plan, fusionar los PR resultantes y dejar el CI en verde.",
+      "firstPartyInputs": [
+        "El código y los gates propios del monorepo (cadenas check:cad/check:dwg y sus ~40 scripts).",
+        "El corpus propio de valle-design-dwg-conformance (57 DWG con oráculos DXF) como espejo local para verificación empírica — en particular el censo del bitcode DD forma 0b10 sobre 19-dim-radial-diameter.dwg.",
+        "Los informes, bitácoras y decisiones de campañas anteriores en docs/execution/ y docs/governance/.",
+        "SOURCE_REGISTER.json del repositorio de conformidad (hechos clean-room registrados antes de tocar el códec)."
+      ],
+      "externalSources": [
+        {
+          "location": "https://github.com/actions/download-artifact/commit/d3f86a106a0bac45b974a628896c90dbdf5c8093",
+          "terms": "MIT",
+          "fact": "SHA del tag v4 de actions/download-artifact, verificado con git ls-remote el 2026-08-30, usado para pinear ci.yml"
+        },
+        {
+          "location": "https://github.com/docker/setup-buildx-action/commit/8d2750c68a42422c14e847fe6c8ac0403b4cbd6f",
+          "terms": "Apache-2.0",
+          "fact": "SHA del tag v3 de docker/setup-buildx-action, verificado con git ls-remote el 2026-08-30, usado para pinear release.yml"
+        },
+        {
+          "location": "https://github.com/docker/login-action/commit/c94ce9fb468520275223c153574b00df6fe4bcc9",
+          "terms": "Apache-2.0",
+          "fact": "SHA del tag v3 de docker/login-action, verificado con git ls-remote el 2026-08-30, usado para pinear release.yml"
+        },
+        {
+          "location": "https://github.com/docker/build-push-action/commit/10e90e3645eae34f1e60eeb005ba3a3d33f178e8",
+          "terms": "Apache-2.0",
+          "fact": "SHA del tag v6 de docker/build-push-action, verificado con git ls-remote el 2026-08-30, usado para pinear release.yml"
+        },
+        {
+          "location": "GHSA/npm advisory CVE-2026-59870 (js-yaml)",
+          "terms": "aviso público de seguridad",
+          "fact": "Motivo de la única actualización de dependencias de la campaña: @redocly/openapi-core 1.34.18→1.34.19 arrastra js-yaml 4.3.0→4.3.1; producción queda con 0 vulnerabilidades conocidas"
+        },
+        {
+          "location": "https://playwright.dev/docs/emulation#ismobile",
+          "terms": "documentación pública (Apache-2.0)",
+          "fact": "isMobile no está soportado en Firefox — hecho que explicaba el CI rojo de main y motiva la partición emulación-completa/aproximación-viewport de movil.spec"
+        },
+        {
+          "location": "Open Design Specification for .dwg files §2.2 (bitcode DD)",
+          "terms": "especificación pública de Open Design Alliance",
+          "fact": "Orden de parcheo del DD forma 0b10 (2 bytes a posiciones 4-5, 4 bytes a 0-3), confirmado empíricamente contra el corpus propio y registrado como hecho clean-room en SOURCE_REGISTER.json antes de tocar bitcodes.ts"
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna. Los arreglos se escribieron sobre el código propio del repositorio; de fuentes externas solo se tomaron hechos públicos (SHAs de tags, un aviso de seguridad, una limitación documentada de Playwright y el orden de bytes de la ODS ya registrado clean-room en el repositorio de conformidad).",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/arc-sweep.ts y los siete sitios del patrón de barrido (curve-tessellate, curve-kernel wasm, regions, professional-blocks, adaptadores, interop DXF) + crates/valle-cad-kernel (mismas reglas, overflow-checks y primeros tests del crate)",
+        "packages/dwg-codec (readDD forma 0b10 con bytes reales del corpus, FLOAT_SCRATCH a instancia, readDwg normaliza errores, agregadores dinámicos)",
+        "apps/api (autorización por handler + gate check:authz, constant-time canónico, CORS con Logger, strict en tsconfig, límites derivados del contrato)",
+        "packages/contracts (CAD_DOCUMENT_LIMITS única fuente, Tagged nominal, strict) + OpenAPI/SDK regenerados (maxArchiveBytes 32 MiB)",
+        "apps/web/src/lib/cad/editor-keyboard.ts (intérprete puro extraído del monolito con spec de 51 comprobaciones) y Layout3DEditor adelgazado (applyHistoryDocument único, latest-ref, plantillas por import dinámico)",
+        "e2e reales (movil.spec particionado por soporte de isMobile; cables-sueltos con sexta señal y firma de valores)",
+        "infra y CI local (docker-compose a 127.0.0.1, Dockerfiles por digest, dependabot para actions y docker, validate-dockerfiles con invariante base-digest)",
+        "documentación técnica corregida para decir la verdad (ARCHITECTURE, README, .env.example, deps-majors-bloqueados, evidencia huérfana archivada)",
+        ".github/workflows (permissions mínimos, pins por SHA, paths con re-inclusión de docs/cad/evidence/**)"
+      ],
+      "fixtures": "Ninguno nuevo en este repositorio. En valle-design-dwg-conformance la campaña solo tocó scripts, specs y documentación: los siete bundles admitidos permanecen byte a byte intactos (verificado con diff -r sobre los 25 DXF regenerados y con su gate).",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Autorización expresa del titular en la sesión del 2026-08-30 para ejecutar el plan aprobado y fusionar. Evidencia final: el PR de esta rama revisado y fusionado sobre el SHA candidato con los seis gates y el CI en verde."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
