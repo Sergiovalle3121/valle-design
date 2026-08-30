@@ -26,6 +26,7 @@ import {
 // separado garantizaría que el dibujo y lo que se puede seleccionar acabaran
 // diciendo cosas distintas. `xclip` sólo importa tipos de este módulo, así que
 // no hay ciclo de carga.
+import { normalizeArcSweepDegrees } from './arc-sweep';
 import { cadApplyXclip, cadXclipOf } from './xref/xclip';
 
 type CadInsert = Extract<CadEntity, { type: 'insert' }>;
@@ -221,8 +222,7 @@ function rectangle(entity: Extract<CadEntity, { type: 'box' | 'station' }>): Cad
 }
 
 function arcPolyline(entity: Extract<CadEntity, { type: 'arc' }>, segments = 64): CadPoint3[] {
-  let sweep = entity.endAngle - entity.startAngle;
-  while (sweep <= 0) sweep += 360;
+  const sweep = normalizeArcSweepDegrees(entity.startAngle, entity.endAngle);
   return Array.from({ length: segments + 1 }, (_, index) => {
     const angle = (entity.startAngle + sweep * index / segments) * Math.PI / 180;
     return { x: entity.center.x + Math.cos(angle) * entity.radius, y: entity.center.y + Math.sin(angle) * entity.radius, z: entity.center.z };

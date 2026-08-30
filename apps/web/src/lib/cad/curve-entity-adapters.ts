@@ -16,6 +16,7 @@
  * redondeada eso se ve como un arco disparado al otro lado; en un arco casi
  * cerrado, no se ve en absoluto.
  */
+import { normalizeArcSweepDegrees } from "./arc-sweep";
 import type { CadPoint2, CadPoint3 } from "./cad-document";
 import { tessellateArc, tessellateEllipse } from "./curve-tessellate";
 import { cloneContext } from "./entity-context";
@@ -68,9 +69,7 @@ function anglePoint(center: CadPoint3, radius: number, angleDeg: number): CadPoi
 }
 
 function normalizedSweep(startAngle: number, endAngle: number): number {
-  let sweep = endAngle - startAngle;
-  while (sweep <= 0) sweep += 360;
-  return sweep;
+  return normalizeArcSweepDegrees(startAngle, endAngle);
 }
 
 function angleOnArc(angle: number, startAngle: number, endAngle: number): boolean {

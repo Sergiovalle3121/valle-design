@@ -5,6 +5,7 @@ import {
 import { createHash } from 'node:crypto';
 import { promisify } from 'node:util';
 import { createGunzip, gzip } from 'node:zlib';
+import { CAD_DOCUMENT_LIMITS } from '@valle-design/contracts';
 import {
   CAD_DOCUMENT_MAX_ARCHIVE_BYTES,
   PersistedCadDocument,
@@ -12,8 +13,11 @@ import {
 
 const gzipAsync = promisify(gzip);
 
-export const CAD_DOCUMENT_BLOB_THRESHOLD_BYTES = 1_000_000;
-export const CAD_DOCUMENT_MAX_COMPRESSED_BYTES = 20 * 1024 * 1024;
+// Números del contrato, no redeclarados: ver CAD_DOCUMENT_LIMITS.
+export const CAD_DOCUMENT_BLOB_THRESHOLD_BYTES =
+  CAD_DOCUMENT_LIMITS.blobThresholdBytes;
+export const CAD_DOCUMENT_MAX_COMPRESSED_BYTES =
+  CAD_DOCUMENT_LIMITS.maxCompressedUploadBytes;
 
 export interface StoredCadDocumentBlobPointer extends Record<string, unknown> {
   _storage: {

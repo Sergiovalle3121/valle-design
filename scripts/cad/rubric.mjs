@@ -713,6 +713,7 @@ function parseArgs(argv) {
     json: null,
     priorities: false,
     markdown: false,
+    check: false,
   };
   let rubric = DEFAULT_RUBRIC;
   let root = REPO_ROOT;
@@ -724,6 +725,7 @@ function parseArgs(argv) {
     else if (arg === "--history") options.history = true;
     else if (arg === "--priorities") options.priorities = true;
     else if (arg === "--markdown") options.markdown = true;
+    else if (arg === "--check") options.check = true;
     else if (arg === "--json") options.json = argv[++i];
     else if (arg === "--rubric") rubric = path.resolve(argv[++i]);
     else if (arg === "--root") root = path.resolve(argv[++i]);
@@ -763,9 +765,21 @@ if (invokedDirectly) {
   }
   if (options.markdown) {
     // Regenera la sección fila a fila de la matriz para que la prosa no pueda
-    // volver a discrepar del script. La nota sigue sin cambiar el código de
-    // salida; sólo unos marcadores rotos (documento mutilado) lanzan.
-    const { file, changed } = writeMatrixMarkdown(rubric, scored);
+    // volver a discrepar del script. Con --check NO escribe: verifica que la
+    // matriz versionada esté al día y falla si no — un pipeline de
+    // comprobación (check:cad) no muta el árbol de trabajo. La nota sigue sin
+    // cambiar el código de salida; sólo unos marcadores rotos lanzan.
+    const { file, changed } = writeMatrixMarkdown(rubric, scored, {
+      write: !options.check,
+    });
+    if (options.check && changed) {
+      console.error(
+        `La matriz versionada está DESACTUALIZADA respecto al script: ` +
+          `regenera con 'node scripts/cad/rubric.mjs --markdown' y committea ` +
+          `${path.relative(process.cwd(), file)}.`,
+      );
+      process.exit(1);
+    }
     console.log(
       changed
         ? `Matriz regenerada: ${path.relative(process.cwd(), file)}`

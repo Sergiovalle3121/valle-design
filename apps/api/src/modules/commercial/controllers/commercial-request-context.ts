@@ -19,6 +19,22 @@ export interface CommercialRequestContext {
   organizationId: string;
 }
 
+/**
+ * Sesión autenticada, sin exigir organización activa: la barrera mínima de
+ * las lecturas globales del catálogo (información del producto, no de una
+ * organización). Con nombre para que el gate de autorización por handler
+ * pueda verificar que se invoca — un `if (!request.user)` suelto era la
+ * misma barrera, pero invisible para cualquier auditoría.
+ */
+export function requireSession(
+  request: AuthenticatedRequest,
+): AuthenticatedUser {
+  if (!request.user) {
+    throw new UnauthorizedException('Falta una sesión válida.');
+  }
+  return request.user;
+}
+
 /** Miembro autenticado de la organización activa (cualquier rol). */
 export function requireMember(
   request: AuthenticatedRequest,

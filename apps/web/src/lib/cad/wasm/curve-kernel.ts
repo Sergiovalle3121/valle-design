@@ -39,6 +39,7 @@
  * comporte mal en marcha —capacidad insuficiente, código de error—, porque eso
  * no es una degradación aceptable sino un defecto que hay que ver.
  */
+import { normalizeArcSweepDegrees } from "../arc-sweep";
 import {
   tessellateArc,
   tessellateEllipse,
@@ -255,10 +256,10 @@ const REQUIRED_EXPORTS = [
  * `ERR_CAPACITY` culpando al kernel de un error del llamador.
  */
 function sweepPoints(startDeg: number, endDeg: number, steps: number): number {
-  let sweep = endDeg - startDeg;
-  // Mismo corte que el crate ante ángulos no finitos: cero puntos, sin bucle.
-  if (!Number.isFinite(sweep)) return 0;
-  while (sweep <= 0) sweep += 360;
+  // Misma normalización que el crate (`normalized_sweep`): no finito → cero
+  // puntos; negativo → módulo con signo; positivo → tope, nunca un bucle.
+  const sweep = normalizeArcSweepDegrees(startDeg, endDeg);
+  if (Number.isNaN(sweep)) return 0;
   return Math.max(2, Math.ceil((sweep / 360) * steps)) + 1;
 }
 

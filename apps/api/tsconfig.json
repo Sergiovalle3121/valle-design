@@ -15,10 +15,13 @@
     "outDir": "./dist",
     "incremental": true,
     "skipLibCheck": true,
-    "strictNullChecks": true,
     "forceConsistentCasingInFileNames": true,
-    "noImplicitAny": false,
-    "strictBindCallApply": false,
-    "noFallthroughCasesInSwitch": false
+    "strict": true,
+    // TypeORM inicializa las entidades por reflexión (decoradores + DEFAULT
+    // de columna), no en un constructor: la "asignación definitiva" que esta
+    // flag exigiría vive en los decoradores. Activarla obligaría a ~146 `!`
+    // decorativos en las entidades sin añadir una sola comprobación real.
+    "strictPropertyInitialization": false,
+    "noFallthroughCasesInSwitch": true
   }
 }

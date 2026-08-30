@@ -25,9 +25,15 @@
  *      exit 1 si hay licencias bloqueadas o desconocidas.
  */
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const SBOM_PATH = 'sbom.cdx.json';
+// Rutas ancladas al repositorio, no al cwd: era el ÚNICO script del árbol que
+// leía 'package.json' relativo — ejecutado desde un subdirectorio derivaba mal
+// la lista de paquetes propios y buscaba el SBOM donde no está.
+const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+const SBOM_PATH = join(REPO_ROOT, 'sbom.cdx.json');
 
 const ALLOWED = new Set([
   'MIT',
@@ -60,11 +66,13 @@ const ALLOWED = new Set([
  */
 function firstPartyNames() {
   const names = new Set();
-  const root = JSON.parse(readFileSync('package.json', 'utf8'));
+  const root = JSON.parse(
+    readFileSync(join(REPO_ROOT, 'package.json'), 'utf8'),
+  );
   names.add(root.name);
   for (const pattern of root.workspaces ?? []) {
     // Sólo se soporta la forma `dir/*`, que es la que usa este monorepo.
-    const dir = pattern.replace(/\/\*$/, '');
+    const dir = join(REPO_ROOT, pattern.replace(/\/\*$/, ''));
     if (!existsSync(dir)) continue;
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       if (!entry.isDirectory()) continue;

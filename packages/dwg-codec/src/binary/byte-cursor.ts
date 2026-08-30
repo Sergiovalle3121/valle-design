@@ -111,9 +111,10 @@ export class BoundedByteCursor {
     const range = checkedRange(offset, length, this.length, offset);
     this.consumeBudget(length, offset);
     const copy = new Uint8Array(length);
-    for (let index = 0; index < length; index += 1) {
-      copy[index] = this.#bytes[range.start + index]!;
-    }
+    // set(subarray) es un memcpy nativo; la copia byte a byte que hubo aquí
+    // era el coste dominante en archivos con secciones largas. subarray no
+    // toca los bytes fuente: la vista muere dentro de esta línea.
+    copy.set(this.#bytes.subarray(range.start, range.end));
     this.#position = range.end;
     return copy;
   }

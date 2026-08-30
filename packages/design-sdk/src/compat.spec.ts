@@ -186,23 +186,45 @@ void test("los límites del documento canónico casan con CAD_DOCUMENT_LIMITS", 
       /publications:\s*\n\s*type: array\s*\n\s*maxItems: 1000\b/,
     ],
     ["maxCompressedUploadBytes", /maximum: 20971520/],
-    ["maxArchiveBytes", /maximum: 134217728/],
+    ["maxArchiveBytes", /maximum: 33554432/],
   ];
-  const limitValues: Record<string, number> = {
+  // El contrato CONGELADO, las 18 claves — no sólo las siete que aparecen en
+  // el YAML. Con 7/18 congeladas, maxArchiveBytes bajó de 128 a 32 MiB en el
+  // API y este spec siguió en verde mientras el contrato publicaba 128.
+  // Desde 2026-08-30 el API importa CAD_DOCUMENT_LIMITS (una sola fuente);
+  // esta tabla existe para que un cambio de límite sea SIEMPRE un cambio
+  // visible y deliberado en el diff del SDK, nunca un efecto lateral.
+  const limitValues: Record<keyof typeof CAD_DOCUMENT_LIMITS, number> = {
+    minSchema: 1,
+    maxSchema: 10,
     maxEntities: 100_000,
     maxBlocks: 2_000,
     maxConstraints: 250_000,
     maxPaperSpaces: 500,
+    maxViewportsPerPaperSpace: 32,
     maxEmbeddedPublications: 1_000,
+    maxCollaborationVersions: 12,
+    maxReviewThreads: 500,
+    maxReviewLinks: 20,
+    maxCollaborationAuditEvents: 500,
+    maxNestingDepth: 64,
+    maxIdLength: 128,
+    maxCommentBodyLength: 1_000,
+    maxInlineBytes: 8_000_000,
+    maxArchiveBytes: 32 * 1024 * 1024,
     maxCompressedUploadBytes: 20 * 1024 * 1024,
-    maxArchiveBytes: 128 * 1024 * 1024,
+    blobThresholdBytes: 1_000_000,
   };
-  for (const [key, pattern] of expectations) {
+  for (const key of Object.keys(
+    CAD_DOCUMENT_LIMITS,
+  ) as (keyof typeof CAD_DOCUMENT_LIMITS)[]) {
     assert.equal(
       CAD_DOCUMENT_LIMITS[key],
       limitValues[key],
       `CAD_DOCUMENT_LIMITS.${String(key)} cambió respecto al contrato congelado`,
     );
+  }
+  for (const [key, pattern] of expectations) {
     assert.ok(
       pattern.test(apiYaml),
       `El límite ${String(key)} no aparece en el spec con el valor esperado`,

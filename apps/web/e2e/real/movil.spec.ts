@@ -36,7 +36,20 @@ import {
 /** iPhone 14: el tamaño más común al que llega un enlace por WhatsApp. */
 const TELEFONO = { width: 390, height: 844 };
 
-test.use({ viewport: TELEFONO, isMobile: true, hasTouch: true });
+/**
+ * Firefox NO implementa la emulación móvil de Playwright: `isMobile` ajusta
+ * el manejo del meta-viewport y `browser.newContext` lo rechaza con un error
+ * en el acto (así se rompió este spec entero en el canal Firefox de CI). Lo
+ * que el spec defiende —desbordamiento horizontal, legibilidad, objetivos
+ * tocables— vive en el ANCHO del viewport y en el táctil, que Firefox sí
+ * emula. Así que Chromium mide con la emulación completa y Firefox con la
+ * aproximación por viewport, en vez de perder la cobertura móvil entera en
+ * uno de los dos navegadores del release.
+ */
+const EMULACION_COMPLETA = { viewport: TELEFONO, isMobile: true, hasTouch: true };
+const APROXIMACION_VIEWPORT = { viewport: TELEFONO, hasTouch: true };
+
+test.use(APROXIMACION_VIEWPORT);
 
 test.skip(
   process.env.E2E_REAL_API !== "1",
@@ -72,7 +85,12 @@ async function textoDemasiadoPequeno(page: Page): Promise<string[]> {
   });
 }
 
-test.describe("El embudo público y el tablero, en un teléfono", () => {
+/**
+ * Las pruebas del embudo público, registradas una vez y ejecutadas bajo las
+ * DOS emulaciones: el cuerpo es idéntico, sólo cambia el contexto que el
+ * navegador puede honrar.
+ */
+function pruebasDelEmbudo() {
   for (const [nombre, ruta] of [
     ["portada", "/"],
     ["precios", "/precios"],
@@ -144,6 +162,24 @@ test.describe("El embudo público y el tablero, en un teléfono", () => {
     ).toBeGreaterThan(20);
     expect(await desbordamiento(page)).toBeLessThanOrEqual(2);
   });
+}
+
+test.describe("El embudo público y el tablero, en un teléfono", () => {
+  test.describe("emulación móvil completa", () => {
+    test.use(EMULACION_COMPLETA);
+    test.skip(
+      ({ browserName }) => browserName === "firefox",
+      "Firefox rechaza isMobile: mide abajo, con la aproximación por viewport",
+    );
+    pruebasDelEmbudo();
+  });
+  test.describe("aproximación por viewport", () => {
+    test.skip(
+      ({ browserName }) => browserName !== "firefox",
+      "los demás navegadores miden arriba, con la emulación completa",
+    );
+    pruebasDelEmbudo();
+  });
 });
 
 /**
@@ -158,12 +194,11 @@ test.describe("Con la sesión abierta, en un teléfono", () => {
   const runId = Date.now().toString(36);
   const email = `movil-${runId}@example.test`;
 
-  test.beforeAll(async ({ browser }) => {
+  test.beforeAll(async ({ browser, browserName }) => {
+    // Mismo reparto que arriba: Firefox rechaza isMobile en newContext.
     context = await browser.newContext({
       baseURL: BASE_URL,
-      viewport: TELEFONO,
-      isMobile: true,
-      hasTouch: true,
+      ...(browserName === "firefox" ? APROXIMACION_VIEWPORT : EMULACION_COMPLETA),
     });
     page = await context.newPage();
 

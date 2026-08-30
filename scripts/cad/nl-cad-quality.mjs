@@ -94,7 +94,12 @@ function parseArgs(argv) {
     if (flag === "--check") options.check = true;
     else if (flag === "--quiet") options.quiet = true;
     else if (flag === "--output") {
-      options.output = path.resolve(REPO_ROOT, argv[index + 1]);
+      const value = argv[index + 1];
+      if (value === undefined) {
+        console.error("--output requiere una ruta.");
+        process.exit(1);
+      }
+      options.output = path.resolve(REPO_ROOT, value);
       index += 1;
     }
   }

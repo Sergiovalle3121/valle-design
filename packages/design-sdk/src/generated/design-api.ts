@@ -1025,7 +1025,7 @@ export interface paths {
          *     * `multipart/form-data` con **exactamente un archivo** en el campo
          *       `file`: el documento canónico serializado JSON y comprimido gzip.
          *     * Límites reales: gzip ≤ **20 MiB** (20 971 520 bytes); JSON
-         *       descomprimido ≤ **128 MiB**; máximo 4 campos de formulario; cada
+         *       descomprimido ≤ **32 MiB**; máximo 4 campos de formulario; cada
          *       campo de texto ≤ 8 000 000 bytes.
          *     * El campo `payload` es un string JSON con el token CAS
          *       (`expectedCadDocumentVersion`). DIFERENCIA DELIBERADA con el legacy:
@@ -2359,7 +2359,7 @@ export interface components {
          *       sólo existe hasheada en `cad_review_sessions.token_hash`),
          *       `audit` ≤ 500.
          *     * Profundidad máxima de anidamiento: 64; claves ≤ 128 chars; números
-         *       finitos; serializado ≤ 8 000 000 bytes inline o ≤ 134 217 728 bytes
+         *       finitos; serializado ≤ 8 000 000 bytes inline o ≤ 33 554 432 bytes
          *       vía archivo gzip.
          */
         CadDocumentInline: {
@@ -2430,7 +2430,7 @@ export interface components {
                 encoding: "gzip";
                 /** @description Tamaño gzip; límite 20 MiB. */
                 compressedBytes: number;
-                /** @description Tamaño del JSON descomprimido; límite 128 MiB. */
+                /** @description Tamaño del JSON descomprimido; límite 32 MiB. */
                 uncompressedBytes: number;
             };
             summary: {
@@ -4498,7 +4498,7 @@ export interface operations {
         requestBody: {
             content: {
                 "multipart/form-data": {
-                    /** @description Documento canónico JSON comprimido con gzip. Máximo 20 971 520 bytes comprimidos; 134 217 728 bytes al descomprimir. */
+                    /** @description Documento canónico JSON comprimido con gzip. Máximo 20 971 520 bytes comprimidos; 33 554 432 bytes al descomprimir. */
                     file: string;
                     /** @description String JSON `{"expectedCadDocumentVersion": <entero>=0>}`. Obligatorio; sin él ⇒ 400 cad_document_version_required. */
                     payload: string;
@@ -4520,7 +4520,7 @@ export interface operations {
             403: components["responses"]["EntitlementRequired"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["VersionConflict"];
-            /** @description El archivo gzip excede 20 MiB (o el JSON descomprimido excede 128 MiB). */
+            /** @description El archivo gzip excede 20 MiB (o el JSON descomprimido excede 32 MiB). */
             413: {
                 headers: {
                     [name: string]: unknown;

@@ -150,16 +150,18 @@ test("2BD y 3BD encadenan doubles con banderas mixtas", () => {
   assert.deepEqual(reader.read3BD(), { x: 4.25, y: 1, z: 0 });
 });
 
-test("DD devuelve el defecto, parchea 4 o 6 bytes bajos o trae el double entero", () => {
+test("DD devuelve el defecto, parchea 4 o 6 bytes o trae el double entero", () => {
   const untouched = new BitBuilder().bits(0b00, 2).reader();
   assert.equal(untouched.readDD(9.75), 9.75);
 
   const full = new BitBuilder().bits(0b11, 2).doubleLE(-1.5).reader();
   assert.equal(full.readDD(9.75), -1.5);
 
-  // Parche de 4 bytes: se sustituyen los 4 bytes BAJOS de la representación
-  // LE del defecto. Construimos el esperado con la misma aritmética de vista
-  // para que el caso no dependa de ninguna constante mágica.
+  // Parche de 4 bytes (forma 01): sustituye los 4 bytes BAJOS de la
+  // representación LE del defecto, en orden de flujo. El corpus admitido aún
+  // no ejercita esta forma (censo 2026-08-30: cero apariciones en 57 DWG);
+  // el orden bajo-secuencial es el de la ODS §2.2 y queda documentado aquí
+  // como constante explícita, no como la aritmética de la implementación.
   const view = new DataView(new ArrayBuffer(8));
   view.setFloat64(0, 9.75, true);
   view.setUint8(0, 0x11);
@@ -173,14 +175,26 @@ test("DD devuelve el defecto, parchea 4 o 6 bytes bajos o trae el double entero"
     .reader();
   assert.equal(patch4.readDD(9.75), expected4);
 
-  view.setFloat64(0, 9.75, true);
-  for (let index = 0; index < 6; index += 1) view.setUint8(index, 0x50 + index);
-  const expected6 = view.getFloat64(0, true);
+  // Parche de 6 bytes (forma 10): los 2 primeros bytes del flujo van a las
+  // posiciones 4-5 y los 4 siguientes a las 0-3 (ODS §2.2). El caso es el
+  // REAL del corpus (19-dim-radial-diameter.dwg, entity-wave-2-ac1015):
+  // defecto 138 y flujo [00 A0 00 00 00 00] decodifican EXACTAMENTE 141 — el
+  // extremo de una flecha de cota de longitud 3.0 en geometría redonda. La
+  // lectura secuencial que hubo aquí producía 136.00000000116415: geometría
+  // corrupta sin error, el modo de fallo que este paquete declara imposible.
   const patch6 = new BitBuilder()
     .bits(0b10, 2)
-    .bytes(0x50, 0x51, 0x52, 0x53, 0x54, 0x55)
+    .bytes(0x00, 0xa0, 0x00, 0x00, 0x00, 0x00)
     .reader();
-  assert.equal(patch6.readDD(9.75), expected6);
+  assert.equal(patch6.readDD(138), 141);
+
+  // Y el segundo caso real: la mantisa baja se conserva del defecto — el
+  // resultado comparte la cola decimal con él (una flecha de 3.0 exacta).
+  const patch6b = new BitBuilder()
+    .bits(0b10, 2)
+    .bytes(0x0b, 0x25, 0xc4, 0xc3, 0xe6, 0xaf)
+    .reader();
+  assert.equal(patch6b.readDD(71.57883832488648), 68.57883832488648);
 });
 
 test("BT y BE comprimen el caso común en un solo bit", () => {

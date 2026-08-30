@@ -130,9 +130,9 @@ function caseRandom(index: number): () => number {
 
 /** Digest de la corrida: dos carriles de 32 bits sobre el texto acumulado. */
 export function fuzzDigest(parts: readonly string[]): string {
-  const joined = parts.join("");
+  const joined = parts.join("\u001f");
   const low = hash32(joined);
-  const high = hash32(`${joined}H`);
+  const high = hash32(`${joined}\u001eH`);
   return `${high.toString(16).padStart(8, "0")}${low.toString(16).padStart(8, "0")}`;
 }
 
@@ -333,7 +333,7 @@ export function hostileCorpus(options: { includeHuge?: boolean } = {}): HostileC
     {
       id: "nulo-incrustado",
       fileName: "plano.json",
-      content: JSON.stringify(valid).replace("fuzz-0000", "fuzz- 000"),
+      content: JSON.stringify(valid).replace("fuzz-0000", "fuzz-\u0000000"),
       expect: null,
       why: "Un carácter NUL dentro de un id. Es JSON legal y el importador no lo prohíbe: interesa saber si pasa, porque un id con NUL viaja distinto por cada capa.",
     },

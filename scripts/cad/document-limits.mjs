@@ -97,6 +97,10 @@ function parseArgs(argv) {
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
     const value = argv[index + 1];
+    if (flag.startsWith("--") && value === undefined) {
+      console.error(`${flag} requiere un valor.`);
+      process.exit(1);
+    }
     if (flag === "--tiers") {
       options.tiers = value
         .split(",")

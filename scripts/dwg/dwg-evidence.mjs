@@ -61,7 +61,13 @@ function readCorpusValidationMeasurement() {
     const parsed = JSON.parse(fs.readFileSync(CORPUS_VALIDATION_FILE, "utf8"));
     if (typeof parsed !== "object" || parsed === null) return null;
     return parsed;
-  } catch {
+  } catch (error) {
+    // Un JSON corrupto NO es lo mismo que un JSON ausente: sin este aviso el
+    // gate fallaba después con «no coincide con lo que el árbol genera hoy»,
+    // culpando a la medición cuando el problema era el archivo.
+    if (error && error.code !== "ENOENT") {
+      console.warn(`Aviso: medición ilegible (${error.message}); se trata como ausente.`);
+    }
     return null;
   }
 }
@@ -198,7 +204,13 @@ function readOdaRoundtripMeasurement() {
     const parsed = JSON.parse(fs.readFileSync(ODA_ROUNDTRIP_FILE, "utf8"));
     if (typeof parsed !== "object" || parsed === null) return null;
     return parsed;
-  } catch {
+  } catch (error) {
+    // Un JSON corrupto NO es lo mismo que un JSON ausente: sin este aviso el
+    // gate fallaba después con «no coincide con lo que el árbol genera hoy»,
+    // culpando a la medición cuando el problema era el archivo.
+    if (error && error.code !== "ENOENT") {
+      console.warn(`Aviso: medición ilegible (${error.message}); se trata como ausente.`);
+    }
     return null;
   }
 }

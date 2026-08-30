@@ -1,12 +1,7 @@
 import { ImageResponse } from "next/og";
+import { BrandGlyph } from "@/components/brand/BrandGlyph";
 import {
   BRAND_INK,
-  DIMENSION_LINE,
-  DIMENSION_TICKS,
-  LOGO_VIEWBOX,
-  NODE,
-  STROKE,
-  VALLEY,
 } from "@/components/brand/logo-geometry";
 
 /**
@@ -85,32 +80,7 @@ export function socialCard({
         />
 
         <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-          <svg width="44" height="44" viewBox={LOGO_VIEWBOX} fill="none">
-            <g
-              stroke={BRAND_INK.dark}
-              strokeWidth={STROKE.dimension}
-              strokeLinecap="square"
-            >
-              <path d={DIMENSION_LINE} />
-              {DIMENSION_TICKS.map((d) => (
-                <path key={d} d={d} />
-              ))}
-            </g>
-            <path
-              d={VALLEY}
-              stroke={BRAND_INK.dark}
-              strokeWidth={STROKE.valley}
-              strokeLinecap="square"
-              strokeLinejoin="round"
-            />
-            <rect
-              x={NODE.x}
-              y={NODE.y}
-              width={NODE.size}
-              height={NODE.size}
-              fill={BRAND_INK.accent}
-            />
-          </svg>
+          <BrandGlyph size={44} />
           <span
             style={{
               fontSize: 30,

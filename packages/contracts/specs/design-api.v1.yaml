@@ -1584,7 +1584,7 @@ paths:
         * `multipart/form-data` con **exactamente un archivo** en el campo
           `file`: el documento canónico serializado JSON y comprimido gzip.
         * Límites reales: gzip ≤ **20 MiB** (20 971 520 bytes); JSON
-          descomprimido ≤ **128 MiB**; máximo 4 campos de formulario; cada
+          descomprimido ≤ **32 MiB**; máximo 4 campos de formulario; cada
           campo de texto ≤ 8 000 000 bytes.
         * El campo `payload` es un string JSON con el token CAS
           (`expectedCadDocumentVersion`). DIFERENCIA DELIBERADA con el legacy:
@@ -1610,7 +1610,7 @@ paths:
                   contentMediaType: application/gzip
                   description: >-
                     Documento canónico JSON comprimido con gzip. Máximo
-                    20 971 520 bytes comprimidos; 134 217 728 bytes al
+                    20 971 520 bytes comprimidos; 33 554 432 bytes al
                     descomprimir.
                 payload:
                   type: string
@@ -1633,7 +1633,7 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/VersionConflict" }
         "413":
-          description: El archivo gzip excede 20 MiB (o el JSON descomprimido excede 128 MiB).
+          description: El archivo gzip excede 20 MiB (o el JSON descomprimido excede 32 MiB).
           content:
             application/json:
               schema:
@@ -4474,7 +4474,7 @@ components:
           sólo existe hasheada en `cad_review_sessions.token_hash`),
           `audit` ≤ 500.
         * Profundidad máxima de anidamiento: 64; claves ≤ 128 chars; números
-          finitos; serializado ≤ 8 000 000 bytes inline o ≤ 134 217 728 bytes
+          finitos; serializado ≤ 8 000 000 bytes inline o ≤ 33 554 432 bytes
           vía archivo gzip.
       required: [meta, entities]
       additionalProperties: true
@@ -4650,8 +4650,8 @@ components:
             uncompressedBytes:
               type: integer
               minimum: 1
-              maximum: 134217728
-              description: Tamaño del JSON descomprimido; límite 128 MiB.
+              maximum: 33554432
+              description: Tamaño del JSON descomprimido; límite 32 MiB.
         summary:
           type: object
           required: [schema, contentVersion, entityCount]

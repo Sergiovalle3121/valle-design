@@ -3,10 +3,15 @@
 #   docker compose up -d
 #
 # - PostgreSQL 16: la base del API (DATABASE_URL en .env.example apunta aquí).
-# - MinIO: object storage S3-compatible reservado para los blobs CAD FUTUROS.
-#   HOY los blobs (archivos gzip del documento canónico) viven EN LA BASE
-#   (tabla `design_blobs`, adaptador DatabaseBlobStore); MinIO se levanta ya
-#   para que el adaptador S3 de una fase posterior no exija cambiar la infra.
+# - MinIO: object storage S3-compatible para los blobs CAD. El adaptador S3
+#   EXISTE y se selecciona en runtime (apps/api/src/modules/blob-store,
+#   variables S3_BLOB_* de .env.example); sin esas variables los blobs viven
+#   en la base (tabla `design_blobs`, adaptador DatabaseBlobStore).
+#
+# Los puertos se publican SOLO en 127.0.0.1: Docker publica en 0.0.0.0 por
+# defecto y salta las reglas de UFW/firewalld escribiendo directo en la
+# cadena DOCKER de iptables — en cualquier red compartida eso era un
+# PostgreSQL con valle/valle y una consola MinIO expuestos a la LAN.
 services:
   postgres:
     image: postgres:16
@@ -16,7 +21,7 @@ services:
       POSTGRES_PASSWORD: valle
       POSTGRES_DB: valle_design_dev
     ports:
-      - '5432:5432'
+      - '127.0.0.1:5432:5432'
     volumes:
       - valle_design_pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -26,15 +31,17 @@ services:
       retries: 10
 
   minio:
-    image: minio/minio:latest
+    # Etiqueta fija: `latest` es exactamente lo que validate-dockerfiles.mjs
+    # prohíbe en las imágenes propias — la infra local no debería ser menos.
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     container_name: valle-design-minio
     command: server /data --console-address ':9001'
     environment:
       MINIO_ROOT_USER: valle
       MINIO_ROOT_PASSWORD: valle-minio
     ports:
-      - '9000:9000'
-      - '9001:9001'
+      - '127.0.0.1:9000:9000'
+      - '127.0.0.1:9001:9001'
     volumes:
       - valle_design_minio:/data
     healthcheck:

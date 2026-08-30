@@ -107,7 +107,23 @@ import {
   CadDiagnosticsReadout,
   cadDiagnosticsRequested,
 } from "@/components/cad/editor/CadDiagnosticsReadout";
+import dynamic from "next/dynamic";
 import { CadToolPalette } from "@/components/cad/editor/CadToolPalette";
+
+// Carga diferida REAL del catálogo de plantillas: la tarjeta (y con ella las
+// 149 plantillas de @/lib/cad/templates) sólo se descarga cuando el panel la
+// pinta. Sin SSR: es UI interna del estudio, que ya entra por next/dynamic.
+const CadTemplateChooserCard = dynamic(
+  () => import("@/components/cad/editor/CadTemplateChooserCard"),
+  {
+    ssr: false,
+    loading: () => (
+      <p className="mb-3 type-micro text-muted-foreground">
+        Cargando plantillas…
+      </p>
+    ),
+  },
+);
 import {
   designChecks,
   type CheckBox,
@@ -189,7 +205,12 @@ import {
   suggestCadCommands,
   type CadCommandSuggestion,
 } from "@/lib/cad/command-line-assist";
-import { matchCadShortcut } from "@/lib/cad/keyboard-shortcuts";
+import {
+  READ_ONLY_TOOLBAR_ACTION_IDS,
+  interpretEditorKeyAfterEngine,
+  interpretEditorKeyBeforeEngine,
+  type EditorKeyAction,
+} from "@/lib/cad/editor-keyboard";
 import {
   CAD_WORKSPACE_DEFAULTS,
   applyCadWorkspaceProfile,
@@ -313,11 +334,11 @@ import {
   redefineCadBlock,
   replaceCadBlock,
 } from "@/lib/cad/professional-blocks";
-import {
-  CAD_LAYOUT_TEMPLATES,
-  instantiateCadLayoutTemplate,
-  type CadLayoutTemplateId,
-} from "@/lib/cad/templates";
+// El catálogo de plantillas (4.900+ líneas de datos) NO se importa estático:
+// la tarjeta que lo lista viaja en su propio chunk vía next/dynamic y el
+// handler lo trae con import() al aplicar. Abrir un plano existente no paga
+// las 149 plantillas. Sólo el TIPO cruza estáticamente (se borra al compilar).
+import type { CadLayoutTemplateId } from "@/lib/cad/templates";
 import {
   type CadClearanceIssue,
   type CadCollisionHit,
@@ -997,61 +1018,8 @@ const ROSE = 0xf43f5e;
 const AMBER = 0xf59e0b;
 const SELECT = 0x22d3ee;
 
-const TOOLBAR_SHORTCUT_IDS = new Set<CadToolbarActionId>([
-  "select",
-  "measure",
-  "line",
-  "polyline",
-  "rect",
-  "circle",
-  "offset",
-  "aisle",
-  "zone",
-  "equipment",
-  "text",
-  "fit_view",
-  "undo",
-  "redo",
-]);
-
-const READ_ONLY_TOOLBAR_ACTION_IDS = new Set<CadToolbarActionId>([
-  "select",
-  "pan",
-  "fit_view",
-]);
-const READ_ONLY_SHORTCUT_IDS = new Set([
-  "grid_toggle",
-  "object_snap_toggle",
-  "ortho_toggle",
-  "polar_tracking_toggle",
-  "object_tracking_toggle",
-  "validate_layout",
-  "export_dxf",
-  ...READ_ONLY_TOOLBAR_ACTION_IDS,
-]);
-
-function isReadOnlyMutationKey(
-  event: KeyboardEvent,
-  shortcutId?: string,
-): boolean {
-  if (shortcutId) return !READ_ONLY_SHORTCUT_IDS.has(shortcutId);
-  const key = event.key.toLowerCase();
-  if (event.ctrlKey || event.metaKey)
-    return ["s", "z", "y", "d", "c", "v", "g"].includes(key);
-  return [
-    "backspace",
-    "delete",
-    "enter",
-    "arrowleft",
-    "arrowright",
-    "arrowup",
-    "arrowdown",
-    "m",
-    "r",
-    "w",
-  ].includes(key);
-}
-
+// Los conjuntos de atajos de barra y solo-lectura viven con el intérprete
+// puro en lib/cad/editor-keyboard.ts, junto a su spec.
 type EditorTool = "select" | "measure" | "wall" | CadDrawCommandId;
 const CAD_DRAW_TOOLS = new Set<EditorTool>([
   "line",
@@ -3953,105 +3921,18 @@ export default function Layout3DEditor({
         : { w, h, g };
     });
   }, []);
-  const undo = useCallback(() => {
-    if (drawingReadOnlyRef.current) {
-      notifyReadOnly();
-      return;
-    }
-    const history = canonicalHistoryRef.current;
-    if (!history || history.depths().undo === 0) return;
-    const document = history.undo(snapshotDocument());
-    loadedCadDocumentRef.current = document;
-    setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
-    syncCadLayerState(document);
-    setCadXrefs(
-      document.externalReferences.map((reference) => ({ ...reference })),
-    );
-    setPublicationRecords([...document.publications]);
-    setActivePaperSpaceId((current) =>
-      document.paperSpaces.some((space) => space.id === current)
-        ? current
-        : (document.paperSpaces[0]?.id ?? null),
-    );
-    setActivePaperViewportId((current) =>
-      document.paperSpaces.some((space) =>
-        space.viewports?.some((viewport) => viewport.id === current),
-      )
-        ? current
-        : (document.paperSpaces[0]?.viewports?.[0]?.id ?? null),
-    );
-    setLayoutPreviewSheet(null);
-    setNativeEntities(
-      document.entities.filter((entity): entity is CadNativeEntity =>
-        CAD_ENTITY_REGISTRY.supports(entity),
-      ),
-    );
-    setNativeDocumentRevision((value) => value + 1);
-    applyDocumentFootprint(document);
-    restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
-    setHist(history.depths());
-  }, [
-    setActivePaperSpaceId, setActivePaperViewportId, setLayoutPreviewSheet, setPaperSpaces,
-    applyDocumentFootprint,
-    notifyReadOnly,
-    restore,
-    snapshotDocument,
-    syncCadLayerState,
-  ]);
-  const redo = useCallback(() => {
-    if (drawingReadOnlyRef.current) {
-      notifyReadOnly();
-      return;
-    }
-    const history = canonicalHistoryRef.current;
-    if (!history || history.depths().redo === 0) return;
-    const document = history.redo(snapshotDocument());
-    loadedCadDocumentRef.current = document;
-    setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
-    syncCadLayerState(document);
-    setCadXrefs(
-      document.externalReferences.map((reference) => ({ ...reference })),
-    );
-    setPublicationRecords([...document.publications]);
-    setActivePaperSpaceId((current) =>
-      document.paperSpaces.some((space) => space.id === current)
-        ? current
-        : (document.paperSpaces[0]?.id ?? null),
-    );
-    setActivePaperViewportId((current) =>
-      document.paperSpaces.some((space) =>
-        space.viewports?.some((viewport) => viewport.id === current),
-      )
-        ? current
-        : (document.paperSpaces[0]?.viewports?.[0]?.id ?? null),
-    );
-    setLayoutPreviewSheet(null);
-    setNativeEntities(
-      document.entities.filter((entity): entity is CadNativeEntity =>
-        CAD_ENTITY_REGISTRY.supports(entity),
-      ),
-    );
-    setNativeDocumentRevision((value) => value + 1);
-    applyDocumentFootprint(document);
-    restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
-    setHist(history.depths());
-  }, [
-    setActivePaperSpaceId, setActivePaperViewportId, setLayoutPreviewSheet, setPaperSpaces,
-    applyDocumentFootprint,
-    notifyReadOnly,
-    restore,
-    snapshotDocument,
-    syncCadLayerState,
-  ]);
-
-  const applyCollaborationDocument = useCallback(
-    (next: CadDocument, label: string) => {
-      if (drawingReadOnly) {
-        notifyReadOnly();
-        return;
-      }
-      pushHistory();
-      const document = commitChange(next, label);
+  /**
+   * Sincroniza TODOS los estados derivados del documento canónico tras
+   * reemplazarlo entero (deshacer, rehacer, fusión de colaboración). La lista
+   * vive en un solo sitio a propósito: deshacer y rehacer eran dos copias de
+   * cuarenta y cinco líneas, y un estado nuevo añadido a una sola de las dos
+   * habría hecho divergir las rutas en silencio. `resetPaperContext` repone
+   * hoja y viewport activos cuando el documento pudo cambiar de espacios de
+   * papel (deshacer/rehacer); la fusión de colaboración conserva el contexto
+   * actual, como siempre hizo.
+   */
+  const applyHistoryDocument = useCallback(
+    (document: CadDocument, resetPaperContext: boolean) => {
       loadedCadDocumentRef.current = document;
       setPaperSpaces(document.paperSpaces.map((space) => ({ ...space })));
       syncCadLayerState(document);
@@ -4059,6 +3940,21 @@ export default function Layout3DEditor({
         document.externalReferences.map((reference) => ({ ...reference })),
       );
       setPublicationRecords([...document.publications]);
+      if (resetPaperContext) {
+        setActivePaperSpaceId((current) =>
+          document.paperSpaces.some((space) => space.id === current)
+            ? current
+            : (document.paperSpaces[0]?.id ?? null),
+        );
+        setActivePaperViewportId((current) =>
+          document.paperSpaces.some((space) =>
+            space.viewports?.some((viewport) => viewport.id === current),
+          )
+            ? current
+            : (document.paperSpaces[0]?.viewports?.[0]?.id ?? null),
+        );
+        setLayoutPreviewSheet(null);
+      }
       setNativeEntities(
         document.entities.filter((entity): entity is CadNativeEntity =>
           CAD_ENTITY_REGISTRY.supports(entity),
@@ -4067,16 +3963,50 @@ export default function Layout3DEditor({
       setNativeDocumentRevision((value) => value + 1);
       applyDocumentFootprint(document);
       restore(cadDocumentToEditorSnapshot<CadLayerId>(document));
+    },
+    [
+      setActivePaperSpaceId, setActivePaperViewportId, setLayoutPreviewSheet, setPaperSpaces,
+      applyDocumentFootprint,
+      restore,
+      syncCadLayerState,
+    ],
+  );
+  const undo = useCallback(() => {
+    if (drawingReadOnlyRef.current) {
+      notifyReadOnly();
+      return;
+    }
+    const history = canonicalHistoryRef.current;
+    if (!history || history.depths().undo === 0) return;
+    applyHistoryDocument(history.undo(snapshotDocument()), true);
+    setHist(history.depths());
+  }, [applyHistoryDocument, notifyReadOnly, snapshotDocument]);
+  const redo = useCallback(() => {
+    if (drawingReadOnlyRef.current) {
+      notifyReadOnly();
+      return;
+    }
+    const history = canonicalHistoryRef.current;
+    if (!history || history.depths().redo === 0) return;
+    applyHistoryDocument(history.redo(snapshotDocument()), true);
+    setHist(history.depths());
+  }, [applyHistoryDocument, notifyReadOnly, snapshotDocument]);
+
+  const applyCollaborationDocument = useCallback(
+    (next: CadDocument, label: string) => {
+      if (drawingReadOnly) {
+        notifyReadOnly();
+        return;
+      }
+      pushHistory();
+      applyHistoryDocument(commitChange(next, label), false);
       toast.success(label, "Compare / Merge");
     },
     [
-      setPaperSpaces,
-      applyDocumentFootprint,
+      applyHistoryDocument,
       drawingReadOnly,
       notifyReadOnly,
       pushHistory,
-      restore,
-      syncCadLayerState,
       toast,
     ],
   );
@@ -6282,11 +6212,14 @@ export default function Layout3DEditor({
         if (!renderPipelineHostRef.current) syncNativeScene();
       }, 80);
     };
-    controls.addEventListener("change", () => {
+    // Con nombre para que el removeEventListener de la limpieza quite ESTA
+    // función: quitar otra es un no-op silencioso que deja el listener vivo.
+    const onControlsChange = () => {
       syncViewFromOrbit();
       queueNativeViewportSync();
       lastCamRef.current = snapshotCadCamera(camera.position, controls.target);
-    });
+    };
+    controls.addEventListener("change", onControlsChange);
     queueNativeViewportSync();
 
     // ---- drag a station block or an asset on the floor ----
@@ -7720,7 +7653,7 @@ export default function Layout3DEditor({
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("keydown", walkKd);
       window.removeEventListener("keyup", walkKu);
-      controls.removeEventListener("change", queueNativeViewportSync);
+      controls.removeEventListener("change", onControlsChange);
       controls.dispose();
       disposeObject(scene);
       nativeSceneSyncRef.current?.clear({ remove: () => {} });
@@ -9379,7 +9312,7 @@ export default function Layout3DEditor({
       toast.success(`${symbol.label} agregado al layout.`, "Símbolos CAD");
     }
   };
-  const applyCadTemplate = (templateId: CadLayoutTemplateId) => {
+  const applyCadTemplate = async (templateId: CadLayoutTemplateId) => {
     const ctx = ctxRef.current;
     const fp = data?.footprint;
     if (!ctx || !fp) {
@@ -9389,6 +9322,9 @@ export default function Layout3DEditor({
       );
       return;
     }
+    // El chunk ya está caliente: la tarjeta que disparó este handler lo cargó
+    // para listar el catálogo. Este import() sólo evita el import estático.
+    const { instantiateCadLayoutTemplate } = await import("@/lib/cad/templates");
     const generated = instantiateCadLayoutTemplate(templateId, {
       width: fp.footprintW || ctx.W,
       height: fp.footprintH || ctx.H,
@@ -13942,283 +13878,240 @@ export default function Layout3DEditor({
   };
 
   // ---- keyboard shortcuts ----
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      const tgt = e.target as HTMLElement | null;
-      if (
+  // El manejador se define en el render (captura el estado ACTUAL: selección,
+  // paso, herramientas) y el efecto de suscripción lee siempre la última
+  // versión a través del ref. La forma anterior —listener suscrito con deps
+  // [open, data] y exhaustive-deps silenciado— dejaba los atajos operando
+  // sobre la clausura vieja: un cambio de selección que no tocara `data` no
+  // re-suscribía y la tecla actuaba sobre la selección anterior.
+  // La DECISIÓN vive en lib/cad/editor-keyboard.ts (intérprete puro, con su
+  // spec rama a rama); aquí queda el hand-off con efectos al motor/grips y el
+  // ejecutor: un switch que traduce cada acción a las llamadas del editor.
+  // Toda acción devuelta exige preventDefault; null deja seguir al evento.
+  const executeEditorKeyAction = (action: EditorKeyAction) => {
+    switch (action.type) {
+      case "notify-read-only":
+        notifyReadOnly();
+        return;
+      case "reveal-properties":
+        revealPropertiesPalette();
+        return;
+      case "toggle-styles":
+        paletteHost.toggleStyles();
+        return;
+      case "toggle-draft-settings":
+        paletteHost.toggleDraftSettings();
+        return;
+      case "open-palette":
+        setShowPalette(true);
+        return;
+      case "toggle-walk":
+        toggleWalk();
+        return;
+      case "toolbar":
+        runToolbarAction(action.id);
+        return;
+      case "save":
+        void save();
+        return;
+      case "grid-toggle":
+        setLayers((cur) => ({ ...cur, grid: !cur.grid }));
+        return;
+      case "grid-snap-toggle":
+        toggleGridSnap();
+        return;
+      case "dynamic-input-toggle":
+        draftSettingsHost.toggleDynamicInput();
+        return;
+      case "osnap-toggle":
+        draftSettingsHost.toggleOsnap();
+        return;
+      case "ortho-toggle":
+        draftSettingsHost.toggleOrtho();
+        return;
+      case "polar-toggle":
+        draftSettingsHost.togglePolar();
+        return;
+      case "object-tracking-toggle":
+        draftSettingsHost.toggleObjectSnapTracking();
+        return;
+      case "open-checks":
+        openChecks();
+        return;
+      case "open-dxf-export":
+        openDxfExport();
+        return;
+      case "escape":
+        switch (action.step) {
+          case "exit-hatch-pick":
+            hatchPickModeRef.current = false;
+            setHatchPickMode(false);
+            return;
+          case "close-palette":
+            setShowPalette(false);
+            setPaletteQuery("");
+            return;
+          case "clear-preview":
+            setCommandPreview(null);
+            return;
+          case "clear-command-text":
+            setCommandText("");
+            setCommandHistoryCursor(-1);
+            return;
+          case "cancel-draw": {
+            if (!drawCommandRef.current) return;
+            const cancelled = cancelDrawCommand(drawCommandRef.current);
+            drawCommandRef.current = null;
+            setDrawPrompt(null);
+            setMeasureLive(null);
+            setCanCloseDraftPolyline(false);
+            setPrecisionText("");
+            if (!cancelled.emitted.length)
+              toast.success("Comando de dibujo cancelado.", "CAD");
+            setTool("select");
+            toolRef.current = "select";
+            return;
+          }
+          case "reset-tool":
+            endDraw();
+            setTool("select");
+            toolRef.current = "select";
+            return;
+          case "clear-selection":
+            select([]);
+            clearNativeSelection();
+            rebuildAll();
+            return;
+          case "none":
+            return;
+        }
+        return;
+      case "toggle-help":
+        setShowHelp((v) => !v);
+        return;
+      case "select-all":
+        selectAll();
+        return;
+      case "undo":
+        undo();
+        return;
+      case "redo":
+        redo();
+        return;
+      case "commit-draft":
+        commitActiveDraftCommand();
+        return;
+      case "toggle-measure":
+        toggleMeasure();
+        return;
+      case "toggle-wall":
+        toggleWall();
+        return;
+      case "fit-view":
+        fitView(action.target);
+        return;
+      case "toggle-focus-mode":
+        setFocusMode((v) => !v);
+        return;
+      case "delete-selection":
+        if (action.native) removeNativeSelection();
+        else removeSelected();
+        return;
+      case "rotate-selection":
+        if (action.native)
+          transformNativeSelection({ rotationDeg: action.deltaDeg });
+        else rotateSelected(action.deltaDeg);
+        return;
+      case "duplicate-selection":
+        if (action.native) copyNativeSelection();
+        else duplicateSelected();
+        return;
+      case "copy-selection":
+        if (action.native) copyNativeSelection();
+        else copySelection();
+        return;
+      case "paste":
+        pasteClipboard();
+        return;
+      case "ungroup":
+        ungroupSelection();
+        return;
+      case "group":
+        groupSelection();
+        return;
+      case "nudge":
+        if (action.native)
+          transformNativeSelection({
+            translation: { x: action.dx, y: action.dy },
+          });
+        else nudgeSelected(action.dx, action.dy);
+        return;
+    }
+  };
+  const handleEditorKeyDown = (e: KeyboardEvent) => {
+    const tgt = e.target as HTMLElement | null;
+    const eventLike = {
+      key: e.key,
+      ctrlKey: e.ctrlKey,
+      metaKey: e.metaKey,
+      shiftKey: e.shiftKey,
+      altKey: e.altKey,
+      targetKind:
         tgt &&
         (tgt.tagName === "INPUT" ||
           tgt.tagName === "TEXTAREA" ||
           tgt.isContentEditable)
-      )
-        return;
-      const cadShortcut = matchCadShortcut(e, workspaceShortcutsRef.current);
-      if (
-        drawingReadOnlyRef.current &&
-        isReadOnlyMutationKey(e, cadShortcut?.id)
-      ) {
-        e.preventDefault();
-        notifyReadOnly();
-        return;
-      }
-      /**
-       * Ctrl+1 abre la paleta de PROPIEDADES, como en AutoCAD.
-       *
-       * No pasa por `matchCadShortcut` porque su registro vive en `lib/cad`,
-       * que esta sesión no toca. Cuando ese registro admita la combinación,
-       * este bloque se sustituye por un `cadShortcut?.id === "properties"` y no
-       * cambia nada más.
-       *
-       * Abrirla es revelar el panel derecho: cerrar el panel profesional que lo
-       * esté ocupando, salir del modo enfoque y encender la preferencia. Si sólo
-       * se encendiera la preferencia, pulsar Ctrl+1 con el panel de bloques
-       * abierto no enseñaría propiedad ninguna y parecería que el atajo no hace
-       * nada.
-       */
-      if ((e.ctrlKey || e.metaKey) && e.key === "1") {
-        e.preventDefault();
-        revealPropertiesPalette();
-        return;
-      }
-      // Ctrl+8 → gestor de estilos; Ctrl+9 → DSETTINGS. Misma familia.
-      if ((e.ctrlKey || e.metaKey) && e.key === "8") {
-        e.preventDefault();
-        paletteHost.toggleStyles();
-        return;
-      }
-      if ((e.ctrlKey || e.metaKey) && e.key === "9") {
-        e.preventDefault();
-        paletteHost.toggleDraftSettings();
-        return;
-      }
-      if (cadShortcut?.id === "palette") {
-        e.preventDefault();
-        setShowPalette(true);
-        return;
-      }
-      // in walkthrough mode WASD/look take over; only Esc (exit) reaches here
-      if (walkRef.current) {
-        if (e.key === "Escape") {
-          e.preventDefault();
-          toggleWalk();
-        }
-        return;
-      }
-      if (
-        cadShortcut &&
-        TOOLBAR_SHORTCUT_IDS.has(cadShortcut.id as CadToolbarActionId)
-      ) {
-        e.preventDefault();
-        runToolbarAction(cadShortcut.id as CadToolbarActionId);
-        return;
-      }
-      if (cadShortcut?.id === "save") {
-        e.preventDefault();
-        void save();
-        return;
-      }
-      if (cadShortcut?.id === "grid_toggle") {
-        e.preventDefault();
-        setLayers((cur) => ({ ...cur, grid: !cur.grid }));
-        return;
-      }
-      if (cadShortcut?.id === "grid_snap_toggle") {
-        e.preventDefault();
-        toggleGridSnap();
-        return;
-      }
-      if (cadShortcut?.id === "dynamic_input_toggle") {
-        e.preventDefault();
-        draftSettingsHost.toggleDynamicInput();
-        return;
-      }
-      if (cadShortcut?.id === "object_snap_toggle") {
-        e.preventDefault();
-        draftSettingsHost.toggleOsnap();
-        return;
-      }
-      if (cadShortcut?.id === "ortho_toggle") {
-        e.preventDefault();
-        draftSettingsHost.toggleOrtho();
-        return;
-      }
-      if (cadShortcut?.id === "polar_tracking_toggle") {
-        e.preventDefault();
-        draftSettingsHost.togglePolar();
-        return;
-      }
-      if (cadShortcut?.id === "object_tracking_toggle") {
-        e.preventDefault();
-        draftSettingsHost.toggleObjectSnapTracking();
-        return;
-      }
-      if (cadShortcut?.id === "validate_layout") {
-        e.preventDefault();
-        openChecks();
-        return;
-      }
-      if (cadShortcut?.id === "export_dxf") {
-        e.preventDefault();
-        openDxfExport();
-        return;
-      }
-      // El motor manda mientras tenga un comando abierto: Esc cancela, Enter
-      // acepta y Tab salta entre distancia y ángulo. Va ANTES de la cascada de
-      // Esc del editor, que si no cancelaría la herramienta heredada y dejaría
-      // el comando del motor abierto sin dueño.
-      if (enginePointerRouterRef.current?.keyDown(e)) return;
-      if (nativeGripControllerRef.current?.keyDown(e)) return;
-      const g = data?.footprint.gridSize || 100;
-      const step = e.shiftKey ? g * 5 : g;
-      const hasNativeSelection = nativeSelectionIdsRef.current.length > 0;
-      const hasSel = selRef.current.length > 0 || hasNativeSelection;
-      if (e.key === "Escape") {
-        e.preventDefault();
-        if (hatchPickModeRef.current) {
-          hatchPickModeRef.current = false;
-          setHatchPickMode(false);
-        } else if (paletteOpenRef.current) {
-          setShowPalette(false);
-          setPaletteQuery("");
-        } else if (commandPreviewRef.current) {
-          setCommandPreview(null);
-        } else if (commandTextRef.current.trim()) {
-          setCommandText("");
-          setCommandHistoryCursor(-1);
-        } else if (drawCommandRef.current) {
-          const cancelled = cancelDrawCommand(drawCommandRef.current);
-          drawCommandRef.current = null;
-          setDrawPrompt(null);
-          setMeasureLive(null);
-          setCanCloseDraftPolyline(false);
-          setPrecisionText("");
-          if (!cancelled.emitted.length)
-            toast.success("Comando de dibujo cancelado.", "CAD");
-          setTool("select");
-          toolRef.current = "select";
-        } else if (toolRef.current !== "select") {
-          endDraw();
-          setTool("select");
-          toolRef.current = "select";
-        } else if (hasSel) {
-          select([]);
-          clearNativeSelection();
-          rebuildAll();
-        }
-      } else if (e.key === "?" || (e.key === "/" && e.shiftKey)) {
-        e.preventDefault();
-        setShowHelp((v) => !v);
-      } else if ((e.key === "a" || e.key === "A") && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        selectAll();
-      } else if (
-        (e.key === "z" || e.key === "Z") &&
-        (e.ctrlKey || e.metaKey) &&
-        !e.shiftKey
-      ) {
-        e.preventDefault();
-        undo();
-      } else if (
-        ((e.key === "z" || e.key === "Z") &&
-          (e.ctrlKey || e.metaKey) &&
-          e.shiftKey) ||
-        ((e.key === "y" || e.key === "Y") && (e.ctrlKey || e.metaKey))
-      ) {
-        e.preventDefault();
-        redo();
-      } else if (e.key === "Enter" && drawCommandRef.current) {
-        e.preventDefault();
-        commitActiveDraftCommand();
-      } else if (e.key === "m" || e.key === "M") {
-        e.preventDefault();
-        toggleMeasure();
-      } else if (e.key === "w" || e.key === "W") {
-        e.preventDefault();
-        toggleWall();
-      } else if (e.key === "f" && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
-        e.preventDefault();
-        fitView(hasSel ? "selection" : "all");
-      } else if (
-        (e.key === "F" || (e.key === "f" && e.shiftKey)) &&
-        !e.ctrlKey &&
-        !e.metaKey
-      ) {
-        e.preventDefault();
-        fitView("plant");
-      } else if (e.key === "\\") {
-        e.preventDefault();
-        setFocusMode((v) => !v);
-      } else if ((e.key === "Delete" || e.key === "Backspace") && hasSel) {
-        e.preventDefault();
-        if (hasNativeSelection) removeNativeSelection();
-        else removeSelected();
-      } else if ((e.key === "r" || e.key === "R") && hasSel) {
-        e.preventDefault();
-        if (hasNativeSelection)
-          transformNativeSelection({ rotationDeg: e.shiftKey ? -15 : 15 });
-        else rotateSelected(e.shiftKey ? -15 : 15);
-      } else if (
-        (e.key === "d" || e.key === "D") &&
-        (e.ctrlKey || e.metaKey) &&
-        hasSel
-      ) {
-        e.preventDefault();
-        if (hasNativeSelection) copyNativeSelection();
-        else duplicateSelected();
-      } else if (
-        (e.key === "c" || e.key === "C") &&
-        (e.ctrlKey || e.metaKey) &&
-        hasSel &&
-        !window.getSelection()?.toString()
-      ) {
-        e.preventDefault();
-        if (hasNativeSelection) copyNativeSelection();
-        else copySelection();
-      } else if ((e.key === "v" || e.key === "V") && (e.ctrlKey || e.metaKey)) {
-        e.preventDefault();
-        pasteClipboard();
-      } else if (
-        (e.key === "g" || e.key === "G") &&
-        (e.ctrlKey || e.metaKey) &&
-        e.shiftKey &&
-        hasSel
-      ) {
-        e.preventDefault();
-        ungroupSelection();
-      } else if (
-        (e.key === "g" || e.key === "G") &&
-        (e.ctrlKey || e.metaKey) &&
-        hasSel
-      ) {
-        e.preventDefault();
-        groupSelection();
-      } else if (e.key === "ArrowLeft" && hasSel) {
-        e.preventDefault();
-        if (hasNativeSelection)
-          transformNativeSelection({ translation: { x: -step, y: 0 } });
-        else nudgeSelected(-step, 0);
-      } else if (e.key === "ArrowRight" && hasSel) {
-        e.preventDefault();
-        if (hasNativeSelection)
-          transformNativeSelection({ translation: { x: step, y: 0 } });
-        else nudgeSelected(step, 0);
-      } else if (e.key === "ArrowUp" && hasSel) {
-        e.preventDefault();
-        if (hasNativeSelection)
-          transformNativeSelection({ translation: { x: 0, y: -step } });
-        else nudgeSelected(0, -step);
-      } else if (e.key === "ArrowDown" && hasSel) {
-        e.preventDefault();
-        if (hasNativeSelection)
-          transformNativeSelection({ translation: { x: 0, y: step } });
-        else nudgeSelected(0, step);
-      }
+          ? ("editable" as const)
+          : ("other" as const),
     };
+    const before = interpretEditorKeyBeforeEngine(eventLike, {
+      readOnly: drawingReadOnlyRef.current,
+      walkMode: !!walkRef.current,
+      workspaceShortcuts: workspaceShortcutsRef.current,
+    });
+    if (before) {
+      e.preventDefault();
+      executeEditorKeyAction(before);
+      return;
+    }
+    // Con un campo editable o en modo caminata la tecla no es del editor, y
+    // OFRECERLA al motor rompería ambos contratos: fase 2 sólo tras un
+    // rechazo real de la fase 1.
+    if (eventLike.targetKind === "editable") return;
+    if (walkRef.current) return;
+    // El motor manda mientras tenga un comando abierto: Esc cancela, Enter
+    // acepta y Tab salta entre distancia y ángulo. Va ANTES de la cascada de
+    // Esc del editor, que si no cancelaría la herramienta heredada y dejaría
+    // el comando del motor abierto sin dueño.
+    if (enginePointerRouterRef.current?.keyDown(e)) return;
+    if (nativeGripControllerRef.current?.keyDown(e)) return;
+    const after = interpretEditorKeyAfterEngine(eventLike, {
+      gridSize: data?.footprint.gridSize || 100,
+      hasSelection: selRef.current.length > 0,
+      hasNativeSelection: nativeSelectionIdsRef.current.length > 0,
+      hatchPickMode: !!hatchPickModeRef.current,
+      paletteOpen: !!paletteOpenRef.current,
+      commandPreviewOpen: !!commandPreviewRef.current,
+      commandTextPending: !!commandTextRef.current.trim(),
+      drawCommandActive: !!drawCommandRef.current,
+      toolIsSelect: toolRef.current === "select",
+      hasDomTextSelection: !!window.getSelection()?.toString(),
+    });
+    if (after) {
+      e.preventDefault();
+      executeEditorKeyAction(after);
+    }
+  };
+  const handleEditorKeyDownRef = useRef(handleEditorKeyDown);
+  useEffect(() => {
+    handleEditorKeyDownRef.current = handleEditorKeyDown;
+  });
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => handleEditorKeyDownRef.current(e);
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, data]);
+  }, [open]);
 
   // Memoizado por documento, no recalculado por render: reconstruir el
   // universo entero costaba ~medio minuto de paleta a 100.000 entidades.
@@ -16069,38 +15962,11 @@ export default function Layout3DEditor({
                     </>
                   ) : (
                     <>
-                      <div className="mb-3 rounded-xl border border-indigo-400/15 bg-indigo-400/[0.05] p-2.5">
-                        <div className="mb-1.5 flex items-center justify-between gap-2">
-                          <div className="inline-flex items-center gap-1.5 type-micro uppercase tracking-wide text-primary-ink">
-                            <Stamp className="h-3.5 w-3.5" /> Plantillas CAD
-                          </div>
-                          <span className="type-micro text-primary-ink/60">
-                            {CAD_LAYOUT_TEMPLATES.length}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-1 gap-1.5">
-                          {CAD_LAYOUT_TEMPLATES.map((template) => (
-                            <button
-                              key={template.id}
-                              onClick={() => applyCadTemplate(template.id)}
-                              title={template.description}
-                              className="rounded-lg bg-indigo-400/[0.08] px-2 py-1.5 text-left type-micro text-primary-ink hover:bg-indigo-400/[0.14]"
-                            >
-                              <span className="flex items-center justify-between gap-2">
-                                <span className="truncate font-semibold">
-                                  {template.label}
-                                </span>
-                                <span className="shrink-0 type-micro text-primary-ink/70">
-                                  {template.assets.length} obj
-                                </span>
-                              </span>
-                              <span className="mt-0.5 block truncate type-micro text-primary-ink/70">
-                                {template.category} · {template.description}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                      <CadTemplateChooserCard
+                        onApply={(templateId) =>
+                          void applyCadTemplate(templateId)
+                        }
+                      />
                       <div className="mb-3 rounded-xl border border-violet-400/15 bg-violet-400/[0.05] p-2.5">
                         <div className="mb-1.5 flex items-center justify-between gap-2">
                           <div className="inline-flex items-center gap-1.5 type-micro uppercase tracking-wide text-violet-200">
@@ -17071,6 +16937,8 @@ export default function Layout3DEditor({
               activeTool={tool}
               readOnly={drawingReadOnly}
               isReadOnlyAllowed={(id) => READ_ONLY_TOOLBAR_ACTION_IDS.has(id)}
+              canUndo={hist.undo > 0}
+              canRedo={hist.redo > 0}
               onRun={runToolbarAction}
             />
           </div>

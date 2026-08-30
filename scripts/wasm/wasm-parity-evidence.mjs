@@ -45,7 +45,15 @@ const output = path.join(root, "docs/cad/evidence/wasm-parity.json");
 const RUNS = 3;
 
 const require = createRequire(import.meta.url);
-const tsx = require.resolve("tsx/cli");
+let tsx;
+try {
+  tsx = require.resolve("tsx/cli");
+} catch {
+  // Mismo mensaje accionable que sus scripts hermanos: un MODULE_NOT_FOUND
+  // crudo no le dice a nadie qué hacer.
+  console.error("No se encontró tsx. Corre `npm ci` en la raíz del repo.");
+  process.exit(1);
+}
 
 function runProbe(index) {
   process.stderr.write(`· corrida ${index + 1}/${RUNS}…\n`);

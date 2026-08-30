@@ -1,4 +1,5 @@
 import { BadRequestException } from '@nestjs/common';
+import { CAD_DOCUMENT_LIMITS } from '@valle-design/contracts';
 /**
  * Las invariantes POR TIPO viven en `cad-entity-invariants.ts`: aquí se valida
  * la FORMA del documento y allí la GEOMETRÍA de cada entidad. `objectValue` y
@@ -44,29 +45,29 @@ export type PersistedCadDocument = Record<string, unknown>;
  * mockeado) al guardar un documento importado — el techo desactualizado no
  * era específico de DWG, afectaba cualquier guardado.
  */
-export const CAD_DOCUMENT_MAX_SCHEMA = 10;
-export const CAD_DOCUMENT_MAX_INLINE_BYTES = 8_000_000;
-/**
- * Techo del documento DESCOMPRIMIDO (gzip aparte, 20 MiB comprimidos). Bajó de
- * 128 MiB a 32 MiB en la campaña 2026-08-20: con 128 MiB, un solo PUT podía
- * hinchar 128 MiB de heap por réplica (gunzip + parse + validación), y el
- * techo REAL del producto es el límite de entidades (100k), que en la práctica
- * produce documentos muy por debajo de 32 MiB. Si un documento legítimo de
- * 100k entidades alguna vez lo roza, la evidencia de document-limits es el
- * lugar donde demostrarlo antes de subirlo.
- */
-export const CAD_DOCUMENT_MAX_ARCHIVE_BYTES = 32 * 1024 * 1024;
-const MAX_ENTITIES = 100_000;
-const MAX_BLOCKS = 2_000;
-const MAX_CONSTRAINTS = 250_000;
-const MAX_PAPER_SPACES = 500;
-const MAX_VIEWPORTS_PER_PAPER_SPACE = 32;
-const MAX_PUBLICATIONS = 1_000;
-const MAX_CAD_VERSIONS = 12;
-const MAX_REVIEW_THREADS = 500;
-const MAX_REVIEW_LINKS = 20;
-const MAX_COLLABORATION_AUDIT_EVENTS = 500;
-const MAX_DEPTH = 64;
+// Los NÚMEROS viven en el contrato (`CAD_DOCUMENT_LIMITS`,
+// @valle-design/contracts) y aquí sólo se consumen: este archivo llegó a
+// redeclararlos y el espejo divergió sin que ningún gate lo viera
+// (maxArchiveBytes bajó a 32 MiB aquí y el contrato siguió diciendo 128).
+// Una cifra no vive en dos lugares. El razonamiento de cada techo acompaña
+// al número en el contrato.
+export const CAD_DOCUMENT_MAX_SCHEMA = CAD_DOCUMENT_LIMITS.maxSchema;
+export const CAD_DOCUMENT_MAX_INLINE_BYTES = CAD_DOCUMENT_LIMITS.maxInlineBytes;
+export const CAD_DOCUMENT_MAX_ARCHIVE_BYTES =
+  CAD_DOCUMENT_LIMITS.maxArchiveBytes;
+const MAX_ENTITIES = CAD_DOCUMENT_LIMITS.maxEntities;
+const MAX_BLOCKS = CAD_DOCUMENT_LIMITS.maxBlocks;
+const MAX_CONSTRAINTS = CAD_DOCUMENT_LIMITS.maxConstraints;
+const MAX_PAPER_SPACES = CAD_DOCUMENT_LIMITS.maxPaperSpaces;
+const MAX_VIEWPORTS_PER_PAPER_SPACE =
+  CAD_DOCUMENT_LIMITS.maxViewportsPerPaperSpace;
+const MAX_PUBLICATIONS = CAD_DOCUMENT_LIMITS.maxEmbeddedPublications;
+const MAX_CAD_VERSIONS = CAD_DOCUMENT_LIMITS.maxCollaborationVersions;
+const MAX_REVIEW_THREADS = CAD_DOCUMENT_LIMITS.maxReviewThreads;
+const MAX_REVIEW_LINKS = CAD_DOCUMENT_LIMITS.maxReviewLinks;
+const MAX_COLLABORATION_AUDIT_EVENTS =
+  CAD_DOCUMENT_LIMITS.maxCollaborationAuditEvents;
+const MAX_DEPTH = CAD_DOCUMENT_LIMITS.maxNestingDepth;
 
 function finitePositive(value: unknown): boolean {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;

@@ -96,7 +96,11 @@ export class PermissionsGuard implements CanActivate {
 
     const user = request.user;
     if (!user) {
-      throw new ForbiddenException('User not authenticated');
+      // 401, no 403: sin usuario autenticado el problema es de AUTENTICACIÓN.
+      // Un 403 aquí le decía al cliente «te conozco y no puedes», cuando la
+      // verdad es «no sé quién eres» — y confundía a los interceptores que
+      // renuevan sesión ante un 401.
+      throw new UnauthorizedException('User not authenticated');
     }
 
     // The local lookup fails closed for missing tenant/org and expired trials.

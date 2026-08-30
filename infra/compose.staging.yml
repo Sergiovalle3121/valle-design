@@ -57,6 +57,10 @@ services:
       # comportamiento de producción (guards, cookies __Host-, HTTPS de
       # outbox). Un staging en modo development ensaya otro producto.
       NODE_ENV: production
+      # OJO: la contraseña se interpola SIN escapar en el DSN. Genera
+      # POSTGRES_PASSWORD sólo con [A-Za-z0-9_-]: un @ / ? # o : válidos en
+      # otros generadores rompen el parseo — y un @ puede redirigir la
+      # conexión a otro host en silencio.
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       SYNCHRONIZE: 'false'
       IDENTITY_RATE_LIMIT_KEY_SECRET: ${IDENTITY_RATE_LIMIT_KEY_SECRET:?distinto del de produccion}
@@ -66,9 +70,11 @@ services:
       OUTBOX_EMAIL_WEBHOOK_URL: https://api-staging.${DOMAIN}/v1/outbox/email
       OUTBOX_DOMAIN_WEBHOOK_URL: https://api-staging.${DOMAIN}/v1/outbox/domain
       OUTBOX_WEBHOOK_SECRET: ${OUTBOX_WEBHOOK_SECRET:?distinto del de produccion}
-      EMAIL_SENDER_PROVIDER: ${EMAIL_SENDER_PROVIDER:?}
-      EMAIL_SENDER_API_KEY: ${EMAIL_SENDER_API_KEY:?}
-      EMAIL_SENDER_FROM: ${EMAIL_SENDER_FROM:?}
+      # O las 4 o NINGUNA — lo aplica el arranque de la API
+      # (email-sender.config.ts); el `:?` hacía imposible el caso «ninguna».
+      EMAIL_SENDER_PROVIDER: ${EMAIL_SENDER_PROVIDER:-}
+      EMAIL_SENDER_API_KEY: ${EMAIL_SENDER_API_KEY:-}
+      EMAIL_SENDER_FROM: ${EMAIL_SENDER_FROM:-}
       OUTBOX_EMAIL_LINK_BASE_URL: https://app-staging.${DOMAIN}
       # Claves de TEST (sk_test_...) y el whsec_ del endpoint de webhook de
       # test apuntando a api-staging: eventos de prueba, base de prueba.

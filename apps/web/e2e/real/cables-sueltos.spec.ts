@@ -19,12 +19,17 @@
  * Un botón de CAD puede hacer su trabajo sin tocar el DOM: cambiar de vista
  * repinta el lienzo y nada más. Otro descarga un archivo. Otro abre el
  * selector de archivos del navegador. Por eso el barrido no mira una sola
- * señal, sino CINCO, y basta una para declarar el control vivo:
+ * señal, sino SEIS, y basta una para declarar el control vivo:
  *
- *   · el DOM o el texto de la página cambian;
+ *   · el DOM, el texto de la página o el VALOR de un campo cambian (el valor
+ *     de un input no es innerText: «Corridor» rellena la línea de comandos y
+ *     sin esta señal contaba como muerto);
  *   · los píxeles del lienzo cambian;
  *   · empieza una descarga;
  *   · se abre un selector de archivos;
+ *   · se abre un diálogo del navegador (prompt/confirm — Playwright los
+ *     descarta por defecto, así que sin esta señal un control con prompt
+ *     parecía muerto);
  *   · sale una petición a la API real.
  *
  * Cada control se pulsa sobre una carga LIMPIA del estudio, para que el efecto
@@ -87,6 +92,15 @@ const NO_OPERAN_POR_ESTAR_ACTIVOS: Record<string, string> = {
   Model: "la pestaña de espacio modelo ya está seleccionada",
   "Seleccionar / mover (V)": "es la herramienta activa al cargar",
   Puntos: "es la pestaña abierta del panel izquierdo",
+  // Los dos primeros botones de la paleta de herramientas extraída. El canal
+  // Firefox de CI los delató: en Chromium el hash del lienzo cambia entre dos
+  // capturas y tapaba a cualquier control sin efecto real; el render de
+  // Firefox es determinista y midió la verdad.
+  "Select · V — Seleccionar y mover objetos.":
+    "es la herramienta activa al cargar (gemelo de «Seleccionar / mover (V)»)",
+  "Pan · Space — Navegar el plano sin cambiar la geometria.":
+    "pan comparte modo con select (la navegación por arrastre vive en el modo " +
+    "de selección) y el estudio ya carga en él",
 };
 
 /**
@@ -114,6 +128,10 @@ const DESHABILITADOS_CON_RAZON = new Set([
   "Deshacer (Ctrl+Z)",
   "Rehacer (Ctrl+Shift+Z)",
   "Ajustar a la selección — encuadra los objetos seleccionados",
+  // Los gemelos de la paleta extraída: sin historia que deshacer se
+  // deshabilitan, igual que los dos de arriba.
+  "Undo · Ctrl+Z — Deshacer el ultimo cambio.",
+  "Redo · Ctrl+Shift+Z — Rehacer el ultimo cambio.",
 ]);
 
 const WALL_MM = 3500;
@@ -157,7 +175,14 @@ function firma(): string {
     .map((element) => element.getAttribute("data-testid"))
     .sort()
     .join(",");
-  const text = (document.body.innerText || "").replace(/\s+/gu, " ");
+  // Los VALORES de los campos también son pantalla: un control que rellena la
+  // línea de comandos cambia un value, no el innerText.
+  const values = [...document.querySelectorAll("input, textarea, select")]
+    .filter(visible)
+    .map((element) => (element as HTMLInputElement).value)
+    .join("");
+  const text =
+    (document.body.innerText || "").replace(/\s+/gu, " ") + "" + values;
   let hash = 0;
   for (let index = 0; index < text.length; index += 1)
     hash = (hash * 31 + text.charCodeAt(index)) | 0;
@@ -284,6 +309,7 @@ test.describe("Cables sueltos: cada control visible produce su efecto", () => {
 
       let descargas = 0;
       let selectores = 0;
+      let dialogos = 0;
       let peticiones = 0;
       const alDescargar = () => {
         descargas += 1;
@@ -291,11 +317,18 @@ test.describe("Cables sueltos: cada control visible produce su efecto", () => {
       const alElegirArchivo = () => {
         selectores += 1;
       };
+      // Con un manejador registrado Playwright deja de descartar los diálogos
+      // solo: hay que descartarlos aquí o el estudio se queda esperando.
+      const alDialogo = (dialog: { dismiss: () => Promise<void> }) => {
+        dialogos += 1;
+        void dialog.dismiss().catch(() => undefined);
+      };
       const alPedir = (request: { url: () => string }) => {
         if (request.url().startsWith(API_ORIGIN)) peticiones += 1;
       };
       page.on("download", alDescargar);
       page.on("filechooser", alElegirArchivo);
+      page.on("dialog", alDialogo);
       page.on("request", alPedir);
 
       const escapado = nombre.replace(/"/gu, '\\"');
@@ -337,6 +370,7 @@ test.describe("Cables sueltos: cada control visible produce su efecto", () => {
         // Un control deshabilitado no se puede pulsar: es honesto y se declara.
         page.off("download", alDescargar);
         page.off("filechooser", alElegirArchivo);
+        page.off("dialog", alDialogo);
         page.off("request", alPedir);
         if (!DESHABILITADOS_CON_RAZON.has(nombre)) noLocalizables.push(nombre);
         continue;
@@ -344,6 +378,7 @@ test.describe("Cables sueltos: cada control visible produce su efecto", () => {
       if (!pulsado) {
         page.off("download", alDescargar);
         page.off("filechooser", alElegirArchivo);
+        page.off("dialog", alDialogo);
         page.off("request", alPedir);
         noLocalizables.push(nombre);
         continue;
@@ -354,6 +389,7 @@ test.describe("Cables sueltos: cada control visible produce su efecto", () => {
       const lienzoDespues = await huellaDelLienzo(page);
       page.off("download", alDescargar);
       page.off("filechooser", alElegirArchivo);
+      page.off("dialog", alDialogo);
       page.off("request", alPedir);
 
       const efecto =
@@ -361,6 +397,7 @@ test.describe("Cables sueltos: cada control visible produce su efecto", () => {
         lienzoAntes !== lienzoDespues ||
         descargas > 0 ||
         selectores > 0 ||
+        dialogos > 0 ||
         peticiones > 0;
       if (efecto) vivos.push(nombre);
       else muertos.push(nombre);

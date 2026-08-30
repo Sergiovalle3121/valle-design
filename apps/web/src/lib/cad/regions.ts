@@ -20,6 +20,7 @@
  * Cuando la unión gane el tipo, este módulo cambia de destino sin cambiar de
  * algoritmo — la parte difícil, que es encadenar los bordes, ya está aquí.
  */
+import { normalizeArcSweepDegrees } from "./arc-sweep";
 import type { CadEntity, CadPoint2 } from "./cad-document";
 import type { CadEntityCommand } from "./entity-commands";
 import {
@@ -53,8 +54,7 @@ export function cadRegionEdge(
   if (entity.type === "arc") {
     // Un arco entra como UN tramo con abombamiento, no como treinta cuerdas: la
     // región resultante tiene la misma área que el arco y no una aproximación.
-    let sweep = entity.endAngle - entity.startAngle;
-    while (sweep <= 0) sweep += 360;
+    const sweep = normalizeArcSweepDegrees(entity.startAngle, entity.endAngle);
     const bulge = Math.tan((sweep * Math.PI) / 720);
     const at = (degrees: number): CadPoint2 => ({
       x: entity.center.x + entity.radius * Math.cos((degrees * Math.PI) / 180),

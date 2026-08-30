@@ -1,9 +1,9 @@
-import { timingSafeEqual } from 'node:crypto';
 import { Body, Controller, NotFoundException, Post, Req } from '@nestjs/common';
 import { IsUUID } from 'class-validator';
 import type { Request } from 'express';
 import { DataSource } from 'typeorm';
 import { Public } from '../../auth/decorators/public.decorator';
+import { assertHarnessAccess } from './harness-access';
 import { Subscription } from '../entities/commercial.entities';
 
 class ExpireTrialBody {
@@ -71,23 +71,4 @@ export class TrialHarnessController {
       trialEndsAt: yesterday.toISOString(),
     };
   }
-}
-
-function assertHarnessAccess(request: Request): void {
-  const expected = process.env.IDENTITY_TEST_HARNESS_KEY ?? '';
-  const supplied = request.header('x-valle-test-harness') ?? '';
-  if (
-    process.env.NODE_ENV === 'production' ||
-    process.env.IDENTITY_TEST_HARNESS !== 'true' ||
-    expected.length < 32 ||
-    !constantTimeEqual(expected, supplied)
-  ) {
-    throw new NotFoundException();
-  }
-}
-
-function constantTimeEqual(expected: string, supplied: string): boolean {
-  const left = Buffer.from(expected);
-  const right = Buffer.from(supplied);
-  return left.length === right.length && timingSafeEqual(left, right);
 }

@@ -22,14 +22,21 @@ on:
     # agosto (PR #63, un único archivo Markdown, dos corridas completas) y fue
     # parte de por qué la cuota mensual se agotó a mitad de ciclo.
     #
-    # `paths-ignore` NO se aplica al push sobre `main`: ahí sí queremos
-    # veredicto de cada commit, cueste lo que cueste, porque es la rama de la
-    # que se despliega.
-    paths-ignore:
-      - "**/*.md"
-      - "docs/**"
-      - "LICENSE"
-      - "NOTICE"
+    # El filtro NO se aplica al push sobre `main`: ahí sí queremos veredicto
+    # de cada commit, cueste lo que cueste, porque es la rama de la que se
+    # despliega.
+    #
+    # `paths` con negaciones y no `paths-ignore`: docs/cad/evidence/** son los
+    # goldens que seis gates comparan contra el árbol — un PR que los toca SÍ
+    # debe correr el pipeline, y `paths-ignore` no admite re-inclusiones con
+    # `!`. El orden importa: la última regla que casa decide.
+    paths:
+      - "**"
+      - "!**/*.md"
+      - "!docs/**"
+      - "docs/cad/evidence/**"
+      - "!LICENSE"
+      - "!NOTICE"
   push:
     branches: [main]
   # Alarma sobre `main` aunque nadie empuje: un fallo intermitente que sólo
@@ -42,6 +49,12 @@ on:
   # schedule:
   #   - cron: "17 5 * * *"
   workflow_dispatch:
+
+# El token del workflow sólo necesita leer el repositorio: nadie publica,
+# comenta ni escribe releases desde aquí. Sin este bloque, el default del
+# repo puede conceder write a cada job.
+permissions:
+  contents: read
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -436,7 +449,7 @@ jobs:
       - name: Descargar los informes medidos por quality-gates
         id: informes
         continue-on-error: true
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: lighthouse-${{ github.sha }}
           path: informes-lighthouse
@@ -481,7 +494,7 @@ jobs:
       # Invariantes del Dockerfile: no necesita dependencias ni base de datos,
       # así que corre ANTES que nada y falla en segundos si algo se rompió.
       - name: Gate de imagen reproducible
-        run: node scripts/deploy/validate-dockerfiles.mjs
+        run: npm run check:deploy
 
       - name: Restaurar node_modules
         id: deps
@@ -498,7 +511,7 @@ jobs:
         run: npm ci
 
       - name: Descargar el dist compilado por quality-gates
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: api-dist-${{ github.sha }}
           path: .
@@ -508,7 +521,7 @@ jobs:
       - name: Smoke de arranque productivo
         env:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/valle_design_deploy
-        run: node scripts/deploy/production-startup-smoke.mjs
+        run: npm run smoke:deploy
 
   e2e:
     name: E2E Playwright (PostgreSQL · Chromium + Firefox)

@@ -34,4 +34,9 @@ lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
-overflow-checks = false
+# En wasm32 `usize` es de 32 bits: un desbordamiento silencioso convierte una
+# cuenta de capacidad en un número pequeño inventado, que es exactamente el
+# modo de fallo que este kernel declara imposible («fallo cerrado»). Con
+# `panic = "abort"` el coste de comprobarlo es un trap determinista en vez de
+# datos incorrectos — el intercambio correcto para un kernel de verificación.
+overflow-checks = true

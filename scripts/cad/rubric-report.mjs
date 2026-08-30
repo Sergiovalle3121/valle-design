@@ -227,7 +227,11 @@ export function renderMatrixSection(rubric, scored) {
 }
 
 /** Reemplaza la sección entre `rubric:begin` y `rubric:end` del documento. */
-export function writeMatrixMarkdown(rubric, scored, { file = MATRIX_FILE } = {}) {
+export function writeMatrixMarkdown(
+  rubric,
+  scored,
+  { file = MATRIX_FILE, write = true } = {},
+) {
   const original = fs.readFileSync(file, "utf8");
   const begin = original.indexOf(MARK_BEGIN);
   const end = original.indexOf(MARK_END);
@@ -242,6 +246,8 @@ export function writeMatrixMarkdown(rubric, scored, { file = MATRIX_FILE } = {})
     "\n\n" +
     original.slice(end);
   const changed = next !== original;
-  if (changed) fs.writeFileSync(file, next);
+  // `write: false` = modo verificación: reporta si la matriz está al día sin
+  // tocar el árbol — un pipeline de COMPROBACIÓN no muta archivos versionados.
+  if (changed && write) fs.writeFileSync(file, next);
   return { file, changed };
 }
