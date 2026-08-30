@@ -27,11 +27,18 @@
 # La versión de Node sale de .nvmrc (fuente única, la misma que usa CI). Si
 # alguien la cambia allí y no aquí, el validador falla.
 ARG NODE_VERSION=20
+# Digest del manifest-list multi-arch de node:20-bookworm-slim: la etiqueta
+# avanza con cada patch de Node y cada rebuild de Debian, así que dos builds
+# del mismo commit daban imágenes distintas — lo contrario del principio de
+# imagen DERIVABLE del commit que declara esta cabecera. Dependabot (docker)
+# propone el digest nuevo cuando la base publica; la etiqueta se conserva al
+# lado como documentación humana de qué es este digest.
+ARG NODE_DIGEST=sha256:2cf067cfed83d5ea958367df9f966191a942351a2df77d6f0193e162b5febfc0
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 1 · build — árbol completo (dev incluidas), compila y luego poda
 # ─────────────────────────────────────────────────────────────────────────────
-FROM node:${NODE_VERSION}-bookworm-slim AS build
+FROM node:${NODE_VERSION}-bookworm-slim@${NODE_DIGEST} AS build
 WORKDIR /app
 
 # Herramientas de compilación para dependencias nativas (@node-rs/argon2 trae
@@ -73,7 +80,7 @@ RUN npm prune --omit=dev
 # ─────────────────────────────────────────────────────────────────────────────
 # Stage 2 · runtime — slim, sin compilador, sin fuentes, sin root
 # ─────────────────────────────────────────────────────────────────────────────
-FROM node:${NODE_VERSION}-bookworm-slim AS runtime
+FROM node:${NODE_VERSION}-bookworm-slim@${NODE_DIGEST} AS runtime
 
 # `dumb-init` reenvía SIGTERM/SIGINT al hijo y cosecha zombies. Es la pieza
 # que hace que el apagado ordenado de `main.ts` se ejecute de verdad.

@@ -331,6 +331,28 @@ export function validate(target, nodeMajor) {
     `etiqueta móvil ${movingTags.join(', ')}: la imagen deja de ser derivable del commit`,
   );
 
+  // ── 3b · digest fijado ───────────────────────────────────────────────────
+  // `node:20-bookworm-slim` también es una etiqueta MÓVIL: avanza con cada
+  // patch de Node y cada rebuild de Debian, así que dos builds del mismo
+  // commit con un mes de diferencia producían imágenes distintas. Sólo el
+  // digest hace a la base derivable del commit; Dependabot (docker) propone
+  // el nuevo cuando upstream publica.
+  const argDigest = /^\s*ARG\s+NODE_DIGEST\s*=\s*(sha256:[0-9a-f]{64})\s*$/im.exec(
+    source,
+  )?.[1];
+  const undigested = nodeTags.filter((tag) => {
+    const at = tag.indexOf('@');
+    if (at === -1) return true;
+    const digest = tag.slice(at + 1);
+    const resolved = digest === '${NODE_DIGEST}' ? argDigest : digest;
+    return !/^sha256:[0-9a-f]{64}$/.test(resolved ?? '');
+  });
+  check(
+    'base-digest',
+    undigested.length === 0,
+    `base sin digest (${undigested.join(', ') || 'ninguna'}): la etiqueta avanza sola y la imagen deja de ser derivable del commit — fija @sha256:… (ARG NODE_DIGEST)`,
+  );
+
   // ── 4 · usuario no root en el stage final ────────────────────────────────
   const lastFromLine = froms.length ? froms[froms.length - 1].line : 0;
   const runtimeUser = users

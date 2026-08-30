@@ -49,3 +49,46 @@ updates:
       - dependency-name: "eslint-config-next"
         versions: [">= 16.3.0"]
       - dependency-name: "@playwright/test"
+
+  # Los SHA pineados de las actions de ci.yml/release.yml no se renuevan
+  # solos: el pinning sin renovación automática es deuda, no seguridad — la
+  # CVE de una action pineada se queda clavada hasta que alguien se acuerde.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Mexico_City"
+    open-pull-requests-limit: 2
+    groups:
+      actions-semanal:
+        patterns:
+          - "*"
+    commit-message:
+      prefix: "deps"
+
+  # Las bases por digest de los Dockerfiles (node@sha256:…) avanzan cuando
+  # upstream publica un patch; sin este ecosistema el digest fijado envejece
+  # en silencio.
+  - package-ecosystem: "docker"
+    directory: "/apps/api"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Mexico_City"
+    open-pull-requests-limit: 1
+    commit-message:
+      prefix: "deps"
+
+  - package-ecosystem: "docker"
+    directory: "/apps/web"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Mexico_City"
+    open-pull-requests-limit: 1
+    commit-message:
+      prefix: "deps"
