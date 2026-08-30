@@ -56,6 +56,10 @@ services:
         condition: service_healthy
     environment:
       NODE_ENV: production
+      # OJO: la contraseña se interpola SIN escapar en el DSN. Genera
+      # POSTGRES_PASSWORD sólo con [A-Za-z0-9_-]: un @ / ? # o : válidos en
+      # otros generadores rompen el parseo — y un @ puede redirigir la
+      # conexión a otro host en silencio.
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       SYNCHRONIZE: 'false'
       IDENTITY_RATE_LIMIT_KEY_SECRET: ${IDENTITY_RATE_LIMIT_KEY_SECRET:?minimo 32 caracteres}
@@ -70,10 +74,13 @@ services:
       OUTBOX_EMAIL_WEBHOOK_URL: https://api.${DOMAIN}/v1/outbox/email
       OUTBOX_DOMAIN_WEBHOOK_URL: https://api.${DOMAIN}/v1/outbox/domain
       OUTBOX_WEBHOOK_SECRET: ${OUTBOX_WEBHOOK_SECRET:?minimo 32 caracteres}
-      # Correo: o las 4 o ninguna (a medias, el arranque muere — deliberado).
-      EMAIL_SENDER_PROVIDER: ${EMAIL_SENDER_PROVIDER:?resend, o vacia junto a las otras 3}
-      EMAIL_SENDER_API_KEY: ${EMAIL_SENDER_API_KEY:?}
-      EMAIL_SENDER_FROM: ${EMAIL_SENDER_FROM:?}
+      # Correo: o las 4 o NINGUNA — quien lo aplica es el ARRANQUE de la API
+      # (email-sender.config.ts): vacías = adaptador nulo, a medias = muere
+      # con EmailSenderConfigurationError. El `:?` que había aquí contradecía
+      # esa regla: hacía imposible el caso «ninguna» que la app acepta.
+      EMAIL_SENDER_PROVIDER: ${EMAIL_SENDER_PROVIDER:-}
+      EMAIL_SENDER_API_KEY: ${EMAIL_SENDER_API_KEY:-}
+      EMAIL_SENDER_FROM: ${EMAIL_SENDER_FROM:-}
       OUTBOX_EMAIL_LINK_BASE_URL: https://app.${DOMAIN}
       # Stripe: o las 4 o NINGUNA. Vacías = adaptador nulo (cobro asistido),
       # que es una configuración válida mientras la cuenta MX se activa.
