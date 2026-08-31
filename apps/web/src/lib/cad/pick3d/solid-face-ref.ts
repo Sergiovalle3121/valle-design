@@ -71,7 +71,7 @@ import {
   v3Scale,
   type BrepBody,
   type Vec3,
-} from "@/lib/brep";
+} from "../../brep";
 import type { CadSolidFaceRef } from "../cad-entities-v5";
 
 export type { CadSolidFaceRef };

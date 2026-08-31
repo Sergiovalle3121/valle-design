@@ -62,8 +62,8 @@ import {
   validateBody,
   type BrepBody,
   type Vec3,
-} from "@/lib/brep";
-import { aabbDiagonal, bodyBounds } from "@/lib/brep";
+} from "../../brep";
+import { aabbDiagonal, bodyBounds } from "../../brep";
 
 export interface CadFacePushResult {
   body: BrepBody;
