@@ -73,3 +73,12 @@ manual, que es una configuración válida mientras la cuenta MX se activa
 Ningún ítem de esta lista se resuelve con código. Si algo aquí parece
 requerir una decisión técnica, probablemente está mal ubicado — repórtalo en
 vez de inventar una respuesta.
+
+## Dictamen DWG (añadido 2026-08-31)
+
+El expediente para el dictamen jurídico externo que ADR-0004/ADR-0007 exigen
+antes de cualquier disponibilidad comercial del DWG está preparado en
+[`EXPEDIENTE_DWG_CLEAN_ROOM.md`](EXPEDIENTE_DWG_CLEAN_ROOM.md): procedencia
+fuente por fuente, cadena de custodia del corpus, cuatro preguntas concretas
+y seis riesgos declarados. Falta encargarlo — es la única acción que ninguna
+sesión de ingeniería puede ejecutar, y de la que depende `legalReviewCleared`.

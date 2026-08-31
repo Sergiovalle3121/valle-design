@@ -1088,9 +1088,43 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "DWG-M4-ENCABEZADO-R2010-20260831",
+      "date": "2026-08-31",
+      "initiative": "Plan de construcción del DWG hacia 2D+3D comercial, con análisis de huecos y ejecución de su primer frente. Análisis: inventario medido de los dos repositorios (códec, kernel B-rep, corpus, producto) y hoja de ruta de ocho fases. Ejecución: se levantó el bloqueo BLOCKED_BY_SOURCE_GATE de las versiones DWG modernas resolviendo por MEDICIÓN la estructura del encabezado de objeto R2010+ (MS tamaño, UMC tamaño del flujo de handles, BOT tipo, H handle propio) contra el corpus admitido, con 2893/2893 handles exactos; se corrigió la política clean-room para distinguir especificación de implementación; se corrigieron dos puntos donde CAPABILITIES.md contradecía al código; y se preparó el expediente para el dictamen jurídico externo.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": ["Claude Code (Anthropic), sesión operada por el titular"],
+      "authority": "Sergio Valle Zárate pidió un plan de construcción para llevar el DWG al siguiente nivel con vistas a comercializar, sin licencia ODA, y que se analizara qué falta y se construyera. Eligió expresamente en la sesión: empezar por las versiones modernas (Fase 0+1), escalonar el 3D (preservar antes que parsear) y preparar el expediente legal.",
+      "firstPartyInputs": [
+        "El código y los gates propios del monorepo (cadenas check:dwg/check:cad y sus scripts).",
+        "El corpus propio de valle-design-dwg-conformance (57 DWG con oráculos DXF) como espejo local: los cinco bundles fundacionales son los mismos ocho dibujos en cinco contenedores, y ese paralelismo es lo que permitió resolver la codificación por medición.",
+        "SOURCE_REGISTER.json, CAPABILITIES.md y DWG0_WORKLOG.md del laboratorio (hechos clean-room ya registrados).",
+        "Los ADR 0004/0007/0009/0012/0014 y los informes de campañas anteriores en docs/execution/."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. La estructura del encabezado de objeto R2010+ se derivó ÍNTEGRAMENTE por medición sobre el corpus propio, contrastando cada handle contra el tipo ya conocido de su gemelo AC1015. No se consultó ninguna implementación ajena (ODA SDK, RealDWG, LibreDWG u otra) ni ninguna fuente documental nueva: tampoco la Open Design Specification, que aunque está registrada como fuente permitida no se abrió en esta sesión. El hecho queda registrado como medición first-party (VALLE-CORPUS-R2010-OBJECT-HEADER).",
+      "derivedAreas": [
+        "packages/dwg-codec/src/codecs/bitcodes.ts (bit-code BOT: selectores 0 y 1 medidos; 2 y 3 fallan cerrados por no observados)",
+        "packages/dwg-codec/src/container/r2010-object-envelope.ts (readR2010ObjectHeader y su comprobación cruzada contra el handle del mapa)",
+        "packages/dwg-codec/src/reader/r2004-database-reader.ts (el mensaje de fallo cerrado nombra ahora la frontera real: el cuerpo, no el tipo)",
+        "scripts/dwg/probe-r2010-object-header.mjs y docs/cad/evidence/dwg-r2010-object-header.json (productor de evidencia y su gate --check)",
+        "Gobernanza: CLEAN_ROOM_POLICY.md, CAPABILITIES.md, DWG0_WORKLOG.md, ADR-0015, §12 del informe del 2026-08-24",
+        "docs/legal/EXPEDIENTE_DWG_CLEAN_ROOM.md"
+      ],
+      "fixtures": "Ninguno nuevo. El corpus de valle-design-dwg-conformance no se tocó: se leyó por el gate consumidor contra el commit fijado y su SHA-256, sin escribir nada. Las specs nuevas del códec usan vectores de bits construidos a mano en el propio test.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Autorización expresa del titular en la sesión del 2026-08-31 para armar el plan y construir su primer frente. Evidencia final: el PR de esta rama revisado sobre el SHA candidato con los gates en verde."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "CAMPANA-3D-MODELADO-DIRECTO-20260831",
       "date": "2026-08-31",
-      "initiative": "Campaña de modelado directo 3D: llevar el producto de CAD 2D con visor 3D a modelador de modelado directo tipo SketchUp, sobre el kernel B-rep facetado que ya existe. Ola 0: ADR-0015 (la decisión 3D que el titular pidió en agosto y nunca se escribió) y la ampliación de identidad. Ola 1: la aritmética de designación de cara por rayo de cámara y la identidad estable de cara con huella geométrica, que además cierra el defecto latente de los índices crudos de arista en fillet/chamfer.",
+      "initiative": "Campaña de modelado directo 3D: llevar el producto de CAD 2D con visor 3D a modelador de modelado directo tipo SketchUp, sobre el kernel B-rep facetado que ya existe. Ola 0: ADR-0016 (la decisión 3D que el titular pidió en agosto y nunca se escribió) y la ampliación de identidad. Ola 1: la aritmética de designación de cara por rayo de cámara y la identidad estable de cara con huella geométrica, que además cierra el defecto latente de los índices crudos de arista en fillet/chamfer.",
       "branch": "claude/plan-3d-architecture-software-gu85hp",
       "assistants": ["Claude Code (Anthropic), sesión operada por el titular"],
       "authority": "Sergio Valle Zárate encargó el análisis del producto y un plan para llevarlo a modelador 3D competidor de SketchUp/AutoCAD, eligió en la sesión el tipo de 3D (modelado directo), los diferenciadores (colaboración en vivo y web sin instalación), los formatos de migración (SKP y DWG 3D) y el ritmo (campañas incrementales), y aprobó el plan resultante antes de escribir código.",
@@ -1104,7 +1138,7 @@
       "externalSources": [],
       "externalImplementationConsulted": "Ninguna. La aritmética de rayo-contra-cara y la huella de identidad de cara se escribieron sobre el kernel B-rep propio (topology.ts, vec3.ts, tolerance.ts) sin consultar ninguna implementación externa. SketchUp y AutoCAD se citan como referencia de COMPORTAMIENTO observable de producto —qué espera un usuario al empujar una cara—, nunca como fuente de implementación.",
       "derivedAreas": [
-        "docs/adr/0015-modelado-directo-sobre-brep-facetado.md (nuevo) y docs/adr/README.md",
+        "docs/adr/0016-modelado-directo-sobre-brep-facetado.md (nuevo) y docs/adr/README.md",
         "IDENTITY.md, PRODUCT.md, README.md y AGENTS.md: ampliación de identidad a modelador 3D, con el límite al lado y bim-claim-boundary.spec.ts sumado como cuarto candado ejecutable",
         "apps/web/src/lib/cad/pick3d/face-ray.ts y su spec: designación de cara por rayo de cámara, que generaliza cadSolidFaceUnderPoint de la Z del mundo a una dirección arbitraria",
         "apps/web/src/lib/cad/pick3d/solid-face-ref.ts y su spec: huella geométrica de cara con índice como vía rápida, autocuración registrada y fallo ruidoso ante cero o múltiples candidatas"

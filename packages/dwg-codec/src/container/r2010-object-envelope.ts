@@ -15,15 +15,36 @@
  * de tres fixtures AC1024/AC1027 — VALLE-CORPUS-INTAKE-A60EBE2 en
  * SOURCE_REGISTER.json.
  *
- * Este módulo SÓLO delimita y verifica el cuerpo opaco; NO decodifica su
- * tipo. La codificación BOT (par de 2 bits + valor) del tipo de objeto y la
- * posición exacta del campo UMC del tamaño del flujo de handles no tienen
- * fuente registrada suficiente para derivarse sin adivinar (DWG0_WORKLOG
- * 2026-08-23): decodificar el TIPO de un cuerpo R2010+ sigue
- * BLOCKED_BY_SOURCE_GATE, y por eso `readR2004Database` continúa fallando
- * cerrado para AC1024/AC1027/AC1032 pese a que este envoltorio ya funciona.
+ * Intake 2026-08-31 (VALLE-CORPUS-R2010-OBJECT-HEADER): lo que el intake de
+ * 2026-08-23 dejó BLOCKED_BY_SOURCE_GATE —la codificación BOT del tipo y la
+ * posición del campo UMC del tamaño del flujo de handles— queda DERIVADO por
+ * medición first-party y falsado sobre el corpus admitido. El encabezado de
+ * un cuerpo R2010+ es, en este orden:
+ *
+ *   1. `MS`  tamaño del objeto en bytes;
+ *   2. `UMC` tamaño EN BITS del flujo de handles (es un TAMAÑO, no un
+ *      desplazamiento — confundirlo fue lo que hizo fracasar el sondeo de
+ *      2026-08-23, que buscaba el tipo asumiéndolo al frente);
+ *   3. `BOT` tipo de objeto (ver `DwgBitReader.readBOT`);
+ *   4. `H`   handle propio del objeto.
+ *
+ * POR QUÉ ESTA MEDICIÓN SE PUEDE CREER. El handle propio viaja pegado detrás
+ * del tipo, y el mapa de handles ya dice cuál debe ser cada uno. Si
+ * cualquiera de los tres campos previos tuviera el ancho equivocado, el
+ * handle saldría desalineado y basura. Sale EXACTO en 2893/2893 objetos de
+ * los 24 fixtures AC1024/AC1027/AC1032 del corpus admitido.
+ *
+ * LO QUE ESTO TODAVÍA NO ES. Decodificar el ENCABEZADO no es decodificar el
+ * CUERPO: el flujo de datos R2010+ separa las cadenas a un flujo propio y su
+ * cabecera común de entidad difiere aún de la R2000, así que reconstruir la
+ * forma R2000 y reusar los decodificadores existentes NO funciona todavía
+ * (probado: ningún `bitsize` hace decodificar una LINE real). Por eso
+ * `readR2004Database` SIGUE fallando cerrado para AC1024/AC1027/AC1032 —
+ * ahora por una frontera distinta y más estrecha, nombrada en su mensaje.
  */
+import { BoundedByteCursor } from "../binary/byte-cursor.js";
 import { checkedRange, checkedSubtract } from "../binary/checked-arithmetic.js";
+import { DwgBitReader } from "../codecs/bitcodes.js";
 import { crc16Dwg } from "../codecs/crc16.js";
 import { throwDwgError } from "../security/parse-error.js";
 import { AC1015_SECTION_CRC_SEED } from "./ac1015-section-frame.js";
@@ -122,4 +143,58 @@ export function readR2010ObjectBody(
     );
   }
   return Object.freeze({ bodyBytes: Uint8Array.from(bodyBytes), byteLength });
+}
+
+/** Encabezado de un cuerpo R2010+ ya delimitado y verificado por CRC. */
+export interface R2010ObjectHeader {
+  /** Tamaño del objeto en bytes, tal como lo declara su campo `MS`. */
+  readonly objectSize: number;
+  /** Tamaño EN BITS del flujo de handles (un tamaño, no un desplazamiento). */
+  readonly handleStreamBits: number;
+  /** Tipo de objeto: fijo si < 0x1F0, número de clase del archivo si no. */
+  readonly type: number;
+  /** Handle propio declarado por el objeto. */
+  readonly handle: number;
+  /** Código de 4 bits del handle propio (0 = absoluto en el corpus medido). */
+  readonly handleCode: number;
+  /** Primer bit del flujo de datos, ya pasado el handle propio. */
+  readonly dataBitOffset: number;
+}
+
+/**
+ * Lee el encabezado de UN cuerpo R2010+ (ver la cabecera del módulo para la
+ * secuencia y para por qué se puede creer).
+ *
+ * `expectedHandle` es OPCIONAL y no cambia lo que se lee: cuando el llamador
+ * lo pasa, esta función exige que el handle decodificado coincida con el que
+ * el mapa ya prometió. Es la comprobación cruzada que convierte un
+ * desalineamiento silencioso en un fallo cerrado con offset — sin ella, un
+ * encabezado mal leído produciría un objeto plausible y equivocado.
+ */
+export function readR2010ObjectHeader(
+  bodyBytes: Uint8Array,
+  expectedHandle?: number,
+): R2010ObjectHeader {
+  const reader = new DwgBitReader(new BoundedByteCursor(bodyBytes));
+  const objectSize = reader.readMS();
+  const handleStreamBits = reader.readUnsignedMC();
+  const type = reader.readBOT();
+  const own = reader.readH();
+  const handle = own.value;
+  if (expectedHandle !== undefined && handle !== expectedHandle) {
+    throwDwgError(
+      "DWG_STRUCTURE_CORRUPT",
+      "input",
+      0,
+      "An R2010+ object header decodes a handle its own map does not promise.",
+    );
+  }
+  return Object.freeze({
+    objectSize,
+    handleStreamBits,
+    type,
+    handle,
+    handleCode: own.code,
+    dataBitOffset: reader.bitPosition,
+  });
 }

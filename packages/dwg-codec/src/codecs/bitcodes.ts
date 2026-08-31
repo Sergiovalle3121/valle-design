@@ -57,6 +57,13 @@ export interface DwgExtrusion {
 }
 
 /** Tope de bytes de un entero modular: más de 8 no cabe en ningún campo real. */
+/**
+ * Desplazamiento de la segunda forma del BOT: el valor de 8 bits nombra un
+ * tipo a partir de 0x1F0, el mismo umbral en que empiezan los números de
+ * clase. Medido, no supuesto (ver `readBOT`).
+ */
+const BOT_CLASS_OFFSET = 0x1f0;
+
 const MODULAR_CHAR_MAX_BYTES = 8;
 /** Tope de palabras de un modular short: dos palabras cubren 30 bits. */
 const MODULAR_SHORT_MAX_WORDS = 2;
@@ -312,6 +319,39 @@ export class DwgBitReader {
       factor *= 0x8000;
     }
     this.#corrupt("A modular short does not terminate within two words.");
+  }
+
+  /**
+   * BOT (bit object type) — tipo de objeto de la familia R2010+.
+   *
+   * Selector de 2 bits que elige la forma del valor. Las DOS formas que este
+   * método decodifica —selector 0 con un `RC` literal, selector 1 con un
+   * `RC` desplazado 0x1F0— son MEDICIÓN first-party sobre el corpus
+   * admitido, no un hecho documental: se derivaron resolviendo la
+   * codificación contra los tipos ya conocidos de los gemelos AC1015 y se
+   * falsaron exigiendo que el handle propio —que viaja INMEDIATAMENTE
+   * después de este campo— aterrice exacto. Un ancho equivocado desalinea
+   * ese handle, así que 2893/2893 handles correctos sobre AC1024/AC1027/
+   * AC1032 es la prueba de que ambos anchos son los de verdad.
+   * Ver `VALLE-CORPUS-R2010-OBJECT-HEADER` en SOURCE_REGISTER.json y
+   * `docs/cad/evidence/dwg-r2010-object-header.json`.
+   *
+   * LOS SELECTORES 2 Y 3 FALLAN CERRADOS, y es deliberado. Ninguno aparece
+   * ni una sola vez en los 2893 objetos medidos: los 24 fixtures del corpus
+   * admitido no llegan a numerar tipos que los necesiten. Sin una sola
+   * observación no hay forma de saber su ancho ni su orden de bytes, y
+   * adivinarlos sería el peor modo de fallo posible aquí — un tipo plausible
+   * y equivocado que además desalinea todo lo que viene detrás, sin que nada
+   * lo denuncie. Ampliar esto exige corpus que los ejercite, no una
+   * suposición: es capacidad ausente declarada, no un hueco olvidado.
+   */
+  readBOT(): number {
+    const selector = this.readBB();
+    if (selector === 0) return this.readRC();
+    if (selector === 1) return this.readRC() + BOT_CLASS_OFFSET;
+    this.#corrupt(
+      "An R2010+ object type uses a selector this laboratory has never observed.",
+    );
   }
 
   /**
