@@ -697,6 +697,45 @@
       "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-r2010-handle-stream.mjs); revision humana del propietario pendiente, como toda promocion de capacidad",
       "reviewedAt": "2026-08-31",
       "notes": "Medida por scripts/dwg/probe-r2010-handle-stream.mjs, reproducible con VALLE_DWG_CORPUS_MIRROR y verificada en las dos direcciones (--check sale 1 sobre evidencia adulterada). Resuelve la referencia a CAPA y PROPIETARIO que VALLE-CORPUS-R2010-OBJECT-BODY dejo pendiente y que readR2004Database cita por su nombre al fallar cerrado. NO promueve ninguna capacidad de producto: siguen faltando el flujo de cadenas R2007+ y las tablas de simbolos, sin los cuales no hay nombres de capa ni de bloque y no se ensambla una base neutral completa -- ver CAPABILITIES.md para el corte exacto."
+    },
+    {
+      "id": "VALLE-CORPUS-R2010-STRING-STREAM",
+      "owner": "Sergio Valle Zarate",
+      "origin": {
+        "type": "original-measurement",
+        "location": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance/tree/0688fb9c395b9cac4169d1ee9c23a7370cc28cf3/bundles/valle.fundacional.ac1024.001",
+        "accessedAt": "2026-08-31"
+      },
+      "title": "Mediciones first-party del FLUJO DE CADENAS del cuerpo de objeto R2010+ (AC1024/AC1027/AC1032) sobre el corpus admitido",
+      "versionOrDate": "2026-08-31",
+      "terms": {
+        "license": "Valle first-party corpus measurement (admitted tool-converted-original bundles)",
+        "access": "Blobs leidos del commit fijado del repo hermano de conformidad via el gate consumidor (corpus-pin.json + SHA-256 verificado); ningun working tree",
+        "redistribution": "Solo se registran numeros observados (anchuras de campo, offsets de bit, tamanos declarados) y decisiones de codigo derivadas; los bytes DWG permanecen en el repo hermano bajo su propia politica",
+        "notes": "Cuarta entrega de la serie (ENCABEZADO -> CUERPO -> FLUJO DE HANDLES -> FLUJO DE CADENAS): mismo corpus, mismo metodo diferencial. Es una observacion de bytes, no una fuente documental; no se consulto ninguna implementacion ajena. El hecho ya registrado en ODA-ODS-DWG-5.4.1-PUBLIC ('AC1021+ introduce el flujo de STRINGS separado al final del cuerpo... el bit de presencia del final del dato') predijo la EXISTENCIA del flujo y del bit; esta entrada mide su DISPOSICION completa."
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "Contando hacia atras desde el bit de presencia de cadenas -que VALLE-CORPUS-R2010-OBJECT-BODY situo exactamente un bit antes del flujo de handles-, el cuerpo termina asi: [datos del tipo][flujo de cadenas: N bits][tamano del flujo: RS de 16 bits con valor N][bit de presencia = 1][flujo de handles][relleno hasta el byte]",
+        "El campo de tamano son 16 bits leidos como RS (dos bytes little-endian), no como los bits crudos del flujo: el mismo campo leido crudo da 51712 donde el RS da 202, y es el 202 el que cuadra con la aritmetica del gemelo",
+        "El valor de ese campo es EXACTAMENTE los bits que ocupan el BS de longitud mas los caracteres en UTF-16LE, un numero calculado del gemelo AC1015 y no leido del archivo moderno: 15/15 objetos con cadena, 5 por version",
+        "El inicio del flujo, derivado como bitPresencia menos 16 menos el tamano declarado, cae EXACTAMENTE donde empieza el BS de longitud: 15/15",
+        "Dentro del flujo cada cadena es un TU: un BS con el numero de CARACTERES seguido de esos caracteres en UTF-16LE. El texto asi decodificado coincide byte a byte con el del gemelo en 15/15",
+        "La codificacion es UTF-16LE y no ASCII: buscando el valor del gemelo alineado a bit dentro del cuerpo moderno, la forma ASCII no aparece NUNCA (0/15) y la UTF-16LE aparece exactamente una vez (15/15)",
+        "El bit de presencia vale 1 en los 15 objetos con cadena, frente a 0 en los 72 objetos sin cadena ya medidos en VALLE-CORPUS-R2010-OBJECT-BODY: la semantica del bit queda confirmada por los dos lados y no por uno solo",
+        "Las tres versiones dan cifras identicas (5/5 en cada metrica por version): la disposicion del flujo de cadenas no cambia entre AC1024, AC1027 y AC1032",
+        "CAPACIDAD AUSENTE, DECLARADA: el corpus admitido solo ejercita objetos con UNA cadena (los TEXT). El orden de VARIAS cadenas dentro de un mismo flujo NO esta medido, asi que el lector derivado exige que la unica cadena consuma el flujo entero y falla cerrado si sobra algo, en vez de suponer que las siguientes van seguidas",
+        "CAPACIDAD AUSENTE, DECLARADA: no hay ninguna cadena no-ASCII en el corpus. Que la codificacion sea UTF-16LE esta medido, pero solo sobre puntos de codigo latinos basicos; los pares suplentes (fuera del BMP) no estan ejercitados y viajan crudos como unidades de codigo, sin combinarse"
+      ],
+      "derivedFiles": [
+        "docs/cad/evidence/dwg-r2010-string-stream.json",
+        "packages/dwg-codec/src/reader/r2010-string-stream.ts",
+        "packages/dwg-codec/tests/unit/r2010-string-stream.spec.ts",
+        "scripts/dwg/probe-r2010-string-stream.mjs"
+      ],
+      "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-r2010-string-stream.mjs); revision humana del propietario pendiente, como toda promocion de capacidad",
+      "reviewedAt": "2026-08-31",
+      "notes": "Medida por scripts/dwg/probe-r2010-string-stream.mjs, reproducible con VALLE_DWG_CORPUS_MIRROR. Cierra el segundo de los dos frentes que readR2004Database nombra al fallar cerrado. NO promueve ninguna capacidad de producto: falta ensamblar las tablas de simbolos y conectar el lector, y el corpus solo ejercita objetos de una cadena -- ver CAPABILITIES.md para el corte exacto."
     }
   ]
 }

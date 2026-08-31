@@ -537,3 +537,60 @@ ensamblar.
 Evidencia: `docs/cad/evidence/dwg-r2010-handle-stream.json`, reproducible con
 `node scripts/dwg/probe-r2010-handle-stream.mjs` y guardada por
 `npm run check:dwg-r2010-handles`.
+
+## Evidencia del corte 2026-08-31 (continuación: FLUJO DE CADENAS del cuerpo R2010+)
+
+Cuarta entrega de la serie (ENCABEZADO → CUERPO → FLUJO DE HANDLES →
+**FLUJO DE CADENAS**). Cierra el segundo de los dos frentes que
+`readR2004Database` nombra al fallar cerrado. Sin cadenas no hay **nombres**:
+ni de capa, ni de bloque, ni de estilo, ni el contenido de un TEXT.
+
+| Capacidad                                        | Evidencia          | Límite honesto                                                                                                                                  |
+| ------------------------------------------------ | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| Flujo de cadenas del cuerpo AC1024/AC1027/AC1032 | `experimental-lab` | Objetos de **una sola** cadena. Varias cadenas en un mismo flujo no están medidas y el lector falla cerrado. Sin cadenas no-ASCII en el corpus. |
+
+Disposición medida, contando hacia atrás desde el bit de presencia:
+
+```
+[ ... datos del tipo ... ]
+[ flujo de cadenas: N bits ]
+[ tamaño del flujo: RS de 16 bits, valor N ]
+[ bit de presencia = 1 ]
+[ flujo de handles ]  [ relleno hasta el byte ]
+```
+
+y dentro del flujo cada cadena es un `TU`: un `BS` con el número de
+**caracteres** seguido de esos caracteres en **UTF-16LE**.
+
+**Tres falsaciones que tendrían que fallar juntas** (15/15 objetos con cadena,
+5 por versión):
+
+1. El campo RS vale **exactamente** los bits que ocupan el `BS` de longitud más
+   los datos UTF-16 — un número calculado del gemelo AC1015, no leído del
+   archivo moderno: **15/15**.
+2. El inicio derivado como `bitPresencia − 16 − N` cae **exactamente** donde
+   empieza ese `BS`: **15/15**.
+3. El texto decodificado coincide byte a byte con el del gemelo: **15/15**.
+
+Además la forma ASCII del valor **no aparece nunca** (0/15) y la UTF-16LE
+aparece exactamente una vez (15/15), y el bit de presencia vale 1 en los 15
+frente a 0 en los 72 objetos sin cadena ya medidos: la semántica del bit queda
+confirmada por los **dos** lados.
+
+**Capacidad ausente declarada, sin suavizar**: el corpus sólo ejercita objetos
+con **una** cadena. `readR2010SingleString` exige que esa cadena consuma el
+flujo entero y falla cerrado si sobra algo — antes que suponer que las
+siguientes van seguidas y devolver un nombre de capa plausible y equivocado.
+Ese chequeo es también un falsador en tiempo de ejecución. No hay ninguna
+cadena no-ASCII en el corpus, así que los pares suplentes fuera del BMP no
+están ejercitados y viajan crudos como unidades de código.
+
+**Lo que sigue faltando**: las tablas de símbolos. Con handles y cadenas ya
+medidos, lo que queda para que `readR2004Database` ensamble una base neutral
+completa es decodificar los registros de tabla (LAYER, BLOCK_RECORD, LTYPE,
+STYLE) y enlazarlos. Hasta entonces el lector sigue fallando cerrado para
+AC1024/AC1027/AC1032 y estos módulos siguen siendo capacidad de laboratorio.
+
+Evidencia: `docs/cad/evidence/dwg-r2010-string-stream.json`, reproducible con
+`node scripts/dwg/probe-r2010-string-stream.mjs` y guardada por
+`npm run check:dwg-r2010-strings`.

@@ -1249,3 +1249,49 @@ Lo que sigue faltando, sin suavizar: el **flujo de cadenas** R2007+ y las
 **tablas de símbolos**. Sin ellos no hay nombres de capa ni de bloque, así que
 `readR2004Database` sigue fallando cerrado para AC1024/AC1027/AC1032 y
 `r2010-handle-stream.ts` sigue siendo capacidad de laboratorio sin conectar.
+
+## 2026-08-31 — M4, cuarta entrega: el FLUJO DE CADENAS del cuerpo R2010+
+
+Con el flujo de handles resuelto quedaba el otro frente que `readR2004Database`
+nombra al fallar cerrado. Éste salió limpio a la primera, y conviene decir por
+qué: porque las tres entregas anteriores dejaron el terreno medido. El bit de
+presencia ya estaba localizado —exactamente un bit antes del flujo de handles,
+en valor 0 para los 72 objetos sin cadena—, así que sólo había que mirar qué
+hay **antes** de él.
+
+Buscando el valor que el gemelo AC1015 ya decodifica, codificado en UTF-16LE y
+alineado a bit, aparece siempre exactamente una vez; en ASCII, **nunca**. Y
+entre el final de la cadena y el bit de presencia hay siempre **16 bits**
+exactos, en los nueve primeros casos mirados y luego en los quince. Ese campo,
+leído como `RS` (little-endian) y no como bits crudos, vale exactamente los
+bits que ocupan el `BS` de longitud más los datos: 202, 186, 154 para cadenas
+de 12, 11 y 9 caracteres. La aritmética cierra sola.
+
+```
+[ ... datos del tipo ... ]
+[ flujo de cadenas: N bits ]
+[ tamaño del flujo: RS de 16 bits, valor N ]
+[ bit de presencia = 1 ]
+[ flujo de handles ]  [ relleno hasta el byte ]
+```
+
+Tres falsaciones que tendrían que fallar juntas, **15/15** cada una: el campo
+vale lo que el gemelo predice (un número que la sonda calcula, no lee); el
+inicio derivado como `bitPresencia − 16 − N` cae donde empieza el `BS`; y el
+texto decodificado coincide byte a byte. Y el bit de presencia vale 1 en los 15
+frente a 0 en los 72: su semántica queda confirmada por los **dos** lados, no
+por uno.
+
+Un defecto propio, encontrado por el test y no por el corpus: cuando el tamaño
+declarado desborda el cuerpo, el `startBit` derivado sale **negativo** y el
+error tipado llevaba un byte negativo, que no señala ningún sitio. Acotado a 0
+con el motivo escrito. Es exactamente el tipo de cosa que el fallo cerrado debe
+hacer bien, porque es lo único que se ve cuando algo va mal.
+
+Lo que sigue faltando: las **tablas de símbolos**. Con handles y cadenas
+medidos, lo que queda para ensamblar una base neutral completa es decodificar
+los registros de tabla (LAYER, BLOCK_RECORD, LTYPE, STYLE) y enlazarlos. El
+corpus, además, sólo ejercita objetos de **una** cadena: el orden de varias en
+un mismo flujo no está medido, y `readR2010SingleString` falla cerrado si sobra
+algo en vez de suponerlo. Ese chequeo es también un falsador en tiempo de
+ejecución.
