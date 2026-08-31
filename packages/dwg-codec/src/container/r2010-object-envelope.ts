@@ -147,7 +147,14 @@ export function readR2010ObjectBody(
 
 /** Encabezado de un cuerpo R2010+ ya delimitado y verificado por CRC. */
 export interface R2010ObjectHeader {
-  /** Tamaño del objeto en bytes, tal como lo declara su campo `MS`. */
+  /**
+   * Tamaño del objeto en bytes, tal como lo declara su campo `MS`. NO incluye
+   * los bytes del propio `MS` ni los de `UMC`: medido en el intake del CUERPO
+   * (VALLE-CORPUS-R2010-OBJECT-BODY) que `bodyBytes.length` siempre supera
+   * este valor en exactamente el ancho en bytes de esos dos campos. Cualquier
+   * cálculo del límite del flujo de handles debe anclarse en
+   * `bodyBytes.length`, nunca en este campo — ver `reader/r2010-entity-body.ts`.
+   */
   readonly objectSize: number;
   /** Tamaño EN BITS del flujo de handles (un tamaño, no un desplazamiento). */
   readonly handleStreamBits: number;
