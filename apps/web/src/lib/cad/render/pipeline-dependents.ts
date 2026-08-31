@@ -68,7 +68,17 @@ export class CadRenderDependencyLane {
    * derivarla otra vez aquí sería pagar dos veces por el mismo número.
    */
   track(entity: CadNativeEntity, bounds: CadBounds): void {
-    if (CAD_ENTITY_REGISTRY.adapter(entity).renderer.needsDocument === true)
+    const renderer = CAD_ENTITY_REGISTRY.adapter(entity).renderer;
+    // `needsDocument` solo no basta: dice «se deriva del documento», no «tiene
+    // vecinos que dependan de mí». INSERT es `needsDocument` —resuelve su
+    // bloque— y jamás declara `dependents`, porque su derivación mira a la
+    // TABLA de bloques, no a lo que tiene al lado. Indexarlo aquí sólo infla
+    // el índice sin que nadie lo consulte NUNCA: `expandOne` no llama a
+    // `neighbors()` para un tipo sin `dependents`, así que las 34.000
+    // entradas de un plano con esa cantidad de INSERT eran puro peso para
+    // `search()` en cada consulta de WALL, sin que ninguna consulta las
+    // devolviera jamás con un resultado útil.
+    if (renderer.needsDocument === true && renderer.dependents !== undefined)
       this.index.upsert(entity.id, bounds);
     else this.index.remove(entity.id);
   }

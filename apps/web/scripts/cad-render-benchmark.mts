@@ -42,6 +42,11 @@ import path from "node:path";
 import { getHeapStatistics } from "node:v8";
 import { createCadBenchmarkCorpus } from "../src/lib/cad/benchmark/corpus";
 import {
+  CAD_CORPUS_MIX_IDS,
+  createCadCorpusMix,
+  type CadCorpusMixId,
+} from "../src/lib/cad/benchmark/corpus-mixes";
+import {
   cadDocumentBounds,
   createCadRenderScenario,
 } from "../src/lib/cad/benchmark/scenario";
@@ -83,6 +88,16 @@ interface CliOptions {
   /** Añade el reparto por etapa. Ver la cabecera: no entra en el juicio. */
   stages: boolean;
   output?: string;
+  /**
+   * Sustituye el corpus LINE/CIRCLE/ARC por una mezcla de
+   * `corpus-mixes.ts` (`architecture`, `mechanical`, …). Ninguna mezcla tiene
+   * un perfil calibrado en `render-baseline.json` —ésa es harina de la
+   * evidencia de NAVEGADOR (`browser-slo-100k.json`), no de este gate de
+   * CPU—, así que fijarla fuerza `--no-enforce`: juzgar una mezcla contra un
+   * presupuesto calibrado con otro corpus daría un veredicto que no significa
+   * nada, en cualquier sentido.
+   */
+  mix?: CadCorpusMixId;
 }
 
 function parseCli(argv: string[]): CliOptions {
@@ -106,12 +121,21 @@ function parseCli(argv: string[]): CliOptions {
     else if (argument === "--no-enforce") options.enforce = false;
     else if (argument === "--stages") options.stages = true;
     else if (argument === "--output") options.output = argv[++index];
-    else throw new Error(`Unknown argument: ${argument}`);
+    else if (argument === "--mix") {
+      const mix = argv[++index] as CadCorpusMixId | undefined;
+      if (!mix || !CAD_CORPUS_MIX_IDS.includes(mix))
+        throw new Error(`--mix debe ser una de: ${CAD_CORPUS_MIX_IDS.join(", ")}.`);
+      options.mix = mix;
+    } else throw new Error(`Unknown argument: ${argument}`);
   }
   if (!Number.isSafeInteger(options.entities) || options.entities < 1)
     throw new Error("--entities must be a positive integer.");
   if (!Number.isSafeInteger(options.repeat) || options.repeat < 1)
     throw new Error("--repeat must be a positive integer.");
+  // Ver el comentario de `mix` en `CliOptions`: ninguna mezcla tiene línea
+  // base calibrada, así que fijarla apaga el juicio en vez de dejar que
+  // reviente contra un perfil que mide otra cosa.
+  if (options.mix) options.enforce = false;
   return options;
 }
 
@@ -136,7 +160,9 @@ if (!gcAvailable)
   );
 
 const startedAt = new Date().toISOString();
-const corpus = createCadBenchmarkCorpus({ entities: options.entities });
+const corpus = options.mix
+  ? createCadCorpusMix({ mix: options.mix, entities: options.entities })
+  : createCadBenchmarkCorpus({ entities: options.entities });
 const bounds = cadDocumentBounds(corpus.nativeEntities);
 const scenario = createCadRenderScenario(bounds, options.panStops);
 
@@ -341,11 +367,12 @@ const evidence = {
     exposedGc: gcAvailable,
   },
   corpus: {
+    mix: options.mix ?? "baseline-line-circle-arc",
     entities: options.entities,
     entityMix: corpus.entityMix,
     bounds,
     sha256: createHash("sha256")
-      .update(`${options.entities}:${JSON.stringify(bounds)}`)
+      .update(`${options.mix ?? "baseline"}:${options.entities}:${JSON.stringify(bounds)}`)
       .digest("hex"),
   },
   scenario: {
@@ -464,6 +491,8 @@ if (stageProfile) {
           "offThreadCollect",
           "offThreadSeed",
           "visibleBatches",
+          "spatialIndex",
+          "insertExpand",
         ] as const
       ).map(
         (stage) =>
