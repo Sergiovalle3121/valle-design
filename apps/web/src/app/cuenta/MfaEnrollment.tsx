@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Check, Copy, ShieldAlert } from "lucide-react";
 import { designClient } from "@/lib/cad/repositories/client";
 import { Button, Input, PasswordField, QrCode, Surface } from "@/components/ui";
+import { formatRegionDate } from "@/lib/cad/region";
+import { getClientRegion } from "@/lib/cad/region/client";
 
 /**
  * EL ALTA DEL SEGUNDO FACTOR, en tres pasos que no se pueden confundir.
@@ -217,9 +219,9 @@ export function MfaEnrollment() {
             />
             Activo desde el{" "}
             {estado.confirmedAt
-              ? new Intl.DateTimeFormat("es-MX", { dateStyle: "long" }).format(
-                  new Date(estado.confirmedAt),
-                )
+              ? formatRegionDate(new Date(estado.confirmedAt), getClientRegion(), {
+                  dateStyle: "long",
+                })
               : "—"}
             . Te quedan{" "}
             <span className="type-numeric font-semibold">

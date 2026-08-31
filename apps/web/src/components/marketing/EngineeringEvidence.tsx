@@ -10,6 +10,7 @@ import { ArrowRight } from "lucide-react";
 import { CountUp } from "./CountUp";
 import { RevealOnScroll } from "./RevealOnScroll";
 import { siteEvidenceFigures } from "@/lib/marketing/site-evidence";
+import { formatRegionNumber } from "@/lib/cad/region";
 
 export function EngineeringEvidence() {
   const figures = siteEvidenceFigures();
@@ -28,7 +29,7 @@ export function EngineeringEvidence() {
               {/* La cifra visible es el adorno; la frase completa —número
                   incluido— es lo que lee un lector de pantalla. */}
               <h3 className="mt-2 font-semibold text-foreground">
-                <span className="sr-only">{figure.value.toLocaleString("es-MX")} </span>
+                <span className="sr-only">{formatRegionNumber(figure.value)} </span>
                 {figure.label}
               </h3>
               <p className="type-small mt-3 text-muted-foreground">{figure.detail}</p>
