@@ -851,3 +851,109 @@ en `decoderStatus: "unsupported"` y `CAPABILITIES.md` no promueve nada.
 **Reproducible**: `node scripts/dwg/probe-r2010-object-header.mjs` con
 `VALLE_DWG_CORPUS_MIRROR` apuntando al repo hermano; evidencia en
 `docs/cad/evidence/dwg-r2010-object-header.json`.
+
+## Sesión 2026-08-31 — escritura: ELLIPSE/MTEXT de bajo nivel y contenido de bloque
+
+Frente de ESCRITURA (una de tres sesiones paralelas del día; las otras dos
+tocan `src/objects/`, `src/container/`, `src/reader/` y `src/codecs/`, que
+esta sesión sólo lee). Alcance real de este corte, elegido por profundidad
+sobre amplitud: dos clases de entidad nuevas en el writer de bajo nivel con
+round-trip exacto propio, y el contenido de bloque de usuario en
+`writeCanonicalDwg`. MTEXT/DIMENSION/HATCH/SPLINE/POLYLINE clásica/ATTRIB y
+un writer AC1018 quedan declarados PENDIENTES, no a medias.
+
+**Emisor de bits**: `dwg-bit-emitter.ts` gana `emitBB`/`emit3B` (espejo
+directo de `readBB`/`read3B`, dos y tres bits crudos), `emit2BD`/`emit3BD`
+(pares/tríos de `emitBD`, el mismo atajo que ya usaba `readPoint`/
+`read3BDPoint` del lado lector — NO la forma comprimida `BE`) y `emit2RD`
+(dos `emitRD`). Ninguno hacía falta para ELLIPSE/MTEXT (ambos se componen con
+`BD` sueltos, medido leyendo `decodeEllipse`/`decodeMText` antes de escribir
+una sola línea), pero cerraban la brecha declarada del corte 2026-08-25 y los
+usará DIMENSION/HATCH cuando les toque. `emitCMC` (espejo de `readCmC`, un BS
+envuelto) sustituye el `emitBS(256)` inline del común de entidad — mismos
+bits, nombre correcto.
+
+**ELLIPSE y MTEXT en `ac1015-entity-writer.ts`**: espejo campo a campo de
+`decodeEllipse`/`decodeMText` (`entities-curves-surfaces.ts`/
+`entities-annotation.ts`, ambos SÓLO leídos, nunca modificados). Confirmado
+ANTES de tocar código que ninguna de las dos entidades necesita el
+`textStyleHandle` que sí exige TEXT (`ac1015-resolved-writers.ts` sólo
+lo especializa para `"text"`) ni ningún handle extra en la cabeza del flujo
+(`readAc1015EntityHandleHead` es genérica; `ac1015-database-reader.ts` no
+las trata distinto) — así que las dos entran por el mismo camino genérico
+que CIRCLE/ARC, sin tocar `ac1015-minimal-file-writer.ts` ni
+`ac1015-resolved-writers.ts`. Round-trip propio verde en
+`tests/unit/ac1015-entity-writer-v3.spec.ts` (9 casos: geometría exacta con
+−0.0 y ejes no canónicos, determinismo, dentro de un bloque, y los gemelos
+tristes — razón de ejes negativa, geometría no finita, `trailingBit`/BS fuera
+de rango). **No** es evidencia de compatibilidad con software ajeno: el ODA
+File Converter sigue sin poder correr en este entorno (máquina del titular).
+
+**Contenido de bloque en `writeCanonicalDwg`** (`api/write.ts`): la fase
+2026-08-25 escribía cada `BLOCK_RECORD` referenciado por un INSERT SIEMPRE
+vacío, con pérdida declarada `insert-block-content-not-written`. Esta sesión
+mide primero (`ac1015-minimal-file-support.ts`, `validateOptions`) que el
+writer de bajo nivel YA sabía resolver contenido de bloque — sólo forzaba
+capa "0" y rechazaba INSERT anidado por decisión de la ola anterior, no por
+límite del formato — así que el arreglo real vive en DOS capas:
+
+1. `writer/ac1015-minimal-file-writer.ts` + `-support.ts`: `Ac1015MinimalFileBlockSpec.entities`
+   pasa de `DwgGeometryEntity[]` a la MISMA forma `Ac1015MinimalFileEntitySpec[]`
+   que ya usa model space (capa por índice, INSERT anidado por índice de
+   bloque — cero marcos gemelos de validación, un solo `assertEntitySpec`
+   para las dos). Acepta TAMBIÉN la forma corta (`DwgGeometryEntity` a secas)
+   por compatibilidad hacia atrás: un consumidor de producto fuera de esta
+   frontera (`apps/web/.../dwg-native-reader.spec.ts`, sesión ajena, sólo
+   detectado corriendo `check:dwg` completo) todavía pasa la forma vieja.
+   `planAc1015MinimalFile` ya resolvía el handle de CADA `BLOCK_RECORD` por
+   adelantado, así que un bloque puede insertar OTRO bloque declarado
+   DESPUÉS en el array sin reordenar nada — probado en
+   `tests/unit/ac1015-minimal-file.spec.ts` con una referencia hacia
+   adelante real.
+2. `api/write.ts`: sin tocar `api/canonical.ts` (fuera de frontera), reusa
+   `canonicalDocumentToDwgEntities` — la MISMA función pública que ya resuelve
+   model space — sobre un documento SINTÉTICO cuyas `entities` son
+   `document.blocks[].entities`. El bloque queda sujeto a las mismas siete
+   clases escribibles y al mismo límite ASCII que model space, un solo camino
+   de mapeo. Un INSERT dentro de un bloque (bloque que inserta OTRO bloque)
+   se detecta y se omite con pérdida declarada nueva
+   (`insert-block-nested-insert-not-written`): el writer de bajo nivel ya lo
+   resolvería, pero recorrer el grafo transitivo completo de bloques
+   referenciados queda pendiente de una fase posterior. Verde en
+   `tests/unit/write-canonical-dwg.spec.ts` (geometría Y capa exactas dentro
+   del `BLOCK_RECORD`, la pérdida del INSERT anidado, y el caso preexistente
+   con bloque vacío que ya no declara una pérdida que nunca ocurrió).
+
+**Efecto de frontera cruzada, declarado**: cambiar la forma de
+`Ac1015MinimalFileBlockSpec.entities` rompió en seco
+`apps/web/src/lib/cad/dwg-native-reader.spec.ts` (sesión ajena) hasta añadir
+la compatibilidad hacia atrás del punto 1 — encontrado corriendo
+`npm run check:dwg` completo desde la raíz, no sólo el `check` del paquete.
+Ninguna de las dos sesiones paralelas necesita tocar nada por esto: la forma
+larga es la que se recomienda para código nuevo, la corta sigue viva.
+
+**`ac1015-minimal-file-writer.ts` cruzó las 800 líneas** (817) al crecer el
+doc-comment y la validación; los seis tipos públicos de opciones se movieron
+a `ac1015-minimal-file-support.ts` (que ya los importaba) con re-export
+`export type {...} from "./ac1015-minimal-file-support.js"` para que nada que
+importe del módulo original note el traslado — 770/598 líneas, los dos bajo
+presupuesto, sin añadir ninguno al manifiesto de excepciones.
+
+**No alcanzado, declarado sin suavizar**: DIMENSION (variantes V3),
+HATCH de contorno poligonal, SPLINE escenario 1 no racional, POLYLINE
+2D/3D clásica con VERTEX/SEQEND, y ATTRIB de INSERT — los cinco quedan
+`"Writing a ... entity is not implemented by the laboratory writer yet."`
+en `ac1015-entity-writer.ts`, sin cambio. Tampoco hay writer AC1018 (M4 de
+escritura) ni cambios en `apps/web/src/lib/cad/dwg-export-flag.ts`/
+`dwg-native-writer.ts`: ambos ya estaban completos y correctos de una
+campaña anterior (`DWG_EXPORT_WRITABLE_TYPES` ya es exactamente el
+subconjunto de siete clases que `canonicalDocumentToDwgEntities` mapea) y
+extender el perfil escribible más allá de esas siete exige tocar
+`api/canonical.ts`, fuera de la frontera de archivos de esta sesión —
+ninguna de las dos clases nuevas de esta sesión (ELLIPSE/MTEXT) llega hoy a
+`writeCanonicalDwg` por esa razón, y por tanto tampoco al botón del
+producto. `externalOracleVerified` sigue `false`: sigue siendo OWNER ACTION.
+
+**Reproducible**: `npm run check --workspace=@valle-design/dwg-codec` y, desde
+la raíz con `VALLE_DWG_CORPUS_MIRROR` apuntando al repo hermano,
+`npm run check:dwg`.

@@ -3,7 +3,8 @@
  * decodificador).
  *
  * Emite el cuerpo COMPLETO de una entidad real (LINE, POINT, CIRCLE, ARC,
- * LWPOLYLINE y TEXT desde la fase D3, INSERT desde la D4):
+ * LWPOLYLINE y TEXT desde la fase D3, INSERT desde la D4, ELLIPSE y MTEXT
+ * desde la ola de escritura V1→V3 de 2026-08-31):
  * tipo BS, tamaño RL en bits, handle propio H, cabecera común mínima
  * coherente, datos del tipo y un flujo de handles final confesadamente
  * mínimo. El cuerpo resultante es válido para la envoltura de la fase D1
@@ -35,9 +36,11 @@ import {
   DWG_GEOMETRY_ENTITY_KINDS,
   isFiniteDwgPoint2,
   isFiniteDwgPoint3,
+  type DwgEllipseEntity,
   type DwgGeometryEntity,
   type DwgInsertEntity,
   type DwgLwPolylineEntity,
+  type DwgMTextEntity,
   type DwgPoint3,
   type DwgTextEntity,
 } from "../model/entity-geometry.js";
@@ -50,6 +53,8 @@ import {
   AC1015_TYPE_POINT,
   AC1015_TYPE_TEXT,
 } from "../objects/entities-core.js";
+import { AC1015_TYPE_MTEXT } from "../objects/entities-annotation.js";
+import { AC1015_TYPE_ELLIPSE } from "../objects/entities-curves-surfaces.js";
 import { throwDwgError } from "../security/parse-error.js";
 
 import {
@@ -161,7 +166,7 @@ export function emitAc1015EntityCommonTail(
   tail.pushBits(ownerInStream ? 0b00 : 0b10, 2); // modo 0 (bloque) o 2 (model)
   tail.emitBL(0); // cero reactores
   tail.pushBit(1); // sin vínculos de subentidad
-  tail.emitBS(256); // color ByLayer
+  tail.emitCMC(256); // color ByLayer
   tail.emitBD(1); // escala de tipo de línea 1.0
   tail.pushBits(0b00, 2); // linetype ByLayer: sin handle en el flujo
   tail.pushBits(0b00, 2); // plotstyle ByLayer: sin handle en el flujo
@@ -263,7 +268,52 @@ function emitEntitySpecific(
     case "insert":
       emitInsert(emitter, entity);
       return;
+    case "ellipse":
+      emitEllipse(emitter, entity);
+      return;
+    case "mtext":
+      emitMText(emitter, entity);
+      return;
   }
+}
+
+/**
+ * ELLIPSE: espejo campo a campo de `decodeEllipse` — centro, eje mayor y
+ * extrusión viajan como 3BD (tres BD, NO la forma comprimida BE de LINE/ARC:
+ * el propio decodificador usa `read3BD` sin atajo), seguidos de razón de
+ * ejes, ángulo de arranque y ángulo final, los cuatro BD sueltos.
+ */
+function emitEllipse(emitter: DwgBitEmitter, entity: DwgEllipseEntity): void {
+  emitter.emit3BD(entity.center);
+  emitter.emit3BD(entity.majorAxisEndpoint);
+  emitter.emit3BD(entity.extrusion);
+  emitter.emitBD(entity.axisRatio);
+  emitter.emitBD(entity.startAngle);
+  emitter.emitBD(entity.endAngle);
+}
+
+/**
+ * MTEXT: espejo campo a campo de `decodeMText` — inserción, extrusión y
+ * dirección del eje X como 3BD, ancho/altura/extents como BD sueltos,
+ * attachment/dirección de dibujo como BS, la cadena como TV, interlineado
+ * BS+BD y el bit final sin semántica registrada, emitido tal cual viaja en
+ * el modelo (el decodificador lo expone crudo, así que el writer lo espeja
+ * en vez de inventarle un significado).
+ */
+function emitMText(emitter: DwgBitEmitter, entity: DwgMTextEntity): void {
+  emitter.emit3BD(entity.insertion);
+  emitter.emit3BD(entity.extrusion);
+  emitter.emit3BD(entity.xAxisDirection);
+  emitter.emitBD(entity.rectWidth);
+  emitter.emitBD(entity.height);
+  emitter.emitBS(entity.attachment);
+  emitter.emitBS(entity.drawingDirection);
+  emitter.emitBD(entity.extentsHeight);
+  emitter.emitBD(entity.extentsWidth);
+  emitter.emitTV(entity.valueBytes);
+  emitter.emitBS(entity.lineSpacingStyle);
+  emitter.emitBD(entity.lineSpacingFactor);
+  emitter.pushBit(entity.trailingBit as 0 | 1);
 }
 
 /**
@@ -408,6 +458,10 @@ function typeOf(entity: DwgGeometryEntity): number {
       return AC1015_TYPE_TEXT;
     case "insert":
       return AC1015_TYPE_INSERT;
+    case "ellipse":
+      return AC1015_TYPE_ELLIPSE;
+    case "mtext":
+      return AC1015_TYPE_MTEXT;
     default:
       // El lector ya decodifica más tipos de los que este writer emite; un
       // modelo que el writer no sabe escribir se rechaza cerrado y declarado,
@@ -433,7 +487,9 @@ type Ac1015WritableEntity =
   | import("../model/entity-geometry.js").DwgArcEntity
   | import("../model/entity-geometry.js").DwgLwPolylineEntity
   | import("../model/entity-geometry.js").DwgTextEntity
-  | import("../model/entity-geometry.js").DwgInsertEntity;
+  | import("../model/entity-geometry.js").DwgInsertEntity
+  | import("../model/entity-geometry.js").DwgEllipseEntity
+  | import("../model/entity-geometry.js").DwgMTextEntity;
 
 /** Geometría no finita o specs imposibles: el writer falla cerrado. */
 function validateEntity(
@@ -459,6 +515,8 @@ function validateEntity(
     case "lwpolyline":
     case "text":
     case "insert":
+    case "ellipse":
+    case "mtext":
       break;
     default:
       throwDwgError(
@@ -478,6 +536,8 @@ function validateEntity(
   if (
     entity.kind !== "lwpolyline" &&
     entity.kind !== "insert" &&
+    entity.kind !== "ellipse" &&
+    entity.kind !== "mtext" &&
     (!Number.isFinite(entity.thickness) || !isFiniteDwgPoint3(entity.extrusion))
   ) {
     invalid();
@@ -538,6 +598,22 @@ function validateEntity(
           "Writing insert attributes is not implemented by the phase-D4 laboratory.",
         );
       }
+      return;
+    case "ellipse":
+      if (
+        !isFiniteDwgPoint3(entity.center) ||
+        !isFiniteDwgPoint3(entity.majorAxisEndpoint) ||
+        !isFiniteDwgPoint3(entity.extrusion) ||
+        !Number.isFinite(entity.axisRatio) ||
+        entity.axisRatio < 0 ||
+        !Number.isFinite(entity.startAngle) ||
+        !Number.isFinite(entity.endAngle)
+      ) {
+        invalid();
+      }
+      return;
+    case "mtext":
+      validateMText(entity, invalid);
       return;
   }
 }
@@ -640,4 +716,38 @@ function validateText(entity: DwgTextEntity, invalid: () => never): void {
       invalid();
     }
   }
+}
+
+/**
+ * El MTEXT del modelo debe ser emitible tal cual: los tres puntos y los
+ * cinco campos BD/DD sueltos finitos, los códigos BS en rango, la cadena
+ * como array de bytes y el bit final estrictamente 0 o 1 — el decodificador
+ * no le da otro significado, así que el writer tampoco inventa uno.
+ */
+function validateMText(entity: DwgMTextEntity, invalid: () => never): void {
+  if (
+    !isFiniteDwgPoint3(entity.insertion) ||
+    !isFiniteDwgPoint3(entity.extrusion) ||
+    !isFiniteDwgPoint3(entity.xAxisDirection) ||
+    !Array.isArray(entity.valueBytes)
+  ) {
+    invalid();
+  }
+  for (const value of [
+    entity.rectWidth,
+    entity.height,
+    entity.extentsHeight,
+    entity.extentsWidth,
+    entity.lineSpacingFactor,
+  ]) {
+    if (!Number.isFinite(value)) invalid();
+  }
+  for (const code of [
+    entity.attachment,
+    entity.drawingDirection,
+    entity.lineSpacingStyle,
+  ]) {
+    if (!Number.isInteger(code) || code < 0 || code > 0xffff) invalid();
+  }
+  if (entity.trailingBit !== 0 && entity.trailingBit !== 1) invalid();
 }
