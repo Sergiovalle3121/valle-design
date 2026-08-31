@@ -14,11 +14,18 @@
  * Alcance HONESTO de esta ola: AC1018 completo (los 8 reales del corpus
  * abren con matriz diferencial limpia). AC1024/AC1027/AC1032 comparten este
  * contenedor y, desde el intake 2026-08-31, también su ENCABEZADO de objeto
- * (`container/r2010-object-envelope.ts`); lo que falta es el CUERPO, cuyo
- * flujo de datos separa las cadenas y cambia la cabecera común de entidad.
- * Aquí fallan CERRADOS con su código y un mensaje que dice exactamente eso.
- * Evidencia en docs/cad/evidence/dwg-r2004-container.json y
- * docs/cad/evidence/dwg-r2010-object-header.json.
+ * (`container/r2010-object-envelope.ts`) y el CUERPO de las cinco entidades
+ * sin cadenas — LINE/POINT/CIRCLE/ARC/LWPOLYLINE — decodifican geometría
+ * EXACTA (`reader/r2010-entity-body.ts`, 72/72 objetos del corpus admitido).
+ * Lo que falta para ensamblar una base neutral completa es el FLUJO DE
+ * HANDLES (propietario, capa, xdictionary) y las tablas de símbolos de
+ * R2010+, así que `readR2004Database` sigue fallando CERRADO para estas tres
+ * versiones con un mensaje que dice exactamente eso — este módulo todavía no
+ * llama a `readR2010EntityBody`, que vive como capacidad de laboratorio
+ * independiente hasta que el flujo de handles también decodifique.
+ * Evidencia en docs/cad/evidence/dwg-r2004-container.json,
+ * docs/cad/evidence/dwg-r2010-object-header.json y
+ * docs/cad/evidence/dwg-r2010-object-body.json.
  *
  * Intake 2026-08-23 (VALLE-CORPUS-INTAKE-A60EBE2): el marco de sección de
  * datos R2010+ (AcDb:Header/AcDb:Classes) usa un campo de tamaño de 8 bytes
@@ -112,21 +119,24 @@ export function readR2004Database(
   }
   const version = signature.code as R2004VersionCode;
   if (version !== "AC1018") {
-    // La frontera se ESTRECHÓ el 2026-08-31 y conviene decir dónde está
-    // ahora: contenedor y secciones abren (32/32), y desde el intake
-    // VALLE-CORPUS-R2010-OBJECT-HEADER el ENCABEZADO de cada cuerpo también
-    // se decodifica (`readR2010ObjectHeader`, 2893/2893 handles exactos). Lo
-    // que sigue sin decodificar es el CUERPO: el flujo de datos R2010+ manda
-    // las cadenas a un flujo propio y su cabecera común de entidad difiere de
-    // la R2000, así que reconstruir la forma R2000 y reusar los
-    // decodificadores existentes no funciona (medido: ningún `bitsize` hace
-    // decodificar una LINE real). Fallo cerrado con el motivo exacto, no una
-    // base a medias.
+    // La frontera se ESTRECHO otra vez el 2026-08-31 (intake
+    // VALLE-CORPUS-R2010-OBJECT-BODY) y conviene decir donde esta ahora:
+    // contenedor y secciones abren (32/32), el ENCABEZADO de cada cuerpo se
+    // decodifica desde VALLE-CORPUS-R2010-OBJECT-HEADER (2893/2893 handles
+    // exactos), y desde este intake el CUERPO de las cinco entidades SIN
+    // cadenas (LINE/POINT/CIRCLE/ARC/LWPOLYLINE) tambien decodifica geometria
+    // EXACTA (`reader/r2010-entity-body.ts`, 72/72 objetos del corpus
+    // admitido). Lo que sigue sin decodificar, y por eso esta base neutral
+    // completa sigue fallando cerrada, es el FLUJO DE HANDLES (propietario,
+    // capa, xdictionary) y las tablas de simbolos (LAYER, BLOCK_RECORD...) de
+    // R2010+: sin ellos no hay forma de resolver capa o pertenencia a bloque
+    // sin inventar un valor, y cualquier entidad CON cadena sigue sin
+    // decodificador (el bit de presencia de cadenas falla cerrado si vale 1).
     throwDwgError(
       "DWG_VERSION_DECODER_UNSUPPORTED",
       "unsupported",
       0,
-      `The ${version} object headers decode but their bodies use the R2010+ data and string streams that this laboratory does not decode yet; only AC1018 opens.`,
+      `The ${version} object headers and the bodies of LINE/POINT/CIRCLE/ARC/LWPOLYLINE decode, but this laboratory does not decode the R2010+ handle stream or symbol tables yet, so no full database assembles; only AC1018 opens end to end.`,
     );
   }
 

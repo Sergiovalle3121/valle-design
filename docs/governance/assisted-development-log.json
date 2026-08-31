@@ -1128,6 +1128,190 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "DWG-M4-CUERPO-R2010-20260831",
+      "date": "2026-08-31",
+      "initiative": "Continuación directa del intake del ENCABEZADO de objeto R2010+ (DWG-M4-ENCABEZADO-R2010-20260831, mismo dia): ese intake dejo dicho explicitamente que el CUERPO —la parte grande— seguia sin decodificarse, y que reconstruir la forma R2000 y reusar los decodificadores existentes no funcionaba. Esta sesion resuelve el CUERPO para las cinco entidades que nunca llevan cadena (LINE, POINT, CIRCLE, ARC, LWPOLYLINE) por medicion sobre el mismo corpus admitido, con geometria EXACTA en 72/72 objetos.",
+      "branch": "claude/dwg-m4-cuerpo-r2010-body",
+      "assistants": [
+        "Claude Code (Anthropic), sesion operada por el titular"
+      ],
+      "authority": "Sergio Valle Zarate autorizo continuar el frente DWG-M4 (versiones modernas) inmediatamente despues de que el intake del encabezado quedara resuelto en la misma fecha; ADR-0015 ya autorizaba explicitamente continuar M4 bajo la misma disciplina de siempre.",
+      "firstPartyInputs": [
+        "El codigo y los gates propios del monorepo (cadenas check:dwg/check:cad y sus scripts), incluido el encabezado R2010+ ya resuelto en la sesion hermana de esa misma fecha.",
+        "El corpus propio de valle-design-dwg-conformance (commit 0688fb9c395b9cac4169d1ee9c23a7370cc28cf3) como espejo local: los cinco bundles fundacionales son los mismos ocho dibujos en cinco contenedores, y ese paralelismo es lo que permitio resolver la codificacion por medicion.",
+        "SOURCE_REGISTER.json, CAPABILITIES.md y DWG0_WORKLOG.md del laboratorio (hechos clean-room ya registrados, incluido el hecho ya registrado de ODA-ODS-DWG-5.4.1-PUBLIC sobre el flujo de strings de AC1021+).",
+        "ADR-0007, ADR-0009 y ADR-0015."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. La anchura del prefijo comun-hasta-tipo, el hecho de que objectSize (MS) excluye sus propios bytes y los de UMC, y la posicion exacta del bit de presencia de cadenas se derivaron INTEGRAMENTE por medicion sobre el corpus propio: busqueda bit a bit del double IEEE-754 exacto de un campo geometrico conocido del gemelo AC1015, contrastado contra CUATRO tipos de entidad de forma independiente. No se consulto ninguna implementacion ajena (ODA SDK, RealDWG, LibreDWG u otra) ni ninguna fuente documental nueva. El hecho queda registrado como medicion first-party (VALLE-CORPUS-R2010-OBJECT-BODY), continuacion directa de VALLE-CORPUS-R2010-OBJECT-HEADER.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/objects/entities-core.ts (decodeLine/decodePoint/decodeCircle/decodeArc exportados para reutilizarse desde el lector R2010+, sin decodificadores gemelos)",
+        "packages/dwg-codec/src/reader/r2010-entity-body.ts (nuevo: readR2010EntityBody, capacidad de laboratorio independiente para las cinco entidades sin cadenas)",
+        "packages/dwg-codec/src/container/r2010-object-envelope.ts (aclaracion en el JSDoc de objectSize: excluye sus propios bytes y los de UMC)",
+        "packages/dwg-codec/src/reader/r2004-database-reader.ts (el mensaje de fallo cerrado nombra ahora la frontera real: el flujo de handles y las tablas, no el cuerpo)",
+        "packages/dwg-codec/tests/unit/r2010-entity-body.spec.ts (specs sinteticas, vectores de bits construidos a mano)",
+        "scripts/dwg/probe-r2010-object-body.mjs y docs/cad/evidence/dwg-r2010-object-body.json (productor de evidencia y su gate --check, cableado en package.json check:dwg)",
+        "Gobernanza: CAPABILITIES.md, DWG0_WORKLOG.md, SOURCE_REGISTER.json"
+      ],
+      "fixtures": "Ninguno nuevo. El corpus de valle-design-dwg-conformance no se tocó: se leyó por el gate consumidor contra el commit fijado y su SHA-256, sin escribir nada. Las specs nuevas del códec usan vectores de bits construidos a mano en el propio test, con el emisor de bits del writer (import de solo lectura).",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Autorización expresa del titular para continuar M4 tras resolver el encabezado en la misma sesión de trabajo del 2026-08-31 (ADR-0015). Evidencia final: el PR de esta rama revisado sobre el SHA candidato con los gates en verde."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-WRITER-V3-BLOCK-CONTENT-20260831",
+      "date": "2026-08-31",
+      "initiative": "Frente de ESCRITURA del DWG (una de tres sesiones paralelas del día; las otras dos tocan src/objects/, src/container/, src/reader/ y src/codecs/, no tocados aquí). Elevar el writer AC1015 del subconjunto V1 (LINE/POINT/CIRCLE/ARC/LWPOLYLINE/TEXT/INSERT) hacia el perfil V3 que ya lee el producto, con profundidad sobre amplitud: ELLIPSE y MTEXT en el writer de bajo nivel con round-trip exacto propio, y el contenido de bloque de usuario (antes siempre vacío) en writeCanonicalDwg.",
+      "branch": "claude/dwg-writer-v3-ellipse-mtext-block-content",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Rutina programada por el titular (\"Desbloquear DWG-C (adjuntar repo)\") que reanudó la tarea de escritura ya autorizada por ADR-0009 §8 (M5, firmada 2026-08-25): construir la exportación DWG con evidencia propia, detrás de su propio flag apagado. El titular confirmó en el chat que el repositorio y la tarea eran suyos antes de que la sesión adjuntara nada o tocara código.",
+      "firstPartyInputs": [
+        "El código ya existente del laboratorio (src/objects/, src/reader/, src/codecs/, sólo LEÍDOS) para medir el orden de campos exacto de ELLIPSE y MTEXT antes de escribir el emisor — nunca una suposición.",
+        "AGENTS.md, CLEAN_ROOM_POLICY.md, CAPABILITIES.md y THREAT_MODEL.md del laboratorio, y ADR-0007/0009/0015 del repositorio.",
+        "El repo hermano valle-design-dwg-conformance (VALLE_DWG_CORPUS_MIRROR) para correr check:dwg completo."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. ELLIPSE y MTEXT se derivaron leyendo los decodificadores first-party ya registrados (decodeEllipse/decodeMText, ambos trazables a ODA-ODS-DWG-5.4.1-PUBLIC vía SOURCE_REGISTER.json) y espejándolos en el writer — ningún hecho nuevo, ninguna fuente nueva consultada. El ODA File Converter no está disponible en este entorno: el round-trip que evidencia este corte es SÓLO writer→lector propio, consistencia interna, no compatibilidad con software ajeno.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/writer/dwg-bit-emitter.ts (emitBB/emit3B/emit2BD/emit3BD/emit2RD/emitCMC)",
+        "packages/dwg-codec/src/writer/ac1015-entity-writer.ts (ELLIPSE y MTEXT: emisión, validación, tipo, unión escribible)",
+        "packages/dwg-codec/src/writer/ac1015-minimal-file-writer.ts y ac1015-minimal-file-support.ts (Ac1015MinimalFileBlockSpec.entities pasa a la misma forma que model space, con compatibilidad hacia atrás; split por presupuesto de 800 líneas)",
+        "packages/dwg-codec/src/api/write.ts (contenido de bloque en writeCanonicalDwg reusando canonicalDocumentToDwgEntities sobre un documento sintético, sin tocar api/canonical.ts)",
+        "packages/dwg-codec/tests/unit/ac1015-entity-writer-v3.spec.ts (nuevo), ac1015-minimal-file.spec.ts y write-canonical-dwg.spec.ts (actualizados)",
+        "Gobernanza: CAPABILITIES.md, DWG0_WORKLOG.md, SOURCE_REGISTER.json (los tres, entradas fechadas al final)"
+      ],
+      "fixtures": "Ninguno nuevo. Las specs nuevas/actualizadas usan entidades y documentos canónicos construidos a mano en el propio test, igual que el resto del writer.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "PR draft de esta rama con check:dwg, check:cad, typecheck, lint, test y build en verde sobre el árbol quieto."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CAD-D-RENDER-PIPELINE-VERIFICATION-20260831",
+      "date": "2026-08-31",
+      "initiative": "Frente CAD-D del plan de construcción DWG 2D/3D (sesión paralela dedicada al lienzo, sin tocar el códec): enchufar el pipeline de render por lotes/tiles al editor y eliminar el muestreo silencioso. Al investigar se encontró que `CadViewportRenderHost` (apps/web/src/components/cad/viewport/render-pipeline-host.ts) ya enchufaba `lib/cad/render/` a `Layout3DEditor.tsx` con `batched` como pipeline por defecto y un camino de vuelta explícito (`legacy`, nunca silencioso) — trabajo de una ola anterior que nunca se registró en esta bitácora ni se reflejó en `docs/cad/CAD_RENDER_PIPELINE.md`, que seguía afirmando 'NO enchufado'. La campaña se redirigió a verificar que el enchufe funciona de verdad (specs de render/, del anfitrión y de la preferencia de pipeline, y el gate de monolito, todos verdes), a regenerar la evidencia del arnés desde cero (no se copió ningún número a mano), a corregir un `declaredMachine` escrito a mano en `cad-plan-benchmark.mts` que declaraba el portátil de calibración sin importar en qué máquina corriera el arnés, y a poner al día CAD_RENDER_PIPELINE.md, ARCHITECTURE.md y el registro de DEUDA-MONOLITO.md (que tampoco tenía la fila de la extracción del anfitrión) para que ninguna cifra siga viviendo en dos lugares distintos.",
+      "branch": "claude/cad-render-pipeline-wire-up",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate desplegó cuatro sesiones paralelas desde la sesión de planificación 'Plan de construcción DWG 2D/3D' (branch claude/dwg-construction-plan-7hyq1j); a esta le correspondió el frente de rendimiento del lienzo (CAD-D), con fronteras de archivo explícitas que excluyen packages/dwg-codec/ y todo dwg-*.ts.",
+      "firstPartyInputs": [
+        "El código y los gates propios del monorepo (lib/cad/render/, components/cad/viewport/, Layout3DEditor.tsx, check:cad, monolith-budget.json).",
+        "El arnés de benchmark propio (scripts/cad-render-benchmark.mts, scripts/cad-plan-benchmark.mts) regenerado en esta misma campaña.",
+        "docs/cad/CAD_RENDER_PIPELINE.md, ARCHITECTURE.md y docs/execution/DEUDA-MONOLITO.md, corregidos contra el estado real del árbol."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "docs/cad/CAD_RENDER_PIPELINE.md (estado corregido a ENCHUFADO, tabla de números regenerada, sección de escenificación de la métrica corregida a bloqueante)",
+        "ARCHITECTURE.md (Deuda visible: el pipeline por lotes ya está enchufado; se precisa qué mide el benchmark de Node y qué no)",
+        "docs/execution/DEUDA-MONOLITO.md (fila retroactiva de la extracción de CadViewportRenderHost, más la fila de esta campaña de verificación)",
+        "apps/web/scripts/cad-plan-benchmark.mts (declaredMachine derivado de os.cpus()/os.totalmem() en vez de un literal fijo)",
+        "docs/cad/evidence/cad-render-benchmark-100k.json y docs/cad/evidence/cad-plan-benchmark-20k.json (regenerados desde el arnés, no editados a mano)"
+      ],
+      "fixtures": "Ninguno nuevo. No se tocó packages/dwg-codec/ ni ningún archivo dwg-*.ts.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Autorización expresa del titular al desplegar la sesión paralela CAD-D desde la sesión de planificación del 2026-08-31, y autorización expresa del titular (\"mergea el avance\") para fusionar directo a main tras rebasar sobre el frente de escritura DWG. Evidencia final: gates (check:cad, check:dwg, typecheck, lint, test, build) en verde sobre el árbol rebasado."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-B-3D-WIREFRAME-ACIS-20260831",
+      "date": "2026-08-31",
+      "initiative": "Frente 3D de la campaña DWG paralela (sesión DWG-B de tres sesiones simultáneas: A en lectura/contenedor, B en 3D, C en escritura). Dos tareas: (1) ampliar el perfil de producto para que 3DFACE/POLYLINE 3D/POLYLINE MESH/POLYLINE PFACE — ya decodificados por el laboratorio desde el corte 2026-08-21 pero excluidos del perfil `AC1015_MODELSPACE_2D_V3` — crucen al documento canónico con su Z real, conservados en `unsupportedEntities` (sin canal semántico nativo todavía); (2) preservación opaca de la familia ACIS (3DSOLID/REGION/BODY) en el laboratorio, capturando su cuerpo como bytes crudos sin interpretar ACIS.",
+      "branch": "claude/dwg-b-3d-wireframe-acis",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "El titular encargó, mediante sesión paralela orquestada (tres frentes simultáneos de la misma campaña DWG), el frente 3D con instrucciones explícitas por escrito de: distinguir siempre 'fuera de perfil' de 'no decodificado'; declarar manifiesto de pérdidas por entidad sin excepción; nunca ampliar en silencio un flag/perfil ya firmado (V3, AC1018); y, crítico, NO fabricar una firma de autorización de producto en su nombre. Esta sesión no tuvo una conversación de aprobación por decisión — construyó el perfil nuevo propuesto (`AC1015_3D_WIREFRAME_V1`) con `ownerSigned: false` explícito y sin firma, exactamente como esas instrucciones exigían, y dejó la propuesta lista en ADR-0009 §9 para que el titular decida.",
+      "firstPartyInputs": [
+        "El código y los gates propios del monorepo (cadenas check:dwg/check:cad y sus scripts, entity-runtime.ts, cad-document.ts).",
+        "CAPABILITIES.md y DWG0_WORKLOG.md del laboratorio: 3DFACE/POLYLINE 3D/MESH/PFACE ya decodificados (corte 2026-08-21), reutilizados sin cambio.",
+        "ADR-0009 (§6-bis a §8) como plantilla del patrón de flag/autorización de tres condiciones que esta sesión replica para el perfil propuesto.",
+        "El PR abierto `valle-design-dwg-conformance#6` (ola 3 del corpus hermano) como fuente de qué fixtures 3D existirán una vez admitidos — leído, no admitido ni usado como evidencia todavía."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. Cero fuentes nuevas registradas: el perfil 3D heredado reutiliza sólo geometría ya decodificada por el laboratorio (hechos ya registrados de ODA-ODS-DWG-5.4.1-PUBLIC); la preservación ACIS reutiliza sólo la cabecera común de entidad y el límite `bitSize` ya registrados, sin pedirle ningún hecho al formato ACIS (Spatial/Dassault, no ODA) ni a la sección CLASSES más allá de recibir el nombre de clase ya resuelto como parámetro de una función pura. `SOURCE_REGISTER.json` sólo gana `derivedFiles` nuevos bajo la entrada YA `allowed` (ODA-ODS-DWG-5.4.1-PUBLIC): ninguna entrada nueva.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/dwg-neutral-model.ts, dwg-native-reader.ts, dwg-interop-flag.ts, dwg-document-bridge.ts, dwg-document-bridge-primitives.ts, document-import.worker.ts, document-import-client.ts (perfil 3D heredado propuesto, sin firma)",
+        "apps/web/src/lib/cad/dwg-native-reader-3d-wireframe.spec.ts y dwg-document-bridge-3d-wireframe.spec.ts (nuevas)",
+        "apps/web/Dockerfile, .env.example, scripts/deploy/validate-dockerfiles.mjs y su spec (tercera variable de build NEXT_PUBLIC_DWG_3D_WIREFRAME_IMPORT_BETA)",
+        "scripts/dwg/check-product-boundary.mjs (las dos specs nuevas, autorizadas explícitamente en sus listas)",
+        "packages/dwg-codec/src/objects/entities-acis.ts (nuevo), src/model/entity-geometry.ts (tipo DwgAcisOpaqueEntity), src/api/canonical.ts (caso de proyección)",
+        "packages/dwg-codec/tests/unit/entities-acis.spec.ts (nuevo) y un caso nuevo en tests/unit/canonical.spec.ts",
+        "packages/dwg-codec/SOURCE_REGISTER.json (derivedFiles), CAPABILITIES.md, DWG0_WORKLOG.md",
+        "docs/adr/0009-dwg-promotion-package.md (§9, propuesta sin firmar)"
+      ],
+      "fixtures": "Ninguno nuevo en ningún repositorio. Los dos corpus admitidos (valle-design-dwg-conformance) permanecen intactos: esta sesión no escribió ni generó DWG. Las specs nuevas usan bytes sintéticos hechos a mano o compuestos con el writer real del laboratorio, declarado explícitamente como evidencia distinta de un corpus admitido.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo del frente 3D de la campaña paralela del 2026-08-31. Ningún flag se enciende en este PR: DWG_3D_WIREFRAME_BETA_AUTHORIZATION.ownerSigned permanece false y la preservación ACIS no tiene integración de producto todavía (bloqueada en el despachador del lector, fuera de alcance de esta sesión). Evidencia final: el PR de esta rama revisado y fusionado sobre el SHA candidato con check:dwg, check:cad (salvo el rojo preexistente ya documentado en check:dwg-evidence, confirmado no relacionado con git stash sobre main limpio), typecheck, lint, test y build en verde."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "ENTREGA-JUEGO-DE-PLANOS-20260831",
+      "date": "2026-08-31",
+      "initiative": "Frente «entrega del proyecto»: PUBLISH, SHEETSET, ETRANSMIT y DATAEXTRACTION como comandos reales del registro, sobre la tubería de publicación ya escrita en lib/cad/sheet-set/ y lib/cad/plot/. Una de cuatro sesiones paralelas del mismo día; sin archivos compartidos con las otras tres (3D, rendimiento, colaboración).",
+      "branch": "claude/entrega-juego-de-planos",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Instrucción de campaña recibida por la sesión: implementar el frente de entrega del proyecto (PUBLISH/SHEETSET/ETRANSMIT/DATAEXTRACTION), respetando el territorio asignado, los archivos prohibidos (Layout3DEditor.tsx, render/, collab/, 3D, contratos, rubric.json) y dejando un PR en borrador para revisión humana antes de fusionar.",
+      "firstPartyInputs": [
+        "lib/cad/sheet-set/ (sheet-set.ts, sheet-set-cover.ts, sheet-set-fields.ts, sheet-set-publish.ts), ya escrito y probado antes de esta campaña, sin comando que lo alcanzara — hallazgo de la Regla 6.",
+        "lib/cad/plot/ completo (plot-job.ts, plot-pdf.ts, page-setup.ts, pdf-measure.ts, plot-fonts.ts) y su evidencia ya publicada en docs/cad/evidence/plot-fidelity-slo.json.",
+        "lib/cad/bim-schedule.ts y el defecto ya medido y abierto en docs/execution/BACKLOG.md P1-6 (sesgo de esquina ~1,45%).",
+        "El registro real de comandos (apps/web/src/lib/cad/engine/, CAD_COMMAND_REGISTRY_V2) y su sonda de integridad (apps/web/scripts/command-integrity-probe.mts).",
+        "El endpoint /v1/cad/sheet-sets ya existente en el contrato y su repositorio cliente (apps/web/src/lib/cad/repositories/sheet-sets.ts)."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El escritor de ZIP (etransmit/zip-writer.ts, método STORE sin dependencias) se escribió desde la especificación pública del formato ZIP (estructura de cabeceras locales, directorio central, CRC-32 IEEE 802.3) y se verificó contra dos oráculos independientes que no comparten código con el escritor: un lector propio escrito aparte en el spec, node:zlib.crc32 cuando el Node del entorno lo trae, y el binario `unzip` del sistema (best-effort, si está instalado) — sin copiar ninguna implementación ajena.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/engine/commands/sheet-set-commands.ts (PUBLISH, SHEETSET) — comandos nuevos, enchufan la tubería ya escrita.",
+        "apps/web/src/lib/cad/engine/commands/etransmit-commands.ts + lib/cad/etransmit/ (etransmit.ts, zip-writer.ts) — ETRANSMIT, de punta a punta nuevo.",
+        "apps/web/src/lib/cad/engine/commands/data-extraction-commands.ts + lib/cad/data-extraction/data-extraction.ts — DATAEXTRACTION, de punta a punta nuevo, declara el sesgo de P1-6 en su salida.",
+        "apps/web/src/components/cad/command-line/plot-host.ts (rama sheet-set-command, saveSheetSet), etransmit-host.ts, data-extraction-host.ts, use-command-engine.ts (composición de anfitriones).",
+        "apps/web/src/lib/cad/bim-schedule.ts (buildCadBimSchedule acepta Pick<CadDocument,'entities'> en vez de CadDocument completo, sin cambiar su contrato para quien ya lo llamaba).",
+        "apps/web/src/lib/cad/engine/host-requests.ts (tres variantes nuevas: etransmit, data-extraction-csv, sheet-set-command) y engine/index.ts (registro).",
+        "apps/web/src/lib/cad/engine/command-summaries.ts (cuatro resúmenes nuevos, alfabéticos).",
+        "scripts/cad/sheet-set-publish-probe.mts + sheet-set-publish-evidence.mjs → docs/cad/evidence/sheet-set-publish.json.",
+        "docs/execution/BACKLOG.md (P1-8 nuevo: el cableado de datos real de PUBLISH/SHEETSET al estudio en vivo queda bloqueado por el techo de Layout3DEditor.tsx, igual que P1-2/XATTACH; nota añadida a P1-6 sobre la herencia del sesgo en DATAEXTRACTION)."
+      ],
+      "fixtures": "Ninguno externo. Los documentos y conjuntos de prueba de los specs nuevos (sheet-set-commands.spec.ts, etransmit.spec.ts, data-extraction.spec.ts, zip-writer.spec.ts, la sonda de PUBLISH) se construyen a mano dentro de cada archivo, con geometría conocida (un muro de 3,5 m a 1:50) para poder medir contra los bytes del PDF.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "PR en borrador de esta rama, sin fusionar: pendiente de revisión humana. Los seis gates locales (check:cad, check:dwg, typecheck, test, lint, build) corridos sobre el árbol committeado antes de abrir el PR; check:dwg-evidence falla por VALLE_DWG_CORPUS_MIRROR ausente en este contenedor, verificado que falla igual en main limpio."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "CAD-REPARAR-NORMALIZAR-AUDIT-RECOVER-20260831",
       "date": "2026-08-31",
       "initiative": "Frente 'el dibujo que llega de fuera' de la campaña paralela de seis sesiones: el registro de comandos (192 verificados) no tenía AUDIT, RECOVER, LAYTRANS ni CHECKSTANDARDS -las cuatro que resuelven un DXF ajeno con geometria degenerada, referencias colgantes, capas propias y sin norma de despacho-, ni la productividad diaria QDIM/TEXTALIGN/BURST/QLEADER. Se construyeron los ocho, reutilizando el motor de deteccion ya existente (overkill.ts para duplicados, wall-openings.ts para huecos huerfanos, cad-purge.ts para capas/bloques/estilos sin usar, mexican-layers.ts y mexican-annotation.ts para el estandar) en vez de duplicarlo, y añadiendo una matriz de evidencia medida (docs/cad/evidence/audit-repair-matrix.json) que corre los detectores y reparadores reales contra un caso de cada defecto.",

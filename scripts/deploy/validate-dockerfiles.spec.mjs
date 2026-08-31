@@ -233,8 +233,12 @@ FROM node:20-bookworm-slim AS runtime
   const missingFlags = missingDwgBuildFlags(instr, envEntries, order.webBuildRun);
   eq(
     missingFlags,
-    ['NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA', 'NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA'],
-    'el Dockerfile pre-P1 no declara ni propaga ninguno de los dos flags de build DWG',
+    [
+      'NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA',
+      'NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA',
+      'NEXT_PUBLIC_DWG_3D_WIREFRAME_IMPORT_BETA',
+    ],
+    'el Dockerfile pre-P1 no declara ni propaga ninguno de los tres flags de build DWG',
   );
 }
 
@@ -266,7 +270,7 @@ FROM node:20-bookworm-slim AS runtime
   eq(
     missingDwgBuildFlags(instr, envEntries, order.webBuildRun),
     [],
-    'el Dockerfile actual declara y propaga los dos flags NEXT_PUBLIC_DWG_* antes del build de web',
+    'el Dockerfile actual declara y propaga los tres flags NEXT_PUBLIC_DWG_* antes del build de web',
   );
 }
 
@@ -306,7 +310,11 @@ FROM node:20-bookworm-slim AS runtime
   const order = dwgCodecBuildOrder(runEntries);
   eq(
     missingDwgBuildFlags(instr, envEntries, order.webBuildRun),
-    ['NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA', 'NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA'],
+    [
+      'NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA',
+      'NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA',
+      'NEXT_PUBLIC_DWG_3D_WIREFRAME_IMPORT_BETA',
+    ],
     'un ARG sin su ENV correspondiente no cuenta como cableado: Docker no lo expone como variable de entorno a `RUN`',
   );
 }

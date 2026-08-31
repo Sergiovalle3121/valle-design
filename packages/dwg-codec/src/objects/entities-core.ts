@@ -408,7 +408,13 @@ function decodeEntitySpecific(
  * deltas DD contra el inicial, y las Z con un bit que declara si ambas son
  * cero. Después, grosor BT y extrusión BE.
  */
-function decodeLine(reader: DwgBitReader): DwgLineEntity {
+/**
+ * Exportado (además de usarse en el despacho R2000 local) para que el lector
+ * R2010+ reutilice el MISMO decodificador de campos de tipo sin gemelo: la
+ * cabecera común difiere entre R2000 y R2010+, pero los datos de LINE en sí
+ * son idénticos (medido; ver `reader/r2010-entity-common.ts`).
+ */
+export function decodeLine(reader: DwgBitReader): DwgLineEntity {
   const zeroZ = reader.readB() === 1;
   const startX = finiteDecoded(reader, reader.readRD(), "a line start X");
   const endX = finiteDecoded(reader, reader.readDD(startX), "a line end X");
@@ -432,7 +438,7 @@ function decodeLine(reader: DwgBitReader): DwgLineEntity {
 }
 
 /** POINT: posición 3BD, grosor BT, extrusión BE y ángulo BD del eje X. */
-function decodePoint(reader: DwgBitReader): DwgPointEntity {
+export function decodePoint(reader: DwgBitReader): DwgPointEntity {
   const position = read3BDPoint(reader, "a point position");
   const thickness = finiteDecoded(reader, reader.readBT(), "a point thickness");
   const extrusion = readFiniteExtrusion(reader);
@@ -451,7 +457,7 @@ function decodePoint(reader: DwgBitReader): DwgPointEntity {
 }
 
 /** CIRCLE: centro 3BD, radio BD, grosor BT y extrusión BE. */
-function decodeCircle(reader: DwgBitReader): DwgCircleEntity {
+export function decodeCircle(reader: DwgBitReader): DwgCircleEntity {
   const { center, radius, thickness, extrusion } = decodeCircleFields(reader);
   return Object.freeze({
     kind: "circle" as const,
@@ -463,7 +469,7 @@ function decodeCircle(reader: DwgBitReader): DwgCircleEntity {
 }
 
 /** ARC: los campos del círculo más los ángulos BD inicial y final. */
-function decodeArc(reader: DwgBitReader): DwgArcEntity {
+export function decodeArc(reader: DwgBitReader): DwgArcEntity {
   const { center, radius, thickness, extrusion } = decodeCircleFields(reader);
   const startAngle = finiteDecoded(reader, reader.readBD(), "an arc start angle");
   const endAngle = finiteDecoded(reader, reader.readBD(), "an arc end angle");

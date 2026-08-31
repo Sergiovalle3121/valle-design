@@ -6,7 +6,7 @@ import {
   isBinaryImportFormat,
   validateImportFile,
 } from "./document-import";
-import { dwgAc1018BetaImportIsEnabled } from "./dwg-interop-flag";
+import { dwg3dWireframeBetaImportIsEnabled, dwgAc1018BetaImportIsEnabled } from "./dwg-interop-flag";
 import type { DwgNeutralDatabaseReader } from "./dwg-neutral-model";
 
 /**
@@ -27,11 +27,19 @@ type WorkerInput = {
   dwgBetaEnabled?: boolean;
   /** AC1018 (2004), ADR-0009 §7. Su propia variable, su propio flag. */
   dwgAc1018BetaEnabled?: boolean;
+  /**
+   * Perfil 3D heredado PROPUESTO (`AC1015_3D_WIREFRAME_V1`, ADR-0009 §9). Su
+   * propia variable, su propio flag — y, a diferencia de los dos de arriba,
+   * sin firma del titular todavía: `dwg3dWireframeBetaImportIsEnabled`
+   * siempre resuelve `false` hoy, encendida esta variable o no.
+   */
+  dwg3dWireframeBetaEnabled?: boolean;
 };
 
 self.onmessage = async (event: MessageEvent<WorkerInput>) => {
   try {
-    const { file, sidecars, dwgBetaEnabled, dwgAc1018BetaEnabled } = event.data;
+    const { file, sidecars, dwgBetaEnabled, dwgAc1018BetaEnabled, dwg3dWireframeBetaEnabled } =
+      event.data;
     validateImportFile(file.name, file.size, dwgBetaEnabled ?? false);
     self.postMessage({
       type: "progress",
@@ -63,9 +71,14 @@ self.onmessage = async (event: MessageEvent<WorkerInput>) => {
           dwgAc1018BetaEnabled ?? false,
           dwgBetaEnabled ?? false,
         );
+        const allow3dWireframe = dwg3dWireframeBetaImportIsEnabled(
+          dwg3dWireframeBetaEnabled ?? false,
+          dwgBetaEnabled ?? false,
+        );
         dwg = {
           betaEnabled: dwgBetaEnabled ?? false,
-          reader: (dwgBytes) => readDwgNeutralDatabase(dwgBytes, { allowAc1018 }),
+          reader: (dwgBytes) =>
+            readDwgNeutralDatabase(dwgBytes, { allowAc1018, allow3dWireframe }),
         };
       }
       const binaryReport = importDocumentBytes(

@@ -64,6 +64,12 @@ import { CAD_VIEW_NAVIGATION_COMMANDS } from "./commands/view-navigation";
 import { CAD_VIEW_VISUAL_COMMANDS } from "./commands/view-visual";
 import { CAD_LAYOUT_COMMANDS } from "./commands/layout-commands";
 import { CAD_PLOT_COMMANDS } from "./commands/plot-commands";
+// Entrega del proyecto: PUBLISH/SHEETSET enchufan `lib/cad/sheet-set/`, que ya
+// existía sin comando que lo alcanzara; ETRANSMIT y DATAEXTRACTION son nuevos
+// de punta a punta.
+import { CAD_SHEET_SET_COMMANDS } from "./commands/sheet-set-commands";
+import { CAD_ETRANSMIT_COMMANDS } from "./commands/etransmit-commands";
+import { CAD_DATA_EXTRACTION_COMMANDS } from "./commands/data-extraction-commands";
 import { createCadCommandRegistry, type CadCommandRegistryImpl } from "./registry";
 // Ola 3D, cimiento: el SCU de verdad. Al final del bloque a propósito.
 import { CAD_UCS_COMMANDS } from "./commands/ucs-commands";
@@ -178,6 +184,12 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_SOLVIEW_COMMANDS,
   // Aplanado: la mitad del 3D que devuelve dibujo 2D acotable en vez de píxeles.
   ...CAD_SOLID_FLATSHOT_COMMANDS,
+  // Entrega del proyecto: publicar el juego, gestionar el conjunto, empaquetar
+  // la entrega y extraer cantidades. Al final a propósito, como el resto de
+  // olas recientes.
+  ...CAD_SHEET_SET_COMMANDS,
+  ...CAD_ETRANSMIT_COMMANDS,
+  ...CAD_DATA_EXTRACTION_COMMANDS,
   // Campaña "reparar y normalizar". Al final a propósito.
   ...CAD_AUDIT_COMMANDS,
   ...CAD_RECOVER_COMMANDS,
