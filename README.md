@@ -1,12 +1,18 @@
 # Valle Design
 
-Valle Design es un **CAD 2D general y universal** que corre en el navegador.
+Valle Design es un **CAD 2D general y universal, y un modelador 3D de modelado
+directo**, que corre en el navegador.
 Dibuja planos: arquitectónicos, mecánicos, eléctricos, civiles, de
 instalaciones, de mobiliario, de terreno. Es el dominio de AutoCAD (Autodesk):
 dibujo de precisión con capas, bloques, cotas asociativas, referencias a objeto,
-espacio papel e intercambio DXF. Ése es el producto con el que se compara y
-contra el que se mide su comportamiento; lo que este repositorio no implementa
-se dice explícitamente en vez de insinuarse.
+espacio papel e intercambio DXF. Y modela volúmenes sobre **el mismo documento**,
+con un B-rep de medias-aristas facetado; en ese terreno la comparación es
+SketchUp. Por qué el kernel se queda facetado, y con qué condición se
+reconsidera, está en
+[`ADR-0016`](docs/adr/0016-modelado-directo-sobre-brep-facetado.md).
+
+Ésos son los productos contra los que se mide su comportamiento; lo que este
+repositorio no implementa se dice explícitamente en vez de insinuarse.
 
 El contenido mexicano —plantillas de casa habitación, consultorio, taquería,
 notaría; cajetines y normas de acotación en español mexicano— es la fortaleza

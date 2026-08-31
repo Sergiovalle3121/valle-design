@@ -1,8 +1,11 @@
 # Producto
 
-Valle Design es un **CAD 2D general y universal**: permite que un equipo cree,
-edite, versione y revise dibujos CAD desde el navegador sin depender de otro
-producto para identidad o acceso. El plano puede ser de cualquier disciplina
+Valle Design es un **CAD 2D general y universal y un modelador 3D de modelado
+directo**: permite que un equipo cree, edite, versione y revise dibujos CAD y
+modele volúmenes desde el navegador sin depender de otro producto para identidad
+o acceso. La ampliación de identidad al 3D la decide
+[`ADR-0016`](docs/adr/0016-modelado-directo-sobre-brep-facetado.md), que también
+declara por qué el kernel se queda facetado. El plano puede ser de cualquier disciplina
 —arquitectónico, mecánico, eléctrico, civil, de instalaciones, de mobiliario, de
 terreno— y el catálogo mexicano de plantillas y normas es la fortaleza inicial
 del producto, no su frontera. Qué es y qué **no** es Valle Design está en
