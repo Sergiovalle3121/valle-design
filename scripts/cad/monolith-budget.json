@@ -26,11 +26,7 @@
   "allowances": {
     "apps/api/src/load-probe/review-concurrency.main.ts": 887,
     "apps/api/src/migration-cli/import.ts": 809,
-<<<<<<< HEAD
-    "apps/web/src/components/cad/editor/Layout3DEditor.tsx": 18921,
-=======
-    "apps/web/src/components/cad/editor/Layout3DEditor.tsx": 18535,
->>>>>>> origin/main
+    "apps/web/src/components/cad/editor/Layout3DEditor.tsx": 18454,
     "apps/web/src/lib/cad/commands/parser.ts": 1515,
     "apps/web/src/lib/cad/commands/registry.spec.ts": 2908,
     "apps/web/src/lib/cad/commands/registry.ts": 2052,
