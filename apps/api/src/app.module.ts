@@ -22,6 +22,7 @@ import { AuditLogModule } from './modules/audit-log/audit-log.module';
 import { BlobStoreModule } from './modules/blob-store/blob-store.module';
 import { CadDocumentsModule } from './modules/cad-documents/cad-documents.module';
 import { CadModule } from './modules/cad/cad.module';
+import { CallsModule } from './modules/calls/calls.module';
 import { IdentityModule } from './modules/identity/identity.module';
 import { LegalModule } from './modules/legal/legal.module';
 import { OrganizationsModule } from './modules/organizations/organizations.module';
@@ -60,6 +61,7 @@ import { OutboxReceiverModule } from './modules/outbox-receiver/outbox-receiver.
     OutboxReceiverModule,
     CadDocumentsModule,
     CadModule,
+    CallsModule,
   ],
   controllers: [
     HealthController,

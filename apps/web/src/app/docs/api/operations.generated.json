@@ -4,7 +4,7 @@
   "openapi": "3.1.0",
   "apiTitle": "Valle Design — API standalone (v1)",
   "apiVersion": "1.0.0",
-  "operationCount": 94,
+  "operationCount": 98,
   "cadOperationCount": 43,
   "groups": [
     {
@@ -97,6 +97,16 @@
         "listAllProductFeedback",
         "listMyProductFeedback",
         "updateProductFeedbackStatus"
+      ]
+    },
+    {
+      "family": "commercial",
+      "tag": "calls",
+      "operations": [
+        "joinCallRoom",
+        "leaveCallRoom",
+        "postCallSignal",
+        "streamCallRoomEvents"
       ]
     },
     {
@@ -1524,6 +1534,125 @@
         "required": true,
         "schema": "FeedbackStatusRequest"
       },
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "joinCallRoom",
+      "method": "POST",
+      "path": "/v1/calls/rooms",
+      "summary": "Crea o se une a la sala de llamada de un documento.",
+      "tags": [
+        "calls"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "CallJoinRequest"
+      },
+      "responses": [
+        "201",
+        "400",
+        "401",
+        "403",
+        "404",
+        "409",
+        "429"
+      ]
+    },
+    {
+      "operationId": "leaveCallRoom",
+      "method": "POST",
+      "path": "/v1/calls/rooms/{roomId}/leave",
+      "summary": "Sale de la sala. Si era el último participante, la sala termina.",
+      "tags": [
+        "calls"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "roomId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "CallLeaveRequest"
+      },
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "postCallSignal",
+      "method": "POST",
+      "path": "/v1/calls/rooms/{roomId}/signals",
+      "summary": "Envía una oferta, respuesta o candidato ICE a otro participante.",
+      "tags": [
+        "calls"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "roomId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "CallSignalRequest"
+      },
+      "responses": [
+        "202",
+        "400",
+        "401",
+        "403",
+        "404",
+        "429"
+      ]
+    },
+    {
+      "operationId": "streamCallRoomEvents",
+      "method": "GET",
+      "path": "/v1/calls/rooms/{roomId}/events",
+      "summary": "Entrega en vivo (SSE) del roster y las señales del participante.",
+      "tags": [
+        "calls"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "roomId",
+          "in": "path",
+          "required": true
+        },
+        {
+          "name": "participantId",
+          "in": "query",
+          "required": true
+        }
+      ],
+      "requestBody": null,
       "responses": [
         "200",
         "400",

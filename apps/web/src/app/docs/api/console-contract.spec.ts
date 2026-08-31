@@ -63,9 +63,11 @@ void (async () => {
   //   propia, 2026-08-28)
   // + las 4 del centro de comentarios: crear, los míos, todos (operador) y
   //   cambiar estado (operador).
+  // + las 4 de la señalización de llamada: unirse/crear sala, salir, mandar
+  //   una señal SDP/ICE, y la entrega en vivo por SSE.
   assert.equal(
     regenerated.operationCount,
-    94,
+    98,
     "cambió el número de operaciones del contrato; actualiza este spec Y los recuentos de check-design-contract.mjs / standalone-contract-router.spec.ts",
   );
   assert.equal(

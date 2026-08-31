@@ -31,6 +31,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import StudioCollaborationLayer from "@/components/cad/collab/StudioCollaborationLayer";
+import { CallBar } from "@/components/cad/calls/CallBar";
 import { BRAND } from "@/config/brand";
 import { ErrorBoundary } from "@/components/ui";
 import { cadTourHost } from "@/components/cad/onboarding/tour-host";
@@ -147,6 +148,16 @@ export default function CadStudioHost({
             viewerName={user?.email ?? "Yo"}
             canReview={permissions.includes("cad:review")}
           />
+        </ErrorBoundary>
+      ) : null}
+      {/*
+        Mismo trato que la colaboración: la llamada vive AL LADO del editor,
+        no dentro — se monta con una línea y una `RTCPeerConnection` que
+        revienta por una razón de red no puede llevarse el lienzo con ella.
+      */}
+      {documentId && withCollaboration ? (
+        <ErrorBoundary zona="Llamada" documentId={documentId} compacta>
+          <CallBar documentId={documentId} displayName={user?.email} />
         </ErrorBoundary>
       ) : null}
     </>

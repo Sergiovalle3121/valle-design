@@ -183,6 +183,12 @@ siendo pruebas útiles, pero no sustituyen el recorrido full-stack.
   reservado y no participa en el runtime actual.
 - La asistencia NL→CAD/Vision→CAD es opcional y devuelve
   `available: false` cuando CIDE no está configurado.
+- Las llamadas (`/v1/calls/*`, WebRTC propio) necesitan un servidor TURN
+  configurado (`CALLS_TURN_URLS`) para las redes que no atraviesan NAT
+  directo — del orden del 15% en despliegues reales. Sin TURN esas llamadas
+  fallan, y lo dicen (`turnConfigured: false`) en vez de quedarse
+  "conectando". La malla completa (sin servidor de medios) topa en cuatro
+  participantes por sala; un quinto recibe 409.
 
 Consulta `PRODUCT.md`, `ARCHITECTURE.md`, `SECURITY.md`, `DEPLOYMENT.md` y la
 matriz `docs/competitive/autocad-2027-gap-matrix.md` antes de publicar claims.

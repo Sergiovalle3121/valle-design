@@ -126,6 +126,31 @@ licenciado que ADR-0012 dejaba abierta.
 CIDE es un puerto opcional para intent y vision: si falta, la respuesta es
 `available: false` y el editor sigue funcionando.
 
+## Llamadas
+
+WebRTC propio, sin SDK de terceros. La señalización (crear/unirse a una
+sala, salir, oferta/respuesta/candidato ICE) vive en `/v1/calls/*`
+(`apps/api/src/modules/calls/`): salas y participantes en memoria del
+proceso, nunca en disco, con TTL y barrido — una llamada dura minutos, no
+meses, y las señales SDP/ICE en vuelo son exactamente el tipo de dato
+efímero que no pertenece a PostgreSQL. La entrega en vivo usa `@Sse`
+(Server-Sent Events), no WebSocket: el volumen es de decenas de mensajes
+por llamada, y esta API no tenía ningún canal en vivo antes de esto.
+
+Audio, video y pantalla compartida viajan directo entre navegadores; el
+servidor nunca los toca. `apps/web/src/lib/cad/calls/` tiene la máquina de
+estados de la llamada y las políticas de reconexión ICE/pistas, puras y
+probadas sin navegador; `apps/web/src/components/cad/calls/` tiene el
+anfitrión que sí usa `RTCPeerConnection`/`getUserMedia`/`getDisplayMedia`, y
+la barra de llamada que lo monta.
+
+Límite declarado: malla completa (cada participante conectado a todos los
+demás) topa en cuatro por sala, y WebRTC punto a punto necesita un servidor
+TURN —que este repositorio no opera— para el ~15% de pares que no
+atraviesan NAT directo. Sin `CALLS_TURN_URLS`, esas llamadas fallan
+diciéndolo (`turnConfigured: false`) en vez de quedarse "conectando" para
+siempre. Ver `DEPLOYMENT.md` § TURN para llamadas WebRTC.
+
 ## Deuda visible
 
 - `Layout3DEditor.tsx` aún concentra demasiado estado e interacción.

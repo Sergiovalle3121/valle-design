@@ -1195,6 +1195,41 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CALLS-WEBRTC-SIGNALING-20260831",
+      "date": "2026-08-31",
+      "initiative": "Sistema de trabajo en equipo estilo Microsoft Teams (mensajería + videollamadas/pantalla compartida) pedido por el dueño para que arquitectos e ingenieros trabajen sobre un mismo proyecto. Esta sesión cubrió la mitad cara — la llamada y la pantalla compartida — bajo WebRTC propio (getUserMedia/getDisplayMedia/RTCPeerConnection, API del navegador) con señalización por API/SSE propia, cero SDK de terceros (LiveKit/Daily/Twilio descartados por decisión del dueño). La mensajería la construyó una sesión paralela (claude/mensajeria-equipo) sobre un territorio de archivos distinto y sin solape.",
+      "branch": "claude/llamadas-webrtc",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate desplegó esta sesión en paralelo a la de mensajería, con fronteras de archivo explícitas (apps/api/src/modules/calls/, apps/web/src/lib/cad/calls/, apps/web/src/components/cad/calls/, rutas /v1/calls/* del contrato) que excluyen Layout3DEditor.tsx (territorio de otra sesión, en su techo de monolito) y los directorios de mensajería.",
+      "firstPartyInputs": [
+        "El código y los gates propios del monorepo (apps/api/src/modules/auth, cad, cad-documents, identity; apps/web/src/lib/cad/collab/presence-channel.ts como precedente de puerto+adaptador; apps/web/src/components/ui; packages/design-sdk/src/identity.ts como precedente de extracción por presupuesto de monolito).",
+        "packages/contracts/specs/design-api.v1.yaml y los gates scripts/cad/check-design-contract.mjs, scripts/cad/check-handler-authorization.mjs, scripts/cad/check-monolith-budget.mjs, scripts/cad/build-api-console.mjs.",
+        "El código instalado de @nestjs/core (sse.decorator.js, router-execution-context.js, router-response-controller.js, sse-stream.js) leído directamente para verificar cómo @Sse registra la ruta y confirmar que ya manda X-Accel-Buffering por default."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación de terceros. El patrón de negociación perfecta (perfect negotiation, quién es 'cortés' en un glare de ofertas) es el algoritmo público y sin licencia que documenta el propio estándar WebRTC/MDN; se implementó desde cero sobre RTCPeerConnection nativo, sin copiar código de ningún proyecto.",
+      "derivedAreas": [
+        "apps/api/src/modules/calls/ (nuevo): call-room-store.ts (salas/participantes/buzón de señales en memoria, TTL, puro y probado), call-ice-config.ts, calls.service.ts, calls.controller.ts (@Sse de entrega), calls.dto.ts, calls-wire.ts, calls.module.ts",
+        "apps/web/src/lib/cad/calls/ (nuevo): call-state.ts (máquina de estados pura inactiva→llamando→conectando→en-curso→colgada), call-ice-policy.ts (reconexión/rendición ICE, pura), call-track-policy.ts (política de pistas cámara/mic/pantalla, pura), call-signaling-wire.ts (parseo SSE, puro) y call-signaling-transport.ts (adaptador EventSource+fetch)",
+        "apps/web/src/components/cad/calls/ (nuevo): call-session-host.ts (orquestador WebRTC fuera de React — perfect negotiation, ICE restart, política de pistas), use-call-session.ts, CallBar.tsx (montada en CadStudioHost.tsx, al lado de StudioCollaborationLayer)",
+        "packages/contracts/specs/design-api.v1.yaml (+4 operaciones /v1/calls/*) y packages/design-sdk/src/calls.ts (extraído de client.ts por el mismo presupuesto de monolito que ya había movido identity.ts)",
+        "apps/api/src/main.ts (excluir text/event-stream de compression), apps/web/next.config.ts (Permissions-Policy: camera/microphone/display-capture en (self) — estaba en () vacío, bloqueando la función por completo; encontrado con dos navegadores reales llamándose)",
+        "apps/web/e2e/real/llamada-webrtc-real.spec.ts (nuevo, full-stack real, dos BrowserContext de Chromium con --use-fake-device-for-media-capture)"
+      ],
+      "fixtures": "Ninguno nuevo. Las pruebas puras usan objetos construidos a mano en el propio test (call-state.spec.ts, call-ice-policy.spec.ts, call-track-policy.spec.ts, call-signaling-wire.spec.ts). El E2E real registra cuentas nuevas por corrida (timestamp en el correo) contra la API y PostgreSQL/SQLite reales, sin fixtures grabados.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "PR en borrador de esta rama. Verificado en vivo en esta sesión (no sólo en CI): API real (SQLite de desarrollo) + web real levantados a mano, dos cuentas registradas y verificadas por correo, invitación de organización real, documento CAD real, y una llamada WebRTC de verdad establecida entre dos contextos de Chromium (iceConnectionState: connected en ambos lados, roster propagado por SSE al unirse y al colgar). Ese mismo ejercicio en vivo encontró y corrigió dos defectos reales antes de este registro: (1) una llamada con cámara/micrófono apagados nunca negociaba —RTCPeerConnection.onnegotiationneeded no dispara sin una transceiver que abrir— hasta añadir un canal de datos vacío que fuerza la primera negociación siempre; (2) la Permissions-Policy del sitio bloqueaba camera/microphone/display-capture por completo (valor () heredado de antes de esta función), así que ningún getUserMedia llegaba siquiera a pedir permiso. Cámara y pantalla compartida con dispositivo simulado no se pudieron verificar en esta sesión por falta de subsistema de audio/video en el contenedor (sin /dev/snd ni V4L2); quedan como aserciones del E2E para el runner de CI, que sí lo tiene."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

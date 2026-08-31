@@ -122,10 +122,37 @@ Opcionales que cambian el comportamiento operativo:
 | `DB_STATEMENT_TIMEOUT_MS`    | `30000`  | mata la query degenerada con error acotado                  |
 | `DB_IDLE_IN_TRANSACTION_TIMEOUT_MS` | `30000` | mata la transacción ociosa que retiene locks          |
 | `DB_LOCK_TIMEOUT_MS`         | `10000`  | techo de espera por un lock                                 |
+| `CALLS_STUN_URLS`            | STUN públicos de Google | STUN para llamadas WebRTC; `=` vacío desactiva STUN sin caer al default |
+| `CALLS_TURN_URLS`            | *(sin)*  | **sin TURN, las llamadas entre redes que no atraviesan NAT directo (~15%) fallan** — infraestructura que este repositorio no opera; ver la sección dedicada abajo |
 
 Inventario completo: `docs/guides/environment-variables.md`. Los secretos
 llegan del gestor de secretos del entorno, **nunca** de una imagen, un archivo
 versionado ni argumentos visibles del proceso.
+
+### TURN para llamadas WebRTC
+
+La señalización de llamadas (`/v1/calls/*`) es propia — sin SDK ni proveedor
+de terceros — pero WebRTC punto a punto tiene un límite físico que ningún
+código arregla: dos pares detrás de NAT simétrico o firewall corporativo
+(del orden del 15% de las combinaciones reales) no se conectan directo, y
+necesitan un servidor **TURN** que releve el tráfico. Este repositorio no
+opera uno.
+
+- Sin `CALLS_TURN_URLS`: el ~85% de las llamadas (ambos pares en redes que
+  atraviesan NAT directo, o la misma LAN) funciona igual. El otro ~15%
+  falla, y lo hace **diciéndolo**: la respuesta de unión a sala declara
+  `turnConfigured: false`, y el cliente lo usa para rendirse rápido en vez
+  de quedarse "conectando" para siempre (`call-ice-policy.ts`).
+- Para desplegar TURN propio, `coturn` es la opción libre más operada; se
+  aloja aparte (no en este repositorio) y sus credenciales llegan por
+  `CALLS_TURN_URLS`/`CALLS_TURN_USERNAME`/`CALLS_TURN_CREDENTIAL`.
+- La malla completa (cada participante conectado a todos los demás, sin
+  servidor de medios) topa en **cuatro** participantes por sala —a partir de
+  ahí cada quien sostendría más conexiones simultáneas de las que un
+  navegador mantiene sin degradar audio/video—; un quinto participante
+  recibe 409. Escalar más alto pide una topología SFU (servidor de medios
+  que reenvía en vez de que cada par se conecte a todos), que este
+  repositorio no tiene.
 
 ---
 

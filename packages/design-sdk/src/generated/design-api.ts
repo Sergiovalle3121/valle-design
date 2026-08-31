@@ -899,6 +899,89 @@ export interface paths {
         patch: operations["updateProductFeedbackStatus"];
         trace?: never;
     };
+    "/v1/calls/rooms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Crea o se une a la sala de llamada de un documento.
+         * @description Idempotente por (tenant, documentId): si ya hay una sala abierta para ese documento la reutiliza y añade un participante nuevo; si no, abre una. La sala, sus participantes y las señales SDP/ICE viven en memoria del proceso, nunca en disco — una llamada dura minutos, no meses. La malla completa (cada participante conectado a todos los demás) topa en cuatro; un quinto responde 409. `iceServers` trae el STUN/TURN que este despliegue tenga configurado y `turnConfigured` dice si hay TURN real detrás — sin él, las llamadas entre redes que no atraviesan NAT directo (del orden del 15%) fallan, y el cliente debe decirlo en vez de quedarse "conectando" para siempre.
+         */
+        post: operations["joinCallRoom"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/calls/rooms/{roomId}/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sale de la sala. Si era el último participante, la sala termina. */
+        post: operations["leaveCallRoom"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/calls/rooms/{roomId}/signals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Envía una oferta, respuesta o candidato ICE a otro participante.
+         * @description El servidor enruta el mensaje sin interpretarlo: `payload` es exactamente lo que produce `RTCPeerConnection` en el navegador (`RTCSessionDescriptionInit` para oferta/respuesta, `RTCIceCandidateInit` para un candidato). Si el destinatario tiene `GET .../events` abierto se entrega de inmediato; si no, se guarda en su buzón hasta que conecte o hasta que expire el TTL.
+         */
+        post: operations["postCallSignal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/calls/rooms/{roomId}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Entrega en vivo (SSE) del roster y las señales del participante.
+         * @description `Server-Sent Events`, no WebSocket. `EventSource` no manda headers propios: la sesión viaja por la cookie de siempre (mismo origen) y `participantId` va en la query, validado contra la sala y el tenant del actor antes de abrir el stream. Manda un evento `roster` al conectar y en cada cambio de participantes, un evento `signal` por cada mensaje dirigido a este participante (incluidos los que llegaron mientras no había conexión abierta), y un `ping` periódico para que el stream no parezca muerto detrás de un proxy con timeout de idle.
+         */
+        get: operations["streamCallRoomEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/cad/documents": {
         parameters: {
             query?: never;
@@ -1534,6 +1617,80 @@ export interface components {
         };
         FeedbackAdminList: {
             items: components["schemas"]["FeedbackAdminEntry"][];
+        };
+        CallJoinRequest: {
+            /** Format: uuid */
+            documentId: string;
+            /** @description Nombre para las miniaturas. Si falta, se usa el correo de la sesión. */
+            displayName?: string;
+        };
+        CallLeaveRequest: {
+            /** Format: uuid */
+            participantId: string;
+        };
+        /** @enum {string} */
+        CallSignalKind: "offer" | "answer" | "ice-candidate" | "bye";
+        CallSignalRequest: {
+            /** Format: uuid */
+            fromParticipantId: string;
+            /** Format: uuid */
+            toParticipantId: string;
+            kind: components["schemas"]["CallSignalKind"];
+            /** @description Opaco para el servidor: `RTCSessionDescriptionInit` para oferta/respuesta, `RTCIceCandidateInit` para un candidato. Lo define el navegador, no este contrato. */
+            payload: {
+                [key: string]: unknown;
+            };
+        };
+        CallParticipant: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            userId: string;
+            name: string;
+            joinedAt: components["schemas"]["Timestamp"];
+        };
+        CallIceServer: {
+            urls: string[];
+            username?: string;
+            credential?: string;
+        };
+        CallJoinResponse: {
+            /** Format: uuid */
+            roomId: string;
+            /** Format: uuid */
+            documentId: string;
+            /** Format: uuid */
+            participantId: string;
+            participants: components["schemas"]["CallParticipant"][];
+            iceServers: components["schemas"]["CallIceServer"][];
+            /** @description false cuando el despliegue no configuró TURN: las llamadas entre redes que no atraviesan NAT directo van a fallar y el cliente debe decirlo en vez de quedarse "conectando". */
+            turnConfigured: boolean;
+            /** @description Tope de la malla completa que esta sala usa. */
+            maxParticipants: number;
+        };
+        /** @description Union discriminada por `type`, la forma de CADA evento del stream `GET /v1/calls/rooms/{roomId}/events`. `text/event-stream` no es JSON puro (es `data: <json>\n\n` por mensaje); este schema describe el JSON de un solo `data`. */
+        CallServerEvent: {
+            /** @enum {string} */
+            type: "roster";
+            participants: components["schemas"]["CallParticipant"][];
+        } | {
+            /** @enum {string} */
+            type: "signal";
+            signal: {
+                /** Format: uuid */
+                id: string;
+                /** Format: uuid */
+                fromParticipantId: string;
+                kind: components["schemas"]["CallSignalKind"];
+                payload: {
+                    [key: string]: unknown;
+                };
+                queuedAt: components["schemas"]["Timestamp"];
+            };
+        } | {
+            /** @enum {string} */
+            type: "ping";
+            at: components["schemas"]["Timestamp"];
         };
         SupportIncidentRequest: {
             /** @description Lo que la persona escribe. Es el unico campo que redacta. */
@@ -4271,6 +4428,139 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FeedbackEntry"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    joinCallRoom: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CallJoinRequest"];
+            };
+        };
+        responses: {
+            /** @description Sala (nueva o reutilizada) con el roster y la configuración ICE. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallJoinResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description La sala ya tiene el tope de participantes de la malla completa. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    leaveCallRoom: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CallLeaveRequest"];
+            };
+        };
+        responses: {
+            /** @description Fuera de la sala. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        left: true;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    postCallSignal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CallSignalRequest"];
+            };
+        };
+        responses: {
+            /** @description Señal encolada para su entrega. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        queued: true;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    streamCallRoomEvents: {
+        parameters: {
+            query: {
+                participantId: string;
+            };
+            header?: never;
+            path: {
+                roomId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stream `text/event-stream` de eventos de la sala. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": components["schemas"]["CallServerEvent"];
                 };
             };
             400: components["responses"]["BadRequest"];

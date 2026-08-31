@@ -85,7 +85,28 @@ async function bootstrap() {
   // CSP `default-src 'none'` (la API sólo sirve JSON) y HSTS de un año en
   // producción. Ver `bootstrap/production-hardening.ts`.
   app.use(helmet(helmetOptions()));
-  app.use(compression());
+  // `text/event-stream` (la señalización de llamadas, `@Sse`) queda FUERA de
+  // compression: un stream comprimido se bufferiza hasta juntar un bloque
+  // digno de comprimir, y eso es exactamente lo contrario de "entregar cada
+  // mensaje en cuanto llega" — la mitad de por qué un SSE que funciona en
+  // local se queda pegado detrás de un proxy en producción. La otra mitad,
+  // `X-Accel-Buffering: no`, ya la manda Nest por default en su SseStream
+  // (`@nestjs/core/router/sse-stream.js`) — sin necesidad de repetirla aquí.
+  app.use(
+    compression({
+      filter: (req, res) => {
+        if (
+          res
+            .getHeader('Content-Type')
+            ?.toString()
+            .includes('text/event-stream')
+        ) {
+          return false;
+        }
+        return compression.filter(req, res);
+      },
+    }),
+  );
 
   // ── CORS ──────────────────────────────────────────────────────────────────
   const env = process.env.NODE_ENV || 'development';
