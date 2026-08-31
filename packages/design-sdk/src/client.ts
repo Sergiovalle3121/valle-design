@@ -25,6 +25,7 @@ export type LoginRequest = Schemas["LoginRequest"];
  * reexportan desde aquí para no romper a quien ya los importaba de `client`.
  */
 import { createIdentitySurface } from "./identity";
+import { createMessagingSurface } from "./messaging";
 
 export {
   createIdentitySurface,
@@ -34,6 +35,17 @@ export {
   type LoginResponse,
   type MfaChallengeResponse,
 } from "./identity";
+export {
+  createMessagingSurface,
+  type MessagingTransport,
+  type MessagingChannel,
+  type MessagingChannelList,
+  type MessagingChannelCreate,
+  type MessagingMessage,
+  type MessagingMessageCreate,
+  type MessagingMessagePage,
+  type MessagingAuthor,
+} from "./messaging";
 export type AuthSessionResponse = Schemas["AuthSessionResponse"];
 export type IdentitySession = Schemas["IdentitySession"];
 export type IdentitySessionList = Schemas["IdentitySessionList"];
@@ -224,6 +236,7 @@ export function createDesignClient(options: DesignClientOptions) {
         "/v1/cad/",
         "/v1/support/",
         "/v1/feedback/",
+        "/v1/messaging/",
       ].some((prefix) => apiPath.startsWith(prefix));
     if (!declaredPrefix) {
       throw new TypeError(`Ruta Design v1 no declarada: ${apiPath}`);
@@ -758,6 +771,12 @@ export function createDesignClient(options: DesignClientOptions) {
       remove: (blockId: string) =>
         call<void>("DELETE", resource(`/v1/cad/blocks/${blockId}`)),
     },
+
+    /**
+     * Mensajería de equipo (canales de proyecto + directos, mensajes
+     * anclables al dibujo). Ver `./messaging.ts`.
+     */
+    messaging: createMessagingSurface({ call, resource }),
   };
 }
 

@@ -63,9 +63,11 @@ void (async () => {
   //   propia, 2026-08-28)
   // + las 4 del centro de comentarios: crear, los míos, todos (operador) y
   //   cambiar estado (operador).
+  // + las 6 de /v1/messaging: listar/crear canales, listar/enviar mensajes,
+  //   marcar leído y el flujo @Sse de eventos en vivo.
   assert.equal(
     regenerated.operationCount,
-    94,
+    100,
     "cambió el número de operaciones del contrato; actualiza este spec Y los recuentos de check-design-contract.mjs / standalone-contract-router.spec.ts",
   );
   assert.equal(

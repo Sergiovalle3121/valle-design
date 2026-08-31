@@ -85,7 +85,22 @@ async function bootstrap() {
   // CSP `default-src 'none'` (la API sólo sirve JSON) y HSTS de un año en
   // producción. Ver `bootstrap/production-hardening.ts`.
   app.use(helmet(helmetOptions()));
-  app.use(compression());
+  // `compression()` bufferiza la respuesta hasta tener suficientes bytes para
+  // decidir si comprime — exactamente lo que un stream `@Sse` (mensajería en
+  // vivo, `/v1/messaging/events`) no puede permitirse: el cliente esperaría
+  // el primer evento hasta que el buffer se llenara. `filter` lo excluye por
+  // Content-Type (ya fijado por Nest antes del primer `write`), no por ruta,
+  // para que cubra cualquier endpoint `@Sse` presente o futuro.
+  app.use(
+    compression({
+      filter: (req, res) => {
+        if (res.getHeader('Content-Type') === 'text/event-stream') {
+          return false;
+        }
+        return compression.filter(req, res);
+      },
+    }),
+  );
 
   // ── CORS ──────────────────────────────────────────────────────────────────
   const env = process.env.NODE_ENV || 'development';
