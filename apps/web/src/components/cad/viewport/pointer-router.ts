@@ -28,13 +28,16 @@
  * - **Menú contextual** con las palabras clave del paso, que el motor ya expone
  *   en su `prompt` y que hasta ahora sólo se veían en la línea de comandos.
  */
-import type { CadPoint2 } from "@/lib/cad/cad-document";
+import type { CadPoint2, CadPoint3 } from "@/lib/cad/cad-document";
 import type { SnapType } from "@/lib/cad/snap-engine";
+import type { CadSolidFaceRef } from "@/lib/cad/cad-entities-v5";
 import type { CadCommandEngineHost } from "@/components/cad/command-line/command-engine-host";
 import type { CadKeyword } from "@/lib/cad/engine/command-types";
 import type { CadPreviewPath } from "@/lib/cad/engine/command-types";
 import {
   CAD_ACCEPT_ENTITY_PICK,
+  CAD_ACCEPT_FACE_PICK,
+  CAD_ACCEPT_SELECTION,
   CAD_ACCEPT_POINT,
 } from "@/lib/cad/engine/command-types";
 import type { CadLiveCursorField, CadPointerKind } from "./live-cursor";
@@ -141,6 +144,24 @@ export interface CadEnginePointerBridge {
    * ENTITY_PICK: designar objetos es del paso, no un modo del enrutador.
    */
   hitEntity(point: CadPoint2): string | null;
+  /**
+   * CARA de sólido bajo el evento, resuelta con el rayo de cámara.
+   *
+   * Opcional a propósito: sólo el lienzo 3D puede responderla —hace falta una
+   * cámara para lanzar un rayo— y el enrutador se monta también sobre vistas
+   * que no la tienen. Sin este método, un paso que pide una cara simplemente no
+   * recibe ninguna, que es la degradación correcta: mejor que el clic no haga
+   * nada a que designe la entidad equivocada.
+   *
+   * Se consulta SÓLO cuando el paso activo acepta FACE_PICK: designar caras es
+   * del paso, no un modo del enrutador — la misma regla que ya rige ENTITY_PICK.
+   */
+  hitFace?(event: PointerEvent | MouseEvent): {
+    entityId: string;
+    face: CadSolidFaceRef;
+    point: CadPoint3;
+    normal: CadPoint3;
+  } | null;
   /** Publica el cursor vivo; es lo que el contexto del motor devuelve. */
   setCursor(point: CadPoint2 | null): void;
   /** Coordenadas del evento relativas al lienzo, para colocar el DOM. */
@@ -297,6 +318,22 @@ export class CadEnginePointerRouter {
     // como exige MOVE, cuyo paso de designación se tragaría el punto como
     // punto base si llegara hasta él.
     const accepts = this.bridge.host.accepts;
+    // La CARA va antes que la entidad, y el orden importa: un sólido es también
+    // una entidad, así que preguntar primero por entidad haría que PRESSPULL
+    // designara el sólido entero y no la cara que el usuario está mirando.
+    if (accepts & CAD_ACCEPT_FACE_PICK) {
+      const face = this.bridge.hitFace?.(event) ?? null;
+      if (face) {
+        this.bridge.host.pickFace(face);
+        this.afterDispatch();
+        return true;
+      }
+      // Sin cara bajo el cursor, el paso puede seguir aceptando otras cosas
+      // —PRESSPULL acepta también contornos— y se cae a la rama de abajo. Si no
+      // acepta nada más, el clic al vacío no designa nada, como en AutoCAD.
+      if (!(accepts & (CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_POINT | CAD_ACCEPT_SELECTION)))
+        return true;
+    }
     if (accepts & CAD_ACCEPT_ENTITY_PICK) {
       const hit = this.bridge.hitEntity(raw);
       if (hit) {
