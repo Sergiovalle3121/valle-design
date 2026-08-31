@@ -1,0 +1,3336 @@
+{
+  "$schema": "../../schema/dwg-evidence.schema.json",
+  "schemaVersion": 1,
+  "evidenceId": "dwg-r2010-string-stream",
+  "generadoPor": "scripts/dwg/probe-r2010-string-stream.mjs",
+  "generadoEn": "2026-08-31T18:44:10.925Z",
+  "environment": {
+    "node": "v22.22.2",
+    "platform": "linux",
+    "architecture": "x64",
+    "osType": "Linux",
+    "osRelease": "6.18.44-fc-v22",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "logicalCpuCount": 4,
+    "totalMemoryBytes": 16856133632,
+    "declaredMachine": "Intel(R) Xeon(R) Processor @ 2.80GHz (4 hilos lógicos), 16.9 GB de RAM, Linux 6.18.44-fc-v22"
+  },
+  "veredicto": "El flujo de cadenas R2010+ queda medido en 303/303 objetos con cadena de las tres versiones (block-record 54/54, entidad-con-texto 15/15, layer 54/54, symbol-entry 180/180). El inicio derivado como bitPresencia-16-tamano cae EXACTAMENTE donde empieza el primer BS de longitud (303/303); las cadenas van CONSECUTIVAS como TU y consumen el tramo EXACTO (303/303), con histograma por objeto {\"1\":117,\"2\":78,\"3\":84,\"5\":24}; y la PRIMERA cadena -el valor de un TEXT o el NOMBRE de un objeto con nombre- coincide byte a byte con la del gemelo (303/303). En los objetos de UNA sola cadena, ademas, el campo RS de 16 bits vale EXACTAMENTE los bits que el gemelo predice (117 de esos objetos). El bit de presencia vale 1 en 303/303, frente a 0 en los 72 objetos sin cadena ya medidos: su semantica queda confirmada por los dos lados.",
+  "alcance": "Flujo de cadenas separado del cuerpo de objeto en AC1024/AC1027/AC1032 -- entidades con texto y objetos CON NOMBRE (LAYER, BLOCK_RECORD, entradas de tabla) --, comparado contra el gemelo AC1015 del MISMO dibujo.",
+  "metodo": "Oráculo diferencial sobre los bundles fundacionales. Se busca el valor del gemelo codificado en UTF-16LE y alineado a bit dentro del cuerpo moderno, y se exigen tres coincidencias independientes: el valor del campo de tamaño, el inicio derivado del flujo y el texto decodificado por el camino del formato (BS de longitud + caracteres UTF-16LE).",
+  "limiteDeLaEvidencia": "Solo la PRIMERA cadena tiene significado comprobado (el valor de un TEXT o el nombre de un objeto con nombre); las siguientes se leen y se cuentan, pero NADIE ha medido que son en cada tipo. No hay cadenas no-ASCII en el corpus: que la codificacion sea UTF-16LE esta medido, pero solo sobre puntos de codigo latinos basicos, y los pares suplentes fuera del BMP no estan ejercitados. Corpus de un unico productor y un unico oraculo.",
+  "corpus": {
+    "commit": "0688fb9c395b9cac4169d1ee9c23a7370cc28cf3",
+    "bundles": 4
+  },
+  "resumen": {
+    "objetos": 303,
+    "presenciaUno": 303,
+    "tamanoExacto": 117,
+    "inicioExacto": 303,
+    "textoExacto": 303,
+    "consumoCadenas": 303,
+    "cadenasPorObjeto": {
+      "1": 117,
+      "2": 78,
+      "3": 84,
+      "5": 24
+    },
+    "porFamilia": {
+      "block-record": {
+        "total": 54,
+        "ok": 54
+      },
+      "layer": {
+        "total": 54,
+        "ok": 54
+      },
+      "symbol-entry": {
+        "total": 180,
+        "ok": 180
+      },
+      "entidad-con-texto": {
+        "total": 15,
+        "ok": 15
+      }
+    },
+    "porVersion": {
+      "AC1024": {
+        "archivos": 8,
+        "objetos": 101,
+        "presenciaUno": 101,
+        "tamanoExacto": 39,
+        "inicioExacto": 101,
+        "textoExacto": 101,
+        "consumoCadenas": 101
+      },
+      "AC1027": {
+        "archivos": 8,
+        "objetos": 101,
+        "presenciaUno": 101,
+        "tamanoExacto": 39,
+        "inicioExacto": 101,
+        "textoExacto": 101,
+        "consumoCadenas": 101
+      },
+      "AC1032": {
+        "archivos": 8,
+        "objetos": 101,
+        "presenciaUno": 101,
+        "tamanoExacto": 39,
+        "inicioExacto": 101,
+        "textoExacto": 101,
+        "consumoCadenas": 101
+      }
+    }
+  },
+  "desviaciones": [],
+  "archivos": [
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "01-vacio",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/01-vacio.dwg",
+      "sha256": "34f0b47e5f363d2eac2b5870e7c89b4c9cbd249bf20cc94cb9adcb71be9388d6",
+      "version": "AC1024",
+      "detalle": [
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 32,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "02-una-linea",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/02-una-linea.dwg",
+      "sha256": "18b833e4603d4e57296783137b639a2ba4a05af1ff033c229999c239c728da7a",
+      "version": "AC1024",
+      "detalle": [
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 32,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "03-figuras-basicas",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/03-figuras-basicas.dwg",
+      "sha256": "590060bf0b58c0f64b659ef3d506f28aa8df7dbf9ebc7c55aa71a0acef39c062",
+      "version": "AC1024",
+      "detalle": [
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 32,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "04-capas",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/04-capas.dwg",
+      "sha256": "6030998d528b1c25c3fabaaf9d962d5b953d965f2bf0d15b6172667580f197c6",
+      "version": "AC1024",
+      "detalle": [
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 39,
+          "tipo": "layer",
+          "caracteres": 5,
+          "declaredSize": 90,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 40,
+          "tipo": "layer",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 41,
+          "tipo": "layer",
+          "caracteres": 5,
+          "declaredSize": 90,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 42,
+          "tipo": "layer",
+          "caracteres": 9,
+          "declaredSize": 154,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 43,
+          "tipo": "layer",
+          "caracteres": 9,
+          "declaredSize": 154,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 44,
+          "tipo": "layer",
+          "caracteres": 6,
+          "declaredSize": 106,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 404,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 6,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 46,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 45,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "05-lwpolyline-bulges",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/05-lwpolyline-bulges.dwg",
+      "sha256": "4759ad24302a4544765bc8cabdf4275cabf88c4a86221a7dc5a2cddb5225a293",
+      "version": "AC1024",
+      "detalle": [
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 32,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "06-texto",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/06-texto.dwg",
+      "sha256": "749bf4a160dba1a4c8b9b94df1f5bcb3b27af7b42693cbe8ade91718c98c63b2",
+      "version": "AC1024",
+      "detalle": [
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 12,
+          "declaredSize": 262,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 34,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 182,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 36,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 35,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 37,
+          "tipo": "text",
+          "caracteres": 12,
+          "declaredSize": 202,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 38,
+          "tipo": "text",
+          "caracteres": 11,
+          "declaredSize": 186,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 39,
+          "tipo": "text",
+          "caracteres": 9,
+          "declaredSize": 154,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "07-bloques-insert",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/07-bloques-insert.dwg",
+      "sha256": "a787db0cab259a7a712df5fa4bbc24e92c95cd7de5206f8c1a9ea8f8164df182",
+      "version": "AC1024",
+      "detalle": [
+        {
+          "handle": 35,
+          "tipo": "block-record",
+          "caracteres": 7,
+          "declaredSize": 126,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 32,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "08-plano-mini",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/08-plano-mini.dwg",
+      "sha256": "066048b9ee745f94332bc43d83c5d469b666be335266e37f762f8a1c0670996e",
+      "version": "AC1024",
+      "detalle": [
+        {
+          "handle": 46,
+          "tipo": "block-record",
+          "caracteres": 6,
+          "declaredSize": 110,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 39,
+          "tipo": "layer",
+          "caracteres": 5,
+          "declaredSize": 90,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 40,
+          "tipo": "layer",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 41,
+          "tipo": "layer",
+          "caracteres": 6,
+          "declaredSize": 106,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 42,
+          "tipo": "layer",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 404,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 6,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 44,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 43,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 60,
+          "tipo": "text",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 61,
+          "tipo": "text",
+          "caracteres": 6,
+          "declaredSize": 106,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "01-vacio",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/01-vacio.dwg",
+      "sha256": "4c77fde71832a4f281875afb3cd460af0790b47966bd32e7758aae3bd52127d5",
+      "version": "AC1027",
+      "detalle": [
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 32,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "02-una-linea",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/02-una-linea.dwg",
+      "sha256": "93099d2e59432abd14093c9e5f9e5b7245b1a41c7013275786c9c858c1fef8a4",
+      "version": "AC1027",
+      "detalle": [
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 32,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "03-figuras-basicas",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/03-figuras-basicas.dwg",
+      "sha256": "a8ef53c653a7ce4597added3dbde7bd14fd865bc304cc07661e5fbced4fcd663",
+      "version": "AC1027",
+      "detalle": [
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 32,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "04-capas",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/04-capas.dwg",
+      "sha256": "9287870c6a5e2aeab5378f37daf0aa39c75487b7455f1af5d49d5d615a17e00f",
+      "version": "AC1027",
+      "detalle": [
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 39,
+          "tipo": "layer",
+          "caracteres": 5,
+          "declaredSize": 90,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 40,
+          "tipo": "layer",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 41,
+          "tipo": "layer",
+          "caracteres": 5,
+          "declaredSize": 90,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 42,
+          "tipo": "layer",
+          "caracteres": 9,
+          "declaredSize": 154,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 43,
+          "tipo": "layer",
+          "caracteres": 9,
+          "declaredSize": 154,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 44,
+          "tipo": "layer",
+          "caracteres": 6,
+          "declaredSize": 106,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 404,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 6,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 46,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 45,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "05-lwpolyline-bulges",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/05-lwpolyline-bulges.dwg",
+      "sha256": "ea0680d300ea1551f01678be6636b470213b04ce430e77c453834c57d169715b",
+      "version": "AC1027",
+      "detalle": [
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 32,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "06-texto",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/06-texto.dwg",
+      "sha256": "a54eac813a87d4af02d9eeb3eebd04fc50c65eadccfdf0246bb4b6cee68dc6ea",
+      "version": "AC1027",
+      "detalle": [
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 12,
+          "declaredSize": 262,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 34,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 182,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 36,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 35,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 37,
+          "tipo": "text",
+          "caracteres": 12,
+          "declaredSize": 202,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 38,
+          "tipo": "text",
+          "caracteres": 11,
+          "declaredSize": 186,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 39,
+          "tipo": "text",
+          "caracteres": 9,
+          "declaredSize": 154,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "07-bloques-insert",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/07-bloques-insert.dwg",
+      "sha256": "e21ab1f13c32ee0d36fa4bc294d973f9f67883747e622471544fe110b619377c",
+      "version": "AC1027",
+      "detalle": [
+        {
+          "handle": 35,
+          "tipo": "block-record",
+          "caracteres": 7,
+          "declaredSize": 126,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 32,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "08-plano-mini",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/08-plano-mini.dwg",
+      "sha256": "e572b1d0e96d35d1cabef2e8822bb6a3e3e161155dcb4e3f7a54a7fad0984e83",
+      "version": "AC1027",
+      "detalle": [
+        {
+          "handle": 46,
+          "tipo": "block-record",
+          "caracteres": 6,
+          "declaredSize": 110,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 39,
+          "tipo": "layer",
+          "caracteres": 5,
+          "declaredSize": 90,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 40,
+          "tipo": "layer",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 41,
+          "tipo": "layer",
+          "caracteres": 6,
+          "declaredSize": 106,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 42,
+          "tipo": "layer",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 404,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 6,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 44,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 43,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 60,
+          "tipo": "text",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 61,
+          "tipo": "text",
+          "caracteres": 6,
+          "declaredSize": 106,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "01-vacio",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/01-vacio.dwg",
+      "sha256": "02910ffd1f78ed3e0003b5cd610be0b7e392591fcb66ce0fa7d3fe97232bf04b",
+      "version": "AC1032",
+      "detalle": [
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 32,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "02-una-linea",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/02-una-linea.dwg",
+      "sha256": "20ee9f89a7be6e103ed664922e019f3f723a277e1230a9ffce1124e35ed939c9",
+      "version": "AC1032",
+      "detalle": [
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 32,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "03-figuras-basicas",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/03-figuras-basicas.dwg",
+      "sha256": "5e430ae342e161c89f530ad03b8d0cd9be930327b202334f8426387b194439f4",
+      "version": "AC1032",
+      "detalle": [
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 32,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "04-capas",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/04-capas.dwg",
+      "sha256": "c5b4fe4bf775de858eafebf72ab021a9b9b21902fe2b536f4d00e2a4d8a78b7a",
+      "version": "AC1032",
+      "detalle": [
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 39,
+          "tipo": "layer",
+          "caracteres": 5,
+          "declaredSize": 90,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 40,
+          "tipo": "layer",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 41,
+          "tipo": "layer",
+          "caracteres": 5,
+          "declaredSize": 90,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 42,
+          "tipo": "layer",
+          "caracteres": 9,
+          "declaredSize": 154,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 43,
+          "tipo": "layer",
+          "caracteres": 9,
+          "declaredSize": 154,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 44,
+          "tipo": "layer",
+          "caracteres": 6,
+          "declaredSize": 106,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 404,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 6,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 46,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 45,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "05-lwpolyline-bulges",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/05-lwpolyline-bulges.dwg",
+      "sha256": "c37490b12eb1c81542654cf3a7389ddb23dded6ff055e58b777df56b4c7e2f06",
+      "version": "AC1032",
+      "detalle": [
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 32,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "06-texto",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/06-texto.dwg",
+      "sha256": "85bfe217ed3ee3dc6111c5584f37622e5e3e045ad3d9632c1e604045209b5b2b",
+      "version": "AC1032",
+      "detalle": [
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 12,
+          "declaredSize": 262,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 34,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 182,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 36,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 35,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 37,
+          "tipo": "text",
+          "caracteres": 12,
+          "declaredSize": 202,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 38,
+          "tipo": "text",
+          "caracteres": 11,
+          "declaredSize": 186,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 39,
+          "tipo": "text",
+          "caracteres": 9,
+          "declaredSize": 154,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "07-bloques-insert",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/07-bloques-insert.dwg",
+      "sha256": "9dd6d810fda049f650770082a8f5587d79a1a66b00afe2b582c76f0acd383969",
+      "version": "AC1032",
+      "detalle": [
+        {
+          "handle": 35,
+          "tipo": "block-record",
+          "caracteres": 7,
+          "declaredSize": 126,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 32,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "08-plano-mini",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/08-plano-mini.dwg",
+      "sha256": "13f815fcc40cba1659b635bd1a21d5db6a3edbe6ba6dbe163048cb1e0555dddd",
+      "version": "AC1032",
+      "detalle": [
+        {
+          "handle": 46,
+          "tipo": "block-record",
+          "caracteres": 6,
+          "declaredSize": 110,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 29,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 27,
+          "tipo": "block-record",
+          "caracteres": 12,
+          "declaredSize": 206,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 16,
+          "tipo": "layer",
+          "caracteres": 1,
+          "declaredSize": 26,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 39,
+          "tipo": "layer",
+          "caracteres": 5,
+          "declaredSize": 90,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 40,
+          "tipo": "layer",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 41,
+          "tipo": "layer",
+          "caracteres": 6,
+          "declaredSize": 106,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 42,
+          "tipo": "layer",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 17,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 198,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 22,
+          "tipo": "symbol-entry",
+          "caracteres": 10,
+          "declaredSize": 404,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 33,
+          "tipo": "symbol-entry",
+          "caracteres": 6,
+          "declaredSize": 340,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 20,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 21,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 124,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 44,
+          "tipo": "symbol-entry",
+          "caracteres": 7,
+          "declaredSize": 122,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 18,
+          "tipo": "symbol-entry",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 43,
+          "tipo": "symbol-entry",
+          "caracteres": 8,
+          "declaredSize": 146,
+          "presencia": 1,
+          "tamanoOk": false,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 60,
+          "tipo": "text",
+          "caracteres": 4,
+          "declaredSize": 74,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        },
+        {
+          "handle": 61,
+          "tipo": "text",
+          "caracteres": 6,
+          "declaredSize": 106,
+          "presencia": 1,
+          "tamanoOk": true,
+          "inicioOk": true,
+          "textoOk": true
+        }
+      ]
+    }
+  ]
+}
