@@ -5,11 +5,11 @@
  *
  * Esto recupera el documento CANÓNICO de Valle Design (el JSON que persiste
  * `/v1/cad/documents`), no un DWG ni un DXF binario corrupto — reconstruir un
- * formato binario ajeno es trabajo de `lib/cad/interop/` y de
- * `dwg-native-reader.ts`, con su propia frontera legal (ADR-0009). «Todavía
- * no» para eso, nunca «nunca»: si un día hay un lector de bytes DWG que
- * produzca una estructura parcial, este módulo es donde ese resultado parcial
- * se termina de salvar, no donde se decodifican bytes.
+ * formato binario ajeno es trabajo de `lib/cad/interop/` y del lector DWG
+ * nativo autorizado, con su propia frontera legal (ADR-0009). «Todavía no»
+ * para eso, nunca «nunca»: si un día hay un lector de bytes DWG que produzca
+ * una estructura parcial, este módulo es donde ese resultado parcial se
+ * termina de salvar, no donde se decodifican bytes.
  *
  * ## Por qué migrar-o-nada no basta
  *
