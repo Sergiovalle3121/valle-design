@@ -190,6 +190,12 @@ siendo pruebas útiles, pero no sustituyen el recorrido full-stack.
 - **Valle Design no tiene inteligencia artificial.** La que había (CIDE) era el
   motor de Axos OS, el ERP del que nació este producto, y se retiró entera; el
   candado `apps/web/src/lib/cad/no-ai-boundary.spec.ts` impide que vuelva.
+- Las llamadas (`/v1/calls/*`, WebRTC propio) necesitan un servidor TURN
+  configurado (`CALLS_TURN_URLS`) para las redes que no atraviesan NAT
+  directo — del orden del 15% en despliegues reales. Sin TURN esas llamadas
+  fallan, y lo dicen (`turnConfigured: false`) en vez de quedarse
+  "conectando". La malla completa (sin servidor de medios) topa en cuatro
+  participantes por sala; un quinto recibe 409.
 
 Consulta `PRODUCT.md`, `ARCHITECTURE.md`, `SECURITY.md`, `DEPLOYMENT.md` y la
 matriz `docs/competitive/autocad-2027-gap-matrix.md` antes de publicar claims.

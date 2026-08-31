@@ -26,6 +26,7 @@ export type LoginRequest = Schemas["LoginRequest"];
  */
 import { createIdentitySurface } from "./identity";
 import { createMessagingSurface } from "./messaging";
+import { createCallsSurface } from "./calls";
 
 export {
   createIdentitySurface,
@@ -134,6 +135,17 @@ export type EntitlementRequiredError = Schemas["EntitlementRequiredError"];
 export type CadDocumentVersionConflictError =
   Schemas["CadDocumentVersionConflictError"];
 export type RateLimitedError = Schemas["RateLimitedError"];
+/** Superficie de llamadas: vive en `calls.ts`, misma razón que `identity.ts` arriba. */
+export {
+  createCallsSurface,
+  type CallJoinRequest,
+  type CallJoinResponse,
+  type CallLeaveRequest,
+  type CallSignalRequest,
+  type CallSignalKind,
+  type CallParticipant,
+  type CallIceServer,
+} from "./calls";
 
 export interface Page<T> {
   items: T[];
@@ -233,6 +245,7 @@ export function createDesignClient(options: DesignClientOptions) {
         "/v1/support/",
         "/v1/feedback/",
         "/v1/messaging/",
+        "/v1/calls/",
       ].some((prefix) => apiPath.startsWith(prefix));
     if (!declaredPrefix) {
       throw new TypeError(`Ruta Design v1 no declarada: ${apiPath}`);
@@ -325,6 +338,9 @@ export function createDesignClient(options: DesignClientOptions) {
           { status },
         ),
     },
+
+    /** Señalización de llamada — fábrica en `calls.ts` (ver la nota arriba). */
+    calls: createCallsSurface({ call, resource }),
 
     organizations: {
       list: () => call<OrganizationList>("GET", resource("/v1/organizations")),

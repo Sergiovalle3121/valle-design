@@ -33,6 +33,9 @@ const controllerDirs = [
   // Mensajería de equipo (canales + mensajes anclables al dibujo): mismo
   // trato que `legal`/`feedback` — entra al contrato desde su primer commit.
   "apps/api/src/modules/messaging",
+  // Señalización de llamada (WebRTC propio): sala, participantes y buzón de
+  // señales, todo bajo /v1/calls.
+  "apps/api/src/modules/calls",
 ].map((dir) => path.join(root, dir));
 
 /** Familias de paths del contrato que el gate cruza contra el router. */
@@ -45,6 +48,7 @@ const coveredPrefixes = [
   "/v1/support",
   "/v1/feedback",
   "/v1/messaging",
+  "/v1/calls",
 ];
 const coveredPath = (p) =>
   coveredPrefixes.some((prefix) => p === prefix || p.startsWith(`${prefix}/`));
@@ -198,15 +202,14 @@ function parseControllerOperations() {
       errors.push(`${name}: prefijo no canónico ${prefix}`);
     }
     for (const match of source.matchAll(
-      // `@Sse` es un GET normal a nivel de contrato (mismo verbo HTTP,
-      // `text/event-stream` en vez de JSON) — sin esto, un endpoint SSE
-      // declarado en el OpenAPI nunca encontraría su ruta Nest y el gate
-      // fallaría con "Falta en router Nest" aunque la ruta exista.
+      // `@Sse` cuenta como GET: es lo que registra en el router de Nest
+      // (compone RequestMapping con RequestMethod.GET) — sin esto una ruta
+      // de entrega en vivo real quedaría invisible para este gate.
       /@(Get|Post|Put|Patch|Delete|Sse)\(\s*(?:["']([^"']*)["'])?\s*\)/g,
     )) {
-      const httpMethod = match[1] === "Sse" ? "Get" : match[1];
+      const method = match[1] === "Sse" ? "get" : match[1];
       const route = [prefix, match[2] ?? ""].filter(Boolean).join("/");
-      const key = routeKey(httpMethod, route);
+      const key = routeKey(method, route);
       if (operations.has(key)) {
         errors.push(
           `Ruta Nest duplicada: ${key} (${operations.get(key)}, ${name})`,

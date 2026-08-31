@@ -1353,6 +1353,154 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /v1/calls/rooms:
+    post:
+      operationId: joinCallRoom
+      tags: [calls]
+      summary: Crea o se une a la sala de llamada de un documento.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      description: >
+        Idempotente por (tenant, documentId): si ya hay una sala abierta para
+        ese documento la reutiliza y añade un participante nuevo; si no,
+        abre una. La sala, sus participantes y las señales SDP/ICE viven en
+        memoria del proceso, nunca en disco — una llamada dura minutos, no
+        meses. La malla completa (cada participante conectado a todos los
+        demás) topa en cuatro; un quinto responde 409. `iceServers` trae el
+        STUN/TURN que este despliegue tenga configurado y `turnConfigured`
+        dice si hay TURN real detrás — sin él, las llamadas entre redes que
+        no atraviesan NAT directo (del orden del 15%) fallan, y el cliente
+        debe decirlo en vez de quedarse "conectando" para siempre.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CallJoinRequest" }
+      responses:
+        "201":
+          description: Sala (nueva o reutilizada) con el roster y la configuración ICE.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CallJoinResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409":
+          description: La sala ya tiene el tope de participantes de la malla completa.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ApiError" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+  /v1/calls/rooms/{roomId}/leave:
+    parameters:
+      - name: roomId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: leaveCallRoom
+      tags: [calls]
+      summary: Sale de la sala. Si era el último participante, la sala termina.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CallLeaveRequest" }
+      responses:
+        "200":
+          description: Fuera de la sala.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [left]
+                properties:
+                  left: { type: boolean, enum: [true] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/calls/rooms/{roomId}/signals:
+    parameters:
+      - name: roomId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    post:
+      operationId: postCallSignal
+      tags: [calls]
+      summary: Envía una oferta, respuesta o candidato ICE a otro participante.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      description: >
+        El servidor enruta el mensaje sin interpretarlo: `payload` es
+        exactamente lo que produce `RTCPeerConnection` en el navegador
+        (`RTCSessionDescriptionInit` para oferta/respuesta,
+        `RTCIceCandidateInit` para un candidato). Si el destinatario tiene
+        `GET .../events` abierto se entrega de inmediato; si no, se guarda en
+        su buzón hasta que conecte o hasta que expire el TTL.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CallSignalRequest" }
+      responses:
+        "202":
+          description: Señal encolada para su entrega.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: false
+                required: [queued]
+                properties:
+                  queued: { type: boolean, enum: [true] }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+  /v1/calls/rooms/{roomId}/events:
+    parameters:
+      - name: roomId
+        in: path
+        required: true
+        schema: { type: string, format: uuid }
+    get:
+      operationId: streamCallRoomEvents
+      tags: [calls]
+      summary: Entrega en vivo (SSE) del roster y las señales del participante.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      description: >
+        `Server-Sent Events`, no WebSocket. `EventSource` no manda headers
+        propios: la sesión viaja por la cookie de siempre (mismo origen) y
+        `participantId` va en la query, validado contra la sala y el tenant
+        del actor antes de abrir el stream. Manda un evento `roster` al
+        conectar y en cada cambio de participantes, un evento `signal` por
+        cada mensaje dirigido a este participante (incluidos los que
+        llegaron mientras no había conexión abierta), y un `ping` periódico
+        para que el stream no parezca muerto detrás de un proxy con timeout
+        de idle.
+      parameters:
+        - name: participantId
+          in: query
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Stream `text/event-stream` de eventos de la sala.
+          content:
+            text/event-stream:
+              schema: { $ref: "#/components/schemas/CallServerEvent" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /v1/cad/documents:
     get:
       operationId: listCadDocuments
@@ -2894,6 +3042,132 @@ components:
           type: array
           maxItems: 500
           items: { $ref: "#/components/schemas/FeedbackAdminEntry" }
+    CallJoinRequest:
+      type: object
+      additionalProperties: false
+      required: [documentId]
+      properties:
+        documentId: { type: string, format: uuid }
+        displayName:
+          type: string
+          maxLength: 120
+          description: >
+            Nombre para las miniaturas. Si falta, se usa el correo de la
+            sesión.
+    CallLeaveRequest:
+      type: object
+      additionalProperties: false
+      required: [participantId]
+      properties:
+        participantId: { type: string, format: uuid }
+    CallSignalKind:
+      type: string
+      enum: [offer, answer, ice-candidate, bye]
+    CallSignalRequest:
+      type: object
+      additionalProperties: false
+      required: [fromParticipantId, toParticipantId, kind, payload]
+      properties:
+        fromParticipantId: { type: string, format: uuid }
+        toParticipantId: { type: string, format: uuid }
+        kind: { $ref: "#/components/schemas/CallSignalKind" }
+        payload:
+          type: object
+          additionalProperties: true
+          description: >
+            Opaco para el servidor: `RTCSessionDescriptionInit` para
+            oferta/respuesta, `RTCIceCandidateInit` para un candidato. Lo
+            define el navegador, no este contrato.
+    CallParticipant:
+      type: object
+      additionalProperties: false
+      required: [id, userId, name, joinedAt]
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        name: { type: string, maxLength: 120 }
+        joinedAt: { $ref: "#/components/schemas/Timestamp" }
+    CallIceServer:
+      type: object
+      additionalProperties: false
+      required: [urls]
+      properties:
+        urls:
+          type: array
+          minItems: 1
+          items: { type: string }
+        username: { type: string }
+        credential: { type: string }
+    CallJoinResponse:
+      type: object
+      additionalProperties: false
+      required:
+        [
+          roomId,
+          documentId,
+          participantId,
+          participants,
+          iceServers,
+          turnConfigured,
+          maxParticipants,
+        ]
+      properties:
+        roomId: { type: string, format: uuid }
+        documentId: { type: string, format: uuid }
+        participantId: { type: string, format: uuid }
+        participants:
+          type: array
+          maxItems: 4
+          items: { $ref: "#/components/schemas/CallParticipant" }
+        iceServers:
+          type: array
+          items: { $ref: "#/components/schemas/CallIceServer" }
+        turnConfigured:
+          type: boolean
+          description: >
+            false cuando el despliegue no configuró TURN: las llamadas entre
+            redes que no atraviesan NAT directo van a fallar y el cliente
+            debe decirlo en vez de quedarse "conectando".
+        maxParticipants:
+          type: integer
+          description: Tope de la malla completa que esta sala usa.
+    CallServerEvent:
+      description: >
+        Union discriminada por `type`, la forma de CADA evento del stream
+        `GET /v1/calls/rooms/{roomId}/events`. `text/event-stream` no es
+        JSON puro (es `data: <json>\n\n` por mensaje); este schema describe
+        el JSON de un solo `data`.
+      oneOf:
+        - type: object
+          additionalProperties: false
+          required: [type, participants]
+          properties:
+            type: { type: string, enum: [roster] }
+            participants:
+              type: array
+              maxItems: 4
+              items: { $ref: "#/components/schemas/CallParticipant" }
+        - type: object
+          additionalProperties: false
+          required: [type, signal]
+          properties:
+            type: { type: string, enum: [signal] }
+            signal:
+              type: object
+              additionalProperties: false
+              required: [id, fromParticipantId, kind, payload, queuedAt]
+              properties:
+                id: { type: string, format: uuid }
+                fromParticipantId: { type: string, format: uuid }
+                kind: { $ref: "#/components/schemas/CallSignalKind" }
+                payload: { type: object, additionalProperties: true }
+                queuedAt: { $ref: "#/components/schemas/Timestamp" }
+        - type: object
+          additionalProperties: false
+          required: [type, at]
+          properties:
+            type: { type: string, enum: [ping] }
+            at: { $ref: "#/components/schemas/Timestamp" }
     SupportIncidentRequest:
       type: object
       additionalProperties: false
