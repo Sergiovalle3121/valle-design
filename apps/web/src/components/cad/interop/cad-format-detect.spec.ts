@@ -63,6 +63,53 @@ const bytesOf = (s: string) =>
   ok(r.format === "dxf", "DXF sin $ACADVER pero con SECTION");
 }
 
+// ── glTF binario (.glb) por firma ──
+{
+  const glb = new Uint8Array([0x67, 0x6c, 0x54, 0x46, 2, 0, 0, 0, 0, 0, 0, 0]);
+  const r = detectCadFormat(glb);
+  ok(r.format === "gltf" && r.nativeSupport === true, "glb detectado por firma");
+}
+
+// ── glTF de texto (.gltf) ──
+{
+  const r = detectCadFormat('{"asset":{"version":"2.0"},"scenes":[]}');
+  ok(r.format === "gltf" && r.nativeSupport === true, "gltf de texto detectado por su sección asset");
+}
+
+// ── COLLADA (.dae) ──
+{
+  const r = detectCadFormat('<?xml version="1.0"?><COLLADA xmlns="x"><asset/></COLLADA>');
+  ok(r.format === "collada" && r.nativeSupport === true, "COLLADA detectado por su raíz");
+}
+
+// ── STL ASCII y binario ──
+{
+  const ascii = "solid cubo\nfacet normal 0 0 1\nouter loop\nvertex 0 0 0\nendloop\nendfacet\nendsolid cubo";
+  const r = detectCadFormat(ascii);
+  ok(r.format === "stl" && r.nativeSupport === true, "STL ASCII detectado");
+}
+{
+  const triangleCount = 1;
+  const binary = new Uint8Array(84 + triangleCount * 50);
+  new DataView(binary.buffer).setUint32(80, triangleCount, true);
+  const r = detectCadFormat(binary);
+  ok(r.format === "stl" && r.nativeSupport === true, "STL binario detectado por aritmética de tamaño");
+}
+
+// ── OBJ ──
+{
+  const obj = "# comentario\no Cubo\nv 0 0 0\nv 1 0 0\nv 1 1 0\nf 1 2 3";
+  const r = detectCadFormat(obj);
+  ok(r.format === "obj" && r.nativeSupport === true, "OBJ detectado por vocabulario de línea");
+}
+
+// ── .skp: se detecta para RECHAZAR, no para leer ──
+{
+  const r = detectCadFormat(bytesOf("SketchUp Model relleno binario"));
+  ok(r.format === "skp" && r.nativeSupport === false, "SKP detectado y marcado como NO soportado");
+  ok(/COLLADA|glTF/.test(r.message), "el mensaje de SKP ofrece una alternativa real");
+}
+
 // ── isDwg helper ──
 ok(isDwg("AC1024xxxx") === true, "isDwg true para DWG");
 ok(isDwg("0\nSECTION\n2\nENTITIES") === false, "isDwg false para DXF");

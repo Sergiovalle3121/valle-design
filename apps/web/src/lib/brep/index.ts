@@ -237,6 +237,15 @@ export {
 export type { CsgOperation, CsgPolygon, CsgPlane } from "./csg-bsp";
 
 export {
+  stitchMeshToBody,
+  type MeshStitchInput,
+  type MeshStitchLossEntry,
+  type MeshStitchOptions,
+  type MeshStitchResult,
+  type MeshStitchStats,
+} from "./mesh-stitch";
+
+export {
   chamferEdges,
   filletEdges,
   chamferCutter,
