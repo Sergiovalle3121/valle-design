@@ -10,7 +10,7 @@
  * intercepta NADA: dos cuentas se registran, verifican y entran a la MISMA
  * organización por invitación real, abren el MISMO documento en dos
  * `BrowserContext` separados (dos procesos de Chromium, no dos pestañas) y
- * llaman de verdad — con `--use-fake-device-for-media-capture` en vez de una
+ * llaman de verdad — con `--use-fake-device-for-media-stream` en vez de una
  * webcam real, pero con el resto de la pila (RTCPeerConnection, ICE, SDP,
  * SSE) intacta.
  *
@@ -59,16 +59,25 @@ test.skip(
 
 /**
  * Sin webcam ni pantalla real en el runner: Chromium sirve un patrón de
- * video sintético (`--use-fake-device-for-media-capture`), acepta el
+ * video sintético (`--use-fake-device-for-media-stream`), acepta el
  * permiso sin diálogo (`--use-fake-ui-for-media-stream`) y elige una fuente
  * de pantalla sin abrir el selector del sistema operativo
  * (`--auto-select-desktop-capture-source`). Sin los tres, `getUserMedia`/
  * `getDisplayMedia` se quedan colgados esperando una UI que nunca aparece.
+ *
+ * OJO CON EL NOMBRE DEL PRIMERO. Es `...-for-media-stream`, no
+ * `...-for-media-capture`, que fue lo que este archivo pasó hasta hoy.
+ * Chromium **ignora en silencio** un flag que no conoce: no avisa, no falla
+ * al arrancar, simplemente no hay cámara falsa. Entonces `getUserMedia`
+ * rechaza en un runner sin webcam, el botón se queda en `aria-pressed=false`
+ * y el fallo aparece a quince segundos de distancia de su causa, disfrazado
+ * de «la cámara no prende». Y no se vio en su momento porque el job de E2E
+ * se cancelaba por presupuesto antes de llegar aquí.
  */
 test.use({
   launchOptions: {
     args: [
-      "--use-fake-device-for-media-capture",
+      "--use-fake-device-for-media-stream",
       "--use-fake-ui-for-media-stream",
       "--auto-select-desktop-capture-source=Entire screen",
     ],
