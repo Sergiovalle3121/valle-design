@@ -781,8 +781,8 @@ espacio de hipotesis sin adivinar, o una fuente documental que la registre.
 ## Intake 2026-08-31 — BOT y UMC RESUELTOS por medición (VALLE-CORPUS-R2010-OBJECT-HEADER)
 
 El intake de 2026-08-23 cerró su seccion diciendo exactamente que hacia falta
-para retomar la linea: *"hacen falta mas identificaciones independientes (mas
-tipos, no solo LINE) para acotar el espacio de hipotesis sin adivinar"*. Esas
+para retomar la linea: _"hacen falta mas identificaciones independientes (mas
+tipos, no solo LINE) para acotar el espacio de hipotesis sin adivinar"_. Esas
 identificaciones ya estaban en el corpus admitido y nadie las habia usado.
 Este intake las usa. No hay fuente documental nueva: no se consulto ninguna
 implementacion ajena ni ninguna especificacion que no estuviera ya registrada.
@@ -805,12 +805,12 @@ va ANTES.
 
 **La estructura medida.** El cuerpo de un objeto R2010+ abre asi:
 
-1. `MS`  tamano del objeto en bytes (palabras LE de 16 bits, bit 15 continua);
+1. `MS` tamano del objeto en bytes (palabras LE de 16 bits, bit 15 continua);
 2. `UMC` tamano EN BITS del flujo de handles (bytes de 7 bits utiles). Es un
    TAMANO, no un desplazamiento;
 3. `BOT` tipo de objeto: selector de 2 bits; selector 0 → `RC` literal;
    selector 1 → `RC` mas 0x1F0;
-4. `H`   handle propio, pegado detras del BOT sin campo intermedio.
+4. `H` handle propio, pegado detras del BOT sin campo intermedio.
 
 Con el prefijo de un solo byte de `UMC` el BOT cae en el bit 24 (2723 objetos)
 y con dos bytes en el bit 32 (170 objetos).
@@ -855,9 +855,9 @@ en `decoderStatus: "unsupported"` y `CAPABILITIES.md` no promueve nada.
 ## Intake 2026-08-31 (continuación) — CUERPO de objeto R2010+ resuelto para las cinco entidades sin cadenas (VALLE-CORPUS-R2010-OBJECT-BODY)
 
 El intake anterior de esta misma fecha cerró nombrando la frontera que
-quedaba: *"decodificar el ENCABEZADO no decodifica el CUERPO... el flujo de
+quedaba: _"decodificar el ENCABEZADO no decodifica el CUERPO... el flujo de
 datos R2010+ separa las cadenas a un flujo propio y su cabecera común de
-entidad difiere aún de la R2000"*, y declaró explícitamente que reconstruir
+entidad difiere aún de la R2000"_, y declaró explícitamente que reconstruir
 la forma R2000 y reusar los decodificadores existentes NO funciona (ningún
 `bitsize` hacía decodificar una LINE real). Este intake retoma justo ahí, sin
 consultar fuente nueva, con el mismo corpus y el mismo método diferencial.
@@ -1188,3 +1188,153 @@ cuando el nombre de clase resuelto es exactamente "3DSOLID"/"REGION"/
 "BODY" y llamar a `decodeAcisOpaqueEntityBody(bodyBytes, classNameBytes)`
 en vez de caer a `decodeAuxiliaryObject`. Esa funcion ya existe, ya esta
 probada, y no necesita cambiar para eso.
+
+## 2026-08-31 — M4, tercera entrega: el FLUJO DE HANDLES del cuerpo R2010+
+
+El corte del CUERPO cerró declarando por escrito su propia frontera: «el flujo
+de handles (propietario, capa, xdictionary) NO se decodifica para R2010+ en
+este corte». Ésta es esa frontera, y cae por medición, no por analogía.
+
+**Lo primero que hay que decir es que la hipótesis obvia falló.** Se probó que
+el tramo del final del cuerpo contuviera la misma secuencia completa que la
+cabeza del gemelo AC1015: **0/105**. Y antes de eso hubo un error mío peor,
+porque era silencioso: la primera versión de la sonda comparaba un campo que
+`DwgResolvedHandle` no tiene (`value` en vez de `handle`), así que comparaba
+`undefined` contra `undefined` y devolvía 9/105 falsos positivos. Un acierto
+parcial es más peligroso que un cero, porque un cero se investiga.
+
+Corregido eso, se contrastaron **cuatro** modelos en vez de ajustar uno:
+
+| modelo                                   |                           acierto |
+| ---------------------------------------- | --------------------------------: |
+| `completo` (la lista íntegra del gemelo) |                             0/105 |
+| `sinEnlaces`                             |                             0/105 |
+| `sinNulos`                               |                            45/105 |
+| `sinEnlacesNiNulos`                      | **90/105** con coincidencia total |
+
+Que los dos modelos que **conservan los nulos acierten cero** es la
+observación que sostiene el hecho: en R2010+ un handle nulo no se escribe como
+código nulo — no se escribe. Los 45 de `sinNulos` no son una gradación: son el
+subconjunto de objetos cuyo gemelo no lleva enlaces, donde ambos modelos
+coinciden por construcción.
+
+Como PREFIJO —que es la pregunta correcta, porque la lista del gemelo no es
+exhaustiva: su propio decodificador deja referencias en el tramo opaco que
+declara pendiente— el acierto es **105/105**, con consumo exacto del tramo
+también **105/105**. Los 15 sobrantes son los 5 TEXT × 3 versiones, con un
+handle cada uno que, resuelto contra el mapa de objetos del gemelo, apunta en
+las 15 observaciones a un tipo `0x35` (STYLE). No es una divergencia entre
+versiones: es exactamente la referencia que `readAc1015EntityHandleHead` deja
+declarada como pendiente.
+
+**Y una corrección que toca al corte anterior.** El módulo del CUERPO trata el
+tramo común de 39/40 bits como opaco _en su totalidad_, y anotó que su primera
+mitad «decodifica de forma sensata» sin apoyarse en ello. Apoyarse en ello era
+posible: leyendo ese prefijo con el bit de **xdic-missing ANTES** del de
+sin-vínculos, los cinco campos que determinan la forma del flujo coinciden con
+el gemelo en **105/105** y predicen el recuento de la cabeza en **105/105**.
+Con el orden inverso la predicción cae a **35/105**. Ese contraste es lo que
+convierte la ordenación en una medición: si el orden fuera indiferente, las dos
+puntuarían parecido. La segunda mitad del tramo (23/24 bits) sigue sin
+semántica identificada y sigue opaca — lo que cambia es el alcance de la
+afirmación, no la disciplina.
+
+La lección, que es la misma que dejó ADR-0015 con otra cara: **un tramo
+declarado opaco entero cuando sólo su segunda mitad lo es, cuesta una entrega.**
+El corte anterior tenía la observación escrita («16 de esos 39 bits») y no la
+usó. No fue un error de medición sino de alcance, y por eso se corrige aquí en
+adenda fechada en vez de reescribir el corte anterior.
+
+Lo que sigue faltando, sin suavizar: el **flujo de cadenas** R2007+ y las
+**tablas de símbolos**. Sin ellos no hay nombres de capa ni de bloque, así que
+`readR2004Database` sigue fallando cerrado para AC1024/AC1027/AC1032 y
+`r2010-handle-stream.ts` sigue siendo capacidad de laboratorio sin conectar.
+
+## 2026-08-31 — M4, cuarta entrega: el FLUJO DE CADENAS del cuerpo R2010+
+
+Con el flujo de handles resuelto quedaba el otro frente que `readR2004Database`
+nombra al fallar cerrado. Éste salió limpio a la primera, y conviene decir por
+qué: porque las tres entregas anteriores dejaron el terreno medido. El bit de
+presencia ya estaba localizado —exactamente un bit antes del flujo de handles,
+en valor 0 para los 72 objetos sin cadena—, así que sólo había que mirar qué
+hay **antes** de él.
+
+Buscando el valor que el gemelo AC1015 ya decodifica, codificado en UTF-16LE y
+alineado a bit, aparece siempre exactamente una vez; en ASCII, **nunca**. Y
+entre el final de la cadena y el bit de presencia hay siempre **16 bits**
+exactos, en los nueve primeros casos mirados y luego en los quince. Ese campo,
+leído como `RS` (little-endian) y no como bits crudos, vale exactamente los
+bits que ocupan el `BS` de longitud más los datos: 202, 186, 154 para cadenas
+de 12, 11 y 9 caracteres. La aritmética cierra sola.
+
+```
+[ ... datos del tipo ... ]
+[ flujo de cadenas: N bits ]
+[ tamaño del flujo: RS de 16 bits, valor N ]
+[ bit de presencia = 1 ]
+[ flujo de handles ]  [ relleno hasta el byte ]
+```
+
+Tres falsaciones que tendrían que fallar juntas, **15/15** cada una: el campo
+vale lo que el gemelo predice (un número que la sonda calcula, no lee); el
+inicio derivado como `bitPresencia − 16 − N` cae donde empieza el `BS`; y el
+texto decodificado coincide byte a byte. Y el bit de presencia vale 1 en los 15
+frente a 0 en los 72: su semántica queda confirmada por los **dos** lados, no
+por uno.
+
+Un defecto propio, encontrado por el test y no por el corpus: cuando el tamaño
+declarado desborda el cuerpo, el `startBit` derivado sale **negativo** y el
+error tipado llevaba un byte negativo, que no señala ningún sitio. Acotado a 0
+con el motivo escrito. Es exactamente el tipo de cosa que el fallo cerrado debe
+hacer bien, porque es lo único que se ve cuando algo va mal.
+
+Lo que sigue faltando: las **tablas de símbolos**. Con handles y cadenas
+medidos, lo que queda para ensamblar una base neutral completa es decodificar
+los registros de tabla (LAYER, BLOCK_RECORD, LTYPE, STYLE) y enlazarlos. El
+corpus, además, sólo ejercita objetos de **una** cadena: el orden de varias en
+un mismo flujo no está medido, y `readR2010SingleString` falla cerrado si sobra
+algo en vez de suponerlo. Ese chequeo es también un falsador en tiempo de
+ejecución.
+
+## 2026-08-31 — M4, quinta entrega: varias cadenas, y los nombres de las tablas
+
+Esta entrega existe porque el guardián de la anterior hizo su trabajo, y vale
+la pena contarlo tal cual.
+
+El lector de cadenas se cerró midiendo sólo los TEXT, que llevan **una**
+cadena, y declarando capacidad ausente para el resto: `readR2010SingleString`
+exigía que esa única cadena consumiera el flujo entero. Al apuntarlo a los
+objetos **con nombre** —LAYER, BLOCK_RECORD, entradas de tabla— el fallo
+cerrado saltó en **186 de 288**, con el mensaje que se había escrito para
+justamente eso: _«lleva más cadenas de las que este laboratorio ha medido»_.
+
+Un lector escrito con la prisa de otro día habría devuelto la primera cadena y
+seguido. Habría producido nombres de capa **correctos en 102 casos y basura
+silenciosa en 186**, y nadie lo habría notado hasta que un cliente abriera un
+plano y viera capas con nombres de otro sitio. El fallo cerrado convirtió eso
+en una lista exacta de qué medir.
+
+Medido: las cadenas van **consecutivas** como `TU`, y la primera es el nombre.
+
+| familia             | nombre exacto contra el gemelo |
+| ------------------- | -----------------------------: |
+| `layer`             |                          54/54 |
+| `block-record`      |                          54/54 |
+| entradas de tabla   |                        180/180 |
+| entidades con texto |                          15/15 |
+| **total**           |                    **303/303** |
+
+con consumo exacto en 303/303 e histograma `{1: 117, 2: 78, 3: 84, 5: 24}`. El
+caso de varias cadenas está ejercitado de verdad; no se promovió por analogía
+con el de una, que es exactamente lo que la política prohíbe.
+
+**Lo que esto significa para el producto**: una capa en un archivo AC1032 deja
+de ser un handle y pasa a ser un nombre. Ése era el contenido real de la frase
+«tablas de símbolos» en el error del lector.
+
+**Lo que sigue faltando, sin suavizar**: sólo la PRIMERA cadena tiene
+significado comprobado; las demás se leen, se cuentan y se devuelven sin
+interpretar. Y falta el **ensamblaje**: el camino actual reusa la forma R2000
+vía el adaptador de AC1018, así que R2010+ necesita el suyo, más los campos
+no-nombre de cada registro de tabla. Hasta entonces `readR2004Database` sigue
+fallando cerrado y estos módulos siguen sin conectar.

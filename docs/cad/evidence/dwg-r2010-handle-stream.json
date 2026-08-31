@@ -1,0 +1,1265 @@
+{
+  "$schema": "../../schema/dwg-evidence.schema.json",
+  "schemaVersion": 1,
+  "evidenceId": "dwg-r2010-handle-stream",
+  "generadoPor": "scripts/dwg/probe-r2010-handle-stream.mjs",
+  "generadoEn": "2026-08-31T18:04:36.277Z",
+  "environment": {
+    "node": "v22.22.2",
+    "platform": "linux",
+    "architecture": "x64",
+    "osType": "Linux",
+    "osRelease": "6.18.44-fc-v22",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "logicalCpuCount": 4,
+    "totalMemoryBytes": 16856133632,
+    "declaredMachine": "Intel(R) Xeon(R) Processor @ 2.80GHz (4 hilos lógicos), 16.9 GB de RAM, Linux 6.18.44-fc-v22"
+  },
+  "veredicto": "El flujo de handles R2010+ reproduce las referencias NO NULAS del gemelo AC1015, excluidos los enlaces anterior/siguiente, como PREFIJO exacto en 105/105 objetos de las tres versiones, consumiendo el tramo hasta su relleno de byte en 105/105. La coincidencia es TOTAL (sin handles sobrantes) en 90/105; los 15 restantes llevan handles ADICIONALES que el gemelo no modela y que quedan identificados en sobrantesApuntanA. Los modelos \"completo\" y \"sinEnlaces\" aciertan 0/105: los handles nulos NO se escriben en R2010+. ADEMAS, la FORMA del flujo se deduce del PROPIO archivo moderno: leyendo el prefijo comun con el bit de xdic-missing ANTES del de sin-vinculos, los cinco campos que la determinan (modo, reactores, xdictionary, banderas de linetype y de plotstyle) coinciden con el gemelo en 105/105 y predicen el recuento de la cabeza en 105/105; con el orden inverso la prediccion cae a 35/105, que es lo que hace del contraste una falsacion y no un ajuste.",
+  "alcance": "Flujo de handles del final del cuerpo de objeto en AC1024/AC1027/AC1032, comparado contra el gemelo AC1015 del MISMO dibujo.",
+  "metodo": "Oráculo diferencial sobre los bundles fundacionales (mismos 8 dibujos, 5 contenedores, DXF fuente byte-idéntico). La posición del flujo viene del campo UMC ya verificado del encabezado; la FORMA (cuántos handles y en qué orden) viene del gemelo AC1015; se comparan valores resueltos y se exige que el tramo se consuma dejando sólo relleno de byte.",
+  "limiteDeLaEvidencia": "NO se mide que la forma del flujo pueda deducirse desde dentro del archivo moderno: los campos que la determinan viven en el tramo común de 39/40 bits que sigue siendo opaco. Un objeto cuyo entityMode, reactorCount, noLinks o banderas difieran de su gemelo quedaría fuera de lo medido. Corpus de un único productor y un único oráculo.",
+  "corpus": {
+    "commit": "0688fb9c395b9cac4169d1ee9c23a7370cc28cf3",
+    "bundles": 4
+  },
+  "resumen": {
+    "objetos": 105,
+    "secuenciaExacta": 90,
+    "consumoExacto": 105,
+    "residuoBitsHistograma": {
+      "0": 7,
+      "1": 12,
+      "2": 5,
+      "3": 10,
+      "4": 13,
+      "5": 6,
+      "6": 31,
+      "7": 21
+    },
+    "prefijoExacto": 105,
+    "modelosAcierto": {
+      "completo": 0,
+      "sinEnlaces": 0,
+      "sinNulos": 45,
+      "sinEnlacesNiNulos": 90
+    },
+    "sobrantesPorTipo": {
+      "text:1": 15
+    },
+    "sobrantesApuntanA": {
+      "text -> tipo 53": 15
+    },
+    "formaDerivadaDelArchivoModerno": {
+      "noLinks-primero": {
+        "predice": 35,
+        "noDecodifica": 0
+      },
+      "xdicMissing-primero": {
+        "predice": 105,
+        "noDecodifica": 0
+      }
+    },
+    "camposDerivadosVsGemelo": {
+      "noLinks-primero/hasOwner": {
+        "acierta": 105,
+        "falla": 0
+      },
+      "noLinks-primero/reactorCount": {
+        "acierta": 105,
+        "falla": 0
+      },
+      "noLinks-primero/noLinks": {
+        "acierta": 51,
+        "falla": 54
+      },
+      "noLinks-primero/hasXdictionary": {
+        "acierta": 35,
+        "falla": 70
+      },
+      "noLinks-primero/hasLinetype": {
+        "acierta": 105,
+        "falla": 0
+      },
+      "noLinks-primero/hasPlotstyle": {
+        "acierta": 105,
+        "falla": 0
+      },
+      "xdicMissing-primero/hasOwner": {
+        "acierta": 105,
+        "falla": 0
+      },
+      "xdicMissing-primero/reactorCount": {
+        "acierta": 105,
+        "falla": 0
+      },
+      "xdicMissing-primero/noLinks": {
+        "acierta": 53,
+        "falla": 52
+      },
+      "xdicMissing-primero/hasXdictionary": {
+        "acierta": 105,
+        "falla": 0
+      },
+      "xdicMissing-primero/hasLinetype": {
+        "acierta": 105,
+        "falla": 0
+      },
+      "xdicMissing-primero/hasPlotstyle": {
+        "acierta": 105,
+        "falla": 0
+      }
+    },
+    "porVersion": {
+      "AC1024": {
+        "archivos": 8,
+        "objetos": 35,
+        "secuenciaExacta": 30,
+        "consumoExacto": 35,
+        "prefijoExacto": 35
+      },
+      "AC1027": {
+        "archivos": 8,
+        "objetos": 35,
+        "secuenciaExacta": 30,
+        "consumoExacto": 35,
+        "prefijoExacto": 35
+      },
+      "AC1032": {
+        "archivos": 8,
+        "objetos": 35,
+        "secuenciaExacta": 30,
+        "consumoExacto": 35,
+        "prefijoExacto": 35
+      }
+    }
+  },
+  "desviaciones": [],
+  "archivos": [
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "01-vacio",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/01-vacio.dwg",
+      "sha256": "34f0b47e5f363d2eac2b5870e7c89b4c9cbd249bf20cc94cb9adcb71be9388d6",
+      "version": "AC1024",
+      "objetos": 0,
+      "secuenciaExacta": 0,
+      "consumoExacto": 0,
+      "detalle": []
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "02-una-linea",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/02-una-linea.dwg",
+      "sha256": "18b833e4603d4e57296783137b639a2ba4a05af1ff033c229999c239c728da7a",
+      "version": "AC1024",
+      "objetos": 1,
+      "secuenciaExacta": 1,
+      "consumoExacto": 1,
+      "detalle": [
+        {
+          "handle": 34,
+          "tipo": "line",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 7
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "03-figuras-basicas",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/03-figuras-basicas.dwg",
+      "sha256": "590060bf0b58c0f64b659ef3d506f28aa8df7dbf9ebc7c55aa71a0acef39c062",
+      "version": "AC1024",
+      "objetos": 4,
+      "secuenciaExacta": 4,
+      "consumoExacto": 4,
+      "detalle": [
+        {
+          "handle": 34,
+          "tipo": "line",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 7
+        },
+        {
+          "handle": 35,
+          "tipo": "circle",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 4
+        },
+        {
+          "handle": 36,
+          "tipo": "arc",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 0
+        },
+        {
+          "handle": 37,
+          "tipo": "point",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 4
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "04-capas",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/04-capas.dwg",
+      "sha256": "6030998d528b1c25c3fabaaf9d962d5b953d965f2bf0d15b6172667580f197c6",
+      "version": "AC1024",
+      "objetos": 6,
+      "secuenciaExacta": 6,
+      "consumoExacto": 6,
+      "detalle": [
+        {
+          "handle": 47,
+          "tipo": "line",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 7
+        },
+        {
+          "handle": 48,
+          "tipo": "line",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 7
+        },
+        {
+          "handle": 49,
+          "tipo": "line",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 7
+        },
+        {
+          "handle": 50,
+          "tipo": "line",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 7
+        },
+        {
+          "handle": 51,
+          "tipo": "line",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 7
+        },
+        {
+          "handle": 52,
+          "tipo": "circle",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 4
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "05-lwpolyline-bulges",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/05-lwpolyline-bulges.dwg",
+      "sha256": "4759ad24302a4544765bc8cabdf4275cabf88c4a86221a7dc5a2cddb5225a293",
+      "version": "AC1024",
+      "objetos": 2,
+      "secuenciaExacta": 2,
+      "consumoExacto": 2,
+      "detalle": [
+        {
+          "handle": 34,
+          "tipo": "lwpolyline",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 4
+        },
+        {
+          "handle": 40,
+          "tipo": "lwpolyline",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 0
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "06-texto",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/06-texto.dwg",
+      "sha256": "749bf4a160dba1a4c8b9b94df1f5bcb3b27af7b42693cbe8ade91718c98c63b2",
+      "version": "AC1024",
+      "objetos": 3,
+      "secuenciaExacta": 0,
+      "consumoExacto": 3,
+      "detalle": [
+        {
+          "handle": 37,
+          "tipo": "text",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": false,
+          "residuoBits": 2
+        },
+        {
+          "handle": 38,
+          "tipo": "text",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": false,
+          "residuoBits": 2
+        },
+        {
+          "handle": 39,
+          "tipo": "text",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": false,
+          "residuoBits": 2
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "07-bloques-insert",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/07-bloques-insert.dwg",
+      "sha256": "a787db0cab259a7a712df5fa4bbc24e92c95cd7de5206f8c1a9ea8f8164df182",
+      "version": "AC1024",
+      "objetos": 9,
+      "secuenciaExacta": 9,
+      "consumoExacto": 9,
+      "detalle": [
+        {
+          "handle": 36,
+          "tipo": "line",
+          "handles": 5,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 7
+        },
+        {
+          "handle": 37,
+          "tipo": "line",
+          "handles": 3,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 7
+        },
+        {
+          "handle": 38,
+          "tipo": "line",
+          "handles": 3,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 7
+        },
+        {
+          "handle": 39,
+          "tipo": "line",
+          "handles": 3,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 7
+        },
+        {
+          "handle": 40,
+          "tipo": "circle",
+          "handles": 5,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 4
+        },
+        {
+          "handle": 42,
+          "tipo": "insert",
+          "handles": 5,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 5
+        },
+        {
+          "handle": 43,
+          "tipo": "insert",
+          "handles": 3,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 5
+        },
+        {
+          "handle": 44,
+          "tipo": "insert",
+          "handles": 3,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 1
+        },
+        {
+          "handle": 45,
+          "tipo": "insert",
+          "handles": 5,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 1
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "archivo": "08-plano-mini",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/08-plano-mini.dwg",
+      "sha256": "066048b9ee745f94332bc43d83c5d469b666be335266e37f762f8a1c0670996e",
+      "version": "AC1024",
+      "objetos": 10,
+      "secuenciaExacta": 8,
+      "consumoExacto": 10,
+      "detalle": [
+        {
+          "handle": 47,
+          "tipo": "line",
+          "handles": 5,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 7
+        },
+        {
+          "handle": 48,
+          "tipo": "arc",
+          "handles": 5,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 0
+        },
+        {
+          "handle": 50,
+          "tipo": "lwpolyline",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 56,
+          "tipo": "line",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 7
+        },
+        {
+          "handle": 57,
+          "tipo": "line",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 7
+        },
+        {
+          "handle": 58,
+          "tipo": "insert",
+          "handles": 3,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 5
+        },
+        {
+          "handle": 59,
+          "tipo": "insert",
+          "handles": 3,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 5
+        },
+        {
+          "handle": 60,
+          "tipo": "text",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": false,
+          "residuoBits": 2
+        },
+        {
+          "handle": 61,
+          "tipo": "text",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": false,
+          "residuoBits": 2
+        },
+        {
+          "handle": 62,
+          "tipo": "line",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 7
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "01-vacio",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/01-vacio.dwg",
+      "sha256": "4c77fde71832a4f281875afb3cd460af0790b47966bd32e7758aae3bd52127d5",
+      "version": "AC1027",
+      "objetos": 0,
+      "secuenciaExacta": 0,
+      "consumoExacto": 0,
+      "detalle": []
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "02-una-linea",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/02-una-linea.dwg",
+      "sha256": "93099d2e59432abd14093c9e5f9e5b7245b1a41c7013275786c9c858c1fef8a4",
+      "version": "AC1027",
+      "objetos": 1,
+      "secuenciaExacta": 1,
+      "consumoExacto": 1,
+      "detalle": [
+        {
+          "handle": 34,
+          "tipo": "line",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "03-figuras-basicas",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/03-figuras-basicas.dwg",
+      "sha256": "a8ef53c653a7ce4597added3dbde7bd14fd865bc304cc07661e5fbced4fcd663",
+      "version": "AC1027",
+      "objetos": 4,
+      "secuenciaExacta": 4,
+      "consumoExacto": 4,
+      "detalle": [
+        {
+          "handle": 34,
+          "tipo": "line",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 35,
+          "tipo": "circle",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 3
+        },
+        {
+          "handle": 36,
+          "tipo": "arc",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 7
+        },
+        {
+          "handle": 37,
+          "tipo": "point",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 3
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "04-capas",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/04-capas.dwg",
+      "sha256": "9287870c6a5e2aeab5378f37daf0aa39c75487b7455f1af5d49d5d615a17e00f",
+      "version": "AC1027",
+      "objetos": 6,
+      "secuenciaExacta": 6,
+      "consumoExacto": 6,
+      "detalle": [
+        {
+          "handle": 47,
+          "tipo": "line",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 48,
+          "tipo": "line",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 49,
+          "tipo": "line",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 50,
+          "tipo": "line",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 51,
+          "tipo": "line",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 52,
+          "tipo": "circle",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 3
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "05-lwpolyline-bulges",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/05-lwpolyline-bulges.dwg",
+      "sha256": "ea0680d300ea1551f01678be6636b470213b04ce430e77c453834c57d169715b",
+      "version": "AC1027",
+      "objetos": 2,
+      "secuenciaExacta": 2,
+      "consumoExacto": 2,
+      "detalle": [
+        {
+          "handle": 34,
+          "tipo": "lwpolyline",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 3
+        },
+        {
+          "handle": 40,
+          "tipo": "lwpolyline",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 7
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "06-texto",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/06-texto.dwg",
+      "sha256": "a54eac813a87d4af02d9eeb3eebd04fc50c65eadccfdf0246bb4b6cee68dc6ea",
+      "version": "AC1027",
+      "objetos": 3,
+      "secuenciaExacta": 0,
+      "consumoExacto": 3,
+      "detalle": [
+        {
+          "handle": 37,
+          "tipo": "text",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": false,
+          "residuoBits": 1
+        },
+        {
+          "handle": 38,
+          "tipo": "text",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": false,
+          "residuoBits": 1
+        },
+        {
+          "handle": 39,
+          "tipo": "text",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": false,
+          "residuoBits": 1
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "07-bloques-insert",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/07-bloques-insert.dwg",
+      "sha256": "e21ab1f13c32ee0d36fa4bc294d973f9f67883747e622471544fe110b619377c",
+      "version": "AC1027",
+      "objetos": 9,
+      "secuenciaExacta": 9,
+      "consumoExacto": 9,
+      "detalle": [
+        {
+          "handle": 36,
+          "tipo": "line",
+          "handles": 5,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 37,
+          "tipo": "line",
+          "handles": 3,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 38,
+          "tipo": "line",
+          "handles": 3,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 39,
+          "tipo": "line",
+          "handles": 3,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 40,
+          "tipo": "circle",
+          "handles": 5,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 3
+        },
+        {
+          "handle": 42,
+          "tipo": "insert",
+          "handles": 5,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 4
+        },
+        {
+          "handle": 43,
+          "tipo": "insert",
+          "handles": 3,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 4
+        },
+        {
+          "handle": 44,
+          "tipo": "insert",
+          "handles": 3,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 0
+        },
+        {
+          "handle": 45,
+          "tipo": "insert",
+          "handles": 5,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 0
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "archivo": "08-plano-mini",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/08-plano-mini.dwg",
+      "sha256": "e572b1d0e96d35d1cabef2e8822bb6a3e3e161155dcb4e3f7a54a7fad0984e83",
+      "version": "AC1027",
+      "objetos": 10,
+      "secuenciaExacta": 8,
+      "consumoExacto": 10,
+      "detalle": [
+        {
+          "handle": 47,
+          "tipo": "line",
+          "handles": 5,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 48,
+          "tipo": "arc",
+          "handles": 5,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 7
+        },
+        {
+          "handle": 50,
+          "tipo": "lwpolyline",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 5
+        },
+        {
+          "handle": 56,
+          "tipo": "line",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 57,
+          "tipo": "line",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 58,
+          "tipo": "insert",
+          "handles": 3,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 4
+        },
+        {
+          "handle": 59,
+          "tipo": "insert",
+          "handles": 3,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 4
+        },
+        {
+          "handle": 60,
+          "tipo": "text",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": false,
+          "residuoBits": 1
+        },
+        {
+          "handle": 61,
+          "tipo": "text",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": false,
+          "residuoBits": 1
+        },
+        {
+          "handle": 62,
+          "tipo": "line",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "01-vacio",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/01-vacio.dwg",
+      "sha256": "02910ffd1f78ed3e0003b5cd610be0b7e392591fcb66ce0fa7d3fe97232bf04b",
+      "version": "AC1032",
+      "objetos": 0,
+      "secuenciaExacta": 0,
+      "consumoExacto": 0,
+      "detalle": []
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "02-una-linea",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/02-una-linea.dwg",
+      "sha256": "20ee9f89a7be6e103ed664922e019f3f723a277e1230a9ffce1124e35ed939c9",
+      "version": "AC1032",
+      "objetos": 1,
+      "secuenciaExacta": 1,
+      "consumoExacto": 1,
+      "detalle": [
+        {
+          "handle": 34,
+          "tipo": "line",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "03-figuras-basicas",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/03-figuras-basicas.dwg",
+      "sha256": "5e430ae342e161c89f530ad03b8d0cd9be930327b202334f8426387b194439f4",
+      "version": "AC1032",
+      "objetos": 4,
+      "secuenciaExacta": 4,
+      "consumoExacto": 4,
+      "detalle": [
+        {
+          "handle": 34,
+          "tipo": "line",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 35,
+          "tipo": "circle",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 3
+        },
+        {
+          "handle": 36,
+          "tipo": "arc",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 7
+        },
+        {
+          "handle": 37,
+          "tipo": "point",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 3
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "04-capas",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/04-capas.dwg",
+      "sha256": "c5b4fe4bf775de858eafebf72ab021a9b9b21902fe2b536f4d00e2a4d8a78b7a",
+      "version": "AC1032",
+      "objetos": 6,
+      "secuenciaExacta": 6,
+      "consumoExacto": 6,
+      "detalle": [
+        {
+          "handle": 47,
+          "tipo": "line",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 48,
+          "tipo": "line",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 49,
+          "tipo": "line",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 50,
+          "tipo": "line",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 51,
+          "tipo": "line",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 52,
+          "tipo": "circle",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 3
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "05-lwpolyline-bulges",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/05-lwpolyline-bulges.dwg",
+      "sha256": "c37490b12eb1c81542654cf3a7389ddb23dded6ff055e58b777df56b4c7e2f06",
+      "version": "AC1032",
+      "objetos": 2,
+      "secuenciaExacta": 2,
+      "consumoExacto": 2,
+      "detalle": [
+        {
+          "handle": 34,
+          "tipo": "lwpolyline",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 3
+        },
+        {
+          "handle": 40,
+          "tipo": "lwpolyline",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 7
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "06-texto",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/06-texto.dwg",
+      "sha256": "85bfe217ed3ee3dc6111c5584f37622e5e3e045ad3d9632c1e604045209b5b2b",
+      "version": "AC1032",
+      "objetos": 3,
+      "secuenciaExacta": 0,
+      "consumoExacto": 3,
+      "detalle": [
+        {
+          "handle": 37,
+          "tipo": "text",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": false,
+          "residuoBits": 1
+        },
+        {
+          "handle": 38,
+          "tipo": "text",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": false,
+          "residuoBits": 1
+        },
+        {
+          "handle": 39,
+          "tipo": "text",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": false,
+          "residuoBits": 1
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "07-bloques-insert",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/07-bloques-insert.dwg",
+      "sha256": "9dd6d810fda049f650770082a8f5587d79a1a66b00afe2b582c76f0acd383969",
+      "version": "AC1032",
+      "objetos": 9,
+      "secuenciaExacta": 9,
+      "consumoExacto": 9,
+      "detalle": [
+        {
+          "handle": 36,
+          "tipo": "line",
+          "handles": 5,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 37,
+          "tipo": "line",
+          "handles": 3,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 38,
+          "tipo": "line",
+          "handles": 3,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 39,
+          "tipo": "line",
+          "handles": 3,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 40,
+          "tipo": "circle",
+          "handles": 5,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 3
+        },
+        {
+          "handle": 42,
+          "tipo": "insert",
+          "handles": 5,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 4
+        },
+        {
+          "handle": 43,
+          "tipo": "insert",
+          "handles": 3,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 4
+        },
+        {
+          "handle": 44,
+          "tipo": "insert",
+          "handles": 3,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 0
+        },
+        {
+          "handle": 45,
+          "tipo": "insert",
+          "handles": 5,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 0
+        }
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "archivo": "08-plano-mini",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/08-plano-mini.dwg",
+      "sha256": "13f815fcc40cba1659b635bd1a21d5db6a3edbe6ba6dbe163048cb1e0555dddd",
+      "version": "AC1032",
+      "objetos": 10,
+      "secuenciaExacta": 8,
+      "consumoExacto": 10,
+      "detalle": [
+        {
+          "handle": 47,
+          "tipo": "line",
+          "handles": 5,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 48,
+          "tipo": "arc",
+          "handles": 5,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 7
+        },
+        {
+          "handle": 50,
+          "tipo": "lwpolyline",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 5
+        },
+        {
+          "handle": 56,
+          "tipo": "line",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 57,
+          "tipo": "line",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        },
+        {
+          "handle": 58,
+          "tipo": "insert",
+          "handles": 3,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 4
+        },
+        {
+          "handle": 59,
+          "tipo": "insert",
+          "handles": 3,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 4
+        },
+        {
+          "handle": 60,
+          "tipo": "text",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": false,
+          "residuoBits": 1
+        },
+        {
+          "handle": 61,
+          "tipo": "text",
+          "handles": 2,
+          "reactores": 0,
+          "secuenciaExacta": false,
+          "residuoBits": 1
+        },
+        {
+          "handle": 62,
+          "tipo": "line",
+          "handles": 4,
+          "reactores": 0,
+          "secuenciaExacta": true,
+          "residuoBits": 6
+        }
+      ]
+    }
+  ]
+}

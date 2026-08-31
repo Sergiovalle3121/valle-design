@@ -657,6 +657,89 @@
       "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-r2010-object-body.mjs); revision humana del propietario pendiente, como toda promocion de capacidad",
       "reviewedAt": "2026-08-31",
       "notes": "Medida por scripts/dwg/probe-r2010-object-body.mjs, reproducible con VALLE_DWG_CORPUS_MIRROR. Resuelve la parte GRANDE que VALLE-CORPUS-R2010-OBJECT-HEADER dejo pendiente (el CUERPO) para las cinco entidades sin cadena. No promueve ninguna capacidad de producto: readR2004Database sigue sin ensamblar una base neutral completa para AC1024/AC1027/AC1032 porque el flujo de handles (propietario/capa) sigue sin decodificarse -- ver CAPABILITIES.md para el corte exacto."
+    },
+    {
+      "id": "VALLE-CORPUS-R2010-HANDLE-STREAM",
+      "owner": "Sergio Valle Zarate",
+      "origin": {
+        "type": "original-measurement",
+        "location": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance/blob/0688fb9c395b9cac4169d1ee9c23a7370cc28cf3/index.json",
+        "accessedAt": "2026-08-31"
+      },
+      "title": "Mediciones first-party del FLUJO DE HANDLES del cuerpo de objeto R2010+ (AC1024/AC1027/AC1032) sobre el corpus admitido",
+      "versionOrDate": "2026-08-31",
+      "terms": {
+        "license": "Valle first-party corpus measurement (admitted tool-converted-original bundles)",
+        "access": "Blobs leidos del commit fijado del repo hermano de conformidad via el gate consumidor (corpus-pin.json + SHA-256 verificado); ningun working tree",
+        "redistribution": "Solo se registran numeros observados (recuentos de handle, residuos de bit, tipos de destino) y decisiones de codigo derivadas; los bytes DWG permanecen en el repo hermano bajo su propia politica",
+        "notes": "Tercera entrega de la misma serie (ENCABEZADO -> CUERPO -> FLUJO DE HANDLES): mismo corpus, mismo metodo diferencial. Es una observacion de bytes, no una fuente documental; no se consulto ninguna implementacion ajena. Ninguna fuente documental nueva intervino: la posicion del tramo ya venia del campo UMC verificado del encabezado. La ubicacion registrada es el index.json del commit fijado porque es el punto de entrada exacto por el que el gate consumidor alcanza cada artefacto que esta medicion lee; los bytes medidos son los fixtures de los bundles fundacionales AC1015/AC1024/AC1027/AC1032 alcanzados a traves de el."
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "El tramo de handleStreamBits bits del final del cuerpo R2010+ se consume EXACTAMENTE leyendo codigos H consecutivos hasta que restan menos de 8 bits (un H minimo ocupa 8: 4 de codigo mas 4 de contador vacio): 105/105 objetos en las tres versiones, 35/35 por version. El residuo observado se reparte por todo el rango 0..7 bits (histograma 0:7, 1:12, 2:5, 3:10, 4:13, 5:6, 6:31, 7:21), que es exactamente lo que produce un relleno hasta el byte y NO lo que produciria una lectura desalineada",
+        "La secuencia leida reproduce, como PREFIJO exacto y en orden, las referencias del gemelo AC1015 del MISMO dibujo tras filtrar dos cosas: los handles NULOS y los enlaces a la entidad ANTERIOR y SIGUIENTE. 105/105 objetos, 35/35 por version",
+        "Contraste de CUATRO modelos sobre la misma medicion, no de uno solo: 'completo' (la lista integra del gemelo) acierta 0/105; 'sinEnlaces' 0/105; 'sinNulos' 45/105; 'sinEnlacesNiNulos' 90/105 con coincidencia TOTAL. Que los dos modelos que conservan los nulos acierten CERO es la observacion que sostiene el hecho: en R2010+ un handle nulo NO se escribe, no se escribe como codigo nulo",
+        "Que 'sinNulos' acierte 45/105 y 'sinEnlacesNiNulos' 90/105 no es una gradacion: los 45 son el subconjunto de objetos cuyo gemelo no lleva enlaces anterior/siguiente, donde ambos modelos coinciden por construccion. No hay ningun objeto que 'sinNulos' explique y 'sinEnlacesNiNulos' no",
+        "Los unicos objetos con handles POR ENCIMA del prefijo del gemelo son los 5 TEXT del corpus (15 observaciones = 5 TEXT x 3 versiones), con exactamente UN handle adicional cada uno. Resuelto contra el mapa de objetos del gemelo AC1015, ese handle apunta en las 15 observaciones a un objeto de tipo 0x35 (AC1015_TYPE_STYLE): es el puntero al estilo de texto que el propio readAc1015EntityHandleHead deja declarado dentro de su tramo opaco pendiente, no una divergencia entre versiones",
+        "Las tres versiones dan cifras IDENTICAS en todas las metricas (35/35 consumo exacto, 35/35 prefijo exacto, 30/35 coincidencia total, 5 sobrantes de TEXT por version): el flujo de handles no cambia entre AC1024, AC1027 y AC1032",
+        "La FORMA del flujo SI se deduce del propio archivo moderno, contra lo que se supuso al abrir el intake. Leyendo el prefijo comun desde dataBitOffset como grupos EED (BS) / bit de grafico / modo BB / reactores BL / bit de xdic-missing / bit de sin-vinculos / color CmC / escala BD / banderas BB de linetype y de plotstyle, los cinco campos que determinan la forma coinciden con el gemelo en 105/105: hasOwner 105/105, reactorCount 105/105, hasXdictionary 105/105, hasLinetype 105/105, hasPlotstyle 105/105",
+        "El ORDEN del par xdic-missing / sin-vinculos esta MEDIDO, no elegido: con xdic-missing PRIMERO la forma derivada predice el recuento de la cabeza en 105/105 y hasXdictionary acierta 105/105; con el orden inverso la prediccion cae a 35/105 y hasXdictionary a 35/105. Ese contraste es lo que hace de la ordenacion una falsacion y no un ajuste",
+        "El bit de sin-vinculos se lee pero NO entra en la forma: acierta 53/105 con un orden y 51/105 con el otro, es decir una moneda al aire. No afecta a ningun handle porque R2010+ no escribe los enlaces a la entidad anterior y siguiente (hecho ya medido arriba), asi que se devuelve al llamador sin usarlo en el reparto",
+        "EED y grafico de previsualizacion estan AUSENTES en los 105 objetos del corpus (0/105 con cualquiera de los dos). Su disposicion en R2010+ NO esta medida y el lector derivado falla cerrado ante ellos en vez de saltarselos a ojo, que desalinearia todo lo que viene detras",
+        "CAPACIDAD AUSENTE, DECLARADA: la segunda mitad del tramo comun de 39/40 bits (los 23/24 bits que VALLE-CORPUS-R2010-OBJECT-BODY declara sin semantica identificada) sigue sin identificar. Esta medicion no la toca: solo establece que la PRIMERA mitad decodifica y con que orden. El corpus ejercita un unico caso comun (EED ausente, sin grafico, 0 reactores, banderas por defecto) y un objeto fuera de ese caso queda fuera de lo medido"
+      ],
+      "derivedFiles": [
+        "docs/cad/evidence/dwg-r2010-handle-stream.json",
+        "packages/dwg-codec/src/reader/r2010-handle-stream.ts",
+        "packages/dwg-codec/tests/unit/r2010-handle-stream.spec.ts",
+        "scripts/dwg/probe-r2010-handle-stream.mjs"
+      ],
+      "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-r2010-handle-stream.mjs); revision humana del propietario pendiente, como toda promocion de capacidad",
+      "reviewedAt": "2026-08-31",
+      "notes": "Medida por scripts/dwg/probe-r2010-handle-stream.mjs, reproducible con VALLE_DWG_CORPUS_MIRROR y verificada en las dos direcciones (--check sale 1 sobre evidencia adulterada). Resuelve la referencia a CAPA y PROPIETARIO que VALLE-CORPUS-R2010-OBJECT-BODY dejo pendiente y que readR2004Database cita por su nombre al fallar cerrado. NO promueve ninguna capacidad de producto: siguen faltando el flujo de cadenas R2007+ y las tablas de simbolos, sin los cuales no hay nombres de capa ni de bloque y no se ensambla una base neutral completa -- ver CAPABILITIES.md para el corte exacto."
+    },
+    {
+      "id": "VALLE-CORPUS-R2010-STRING-STREAM",
+      "owner": "Sergio Valle Zarate",
+      "origin": {
+        "type": "original-measurement",
+        "location": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance/tree/0688fb9c395b9cac4169d1ee9c23a7370cc28cf3/bundles/valle.fundacional.ac1024.001",
+        "accessedAt": "2026-08-31"
+      },
+      "title": "Mediciones first-party del FLUJO DE CADENAS del cuerpo de objeto R2010+ (AC1024/AC1027/AC1032) sobre el corpus admitido",
+      "versionOrDate": "2026-08-31",
+      "terms": {
+        "license": "Valle first-party corpus measurement (admitted tool-converted-original bundles)",
+        "access": "Blobs leidos del commit fijado del repo hermano de conformidad via el gate consumidor (corpus-pin.json + SHA-256 verificado); ningun working tree",
+        "redistribution": "Solo se registran numeros observados (anchuras de campo, offsets de bit, tamanos declarados) y decisiones de codigo derivadas; los bytes DWG permanecen en el repo hermano bajo su propia politica",
+        "notes": "Cuarta entrega de la serie (ENCABEZADO -> CUERPO -> FLUJO DE HANDLES -> FLUJO DE CADENAS): mismo corpus, mismo metodo diferencial. Es una observacion de bytes, no una fuente documental; no se consulto ninguna implementacion ajena. El hecho ya registrado en ODA-ODS-DWG-5.4.1-PUBLIC ('AC1021+ introduce el flujo de STRINGS separado al final del cuerpo... el bit de presencia del final del dato') predijo la EXISTENCIA del flujo y del bit; esta entrada mide su DISPOSICION completa."
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "Contando hacia atras desde el bit de presencia de cadenas -que VALLE-CORPUS-R2010-OBJECT-BODY situo exactamente un bit antes del flujo de handles-, el cuerpo termina asi: [datos del tipo][flujo de cadenas: N bits][tamano del flujo: RS de 16 bits con valor N][bit de presencia = 1][flujo de handles][relleno hasta el byte]",
+        "El campo de tamano son 16 bits leidos como RS (dos bytes little-endian), no como los bits crudos del flujo: el mismo campo leido crudo da 51712 donde el RS da 202, y es el 202 el que cuadra con la aritmetica del gemelo",
+        "El valor de ese campo es EXACTAMENTE los bits que ocupan el BS de longitud mas los caracteres en UTF-16LE, un numero calculado del gemelo AC1015 y no leido del archivo moderno: 15/15 objetos con cadena, 5 por version",
+        "El inicio del flujo, derivado como bitPresencia menos 16 menos el tamano declarado, cae EXACTAMENTE donde empieza el BS de longitud: 15/15",
+        "Dentro del flujo cada cadena es un TU: un BS con el numero de CARACTERES seguido de esos caracteres en UTF-16LE. El texto asi decodificado coincide byte a byte con el del gemelo en 15/15",
+        "La codificacion es UTF-16LE y no ASCII: buscando el valor del gemelo alineado a bit dentro del cuerpo moderno, la forma ASCII no aparece NUNCA (0/15) y la UTF-16LE aparece exactamente una vez (15/15)",
+        "El bit de presencia vale 1 en los 15 objetos con cadena, frente a 0 en los 72 objetos sin cadena ya medidos en VALLE-CORPUS-R2010-OBJECT-BODY: la semantica del bit queda confirmada por los dos lados y no por uno solo",
+        "Las tres versiones dan cifras identicas (5/5 en cada metrica por version): la disposicion del flujo de cadenas no cambia entre AC1024, AC1027 y AC1032",
+        "CAPACIDAD AUSENTE, DECLARADA: no hay ninguna cadena no-ASCII en el corpus. Que la codificacion sea UTF-16LE esta medido, pero solo sobre puntos de codigo latinos basicos; los pares suplentes (fuera del BMP) no estan ejercitados y viajan crudos como unidades de codigo, sin combinarse",
+        "SEGUNDA PASADA. Aplicar el lector de UNA cadena a los objetos CON NOMBRE hizo saltar el fallo cerrado en 186 de 288 ('lleva mas cadenas de las que este laboratorio ha medido'). No fue un fallo del lector sino el guardian senalando que medir: las cadenas van CONSECUTIVAS como TU dentro del flujo",
+        "Leyendo TU consecutivos hasta agotar el tramo, el consumo es EXACTO en 303/303 objetos con cadena de las tres versiones, y la PRIMERA cadena coincide byte a byte con la del gemelo en 303/303: block-record 54/54, entidad-con-texto 15/15, layer 54/54, entradas de tabla 180/180",
+        "El histograma de cadenas por objeto es {1: 117, 2: 78, 3: 84, 5: 24}: el caso de VARIAS cadenas esta ejercitado de verdad y no promovido por analogia con el de una",
+        "La PRIMERA cadena es el NOMBRE del objeto en los objetos con nombre (LAYER, BLOCK_RECORD, entradas de tabla) y el VALOR en un TEXT. Esto es lo que convierte una capa de un handle en un nombre, que es el frente que readR2004Database cita como 'tablas de simbolos'",
+        "CAPACIDAD AUSENTE, DECLARADA: solo la PRIMERA cadena tiene significado comprobado. Las siguientes se leen y se cuentan pero NADIE ha medido que son en cada tipo, asi que readR2010ObjectName expone la primera y quien quiera el resto usa readR2010StringStream sabiendo que las interpreta por su cuenta"
+      ],
+      "derivedFiles": [
+        "docs/cad/evidence/dwg-r2010-string-stream.json",
+        "packages/dwg-codec/src/reader/r2010-string-stream.ts",
+        "packages/dwg-codec/tests/unit/r2010-string-stream.spec.ts",
+        "scripts/dwg/probe-r2010-string-stream.mjs"
+      ],
+      "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-r2010-string-stream.mjs); revision humana del propietario pendiente, como toda promocion de capacidad",
+      "reviewedAt": "2026-08-31",
+      "notes": "Medida por scripts/dwg/probe-r2010-string-stream.mjs, reproducible con VALLE_DWG_CORPUS_MIRROR. Cierra el segundo de los dos frentes que readR2004Database nombra al fallar cerrado. NO promueve ninguna capacidad de producto: falta ensamblar las tablas de simbolos y conectar el lector, y solo la primera cadena de cada objeto tiene significado comprobado -- ver CAPABILITIES.md para el corte exacto."
     }
   ]
 }
