@@ -724,8 +724,12 @@
         "La codificacion es UTF-16LE y no ASCII: buscando el valor del gemelo alineado a bit dentro del cuerpo moderno, la forma ASCII no aparece NUNCA (0/15) y la UTF-16LE aparece exactamente una vez (15/15)",
         "El bit de presencia vale 1 en los 15 objetos con cadena, frente a 0 en los 72 objetos sin cadena ya medidos en VALLE-CORPUS-R2010-OBJECT-BODY: la semantica del bit queda confirmada por los dos lados y no por uno solo",
         "Las tres versiones dan cifras identicas (5/5 en cada metrica por version): la disposicion del flujo de cadenas no cambia entre AC1024, AC1027 y AC1032",
-        "CAPACIDAD AUSENTE, DECLARADA: el corpus admitido solo ejercita objetos con UNA cadena (los TEXT). El orden de VARIAS cadenas dentro de un mismo flujo NO esta medido, asi que el lector derivado exige que la unica cadena consuma el flujo entero y falla cerrado si sobra algo, en vez de suponer que las siguientes van seguidas",
-        "CAPACIDAD AUSENTE, DECLARADA: no hay ninguna cadena no-ASCII en el corpus. Que la codificacion sea UTF-16LE esta medido, pero solo sobre puntos de codigo latinos basicos; los pares suplentes (fuera del BMP) no estan ejercitados y viajan crudos como unidades de codigo, sin combinarse"
+        "CAPACIDAD AUSENTE, DECLARADA: no hay ninguna cadena no-ASCII en el corpus. Que la codificacion sea UTF-16LE esta medido, pero solo sobre puntos de codigo latinos basicos; los pares suplentes (fuera del BMP) no estan ejercitados y viajan crudos como unidades de codigo, sin combinarse",
+        "SEGUNDA PASADA. Aplicar el lector de UNA cadena a los objetos CON NOMBRE hizo saltar el fallo cerrado en 186 de 288 ('lleva mas cadenas de las que este laboratorio ha medido'). No fue un fallo del lector sino el guardian senalando que medir: las cadenas van CONSECUTIVAS como TU dentro del flujo",
+        "Leyendo TU consecutivos hasta agotar el tramo, el consumo es EXACTO en 303/303 objetos con cadena de las tres versiones, y la PRIMERA cadena coincide byte a byte con la del gemelo en 303/303: block-record 54/54, entidad-con-texto 15/15, layer 54/54, entradas de tabla 180/180",
+        "El histograma de cadenas por objeto es {1: 117, 2: 78, 3: 84, 5: 24}: el caso de VARIAS cadenas esta ejercitado de verdad y no promovido por analogia con el de una",
+        "La PRIMERA cadena es el NOMBRE del objeto en los objetos con nombre (LAYER, BLOCK_RECORD, entradas de tabla) y el VALOR en un TEXT. Esto es lo que convierte una capa de un handle en un nombre, que es el frente que readR2004Database cita como 'tablas de simbolos'",
+        "CAPACIDAD AUSENTE, DECLARADA: solo la PRIMERA cadena tiene significado comprobado. Las siguientes se leen y se cuentan pero NADIE ha medido que son en cada tipo, asi que readR2010ObjectName expone la primera y quien quiera el resto usa readR2010StringStream sabiendo que las interpreta por su cuenta"
       ],
       "derivedFiles": [
         "docs/cad/evidence/dwg-r2010-string-stream.json",
@@ -735,7 +739,7 @@
       ],
       "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-r2010-string-stream.mjs); revision humana del propietario pendiente, como toda promocion de capacidad",
       "reviewedAt": "2026-08-31",
-      "notes": "Medida por scripts/dwg/probe-r2010-string-stream.mjs, reproducible con VALLE_DWG_CORPUS_MIRROR. Cierra el segundo de los dos frentes que readR2004Database nombra al fallar cerrado. NO promueve ninguna capacidad de producto: falta ensamblar las tablas de simbolos y conectar el lector, y el corpus solo ejercita objetos de una cadena -- ver CAPABILITIES.md para el corte exacto."
+      "notes": "Medida por scripts/dwg/probe-r2010-string-stream.mjs, reproducible con VALLE_DWG_CORPUS_MIRROR. Cierra el segundo de los dos frentes que readR2004Database nombra al fallar cerrado. NO promueve ninguna capacidad de producto: falta ensamblar las tablas de simbolos y conectar el lector, y solo la primera cadena de cada objeto tiene significado comprobado -- ver CAPABILITIES.md para el corte exacto."
     }
   ]
 }

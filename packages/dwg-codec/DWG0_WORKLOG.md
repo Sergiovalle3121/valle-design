@@ -1295,3 +1295,46 @@ corpus, además, sólo ejercita objetos de **una** cadena: el orden de varias en
 un mismo flujo no está medido, y `readR2010SingleString` falla cerrado si sobra
 algo en vez de suponerlo. Ese chequeo es también un falsador en tiempo de
 ejecución.
+
+## 2026-08-31 — M4, quinta entrega: varias cadenas, y los nombres de las tablas
+
+Esta entrega existe porque el guardián de la anterior hizo su trabajo, y vale
+la pena contarlo tal cual.
+
+El lector de cadenas se cerró midiendo sólo los TEXT, que llevan **una**
+cadena, y declarando capacidad ausente para el resto: `readR2010SingleString`
+exigía que esa única cadena consumiera el flujo entero. Al apuntarlo a los
+objetos **con nombre** —LAYER, BLOCK_RECORD, entradas de tabla— el fallo
+cerrado saltó en **186 de 288**, con el mensaje que se había escrito para
+justamente eso: _«lleva más cadenas de las que este laboratorio ha medido»_.
+
+Un lector escrito con la prisa de otro día habría devuelto la primera cadena y
+seguido. Habría producido nombres de capa **correctos en 102 casos y basura
+silenciosa en 186**, y nadie lo habría notado hasta que un cliente abriera un
+plano y viera capas con nombres de otro sitio. El fallo cerrado convirtió eso
+en una lista exacta de qué medir.
+
+Medido: las cadenas van **consecutivas** como `TU`, y la primera es el nombre.
+
+| familia             | nombre exacto contra el gemelo |
+| ------------------- | -----------------------------: |
+| `layer`             |                          54/54 |
+| `block-record`      |                          54/54 |
+| entradas de tabla   |                        180/180 |
+| entidades con texto |                          15/15 |
+| **total**           |                    **303/303** |
+
+con consumo exacto en 303/303 e histograma `{1: 117, 2: 78, 3: 84, 5: 24}`. El
+caso de varias cadenas está ejercitado de verdad; no se promovió por analogía
+con el de una, que es exactamente lo que la política prohíbe.
+
+**Lo que esto significa para el producto**: una capa en un archivo AC1032 deja
+de ser un handle y pasa a ser un nombre. Ése era el contenido real de la frase
+«tablas de símbolos» en el error del lector.
+
+**Lo que sigue faltando, sin suavizar**: sólo la PRIMERA cadena tiene
+significado comprobado; las demás se leen, se cuentan y se devuelven sin
+interpretar. Y falta el **ensamblaje**: el camino actual reusa la forma R2000
+vía el adaptador de AC1018, así que R2010+ necesita el suyo, más los campos
+no-nombre de cada registro de tabla. Hasta entonces `readR2004Database` sigue
+fallando cerrado y estos módulos siguen sin conectar.

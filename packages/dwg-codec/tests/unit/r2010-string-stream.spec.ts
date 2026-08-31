@@ -15,7 +15,8 @@ import { readR2010ObjectHeader } from "../../src/container/r2010-object-envelope
 import {
   decodeR2010StringUnits,
   locateR2010StringStream,
-  readR2010SingleString,
+  readR2010ObjectName,
+  readR2010StringStream,
 } from "../../src/reader/r2010-string-stream.js";
 import { assertDwgError } from "../support/assert.js";
 
@@ -94,7 +95,7 @@ test("una cadena se localiza contando hacia atrás y decodifica como BS + UTF-16
   assert.equal(span.present, true);
   assert.equal(span.sizeBits, tuBits);
 
-  const units = readR2010SingleString(bytes, span);
+  const units = readR2010ObjectName(bytes, span);
   assert.equal(decodeR2010StringUnits(units), texto);
 });
 
@@ -114,15 +115,14 @@ test("un objeto sin cadenas se declara ausente, no vacío", () => {
   // Pedirle una cadena a un objeto que declara no tenerlas es un error del
   // llamador, y se dice: no se devuelve la cadena vacía como si fuera un dato.
   assertDwgError(
-    () => readR2010SingleString(bytes, span),
+    () => readR2010ObjectName(bytes, span),
     "DWG_STRUCTURE_CORRUPT",
   );
 });
 
-test("FALLA CERRADO: un flujo con MÁS de una cadena, que el corpus no ejercita", () => {
-  // Dos TU seguidos, con el tamaño declarado cubriendo ambos: el modelo
-  // medido no cubre este caso y el lector debe negarse en vez de devolver
-  // sólo la primera como si fuera todo.
+test("varias cadenas van consecutivas y la primera es el nombre", () => {
+  // El caso que la primera pasada declaró ausente y la segunda midió: los
+  // objetos con nombre llevan de 1 a 5 cadenas, y la primera es el nombre.
   const bytes = buildBody({
     handle: 0x26,
     dataBits: 6,
@@ -139,9 +139,14 @@ test("FALLA CERRADO: un flujo con MÁS de una cadena, que el corpus no ejercita"
   const header = readR2010ObjectHeader(bytes, 0x26);
   const span = locateR2010StringStream(bytes, header);
   assert.equal(span.present, true);
-  assertDwgError(
-    () => readR2010SingleString(bytes, span),
-    "DWG_STRUCTURE_CORRUPT",
+
+  const todas = readR2010StringStream(bytes, span);
+  assert.equal(todas.length, 2);
+  assert.equal(decodeR2010StringUnits(todas[0]!), "MURO");
+  assert.equal(decodeR2010StringUnits(todas[1]!), "EJE");
+  assert.equal(
+    decodeR2010StringUnits(readR2010ObjectName(bytes, span)),
+    "MURO",
   );
 });
 
@@ -177,7 +182,7 @@ test("FALLA CERRADO: un tamaño declarado que no cuadra con la cadena real", () 
   const header = readR2010ObjectHeader(bytes, 0x28);
   const span = locateR2010StringStream(bytes, header);
   assertDwgError(
-    () => readR2010SingleString(bytes, span),
+    () => readR2010ObjectName(bytes, span),
     "DWG_STRUCTURE_CORRUPT",
   );
 });

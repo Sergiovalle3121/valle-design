@@ -36,12 +36,26 @@
  *     EXACTAMENTE donde empieza ese `BS`.
  *  3. El texto decodificado debe coincidir byte a byte con el del gemelo.
  *
- * LÍMITE DE LA EVIDENCIA, SIN SUAVIZAR. El corpus admitido sólo ejercita
- * objetos con UNA cadena (los TEXT). El orden de VARIAS cadenas dentro de un
- * mismo flujo NO está medido, y por eso el lector derivado lee una sola y
- * declara capacidad ausente para el resto en vez de suponer que van seguidas.
- * Tampoco hay ninguna cadena no-ASCII en el corpus: que la codificación sea
- * UTF-16LE está medido, pero sólo sobre puntos de código latinos básicos.
+ * SEGUNDA PASADA — VARIAS CADENAS. La primera pasada midió sólo los TEXT, que
+ * llevan UNA cadena, y declaró capacidad ausente para el resto. Al aplicar ese
+ * lector a los objetos CON NOMBRE (LAYER, BLOCK_RECORD y las entradas de tabla)
+ * el fallo cerrado saltó en 186 de 288: «lleva más cadenas de las que este
+ * laboratorio ha medido». Eso no era un fallo del lector sino el guardián
+ * haciendo su trabajo, y señaló exactamente qué medir.
+ *
+ * Medido: las cadenas van CONSECUTIVAS como `TU` dentro del flujo, y la
+ * PRIMERA es el nombre del objeto. Leyendo hasta consumir el tramo, el nombre
+ * coincide con el del gemelo en **288/288** objetos con nombre de las tres
+ * versiones (LAYER 54/54, BLOCK_RECORD 54/54, entradas de tabla 180/180) y el
+ * consumo es exacto en los 288. El histograma de cadenas por objeto es
+ * {1: 102, 2: 78, 3: 84, 5: 24}: el caso de varias cadenas está ejercitado de
+ * verdad, no por analogía con el de una.
+ *
+ * LÍMITE DE LA EVIDENCIA, SIN SUAVIZAR. Sólo la PRIMERA cadena tiene
+ * significado comprobado (es el nombre); las siguientes se devuelven en orden
+ * pero NADIE ha medido qué son en cada tipo. No hay ninguna cadena no-ASCII en
+ * el corpus: que la codificación sea UTF-16LE está medido, pero sólo sobre
+ * puntos de código latinos básicos.
  *
  * Uso:
  *   node scripts/dwg/probe-r2010-string-stream.mjs            # genera evidencia
@@ -71,6 +85,8 @@ const MODERN_VERSIONS = ["AC1024", "AC1027", "AC1032"];
 const REFERENCE_VERSION = "AC1015";
 /** Anchura del campo de tamaño del flujo, medida: un RS. */
 const SIZE_FIELD_BITS = 16;
+/** Techo de cadenas por objeto: presupuesto de la sonda, no del formato. */
+const MAX_STRINGS_PER_OBJECT = 64;
 
 function environment() {
   const cpu = os.cpus()[0]?.model ?? "desconocida";
@@ -155,6 +171,12 @@ async function main() {
   const { pairR2010ObjectBounds, readR2010ObjectBody, readR2010ObjectHeader } =
     await load("container", "r2010-object-envelope.js");
   const { decodeAc1015EntityBody } = await load("objects", "entities-core.js");
+  const { decodeAc1015LayerBody, AC1015_TYPE_LAYER } = await load(
+    "objects",
+    "table-layer.js",
+  );
+  const { decodeAc1015SymbolTableEntryBody } = await load("objects", "tables-symbol.js");
+  const { decodeAc1015BlockRecordBody } = await load("objects", "table-block.js");
   const limits = createDwgLimits();
 
   const pin = loadCorpusPin();
@@ -191,10 +213,44 @@ async function main() {
         const decoded = decodeAc1015EntityBody(envelope.bodyBytes);
         const value = decoded.entity.valueBytes;
         if (Array.isArray(value) && value.length > 0) {
-          byHandle.set(entry.handle, { kind: decoded.entity.kind, value });
+          byHandle.set(entry.handle, {
+            kind: decoded.entity.kind,
+            familia: "entidad-con-texto",
+            value,
+          });
+          continue;
         }
       } catch {
-        // Tipo fuera del decodificador del gemelo: nada que comparar.
+        // No es una entidad con texto: puede ser un objeto CON NOMBRE.
+      }
+      // Objetos CON NOMBRE: LAYER, BLOCK_RECORD y las entradas de tabla. Su
+      // nombre es la PRIMERA cadena del flujo, y es justo lo que hace falta
+      // para que una capa deje de ser un handle y pase a ser un nombre.
+      const named = [
+        [
+          "layer",
+          () =>
+            envelope.type === AC1015_TYPE_LAYER
+              ? decodeAc1015LayerBody(envelope.bodyBytes).layer.name
+              : null,
+        ],
+        ["block-record", () => decodeAc1015BlockRecordBody(envelope.bodyBytes).record.name],
+        [
+          "symbol-entry",
+          () => decodeAc1015SymbolTableEntryBody(envelope.bodyBytes).head.name,
+        ],
+      ];
+      for (const [familia, decode] of named) {
+        let name = null;
+        try {
+          name = decode();
+        } catch {
+          continue;
+        }
+        if (Array.isArray(name) && name.length > 0) {
+          byHandle.set(entry.handle, { kind: familia, familia, value: name });
+          break;
+        }
       }
     }
     return byHandle;
@@ -214,6 +270,9 @@ async function main() {
   let totalTextoExacto = 0;
   let totalPresenciaUno = 0;
   const desviaciones = [];
+  const cadenasPorObjeto = {};
+  const porFamilia = {};
+  let totalConsumoCadenas = 0;
 
   for (const version of MODERN_VERSIONS) {
     const bundle = bundleFor(version);
@@ -225,6 +284,7 @@ async function main() {
       tamanoExacto: 0,
       inicioExacto: 0,
       textoExacto: 0,
+      consumoCadenas: 0,
     };
 
     for (const artifact of fixturesOf(bundle)) {
@@ -300,7 +360,11 @@ async function main() {
           const chars = expected.value.length;
           const bsBits = chars < 0x100 ? 10 : 18;
           const predictedSize = bsBits + chars * 16;
-          const tamanoOk = declaredSize === predictedSize;
+          // Sólo comprobable en objetos de UNA cadena: para los de varias no
+          // se puede predecir el tamaño sin conocerlas todas, y contarlos
+          // aquí inflaría la cifra con casos que la sonda no verifica.
+          const tamanoPredecible = declaredSize === predictedSize;
+          const tamanoOk = tamanoPredecible;
 
           // Inicio derivado y contraste con dónde está de verdad la cadena.
           const derivedStart = presenceBit - SIZE_FIELD_BITS - declaredSize;
@@ -309,27 +373,51 @@ async function main() {
           const hits = findBitAligned(bodyBytes, utf16, 0, totalBits);
           const inicioOk = hits.length > 0 && hits[0] === derivedStart + bsBits;
 
-          // Decodificación real por el camino del formato: BS + TU.
+          // Decodificación real por el camino del formato: TU consecutivos
+          // hasta consumir el tramo. La PRIMERA cadena es el valor del TEXT o
+          // el nombre del objeto; el resto se cuenta pero no se interpreta.
           let decodedText = null;
           let lecturaFallo = null;
+          let cadenas = 0;
+          let consumoCadenasOk = false;
           try {
             const reader = new DwgBitReader(new BoundedByteCursor(bodyBytes));
             for (let i = 0; i < derivedStart; i += 1) reader.readB();
-            const count = reader.readBS();
-            const bytesOut = [];
-            for (let i = 0; i < count; i += 1) {
-              const low = reader.readRC();
-              const high = reader.readRC();
-              bytesOut.push(low | (high << 8));
+            const leidas = [];
+            while (reader.bitPosition - derivedStart < declaredSize) {
+              const count = reader.readBS();
+              const bytesOut = [];
+              for (let i = 0; i < count; i += 1) {
+                const low = reader.readRC();
+                const high = reader.readRC();
+                bytesOut.push(low | (high << 8));
+              }
+              leidas.push(bytesOut);
+              if (leidas.length > MAX_STRINGS_PER_OBJECT) break;
             }
-            decodedText = bytesOut;
+            cadenas = leidas.length;
+            consumoCadenasOk = reader.bitPosition - derivedStart === declaredSize;
+            decodedText = leidas[0] ?? null;
           } catch (error) {
             lecturaFallo = typedError(error);
           }
+          if (cadenas > 0) {
+            const clave = String(cadenas);
+            cadenasPorObjeto[clave] = (cadenasPorObjeto[clave] ?? 0) + 1;
+          }
+          if (consumoCadenasOk) {
+            totalConsumoCadenas += 1;
+            porVersion[version].consumoCadenas += 1;
+          }
           const textoOk =
             decodedText !== null &&
+            consumoCadenasOk &&
             decodedText.length === expected.value.length &&
             decodedText.every((c, i) => c === expected.value[i]);
+          const familia = expected.familia;
+          porFamilia[familia] = porFamilia[familia] ?? { total: 0, ok: 0 };
+          porFamilia[familia].total += 1;
+          if (textoOk) porFamilia[familia].ok += 1;
 
           if (tamanoOk) {
             totalTamanoExacto += 1;
@@ -344,7 +432,7 @@ async function main() {
             porVersion[version].textoExacto += 1;
           }
 
-          if (!(tamanoOk && inicioOk && textoOk && presencia === 1)) {
+          if (!(inicioOk && textoOk && consumoCadenasOk && presencia === 1)) {
             desviaciones.push({
               version,
               archivo: record.archivo,
@@ -354,6 +442,8 @@ async function main() {
               declaredSize,
               predictedSize,
               derivedStart,
+              cadenas,
+              consumoCadenasOk,
               encontradoEn: hits,
               error: lecturaFallo,
             });
@@ -376,15 +466,19 @@ async function main() {
     }
   }
 
+  const familias = Object.entries(porFamilia)
+    .map(([nombre, v]) => `${nombre} ${v.ok}/${v.total}`)
+    .sort()
+    .join(", ");
   const veredicto =
     totalObjetos === 0
       ? "Sin objetos con cadena comparables: no se afirma nada."
-      : totalTamanoExacto === totalObjetos &&
-          totalInicioExacto === totalObjetos &&
+      : totalInicioExacto === totalObjetos &&
           totalTextoExacto === totalObjetos &&
+          totalConsumoCadenas === totalObjetos &&
           totalPresenciaUno === totalObjetos
-        ? `El flujo de cadenas R2010+ queda medido en ${totalObjetos}/${totalObjetos} objetos con cadena de las tres versiones, por tres caminos independientes: el campo RS de 16 bits anterior al bit de presencia vale EXACTAMENTE los bits que el gemelo predice (${totalTamanoExacto}/${totalObjetos}); el inicio derivado como bitPresencia-16-tamano cae EXACTAMENTE donde empieza el BS de longitud (${totalInicioExacto}/${totalObjetos}); y el texto decodificado como BS + UTF-16LE coincide byte a byte con el del gemelo (${totalTextoExacto}/${totalObjetos}). El bit de presencia vale 1 en ${totalPresenciaUno}/${totalObjetos}, frente a 0 en los 72 objetos sin cadena ya medidos.`
-        : `HIPÓTESIS NO CONFIRMADA: tamaño ${totalTamanoExacto}/${totalObjetos}, inicio ${totalInicioExacto}/${totalObjetos}, texto ${totalTextoExacto}/${totalObjetos}, presencia ${totalPresenciaUno}/${totalObjetos}. Ver desviaciones.`;
+        ? `El flujo de cadenas R2010+ queda medido en ${totalObjetos}/${totalObjetos} objetos con cadena de las tres versiones (${familias}). El inicio derivado como bitPresencia-16-tamano cae EXACTAMENTE donde empieza el primer BS de longitud (${totalInicioExacto}/${totalObjetos}); las cadenas van CONSECUTIVAS como TU y consumen el tramo EXACTO (${totalConsumoCadenas}/${totalObjetos}), con histograma por objeto ${JSON.stringify(cadenasPorObjeto)}; y la PRIMERA cadena -el valor de un TEXT o el NOMBRE de un objeto con nombre- coincide byte a byte con la del gemelo (${totalTextoExacto}/${totalObjetos}). En los objetos de UNA sola cadena, ademas, el campo RS de 16 bits vale EXACTAMENTE los bits que el gemelo predice (${totalTamanoExacto} de esos objetos). El bit de presencia vale 1 en ${totalPresenciaUno}/${totalObjetos}, frente a 0 en los 72 objetos sin cadena ya medidos: su semantica queda confirmada por los dos lados.`
+        : `HIPÓTESIS NO CONFIRMADA: inicio ${totalInicioExacto}/${totalObjetos}, texto ${totalTextoExacto}/${totalObjetos}, consumo ${totalConsumoCadenas}/${totalObjetos}, presencia ${totalPresenciaUno}/${totalObjetos}. Ver desviaciones.`;
 
   const evidence = {
     $schema: "../../schema/dwg-evidence.schema.json",
@@ -395,11 +489,11 @@ async function main() {
     environment: environment(),
     veredicto,
     alcance:
-      "Flujo de cadenas separado del cuerpo de objeto en AC1024/AC1027/AC1032, comparado contra el gemelo AC1015 del MISMO dibujo.",
+      "Flujo de cadenas separado del cuerpo de objeto en AC1024/AC1027/AC1032 -- entidades con texto y objetos CON NOMBRE (LAYER, BLOCK_RECORD, entradas de tabla) --, comparado contra el gemelo AC1015 del MISMO dibujo.",
     metodo:
       "Oráculo diferencial sobre los bundles fundacionales. Se busca el valor del gemelo codificado en UTF-16LE y alineado a bit dentro del cuerpo moderno, y se exigen tres coincidencias independientes: el valor del campo de tamaño, el inicio derivado del flujo y el texto decodificado por el camino del formato (BS de longitud + caracteres UTF-16LE).",
     limiteDeLaEvidencia:
-      "El corpus sólo ejercita objetos con UNA cadena. El orden de VARIAS cadenas dentro de un mismo flujo NO está medido. Tampoco hay cadenas no-ASCII: que la codificación sea UTF-16LE está medido, pero sólo sobre puntos de código latinos básicos. Corpus de un único productor y un único oráculo.",
+      "Solo la PRIMERA cadena tiene significado comprobado (el valor de un TEXT o el nombre de un objeto con nombre); las siguientes se leen y se cuentan, pero NADIE ha medido que son en cada tipo. No hay cadenas no-ASCII en el corpus: que la codificacion sea UTF-16LE esta medido, pero solo sobre puntos de codigo latinos basicos, y los pares suplentes fuera del BMP no estan ejercitados. Corpus de un unico productor y un unico oraculo.",
     corpus: { commit: pin.commit, bundles: MODERN_VERSIONS.length + 1 },
     resumen: {
       objetos: totalObjetos,
@@ -407,6 +501,9 @@ async function main() {
       tamanoExacto: totalTamanoExacto,
       inicioExacto: totalInicioExacto,
       textoExacto: totalTextoExacto,
+      consumoCadenas: totalConsumoCadenas,
+      cadenasPorObjeto,
+      porFamilia,
       porVersion,
     },
     desviaciones,

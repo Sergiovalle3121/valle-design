@@ -577,19 +577,46 @@ aparece exactamente una vez (15/15), y el bit de presencia vale 1 en los 15
 frente a 0 en los 72 objetos sin cadena ya medidos: la semántica del bit queda
 confirmada por los **dos** lados.
 
-**Capacidad ausente declarada, sin suavizar**: el corpus sólo ejercita objetos
-con **una** cadena. `readR2010SingleString` exige que esa cadena consuma el
-flujo entero y falla cerrado si sobra algo — antes que suponer que las
-siguientes van seguidas y devolver un nombre de capa plausible y equivocado.
-Ese chequeo es también un falsador en tiempo de ejecución. No hay ninguna
-cadena no-ASCII en el corpus, así que los pares suplentes fuera del BMP no
-están ejercitados y viajan crudos como unidades de código.
+### Segunda pasada: varias cadenas, y los NOMBRES de las tablas de símbolos
 
-**Lo que sigue faltando**: las tablas de símbolos. Con handles y cadenas ya
-medidos, lo que queda para que `readR2004Database` ensamble una base neutral
-completa es decodificar los registros de tabla (LAYER, BLOCK_RECORD, LTYPE,
-STYLE) y enlazarlos. Hasta entonces el lector sigue fallando cerrado para
-AC1024/AC1027/AC1032 y estos módulos siguen siendo capacidad de laboratorio.
+La primera pasada midió sólo los TEXT, que llevan **una** cadena, y declaró
+capacidad ausente para el resto. Al aplicar ese lector a los objetos **con
+nombre** el fallo cerrado saltó en **186 de 288** — _«lleva más cadenas de las
+que este laboratorio ha medido»_— en vez de devolver un nombre de capa a
+medias. Eso no fue un fallo del lector: fue el guardián señalando qué medir.
+
+Medido después: las cadenas van **consecutivas** como `TU`, y la **primera** es
+el valor del TEXT o el **nombre** del objeto.
+
+| familia                            | nombre exacto contra el gemelo |
+| ---------------------------------- | -----------------------------: |
+| `layer`                            |                      **54/54** |
+| `block-record`                     |                      **54/54** |
+| entradas de tabla (`symbol-entry`) |                    **180/180** |
+| entidades con texto                |                      **15/15** |
+| **total**                          |                    **303/303** |
+
+con consumo exacto del tramo en **303/303** e histograma de cadenas por objeto
+`{1: 117, 2: 78, 3: 84, 5: 24}`: el caso de varias está ejercitado de verdad,
+no promovido por analogía con el de una.
+
+**Esto es lo que convierte una capa de un handle en un nombre** — el frente que
+`readR2004Database` cita como «tablas de símbolos».
+
+**Capacidad ausente declarada, sin suavizar**: sólo la **primera** cadena tiene
+significado comprobado. Las siguientes se leen y se cuentan, pero **nadie ha
+medido qué son** en cada tipo: `readR2010ObjectName` expone la primera y quien
+quiera el resto usa `readR2010StringStream` sabiendo que las interpreta por su
+cuenta. No hay ninguna cadena no-ASCII en el corpus, así que los pares
+suplentes fuera del BMP no están ejercitados y viajan crudos como unidades de
+código.
+
+**Lo que sigue faltando**: el **ensamblaje**. Con envoltura, cuerpo, handles,
+cadenas y nombres medidos, lo que queda para que `readR2004Database` produzca
+una base neutral completa en AC1024/AC1027/AC1032 es un camino de ensamblaje
+propio para R2010+ (el actual reusa la forma R2000 vía el adaptador de AC1018)
+y los campos NO-nombre de cada registro de tabla. Hasta entonces el lector
+sigue fallando cerrado y estos módulos siguen siendo capacidad de laboratorio.
 
 Evidencia: `docs/cad/evidence/dwg-r2010-string-stream.json`, reproducible con
 `node scripts/dwg/probe-r2010-string-stream.mjs` y guardada por
