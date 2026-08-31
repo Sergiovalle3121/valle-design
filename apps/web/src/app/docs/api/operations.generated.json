@@ -4,7 +4,7 @@
   "openapi": "3.1.0",
   "apiTitle": "Valle Design — API standalone (v1)",
   "apiVersion": "1.0.0",
-  "operationCount": 92,
+  "operationCount": 98,
   "cadOperationCount": 41,
   "groups": [
     {
@@ -175,6 +175,18 @@
         "getCadBlock",
         "updateCadBlock",
         "removeCadBlock"
+      ]
+    },
+    {
+      "family": "commercial",
+      "tag": "messaging",
+      "operations": [
+        "listMessagingChannels",
+        "createMessagingChannel",
+        "listMessagingChannelMessages",
+        "createMessagingChannelMessage",
+        "markMessagingChannelRead",
+        "streamMessagingEvents"
       ]
     }
   ],
@@ -2544,6 +2556,160 @@
         "401",
         "403",
         "404"
+      ]
+    },
+    {
+      "operationId": "listMessagingChannels",
+      "method": "GET",
+      "path": "/v1/messaging/channels",
+      "summary": "Lista los canales visibles (de proyecto de la organización + directos propios).",
+      "tags": [
+        "messaging"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403"
+      ]
+    },
+    {
+      "operationId": "createMessagingChannel",
+      "method": "POST",
+      "path": "/v1/messaging/channels",
+      "summary": "Crea un canal de proyecto o abre uno directo (idempotente).",
+      "tags": [
+        "messaging"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:edit",
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "MessagingChannelCreate"
+      },
+      "responses": [
+        "201",
+        "400",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "listMessagingChannelMessages",
+      "method": "GET",
+      "path": "/v1/messaging/channels/{channelId}/messages",
+      "summary": "Mensajes del canal, paginados por cursor.",
+      "tags": [
+        "messaging"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "channelId",
+          "in": "path",
+          "required": true
+        },
+        {
+          "name": "cursor",
+          "in": "query",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "required": false
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "createMessagingChannelMessage",
+      "method": "POST",
+      "path": "/v1/messaging/channels/{channelId}/messages",
+      "summary": "Envía un mensaje al canal, opcionalmente anclado al dibujo o en hilo.",
+      "tags": [
+        "messaging"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:edit",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "channelId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "MessagingMessageCreate"
+      },
+      "responses": [
+        "201",
+        "400",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "markMessagingChannelRead",
+      "method": "POST",
+      "path": "/v1/messaging/channels/{channelId}/read",
+      "summary": "Marca el canal como leído hasta ahora (baja `unreadCount` a 0).",
+      "tags": [
+        "messaging"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "channelId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "201",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "streamMessagingEvents",
+      "method": "GET",
+      "path": "/v1/messaging/events",
+      "summary": "Mensajes nuevos en vivo (Server-Sent Events) de cualquier canal visible.",
+      "tags": [
+        "messaging"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403"
       ]
     }
   ]

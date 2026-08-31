@@ -66,9 +66,12 @@ void (async () => {
   // − las 2 de asistencia por IA (`/v1/cad/documents/{id}/intent` y
   //   `/v1/cad/vision`): se retiraron con el motor CIDE, que era de Axos OS y
   //   no de este producto (`IDENTITY.md`). Valle Design no tiene IA.
+  // + las 6 de /v1/messaging: listar/crear canales, listar/enviar mensajes,
+  //   marcar leído y el flujo @Sse de eventos en vivo. Es el trabajo en equipo
+  //   entre PERSONAS que sustituye a lo que se fue.
   assert.equal(
     regenerated.operationCount,
-    92,
+    98,
     "cambió el número de operaciones del contrato; actualiza este spec Y los recuentos de check-design-contract.mjs / standalone-contract-router.spec.ts",
   );
   assert.equal(

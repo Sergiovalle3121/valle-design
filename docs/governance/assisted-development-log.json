@@ -1128,43 +1128,6 @@
       "aiClaimsAuthorship": false
     },
     {
-      "id": "DWG-M4-CUERPO-R2010-20260831",
-      "date": "2026-08-31",
-      "initiative": "Continuación directa del intake del ENCABEZADO de objeto R2010+ (DWG-M4-ENCABEZADO-R2010-20260831, mismo dia): ese intake dejo dicho explicitamente que el CUERPO —la parte grande— seguia sin decodificarse, y que reconstruir la forma R2000 y reusar los decodificadores existentes no funcionaba. Esta sesion resuelve el CUERPO para las cinco entidades que nunca llevan cadena (LINE, POINT, CIRCLE, ARC, LWPOLYLINE) por medicion sobre el mismo corpus admitido, con geometria EXACTA en 72/72 objetos.",
-      "branch": "claude/dwg-m4-cuerpo-r2010-body",
-      "assistants": [
-        "Claude Code (Anthropic), sesion operada por el titular"
-      ],
-      "authority": "Sergio Valle Zarate autorizo continuar el frente DWG-M4 (versiones modernas) inmediatamente despues de que el intake del encabezado quedara resuelto en la misma fecha; ADR-0015 ya autorizaba explicitamente continuar M4 bajo la misma disciplina de siempre.",
-      "firstPartyInputs": [
-        "El codigo y los gates propios del monorepo (cadenas check:dwg/check:cad y sus scripts), incluido el encabezado R2010+ ya resuelto en la sesion hermana de esa misma fecha.",
-        "El corpus propio de valle-design-dwg-conformance (commit 0688fb9c395b9cac4169d1ee9c23a7370cc28cf3) como espejo local: los cinco bundles fundacionales son los mismos ocho dibujos en cinco contenedores, y ese paralelismo es lo que permitio resolver la codificacion por medicion.",
-        "SOURCE_REGISTER.json, CAPABILITIES.md y DWG0_WORKLOG.md del laboratorio (hechos clean-room ya registrados, incluido el hecho ya registrado de ODA-ODS-DWG-5.4.1-PUBLIC sobre el flujo de strings de AC1021+).",
-        "ADR-0007, ADR-0009 y ADR-0015."
-      ],
-      "externalSources": [],
-      "externalImplementationConsulted": "Ninguna. La anchura del prefijo comun-hasta-tipo, el hecho de que objectSize (MS) excluye sus propios bytes y los de UMC, y la posicion exacta del bit de presencia de cadenas se derivaron INTEGRAMENTE por medicion sobre el corpus propio: busqueda bit a bit del double IEEE-754 exacto de un campo geometrico conocido del gemelo AC1015, contrastado contra CUATRO tipos de entidad de forma independiente. No se consulto ninguna implementacion ajena (ODA SDK, RealDWG, LibreDWG u otra) ni ninguna fuente documental nueva. El hecho queda registrado como medicion first-party (VALLE-CORPUS-R2010-OBJECT-BODY), continuacion directa de VALLE-CORPUS-R2010-OBJECT-HEADER.",
-      "derivedAreas": [
-        "packages/dwg-codec/src/objects/entities-core.ts (decodeLine/decodePoint/decodeCircle/decodeArc exportados para reutilizarse desde el lector R2010+, sin decodificadores gemelos)",
-        "packages/dwg-codec/src/reader/r2010-entity-body.ts (nuevo: readR2010EntityBody, capacidad de laboratorio independiente para las cinco entidades sin cadenas)",
-        "packages/dwg-codec/src/container/r2010-object-envelope.ts (aclaracion en el JSDoc de objectSize: excluye sus propios bytes y los de UMC)",
-        "packages/dwg-codec/src/reader/r2004-database-reader.ts (el mensaje de fallo cerrado nombra ahora la frontera real: el flujo de handles y las tablas, no el cuerpo)",
-        "packages/dwg-codec/tests/unit/r2010-entity-body.spec.ts (specs sinteticas, vectores de bits construidos a mano)",
-        "scripts/dwg/probe-r2010-object-body.mjs y docs/cad/evidence/dwg-r2010-object-body.json (productor de evidencia y su gate --check, cableado en package.json check:dwg)",
-        "Gobernanza: CAPABILITIES.md, DWG0_WORKLOG.md, SOURCE_REGISTER.json"
-      ],
-      "fixtures": "Ninguno nuevo. El corpus de valle-design-dwg-conformance no se tocó: se leyó por el gate consumidor contra el commit fijado y su SHA-256, sin escribir nada. Las specs nuevas del códec usan vectores de bits construidos a mano en el propio test, con el emisor de bits del writer (import de solo lectura).",
-      "dependenciesAdded": [],
-      "adoption": {
-        "required": true,
-        "status": "proposed",
-        "adopter": "Sergio Valle Zárate",
-        "evidence": "Autorización expresa del titular para continuar M4 tras resolver el encabezado en la misma sesión de trabajo del 2026-08-31 (ADR-0015). Evidencia final: el PR de esta rama revisado sobre el SHA candidato con los gates en verde."
-      },
-      "aiCoAuthorTrailers": true,
-      "aiClaimsAuthorship": false
-    },
-    {
       "id": "DWG-WRITER-V3-BLOCK-CONTENT-20260831",
       "date": "2026-08-31",
       "initiative": "Frente de ESCRITURA del DWG (una de tres sesiones paralelas del día; las otras dos tocan src/objects/, src/container/, src/reader/ y src/codecs/, no tocados aquí). Elevar el writer AC1015 del subconjunto V1 (LINE/POINT/CIRCLE/ARC/LWPOLYLINE/TEXT/INSERT) hacia el perfil V3 que ya lee el producto, con profundidad sobre amplitud: ELLIPSE y MTEXT en el writer de bajo nivel con round-trip exacto propio, y el contenido de bloque de usuario (antes siempre vacío) en writeCanonicalDwg.",
@@ -1229,6 +1192,43 @@
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
         "evidence": "Autorización expresa del titular al desplegar la sesión paralela CAD-D desde la sesión de planificación del 2026-08-31, y autorización expresa del titular (\"mergea el avance\") para fusionar directo a main tras rebasar sobre el frente de escritura DWG. Evidencia final: gates (check:cad, check:dwg, typecheck, lint, test, build) en verde sobre el árbol rebasado."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-M4-CUERPO-R2010-20260831",
+      "date": "2026-08-31",
+      "initiative": "Continuación directa del intake del ENCABEZADO de objeto R2010+ (DWG-M4-ENCABEZADO-R2010-20260831, mismo dia): ese intake dejo dicho explicitamente que el CUERPO —la parte grande— seguia sin decodificarse, y que reconstruir la forma R2000 y reusar los decodificadores existentes no funcionaba. Esta sesion resuelve el CUERPO para las cinco entidades que nunca llevan cadena (LINE, POINT, CIRCLE, ARC, LWPOLYLINE) por medicion sobre el mismo corpus admitido, con geometria EXACTA en 72/72 objetos.",
+      "branch": "claude/dwg-m4-cuerpo-r2010-body",
+      "assistants": [
+        "Claude Code (Anthropic), sesion operada por el titular"
+      ],
+      "authority": "Sergio Valle Zarate autorizo continuar el frente DWG-M4 (versiones modernas) inmediatamente despues de que el intake del encabezado quedara resuelto en la misma fecha; ADR-0015 ya autorizaba explicitamente continuar M4 bajo la misma disciplina de siempre.",
+      "firstPartyInputs": [
+        "El codigo y los gates propios del monorepo (cadenas check:dwg/check:cad y sus scripts), incluido el encabezado R2010+ ya resuelto en la sesion hermana de esa misma fecha.",
+        "El corpus propio de valle-design-dwg-conformance (commit 0688fb9c395b9cac4169d1ee9c23a7370cc28cf3) como espejo local: los cinco bundles fundacionales son los mismos ocho dibujos en cinco contenedores, y ese paralelismo es lo que permitio resolver la codificacion por medicion.",
+        "SOURCE_REGISTER.json, CAPABILITIES.md y DWG0_WORKLOG.md del laboratorio (hechos clean-room ya registrados, incluido el hecho ya registrado de ODA-ODS-DWG-5.4.1-PUBLIC sobre el flujo de strings de AC1021+).",
+        "ADR-0007, ADR-0009 y ADR-0015."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. La anchura del prefijo comun-hasta-tipo, el hecho de que objectSize (MS) excluye sus propios bytes y los de UMC, y la posicion exacta del bit de presencia de cadenas se derivaron INTEGRAMENTE por medicion sobre el corpus propio: busqueda bit a bit del double IEEE-754 exacto de un campo geometrico conocido del gemelo AC1015, contrastado contra CUATRO tipos de entidad de forma independiente. No se consulto ninguna implementacion ajena (ODA SDK, RealDWG, LibreDWG u otra) ni ninguna fuente documental nueva. El hecho queda registrado como medicion first-party (VALLE-CORPUS-R2010-OBJECT-BODY), continuacion directa de VALLE-CORPUS-R2010-OBJECT-HEADER.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/objects/entities-core.ts (decodeLine/decodePoint/decodeCircle/decodeArc exportados para reutilizarse desde el lector R2010+, sin decodificadores gemelos)",
+        "packages/dwg-codec/src/reader/r2010-entity-body.ts (nuevo: readR2010EntityBody, capacidad de laboratorio independiente para las cinco entidades sin cadenas)",
+        "packages/dwg-codec/src/container/r2010-object-envelope.ts (aclaracion en el JSDoc de objectSize: excluye sus propios bytes y los de UMC)",
+        "packages/dwg-codec/src/reader/r2004-database-reader.ts (el mensaje de fallo cerrado nombra ahora la frontera real: el flujo de handles y las tablas, no el cuerpo)",
+        "packages/dwg-codec/tests/unit/r2010-entity-body.spec.ts (specs sinteticas, vectores de bits construidos a mano)",
+        "scripts/dwg/probe-r2010-object-body.mjs y docs/cad/evidence/dwg-r2010-object-body.json (productor de evidencia y su gate --check, cableado en package.json check:dwg)",
+        "Gobernanza: CAPABILITIES.md, DWG0_WORKLOG.md, SOURCE_REGISTER.json"
+      ],
+      "fixtures": "Ninguno nuevo. El corpus de valle-design-dwg-conformance no se tocó: se leyó por el gate consumidor contra el commit fijado y su SHA-256, sin escribir nada. Las specs nuevas del códec usan vectores de bits construidos a mano en el propio test, con el emisor de bits del writer (import de solo lectura).",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Autorización expresa del titular para continuar M4 tras resolver el encabezado en la misma sesión de trabajo del 2026-08-31 (ADR-0015). Evidencia final: el PR de esta rama revisado sobre el SHA candidato con los gates en verde."
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
@@ -1485,6 +1485,45 @@
         "status": "proposed",
         "adopter": "Sergio Valle Zárate",
         "evidence": "Instrucción expresa del titular sobre universalidad del producto en la sesión del 2026-08-31."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "TEAM-MESSAGING-20260831",
+      "date": "2026-08-31",
+      "initiative": "Mensajería de equipo (\"como Teams\"): petición explícita del dueño de producto para que arquitectos e ingenieros trabajen en equipo sobre un mismo proyecto — canales por proyecto (visibles a toda la organización) y directos entre dos personas, mensajes con hilo e insignia de no leídos, y un mensaje puede anclarse al dibujo con el MISMO contrato JSON que un comentario de revisión (CadComment.anchor), que es el diferenciador frente a un chat genérico. Transporte en vivo por Server-Sent Events (@Sse), no WebSocket: cero @nestjs/websockets en la API, y EventSource reutiliza la cookie de sesión first-party sin duplicar la cadena de guards. RBAC reutilizado (cad:view/cad:edit del catálogo existente) en vez de ampliar CAD_PERMISSIONS, para no tocar el enum congelado que otras sesiones paralelas también dependen. Videollamada y compartir pantalla NO son de esta sesión (rama paralela claude/llamadas-webrtc); presencia en vivo por SSE tampoco (claude/colab-presencia-servidor, no fusionada aún) — el hueco queda declarado, no simulado.",
+      "branch": "claude/mensajeria-equipo",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate desplegó esta sesión paralela con el mandato citado textualmente en el encargo (\"lo que sí tiene que tener es un sistema de mensajería como Microsoft Teams...\"), con fronteras de archivo explícitas: territorio propio bajo apps/api/src/modules/messaging/, apps/web/src/lib/cad/messaging/, apps/web/src/components/cad/messaging/ y las rutas /v1/messaging/* del contrato; prohibido tocar Layout3DEditor.tsx, cad-entities-v5.ts, docs/adr/*, docs/competitive/rubric.json y scripts/cad/monolith-budget.json.",
+      "firstPartyInputs": [
+        "El código y los gates propios del monorepo (TenantScopedRepository, PermissionsGuard/CadAuthGuard, cad-comment-anchor.ts, collab/comment-anchor.ts, collab/overlay-model.ts, check:cad, check:authz, migration-chain.pg.spec.ts, tenant-rls-coverage.pg.spec.ts).",
+        "El patrón hermano de colaboración ya mergeado (CollabThreadPanel.tsx, StudioCollaborationLayer.tsx, use-cad-comments.ts) — replicado, no reinventado, para el chat.",
+        "packages/contracts/specs/design-api.v1.yaml y packages/design-sdk/ como contrato fuente."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El diseño de canales/mensajes/SSE se derivó leyendo el propio backend (guards, TenantScopedRepository, patrón CadReviewRepository) y el propio frontend (StudioCollaborationLayer/use-cad-comments como plantilla), y adaptando ambos al dominio de mensajería.",
+      "derivedAreas": [
+        "apps/api/src/modules/messaging/ (entidades, servicio, controller con @Sse, DTOs, módulo — nuevo)",
+        "apps/api/src/migrations/20260831090000-TeamMessaging.ts + .spec.ts (tres tablas, tenant_id NOT NULL desde el alta, RLS en la misma migración)",
+        "apps/api/src/app.module.ts (registro de MessagingModule), apps/api/src/main.ts (exclusión de text/event-stream del middleware compression)",
+        "apps/api/src/common/testing/first-party-cad-auth.ts (opción organizationId para sembrar un segundo compañero del MISMO tenant en pruebas — aditiva, backward-compatible)",
+        "packages/contracts/specs/design-api.v1.yaml (tag messaging, 4 paths / 6 operaciones, 10 esquemas nuevos, sin tocar ninguna ruta ni esquema fuera de /v1/messaging/*)",
+        "scripts/cad/check-design-contract.mjs (añadido /v1/messaging a coveredPrefixes/controllerDirs; @Sse reconocido como verbo GET del contrato — sin esto el gate nunca ve una ruta @Sse)",
+        "packages/design-sdk/src/messaging.ts (nuevo) + wiring mínimo en client.ts (estaba en 779/800 líneas del presupuesto de monolito; quedó en 798)",
+        "apps/web/src/lib/cad/messaging/ (aritmética pura: agrupado por día, hilos, chinchetas de ancla reutilizando collab/overlay-model.ts y collab/comment-anchor.ts — nuevo)",
+        "apps/web/src/components/cad/messaging/ (hook + panel + host montable — nuevo) y apps/web/src/components/cad/CadStudioHost.tsx (consumidor real: el host se monta junto a StudioCollaborationLayer, con su propio ErrorBoundary)",
+        "apps/web/src/app/docs/api/console-contract.spec.ts (recuento de operaciones actualizado de 94 a 100)"
+      ],
+      "fixtures": "Ninguno nuevo. Las specs (API: SQLite en memoria vía el mismo arnés first-party-cad-auth; web: aritmética pura con objetos construidos a mano) siguen el patrón ya establecido del repositorio.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "PR draft de esta rama con check:cad, check:dwg (esperado en rojo por falta local de VALLE_DWG_CORPUS_MIRROR, verificado igual en main limpio), typecheck, lint, test y build en verde sobre el árbol quieto y rebasado sobre main."
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false

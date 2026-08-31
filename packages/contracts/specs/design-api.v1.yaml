@@ -130,6 +130,17 @@ tags:
     description: Plano DXF de fondo (importar/quitar) y exportación DXF R12 del documento.
   - name: blocks
     description: Biblioteca de bloques CAD reutilizables del tenant (CRUD).
+  - name: messaging
+    description: >-
+      Mensajería de equipo (`/v1/messaging/*`): canales de proyecto —
+      visibles a toda la organización— y canales directos entre dos
+      personas, mensajes con hilo e insignia de no leídos, y un mensaje
+      puede anclarse al dibujo (mismo contrato JSON que `CadComment.anchor`,
+      el diferenciador frente a un chat genérico). Reutiliza el entitlement
+      `design.cad` y el RBAC `cad:view`/`cad:edit` existentes — no amplía el
+      catálogo de permisos. `GET /v1/messaging/events` es un flujo
+      `text/event-stream` (SSE) de mensajes nuevos; ver su descripción para
+      el límite declarado de una sola instancia de proceso.
 paths:
   /v1/auth/register:
     post:
@@ -2411,6 +2422,168 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/EntitlementRequired" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /v1/messaging/channels:
+    get:
+      operationId: listMessagingChannels
+      tags: [messaging]
+      summary: Lista los canales visibles (de proyecto de la organización + directos propios).
+      description: >-
+        Los canales de PROYECTO son visibles a cualquier miembro de la
+        organización sin invitación previa; los DIRECTOS sólo a sus dos
+        participantes. Cada fila trae `unreadCount` (mensajes de otra
+        persona desde el último `read`) y, en canales directos,
+        `otherMember`.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      responses:
+        "200":
+          description: Canales visibles, sin orden garantizado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessagingChannelList"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+    post:
+      operationId: createMessagingChannel
+      tags: [messaging]
+      summary: Crea un canal de proyecto o abre uno directo (idempotente).
+      description: >-
+        `kind: 'project'` exige `projectId` (de un `cad_project` del tenant)
+        y `name`. `kind: 'direct'` exige `memberUserId`: si ya existe un
+        canal directo entre ambas personas, lo REUTILIZA en vez de duplicar
+        — responde 201 igualmente, con el canal existente. Abrir un canal
+        directo consigo mismo es `400`.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:edit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessagingChannelCreate"
+      responses:
+        "201":
+          description: Canal creado o, en directos, reutilizado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessagingChannel"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/messaging/channels/{channelId}/messages:
+    get:
+      operationId: listMessagingChannelMessages
+      tags: [messaging]
+      summary: Mensajes del canal, paginados por cursor.
+      description: >-
+        Sin `cursor`: los `limit` mensajes más recientes, en orden
+        CRONOLÓGICO ascendente (el más viejo primero, listo para pintar de
+        arriba abajo). Con `cursor` (de `nextCursor` de la página anterior):
+        los `limit` mensajes anteriores a esa frontera, mismo orden
+        ascendente. `nextCursor: null` = no hay mensajes más viejos.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      parameters:
+        - $ref: "#/components/parameters/messagingChannelId"
+        - name: cursor
+          in: query
+          schema: { type: string, maxLength: 200 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+      responses:
+        "200":
+          description: Página de mensajes.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessagingMessagePage"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    post:
+      operationId: createMessagingChannelMessage
+      tags: [messaging]
+      summary: Envía un mensaje al canal, opcionalmente anclado al dibujo o en hilo.
+      description: >-
+        `anchor` es el MISMO contrato JSON que `CadComment.anchor` — un
+        mensaje puede apuntar a una entidad, cara o vista del dibujo.
+        `parentMessageId` referencia otro mensaje del MISMO canal (hilo);
+        si no pertenece a este canal, `400`. Cuerpo 1–4000 caracteres, no
+        vacío tras trim.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:edit
+      parameters:
+        - $ref: "#/components/parameters/messagingChannelId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MessagingMessageCreate"
+      responses:
+        "201":
+          description: Mensaje creado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessagingMessage"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/messaging/channels/{channelId}/read:
+    post:
+      operationId: markMessagingChannelRead
+      tags: [messaging]
+      summary: Marca el canal como leído hasta ahora (baja `unreadCount` a 0).
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      parameters:
+        - $ref: "#/components/parameters/messagingChannelId"
+      responses:
+        "201":
+          description: Marcado.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [read]
+                properties:
+                  read: { type: boolean, const: true }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/messaging/events:
+    get:
+      operationId: streamMessagingEvents
+      tags: [messaging]
+      summary: Mensajes nuevos en vivo (Server-Sent Events) de cualquier canal visible.
+      description: >-
+        `text/event-stream`: cada evento trae `data` con un `MessagingMessage`
+        serializado en JSON. LÍMITE DECLARADO: fanout en memoria de UNA sola
+        instancia de proceso — en un despliegue de varias instancias, un
+        mensaje enviado en otra instancia no llega por este flujo (se ve al
+        recargar). El snapshot de canales DIRECTOS visibles se toma al
+        conectar; uno abierto después no aparece hasta reconectar. No usa
+        WebSocket a propósito: `EventSource` reutiliza la cookie de sesión
+        first-party y pasa por la misma cadena de guards que el resto de la
+        API (ver ARCHITECTURE.md).
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      responses:
+        "200":
+          description: Flujo de eventos, uno por mensaje nuevo.
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: "Frames SSE (`data:` + `MessagingMessage` en JSON)."
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
 components:
   securitySchemes:
     sessionCookie:
@@ -2498,6 +2671,12 @@ components:
       required: true
       schema:
         $ref: "#/components/schemas/CadBlockId"
+    messagingChannelId:
+      name: channelId
+      in: path
+      required: true
+      schema:
+        $ref: "#/components/schemas/MessagingChannelId"
     searchQuery:
       name: q
       in: query
@@ -5082,3 +5261,150 @@ components:
           maxLength: 80
         definition:
           $ref: "#/components/schemas/CadBlockDefinition"
+    MessagingChannelId:
+      type: string
+      format: uuid
+      description: Identificador de `messaging_channels`.
+    MessagingMessageId:
+      type: string
+      format: uuid
+      description: Identificador de `messaging_messages`.
+    MessagingChannelKind:
+      type: string
+      enum: [project, direct]
+      description: >-
+        `project`: ligado a un `cad_project`, visible a toda la
+        organización. `direct`: entre dos personas, sólo visible para ellas.
+    MessagingAuthor:
+      type: object
+      required: [userId, email, displayName]
+      properties:
+        userId:
+          type: string
+          format: uuid
+        email:
+          $ref: "#/components/schemas/Actor"
+        displayName:
+          oneOf:
+            - type: string
+            - type: "null"
+    MessagingChannel:
+      type: object
+      required:
+        [id, kind, projectId, name, otherMember, unreadCount, lastMessageAt, createdAt]
+      properties:
+        id:
+          $ref: "#/components/schemas/MessagingChannelId"
+        kind:
+          $ref: "#/components/schemas/MessagingChannelKind"
+        projectId:
+          oneOf:
+            - $ref: "#/components/schemas/CadProjectId"
+            - type: "null"
+        name:
+          oneOf:
+            - type: string
+              maxLength: 160
+            - type: "null"
+        otherMember:
+          description: Sólo canales `direct`; `null` en canales `project`.
+          oneOf:
+            - $ref: "#/components/schemas/MessagingAuthor"
+            - type: "null"
+        unreadCount:
+          type: integer
+          minimum: 0
+          description: >-
+            Mensajes de OTRA persona desde el último `POST .../read`
+            (nunca cuenta los mensajes propios).
+        lastMessageAt:
+          oneOf:
+            - $ref: "#/components/schemas/Timestamp"
+            - type: "null"
+        createdAt:
+          $ref: "#/components/schemas/Timestamp"
+    MessagingChannelList:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/MessagingChannel"
+    MessagingChannelCreate:
+      type: object
+      required: [kind]
+      description: >-
+        `kind: 'project'` exige `projectId` + `name`; `kind: 'direct'` exige
+        `memberUserId`. El servidor rechaza (`400`) los campos que no
+        correspondan al `kind` declarado si están mal combinados con el
+        estado existente (p. ej. `memberUserId` igual al propio usuario).
+      properties:
+        kind:
+          $ref: "#/components/schemas/MessagingChannelKind"
+        projectId:
+          $ref: "#/components/schemas/CadProjectId"
+        name:
+          type: string
+          minLength: 1
+          maxLength: 160
+        memberUserId:
+          type: string
+          format: uuid
+          description: "El otro miembro de la organización, para `kind: 'direct'`."
+    MessagingMessage:
+      type: object
+      required: [id, channelId, author, body, parentMessageId, anchor, createdAt]
+      properties:
+        id:
+          $ref: "#/components/schemas/MessagingMessageId"
+        channelId:
+          $ref: "#/components/schemas/MessagingChannelId"
+        author:
+          $ref: "#/components/schemas/MessagingAuthor"
+        body:
+          type: string
+          maxLength: 4000
+        parentMessageId:
+          oneOf:
+            - $ref: "#/components/schemas/MessagingMessageId"
+            - type: "null"
+        anchor:
+          type: ["object", "null"]
+          description: >-
+            Mismo contrato JSON que `CadComment.anchor` — un mensaje puede
+            apuntar a una entidad, cara o vista del dibujo. `null` = sin
+            ancla (mensaje de conversación normal).
+        createdAt:
+          $ref: "#/components/schemas/Timestamp"
+    MessagingMessageCreate:
+      type: object
+      required: [body]
+      properties:
+        body:
+          type: string
+          minLength: 1
+          maxLength: 4000
+        parentMessageId:
+          oneOf:
+            - $ref: "#/components/schemas/MessagingMessageId"
+            - type: "null"
+        anchor:
+          type: ["object", "null"]
+    MessagingMessagePage:
+      type: object
+      required: [items, nextCursor]
+      properties:
+        items:
+          type: array
+          maxItems: 200
+          items:
+            $ref: "#/components/schemas/MessagingMessage"
+          description: Orden CRONOLÓGICO ascendente (el más viejo primero).
+        nextCursor:
+          oneOf:
+            - type: string
+              maxLength: 200
+            - type: "null"
+          description: Pásalo como `cursor` para pedir mensajes más viejos. `null` = no hay más.
