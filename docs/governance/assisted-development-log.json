@@ -1126,6 +1126,45 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CAD-REPARAR-NORMALIZAR-AUDIT-RECOVER-20260831",
+      "date": "2026-08-31",
+      "initiative": "Frente 'el dibujo que llega de fuera' de la campaña paralela de seis sesiones: el registro de comandos (192 verificados) no tenía AUDIT, RECOVER, LAYTRANS ni CHECKSTANDARDS -las cuatro que resuelven un DXF ajeno con geometria degenerada, referencias colgantes, capas propias y sin norma de despacho-, ni la productividad diaria QDIM/TEXTALIGN/BURST/QLEADER. Se construyeron los ocho, reutilizando el motor de deteccion ya existente (overkill.ts para duplicados, wall-openings.ts para huecos huerfanos, cad-purge.ts para capas/bloques/estilos sin usar, mexican-layers.ts y mexican-annotation.ts para el estandar) en vez de duplicarlo, y añadiendo una matriz de evidencia medida (docs/cad/evidence/audit-repair-matrix.json) que corre los detectores y reparadores reales contra un caso de cada defecto.",
+      "branch": "claude/reparar-y-normalizar",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate autorizó, en la sesión de reparto de la campaña paralela de seis frentes del 2026-08-31, construir el frente 'AUDIT/RECOVER/LAYTRANS/STANDARDS' con su territorio explícito (apps/web/src/lib/cad/audit/ nuevo, standards/ ampliado, blocks/, engine/commands/ sólo archivos nuevos, overkill.ts, validation-report.ts, degenerate-geometry-corpus.spec.ts) y sus seis gates locales antes de abrir PR en borrador.",
+      "firstPartyInputs": [
+        "AGENTS.md, IDENTITY.md y docs/parity/ESCALERA.md del repositorio.",
+        "El registro real de comandos (apps/web/src/lib/cad/engine/index.ts, CAD_COMMAND_REGISTRY_V2) y su sonda de integridad (apps/web/scripts/command-integrity-probe.mts).",
+        "El corpus propio degenerate-geometry-corpus.spec.ts, ampliado con una familia nueva (audit/*) que ejercita los detectores contra los mismos casos ya fijados.",
+        "Los módulos que AUDIT/LAYTRANS/STANDARDS reutilizan sin duplicar: overkill.ts, wall-openings.ts (orphanedOpeningIds), blocks/cad-purge.ts, standards/mexican-layers.ts, standards/mexican-annotation.ts, cad-document-migrate.ts (migrateCadDocument, para RECOVER)."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El comportamiento de AUDIT/RECOVER/LAYTRANS/CHECKSTANDARDS/QDIM/TEXTALIGN/BURST/QLEADER se derivó del comportamiento documentado de AutoCAD (conocimiento general del dominio de dibujo asistido, no de código ni documentación de terceros consultada en esta sesión) y de los módulos propios ya citados arriba.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/audit/ (nuevo): geometry.ts, references.ts, orphans.ts, report.ts, recover.ts y sus specs — AUDIT y el núcleo de RECOVER.",
+        "apps/web/src/lib/cad/standards/laytrans.ts y office-standard.ts (nuevos, dentro del directorio ya existente) y sus specs — LAYTRANS y CHECKSTANDARDS.",
+        "apps/web/src/lib/cad/blocks/cad-burst.ts y su spec — el núcleo de BURST.",
+        "apps/web/src/lib/cad/engine/commands/manage-audit.ts, manage-recover.ts, manage-laytrans.ts, manage-standards.ts, annotate-quick.ts, blocks-burst.ts, annotate-quickleader.ts (nuevos) y sus specs — el diálogo tecleado de los ocho comandos.",
+        "apps/web/src/lib/cad/engine/index.ts: sólo las líneas de import y las entradas de los ocho comandos, añadidas al final sin reordenar nada existente.",
+        "apps/web/src/lib/cad/degenerate-geometry-corpus.spec.ts: familia nueva 'audit' (4 casos) que prueba que AUDIT detecta y repara defectos ya fijados en el corpus.",
+        "apps/web/scripts/audit-repair-matrix-probe.mts y scripts/cad/audit-repair-matrix-evidence.mjs (nuevos, mismo patrón que mexican-drafting-standards-evidence.mjs): productor y gate --check de docs/cad/evidence/audit-repair-matrix.json.",
+        "apps/web/e2e/golden/61-cad-audit-repair.spec.ts (nuevo): golden que siembra defectos en el documento canónico (no en DXF, que es territorio de otra sesión) y comprueba en pantalla que AUDIT cuenta, pregunta, repara al confirmar y no reincide.",
+        "docs/cad/evidence/audit-repair-matrix.json y docs/cad/evidence/command-integrity.json (regenerado: 192→200 comandos, 0 éxitos falsos)."
+      ],
+      "fixtures": "Ninguno externo. Los fixtures son documentos CadDocument construidos a mano en las specs y en el golden, y las entidades de la matriz de evidencia las genera audit-repair-matrix-probe.mts a partir de los mismos tipos que ya usa el corpus de geometría degenerada.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "PR en borrador de la rama claude/reparar-y-normalizar contra main, con los seis gates locales (check:cad, check:dwg, typecheck, test, lint, build) corridos sobre el árbol committeado antes de abrirlo."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
