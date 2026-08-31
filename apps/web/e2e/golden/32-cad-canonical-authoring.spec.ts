@@ -1,3 +1,4 @@
+import { finishDraft } from '../fixtures/draft-toolbar';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { installMockBackend } from '../fixtures/mock-backend';
@@ -90,7 +91,7 @@ test('LINE, PLINE, RECT and CIRCLE author canonical geometry end to end', async 
     await startTool(page, 'Line');
     await point(page, '1000', '1000');
     await point(page, '5000', '1000');
-    await page.getByRole('button', { name: 'Terminar' }).click();
+    await finishDraft(page);
     await expectNativeCount(page, 1);
   });
 
@@ -99,7 +100,7 @@ test('LINE, PLINE, RECT and CIRCLE author canonical geometry end to end', async 
     await point(page, '1000', '3000');
     await point(page, '4000', '3000');
     await point(page, '4000', '5000');
-    await page.getByRole('button', { name: 'Terminar' }).click();
+    await finishDraft(page);
     await expectNativeCount(page, 2);
   });
 

@@ -13,6 +13,7 @@
  * La aserción nueva es MÁS precisa que la anterior: apunta a un gancho
  * estable en vez de a una expresión regular sobre el texto de la página.
  */
+import { finishDraft } from '../fixtures/draft-toolbar';
 import { expect, test, type BrowserContext } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
@@ -107,7 +108,7 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
   });
   await test.step('6. Coordenada polar', async () => {
     await applyDynamicInput(page, { distance: '1500', angle: '90deg' }, { mode: 'POLAR' });
-    await page.getByRole('button', { name: 'Terminar' }).click();
+    await finishDraft(page);
     // PRIORIDAD 2 — antes esto afirmaba `/2 equipos/`: LINE creaba MUROS
     // heredados, uno por tramo. Hoy son dos entidades `line` canónicas y el
     // contador de equipo no se mueve.

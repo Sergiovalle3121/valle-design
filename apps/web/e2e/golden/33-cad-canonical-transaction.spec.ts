@@ -1,3 +1,4 @@
+import { finishDraft } from '../fixtures/draft-toolbar';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
@@ -175,14 +176,14 @@ test('every canonical draw records exactly one undo entry and one dirty transiti
       await startTool(page, 'Line');
       await point(page, '1000', '1000');
       await point(page, '5000', '1000');
-      await page.getByRole('button', { name: 'Terminar' }).click();
+      await finishDraft(page);
     }],
     ['Pline', async () => {
       await startTool(page, 'Pline');
       await point(page, '1000', '3000');
       await point(page, '4000', '3000');
       await point(page, '4000', '5000');
-      await page.getByRole('button', { name: 'Terminar' }).click();
+      await finishDraft(page);
     }],
     ['Rect', async () => {
       await startTool(page, 'Rect');
@@ -222,7 +223,7 @@ test('every canonical draw records exactly one undo entry and one dirty transiti
     await startTool(page, 'Line');
     await point(page, '2000', '2000');
     await point(page, '7000', '4000');
-    await page.getByRole('button', { name: 'Terminar' }).click();
+    await finishDraft(page);
     await expectNativeCount(page, 1);
     await saveAndSettle(page, backend);
     const before = backend.snapshot().document;
@@ -253,7 +254,7 @@ test('every canonical draw records exactly one undo entry and one dirty transiti
     await startTool(page, 'Line');
     await point(page, '3000', '3000');
     await point(page, '3000', '3000');
-    await page.getByRole('button', { name: 'Terminar' }).click();
+    await finishDraft(page);
 
     await expectNativeCount(page, 1);
     await expect(page.getByTestId('cad-history-depth')).toHaveAttribute('data-undo', historyBefore!);
@@ -433,7 +434,7 @@ test('a locked layer refuses drawing and OFFSET, and rejection leaves zero histo
     await startTool(page, 'Line');
     await point(page, '500', '500');
     await point(page, '900', '900');
-    await page.getByRole('button', { name: 'Terminar' }).click();
+    await finishDraft(page);
     await expectNativeCount(page, 1);
     await expect(page.getByTestId('cad-history-depth')).toHaveAttribute(
       'data-undo',

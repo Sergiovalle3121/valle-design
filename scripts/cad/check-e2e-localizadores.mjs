@@ -1,5 +1,5 @@
 /**
- * GATE DE LOCALIZADORES — los presets de cámara se piden por la fixture.
+ * GATE DE LOCALIZADORES AMBIGUOS — dos familias, la misma lección.
  *
  * ## El fallo que este gate existe para impedir
  *
@@ -54,6 +54,22 @@ const FIXTURE = "apps/web/e2e/fixtures/camera-preset.ts";
  */
 const TITULO_DE_ENCUADRE = "Ajustar a la planta";
 
+/**
+ * SEGUNDA FAMILIA, descubierta por el mismo reparto de CI: «Terminar».
+ *
+ * La barra de borrador tiene un botón «Terminar», y la campaña de la cinta
+ * añadió al editor un «Terminar comando». El `name` de `getByRole` NO es
+ * exacto por omisión —busca subcadena—, así que ocho llamadas repartidas por
+ * tres goldens pasaron a resolver a dos elementos a la vez.
+ *
+ * Idéntico al caso del ViewCube y con la misma cura: una fixture, y un testid
+ * en el producto para que el localizador no dependa de la prosa de la
+ * interfaz. Se vigila aquí, junto a la otra, porque no son dos reglas: es una
+ * regla —un nombre de la interfaz no es una identidad— con dos víctimas.
+ */
+const FIXTURE_DE_BORRADOR = "apps/web/e2e/fixtures/draft-toolbar.ts";
+const NOMBRES_DE_ROL_AMBIGUOS = ["Terminar"];
+
 const fallos = [];
 
 // ── Los títulos, leídos del producto ────────────────────────────────────────
@@ -63,7 +79,7 @@ const bloque = fuente.match(
 );
 if (!bloque) {
   console.error(
-    `check:e2e-camera-preset — no pude leer CAD_CAMERA_VIEW_PRESET_BUTTONS en ${FUENTE_DE_PRESETS}.`,
+    `check:e2e-localizadores — no pude leer CAD_CAMERA_VIEW_PRESET_BUTTONS en ${FUENTE_DE_PRESETS}.`,
   );
   console.error(
     "El gate deriva los títulos del producto a propósito. Si la constante cambió de forma, " +
@@ -74,7 +90,7 @@ if (!bloque) {
 const titulos = [...bloque[1].matchAll(/,\s*"([^"]+)"\s*,/g)].map((m) => m[1]);
 if (titulos.length === 0) {
   console.error(
-    "check:e2e-camera-preset — la constante de presets no expuso ni un título; el gate no puede vigilar nada.",
+    "check:e2e-localizadores — la constante de presets no expuso ni un título; el gate no puede vigilar nada.",
   );
   process.exit(1);
 }
@@ -106,6 +122,9 @@ function* archivos(dir) {
  */
 const LLAMADA = /getByTitle\(([^)]*)\)/g;
 
+/** `getByRole('button', { name: 'X' ... })` — se captura el valor de `name`. */
+const LLAMADA_DE_ROL = /getByRole\([^)]*\bname\s*:\s*((?:"[^"]*")|(?:'[^']*')|(?:`[^`]*`)|(?:\/[^/]*\/[gimsuy]*))[^)]*\)/g;
+
 /** Texto literal de un argumento de localizador, sin sus delimitadores. */
 function textoDelArgumento(argumento) {
   const limpio = argumento.trim();
@@ -134,6 +153,21 @@ for (const archivo of archivos(path.join(root, RAIZ_E2E))) {
     // Un comentario que MENCIONA el título es prosa legítima y abundante: los
     // goldens explican por qué encuadran. Sólo interesa la llamada real.
     const codigo = linea.replace(/\/\/.*$/, "").replace(/^\s*\*.*$/, "");
+    for (const llamada of codigo.matchAll(LLAMADA_DE_ROL)) {
+      const nombre = textoDelArgumento(llamada[1]);
+      if (nombre === null) continue;
+      // `exact: true` en la misma llamada desambigua y es legítimo.
+      if (/\bexact\s*:\s*true/.test(llamada[0])) continue;
+      const chocado = NOMBRES_DE_ROL_AMBIGUOS.find((n) => n === nombre);
+      if (!chocado && ruta !== FIXTURE_DE_BORRADOR) continue;
+      if (!chocado) continue;
+      if (ruta === FIXTURE_DE_BORRADOR) continue;
+      fallos.push(
+        `${ruta}:${i + 1} — getByRole(..., { name: \u00ab${chocado}\u00bb }) sin acotar. ` +
+          `El nombre resuelve a m\u00e1s de un bot\u00f3n; use finishDraft(page) de ${FIXTURE_DE_BORRADOR}.`,
+      );
+    }
+
     for (const llamada of codigo.matchAll(LLAMADA)) {
       const texto = textoDelArgumento(llamada[1]);
       if (texto === null) continue;
@@ -167,17 +201,20 @@ for (const archivo of archivos(path.join(root, RAIZ_E2E))) {
 
 if (fallos.length > 0) {
   console.error(
-    `check:e2e-camera-preset — ${fallos.length} localizador(es) ambiguo(s) de preset de cámara:`,
+    `check:e2e-localizadores — ${fallos.length} localizador(es) ambiguo(s):`,
   );
   for (const f of fallos) console.error(`  · ${f}`);
   console.error(
-    "\nMotivo: la barra superior y el ViewCube comparten estos títulos a propósito, " +
-      "así que un getByTitle sin acotar resuelve a dos elementos y Playwright se niega.",
+    "\nMotivo, y es el mismo en las dos familias: un nombre de la interfaz NO es una " +
+      "identidad. La barra superior y el ViewCube comparten título a propósito, y la " +
+      "barra de borrador y el editor comparten «Terminar»; en ambos casos el localizador " +
+      "resuelve a dos elementos y Playwright, en modo estricto, se niega.",
   );
   process.exit(1);
 }
 
 console.log(
-  `check:e2e-camera-preset OK — ${titulos.length} título(s) de preset vigilado(s) ` +
-    `sobre ${revisados} archivo(s) de e2e; todas las llamadas pasan por la fixture.`,
+  `check:e2e-localizadores OK — ${titulos.length} título(s) de preset y ` +
+    `${NOMBRES_DE_ROL_AMBIGUOS.length} nombre(s) de rol vigilado(s) sobre ${revisados} ` +
+    `archivo(s) de e2e; todas las llamadas pasan por su fixture.`,
 );
