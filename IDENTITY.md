@@ -5,12 +5,19 @@
 
 ## Qué es
 
-**Valle Design es un CAD 2D general y universal que corre en el navegador y compite con AutoCAD.**
+**Valle Design es un CAD 2D general y universal que corre en el navegador, y un modelador 3D de
+modelado directo. Compite con AutoCAD, y en 3D con SketchUp.**
 
 Dibuja planos. Cualquier plano: arquitectónico, mecánico, eléctrico, civil, de instalaciones, de
 mobiliario, de terreno. Su dominio es el dibujo de precisión —capas, bloques, cotas asociativas,
 referencias a objeto, espacio papel, escalas de ploteo, intercambio DXF— y contra ese dominio se
 mide su comportamiento.
+
+Y modela en tres dimensiones **sobre el mismo documento**: el sólido que se empuja con el ratón y
+la cota que lo mide son la misma verdad, no dos archivos que hay que mantener de acuerdo. El kernel
+es un B-rep de medias-aristas FACETADO (`apps/web/src/lib/brep/`); el 3D exacto —caras curvas
+verdaderas, NURBS analítico— es «todavía no», con su condición de reapertura escrita en
+[`ADR-0015`](docs/adr/0015-modelado-directo-sobre-brep-facetado.md).
 
 ## Para quién
 
@@ -32,7 +39,8 @@ arquitectónico es donde el catálogo está más maduro, no la frontera de lo qu
 
 ## Contra qué compite
 
-Contra AutoCAD 2D de Autodesk, y contra sus clones de escritorio. La comparación se documenta con
+Contra AutoCAD 2D de Autodesk y sus clones de escritorio, y —desde [`ADR-0015`](docs/adr/0015-modelado-directo-sobre-brep-facetado.md)—
+contra SketchUp en modelado directo. La comparación se documenta con
 evidencia medida, no con adjetivos: ver `docs/competitive/autocad-2027-gap-matrix.md` y el criterio
 de evidencia de [`REPOSITORY_SCOPE.md`](REPOSITORY_SCOPE.md) (UI → motor → persistencia →
 prueba; lo que no cumple los cuatro pasos se marca parcial o ausente).
@@ -52,6 +60,13 @@ Con todas sus letras, para que no vuelva a discutirse:
   kitting.
 - **No planifica plantas de manufactura.** No optimiza flujo de material, no traza rutas de
   montacargas, no calcula pasillos de holgura por norma industrial.
+- **No es BIM.** Modela volúmenes, no un edificio con datos coordinados: no hay IFC, ni disciplinas
+  cruzadas, ni detección de interferencias, ni ciclo de vida del activo. El candado es ejecutable
+  —`apps/web/src/lib/cad/bim-claim-boundary.spec.ts`— y prohíbe la palabra en cualquier cosa que el
+  usuario vea o teclee.
+- **No es un kernel 3D exacto.** Los sólidos son FACETADOS: un cilindro es un prisma de N lados, y
+  un STEP exportado conserva la faceta, no la superficie que la generó. Es una decisión tomada con
+  su condición de reapertura, no un descuido ([`ADR-0015`](docs/adr/0015-modelado-directo-sobre-brep-facetado.md)).
 
 Un plano **de** una fábrica sí se dibuja: una nave industrial, una planta embotelladora, un centro
 de distribución o una planta de tratamiento de agua son **tipologías de edificio**, y un CAD
@@ -95,13 +110,16 @@ cliente del ERP viejo trae sus datos a Valle Design. Es adquisición de clientes
 
 ## Cómo se sostiene esto
 
-Tres candados ejecutables, no buenas intenciones:
+Cuatro candados ejecutables, no buenas intenciones:
 
 - `scripts/cad/check-no-industrial-domain.mjs` (encadenado en `npm run check:cad`) falla si vuelve a
   aparecer vocabulario o funcionalidad de ERP/MES/planificación industrial en el código de producto.
 - `scripts/cad/check-no-line-engineering.mjs` prohíbe reintroducir las rutas HTTP del producto viejo.
 - `apps/web/src/lib/cad/persisted-identifiers.spec.ts` afirma que los identificadores congelados de
   arriba siguen exactamente como están.
+- `apps/web/src/lib/cad/bim-claim-boundary.spec.ts` falla si la palabra BIM aparece en la superficie
+  visible o tecleable. Modelar volúmenes en 3D no convierte al producto en BIM, y la ampliación de
+  identidad de ADR-0015 no toca este candado.
 
 Si uno de esos gates te estorba, la respuesta casi nunca es apagarlo. Lee primero
 [`REPOSITORY_SCOPE.md`](REPOSITORY_SCOPE.md) y [`AGENTS.md`](AGENTS.md).
