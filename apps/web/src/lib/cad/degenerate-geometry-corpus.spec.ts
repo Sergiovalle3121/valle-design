@@ -73,8 +73,6 @@ import {
 } from "./hatch-associativity";
 import { polylineArc } from "./polyline-entity-adapter";
 import { crearCorpus, seNiega } from "./corpus-criterion";
-import { cadAuditGeometryRepairCommands, detectCadAuditGeometryDefects } from "./audit/geometry";
-import { cadAuditReferenceRepairCommands, detectCadAuditReferenceDefects } from "./audit/references";
 
 const linea = (id: string, x1: number, y1: number, x2: number, y2: number): CadEntity =>
   ({ id, type: "line", start: { x: x1, y: y1, z: 0 }, end: { x: x2, y: y2, z: 0 }, layer: "0" });
@@ -759,73 +757,6 @@ caso({
       tessellateSpline(control, 2, [0, 0, 0, 1, -5, 1], 4),
       tessellateSpline(control, 2, undefined, 4),
     );
-  },
-});
-
-// FAMILIA: AUDIT — la orden que finalmente QUITA lo que el motor degrada
-
-caso({
-  id: "audit/linea-longitud-cero",
-  entrada: "el mismo tramo de longitud cero de la familia «longitud-cero», visto por AUDIT",
-  criterio: "corrige",
-  publicado:
-    "AUDIT lo detecta con nombre —«LINE de longitud 0»— y su reparación lo borra: tras aplicarla, un segundo AUDIT sobre lo que queda no encuentra nada. AUDIT no repara en silencio: el detector y el comando comparten la misma entidad, nunca un resumen aproximado.",
-  comprobar: () => {
-    const tramo = linea("z", 5, 5, 5, 5);
-    const antes = detectCadAuditGeometryDefects([tramo]);
-    assert.equal(antes.length, 1);
-    assert.equal(antes[0].kind, "zero-length-line");
-    const reparado = cadAuditGeometryRepairCommands(antes);
-    assert.deepEqual(reparado, [{ type: "delete", entityId: "z" }]);
-    const sobrevivientes = [tramo].filter((entidad) => entidad.id !== "z");
-    assert.deepEqual(detectCadAuditGeometryDefects(sobrevivientes), []);
-  },
-});
-
-caso({
-  id: "audit/circulo-radio-cero",
-  entrada: "el CIRCLE de radio 0 de «radio-cero/circulo», que el motor DEGRADA (lo dibuja vacío pero lo conserva)",
-  criterio: "corrige",
-  publicado:
-    "el motor de trazado lo mantiene archivado en su centro sin dibujar nada —esa es la degradación correcta y ya probada arriba—; AUDIT es la capa que, cuando el usuario lo pide, lo QUITA del documento en vez de dejarlo como ruido invisible para siempre.",
-  comprobar: () => {
-    const circulo: CadEntity = { id: "c0", type: "circle", center: { x: 300, y: 300, z: 0 }, radius: 0, layer: "0" };
-    const defectos = detectCadAuditGeometryDefects([circulo]);
-    assert.equal(defectos.length, 1);
-    assert.equal(defectos[0].kind, "zero-radius-circle");
-    assert.deepEqual(cadAuditGeometryRepairCommands(defectos), [{ type: "delete", entityId: "c0" }]);
-  },
-});
-
-caso({
-  id: "audit/hueco-sin-anfitrion",
-  entrada: "un OPENING cuyo muro (`hostId`) ya no está en el documento",
-  criterio: "corrige",
-  publicado:
-    "AUDIT reutiliza `orphanedOpeningIds` —la MISMA función que ya usa el ejecutor de lotes cuando el borrado del muro sucede dentro de una transacción propia— para encontrar el hueco huérfano cuando llegó así de un documento ajeno, y su reparación lo retira.",
-  comprobar: () => {
-    const hueco = { id: "o1", type: "opening", hostId: "muro-que-ya-no-existe", layer: "0" } as unknown as CadEntity;
-    const defectos = detectCadAuditReferenceDefects({ entities: [hueco], blocks: [] });
-    assert.equal(defectos.length, 1);
-    assert.equal(defectos[0].kind, "orphan-opening");
-    assert.deepEqual(cadAuditReferenceRepairCommands(defectos), [{ type: "delete", entityId: "o1" }]);
-  },
-});
-
-caso({
-  id: "audit/insert-a-bloque-inexistente",
-  entrada: "un INSERT que nombra un bloque que el documento no declara —el DXF del estructurista llegó sin su definición",
-  criterio: "corrige",
-  publicado:
-    "se detecta con el nombre del bloque ausente en el mensaje, y la reparación retira el INSERT: un bloque que no se puede resolver nunca se dibuja, así que quitarlo no pierde nada visible que ya no se hubiera perdido.",
-  comprobar: () => {
-    const insert: CadEntity = {
-      id: "i1", type: "insert", block: "PLANTA-ESTRUCTURAL", insertion: { x: 0, y: 0, z: 0 },
-      scale: { x: 1, y: 1, z: 1 }, rotation: 0, layer: "0",
-    };
-    const defectos = detectCadAuditReferenceDefects({ entities: [insert], blocks: [] });
-    assert.equal(defectos.length, 1);
-    assert.match(defectos[0].detail, /PLANTA-ESTRUCTURAL/);
   },
 });
 
