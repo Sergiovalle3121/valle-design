@@ -94,66 +94,16 @@ import {
 import { DwgParseError, throwDwgError } from "../security/parse-error.js";
 import type { ResourceBudget } from "../security/resource-budget.js";
 
-/** Una capa de la base neutral. */
-export interface Ac1015DatabaseLayer {
-  readonly handle: number;
-  /** Bytes del nombre en la página de códigos del dibujo. */
-  readonly name: readonly number[];
-  readonly colorIndex: number;
-  /** BS de estado crudo (semántica bit a bit pendiente de corpus). */
-  readonly stateFlags: number;
-}
+import type {
+  Ac1015DatabaseBlock,
+  Ac1015DatabaseEntityRecord,
+  Ac1015DatabaseLayer,
+  Ac1015NeutralDatabase,
+  Ac1015UnsupportedDatabaseObject,
+} from "./database-model.js";
 
-/** Una entidad colocada en la base: geometría, capa y referencia de INSERT. */
-export interface Ac1015DatabaseEntityRecord {
-  readonly handle: number;
-  readonly entity: DwgGeometryEntity;
-  /** Handle de capa resuelto del flujo; `undefined` cuando viaja nulo. */
-  readonly layerHandle: number | undefined;
-  /** Sólo INSERT: nombre del bloque insertado, resuelto por su handle. */
-  readonly insertedBlockName: readonly number[] | undefined;
-  /** Sólo INSERT con ATTRIBs: los atributos atados por su propietario. */
-  readonly attributes: readonly Ac1015DatabaseEntityRecord[] | undefined;
-  /** Sólo POLYLINE clásica: sus VERTEX (y caras polyface) en orden del mapa. */
-  readonly vertices: readonly Ac1015DatabaseEntityRecord[] | undefined;
-  /** Sólo INSERT/POLYLINE: handle del SEQEND que cierra su secuencia. */
-  readonly sequenceEndHandle: number | undefined;
-}
-
-/** Un bloque de la base: registro, marcadores y contenido en orden del mapa. */
-export interface Ac1015DatabaseBlock {
-  readonly handle: number;
-  readonly name: readonly number[];
-  /** Handle de la entidad BLOCK que abre el contenido, si apareció. */
-  readonly blockBeginHandle: number | undefined;
-  /** Handle de la entidad ENDBLK que cierra el contenido, si apareció. */
-  readonly blockEndHandle: number | undefined;
-  readonly entities: readonly Ac1015DatabaseEntityRecord[];
-}
-
-/** Un objeto que el laboratorio aún no decodifica: enumerado, nunca callado. */
-export interface Ac1015UnsupportedDatabaseObject {
-  readonly handle: number;
-  /** Tipo BS con que arranca su cuerpo. */
-  readonly type: number;
-  /** Bytes del nombre DXF de la clase, cuando el tipo es de clase (D5). */
-  readonly className?: readonly number[];
-}
-
-/** La base de datos neutral que devuelve el ensamblado de las fases D4/D5. */
-export interface Ac1015NeutralDatabase {
-  readonly layers: readonly Ac1015DatabaseLayer[];
-  readonly blocks: readonly Ac1015DatabaseBlock[];
-  readonly modelSpaceEntities: readonly Ac1015DatabaseEntityRecord[];
-  /** BS crudo de INSUNITS (variables de cabecera, capítulo 9): unidades del dibujo. */
-  readonly insunits: number;
-  /** Fase D5: tablas de símbolos, diccionarios (nombre → handle) y el mapa de clases (número → nombre). */
-  readonly tables: Ac1015DatabaseSymbolTables;
-  readonly dictionaries: readonly Ac1015DatabaseDictionary[];
-  readonly classMap: readonly Ac1015ClassRecord[];
-  readonly unsupported: readonly Ac1015UnsupportedDatabaseObject[];
-  readonly diagnostics: readonly DwgDiagnostic[];
-}
+/** Tipos en `database-model.js`; re-exportados para no cambiar imports. */
+export type * from "./database-model.js";
 
 /**
  * Los tipos FIJOS cuyo cuerpo es de ENTIDAD (cabecera común de entidad, no
@@ -234,14 +184,55 @@ const VERTEX_TYPES: ReadonlySet<number> = new Set([
 
 /** Un objeto decodificado en la primera pasada, aún sin ensamblar. */
 export type DecodedObject =
-  | { readonly kind: "entity"; readonly handle: number; readonly offset: number; readonly decoded: Ac1015DecodedEntity }
-  | { readonly kind: "layer"; readonly handle: number; readonly offset: number; readonly name: readonly number[]; readonly colorIndex: number; readonly stateFlags: number }
-  | { readonly kind: "blockRecord"; readonly handle: number; readonly offset: number; readonly name: readonly number[] }
-  | { readonly kind: "blockBegin"; readonly handle: number; readonly offset: number; readonly decoded: Ac1015DecodedBlockBegin }
-  | { readonly kind: "blockEnd"; readonly handle: number; readonly offset: number; readonly decoded: Ac1015DecodedBlockEnd }
-  | { readonly kind: "control"; readonly handle: number; readonly offset: number }
-  | { readonly kind: "symbol"; readonly handle: number; readonly offset: number; readonly result: Ac1015DecodedSymbolObject }
-  | { readonly kind: "dictionaryFamily"; readonly handle: number; readonly offset: number; readonly result: Ac1015DecodedDictionaryFamily };
+  | {
+      readonly kind: "entity";
+      readonly handle: number;
+      readonly offset: number;
+      readonly decoded: Ac1015DecodedEntity;
+    }
+  | {
+      readonly kind: "layer";
+      readonly handle: number;
+      readonly offset: number;
+      readonly name: readonly number[];
+      readonly colorIndex: number;
+      readonly stateFlags: number;
+    }
+  | {
+      readonly kind: "blockRecord";
+      readonly handle: number;
+      readonly offset: number;
+      readonly name: readonly number[];
+    }
+  | {
+      readonly kind: "blockBegin";
+      readonly handle: number;
+      readonly offset: number;
+      readonly decoded: Ac1015DecodedBlockBegin;
+    }
+  | {
+      readonly kind: "blockEnd";
+      readonly handle: number;
+      readonly offset: number;
+      readonly decoded: Ac1015DecodedBlockEnd;
+    }
+  | {
+      readonly kind: "control";
+      readonly handle: number;
+      readonly offset: number;
+    }
+  | {
+      readonly kind: "symbol";
+      readonly handle: number;
+      readonly offset: number;
+      readonly result: Ac1015DecodedSymbolObject;
+    }
+  | {
+      readonly kind: "dictionaryFamily";
+      readonly handle: number;
+      readonly offset: number;
+      readonly result: Ac1015DecodedDictionaryFamily;
+    };
 
 /**
  * Decodifica un cuerpo según su tipo BS. Devuelve `null` cuando el tipo no
@@ -292,18 +283,33 @@ export function decodeMappedObject(
       case AC1015_TYPE_BLOCK: {
         const decoded = decodeAc1015BlockBeginBody(bodyBytes);
         assertBodyHandleMatchesMap(decoded.common.ownHandle.value, entry);
-        return { kind: "blockBegin", handle: entry.handle, offset: entry.offset, decoded };
+        return {
+          kind: "blockBegin",
+          handle: entry.handle,
+          offset: entry.offset,
+          decoded,
+        };
       }
       case AC1015_TYPE_ENDBLK: {
         const decoded = decodeAc1015BlockEndBody(bodyBytes);
         assertBodyHandleMatchesMap(decoded.common.ownHandle.value, entry);
-        return { kind: "blockEnd", handle: entry.handle, offset: entry.offset, decoded };
+        return {
+          kind: "blockEnd",
+          handle: entry.handle,
+          offset: entry.offset,
+          decoded,
+        };
       }
       default: {
         if (AC1015_ENTITY_BODY_TYPES.has(type)) {
           const decoded = decodeAc1015EntityBody(bodyBytes);
           assertBodyHandleMatchesMap(decoded.common.ownHandle.value, entry);
-          return { kind: "entity", handle: entry.handle, offset: entry.offset, decoded };
+          return {
+            kind: "entity",
+            handle: entry.handle,
+            offset: entry.offset,
+            decoded,
+          };
         }
         return decodeAuxiliaryObject(type, bodyBytes, entry, classNames);
       }
@@ -348,18 +354,30 @@ function decodeAuxiliaryObject(
   let member = null; // ambos se resuelven dentro del blindaje
   try {
     symbol = decodeAc1015SymbolFamilyObject(type, bodyBytes);
-    if (symbol === null) member = decodeAc1015DictionaryFamilyObject(type, bodyBytes, classNames);
+    if (symbol === null)
+      member = decodeAc1015DictionaryFamilyObject(type, bodyBytes, classNames);
   } catch (error) {
-    if (error instanceof DwgParseError && error.detail.category !== "resource") return null;
+    if (error instanceof DwgParseError && error.detail.category !== "resource")
+      return null;
     throw error;
   }
   if (symbol !== null) {
     assertBodyHandleMatchesMap(symbol.handle, entry);
-    return { kind: "symbol", handle: entry.handle, offset: entry.offset, result: symbol };
+    return {
+      kind: "symbol",
+      handle: entry.handle,
+      offset: entry.offset,
+      result: symbol,
+    };
   }
   if (member !== null) {
     assertBodyHandleMatchesMap(member.handle, entry);
-    return { kind: "dictionaryFamily", handle: entry.handle, offset: entry.offset, result: member };
+    return {
+      kind: "dictionaryFamily",
+      handle: entry.handle,
+      offset: entry.offset,
+      result: member,
+    };
   }
   return null;
 }
@@ -447,8 +465,12 @@ export function assembleDatabase(
       case "blockRecord":
       case "control":
         break;
-      case "symbol": symbolObjects.push(object.result); break;
-      case "dictionaryFamily": dictionaryObjects.push(object.result); break;
+      case "symbol":
+        symbolObjects.push(object.result);
+        break;
+      case "dictionaryFamily":
+        dictionaryObjects.push(object.result);
+        break;
       case "layer":
         layers.push(
           Object.freeze({
@@ -528,10 +550,7 @@ export function assembleDatabase(
         // POLYLINE clásica, SEQEND que cierra ambas) se atan a su propietario
         // en una segunda pasada: el mapa no garantiza que el propietario
         // aparezca antes que sus miembros.
-        if (
-          common.entityMode === 0 &&
-          SEQUENCE_MEMBER_TYPES.has(common.type)
-        ) {
+        if (common.entityMode === 0 && SEQUENCE_MEMBER_TYPES.has(common.type)) {
           pendingSequenceMembers.push({ object, record });
           break;
         }
@@ -556,7 +575,10 @@ export function assembleDatabase(
     if (target !== undefined) {
       const ownerIsInsert = target.type === AC1015_TYPE_INSERT;
       const ownerIsPolyline = POLYLINE_HEADER_TYPES.has(target.type);
-      if (common.type === AC1015_TYPE_SEQEND && (ownerIsInsert || ownerIsPolyline)) {
+      if (
+        common.type === AC1015_TYPE_SEQEND &&
+        (ownerIsInsert || ownerIsPolyline)
+      ) {
         target.record.sequenceEndHandle = object.handle;
         continue;
       }
@@ -572,7 +594,10 @@ export function assembleDatabase(
     placeEntity(object, record);
   }
 
-  const { tables, dictionaries } = buildAc1015NeutralTables(symbolObjects, dictionaryObjects);
+  const { tables, dictionaries } = buildAc1015NeutralTables(
+    symbolObjects,
+    dictionaryObjects,
+  );
 
   return Object.freeze({
     layers: Object.freeze(layers),
@@ -757,10 +782,7 @@ function findBlockByName<T extends { readonly name: readonly number[] }>(
 }
 
 /** ¿Mismos bytes, byte a byte? Para contrastar nombres de bloque. */
-function sameBytes(
-  left: readonly number[],
-  right: readonly number[],
-): boolean {
+function sameBytes(left: readonly number[], right: readonly number[]): boolean {
   if (left.length !== right.length) return false;
   for (let index = 0; index < left.length; index += 1) {
     if (left[index] !== right[index]) return false;

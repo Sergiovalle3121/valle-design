@@ -18,11 +18,9 @@ import type {
   Ac1015DatabaseEntityRecord,
   Ac1015NeutralDatabase,
 } from "../reader/ac1015-database-reader.js";
-import type {
-  DwgGeometryEntity,
-  DwgPoint3,
-} from "../model/entity-geometry.js";
+import type { DwgGeometryEntity, DwgPoint3 } from "../model/entity-geometry.js";
 import { projectAcisOpaqueEntity } from "./canonical-acis.js";
+import { mapCanonicalLayers } from "./canonical-layers.js";
 
 // ---------------------------------------------------------------------------
 // Tipos espejo del documento canónico (subconjunto que este mapeo produce)
@@ -88,7 +86,12 @@ export interface CanonicalCadDocumentJson {
     readonly entities: Record<string, unknown>[];
     readonly attributes?: Record<
       string,
-      { defaultValue?: string; prompt?: string; position?: CanonicalPoint3; height?: number }
+      {
+        defaultValue?: string;
+        prompt?: string;
+        position?: CanonicalPoint3;
+        height?: number;
+      }
     >;
   }[];
   readonly constraints: never[];
@@ -107,24 +110,6 @@ const PROVIDER = "valle-dwg-codec";
 const CANONICAL_SCHEMA = 9;
 
 /** ACI básicos exactos; el resto se aproxima y se DECLARA como pérdida. */
-const ACI_BASIC: Record<number, string> = {
-  1: "#FF0000",
-  2: "#FFFF00",
-  3: "#00FF00",
-  4: "#00FFFF",
-  5: "#0000FF",
-  6: "#FF00FF",
-  7: "#FFFFFF",
-  8: "#808080",
-  9: "#C0C0C0",
-  250: "#333333",
-  251: "#505050",
-  252: "#696969",
-  253: "#828282",
-  254: "#BEBEBE",
-  255: "#FFFFFF",
-};
-
 const decodeBytes = (bytes: readonly number[] | undefined): string =>
   (bytes ?? []).map((b) => String.fromCharCode(b)).join("");
 
@@ -145,33 +130,7 @@ export function dwgDatabaseToCanonicalDocument(
   database: Ac1015NeutralDatabase,
 ): CanonicalMappingResult {
   const losses: CanonicalLossEntry[] = [];
-  const layers = database.layers.map((layer) => {
-    const name = decodeBytes(layer.name);
-    const color = ACI_BASIC[layer.colorIndex];
-    if (color === undefined) {
-      losses.push({
-        code: "layer-color-aci-approximated",
-        sourceType: "LAYER",
-        detail: `La capa "${name}" usa el índice ACI ${layer.colorIndex}; el mapeo básico lo aproxima a blanco. La tabla ACI completa es del adaptador de integración.`,
-        severity: "info",
-      });
-    }
-    if (layer.stateFlags !== 0) {
-      losses.push({
-        code: "layer-state-flags-raw",
-        sourceType: "LAYER",
-        detail: `La capa "${name}" declara stateFlags=${layer.stateFlags}; su semántica bit a bit sigue sin fuente registrada y no se interpreta.`,
-        severity: "info",
-      });
-    }
-    return {
-      id: name || handleId(layer.handle),
-      name,
-      color: color ?? "#FFFFFF",
-      visible: true,
-      locked: false,
-    };
-  });
+  const layers = mapCanonicalLayers(database, losses);
 
   const layerNameByHandle = new Map<number, string>();
   for (const layer of database.layers) {
@@ -203,7 +162,12 @@ export function dwgDatabaseToCanonicalDocument(
       const blockEntities: Record<string, unknown>[] = [];
       const attributes: Record<
         string,
-        { defaultValue?: string; prompt?: string; position?: CanonicalPoint3; height?: number }
+        {
+          defaultValue?: string;
+          prompt?: string;
+          position?: CanonicalPoint3;
+          height?: number;
+        }
       > = {};
       for (const record of block.entities) {
         if (record.entity.kind === "attdef") {
@@ -248,7 +212,10 @@ export function dwgDatabaseToCanonicalDocument(
 
   const unsupportedCounts = new Map<number, number>();
   for (const item of database.unsupported) {
-    unsupportedCounts.set(item.type, (unsupportedCounts.get(item.type) ?? 0) + 1);
+    unsupportedCounts.set(
+      item.type,
+      (unsupportedCounts.get(item.type) ?? 0) + 1,
+    );
     const className =
       item.className === undefined ? undefined : decodeBytes(item.className);
     opaque.push({
@@ -262,7 +229,9 @@ export function dwgDatabaseToCanonicalDocument(
       editable: false,
     });
   }
-  for (const [type, count] of [...unsupportedCounts.entries()].sort((a, b) => a[0] - b[0])) {
+  for (const [type, count] of [...unsupportedCounts.entries()].sort(
+    (a, b) => a[0] - b[0],
+  )) {
     losses.push({
       code: "object-type-not-decoded",
       sourceType: `0x${type.toString(16)}`,
@@ -275,7 +244,10 @@ export function dwgDatabaseToCanonicalDocument(
   // documento: tipos de línea con su patrón .lin (49 firmados), estilos de
   // texto con su altura fija y los NOMBRES de los estilos de cota (el núcleo
   // de DIMVARs se proyecta en la integración; pérdida declarada).
-  const linetypeStyles: Record<string, { pattern: number[]; description?: string }> = {};
+  const linetypeStyles: Record<
+    string,
+    { pattern: number[]; description?: string }
+  > = {};
   for (const entry of database.tables?.linetypes ?? []) {
     const name = decodeBytes(entry.name);
     const dashes = entry.fields["dashLengths"];
@@ -284,7 +256,11 @@ export function dwgDatabaseToCanonicalDocument(
       ...(entry.fields["description"] !== undefined &&
       Array.isArray(entry.fields["description"]) &&
       (entry.fields["description"] as readonly number[]).length > 0
-        ? { description: decodeBytes(entry.fields["description"] as readonly number[]) }
+        ? {
+            description: decodeBytes(
+              entry.fields["description"] as readonly number[],
+            ),
+          }
         : {}),
     };
   }
@@ -345,9 +321,21 @@ function mapEntity(
   const entity = record.entity;
   switch (entity.kind) {
     case "line":
-      return { id, type: "line", start: point3(entity.start), end: point3(entity.end), layer };
+      return {
+        id,
+        type: "line",
+        start: point3(entity.start),
+        end: point3(entity.end),
+        layer,
+      };
     case "circle":
-      return { id, type: "circle", center: point3(entity.center), radius: entity.radius, layer };
+      return {
+        id,
+        type: "circle",
+        center: point3(entity.center),
+        radius: entity.radius,
+        layer,
+      };
     case "arc":
       return {
         id,
@@ -361,9 +349,21 @@ function mapEntity(
     case "point":
       return { id, type: "point", position: point3(entity.position), layer };
     case "ray":
-      return { id, type: "ray", basePoint: point3(entity.basePoint), direction: point3(entity.direction), layer };
+      return {
+        id,
+        type: "ray",
+        basePoint: point3(entity.basePoint),
+        direction: point3(entity.direction),
+        layer,
+      };
     case "xline":
-      return { id, type: "xline", basePoint: point3(entity.basePoint), direction: point3(entity.direction), layer };
+      return {
+        id,
+        type: "xline",
+        basePoint: point3(entity.basePoint),
+        direction: point3(entity.direction),
+        layer,
+      };
     case "lwpolyline": {
       const vertices = entity.vertices.map((v, index) => ({
         x: v.x,
@@ -371,7 +371,10 @@ function mapEntity(
         z: 0,
         ...(entity.bulges?.[index] ? { bulge: entity.bulges[index] } : {}),
         ...(entity.widths?.[index]
-          ? { startWidth: entity.widths[index]!.start, endWidth: entity.widths[index]!.end }
+          ? {
+              startWidth: entity.widths[index]!.start,
+              endWidth: entity.widths[index]!.end,
+            }
           : {}),
       }));
       return { id, type: "polyline", vertices, closed: entity.closed, layer };
@@ -381,7 +384,10 @@ function mapEntity(
       const vertices = children
         .filter((v) => v.entity.kind === "vertex2d")
         .map((v) => {
-          const vertex = v.entity as Extract<DwgGeometryEntity, { kind: "vertex2d" }>;
+          const vertex = v.entity as Extract<
+            DwgGeometryEntity,
+            { kind: "vertex2d" }
+          >;
           return {
             x: vertex.position.x,
             y: vertex.position.y,
@@ -389,14 +395,31 @@ function mapEntity(
             ...(vertex.bulge !== 0 ? { bulge: vertex.bulge } : {}),
           };
         });
-      return { id, type: "polyline", vertices, closed: (entity.flags & 1) === 1, layer };
+      return {
+        id,
+        type: "polyline",
+        vertices,
+        closed: (entity.flags & 1) === 1,
+        layer,
+      };
     }
     case "polyline3d": {
       const children = record.vertices ?? [];
       const vertices = children
         .filter((v) => v.entity.kind === "vertex3d")
-        .map((v) => point3((v.entity as Extract<DwgGeometryEntity, { kind: "vertex3d" }>).position));
-      return { id, type: "polyline", vertices, closed: (entity.closedFlags & 1) === 1, layer };
+        .map((v) =>
+          point3(
+            (v.entity as Extract<DwgGeometryEntity, { kind: "vertex3d" }>)
+              .position,
+          ),
+        );
+      return {
+        id,
+        type: "polyline",
+        vertices,
+        closed: (entity.closedFlags & 1) === 1,
+        layer,
+      };
     }
     case "text":
       return {
@@ -412,7 +435,10 @@ function mapEntity(
         layer,
       };
     case "mtext": {
-      const rotation = Math.atan2(entity.xAxisDirection.y, entity.xAxisDirection.x);
+      const rotation = Math.atan2(
+        entity.xAxisDirection.y,
+        entity.xAxisDirection.x,
+      );
       return {
         id,
         type: "mtext",
@@ -481,7 +507,9 @@ function mapEntity(
         degree: entity.degree,
         controlPoints: (entity.controlPoints ?? []).map(point3),
         knots: [...(entity.knots ?? [])],
-        ...(entity.weights !== undefined ? { weights: [...entity.weights] } : {}),
+        ...(entity.weights !== undefined
+          ? { weights: [...entity.weights] }
+          : {}),
         ...(entity.closed ? { closed: true } : {}),
         layer,
       };
@@ -491,17 +519,20 @@ function mapEntity(
       // El formato guarda las esquinas en orden de "pajarita" (la 3.ª y la
       // 4.ª cruzadas); el canónico pide orden de CONTORNO: [0,1,3,2].
       const corners = entity.corners;
-      const points = [corners[0], corners[1], corners[3], corners[2]].map((c) => ({
-        x: c.x,
-        y: c.y,
-        z: entity.elevation,
-      }));
+      const points = [corners[0], corners[1], corners[3], corners[2]].map(
+        (c) => ({
+          x: c.x,
+          y: c.y,
+          z: entity.elevation,
+        }),
+      );
       if (entity.kind === "trace") {
         losses.push({
           code: "trace-projected-as-solid",
           entityId: id,
           sourceType: "TRACE",
-          detail: "TRACE se proyecta como solid canónico (misma geometría de relleno).",
+          detail:
+            "TRACE se proyecta como solid canónico (misma geometría de relleno).",
           severity: "info",
         });
       }
@@ -511,10 +542,17 @@ function mapEntity(
       const boundaries: CanonicalPoint3[][] = [];
       let nonPolyline = 0;
       for (const path of entity.paths ?? []) {
-        const anyPath = path as { kind?: string; vertices?: { x: number; y: number }[] };
+        const anyPath = path as {
+          kind?: string;
+          vertices?: { x: number; y: number }[];
+        };
         if (anyPath.kind === "polyline" && anyPath.vertices) {
           boundaries.push(
-            anyPath.vertices.map((v) => ({ x: v.x, y: v.y, z: entity.elevation ?? 0 })),
+            anyPath.vertices.map((v) => ({
+              x: v.x,
+              y: v.y,
+              z: entity.elevation ?? 0,
+            })),
           );
         } else {
           nonPolyline += 1;
@@ -532,7 +570,9 @@ function mapEntity(
       return {
         id,
         type: "hatch",
-        pattern: decodeBytes((entity as { nameBytes?: readonly number[] }).nameBytes ?? []),
+        pattern: decodeBytes(
+          (entity as { nameBytes?: readonly number[] }).nameBytes ?? [],
+        ),
         solid: Boolean((entity as { solidFill?: boolean }).solidFill),
         boundaries,
         layer,
@@ -629,160 +669,4 @@ export interface CanonicalToDwgResult {
   readonly lossManifest: readonly CanonicalLossEntry[];
 }
 
-/**
- * Proyecta un documento canónico al modelo neutral ESCRIBIBLE del writer
- * (line, point, circle, arc, lwpolyline, text, insert). Lo no escribible se
- * declara en el manifiesto — el writer jamás emite a medias.
- */
-export function canonicalDocumentToDwgEntities(
-  document: CanonicalCadDocumentJson,
-): CanonicalToDwgResult {
-  const losses: CanonicalLossEntry[] = [];
-  const entities: CanonicalToDwgEntity[] = [];
-  const canonicalPoint = (value: unknown): DwgPoint3 => {
-    const p = value as { x?: number; y?: number; z?: number };
-    return Object.freeze({ x: p.x ?? 0, y: p.y ?? 0, z: p.z ?? 0 });
-  };
-  const defaultExtrusion = Object.freeze({ x: 0, y: 0, z: 1 });
-
-  for (const raw of document.entities) {
-    const type = raw["type"] as string;
-    const id = String(raw["id"] ?? "");
-    const layerName = String(raw["layer"] ?? "0");
-    switch (type) {
-      case "line":
-        entities.push({
-          canonicalId: id,
-          layerName,
-          entity: Object.freeze({
-            kind: "line" as const,
-            start: canonicalPoint(raw["start"]),
-            end: canonicalPoint(raw["end"]),
-            thickness: 0,
-            extrusion: defaultExtrusion,
-          }),
-        });
-        break;
-      case "circle":
-        entities.push({
-          canonicalId: id,
-          layerName,
-          entity: Object.freeze({
-            kind: "circle" as const,
-            center: canonicalPoint(raw["center"]),
-            radius: Number(raw["radius"] ?? 0),
-            thickness: 0,
-            extrusion: defaultExtrusion,
-          }),
-        });
-        break;
-      case "arc":
-        entities.push({
-          canonicalId: id,
-          layerName,
-          entity: Object.freeze({
-            kind: "arc" as const,
-            center: canonicalPoint(raw["center"]),
-            radius: Number(raw["radius"] ?? 0),
-            thickness: 0,
-            extrusion: defaultExtrusion,
-            startAngle: Number(raw["startAngle"] ?? 0),
-            endAngle: Number(raw["endAngle"] ?? 0),
-          }),
-        });
-        break;
-      // El `CadPointEntity` real del producto (apps/web/src/lib/cad/
-      // cad-entities-v4.ts) guarda la posición en el mismo campo "position"
-      // que ya usa el espejo DWG→canónico (línea ~361 de este archivo); no
-      // lleva `xAxisAngle` (ese campo es propio del formato, sin equivalente
-      // de producto todavía), así que por defecto es 0 — igual que `style`/
-      // `size` del punto de producto no tienen equivalente aquí y se pierden
-      // en esta dirección, simétrico a como ya se pierden thickness/extrusion/
-      // xAxisAngle al proyectar DWG→canónico.
-      case "point":
-        entities.push({
-          canonicalId: id,
-          layerName,
-          entity: Object.freeze({
-            kind: "point" as const,
-            position: canonicalPoint(raw["position"]),
-            thickness: 0,
-            extrusion: defaultExtrusion,
-            xAxisAngle: Number(raw["xAxisAngle"] ?? 0),
-          }),
-        });
-        break;
-      case "polyline": {
-        const vertices = (raw["vertices"] as { x: number; y: number; bulge?: number }[]) ?? [];
-        const bulges = vertices.map((v) => v.bulge ?? 0);
-        const anyBulge = bulges.some((b) => b !== 0);
-        entities.push({
-          canonicalId: id,
-          layerName,
-          entity: Object.freeze({
-            kind: "lwpolyline" as const,
-            closed: Boolean(raw["closed"]),
-            vertices: Object.freeze(vertices.map((v) => Object.freeze({ x: v.x, y: v.y }))),
-            bulges: anyBulge ? Object.freeze(bulges) : undefined,
-            widths: undefined,
-            constantWidth: undefined,
-            elevation: undefined,
-            thickness: undefined,
-            extrusion: undefined,
-          }),
-        });
-        break;
-      }
-      case "text":
-        entities.push({
-          canonicalId: id,
-          layerName,
-          entity: Object.freeze({
-            kind: "text" as const,
-            insertion: Object.freeze({ x: Number(raw["x"] ?? 0), y: Number(raw["y"] ?? 0) }),
-            elevation: undefined,
-            alignment: undefined,
-            thickness: 0,
-            extrusion: defaultExtrusion,
-            obliqueAngle: undefined,
-            rotation: raw["rotation"] === undefined ? undefined : Number(raw["rotation"]),
-            height: Number(raw["height"] ?? 1),
-            widthFactor: undefined,
-            valueBytes: Object.freeze(
-              [...String(raw["text"] ?? "")].map((c) => c.charCodeAt(0) & 0xff),
-            ),
-            generation: undefined,
-            horizontalAlignment: undefined,
-            verticalAlignment: undefined,
-          }),
-        });
-        break;
-      case "insert":
-        entities.push({
-          canonicalId: id,
-          layerName,
-          blockName: String(raw["block"] ?? ""),
-          entity: Object.freeze({
-            kind: "insert" as const,
-            position: canonicalPoint(raw["insertion"]),
-            scale: canonicalPoint(raw["scale"] ?? { x: 1, y: 1, z: 1 }),
-            rotation: Number(raw["rotation"] ?? 0),
-            extrusion: defaultExtrusion,
-            attributesFollow: false,
-          }),
-        });
-        break;
-      default:
-        losses.push({
-          code: "canonical-type-not-writable",
-          entityId: id,
-          sourceType: type,
-          detail: `El writer AC1015 aún no emite "${type}"; la entidad queda declarada como pérdida de exportación.`,
-          severity: "warning",
-        });
-    }
-  }
-
-  const layerNames = [...new Set(document.layers.map((l) => l.name || l.id))];
-  return { entities, layerNames, lossManifest: losses };
-}
+export { canonicalDocumentToDwgEntities } from "./canonical-to-dwg.js";

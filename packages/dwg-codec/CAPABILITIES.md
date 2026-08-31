@@ -621,3 +621,66 @@ sigue fallando cerrado y estos módulos siguen siendo capacidad de laboratorio.
 Evidencia: `docs/cad/evidence/dwg-r2010-string-stream.json`, reproducible con
 `node scripts/dwg/probe-r2010-string-stream.mjs` y guardada por
 `npm run check:dwg-r2010-strings`.
+
+## Evidencia del corte 2026-08-31 (ENSAMBLADO R2010+: AC1024/1027/1032 abren 8/8)
+
+Cierre de la serie M4. `readR2004Database` deja de fallar cerrado para las tres
+versiones modernas: **de 0/8 a 8/8 abiertos en AC1024, AC1027 y AC1032**.
+
+| Capacidad                         | Evidencia          | Límite honesto                                                                                                                                                                                                    |
+| --------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Base neutral AC1024/AC1027/AC1032 | `experimental-lab` | Abre 8/8 con **0 geometrías distintas**. INSERT y TEXT no tienen cuerpo medido; el color y las banderas de capa, las variables de cabecera y los registros de clase **no se decodifican y se declaran ausentes**. |
+
+**Lo que de verdad importa de la matriz: `geometriaDistinta = 0` en todo.** Nada
+decodifica a un valor equivocado. Lo que falta, falta.
+
+| tipo         | esperado | leído | distinto | falta | inesperado |
+| ------------ | -------: | ----: | -------: | ----: | ---------: |
+| `lwpolyline` |        3 | **3** |        0 |     0 |          0 |
+| `point`      |        1 | **1** |        0 |     0 |          0 |
+| `line`       |       15 |    10 |    **0** |     5 |          5 |
+| `circle`     |        3 |     2 |    **0** |     1 |          1 |
+| `arc`        |        2 |     1 |    **0** |     1 |          1 |
+| `insert`     |        6 |     0 |        0 |     6 |          0 |
+| `text`       |        5 |     0 |        0 |     5 |          0 |
+
+(cifras de AC1024; AC1027 y AC1032 dan las mismas)
+
+Los `falta` de line/circle/arc casan **uno a uno** con sus `inesperado`: son
+entidades que pertenecen a un bloque y quedan en model space, que es el límite
+declarado abajo — no se pierden, se colocan en otro sitio y se dice.
+
+### Tres estratos que se encontraron abriendo, y que se declaran en vez de rellenarse
+
+1. **Variables de cabecera.** Leídas con la forma de AC1018 dan «A BD flag of
+   0b11 is not defined by the format». Su disposición R2010+ no está medida, así
+   que el marco se **valida** (centinelas + CRC, que es la comprobación que de
+   verdad protege la sección) y los valores **no** se decodifican. `insunits`
+   viaja `undefined`: decir 0 afirmaría que el archivo declara «sin unidades»,
+   que no es lo mismo que no haberlo leído. El puente del producto lo declara
+   con ese texto exacto en el manifiesto de pérdidas.
+2. **Registros de clase.** Leídos con la forma de AC1018 dan «A text value
+   extends outside the input»: los nombres de clase no viajan en esa forma de
+   cadena. Mismo criterio — marco validado, registros no decodificados, mapa de
+   clases vacío. El ensamblado R2010+ no lo consume: despacha por tipo fijo.
+3. **Color y banderas de una capa.** Se intentaron medir con la MISMA técnica
+   que resolvió el cuerpo de entidad —barrer la anchura del prólogo de objeto—
+   y el barrido completo de 0..120 bits dio **cero** aciertos: las banderas de
+   capa de R2010+ no son el `BS` de R2000 en ninguna posición. El modelo
+   relajado que suelta el color «acierta» 18/18 en **cuatro** anchuras a la vez
+   (4, 24, 53 y 59 en AC1024), y eso **no es evidencia**: los tres campos de
+   xref valen su defecto en todo el corpus, así que coincidir con ellos es
+   coincidir con ceros. Medirlos exige un corpus con capas de colores y estados
+   variados: es un intake aparte. `colorIndex` y `stateFlags` viajan
+   `undefined` y el lienzo pinta un gris neutro deliberadamente distinto de
+   cualquier ACI, con su pérdida declarada.
+
+**Capacidad ausente declarada, sin suavizar**: INSERT y TEXT no tienen cuerpo
+medido en R2010+ y entran en `unsupported`, enumerados y nunca callados. La
+pertenencia entidad→bloque está implementada con la MISMA regla que el
+ensamblado AC1015 pero **no medida**: el corpus no trae ni un objeto de modo 0,
+y cada uso deja diagnóstico. Ninguna capacidad se promueve: el corte sigue en
+`experimental-lab` y ningún flag se enciende.
+
+Evidencia: `docs/cad/evidence/dwg-corpus-validation.json`, reproducible con
+`node scripts/dwg/validate-corpus.mjs`.

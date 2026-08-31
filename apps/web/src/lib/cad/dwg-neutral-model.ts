@@ -333,7 +333,8 @@ export interface DwgNeutralHatchSegmentsPath {
   readonly boundaryObjectCount: number;
 }
 
-export type DwgNeutralHatchPath = DwgNeutralHatchPolylinePath | DwgNeutralHatchSegmentsPath;
+export type DwgNeutralHatchPath =
+  DwgNeutralHatchPolylinePath | DwgNeutralHatchSegmentsPath;
 
 /** Línea de definición del patrón de un HATCH no sólido. */
 export interface DwgNeutralHatchDefinitionLine {
@@ -362,7 +363,8 @@ export interface DwgNeutralHatch {
   readonly angle: number | undefined;
   readonly scaleOrSpacing: number | undefined;
   readonly doubleHatch: boolean | undefined;
-  readonly definitionLines: readonly DwgNeutralHatchDefinitionLine[] | undefined;
+  readonly definitionLines:
+    readonly DwgNeutralHatchDefinitionLine[] | undefined;
   readonly pixelSize: number | undefined;
   readonly seedPoints: readonly DwgNeutralPoint2[];
 }
@@ -381,7 +383,12 @@ export interface DwgNeutralHatch {
  */
 export interface DwgNeutralFace3d {
   readonly kind: "face3d";
-  readonly corners: readonly [DwgNeutralPoint3, DwgNeutralPoint3, DwgNeutralPoint3, DwgNeutralPoint3];
+  readonly corners: readonly [
+    DwgNeutralPoint3,
+    DwgNeutralPoint3,
+    DwgNeutralPoint3,
+    DwgNeutralPoint3,
+  ];
   readonly invisibilityFlags: number;
 }
 
@@ -476,8 +483,15 @@ export interface DwgNeutralLayer {
   readonly handle: number;
   /** Bytes del nombre en la página de códigos del dibujo. */
   readonly name: readonly number[];
-  readonly colorIndex: number;
-  readonly stateFlags: number;
+  /**
+   * Índice ACI y banderas de estado. `undefined` cuando la versión del archivo
+   * no los declara decodificados —hoy, el camino R2010+, donde el NOMBRE de la
+   * capa sí está medido pero sus campos no-nombre no—. Un cero pintaría capas
+   * blancas y descongeladas plausibles y equivocadas; el manifiesto de
+   * pérdidas declara la ausencia en su lugar.
+   */
+  readonly colorIndex: number | undefined;
+  readonly stateFlags: number | undefined;
 }
 
 export interface DwgNeutralEntityRecord {
@@ -525,7 +539,12 @@ export interface DwgNeutralDatabase {
   readonly blocks: readonly DwgNeutralBlock[];
   readonly modelSpaceEntities: readonly DwgNeutralEntityRecord[];
   /** BS crudo de INSUNITS (variables de cabecera): unidades del dibujo. */
-  readonly insunits: number;
+  /**
+   * `undefined` cuando la versión del archivo no trae sus variables de
+   * cabecera decodificadas (camino R2010+): decir 0 sería afirmar que el
+   * archivo declara «sin unidades», que no es lo mismo que no haberlo leído.
+   */
+  readonly insunits: number | undefined;
   readonly unsupported: readonly DwgNeutralUnsupportedObject[];
   readonly diagnostics: readonly DwgNeutralDiagnostic[];
 }
@@ -537,4 +556,6 @@ export interface DwgNeutralDatabase {
  * producto no trae ninguna implementación y no puede fabricarla: quien la
  * registre lo hará después del ADR de promoción, y el gate seguirá decidiendo.
  */
-export type DwgNeutralDatabaseReader = (bytes: Uint8Array) => DwgNeutralDatabase;
+export type DwgNeutralDatabaseReader = (
+  bytes: Uint8Array,
+) => DwgNeutralDatabase;

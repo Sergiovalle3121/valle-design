@@ -39,28 +39,25 @@ test("the package exposes exactly seven callable public boundaries", () => {
   const functions = Object.entries(publicApi).filter(
     ([, value]) => typeof value === "function",
   );
-  assert.deepEqual(
-    functions.map(([name]) => name).sort(),
-    [
-      "canonicalDocumentToDwgEntities",
-      "dwgDatabaseToCanonicalDocument",
-      "probeDwg",
-      "readDwg",
-      // `writeAc1015Container` es el writer de LABORATORIO (placeholders
-      // confesos) bajo su nombre honesto; `writeDwg` es el archivo COMPLETO
-      // validado por oráculo externo. Hasta la campaña de cimientos el alias
-      // público apuntaba al contenedor — la mentira por omisión que la
-      // auditoría señaló y que esta lista impide reintroducir.
-      "writeAc1015Container",
-      // `writeCanonicalDwg` (ADR-0009 §8, M5) es el equivalente de ESCRITURA
-      // de `canonicalDocumentToDwgEntities`/`dwgDatabaseToCanonicalDocument`:
-      // documento canónico → archivo AC1015 completo. Distinto de `writeDwg`
-      // (que parte de las opciones de bajo nivel del archivo mínimo, no de
-      // un documento canónico) y nunca reutiliza ese nombre.
-      "writeCanonicalDwg",
-      "writeDwg",
-    ],
-  );
+  assert.deepEqual(functions.map(([name]) => name).sort(), [
+    "canonicalDocumentToDwgEntities",
+    "dwgDatabaseToCanonicalDocument",
+    "probeDwg",
+    "readDwg",
+    // `writeAc1015Container` es el writer de LABORATORIO (placeholders
+    // confesos) bajo su nombre honesto; `writeDwg` es el archivo COMPLETO
+    // validado por oráculo externo. Hasta la campaña de cimientos el alias
+    // público apuntaba al contenedor — la mentira por omisión que la
+    // auditoría señaló y que esta lista impide reintroducir.
+    "writeAc1015Container",
+    // `writeCanonicalDwg` (ADR-0009 §8, M5) es el equivalente de ESCRITURA
+    // de `canonicalDocumentToDwgEntities`/`dwgDatabaseToCanonicalDocument`:
+    // documento canónico → archivo AC1015 completo. Distinto de `writeDwg`
+    // (que parte de las opciones de bajo nivel del archivo mínimo, no de
+    // un documento canónico) y nunca reutiliza ese nombre.
+    "writeCanonicalDwg",
+    "writeDwg",
+  ]);
 });
 
 test("the version registry is immutable and matches all nine known labels", () => {
@@ -121,8 +118,12 @@ test("the public writer emits a COMPLETE file that the public reader round-trips
 });
 
 test("readDwg fails closed with a typed error on foreign signatures", () => {
+  // AC1021 (R2007) queda fuera POR DISEÑO —contenedor Reed-Solomon
+  // rediseñado, uso marginal— y es la firma que sigue sin decodificador. Se
+  // usa ella y no AC1024 porque las tres versiones R2010+ ya despachan al
+  // lector desde el intake del ensamblado del 2026-08-31.
   try {
-    readDwg(ascii("AC1024"));
+    readDwg(ascii("AC1021"));
     assert.fail("readDwg must throw for versions without a decoder");
   } catch (error) {
     const detail = (error as { detail?: { code?: string } }).detail;
