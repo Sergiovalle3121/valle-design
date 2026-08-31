@@ -172,9 +172,6 @@ SLA que se descubre roto durante un incidente.
 - **Sin compromiso de rendimiento del cliente en navegador** (§4).
 - **DWG nativo no es una capacidad del producto** (`available:false`): no
   entra en ningún nivel de servicio.
-- **La asistencia CIDE es opcional y degradable.** Sin `CIDE_BASE_URL` responde
-  `available:false`; su latencia y disponibilidad dependen de un proveedor
-  externo y quedan fuera del SLA.
 - **Métricas y reporte de errores son opt-in.** Sin `METRICS_TOKEN` no hay
   `/metrics`; sin `SENTRY_DSN` el reporte de errores es inerte. Un despliegue
   que no los active **no puede acogerse a los objetivos medidos de §4**, porque

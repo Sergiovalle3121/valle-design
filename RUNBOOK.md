@@ -134,8 +134,6 @@ FROM domain_outbox WHERE status IN ('pending', 'failed');
   tenant, SHA-256, bytes comprimidos/expandidos y límites antes de cualquier GC.
 - **Importación falla:** admite sólo `.dxf` de texto y `.json` canónico. Revisa
   límites, timeout, corrupción y warnings; no cambies extensión de DWG.
-- **CIDE `available:false`:** valida URL/modelo/red o acepta la degradación. No
-  habilites `AI_MOCK` en producción.
 - **CORS:** reconstruir el web no corrige el API; ajusta `ALLOWED_ORIGIN` exacto.
   Si el web llama un host viejo, reconstruye con `NEXT_PUBLIC_API_URL` correcto.
 

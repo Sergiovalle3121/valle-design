@@ -5,12 +5,19 @@
 
 ## Qué es
 
-**Valle Design es un CAD 2D general y universal que corre en el navegador y compite con AutoCAD.**
+**Valle Design es un CAD 2D general y universal que corre en el navegador, y un modelador 3D de
+modelado directo. Compite con AutoCAD, y en 3D con SketchUp.**
 
 Dibuja planos. Cualquier plano: arquitectónico, mecánico, eléctrico, civil, de instalaciones, de
 mobiliario, de terreno. Su dominio es el dibujo de precisión —capas, bloques, cotas asociativas,
 referencias a objeto, espacio papel, escalas de ploteo, intercambio DXF— y contra ese dominio se
 mide su comportamiento.
+
+Y modela en tres dimensiones **sobre el mismo documento**: el sólido que se empuja con el ratón y
+la cota que lo mide son la misma verdad, no dos archivos que hay que mantener de acuerdo. El kernel
+es un B-rep de medias-aristas FACETADO (`apps/web/src/lib/brep/`); el 3D exacto —caras curvas
+verdaderas, NURBS analítico— es «todavía no», con su condición de reapertura escrita en
+[`ADR-0016`](docs/adr/0016-modelado-directo-sobre-brep-facetado.md).
 
 ## Para quién
 
@@ -30,9 +37,22 @@ cajetines, normas de acotación y vocabulario de dibujo en español mexicano— 
 inicial** del producto y su mejor diferenciador frente a AutoCAD. **No es su límite.** Lo
 arquitectónico es donde el catálogo está más maduro, no la frontera de lo que la herramienta dibuja.
 
+**México es el arranque, no el techo.** El producto sale primero al mercado mexicano porque ahí está
+su contenido más fuerte, pero debe servir a un despacho en Bogotá, en Madrid o en Houston sin pedir
+permiso: la convención de números y fechas, las unidades, los tamaños de papel y la norma de
+acotación son **configuración regional**, no constantes del código. Un `es-MX` incrustado a mano en
+un módulo es deuda, no localización.
+
+**Y no es de nicho de ninguna industria.** Lo puede usar un arquitecto de vivienda, un ingeniero
+mecánico, un topógrafo o el proyectista de una nave industrial, y ninguno debe encontrarse los
+defaults del otro. Que el ejemplo de un bloque diga «celda SMT» o que la búsqueda proponga «AOI,
+ESD» convierte una herramienta universal en una que parece de electrónica: eso es residuo de Axos,
+no una decisión de producto, y se corrige donde aparezca.
+
 ## Contra qué compite
 
-Contra AutoCAD 2D de Autodesk, y contra sus clones de escritorio. La comparación se documenta con
+Contra AutoCAD 2D de Autodesk y sus clones de escritorio, y —desde [`ADR-0016`](docs/adr/0016-modelado-directo-sobre-brep-facetado.md)—
+contra SketchUp en modelado directo. La comparación se documenta con
 evidencia medida, no con adjetivos: ver `docs/competitive/autocad-2027-gap-matrix.md` y el criterio
 de evidencia de [`REPOSITORY_SCOPE.md`](REPOSITORY_SCOPE.md) (UI → motor → persistencia →
 prueba; lo que no cumple los cuatro pasos se marca parcial o ausente).
@@ -52,6 +72,22 @@ Con todas sus letras, para que no vuelva a discutirse:
   kitting.
 - **No planifica plantas de manufactura.** No optimiza flujo de material, no traza rutas de
   montacargas, no calcula pasillos de holgura por norma industrial.
+- **No tiene inteligencia artificial.** Ni copiloto en lenguaje natural, ni visión que adivine
+  muros desde una foto, ni sugerencias de un modelo. La que hubo se llamaba **CIDE** y era el motor
+  de Axos OS, el ERP del que este producto nació: llegó de polizón en la separación y se retiró
+  entera —proveedor, servicios, rutas `/v1/cad/intent` y `/v1/cad/vision`, panel «Copiloto CAD» y
+  su fila de rúbrica—. Lo que el producto sí tiene, por decisión explícita del titular, es
+  **trabajo en equipo entre personas**: mensajería, videollamada y pantalla compartida.
+  Sigue existiendo un **registro local de frases** (`lib/cad/commands/registry.ts`) que convierte
+  «coloca una puerta en 3000,2000» en una operación: es un parser determinista, sin modelo y sin
+  red, y la paleta lo etiqueta «Frase» justo para que nadie lo confunda con lo que se fue.
+- **No es BIM.** Modela volúmenes, no un edificio con datos coordinados: no hay IFC, ni disciplinas
+  cruzadas, ni detección de interferencias, ni ciclo de vida del activo. El candado es ejecutable
+  —`apps/web/src/lib/cad/bim-claim-boundary.spec.ts`— y prohíbe la palabra en cualquier cosa que el
+  usuario vea o teclee.
+- **No es un kernel 3D exacto.** Los sólidos son FACETADOS: un cilindro es un prisma de N lados, y
+  un STEP exportado conserva la faceta, no la superficie que la generó. Es una decisión tomada con
+  su condición de reapertura, no un descuido ([`ADR-0016`](docs/adr/0016-modelado-directo-sobre-brep-facetado.md)).
 
 Un plano **de** una fábrica sí se dibuja: una nave industrial, una planta embotelladora, un centro
 de distribución o una planta de tratamiento de agua son **tipologías de edificio**, y un CAD
@@ -95,13 +131,19 @@ cliente del ERP viejo trae sus datos a Valle Design. Es adquisición de clientes
 
 ## Cómo se sostiene esto
 
-Tres candados ejecutables, no buenas intenciones:
+Cinco candados ejecutables, no buenas intenciones:
 
 - `scripts/cad/check-no-industrial-domain.mjs` (encadenado en `npm run check:cad`) falla si vuelve a
   aparecer vocabulario o funcionalidad de ERP/MES/planificación industrial en el código de producto.
 - `scripts/cad/check-no-line-engineering.mjs` prohíbe reintroducir las rutas HTTP del producto viejo.
 - `apps/web/src/lib/cad/persisted-identifiers.spec.ts` afirma que los identificadores congelados de
   arriba siguen exactamente como están.
+- `apps/web/src/lib/cad/no-ai-boundary.spec.ts` falla si vuelve la IA: una orden o alias que la
+  anuncie, uno de los módulos retirados de vuelta en el árbol, o una ruta de asistencia publicada
+  otra vez en el contrato.
+- `apps/web/src/lib/cad/bim-claim-boundary.spec.ts` falla si la palabra BIM aparece en la superficie
+  visible o tecleable. Modelar volúmenes en 3D no convierte al producto en BIM, y la ampliación de
+  identidad de ADR-0016 no toca este candado.
 
 Si uno de esos gates te estorba, la respuesta casi nunca es apagarlo. Lee primero
 [`REPOSITORY_SCOPE.md`](REPOSITORY_SCOPE.md) y [`AGENTS.md`](AGENTS.md).
