@@ -50,6 +50,7 @@ import {
   type CadEntity,
   type CadLayerDef,
   type CadLossManifestEntry,
+  type CadOpaqueEntity,
 } from "./cad-document";
 import { MAX_DWG_IMPORT_BYTES, type DocumentImportReport } from "./document-import";
 // Tabla ACI↔RGB real y ya usada por el resto del producto (plotting); el
@@ -83,7 +84,9 @@ import {
   dwgGeometryToPrimitive,
   dwgHatchToCadDxfHatch,
   dwgMTextToCadDxfMText,
+  dwgWireframe3dGeometryToOpaquePayload,
   point2,
+  type DwgWireframe3dOpaquePayload,
 } from "./dwg-document-bridge-primitives";
 import {
   DWG_IMPORT_DISABLED_REASON,
@@ -111,6 +114,11 @@ export const DWG_BRIDGE_LOSS_CODES = Object.freeze({
   unitAssumed: "dwg_unit_assumed",
   blockBasePointAssumed: "dwg_block_base_point_assumed",
   primitiveProperty: "dwg_primitive_property_dropped",
+  // Perfil 3D heredado propuesto (ADR-0009 §9): geometría REAL, con Z
+  // verdadera, conservada en `unsupportedEntities` porque el editor 2D/3D
+  // todavía no la dibuja — nunca "no decodificada", el laboratorio la lee
+  // completa (ver el adaptador autorizado corriente arriba de este puente).
+  wireframe3dPreservedOpaque: "dwg_3d_wireframe_preserved_opaque",
 });
 
 /**
@@ -190,8 +198,18 @@ interface MappedEntities {
   readonly mtexts: CadDxfMText[];
   readonly dimensions: CadDxfSemanticDimension[];
   readonly hatches: CadDxfHatch[];
+  readonly opaques: CadOpaqueEntity[];
   readonly losses: CadLossManifestEntry[];
 }
+
+/** Nombre legible por tipo, para `sourceType`: el que usa el propio dibujo DXF. */
+const WIREFRAME_3D_SOURCE_TYPE_NAME: Readonly<Record<DwgWireframe3dOpaquePayload["kind"], string>> =
+  Object.freeze({
+    face3d: "3DFACE",
+    polyline3d: "POLYLINE_3D",
+    polymesh: "POLYLINE_MESH",
+    polyfaceMesh: "POLYLINE_PFACE",
+  });
 
 function layerNameFor(
   record: DwgNeutralEntityRecord,
@@ -250,6 +268,7 @@ function mapRecords(
   const mtexts: CadDxfMText[] = [];
   const dimensions: CadDxfSemanticDimension[] = [];
   const hatches: CadDxfHatch[] = [];
+  const opaques: CadOpaqueEntity[] = [];
   const losses: CadLossManifestEntry[] = [];
 
   for (const record of records) {
@@ -284,6 +303,42 @@ function mapRecords(
           code: DWG_BRIDGE_LOSS_CODES.unsupportedObject,
           sourceType: "attrib",
           detail: `El INSERT ${record.handle} declara atributos, pero ninguno se pudo atar a este INSERT.`,
+          severity: "warning",
+        });
+      }
+      continue;
+    }
+
+    if (
+      record.entity.kind === "face3d" ||
+      record.entity.kind === "polyline3d" ||
+      record.entity.kind === "polymesh" ||
+      record.entity.kind === "polyfaceMesh"
+    ) {
+      // El perfil 3D heredado no gana un canal semántico propio todavía
+      // (§9): se conserva REAL en `unsupportedEntities`, nunca como
+      // primitiva plana (que la aplanaría) ni como "no decodificada" (que
+      // sería falso). `record.handle` es único en el archivo, así que sirve
+      // de id sin necesitar un contador que coordine entre model space y
+      // cada bloque.
+      const payload = dwgWireframe3dGeometryToOpaquePayload(record.entity, record.vertices);
+      if (payload !== null) {
+        const sourceType = WIREFRAME_3D_SOURCE_TYPE_NAME[payload.kind];
+        opaques.push({
+          id: `dwg:opaque:wireframe3d:${record.handle.toString(16).padStart(8, "0")}`,
+          provider: "dwg-neutral-bridge",
+          sourceType,
+          layer,
+          raw: JSON.stringify(payload),
+          editable: false,
+        });
+        losses.push({
+          code: DWG_BRIDGE_LOSS_CODES.wireframe3dPreservedOpaque,
+          sourceType,
+          detail:
+            `El objeto ${record.handle} (${sourceType}) se conserva completo, con su Z real, ` +
+            "en unsupportedEntities: el editor todavía no lo dibuja ni lo edita interactivamente " +
+            "(perfil AC1015_3D_WIREFRAME_V1 propuesto, ADR-0009 §9, sin firma del titular).",
           severity: "warning",
         });
       }
@@ -379,7 +434,7 @@ function mapRecords(
     primitives.push(primitive);
   }
 
-  return { primitives, inserts, mtexts, dimensions, hatches, losses };
+  return { primitives, inserts, mtexts, dimensions, hatches, opaques, losses };
 }
 
 function mapLayers(layers: readonly DwgNeutralLayer[]): {
@@ -440,11 +495,13 @@ function mapLayers(layers: readonly DwgNeutralLayer[]): {
 function mapBlocks(
   blocks: readonly DwgNeutralBlock[],
   layerNames: Map<number, string>,
-): { semantic: CadDxfSemanticBlock[]; losses: CadLossManifestEntry[] } {
+): { semantic: CadDxfSemanticBlock[]; opaques: CadOpaqueEntity[]; losses: CadLossManifestEntry[] } {
   const semantic: CadDxfSemanticBlock[] = [];
+  const opaques: CadOpaqueEntity[] = [];
   const losses: CadLossManifestEntry[] = [];
   for (const block of blocks) {
     const mapped = mapRecords(block.entities, layerNames, "block");
+    opaques.push(...mapped.opaques);
     losses.push(...mapped.losses);
     const name = decodeCodePageBytes(block.name);
     // El punto base real vive en el registro del bloque, que el laboratorio
@@ -465,7 +522,7 @@ function mapBlocks(
       attributes: {},
     });
   }
-  return { semantic, losses };
+  return { semantic, opaques, losses };
 }
 
 /**
@@ -546,13 +603,16 @@ export function dwgNeutralDatabaseToCadDocument(
     ...cadDxfHatchesToNativeEntities(model.hatches, { idPrefix: prefix, provider }),
   ];
 
-  // Fallo cerrado: un archivo del que no sale ni una entidad ni un bloque.
-  // Aplicarlo se vería como un éxito silencioso — la peor forma de fallar en
-  // una importación, exactamente como ya lo tratan DXF y shapefile en este
-  // mismo módulo (`importDocumentText`/`importDocumentBytes`); DWG quedaba
-  // como la única excepción, con una spec que afirmaba la asimetría como
-  // comportamiento correcto.
-  if (!entities.length && !blockParts.blocks.length) {
+  const opaqueEntities: CadOpaqueEntity[] = [...model.opaques, ...blockMap.opaques];
+
+  // Fallo cerrado: un archivo del que no sale ni una entidad ni un bloque ni
+  // siquiera un objeto preservado opaco. Aplicarlo se vería como un éxito
+  // silencioso — la peor forma de fallar en una importación, exactamente
+  // como ya lo tratan DXF y shapefile en este mismo módulo
+  // (`importDocumentText`/`importDocumentBytes`). El objeto preservado
+  // cuenta aquí a propósito: un DWG que sólo trae 3DFACE/POLYLINE 3D/malla no
+  // debe fallar cerrado cuando sí conservó algo real, sólo sin dibujarlo.
+  if (!entities.length && !blockParts.blocks.length && !opaqueEntities.length) {
     throw new Error(
       "El DWG se leyó, pero ninguna de sus entidades produjo algo importable en el perfil " +
         "actual de esta beta. Nada ha cambiado en el plano.",
@@ -567,6 +627,7 @@ export function dwgNeutralDatabaseToCadDocument(
     // El orden del mapa de objetos ES el orden de dibujo del archivo.
     modelSpace: { entityIds: entities.map((entity) => entity.id) },
     blocks: blockParts.blocks,
+    unsupportedEntities: [...empty.unsupportedEntities, ...opaqueEntities],
     lossManifest,
   });
 
