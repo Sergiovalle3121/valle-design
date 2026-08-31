@@ -9,7 +9,7 @@ espacio papel e intercambio DXF. Y modela volúmenes sobre **el mismo documento*
 con un B-rep de medias-aristas facetado; en ese terreno la comparación es
 SketchUp. Por qué el kernel se queda facetado, y con qué condición se
 reconsidera, está en
-[`ADR-0015`](docs/adr/0015-modelado-directo-sobre-brep-facetado.md).
+[`ADR-0016`](docs/adr/0016-modelado-directo-sobre-brep-facetado.md).
 
 Ésos son los productos contra los que se mide su comportamiento; lo que este
 repositorio no implementa se dice explícitamente en vez de insinuarse.

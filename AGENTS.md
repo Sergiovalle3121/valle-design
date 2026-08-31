@@ -13,7 +13,7 @@ stated plainly; it is never implied.
 
 The 3D kernel is the **faceted** half-edge B-rep in `apps/web/src/lib/brep/`.
 Exact 3D (true curved faces, analytic NURBS) is "not yet", with its reopening
-condition written in ADR-0015. Direct modelling applies to `solid3d` entities
+condition written in ADR-0016. Direct modelling applies to `solid3d` entities
 only: `wall` and `opening` stay parametric, because a wall that forgets its
 thickness breaks the take-off, `FLATSHOT` and the opening cuts. Modelling volumes
 does NOT make this BIM — `bim-claim-boundary.spec.ts` still holds.

@@ -1,4 +1,4 @@
-# ADR-0015: Modelado directo sobre el B-rep facetado, y la identidad que eso amplía
+# ADR-0016: Modelado directo sobre el B-rep facetado, y la identidad que eso amplía
 
 - Estado: aceptado
 - Fecha: 2026-08-31

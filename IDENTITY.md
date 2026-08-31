@@ -17,7 +17,7 @@ Y modela en tres dimensiones **sobre el mismo documento**: el sólido que se emp
 la cota que lo mide son la misma verdad, no dos archivos que hay que mantener de acuerdo. El kernel
 es un B-rep de medias-aristas FACETADO (`apps/web/src/lib/brep/`); el 3D exacto —caras curvas
 verdaderas, NURBS analítico— es «todavía no», con su condición de reapertura escrita en
-[`ADR-0015`](docs/adr/0015-modelado-directo-sobre-brep-facetado.md).
+[`ADR-0016`](docs/adr/0016-modelado-directo-sobre-brep-facetado.md).
 
 ## Para quién
 
@@ -39,7 +39,7 @@ arquitectónico es donde el catálogo está más maduro, no la frontera de lo qu
 
 ## Contra qué compite
 
-Contra AutoCAD 2D de Autodesk y sus clones de escritorio, y —desde [`ADR-0015`](docs/adr/0015-modelado-directo-sobre-brep-facetado.md)—
+Contra AutoCAD 2D de Autodesk y sus clones de escritorio, y —desde [`ADR-0016`](docs/adr/0016-modelado-directo-sobre-brep-facetado.md)—
 contra SketchUp en modelado directo. La comparación se documenta con
 evidencia medida, no con adjetivos: ver `docs/competitive/autocad-2027-gap-matrix.md` y el criterio
 de evidencia de [`REPOSITORY_SCOPE.md`](REPOSITORY_SCOPE.md) (UI → motor → persistencia →
@@ -66,7 +66,7 @@ Con todas sus letras, para que no vuelva a discutirse:
   usuario vea o teclee.
 - **No es un kernel 3D exacto.** Los sólidos son FACETADOS: un cilindro es un prisma de N lados, y
   un STEP exportado conserva la faceta, no la superficie que la generó. Es una decisión tomada con
-  su condición de reapertura, no un descuido ([`ADR-0015`](docs/adr/0015-modelado-directo-sobre-brep-facetado.md)).
+  su condición de reapertura, no un descuido ([`ADR-0016`](docs/adr/0016-modelado-directo-sobre-brep-facetado.md)).
 
 Un plano **de** una fábrica sí se dibuja: una nave industrial, una planta embotelladora, un centro
 de distribución o una planta de tratamiento de agua son **tipologías de edificio**, y un CAD
@@ -119,7 +119,7 @@ Cuatro candados ejecutables, no buenas intenciones:
   arriba siguen exactamente como están.
 - `apps/web/src/lib/cad/bim-claim-boundary.spec.ts` falla si la palabra BIM aparece en la superficie
   visible o tecleable. Modelar volúmenes en 3D no convierte al producto en BIM, y la ampliación de
-  identidad de ADR-0015 no toca este candado.
+  identidad de ADR-0016 no toca este candado.
 
 Si uno de esos gates te estorba, la respuesta casi nunca es apagarlo. Lee primero
 [`REPOSITORY_SCOPE.md`](REPOSITORY_SCOPE.md) y [`AGENTS.md`](AGENTS.md).

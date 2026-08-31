@@ -20,7 +20,7 @@ silencio. Formato: `NNNN-titulo.md`, estado en la segunda línea.
 | [0012](0012-dwg-doble-via.md) | DWG a doble vía: licenciar para VENDER, códec propio para POSEER, con criterio de cambio escrito. | Aceptada — vía licenciada sustituida por 0014 |
 | [0013](0013-rol-runtime-valle-app-no-dueno.md) | Rol runtime `valle_app`, no dueño de las tablas, para que RLS sujete también a la aplicación. | Aceptada (preparado; corte de tráfico no activado en el mismo cambio) |
 | [0014](0014-dwg-via-propia-unica.md) | DWG a vía única propia: se retira el proveedor licenciado que ADR-0012 dejaba abierto. | Aceptada |
-| [0015](0015-modelado-directo-sobre-brep-facetado.md) | Modelado directo sobre el B-rep FACETADO que ya existe; el 3D exacto queda «todavía no» con condición de reapertura, y la identidad se amplía a modelador 3D. | Aceptada |
+| [0016](0016-modelado-directo-sobre-brep-facetado.md) | Modelado directo sobre el B-rep FACETADO que ya existe; el 3D exacto queda «todavía no» con condición de reapertura, y la identidad se amplía a modelador 3D. | Aceptada |
 
 ## Cómo se añade una
 
