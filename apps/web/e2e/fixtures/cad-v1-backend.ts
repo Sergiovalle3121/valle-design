@@ -14,7 +14,6 @@
  *   GET/PUT/DELETE /v1/cad/documents/:id/dxf   (plano de fondo)
  *   POST   /v1/cad/documents/:id/publications  (recibo server-managed + CAS)
  *   GET/POST/PATCH/DELETE /v1/cad/blocks       (biblioteca del tenant)
- *   POST   /v1/cad/documents/:id/intent · /v1/cad/vision (degradación AI_MOCK)
  *
  * Cada respuesta espeja la FORMA REAL de la API (mismos cuerpos, mismos
  * códigos contractuales: 409 `cad_document_version_conflict` con
@@ -616,10 +615,6 @@ export class CadV1Backend {
         return json({ ...receipt, cadDocumentVersion: row.version }, 201);
       }
 
-      // ── IA: degradación determinista (AI_MOCK de la API real) ──
-      if (rest === "intent" && method === "POST") {
-        return json({ available: false, toolCalls: [] }, 201);
-      }
     }
 
     // ── Biblioteca de bloques del tenant ──

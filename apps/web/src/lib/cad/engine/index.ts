@@ -80,6 +80,16 @@ import { CAD_VIEW_NAVIGATION_3D_COMMANDS } from "./commands/view-navigation-3d";
 import { CAD_SOLVIEW_COMMANDS } from "./commands/solview-commands";
 // Aplanado y perfil: FLATSHOT y SOLPROF convierten el modelo en dibujo 2D.
 import { CAD_SOLID_FLATSHOT_COMMANDS } from "./commands/solids-flatshot";
+// Campaña "reparar y normalizar": el dibujo ajeno que llega roto (AUDIT,
+// RECOVER, LAYTRANS, CHECKSTANDARDS) y la productividad diaria que faltaba
+// (QDIM, TEXTALIGN, BURST, QLEADER).
+import { CAD_AUDIT_COMMANDS } from "./commands/manage-audit";
+import { CAD_RECOVER_COMMANDS } from "./commands/manage-recover";
+import { CAD_LAYTRANS_COMMANDS } from "./commands/manage-laytrans";
+import { CAD_CHECKSTANDARDS_COMMANDS } from "./commands/manage-standards";
+import { CAD_ANNOTATE_QUICK_COMMANDS } from "./commands/annotate-quick";
+import { CAD_BURST_COMMANDS } from "./commands/blocks-burst";
+import { CAD_QLEADER_COMMANDS } from "./commands/annotate-quickleader";
 
 export * from "./command-types";
 export * from "./command-engine";
@@ -180,6 +190,14 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_SHEET_SET_COMMANDS,
   ...CAD_ETRANSMIT_COMMANDS,
   ...CAD_DATA_EXTRACTION_COMMANDS,
+  // Campaña "reparar y normalizar". Al final a propósito.
+  ...CAD_AUDIT_COMMANDS,
+  ...CAD_RECOVER_COMMANDS,
+  ...CAD_LAYTRANS_COMMANDS,
+  ...CAD_CHECKSTANDARDS_COMMANDS,
+  ...CAD_ANNOTATE_QUICK_COMMANDS,
+  ...CAD_BURST_COMMANDS,
+  ...CAD_QLEADER_COMMANDS,
 ] as const;
 
 /**
