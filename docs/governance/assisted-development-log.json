@@ -1126,6 +1126,46 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CAD-INTEROP-MESH-IMPORT-20260831",
+      "date": "2026-08-31",
+      "initiative": "Frente de importación de modelos 3D (interop malla→sólido) de la campaña paralela de cimientos: un cosedor de malla nuevo (lib/brep/mesh-stitch.ts) que suelda con tolerancia relativa al tamaño del modelo (union-find, corrige la soldadura no transitiva de BodyBuilder), fusiona triángulos coplanares en caras de verdad reutilizando polygonsToBody y healTJunctions del kernel existente, y detecta lazos interiores (agujeros) en 3D — la pieza que el propio kernel declaraba ausente. Cuatro lectores nuevos en lib/cad/interop/ (OBJ, STL, glTF/GLB, COLLADA) sobre los loaders de three.js ya instalados pero nunca usados (OBJLoader, STLLoader, GLTFLoader, ColladaLoader): cero dependencias nuevas. `.skp` se detecta y se RECHAZA con su motivo — el formato propietario de SketchUp exige su propio laboratorio clean-room y su propio ADR, fuera del alcance de esta campaña. Wire completo document-import-validation.ts/document-import.ts/document-import.worker.ts, extensión tipada de cad-entities-v5.ts (source.format) y cad-format-detect.ts (detección por contenido de los cinco formatos), evidencia medida en docs/cad/evidence/sketchup-migration-matrix.json (corpus SINTÉTICO de Valle, declarado como tal: no se consiguió material de la galería pública de SketchUp con procedencia y licencia verificables dentro del presupuesto de esta campaña) y golden E2E 65-cad-importar-modelo.spec.ts.",
+      "branch": "claude/interop-malla-a-solido",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Encargo de campaña paralela: tres sesiones simultáneas sobre valle-design sin compartir archivos, ésta con el frente exclusivo de IMPORTAR MODELOS 3D (la vía de migración desde SketchUp). El encargo fijó el territorio permitido y prohibido, los hechos ya verificados del kernel a no redescubrir, y el criterio de cierre: PR en BORRADOR contra main, sin fusionar nada.",
+      "firstPartyInputs": [
+        "lib/brep/ existente (boolean.ts, body-builder.ts, invariants.ts, tolerance.ts, topology.ts, csg-bsp.ts, triangulate2d.ts, primitives.ts): leído y reutilizado en profundidad, sin editar ninguno de sus archivos salvo la nueva exportación de mesh-stitch.ts desde index.ts.",
+        "three@0.185.1 (dependencia ya declarada de apps/web): sus cuatro loaders en examples/jsm/ instalados y nunca importados hasta esta campaña.",
+        "El propio repositorio como precedente de tono y estructura: step-import.ts y solid3d-interop.ts para el rechazo honesto con validateBody obligatorio; dxf-external-corpus-matrix.ts/build-dxf-external-corpus.mjs como molde exacto del generador de evidencia medida (sonda .mts + script .mjs + artefacto JSON con 'limitacion' declarada); dwg-import-limits.ts como precedente de redeclarar un número entre apps/web y apps/api en vez de importarlo entre procesos distintos.",
+        "AGENTS.md, IDENTITY.md y packages/dwg-codec/AGENTS.md, leídos íntegros antes de escribir código, por instrucción expresa del encargo."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna implementación externa de importación de malla se consultó ni se copió. El algoritmo de fusión de caras coplanarias (agrupar por adyacencia de media-arista y coplanaridad, disolver el borde compartido en un contorno exterior más agujeros, clasificar por signo del área) se diseñó desde cero para este kernel, verificado por ejecución real contra makeBoxWithThroughHole y su género de Euler conocido, no contra una referencia de terceros.",
+      "derivedAreas": [
+        "apps/web/src/lib/brep/mesh-stitch.ts (nuevo) y su spec",
+        "apps/web/src/lib/brep/index.ts (sólo la nueva exportación)",
+        "apps/web/src/lib/cad/interop/ (nuevo: los cuatro lectores, sus specs, el orquestador mesh-document-import.ts, los límites, el rechazo de .skp y la matriz de migración)",
+        "apps/web/src/lib/cad/document-import.ts, document-import-validation.ts, document-import.worker.ts (camino async de importación de malla)",
+        "apps/web/src/lib/cad/cad-entities-v5.ts (unión source.format ampliada)",
+        "apps/web/src/components/cad/interop/cad-format-detect.ts y su spec (detección de los cinco formatos nuevos, sin tocar el formato de ACAD_VERSION_NAMES que vigila check:dwg)",
+        "apps/web/src/app/dashboard/page.tsx (accept= del input de importación, una línea)",
+        "apps/web/e2e/golden/65-cad-importar-modelo.spec.ts",
+        "scripts/cad/build-sketchup-migration-matrix.mjs, scripts/cad/sketchup-migration-matrix-probe.mts",
+        "docs/cad/evidence/sketchup-migration-matrix.json"
+      ],
+      "fixtures": "Corpus SINTÉTICO de Valle únicamente: cajas, una losa con taladro pasante y un tetraedro, con winding de malla verificado a mano por producto cruzado antes de escribirlos, codificados en OBJ/STL/glTF/COLLADA por el propio generador de evidencia. NO se obtuvo material de la galería pública de SketchUp con procedencia y licencia verificables dentro del presupuesto de esta campaña — declarado explícitamente en el campo 'limitacion' del artefacto, no omitido. Por la regla de la campaña de cimientos, esta fila de evidencia retiene 1 punto hasta tener oráculo externo o material de terceros.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "PR en borrador de la rama claude/interop-malla-a-solido contra main, con los seis gates locales corridos sobre el árbol committeado. Pendiente de revisión y fusión por el titular; ninguna capacidad de este frente está activa en producción hasta entonces."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

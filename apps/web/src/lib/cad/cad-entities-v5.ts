@@ -140,8 +140,15 @@ export type CadSolidNode = { id: string } & (
       op: "brep";
       points: CadPoint3[];
       faces: { outer: number[]; inners?: number[][] }[];
-      /** De dónde salió, para que un sólido importado sepa decirlo. */
-      source?: { format: "step" | "iges"; name?: string };
+      /**
+       * De dónde salió, para que un sólido importado sepa decirlo. Los cuatro
+       * formatos de malla (`obj`, `stl`, `gltf`, `collada`) llegan sin receta
+       * paramétrica — igual que STEP e IGES — pero además sin superficie
+       * analítica: `bodyToSolidNode` no la guarda, así que un sólido de malla
+       * reexportado pierde el plano exacto de cada cara y se reconstruye por
+       * Newell al reabrirlo. Ver `lib/cad/interop/README.md`.
+       */
+      source?: { format: "step" | "iges" | "obj" | "stl" | "gltf" | "collada"; name?: string };
     }
   | { op: "union"; operands: string[] }
   /** `operands[0]` menos todos los demás, en orden. */
