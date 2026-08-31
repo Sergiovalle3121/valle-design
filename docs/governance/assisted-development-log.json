@@ -1310,6 +1310,41 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "RETIRO-IA-CIDE-20260831",
+      "date": "2026-08-31",
+      "initiative": "Retiro completo de la inteligencia artificial del producto. El titular precisó el alcance con todas sus letras: Valle Design nació dentro de Axos OS —un ERP industrial tipo SAP con un CAD pequeño— y al separarse arrastró módulos que no le pertenecen. CIDE («Cognitive Intelligence & Decision Engine») era la IA de Axos OS, no de este producto, y el titular pidió que Valle Design no tenga IA; lo que sí quiere para trabajo en equipo es mensajería, videollamada y pantalla compartida entre personas, que se construyen en frentes paralelos aparte. Se retiraron enteros: el proveedor de inferencia (modules/ai/cide-provider.ts), su adaptador y el puerto CAD_AI_PROVIDER, los servicios de intención y visión con sus prompts y herramientas, las dos rutas del contrato OpenAPI (/v1/cad/documents/{id}/intent y /v1/cad/vision) con sus esquemas y su superficie en el SDK, el panel «Copiloto CAD», los módulos web cad-intent/cad-vision/copilot-contract, el banco de calidad NL y 473 líneas dentro de Layout3DEditor.tsx. La categoría `nl-cad` de la rúbrica (4 pt de alcance destino) se retiró con el motor: un denominador que sigue contando una capacidad que el producto ya no quiere tener mide contra un producto que no existe. Destino pasa de 190/220 a 187/216; el alcance de HOY (155/175) no se toca porque la fila era de destino. Se conservó a propósito el registro LOCAL de frases (lib/cad/commands/registry.ts): es un parser determinista sin modelo ni red, y se reetiquetó de «Copiloto» a «Frase» porque el nombre viejo describía la IA que ya no está. En el mismo paso se corrigió residuo de Axos que el gate de identidad no veía por estar en inglés: el comentario de cabecera del editor describía «the plant floor» con stations, conveyors, racks, AGVs y operators; los marcadores de posición decían «Celda SMT estándar», «Buscar SMT, AOI, safety…» y «esd, safety, smt…»; y un panel entero de zonas de seguridad estaba en inglés. El titular precisó que el producto es universal —cualquier ingeniero o arquitecto, cualquier tipo de proyecto, y arranca en México sin quedarse ahí— y esa regla quedó escrita en IDENTITY.md.",
+      "branch": "claude/sin-ia-identidad-propia",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate, por instrucción directa en la sesión de planificación 3D del 2026-08-31: «valle design no tiene que tener AI lo que si tiene que tener es un sistema de mensajeria como microsoft Teams», y la precisión posterior de que el producto es universal para cualquier ingeniero o arquitecto y no de nicho de ninguna industria.",
+      "firstPartyInputs": [
+        "El código y los gates propios del monorepo (apps/api, apps/web, packages/contracts, packages/design-sdk, scripts/cad).",
+        "IDENTITY.md y REPOSITORY_SCOPE.md como fuente de la frontera de producto.",
+        "docs/competitive/rubric.json y scripts/cad/rubric.spec.mjs para el ajuste del denominador."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "IDENTITY.md (entrada «No tiene inteligencia artificial», la regla de universalidad y de arranque en México sin techo, y el cuarto candado ejecutable)",
+        "README.md, PRODUCT.md, ARCHITECTURE.md, SECURITY.md, RUNBOOK.md, docs/ops/SLA.md y las guías de variables, troubleshooting y backup (retiran la asistencia opcional)",
+        "packages/contracts/specs/design-api.v1.yaml y packages/design-sdk (92 operaciones, antes 94)",
+        "docs/competitive/rubric.json y la matriz regenerada (destino 187/216)",
+        "scripts/cad/monolith-budget.json (Layout3DEditor.tsx 19002→18535 líneas, 135→131 useState)",
+        "apps/web/src/lib/cad/no-ai-boundary.spec.ts (candado nuevo)"
+      ],
+      "fixtures": "Ninguno nuevo. Se retiró docs/cad/evidence/nl-cad-quality-benchmark.json con el banco que lo producía.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Instrucción expresa del titular en la sesión del 2026-08-31 de retirar la IA del producto y construir en su lugar la mensajería de equipo."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

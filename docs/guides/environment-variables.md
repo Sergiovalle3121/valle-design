@@ -205,21 +205,6 @@ Todo lo que sale por el reporter pasa por saneo (`observability/scrub.ts`):
 correos, URLs con credenciales, cabeceras `Authorization`/`Cookie`, JWT, UUID
 de tenant, hashes y firmas se redactan antes de cruzar el proceso.
 
-## Asistencia CIDE opcional
-
-| Variable               | Comportamiento                                                                              |
-| ---------------------- | ------------------------------------------------------------------------------------------- |
-| `CIDE_BASE_URL`        | Base OpenAI-compatible. Si falta, intent/vision devuelven `available: false` sin hacer red. |
-| `CIDE_API_KEY`         | Credencial opcional enviada como Bearer sólo al proveedor CIDE.                             |
-| `CIDE_MODEL`           | Modelo de texto; default `qwen2.5:7b`.                                                      |
-| `CIDE_VISION_MODEL`    | Modelo multimodal; default `qwen2.5vl:7b`, o cae a `CIDE_MODEL`.                            |
-| `CIDE_TIMEOUT_MS`      | Timeout de vision; default `60000`.                                                         |
-| `AI_MAX_OUTPUT_TOKENS` | Presupuesto de salida de intent; default `700`.                                             |
-| `AI_MOCK`              | Con `1`, respuestas deterministas de prueba. Nunca producción.                              |
-
-Evalúa privacidad y residencia de datos antes de habilitar CIDE con planos de
-clientes.
-
 ## Web y build
 
 | Variable                                                                                                                                                                                                                 | Comportamiento                                                                                                |
