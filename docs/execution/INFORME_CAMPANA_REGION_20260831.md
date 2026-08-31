@@ -255,8 +255,15 @@ Internacionalizar esto no tiene sentido de negocio:
 `npm ci && npm run check:cad && npm run check:dwg && npm run typecheck &&
 npm test && npm run lint && npm run build` — corridos sobre el árbol
 committeado. `check:dwg-evidence` falla igual en `main` limpio (falta
-`VALLE_DWG_CORPUS_MIRROR`, no es de esta campaña). El `typecheck` de
-`apps/web` reporta 77 errores preexistentes (módulos `@valle/design-sdk`
-sin build, `error: unknown` sin acotar, e2e sin `@playwright/test`
-instalado) — el mismo número, verificado, en `main` limpio antes de esta
-rama; ninguno está en un archivo tocado por esta campaña.
+`VALLE_DWG_CORPUS_MIRROR`, no es de esta campaña).
+
+Un `tsc --noEmit` corrido directo dentro de `apps/web` (sin pasar por
+`turbo`) reporta en falso 77 errores — `@valle/design-sdk` y
+`@valle-design/dwg-codec` sin construir todavía y `@playwright/test` sin
+tipos — porque salta el orden de build entre paquetes del monorepo que
+`npm run typecheck` (turbo) sí respeta; se verificó que el mismo recuento (77)
+aparece igual en `main` limpio bajo esa misma condición, así que no es un
+efecto de esta rama. Con los paquetes generados construidos
+(`npm run build --workspace=@valle/design-sdk` y
+`--workspace=@valle-design/dwg-codec`), `tsc --noEmit` de `apps/web` queda en
+**0 errores**, e2e incluido. `npm test` (453 specs) queda en verde.
