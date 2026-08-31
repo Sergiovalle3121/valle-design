@@ -29,6 +29,9 @@ const expectedSpecs = [
   "src/lib/cad/document-import.spec.ts",
   "src/lib/cad/dwg-document-bridge.spec.ts",
   "src/lib/cad/dwg-native-reader.spec.ts",
+  // Perfil 3D heredado propuesto (ADR-0009 §9): sus propias specs.
+  "src/lib/cad/dwg-native-reader-3d-wireframe.spec.ts",
+  "src/lib/cad/dwg-document-bridge-3d-wireframe.spec.ts",
 ];
 const forbiddenCodecReferences = [
   "@valle-design/dwg-codec",
@@ -48,6 +51,9 @@ const forbiddenCodecReferences = [
 const authorizedCodecReferenceFiles = new Set([
   join("apps", "web", "src", "lib", "cad", "dwg-native-reader.ts"),
   join("apps", "web", "src", "lib", "cad", "dwg-native-reader.spec.ts"),
+  // Perfil 3D heredado propuesto (ADR-0009 §9): su propia spec, mismo patrón
+  // que el resto — bytes hechos a mano contra el mismo punto de entrada.
+  join("apps", "web", "src", "lib", "cad", "dwg-native-reader-3d-wireframe.spec.ts"),
   // ADR-0009 §8 (firma 2026-08-25): el punto de ESCRITURA y su spec — la
   // exportación M5, fallo cerrado hasta el oráculo externo de §8.2.
   join("apps", "web", "src", "lib", "cad", "dwg-native-writer.ts"),
@@ -62,6 +68,7 @@ const authorizedCodecReferenceFiles = new Set([
 const authorizedDwgNativeReaderImporters = new Set([
   join("apps", "web", "src", "lib", "cad", "dwg-native-reader.ts"),
   join("apps", "web", "src", "lib", "cad", "dwg-native-reader.spec.ts"),
+  join("apps", "web", "src", "lib", "cad", "dwg-native-reader-3d-wireframe.spec.ts"),
   join("apps", "web", "src", "lib", "cad", "document-import.worker.ts"),
 ]);
 /**

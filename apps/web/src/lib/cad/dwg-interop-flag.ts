@@ -254,3 +254,61 @@ export function dwgAc1018BetaImportIsEnabled(
     dwgBetaImportIsEnabled(baseBetaFlagOn)
   );
 }
+
+// ---------------------------------------------------------------------------
+// Perfil 3D heredado (AC1015_3D_WIREFRAME_V1) — 3DFACE, POLYLINE 3D, POLYLINE
+// MESH, POLYLINE PFACE — SU PROPIO flag, distinto de los dos de arriba.
+// PROPUESTO en ADR-0009 §9. SIN FIRMA DEL TITULAR todavía.
+// ---------------------------------------------------------------------------
+
+/**
+ * A diferencia de `DWG_BETA_AUTHORIZATION` y `DWG_AC1018_BETA_AUTHORIZATION`,
+ * ÉSTA NO ES UNA FIRMA REAL. Las dos de arriba documentan una conversación
+ * directa con el titular, registrada en su fecha; ninguna conversación así
+ * ocurrió para este perfil. `ownerSigned` es literalmente `false` y está
+ * TIPADO `boolean` (no el literal `true` que usan las dos autorizaciones ya
+ * firmadas) exactamente por la misma razón que `DWG_IMPORT_FLAG` es
+ * `boolean` y no `false`: si alguna vez alguien cambia este valor a mano sin
+ * pasar por una firma real, el spec que lo vigila debe FALLAR, no dejar de
+ * compilar.
+ *
+ * El perfil en sí —qué tipos de entidad, con qué límites— ya está
+ * implementado y probado end-to-end en el adaptador autorizado y el puente
+ * al documento canónico, con la puerta cerrada, siguiendo el mismo patrón
+ * de "el cableado no necesita firma, decodificar bytes reales del usuario
+ * sí" que ya documentaba el módulo entero. Lo que falta no es código: es
+ * exactamente la misma conversación registrada que ya tuvieron V1/V2/V3/M3.
+ */
+export interface Dwg3dWireframeBetaAuthorization {
+  readonly ownerSigned: boolean;
+  readonly adrRef: "0009";
+  readonly profile: "AC1015_3D_WIREFRAME_V1";
+  readonly legalReviewStatus: "pending_parallel";
+}
+
+export const DWG_3D_WIREFRAME_BETA_AUTHORIZATION: Dwg3dWireframeBetaAuthorization = Object.freeze({
+  ownerSigned: false,
+  adrRef: "0009",
+  profile: "AC1015_3D_WIREFRAME_V1",
+  legalReviewStatus: "pending_parallel",
+});
+
+/**
+ * ¿Está autorizada la aceptación del perfil 3D heredado en ESTE entorno?
+ * Misma conjunción de TRES condiciones que `dwgAc1018BetaImportIsEnabled`:
+ * la bandera de este flag, la firma del titular para ESTE perfil
+ * específicamente (hoy `false`, así que este término solo ya cierra la
+ * conjunción), Y la beta base. Nunca una ampliación silenciosa de
+ * `DWG_BETA_AUTHORIZATION` ni de `DWG_AC1018_BETA_AUTHORIZATION`: es un
+ * mecanismo propio, con su propio nombre de perfil.
+ */
+export function dwg3dWireframeBetaImportIsEnabled(
+  wireframeFlagOn: boolean,
+  baseBetaFlagOn: boolean,
+): boolean {
+  return (
+    wireframeFlagOn === true &&
+    DWG_3D_WIREFRAME_BETA_AUTHORIZATION.ownerSigned &&
+    dwgBetaImportIsEnabled(baseBetaFlagOn)
+  );
+}

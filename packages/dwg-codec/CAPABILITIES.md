@@ -320,3 +320,99 @@ Evidencia: `tests/unit/ac1015-entity-writer-v3.spec.ts`,
 `tests/unit/ac1015-minimal-file.spec.ts`, `tests/unit/write-canonical-dwg.spec.ts`;
 `npm run check --workspace=@valle-design/dwg-codec` y `npm run check:dwg`
 (raíz) en verde.
+
+## Evidencia del corte 2026-08-31 (cableado de producto propuesto: perfil 3D heredado, ADR-0009 §9)
+
+Este corte NO añade decodificación al laboratorio: 3DFACE, POLYLINE 3D,
+POLYLINE MESH y POLYLINE PFACE ya se leían con fidelidad exacta desde el
+corte 2026-08-21 (`objectDatabase` de esa fecha). Lo que cambia es que,
+hasta hoy, ninguno de los cuatro cruzaba al perfil de PRODUCTO
+(`AC1015_MODELSPACE_2D_V3`): caían al mismo diagnóstico "fuera de perfil"
+que cualquier tipo sin representación ahí — nunca "no decodificado", esa
+distinción ya la exigía la disciplina del laboratorio.
+
+- **Perfil nuevo PROPUESTO, `AC1015_3D_WIREFRAME_V1`** (ADR-0009 §9): su
+  propio flag (`NEXT_PUBLIC_DWG_3D_WIREFRAME_IMPORT_BETA`), su propia
+  autorización (`DWG_3D_WIREFRAME_BETA_AUTHORIZATION`), la misma
+  conjunción de tres condiciones que ya usa AC1018 — **sin firmar**:
+  `ownerSigned` es `false`, así que el flag no tiene efecto observable en
+  ningún entorno hoy, encendido o no.
+- **Cableado de producto completo, probado, con la puerta cerrada**:
+  `apps/web/src/lib/cad/dwg-native-reader.ts` (filtro independiente del de
+  V3, conjuntos de tipos disjuntos), `dwg-neutral-model.ts` (ocho variantes
+  nuevas: los cuatro tipos de cabecera más sus VERTEX/cara hijos),
+  `dwg-document-bridge.ts`/`-primitives.ts` (mapeo a `CadOpaqueEntity` con
+  geometría REAL — Z verdadera, sin aplanar — declarada en el manifiesto de
+  pérdidas). Dos specs nuevas verifican el filtro puro y el mapeo completo
+  contra bytes hechos a mano.
+- **Límite honesto sin suavizar**: el writer del laboratorio no emite estos
+  cuatro tipos (sólo LINE/POINT/CIRCLE/ARC/LWPOLYLINE/TEXT/INSERT, ADR-0009
+  §8.1), así que las specs nuevas no pueden usar bytes DWG reales generados
+  aquí — igual que ya le pasa a ELLIPSE/SPLINE/MTEXT/DIMENSION/HATCH en
+  `dwg-native-reader.spec.ts`. La evidencia contra archivos DWG reales
+  depende de la ola 3 del corpus hermano (PR `valle-design-dwg-conformance#6`,
+  fixtures 26–30: POLYLINE 3D con Z distinta por vértice, mallas 7×9 y 5×5
+  cerrada en N, polyface con índices negativos, seis 3DFACE con banderas de
+  arista), que sigue SIN ADMITIR — requiere el ODA File Converter (máquina
+  del titular) y firma de revisor. No se maquilla esa ausencia.
+- **No se genera `solid3d` ni `region`**: 3DFACE/PFACE no garantizan una
+  malla cerrada y manifold, así que tratarlos como sólidos importados sería
+  una promesa que el dato no respalda. El destino es
+  `unsupportedEntities`/`CadOpaqueEntity` (`editable: false`), su primer
+  productor real en el producto — antes sólo existía en el tipo y en specs
+  con datos inventados (`ACAD_PROXY_ENTITY`).
+
+Nada de esto cambia `entityImport`/`cadDocumentMapping` en la matriz de
+arriba: siguen siendo `product-beta-flag-gated`, y este corte NO enciende
+ningún flag — sólo dos de los tres YA firmados (V3, AC1018) tienen efecto
+en producción, y siguen apagados por defecto ahí también.
+
+## Evidencia del corte 2026-08-31 (preservación opaca ACIS: 3DSOLID/REGION/BODY — laboratorio, escalón 4a)
+
+`packages/dwg-codec/src/objects/entities-acis.ts` (nuevo): captura el
+cuerpo de un objeto ACIS (3DSOLID/REGION/BODY) como bytes crudos, sin
+interpretar un solo bit de su contenido — ACIS es formato de Spatial/
+Dassault, no de ODA, y este laboratorio no lo necesita entender para
+preservarlo. Usa exclusivamente hechos YA REGISTRADOS (la cabecera común de
+entidad y el límite `bitSize`, reutilizados sin cambios de otros veinte
+tipos ya decodificados): **cero fuentes nuevas consultadas**. 7/7 specs
+unitarias (`tests/unit/entities-acis.spec.ts`) verifican captura byte-exacta
+sobre cuerpos sintéticos compuestos con el writer real
+(`ac1015-entity-writer.ts`), incluida la reconstrucción bit a bit cuando la
+cabecera común no termina alineada a byte (el caso real: el writer no la
+alinea). `packages/dwg-codec/src/api/canonical.ts` gana un caso dedicado
+que proyecta un objeto ACIS a `CanonicalOpaqueEntity` con el nombre de
+clase real como `sourceType` (1 spec nueva).
+
+**Límite honesto, sin suavizar — el porqué de "laboratorio" y no
+"producto todavía"**: 3DSOLID/REGION/BODY son tipos de CLASE de AutoCAD
+2000+, sin código BS fijo (a diferencia de LINE=0x13/CIRCLE=0x12/etc.): su
+código numérico varía POR ARCHIVO según el orden de la sección CLASSES, y
+se resuelve por NOMBRE. El despachador de este directorio
+(`DECODED_ENTITY_TYPES` en `entities-core.ts`) es un `Set<number>` de
+códigos FIJOS — no hay ningún número que darle a un tipo de clase. La
+resolución por nombre YA EXISTE, pero sólo en el LECTOR de base
+(`AC1015_ENTITY_BODY_TYPES`/`decodeMappedObject`/`classNames`,
+`src/reader/database-assembly.ts`), territorio de otro frente de trabajo de
+esta misma campaña. Conectar `decodeAcisOpaqueEntityBody` exige que ese
+despachador, al resolver un objeto cuyo nombre de clase sea exactamente
+"3DSOLID"/"REGION"/"BODY", lo llame en vez de cerrar como `unsupported` —
+un cambio real, no cosmético, que vive fuera de este corte.
+
+**Efecto en el producto**: ninguno. No hay integración de producto para
+ACIS en este corte —a diferencia del perfil 3D heredado (ADR-0009 §9),
+construir el lado de producto (`apps/web`) para una forma que
+`readDwg` no puede producir todavía sería código sin evidencia ejecutable
+real, justo lo que esta campaña prohíbe. `readDwg` sigue sin decodificar
+3DSOLID/REGION/BODY de ningún archivo real: hoy siguen cayendo en
+`unsupported`, enumerados, nunca callados — exactamente igual que antes de
+este corte. `productionAvailable` no cambia.
+
+**Corpus**: no existe todavía. La ola 3 del corpus hermano (PR
+`valle-design-dwg-conformance#6`) declara ACIS explícitamente FUERA de su
+alcance ("Emitir SAT válido a mano es un problema propio... Es una ola
+aparte") — no hay ni un DWG real con 3DSOLID/REGION/BODY en el corpus
+admitido ni pendiente. La evidencia de este corte es puramente sintética
+(bytes de prueba, no ACIS real), y así se declara: prueba que la captura es
+correcta dado un objeto de clase ya identificado, no que el laboratorio
+reconoce 3DSOLID en un archivo de verdad.

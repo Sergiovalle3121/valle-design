@@ -957,3 +957,121 @@ producto. `externalOracleVerified` sigue `false`: sigue siendo OWNER ACTION.
 **Reproducible**: `npm run check --workspace=@valle-design/dwg-codec` y, desde
 la raíz con `VALLE_DWG_CORPUS_MIRROR` apuntando al repo hermano,
 `npm run check:dwg`.
+
+## Intake 2026-08-31 - sesion DWG-B (3D): perfil 3D heredado propuesto (ADR-0009 s9)
+
+Frente de trabajo paralelo. Ningun archivo del laboratorio (`src/reader/`,
+`src/container/`, `src/codecs/`, `src/writer/`) se toco en esta sesion -
+territorio de las sesiones A y C. El trabajo entero fue de PRODUCTO:
+`apps/web/src/lib/cad/{dwg-neutral-model,dwg-native-reader,dwg-interop-flag,
+dwg-document-bridge,dwg-document-bridge-primitives}.ts` mas dos specs
+nuevas. Cero fuentes nuevas consultadas: 3DFACE/POLYLINE 3D/MESH/PFACE ya
+estaban decodificados desde el corte 2026-08-21 (fuente
+`ODA-ODS-DWG-5.4.1-PUBLIC`, ya registrada); este intake solo consumio los
+campos ya decodificados (`corners`, `closedFlags`, `position` de cada
+VERTEX...) sin derivar ningun hecho nuevo del formato.
+
+**Hallazgo confirmado antes de tocar codigo**: los cuatro tipos de este
+perfil son entidades 3D verdaderas - sus puntos son WCS directos, sin
+elevacion ni extrusion (a diferencia de CIRCLE/LWPOLYLINE/TEXT/POLYLINE 2D,
+que si las llevan). Confirmado leyendo `packages/dwg-codec/src/model/
+entity-geometry.ts`: ninguna de las cuatro interfaces (`Dwg3dFaceEntity`,
+`DwgPolyline3dEntity`, `DwgPolylineMeshEntity`, `DwgPolyfaceMeshEntity`)
+declara esos campos. Esto significa que la trampa de OCS que si exige
+transformar CIRCLE/LWPOLYLINE con extrusion NO aplica a este perfil: no
+hace falta ningun algebra de eje arbitrario aqui, y seria una complejidad
+inventada anadirla.
+
+**Diseno de destino**: sin canal semantico nativo (a diferencia de
+MTEXT/DIMENSION/HATCH, ni el importador DXF ni el DWG tienen hoy un
+consumidor probado para wireframe/malla 3D), el mapeo va a
+`CadOpaqueEntity`/`unsupportedEntities` - geometria REAL en JSON, Z sin
+aplanar, declarada en el manifiesto de perdidas, `editable: false`. Es el
+primer productor REAL de `CadOpaqueEntity` en el puente: antes solo vivia
+en el tipo y en specs con `raw: "opaque-payload"` inventado.
+
+**Gate de honestidad respetado sin ampliar uno existente**: el perfil vive
+en su propia autorizacion (`DWG_3D_WIREFRAME_BETA_AUTHORIZATION`), su
+propio flag, la misma conjuncion de tres condiciones que ya usa AC1018 -
+`BETA_PROFILE_ENTITY_KINDS` (el conjunto de tipos de V3) no se toco ni un
+bit. `ownerSigned` queda `false`: ninguna conversacion de autorizacion real
+ocurrio para este perfil en esta sesion, y fabricarla habria sido
+exactamente lo que ADR-0009 s6-bis/s6-ter/s6-quater/s7/s8 existen para
+impedir. Ver ADR-0009 s9 (propuesta sin firmar).
+
+**Pendiente declarado, no maquillado**: la evidencia contra archivos DWG
+reales depende de la admision de la ola 3 del corpus hermano
+(`valle-design-dwg-conformance` PR #6, fixtures 26-30), que exige el
+conversor de la maquina del titular y firma de revisor. Las dos specs
+nuevas (`dwg-native-reader-3d-wireframe.spec.ts`,
+`dwg-document-bridge-3d-wireframe.spec.ts`) corren contra bytes hechos a
+mano, mismo patron que ya usa `dwg-native-reader.spec.ts` para
+ELLIPSE/SPLINE/MTEXT/DIMENSION/HATCH (el writer del laboratorio tampoco
+emite estos cuatro tipos, ADR-0009 s8.1).
+
+**Efecto en el producto**: ninguno observable. Las dos betas ya firmadas
+(V3, AC1018) siguen exactamente igual; la tercera variable de build
+(`NEXT_PUBLIC_DWG_3D_WIREFRAME_IMPORT_BETA`) existe en el Dockerfile y en
+`.env.example` por la misma regla que ya aplica a las otras dos (ningun
+modulo sin consumidor), pero encenderla no habilita nada mientras
+`DWG_3D_WIREFRAME_BETA_AUTHORIZATION.ownerSigned` sea `false`.
+
+## Intake 2026-08-31 (segunda mitad) - sesion DWG-B (3D): preservacion opaca ACIS (3DSOLID/REGION/BODY)
+
+Mismo frente de trabajo paralelo, segunda tarea de la sesion. Cero fuentes
+nuevas: `entities-acis.ts` reutiliza solo hechos YA registrados (cabecera
+comun de entidad, limite `bitSize`) sin pedirle nada al formato ACIS
+(Spatial/Dassault, no ODA) ni a la seccion CLASSES mas alla de recibir el
+nombre ya resuelto como parametro.
+
+**Hallazgo arquitectonico confirmado leyendo codigo, no supuesto**: intente
+primero conectar el nuevo decodificador al despachador de
+`entities-core.ts` (`DECODED_ENTITY_TYPES`/`decodeEntitySpecific`), el
+patron que ya usan LINE/CIRCLE/3DFACE/POLYLINE. No es posible.
+3DSOLID/REGION/BODY son tipos de CLASE (AutoCAD 2000+): su codigo BS NO es
+fijo entre archivos, se resuelve por NOMBRE contra la seccion CLASSES de
+CADA archivo. `DECODED_ENTITY_TYPES` es un `Set<number>` de codigos FIJOS
+— no existe ningun numero que darle a un tipo de clase sin fingir un hecho
+que el formato no tiene. La resolucion por nombre YA EXISTE en el
+laboratorio (`AC1015_ENTITY_BODY_TYPES`/`decodeMappedObject`/
+`decodeAuxiliaryObject`/`classNames`), pero vive enteramente en
+`src/reader/database-assembly.ts` — el territorio explicito de otro frente
+de esta misma campana. Confirmado leyendo `decodeMappedObject`: cuando
+`AC1015_ENTITY_BODY_TYPES.has(type)` es falso (como seria SIEMPRE para un
+tipo de clase), el despacho cae a `decodeAuxiliaryObject(type, bodyBytes,
+entry, classNames)`, nunca a `decodeAc1015EntityBody` (el punto de entrada
+de `entities-core.ts`).
+
+**Que se entrega, delimitado con precision**: `decodeAcisOpaqueEntityBody`
+(`src/objects/entities-acis.ts`) — funcion PURA, probada (7 specs
+unitarias + 1 de `canonical.ts`), que decodifica la cabecera comun (sin
+cambios) y captura TODO lo que sigue hasta `bitSize` como bytes crudos
+alineados a byte, con metadata (`leadingBitOffset`, `dataBitLength`) para
+reconstruir el rango exacto de bits sin perder ni desplazar ninguno — la
+spec lo verifica reconstruyendo bit a bit, no solo comparando bytes, porque
+el writer real NO deja la cabecera comun alineada a byte (hallazgo del
+propio test: el primer intento asumia alineacion y fallaba con un
+desplazamiento de 4 bits, corregido antes de declarar la spec verde).
+`api/canonical.ts` gana un caso dedicado que proyecta esto a
+`CanonicalOpaqueEntity` con el nombre de clase real como `sourceType`.
+
+**Que NO se entrega, y por que a proposito**: (1) la conexion al
+despachador del lector — vive en `src/reader/`, fuera de alcance de esta
+sesion; (2) integracion de producto (`apps/web`) — construirla antes de que
+`readDwg` pueda producir esta forma desde un archivo real seria codigo sin
+evidencia ejecutable, la regla que esta campana existe para prohibir (a
+diferencia del perfil 3D heredado de la primera mitad de esta sesion, que
+SI tenia geometria real decodificada esperando solo un filtro de perfil);
+(3) cualquier fixture o hecho de ACIS/SAT/SAB — no hace falta ninguno, y no
+se consulto ninguno.
+
+**Efecto en el producto**: ninguno. `readDwg` sigue sin decodificar
+3DSOLID/REGION/BODY de ningun archivo real — siguen en `unsupported`,
+enumerados, igual que antes de este corte.
+
+**Para retomar esta linea**: quien conecte el despachador del lector
+necesita, en `decodeMappedObject` (o un sitio equivalente), reconocer
+cuando el nombre de clase resuelto es exactamente "3DSOLID"/"REGION"/
+"BODY" y llamar a `decodeAcisOpaqueEntityBody(bodyBytes, classNameBytes)`
+en vez de caer a `decodeAuxiliaryObject`. Esa funcion ya existe, ya esta
+probada, y no necesita cambiar para eso.
