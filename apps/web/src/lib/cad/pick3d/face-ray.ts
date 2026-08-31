@@ -57,7 +57,7 @@ import {
   v3Sub,
   type BrepBody,
   type Vec3,
-} from "@/lib/brep";
+} from "../../brep";
 
 /** Un rayo: de dónde sale y hacia dónde va. `direction` no necesita ser unitario. */
 export interface CadPickRay {
