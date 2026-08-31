@@ -166,9 +166,13 @@ export default function CadStudioHost({
             viewerUserId={user.id}
             canWrite={permissions.includes("cad:edit")}
           />
-        Mismo trato que la colaboración: la llamada vive AL LADO del editor,
-        no dentro — se monta con una línea y una `RTCPeerConnection` que
-        revienta por una razón de red no puede llevarse el lienzo con ella.
+        </ErrorBoundary>
+      ) : null}
+      {/*
+        Mismo trato que la colaboración y que la mensajería: la llamada vive AL
+        LADO del editor, no dentro — se monta con una línea, y una
+        `RTCPeerConnection` que revienta por una razón de red no puede llevarse
+        el lienzo con ella.
       */}
       {documentId && withCollaboration ? (
         <ErrorBoundary zona="Llamada" documentId={documentId} compacta>
