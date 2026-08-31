@@ -374,6 +374,7 @@
         "packages/dwg-codec/src/writer/ac1015-table-writer.ts",
         "packages/dwg-codec/src/writer/dwg-bit-emitter.ts",
         "packages/dwg-codec/tests/unit/ac1015-database.spec.ts",
+        "packages/dwg-codec/tests/unit/ac1015-entity-writer-v3.spec.ts",
         "packages/dwg-codec/tests/unit/ac1015-header-variables.spec.ts",
         "packages/dwg-codec/tests/unit/ac1015-header.spec.ts",
         "packages/dwg-codec/tests/unit/ac1015-minimal-file.spec.ts",

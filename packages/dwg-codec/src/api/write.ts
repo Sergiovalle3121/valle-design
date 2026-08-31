@@ -23,13 +23,27 @@
  * la entidad se sigue escribiendo) y un INSERT hacia un bloque así declarado
  * se omite del archivo por completo (pérdida declarada — insertar en la capa
  * "0" en vez del bloque correcto dibujaría algo distinto de lo pedido, así
- * que aquí NO hay equivalente al *fallback* de capa). El CONTENIDO de un
- * bloque de usuario tampoco viaja todavía en esta fase: un INSERT
- * referenciado obtiene un BLOCK_RECORD real y vacío (para que la referencia
- * resuelva y el archivo sea válido), y esa omisión de contenido se declara
- * igual que las demás — mapear `document.blocks[].entities` es trabajo de
- * una fase posterior, no de este primer contrato público.
+ * que aquí NO hay equivalente al *fallback* de capa).
  *
+ * CONTENIDO DE BLOQUE (corte 2026-08-31): el contenido de un bloque de
+ * usuario SÍ viaja ahora, reutilizando `canonicalDocumentToDwgEntities` — sin
+ * tocar `api/canonical.ts` (fuera de la frontera de esta sesión) — sobre un
+ * documento SINTÉTICO cuyas `entities` son `document.blocks[].entities`; es
+ * la misma función pública que ya resuelve el nivel de model space, así que
+ * el bloque queda sujeto exactamente a las mismas siete clases escribibles y
+ * al mismo límite ASCII, sin un segundo camino de mapeo. Lo que sigue
+ * declarado como pérdida, explícito y no silencioso:
+ * - un INSERT dentro de un bloque (bloque que inserta OTRO bloque) no se
+ *   escribe todavía — el writer de bajo nivel (`ac1015-minimal-file-writer.ts`)
+ *   ya sabe resolverlo (mismo `Ac1015MinimalFileEntitySpec` que model space),
+ *   pero encontrar y registrar el grafo completo de bloques referenciados
+ *   transitivamente es trabajo de una fase posterior; la entidad se omite del
+ *   bloque con pérdida declarada;
+ * - un INSERT que referencia un nombre de bloque ausente de `document.blocks`
+ *   sigue obteniendo un BLOCK_RECORD real y vacío (para que la referencia
+ *   resuelva y el archivo sea válido), con su propia pérdida declarada.
+ *
+
  * Verificación: el round-trip PROPIO (`writeCanonicalDwg` → `readDwg`) tiene
  * su spec en `tests/unit/write-canonical-dwg.spec.ts`. La otra mitad de la
  * evidencia — el oráculo EXTERNO — todavía no ejercita este contrato público
@@ -43,6 +57,7 @@ import {
   canonicalDocumentToDwgEntities,
   type CanonicalCadDocumentJson,
   type CanonicalLossEntry,
+  type CanonicalToDwgEntity,
 } from "./canonical.js";
 import {
   writeAc1015MinimalFile,
@@ -87,12 +102,51 @@ export function writeCanonicalDwg(
     canonicalDocumentToDwgEntities(document);
   const losses: CanonicalLossEntry[] = [...lossManifest];
 
-  // ---- capas: unión de las declaradas por el documento y las realmente
-  // referenciadas por una entidad (pueden no coincidir: una entidad puede
-  // nombrar una capa que `document.layers` nunca declaró) — "0" aparte,
-  // porque el archivo mínimo ya la trae implícita en layerIndex 0.
+  // ---- contenido de bloque: sólo para los nombres que un INSERT escribible
+  // realmente referencia (no todo `document.blocks`), resuelto ANTES de fijar
+  // las capas — sus propias entidades pueden nombrar capas que el nivel de
+  // model space nunca menciona. Reusa `canonicalDocumentToDwgEntities` sobre
+  // un documento sintético (mismas capas, `entities` = las del bloque): la
+  // MISMA función pública, sin segundo camino de mapeo ni tocar canonical.ts.
+  const blockDefByName = new Map(document.blocks.map((b) => [b.name, b] as const));
+  const referencedBlockNames = new Set<string>();
+  for (const item of entities) {
+    if (item.entity.kind === "insert" && item.blockName !== undefined) {
+      referencedBlockNames.add(item.blockName);
+    }
+  }
+  const blockContentByName = new Map<string, CanonicalToDwgEntity[]>();
+  for (const name of referencedBlockNames) {
+    const blockDef = blockDefByName.get(name);
+    if (blockDef === undefined) continue; // sin definición: bloque vacío, declarado más abajo.
+    const sub = canonicalDocumentToDwgEntities({ ...document, entities: blockDef.entities });
+    for (const loss of sub.lossManifest) losses.push(loss);
+    const kept: CanonicalToDwgEntity[] = [];
+    for (const item of sub.entities) {
+      if (item.entity.kind === "insert") {
+        losses.push({
+          code: "insert-block-nested-insert-not-written",
+          entityId: item.canonicalId,
+          sourceType: "BLOCK",
+          detail: `El bloque "${name}" contiene un INSERT ("${item.canonicalId}" → "${item.blockName ?? ""}"); un bloque que inserta OTRO bloque no se escribe todavía en esta fase (el writer de bajo nivel ya lo resolvería, pero recorrer el grafo completo de bloques referenciados es trabajo pendiente). La entidad se omite del bloque.`,
+          severity: "warning",
+        });
+        continue;
+      }
+      kept.push(item);
+    }
+    blockContentByName.set(name, kept);
+  }
+
+  // ---- capas: unión de las declaradas por el documento, las referenciadas
+  // por una entidad de model space y las referenciadas por el contenido de
+  // un bloque — "0" aparte, porque el archivo mínimo ya la trae implícita en
+  // layerIndex 0.
   const referencedLayerNames = new Set(layerNames);
   for (const item of entities) referencedLayerNames.add(item.layerName);
+  for (const items of blockContentByName.values()) {
+    for (const item of items) referencedLayerNames.add(item.layerName);
+  }
   referencedLayerNames.delete("0");
 
   const layers: Ac1015MinimalFileLayerSpec[] = [];
@@ -117,28 +171,33 @@ export function writeCanonicalDwg(
   const layerIndexFor = (name: string): number =>
     name === "0" ? 0 : (layerIndexByName.get(name) ?? 0);
 
-  // ---- bloques: sólo se declara un BLOCK_RECORD por cada nombre que un
-  // INSERT escribible realmente referencia (no todo `document.blocks`) —
-  // resolución de NOMBRE, no de contenido; ver límite declarado arriba.
+  // ---- bloques: un BLOCK_RECORD por cada nombre que un INSERT escribible
+  // realmente referencia, con su contenido YA resuelto arriba.
   const blocks: Ac1015MinimalFileBlockSpec[] = [];
   const blockIndexByName = new Map<string, number>();
   const unwritableBlockNames = new Set<string>();
-  for (const item of entities) {
-    if (item.entity.kind !== "insert" || item.blockName === undefined) continue;
-    const name = item.blockName;
-    if (blockIndexByName.has(name) || unwritableBlockNames.has(name)) continue;
+  for (const name of referencedBlockNames) {
     const bytes = asciiNameBytes(name);
     if (bytes === undefined) {
       unwritableBlockNames.add(name);
       continue;
     }
+    const content = blockContentByName.get(name);
+    if (content === undefined) {
+      losses.push({
+        code: "insert-block-not-declared",
+        sourceType: "BLOCK",
+        detail: `El bloque "${name}" no aparece en "document.blocks"; se escribe con su registro y su nombre para que el INSERT que lo referencia resuelva, pero sin contenido (no hay de dónde tomarlo).`,
+        severity: "info",
+      });
+    }
     blockIndexByName.set(name, blocks.length);
-    blocks.push({ name: bytes, entities: [] });
-    losses.push({
-      code: "insert-block-content-not-written",
-      sourceType: "BLOCK",
-      detail: `El bloque "${name}" se escribe con su registro y su nombre para que el INSERT que lo referencia resuelva, pero SIN el contenido geométrico del bloque: mapear las entidades de un bloque canónico es trabajo pendiente de una fase posterior de esta ola de escritura.`,
-      severity: "info",
+    blocks.push({
+      name: bytes,
+      entities: (content ?? []).map((item) => ({
+        entity: item.entity,
+        layerIndex: layerIndexFor(item.layerName),
+      })),
     });
   }
 
