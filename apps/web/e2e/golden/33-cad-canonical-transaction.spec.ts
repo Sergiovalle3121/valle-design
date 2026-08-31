@@ -343,7 +343,7 @@ test('switching the active layer changes where the MOUSE draws, and it survives 
     await expect(page.getByTestId('cad-layer-active-muros')).toHaveText('Muros');
   });
 
-  await toolbar(page).getByRole('button', { name: 'Line', exact: true }).click();
+  await toolbar(page).getByRole('button', { name: 'Línea', exact: true }).click();
   const from = await worldPoint(page, { x: 2_000, y: 2_000 });
   await page.mouse.click(from.x, from.y);
   const to = await worldPoint(page, { x: 6_000, y: 5_000 });
@@ -387,7 +387,7 @@ test('a locked layer refuses drawing and OFFSET, and rejection leaves zero histo
     await expectHistory(page, 0, 0);
     // La secuencia del MOTOR (command-first, como AutoCAD): distancia →
     // designar el objeto con el pickbox → Enter emite el lote.
-    await toolbar(page).getByRole('button', { name: 'Offset', exact: true }).click();
+    await toolbar(page).getByRole('button', { name: 'Desfase', exact: true }).click();
     await applyDynamicInput(page, { offset: '250' });
     const on = await worldPoint(page, { x: 1_250, y: 1_500 });
     await page.mouse.click(on.x, on.y);
@@ -413,7 +413,7 @@ test('a locked layer refuses drawing and OFFSET, and rejection leaves zero histo
     const depthBefore = await historyDepth(page);
 
     await deselect(page);
-    await toolbar(page).getByRole('button', { name: 'Offset', exact: true }).click();
+    await toolbar(page).getByRole('button', { name: 'Desfase', exact: true }).click();
     await applyDynamicInput(page, { offset: '250' });
     const on = await worldPoint(page, { x: 1_250, y: 1_500 });
     await page.mouse.click(on.x, on.y);
@@ -453,7 +453,7 @@ test('MOVE and COPY run from the ordinary command on the canonical selection', a
 
   await test.step('MOVE desplaza la geometría canónica de verdad', async () => {
     await page.getByTestId('cad-native-entity-zeta').click();
-    await toolbar(page).getByRole('button', { name: 'Move', exact: true }).click();
+    await toolbar(page).getByRole('button', { name: 'Mover', exact: true }).click();
     await point(page, '0', '0');
     await point(page, '1000', '500');
     await expectNativeCount(page, 1);
@@ -471,7 +471,7 @@ test('MOVE and COPY run from the ordinary command on the canonical selection', a
   await test.step('COPY duplica y deja el original intacto', async () => {
     await deselect(page);
     await page.getByTestId('cad-native-entity-zeta').click();
-    await toolbar(page).getByRole('button', { name: 'Copy', exact: true }).click();
+    await toolbar(page).getByRole('button', { name: 'Copiar', exact: true }).click();
     await point(page, '0', '0');
     await point(page, '0', '2000');
     // COPY del motor es MÚLTIPLE, como en AutoCAD: sigue pidiendo destinos

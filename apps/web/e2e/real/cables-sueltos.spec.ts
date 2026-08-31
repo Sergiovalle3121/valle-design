@@ -93,14 +93,19 @@ const NO_OPERAN_POR_ESTAR_ACTIVOS: Record<string, string> = {
     "el estudio carga ya en vista de planta",
   Model: "la pestaña de espacio modelo ya está seleccionada",
   "Seleccionar / mover (V)": "es la herramienta activa al cargar",
-  Puntos: "es la pestaña abierta del panel izquierdo",
+  // Antes era "Puntos" (compatibilidad con estaciones heredadas del
+  // planificador industrial, ver IDENTITY.md): esa pestaña ahora sólo
+  // aparece cuando el documento cargado de verdad trae estaciones, y el
+  // barrido corre sobre un documento LIMPIO. "Biblioteca" es la pestaña que
+  // abre por defecto en su lugar.
+  Biblioteca: "es la pestaña abierta del panel izquierdo",
   // Los dos primeros botones de la paleta de herramientas extraída. El canal
   // Firefox de CI los delató: en Chromium el hash del lienzo cambia entre dos
   // capturas y tapaba a cualquier control sin efecto real; el render de
   // Firefox es determinista y midió la verdad.
-  "Select · V — Seleccionar y mover objetos.":
+  "Seleccionar · V — Seleccionar y mover objetos.":
     "es la herramienta activa al cargar (gemelo de «Seleccionar / mover (V)»)",
-  "Pan · Space — Navegar el plano sin cambiar la geometria.":
+  "Encuadre · Space — Navegar el plano sin cambiar la geometria.":
     "pan comparte modo con select (la navegación por arrastre vive en el modo " +
     "de selección) y el estudio ya carga en él",
 };
@@ -132,8 +137,8 @@ const DESHABILITADOS_CON_RAZON = new Set([
   "Ajustar a la selección — encuadra los objetos seleccionados",
   // Los gemelos de la paleta extraída: sin historia que deshacer se
   // deshabilitan, igual que los dos de arriba.
-  "Undo · Ctrl+Z — Deshacer el ultimo cambio.",
-  "Redo · Ctrl+Shift+Z — Rehacer el ultimo cambio.",
+  "Deshacer · Ctrl+Z — Deshacer el ultimo cambio.",
+  "Rehacer · Ctrl+Shift+Z — Rehacer el ultimo cambio.",
 ]);
 
 const WALL_MM = 3500;

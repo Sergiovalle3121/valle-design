@@ -1126,6 +1126,46 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CAD-RIBBON-INTERFAZ-20260831",
+      "date": "2026-08-31",
+      "initiative": "Cinta (ribbon) al estilo AutoCAD generada del registro real de 192 comandos, ViewCube y barra de navegación sobre la navegación 3D ya existente, traducción al español es-MX de los 17 botones de la paleta rápida (retirando el vocabulario industrial \"Corridor\"/\"Area\"), extracción de la barra de estado del monolito para hacer sitio, condicional honesto en el primer paso del recorrido guiado, y el gate de cobertura registro↔cinta con su evidencia medida (17→192 comandos alcanzables con el ratón).",
+      "branch": "claude/cinta-interfaz-cad",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate encargó el frente de interfaz de una campaña de cinco sesiones paralelas: cerrar la brecha de que el 91% del producto (175 de 192 comandos) sólo era alcanzable tecleando, medida contra AutoCAD.",
+      "firstPartyInputs": [
+        "El registro real de comandos del motor (apps/web/src/lib/cad/engine/index.ts, CAD_COMMAND_DESCRIPTORS) y sus resúmenes en español (command-summaries.ts).",
+        "docs/execution/DEUDA-MONOLITO.md: método de extracción y regla calibrada (umbral de ~20/~35 dependencias) para sacar la barra de estado del monolito.",
+        "La navegación 3D ya construida y probada (lib/cad/view/view-3d.ts, components/cad/viewport/camera-view-presets.ts) a la que el ViewCube y la barra de navegación dan cara, sin reimplementarla.",
+        "AGENTS.md (regla de oro del sistema de diseño, presupuesto del monolito) e IDENTITY.md (frontera de dominio industrial) del propio repositorio."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. La agrupación de comandos por pestaña/panel se derivó de los campos ya existentes del descriptor (kind) y de patrones sobre el nombre canónico del propio registro, no de una implementación de AutoCAD consultada.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/ribbon.ts + ribbon.spec.ts (cinta generada del registro, gate de cobertura total)",
+        "apps/web/src/components/cad/ribbon/ (CadRibbon, CadRibbonPanel, CadRibbonButton, ribbon-icons)",
+        "apps/web/src/components/cad/viewport/CadViewCube.tsx, CadNavigationBar.tsx",
+        "apps/web/src/components/cad/studio/CadStatusBar.tsx (extraída de Layout3DEditor.tsx)",
+        "apps/web/src/components/cad/editor/Layout3DEditor.tsx (monta la cinta, el ViewCube, el botón genérico \"Terminar comando\" para comandos del motor sin gemelo en la paleta vieja, y el gancho \"layer-manager\" del bus de paletas)",
+        "apps/web/src/lib/cad/toolbar.ts (traducción es-MX, retiro de \"Corridor\"/\"Area\")",
+        "apps/web/src/lib/cad/onboarding/guided-tour.ts + CadGuidedTourDock.tsx (paso \"lámina\" condicionado al documento real)",
+        "scripts/cad/check-ribbon-coverage.mjs, scripts/cad/ui-command-reach.mjs, docs/cad/evidence/ui-command-reach.json",
+        "apps/web/e2e/golden/61-cad-ribbon-mouse-only.spec.ts (dibuja, acota y cambia de capa desde la cinta, sólo con el ratón)",
+        "scripts/cad/monolith-budget.json, docs/execution/DEUDA-MONOLITO.md (trinquete actualizado)"
+      ],
+      "fixtures": "Ninguno nuevo fuera del golden 61, que reutiliza los fixtures existentes (installCadV1Backend, worldPoint, saveAndSettle).",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "PR en borrador de esta rama con los seis gates locales corridos sobre el árbol committeado."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

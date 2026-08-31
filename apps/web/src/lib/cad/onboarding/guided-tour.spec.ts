@@ -24,8 +24,10 @@ import {
   cadGuidedTourProgress,
   cadGuidedTourReduce,
   cadGuidedTourStep,
+  cadGuidedTourStepCopy,
   cadGuidedTourWithinTarget,
   cadTourBlockIsDoor,
+  cadTourLaminaReady,
   cadTourStepDone,
   formatCadTourDuration,
   parseCadTourRecord,
@@ -285,6 +287,72 @@ const dimension = {
   // Un registro a medias no se cuela con `true` de regalo.
   assert.equal(parseCadTourRecord('{"status":"running"}').acknowledged, false);
   assert.equal(parseCadTourRecord('{"status":"running"}').startedAt, 0);
+}
+
+// Regla 3 (AGENTS.md): ninguna capacidad se anuncia sin evidencia. El primer
+// paso NO puede afirmar «tu lámina ya está puesta» delante de un documento en
+// blanco — antes lo hacía siempre, sin mirar el documento.
+{
+  const laminaStep = CAD_GUIDED_TOUR_STEPS.find((step) => step.id === "lamina")!;
+
+  ok(cadTourLaminaReady(null) === false, "sin documento, la lámina no está lista");
+  ok(
+    cadTourLaminaReady(view()) === false,
+    "un documento en blanco (una capa, sin estilos de cota con nombre) no cuenta como listo",
+  );
+  ok(
+    cadTourLaminaReady(
+      view({ layers: [{ id: "0" }] as unknown as CadCommandDocumentView["layers"] }),
+    ) === false,
+    "una sola capa —la base de cualquier documento nuevo— tampoco cuenta",
+  );
+  ok(
+    cadTourLaminaReady(
+      view({
+        layers: [{ id: "0" }, { id: "MURO" }] as unknown as CadCommandDocumentView["layers"],
+      }),
+    ) === true,
+    "más de una capa es evidencia de que algo configuró la lámina",
+  );
+  ok(
+    cadTourLaminaReady(
+      view({
+        styles: {
+          text: {},
+          dimension: { Standard: {}, "COTA-1:100": {} },
+          mleader: {},
+          table: {},
+          plot: {},
+        },
+      }),
+    ) === true,
+    "más de un estilo de cota también cuenta",
+  );
+
+  const blanco = cadGuidedTourStepCopy(laminaStep, { document: view() });
+  ok(
+    blanco.title !== laminaStep.title && !/ya está puesta/.test(blanco.instruction),
+    "sobre un documento en blanco, el título deja de afirmar que la lámina ya está puesta",
+  );
+  ok(!/No hay nada que configurar/.test(blanco.instruction), "y no dice que no hay nada que configurar");
+
+  const conPlantilla = cadGuidedTourStepCopy(laminaStep, {
+    document: view({
+      layers: [{ id: "0" }, { id: "MURO" }] as unknown as CadCommandDocumentView["layers"],
+    }),
+  });
+  ok(
+    conPlantilla.title === laminaStep.title && conPlantilla.instruction === laminaStep.instruction,
+    "con plantilla real, el mensaje original —cierto en ese caso— se mantiene",
+  );
+
+  // Los otros cuatro pasos son ACCIONES, no afirmaciones sobre el estado de
+  // partida: su copia no cambia con la evidencia.
+  const muroStep = CAD_GUIDED_TOUR_STEPS.find((step) => step.id === "muro")!;
+  ok(
+    cadGuidedTourStepCopy(muroStep, { document: view() }) === muroStep,
+    "un paso que no es 'lamina' devuelve su propia copia sin tocar",
+  );
 }
 
 console.log(`guided-tour.spec: ${checks} comprobaciones nombradas + aserciones directas OK`);
