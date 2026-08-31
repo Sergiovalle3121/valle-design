@@ -1722,6 +1722,37 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "PRESSPULL-SOBRE-CARA-20260831",
+      "date": "2026-08-31",
+      "initiative": "PRESSPULL empuja por fin la CARA de un sólido existente, que es el gesto que separa un modelador de un visor y el objetivo declarado de la campaña 3D-M2. `solids-create.ts` declaraba el límite con todas sus letras desde agosto: «En AutoCAD, PRESSPULL empuja también la CARA de un sólido existente. Eso exige poder designar una cara, y el viewport 2D designa entidades, no caras». Con la aritmética de `pick3d/` ya en main (rayo de cámara contra caras teseladas, huella estable de cara y empujón por traslación de vértices) faltaba la mitad del motor: el bit `CAD_ACCEPT_FACE_PICK`, el input `facePick` con la huella y la normal, y el comando que decide qué hacer con la cara designada. PRESSPULL pasa a COMPONER las dos máquinas —empujar una cara o extruir un contorno— y decide por el primer gesto del usuario, no por una opción tecleada, que es como se comporta AutoCAD. La máquina de extrusión se exporta y se reutiliza tal cual: no nace una segunda. El empujón entra al documento como nodo `push` del árbol de historia con la huella de la cara, nunca como malla horneada, y por eso es REEDITABLE: cambiar la distancia en propiedades reconstruye el sólido sin deshacer nada, que es algo que SketchUp no sabe hacer.",
+      "branch": "claude/presspull-sobre-cara",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: es la campaña 3D que el titular encargó el 2026-08-31 —«quiero hacerlo un software para sistemas 3D como lo es autocad o skechtup»— y la continuación directa de las olas 0, 1 y 3 ya fusionadas (#122, #124).",
+      "firstPartyInputs": [
+        "La aritmética propia de apps/web/src/lib/cad/pick3d/ (face-ray, solid-face-ref, face-push).",
+        "El motor de comandos propio y su registro; los invariantes de solid3d del kernel B-rep propio."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/engine/command-types.ts (CAD_ACCEPT_FACE_PICK y el input facePick)",
+        "apps/web/src/lib/cad/engine/commands/solids-create.ts (fábrica de extrusión exportada; el límite declarado se sustituye por el puntero al módulo nuevo)",
+        "apps/web/src/lib/cad/engine/index.ts (registro)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de llevar Valle Design a modelado 3D en la sesión del 2026-08-31."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

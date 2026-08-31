@@ -16,12 +16,16 @@
  * exportado a DXF. Quien quiera conservarla la copia antes; el paso está en un
  * solo lote, así que deshacer lo devuelve todo de una vez.
  *
- * ## PRESSPULL, y qué NO es aquí
+ * ## PRESSPULL ya no vive aquí
  *
- * En AutoCAD, PRESSPULL empuja también la CARA de un sólido existente. Eso exige
- * poder designar una cara, y el viewport 2D designa entidades, no caras. Lo que
- * hace aquí es lo otro que hace PRESSPULL: convertir un área cerrada en sólido
- * arrastrando. Está dicho en el prompt en vez de fingir que hace las dos cosas.
+ * Este archivo declaraba que PRESSPULL sólo sabía convertir un área cerrada en
+ * sólido, porque *«el viewport 2D designa entidades, no caras»*. Ya no es
+ * cierto: `lib/cad/pick3d/` resuelve el rayo de cámara contra las caras y
+ * `CAD_ACCEPT_FACE_PICK` deja pedirlas. PRESSPULL se mudó a
+ * `solids-push-face.ts`, donde hace LAS DOS COSAS —empujar una cara o extruir
+ * un contorno— decidiendo por el primer gesto del usuario. La máquina de
+ * extrusión que usa para el segundo caso sigue siendo la de aquí, exportada
+ * para que no haya dos.
  */
 import type { CadPoint2 } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
@@ -83,7 +87,7 @@ function profilesOf(context: CadCommandContext, ids: readonly string[]): CadExtr
 // EXTRUDE / PRESSPULL
 // ---------------------------------------------------------------------------
 
-interface ExtrudeState extends SelectionState {
+export interface ExtrudeState extends SelectionState {
   /** Ángulo de desmoldeo en grados. Positivo ⇒ la pieza se ensancha al subir. */
   taperDeg: number;
   askingTaper: boolean;
@@ -91,7 +95,7 @@ interface ExtrudeState extends SelectionState {
 
 const EXTRUDE_TAPER = { keyword: "Inclinación", shortcut: "I" } as const;
 
-const EMPTY_EXTRUDE: ExtrudeState = { selection: [], taperDeg: 0, askingTaper: false };
+export const EMPTY_EXTRUDE: ExtrudeState = { selection: [], taperDeg: 0, askingTaper: false };
 
 function extrudeStep(state: ExtrudeState, verb: string): CadCommandStep<ExtrudeState> {
   if (state.selection.length === 0)
@@ -144,7 +148,7 @@ function extrudeResult(
   return solidBatch(state, commands, label);
 }
 
-function extrudeDescriptor(
+export function extrudeDescriptor(
   name: string,
   aliases: readonly string[],
   verb: string,
@@ -314,6 +318,5 @@ export const CAD_SOLID_CREATE_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   // PRESSPULL comparte máquina con EXTRUDE porque hace lo mismo sobre un área
   // cerrada; lo que NO hace es empujar la cara de un sólido existente, y eso se
   // dice en el prompt en vez de fingirlo.
-  asCadCommand(extrudeDescriptor("PRESSPULL", [], "empujar o tirar")),
   asCadCommand(revolveCommand),
 ];

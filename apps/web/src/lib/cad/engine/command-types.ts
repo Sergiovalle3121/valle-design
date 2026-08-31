@@ -34,9 +34,10 @@
  */
 import type {
   CadBlockDefinition, CadConstraint, CadDocument, CadEntity, CadLayerDef,
-  CadPaperSpace, CadParameter, CadPoint2,
+  CadPaperSpace, CadParameter, CadPoint2, CadPoint3,
 } from "../cad-document";
 import type { CadBounds } from "../entity-runtime";
+import type { CadSolidFaceRef } from "../cad-entities-v5";
 import type { CadEntityCommand } from "../entity-commands";
 import type { SnapType } from "../snap-engine";
 // Sólo TIPOS: la importación se borra al compilar, así que el motor sigue sin
@@ -95,6 +96,21 @@ export const CAD_ACCEPT_TEXT = 8;
 export const CAD_ACCEPT_KEYWORD = 16;
 export const CAD_ACCEPT_SELECTION = 32;
 export const CAD_ACCEPT_ENTITY_PICK = 64;
+/**
+ * Designar una CARA de un sólido, no una entidad.
+ *
+ * Es el bit que faltaba para que el modo 3D deje de ser un visor. Una entidad
+ * se designa con un id; una cara necesita además CUÁL de sus caras, y —esto es
+ * lo importante— una referencia que sobreviva a que el sólido se reconstruya:
+ * el índice de cara cambia cuando cambia el operando, así que lo que viaja es
+ * la HUELLA geométrica (`CadSolidFaceRef`), con el índice sólo como vía rápida
+ * que se comprueba antes de creerse.
+ *
+ * Quien la resuelve es el anfitrión de designación en el viewport, con el rayo
+ * de cámara de `lib/cad/pick3d/face-ray.ts`. El motor sólo declara que la
+ * espera.
+ */
+export const CAD_ACCEPT_FACE_PICK = 128;
 
 export type CadCommandInput =
   | { kind: "point"; point: CadPoint2; snap?: SnapType; source: "pointer" | "typed" | "tracked" }
@@ -104,6 +120,17 @@ export type CadCommandInput =
   | { kind: "keyword"; keyword: string }
   | { kind: "selection"; entityIds: readonly string[] }
   | { kind: "entityPick"; entityId: string; point: CadPoint2 }
+  | {
+      kind: "facePick";
+      /** Entidad `solid3d` a la que pertenece la cara. */
+      entityId: string;
+      /** Huella de la cara designada; el índice es vía rápida, no verdad. */
+      face: CadSolidFaceRef;
+      /** Punto 3D exacto donde el rayo tocó la cara. */
+      point: CadPoint3;
+      /** Normal unitaria de la cara en ese punto: la dirección del empujón. */
+      normal: CadPoint3;
+    }
   | { kind: "enter" }
   | { kind: "cancel" };
 
