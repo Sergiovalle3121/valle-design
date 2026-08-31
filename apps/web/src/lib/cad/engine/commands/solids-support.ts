@@ -155,10 +155,19 @@ export function solidBatch<S>(
   };
 }
 
-/** Formatea una magnitud para los mensajes de consulta. */
+/**
+ * Formatea una magnitud para los mensajes de consulta.
+ *
+ * El locale es **es-MX y no es-ES**, y la diferencia no es cosmética: España
+ * separa millares con punto y decimales con coma, y México al revés. El mismo
+ * volumen sale `1234,5678` en el primero y `1,234.5678` en el segundo. En un
+ * producto que mide cosas y cuyo contenido es mexicano, responder a un MASSPROP
+ * o a un INTERFERE con la convención de otro país es dar un número que se lee
+ * mal — y los números de este motor son su producto.
+ */
 export function formatMagnitude(value: number): string {
   if (!Number.isFinite(value)) return "—";
   const absolute = Math.abs(value);
   if (absolute !== 0 && (absolute < 1e-3 || absolute >= 1e9)) return value.toExponential(4);
-  return value.toLocaleString("es-ES", { maximumFractionDigits: 4 });
+  return value.toLocaleString("es-MX", { maximumFractionDigits: 4 });
 }

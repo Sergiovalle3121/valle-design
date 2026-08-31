@@ -129,7 +129,7 @@ export function CadCollaborationPalette({
   const checkpoint = () => {
     const at = new Date().toISOString();
     const label =
-      checkpointLabel.trim() || `Checkpoint ${new Date(at).toLocaleString()}`;
+      checkpointLabel.trim() || `Checkpoint ${new Date(at).toLocaleString("es-MX")}`;
     mutate(
       createCadVersion(document, { id: id("version"), label, actor, at }),
       `Version created: ${label}`,

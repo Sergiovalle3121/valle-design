@@ -499,7 +499,7 @@ export default function DashboardPage() {
               >
                 Suscripción {subscription.status}
                 {subscription.status === "trialing" && subscription.trialEndsAt
-                  ? ` hasta ${new Date(subscription.trialEndsAt).toLocaleDateString()}`
+                  ? ` hasta ${new Date(subscription.trialEndsAt).toLocaleDateString("es-MX")}`
                   : ""}
                 {entitlements.includes("design.cad") ? " · CAD habilitado" : ""}
               </p>
