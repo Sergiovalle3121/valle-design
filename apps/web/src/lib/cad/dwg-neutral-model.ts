@@ -367,6 +367,88 @@ export interface DwgNeutralHatch {
   readonly seedPoints: readonly DwgNeutralPoint2[];
 }
 
+/**
+ * Cara 3D (3DFACE): cuatro esquinas REALES en coordenadas del mundo —a
+ * diferencia de CIRCLE/LWPOLYLINE/TEXT, esta entidad no vive en un plano de
+ * objeto (OCS): sus cuatro puntos 10/11/12/13 son 3D directos en el dibujo,
+ * el mismo hecho que ya registra el modelo del laboratorio. Un triángulo se
+ * codifica repitiendo la cuarta esquina igual que la tercera; no se
+ * deduplica aquí porque el formato no lo hace y deduplicar sería inventar.
+ * `invisibilityFlags` viaja CRUDO por la misma razón que el resto de
+ * banderas del laboratorio: su semántica bit a bit (una por arista) es
+ * pública y estable, pero no está registrada como hecho consultado, así que
+ * este módulo no la interpreta.
+ */
+export interface DwgNeutralFace3d {
+  readonly kind: "face3d";
+  readonly corners: readonly [DwgNeutralPoint3, DwgNeutralPoint3, DwgNeutralPoint3, DwgNeutralPoint3];
+  readonly invisibilityFlags: number;
+}
+
+/**
+ * Cabecera de POLYLINE 3D. Sus vértices NO viajan aquí: son entidades VERTEX
+ * aparte que el lector de base ya ata por propietario
+ * (`DwgNeutralEntityRecord.vertices`, mismo mecanismo que `attributes` para
+ * INSERT/ATTRIB). `closedFlags` trae el bit de cierre crudo.
+ */
+export interface DwgNeutralPolyline3d {
+  readonly kind: "polyline3d";
+  readonly splineFlags: number;
+  readonly closedFlags: number;
+}
+
+/** Cabecera de la malla M×N (POLYLINE MESH). Vértices en `.vertices`. */
+export interface DwgNeutralPolylineMesh {
+  readonly kind: "polymesh";
+  readonly flags: number;
+  readonly curveType: number;
+  readonly mVertexCount: number;
+  readonly nVertexCount: number;
+  readonly mDensity: number;
+  readonly nDensity: number;
+}
+
+/** Cabecera de la malla de caras (POLYLINE PFACE). Vértices y caras en `.vertices`. */
+export interface DwgNeutralPolyfaceMesh {
+  readonly kind: "polyfaceMesh";
+  readonly vertexCount: number;
+  readonly faceCount: number;
+}
+
+/** VERTEX 3D, de malla o de polyface: banderas RC crudas y posición real. */
+export interface DwgNeutralVertex3d {
+  readonly kind: "vertex3d";
+  readonly flags: number;
+  readonly position: DwgNeutralPoint3;
+}
+
+export interface DwgNeutralVertexMesh {
+  readonly kind: "vertexMesh";
+  readonly flags: number;
+  readonly position: DwgNeutralPoint3;
+}
+
+export interface DwgNeutralVertexPface {
+  readonly kind: "vertexPface";
+  readonly flags: number;
+  readonly position: DwgNeutralPoint3;
+}
+
+/**
+ * Cara de una malla polyface: cuatro índices CRUDOS (1-based) sobre los
+ * vértices de posición de su polilínea; negativo marca la arista que le
+ * sigue como invisible, 0 marca "sin cuarto vértice" (triángulo). Se
+ * conservan crudos a propósito: reinterpretarlos aquí sería la misma
+ * suposición que el laboratorio ya declina hacer en su propio modelo.
+ */
+export interface DwgNeutralPfaceFace {
+  readonly kind: "pfaceFace";
+  readonly index1: number;
+  readonly index2: number;
+  readonly index3: number;
+  readonly index4: number;
+}
+
 export type DwgNeutralGeometry =
   | DwgNeutralLine
   | DwgNeutralPointEntity
@@ -380,7 +462,15 @@ export type DwgNeutralGeometry =
   | DwgNeutralSpline
   | DwgNeutralMText
   | DwgNeutralDimension
-  | DwgNeutralHatch;
+  | DwgNeutralHatch
+  | DwgNeutralFace3d
+  | DwgNeutralPolyline3d
+  | DwgNeutralPolylineMesh
+  | DwgNeutralPolyfaceMesh
+  | DwgNeutralVertex3d
+  | DwgNeutralVertexMesh
+  | DwgNeutralVertexPface
+  | DwgNeutralPfaceFace;
 
 export interface DwgNeutralLayer {
   readonly handle: number;
@@ -399,6 +489,12 @@ export interface DwgNeutralEntityRecord {
   readonly insertedBlockName: readonly number[] | undefined;
   /** Sólo INSERT con ATTRIBs: los atributos atados por su propietario. */
   readonly attributes: readonly DwgNeutralEntityRecord[] | undefined;
+  /**
+   * Sólo POLYLINE 3D/malla/polyface: sus VERTEX (y caras polyface) en orden
+   * del mapa, atados por el lector de base — mismo mecanismo que
+   * `attributes` para INSERT/ATTRIB.
+   */
+  readonly vertices: readonly DwgNeutralEntityRecord[] | undefined;
 }
 
 export interface DwgNeutralBlock {

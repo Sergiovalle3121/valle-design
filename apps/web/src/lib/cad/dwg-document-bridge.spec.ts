@@ -215,7 +215,15 @@ const registro = (
   layerHandle?: number,
   insertedBlockName?: number[],
   attributes?: DwgNeutralEntityRecord[],
-): DwgNeutralEntityRecord => ({ handle, entity, layerHandle, insertedBlockName, attributes });
+  vertices?: DwgNeutralEntityRecord[],
+): DwgNeutralEntityRecord => ({
+  handle,
+  entity,
+  layerHandle,
+  insertedBlockName,
+  attributes,
+  vertices,
+});
 
 const vacia: DwgNeutralDatabase = {
   layers: [],

@@ -173,10 +173,14 @@ export function dwgCodecBuildOrder(runEntries) {
   };
 }
 
-/** Los dos flags de build que gobiernan la beta de importación DWG (ADR-0009). */
+/** Los flags de build que gobiernan la beta de importación DWG (ADR-0009). */
 export const DWG_BUILD_FLAG_NAMES = [
   'NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA',
   'NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA',
+  // Perfil 3D heredado PROPUESTO, ADR-0009 §9. Sin firma del titular: declarar
+  // el ARG/ENV no habilita nada, pero su ausencia sí sería el mismo "módulo sin
+  // consumidor" que esta campaña prohíbe.
+  'NEXT_PUBLIC_DWG_3D_WIREFRAME_IMPORT_BETA',
 ];
 
 /**
