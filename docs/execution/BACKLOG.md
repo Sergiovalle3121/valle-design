@@ -156,6 +156,13 @@ ante operación sin marca. **Estimación:** medio día.
   descuento de `junctionVolumeByWall`); el sólido real de referencia vive en
   `wall-solid.ts` (`wallSolidBodyLocalWithDiagnostics`) +
   `lib/brep/mass-properties.ts` (`bodyMassProperties`).
+- **Hereda el sesgo (campaña Entrega del proyecto, 2026-08-31):**
+  `DATAEXTRACTION` (`lib/cad/data-extraction/data-extraction.ts`) extrae el
+  volumen de muro de `buildCadBimSchedule` tal cual, así que hereda esta
+  sub-facturación — no la tapa. `CAD_DATA_EXTRACTION_VOLUME_CAVEAT` viaja
+  DENTRO de la tabla insertada en el dibujo y en el CSV exportado, con el
+  mismo texto que este ítem, para que quien reciba el cuadro de cantidades
+  no lo confunda con un número cerrado.
 - **Por qué no se arregló ya:** cambiar la fórmula cambia qué se FACTURA por
   muro — decisión de negocio (¿se cobra la extensión exterior de esquina o
   no?), no una corrección técnica unilateral. Se midió y se puso un gate de
@@ -167,6 +174,43 @@ ante operación sin marca. **Estimación:** medio día.
   sólo restar el solape interior) y `wall-takeoff-solid-parity.spec.ts`
   pasa con una brecha ~0% en vez de con un techo de tolerancia.
 - **Estimación:** medio día una vez decidido el criterio de facturación.
+
+### P1-8 · PUBLISH y SHEETSET son comandos reales pero el estudio no les pasa un conjunto cargado
+- **Qué falla:** `PUBLISH` y `SHEETSET` (campaña Entrega del proyecto,
+  2026-08-31) alcanzan de verdad `CAD_COMMAND_REGISTRY_V2` y su anfitrión
+  (`plot-host.ts`) publica un PDF real y renumera/añade/lista hojas de un
+  `CadSheetSet` real cuando se le da uno — probado contra bytes de PDF y
+  contra el conjunto guardado (`plot-host.spec.ts`, `sheet-set-commands.spec.ts`).
+  Lo que falta es la MISMA pieza que P1-2 (XATTACH): nadie llama a
+  `sheetSetsRepository` desde el estudio real y pasa `sheetSet`/`saveSheetSet`
+  a `useCadStudioPlotHost`. Hoy, tecleado en el producto, responde «El
+  conjunto de planos … no está cargado en este estudio» — honesto, no un
+  éxito falso, pero tampoco el flujo completo.
+- **Dónde:** `apps/web/src/components/cad/command-line/plot-host.ts`
+  (`CadPlotHostBridge.sheetSet`/`saveSheetSet`, ya declarados) y
+  `apps/web/src/components/cad/command-line/use-command-engine.ts`
+  (`useCadStudioPlotHost`, que hoy no recibe esas dos opciones). El punto de
+  montaje real está en `Layout3DEditor.tsx` línea ~4852
+  (`useCadStudioCommandEngine({...})`), y por eso NO se tocó en esta
+  campaña: el archivo está en su techo exacto de `check:cad`
+  (19.002/19.002 líneas, 135/135 `useState` — una línea más es un rojo).
+- **Diseño esbozado:** exactamente el patrón que P1-2 ya dejó escrito para
+  XATTACH — precargar el conjunto activo (nombre, sin contenido) al abrir el
+  estudio, o resolver `sheetSetId` bajo demanda contra
+  `sheetSetsRepository.get`/`documentsRepository.open` y entregarlo
+  síncronamente desde una `ref` ya resuelta, como hace `plotStyleTables`.
+  El propio `Layout3DEditor.tsx` ya tiene un flujo de publicación por botón
+  (`publishSheetSetPdf`, con `jsPDF` y `buildCadPublishPlan`) que NO usa esta
+  tubería — es un hallazgo de esta campaña, no un demérito: los dos flujos
+  hoy conviven y deberían converger en `publishCadSheetSet`.
+- **Criterio de aceptación:** `PUBLISH set:id` tecleado en el estudio real
+  produce el mismo PDF que hoy produce el botón; el arnés de integridad no
+  cambia (ya es `delegado`, correcto), pero un golden Playwright puede dejar
+  de afirmar el mensaje «no está cargado» y afirmar en su lugar el PDF
+  descargado.
+- **Estimación:** 1 día, la mayor parte en decidir el punto de precarga
+  (bloqueado por quien tenga permiso de tocar `Layout3DEditor.tsx`, o por la
+  próxima extracción del monolito).
 
 ### ~~P1-7 · Canal "algo salió mal" dentro del producto, vía outbox~~ — CERRADO (campaña de lanzamiento, OLA 4.2)
 
