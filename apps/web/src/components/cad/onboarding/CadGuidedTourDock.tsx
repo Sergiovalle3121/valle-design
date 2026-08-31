@@ -34,6 +34,7 @@ import { Button, ProgressBar, cx } from "@/components/ui";
 import {
   CAD_GUIDED_TOUR_STEPS,
   cadGuidedTourProgress,
+  cadGuidedTourStepCopy,
   formatCadTourDuration,
   type CadTourEvidence,
 } from "@/lib/cad/onboarding/guided-tour";
@@ -176,9 +177,14 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
           <span className="type-small mt-1 block font-semibold text-foreground">
             {progress.completed
               ? "Recorrido terminado"
-              : (CAD_GUIDED_TOUR_STEPS.find(
-                  (step) => step.id === progress.currentStepId,
-                )?.title ?? "Sigue dibujando")}
+              : (() => {
+                  const current = CAD_GUIDED_TOUR_STEPS.find(
+                    (step) => step.id === progress.currentStepId,
+                  );
+                  return current
+                    ? cadGuidedTourStepCopy(current, evidence).title
+                    : "Sigue dibujando";
+                })()}
           </span>
         </span>
         {/* Sólo el BOTÓN reclama el puntero, nunca la fila que lo envuelve:
@@ -206,6 +212,7 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
         {CAD_GUIDED_TOUR_STEPS.map((step) => {
           const done = progress.doneStepIds.includes(step.id);
           const current = progress.currentStepId === step.id;
+          const copy = cadGuidedTourStepCopy(step, evidence);
           return (
             <li
               key={step.id}
@@ -237,15 +244,15 @@ export function CadGuidedTourDock({ host, disabled }: CadGuidedTourDockProps) {
                     done ? "text-muted-foreground" : "text-foreground",
                   )}
                 >
-                  {step.title}
+                  {copy.title}
                 </strong>
                 {current ? (
                   <>
                     <span className="type-caption mt-1 block text-muted-foreground">
-                      {step.instruction}
+                      {copy.instruction}
                     </span>
                     <span className="type-micro mt-0.5 block text-muted-foreground">
-                      {step.hint}
+                      {copy.hint}
                     </span>
                     {step.id === "lamina" ? (
                       <Button

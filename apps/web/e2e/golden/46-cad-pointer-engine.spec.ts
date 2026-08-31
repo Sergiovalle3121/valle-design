@@ -114,7 +114,7 @@ test('dibujar una polilínea CON EL RATÓN captura un extremo existente y cierra
   await page.getByTitle(/Vista superior/).click();
   await page.getByTitle(/Ajustar a la planta/).click();
 
-  await toolbar(page).getByRole('button', { name: 'Pline', exact: true }).click();
+  await toolbar(page).getByRole('button', { name: 'Polilínea', exact: true }).click();
   // El prompt es el del MOTOR, no el de la máquina heredada: si el botón
   // siguiera arrancando `cad-command.ts`, aquí no habría diálogo del motor.
   await expect(page.getByTestId('cad-command-prompt')).toBeVisible();
@@ -183,7 +183,7 @@ test('con el motor abierto, la máquina heredada no recibe el clic', async ({ co
   await page.getByTitle(/Vista superior/).click();
   await page.getByTitle(/Ajustar a la planta/).click();
 
-  await toolbar(page).getByRole('button', { name: 'Line', exact: true }).click();
+  await toolbar(page).getByRole('button', { name: 'Línea', exact: true }).click();
   await expect(page.getByTestId('cad-command-prompt')).toBeVisible();
 
   const a = await screenPointFor(page, { x: 3_000, y: 2_000 });
@@ -200,7 +200,7 @@ test('con el motor abierto, la máquina heredada no recibe el clic', async ({ co
   await expect(page.getByTestId('cad-history-depth')).toHaveAttribute('data-undo', '1');
 
   // Y Esc sobre un comando nuevo cancela sin escribir nada.
-  await toolbar(page).getByRole('button', { name: 'Line', exact: true }).click();
+  await toolbar(page).getByRole('button', { name: 'Línea', exact: true }).click();
   await page.mouse.click(a.x, a.y);
   await page.keyboard.press('Escape');
   await expect(page.getByTestId('cad-command-prompt')).toBeHidden();

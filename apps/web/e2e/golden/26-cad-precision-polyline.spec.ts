@@ -96,7 +96,7 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
     await page.getByTitle(/Vista, capas/).click();
   });
 
-  await page.getByRole('button', { name: 'Line', exact: true }).click();
+  await page.getByRole('button', { name: 'Línea', exact: true }).click();
   await test.step('4/7. Coordenada absoluta y dynamic input', async () => {
     await expect(page.getByTestId('cad-dynamic-input')).toBeVisible();
     await fillPoint(page, '1000', '1000');
@@ -116,7 +116,7 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
   });
 
   await test.step('13. Crear polilínea cerrada', async () => {
-    await page.getByRole('button', { name: 'Pline', exact: true }).click();
+    await page.getByRole('button', { name: 'Polilínea', exact: true }).click();
     await fillPoint(page, '2000', '4000');
     await fillPoint(page, '2000', '0', 'REL');
     await fillPoint(page, '0', '1500', 'REL');
@@ -136,7 +136,7 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
     // que es lo que `worldPoint` necesita para invertir la proyección.
     await page.getByRole('button', { name: '2D', exact: true }).click();
     await page.getByTitle(/Ajustar a la planta/).click();
-    await page.getByRole('button', { name: 'Offset', exact: true }).click();
+    await page.getByRole('button', { name: 'Desfase', exact: true }).click();
     await applyDynamicInput(page, { offset: '250mm' });
     const on = await worldPoint(page, { x: 3_000, y: 4_000 });
     await page.mouse.click(on.x, on.y);

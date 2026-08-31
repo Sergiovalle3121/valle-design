@@ -86,7 +86,7 @@ test('the 2D editor stays fully operable when the browser denies WebGL', async (
 
   // 2. La barra de herramientas responde. Éste es el punto exacto donde la
   //    suite moría en Firefox: el aviso de degradación no puede cubrirla.
-  await page.getByRole('button', { name: 'Circle', exact: true }).click();
+  await page.getByRole('button', { name: 'Círculo', exact: true }).click();
   const dynamic = page.getByTestId('cad-dynamic-input');
   await expect(dynamic).toBeVisible();
   await applyDynamicInput(page, { x: '4000', y: '3000' });

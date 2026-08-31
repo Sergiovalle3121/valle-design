@@ -28,49 +28,49 @@ export interface CadToolbarAction {
 export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
   {
     id: "select",
-    label: "Select",
+    label: "Seleccionar",
     shortcut: "V",
     group: "navigate",
     description: "Seleccionar y mover objetos.",
   },
   {
     id: "pan",
-    label: "Pan",
+    label: "Encuadre",
     shortcut: "Space",
     group: "navigate",
     description: "Navegar el plano sin cambiar la geometria.",
   },
   {
     id: "measure",
-    label: "Measure",
+    label: "Distancia",
     shortcut: "M",
     group: "draw",
     description: "Medir distancia entre puntos.",
   },
   {
     id: "line",
-    label: "Line",
+    label: "Línea",
     shortcut: "L",
     group: "draw",
     description: "Trazar muros por segmentos encadenados con precisión.",
   },
   {
     id: "polyline",
-    label: "Pline",
+    label: "Polilínea",
     shortcut: "P",
     group: "draw",
     description: "Trazar una polilínea de muros y terminar con Enter.",
   },
   {
     id: "rect",
-    label: "Rect",
+    label: "Rectángulo",
     shortcut: "B",
     group: "draw",
     description: "Dibujar un rectangulo desde dos esquinas.",
   },
   {
     id: "circle",
-    label: "Circle",
+    label: "Círculo",
     shortcut: "C",
     group: "draw",
     description: "Dibujar un círculo por centro y radio o diámetro.",
@@ -85,68 +85,76 @@ export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
   // etiqueta falsa en la interfaz.
   {
     id: "move",
-    label: "Move",
+    label: "Mover",
     group: "draw",
     description: "Desplazar la selección de un punto base a un punto destino.",
   },
   {
     id: "copy",
-    label: "Copy",
+    label: "Copiar",
     group: "draw",
     description: "Duplicar la selección de un punto base a un punto destino.",
   },
   {
     id: "offset",
-    label: "Offset",
+    label: "Desfase",
     shortcut: "Shift+O",
     group: "draw",
     description: "Desfasar la selección por una distancia exacta.",
   },
+  // Antes "Corridor": inglés y vocabulario del planificador industrial del
+  // que nació el producto (ver IDENTITY.md). El comportamiento —preparar un
+  // pasillo entre dos objetos seleccionados— es arquitectónico de verdad
+  // (un pasillo es un espacio de circulación de cualquier plano) y ya está
+  // endurecido contra el barrido de cables sueltos (`cables-sueltos.spec.ts`);
+  // sólo cambia la etiqueta, nunca el id ni el despacho.
   {
     id: "aisle",
-    label: "Corridor",
+    label: "Pasillo",
     shortcut: "A",
     group: "draw",
     description: "Preparar un pasillo o una holgura entre dos objetos.",
   },
+  // Antes "Area": mismo defecto que "Corridor" arriba, misma corrección —
+  // sólo la etiqueta pasa a español; el id "zone" y su despacho no cambian.
   {
     id: "zone",
-    label: "Area",
+    label: "Área",
     shortcut: "Z",
     group: "insert",
-    description: "Insertar un area rectangular editable.",
+    description: "Insertar un área rectangular editable.",
   },
   {
     id: "equipment",
-    label: "Symbols",
+    label: "Símbolos",
     shortcut: "I",
     group: "insert",
     description: "Abrir la biblioteca de simbolos y bloques.",
   },
   {
     id: "text",
-    label: "Text",
+    label: "Texto",
     shortcut: "T",
     group: "insert",
     description: "Agregar etiqueta o nota.",
   },
   {
     id: "fit_view",
-    label: "Fit",
+    label: "Ajustar todo",
     shortcut: "F",
     group: "navigate",
     description: "Encuadrar el dibujo completo.",
   },
   {
     id: "undo",
-    label: "Undo",
+    label: "Deshacer",
     shortcut: "Ctrl+Z",
     group: "history",
     description: "Deshacer el ultimo cambio.",
   },
   {
     id: "redo",
-    label: "Redo",
+    label: "Rehacer",
     shortcut: "Ctrl+Shift+Z",
     group: "history",
     description: "Rehacer el ultimo cambio.",

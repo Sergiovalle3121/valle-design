@@ -79,7 +79,7 @@ test("viewer navega dashboard y estudio sin controles ni escrituras CAD", async 
     page.getByRole("button", { name: "Guardar", exact: true }),
   ).toBeDisabled();
   await expect(
-    page.getByRole("button", { name: "Circle", exact: true }),
+    page.getByRole("button", { name: "Círculo", exact: true }),
   ).toBeDisabled();
 
   await page.keyboard.press("Control+s");

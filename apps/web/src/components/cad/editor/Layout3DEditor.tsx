@@ -220,7 +220,6 @@ import { createCadCheckpointQueue } from "@/lib/cad/recovery-checkpoint-queue";
 import {
   archiveCadConflictsExcept,
   cadAutosaveBlockedForDocument,
-  cadConflictIncidentLabel,
   closeCadConflictIncident,
   openCadConflictIncident,
   type CadConflictRegistry,
@@ -441,7 +440,11 @@ import { CadDesignReportDialog } from "../dialogs/CadDesignReportDialog";
 import { fmtArea, fmtDist } from "../studio/format-units";
 import { guardCadWebglContext } from "../viewport/webgl-context-guard";
 import { CadNativeEntityList } from "../palettes/CadNativeEntityList";
-import { CadSaveStatus } from "../studio/CadSaveStatus";
+import { CadStatusBar } from "../studio/CadStatusBar";
+import { CadRibbon } from "../ribbon/CadRibbon";
+import { registerCadUiHandler } from "@/components/cad/palettes/palette-command-bus";
+import { CadViewCube } from "../viewport/CadViewCube";
+import { CadNavigationBar } from "../viewport/CadNavigationBar";
 import { boundsIntersect } from "@/lib/cad/entity-hit-geometry";
 import {
   executeCadEntityCommand,
@@ -531,11 +534,6 @@ import {
   applyInitialCameraFraming,
 } from "@/components/cad/viewport/camera-policy";
 import {
-  CadRenderPipelineBadge,
-  CadRenderPipelineStats,
-} from "@/components/cad/viewport/RenderPipelineBadge";
-import { Cad3DSolidDiagnostics } from "@/components/cad/viewport/Cad3DSolidDiagnostics";
-import {
   resolveCadRenderPipeline,
   type CadRenderPipelineChoice,
 } from "@/lib/cad/render-pipeline-preference";
@@ -619,13 +617,9 @@ import type {
   CadPropertyRow,
   CadPropertyValue,
 } from "@/components/cad/palettes/property-model";
-import { CadDraftStatusBar } from "@/components/cad/palettes/CadDraftStatusBar";
 import { CadPaletteOverlays } from "@/components/cad/palettes/CadPaletteOverlays";
 import { CadIncidentReporter } from "@/components/cad/studio/CadIncidentReporter";
-import {
-  CAD_OSNAP_HUD_LABELS,
-  CAD_POLAR_INCREMENTS,
-} from "@/components/cad/palettes/draft-settings-host";
+import { CAD_OSNAP_HUD_LABELS } from "@/components/cad/palettes/draft-settings-host";
 import {
   useCadDraftSettings,
   useCadDraftSettingsHost,
@@ -2567,7 +2561,13 @@ export default function Layout3DEditor({
       setRecoveryCandidate(null);
       setRecoveryDivergent(false);
       setRecoverySavedAt(null);
-      setTab("stations");
+      // "equipment" (Biblioteca) es el panel por defecto para todo documento
+      // nuevo. La pestaña "stations" es compatibilidad con planos heredados
+      // del planificador industrial (ver IDENTITY.md, tabla de
+      // identificadores congelados: "se lee pero no se ofrece") y sólo
+      // aparece más abajo cuando el documento cargado de verdad trae
+      // estaciones — nunca como arranque por defecto.
+      setTab("equipment");
       setTool("select");
       setMeasureLive(null);
       setWalk(false);
@@ -12272,25 +12272,42 @@ export default function Layout3DEditor({
     persistViewportBookmarks(next);
     toast.success(`Vista eliminada: ${bookmark.label}.`, "Vistas CAD");
   };
-  const toggleViewMenu = () => {
-    const next = !showView;
-    if (next) {
-      const bounds = viewMenuRef.current?.getBoundingClientRect();
-      if (bounds)
-        setViewMenuPosition({
-          left: Math.max(8, Math.min(bounds.left, window.innerWidth - 304)),
-          top: bounds.bottom + 6,
-        });
-      setViewportBookmarks(readViewportBookmarks());
-      if (data)
-        setFpDraft({
-          w: data.footprint.footprintW,
-          h: data.footprint.footprintH,
-          g: data.footprint.gridSize,
-        });
-    }
-    setShowView(next);
+  const openViewMenu = () => {
+    const bounds = viewMenuRef.current?.getBoundingClientRect();
+    if (bounds)
+      setViewMenuPosition({
+        left: Math.max(8, Math.min(bounds.left, window.innerWidth - 304)),
+        top: bounds.bottom + 6,
+      });
+    setViewportBookmarks(readViewportBookmarks());
+    if (data)
+      setFpDraft({
+        w: data.footprint.footprintW,
+        h: data.footprint.footprintH,
+        g: data.footprint.gridSize,
+      });
+    setShowView(true);
   };
+  const toggleViewMenu = () => {
+    if (!showView) openViewMenu();
+    else setShowView(false);
+  };
+  /**
+   * Apunta el panel de capas al bus de paletas (`palette-command-bus.ts`) para
+   * que el comando LAYER —tecleado o despachado desde la cinta, es el mismo
+   * despacho— pueda abrirlo. Antes nadie se apuntaba a "layer-manager": el
+   * propio comando ya avisaba con honestidad ("El gestor de capas no está
+   * montado en este espacio de trabajo"), pero el panel SÍ está montado aquí
+   * —es exactamente el que abre el botón "Vista, capas y plano"— así que el
+   * aviso era un límite falso, no uno real.
+   */
+  useEffect(() => {
+    return registerCadUiHandler("layer-manager", () => {
+      openViewMenu();
+      return true;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
   const applyViewMode = useCallback((mode: "3d" | "2d") => {
     const cam = cameraRef.current;
     const ctrl = controlsRef.current;
@@ -15469,6 +15486,17 @@ export default function Layout3DEditor({
         </button>
       </div>
 
+      {/* LA CINTA. Va debajo de la barra de título/atajos de arriba, igual que
+          en AutoCAD: título + acceso rápido primero, cinta después, lienzo
+          debajo de las dos. `cad-shell` es `flex flex-col`, así que un hijo
+          nuevo aquí sólo empuja el lienzo — no reordena nada que ya exista.
+          `commandEngineRef.current.invoke` es el MISMO despacho que usa la
+          línea de comandos: un botón de la cinta no es un camino nuevo. */}
+      <CadRibbon
+        dispatch={(name) => commandEngineRef.current.invoke(name)}
+        readOnly={drawingReadOnly}
+      />
+
       {error ? (
         <div className="flex-1 grid place-items-center text-amber-400 text-sm">
           {error}
@@ -15491,13 +15519,24 @@ export default function Layout3DEditor({
           >
             {workspacePreferences.leftDock && (
               <>
+                {/* La pestaña "Puntos heredados" SÓLO aparece cuando el
+                    documento cargado de verdad trae estaciones de un plano
+                    del antiguo planificador industrial (columna `stations`
+                    del esquema, ver IDENTITY.md). Un plano nuevo no tiene
+                    "puntos por colocar" — eso era la bandeja de estaciones
+                    de una línea de manufactura, y ofrecerla a un arquitecto
+                    que abre un documento en blanco es exactamente la clase
+                    de vocabulario que este repositorio prohíbe (AGENTS.md,
+                    "Domain boundary — no industrial management"). */}
                 <div className="flex shrink-0 type-caption font-medium border-b border-border">
-                  <button
-                    onClick={() => setTab("stations")}
-                    className={`flex-1 px-3 py-2 inline-flex items-center justify-center gap-1.5 ${tab === "stations" ? "text-foreground bg-muted/60" : "text-muted-foreground dark:text-muted-foreground hover:text-foreground"}`}
-                  >
-                    <MapPin className="w-3.5 h-3.5" /> Puntos
-                  </button>
+                  {(data?.stations.length ?? 0) > 0 && (
+                    <button
+                      onClick={() => setTab("stations")}
+                      className={`flex-1 px-3 py-2 inline-flex items-center justify-center gap-1.5 ${tab === "stations" ? "text-foreground bg-muted/60" : "text-muted-foreground dark:text-muted-foreground hover:text-foreground"}`}
+                    >
+                      <MapPin className="w-3.5 h-3.5" /> Puntos heredados
+                    </button>
+                  )}
                   <button
                     onClick={() => setTab("equipment")}
                     className={`flex-1 px-3 py-2 inline-flex items-center justify-center gap-1.5 ${tab === "equipment" ? "text-foreground bg-muted/60" : "text-muted-foreground dark:text-muted-foreground hover:text-foreground"}`}
@@ -15506,14 +15545,14 @@ export default function Layout3DEditor({
                   </button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-3">
-                  {tab === "stations" ? (
+                  {tab === "stations" && (data?.stations.length ?? 0) > 0 ? (
                     <>
                       <div className="type-micro uppercase tracking-wide text-muted-foreground dark:text-muted-foreground mb-2">
-                        Por colocar ({tray.length})
+                        Marcadores heredados por colocar ({tray.length})
                       </div>
                       {tray.length === 0 ? (
                         <p className="type-caption text-muted-foreground">
-                          Todos los puntos están en el plano.
+                          Todos los marcadores heredados están en el plano.
                         </p>
                       ) : (
                         tray.map((st) => (
@@ -15770,6 +15809,24 @@ export default function Layout3DEditor({
             onPointerDown={() => setCadContextMenu(null)}
           >
             <div ref={mountRef} className="absolute inset-0" />
+            {/* ViewCube + barra de navegación: cara nueva sobre navegación 3D
+                que ya existe y ya está probada (`camera-view-presets.ts`,
+                `view-3d.ts`) — ver el comentario de `CadViewCube`. Sólo tiene
+                sentido con la cámara en perspectiva 3D; en 2D (planta
+                bloqueada) no hay caras que mostrar. */}
+            {viewMode === "3d" && (
+              <div className="pointer-events-none absolute right-3 top-3 z-20 flex items-start gap-2">
+                <div className="pointer-events-auto">
+                  <CadViewCube onSelect={viewPreset} />
+                </div>
+                <div className="pointer-events-auto">
+                  <CadNavigationBar
+                    onFitView={fitView}
+                    hasSelection={selList.length > 0 || nativeSelectionIds.length > 0}
+                  />
+                </div>
+              </div>
+            )}
             {webglUnavailable !== "ok" && (
               <div
                 data-testid="cad-webgl-unavailable"
@@ -16059,222 +16116,62 @@ export default function Layout3DEditor({
                 )}
               </div>
             )}
-            <div className="cad-status-bar absolute bottom-3 right-3 z-20 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface/80 px-3 py-1.5 type-micro text-foreground shadow-xl backdrop-blur">
-              {/* 5.2 · Lo que sigue es telemetría de DESARROLLADOR: qué
-                  herramienta está activa, cuántas entidades nativas hay, qué
-                  pipeline dibuja y cuánta profundidad tiene el historial. Un
-                  arquitecto no puede hacer nada con ninguna de las cuatro, y
-                  la barra de estado de un CAD se mira cien veces por sesión.
-
-                  NO se borra: dieciséis goldens la leen por `textContent` y
-                  por atributo, y es la forma más barata de afirmar que una
-                  acción de dibujo dejó exactamente una entrada de historial.
-                  Se esconde tras `?cadDiag=1`. Ver CadDiagnosticsReadout. */}
-              <CadDiagnosticsReadout enabled={diagnosticsEnabled}>
-                <span className="text-primary-ink">Tool: {tool}</span>
-                <span data-testid="cad-selection-status-count">
-                  {professionalSelection.current.length} sel
-                </span>
-                <span
-                  data-testid="cad-native-document-count"
-                  title="Entidades nativas en el documento canónico"
-                >
-                  Native {nativeEntities.length}
-                </span>
-                {/* QUÉ pipeline dibuja y CUÁNTO lleva materializado. El benchmark
-                  midió un camino que el producto no ejecutaba; publicarlo en el
-                  DOM es lo que impide que vuelva a pasar sin que nadie lo note. */}
-                <CadRenderPipelineBadge
-                  pipeline={renderPipelineRef.current}
-                  slot={renderPipelineSlotRef.current!}
-                />
-                {renderPipelineRef.current === "batched" && (
-                  <CadRenderPipelineStats
-                    slot={renderPipelineSlotRef.current!}
-                  />
-                )}
-                <Cad3DSolidDiagnostics hostsRef={nativeMassHostsRef} />
-                {/* La profundidad del historial es OBSERVABLE: una acción de
-                  dibujo tiene que dejar exactamente una entrada, y una acción
-                  rechazada ninguna. Sin esto, "el primer Undo no deshace nada"
-                  sólo se nota a mano. */}
-                <span
-                  data-testid="cad-history-depth"
-                  data-undo={hist.undo}
-                  data-redo={hist.redo}
-                  title="Profundidad de deshacer/rehacer"
-                >
-                  U{hist.undo}/R{hist.redo}
-                </span>
-                {/* El indicador HEREDADO. Con el pipeline por lotes lo sirve
-                  `CadRenderPipelineStats` con las cifras del índice de tiles;
-                  aquí se apaga para que el `data-testid` no salga dos veces. */}
-                {renderPipelineRef.current !== "batched" &&
-                  nativeRenderStats.omitted > 0 && (
-                    <span
-                      data-testid="cad-native-render-stats"
-                      data-total={nativeRenderStats.total}
-                      data-visible={nativeRenderStats.visible}
-                      data-rendered={nativeRenderStats.rendered}
-                      data-batching={
-                        nativeRenderStats.batching ? "true" : "false"
-                      }
-                      className="text-warning-ink"
-                      title={`${nativeRenderStats.visible.toLocaleString()} entidades en bounds visibles; ${nativeRenderStats.omitted.toLocaleString()} permanecen sólo en overview/canónico`}
-                    >
-                      Viewport {nativeRenderStats.rendered.toLocaleString()}/
-                      {nativeRenderStats.visible.toLocaleString()} visibles ·{" "}
-                      {nativeRenderStats.total.toLocaleString()} total
-                      {nativeRenderStats.batching ? " · cargando…" : ""}
-                    </span>
-                  )}
-              </CadDiagnosticsReadout>
-              <span>{data?.footprint.unit ?? "mm"}</span>
-              <span
-                ref={cursorCoordinateRef}
-                data-testid="cad-cursor-coordinate"
-                data-x=""
-                data-y=""
-                className="font-mono tabular-nums"
-                title="Coordenadas del cursor en el dibujo"
-              >
-                X — · Y —
-              </span>
-              <span title="Modelo, revisión funcional y versión CAS">
-                {model} · {revision} · v{data?.cadDocumentVersion ?? 0}
-              </span>
-              <CadSaveStatus
-                saving={saving}
-                dirty={dirty}
-                scheduled={saveStatus === "scheduled"}
-                issue={saveIssue}
-                issueLabel={cadConflictIncidentLabel({
-                  documentId: documentId ?? "",
-                  baseVersion: 0,
-                  serverVersion:
-                    saveIssue?.kind === "conflict"
-                      ? (saveIssue.serverVersion ?? null)
-                      : null,
-                })}
-              />
-              {dirty && recoverySavedAt && (
-                <span className="text-primary-ink" title={recoverySavedAt}>
-                  Recovery local activo
-                </span>
-              )}
-              {dirty && recoveryWarning && (
-                <span className="text-danger-ink" title={recoveryWarning}>
-                  Recovery local en riesgo
-                </span>
-              )}
-              <span
-                className={
-                  connectionState === "online"
-                    ? "text-success-ink"
-                    : connectionState === "offline"
-                      ? "text-danger-ink"
-                      : "text-muted-foreground"
-                }
-              >
-                {connectionState === "online"
-                  ? "API online"
-                  : connectionState === "offline"
-                    ? "API offline"
-                    : "API…"}
-              </span>
-              <span>
-                Layer{" "}
-                {cadLayers.find((layer) => layer.id === activeCadLayer)
-                  ?.label ?? activeCadLayer}
-              </span>
-              {cadLayerSummary.hiddenObjectCount > 0 && (
-                <span className="text-warning-ink">
-                  Objetos en capas ocultas {cadLayerSummary.hiddenObjectCount}
-                </span>
-              )}
-              {cadLayerSummary.lockedObjectCount > 0 && (
-                <span className="text-warning-ink">
-                  Objetos en capas bloqueadas{" "}
-                  {cadLayerSummary.lockedObjectCount}
-                </span>
-              )}
-              <span>
-                Grilla {layers.grid ? "on" : "off"} / Snap{" "}
-                {snap ? "grid" : "free"}
-              </span>
-              <CadDraftStatusBar
-                settings={draftSettings}
-                polarIncrements={CAD_POLAR_INCREMENTS}
-                onToggleOsnap={draftSettingsHost.toggleOsnap}
-                onToggleOrtho={draftSettingsHost.toggleOrtho}
-                onTogglePolar={draftSettingsHost.togglePolar}
-                onPolarIncrement={draftSettingsHost.setPolarIncrement}
-                onToggleObjectSnapTracking={
-                  draftSettingsHost.toggleObjectSnapTracking
-                }
-                onClearTracking={draftSettingsHost.clearTrackingPoints}
-                onOpenSettings={paletteHost.toggleDraftSettings}
-                onOpenStyles={paletteHost.toggleStyles}
-              />
-              <button
-                onClick={openChecks}
-                className={`${releaseTone} hover:text-foreground`}
-              >
-                Release {releaseState}
-              </button>
-              {report && (
-                <span
-                  className={
-                    report.score === "error"
-                      ? "text-danger-ink"
-                      : report.score === "warn"
-                        ? "text-warning-ink"
-                        : "text-success-ink"
-                  }
-                >
-                  Validación {report.score}
-                </span>
-              )}
-              {cadValidationReport && (
-                <span
-                  className={
-                    cadValidationReport.severity === "critical"
-                      ? "text-danger-ink"
-                      : cadValidationReport.severity === "warning"
-                        ? "text-warning-ink"
-                        : "text-success-ink"
-                  }
-                >
-                  CAD {cadValidationReport.severity}
-                </span>
-              )}
-              {clearanceIssues.length > 0 && (
-                <span className="text-warning-ink">
-                  Clearance {clearanceIssues.length}
-                </span>
-              )}
-              {safetyIssues.length > 0 && (
-                <span className="text-warning-ink">
-                  Safety {safetyIssues.length}
-                </span>
-              )}
-              {validationHighlightIds.size > 0 && (
-                <button
-                  onClick={clearValidationHighlights}
-                  className="text-danger-ink hover:text-foreground"
-                >
-                  Highlights {validationHighlightIds.size}
-                </button>
-              )}
-              {dxfWarnings.length > 0 && (
-                <span className="text-warning-ink">
-                  DXF {dxfWarnings.length}
-                </span>
-              )}
-              {localSnapshots.snapshots.length > 0 && (
-                <span>Instantáneas {localSnapshots.snapshots.length}</span>
-              )}
-            </div>
+            <CadStatusBar
+              diagnostics={{
+                enabled: diagnosticsEnabled,
+                tool,
+                selectionCount: professionalSelection.current.length,
+                nativeEntityCount: nativeEntities.length,
+                renderPipelineRef,
+                renderPipelineSlotRef,
+                nativeMassHostsRef,
+                historyUndo: hist.undo,
+                historyRedo: hist.redo,
+                nativeRenderStats,
+              }}
+              unit={data?.footprint.unit ?? "mm"}
+              cursorCoordinateRef={cursorCoordinateRef}
+              documentInfo={{
+                model,
+                revision,
+                version: data?.cadDocumentVersion ?? 0,
+              }}
+              saveState={{
+                saving,
+                dirty,
+                saveStatus,
+                saveIssue,
+                documentId,
+                recoverySavedAt,
+                recoveryWarning,
+                connectionState,
+              }}
+              layersInfo={{
+                cadLayers,
+                activeCadLayer,
+                cadLayerSummary,
+                gridOn: layers.grid,
+                snapOn: snap,
+              }}
+              draftSettings={draftSettings}
+              draftSettingsHost={draftSettingsHost}
+              paletteHost={paletteHost}
+              validation={{
+                onOpenChecks: openChecks,
+                releaseTone,
+                releaseState,
+                report,
+                cadValidationReport,
+                clearanceIssuesCount: clearanceIssues.length,
+                safetyIssuesCount: safetyIssues.length,
+                validationHighlightCount: validationHighlightIds.size,
+                onClearHighlights: clearValidationHighlights,
+              }}
+              misc={{
+                dxfWarningsCount: dxfWarnings.length,
+                snapshotsCount: localSnapshots.snapshots.length,
+              }}
+            />
             {hatchPickMode && (
               <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full bg-violet-600/95 px-3 py-1.5 type-caption font-semibold text-foreground">
                 HATCH {hatchPickSolid ? "SOLID" : "ANSI31"} · clic dentro de una
@@ -16338,6 +16235,28 @@ export default function Layout3DEditor({
                 onFinish={commitActiveDraftCommand}
                 onClose={closeActiveDraftPolyline}
               />
+            )}
+            {/* Terminar un comando del motor CON EL RATÓN, sin depender de que
+                el `tool` heredado coincida con uno de los pocos que montan
+                `CadDraftToolbar` arriba.
+                `CadDraftToolbar` sólo aparece para `tool === "wall"` o
+                `isCadDrawTool(tool)` — el puñado de herramientas que también
+                tienen equivalente en la paleta vieja. La cinta despacha los
+                192 comandos del registro por su nombre
+                (`commandEngineRef.current.invoke`), así que un comando
+                encadenable invocado DESDE LA CINTA (p. ej. LINE, PLINE) deja
+                `engineCommand` activo sin que `tool` cambie nunca, y sin este
+                botón no había ninguna forma de cerrarlo sin teclado. */}
+            {!walk && engineCommand && (
+              <button
+                type="button"
+                data-testid="cad-engine-command-finish"
+                onClick={() => commitActiveDraftCommand()}
+                title="Terminar el comando activo (Intro)"
+                className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-control border border-border bg-surface/95 px-3 py-1.5 type-caption font-medium text-foreground shadow-resting hover:bg-muted"
+              >
+                Terminar comando
+              </button>
             )}
             {mtextEditorOpen && (
               <CadMTextEditor
