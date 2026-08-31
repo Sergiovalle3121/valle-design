@@ -32,9 +32,7 @@ describe('TeamMessaging migration', () => {
     }
     // A diferencia de las tablas cad_* de 2026-08-01, nacen tenant NOT NULL:
     // no hay filas legadas que adoptar.
-    expect(joined.match(/"tenant_id" varchar\(36\) NOT NULL/g)).toHaveLength(
-      3,
-    );
+    expect(joined.match(/"tenant_id" varchar\(36\) NOT NULL/g)).toHaveLength(3);
     expect(joined).not.toContain('"tenant_id" varchar(36) NULL');
     // FKs: canal -> proyecto CAD, miembro -> canal, mensaje -> canal y padre.
     expect(joined).toContain('"fk_messaging_channel_project"');

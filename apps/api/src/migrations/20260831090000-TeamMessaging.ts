@@ -158,9 +158,7 @@ export class TeamMessaging20260831090000 implements MigrationInterface {
       );
     }
     await queryRunner.query(`DROP TABLE IF EXISTS "messaging_messages"`);
-    await queryRunner.query(
-      `DROP TABLE IF EXISTS "messaging_channel_members"`,
-    );
+    await queryRunner.query(`DROP TABLE IF EXISTS "messaging_channel_members"`);
     await queryRunner.query(`DROP TABLE IF EXISTS "messaging_channels"`);
   }
 }
