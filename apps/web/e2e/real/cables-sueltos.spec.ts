@@ -22,8 +22,10 @@
  * señal, sino SEIS, y basta una para declarar el control vivo:
  *
  *   · el DOM, el texto de la página o el VALOR de un campo cambian (el valor
- *     de un input no es innerText: «Corridor» rellena la línea de comandos y
- *     sin esta señal contaba como muerto);
+ *     de un input no es innerText — escribir en un campo debe contar como
+ *     efecto. «Corridor», que motivó esta señal, resultó rellenar un estado
+ *     que ya nada renderizaba: la corrida de main en Firefox lo destapó y hoy
+ *     previsualiza el pasillo o pide la selección que falta, con toast);
  *   · los píxeles del lienzo cambian;
  *   · empieza una descarga;
  *   · se abre un selector de archivos;

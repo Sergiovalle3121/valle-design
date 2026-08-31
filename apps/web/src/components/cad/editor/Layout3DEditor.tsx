@@ -12430,8 +12430,25 @@ export default function Layout3DEditor({
     )
       startCadDrawTool(id);
     else if (id === "aisle") {
+      // Precargaba una caja NL que ya no se renderiza (cable suelto destapado
+      // en Firefox): ahora previsualiza el pasillo o dice qué selección falta.
       setShowCommand(true);
-      setCommandText("haz un pasillo de 1.2m entre ");
+      const suggestion = suggestCadCommands({
+        query: "haz un pasillo",
+        selectedCount: selList.length,
+        selectedObjectLabels: selList.map((item) => {
+          if (item.type === "station")
+            return (
+              data?.stations.find((station) => station.id === item.id)
+                ?.station ?? item.id
+            );
+          if (selSnap?.type === "asset" && selSnap.id === item.id)
+            return selSnap.title;
+          return item.id;
+        }),
+        maxItems: 4,
+      }).find((entry) => entry.commandId === "create_clearance_aisle");
+      if (suggestion) applyCommandSuggestion(suggestion);
     } else if (id === "zone") {
       setTab("equipment");
       addAsset("zone");
@@ -14381,24 +14398,6 @@ export default function Layout3DEditor({
     offset: dynamicGridDefault,
   };
   const paletteResults = searchCadPalette(paletteQuery).slice(0, 9);
-  const commandAssistLabels = selList.map((item) => {
-    if (item.type === "station")
-      return (
-        data?.stations.find((station) => station.id === item.id)?.station ??
-        item.id
-      );
-    if (selSnap?.type === "asset" && selSnap.id === item.id)
-      return selSnap.title;
-    return item.id;
-  });
-  const commandAssistSuggestions = showCommand
-    ? suggestCadCommands({
-        query: commandText,
-        selectedCount: selList.length,
-        selectedObjectLabels: commandAssistLabels,
-        maxItems: commandText.trim() ? 4 : 3,
-      })
-    : [];
   const tray = (data?.stations ?? []).filter((s) => !placedIds.has(s.id));
   const cadTitle = title?.trim() || branding.productLabel;
   const cadSubtitle =
@@ -16794,7 +16793,8 @@ export default function Layout3DEditor({
             {/* El envoltorio lleva `pointer-events-none`: flota sobre la barra
                 inferior y, con el diálogo lleno, tapaba Undo. Los controles del
                 muelle reactivan el ratón por su cuenta. */}
-            {!walk && (
+            {/* showCommand ES la preferencia commandDock del workspace. */}
+            {!walk && showCommand && (
               <div className="pointer-events-none absolute bottom-14 left-3 z-30 w-[min(30rem,42vw)]">
                 <CadCommandLineDock
                   host={commandEngine}
