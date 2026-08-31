@@ -20,6 +20,7 @@ silencio. Formato: `NNNN-titulo.md`, estado en la segunda línea.
 | [0012](0012-dwg-doble-via.md) | DWG a doble vía: licenciar para VENDER, códec propio para POSEER, con criterio de cambio escrito. | Aceptada — vía licenciada sustituida por 0014 |
 | [0013](0013-rol-runtime-valle-app-no-dueno.md) | Rol runtime `valle_app`, no dueño de las tablas, para que RLS sujete también a la aplicación. | Aceptada (preparado; corte de tráfico no activado en el mismo cambio) |
 | [0014](0014-dwg-via-propia-unica.md) | DWG a vía única propia: se retira el proveedor licenciado que ADR-0012 dejaba abierto. | Aceptada |
+| [0015](0015-dwg-m4-encabezado-r2010.md) | M4 no estaba bloqueado: la especificación registrada sí era fuente permitida, y el encabezado de objeto R2010+ se resolvió midiendo contra el corpus. | Aceptada |
 
 ## Cómo se añade una
 

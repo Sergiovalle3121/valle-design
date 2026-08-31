@@ -420,3 +420,102 @@ original`, exactamente lo que la tarea #3 bloqueada explica; el indicador 3
 (DWG comercial) NO se mueve — depende de la tarea #7, fuera de alcance; el
 indicador 4 (paridad AutoCAD) se recalcula con `node scripts/cad/rubric.mjs`
 sobre cada commit, no se copia a mano aquí.
+
+## 12. Corrección posterior — 2026-08-31: §11.7 estaba equivocada
+
+Esta sección corrige un error de esta misma bitácora. No se reescribe nada de
+lo anterior: §11.7 se queda donde está, con su fecha, y aquí se dice en qué se
+equivocó y qué se hizo al respecto. Es la regla de la casa.
+
+### 12.1 Qué decía §11.7 y por qué era falso
+
+§11.7 declaró la tarea #5 (codificación del tipo de objeto R2010+) *"genuinamente
+bloqueada por un acto externo real"*, con este razonamiento:
+
+> «La única fuente que resolvería esto de verdad es la especificación de
+> ODA/RealDWG/LibreDWG — exactamente lo que la política clean-room de este
+> laboratorio excluye por nombre. No existe una especificación pública
+> independiente de esas tres.»
+
+**Eso conflacionaba la especificación con las implementaciones.** La política
+(`packages/dwg-codec/CLEAN_ROOM_POLICY.md`) prohíbe *«código, headers,
+bindings, tablas generadas, comentarios o tests»* de ODA SDK, RealDWG,
+Autodesk o LibreDWG — es decir, **implementaciones**. No prohíbe un documento
+de especificación, que cae en su categoría de fuentes permitidas
+«documentación pública cuyos términos permitan extraer los hechos técnicos
+mínimos registrados».
+
+Y no es teoría: la entrada `ODA-ODS-DWG-5.4.1-PUBLIC` de
+`SOURCE_REGISTER.json` lleva `status: allowed` desde el 2026-08-14, con sus
+términos y sus hechos anotados uno a uno, y de ella salieron **los 54 archivos
+derivados** que son el laboratorio entero — los bit-codes, el CRC-16, el
+contenedor R2000, el contenedor R2004 y los decodificadores por tipo. §11.7
+declaró prohibida, en bloque, la fuente que había construido todo lo que ese
+mismo informe celebraba.
+
+La política se ha precisado para que la lectura errónea no vuelva a ocurrir:
+`CLEAN_ROOM_POLICY.md` § «Especificación consultada vs. implementación
+prohibida».
+
+### 12.2 Pero además el bloqueo no hacía falta: se resolvió midiendo
+
+Lo más útil de esto no es la corrección jurídica sino que **la tarea #5 está
+resuelta, y sin fuente documental nueva**. §11.7 terminaba nombrando ella
+misma la salida:
+
+> «hacen falta más identificaciones independientes (más tipos, no sólo LINE)
+> para acotar el espacio de hipótesis sin adivinar»
+
+Esas identificaciones ya estaban en el corpus admitido y nadie las había
+usado. Los cinco bundles fundacionales son **los mismos ocho dibujos**
+convertidos a cinco contenedores desde un DXF fuente byte-idéntico, y AC1015
+ya se decodifica con cero discrepancias: el gemelo da el tipo esperado de
+**cada** handle. Son 2893 objetos con la respuesta conocida, no uno.
+
+El encabezado de objeto R2010+ es `MS` tamaño · `UMC` tamaño EN BITS del flujo
+de handles · `BOT` tipo · `H` handle propio. El sondeo del 2026-08-23 no podía
+cerrar porque buscaba el tipo al frente del cuerpo, y delante van esos dos
+campos; el propio módulo nombraba el segundo como incógnita pero lo situaba
+después del tipo en vez de antes.
+
+**Falsación**: el handle propio —que viaja pegado detrás del tipo y que el
+mapa ya promete— sale **exacto en 2893/2893** objetos de los 24 fixtures
+AC1024/AC1027/AC1032. Un ancho equivocado en cualquiera de los tres campos
+previos lo desalinearía. Como segunda comprobación independiente, el tipo
+coincide con el del gemelo AC1015 en 1353/1413 comparaciones de tipo fijo, con
+AC1027 y AC1032 en 351/351 sin una sola discrepancia.
+
+Evidencia: `docs/cad/evidence/dwg-r2010-object-header.json`, reproducible con
+`node scripts/dwg/probe-r2010-object-header.mjs`. Hecho registrado:
+`VALLE-CORPUS-R2010-OBJECT-HEADER`.
+
+### 12.3 Qué NO cambia, para no repetir el error en la otra dirección
+
+Ninguno de los cuatro indicadores de §7 se mueve, y **ninguna capacidad se
+promueve**:
+
+- `readR2004Database` **sigue fallando cerrado** para AC1024/AC1027/AC1032.
+  Lo único que cambia es su mensaje, que ahora nombra la frontera real.
+- Decodificar el ENCABEZADO no es decodificar el CUERPO. El flujo de datos
+  R2010+ manda las cadenas a un flujo propio y su cabecera común de entidad
+  difiere de la R2000. Se probó reconstruir la forma R2000 y reusar los
+  decodificadores existentes barriendo **todos** los `bitsize` posibles:
+  ninguno hace decodificar una LINE real. Ésa es la siguiente ola, y es la
+  parte grande.
+- Los selectores 2 y 3 del `BOT` no aparecen ni una vez en los 2893 objetos:
+  se declaran capacidad ausente y fallan cerrados, en vez de inventarles un
+  ancho.
+- `legalReviewCleared` sigue `false` y `productionAvailable` sigue `false`.
+
+### 12.4 Las otras dos tareas de §11 que conviene releer
+
+- **Tarea #9 (extender el corpus)** se declaró bloqueada en parte porque el
+  ODA File Converter es un MSI de Windows ausente del sandbox. Sigue siendo
+  cierto para este entorno, pero la conclusión operativa que importa es otra:
+  **el único oráculo externo del proyecto corre en una sola máquina**, la del
+  titular. Mientras eso siga así, ni el corpus se regenera en CI ni
+  `externalOracleVerified` puede moverse. Es un cuello de botella de
+  infraestructura, no una imposibilidad.
+- **Tarea #7 (dictamen legal)** sigue fuera del alcance de la ingeniería, pero
+  lo que sí se puede preparar ya está preparado:
+  `docs/legal/EXPEDIENTE_DWG_CLEAN_ROOM.md`.
