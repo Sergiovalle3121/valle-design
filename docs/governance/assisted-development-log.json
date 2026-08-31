@@ -1122,6 +1122,39 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "DWG-WRITER-V3-BLOCK-CONTENT-20260831",
+      "date": "2026-08-31",
+      "initiative": "Frente de ESCRITURA del DWG (una de tres sesiones paralelas del día; las otras dos tocan src/objects/, src/container/, src/reader/ y src/codecs/, no tocados aquí). Elevar el writer AC1015 del subconjunto V1 (LINE/POINT/CIRCLE/ARC/LWPOLYLINE/TEXT/INSERT) hacia el perfil V3 que ya lee el producto, con profundidad sobre amplitud: ELLIPSE y MTEXT en el writer de bajo nivel con round-trip exacto propio, y el contenido de bloque de usuario (antes siempre vacío) en writeCanonicalDwg.",
+      "branch": "claude/dwg-writer-v3-ellipse-mtext-block-content",
+      "assistants": ["Claude Code (Anthropic), sesión operada por el titular"],
+      "authority": "Rutina programada por el titular (\"Desbloquear DWG-C (adjuntar repo)\") que reanudó la tarea de escritura ya autorizada por ADR-0009 §8 (M5, firmada 2026-08-25): construir la exportación DWG con evidencia propia, detrás de su propio flag apagado. El titular confirmó en el chat que el repositorio y la tarea eran suyos antes de que la sesión adjuntara nada o tocara código.",
+      "firstPartyInputs": [
+        "El código ya existente del laboratorio (src/objects/, src/reader/, src/codecs/, sólo LEÍDOS) para medir el orden de campos exacto de ELLIPSE y MTEXT antes de escribir el emisor — nunca una suposición.",
+        "AGENTS.md, CLEAN_ROOM_POLICY.md, CAPABILITIES.md y THREAT_MODEL.md del laboratorio, y ADR-0007/0009/0015 del repositorio.",
+        "El repo hermano valle-design-dwg-conformance (VALLE_DWG_CORPUS_MIRROR) para correr check:dwg completo."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. ELLIPSE y MTEXT se derivaron leyendo los decodificadores first-party ya registrados (decodeEllipse/decodeMText, ambos trazables a ODA-ODS-DWG-5.4.1-PUBLIC vía SOURCE_REGISTER.json) y espejándolos en el writer — ningún hecho nuevo, ninguna fuente nueva consultada. El ODA File Converter no está disponible en este entorno: el round-trip que evidencia este corte es SÓLO writer→lector propio, consistencia interna, no compatibilidad con software ajeno.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/writer/dwg-bit-emitter.ts (emitBB/emit3B/emit2BD/emit3BD/emit2RD/emitCMC)",
+        "packages/dwg-codec/src/writer/ac1015-entity-writer.ts (ELLIPSE y MTEXT: emisión, validación, tipo, unión escribible)",
+        "packages/dwg-codec/src/writer/ac1015-minimal-file-writer.ts y ac1015-minimal-file-support.ts (Ac1015MinimalFileBlockSpec.entities pasa a la misma forma que model space, con compatibilidad hacia atrás; split por presupuesto de 800 líneas)",
+        "packages/dwg-codec/src/api/write.ts (contenido de bloque en writeCanonicalDwg reusando canonicalDocumentToDwgEntities sobre un documento sintético, sin tocar api/canonical.ts)",
+        "packages/dwg-codec/tests/unit/ac1015-entity-writer-v3.spec.ts (nuevo), ac1015-minimal-file.spec.ts y write-canonical-dwg.spec.ts (actualizados)",
+        "Gobernanza: CAPABILITIES.md, DWG0_WORKLOG.md, SOURCE_REGISTER.json (los tres, entradas fechadas al final)"
+      ],
+      "fixtures": "Ninguno nuevo. Las specs nuevas/actualizadas usan entidades y documentos canónicos construidos a mano en el propio test, igual que el resto del writer.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "PR draft de esta rama con check:dwg, check:cad, typecheck, lint, test y build en verde sobre el árbol quieto."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "CAMPANA-3D-MODELADO-DIRECTO-20260831",
       "date": "2026-08-31",
       "initiative": "Campaña de modelado directo 3D: llevar el producto de CAD 2D con visor 3D a modelador de modelado directo tipo SketchUp, sobre el kernel B-rep facetado que ya existe. Ola 0: ADR-0016 (la decisión 3D que el titular pidió en agosto y nunca se escribió) y la ampliación de identidad. Ola 1: la aritmética de designación de cara por rayo de cámara y la identidad estable de cara con huella geométrica, que además cierra el defecto latente de los índices crudos de arista en fillet/chamfer.",
