@@ -20,6 +20,9 @@
  */
 import { dwgBetaImportIsEnabled, dwgImportIsEnabled } from "./dwg-interop-flag";
 import { DWG_MAX_IMPORT_BYTES } from "./dwg-import-limits";
+import { MESH_IMPORT_MAX_BYTES } from "./interop/mesh-import-limits";
+import { meshImportFormatOf } from "./interop/mesh-format-detect";
+import { looksLikeSkp, rejectSkp } from "./interop/skp-reject";
 
 export const MAX_DXF_IMPORT_BYTES = 12_000_000;
 export const MAX_JSON_IMPORT_BYTES = 20_000_000;
@@ -45,7 +48,7 @@ export const MAX_SHP_IMPORT_BYTES = 8_000_000;
  */
 export const MAX_DWG_IMPORT_BYTES = DWG_MAX_IMPORT_BYTES;
 
-export type DocumentImportFormat = "dxf" | "json" | "shp" | "dwg";
+export type DocumentImportFormat = "dxf" | "json" | "shp" | "dwg" | "obj" | "stl" | "gltf" | "collada";
 
 /** La extensión en minúsculas, sin punto. `""` si el nombre no tiene ninguna. */
 export function importFileExtension(fileName: string): string {
@@ -57,6 +60,8 @@ export function importLimitForFileName(fileName: string): number {
   if (kind === "dxf") return MAX_DXF_IMPORT_BYTES;
   if (kind === "shp") return MAX_SHP_IMPORT_BYTES;
   if (kind === "dwg") return MAX_DWG_IMPORT_BYTES;
+  const meshFormat = meshImportFormatOf(fileName);
+  if (meshFormat) return MESH_IMPORT_MAX_BYTES[meshFormat];
   return MAX_JSON_IMPORT_BYTES;
 }
 
@@ -70,7 +75,12 @@ export function importLimitForFileName(fileName: string): number {
  */
 export function isBinaryImportFormat(fileName: string): boolean {
   const kind = importFileExtension(fileName);
-  return kind === "shp" || kind === "dwg";
+  // Los cuatro formatos de malla viajan como bytes SIEMPRE, aunque dos de
+  // ellos (OBJ, COLLADA) sean texto: decodificarlos ya es responsabilidad de
+  // su propio lector (`lib/cad/interop/`), con un `TextDecoder` que rechaza
+  // bytes inválidos en vez de sustituirlos en silencio — la misma garantía
+  // que ya tenía el shapefile, ahora también para OBJ y COLLADA.
+  return kind === "shp" || kind === "dwg" || kind === "skp" || meshImportFormatOf(fileName) !== null;
 }
 
 export function validateImportFile(
@@ -79,6 +89,14 @@ export function validateImportFile(
   dwgBetaEnabled = false,
 ): void {
   const kind = importFileExtension(fileName);
+  // `.skp` se detecta por EXTENSIÓN y se RECHAZA con su motivo — antes de
+  // leer ni un byte del archivo (este módulo no los tiene todavía) y antes
+  // del `admitted` genérico de abajo: mezclarlo con "formato no soportado"
+  // perdería la diferencia entre "no lo reconocemos" y "lo reconocemos y
+  // sabemos exactamente por qué no lo leemos". La detección por CONTENIDO
+  // (un `.skp` renombrado) vive en `looksLikeSkp` y se comprueba de nuevo, ya
+  // con los bytes en la mano, dentro de `importMeshDocument`.
+  if (looksLikeSkp(new Uint8Array(0), fileName)) rejectSkp(fileName);
   /**
    * `.dwg` entra por CUALQUIERA de dos gates, y hoy ninguno está abierto por
    * defecto:
@@ -101,10 +119,12 @@ export function validateImportFile(
     kind === "dxf" ||
     kind === "json" ||
     kind === "shp" ||
+    meshImportFormatOf(fileName) !== null ||
     (kind === "dwg" && (dwgImportIsEnabled() || dwgBetaImportIsEnabled(dwgBetaEnabled)));
   if (!admitted) {
     throw new Error(
-      "Formato no soportado. Usa DXF de texto, JSON canónico o shapefile (.shp).",
+      "Formato no soportado. Usa DXF de texto, JSON canónico, shapefile (.shp) o un modelo 3D " +
+        "(OBJ, STL, glTF/GLB o COLLADA/DAE).",
     );
   }
   if (!Number.isSafeInteger(size) || size <= 0) {
