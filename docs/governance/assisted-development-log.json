@@ -978,7 +978,9 @@
       "date": "2026-08-29",
       "initiative": "Campaña «de sitio comercial de clase mundial» (docs/execution/CAMPANA_SITIO_20260829.md), sobre main tras la fusión de la campaña de ingeniería frontend (#116). El encargo del titular: convertir el sitio en un escaparate comercial premium — más imágenes (del producto real, nunca stock), más fluidez, más movimiento con propósito y más contraste — con cada mejora medida y cero regresión. Frentes: (0) tipografía en subconjuntos woff2 con precarga quirúrgica y umbrales de Lighthouse al alza; (1) el catálogo de 149 plantillas como galería pública dibujada por el motor con lámina PDF del pipeline real; (2) modo demostración sin cuenta si el spike lo permite; (3) movimiento tokenizado y sección de evidencia de ingeniería; (4) páginas comerciales (/casos-de-uso, /seguridad, /soporte, footer); (5) endurecimiento del estudio (foco, axe, controladores del monolito).",
       "branch": "claude/valle-design-premium-campaign-24joj2",
-      "assistants": ["Claude Code (Anthropic), sesión operada por el titular"],
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
       "authority": "Sergio Valle Zárate encargó la campaña y revisará/adoptará el PR resultante.",
       "firstPartyInputs": [
         "El catálogo propio de plantillas (apps/web/src/lib/cad/templates.ts) y el documento de arranque de la norma mexicana (starter-templates.ts).",
@@ -1019,7 +1021,9 @@
       "date": "2026-08-30",
       "initiative": "Campaña de optimización y pulido integral: corrección de bugs P0 (barridos de arco no acotados, readDD forma 0b10, listeners y deps obsoletas del editor), endurecimiento de seguridad (autorización por handler con gate propio, constant-time canónico, CORS saneado, compose y Dockerfiles), una sola fuente para los límites de documento, extracción del intérprete de teclado del monolito con spec, gates nuevos en la cadena local, documentación veraz y arreglo del CI rojo de main (e2e Firefox).",
       "branch": "claude/valle-design-optimization-bkvqio",
-      "assistants": ["Claude Code (Anthropic), sesión operada por el titular"],
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
       "authority": "Sergio Valle Zárate encargó el análisis a profundidad y la corrección/optimización de ambos repositorios, eligió el alcance (extracción moderada del monolito; dependencias solo por seguridad) y autorizó expresamente en la sesión ejecutar el plan, fusionar los PR resultantes y dejar el CI en verde.",
       "firstPartyInputs": [
         "El código y los gates propios del monorepo (cadenas check:cad/check:dwg y sus ~40 scripts).",
@@ -1092,7 +1096,9 @@
       "date": "2026-08-31",
       "initiative": "Plan de construcción del DWG hacia 2D+3D comercial, con análisis de huecos y ejecución de su primer frente. Análisis: inventario medido de los dos repositorios (códec, kernel B-rep, corpus, producto) y hoja de ruta de ocho fases. Ejecución: se levantó el bloqueo BLOCKED_BY_SOURCE_GATE de las versiones DWG modernas resolviendo por MEDICIÓN la estructura del encabezado de objeto R2010+ (MS tamaño, UMC tamaño del flujo de handles, BOT tipo, H handle propio) contra el corpus admitido, con 2893/2893 handles exactos; se corrigió la política clean-room para distinguir especificación de implementación; se corrigieron dos puntos donde CAPABILITIES.md contradecía al código; y se preparó el expediente para el dictamen jurídico externo.",
       "branch": "claude/dwg-construction-plan-7hyq1j",
-      "assistants": ["Claude Code (Anthropic), sesión operada por el titular"],
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
       "authority": "Sergio Valle Zárate pidió un plan de construcción para llevar el DWG al siguiente nivel con vistas a comercializar, sin licencia ODA, y que se analizara qué falta y se construyera. Eligió expresamente en la sesión: empezar por las versiones modernas (Fase 0+1), escalonar el 3D (preservar antes que parsear) y preparar el expediente legal.",
       "firstPartyInputs": [
         "El código y los gates propios del monorepo (cadenas check:dwg/check:cad y sus scripts).",
@@ -1126,7 +1132,9 @@
       "date": "2026-08-31",
       "initiative": "Frente de ESCRITURA del DWG (una de tres sesiones paralelas del día; las otras dos tocan src/objects/, src/container/, src/reader/ y src/codecs/, no tocados aquí). Elevar el writer AC1015 del subconjunto V1 (LINE/POINT/CIRCLE/ARC/LWPOLYLINE/TEXT/INSERT) hacia el perfil V3 que ya lee el producto, con profundidad sobre amplitud: ELLIPSE y MTEXT en el writer de bajo nivel con round-trip exacto propio, y el contenido de bloque de usuario (antes siempre vacío) en writeCanonicalDwg.",
       "branch": "claude/dwg-writer-v3-ellipse-mtext-block-content",
-      "assistants": ["Claude Code (Anthropic), sesión operada por el titular"],
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
       "authority": "Rutina programada por el titular (\"Desbloquear DWG-C (adjuntar repo)\") que reanudó la tarea de escritura ya autorizada por ADR-0009 §8 (M5, firmada 2026-08-25): construir la exportación DWG con evidencia propia, detrás de su propio flag apagado. El titular confirmó en el chat que el repositorio y la tarea eran suyos antes de que la sesión adjuntara nada o tocara código.",
       "firstPartyInputs": [
         "El código ya existente del laboratorio (src/objects/, src/reader/, src/codecs/, sólo LEÍDOS) para medir el orden de campos exacto de ELLIPSE y MTEXT antes de escribir el emisor — nunca una suposición.",
@@ -1155,11 +1163,47 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "CAD-D-RENDER-PIPELINE-VERIFICATION-20260831",
+      "date": "2026-08-31",
+      "initiative": "Frente CAD-D del plan de construcción DWG 2D/3D (sesión paralela dedicada al lienzo, sin tocar el códec): enchufar el pipeline de render por lotes/tiles al editor y eliminar el muestreo silencioso. Al investigar se encontró que `CadViewportRenderHost` (apps/web/src/components/cad/viewport/render-pipeline-host.ts) ya enchufaba `lib/cad/render/` a `Layout3DEditor.tsx` con `batched` como pipeline por defecto y un camino de vuelta explícito (`legacy`, nunca silencioso) — trabajo de una ola anterior que nunca se registró en esta bitácora ni se reflejó en `docs/cad/CAD_RENDER_PIPELINE.md`, que seguía afirmando 'NO enchufado'. La campaña se redirigió a verificar que el enchufe funciona de verdad (specs de render/, del anfitrión y de la preferencia de pipeline, y el gate de monolito, todos verdes), a regenerar la evidencia del arnés desde cero (no se copió ningún número a mano), a corregir un `declaredMachine` escrito a mano en `cad-plan-benchmark.mts` que declaraba el portátil de calibración sin importar en qué máquina corriera el arnés, y a poner al día CAD_RENDER_PIPELINE.md, ARCHITECTURE.md y el registro de DEUDA-MONOLITO.md (que tampoco tenía la fila de la extracción del anfitrión) para que ninguna cifra siga viviendo en dos lugares distintos.",
+      "branch": "claude/cad-render-pipeline-wire-up",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate desplegó cuatro sesiones paralelas desde la sesión de planificación 'Plan de construcción DWG 2D/3D' (branch claude/dwg-construction-plan-7hyq1j); a esta le correspondió el frente de rendimiento del lienzo (CAD-D), con fronteras de archivo explícitas que excluyen packages/dwg-codec/ y todo dwg-*.ts.",
+      "firstPartyInputs": [
+        "El código y los gates propios del monorepo (lib/cad/render/, components/cad/viewport/, Layout3DEditor.tsx, check:cad, monolith-budget.json).",
+        "El arnés de benchmark propio (scripts/cad-render-benchmark.mts, scripts/cad-plan-benchmark.mts) regenerado en esta misma campaña.",
+        "docs/cad/CAD_RENDER_PIPELINE.md, ARCHITECTURE.md y docs/execution/DEUDA-MONOLITO.md, corregidos contra el estado real del árbol."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "docs/cad/CAD_RENDER_PIPELINE.md (estado corregido a ENCHUFADO, tabla de números regenerada, sección de escenificación de la métrica corregida a bloqueante)",
+        "ARCHITECTURE.md (Deuda visible: el pipeline por lotes ya está enchufado; se precisa qué mide el benchmark de Node y qué no)",
+        "docs/execution/DEUDA-MONOLITO.md (fila retroactiva de la extracción de CadViewportRenderHost, más la fila de esta campaña de verificación)",
+        "apps/web/scripts/cad-plan-benchmark.mts (declaredMachine derivado de os.cpus()/os.totalmem() en vez de un literal fijo)",
+        "docs/cad/evidence/cad-render-benchmark-100k.json y docs/cad/evidence/cad-plan-benchmark-20k.json (regenerados desde el arnés, no editados a mano)"
+      ],
+      "fixtures": "Ninguno nuevo. No se tocó packages/dwg-codec/ ni ningún archivo dwg-*.ts.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Autorización expresa del titular al desplegar la sesión paralela CAD-D desde la sesión de planificación del 2026-08-31, y autorización expresa del titular (\"mergea el avance\") para fusionar directo a main tras rebasar sobre el frente de escritura DWG. Evidencia final: gates (check:cad, check:dwg, typecheck, lint, test, build) en verde sobre el árbol rebasado."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "CAMPANA-3D-MODELADO-DIRECTO-20260831",
       "date": "2026-08-31",
       "initiative": "Campaña de modelado directo 3D: llevar el producto de CAD 2D con visor 3D a modelador de modelado directo tipo SketchUp, sobre el kernel B-rep facetado que ya existe. Ola 0: ADR-0016 (la decisión 3D que el titular pidió en agosto y nunca se escribió) y la ampliación de identidad. Ola 1: la aritmética de designación de cara por rayo de cámara y la identidad estable de cara con huella geométrica, que además cierra el defecto latente de los índices crudos de arista en fillet/chamfer.",
       "branch": "claude/plan-3d-architecture-software-gu85hp",
-      "assistants": ["Claude Code (Anthropic), sesión operada por el titular"],
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
       "authority": "Sergio Valle Zárate encargó el análisis del producto y un plan para llevarlo a modelador 3D competidor de SketchUp/AutoCAD, eligió en la sesión el tipo de 3D (modelado directo), los diferenciadores (colaboración en vivo y web sin instalación), los formatos de migración (SKP y DWG 3D) y el ritmo (campañas incrementales), y aprobó el plan resultante antes de escribir código.",
       "firstPartyInputs": [
         "El código y los gates propios del monorepo: lib/brep (9.407 líneas de B-rep half-edge), lib/cad/ucs-solid.ts, lib/cad/view/solid-snap.ts, components/cad/viewport/*, y las cadenas check:cad/check:dwg.",

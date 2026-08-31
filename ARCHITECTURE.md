@@ -133,8 +133,15 @@ CIDE es un puerto opcional para intent y vision: si falta, la respuesta es
   EXISTE (`apps/api/src/modules/blob-store`, con firma SigV4 propia y
   selección en runtime por las variables `S3_BLOB_*` de `.env.example`) y lo
   que falta es evidencia operativa en producción, no el código.
-- El benchmark 100k usa LOD y presupuestos de decenas de segundos, no demuestra
-  interacción profesional sostenida ni 60 FPS.
+- El pipeline de render por lotes (`apps/web/src/lib/cad/render/`) ya está
+  enchufado por defecto vía `CadViewportRenderHost`
+  (`apps/web/src/components/cad/viewport/render-pipeline-host.ts`); usa LOD
+  cuantizado por octava y el benchmark en Node de 100k mide con margen dentro
+  de un cuadro de 16,7 ms (`docs/cad/evidence/cad-render-benchmark-100k.json`),
+  pero eso es CPU en Node, no GPU ni composición del navegador — no demuestra
+  interacción profesional sostenida ni 60 FPS reales. La evidencia de
+  navegador (`docs/cad/evidence/browser-slo-100k.json`) es del 2026-08-21 y no
+  se ha vuelto a correr desde entonces.
 - No hay receptor webhook, proveedor de correo ni broker dentro del repo.
 - La cobertura DXF no equivale a round-trip universal. La beta DWG
   (`DWG_NATIVE_IMPORT_BETA`, perfil `AC1015_MODELSPACE_2D_V3`, sólo
