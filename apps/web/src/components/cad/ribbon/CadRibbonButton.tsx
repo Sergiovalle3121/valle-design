@@ -1,8 +1,9 @@
 "use client";
 
+import { Command } from "lucide-react";
 import { cx, Tooltip } from "@/components/ui";
 import type { CadRibbonCommand } from "@/lib/cad/ribbon";
-import { cadRibbonPanelIcon } from "./ribbon-icons";
+import { CAD_RIBBON_PANEL_ICONS } from "./ribbon-icons";
 
 /**
  * UN BOTÓN DE LA CINTA = UN COMANDO DEL REGISTRO.
@@ -21,7 +22,11 @@ export function CadRibbonButton({
   onRun: (name: string) => void;
   disabled?: boolean;
 }) {
-  const Icon = cadRibbonPanelIcon(command.panel);
+  // Indexar el mapa (no llamar una función) es lo que ya usa `CadToolPalette`
+  // para el mismo problema: `react-hooks/static-components` marca un
+  // componente resuelto por LLAMADA como "creado durante el render", pero no
+  // el acceso directo a una tabla estática — que es justo lo que esto es.
+  const Icon = CAD_RIBBON_PANEL_ICONS[command.panel] ?? Command;
   const shortcut = command.aliases[0];
   return (
     <Tooltip label={command.summary} shortcut={shortcut} side="bottom">
