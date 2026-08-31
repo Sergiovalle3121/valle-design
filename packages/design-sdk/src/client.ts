@@ -122,10 +122,6 @@ export type EntitlementRequiredError = Schemas["EntitlementRequiredError"];
 export type CadDocumentVersionConflictError =
   Schemas["CadDocumentVersionConflictError"];
 export type RateLimitedError = Schemas["RateLimitedError"];
-export type CadIntentRequest = Schemas["CadIntentRequest"];
-export type CadIntentResponse = Schemas["CadIntentResponse"];
-export type CadVisionRequest = Schemas["CadVisionRequest"];
-export type CadVisionResponse = Schemas["CadVisionResponse"];
 
 export interface Page<T> {
   items: T[];
@@ -733,17 +729,6 @@ export function createDesignClient(options: DesignClientOptions) {
             ),
         },
       };
-    },
-
-    assistance: {
-      interpretIntent: (documentId: string, input: CadIntentRequest) =>
-        call<CadIntentResponse>(
-          "POST",
-          resource(`/v1/cad/documents/${documentId}/intent`),
-          input,
-        ),
-      vectorizeImage: (input: CadVisionRequest) =>
-        call<CadVisionResponse>("POST", resource("/v1/cad/vision"), input),
     },
 
     blocks: {

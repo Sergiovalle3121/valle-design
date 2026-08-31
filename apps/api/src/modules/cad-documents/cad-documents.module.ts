@@ -10,8 +10,6 @@ import { CadComment } from './entities/cad-comment.entity';
 import { CadSheetSet } from './entities/cad-sheet-set.entity';
 import { CadBlocksService } from './cad-blocks.service';
 import { CadDocumentsService } from './cad-documents.service';
-import { CadIntentService } from './cad-intent.service';
-import { CadVisionService } from './cad-vision.service';
 import { CadLegacyProjectionService } from './cad-legacy-projection.service';
 import {
   BlobStoreModule,
@@ -24,19 +22,17 @@ import {
   provideTenantScopedRepository,
 } from '../../common/tenant/tenant-scoped.repository';
 import { CAD_BLOB_STORE } from './ports/cad-blob-store.port';
-import { CAD_AI_PROVIDER } from './ports/cad-ai-provider.port';
 import { CAD_AUDIT_PUBLISHER } from './ports/cad-audit-publisher.port';
 import { CommercialModule } from '../commercial/commercial.module';
 import { selectCadBlobStore } from './design-blob-store.adapter';
-import { CideAiProviderAdapter } from './cide-ai-provider.adapter';
 import { DesignCadAuditPublisher } from './design-audit-publisher.adapter';
 import { ReviewLinkService } from './review-link.service';
 
 /**
  * CAD Documents — kernel CAD puro, corazón del producto Design. Agrupa la
  * biblioteca de bloques, la validación/almacenamiento del CadDocument, la
- * lógica de dominio del documento canónico (CadDocumentsService), el puente
- * NL→CAD y Vision→CAD, y el modelo de datos CAD propio (tablas cad_*).
+ * lógica de dominio del documento canónico (CadDocumentsService) y el modelo
+ * de datos CAD propio (tablas cad_*).
  *
  * El dominio sólo conoce los PUERTOS neutrales de `./ports/`; en este repo
  * (Fase 3 de la separación) los adaptadores enterprise quedaron SUSTITUIDOS
@@ -71,8 +67,6 @@ import { ReviewLinkService } from './review-link.service';
   providers: [
     CadBlocksService,
     CadDocumentsService,
-    CadIntentService,
-    CadVisionService,
     CadLegacyProjectionService,
     // Canje server-owned de review links (Fase 5): lookup GLOBAL por
     // token_hash — el tenant sale de la fila de la sesión, nunca del cliente.
@@ -95,14 +89,11 @@ import { ReviewLinkService } from './review-link.service';
       inject: [DatabaseBlobStore, S3_BLOB_STORE],
       useFactory: selectCadBlobStore,
     },
-    { provide: CAD_AI_PROVIDER, useClass: CideAiProviderAdapter },
     { provide: CAD_AUDIT_PUBLISHER, useClass: DesignCadAuditPublisher },
   ],
   exports: [
     CadBlocksService,
     CadDocumentsService,
-    CadIntentService,
-    CadVisionService,
     CadLegacyProjectionService,
     ReviewLinkService,
     // Repositorios scoped de las entidades cad_* para la capa HTTP (CadModule:
@@ -116,7 +107,6 @@ import { ReviewLinkService } from './review-link.service';
     getTenantRepositoryToken(CadSheetSet),
     getTenantRepositoryToken(SfCadBlock),
     CAD_BLOB_STORE,
-    CAD_AI_PROVIDER,
     CAD_AUDIT_PUBLISHER,
     CommercialModule,
   ],

@@ -40,8 +40,6 @@ opera como un tenant independiente.
 - Exportar el subconjunto DXF implementado y publicar hojas PDF.
 - Crear review links revocables, comentar y resolver comentarios dentro de la
   superficie de revisión acotada.
-- Usar asistencia NL→CAD o Vision→CAD cuando CIDE está configurado; los cambios
-  requieren el flujo de confirmación del documento.
 
 ## Personas y permisos
 
@@ -104,11 +102,10 @@ verifica contra la API real y PostgreSQL en
 - El corpus de 100k usa LOD. Los números actuales no demuestran 60 FPS, tiempo
   real, memoria estabilizada ni detalle completo de 100k entidades.
 - “Standalone” describe la identidad, autorización, datos y despliegue del
-  producto. El repositorio incluye los ADAPTADORES de correo, de pagos
-  (Stripe) y de CIDE, no los servicios: sin las credenciales del operador cada
+  producto. El repositorio incluye los ADAPTADORES de correo y de pagos
+  (Stripe), no los servicios: sin las credenciales del operador cada
   uno degrada de forma declarada (el checkout responde
-  `checkout_unavailable`, el CFDI es manual, la asistencia responde
-  `available:false`). Ya no es cierto que el producto «no capture pagos» —lo
+  `checkout_unavailable`, el CFDI es manual). Ya no es cierto que el producto «no capture pagos» —lo
   que sigue siendo cierto es que no los custodia: tarjeta, OXXO y SPEI viven
   en la pasarela.
 - Un test unitario, un golden con red simulada o una ruta visible no bastan para
