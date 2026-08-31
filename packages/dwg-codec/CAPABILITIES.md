@@ -293,3 +293,72 @@ todos los `bitsize` posibles: ninguno hace decodificar una LINE real.
 
 Evidencia: `docs/cad/evidence/dwg-r2010-object-header.json`, reproducible con
 `node scripts/dwg/probe-r2010-object-header.mjs`.
+
+## Evidencia del corte 2026-08-31 (continuación: CUERPO de objeto R2010+ para entidades sin cadenas)
+
+| Capacidad | Estado | Límite honesto |
+| --- | --- | --- |
+| Cuerpo de objeto AC1024/AC1027/AC1032 para LINE/POINT/CIRCLE/ARC/LWPOLYLINE | `experimental-lab` | Sólo estas cinco entidades, sin flujo de handles resuelto (owner/capa/xdictionary). Cualquier entidad CON cadena, o cualquier otro tipo, sigue sin decodificador. |
+
+El corte anterior de esta misma fecha (encabezado: MS/UMC/BOT/H) dejó dicho,
+sin suavizar, qué faltaba: *"decodificar el ENCABEZADO no decodifica el
+CUERPO... el flujo de datos R2010+ separa las cadenas a un flujo propio y su
+cabecera común de entidad difiere de la R2000"*. Este corte resuelve esa parte
+para las cinco entidades que **nunca** llevan cadena — ni LINE, POINT, CIRCLE,
+ARC ni LWPOLYLINE tienen un solo campo TV — con el mismo oráculo diferencial
+que resolvió el encabezado: los cinco bundles fundacionales son los mismos
+ocho dibujos en cinco contenedores, así que el gemelo AC1015 da geometría
+exacta de cada handle de antemano.
+
+- **Localización sin hipótesis de forma**: se buscó, bit a bit, el primer
+  offset donde 8 bytes reproducen el double IEEE-754 exacto del primer campo
+  geométrico del gemelo (la misma técnica que ya había identificado la LINE
+  real de `02-una-linea.dwg` en el intake 2026-08-23). El resultado, sin
+  asumir nada sobre la disposición interna: el dato de TIPO arranca a una
+  distancia FIJA del handle propio — 39 bits en AC1024, 40 en AC1027 y
+  AC1032 — la MISMA cifra para los cuatro tipos con campo inicial simple
+  dentro de cada versión, pese a que cada uno resta una cantidad distinta de
+  bits de su propio prefijo. Esa coincidencia ENTRE TIPOS es la falsación: un
+  ancho equivocado en cualquier campo previo los habría desalineado de forma
+  DISTINTA, no a la misma cifra.
+- **La cabecera común de entidad R2000 no cambia de anchura** (EED, gráfico,
+  modo, reactores, sin-vínculos/xdic-missing, color, escala de tipo de línea
+  y banderas — hechos ya registrados de ODA-ODS-DWG-5.4.1-PUBLIC) para los 72
+  objetos medidos, todos con EED ausente, sin gráfico, 0 reactores y modo de
+  entidad 2 (model space directo). Tras esos 16 bits queda un tramo
+  intermedio de anchura MEDIDA (23/24 bits) cuya semántica NO se identificó:
+  **capacidad ausente declarada**, tratado como opaco en vez de adivinado.
+- **Se reutilizan, sin cambio alguno, los MISMOS decodificadores de tipo que
+  R2000** (`decodeLine`/`decodePoint`/`decodeCircle`/`decodeArc`/
+  `decodeLwPolyline`) — cero decodificadores gemelos.
+- **Hecho nuevo sobre el encabezado ya resuelto**: `objectSize` (el campo
+  `MS`) excluye sus propios bytes y los del campo `UMC` que lo precede — el
+  límite del flujo de handles se calcula con `bodyBytes.length`, nunca con
+  `objectSize`. El intake del encabezado no lo necesitó notar porque nunca
+  leyó más allá del handle propio.
+- **El bit de presencia de cadenas** que el hecho registrado de
+  ODA-ODS-DWG-5.4.1-PUBLIC ya nombraba ("AC1021+ introduce el flujo de
+  STRINGS separado al final del cuerpo... el bit de presencia del final del
+  dato") se localizó EXACTAMENTE un bit antes del flujo de handles, en valor
+  0, en las 72 observaciones. Un objeto con ese bit en 1 falla cerrado: el
+  flujo de strings no se decodifica.
+- **Falsación**: geometría EXACTA (tolerancia 1e-6) contra el gemelo AC1015
+  en **72/72** objetos (LINE, POINT, CIRCLE, ARC, LWPOLYLINE) de los 24
+  fixtures AC1024/AC1027/AC1032, con aterrizaje EXACTO en el límite de
+  handles en **72/72** — dos falsaciones independientes.
+
+**Capacidad ausente declarada, sin suavizar**: el flujo de handles
+(propietario, capa, xdictionary) NO se decodifica para R2010+ en este corte,
+así que `readR2004Database` sigue sin poder ensamblar una base neutral
+completa para AC1024/AC1027/AC1032 — sigue lanzando
+`DWG_VERSION_DECODER_UNSUPPORTED`, ahora nombrando esa frontera exacta. La
+anchura fija del tramo intermedio sólo está validada para el único caso que
+este corpus ejercita (banderas por defecto); el chequeo de aterrizaje final
+detecta la mayoría de los desalineamientos que un valor distinto produciría,
+pero no lo garantiza matemáticamente — el mismo tipo de riesgo residual que ya
+acepta el adaptador R2004→R2000 de AC1018. `readR2010EntityBody`
+(`reader/r2010-entity-body.ts`) vive como capacidad de laboratorio
+independiente, sin conectar a `readR2004Database` todavía.
+
+Evidencia: `docs/cad/evidence/dwg-r2010-object-body.json`, reproducible con
+`node scripts/dwg/probe-r2010-object-body.mjs`.
