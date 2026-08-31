@@ -362,3 +362,30 @@ independiente, sin conectar a `readR2004Database` todavía.
 
 Evidencia: `docs/cad/evidence/dwg-r2010-object-body.json`, reproducible con
 `node scripts/dwg/probe-r2010-object-body.mjs`.
+
+## Evidencia del corte 2026-08-31 (escritura: ELLIPSE/MTEXT y contenido de bloque)
+
+Frente de ESCRITURA (una de tres sesiones paralelas). SUPERA, para el subconjunto
+exacto que describe abajo, el límite «El writer emite el subconjunto
+line/point/circle/arc/lwpolyline/text/insert» del corte 2026-08-21 — a nivel
+de writer de BAJO NIVEL (`writeAc1015EntityBody`/`writeAc1015MinimalFile`),
+NO del contrato público `writeCanonicalDwg` (ver límite honesto abajo: ese
+contrato sigue en las mismas siete clases).
+
+| Capacidad | Evidencia | Límite honesto |
+| --- | --- | --- |
+| `dwgExport` (bajo nivel) | `ac1015-entity-writer.ts` gana ELLIPSE y MTEXT, espejo campo a campo de `decodeEllipse`/`decodeMText` — confirmado que ninguna de las dos necesita el `textStyleHandle` que sí exige TEXT ni handles extra en la cabeza del flujo, así que entran por el mismo camino genérico que CIRCLE/ARC sin tocar `ac1015-minimal-file-writer.ts`. Round-trip propio verde: `tests/unit/ac1015-entity-writer-v3.spec.ts` (9 casos — geometría exacta con −0.0 y ejes no canónicos, determinismo, dentro de un bloque, gemelos tristes). | Consistencia interna writer→lector propio, NO evidencia de compatibilidad con software ajeno (el ODA File Converter no corre en este entorno). DIMENSION, HATCH, SPLINE, POLYLINE clásica con VERTEX/SEQEND y ATTRIB de INSERT siguen `"Writing a ... entity is not implemented by the laboratory writer yet."`, sin cambio. |
+| `dwgExport` (contenido de bloque, `writeCanonicalDwg`) | El contenido de un bloque de usuario YA VIAJA (antes: `BLOCK_RECORD` siempre vacío con pérdida `insert-block-content-not-written`). `Ac1015MinimalFileBlockSpec.entities` pasa a la misma forma `Ac1015MinimalFileEntitySpec[]` que model space (capa por índice, INSERT anidado por índice de bloque — el handle de cada `BLOCK_RECORD` ya está resuelto por adelantado, así que un bloque puede insertar OTRO declarado después en el array). `api/write.ts` reusa `canonicalDocumentToDwgEntities` — sin tocar `api/canonical.ts` — sobre un documento sintético cuyas `entities` son las del bloque. Verde en `tests/unit/ac1015-minimal-file.spec.ts` (bloque que inserta otro, referencia hacia adelante) y `tests/unit/write-canonical-dwg.spec.ts` (geometría Y capa exactas dentro del `BLOCK_RECORD`). | El contenido de un bloque sigue sujeto a las MISMAS siete clases que `canonicalDocumentToDwgEntities` mapea (line/point/circle/arc/lwpolyline/text/insert) — ELLIPSE/MTEXT nuevos de esta sesión NO llegan todavía a `writeCanonicalDwg` porque esa función de mapeo vive en `api/canonical.ts`, fuera de la frontera de archivos de esta sesión. Un INSERT dentro de un bloque (bloque que inserta OTRO bloque) se detecta y se omite con pérdida declarada (`insert-block-nested-insert-not-written`): el writer de bajo nivel ya lo resolvería, pero recorrer el grafo transitivo completo de bloques referenciados queda pendiente. |
+| Botón de producto (`dwg-native-writer.ts`/`dwg-export-flag.ts`) | Sin cambios: ya estaban completos y correctos de una campaña anterior (tres estados éxito/éxito_con_pérdidas/rechazado, preflight, manifiesto de pérdidas). `DWG_EXPORT_WRITABLE_TYPES` ya es exactamente el subconjunto de siete clases que `canonicalDocumentToDwgEntities` mapea, así que sigue exacto sin tocar el archivo. | `externalOracleVerified: false` sigue en pie — sigue siendo OWNER ACTION (el conversor sólo corre en la máquina del titular). Ningún botón, ninguna UI, ningún endpoint nuevo. |
+
+**No alcanzado esta sesión, declarado sin suavizar**: writer AC1018 (M4 de
+escritura; el contenedor R2004 que el lector ya conoce sigue sin un writer
+propio), DIMENSION/HATCH/SPLINE/POLYLINE clásica/ATTRIB en el writer de bajo
+nivel, y cualquier ampliación del perfil escribible de `writeCanonicalDwg`
+más allá de las siete clases de §8.1 (exige tocar `api/canonical.ts`, de
+otra sesión). `productionAvailable` sigue `false`.
+
+Evidencia: `tests/unit/ac1015-entity-writer-v3.spec.ts`,
+`tests/unit/ac1015-minimal-file.spec.ts`, `tests/unit/write-canonical-dwg.spec.ts`;
+`npm run check --workspace=@valle-design/dwg-codec` y `npm run check:dwg`
+(raíz) en verde.

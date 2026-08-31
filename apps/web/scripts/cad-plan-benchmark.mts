@@ -364,15 +364,17 @@ const evidence = {
     freeMemoryBytesAtStart: os.freemem(),
     heapLimitBytes: getHeapStatistics().heap_size_limit,
     /**
-     * La máquina declarada A MANO, además de lo que Node detecta.
+     * Descripción legible de la máquina, derivada de lo que Node detecta.
      *
-     * No es redundante: `os.cpus().length` dice 12 porque cuenta hilos, y quien
-     * lea la evidencia dentro de un año necesita saber que detrás hay 6 núcleos
-     * físicos de portátil compartidos con otros procesos. Un número de
-     * rendimiento sin la máquina al lado no significa nada.
+     * Antes era un literal fijo — "AMD Ryzen 5 5500U … portátil de
+     * desarrollo" — escrito para UNA corrida de calibración. Cualquier
+     * corrida posterior en otra máquina (CI, un contenedor, otro portátil)
+     * publicaba esa frase de todas formas: la evidencia mentía sobre en qué
+     * corrió. `os.cpus().length` cuenta hilos lógicos, no núcleos físicos, así
+     * que ese matiz se declara aquí en vez de inventarse — sin asumir que
+     * quien ejecuta el arnés siempre trae un Ryzen 5500U debajo.
      */
-    declaredMachine:
-      "AMD Ryzen 5 5500U (6 núcleos físicos / 12 hilos), 7,4 GB de RAM utilizable, Windows 11, portátil de desarrollo con carga vecina",
+    declaredMachine: `${cpus[0]?.model ?? "CPU desconocida"} · ${cpus.length} hilos lógicos (pueden no ser núcleos físicos) · ${(os.totalmem() / 1024 ** 3).toFixed(1)} GB RAM · ${os.type()} ${os.release()}`,
   },
   corpus: {
     mix: mixId,
