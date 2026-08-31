@@ -1,0 +1,144 @@
+{
+  "generadoPor": "node scripts/cad/build-sketchup-migration-matrix.mjs",
+  "corpusSintetico": true,
+  "limitacion": "CORPUS SINTÉTICO DE VALLE, no material de la galería pública de SketchUp. Esta campaña (interop de importación de modelos 3D) no consiguió, dentro de su presupuesto, modelos de terceros PRODUCIDOS POR SKETCHUP con procedencia y licencia registrables al estilo de SOURCE_REGISTER.json. Los casos de abajo son cajas, un taladro pasante, un tetraedro y una escena de tres componentes, generados por este mismo repositorio, con winding de malla verificado a mano por producto cruzado antes de escribirlos — no son evidencia de compatibilidad con archivos reales de SketchUp, sólo de que el cosedor hace lo que promete sobre una malla bien formada. Por la regla de la campaña de cimientos, esta fila retiene 1 punto hasta tener oráculo externo o material de terceros: decirlo aquí es preferible a que se descubra después.",
+  "criterios": {
+    "caras": "Caras del sólido cosido contra las caras que la geometría original declara (una cara por plano, con sus agujeros) — no contra el número de triángulos de entrada.",
+    "volumen": "Volumen por integración sobre caras planas (`planarBodyVolume`) contra el volumen exacto calculado con la fórmula del sólido original. Coincide si el error relativo es menor a 1e-6.",
+    "componentes": "Objetos/mallas del archivo de origen contra sólidos que llegaron al documento canónico. Preservados = encontrados cuando ningún componente se rechazó por tamaño o por no cerrar."
+  },
+  "resumen": {
+    "casos": 5,
+    "carasCoincidieron": 5,
+    "volumenesCoincidieron": 5,
+    "componentesPreservados": 5,
+    "cuerposCerrados": 5
+  },
+  "casos": [
+    {
+      "id": "caja-simple-obj",
+      "archivo": "caja-simple.obj",
+      "proposito": "El caso base: una caja triangulada por cualquier exportador OBJ (dos triángulos por cara).",
+      "formato": "obj",
+      "caras": {
+        "esperadas": 6,
+        "cosidas": 6,
+        "coinciden": true
+      },
+      "volumen": {
+        "esperado": 8,
+        "calculado": 8,
+        "errorRelativo": 0,
+        "coincide": true
+      },
+      "componentes": {
+        "esperados": 1,
+        "encontrados": 1,
+        "preservados": 1,
+        "todosPreservados": true
+      },
+      "cuerpoCerrado": true,
+      "generoEuler": 0
+    },
+    {
+      "id": "caja-taladro-obj",
+      "archivo": "caja-taladro.obj",
+      "proposito": "Losa con un taladro pasante: el caso que exige detectar el LAZO INTERIOR en la tapa y el fondo.",
+      "formato": "obj",
+      "caras": {
+        "esperadas": 10,
+        "cosidas": 10,
+        "coinciden": true
+      },
+      "volumen": {
+        "esperado": 840,
+        "calculado": 840,
+        "errorRelativo": 0,
+        "coincide": true
+      },
+      "componentes": {
+        "esperados": 1,
+        "encontrados": 1,
+        "preservados": 1,
+        "todosPreservados": true
+      },
+      "cuerpoCerrado": true,
+      "generoEuler": 1
+    },
+    {
+      "id": "cubo-stl-binario",
+      "archivo": "cubo.stl",
+      "proposito": "El mismo cubo, en STL binario: sin nombre de objeto, un componente por archivo.",
+      "formato": "stl",
+      "caras": {
+        "esperadas": 6,
+        "cosidas": 6,
+        "coinciden": true
+      },
+      "volumen": {
+        "esperado": 27,
+        "calculado": 27,
+        "errorRelativo": 0,
+        "coincide": true
+      },
+      "componentes": {
+        "esperados": 1,
+        "encontrados": 1,
+        "preservados": 1,
+        "todosPreservados": true
+      },
+      "cuerpoCerrado": true,
+      "generoEuler": 0
+    },
+    {
+      "id": "escena-multi-componente-gltf",
+      "archivo": "escena.glb",
+      "proposito": "Tres componentes nombrados en un solo GLB: el caso que evidencia COMPONENTES PRESERVADOS, no sólo caras y volumen de una pieza suelta.",
+      "formato": "gltf",
+      "caras": {
+        "esperadas": 16,
+        "cosidas": 16,
+        "coinciden": true
+      },
+      "volumen": {
+        "esperado": 9513200239.279667,
+        "calculado": 9513200211.646557,
+        "errorRelativo": 2.904712331428764e-9,
+        "coincide": true
+      },
+      "componentes": {
+        "esperados": 3,
+        "encontrados": 3,
+        "preservados": 3,
+        "todosPreservados": true
+      },
+      "cuerpoCerrado": true,
+      "generoEuler": null
+    },
+    {
+      "id": "tetraedro-collada",
+      "archivo": "tetraedro.dae",
+      "proposito": "El sólido cerrado más pequeño posible, en COLLADA — declara metro y se convierte a mm.",
+      "formato": "collada",
+      "caras": {
+        "esperadas": 4,
+        "cosidas": 4,
+        "coinciden": true
+      },
+      "volumen": {
+        "esperado": 166666666.66666666,
+        "calculado": 166666666.66666666,
+        "errorRelativo": 0,
+        "coincide": true
+      },
+      "componentes": {
+        "esperados": 1,
+        "encontrados": 1,
+        "preservados": 1,
+        "todosPreservados": true
+      },
+      "cuerpoCerrado": true,
+      "generoEuler": 0
+    }
+  ]
+}

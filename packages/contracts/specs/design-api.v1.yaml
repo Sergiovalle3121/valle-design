@@ -130,8 +130,6 @@ tags:
     description: Plano DXF de fondo (importar/quitar) y exportación DXF R12 del documento.
   - name: blocks
     description: Biblioteca de bloques CAD reutilizables del tenant (CRUD).
-  - name: assistance
-    description: Asistencia opcional de lenguaje natural y visión; degrada de forma explícita si el motor no está disponible.
   - name: messaging
     description: >-
       Mensajería de equipo (`/v1/messaging/*`): canales de proyecto —
@@ -2424,62 +2422,6 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/EntitlementRequired" }
         "404": { $ref: "#/components/responses/NotFound" }
-  /v1/cad/documents/{documentId}/intent:
-    parameters:
-      - $ref: "#/components/parameters/documentId"
-    post:
-      operationId: interpretCadIntent
-      tags: [assistance]
-      summary: Interpreta una instrucción de lenguaje natural para un documento.
-      description: >-
-        Devuelve propuestas de herramientas; nunca aplica cambios al documento.
-        Si el motor no está configurado, responde `available: false` de forma
-        determinista.
-      x-required-entitlement: design.cad
-      x-required-permission: cad:edit
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CadIntentRequest"
-      responses:
-        "201":
-          description: Resultado de interpretación, disponible o degradado.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CadIntentResponse"
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/EntitlementRequired" }
-        "404": { $ref: "#/components/responses/NotFound" }
-  /v1/cad/vision:
-    post:
-      operationId: vectorizeCadImage
-      tags: [assistance]
-      summary: Propone geometría CAD a partir de una imagen embebida.
-      description: >-
-        Devuelve la salida cruda del motor para validación en el cliente. Si
-        el motor no está configurado, responde `available: false`.
-      x-required-entitlement: design.cad
-      x-required-permission: cad:edit
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/CadVisionRequest"
-      responses:
-        "201":
-          description: Resultado de visión, disponible o degradado.
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/CadVisionResponse"
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/EntitlementRequired" }
   /v1/messaging/channels:
     get:
       operationId: listMessagingChannels
@@ -5319,103 +5261,6 @@ components:
           maxLength: 80
         definition:
           $ref: "#/components/schemas/CadBlockDefinition"
-    CadIntentRequest:
-      type: object
-      required: [prompt]
-      additionalProperties: false
-      properties:
-        prompt:
-          type: string
-          minLength: 1
-          maxLength: 2000
-        context:
-          $ref: "#/components/schemas/CadIntentContext"
-    CadIntentContext:
-      type: object
-      required: [footprint, stations, connectors]
-      additionalProperties: false
-      properties:
-        footprint:
-          type: object
-          required: [unit, footprintW, footprintH]
-          additionalProperties: false
-          properties:
-            unit:
-              type: string
-              maxLength: 16
-            footprintW:
-              type: number
-              exclusiveMinimum: 0
-            footprintH:
-              type: number
-              exclusiveMinimum: 0
-        stations:
-          type: array
-          maxItems: 500
-          items:
-            type: object
-            required: [id, station]
-            additionalProperties: false
-            properties:
-              id: { type: string, maxLength: 64 }
-              station: { type: string, maxLength: 120 }
-              x: { type: [number, "null"] }
-              y: { type: [number, "null"] }
-              w: { type: [number, "null"] }
-              h: { type: [number, "null"] }
-        connectors:
-          type: array
-          maxItems: 1000
-          items:
-            type: object
-            required: [from, to]
-            additionalProperties: false
-            properties:
-              from: { type: string, maxLength: 64 }
-              to: { type: string, maxLength: 64 }
-    CadIntentResponse:
-      type: object
-      required: [available, toolCalls]
-      additionalProperties: false
-      properties:
-        available:
-          type: boolean
-        toolCalls:
-          type: array
-          items:
-            type: object
-            required: [name, arguments]
-            additionalProperties: false
-            properties:
-              name:
-                type: string
-              arguments:
-                type: object
-                additionalProperties: true
-        message:
-          type: string
-          maxLength: 300
-    CadVisionRequest:
-      type: object
-      required: [image]
-      additionalProperties: false
-      properties:
-        image:
-          type: string
-          minLength: 1
-          maxLength: 15000000
-          description: Data URL `data:image/*;base64,...` embebida.
-    CadVisionResponse:
-      type: object
-      required: [available, raw]
-      additionalProperties: false
-      properties:
-        available:
-          type: boolean
-        raw:
-          type: string
-        message:
-          type: string
     MessagingChannelId:
       type: string
       format: uuid

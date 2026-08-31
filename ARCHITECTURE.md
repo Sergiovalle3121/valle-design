@@ -123,8 +123,9 @@ resto del laboratorio —1024/1027/1032, escritura— sigue sin consumidor.
 Toda la vía es códec propio: ADR-0014 retiró la opción de proveedor
 licenciado que ADR-0012 dejaba abierta.
 
-CIDE es un puerto opcional para intent y vision: si falta, la respuesta es
-`available: false` y el editor sigue funcionando.
+No hay ningún puerto de inferencia: Valle Design no tiene IA. El proveedor
+CIDE, sus servicios de intención y visión y sus rutas `/v1/cad/intent` y
+`/v1/cad/vision` eran de Axos OS y se retiraron enteros (ver `IDENTITY.md`).
 
 ## Deuda visible
 

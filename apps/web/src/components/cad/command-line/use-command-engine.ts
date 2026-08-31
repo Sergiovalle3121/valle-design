@@ -54,6 +54,8 @@ import {
 } from "./navigation-host";
 import { CadPlotHost, downloadCadFile } from "./plot-host";
 import { handleCadDxfHostRequest } from "./dxf-host";
+import { handleCadEtransmitHostRequest } from "./etransmit-host";
+import { handleCadDataExtractionHostRequest } from "./data-extraction-host";
 import { handleCadUcsPlanRequest } from "./ucs-plan-host";
 import { cadStudioCommandContext } from "./studio-context";
 
@@ -362,10 +364,16 @@ export function useCadStudioCommandEngine(
     // El del SCU va antes que los otros dos por lo mismo que el de
     // intercambio: `PLAN` no traza ni entrega archivos, mueve la vista, y cada
     // anfitrión se queda con una sola responsabilidad.
+    // ETRANSMIT y DATAEXTRACTION sólo necesitan `document()` y `download` —lo
+    // mismo que DXFOUT ya usa— así que llegan al dibujo REAL sin que
+    // `Layout3DEditor.tsx` tenga que aportar nada nuevo: ese archivo está en
+    // su techo exacto (19.002/19.002 líneas) y `check:cad` prohíbe tocarlo.
     host: (request) =>
       live.current.host?.(request) ??
       handleCadUcsPlanRequest(request, { controller: () => live.current.view.current ?? null }) ??
       handleCadDxfHostRequest(request, { download: downloadCadFile }) ??
+      handleCadEtransmitHostRequest(request, { download: downloadCadFile }) ??
+      handleCadDataExtractionHostRequest(request, { download: downloadCadFile }) ??
       plot.handle(request),
     // Previsualización, captura forzada y forma del cursor pertenecen al
     // puntero, y el puntero YA llegó: las tres las sirve el enrutador del
