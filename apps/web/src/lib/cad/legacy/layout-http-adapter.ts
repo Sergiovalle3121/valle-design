@@ -30,8 +30,6 @@
  *  GET    /line-engineering/layout/dxf            → GET    /v1/cad/documents/:id/dxf
  *  PUT    /line-engineering/layout/dxf            → PUT    /v1/cad/documents/:id/dxf     (sin model/revision)
  *  DELETE /line-engineering/layout/dxf            → DELETE /v1/cad/documents/:id/dxf
- *  POST   /line-engineering/layout/cad-intent     → POST   /v1/cad/documents/:id/intent  ({prompt})
- *  POST   /line-engineering/layout/vision         → POST   /v1/cad/vision                (imageDataUrl→image)
  *  POST   /line-engineering/layout/publications   → POST   /v1/cad/documents/:id/publications
  *                                                   (respuesta plana v1 → {publication, cadDocumentVersion})
  *  POST   /line-engineering/layout/clone          → composición v1: GET documento origen + PUT content destino
@@ -148,13 +146,7 @@ export async function handleLegacyCadRequest(
       if (method === "DELETE") return deleteDxfRoute(scopeOf(url));
     }
 
-    // ── IA (intent / visión) y publicaciones ──────────────────────────────
-    if (route === "layout/cad-intent" && method === "POST") {
-      return intentRoute(parseJsonBody(init));
-    }
-    if (route === "layout/vision" && method === "POST") {
-      return visionRoute(parseJsonBody(init));
-    }
+    // ── Publicaciones ─────────────────────────────────────────────────────
     if (route === "layout/publications" && method === "POST") {
       return publicationsRoute(parseJsonBody(init));
     }
@@ -774,23 +766,7 @@ async function propagateDxfPlacement(
   }
 }
 
-/* ═════════════════════ IA (intent/visión) y publicaciones ════════════════ */
-
-async function intentRoute(
-  payload: Record<string, unknown>,
-): Promise<Response> {
-  const model = String(payload.model ?? "").trim();
-  const revision = String(payload.revision ?? "A").trim() || "A";
-  if (!model) return json({ message: "model es obligatorio." }, 400);
-  const id = await ensureDocumentId(model, revision);
-  return v1Json("POST", `/v1/cad/documents/${id}/intent`, {
-    prompt: payload.prompt,
-  });
-}
-
-function visionRoute(payload: Record<string, unknown>): Promise<Response> {
-  return v1Json("POST", "/v1/cad/vision", { image: payload.imageDataUrl });
-}
+/* ══════════════════════════════ Publicaciones ═══════════════════════════ */
 
 async function publicationsRoute(
   payload: Record<string, unknown>,

@@ -3,9 +3,11 @@
 import {
   importDocumentBytes,
   importDocumentText,
+  importMeshFileDocument,
   isBinaryImportFormat,
   validateImportFile,
 } from "./document-import";
+import { meshImportFormatOf } from "./interop/mesh-format-detect";
 import { dwg3dWireframeBetaImportIsEnabled, dwgAc1018BetaImportIsEnabled } from "./dwg-interop-flag";
 import type { DwgNeutralDatabaseReader } from "./dwg-neutral-model";
 
@@ -81,17 +83,22 @@ self.onmessage = async (event: MessageEvent<WorkerInput>) => {
             readDwgNeutralDatabase(dwgBytes, { allowAc1018, allow3dWireframe }),
         };
       }
-      const binaryReport = importDocumentBytes(
-        file.name,
-        bytes,
-        {
-          ...(sidecars?.shx ? { shx: await sidecars.shx.arrayBuffer() } : {}),
-          ...(sidecars?.dbf ? { dbf: await sidecars.dbf.arrayBuffer() } : {}),
-          ...(sidecars?.prj ? { prj: await sidecars.prj.text() } : {}),
-          ...(sidecars?.cpg ? { cpg: await sidecars.cpg.text() } : {}),
-        },
-        dwg,
-      );
+      // Los cuatro formatos de malla (OBJ, STL, glTF/GLB, COLLADA) no traen
+      // acompañantes ni beta de DWG: su camino es `importMeshFileDocument`,
+      // asíncrono porque sus lectores cargan el parser de three bajo demanda.
+      const binaryReport = meshImportFormatOf(file.name)
+        ? await importMeshFileDocument(file.name, new Uint8Array(bytes))
+        : importDocumentBytes(
+            file.name,
+            bytes,
+            {
+              ...(sidecars?.shx ? { shx: await sidecars.shx.arrayBuffer() } : {}),
+              ...(sidecars?.dbf ? { dbf: await sidecars.dbf.arrayBuffer() } : {}),
+              ...(sidecars?.prj ? { prj: await sidecars.prj.text() } : {}),
+              ...(sidecars?.cpg ? { cpg: await sidecars.cpg.text() } : {}),
+            },
+            dwg,
+          );
       self.postMessage({
         type: "progress",
         progress: 0.9,

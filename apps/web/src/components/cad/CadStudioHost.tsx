@@ -31,6 +31,7 @@ import { useToast } from "@/contexts/ToastContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import StudioCollaborationLayer from "@/components/cad/collab/StudioCollaborationLayer";
+import TeamMessagingHost from "@/components/cad/messaging/TeamMessagingHost";
 import { CallBar } from "@/components/cad/calls/CallBar";
 import { BRAND } from "@/config/brand";
 import { ErrorBoundary } from "@/components/ui";
@@ -151,6 +152,20 @@ export default function CadStudioHost({
         </ErrorBoundary>
       ) : null}
       {/*
+        La mensajería de equipo es de PROYECTO/ORGANIZACIÓN, no de documento:
+        se monta con la misma condición que la colaboración de revisión
+        (sin red en modo demostración) pero no depende de `documentId`, sólo
+        de tener sesión. Su propio ErrorBoundary la aísla igual que a la
+        colaboración: un mensaje con forma inesperada no debe tumbar el
+        lienzo.
+      */}
+      {withCollaboration && user?.id ? (
+        <ErrorBoundary zona="Mensajería" documentId={documentId} compacta>
+          <TeamMessagingHost
+            projectId={projectId}
+            viewerUserId={user.id}
+            canWrite={permissions.includes("cad:edit")}
+          />
         Mismo trato que la colaboración: la llamada vive AL LADO del editor,
         no dentro — se monta con una línea y una `RTCPeerConnection` que
         revienta por una razón de red no puede llevarse el lienzo con ella.

@@ -30,6 +30,9 @@ const controllerDirs = [
   // El centro de comentarios (campaña de firma propia): su superficie es
   // pública para quien tiene sesión, así que va en el contrato como las demás.
   "apps/api/src/modules/feedback",
+  // Mensajería de equipo (canales + mensajes anclables al dibujo): mismo
+  // trato que `legal`/`feedback` — entra al contrato desde su primer commit.
+  "apps/api/src/modules/messaging",
   // Señalización de llamada (WebRTC propio): sala, participantes y buzón de
   // señales, todo bajo /v1/calls.
   "apps/api/src/modules/calls",
@@ -44,6 +47,7 @@ const coveredPrefixes = [
   "/v1/legal",
   "/v1/support",
   "/v1/feedback",
+  "/v1/messaging",
   "/v1/calls",
 ];
 const coveredPath = (p) =>

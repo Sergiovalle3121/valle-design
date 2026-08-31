@@ -129,11 +129,6 @@ import {
   type CheckBox,
   type DesignReport,
 } from "@/lib/cad/design-checks";
-import {
-  describeCadIntent,
-  normalizeToolCalls,
-  type CadIntent,
-} from "@/lib/cad/cad-intent";
 import { parseCoordinate, constrainPoint } from "@/lib/cad/precision-input";
 import {
   startCommand,
@@ -163,7 +158,6 @@ import {
   cadSnapSceneAddEntities,
   cadSnapSceneFromBoxes,
 } from "@/lib/cad/snap-scene";
-import { normalizeVision, type VisionResult } from "@/lib/cad/cad-vision";
 import { detectCadFormat } from "@/components/cad/interop/cad-format-detect";
 import type { PlotLayout } from "@/components/cad/plot/plot-scale";
 import {
@@ -671,28 +665,24 @@ import {
 // los comandos de análisis del kernel degradan con su aviso contractual
 // (`analysis_pack_missing`) — comportamiento probado en analysis-extensions.spec.
 
-/** Propuesta del copiloto IA que el humano aprueba antes de aplicarse. */
-type CadAiProposal = {
-  source: "intent" | "optimize";
-  intents: CadIntent[];
-  descriptions?: string[];
-  errors: string[];
-  message?: string;
-};
-
 /**
- * Full-screen interactive 3D layout editor — the "CAD" view of the plant floor.
+ * El editor: el lienzo de dibujo de Valle Design, en 2D y en 3D sobre el mismo
+ * documento.
  *
- * Stations are extruded, labelled blocks; non-station equipment (benches,
- * conveyors, racks, robots, walls, columns, AGVs, operators…) are placed from a
- * categorised palette and rendered with distinctive geometry per archetype.
- * Anything on the floor can be dragged (a raycast against the ground gives the
- * new world x/y — exactly the placement data the 2D editor uses, so both views
- * stay in sync), selected, nudged, rotated, duplicated, resized from the
- * properties panel, or removed. Saves back through the shared layout endpoint:
- * stations via positions/cleared, equipment via the additive `assets` array.
+ * Dibuja CUALQUIER plano —arquitectónico, mecánico, eléctrico, civil, de
+ * instalaciones, de mobiliario, de terreno— y no está atado a ninguna
+ * tipología: una nave industrial es un edificio más, igual que una casa
+ * habitación o un consultorio. Si algo aquí dentro sólo sirve para operar una
+ * fábrica y no para DIBUJAR un plano, no pertenece a este archivo (`IDENTITY.md`).
  *
- * three.js + OrbitControls, lazy-loaded so the engine only ships when opened.
+ * Todo lo colocado se arrastra (un rayo contra el suelo da la x/y de mundo —los
+ * mismos datos de colocación que usa la vista 2D, así las dos no se
+ * desincronizan), se designa, se empuja con las flechas, se gira, se duplica, se
+ * redimensiona desde el panel de propiedades o se borra. Guarda por el mismo
+ * documento canónico con CAS.
+ *
+ * three.js + OrbitControls, cargados en diferido para que el motor sólo viaje
+ * cuando se abre el editor.
  */
 
 /* ──────────────────────── Review links (server-owned) ────────────────────── */
@@ -1494,13 +1484,6 @@ export default function Layout3DEditor({
       notes: "",
     });
   const dxfInputRef = useRef<HTMLInputElement | null>(null);
-  // Visión plano→muros (Fase 71 cableada, ADR §217): imagen → CIDE multimodal
-  // → normalizeVision → muros/zonas editables. El humano revisa antes de insertar.
-  const visionInputRef = useRef<HTMLInputElement | null>(null);
-  const [visionBusy, setVisionBusy] = useState(false);
-  const [visionPreview, setVisionPreview] = useState<
-    (VisionResult & { imageName: string }) | null
-  >(null);
   const [showVersions, setShowVersions] = useState(false); // versions/scenarios modal (unify)
   const [localSnapshots, setLocalSnapshots] = useState<
     CadSnapshotHistory<Snapshot>
@@ -1544,9 +1527,6 @@ export default function Layout3DEditor({
   const commandPreviewRef = useRef<CommandPreviewState | null>(null);
 
   const commandTextRef = useRef("");
-  // Copiloto IA (ADR §215): propuesta NL→CAD / optimización — humano aprueba.
-  const [aiBusy, setAiBusy] = useState<null | "intent" | "optimize">(null);
-  const [aiProposal, setAiProposal] = useState<CadAiProposal | null>(null);
   const [selList, setSelList] = useState<SelItem[]>([]);
   const [selSnap, setSelSnap] = useState<SelSnap | null>(null);
   const [selSummary, setSelSummary] = useState<CadSelectionProperties | null>(
@@ -8410,7 +8390,7 @@ export default function Layout3DEditor({
         y: asset.y + asset.h / 2,
         width: asset.w,
         height: asset.h,
-        layer: "Safety",
+        layer: "Seguridad",
         requiredClearance:
           kind === "safety_clearance"
             ? Math.max(asset.w, asset.h) / 2
@@ -8553,7 +8533,7 @@ export default function Layout3DEditor({
     select(items);
     rebuildAll();
     focusViewportItems(items);
-    toast.success("Issue de seguridad seleccionado.", "Safety");
+    toast.success("Incidencia de seguridad seleccionada.", "Seguridad");
   };
   const selectValidationIssue = (issue: CadValidationIssueRow) => {
     const items: SelItem[] = issue.affectedObjectIds
@@ -9496,7 +9476,7 @@ export default function Layout3DEditor({
     }
     const name = (
       typeof window !== "undefined"
-        ? window.prompt("Nombre del bloque (ej. Celda SMT estándar):")
+        ? window.prompt("Nombre del bloque (ej. Puerta abatible 0.90):")
         : ""
     )?.trim();
     if (!name) return;
@@ -10409,135 +10389,6 @@ export default function Layout3DEditor({
       setDxfBusy(false);
     }
   };
-  // ---- visión plano→muros (Fase 71 cableada, ADR §217) ----
-  const onVisionFile = async (file: File) => {
-    if (!data) return;
-    if (file.size > 4_000_000) {
-      toast.error("La imagen supera 4 MB; reduce la resolución.", "Visión");
-      return;
-    }
-    setVisionBusy(true);
-    setVisionPreview(null);
-    try {
-      const imageDataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error("read"));
-        reader.readAsDataURL(file);
-      });
-      const r = await legacyCadFetch("layout/vision", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model, revision, imageDataUrl }),
-      });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const body = (await r.json()) as {
-        available: boolean;
-        raw: string;
-        message?: string;
-      };
-      if (!body.available || !body.raw) {
-        toast.error(
-          body.message || "El motor de visión (CIDE) no está disponible.",
-          "Visión",
-        );
-        return;
-      }
-      // El modelo a veces envuelve el JSON en ```json ... ``` — extrae el bloque.
-      const raw = body.raw.replace(/^[\s\S]*?(\{[\s\S]*\})[\s\S]*$/, "$1");
-      const result = normalizeVision(raw, data.footprint);
-      if (!result.walls.length && !result.zones.length) {
-        toast.error(
-          result.errors[0] ||
-            "El modelo no detectó muros ni zonas en el plano.",
-          "Visión",
-        );
-        return;
-      }
-      setVisionPreview({ ...result, imageName: file.name });
-    } catch {
-      toast.error("No se pudo vectorizar el plano.", "Visión");
-    } finally {
-      setVisionBusy(false);
-    }
-  };
-  const applyVisionResult = () => {
-    const ctx = ctxRef.current;
-    const vp = visionPreview;
-    if (!ctx || !vp) return;
-    recordLocalSnapshot(`Auto · Visión ${vp.imageName}`, "command");
-    pushHistory();
-    const thick = assetMeta("wall").h;
-    const created: string[] = [];
-    for (const wall of vp.walls) {
-      const len = Math.hypot(wall.b.x - wall.a.x, wall.b.y - wall.a.y);
-      if (len < 1) continue;
-      const cx = (wall.a.x + wall.b.x) / 2,
-        cy = (wall.a.y + wall.b.y) / 2;
-      const angle =
-        (Math.atan2(wall.b.y - wall.a.y, wall.b.x - wall.a.x) * 180) / Math.PI;
-      const id = newId("as");
-      assetsRef.current.set(id, {
-        id,
-        kind: "wall",
-        x: cx - len / 2,
-        y: cy - thick / 2,
-        w: len,
-        h: thick,
-        rotation: angle,
-        label: "Muro (visión)",
-      });
-      created.push(id);
-    }
-    const zoneIds: string[] = [];
-    for (const zone of vp.zones) {
-      const xs = zone.points.map((p) => p.x);
-      const ys = zone.points.map((p) => p.y);
-      const minX = Math.max(0, Math.min(...xs));
-      const maxX = Math.min(ctx.W, Math.max(...xs));
-      const minY = Math.max(0, Math.min(...ys));
-      const maxY = Math.min(ctx.H, Math.max(...ys));
-      if (maxX - minX < 1 || maxY - minY < 1) continue;
-      const id = newId("as");
-      assetsRef.current.set(id, {
-        id,
-        kind: "zone",
-        label: zone.name || "Zona (visión)",
-        x: Math.round(minX),
-        y: Math.round(minY),
-        w: Math.round(maxX - minX),
-        h: Math.round(maxY - minY),
-        rotation: 0,
-      });
-      zoneIds.push(id);
-    }
-    setAssetIds(new Set(assetsRef.current.keys()));
-    if (created.length)
-      setLayerAssignments((cur) =>
-        assignObjectsToLayer(cur, created, "architecture"),
-      );
-    if (zoneIds.length)
-      setLayerAssignments((cur) =>
-        assignObjectsToLayer(cur, zoneIds, defaultCadLayerForAssetKind("zone")),
-      );
-    setObjectTags((cur) => {
-      const next = { ...cur };
-      created.forEach((id) => {
-        next[id] = "wall, architecture, vision";
-      });
-      zoneIds.forEach((id) => {
-        next[id] = "zone, vision";
-      });
-      return next;
-    });
-    setVisionPreview(null);
-    markDirty();
-    rebuildAll();
-    toast.success(
-      `Visión: ${created.length} muro(s) y ${zoneIds.length} zona(s) insertados como objetos editables.`,
-      "Visión",
-    );
-  };
   // ---- versions / scenarios (ported from 2D, unify) ----
   const scopeQs = `model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`;
   const loadVersions = async () => {
@@ -10997,10 +10848,10 @@ export default function Layout3DEditor({
     const id = newId("as");
     const label =
       kind === "esd"
-        ? "ESD controlled zone"
+        ? "Zona ESD controlada"
         : kind === "no-go"
-          ? "No-go zone"
-          : "Restricted zone";
+          ? "Zona prohibida"
+          : "Zona restringida";
     assetsRef.current.set(id, {
       id,
       kind: "zone",
@@ -11023,7 +10874,7 @@ export default function Layout3DEditor({
     select([{ type: "asset", id }]);
     markDirty();
     rebuildAll();
-    toast.success(`${label} creada.`, "Safety");
+    toast.success(`${label} creada.`, "Seguridad");
   };
   const createSafetyPathAsset = (kind: "circulation" | "emergency") => {
     const ctx = ctxRef.current;
@@ -11059,7 +10910,7 @@ export default function Layout3DEditor({
     select([{ type: "asset", id }]);
     markDirty();
     rebuildAll();
-    toast.success(`${label} creado.`, "Safety");
+    toast.success(`${label} creado.`, "Seguridad");
   };
 
   const setField = (
@@ -11907,262 +11758,6 @@ export default function Layout3DEditor({
     );
     toast.success(`Rehecho: ${item.label}`, "Comando CAD");
   };
-  const buildAiIntentProposalDescription = (intent: CadIntent) => {
-    if (intent.kind !== "cleanupGeometry") return describeCadIntent(intent);
-    const preview = previewCadCommand(
-      {
-        id: "cleanup_geometry",
-        tolerance: intent.tolerance,
-        angleToleranceDeg: intent.angleToleranceDeg,
-        minLength: intent.minLength,
-      },
-      buildCommandContext(),
-    );
-    const evidence = preview.issues
-      .slice(0, 3)
-      .map((issue) => issue.message)
-      .join(" · ");
-    return `${preview.summary}${evidence ? ` Evidencia: ${evidence}` : ""}`;
-  };
-  // ── Copiloto IA (ADR §215): NL→CAD y optimización vía backend CIDE. El modelo
-  // solo PROPONE tool-calls; normalizeToolCalls valida y el humano aplica. ──
-  const requestAiProposal = async (source: "intent" | "optimize") => {
-    const prompt = commandText.trim();
-    if (source === "intent" && !prompt) {
-      toast.error("Escribe la instrucción para la IA.", "Copiloto IA");
-      return;
-    }
-    setAiBusy(source);
-    setAiProposal(null);
-    try {
-      const r =
-        source === "intent"
-          ? await legacyCadFetch("layout/cad-intent", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ model, revision, prompt }),
-            })
-          : await legacyCadFetch(
-              `layout/optimize-copilot?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
-            );
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const body = (await r.json()) as {
-        available: boolean;
-        toolCalls: { name: string; arguments: unknown }[];
-        message?: string;
-      };
-      if (!body.available) {
-        setAiProposal({
-          source,
-          intents: [],
-          errors: [],
-          message: body.message || "El motor de IA (CIDE) no está disponible.",
-        });
-        return;
-      }
-      const { intents, errors } = normalizeToolCalls(body.toolCalls ?? []);
-      if (!intents.length && !errors.length) {
-        setAiProposal({
-          source,
-          intents: [],
-          errors: [],
-          message:
-            body.message || "La IA no propuso acciones para esta instrucción.",
-        });
-        return;
-      }
-      setAiProposal({
-        source,
-        intents,
-        descriptions: intents.map(buildAiIntentProposalDescription),
-        errors,
-        message: body.message,
-      });
-    } catch {
-      setAiProposal({
-        source,
-        intents: [],
-        errors: [],
-        message: "No se pudo contactar el copiloto IA.",
-      });
-    } finally {
-      setAiBusy(null);
-    }
-  };
-  const applyAiIntent = (intent: CadIntent): boolean => {
-    const ctx = ctxRef.current;
-    if (!ctx) return false;
-    switch (intent.kind) {
-      case "setFootprint": {
-        const unit = (data?.footprint.unit || "mm") as WorldUnit;
-        setData((d) =>
-          d
-            ? {
-                ...d,
-                footprint: {
-                  ...d.footprint,
-                  footprintW: clampFootprintUnit(
-                    Math.round(intent.footprintW),
-                    unit,
-                  ),
-                  footprintH: clampFootprintUnit(
-                    Math.round(intent.footprintH),
-                    unit,
-                  ),
-                  ...(intent.gridSize
-                    ? {
-                        gridSize: clampGridUnit(
-                          Math.round(intent.gridSize),
-                          unit,
-                        ),
-                      }
-                    : {}),
-                },
-              }
-            : d,
-        );
-        return true;
-      }
-      case "placeAsset": {
-        const a = intent.asset;
-        const id = newId("as");
-        assetsRef.current.set(id, {
-          id,
-          kind: a.kind,
-          x: Math.max(0, Math.min(ctx.W - a.w, snapWorld(a.x))),
-          y: Math.max(0, Math.min(ctx.H - a.h, snapWorld(a.y))),
-          w: a.w,
-          h: a.h,
-          rotation: a.rotation,
-          ...(a.label ? { label: a.label } : {}),
-        });
-        setAssetIds((s) => new Set(s).add(id));
-        setLayerAssignments((cur) =>
-          assignObjectsToLayer(cur, [id], defaultCadLayerForAssetKind(a.kind)),
-        );
-        return true;
-      }
-      case "draw": {
-        const seg = intent.action;
-        if (seg.type !== "addSegment") return false;
-        const len = Math.hypot(seg.b.x - seg.a.x, seg.b.y - seg.a.y);
-        if (len < 1) return false;
-        const thick = assetMeta("wall").h;
-        const cx = (seg.a.x + seg.b.x) / 2,
-          cy = (seg.a.y + seg.b.y) / 2;
-        const angle =
-          (Math.atan2(seg.b.y - seg.a.y, seg.b.x - seg.a.x) * 180) / Math.PI;
-        const id = newId("as");
-        assetsRef.current.set(id, {
-          id,
-          kind: "wall",
-          x: cx - len / 2,
-          y: cy - thick / 2,
-          w: len,
-          h: thick,
-          rotation: angle,
-        });
-        setAssetIds((s) => new Set(s).add(id));
-        setLayerAssignments((cur) =>
-          assignObjectsToLayer(cur, [id], "architecture"),
-        );
-        return true;
-      }
-      case "moveStation": {
-        const wanted = intent.station.trim().toLocaleLowerCase("es-MX");
-        let sid: string | null = null;
-        stationsByIdRef.current.forEach((st, id) => {
-          if (!sid && (st.station ?? "").toLocaleLowerCase("es-MX") === wanted)
-            sid = id;
-        });
-        if (!sid)
-          stationsByIdRef.current.forEach((st, id) => {
-            if (
-              !sid &&
-              (st.station ?? "").toLocaleLowerCase("es-MX").includes(wanted)
-            )
-              sid = id;
-          });
-        const p = sid ? placementsRef.current.get(sid) : undefined;
-        if (!sid || !p) return false;
-        if (isItemLayerLocked({ type: "station", id: sid })) return false;
-        p.x = Math.max(0, Math.min(ctx.W - p.w, snapWorld(intent.x)));
-        p.y = Math.max(0, Math.min(ctx.H - p.h, snapWorld(intent.y)));
-        return true;
-      }
-      case "cleanupGeometry": {
-        const input: CadCommandInput = {
-          id: "cleanup_geometry",
-          tolerance: intent.tolerance,
-          angleToleranceDeg: intent.angleToleranceDeg,
-          minLength: intent.minLength,
-        };
-        const result = executeCadCommand(input, buildCommandContext());
-        if (!result.applied) return false;
-        return result.operations.map(applyCommandOperation).some(Boolean);
-      }
-    }
-  };
-  const applyAiProposal = () => {
-    if (!aiProposal || !aiProposal.intents.length) return;
-    if (drawingReadOnlyRef.current) {
-      notifyReadOnly();
-      return;
-    }
-    const checkpoint = snapshotDocument();
-    const footprintBefore = data?.footprint ? { ...data.footprint } : null;
-    const wasDirty = dirty;
-    const proposalHistory =
-      canonicalHistoryRef.current?.createRecoveryPoint() ?? null;
-    recordLocalSnapshot(
-      `Auto · Copiloto IA (${aiProposal.source === "intent" ? "instrucción" : "optimización"})`,
-      "command",
-    );
-    pushHistory();
-    const applied = aiProposal.intents
-      .map(applyAiIntent)
-      .filter(Boolean).length;
-    const rollbackProposal = (message: string) => {
-      loadedCadDocumentRef.current = checkpoint;
-      restore(cadDocumentToEditorSnapshot(checkpoint));
-      if (footprintBefore)
-        setData((current) =>
-          current ? { ...current, footprint: footprintBefore } : current,
-        );
-      if (proposalHistory && canonicalHistoryRef.current) {
-        canonicalHistoryRef.current.restoreRecoveryPoint(proposalHistory);
-        setHist(canonicalHistoryRef.current.depths());
-      } else cancelHistoryCheckpoint();
-      dirtyRef.current = wasDirty;
-      setDirty(wasDirty);
-      toast.error(message, "Copiloto IA");
-    };
-    if (applied !== aiProposal.intents.length) {
-      rollbackProposal(
-        "La propuesta no era aplicable completa; se revirtió sin cambios parciales.",
-      );
-      return;
-    }
-    const constrained = solveCadConstraints(snapshotDocument());
-    if (!constrained.converged) {
-      rollbackProposal(
-        constrained.issues[0]?.message ||
-          "La propuesta contradice las restricciones y fue revertida.",
-      );
-      return;
-    }
-    loadedCadDocumentRef.current = constrained.document;
-    restore(cadDocumentToEditorSnapshot(constrained.document));
-    markDirty();
-    refreshSnap();
-    rebuildAll();
-    toast.success(
-      `Copiloto IA: ${applied}/${aiProposal.intents.length} acción(es) aplicadas como una transacción.`,
-      "Copiloto IA",
-    );
-    if (aiProposal.source === "intent" && applied) setCommandText("");
-    setAiProposal(null);
-  };
   const toggleCadLayerVisibility = (id: CadLayerId) => {
     const layer = cadLayers.find((candidate) => candidate.id === id);
     if (!layer) return;
@@ -12474,13 +12069,13 @@ export default function Layout3DEditor({
       setRecentPaletteActions((items) => rememberCadPaletteAction(items, key)),
     runToolbarAction,
     invokeEngineCommand: (name) => commandEngineRef.current.invoke(name),
-    copilotContext: buildCommandContext,
-    openCopilot: (text) => {
+    nlCommandContext: buildCommandContext,
+    openNlCommand: (text) => {
       setShowCommand(true);
       setCommandText(text);
     },
-    setCopilotPreview: setCommandPreview,
-    appendCopilotHistory: (item) =>
+    setNlCommandPreview: setCommandPreview,
+    appendNlCommandHistory: (item) =>
       setCommandLog((items) => prependCadCommandHistory(items, item)),
     insertSymbol: (id) => {
       addCadSymbol(id);
@@ -14820,7 +14415,7 @@ export default function Layout3DEditor({
           : "text-success-ink",
     },
     {
-      label: "Safety zones",
+      label: "Zonas de seguridad",
       value: safetyIssues.length
         ? `${safetyIssues.length} issue(s)`
         : "Sin invasiones activas",
@@ -15750,28 +15345,6 @@ export default function Layout3DEditor({
         >
           <Upload className="w-4 h-4" />
         </T3Btn>
-        <input
-          ref={visionInputRef}
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) void onVisionFile(f);
-            e.target.value = "";
-          }}
-        />
-        <T3Btn
-          onClick={() => visionInputRef.current?.click()}
-          disabled={visionBusy}
-          title="Vectorizar plano con IA: sube una foto/imagen del plano y la visión (CIDE) propone muros y zonas editables"
-        >
-          {visionBusy ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <ScanEye className="w-4 h-4" />
-          )}
-        </T3Btn>
         {hasDxf && (
           <T3Btn
             onClick={importDxfWalls}
@@ -16074,19 +15647,19 @@ export default function Layout3DEditor({
                             onClick={() => createSafetyZoneAsset("no-go")}
                             className="rounded-lg border border-rose-300/20 bg-rose-400/[0.10] px-2 py-1.5 text-left type-micro font-semibold text-rose-100 hover:bg-rose-400/[0.16]"
                           >
-                            No-go zone
+                            Zona prohibida
                           </button>
                           <button
                             onClick={() => createSafetyZoneAsset("restricted")}
                             className="rounded-lg border border-amber-300/20 bg-amber-400/[0.10] px-2 py-1.5 text-left type-micro font-semibold text-warning-ink hover:bg-amber-400/[0.16]"
                           >
-                            Restricted
+                            Zona restringida
                           </button>
                           <button
                             onClick={() => createSafetyZoneAsset("esd")}
                             className="rounded-lg border border-indigo-300/20 bg-indigo-400/[0.10] px-2 py-1.5 text-left type-micro font-semibold text-primary-ink hover:bg-indigo-400/[0.16]"
                           >
-                            ESD zone
+                            Zona ESD
                           </button>
                           <button
                             onClick={() => createSafetyPathAsset("circulation")}
@@ -16113,7 +15686,7 @@ export default function Layout3DEditor({
                       <input
                         value={symbolSearch}
                         onChange={(e) => setSymbolSearch(e.target.value)}
-                        placeholder="Buscar SMT, AOI, safety…"
+                        placeholder="Buscar puerta, ventana, mueble…"
                         className="mb-2 w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground placeholder:text-muted-foreground outline-none focus:border-indigo-400/60"
                       />
                       <div className="mb-2 flex gap-1 overflow-x-auto pb-1">
@@ -16815,46 +16388,6 @@ export default function Layout3DEditor({
                         : "select"
               }
             />
-            {visionPreview && (
-              <div className="absolute top-3 right-3 z-30 w-[20rem] rounded-2xl border border-violet-400/25 bg-surface/80 p-3 shadow-2xl backdrop-blur">
-                <div className="flex items-center gap-2 type-micro font-semibold uppercase tracking-wide text-violet-200">
-                  <ScanEye className="h-3.5 w-3.5" /> Visión ·{" "}
-                  {visionPreview.imageName}
-                </div>
-                <div className="mt-2 rounded-xl bg-muted/40 px-2.5 py-2 type-caption text-foreground">
-                  {visionPreview.walls.length} muro(s) y{" "}
-                  {visionPreview.zones.length} zona(s) detectados
-                  {visionPreview.unitHint
-                    ? ` · unidad sugerida ${visionPreview.unitHint}`
-                    : ""}
-                  .
-                </div>
-                {visionPreview.errors.slice(0, 3).map((err) => (
-                  <div key={err} className="mt-1 type-micro text-warning-ink">
-                    Descartado: {err}
-                  </div>
-                ))}
-                <p className="mt-2 type-micro leading-snug text-muted-foreground">
-                  Se insertan como muros/zonas EDITABLES escalados a la huella
-                  actual — revisa y ajusta después de insertar.
-                </p>
-                <div className="mt-2 flex gap-1.5">
-                  <button
-                    onClick={applyVisionResult}
-                    className="rounded-lg bg-emerald-700 px-2.5 py-1.5 type-micro font-semibold text-foreground hover:bg-emerald-600"
-                  >
-                    Insertar{" "}
-                    {visionPreview.walls.length + visionPreview.zones.length}
-                  </button>
-                  <button
-                    onClick={() => setVisionPreview(null)}
-                    className="rounded-lg border border-border px-2.5 py-1.5 type-micro text-foreground hover:bg-muted"
-                  >
-                    Descartar
-                  </button>
-                </div>
-              </div>
-            )}
             {showPalette && (
               <div className="absolute top-3 right-3 z-30 w-[22rem] rounded-2xl border border-indigo-400/20 bg-surface/80 p-3 shadow-2xl backdrop-blur">
                 <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-2.5 py-2">
@@ -18008,7 +17541,7 @@ export default function Layout3DEditor({
                             value={objectTags[selSnap.id] ?? ""}
                             onChange={(e) => updateSelectedTags(e.target.value)}
                             onBlur={endFieldEdit}
-                            placeholder="esd, safety, smt…"
+                            placeholder="fachada, planta baja, revisión…"
                             className="w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground placeholder:text-muted-foreground outline-none"
                           />
                         </label>
@@ -18067,7 +17600,7 @@ export default function Layout3DEditor({
                                 />
                               )}
                               <ReadField
-                                label="Safety"
+                                label="Seguridad"
                                 value={
                                   selectedObjectProperties.safetyClassification
                                 }

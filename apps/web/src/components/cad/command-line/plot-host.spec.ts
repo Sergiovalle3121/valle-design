@@ -17,7 +17,7 @@ import {
   onCadPlotDelivered,
   resetCadPlotDeliveryListeners,
 } from "./plot-host";
-import { addCadSheet, createCadSheetSet } from "@/lib/cad/sheet-set/sheet-set";
+import { addCadSheet, createCadSheetSet, type CadSheetSet } from "@/lib/cad/sheet-set/sheet-set";
 
 function drawing(): CadDocument {
   const layout = createCadLayout([], {
@@ -254,6 +254,72 @@ async function specs(): Promise<void> {
     const missing = new CadPlotHost({ document: () => document, download: () => {} });
     assert.match(
       missing.handle({ kind: "publish", sheetSetId: "set:nave" }),
+      /no está cargado/,
+    );
+  }
+
+  // --- SHEETSET: leer, renumerar y añadir sobre un conjunto cargado --------
+  {
+    let set = createCadSheetSet({ id: "set:nave", name: "Nave industrial" });
+    set = addCadSheet(set, { id: "s1", documentId: "doc", layoutId: "layout:planta", title: "Planta" });
+    set = addCadSheet(set, { id: "s2", documentId: "doc", layoutId: "layout:planta", title: "Planta (bis)" });
+
+    const savedBox: { current: CadSheetSet | null } = { current: null };
+    const host = new CadPlotHost({
+      document: () => document,
+      download: () => {},
+      sheetSet: () => ({ set: savedBox.current ?? set, documents: new Map([["doc", document]]) }),
+      saveSheetSet: (next) => {
+        savedBox.current = next;
+      },
+      newSheetId: () => "s3",
+    });
+
+    // Índice: cuenta las hojas SIN necesitar poder guardar.
+    const listing = host.handle({ kind: "sheet-set-command", action: "list", sheetSetId: "set:nave" });
+    assert.match(listing, /2 hoja\(s\)/);
+    assert.match(listing, /Planta \(bis\)/);
+
+    // Añadir: la hoja nueva entra, se numera, y el conjunto guardado la lleva.
+    const added = host.handle({
+      kind: "sheet-set-command",
+      action: "add",
+      sheetSetId: "set:nave",
+      sheet: { documentId: "doc", layoutId: "layout:x", title: "Detalle de escalera" },
+    });
+    assert.match(added, /Añadida «Detalle de escalera»/);
+    assert.ok(savedBox.current, "saveSheetSet se llamó de verdad");
+    const afterAdd: CadSheetSet = savedBox.current;
+    assert.equal(afterAdd.sheets.length, 3, "el conjunto guardado tiene las tres hojas");
+    assert.ok(
+      afterAdd.sheets.some((sheet) => sheet.id === "s3" && sheet.title === "Detalle de escalera"),
+      `la hoja nueva está en lo guardado: ${JSON.stringify(afterAdd.sheets)}`,
+    );
+
+    // Renumerar: parte de lo YA guardado (la hoja añadida), y produce un
+    // número por cada una de las tres.
+    const renumbered = host.handle({ kind: "sheet-set-command", action: "renumber", sheetSetId: "set:nave" });
+    assert.ok(savedBox.current, "saveSheetSet se volvió a llamar");
+    const afterRenumber: CadSheetSet = savedBox.current;
+    assert.equal(afterRenumber.sheets.length, 3);
+    assert.match(renumbered, /Renumerado «Nave industrial»/);
+    assert.equal(new Set(afterRenumber.sheets.map((sheet) => sheet.number)).size, 3, "tres números distintos");
+
+    // Sin `saveSheetSet`, se puede LEER pero no escribir — y lo dice.
+    const readOnly = new CadPlotHost({
+      document: () => document,
+      download: () => {},
+      sheetSet: () => ({ set, documents: new Map([["doc", document]]) }),
+    });
+    assert.match(
+      readOnly.handle({ kind: "sheet-set-command", action: "renumber", sheetSetId: "set:nave" }),
+      /pero no guardarlo/,
+    );
+
+    // Un conjunto que no está cargado dice lo mismo que PUBLISH.
+    const noSet = new CadPlotHost({ document: () => document, download: () => {} });
+    assert.match(
+      noSet.handle({ kind: "sheet-set-command", action: "list", sheetSetId: "set:ausente" }),
       /no está cargado/,
     );
   }

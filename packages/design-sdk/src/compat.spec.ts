@@ -293,8 +293,12 @@ void test("el SDK generado está al día respecto de los tipos clave", () => {
     "OrganizationInvitationCreated",
     '"/v1/cad/documents"',
     '"/v1/cad/documents/{documentId}/provisional"',
-    "interpretCadIntent",
-    "vectorizeCadImage",
+    // `interpretCadIntent` y `vectorizeCadImage` vivían aquí: eran las dos
+    // operaciones de IA (CIDE) y se retiraron con el motor — Valle Design no
+    // tiene IA (`IDENTITY.md`). En su lugar se vigilan dos operaciones que sí
+    // están y que un generado roto perdería igual de rápido.
+    '"/v1/cad/blocks"',
+    "createCadBlock",
   ]) {
     assert.ok(
       generated.includes(marker),

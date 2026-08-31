@@ -80,6 +80,16 @@ export interface SeedFirstPartyCadActorOptions {
   currentPeriodEnd?: Date | null;
   /** Allows a stale active organization to be exercised without membership. */
   activeOrganization?: 'organization' | 'none';
+  /**
+   * Joins an EXISTING organization (by id) instead of creating a new one —
+   * for tests that need a second/third teammate sharing the same tenant
+   * (e.g. a direct-message channel between two members). The entitlement is
+   * assumed already seeded by whoever created the organization first;
+   * `entitled`/`subscriptionStatus`/`trialEndsAt`/`currentPeriodEnd` are
+   * ignored in this mode. `role` defaults to `member` (the org already has
+   * its `owner`).
+   */
+  organizationId?: string;
 }
 
 /**
@@ -102,7 +112,21 @@ export async function seedFirstPartyCadActor(
   });
 
   let organization: Organization | null = null;
-  if (withOrganization) {
+  if (options.organizationId) {
+    // Segundo/tercer compañero del MISMO tenant (p. ej. mensaje directo entre
+    // dos miembros): la organización y su entitlement ya los sembró quien la
+    // creó primero — aquí sólo se añade la membresía.
+    organization = await dataSource
+      .getRepository(Organization)
+      .findOneByOrFail({ id: options.organizationId });
+    if (withMembership) {
+      await dataSource.getRepository(Membership).save({
+        organizationId: organization.id,
+        userId: user.id,
+        role: options.role ?? 'member',
+      });
+    }
+  } else if (withOrganization) {
     const slugSuffix = randomBytes(8).toString('hex');
     organization = await dataSource.getRepository(Organization).save({
       name: options.organizationName ?? `CAD test ${slugSuffix}`,

@@ -1506,29 +1506,55 @@ export interface paths {
         patch: operations["updateCadBlock"];
         trace?: never;
     };
-    "/v1/cad/documents/{documentId}/intent": {
+    "/v1/messaging/channels": {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                documentId: components["parameters"]["documentId"];
-            };
+            path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Lista los canales visibles (de proyecto de la organización + directos propios).
+         * @description Los canales de PROYECTO son visibles a cualquier miembro de la organización sin invitación previa; los DIRECTOS sólo a sus dos participantes. Cada fila trae `unreadCount` (mensajes de otra persona desde el último `read`) y, en canales directos, `otherMember`.
+         */
+        get: operations["listMessagingChannels"];
         put?: never;
         /**
-         * Interpreta una instrucción de lenguaje natural para un documento.
-         * @description Devuelve propuestas de herramientas; nunca aplica cambios al documento. Si el motor no está configurado, responde `available: false` de forma determinista.
+         * Crea un canal de proyecto o abre uno directo (idempotente).
+         * @description `kind: 'project'` exige `projectId` (de un `cad_project` del tenant) y `name`. `kind: 'direct'` exige `memberUserId`: si ya existe un canal directo entre ambas personas, lo REUTILIZA en vez de duplicar — responde 201 igualmente, con el canal existente. Abrir un canal directo consigo mismo es `400`.
          */
-        post: operations["interpretCadIntent"];
+        post: operations["createMessagingChannel"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/cad/vision": {
+    "/v1/messaging/channels/{channelId}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mensajes del canal, paginados por cursor.
+         * @description Sin `cursor`: los `limit` mensajes más recientes, en orden CRONOLÓGICO ascendente (el más viejo primero, listo para pintar de arriba abajo). Con `cursor` (de `nextCursor` de la página anterior): los `limit` mensajes anteriores a esa frontera, mismo orden ascendente. `nextCursor: null` = no hay mensajes más viejos.
+         */
+        get: operations["listMessagingChannelMessages"];
+        put?: never;
+        /**
+         * Envía un mensaje al canal, opcionalmente anclado al dibujo o en hilo.
+         * @description `anchor` es el MISMO contrato JSON que `CadComment.anchor` — un mensaje puede apuntar a una entidad, cara o vista del dibujo. `parentMessageId` referencia otro mensaje del MISMO canal (hilo); si no pertenece a este canal, `400`. Cuerpo 1–4000 caracteres, no vacío tras trim.
+         */
+        post: operations["createMessagingChannelMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/messaging/channels/{channelId}/read": {
         parameters: {
             query?: never;
             header?: never;
@@ -1537,11 +1563,28 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Marca el canal como leído hasta ahora (baja `unreadCount` a 0). */
+        post: operations["markMessagingChannelRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/messaging/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
         /**
-         * Propone geometría CAD a partir de una imagen embebida.
-         * @description Devuelve la salida cruda del motor para validación en el cliente. Si el motor no está configurado, responde `available: false`.
+         * Mensajes nuevos en vivo (Server-Sent Events) de cualquier canal visible.
+         * @description `text/event-stream`: cada evento trae `data` con un `MessagingMessage` serializado en JSON. LÍMITE DECLARADO: fanout en memoria de UNA sola instancia de proceso — en un despliegue de varias instancias, un mensaje enviado en otra instancia no llega por este flujo (se ve al recargar). El snapshot de canales DIRECTOS visibles se toma al conectar; uno abierto después no aparece hasta reconectar. No usa WebSocket a propósito: `EventSource` reutiliza la cookie de sesión first-party y pasa por la misma cadena de guards que el resto de la API (ver ARCHITECTURE.md).
          */
-        post: operations["vectorizeCadImage"];
+        get: operations["streamMessagingEvents"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -2789,47 +2832,73 @@ export interface components {
             name?: string;
             definition?: components["schemas"]["CadBlockDefinition"];
         };
-        CadIntentRequest: {
-            prompt: string;
-            context?: components["schemas"]["CadIntentContext"];
+        /**
+         * Format: uuid
+         * @description Identificador de `messaging_channels`.
+         */
+        MessagingChannelId: string;
+        /**
+         * Format: uuid
+         * @description Identificador de `messaging_messages`.
+         */
+        MessagingMessageId: string;
+        /**
+         * @description `project`: ligado a un `cad_project`, visible a toda la organización. `direct`: entre dos personas, sólo visible para ellas.
+         * @enum {string}
+         */
+        MessagingChannelKind: "project" | "direct";
+        MessagingAuthor: {
+            /** Format: uuid */
+            userId: string;
+            email: components["schemas"]["Actor"];
+            displayName: string | null;
         };
-        CadIntentContext: {
-            footprint: {
-                unit: string;
-                footprintW: number;
-                footprintH: number;
-            };
-            stations: {
-                id: string;
-                station: string;
-                x?: number | null;
-                y?: number | null;
-                w?: number | null;
-                h?: number | null;
-            }[];
-            connectors: {
-                from: string;
-                to: string;
-            }[];
+        MessagingChannel: {
+            id: components["schemas"]["MessagingChannelId"];
+            kind: components["schemas"]["MessagingChannelKind"];
+            projectId: components["schemas"]["CadProjectId"] | null;
+            name: string | null;
+            /** @description Sólo canales `direct`; `null` en canales `project`. */
+            otherMember: components["schemas"]["MessagingAuthor"] | null;
+            /** @description Mensajes de OTRA persona desde el último `POST .../read` (nunca cuenta los mensajes propios). */
+            unreadCount: number;
+            lastMessageAt: components["schemas"]["Timestamp"] | null;
+            createdAt: components["schemas"]["Timestamp"];
         };
-        CadIntentResponse: {
-            available: boolean;
-            toolCalls: {
-                name: string;
-                arguments: {
-                    [key: string]: unknown;
-                };
-            }[];
-            message?: string;
+        MessagingChannelList: {
+            items: components["schemas"]["MessagingChannel"][];
         };
-        CadVisionRequest: {
-            /** @description Data URL `data:image/*;base64,...` embebida. */
-            image: string;
+        /** @description `kind: 'project'` exige `projectId` + `name`; `kind: 'direct'` exige `memberUserId`. El servidor rechaza (`400`) los campos que no correspondan al `kind` declarado si están mal combinados con el estado existente (p. ej. `memberUserId` igual al propio usuario). */
+        MessagingChannelCreate: {
+            kind: components["schemas"]["MessagingChannelKind"];
+            projectId?: components["schemas"]["CadProjectId"];
+            name?: string;
+            /**
+             * Format: uuid
+             * @description El otro miembro de la organización, para `kind: 'direct'`.
+             */
+            memberUserId?: string;
         };
-        CadVisionResponse: {
-            available: boolean;
-            raw: string;
-            message?: string;
+        MessagingMessage: {
+            id: components["schemas"]["MessagingMessageId"];
+            channelId: components["schemas"]["MessagingChannelId"];
+            author: components["schemas"]["MessagingAuthor"];
+            body: string;
+            parentMessageId: components["schemas"]["MessagingMessageId"] | null;
+            /** @description Mismo contrato JSON que `CadComment.anchor` — un mensaje puede apuntar a una entidad, cara o vista del dibujo. `null` = sin ancla (mensaje de conversación normal). */
+            anchor: Record<string, never> | null;
+            createdAt: components["schemas"]["Timestamp"];
+        };
+        MessagingMessageCreate: {
+            body: string;
+            parentMessageId?: components["schemas"]["MessagingMessageId"] | null;
+            anchor?: Record<string, never> | null;
+        };
+        MessagingMessagePage: {
+            /** @description Orden CRONOLÓGICO ascendente (el más viejo primero). */
+            items: components["schemas"]["MessagingMessage"][];
+            /** @description Pásalo como `cursor` para pedir mensajes más viejos. `null` = no hay más. */
+            nextCursor: string | null;
         };
     };
     responses: {
@@ -2917,6 +2986,7 @@ export interface components {
         sessionId: components["schemas"]["CadReviewSessionId"];
         commentId: components["schemas"]["CadCommentId"];
         blockId: components["schemas"]["CadBlockId"];
+        messagingChannelId: components["schemas"]["MessagingChannelId"];
         /** @description Búsqueda por nombre (contains, case-insensitive). */
         searchQuery: string;
         limit: number;
@@ -5617,37 +5687,29 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
-    interpretCadIntent: {
+    listMessagingChannels: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                documentId: components["parameters"]["documentId"];
-            };
+            path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CadIntentRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description Resultado de interpretación, disponible o degradado. */
-            201: {
+            /** @description Canales visibles, sin orden garantizado. */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CadIntentResponse"];
+                    "application/json": components["schemas"]["MessagingChannelList"];
                 };
             };
-            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["EntitlementRequired"];
-            404: components["responses"]["NotFound"];
         };
     };
-    vectorizeCadImage: {
+    createMessagingChannel: {
         parameters: {
             query?: never;
             header?: never;
@@ -5656,20 +5718,129 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CadVisionRequest"];
+                "application/json": components["schemas"]["MessagingChannelCreate"];
             };
         };
         responses: {
-            /** @description Resultado de visión, disponible o degradado. */
+            /** @description Canal creado o, en directos, reutilizado. */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CadVisionResponse"];
+                    "application/json": components["schemas"]["MessagingChannel"];
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EntitlementRequired"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listMessagingChannelMessages: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                channelId: components["parameters"]["messagingChannelId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Página de mensajes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessagingMessagePage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EntitlementRequired"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createMessagingChannelMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channelId: components["parameters"]["messagingChannelId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessagingMessageCreate"];
+            };
+        };
+        responses: {
+            /** @description Mensaje creado. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessagingMessage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EntitlementRequired"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    markMessagingChannelRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channelId: components["parameters"]["messagingChannelId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marcado. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        read: true;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EntitlementRequired"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    streamMessagingEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Flujo de eventos, uno por mensaje nuevo. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["EntitlementRequired"];
         };
