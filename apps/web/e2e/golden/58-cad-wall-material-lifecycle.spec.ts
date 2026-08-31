@@ -6,6 +6,7 @@ import { saveAndSettle } from "../fixtures/cad-save";
 import { applyNativeSelectProperty } from "../fixtures/dynamic-input";
 import type { CadDocument, CadWallEntity } from "../../src/lib/cad/cad-document";
 import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
+import { fitFootprint } from "../fixtures/camera-preset";
 
 /**
  * CORTE D de la campaña 3D-M1: selección 3D, edición de material, deshacer/
@@ -90,7 +91,7 @@ async function installCadBackend(context: BrowserContext) {
 /** Vista de plano 2D cenital + encuadre de la huella, que además la CENTRA. */
 async function settlePlanView(page: Page) {
   await page.getByRole("button", { name: "2D", exact: true }).click();
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await fitFootprint(page);
 }
 
 async function settledPipeline(page: Page) {

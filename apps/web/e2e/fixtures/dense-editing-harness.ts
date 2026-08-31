@@ -34,6 +34,7 @@
  */
 import { expect, type Page } from "@playwright/test";
 import { enter3DView } from './view-mode';
+import { topView, fitFootprint } from "./camera-preset";
 
 // ---------------------------------------------------------------------------
 // Corpus
@@ -471,8 +472,8 @@ export async function dragWorld(
 export async function frameTopDown(page: Page): Promise<void> {
   await page.evaluate(() => window.dispatchEvent(new Event("resize")));
   await enter3DView(page);
-  await page.getByTitle(/Vista superior/).click();
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await topView(page);
+  await fitFootprint(page);
 }
 
 /**

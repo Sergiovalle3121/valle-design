@@ -27,6 +27,7 @@ import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { saveAndSettle } from "../fixtures/cad-save";
 import { worldPoint } from "../fixtures/world-point";
 import type { CadDocument, CadEntity } from "../../src/lib/cad/cad-document";
+import { fitFootprint } from "../fixtures/camera-preset";
 
 const FOOTPRINT = {
   footprintW: 12_000,
@@ -233,7 +234,7 @@ test("un arrastre de grip con acción CICLADA es UN paso de deshacer", async ({
   // Modo 2D: la vista superior queda bloqueada y el mapa mundo↔pantalla es
   // afín por construcción — lo que `worldPoint` necesita para invertirlo.
   await page.getByRole("button", { name: "2D", exact: true }).click();
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await fitFootprint(page);
 
   await selectLayerObjects(page, "PROCESO");
   await expect(undoButton(page)).toBeDisabled();
@@ -280,7 +281,7 @@ test("el grip caliente abre su menú y aplicar una acción deja su propio paso",
   await page.goto("/legacy/studio");
   await expect(page.getByTestId("cad-save-status")).toHaveText("Guardado");
   await page.getByRole("button", { name: "2D", exact: true }).click();
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await fitFootprint(page);
 
   await selectLayerObjects(page, "PROCESO");
   const grip = await worldPoint(page, { x: 6_000, y: 2_000 });

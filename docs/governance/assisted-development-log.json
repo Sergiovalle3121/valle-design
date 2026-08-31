@@ -1814,6 +1814,37 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "GOLDENS-ROTOS-POR-CINTA-Y-LLAMADAS-20260831",
+      "date": "2026-08-31",
+      "initiative": "Al escribir el golden de punta a punta del empujón de cara salieron TRES regresiones en main que las pruebas de Node no podían ver, todas introducidas por olas que se fusionaron sin esperar el job de E2E Playwright. (1) El ViewCube de la cinta lleva el mismo `title` que el preset de la barra —a propósito: misma acción, mismo nombre—, y `getByTitle(/Vista superior/)` pasó a resolver a dos elementos: once goldens rojos por modo estricto de Playwright, ninguno por defecto de producto. Se corrige con una fixture única acotada a la barra, en vez de trece localizadores a mano. (2) El botón de videollamada se montaba en `fixed right-3 top-3`, dentro de la banda de la barra superior del estudio, y TAPABA el botón «Guardar» —la barra hace scroll horizontal y lo trae justo debajo—: un usuario real no habría podido guardar. Se baja a 184 px, por debajo de la cinta, con las medidas tomadas del DOM y no elegidas a ojo, y el envoltorio deja de interceptar el puntero. (3) El LOD de sombreado de la campaña de rendimiento ensanchaba el espaciado ×4 en todo el tier medio (≤320 px aparentes): un sombreado de 3 000 mm encuadrado mide ~300 px y sus trazos quedan a ~9 px, así que ×4 los pone a ~36 px — no es un LOD invisible, es otro dibujo, y el golden 47 lo cazó al caer las instancias de >100 a 83. El umbral de 320 px está calibrado para CURVAS, donde 32 y 128 segmentos son indistinguibles porque la flecha de la cuerda cae bajo el píxel; el espaciado de un patrón no funciona así. Se retira ese escalón conservando el tier 0 (sólo contorno bajo 24 px), que es donde vivía el ahorro medido: en architecture@100k los 14 000 sombreados están por debajo de los 24 px. NO se bajó el umbral del golden para ponerlo verde.",
+      "branch": "claude/goldens-rotos-por-la-cinta-y-las-llamadas",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: cierre de la campaña 3D y saneo de main tras la integración masiva del 2026-08-31.",
+      "firstPartyInputs": [
+        "Los goldens propios y el arnés de Playwright del repositorio."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "apps/web/e2e/fixtures/camera-preset.ts (nuevo; 20 archivos migrados)",
+        "apps/web/src/components/cad/calls/CallBar.tsx (posición y pointer-events)",
+        "apps/web/src/lib/cad/hatch-entity-adapter.ts y su spec (se retira el ensanchado ×4)",
+        "apps/web/e2e/golden/66-cad-empujar-cara.spec.ts (nuevo: el gesto de punta a punta)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo del titular de dejar todo el avance en main y continuar."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

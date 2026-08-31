@@ -5,6 +5,7 @@ import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
 import { worldPoint } from '../fixtures/world-point';
+import { fitFootprint } from "../fixtures/camera-preset";
 
 /**
  * LA CINTA, MEDIDA CONTRA SU PROPIA PROMESA.
@@ -99,7 +100,7 @@ test('desde la cinta, con el ratón y sin teclear: se traza una línea, se acota
   // vista YA es cenital, así que `worldPoint` no necesita ningún preset de
   // cámara 3D — sólo encuadrar la huella para que los puntos de mundo caigan
   // dentro del lienzo.
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await fitFootprint(page);
 
   await expect(ribbon(page)).toBeVisible();
 

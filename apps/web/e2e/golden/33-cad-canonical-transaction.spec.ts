@@ -7,6 +7,7 @@ import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { applyDynamicInput, applyDynamicPoint } from '../fixtures/dynamic-input';
 import { worldPoint } from '../fixtures/world-point';
 import { enter3DView } from '../fixtures/view-mode';
+import { topView, fitFootprint } from "../fixtures/camera-preset";
 
 /**
  * FASE 0 — la autoría canónica es TRANSACCIONAL y respeta el orden de dibujo.
@@ -333,8 +334,8 @@ test('switching the active layer changes where the MOUSE draws, and it survives 
   test.setTimeout(180_000);
   const backend = await openStudio(context, page);
   await enter3DView(page);
-  await page.getByTitle(/Vista superior/).click();
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await topView(page);
+  await fitFootprint(page);
 
   // La capa se cambia DESPUÉS de montar el editor: es justo el caso que la
   // clausura obsoleta del efecto de la escena se comía.
@@ -381,7 +382,7 @@ test('a locked layer refuses drawing and OFFSET, and rejection leaves zero histo
   // abrir y cerrar el panel de capas a mitad de test, y el segundo
   // `worldPoint` invertía una cámara que ya no era cenital.
   await page.getByRole('button', { name: '2D', exact: true }).click();
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await fitFootprint(page);
 
   await test.step('OFFSET de un objeto designado crea UNA entidad y UNA entrada', async () => {
     await expectHistory(page, 0, 0);

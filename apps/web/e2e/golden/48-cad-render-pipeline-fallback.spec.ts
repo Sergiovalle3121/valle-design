@@ -5,6 +5,7 @@ import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
 import { enter3DView } from '../fixtures/view-mode';
+import { topView, fitFootprint } from "../fixtures/camera-preset";
 
 /**
  * La bandera de respaldo, y lo que significa que exista.
@@ -128,8 +129,8 @@ function expectSameSegment(drawn: unknown) {
 /** Dibuja el MISMO segmento con el ratón y devuelve lo que quedó guardado. */
 async function drawAndCapture(page: Page, backend: Awaited<ReturnType<typeof openStudio>>) {
   await enter3DView(page);
-  await page.getByTitle(/Vista superior/).click();
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await topView(page);
+  await fitFootprint(page);
   await page.getByTestId('cad-toolbar').getByRole('button', { name: 'Línea', exact: true }).click();
   const from = await screenPointFor(page, { x: 3_000, y: 8_000 });
   await page.mouse.click(from.x, from.y);

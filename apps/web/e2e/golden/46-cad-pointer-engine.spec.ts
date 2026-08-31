@@ -5,6 +5,7 @@ import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { saveAndSettle } from '../fixtures/cad-save';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
 import { enter3DView } from '../fixtures/view-mode';
+import { topView, fitFootprint } from "../fixtures/camera-preset";
 
 /**
  * FASE 2 — el PUNTERO entra en el motor de comandos.
@@ -111,8 +112,8 @@ test('dibujar una polilínea CON EL RATÓN captura un extremo existente y cierra
   test.setTimeout(180_000);
   const backend = await openStudio(context, page);
   await enter3DView(page);
-  await page.getByTitle(/Vista superior/).click();
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await topView(page);
+  await fitFootprint(page);
 
   await toolbar(page).getByRole('button', { name: 'Polilínea', exact: true }).click();
   // El prompt es el del MOTOR, no el de la máquina heredada: si el botón
@@ -180,8 +181,8 @@ test('con el motor abierto, la máquina heredada no recibe el clic', async ({ co
   test.setTimeout(180_000);
   await openStudio(context, page);
   await enter3DView(page);
-  await page.getByTitle(/Vista superior/).click();
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await topView(page);
+  await fitFootprint(page);
 
   await toolbar(page).getByRole('button', { name: 'Línea', exact: true }).click();
   await expect(page.getByTestId('cad-command-prompt')).toBeVisible();

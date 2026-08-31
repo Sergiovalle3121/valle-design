@@ -22,6 +22,7 @@ import { cadDocumentToEditorSnapshot } from '../../src/lib/cad/editor-snapshot';
 import { saveAndSettle } from '../fixtures/cad-save';
 import { applyDynamicInput } from '../fixtures/dynamic-input';
 import { worldPoint } from '../fixtures/world-point';
+import { fitFootprint } from "../fixtures/camera-preset";
 
 // MIGRACIÓN R3: mock en la superficie v1 real. DIFERENCIA de transporte
 // documentada: el PUT legacy arrastraba el array `assets` junto al documento;
@@ -135,7 +136,7 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
     // 2D bloquea la vista superior (mapa mundo↔pantalla afín por construcción),
     // que es lo que `worldPoint` necesita para invertir la proyección.
     await page.getByRole('button', { name: '2D', exact: true }).click();
-    await page.getByTitle(/Ajustar a la planta/).click();
+    await fitFootprint(page);
     await page.getByRole('button', { name: 'Desfase', exact: true }).click();
     await applyDynamicInput(page, { offset: '250mm' });
     const on = await worldPoint(page, { x: 3_000, y: 4_000 });
