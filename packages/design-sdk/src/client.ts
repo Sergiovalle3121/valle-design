@@ -14,6 +14,7 @@
  */
 
 import type { components } from "./generated/design-api";
+import { createCommercialSurface } from "./commercial";
 
 type Schemas = components["schemas"];
 
@@ -63,33 +64,17 @@ export type OrganizationInvitationCreated =
   Schemas["OrganizationInvitationCreated"];
 export type OrganizationInvitationAccepted =
   Schemas["OrganizationInvitationAccepted"];
-export type CommercialSubscriptionResponse =
-  Schemas["CommercialSubscriptionResponse"];
-export type EffectiveEntitlementList = Schemas["EffectiveEntitlementList"];
 export type SupportIncidentRequest = Schemas["SupportIncidentRequest"];
 export type CommercialPlan = Schemas["CommercialPlan"];
 export type CommercialPlanPrice = Schemas["CommercialPlanPrice"];
-export type CommercialPlanList = Schemas["CommercialPlanList"];
-export type CommercialCheckoutSessionCreate =
-  Schemas["CommercialCheckoutSessionCreate"];
-export type CommercialCheckoutSession = Schemas["CommercialCheckoutSession"];
 export type CommercialInvoice = Schemas["CommercialInvoice"];
-export type CommercialInvoiceList = Schemas["CommercialInvoiceList"];
 export type CommercialCfdiReceipt = Schemas["CommercialCfdiReceipt"];
-export type CommercialCfdiReceiptList = Schemas["CommercialCfdiReceiptList"];
-export type CommercialSubscriptionCancellation =
-  Schemas["CommercialSubscriptionCancellation"];
 export type CommercialPendingPayment = Schemas["CommercialPendingPayment"];
 export type PaymentMethod = Schemas["PaymentMethod"];
-export type CommercialBillingPortalSession =
-  Schemas["CommercialBillingPortalSession"];
-export type SatTaxCatalogs = Schemas["SatTaxCatalogs"];
 export type SatTaxRegime = Schemas["SatTaxRegime"];
 export type SatCfdiUse = Schemas["SatCfdiUse"];
 export type TaxPersonType = Schemas["TaxPersonType"];
-export type TaxProfileSave = Schemas["TaxProfileSave"];
 export type TaxProfileView = Schemas["TaxProfileView"];
-export type TaxProfileResponse = Schemas["TaxProfileResponse"];
 export type TaxProfileIssue = Schemas["TaxProfileIssue"];
 export type CfdiIssuance = Schemas["CfdiIssuance"];
 export type LegalDocumentId = Schemas["LegalDocumentId"];
@@ -379,94 +364,7 @@ export function createDesignClient(options: DesignClientOptions) {
       },
     },
 
-    commercial: {
-      subscription: () =>
-        call<CommercialSubscriptionResponse>(
-          "GET",
-          resource("/v1/commercial/subscription"),
-        ),
-      entitlements: () =>
-        call<EffectiveEntitlementList>(
-          "GET",
-          resource("/v1/commercial/entitlements"),
-        ),
-      /**
-       * Catálogo publicado: planes activos con sus precios activos. `checkout`
-       * dice cómo se cobra hoy (`external` = fuera del producto, vía
-       * upgrade-intents); una pasarela real ampliará ese enum.
-       */
-      plans: () =>
-        call<CommercialPlanList>("GET", resource("/v1/commercial/plans")),
-      /**
-       * Abre una compra autoservicio (owner/admin). Con `checkout: hosted`,
-       * `url` es la página de pago del proveedor. Con el proveedor nulo
-       * responde 409 `checkout_unavailable` y el intent queda registrado: ese
-       * despliegue cobra por fuera.
-       */
-      createCheckoutSession: (input: CommercialCheckoutSessionCreate) =>
-        call<CommercialCheckoutSession>(
-          "POST",
-          resource("/v1/commercial/checkout-sessions"),
-          input,
-        ),
-      /** Historial de facturas de la organización activa (owner/admin). */
-      invoices: () =>
-        call<CommercialInvoiceList>("GET", resource("/v1/commercial/invoices")),
-      /** Rastro fiscal: qué CFDI cubre cada cobro (owner/admin). */
-      cfdiReceipts: () =>
-        call<CommercialCfdiReceiptList>("GET", resource("/v1/commercial/cfdi")),
-      /**
-       * URL de descarga del XML/PDF de un CFDI timbrado. La descarga es una
-       * navegación con cookie de sesión (adjunto binario), no un fetch JSON.
-       */
-      cfdiFileUrl: (receiptId: string, format: "pdf" | "xml") =>
-        resource(
-          `/v1/commercial/cfdi/${encodeURIComponent(receiptId)}/files/${format}`,
-        ),
-      /**
-       * Baja a fin de período (owner). No corta el acceso: lo comprado sigue
-       * vigente hasta `currentPeriodEnd`.
-       */
-      cancelSubscription: () =>
-        call<CommercialSubscriptionCancellation>(
-          "POST",
-          resource("/v1/commercial/subscription/cancel"),
-        ),
-      /**
-       * Portal del proveedor para que el cliente arregle su medio de pago sin
-       * pasar por soporte (owner/admin). La URL caduca: se usa y se olvida.
-       */
-      billingPortalSession: () =>
-        call<CommercialBillingPortalSession>(
-          "POST",
-          resource("/v1/commercial/billing-portal-sessions"),
-        ),
-      /**
-       * Catalogos del SAT (regimen fiscal y uso de CFDI). Publico y cacheable:
-       * el formulario fiscal aparece en el alta, antes de que exista
-       * organizacion activa.
-       */
-      taxCatalogs: () =>
-        call<SatTaxCatalogs>(
-          "GET",
-          resource("/v1/commercial/public/tax-catalogs"),
-        ),
-      /** Datos fiscales CFDI 4.0 de la organizacion activa (owner/admin). */
-      taxProfile: () =>
-        call<TaxProfileResponse>("GET", resource("/v1/commercial/tax-profile")),
-      /**
-       * Captura o sustituye los datos fiscales. Los cinco campos van juntos
-       * porque juntos se validan; un 400 `tax_profile_invalid` trae TODOS los
-       * campos mal en `issues`.
-       */
-      saveTaxProfile: (input: TaxProfileSave) =>
-        call<TaxProfileResponse>(
-          "PUT",
-          resource("/v1/commercial/tax-profile"),
-          input,
-        ),
-    },
-
+    commercial: createCommercialSurface(call, resource),
     /**
      * Documentos legales versionados y registro de aceptacion. `documents` es
      * PUBLICO (sin sesion); `acceptances` exige sesion y organizacion activa,
@@ -806,3 +704,20 @@ function browserCsrfToken(): string | null {
 }
 
 export type DesignClient = ReturnType<typeof createDesignClient>;
+
+/** Superficie comercial: vive en `commercial.ts`, misma razón que `identity.ts`. */
+export {
+  createCommercialSurface,
+  type CommercialBillingPortalSession,
+  type CommercialCfdiReceiptList,
+  type CommercialCheckoutSession,
+  type CommercialCheckoutSessionCreate,
+  type CommercialInvoiceList,
+  type CommercialPlanList,
+  type CommercialSubscriptionCancellation,
+  type CommercialSubscriptionResponse,
+  type EffectiveEntitlementList,
+  type SatTaxCatalogs,
+  type TaxProfileResponse,
+  type TaxProfileSave,
+} from "./commercial";

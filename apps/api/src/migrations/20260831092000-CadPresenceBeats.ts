@@ -30,8 +30,8 @@ import type { MigrationInterface, QueryRunner } from 'typeorm';
  * `down()` borra la tabla — es una pérdida real pero sin consecuencia
  * observable: son cursores de hace segundos, no un registro de nada.
  */
-export class CadPresenceBeats20260831090000 implements MigrationInterface {
-  name = 'CadPresenceBeats20260831090000';
+export class CadPresenceBeats20260831092000 implements MigrationInterface {
+  name = 'CadPresenceBeats20260831092000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`

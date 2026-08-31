@@ -27,8 +27,8 @@ const RUNTIME_ROLE = 'valle_app';
  * fallo de PERMISO, no de AISLAMIENTO, y el escaneo de
  * `tenant-rls-coverage.pg.spec.ts` lo detecta.
  */
-export class CadPresenceBeatsRls20260831091000 implements MigrationInterface {
-  name = 'CadPresenceBeatsRls20260831091000';
+export class CadPresenceBeatsRls20260831093000 implements MigrationInterface {
+  name = 'CadPresenceBeatsRls20260831093000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
