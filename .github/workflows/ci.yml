@@ -532,14 +532,25 @@ jobs:
     # PR contra uno de 50: en ambos casos se CANCELÓ. Y cancelado no es fallo
     # —no pone el run en rojo, no bloquea la fusión, no avisa a nadie—, así que
     # el veredicto desapareció sin que se notara y por ese hueco entraron las
-    # regresiones del ViewCube. Repartida en cuatro, cada fragmento mide ~25 min
-    # y vuelve a caber con holgura, que es lo que devuelve la señal.
+    # regresiones del ViewCube. Repartida en cuatro, un fragmento con todo verde
+    # mide DOS minutos —medido: el 4/4 sobre 94b2670—, así que la señal vuelve
+    # enseguida.
+    #
+    # 40 minutos y no 25, y el motivo es la lección de este mismo cambio. El
+    # primer techo salió de dividir 97/4 y se quedó corto: en CI hay
+    # `retries: 1`, así que un fragmento CON FALLOS corre esos tests dos veces
+    # y se dispara — el 1/4 tardó 22 min sólo de Playwright, y el 2/4 y el 3/4
+    # se CANCELARON al tocar los 25. Un presupuesto que sólo aguanta cuando
+    # todo pasa vuelve a convertir un rojo en un silencio, que es exactamente
+    # lo que este reparto viene a impedir: el techo tiene que caber en el caso
+    # MALO, no en el bueno. Sigue ganando en las dos direcciones — 40 min de
+    # reloj contra los 50 del job único, y cuatro veredictos en vez de ninguno.
     #
     # `workers: 1` y `fullyParallel: false` de playwright.config.ts NO se tocan:
     # el estado CAD es secuencial a propósito y ahí no hay nada que ganar. El
     # sharding reparte ARCHIVOS entre trabajos; dentro de cada uno la ejecución
     # sigue siendo exactamente la de siempre.
-    timeout-minutes: ${{ github.event_name == 'pull_request' && 25 || 40 }}
+    timeout-minutes: 40
     needs: quality-gates
 
     strategy:
