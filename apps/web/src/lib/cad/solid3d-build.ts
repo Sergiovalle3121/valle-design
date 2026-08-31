@@ -30,6 +30,8 @@
  * congelación del editor. La clave del caché es la huella EXACTA del árbol más
  * su colocación, así que no puede devolver un cuerpo desactualizado.
  */
+import { cadPushFace } from "./pick3d/face-push";
+import { cadResolveFaceRef } from "./pick3d/solid-face-ref";
 import {
   aabbDiagonal,
   attachPlanarSurfaces,
@@ -99,7 +101,9 @@ const identityPlacement: Required<CadSolidPlacement> = {
 };
 
 /** Colocación completa, con los valores por defecto ya resueltos. */
-export function resolveSolidPlacement(placement?: CadSolidPlacement): Required<CadSolidPlacement> {
+export function resolveSolidPlacement(
+  placement?: CadSolidPlacement,
+): Required<CadSolidPlacement> {
   if (!placement) return { ...identityPlacement };
   return {
     a: placement.a,
@@ -119,11 +123,16 @@ export function resolveSolidPlacement(placement?: CadSolidPlacement): Required<C
  * Devuelve TODOS los problemas en vez de lanzar en el primero, porque el panel
  * de propiedades y la validación del servidor quieren enseñarlos juntos.
  */
-export function validateSolidTree(entity: CadSolid3dEntity): CadSolidTreeIssue[] {
+export function validateSolidTree(
+  entity: CadSolid3dEntity,
+): CadSolidTreeIssue[] {
   const issues: CadSolidTreeIssue[] = [];
   const nodes = entity.nodes ?? [];
   if (nodes.length === 0) {
-    issues.push({ code: "empty-tree", message: "Un SOLID3D necesita al menos un nodo de construcción." });
+    issues.push({
+      code: "empty-tree",
+      message: "Un SOLID3D necesita al menos un nodo de construcción.",
+    });
     return issues;
   }
   if (nodes.length > CAD_SOLID_MAX_NODES) {
@@ -135,11 +144,18 @@ export function validateSolidTree(entity: CadSolid3dEntity): CadSolidTreeIssue[]
   const byId = new Map<string, CadSolidNode>();
   for (const node of nodes) {
     if (!node.id || typeof node.id !== "string") {
-      issues.push({ code: "duplicate-node", message: "Todo nodo necesita un id no vacío." });
+      issues.push({
+        code: "duplicate-node",
+        message: "Todo nodo necesita un id no vacío.",
+      });
       continue;
     }
     if (byId.has(node.id)) {
-      issues.push({ code: "duplicate-node", nodeId: node.id, message: `El nodo ${node.id} está duplicado.` });
+      issues.push({
+        code: "duplicate-node",
+        nodeId: node.id,
+        message: `El nodo ${node.id} está duplicado.`,
+      });
       continue;
     }
     byId.set(node.id, node);
@@ -180,7 +196,11 @@ export function validateSolidTree(entity: CadSolid3dEntity): CadSolidTreeIssue[]
     const status = state.get(id);
     if (status === "done") return;
     if (status === "visiting") {
-      issues.push({ code: "cycle", nodeId: id, message: `El nodo ${id} forma un ciclo en el árbol.` });
+      issues.push({
+        code: "cycle",
+        nodeId: id,
+        message: `El nodo ${id} forma un ciclo en el árbol.`,
+      });
       return;
     }
     const node = byId.get(id);
@@ -210,6 +230,7 @@ function expectedOperandCount(node: CadSolidNode): number | null {
     case "fillet":
     case "chamfer":
     case "slice":
+    case "push":
       return 1;
     default:
       return null;
@@ -225,7 +246,8 @@ export interface SolidEvaluateOptions {
   validate?: boolean;
 }
 
-const point = (p: { x: number; y: number; z: number }): Vec3 => vec3(p.x, p.y, p.z);
+const point = (p: { x: number; y: number; z: number }): Vec3 =>
+  vec3(p.x, p.y, p.z);
 
 function toFrame(frame: CadSolidFrame | undefined): SurfaceFrame | undefined {
   if (!frame) return undefined;
@@ -236,10 +258,15 @@ function toFrame(frame: CadSolidFrame | undefined): SurfaceFrame | undefined {
   );
 }
 
-function toProfile(profile: CadSolidProfile): { outer: Vec2[]; inners: Vec2[][] } {
+function toProfile(profile: CadSolidProfile): {
+  outer: Vec2[];
+  inners: Vec2[][];
+} {
   return {
     outer: profile.outer.map((p) => ({ x: p.x, y: p.y })),
-    inners: (profile.inners ?? []).map((ring) => ring.map((p) => ({ x: p.x, y: p.y }))),
+    inners: (profile.inners ?? []).map((ring) =>
+      ring.map((p) => ({ x: p.x, y: p.y })),
+    ),
   };
 }
 
@@ -268,10 +295,14 @@ export function evaluateSolidTree(
     const cached = built.get(id);
     if (cached) return cached;
     const node = byId.get(id);
-    if (!node) throw new Error(`El nodo ${id} no existe en el árbol de ${entity.id}.`);
+    if (!node)
+      throw new Error(`El nodo ${id} no existe en el árbol de ${entity.id}.`);
     const body = buildNode(node, evaluate);
     if (validate) {
-      const report = validateBody(body, { requireClosed: true, requirePlanarFaces: true });
+      const report = validateBody(body, {
+        requireClosed: true,
+        requirePlanarFaces: true,
+      });
       if (!report.ok) {
         throw new Error(
           `El nodo ${node.id} (${node.op}) de ${entity.id} produjo un cuerpo inválido: ` +
@@ -286,7 +317,10 @@ export function evaluateSolidTree(
   return placeBody(evaluate(entity.root), entity.placement);
 }
 
-function buildNode(node: CadSolidNode, evaluate: (id: string) => BrepBody): BrepBody {
+function buildNode(
+  node: CadSolidNode,
+  evaluate: (id: string) => BrepBody,
+): BrepBody {
   switch (node.op) {
     case "box":
       return makeBox({ min: point(node.min), max: point(node.max) });
@@ -329,7 +363,10 @@ function buildNode(node: CadSolidNode, evaluate: (id: string) => BrepBody): Brep
       return attachPlanarSurfaces(
         buildBody(
           node.points.map(point),
-          node.faces.map((face) => ({ outer: [...face.outer], inners: face.inners?.map((ring) => [...ring]) })),
+          node.faces.map((face) => ({
+            outer: [...face.outer],
+            inners: face.inners?.map((ring) => [...ring]),
+          })),
         ),
       );
     case "union":
@@ -339,21 +376,49 @@ function buildNode(node: CadSolidNode, evaluate: (id: string) => BrepBody): Brep
     case "subtract":
       return node.operands
         .map(evaluate)
-        .reduce((accumulated, operand) => booleanDifference(accumulated, operand));
+        .reduce((accumulated, operand) =>
+          booleanDifference(accumulated, operand),
+        );
     case "intersect":
       return node.operands
         .map(evaluate)
-        .reduce((accumulated, operand) => booleanIntersection(accumulated, operand));
+        .reduce((accumulated, operand) =>
+          booleanIntersection(accumulated, operand),
+        );
     case "fillet": {
       const body = evaluate(node.operand);
-      return filletEdges(body, resolveEdges(body, node.edges), node.radius, node.segments ?? 8);
+      return filletEdges(
+        body,
+        resolveEdges(body, node.edges),
+        node.radius,
+        node.segments ?? 8,
+      );
     }
     case "chamfer": {
       const body = evaluate(node.operand);
-      return chamferEdges(body, resolveEdges(body, node.edges), node.distance, { segments: 1 });
+      return chamferEdges(body, resolveEdges(body, node.edges), node.distance, {
+        segments: 1,
+      });
     }
     case "slice":
       return sliceBody(evaluate(node.operand), node.plane, node.keep);
+    case "push": {
+      // El empujón se resuelve en dos tiempos, y el orden importa: primero se
+      // averigua QUÉ cara es hoy —el índice guardado puede haber envejecido si
+      // el operando cambió— y sólo después se empuja. Las tres respuestas de
+      // `cadResolveFaceRef` se tratan distinto a propósito: la curada se usa y
+      // se registra, y la ambigua se RECHAZA en vez de elegir la primera.
+      const body = evaluate(node.operand);
+      const resolved = cadResolveFaceRef(body, node.face);
+      if (!resolved.ok)
+        throw new Error(
+          `El nodo ${node.id} no puede empujar su cara: ${resolved.reason}`,
+        );
+      const pushed = cadPushFace(body, resolved.face, node.distance);
+      if (!pushed.ok)
+        throw new Error(`El nodo ${node.id} no pudo empujar: ${pushed.reason}`);
+      return pushed.body;
+    }
   }
 }
 
@@ -388,7 +453,9 @@ export function preferredFeatureEdges(body: BrepBody): number[] {
       to: halfEdgeDestination(body, edge.a),
     };
   });
-  candidates.sort((a, b) => (a.vertical === b.vertical ? a.index - b.index : a.vertical ? -1 : 1));
+  candidates.sort((a, b) =>
+    a.vertical === b.vertical ? a.index - b.index : a.vertical ? -1 : 1,
+  );
   const used = new Set<number>();
   const chosen: number[] = [];
   for (const candidate of candidates) {
@@ -417,7 +484,10 @@ function resolveEdges(body: BrepBody, edges: readonly number[]): number[] {
  */
 function sliceBody(
   body: BrepBody,
-  plane: { origin: { x: number; y: number; z: number }; normal: { x: number; y: number; z: number } },
+  plane: {
+    origin: { x: number; y: number; z: number };
+    normal: { x: number; y: number; z: number };
+  },
   keep: "positive" | "negative",
 ): BrepBody {
   const bounds = bodyBounds(body);
@@ -428,11 +498,16 @@ function sliceBody(
   };
   const reach =
     aabbDiagonal(bounds) +
-    Math.hypot(centre.x - plane.origin.x, centre.y - plane.origin.y, centre.z - plane.origin.z);
+    Math.hypot(
+      centre.x - plane.origin.x,
+      centre.y - plane.origin.y,
+      centre.z - plane.origin.z,
+    );
   const size = Math.max(reach * 2, 1);
   const normal = point(plane.normal);
   const length = Math.hypot(normal.x, normal.y, normal.z);
-  if (!(length > 0)) throw new Error("El plano de corte necesita una normal no nula.");
+  if (!(length > 0))
+    throw new Error("El plano de corte necesita una normal no nula.");
   // La caja se extruye DESDE el plano hacia el lado que se descarta.
   const height = keep === "positive" ? -size : size;
   const half = size;
@@ -467,15 +542,26 @@ function sliceBody(
  * dibuja negro o del revés, su volumen sale NEGATIVO y las booleanas que lo
  * tomen como operando devuelven el complementario.
  */
-export function placeBody(body: BrepBody, placement?: CadSolidPlacement): BrepBody {
+export function placeBody(
+  body: BrepBody,
+  placement?: CadSolidPlacement,
+): BrepBody {
   const m = resolveSolidPlacement(placement);
   const determinant = m.a * m.d - m.b * m.c;
   if (
-    m.a === 1 && m.b === 0 && m.c === 0 && m.d === 1 && m.e === 0 && m.f === 0 && m.dz === 0
+    m.a === 1 &&
+    m.b === 0 &&
+    m.c === 0 &&
+    m.d === 1 &&
+    m.e === 0 &&
+    m.f === 0 &&
+    m.dz === 0
   )
     return body;
   if (!(Math.abs(determinant) > 0)) {
-    throw new Error("La colocación de un SOLID3D es singular: aplastaría el sólido a un plano.");
+    throw new Error(
+      "La colocación de un SOLID3D es singular: aplastaría el sólido a un plano.",
+    );
   }
   const points = body.vertices.map((vertex) =>
     vec3(
@@ -504,7 +590,9 @@ export function bodyToSolidNode(
     points: body.vertices.map((vertex) => ({ ...vertex.point })),
     faces: bodyToFaceSpecs(body).map((spec) => ({
       outer: [...spec.outer],
-      ...(spec.inners && spec.inners.length > 0 ? { inners: spec.inners.map((ring) => [...ring]) } : {}),
+      ...(spec.inners && spec.inners.length > 0
+        ? { inners: spec.inners.map((ring) => [...ring]) }
+        : {}),
     })),
     ...(source ? { source } : {}),
   };
@@ -525,7 +613,11 @@ const cache = new Map<string, SolidCacheEntry>();
 const CACHE_LIMIT = 128;
 
 function cacheKey(entity: CadSolid3dEntity): string {
-  return JSON.stringify({ nodes: entity.nodes, root: entity.root, placement: entity.placement });
+  return JSON.stringify({
+    nodes: entity.nodes,
+    root: entity.root,
+    placement: entity.placement,
+  });
 }
 
 function entryFor(entity: CadSolid3dEntity): SolidCacheEntry {
@@ -559,7 +651,9 @@ export function solid3dMesh(entity: CadSolid3dEntity): BrepMesh {
 }
 
 /** Volumen, área y centroide, memoizados. */
-export function solid3dMassProperties(entity: CadSolid3dEntity): MassProperties {
+export function solid3dMassProperties(
+  entity: CadSolid3dEntity,
+): MassProperties {
   const entry = entryFor(entity);
   entry.mass ??= bodyMassProperties(entry.body);
   return entry.mass;
@@ -573,4 +667,3 @@ export function solid3dMassProperties(entity: CadSolid3dEntity): MassProperties 
 export function solid3dMassComparison(entity: CadSolid3dEntity) {
   return compareMassProperties(solid3dBody(entity));
 }
-

@@ -36,6 +36,10 @@
  *     primera. Una cara ambigua es exactamente el momento en que el silencio
  *     cuesta una pieza mal fabricada.
  *
+ * El TIPO persistido vive en `cad-entities-v5.ts`, con el resto del esquema:
+ * viaja en el documento del cliente y lo valida el servidor, así que su sitio
+ * es el módulo del esquema y no éste. Aquí vive el ALGORITMO que lo resuelve.
+ *
  * Esto NO es nombrado topológico general —ése es un problema de investigación
  * abierto y nadie lo resuelve del todo—. Es una huella exacta para las
  * operaciones que este producto hace, que **degrada a un error explícito** en
@@ -68,26 +72,9 @@ import {
   type BrepBody,
   type Vec3,
 } from "@/lib/brep";
-import type { CadPoint3 } from "../cad-document";
+import type { CadSolidFaceRef } from "../cad-entities-v5";
 
-/**
- * La huella de una cara. Todo lo que hace falta para reconocerla, y nada que
- * dependa del orden en que se construyó el cuerpo.
- */
-export interface CadSolidFaceRef {
-  /** Vía rápida. Se COMPRUEBA contra la huella antes de creerse. */
-  index: number;
-  /** Plano de la cara: normal unitaria canónica y distancia con signo al origen. */
-  plane: { nx: number; ny: number; nz: number; d: number };
-  /** Centroide de la cara. */
-  centroid: CadPoint3;
-  /** Medias-aristas del lazo exterior. */
-  loopSize: number;
-  /** Cuántos lazos interiores (agujeros) tiene la cara. */
-  innerLoops: number;
-  /** Área. Desempata dos caras coplanares del mismo tamaño de lazo. */
-  area: number;
-}
+export type { CadSolidFaceRef };
 
 export type CadFaceRefResolution =
   | { ok: true; face: number; healed: boolean }
