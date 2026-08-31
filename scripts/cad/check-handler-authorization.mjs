@@ -29,8 +29,11 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(here, "../..");
 
+// `@Sse` cuenta como handler HTTP: NestJS la registra como RequestMethod.GET
+// (ver sse.decorator.js) — sin incluirla aquí, el primer endpoint SSE del
+// repo quedaría completamente FUERA de la auditoría, ni verde ni rojo.
 const HTTP_DECORATORS =
-  /@(Get|Post|Put|Patch|Delete|Head|Options|All)\s*\(/u;
+  /@(Get|Post|Put|Patch|Delete|Head|Options|All|Sse)\s*\(/u;
 const AUTH_DECORATORS =
   /@(Public|RequirePermissions|RequirePermission|ReviewLinkSurface)\s*\(/u;
 

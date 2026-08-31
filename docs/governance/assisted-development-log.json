@@ -1126,6 +1126,45 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "COLAB-PRESENCIA-SERVIDOR-20260831",
+      "date": "2026-08-31",
+      "initiative": "Frente COLABORACIÓN EN VIVO (uno de tres frentes paralelos: 3D, rendimiento y este) — cerrar el hueco declarado en presence-channel.ts: la presencia sólo difundía entre pestañas del mismo navegador (BroadcastChannel), nunca entre máquinas distintas. Alcance limitado a presencia: el documento canónico no se toca, el CAS sigue siendo de un solo escritor. Segundo adaptador del puerto ya existente (CadPresenceChannelPort): SSE por servidor (`/v1/cad/documents/:id/presence*`), con fan-out entre réplicas por LISTEN/NOTIFY de PostgreSQL.",
+      "branch": "claude/colab-presencia-servidor",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate pidió, vía una sesión coordinadora, tres frentes paralelos sobre valle-design; este frente recibió el briefing completo de colaboración en vivo (alcance, territorio de archivos, hechos ya verificados, trampas conocidas) y procedió a implementarlo, verificarlo contra PostgreSQL real y abrir el PR en borrador para revisión humana antes de fusionar.",
+      "firstPartyInputs": [
+        "El puerto ya existente `apps/web/src/lib/cad/collab/presence-channel.ts` y la aritmética de `presence.ts` (TTL, colores, fallo cerrado) — ninguno de los dos se modificó.",
+        "Los patrones ya establecidos del repositorio: TenantScopedRepository/RLS (TenantIntegrityRls), el arnés de carga review-concurrency.main.ts, el patrón de evidencia review-concurrency.json, y el e2e real cad-conflict-per-document.spec.ts / cad-offline-multitab.spec.ts.",
+        "AGENTS.md y ARCHITECTURE.md (flujo de confianza, invariantes de identidad/tenant, presupuesto de monolito)."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El diseño del fan-out (LISTEN/NOTIFY con payload mínimo {tenantId, documentId, peerId} y relectura del peer cambiado, no del documento entero) se derivó razonando sobre las restricciones ya declaradas en el repositorio (tope de 8 KB de NOTIFY, TTL con reloj local) y se corrigió tras un defecto real encontrado ejecutando el e2e contra la API y PostgreSQL reales: reenviar el snapshot completo del documento en cada notificación duplicaba el TTL percibido por un peer que ya había dejado de latir.",
+      "derivedAreas": [
+        "apps/api/src/modules/cad/ (cad-presence.controller.ts, cad-presence.service.ts, cad-presence.bus.ts, cad-presence.repository.ts, cad-presence-cleanup.service.ts, cad-presence-document.guard.ts, entities/cad-presence-beat.entity.ts, dto/cad-presence.dto.ts, y sus specs .spec.ts/.pg.spec.ts)",
+        "apps/api/src/migrations/ (20260831090000-CadPresenceBeats.ts, 20260831091000-CadPresenceBeatsRls.ts + registro en migration-chain.pg.spec.ts y tenant-rls-coverage.pg.spec.ts)",
+        "apps/api/src/main.ts (exclusión de text/event-stream de compression + X-Accel-Buffering: no)",
+        "apps/api/src/load-probe/ (live-presence-lane.ts, live-presence.main.ts; runLivePresenceLane vive en su propio módulo por el presupuesto de monolito de review-concurrency.main.ts)",
+        "apps/web/src/lib/cad/collab/server-presence-channel.ts (segundo adaptador del puerto) + apps/web/src/components/cad/collab/use-cad-presence.ts (consumidor: abre los dos transportes, mezcla el mismo mapa de peers)",
+        "packages/contracts/specs/design-api.v1.yaml (tag presence, 2 operaciones nuevas) + packages/design-sdk/src/presence.ts + client.ts (namespace presence)",
+        "scripts/cad/check-design-contract.mjs y scripts/cad/check-handler-authorization.mjs (@Sse reconocido como GET — primer endpoint SSE del repositorio)",
+        "scripts/cad/live-presence-evidence.mjs + docs/cad/evidence/live-presence.json",
+        "apps/web/e2e/real/cad-presencia-viva.spec.ts (dos BrowserContext reales, contra API + PostgreSQL reales)",
+        "apps/api/src/modules/cad/cad-contract-router.spec.ts y apps/web/src/app/docs/api/console-contract.spec.ts (recuentos 94→96 / 43→45 y operations.generated.json regenerado)"
+      ],
+      "fixtures": "Ninguno nuevo. Los actores de prueba (pg specs, e2e, load-probe) se crean por el camino real de registro/verificación/invitación contra PostgreSQL 16 recreado por corrida — mismo patrón que review-concurrency.main.ts.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "PR en borrador abierto para revisión humana; no se fusionó nada en esta sesión. Seis gates locales (check:cad salvo el check:dwg-evidence pre-existente sin VALLE_DWG_CORPUS_MIRROR, check:dwg, typecheck, test, lint, build) y test:pg en verde; evidencia medida en docs/cad/evidence/live-presence.json (3 corridas del probe + 1 corrida e2e real con dos navegadores)."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

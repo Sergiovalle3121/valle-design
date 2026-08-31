@@ -8,8 +8,8 @@
  * operación retirada y la mete en su ERP descubre el error en producción, no
  * aquí. Este spec regenera desde el YAML y compara byte a byte.
  *
- * También ancla los DOS recuentos que el repositorio publica —83 operaciones
- * totales, 43 bajo /v1/cad— para que añadir superficie sea un cambio
+ * También ancla los DOS recuentos que el repositorio publica —96 operaciones
+ * totales, 45 bajo /v1/cad— para que añadir superficie sea un cambio
  * DELIBERADO: si sube el número, este spec obliga a mirarlo y a actualizar
  * también `check-design-contract.mjs` y el spec del router standalone.
  */
@@ -63,14 +63,16 @@ void (async () => {
   //   propia, 2026-08-28)
   // + las 4 del centro de comentarios: crear, los míos, todos (operador) y
   //   cambiar estado (operador).
+  // + las 2 de presencia en vivo por servidor (publicar latido, stream SSE;
+  //   frente colaboración-en-vivo, 2026-08-31).
   assert.equal(
     regenerated.operationCount,
-    94,
+    96,
     "cambió el número de operaciones del contrato; actualiza este spec Y los recuentos de check-design-contract.mjs / standalone-contract-router.spec.ts",
   );
   assert.equal(
     regenerated.cadOperationCount,
-    43,
+    45,
     "cambió el número de operaciones /v1/cad; el gate de contrato tiene su propio recuento que también hay que mover",
   );
 

@@ -85,7 +85,23 @@ async function bootstrap() {
   // CSP `default-src 'none'` (la API sólo sirve JSON) y HSTS de un año en
   // producción. Ver `bootstrap/production-hardening.ts`.
   app.use(helmet(helmetOptions()));
-  app.use(compression());
+  // El streaming SSE de presencia (`/v1/cad/documents/*/presence/stream`)
+  // queda EXCLUIDO de `compression()`: gzip bufferiza hasta juntar un bloque
+  // razonable antes de escribir, así que un stream que manda unos pocos
+  // bytes cada latido «funciona en local y no en producción» — el fallo
+  // clásico de SSE detrás de un proxy, y aquí el despliegue va siempre detrás
+  // de uno. `X-Accel-Buffering: no` es la misma exclusión un nivel más abajo,
+  // para el proxy (nginx la respeta; otros la ignoran sin daño).
+  const compressExceptSse = compression({
+    filter: (req, res) => {
+      if (req.path.endsWith('/presence/stream')) {
+        res.setHeader('X-Accel-Buffering', 'no');
+        return false;
+      }
+      return compression.filter(req, res);
+    },
+  });
+  app.use(compressExceptSse);
 
   // ── CORS ──────────────────────────────────────────────────────────────────
   const env = process.env.NODE_ENV || 'development';

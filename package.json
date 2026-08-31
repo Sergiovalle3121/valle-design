@@ -35,6 +35,7 @@
     "evidence:touch-support": "node scripts/cad/touch-support-evidence.mjs",
     "evidence:api-load": "node scripts/cad/api-load-tests.mjs",
     "evidence:review-concurrency": "node scripts/cad/review-concurrency-evidence.mjs",
+    "evidence:live-presence": "node scripts/cad/live-presence-evidence.mjs",
     "evidence:webhook-replay-audit": "node scripts/ops/webhook-replay-audit-evidence.mjs",
     "console:api": "node scripts/cad/build-api-console.mjs",
     "check:api-console": "node scripts/cad/build-api-console.mjs --check",

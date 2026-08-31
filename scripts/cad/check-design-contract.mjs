@@ -194,10 +194,14 @@ function parseControllerOperations() {
       errors.push(`${name}: prefijo no canónico ${prefix}`);
     }
     for (const match of source.matchAll(
-      /@(Get|Post|Put|Patch|Delete)\(\s*(?:["']([^"']*)["'])?\s*\)/g,
+      // `@Sse(...)` cuenta como GET: NestJS la registra literalmente como
+      // RequestMethod.GET (ver sse.decorator.js) — es la misma ruta HTTP,
+      // sólo con `Content-Type: text/event-stream` en la respuesta.
+      /@(Get|Post|Put|Patch|Delete|Sse)\(\s*(?:["']([^"']*)["'])?\s*\)/g,
     )) {
       const route = [prefix, match[2] ?? ""].filter(Boolean).join("/");
-      const key = routeKey(match[1], route);
+      const httpMethod = match[1] === "Sse" ? "Get" : match[1];
+      const key = routeKey(httpMethod, route);
       if (operations.has(key)) {
         errors.push(
           `Ruta Nest duplicada: ${key} (${operations.get(key)}, ${name})`,

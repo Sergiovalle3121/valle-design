@@ -25,6 +25,7 @@ export type LoginRequest = Schemas["LoginRequest"];
  * reexportan desde aquí para no romper a quien ya los importaba de `client`.
  */
 import { createIdentitySurface } from "./identity";
+import { createPresenceSurface } from "./presence";
 
 export {
   createIdentitySurface,
@@ -116,6 +117,11 @@ export type CadBlockUpdate = Schemas["CadBlockUpdate"];
 export type CadReviewSession = Schemas["CadReviewSession"];
 export type CadComment = Schemas["CadComment"];
 export type CadCommentCreate = Schemas["CadCommentCreate"];
+export type {
+  CadPresenceCursor,
+  CadPresenceViewport,
+  CadPresenceBeatCreate,
+} from "./presence";
 export type ReviewLinkContext = Schemas["ReviewLinkContext"];
 export type ApiError = Schemas["ApiError"];
 export type EntitlementRequiredError = Schemas["EntitlementRequiredError"];
@@ -689,6 +695,9 @@ export function createDesignClient(options: DesignClientOptions) {
           ),
       },
     },
+
+    /** Presencia EN VIVO por servidor (colaboración) — ver `./presence.ts`. */
+    presence: createPresenceSurface({ call, resource }),
 
     /**
      * Superficie del REVIEW LINK (invitado, sin cookie de sesión): autenticada por el

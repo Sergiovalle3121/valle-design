@@ -7,6 +7,7 @@ import {
 } from '../common/testing/postgres-harness';
 import { TenantIntegrityRls20260820120000 } from './20260820120000-TenantIntegrityRls';
 import { TenantRuntimeRoleAndDesignBlobsRls20260823120000 } from './20260823120000-TenantRuntimeRoleAndDesignBlobsRls';
+import { CadPresenceBeatsRls20260831091000 } from './20260831091000-CadPresenceBeatsRls';
 
 /**
  * El escaneo que `design_blobs` necesitaba y no tenía: una tabla del dominio
@@ -113,6 +114,9 @@ describePostgres(
       await withRunner((runner) =>
         new TenantRuntimeRoleAndDesignBlobsRls20260823120000().up(runner),
       );
+      await withRunner((runner) =>
+        new CadPresenceBeatsRls20260831091000().up(runner),
+      );
 
       expect(await tablesMissingRlsCoverage()).toEqual([]);
 
@@ -123,6 +127,7 @@ describePostgres(
         'cad_comments',
         'cad_document_versions',
         'cad_documents',
+        'cad_presence_beats',
         'cad_projects',
         'cad_publications',
         'cad_review_sessions',
