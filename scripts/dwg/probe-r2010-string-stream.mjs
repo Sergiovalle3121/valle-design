@@ -44,12 +44,17 @@
  * haciendo su trabajo, y señaló exactamente qué medir.
  *
  * Medido: las cadenas van CONSECUTIVAS como `TU` dentro del flujo, y la
- * PRIMERA es el nombre del objeto. Leyendo hasta consumir el tramo, el nombre
- * coincide con el del gemelo en **288/288** objetos con nombre de las tres
- * versiones (LAYER 54/54, BLOCK_RECORD 54/54, entradas de tabla 180/180) y el
- * consumo es exacto en los 288. El histograma de cadenas por objeto es
- * {1: 102, 2: 78, 3: 84, 5: 24}: el caso de varias cadenas está ejercitado de
- * verdad, no por analogía con el de una.
+ * PRIMERA es el valor del TEXT o el nombre del objeto. Leyendo hasta consumir
+ * el tramo, esa primera cadena coincide con la del gemelo en **303/303**
+ * objetos con cadena de las tres versiones —LAYER 54/54, BLOCK_RECORD 54/54,
+ * entradas de tabla 180/180 y entidades con texto 15/15— con consumo exacto en
+ * los 303. El histograma de cadenas por objeto es {1: 117, 2: 78, 3: 84,
+ * 5: 24}: el caso de varias cadenas está ejercitado de verdad, no por analogía
+ * con el de una.
+ *
+ * (Las cifras 186/288 de arriba son del subconjunto CON NOMBRE, que es donde
+ * saltó el guardián; los 303 añaden a esos 288 los 15 TEXT que la primera
+ * pasada ya cubría. Se dicen las dos porque miden cosas distintas.)
  *
  * LÍMITE DE LA EVIDENCIA, SIN SUAVIZAR. Sólo la PRIMERA cadena tiene
  * significado comprobado (es el nombre); las siguientes se devuelven en orden
