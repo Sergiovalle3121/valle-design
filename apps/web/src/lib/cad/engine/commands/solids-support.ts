@@ -21,6 +21,8 @@ import type { CadEntity } from "../../cad-document";
 import type { CadSolid3dEntity, CadSolidNode } from "../../cad-entities-v5";
 import type { CadEntityCommand } from "../../entity-commands";
 import type { CadNativeEntity } from "../../entity-runtime";
+import { DEFAULT_REGION_PROFILE, formatRegionMagnitude } from "../../region";
+import type { RegionProfile } from "../../region";
 import { evaluateSolidTree, validateSolidTree } from "../../solid3d-build";
 import type { CadCommandContext, CadCommandStep } from "../command-types";
 
@@ -155,10 +157,22 @@ export function solidBatch<S>(
   };
 }
 
-/** Formatea una magnitud para los mensajes de consulta. */
-export function formatMagnitude(value: number): string {
-  if (!Number.isFinite(value)) return "—";
-  const absolute = Math.abs(value);
-  if (absolute !== 0 && (absolute < 1e-3 || absolute >= 1e9)) return value.toExponential(4);
-  return value.toLocaleString("es-ES", { maximumFractionDigits: 4 });
+/**
+ * Formatea una magnitud para los mensajes de consulta.
+ *
+ * El locale de número sale del módulo de región (`lib/cad/region`) y no de un
+ * literal fijo: separar millares y decimales es al revés entre México y
+ * España, y responder a un MASSPROP o a un INTERFERE con la convención de
+ * otro país es dar un número que se lee mal — y los números de este motor son
+ * su producto. El motor de comandos no tiene hoy acceso a la región resuelta
+ * del visitante (el contexto de comando no la lleva), así que sigue
+ * respondiendo con el default explícito de la región — México — hasta que esa
+ * plomería se añada; lo que deja de pasar es que México estuviera fijo por un
+ * literal en vez de por el default declarado del módulo de región.
+ */
+export function formatMagnitude(
+  value: number,
+  region: RegionProfile = DEFAULT_REGION_PROFILE,
+): string {
+  return formatRegionMagnitude(value, region);
 }

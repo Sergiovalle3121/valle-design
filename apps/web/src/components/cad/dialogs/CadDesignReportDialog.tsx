@@ -9,6 +9,8 @@ import type {
   CadValidationReport,
 } from "@/lib/cad/validation-report";
 import { fmtLen } from "../studio/format-units";
+import { formatRegionNumber } from "@/lib/cad/region";
+import { getClientRegion } from "@/lib/cad/region/client";
 import { CadDialogShell } from "./CadDialogShell";
 
 /**
@@ -93,6 +95,7 @@ export function CadDesignReportDialog({
   releaseBlockers: number;
   releaseWarnings: number;
 }) {
+  const region = getClientRegion();
   return (
     <CadDialogShell
       id="cad-revision"
@@ -268,7 +271,7 @@ export function CadDesignReportDialog({
                   </span>
                   <span className="text-muted-foreground dark:text-muted-foreground">
                     Área aprox.{" "}
-                    {Math.round(hit.area).toLocaleString("es-MX")}
+                    {formatRegionNumber(Math.round(hit.area), region)}
                   </span>
                 </button>
               ))}
@@ -298,9 +301,9 @@ export function CadDesignReportDialog({
                   </span>
                   <span className="text-muted-foreground dark:text-muted-foreground">
                     Actual{" "}
-                    {fmtLen(issue.distance, unidad)}{" "}
+                    {fmtLen(issue.distance, unidad, region)}{" "}
                     - minimo{" "}
-                    {fmtLen(issue.required, unidad)}
+                    {fmtLen(issue.required, unidad, region)}
                   </span>
                 </button>
               ))}

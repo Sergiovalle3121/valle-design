@@ -6,9 +6,22 @@
  * block field rows and a formatted footprint - from the editor's state. The
  * actual PDF (image + title block) is drawn from this model by the exporter, so
  * the formatting/derivation can be unit-tested without jsPDF or a canvas.
+ *
+ * El número y la fecha que se imprimen salen del módulo de región
+ * (`lib/cad/region`), no de un locale fijo: un `PlotInput` sin `region`
+ * explícita sigue viendo exactamente el default de México — es lo que
+ * garantiza que esta migración no cambie ni un plano ya emitido.
  */
+import {
+  DEFAULT_REGION_PROFILE,
+  formatRegionDate,
+  formatRegionNumber,
+  type RegionProfile,
+} from "@/lib/cad/region";
 
 export interface PlotInput {
+  /** Región de formato del cliente que emite. Default: México. */
+  region?: RegionProfile;
   model: string;
   revision: string;
   /** Working unit of the layout ('mm' | 'cm' | 'm'). */
@@ -69,17 +82,17 @@ function toMetreDivisor(unit: string): number {
   return unit === "mm" ? 1000 : unit === "cm" ? 100 : 1;
 }
 
-function metres(v: number, unit: string, dp = 1): string {
+function metres(v: number, unit: string, region: RegionProfile, dp = 1): string {
   const d = toMetreDivisor(unit);
   const m = (Number.isFinite(v) ? v : 0) / d;
-  return `${m.toLocaleString("es-MX", { minimumFractionDigits: dp, maximumFractionDigits: dp })} m`;
+  return `${formatRegionNumber(m, region, { minimumFractionDigits: dp, maximumFractionDigits: dp })} m`;
 }
 
-function fmtDate(date: Date | string | number): string {
+function fmtDate(date: Date | string | number, region: RegionProfile): string {
   const d = date instanceof Date ? date : new Date(date);
   const valid = !Number.isNaN(d.getTime());
   const safe = valid ? d : new Date(0);
-  return safe.toLocaleDateString("es-MX", {
+  return formatRegionDate(safe, region, {
     year: "numeric",
     month: "long",
     day: "numeric",
@@ -120,6 +133,7 @@ function layerSummary(
 
 /** Build the structured content for a printable layout sheet. Never throws. */
 export function plotSheetModel(input: PlotInput): PlotSheet {
+  const region = input?.region ?? DEFAULT_REGION_PROFILE;
   const model = cleanLabel(input?.model);
   const revision = cleanLabel(input?.revision);
   const unit = input?.unit || "mm";
@@ -141,8 +155,10 @@ export function plotSheetModel(input: PlotInput): PlotSheet {
   const validationIssueCount = safeInt(input?.validationIssueCount);
   const dxfWarningCount = safeInt(input?.dxfWarningCount);
 
-  const footprintLabel = `${metres(input?.footprintW ?? 0, unit)} x ${metres(input?.footprintH ?? 0, unit)}`;
-  const dateLabel = fmtDate(input?.date ?? Date.now());
+  const footprintLabel = `${metres(input?.footprintW ?? 0, unit, region)} x ${metres(input?.footprintH ?? 0, unit, region)}`;
+  const dateLabel = fmtDate(input?.date ?? Date.now(), region);
+  const defaultSheetSize =
+    region.paperSeries === "ANSI" ? "Letter landscape" : "A4 landscape";
 
   const fields: PlotField[] = [
     { label: "Modelo", value: model },
@@ -186,7 +202,7 @@ export function plotSheetModel(input: PlotInput): PlotSheet {
     { label: "Warnings DXF", value: `${dxfWarningCount}` },
     {
       label: "Paquete",
-      value: `${cleanLabel(input?.exportFormat, "PDF")} / ${cleanLabel(input?.sheetSize, "A4 landscape")}`,
+      value: `${cleanLabel(input?.exportFormat, "PDF")} / ${cleanLabel(input?.sheetSize, defaultSheetSize)}`,
     },
     { label: "Estado", value: cleanLabel(input?.approvalStatus, "Borrador") },
     { label: "Fecha", value: dateLabel },

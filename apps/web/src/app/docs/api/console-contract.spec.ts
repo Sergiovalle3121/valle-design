@@ -63,14 +63,22 @@ void (async () => {
   //   propia, 2026-08-28)
   // + las 4 del centro de comentarios: crear, los míos, todos (operador) y
   //   cambiar estado (operador).
+  // − las 2 de asistencia por IA (`/v1/cad/documents/{id}/intent` y
+  //   `/v1/cad/vision`): se retiraron con el motor CIDE, que era de Axos OS y
+  //   no de este producto (`IDENTITY.md`). Valle Design no tiene IA.
+  // + las 6 de /v1/messaging: listar/crear canales, listar/enviar mensajes,
+  //   marcar leído y el flujo @Sse de eventos en vivo. Es el trabajo en equipo
+  //   entre PERSONAS que sustituye a lo que se fue.
+  // + las 4 de /v1/calls: crear/unirse a sala, publicar señal, colgar y el
+  //   flujo @Sse que reparte oferta, respuesta y candidatos ICE.
   assert.equal(
     regenerated.operationCount,
-    94,
+    102,
     "cambió el número de operaciones del contrato; actualiza este spec Y los recuentos de check-design-contract.mjs / standalone-contract-router.spec.ts",
   );
   assert.equal(
     regenerated.cadOperationCount,
-    43,
+    41,
     "cambió el número de operaciones /v1/cad; el gate de contrato tiene su propio recuento que también hay que mover",
   );
 

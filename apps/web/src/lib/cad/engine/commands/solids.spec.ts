@@ -408,7 +408,7 @@ function rectangle(id: string, x: number, y: number, w: number, h: number, z = 0
 
   const interfering = messageOf(run("INTERFERE", [select(firstId, secondId), ENTER], document, [firstId, secondId]));
   assert.match(interfering, /INTERFIEREN/, "dos piezas solapadas interfieren");
-  assert.match(interfering, /25\.000|25000/, "y el volumen común es 50 × 50 × 10");
+  assert.match(interfering, /25,000|25000/, "y el volumen común es 50 × 50 × 10");
 
   // Dos piezas separadas NO interfieren, y eso no es un error de cálculo.
   let apart = documentWith([rectangle("c", 0, 0, 10, 10), rectangle("d", 1_000, 1_000, 10, 10)]);

@@ -19,9 +19,11 @@ import type {
 import { decodeMTextContent, mtextAlignment } from "./dxf-read-annotations";
 import type {
   DwgNeutralDimension,
+  DwgNeutralEntityRecord,
   DwgNeutralGeometry,
   DwgNeutralHatch,
   DwgNeutralMText,
+  DwgNeutralPoint3,
 } from "./dwg-neutral-model";
 
 export function decodeCodePageBytes(bytes: readonly number[]): string {
@@ -382,4 +384,132 @@ export function dwgHatchToCadDxfHatch(
     },
     droppedPaths,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Perfil 3D heredado propuesto (3DFACE, POLYLINE 3D, POLYLINE MESH, POLYLINE
+// PFACE): no tienen primitiva plana NI un canal semántico con entidad
+// canónica propia todavía (a diferencia de MTEXT/DIMENSION/HATCH, ningún
+// importador —ni el de DXF— sabe dibujar hoy una malla o una cara 3D). Se
+// conservan REALES —Z verdadera, sin aplanar— como JSON estructurado dentro
+// de `CadOpaqueEntity.raw` (mismo mecanismo ya declarado en
+// `cad-document.ts` para `ACAD_PROXY_ENTITY`, su primer productor real): el
+// documento las guarda y las devuelve intactas, y `dwg-document-bridge.ts`
+// las declara en el manifiesto de pérdidas en vez de dibujarlas — ninguna se
+// pierde, ninguna se dibuja todavía.
+// ---------------------------------------------------------------------------
+
+/** Los cuatro tipos del perfil 3D heredado, ya serializables sin pérdida. */
+export interface DwgWireframe3dOpaquePayload {
+  readonly kind: "face3d" | "polyline3d" | "polymesh" | "polyfaceMesh";
+  /** Sólo face3d: las cuatro esquinas REALES (WCS), en el orden del archivo. */
+  readonly corners?: readonly DwgNeutralPoint3[];
+  /** Sólo face3d: banderas de invisibilidad de arista, CRUDAS. */
+  readonly invisibilityFlags?: number;
+  /** Sólo polyline3d: cierre ya interpretado (bit 0 de `closedFlags`). */
+  readonly closed?: boolean;
+  readonly closedFlagsRaw?: number;
+  readonly splineFlagsRaw?: number;
+  /** polyline3d: sus vértices en orden. polyfaceMesh: sólo posiciones. */
+  readonly vertices?: readonly DwgNeutralPoint3[];
+  /** Sólo polymesh. */
+  readonly mVertexCount?: number;
+  readonly nVertexCount?: number;
+  readonly closedM?: boolean;
+  readonly closedN?: boolean;
+  /** `true` cuando el archivo pedía una malla suavizada (Bezier/B-spline): la
+   *  malla de control se conserva, la superficie evaluada NO — declarado
+   *  como pérdida por el llamador, no adivinado aquí. */
+  readonly smoothed?: boolean;
+  readonly curveTypeRaw?: number;
+  /** Sólo polyfaceMesh: índices 1-based CRUDOS (negativo = arista invisible). */
+  readonly faces?: readonly {
+    readonly index1: number;
+    readonly index2: number;
+    readonly index3: number;
+    readonly index4: number;
+  }[];
+}
+
+const point3 = (value: DwgNeutralPoint3): DwgNeutralPoint3 => ({
+  x: value.x,
+  y: value.y,
+  z: value.z,
+});
+
+function wireframe3dChildPositions(
+  children: readonly DwgNeutralEntityRecord[] | undefined,
+  kind: "vertex3d" | "vertexMesh" | "vertexPface",
+): DwgNeutralPoint3[] {
+  if (children === undefined) return [];
+  const positions: DwgNeutralPoint3[] = [];
+  for (const child of children) {
+    if (child.entity.kind === kind) positions.push(point3(child.entity.position));
+  }
+  return positions;
+}
+
+function wireframe3dChildFaces(
+  children: readonly DwgNeutralEntityRecord[] | undefined,
+): DwgWireframe3dOpaquePayload["faces"] {
+  if (children === undefined) return [];
+  const faces: NonNullable<DwgWireframe3dOpaquePayload["faces"]>[number][] = [];
+  for (const child of children) {
+    if (child.entity.kind === "pfaceFace") {
+      faces.push({
+        index1: child.entity.index1,
+        index2: child.entity.index2,
+        index3: child.entity.index3,
+        index4: child.entity.index4,
+      });
+    }
+  }
+  return faces;
+}
+
+/**
+ * Traduce una entidad del perfil 3D heredado (ya estrechada por
+ * `toBetaProfileDatabase`) al payload estructurado que viajará en
+ * `CadOpaqueEntity.raw`. `null` para cualquier otro tipo — el llamador decide
+ * qué hacer con esos.
+ */
+export function dwgWireframe3dGeometryToOpaquePayload(
+  entity: DwgNeutralGeometry,
+  vertices: readonly DwgNeutralEntityRecord[] | undefined,
+): DwgWireframe3dOpaquePayload | null {
+  switch (entity.kind) {
+    case "face3d":
+      return {
+        kind: "face3d",
+        corners: entity.corners.map(point3),
+        invisibilityFlags: entity.invisibilityFlags,
+      };
+    case "polyline3d":
+      return {
+        kind: "polyline3d",
+        closed: (entity.closedFlags & 1) !== 0,
+        closedFlagsRaw: entity.closedFlags,
+        splineFlagsRaw: entity.splineFlags,
+        vertices: wireframe3dChildPositions(vertices, "vertex3d"),
+      };
+    case "polymesh":
+      return {
+        kind: "polymesh",
+        mVertexCount: entity.mVertexCount,
+        nVertexCount: entity.nVertexCount,
+        closedM: (entity.flags & 1) !== 0,
+        closedN: (entity.flags & 32) !== 0,
+        smoothed: entity.curveType !== 0,
+        curveTypeRaw: entity.curveType,
+        vertices: wireframe3dChildPositions(vertices, "vertexMesh"),
+      };
+    case "polyfaceMesh":
+      return {
+        kind: "polyfaceMesh",
+        vertices: wireframe3dChildPositions(vertices, "vertexPface"),
+        faces: wireframe3dChildFaces(vertices),
+      };
+    default:
+      return null;
+  }
 }

@@ -29,8 +29,12 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(here, "../..");
 
+// `@Sse` cuenta como GET: es exactamente lo que registra en el router (ver
+// @nestjs/common/decorators/http/sse.decorator.js — compone RequestMapping
+// con RequestMethod.GET). Dejarlo fuera de este patrón sería el mismo hueco
+// que el gate existe para cerrar: un handler HTTP real sin barrera auditada.
 const HTTP_DECORATORS =
-  /@(Get|Post|Put|Patch|Delete|Head|Options|All)\s*\(/u;
+  /@(Get|Post|Put|Patch|Delete|Head|Options|All|Sse)\s*\(/u;
 const AUTH_DECORATORS =
   /@(Public|RequirePermissions|RequirePermission|ReviewLinkSurface)\s*\(/u;
 

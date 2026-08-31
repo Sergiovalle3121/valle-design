@@ -5,7 +5,13 @@
  * (descontando márgenes y la franja del cajetín), centra el dibujo y arma
  * los campos del cajetín y la barra de escala con tramos redondos. Módulo
  * puro: el estudio lo renderiza; aquí solo vive la matemática, testeada.
+ *
+ * El papel por defecto —cuando el caller no elige uno explícito— sigue
+ * siendo A3, EXCEPTO si se pasa una `region` cuya serie de papel es ANSI: ahí
+ * el default es `letter`. Es la mitad "papel por defecto" del módulo de
+ * región (`lib/cad/region`) sin tocar el comportamiento de quien no lo usa.
  */
+import type { RegionProfile } from "./region";
 
 export type CadPaperId = "A4" | "A3" | "A2" | "A1" | "A0" | "letter" | "tabloid";
 export type CadPaperOrientation = "landscape" | "portrait";
@@ -42,6 +48,8 @@ export interface CadPlotInput {
   revision?: string;
   /** Fecha del plano (inyectada; el módulo no lee el reloj). */
   date?: string;
+  /** Región del cliente; sólo decide el papel por defecto cuando no se pasa `paper`. */
+  region?: RegionProfile;
 }
 
 export interface CadPlotSheet {
@@ -90,7 +98,7 @@ const fmtMeters = (mm: number) =>
 
 export function buildPlotSheet(input: CadPlotInput): CadPlotSheet {
   const issues: string[] = [];
-  const paper = input.paper ?? "A3";
+  const paper = input.paper ?? (input.region?.paperSeries === "ANSI" ? "letter" : "A3");
   const orientation = input.orientation ?? "landscape";
   const base = CAD_PAPER_SIZES[paper];
   const sheetW = orientation === "landscape" ? base.h : base.w;

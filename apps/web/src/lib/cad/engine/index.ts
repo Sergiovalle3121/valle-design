@@ -64,6 +64,12 @@ import { CAD_VIEW_NAVIGATION_COMMANDS } from "./commands/view-navigation";
 import { CAD_VIEW_VISUAL_COMMANDS } from "./commands/view-visual";
 import { CAD_LAYOUT_COMMANDS } from "./commands/layout-commands";
 import { CAD_PLOT_COMMANDS } from "./commands/plot-commands";
+// Entrega del proyecto: PUBLISH/SHEETSET enchufan `lib/cad/sheet-set/`, que ya
+// existía sin comando que lo alcanzara; ETRANSMIT y DATAEXTRACTION son nuevos
+// de punta a punta.
+import { CAD_SHEET_SET_COMMANDS } from "./commands/sheet-set-commands";
+import { CAD_ETRANSMIT_COMMANDS } from "./commands/etransmit-commands";
+import { CAD_DATA_EXTRACTION_COMMANDS } from "./commands/data-extraction-commands";
 import { createCadCommandRegistry, type CadCommandRegistryImpl } from "./registry";
 // Ola 3D, cimiento: el SCU de verdad. Al final del bloque a propósito.
 import { CAD_UCS_COMMANDS } from "./commands/ucs-commands";
@@ -74,6 +80,16 @@ import { CAD_VIEW_NAVIGATION_3D_COMMANDS } from "./commands/view-navigation-3d";
 import { CAD_SOLVIEW_COMMANDS } from "./commands/solview-commands";
 // Aplanado y perfil: FLATSHOT y SOLPROF convierten el modelo en dibujo 2D.
 import { CAD_SOLID_FLATSHOT_COMMANDS } from "./commands/solids-flatshot";
+// Campaña "reparar y normalizar": el dibujo ajeno que llega roto (AUDIT,
+// RECOVER, LAYTRANS, CHECKSTANDARDS) y la productividad diaria que faltaba
+// (QDIM, TEXTALIGN, BURST, QLEADER).
+import { CAD_AUDIT_COMMANDS } from "./commands/manage-audit";
+import { CAD_RECOVER_COMMANDS } from "./commands/manage-recover";
+import { CAD_LAYTRANS_COMMANDS } from "./commands/manage-laytrans";
+import { CAD_CHECKSTANDARDS_COMMANDS } from "./commands/manage-standards";
+import { CAD_ANNOTATE_QUICK_COMMANDS } from "./commands/annotate-quick";
+import { CAD_BURST_COMMANDS } from "./commands/blocks-burst";
+import { CAD_QLEADER_COMMANDS } from "./commands/annotate-quickleader";
 
 export * from "./command-types";
 export * from "./command-engine";
@@ -168,6 +184,20 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_SOLVIEW_COMMANDS,
   // Aplanado: la mitad del 3D que devuelve dibujo 2D acotable en vez de píxeles.
   ...CAD_SOLID_FLATSHOT_COMMANDS,
+  // Entrega del proyecto: publicar el juego, gestionar el conjunto, empaquetar
+  // la entrega y extraer cantidades. Al final a propósito, como el resto de
+  // olas recientes.
+  ...CAD_SHEET_SET_COMMANDS,
+  ...CAD_ETRANSMIT_COMMANDS,
+  ...CAD_DATA_EXTRACTION_COMMANDS,
+  // Campaña "reparar y normalizar". Al final a propósito.
+  ...CAD_AUDIT_COMMANDS,
+  ...CAD_RECOVER_COMMANDS,
+  ...CAD_LAYTRANS_COMMANDS,
+  ...CAD_CHECKSTANDARDS_COMMANDS,
+  ...CAD_ANNOTATE_QUICK_COMMANDS,
+  ...CAD_BURST_COMMANDS,
+  ...CAD_QLEADER_COMMANDS,
 ] as const;
 
 /**

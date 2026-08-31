@@ -11,15 +11,80 @@
  */
 import { crc16Dwg } from "../codecs/crc16.js";
 import { AC1015_MAGIC } from "../container/ac1015-file-header.js";
+import type { DwgGeometryEntity } from "../model/entity-geometry.js";
 import { throwDwgError } from "../security/parse-error.js";
 import { AC1015_WRITER_MAX_OBJECTS } from "./ac1015-object-writer.js";
 import { DwgBitEmitter } from "./dwg-bit-emitter.js";
-import type {
-  Ac1015MinimalFileBlockSpec,
-  Ac1015MinimalFileEntitySpec,
-  Ac1015MinimalFileLayerSpec,
-  Ac1015MinimalFileOptions,
-} from "./ac1015-minimal-file-writer.js";
+
+// ---------------------------------------------------------------------------
+// Opciones públicas del archivo mínimo — trasladadas aquí desde
+// `ac1015-minimal-file-writer.ts` por el presupuesto de 800 líneas del
+// monorepo; ese módulo las re-exporta tal cual, así que nada que ya
+// importara de allí nota el traslado.
+// ---------------------------------------------------------------------------
+
+/** Una capa adicional a la capa "0" del esquema canónico. */
+export interface Ac1015MinimalFileLayerSpec {
+  readonly name: readonly number[];
+  /** Índice de color CmC. Por defecto 7. */
+  readonly colorIndex?: number;
+}
+
+/**
+ * Una entidad de model space O del contenido de un bloque — misma forma para
+ * las dos (cero marcos gemelos): `layerIndex` resuelve contra `layers` en
+ * ambos casos, e `insertBlockIndex` permite que un bloque inserte OTRO
+ * bloque (el handle de cada BLOCK_RECORD ya está resuelto por adelantado en
+ * `planAc1015MinimalFile`, así que una referencia hacia adelante en `blocks`
+ * funciona igual que una hacia atrás).
+ */
+export interface Ac1015MinimalFileEntitySpec {
+  readonly entity: DwgGeometryEntity;
+  /** 0 = capa "0" (por defecto); 1.. = índice+1 en `layers`. */
+  readonly layerIndex?: number;
+  /** Sólo INSERT: índice del bloque insertado en `blocks`. */
+  readonly insertBlockIndex?: number;
+}
+
+/**
+ * Una entidad dentro de un bloque acepta la forma completa (con `layerIndex`/
+ * `insertBlockIndex`) o SÓLO la entidad — compatibilidad hacia atrás con
+ * llamadores anteriores a la ola V1→V3, que pasaban `DwgGeometryEntity[]` a
+ * secas (capa "0" implícita, sin INSERT anidado). `normalizeBlockEntity` (más
+ * abajo) resuelve la forma corta a la larga antes de validar: un solo camino
+ * de validación para las dos.
+ */
+export type Ac1015MinimalFileBlockEntityInput =
+  | DwgGeometryEntity
+  | Ac1015MinimalFileEntitySpec;
+
+/** Un bloque de usuario con su contenido. */
+export interface Ac1015MinimalFileBlockSpec {
+  readonly name: readonly number[];
+  readonly entities: readonly Ac1015MinimalFileBlockEntityInput[];
+}
+
+export interface Ac1015MinimalFileOptions {
+  readonly layers?: readonly Ac1015MinimalFileLayerSpec[];
+  readonly blocks?: readonly Ac1015MinimalFileBlockSpec[];
+  readonly entities?: readonly Ac1015MinimalFileEntitySpec[];
+  /** Variable MEASUREMENT del Template: 0 = inglés (defecto), 1 = métrico. */
+  readonly measurement?: 0 | 1;
+}
+
+/** El plan determinista de handles de un archivo mínimo. */
+export interface Ac1015MinimalFilePlan {
+  /** Handle de cada capa: [capa "0", ...capas extra]. */
+  readonly layerHandles: readonly number[];
+  /** Handle del BLOCK_RECORD de cada bloque de usuario. */
+  readonly blockRecordHandles: readonly number[];
+  /** Handles de las entidades de model space, en orden de las opciones. */
+  readonly modelEntityHandles: readonly number[];
+  /** Handles de las entidades de cada bloque, en orden. */
+  readonly blockEntityHandles: readonly (readonly number[])[];
+  /** El siguiente handle libre: la HANDSEED del archivo. */
+  readonly handseed: number;
+}
 
 // ---------------------------------------------------------------------------
 // Esquema canónico de handles (hechos medidos del corpus).
@@ -360,11 +425,32 @@ export function byteLengthOf(value: number): number {
 // Validación de opciones (fallo cerrado)
 // ---------------------------------------------------------------------------
 
+/** Un bloque YA normalizado: sus entidades son siempre la forma larga. */
+export interface ValidatedBlockSpec {
+  readonly name: readonly number[];
+  readonly entities: readonly Ac1015MinimalFileEntitySpec[];
+}
+
 export interface ValidatedOptions {
   readonly layers: readonly Ac1015MinimalFileLayerSpec[];
-  readonly blocks: readonly Ac1015MinimalFileBlockSpec[];
+  readonly blocks: readonly ValidatedBlockSpec[];
   readonly entities: readonly Ac1015MinimalFileEntitySpec[];
   readonly measurement: 0 | 1;
+}
+
+/**
+ * Resuelve la forma corta de una entidad de bloque (`DwgGeometryEntity` a
+ * secas) a la larga (`{ entity }`, capa "0" implícita) — la forma larga pasa
+ * tal cual. El discriminador es la presencia de `entity`: ninguna entidad
+ * neutral del modelo tiene ese campo en su nivel superior.
+ */
+function normalizeBlockEntity(
+  item: Ac1015MinimalFileBlockSpec["entities"][number],
+): Ac1015MinimalFileEntitySpec {
+  if (typeof item === "object" && item !== null && "entity" in item) {
+    return item as Ac1015MinimalFileEntitySpec;
+  }
+  return { entity: item as DwgGeometryEntity };
 }
 
 export function validateOptions(options: Ac1015MinimalFileOptions): ValidatedOptions {
@@ -399,7 +485,7 @@ export function validateOptions(options: Ac1015MinimalFileOptions): ValidatedOpt
   for (const layer of layers) {
     assertNameBytes(layer.name, "A minimal file layer name");
   }
-  for (const block of blocks) {
+  const normalizedBlocks: ValidatedBlockSpec[] = blocks.map((block) => {
     assertNameBytes(block.name, "A minimal file block name");
     if (!Array.isArray(block.entities)) {
       throwDwgError(
@@ -409,58 +495,63 @@ export function validateOptions(options: Ac1015MinimalFileOptions): ValidatedOpt
         "A minimal file block needs an entities array.",
       );
     }
-    for (const entity of block.entities) {
-      if (entity.kind === "insert") {
-        // Un INSERT dentro de un bloque exigiría resolver el bloque anidado;
-        // pendiente DECLARADO de esta ola — fallo cerrado, no silencio.
-        throwDwgError(
-          "DWG_INPUT_INVALID",
-          "input",
-          0,
-          "An INSERT inside a block definition is not supported by this wave.",
-        );
-      }
+    const normalizedEntities = block.entities.map(normalizeBlockEntity);
+    for (const spec of normalizedEntities) {
+      assertEntitySpec(spec, layers, blocks.length);
     }
-  }
+    return { name: block.name, entities: normalizedEntities };
+  });
   entities.forEach((spec) => {
-    const layerIndex = spec.layerIndex ?? 0;
+    assertEntitySpec(spec, layers, blocks.length);
+  });
+  return { layers, blocks: normalizedBlocks, entities, measurement };
+}
+
+/**
+ * Un `Ac1015MinimalFileEntitySpec` es válido tanto en model space como
+ * dentro de un bloque — misma forma, misma validación (cero marcos gemelos).
+ * Un INSERT dentro de un bloque referencia OTRO bloque por índice, igual que
+ * en model space: el handle de cada BLOCK_RECORD ya está resuelto por
+ * adelantado (`planAc1015MinimalFile`), así que una referencia hacia
+ * adelante en `blocks` resuelve igual que una hacia atrás.
+ */
+function assertEntitySpec(
+  spec: Ac1015MinimalFileEntitySpec,
+  layers: readonly Ac1015MinimalFileLayerSpec[],
+  blocksCount: number,
+): void {
+  const layerIndex = spec.layerIndex ?? 0;
+  if (!Number.isInteger(layerIndex) || layerIndex < 0 || layerIndex > layers.length) {
+    throwDwgError(
+      "DWG_INPUT_INVALID",
+      "input",
+      0,
+      "A minimal file entity layer index escapes the declared layers.",
+    );
+  }
+  if (spec.entity.kind === "insert") {
+    const blockIndex = spec.insertBlockIndex;
     if (
-      !Number.isInteger(layerIndex) ||
-      layerIndex < 0 ||
-      layerIndex > layers.length
+      blockIndex === undefined ||
+      !Number.isInteger(blockIndex) ||
+      blockIndex < 0 ||
+      blockIndex >= blocksCount
     ) {
       throwDwgError(
         "DWG_INPUT_INVALID",
         "input",
         0,
-        "A minimal file entity layer index escapes the declared layers.",
+        "An INSERT entity needs the index of a declared block.",
       );
     }
-    if (spec.entity.kind === "insert") {
-      const blockIndex = spec.insertBlockIndex;
-      if (
-        blockIndex === undefined ||
-        !Number.isInteger(blockIndex) ||
-        blockIndex < 0 ||
-        blockIndex >= blocks.length
-      ) {
-        throwDwgError(
-          "DWG_INPUT_INVALID",
-          "input",
-          0,
-          "An INSERT entity needs the index of a declared block.",
-        );
-      }
-    } else if (spec.insertBlockIndex !== undefined) {
-      throwDwgError(
-        "DWG_INPUT_INVALID",
-        "input",
-        0,
-        "Only an INSERT entity may name an inserted block.",
-      );
-    }
-  });
-  return { layers, blocks, entities, measurement };
+  } else if (spec.insertBlockIndex !== undefined) {
+    throwDwgError(
+      "DWG_INPUT_INVALID",
+      "input",
+      0,
+      "Only an INSERT entity may name an inserted block.",
+    );
+  }
 }
 
 function assertNameBytes(name: readonly number[], what: string): void {
