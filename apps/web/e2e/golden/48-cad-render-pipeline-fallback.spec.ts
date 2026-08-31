@@ -130,7 +130,7 @@ async function drawAndCapture(page: Page, backend: Awaited<ReturnType<typeof ope
   await enter3DView(page);
   await page.getByTitle(/Vista superior/).click();
   await page.getByTitle(/Ajustar a la planta/).click();
-  await page.getByTestId('cad-toolbar').getByRole('button', { name: 'Line', exact: true }).click();
+  await page.getByTestId('cad-toolbar').getByRole('button', { name: 'Línea', exact: true }).click();
   const from = await screenPointFor(page, { x: 3_000, y: 8_000 });
   await page.mouse.click(from.x, from.y);
   const to = await screenPointFor(page, { x: 8_000, y: 8_000 });

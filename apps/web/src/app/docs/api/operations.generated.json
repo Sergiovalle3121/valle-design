@@ -4,8 +4,8 @@
   "openapi": "3.1.0",
   "apiTitle": "Valle Design — API standalone (v1)",
   "apiVersion": "1.0.0",
-  "operationCount": 96,
-  "cadOperationCount": 45,
+  "operationCount": 104,
+  "cadOperationCount": 43,
   "groups": [
     {
       "family": "auth",
@@ -100,6 +100,16 @@
       ]
     },
     {
+      "family": "commercial",
+      "tag": "calls",
+      "operations": [
+        "joinCallRoom",
+        "leaveCallRoom",
+        "postCallSignal",
+        "streamCallRoomEvents"
+      ]
+    },
+    {
       "family": "cad",
       "tag": "documents",
       "operations": [
@@ -186,11 +196,15 @@
       ]
     },
     {
-      "family": "cad",
-      "tag": "assistance",
+      "family": "commercial",
+      "tag": "messaging",
       "operations": [
-        "interpretCadIntent",
-        "vectorizeCadImage"
+        "listMessagingChannels",
+        "createMessagingChannel",
+        "listMessagingChannelMessages",
+        "createMessagingChannelMessage",
+        "markMessagingChannelRead",
+        "streamMessagingEvents"
       ]
     }
   ],
@@ -1541,6 +1555,125 @@
       ]
     },
     {
+      "operationId": "joinCallRoom",
+      "method": "POST",
+      "path": "/v1/calls/rooms",
+      "summary": "Crea o se une a la sala de llamada de un documento.",
+      "tags": [
+        "calls"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": {
+        "required": true,
+        "schema": "CallJoinRequest"
+      },
+      "responses": [
+        "201",
+        "400",
+        "401",
+        "403",
+        "404",
+        "409",
+        "429"
+      ]
+    },
+    {
+      "operationId": "leaveCallRoom",
+      "method": "POST",
+      "path": "/v1/calls/rooms/{roomId}/leave",
+      "summary": "Sale de la sala. Si era el último participante, la sala termina.",
+      "tags": [
+        "calls"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "roomId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "CallLeaveRequest"
+      },
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "postCallSignal",
+      "method": "POST",
+      "path": "/v1/calls/rooms/{roomId}/signals",
+      "summary": "Envía una oferta, respuesta o candidato ICE a otro participante.",
+      "tags": [
+        "calls"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "roomId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "CallSignalRequest"
+      },
+      "responses": [
+        "202",
+        "400",
+        "401",
+        "403",
+        "404",
+        "429"
+      ]
+    },
+    {
+      "operationId": "streamCallRoomEvents",
+      "method": "GET",
+      "path": "/v1/calls/rooms/{roomId}/events",
+      "summary": "Entrega en vivo (SSE) del roster y las señales del participante.",
+      "tags": [
+        "calls"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "roomId",
+          "in": "path",
+          "required": true
+        },
+        {
+          "name": "participantId",
+          "in": "query",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "400",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
       "operationId": "listCadDocuments",
       "method": "GET",
       "path": "/v1/cad/documents",
@@ -2619,26 +2752,39 @@
       ]
     },
     {
-      "operationId": "interpretCadIntent",
-      "method": "POST",
-      "path": "/v1/cad/documents/{documentId}/intent",
-      "summary": "Interpreta una instrucción de lenguaje natural para un documento.",
+      "operationId": "listMessagingChannels",
+      "method": "GET",
+      "path": "/v1/messaging/channels",
+      "summary": "Lista los canales visibles (de proyecto de la organización + directos propios).",
       "tags": [
-        "assistance"
+        "messaging"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403"
+      ]
+    },
+    {
+      "operationId": "createMessagingChannel",
+      "method": "POST",
+      "path": "/v1/messaging/channels",
+      "summary": "Crea un canal de proyecto o abre uno directo (idempotente).",
+      "tags": [
+        "messaging"
       ],
       "entitlement": "design.cad",
       "permission": "cad:edit",
       "authentication": "sessionCookie",
-      "parameters": [
-        {
-          "name": "documentId",
-          "in": "path",
-          "required": true
-        }
-      ],
+      "parameters": [],
       "requestBody": {
         "required": true,
-        "schema": "CadIntentRequest"
+        "schema": "MessagingChannelCreate"
       },
       "responses": [
         "201",
@@ -2649,24 +2795,112 @@
       ]
     },
     {
-      "operationId": "vectorizeCadImage",
-      "method": "POST",
-      "path": "/v1/cad/vision",
-      "summary": "Propone geometría CAD a partir de una imagen embebida.",
+      "operationId": "listMessagingChannelMessages",
+      "method": "GET",
+      "path": "/v1/messaging/channels/{channelId}/messages",
+      "summary": "Mensajes del canal, paginados por cursor.",
       "tags": [
-        "assistance"
+        "messaging"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "channelId",
+          "in": "path",
+          "required": true
+        },
+        {
+          "name": "cursor",
+          "in": "query",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "in": "query",
+          "required": false
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "createMessagingChannelMessage",
+      "method": "POST",
+      "path": "/v1/messaging/channels/{channelId}/messages",
+      "summary": "Envía un mensaje al canal, opcionalmente anclado al dibujo o en hilo.",
+      "tags": [
+        "messaging"
       ],
       "entitlement": "design.cad",
       "permission": "cad:edit",
       "authentication": "sessionCookie",
-      "parameters": [],
+      "parameters": [
+        {
+          "name": "channelId",
+          "in": "path",
+          "required": true
+        }
+      ],
       "requestBody": {
         "required": true,
-        "schema": "CadVisionRequest"
+        "schema": "MessagingMessageCreate"
       },
       "responses": [
         "201",
         "400",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "markMessagingChannelRead",
+      "method": "POST",
+      "path": "/v1/messaging/channels/{channelId}/read",
+      "summary": "Marca el canal como leído hasta ahora (baja `unreadCount` a 0).",
+      "tags": [
+        "messaging"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "channelId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "201",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "streamMessagingEvents",
+      "method": "GET",
+      "path": "/v1/messaging/events",
+      "summary": "Mensajes nuevos en vivo (Server-Sent Events) de cualquier canal visible.",
+      "tags": [
+        "messaging"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [],
+      "requestBody": null,
+      "responses": [
+        "200",
         "401",
         "403"
       ]

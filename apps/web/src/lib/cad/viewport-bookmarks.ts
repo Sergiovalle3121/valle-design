@@ -1,3 +1,5 @@
+import { DEFAULT_REGION_PROFILE, formatRegionNumber, type RegionProfile } from "./region";
+
 export type CadViewportMode = "2d" | "3d";
 
 export interface CadViewportVector {
@@ -181,9 +183,13 @@ export function cadViewportFocusBounds(
   };
 }
 
-export function formatCadViewportLength(value: number, unit: string): string {
+export function formatCadViewportLength(
+  value: number,
+  unit: string,
+  region: RegionProfile = DEFAULT_REGION_PROFILE,
+): string {
   const meters = unit === "mm" ? value / 1000 : unit === "cm" ? value / 100 : value;
-  return `${meters.toLocaleString("es-MX", { maximumFractionDigits: meters < 10 ? 2 : 1 })} m`;
+  return `${formatRegionNumber(meters, region, { maximumFractionDigits: meters < 10 ? 2 : 1 })} m`;
 }
 
 export function describeCadViewportFocus(

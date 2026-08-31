@@ -29,6 +29,10 @@ import { fileURLToPath } from "node:url";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(here, "../..");
 
+// `@Sse` cuenta como GET: es exactamente lo que registra en el router (ver
+// @nestjs/common/decorators/http/sse.decorator.js — compone RequestMapping
+// con RequestMethod.GET). Dejarlo fuera de este patrón sería el mismo hueco
+// que el gate existe para cerrar: un handler HTTP real sin barrera auditada.
 // `@Sse` cuenta como handler HTTP: NestJS la registra como RequestMethod.GET
 // (ver sse.decorator.js) — sin incluirla aquí, el primer endpoint SSE del
 // repo quedaría completamente FUERA de la auditoría, ni verde ni rojo.

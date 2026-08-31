@@ -8,6 +8,8 @@ import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import { Button, Surface, buttonClass, cx } from "@/components/ui";
 import { MfaEnrollment } from "./MfaEnrollment";
 import { describeUserAgent } from "@/lib/user-agent";
+import { formatRegionDateTime } from "@/lib/cad/region";
+import { getClientRegion } from "@/lib/cad/region/client";
 
 /**
  * LA PÁGINA QUE FALTABA.
@@ -77,13 +79,11 @@ const METODO: Record<string, string> = {
 const ERROR_LECTURA =
   "No se pudo leer el estado de tu cuenta. Actualiza la página o vuelve en un momento.";
 
-const fecha = new Intl.DateTimeFormat("es-MX", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+const fecha = (d: Date) =>
+  formatRegionDateTime(d, getClientRegion(), { dateStyle: "medium", timeStyle: "short" });
 
 function cuando(iso: string): string {
-  return fecha.format(new Date(iso));
+  return fecha(new Date(iso));
 }
 
 export function AccountSecurity() {

@@ -25,6 +25,8 @@ export type LoginRequest = Schemas["LoginRequest"];
  * reexportan desde aquí para no romper a quien ya los importaba de `client`.
  */
 import { createIdentitySurface } from "./identity";
+import { createMessagingSurface } from "./messaging";
+import { createCallsSurface } from "./calls";
 import { createPresenceSurface } from "./presence";
 
 export {
@@ -35,6 +37,17 @@ export {
   type LoginResponse,
   type MfaChallengeResponse,
 } from "./identity";
+export {
+  createMessagingSurface,
+  type MessagingTransport,
+  type MessagingChannel,
+  type MessagingChannelList,
+  type MessagingChannelCreate,
+  type MessagingMessage,
+  type MessagingMessageCreate,
+  type MessagingMessagePage,
+  type MessagingAuthor,
+} from "./messaging";
 export type AuthSessionResponse = Schemas["AuthSessionResponse"];
 export type IdentitySession = Schemas["IdentitySession"];
 export type IdentitySessionList = Schemas["IdentitySessionList"];
@@ -128,10 +141,17 @@ export type EntitlementRequiredError = Schemas["EntitlementRequiredError"];
 export type CadDocumentVersionConflictError =
   Schemas["CadDocumentVersionConflictError"];
 export type RateLimitedError = Schemas["RateLimitedError"];
-export type CadIntentRequest = Schemas["CadIntentRequest"];
-export type CadIntentResponse = Schemas["CadIntentResponse"];
-export type CadVisionRequest = Schemas["CadVisionRequest"];
-export type CadVisionResponse = Schemas["CadVisionResponse"];
+/** Superficie de llamadas: vive en `calls.ts`, misma razón que `identity.ts` arriba. */
+export {
+  createCallsSurface,
+  type CallJoinRequest,
+  type CallJoinResponse,
+  type CallLeaveRequest,
+  type CallSignalRequest,
+  type CallSignalKind,
+  type CallParticipant,
+  type CallIceServer,
+} from "./calls";
 
 export interface Page<T> {
   items: T[];
@@ -230,6 +250,8 @@ export function createDesignClient(options: DesignClientOptions) {
         "/v1/cad/",
         "/v1/support/",
         "/v1/feedback/",
+        "/v1/messaging/",
+        "/v1/calls/",
       ].some((prefix) => apiPath.startsWith(prefix));
     if (!declaredPrefix) {
       throw new TypeError(`Ruta Design v1 no declarada: ${apiPath}`);
@@ -322,6 +344,9 @@ export function createDesignClient(options: DesignClientOptions) {
           { status },
         ),
     },
+
+    /** Señalización de llamada — fábrica en `calls.ts` (ver la nota arriba). */
+    calls: createCallsSurface({ call, resource }),
 
     organizations: {
       list: () => call<OrganizationList>("GET", resource("/v1/organizations")),
@@ -744,17 +769,6 @@ export function createDesignClient(options: DesignClientOptions) {
       };
     },
 
-    assistance: {
-      interpretIntent: (documentId: string, input: CadIntentRequest) =>
-        call<CadIntentResponse>(
-          "POST",
-          resource(`/v1/cad/documents/${documentId}/intent`),
-          input,
-        ),
-      vectorizeImage: (input: CadVisionRequest) =>
-        call<CadVisionResponse>("POST", resource("/v1/cad/vision"), input),
-    },
-
     blocks: {
       list: (query?: PageQuery) =>
         call<Page<CadBlock>>("GET", resource("/v1/cad/blocks", query)),
@@ -767,6 +781,12 @@ export function createDesignClient(options: DesignClientOptions) {
       remove: (blockId: string) =>
         call<void>("DELETE", resource(`/v1/cad/blocks/${blockId}`)),
     },
+
+    /**
+     * Mensajería de equipo (canales de proyecto + directos, mensajes
+     * anclables al dibujo). Ver `./messaging.ts`.
+     */
+    messaging: createMessagingSurface({ call, resource }),
   };
 }
 

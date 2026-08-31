@@ -50,6 +50,10 @@ export interface CadTourStep {
 }
 
 export const CAD_GUIDED_TOUR_STEPS: readonly CadTourStep[] = [
+  // El texto de este paso NO es el que se enseña: es el reposo, para cuando
+  // todavía no hay documento que leer (spec de arriba, primer render). Lo
+  // que el usuario ve sale de `cadGuidedTourStepCopy`, condicionado a si el
+  // documento de verdad trae plantilla — ver esa función para el porqué.
   {
     id: "lamina",
     title: "Tu lámina ya está puesta",
@@ -142,6 +146,54 @@ function hasDimension(document: CadCommandDocumentView): boolean {
   return document.entities.some(
     (entity) => entity.type === "dimension" || entity.type === "mleader",
   );
+}
+
+/**
+ * ¿El documento de verdad trae plantilla —capas, estilo de cota, escala,
+ * cajetín— o arrancó en blanco?
+ *
+ * `CadTourEvidence.document` es la misma vista de sólo lectura que reciben
+ * los comandos (`CadCommandDocumentView`): no incluye espacio papel ni
+ * cajetín directamente, así que no hay forma exacta de leer "¿hay cajetín?"
+ * desde aquí. Lo que SÍ se puede leer es si el documento tiene más de la capa
+ * y el estilo de cota que trae CUALQUIER documento nuevo (una capa base, un
+ * estilo "Standard"): si los tiene, algo los configuró —una plantilla o el
+ * propio usuario— y si no, el documento sigue en blanco.
+ *
+ * Puede errar hacia el lado de "todavía no está puesta" (un usuario que crea
+ * una capa a mano antes de llegar a este paso ya cuenta como "listo") pero
+ * NUNCA hacia el lado contrario: la regla 3 del repositorio es que ninguna
+ * capacidad se anuncia sin evidencia, y "puede que sí" no es evidencia.
+ */
+export function cadTourLaminaReady(
+  document: CadCommandDocumentView | null | undefined,
+): boolean {
+  if (!document) return false;
+  const extraLayers = document.layers.length > 1;
+  const extraDimensionStyles =
+    Object.keys(document.styles?.dimension ?? {}).length > 1;
+  return extraLayers || extraDimensionStyles;
+}
+
+const CAD_TOUR_LAMINA_BLANK_COPY: Pick<CadTourStep, "title" | "instruction" | "hint"> = {
+  title: "Configura tu lámina",
+  instruction:
+    "Este documento arrancó en blanco: crea tus capas y fija el estilo de cota y la escala antes de dibujar. La próxima vez, partir de una plantilla te ahorra este paso.",
+  hint: "El gestor de capas y los estilos de cota están en la cinta, pestaña Administrar.",
+};
+
+/**
+ * El texto que de verdad se enseña para un paso, condicionado a la evidencia.
+ * Sólo "lamina" cambia: los otros cuatro pasos describen una ACCIÓN del
+ * usuario (dibujar, colocar, acotar, exportar) que es cierta sea cual sea el
+ * estado de partida, así que su copia estática ya era honesta.
+ */
+export function cadGuidedTourStepCopy(
+  step: CadTourStep,
+  evidence: CadTourEvidence,
+): Pick<CadTourStep, "title" | "instruction" | "hint"> {
+  if (step.id !== "lamina") return step;
+  return cadTourLaminaReady(evidence.document) ? step : CAD_TOUR_LAMINA_BLANK_COPY;
 }
 
 export function cadTourStepDone(id: CadTourStepId, evidence: CadTourEvidence): boolean {

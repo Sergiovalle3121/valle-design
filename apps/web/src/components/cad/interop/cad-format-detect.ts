@@ -26,15 +26,21 @@ export const ACAD_VERSION_NAMES: Record<string, string> = {
   AC1032: "2018",
 };
 
-export type CadFormat = "dwg" | "dxf" | "unknown";
+/**
+ * `gltf`, `collada`, `obj` y `stl` son los cuatro formatos de MALLA que
+ * `lib/cad/interop/` sabe coser en un `solid3d`; `skp` se reconoce para
+ * RECHAZARLO con su motivo (SketchUp nativo, formato propietario — ver
+ * `lib/cad/interop/skp-reject.ts`), nunca para leerlo.
+ */
+export type CadFormat = "dwg" | "dxf" | "gltf" | "collada" | "obj" | "stl" | "skp" | "unknown";
 
 export interface CadFormatInfo {
   format: CadFormat;
-  /** Código crudo de versión (AC10xx) si se detectó. */
+  /** Código crudo de versión (AC10xx) si se detectó — sólo aplica a DWG/DXF. */
   version?: string;
-  /** Nombre comercial (R12, 2018…) si se reconoció. */
+  /** Nombre comercial (R12, 2018…) si se reconoció — sólo aplica a DWG/DXF. */
   versionName?: string;
-  /** ¿Lo parseamos nativamente? (DXF sí; DWG no, por ahora.) */
+  /** ¿Lo parseamos nativamente? (DXF y los cuatro formatos de malla sí; DWG y SKP no.) */
   nativeSupport: boolean;
   /** Mensaje accionable para mostrar al usuario. */
   message: string;
@@ -90,12 +96,69 @@ export function detectCadFormat(input: Uint8Array | string): CadFormatInfo {
     };
   }
 
+  // glTF binario (.glb): los 4 primeros bytes son la firma ASCII "glTF".
+  if (
+    input instanceof Uint8Array &&
+    input.length >= 4 &&
+    input[0] === 0x67 &&
+    input[1] === 0x6c &&
+    input[2] === 0x54 &&
+    input[3] === 0x46
+  ) {
+    return { format: "gltf", nativeSupport: true, message: "Archivo glTF binario (.glb) válido para importar como sólido." };
+  }
+  // glTF de texto (.gltf): JSON con la sección "asset" que exige el estándar.
+  if (/^\s*\{/.test(header) && /"asset"\s*:\s*\{[^}]*"version"/.test(header)) {
+    return { format: "gltf", nativeSupport: true, message: "Archivo glTF de texto válido para importar como sólido." };
+  }
+  // COLLADA (.dae): XML con la raíz <COLLADA>.
+  if (/<COLLADA[\s>]/.test(header)) {
+    return { format: "collada", nativeSupport: true, message: "Archivo COLLADA (.dae) válido para importar como sólido." };
+  }
+  // STL ASCII: empieza literalmente por "solid" y trae "facet normal" cerca —
+  // "solid" a secas no basta, porque también es una palabra común en DXF/JSON.
+  if (/^solid\b/.test(header) && /facet\s+normal/.test(header)) {
+    return { format: "stl", nativeSupport: true, message: "Archivo STL de texto válido para importar como sólido." };
+  }
+  // STL binario: NO tiene firma — la cabecera de 80 bytes es arbitraria. La
+  // única comprobación fiable es aritmética: 80 bytes de cabecera + 4 de
+  // conteo + 50 bytes por triángulo tiene que cuadrar EXACTO con el tamaño
+  // del archivo. Sólo se puede hacer con el archivo COMPLETO en la mano.
+  if (input instanceof Uint8Array && input.byteLength >= 84) {
+    const triangleCount = new DataView(input.buffer, input.byteOffset, input.byteLength).getUint32(80, true);
+    if (input.byteLength === 84 + triangleCount * 50) {
+      return { format: "stl", nativeSupport: true, message: "Archivo STL binario válido para importar como sólido." };
+    }
+  }
+  // OBJ: sin firma tampoco, pero su vocabulario de línea (v/vn/vt/f/o/g) es
+  // reconocible por muestreo de las primeras líneas no vacías.
+  if (looksLikeObj(header)) {
+    return { format: "obj", nativeSupport: true, message: "Archivo OBJ válido para importar como sólido." };
+  }
+  // .skp: se reconoce para RECHAZARLO, nunca para leerlo (ver skp-reject.ts).
+  if (/SketchUp Model/.test(head(input, 64))) {
+    return {
+      format: "skp",
+      nativeSupport: false,
+      message: "Archivo SketchUp nativo (.skp): formato propietario, no se lee. Exporta a COLLADA (.dae) o glTF (.glb) desde SketchUp.",
+    };
+  }
+
   return {
     format: "unknown",
     nativeSupport: false,
     message:
-      "Formato no reconocido. Sube un DXF (texto) exportado desde tu CAD.",
+      "Formato no reconocido. Sube un DXF (texto), un JSON canónico o un modelo 3D (OBJ, STL, glTF/GLB o COLLADA).",
   };
+}
+
+/** Heurística de línea: al menos dos palabras clave de OBJ entre las primeras líneas no vacías. */
+function looksLikeObj(header: string): boolean {
+  const lines = header.split(/\r?\n/).filter((line) => line.trim().length > 0).slice(0, 20);
+  if (lines.length === 0) return false;
+  const objLine = /^(v|vt|vn|f|o|g|usemtl|mtllib)\s/;
+  const matches = lines.filter((line) => objLine.test(line) || line.trim().startsWith("#"));
+  return matches.length >= Math.min(2, lines.length) && lines.every((line) => objLine.test(line) || line.trim().startsWith("#"));
 }
 
 /** ¿El contenido parece un DWG binario? (atajo conveniente.) */

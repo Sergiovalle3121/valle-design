@@ -103,7 +103,7 @@ test("crea proyecto y documentos con IDs propios, guarda CAS y reabre tras una n
   await expect(page).toHaveURL(
     /\/studio\/20000000-0000-4000-8000-000000000001$/,
   );
-  await page.getByRole("button", { name: "Circle", exact: true }).click();
+  await page.getByRole("button", { name: "Círculo", exact: true }).click();
   const dynamic = page.getByTestId("cad-dynamic-input");
   await page.getByTestId("cad-dynamic-field-x").fill("4000");
   await page.getByTestId("cad-dynamic-field-y").fill("3000");

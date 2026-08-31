@@ -205,20 +205,20 @@ Todo lo que sale por el reporter pasa por saneo (`observability/scrub.ts`):
 correos, URLs con credenciales, cabeceras `Authorization`/`Cookie`, JWT, UUID
 de tenant, hashes y firmas se redactan antes de cruzar el proceso.
 
-## Asistencia CIDE opcional
+## Llamadas (WebRTC)
 
-| Variable               | Comportamiento                                                                              |
-| ---------------------- | ------------------------------------------------------------------------------------------- |
-| `CIDE_BASE_URL`        | Base OpenAI-compatible. Si falta, intent/vision devuelven `available: false` sin hacer red. |
-| `CIDE_API_KEY`         | Credencial opcional enviada como Bearer sólo al proveedor CIDE.                             |
-| `CIDE_MODEL`           | Modelo de texto; default `qwen2.5:7b`.                                                      |
-| `CIDE_VISION_MODEL`    | Modelo multimodal; default `qwen2.5vl:7b`, o cae a `CIDE_MODEL`.                            |
-| `CIDE_TIMEOUT_MS`      | Timeout de vision; default `60000`.                                                         |
-| `AI_MAX_OUTPUT_TOKENS` | Presupuesto de salida de intent; default `700`.                                             |
-| `AI_MOCK`              | Con `1`, respuestas deterministas de prueba. Nunca producción.                              |
+| Variable               | Requerida | Comportamiento                                                                                                                                                                                                                                                                                    |
+| ----------------------- | --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `CALLS_STUN_URLS`       | No        | Servidores STUN, separados por comas. Sin la variable (no confundir con vacía) el default son los STUN públicos y gratuitos de Google — el mismo default que casi cualquier despliegue WebRTC sin STUN propio. `CALLS_STUN_URLS=` (vacía a propósito) apaga STUN por completo, sin caer al default. |
+| `CALLS_TURN_URLS`       | No        | Servidores TURN (relevo), separados por comas. **Sin ella no hay TURN**: las llamadas entre dos redes que no atraviesan NAT directo —del orden del 15% en redes reales, NAT simétrico o firewall corporativo— fallan, y la respuesta de `POST /v1/calls/rooms` declara `turnConfigured: false` para que el cliente lo diga en vez de quedarse "conectando" para siempre (`call-ice-policy.ts`: sin TURN, un `failed` de ICE se rinde de inmediato, sin gastar reintentos en algo que un reintento no arregla). |
+| `CALLS_TURN_USERNAME`   | Con TURN  | Usuario del servidor TURN. Viaja al navegador dentro de la respuesta de unión a sala — es lo que el cliente necesita para autenticarse contra el relevo, no un secreto de servidor a servidor.                                                                                                    |
+| `CALLS_TURN_CREDENTIAL` | Con TURN  | Credencial del servidor TURN. Misma consideración: la conoce el navegador porque `RTCPeerConnection` la necesita para negociar el relevo.                                                                                                                                                          |
 
-Evalúa privacidad y residencia de datos antes de habilitar CIDE con planos de
-clientes.
+Operar un servidor TURN es infraestructura, no código: este repositorio no
+trae uno. `coturn` es la opción libre más común para levantar uno propio.
+Sin `CALLS_TURN_URLS`, el producto sigue funcionando para el ~85% de pares
+que sí atraviesan NAT directo — la llamada simplemente no promete lo que no
+puede cumplir para el resto.
 
 ## Web y build
 

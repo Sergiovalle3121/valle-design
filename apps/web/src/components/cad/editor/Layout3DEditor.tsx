@@ -129,11 +129,6 @@ import {
   type CheckBox,
   type DesignReport,
 } from "@/lib/cad/design-checks";
-import {
-  describeCadIntent,
-  normalizeToolCalls,
-  type CadIntent,
-} from "@/lib/cad/cad-intent";
 import { parseCoordinate, constrainPoint } from "@/lib/cad/precision-input";
 import {
   startCommand,
@@ -163,7 +158,6 @@ import {
   cadSnapSceneAddEntities,
   cadSnapSceneFromBoxes,
 } from "@/lib/cad/snap-scene";
-import { normalizeVision, type VisionResult } from "@/lib/cad/cad-vision";
 import { detectCadFormat } from "@/components/cad/interop/cad-format-detect";
 import type { PlotLayout } from "@/components/cad/plot/plot-scale";
 import {
@@ -226,7 +220,6 @@ import { createCadCheckpointQueue } from "@/lib/cad/recovery-checkpoint-queue";
 import {
   archiveCadConflictsExcept,
   cadAutosaveBlockedForDocument,
-  cadConflictIncidentLabel,
   closeCadConflictIncident,
   openCadConflictIncident,
   type CadConflictRegistry,
@@ -447,7 +440,11 @@ import { CadDesignReportDialog } from "../dialogs/CadDesignReportDialog";
 import { fmtArea, fmtDist } from "../studio/format-units";
 import { guardCadWebglContext } from "../viewport/webgl-context-guard";
 import { CadNativeEntityList } from "../palettes/CadNativeEntityList";
-import { CadSaveStatus } from "../studio/CadSaveStatus";
+import { CadStatusBar } from "../studio/CadStatusBar";
+import { CadRibbon } from "../ribbon/CadRibbon";
+import { registerCadUiHandler } from "@/components/cad/palettes/palette-command-bus";
+import { CadViewCube } from "../viewport/CadViewCube";
+import { CadNavigationBar } from "../viewport/CadNavigationBar";
 import { boundsIntersect } from "@/lib/cad/entity-hit-geometry";
 import {
   executeCadEntityCommand,
@@ -537,11 +534,6 @@ import {
   applyInitialCameraFraming,
 } from "@/components/cad/viewport/camera-policy";
 import {
-  CadRenderPipelineBadge,
-  CadRenderPipelineStats,
-} from "@/components/cad/viewport/RenderPipelineBadge";
-import { Cad3DSolidDiagnostics } from "@/components/cad/viewport/Cad3DSolidDiagnostics";
-import {
   resolveCadRenderPipeline,
   type CadRenderPipelineChoice,
 } from "@/lib/cad/render-pipeline-preference";
@@ -625,13 +617,9 @@ import type {
   CadPropertyRow,
   CadPropertyValue,
 } from "@/components/cad/palettes/property-model";
-import { CadDraftStatusBar } from "@/components/cad/palettes/CadDraftStatusBar";
 import { CadPaletteOverlays } from "@/components/cad/palettes/CadPaletteOverlays";
 import { CadIncidentReporter } from "@/components/cad/studio/CadIncidentReporter";
-import {
-  CAD_OSNAP_HUD_LABELS,
-  CAD_POLAR_INCREMENTS,
-} from "@/components/cad/palettes/draft-settings-host";
+import { CAD_OSNAP_HUD_LABELS } from "@/components/cad/palettes/draft-settings-host";
 import {
   useCadDraftSettings,
   useCadDraftSettingsHost,
@@ -671,28 +659,24 @@ import {
 // los comandos de análisis del kernel degradan con su aviso contractual
 // (`analysis_pack_missing`) — comportamiento probado en analysis-extensions.spec.
 
-/** Propuesta del copiloto IA que el humano aprueba antes de aplicarse. */
-type CadAiProposal = {
-  source: "intent" | "optimize";
-  intents: CadIntent[];
-  descriptions?: string[];
-  errors: string[];
-  message?: string;
-};
-
 /**
- * Full-screen interactive 3D layout editor — the "CAD" view of the plant floor.
+ * El editor: el lienzo de dibujo de Valle Design, en 2D y en 3D sobre el mismo
+ * documento.
  *
- * Stations are extruded, labelled blocks; non-station equipment (benches,
- * conveyors, racks, robots, walls, columns, AGVs, operators…) are placed from a
- * categorised palette and rendered with distinctive geometry per archetype.
- * Anything on the floor can be dragged (a raycast against the ground gives the
- * new world x/y — exactly the placement data the 2D editor uses, so both views
- * stay in sync), selected, nudged, rotated, duplicated, resized from the
- * properties panel, or removed. Saves back through the shared layout endpoint:
- * stations via positions/cleared, equipment via the additive `assets` array.
+ * Dibuja CUALQUIER plano —arquitectónico, mecánico, eléctrico, civil, de
+ * instalaciones, de mobiliario, de terreno— y no está atado a ninguna
+ * tipología: una nave industrial es un edificio más, igual que una casa
+ * habitación o un consultorio. Si algo aquí dentro sólo sirve para operar una
+ * fábrica y no para DIBUJAR un plano, no pertenece a este archivo (`IDENTITY.md`).
  *
- * three.js + OrbitControls, lazy-loaded so the engine only ships when opened.
+ * Todo lo colocado se arrastra (un rayo contra el suelo da la x/y de mundo —los
+ * mismos datos de colocación que usa la vista 2D, así las dos no se
+ * desincronizan), se designa, se empuja con las flechas, se gira, se duplica, se
+ * redimensiona desde el panel de propiedades o se borra. Guarda por el mismo
+ * documento canónico con CAS.
+ *
+ * three.js + OrbitControls, cargados en diferido para que el motor sólo viaje
+ * cuando se abre el editor.
  */
 
 /* ──────────────────────── Review links (server-owned) ────────────────────── */
@@ -1494,13 +1478,6 @@ export default function Layout3DEditor({
       notes: "",
     });
   const dxfInputRef = useRef<HTMLInputElement | null>(null);
-  // Visión plano→muros (Fase 71 cableada, ADR §217): imagen → CIDE multimodal
-  // → normalizeVision → muros/zonas editables. El humano revisa antes de insertar.
-  const visionInputRef = useRef<HTMLInputElement | null>(null);
-  const [visionBusy, setVisionBusy] = useState(false);
-  const [visionPreview, setVisionPreview] = useState<
-    (VisionResult & { imageName: string }) | null
-  >(null);
   const [showVersions, setShowVersions] = useState(false); // versions/scenarios modal (unify)
   const [localSnapshots, setLocalSnapshots] = useState<
     CadSnapshotHistory<Snapshot>
@@ -1544,9 +1521,6 @@ export default function Layout3DEditor({
   const commandPreviewRef = useRef<CommandPreviewState | null>(null);
 
   const commandTextRef = useRef("");
-  // Copiloto IA (ADR §215): propuesta NL→CAD / optimización — humano aprueba.
-  const [aiBusy, setAiBusy] = useState<null | "intent" | "optimize">(null);
-  const [aiProposal, setAiProposal] = useState<CadAiProposal | null>(null);
   const [selList, setSelList] = useState<SelItem[]>([]);
   const [selSnap, setSelSnap] = useState<SelSnap | null>(null);
   const [selSummary, setSelSummary] = useState<CadSelectionProperties | null>(
@@ -2587,7 +2561,13 @@ export default function Layout3DEditor({
       setRecoveryCandidate(null);
       setRecoveryDivergent(false);
       setRecoverySavedAt(null);
-      setTab("stations");
+      // "equipment" (Biblioteca) es el panel por defecto para todo documento
+      // nuevo. La pestaña "stations" es compatibilidad con planos heredados
+      // del planificador industrial (ver IDENTITY.md, tabla de
+      // identificadores congelados: "se lee pero no se ofrece") y sólo
+      // aparece más abajo cuando el documento cargado de verdad trae
+      // estaciones — nunca como arranque por defecto.
+      setTab("equipment");
       setTool("select");
       setMeasureLive(null);
       setWalk(false);
@@ -8410,7 +8390,7 @@ export default function Layout3DEditor({
         y: asset.y + asset.h / 2,
         width: asset.w,
         height: asset.h,
-        layer: "Safety",
+        layer: "Seguridad",
         requiredClearance:
           kind === "safety_clearance"
             ? Math.max(asset.w, asset.h) / 2
@@ -8553,7 +8533,7 @@ export default function Layout3DEditor({
     select(items);
     rebuildAll();
     focusViewportItems(items);
-    toast.success("Issue de seguridad seleccionado.", "Safety");
+    toast.success("Incidencia de seguridad seleccionada.", "Seguridad");
   };
   const selectValidationIssue = (issue: CadValidationIssueRow) => {
     const items: SelItem[] = issue.affectedObjectIds
@@ -9496,7 +9476,7 @@ export default function Layout3DEditor({
     }
     const name = (
       typeof window !== "undefined"
-        ? window.prompt("Nombre del bloque (ej. Celda SMT estándar):")
+        ? window.prompt("Nombre del bloque (ej. Puerta abatible 0.90):")
         : ""
     )?.trim();
     if (!name) return;
@@ -10409,135 +10389,6 @@ export default function Layout3DEditor({
       setDxfBusy(false);
     }
   };
-  // ---- visión plano→muros (Fase 71 cableada, ADR §217) ----
-  const onVisionFile = async (file: File) => {
-    if (!data) return;
-    if (file.size > 4_000_000) {
-      toast.error("La imagen supera 4 MB; reduce la resolución.", "Visión");
-      return;
-    }
-    setVisionBusy(true);
-    setVisionPreview(null);
-    try {
-      const imageDataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(new Error("read"));
-        reader.readAsDataURL(file);
-      });
-      const r = await legacyCadFetch("layout/vision", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model, revision, imageDataUrl }),
-      });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const body = (await r.json()) as {
-        available: boolean;
-        raw: string;
-        message?: string;
-      };
-      if (!body.available || !body.raw) {
-        toast.error(
-          body.message || "El motor de visión (CIDE) no está disponible.",
-          "Visión",
-        );
-        return;
-      }
-      // El modelo a veces envuelve el JSON en ```json ... ``` — extrae el bloque.
-      const raw = body.raw.replace(/^[\s\S]*?(\{[\s\S]*\})[\s\S]*$/, "$1");
-      const result = normalizeVision(raw, data.footprint);
-      if (!result.walls.length && !result.zones.length) {
-        toast.error(
-          result.errors[0] ||
-            "El modelo no detectó muros ni zonas en el plano.",
-          "Visión",
-        );
-        return;
-      }
-      setVisionPreview({ ...result, imageName: file.name });
-    } catch {
-      toast.error("No se pudo vectorizar el plano.", "Visión");
-    } finally {
-      setVisionBusy(false);
-    }
-  };
-  const applyVisionResult = () => {
-    const ctx = ctxRef.current;
-    const vp = visionPreview;
-    if (!ctx || !vp) return;
-    recordLocalSnapshot(`Auto · Visión ${vp.imageName}`, "command");
-    pushHistory();
-    const thick = assetMeta("wall").h;
-    const created: string[] = [];
-    for (const wall of vp.walls) {
-      const len = Math.hypot(wall.b.x - wall.a.x, wall.b.y - wall.a.y);
-      if (len < 1) continue;
-      const cx = (wall.a.x + wall.b.x) / 2,
-        cy = (wall.a.y + wall.b.y) / 2;
-      const angle =
-        (Math.atan2(wall.b.y - wall.a.y, wall.b.x - wall.a.x) * 180) / Math.PI;
-      const id = newId("as");
-      assetsRef.current.set(id, {
-        id,
-        kind: "wall",
-        x: cx - len / 2,
-        y: cy - thick / 2,
-        w: len,
-        h: thick,
-        rotation: angle,
-        label: "Muro (visión)",
-      });
-      created.push(id);
-    }
-    const zoneIds: string[] = [];
-    for (const zone of vp.zones) {
-      const xs = zone.points.map((p) => p.x);
-      const ys = zone.points.map((p) => p.y);
-      const minX = Math.max(0, Math.min(...xs));
-      const maxX = Math.min(ctx.W, Math.max(...xs));
-      const minY = Math.max(0, Math.min(...ys));
-      const maxY = Math.min(ctx.H, Math.max(...ys));
-      if (maxX - minX < 1 || maxY - minY < 1) continue;
-      const id = newId("as");
-      assetsRef.current.set(id, {
-        id,
-        kind: "zone",
-        label: zone.name || "Zona (visión)",
-        x: Math.round(minX),
-        y: Math.round(minY),
-        w: Math.round(maxX - minX),
-        h: Math.round(maxY - minY),
-        rotation: 0,
-      });
-      zoneIds.push(id);
-    }
-    setAssetIds(new Set(assetsRef.current.keys()));
-    if (created.length)
-      setLayerAssignments((cur) =>
-        assignObjectsToLayer(cur, created, "architecture"),
-      );
-    if (zoneIds.length)
-      setLayerAssignments((cur) =>
-        assignObjectsToLayer(cur, zoneIds, defaultCadLayerForAssetKind("zone")),
-      );
-    setObjectTags((cur) => {
-      const next = { ...cur };
-      created.forEach((id) => {
-        next[id] = "wall, architecture, vision";
-      });
-      zoneIds.forEach((id) => {
-        next[id] = "zone, vision";
-      });
-      return next;
-    });
-    setVisionPreview(null);
-    markDirty();
-    rebuildAll();
-    toast.success(
-      `Visión: ${created.length} muro(s) y ${zoneIds.length} zona(s) insertados como objetos editables.`,
-      "Visión",
-    );
-  };
   // ---- versions / scenarios (ported from 2D, unify) ----
   const scopeQs = `model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`;
   const loadVersions = async () => {
@@ -10997,10 +10848,10 @@ export default function Layout3DEditor({
     const id = newId("as");
     const label =
       kind === "esd"
-        ? "ESD controlled zone"
+        ? "Zona ESD controlada"
         : kind === "no-go"
-          ? "No-go zone"
-          : "Restricted zone";
+          ? "Zona prohibida"
+          : "Zona restringida";
     assetsRef.current.set(id, {
       id,
       kind: "zone",
@@ -11023,7 +10874,7 @@ export default function Layout3DEditor({
     select([{ type: "asset", id }]);
     markDirty();
     rebuildAll();
-    toast.success(`${label} creada.`, "Safety");
+    toast.success(`${label} creada.`, "Seguridad");
   };
   const createSafetyPathAsset = (kind: "circulation" | "emergency") => {
     const ctx = ctxRef.current;
@@ -11059,7 +10910,7 @@ export default function Layout3DEditor({
     select([{ type: "asset", id }]);
     markDirty();
     rebuildAll();
-    toast.success(`${label} creado.`, "Safety");
+    toast.success(`${label} creado.`, "Seguridad");
   };
 
   const setField = (
@@ -11907,262 +11758,6 @@ export default function Layout3DEditor({
     );
     toast.success(`Rehecho: ${item.label}`, "Comando CAD");
   };
-  const buildAiIntentProposalDescription = (intent: CadIntent) => {
-    if (intent.kind !== "cleanupGeometry") return describeCadIntent(intent);
-    const preview = previewCadCommand(
-      {
-        id: "cleanup_geometry",
-        tolerance: intent.tolerance,
-        angleToleranceDeg: intent.angleToleranceDeg,
-        minLength: intent.minLength,
-      },
-      buildCommandContext(),
-    );
-    const evidence = preview.issues
-      .slice(0, 3)
-      .map((issue) => issue.message)
-      .join(" · ");
-    return `${preview.summary}${evidence ? ` Evidencia: ${evidence}` : ""}`;
-  };
-  // ── Copiloto IA (ADR §215): NL→CAD y optimización vía backend CIDE. El modelo
-  // solo PROPONE tool-calls; normalizeToolCalls valida y el humano aplica. ──
-  const requestAiProposal = async (source: "intent" | "optimize") => {
-    const prompt = commandText.trim();
-    if (source === "intent" && !prompt) {
-      toast.error("Escribe la instrucción para la IA.", "Copiloto IA");
-      return;
-    }
-    setAiBusy(source);
-    setAiProposal(null);
-    try {
-      const r =
-        source === "intent"
-          ? await legacyCadFetch("layout/cad-intent", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ model, revision, prompt }),
-            })
-          : await legacyCadFetch(
-              `layout/optimize-copilot?model=${encodeURIComponent(model)}&revision=${encodeURIComponent(revision)}`,
-            );
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      const body = (await r.json()) as {
-        available: boolean;
-        toolCalls: { name: string; arguments: unknown }[];
-        message?: string;
-      };
-      if (!body.available) {
-        setAiProposal({
-          source,
-          intents: [],
-          errors: [],
-          message: body.message || "El motor de IA (CIDE) no está disponible.",
-        });
-        return;
-      }
-      const { intents, errors } = normalizeToolCalls(body.toolCalls ?? []);
-      if (!intents.length && !errors.length) {
-        setAiProposal({
-          source,
-          intents: [],
-          errors: [],
-          message:
-            body.message || "La IA no propuso acciones para esta instrucción.",
-        });
-        return;
-      }
-      setAiProposal({
-        source,
-        intents,
-        descriptions: intents.map(buildAiIntentProposalDescription),
-        errors,
-        message: body.message,
-      });
-    } catch {
-      setAiProposal({
-        source,
-        intents: [],
-        errors: [],
-        message: "No se pudo contactar el copiloto IA.",
-      });
-    } finally {
-      setAiBusy(null);
-    }
-  };
-  const applyAiIntent = (intent: CadIntent): boolean => {
-    const ctx = ctxRef.current;
-    if (!ctx) return false;
-    switch (intent.kind) {
-      case "setFootprint": {
-        const unit = (data?.footprint.unit || "mm") as WorldUnit;
-        setData((d) =>
-          d
-            ? {
-                ...d,
-                footprint: {
-                  ...d.footprint,
-                  footprintW: clampFootprintUnit(
-                    Math.round(intent.footprintW),
-                    unit,
-                  ),
-                  footprintH: clampFootprintUnit(
-                    Math.round(intent.footprintH),
-                    unit,
-                  ),
-                  ...(intent.gridSize
-                    ? {
-                        gridSize: clampGridUnit(
-                          Math.round(intent.gridSize),
-                          unit,
-                        ),
-                      }
-                    : {}),
-                },
-              }
-            : d,
-        );
-        return true;
-      }
-      case "placeAsset": {
-        const a = intent.asset;
-        const id = newId("as");
-        assetsRef.current.set(id, {
-          id,
-          kind: a.kind,
-          x: Math.max(0, Math.min(ctx.W - a.w, snapWorld(a.x))),
-          y: Math.max(0, Math.min(ctx.H - a.h, snapWorld(a.y))),
-          w: a.w,
-          h: a.h,
-          rotation: a.rotation,
-          ...(a.label ? { label: a.label } : {}),
-        });
-        setAssetIds((s) => new Set(s).add(id));
-        setLayerAssignments((cur) =>
-          assignObjectsToLayer(cur, [id], defaultCadLayerForAssetKind(a.kind)),
-        );
-        return true;
-      }
-      case "draw": {
-        const seg = intent.action;
-        if (seg.type !== "addSegment") return false;
-        const len = Math.hypot(seg.b.x - seg.a.x, seg.b.y - seg.a.y);
-        if (len < 1) return false;
-        const thick = assetMeta("wall").h;
-        const cx = (seg.a.x + seg.b.x) / 2,
-          cy = (seg.a.y + seg.b.y) / 2;
-        const angle =
-          (Math.atan2(seg.b.y - seg.a.y, seg.b.x - seg.a.x) * 180) / Math.PI;
-        const id = newId("as");
-        assetsRef.current.set(id, {
-          id,
-          kind: "wall",
-          x: cx - len / 2,
-          y: cy - thick / 2,
-          w: len,
-          h: thick,
-          rotation: angle,
-        });
-        setAssetIds((s) => new Set(s).add(id));
-        setLayerAssignments((cur) =>
-          assignObjectsToLayer(cur, [id], "architecture"),
-        );
-        return true;
-      }
-      case "moveStation": {
-        const wanted = intent.station.trim().toLocaleLowerCase("es-MX");
-        let sid: string | null = null;
-        stationsByIdRef.current.forEach((st, id) => {
-          if (!sid && (st.station ?? "").toLocaleLowerCase("es-MX") === wanted)
-            sid = id;
-        });
-        if (!sid)
-          stationsByIdRef.current.forEach((st, id) => {
-            if (
-              !sid &&
-              (st.station ?? "").toLocaleLowerCase("es-MX").includes(wanted)
-            )
-              sid = id;
-          });
-        const p = sid ? placementsRef.current.get(sid) : undefined;
-        if (!sid || !p) return false;
-        if (isItemLayerLocked({ type: "station", id: sid })) return false;
-        p.x = Math.max(0, Math.min(ctx.W - p.w, snapWorld(intent.x)));
-        p.y = Math.max(0, Math.min(ctx.H - p.h, snapWorld(intent.y)));
-        return true;
-      }
-      case "cleanupGeometry": {
-        const input: CadCommandInput = {
-          id: "cleanup_geometry",
-          tolerance: intent.tolerance,
-          angleToleranceDeg: intent.angleToleranceDeg,
-          minLength: intent.minLength,
-        };
-        const result = executeCadCommand(input, buildCommandContext());
-        if (!result.applied) return false;
-        return result.operations.map(applyCommandOperation).some(Boolean);
-      }
-    }
-  };
-  const applyAiProposal = () => {
-    if (!aiProposal || !aiProposal.intents.length) return;
-    if (drawingReadOnlyRef.current) {
-      notifyReadOnly();
-      return;
-    }
-    const checkpoint = snapshotDocument();
-    const footprintBefore = data?.footprint ? { ...data.footprint } : null;
-    const wasDirty = dirty;
-    const proposalHistory =
-      canonicalHistoryRef.current?.createRecoveryPoint() ?? null;
-    recordLocalSnapshot(
-      `Auto · Copiloto IA (${aiProposal.source === "intent" ? "instrucción" : "optimización"})`,
-      "command",
-    );
-    pushHistory();
-    const applied = aiProposal.intents
-      .map(applyAiIntent)
-      .filter(Boolean).length;
-    const rollbackProposal = (message: string) => {
-      loadedCadDocumentRef.current = checkpoint;
-      restore(cadDocumentToEditorSnapshot(checkpoint));
-      if (footprintBefore)
-        setData((current) =>
-          current ? { ...current, footprint: footprintBefore } : current,
-        );
-      if (proposalHistory && canonicalHistoryRef.current) {
-        canonicalHistoryRef.current.restoreRecoveryPoint(proposalHistory);
-        setHist(canonicalHistoryRef.current.depths());
-      } else cancelHistoryCheckpoint();
-      dirtyRef.current = wasDirty;
-      setDirty(wasDirty);
-      toast.error(message, "Copiloto IA");
-    };
-    if (applied !== aiProposal.intents.length) {
-      rollbackProposal(
-        "La propuesta no era aplicable completa; se revirtió sin cambios parciales.",
-      );
-      return;
-    }
-    const constrained = solveCadConstraints(snapshotDocument());
-    if (!constrained.converged) {
-      rollbackProposal(
-        constrained.issues[0]?.message ||
-          "La propuesta contradice las restricciones y fue revertida.",
-      );
-      return;
-    }
-    loadedCadDocumentRef.current = constrained.document;
-    restore(cadDocumentToEditorSnapshot(constrained.document));
-    markDirty();
-    refreshSnap();
-    rebuildAll();
-    toast.success(
-      `Copiloto IA: ${applied}/${aiProposal.intents.length} acción(es) aplicadas como una transacción.`,
-      "Copiloto IA",
-    );
-    if (aiProposal.source === "intent" && applied) setCommandText("");
-    setAiProposal(null);
-  };
   const toggleCadLayerVisibility = (id: CadLayerId) => {
     const layer = cadLayers.find((candidate) => candidate.id === id);
     if (!layer) return;
@@ -12474,13 +12069,13 @@ export default function Layout3DEditor({
       setRecentPaletteActions((items) => rememberCadPaletteAction(items, key)),
     runToolbarAction,
     invokeEngineCommand: (name) => commandEngineRef.current.invoke(name),
-    copilotContext: buildCommandContext,
-    openCopilot: (text) => {
+    nlCommandContext: buildCommandContext,
+    openNlCommand: (text) => {
       setShowCommand(true);
       setCommandText(text);
     },
-    setCopilotPreview: setCommandPreview,
-    appendCopilotHistory: (item) =>
+    setNlCommandPreview: setCommandPreview,
+    appendNlCommandHistory: (item) =>
       setCommandLog((items) => prependCadCommandHistory(items, item)),
     insertSymbol: (id) => {
       addCadSymbol(id);
@@ -12677,25 +12272,42 @@ export default function Layout3DEditor({
     persistViewportBookmarks(next);
     toast.success(`Vista eliminada: ${bookmark.label}.`, "Vistas CAD");
   };
-  const toggleViewMenu = () => {
-    const next = !showView;
-    if (next) {
-      const bounds = viewMenuRef.current?.getBoundingClientRect();
-      if (bounds)
-        setViewMenuPosition({
-          left: Math.max(8, Math.min(bounds.left, window.innerWidth - 304)),
-          top: bounds.bottom + 6,
-        });
-      setViewportBookmarks(readViewportBookmarks());
-      if (data)
-        setFpDraft({
-          w: data.footprint.footprintW,
-          h: data.footprint.footprintH,
-          g: data.footprint.gridSize,
-        });
-    }
-    setShowView(next);
+  const openViewMenu = () => {
+    const bounds = viewMenuRef.current?.getBoundingClientRect();
+    if (bounds)
+      setViewMenuPosition({
+        left: Math.max(8, Math.min(bounds.left, window.innerWidth - 304)),
+        top: bounds.bottom + 6,
+      });
+    setViewportBookmarks(readViewportBookmarks());
+    if (data)
+      setFpDraft({
+        w: data.footprint.footprintW,
+        h: data.footprint.footprintH,
+        g: data.footprint.gridSize,
+      });
+    setShowView(true);
   };
+  const toggleViewMenu = () => {
+    if (!showView) openViewMenu();
+    else setShowView(false);
+  };
+  /**
+   * Apunta el panel de capas al bus de paletas (`palette-command-bus.ts`) para
+   * que el comando LAYER —tecleado o despachado desde la cinta, es el mismo
+   * despacho— pueda abrirlo. Antes nadie se apuntaba a "layer-manager": el
+   * propio comando ya avisaba con honestidad ("El gestor de capas no está
+   * montado en este espacio de trabajo"), pero el panel SÍ está montado aquí
+   * —es exactamente el que abre el botón "Vista, capas y plano"— así que el
+   * aviso era un límite falso, no uno real.
+   */
+  useEffect(() => {
+    return registerCadUiHandler("layer-manager", () => {
+      openViewMenu();
+      return true;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data]);
   const applyViewMode = useCallback((mode: "3d" | "2d") => {
     const cam = cameraRef.current;
     const ctrl = controlsRef.current;
@@ -14820,7 +14432,7 @@ export default function Layout3DEditor({
           : "text-success-ink",
     },
     {
-      label: "Safety zones",
+      label: "Zonas de seguridad",
       value: safetyIssues.length
         ? `${safetyIssues.length} issue(s)`
         : "Sin invasiones activas",
@@ -15750,28 +15362,6 @@ export default function Layout3DEditor({
         >
           <Upload className="w-4 h-4" />
         </T3Btn>
-        <input
-          ref={visionInputRef}
-          type="file"
-          accept="image/png,image/jpeg,image/webp"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) void onVisionFile(f);
-            e.target.value = "";
-          }}
-        />
-        <T3Btn
-          onClick={() => visionInputRef.current?.click()}
-          disabled={visionBusy}
-          title="Vectorizar plano con IA: sube una foto/imagen del plano y la visión (CIDE) propone muros y zonas editables"
-        >
-          {visionBusy ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
-          ) : (
-            <ScanEye className="w-4 h-4" />
-          )}
-        </T3Btn>
         {hasDxf && (
           <T3Btn
             onClick={importDxfWalls}
@@ -15896,6 +15486,17 @@ export default function Layout3DEditor({
         </button>
       </div>
 
+      {/* LA CINTA. Va debajo de la barra de título/atajos de arriba, igual que
+          en AutoCAD: título + acceso rápido primero, cinta después, lienzo
+          debajo de las dos. `cad-shell` es `flex flex-col`, así que un hijo
+          nuevo aquí sólo empuja el lienzo — no reordena nada que ya exista.
+          `commandEngineRef.current.invoke` es el MISMO despacho que usa la
+          línea de comandos: un botón de la cinta no es un camino nuevo. */}
+      <CadRibbon
+        dispatch={(name) => commandEngineRef.current.invoke(name)}
+        readOnly={drawingReadOnly}
+      />
+
       {error ? (
         <div className="flex-1 grid place-items-center text-amber-400 text-sm">
           {error}
@@ -15918,13 +15519,24 @@ export default function Layout3DEditor({
           >
             {workspacePreferences.leftDock && (
               <>
+                {/* La pestaña "Puntos heredados" SÓLO aparece cuando el
+                    documento cargado de verdad trae estaciones de un plano
+                    del antiguo planificador industrial (columna `stations`
+                    del esquema, ver IDENTITY.md). Un plano nuevo no tiene
+                    "puntos por colocar" — eso era la bandeja de estaciones
+                    de una línea de manufactura, y ofrecerla a un arquitecto
+                    que abre un documento en blanco es exactamente la clase
+                    de vocabulario que este repositorio prohíbe (AGENTS.md,
+                    "Domain boundary — no industrial management"). */}
                 <div className="flex shrink-0 type-caption font-medium border-b border-border">
-                  <button
-                    onClick={() => setTab("stations")}
-                    className={`flex-1 px-3 py-2 inline-flex items-center justify-center gap-1.5 ${tab === "stations" ? "text-foreground bg-muted/60" : "text-muted-foreground dark:text-muted-foreground hover:text-foreground"}`}
-                  >
-                    <MapPin className="w-3.5 h-3.5" /> Puntos
-                  </button>
+                  {(data?.stations.length ?? 0) > 0 && (
+                    <button
+                      onClick={() => setTab("stations")}
+                      className={`flex-1 px-3 py-2 inline-flex items-center justify-center gap-1.5 ${tab === "stations" ? "text-foreground bg-muted/60" : "text-muted-foreground dark:text-muted-foreground hover:text-foreground"}`}
+                    >
+                      <MapPin className="w-3.5 h-3.5" /> Puntos heredados
+                    </button>
+                  )}
                   <button
                     onClick={() => setTab("equipment")}
                     className={`flex-1 px-3 py-2 inline-flex items-center justify-center gap-1.5 ${tab === "equipment" ? "text-foreground bg-muted/60" : "text-muted-foreground dark:text-muted-foreground hover:text-foreground"}`}
@@ -15933,14 +15545,14 @@ export default function Layout3DEditor({
                   </button>
                 </div>
                 <div className="flex-1 overflow-y-auto p-3">
-                  {tab === "stations" ? (
+                  {tab === "stations" && (data?.stations.length ?? 0) > 0 ? (
                     <>
                       <div className="type-micro uppercase tracking-wide text-muted-foreground dark:text-muted-foreground mb-2">
-                        Por colocar ({tray.length})
+                        Marcadores heredados por colocar ({tray.length})
                       </div>
                       {tray.length === 0 ? (
                         <p className="type-caption text-muted-foreground">
-                          Todos los puntos están en el plano.
+                          Todos los marcadores heredados están en el plano.
                         </p>
                       ) : (
                         tray.map((st) => (
@@ -16074,19 +15686,19 @@ export default function Layout3DEditor({
                             onClick={() => createSafetyZoneAsset("no-go")}
                             className="rounded-lg border border-rose-300/20 bg-rose-400/[0.10] px-2 py-1.5 text-left type-micro font-semibold text-rose-100 hover:bg-rose-400/[0.16]"
                           >
-                            No-go zone
+                            Zona prohibida
                           </button>
                           <button
                             onClick={() => createSafetyZoneAsset("restricted")}
                             className="rounded-lg border border-amber-300/20 bg-amber-400/[0.10] px-2 py-1.5 text-left type-micro font-semibold text-warning-ink hover:bg-amber-400/[0.16]"
                           >
-                            Restricted
+                            Zona restringida
                           </button>
                           <button
                             onClick={() => createSafetyZoneAsset("esd")}
                             className="rounded-lg border border-indigo-300/20 bg-indigo-400/[0.10] px-2 py-1.5 text-left type-micro font-semibold text-primary-ink hover:bg-indigo-400/[0.16]"
                           >
-                            ESD zone
+                            Zona ESD
                           </button>
                           <button
                             onClick={() => createSafetyPathAsset("circulation")}
@@ -16113,7 +15725,7 @@ export default function Layout3DEditor({
                       <input
                         value={symbolSearch}
                         onChange={(e) => setSymbolSearch(e.target.value)}
-                        placeholder="Buscar SMT, AOI, safety…"
+                        placeholder="Buscar puerta, ventana, mueble…"
                         className="mb-2 w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground placeholder:text-muted-foreground outline-none focus:border-indigo-400/60"
                       />
                       <div className="mb-2 flex gap-1 overflow-x-auto pb-1">
@@ -16197,6 +15809,24 @@ export default function Layout3DEditor({
             onPointerDown={() => setCadContextMenu(null)}
           >
             <div ref={mountRef} className="absolute inset-0" />
+            {/* ViewCube + barra de navegación: cara nueva sobre navegación 3D
+                que ya existe y ya está probada (`camera-view-presets.ts`,
+                `view-3d.ts`) — ver el comentario de `CadViewCube`. Sólo tiene
+                sentido con la cámara en perspectiva 3D; en 2D (planta
+                bloqueada) no hay caras que mostrar. */}
+            {viewMode === "3d" && (
+              <div className="pointer-events-none absolute right-3 top-3 z-20 flex items-start gap-2">
+                <div className="pointer-events-auto">
+                  <CadViewCube onSelect={viewPreset} />
+                </div>
+                <div className="pointer-events-auto">
+                  <CadNavigationBar
+                    onFitView={fitView}
+                    hasSelection={selList.length > 0 || nativeSelectionIds.length > 0}
+                  />
+                </div>
+              </div>
+            )}
             {webglUnavailable !== "ok" && (
               <div
                 data-testid="cad-webgl-unavailable"
@@ -16486,222 +16116,62 @@ export default function Layout3DEditor({
                 )}
               </div>
             )}
-            <div className="cad-status-bar absolute bottom-3 right-3 z-20 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface/80 px-3 py-1.5 type-micro text-foreground shadow-xl backdrop-blur">
-              {/* 5.2 · Lo que sigue es telemetría de DESARROLLADOR: qué
-                  herramienta está activa, cuántas entidades nativas hay, qué
-                  pipeline dibuja y cuánta profundidad tiene el historial. Un
-                  arquitecto no puede hacer nada con ninguna de las cuatro, y
-                  la barra de estado de un CAD se mira cien veces por sesión.
-
-                  NO se borra: dieciséis goldens la leen por `textContent` y
-                  por atributo, y es la forma más barata de afirmar que una
-                  acción de dibujo dejó exactamente una entrada de historial.
-                  Se esconde tras `?cadDiag=1`. Ver CadDiagnosticsReadout. */}
-              <CadDiagnosticsReadout enabled={diagnosticsEnabled}>
-                <span className="text-primary-ink">Tool: {tool}</span>
-                <span data-testid="cad-selection-status-count">
-                  {professionalSelection.current.length} sel
-                </span>
-                <span
-                  data-testid="cad-native-document-count"
-                  title="Entidades nativas en el documento canónico"
-                >
-                  Native {nativeEntities.length}
-                </span>
-                {/* QUÉ pipeline dibuja y CUÁNTO lleva materializado. El benchmark
-                  midió un camino que el producto no ejecutaba; publicarlo en el
-                  DOM es lo que impide que vuelva a pasar sin que nadie lo note. */}
-                <CadRenderPipelineBadge
-                  pipeline={renderPipelineRef.current}
-                  slot={renderPipelineSlotRef.current!}
-                />
-                {renderPipelineRef.current === "batched" && (
-                  <CadRenderPipelineStats
-                    slot={renderPipelineSlotRef.current!}
-                  />
-                )}
-                <Cad3DSolidDiagnostics hostsRef={nativeMassHostsRef} />
-                {/* La profundidad del historial es OBSERVABLE: una acción de
-                  dibujo tiene que dejar exactamente una entrada, y una acción
-                  rechazada ninguna. Sin esto, "el primer Undo no deshace nada"
-                  sólo se nota a mano. */}
-                <span
-                  data-testid="cad-history-depth"
-                  data-undo={hist.undo}
-                  data-redo={hist.redo}
-                  title="Profundidad de deshacer/rehacer"
-                >
-                  U{hist.undo}/R{hist.redo}
-                </span>
-                {/* El indicador HEREDADO. Con el pipeline por lotes lo sirve
-                  `CadRenderPipelineStats` con las cifras del índice de tiles;
-                  aquí se apaga para que el `data-testid` no salga dos veces. */}
-                {renderPipelineRef.current !== "batched" &&
-                  nativeRenderStats.omitted > 0 && (
-                    <span
-                      data-testid="cad-native-render-stats"
-                      data-total={nativeRenderStats.total}
-                      data-visible={nativeRenderStats.visible}
-                      data-rendered={nativeRenderStats.rendered}
-                      data-batching={
-                        nativeRenderStats.batching ? "true" : "false"
-                      }
-                      className="text-warning-ink"
-                      title={`${nativeRenderStats.visible.toLocaleString()} entidades en bounds visibles; ${nativeRenderStats.omitted.toLocaleString()} permanecen sólo en overview/canónico`}
-                    >
-                      Viewport {nativeRenderStats.rendered.toLocaleString()}/
-                      {nativeRenderStats.visible.toLocaleString()} visibles ·{" "}
-                      {nativeRenderStats.total.toLocaleString()} total
-                      {nativeRenderStats.batching ? " · cargando…" : ""}
-                    </span>
-                  )}
-              </CadDiagnosticsReadout>
-              <span>{data?.footprint.unit ?? "mm"}</span>
-              <span
-                ref={cursorCoordinateRef}
-                data-testid="cad-cursor-coordinate"
-                data-x=""
-                data-y=""
-                className="font-mono tabular-nums"
-                title="Coordenadas del cursor en el dibujo"
-              >
-                X — · Y —
-              </span>
-              <span title="Modelo, revisión funcional y versión CAS">
-                {model} · {revision} · v{data?.cadDocumentVersion ?? 0}
-              </span>
-              <CadSaveStatus
-                saving={saving}
-                dirty={dirty}
-                scheduled={saveStatus === "scheduled"}
-                issue={saveIssue}
-                issueLabel={cadConflictIncidentLabel({
-                  documentId: documentId ?? "",
-                  baseVersion: 0,
-                  serverVersion:
-                    saveIssue?.kind === "conflict"
-                      ? (saveIssue.serverVersion ?? null)
-                      : null,
-                })}
-              />
-              {dirty && recoverySavedAt && (
-                <span className="text-primary-ink" title={recoverySavedAt}>
-                  Recovery local activo
-                </span>
-              )}
-              {dirty && recoveryWarning && (
-                <span className="text-danger-ink" title={recoveryWarning}>
-                  Recovery local en riesgo
-                </span>
-              )}
-              <span
-                className={
-                  connectionState === "online"
-                    ? "text-success-ink"
-                    : connectionState === "offline"
-                      ? "text-danger-ink"
-                      : "text-muted-foreground"
-                }
-              >
-                {connectionState === "online"
-                  ? "API online"
-                  : connectionState === "offline"
-                    ? "API offline"
-                    : "API…"}
-              </span>
-              <span>
-                Layer{" "}
-                {cadLayers.find((layer) => layer.id === activeCadLayer)
-                  ?.label ?? activeCadLayer}
-              </span>
-              {cadLayerSummary.hiddenObjectCount > 0 && (
-                <span className="text-warning-ink">
-                  Objetos en capas ocultas {cadLayerSummary.hiddenObjectCount}
-                </span>
-              )}
-              {cadLayerSummary.lockedObjectCount > 0 && (
-                <span className="text-warning-ink">
-                  Objetos en capas bloqueadas{" "}
-                  {cadLayerSummary.lockedObjectCount}
-                </span>
-              )}
-              <span>
-                Grilla {layers.grid ? "on" : "off"} / Snap{" "}
-                {snap ? "grid" : "free"}
-              </span>
-              <CadDraftStatusBar
-                settings={draftSettings}
-                polarIncrements={CAD_POLAR_INCREMENTS}
-                onToggleOsnap={draftSettingsHost.toggleOsnap}
-                onToggleOrtho={draftSettingsHost.toggleOrtho}
-                onTogglePolar={draftSettingsHost.togglePolar}
-                onPolarIncrement={draftSettingsHost.setPolarIncrement}
-                onToggleObjectSnapTracking={
-                  draftSettingsHost.toggleObjectSnapTracking
-                }
-                onClearTracking={draftSettingsHost.clearTrackingPoints}
-                onOpenSettings={paletteHost.toggleDraftSettings}
-                onOpenStyles={paletteHost.toggleStyles}
-              />
-              <button
-                onClick={openChecks}
-                className={`${releaseTone} hover:text-foreground`}
-              >
-                Release {releaseState}
-              </button>
-              {report && (
-                <span
-                  className={
-                    report.score === "error"
-                      ? "text-danger-ink"
-                      : report.score === "warn"
-                        ? "text-warning-ink"
-                        : "text-success-ink"
-                  }
-                >
-                  Validación {report.score}
-                </span>
-              )}
-              {cadValidationReport && (
-                <span
-                  className={
-                    cadValidationReport.severity === "critical"
-                      ? "text-danger-ink"
-                      : cadValidationReport.severity === "warning"
-                        ? "text-warning-ink"
-                        : "text-success-ink"
-                  }
-                >
-                  CAD {cadValidationReport.severity}
-                </span>
-              )}
-              {clearanceIssues.length > 0 && (
-                <span className="text-warning-ink">
-                  Clearance {clearanceIssues.length}
-                </span>
-              )}
-              {safetyIssues.length > 0 && (
-                <span className="text-warning-ink">
-                  Safety {safetyIssues.length}
-                </span>
-              )}
-              {validationHighlightIds.size > 0 && (
-                <button
-                  onClick={clearValidationHighlights}
-                  className="text-danger-ink hover:text-foreground"
-                >
-                  Highlights {validationHighlightIds.size}
-                </button>
-              )}
-              {dxfWarnings.length > 0 && (
-                <span className="text-warning-ink">
-                  DXF {dxfWarnings.length}
-                </span>
-              )}
-              {localSnapshots.snapshots.length > 0 && (
-                <span>Instantáneas {localSnapshots.snapshots.length}</span>
-              )}
-            </div>
+            <CadStatusBar
+              diagnostics={{
+                enabled: diagnosticsEnabled,
+                tool,
+                selectionCount: professionalSelection.current.length,
+                nativeEntityCount: nativeEntities.length,
+                renderPipelineRef,
+                renderPipelineSlotRef,
+                nativeMassHostsRef,
+                historyUndo: hist.undo,
+                historyRedo: hist.redo,
+                nativeRenderStats,
+              }}
+              unit={data?.footprint.unit ?? "mm"}
+              cursorCoordinateRef={cursorCoordinateRef}
+              documentInfo={{
+                model,
+                revision,
+                version: data?.cadDocumentVersion ?? 0,
+              }}
+              saveState={{
+                saving,
+                dirty,
+                saveStatus,
+                saveIssue,
+                documentId,
+                recoverySavedAt,
+                recoveryWarning,
+                connectionState,
+              }}
+              layersInfo={{
+                cadLayers,
+                activeCadLayer,
+                cadLayerSummary,
+                gridOn: layers.grid,
+                snapOn: snap,
+              }}
+              draftSettings={draftSettings}
+              draftSettingsHost={draftSettingsHost}
+              paletteHost={paletteHost}
+              validation={{
+                onOpenChecks: openChecks,
+                releaseTone,
+                releaseState,
+                report,
+                cadValidationReport,
+                clearanceIssuesCount: clearanceIssues.length,
+                safetyIssuesCount: safetyIssues.length,
+                validationHighlightCount: validationHighlightIds.size,
+                onClearHighlights: clearValidationHighlights,
+              }}
+              misc={{
+                dxfWarningsCount: dxfWarnings.length,
+                snapshotsCount: localSnapshots.snapshots.length,
+              }}
+            />
             {hatchPickMode && (
               <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full bg-violet-600/95 px-3 py-1.5 type-caption font-semibold text-foreground">
                 HATCH {hatchPickSolid ? "SOLID" : "ANSI31"} · clic dentro de una
@@ -16766,6 +16236,28 @@ export default function Layout3DEditor({
                 onClose={closeActiveDraftPolyline}
               />
             )}
+            {/* Terminar un comando del motor CON EL RATÓN, sin depender de que
+                el `tool` heredado coincida con uno de los pocos que montan
+                `CadDraftToolbar` arriba.
+                `CadDraftToolbar` sólo aparece para `tool === "wall"` o
+                `isCadDrawTool(tool)` — el puñado de herramientas que también
+                tienen equivalente en la paleta vieja. La cinta despacha los
+                192 comandos del registro por su nombre
+                (`commandEngineRef.current.invoke`), así que un comando
+                encadenable invocado DESDE LA CINTA (p. ej. LINE, PLINE) deja
+                `engineCommand` activo sin que `tool` cambie nunca, y sin este
+                botón no había ninguna forma de cerrarlo sin teclado. */}
+            {!walk && engineCommand && (
+              <button
+                type="button"
+                data-testid="cad-engine-command-finish"
+                onClick={() => commitActiveDraftCommand()}
+                title="Terminar el comando activo (Intro)"
+                className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-control border border-border bg-surface/95 px-3 py-1.5 type-caption font-medium text-foreground shadow-resting hover:bg-muted"
+              >
+                Terminar comando
+              </button>
+            )}
             {mtextEditorOpen && (
               <CadMTextEditor
                 initial={editingMText}
@@ -16815,46 +16307,6 @@ export default function Layout3DEditor({
                         : "select"
               }
             />
-            {visionPreview && (
-              <div className="absolute top-3 right-3 z-30 w-[20rem] rounded-2xl border border-violet-400/25 bg-surface/80 p-3 shadow-2xl backdrop-blur">
-                <div className="flex items-center gap-2 type-micro font-semibold uppercase tracking-wide text-violet-200">
-                  <ScanEye className="h-3.5 w-3.5" /> Visión ·{" "}
-                  {visionPreview.imageName}
-                </div>
-                <div className="mt-2 rounded-xl bg-muted/40 px-2.5 py-2 type-caption text-foreground">
-                  {visionPreview.walls.length} muro(s) y{" "}
-                  {visionPreview.zones.length} zona(s) detectados
-                  {visionPreview.unitHint
-                    ? ` · unidad sugerida ${visionPreview.unitHint}`
-                    : ""}
-                  .
-                </div>
-                {visionPreview.errors.slice(0, 3).map((err) => (
-                  <div key={err} className="mt-1 type-micro text-warning-ink">
-                    Descartado: {err}
-                  </div>
-                ))}
-                <p className="mt-2 type-micro leading-snug text-muted-foreground">
-                  Se insertan como muros/zonas EDITABLES escalados a la huella
-                  actual — revisa y ajusta después de insertar.
-                </p>
-                <div className="mt-2 flex gap-1.5">
-                  <button
-                    onClick={applyVisionResult}
-                    className="rounded-lg bg-emerald-700 px-2.5 py-1.5 type-micro font-semibold text-foreground hover:bg-emerald-600"
-                  >
-                    Insertar{" "}
-                    {visionPreview.walls.length + visionPreview.zones.length}
-                  </button>
-                  <button
-                    onClick={() => setVisionPreview(null)}
-                    className="rounded-lg border border-border px-2.5 py-1.5 type-micro text-foreground hover:bg-muted"
-                  >
-                    Descartar
-                  </button>
-                </div>
-              </div>
-            )}
             {showPalette && (
               <div className="absolute top-3 right-3 z-30 w-[22rem] rounded-2xl border border-indigo-400/20 bg-surface/80 p-3 shadow-2xl backdrop-blur">
                 <div className="flex items-center gap-2 rounded-xl border border-border bg-muted/40 px-2.5 py-2">
@@ -18008,7 +17460,7 @@ export default function Layout3DEditor({
                             value={objectTags[selSnap.id] ?? ""}
                             onChange={(e) => updateSelectedTags(e.target.value)}
                             onBlur={endFieldEdit}
-                            placeholder="esd, safety, smt…"
+                            placeholder="fachada, planta baja, revisión…"
                             className="w-full rounded-lg border border-border bg-surface/80 px-2 py-1.5 type-caption text-foreground placeholder:text-muted-foreground outline-none"
                           />
                         </label>
@@ -18067,7 +17519,7 @@ export default function Layout3DEditor({
                                 />
                               )}
                               <ReadField
-                                label="Safety"
+                                label="Seguridad"
                                 value={
                                   selectedObjectProperties.safetyClassification
                                 }

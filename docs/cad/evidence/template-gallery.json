@@ -9,9 +9,9 @@
       "escala": 50,
       "entidades": 47,
       "trazos": 47,
-      "docHash": "1c4204ec583ab533",
-      "svgOscuro": "5d30b85f0a6379e2",
-      "svgClaro": "a8808d27f71bc87e"
+      "docHash": "e400859007187294",
+      "svgOscuro": "ed104ff9e051c26d",
+      "svgClaro": "112e32a487bc0e95"
     },
     {
       "id": "civil-site-utilities",
@@ -19,9 +19,9 @@
       "escala": 75,
       "entidades": 20,
       "trazos": 20,
-      "docHash": "219c0cb94497a381",
-      "svgOscuro": "2f12ae1459458c48",
-      "svgClaro": "2a3b6ec4d9664e55"
+      "docHash": "3647b1878e870701",
+      "svgOscuro": "0e9b0dc59c80c6cf",
+      "svgClaro": "368f51ffb5eb90f9"
     },
     {
       "id": "structural-grid-core",
@@ -29,9 +29,9 @@
       "escala": 50,
       "entidades": 68,
       "trazos": 68,
-      "docHash": "e8419205cd37a786",
-      "svgOscuro": "92dd0c9108552b52",
-      "svgClaro": "133f2dcd4aaa57ec"
+      "docHash": "80aa71412ff37ff5",
+      "svgOscuro": "a486f4a54fb123ce",
+      "svgClaro": "fd5f7f6380f16e44"
     },
     {
       "id": "mep-plantroom",
@@ -39,9 +39,9 @@
       "escala": 50,
       "entidades": 20,
       "trazos": 20,
-      "docHash": "f755c916afc7b091",
-      "svgOscuro": "0b0fafa159ee734a",
-      "svgClaro": "372181e4dbcf03b3"
+      "docHash": "037efc1654265347",
+      "svgOscuro": "e640d546fe56221a",
+      "svgClaro": "0b11bcbfb5aaea4e"
     },
     {
       "id": "casa-habitacion",

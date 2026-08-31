@@ -73,4 +73,17 @@ export const API_RATE_LIMITS = {
    * cliente que se atasque reintentando no puede inundar el buzón de soporte.
    */
   supportIncidentsPerAccount: 10,
+  /**
+   * Uniones/creaciones de sala de llamada por cuenta. Una llamada real abre
+   * una vez; el techo está para un cliente roto en bucle de reintento, no
+   * para un arquitecto que entra y sale de sus juntas.
+   */
+  callsRoomJoinsPerAccount: 30,
+  /**
+   * Señales SDP/ICE por participante. Una negociación real manda una oferta
+   * o respuesta y un puñado de candidatos — decenas, no miles — así que 240
+   * por minuto es generoso para el tráfico legítimo (incluida una
+   * renegociación al añadir pantalla compartida) y estrecho para un bucle.
+   */
+  callsSignalsPerParticipant: 240,
 } as const;

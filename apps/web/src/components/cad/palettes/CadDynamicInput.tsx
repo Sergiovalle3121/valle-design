@@ -6,6 +6,7 @@ import {
   type CadDynamicInputResult,
   type CadDynamicInputValues,
 } from "@/lib/cad/dynamic-input";
+import { DEFAULT_REGION_PROFILE } from "@/lib/cad/region";
 
 interface CadDynamicInputProps {
   kind: "point" | "radius" | "offset";
@@ -33,7 +34,7 @@ export function CadDynamicInput({
   kind,
   anchor,
   documentUnit,
-  locale = "es-MX",
+  locale = DEFAULT_REGION_PROFILE.numberLocale,
   defaults,
   onCommit,
   onCancel,

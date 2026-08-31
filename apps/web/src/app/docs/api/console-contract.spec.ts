@@ -8,8 +8,8 @@
  * operación retirada y la mete en su ERP descubre el error en producción, no
  * aquí. Este spec regenera desde el YAML y compara byte a byte.
  *
- * También ancla los DOS recuentos que el repositorio publica —96 operaciones
- * totales, 45 bajo /v1/cad— para que añadir superficie sea un cambio
+ * También ancla los DOS recuentos que el repositorio publica —83 operaciones
+ * totales, 43 bajo /v1/cad— para que añadir superficie sea un cambio
  * DELIBERADO: si sube el número, este spec obliga a mirarlo y a actualizar
  * también `check-design-contract.mjs` y el spec del router standalone.
  */
@@ -63,16 +63,24 @@ void (async () => {
   //   propia, 2026-08-28)
   // + las 4 del centro de comentarios: crear, los míos, todos (operador) y
   //   cambiar estado (operador).
-  // + las 2 de presencia en vivo por servidor (publicar latido, stream SSE;
-  //   frente colaboración-en-vivo, 2026-08-31).
+  // − las 2 de asistencia por IA (`/v1/cad/documents/{id}/intent` y
+  //   `/v1/cad/vision`): se retiraron con el motor CIDE, que era de Axos OS y
+  //   no de este producto (`IDENTITY.md`). Valle Design no tiene IA.
+  // + las 6 de /v1/messaging: listar/crear canales, listar/enviar mensajes,
+  //   marcar leído y el flujo @Sse de eventos en vivo. Es el trabajo en equipo
+  //   entre PERSONAS que sustituye a lo que se fue.
+  // + las 4 de /v1/calls: crear/unirse a sala, publicar señal, colgar y el
+  //   flujo @Sse que reparte oferta, respuesta y candidatos ICE.
+  // + las 2 de /v1/cad/presence: publicar el propio cursor/encuadre y el
+  //   flujo @Sse que reparte el de los demás.
   assert.equal(
     regenerated.operationCount,
-    96,
+    104,
     "cambió el número de operaciones del contrato; actualiza este spec Y los recuentos de check-design-contract.mjs / standalone-contract-router.spec.ts",
   );
   assert.equal(
     regenerated.cadOperationCount,
-    45,
+    43,
     "cambió el número de operaciones /v1/cad; el gate de contrato tiene su propio recuento que también hay que mover",
   );
 

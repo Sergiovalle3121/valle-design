@@ -10,6 +10,7 @@
  * This is the backbone of EPIC 0: the editor used to top out at a tiny box;
  * a plant editor needs to model a 200×150 m nave without feeling cramped.
  */
+import { DEFAULT_REGION_PROFILE, formatRegionNumber, type RegionProfile } from './region';
 
 export type WorldUnit = 'mm' | 'cm' | 'm';
 
@@ -133,8 +134,8 @@ export function niceScaleBarMeters(rawMeters: number): number {
 }
 
 /** Format a metre value for rulers/labels: `1.5 m`, `0.25 m`, `200 m`. */
-export function formatMeters(m: number): string {
+export function formatMeters(m: number, region: RegionProfile = DEFAULT_REGION_PROFILE): string {
   if (!Number.isFinite(m)) return '0 m';
   const rounded = Math.round(m * 100) / 100;
-  return `${rounded.toLocaleString('es-MX')} m`;
+  return `${formatRegionNumber(rounded, region)} m`;
 }

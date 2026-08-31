@@ -72,6 +72,8 @@ describe('ApiRateLimitService', () => {
       checkoutSessionsPerOrganization: 10,
       reviewCommentsPerSession: 30,
       supportIncidentsPerAccount: 10,
+      callsRoomJoinsPerAccount: 30,
+      callsSignalsPerParticipant: 240,
     });
   });
 });

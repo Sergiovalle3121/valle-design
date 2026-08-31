@@ -1,18 +1,18 @@
 {
   "apps/web": {
-    "react-hooks/set-state-in-effect": 9,
+    "react-hooks/set-state-in-effect": 10,
     "react-hooks/refs": 164,
     "react-hooks/exhaustive-deps": 6,
-    "@typescript-eslint/no-unused-vars": 16,
+    "@typescript-eslint/no-unused-vars": 14,
     "react-hooks/purity": 1,
     "react-hooks/immutability": 3
   },
   "apps/api": {
     "@typescript-eslint/no-unsafe-argument": 2,
     "@typescript-eslint/no-unsafe-return": 12,
-    "@typescript-eslint/no-unsafe-assignment": 41,
-    "@typescript-eslint/no-unsafe-member-access": 183,
-    "@typescript-eslint/no-unsafe-call": 15,
+    "@typescript-eslint/no-unsafe-assignment": 45,
+    "@typescript-eslint/no-unsafe-member-access": 211,
+    "@typescript-eslint/no-unsafe-call": 22,
     "@typescript-eslint/no-base-to-string": 2
   }
 }

@@ -22,6 +22,7 @@ import type {
   DwgGeometryEntity,
   DwgPoint3,
 } from "../model/entity-geometry.js";
+import { projectAcisOpaqueEntity } from "./canonical-acis.js";
 
 // ---------------------------------------------------------------------------
 // Tipos espejo del documento canónico (subconjunto que este mapeo produce)
@@ -575,6 +576,20 @@ function mapEntity(
     }
     case "seqend":
       return null;
+    case "acisOpaque": {
+      // Extraído a `canonical-acis.ts` por presupuesto de líneas: es la
+      // única rama que necesita su propia forma de payload bit-exacto.
+      const projection = projectAcisOpaqueEntity(
+        entity,
+        id,
+        layer,
+        PROVIDER,
+        decodeBytes(entity.classNameBytes),
+      );
+      losses.push(projection.loss);
+      opaque.push(projection.opaque);
+      return null;
+    }
     default: {
       losses.push({
         code: "entity-kind-not-projected",

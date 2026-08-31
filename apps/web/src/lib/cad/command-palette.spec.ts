@@ -14,7 +14,7 @@ const entries = buildCadPaletteEntries();
   );
   for (const entry of engineEntries) {
     assert.ok(entry.description.length > 0, `${entry.id} sin resumen`);
-    assert.ok(!entry.description.startsWith("Copiloto"), "el motor no se etiqueta Copiloto");
+    assert.ok(!entry.description.startsWith("Frase"), "el motor no se etiqueta Frase");
   }
 }
 
@@ -37,14 +37,14 @@ const entries = buildCadPaletteEntries();
   );
 }
 
-// --- el registro heredado sigue: alimenta el copiloto NL y se dice ----------------
+// --- el registro heredado sigue: alimenta la barra de frases y se dice ----------
 {
-  const copilot = entries.find(
+  const phrase = entries.find(
     (entry) => entry.kind === "command" && entry.id === "measure_distance",
   );
-  assert.ok(copilot, "las entradas del copiloto NL no se pierden en la unión");
+  assert.ok(phrase, "las entradas del registro de frases no se pierden en la unión");
   assert.ok(
-    copilot.description.startsWith("Copiloto · "),
+    phrase.description.startsWith("Frase · "),
     "y quedan etiquetadas con lo que de verdad ejecutan",
   );
   // Si un id heredado coincidiera con un nombre del motor, ganaría el motor:

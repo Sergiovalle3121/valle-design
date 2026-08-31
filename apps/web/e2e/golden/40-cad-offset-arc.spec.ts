@@ -92,7 +92,7 @@ test("OFFSET sobre un arco produce un arco concéntrico y lo persiste", async ({
   await enter3DView(page);
   await page.getByTitle(/Vista superior/).click();
   await page.getByTitle(/Ajustar a la planta/).click();
-  await page.getByRole("button", { name: "Offset", exact: true }).click();
+  await page.getByRole("button", { name: "Desfase", exact: true }).click();
   await applyDynamicInput(page, { offset: "250mm" });
   const on = await worldPoint(page, { x: 4_707, y: 3_707 });
   await page.mouse.click(on.x, on.y);

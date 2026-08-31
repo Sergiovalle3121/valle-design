@@ -49,7 +49,16 @@ const securityHeaders = [
   { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
   {
     key: "Permissions-Policy",
-    value: "camera=(), microphone=(), geolocation=(), payment=()",
+    // `camera`/`microphone`/`display-capture` en `(self)`: la barra de
+    // llamada (`components/cad/calls/CallBar.tsx`) los usa de verdad —
+    // getUserMedia/getDisplayMedia. Con `()` (vacío, el default de antes de
+    // esta función) el navegador bloquea la petición ANTES de que llegue a
+    // pedir permiso: no es un 403, es "Permissions policy violation" en la
+    // consola y `getUserMedia` responde `NotFoundError` en vez de un error
+    // de permiso legible — así se descubrió, con dos navegadores reales
+    // intentando llamarse. `(self)` sigue prohibiéndolo a cualquier origen
+    // embebido (no hay ninguno: `frame-ancestors 'none'` arriba).
+    value: "camera=(self), microphone=(self), display-capture=(self), geolocation=(), payment=()",
   },
   { key: "X-Content-Type-Options", value: "nosniff" },
 ];

@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { designClient } from "@/lib/cad/repositories/client";
 import { Button, Select, Surface, cx } from "@/components/ui";
+import { formatRegionDateTime } from "@/lib/cad/region";
+import { getClientRegion } from "@/lib/cad/region/client";
 
 /**
  * EL PANEL DE QUIEN OPERA EL PRODUCTO.
@@ -55,10 +57,8 @@ const COLOR_ESTADO: Record<Comentario["status"], string> = {
   resuelto: "bg-success/15 text-success-ink",
 };
 
-const fecha = new Intl.DateTimeFormat("es-MX", {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
+const fecha = (d: Date) =>
+  formatRegionDateTime(d, getClientRegion(), { dateStyle: "medium", timeStyle: "short" });
 
 export function FeedbackAdmin() {
   const [items, setItems] = useState<Comentario[] | null>(null);
@@ -201,7 +201,7 @@ export function FeedbackAdmin() {
                     </span>
                     <span className="type-caption text-muted-foreground">
                       {comentario.kind} · {comentario.authorEmail} ·{" "}
-                      {fecha.format(new Date(comentario.createdAt))}
+                      {fecha(new Date(comentario.createdAt))}
                     </span>
                   </div>
                   <div className="flex gap-1.5">

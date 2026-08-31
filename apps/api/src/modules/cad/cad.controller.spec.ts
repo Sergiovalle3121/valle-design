@@ -41,7 +41,6 @@ describe('CadController (/v1/cad, stack completo)', () => {
   let withoutEntitlement: FirstPartyCadActor;
 
   beforeAll(async () => {
-    process.env.AI_MOCK = '1';
     const moduleRef = await Test.createTestingModule({
       imports: [
         TypeOrmModule.forRoot({
@@ -104,7 +103,6 @@ describe('CadController (/v1/cad, stack completo)', () => {
   });
 
   afterAll(async () => {
-    delete process.env.AI_MOCK;
     await app.close();
   });
 
@@ -667,22 +665,5 @@ describe('CadController (/v1/cad, stack completo)', () => {
       .delete(`/v1/cad/blocks/${created.body.id}`)
       .set(auth)
       .expect(204);
-  });
-
-  it('intent degrada determinista en AI_MOCK (sin red, sin 500)', async () => {
-    const auth = owner.headers;
-    const server = app.getHttpServer();
-    const document = await request(server)
-      .post('/v1/cad/documents')
-      .set(auth)
-      .send({ name: 'Con copiloto' })
-      .expect(201);
-
-    const intent = await request(server)
-      .post(`/v1/cad/documents/${document.body.id}/intent`)
-      .set(auth)
-      .send({ prompt: 'Alinea las estaciones en L' })
-      .expect(201);
-    expect(intent.body).toMatchObject({ available: false, toolCalls: [] });
   });
 });

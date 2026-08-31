@@ -88,6 +88,49 @@ export interface CadSolidPlane {
 }
 
 /**
+ * Cómo se NOMBRA una cara de un sólido para que siga siendo la misma mañana.
+ *
+ * El kernel B-rep no tiene identificadores: caras, aristas y medias-aristas son
+ * arrays, y todo son índices. Es la decisión correcta para el kernel —un B-rep
+ * con punteros no se serializa— y es un problema en cuanto esos índices se
+ * PERSISTEN, que es justo lo que ya hacen `fillet` y `chamfer` unas líneas más
+ * abajo con su `edges: number[]`. Basta con que alguien edite el operando para
+ * que esos números apunten a otra arista: no falla, redondea la equivocada, y
+ * nadie se entera hasta medir la pieza.
+ *
+ * Una `CadSolidFaceRef` lleva el índice —porque el 99 % de las veces es
+ * correcto y comprobarlo cuesta O(1)— y además una HUELLA de lo que esa cara es
+ * geométricamente. El índice nunca se cree sin comprobar la huella, y cuando la
+ * huella no basta se falla con motivo en vez de elegir la cara 0.
+ *
+ * ## Por qué el tipo vive AQUÍ y no junto a su algoritmo
+ *
+ * Porque esto es forma PERSISTIDA: viaja en el documento del cliente y lo lee
+ * el validador del servidor. Su sitio es el módulo del esquema, que además es
+ * una HOJA del grafo de carga (ver la cabecera del archivo). El algoritmo que
+ * la resuelve vive en `lib/cad/pick3d/solid-face-ref.ts` e importa este tipo,
+ * nunca al revés.
+ *
+ * Todos los números van CUANTIZADOS: dos evaluaciones del mismo árbol no
+ * producen bit a bit los mismos flotantes, y una cara tiene que reconocerse a
+ * sí misma entre una y otra.
+ */
+export interface CadSolidFaceRef {
+  /** Vía rápida. Se COMPRUEBA contra la huella antes de creerse. */
+  index: number;
+  /** Plano de la cara: normal unitaria canónica y distancia con signo al origen. */
+  plane: { nx: number; ny: number; nz: number; d: number };
+  /** Centroide de la cara. */
+  centroid: CadPoint3;
+  /** Medias-aristas del lazo exterior. */
+  loopSize: number;
+  /** Cuántos lazos interiores (agujeros) tiene la cara. */
+  innerLoops: number;
+  /** Área. Desempata dos caras coplanares del mismo tamaño de lazo. */
+  area: number;
+}
+
+/**
  * Un nodo del árbol de construcción.
  *
  * Los `op` sin `operand`/`operands` son HOJAS —fabrican geometría de la nada— y
@@ -140,8 +183,15 @@ export type CadSolidNode = { id: string } & (
       op: "brep";
       points: CadPoint3[];
       faces: { outer: number[]; inners?: number[][] }[];
-      /** De dónde salió, para que un sólido importado sepa decirlo. */
-      source?: { format: "step" | "iges"; name?: string };
+      /**
+       * De dónde salió, para que un sólido importado sepa decirlo. Los cuatro
+       * formatos de malla (`obj`, `stl`, `gltf`, `collada`) llegan sin receta
+       * paramétrica — igual que STEP e IGES — pero además sin superficie
+       * analítica: `bodyToSolidNode` no la guarda, así que un sólido de malla
+       * reexportado pierde el plano exacto de cada cara y se reconstruye por
+       * Newell al reabrirlo. Ver `lib/cad/interop/README.md`.
+       */
+      source?: { format: "step" | "iges" | "obj" | "stl" | "gltf" | "collada"; name?: string };
     }
   | { op: "union"; operands: string[] }
   /** `operands[0]` menos todos los demás, en orden. */
@@ -168,12 +218,36 @@ export type CadSolidNode = { id: string } & (
       plane: CadSolidPlane;
       keep: "positive" | "negative";
     }
+  | {
+      /**
+       * EMPUJAR una cara a lo largo de su normal — el gesto del modelado
+       * directo. Positivo saca material, negativo lo hunde.
+       *
+       * Es un NODO y no un horneado a propósito: hornear el sólido a geometría
+       * explícita mandaría todos sus vértices en CADA guardado CAS (el servidor
+       * admite hasta 200 000) y tiraría la reeditabilidad, que es LA decisión
+       * de este esquema. Como nodo, cambiar el 30 por un 35 en el panel
+       * reconstruye la pieza — algo que un modelador directo puro no puede
+       * hacer.
+       */
+      op: "push";
+      operand: string;
+      face: CadSolidFaceRef;
+      distance: number;
+    }
 );
 
 export type CadSolidNodeOp = CadSolidNode["op"];
 
 /** Los `op` que fabrican geometría sin depender de otro nodo. */
-export const CAD_SOLID_LEAF_OPS = ["box", "extrude", "revolve", "sweep", "loft", "brep"] as const;
+export const CAD_SOLID_LEAF_OPS = [
+  "box",
+  "extrude",
+  "revolve",
+  "sweep",
+  "loft",
+  "brep",
+] as const;
 
 /** Los `op` que consumen uno o varios nodos anteriores. */
 export const CAD_SOLID_OPERATION_OPS = [
@@ -183,6 +257,7 @@ export const CAD_SOLID_OPERATION_OPS = [
   "fillet",
   "chamfer",
   "slice",
+  "push",
 ] as const;
 
 export const CAD_SOLID_NODE_OPS = [

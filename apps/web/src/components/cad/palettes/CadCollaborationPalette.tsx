@@ -20,6 +20,8 @@ import {
   type CadEntityDiffRow,
   type CadMergeResolution,
 } from "@/lib/cad/cad-collaboration";
+import { formatRegionDateTime } from "@/lib/cad/region";
+import { getClientRegion } from "@/lib/cad/region/client";
 
 /** Sesión de revisión creada en el SERVIDOR (proyección de la respuesta v1). */
 export interface CreatedReviewSession {
@@ -129,7 +131,8 @@ export function CadCollaborationPalette({
   const checkpoint = () => {
     const at = new Date().toISOString();
     const label =
-      checkpointLabel.trim() || `Checkpoint ${new Date(at).toLocaleString()}`;
+      checkpointLabel.trim() ||
+      `Checkpoint ${formatRegionDateTime(new Date(at), getClientRegion())}`;
     mutate(
       createCadVersion(document, { id: id("version"), label, actor, at }),
       `Version created: ${label}`,

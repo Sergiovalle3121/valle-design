@@ -38,7 +38,7 @@ test('dynamic input creates a circle by absolute center and locked diameter', as
   const backend = await installCadBackend(context);
   await page.goto('/legacy/studio');
 
-  await page.getByRole('button', { name: 'Circle', exact: true }).click();
+  await page.getByRole('button', { name: 'Círculo', exact: true }).click();
   const dynamic = page.getByTestId('cad-dynamic-input');
   await expect(dynamic).toBeVisible();
   const x = page.getByTestId('cad-dynamic-field-x');

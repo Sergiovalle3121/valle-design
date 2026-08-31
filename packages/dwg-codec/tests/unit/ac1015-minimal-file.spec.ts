@@ -213,7 +213,7 @@ test("capa extra y línea: el lector propio recupera geometría y capa exactas",
 
 test("figuras, texto, polilínea y un INSERT con bloque: round-trip propio exacto", () => {
   const options = {
-    blocks: [{ name: ascii("PUERTA"), entities: [LINE, CIRCLE] }],
+    blocks: [{ name: ascii("PUERTA"), entities: [{ entity: LINE }, { entity: CIRCLE }] }],
     entities: [
       { entity: CIRCLE },
       { entity: ARC },
@@ -245,6 +245,51 @@ test("figuras, texto, polilínea y un INSERT con bloque: round-trip propio exact
   assert.deepEqual([...(insert.insertedBlockName ?? [])], ascii("PUERTA"));
 });
 
+test("contenido de bloque con capa propia y un bloque que inserta OTRO bloque", () => {
+  // MARCO inserta PUERTA (una referencia hacia ADELANTE en `blocks`, índice
+  // 1): el handle de cada BLOCK_RECORD ya está resuelto por adelantado en
+  // `planAc1015MinimalFile`, así que esto no exige reordenar `blocks`.
+  const options = {
+    layers: [{ name: ascii("MUROS") }],
+    blocks: [
+      {
+        name: ascii("MARCO"),
+        entities: [
+          { entity: LINE, layerIndex: 1 },
+          { entity: INSERT, insertBlockIndex: 1 },
+        ],
+      },
+      { name: ascii("PUERTA"), entities: [{ entity: CIRCLE }] },
+    ],
+    entities: [{ entity: INSERT, insertBlockIndex: 0 }],
+  } as const;
+  const file = writeAc1015MinimalFile(options);
+  const plan = planAc1015MinimalFile(options);
+  const database = readAc1015Database(file);
+
+  const marco = database.blocks.find(
+    (block) => String.fromCharCode(...block.name) === "MARCO",
+  );
+  assert.ok(marco);
+  assert.equal(marco.entities.length, 2);
+  const lineInBlock = marco.entities[0]!;
+  assert.deepEqual(lineInBlock.entity, LINE);
+  assert.equal(lineInBlock.layerHandle, plan.layerHandles[1]);
+
+  const nestedInsert = marco.entities[1]!;
+  assert.deepEqual(nestedInsert.entity, INSERT);
+  assert.deepEqual([...(nestedInsert.insertedBlockName ?? [])], ascii("PUERTA"));
+
+  const puerta = database.blocks.find(
+    (block) => String.fromCharCode(...block.name) === "PUERTA",
+  );
+  assert.ok(puerta);
+  assert.deepEqual(
+    puerta.entities.map((entity) => entity.entity),
+    [CIRCLE],
+  );
+});
+
 test("opciones imposibles fallan cerradas con el error tipado", () => {
   assertDwgError(
     () => writeAc1015MinimalFile({ layers: [{ name: [] }] }),
@@ -263,8 +308,11 @@ test("opciones imposibles fallan cerradas con el error tipado", () => {
   );
   assertDwgError(
     () =>
+      // Un INSERT dentro de un bloque SÍ se resuelve (ver el test de bloque
+      // anidado más abajo), pero sigue exigiendo su propio insertBlockIndex
+      // — la misma regla que un INSERT de model space.
       writeAc1015MinimalFile({
-        blocks: [{ name: ascii("B"), entities: [INSERT] }],
+        blocks: [{ name: ascii("B"), entities: [{ entity: INSERT }] }],
       }),
     "DWG_INPUT_INVALID",
   );

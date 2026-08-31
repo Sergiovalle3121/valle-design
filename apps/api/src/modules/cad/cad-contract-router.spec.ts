@@ -6,8 +6,6 @@ import { TenantContextService } from '../../common/tenant/tenant-context.service
 import { ApiRateLimitService } from '../identity/api-rate-limit.service';
 import { CadBlocksService } from '../cad-documents/cad-blocks.service';
 import { CadDocumentsService } from '../cad-documents/cad-documents.service';
-import { CadIntentService } from '../cad-documents/cad-intent.service';
-import { CadVisionService } from '../cad-documents/cad-vision.service';
 import { CadController } from './cad.controller';
 import { CadDocumentsRepository } from './cad-documents.repository';
 import { CadReviewLinkController } from './cad-review-link.controller';
@@ -44,8 +42,6 @@ describe('contrato OpenAPI contra el router Nest real', () => {
         CadSheetSetsRepository,
         CadDocumentsService,
         CadBlocksService,
-        CadIntentService,
-        CadVisionService,
         ApiRateLimitService,
         TenantContextService,
         CadPresenceService,

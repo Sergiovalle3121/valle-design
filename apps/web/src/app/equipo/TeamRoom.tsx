@@ -7,6 +7,8 @@ import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import { Button, Select, Surface, Textarea, buttonClass, cx } from "@/components/ui";
 import { parseRoster, rosterRejectionText, ROSTER_MAX } from "@/lib/education/roster";
+import { formatRegionDate } from "@/lib/cad/region";
+import { getClientRegion } from "@/lib/cad/region/client";
 
 /**
  * EL EQUIPO — la pantalla que el backend llevaba meses esperando.
@@ -84,7 +86,7 @@ const QUE_PUEDE: Record<string, string> = {
 const ERROR_LECTURA =
   "No se pudo leer tu equipo. Actualiza la página o vuelve en un momento.";
 
-const fecha = new Intl.DateTimeFormat("es-MX", { dateStyle: "medium" });
+const fecha = (d: Date) => formatRegionDate(d, getClientRegion(), { dateStyle: "medium" });
 
 export function TeamRoom() {
   const auth = useDesignAuth();
@@ -268,7 +270,7 @@ export function TeamRoom() {
                     </span>
                     <span className="type-micro text-muted-foreground">
                       {PAPEL[miembro.role] ?? miembro.role} · desde{" "}
-                      {fecha.format(new Date(miembro.createdAt))}
+                      {fecha(new Date(miembro.createdAt))}
                     </span>
                   </li>
                 ))}
