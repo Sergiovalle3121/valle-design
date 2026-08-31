@@ -33,7 +33,7 @@ function contextFor(): CadCommandContext {
 // --- dice que no pudo salvar nada cuando el candidato no es interpretable ------
 {
   const context = contextFor();
-  const result = recoverCommand.step(null, { kind: "text", value: JSON.stringify("solo una cadena") }, context).result;
+  const result = recoverCommand.step(null as never, { kind: "text", value: JSON.stringify("solo una cadena") }, context).result;
   assert.ok(result && result.kind === "message" && /no pudo salvar nada/.test(result.text));
   checks += 1;
 }
@@ -48,7 +48,7 @@ function contextFor(): CadCommandContext {
       { id: "bad", type: "line", start: { x: 0, y: 0 }, layer: "0" },
     ],
   };
-  const result = recoverCommand.step(null, { kind: "text", value: JSON.stringify(candidate) }, context).result;
+  const result = recoverCommand.step(null as never, { kind: "text", value: JSON.stringify(candidate) }, context).result;
   assert.ok(result && result.kind === "document");
   if (result?.kind === "document") {
     assert.ok(result.commands.some((command) => command.type === "layer" && command.op === "upsert" && command.layer.id === "FANTASMA"));
@@ -72,7 +72,7 @@ function contextFor(): CadCommandContext {
       { id: "bad", type: "line", start: { x: 0, y: 0 }, layer: "0" },
     ],
   };
-  const result = recoverCommand.step(null, { kind: "text", value: JSON.stringify(candidate) }, context).result;
+  const result = recoverCommand.step(null as never, { kind: "text", value: JSON.stringify(candidate) }, context).result;
   assert.ok(result && result.kind === "message" && /no hay nada que traer|no pudo traer ninguna/.test(result.text));
   checks += 1;
 }
