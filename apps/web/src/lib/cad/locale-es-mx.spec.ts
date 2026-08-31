@@ -27,9 +27,20 @@
  * NÚMEROS —conteos de entidades en insignias de diagnóstico— cuyo riesgo es
  * menor y cuyos archivos están hoy en manos de otras campañas. Se declara aquí
  * en vez de callarse, que es la regla de la casa.
+ *
+ * ## Por qué sigue existiendo este spec y no sólo `region/region.spec.ts`
+ *
+ * `formatMagnitude` ya no tiene el locale incrustado: lo saca de
+ * `lib/cad/region`, con México como default explícito y probado por separado
+ * en `region/region.spec.ts`. Este archivo se queda porque es el candado del
+ * defecto CONCRETO que se encontró — un motor que respondía en la convención
+ * de otro país sin que nadie lo pidiera — y borrarlo perdería esa evidencia.
+ * El criterio no cambia: se sigue afirmando por RESULTADO, nunca por el
+ * nombre del locale.
  */
 import { strict as assert } from "node:assert";
 import { formatMagnitude } from "./engine/commands/solids-support";
+import { REGION_PROFILES } from "./region";
 
 let checks = 0;
 const check = (label: string, condition: boolean, detail?: string) => {
@@ -63,6 +74,11 @@ const check = (label: string, condition: boolean, detail?: string) => {
     "lo diminuto pasa a notación científica en vez de a cero",
     formatMagnitude(1e-9).includes("e"),
     formatMagnitude(1e-9),
+  );
+  check(
+    "es configurable: pedir explícitamente España responde en su convención",
+    formatMagnitude(12345.5678, REGION_PROFILES.ES) === "12.345,5678",
+    formatMagnitude(12345.5678, REGION_PROFILES.ES),
   );
 }
 

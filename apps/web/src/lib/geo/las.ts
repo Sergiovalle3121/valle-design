@@ -45,6 +45,7 @@ import type { GeoCrs } from "./crs";
 import { resolveGeoCrs } from "./crs";
 import { parseGeoCrsWkt } from "./crs-prj";
 import { GeoError, geoAssert, isGeoError } from "./errors";
+import { formatRegionNumber } from "../cad/region";
 
 /** Firma del formato en los cuatro primeros bytes. */
 const LAS_SIGNATURE = "LASF";
@@ -291,8 +292,8 @@ export function readLas(input: GeoLasInput): GeoPointCloud {
   geoAssert(
     header.pointCount <= maxPoints,
     "demasiado-grande",
-    `La nube trae ${header.pointCount.toLocaleString("es-MX")} puntos y el tope es ` +
-      `${maxPoints.toLocaleString("es-MX")}. Recórtala o submuéstreala en el programa de origen.`,
+    `La nube trae ${formatRegionNumber(header.pointCount)} puntos y el tope es ` +
+      `${formatRegionNumber(maxPoints)}. Recórtala o submuéstreala en el programa de origen.`,
     { source, detail: { pointCount: header.pointCount, maxPoints } },
   );
 

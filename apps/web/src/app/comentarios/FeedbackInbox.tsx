@@ -6,6 +6,8 @@ import { designClient } from "@/lib/cad/repositories/client";
 import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import { FeedbackButton } from "@/components/feedback/FeedbackDialog";
 import { Surface, buttonClass, cx } from "@/components/ui";
+import { formatRegionDate } from "@/lib/cad/region";
+import { getClientRegion } from "@/lib/cad/region/client";
 
 /**
  * MIS COMENTARIOS — la mitad del canal que casi nadie construye.
@@ -71,7 +73,7 @@ const ESTADO: Record<
   },
 };
 
-const fecha = new Intl.DateTimeFormat("es-MX", { dateStyle: "long" });
+const fecha = (d: Date) => formatRegionDate(d, getClientRegion(), { dateStyle: "long" });
 
 export function FeedbackInbox() {
   const auth = useDesignAuth();
@@ -162,7 +164,7 @@ export function FeedbackInbox() {
                     <span className="type-caption text-muted-foreground">
                       {CLASE[comentario.kind]} ·{" "}
                       <time dateTime={comentario.createdAt}>
-                        {fecha.format(new Date(comentario.createdAt))}
+                        {fecha(new Date(comentario.createdAt))}
                       </time>
                     </span>
                   </div>

@@ -1,4 +1,5 @@
 import { polarPoint, type Point } from './precision-input';
+import { DEFAULT_REGION_PROFILE } from './region';
 
 export type CadDynamicInputMode = 'absolute' | 'relative' | 'polar' | 'radius' | 'diameter' | 'offset';
 export type CadLengthUnit = 'mm' | 'cm' | 'm' | 'in' | 'ft';
@@ -49,7 +50,7 @@ function normalizedNumber(raw: string, locale: string): number | null {
 export function parseCadDynamicScalar(
   raw: string,
   documentUnit: 'mm' | 'm',
-  locale = 'en-US',
+  locale = DEFAULT_REGION_PROFILE.numberLocale,
   kind: 'length' | 'angle' = 'length',
 ): number | null {
   const match = raw.trim().toLocaleLowerCase().match(/^(.+?)(mm|cm|m|in|ft|°|deg)?$/);
