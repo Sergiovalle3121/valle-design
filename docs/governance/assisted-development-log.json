@@ -1197,6 +1197,44 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "DWG-B-3D-WIREFRAME-ACIS-20260831",
+      "date": "2026-08-31",
+      "initiative": "Frente 3D de la campaña DWG paralela (sesión DWG-B de tres sesiones simultáneas: A en lectura/contenedor, B en 3D, C en escritura). Dos tareas: (1) ampliar el perfil de producto para que 3DFACE/POLYLINE 3D/POLYLINE MESH/POLYLINE PFACE — ya decodificados por el laboratorio desde el corte 2026-08-21 pero excluidos del perfil `AC1015_MODELSPACE_2D_V3` — crucen al documento canónico con su Z real, conservados en `unsupportedEntities` (sin canal semántico nativo todavía); (2) preservación opaca de la familia ACIS (3DSOLID/REGION/BODY) en el laboratorio, capturando su cuerpo como bytes crudos sin interpretar ACIS.",
+      "branch": "claude/dwg-b-3d-wireframe-acis",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "El titular encargó, mediante sesión paralela orquestada (tres frentes simultáneos de la misma campaña DWG), el frente 3D con instrucciones explícitas por escrito de: distinguir siempre 'fuera de perfil' de 'no decodificado'; declarar manifiesto de pérdidas por entidad sin excepción; nunca ampliar en silencio un flag/perfil ya firmado (V3, AC1018); y, crítico, NO fabricar una firma de autorización de producto en su nombre. Esta sesión no tuvo una conversación de aprobación por decisión — construyó el perfil nuevo propuesto (`AC1015_3D_WIREFRAME_V1`) con `ownerSigned: false` explícito y sin firma, exactamente como esas instrucciones exigían, y dejó la propuesta lista en ADR-0009 §9 para que el titular decida.",
+      "firstPartyInputs": [
+        "El código y los gates propios del monorepo (cadenas check:dwg/check:cad y sus scripts, entity-runtime.ts, cad-document.ts).",
+        "CAPABILITIES.md y DWG0_WORKLOG.md del laboratorio: 3DFACE/POLYLINE 3D/MESH/PFACE ya decodificados (corte 2026-08-21), reutilizados sin cambio.",
+        "ADR-0009 (§6-bis a §8) como plantilla del patrón de flag/autorización de tres condiciones que esta sesión replica para el perfil propuesto.",
+        "El PR abierto `valle-design-dwg-conformance#6` (ola 3 del corpus hermano) como fuente de qué fixtures 3D existirán una vez admitidos — leído, no admitido ni usado como evidencia todavía."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. Cero fuentes nuevas registradas: el perfil 3D heredado reutiliza sólo geometría ya decodificada por el laboratorio (hechos ya registrados de ODA-ODS-DWG-5.4.1-PUBLIC); la preservación ACIS reutiliza sólo la cabecera común de entidad y el límite `bitSize` ya registrados, sin pedirle ningún hecho al formato ACIS (Spatial/Dassault, no ODA) ni a la sección CLASSES más allá de recibir el nombre de clase ya resuelto como parámetro de una función pura. `SOURCE_REGISTER.json` sólo gana `derivedFiles` nuevos bajo la entrada YA `allowed` (ODA-ODS-DWG-5.4.1-PUBLIC): ninguna entrada nueva.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/dwg-neutral-model.ts, dwg-native-reader.ts, dwg-interop-flag.ts, dwg-document-bridge.ts, dwg-document-bridge-primitives.ts, document-import.worker.ts, document-import-client.ts (perfil 3D heredado propuesto, sin firma)",
+        "apps/web/src/lib/cad/dwg-native-reader-3d-wireframe.spec.ts y dwg-document-bridge-3d-wireframe.spec.ts (nuevas)",
+        "apps/web/Dockerfile, .env.example, scripts/deploy/validate-dockerfiles.mjs y su spec (tercera variable de build NEXT_PUBLIC_DWG_3D_WIREFRAME_IMPORT_BETA)",
+        "scripts/dwg/check-product-boundary.mjs (las dos specs nuevas, autorizadas explícitamente en sus listas)",
+        "packages/dwg-codec/src/objects/entities-acis.ts (nuevo), src/model/entity-geometry.ts (tipo DwgAcisOpaqueEntity), src/api/canonical.ts (caso de proyección)",
+        "packages/dwg-codec/tests/unit/entities-acis.spec.ts (nuevo) y un caso nuevo en tests/unit/canonical.spec.ts",
+        "packages/dwg-codec/SOURCE_REGISTER.json (derivedFiles), CAPABILITIES.md, DWG0_WORKLOG.md",
+        "docs/adr/0009-dwg-promotion-package.md (§9, propuesta sin firmar)"
+      ],
+      "fixtures": "Ninguno nuevo en ningún repositorio. Los dos corpus admitidos (valle-design-dwg-conformance) permanecen intactos: esta sesión no escribió ni generó DWG. Las specs nuevas usan bytes sintéticos hechos a mano o compuestos con el writer real del laboratorio, declarado explícitamente como evidencia distinta de un corpus admitido.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo del frente 3D de la campaña paralela del 2026-08-31. Ningún flag se enciende en este PR: DWG_3D_WIREFRAME_BETA_AUTHORIZATION.ownerSigned permanece false y la preservación ACIS no tiene integración de producto todavía (bloqueada en el despachador del lector, fuera de alcance de esta sesión). Evidencia final: el PR de esta rama revisado y fusionado sobre el SHA candidato con check:dwg, check:cad (salvo el rojo preexistente ya documentado en check:dwg-evidence, confirmado no relacionado con git stash sobre main limpio), typecheck, lint, test y build en verde."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "ENTREGA-JUEGO-DE-PLANOS-20260831",
       "date": "2026-08-31",
       "initiative": "Frente «entrega del proyecto»: PUBLISH, SHEETSET, ETRANSMIT y DATAEXTRACTION como comandos reales del registro, sobre la tubería de publicación ya escrita en lib/cad/sheet-set/ y lib/cad/plot/. Una de cuatro sesiones paralelas del mismo día; sin archivos compartidos con las otras tres (3D, rendimiento, colaboración).",

@@ -633,6 +633,41 @@ export interface DwgHatchEntity {
   readonly seedPoints: readonly DwgPoint2[];
 }
 
+/**
+ * 3DSOLID, REGION o BODY: un objeto de la familia ACIS. NO es geometría
+ * decodificada — es la EXCEPCIÓN deliberada dentro de esta unión. ACIS es
+ * formato de Spatial/Dassault, no de ODA/DWG, y este laboratorio no lo
+ * interpreta ni le hace falta: la meta es preservarlo intacto, no
+ * entenderlo.
+ *
+ * Los tres son objetos de CLASE (introducidos en AutoCAD 2000, resueltos por
+ * su nombre en la sección CLASSES del archivo, no por un código de tipo BS
+ * fijo como LINE o CIRCLE) — por eso `classNameBytes` viaja aquí en vez de
+ * un `AC1015_TYPE_*` numérico: no existe tal constante para estos tres, y
+ * fabricar una sería fingir un hecho que el formato no tiene.
+ *
+ * Lo único que este tipo decodifica es la cabecera común de entidad
+ * (compartida con LINE/CIRCLE/3DFACE/…, ya registrada y reutilizada sin
+ * cambios) y el LÍMITE del cuerpo específico del tipo — el mismo `bitSize`
+ * ya registrado que delimita cualquier objeto R2000. TODO lo que hay entre
+ * el fin del común y ese límite (versión del modelador, banderas, y el
+ * propio flujo ACIS SAT/SAB) se captura como bytes CRUDOS, alineados al
+ * byte que los contiene por completo, con el desplazamiento y la longitud
+ * en bits exactos para reconstruir el rango preciso — cero interpretación,
+ * cero pérdida.
+ */
+export interface DwgAcisOpaqueEntity {
+  readonly kind: "acisOpaque";
+  /** Bytes del nombre de clase en la página de códigos del dibujo (p. ej. "3DSOLID"). */
+  readonly classNameBytes: readonly number[];
+  /** Bits ocupados por los datos específicos de este objeto, sin interpretar. */
+  readonly dataBitLength: number;
+  /** Bit inicial útil dentro del primer byte de `rawBytes` (0-7). */
+  readonly leadingBitOffset: number;
+  /** Los bytes que contienen exactamente ese rango de bits, alineados a byte. */
+  readonly rawBytes: readonly number[];
+}
+
 /** Las entidades geométricas que el laboratorio decodifica. */
 export type DwgGeometryEntity =
   | DwgLineEntity
@@ -667,7 +702,8 @@ export type DwgGeometryEntity =
   | DwgToleranceEntity
   | DwgMlineEntity
   | DwgViewportEntity
-  | DwgHatchEntity;
+  | DwgHatchEntity
+  | DwgAcisOpaqueEntity;
 
 /** Los discriminantes válidos del modelo, para validación cerrada. */
 export const DWG_GEOMETRY_ENTITY_KINDS = Object.freeze([
@@ -704,6 +740,7 @@ export const DWG_GEOMETRY_ENTITY_KINDS = Object.freeze([
   "mline",
   "viewport",
   "hatch",
+  "acisOpaque",
 ] as const);
 
 export type DwgGeometryEntityKind = (typeof DWG_GEOMETRY_ENTITY_KINDS)[number];

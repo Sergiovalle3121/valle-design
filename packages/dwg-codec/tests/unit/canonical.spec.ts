@@ -136,3 +136,68 @@ test("el mapeo es determinista documento a documento", () => {
     dwgDatabaseToCanonicalDocument(database),
   );
 });
+
+// ─── ACIS (3DSOLID/REGION/BODY): preservación opaca — sesión DWG-B (3D) ────
+// El writer del laboratorio no emite estos tres tipos (son de CLASE, sin
+// código BS fijo — ver `objects/entities-acis.ts`), así que este mapeo se
+// prueba con una base neutral hecha a mano, mismo patrón que ya usa
+// `dwg-native-reader.spec.ts` del producto para ELLIPSE/SPLINE antes de que
+// el writer los soportara.
+test("un objeto ACIS se proyecta opaco, con su nombre de clase real como sourceType", () => {
+  const acis: DwgGeometryEntity = Object.freeze({
+    kind: "acisOpaque",
+    classNameBytes: Object.freeze([..."3DSOLID"].map((c) => c.charCodeAt(0))),
+    dataBitLength: 24,
+    leadingBitOffset: 4,
+    rawBytes: Object.freeze([0xde, 0xad, 0xbe, 0xef]),
+  });
+  const database = {
+    layers: [],
+    blocks: [],
+    modelSpaceEntities: [
+      {
+        handle: 0x50,
+        entity: acis,
+        layerHandle: undefined,
+        insertedBlockName: undefined,
+        attributes: undefined,
+        vertices: undefined,
+        sequenceEndHandle: undefined,
+      },
+    ],
+    insunits: 4,
+    tables: {
+      styles: [],
+      linetypes: [],
+      dimstyles: [],
+      appids: [],
+      vports: [],
+      views: [],
+      ucss: [],
+      mlinestyles: [],
+    },
+    dictionaries: [],
+    classMap: [],
+    unsupported: [],
+    diagnostics: [],
+  };
+  const { document, lossManifest } = dwgDatabaseToCanonicalDocument(database);
+
+  assert.equal(document.entities.length, 0, "no se proyecta como entidad canónica dibujable");
+  assert.equal(document.unsupportedEntities.length, 1);
+  const opaque = document.unsupportedEntities[0]!;
+  assert.equal(opaque.sourceType, "3DSOLID", "el nombre de clase real, no un genérico 'dwg-acisOpaque'");
+  assert.equal(opaque.editable, false);
+  const payload = JSON.parse(opaque.raw) as {
+    dataBitLength: number;
+    leadingBitOffset: number;
+    rawBytes: number[];
+  };
+  assert.equal(payload.dataBitLength, 24);
+  assert.equal(payload.leadingBitOffset, 4);
+  assert.deepEqual(payload.rawBytes, [0xde, 0xad, 0xbe, 0xef]);
+  assert.ok(
+    lossManifest.some((entry) => entry.code === "acis-preserved-opaque" && entry.sourceType === "3DSOLID"),
+    "el objeto conservado se declara en el manifiesto, nunca en silencio",
+  );
+});

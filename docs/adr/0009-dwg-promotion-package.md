@@ -8,9 +8,13 @@
   §8 autoriza EMPEZAR M5 (exportación DWG, subconjunto V1, AC1015
   únicamente, su propio flag apagado por defecto) — no lo da por cumplido,
   sólo abre la puerta a construirlo con evidencia propia; ninguna de estas
-  es la promoción general de §5, que sigue con gates pendientes
+  es la promoción general de §5, que sigue con gates pendientes. §9
+  (perfil 3D heredado `AC1015_3D_WIREFRAME_V1`) es una PROPUESTA sin firmar
+  todavía — el cableado del producto existe, con la puerta cerrada, en
+  espera de la misma conversación registrada que ya tuvieron V1/V2/V3/M3/M5.
 - Fecha: 2026-08-21 (paquete); firma real 2026-08-24 (§6-bis); ampliaciones
-  2026-08-24 (§6-ter, §6-quater, §7); autorización M5 2026-08-25 (§8)
+  2026-08-24 (§6-ter, §6-quater, §7); autorización M5 2026-08-25 (§8);
+  propuesta §9 sin firmar 2026-08-31
 - Decide sobre: llevar la importación DWG del laboratorio clean-room al
   producto, detrás de un feature flag apagado
 - No preautorizado por: ADR-0004 (DWG fuera del producto), ADR-0007 (el
@@ -391,3 +395,149 @@ Lo que esta autorización NO hace: no declara M5 cumplido — sólo abre la
 puerta a construirlo con su propia evidencia end-to-end en verde, exacto
 al mismo criterio que exigieron M2a/M2b/M3. Tampoco toca M4 (2010+), que
 sigue bloqueado en el laboratorio, ni GA/disponibilidad general de nada.
+
+## 9. PROPUESTA — perfil 3D heredado `AC1015_3D_WIREFRAME_V1` — 2026-08-31 — SIN FIRMAR
+
+Esta sección NO es una firma del titular. Es exactamente lo que era la
+sección 6 original antes de que §6-bis la convirtiera en firma real: el
+paquete queda listo para que el titular decida, con el mismo formato que
+ya usaron V1/V2/V3/M3/M5, y consta por escrito que ninguna conversación de
+autorización ha ocurrido todavía para este perfil.
+
+### 9.1 Qué existe hoy (con su evidencia)
+
+El laboratorio ya decodifica 3DFACE, POLYLINE 3D, POLYLINE MESH y POLYLINE
+PFACE con fidelidad exacta contra el corpus admitido (`CAPABILITIES.md`,
+corte 2026-08-21: "polilíneas clásicas (2D/3D/malla/polyface con VERTEX)"
+y "superficies (SOLID, TRACE, 3DFACE)", 0 discrepancias). Hasta este
+paquete, ninguno de los cuatro cruzaba al perfil `AC1015_MODELSPACE_2D_V3`
+de §6-quater: caían al mismo diagnóstico "fuera de perfil" que cualquier
+tipo sin representación ahí — **fuera de perfil, nunca "no decodificado"**,
+la misma distinción que ya rige ELLIPSE/SPLINE racional/MTEXT antes de
+V2/V3.
+
+El cableado de producto para el perfil PROPUESTO ya está construido y
+probado end-to-end, con la puerta cerrada, siguiendo el mismo patrón que
+§6-bis ya documentaba ("el cableado no necesita firma, decodificar bytes
+reales del usuario sí"):
+
+- **Perfil independiente, no una ampliación de V3.** El conjunto de tipos
+  de `AC1015_MODELSPACE_2D_V3` (`BETA_PROFILE_ENTITY_KINDS`) no se toca ni
+  un bit. El perfil 3D heredado es un conjunto DISJUNTO de tipos, con su
+  propio filtro, evaluado en la misma pasada pero de forma independiente —
+  un archivo con LINE (V3) y POLYLINE 3D (perfil §9) a la vez entrega los
+  dos, cada uno gobernado por su propia condición.
+- **Su propia autorización, `DWG_3D_WIREFRAME_BETA_AUTHORIZATION`**
+  (`dwg-interop-flag.ts`), estructuralmente igual a
+  `DWG_AC1018_BETA_AUTHORIZATION` pero con `ownerSigned: false` — a
+  diferencia de las autorizaciones ya firmadas (`ownerSigned: true`
+  literal), ésta es `boolean` y vale `false` hoy, honestamente, porque no
+  hay firma que declarar. `dwg3dWireframeBetaImportIsEnabled` exige la
+  MISMA conjunción de tres condiciones que ya usa
+  `dwgAc1018BetaImportIsEnabled` (bandera propia Y firma propia Y beta
+  base), y hoy siempre devuelve `false` porque el segundo término lo es.
+- **Su propia variable de build**, `NEXT_PUBLIC_DWG_3D_WIREFRAME_IMPORT_BETA`,
+  cableada en `document-import-client.ts` → `document-import.worker.ts` →
+  `readDwgNeutralDatabase` (opción `allow3dWireframe`) → `Dockerfile` (ARG
+  + ENV) → `scripts/deploy/validate-dockerfiles.mjs` (la exige declarada,
+  como a las otras dos). Encenderla en cualquier entorno hoy no tiene
+  efecto observable: la conjunción de tres sigue cerrada.
+- **Mapeo REAL, no aplanado.** 3DFACE/POLYLINE 3D/MESH/PFACE son entidades
+  3D verdaderas en el formato — sus puntos son WCS directos, sin elevación
+  ni extrusión de por medio (confirmado leyendo el modelo del laboratorio
+  antes de escribir el filtro: ninguna de las cuatro decodifica esos
+  campos porque el formato no los tiene para estas clases) — así que no
+  hace falta ningún álgebra de eje arbitrario para este perfil, a
+  diferencia de la trampa de OCS que sí aplica a CIRCLE/LWPOLYLINE con
+  extrusión. Cada punto conserva su Z real de punta a punta: del
+  decodificador del laboratorio, al modelo neutral del producto
+  (`dwg-neutral-model.ts`), al puente (`dwg-document-bridge.ts`).
+- **Destino: `CadOpaqueEntity`/`unsupportedEntities`, no una entidad nativa
+  nueva.** El producto todavía no tiene un canal semántico ni un editor
+  interactivo para wireframe/malla 3D (a diferencia de MTEXT/DIMENSION/
+  HATCH, que sí reutilizaron consumidores ya probados del importador DXF —
+  ninguno de los dos formatos tiene hoy un consumidor así para estos
+  cuatro tipos). Se conservan REALES, con su Z verdadera y sus vértices
+  atados, como JSON estructurado en `CadOpaqueEntity.raw`
+  (`provider: "dwg-neutral-bridge"`, `sourceType` legible: `3DFACE`,
+  `POLYLINE_3D`, `POLYLINE_MESH`, `POLYLINE_PFACE`), el mismo mecanismo ya
+  declarado en el documento canónico para `ACAD_PROXY_ENTITY` — este
+  paquete es su primer productor real. Cada objeto se declara en el
+  manifiesto de pérdidas (`dwg_3d_wireframe_preserved_opaque`, severidad
+  `warning`): el editor no lo dibuja ni lo edita todavía, pero nada se
+  pierde y nada se calla. Un archivo que sólo trae estos cuatro tipos ya
+  NO cae en el fallo cerrado de "nada importable" — conservar algo cuenta,
+  aunque no se dibuje.
+- **Specs verificadas**, mismo patrón que el resto del adaptador:
+  `dwg-native-reader-3d-wireframe.spec.ts` prueba la mitad pura del
+  filtro con bases hechas a mano (el writer del laboratorio no emite
+  estos cuatro tipos, igual que no emite ELLIPSE/SPLINE/MTEXT/DIMENSION/
+  HATCH — ADR-0009 §8.1 sólo cubre siete clases); `dwg-document-bridge-3d-wireframe.spec.ts`
+  prueba el mapeo completo, la conjunción de tres condiciones sin firma, y
+  que el JSON conservado hace round-trip con la Z real intacta.
+
+### 9.2 Lo que este paquete NO entrega
+
+**Evidencia contra archivos DWG reales, pendiente de admisión.** Hay un PR
+abierto en el repo hermano de conformidad (`valle-design-dwg-conformance#6`,
+"ola 3") con exactamente los fixtures que este perfil necesita: POLYLINE 3D
+con Z distinta por vértice, mallas 7×9 y 5×5 cerrada en N, polyface con
+índices negativos (arista invisible), seis 3DFACE con las seis
+combinaciones de banderas de arista más un caso degenerado (triángulo). El
+PR todavía NO está admitido — la conversión a DWG real exige el ODA File
+Converter, que sólo corre en la máquina del titular, y la firma de un
+revisor humano sobre el corpus (`CORPUS_POLICY.md`). Este paquete no
+maquilla esa ausencia: las dos specs de este perfil corren contra bytes
+sintéticos hechos a mano, no contra el corpus admitido, y `CAPABILITIES.md`
+lo declara con la misma distinción que ya usa para "evidencia sólo de
+corpus first-party" en cortes anteriores.
+
+**Ninguna afirmación de "modelo 3D importado".** El destino es
+`unsupportedEntities`, no una entidad nativa: no hay renderizado en el
+visor 2D ni en el visor Three.js, no hay grips, no hay snap, no hay
+comandos de edición sobre esta geometría. Prometer eso exigiría construir
+el registro de adaptador completo de `entity-runtime.ts` (renderer,
+hit-tester, grip provider, snap provider) — trabajo real, no cableado de
+flag, y NO es lo que este paquete entrega. Lo que sí se puede prometer hoy,
+con evidencia: el archivo entra, la Z real no se pierde, y el usuario
+puede inspeccionar el JSON conservado.
+
+**El kernel B-rep facetado no se toca.** Este perfil no genera `solid3d`
+ni `region`: 3DFACE/PFACE no garantizan una malla cerrada y manifold (un
+solo 3DFACE suelto no tiene volumen), así que tratarlos como sólidos
+importados sería una promesa que el dato no respalda. Eso es exactamente
+lo que ACIS (3DSOLID/REGION/BODY, §10 más abajo si se firma también) SÍ
+puede ofrecer un día, porque ahí el archivo mismo declara un sólido — pero
+ese día exige decodificar (o preservar) ACIS, no reinterpretar wireframe.
+
+### 9.3 Checklist de gates (ADR-0007) — estado a la fecha de esta propuesta
+
+| Gate | Estado |
+| --- | --- |
+| Revisión jurídica externa | ☐ PENDIENTE (la misma de §5/§6-bis, sin gate propio nuevo) |
+| Corpus redistribuible independiente para ESTE perfil | ☐ PR #6 (ola 3) del repo hermano, sin admitir |
+| Fuzzing | ✅ heredado del blindaje ya existente (el decodificador no cambia) |
+| Límites de recursos | ✅ heredado (`DwgLimits` inmutables, sin cambio) |
+| Fidelidad medida contra corpus admitido | ☐ PENDIENTE de la admisión de la ola 3 |
+| Fidelidad medida contra bytes sintéticos hechos a mano | ✅ dos specs, geometría 3D verificada punto a punto |
+| Manifiesto de pérdidas | ✅ declarado por objeto, código propio |
+| Mapping al documento canónico | ✅ probado (`unsupportedEntities`, sin segundo camino) |
+| Autorización del titular | ☐ **PENDIENTE — ésta es la firma que falta** |
+
+### 9.4 Qué firmaría el dueño, si decide hacerlo
+
+1. Autorizar el perfil `AC1015_3D_WIREFRAME_V1` descrito arriba: 3DFACE,
+   POLYLINE 3D, POLYLINE MESH, POLYLINE PFACE, conservados como objeto
+   opaco con geometría real en `unsupportedEntities` — no como entidad
+   nativa dibujable todavía.
+2. Aceptar que la evidencia de hoy es contra bytes sintéticos, no contra
+   el corpus admitido: la ola 3 del repo hermano sigue pendiente de
+   admisión (conversor + firma de revisor, OWNER ACTION).
+3. Decidir si la variable de build (`NEXT_PUBLIC_DWG_3D_WIREFRAME_IMPORT_BETA`)
+   se enciende en algún entorno de prueba antes o después de esa admisión
+   — la conjunción de tres condiciones sigue exigiendo su firma aquí
+   incluso si la variable se enciende.
+
+Sin esa firma, `DWG_3D_WIREFRAME_BETA_AUTHORIZATION.ownerSigned` sigue
+`false` y `dwg3dWireframeBetaImportIsEnabled` sigue devolviendo `false`
+pase lo que pase con las otras dos condiciones — exactamente como hoy.
