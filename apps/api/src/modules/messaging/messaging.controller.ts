@@ -133,7 +133,9 @@ export class MessagingController {
                 directChannelIds.has(event.channelId)),
           ),
           mergeMap((event) =>
-            from(this.messaging.resolveAuthors([event.message.authorUserId])).pipe(
+            from(
+              this.messaging.resolveAuthors([event.message.authorUserId]),
+            ).pipe(
               map((authors) => ({
                 data: JSON.stringify(messageResource(event.message, authors)),
               })),

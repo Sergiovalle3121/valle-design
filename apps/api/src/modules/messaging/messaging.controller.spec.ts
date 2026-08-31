@@ -46,7 +46,7 @@ describe('Messaging (/v1/messaging, stack completo)', () => {
       tenant_id: owner.organizationId,
       organization_id: owner.organizationId,
     });
-    return project.id as string;
+    return project.id;
   };
 
   beforeAll(async () => {
@@ -133,9 +133,9 @@ describe('Messaging (/v1/messaging, stack completo)', () => {
       .get('/v1/messaging/channels')
       .set(teammate.headers)
       .expect(200);
-    expect(listedByTeammate.body.items.map((c: { id: string }) => c.id)).toContain(
-      channelId,
-    );
+    expect(
+      listedByTeammate.body.items.map((c: { id: string }) => c.id),
+    ).toContain(channelId);
 
     // Alguien de OTRA organización no lo ve en absoluto.
     const listedByOutsider = await request(server)

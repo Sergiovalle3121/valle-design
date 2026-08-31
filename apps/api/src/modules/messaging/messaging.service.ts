@@ -102,7 +102,8 @@ export class MessagingService {
         where: { channelId: In(directChannelIds) },
       });
       for (const row of allMemberRows) {
-        if (row.userId !== userId) otherMemberByChannel.set(row.channelId, row.userId);
+        if (row.userId !== userId)
+          otherMemberByChannel.set(row.channelId, row.userId);
       }
     }
     const otherAuthors = await this.resolveAuthors([
@@ -334,9 +335,7 @@ export class MessagingService {
     input: CreateChannelDto,
   ): Promise<MessagingChannel> {
     if (!input.memberUserId) {
-      throw new BadRequestException(
-        'Un canal directo necesita memberUserId.',
-      );
+      throw new BadRequestException('Un canal directo necesita memberUserId.');
     }
     if (input.memberUserId === userId) {
       throw new BadRequestException(
@@ -387,7 +386,9 @@ export class MessagingService {
       const row = this.members.create({ channelId, userId, lastReadAt: null });
       return await this.members.save(row);
     } catch (err) {
-      const again = await this.members.findOne({ where: { channelId, userId } });
+      const again = await this.members.findOne({
+        where: { channelId, userId },
+      });
       if (again) return again;
       throw err;
     }
