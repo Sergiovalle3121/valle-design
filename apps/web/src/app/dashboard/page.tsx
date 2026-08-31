@@ -690,8 +690,8 @@ export default function DashboardPage() {
                     className="sr-only"
                     accept={
                       isDwgNativeImportBetaEnabled()
-                        ? ".dxf,.json,.shp,.shx,.dbf,.prj,.cpg,.dwg"
-                        : ".dxf,.json,.shp,.shx,.dbf,.prj,.cpg"
+                        ? ".dxf,.json,.shp,.shx,.dbf,.prj,.cpg,.dwg,.obj,.stl,.gltf,.glb,.dae"
+                        : ".dxf,.json,.shp,.shx,.dbf,.prj,.cpg,.obj,.stl,.gltf,.glb,.dae"
                     }
                     multiple
                     disabled={!selectedProject || busy}

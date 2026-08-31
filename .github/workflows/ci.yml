@@ -703,7 +703,6 @@ jobs:
           # lo cazaría, que es exactamente lo que debe pasar si producción se
           # despliega sin configurarlo.
           SUPPORT_EMAIL: soporte@valledesign.test
-          AI_MOCK: "1"
 
       # ── LA JORNADA REAL, PRIMERO Y SOLA ──────────────────────────────────
       #

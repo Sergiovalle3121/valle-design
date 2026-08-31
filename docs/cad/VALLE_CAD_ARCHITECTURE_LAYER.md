@@ -18,7 +18,6 @@ This document tracks the first dedicated Valle Design CAD architecture layer for
 - `docs/cad/VALLE_CAD_CAPABILITY_AUDIT.md` (retirado; el estado de capacidades
   lo computa hoy `scripts/cad/rubric.mjs` y su matriz regenerada)
 - `docs/cad/VALLE_CAD_TREE_STATUS.md` (retirado por la misma razón)
-- `docs/cad-copilot-command-contract.md`
 - `docs/design/VALLE_DESIGN_LANGUAGE.md` (hoy `docs/design/DESIGN_SYSTEM.md` y
   `docs/design/BRAND.md`)
 

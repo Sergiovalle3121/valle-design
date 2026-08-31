@@ -28,16 +28,11 @@ import { CadDocumentsRepository } from './cad-documents.repository';
 import { buildDxfExportInput } from './cad-dxf-export';
 import { CadBlocksService } from '../cad-documents/cad-blocks.service';
 import { CadDocumentsService } from '../cad-documents/cad-documents.service';
-import { CadIntentService } from '../cad-documents/cad-intent.service';
-import type { CadIntentLayoutContext } from '../cad-documents/cad-intent.service';
-import { CadVisionService } from '../cad-documents/cad-vision.service';
 import type { CadProject } from '../cad-documents/entities/cad-project.entity';
 import type { CadDocument } from '../cad-documents/entities/cad-document.entity';
 import type { CadDocumentVersion } from '../cad-documents/entities/cad-document-version.entity';
 import type { CadPublication } from '../cad-documents/entities/cad-publication.entity';
 import {
-  CadIntentDto,
-  CadVisionDto,
   CreateCadBlockDto,
   CreateCadDocumentDto,
   CreateCadProjectDto,
@@ -63,7 +58,7 @@ import {
  * no existe un alias `/v1/*` ni una capa de remapeo de prefijos.
  *
  * Todo delega en los servicios REALES del dominio (CadDocumentsService,
- * CadBlocksService, CadIntentService, CadVisionService) a través del
+ * CadBlocksService) a través del
  * repositorio fino CadDocumentsRepository (ciclo de vida de filas cad_* +
  * CAS SQL).
  */
@@ -73,8 +68,6 @@ export class CadController {
     private readonly repository: CadDocumentsRepository,
     private readonly cadDocuments: CadDocumentsService,
     private readonly blocks: CadBlocksService,
-    private readonly intent: CadIntentService,
-    private readonly vision: CadVisionService,
     private readonly rateLimits: ApiRateLimitService,
     private readonly tenantContext: TenantContextService,
   ) {}
@@ -396,82 +389,6 @@ export class CadController {
   @HttpCode(204)
   async removeBlock(@Param('blockId', ParseUUIDPipe) blockId: string) {
     await this.blocks.remove(blockId);
-  }
-
-  /* ───────────────────────────── Intent / Vision ────────────────────────── */
-
-  @Post('documents/:documentId/intent')
-  @RequirePermissions('cad:edit')
-  async interpretIntent(
-    @Param('documentId', ParseUUIDPipe) documentId: string,
-    @Body() dto: CadIntentDto,
-  ) {
-    const row = await this.repository.getDocument(documentId);
-    return this.intent.interpret(
-      row.model ?? row.name,
-      row.revision ?? 'A',
-      dto.prompt,
-      () => this.intentContext(row, dto),
-    );
-  }
-
-  @Post('vision')
-  @RequirePermissions('cad:edit')
-  async vectorize(@Body() dto: CadVisionDto) {
-    // Por CUENTA, no por documento: cada llamada cuesta inferencia y la
-    // imagen viaja completa. 10/min es holgado para un humano digitalizando.
-    const context = this.tenantContext.get();
-    await this.rateLimits.enforce(
-      'cad.vision',
-      [context?.tenant_id ?? '', context?.user_email ?? ''],
-      API_RATE_LIMITS.cadVisionPerAccount,
-    );
-    return this.vision.vectorize(dto.image);
-  }
-
-  /**
-   * Contexto de layout para el mediador NL→CAD: el que mandó el cliente, o
-   * uno mínimo derivado del documento (unidad de `meta`; huella por defecto).
-   * Se evalúa de forma diferida — en modo mock ni siquiera se hidrata.
-   */
-  private async intentContext(
-    row: CadDocument,
-    dto: CadIntentDto,
-  ): Promise<CadIntentLayoutContext> {
-    if (dto.context) {
-      return {
-        footprint: dto.context.footprint,
-        stations: dto.context.stations.map((s) => ({
-          id: s.id,
-          station: s.station,
-          x: s.x ?? null,
-          y: s.y ?? null,
-          w: s.w ?? null,
-          h: s.h ?? null,
-        })),
-        connectors: dto.context.connectors,
-      };
-    }
-    let unit = 'mm';
-    try {
-      if (row.cadDocument) {
-        const document = await this.cadDocuments.hydrateCadDocument(
-          row.cadDocument,
-        );
-        const meta =
-          document.meta && typeof document.meta === 'object'
-            ? (document.meta as Record<string, unknown>)
-            : {};
-        if (typeof meta.unit === 'string' && meta.unit) unit = meta.unit;
-      }
-    } catch {
-      // Contexto degradado: la interpretación sigue con los defaults.
-    }
-    return {
-      footprint: { unit, footprintW: 10_000, footprintH: 10_000 },
-      stations: [],
-      connectors: [],
-    };
   }
 }
 

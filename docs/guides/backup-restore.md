@@ -194,7 +194,7 @@ pg_restore \
   valle-design.dump
 ```
 
-No conectes el restore de prueba a receptores de outbox, correo o CIDE. Arranca
+No conectes el restore de prueba a receptores de outbox ni de correo. Arranca
 el API con `OUTBOX_DISPATCHER_ENABLED=false` y `NODE_ENV` no productivo, en una
 red aislada, para evitar efectos externos o reenvíos durante la validación.
 
