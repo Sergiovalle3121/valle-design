@@ -34,6 +34,8 @@ import { TenantRuntimeRoleAndDesignBlobsRls20260823120000 } from './202608231200
 import { IdentityMfaAndLoginActivity20260828120000 } from './20260828120000-IdentityMfaAndLoginActivity';
 import { ProductFeedback20260828140000 } from './20260828140000-ProductFeedback';
 import { TeamMessaging20260831090000 } from './20260831090000-TeamMessaging';
+import { CadPresenceBeats20260831092000 } from './20260831092000-CadPresenceBeats';
+import { CadPresenceBeatsRls20260831093000 } from './20260831093000-CadPresenceBeatsRls';
 
 const LEGACY_MIGRATIONS: Array<new () => MigrationInterface> = [
   AddCadBlocks20260706180000,
@@ -72,6 +74,8 @@ const ALL_MIGRATIONS: Array<new () => MigrationInterface> = [
   IdentityMfaAndLoginActivity20260828120000,
   ProductFeedback20260828140000,
   TeamMessaging20260831090000,
+  CadPresenceBeats20260831092000,
+  CadPresenceBeatsRls20260831093000,
 ];
 
 /**

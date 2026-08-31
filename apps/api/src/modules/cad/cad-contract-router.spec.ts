@@ -13,6 +13,9 @@ import { CadReviewController } from './cad-review.controller';
 import { CadReviewRepository } from './cad-review.repository';
 import { CadSheetSetController } from './cad-sheet-set.controller';
 import { CadSheetSetsRepository } from './cad-sheet-sets.repository';
+import { CadPresenceController } from './cad-presence.controller';
+import { CadPresenceService } from './cad-presence.service';
+import { CadPresenceDocumentGuard } from './cad-presence-document.guard';
 
 interface ExpressRouteLayer {
   route?: {
@@ -31,6 +34,7 @@ describe('contrato OpenAPI contra el router Nest real', () => {
         CadReviewController,
         CadReviewLinkController,
         CadSheetSetController,
+        CadPresenceController,
       ],
       providers: [
         CadDocumentsRepository,
@@ -40,6 +44,8 @@ describe('contrato OpenAPI contra el router Nest real', () => {
         CadBlocksService,
         ApiRateLimitService,
         TenantContextService,
+        CadPresenceService,
+        CadPresenceDocumentGuard,
       ].map((provide) => ({ provide, useValue: {} })),
     }).compile();
     app = moduleRef.createNestApplication();

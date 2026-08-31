@@ -5,12 +5,15 @@
  *
  * ## Qué hace este hook y qué NO
  *
- * Late, escucha, caduca y devuelve la lista. El transporte de hoy difunde
- * entre PESTAÑAS del mismo navegador (`presence-channel.ts` lo explica y lo
- * declara con `connected`). Entre dos máquinas distintas todavía no hay
- * fanout, y por eso la interfaz enseña `connected`: una insignia que dijera
- * «2 en línea» contando pestañas propias sería exactamente el resultado a
- * medias que parece correcto.
+ * Late, escucha, caduca y devuelve la lista. DOS transportes a la vez, no
+ * uno: `presence-channel.ts` (BroadcastChannel, entre pestañas del mismo
+ * navegador, latencia de proceso) y `server-presence-channel.ts` (SSE, entre
+ * máquinas distintas, latencia de red) — ambos alimentan el MISMO mapa de
+ * peers por `peerId`, así que la insignia ya cuenta personas de verdad y no
+ * sólo pestañas propias. El segundo se omite para invitados de review link
+ * (`guest: true`): `EventSource` no puede mandar `X-Review-Token`, así que
+ * esa presencia sigue sin fanout entre máquinas — "todavía no", declarado, no
+ * disimulado tras un `connected: true` que no sería cierto.
  *
  * ## El ritmo
  *
@@ -41,12 +44,15 @@ import {
   applyCadPresenceBeat,
   cadPresenceRoster,
   pruneCadPresence,
+  type CadPresenceBeat,
   type CadPresencePeer,
 } from "@/lib/cad/collab/presence";
 import {
   cadPresenceChannelAvailable,
   openCadPresenceTransport,
+  type CadPresenceTransport,
 } from "@/lib/cad/collab/presence-channel";
+import { serverPresenceChannel } from "@/lib/cad/collab/server-presence-channel";
 
 /** Ritmo máximo de emisión del cursor. 8 Hz basta para que se vea fluido. */
 const SEND_INTERVAL_MS = 125;
@@ -83,6 +89,11 @@ export function useCadPresence(options: {
   // La sonda del canal está cacheada en su módulo, así que leerla una vez al
   // montar no cuesta nada y no cambia durante la sesión.
   const [channelAvailable] = useState(() => cadPresenceChannelAvailable());
+  // `EventSource` existe en todo navegador real (no en SSR): no hace falta
+  // sondearlo abriendo uno, a diferencia de BroadcastChannel más arriba.
+  const [serverChannelAvailable] = useState(
+    () => typeof EventSource !== "undefined",
+  );
   const cursor = useRef<CadPoint2 | null>(null);
   const viewport = useRef<CadBounds | null>(null);
   const dirty = useRef(true);
@@ -107,33 +118,37 @@ export function useCadPresence(options: {
 
   useEffect(() => {
     if (!documentId || !enabled) return;
-    const transport = openCadPresenceTransport({
-      documentId,
-      selfPeerId: selfId,
-      onBeat: (beat) => {
-        setTracked((previous) => {
-          // Al cambiar de documento se parte de cero: un compañero del plano
-          // anterior no puede heredar sitio en la lista del nuevo.
-          const base =
-            previous.documentId === documentId ? previous.peers : new Map();
-          const applied = applyCadPresenceBeat(
-            base,
-            beat,
-            documentId,
-            Date.now(),
-          );
-          // Un latido rechazado (otro documento, coordenadas no finitas, orden
-          // invertido) deja la lista EXACTAMENTE como estaba. No hay estado
-          // intermedio "medio aplicado".
-          return applied.status === "applied"
-            ? { documentId, peers: applied.peers }
-            : previous;
+    const onBeat = (beat: CadPresenceBeat) => {
+      setTracked((previous) => {
+        // Al cambiar de documento se parte de cero: un compañero del plano
+        // anterior no puede heredar sitio en la lista del nuevo.
+        const base =
+          previous.documentId === documentId ? previous.peers : new Map();
+        const applied = applyCadPresenceBeat(base, beat, documentId, Date.now());
+        // Un latido rechazado (otro documento, coordenadas no finitas, orden
+        // invertido) deja la lista EXACTAMENTE como estaba. No hay estado
+        // intermedio "medio aplicado". Aplica igual venga de la pestaña de al
+        // lado o de otra máquina — el peerId ya llega desduplicado por
+        // transporte (cada uno emite el suyo una vez).
+        return applied.status === "applied"
+          ? { documentId, peers: applied.peers }
+          : previous;
+      });
+    };
+    const transport = openCadPresenceTransport({ documentId, selfPeerId: selfId, onBeat });
+    // Invitado de review link ⇒ sin segundo transporte (ver cabecera): sólo
+    // se abre para sesión first-party, y sólo si el navegador tiene EventSource.
+    const serverTransport: CadPresenceTransport | null = guest
+      ? null
+      : openCadPresenceTransport({
+          documentId,
+          selfPeerId: selfId,
+          onBeat,
+          factory: serverPresenceChannel,
         });
-      },
-    });
 
     const emit = () => {
-      transport.send({
+      const beat = {
         peerId: selfId,
         documentId,
         name: nameRef.current,
@@ -141,7 +156,9 @@ export function useCadPresence(options: {
         cursor: cursor.current,
         viewport: viewport.current,
         guest,
-      });
+      };
+      transport.send(beat);
+      serverTransport?.send(beat);
       dirty.current = false;
     };
     emit();
@@ -161,6 +178,7 @@ export function useCadPresence(options: {
       clearInterval(heartbeat);
       clearInterval(pruner);
       transport.close();
+      serverTransport?.close();
     };
   }, [documentId, enabled, guest, selfId]);
 
@@ -175,7 +193,13 @@ export function useCadPresence(options: {
   return {
     peers,
     selfId,
-    connected: channelAvailable && enabled && !!documentId,
+    // Conectado si HAY algún transporte real: el de pestañas, o el de
+    // servidor cuando aplica (no para invitados — ver cabecera). Con
+    // cualquiera de los dos, "nadie en la lista" es una afirmación real.
+    connected:
+      (channelAvailable || (serverChannelAvailable && !guest)) &&
+      enabled &&
+      !!documentId,
     report,
   };
 }

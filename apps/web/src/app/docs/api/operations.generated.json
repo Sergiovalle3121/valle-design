@@ -4,8 +4,8 @@
   "openapi": "3.1.0",
   "apiTitle": "Valle Design — API standalone (v1)",
   "apiVersion": "1.0.0",
-  "operationCount": 102,
-  "cadOperationCount": 41,
+  "operationCount": 104,
+  "cadOperationCount": 43,
   "groups": [
     {
       "family": "auth",
@@ -164,6 +164,14 @@
         "listReviewLinkComments",
         "createReviewLinkComment",
         "resolveReviewLinkComment"
+      ]
+    },
+    {
+      "family": "cad",
+      "tag": "presence",
+      "operations": [
+        "publishCadPresenceBeat",
+        "streamCadPresence"
       ]
     },
     {
@@ -2436,6 +2444,62 @@
       "parameters": [
         {
           "name": "commentId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": null,
+      "responses": [
+        "200",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "publishCadPresenceBeat",
+      "method": "POST",
+      "path": "/v1/cad/documents/{documentId}/presence",
+      "summary": "Publica un latido de presencia (cursor/encuadre) sobre el documento.",
+      "tags": [
+        "presence"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "documentId",
+          "in": "path",
+          "required": true
+        }
+      ],
+      "requestBody": {
+        "required": true,
+        "schema": "CadPresenceBeatCreate"
+      },
+      "responses": [
+        "204",
+        "400",
+        "401",
+        "403",
+        "404"
+      ]
+    },
+    {
+      "operationId": "streamCadPresence",
+      "method": "GET",
+      "path": "/v1/cad/documents/{documentId}/presence/stream",
+      "summary": "Stream SSE de presencia del documento (peers vivos, en vivo).",
+      "tags": [
+        "presence"
+      ],
+      "entitlement": "design.cad",
+      "permission": "cad:view",
+      "authentication": "sessionCookie",
+      "parameters": [
+        {
+          "name": "documentId",
           "in": "path",
           "required": true
         }

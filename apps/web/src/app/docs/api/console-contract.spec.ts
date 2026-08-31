@@ -71,14 +71,16 @@ void (async () => {
   //   entre PERSONAS que sustituye a lo que se fue.
   // + las 4 de /v1/calls: crear/unirse a sala, publicar señal, colgar y el
   //   flujo @Sse que reparte oferta, respuesta y candidatos ICE.
+  // + las 2 de /v1/cad/presence: publicar el propio cursor/encuadre y el
+  //   flujo @Sse que reparte el de los demás.
   assert.equal(
     regenerated.operationCount,
-    102,
+    104,
     "cambió el número de operaciones del contrato; actualiza este spec Y los recuentos de check-design-contract.mjs / standalone-contract-router.spec.ts",
   );
   assert.equal(
     regenerated.cadOperationCount,
-    41,
+    43,
     "cambió el número de operaciones /v1/cad; el gate de contrato tiene su propio recuento que también hay que mover",
   );
 

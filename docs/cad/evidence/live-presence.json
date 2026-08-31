@@ -1,0 +1,110 @@
+{
+  "$schema": "urn:valle-design:schema:cad-live-presence:v1",
+  "schemaVersion": 1,
+  "evidenceId": "valle-design-live-presence-v1",
+  "startedAt": "2026-08-31T05:52:56.471Z",
+  "finishedAt": "2026-08-31T05:53:49.805Z",
+  "enforcement": "report-only en latencias; el veredicto es funcional",
+  "enforcementRationale": "Las latencias dependen de la máquina y sus vecinos; el veredicto exige sólo lo que no depende de ella (cada latido publicado llegó al oyente, cero aislamiento cruzado, el spec de navegador pasó).",
+  "environment": {
+    "node": "v22.22.2",
+    "platform": "linux",
+    "architecture": "x64",
+    "osType": "Linux",
+    "osRelease": "6.18.44-fc-v22",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "logicalCpuCount": 4,
+    "totalMemoryBytes": 16856133632,
+    "declaredMachine": "Contenedor de sesión de Claude Code (sandbox efímero), sin GPU declarada. PostgreSQL 16 (paquete Ubuntu, sin Docker) arrancado para esta corrida. Sin vecinos de carga conocidos en el momento de medir.",
+    "database": "valle_design_live_presence_probe recreada ANTES de cada corrida del probe (DROP SCHEMA public CASCADE) y poblada por las migraciones reales."
+  },
+  "method": {
+    "runs": 3,
+    "aggregation": "mediana de 3 corridas en PROCESOS SEPARADOS; muestras publicadas",
+    "generator": "scripts/cad/live-presence-evidence.mjs + apps/api/src/load-probe/live-presence.main.ts",
+    "applicationUnderTest": "AppModule COMPLETO sobre HTTP real (misma configuración que main.ts) — dos sesiones first-party de la MISMA organización, RBAC por membresía y entitlement design.cad de verdad.",
+    "identityPath": "Los dos actores nacen por el camino real: registro, verificación por email_outbox, login, invitación con rol y aceptación por token.",
+    "beatsPerRun": 20,
+    "everyNumberReadFrom": "El reloj del propio probe (performance.now()) alrededor de cada POST/lectura SSE, y el reloj de Playwright para la corrida de navegador. Nada viene de instrumentar el interior de la aplicación."
+  },
+  "probe": {
+    "connectMs": {
+      "median": 13.06,
+      "samples": [
+        13.002,
+        13.06,
+        47.551
+      ],
+      "runs": 3
+    },
+    "firstEventMs": {
+      "median": 28.285,
+      "samples": [
+        28.285,
+        26.914,
+        108.648
+      ],
+      "runs": 3
+    },
+    "cursorLatencyMs": {
+      "p50": {
+        "median": 15.228,
+        "samples": [
+          15.228,
+          14.253,
+          41.467
+        ],
+        "runs": 3
+      },
+      "p95": {
+        "median": 59.13,
+        "samples": [
+          71.998,
+          59.13,
+          52.806
+        ],
+        "runs": 3
+      },
+      "max": {
+        "median": 64.78,
+        "samples": [
+          74.599,
+          64.78,
+          61.051
+        ],
+        "runs": 3
+      }
+    },
+    "beatsSentPerRun": [
+      20,
+      20,
+      20
+    ],
+    "beatsReceivedPerRun": [
+      20,
+      20,
+      20
+    ],
+    "allBeatsDelivered": true
+  },
+  "browser": {
+    "spec": "apps/web/e2e/real/cad-presencia-viva.spec.ts",
+    "browsersRun": [
+      "chromium"
+    ],
+    "browsersDeclaredNotRun": {
+      "firefox": "Sin binario de Firefox en este sandbox (sólo Chromium bajo PLAYWRIGHT_BROWSERS_PATH) — CI sí lo corre; 'todavía no' en este artefacto, no 'nunca'."
+    },
+    "pairs": 2,
+    "allTestsPassed": true,
+    "cursorUpdateLatencyMsSamples": [
+      742,
+      863
+    ],
+    "firstSightAtMount": true,
+    "disappearanceObservedMs": 12400,
+    "ttlConfiguredMs": 12000,
+    "crossTenantIsolationVerified": true
+  },
+  "passed": true
+}

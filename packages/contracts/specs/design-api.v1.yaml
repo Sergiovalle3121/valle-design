@@ -141,6 +141,12 @@ tags:
       catálogo de permisos. `GET /v1/messaging/events` es un flujo
       `text/event-stream` (SSE) de mensajes nuevos; ver su descripción para
       el límite declarado de una sola instancia de proceso.
+  - name: presence
+    description: >-
+      Presencia EN VIVO por servidor sobre un documento (cursor, encuadre):
+      efímera, sin persistencia de historial, sin tocar `cad_document`. Sólo
+      sesión first-party (`cad:view`) — la presencia de invitado por review
+      link no existe todavía (EventSource no puede mandar `X-Review-Token`).
 paths:
   /v1/auth/register:
     post:
@@ -2362,6 +2368,60 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiError"
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/cad/documents/{documentId}/presence:
+    parameters:
+      - $ref: "#/components/parameters/documentId"
+    post:
+      operationId: publishCadPresenceBeat
+      tags: [presence]
+      summary: Publica un latido de presencia (cursor/encuadre) sobre el documento.
+      description: >-
+        Efímero: sobrescribe la última posición conocida de ESTA pestaña
+        (`peerId`) sobre este documento; no crea historial. `name` sale del
+        email de la sesión autenticada, nunca del cuerpo. Sin latido nuevo
+        antes de 12 s, el peer caduca del lado de quien escucha (TTL local,
+        igual que el transporte entre pestañas del mismo navegador).
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CadPresenceBeatCreate"
+      responses:
+        "204":
+          description: Latido aplicado.
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /v1/cad/documents/{documentId}/presence/stream:
+    parameters:
+      - $ref: "#/components/parameters/documentId"
+    get:
+      operationId: streamCadPresence
+      tags: [presence]
+      summary: Stream SSE de presencia del documento (peers vivos, en vivo).
+      description: >-
+        `text/event-stream`. Al conectar, emite el snapshot completo de peers
+        vivos (uno o varios eventos `CadPresenceBeat`); después, un evento por
+        cada latido de OTRA réplica o de este mismo proceso, más un `event:
+        ping` periódico de mantenimiento que el cliente ignora (no es del tipo
+        SSE por defecto). El fan-out entre réplicas de la API usa
+        `LISTEN`/`NOTIFY` de PostgreSQL — ver `cad-presence.bus.ts`.
+      x-required-entitlement: design.cad
+      x-required-permission: cad:view
+      responses:
+        "200":
+          description: Stream de eventos de presencia.
+          content:
+            text/event-stream:
+              schema:
+                $ref: "#/components/schemas/CadPresenceBeat"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/EntitlementRequired" }
         "404": { $ref: "#/components/responses/NotFound" }
   /v1/cad/documents/{documentId}/dxf:
     parameters:
@@ -5354,6 +5414,68 @@ components:
           $ref: "#/components/schemas/Timestamp"
         updatedAt:
           $ref: "#/components/schemas/Timestamp"
+    CadPresenceCursor:
+      type: object
+      required: [x, y]
+      properties:
+        x: { type: number }
+        y: { type: number }
+    CadPresenceViewport:
+      type: object
+      required: [minX, minY, maxX, maxY]
+      properties:
+        minX: { type: number }
+        minY: { type: number }
+        maxX: { type: number }
+        maxY: { type: number }
+    CadPresenceBeatCreate:
+      type: object
+      required: [peerId]
+      description: >-
+        `documentId` sale de la ruta. `name` y `guest` los decide el
+        SERVIDOR (email de la sesión autenticada) — no viajan en el cuerpo.
+      properties:
+        peerId:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Identidad de la PESTAÑA emisora (no de la persona).
+        cursor:
+          oneOf:
+            - $ref: "#/components/schemas/CadPresenceCursor"
+            - type: "null"
+        viewport:
+          oneOf:
+            - $ref: "#/components/schemas/CadPresenceViewport"
+            - type: "null"
+    CadPresenceBeat:
+      type: object
+      description: >-
+        Un evento del stream SSE (`data:` de un evento sin `event:` explícito
+        — el `ping` de mantenimiento usa `event: ping` y no lleva esta forma).
+      required: [peerId, documentId, name, at, guest]
+      properties:
+        peerId:
+          type: string
+        documentId:
+          $ref: "#/components/schemas/CadDocumentId"
+        name:
+          type: string
+          maxLength: 160
+        at:
+          type: integer
+          description: Reloj del SERVIDOR en el momento del snapshot (epoch ms).
+        cursor:
+          oneOf:
+            - $ref: "#/components/schemas/CadPresenceCursor"
+            - type: "null"
+        viewport:
+          oneOf:
+            - $ref: "#/components/schemas/CadPresenceViewport"
+            - type: "null"
+        guest:
+          type: boolean
+          description: Siempre `false` en esta versión (ver descripción del tag `presence`).
     DxfBackground:
       type: object
       description: Plano DXF de fondo (solo lectura sobre el dibujo).

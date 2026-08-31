@@ -202,14 +202,15 @@ function parseControllerOperations() {
       errors.push(`${name}: prefijo no canónico ${prefix}`);
     }
     for (const match of source.matchAll(
-      // `@Sse` cuenta como GET: es lo que registra en el router de Nest
-      // (compone RequestMapping con RequestMethod.GET) — sin esto una ruta
-      // de entrega en vivo real quedaría invisible para este gate.
+      // `@Sse` cuenta como GET: NestJS lo registra literalmente como
+      // RequestMethod.GET (ver sse.decorator.js) — es la misma ruta HTTP,
+      // sólo con `Content-Type: text/event-stream` en la respuesta. Sin esto
+      // una ruta de entrega en vivo real quedaría invisible para este gate.
       /@(Get|Post|Put|Patch|Delete|Sse)\(\s*(?:["']([^"']*)["'])?\s*\)/g,
     )) {
-      const method = match[1] === "Sse" ? "get" : match[1];
+      const httpMethod = match[1] === "Sse" ? "Get" : match[1];
       const route = [prefix, match[2] ?? ""].filter(Boolean).join("/");
-      const key = routeKey(method, route);
+      const key = routeKey(httpMethod, route);
       if (operations.has(key)) {
         errors.push(
           `Ruta Nest duplicada: ${key} (${operations.get(key)}, ${name})`,

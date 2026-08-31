@@ -1408,6 +1408,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/cad/documents/{documentId}/presence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: components["parameters"]["documentId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publica un latido de presencia (cursor/encuadre) sobre el documento.
+         * @description Efímero: sobrescribe la última posición conocida de ESTA pestaña (`peerId`) sobre este documento; no crea historial. `name` sale del email de la sesión autenticada, nunca del cuerpo. Sin latido nuevo antes de 12 s, el peer caduca del lado de quien escucha (TTL local, igual que el transporte entre pestañas del mismo navegador).
+         */
+        post: operations["publishCadPresenceBeat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/cad/documents/{documentId}/presence/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: components["parameters"]["documentId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Stream SSE de presencia del documento (peers vivos, en vivo).
+         * @description `text/event-stream`. Al conectar, emite el snapshot completo de peers vivos (uno o varios eventos `CadPresenceBeat`); después, un evento por cada latido de OTRA réplica o de este mismo proceso, más un `event: ping` periódico de mantenimiento que el cliente ignora (no es del tipo SSE por defecto). El fan-out entre réplicas de la API usa `LISTEN`/`NOTIFY` de PostgreSQL — ver `cad-presence.bus.ts`.
+         */
+        get: operations["streamCadPresence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/cad/documents/{documentId}/dxf": {
         parameters: {
             query?: never;
@@ -2751,6 +2795,35 @@ export interface components {
             resolved: boolean;
             createdAt: components["schemas"]["Timestamp"];
             updatedAt?: components["schemas"]["Timestamp"];
+        };
+        CadPresenceCursor: {
+            x: number;
+            y: number;
+        };
+        CadPresenceViewport: {
+            minX: number;
+            minY: number;
+            maxX: number;
+            maxY: number;
+        };
+        /** @description `documentId` sale de la ruta. `name` y `guest` los decide el SERVIDOR (email de la sesión autenticada) — no viajan en el cuerpo. */
+        CadPresenceBeatCreate: {
+            /** @description Identidad de la PESTAÑA emisora (no de la persona). */
+            peerId: string;
+            cursor?: components["schemas"]["CadPresenceCursor"] | null;
+            viewport?: components["schemas"]["CadPresenceViewport"] | null;
+        };
+        /** @description Un evento del stream SSE (`data:` de un evento sin `event:` explícito — el `ping` de mantenimiento usa `event: ping` y no lleva esta forma). */
+        CadPresenceBeat: {
+            peerId: string;
+            documentId: components["schemas"]["CadDocumentId"];
+            name: string;
+            /** @description Reloj del SERVIDOR en el momento del snapshot (epoch ms). */
+            at: number;
+            cursor?: components["schemas"]["CadPresenceCursor"] | null;
+            viewport?: components["schemas"]["CadPresenceViewport"] | null;
+            /** @description Siempre `false` en esta versión (ver descripción del tag `presence`). */
+            guest: boolean;
         };
         /** @description Plano DXF de fondo (solo lectura sobre el dibujo). */
         DxfBackground: {
@@ -5449,6 +5522,59 @@ export interface operations {
                     "application/json": components["schemas"]["ApiError"];
                 };
             };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    publishCadPresenceBeat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: components["parameters"]["documentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CadPresenceBeatCreate"];
+            };
+        };
+        responses: {
+            /** @description Latido aplicado. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EntitlementRequired"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    streamCadPresence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: components["parameters"]["documentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stream de eventos de presencia. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": components["schemas"]["CadPresenceBeat"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EntitlementRequired"];
             404: components["responses"]["NotFound"];
         };
     };
