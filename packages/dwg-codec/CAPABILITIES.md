@@ -107,7 +107,9 @@ confirmados por medición original sobre el corpus admitido (commit `a60ebe2`,
   (AC1024): confirma que la codificación por campo de la geometría no cambia
   para R2010+.
 
-**Límite honesto sin suavizar**: la codificación BOT (2 bits + valor) del
+**Límite honesto sin suavizar** (SUPERADO el 2026-08-31 — ver el corte de
+esa fecha al final de este archivo; el párrafo original se conserva porque
+así se lee la historia real): la codificación BOT (2 bits + valor) del
 tipo de objeto sigue **sin fuente registrada suficiente** para decodificarse
 sin adivinar — el hecho ya registrado la nombra pero no fija la tabla
 selector→ancho de valor. Con el LINE ya identificado, las descomposiciones
@@ -158,13 +160,24 @@ dos flags apagados por defecto en producción pública
   es una beta acotada, no disponibilidad general. `legalReviewCleared` sigue
   `false` en `DWG_PROMOTION_GATES` (dictamen jurídico en paralelo, no
   resuelto). Unidades (INSUNITS) se asumen en milímetros sin poder
-  confirmarlas contra el archivo — el camino de LECTURA del laboratorio
-  todavía no decodifica esa variable de cabecera (sólo el de escritura la
-  usa) — declarado como pérdida en cada importación, no adivinado en
-  silencio. `stateFlags` de capa viaja crudo por la misma razón que ya
+  confirmarlas contra el archivo — declarado como pérdida en cada
+  importación, no adivinado en silencio. **Corregido el 2026-08-31**: este
+  párrafo decía que el camino de LECTURA no decodificaba esa variable de
+  cabecera, y desde el PR #101 sí lo hace
+  (`reader/ac1015-database-reader.ts` la decodifica y la pasa a
+  `assembleDatabase`, y el puente del producto la consume). Ningún corte
+  posterior lo corrigió; se corrige aquí sin reescribir el corte original. `stateFlags` de capa viaja crudo por la misma razón que ya
   declaraba el corte 2026-08-14: su semántica bit a bit no está confirmada
-  contra corpus real para el binario DWG. Sin exportación conectada al
+  contra corpus real para el binario DWG. Sin exportación DISPONIBLE en el
   producto: el writer AC1015 sigue siendo capacidad de laboratorio.
+  **Precisado el 2026-08-31**: decir "sin exportación conectada" se quedaba
+  corto en un sentido que importa. Sí existe un segundo punto de entrada
+  autorizado en el producto (`apps/web/src/lib/cad/dwg-native-writer.ts`,
+  ADR-0009 §8), pero está CERRADO por su propio gate —
+  `externalOracleVerified: false` en `dwg-export-flag.ts` — y no tiene
+  consumidor: ningún botón, ninguna UI, ningún endpoint. Lo que abriría ese
+  gate es correr el oráculo externo sobre el corpus admitido, y eso es una
+  OWNER ACTION: el conversor sólo existe en la máquina del titular.
 
 ## Evidencia del corte 2026-08-25 (M5: `writeCanonicalDwg`, función pública de escritura)
 
@@ -236,3 +249,47 @@ reclaman como evidencia de este contrato nuevo. Sigue sin existir ninguna
 integración de producto, ningún flag, ningún botón "Exportar como DWG":
 tanto el writer AC1015 de bajo nivel como `writeCanonicalDwg` siguen siendo
 capacidad de laboratorio.
+
+## Evidencia del corte 2026-08-31 (encabezado de objeto R2010+)
+
+| Capacidad | Estado | Límite honesto |
+| --- | --- | --- |
+| Encabezado de objeto AC1024/AC1027/AC1032 | `experimental-lab` | Sólo el ENCABEZADO: tamaño, tamaño del flujo de handles, tipo y handle propio. El CUERPO no se decodifica. |
+
+Lo que el corte 2026-08-23 dejó `BLOCKED_BY_SOURCE_GATE` queda **resuelto por
+medición first-party**, sin fuente documental nueva y sin consultar ninguna
+implementación ajena. El propio corte anterior había nombrado la salida —
+*"hacen falta más identificaciones independientes (más tipos, no sólo LINE)"* —
+y esas identificaciones ya estaban en el corpus admitido: los cinco bundles
+fundacionales son los mismos ocho dibujos en cinco contenedores, así que el
+gemelo AC1015 da el tipo esperado de **cada** handle, no de uno.
+
+El encabezado medido es `MS` tamaño · `UMC` tamaño EN BITS del flujo de
+handles · `BOT` tipo · `H` handle propio. El sondeo anterior no podía cerrar
+porque buscaba el tipo al frente del cuerpo, y delante de él van esos dos
+campos.
+
+- **Falsación primaria**, independiente de toda hipótesis sobre el tipo: el
+  handle propio viaja pegado detrás del `BOT` y el mapa ya dice cuál debe ser.
+  Sale exacto en **2893/2893** objetos de los 24 fixtures.
+- **Falsación secundaria**: el tipo coincide con el del gemelo AC1015 en
+  **1353/1413** comparaciones de tipo fijo; **AC1027 351/351** y **AC1032
+  351/351** sin una sola discrepancia. Las 60 restantes son todas AC1024 y
+  todas del par DICTIONARY/XRECORD en handles contiguos — el conversor los
+  numeró al revés, así que el gemelo no es la misma pieza.
+
+**Capacidad ausente declarada**: los selectores 2 y 3 del `BOT` no aparecen ni
+una vez en los 2893 objetos. Sin una sola observación no se puede saber su
+ancho, y un ancho inventado daría un tipo plausible y equivocado que además
+desalinea todo lo que viene detrás. `readBOT` falla cerrado ante ambos.
+
+**Nada se promueve.** `readR2004Database` sigue lanzando
+`DWG_VERSION_DECODER_UNSUPPORTED` para las tres versiones y
+`DWG_VERSION_REGISTRY` las mantiene en `decoderStatus: "unsupported"`. Lo que
+cambia es dónde está la frontera: ya no es el TIPO sino el CUERPO, cuyo flujo
+de datos separa las cadenas y cambia la cabecera común de entidad. Se probó
+reconstruir la forma R2000 y reusar los decodificadores existentes barriendo
+todos los `bitsize` posibles: ninguno hace decodificar una LINE real.
+
+Evidencia: `docs/cad/evidence/dwg-r2010-object-header.json`, reproducible con
+`node scripts/dwg/probe-r2010-object-header.mjs`.
