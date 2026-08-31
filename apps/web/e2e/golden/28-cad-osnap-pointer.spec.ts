@@ -62,7 +62,7 @@ test('LINE pointer HUD proves endpoint, midpoint, intersection, perpendicular an
 
   const probe = async (step: string, anchor: { x: number; y: number }, target: { x: number; y: number }, label: string) => {
     await test.step(step, async () => {
-      await page.getByRole('button', { name: 'Line', exact: true }).click();
+      await page.getByRole('button', { name: 'Línea', exact: true }).click();
       const anchorScreen = await worldPoint(page, anchor);
       await page.mouse.click(anchorScreen.x, anchorScreen.y);
       const targetScreen = await worldPoint(page, target);

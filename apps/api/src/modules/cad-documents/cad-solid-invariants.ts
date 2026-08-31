@@ -43,6 +43,7 @@ const OPERATION_OPS = new Set([
   'fillet',
   'chamfer',
   'slice',
+  'push',
 ]);
 
 function reject(message: string): never {
@@ -142,7 +143,7 @@ function nodeReferences(node: Record<string, unknown>, id: string): string[] {
       return reference;
     });
   }
-  if (op === 'fillet' || op === 'chamfer' || op === 'slice') {
+  if (op === 'fillet' || op === 'chamfer' || op === 'slice' || op === 'push') {
     const reference = stringValue(node.operand);
     if (!reference) reject(`el nodo ${id} (${op}) necesita un operando.`);
     return [reference];
@@ -315,6 +316,67 @@ function assertNodeGeometry(node: Record<string, unknown>, id: string): void {
         `el nodo ${id} (slice) necesita \`keep\` igual a "positive" o "negative".`,
       );
     }
+    return;
+  }
+  if (op === 'push') {
+    // La distancia CERO se rechaza y no se ignora: un empujón que no mueve
+    // nada es un nodo que engorda el árbol y no cambia el sólido, y el cliente
+    // ya lo rechaza con ese mismo motivo. Que las dos fronteras digan lo mismo
+    // es lo que evita el documento que pasa por una y no por la otra.
+    if (!finite(node.distance) || node.distance === 0) {
+      reject(
+        `el nodo ${id} (push) necesita una distancia finita distinta de cero.`,
+      );
+    }
+    assertFaceRef(node.face, `el nodo ${id} (push)`);
+  }
+}
+
+/**
+ * La referencia de cara que persiste un `push`.
+ *
+ * Se valida la FORMA, no la topología: si la cara existe o no en el sólido es
+ * algo que sólo sabe el kernel al evaluar el árbol, y el servidor no evalúa
+ * geometría. Lo que sí puede garantizar es que la huella está completa y es
+ * numéricamente sana, de modo que el cliente nunca reciba una referencia que
+ * no se pueda ni intentar resolver.
+ */
+function assertFaceRef(value: unknown, what: string): void {
+  const ref = objectValue(value);
+  if (!ref) reject(`${what} necesita una referencia de cara.`);
+  if (!finite(ref.index) || !Number.isInteger(ref.index) || ref.index < 0) {
+    reject(`${what}: el índice de cara tiene que ser un entero no negativo.`);
+  }
+  const plane = objectValue(ref.plane);
+  if (!plane) reject(`${what}: la referencia de cara necesita su plano.`);
+  for (const axis of ['nx', 'ny', 'nz', 'd'] as const) {
+    if (!finite(plane[axis])) {
+      reject(`${what}: el plano de la cara necesita \`${axis}\` finito.`);
+    }
+  }
+  assertPoint3(ref.centroid, `${what}: el centroide de la cara`);
+  if (
+    !finite(ref.loopSize) ||
+    !Number.isInteger(ref.loopSize) ||
+    ref.loopSize < 3
+  ) {
+    reject(
+      `${what}: una cara necesita al menos 3 medias-aristas en su lazo exterior.`,
+    );
+  }
+  if (
+    !finite(ref.innerLoops) ||
+    !Number.isInteger(ref.innerLoops) ||
+    ref.innerLoops < 0
+  ) {
+    reject(
+      `${what}: el número de lazos interiores tiene que ser un entero no negativo.`,
+    );
+  }
+  if (!positive(ref.area)) {
+    reject(
+      `${what}: el área de la cara tiene que ser un número finito positivo.`,
+    );
   }
 }
 

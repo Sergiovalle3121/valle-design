@@ -1,8 +1,11 @@
 # Producto
 
-Valle Design es un **CAD 2D general y universal**: permite que un equipo cree,
-edite, versione y revise dibujos CAD desde el navegador sin depender de otro
-producto para identidad o acceso. El plano puede ser de cualquier disciplina
+Valle Design es un **CAD 2D general y universal y un modelador 3D de modelado
+directo**: permite que un equipo cree, edite, versione y revise dibujos CAD y
+modele volúmenes desde el navegador sin depender de otro producto para identidad
+o acceso. La ampliación de identidad al 3D la decide
+[`ADR-0016`](docs/adr/0016-modelado-directo-sobre-brep-facetado.md), que también
+declara por qué el kernel se queda facetado. El plano puede ser de cualquier disciplina
 —arquitectónico, mecánico, eléctrico, civil, de instalaciones, de mobiliario, de
 terreno— y el catálogo mexicano de plantillas y normas es la fortaleza inicial
 del producto, no su frontera. Qué es y qué **no** es Valle Design está en
@@ -37,8 +40,6 @@ opera como un tenant independiente.
 - Exportar el subconjunto DXF implementado y publicar hojas PDF.
 - Crear review links revocables, comentar y resolver comentarios dentro de la
   superficie de revisión acotada.
-- Usar asistencia NL→CAD o Vision→CAD cuando CIDE está configurado; los cambios
-  requieren el flujo de confirmación del documento.
 
 ## Personas y permisos
 
@@ -101,11 +102,10 @@ verifica contra la API real y PostgreSQL en
 - El corpus de 100k usa LOD. Los números actuales no demuestran 60 FPS, tiempo
   real, memoria estabilizada ni detalle completo de 100k entidades.
 - “Standalone” describe la identidad, autorización, datos y despliegue del
-  producto. El repositorio incluye los ADAPTADORES de correo, de pagos
-  (Stripe) y de CIDE, no los servicios: sin las credenciales del operador cada
+  producto. El repositorio incluye los ADAPTADORES de correo y de pagos
+  (Stripe), no los servicios: sin las credenciales del operador cada
   uno degrada de forma declarada (el checkout responde
-  `checkout_unavailable`, el CFDI es manual, la asistencia responde
-  `available:false`). Ya no es cierto que el producto «no capture pagos» —lo
+  `checkout_unavailable`, el CFDI es manual). Ya no es cierto que el producto «no capture pagos» —lo
   que sigue siendo cierto es que no los custodia: tarjeta, OXXO y SPEI viven
   en la pasarela.
 - Un test unitario, un golden con red simulada o una ruta visible no bastan para

@@ -115,12 +115,10 @@ test("las siete clases autorizadas van y vuelven exactas por writeCanonicalDwg �
   });
 
   const { bytes, lossManifest } = writeCanonicalDwg(document);
-  // La ÚNICA pérdida esperada: el bloque PUERTA se escribe vacío (su
-  // contenido no viaja todavía, ver src/api/write.ts) — nada más queda sin
-  // declarar ni sin escribir para estas siete entidades.
-  assert.equal(lossManifest.length, 1);
-  assert.equal(lossManifest[0]!.code, "insert-block-content-not-written");
-  assert.equal(lossManifest[0]!.severity, "info");
+  // El bloque PUERTA está declarado VACÍO en el fixture (sin entidades que
+  // perder), así que estas siete clases ya no dejan NINGUNA pérdida — el
+  // contenido de bloque viaja desde el corte 2026-08-31 (ver src/api/write.ts).
+  assert.equal(lossManifest.length, 0);
 
   const database = readDwg(bytes);
   assert.equal(database.layers.length, 2);
@@ -137,7 +135,7 @@ test("las siete clases autorizadas van y vuelven exactas por writeCanonicalDwg �
     (block) => String.fromCharCode(...block.name) === "PUERTA",
   );
   assert.ok(puerta, "el bloque PUERTA debe existir para que el INSERT resuelva");
-  assert.equal(puerta.entities.length, 0, "el contenido del bloque no viaja todavía (pérdida declarada)");
+  assert.equal(puerta.entities.length, 0, "el bloque PUERTA está declarado vacío en el fixture");
 
   assert.equal(database.modelSpaceEntities.length, 7);
   const byKind = new Map(
@@ -184,6 +182,121 @@ test("las siete clases autorizadas van y vuelven exactas por writeCanonicalDwg �
   assert.ok(near(insert.rotation, 0));
   assert.equal(String.fromCharCode(...(insertRecord!.insertedBlockName ?? [])), "PUERTA");
   assert.equal(insertRecord!.layerHandle, muros.handle);
+});
+
+test("el contenido de un bloque viaja: geometría y capa exactas dentro del BLOCK_RECORD", () => {
+  const document = emptyDocument({
+    layers: [
+      { id: "0", name: "0", color: "#FFFFFF", visible: true, locked: false },
+      { id: "BISAGRAS", name: "BISAGRAS", color: "#FF0000", visible: true, locked: false },
+    ],
+    blocks: [
+      {
+        id: "bPUERTA",
+        name: "PUERTA",
+        basePoint: { x: 0, y: 0, z: 0 },
+        entities: [
+          {
+            id: "bp1",
+            type: "line",
+            start: { x: 0, y: 0, z: 0 },
+            end: { x: 0, y: 2.1, z: 0 },
+            layer: "0",
+          },
+          {
+            id: "bp2",
+            type: "circle",
+            center: { x: 0, y: 1, z: 0 },
+            radius: 0.05,
+            layer: "BISAGRAS",
+          },
+        ],
+      },
+    ],
+    entities: [
+      {
+        id: "e1",
+        type: "insert",
+        block: "PUERTA",
+        insertion: { x: 5, y: 5, z: 0 },
+        scale: { x: 1, y: 1, z: 1 },
+        rotation: 0,
+        layer: "0",
+      },
+    ],
+  });
+
+  const { bytes, lossManifest } = writeCanonicalDwg(document);
+  assert.equal(lossManifest.length, 0);
+
+  const database = readDwg(bytes);
+  const bisagras = database.layers.find(
+    (layer) => String.fromCharCode(...layer.name) === "BISAGRAS",
+  );
+  assert.ok(bisagras, "la capa BISAGRAS debe existir: sólo el contenido del bloque la referencia");
+
+  const puerta = database.blocks.find(
+    (block) => String.fromCharCode(...block.name) === "PUERTA",
+  );
+  assert.ok(puerta);
+  assert.equal(puerta.entities.length, 2);
+  const [lineRecord, circleRecord] = puerta.entities;
+  const line = expectEntity(lineRecord, "line");
+  assert.ok(near3(line.start, { x: 0, y: 0, z: 0 }));
+  assert.ok(near3(line.end, { x: 0, y: 2.1, z: 0 }));
+  const circle = expectEntity(circleRecord, "circle");
+  assert.ok(near3(circle.center, { x: 0, y: 1, z: 0 }));
+  assert.ok(near(circle.radius, 0.05));
+  assert.equal(circleRecord!.layerHandle, bisagras.handle);
+});
+
+test("un bloque que inserta OTRO bloque declara la pérdida y omite sólo ese INSERT", () => {
+  const document = emptyDocument({
+    blocks: [
+      {
+        id: "bMARCO",
+        name: "MARCO",
+        basePoint: { x: 0, y: 0, z: 0 },
+        entities: [
+          { id: "bm1", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 1, y: 0, z: 0 }, layer: "0" },
+          {
+            id: "bm2",
+            type: "insert",
+            block: "TORNILLO",
+            insertion: { x: 0, y: 0, z: 0 },
+            scale: { x: 1, y: 1, z: 1 },
+            rotation: 0,
+            layer: "0",
+          },
+        ],
+      },
+    ],
+    entities: [
+      {
+        id: "e1",
+        type: "insert",
+        block: "MARCO",
+        insertion: { x: 0, y: 0, z: 0 },
+        scale: { x: 1, y: 1, z: 1 },
+        rotation: 0,
+        layer: "0",
+      },
+    ],
+  });
+
+  const { bytes, lossManifest } = writeCanonicalDwg(document);
+  assert.equal(lossManifest.length, 1);
+  assert.equal(lossManifest[0]!.code, "insert-block-nested-insert-not-written");
+  assert.equal(lossManifest[0]!.entityId, "bm2");
+
+  const database = readDwg(bytes);
+  const marco = database.blocks.find(
+    (block) => String.fromCharCode(...block.name) === "MARCO",
+  );
+  assert.ok(marco);
+  // La línea del bloque SÍ viaja; el INSERT anidado se omite, declarado.
+  assert.equal(marco.entities.length, 1);
+  assert.equal(marco.entities[0]!.entity.kind, "line");
 });
 
 test('una capa con nombre no-ASCII cae a la capa "0" con una pérdida declarada, nunca un throw', () => {

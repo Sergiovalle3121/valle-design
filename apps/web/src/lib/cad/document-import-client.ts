@@ -26,6 +26,20 @@ export function isDwgAc1018ImportBetaEnabled(): boolean {
   return process.env.NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA === "true";
 }
 
+/**
+ * Perfil 3D heredado propuesto (`AC1015_3D_WIREFRAME_V1`, ADR-0009 §9).
+ * Variable DISTINTA, mismo patrón que AC1018: encender la beta base no
+ * enciende ésta. Hoy no hay despliegue posible donde valga algo: incluso con
+ * esta variable en `"true"` y la beta base encendida,
+ * `dwg3dWireframeBetaImportIsEnabled` (`dwg-interop-flag.ts`) sigue devolviendo
+ * `false` porque nadie ha firmado `DWG_3D_WIREFRAME_BETA_AUTHORIZATION`
+ * todavía — el cableado existe para que ese día sea encender una variable,
+ * no escribir código.
+ */
+export function isDwg3dWireframeImportBetaEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_DWG_3D_WIREFRAME_IMPORT_BETA === "true";
+}
+
 type WorkerEvent =
   | { type: "progress"; progress: number; stage: string }
   | { type: "complete"; report: DocumentImportReport }
@@ -77,6 +91,7 @@ export function importDocumentFile(
 ): Promise<DocumentImportReport> {
   const dwgBetaEnabled = isDwgNativeImportBetaEnabled();
   const dwgAc1018BetaEnabled = isDwgAc1018ImportBetaEnabled();
+  const dwg3dWireframeBetaEnabled = isDwg3dWireframeImportBetaEnabled();
   validateImportFile(file.name, file.size, dwgBetaEnabled);
   return new Promise((resolve, reject) => {
     const worker = new Worker(
@@ -123,6 +138,7 @@ export function importDocumentFile(
         sidecars: options.sidecars ?? {},
         dwgBetaEnabled,
         dwgAc1018BetaEnabled,
+        dwg3dWireframeBetaEnabled,
       });
   });
 }

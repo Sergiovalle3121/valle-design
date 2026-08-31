@@ -102,8 +102,11 @@ métricas del dispatcher exponen sólo conteos, IDs internos y clases de fallo.
   `SYNCHRONIZE=true` está prohibido.
 - `design_blobs` contiene planos comprimidos; backup, cifrado, retención y
   restore deben cubrirlo en el mismo snapshot que documentos/versiones.
-- CIDE puede recibir texto, geometría o imagen. Habilitarlo sólo con un acuerdo
-  de datos adecuado, enviar el mínimo y proteger `CIDE_API_KEY`.
+- **Ningún dato del plano sale hacia un motor de inferencia: no hay IA.** El
+  párrafo que antes advertía sobre CIDE se retiró junto con el motor; la
+  advertencia sobrevive como principio: cualquier función futura que mande
+  geometría a un tercero exigiría acuerdo de datos, enviar el mínimo y su
+  propia revisión de privacidad — hoy no hay ninguna.
 - El harness `_development/email-outbox` requiere flags y clave explícitos,
   está bloqueado en producción y nunca debe exponerse en staging público.
 - Gitleaks sobre historial completo, SBOM CycloneDX, gate de licencias,

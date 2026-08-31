@@ -6,8 +6,6 @@ import { TenantContextService } from '../../common/tenant/tenant-context.service
 import { ApiRateLimitService } from '../identity/api-rate-limit.service';
 import { CadBlocksService } from '../cad-documents/cad-blocks.service';
 import { CadDocumentsService } from '../cad-documents/cad-documents.service';
-import { CadIntentService } from '../cad-documents/cad-intent.service';
-import { CadVisionService } from '../cad-documents/cad-vision.service';
 import { CadController } from './cad.controller';
 import { CadDocumentsRepository } from './cad-documents.repository';
 import { CadReviewLinkController } from './cad-review-link.controller';
@@ -15,6 +13,9 @@ import { CadReviewController } from './cad-review.controller';
 import { CadReviewRepository } from './cad-review.repository';
 import { CadSheetSetController } from './cad-sheet-set.controller';
 import { CadSheetSetsRepository } from './cad-sheet-sets.repository';
+import { CadPresenceController } from './cad-presence.controller';
+import { CadPresenceService } from './cad-presence.service';
+import { CadPresenceDocumentGuard } from './cad-presence-document.guard';
 
 interface ExpressRouteLayer {
   route?: {
@@ -33,6 +34,7 @@ describe('contrato OpenAPI contra el router Nest real', () => {
         CadReviewController,
         CadReviewLinkController,
         CadSheetSetController,
+        CadPresenceController,
       ],
       providers: [
         CadDocumentsRepository,
@@ -40,10 +42,10 @@ describe('contrato OpenAPI contra el router Nest real', () => {
         CadSheetSetsRepository,
         CadDocumentsService,
         CadBlocksService,
-        CadIntentService,
-        CadVisionService,
         ApiRateLimitService,
         TenantContextService,
+        CadPresenceService,
+        CadPresenceDocumentGuard,
       ].map((provide) => ({ provide, useValue: {} })),
     }).compile();
     app = moduleRef.createNestApplication();

@@ -54,7 +54,6 @@ import {
   AC1015_CLASSES_SENTINELS,
   AC1015_HEADER_VARIABLES_SENTINELS,
 } from "../container/ac1015-section-frame.js";
-import type { DwgGeometryEntity } from "../model/entity-geometry.js";
 import { AC1015_TYPE_BLOCK_CONTROL } from "../objects/table-block.js";
 import { AC1015_TYPE_LAYER_CONTROL } from "../objects/table-layer.js";
 import { throwDwgError } from "../security/parse-error.js";
@@ -156,52 +155,25 @@ import {
 } from "./ac1015-minimal-file-support.js";
 
 // ---------------------------------------------------------------------------
-// Opciones
+// Opciones — los tipos públicos viven en `ac1015-minimal-file-support.ts`
+// (presupuesto de 800 líneas del monorepo) y se re-exportan aquí tal cual,
+// para que nada que ya importe de este módulo note el traslado.
 // ---------------------------------------------------------------------------
-
-/** Una capa adicional a la capa "0" del esquema canónico. */
-export interface Ac1015MinimalFileLayerSpec {
-  readonly name: readonly number[];
-  /** Índice de color CmC. Por defecto 7. */
-  readonly colorIndex?: number;
-}
-
-/** Un bloque de usuario con su contenido. */
-export interface Ac1015MinimalFileBlockSpec {
-  readonly name: readonly number[];
-  readonly entities: readonly DwgGeometryEntity[];
-}
-
-/** Una entidad de model space. */
-export interface Ac1015MinimalFileEntitySpec {
-  readonly entity: DwgGeometryEntity;
-  /** 0 = capa "0" (por defecto); 1.. = índice+1 en `layers`. */
-  readonly layerIndex?: number;
-  /** Sólo INSERT: índice del bloque insertado en `blocks`. */
-  readonly insertBlockIndex?: number;
-}
-
-export interface Ac1015MinimalFileOptions {
-  readonly layers?: readonly Ac1015MinimalFileLayerSpec[];
-  readonly blocks?: readonly Ac1015MinimalFileBlockSpec[];
-  readonly entities?: readonly Ac1015MinimalFileEntitySpec[];
-  /** Variable MEASUREMENT del Template: 0 = inglés (defecto), 1 = métrico. */
-  readonly measurement?: 0 | 1;
-}
-
-/** El plan determinista de handles de un archivo mínimo. */
-export interface Ac1015MinimalFilePlan {
-  /** Handle de cada capa: [capa "0", ...capas extra]. */
-  readonly layerHandles: readonly number[];
-  /** Handle del BLOCK_RECORD de cada bloque de usuario. */
-  readonly blockRecordHandles: readonly number[];
-  /** Handles de las entidades de model space, en orden de las opciones. */
-  readonly modelEntityHandles: readonly number[];
-  /** Handles de las entidades de cada bloque, en orden. */
-  readonly blockEntityHandles: readonly (readonly number[])[];
-  /** El siguiente handle libre: la HANDSEED del archivo. */
-  readonly handseed: number;
-}
+export type {
+  Ac1015MinimalFileBlockEntityInput,
+  Ac1015MinimalFileBlockSpec,
+  Ac1015MinimalFileEntitySpec,
+  Ac1015MinimalFileLayerSpec,
+  Ac1015MinimalFileOptions,
+  Ac1015MinimalFilePlan,
+} from "./ac1015-minimal-file-support.js";
+import type {
+  Ac1015MinimalFileBlockSpec,
+  Ac1015MinimalFileEntitySpec,
+  Ac1015MinimalFileLayerSpec,
+  Ac1015MinimalFileOptions,
+  Ac1015MinimalFilePlan,
+} from "./ac1015-minimal-file-support.js";
 
 /**
  * Calcula el plan de handles del archivo SIN emitir nada: función pura de
@@ -601,14 +573,18 @@ export function writeAc1015MinimalFile(
         beginHandle,
       ),
     );
-    block.entities.forEach((entity, entityIndex) => {
+    block.entities.forEach((spec, entityIndex) => {
+      const layerHandle = plan.layerHandles[spec.layerIndex ?? 0]!;
       push(
         contentHandles[entityIndex]!,
-        writeAc1015ResolvedEntityBody(entity, contentHandles[entityIndex]!, {
+        writeAc1015ResolvedEntityBody(spec.entity, contentHandles[entityIndex]!, {
           ownerBlockHandle: recordHandle,
-          layerHandle: H_LAYER_ZERO,
+          layerHandle,
           chainPosition: chainPositionFor(entityIndex, contentHandles.length),
-          ...(entity.kind === "text" ? { textStyleHandle: H_STYLE_STANDARD } : {}),
+          ...(spec.entity.kind === "text" ? { textStyleHandle: H_STYLE_STANDARD } : {}),
+          ...(spec.insertBlockIndex === undefined
+            ? {}
+            : { insertBlockHandle: plan.blockRecordHandles[spec.insertBlockIndex]! }),
         }),
       );
     });

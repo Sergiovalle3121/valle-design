@@ -1,6 +1,8 @@
 "use client";
 
 import { History, Trash2 } from "lucide-react";
+import { formatRegionDateTime } from "@/lib/cad/region";
+import { getClientRegion } from "@/lib/cad/region/client";
 import { CadDialogShell } from "./CadDialogShell";
 
 /**
@@ -82,6 +84,7 @@ export function CadVersionsDialog({
   onRestoreVersion: (id: string) => void;
   onDeleteVersion: (id: string) => void;
 }) {
+  const region = getClientRegion();
   return (
     <CadDialogShell
       id="cad-versiones"
@@ -150,7 +153,7 @@ export function CadVersionsDialog({
                       {snap.label}
                     </div>
                     <div className="type-micro text-muted-foreground">
-                      {new Date(snap.createdAt).toLocaleString("es-MX")} ·{" "}
+                      {formatRegionDateTime(new Date(snap.createdAt), region)} ·{" "}
                       {snap.reason}
                     </div>
                   </div>
@@ -193,7 +196,7 @@ export function CadVersionsDialog({
                     {v.name || "Sin nombre"}
                   </div>
                   <div className="type-micro text-muted-foreground dark:text-muted-foreground">
-                    {new Date(v.createdAt).toLocaleString("es-MX")} ·{" "}
+                    {formatRegionDateTime(new Date(v.createdAt), region)} ·{" "}
                     {v.stationCount} est · {v.assetCount} eq
                   </div>
                 </div>

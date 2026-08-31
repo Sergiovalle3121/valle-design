@@ -90,9 +90,18 @@ const source = readFileSync(
   "utf8",
 );
 assert.ok(source.includes(".cad-shell .cad-status-bar"));
+// La barra de estado salió del monolito a `CadStatusBar.tsx` (ver
+// `docs/execution/DEUDA-MONOLITO.md`, candidato "la barra de estado y los
+// conmutadores"): el DOM renderizado no cambió —mismo `.cad-status-bar`
+// dentro del mismo `.cad-shell`— pero el gancho ahora vive en su propio
+// archivo, no en el editor.
+const statusBarComponent = readFileSync(
+  "src/components/cad/studio/CadStatusBar.tsx",
+  "utf8",
+);
 assert.ok(
-  editor.includes('className="cad-status-bar '),
-  "y el editor sigue marcando la barra con ese gancho",
+  statusBarComponent.includes('className="cad-status-bar '),
+  "y CadStatusBar sigue marcando la barra con ese gancho",
 );
 const globals = readFileSync("src/app/globals.css", "utf8");
 assert.ok(

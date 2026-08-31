@@ -899,6 +899,89 @@ export interface paths {
         patch: operations["updateProductFeedbackStatus"];
         trace?: never;
     };
+    "/v1/calls/rooms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Crea o se une a la sala de llamada de un documento.
+         * @description Idempotente por (tenant, documentId): si ya hay una sala abierta para ese documento la reutiliza y añade un participante nuevo; si no, abre una. La sala, sus participantes y las señales SDP/ICE viven en memoria del proceso, nunca en disco — una llamada dura minutos, no meses. La malla completa (cada participante conectado a todos los demás) topa en cuatro; un quinto responde 409. `iceServers` trae el STUN/TURN que este despliegue tenga configurado y `turnConfigured` dice si hay TURN real detrás — sin él, las llamadas entre redes que no atraviesan NAT directo (del orden del 15%) fallan, y el cliente debe decirlo en vez de quedarse "conectando" para siempre.
+         */
+        post: operations["joinCallRoom"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/calls/rooms/{roomId}/leave": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sale de la sala. Si era el último participante, la sala termina. */
+        post: operations["leaveCallRoom"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/calls/rooms/{roomId}/signals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: string;
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Envía una oferta, respuesta o candidato ICE a otro participante.
+         * @description El servidor enruta el mensaje sin interpretarlo: `payload` es exactamente lo que produce `RTCPeerConnection` en el navegador (`RTCSessionDescriptionInit` para oferta/respuesta, `RTCIceCandidateInit` para un candidato). Si el destinatario tiene `GET .../events` abierto se entrega de inmediato; si no, se guarda en su buzón hasta que conecte o hasta que expire el TTL.
+         */
+        post: operations["postCallSignal"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/calls/rooms/{roomId}/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: string;
+            };
+            cookie?: never;
+        };
+        /**
+         * Entrega en vivo (SSE) del roster y las señales del participante.
+         * @description `Server-Sent Events`, no WebSocket. `EventSource` no manda headers propios: la sesión viaja por la cookie de siempre (mismo origen) y `participantId` va en la query, validado contra la sala y el tenant del actor antes de abrir el stream. Manda un evento `roster` al conectar y en cada cambio de participantes, un evento `signal` por cada mensaje dirigido a este participante (incluidos los que llegaron mientras no había conexión abierta), y un `ping` periódico para que el stream no parezca muerto detrás de un proxy con timeout de idle.
+         */
+        get: operations["streamCallRoomEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/cad/documents": {
         parameters: {
             query?: never;
@@ -1325,6 +1408,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/cad/documents/{documentId}/presence": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: components["parameters"]["documentId"];
+            };
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publica un latido de presencia (cursor/encuadre) sobre el documento.
+         * @description Efímero: sobrescribe la última posición conocida de ESTA pestaña (`peerId`) sobre este documento; no crea historial. `name` sale del email de la sesión autenticada, nunca del cuerpo. Sin latido nuevo antes de 12 s, el peer caduca del lado de quien escucha (TTL local, igual que el transporte entre pestañas del mismo navegador).
+         */
+        post: operations["publishCadPresenceBeat"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/cad/documents/{documentId}/presence/stream": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: components["parameters"]["documentId"];
+            };
+            cookie?: never;
+        };
+        /**
+         * Stream SSE de presencia del documento (peers vivos, en vivo).
+         * @description `text/event-stream`. Al conectar, emite el snapshot completo de peers vivos (uno o varios eventos `CadPresenceBeat`); después, un evento por cada latido de OTRA réplica o de este mismo proceso, más un `event: ping` periódico de mantenimiento que el cliente ignora (no es del tipo SSE por defecto). El fan-out entre réplicas de la API usa `LISTEN`/`NOTIFY` de PostgreSQL — ver `cad-presence.bus.ts`.
+         */
+        get: operations["streamCadPresence"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/cad/documents/{documentId}/dxf": {
         parameters: {
             query?: never;
@@ -1423,29 +1550,55 @@ export interface paths {
         patch: operations["updateCadBlock"];
         trace?: never;
     };
-    "/v1/cad/documents/{documentId}/intent": {
+    "/v1/messaging/channels": {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                documentId: components["parameters"]["documentId"];
-            };
+            path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * Lista los canales visibles (de proyecto de la organización + directos propios).
+         * @description Los canales de PROYECTO son visibles a cualquier miembro de la organización sin invitación previa; los DIRECTOS sólo a sus dos participantes. Cada fila trae `unreadCount` (mensajes de otra persona desde el último `read`) y, en canales directos, `otherMember`.
+         */
+        get: operations["listMessagingChannels"];
         put?: never;
         /**
-         * Interpreta una instrucción de lenguaje natural para un documento.
-         * @description Devuelve propuestas de herramientas; nunca aplica cambios al documento. Si el motor no está configurado, responde `available: false` de forma determinista.
+         * Crea un canal de proyecto o abre uno directo (idempotente).
+         * @description `kind: 'project'` exige `projectId` (de un `cad_project` del tenant) y `name`. `kind: 'direct'` exige `memberUserId`: si ya existe un canal directo entre ambas personas, lo REUTILIZA en vez de duplicar — responde 201 igualmente, con el canal existente. Abrir un canal directo consigo mismo es `400`.
          */
-        post: operations["interpretCadIntent"];
+        post: operations["createMessagingChannel"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/cad/vision": {
+    "/v1/messaging/channels/{channelId}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Mensajes del canal, paginados por cursor.
+         * @description Sin `cursor`: los `limit` mensajes más recientes, en orden CRONOLÓGICO ascendente (el más viejo primero, listo para pintar de arriba abajo). Con `cursor` (de `nextCursor` de la página anterior): los `limit` mensajes anteriores a esa frontera, mismo orden ascendente. `nextCursor: null` = no hay mensajes más viejos.
+         */
+        get: operations["listMessagingChannelMessages"];
+        put?: never;
+        /**
+         * Envía un mensaje al canal, opcionalmente anclado al dibujo o en hilo.
+         * @description `anchor` es el MISMO contrato JSON que `CadComment.anchor` — un mensaje puede apuntar a una entidad, cara o vista del dibujo. `parentMessageId` referencia otro mensaje del MISMO canal (hilo); si no pertenece a este canal, `400`. Cuerpo 1–4000 caracteres, no vacío tras trim.
+         */
+        post: operations["createMessagingChannelMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/messaging/channels/{channelId}/read": {
         parameters: {
             query?: never;
             header?: never;
@@ -1454,11 +1607,28 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Marca el canal como leído hasta ahora (baja `unreadCount` a 0). */
+        post: operations["markMessagingChannelRead"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/messaging/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
         /**
-         * Propone geometría CAD a partir de una imagen embebida.
-         * @description Devuelve la salida cruda del motor para validación en el cliente. Si el motor no está configurado, responde `available: false`.
+         * Mensajes nuevos en vivo (Server-Sent Events) de cualquier canal visible.
+         * @description `text/event-stream`: cada evento trae `data` con un `MessagingMessage` serializado en JSON. LÍMITE DECLARADO: fanout en memoria de UNA sola instancia de proceso — en un despliegue de varias instancias, un mensaje enviado en otra instancia no llega por este flujo (se ve al recargar). El snapshot de canales DIRECTOS visibles se toma al conectar; uno abierto después no aparece hasta reconectar. No usa WebSocket a propósito: `EventSource` reutiliza la cookie de sesión first-party y pasa por la misma cadena de guards que el resto de la API (ver ARCHITECTURE.md).
          */
-        post: operations["vectorizeCadImage"];
+        get: operations["streamMessagingEvents"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1534,6 +1704,80 @@ export interface components {
         };
         FeedbackAdminList: {
             items: components["schemas"]["FeedbackAdminEntry"][];
+        };
+        CallJoinRequest: {
+            /** Format: uuid */
+            documentId: string;
+            /** @description Nombre para las miniaturas. Si falta, se usa el correo de la sesión. */
+            displayName?: string;
+        };
+        CallLeaveRequest: {
+            /** Format: uuid */
+            participantId: string;
+        };
+        /** @enum {string} */
+        CallSignalKind: "offer" | "answer" | "ice-candidate" | "bye";
+        CallSignalRequest: {
+            /** Format: uuid */
+            fromParticipantId: string;
+            /** Format: uuid */
+            toParticipantId: string;
+            kind: components["schemas"]["CallSignalKind"];
+            /** @description Opaco para el servidor: `RTCSessionDescriptionInit` para oferta/respuesta, `RTCIceCandidateInit` para un candidato. Lo define el navegador, no este contrato. */
+            payload: {
+                [key: string]: unknown;
+            };
+        };
+        CallParticipant: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            userId: string;
+            name: string;
+            joinedAt: components["schemas"]["Timestamp"];
+        };
+        CallIceServer: {
+            urls: string[];
+            username?: string;
+            credential?: string;
+        };
+        CallJoinResponse: {
+            /** Format: uuid */
+            roomId: string;
+            /** Format: uuid */
+            documentId: string;
+            /** Format: uuid */
+            participantId: string;
+            participants: components["schemas"]["CallParticipant"][];
+            iceServers: components["schemas"]["CallIceServer"][];
+            /** @description false cuando el despliegue no configuró TURN: las llamadas entre redes que no atraviesan NAT directo van a fallar y el cliente debe decirlo en vez de quedarse "conectando". */
+            turnConfigured: boolean;
+            /** @description Tope de la malla completa que esta sala usa. */
+            maxParticipants: number;
+        };
+        /** @description Union discriminada por `type`, la forma de CADA evento del stream `GET /v1/calls/rooms/{roomId}/events`. `text/event-stream` no es JSON puro (es `data: <json>\n\n` por mensaje); este schema describe el JSON de un solo `data`. */
+        CallServerEvent: {
+            /** @enum {string} */
+            type: "roster";
+            participants: components["schemas"]["CallParticipant"][];
+        } | {
+            /** @enum {string} */
+            type: "signal";
+            signal: {
+                /** Format: uuid */
+                id: string;
+                /** Format: uuid */
+                fromParticipantId: string;
+                kind: components["schemas"]["CallSignalKind"];
+                payload: {
+                    [key: string]: unknown;
+                };
+                queuedAt: components["schemas"]["Timestamp"];
+            };
+        } | {
+            /** @enum {string} */
+            type: "ping";
+            at: components["schemas"]["Timestamp"];
         };
         SupportIncidentRequest: {
             /** @description Lo que la persona escribe. Es el unico campo que redacta. */
@@ -2552,6 +2796,35 @@ export interface components {
             createdAt: components["schemas"]["Timestamp"];
             updatedAt?: components["schemas"]["Timestamp"];
         };
+        CadPresenceCursor: {
+            x: number;
+            y: number;
+        };
+        CadPresenceViewport: {
+            minX: number;
+            minY: number;
+            maxX: number;
+            maxY: number;
+        };
+        /** @description `documentId` sale de la ruta. `name` y `guest` los decide el SERVIDOR (email de la sesión autenticada) — no viajan en el cuerpo. */
+        CadPresenceBeatCreate: {
+            /** @description Identidad de la PESTAÑA emisora (no de la persona). */
+            peerId: string;
+            cursor?: components["schemas"]["CadPresenceCursor"] | null;
+            viewport?: components["schemas"]["CadPresenceViewport"] | null;
+        };
+        /** @description Un evento del stream SSE (`data:` de un evento sin `event:` explícito — el `ping` de mantenimiento usa `event: ping` y no lleva esta forma). */
+        CadPresenceBeat: {
+            peerId: string;
+            documentId: components["schemas"]["CadDocumentId"];
+            name: string;
+            /** @description Reloj del SERVIDOR en el momento del snapshot (epoch ms). */
+            at: number;
+            cursor?: components["schemas"]["CadPresenceCursor"] | null;
+            viewport?: components["schemas"]["CadPresenceViewport"] | null;
+            /** @description Siempre `false` en esta versión (ver descripción del tag `presence`). */
+            guest: boolean;
+        };
         /** @description Plano DXF de fondo (solo lectura sobre el dibujo). */
         DxfBackground: {
             name: string;
@@ -2632,47 +2905,73 @@ export interface components {
             name?: string;
             definition?: components["schemas"]["CadBlockDefinition"];
         };
-        CadIntentRequest: {
-            prompt: string;
-            context?: components["schemas"]["CadIntentContext"];
+        /**
+         * Format: uuid
+         * @description Identificador de `messaging_channels`.
+         */
+        MessagingChannelId: string;
+        /**
+         * Format: uuid
+         * @description Identificador de `messaging_messages`.
+         */
+        MessagingMessageId: string;
+        /**
+         * @description `project`: ligado a un `cad_project`, visible a toda la organización. `direct`: entre dos personas, sólo visible para ellas.
+         * @enum {string}
+         */
+        MessagingChannelKind: "project" | "direct";
+        MessagingAuthor: {
+            /** Format: uuid */
+            userId: string;
+            email: components["schemas"]["Actor"];
+            displayName: string | null;
         };
-        CadIntentContext: {
-            footprint: {
-                unit: string;
-                footprintW: number;
-                footprintH: number;
-            };
-            stations: {
-                id: string;
-                station: string;
-                x?: number | null;
-                y?: number | null;
-                w?: number | null;
-                h?: number | null;
-            }[];
-            connectors: {
-                from: string;
-                to: string;
-            }[];
+        MessagingChannel: {
+            id: components["schemas"]["MessagingChannelId"];
+            kind: components["schemas"]["MessagingChannelKind"];
+            projectId: components["schemas"]["CadProjectId"] | null;
+            name: string | null;
+            /** @description Sólo canales `direct`; `null` en canales `project`. */
+            otherMember: components["schemas"]["MessagingAuthor"] | null;
+            /** @description Mensajes de OTRA persona desde el último `POST .../read` (nunca cuenta los mensajes propios). */
+            unreadCount: number;
+            lastMessageAt: components["schemas"]["Timestamp"] | null;
+            createdAt: components["schemas"]["Timestamp"];
         };
-        CadIntentResponse: {
-            available: boolean;
-            toolCalls: {
-                name: string;
-                arguments: {
-                    [key: string]: unknown;
-                };
-            }[];
-            message?: string;
+        MessagingChannelList: {
+            items: components["schemas"]["MessagingChannel"][];
         };
-        CadVisionRequest: {
-            /** @description Data URL `data:image/*;base64,...` embebida. */
-            image: string;
+        /** @description `kind: 'project'` exige `projectId` + `name`; `kind: 'direct'` exige `memberUserId`. El servidor rechaza (`400`) los campos que no correspondan al `kind` declarado si están mal combinados con el estado existente (p. ej. `memberUserId` igual al propio usuario). */
+        MessagingChannelCreate: {
+            kind: components["schemas"]["MessagingChannelKind"];
+            projectId?: components["schemas"]["CadProjectId"];
+            name?: string;
+            /**
+             * Format: uuid
+             * @description El otro miembro de la organización, para `kind: 'direct'`.
+             */
+            memberUserId?: string;
         };
-        CadVisionResponse: {
-            available: boolean;
-            raw: string;
-            message?: string;
+        MessagingMessage: {
+            id: components["schemas"]["MessagingMessageId"];
+            channelId: components["schemas"]["MessagingChannelId"];
+            author: components["schemas"]["MessagingAuthor"];
+            body: string;
+            parentMessageId: components["schemas"]["MessagingMessageId"] | null;
+            /** @description Mismo contrato JSON que `CadComment.anchor` — un mensaje puede apuntar a una entidad, cara o vista del dibujo. `null` = sin ancla (mensaje de conversación normal). */
+            anchor: Record<string, never> | null;
+            createdAt: components["schemas"]["Timestamp"];
+        };
+        MessagingMessageCreate: {
+            body: string;
+            parentMessageId?: components["schemas"]["MessagingMessageId"] | null;
+            anchor?: Record<string, never> | null;
+        };
+        MessagingMessagePage: {
+            /** @description Orden CRONOLÓGICO ascendente (el más viejo primero). */
+            items: components["schemas"]["MessagingMessage"][];
+            /** @description Pásalo como `cursor` para pedir mensajes más viejos. `null` = no hay más. */
+            nextCursor: string | null;
         };
     };
     responses: {
@@ -2760,6 +3059,7 @@ export interface components {
         sessionId: components["schemas"]["CadReviewSessionId"];
         commentId: components["schemas"]["CadCommentId"];
         blockId: components["schemas"]["CadBlockId"];
+        messagingChannelId: components["schemas"]["MessagingChannelId"];
         /** @description Búsqueda por nombre (contains, case-insensitive). */
         searchQuery: string;
         limit: number;
@@ -4279,6 +4579,139 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    joinCallRoom: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CallJoinRequest"];
+            };
+        };
+        responses: {
+            /** @description Sala (nueva o reutilizada) con el roster y la configuración ICE. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CallJoinResponse"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description La sala ya tiene el tope de participantes de la malla completa. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    leaveCallRoom: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CallLeaveRequest"];
+            };
+        };
+        responses: {
+            /** @description Fuera de la sala. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        left: true;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    postCallSignal: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                roomId: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CallSignalRequest"];
+            };
+        };
+        responses: {
+            /** @description Señal encolada para su entrega. */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {boolean} */
+                        queued: true;
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            429: components["responses"]["TooManyRequests"];
+        };
+    };
+    streamCallRoomEvents: {
+        parameters: {
+            query: {
+                participantId: string;
+            };
+            header?: never;
+            path: {
+                roomId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stream `text/event-stream` de eventos de la sala. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": components["schemas"]["CallServerEvent"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     listCadDocuments: {
         parameters: {
             query?: {
@@ -5092,6 +5525,59 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
+    publishCadPresenceBeat: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: components["parameters"]["documentId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CadPresenceBeatCreate"];
+            };
+        };
+        responses: {
+            /** @description Latido aplicado. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EntitlementRequired"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    streamCadPresence: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                documentId: components["parameters"]["documentId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stream de eventos de presencia. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": components["schemas"]["CadPresenceBeat"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EntitlementRequired"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     getCadDxfBackground: {
         parameters: {
             query?: never;
@@ -5327,37 +5813,29 @@ export interface operations {
             404: components["responses"]["NotFound"];
         };
     };
-    interpretCadIntent: {
+    listMessagingChannels: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                documentId: components["parameters"]["documentId"];
-            };
+            path?: never;
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CadIntentRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description Resultado de interpretación, disponible o degradado. */
-            201: {
+            /** @description Canales visibles, sin orden garantizado. */
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CadIntentResponse"];
+                    "application/json": components["schemas"]["MessagingChannelList"];
                 };
             };
-            400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["EntitlementRequired"];
-            404: components["responses"]["NotFound"];
         };
     };
-    vectorizeCadImage: {
+    createMessagingChannel: {
         parameters: {
             query?: never;
             header?: never;
@@ -5366,20 +5844,129 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CadVisionRequest"];
+                "application/json": components["schemas"]["MessagingChannelCreate"];
             };
         };
         responses: {
-            /** @description Resultado de visión, disponible o degradado. */
+            /** @description Canal creado o, en directos, reutilizado. */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CadVisionResponse"];
+                    "application/json": components["schemas"]["MessagingChannel"];
                 };
             };
             400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EntitlementRequired"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listMessagingChannelMessages: {
+        parameters: {
+            query?: {
+                cursor?: string;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                channelId: components["parameters"]["messagingChannelId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Página de mensajes. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessagingMessagePage"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EntitlementRequired"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    createMessagingChannelMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channelId: components["parameters"]["messagingChannelId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MessagingMessageCreate"];
+            };
+        };
+        responses: {
+            /** @description Mensaje creado. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MessagingMessage"];
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EntitlementRequired"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    markMessagingChannelRead: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                channelId: components["parameters"]["messagingChannelId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Marcado. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @constant */
+                        read: true;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["EntitlementRequired"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    streamMessagingEvents: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Flujo de eventos, uno por mensaje nuevo. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["EntitlementRequired"];
         };

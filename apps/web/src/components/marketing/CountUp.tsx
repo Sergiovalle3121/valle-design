@@ -10,6 +10,8 @@
  * ahí — el observador solo la re-anima al entrar.
  */
 import { useEffect, useRef, useState } from "react";
+import { formatRegionNumber } from "@/lib/cad/region";
+import { getClientRegion } from "@/lib/cad/region/client";
 
 const DURATION_MS = 1100;
 
@@ -48,7 +50,7 @@ export function CountUp({ value, className }: { value: number; className?: strin
 
   return (
     <span ref={ref} className={className}>
-      {shown.toLocaleString("es-MX")}
+      {formatRegionNumber(shown, getClientRegion())}
     </span>
   );
 }

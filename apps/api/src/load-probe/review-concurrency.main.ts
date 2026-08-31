@@ -108,7 +108,7 @@ async function readJson(response: Response): Promise<unknown> {
   }
 }
 
-async function expectStatus(
+export async function expectStatus(
   response: Response,
   expected: readonly number[],
   what: string,
@@ -123,7 +123,7 @@ async function expectStatus(
 }
 
 /** Token más reciente de una plantilla del outbox para un destinatario. */
-async function readOutboxToken(
+export async function readOutboxToken(
   dataSource: DataSource,
   recipient: string,
   template: string,
@@ -165,7 +165,7 @@ function readCookies(response: Response): Map<string, string> {
 }
 
 /** Alta y sesión SIN organización propia: el camino del INVITADO. */
-async function createVerifiedSession(options: {
+export async function createVerifiedSession(options: {
   baseUrl: string;
   dataSource: DataSource;
   email: string;

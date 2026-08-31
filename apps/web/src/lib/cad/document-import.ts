@@ -47,6 +47,8 @@ export {
   type DocumentImportFormat,
 } from "./document-import-validation";
 import type { DwgNeutralDatabaseReader } from "./dwg-neutral-model";
+import { importMeshDocument } from "./interop/mesh-document-import";
+import { meshImportFormatOf } from "./interop/mesh-format-detect";
 
 export interface DocumentImportReport {
   format: DocumentImportFormat;
@@ -107,6 +109,14 @@ export function importDocumentBytes(
       throw new Error("No hay lector DWG registrado para esta importación.");
     }
     return importDwgDocument(data, dwg.reader);
+  }
+  if (meshImportFormatOf(fileName)) {
+    // Los cuatro lectores de malla son asíncronos (cargan su parser de three
+    // con `import()` dinámico) y esta función no lo es: `importMeshFileDocument`
+    // es la puerta correcta, y `document-import.worker.ts` ya distingue las
+    // dos rutas. Lanzar aquí en vez de intentar leerlo como shapefile evita un
+    // mensaje de error que hablaría de `.shp` sobre un archivo `.obj`.
+    throw new Error(`«${fileName}» es un modelo 3D: usa importMeshFileDocument(), no importDocumentBytes().`);
   }
   return importShapefileDocument(fileName, data, sidecars);
 }
@@ -279,6 +289,36 @@ function importDxfDocument(content: string): DocumentImportReport {
       entityCount: document.entities.length,
       blockCount: document.blocks.length,
     }),
+  };
+}
+
+/**
+ * OBJ, STL, glTF/GLB o COLLADA → documento canónico con un `solid3d` por
+ * componente.
+ *
+ * Es la ÚNICA función de este archivo que es `async`: los cuatro lectores
+ * cargan su parser de three con `import()` dinámico (el mismo patrón que ya
+ * usa `glb-export.ts` para no pagar el peso de esos módulos en formatos que
+ * no los necesitan), y `GLTFLoader.parse` en concreto resuelve por promesa
+ * incluso para un `.glb` autocontenido. `document-import.worker.ts` es quien
+ * decide llamar aquí en vez de a `importDocumentBytes` — ya lo hace todo
+ * dentro de un `onmessage` async.
+ */
+export async function importMeshFileDocument(
+  fileName: string,
+  bytes: Uint8Array,
+): Promise<DocumentImportReport> {
+  const format = meshImportFormatOf(fileName);
+  if (!format) {
+    throw new Error(`«${fileName}» no es OBJ, STL, glTF/GLB ni COLLADA.`);
+  }
+  const result = await importMeshDocument(fileName, bytes, format);
+  return {
+    format: result.format,
+    document: result.document,
+    importedEntityCount: result.importedEntityCount,
+    importedBlockCount: result.importedBlockCount,
+    warnings: result.warnings,
   };
 }
 

@@ -14,6 +14,7 @@
 import * as THREE from "three";
 import { assetMeta } from "./asset-catalog";
 import { buildCadAssetArchetype } from "./asset-archetypes";
+import { DEFAULT_REGION_PROFILE, formatRegionNumber, type RegionProfile } from "@/lib/cad/region";
 
 /** Un activo colocado en la planta del editor heredado. */
 export interface Asset {
@@ -46,8 +47,8 @@ export const CAD_SCENE_AMBER = 0xf59e0b;
 export const CAD_SCENE_SELECT = 0x22d3ee;
 
 /** Distancia formateada de una cota. Es la misma regla que usa el HUD. */
-function fmtDist(d: number, unit: string): string {
-  return `${Math.round(d).toLocaleString("es-MX")} ${unit}`;
+function fmtDist(d: number, unit: string, region: RegionProfile = DEFAULT_REGION_PROFILE): string {
+  return `${formatRegionNumber(Math.round(d), region)} ${unit}`;
 }
 
 export function makeLabel(text: string, scale = 1.5): THREE.Sprite {

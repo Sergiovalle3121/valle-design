@@ -30,6 +30,8 @@ import { useDesignAuth } from "@/contexts/DesignAuthContext";
 import { TrialBanner } from "@/components/commercial/TrialBanner";
 import { trialStatus } from "@/lib/commercial/trial-phase";
 import { designClient, DesignApiError } from "@/lib/cad/repositories/client";
+import { formatRegionDate } from "@/lib/cad/region";
+import { getClientRegion } from "@/lib/cad/region/client";
 import {
   importDocumentFile,
   isDwgNativeImportBetaEnabled,
@@ -499,7 +501,7 @@ export default function DashboardPage() {
               >
                 Suscripción {subscription.status}
                 {subscription.status === "trialing" && subscription.trialEndsAt
-                  ? ` hasta ${new Date(subscription.trialEndsAt).toLocaleDateString()}`
+                  ? ` hasta ${formatRegionDate(new Date(subscription.trialEndsAt), getClientRegion())}`
                   : ""}
                 {entitlements.includes("design.cad") ? " · CAD habilitado" : ""}
               </p>
@@ -688,8 +690,8 @@ export default function DashboardPage() {
                     className="sr-only"
                     accept={
                       isDwgNativeImportBetaEnabled()
-                        ? ".dxf,.json,.shp,.shx,.dbf,.prj,.cpg,.dwg"
-                        : ".dxf,.json,.shp,.shx,.dbf,.prj,.cpg"
+                        ? ".dxf,.json,.shp,.shx,.dbf,.prj,.cpg,.dwg,.obj,.stl,.gltf,.glb,.dae"
+                        : ".dxf,.json,.shp,.shx,.dbf,.prj,.cpg,.obj,.stl,.gltf,.glb,.dae"
                     }
                     multiple
                     disabled={!selectedProject || busy}

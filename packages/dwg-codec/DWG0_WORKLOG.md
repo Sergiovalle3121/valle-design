@@ -851,3 +851,340 @@ en `decoderStatus: "unsupported"` y `CAPABILITIES.md` no promueve nada.
 **Reproducible**: `node scripts/dwg/probe-r2010-object-header.mjs` con
 `VALLE_DWG_CORPUS_MIRROR` apuntando al repo hermano; evidencia en
 `docs/cad/evidence/dwg-r2010-object-header.json`.
+
+## Intake 2026-08-31 (continuación) — CUERPO de objeto R2010+ resuelto para las cinco entidades sin cadenas (VALLE-CORPUS-R2010-OBJECT-BODY)
+
+El intake anterior de esta misma fecha cerró nombrando la frontera que
+quedaba: *"decodificar el ENCABEZADO no decodifica el CUERPO... el flujo de
+datos R2010+ separa las cadenas a un flujo propio y su cabecera común de
+entidad difiere aún de la R2000"*, y declaró explícitamente que reconstruir
+la forma R2000 y reusar los decodificadores existentes NO funciona (ningún
+`bitsize` hacía decodificar una LINE real). Este intake retoma justo ahí, sin
+consultar fuente nueva, con el mismo corpus y el mismo método diferencial.
+
+**Por qué el sondeo anterior no podía cerrar.** Buscaba reconstruir el
+prólogo R2000 completo (BS tipo + RL bitsize) y comparar el resultado; el
+verdadero problema era más simple de lo que parecía: la cabecera común de
+entidad SÍ es la de R2000 sin cambio de anchura, pero antes de ella el
+encabezado R2010+ (MS+UMC+BOT+H, ya resuelto) ocupa un número de bits
+DISTINTO al que ocupaba el prólogo R2000 (BS+RL+H), así que cualquier
+comparación que alineara ambos por su ancho de cabecera fallaba por una razón
+ajena a la cabecera común en sí.
+
+**El método que sí cerró: localizar sin hipótesis de forma.** En vez de
+adivinar la disposición completa y comprobar si algo cuadraba, se buscó
+directamente DÓNDE empieza el dato del tipo, por búsqueda bit a bit del
+primer offset cuyos 8 bytes reproducen el double IEEE-754 EXACTO de un campo
+geométrico conocido del gemelo AC1015 (la misma técnica, ya usada en el
+intake 2026-08-23, que localizó independientemente la LINE real de
+`02-una-linea.dwg`). Aplicada a los CUATRO tipos con campo inicial simple —
+LINE, CIRCLE, ARC, POINT — el resultado fue el mismo para los cuatro dentro
+de cada versión: el dato de tipo arranca 39 bits (AC1024) o 40 bits
+(AC1027/AC1032) después del handle propio. Que la cifra coincida entre
+CUATRO tipos que restan cantidades DISTINTAS de bits de su propio prefijo
+(1 para el `zeroZ` de LINE, 2 para el flag BD del primer campo de
+CIRCLE/ARC/POINT) es la falsación: un ancho equivocado en cualquier campo
+previo los habría desalineado de forma distinta por tipo, no a la misma
+cifra.
+
+**Lo que hay en esos 39/40 bits.** Decodificado con el prólogo común R2000
+SIN cambio de anchura (EED, gráfico, modo, reactores, sin-vínculos/xdic-
+missing, color, escala de tipo de línea, banderas de tipo de línea y de
+plotstyle — hechos ya registrados de ODA-ODS-DWG-5.4.1-PUBLIC), esos campos
+decodifican valores sensatos (modo 2, color 256 ByLayer, escala 1.0, banderas
+en 0) y consumen 16 de esos 39/40 bits en los 72 objetos medidos. El resto
+(23 bits en AC1024, 24 en AC1027/AC1032) no tiene semántica identificada —
+podría ser invisibilidad y lineweight reordenados, o un campo nuevo del
+formato — y se declara CAPACIDAD AUSENTE: opaco, nunca interpretado con un
+valor supuesto. El código de producción no separa estas dos partes: trata
+los 39/40 bits completos como una anchura MEDIDA única, porque esa es
+exactamente la afirmación que la búsqueda bit a bit falsó (no la
+decomposición interna en dos tramos, que fue sólo el método de verificación).
+
+**La geometría reutiliza, sin cambio, los decodificadores de tipo de R2000**
+(`decodeLine`/`decodePoint`/`decodeCircle`/`decodeArc`/`decodeLwPolyline`,
+ahora exportados desde `entities-core.ts` para esta reutilización) — cero
+decodificadores gemelos, tal como exige el patrón ya sentado por el adaptador
+AC1018→R2000.
+
+**Hecho nuevo, no anticipado, sobre el encabezado YA resuelto**: `objectSize`
+(el campo `MS`) mide bytes EXCLUYENDO sus propios bytes y los del campo `UMC`
+que lo precede. El intake anterior no lo notó porque nunca leyó más allá del
+handle propio; aquí, al necesitar saber dónde termina el cuerpo para
+localizar el flujo de handles, `bodyBytes.length*8 - handleStreamBits` fue la
+fórmula que efectivamente aterrizó, no `objectSize*8 - handleStreamBits`.
+Confirmado: `bodyBytes.length` supera `objectSize` en exactamente el ancho en
+bytes de MS más UMC en los 72 objetos medidos.
+
+**El bit de presencia de cadenas.** El hecho ya registrado de
+ODA-ODS-DWG-5.4.1-PUBLIC nombraba su EXISTENCIA ("AC1021+ introduce el flujo
+de STRINGS separado al final del cuerpo... el bit de presencia del final del
+dato") pero no su posición exacta. Este intake la midió: cae EXACTAMENTE un
+bit antes del arranque del flujo de handles (ya conocido por MS/UMC), y vale
+0 en las 72 observaciones — ninguna de las cinco entidades sin cadena lo
+necesita. `readR2010EntityBody` lo lee y falla cerrado (`unsupported`, no
+`corrupt`) si vale 1: el flujo de strings no se decodifica todavía.
+
+**Falsación.** Geometría EXACTA (tolerancia 1e-6) contra el gemelo AC1015 en
+**72/72** objetos (LINE, POINT, CIRCLE, ARC, LWPOLYLINE) de los 24 fixtures
+AC1024/AC1027/AC1032, y aterrizaje EXACTO en el límite de handles (el
+remanente tras la geometría debe ser exactamente 1 bit, el de presencia de
+cadenas) en **72/72** — dos falsaciones independientes: una geométrica por
+tipo, otra aritmética contra un límite conocido de antemano.
+
+**Lo que este intake NO resuelve.** El flujo de handles (propietario, capa,
+xdictionary) sigue sin decodificarse para R2010+, y con él, ninguna tabla de
+símbolos (LAYER, BLOCK_RECORD…). Sin esas dos piezas no hay forma de
+ensamblar una base neutral completa sin inventar una capa o una pertenencia
+de bloque, así que `readR2004Database` sigue lanzando
+`DWG_VERSION_DECODER_UNSUPPORTED` para AC1024/AC1027/AC1032 — su mensaje
+ahora nombra esta frontera exacta en vez de la anterior, ya superada.
+`readR2010EntityBody` (`reader/r2010-entity-body.ts`) vive como capacidad de
+laboratorio independiente, sin conectar al lector de base de datos completo.
+Tampoco se decodifica ninguna entidad CON cadena (TEXT, MTEXT, INSERT con
+nombre de bloque…): el camino con el bit de presencia en 1 no tiene ni una
+observación en este corpus.
+
+**Riesgo residual declarado, sin suavizar.** La anchura fija de 39/40 bits
+sólo está validada para el único caso que el corpus ejercita: EED ausente,
+sin gráfico, 0 reactores, modo de entidad 2, banderas por defecto. El
+chequeo de aterrizaje final (el remanente debe ser EXACTAMENTE 1 bit) detecta
+la mayoría de los desalineamientos que un valor distinto de esos campos
+produciría, pero no lo garantiza matemáticamente — el mismo tipo de riesgo
+que ya acepta el adaptador R2004→R2000 de AC1018 para su propio corpus.
+Ampliar la cobertura exige corpus que ejercite reactores, EED, gráfico o
+modo de entidad distintos, no una suposición.
+
+**Efecto en el producto**: ninguno observable. `readR2004Database` sigue
+fallando cerrado para AC1024/AC1027/AC1032; `DWG_VERSION_REGISTRY` mantiene
+las tres versiones en `decoderStatus: "unsupported"` y `CAPABILITIES.md`
+declara la nueva capacidad como `experimental-lab`, acotada a las cinco
+entidades sin cadenas y sin flujo de handles.
+
+**Reproducible**: `node scripts/dwg/probe-r2010-object-body.mjs` con
+`VALLE_DWG_CORPUS_MIRROR` apuntando al repo hermano; evidencia en
+`docs/cad/evidence/dwg-r2010-object-body.json`.
+
+## Sesión 2026-08-31 — escritura: ELLIPSE/MTEXT de bajo nivel y contenido de bloque
+
+Frente de ESCRITURA (una de tres sesiones paralelas del día; las otras dos
+tocan `src/objects/`, `src/container/`, `src/reader/` y `src/codecs/`, que
+esta sesión sólo lee). Alcance real de este corte, elegido por profundidad
+sobre amplitud: dos clases de entidad nuevas en el writer de bajo nivel con
+round-trip exacto propio, y el contenido de bloque de usuario en
+`writeCanonicalDwg`. MTEXT/DIMENSION/HATCH/SPLINE/POLYLINE clásica/ATTRIB y
+un writer AC1018 quedan declarados PENDIENTES, no a medias.
+
+**Emisor de bits**: `dwg-bit-emitter.ts` gana `emitBB`/`emit3B` (espejo
+directo de `readBB`/`read3B`, dos y tres bits crudos), `emit2BD`/`emit3BD`
+(pares/tríos de `emitBD`, el mismo atajo que ya usaba `readPoint`/
+`read3BDPoint` del lado lector — NO la forma comprimida `BE`) y `emit2RD`
+(dos `emitRD`). Ninguno hacía falta para ELLIPSE/MTEXT (ambos se componen con
+`BD` sueltos, medido leyendo `decodeEllipse`/`decodeMText` antes de escribir
+una sola línea), pero cerraban la brecha declarada del corte 2026-08-25 y los
+usará DIMENSION/HATCH cuando les toque. `emitCMC` (espejo de `readCmC`, un BS
+envuelto) sustituye el `emitBS(256)` inline del común de entidad — mismos
+bits, nombre correcto.
+
+**ELLIPSE y MTEXT en `ac1015-entity-writer.ts`**: espejo campo a campo de
+`decodeEllipse`/`decodeMText` (`entities-curves-surfaces.ts`/
+`entities-annotation.ts`, ambos SÓLO leídos, nunca modificados). Confirmado
+ANTES de tocar código que ninguna de las dos entidades necesita el
+`textStyleHandle` que sí exige TEXT (`ac1015-resolved-writers.ts` sólo
+lo especializa para `"text"`) ni ningún handle extra en la cabeza del flujo
+(`readAc1015EntityHandleHead` es genérica; `ac1015-database-reader.ts` no
+las trata distinto) — así que las dos entran por el mismo camino genérico
+que CIRCLE/ARC, sin tocar `ac1015-minimal-file-writer.ts` ni
+`ac1015-resolved-writers.ts`. Round-trip propio verde en
+`tests/unit/ac1015-entity-writer-v3.spec.ts` (9 casos: geometría exacta con
+−0.0 y ejes no canónicos, determinismo, dentro de un bloque, y los gemelos
+tristes — razón de ejes negativa, geometría no finita, `trailingBit`/BS fuera
+de rango). **No** es evidencia de compatibilidad con software ajeno: el ODA
+File Converter sigue sin poder correr en este entorno (máquina del titular).
+
+**Contenido de bloque en `writeCanonicalDwg`** (`api/write.ts`): la fase
+2026-08-25 escribía cada `BLOCK_RECORD` referenciado por un INSERT SIEMPRE
+vacío, con pérdida declarada `insert-block-content-not-written`. Esta sesión
+mide primero (`ac1015-minimal-file-support.ts`, `validateOptions`) que el
+writer de bajo nivel YA sabía resolver contenido de bloque — sólo forzaba
+capa "0" y rechazaba INSERT anidado por decisión de la ola anterior, no por
+límite del formato — así que el arreglo real vive en DOS capas:
+
+1. `writer/ac1015-minimal-file-writer.ts` + `-support.ts`: `Ac1015MinimalFileBlockSpec.entities`
+   pasa de `DwgGeometryEntity[]` a la MISMA forma `Ac1015MinimalFileEntitySpec[]`
+   que ya usa model space (capa por índice, INSERT anidado por índice de
+   bloque — cero marcos gemelos de validación, un solo `assertEntitySpec`
+   para las dos). Acepta TAMBIÉN la forma corta (`DwgGeometryEntity` a secas)
+   por compatibilidad hacia atrás: un consumidor de producto fuera de esta
+   frontera (`apps/web/.../dwg-native-reader.spec.ts`, sesión ajena, sólo
+   detectado corriendo `check:dwg` completo) todavía pasa la forma vieja.
+   `planAc1015MinimalFile` ya resolvía el handle de CADA `BLOCK_RECORD` por
+   adelantado, así que un bloque puede insertar OTRO bloque declarado
+   DESPUÉS en el array sin reordenar nada — probado en
+   `tests/unit/ac1015-minimal-file.spec.ts` con una referencia hacia
+   adelante real.
+2. `api/write.ts`: sin tocar `api/canonical.ts` (fuera de frontera), reusa
+   `canonicalDocumentToDwgEntities` — la MISMA función pública que ya resuelve
+   model space — sobre un documento SINTÉTICO cuyas `entities` son
+   `document.blocks[].entities`. El bloque queda sujeto a las mismas siete
+   clases escribibles y al mismo límite ASCII que model space, un solo camino
+   de mapeo. Un INSERT dentro de un bloque (bloque que inserta OTRO bloque)
+   se detecta y se omite con pérdida declarada nueva
+   (`insert-block-nested-insert-not-written`): el writer de bajo nivel ya lo
+   resolvería, pero recorrer el grafo transitivo completo de bloques
+   referenciados queda pendiente de una fase posterior. Verde en
+   `tests/unit/write-canonical-dwg.spec.ts` (geometría Y capa exactas dentro
+   del `BLOCK_RECORD`, la pérdida del INSERT anidado, y el caso preexistente
+   con bloque vacío que ya no declara una pérdida que nunca ocurrió).
+
+**Efecto de frontera cruzada, declarado**: cambiar la forma de
+`Ac1015MinimalFileBlockSpec.entities` rompió en seco
+`apps/web/src/lib/cad/dwg-native-reader.spec.ts` (sesión ajena) hasta añadir
+la compatibilidad hacia atrás del punto 1 — encontrado corriendo
+`npm run check:dwg` completo desde la raíz, no sólo el `check` del paquete.
+Ninguna de las dos sesiones paralelas necesita tocar nada por esto: la forma
+larga es la que se recomienda para código nuevo, la corta sigue viva.
+
+**`ac1015-minimal-file-writer.ts` cruzó las 800 líneas** (817) al crecer el
+doc-comment y la validación; los seis tipos públicos de opciones se movieron
+a `ac1015-minimal-file-support.ts` (que ya los importaba) con re-export
+`export type {...} from "./ac1015-minimal-file-support.js"` para que nada que
+importe del módulo original note el traslado — 770/598 líneas, los dos bajo
+presupuesto, sin añadir ninguno al manifiesto de excepciones.
+
+**No alcanzado, declarado sin suavizar**: DIMENSION (variantes V3),
+HATCH de contorno poligonal, SPLINE escenario 1 no racional, POLYLINE
+2D/3D clásica con VERTEX/SEQEND, y ATTRIB de INSERT — los cinco quedan
+`"Writing a ... entity is not implemented by the laboratory writer yet."`
+en `ac1015-entity-writer.ts`, sin cambio. Tampoco hay writer AC1018 (M4 de
+escritura) ni cambios en `apps/web/src/lib/cad/dwg-export-flag.ts`/
+`dwg-native-writer.ts`: ambos ya estaban completos y correctos de una
+campaña anterior (`DWG_EXPORT_WRITABLE_TYPES` ya es exactamente el
+subconjunto de siete clases que `canonicalDocumentToDwgEntities` mapea) y
+extender el perfil escribible más allá de esas siete exige tocar
+`api/canonical.ts`, fuera de la frontera de archivos de esta sesión —
+ninguna de las dos clases nuevas de esta sesión (ELLIPSE/MTEXT) llega hoy a
+`writeCanonicalDwg` por esa razón, y por tanto tampoco al botón del
+producto. `externalOracleVerified` sigue `false`: sigue siendo OWNER ACTION.
+
+**Reproducible**: `npm run check --workspace=@valle-design/dwg-codec` y, desde
+la raíz con `VALLE_DWG_CORPUS_MIRROR` apuntando al repo hermano,
+`npm run check:dwg`.
+
+## Intake 2026-08-31 - sesion DWG-B (3D): perfil 3D heredado propuesto (ADR-0009 s9)
+
+Frente de trabajo paralelo. Ningun archivo del laboratorio (`src/reader/`,
+`src/container/`, `src/codecs/`, `src/writer/`) se toco en esta sesion -
+territorio de las sesiones A y C. El trabajo entero fue de PRODUCTO:
+`apps/web/src/lib/cad/{dwg-neutral-model,dwg-native-reader,dwg-interop-flag,
+dwg-document-bridge,dwg-document-bridge-primitives}.ts` mas dos specs
+nuevas. Cero fuentes nuevas consultadas: 3DFACE/POLYLINE 3D/MESH/PFACE ya
+estaban decodificados desde el corte 2026-08-21 (fuente
+`ODA-ODS-DWG-5.4.1-PUBLIC`, ya registrada); este intake solo consumio los
+campos ya decodificados (`corners`, `closedFlags`, `position` de cada
+VERTEX...) sin derivar ningun hecho nuevo del formato.
+
+**Hallazgo confirmado antes de tocar codigo**: los cuatro tipos de este
+perfil son entidades 3D verdaderas - sus puntos son WCS directos, sin
+elevacion ni extrusion (a diferencia de CIRCLE/LWPOLYLINE/TEXT/POLYLINE 2D,
+que si las llevan). Confirmado leyendo `packages/dwg-codec/src/model/
+entity-geometry.ts`: ninguna de las cuatro interfaces (`Dwg3dFaceEntity`,
+`DwgPolyline3dEntity`, `DwgPolylineMeshEntity`, `DwgPolyfaceMeshEntity`)
+declara esos campos. Esto significa que la trampa de OCS que si exige
+transformar CIRCLE/LWPOLYLINE con extrusion NO aplica a este perfil: no
+hace falta ningun algebra de eje arbitrario aqui, y seria una complejidad
+inventada anadirla.
+
+**Diseno de destino**: sin canal semantico nativo (a diferencia de
+MTEXT/DIMENSION/HATCH, ni el importador DXF ni el DWG tienen hoy un
+consumidor probado para wireframe/malla 3D), el mapeo va a
+`CadOpaqueEntity`/`unsupportedEntities` - geometria REAL en JSON, Z sin
+aplanar, declarada en el manifiesto de perdidas, `editable: false`. Es el
+primer productor REAL de `CadOpaqueEntity` en el puente: antes solo vivia
+en el tipo y en specs con `raw: "opaque-payload"` inventado.
+
+**Gate de honestidad respetado sin ampliar uno existente**: el perfil vive
+en su propia autorizacion (`DWG_3D_WIREFRAME_BETA_AUTHORIZATION`), su
+propio flag, la misma conjuncion de tres condiciones que ya usa AC1018 -
+`BETA_PROFILE_ENTITY_KINDS` (el conjunto de tipos de V3) no se toco ni un
+bit. `ownerSigned` queda `false`: ninguna conversacion de autorizacion real
+ocurrio para este perfil en esta sesion, y fabricarla habria sido
+exactamente lo que ADR-0009 s6-bis/s6-ter/s6-quater/s7/s8 existen para
+impedir. Ver ADR-0009 s9 (propuesta sin firmar).
+
+**Pendiente declarado, no maquillado**: la evidencia contra archivos DWG
+reales depende de la admision de la ola 3 del corpus hermano
+(`valle-design-dwg-conformance` PR #6, fixtures 26-30), que exige el
+conversor de la maquina del titular y firma de revisor. Las dos specs
+nuevas (`dwg-native-reader-3d-wireframe.spec.ts`,
+`dwg-document-bridge-3d-wireframe.spec.ts`) corren contra bytes hechos a
+mano, mismo patron que ya usa `dwg-native-reader.spec.ts` para
+ELLIPSE/SPLINE/MTEXT/DIMENSION/HATCH (el writer del laboratorio tampoco
+emite estos cuatro tipos, ADR-0009 s8.1).
+
+**Efecto en el producto**: ninguno observable. Las dos betas ya firmadas
+(V3, AC1018) siguen exactamente igual; la tercera variable de build
+(`NEXT_PUBLIC_DWG_3D_WIREFRAME_IMPORT_BETA`) existe en el Dockerfile y en
+`.env.example` por la misma regla que ya aplica a las otras dos (ningun
+modulo sin consumidor), pero encenderla no habilita nada mientras
+`DWG_3D_WIREFRAME_BETA_AUTHORIZATION.ownerSigned` sea `false`.
+
+## Intake 2026-08-31 (segunda mitad) - sesion DWG-B (3D): preservacion opaca ACIS (3DSOLID/REGION/BODY)
+
+Mismo frente de trabajo paralelo, segunda tarea de la sesion. Cero fuentes
+nuevas: `entities-acis.ts` reutiliza solo hechos YA registrados (cabecera
+comun de entidad, limite `bitSize`) sin pedirle nada al formato ACIS
+(Spatial/Dassault, no ODA) ni a la seccion CLASSES mas alla de recibir el
+nombre ya resuelto como parametro.
+
+**Hallazgo arquitectonico confirmado leyendo codigo, no supuesto**: intente
+primero conectar el nuevo decodificador al despachador de
+`entities-core.ts` (`DECODED_ENTITY_TYPES`/`decodeEntitySpecific`), el
+patron que ya usan LINE/CIRCLE/3DFACE/POLYLINE. No es posible.
+3DSOLID/REGION/BODY son tipos de CLASE (AutoCAD 2000+): su codigo BS NO es
+fijo entre archivos, se resuelve por NOMBRE contra la seccion CLASSES de
+CADA archivo. `DECODED_ENTITY_TYPES` es un `Set<number>` de codigos FIJOS
+— no existe ningun numero que darle a un tipo de clase sin fingir un hecho
+que el formato no tiene. La resolucion por nombre YA EXISTE en el
+laboratorio (`AC1015_ENTITY_BODY_TYPES`/`decodeMappedObject`/
+`decodeAuxiliaryObject`/`classNames`), pero vive enteramente en
+`src/reader/database-assembly.ts` — el territorio explicito de otro frente
+de esta misma campana. Confirmado leyendo `decodeMappedObject`: cuando
+`AC1015_ENTITY_BODY_TYPES.has(type)` es falso (como seria SIEMPRE para un
+tipo de clase), el despacho cae a `decodeAuxiliaryObject(type, bodyBytes,
+entry, classNames)`, nunca a `decodeAc1015EntityBody` (el punto de entrada
+de `entities-core.ts`).
+
+**Que se entrega, delimitado con precision**: `decodeAcisOpaqueEntityBody`
+(`src/objects/entities-acis.ts`) — funcion PURA, probada (7 specs
+unitarias + 1 de `canonical.ts`), que decodifica la cabecera comun (sin
+cambios) y captura TODO lo que sigue hasta `bitSize` como bytes crudos
+alineados a byte, con metadata (`leadingBitOffset`, `dataBitLength`) para
+reconstruir el rango exacto de bits sin perder ni desplazar ninguno — la
+spec lo verifica reconstruyendo bit a bit, no solo comparando bytes, porque
+el writer real NO deja la cabecera comun alineada a byte (hallazgo del
+propio test: el primer intento asumia alineacion y fallaba con un
+desplazamiento de 4 bits, corregido antes de declarar la spec verde).
+`api/canonical.ts` gana un caso dedicado que proyecta esto a
+`CanonicalOpaqueEntity` con el nombre de clase real como `sourceType`.
+
+**Que NO se entrega, y por que a proposito**: (1) la conexion al
+despachador del lector — vive en `src/reader/`, fuera de alcance de esta
+sesion; (2) integracion de producto (`apps/web`) — construirla antes de que
+`readDwg` pueda producir esta forma desde un archivo real seria codigo sin
+evidencia ejecutable, la regla que esta campana existe para prohibir (a
+diferencia del perfil 3D heredado de la primera mitad de esta sesion, que
+SI tenia geometria real decodificada esperando solo un filtro de perfil);
+(3) cualquier fixture o hecho de ACIS/SAT/SAB — no hace falta ninguno, y no
+se consulto ninguno.
+
+**Efecto en el producto**: ninguno. `readDwg` sigue sin decodificar
+3DSOLID/REGION/BODY de ningun archivo real — siguen en `unsupported`,
+enumerados, igual que antes de este corte.
+
+**Para retomar esta linea**: quien conecte el despachador del lector
+necesita, en `decodeMappedObject` (o un sitio equivalente), reconocer
+cuando el nombre de clase resuelto es exactamente "3DSOLID"/"REGION"/
+"BODY" y llamar a `decodeAcisOpaqueEntityBody(bodyBytes, classNameBytes)`
+en vez de caer a `decodeAuxiliaryObject`. Esa funcion ya existe, ya esta
+probada, y no necesita cambiar para eso.

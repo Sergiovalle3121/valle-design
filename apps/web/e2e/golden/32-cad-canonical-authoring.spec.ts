@@ -193,10 +193,10 @@ test('LINE, PLINE, RECT and CIRCLE author canonical geometry end to end', async 
     expect(backend.snapshot().document.entities.filter((e) => e.type === 'line')).toHaveLength(1);
 
     // Deshacer devuelve la copia borrada; rehacer la vuelve a quitar.
-    await page.getByRole('button', { name: 'Undo', exact: true }).click();
+    await page.getByRole('button', { name: 'Deshacer', exact: true }).click();
     await saveAndSettle(page, backend);
     expect(backend.snapshot().document.entities.filter((e) => e.type === 'line')).toHaveLength(2);
-    await page.getByRole('button', { name: 'Redo', exact: true }).click();
+    await page.getByRole('button', { name: 'Rehacer', exact: true }).click();
     await saveAndSettle(page, backend);
     expect(backend.snapshot().document.entities.filter((e) => e.type === 'line')).toHaveLength(1);
   });

@@ -30,6 +30,12 @@ const controllerDirs = [
   // El centro de comentarios (campaña de firma propia): su superficie es
   // pública para quien tiene sesión, así que va en el contrato como las demás.
   "apps/api/src/modules/feedback",
+  // Mensajería de equipo (canales + mensajes anclables al dibujo): mismo
+  // trato que `legal`/`feedback` — entra al contrato desde su primer commit.
+  "apps/api/src/modules/messaging",
+  // Señalización de llamada (WebRTC propio): sala, participantes y buzón de
+  // señales, todo bajo /v1/calls.
+  "apps/api/src/modules/calls",
 ].map((dir) => path.join(root, dir));
 
 /** Familias de paths del contrato que el gate cruza contra el router. */
@@ -41,6 +47,8 @@ const coveredPrefixes = [
   "/v1/legal",
   "/v1/support",
   "/v1/feedback",
+  "/v1/messaging",
+  "/v1/calls",
 ];
 const coveredPath = (p) =>
   coveredPrefixes.some((prefix) => p === prefix || p.startsWith(`${prefix}/`));
@@ -194,10 +202,15 @@ function parseControllerOperations() {
       errors.push(`${name}: prefijo no canónico ${prefix}`);
     }
     for (const match of source.matchAll(
-      /@(Get|Post|Put|Patch|Delete)\(\s*(?:["']([^"']*)["'])?\s*\)/g,
+      // `@Sse` cuenta como GET: NestJS lo registra literalmente como
+      // RequestMethod.GET (ver sse.decorator.js) — es la misma ruta HTTP,
+      // sólo con `Content-Type: text/event-stream` en la respuesta. Sin esto
+      // una ruta de entrega en vivo real quedaría invisible para este gate.
+      /@(Get|Post|Put|Patch|Delete|Sse)\(\s*(?:["']([^"']*)["'])?\s*\)/g,
     )) {
+      const httpMethod = match[1] === "Sse" ? "Get" : match[1];
       const route = [prefix, match[2] ?? ""].filter(Boolean).join("/");
-      const key = routeKey(match[1], route);
+      const key = routeKey(httpMethod, route);
       if (operations.has(key)) {
         errors.push(
           `Ruta Nest duplicada: ${key} (${operations.get(key)}, ${name})`,
