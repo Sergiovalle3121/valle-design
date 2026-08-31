@@ -21,7 +21,6 @@ import {
   asCadCommand,
   type CadAnyCommandDescriptor,
   type CadCommandDescriptor,
-  type CadCommandStep,
   type CadPrompt,
 } from "../command-types";
 import type { CadPoint2 } from "../../cad-document";

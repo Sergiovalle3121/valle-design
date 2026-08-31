@@ -37,8 +37,6 @@ import {
   type CadCommandStep,
 } from "../command-types";
 
-const SILENT = { message: "", options: [] } as const;
-
 function readEntities(context: CadCommandContext, ids: readonly string[]): CadEntity[] {
   return ids.map((id) => context.entity?.(id)).filter((entity): entity is CadEntity => !!entity);
 }
