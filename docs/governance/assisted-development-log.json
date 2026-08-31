@@ -1233,6 +1233,48 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "REGION-CONFIGURABLE-20260831",
+      "date": "2026-08-31",
+      "initiative": "Sesión paralela encargada por el titular: que Valle Design pueda venderse fuera de México sin tocar código. La convención regional (locale de número/fecha, sistema de unidades, papel por defecto, familia de norma de acotación) estaba incrustada a mano en decenas de sitios (\"es-MX\", \"es-ES\" tras el PR #125, o toLocaleString()/toLocaleDateString() sin locale alguno, que sigue al idioma del navegador de quien mira). Se construyó un módulo de región puro y probado (apps/web/src/lib/cad/region/), con México como default explícito y declarado, y se migraron los consumidores visibles que hoy incrustaban el locale a mano.",
+      "branch": "claude/region-configurable",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "El titular fijó por escrito, el 2026-08-31, las dos reglas ya recogidas en IDENTITY.md: \"lo van a empezar en méxico pero también tiene que ser universal por si lo usan en otros países\" y \"tiene que ser un producto universal para cualquier ingeniero o arquitecto, no te limites a una industria\". Encargo explícito de sesión paralela con rama propia, PR en borrador contra main, sin fusionar (el titular integra).",
+      "firstPartyInputs": [
+        "IDENTITY.md (sección \"De dónde viene\", identificadores congelados axos_locale/axos_theme), AGENTS.md, REPOSITORY_SCOPE.md.",
+        "apps/web/src/i18n/config.ts y locale.ts (cookie valle_locale viva, axos_locale como respaldo de lectura, ambos sin tocar) y persisted-identifiers.spec.ts, que los afirma.",
+        "apps/web/src/lib/cad/locale-es-mx.spec.ts (criterio por resultado, no por nombre de locale, conservado y generalizado).",
+        "apps/web/src/lib/cad/standards/mexican-drafting-sources.ts y mexican-sheets.ts (catálogo de normas y costumbres mexicanas, leído para no duplicarlo ni tocarlo).",
+        "apps/web/src/lib/cad/paper-space.ts (CAD_SHEET_PAPERS ya incluye letter/tabloid junto a la serie ISO A, reutilizado sin cambio).",
+        "PR #125 fusionado (corrección es-ES → es-MX), leído como antecedente de la deuda que esta campaña generaliza."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. Intl es del navegador y de Node; no se añadió ninguna biblioteca de i18n ni ninguna dependencia nueva.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/region/ (nuevo: types.ts, profiles.ts, resolve.ts, format.ts, server.ts, client.ts, index.ts, region.spec.ts)",
+        "apps/web/src/lib/cad/locale-es-mx.spec.ts (generalizado, mismo criterio por resultado)",
+        "apps/web/src/lib/cad/engine/commands/solids-support.ts, dynamic-input.ts, world-scale.ts, viewport-bookmarks.ts, plot-sheet.ts",
+        "apps/web/src/lib/geo/las.ts",
+        "apps/web/src/components/cad/studio/format-units.ts, plot/plot-sheet.ts, viewport/scene-objects.ts",
+        "apps/web/src/components/cad/palettes/CadDynamicInput.tsx, CadCollaborationPalette.tsx",
+        "apps/web/src/components/cad/dialogs/CadVersionsDialog.tsx, CadDesignReportDialog.tsx",
+        "apps/web/src/components/marketing/CountUp.tsx, EngineeringEvidence.tsx",
+        "apps/web/src/app/dashboard/page.tsx, equipo/TeamRoom.tsx, cuenta/AccountSecurity.tsx, cuenta/MfaEnrollment.tsx, comentarios/FeedbackInbox.tsx, comentarios/admin/FeedbackAdmin.tsx",
+        "docs/execution/INFORME_CAMPANA_REGION_20260831.md (nuevo: inventario honesto de lo migrado y lo que queda como deuda declarada, más la lista exacta de 4 sitios + sustitución propuesta en Layout3DEditor.tsx, que esta sesión no editó por estar prohibido)"
+      ],
+      "fixtures": "Ninguno nuevo. No se tocó packages/dwg-codec/, cad-entities-v5.ts, ni Layout3DEditor.tsx.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo explícito de la sesión paralela del 2026-08-31. PR abierto en BORRADOR contra main, sin fusionar — el titular decide. Evidencia: los seis gates (check:cad, check:dwg, typecheck, test, lint, build) corridos sobre el árbol committeado; check:dwg-evidence confirmado rojo también en main limpio (falta VALLE_DWG_CORPUS_MIRROR, no es de esta campaña); los 77 errores de typecheck de apps/web confirmados idénticos en main limpio, ninguno en un archivo tocado por esta sesión."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
