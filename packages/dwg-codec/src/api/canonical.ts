@@ -22,6 +22,7 @@ import type {
   DwgGeometryEntity,
   DwgPoint3,
 } from "../model/entity-geometry.js";
+import { projectAcisOpaqueEntity } from "./canonical-acis.js";
 
 // ---------------------------------------------------------------------------
 // Tipos espejo del documento canónico (subconjunto que este mapeo produce)
@@ -576,36 +577,17 @@ function mapEntity(
     case "seqend":
       return null;
     case "acisOpaque": {
-      // ACIS (3DSOLID/REGION/BODY) es formato de Spatial/Dassault, no de
-      // ODA/DWG: este mapeo no lo interpreta, sólo lo preserva. A
-      // diferencia del `default` genérico de abajo (que serializa la
-      // entidad entera), aquí el nombre de clase real se usa como
-      // `sourceType` legible en vez del `dwg-acisOpaque` genérico, y el
-      // payload conserva sólo lo que hace falta para reconstruir el rango
-      // de bits exacto — nada de la cabecera común, que el mapeo de común
-      // ya cubre en otro sitio del documento canónico.
-      const className = decodeBytes(entity.classNameBytes);
-      losses.push({
-        code: "acis-preserved-opaque",
-        entityId: id,
-        sourceType: className,
-        detail:
-          `El objeto ACIS "${className}" se conserva opaco: el laboratorio no interpreta ACIS ` +
-          "(formato de Spatial/Dassault), sólo preserva sus bytes intactos.",
-        severity: "info",
-      });
-      opaque.push({
+      // Extraído a `canonical-acis.ts` por presupuesto de líneas: es la
+      // única rama que necesita su propia forma de payload bit-exacto.
+      const projection = projectAcisOpaqueEntity(
+        entity,
         id,
-        provider: PROVIDER,
-        sourceType: className,
         layer,
-        raw: JSON.stringify({
-          dataBitLength: entity.dataBitLength,
-          leadingBitOffset: entity.leadingBitOffset,
-          rawBytes: entity.rawBytes,
-        }),
-        editable: false,
-      });
+        PROVIDER,
+        decodeBytes(entity.classNameBytes),
+      );
+      losses.push(projection.loss);
+      opaque.push(projection.opaque);
       return null;
     }
     default: {

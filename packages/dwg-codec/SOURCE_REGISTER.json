@@ -85,6 +85,7 @@
         "packages/dwg-codec/scripts/safe-path.ts",
         "packages/dwg-codec/scripts/schema-validation.ts",
         "packages/dwg-codec/source-register.schema.json",
+        "packages/dwg-codec/src/api/canonical-acis.ts",
         "packages/dwg-codec/src/api/canonical.ts",
         "packages/dwg-codec/src/api/diagnostics.ts",
         "packages/dwg-codec/src/api/limits.ts",
