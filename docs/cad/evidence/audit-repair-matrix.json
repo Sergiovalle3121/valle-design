@@ -1,0 +1,83 @@
+{
+  "generatedBy": "apps/web/scripts/audit-repair-matrix-probe.mts",
+  "resumen": {
+    "total": 9,
+    "detectados": 9,
+    "reparados": 9
+  },
+  "filas": [
+    {
+      "kind": "zero-length-line",
+      "category": "geometry",
+      "entrada": "una LINE cuyos dos extremos son el mismo punto",
+      "detectado": true,
+      "reparado": true,
+      "declara": "LINE de longitud 0.00e+0: sus dos extremos son el mismo punto."
+    },
+    {
+      "kind": "degenerate-polyline",
+      "category": "geometry",
+      "entrada": "una POLYLINE cuyos vértices son todos la misma posición",
+      "detectado": true,
+      "reparado": true,
+      "declara": "POLYLINE con 3 vértice(s) pero sólo 1 posición(es) distinta(s): no traza ningún tramo."
+    },
+    {
+      "kind": "zero-radius-circle",
+      "category": "geometry",
+      "entrada": "un CIRCLE de radio 0 (el motor lo degrada: lo conserva sin dibujar nada)",
+      "detectado": true,
+      "reparado": true,
+      "declara": "CIRCLE de radio 0: no encierra ninguna superficie."
+    },
+    {
+      "kind": "zero-radius-arc",
+      "category": "geometry",
+      "entrada": "un ARC de radio 0",
+      "detectado": true,
+      "reparado": true,
+      "declara": "ARC de radio 0: no traza ningún tramo."
+    },
+    {
+      "kind": "degenerate-ellipse",
+      "category": "geometry",
+      "entrada": "una ELLIPSE con el eje mayor colapsado a (0,0)",
+      "detectado": true,
+      "reparado": true,
+      "declara": "ELLIPSE con eje mayor de longitud 0 y razón 0.5: colapsada a un punto."
+    },
+    {
+      "kind": "degenerate-spline",
+      "category": "geometry",
+      "entrada": "una SPLINE con un solo punto de control",
+      "detectado": true,
+      "reparado": true,
+      "declara": "SPLINE con 1 punto(s) de control pero sólo 1 posición(es) distinta(s): no define ninguna curva."
+    },
+    {
+      "kind": "broken-dimension",
+      "category": "reference",
+      "entrada": "una DIMENSION asociativa cuyas referencias apuntan a entidades borradas",
+      "detectado": true,
+      "reparado": true,
+      "declara": "DIMENSION asociativa: referencia a borrada-1, borrada-2, que ya no existe en el documento."
+    },
+    {
+      "kind": "orphan-opening",
+      "category": "reference",
+      "entrada": "un OPENING cuyo muro anfitrión ya no está en el documento",
+      "detectado": true,
+      "reparado": true,
+      "declara": "OPENING sin muro anfitrión: el muro que lo alojaba ya no existe."
+    },
+    {
+      "kind": "missing-block-insert",
+      "category": "reference",
+      "entrada": "un INSERT que nombra un bloque que el documento no declara",
+      "detectado": true,
+      "reparado": true,
+      "declara": "INSERT al bloque «PLANTA-ESTRUCTURAL», que el documento no declara."
+    }
+  ],
+  "limite": "Cubre los defectos que AUDIT sabe nombrar hoy: geometría degenerada (LINE/POLYLINE/CIRCLE/ARC/ELLIPSE/SPLINE) y tres formas de referencia colgante (cota rota, vano sin muro, INSERT a bloque inexistente). Capas/bloques/estilos huérfanos y duplicados exactos AUDIT también los reporta y repara, delegando en PURGE/OVERKILL respectivamente — no se repiten aquí porque su matriz de evidencia ya es la de esos dos comandos, no una nueva."
+}
