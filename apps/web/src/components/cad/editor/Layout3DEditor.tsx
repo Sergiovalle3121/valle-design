@@ -466,6 +466,8 @@ import { useCadCommandEngine } from "@/components/cad/command-line/use-command-e
 import { formatCadPrompt } from "@/lib/cad/engine/prompt";
 import { useCadStudioCommandEngine } from "@/components/cad/command-line/use-command-engine";
 import { cadStudioEngineBridges } from "@/components/cad/command-line/studio-engine-bridges";
+import { cadFacePickerFor, cadHonorSnapOverride, CAD_FACE_PICK_BIT } from "@/lib/cad/pick3d/scene-ray";
+import { cadLocalPoint, cadPointerWorldTolerance } from "@/components/cad/viewport/pointer-geometry";
 import {
   CadOverlayLegends,
   CadViewportHint,
@@ -6421,17 +6423,10 @@ export default function Layout3DEditor({
      * Solo los ~48 objetos más cercanos alimentan el motor (plantas grandes no
      * degradan el pointermove). Sin candidato dentro de tolerancia → grid-snap.
      */
-    const pointerWorldTolerance = (pixels: number) => {
-      const ctx = ctxRef.current!;
-      // Una división en 2D: la apertura mide los mismos píxeles a cualquier
-      // zoom. Antes se aproximaba con distancia de cámara y FOV, y derivaba al
-      // acercarse porque la relación píxel↔mundo no es constante en perspectiva.
-      return viewController.toleranceWorld(
-        pixels,
-        Math.max(0.01, Math.min(ctx.W, ctx.H) * 0.00001),
-        Math.max(ctx.W, ctx.H) * 0.02,
+    const pointerWorldTolerance = (pixels: number) =>
+      cadPointerWorldTolerance(pixels, ctxRef.current!, (px, lo, hi) =>
+        viewController.toleranceWorld(px, lo, hi),
       );
-    };
     /** Hit-test canónico bajo un punto de DIBUJO, con la apertura del pickbox. */
     const hitCanonical = (point: { x: number; y: number }, limit: number) =>
       nativeSelectionIndexRef.current?.hitTest(
@@ -6614,27 +6609,22 @@ export default function Layout3DEditor({
       // implementados. El motor no sabe de snaps: los pide por paso y aquí se
       // le devuelve el punto ya capturado junto con el modo que ganó.
       snap: (point, override) => {
-        const resolved = snapFloor(point.x, point.y, true);
-        const snap = resolved.snapType;
-        if (
-          override &&
-          override.length > 0 &&
-          (!snap || !override.includes(snap))
-        )
-          return { point };
-        return {
-          point: { x: resolved.wx, y: resolved.wy },
-          ...(snap ? { snap } : {}),
-        };
+        const r = snapFloor(point.x, point.y, true);
+        return cadHonorSnapOverride({ x: r.wx, y: r.wy, snap: r.snapType }, point, override);
       },
       hitEntity: (point) => hitCanonical(point, 1)[0]?.id ?? null,
+      hitFace: cadFacePickerFor({
+        mode: () => viewController.mode,
+        document: () => loadedCadDocumentRef.current,
+        frame: () => ctxRef.current,
+        sceneRay: (e) => (
+          setPtr(e as PointerEvent), raycaster.setFromCamera(ptr, activeCamera()), raycaster.ray
+        ),
+      }),
       setCursor: (point) => {
         engineCursorPointRef.current = point;
       },
-      localPoint: (event) => {
-        const rect = renderer.domElement.getBoundingClientRect();
-        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-      },
+      localPoint: (event) => cadLocalPoint(event, renderer.domElement),
       session: engineSessionRef,
     });
     enginePointerRouterRef.current = enginePointerRouter;
@@ -6656,10 +6646,7 @@ export default function Layout3DEditor({
         const snapped = snapFloor(wx, wy);
         return { wx: snapped.wx, wy: snapped.wy };
       },
-      localPoint: (event) => {
-        const rect = renderer.domElement.getBoundingClientRect();
-        return { x: event.clientX - rect.left, y: event.clientY - rect.top };
-      },
+      localPoint: (event) => cadLocalPoint(event, renderer.domElement),
       selectNative,
       setNativeEntities,
       bumpDocumentRevision: () =>
@@ -8401,8 +8388,21 @@ export default function Layout3DEditor({
   }, [objectTags]);
   const configureOrbitControlsForMode = (mode: "3d" | "2d") => {
     viewControllerRef.current?.setMode(mode);
-    if (controlsRef.current) applyCadCameraPolicy(controlsRef.current, mode);
+    if (controlsRef.current) applyCadCameraPolicy(controlsRef.current, mode, picking());
   };
+  /** ¿Hay un paso esperando que se designe una cara? Decide quién manda el clic. */
+  const picking = () =>
+    ((commandEngineRef.current?.accepts ?? 0) & CAD_FACE_PICK_BIT) !== 0;
+  // Y se re-aplica cuando CAMBIA el paso del motor, no sólo al conmutar de modo:
+  // sin esto, empezar PRESSPULL no movería un solo botón.
+  useEffect(
+    () =>
+      commandEngineRef.current?.subscribe(() => {
+        const ctrl = controlsRef.current;
+        if (ctrl) applyCadCameraPolicy(ctrl, viewModeRef.current, picking());
+      }),
+    [],
+  );
   const focusViewportItems = (items: SelItem[]) => {
     const ctx = ctxRef.current;
     const cam = cameraRef.current;

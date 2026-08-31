@@ -1784,6 +1784,36 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "GESTO-COMPLETO-EMPUJAR-CARA-20260831",
+      "date": "2026-08-31",
+      "initiative": "La última pieza del modelado directo: el lienzo 3D construye el rayo desde su cámara viva, resuelve la cara bajo el cursor y la manda al motor, y la política de cámara se re-aplica cuando CAMBIA el paso del motor —no sólo al conmutar de modo—, que es lo que hace que empezar PRESSPULL mueva de verdad los botones. Con esto el gesto existe de punta a punta: designar una cara, arrastrar, y el volumen crece. El trabajo se hizo respetando el trinquete del monolito, que sólo baja: la conversión rayo-escena→rayo-dibujo, el resolutor de cara y dos ayudantes de puntero que el editor repetía salieron a módulos propios, y el editor acabó en 18 454 líneas —las mismas con las que empezó— aunque ganó la designación de cara. Sale además una duplicación real: el cálculo del punto local estaba escrito dos veces y la apertura del pickbox no se podía probar sin montar un lienzo THREE.",
+      "branch": "claude/el-gesto-completo",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: cierre de la campaña 3D encargada el 2026-08-31.",
+      "firstPartyInputs": [
+        "El lienzo THREE, el enrutador de puntero y pick3d, todos propios."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/pick3d/scene-ray.ts (conversión y factoría de designación, nuevos)",
+        "apps/web/src/components/cad/viewport/pointer-geometry.ts (dos ayudantes extraídos del editor)",
+        "apps/web/src/components/cad/editor/Layout3DEditor.tsx (hitFace enchufado; 18 454 líneas, sin crecer)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de llevar Valle Design a modelado 3D."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
