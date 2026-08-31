@@ -75,4 +75,38 @@ export type CadHostRequest =
       entityCount: number;
       layers: readonly string[];
       losses: readonly CadLossManifestEntry[];
+    }
+  /**
+   * Entrega el CSV que produjo `DATAEXTRACTION` en su variante `CSV`.
+   *
+   * Igual que `dxf-export`: el texto VIENE HECHO, calculado por el comando a
+   * partir de `buildCadBimSchedule`, y lo único que falta es la descarga.
+   */
+  | { kind: "data-extraction-csv"; fileName: string; content: string }
+  /**
+   * Entrega el paquete de `ETRANSMIT`: los bytes de un ZIP ya construidos por
+   * el comando (`buildCadTransmittalPackage`), con su manifiesto de qué viaja
+   * y qué falta. Mismo reparto que `dxf-export` y `data-extraction-csv`: el
+   * motor hace la aritmética de bytes, el anfitrión sólo entrega el archivo.
+   */
+  | {
+      kind: "etransmit";
+      fileName: string;
+      bytes: Uint8Array;
+      included: readonly string[];
+      missing: readonly string[];
+    }
+  /**
+   * Gestión de un conjunto de planos: `PUBLISH` reutiliza `"publish"`, y
+   * `SHEETSET` entra por aquí para las tres operaciones que se pueden teclear
+   * sin abrir un panel — añadir la hoja activa, renumerar y leer el índice.
+   *
+   * `sheet` sólo viaja en `"add"`; en las otras dos operaciones no hace falta
+   * más que el identificador del conjunto.
+   */
+  | {
+      kind: "sheet-set-command";
+      action: "add" | "renumber" | "list";
+      sheetSetId: string;
+      sheet?: { documentId: string; layoutId: string; title: string };
     };

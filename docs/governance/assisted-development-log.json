@@ -1126,6 +1126,46 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "ENTREGA-JUEGO-DE-PLANOS-20260831",
+      "date": "2026-08-31",
+      "initiative": "Frente «entrega del proyecto»: PUBLISH, SHEETSET, ETRANSMIT y DATAEXTRACTION como comandos reales del registro, sobre la tubería de publicación ya escrita en lib/cad/sheet-set/ y lib/cad/plot/. Una de cuatro sesiones paralelas del mismo día; sin archivos compartidos con las otras tres (3D, rendimiento, colaboración).",
+      "branch": "claude/entrega-juego-de-planos",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Instrucción de campaña recibida por la sesión: implementar el frente de entrega del proyecto (PUBLISH/SHEETSET/ETRANSMIT/DATAEXTRACTION), respetando el territorio asignado, los archivos prohibidos (Layout3DEditor.tsx, render/, collab/, 3D, contratos, rubric.json) y dejando un PR en borrador para revisión humana antes de fusionar.",
+      "firstPartyInputs": [
+        "lib/cad/sheet-set/ (sheet-set.ts, sheet-set-cover.ts, sheet-set-fields.ts, sheet-set-publish.ts), ya escrito y probado antes de esta campaña, sin comando que lo alcanzara — hallazgo de la Regla 6.",
+        "lib/cad/plot/ completo (plot-job.ts, plot-pdf.ts, page-setup.ts, pdf-measure.ts, plot-fonts.ts) y su evidencia ya publicada en docs/cad/evidence/plot-fidelity-slo.json.",
+        "lib/cad/bim-schedule.ts y el defecto ya medido y abierto en docs/execution/BACKLOG.md P1-6 (sesgo de esquina ~1,45%).",
+        "El registro real de comandos (apps/web/src/lib/cad/engine/, CAD_COMMAND_REGISTRY_V2) y su sonda de integridad (apps/web/scripts/command-integrity-probe.mts).",
+        "El endpoint /v1/cad/sheet-sets ya existente en el contrato y su repositorio cliente (apps/web/src/lib/cad/repositories/sheet-sets.ts)."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El escritor de ZIP (etransmit/zip-writer.ts, método STORE sin dependencias) se escribió desde la especificación pública del formato ZIP (estructura de cabeceras locales, directorio central, CRC-32 IEEE 802.3) y se verificó contra dos oráculos independientes que no comparten código con el escritor: un lector propio escrito aparte en el spec, node:zlib.crc32 cuando el Node del entorno lo trae, y el binario `unzip` del sistema (best-effort, si está instalado) — sin copiar ninguna implementación ajena.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/engine/commands/sheet-set-commands.ts (PUBLISH, SHEETSET) — comandos nuevos, enchufan la tubería ya escrita.",
+        "apps/web/src/lib/cad/engine/commands/etransmit-commands.ts + lib/cad/etransmit/ (etransmit.ts, zip-writer.ts) — ETRANSMIT, de punta a punta nuevo.",
+        "apps/web/src/lib/cad/engine/commands/data-extraction-commands.ts + lib/cad/data-extraction/data-extraction.ts — DATAEXTRACTION, de punta a punta nuevo, declara el sesgo de P1-6 en su salida.",
+        "apps/web/src/components/cad/command-line/plot-host.ts (rama sheet-set-command, saveSheetSet), etransmit-host.ts, data-extraction-host.ts, use-command-engine.ts (composición de anfitriones).",
+        "apps/web/src/lib/cad/bim-schedule.ts (buildCadBimSchedule acepta Pick<CadDocument,'entities'> en vez de CadDocument completo, sin cambiar su contrato para quien ya lo llamaba).",
+        "apps/web/src/lib/cad/engine/host-requests.ts (tres variantes nuevas: etransmit, data-extraction-csv, sheet-set-command) y engine/index.ts (registro).",
+        "apps/web/src/lib/cad/engine/command-summaries.ts (cuatro resúmenes nuevos, alfabéticos).",
+        "scripts/cad/sheet-set-publish-probe.mts + sheet-set-publish-evidence.mjs → docs/cad/evidence/sheet-set-publish.json.",
+        "docs/execution/BACKLOG.md (P1-8 nuevo: el cableado de datos real de PUBLISH/SHEETSET al estudio en vivo queda bloqueado por el techo de Layout3DEditor.tsx, igual que P1-2/XATTACH; nota añadida a P1-6 sobre la herencia del sesgo en DATAEXTRACTION)."
+      ],
+      "fixtures": "Ninguno externo. Los documentos y conjuntos de prueba de los specs nuevos (sheet-set-commands.spec.ts, etransmit.spec.ts, data-extraction.spec.ts, zip-writer.spec.ts, la sonda de PUBLISH) se construyen a mano dentro de cada archivo, con geometría conocida (un muro de 3,5 m a 1:50) para poder medir contra los bytes del PDF.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "PR en borrador de esta rama, sin fusionar: pendiente de revisión humana. Los seis gates locales (check:cad, check:dwg, typecheck, test, lint, build) corridos sobre el árbol committeado antes de abrir el PR; check:dwg-evidence falla por VALLE_DWG_CORPUS_MIRROR ausente en este contenedor, verificado que falla igual en main limpio."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
