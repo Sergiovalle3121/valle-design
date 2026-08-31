@@ -63,14 +63,46 @@ function hatchContains(entity: CadHatchEntity, point: CadPoint2): boolean {
   return hatchRegionContainsPoint(hatchBoundaries(entity), point, entity.islandStyle ?? "normal");
 }
 
+/**
+ * Escalones LOD del sombreado, en la misma unidad —`segments`— que ya usa
+ * cualquier otro adaptador con curvas. Duplican los valores de tier 0/1 de
+ * `CAD_RENDER_LOD_SEGMENTS` (`render/tessellation-cache.ts`) a propósito: esa
+ * constante vive detrás de `entity-runtime.ts`, que es quien IMPORTA este
+ * adaptador para registrarlo — pedirla de vuelta desde aquí cerraría el mismo
+ * ciclo que la nota de imports de la cabecera de este archivo ya advierte para
+ * `entity-hit-geometry.ts`. La duplicación queda protegida por
+ * `hatch-entity-adapter.spec.ts`, que la compara contra el tier real.
+ */
+const CAD_HATCH_LOD_OUTLINE_ONLY_MAX_SEGMENTS = 8;
+const CAD_HATCH_LOD_COARSE_MAX_SEGMENTS = 32;
+/** A tier medio, el espaciado se ensancha: se ve la trama, no cada trazo. */
+const CAD_HATCH_LOD_COARSE_SPACING_FACTOR = 4;
+
 const hatchRenderer: CadEntityRenderer<CadHatchEntity> = {
-  paths: (entity) => {
+  // `segments` no llegaba a usarse: el patrón costaba lo mismo en un sombreado
+  // de tres píxeles en pantalla que en uno a pantalla completa —14.000 hatches
+  // × ~256 trazos en `architecture@100k`, iguales en cada escalón de zoom—.
+  // Con el LOD real, sólo el tier completo paga el espaciado exacto del
+  // patrón.
+  paths: (entity, segments = 96) => {
     const boundaries = hatchBoundaries(entity);
     const outlines: CadRenderPath[] = boundaries.map((points) => ({ points, closed: true }));
     if (entity.solid || !boundaries[0]) return outlines;
+    // Tier 0 (≤24 px aparentes, `CAD_RENDER_LOD_COARSE_MAX_PX`): un patrón de
+    // rayado a ese tamaño es una mancha uniforme para el ojo. Sólo el contorno
+    // dice algo; calcular miles de trazos que ni un píxel distingue es puro
+    // coste sin ganancia visual, y es EXACTAMENTE el suelo `diagonal/256` que
+    // hacía que 14.000 hatches costaran lo mismo abiertos que en detalle.
+    if (segments <= CAD_HATCH_LOD_OUTLINE_ONLY_MAX_SEGMENTS) return outlines;
     const bounds = pointsBounds(boundaries.flat());
     const diagonal = Math.hypot(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
-    const spacing = Math.max(entity.scale ?? diagonal / 40, diagonal / 256, 1e-6);
+    // Tier medio (≤320 px aparentes): el espaciado se ENSANCHA en vez de
+    // respetar el patrón exacto — se ve la trama, no cada línea, con una
+    // fracción de los trazos. Tier completo conserva el espaciado real, igual
+    // que antes de que existiera este escalón.
+    const coarseFactor =
+      segments <= CAD_HATCH_LOD_COARSE_MAX_SEGMENTS ? CAD_HATCH_LOD_COARSE_SPACING_FACTOR : 1;
+    const spacing = Math.max(entity.scale ?? diagonal / 40, diagonal / 256, 1e-6) * coarseFactor;
     const pattern = entity.pattern.trim().toUpperCase();
     const angles = pattern === "CROSS" ? [entity.angle ?? 45, (entity.angle ?? 45) + 90] : [entity.angle ?? 45];
     const strokes = angles.flatMap((angle) =>
@@ -95,8 +127,17 @@ export const hatchAdapter: CadEntityAdapter<CadHatchEntity> = {
   renderer: hatchRenderer,
   bounds: hatchBounds,
   hitTester: {
+    // El `pathHit` de respaldo es para el clic AL BORDE, cuando el punto cae
+    // fuera del polígono por el margen que decide `tolerance` — no necesita
+    // los trazos de relleno para eso, sólo el contorno: cualquier trazo de
+    // relleno vive DENTRO del área que `hatchRegionContainsPoint` ya acaba de
+    // decir que no contiene al punto. Pedir tier 0 (`segments` bajo el umbral
+    // de `CAD_HATCH_LOD_OUTLINE_ONLY_MAX_SEGMENTS`) regenera sólo el contorno
+    // en vez de la trama entera —miles de trazos, sin uno solo que pudiera
+    // haber cambiado el resultado— en cada fallo de contención.
     hitTest: (entity, point, tolerance) =>
-      hatchContains(entity, point) || pathHit(hatchRenderer.paths(entity), point, tolerance),
+      hatchContains(entity, point) ||
+      pathHit(hatchRenderer.paths(entity, CAD_HATCH_LOD_OUTLINE_ONLY_MAX_SEGMENTS), point, tolerance),
     intersectsWindow: (entity, window, crossing) => {
       const entityBounds = hatchBounds.bounds(entity);
       return crossing ? boundsIntersect(entityBounds, window) : boundsContained(entityBounds, window);

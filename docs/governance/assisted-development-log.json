@@ -1683,6 +1683,45 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "PERF-INDICE-BLOQUES-2026-08-31",
+      "date": "2026-08-31",
+      "initiative": "Frente de RENDIMIENTO de la campaña paralela de tres sesiones (CAD 2D, 3D y colaboracion). Perfilado del pipeline de render sobre la mezcla architecture@100k (34.000 INSERT, 14.000 HATCH) y ataque de los dos cuellos que el perfil nombro: el indice de INSERT resolvia el bloque entero por instancia para calcular bounds/hitTest, y HATCH ignoraba el escalon de LOD por completo.",
+      "branch": "claude/perf-indice-de-bloques",
+      "assistants": [
+        "Claude Code (Anthropic), sesion operada por el titular"
+      ],
+      "authority": "Instruccion expresa del titular para operar el frente de rendimiento de la campana paralela, con territorio de archivos delimitado por escrito (render/, block-text-adapters.ts, block-cache.ts nuevo, native-selection-index.ts, wall/opening/hatch-entity-adapter.ts, hatch.ts, cad-render-benchmark.mts, e2e/performance/, docs/cad/evidence/) y orden explicita de perfilar antes de optimizar, terminando en PR en borrador sin fusionar.",
+      "firstPartyInputs": [
+        "El pipeline de render propio (apps/web/src/lib/cad/render/) y su instrumentacion por etapa existente (render-profile.ts, render-stage-profile.ts).",
+        "El corpus propio de mezclas (corpus-mixes.ts, corpus-mixes-manifest.json), en particular architecture@100k.",
+        "La evidencia ya publicada del repositorio (docs/cad/evidence/browser-slo-100k.json, docs/history/evidence/cad-render-stage-profile-100k.json) como punto de partida verificado antes de tocar nada."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El cuello de botella (bounds/hitTest de INSERT en O(contenido) por instancia; HATCH ignorando segments) se identifico extendiendo la instrumentacion propia (render-profile.ts) con dos etapas nuevas (spatialIndex, insertExpand) y corriendola sobre el corpus propio; la tecnica de envolvente por afin de las 4 esquinas de un AABB es un resultado de geometria elemental, no una implementacion de terceros.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/render/render-profile.ts (dos etapas nuevas: spatialIndex, insertExpand)",
+        "apps/web/src/lib/cad/render/render-stage-profile.ts (el perfil se enciende ANTES de pipeline.replace(), que antes quedaba fuera del cronometro)",
+        "apps/web/src/lib/cad/render/pipeline.ts (los bucles de bounds+indice de replace()/invalidate() quedan marcados como spatialIndex)",
+        "apps/web/src/lib/cad/render/pipeline-dependents.ts (track() ya no indexa needsDocument sin dependents: INSERT deja de inflar el indice de dependientes)",
+        "apps/web/src/lib/cad/block-cache.ts (nuevo: geometria LOCAL de bloque memorizada por blockId/version/segments)",
+        "apps/web/src/lib/cad/block-text-adapters.ts (bounds/paths de INSERT consumen block-cache.ts; bounds es O(1) por instancia salvo xclip o giro no cardinal)",
+        "apps/web/src/lib/cad/hatch-entity-adapter.ts (LOD real: tier 0 solo contorno, tier medio espaciado mas ancho, tier completo bit a bit igual que antes; hitTest ya no regenera la trama entera en cada fallo de contencion)",
+        "apps/web/scripts/cad-render-benchmark.mts (--mix para correr el benchmark de CPU sobre una mezcla de corpus-mixes.ts en vez de solo LINE/CIRCLE/ARC)",
+        "apps/web/scripts/cad-render-stage-profile-mix.mts (nuevo: reparto por etapa sobre una mezcla, sin medir el camino anterior completo)",
+        "docs/cad/evidence/render-stage-architecture-100k.json (nuevo)"
+      ],
+      "fixtures": "Ninguno nuevo fuera de los propios specs: block-cache.spec.ts y hatch-entity-adapter.spec.ts construyen sus documentos/entidades a mano, igual que el resto de specs de lib/cad.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "PR en borrador de esta rama, sin fusionar por instruccion expresa; queda pendiente de revision del titular."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

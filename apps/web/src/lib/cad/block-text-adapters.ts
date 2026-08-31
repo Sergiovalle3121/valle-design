@@ -14,8 +14,14 @@
  * matrices en esos campos, y de ahí sale la regla de que el ángulo se RESTA en
  * vez de sumarse.
  */
-import type { CadDocument, CadEntity, CadPoint2, CadPoint3 } from "./cad-document";
+import type { CadBlockDefinition, CadDocument, CadEntity, CadPoint2, CadPoint3 } from "./cad-document";
 import { circleAdapter, isLegacyCircle, lineAdapter } from "./basic-native-adapters";
+import {
+  cadBlockLocalGeometry,
+  cadBlockWorldBounds,
+  cadBlockWorldPaths,
+  type CadBlockLocalGeometry,
+} from "./block-cache";
 import { arcAdapter, ellipseAdapter } from "./curve-entity-adapters";
 import { dimensionAdapter } from "./dimension-entity-adapter";
 import { cloneContext } from "./entity-context";
@@ -32,7 +38,9 @@ import { layoutCadMText } from "./mtext-layout";
 import { polylineAdapter } from "./polyline-entity-adapter";
 import { cadTransformPositionedAttributes } from "./blocks/positioned-attributes";
 import { resolveCadInsert } from "./professional-blocks";
+import { cadRenderMark, cadRenderStage } from "./render/render-profile";
 import { splineAdapter } from "./spline-entity-adapter";
+import { cadXclipOf } from "./xref/xclip";
 import {
   cadTransformAngleBase,
   cadTransformIsReflecting,
@@ -65,6 +73,18 @@ const transformPoint = (point: CadPoint3, transform: CadEntityTransform): CadPoi
 /** Grados en `[0, 360)`. */
 function normalizeAngleDeg(value: number): number {
   return ((value % 360) + 360) % 360;
+}
+
+/**
+ * `true` si `degrees` es (hasta deriva de coma flotante) un múltiplo de 90°:
+ * 0, 90, 180 o 270. Es la condición exacta bajo la que escalar-y-girar un
+ * rectángulo NO mezcla sus ejes, así que transformar sólo sus 4 esquinas basta
+ * para un envolvente exacto en vez de uno inflado. Ver el uso en
+ * `insertAdapter.bounds.bounds`.
+ */
+function isCadCardinalRotationDeg(degrees: number): boolean {
+  const normalized = normalizeAngleDeg(degrees) % 90;
+  return normalized < 1e-6 || normalized > 90 - 1e-6;
 }
 
 type CadMTextEntity = Extract<CadNativeEntity, { type: "mtext" }>;
@@ -262,15 +282,91 @@ export function blockChildPaths(entity: CadEntity, segments = 96): CadRenderPath
   return [];
 }
 
+function insertReferenceCross(entity: CadInsertEntity): CadRenderPath[] {
+  const radius = 50;
+  return [
+    { points: [{ x: entity.insertion.x - radius, y: entity.insertion.y }, { x: entity.insertion.x + radius, y: entity.insertion.y }], closed: false },
+    { points: [{ x: entity.insertion.x, y: entity.insertion.y - radius }, { x: entity.insertion.x, y: entity.insertion.y + radius }], closed: false },
+  ];
+}
+
+function findCadBlockDefinition(document: CadDocument, key: string): CadBlockDefinition | undefined {
+  return document.blocks.find((block) => block.id === key || block.name === key);
+}
+
+/**
+ * Geometría LOCAL de `block` —sin la afín de ninguna instancia—, memorizada en
+ * `block-cache.ts` por `(block.id, block.version, segments)`. Se resuelve con
+ * un INSERT SINTÉTICO en el origen, sin giro ni escala: es la MISMA resolución
+ * recursiva (bloques anidados incluidos) que pagaría cualquier instancia real,
+ * factorizada una vez por definición en vez de una vez por instancia. El
+ * INSERT sintético nunca lleva recorte (`xclip`) porque el recorte es dato DE
+ * LA INSTANCIA — ver `insertRenderPaths`, que por eso no pasa por aquí cuando
+ * la instancia real sí lo tiene.
+ */
+function localBlockGeometry(
+  document: CadDocument,
+  block: CadBlockDefinition,
+  segments: number,
+): CadBlockLocalGeometry {
+  return cadBlockLocalGeometry(block.id, block.version ?? 1, segments, () => {
+    const expandStarted = cadRenderMark();
+    // Insertar en `basePoint`, sin giro ni escala, es la identidad de
+    // verdad: `insertMatrix` siempre resta `basePoint` antes de aplicar
+    // giro y escala, así que insertar AHÍ la cancela y deja los puntos
+    // RESUELTOS —bloques anidados incluidos— en las mismas coordenadas en
+    // que se autoraron. `cadBlockWorldBounds`/`cadBlockWorldPaths` restan
+    // `basePoint` por su cuenta al colocar cada instancia real; insertar en
+    // el origen aquí habría restado `basePoint` DOS veces.
+    const identityInsert: CadInsertEntity = {
+      id: `block-cache:${block.id}`,
+      type: "insert",
+      block: block.id,
+      insertion: { x: block.basePoint.x, y: block.basePoint.y, z: block.basePoint.z },
+      scale: { x: 1, y: 1, z: 1 },
+      rotation: 0,
+      layer: "0",
+    };
+    const paths = resolveCadInsert(document, identityInsert, 16).entities.flatMap((child) =>
+      blockChildPaths(child, segments),
+    );
+    cadRenderStage("insertExpand", expandStarted);
+    const points = paths.flatMap((path) => path.points);
+    const bounds = points.length
+      ? pointsBounds(points)
+      : { minX: 0, minY: 0, maxX: 0, maxY: 0 };
+    return { paths, bounds };
+  });
+}
+
 function insertRenderPaths(entity: CadInsertEntity, segments = 96, document?: CadDocument): CadRenderPath[] {
-  if (!document) {
-    const radius = 50;
-    return [
-      { points: [{ x: entity.insertion.x - radius, y: entity.insertion.y }, { x: entity.insertion.x + radius, y: entity.insertion.y }], closed: false },
-      { points: [{ x: entity.insertion.x, y: entity.insertion.y - radius }, { x: entity.insertion.x, y: entity.insertion.y + radius }], closed: false },
-    ];
+  // Sin documento, la cruz de referencia es geometría DISTINTA de la del
+  // bloque resuelto, no una aproximación de ella — es la marca que mantiene al
+  // INSERT fuera del worker de teselado. Ver el comentario de `needsDocument`
+  // en `insertAdapter.renderer` más abajo.
+  if (!document) return insertReferenceCross(entity);
+  const block = findCadBlockDefinition(document, entity.block);
+  if (!block) return [];
+  // El recorte (`xclip`) es dato DE LA INSTANCIA: cachear por bloque lo
+  // perdería. Es una fracción minoritaria de los INSERT de un plano real, así
+  // que el camino lento de siempre —resolver esta instancia entera, sin
+  // memorizar nada— sigue siendo correcto para ella y no hace falta más.
+  if (cadXclipOf(entity)) {
+    const expandStarted = cadRenderMark();
+    const paths = resolveCadInsert(document, entity, 16).entities.flatMap((child) =>
+      blockChildPaths(child, segments),
+    );
+    cadRenderStage("insertExpand", expandStarted);
+    return paths;
   }
-  return resolveCadInsert(document, entity, 16).entities.flatMap((child) => blockChildPaths(child, segments));
+  const local = localBlockGeometry(document, block, segments);
+  return cadBlockWorldPaths(local.paths, {
+    insertion: entity.insertion,
+    rotationDeg: entity.rotation,
+    scaleX: entity.scale.x,
+    scaleY: entity.scale.y,
+    basePoint: block.basePoint,
+  });
 }
 
 const insertAdapter: CadEntityAdapter<CadInsertEntity> = {
@@ -283,9 +379,51 @@ const insertAdapter: CadEntityAdapter<CadInsertEntity> = {
   // `invalidate`, recarga el documento entero.
   renderer: { paths: insertRenderPaths, needsDocument: true },
   bounds: {
+    // O(1) por instancia: transforma las 4 esquinas del AABB LOCAL —memorizado
+    // por bloque en `block-cache.ts`— por la afín de ESTA instancia, en vez de
+    // resolver y teselar el bloque entero para luego envolver sus puntos. Con
+    // 34.000 INSERT de un puñado de bloques de catálogo, esto es lo que baja
+    // la construcción del índice espacial de O(instancias × contenido) a
+    // O(instancias) + O(definiciones × contenido). La instancia con `xclip`
+    // sigue el camino de siempre porque el recorte no es parte del AABB local
+    // memorizado.
     bounds: (entity, document) => {
-      const points = insertRenderPaths(entity, 96, document).flatMap((path) => path.points);
-      return points.length ? pointsBounds(points) : { minX: entity.insertion.x - 50, minY: entity.insertion.y - 50, maxX: entity.insertion.x + 50, maxY: entity.insertion.y + 50 };
+      const fallback = {
+        minX: entity.insertion.x - 50,
+        minY: entity.insertion.y - 50,
+        maxX: entity.insertion.x + 50,
+        maxY: entity.insertion.y + 50,
+      };
+      if (!document) return fallback;
+      const block = findCadBlockDefinition(document, entity.block);
+      if (!block) return fallback;
+      if (cadXclipOf(entity)) {
+        const points = insertRenderPaths(entity, 96, document).flatMap((path) => path.points);
+        return points.length ? pointsBounds(points) : fallback;
+      }
+      const local = localBlockGeometry(document, block, 96);
+      if (!local.paths.length) return fallback;
+      const placement = {
+        insertion: entity.insertion,
+        rotationDeg: entity.rotation,
+        scaleX: entity.scale.x,
+        scaleY: entity.scale.y,
+        basePoint: block.basePoint,
+      };
+      // Transformar las 4 esquinas del AABB local da el envolvente EXACTO —no
+      // uno inflado— sólo cuando el giro es un múltiplo de 90°: ahí escalar y
+      // girar no MEZCLA los ejes, así que la caja transformada es exactamente
+      // la imagen de la caja original y el contenido la toca en los mismos
+      // cuatro lados que tocaba antes de moverse. A cualquier otro ángulo, la
+      // caja del rectángulo gira más que el contenido que envuelve y el
+      // envolvente de sus esquinas queda MÁS GRANDE que el real — sano para un
+      // índice espacial (nunca esconde una entidad), pero no vale para
+      // «seleccionar lo que queda dentro de la ventana», que necesita el
+      // límite exacto. Ahí se paga transformar los puntos ya cacheados —barato,
+      // sin resolver el bloque de nuevo— y se envuelve el resultado.
+      if (isCadCardinalRotationDeg(entity.rotation)) return cadBlockWorldBounds(local.bounds, placement);
+      const points = cadBlockWorldPaths(local.paths, placement).flatMap((path) => path.points);
+      return points.length ? pointsBounds(points) : fallback;
     },
   },
   hitTester: {

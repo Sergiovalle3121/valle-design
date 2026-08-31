@@ -227,6 +227,14 @@ export async function profileCadRenderStages(
     now: () => performance.now() + presentedFrames * modelledFrameMs,
     fixedFrameBudget: options.fixedFrameBudget,
   });
+  // El perfil se enciende ANTES de `replace()` y no después: ese primer
+  // `replace()` recorre TODAS las entidades calculando `bounds.bounds()` para
+  // levantar el índice de tiles y el carril de dependientes —el coste que
+  // `spatialIndex` e `insertExpand` vienen a nombrar—, y ese recorrido ya
+  // terminó para cuando arrancaba `startCadRenderProfile()` en la versión
+  // anterior de este arnés. Un documento con 34.000 INSERT podía costar
+  // segundos ahí sin que ninguna de las etapas medidas lo reflejara.
+  startCadRenderProfile();
   pipeline.replace(options.entities, options.drawOrderIds, options.document);
 
   let lastFrameBudgetMs = 0;
@@ -254,7 +262,6 @@ export async function profileCadRenderStages(
     return frames;
   };
 
-  startCadRenderProfile();
   const openStarted = performance.now();
   const framesToFirstDetail = await settle(options.scenario.initial);
   const firstDetailMs = cadRound3(performance.now() - openStarted);

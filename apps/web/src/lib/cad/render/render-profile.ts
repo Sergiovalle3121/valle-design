@@ -60,7 +60,24 @@ export type CadRenderStage =
   /** Sembrar en la caché lo que el worker devolvió. */
   | "offThreadSeed"
   /** Derivar los lotes visibles: lo que consume la reconciliación de escena. */
-  | "visibleBatches";
+  | "visibleBatches"
+  /**
+   * `bounds.bounds()` de cada entidad más el alta en `CadRenderTileIndex` y en
+   * `CadRenderDependencyLane`, en `replace()` y en `invalidate()`. No estaba
+   * medido: ocurre ANTES de que hubiera ningún cuadro que cronometrar, así que
+   * un documento con muchos INSERT o WALL —cuyo `bounds` resuelve contra el
+   * documento entero— podía costar segundos sin que ninguna de las ocho etapas
+   * de arriba lo reflejara.
+   */
+  | "spatialIndex"
+  /**
+   * La parte de `spatialIndex` (y de `tessellate`) que es, específicamente,
+   * `resolveCadInsert` + `blockChildPaths` dentro de `insertRenderPaths`: un
+   * INSERT expandiendo el contenido de su bloque. Va aparte de `spatialIndex`
+   * porque WALL también declara `needsDocument` y sin este desglose no se
+   * podría atribuir el coste a uno de los dos tipos.
+   */
+  | "insertExpand";
 
 /** Contadores sin reloj: el volumen que explica los tiempos de arriba. */
 export type CadRenderCounter =
@@ -86,6 +103,8 @@ export const CAD_RENDER_STAGES: readonly CadRenderStage[] = [
   "offThreadCollect",
   "offThreadSeed",
   "visibleBatches",
+  "spatialIndex",
+  "insertExpand",
 ];
 
 export const CAD_RENDER_COUNTERS: readonly CadRenderCounter[] = [

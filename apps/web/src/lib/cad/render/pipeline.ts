@@ -278,6 +278,7 @@ export class CadRenderPipeline {
     // Dos uniones: `bounds` incluye TODO (culling, tiles) y `originBounds`
     // excluye el espacio papel, que es lo que ancla el origen flotante. El
     // porqué —y los 7243× que costaba mezclarlos— en `cadPaperSpaceEntityIds`.
+    const spatialIndexStarted = cadRenderMark();
     let bounds: CadBounds | null = null;
     let originBounds: CadBounds | null = null;
     const paperSpaceIds = cadPaperSpaceEntityIds(this.document);
@@ -304,6 +305,7 @@ export class CadRenderPipeline {
       bounds ? suggestCadTileSize(bounds, this.entities.size) : 4_096,
     );
     for (const [id, entityBounds] of boundsById) this.index.upsert(id, entityBounds);
+    cadRenderStage("spatialIndex", spatialIndexStarted);
     this.visibleTiles = [];
     this.visibleTileSet.clear();
   }
@@ -362,6 +364,7 @@ export class CadRenderPipeline {
     const affected = new Set<string>(touched);
     this.dependencies.expandIds(touched, affected);
     const upsertedIds = new Set<string>();
+    const invalidateIndexStarted = cadRenderMark();
     for (const entity of upserts) {
       if (!CAD_ENTITY_REGISTRY.supports(entity)) continue;
       upsertedIds.add(entity.id);
@@ -373,6 +376,7 @@ export class CadRenderPipeline {
       this.index.upsert(entity.id, entityBounds);
       this.dependencies.track(entity, entityBounds);
     }
+    cadRenderStage("spatialIndex", invalidateIndexStarted);
     for (const id of affectedEntityIds) {
       if (upsertedIds.has(id)) continue;
       if (!this.entities.has(id)) continue;
