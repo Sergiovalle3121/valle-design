@@ -1,0 +1,111 @@
+{
+  "$schema": "urn:valle-design:schema:cad-sheet-set-publish-evidence:v1",
+  "schemaVersion": 1,
+  "evidenceId": "valle-design-sheet-set-publish-v1",
+  "startedAt": "2026-08-31T05:33:57.990Z",
+  "finishedAt": "2026-08-31T05:33:58.623Z",
+  "enforcement": "report-only",
+  "enforcementRationale": "El PDF resultante lo verifica sheet-set-cover.spec.ts en cada corrida de npm test (portada, numeración, y que la lámina y la portada dicen lo mismo). Este artefacto añade el juego de siete láminas y la escala medida en la lámina 7 concretamente, más los milisegundos de una corrida en la máquina declarada — no fija un presupuesto de CI.",
+  "environment": {
+    "node": "v22.22.2",
+    "platform": "linux",
+    "architecture": "x64",
+    "osType": "Linux",
+    "osRelease": "6.18.44-fc-v22",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "logicalCpuCount": 4,
+    "totalMemoryBytes": 16856133632,
+    "declaredMachine": "Intel(R) Xeon(R) Processor @ 2.10GHz (4 hilos lógicos), 15.7 GB de RAM, Linux 6.18.44-fc-v22"
+  },
+  "method": {
+    "runs": 1,
+    "generator": "scripts/cad/sheet-set-publish-evidence.mjs + scripts/cad/sheet-set-publish-probe.mts",
+    "everyNumberReadFrom": "los bytes del PDF que produjo publishCadSheetSet: /MediaBox y las coordenadas de trazo del flujo de contenido de cada página, con measureCadPdf. Ninguna cifra procede de preguntarle al código qué creía estar haciendo."
+  },
+  "sheetSet": {
+    "sheetCount": 7,
+    "pageCount": 8,
+    "hasCover": true,
+    "fileBytes": 45027,
+    "wallLengthMm": 3500,
+    "scale": "1:50",
+    "expectedPrintedMm": 70
+  },
+  "timing": {
+    "publishMs": 134.38827500000002,
+    "msPerPage": 16.798534375000003,
+    "note": "publishCadSheetSet completo: construir el plan, resolver los cajetines y emitir el PDF de las ocho páginas."
+  },
+  "scaleFidelity": {
+    "sheetSeven": {
+      "sheet": 7,
+      "page": 8,
+      "measuredMm": 70.00000000000006,
+      "errorMm": 5.684341886080802e-14
+    },
+    "worstCase": {
+      "sheet": 1,
+      "page": 2,
+      "measuredMm": 70.00000000000006,
+      "errorMm": 5.684341886080802e-14
+    },
+    "perSheet": [
+      {
+        "sheet": 1,
+        "page": 2,
+        "measuredMm": 70.00000000000006,
+        "errorMm": 5.684341886080802e-14
+      },
+      {
+        "sheet": 2,
+        "page": 3,
+        "measuredMm": 70.00000000000006,
+        "errorMm": 5.684341886080802e-14
+      },
+      {
+        "sheet": 3,
+        "page": 4,
+        "measuredMm": 70.00000000000006,
+        "errorMm": 5.684341886080802e-14
+      },
+      {
+        "sheet": 4,
+        "page": 5,
+        "measuredMm": 70.00000000000006,
+        "errorMm": 5.684341886080802e-14
+      },
+      {
+        "sheet": 5,
+        "page": 6,
+        "measuredMm": 70.00000000000006,
+        "errorMm": 5.684341886080802e-14
+      },
+      {
+        "sheet": 6,
+        "page": 7,
+        "measuredMm": 70.00000000000006,
+        "errorMm": 5.684341886080802e-14
+      },
+      {
+        "sheet": 7,
+        "page": 8,
+        "measuredMm": 70.00000000000006,
+        "errorMm": 5.684341886080802e-14
+      }
+    ],
+    "unreadable": [],
+    "verdict": "el error de escala peor caso está muy por debajo de la resolución de cualquier trazadora (0,1 mm)"
+  },
+  "scope": {
+    "measured": [
+      "páginas emitidas por un juego de siete láminas más portada",
+      "escala impresa de un muro de 3,5 m en la lámina 7, y en las siete láminas, leída del PDF",
+      "milisegundos de una publicación completa, en la máquina declarada arriba"
+    ],
+    "notMeasured": [
+      "el paso de los bytes a papel: visor, controlador de impresión, trazadora y tinta",
+      "xrefs, imágenes ni fuentes incrustadas: el documento de la sonda no las usa",
+      "publicación con más de un documento de origen: la sonda usa un único documento con siete presentaciones"
+    ]
+  }
+}

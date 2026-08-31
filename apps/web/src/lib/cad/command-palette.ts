@@ -3,7 +3,7 @@
  *
  * ## El agujero que esto tapa
  *
- * La paleta indexaba únicamente el registro heredado del copiloto en lenguaje
+ * La paleta indexaba únicamente el registro heredado de frases en lenguaje
  * natural (47 comandos sobre cajas heredadas) más herramientas y símbolos. Los
  * 182 comandos del motor V2 —TRIM, FILLET, REVCLOUD, PAGESETUP…— eran
  * invisibles en el buscador aunque se pudieran teclear: existían para la línea
@@ -12,9 +12,9 @@
  *
  * ## Por qué UNIÓN y no sustitución
  *
- * El registro heredado no es un residuo: alimenta el copiloto NL
+ * El registro heredado no es un residuo: alimenta la barra de frases
  * (`parseCadCommand`/`previewCadCommand`), los esquemas de tools de IA y la
- * asistencia de la línea. Se queda, etiquetado «Copiloto», y cuando un id
+ * asistencia de la línea. Se queda, etiquetado «Frase», y cuando un id
  * heredado coincidiera con un nombre del motor gana el motor — dos entradas
  * con el mismo nombre y efectos distintos es el tipo de ambigüedad que una
  * paleta no puede permitirse.
@@ -62,10 +62,10 @@ export function buildCadPaletteEntries(): CadPaletteEntry[] {
       id: command.id,
       kind: "command" as const,
       label: command.label,
-      // La etiqueta «Copiloto» dice QUÉ ejecuta esta entrada: una previsualización
-      // del copiloto NL, no un comando del motor. Sin ella las dos familias se
+      // La etiqueta «Frase» dice QUÉ ejecuta esta entrada: una previsualización
+      // del registro de frases, no un comando del motor. Sin ella las dos familias se
       // verían iguales y harían cosas distintas.
-      description: `Copiloto · ${command.description}`,
+      description: `Frase · ${command.description}`,
       keywords: [command.category, ...command.examples],
     })),
     ...CAD_TOOLBAR_ACTIONS.map((tool) => ({

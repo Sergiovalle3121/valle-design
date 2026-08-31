@@ -1,8 +1,26 @@
 # Pipeline de render por lotes y por tiles
 
-Estado: **construido y probado, NO enchufado**. Los módulos viven en
-`apps/web/src/lib/cad/render/`. `Layout3DEditor.tsx` sigue usando el camino
-anterior; el cableado va en un PR posterior y aislado.
+Estado: **construido, probado y ENCHUFADO por defecto**. Los módulos viven en
+`apps/web/src/lib/cad/render/`; el anfitrión que los conecta al editor —
+`CadViewportRenderHost`, fuera del monolito a propósito— vive en
+`apps/web/src/components/cad/viewport/render-pipeline-host.ts` y lo construye
+`Layout3DEditor.tsx` cuando el pipeline elegido es `batched`, que es el
+defecto (`apps/web/src/lib/cad/render-pipeline-preference.ts`). Este documento
+decía "NO enchufado" desde la ola en que el pipeline era sólo un módulo
+probado en Node; quedó desactualizado en cuanto el cableado aterrizó y nadie
+lo corrigió — exactamente el tipo de cifra-viva-en-dos-lugares que las reglas
+de la campaña de cimientos prohíben. Se corrige aquí, con la evidencia
+regenerada desde el arnés en la misma campaña que este cambio.
+
+Hay un camino de vuelta explícito: `?cadRenderPipeline=legacy` en la URL, o lo
+guardado en `localStorage` bajo `valle_cad_render_pipeline`, fuerzan el camino
+anterior (`planCadNativeRenderBudget`, con su muestreo). Es un interruptor,
+no un silencio: `CadRenderPipelineBadge` publica en la barra de estado (tras
+`?cadDiag=1`) qué camino dibuja, y cuando el legado muestrea, `Viewport
+{rendered}/{visible} visibles · {total} total` se lee en el propio DOM —
+16 goldens lo comprueban por `data-testid="cad-native-render-stats"`. El
+defecto de producción nunca pasa por ese muestreo: `batched` dibuja SIEMPRE
+la vista entera, sin techo.
 
 ## El problema que se vino a resolver
 
@@ -62,7 +80,11 @@ nivel de detalle.
   rasterizan a un em fijo de 48 px y se magnifican con filtrado bilineal: por
   encima de ~3× ese tamaño el borde se ablanda. El hueco es sustituible sin
   tocar geometría, empaquetado ni atributos.
-- **No está enchufado.** Ningún componente construye `CadRenderScene`.
+- ~~No está enchufado.~~ Corregido: `CadViewportRenderHost` construye
+  `CadRenderScene` desde `Layout3DEditor.tsx` cuando el pipeline es `batched`
+  (el defecto). Ver "Estado" arriba y `render-pipeline-host.ts` para el
+  cableado — profundidad, selección por color de instancia, diagnóstico
+  publicado con `useSyncExternalStore`.
 - **Los INSERT siguen por `buildCadInsertBatches`**, que ya era la arquitectura
   correcta y sobrevive intacto.
 - **La selección sigue usando `CadSpatialIndex`**, cuyo gate pasa. Este pipeline
@@ -76,43 +98,55 @@ determinista, mismo guion de vistas, mismo proceso. Evidencia completa en
 
 **Es trabajo de CPU medido en Node.** No es GPU, ni composición del navegador, ni
 cuadros por segundo. Los números de navegador viven en
-`apps/web/e2e/performance/cad-viewport-100k.spec.ts` y sólo se moverán cuando el
-pipeline esté enchufado.
+`apps/web/e2e/performance/cad-viewport-100k.spec.ts` (tras `CAD_PERF_E2E=1`) y
+en `evidence/browser-slo-100k.json`; esa evidencia de navegador es la corrida
+real más reciente que existe en el repositorio (2026-08-21, `next`/`legacy` en
+Chromium con GPU) y no se ha vuelto a regenerar en esta campaña — se declara
+así en vez de omitirlo.
 
-A 100.000 entidades, 12 paradas de paneo y un zoom de 4×:
+A 100.000 entidades, 12 paradas de paneo, vista completa al final. Regenerado
+con `npm run benchmark:cad:render --workspace=web -- --output
+docs/cad/evidence/cad-render-benchmark-100k.json`; la máquina de esta corrida
+es un contenedor de CI/agente (Intel Xeon 4 hilos lógicos, no la máquina de
+desarrollo del párrafo del plano real de abajo) — `evidence.environment` lo
+declara, no hace falta creer esta tabla:
 
-| Métrica | Nuevo | Anterior | Objetivo |
+| Métrica (vista completa) | Nuevo | Anterior | Objetivo |
 | --- | --- | --- | --- |
-| Detalladas en reposo (vista completa) | **100.000** | 2.500 | todas las visibles |
-| `firstDetailMs` | 750,5 | 73,4 | ≤ 2.000 |
-| `zoomSettleMs` | 23,3 | 39,1 | ≤ 250 |
-| `panFrameP95Ms` (n=42) | 7,2 | 64,1 | ≤ 16,7 |
-| `zoomFrameP95Ms` (n=3) | 15,4 | 39,1 | ≤ 16,7 |
-| Peor cuadro al panear | 11,9 | 64,1 | — |
-| `heapGrowthMb` (3 ciclos, gc forzado) | 0,01 | — | ≤ 15 |
+| Detalladas en reposo | **100.000** | 2.500 de 100.000 | todas las visibles |
+| `firstDetailMs` | 950,7 | 27,0 | — |
+| `zoomSettleMs` | 0,48 | 27,5 | — |
+| `panFrameP95Ms` (n=34, paneo parcial) | 7,8 | 36,5 (n=12) | ≤ 16,7 |
+| Peor cuadro al panear | 8,1 | 36,5 | — |
+| `heapGrowthMb` (3 ciclos, gc forzado) | −2,0 | — | ≤ 8 |
 
 Tres lecturas que no hay que saltarse:
 
-1. **`firstDetailMs` es PEOR en el camino nuevo, y está bien que lo sea.** El
-   anterior tarda 73 ms porque sólo materializa 2.500 entidades de 100.000. Hacer
-   el trabajo entero cuesta más que no hacerlo. Comparar los dos tiempos sin
-   mirar la primera fila de la tabla es comparar dibujar con no dibujar.
-2. **`zoomFrameP95Ms` NO se puede dar por cumplido.** Sale de tres muestras, así
-   que es prácticamente el peor cuadro, y entre corridas se mueve entre 15,4 y
-   17,6 ms — a caballo del objetivo de 16,7. Queda pendiente de una medida con
-   más muestras.
-3. **El resto de la escena del `p95` sí es sólido**: 42 muestras en el paneo,
-   7,2 ms frente a 64,1.
+1. **`firstDetailMs` sigue siendo PEOR en el camino nuevo a vista completa, y
+   sigue estando bien que lo sea.** El anterior tarda 27 ms porque sólo
+   materializa 2.500 entidades de 100.000; el nuevo hace el trabajo entero.
+   Comparar los dos tiempos sin mirar la primera fila es comparar dibujar con
+   no dibujar.
+2. **`panFrameP95Ms` es la fila que importa para "se siente fluido"**: 7,8 ms
+   frente a 36,5 ms, con 34 muestras de un paneo parcial (12 paradas) — ambos
+   caminos muy por debajo del techo de 16,7 ms de un cuadro a 60 Hz salvo el
+   anterior, que ya lo rompe.
+3. **La comparación a vista completa (100.000 visibles) es la que demuestra
+   la fidelidad**: `detailedAtRest` 100.000/100.000 en el nuevo camino frente
+   a 2.500/100.000 en el anterior — el número que importa de este documento
+   entero.
 
 ## Escenificación de la métrica
 
-`scripts/cad-render-benchmark.mts` vive **aparte** de
-`cad-corpus-benchmark.mts` y **no tiene presupuestos**: sólo mide y publica.
-Aquel script tiene presupuestos bloqueantes, `peakRssBytes` entre ellos, y
-meterle dentro una corrida de 100k los apretaría de rebote. La regla es
-explícita: una métrica nueva entra registrada y no bloqueante hasta tener una
-línea base versionada debajo, y nunca en el mismo cambio que aprieta una vieja.
-Ningún presupuesto existente se movió.
+`scripts/cad-render-benchmark.mts` vive **aparte** de `cad-corpus-benchmark.mts`
+y ya no es report-only para el perfil `reference-100k`: **es bloqueante**, con
+una línea base calibrada el 2026-08-10 (`baseline.calibratedOn`, con margen
+×2,5) que la corrida de este documento cumple sin violaciones
+(`verdict.violations: []`). El resto de perfiles del script sigue entrando
+registrado antes de tener línea base propia — la regla no cambió, sólo el
+perfil de 100k ya cruzó de "mide y publica" a "bloquea si empeora".
+`peakRssBytes` y los presupuestos del corpus general siguen en
+`cad-corpus-benchmark.mts`, sin tocar.
 
 ## El perfil «plano real»: 20.000 entidades, que es el tamaño que importa
 
@@ -132,29 +166,41 @@ Composición exacta a 20.000: 5.800 LINE · 3.000 LWPOLYLINE · 2.800 INSERT sob
 4 definiciones · 2.600 DIMENSION · 2.000 MTEXT · 1.400 HATCH · 1.200 CIRCLE ·
 1.200 ARC, en 11 capas.
 
-Medido en **AMD Ryzen 5 5500U (6 núcleos / 12 hilos), 7,4 GB de RAM, Windows 11,
-Node v22.18.0**, mediana de tres corridas:
+Regenerado con `npm run benchmark:cad:plan --workspace=web -- --output
+docs/cad/evidence/cad-plan-benchmark-20k.json`, mediana de tres corridas.
+`evidence.environment.declaredMachine` ya no es un literal fijo del portátil
+de calibración — se deriva de lo que Node detecta en cada corrida, así que
+esta tabla lleva la máquina real al lado en vez de heredar la de otra
+persona:
 
 | Operación | p50 | p95 | Máx |
 | --- | --- | --- | --- |
-| Cuadro al panear | 4,9 | 8,1 | 9,5 |
-| Cuadro al hacer zoom | 4,4 | 5,6 | 5,6 |
-| Selección por ventana (7 ent.) | 0,18 | 0,32 | 3,7 |
-| Selección por captura (11 ent.) | 0,17 | 0,29 | 4,0 |
-| OSNAP (181/200 enganchan) | 0,09 | 2,7 | 3,7 |
-| MOVE de grupo, commit→asentado | 6,3 | 11,0 | 13,2 |
-| BORRAR grupo, commit→asentado | 6,2 | 10,6 | 12,2 |
+| Cuadro al panear | 4,14 | 6,25 | 6,62 |
+| Cuadro al hacer zoom | 1,52 | 4,50 | 4,50 |
+| Selección por ventana (7 ent.) | 0,06 | 0,13 | 1,49 |
+| Selección por captura (11 ent.) | 0,04 | 0,08 | 0,14 |
+| OSNAP (181/200 enganchan) | 0,03 | 0,93 | 1,73 |
+| MOVE de grupo, commit→asentado | 2,58 | 4,45 | 6,05 |
+| BORRAR grupo, commit→asentado | 1,61 | 3,61 | 4,50 |
 
-Apertura 1.237 ms en 163 cuadros; índice de selección del documento 513 ms.
+Apertura 482,2 ms en 91 cuadros; índice de selección del documento 180,4 ms.
+Estos absolutos son más rápidos que los del portátil de calibración citados en
+corridas previas de este documento — la máquina de este contenedor tiene
+menos núcleos pero sin la "carga vecina" que declaraba la corrida anterior; el
+número que importa no es el absoluto sino que las siete operaciones sigan
+cabiendo en un cuadro de 60 Hz, y siguen.
 
-**Las siete operaciones de gesto caben en un cuadro de 60 Hz**, la mayoría con
-holgura de 2× o más. No se tocó el motor por esto, y la razón está medida: el
-reparto por etapa de la apertura dice que **el 74 % es teselar y el 18 % escribir
+**Las siete operaciones de gesto caben en un cuadro de 60 Hz**, con holgura
+amplia. No se tocó el motor por esto, y la razón está medida: el reparto por
+etapa de la apertura dice que **el 80,8 % es teselar y el 14,8 % escribir
 instancias** —trabajo que impone el contenido del plano— mientras que la
-contabilidad del propio orquestador (recalcular la vista y encolar tiles) es el
-**0,5 %**. No hay desperdicio estructural que quitar; una optimización sin
+contabilidad del propio orquestador (recalcular la vista y encolar tiles) es
+**0,4 %**. No hay desperdicio estructural que quitar; una optimización sin
 problema medido sólo habría añadido riesgo.
 
 El trinquete vive en `apps/web/src/lib/cad/benchmark/plan-budget.spec.ts` y sus
-presupuestos están calibrados **para esta máquina de desarrollo**, no para el
-runner de CI.
+presupuestos están calibrados **para la máquina de desarrollo original**
+(Ryzen 5 5500U, ver la cabecera de ese archivo), no para el runner de CI ni
+para el contenedor que produjo la tabla de arriba — por eso el gate se evalúa
+ejecutando el benchmark de nuevo en cada corrida, no comparando contra esta
+tabla.

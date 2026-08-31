@@ -82,6 +82,16 @@ export class DwgBitEmitter {
     this.pushBits(value, 8);
   }
 
+  /** BB: dos bits crudos (espejo de readBB). */
+  emitBB(value: number): void {
+    this.pushBits(value, 2);
+  }
+
+  /** 3B: tres bits crudos (espejo de read3B). */
+  emit3B(value: number): void {
+    this.pushBits(value, 3);
+  }
+
   /** RS: 16 bits crudos, bytes little-endian dentro del flujo de bits. */
   emitRS(value: number): void {
     this.emitRC(value & 0xff);
@@ -185,6 +195,34 @@ export class DwgBitEmitter {
       this.pushBits(0b11, 2);
       this.emitRD(value);
     }
+  }
+
+  /** 2BD: par (x, y), espejo de read2BD — dos BD consecutivos. */
+  emit2BD(point: { readonly x: number; readonly y: number }): void {
+    this.emitBD(point.x);
+    this.emitBD(point.y);
+  }
+
+  /** 3BD: trío (x, y, z), espejo de read3BD — tres BD consecutivos. */
+  emit3BD(point: DwgPoint3): void {
+    this.emitBD(point.x);
+    this.emitBD(point.y);
+    this.emitBD(point.z);
+  }
+
+  /** 2RD: par (x, y) de doubles crudos, espejo de dos RD consecutivos. */
+  emit2RD(point: { readonly x: number; readonly y: number }): void {
+    this.emitRD(point.x);
+    this.emitRD(point.y);
+  }
+
+  /**
+   * CmC en su forma R2000: un índice BS (espejo exacto de `readCmC`, que sólo
+   * envuelve un BS — ver `bitcodes.ts`). Sin forma de color verdadero ni de
+   * nombre de libro de color: ésas son R2004+ y esta fase no las escribe.
+   */
+  emitCMC(index: number): void {
+    this.emitBS(index);
   }
 
   /** BT: grosor cero en un bit; cualquier otro, bit 0 + BD (espejo de readBT). */

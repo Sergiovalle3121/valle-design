@@ -28,7 +28,12 @@ import {
 } from "@/lib/cad/plot/plot-pdf";
 import type { CadPlotPreview } from "@/lib/cad/plot/plot-job";
 import { publishCadSheetSet } from "@/lib/cad/sheet-set/sheet-set-publish";
-import type { CadSheetSet } from "@/lib/cad/sheet-set/sheet-set";
+import {
+  addCadSheet,
+  ordered,
+  renumberCadSheetSet,
+  type CadSheetSet,
+} from "@/lib/cad/sheet-set/sheet-set";
 
 export interface CadPlotHostBridge {
   /** Documento vivo. `null` mientras no hay dibujo abierto. */
@@ -65,8 +70,25 @@ export interface CadPlotHostBridge {
   } | null;
   /** Fecha de publicación. Inyectada: hace el PDF reproducible. */
   now?(): string;
+  /**
+   * Persiste el conjunto ya modificado (renumerado, con una hoja añadida).
+   *
+   * Sin ella, `SHEETSET` puede leer y calcular pero no puede guardar: se dice
+   * en vez de fingir que el cambio sobrevive a un refresco de página. Es la
+   * misma frontera que `sheetSet`: quien la aporta decide CÓMO se persiste
+   * —PUT con `expectedVersion`, como hace `sheetSetsRepository`— y este
+   * anfitrión no sabe de red.
+   */
+  saveSheetSet?(set: CadSheetSet): void;
+  /** Id nuevo para una hoja de `SHEETSET Añadir`. Sin él, se genera uno. */
+  newSheetId?(): string;
   /** Resultado del trazado, para el diálogo de la línea de comandos. */
   onResult?(message: string, level: "info" | "error"): void;
+}
+
+/** Id razonablemente único cuando el anfitrión no aporta un generador propio. */
+function fallbackSheetId(): string {
+  return `sheet-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
 /**
@@ -173,6 +195,8 @@ export class CadPlotHost {
       return `Publicando «${loaded.set.name}» a un único PDF paginado…`;
     }
 
+    if (request.kind === "sheet-set-command") return this.sheetSetCommand(request);
+
     // DXFOUT no es trazado y no se sirve aquí: su anfitrión se enchufa ANTES
     // que éste en `use-command-engine.ts`. La rama existe para que la unión de
     // peticiones quede exhaustiva —si mañana alguien añade otra clase, el
@@ -186,6 +210,13 @@ export class CadPlotHost {
     // unión es la que avisa cuando llega una petición sin dueño.
     if (request.kind === "ucs-plan")
       return "Este espacio de trabajo no tiene vista que encuadrar: falta el anfitrión del SCU.";
+
+    // ETRANSMIT y DATAEXTRACTION tampoco son trazado: se sirven ANTES que
+    // éste, por la misma razón exacta que DXFOUT de arriba.
+    if (request.kind === "etransmit")
+      return "Este espacio de trabajo no sabe empaquetar ETRANSMIT: falta el anfitrión de empaquetado.";
+    if (request.kind === "data-extraction-csv")
+      return "Este espacio de trabajo no sabe entregar el CSV de DATAEXTRACTION: falta el anfitrión de extracción.";
 
     const document = this.bridge.document();
     if (!document) return "No hay ningún dibujo abierto que trazar.";
@@ -231,6 +262,55 @@ export class CadPlotHost {
     void this.emit(job, request.request.fileName);
     return `Trazando ${request.request.fileName} a PDF…`;
   };
+
+  /**
+   * `SHEETSET`: añadir, renumerar o leer el índice de un conjunto YA cargado.
+   *
+   * Síncrono, como el resto de `handle`: renumerar es aritmética sobre la
+   * lista de hojas, no I/O. Guardar el resultado sí puede serlo — por eso
+   * `saveSheetSet` es la única pieza que puede ser una promesa, y no bloquea
+   * el renglón que ya se sabe.
+   */
+  private sheetSetCommand(
+    request: Extract<CadHostRequest, { kind: "sheet-set-command" }>,
+  ): string {
+    const loaded = this.bridge.sheetSet?.(request.sheetSetId) ?? null;
+    if (!loaded)
+      return `El conjunto de planos ${request.sheetSetId} no está cargado en este estudio.`;
+
+    if (request.action === "list") {
+      const sheets = ordered(loaded.set);
+      if (sheets.length === 0) return `«${loaded.set.name}» no tiene ninguna hoja todavía.`;
+      return [
+        `«${loaded.set.name}» — ${sheets.length} hoja(s):`,
+        ...sheets.map((sheet) => `${sheet.number || "(sin número)"} — ${sheet.title} (rev. ${sheet.revision})`),
+      ].join("\n");
+    }
+
+    if (!this.bridge.saveSheetSet)
+      return "Este espacio de trabajo puede leer el conjunto pero no guardarlo: falta el anfitrión de escritura.";
+
+    if (request.action === "renumber") {
+      const renumbered = renumberCadSheetSet(loaded.set);
+      this.bridge.saveSheetSet(renumbered);
+      return `Renumerado «${renumbered.name}»: ${ordered(renumbered)
+        .map((sheet) => sheet.number)
+        .join(", ")}.`;
+    }
+
+    // action === "add"
+    const sheet = request.sheet!;
+    const id = this.bridge.newSheetId?.() ?? fallbackSheetId();
+    const added = addCadSheet(loaded.set, {
+      id,
+      documentId: sheet.documentId,
+      layoutId: sheet.layoutId,
+      title: sheet.title,
+    });
+    this.bridge.saveSheetSet(added);
+    const inserted = added.sheets.find((candidate) => candidate.id === id)!;
+    return `Añadida «${inserted.title}» a «${added.name}» como ${inserted.number} (${added.sheets.length} hoja(s) en total).`;
+  }
 
   private async publish(
     set: CadSheetSet,

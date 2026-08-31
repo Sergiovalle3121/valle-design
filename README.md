@@ -187,8 +187,9 @@ siendo pruebas útiles, pero no sustituyen el recorrido full-stack.
   60 FPS, tiempo real ni detalle simultáneo para 100k entidades.
 - Los blobs viven en PostgreSQL (`design_blobs`). MinIO de Compose está
   reservado y no participa en el runtime actual.
-- La asistencia NL→CAD/Vision→CAD es opcional y devuelve
-  `available: false` cuando CIDE no está configurado.
+- **Valle Design no tiene inteligencia artificial.** La que había (CIDE) era el
+  motor de Axos OS, el ERP del que nació este producto, y se retiró entera; el
+  candado `apps/web/src/lib/cad/no-ai-boundary.spec.ts` impide que vuelva.
 
 Consulta `PRODUCT.md`, `ARCHITECTURE.md`, `SECURITY.md`, `DEPLOYMENT.md` y la
 matriz `docs/competitive/autocad-2027-gap-matrix.md` antes de publicar claims.

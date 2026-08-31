@@ -137,7 +137,7 @@ type OpeningLike = CadOpeningEntity;
  * huecos por muro y la lista de problemas: separarlas obligaría a recorrer el
  * documento dos veces y a decidir cuál de las dos reporta un hueco huérfano.
  */
-export function buildCadBimSchedule(document: CadDocument): CadBimSchedule {
+export function buildCadBimSchedule(document: Pick<CadDocument, "entities">): CadBimSchedule {
   const walls: WallLike[] = [];
   const openings: OpeningLike[] = [];
   for (const entity of document.entities) {

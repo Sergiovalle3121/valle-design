@@ -55,7 +55,6 @@ GROUP BY status;
 | JSON rechazado                  | Profundidad/nodos, schema o claves inseguras  | Corrige al `CadDocument` canónico; no ignores la validación ni `__proto__`/`constructor`.                               |
 | DXF pierde entidades            | Warnings/loss manifest y corpus               | Conserva el original, revisa entidades soportadas y añade golden antes de ampliar un claim.                             |
 | DWG no abre                     | Capacidad ausente                             | Convierte con una herramienta/proveedor autorizado a DXF de texto; no renombres la extensión.                           |
-| CIDE responde `available:false` | `CIDE_BASE_URL`, modelo y red                 | Configura el proveedor o acepta degradación. `AI_MOCK=1` es sólo prueba.                                                |
 
 ## Pruebas y release
 
