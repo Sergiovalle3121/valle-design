@@ -1161,6 +1161,40 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CAD-D-RENDER-PIPELINE-VERIFICATION-20260831",
+      "date": "2026-08-31",
+      "initiative": "Frente CAD-D del plan de construcción DWG 2D/3D (sesión paralela dedicada al lienzo, sin tocar el códec): enchufar el pipeline de render por lotes/tiles al editor y eliminar el muestreo silencioso. Al investigar se encontró que `CadViewportRenderHost` (apps/web/src/components/cad/viewport/render-pipeline-host.ts) ya enchufaba `lib/cad/render/` a `Layout3DEditor.tsx` con `batched` como pipeline por defecto y un camino de vuelta explícito (`legacy`, nunca silencioso) — trabajo de una ola anterior que nunca se registró en esta bitácora ni se reflejó en `docs/cad/CAD_RENDER_PIPELINE.md`, que seguía afirmando 'NO enchufado'. La campaña se redirigió a verificar que el enchufe funciona de verdad (specs de render/, del anfitrión y de la preferencia de pipeline, y el gate de monolito, todos verdes), a regenerar la evidencia del arnés desde cero (no se copió ningún número a mano), a corregir un `declaredMachine` escrito a mano en `cad-plan-benchmark.mts` que declaraba el portátil de calibración sin importar en qué máquina corriera el arnés, y a poner al día CAD_RENDER_PIPELINE.md, ARCHITECTURE.md y el registro de DEUDA-MONOLITO.md (que tampoco tenía la fila de la extracción del anfitrión) para que ninguna cifra siga viviendo en dos lugares distintos.",
+      "branch": "claude/cad-render-pipeline-wire-up",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate desplegó cuatro sesiones paralelas desde la sesión de planificación 'Plan de construcción DWG 2D/3D' (branch claude/dwg-construction-plan-7hyq1j); a esta le correspondió el frente de rendimiento del lienzo (CAD-D), con fronteras de archivo explícitas que excluyen packages/dwg-codec/ y todo dwg-*.ts.",
+      "firstPartyInputs": [
+        "El código y los gates propios del monorepo (lib/cad/render/, components/cad/viewport/, Layout3DEditor.tsx, check:cad, monolith-budget.json).",
+        "El arnés de benchmark propio (scripts/cad-render-benchmark.mts, scripts/cad-plan-benchmark.mts) regenerado en esta misma campaña.",
+        "docs/cad/CAD_RENDER_PIPELINE.md, ARCHITECTURE.md y docs/execution/DEUDA-MONOLITO.md, corregidos contra el estado real del árbol."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "docs/cad/CAD_RENDER_PIPELINE.md (estado corregido a ENCHUFADO, tabla de números regenerada, sección de escenificación de la métrica corregida a bloqueante)",
+        "ARCHITECTURE.md (Deuda visible: el pipeline por lotes ya está enchufado; se precisa qué mide el benchmark de Node y qué no)",
+        "docs/execution/DEUDA-MONOLITO.md (fila retroactiva de la extracción de CadViewportRenderHost, más la fila de esta campaña de verificación)",
+        "apps/web/scripts/cad-plan-benchmark.mts (declaredMachine derivado de os.cpus()/os.totalmem() en vez de un literal fijo)",
+        "docs/cad/evidence/cad-render-benchmark-100k.json y docs/cad/evidence/cad-plan-benchmark-20k.json (regenerados desde el arnés, no editados a mano)"
+      ],
+      "fixtures": "Ninguno nuevo. No se tocó packages/dwg-codec/ ni ningún archivo dwg-*.ts.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Autorización expresa del titular al desplegar la sesión paralela CAD-D desde la sesión de planificación del 2026-08-31, y autorización expresa del titular (\"mergea el avance\") para fusionar directo a main tras rebasar sobre el frente de escritura DWG. Evidencia final: gates (check:cad, check:dwg, typecheck, lint, test, build) en verde sobre el árbol rebasado."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
