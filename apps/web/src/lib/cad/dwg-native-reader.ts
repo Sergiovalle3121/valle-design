@@ -119,16 +119,74 @@ function toBetaProfileGeometry(entity: DwgGeometryEntity): DwgNeutralGeometry | 
   }
 }
 
-function outOfProfileDiagnostic(handle: number, kind: string): DwgNeutralDiagnostic {
+function outOfProfileDiagnostic(handle: number, kind: string, profile: string): DwgNeutralDiagnostic {
   return {
     code: "dwg_beta_profile_entity_excluded",
     severity: "info",
     offset: handle,
     message:
       `Entidad "${kind}" (handle 0x${handle.toString(16)}) decodificada por el ` +
-      `laboratorio pero fuera del perfil AC1015_MODELSPACE_2D_V3 de esta beta; ` +
+      `laboratorio pero fuera del perfil ${profile} de esta beta; ` +
       "no se importa en este release.",
   };
+}
+
+// ---------------------------------------------------------------------------
+// Perfil 3D heredado (AC1015_3D_WIREFRAME_V1) — 3DFACE, POLYLINE 3D, POLYLINE
+// MESH, POLYLINE PFACE. PROPUESTO en ADR-0009 §9, SIN FIRMA todavía
+// (`dwg-interop-flag.ts`): `allow3dWireframe` puede pasarse en cualquier
+// entorno de prueba, pero en el worker del producto sólo llega en `true`
+// cuando `dwg3dWireframeBetaImportIsEnabled` ya dijo que sí, y esa función
+// siempre devuelve `false` mientras `DWG_3D_WIREFRAME_BETA_AUTHORIZATION.
+// ownerSigned` sea `false`.
+//
+// Las cuatro cabeceras son entidades 3D REALES (WCS): a diferencia de
+// CIRCLE/LWPOLYLINE/TEXT, el laboratorio no les decodifica `elevation` ni
+// `extrusion` porque el formato no las tiene — sus puntos ya son 3D directos,
+// hecho confirmado leyendo `entity-geometry.ts` del laboratorio antes de
+// escribir este filtro. No hace falta ningún álgebra de eje arbitrario aquí;
+// la trampa de OCS que sí aplica a CIRCLE/LWPOLYLINE con extrusión no aplica
+// a estas cuatro.
+// ---------------------------------------------------------------------------
+
+function toWireframe3dProfileGeometry(entity: DwgGeometryEntity): DwgNeutralGeometry | null {
+  switch (entity.kind) {
+    case "face3d":
+    case "polyline3d":
+    case "polymesh":
+    case "polyfaceMesh":
+      return entity;
+    default:
+      return null;
+  }
+}
+
+/**
+ * Un hijo VERTEX/cara de una cabecera del perfil 3D heredado
+ * (`record.vertices` del laboratorio). No pasa por `toWireframe3dProfileGeometry`:
+ * ese filtro decide qué entra como entidad de NIVEL SUPERIOR, y un VERTEX/cara
+ * nunca lo es — vive colgado de su cabecera, igual que un ATTRIB de un INSERT.
+ */
+function toWireframe3dChildRecord(
+  record: DwgDatabaseEntityRecord,
+): DwgNeutralEntityRecord | null {
+  switch (record.entity.kind) {
+    case "vertex3d":
+    case "vertexMesh":
+    case "vertexPface":
+    case "pfaceFace":
+      return {
+        handle: record.handle,
+        entity: record.entity,
+        layerHandle: record.layerHandle,
+        insertedBlockName: undefined,
+        attributes: undefined,
+        // Un VERTEX/cara nunca es propietario de otra secuencia.
+        vertices: undefined,
+      };
+    default:
+      return null;
+  }
 }
 
 /**
@@ -155,37 +213,71 @@ function toBetaProfileAttributeRecord(
     // Un ATTRIB nunca es propietario de otra secuencia (sólo un INSERT lo
     // es): siempre llega sin atributos propios.
     attributes: undefined,
+    vertices: undefined,
   };
 }
 
-function toBetaProfileRecord(
+/**
+ * Estrecha una entidad al perfil V3 y, si no entra ahí, intenta el perfil 3D
+ * heredado propuesto (`allow3dWireframe`) ANTES de declararla fuera de
+ * perfil. Los dos perfiles son conjuntos de tipos disjuntos —V3 nunca
+ * contiene face3d/polyline3d/polymesh/polyfaceMesh y el perfil 3D nunca
+ * contiene los doce tipos de V3—, así que el orden no puede colar una
+ * entidad por el perfil equivocado.
+ */
+function toProductProfileRecord(
   record: DwgDatabaseEntityRecord,
   diagnostics: DwgNeutralDiagnostic[],
+  allow3dWireframe: boolean,
 ): DwgNeutralEntityRecord | null {
-  const geometry = toBetaProfileGeometry(record.entity);
-  if (geometry === null) {
-    diagnostics.push(outOfProfileDiagnostic(record.handle, record.entity.kind));
-    return null;
+  const v3Geometry = toBetaProfileGeometry(record.entity);
+  if (v3Geometry !== null) {
+    const attributes = record.attributes
+      ?.map(toBetaProfileAttributeRecord)
+      .filter((attribute): attribute is DwgNeutralEntityRecord => attribute !== null);
+    return {
+      handle: record.handle,
+      entity: v3Geometry,
+      layerHandle: record.layerHandle,
+      insertedBlockName: record.insertedBlockName,
+      attributes: attributes !== undefined && attributes.length > 0 ? attributes : undefined,
+      vertices: undefined,
+    };
   }
-  const attributes = record.attributes
-    ?.map(toBetaProfileAttributeRecord)
-    .filter((attribute): attribute is DwgNeutralEntityRecord => attribute !== null);
-  return {
-    handle: record.handle,
-    entity: geometry,
-    layerHandle: record.layerHandle,
-    insertedBlockName: record.insertedBlockName,
-    attributes: attributes !== undefined && attributes.length > 0 ? attributes : undefined,
-  };
+  if (allow3dWireframe) {
+    const wireframeGeometry = toWireframe3dProfileGeometry(record.entity);
+    if (wireframeGeometry !== null) {
+      const vertices = record.vertices
+        ?.map(toWireframe3dChildRecord)
+        .filter((child): child is DwgNeutralEntityRecord => child !== null);
+      return {
+        handle: record.handle,
+        entity: wireframeGeometry,
+        layerHandle: record.layerHandle,
+        insertedBlockName: undefined,
+        attributes: undefined,
+        vertices: vertices !== undefined && vertices.length > 0 ? vertices : undefined,
+      };
+    }
+  }
+  diagnostics.push(
+    outOfProfileDiagnostic(
+      record.handle,
+      record.entity.kind,
+      allow3dWireframe ? "AC1015_MODELSPACE_2D_V3 / AC1015_3D_WIREFRAME_V1" : "AC1015_MODELSPACE_2D_V3",
+    ),
+  );
+  return null;
 }
 
-function toBetaProfileBlock(
+function toProductProfileBlock(
   block: DwgDatabaseBlock,
   diagnostics: DwgNeutralDiagnostic[],
+  allow3dWireframe: boolean,
 ): DwgNeutralBlock {
   const entities: DwgNeutralEntityRecord[] = [];
   for (const record of block.entities) {
-    const mapped = toBetaProfileRecord(record, diagnostics);
+    const mapped = toProductProfileRecord(record, diagnostics, allow3dWireframe);
     if (mapped !== null) entities.push(mapped);
   }
   return {
@@ -216,23 +308,43 @@ type DwgDatabaseSlice = Pick<
   "layers" | "blocks" | "modelSpaceEntities" | "insunits" | "unsupported" | "diagnostics"
 >;
 
+export interface DwgProductProfileOptions {
+  /**
+   * Perfil 3D heredado propuesto (`AC1015_3D_WIREFRAME_V1`, ADR-0009 §9):
+   * 3DFACE, POLYLINE 3D, POLYLINE MESH, POLYLINE PFACE. `false`/`undefined`
+   * reproduce EXACTAMENTE el comportamiento de siempre — sólo V3 — porque
+   * `BETA_PROFILE_ENTITY_KINDS` (el conjunto de tipos de V3) no se toca ni un
+   * bit por esta opción: es un perfil independiente, no una ampliación.
+   */
+  readonly allow3dWireframe?: boolean;
+}
+
 /**
- * Estrecha la base neutral completa del laboratorio al perfil V3. Función
- * pura: la misma base de entrada produce siempre la misma base de salida.
+ * Estrecha la base neutral completa del laboratorio al perfil (o perfiles)
+ * que el llamador autoriza. Función pura: la misma base de entrada y las
+ * mismas opciones producen siempre la misma base de salida.
+ *
+ * Sin `options` (o con `allow3dWireframe` ausente/`false`) es BYTE A BYTE el
+ * mismo comportamiento que antes de que existiera esta opción: todas las
+ * llamadas existentes (specs incluidas) siguen viendo sólo el perfil V3.
  */
-export function toBetaProfileDatabase(database: DwgDatabaseSlice): DwgNeutralDatabase {
+export function toBetaProfileDatabase(
+  database: DwgDatabaseSlice,
+  options: DwgProductProfileOptions = {},
+): DwgNeutralDatabase {
+  const allow3dWireframe = options.allow3dWireframe === true;
   const diagnostics: DwgNeutralDiagnostic[] = [...database.diagnostics];
   const modelSpaceEntities: DwgNeutralEntityRecord[] = [];
   for (const record of database.modelSpaceEntities) {
-    const mapped = toBetaProfileRecord(record, diagnostics);
+    const mapped = toProductProfileRecord(record, diagnostics, allow3dWireframe);
     if (mapped !== null) modelSpaceEntities.push(mapped);
   }
   return {
     layers: database.layers.map(toBetaProfileLayer),
-    blocks: database.blocks.map((block) => toBetaProfileBlock(block, diagnostics)),
+    blocks: database.blocks.map((block) => toProductProfileBlock(block, diagnostics, allow3dWireframe)),
     modelSpaceEntities,
-    // Escalar de documento, no de entidad: no hay nada de perfil V3 que
-    // filtrar aquí, viaja igual para toda versión/perfil.
+    // Escalar de documento, no de entidad: no hay nada de perfil que filtrar
+    // aquí, viaja igual para toda versión/perfil.
     insunits: database.insunits,
     unsupported: database.unsupported.map((object) => ({
       handle: object.handle,
@@ -251,6 +363,14 @@ export function toBetaProfileDatabase(database: DwgDatabaseSlice): DwgNeutralDat
  */
 export interface DwgNeutralDatabaseReaderOptions {
   readonly allowAc1018?: boolean;
+  /**
+   * Perfil 3D heredado propuesto (`AC1015_3D_WIREFRAME_V1`). Igual que
+   * `allowAc1018`: nace `false`, y este módulo no lee flags ni entorno —
+   * recibe el booleano ya resuelto por `dwg3dWireframeBetaImportIsEnabled`
+   * (`dwg-interop-flag.ts`), que hoy siempre devuelve `false` porque nadie ha
+   * firmado el perfil todavía (ADR-0009 §9).
+   */
+  readonly allow3dWireframe?: boolean;
 }
 
 /**
@@ -375,5 +495,5 @@ export function readDwgNeutralDatabase(
             "El archivo puede estar dañado o usar una característica que este perfil de beta no cubre.",
     );
   }
-  return toBetaProfileDatabase(database);
+  return toBetaProfileDatabase(database, { allow3dWireframe: options.allow3dWireframe === true });
 }
