@@ -38,6 +38,8 @@ import type { CadSystemVariableValue } from "@/lib/cad/system-variables";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
 import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import type { SnapType } from "@/lib/cad/snap-engine";
+import type { CadSolidFaceRef } from "@/lib/cad/cad-entities-v5";
+import type { CadPoint3 } from "@/lib/cad/cad-document";
 import type { CadViewRequest } from "@/lib/cad/view/view-navigation";
 import type { CadCommandLineEntry } from "./CadCommandLine";
 
@@ -250,6 +252,25 @@ export class CadCommandEngineHost {
 
   pickEntity(entityId: string, point: { x: number; y: number }): void {
     this.dispatch({ kind: "input", input: { kind: "entityPick", entityId, point } });
+  }
+
+  /**
+   * Designación de una CARA de sólido, ya resuelta por el rayo de cámara.
+   *
+   * Entra por la MISMA puerta que todo lo demás —`dispatch`— y no por un canal
+   * propio: el enrutador del puntero tiene una regla dura, «cuando el motor
+   * tiene un comando activo, la máquina heredada no recibe nada», y un segundo
+   * canal sería una segunda máquina escuchando el clic. La huella y la normal
+   * las calcula quien ve la geometría (el anfitrión de designación 3D); aquí
+   * sólo viajan.
+   */
+  pickFace(input: {
+    entityId: string;
+    face: CadSolidFaceRef;
+    point: CadPoint3;
+    normal: CadPoint3;
+  }): void {
+    this.dispatch({ kind: "input", input: { kind: "facePick", ...input } });
   }
 
   select(entityIds: readonly string[]): void {

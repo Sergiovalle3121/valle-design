@@ -1753,6 +1753,37 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DESIGNAR-CARA-CON-EL-RATON-20260831",
+      "date": "2026-08-31",
+      "initiative": "El enrutado que faltaba para que designar una cara con el ratón EXISTA. `camera-policy.ts` llevaba escrito desde su primera versión que «en modo 3D un dedo SIGUE orbitando; ahí no se dibuja: es un visor», y era verdad hasta que pick3d hizo posible el rayo contra caras. Ahora, con un comando del motor esperando designación, el botón izquierdo DESIGNA y la órbita se muda al derecho —que es lo que hace AutoCAD—; sin comando activo, todo se comporta exactamente como antes, porque el gesto que la gente ya tiene en los dedos no se toca por una capacidad que sólo aparece a ratos. La designación entra al enrutador como un `CAD_ACCEPT_*` más, DENTRO de la máquina existente y respetando su regla dura («cuando el motor tiene un comando activo, la máquina heredada no recibe nada»): no nace un segundo enrutador. La cara se pregunta ANTES que la entidad, y el orden importa: un sólido es también una entidad, así que preguntar primero por entidad haría que PRESSPULL designara el sólido entero en vez de la cara que el usuario mira. El resolutor del documento (`pick3d/document-face-pick.ts`) es aritmética pura —no conoce THREE ni la cámara ni el evento— para que el gesto se pruebe en Node en cada push en vez de en un golden que corre cuando alguien se acuerda. Y `camera-policy.ts` estrena spec: no tenía.",
+      "branch": "claude/designar-cara-con-el-raton",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: continuación directa de la campaña 3D encargada el 2026-08-31.",
+      "firstPartyInputs": [
+        "apps/web/src/lib/cad/pick3d/ (rayo de cámara y huella de cara, propios).",
+        "El enrutador de puntero y la política de cámara propios del viewport."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "apps/web/src/components/cad/viewport/pointer-router.ts (hitFace opcional en el puente; la cara se pregunta antes que la entidad)",
+        "apps/web/src/components/cad/viewport/camera-policy.ts (modo designación; la prosa que declaraba «es un visor» se reescribe)",
+        "apps/web/src/components/cad/command-line/command-engine-host.ts (pickFace por la misma puerta que el resto)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de llevar Valle Design a modelado 3D."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

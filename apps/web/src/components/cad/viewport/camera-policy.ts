@@ -26,8 +26,13 @@ import { CAD_TOUCH_ONE_FINGER_IDLE } from "./touch-gestures";
  * usado un mapa: **un dedo designa y arrastra, dos dedos son la cámara**
  * (paneo y pellizco, que OrbitControls ya resolvía y la sonda midió vivos).
  *
- * En modo 3D un dedo SIGUE orbitando. Ahí no se dibuja: es un visor, y girar
- * con un dedo es también el gesto universal en ese contexto.
+ * En modo 3D un dedo SIGUE orbitando MIENTRAS NO HAYA UN COMANDO ACTIVO. Esa
+ * frase antes terminaba en «ahí no se dibuja: es un visor», y era verdad hasta
+ * que `pick3d/` hizo posible designar una cara. Ahora el modo 3D sí dibuja: con
+ * un comando esperando designación, un dedo designa y el botón izquierdo
+ * también, y la órbita se muda al derecho y a los dos dedos. Sin comando, todo
+ * se comporta como antes — el gesto que la gente ya tiene no se toca por una
+ * capacidad que sólo aparece a ratos.
  *
  * El ratón no se toca: en plano su botón izquierdo panea como siempre.
  *
@@ -47,6 +52,20 @@ import { CAD_TOUCH_ONE_FINGER_IDLE } from "./touch-gestures";
 export function applyCadCameraPolicy(
   controls: OrbitControls,
   mode: "2d" | "3d",
+  /**
+   * ¿Hay un comando del motor esperando una designación?
+   *
+   * Es el interruptor que hace que el modo 3D deje de ser un visor. Sin
+   * comando activo todo se comporta como siempre —el botón izquierdo orbita, y
+   * ese gesto la gente ya lo tiene en los dedos—; CON un comando activo el
+   * izquierdo DESIGNA y la órbita se va al derecho, que es exactamente lo que
+   * hace AutoCAD y lo que PRESSPULL sobre cara necesita para existir.
+   *
+   * Opcional y `false` por defecto a propósito: los tres sitios que ya llamaban
+   * a esta política siguen valiendo sin tocarse, y quien quiera el modo de
+   * designación tiene que pedirlo.
+   */
+  pickingActive = false,
 ): void {
   const plan = mode === "2d";
   controls.minPolarAngle = 0;
@@ -54,7 +73,26 @@ export function applyCadCameraPolicy(
   // todo el hemisferio menos el rasante, que degenera la matriz de vista.
   controls.maxPolarAngle = plan ? 0.05 : Math.PI / 2.05;
   controls.enableRotate = !plan;
+
+  if (!plan && pickingActive) {
+    // El izquierdo deja de mover la cámara para que el clic llegue al motor:
+    // OrbitControls no consume el evento, pero SÍ arrastra la vista mientras se
+    // pulsa, y designar una cara mientras el modelo gira debajo es imposible.
+    // La órbita no se pierde, se muda al derecho — y el enrutador ya devuelve
+    // `true` sin tocar nada para `event.button === 2`, así que no se pisan.
+    controls.mouseButtons.LEFT = null as unknown as THREE.MOUSE;
+    controls.mouseButtons.RIGHT = THREE.MOUSE.ROTATE;
+    // Con el dedo, la designación necesita el mismo trato: un dedo designa y
+    // dos siguen siendo la cámara, igual que en plano.
+    controls.touches.ONE = CAD_TOUCH_ONE_FINGER_IDLE as unknown as THREE.TOUCH;
+    return;
+  }
+
   controls.mouseButtons.LEFT = plan ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE;
+  // Sin comando activo el derecho vuelve a su papel de siempre: el enrutador lo
+  // usa para el menú contextual y para valer por Enter, y dejarlo orbitando
+  // rompería los dos.
+  controls.mouseButtons.RIGHT = null as unknown as THREE.MOUSE;
   controls.touches.ONE = plan
     ? (CAD_TOUCH_ONE_FINGER_IDLE as unknown as THREE.TOUCH)
     : THREE.TOUCH.ROTATE;
