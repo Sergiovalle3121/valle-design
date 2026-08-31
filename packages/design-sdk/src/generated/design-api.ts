@@ -1423,48 +1423,6 @@ export interface paths {
         patch: operations["updateCadBlock"];
         trace?: never;
     };
-    "/v1/cad/documents/{documentId}/intent": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                documentId: components["parameters"]["documentId"];
-            };
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Interpreta una instrucción de lenguaje natural para un documento.
-         * @description Devuelve propuestas de herramientas; nunca aplica cambios al documento. Si el motor no está configurado, responde `available: false` de forma determinista.
-         */
-        post: operations["interpretCadIntent"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/cad/vision": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Propone geometría CAD a partir de una imagen embebida.
-         * @description Devuelve la salida cruda del motor para validación en el cliente. Si el motor no está configurado, responde `available: false`.
-         */
-        post: operations["vectorizeCadImage"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2631,48 +2589,6 @@ export interface components {
         CadBlockUpdate: {
             name?: string;
             definition?: components["schemas"]["CadBlockDefinition"];
-        };
-        CadIntentRequest: {
-            prompt: string;
-            context?: components["schemas"]["CadIntentContext"];
-        };
-        CadIntentContext: {
-            footprint: {
-                unit: string;
-                footprintW: number;
-                footprintH: number;
-            };
-            stations: {
-                id: string;
-                station: string;
-                x?: number | null;
-                y?: number | null;
-                w?: number | null;
-                h?: number | null;
-            }[];
-            connectors: {
-                from: string;
-                to: string;
-            }[];
-        };
-        CadIntentResponse: {
-            available: boolean;
-            toolCalls: {
-                name: string;
-                arguments: {
-                    [key: string]: unknown;
-                };
-            }[];
-            message?: string;
-        };
-        CadVisionRequest: {
-            /** @description Data URL `data:image/*;base64,...` embebida. */
-            image: string;
-        };
-        CadVisionResponse: {
-            available: boolean;
-            raw: string;
-            message?: string;
         };
     };
     responses: {
@@ -5325,63 +5241,6 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["EntitlementRequired"];
             404: components["responses"]["NotFound"];
-        };
-    };
-    interpretCadIntent: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                documentId: components["parameters"]["documentId"];
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CadIntentRequest"];
-            };
-        };
-        responses: {
-            /** @description Resultado de interpretación, disponible o degradado. */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CadIntentResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["EntitlementRequired"];
-            404: components["responses"]["NotFound"];
-        };
-    };
-    vectorizeCadImage: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CadVisionRequest"];
-            };
-        };
-        responses: {
-            /** @description Resultado de visión, disponible o degradado. */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CadVisionResponse"];
-                };
-            };
-            400: components["responses"]["BadRequest"];
-            401: components["responses"]["Unauthorized"];
-            403: components["responses"]["EntitlementRequired"];
         };
     };
 }

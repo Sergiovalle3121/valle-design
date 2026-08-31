@@ -4,7 +4,7 @@
   "version": "2026-08-22.1",
   "title": "Rúbrica competitiva CAD — Valle Design frente a AutoCAD 2027",
   "cutoffDate": "2026-08-22",
-  "totalPoints": 220,
+  "totalPoints": 216,
   "manualMaxAgeDays": 180,
   "notes": [
     "El denominador es 200 y se publica.",
@@ -28,7 +28,7 @@
     {
       "id": "ext",
       "name": "Extensibilidad e integración",
-      "points": 26
+      "points": 22
     },
     {
       "id": "frontier",
@@ -2231,97 +2231,6 @@
             {
               "kind": "file",
               "path": "docs/cad/evidence/webhook-replay-audit.json"
-            }
-          ]
-        }
-      ],
-      "scope": "destino"
-    },
-    {
-      "id": "nl-cad",
-      "group": "ext",
-      "name": "Asistencia NL→CAD y Vision→CAD",
-      "points": 4,
-      "gap": "El banco de calidad ya está medido y publicado; lo que falta es que el producto llegue a sus umbrales (acierto de despacho, rechazo tipado y cero fallos graves).",
-      "criteria": [
-        {
-          "id": "nl-cad.port",
-          "points": 2,
-          "text": "Puerto de proveedor opcional con validación y previsualización antes de aplicar",
-          "costDays": 0,
-          "evidence": [
-            {
-              "kind": "file",
-              "path": "apps/api/src/modules/cad-documents/ports/cad-ai-provider.port.ts"
-            },
-            {
-              "kind": "file",
-              "path": "apps/api/src/modules/cad-documents/cide-ai-provider.adapter.ts"
-            },
-            {
-              "kind": "file",
-              "path": "apps/web/src/lib/cad/copilot-contract.ts",
-              "minLines": 80
-            }
-          ]
-        },
-        {
-          "id": "nl-cad.deterministic",
-          "points": 1,
-          "text": "Contrato del copiloto con specs deterministas",
-          "costDays": 0,
-          "evidence": [
-            {
-              "kind": "spec",
-              "path": "apps/web/src/lib/cad/copilot-contract.spec.ts"
-            }
-          ]
-        },
-        {
-          "id": "nl-cad.benchmark",
-          "points": 1,
-          "text": "Banco de calidad NL→CAD medido: corpus de despacho mexicano y mitad adversarial, sobre umbrales de acierto, de rechazo TIPADO y de cero fallos graves",
-          "costDays": 10,
-          "rationale": "La evidencia de esta fila fue `file` —sólo comprobaba que el JSON existiera—, y eso regala el punto a quien escriba un JSON: el producto no acierta ni una instrucción más por que exista un archivo. Ahora se lee CONTRA LAS CIFRAS que el artefacto publica, y los umbrales están fijados en `scripts/cad/nl-cad-quality.mjs` desde antes de la primera medición. Mientras el producto no llegue, esta fila NO se concede, que es justo lo que una rúbrica honesta tiene que decir.",
-          "evidence": [
-            {
-              "kind": "spec",
-              "path": "apps/web/src/lib/cad/nl-quality/nl-quality.spec.ts"
-            },
-            {
-              "kind": "metric",
-              "path": "docs/cad/evidence/nl-cad-quality-benchmark.json",
-              "pointer": "/summary/corpus/total",
-              "min": 120,
-              "unit": "casos"
-            },
-            {
-              "kind": "metric",
-              "path": "docs/cad/evidence/nl-cad-quality-benchmark.json",
-              "pointer": "/summary/corpus/adversarial",
-              "min": 40,
-              "unit": "casos adversariales"
-            },
-            {
-              "kind": "metric",
-              "path": "docs/cad/evidence/nl-cad-quality-benchmark.json",
-              "pointer": "/summary/despacho/accuracy",
-              "min": 0.8,
-              "unit": "tasa de acierto"
-            },
-            {
-              "kind": "metric",
-              "path": "docs/cad/evidence/nl-cad-quality-benchmark.json",
-              "pointer": "/summary/adversarial/typedRejectionRate",
-              "min": 0.9,
-              "unit": "tasa de rechazo tipado"
-            },
-            {
-              "kind": "metric",
-              "path": "docs/cad/evidence/nl-cad-quality-benchmark.json",
-              "pointer": "/summary/global/graveRate",
-              "max": 0,
-              "unit": "tasa de resultados plausibles y equivocados"
             }
           ]
         }

@@ -8,17 +8,19 @@
  * · `tool`   → la acción de barra correspondiente (modo, panel, dibujo).
  * · `engine` → invoca el comando en el motor V2; el prompt aparece en la línea
  *              de comandos y el puntero/teclado siguen desde ahí.
- * · `command`→ previsualiza en el copiloto NL heredado, que NO ejecuta: deja
- *              el preview listo y lo cuenta en su historial.
+ * · `command`→ previsualiza en el registro de FRASES heredado, que NO ejecuta:
+ *              deja el preview listo y lo cuenta en su historial. Es un parser
+ *              LOCAL y determinista —no hay IA en este producto, ver
+ *              `IDENTITY.md`—: la misma frase da siempre el mismo preview.
  * · `symbol` → inserta el símbolo y abre la biblioteca.
  *
  * ## Por qué recibe un anfitrión de callbacks y no el editor
  *
  * Estaba escrito en línea dentro del monolito (`Layout3DEditor.tsx`), cuyo
  * presupuesto sólo puede encoger. La lógica —qué familia hace qué, el parse y
- * preview del copiloto, la etiqueta del historial— vive aquí y se prueba en
+ * preview de la frase, la etiqueta del historial— vive aquí y se prueba en
  * Node; el editor sólo aporta los efectos que de verdad son suyos (setters,
- * toasts, el contexto del copiloto), con el mismo patrón que `plot-host.ts`.
+ * toasts, el contexto del registro), con el mismo patrón que `plot-host.ts`.
  *
  * ## El manejador de BEDIT también vive aquí
  *
@@ -40,7 +42,7 @@ import type { CadPaletteEntry } from "@/lib/cad/command-palette";
 import type { CadToolbarActionId } from "@/lib/cad/toolbar";
 import { registerCadUiHandler } from "./palettes/palette-command-bus";
 
-/** El preview del copiloto tal y como lo sostiene el editor. */
+/** El preview de la frase tal y como lo sostiene el editor. */
 export interface CadPalettePreviewState {
   input: CadCommandInput;
   preview: CadCommandPreview;
@@ -58,12 +60,12 @@ export interface CadPaletteActionsHost {
   runToolbarAction(id: CadToolbarActionId): void;
   /** Arranca un comando del motor V2 (la línea de comandos toma el relevo). */
   invokeEngineCommand(name: string): void;
-  /** Contexto vivo del copiloto NL heredado. */
-  copilotContext(): CadCommandContext;
-  /** Abre el copiloto con el texto de ejemplo ya escrito. */
-  openCopilot(text: string): void;
-  setCopilotPreview(preview: CadPalettePreviewState | null): void;
-  appendCopilotHistory(item: CadCommandHistoryItem): void;
+  /** Contexto vivo del registro de frases heredado. */
+  nlCommandContext(): CadCommandContext;
+  /** Abre la barra de frases con el texto de ejemplo ya escrito. */
+  openNlCommand(text: string): void;
+  setNlCommandPreview(preview: CadPalettePreviewState | null): void;
+  appendNlCommandHistory(item: CadCommandHistoryItem): void;
   /** Inserta el símbolo y enseña la biblioteca. */
   insertSymbol(id: string): void;
   /** Abre el panel de bloques (BEDIT); `block` viaja para prefiltrar. */
@@ -107,11 +109,11 @@ export function runCadPaletteEntry(
     // de sorpresa que el copiloto existe para evitar.
     const example = entry.keywords.find((kw) => kw.includes(" ")) ?? entry.label;
     const parsed = parseCadCommand(example);
-    host.openCopilot(example);
+    host.openNlCommand(example);
     if (parsed.ok && parsed.input) {
-      const preview = previewCadCommand(parsed.input, host.copilotContext());
-      host.setCopilotPreview({ input: parsed.input, preview, rawInput: example });
-      host.appendCopilotHistory(
+      const preview = previewCadCommand(parsed.input, host.nlCommandContext());
+      host.setNlCommandPreview({ input: parsed.input, preview, rawInput: example });
+      host.appendNlCommandHistory(
         createHistoryItem(parsed.input, "previewed", preview.summary, preview, undefined, {
           rawInput: example,
           affectedObjectIds: preview.affectedObjectIds,
@@ -119,7 +121,7 @@ export function runCadPaletteEntry(
       );
       host.toastSuccess("Preview listo en el Copiloto CAD.", "Cmd-K CAD");
     } else {
-      host.setCopilotPreview(null);
+      host.setNlCommandPreview(null);
       host.toastError(
         parsed.clarification || parsed.error || "El comando necesita más contexto.",
         "Cmd-K CAD",

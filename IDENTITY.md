@@ -30,6 +30,18 @@ cajetines, normas de acotación y vocabulario de dibujo en español mexicano— 
 inicial** del producto y su mejor diferenciador frente a AutoCAD. **No es su límite.** Lo
 arquitectónico es donde el catálogo está más maduro, no la frontera de lo que la herramienta dibuja.
 
+**México es el arranque, no el techo.** El producto sale primero al mercado mexicano porque ahí está
+su contenido más fuerte, pero debe servir a un despacho en Bogotá, en Madrid o en Houston sin pedir
+permiso: la convención de números y fechas, las unidades, los tamaños de papel y la norma de
+acotación son **configuración regional**, no constantes del código. Un `es-MX` incrustado a mano en
+un módulo es deuda, no localización.
+
+**Y no es de nicho de ninguna industria.** Lo puede usar un arquitecto de vivienda, un ingeniero
+mecánico, un topógrafo o el proyectista de una nave industrial, y ninguno debe encontrarse los
+defaults del otro. Que el ejemplo de un bloque diga «celda SMT» o que la búsqueda proponga «AOI,
+ESD» convierte una herramienta universal en una que parece de electrónica: eso es residuo de Axos,
+no una decisión de producto, y se corrige donde aparezca.
+
 ## Contra qué compite
 
 Contra AutoCAD 2D de Autodesk, y contra sus clones de escritorio. La comparación se documenta con
@@ -52,6 +64,15 @@ Con todas sus letras, para que no vuelva a discutirse:
   kitting.
 - **No planifica plantas de manufactura.** No optimiza flujo de material, no traza rutas de
   montacargas, no calcula pasillos de holgura por norma industrial.
+- **No tiene inteligencia artificial.** Ni copiloto en lenguaje natural, ni visión que adivine
+  muros desde una foto, ni sugerencias de un modelo. La que hubo se llamaba **CIDE** y era el motor
+  de Axos OS, el ERP del que este producto nació: llegó de polizón en la separación y se retiró
+  entera —proveedor, servicios, rutas `/v1/cad/intent` y `/v1/cad/vision`, panel «Copiloto CAD» y
+  su fila de rúbrica—. Lo que el producto sí tiene, por decisión explícita del titular, es
+  **trabajo en equipo entre personas**: mensajería, videollamada y pantalla compartida.
+  Sigue existiendo un **registro local de frases** (`lib/cad/commands/registry.ts`) que convierte
+  «coloca una puerta en 3000,2000» en una operación: es un parser determinista, sin modelo y sin
+  red, y la paleta lo etiqueta «Frase» justo para que nadie lo confunda con lo que se fue.
 
 Un plano **de** una fábrica sí se dibuja: una nave industrial, una planta embotelladora, un centro
 de distribución o una planta de tratamiento de agua son **tipologías de edificio**, y un CAD
@@ -95,13 +116,16 @@ cliente del ERP viejo trae sus datos a Valle Design. Es adquisición de clientes
 
 ## Cómo se sostiene esto
 
-Tres candados ejecutables, no buenas intenciones:
+Cuatro candados ejecutables, no buenas intenciones:
 
 - `scripts/cad/check-no-industrial-domain.mjs` (encadenado en `npm run check:cad`) falla si vuelve a
   aparecer vocabulario o funcionalidad de ERP/MES/planificación industrial en el código de producto.
 - `scripts/cad/check-no-line-engineering.mjs` prohíbe reintroducir las rutas HTTP del producto viejo.
 - `apps/web/src/lib/cad/persisted-identifiers.spec.ts` afirma que los identificadores congelados de
   arriba siguen exactamente como están.
+- `apps/web/src/lib/cad/no-ai-boundary.spec.ts` falla si vuelve la IA: una orden o alias que la
+  anuncie, uno de los módulos retirados de vuelta en el árbol, o una ruta de asistencia publicada
+  otra vez en el contrato.
 
 Si uno de esos gates te estorba, la respuesta casi nunca es apagarlo. Lee primero
 [`REPOSITORY_SCOPE.md`](REPOSITORY_SCOPE.md) y [`AGENTS.md`](AGENTS.md).
