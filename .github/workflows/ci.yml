@@ -523,14 +523,32 @@ jobs:
           DATABASE_URL: postgres://postgres:postgres@localhost:5432/valle_design_deploy
         run: npm run smoke:deploy
 
-  e2e:
-    name: E2E Playwright (PostgreSQL · Chromium + Firefox)
+  e2e-shard:
+    name: E2E Playwright ${{ matrix.shard }}/4 (PostgreSQL · Chromium + Firefox)
     runs-on: ubuntu-latest
-    # Techo sobre lo medido (~48 min en main con Firefox+perf); ver nota en
-    # quality-gates. Y no arrancar 30+ min de Playwright si un gate barato ya
-    # falló: needs no añade minutos en verde y los ahorra todos en rojo.
-    timeout-minutes: ${{ github.event_name == 'pull_request' && 50 || 100 }}
+    # Techo POR FRAGMENTO, y el motivo importa más que el número.
+    #
+    # La suite entera midió 97 min en `main` contra un techo de 100, y 67 en un
+    # PR contra uno de 50: en ambos casos se CANCELÓ. Y cancelado no es fallo
+    # —no pone el run en rojo, no bloquea la fusión, no avisa a nadie—, así que
+    # el veredicto desapareció sin que se notara y por ese hueco entraron las
+    # regresiones del ViewCube. Repartida en cuatro, cada fragmento mide ~25 min
+    # y vuelve a caber con holgura, que es lo que devuelve la señal.
+    #
+    # `workers: 1` y `fullyParallel: false` de playwright.config.ts NO se tocan:
+    # el estado CAD es secuencial a propósito y ahí no hay nada que ganar. El
+    # sharding reparte ARCHIVOS entre trabajos; dentro de cada uno la ejecución
+    # sigue siendo exactamente la de siempre.
+    timeout-minutes: ${{ github.event_name == 'pull_request' && 25 || 40 }}
     needs: quality-gates
+
+    strategy:
+      # Un fragmento rojo no cancela a los otros tres. Si se rompieron dos specs
+      # distintos hay que verlos LOS DOS en la misma corrida: descubrirlos de uno
+      # en uno cuesta un ciclo de CI por defecto.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
 
     services:
       postgres:
@@ -768,7 +786,7 @@ jobs:
         # inútil y un servidor X de más en el runner.
         # Bajo Xvfb SIEMPRE, con o sin Firefox: lo único que cambia entre un PR
         # y `main` debe ser QUÉ navegadores corren, nunca CÓMO se ejecutan.
-        run: xvfb-run -a --server-args="-screen 0 1920x1080x24" npx playwright test ${{ steps.browsers.outputs.projects }}
+        run: xvfb-run -a --server-args="-screen 0 1920x1080x24" npx playwright test ${{ steps.browsers.outputs.projects }} --shard=${{ matrix.shard }}/4
 
       # `include-hidden-files` NO es cosmético: sin él este paso nunca subió
       # nada. `.report` y `.test-results` empiezan por punto, y
@@ -781,7 +799,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: playwright-report-${{ github.sha }}
+          name: playwright-report-${{ github.sha }}-${{ matrix.shard }}
           path: |
             apps/web/e2e/.report
             apps/web/e2e/.test-results
@@ -791,6 +809,43 @@ jobs:
       - name: API log (diagnóstico)
         if: failure()
         run: cat /tmp/design-api.log || true
+
+  # ───────────────────────────────────────────────────────────────────────────
+  # El veredicto ÚNICO de la suite dorada, con el nombre de siempre.
+  #
+  # Repartir la suite convierte un check en cuatro, y el nombre de un check es
+  # su identidad: la protección de rama, el historial y cualquier automatismo
+  # apuntan a la cadena exacta «E2E Playwright (PostgreSQL · Chromium +
+  # Firefox)». Renombrarla dejaría a los PR esperando indefinidamente un check
+  # que ya no existe —un bloqueo silencioso, que es justo la clase de fallo que
+  # este cambio viene a eliminar—.
+  #
+  # Así que los fragmentos corren bajo un nombre nuevo y este job conserva el
+  # viejo: cuesta ~10 s de runner y reduce a cero el riesgo del renombrado.
+  # `if: always()` es obligatorio — sin él GitHub SALTA el job cuando un
+  # fragmento falla, y un job saltado cuenta como no-fallo: exactamente el
+  # agujero de «cancelado no es fallo» reabierto por otra puerta.
+  # ───────────────────────────────────────────────────────────────────────────
+  e2e:
+    name: E2E Playwright (PostgreSQL · Chromium + Firefox)
+    runs-on: ubuntu-latest
+    needs: e2e-shard
+    if: always()
+    timeout-minutes: 5
+    steps:
+      - name: Veredicto de los cuatro fragmentos
+        env:
+          RESULTADO: ${{ needs.e2e-shard.result }}
+        run: |
+          echo "Resultado agregado de e2e-shard: $RESULTADO"
+          # `success` es el único verde. `failure`, `cancelled` y `skipped` son
+          # rojo: un fragmento que no llegó a dar veredicto NO es un fragmento
+          # que pasó, y tratarlo como tal es el defecto original.
+          if [ "$RESULTADO" != "success" ]; then
+            echo "::error::La suite dorada no terminó en verde (estado: $RESULTADO). Revise los cuatro fragmentos E2E Playwright n/4."
+            exit 1
+          fi
+          echo "Los cuatro fragmentos en verde."
 
   # ───────────────────────────────────────────────────────────────────────────
   # La suite de RENDIMIENTO, en su propio carril acotado.
