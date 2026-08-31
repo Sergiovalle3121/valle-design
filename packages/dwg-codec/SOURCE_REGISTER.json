@@ -1,7 +1,7 @@
 {
   "$schema": "./source-register.schema.json",
   "schemaVersion": "1.0.0",
-  "updatedAt": "2026-08-30",
+  "updatedAt": "2026-08-31",
   "entries": [
     {
       "id": "VALLE-OWNER-DWG0-2026-08-09",
@@ -574,6 +574,47 @@
       "reviewer": "Medicion first-party del laboratorio bajo la directiva del propietario 2026-08-13; evidencia cruda en docs/cad/evidence/dwg-corpus-validation.json y en la sesion de intake 2026-08-23 (DWG0_WORKLOG)",
       "reviewedAt": "2026-08-23",
       "notes": "Observaciones por diffing sobre bytes de NUESTRO corpus (dibujos propios convertidos por herramienta independiente). Cada hecho se registro antes de la correccion de codigo correspondiente (ADR-0007). El intake 2026-08-23 confirma el marco de seccion y la envoltura de objeto de la familia R2010+ (AC1024/AC1027/AC1032) pero NO resuelve la codificacion BOT del tipo de objeto ni el campo UMC del tamano del flujo de handles: esas dos piezas siguen bloqueadas por falta de fuente registrada suficiente (BLOCKED_BY_SOURCE_GATE), y el decodificador de objetos de esa familia sigue fallando cerrado."
+    },
+    {
+      "id": "VALLE-CORPUS-R2010-OBJECT-HEADER",
+      "owner": "Sergio Valle Zarate",
+      "origin": {
+        "type": "original-measurement",
+        "location": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance/tree/0688fb9c395b9cac4169d1ee9c23a7370cc28cf3",
+        "accessedAt": "2026-08-31"
+      },
+      "title": "Mediciones first-party del encabezado de objeto R2010+ (AC1024/AC1027/AC1032) sobre el corpus admitido",
+      "versionOrDate": "2026-08-31",
+      "terms": {
+        "license": "Valle first-party corpus measurement (admitted tool-converted-original bundles)",
+        "access": "Blobs leidos del commit fijado del repo hermano de conformidad via el gate consumidor (corpus-pin.json + SHA-256 verificado); ningun working tree",
+        "redistribution": "Solo se registran numeros observados (anchos de campo, offsets de bit, recuentos); los bytes DWG permanecen en el repo hermano bajo su propia politica",
+        "notes": "Medicion sobre archivos generados por ODA File Converter 27.1 desde DXF de autoria propia (origen tool-converted-original). Es una observacion de bytes, no una fuente documental: RESUELVE por medicion lo que el intake 2026-08-23 dejo BLOCKED_BY_SOURCE_GATE, sin consultar ninguna implementacion ajena."
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "El cuerpo de un objeto R2010+ abre con su tamano en bytes codificado MS (palabras LE de 16 bits, bit 15 de continuacion)",
+        "Inmediatamente despues viaja el tamano EN BITS del flujo de handles, codificado UMC (bytes de 7 bits utiles, bit 7 de continuacion). Es un TAMANO, no un desplazamiento: leerlo como desplazamiento es lo que hizo fracasar el sondeo del 2026-08-23",
+        "Despues viaja el tipo de objeto BOT: selector de 2 bits; con selector 0 el valor es un RC literal; con selector 1 el valor es un RC mas 0x1F0",
+        "Los selectores 2 y 3 del BOT no aparecen en ninguno de los 2893 objetos medidos: su ancho y su orden de bytes quedan SIN observar y el codec falla cerrado ante ellos",
+        "El handle propio del objeto (H) viaja inmediatamente despues del campo BOT, sin ningun campo intermedio",
+        "Falsacion primaria: el handle propio asi decodificado coincide con el que promete el mapa de handles en 2893/2893 objetos de los 24 fixtures AC1024/AC1027/AC1032",
+        "Falsacion secundaria: el tipo coincide con el del gemelo AC1015 del mismo dibujo en 1353/1413 comparaciones de tipo FIJO (AC1027 351/351 y AC1032 351/351 sin una sola discrepancia)",
+        "Las 60 discrepancias restantes son todas AC1024 y todas del par DICTIONARY(0x2A)/XRECORD(0x4F) en handles contiguos: el conversor numero esos objetos en orden distinto en cada version, de modo que el gemelo no es la misma pieza",
+        "Los tipos por encima de 0x1F0 son numeros de clase asignados por cada archivo en su propia seccion de clases y no son comparables entre archivos distintos",
+        "Decodificar el ENCABEZADO no decodifica el CUERPO: el flujo de datos R2010+ separa las cadenas a un flujo propio y su cabecera comun de entidad difiere de la R2000. Medido: reconstruir la forma R2000 y reusar los decodificadores existentes no hace decodificar una LINE real con ningun bitsize"
+      ],
+      "derivedFiles": [
+        "packages/dwg-codec/src/codecs/bitcodes.ts",
+        "packages/dwg-codec/src/container/r2010-object-envelope.ts",
+        "packages/dwg-codec/src/reader/r2004-database-reader.ts",
+        "packages/dwg-codec/tests/unit/r2010-object-envelope.spec.ts",
+        "scripts/dwg/probe-r2010-object-header.mjs",
+        "docs/cad/evidence/dwg-r2010-object-header.json"
+      ],
+      "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-r2010-object-header.mjs); revision humana del propietario pendiente, como toda promocion de capacidad",
+      "reviewedAt": "2026-08-31",
+      "notes": "Medida por scripts/dwg/probe-r2010-object-header.mjs, reproducible con VALLE_DWG_CORPUS_MIRROR. No promueve ninguna capacidad de CAPABILITIES.md: readR2004Database sigue fallando cerrado para AC1024/AC1027/AC1032. Lo que cambia es DONDE esta la frontera y por que, no que este resuelta."
     }
   ]
 }

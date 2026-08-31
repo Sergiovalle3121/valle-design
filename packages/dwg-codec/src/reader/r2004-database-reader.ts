@@ -13,11 +13,12 @@
  *
  * Alcance HONESTO de esta ola: AC1018 completo (los 8 reales del corpus
  * abren con matriz diferencial limpia). AC1024/AC1027/AC1032 comparten este
- * contenedor pero sus cuerpos usan tipo BOT, tamaño de flujo de handles MC y
- * flujo de STRINGS separado en UTF-16 (hechos registrados): decodificarlos
- * exige decodificadores conscientes de versión en objects/, que es de otra
- * ola — aquí fallan CERRADOS con su código y un mensaje que dice exactamente
- * eso. Mediciones y evidencia en docs/cad/evidence/dwg-r2004-container.json.
+ * contenedor y, desde el intake 2026-08-31, también su ENCABEZADO de objeto
+ * (`container/r2010-object-envelope.ts`); lo que falta es el CUERPO, cuyo
+ * flujo de datos separa las cadenas y cambia la cabecera común de entidad.
+ * Aquí fallan CERRADOS con su código y un mensaje que dice exactamente eso.
+ * Evidencia en docs/cad/evidence/dwg-r2004-container.json y
+ * docs/cad/evidence/dwg-r2010-object-header.json.
  *
  * Intake 2026-08-23 (VALLE-CORPUS-INTAKE-A60EBE2): el marco de sección de
  * datos R2010+ (AcDb:Header/AcDb:Classes) usa un campo de tamaño de 8 bytes
@@ -111,15 +112,21 @@ export function readR2004Database(
   }
   const version = signature.code as R2004VersionCode;
   if (version !== "AC1018") {
-    // Contenedor y secciones ya abren (evidencia 32/32), pero los CUERPOS
-    // R2010+ usan tipo BOT, tamaño de handles MC y flujo de strings UTF-16
-    // separado: decodificarlos exige objects/ consciente de versión (otra
-    // ola). Fallo cerrado con el motivo, no una base a medias.
+    // La frontera se ESTRECHÓ el 2026-08-31 y conviene decir dónde está
+    // ahora: contenedor y secciones abren (32/32), y desde el intake
+    // VALLE-CORPUS-R2010-OBJECT-HEADER el ENCABEZADO de cada cuerpo también
+    // se decodifica (`readR2010ObjectHeader`, 2893/2893 handles exactos). Lo
+    // que sigue sin decodificar es el CUERPO: el flujo de datos R2010+ manda
+    // las cadenas a un flujo propio y su cabecera común de entidad difiere de
+    // la R2000, así que reconstruir la forma R2000 y reusar los
+    // decodificadores existentes no funciona (medido: ningún `bitsize` hace
+    // decodificar una LINE real). Fallo cerrado con el motivo exacto, no una
+    // base a medias.
     throwDwgError(
       "DWG_VERSION_DECODER_UNSUPPORTED",
       "unsupported",
       0,
-      `The ${version} object bodies use the R2010+ type/string streams that this laboratory does not decode yet; only AC1018 opens.`,
+      `The ${version} object headers decode but their bodies use the R2010+ data and string streams that this laboratory does not decode yet; only AC1018 opens.`,
     );
   }
 

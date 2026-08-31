@@ -777,3 +777,77 @@ strings separado). Esa tabla no es derivable por medicion pura sin mas
 anclas independientes que una sola entidad conocida; hacen falta mas
 identificaciones independientes (mas tipos, no solo LINE) para acotar el
 espacio de hipotesis sin adivinar, o una fuente documental que la registre.
+
+## Intake 2026-08-31 — BOT y UMC RESUELTOS por medición (VALLE-CORPUS-R2010-OBJECT-HEADER)
+
+El intake de 2026-08-23 cerró su seccion diciendo exactamente que hacia falta
+para retomar la linea: *"hacen falta mas identificaciones independientes (mas
+tipos, no solo LINE) para acotar el espacio de hipotesis sin adivinar"*. Esas
+identificaciones ya estaban en el corpus admitido y nadie las habia usado.
+Este intake las usa. No hay fuente documental nueva: no se consulto ninguna
+implementacion ajena ni ninguna especificacion que no estuviera ya registrada.
+
+**El ancla que faltaba.** Los cinco bundles fundacionales son LOS MISMOS OCHO
+DIBUJOS convertidos a cinco contenedores desde un DXF fuente byte-identico.
+AC1015 ya se decodifica con cero discrepancias, asi que su envoltura da el
+tipo esperado de CADA handle, no de uno. Son 2893 objetos con la respuesta
+conocida de antemano repartidos en 24 fixtures y tres versiones. Con la
+respuesta conocida la codificacion deja de adivinarse y se RESUELVE.
+
+**Por que fallo el sondeo anterior.** Localizo el handle propio del LINE 34
+bits despues del inicio del cuerpo —posicion CORRECTA, confirmada aqui— y
+descompuso esos 34 bits como selector BOT de 2 bits mas un valor de ancho
+fijo. La descomposicion no podia cerrar porque delante del BOT hay DOS campos
+mas, no ninguno: el tamano del objeto y el tamano del flujo de handles. El
+propio modulo `r2010-object-envelope.ts` nombraba el segundo como incognita
+("la posicion exacta del campo UMC"), pero lo buscaba DESPUES del tipo cuando
+va ANTES.
+
+**La estructura medida.** El cuerpo de un objeto R2010+ abre asi:
+
+1. `MS`  tamano del objeto en bytes (palabras LE de 16 bits, bit 15 continua);
+2. `UMC` tamano EN BITS del flujo de handles (bytes de 7 bits utiles). Es un
+   TAMANO, no un desplazamiento;
+3. `BOT` tipo de objeto: selector de 2 bits; selector 0 → `RC` literal;
+   selector 1 → `RC` mas 0x1F0;
+4. `H`   handle propio, pegado detras del BOT sin campo intermedio.
+
+Con el prefijo de un solo byte de `UMC` el BOT cae en el bit 24 (2723 objetos)
+y con dos bytes en el bit 32 (170 objetos).
+
+**Falsacion.** La primaria no depende de ninguna hipotesis sobre el tipo: el
+handle propio viaja pegado detras del BOT y el mapa de handles ya dice cual
+debe ser. Un ancho equivocado en cualquiera de los tres campos previos lo
+desalinearia y saldria basura. Sale EXACTO en **2893/2893** objetos. La
+secundaria, independiente de la primera, compara el tipo con el del gemelo
+AC1015: **1353/1413** comparaciones de tipo FIJO, con **AC1027 351/351 y
+AC1032 351/351 sin una sola discrepancia**. Las 60 restantes son todas AC1024
+y todas del par DICTIONARY(0x2A)/XRECORD(0x4F) en handles contiguos: el
+conversor los numero en orden distinto en cada version, de modo que el gemelo
+no es la misma pieza. Los tipos por encima de 0x1F0 son numeros de clase que
+cada archivo asigna en su propia seccion y no se comparan entre archivos.
+
+**Lo que se declara SIN observar.** Los selectores 2 y 3 del BOT no aparecen
+ni una vez en los 2893 objetos. Sin una sola observacion no hay forma de saber
+su ancho ni su orden de bytes, y adivinarlos seria el peor modo de fallo
+posible aqui: un tipo plausible y equivocado que ademas desalinea todo lo que
+viene detras. `readBOT` falla cerrado ante ambos. Ampliar esto exige corpus
+que los ejercite.
+
+**Lo que este intake NO resuelve, y es la parte grande.** Decodificar el
+ENCABEZADO no decodifica el CUERPO. Se probo lo obvio —reconstruir la forma
+R2000 (`BS` tipo + `RL` bitsize + datos) y reusar los decodificadores
+existentes por la misma via que el adaptador AC1018— barriendo TODOS los
+valores posibles de `bitsize`: ninguno hace decodificar una LINE real. El
+flujo de datos R2010+ manda las cadenas a un flujo propio y su cabecera comun
+de entidad difiere aun de la R2000. Esa es la siguiente ola.
+
+**Efecto en el producto**: ninguno observable. `readR2004Database` sigue
+lanzando `DWG_VERSION_DECODER_UNSUPPORTED` para AC1024/AC1027/AC1032; lo que
+cambia es su mensaje, que ahora nombra la frontera real (el cuerpo) en vez de
+una ya superada (el tipo). `DWG_VERSION_REGISTRY` mantiene las tres versiones
+en `decoderStatus: "unsupported"` y `CAPABILITIES.md` no promueve nada.
+
+**Reproducible**: `node scripts/dwg/probe-r2010-object-header.mjs` con
+`VALLE_DWG_CORPUS_MIRROR` apuntando al repo hermano; evidencia en
+`docs/cad/evidence/dwg-r2010-object-header.json`.

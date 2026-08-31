@@ -42,6 +42,38 @@ revisión individual:
 Que una URL sea pública, gratuita o accesible sin login no basta. No se copia
 prosa extensa ni tablas; se registra el hecho mínimo necesario y su origen.
 
+### Especificación consultada vs. implementación prohibida
+
+Esta distinción se escribe aparte porque su ausencia ya costó tiempo real: el
+informe de cierre de 2026-08-24 (§11.7) leyó la sección «Material prohibido»
+como si excluyera *toda* fuente que llevara el nombre ODA, y declaró bloqueado
+el trabajo de las versiones 2010/2013/2018 por falta de fuente. No era así.
+
+- Lo **prohibido** es la *implementación*: código, headers, bindings, tablas
+  generadas, comentarios o tests de ODA SDK, RealDWG, Autodesk, LibreDWG u otro
+  codec, incluso traducidos, portados o adaptados. Eso no cambia.
+- Lo **permitido**, cuando sus términos lo consienten y el hecho queda
+  registrado antes de derivar, es un *documento de especificación* del formato,
+  bajo la categoría «documentación pública cuyos términos permitan extraer los
+  hechos técnicos mínimos registrados» de la lista de arriba.
+
+El caso ya resuelto y en vigor es la entrada `ODA-ODS-DWG-5.4.1-PUBLIC` del
+registro: `status: allowed`, revisada el 2026-08-14, con sus términos («facts
+only, no redistribution») y sus hechos anotados uno a uno. De ella salieron —
+como hechos, jamás como código— los cimientos del laboratorio: los bit-codes,
+el CRC-16, el contenedor R2000, el contenedor R2004 y los decodificadores por
+tipo. Un total de 54 archivos derivados la enlazan, y 80 hechos anotados uno a uno.
+
+De modo que la pregunta correcta ante una fuente nunca es «¿lleva el nombre de
+un codec ajeno?», sino las dos que esta política ya exige: **¿qué es —
+documento o implementación—?** y **¿sus términos permiten la actividad concreta,
+y está registrada antes de derivar?**
+
+Sigue vigente todo lo demás: un documento no queda autorizado por ser público,
+no se copia prosa extensa ni tablas, y la promoción de cualquier capacidad más
+allá de investigación experimental sigue exigiendo la revisión legal externa que
+fijan ADR-0004 y ADR-0007.
+
 ## Material en cuarentena
 
 `quarantined` significa que no se ha demostrado permiso suficiente o que falta
