@@ -1814,6 +1814,40 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-M4-FLUJO-HANDLES-R2010-20260831",
+      "date": "2026-08-31",
+      "initiative": "Tercera entrega de la serie del cuerpo de objeto R2010+ (encabezado -> cuerpo -> flujo de handles). El corte anterior declaraba por escrito que el flujo de handles no se decodificaba y que por eso readR2004Database no podia ensamblar nada para AC1024/AC1027/AC1032: una entidad tenia geometria pero no capa ni propietario. Este intake lo mide contra el gemelo AC1015 del mismo dibujo. Dos resultados que conviene no suavizar. Primero: la hipotesis ingenua -que el tramo contuviera la misma secuencia completa del gemelo- acerto 0/105 y quedo falsada; se contrastaron entonces CUATRO modelos y gano 'referencias no nulas, sin los enlaces anterior/siguiente', con prefijo exacto 105/105 y consumo exacto del tramo 105/105. Segundo, y es el que cambia el problema: la FORMA del flujo SI se deduce del propio archivo moderno, contra lo que suponia el corte anterior al declarar opaco todo el tramo comun de 39/40 bits. Su primera mitad decodifica, con el bit de xdic-missing ANTES del de sin-vinculos, y asi predice el recuento de la cabeza en 105/105 -frente a 35/105 con el orden inverso, que es lo que hace del contraste una falsacion y no un ajuste. Sale ademas una correccion declarada de mi propia sonda: una primera version comparaba un campo inexistente y por eso daba 9/105 falsos positivos.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de llevar el DWG a las versiones modernas para poder comercializar.",
+      "firstPartyInputs": [
+        "Corpus de conformidad propio (bundles fundacionales AC1015/AC1024/AC1027/AC1032) leido del commit fijado via el gate consumidor.",
+        "El decodificador AC1015 propio, ya validado con 0 discrepancias, como oraculo diferencial."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. Ninguna fuente documental nueva intervino: la posicion del tramo ya venia del campo UMC verificado del encabezado y todo lo demas es medicion sobre bytes propios.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/reader/r2010-handle-stream.ts (lector goloso, derivacion de forma e interpretacion por roles, nuevo)",
+        "packages/dwg-codec/tests/unit/r2010-handle-stream.spec.ts (vectores de bits a mano, incluidos cuatro fallos cerrados)",
+        "scripts/dwg/probe-r2010-handle-stream.mjs (productor de evidencia, con --check verificado en las dos direcciones)",
+        "docs/cad/evidence/dwg-r2010-handle-stream.json",
+        "packages/dwg-codec/SOURCE_REGISTER.json (VALLE-CORPUS-R2010-HANDLE-STREAM, 11 hechos)",
+        "packages/dwg-codec/CAPABILITIES.md (corte nuevo y correccion declarada del alcance del tramo opaco)"
+      ],
+      "fixtures": "Ninguno nuevo: se mide sobre el corpus ya admitido.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de completar el DWG moderno (2D y 3D) para comercializar sin licencia ODA."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

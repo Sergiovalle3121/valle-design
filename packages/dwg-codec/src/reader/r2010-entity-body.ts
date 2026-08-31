@@ -24,6 +24,15 @@
  * equivocado que además desalinea la geometría), así que este módulo trata
  * el tramo COMPLETO como opaco y sólo confía en su ANCHURA TOTAL medida.
  *
+ * ADENDA 2026-08-31 (VALLE-CORPUS-R2010-HANDLE-STREAM). Esa primera mitad SÍ
+ * se puede usar, y desde entonces se usa: `deriveR2010HandleShape`
+ * (`reader/r2010-handle-stream.ts`) la decodifica con el bit de xdic-missing
+ * ANTES del de sin-vínculos y así deduce la forma del flujo de handles,
+ * coincidiendo con el gemelo en 105/105. La decisión de este módulo NO cambia
+ * —para localizar la geometría sigue bastando la anchura total, y la segunda
+ * mitad sigue sin identificar— pero la frase «el tramo COMPLETO como opaco»
+ * describe lo que este módulo hace, no lo que el tramo permite.
+ *
  * SEGURO CONTRA DESALINEAMIENTO, NO GARANTIZADO. La anchura fija sólo está
  * validada para el único caso que el corpus ejercita (EED ausente, sin
  * gráfico, 0 reactores, modo de entidad 2, banderas por defecto). El aterrizaje
@@ -63,7 +72,10 @@ import {
   decodeLine,
   decodePoint,
 } from "../objects/entities-core.js";
-import { AC1015_TYPE_LWPOLYLINE, decodeLwPolyline } from "../objects/entities-poly.js";
+import {
+  AC1015_TYPE_LWPOLYLINE,
+  decodeLwPolyline,
+} from "../objects/entities-poly.js";
 import { throwDwgError } from "../security/parse-error.js";
 
 /** Las tres versiones cuyo prefijo común-hasta-tipo está medido. */
