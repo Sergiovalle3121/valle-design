@@ -619,6 +619,44 @@
       "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-r2010-object-header.mjs); revision humana del propietario pendiente, como toda promocion de capacidad",
       "reviewedAt": "2026-08-31",
       "notes": "Medida por scripts/dwg/probe-r2010-object-header.mjs, reproducible con VALLE_DWG_CORPUS_MIRROR. No promueve ninguna capacidad de CAPABILITIES.md: readR2004Database sigue fallando cerrado para AC1024/AC1027/AC1032. Lo que cambia es DONDE esta la frontera y por que, no que este resuelta."
+    },
+    {
+      "id": "VALLE-CORPUS-R2010-OBJECT-BODY",
+      "owner": "Sergio Valle Zarate",
+      "origin": {
+        "type": "original-measurement",
+        "location": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance/tree/0688fb9c395b9cac4169d1ee9c23a7370cc28cf3/bundles",
+        "accessedAt": "2026-08-31"
+      },
+      "title": "Mediciones first-party del CUERPO de objeto R2010+ (AC1024/AC1027/AC1032) para entidades sin cadenas, sobre el corpus admitido",
+      "versionOrDate": "2026-08-31",
+      "terms": {
+        "license": "Valle first-party corpus measurement (admitted tool-converted-original bundles)",
+        "access": "Blobs leidos del commit fijado del repo hermano de conformidad via el gate consumidor (corpus-pin.json + SHA-256 verificado); ningun working tree",
+        "redistribution": "Solo se registran numeros observados (anchos de campo, offsets de bit) y decisiones de codigo derivadas; los bytes DWG permanecen en el repo hermano bajo su propia politica",
+        "notes": "Continuacion directa de VALLE-CORPUS-R2010-OBJECT-HEADER: mismo corpus, mismo metodo diferencial (los cinco bundles fundacionales son los mismos ocho dibujos en cinco contenedores). Es una observacion de bytes, no una fuente documental; no se consulto ninguna implementacion ajena. El hecho ya registrado en ODA-ODS-DWG-5.4.1-PUBLIC (\"AC1021+ introduce el flujo de STRINGS separado al final del cuerpo... el bit de presencia del final del dato\") predijo la EXISTENCIA de ese bit; esta entrada mide su POSICION exacta y confirma su valor (0) para las entidades sin cadena."
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "Para LINE (0x13), POINT (0x1B), CIRCLE (0x12) y ARC (0x11), el primer bit de dato especifico del tipo, localizado por busqueda bit a bit del double IEEE-754 exacto del primer campo geometrico del gemelo AC1015, cae a una distancia FIJA del handle propio: 39 bits en AC1024, 40 en AC1027 y AC1032 -- la MISMA cifra para los cuatro tipos dentro de cada version, pese a que cada uno resta una cantidad distinta de bits de prefijo propio (1 para el bit zeroZ de LINE, 2 para el flag BD del primer campo de CIRCLE/ARC/POINT) antes de llegar a esa ancla",
+        "Esos 39/40 bits decodifican EXACTO como la cabecera comun de entidad R2000 SIN cambio de anchura (hechos ya registrados de ODA-ODS-DWG-5.4.1-PUBLIC): grupos EED, bit de grafico de previsualizacion, modo BB, recuento de reactores BL, bit de sin-vinculos/xdic-missing, color CmC (indice BS sin la forma extendida R2004), escala de tipo de linea BD, banderas BB de tipo de linea y de plotstyle -- para los 72 objetos del corpus, todos con EED ausente, sin grafico, 0 reactores, modo de entidad 2 (model space directo) y valores por defecto",
+        "Tras esos campos comunes decodificados semanticamente (que ocupan 16 de esos 39/40 bits) queda un tramo intermedio de anchura MEDIDA (23 bits en AC1024, 24 en AC1027/AC1032) cuya semantica NO se identifico: no hay evidencia suficiente para saber si son invisibilidad y lineweight reordenados u otro campo nuevo del formato, asi que se declara opaco (capacidad ausente), nunca interpretado con un valor supuesto",
+        "Los datos especificos de tipo (LINE, POINT, CIRCLE, ARC, LWPOLYLINE) se decodifican EXACTOS reusando, sin cambio alguno, los mismos decodificadores que ya usa R2000 (bit a bit identicos: RD/DD/BD/BT/BE/3BD y, para LWPOLYLINE, el mismo formato de banderas BS y vertices delta)",
+        "El campo `MS` (objectSize) del encabezado ya resuelto excluye del conteo sus PROPIOS bytes y los del campo `UMC` que lo preceden: el limite real del flujo de handles se ancla en `bodyBytes.length*8 - handleStreamBits`, no en `objectSize*8 - handleStreamBits` -- confirmado porque bodyBytes.length siempre supera objectSize en exactamente el ancho en bytes de MS mas UMC para los 72 objetos medidos",
+        "Inmediatamente despues de los datos de tipo, y justo antes de ese limite de flujo de handles ya corregido, hay EXACTAMENTE 1 bit en TODOS los 72 objetos medidos, en valor 0 -- el bit de presencia de cadenas ya nombrado (sin verlo aun, sin confirmar su posicion) por el hecho registrado de ODA-ODS-DWG-5.4.1-PUBLIC sobre AC1021+",
+        "Falsacion: la geometria decodificada bajo esta estructura coincide EXACTA (tolerancia 1e-6) con el gemelo AC1015 del mismo dibujo en 72/72 objetos (LINE, POINT, CIRCLE, ARC, LWPOLYLINE) de los 24 fixtures AC1024/AC1027/AC1032, y el remanente antes del flujo de handles aterriza en el valor esperado (1 bit) en 72/72 -- dos falsaciones independientes: una geometrica (por tipo) y otra aritmetica (el aterrizaje exacto en un limite conocido de antemano por MS/UMC)",
+        "Capacidad ausente declarada: el flujo de handles (propietario, capa, xdictionary) no se decodifica para R2010+ en este intake, y ninguna entidad CON cadena (el bit de presencia se mide en 0 en las 72 observaciones; el camino con cadena, bit=1, no tiene ni una observacion en este corpus y por tanto falla cerrado)"
+      ],
+      "derivedFiles": [
+        "packages/dwg-codec/src/objects/entities-core.ts",
+        "packages/dwg-codec/src/reader/r2010-entity-body.ts",
+        "packages/dwg-codec/tests/unit/r2010-entity-body.spec.ts",
+        "scripts/dwg/probe-r2010-object-body.mjs",
+        "docs/cad/evidence/dwg-r2010-object-body.json"
+      ],
+      "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-r2010-object-body.mjs); revision humana del propietario pendiente, como toda promocion de capacidad",
+      "reviewedAt": "2026-08-31",
+      "notes": "Medida por scripts/dwg/probe-r2010-object-body.mjs, reproducible con VALLE_DWG_CORPUS_MIRROR. Resuelve la parte GRANDE que VALLE-CORPUS-R2010-OBJECT-HEADER dejo pendiente (el CUERPO) para las cinco entidades sin cadena. No promueve ninguna capacidad de producto: readR2004Database sigue sin ensamblar una base neutral completa para AC1024/AC1027/AC1032 porque el flujo de handles (propietario/capa) sigue sin decodificarse -- ver CAPABILITIES.md para el corte exacto."
     }
   ]
 }
