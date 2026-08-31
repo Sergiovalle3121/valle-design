@@ -1459,6 +1459,35 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "PLANTILLAS-UNIVERSALES-ES-MX-20260831",
+      "date": "2026-08-31",
+      "initiative": "Las cuatro plantillas de arranque UNIVERSALES —núcleo de planta arquitectónica, terreno y servicios de obra civil, retícula estructural y cuarto de máquinas— estaban enteras en inglés: etiqueta, descripción, el nombre de cada objeto que insertan y sus notas. La ironía es que son justamente las que no pertenecen al catálogo mexicano de 149 plantillas y por tanto las que un usuario de cualquier país elegiría primero; un arquitecto que empezaba un plano desde ellas recibía objetos llamados «Building shell», «Meeting room» y «Main egress corridor» dentro de un producto cuya interfaz está en español. Se tradujeron los 58 textos visibles al español mexicano con vocabulario de dibujo real (desplante, lindero, envolvente, junta constructiva, patín de bombeo, holgura sísmica), y NO se tocó ningún `id` ni `ref` ni etiqueta de clasificación: los ids viajan en documentos ya guardados y los tags son vocabulario de clasificación, no prosa. El gate `check:template-gallery` detectó por hash las cuatro plantillas cambiadas —que es exactamente su trabajo— y el manifiesto se regeneró con el script del repositorio, no a mano. El titular precisó el criterio ese mismo día: el producto es universal para cualquier ingeniero o arquitecto y arranca en México sin quedarse ahí.",
+      "branch": "claude/plantillas-universales-en-espanol",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate, por instrucción directa del 2026-08-31: «tiene que ser un producto universal para cualquier ingeniero o arquitecto no te limites a una industria» y «lo van a empezar en méxico pero también tiene que ser universal por si lo usan en otros países».",
+      "firstPartyInputs": [
+        "apps/web/src/lib/cad/templates.ts y el motor de plantillas propio.",
+        "El script de evidencia propio apps/web/scripts/template-gallery-evidence.mts y su gate check:template-gallery."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "docs/cad/evidence/template-gallery.json (manifiesto regenerado: 149 plantillas, 3480 entidades)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Instrucción expresa del titular sobre universalidad del producto en la sesión del 2026-08-31."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
