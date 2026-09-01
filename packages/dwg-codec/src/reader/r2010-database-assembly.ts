@@ -23,19 +23,36 @@
  * cero geometrías distintas, cero faltantes y cero inesperadas. No produce, y
  * lo dice en vez de rellenarlo:
  *
- *  - **El color y las banderas de una capa.** Se intentó medirlos con la misma
- *    técnica que resolvió el cuerpo de entidad —barrer la anchura del prólogo
- *    de objeto y quedarse con la que reproduce los campos del gemelo— y el
- *    resultado fue CERO aciertos en todo el barrido de 0..120 bits: las
- *    banderas de capa de R2010+ no son el `BS` de R2000 en ninguna posición.
- *    El modelo relajado que suelta el color «acierta» 18/18 en CUATRO anchuras
- *    distintas a la vez (4, 24, 53 y 59 en AC1024), y eso NO es evidencia:
- *    los tres campos de xref valen su defecto en todo el corpus, así que
- *    coincidir con ellos es coincidir con ceros. Medirlos de verdad exige un
- *    corpus con capas de colores y estados variados, y es un intake aparte.
- *    `colorIndex` y `stateFlags` viajan `undefined`, y el mapeo canónico
- *    declara la ausencia como pérdida en vez de pintar blanco.
- * CORRECCIÓN FECHADA (2026-09-01). La primera versión de este módulo afirmó
+ *  - **[CORREGIDO EL 2026-09-01 — ver más abajo] El color y las banderas de
+ *    una capa.** Este módulo afirmó que «las banderas de capa de R2010+ no son
+ *    el `BS` de R2000 en ninguna posición». **Era FALSO**: sí lo son, y desde
+ *    el 2026-09-01 se decodifican (`r2010-table-layer.ts`, 54/54 con tres
+ *    condiciones a la vez). Lo que queda sin resolver es sólo el CONTENIDO de
+ *    los 7/8 bits de cabeza previos, no los campos.
+ *  - **Los campos no-nombre del resto de entradas de tabla** (estilos, tipos
+ *    de línea, dimstyles, appids, vports, views, ucs). El mismo método que
+ *    resolvió la capa vale para ellos, pero medirlos es su propio intake:
+ *    `fields` va vacío y no cero, y nadie finge haberlos leído.
+ *
+ * CORRECCIÓN FECHADA (2026-09-01, DOS AFIRMACIONES FALSAS MÍAS).
+ *
+ * (a) LAS BANDERAS DE CAPA. Escribí arriba que «no son el `BS` de R2000 en
+ * ninguna posición», apoyado en un barrido de 0..120 bits con CERO aciertos.
+ * Sí lo son: el `BS` de estado está a 7 bits del primer bit de dato en AC1024
+ * y a 8 en AC1027/AC1032, y el color es el `CmC` de R2004 justo detrás. El
+ * barrido no falló por el formato, falló por cómo pregunté: (1) sólo apuntaba
+ * un acierto de estado si ANTES coincidían los tres campos de xref, y esos
+ * tres son CONSTANTES en todo el corpus admitido —no discriminan nada—, así
+ * que una lectura equivocada de lo inmedible vetaba la lectura correcta de lo
+ * medible; y (2) leía el color como el `CmC` de R2000 cuando el adaptador
+ * AC1018 de este mismo repo, medido 8/8 con 0 discrepancias, ya documentaba
+ * que desde R2004 son TRES campos. Reusar un hecho que el repo ya tenía
+ * habría bastado. Corrijo además cómo describí esos campos de xref: dije que
+ * «valen su defecto» y que coincidir con ellos «es coincidir con ceros», y no
+ * es exacto — `xrefRef` vale `true` en las 18 capas del gemelo. Lo que impide
+ * falsarlos no es que valgan cero, es que valen SIEMPRE LO MISMO.
+ *
+ * (b) LOS OBJETOS DE MODO 0. La primera versión de este módulo afirmó
  * que «el corpus admitido no ejercita ni un solo objeto de modo 0», y era
  * FALSO: contando los modos con `deriveR2010HandleShape` sobre el corpus
  * aparecen 5 LINE, 1 CIRCLE y 1 ARC de modo 0 — exactamente las 7 entidades
@@ -51,6 +68,7 @@
  * se reusa a propósito para que no existan dos criterios distintos.
  */
 import { BoundedByteCursor } from "../binary/byte-cursor.js";
+import { DwgParseError } from "../security/parse-error.js";
 import type { DwgDiagnostic } from "../api/diagnostics.js";
 import {
   readR2010ObjectBody,
@@ -58,6 +76,10 @@ import {
   type R2010ObjectBounds,
 } from "../container/r2010-object-envelope.js";
 import { AC1015_TYPE_LAYER } from "../objects/table-layer.js";
+import {
+  readR2010LayerFields,
+  readR2010LinetypeFields,
+} from "./r2010-table-fields.js";
 import { AC1015_TYPE_BLOCK_HEADER } from "../objects/table-block.js";
 import {
   AC1015_TYPE_APPID,
@@ -137,6 +159,37 @@ const NAMED_TABLE_TYPES: ReadonlyMap<number, NamedSlot> = new Map<
   [AC1015_TYPE_VIEW, "views"],
   [AC1015_TYPE_UCS, "ucss"],
 ]);
+
+/**
+ * Lee los campos de una entrada de tabla absorbiendo SÓLO «capacidad
+ * ausente». Un cuerpo CORRUPTO propaga, igual que en el resto de este módulo:
+ * son cosas distintas y el llamador actúa distinto ante cada una — una base
+ * ensamblada a medias sobre bytes rotos es peor que no abrir el archivo.
+ *
+ * Existe una sola vez a propósito: dos copias de este `catch` es donde una de
+ * ellas acabaría tragándose una corrupción sin que nadie lo notara.
+ */
+function readTableEntryFields<T>(
+  read: () => T,
+  diagnosticCode: string,
+  offset: number,
+  diagnostics: DwgDiagnostic[],
+): T | undefined {
+  try {
+    return read();
+  } catch (error) {
+    if (
+      !(error instanceof DwgParseError) ||
+      error.detail.code !== "DWG_VERSION_DECODER_UNSUPPORTED"
+    ) {
+      throw error;
+    }
+    diagnostics.push(
+      diagnostic(diagnosticCode, "warning", offset, error.detail.message),
+    );
+    return undefined;
+  }
+}
 
 function diagnostic(
   code: string,
@@ -218,23 +271,51 @@ export function assembleR2010Database(
       }
       const name = readR2010ObjectName(bodyBytes, span);
       if (named !== "layer" && named !== "block") {
+        // Sólo el LTYPE tiene campos MEDIDOS en R2010+ (patrón y trazos). El
+        // resto de tablas sigue con `fields` VACÍO y no cero: nadie finge
+        // haberlos leído, y medirlos es su propio intake.
         tables[named].push(
           Object.freeze({
             handle: bound.handle,
             name,
-            fields: Object.freeze({}),
+            fields:
+              named === "linetypes"
+                ? readTableEntryFields(
+                    () =>
+                      readR2010LinetypeFields(
+                        bodyBytes,
+                        header,
+                        span.startBit,
+                        context.version,
+                      ),
+                    "r2010-linetype-fields-not-decoded",
+                    bound.start,
+                    diagnostics,
+                  ) ?? Object.freeze({})
+                : Object.freeze({}),
           }),
         );
         continue;
       }
       if (named === "layer") {
+        // El estado y el color SÍ se miden desde el 2026-09-01
+        // (`r2010-table-layer.ts`, 54/54 con tres condiciones a la vez). Una
+        // capa cuya cabeza no sea la medida no devuelve un color equivocado:
+        // falla cerrado ahí y aquí queda declarada como no decodificada, que
+        // es lo que el mapeo canónico sabe tratar como pérdida.
+        const fields = readTableEntryFields(
+          () =>
+            readR2010LayerFields(bodyBytes, header, span.startBit, context.version),
+          "r2010-layer-fields-not-decoded",
+          bound.start,
+          diagnostics,
+        );
         layers.push(
           Object.freeze({
             handle: bound.handle,
             name,
-            // Medido que NO se pueden medir con este corpus — ver cabecera.
-            colorIndex: undefined,
-            stateFlags: undefined,
+            colorIndex: fields?.colorIndex,
+            stateFlags: fields?.stateFlags,
           }),
         );
       } else {

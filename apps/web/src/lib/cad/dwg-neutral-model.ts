@@ -484,11 +484,12 @@ export interface DwgNeutralLayer {
   /** Bytes del nombre en la página de códigos del dibujo. */
   readonly name: readonly number[];
   /**
-   * Índice ACI y banderas de estado. `undefined` cuando la versión del archivo
-   * no los declara decodificados —hoy, el camino R2010+, donde el NOMBRE de la
-   * capa sí está medido pero sus campos no-nombre no—. Un cero pintaría capas
-   * blancas y descongeladas plausibles y equivocadas; el manifiesto de
-   * pérdidas declara la ausencia en su lugar.
+   * Índice ACI y banderas de estado. `undefined` cuando el códec NO los
+   * decodificó. Desde el 2026-09-01 el camino R2010+ SÍ los mide (antes no:
+   * leía el nombre de la capa y nada más), así que hoy la ausencia sólo
+   * aparece cuando ese lector falla cerrado sobre una capa cuya cabeza no es
+   * la medida. Un cero pintaría capas blancas y descongeladas plausibles y
+   * equivocadas; el manifiesto de pérdidas declara la ausencia en su lugar.
    */
   readonly colorIndex: number | undefined;
   readonly stateFlags: number | undefined;

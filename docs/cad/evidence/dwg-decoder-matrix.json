@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-decoder-matrix-v1",
   "generadoPor": "node scripts/dwg/dwg-evidence.mjs",
-  "generadoEn": "2026-09-01T01:08:30.158Z",
+  "generadoEn": "2026-09-01T01:54:17.296Z",
   "environment": {
     "node": "v22.22.2",
     "platform": "linux",
@@ -42,7 +42,7 @@
     "capacidadesEvaluadas": 11,
     "capacidadesPromovidas": 2,
     "tiposDecodificadosEnLaboratorio": 65,
-    "tiposVerificadosIndependientemente": 47,
+    "tiposVerificadosIndependientemente": 51,
     "geometriasNeutrales": 24
   },
   "capacidades": [
@@ -515,7 +515,7 @@
       "codigoBs": 50,
       "modulo": "table-layer.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": false,
+      "verificadoIndependientemente": true,
       "claveDeVerificacion": "layer-table",
       "bundlesQueLoCubren": 7
     },
@@ -524,7 +524,7 @@
       "codigoBs": 51,
       "modulo": "table-layer.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": false,
+      "verificadoIndependientemente": true,
       "claveDeVerificacion": "layer-table",
       "bundlesQueLoCubren": 7
     },
@@ -551,7 +551,7 @@
       "codigoBs": 56,
       "modulo": "tables-symbol.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": false,
+      "verificadoIndependientemente": true,
       "claveDeVerificacion": "ltype-table",
       "bundlesQueLoCubren": 7
     },
@@ -560,7 +560,7 @@
       "codigoBs": 57,
       "modulo": "tables-symbol.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": false,
+      "verificadoIndependientemente": true,
       "claveDeVerificacion": "ltype-table",
       "bundlesQueLoCubren": 7
     },
