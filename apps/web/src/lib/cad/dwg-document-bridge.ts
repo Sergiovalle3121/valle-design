@@ -52,7 +52,10 @@ import {
   type CadLossManifestEntry,
   type CadOpaqueEntity,
 } from "./cad-document";
-import { MAX_DWG_IMPORT_BYTES, type DocumentImportReport } from "./document-import";
+import {
+  MAX_DWG_IMPORT_BYTES,
+  type DocumentImportReport,
+} from "./document-import";
 // Tabla ACI↔RGB real y ya usada por el resto del producto (plotting); el
 // laboratorio deja dicho en su propio mapeo canónico que "la tabla ACI
 // completa es del adaptador de integración" — este archivo es ese adaptador.
@@ -139,13 +142,23 @@ const INSUNITS_TO_CAD_UNIT: Readonly<Record<number, string>> = Object.freeze({
   6: "m",
 });
 
-function resolveDwgUnit(insunits: number): string | undefined {
-  return INSUNITS_TO_CAD_UNIT[insunits];
+/**
+ * Gris neutro para una capa cuyo color no se decodificó. No es un ACI: es una
+ * señal de que el dato falta, y viaja siempre acompañado de su pérdida.
+ */
+const LAYER_COLOR_NOT_DECODED = "#8a8f98";
+
+function resolveDwgUnit(insunits: number | undefined): string | undefined {
+  // Sin INSUNITS leído no hay unidad que resolver, y devolver `undefined` es
+  // justo lo que hace que el manifiesto declare la suposición en vez de
+  // callarla: el mismo camino que ya recorría una unidad no representada.
+  return insunits === undefined ? undefined : INSUNITS_TO_CAD_UNIT[insunits];
 }
 
 /** Error tipado del puente: nunca un `Error` genérico, nunca un éxito a medias. */
 export class DwgBridgeError extends Error {
-  readonly code: "DWG_IMPORT_DISABLED" | "DWG_NO_DECODER" | "DWG_INPUT_REJECTED";
+  readonly code:
+    "DWG_IMPORT_DISABLED" | "DWG_NO_DECODER" | "DWG_INPUT_REJECTED";
   readonly blockers: readonly string[];
 
   constructor(
@@ -203,13 +216,14 @@ interface MappedEntities {
 }
 
 /** Nombre legible por tipo, para `sourceType`: el que usa el propio dibujo DXF. */
-const WIREFRAME_3D_SOURCE_TYPE_NAME: Readonly<Record<DwgWireframe3dOpaquePayload["kind"], string>> =
-  Object.freeze({
-    face3d: "3DFACE",
-    polyline3d: "POLYLINE_3D",
-    polymesh: "POLYLINE_MESH",
-    polyfaceMesh: "POLYLINE_PFACE",
-  });
+const WIREFRAME_3D_SOURCE_TYPE_NAME: Readonly<
+  Record<DwgWireframe3dOpaquePayload["kind"], string>
+> = Object.freeze({
+  face3d: "3DFACE",
+  polyline3d: "POLYLINE_3D",
+  polymesh: "POLYLINE_MESH",
+  polyfaceMesh: "POLYLINE_PFACE",
+});
 
 function layerNameFor(
   record: DwgNeutralEntityRecord,
@@ -298,7 +312,10 @@ function mapRecords(
       // ATTRIB no resolvió a su propietario, una anomalía real del archivo,
       // no una limitación del decodificador— se declara igual, con el motivo
       // correcto en vez del genérico "todavía no lee" que ya no es verdad.
-      if (record.entity.attributesFollow && (record.attributes?.length ?? 0) === 0) {
+      if (
+        record.entity.attributesFollow &&
+        (record.attributes?.length ?? 0) === 0
+      ) {
         losses.push({
           code: DWG_BRIDGE_LOSS_CODES.unsupportedObject,
           sourceType: "attrib",
@@ -321,7 +338,10 @@ function mapRecords(
       // sería falso). `record.handle` es único en el archivo, así que sirve
       // de id sin necesitar un contador que coordine entre model space y
       // cada bloque.
-      const payload = dwgWireframe3dGeometryToOpaquePayload(record.entity, record.vertices);
+      const payload = dwgWireframe3dGeometryToOpaquePayload(
+        record.entity,
+        record.vertices,
+      );
       if (payload !== null) {
         const sourceType = WIREFRAME_3D_SOURCE_TYPE_NAME[payload.kind];
         opaques.push({
@@ -366,7 +386,10 @@ function mapRecords(
     }
 
     if (record.entity.kind === "dimension") {
-      const dimension = dwgDimensionToCadDxfSemanticDimension(record.entity, layer);
+      const dimension = dwgDimensionToCadDxfSemanticDimension(
+        record.entity,
+        layer,
+      );
       if (dimension === null) {
         losses.push({
           code: DWG_BRIDGE_LOSS_CODES.unsupportedObject,
@@ -381,7 +404,10 @@ function mapRecords(
     }
 
     if (record.entity.kind === "hatch") {
-      const { hatch, droppedPaths } = dwgHatchToCadDxfHatch(record.entity, layer);
+      const { hatch, droppedPaths } = dwgHatchToCadDxfHatch(
+        record.entity,
+        layer,
+      );
       if (hatch === null) {
         losses.push({
           code: DWG_BRIDGE_LOSS_CODES.unsupportedObject,
@@ -484,7 +510,15 @@ function mapLayers(layers: readonly DwgNeutralLayer[]): {
       name,
       // ACI real del archivo (índices 1–9/250–255 exactos, 10–249 por rampa
       // reproducible) en vez de una paleta rotatoria inventada por posición.
-      color: aciToHex(layer.colorIndex),
+      // Sin color decodificado hay que pintar ALGO —el lienzo no puede no
+      // dibujar—, así que se usa un gris neutro DELIBERADAMENTE distinto de
+      // cualquier ACI básico: que se vea que no es el color del archivo. La
+      // pérdida `layer-color-not-decoded` lo declara en el manifiesto, que es
+      // donde el usuario lo lee, y no en un toast que desaparece.
+      color:
+        layer.colorIndex === undefined
+          ? LAYER_COLOR_NOT_DECODED
+          : aciToHex(layer.colorIndex),
       visible: true,
       locked: false,
     });
@@ -495,7 +529,11 @@ function mapLayers(layers: readonly DwgNeutralLayer[]): {
 function mapBlocks(
   blocks: readonly DwgNeutralBlock[],
   layerNames: Map<number, string>,
-): { semantic: CadDxfSemanticBlock[]; opaques: CadOpaqueEntity[]; losses: CadLossManifestEntry[] } {
+): {
+  semantic: CadDxfSemanticBlock[];
+  opaques: CadOpaqueEntity[];
+  losses: CadLossManifestEntry[];
+} {
   const semantic: CadDxfSemanticBlock[] = [];
   const opaques: CadOpaqueEntity[] = [];
   const losses: CadLossManifestEntry[] = [];
@@ -539,7 +577,11 @@ export function dwgNeutralDatabaseToCadDocument(
 ): DocumentImportReport {
   const prefix = options.idPrefix ?? "dwg";
   const provider = "dwg-neutral-bridge";
-  const { names, definitions, losses: layerLosses } = mapLayers(database.layers);
+  const {
+    names,
+    definitions,
+    losses: layerLosses,
+  } = mapLayers(database.layers);
   const model = mapRecords(database.modelSpaceEntities, names, "modelSpace");
   const blockMap = mapBlocks(database.blocks, names);
   const resolvedUnit = resolveDwgUnit(database.insunits);
@@ -559,12 +601,17 @@ export function dwgNeutralDatabaseToCadDocument(
             code: DWG_BRIDGE_LOSS_CODES.unitAssumed,
             sourceType: "document",
             detail:
-              database.insunits === 0
-                ? "El archivo no declara unidades de dibujo (INSUNITS=0, sin unidad): el documento se " +
-                  "asume en milímetros sin poder confirmarlo contra el archivo."
-                : `El archivo declara INSUNITS=${database.insunits}, una unidad que esta beta todavía ` +
-                  "no representa (sólo pulgadas, pies, milímetros, centímetros y metros): el documento " +
-                  "se asume en milímetros sin poder confirmarlo contra el archivo.",
+              database.insunits === undefined
+                ? "Este laboratorio no decodifica todavía las variables de cabecera de la versión de " +
+                  "este archivo, así que NO se leyó su INSUNITS: el documento se asume en milímetros " +
+                  "sin poder confirmarlo contra el archivo. No es que el archivo no declare unidad; " +
+                  "es que no la hemos leído."
+                : database.insunits === 0
+                  ? "El archivo no declara unidades de dibujo (INSUNITS=0, sin unidad): el documento se " +
+                    "asume en milímetros sin poder confirmarlo contra el archivo."
+                  : `El archivo declara INSUNITS=${database.insunits}, una unidad que esta beta todavía ` +
+                    "no representa (sólo pulgadas, pies, milímetros, centímetros y metros): el documento " +
+                    "se asume en milímetros sin poder confirmarlo contra el archivo.",
             severity: "warning" as const,
           },
         ]
@@ -588,22 +635,38 @@ export function dwgNeutralDatabaseToCadDocument(
     })),
   ];
 
-  const blockParts = cadDxfBlocksToCadDocumentParts(blockMap.semantic, model.inserts, {
-    idPrefix: prefix,
-    provider,
-  });
+  const blockParts = cadDxfBlocksToCadDocumentParts(
+    blockMap.semantic,
+    model.inserts,
+    {
+      idPrefix: prefix,
+      provider,
+    },
+  );
   const entities: CadEntity[] = [
     ...cadDxfPrimitivesToCanonicalEntities(model.primitives, {
       idPrefix: prefix,
       provider,
     }),
     ...blockParts.inserts,
-    ...cadDxfMTextsToNativeEntities(model.mtexts, { idPrefix: prefix, provider }),
-    ...cadDxfSemanticDimensionsToNativeEntities(model.dimensions, { idPrefix: prefix, provider }),
-    ...cadDxfHatchesToNativeEntities(model.hatches, { idPrefix: prefix, provider }),
+    ...cadDxfMTextsToNativeEntities(model.mtexts, {
+      idPrefix: prefix,
+      provider,
+    }),
+    ...cadDxfSemanticDimensionsToNativeEntities(model.dimensions, {
+      idPrefix: prefix,
+      provider,
+    }),
+    ...cadDxfHatchesToNativeEntities(model.hatches, {
+      idPrefix: prefix,
+      provider,
+    }),
   ];
 
-  const opaqueEntities: CadOpaqueEntity[] = [...model.opaques, ...blockMap.opaques];
+  const opaqueEntities: CadOpaqueEntity[] = [
+    ...model.opaques,
+    ...blockMap.opaques,
+  ];
 
   // Fallo cerrado: un archivo del que no sale ni una entidad ni un bloque ni
   // siquiera un objeto preservado opaco. Aplicarlo se vería como un éxito
@@ -636,7 +699,10 @@ export function dwgNeutralDatabaseToCadDocument(
     document,
     importedEntityCount: document.entities.length,
     importedBlockCount: document.blocks.length,
-    warnings: lossManifest.map((entry) => ({ code: entry.code, message: entry.detail })),
+    warnings: lossManifest.map((entry) => ({
+      code: entry.code,
+      message: entry.detail,
+    })),
   };
 }
 
@@ -655,11 +721,18 @@ export function dwgNeutralDatabaseToCadDocument(
 export function importDwgDocumentBytes(
   bytes: Uint8Array,
   reader: DwgNeutralDatabaseReader | null = null,
-  options: DwgBridgeOptions & { readonly gates?: DwgPromotionGates; readonly flag?: boolean } = {},
+  options: DwgBridgeOptions & {
+    readonly gates?: DwgPromotionGates;
+    readonly flag?: boolean;
+  } = {},
 ): DocumentImportReport {
   const blockers = dwgPromotionBlockers(options.gates);
   if (!dwgImportIsEnabled(options.flag, options.gates)) {
-    throw new DwgBridgeError("DWG_IMPORT_DISABLED", DWG_IMPORT_DISABLED_REASON, blockers);
+    throw new DwgBridgeError(
+      "DWG_IMPORT_DISABLED",
+      DWG_IMPORT_DISABLED_REASON,
+      blockers,
+    );
   }
   if (reader === null) {
     throw new DwgBridgeError(
@@ -669,7 +742,10 @@ export function importDwgDocumentBytes(
     );
   }
   if (!(bytes instanceof Uint8Array) || bytes.byteLength === 0) {
-    throw new DwgBridgeError("DWG_INPUT_REJECTED", "El archivo está vacío o no son bytes.");
+    throw new DwgBridgeError(
+      "DWG_INPUT_REJECTED",
+      "El archivo está vacío o no son bytes.",
+    );
   }
   if (bytes.byteLength > MAX_DWG_IMPORT_BYTES) {
     throw new DwgBridgeError(

@@ -1853,6 +1853,40 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-M4-ENSAMBLADO-R2010-20260831",
+      "date": "2026-08-31",
+      "initiative": "Cierre de la serie M4. readR2004Database deja de fallar cerrado para AC1024/AC1027/AC1032: de 0/8 a 8/8 archivos ABIERTOS en las tres versiones, con geometriaDistinta = 0 en TODOS los tipos -nada decodifica a un valor equivocado; lo que falta, falta-. Abrirlos destapo TRES estratos que nadie habia mirado porque el lector fallaba antes de llegar: las secciones de datos R2010+ usan un campo de tamano de 8 bytes y no de 4 (seleccionarlo hace pasar el CRC que fallaba en el offset 819); las variables de cabecera no siguen la disposicion de AC1018 (leerlas asi da un BD con bandera 0b11, que el formato no define); y los registros de clase tampoco (los nombres no viajan en esa forma de cadena). Los tres se VALIDAN por marco y CRC pero no se decodifican, y sus valores viajan undefined en vez de cero: decir 0 afirmaria 'el archivo declara sin unidades', que no es lo mismo que 'no lo hemos leido'. El color y las banderas de capa se intentaron medir con la misma tecnica que resolvio el cuerpo de entidad y el barrido de 0..120 bits dio CERO aciertos; el modelo relajado 'acierta' en cuatro anchuras a la vez porque los campos de xref valen su defecto en todo el corpus, asi que coincidir es coincidir con ceros, y se dice en vez de aprovecharlo.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de llevar el DWG a las versiones modernas para poder comercializar.",
+      "firstPartyInputs": [
+        "Corpus de conformidad propio (bundles fundacionales) leido del commit fijado via el gate consumidor.",
+        "Los lectores R2010+ ya medidos en esta misma campaña (encabezado, cuerpo, handles, cadenas)."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. Ninguna fuente documental nueva intervino: todo sale de aplicar los lectores ya medidos y observar donde falla el resultado.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/reader/r2010-database-assembly.ts (camino de ensamblado propio de R2010+, nuevo)",
+        "packages/dwg-codec/src/reader/r2004-database-reader.ts (gate retirado; ancho de campo por version; cabecera y clases sin decodificar en R2010+)",
+        "packages/dwg-codec/src/reader/database-assembly.ts y api/canonical.ts (insunits, colorIndex y stateFlags pasan a poder estar SIN MEDIR)",
+        "apps/web/src/lib/cad/dwg-neutral-model.ts y dwg-document-bridge.ts (el manifiesto declara cada ausencia; gris neutro para una capa sin color leido)",
+        "docs/cad/evidence/dwg-corpus-validation.json (0/8 -> 8/8 en las tres versiones)",
+        "packages/dwg-codec/SOURCE_REGISTER.json (VALLE-CORPUS-R2010-DATABASE-ASSEMBLY, 10 hechos)"
+      ],
+      "fixtures": "Ninguno nuevo: se mide sobre el corpus ya admitido.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de completar el DWG moderno (2D y 3D) para comercializar sin licencia ODA."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

@@ -86,6 +86,8 @@
         "packages/dwg-codec/scripts/schema-validation.ts",
         "packages/dwg-codec/source-register.schema.json",
         "packages/dwg-codec/src/api/canonical-acis.ts",
+        "packages/dwg-codec/src/api/canonical-layers.ts",
+        "packages/dwg-codec/src/api/canonical-to-dwg.ts",
         "packages/dwg-codec/src/api/canonical.ts",
         "packages/dwg-codec/src/api/diagnostics.ts",
         "packages/dwg-codec/src/api/limits.ts",
@@ -555,6 +557,8 @@
         "DD forma 0b10 (parche de 6 bytes) - orden confirmado con el corpus: los 2 primeros bytes del flujo parchean las posiciones 4-5 de la representacion LE del defecto y los 4 siguientes las posiciones 0-3 (ODS 2.2). Censo 2026-08-30 sobre los 57 DWG: la forma aparece exactamente 2 veces, en 19-dim-radial-diameter.dwg (entity-wave-2-ac1015), como X final de dos LINE de flecha dentro de bloques anonimos de cota; con este orden decodifican 141 (defecto 138) y 68.57883832488648 (defecto 71.57883832488648), flechas de longitud exacta 3.0 coherentes con la geometria redonda del dibujo, mientras que la lectura secuencial 0..5 producia 136.00000000116415 y 70.74845976023441 (corrupcion silenciosa). La forma 0b01 sigue sin observarse en el corpus"
       ],
       "derivedFiles": [
+        "packages/dwg-codec/CAPABILITIES.md",
+        "packages/dwg-codec/DWG0_WORKLOG.md",
         "packages/dwg-codec/src/container/r2004-crypto.ts",
         "packages/dwg-codec/src/container/r2004-decompress.ts",
         "packages/dwg-codec/src/container/r2004-header-variables.ts",
@@ -564,6 +568,7 @@
         "packages/dwg-codec/src/objects/objects-dictionary.ts",
         "packages/dwg-codec/src/objects/tables-symbol.ts",
         "packages/dwg-codec/src/reader/database-assembly.ts",
+        "packages/dwg-codec/src/reader/database-model.ts",
         "packages/dwg-codec/src/reader/r2004-body-adapter.ts",
         "packages/dwg-codec/src/reader/r2004-database-reader.ts",
         "packages/dwg-codec/src/writer/ac1015-minimal-file-support.ts",
@@ -571,9 +576,7 @@
         "packages/dwg-codec/src/writer/ac1015-resolved-writers.ts",
         "packages/dwg-codec/src/writer/ac1015-structure-writers.ts",
         "packages/dwg-codec/tests/unit/r2004-database.spec.ts",
-        "packages/dwg-codec/tests/unit/r2010-object-envelope.spec.ts",
-        "packages/dwg-codec/DWG0_WORKLOG.md",
-        "packages/dwg-codec/CAPABILITIES.md"
+        "packages/dwg-codec/tests/unit/r2010-object-envelope.spec.ts"
       ],
       "reviewer": "Medicion first-party del laboratorio bajo la directiva del propietario 2026-08-13; evidencia cruda en docs/cad/evidence/dwg-corpus-validation.json y en la sesion de intake 2026-08-23 (DWG0_WORKLOG)",
       "reviewedAt": "2026-08-23",
@@ -740,6 +743,52 @@
       "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-r2010-string-stream.mjs); revision humana del propietario pendiente, como toda promocion de capacidad",
       "reviewedAt": "2026-08-31",
       "notes": "Medida por scripts/dwg/probe-r2010-string-stream.mjs, reproducible con VALLE_DWG_CORPUS_MIRROR. Cierra el segundo de los dos frentes que readR2004Database nombra al fallar cerrado. NO promueve ninguna capacidad de producto: falta ensamblar las tablas de simbolos y conectar el lector, y solo la primera cadena de cada objeto tiene significado comprobado -- ver CAPABILITIES.md para el corte exacto."
+    },
+    {
+      "id": "VALLE-CORPUS-R2010-DATABASE-ASSEMBLY",
+      "owner": "Sergio Valle Zarate",
+      "origin": {
+        "type": "original-measurement",
+        "location": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance/tree/0688fb9c395b9cac4169d1ee9c23a7370cc28cf3/bundles/valle.fundacional.ac1032.001",
+        "accessedAt": "2026-08-31"
+      },
+      "title": "Mediciones first-party del ENSAMBLADO de la base neutral R2010+ (AC1024/AC1027/AC1032) sobre el corpus admitido",
+      "versionOrDate": "2026-08-31",
+      "terms": {
+        "license": "Valle first-party corpus measurement (admitted tool-converted-original bundles)",
+        "access": "Blobs leidos del commit fijado del repo hermano de conformidad via el gate consumidor (corpus-pin.json + SHA-256 verificado); ningun working tree",
+        "redistribution": "Solo se registran resultados observados (que abre, que no, y con que discrepancias) y decisiones de codigo derivadas; los bytes DWG permanecen en el repo hermano bajo su propia politica",
+        "notes": "Cierre de la serie M4 (ENCABEZADO -> CUERPO -> HANDLES -> CADENAS -> ENSAMBLADO). Ninguna fuente documental nueva intervino: todo sale de aplicar los lectores ya medidos y de observar donde falla el resultado."
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "Conectando los lectores ya medidos, readR2004Database pasa de 0/8 a 8/8 archivos ABIERTOS en AC1024, AC1027 y AC1032, con cifras identicas en las tres versiones",
+        "La matriz de entidades da geometriaDistinta = 0 en TODOS los tipos: nada decodifica a un valor equivocado. lwpolyline 3/3 y point 1/1 exactos; line 10/15, circle 2/3 y arc 1/2, donde cada 'falta' casa UNO A UNO con un 'inesperado' porque la entidad pertenece a un bloque y queda en model space",
+        "INSERT (6 esperados) y TEXT (5 esperados) no tienen cuerpo medido en R2010+ y entran enteros en unsupported: 0 leidos, 0 distintos",
+        "Las secciones de DATOS de R2010+ usan un campo de tamano de 8 bytes, no de 4: seleccionarlo hace pasar el CRC de AcDb:Header y AcDb:Classes, que antes fallaba en el offset 819",
+        "Las VARIABLES DE CABECERA de R2010+ no siguen la disposicion de AC1018: leerlas asi produce 'A BD flag of 0b11 is not defined by the format' en 8/8 archivos por version. Su disposicion NO esta medida",
+        "Los REGISTROS DE CLASE de R2010+ tampoco: leerlos con la forma de AC1018 produce 'A text value extends outside the input' en 8/8 por version, porque los nombres de clase no viajan en esa forma de cadena. Su disposicion NO esta medida",
+        "El COLOR y las BANDERAS de una capa no se pueden medir con este corpus. Barriendo la anchura del prologo de objeto de 0 a 120 bits -la misma tecnica que resolvio el cuerpo de entidad- el numero de anchuras que reproducen stateFlags del gemelo es CERO: las banderas de capa de R2010+ no son el BS de R2000 en ninguna posicion",
+        "El modelo relajado que suelta el color acierta 18/18 en CUATRO anchuras distintas a la vez (4, 24, 53 y 59 en AC1024; 25, 54 y 60 en AC1027 y AC1032). Eso NO es evidencia y asi consta: los tres campos de xref valen su defecto en todo el corpus, de modo que coincidir con ellos es coincidir con ceros. Medirlos exige un corpus con capas de colores y estados variados",
+        "CAPACIDAD AUSENTE, DECLARADA: la pertenencia entidad->bloque usa la MISMA regla que el ensamblado AC1015 (modo 0 -> su bloque; modo 1 -> paper space; resto -> model space) pero NO esta medida en R2010+: el corpus admitido no trae ni un objeto de modo 0, y cada uso deja diagnostico",
+        "CAPACIDAD AUSENTE, DECLARADA: insunits, colorIndex y stateFlags viajan undefined en el camino R2010+ en vez de cero. Un cero afirmaria 'el archivo declara sin unidades' o 'la capa es blanca y esta descongelada', que son afirmaciones distintas de 'no lo hemos leido', y el puente del producto declara cada ausencia en el manifiesto de perdidas",
+        "El intake empujo canonical.ts (788 -> 900) y database-assembly.ts (778 -> 862) por encima del maximo de 800 lineas del presupuesto de monolito. Se dividieron en vez de ampliar el presupuesto, como manda la regla del repo: canonical-layers.ts (tabla ACI y mapeo de capas), canonical-to-dwg.ts (la direccion inversa) y database-model.ts (los tipos de la base neutral, re-exportados enteros para que ningun consumidor cambie de import). Cada extraido queda registrado bajo la MISMA fuente que su padre: su contenido viene de ahi, no de esta medicion"
+      ],
+      "derivedFiles": [
+        "apps/web/src/lib/cad/dwg-document-bridge.ts",
+        "apps/web/src/lib/cad/dwg-neutral-model.ts",
+        "docs/cad/evidence/dwg-corpus-validation.json",
+        "packages/dwg-codec/src/api/canonical-layers.ts",
+        "packages/dwg-codec/src/api/canonical-to-dwg.ts",
+        "packages/dwg-codec/src/api/canonical.ts",
+        "packages/dwg-codec/src/reader/database-assembly.ts",
+        "packages/dwg-codec/src/reader/database-model.ts",
+        "packages/dwg-codec/src/reader/r2004-database-reader.ts",
+        "packages/dwg-codec/src/reader/r2010-database-assembly.ts"
+      ],
+      "reviewer": "Medicion automatizada reproducible (scripts/dwg/validate-corpus.mjs sobre el corpus admitido); revision humana del propietario pendiente, como toda promocion de capacidad",
+      "reviewedAt": "2026-08-31",
+      "notes": "La falsacion de este modulo son los 24 archivos DWG REALES del corpus admitido pasando por readR2004Database, no vectores sinteticos: es una prueba mas fuerte y esta wireada al gate via check:dwg-evidence. NO promueve ninguna capacidad de producto: el corte sigue en experimental-lab, ningun flag se enciende, y los tres estratos sin medir (variables de cabecera, registros de clase, campos no-nombre de las tablas) quedan declarados en CAPABILITIES.md."
     }
   ]
 }
