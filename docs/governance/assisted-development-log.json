@@ -2093,6 +2093,63 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "TECHO-DE-FRAGMENTO-CONTRA-LA-PRUEBA-MAS-LENTA-20260901",
+      "date": "2026-09-01",
+      "initiative": "Tercera vez seguida que el mismo modo de fallo aparece, y las tres por la misma equivocación mía al elegir un número. El reparto del E2E en cuatro fragmentos (#145) existe para que un job cancelado deje de tragarse el veredicto; el techo que le puse lo reintrodujo dos veces. Primero 25 min, calculado dividiendo 97/4 y olvidando que en CI hay retries:1 —un fragmento CON FALLOS corre esos tests dos veces—, y los fragmentos 2/4 y 3/4 se cancelaron al tocarlo. Después 40, y el 3/4 volvió a cancelarse a los 40m15s: e2e/real/cables-sueltos.spec.ts:273 lleva su propio test.setTimeout de TREINTA MINUTOS —enumera todos los botones visibles del estudio y pulsa cada uno—, así que treinta de prueba más ~3 de arranque más lo que el fragmento ya llevara no cabe en cuarenta y el fragmento que la contenga se cancela SIEMPRE. Lo encontró y lo midió la sesión paralela de DWG en el hilo del PR #149, no yo. Sube a 60 y la regla queda ESCRITA en el propio archivo en vez de volver a deducirla: el techo se fija contra la PRUEBA MÁS LENTA, no contra la media ni contra una división. Y no se recorta el setTimeout de esa prueba para que quepa: capar una prueba por presupuesto la hace fallar por tiempo en vez de por sustancia, y un rojo que miente cuesta más que un minuto de runner.",
+      "branch": "claude/el-techo-no-cabia-en-el-caso-malo",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo de dejar el repositorio integrado y el CI dando veredicto.",
+      "firstPartyInputs": [
+        "El diagnóstico publicado en el hilo del PR #149 y el propio ci.yml."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        ".github/workflows/ci.yml (techo por fragmento 40 -> 60, con la regla escrita)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Corrección de un defecto propio que estaba ocultando veredictos."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "RXJS-UNA-SOLA-COPIA-20260901",
+      "date": "2026-09-01",
+      "initiative": "Al validar el PR de dependencias que Dependabot regeneró tras el bloqueo de los mayores (#152), el typecheck de la API falló con TS2416: dos copias de rxjs, una izada en la raíz (7.8.1) y otra anidada en apps/api (7.8.2), que TypeScript trata como tipos distintos — el Subscriber de una no es asignable al de la otra. La causa: @nestjs/cli arrastra @angular-devkit@19.2.27, que fija rxjs 7.8.1, así que cuando apps/api pide ^7.8.2 la raíz se queda en 7.8.1 para satisfacer a angular-devkit y npm anida una segunda copia. No es un defecto del bump: es un peligro estructural que estaba latente y que sólo aparece cuando alguien sube ese rango. Se cura con un override de rxjs a ^7.8.2 en la raíz, que es exactamente el patrón que este repositorio ya usa para @nestjs/core, common y platform-express. Verificado: tras el override queda UNA copia (node_modules/rxjs 7.8.2, la anidada desaparece), el typecheck pasa de 6/8 a 8/8 tareas, 798 tests de la API y 500/500 specs de web. El bump de 7.8.1 a 7.8.2 es un parche, así que forzar la versión no rompe a angular-devkit ni a nestjs.",
+      "branch": "claude/rxjs-una-sola-copia",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo de resolver los PR abiertos dejando el repositorio sano.",
+      "firstPartyInputs": [
+        "El PR #152 de Dependabot, instalado y medido en esta máquina."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "package.json (override de rxjs)",
+        "package-lock.json (regenerado)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Desbloquea el PR semanal de dependencias."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "DWG-PRODUCTO-FAMILIA-MODERNA-CABLEADA-20260901",
       "date": "2026-09-01",
       "initiative": "Cierra el hueco entre laboratorio y producto para las versiones modernas. El codec leia AC1024, AC1027 y AC1032 con CERO discrepancias y el producto las RECHAZABA: readDwgNeutralDatabase admitia exactamente AC1015 y AC1018, asi que un DWG de AutoCAD 2018 -el formato de guardado por defecto de AutoCAD 2018-2026, lo que produce un cliente real al pulsar Guardar- chocaba contra 'esta beta solo lee AutoCAD 2000'. Se construye el CABLEADO, no la puerta, siguiendo el patron exacto de AC1018 y del perfil 3D sin inventar mecanismos: DWG_MODERN_BETA_AUTHORIZATION con perfil propio, dwgModernBetaImportIsEnabled con la MISMA conjuncion de tres condiciones, opcion allowModern donde la puerta acumula versiones concretas en vez de abrir por familia, variable NEXT_PUBLIC_DWG_MODERN_IMPORT_BETA declarada en .env.example, Dockerfile y su validador, y una spec que vigila LAS DOS DIRECCIONES -que sin firma no entre nada, y que con allowModern entren exactamente las tres y AC1021 siga fuera-, porque probar solo la primera dejaria pasar un cableado que no cablea nada. NO ES UNA FIRMA: ownerSigned es false y esta tipado boolean, no el literal true de las autorizaciones reales, para que cambiarlo a mano haga FALLAR un spec en vez de dejar de compilar. Que el codec las lea perfectamente no basta: medir y autorizar son cosas distintas. Mecanismo separado y no ampliacion del de AC1018 a proposito: comparten contenedor R2004 y colgar las tres versiones nuevas del flag existente era la comodidad evidente, que es justo lo que este diseno impide. Se corrige ademas en su sitio una frase caducada del bloque AC1018 que afirmaba que la familia moderna 'abre el contenedor pero no sus cuerpos', falsa desde el corte de versiones modernas. HALLAZGO ADICIONAL, encontrado al cablear y que habria dejado el cableado inservible: el codec se CONTRADECIA a si mismo. probeDwg declaraba unsupported las tres versiones modernas mientras readDwg abria el mismo archivo (medido sobre 08-plano-mini.dwg en las cinco versiones: probe.ok=false y readDwg OK con 5 capas y 3 bloques). El origen era un dato caducado en version-registry.ts, que seguia con decoderStatus 'unsupported', y api/probe.ts falla por ese campo; como el cableado del producto sondea ANTES de leer, allowModern no se habria alcanzado nunca. Corregido a 'experimental-lab', que es lo que el corpus mide; AC1021 se queda unsupported por diseno (contenedor Reed-Solomon rechazado con error tipado). La correccion obligo a actualizar tres guardianes que habian congelado la afirmacion falsa como invariante -el test del registro, el adversario del probe y el generador determinista de fixtures-, y las fixtures se REGENERARON con la herramienta del repo: editar el manifiesto a mano lo detecta check:fixtures, y lo detecto.",
