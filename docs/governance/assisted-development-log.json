@@ -2424,6 +2424,40 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-3D-HEREDADO-COBERTURA-MEDIDA-20260901",
+      "date": "2026-09-01",
+      "initiative": "Al abrir la siguiente fase (3D heredado) el hallazgo fue que la medicion que se iba a construir YA EXISTIA y ya estaba verde: validate-corpus.mjs, gate bloqueante, ya compara las cuatro clases 3D heredadas (3DFACE, POLYLINE 3D, POLYLINE MESH, POLYLINE PFACE) contra el oraculo DXF del mismo dibujo con XYZ completo, banderas de invisibilidad, tamanos de malla e indices de cara. Corrida fresca: face3d 2/2, polyline3d 1/1, polymesh 1/1, polyfaceMesh 1/1, 0 discrepancias geometricas. Sin embargo ADR-0009 §9.3 llevaba la fila 'Fidelidad medida contra corpus admitido' en PENDIENTE de la admision de la ola 3, y §9.2 decia que las specs corren contra bytes sinteticos y no contra el corpus admitido. El propio ADR se CONTRADECIA: §9.1, cuatro parrafos antes, ya afirmaba fidelidad exacta contra el corpus admitido. El dato real vivia enterrado en una matriz de 39 tipos donde nadie lo miraba. Es la tercera vez en esta jornada que un documento de gobernanza se queda por debajo de lo que el codigo hace. PERO la evidencia es DELGADA, y eso tambien habia que decirlo: cero discrepancias sobre un corpus exigente y cero sobre uno que no prueba casi nada se ven identicas desde la matriz agregada. Por eso la entrega no es solo una correccion de documento sino una sonda nueva, probe-3d-legacy-coverage.mjs (gate check:dwg-3d-heredado), que separa las dos mitades: la CONCORDANCIA campo a campo contra el oraculo, y la COBERTURA por dimension con lo cubierto Y lo no cubierto declarado con nombre propio. Se uso deliberadamente la MISMA proyeccion de campos que validate-corpus.mjs: dos criterios distintos de que campos definen un 3DFACE divergirian sin que nada lo viera. La comparacion es por MULTICONJUNTO, no por posicion, porque un archivo con dos 3DFACE no promete el mismo orden en DWG y en DXF. Resultado medido: fidelidad 5/5 campo a campo; cobertura 2/6 dimensiones completas, 3 parciales, 1 ausente. Completas: 3DFACE con Z real, y POLYLINE 3D con Z distinta por vertice. Parciales: banderas de arista (solo 0 y 5 de 6, sin triangulo degenerado), POLYLINE 3D (solo cerrada), malla (una sola, 3x4). Ausente: polyface con indice negativo. Correccion concreta a §9.2: entre lo que atribuye a la ola 3, 'POLYLINE 3D con Z distinta por vertice' YA esta en el corpus admitido (13-polyline2d.dwg, Z 0/10/20/5). Lo que la ola 3 sigue aportando de verdad son las seis combinaciones de banderas, el 3DFACE degenerado, las mallas 7x9 y 5x5 cerrada en N, y los indices negativos. Durante la medicion hubo un error propio corregido antes de asentar nada: la primera sonda contaba extrusion {z:1} como profundidad (daba 61 de 61 lineas con Z, absurdo) y no miraba record.vertices; y una segunda version filtraba por v.kind cuando los vertices van anidados en v.entity.kind, lo que daba mallas con cero vertices. Ambas se rehicieron antes de escribir ninguna conclusion. Tambien se cambio el campo de cobertura de booleano a tres estados (completo/parcial/ausente) porque una casilla marcada junto a un texto que dice que falta algo se lee mal justo donde mas importa. Esta ola NO mueve ninguna firma: DWG_3D_WIREFRAME_BETA_AUTHORIZATION.ownerSigned sigue en false y es del titular; no admite la ola 3; no amplia el perfil. El 3D heredado sigue llegando al producto como objeto opaco con dwg_3d_wireframe_preserved_opaque declarado.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de subir el nivel — «no quiero laboratorios, quiero mi propio DWG real y funcional; analiza que mas le falta y hazlo».",
+      "firstPartyInputs": [
+        "La corrida propia de validate-corpus.mjs sobre el corpus admitido, hecha en esta sesion.",
+        "La medicion propia de cobertura campo a campo de las 5 entidades 3D heredadas del corpus admitido.",
+        "El oraculo DXF first-party del mismo dibujo, ya existente en el repo."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El binario ODA no se ejecuto en esta sesion.",
+      "derivedAreas": [
+        "scripts/dwg/probe-3d-legacy-coverage.mjs (sonda nueva de concordancia y cobertura)",
+        "docs/cad/evidence/dwg-3d-legacy-coverage.json (evidencia generada, no escrita a mano)",
+        "package.json (gates probe:dwg-3d-heredado y check:dwg-3d-heredado, encadenado en check:dwg)",
+        "docs/adr/0009-dwg-promotion-package.md (adenda fechada §9.5, sin reescribir lo anterior)",
+        "packages/dwg-codec/CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguno nuevo. Se mide contra el corpus ADMITIDO ya existente; la ola 3 sigue sin admitir.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de dejar de tener un laboratorio y tener un DWG real y funcional, tanto 2D como 3D."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
