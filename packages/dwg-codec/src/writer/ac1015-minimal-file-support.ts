@@ -35,6 +35,25 @@ export interface Ac1015MinimalFileLayerSpec {
    */
   readonly frozen?: boolean;
   readonly locked?: boolean;
+  /**
+   * Nombre del tipo de línea de la capa. Debe coincidir con el `name` de una
+   * de las entradas de `linetypes`; ausente o desconocido = Continuous, que es
+   * lo único que el archivo llevaba hasta el 2026-09-01.
+   */
+  readonly linetypeName?: string;
+}
+
+/**
+ * Una entrada LTYPE propia del archivo, con su patrón. Sin esto el archivo
+ * sólo podía llevar Continuous, así que una capa con `TRAZOS` se escribía
+ * sólida — leída de vuelta decía «Continuous», que es un valor equivocado y
+ * no una ausencia.
+ */
+export interface Ac1015MinimalFileLinetypeSpec {
+  readonly name: readonly number[];
+  readonly description?: readonly number[];
+  readonly patternLength?: number;
+  readonly dashes?: readonly { readonly length: number }[];
 }
 
 /**
@@ -73,6 +92,8 @@ export interface Ac1015MinimalFileBlockSpec {
 
 export interface Ac1015MinimalFileOptions {
   readonly layers?: readonly Ac1015MinimalFileLayerSpec[];
+  /** Entradas LTYPE propias, además de ByBlock/ByLayer/Continuous. */
+  readonly linetypes?: readonly Ac1015MinimalFileLinetypeSpec[];
   readonly blocks?: readonly Ac1015MinimalFileBlockSpec[];
   readonly entities?: readonly Ac1015MinimalFileEntitySpec[];
   /** Variable MEASUREMENT del Template: 0 = inglés (defecto), 1 = métrico. */
@@ -83,6 +104,8 @@ export interface Ac1015MinimalFileOptions {
 export interface Ac1015MinimalFilePlan {
   /** Handle de cada capa: [capa "0", ...capas extra]. */
   readonly layerHandles: readonly number[];
+  /** Handle de cada entrada LTYPE propia, en el orden de las opciones. */
+  readonly linetypeHandles: readonly number[];
   /** Handle del BLOCK_RECORD de cada bloque de usuario. */
   readonly blockRecordHandles: readonly number[];
   /** Handles de las entidades de model space, en orden de las opciones. */
@@ -440,6 +463,7 @@ export interface ValidatedBlockSpec {
 
 export interface ValidatedOptions {
   readonly layers: readonly Ac1015MinimalFileLayerSpec[];
+  readonly linetypes: readonly Ac1015MinimalFileLinetypeSpec[];
   readonly blocks: readonly ValidatedBlockSpec[];
   readonly entities: readonly Ac1015MinimalFileEntitySpec[];
   readonly measurement: 0 | 1;
@@ -470,15 +494,21 @@ export function validateOptions(options: Ac1015MinimalFileOptions): ValidatedOpt
     );
   }
   const layers = options.layers ?? [];
+  const linetypes = options.linetypes ?? [];
   const blocks = options.blocks ?? [];
   const entities = options.entities ?? [];
   const measurement = options.measurement ?? 0;
-  if (!Array.isArray(layers) || !Array.isArray(blocks) || !Array.isArray(entities)) {
+  if (
+    !Array.isArray(layers) ||
+    !Array.isArray(linetypes) ||
+    !Array.isArray(blocks) ||
+    !Array.isArray(entities)
+  ) {
     throwDwgError(
       "DWG_INPUT_INVALID",
       "input",
       0,
-      "The minimal file layers, blocks and entities must be arrays.",
+      "The minimal file layers, linetypes, blocks and entities must be arrays.",
     );
   }
   if (measurement !== 0 && measurement !== 1) {
@@ -511,7 +541,7 @@ export function validateOptions(options: Ac1015MinimalFileOptions): ValidatedOpt
   entities.forEach((spec) => {
     assertEntitySpec(spec, layers, blocks.length);
   });
-  return { layers, blocks: normalizedBlocks, entities, measurement };
+  return { layers, linetypes, blocks: normalizedBlocks, entities, measurement };
 }
 
 /**

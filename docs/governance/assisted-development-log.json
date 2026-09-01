@@ -2327,6 +2327,40 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-LTYPE-PATRON-ESCRITO-20260901",
+      "date": "2026-09-01",
+      "initiative": "El corte anterior dejo dicho lo que faltaba: el archivo minimo emitia UNA sola entrada LTYPE, Continuous, asi que una capa con TRAZOS se exportaba solida y leida de vuelta decia 'Continuous' -no una ausencia, un valor equivocado con aspecto de dato bueno-. Se cierra aqui. El writer de LTYPE tenia TRES CONSTANTES donde debia haber datos: emitBD(0) de longitud, emitRC(0x41) de alineacion y emitRC(0) de CERO trazos. Ahora emite el patron real con la MISMA septupla por trazo que el lector ya medía (longitud BD, codigo de forma BS, dos desplazamientos RD, escala BD, rotacion BD, banderas BS) y en el mismo orden; la red que hace innecesario confiar en ese orden ya existia, porque el lector exige que el area de texto de 256 bytes llene el tamano declarado y un trazo de mas o de menos lo detecta solo. El archivo lleva ahora las entradas del dibujo: el plan de handles les reserva sitio, el LTYPE CONTROL las lista -una entrada que el control no liste queda huerfana- y cada capa apunta a la SUYA en vez de al Continuous fijo. Un detalle lo descubrio el propio writer al intentarlo: sus handles salen del tramo dinamico, asi que emitirlas junto a las fijas rompe su invariante de orden creciente; van al principio del tramo dinamico, antes que las capas que las referencian. IDA Y VUELTA con los valores del CORPUS REAL (04-capas: TRAZOS, longitud 1, trazos [0.75,-0.25]) y no unos inventados, porque un emisor y un lector que se equivocaran del mismo modo serian coherentes entre si y estarian los dos mal: el patron definido por el documento se escribe y vuelve identico, la capa que lo pide apunta a su entrada, la que no pide nada sigue en Continuous -no se le presta el patron de otra- y un tipo de linea NOMBRADO PERO NO DEFINIDO se escribe continuo CON SU PERDIDA DECLARADA. Esa ultima es la linea que no se cruza: al que no trae patron no se le inventan trazos. Nuevo caso capa-tipo-de-linea ante el oraculo, que este SI comprueba campo a campo porque el parser DXF ya extrae la tabla LTYPE con su longitud y sus trazos. Con el gemelo publico de cada caso, el titular corre DOCE.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de subir el nivel — «no quiero laboratorios, quiero mi propio DWG real y funcional; analiza que mas le falta y hazlo».",
+      "firstPartyInputs": [
+        "El lector propio de LTYPE, que ya medía patron, alineacion y trazos en las cinco versiones.",
+        "Los valores del corpus admitido (04-capas: TRAZOS longitud 1, trazos [0.75, -0.25])."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El binario ODA no se ejecuto en esta sesion.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/writer/ac1015-structure-writers.ts (el LTYPE emite su patron)",
+        "packages/dwg-codec/src/writer/ac1015-minimal-file-support.ts y ac1015-minimal-file-writer.ts (entradas propias, plan de handles, control y enlace por capa)",
+        "packages/dwg-codec/src/api/write.ts (patrones desde styles.linetype del documento; perdida solo si NO esta definido)",
+        "packages/dwg-codec/tests/unit/linetype-pattern-write.spec.ts",
+        "scripts/dwg/oda-roundtrip.mjs (caso capa-tipo-de-linea)",
+        "packages/dwg-codec/CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguno nuevo del corpus. El harness anade un caso sintetico propio con los valores del corpus real.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de dejar de tener un laboratorio y tener un DWG real y funcional."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

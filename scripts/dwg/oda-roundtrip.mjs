@@ -203,6 +203,31 @@ const CASES = [
     expectedBlocks: {},
   },
   {
+    // PATRÓN DE TIPO DE LÍNEA ANTE EL ORÁCULO. Hasta el 2026-09-01 el archivo
+    // sólo llevaba Continuous, así que ningún caso ejercitaba un patrón. Los
+    // valores son los del corpus real (`04-capas`: TRAZOS, longitud 1, trazos
+    // [0.75, -0.25]), no unos inventados.
+    //
+    // Este caso SÍ lo comprueba el oráculo campo a campo: su parser DXF lee la
+    // tabla LTYPE con su longitud y sus trazos (`dxf-oracle.mjs` ya los
+    // extrae), así que si el patrón que escribimos no fuera el que dijimos, el
+    // cotejo lo diría.
+    name: "capa-tipo-de-linea",
+    options: {
+      linetypes: [
+        { name: ascii("TRAZOS"), patternLength: 1, dashes: [{ length: 0.75 }, { length: -0.25 }] },
+      ],
+      layers: [{ name: ascii("EJES"), colorIndex: 2, linetypeName: "TRAZOS" }],
+      entities: [{ entity: LINE, layerIndex: 1 }],
+    },
+    expectedLayers: [
+      { name: "0", color: 7 },
+      { name: "EJES", color: 2 },
+    ],
+    expectedEntities: [{ kind: "line", layer: "EJES", entity: LINE }],
+    expectedBlocks: {},
+  },
+  {
     // ESTADO DE CAPA ANTE EL ORÁCULO. Los otros casos escriben capas normales,
     // así que ninguno ejercitaba lo que el corpus real sí trae: una capa
     // CONGELADA y una BLOQUEADA. Desde el 2026-09-01 el writer las escribe

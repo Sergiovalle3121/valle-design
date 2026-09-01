@@ -1161,3 +1161,47 @@ color y **no** proyecta el estado, así que lo que ese caso pregunta a un lector
 ajeno es que el archivo con esos bits encendidos siga abriendo y convirtiendo
 limpio; que el estado *signifique* lo que decimos lo prueba el round-trip
 propio. Con el gemelo público de cada caso, el titular corre ahora **diez**.
+
+## Corte 2026-09-01 (f) — el patrón de trazos se escribe de verdad
+
+El corte anterior dejó dicho lo que faltaba: el archivo mínimo emitía **una
+sola** entrada LTYPE, Continuous, así que una capa con `TRAZOS` se exportaba
+sólida y —leída de vuelta— decía «Continuous». No una ausencia: **un valor
+equivocado con aspecto de dato bueno**. Eso se cierra aquí.
+
+**El writer de LTYPE tenía tres constantes donde debía haber datos**:
+`emitBD(0)` de longitud, `emitRC(0x41)` de alineación y `emitRC(0)` de **cero
+trazos**. Ahora emite el patrón real, con la MISMA séptupla por trazo que el
+lector ya medía —longitud `BD`, código de forma `BS`, dos desplazamientos `RD`,
+escala `BD`, rotación `BD`, banderas `BS`— y en el mismo orden. La red que hace
+innecesario confiar en ese orden ya existía: el lector exige que el área de
+texto de 256 bytes llene el tamaño declarado, así que un trazo de más o de
+menos lo detecta él solo.
+
+**El archivo lleva ahora las entradas del dibujo.** El plan de handles les
+reserva sitio, el LTYPE CONTROL las lista —una entrada que el control no liste
+queda huérfana— y **cada capa apunta a la suya** en vez de al Continuous fijo.
+Un detalle que descubrió el propio writer al intentarlo: sus handles salen del
+tramo dinámico, así que emitirlas junto a las fijas rompe el invariante de
+orden creciente; van al principio del tramo dinámico, antes que las capas que
+las referencian.
+
+**Ida y vuelta, con los valores del corpus real** (`04-capas`: `TRAZOS`,
+longitud 1, trazos `[0.75, -0.25]`) — no unos inventados, porque un emisor y un
+lector que se equivocaran del mismo modo serían coherentes entre sí y estarían
+los dos mal:
+
+| | |
+| --- | --- |
+| patrón definido por el documento | **se escribe y vuelve idéntico** |
+| capa que lo pide | **apunta a su entrada**, no a Continuous |
+| capa que no pide nada | sigue en Continuous — no se le presta el patrón de otra |
+| tipo de línea **nombrado pero no definido** | continua, **con su pérdida declarada** |
+
+Esa última fila es la línea que no se cruza: al que no trae patrón **no se le
+inventan trazos**. La diferencia entre «no sé» y un dato falso.
+
+**Ante el oráculo.** Nuevo caso `capa-tipo-de-linea`, y éste **sí** lo comprueba
+campo a campo: el parser DXF del oráculo ya extrae la tabla LTYPE con su
+longitud y sus trazos, así que si el patrón escrito no fuera el declarado, el
+cotejo lo diría. Con el gemelo público de cada caso, el titular corre **doce**.

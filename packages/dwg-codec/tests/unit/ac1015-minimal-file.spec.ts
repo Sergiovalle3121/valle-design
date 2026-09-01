@@ -32,9 +32,9 @@ import { createInputSnapshot } from "../../src/security/input-snapshot.js";
 import { ResourceBudget } from "../../src/security/resource-budget.js";
 import { readAc1015Database } from "../../src/reader/ac1015-database-reader.js";
 import {
-  planAc1015MinimalFile,
   writeAc1015MinimalFile,
 } from "../../src/writer/ac1015-minimal-file-writer.js";
+import { planAc1015MinimalFile } from "../../src/writer/ac1015-minimal-file-plan.js";
 import { assertDwgError } from "../support/assert.js";
 
 const ascii = (text: string): number[] => [...text].map((c) => c.charCodeAt(0));

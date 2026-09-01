@@ -337,7 +337,8 @@
         "Capitulo 21 de la ODS (AcDb:ObjFreeSpace): la seccion del registro 3 del directorio R2000 lleva RL cero, RL recuento de objetos, los 8 bytes del instante TDUPDATE, RL cero, RL 4, y cuatro RL con offsets; contenido mayormente redundante",
         "Capitulo 22 de la ODS (AcDb:Template): la seccion del registro 4 lleva un RS de longitud de descripcion con sus bytes y un RS con la variable MEASUREMENT (0 ingles, 1 metrico)",
         "Capitulo 26 de la ODS (SECOND FILE HEADER R13-R15): sentinela de apertura D4 7B 21 CE 28 93 9F BF 53 24 40 09 12 3C AA 01, tamano RL, ubicacion L del propio sentinela, cadena de version, seis ceros y cuatro bits a cero, cuatro bytes fijos de version, y por cada una de las cuatro secciones un RC de numero con direccion L y tamano L; siguen un S con recuento 14 de registros de handle — handseed, y los controles de block, layer, shapefile(style), linetype, view, ucs, vport, regapp(appid), dimstyle, viewport entity header, dictionary(named objects), mlinestyle por defecto y group dictionary — cada uno como RC de tamano, RC de indice y los bytes del handle; CRC y sentinela de cierre 2B 84 DE 31 D7 6C 60 40 AC DB BF F6 ED C3 55 FE",
-        "Capitulo 27 de la ODS (AcDb:AuxHeader, registro 5 del directorio R2000): RC ff 77 01, RS de version DWG (AC1015 = 23), RS de mantenimiento, RL de numero de guardados, RL -1, dos RS de partes del contador, RL 0, dos pares RS de version/mantenimiento repetidos, la secuencia fija RS 0x0005 0x0893 0x0005 0x0893 0x0000 0x0001, cinco RL a cero, TD de creacion y actualizacion (dos RL cada uno), RL con el handseed si cabe, RL de sello educativo, y la cola de contadores documentada"
+        "Capitulo 27 de la ODS (AcDb:AuxHeader, registro 5 del directorio R2000): RC ff 77 01, RS de version DWG (AC1015 = 23), RS de mantenimiento, RL de numero de guardados, RL -1, dos RS de partes del contador, RL 0, dos pares RS de version/mantenimiento repetidos, la secuencia fija RS 0x0005 0x0893 0x0005 0x0893 0x0000 0x0001, cinco RL a cero, TD de creacion y actualizacion (dos RL cada uno), RL con el handseed si cabe, RL de sello educativo, y la cola de contadores documentada",
+        "PARTICION MECANICA 2026-09-01: los writers de MLINESTYLE y LAYOUT salieron de ac1015-structure-writers.ts a ac1015-layout-writers.ts, y el plan de handles de ac1015-minimal-file-writer.ts a ac1015-minimal-file-plan.ts, cuando ensenar al writer de LTYPE a emitir su patron de trazos empujo ambos archivos por encima del presupuesto de monolito. Es el MISMO codigo derivado de esta misma fuente, movido sin cambio de comportamiento; no hay hecho nuevo. Las costuras no son arbitrarias: ni MLINESTYLE ni LAYOUT son entradas de tabla, y el plan de handles es una funcion pura de las opciones que no emite un solo byte."
       ],
       "derivedFiles": [
         "packages/dwg-codec/DWG0_WORKLOG.md",
@@ -372,6 +373,8 @@
         "packages/dwg-codec/src/writer/ac1015-container-writer.ts",
         "packages/dwg-codec/src/writer/ac1015-entity-writer.ts",
         "packages/dwg-codec/src/writer/ac1015-header-writer.ts",
+        "packages/dwg-codec/src/writer/ac1015-layout-writers.ts",
+        "packages/dwg-codec/src/writer/ac1015-minimal-file-plan.ts",
         "packages/dwg-codec/src/writer/ac1015-minimal-file-writer.ts",
         "packages/dwg-codec/src/writer/ac1015-object-writer.ts",
         "packages/dwg-codec/src/writer/ac1015-structure-writers.ts",
@@ -981,7 +984,8 @@
         "LA POSICION ES LA MISMA EN LAS DOS FAMILIAS, pero el LECTOR no: en R2000/R2004 el flujo es el tramo opaco que el decodificador de LAYER ya localizaba, y en R2010+ es el flujo de handles propio ya medido en 105/105 objetos. Que una sola posicion sirva para las cinco versiones es un resultado medido, no una analogia",
         "TRES CAMINOS Y NO DOS: AC1015 y AC1018 comparten la FORMA DEL OBJETO pero no el CONTENEDOR -AC1018 ya es de la familia R2004- y ademas un cuerpo AC1018 debe pasar por el adaptador a forma R2000 antes de decodificarse. Omitirlo no da error visible: el decodificador no reconoce el tipo y las ocho capas de AC1018 quedan fuera de la medicion EN SILENCIO. Se detecto porque la version anterior de la sonda declaraba cuatro versiones en vez de cinco",
         "LIMITE: los tipos de linea en juego son pocos y ninguno viene de un xref ni de una capa dependiente, asi que el caso de una entrada LTYPE de referencia externa NO esta ejercitado. El corpus entero es salida del ODA File Converter desde DXF fuente propios: lo medido es como ESE productor ordena el flujo",
-        "CONTEXTO DE POR QUE HACIA FALTA: el codec ya decodificaba la tabla LTYPE entera -patron, alineacion y trazos, en las cinco versiones- y tambien la tabla de capas, pero el registro de capa no llevaba NINGUNA referencia al tipo de linea. Los dos extremos estaban leidos y el puente entre ellos no existia, asi que una capa de ejes con TRAZOS llegaba al lienzo dibujada continua"
+        "CONTEXTO DE POR QUE HACIA FALTA: el codec ya decodificaba la tabla LTYPE entera -patron, alineacion y trazos, en las cinco versiones- y tambien la tabla de capas, pero el registro de capa no llevaba NINGUNA referencia al tipo de linea. Los dos extremos estaban leidos y el puente entre ellos no existia, asi que una capa de ejes con TRAZOS llegaba al lienzo dibujada continua",
+        "ESCRITURA DERIVADA 2026-09-01: el mismo enlace medido permite ESCRIBIRLO. El writer de LTYPE emitia longitud 0, alineacion 'A' y CERO trazos como constantes, asi que el archivo solo podia llevar Continuous; ahora emite el patron con la MISMA septupla por trazo que el lector mide y en el mismo orden, y cada capa apunta a su entrada por el handle de la posicion 4. Verificado ida y vuelta con los valores del corpus (TRAZOS, longitud 1, trazos [0.75,-0.25])"
       ],
       "derivedFiles": [
         "docs/cad/evidence/dwg-layer-linetype.json",
@@ -993,7 +997,9 @@
         "packages/dwg-codec/src/reader/database-model.ts",
         "packages/dwg-codec/src/reader/layer-linetype-resolve.ts",
         "packages/dwg-codec/src/reader/r2010-database-assembly.ts",
+        "packages/dwg-codec/src/writer/ac1015-structure-writers.ts",
         "packages/dwg-codec/tests/unit/layer-linetype.spec.ts",
+        "packages/dwg-codec/tests/unit/linetype-pattern-write.spec.ts",
         "scripts/dwg/probe-layer-linetype.mjs"
       ],
       "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-layer-linetype.mjs sobre el corpus admitido, contrastando todas las posiciones del flujo contra el oraculo DXF); revision humana del propietario pendiente",
