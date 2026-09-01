@@ -300,7 +300,11 @@ test("gemelos tristes del marco: centinela, CRC y tamaño mentiroso", () => {
  * en los 7/7 casos reales medidos, pero el lector los porta con aritmética
  * comprobada como cualquier otro tamaño no confiable).
  */
-function buildWideFrame(payload: number[], slack: number[], highBytes = [0, 0, 0, 0]): Uint8Array {
+function buildWideFrame(
+  payload: number[],
+  slack: number[],
+  highBytes = [0, 0, 0, 0],
+): Uint8Array {
   const bytes: number[] = [...AC1015_HEADER_VARIABLES_SENTINELS.begin];
   const sized = [
     payload.length & 0xff,
@@ -341,7 +345,12 @@ test("gemelo triste: el ancho de 4 bytes sigue siendo el valor por defecto para 
   // Un marco de 4 bytes leído como si fuera de 8 no cuadra: el tamaño
   // declarado se lee corrido y el CRC no valida — falla cerrado, no silencioso.
   assertDwgError(
-    () => readR2004SectionFrame(buildFrame([1, 2, 3, 4], []), AC1015_HEADER_VARIABLES_SENTINELS, 8),
+    () =>
+      readR2004SectionFrame(
+        buildFrame([1, 2, 3, 4], []),
+        AC1015_HEADER_VARIABLES_SENTINELS,
+        8,
+      ),
     "DWG_STRUCTURE_CORRUPT",
   );
 });
@@ -383,13 +392,14 @@ test("AC1021 se rechaza tipado con su límite declarado", () => {
   assert.match(caught.detail.message, /Reed-Solomon/);
 });
 
-test("las versiones R2010+ de la familia declaran su límite de objetos", () => {
+test("las versiones R2010+ ya despachan al lector R2004 y fallan por CONTENEDOR", () => {
+  // Hasta el intake del ensamblado R2010+ (2026-08-31) estas tres firmas
+  // fallaban con DWG_VERSION_DECODER_UNSUPPORTED nombrando a AC1018 como la
+  // única que abría. Ya no: despachan al lector como AC1018, así que una
+  // firma suelta sin contenedor falla por lo que de verdad le pasa —le faltan
+  // los bytes— y no por falta de decodificador.
   for (const code of ["AC1024", "AC1027", "AC1032"]) {
-    const caught = assertDwgError(
-      () => readDwg(ascii(code)),
-      "DWG_VERSION_DECODER_UNSUPPORTED",
-    );
-    assert.match(caught.detail.message, /AC1018/);
+    assertDwgError(() => readDwg(ascii(code)), "DWG_STRUCTURE_CORRUPT");
   }
 });
 

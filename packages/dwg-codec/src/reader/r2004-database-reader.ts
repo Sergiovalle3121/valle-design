@@ -75,7 +75,10 @@ import { detectDwgSignature } from "../container/signature.js";
 import type { Ac1015ClassRecord } from "../objects/objects-dictionary.js";
 import { createInputSnapshot } from "../security/input-snapshot.js";
 import { DwgParseError, throwDwgError } from "../security/parse-error.js";
-import { ResourceBudget, type ResourceBudgetOptions } from "../security/resource-budget.js";
+import {
+  ResourceBudget,
+  type ResourceBudgetOptions,
+} from "../security/resource-budget.js";
 import {
   assembleDatabase,
   decodeMappedObject,
@@ -85,6 +88,8 @@ import {
   type DecodedObject,
 } from "./database-assembly.js";
 import { normalizeR2004ObjectBody } from "./r2004-body-adapter.js";
+import { pairR2010ObjectBounds } from "../container/r2010-object-envelope.js";
+import { assembleR2010Database } from "./r2010-database-assembly.js";
 
 /** Tipo fijo del ACAD_PROXY_ENTITY: cuerpo de ENTIDAD (ODS §20.3). */
 const PROXY_ENTITY_TYPE = 0x1f2;
@@ -118,28 +123,6 @@ export function readR2004Database(
     );
   }
   const version = signature.code as R2004VersionCode;
-  if (version !== "AC1018") {
-    // La frontera se ESTRECHO otra vez el 2026-08-31 (intake
-    // VALLE-CORPUS-R2010-OBJECT-BODY) y conviene decir donde esta ahora:
-    // contenedor y secciones abren (32/32), el ENCABEZADO de cada cuerpo se
-    // decodifica desde VALLE-CORPUS-R2010-OBJECT-HEADER (2893/2893 handles
-    // exactos), y desde este intake el CUERPO de las cinco entidades SIN
-    // cadenas (LINE/POINT/CIRCLE/ARC/LWPOLYLINE) tambien decodifica geometria
-    // EXACTA (`reader/r2010-entity-body.ts`, 72/72 objetos del corpus
-    // admitido). Lo que sigue sin decodificar, y por eso esta base neutral
-    // completa sigue fallando cerrada, es el FLUJO DE HANDLES (propietario,
-    // capa, xdictionary) y las tablas de simbolos (LAYER, BLOCK_RECORD...) de
-    // R2010+: sin ellos no hay forma de resolver capa o pertenencia a bloque
-    // sin inventar un valor, y cualquier entidad CON cadena sigue sin
-    // decodificador (el bit de presencia de cadenas falla cerrado si vale 1).
-    throwDwgError(
-      "DWG_VERSION_DECODER_UNSUPPORTED",
-      "unsupported",
-      0,
-      `The ${version} object headers and the bodies of LINE/POINT/CIRCLE/ARC/LWPOLYLINE decode, but this laboratory does not decode the R2010+ handle stream or symbol tables yet, so no full database assembles; only AC1018 opens end to end.`,
-    );
-  }
-
   const cursor = new BoundedByteCursor(snapshot, budget);
   const fileHeader = parseR2004FileHeader(cursor);
   const pages = readR2004PageMap(cursor, fileHeader, limits);
@@ -166,17 +149,38 @@ export function readR2004Database(
   // capítulo 9 en sabor R2004. Se decodifican para VALIDAR la sección
   // completa (fallo cerrado) y hoy además para proyectar INSUNITS al puente
   // del producto — el resto de variables sigue sin consumidor.
+  // El marco de las secciones de DATOS lleva un campo de tamaño de 8 bytes en
+  // R2010+ y de 4 en AC1018 — hecho ya medido y soportado por
+  // `readR2004SectionFrame`, que hasta este intake nadie seleccionaba porque
+  // el lector fallaba cerrado antes de llegar aquí.
+  const sizeFieldWidth = version === "AC1018" ? 4 : 8;
   const headerFrame = readR2004SectionFrame(
     headerPayload,
     AC1015_HEADER_VARIABLES_SENTINELS,
+    sizeFieldWidth,
   );
-  const headerVariables = decodeR2004HeaderVariables(headerFrame.payload);
+  // Sólo AC1018 decodifica las variables: la disposición R2010+ diverge (un
+  // BD con bandera 0b11, que el formato no define, aparece al leerla con la
+  // forma de AC1018) y no está medida. El marco SÍ se valida en las dos: sus
+  // centinelas y su CRC son la comprobación que de verdad protege la sección.
+  const headerVariables =
+    version === "AC1018"
+      ? decodeR2004HeaderVariables(headerFrame.payload)
+      : null;
 
   const classesFrame = readR2004SectionFrame(
     classesPayload,
     AC1015_CLASSES_SENTINELS,
+    sizeFieldWidth,
   );
-  const classRecords = decodeR2004ClassesSection(classesFrame.payload);
+  // Mismo criterio que con las variables de cabecera: el marco se valida
+  // siempre (centinelas + CRC), pero los REGISTROS sólo se decodifican en
+  // AC1018. En R2010+ los nombres de clase no viajan en la forma de cadena de
+  // AC1018 —leerlos así da «A text value extends outside the input»— y su
+  // disposición no está medida. El ensamblado R2010+ no consume el mapa de
+  // clases: despacha por tipo fijo y enumera lo demás en `unsupported`.
+  const classRecords =
+    version === "AC1018" ? decodeR2004ClassesSection(classesFrame.payload) : [];
   const classNames = new Map(
     classRecords.map((record) => [record.classNumber, record.dxfClassName]),
   );
@@ -188,7 +192,10 @@ export function readR2004Database(
 
   // El payload de objetos abre con un RL fijo sin nombre (medido 32/32); los
   // offsets del mapa de handles cuentan desde el byte 0 del payload.
-  if (objectsPayload.length < 4 || readUint32(objectsPayload, 0) !== OBJECTS_SECTION_PRELUDE) {
+  if (
+    objectsPayload.length < 4 ||
+    readUint32(objectsPayload, 0) !== OBJECTS_SECTION_PRELUDE
+  ) {
     throwDwgError(
       "DWG_STRUCTURE_CORRUPT",
       "input",
@@ -204,6 +211,26 @@ export function readR2004Database(
     limits,
     objectsPayload.length,
   );
+
+  if (version !== "AC1018") {
+    // CAMINO PROPIO DE R2010+ (intake 2026-08-31). No pasa por el adaptador a
+    // la forma R2000 a propósito: en R2010+ el nombre vive en un flujo de
+    // cadenas propio y los handles en otro, así que normalizar sería inventar
+    // una forma que el archivo no tiene. Ver `r2010-database-assembly.ts` para
+    // lo que produce y, sobre todo, para lo que declara ausente.
+    const bounds = pairR2010ObjectBounds(
+      mapEntries.map((entry) => ({
+        handle: entry.handle,
+        offset: entry.offset,
+      })),
+      objectsPayload.length,
+    );
+    return assembleR2010Database(objectsPayload, bounds, {
+      version,
+      insunits: undefined,
+      classMap: classRecords,
+    });
+  }
 
   const objectsCursor = new BoundedByteCursor(objectsPayload, budget);
   const decodedObjects: DecodedObject[] = [];
@@ -234,7 +261,13 @@ export function readR2004Database(
     decodedObjects.push(decoded);
   }
 
-  return assembleDatabase(decodedObjects, unsupported, classRecords, headerVariables.insunits, budget);
+  return assembleDatabase(
+    decodedObjects,
+    unsupported,
+    classRecords,
+    headerVariables?.insunits ?? 0,
+    budget,
+  );
 }
 
 /**
@@ -331,8 +364,12 @@ export function readR2004SectionFrame(
       "The declared section size does not fit inside the section payload.",
     );
   }
-  const payload = sectionPayload.subarray(sizeOffset + sizeFieldWidth, crcOffset);
-  const crc = sectionPayload[crcOffset]! + sectionPayload[crcOffset + 1]! * 0x100;
+  const payload = sectionPayload.subarray(
+    sizeOffset + sizeFieldWidth,
+    crcOffset,
+  );
+  const crc =
+    sectionPayload[crcOffset]! + sectionPayload[crcOffset + 1]! * 0x100;
   const computed = crc16Dwg(
     sectionPayload.subarray(sizeOffset, crcOffset),
     AC1015_SECTION_CRC_SEED,
@@ -356,8 +393,7 @@ export function readR2004SectionFrame(
     }
   }
   const slackLength =
-    sectionPayload.length -
-    (crcOffset + 2 + AC1015_SECTION_SENTINEL_LENGTH);
+    sectionPayload.length - (crcOffset + 2 + AC1015_SECTION_SENTINEL_LENGTH);
   return Object.freeze({
     declaredSize,
     payload: Uint8Array.from(payload),

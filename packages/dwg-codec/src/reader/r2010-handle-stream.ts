@@ -186,7 +186,12 @@ export function readR2010HandleStream(
 export function deriveR2010HandleShape(
   bodyBytes: Uint8Array,
   header: R2010ObjectHeader,
-): R2010HandleStreamShape & { readonly noLinks: boolean } {
+): R2010HandleStreamShape & {
+  readonly noLinks: boolean;
+  /** El modo CRUDO, no sólo si hay propietario: el ensamblado lo necesita
+   *  para distinguir model space (2/3) de paper space (1). */
+  readonly entityMode: number;
+} {
   const reader = new DwgBitReader(new BoundedByteCursor(bodyBytes));
   for (let index = 0; index < header.dataBitOffset; index += 1) reader.readB();
 
@@ -232,6 +237,7 @@ export function deriveR2010HandleShape(
     hasLinetype: linetypeFlags === 3,
     hasPlotstyle: plotstyleFlags === 3,
     noLinks: noLinks === 1,
+    entityMode,
   });
 }
 
