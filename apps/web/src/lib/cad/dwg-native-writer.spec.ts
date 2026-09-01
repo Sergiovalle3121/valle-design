@@ -287,8 +287,62 @@ const mixedDocument = baseDocument([
   );
 }
 
+// ─── 5.A: la ELIPSE llega al archivo, y con su arco en RADIANES ───────────
+// El writer del laboratorio la emitía desde hacía olas, pero el camino PÚBLICO
+// (`canonical-to-dwg.ts`) la mandaba al `default` y la declaraba no escribible,
+// así que `DWG_EXPORT_WRITABLE_TYPES` la excluía con razón. Al enrutarla hubo
+// que resolver una trampa de unidades: `startParameter`/`endParameter` están en
+// GRADOS en el documento del producto y en RADIANES en el canónico, así que
+// pasarlos crudos habría exportado TODA elipse recortada con el arco
+// equivocado, en silencio. Por eso la prueba usa un cuarto de elipse y no una
+// entera: una vuelta completa disimularía justo ese fallo.
+{
+  const conElipse: CadDocument = {
+    ...baseDocument([]),
+    entities: [
+      {
+        id: "el1",
+        type: "ellipse",
+        center: { x: 100, y: 50, z: 0 },
+        majorAxis: { x: 40, y: 0, z: 0 },
+        ratio: 0.5,
+        startParameter: 0,
+        endParameter: 90,
+        layer: "0",
+      } as never,
+    ],
+    modelSpace: { entityIds: ["el1"] },
+  };
+
+  const exportada = exportCadDocumentToDwg(conElipse, {
+    betaFlagOn: true,
+    gates: ORACLE_PASSED,
+  });
+  assert.equal(exportada.estado, "exito_con_perdidas", "la extrusión que no viaja se declara");
+  const leida = readDwg(exportada.bytes);
+  const elipse = leida.modelSpaceEntities.find((r) => r.entity.kind === "ellipse");
+  assert.ok(elipse, "la elipse llega al archivo, ya no se declara no escribible");
+  if (elipse?.entity.kind !== "ellipse") throw new Error("inalcanzable");
+  assert.ok(Math.abs(elipse.entity.center.x - 100) < 1e-9, "el centro viaja");
+  assert.ok(Math.abs(elipse.entity.majorAxisEndpoint.x - 40) < 1e-9, "el eje mayor viaja");
+  assert.ok(Math.abs(elipse.entity.axisRatio - 0.5) < 1e-9, "la razón de ejes viaja");
+  assert.ok(
+    Math.abs(elipse.entity.endAngle - Math.PI / 2) < 1e-9,
+    "y 90 GRADOS del producto salen como π/2 RADIANES, no como 90 radianes",
+  );
+  assert.ok(
+    exportada.manifiestoDePerdidas.some((p) => p.code === "ellipse-extrusion-not-carried"),
+    "y lo único que se pierde —el plano de la elipse— se nombra en el manifiesto",
+  );
+  assert.ok(
+    !exportada.manifiestoDePerdidas.some((p) => p.code === "canonical-type-not-writable"),
+    "y ya NO se declara no escribible: eso sería el guardián de una carencia cerrada",
+  );
+}
+
 console.log(
   "dwg-native-writer.spec: gate cerrado hasta el oráculo, round-trip íntegro, " +
     "pérdidas con nombre, la frontera de ángulo documento↔DWG a 37,5° y el estado " +
-    "y el tipo de línea de cada capa llegando al archivo exportado",
+    "y el tipo de línea de cada capa llegando al archivo exportado, más la ELIPSE " +
+    "escrita con su arco convertido a radianes y su extrusión declarada",
 );

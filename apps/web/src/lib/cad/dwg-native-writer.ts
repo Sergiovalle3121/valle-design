@@ -39,8 +39,17 @@ const RADIANS_PER_DEGREE = Math.PI / 180;
  * (`dwg-document-bridge-primitives.ts:38`, `degrees()`); este lado de
  * ESCRITURA no lo hacía — pasaba el valor crudo, grados etiquetados como
  * radianes. Explícito por tipo, no un `map` genérico sobre todos los campos
- * numéricos: sólo ARC e INSERT tienen un ángulo en el subconjunto que este
- * writer escribe (`DWG_EXPORT_WRITABLE_TYPES` no incluye `ellipse`).
+ * numéricos: sólo ARC, INSERT y ELLIPSE tienen un ángulo en el subconjunto
+ * que este writer escribe.
+ *
+ * ELLIPSE se suma el 2026-09-01, con el mismo cuidado. Sus `startParameter` y
+ * `endParameter` están en GRADOS en el documento del producto —`curve-edit.ts`
+ * los normaliza con `normalizeDeg`, `curve-model.ts` con `norm360` y
+ * `paper-space.ts` compara la vuelta completa contra 359.999—, mientras que el
+ * canónico del laboratorio los espera en RADIANES, como el resto de ángulos.
+ * Enrutar la elipse sin convertir habría exportado TODA elipse recortada con
+ * su arco equivocado, en silencio y sin pérdida declarada, que es exactamente
+ * el defecto que este comentario existía para impedir.
  */
 function toCanonicalEntity(entity: CadDocument["entities"][number]): Record<string, unknown> {
   if (entity.type === "arc")
@@ -51,10 +60,24 @@ function toCanonicalEntity(entity: CadDocument["entities"][number]): Record<stri
     };
   if (entity.type === "insert")
     return { ...entity, rotation: entity.rotation * RADIANS_PER_DEGREE };
+  if (entity.type === "ellipse")
+    return {
+      ...entity,
+      startParameter: entity.startParameter * RADIANS_PER_DEGREE,
+      endParameter: entity.endParameter * RADIANS_PER_DEGREE,
+    };
   return { ...entity };
 }
 
-/** El subconjunto §8.1 — el preflight cuenta contra ESTA lista, no adivina. */
+/**
+ * El subconjunto §8.1 — el preflight cuenta contra ESTA lista, no adivina.
+ *
+ * `ellipse` entra el 2026-09-01. No es que el writer aprendiera a emitirla:
+ * la emitía desde hacía olas. Lo que faltaba era el enrutado en el camino
+ * PÚBLICO (`canonical-to-dwg.ts`), que la mandaba al `default` y la declaraba
+ * no escribible. Esta lista reflejaba fielmente esa carencia, así que se
+ * actualiza cuando la carencia se cierra y no antes.
+ */
 export const DWG_EXPORT_WRITABLE_TYPES = new Set([
   "line",
   "point",
@@ -63,6 +86,7 @@ export const DWG_EXPORT_WRITABLE_TYPES = new Set([
   "polyline",
   "text",
   "insert",
+  "ellipse",
 ]);
 
 export interface CadDwgExportPreflight {

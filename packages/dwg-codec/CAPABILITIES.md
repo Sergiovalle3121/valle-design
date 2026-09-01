@@ -1331,3 +1331,59 @@ negativos.
 Nada de esto mueve una firma: `DWG_3D_WIREFRAME_BETA_AUTHORIZATION.ownerSigned`
 sigue en `false`, el perfil sigue sin ampliarse y el 3D heredado sigue llegando
 al producto como objeto opaco con su pérdida declarada.
+
+## Corte 2026-09-01 (j) — el camino PÚBLICO de escritura pasa de siete clases a ocho
+
+**Lo que había.** `ac1015-entity-writer.ts` —el writer interno— emitía nueve
+tipos: line, point, circle, arc, lwpolyline, text, insert, **ellipse** y
+**mtext**. Pero `canonical-to-dwg.ts`, que es el camino **público**, sólo
+enrutaba siete y mandaba el resto al `default`, declarándolo
+`canonical-type-not-writable`. La lista del producto
+(`DWG_EXPORT_WRITABLE_TYPES`) reflejaba fielmente ese siete, así que la brecha
+**no estaba en el producto ni en el writer**, sino en la traducción de en medio.
+
+**Lo que cambia.** ELLIPSE se enruta. Sus cinco campos mapean uno a uno en toda
+la cadena (`center`, `majorAxis`→`majorAxisEndpoint`, `ratio`→`axisRatio`,
+`startParameter`→`startAngle`, `endParameter`→`endAngle`), sin convertir nada
+y sin inventar nada.
+
+**La trampa que apareció al enrutarla, y que estuvo a punto de colarse.** Los
+parámetros de la elipse están en **GRADOS** en el documento del producto
+—`curve-edit.ts` los normaliza con `normalizeDeg`, `curve-model.ts` con
+`norm360`, y `paper-space.ts` compara la vuelta entera contra `359.999`— y en
+**RADIANES** en el canónico, como el resto de ángulos. Enrutarla sin convertir
+habría exportado **toda elipse recortada con el arco equivocado**, en silencio
+y sin pérdida declarada. Medido antes y después:
+
+| | antes | ahora |
+| --- | --- | --- |
+| ¿la elipse llega al archivo? | **no** | **sí** |
+| centro / eje mayor / razón | — | exactos |
+| arco de 90° | — | **1.570796 rad** (π/2) |
+| pérdida declarada | `canonical-type-not-writable` | `ellipse-extrusion-not-carried` |
+
+**La extrusión es lo único que se pierde, y ahora SE DICE en los dos sentidos.**
+El canónico no modela el plano de una elipse. Al escribir se emite el plano XY
+y se declara; al **leer** se descartaba en silencio, y desde este corte se
+declara `ellipse-extrusion-dropped` cuando el plano NO es el XY —sólo entonces,
+para no llenar el manifiesto de ruido en el caso normal, que es el de las dos
+elipses del corpus admitido, ambas con `(0,0,1)`.
+
+**Dos guardianes de la carencia, reescritos y no debilitados.** Había dos
+pruebas que usaban una elipse como ejemplo de «clase no escribible». Se cambian
+por SPLINE, que sigue sin emitirse de verdad, y se añaden las dos mitades
+nuevas: que la elipse se proyecta, y que va y vuelve exacta por el lector
+público con un arco RECORTADO —una vuelta entera habría disimulado justo el
+fallo de unidades.
+
+**Corrección de una afirmación falsa.** `oda-roundtrip.mjs` declaraba entre sus
+limitaciones que «MTEXT… sigue siendo pendiente declarado del writer:
+`writeAc1015EntityBody` aún no las emite». Es falso: `emitMText` existe y es
+espejo campo a campo de `decodeMText`. Lo que de verdad falta de MTEXT es el
+**camino público**, y por una razón concreta que ahora consta: el canónico no
+transporta ni la alineación ni el interlineado que el producto sí modela, así
+que enrutarla hoy los aplanaría en silencio. Se declara en vez de hacerlo.
+
+Sigue en pie: **ningún flag encendido**, `externalOracleVerified` en `false`, y
+un caso nuevo (`elipse`) esperando al titular en el harness del oráculo, con su
+gemelo público.

@@ -103,7 +103,41 @@ test("canónico → modelo escribible → DWG → base neutral conserva la geome
   );
 });
 
+// El ejemplo de «no escribible» era una ELIPSE, y desde el 2026-09-01 la
+// elipse SÍ se enruta: mantenerla aquí convertiría esta prueba en guardiana de
+// una carencia que ya no existe. Se cambia por SPLINE, que sigue sin emitirse
+// de verdad, y se añade abajo la mitad nueva: que la elipse pasa.
 test("lo no escribible queda declarado como pérdida, jamás emitido a medias", () => {
+  const database = readAc1015Database(buildSourceFile());
+  const { document } = dwgDatabaseToCanonicalDocument(database);
+  const withSpline = {
+    ...document,
+    entities: [
+      ...document.entities,
+      {
+        id: "hff",
+        type: "spline",
+        degree: 3,
+        closed: false,
+        knots: [0, 0, 0, 0, 1, 1, 1, 1],
+        controlPoints: [
+          { x: 0, y: 0, z: 0 },
+          { x: 1, y: 2, z: 0 },
+          { x: 3, y: 2, z: 0 },
+          { x: 4, y: 0, z: 0 },
+        ],
+        layer: "0",
+      },
+    ],
+  };
+  const projected = canonicalDocumentToDwgEntities(withSpline);
+  assert.equal(projected.entities.length, 3);
+  assert.equal(projected.lossManifest.length, 1);
+  assert.equal(projected.lossManifest[0]!.code, "canonical-type-not-writable");
+  assert.equal(projected.lossManifest[0]!.sourceType, "spline");
+});
+
+test("la ELIPSE sí se enruta al writer, con sus cinco campos y la extrusión declarada", () => {
   const database = readAc1015Database(buildSourceFile());
   const { document } = dwgDatabaseToCanonicalDocument(database);
   const withEllipse = {
@@ -113,20 +147,30 @@ test("lo no escribible queda declarado como pérdida, jamás emitido a medias", 
       {
         id: "hff",
         type: "ellipse",
-        center: { x: 0, y: 0, z: 0 },
+        center: { x: 7, y: 3, z: 0 },
         majorAxis: { x: 2, y: 0, z: 0 },
         ratio: 0.5,
         startParameter: 0,
-        endParameter: 6.28,
+        endParameter: 1.25,
         layer: "0",
       },
     ],
   };
   const projected = canonicalDocumentToDwgEntities(withEllipse);
-  assert.equal(projected.entities.length, 3);
+  assert.equal(projected.entities.length, 4, "la elipse SE PROYECTA, no se descarta");
+  const ellipse = projected.entities.find((e) => e.entity.kind === "ellipse");
+  assert.ok(ellipse, "y llega como elipse, no degradada a otra cosa");
+  if (ellipse?.entity.kind !== "ellipse") throw new Error("inalcanzable");
+  assert.equal(ellipse.entity.center.x, 7);
+  assert.equal(ellipse.entity.center.y, 3);
+  assert.equal(ellipse.entity.majorAxisEndpoint.x, 2);
+  assert.equal(ellipse.entity.axisRatio, 0.5);
+  assert.equal(ellipse.entity.startAngle, 0);
+  assert.equal(ellipse.entity.endAngle, 1.25, "el parámetro final no se redondea ni se completa");
+  // Lo único que se pierde es la extrusión, y consta.
   assert.equal(projected.lossManifest.length, 1);
-  assert.equal(projected.lossManifest[0]!.code, "canonical-type-not-writable");
-  assert.equal(projected.lossManifest[0]!.sourceType, "ellipse");
+  assert.equal(projected.lossManifest[0]!.code, "ellipse-extrusion-not-carried");
+  assert.equal(projected.lossManifest[0]!.entityId, "hff");
 });
 
 test("el mapeo es determinista documento a documento", () => {

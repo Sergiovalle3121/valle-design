@@ -119,6 +119,21 @@ const ARC = {
   startAngle: 0.25,
   endAngle: 2.5,
 };
+/**
+ * ELIPSE RECORTADA A PROPÓSITO, no una vuelta entera. El camino público
+ * aprendió a escribirla el 2026-09-01, y el fallo que más fácilmente se cuela
+ * ahí es de UNIDADES —grados donde tocan radianes—: una elipse completa
+ * disimularía ese fallo, y un cuarto de elipse lo delata ante el lector ajeno.
+ */
+const ELLIPSE = {
+  kind: "ellipse",
+  center: { x: 20, y: 15, z: 0 },
+  majorAxisEndpoint: { x: 8, y: 0, z: 0 },
+  extrusion: { x: 0, y: 0, z: 1 },
+  axisRatio: 0.5,
+  startAngle: 0,
+  endAngle: Math.PI / 2,
+};
 const TEXT = {
   kind: "text",
   insertion: { x: 5, y: 6 },
@@ -228,6 +243,27 @@ const CASES = [
     expectedBlocks: {},
   },
   {
+    // LA ELIPSE ANTE EL LECTOR AJENO. Hasta el 2026-09-01 el camino público
+    // NO la escribía: la mandaba al `default` de `canonical-to-dwg.ts` y la
+    // declaraba «no escribible», aunque el writer interno la emitía desde
+    // hacía olas. Al enrutarla apareció una trampa de unidades —el documento
+    // del producto lleva los parámetros en GRADOS y el canónico en RADIANES—,
+    // y este caso es el que pregunta a ODA si el arco que escribimos es el que
+    // dijimos: el gemelo público de este mismo caso pasa por
+    // `writeCanonicalDwg`, que es donde vive el enrutado nuevo.
+    name: "elipse",
+    options: {
+      layers: [{ name: ascii("CURVAS"), colorIndex: 3 }],
+      entities: [{ entity: ELLIPSE, layerIndex: 1 }],
+    },
+    expectedLayers: [
+      { name: "0", color: 7 },
+      { name: "CURVAS", color: 3 },
+    ],
+    expectedEntities: [{ kind: "ellipse", layer: "CURVAS", entity: ELLIPSE }],
+    expectedBlocks: {},
+  },
+  {
     // ESTADO DE CAPA ANTE EL ORÁCULO. Los otros casos escriben capas normales,
     // así que ninguno ejercitaba lo que el corpus real sí trae: una capa
     // CONGELADA y una BLOQUEADA. Desde el 2026-09-01 el writer las escribe
@@ -330,6 +366,16 @@ function compareEntity(expected, normalized, mismatches, label) {
       if (!near3(f.position, e.position)) push(`position ${JSON.stringify(f.position)}`);
       if (!near3(f.scale, e.scale)) push(`scale ${JSON.stringify(f.scale)}`);
       if (!near(f.rotation, e.rotation)) push(`rotation ${f.rotation}`);
+      return;
+    case "ellipse":
+      // El helper del oráculo entrega los grupos 41/42 del DXF, que son el
+      // parámetro inicial y final EN RADIANES: es exactamente donde se vería
+      // una elipse escrita con grados, que es el fallo que este caso vigila.
+      if (!near3(f.center, e.center)) push(`center ${JSON.stringify(f.center)}`);
+      if (!near3(f.majorAxis, e.majorAxisEndpoint)) push(`majorAxis ${JSON.stringify(f.majorAxis)}`);
+      if (!near(f.ratio, e.axisRatio)) push(`ratio ${f.ratio}`);
+      if (!near(f.startAngle, e.startAngle)) push(`startAngle ${f.startAngle}`);
+      if (!near(f.endAngle, e.endAngle)) push(`endAngle ${f.endAngle}`);
       return;
     case "lwpolyline":
       // El helper del oráculo (importado sin modificar) no acumula los
@@ -691,7 +737,7 @@ async function main() {
     },
     limitaciones: [
       "El helper del oráculo (dxf-oracle.mjs, importado sin modificar) no acumula los vértices 10/20 repetidos de una LWPOLYLINE: el conteo de vértices y el cierre se verifican contra los grupos 90/70 del DXF crudo y la geometría exacta de vértices queda cubierta por el round-trip del lector propio.",
-      "Entidades de anotación (MTEXT, DIMENSION, HATCH, LEADER…) siguen siendo pendiente declarado del writer: el lector propio ya las decodifica, pero writeAc1015EntityBody aún no las emite.",
+      "Entidades de anotación (DIMENSION, HATCH, LEADER…) siguen siendo pendiente declarado del writer: el lector propio ya las decodifica, pero writeAc1015EntityBody aún no las emite. CORRECCIÓN 2026-09-01: esta lista incluía MTEXT y era FALSO — writeAc1015EntityBody sí la emite (`emitMText`, espejo campo a campo de `decodeMText`) desde antes de este corte. Lo que sigue sin llegar de MTEXT es el camino PÚBLICO: `canonical-to-dwg.ts` no la enruta, porque el documento canónico no transporta ni la alineación ni el interlineado que el producto sí modela, y enrutarla hoy los aplanaría en silencio.",
     ],
   };
 

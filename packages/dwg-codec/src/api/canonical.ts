@@ -482,7 +482,24 @@ function mapEntity(
         layer,
       };
     }
-    case "ellipse":
+    case "ellipse": {
+      // LA EXTRUSIÓN DE LA ELIPSE SE PIERDE, Y DESDE 2026-09-01 SE DICE. El
+      // canónico no modela el plano de una elipse, así que al proyectar se
+      // descarta; hasta este corte se descartaba EN SILENCIO, y una elipse
+      // inclinada volvía tumbada del round-trip sin que nada lo declarase. Se
+      // declara sólo cuando NO es el plano XY: hacerlo siempre llenaría el
+      // manifiesto de ruido en el caso normal, que es el de las dos elipses
+      // del corpus admitido, ambas con (0,0,1).
+      const { x, y, z } = entity.extrusion;
+      if (x !== 0 || y !== 0 || z !== 1) {
+        losses.push({
+          code: "ellipse-extrusion-dropped",
+          entityId: id,
+          sourceType: "ellipse",
+          detail: `La elipse ${id} vive en un plano inclinado (extrusión ${x}, ${y}, ${z}) que el documento canónico no representa: se importa en el plano XY.`,
+          severity: "warning",
+        });
+      }
       return {
         id,
         type: "ellipse",
@@ -493,6 +510,7 @@ function mapEntity(
         endParameter: entity.endAngle,
         layer,
       };
+    }
     case "spline": {
       if (entity.scenario !== 1) {
         losses.push({
