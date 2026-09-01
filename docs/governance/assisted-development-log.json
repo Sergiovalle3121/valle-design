@@ -2062,6 +2062,35 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DEPS-BLOQUEOS-NEST12-Y-ACTIONS-MAYORES-20260901",
+      "date": "2026-09-01",
+      "initiative": "Dos PR de Dependabot llevaban horas abiertos sin ninguna posibilidad de fusionarse, y la causa no era la misma. Se resolvieron con el mecanismo que el propio repositorio ya tiene —docs/deps-majors-bloqueados.md más el bloque `ignore`— y con la regla que ese documento se exige a sí mismo: cada bloqueo PROBADO EMPÍRICAMENTE, no supuesto. (1) PR #144, @nestjs 12: se sacó su rama y se intentó instalar. NO INSTALA — `npm ci` sale con EUSAGE porque su package.json pide @nestjs/common@12.0.1 y su lockfile sigue en 11.2.3; Dependabot no regeneró el candado. Y hay un segundo bloqueo independiente: @nestjs/schematics@12 arrastra @angular-devkit/core@22.1.5, cuyo engines.node exige ^22.22.3 || ^24.15.0 || >=26.0.0, mientras .nvmrc fija 20 y ambos Dockerfiles llevan ARG NODE_VERSION=20. Es el mismo desbloqueo que @types/node 26, que ya estaba en la tabla. (2) PR #143, actions de GitHub: aquí el gate NO está roto, está haciendo su trabajo — el pinning por SHA de check-proprietary-governance.mjs:223 exige revisión humana de cada versión nueva, y eso impide que una action cambie bajo los pies del CI. Lo que no funciona es pedirle a un bot saltos de tres o cuatro mayores de golpe (checkout 4→7, download-artifact 4→8): ese PR no puede pasar el gate por construcción, y un PR semanal que nunca puede fusionarse deja de ser una señal y pasa a ser ruido. El ecosistema de actions pasa a ignorar SÓLO los mayores, así que el parche que arregla una CVE —que es un parche, no un mayor— sigue llegando. Los mayores van por ventana dedicada, uno a uno, actualizando el SHA pineado en el mismo commit y validando con una corrida completa de CI, que es el único banco de pruebas real de una action.",
+      "branch": "claude/dependencias-bloqueadas",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: «tengo 3 PR abierto averigua porque y arreglalo ya sea para mergear o borrar».",
+      "firstPartyInputs": [
+        "Los propios PR de Dependabot #143 y #144, instalados y medidos."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "docs/deps-majors-bloqueados.md (dos filas nuevas con su evidencia medida)",
+        ".github/dependabot.yml (ignore de los mayores de @nestjs y de las actions)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo del titular de resolver los PR abiertos."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
