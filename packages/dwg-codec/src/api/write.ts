@@ -155,6 +155,27 @@ export function writeCanonicalDwg(
 
   // Las capas del documento canónico por nombre: de ahí sale su color.
   const definitionByName = new Map(document.layers.map((layer) => [layer.name, layer] as const));
+
+  // LOS PATRONES DE TIPO DE LÍNEA QUE EL DOCUMENTO TRAE. El documento canónico
+  // los lleva en `styles.linetype` —el lector los proyecta desde la tabla LTYPE
+  // del dibujo—, así que el writer puede emitir la entrada REAL en vez de
+  // apuntarlo todo a Continuous. Continuous no entra aquí: el archivo mínimo ya
+  // la lleva fija, y duplicarla daría dos entradas con el mismo nombre.
+  const patternByLinetypeKey = new Map<string, { name: string; pattern: number[] }>();
+  for (const [styleName, style] of Object.entries(document.styles?.linetype ?? {})) {
+    const key = styleName.trim().toUpperCase();
+    if (key === WRITABLE_LINETYPE_NAME || key.length === 0) continue;
+    if (!Array.isArray(style?.pattern) || style.pattern.length === 0) continue;
+    if (!patternByLinetypeKey.has(key))
+      patternByLinetypeKey.set(key, { name: styleName, pattern: [...style.pattern] });
+  }
+  const linetypeSpecs = [...patternByLinetypeKey.values()].map((style) => ({
+    name: asciiNameBytes(style.name) ?? [],
+    // La longitud del patrón es la suma de los VALORES ABSOLUTOS de sus
+    // trazos: los negativos son huecos y también ocupan.
+    patternLength: style.pattern.reduce((total, dash) => total + Math.abs(dash), 0),
+    dashes: style.pattern.map((dash) => ({ length: dash })),
+  }));
   const layers: Ac1015MinimalFileLayerSpec[] = [];
   const layerIndexByName = new Map<string, number>();
   for (const name of referencedLayerNames) {
@@ -187,21 +208,22 @@ export function writeCanonicalDwg(
         severity: "warning",
       });
     }
-    // EL TIPO DE LÍNEA QUE NO SE SABE ESCRIBIR SE DECLARA. El archivo mínimo
-    // sólo lleva UNA entrada LTYPE, Continuous, así que una capa que pedía otra
-    // cosa saldría dibujada continua. Antes eso pasaba en silencio, que es la
-    // peor forma de la pérdida: no dice «no sé», dice un valor equivocado que
-    // parece un dato. Emitir entradas LTYPE propias con su patrón es trabajo
-    // aparte y más grande; declararlo es lo que se puede hacer hoy.
+    // EL TIPO DE LÍNEA SE ESCRIBE CUANDO EL DIBUJO LO DEFINE. Hasta el corte
+    // anterior el archivo sólo llevaba Continuous y toda capa salía continua;
+    // ahora el writer emite entradas propias, así que lo único que se pierde
+    // es un tipo de línea que el documento NOMBRA pero no DEFINE —y eso sí se
+    // declara, en vez de dejar que el archivo afirme un patrón inventado—.
     const declaredLinetype = definition?.linetype;
+    const linetypeKey = declaredLinetype?.trim().toUpperCase();
     if (
-      declaredLinetype !== undefined &&
-      declaredLinetype.trim().toUpperCase() !== WRITABLE_LINETYPE_NAME
+      linetypeKey !== undefined &&
+      linetypeKey !== WRITABLE_LINETYPE_NAME &&
+      !patternByLinetypeKey.has(linetypeKey)
     ) {
       losses.push({
         code: "layer-linetype-not-writable",
         sourceType: "LAYER",
-        detail: `La capa "${name}" usa el tipo de línea "${declaredLinetype}", y este writer sólo emite "Continuous"; la capa se escribe continua y se declara aquí en vez de dejar que el archivo afirme un tipo de línea que el dibujo no pedía.`,
+        detail: `La capa "${name}" usa el tipo de línea "${declaredLinetype}", que el documento nombra pero no define con un patrón; la capa se escribe continua y se declara aquí en vez de inventarle trazos.`,
         severity: "warning",
       });
     }
@@ -217,6 +239,11 @@ export function writeCanonicalDwg(
       // pidiera, y sin declararlo.
       ...(definition?.frozen === undefined ? {} : { frozen: definition.frozen }),
       ...(definition?.locked === undefined ? {} : { locked: definition.locked }),
+      ...(declaredLinetype !== undefined &&
+      linetypeKey !== undefined &&
+      patternByLinetypeKey.has(linetypeKey)
+        ? { linetypeName: declaredLinetype }
+        : {}),
     });
   }
   const layerIndexFor = (name: string): number =>
@@ -283,6 +310,11 @@ export function writeCanonicalDwg(
     });
   }
 
-  const bytes = writeAc1015MinimalFile({ layers, blocks, entities: finalEntities });
+  const bytes = writeAc1015MinimalFile({
+    layers,
+    ...(linetypeSpecs.length > 0 ? { linetypes: linetypeSpecs } : {}),
+    blocks,
+    entities: finalEntities,
+  });
   return { bytes, lossManifest: losses };
 }
