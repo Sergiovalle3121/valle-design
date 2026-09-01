@@ -2029,6 +2029,125 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-M4-CABECERA-R2010-NO-FALSABLE-20260901",
+      "date": "2026-09-01",
+      "initiative": "Resultado NEGATIVO, publicado como tal: mide POR QUE las variables de cabecera de AC1024/AC1027/AC1032 no se pueden falsar con el corpus admitido, en vez de intentar adivinarlas. La pregunta se hizo en el orden correcto -contar QUE VARIA antes de barrer ninguna disposicion-, que es justo el error que hubo que corregir en las banderas de capa. Censo: de 343 variables solo 6 varian entre los ocho dibujos, y CINCO de esas seis las reescribe el conversor (marcas de tiempo, GUID de huella y handles renumerados; se comprobo buscando sus valores del gemelo en el marco moderno y dan cero aciertos), asi que queda UNA sola ancla utilizable: textsize. Con una sola ancla una secuencia de 343 campos no se falsa, se ajusta. Ademas INSUNITS -la unica variable que el producto consume- vale 0 en los ocho dibujos: constante, no falsable, y decodificarla no cambiaria hoy nada porque 0 ya significa 'el archivo no declara unidades'. En positivo se midio que textsize aparece una sola vez y en offset estable por version (327 AC1018, 335 AC1024, 338 AC1027/AC1032) en 24/24 archivos con dos valores distintos cayendo en el mismo offset, y se FALSO la hipotesis barata: la cabecera R2010+ no es la de AC1018 con un prologo mas largo -ningun desplazamiento de 0 a 64 bits decodifica ningun archivo-, luego la divergencia esta dentro de los primeros 327 bits. Lo que desbloquea esto es un intake de corpus con cabeceras variadas, no mas barridos. No se decodifica nada nuevo y no se promueve ninguna capacidad: el codec sigue fallando cerrado.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de llevar el DWG a las versiones modernas para poder comercializar.",
+      "firstPartyInputs": [
+        "Corpus de conformidad propio leido del commit fijado via el gate consumidor.",
+        "El decodificador de cabecera AC1015 propio, como censo de variedad y como gemelo.",
+        "El decodificador de cabecera AC1018 propio, ya medido 8/8, como hipotesis a falsar."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. Ninguna fuente documental nueva intervino.",
+      "derivedAreas": [
+        "scripts/dwg/probe-r2010-header-variables.mjs (sonda nueva que documenta el resultado negativo, cableada a check:dwg)",
+        "packages/dwg-codec/src/reader/r2004-database-reader.ts (el comentario pasa de 'no esta medida' a la razon exacta, con numeros)",
+        "packages/dwg-codec/CAPABILITIES.md (corte nuevo con el censo y la condicion de desbloqueo)",
+        "packages/dwg-codec/SOURCE_REGISTER.json (VALLE-CORPUS-R2010-CABECERA-NO-FALSABLE)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de completar el DWG moderno para comercializar sin licencia ODA."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DEPS-BLOQUEOS-NEST12-Y-ACTIONS-MAYORES-20260901",
+      "date": "2026-09-01",
+      "initiative": "Dos PR de Dependabot llevaban horas abiertos sin ninguna posibilidad de fusionarse, y la causa no era la misma. Se resolvieron con el mecanismo que el propio repositorio ya tiene —docs/deps-majors-bloqueados.md más el bloque `ignore`— y con la regla que ese documento se exige a sí mismo: cada bloqueo PROBADO EMPÍRICAMENTE, no supuesto. (1) PR #144, @nestjs 12: se sacó su rama y se intentó instalar. NO INSTALA — `npm ci` sale con EUSAGE porque su package.json pide @nestjs/common@12.0.1 y su lockfile sigue en 11.2.3; Dependabot no regeneró el candado. Y hay un segundo bloqueo independiente: @nestjs/schematics@12 arrastra @angular-devkit/core@22.1.5, cuyo engines.node exige ^22.22.3 || ^24.15.0 || >=26.0.0, mientras .nvmrc fija 20 y ambos Dockerfiles llevan ARG NODE_VERSION=20. Es el mismo desbloqueo que @types/node 26, que ya estaba en la tabla. (2) PR #143, actions de GitHub: aquí el gate NO está roto, está haciendo su trabajo — el pinning por SHA de check-proprietary-governance.mjs:223 exige revisión humana de cada versión nueva, y eso impide que una action cambie bajo los pies del CI. Lo que no funciona es pedirle a un bot saltos de tres o cuatro mayores de golpe (checkout 4→7, download-artifact 4→8): ese PR no puede pasar el gate por construcción, y un PR semanal que nunca puede fusionarse deja de ser una señal y pasa a ser ruido. El ecosistema de actions pasa a ignorar SÓLO los mayores, así que el parche que arregla una CVE —que es un parche, no un mayor— sigue llegando. Los mayores van por ventana dedicada, uno a uno, actualizando el SHA pineado en el mismo commit y validando con una corrida completa de CI, que es el único banco de pruebas real de una action.",
+      "branch": "claude/dependencias-bloqueadas",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: «tengo 3 PR abierto averigua porque y arreglalo ya sea para mergear o borrar».",
+      "firstPartyInputs": [
+        "Los propios PR de Dependabot #143 y #144, instalados y medidos."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "docs/deps-majors-bloqueados.md (dos filas nuevas con su evidencia medida)",
+        ".github/dependabot.yml (ignore de los mayores de @nestjs y de las actions)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo del titular de resolver los PR abiertos."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "TECHO-DE-FRAGMENTO-CONTRA-LA-PRUEBA-MAS-LENTA-20260901",
+      "date": "2026-09-01",
+      "initiative": "Tercera vez seguida que el mismo modo de fallo aparece, y las tres por la misma equivocación mía al elegir un número. El reparto del E2E en cuatro fragmentos (#145) existe para que un job cancelado deje de tragarse el veredicto; el techo que le puse lo reintrodujo dos veces. Primero 25 min, calculado dividiendo 97/4 y olvidando que en CI hay retries:1 —un fragmento CON FALLOS corre esos tests dos veces—, y los fragmentos 2/4 y 3/4 se cancelaron al tocarlo. Después 40, y el 3/4 volvió a cancelarse a los 40m15s: e2e/real/cables-sueltos.spec.ts:273 lleva su propio test.setTimeout de TREINTA MINUTOS —enumera todos los botones visibles del estudio y pulsa cada uno—, así que treinta de prueba más ~3 de arranque más lo que el fragmento ya llevara no cabe en cuarenta y el fragmento que la contenga se cancela SIEMPRE. Lo encontró y lo midió la sesión paralela de DWG en el hilo del PR #149, no yo. Sube a 60 y la regla queda ESCRITA en el propio archivo en vez de volver a deducirla: el techo se fija contra la PRUEBA MÁS LENTA, no contra la media ni contra una división. Y no se recorta el setTimeout de esa prueba para que quepa: capar una prueba por presupuesto la hace fallar por tiempo en vez de por sustancia, y un rojo que miente cuesta más que un minuto de runner.",
+      "branch": "claude/el-techo-no-cabia-en-el-caso-malo",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo de dejar el repositorio integrado y el CI dando veredicto.",
+      "firstPartyInputs": [
+        "El diagnóstico publicado en el hilo del PR #149 y el propio ci.yml."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        ".github/workflows/ci.yml (techo por fragmento 40 -> 60, con la regla escrita)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Corrección de un defecto propio que estaba ocultando veredictos."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "RXJS-UNA-SOLA-COPIA-20260901",
+      "date": "2026-09-01",
+      "initiative": "Al validar el PR de dependencias que Dependabot regeneró tras el bloqueo de los mayores (#152), el typecheck de la API falló con TS2416: dos copias de rxjs, una izada en la raíz (7.8.1) y otra anidada en apps/api (7.8.2), que TypeScript trata como tipos distintos — el Subscriber de una no es asignable al de la otra. La causa: @nestjs/cli arrastra @angular-devkit@19.2.27, que fija rxjs 7.8.1, así que cuando apps/api pide ^7.8.2 la raíz se queda en 7.8.1 para satisfacer a angular-devkit y npm anida una segunda copia. No es un defecto del bump: es un peligro estructural que estaba latente y que sólo aparece cuando alguien sube ese rango. Se cura con un override de rxjs a ^7.8.2 en la raíz, que es exactamente el patrón que este repositorio ya usa para @nestjs/core, common y platform-express. Verificado: tras el override queda UNA copia (node_modules/rxjs 7.8.2, la anidada desaparece), el typecheck pasa de 6/8 a 8/8 tareas, 798 tests de la API y 500/500 specs de web. El bump de 7.8.1 a 7.8.2 es un parche, así que forzar la versión no rompe a angular-devkit ni a nestjs.",
+      "branch": "claude/rxjs-una-sola-copia",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo de resolver los PR abiertos dejando el repositorio sano.",
+      "firstPartyInputs": [
+        "El PR #152 de Dependabot, instalado y medido en esta máquina."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "package.json (override de rxjs)",
+        "package-lock.json (regenerado)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Desbloquea el PR semanal de dependencias."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

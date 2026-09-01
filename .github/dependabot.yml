@@ -49,6 +49,24 @@ updates:
       - dependency-name: "eslint-config-next"
         versions: [">= 16.3.0"]
       - dependency-name: "@playwright/test"
+      # @nestjs 12 arrastra @angular-devkit@22.1.5, que exige Node ^22.22.3 y
+      # este repo fija 20 en .nvmrc y en ambos Dockerfiles. Medido el
+      # 2026-09-01 sobre el PR #144, que además NO instalaba: su lockfile
+      # seguía en 11.2.3 mientras su package.json pedía 12.0.1.
+      - dependency-name: "@nestjs/common"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/core"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/platform-express"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/typeorm"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/cli"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/schematics"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@nestjs/testing"
+        update-types: ["version-update:semver-major"]
 
   # Los SHA pineados de las actions de ci.yml/release.yml no se renuevan
   # solos: el pinning sin renovación automática es deuda, no seguridad — la
@@ -67,6 +85,24 @@ updates:
           - "*"
     commit-message:
       prefix: "deps"
+    # SÓLO menores y parches, y el motivo NO es miedo a los mayores.
+    #
+    # El pinning por SHA de `scripts/check-proprietary-governance.mjs` exige
+    # revisión humana de cada versión nueva, y eso es deliberado: es lo que
+    # impide que una action cambie bajo los pies del CI. Lo que no funciona es
+    # pedirle a un bot que proponga saltos de TRES o CUATRO mayores de golpe:
+    # ese PR no puede pasar el gate por construcción, y un PR semanal que nunca
+    # puede fusionarse deja de ser una señal y pasa a ser ruido — el PR #143
+    # llevaba diecisiete horas abierto sin ninguna posibilidad de entrar.
+    #
+    # Lo que de verdad da seguridad SÍ sigue llegando: el parche que arregla una
+    # CVE de una action es un parche, no un mayor, y esos siguen proponiéndose.
+    # Los mayores van por ventana dedicada, uno a uno, actualizando el SHA
+    # pineado en el mismo commit y validando con una corrida completa de CI.
+    # Ver docs/deps-majors-bloqueados.md.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   # Las bases por digest de los Dockerfiles (node@sha256:…) avanzan cuando
   # upstream publica un patch; sin este ecosistema el digest fijado envejece

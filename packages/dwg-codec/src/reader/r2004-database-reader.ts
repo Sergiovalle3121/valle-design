@@ -159,10 +159,29 @@ export function readR2004Database(
     AC1015_HEADER_VARIABLES_SENTINELS,
     sizeFieldWidth,
   );
-  // Sólo AC1018 decodifica las variables: la disposición R2010+ diverge (un
-  // BD con bandera 0b11, que el formato no define, aparece al leerla con la
-  // forma de AC1018) y no está medida. El marco SÍ se valida en las dos: sus
-  // centinelas y su CRC son la comprobación que de verdad protege la sección.
+  // Sólo AC1018 decodifica las variables. En R2010+ la sección NO se decodifica
+  // y desde el 2026-09-01 se sabe POR QUÉ, con números
+  // (`scripts/dwg/probe-r2010-header-variables.mjs`, evidencia
+  // `dwg-r2010-header-variables.json`):
+  //
+  //  - **No es un prólogo más largo, y eso está FALSADO.** El ancla de
+  //    `textsize` sitúa el desfase exacto (327 bits en AC1018, 335 en AC1024,
+  //    338 en AC1027/AC1032); desplazar el marco moderno y leerlo con la forma
+  //    de AC1018 lanza «A BD flag of 0b11 is not defined by the format», y
+  //    NINGÚN desplazamiento de 0 a 64 bits decodifica ningún archivo. La
+  //    divergencia está DENTRO de los primeros 327 bits.
+  //  - **Y con este corpus no se puede falsar aunque se adivinara.** De las 343
+  //    variables sólo 6 varían entre los ocho dibujos, y cinco de esas seis las
+  //    reescribe el conversor (marcas de tiempo, GUID, handles renumerados):
+  //    queda UNA ancla utilizable, `textsize`. Con una sola ancla una secuencia
+  //    de 343 campos no se falsa, se ajusta — que es otra cosa.
+  //  - **INSUNITS, la única que el producto consume, vale 0 en los ocho.**
+  //    Decodificarla no cambiaría hoy nada: 0 es «el archivo no declara
+  //    unidades», que es justo lo que el puente ya declara.
+  //
+  // Lo que desbloquea esto es un intake de corpus con cabeceras variadas, no
+  // más barridos. El marco SÍ se valida en las dos: sus centinelas y su CRC
+  // son la comprobación que de verdad protege la sección.
   const headerVariables =
     version === "AC1018"
       ? decodeR2004HeaderVariables(headerFrame.payload)

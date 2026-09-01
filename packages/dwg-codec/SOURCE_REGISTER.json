@@ -872,6 +872,40 @@
       "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-r2010-layer-fields.mjs y scripts/dwg/validate-corpus.mjs sobre el corpus admitido); revision humana del propietario pendiente",
       "reviewedAt": "2026-09-01",
       "notes": "NO promueve ninguna capacidad de producto: el corte sigue en experimental-lab y ningun flag se enciende. La ambiguedad de la composicion de la cabeza no es peligrosa porque el aterrizaje exacto es obligatorio: un archivo con otra cabeza falla cerrado con DWG_VERSION_DECODER_UNSUPPORTED en vez de devolver un valor plausible y equivocado."
+    },
+    {
+      "id": "VALLE-CORPUS-R2010-CABECERA-NO-FALSABLE",
+      "owner": "Sergio Valle Zarate",
+      "origin": {
+        "type": "original-measurement",
+        "location": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance/tree/0688fb9c395b9cac4169d1ee9c23a7370cc28cf3/bundles/valle.fundacional.ac1015.001/fixtures",
+        "accessedAt": "2026-09-01"
+      },
+      "title": "Medicion first-party de POR QUE las variables de cabecera de R2010+ no son falsables con el corpus admitido (resultado NEGATIVO)",
+      "versionOrDate": "2026-09-01",
+      "terms": {
+        "license": "Valle first-party corpus measurement (admitted tool-converted-original bundles)",
+        "access": "Blobs leidos del commit fijado del repo hermano de conformidad via el gate consumidor (corpus-pin.json + SHA-256 verificado); ningun working tree",
+        "redistribution": "Solo se registran numeros observados (censo de variedad, offsets medidos, resultados de barrido) y decisiones de codigo derivadas; los bytes DWG permanecen en el repo hermano bajo su propia politica",
+        "notes": "Ninguna fuente documental nueva intervino. La location apunta al directorio de fixtures del bundle AC1015 del commit fijado, que es el gemelo sobre el que se hizo el censo de variedad; la medicion cubre ademas los bundles AC1018, AC1024, AC1027 y AC1032 de ese MISMO commit."
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "INSUNITS -la unica variable de cabecera que el producto consume- vale 0 en los OCHO dibujos del corpus. Es constante, luego no puede falsar ninguna posicion: un decodificador equivocado que cayera sobre ese valor 'acertaria' en los ocho. Y decodificarla no cambiaria hoy nada en el producto, porque 0 significa 'el archivo no declara unidades', que es exactamente lo que el puente ya declara",
+        "De 343 variables de cabecera observadas en el gemelo AC1015, solo 6 VARIAN entre los ocho dibujos: tdcreate, tdupdate, fingerprintGuid, handles.handseed, handles.dimstyle y textsize",
+        "De esas 6, CINCO las reescribe el conversor y por tanto no sirven como oraculo diferencial: las marcas de tiempo y el GUID de huella son nuevos en cada conversion y los handles se renumeran. Se comprobo buscando sus valores del gemelo en el marco moderno: tdcreate[1], fingerprintGuid y handseed dan CERO aciertos. Queda UNA sola ancla utilizable en toda la seccion: textsize",
+        "El ancla de textsize aparece UNA sola vez y en un offset ESTABLE por version dentro del marco de AcDb:Header: bit 327 en AC1018, 335 en AC1024 y 338 en AC1027 y AC1032, en 24/24 archivos modernos, con dos valores distintos (0.2 en siete dibujos y 2.5 en 06-texto) cayendo en el MISMO offset",
+        "HIPOTESIS FALSADA: la cabecera de R2010+ NO es la de AC1018 con un prologo mas largo. Desplazar el marco moderno el numero de bits que predice el ancla y leerlo con el decodificador de AC1018 -que si funciona 8/8- lanza 'A BD flag of 0b11 is not defined by the format', y NINGUN desplazamiento de 0 a 64 bits decodifica ningun archivo. La divergencia esta DENTRO de los primeros 327 bits, no delante de ellos",
+        "CONCLUSION, y es un resultado NEGATIVO que se publica como tal: con este corpus la secuencia de cabecera de R2010+ no es falsable, porque una sola ancla no falsa una secuencia de 343 campos -la ajusta, que es otra cosa-. No se afirma que sea indescifrable; se afirma que lo que falta es VARIEDAD, no ingenio. Lo desbloquea un intake de corpus con cabeceras distintas entre si (INSUNITS distinto de 0 y distinto entre archivos, limites, escalas y estilos variados), no mas barridos"
+      ],
+      "derivedFiles": [
+        "docs/cad/evidence/dwg-r2010-header-variables.json",
+        "packages/dwg-codec/src/reader/r2004-database-reader.ts",
+        "scripts/dwg/probe-r2010-header-variables.mjs"
+      ],
+      "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-r2010-header-variables.mjs sobre el corpus admitido); revision humana del propietario pendiente",
+      "reviewedAt": "2026-09-01",
+      "notes": "NO decodifica nada nuevo y NO promueve ninguna capacidad: el codec sigue fallando cerrado en las variables de cabecera de R2010+. El valor de esta entrada es que convierte un 'no medido' en un 'medido como no falsable, por esta razon exacta y con esta condicion de desbloqueo', para que nadie repita el intento a ciegas."
     }
   ]
 }
