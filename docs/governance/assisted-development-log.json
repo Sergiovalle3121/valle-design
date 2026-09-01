@@ -1957,6 +1957,39 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-M4-CABECERA-R2010-NO-FALSABLE-20260901",
+      "date": "2026-09-01",
+      "initiative": "Resultado NEGATIVO, publicado como tal: mide POR QUE las variables de cabecera de AC1024/AC1027/AC1032 no se pueden falsar con el corpus admitido, en vez de intentar adivinarlas. La pregunta se hizo en el orden correcto -contar QUE VARIA antes de barrer ninguna disposicion-, que es justo el error que hubo que corregir en las banderas de capa. Censo: de 343 variables solo 6 varian entre los ocho dibujos, y CINCO de esas seis las reescribe el conversor (marcas de tiempo, GUID de huella y handles renumerados; se comprobo buscando sus valores del gemelo en el marco moderno y dan cero aciertos), asi que queda UNA sola ancla utilizable: textsize. Con una sola ancla una secuencia de 343 campos no se falsa, se ajusta. Ademas INSUNITS -la unica variable que el producto consume- vale 0 en los ocho dibujos: constante, no falsable, y decodificarla no cambiaria hoy nada porque 0 ya significa 'el archivo no declara unidades'. En positivo se midio que textsize aparece una sola vez y en offset estable por version (327 AC1018, 335 AC1024, 338 AC1027/AC1032) en 24/24 archivos con dos valores distintos cayendo en el mismo offset, y se FALSO la hipotesis barata: la cabecera R2010+ no es la de AC1018 con un prologo mas largo -ningun desplazamiento de 0 a 64 bits decodifica ningun archivo-, luego la divergencia esta dentro de los primeros 327 bits. Lo que desbloquea esto es un intake de corpus con cabeceras variadas, no mas barridos. No se decodifica nada nuevo y no se promueve ninguna capacidad: el codec sigue fallando cerrado.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de llevar el DWG a las versiones modernas para poder comercializar.",
+      "firstPartyInputs": [
+        "Corpus de conformidad propio leido del commit fijado via el gate consumidor.",
+        "El decodificador de cabecera AC1015 propio, como censo de variedad y como gemelo.",
+        "El decodificador de cabecera AC1018 propio, ya medido 8/8, como hipotesis a falsar."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. Ninguna fuente documental nueva intervino.",
+      "derivedAreas": [
+        "scripts/dwg/probe-r2010-header-variables.mjs (sonda nueva que documenta el resultado negativo, cableada a check:dwg)",
+        "packages/dwg-codec/src/reader/r2004-database-reader.ts (el comentario pasa de 'no esta medida' a la razon exacta, con numeros)",
+        "packages/dwg-codec/CAPABILITIES.md (corte nuevo con el censo y la condicion de desbloqueo)",
+        "packages/dwg-codec/SOURCE_REGISTER.json (VALLE-CORPUS-R2010-CABECERA-NO-FALSABLE)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de completar el DWG moderno para comercializar sin licencia ODA."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
