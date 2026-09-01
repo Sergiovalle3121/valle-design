@@ -181,6 +181,10 @@ export const DWG_BUILD_FLAG_NAMES = [
   // el ARG/ENV no habilita nada, pero su ausencia sí sería el mismo "módulo sin
   // consumidor" que esta campaña prohíbe.
   'NEXT_PUBLIC_DWG_3D_WIREFRAME_IMPORT_BETA',
+  // Familia moderna AC1024/AC1027/AC1032, cableada y sin firma: misma
+  // razón que la de arriba — declararla no habilita nada, no declararla
+  // sería el 'módulo sin consumidor' que esta campaña prohíbe.
+  'NEXT_PUBLIC_DWG_MODERN_IMPORT_BETA',
 ];
 
 /**

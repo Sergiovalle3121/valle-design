@@ -8,7 +8,11 @@ import {
   validateImportFile,
 } from "./document-import";
 import { meshImportFormatOf } from "./interop/mesh-format-detect";
-import { dwg3dWireframeBetaImportIsEnabled, dwgAc1018BetaImportIsEnabled } from "./dwg-interop-flag";
+import {
+  dwg3dWireframeBetaImportIsEnabled,
+  dwgAc1018BetaImportIsEnabled,
+  dwgModernBetaImportIsEnabled,
+} from "./dwg-interop-flag";
 import type { DwgNeutralDatabaseReader } from "./dwg-neutral-model";
 
 /**
@@ -36,11 +40,20 @@ type WorkerInput = {
    * siempre resuelve `false` hoy, encendida esta variable o no.
    */
   dwg3dWireframeBetaEnabled?: boolean;
+  /** Familia moderna AC1024/AC1027/AC1032; su propia variable y su propia firma. */
+  dwgModernBetaEnabled?: boolean;
 };
 
 self.onmessage = async (event: MessageEvent<WorkerInput>) => {
   try {
-    const { file, sidecars, dwgBetaEnabled, dwgAc1018BetaEnabled, dwg3dWireframeBetaEnabled } =
+    const {
+      file,
+      sidecars,
+      dwgBetaEnabled,
+      dwgAc1018BetaEnabled,
+      dwg3dWireframeBetaEnabled,
+      dwgModernBetaEnabled,
+    } =
       event.data;
     validateImportFile(file.name, file.size, dwgBetaEnabled ?? false);
     self.postMessage({
@@ -77,10 +90,14 @@ self.onmessage = async (event: MessageEvent<WorkerInput>) => {
           dwg3dWireframeBetaEnabled ?? false,
           dwgBetaEnabled ?? false,
         );
+        const allowModern = dwgModernBetaImportIsEnabled(
+          dwgModernBetaEnabled ?? false,
+          dwgBetaEnabled ?? false,
+        );
         dwg = {
           betaEnabled: dwgBetaEnabled ?? false,
           reader: (dwgBytes) =>
-            readDwgNeutralDatabase(dwgBytes, { allowAc1018, allow3dWireframe }),
+            readDwgNeutralDatabase(dwgBytes, { allowAc1018, allow3dWireframe, allowModern }),
         };
       }
       // Los cuatro formatos de malla (OBJ, STL, glTF/GLB, COLLADA) no traen
