@@ -252,7 +252,7 @@ function MessageRow({
         </span>
       ) : null}
       {message.anchor ? (
-        <span className="mt-0.5 block type-micro text-primary-ink/70">
+        <span className="mt-0.5 block type-micro text-primary-ink">
           Anclado al dibujo
         </span>
       ) : null}

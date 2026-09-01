@@ -10,8 +10,9 @@
  *
  *   · tier 0 (`segments` ≤ 8, ~24 px aparentes) dibuja SÓLO el contorno — cero
  *     trazos de relleno, no «menos» trazos;
- *   · tier medio (8 < `segments` ≤ 32) dibuja relleno pero con MENOS trazos
- *     que tier completo — la trama se ve, no cada línea;
+ *   · por encima de ese umbral el espaciado es el EXACTO del patrón, en todos
+ *     los escalones: el ensanchado ×4 del tier medio se retiró porque a 300 px
+ *     aparentes el usuario ve la diferencia (ver el comentario del adaptador);
  *   · tier completo (`segments` > 32, y el valor por defecto 96 que usan
  *     `hitTest`/`bounds`/`blockChildPaths`) es BIT A BIT el mismo cálculo que
  *     antes de que existiera el escalón — nadie que dependa del contorno
@@ -56,11 +57,27 @@ ok(fillStrokeCount(8) === 0, "segments=8 (tier 0): cero trazos de relleno");
 ok(outlineCount === square.boundaries.length, "segments=8 (tier 0): el contorno se dibuja igual");
 ok(fillStrokeCount(1) === 0, "un segments menor que el umbral también es sólo contorno");
 
-// ── tier medio: menos trazos que tier completo, pero no cero ───────────────
+// ── por encima del umbral, el espaciado es el EXACTO del patrón ────────────
+//
+// Hubo aquí un escalón intermedio que ensanchaba el espaciado ×4 en todo el
+// tier medio, y se retiró. Lo cazó el golden 47 —las instancias del lote caían
+// de >100 a 83— y la aritmética le dio la razón: un sombreado de 3 000 mm
+// encuadrado mide ~300 px y sus trazos quedan a ~9 px unos de otros;
+// ensancharlos ×4 los pone a ~36 px, que a ese tamaño el usuario VE. El umbral
+// de 320 px está calibrado para curvas, donde 32 segmentos y 128 son
+// indistinguibles porque la flecha de la cuerda cae por debajo del píxel; el
+// espaciado de un patrón no funciona así.
+//
+// El ahorro medido no vivía en este escalón sino en el tier 0 de arriba: en
+// `architecture@100k` los 14 000 sombreados están por debajo de los 24 px, y
+// ahí ya se devuelve sólo el contorno.
 const mediumStrokes = fillStrokeCount(32);
 const fullStrokes = fillStrokeCount(128);
-ok(mediumStrokes > 0, "segments=32 (tier medio) sí dibuja relleno");
-ok(mediumStrokes < fullStrokes, `tier medio (${mediumStrokes}) dibuja MENOS trazos que tier completo (${fullStrokes})`);
+ok(mediumStrokes > 0, "segments=32 sí dibuja relleno");
+ok(
+  mediumStrokes === fullStrokes,
+  `por encima del umbral de contorno el espaciado es el del patrón: ${mediumStrokes} vs ${fullStrokes}`,
+);
 
 // ── tier completo y el valor por defecto (96, el de hitTest/bounds) son idénticos ──
 const defaultStrokes = fillStrokeCount(undefined);

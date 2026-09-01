@@ -4,6 +4,7 @@ import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import { worldPoint } from "../fixtures/world-point";
 import type { CadDocument } from "../../src/lib/cad/cad-document";
+import { fitFootprint } from "../fixtures/camera-preset";
 
 /**
  * "Verificador de píxeles, no de botones" (campaña Paridad, OLA 0.2).
@@ -55,7 +56,7 @@ async function type(page: Page, value: string) {
 
 async function settlePlanView(page: Page) {
   await page.getByRole("button", { name: "2D", exact: true }).click();
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await fitFootprint(page);
 }
 
 test("3D real: la malla del muro se cuenta, y el botón deja de mentir cuando la capa está congelada", async ({

@@ -84,6 +84,14 @@ export function CadDraftToolbar({
       )}
       {chaining && (
         <button
+          // Su hermano «Cerrar» ya llevaba testid; éste no, y por eso los
+          // goldens lo pedían por rol y nombre. Cuando la campaña de la cinta
+          // añadió «Terminar COMANDO» al editor,
+          // `getByRole('button', { name: 'Terminar' })` pasó a resolver a dos
+          // elementos y rompió cuatro goldens de golpe — el mismo defecto que
+          // el ViewCube con los presets de cámara. Un testid es un nombre que
+          // no colisiona con la prosa de la interfaz.
+          data-testid="cad-draft-finish"
           onClick={onFinish}
           className="pointer-events-auto rounded-control border border-border px-2 py-1 type-micro text-foreground hover:bg-muted"
         >

@@ -4,6 +4,7 @@ import { installCadStudioBackend } from "../fixtures/cad-v1-backend";
 import { loginAsStandaloneOwner } from "../fixtures/standalone-identity";
 import type { CadDocument } from "../../src/lib/cad/cad-document";
 import { enter3DView } from "../fixtures/view-mode";
+import { topView } from "../fixtures/camera-preset";
 
 /**
  * EL ORIGEN FLOTANTE (P0-2) en un NAVEGADOR de verdad, no sólo en la sonda de
@@ -177,7 +178,7 @@ test("líneas y un círculo a magnitud UTM (~2,15·10⁶) se dibujan enteros, si
   //    vacío — el propio preset prefiere el contenido real cuando el
   //    footprint no lo alcanza (mismo criterio que el encuadre inicial).
   await enter3DView(page);
-  await page.getByTitle(/Vista superior/).click();
+  await topView(page);
   await settled(page);
   expect(await numberOf(page, "data-visible")).toBe(3);
 });

@@ -153,10 +153,25 @@ export function CallBar({
 
   // `fixed ... z-[75]`: el estudio monta el editor en `fixed inset-0 z-[70]`
   // (su propio contexto de apilamiento — ver `StudioCollaborationLayer`),
-  // así que cualquier chrome flotante encima necesita el mismo piso. La capa
-  // de colaboración vive abajo a la derecha; esta va arriba para no pisarla.
+  // así que cualquier chrome flotante encima necesita el mismo piso.
+  //
+  // `top-[11.5rem]` y no `top-3`, y el número está medido, no elegido: la barra
+  // superior del estudio ocupa y 0–48 y la cinta y 48–162, así que CUALQUIER
+  // cosa fija por encima de 162 px se sienta sobre el chrome del editor. Con
+  // `top-3` esta barra tapaba el botón «Guardar» —la barra superior hace scroll
+  // horizontal y lo trae justo debajo—, y eso rompía a la vez el guardado para
+  // el usuario y todos los goldens que guardan. 184 px deja la barra dentro del
+  // lienzo, con 22 px de holgura sobre la cinta.
+  //
+  // El lado derecho y no el izquierdo porque abajo-izquierda es la mensajería y
+  // abajo-derecha la capa de colaboración: las dos crecen HACIA ARRIBA desde
+  // `bottom-16`, así que la banda alta del lienzo es la única libre.
+  //
+  // El envoltorio no intercepta el puntero; sólo lo hace el contenido. Un
+  // rectángulo invisible que se traga clics sobre el dibujo es la otra mitad
+  // del mismo defecto.
   return (
-    <div className="fixed right-3 top-3 z-[75]">
+    <div className="pointer-events-none fixed right-3 top-[11.5rem] z-[75] [&>*]:pointer-events-auto">
       <CallBarContent
         state={state}
         toggles={toggles}

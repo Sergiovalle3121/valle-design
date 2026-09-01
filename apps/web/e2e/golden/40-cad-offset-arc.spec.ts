@@ -24,6 +24,7 @@ import { applyDynamicInput } from "../fixtures/dynamic-input";
 import { worldPoint } from "../fixtures/world-point";
 import type { CadDocument, CadEntity } from "../../src/lib/cad/cad-document";
 import { enter3DView } from '../fixtures/view-mode';
+import { topView, fitFootprint } from "../fixtures/camera-preset";
 
 type CadArc = Extract<CadEntity, { type: "arc" }>;
 
@@ -90,8 +91,8 @@ test("OFFSET sobre un arco produce un arco concéntrico y lo persiste", async ({
   // La selección previa ya no forma parte del comando; el arco se designa con
   // el pickbox sobre su punto a 45° (4000+1000·cos45, 3000+1000·sin45).
   await enter3DView(page);
-  await page.getByTitle(/Vista superior/).click();
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await topView(page);
+  await fitFootprint(page);
   await page.getByRole("button", { name: "Desfase", exact: true }).click();
   await applyDynamicInput(page, { offset: "250mm" });
   const on = await worldPoint(page, { x: 4_707, y: 3_707 });

@@ -26,7 +26,7 @@ export default function CadTemplateChooserCard({
         <div className="inline-flex items-center gap-1.5 type-micro uppercase tracking-wide text-primary-ink">
           <Stamp className="h-3.5 w-3.5" /> Plantillas CAD
         </div>
-        <span className="type-micro text-primary-ink/60">
+        <span className="type-micro text-primary-ink">
           {CAD_LAYOUT_TEMPLATES.length}
         </span>
       </div>
@@ -40,11 +40,11 @@ export default function CadTemplateChooserCard({
           >
             <span className="flex items-center justify-between gap-2">
               <span className="truncate font-semibold">{template.label}</span>
-              <span className="shrink-0 type-micro text-primary-ink/70">
+              <span className="shrink-0 type-micro text-primary-ink">
                 {template.assets.length} obj
               </span>
             </span>
-            <span className="mt-0.5 block truncate type-micro text-primary-ink/70">
+            <span className="mt-0.5 block truncate type-micro text-primary-ink">
               {template.category} · {template.description}
             </span>
           </button>

@@ -8,6 +8,7 @@ import { applyNativeProperty } from "../fixtures/dynamic-input";
 import { worldPoint } from "../fixtures/world-point";
 import type { CadDocument, CadWallEntity } from "../../src/lib/cad/cad-document";
 import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
+import { fitFootprint } from "../fixtures/camera-preset";
 
 /**
  * EL MURO PARAMÉTRICO de punta a punta — la primera entidad BIM del producto.
@@ -69,7 +70,7 @@ async function type(page: Page, value: string) {
  */
 async function settlePlanView(page: Page) {
   await page.getByRole("button", { name: "2D", exact: true }).click();
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await fitFootprint(page);
 }
 
 /** Designa por el panel profesional, sin depender del lienzo. */

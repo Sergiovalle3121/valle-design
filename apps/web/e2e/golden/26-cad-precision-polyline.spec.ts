@@ -13,6 +13,7 @@
  * La aserción nueva es MÁS precisa que la anterior: apunta a un gancho
  * estable en vez de a una expresión regular sobre el texto de la página.
  */
+import { finishDraft } from '../fixtures/draft-toolbar';
 import { expect, test, type BrowserContext } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
@@ -22,6 +23,7 @@ import { cadDocumentToEditorSnapshot } from '../../src/lib/cad/editor-snapshot';
 import { saveAndSettle } from '../fixtures/cad-save';
 import { applyDynamicInput } from '../fixtures/dynamic-input';
 import { worldPoint } from '../fixtures/world-point';
+import { fitFootprint } from "../fixtures/camera-preset";
 
 // MIGRACIÓN R3: mock en la superficie v1 real. DIFERENCIA de transporte
 // documentada: el PUT legacy arrastraba el array `assets` junto al documento;
@@ -106,7 +108,7 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
   });
   await test.step('6. Coordenada polar', async () => {
     await applyDynamicInput(page, { distance: '1500', angle: '90deg' }, { mode: 'POLAR' });
-    await page.getByRole('button', { name: 'Terminar' }).click();
+    await finishDraft(page);
     // PRIORIDAD 2 — antes esto afirmaba `/2 equipos/`: LINE creaba MUROS
     // heredados, uno por tramo. Hoy son dos entidades `line` canónicas y el
     // contador de equipo no se mueve.
@@ -135,7 +137,7 @@ test('neutral drawing uses units, layers, ABS/REL/POLAR, closed polyline and OFF
     // 2D bloquea la vista superior (mapa mundo↔pantalla afín por construcción),
     // que es lo que `worldPoint` necesita para invertir la proyección.
     await page.getByRole('button', { name: '2D', exact: true }).click();
-    await page.getByTitle(/Ajustar a la planta/).click();
+    await fitFootprint(page);
     await page.getByRole('button', { name: 'Desfase', exact: true }).click();
     await applyDynamicInput(page, { offset: '250mm' });
     const on = await worldPoint(page, { x: 3_000, y: 4_000 });

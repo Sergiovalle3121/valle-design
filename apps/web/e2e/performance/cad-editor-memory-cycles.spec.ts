@@ -31,6 +31,7 @@ import {
   measureDenseGesture,
   setSelectionMode,
 } from "../fixtures/dense-editing-harness";
+import { fitFootprint } from "../fixtures/camera-preset";
 
 const ENTITY_COUNT = 10_000;
 const CYCLES = 20;
@@ -137,7 +138,7 @@ test.describe("FASE 2 · memoria en ciclos y selección a 10k", () => {
     // ── 2 · Selección por ventana a 10k, cronometrada en la página ──────
     await openStudio(page);
     await page.getByRole("button", { name: "2D", exact: true }).click();
-    await page.getByTitle(/Ajustar a la planta/).click();
+    await fitFootprint(page);
     // Modo VENTANA explícito, por la paleta — la primera corrida lo midió
     // mal: el arrastre por defecto desde el centro caía SOBRE un trazo y
     // era un move-drag de 1 entidad, no una marquesina.
