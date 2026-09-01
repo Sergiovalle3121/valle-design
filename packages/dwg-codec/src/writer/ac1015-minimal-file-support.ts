@@ -28,6 +28,13 @@ export interface Ac1015MinimalFileLayerSpec {
   readonly name: readonly number[];
   /** Índice de color CmC. Por defecto 7. */
   readonly colorIndex?: number;
+  /**
+   * Estado de la capa. Se compone con el criterio ÚNICO que también lo lee
+   * (`objects/layer-state.ts`): congelada es el bit 0 y bloqueada el 3, sobre
+   * la base 0b1111110000 que el corpus trae siempre. Ausentes = capa normal.
+   */
+  readonly frozen?: boolean;
+  readonly locked?: boolean;
 }
 
 /**

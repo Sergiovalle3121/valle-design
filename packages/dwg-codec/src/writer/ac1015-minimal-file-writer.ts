@@ -44,6 +44,7 @@
  * writer de contenedor.
  */
 import { crc16Dwg } from "../codecs/crc16.js";
+import { encodeLayerStateFlags } from "../objects/layer-state.js";
 import {
   AC1015_FILE_HEADER_END_SENTINEL,
   AC1015_MAGIC,
@@ -526,8 +527,17 @@ export function writeAc1015MinimalFile(
         {
           name: layer.name,
           ...(layer.colorIndex === undefined ? {} : { colorIndex: layer.colorIndex }),
+          // EL ESTADO SE ESCRIBE DESDE EL 2026-09-01. Antes no se pasaba nunca,
+          // así que caía al 1008 por defecto y TODA capa exportada salía
+          // descongelada y desbloqueada: un round-trip perdía los dos hechos
+          // sin declararlos. El criterio es el mismo que los lee.
+          stateFlags: encodeLayerStateFlags(layer),
           controlHandle: H_LAYER_CONTROL,
           plotStyleHandle: H_PLACEHOLDER,
+          // ESTE ARCHIVO SÓLO TIENE UNA ENTRADA LTYPE. Apuntar aquí a
+          // Continuous no es una elección: es la única que existe. Que eso sea
+          // una PÉRDIDA cuando el dibujo pedía otra cosa lo declara el llamador
+          // público, que es quien sabe qué pedía el documento.
           linetypeHandle: H_LTYPE_CONTINUOUS,
         },
         plan.layerHandles[index + 1]!,

@@ -2293,6 +2293,40 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-CAPA-ESTADO-ESCRITO-20260901",
+      "date": "2026-09-01",
+      "initiative": "Con el color ya arreglado, un round-trip por el camino publico seguia perdiendo tres cosas de cada capa CON EL MANIFIESTO VACIO: congelada volvia descongelada, bloqueada volvia desbloqueada, y un tipo de linea TRAZOS volvia 'Continuous' -valor EQUIVOCADO, no ausencia-, que es la peor forma de la perdida porque parece un dato bueno. CORRECCION DE UN DIAGNOSTICO PROPIO: se habia anotado que la causa eran los cinco handles nulos del writer de LAYER; al abrir el codigo resulto que hay DOS writers y que el que viaja en el archivo (writeAc1015ResolvedLayerBody) ya resolvia sus handles -los nulos son del writer de tabla de la fase D3, que no se escribe-. Los huecos reales eran otros: al writer que si viaja NUNCA se le pasaba el estado, asi que caia al 1008 por defecto, y su linetypeHandle esta fijado a Continuous porque el archivo minimo solo lleva esa entrada LTYPE. El cambio al writer que no viaja se revirtio por disciplina de alcance: no arreglaba lo medido. El estado se compone ahora con encodeLayerStateFlags, que vive JUNTO a la funcion que lo lee -mismo modulo, dos direcciones-, porque si lectura y escritura tuvieran cada una su idea de que bit es congelada la divergencia no la veria ninguna prueba: se escribiria una cosa y se leeria otra y ambas serian coherentes consigo mismas. Los valores esperados en la spec son los MEDIDOS en el corpus (1008, 1009, 1016), no los que produzca la implementacion. Resultado: congelada y bloqueada sobreviven al round-trip y el tipo de linea no emitible sale con su perdida declarada. LIMITE QUE QUEDA DICHO: el archivo minimo emite UNA sola entrada LTYPE, asi que TRAZOS se sigue escribiendo continuo; la diferencia es que ahora se declara en vez de fingirse, y emitir entradas LTYPE propias con su patron es un corte aparte. El harness del oraculo gana un caso capa-estado; su parser DXF compara por nombre y color y NO proyecta el estado, asi que lo que pregunta a un lector ajeno es que el archivo con esos bits siga abriendo limpio, no que el estado signifique lo que decimos -eso lo prueba el round-trip propio-. Con el gemelo publico de cada caso, el titular corre ahora DIEZ.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de subir el nivel — «no quiero laboratorios, quiero mi propio DWG real y funcional; analiza que mas le falta y hazlo».",
+      "firstPartyInputs": [
+        "La medicion propia del round-trip publico hecha en esta misma sesion.",
+        "El criterio de estado de capa medido contra el oraculo DXF (VALLE-CORPUS-LAYER-ESTADO-SEMANTICA)."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El binario ODA no se ejecuto en esta sesion.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/objects/layer-state.ts (encodeLayerStateFlags, inverso del lector)",
+        "packages/dwg-codec/src/writer/ac1015-minimal-file-support.ts y ac1015-minimal-file-writer.ts (el estado llega al archivo)",
+        "packages/dwg-codec/src/api/write.ts (estado desde el documento canonico; tipo de linea no emitible declarado)",
+        "packages/dwg-codec/tests/unit/layer-state-write.spec.ts",
+        "scripts/dwg/oda-roundtrip.mjs (caso capa-estado)",
+        "packages/dwg-codec/CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguno nuevo del corpus. El harness anade un caso sintetico propio, capa-estado.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de dejar de tener un laboratorio y tener un DWG real y funcional."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

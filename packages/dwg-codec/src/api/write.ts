@@ -54,6 +54,9 @@
  * (ADR-0009 §8.2 lo exige antes de cablear nada al producto).
  */
 import { aciIndexFromHex } from "../objects/aci-basic.js";
+
+/** El único tipo de línea que el archivo mínimo sabe emitir hoy. */
+const WRITABLE_LINETYPE_NAME = "CONTINUOUS";
 import {
   canonicalDocumentToDwgEntities,
   type CanonicalCadDocumentJson,
@@ -173,15 +176,32 @@ export function writeCanonicalDwg(
     // la interna. La interna recibe el índice ya resuelto y siempre estuvo
     // bien; la pública recibe un documento canónico con el color en hexadecimal
     // y no lo traducía. Verificar sólo una de las dos no podía ver esto.
+    const definition = definitionByName.get(name);
     const colorIndex =
-      definitionByName.get(name)?.color === undefined
-        ? undefined
-        : aciIndexFromHex(definitionByName.get(name)!.color);
-    if (definitionByName.get(name)?.color !== undefined && colorIndex === undefined) {
+      definition?.color === undefined ? undefined : aciIndexFromHex(definition.color);
+    if (definition?.color !== undefined && colorIndex === undefined) {
       losses.push({
         code: "layer-color-not-in-aci-basic",
         sourceType: "LAYER",
-        detail: `La capa "${name}" usa el color ${definitionByName.get(name)!.color}, que no está en la tabla ACI básica que este writer sabe escribir; se escribe con el color por defecto y se declara en vez de aproximarlo al más cercano.`,
+        detail: `La capa "${name}" usa el color ${definition!.color}, que no está en la tabla ACI básica que este writer sabe escribir; se escribe con el color por defecto y se declara en vez de aproximarlo al más cercano.`,
+        severity: "warning",
+      });
+    }
+    // EL TIPO DE LÍNEA QUE NO SE SABE ESCRIBIR SE DECLARA. El archivo mínimo
+    // sólo lleva UNA entrada LTYPE, Continuous, así que una capa que pedía otra
+    // cosa saldría dibujada continua. Antes eso pasaba en silencio, que es la
+    // peor forma de la pérdida: no dice «no sé», dice un valor equivocado que
+    // parece un dato. Emitir entradas LTYPE propias con su patrón es trabajo
+    // aparte y más grande; declararlo es lo que se puede hacer hoy.
+    const declaredLinetype = definition?.linetype;
+    if (
+      declaredLinetype !== undefined &&
+      declaredLinetype.trim().toUpperCase() !== WRITABLE_LINETYPE_NAME
+    ) {
+      losses.push({
+        code: "layer-linetype-not-writable",
+        sourceType: "LAYER",
+        detail: `La capa "${name}" usa el tipo de línea "${declaredLinetype}", y este writer sólo emite "Continuous"; la capa se escribe continua y se declara aquí en vez de dejar que el archivo afirme un tipo de línea que el dibujo no pedía.`,
         severity: "warning",
       });
     }
@@ -189,7 +209,15 @@ export function writeCanonicalDwg(
     // del archivo mínimo), así que el índice de esta capa es su posición
     // FINAL en `layers` (longitud actual, antes de añadirla) más uno.
     layerIndexByName.set(name, layers.length + 1);
-    layers.push(colorIndex === undefined ? { name: bytes } : { name: bytes, colorIndex });
+    layers.push({
+      name: bytes,
+      ...(colorIndex === undefined ? {} : { colorIndex }),
+      // El estado viaja al archivo desde el 2026-09-01: antes toda capa
+      // exportada salía descongelada y desbloqueada, se pidiera lo que se
+      // pidiera, y sin declararlo.
+      ...(definition?.frozen === undefined ? {} : { frozen: definition.frozen }),
+      ...(definition?.locked === undefined ? {} : { locked: definition.locked }),
+    });
   }
   const layerIndexFor = (name: string): number =>
     name === "0" ? 0 : (layerIndexByName.get(name) ?? 0);

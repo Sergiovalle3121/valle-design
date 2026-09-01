@@ -1115,3 +1115,49 @@ verificar uno basta» es exactamente el atajo que dejó este agujero abierto.
 **Lo que sigue sin poder hacerse aquí.** El binario ODA es del titular y sólo
 él puede correrlo; `externalOracleVerified` sigue en `false` y esto no lo mueve.
 Lo que cambia es que, cuando lo corra, verificará **lo que el ADR nombra**.
+
+## Corte 2026-09-01 (e) — escribir el estado de la capa, y declarar el tipo de línea que no se sabe escribir
+
+**Lo que se medía perdido.** Con el color ya arreglado, un round-trip por el
+camino público (`writeCanonicalDwg` → `readDwg`) seguía perdiendo tres cosas de
+cada capa, **con el manifiesto de pérdidas vacío**:
+
+| escrito | volvía como | |
+| --- | --- | --- |
+| `CONGELADA` frozen=**true** | frozen=**false** | perdido, sin declarar |
+| `BLOQUEADA` locked=**true** | locked=**false** | perdido, sin declarar |
+| `EJES` linetype=**TRAZOS** | **Continuous** | **valor equivocado**, no ausencia |
+
+El tercero era el peor: no decía «no sé», decía *Continuous*. Una capa de ejes
+discontinua volvía sólida y con aspecto de dato bueno.
+
+**Causa, corregida respecto de un diagnóstico propio.** Al abrir el código
+resultó que hay **dos** writers de LAYER y que el que viaja en el archivo
+—`writeAc1015ResolvedLayerBody`— ya resolvía sus handles; los cinco nulos son
+del writer de tabla de la fase D3, que **no** es el que se escribe. Los huecos
+reales eran otros dos: al writer que sí viaja **nunca se le pasaba el estado**
+(caía al 1008 por defecto), y su `linetypeHandle` está fijado a Continuous
+porque el archivo mínimo **sólo lleva esa entrada LTYPE**.
+
+**Qué cambia.** El estado se compone con `encodeLayerStateFlags`, que vive
+junto a la función que lo lee: el mismo módulo, las dos direcciones. Si la
+lectura y la escritura tuvieran cada una su idea de qué bit es congelada, la
+divergencia no la vería ninguna prueba — se escribiría una cosa y se leería
+otra, y las dos serían coherentes consigo mismas. Los valores esperados en la
+spec son los **medidos en el corpus** (1008, 1009, 1016), no los que produzca
+la implementación.
+
+Resultado del mismo round-trip: **congelada y bloqueada sobreviven**, y el tipo
+de línea no emitible sale ahora con su pérdida `layer-linetype-not-writable`.
+
+**Lo que sigue sin poder hacerse, y queda dicho.** El archivo mínimo emite una
+sola entrada LTYPE, así que `TRAZOS` **se sigue escribiendo continuo** — la
+diferencia es que ahora se declara en vez de fingirse. Emitir entradas LTYPE
+propias con su patrón de trazos es un corte aparte y más grande.
+
+**Ante el oráculo.** El harness gana un caso, `capa-estado`, con una capa
+congelada y una bloqueada. El parser DXF del oráculo compara capas por nombre y
+color y **no** proyecta el estado, así que lo que ese caso pregunta a un lector
+ajeno es que el archivo con esos bits encendidos siga abriendo y convirtiendo
+limpio; que el estado *signifique* lo que decimos lo prueba el round-trip
+propio. Con el gemelo público de cada caso, el titular corre ahora **diez**.

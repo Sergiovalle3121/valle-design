@@ -946,7 +946,10 @@
         "packages/dwg-codec/src/reader/database-assembly.ts",
         "packages/dwg-codec/src/reader/database-model.ts",
         "packages/dwg-codec/src/reader/r2010-database-assembly.ts",
+        "packages/dwg-codec/src/writer/ac1015-minimal-file-support.ts",
+        "packages/dwg-codec/src/writer/ac1015-minimal-file-writer.ts",
         "packages/dwg-codec/tests/unit/aci-basic.spec.ts",
+        "packages/dwg-codec/tests/unit/layer-state-write.spec.ts",
         "packages/dwg-codec/tests/unit/layer-state.spec.ts",
         "scripts/dwg/probe-layer-state-flags.mjs"
       ],
