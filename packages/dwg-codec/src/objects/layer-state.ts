@@ -60,6 +60,33 @@ export interface LayerStateInterpretation {
 }
 
 /**
+ * El patrón que el corpus trae SIEMPRE en los bits 4..9. Escribir un estado
+ * sin él produciría un valor que ningún archivo real muestra —y que el propio
+ * lector marcaría como «fuera de lo medido»—, así que la escritura parte de
+ * esta base y sólo enciende encima lo que se sabe.
+ */
+const LAYER_STATE_BASELINE = 0b11_1111_0000;
+
+/**
+ * Compone el `BS` de estado de una capa a partir de los dos hechos medidos.
+ * Es el INVERSO exacto de `interpretLayerStateFlags`, y vive junto a él por la
+ * misma razón que la tabla ACI vive en un solo módulo: si la lectura y la
+ * escritura tuvieran cada una su idea de qué bit es congelada, la divergencia
+ * entre ellas no la vería ninguna prueba —se escribiría una cosa y se leería
+ * otra, y ambas serían «coherentes» consigo mismas—.
+ */
+export function encodeLayerStateFlags(state: {
+  readonly frozen?: boolean;
+  readonly locked?: boolean;
+}): number {
+  return (
+    LAYER_STATE_BASELINE |
+    (state.frozen === true ? 1 << LAYER_STATE_FROZEN_BIT : 0) |
+    (state.locked === true ? 1 << LAYER_STATE_LOCKED_BIT : 0)
+  );
+}
+
+/**
  * Interpreta el `BS` de estado de una capa. Nunca lanza: el estado fuera de
  * lo medido no es corrupción ni capacidad ausente, es un hecho que se
  * transporta al llamador para que lo declare.

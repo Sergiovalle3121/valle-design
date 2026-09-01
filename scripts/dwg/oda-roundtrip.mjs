@@ -203,6 +203,34 @@ const CASES = [
     expectedBlocks: {},
   },
   {
+    // ESTADO DE CAPA ANTE EL ORÁCULO. Los otros casos escriben capas normales,
+    // así que ninguno ejercitaba lo que el corpus real sí trae: una capa
+    // CONGELADA y una BLOQUEADA. Desde el 2026-09-01 el writer las escribe
+    // (antes toda capa salía normal, sin declararlo), y este caso es el que
+    // pregunta a un lector AJENO si se las cree.
+    //
+    // El oráculo DXF compara capas por NOMBRE Y COLOR —no por estado, que su
+    // parser no proyecta—, así que lo que este caso añade ante ODA es que el
+    // archivo con esos bits encendidos sigue siendo un DWG que abre y convierte
+    // limpio. Que el estado signifique lo que decimos lo prueba el round-trip
+    // propio en `layer-state-write.spec.ts`; que no rompa el archivo, esto.
+    name: "capa-estado",
+    options: {
+      layers: [
+        { name: ascii("CONGELADA"), colorIndex: 4, frozen: true },
+        { name: ascii("BLOQUEADA"), colorIndex: 5, locked: true },
+      ],
+      entities: [{ entity: LINE, layerIndex: 1 }],
+    },
+    expectedLayers: [
+      { name: "0", color: 7 },
+      { name: "CONGELADA", color: 4 },
+      { name: "BLOQUEADA", color: 5 },
+    ],
+    expectedEntities: [{ kind: "line", layer: "CONGELADA", entity: LINE }],
+    expectedBlocks: {},
+  },
+  {
     name: "bloque-insert",
     options: {
       blocks: [{ name: ascii("PUERTA"), entities: [LINE, CIRCLE] }],
