@@ -49,10 +49,12 @@ import {
   cadUcsFromSolidFace,
 } from "../../ucs-solid";
 import { solid3dBody } from "../../solid3d-build";
+import { cadResolveFaceRef } from "../../pick3d/solid-face-ref";
 import {
   CAD_ACCEPT_ANGLE,
   CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_ENTITY_PICK,
+  CAD_ACCEPT_FACE_PICK,
   CAD_ACCEPT_KEYWORD,
   CAD_ACCEPT_POINT,
   CAD_ACCEPT_TEXT,
@@ -332,7 +334,13 @@ const ucsCommand: CadCommandDescriptor<UcsState> = {
           return {
             state: { stage: { kind: "pick-face" } },
             prompt: { message: "Designe la cara de un sólido", options: [] },
-            accepts: CAD_ACCEPT_ENTITY_PICK,
+            // CARA primero, ENTIDAD como respaldo declarado. El enrutador
+            // pregunta por la cara antes que por la entidad, así que en 3D
+            // llega la cara exacta que el usuario está mirando; el respaldo
+            // sólo entra donde no hay rayo que lanzar —el visor 2D, que no
+            // ofrece `hitFace`— y allí resuelve por la regla aproximada de
+            // siempre. Retirarlo dejaría la opción `Cara` muerta en planta.
+            accepts: CAD_ACCEPT_FACE_PICK | CAD_ACCEPT_ENTITY_PICK,
           };
         case OBJECT.keyword:
           return {
@@ -420,7 +428,45 @@ const ucsCommand: CadCommandDescriptor<UcsState> = {
     }
 
     // --- cara de un sólido --------------------------------------------------
+    //
+    // DOS CAMINOS, y la diferencia entre ellos es la razón de esta ola.
+    //
+    // El de arriba es el bueno: el lienzo 3D lanza un rayo desde su cámara viva
+    // contra las caras teseladas del cuerpo y manda la que de verdad está bajo
+    // el cursor, con su huella geométrica. El de abajo es el que había —
+    // `cadSolidFaceUnderPoint`, que sólo mira a lo largo de la Z del MUNDO y se
+    // declara a sí mismo «una regla de designación, no de geometría exacta»—.
+    // Con él, apoyarse en un faldón inclinado daba la cara equivocada sin
+    // avisar, porque en planta la cara de arriba y la de abajo comparten
+    // proyección.
+    //
+    // El aproximado no se borra: sigue siendo lo único disponible en el visor
+    // 2D, que no tiene rayo que lanzar. Se queda de respaldo, y se dice.
     if (stage.kind === "pick-face") {
+      if (input.kind === "facePick") {
+        const solid = solidOf(context, input.entityId);
+        if (!solid.ok) return message(state, solid.message);
+        // La huella se RESUELVE contra el cuerpo vivo en vez de creerse su
+        // índice: entre la designación y este paso el sólido pudo reevaluarse.
+        // `cadResolveFaceRef` devuelve tres cosas distintas —casa, se cura, o
+        // falla nombrando cuántas candidatas había—, y la tercera se dice en
+        // vez de caer a la cara 0.
+        const resolved = cadResolveFaceRef(solid3dBody(solid.entity), input.face);
+        if (!resolved.ok)
+          return message(state, `No pude fijar esa cara: ${resolved.reason}`);
+        const next: UcsState = {
+          stage: {
+            kind: "face",
+            entityId: input.entityId,
+            face: resolved.face,
+            flipped: false,
+          },
+        };
+        return faceStep(
+          next,
+          `${describeFace(context, input.entityId, resolved.face)}. Acepte o elija otra`,
+        );
+      }
       if (input.kind !== "entityPick") return cancelled(state);
       const solid = solidOf(context, input.entityId);
       if (!solid.ok) return message(state, solid.message);
