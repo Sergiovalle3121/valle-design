@@ -2259,6 +2259,40 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-ORACULO-EXTERNO-WRITER-PUBLICO-20260901",
+      "date": "2026-09-01",
+      "initiative": "ADR-0009 §8.2 exige, ANTES de cablear exportacion al producto, que exista una funcion publica de escritura y que SU salida se verifique contra el ODA File Converter, y dice con esas palabras que la evidencia previa 'no nombra un contrato de API publico'. El harness del oraculo -el gate que solo el titular puede correr y del que depende mover externalOracleVerified- escribia sus cuatro casos con el writer INTERNO writeAc1015MinimalFile, asi que la corrida no podia satisfacer la precondicion que el mismo firmo. Y no era formalismo: al exigirla aparecio un fallo real y SILENCIOSO en el camino publico, que perdia EL COLOR DE CADA CAPA. Una capa cian (ACI 4) salia escrita como blanca (ACI 7) y nada aparecia en el manifiesto de perdidas. La causa: writeCanonicalDwg recibe el color en HEXADECIMAL del documento canonico y empujaba la capa con su nombre y nada mas; el writer interno recibe el indice ya resuelto y siempre estuvo bien, por eso ninguna prueba lo veia. Medido: de los cuatro casos, TRES salian byte a byte identicos por ambos caminos y capa-linea no -el unico con una capa de color-; tras el arreglo son 4/4 identicos. La tabla ACI pasa a vivir en un solo sitio y en las DOS direcciones (objects/aci-basic.ts), con el inverso derivado de la misma tabla y no escrito a mano; el blanco ambiguo resuelve al indice menor y un color fuera de la tabla NO se aproxima al mas cercano, se declara. El harness corre ahora OCHO casos: los mismos cuatro dibujos por el writer interno y por la API publica, cada uno como caso independiente ante el conversor, aunque hoy salgan identicos. LIMITE: el binario ODA es del titular y solo el puede correrlo; externalOracleVerified sigue en false y esto no lo mueve, lo que cambia es que cuando lo corra verificara lo que el ADR nombra.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de subir el nivel — «no quiero laboratorios, quiero mi propio DWG real y funcional; analiza que mas le falta y hazlo». La precondicion la fija su propia firma de ADR-0009 §8.2.",
+      "firstPartyInputs": [
+        "ADR-0009 §8.2, firmado por el titular el 2026-08-25.",
+        "El propio harness del oraculo y los cuatro casos que ya tenia."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El binario del ODA File Converter es oraculo EJECUTADO, nunca inspeccionado ni descompilado, y en esta sesion no se ejecuto: no esta disponible aqui.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/objects/aci-basic.ts (tabla ACI en las dos direcciones, nueva)",
+        "packages/dwg-codec/src/api/write.ts (el writer publico conserva el color de capa y declara el que no sabe escribir)",
+        "packages/dwg-codec/src/api/canonical-layers.ts (consume la tabla compartida en vez de su copia)",
+        "packages/dwg-codec/tests/unit/aci-basic.spec.ts (guarda el fallo)",
+        "scripts/dwg/oda-roundtrip.mjs (ocho casos: interno y publico)",
+        "packages/dwg-codec/CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguno nuevo. El harness reusa sus cuatro casos y anade el gemelo publico de cada uno, derivado del mismo dibujo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Precondicion de su propia firma de ADR-0009 §8.2."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

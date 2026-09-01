@@ -53,6 +53,7 @@
  * espera de que el propietario lo corra con el ODA File Converter
  * (ADR-0009 §8.2 lo exige antes de cablear nada al producto).
  */
+import { aciIndexFromHex } from "../objects/aci-basic.js";
 import {
   canonicalDocumentToDwgEntities,
   type CanonicalCadDocumentJson,
@@ -149,6 +150,8 @@ export function writeCanonicalDwg(
   }
   referencedLayerNames.delete("0");
 
+  // Las capas del documento canónico por nombre: de ahí sale su color.
+  const definitionByName = new Map(document.layers.map((layer) => [layer.name, layer] as const));
   const layers: Ac1015MinimalFileLayerSpec[] = [];
   const layerIndexByName = new Map<string, number>();
   for (const name of referencedLayerNames) {
@@ -162,11 +165,31 @@ export function writeCanonicalDwg(
       });
       continue;
     }
+    // EL COLOR DE LA CAPA. Hasta el 2026-09-01 esta línea empujaba sólo el
+    // nombre, así que TODA capa exportada por el camino público salía con el
+    // color por defecto del archivo mínimo —el 7, blanco— y el color real del
+    // dibujo se perdía SIN declararlo. Se descubrió al exigir lo que pide el
+    // ADR-0009 §8.2: que el oráculo externo verifique la función PÚBLICA y no
+    // la interna. La interna recibe el índice ya resuelto y siempre estuvo
+    // bien; la pública recibe un documento canónico con el color en hexadecimal
+    // y no lo traducía. Verificar sólo una de las dos no podía ver esto.
+    const colorIndex =
+      definitionByName.get(name)?.color === undefined
+        ? undefined
+        : aciIndexFromHex(definitionByName.get(name)!.color);
+    if (definitionByName.get(name)?.color !== undefined && colorIndex === undefined) {
+      losses.push({
+        code: "layer-color-not-in-aci-basic",
+        sourceType: "LAYER",
+        detail: `La capa "${name}" usa el color ${definitionByName.get(name)!.color}, que no está en la tabla ACI básica que este writer sabe escribir; se escribe con el color por defecto y se declara en vez de aproximarlo al más cercano.`,
+        severity: "warning",
+      });
+    }
     // Se registra ANTES de empujar: layerIndex es 1-based (0 = "0" implícita
     // del archivo mínimo), así que el índice de esta capa es su posición
     // FINAL en `layers` (longitud actual, antes de añadirla) más uno.
     layerIndexByName.set(name, layers.length + 1);
-    layers.push({ name: bytes });
+    layers.push(colorIndex === undefined ? { name: bytes } : { name: bytes, colorIndex });
   }
   const layerIndexFor = (name: string): number =>
     name === "0" ? 0 : (layerIndexByName.get(name) ?? 0);

@@ -1075,3 +1075,43 @@ línea de una capa y **no lo escribe**: una asimetría real, ahora visible.
 **Nunca `CONTINUOUS` por defecto.** Un handle que la tabla LTYPE del dibujo no
 trae, o un handle nulo, dejan el nombre **ausente** y lo declaran como pérdida
 nombrando a qué apuntaba. `CONTINUOUS` es un tipo de línea real, no un «no sé».
+
+## Corte 2026-09-01 (d) — el oráculo externo verifica ahora el writer PÚBLICO
+
+**Una precondición firmada que no se estaba cumpliendo.** ADR-0009 §8.2 exige,
+**antes de cablear exportación al producto**, que exista una función pública de
+escritura y que **su salida** se verifique contra el ODA File Converter con la
+disciplina de `check:dwg`; dice, con esas palabras, que la evidencia previa «no
+nombra un contrato de API público». `scripts/dwg/oda-roundtrip.mjs` —el gate
+que sólo el titular puede correr, y del que depende mover
+`externalOracleVerified`— escribía sus cuatro casos con el writer **interno**
+`writeAc1015MinimalFile`. La corrida no podía satisfacer la precondición.
+
+**Y no era formalismo.** Al exigirla apareció un fallo real y silencioso: el
+camino público **perdía el color de cada capa**. Una capa cian (ACI 4) salía
+escrita como blanca (ACI 7), y **nada** aparecía en el manifiesto de pérdidas.
+
+| | |
+| --- | --- |
+| causa | `writeCanonicalDwg` recibe el color en **hexadecimal** (documento canónico) y empujaba la capa con su nombre y nada más |
+| por qué nadie lo veía | el writer **interno** recibe el índice ACI ya resuelto y siempre estuvo bien; verificar sólo uno de los dos no podía verlo |
+| medición | de los cuatro casos, **tres** salían byte a byte idénticos por ambos caminos y **`capa-linea` no** — el único con una capa de color |
+| tras el arreglo | **4/4 byte a byte idénticos** |
+
+**La tabla ACI vive ahora en un solo sitio, en las dos direcciones**
+(`objects/aci-basic.ts`). Dos tablas separadas es donde una divergencia entre
+leer y escribir no la ve ninguna prueba: la de ida diría cian y la de vuelta
+blanco. El blanco `#FFFFFF` es a la vez el 7 y el 255; gana el menor, que es el
+convencional. Un color fuera de la tabla básica **no se aproxima al más
+cercano**: se declara como pérdida, porque aproximar convertiría «no sé
+escribir este color» en «este color es gris».
+
+**Qué corre ahora el titular.** Ocho casos en vez de cuatro: los mismos cuatro
+dibujos escritos por el writer interno **y** por la API pública, cada uno como
+un caso independiente ante el conversor. Se comparan contra las mismas
+expectativas. Van los dos aunque hoy salgan idénticos: decir «son iguales, con
+verificar uno basta» es exactamente el atajo que dejó este agujero abierto.
+
+**Lo que sigue sin poder hacerse aquí.** El binario ODA es del titular y sólo
+él puede correrlo; `externalOracleVerified` sigue en `false` y esto no lo mueve.
+Lo que cambia es que, cuando lo corra, verificará **lo que el ADR nombra**.

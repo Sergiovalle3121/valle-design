@@ -934,15 +934,19 @@
         "CONFUSION DESCARTADA POR DATO, no por argumento: la capa CONGELADA de 04-capas tiene color 4, y la capa PUERTAS de 08-plano-mini tiene tambien color 4 y su bit 0 vale 0. La correlacion entre el bit y la bandera no es un artefacto del color",
         "LIMITE: los bits 1, 2 y 4..15 son CONSTANTES en todo el corpus admitido (1..2 y 10..15 a cero; 4..9 a uno) y por eso NO se les atribuye ningun significado. Se lee lo que varia; lo que no varia queda declarado sin interpretar",
         "LIMITE QUE IMPORTA AL PRODUCTO: la CAPA APAGADA no se mide y no se afirma. El DXF la codifica con color NEGATIVO y en el corpus admitido no hay ni una sola capa apagada, asi que el estado apagado/encendido no es falsable con esta evidencia. Una capa apagada de un dibujo real llegaria hoy al lienzo como visible, y eso se declara como perdida explicita en vez de ocultarse",
-        "LIMITE DE PROCEDENCIA, SIN SUAVIZAR: los casos positivos vienen de UN solo dibujo del corpus, 04-capas, el unico construido con una capa congelada y una bloqueada; lo que multiplica la evidencia son las cinco versiones y las capas normales de los otros siete dibujos, que aportan los negativos. Todo el corpus es salida del ODA File Converter desde un DXF fuente propio: lo medido es como ESE productor codifica el estado, y sigue sin haber un DWG producido por AutoCAD"
+        "LIMITE DE PROCEDENCIA, SIN SUAVIZAR: los casos positivos vienen de UN solo dibujo del corpus, 04-capas, el unico construido con una capa congelada y una bloqueada; lo que multiplica la evidencia son las cinco versiones y las capas normales de los otros siete dibujos, que aportan los negativos. Todo el corpus es salida del ODA File Converter desde un DXF fuente propio: lo medido es como ESE productor codifica el estado, y sigue sin haber un DWG producido por AutoCAD",
+        "CORRECCION DERIVADA 2026-09-01: al exigir lo que pide ADR-0009 §8.2 -que el oraculo externo verifique la funcion PUBLICA de escritura- aparecio que writeCanonicalDwg perdia el COLOR de cada capa sin declararlo: recibe el color en hexadecimal del documento canonico y empujaba la capa con su nombre y nada mas, asi que una capa cian (ACI 4) salia blanca (ACI 7). El writer interno recibe el indice ya resuelto y siempre estuvo bien. La tabla ACI basica pasa a vivir en un solo modulo y en las DOS direcciones, con el inverso derivado de la misma tabla; el blanco ambiguo (#FFFFFF es el 7 y el 255) resuelve al menor y un color fuera de la tabla se DECLARA en vez de aproximarse al mas cercano. Medido: 3 de 4 casos ya salian byte a byte identicos por ambos caminos y capa-linea -el unico con capa de color- no; tras el arreglo, 4/4"
       ],
       "derivedFiles": [
         "docs/cad/evidence/dwg-layer-state-flags.json",
         "packages/dwg-codec/src/api/canonical-layers.ts",
+        "packages/dwg-codec/src/api/write.ts",
+        "packages/dwg-codec/src/objects/aci-basic.ts",
         "packages/dwg-codec/src/objects/layer-state.ts",
         "packages/dwg-codec/src/reader/database-assembly.ts",
         "packages/dwg-codec/src/reader/database-model.ts",
         "packages/dwg-codec/src/reader/r2010-database-assembly.ts",
+        "packages/dwg-codec/tests/unit/aci-basic.spec.ts",
         "packages/dwg-codec/tests/unit/layer-state.spec.ts",
         "scripts/dwg/probe-layer-state-flags.mjs"
       ],

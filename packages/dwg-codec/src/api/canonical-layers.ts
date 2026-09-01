@@ -5,26 +5,10 @@
  * propio: la tabla ACI básica y la traducción de una capa, incluida la
  * declaración de lo que NO viene decodificado.
  */
+import { ACI_BASIC_HEX as ACI_BASIC } from "../objects/aci-basic.js";
 import type { Ac1015NeutralDatabase } from "../reader/ac1015-database-reader.js";
 import type { CanonicalLossEntry } from "./canonical.js";
 
-const ACI_BASIC: Record<number, string> = {
-  1: "#FF0000",
-  2: "#FFFF00",
-  3: "#00FF00",
-  4: "#00FFFF",
-  5: "#0000FF",
-  6: "#FF00FF",
-  7: "#FFFFFF",
-  8: "#808080",
-  9: "#C0C0C0",
-  250: "#333333",
-  251: "#505050",
-  252: "#696969",
-  253: "#828282",
-  254: "#BEBEBE",
-  255: "#FFFFFF",
-};
 
 /** Bytes de la página de códigos del dibujo como texto. */
 const decodeBytes = (bytes: readonly number[] | undefined): string =>
