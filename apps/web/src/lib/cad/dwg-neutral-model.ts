@@ -512,6 +512,16 @@ export interface DwgNeutralLayer {
    * DECLARARLA en el manifiesto de pérdidas en vez de callarla.
    */
   readonly unmeasuredStateBits: number | undefined;
+  /**
+   * NOMBRE del tipo de línea de la capa, ya resuelto por el laboratorio
+   * contra la tabla LTYPE del propio dibujo (el enlace es un handle, y su
+   * posición en el flujo se midió sobre 98 capas de las cinco versiones).
+   *
+   * `undefined` cuando no se pudo resolver. Nunca `"CONTINUOUS"` por defecto:
+   * ése es un tipo de línea real y no un «no sé», y ponerlo convertiría una
+   * ausencia declarable en un dato inventado.
+   */
+  readonly linetypeName: string | undefined;
 }
 
 export interface DwgNeutralEntityRecord {

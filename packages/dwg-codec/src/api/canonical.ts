@@ -70,6 +70,11 @@ export interface CanonicalCadDocumentJson {
      * NO: plegar una en la otra afirmaría de más.
      */
     readonly frozen?: boolean;
+    /**
+     * NOMBRE del tipo de línea de la capa, leído del archivo. Ausente cuando
+     * no se pudo resolver: nunca se rellena con `CONTINUOUS`, que es un tipo
+     * de línea real y no un «no sé».
+     */
     readonly linetype?: string;
   }[];
   readonly entities: Record<string, unknown>[];

@@ -2222,6 +2222,43 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-CAPA-TIPO-DE-LINEA-MEDIDO-20260901",
+      "date": "2026-09-01",
+      "initiative": "El codec decodificaba la tabla LTYPE entera -patron, alineacion y trazos, en las cinco versiones- y tambien la tabla de capas, pero NO sabia quien usa cual: el registro de capa no llevaba ninguna referencia al tipo de linea. Los dos extremos estaban leidos y el puente entre ellos no existia, asi que una capa de ejes con TRAZOS salia del import sin tipo de linea y una reexportacion a DXF ya no lo llevaba. El hecho de que el tipo de linea viaja POR HANDLE en el flujo final ya estaba registrado; lo que faltaba era SU POSICION, y se midio contrastando TODAS las posiciones del flujo contra el oraculo DXF sobre 98 capas de las cinco versiones: la posicion 4 acierta 98/98, las posiciones 0 a 3 no aciertan ni una vez y ninguna resuelve siquiera a un LTYPE, y hay CUATRO tipos distintos en juego, asi que acertar significa algo. UNA POSICION Y DOS LECTORES: R2000/R2004 la encuentra en el tramo opaco que el decodificador de LAYER ya localizaba y R2010+ en su flujo de handles propio; que una sola posicion sirva para las cinco versiones es medido, no analogia. TRES CAMINOS Y NO DOS: AC1015 y AC1018 comparten la forma del objeto pero no el contenedor, y un cuerpo AC1018 debe pasar por el adaptador a forma R2000 antes de decodificarse; omitirlo no da error visible y deja las ocho capas de AC1018 fuera de la medicion en silencio, lo que se detecto porque la sonda declaraba cuatro versiones en vez de cinco. ALCANCE HONESTO, comprobado ANTES de escribirlo: esto NO hace que el lienzo dibuje la capa discontinua -applyLinetype no lo usa nadie fuera de su modulo-; lo que gana el producto es que el nombre llega al documento, SOBREVIVE la exportacion DXF y entra en la huella de norma de oficina. Se declaran dos limitaciones que no se tapan: el desplegable del gestor de capas muestra CONTINUOUS para nombres fuera de su catalogo (previo, afecta igual al DXF) y el writer AC1015 emite los cinco handles del flujo nulos, asi que el codec LEE el tipo de linea y no lo ESCRIBE. Nunca se rellena con CONTINUOUS: un handle que la tabla no trae deja el nombre ausente y lo declara nombrando a que apuntaba.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de subir el nivel — «no quiero laboratorios, quiero mi propio DWG real y funcional; analiza que mas le falta y hazlo».",
+      "firstPartyInputs": [
+        "El corpus admitido de conformidad en su commit fijado, con los oraculos DXF de los cinco bundles fundacionales.",
+        "El helper de oraculo DXF del propio repo (scripts/dwg/dxf-oracle.mjs), importado sin modificar.",
+        "El lector de flujo de handles R2010+ ya medido en 105/105 objetos, reusado sin cambios."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. Ninguna fuente documental nueva intervino; la medicion es contra el corpus propio.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/objects/layer-linetype.ts (criterio unico de posicion, nuevo)",
+        "packages/dwg-codec/src/objects/table-layer.ts (lector del flujo de handles de forma R2000)",
+        "packages/dwg-codec/src/reader/layer-linetype-resolve.ts (resolucion handle->nombre compartida)",
+        "packages/dwg-codec/src/reader/database-assembly.ts y r2010-database-assembly.ts (los dos cierres)",
+        "packages/dwg-codec/src/api/canonical.ts y canonical-layers.ts (el nombre llega al documento canonico)",
+        "apps/web/src/lib/cad/dwg-neutral-model.ts, dwg-native-reader.ts y dwg-document-bridge.ts (hasta CadLayerDef)",
+        "scripts/dwg/probe-layer-linetype.mjs y docs/cad/evidence/dwg-layer-linetype.json (sonda y evidencia)",
+        "packages/dwg-codec/CAPABILITIES.md (alcance y limitaciones declaradas)"
+      ],
+      "fixtures": "Ninguno nuevo. La medicion usa los fixtures y oraculos DXF ya admitidos del corpus.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de dejar de tener un laboratorio y tener un DWG real y funcional."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

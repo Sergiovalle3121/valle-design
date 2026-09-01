@@ -35,7 +35,10 @@ const capa = (
   nombre: string,
   colorIndex: number,
   estado: Partial<
-    Pick<DwgNeutralLayer, "stateFlags" | "frozen" | "locked" | "unmeasuredStateBits">
+    Pick<
+      DwgNeutralLayer,
+      "stateFlags" | "frozen" | "locked" | "unmeasuredStateBits" | "linetypeName"
+    >
   > = {},
 ): DwgNeutralLayer => ({
   handle,
@@ -45,6 +48,7 @@ const capa = (
   frozen: estado.frozen ?? false,
   locked: estado.locked ?? false,
   unmeasuredStateBits: estado.unmeasuredStateBits ?? 0,
+  linetypeName: estado.linetypeName ?? "CONTINUOUS",
 });
 
 /**
@@ -137,6 +141,7 @@ const sinEstado: DwgNeutralDatabase = {
       frozen: undefined,
       locked: undefined,
       unmeasuredStateBits: undefined,
+      linetypeName: undefined,
     },
   ],
 };
@@ -165,8 +170,64 @@ assert.ok(
   "los bits fuera del patrón medido se nombran, no se ignoran en silencio",
 );
 
+// ─── Fase 2.C: el tipo de línea de la capa deja de perderse ───────────────
+// El laboratorio ya leía la tabla LTYPE y las capas, pero no QUIÉN USA CUÁL:
+// el enlace es un handle cuya posición se midió sobre 98 capas de las cinco
+// versiones. Aquí se prueba lo que es del puente: ponerlo cuando lo hay y
+// DECLARARLO cuando no, sin suponer CONTINUOUS.
+const conTipoDeLinea: DwgNeutralDatabase = {
+  ...base,
+  layers: [
+    capa(0x10, "EJES", 2, { linetypeName: "TRAZOS" }),
+    capa(0x11, "MUROS", 1),
+    // Inline y no por el ayudante: su `?? "CONTINUOUS"` no distingue «no lo
+    // digo» de «digo que no hay», y el caso que importa aquí es el segundo.
+    {
+      handle: 0x12,
+      name: bytesDe("SINLTYPE"),
+      colorIndex: 3,
+      stateFlags: 1008,
+      frozen: false,
+      locked: false,
+      unmeasuredStateBits: 0,
+      linetypeName: undefined,
+    },
+  ],
+};
+const informeLtype = dwgNeutralDatabaseToCadDocument(conTipoDeLinea);
+assert.equal(
+  informeLtype.document.layers.find((layer) => layer.id === "EJES")?.linetype,
+  "TRAZOS",
+  "el tipo de línea del archivo llega al documento",
+);
+assert.equal(
+  informeLtype.document.layers.find((layer) => layer.id === "MUROS")?.linetype,
+  "CONTINUOUS",
+);
+assert.equal(
+  informeLtype.document.layers.find((layer) => layer.id === "SINLTYPE")?.linetype,
+  undefined,
+  "sin tipo de línea resoluble el campo queda AUSENTE: suponer CONTINUOUS sería " +
+    "afirmar algo que el archivo no dice",
+);
+assert.ok(
+  informeLtype.document.lossManifest.some(
+    (entry) =>
+      entry.code === DWG_BRIDGE_LOSS_CODES.layerLinetype && entry.detail.includes("SINLTYPE"),
+  ),
+  "y la ausencia se declara en la capa concreta",
+);
+assert.equal(
+  informeLtype.document.lossManifest.filter(
+    (entry) => entry.code === DWG_BRIDGE_LOSS_CODES.layerLinetype,
+  ).length,
+  1,
+  "las capas que sí traen tipo de línea no generan ruido en el manifiesto",
+);
+
 console.log(
   "dwg-document-bridge-layer-state: una capa CONGELADA entra congelada (y por tanto no se " +
     "dibuja) sin marcarse apagada, una BLOQUEADA entra bloqueada, sin estado decodificado no se " +
-    "inventa ninguno, y los bits fuera de lo medido se nombran en el manifiesto",
+    "inventa ninguno, los bits fuera de lo medido se nombran en el manifiesto, y el TIPO DE " +
+    "LÍNEA de la capa llega al documento o se declara ausente sin suponer CONTINUOUS",
 );

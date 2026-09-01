@@ -48,7 +48,6 @@ import {
   layoutToCadDocument,
   migrateCadDocument,
   type CadEntity,
-  type CadLayerDef,
   type CadLossManifestEntry,
   type CadOpaqueEntity,
 } from "./cad-document";
@@ -59,7 +58,7 @@ import {
 // Tabla ACI↔RGB real y ya usada por el resto del producto (plotting); el
 // laboratorio deja dicho en su propio mapeo canónico que "la tabla ACI
 // completa es del adaptador de integración" — este archivo es ese adaptador.
-import { aciToHex } from "./plot/aci-palette";
+import { mapLayers } from "./dwg-document-bridge-layers";
 import {
   cadDxfBlocksToCadDocumentParts,
   cadDxfHatchesToNativeEntities,
@@ -102,7 +101,6 @@ import type {
   DwgNeutralDatabase,
   DwgNeutralDatabaseReader,
   DwgNeutralEntityRecord,
-  DwgNeutralLayer,
 } from "./dwg-neutral-model";
 
 /** Códigos de pérdida del puente. Estables: la interfaz los agrupa por código. */
@@ -114,6 +112,7 @@ export const DWG_BRIDGE_LOSS_CODES = Object.freeze({
   danglingBlock: "dwg_insert_block_unresolved",
   hatchCurvedBoundary: "dwg_hatch_curved_boundary_dropped",
   layerStateFlags: "dwg_layer_state_flags_unmapped",
+  layerLinetype: "dwg_layer_linetype_unresolved",
   unitAssumed: "dwg_unit_assumed",
   blockBasePointAssumed: "dwg_block_base_point_assumed",
   primitiveProperty: "dwg_primitive_property_dropped",
@@ -146,7 +145,6 @@ const INSUNITS_TO_CAD_UNIT: Readonly<Record<number, string>> = Object.freeze({
  * Gris neutro para una capa cuyo color no se decodificó. No es un ACI: es una
  * señal de que el dato falta, y viaja siempre acompañado de su pérdida.
  */
-const LAYER_COLOR_NOT_DECODED = "#8a8f98";
 
 function resolveDwgUnit(insunits: number | undefined): string | undefined {
   // Sin INSUNITS leído no hay unidad que resolver, y devolver `undefined` es
@@ -461,89 +459,6 @@ function mapRecords(
   }
 
   return { primitives, inserts, mtexts, dimensions, hatches, opaques, losses };
-}
-
-function mapLayers(layers: readonly DwgNeutralLayer[]): {
-  names: Map<number, string>;
-  definitions: CadLayerDef[];
-  losses: CadLossManifestEntry[];
-} {
-  const names = new Map<number, string>();
-  const losses: CadLossManifestEntry[] = [];
-  const seen = new Set<string>(["0"]);
-  const definitions: CadLayerDef[] = [
-    // ACI 7 es el color por defecto tradicional de la capa "0" (blanco/negro
-    // según fondo) — no es un dato del archivo, es el bootstrap sintético que
-    // existe aunque la base neutral no traiga ninguna capa.
-    { id: "0", name: "0", color: aciToHex(7), visible: true, locked: false },
-  ];
-
-  for (const layer of layers) {
-    const name = decodeCodePageBytes(layer.name);
-    names.set(layer.handle, name);
-    if (layer.name.some((byte) => byte > 0x7f)) {
-      losses.push({
-        code: DWG_BRIDGE_LOSS_CODES.codePage,
-        sourceType: "layer",
-        detail: `El nombre de la capa ${layer.handle} lleva bytes fuera de ASCII y la página de códigos del dibujo no se decodifica: se leyó como Latin-1.`,
-        severity: "warning",
-      });
-    }
-    // ESTADO DE LA CAPA — MEDIDO, NO ADIVINADO (2026-09-01). Hasta este corte
-    // aquí se declaraba una pérdida y toda capa entraba visible y desbloqueada:
-    // una capa CONGELADA se dibujaba igual que las demás. La sonda
-    // `probe-layer-state-flags.mjs` midió los dos bits contra el oráculo DXF
-    // del mismo dibujo —98 capas, 57 fixtures, las cinco versiones— y el
-    // adaptador autorizado los entrega ya resueltos. Este puente NO reinterpreta
-    // el `BS`: un segundo criterio de «qué bit es congelada» es justo lo que
-    // ninguna prueba vería divergir.
-    if (layer.frozen === undefined || layer.locked === undefined) {
-      losses.push({
-        code: DWG_BRIDGE_LOSS_CODES.layerStateFlags,
-        sourceType: "layer",
-        detail: `La capa "${name}" (handle ${layer.handle}) viene sin banderas de estado decodificadas: no se afirma que esté visible ni descongelada, y se importa visible y desbloqueada.`,
-        severity: "warning",
-      });
-    } else if (layer.unmeasuredStateBits) {
-      losses.push({
-        code: DWG_BRIDGE_LOSS_CODES.layerStateFlags,
-        sourceType: "layer",
-        detail: `La capa "${name}" (handle ${layer.handle}) trae banderas de estado ${layer.stateFlags}, cuyos bits 0x${layer.unmeasuredStateBits.toString(16)} se apartan del patrón constante del corpus medido: se aplican congelada y bloqueada, y el resto del estado no se interpreta.`,
-        severity: "info",
-      });
-    }
-    // LA CAPA APAGADA NO SE MIDE Y NO SE AFIRMA. El DXF la codifica con color
-    // NEGATIVO y el corpus admitido no trae ni una sola capa apagada, así que
-    // el estado apagado/encendido no es falsable con esta evidencia: `visible`
-    // se queda en `true` siempre y una capa apagada de un dibujo real entraría
-    // encendida. La CONGELACIÓN sí se midió, y el producto ya la modela como
-    // un estado propio —ni se dibuja, ni se regenera, ni entra en selección—,
-    // así que viaja en `frozen` y no plegada en `visible`.
-    if (seen.has(name)) continue;
-    seen.add(name);
-    definitions.push({
-      id: name,
-      name,
-      // ACI real del archivo (índices 1–9/250–255 exactos, 10–249 por rampa
-      // reproducible) en vez de una paleta rotatoria inventada por posición.
-      // Sin color decodificado hay que pintar ALGO —el lienzo no puede no
-      // dibujar—, así que se usa un gris neutro DELIBERADAMENTE distinto de
-      // cualquier ACI básico: que se vea que no es el color del archivo. La
-      // pérdida `layer-color-not-decoded` lo declara en el manifiesto, que es
-      // donde el usuario lo lee, y no en un toast que desaparece.
-      color:
-        layer.colorIndex === undefined
-          ? LAYER_COLOR_NOT_DECODED
-          : aciToHex(layer.colorIndex),
-      // Sin estado decodificado se importa visible y desbloqueada, que es lo
-      // único que se puede hacer sin inventar — y la pérdida de arriba lo
-      // declara. Con estado, se respeta el archivo.
-      visible: true,
-      locked: layer.locked ?? false,
-      ...(layer.frozen === undefined ? {} : { frozen: layer.frozen }),
-    });
-  }
-  return { names, definitions, losses };
 }
 
 function mapBlocks(

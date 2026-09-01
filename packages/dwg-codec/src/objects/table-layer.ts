@@ -28,15 +28,23 @@
 import { BoundedByteCursor } from "../binary/byte-cursor.js";
 import {
   DwgBitReader,
+  resolveDwgHandleReference,
   type DwgColorReference,
   type DwgHandleReference,
+  type DwgResolvedHandle,
 } from "../codecs/bitcodes.js";
+import { selectLayerLinetypeHandle } from "./layer-linetype.js";
 import { throwDwgError } from "../security/parse-error.js";
 import {
   assertHandleCountFits,
   readAc1015ObjectPrologue,
   type Ac1015OpaqueSpan,
 } from "./entity-common.js";
+
+/** Bits mínimos que puede ocupar un código H: por debajo no queda handle. */
+const MIN_HANDLE_STREAM_BITS = 8;
+/** Techo del laboratorio de handles por entrada de tabla; el corpus trae 5-6. */
+const MAX_HANDLES_PER_TABLE_ENTRY = 64;
 
 /** Códigos de tipo BS de la tabla de capas (hechos registrados). */
 export const AC1015_TYPE_LAYER_CONTROL = 0x32;
@@ -66,6 +74,13 @@ export interface Ac1015LayerRecord {
   /** BS de estado crudo (congelada/bloqueada/trazado/grosor empaquetados). */
   readonly stateFlags: number;
   readonly color: DwgColorReference;
+  /**
+   * Handle de la entrada LTYPE que usa esta capa, leído de la posición MEDIDA
+   * del flujo final (`layer-linetype.ts`). `undefined` cuando el flujo no
+   * llega a esa posición o el handle viaja nulo: se declara la ausencia, no
+   * se finge `CONTINUOUS`.
+   */
+  readonly linetypeHandle: number | undefined;
 }
 
 /** Un LAYER decodificado por completo: común, entrada y restos opacos. */
@@ -114,6 +129,14 @@ export function decodeAc1015LayerBody(bodyBytes: Uint8Array): Ac1015DecodedLayer
     opaqueSpans,
   );
 
+  // El flujo final SIGUE anotado como tramo opaco —ahí está su posición
+  // exacta y su longitud, que es la regla de «nada se ignora en silencio»—;
+  // lo que cambia desde el 2026-09-01 es que UNA de sus posiciones deja de
+  // ser opaca porque se midió. El resto del tramo sigue sin interpretarse.
+  const linetypeHandle = selectLayerLinetypeHandle(
+    readAc1015ObjectHandleStream(bodyBytes, spans, common.ownHandle.value),
+  );
+
   return Object.freeze({
     common,
     layer: Object.freeze({
@@ -123,6 +146,7 @@ export function decodeAc1015LayerBody(bodyBytes: Uint8Array): Ac1015DecodedLayer
       xrefDependent,
       stateFlags,
       color,
+      linetypeHandle,
     }),
     opaqueSpans: spans,
   });
@@ -188,6 +212,40 @@ export function readAc1015TableObjectCommon(bodyBytes: Uint8Array): {
     reactorCount,
   });
   return { common, reader, bodyBitLength, opaqueSpans };
+}
+
+/**
+ * Lee el tramo de handles ya ANOTADO de un objeto de forma R2000 como la
+ * secuencia ordenada de referencias resueltas contra su handle propio.
+ *
+ * La lectura es GOLOSA —se leen códigos H hasta que restan menos de ocho
+ * bits— porque el recuento es una SALIDA y no una entrada: el flujo de una
+ * entrada LAYER trae cinco o seis handles según el archivo, y exigir un
+ * número fijo convertiría en corrupción lo que sólo es una forma distinta.
+ * Un H que no cabe corta la lectura en vez de reventar: lo que se devuelve es
+ * lo que se pudo leer, y quien pida una posición que no llegó recibe
+ * `undefined`.
+ */
+export function readAc1015ObjectHandleStream(
+  bodyBytes: Uint8Array,
+  spans: readonly Ac1015OpaqueSpan[],
+  ownHandle: number,
+): readonly DwgResolvedHandle[] {
+  const span = spans.find((candidate) => candidate.kind === "handle-stream");
+  if (span === undefined) return [];
+  const totalBits = bodyBytes.length * 8;
+  const reader = new DwgBitReader(new BoundedByteCursor(bodyBytes));
+  for (let index = 0; index < span.startBit; index += 1) reader.readB();
+  const handles: DwgResolvedHandle[] = [];
+  while (totalBits - reader.bitPosition >= MIN_HANDLE_STREAM_BITS) {
+    if (handles.length >= MAX_HANDLES_PER_TABLE_ENTRY) break;
+    try {
+      handles.push(resolveDwgHandleReference(reader.readH(), ownHandle));
+    } catch {
+      break;
+    }
+  }
+  return handles;
 }
 
 /**

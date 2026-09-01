@@ -1019,3 +1019,59 @@ usuario lo descubra en el lienzo. Y los casos positivos vienen de **un solo
 dibujo**: lo que multiplica la evidencia son las cinco versiones y las capas
 normales de los otros siete. Todo el corpus sigue siendo salida del ODA File
 Converter — lo medido es cómo **ese** productor codifica el estado.
+
+## Corte 2026-09-01 (c) — qué capa usa qué tipo de línea
+
+El códec decodificaba la tabla LTYPE **entera** —patrón, alineación y trazos,
+en las cinco versiones— y también la tabla de capas. Lo que **no** sabía es
+**quién usa cuál**: el registro de capa no llevaba ninguna referencia al tipo
+de línea. Los dos extremos estaban leídos y el puente entre ellos no existía,
+así que una capa de ejes con `TRAZOS` salía del import sin tipo de línea y una
+reexportación a DXF ya no lo llevaba.
+
+**Dónde vivía el dato.** El hecho de que el tipo de línea viaja **por handle**
+en el flujo final de la entrada ya estaba registrado
+(`ODA-ODS-DWG-5.4.1-PUBLIC`); ese flujo se contabilizaba como tramo opaco —
+posición exacta, contenido sin interpretar—, que es la regla del laboratorio
+para lo que no se ha medido. Lo que faltaba era **su posición**.
+
+| | resultado |
+| --- | --- |
+| capas comparadas | **98**, de 57 fixtures, en las **cinco** versiones |
+| posición del tipo de línea | **4** — acierta en 98/98 |
+| hipótesis rivales | posiciones 0–3: **0/98**, y ninguna resuelve a un LTYPE |
+| tipos en juego | **4** distintos: CONTINUOUS, TRAZOS, OCULTA-VALLE, TRAZOS-VALLE |
+
+**Una posición, dos lectores.** R2000/R2004 la encuentra en el tramo opaco que
+el decodificador de LAYER ya localizaba; R2010+ en su flujo de handles propio,
+el ya medido en 105/105 objetos. Que una sola posición sirva para las cinco
+versiones es un **resultado medido**, no una analogía.
+
+**Tres caminos y no dos.** AC1015 y AC1018 comparten la forma del objeto pero
+**no el contenedor**, y además un cuerpo AC1018 debe pasar por el adaptador a
+forma R2000 antes de decodificarse. Omitirlo no da error visible: el
+decodificador no reconoce el tipo y las ocho capas de AC1018 quedan fuera de la
+medición **en silencio**. Se detectó porque la sonda declaraba cuatro versiones
+en vez de cinco.
+
+### Alcance honesto: qué gana el producto y qué NO
+
+Esto **no** hace que el lienzo dibuje la capa discontinua. Se comprobó antes de
+escribirlo: `applyLinetype` no lo usa nadie fuera de su propio módulo, y el
+trazo del lienzo no consulta el tipo de línea de la capa. Lo que sí gana:
+
+- el nombre del tipo de línea **llega al documento** desde el DWG;
+- **sobrevive la exportación DXF** (`dxf-document-export.ts`), así que un
+  DWG→DXF deja de perder el tipo de línea de todas sus capas;
+- entra en la huella de norma de oficina (`office-standard.ts`).
+
+**Limitaciones que se declaran, no se tapan.** El desplegable del gestor de
+capas muestra `CONTINUOUS` para cualquier nombre fuera de `CAD_LINETYPE_NAMES`
+—`TRAZOS` entre ellos—; es previo a este corte y afecta igual al import DXF.
+Y el **writer** AC1015 del laboratorio emite los cinco handles del flujo final
+**nulos** (placeholders confesos), así que hoy el códec **lee** el tipo de
+línea de una capa y **no lo escribe**: una asimetría real, ahora visible.
+
+**Nunca `CONTINUOUS` por defecto.** Un handle que la tabla LTYPE del dibujo no
+trae, o un handle nulo, dejan el nombre **ausente** y lo declaran como pérdida
+nombrando a qué apuntaba. `CONTINUOUS` es un tipo de línea real, no un «no sé».

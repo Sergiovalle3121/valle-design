@@ -55,6 +55,21 @@ export interface Ac1015DatabaseLayer {
    * frontera de lo medido, para declararla en vez de callarla.
    */
   readonly unmeasuredStateBits: number | undefined;
+  /**
+   * Handle de la entrada LTYPE que usa la capa, leído de la posición MEDIDA
+   * del flujo final (`objects/layer-linetype.ts`). Se conserva junto al
+   * nombre porque el handle es lo que permite decir «apunta a algo que esta
+   * base no trae» en vez de callarlo.
+   */
+  readonly linetypeHandle: number | undefined;
+  /**
+   * NOMBRE de esa entrada LTYPE, ya resuelto contra la tabla del propio
+   * dibujo. `undefined` cuando el flujo no llega a la posición medida, cuando
+   * el handle viaja nulo, o cuando apunta a una entrada que la tabla no trae:
+   * en los tres casos se declara la ausencia y NUNCA se rellena con
+   * `CONTINUOUS`, que es un tipo de línea real y no un «no sé».
+   */
+  readonly linetypeName: string | undefined;
 }
 
 /** Una entidad colocada en la base: geometría, capa y referencia de INSERT. */

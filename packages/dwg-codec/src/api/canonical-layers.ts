@@ -41,6 +41,8 @@ export interface CanonicalMappedLayer {
   readonly locked: boolean;
   /** Congelada, que no es apagada. Ausente cuando el estado no se midió. */
   readonly frozen?: boolean;
+  /** Nombre del tipo de línea; ausente cuando no se pudo resolver. */
+  readonly linetype?: string;
 }
 
 /**
@@ -109,6 +111,21 @@ export function mapCanonicalLayers(
         severity: "info",
       });
     }
+    // EL TIPO DE LÍNEA: se declara cuando no se resuelve. Un handle que la
+    // tabla LTYPE del dibujo no trae se nombra en la pérdida, porque «apunta
+    // a la entrada 47 y esa entrada no está» es un hecho distinto —y más
+    // útil— que «no hay tipo de línea».
+    if (layer.linetypeName === undefined) {
+      losses.push({
+        code: "layer-linetype-not-resolved",
+        sourceType: "LAYER",
+        detail:
+          layer.linetypeHandle === undefined
+            ? `La capa "${name}" no trae un tipo de línea legible en su flujo de handles; se deja sin declarar en vez de suponer CONTINUOUS.`
+            : `La capa "${name}" apunta al tipo de línea con handle ${layer.linetypeHandle}, que la tabla LTYPE de este dibujo no trae; se deja sin declarar en vez de suponer CONTINUOUS.`,
+        severity: "warning",
+      });
+    }
     // CONGELADA Y APAGADA SON COSAS DISTINTAS, Y AQUÍ SÓLO SE MIDE UNA. La
     // congelación es el bit 0, medido contra el oráculo DXF; el apagado lo
     // codifica el DXF con color NEGATIVO y en el corpus admitido no hay ni una
@@ -123,6 +140,7 @@ export function mapCanonicalLayers(
       visible: true,
       locked: layer.locked ?? false,
       ...(layer.frozen === undefined ? {} : { frozen: layer.frozen }),
+      ...(layer.linetypeName === undefined ? {} : { linetype: layer.linetypeName }),
     };
   });
 }

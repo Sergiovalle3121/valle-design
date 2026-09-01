@@ -293,7 +293,12 @@ const capa = (
   handle: number,
   nombre: string,
   colorIndex: number,
-  estado: Partial<Pick<DwgNeutralLayer, "stateFlags" | "frozen" | "locked" | "unmeasuredStateBits">> = {},
+  estado: Partial<
+    Pick<
+      DwgNeutralLayer,
+      "stateFlags" | "frozen" | "locked" | "unmeasuredStateBits" | "linetypeName"
+    >
+  > = {},
 ): DwgNeutralLayer => ({
   handle,
   name: bytesDe(nombre),
@@ -302,6 +307,7 @@ const capa = (
   frozen: estado.frozen ?? false,
   locked: estado.locked ?? false,
   unmeasuredStateBits: estado.unmeasuredStateBits ?? 0,
+  linetypeName: estado.linetypeName ?? "CONTINUOUS",
 });
 
 const base: DwgNeutralDatabase = {
