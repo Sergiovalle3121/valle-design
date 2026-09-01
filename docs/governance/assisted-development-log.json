@@ -2458,6 +2458,42 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-ESCRITURA-PUBLICA-ELIPSE-20260901",
+      "date": "2026-09-01",
+      "initiative": "Ampliar lo que el producto sabe ESCRIBIR (Fase 5 del plan). Medido primero: ac1015-entity-writer.ts ya emitia nueve tipos (line, point, circle, arc, lwpolyline, text, insert, ellipse, mtext) pero canonical-to-dwg.ts —el camino PUBLICO— solo enrutaba siete y mandaba el resto al default como canonical-type-not-writable. La lista del producto DWG_EXPORT_WRITABLE_TYPES reflejaba fielmente ese siete, asi que la brecha NO estaba en el producto ni en el writer sino en la traduccion de en medio. Correccion de mi propia lectura inicial, que atribuyo la carencia al producto. ELLIPSE se enruta: sus cinco campos mapean uno a uno. LA TRAMPA que aparecio al hacerlo y que estuvo a punto de colarse: los parametros de la elipse estan en GRADOS en el documento del producto (curve-edit.ts usa normalizeDeg, curve-model.ts usa norm360, paper-space.ts compara la vuelta entera contra 359.999) y en RADIANES en el canonico. Enrutarla sin convertir habria exportado TODA elipse recortada con el arco equivocado, en silencio. Lo delato el comentario que justificaba por que la conversion era solo para ARC e INSERT: 'DWG_EXPORT_WRITABLE_TYPES no incluye ellipse'. Medido antes y despues con exportCadDocumentToDwg: antes la elipse no llegaba al archivo y se declaraba canonical-type-not-writable; ahora llega con centro, eje mayor y razon exactos, y 90 grados del producto salen como 1.570796 radianes (pi/2). La extrusion es lo unico que se pierde y ahora SE DICE EN LOS DOS SENTIDOS: al escribir se emite el plano XY con ellipse-extrusion-not-carried declarado; al LEER se descartaba en silencio y ahora se declara ellipse-extrusion-dropped, solo cuando el plano no es el XY, para no llenar el manifiesto de ruido en el caso normal (las dos elipses del corpus admitido llevan 0,0,1). DOS GUARDIANES DE LA CARENCIA reescritos y no debilitados: dos pruebas usaban una elipse como ejemplo de clase no escribible. Se cambian por SPLINE, que sigue sin emitirse, y se anaden las mitades nuevas: que la elipse se proyecta y que va y vuelve exacta por el lector publico con un arco RECORTADO (una vuelta entera habria disimulado el fallo de unidades). CORRECCION DE UNA AFIRMACION FALSA en artefacto de evidencia: oda-roundtrip.mjs declaraba que MTEXT sigue pendiente del writer porque writeAc1015EntityBody aun no la emite. Es falso, emitMText existe y es espejo de decodeMText. Lo que falta de MTEXT es el camino publico, y por una razon concreta que ahora consta: el canonico no transporta alineacion ni interlineado, que el producto si modela, asi que enrutarla hoy los aplanaria en silencio. MTEXT queda FUERA con bloqueo declarado en vez de entregarse a medias. HALLAZGO COLATERAL NO ARREGLADO, declarado para que no se pierda: inquiry/contours.ts:279 compara el barrido de una elipse contra Math.PI*2 tratando el mismo campo como radianes, mientras curve-edit, curve-model y paper-space lo tratan como grados. Es una inconsistencia real del producto, fuera del camino de exportacion DWG y por tanto fuera del alcance de esta ola. Caso nuevo 'elipse' en el harness del oraculo, con arco recortado a proposito y su gemelo publico; el titular corre catorce. Ningun flag encendido, externalOracleVerified sigue en false.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: eligió expresamente «seguir con DWG: ampliar el writer» entre las opciones planteadas, dentro del encargo de subir el nivel.",
+      "firstPartyInputs": [
+        "La medicion propia antes/despues de exportCadDocumentToDwg sobre un documento con una elipse recortada.",
+        "La lectura propia de las unidades de startParameter en curve-edit.ts, curve-model.ts, paper-space.ts e inquiry/contours.ts.",
+        "El writer interno de elipse ya existente en el laboratorio."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El binario ODA no se ejecuto en esta sesion.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/api/canonical-to-dwg.ts (enrutado de ellipse, con la perdida de extrusion declarada)",
+        "packages/dwg-codec/src/api/canonical.ts (la extrusion descartada al leer deja de ser silenciosa)",
+        "packages/dwg-codec/tests/unit/write-canonical-dwg.spec.ts y canonical.spec.ts (guardianes reescritos + round-trip nuevo)",
+        "apps/web/src/lib/cad/dwg-native-writer.ts (ellipse escribible + conversion grados->radianes)",
+        "apps/web/src/lib/cad/dwg-native-writer.spec.ts (bloque 5.A)",
+        "scripts/dwg/oda-roundtrip.mjs (caso 'elipse' y correccion de la limitacion falsa sobre MTEXT)",
+        "packages/dwg-codec/CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguno nuevo del corpus. El caso del oraculo se escribe con el propio writer, como los demas.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Eleccion expresa del titular de ampliar el writer como siguiente fase."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

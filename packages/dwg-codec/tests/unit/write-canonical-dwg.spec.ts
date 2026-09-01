@@ -14,8 +14,10 @@
  *
  * Cubre también el límite ASCII declarado de nombres de capa/bloque de esta
  * fase (nunca un `throw`, nunca un nombre transcrito a medias) y que una
- * clase de entidad fuera de las siete autorizadas quede en el manifiesto de
- * pérdidas y fuera del archivo, nunca las dos cosas a la vez.
+ * clase de entidad fuera de las autorizadas quede en el manifiesto de
+ * pérdidas y fuera del archivo, nunca las dos cosas a la vez. Las clases
+ * autorizadas pasaron de siete a ocho el 2026-09-01, cuando la ELIPSE dejó de
+ * caer al `default` del camino público.
  */
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -359,18 +361,28 @@ test("un INSERT hacia un bloque con nombre no-ASCII se omite del archivo con una
   assert.equal(userBlocks.length, 0);
 });
 
-test("una clase de entidad fuera de las siete autorizadas queda en el manifiesto y fuera del archivo", () => {
+// Esta prueba usaba una ELIPSE como ejemplo de «clase no escribible», y desde
+// el 2026-09-01 la elipse SÍ se escribe: se habría vuelto un guardián de la
+// carencia, afirmando que se pierde algo que ya no se pierde. Se cambia el
+// ejemplo por una clase que de verdad sigue sin emitirse —SPLINE—, para que
+// la prueba siga vigilando lo que existe para vigilar: que lo no escribible
+// consta en el manifiesto Y queda fuera del archivo, nunca las dos cosas.
+test("una clase de entidad fuera de las autorizadas queda en el manifiesto y fuera del archivo", () => {
   const document = emptyDocument({
     entities: [
       { id: "e1", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 1, y: 1, z: 0 }, layer: "0" },
       {
         id: "e2",
-        type: "ellipse",
-        center: { x: 0, y: 0, z: 0 },
-        majorAxis: { x: 2, y: 0, z: 0 },
-        ratio: 0.5,
-        startParameter: 0,
-        endParameter: 6.28,
+        type: "spline",
+        degree: 3,
+        closed: false,
+        knots: [0, 0, 0, 0, 1, 1, 1, 1],
+        controlPoints: [
+          { x: 0, y: 0, z: 0 },
+          { x: 1, y: 2, z: 0 },
+          { x: 3, y: 2, z: 0 },
+          { x: 4, y: 0, z: 0 },
+        ],
         layer: "0",
       },
     ],
@@ -379,12 +391,58 @@ test("una clase de entidad fuera de las siete autorizadas queda en el manifiesto
   const { bytes, lossManifest } = writeCanonicalDwg(document);
   assert.equal(lossManifest.length, 1);
   assert.equal(lossManifest[0]!.code, "canonical-type-not-writable");
-  assert.equal(lossManifest[0]!.sourceType, "ellipse");
+  assert.equal(lossManifest[0]!.sourceType, "spline");
   assert.equal(lossManifest[0]!.entityId, "e2");
 
   const database = readDwg(bytes);
   assert.equal(database.modelSpaceEntities.length, 1);
   assert.equal(database.modelSpaceEntities[0]!.entity.kind, "line");
+});
+
+// ─── ELLIPSE: la octava clase del camino público (2026-09-01) ──────────────
+// El writer interno la emitía desde hacía olas; lo que faltaba era el enrutado
+// aquí, en el camino PÚBLICO, que la mandaba al `default` y la declaraba «no
+// escribible». Esta prueba mide la vuelta completa por el lector público.
+test("una ELIPSE va y vuelve exacta por writeCanonicalDwg → readDwg, y declara la extrusión que el canónico no lleva", () => {
+  const document = emptyDocument({
+    entities: [
+      {
+        id: "e1",
+        type: "ellipse",
+        center: { x: 100, y: 50, z: 0 },
+        majorAxis: { x: 40, y: 0, z: 0 },
+        ratio: 0.5,
+        // Un arco RECORTADO, no la vuelta completa: si el enrutado perdiera o
+        // confundiera los parámetros, una elipse entera lo disimularía.
+        startParameter: 0,
+        endParameter: Math.PI / 2,
+        layer: "0",
+      },
+    ],
+  });
+
+  const { bytes, lossManifest } = writeCanonicalDwg(document);
+  const database = readDwg(bytes);
+  assert.equal(database.modelSpaceEntities.length, 1);
+  const written = database.modelSpaceEntities[0]!.entity;
+  assert.equal(written.kind, "ellipse");
+  if (written.kind !== "ellipse") throw new Error("inalcanzable");
+  assert.ok(Math.abs(written.center.x - 100) < 1e-6, "el centro viaja");
+  assert.ok(Math.abs(written.center.y - 50) < 1e-6);
+  assert.ok(Math.abs(written.majorAxisEndpoint.x - 40) < 1e-6, "el eje mayor viaja");
+  assert.ok(Math.abs(written.axisRatio - 0.5) < 1e-6, "la razón de ejes viaja");
+  assert.ok(Math.abs(written.startAngle - 0) < 1e-6, "el parámetro inicial viaja");
+  assert.ok(
+    Math.abs(written.endAngle - Math.PI / 2) < 1e-6,
+    "y el final TAMBIÉN: el arco recortado no se convierte en una vuelta entera",
+  );
+
+  // La extrusión es el único campo que el DWG pide y el canónico no lleva. Se
+  // escribe el plano XY y SE DICE, en vez de callarlo.
+  assert.equal(lossManifest.length, 1);
+  assert.equal(lossManifest[0]!.code, "ellipse-extrusion-not-carried");
+  assert.equal(lossManifest[0]!.entityId, "e1");
+  assert.ok(Math.abs(written.extrusion.z - 1) < 1e-6, "y el plano escrito es el XY");
 });
 
 test("el mapeo es determinista: mismo documento, mismos bytes y mismo manifiesto", () => {

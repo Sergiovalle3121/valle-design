@@ -14,8 +14,8 @@ import type {
 
 /**
  * Proyecta un documento canónico al modelo neutral ESCRIBIBLE del writer
- * (line, point, circle, arc, lwpolyline, text, insert). Lo no escribible se
- * declara en el manifiesto — el writer jamás emite a medias.
+ * (line, point, circle, arc, lwpolyline, text, insert, ellipse). Lo no
+ * escribible se declara en el manifiesto — el writer jamás emite a medias.
  */
 export function canonicalDocumentToDwgEntities(
   document: CanonicalCadDocumentJson,
@@ -164,6 +164,43 @@ export function canonicalDocumentToDwgEntities(
           }),
         });
         break;
+      // ELLIPSE (2026-09-01). El writer interno la emitía desde hace olas
+      // —`emitEllipse` es espejo campo a campo de `decodeEllipse`— pero ESTE
+      // camino, el público, la mandaba al `default` de abajo y la declaraba
+      // «no escribible». No era una carencia del writer sino de la traducción:
+      // el canónico llega con los cinco campos que el DWG necesita y nadie los
+      // enrutaba. Los cinco mapean uno a uno, sin convertir nada.
+      case "ellipse": {
+        // La EXTRUSIÓN es el único campo que el DWG pide y el canónico NO
+        // lleva: la ida (`canonical.ts`) la descarta al proyectar. Se emite el
+        // plano XY, que es lo que el producto dibuja y lo que traen las dos
+        // elipses del corpus, y SE DECLARA: una elipse que en su archivo de
+        // origen viviera en un plano inclinado vuelve tumbada, y eso el
+        // usuario tiene que leerlo en el manifiesto y no descubrirlo abriendo
+        // el DXF.
+        losses.push({
+          code: "ellipse-extrusion-not-carried",
+          entityId: id,
+          sourceType: "ellipse",
+          detail:
+            "El documento canónico no transporta la extrusión de una elipse: se escribe en el plano XY (0,0,1). Si la elipse venía de un archivo con el plano inclinado, ese plano no se conserva.",
+          severity: "info",
+        });
+        entities.push({
+          canonicalId: id,
+          layerName,
+          entity: Object.freeze({
+            kind: "ellipse" as const,
+            center: canonicalPoint(raw["center"]),
+            majorAxisEndpoint: canonicalPoint(raw["majorAxis"]),
+            extrusion: defaultExtrusion,
+            axisRatio: Number(raw["ratio"] ?? 1),
+            startAngle: Number(raw["startParameter"] ?? 0),
+            endAngle: Number(raw["endParameter"] ?? 0),
+          }),
+        });
+        break;
+      }
       default:
         losses.push({
           code: "canonical-type-not-writable",
