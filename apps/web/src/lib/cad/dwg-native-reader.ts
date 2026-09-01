@@ -301,6 +301,7 @@ const toBetaProfileLayer = (layer: DwgDatabase["layers"][number]): DwgNeutralLay
   frozen: layer.frozen,
   locked: layer.locked,
   unmeasuredStateBits: layer.unmeasuredStateBits,
+  linetypeName: layer.linetypeName,
 });
 
 /**

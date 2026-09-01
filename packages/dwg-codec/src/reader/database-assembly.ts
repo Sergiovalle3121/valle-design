@@ -16,6 +16,7 @@
  * - Los offsets de error se TRASLADAN al byte real del archivo.
  */
 import { interpretLayerStateFlags } from "../objects/layer-state.js";
+import { resolveLayerLinetypeNames } from "./layer-linetype-resolve.js";
 import {
   MODEL_SPACE_NAME,
   PAPER_SPACE_NAME,
@@ -209,6 +210,8 @@ export type DecodedObject =
       readonly name: readonly number[];
       readonly colorIndex: number;
       readonly stateFlags: number;
+      /** Handle de su entrada LTYPE; se resuelve a nombre al final. */
+      readonly linetypeHandle: number | undefined;
     }
   | {
       readonly kind: "blockRecord";
@@ -269,6 +272,7 @@ export function decodeMappedObject(
           offset: entry.offset,
           name: decoded.layer.name,
           colorIndex: decoded.layer.color.index,
+          linetypeHandle: decoded.layer.linetypeHandle,
           stateFlags: decoded.layer.stateFlags,
         };
       }
@@ -490,17 +494,20 @@ export function assembleDatabase(
         // cuenta. Dos criterios de «qué bit es congelada» no los vería divergir
         // ninguna prueba.
         const state = interpretLayerStateFlags(object.stateFlags);
-        layers.push(
-          Object.freeze({
-            handle: object.handle,
-            name: object.name,
-            colorIndex: object.colorIndex,
-            stateFlags: object.stateFlags,
-            frozen: state.frozen,
-            locked: state.locked,
-            unmeasuredStateBits: state.unmeasuredBits,
-          }),
-        );
+        // El NOMBRE del tipo de línea no se puede poner aquí: la tabla LTYPE
+        // se construye después de esta pasada. Viaja el handle y se resuelve
+        // al cerrar, que es cuando de verdad se conoce.
+        layers.push({
+          handle: object.handle,
+          name: object.name,
+          colorIndex: object.colorIndex,
+          stateFlags: object.stateFlags,
+          frozen: state.frozen,
+          locked: state.locked,
+          unmeasuredStateBits: state.unmeasuredBits,
+          linetypeHandle: object.linetypeHandle,
+          linetypeName: undefined,
+        });
         break;
       }
       case "blockBegin": {
@@ -622,7 +629,7 @@ export function assembleDatabase(
   );
 
   return Object.freeze({
-    layers: Object.freeze(layers),
+    layers: resolveLayerLinetypeNames(layers, tables.linetypes),
     blocks: Object.freeze(
       blockOrder.map((block) =>
         Object.freeze({

@@ -113,6 +113,11 @@ test("meta D4: la base neutral recupera la estructura EXACTA del contenedor", ()
   // uno—. Que el valor aparezca aquí es la señal funcionando: el códec dice
   // «este estado se sale de lo medido» en vez de callarlo. Congelada y
   // bloqueada, que son los dos bits medidos, se leen igual de bien.
+  // `linetypeHandle: undefined` tampoco es un defecto de la lectura: el
+  // writer de este archivo sintético emite los CINCO handles del flujo final
+  // NULOS —placeholders confesos, `ac1015-table-writer.ts`—, así que la
+  // posición medida trae un handle nulo y eso significa AUSENCIA, no «el tipo
+  // de línea cero». Un DWG real del corpus sí trae ahí su LTYPE.
   assert.deepEqual(database.layers, [
     {
       handle: 2,
@@ -122,6 +127,8 @@ test("meta D4: la base neutral recupera la estructura EXACTA del contenedor", ()
       frozen: false,
       locked: false,
       unmeasuredStateBits: 0b11_1111_0000,
+      linetypeHandle: undefined,
+      linetypeName: undefined,
     },
     {
       handle: 3,
@@ -131,6 +138,8 @@ test("meta D4: la base neutral recupera la estructura EXACTA del contenedor", ()
       frozen: false,
       locked: false,
       unmeasuredStateBits: 0b11_1111_0000,
+      linetypeHandle: undefined,
+      linetypeName: undefined,
     },
   ]);
 
@@ -375,6 +384,7 @@ test("assembleDatabase (segunda pasada) también nota la cancelación — antes 
     name: [...MUROS],
     colorIndex: 1,
     stateFlags: 0,
+    linetypeHandle: undefined,
   };
   assertDwgError(
     () => assembleDatabase([layer], [], [], 0, budget),
