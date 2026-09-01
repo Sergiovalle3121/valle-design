@@ -1282,3 +1282,52 @@ la pérdida `layer-color-not-decoded` en el manifiesto». **Ese código de pérd
 no existía**: se pintaba el gris y el usuario no se enteraba. Ahora existe
 (`dwg_layer_color_not_decoded`) y se emite. El corpus tampoco ejerce este
 camino, y también se declara como alcanzable y no medido.
+
+## Corte 2026-09-01 (i) — el 3D heredado SÍ estaba medido, y el checklist decía que no
+
+Los dos cortes anteriores arreglaron la capa en los dos sentidos. Éste no
+arregla código: **corrige una afirmación falsa sobre lo que ya estaba medido**,
+que es la tercera vez esta jornada que un documento de gobernanza se queda por
+debajo de lo que el código hace.
+
+`ADR-0009 §9.3` llevaba la fila «Fidelidad medida contra corpus admitido» en
+**☐ PENDIENTE de la admisión de la ola 3**, y §9.2 decía que las specs del
+perfil corren «contra bytes sintéticos hechos a mano, no contra el corpus
+admitido». Leídas juntas sugieren que del 3D heredado no hay nada medido
+contra bytes reales admitidos. **El propio ADR ya lo desmentía cuatro párrafos
+antes**: §9.1 afirma fidelidad exacta contra el corpus admitido. El documento
+se contradecía consigo mismo.
+
+Lo cierto: `validate-corpus.mjs` —gate bloqueante— ya compara las cuatro
+clases contra el oráculo DXF del mismo dibujo con XYZ completo. Corrida del
+2026-09-01: `face3d` 2/2, `polyline3d` 1/1, `polymesh` 1/1, `polyfaceMesh` 1/1,
+**0 discrepancias**. El dato estaba enterrado en una matriz de 39 tipos donde
+nadie lo miraba.
+
+**Y sin embargo la evidencia es delgada.** Cero discrepancias sobre un corpus
+exigente y cero sobre uno que no prueba casi nada se ven idénticas desde la
+matriz agregada. La sonda nueva `probe-3d-legacy-coverage.mjs` (gate
+`check:dwg-3d-heredado`) separa las dos mitades y mide los casos:
+
+| dimensión | estado |
+| --- | --- |
+| 3DFACE con Z real en las esquinas | **completo** (`[0,0,15,15]`, `[0,5,20,10]`) |
+| 3DFACE: combinaciones de banderas de arista | **parcial** (2 de 6; sin triángulo degenerado) |
+| POLYLINE 3D con Z distinta por vértice | **completo** (`[0,10,20,5]`) |
+| POLYLINE 3D abierta y cerrada | **parcial** (sólo cerrada) |
+| POLYLINE MESH: tamaños de malla | **parcial** (una sola, `3x4`) |
+| POLYFACE con índice negativo (arista invisible) | **ausente** |
+
+**Fidelidad 5/5 campo a campo; cobertura 2/6 completas, 3 parciales, 1
+ausente.** Ése es el número honesto, y es el que el titular necesita para
+decidir si firma el perfil o espera a la ola 3.
+
+De paso, una corrección concreta: entre lo que §9.2 atribuye a la ola 3,
+«POLYLINE 3D con Z distinta por vértice» **ya está** en el corpus admitido. Lo
+que la ola 3 sigue aportando de verdad son las seis combinaciones de banderas,
+el 3DFACE degenerado, las mallas 7×9 y 5×5 cerrada en N, y los índices
+negativos.
+
+Nada de esto mueve una firma: `DWG_3D_WIREFRAME_BETA_AUTHORIZATION.ownerSigned`
+sigue en `false`, el perfil sigue sin ampliarse y el 3D heredado sigue llegando
+al producto como objeto opaco con su pérdida declarada.
