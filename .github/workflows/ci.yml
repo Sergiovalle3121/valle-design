@@ -543,14 +543,35 @@ jobs:
     # se CANCELARON al tocar los 25. Un presupuesto que sólo aguanta cuando
     # todo pasa vuelve a convertir un rojo en un silencio, que es exactamente
     # lo que este reparto viene a impedir: el techo tiene que caber en el caso
-    # MALO, no en el bueno. Sigue ganando en las dos direcciones — 40 min de
-    # reloj contra los 50 del job único, y cuatro veredictos en vez de ninguno.
+    # MALO, no en el bueno.
+    #
+    # Y 60 y no 40, que fue mi SEGUNDA cuenta corta seguida. El fragmento 3/4 se
+    # canceló a los 40m15s, y la causa tiene nombre y línea:
+    # `e2e/real/cables-sueltos.spec.ts:273` lleva su propio
+    # `test.setTimeout(1_800_000)` — TREINTA MINUTOS para una sola prueba, que
+    # enumera todos los botones visibles del estudio y pulsa cada uno. Treinta
+    # de prueba, más ~3 de arranque, más lo que el fragmento ya llevara, no cabe
+    # en 40: el fragmento que la contenga se cancela SIEMPRE.
+    #
+    # Es el mismo modo de fallo de arriba por tercera vez, y las tres veces lo
+    # causó la misma equivocación mía. Así que la regla queda escrita en vez de
+    # volver a deducirla: EL TECHO SE FIJA CONTRA LA PRUEBA MÁS LENTA, no
+    # contra la media ni contra una división.
+    #
+    # No se recorta el `setTimeout` de esa prueba para que quepa: capar una
+    # prueba por presupuesto la hace fallar por TIEMPO en vez de por sustancia,
+    # y eso es peor que un job largo — un rojo que miente cuesta más que un
+    # minuto de runner.
+    #
+    # Sigue ganando en las dos direcciones: 60 min de reloj en el PEOR caso,
+    # contra un job único que ya medía 97 y se cancelaba; y cuatro veredictos
+    # en vez de ninguno.
     #
     # `workers: 1` y `fullyParallel: false` de playwright.config.ts NO se tocan:
     # el estado CAD es secuencial a propósito y ahí no hay nada que ganar. El
     # sharding reparte ARCHIVOS entre trabajos; dentro de cada uno la ejecución
     # sigue siendo exactamente la de siempre.
-    timeout-minutes: 40
+    timeout-minutes: 60
     needs: quality-gates
 
     strategy:
