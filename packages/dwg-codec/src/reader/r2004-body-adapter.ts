@@ -38,6 +38,7 @@ import {
   readAc1015ObjectPrologue,
 } from "../objects/entity-common.js";
 import { AC1015_TYPE_BLOCK_HEADER } from "../objects/table-block.js";
+import { projectR2004ColorIndex } from "../objects/color-2004.js";
 import { AC1015_TYPE_LAYER } from "../objects/table-layer.js";
 import {
   AC1015_DIMSTYLE_FIELD_LAYOUT,
@@ -205,7 +206,12 @@ function collapseR2004Colors(body: Uint8Array, type: number): Uint8Array {
   return spliceBits(body, edits);
 }
 
-/** Rango exacto de un CmC 2004 más su índice ACI proyectado (fallo cerrado). */
+/**
+ * Rango exacto de un CmC 2004 más su índice ACI proyectado (fallo cerrado).
+ * La proyección vive en `objects/color-2004.ts` porque el lector de capas de
+ * R2010+ necesita EL MISMO criterio: dos copias es donde se colaría una
+ * divergencia silenciosa entre caminos de versión.
+ */
 function readCmc2004Range(
   reader: DwgBitReader,
 ): { start: number; end: number; index: number } {
@@ -214,29 +220,7 @@ function readCmc2004Range(
   const rawColor = reader.readBL() >>> 0;
   const colorByte = reader.readRC();
   const end = reader.bitPosition;
-  const errorOffset = Math.floor(start / 8);
-  if (colorByte !== 0) {
-    throwDwgError(
-      "DWG_VERSION_DECODER_UNSUPPORTED",
-      "unsupported",
-      errorOffset,
-      "R2004 colors with color or book name strings are not modeled.",
-    );
-  }
-  const method = (rawColor >>> 24) & 0xff;
-  const low = rawColor & 0xffffff;
-  let index;
-  if (method === 0xc0) index = 256;
-  else if (method === 0xc1) index = 0;
-  else if (method === 0xc3 && low <= 257) index = low;
-  else {
-    throwDwgError(
-      "DWG_VERSION_DECODER_UNSUPPORTED",
-      "unsupported",
-      errorOffset,
-      "An R2004 color method outside the ACI index model is not decoded.",
-    );
-  }
+  const index = projectR2004ColorIndex(rawColor, colorByte, Math.floor(start / 8));
   return { start, end, index };
 }
 

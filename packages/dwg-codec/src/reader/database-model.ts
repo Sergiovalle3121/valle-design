@@ -18,12 +18,18 @@ export interface Ac1015DatabaseLayer {
   /** Bytes del nombre en la página de códigos del dibujo. */
   readonly name: readonly number[];
   /**
-   * Índice ACI. `undefined` SÓLO en el camino R2010+: las banderas y el color
-   * de un LAYER no se decodifican ahí, y se midió por qué — ver
-   * `r2010-database-assembly.ts`. AC1015 y AC1018 siempre lo traen.
+   * Índice ACI. AC1015 y AC1018 siempre lo traen. En R2010+ se decodifica
+   * desde el 2026-09-01 (`r2010-table-layer.ts`, 54/54); queda `undefined`
+   * SÓLO cuando esa lectura falla cerrado —una capa cuya cabeza no es la
+   * medida— y entonces el diagnóstico dice cuál y por qué. `undefined` es
+   * «no decodificado», nunca «sin color»: el mapeo canónico lo declara como
+   * pérdida en vez de pintar blanco.
    */
   readonly colorIndex: number | undefined;
-  /** BS de estado crudo (semántica bit a bit pendiente de corpus). */
+  /**
+   * `BS` de estado crudo (semántica bit a bit pendiente de corpus). Misma
+   * regla de ausencia que `colorIndex`.
+   */
   readonly stateFlags: number | undefined;
 }
 

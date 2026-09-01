@@ -3,17 +3,17 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-decoder-matrix-v1",
   "generadoPor": "node scripts/dwg/dwg-evidence.mjs",
-  "generadoEn": "2026-08-31T23:45:44.541Z",
+  "generadoEn": "2026-09-01T01:54:17.296Z",
   "environment": {
     "node": "v22.22.2",
     "platform": "linux",
     "architecture": "x64",
     "osType": "Linux",
     "osRelease": "6.18.44-fc-v22",
-    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
     "logicalCpuCount": 4,
     "totalMemoryBytes": 16856133632,
-    "declaredMachine": "Intel(R) Xeon(R) Processor @ 2.10GHz (4 hilos lógicos), 16.9 GB de RAM, Linux 6.18.44-fc-v22"
+    "declaredMachine": "Intel(R) Xeon(R) Processor @ 2.80GHz (4 hilos lógicos), 16.9 GB de RAM, Linux 6.18.44-fc-v22"
   },
   "declaracion": "Capacidades promovidas con corpus independiente admitido; ver `capacidades` y `entidades` para el alcance exacto.",
   "reglaDePromocion": "Una capacidad se promueve sólo si el laboratorio la declara `supported` Y hay ≥1 bundle admitido Y ≥2 validaciones independientes autorizadas. El reader y el writer de Valle nunca son el único oráculo (CORPUS_POLICY.md).",
@@ -42,7 +42,7 @@
     "capacidadesEvaluadas": 11,
     "capacidadesPromovidas": 2,
     "tiposDecodificadosEnLaboratorio": 65,
-    "tiposVerificadosIndependientemente": 47,
+    "tiposVerificadosIndependientemente": 51,
     "geometriasNeutrales": 24
   },
   "capacidades": [
@@ -515,7 +515,7 @@
       "codigoBs": 50,
       "modulo": "table-layer.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": false,
+      "verificadoIndependientemente": true,
       "claveDeVerificacion": "layer-table",
       "bundlesQueLoCubren": 7
     },
@@ -524,7 +524,7 @@
       "codigoBs": 51,
       "modulo": "table-layer.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": false,
+      "verificadoIndependientemente": true,
       "claveDeVerificacion": "layer-table",
       "bundlesQueLoCubren": 7
     },
@@ -551,7 +551,7 @@
       "codigoBs": 56,
       "modulo": "tables-symbol.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": false,
+      "verificadoIndependientemente": true,
       "claveDeVerificacion": "ltype-table",
       "bundlesQueLoCubren": 7
     },
@@ -560,7 +560,7 @@
       "codigoBs": 57,
       "modulo": "tables-symbol.ts",
       "decodificadoEnLaboratorio": true,
-      "verificadoIndependientemente": false,
+      "verificadoIndependientemente": true,
       "claveDeVerificacion": "ltype-table",
       "bundlesQueLoCubren": 7
     },

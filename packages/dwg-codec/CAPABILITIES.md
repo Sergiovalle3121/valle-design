@@ -663,19 +663,18 @@ declarado abajo — no se pierden, se colocan en otro sitio y se dice.
    extends outside the input»: los nombres de clase no viajan en esa forma de
    cadena. Mismo criterio — marco validado, registros no decodificados, mapa de
    clases vacío. El ensamblado R2010+ no lo consume: despacha por tipo fijo.
-3. **Color y banderas de una capa.** Se intentaron medir con la MISMA técnica
-   que resolvió el cuerpo de entidad —barrer la anchura del prólogo de objeto—
-   y el barrido completo de 0..120 bits dio **cero** aciertos: las banderas de
-   capa de R2010+ no son el `BS` de R2000 en ninguna posición. El modelo
-   relajado que suelta el color «acierta» 18/18 en **cuatro** anchuras a la vez
-   (4, 24, 53 y 59 en AC1024), y eso **no es evidencia**: los tres campos de
-   xref valen su defecto en todo el corpus, así que coincidir con ellos es
-   coincidir con ceros. Medirlos exige un corpus con capas de colores y estados
-   variados: es un intake aparte. `colorIndex` y `stateFlags` viajan
-   `undefined` y el lienzo pinta un gris neutro deliberadamente distinto de
-   cualquier ACI, con su pérdida declarada.
+3. **[CORREGIDO EL 2026-09-01 — ver la sección de ese corte] Color y banderas
+   de una capa.** Este documento afirmó que «las banderas de capa de R2010+ no
+   son el `BS` de R2000 en ninguna posición». **Era falso**: sí lo son, y desde
+   el 2026-09-01 se decodifican (54/54, tres condiciones a la vez). El párrafo
+   original se conserva marcado, no se reescribe, porque el error de método que
+   lo produjo es lo que hay que recordar.
 
-**Capacidad ausente declarada, sin suavizar**: INSERT y TEXT no tienen cuerpo
+**Capacidad ausente declarada, sin suavizar** _(párrafo de aquel corte;
+**dos frases suyas quedaron obsoletas o eran falsas** — ver el corte
+2026-09-01 más abajo: INSERT y TEXT sí tienen cuerpo medido desde entonces, y
+la afirmación de que «el corpus no trae ni un objeto de modo 0» era FALSA, hay
+5 LINE, 1 CIRCLE y 1 ARC)_: INSERT y TEXT no tienen cuerpo
 medido en R2010+ y entran en `unsupported`, enumerados y nunca callados. La
 pertenencia entidad→bloque está implementada con la MISMA regla que el
 ensamblado AC1015 pero **no medida**: el corpus no trae ni un objeto de modo 0,
@@ -683,4 +682,138 @@ y cada uso deja diagnóstico. Ninguna capacidad se promueve: el corte sigue en
 `experimental-lab` y ningún flag se enciende.
 
 Evidencia: `docs/cad/evidence/dwg-corpus-validation.json`, reproducible con
+`node scripts/dwg/validate-corpus.mjs`.
+
+## Evidencia del corte 2026-09-01 (TEXT, INSERT y pertenencia a bloque en R2010+)
+
+Continuación directa del ensamblado. La matriz de entidades de las tres
+versiones modernas queda **idéntica a la de AC1015**.
+
+| tipo         | esperado |  leído | distinto | falta | inesperado |
+| ------------ | -------: | -----: | -------: | ----: | ---------: |
+| `arc`        |        2 |  **2** |        0 |     0 |          0 |
+| `circle`     |        3 |  **3** |        0 |     0 |          0 |
+| `insert`     |        6 |  **6** |        0 |     0 |          0 |
+| `line`       |       15 | **15** |        0 |     0 |          0 |
+| `lwpolyline` |        3 |  **3** |        0 |     0 |          0 |
+| `point`      |        1 |  **1** |        0 |     0 |          0 |
+| `text`       |        5 |  **5** |        0 |     0 |          0 |
+
+(cifras de AC1024; AC1027 y AC1032 dan las mismas). Discrepancias por versión:
+**36 → 14**.
+
+### Tres mediciones
+
+1. **TEXT (0/5 → 5/5).** El cuerpo es la MISMA secuencia de campos de R2000
+   **menos el `TV`** de la cadena, que se mudó al flujo ya medido. Dos
+   falsaciones independientes, **15/15** cada una: todos los campos coinciden
+   con el gemelo (inserción, altura, rotación, oblicuo, factor de anchura,
+   elevación, espesor, generación y las dos alineaciones), y el dato del tipo
+   aterriza **exactamente** donde empieza el flujo de cadenas. `decodeTextFields`
+   acepta los bytes desde fuera en vez de duplicarse: dos copias de la
+   secuencia es donde se colaría una divergencia silenciosa.
+2. **INSERT (0/6 → 6/6).** Su cuerpo no cambia; lo que faltaba era el nombre
+   del bloque. El puntero al `BLOCK_RECORD` es el **primer handle posterior a
+   la cabeza común** —la misma posición que el gemelo lee justo tras ella— y
+   resuelve el nombre correcto en **6/6**. Se resuelve en una segunda pasada
+   porque el bloque puede aparecer después en el mapa.
+3. **Pertenencia a bloque (7 entidades descolocadas → 0).** Ver la corrección.
+
+### Corrección fechada de una afirmación FALSA del corte anterior
+
+El corte del ensamblado afirmó que «el corpus admitido no ejercita ni un solo
+objeto de modo 0». **Era falso.** Contando los modos con
+`deriveR2010HandleShape` sobre el corpus aparecen **5 LINE, 1 CIRCLE y 1 ARC**
+de modo 0 — exactamente las 7 entidades que entonces quedaban en model space
+en vez de en su bloque, y que se contabilizaban como `falta` + `inesperado`.
+
+La afirmación se hizo **sin contar**, que es la forma barata de equivocarse:
+bastaba un recuento de dos minutos. Con la pertenencia resuelta, las siete caen
+en su bloque y no queda ni un `falta` ni un `inesperado` en toda la matriz.
+
+**Y una regresión propia, encontrada por un test y no por el corpus**: al
+localizar el flujo de cadenas antes de tiempo, un tipo SIN cadena cuyo bit de
+presencia valiera 1 pasaba de fallar `DWG_VERSION_DECODER_UNSUPPORTED`
+(capacidad ausente) a `DWG_STRUCTURE_CORRUPT` (corrupción). Son cosas
+distintas y el llamador actúa distinto ante cada una. Corregido en el código,
+no en el test: el flujo sólo se localiza para los tipos que lo llevan.
+
+**Lo que sigue faltando** _(cifra de aquel corte; el de más abajo baja de 14 a
+2 al medir el color)_: las 14 discrepancias por versión son **campos que
+este corte declara SIN MEDIR** — el color de capa (12) y los trazos de tipo de
+línea (2). El validador las etiqueta «distinto» porque compara valores, y un
+valor ausente no es igual a uno presente; no son geometría equivocada. Medirlos
+exige un corpus con capas y tipos de línea variados, y es un intake aparte.
+Ninguna capacidad se promueve: el corte sigue en `experimental-lab`.
+
+## Evidencia del corte 2026-09-01 bis (campos de tabla en R2010+: CERO discrepancias)
+
+**Este corte corrige una afirmación FALSA que este mismo documento publicó.**
+Se escribió que las banderas de capa de R2010+ «no son el `BS` de R2000 en
+ninguna posición», apoyándose en un barrido de 0..120 bits con cero aciertos.
+Sí lo son. El barrido no falló por el formato, falló por cómo se preguntó:
+
+1. **Puse un hecho medible detrás de uno inmedible.** La sonda sólo apuntaba un
+   acierto de estado si ANTES coincidían los tres campos de xref — y esos tres
+   valen **siempre lo mismo** en todo el corpus admitido, así que no discriminan
+   nada. Una lectura equivocada de lo que no se puede falsar vetaba la lectura
+   correcta de lo que sí.
+2. **No reusé un hecho que el repo ya tenía medido.** La sonda leía el color
+   como el `CmC` de R2000 (un simple `BS`) cuando el adaptador AC1018 de este
+   mismo paquete —8/8, 0 discrepancias— ya documentaba que desde R2004 son
+   **tres** campos: `BS` + `BL` + `RC`.
+3. **Describí esos campos de xref como «ceros»**, y tampoco es exacto:
+   `xrefRef` vale `true` en las 18 capas del gemelo. Lo que impide falsarlos no
+   es que valgan cero, es que valen siempre lo mismo. Constante no es cero.
+
+**Lo medido**: a una distancia fija del primer bit de dato —**7 bits en AC1024
+y 8 en AC1027/AC1032**, la misma diferencia de un bit que ya separa el prefijo
+común de entidad— va el `BS` de estado, y justo detrás el color en la forma
+`CmC` de R2004. Se exigieron **tres condiciones a la vez** en las 54 capas de
+las tres versiones: el estado reproduce el del gemelo AC1015 (54/54), el color
+proyecta al mismo índice ACI (54/54) y el dato termina **exactamente** donde
+empieza el flujo de cadenas (54/54). Los valores varían de verdad: tres estados
+distintos (1008, 1009 congelada, 1016 bloqueada) y siete índices ACI. Falsación
+adversa: con la cabeza desplazada **un** bit en cualquier dirección, las tres
+condiciones fallan en 54/54.
+
+**Lo que sigue sin medir, y no se finge**: qué hay exactamente en esos 7/8 bits
+de cabeza. Con este corpus no puede saberse — no hay ni un objeto con EED, ni
+uno con reactores, ni una entrada dependiente de xref, así que al menos dos
+composiciones distintas reproducen los mismos valores. Se mide la **anchura**,
+no el contenido, y los tres campos de xref **no se decodifican** en R2010+.
+Esa ambigüedad no es peligrosa porque el aterrizaje exacto es obligatorio: un
+archivo con otra cabeza no aterriza y el códec falla cerrado con
+`DWG_VERSION_DECODER_UNSUPPORTED` en vez de devolver un color plausible y
+equivocado.
+
+**La misma cabeza sirve para el LTYPE, y eso es parte de la evidencia.** Medida
+por separado sobre los tipos de línea sale **idéntica** (7/8 bits), y tras ella
+van `BD` longitud del patrón, `RC` alineación, `RC` número de trazos y, por
+trazo, la misma séptupla que en R2000. Patrón, alineación y trazos coinciden
+con el gemelo en **78/78**. Que una misma cabeza sirva para un dato de 25 bits
+(patrón vacío) y para uno de 429 (patrón con dos trazos) es lo que la convierte
+en la cabeza **común** de una entrada de tabla y no en una casualidad de un
+tipo.
+
+Y una diferencia real con R2000, **medida y no supuesta**: el área de texto de
+256 bytes que un LTYPE de R2000 lleva siempre al final **no está** en R2010+.
+Se probaron las dos variantes sobre todo el corpus — la variante sin área
+aterriza 78/78, la variante con área 0/78.
+
+**Límite de la evidencia del LTYPE, sin suavizar**: de los 78 comparados sólo
+**6** (dos por versión) llevan un patrón no vacío; los otros 72 son patrones
+vacíos. Los campos por trazo que no varían en el corpus (desplazamientos,
+escala, rotación y banderas) están **leídos, no falsados**.
+
+**Efecto en el corpus**: el corpus completo queda en **cero discrepancias en
+las cinco versiones** — AC1015 25/25, AC1018 8/8 y AC1024, AC1027 y AC1032 8/8
+cada una, 57 archivos abiertos de 57. Las versiones modernas dejan de tener
+discrepancias declaradas. Ninguna capacidad se promueve por ello: el corte
+sigue en `experimental-lab` y ningún flag se enciende — que el laboratorio lea
+un archivo sin discrepancias no es que el producto lo abra.
+
+Evidencia: `docs/cad/evidence/dwg-r2010-table-fields.json`, reproducible con
+`node scripts/dwg/probe-r2010-table-fields.mjs`; y
+`docs/cad/evidence/dwg-corpus-validation.json` con
 `node scripts/dwg/validate-corpus.mjs`.

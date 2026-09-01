@@ -1,7 +1,7 @@
 {
   "$schema": "./source-register.schema.json",
   "schemaVersion": "1.0.0",
-  "updatedAt": "2026-08-31",
+  "updatedAt": "2026-09-01",
   "entries": [
     {
       "id": "VALLE-OWNER-DWG0-2026-08-09",
@@ -768,9 +768,9 @@
         "Las secciones de DATOS de R2010+ usan un campo de tamano de 8 bytes, no de 4: seleccionarlo hace pasar el CRC de AcDb:Header y AcDb:Classes, que antes fallaba en el offset 819",
         "Las VARIABLES DE CABECERA de R2010+ no siguen la disposicion de AC1018: leerlas asi produce 'A BD flag of 0b11 is not defined by the format' en 8/8 archivos por version. Su disposicion NO esta medida",
         "Los REGISTROS DE CLASE de R2010+ tampoco: leerlos con la forma de AC1018 produce 'A text value extends outside the input' en 8/8 por version, porque los nombres de clase no viajan en esa forma de cadena. Su disposicion NO esta medida",
-        "El COLOR y las BANDERAS de una capa no se pueden medir con este corpus. Barriendo la anchura del prologo de objeto de 0 a 120 bits -la misma tecnica que resolvio el cuerpo de entidad- el numero de anchuras que reproducen stateFlags del gemelo es CERO: las banderas de capa de R2010+ no son el BS de R2000 en ninguna posicion",
+        "[CORREGIDO EL 2026-09-01 POR VALLE-CORPUS-R2010-LAYER-ESTADO-Y-COLOR - ESTE HECHO ERA FALSO] El COLOR y las BANDERAS de una capa no se pueden medir con este corpus. Barriendo la anchura del prologo de objeto de 0 a 120 bits -la misma tecnica que resolvio el cuerpo de entidad- el numero de anchuras que reproducen stateFlags del gemelo es CERO: las banderas de capa de R2010+ no son el BS de R2000 en ninguna posicion || POR QUE ERA FALSO: las banderas de capa de R2010+ SI son el BS de R2000, a 7 bits del primer bit de dato en AC1024 y a 8 en AC1027/AC1032, con el color CmC de R2004 justo detras (54/54 con tres condiciones a la vez). El barrido dio cero aciertos por dos errores de metodo mios, no del formato: (1) solo apuntaba un acierto de estado si ANTES coincidian los tres campos de xref, que son CONSTANTES en todo el corpus y por tanto no discriminan nada, de modo que una lectura equivocada de lo inmedible vetaba la lectura correcta de lo medible; y (2) leia el color como el CmC de R2000 cuando el adaptador AC1018 de este mismo repo, medido 8/8 con 0 discrepancias, ya documentaba que desde R2004 son TRES campos (BS + BL + RC). Ademas describi esos campos de xref como 'ceros' y no lo son: xrefRef vale true en las 18 capas del gemelo. Lo que impide falsarlos no es que valgan cero, es que valen SIEMPRE LO MISMO",
         "El modelo relajado que suelta el color acierta 18/18 en CUATRO anchuras distintas a la vez (4, 24, 53 y 59 en AC1024; 25, 54 y 60 en AC1027 y AC1032). Eso NO es evidencia y asi consta: los tres campos de xref valen su defecto en todo el corpus, de modo que coincidir con ellos es coincidir con ceros. Medirlos exige un corpus con capas de colores y estados variados",
-        "CAPACIDAD AUSENTE, DECLARADA: la pertenencia entidad->bloque usa la MISMA regla que el ensamblado AC1015 (modo 0 -> su bloque; modo 1 -> paper space; resto -> model space) pero NO esta medida en R2010+: el corpus admitido no trae ni un objeto de modo 0, y cada uso deja diagnostico",
+        "CAPACIDAD AUSENTE, DECLARADA: la pertenencia entidad->bloque usa la MISMA regla que el ensamblado AC1015 (modo 0 -> su bloque; modo 1 -> paper space; resto -> model space) pero NO esta medida en R2010+: el corpus admitido no trae ni un objeto de modo 0, y cada uso deja diagnostico [CORREGIDO EL 2026-09-01 POR VALLE-CORPUS-R2010-TEXT-INSERT-BLOQUES: ES FALSO. El corpus SI trae objetos de modo 0 -5 LINE, 1 CIRCLE y 1 ARC en AC1024-, que son exactamente las 7 entidades que quedaban descolocadas. La afirmacion se hizo sin contar.]",
         "CAPACIDAD AUSENTE, DECLARADA: insunits, colorIndex y stateFlags viajan undefined en el camino R2010+ en vez de cero. Un cero afirmaria 'el archivo declara sin unidades' o 'la capa es blanca y esta descongelada', que son afirmaciones distintas de 'no lo hemos leido', y el puente del producto declara cada ausencia en el manifiesto de perdidas",
         "El intake empujo canonical.ts (788 -> 900) y database-assembly.ts (778 -> 862) por encima del maximo de 800 lineas del presupuesto de monolito. Se dividieron en vez de ampliar el presupuesto, como manda la regla del repo: canonical-layers.ts (tabla ACI y mapeo de capas), canonical-to-dwg.ts (la direccion inversa) y database-model.ts (los tipos de la base neutral, re-exportados enteros para que ningun consumidor cambie de import). Cada extraido queda registrado bajo la MISMA fuente que su padre: su contenido viene de ahi, no de esta medicion"
       ],
@@ -789,6 +789,89 @@
       "reviewer": "Medicion automatizada reproducible (scripts/dwg/validate-corpus.mjs sobre el corpus admitido); revision humana del propietario pendiente, como toda promocion de capacidad",
       "reviewedAt": "2026-08-31",
       "notes": "La falsacion de este modulo son los 24 archivos DWG REALES del corpus admitido pasando por readR2004Database, no vectores sinteticos: es una prueba mas fuerte y esta wireada al gate via check:dwg-evidence. NO promueve ninguna capacidad de producto: el corte sigue en experimental-lab, ningun flag se enciende, y los tres estratos sin medir (variables de cabecera, registros de clase, campos no-nombre de las tablas) quedan declarados en CAPABILITIES.md."
+    },
+    {
+      "id": "VALLE-CORPUS-R2010-TEXT-INSERT-BLOQUES",
+      "owner": "Sergio Valle Zarate",
+      "origin": {
+        "type": "original-measurement",
+        "location": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance/tree/0688fb9c395b9cac4169d1ee9c23a7370cc28cf3/bundles/valle.fundacional.ac1027.001",
+        "accessedAt": "2026-09-01"
+      },
+      "title": "Mediciones first-party del cuerpo de TEXT, del puntero a bloque de INSERT y de la pertenencia entidad-bloque en R2010+",
+      "versionOrDate": "2026-09-01",
+      "terms": {
+        "license": "Valle first-party corpus measurement (admitted tool-converted-original bundles)",
+        "access": "Blobs leidos del commit fijado del repo hermano de conformidad via el gate consumidor (corpus-pin.json + SHA-256 verificado); ningun working tree",
+        "redistribution": "Solo se registran numeros observados (coincidencias de campo, offsets de aterrizaje, recuentos de modo) y decisiones de codigo derivadas; los bytes DWG permanecen en el repo hermano bajo su propia politica",
+        "notes": "Continuacion del ensamblado R2010+. Ninguna fuente documental nueva intervino."
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "El cuerpo de un TEXT en R2010+ es la MISMA secuencia de campos de R2000 MENOS el TV de la cadena, que se mudo al flujo de cadenas. Falsado por dos caminos independientes, 15/15 cada uno: todos los campos coinciden con el gemelo AC1015 (insercion, altura, rotacion, oblicuo, factor de anchura, elevacion, espesor, generacion y las dos alineaciones), y el dato del tipo aterriza EXACTAMENTE donde empieza el flujo de cadenas",
+        "El cuerpo de un INSERT NO cambia entre R2000 y R2010+: enchufar decodeInsert tal cual lee los 6 del corpus con geometria exacta",
+        "El puntero al BLOCK_RECORD de un INSERT es el PRIMER handle posterior a la cabeza comun del flujo -la misma posicion que el gemelo AC1015 lee justo tras ella- y resuelve el nombre correcto en 6/6",
+        "CORRECCION DE UN HECHO FALSO YA PUBLICADO: el corte del ensamblado (VALLE-CORPUS-R2010-DATABASE-ASSEMBLY) afirmo que el corpus no ejercita ni un solo objeto de modo 0. Es FALSO. El recuento de modos con deriveR2010HandleShape da, en AC1024: 5 LINE, 1 CIRCLE y 1 ARC de modo 0 -exactamente las 7 entidades que entonces quedaban descolocadas-, ademas de 8 objetos de modo 1 y el resto de modo 2. La afirmacion se hizo SIN CONTAR",
+        "Con la pertenencia entidad-bloque resuelta por el propietario del flujo de handles, la matriz de entidades de las tres versiones modernas queda IDENTICA a la de AC1015: arc 2/2, circle 3/3, insert 6/6, line 15/15, lwpolyline 3/3, point 1/1, text 5/5, con cero distintas, cero faltantes y cero inesperadas. Las discrepancias por version bajan de 36 a 14",
+        "Las 14 discrepancias que quedan por version son campos que este corte declara SIN MEDIR: el color de capa (12) y los trazos de tipo de linea (2). El validador las etiqueta 'distinto' porque compara valores y un valor ausente no es igual a uno presente; no son geometria equivocada",
+        "REGRESION PROPIA, encontrada por un test y no por el corpus: localizar el flujo de cadenas antes de comprobar el bit de presencia convertia un tipo SIN cadena con ese bit a 1 de DWG_VERSION_DECODER_UNSUPPORTED (capacidad ausente) en DWG_STRUCTURE_CORRUPT (corrupcion). Son cosas distintas y el llamador actua distinto ante cada una; corregido en el codigo y no en el test"
+      ],
+      "derivedFiles": [
+        "docs/cad/evidence/dwg-corpus-validation.json",
+        "packages/dwg-codec/src/objects/entities-core.ts",
+        "packages/dwg-codec/src/objects/entity-common.ts",
+        "packages/dwg-codec/src/reader/r2010-database-assembly.ts",
+        "packages/dwg-codec/src/reader/r2010-entity-body.ts",
+        "packages/dwg-codec/tests/unit/r2010-entity-body.spec.ts"
+      ],
+      "reviewer": "Medicion automatizada reproducible (scripts/dwg/validate-corpus.mjs sobre el corpus admitido); revision humana del propietario pendiente",
+      "reviewedAt": "2026-09-01",
+      "notes": "Cierra la matriz de entidades de AC1024/AC1027/AC1032 al nivel de AC1015. NO promueve ninguna capacidad de producto: el corte sigue en experimental-lab y ningun flag se enciende. Lo que queda sin medir (color de capa, trazos de tipo de linea, variables de cabecera, registros de clase) consta en CAPABILITIES.md."
+    },
+    {
+      "id": "VALLE-CORPUS-R2010-LAYER-ESTADO-Y-COLOR",
+      "owner": "Sergio Valle Zarate",
+      "origin": {
+        "type": "original-measurement",
+        "location": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance/tree/0688fb9c395b9cac4169d1ee9c23a7370cc28cf3/bundles/valle.fundacional.ac1032.001/fixtures",
+        "accessedAt": "2026-09-01"
+      },
+      "title": "Mediciones first-party de los campos no-nombre de las entradas de tabla en R2010+ (LAYER: estado y color; LTYPE: patron y trazos), y correccion de un hecho falso ya publicado",
+      "versionOrDate": "2026-09-01",
+      "terms": {
+        "license": "Valle first-party corpus measurement (admitted tool-converted-original bundles)",
+        "access": "Blobs leidos del commit fijado del repo hermano de conformidad via el gate consumidor (corpus-pin.json + SHA-256 verificado); ningun working tree",
+        "redistribution": "Solo se registran numeros observados (offsets medidos, coincidencias de campo, recuentos) y decisiones de codigo derivadas; los bytes DWG permanecen en el repo hermano bajo su propia politica",
+        "notes": "Ninguna fuente documental nueva intervino. La location apunta al directorio de fixtures del bundle AC1032 del commit fijado porque el gate exige una URL distinta por entrada y la raiz de ese bundle ya la usa VALLE-CORPUS-R2010-DATABASE-ASSEMBLY; la medicion cubre por igual los bundles AC1024, AC1027 y AC1032 de ese MISMO commit."
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "La cabeza que precede a los campos propios de una entrada de tabla en R2010+ mide 7 bits en AC1024 y 8 en AC1027 y AC1032 -la misma diferencia de un bit que ya separa el prefijo comun de entidad-. No se midio una sola vez: sale LA MISMA en las 54 capas y en los 78 LTYPE del corpus, en las tres versiones, y es UNICA por version en ambos. Que dos tipos con datos de 25 y de 429 bits la compartan es lo que la hace la cabeza COMUN de una entrada de tabla y no una casualidad de un tipo",
+        "Inmediatamente detras del BS de estado va el color en la forma CmC de R2004 -BS de indice, BL de color empaquetado y RC de byte de nombre-, la MISMA que el adaptador AC1018 ya tenia medida con 0 discrepancias; el metodo vive en el byte alto del BL (0xC0 ByLayer/256, 0xC1 ByBlock/0, 0xC3 indice ACI en los 24 bits bajos)",
+        "El dato de una entrada LAYER termina EXACTAMENTE donde empieza su flujo de cadenas: 54/54. Esa condicion de aterrizaje se exigio a la vez que la coincidencia de estado y la de color con el gemelo AC1015 del MISMO dibujo, y las tres se cumplen en 54/54 (18 por version)",
+        "La falsacion es fuerte porque los valores VARIAN: tres estados distintos (1008 normal, 1009 congelada, 1016 bloqueada) y siete indices ACI distintos (1 a 7). Falsacion adversa: desplazando la cabeza medida UN bit en cualquier direccion, las tres condiciones fallan en 54/54",
+        "LIMITE: que hay EXACTAMENTE en esos 7/8 bits de cabeza NO esta resuelto y con este corpus no puede estarlo. Caben al menos dos composiciones -EED(BS) + reactores(BL) + xdic(B) [+ un B en AC1027+] seguido o bien de un BS de indice de xref, o bien de los dos bits de bandera de xref- y AMBAS reproducen los valores del gemelo, porque en el corpus admitido no hay ni un objeto con EED, ni uno con reactores, ni una entrada dependiente de xref. Se mide la ANCHURA, no el contenido",
+        "Los tres campos de xref del modelo R2000 (xrefRef, xrefIndexPlusOne, xrefDependent) son CONSTANTES en todo el corpus admitido -no cero: xrefRef vale true en las 18 capas del gemelo-, asi que no discriminan ningun modelo y este intake NO los decodifica en R2010+",
+        "CORRECCION DE UN HECHO FALSO YA PUBLICADO: el corte del ensamblado (VALLE-CORPUS-R2010-DATABASE-ASSEMBLY) afirmo que las banderas de capa de R2010+ no son el BS de R2000 en ninguna posicion, apoyandose en un barrido de 0..120 bits con cero aciertos. Es FALSO. El barrido fallo por el metodo, no por el formato: ponia un hecho medible (el estado) detras de uno inmedible (los tres campos de xref, constantes), y leia el color como el CmC de R2000 en vez del de R2004 que el propio repo ya tenia medido. Reusar un hecho que el repo ya tenia habria bastado",
+        "Con el estado y el color de la capa y el patron del LTYPE leidos, el corpus completo queda en CERO discrepancias en las cinco versiones: AC1015 25/25, AC1018 8/8 y AC1024, AC1027 y AC1032 8/8 cada una, 57 archivos abiertos de 57. Las versiones modernas dejan de tener discrepancias declaradas",
+        "Tras la cabeza, un LTYPE de R2010+ lleva BD de longitud de patron, RC de alineacion, RC de numero de trazos y, por trazo, la MISMA septupla que R2000 (BD longitud, BS codigo de forma, RD y RD desplazamientos, BD escala, BD rotacion, BS banderas). Patron, alineacion y trazos coinciden con el gemelo AC1015 en 78/78, con aterrizaje exacto en el inicio del flujo de cadenas",
+        "El area de texto de 256 bytes que R2000 lleva SIEMPRE al final de un LTYPE NO esta en R2010+. Se probaron las dos variantes sobre todo el corpus: la variante SIN area aterriza 78/78 y la variante CON area aterriza 0/78. Es una diferencia medida, no supuesta por analogia",
+        "LIMITE DE LA EVIDENCIA DEL LTYPE, SIN SUAVIZAR: de los 78 comparados solo 6 (dos por version) llevan un patron NO vacio -TRAZOS, longitud 1 y trazos [0.75, -0.25]-; los otros 72 son patrones vacios de 25/26 bits de dato. Los campos por trazo que no varian en el corpus (desplazamientos, escala, rotacion y banderas) estan LEIDOS pero NO falsados"
+      ],
+      "derivedFiles": [
+        "docs/cad/evidence/dwg-corpus-validation.json",
+        "docs/cad/evidence/dwg-r2010-table-fields.json",
+        "packages/dwg-codec/src/objects/color-2004.ts",
+        "packages/dwg-codec/src/reader/database-model.ts",
+        "packages/dwg-codec/src/reader/r2004-body-adapter.ts",
+        "packages/dwg-codec/src/reader/r2010-database-assembly.ts",
+        "packages/dwg-codec/src/reader/r2010-table-fields.ts",
+        "packages/dwg-codec/tests/unit/r2010-table-fields.spec.ts",
+        "scripts/dwg/probe-r2010-table-fields.mjs"
+      ],
+      "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-r2010-layer-fields.mjs y scripts/dwg/validate-corpus.mjs sobre el corpus admitido); revision humana del propietario pendiente",
+      "reviewedAt": "2026-09-01",
+      "notes": "NO promueve ninguna capacidad de producto: el corte sigue en experimental-lab y ningun flag se enciende. La ambiguedad de la composicion de la cabeza no es peligrosa porque el aterrizaje exacto es obligatorio: un archivo con otra cabeza falla cerrado con DWG_VERSION_DECODER_UNSUPPORTED en vez de devolver un valor plausible y equivocado."
     }
   ]
 }
