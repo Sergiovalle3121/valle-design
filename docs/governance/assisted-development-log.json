@@ -2361,6 +2361,43 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "LO-QUE-LA-AUDITORIA-MIDIO-20260901",
+      "date": "2026-09-01",
+      "initiative": "El titular pidió dos cosas y las dos mandan: «no sólo se tiene que parecer, tiene que funcionar» y «la competencia es AutoCAD completo, 2D y 3D, con todo su toolset». Se midieron las dos en paralelo contra el producto real en el navegador. (a) ¿Funciona? Diez recorridos de despacho —levantar una planta, dibujar por coordenadas, montar el estándar de capas, acotar para obra, modificar un plano ajeno, sacarlo en papel a escala, intercambiarlo por DXF, mirarlo en 3D, reutilizar mobiliario, trabajar en equipo—: 3 «sirve», 7 «sirve con reservas», 0 «no sirve»; 26 fallos, de los que 22 sobrevivieron a un refutador adversario. (b) ¿Se parece? Medido contra AutoCAD completo y contando por lo que FALTA: 2D 55 %, capas 45 %, publicación 40 %, anotación 30 %, bloques 30 %, 3D→documentación 30 %, automatización 30 %, modelado 3D 20 %, los siete toolsets 6 %, reconocimiento ~0 %; media ponderada ≈29 % frente al 88,6 % que la rúbrica se auto-asigna. La contradicción se resuelve con aritmética, no con opinión: de los 336 ítems de la rúbrica, 314 comprueban que algo EXISTE (un fichero, un nombre en el registro, un alias que resuelve), 22 miran un valor y CERO miran la pantalla; y su denominador declarado es AutoCAD LT, por escrito, sin ninguna fila para los siete toolsets. Este PR guarda la evidencia: los tres informes destilados y las 31 pruebas de navegador que la produjeron. Las pruebas están rojas a propósito y se EXCLUYEN de la suite (testIgnore), porque un veredicto permanentemente rojo deja de mirarse; pero una carpeta excluida se pudre en silencio, que es la misma enfermedad, así que la exclusión no viaja sola: check:auditoria exige que cada archivo esté declarado con QUÉ defecto reproduce, que no haya entradas huérfanas, y que la lista SÓLO ENCOJA —una prueba se va de ahí cuando su defecto se arregla y ella se gradúa a e2e/golden/—. Verificado que el gate dispara en las tres direcciones: prueba sin declarar, techo subido a hurtadillas y motivo vacío. Al tipar un `any` que traía un spec, el typecheck destapó un fallo real: `find()` puede devolver undefined y la prueba leía `.version` a ciegas, así que un redefinir que borrase el bloque habría dado un TypeError mudo en vez de decir que el bloque desapareció.",
+      "branch": "claude/lo-que-la-auditoria-midio",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo de probar el producto como cliente final y de medir la distancia real contra AutoCAD completo.",
+      "firstPartyInputs": [
+        "El propio estudio del repositorio, usado en el navegador con build de producción.",
+        "El registro de comandos, la cinta y la rúbrica del repositorio, volcados y contados."
+      ],
+      "externalSources": [
+        "Documentación pública de Autodesk sobre el toolset de AutoCAD, consultada sólo para definir el listón; no se copió texto ni implementación."
+      ],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "docs/competitive/auditoria-cliente-final-20260901.md (nuevo)",
+        "docs/competitive/distancia-autocad-completo-20260901.md (nuevo)",
+        "docs/competitive/liston-autocad-completo.md (nuevo)",
+        "apps/web/e2e/auditoria/ (31 pruebas + README + manifiesto, nuevas)",
+        "apps/web/playwright.config.ts (testIgnore declarado con su motivo)",
+        "scripts/cad/check-auditoria-manifest.mjs (nuevo trinquete)",
+        "package.json (check:auditoria dentro de check:cad)"
+      ],
+      "fixtures": "Ninguno nuevo. Los documentos de prueba se construyen dentro de cada spec.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Convierte 22 defectos confirmados en un backlog ejecutable que no se puede olvidar en silencio, y deja escrito por qué el 88,6 % y el «no se parece» son ciertos a la vez."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
