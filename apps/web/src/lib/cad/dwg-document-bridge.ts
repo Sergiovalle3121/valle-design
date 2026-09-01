@@ -489,20 +489,36 @@ function mapLayers(layers: readonly DwgNeutralLayer[]): {
         severity: "warning",
       });
     }
-    // El laboratorio expone `stateFlags` CRUDO a propósito: su semántica bit a
-    // bit (apagada/congelada/bloqueada/trazado) queda pendiente de corpus real
-    // que la confirme para el binario DWG (regla registrada junto a la tabla
-    // de capas del códec). Interpretarla aquí sería adivinar exactamente lo
-    // que esa regla prohíbe — se declara la pérdida en vez de fingir
-    // off/frozen/locked.
-    if (layer.stateFlags !== 0) {
+    // ESTADO DE LA CAPA — MEDIDO, NO ADIVINADO (2026-09-01). Hasta este corte
+    // aquí se declaraba una pérdida y toda capa entraba visible y desbloqueada:
+    // una capa CONGELADA se dibujaba igual que las demás. La sonda
+    // `probe-layer-state-flags.mjs` midió los dos bits contra el oráculo DXF
+    // del mismo dibujo —98 capas, 57 fixtures, las cinco versiones— y el
+    // adaptador autorizado los entrega ya resueltos. Este puente NO reinterpreta
+    // el `BS`: un segundo criterio de «qué bit es congelada» es justo lo que
+    // ninguna prueba vería divergir.
+    if (layer.frozen === undefined || layer.locked === undefined) {
       losses.push({
         code: DWG_BRIDGE_LOSS_CODES.layerStateFlags,
         sourceType: "layer",
-        detail: `La capa "${name}" (handle ${layer.handle}) trae banderas de estado con valor crudo ${layer.stateFlags} (posible apagada/congelada/bloqueada/trazado): su significado bit a bit no está confirmado contra corpus real todavía, así que no se aplican al documento — la capa se importa visible y desbloqueada.`,
+        detail: `La capa "${name}" (handle ${layer.handle}) viene sin banderas de estado decodificadas: no se afirma que esté visible ni descongelada, y se importa visible y desbloqueada.`,
         severity: "warning",
       });
+    } else if (layer.unmeasuredStateBits) {
+      losses.push({
+        code: DWG_BRIDGE_LOSS_CODES.layerStateFlags,
+        sourceType: "layer",
+        detail: `La capa "${name}" (handle ${layer.handle}) trae banderas de estado ${layer.stateFlags}, cuyos bits 0x${layer.unmeasuredStateBits.toString(16)} se apartan del patrón constante del corpus medido: se aplican congelada y bloqueada, y el resto del estado no se interpreta.`,
+        severity: "info",
+      });
     }
+    // LA CAPA APAGADA NO SE MIDE Y NO SE AFIRMA. El DXF la codifica con color
+    // NEGATIVO y el corpus admitido no trae ni una sola capa apagada, así que
+    // el estado apagado/encendido no es falsable con esta evidencia: `visible`
+    // se queda en `true` siempre y una capa apagada de un dibujo real entraría
+    // encendida. La CONGELACIÓN sí se midió, y el producto ya la modela como
+    // un estado propio —ni se dibuja, ni se regenera, ni entra en selección—,
+    // así que viaja en `frozen` y no plegada en `visible`.
     if (seen.has(name)) continue;
     seen.add(name);
     definitions.push({
@@ -519,8 +535,12 @@ function mapLayers(layers: readonly DwgNeutralLayer[]): {
         layer.colorIndex === undefined
           ? LAYER_COLOR_NOT_DECODED
           : aciToHex(layer.colorIndex),
+      // Sin estado decodificado se importa visible y desbloqueada, que es lo
+      // único que se puede hacer sin inventar — y la pérdida de arriba lo
+      // declara. Con estado, se respeta el archivo.
       visible: true,
-      locked: false,
+      locked: layer.locked ?? false,
+      ...(layer.frozen === undefined ? {} : { frozen: layer.frozen }),
     });
   }
   return { names, definitions, losses };

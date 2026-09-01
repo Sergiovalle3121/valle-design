@@ -288,21 +288,49 @@ test.describe("importación DWG AC1015 real contra PostgreSQL (no circular)", ()
     expect(imported).toBeTruthy();
     importedDocumentId = imported.id;
 
-    // El manifiesto de pérdidas persiste con el documento (Fase 3): la
-    // unidad asumida se declara SIEMPRE, y las banderas de estado crudas de
-    // cada capa (valor 1008 en este fixture real, verificado empíricamente
-    // antes de escribir esta prueba) también.
+    // El manifiesto de pérdidas persiste con el documento (Fase 3): la unidad
+    // asumida se declara SIEMPRE.
+    //
+    // ACTUALIZADO EL 2026-09-01. Aquí se exigía además una pérdida
+    // `dwg_layer_state_flags_unmapped`, porque las banderas de estado de capa
+    // (1008 en este fixture) se leían crudas y sin interpretar. Ya no: la
+    // sonda `probe-layer-state-flags.mjs` midió su semántica contra el oráculo
+    // DXF —98 capas, las cinco versiones— y el estado llega DECODIFICADO. Esa
+    // pérdida se había convertido en un guardián de la carencia: seguir
+    // exigiéndola obligaría a fingir que no sabemos lo que sí medimos. Se
+    // sustituye por la afirmación fuerte —que el estado llega resuelto— y por
+    // el caso de verdad interesante, que vive en el test 2b con `04-capas`.
     const opened = await apiGet<{
       cadDocument: {
         lossManifest: Array<{ code: string; detail: string }>;
         entities: Array<{ id: string; type: string; text?: string; layer?: string }>;
+        layers: Array<{ id: string; visible: boolean; locked: boolean; frozen?: boolean }>;
       } | null;
     }>(context, `/v1/cad/documents/${importedDocumentId}`);
     const lossManifest = opened.body.cadDocument?.lossManifest ?? [];
     expect(lossManifest.some((entry) => entry.code === "dwg_unit_assumed")).toBe(true);
+    // Ninguna capa de este fixture está congelada, bloqueada, ni trae bits
+    // fuera del patrón medido: no hay NADA que declarar, y declararlo de todos
+    // modos sería ruido con forma de honestidad.
     expect(lossManifest.some((entry) => entry.code === "dwg_layer_state_flags_unmapped")).toBe(
-      true,
+      false,
     );
+    const openedLayers = opened.body.cadDocument?.layers ?? [];
+    expect(openedLayers.length).toBeGreaterThan(0);
+    expect(openedLayers.every((layer) => layer.frozen !== true)).toBe(true);
+    expect(openedLayers.every((layer) => layer.locked === false)).toBe(true);
+    // Las capas que vienen DEL ARCHIVO traen el estado resuelto: `false`, no
+    // `undefined`. La ausencia queda reservada para «no se pudo leer».
+    //
+    // La capa "0" se excluye porque NO viene del archivo: el puente arranca
+    // con una "0" sintética —el equivalente de la capa 0 de AutoCAD, que debe
+    // existir aunque la base no traiga ninguna— y la "0" real del dibujo se
+    // descarta después por nombre repetido. Es anterior a este corte y afecta
+    // igual a su color; queda anotado aquí, sin arreglarlo de paso, porque
+    // ensanchar este PR para eso sería otra cosa.
+    const desdeElArchivo = openedLayers.filter((layer) => layer.id !== "0");
+    expect(desdeElArchivo.length).toBeGreaterThan(0);
+    expect(desdeElArchivo.every((layer) => layer.frozen === false)).toBe(true);
 
     // Los dos TEXT del fixture ("SALA", "COCINA"), verificados aquí contra la
     // API/PostgreSQL — antes de que Studio entre en escena — y otra vez en los
@@ -347,6 +375,41 @@ test.describe("importación DWG AC1015 real contra PostgreSQL (no circular)", ()
     const imported = importedPage.body.items[0];
     expect(imported).toBeTruthy();
     importedDocumentId2 = imported.id;
+
+    // EL ESTADO DE CAPA MEDIDO, DE PUNTA A PUNTA Y CONTRA POSTGRESQL. Este
+    // fixture es el único del corpus construido con una capa CONGELADA y una
+    // BLOQUEADA, y su oráculo DXF dice cuál es cuál (grupo 70: 1 y 4). Aquí se
+    // comprueba lo que de verdad le importa a quien abre el plano: que esos
+    // dos hechos sobreviven al códec, al puente, a la API y a la base — no que
+    // un número crudo viajó intacto.
+    //
+    // El bit del DWG NO coincide con el del DXF —bloqueada es el bit 3 del
+    // DWG y el valor 4 (bit 2) del DXF—, así que esta prueba también protege
+    // de «armonizar» las dos convenciones algún día.
+    const openedCapas = await apiGet<{
+      cadDocument: {
+        layers: Array<{ id: string; visible: boolean; locked: boolean; frozen?: boolean }>;
+      } | null;
+    }>(context, `/v1/cad/documents/${importedDocumentId2}`);
+    const capas = openedCapas.body.cadDocument?.layers ?? [];
+    const congelada = capas.find((layer) => layer.id === "CONGELADA");
+    const bloqueada = capas.find((layer) => layer.id === "BLOQUEADA");
+    expect(congelada).toBeTruthy();
+    expect(bloqueada).toBeTruthy();
+    expect(congelada!.frozen).toBe(true);
+    expect(bloqueada!.locked).toBe(true);
+    // Congelada NO es apagada, y bloqueada tampoco: el apagado no se mide en
+    // este corpus (no hay ni una capa apagada) y por eso `visible` sigue en
+    // `true` en las dos. Afirmar lo contrario sería decir de más.
+    expect(congelada!.visible).toBe(true);
+    expect(bloqueada!.visible).toBe(true);
+    expect(bloqueada!.frozen).toBe(false);
+    expect(congelada!.locked).toBe(false);
+    // Y una capa normal del mismo dibujo no arrastra ninguno de los dos.
+    const muros = capas.find((layer) => layer.id === "MUROS");
+    expect(muros).toBeTruthy();
+    expect(muros!.frozen).toBe(false);
+    expect(muros!.locked).toBe(false);
   });
 
   test("3: abre en Studio, renderiza geometría concreta y selecciona una entidad importada", async () => {

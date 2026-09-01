@@ -554,7 +554,8 @@
         "Marco de seccion de datos R2010+ (AC1024/AC1027/AC1032, intake 2026-08-23): a diferencia de R2000/AC1018 (campo de tamano RL de 4 bytes tras el centinela de apertura), AcDb:Header y AcDb:Classes usan un campo de tamano de 8 bytes little-endian (los 4 bytes altos observados en 0 en todo el corpus); el CRC-16 semilla 0xC0C1 cubre [tamano de 8 bytes + payload] igual que R2000/AC1018 y el centinela de cierre aparece exactamente en sizeOffset+8+tamano+2. Confirmado por coincidencia EXACTA del CRC-16 almacenado: AC1024 (fixtures 01-vacio y 02-una-linea, AcDb:Header y AcDb:Classes), AC1027 y AC1032 (02-una-linea, AcDb:Header y AcDb:Classes) — 7/7 mediciones, 0 discrepancias. Los sentinelas y la semilla del CRC no cambian",
         "Envoltura de objeto R2010+ (AC1024/AC1027/AC1032, intake 2026-08-23) dentro de AcDb:AcDbObjects: a diferencia de R2000/AC1018 (tamano MS al frente + cuerpo + CRC-16), el cuerpo NO lleva ningun campo de tamano en bytes al frente; el CRC-16 RS little-endian semilla 0xC0C1 cubre el cuerpo COMPLETO empezando en el primer byte del objeto, termina EXACTAMENTE 2 bytes antes del offset del SIGUIENTE objeto segun el mapa de handles (mismo orden ascendente de offset) o del fin del payload de AcDb:AcDbObjects para el ultimo objeto, y no hay relleno entre objetos consecutivos. Medido por busqueda exhaustiva del rango [inicio, X) cuyo CRC-16 coincide con los 2 bytes almacenados en [X, X+2): la coincidencia es UNICA para cada objeto (sin ambiguedad frente a los demas rangos candidatos del mismo objeto) y X+2 aterriza EXACTO en el limite del mapa en el 100% de los objetos medidos — 148/148 (AC1024 02-una-linea), 165/165 (AC1024 08-plano-mini) y 117/117 (AC1027 08-plano-mini), 430/430 en total, 0 discrepancias",
         "Dentro de esa envoltura R2010+, el objeto handle=34 del bundle valle.fundacional.ac1024.001/02-una-linea.dwg se identifico de forma independiente como la entidad LINEA esperada por el oraculo DXF (extremo 100,50,0) mediante busqueda BIT A BIT (no alineada a byte) de los dobles IEEE-754 literales 100.0 y 50.0 dentro del cuerpo: ambos aparecen en las posiciones de bit que predice el ORDEN YA REGISTRADO de los campos de LINEA en R2000 (bit Z-nulas, RD X-inicial, DD X-final-contra-inicial, RD Y-inicial, DD Y-final-contra-inicial) — el hueco de 64 bits entre el final del campo DD de X (bit 222) y el inicio del campo DD de Y (bit 286) coincide EXACTO con un RD de 64 bits (Y-inicial = 0.0). Esto confirma que la CODIFICACION POR CAMPO de la geometria (RD/DD, BT, BE) no cambia para R2010+; el hallazgo NO alcanza a fijar la codificacion BOT del tipo de objeto ni la posicion del campo UMC del tamano del flujo de handles: los intentos de descomponer los 34 bits que preceden al handle propio H de ese mismo objeto (localizado por coincidencia UNICA del patron codigo=0/contador=1/valor=34) en un selector BOT de 2 bits mas un valor de ancho fijo (probado en 8, 16 y 32 bits) no reprodujeron el codigo de tipo LINE=0x13 ya registrado para R2000/AC1018 en ninguna combinacion; esa descomposicion queda SIN RESOLVER y no se registra como hecho — es la frontera declarada de este intake (ver DWG0_WORKLOG 2026-08-23)",
-        "DD forma 0b10 (parche de 6 bytes) - orden confirmado con el corpus: los 2 primeros bytes del flujo parchean las posiciones 4-5 de la representacion LE del defecto y los 4 siguientes las posiciones 0-3 (ODS 2.2). Censo 2026-08-30 sobre los 57 DWG: la forma aparece exactamente 2 veces, en 19-dim-radial-diameter.dwg (entity-wave-2-ac1015), como X final de dos LINE de flecha dentro de bloques anonimos de cota; con este orden decodifican 141 (defecto 138) y 68.57883832488648 (defecto 71.57883832488648), flechas de longitud exacta 3.0 coherentes con la geometria redonda del dibujo, mientras que la lectura secuencial 0..5 producia 136.00000000116415 y 70.74845976023441 (corrupcion silenciosa). La forma 0b01 sigue sin observarse en el corpus"
+        "DD forma 0b10 (parche de 6 bytes) - orden confirmado con el corpus: los 2 primeros bytes del flujo parchean las posiciones 4-5 de la representacion LE del defecto y los 4 siguientes las posiciones 0-3 (ODS 2.2). Censo 2026-08-30 sobre los 57 DWG: la forma aparece exactamente 2 veces, en 19-dim-radial-diameter.dwg (entity-wave-2-ac1015), como X final de dos LINE de flecha dentro de bloques anonimos de cota; con este orden decodifican 141 (defecto 138) y 68.57883832488648 (defecto 71.57883832488648), flechas de longitud exacta 3.0 coherentes con la geometria redonda del dibujo, mientras que la lectura secuencial 0..5 producia 136.00000000116415 y 70.74845976023441 (corrupcion silenciosa). La forma 0b01 sigue sin observarse en el corpus",
+        "PARTICION MECANICA 2026-09-01: el registro de entidad mutable y los ayudantes de colocacion por bloque salieron de database-assembly.ts a database-assembly-records.ts cuando el intake de la semantica de estado de capa empujo el archivo por encima del presupuesto de monolito. Es el MISMO codigo derivado de esta misma fuente, movido sin cambio de comportamiento; no hay hecho nuevo."
       ],
       "derivedFiles": [
         "packages/dwg-codec/CAPABILITIES.md",
@@ -567,6 +568,7 @@
         "packages/dwg-codec/src/container/r2010-object-envelope.ts",
         "packages/dwg-codec/src/objects/objects-dictionary.ts",
         "packages/dwg-codec/src/objects/tables-symbol.ts",
+        "packages/dwg-codec/src/reader/database-assembly-records.ts",
         "packages/dwg-codec/src/reader/database-assembly.ts",
         "packages/dwg-codec/src/reader/database-model.ts",
         "packages/dwg-codec/src/reader/r2004-body-adapter.ts",
@@ -906,6 +908,47 @@
       "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-r2010-header-variables.mjs sobre el corpus admitido); revision humana del propietario pendiente",
       "reviewedAt": "2026-09-01",
       "notes": "NO decodifica nada nuevo y NO promueve ninguna capacidad: el codec sigue fallando cerrado en las variables de cabecera de R2010+. El valor de esta entrada es que convierte un 'no medido' en un 'medido como no falsable, por esta razon exacta y con esta condicion de desbloqueo', para que nadie repita el intento a ciegas."
+    },
+    {
+      "id": "VALLE-CORPUS-LAYER-ESTADO-SEMANTICA",
+      "owner": "Sergio Valle Zarate",
+      "origin": {
+        "type": "original-measurement",
+        "location": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance/tree/0688fb9c395b9cac4169d1ee9c23a7370cc28cf3/bundles/valle.fundacional.ac1015.001/oracles/dxf",
+        "accessedAt": "2026-09-01"
+      },
+      "title": "Medicion first-party de la SEMANTICA bit a bit de las banderas de estado de capa (congelada y bloqueada) contra el oraculo DXF, en las cinco versiones",
+      "versionOrDate": "2026-09-01",
+      "terms": {
+        "license": "Valle first-party corpus measurement (admitted tool-converted-original bundles)",
+        "access": "Blobs leidos del commit fijado del repo hermano de conformidad via el gate consumidor (corpus-pin.json + SHA-256 verificado); ningun working tree",
+        "redistribution": "Solo se registran numeros observados (posiciones de bit, recuentos de acierto por hipotesis) y decisiones de codigo derivadas; los bytes DWG y los DXF permanecen en el repo hermano bajo su propia politica",
+        "notes": "Ninguna fuente documental nueva intervino. La location apunta al directorio de ORACULOS DXF del bundle AC1015 porque es exactamente lo que hace posible esta medicion -el DXF fuente dice que capa esta congelada antes de mirar el binario- y porque el gate exige una URL distinta por entrada; la medicion cubre por igual los cinco bundles fundacionales de ese MISMO commit."
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "El bit 0 del BS de estado de LAYER vale 1 EXACTAMENTE cuando el oraculo DXF del mismo dibujo declara la capa congelada, y el bit 3 exactamente cuando la declara bloqueada. Medido sobre 98 capas de 57 fixtures en las CINCO versiones (AC1015, AC1018, AC1024, AC1027, AC1032), con 5 casos positivos y 93 negativos por cada bandera",
+        "La hipotesis se probo contra TODAS las posiciones de bit 0..15, no contra la esperada: ninguna otra posicion separa ninguna de las dos banderas. Un bit se acepta solo si acierta siempre Y es separable -al menos un positivo y un negativo-, porque un bit constante acierta en bloque sin falsar nada. Es la disciplina que corrigio la sonda de campos de tabla en la fase 1.F",
+        "LA POSICION NO COINCIDE CON LA DEL DXF: el grupo 70 del DXF marca bloqueada con el valor 4 (bit 2) y el DWG la marca en el bit 3 (valor 8). Reutilizar la convencion del DXF por analogia habria dado un resultado equivocado en la bandera de bloqueo y correcto en la de congelacion, que es el peor de los errores posibles: el que funciona a medias",
+        "El valor de base de una capa normal es 1008 (0b0000001111110000) en las cinco versiones. Congelada da 1009 y bloqueada da 1016; los tres valores son los MISMOS en las cinco versiones, de modo que la semantica medida no es por version",
+        "CONFUSION DESCARTADA POR DATO, no por argumento: la capa CONGELADA de 04-capas tiene color 4, y la capa PUERTAS de 08-plano-mini tiene tambien color 4 y su bit 0 vale 0. La correlacion entre el bit y la bandera no es un artefacto del color",
+        "LIMITE: los bits 1, 2 y 4..15 son CONSTANTES en todo el corpus admitido (1..2 y 10..15 a cero; 4..9 a uno) y por eso NO se les atribuye ningun significado. Se lee lo que varia; lo que no varia queda declarado sin interpretar",
+        "LIMITE QUE IMPORTA AL PRODUCTO: la CAPA APAGADA no se mide y no se afirma. El DXF la codifica con color NEGATIVO y en el corpus admitido no hay ni una sola capa apagada, asi que el estado apagado/encendido no es falsable con esta evidencia. Una capa apagada de un dibujo real llegaria hoy al lienzo como visible, y eso se declara como perdida explicita en vez de ocultarse",
+        "LIMITE DE PROCEDENCIA, SIN SUAVIZAR: los casos positivos vienen de UN solo dibujo del corpus, 04-capas, el unico construido con una capa congelada y una bloqueada; lo que multiplica la evidencia son las cinco versiones y las capas normales de los otros siete dibujos, que aportan los negativos. Todo el corpus es salida del ODA File Converter desde un DXF fuente propio: lo medido es como ESE productor codifica el estado, y sigue sin haber un DWG producido por AutoCAD"
+      ],
+      "derivedFiles": [
+        "docs/cad/evidence/dwg-layer-state-flags.json",
+        "packages/dwg-codec/src/api/canonical-layers.ts",
+        "packages/dwg-codec/src/objects/layer-state.ts",
+        "packages/dwg-codec/src/reader/database-assembly.ts",
+        "packages/dwg-codec/src/reader/database-model.ts",
+        "packages/dwg-codec/src/reader/r2010-database-assembly.ts",
+        "packages/dwg-codec/tests/unit/layer-state.spec.ts",
+        "scripts/dwg/probe-layer-state-flags.mjs"
+      ],
+      "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-layer-state-flags.mjs sobre el corpus admitido, contrastando todas las posiciones de bit contra el oraculo DXF); revision humana del propietario pendiente",
+      "reviewedAt": "2026-09-01",
+      "notes": "NO promueve ninguna capacidad de producto ni enciende ningun flag. Lo que cambia es que dos hechos que el codec ya leia dejan de declararse perdida y llegan al lienzo: una capa congelada deja de dibujarse y una bloqueada deja de editarse. El estado apagado sigue sin medirse y se declara como perdida."
     }
   ]
 }

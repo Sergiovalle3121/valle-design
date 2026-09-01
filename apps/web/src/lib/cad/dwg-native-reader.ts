@@ -289,11 +289,18 @@ function toProductProfileBlock(
   };
 }
 
+// El estado de capa llega YA interpretado del códec —congelada es el bit 0 y
+// bloqueada el bit 3, medidos contra el oráculo DXF— y aquí sólo se proyecta.
+// El adaptador NO descifra el `BS`: un segundo criterio en el producto es
+// exactamente la divergencia silenciosa que ningún gate vería.
 const toBetaProfileLayer = (layer: DwgDatabase["layers"][number]): DwgNeutralLayer => ({
   handle: layer.handle,
   name: layer.name,
   colorIndex: layer.colorIndex,
   stateFlags: layer.stateFlags,
+  frozen: layer.frozen,
+  locked: layer.locked,
+  unmeasuredStateBits: layer.unmeasuredStateBits,
 });
 
 /**

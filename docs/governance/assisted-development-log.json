@@ -2186,6 +2186,42 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-CAPA-ESTADO-SEMANTICA-MEDIDA-20260901",
+      "date": "2026-09-01",
+      "initiative": "El codec decodificaba el BS de estado de LAYER en las cinco versiones y NO sabia que significaba: canonical-layers.ts lo declaraba perdida -'su semantica bit a bit sigue sin fuente registrada y no se interpreta'- y toda capa llegaba al lienzo visible y desbloqueada. Para el usuario eso no era prudencia, era un dibujo mal abierto: una capa CONGELADA se dibujaba igual que las demas. Se midio en vez de suponer. El corpus admitido trae 04-capas, un dibujo construido a proposito con una capa CONGELADA y una BLOQUEADA, y su DXF fuente dice cual es cual ANTES de mirar el binario: eso convierte la semantica en una hipotesis contrastable contra un hecho externo. La sonda probo LAS DIECISEIS posiciones de bit, no la esperada, sobre 98 capas de 57 fixtures en las cinco versiones: el bit 0 acierta siempre para congelada y el bit 3 siempre para bloqueada, y ninguna otra posicion separa ninguno de los dos hechos. Un bit se acepta solo si acierta siempre Y es separable -al menos un positivo y un negativo-, porque un bit constante acierta en bloque sin falsar nada; es la disciplina que hubo que aplicar para corregir el barrido de la fase 1.F. LA TRAMPA QUE HABRIA CAIDO SOLA: el grupo 70 del DXF marca bloqueada con el valor 4 -el bit 2- y el DWG la marca en el bit 3, asi que copiar la convencion del DXF por analogia habria acertado en congelada y fallado en bloqueada, el peor error posible, el que funciona a medias. UN CRITERIO Y NO DOS: el estado se resuelve en el ENSAMBLADO y viaja resuelto en el dato hasta el lienzo; se considero exportar interpretLayerStateFlags en la superficie publica y se DESCARTO porque son siete llamables por diseno y el test que los congela hizo bien su trabajo. LO QUE NO SE AFIRMA: la capa APAGADA no se mide y no se dice -el DXF la codifica con color negativo y en el corpus no hay ni una-, asi que una capa apagada de un dibujo real entraria visible, y eso se declara como perdida en la capa concreta en vez de dejar que el usuario lo descubra en el lienzo. NO promueve ninguna capacidad ni enciende ningun flag: no amplia que archivos entran, mejora lo que se hace con los que ya entraban. Ademas se corrigieron tres afirmaciones caducadas de este mismo repo -dos en CAPABILITIES.md y la cabecera de canonical-layers.ts- y se reescribio el test del puente que habia congelado la carencia como invariante.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de subir el nivel — «no quiero laboratorios, quiero mi propio DWG real y funcional; analiza que mas le falta y hazlo».",
+      "firstPartyInputs": [
+        "El corpus admitido de conformidad en su commit fijado, con los oraculos DXF de los cinco bundles fundacionales.",
+        "El helper de oraculo DXF del propio repo (scripts/dwg/dxf-oracle.mjs), importado sin modificar."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. Ninguna fuente documental nueva intervino; la medicion es contra el corpus propio.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/objects/layer-state.ts (criterio unico de interpretacion, nuevo)",
+        "packages/dwg-codec/src/reader/database-model.ts (el estado resuelto viaja en el dato)",
+        "packages/dwg-codec/src/reader/database-assembly.ts y r2010-database-assembly.ts (se resuelve en el origen)",
+        "packages/dwg-codec/src/api/canonical-layers.ts (consume el estado resuelto; adenda fechada sobre la cabecera caducada)",
+        "apps/web/src/lib/cad/dwg-neutral-model.ts y dwg-native-reader.ts (el estado resuelto cruza la frontera)",
+        "apps/web/src/lib/cad/dwg-document-bridge.ts (congelada oculta la capa, bloqueada la bloquea)",
+        "scripts/dwg/probe-layer-state-flags.mjs y docs/cad/evidence/dwg-layer-state-flags.json (sonda y evidencia)",
+        "packages/dwg-codec/CAPABILITIES.md (correccion fechada de dos afirmaciones propias caducadas)"
+      ],
+      "fixtures": "Ninguno nuevo. La medicion usa los fixtures y oraculos DXF ya admitidos del corpus.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de dejar de tener un laboratorio y tener un DWG real y funcional."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

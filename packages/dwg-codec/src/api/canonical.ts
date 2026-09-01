@@ -63,6 +63,13 @@ export interface CanonicalCadDocumentJson {
     readonly color: string;
     readonly visible: boolean;
     readonly locked: boolean;
+    /**
+     * CONGELADA, que NO es apagada: ni se dibuja, ni se regenera, ni entra en
+     * selección. Se separa de `visible` porque el estado que este laboratorio
+     * mide es la congelación —el bit 0, contra el oráculo DXF— y el apagado
+     * NO: plegar una en la otra afirmaría de más.
+     */
+    readonly frozen?: boolean;
     readonly linetype?: string;
   }[];
   readonly entities: Record<string, unknown>[];
