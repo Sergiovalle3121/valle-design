@@ -2091,6 +2091,34 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "TECHO-DE-FRAGMENTO-CONTRA-LA-PRUEBA-MAS-LENTA-20260901",
+      "date": "2026-09-01",
+      "initiative": "Tercera vez seguida que el mismo modo de fallo aparece, y las tres por la misma equivocación mía al elegir un número. El reparto del E2E en cuatro fragmentos (#145) existe para que un job cancelado deje de tragarse el veredicto; el techo que le puse lo reintrodujo dos veces. Primero 25 min, calculado dividiendo 97/4 y olvidando que en CI hay retries:1 —un fragmento CON FALLOS corre esos tests dos veces—, y los fragmentos 2/4 y 3/4 se cancelaron al tocarlo. Después 40, y el 3/4 volvió a cancelarse a los 40m15s: e2e/real/cables-sueltos.spec.ts:273 lleva su propio test.setTimeout de TREINTA MINUTOS —enumera todos los botones visibles del estudio y pulsa cada uno—, así que treinta de prueba más ~3 de arranque más lo que el fragmento ya llevara no cabe en cuarenta y el fragmento que la contenga se cancela SIEMPRE. Lo encontró y lo midió la sesión paralela de DWG en el hilo del PR #149, no yo. Sube a 60 y la regla queda ESCRITA en el propio archivo en vez de volver a deducirla: el techo se fija contra la PRUEBA MÁS LENTA, no contra la media ni contra una división. Y no se recorta el setTimeout de esa prueba para que quepa: capar una prueba por presupuesto la hace fallar por tiempo en vez de por sustancia, y un rojo que miente cuesta más que un minuto de runner.",
+      "branch": "claude/el-techo-no-cabia-en-el-caso-malo",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo de dejar el repositorio integrado y el CI dando veredicto.",
+      "firstPartyInputs": [
+        "El diagnóstico publicado en el hilo del PR #149 y el propio ci.yml."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        ".github/workflows/ci.yml (techo por fragmento 40 -> 60, con la regla escrita)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Corrección de un defecto propio que estaba ocultando veredictos."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
