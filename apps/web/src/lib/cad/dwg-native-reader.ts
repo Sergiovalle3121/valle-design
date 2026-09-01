@@ -355,6 +355,27 @@ export function toBetaProfileDatabase(
 }
 
 /**
+ * Las tres versiones MODERNAS que el códec lee con cero discrepancias y que
+ * `allowModern` deja entrar de golpe. Viven en una constante y no sueltas en
+ * el `if` porque el mensaje de error de abajo las tiene que nombrar igual: dos
+ * listas de versiones que se pueden desincronizar es como se acaba diciendo al
+ * usuario que no admites un formato que sí admites.
+ */
+const MODERN_VERSION_CODES = ["AC1024", "AC1027", "AC1032"] as const;
+
+/** Rótulo humano de las versiones admitidas, para el mensaje de rechazo. */
+function describeAcceptedVersions(accepted: ReadonlySet<string>): string {
+  const labels: string[] = [];
+  if (accepted.has("AC1015")) labels.push("AutoCAD 2000 (AC1015)");
+  if (accepted.has("AC1018")) labels.push("2004 (AC1018)");
+  if (accepted.has("AC1024")) labels.push("2010 (AC1024)");
+  if (accepted.has("AC1027")) labels.push("2013 (AC1027)");
+  if (accepted.has("AC1032")) labels.push("2018 (AC1032)");
+  if (labels.length === 1) return labels[0]!;
+  return `${labels.slice(0, -1).join(", ")} y ${labels[labels.length - 1]!}`;
+}
+
+/**
  * `allowAc1018` nace y por defecto queda `false`: quien no lo pasa —el resto
  * de este archivo, cualquier spec anterior a M3— sigue viendo exactamente el
  * comportamiento de siempre, sólo AC1015. Sólo el worker lo enciende, y sólo
@@ -371,6 +392,16 @@ export interface DwgNeutralDatabaseReaderOptions {
    * firmado el perfil todavía (ADR-0009 §9).
    */
   readonly allow3dWireframe?: boolean;
+  /**
+   * Familia MODERNA (AC1024/AC1027/AC1032). Igual que las dos de arriba: nace
+   * `false`, y este módulo no lee flags ni entorno — recibe el booleano ya
+   * resuelto por `dwgModernBetaImportIsEnabled` (`dwg-interop-flag.ts`), que
+   * hoy siempre devuelve `false` porque nadie ha firmado esta familia.
+   *
+   * Que el códec las lea con CERO discrepancias no basta para dejarlas entrar:
+   * medir y autorizar son dos cosas distintas, y ésta es la segunda.
+   */
+  readonly allowModern?: boolean;
 }
 
 /**
@@ -470,14 +501,19 @@ export function readDwgNeutralDatabase(
         "a ninguna versión de AutoCAD reconocida.",
     );
   }
-  const acceptedVersions =
-    options.allowAc1018 === true ? new Set(["AC1015", "AC1018"]) : new Set(["AC1015"]);
+  // Cada versión entra por SU puerta, y la puerta se abre acumulando: la base
+  // es AC1015, `allowAc1018` añade una firma y `allowModern` añade tres. Nunca
+  // una lista suelta por rama — con cinco versiones, un `if` por combinación es
+  // donde se cuela la que no debía entrar.
+  const acceptedVersions = new Set(["AC1015"]);
+  if (options.allowAc1018 === true) acceptedVersions.add("AC1018");
+  if (options.allowModern === true) {
+    for (const code of MODERN_VERSION_CODES) acceptedVersions.add(code);
+  }
   if (!acceptedVersions.has(probe.probe.version.code)) {
     throw new Error(
       `Se detectó un DWG de AutoCAD ${probe.probe.version.label} (${probe.probe.version.code}). ` +
-        (options.allowAc1018 === true
-          ? "Esta beta sólo lee AutoCAD 2000 (AC1015) y 2004 (AC1018)."
-          : "Esta beta sólo lee AutoCAD 2000 (AC1015).") +
+        `Esta beta sólo lee ${describeAcceptedVersions(acceptedVersions)}.` +
         " Guarda el archivo con esa versión desde tu CAD, o expórtalo a DXF e impórtalo: " +
         "DXF entra completo, con su informe de pérdidas.",
     );

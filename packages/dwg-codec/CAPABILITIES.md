@@ -869,3 +869,88 @@ cerrado** y el puente declara la suposición, en vez de inventar unidades.
 
 Evidencia: `docs/cad/evidence/dwg-r2010-header-variables.json`, reproducible con
 `node scripts/dwg/probe-r2010-header-variables.mjs`.
+
+## Corte 2026-09-01 quater — las versiones modernas llegan a la FRONTERA del producto
+
+Hasta este corte pasaba algo que conviene decir sin adornos: **el códec leía
+AC1024, AC1027 y AC1032 con cero discrepancias y el producto las rechazaba.**
+`readDwgNeutralDatabase` admitía exactamente `AC1015` y `AC1018`, así que un
+DWG de AutoCAD 2018 —el formato de guardado **por defecto** de AutoCAD
+2018–2026, o sea lo que produce un cliente real al pulsar Guardar— chocaba
+contra un mensaje de "esta beta sólo lee AutoCAD 2000".
+
+Leer bien y no dejar entrar es justo la distancia entre un laboratorio y un
+producto. Este corte cierra **el cableado**, no la puerta.
+
+**Lo que se construyó**, siguiendo el patrón EXACTO que ya usaban AC1018 y el
+perfil 3D, sin inventar mecanismos nuevos:
+
+| pieza | qué hace |
+| --- | --- |
+| `DWG_MODERN_BETA_AUTHORIZATION` | autorización **propia**, perfil `AC1024_AC1027_AC1032_MODELSPACE_2D_V1` |
+| `dwgModernBetaImportIsEnabled()` | la **misma** conjunción de tres condiciones: bandera + firma + beta base |
+| `allowModern` en `readDwgNeutralDatabase` | la puerta **acumula** versiones concretas en vez de abrir por familia |
+| `NEXT_PUBLIC_DWG_MODERN_IMPORT_BETA` | su variable propia, declarada en `.env.example`, Dockerfile y su validador |
+| `dwg-native-reader-modern.spec.ts` | vigila **las dos direcciones** |
+
+**Esto NO es una firma.** `ownerSigned` es literalmente `false` y está tipado
+`boolean` —no el literal `true` de AC1015 y AC1018— precisamente para que
+cambiarlo a mano haga **fallar** un spec en vez de dejar de compilar. Nadie ha
+tenido con el titular la conversación que sí tuvieron V1/V2/V3 y M3. Que el
+códec las lea perfectamente **no basta**: medir y autorizar son cosas
+distintas, y ésta es la segunda.
+
+**Por qué un mecanismo separado y no ampliar el de AC1018.** Comparten el
+contenedor R2004, así que colgar las tres versiones nuevas del flag que ya
+existe era la comodidad evidente — y es exactamente lo que el diseño de estos
+flags existe para impedir. Son cinco versiones con cinco riesgos distintos y
+cada una entra por su puerta. El spec lo comprueba: con `allowAc1018: true` y
+sin permiso moderno, las tres modernas **siguen fuera**.
+
+**La spec vigila las dos direcciones a propósito.** Que sin firma no entre
+nada es la mitad fácil; probar sólo eso dejaría pasar un cableado que no
+cablea nada. Así que también comprueba que con `allowModern` entran
+**exactamente** las tres, y que `AC1021` —que nadie ha autorizado nunca— sigue
+rechazándose con todos los permisos encendidos.
+
+**Una frase caducada, corregida en su sitio.** El bloque de AC1018 en
+`dwg-interop-flag.ts` afirmaba que «sólo AC1018 decodifica objetos hoy, la
+familia AC1024/1027/1032 abre el contenedor pero no sus cuerpos». Dejó de ser
+cierto y se corrige con su adenda fechada, porque una frase caduca sobre lo
+que el códec sabe hacer es justo la que lleva a ampliar un flag en silencio
+—«total, si ya lo lee»—.
+
+### Y una contradicción del propio códec, encontrada al cablear
+
+Al montar el cableado apareció algo que ningún gate veía y que lo habría
+dejado inservible: **`probeDwg` declaraba `unsupported` las tres versiones
+modernas mientras `readDwg` abría el mismo archivo sin problema.**
+
+Medido sobre `08-plano-mini.dwg`, el mismo dibujo en las cinco versiones:
+
+| versión | `probe.ok` (antes) | `readDwg` |
+| --- | --- | --- |
+| AC1015 / AC1018 | `true` | 5 capas, 3 bloques |
+| AC1024 / AC1027 / AC1032 | **`false`** | **5 capas, 3 bloques** |
+
+El origen era un dato caducado: `version-registry.ts` seguía marcando
+`decoderStatus: "unsupported"` para las tres, y `api/probe.ts` falla por ese
+campo. O sea que el códec **se desmentía a sí mismo delante del llamador**, y
+cualquier consumidor que sondeara antes de leer —que es lo sensato— concluía
+que no se podía. El cableado del producto llama a `probeDwg` primero, así que
+sin esta corrección `allowModern` no se habría alcanzado nunca.
+
+Corregido a `experimental-lab`, que es lo que el corpus mide. **AC1021 (R2007)
+se queda en `unsupported` y no por olvido**: su contenedor Reed-Solomon se
+rechaza por diseño, con error tipado.
+
+La corrección obligó a actualizar tres guardianes que habían congelado la
+afirmación falsa como si fuera un invariante —el test del registro, el
+adversario del probe y el generador determinista de fixtures—. Las fixtures se
+**regeneraron con la herramienta del repo**, nunca a mano: editar el manifiesto
+directamente lo detecta `check:fixtures`, y lo detectó.
+
+**Lo que sigue esperando, sin suavizar:** una firma del titular para esta
+familia. No es ingeniería: el cableado está hecho y probado, y el día que esa
+conversación ocurra, encender la familia moderna es cambiar una constante y
+una variable de entorno, no escribir código.

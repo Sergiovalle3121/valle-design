@@ -60,17 +60,38 @@ const AC1021: DwgVersion = Object.freeze({
 const AC1024: DwgVersion = Object.freeze({
   code: "AC1024",
   label: "2010",
-  decoderStatus: "unsupported",
+  // CORREGIDO EL 2026-09-01. Decía "unsupported" y era FALSO: el laboratorio
+  // abre las tres versiones modernas y el corpus admitido queda en CERO
+  // discrepancias en las cinco versiones. La contradicción tenía un efecto
+  // real y no cosmético — `probeDwg` fallaba por este campo (`api/probe.ts`)
+  // mientras `readDwg` leía el mismo archivo sin problema, así que el códec
+  // se desmentía a sí mismo delante del llamador, y cualquier consumidor que
+  // sondease antes de leer concluía que no se podía.
+  decoderStatus: "experimental-lab",
 });
 const AC1027: DwgVersion = Object.freeze({
   code: "AC1027",
   label: "2013",
-  decoderStatus: "unsupported",
+  // CORREGIDO EL 2026-09-01. Decía "unsupported" y era FALSO: el laboratorio
+  // abre las tres versiones modernas y el corpus admitido queda en CERO
+  // discrepancias en las cinco versiones. La contradicción tenía un efecto
+  // real y no cosmético — `probeDwg` fallaba por este campo (`api/probe.ts`)
+  // mientras `readDwg` leía el mismo archivo sin problema, así que el códec
+  // se desmentía a sí mismo delante del llamador, y cualquier consumidor que
+  // sondease antes de leer concluía que no se podía.
+  decoderStatus: "experimental-lab",
 });
 const AC1032: DwgVersion = Object.freeze({
   code: "AC1032",
   label: "2018",
-  decoderStatus: "unsupported",
+  // CORREGIDO EL 2026-09-01. Decía "unsupported" y era FALSO: el laboratorio
+  // abre las tres versiones modernas y el corpus admitido queda en CERO
+  // discrepancias en las cinco versiones. La contradicción tenía un efecto
+  // real y no cosmético — `probeDwg` fallaba por este campo (`api/probe.ts`)
+  // mientras `readDwg` leía el mismo archivo sin problema, así que el códec
+  // se desmentía a sí mismo delante del llamador, y cualquier consumidor que
+  // sondease antes de leer concluía que no se podía.
+  decoderStatus: "experimental-lab",
 });
 
 export const DWG_VERSION_REGISTRY: readonly DwgVersion[] = Object.freeze([

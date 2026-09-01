@@ -60,6 +60,21 @@ test("the package exposes exactly seven callable public boundaries", () => {
   ]);
 });
 
+/**
+ * Las versiones que el laboratorio decodifica DE VERDAD hoy, medido contra el
+ * corpus admitido: 57/57 archivos abiertos y cero discrepancias en las cinco.
+ * Vive en una constante y no repetida en dos condiciones porque el test de
+ * arriba y el de abajo tienen que decir lo MISMO — dos listas que se
+ * desincronizan es como el registro acabó contradiciendo al lector.
+ */
+const DECODED_VERSION_CODES = new Set([
+  "AC1015",
+  "AC1018",
+  "AC1024",
+  "AC1027",
+  "AC1032",
+]);
+
 test("the version registry is immutable and matches all nine known labels", () => {
   assert.equal(Object.isFrozen(DWG_VERSION_REGISTRY), true);
   assert.deepEqual(
@@ -70,18 +85,24 @@ test("the version registry is immutable and matches all nine known labels", () =
     assert.equal(Object.isFrozen(version), true);
     assert.equal(
       version.decoderStatus,
-      // AC1018 decodifica desde la campaña de objetos R2004 (evidencia de
-      // corpus 8/8); AC1024/27/32 abren el CONTENEDOR pero sus cuerpos
-      // R2010+ siguen sin decodificador y lo declaran.
-      version.code === "AC1015" || version.code === "AC1018"
-        ? "experimental-lab"
-        : "unsupported",
+      // ACTUALIZADO EL 2026-09-01. Este test afirmaba que «AC1024/27/32 abren
+      // el CONTENEDOR pero sus cuerpos R2010+ siguen sin decodificador», y
+      // dejó de ser cierto: las tres se leen enteras y el corpus admitido
+      // queda en CERO discrepancias en las cinco versiones. Mantener el
+      // "unsupported" hacía que `probeDwg` desmintiera a `readDwg` sobre el
+      // MISMO archivo, así que el test guardaba una contradicción en vez de
+      // un invariante.
+      //
+      // AC1021 (R2007) sigue fuera y no por olvido: su contenedor
+      // Reed-Solomon se rechaza por diseño, con error tipado.
+      DECODED_VERSION_CODES.has(version.code) ? "experimental-lab" : "unsupported",
     );
   }
 });
 
+
 for (const [signature, label] of KNOWN) {
-  const decoded = signature === "AC1015" || signature === "AC1018";
+  const decoded = DECODED_VERSION_CODES.has(signature);
   test(`${signature} probe declares its real decoder status`, () => {
     const result = probeDwg(ascii(signature));
     assert.equal(result.ok, decoded);

@@ -2148,6 +2148,44 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-PRODUCTO-FAMILIA-MODERNA-CABLEADA-20260901",
+      "date": "2026-09-01",
+      "initiative": "Cierra el hueco entre laboratorio y producto para las versiones modernas. El codec leia AC1024, AC1027 y AC1032 con CERO discrepancias y el producto las RECHAZABA: readDwgNeutralDatabase admitia exactamente AC1015 y AC1018, asi que un DWG de AutoCAD 2018 -el formato de guardado por defecto de AutoCAD 2018-2026, lo que produce un cliente real al pulsar Guardar- chocaba contra 'esta beta solo lee AutoCAD 2000'. Se construye el CABLEADO, no la puerta, siguiendo el patron exacto de AC1018 y del perfil 3D sin inventar mecanismos: DWG_MODERN_BETA_AUTHORIZATION con perfil propio, dwgModernBetaImportIsEnabled con la MISMA conjuncion de tres condiciones, opcion allowModern donde la puerta acumula versiones concretas en vez de abrir por familia, variable NEXT_PUBLIC_DWG_MODERN_IMPORT_BETA declarada en .env.example, Dockerfile y su validador, y una spec que vigila LAS DOS DIRECCIONES -que sin firma no entre nada, y que con allowModern entren exactamente las tres y AC1021 siga fuera-, porque probar solo la primera dejaria pasar un cableado que no cablea nada. NO ES UNA FIRMA: ownerSigned es false y esta tipado boolean, no el literal true de las autorizaciones reales, para que cambiarlo a mano haga FALLAR un spec en vez de dejar de compilar. Que el codec las lea perfectamente no basta: medir y autorizar son cosas distintas. Mecanismo separado y no ampliacion del de AC1018 a proposito: comparten contenedor R2004 y colgar las tres versiones nuevas del flag existente era la comodidad evidente, que es justo lo que este diseno impide. Se corrige ademas en su sitio una frase caducada del bloque AC1018 que afirmaba que la familia moderna 'abre el contenedor pero no sus cuerpos', falsa desde el corte de versiones modernas. HALLAZGO ADICIONAL, encontrado al cablear y que habria dejado el cableado inservible: el codec se CONTRADECIA a si mismo. probeDwg declaraba unsupported las tres versiones modernas mientras readDwg abria el mismo archivo (medido sobre 08-plano-mini.dwg en las cinco versiones: probe.ok=false y readDwg OK con 5 capas y 3 bloques). El origen era un dato caducado en version-registry.ts, que seguia con decoderStatus 'unsupported', y api/probe.ts falla por ese campo; como el cableado del producto sondea ANTES de leer, allowModern no se habria alcanzado nunca. Corregido a 'experimental-lab', que es lo que el corpus mide; AC1021 se queda unsupported por diseno (contenedor Reed-Solomon rechazado con error tipado). La correccion obligo a actualizar tres guardianes que habian congelado la afirmacion falsa como invariante -el test del registro, el adversario del probe y el generador determinista de fixtures-, y las fixtures se REGENERARON con la herramienta del repo: editar el manifiesto a mano lo detecta check:fixtures, y lo detecto.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de subir el nivel — «no quiero laboratorios, quiero mi propio DWG real y funcional».",
+      "firstPartyInputs": [
+        "El propio codec DWG, ya medido en cero discrepancias sobre el corpus admitido.",
+        "El patron de autorizacion ya firmado de AC1015 y AC1018, reusado sin cambios."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. Ninguna fuente documental nueva intervino.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/dwg-interop-flag.ts (autorizacion propia de la familia moderna; adenda fechada sobre la frase caducada)",
+        "apps/web/src/lib/cad/dwg-native-reader.ts (opcion allowModern; la puerta acumula versiones)",
+        "apps/web/src/lib/cad/document-import-client.ts y document-import.worker.ts (la variable llega resuelta al lector)",
+        "apps/web/src/lib/cad/dwg-native-reader-modern.spec.ts (spec nueva, las dos direcciones)",
+        "scripts/dwg/check-product-boundary.mjs (la spec nueva entra como importador autorizado)",
+        ".env.example, apps/web/Dockerfile y scripts/deploy/validate-dockerfiles.mjs (+ su spec)",
+        "packages/dwg-codec/CAPABILITIES.md (corte nuevo)",
+        "packages/dwg-codec/src/container/version-registry.ts (decoderStatus corregido en las tres modernas, con la razon fechada)",
+        "packages/dwg-codec/tests/unit/api.spec.ts y tests/adversarial/probe-boundary.spec.ts (los guardianes dejan de congelar la contradiccion)",
+        "packages/dwg-codec/fixtures/generators/generate-synthetic.ts (+ manifiesto REGENERADO con la herramienta)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de dejar de tener un laboratorio y tener un DWG real y funcional."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
