@@ -33,11 +33,17 @@ export function mapLayers(layers: readonly DwgNeutralLayer[]): {
 } {
   const names = new Map<number, string>();
   const losses: CadLossManifestEntry[] = [];
-  const seen = new Set<string>(["0"]);
+  const seen = new Set<string>();
   const definitions: CadLayerDef[] = [
-    // ACI 7 es el color por defecto tradicional de la capa "0" (blanco/negro
-    // según fondo) — no es un dato del archivo, es el bootstrap sintético que
-    // existe aunque la base neutral no traiga ninguna capa.
+    // RESPALDO, NO GANADOR (2026-09-01). ACI 7 es el color por defecto
+    // tradicional de la capa "0" (blanco/negro según fondo) — no es un dato
+    // del archivo. Sirve para que la capa "0" exista aunque la base neutral no
+    // traiga ninguna capa, porque toda entidad cuya capa no resuelve cae aquí.
+    // Hasta este corte, además, GANABA: `seen` venía sembrado con "0", así que
+    // la capa "0" REAL del archivo entraba en el bucle y se descartaba entera
+    // —color, estado y tipo de línea— sin declarar ni una pérdida. Medido: los
+    // 57 fixtures del corpus traen capa "0" con tipo de línea resuelto
+    // (CONTINUOUS ×27, Continuous ×30) y los 57 lo perdían en silencio.
     { id: "0", name: "0", color: aciToHex(7), visible: true, locked: false },
   ];
 
@@ -87,6 +93,19 @@ export function mapLayers(layers: readonly DwgNeutralLayer[]): {
         severity: "warning",
       });
     }
+    // EL COLOR QUE NO SE DECODIFICÓ. Se pinta un gris neutro porque el lienzo
+    // no puede no dibujar, y se DICE: hasta el 2026-09-01 el comentario de
+    // abajo afirmaba que esta pérdida constaba en el manifiesto y no constaba
+    // en ninguna parte. El corpus admitido no ejerce este camino —131 capas,
+    // las 131 con color— así que esto cierra un camino alcanzable, no medido.
+    if (layer.colorIndex === undefined) {
+      losses.push({
+        code: DWG_BRIDGE_LOSS_CODES.layerColor,
+        sourceType: "layer",
+        detail: `La capa "${name}" (handle ${layer.handle}) viene sin color decodificado: se dibuja en un gris neutro que NO es el color del archivo, en vez de suponer uno plausible.`,
+        severity: "warning",
+      });
+    }
     // LA CAPA APAGADA NO SE MIDE Y NO SE AFIRMA. El DXF la codifica con color
     // NEGATIVO y el corpus admitido no trae ni una sola capa apagada, así que
     // el estado apagado/encendido no es falsable con esta evidencia: `visible`
@@ -96,7 +115,7 @@ export function mapLayers(layers: readonly DwgNeutralLayer[]): {
     // así que viaja en `frozen` y no plegada en `visible`.
     if (seen.has(name)) continue;
     seen.add(name);
-    definitions.push({
+    const definition: CadLayerDef = {
       id: name,
       name,
       // ACI real del archivo (índices 1–9/250–255 exactos, 10–249 por rampa
@@ -104,8 +123,8 @@ export function mapLayers(layers: readonly DwgNeutralLayer[]): {
       // Sin color decodificado hay que pintar ALGO —el lienzo no puede no
       // dibujar—, así que se usa un gris neutro DELIBERADAMENTE distinto de
       // cualquier ACI básico: que se vea que no es el color del archivo. La
-      // pérdida `layer-color-not-decoded` lo declara en el manifiesto, que es
-      // donde el usuario lo lee, y no en un toast que desaparece.
+      // pérdida `dwg_layer_color_not_decoded` de arriba lo declara en el
+      // manifiesto, que es donde el usuario lo lee y no un toast que se va.
       color:
         layer.colorIndex === undefined
           ? LAYER_COLOR_NOT_DECODED
@@ -121,7 +140,14 @@ export function mapLayers(layers: readonly DwgNeutralLayer[]): {
       // resto del producto ya trata la ausencia como «continua» donde le hace
       // falta — que es distinto de que el archivo dijera CONTINUOUS.
       ...(layer.linetypeName ? { linetype: layer.linetypeName } : {}),
-    });
+    };
+    // La capa "0" del ARCHIVO manda sobre el respaldo sintético y ocupa su
+    // sitio: sigue siendo la primera —hay código que cuenta con que exista— y
+    // ahora lleva lo que el archivo dice, no lo que se supuso antes de leerlo.
+    // Se sustituye en vez de añadirse: dos capas "0" en el documento serían un
+    // dato inventado, y la de más abajo tampoco la vería nadie.
+    if (name === "0") definitions[0] = definition;
+    else definitions.push(definition);
   }
   return { names, definitions, losses };
 }

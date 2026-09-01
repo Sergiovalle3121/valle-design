@@ -113,6 +113,12 @@ export const DWG_BRIDGE_LOSS_CODES = Object.freeze({
   hatchCurvedBoundary: "dwg_hatch_curved_boundary_dropped",
   layerStateFlags: "dwg_layer_state_flags_unmapped",
   layerLinetype: "dwg_layer_linetype_unresolved",
+  // El color de una capa que NO se decodificó. El puente pinta un gris neutro
+  // —el lienzo no puede no dibujar— y hasta el 2026-09-01 ese gris no se
+  // declaraba en ninguna parte: el comentario del puente afirmaba que sí, y
+  // era falso. El corpus admitido no lo ejerce (131 capas, 131 con color),
+  // así que esto cierra un camino ALCANZABLE, no uno medido.
+  layerColor: "dwg_layer_color_not_decoded",
   unitAssumed: "dwg_unit_assumed",
   blockBasePointAssumed: "dwg_block_base_point_assumed",
   primitiveProperty: "dwg_primitive_property_dropped",

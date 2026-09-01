@@ -230,7 +230,65 @@ const mixedDocument = baseDocument([
   );
 }
 
+// ─── 2.F: el estado y el tipo de línea de la capa LLEGAN al archivo ────────
+// Antes de este corte el adaptador mapeaba las capas como {id, name, color,
+// visible, locked} y dejaba `styles` vacío, así que una capa CONGELADA se
+// exportaba descongelada y una de ejes con TRAZOS salía continua, las dos EN
+// SILENCIO. No era una limitación del códec —que ya sabe escribir ambas— sino
+// de este adaptador, que las tiraba antes de que el códec las viera.
+{
+  const conCapas: CadDocument = {
+    ...baseDocument([
+      {
+        id: "l1",
+        type: "line",
+        layer: "EJES",
+        start: { x: 0, y: 0 },
+        end: { x: 100, y: 0 },
+      } as never,
+    ]),
+    layers: [
+      { id: "0", name: "0", color: "#ffffff", visible: true, locked: false },
+      { id: "CONGELADA", name: "CONGELADA", color: "#00ffff", visible: true, locked: false, frozen: true },
+      { id: "BLOQUEADA", name: "BLOQUEADA", color: "#0000ff", visible: true, locked: true },
+      { id: "EJES", name: "EJES", color: "#ffff00", visible: true, locked: false, linetype: "TRAZOS" },
+      { id: "FANTASMA", name: "FANTASMA", color: "#ff00ff", visible: true, locked: false, linetype: "NO_DEFINIDO" },
+    ],
+    // Los valores son los del corpus real (`04-capas`), no unos inventados.
+    styles: { text: {}, dimension: {}, mleader: {}, table: {}, plot: {}, linetype: { TRAZOS: { pattern: [0.75, -0.25] } } },
+  };
+
+  const exported = exportCadDocumentToDwg(conCapas, {
+    betaFlagOn: true,
+    gates: ORACLE_PASSED,
+  });
+  // `assert.equal` sobre `estado` estrecha la unión: la rama de rechazo no
+  // lleva bytes, y es el mismo modismo que usa el bloque de arriba.
+  assert.equal(exported.estado, "exito_con_perdidas", "FANTASMA no tiene patrón: se DICE");
+  const written = readDwg(exported.bytes);
+  const nombre = (bytes: readonly number[]): string => String.fromCharCode(...bytes);
+  const capa = (id: string) => written.layers.find((l) => nombre(l.name) === id);
+
+  assert.equal(capa("CONGELADA")?.frozen, true, "una capa congelada se exporta congelada");
+  assert.equal(capa("BLOQUEADA")?.locked, true, "una capa bloqueada se exporta bloqueada");
+  assert.equal(capa("EJES")?.linetypeName, "TRAZOS", "la capa de ejes conserva su tipo de línea");
+  assert.ok(
+    written.tables?.linetypes.some((e) => nombre(e.name) === "TRAZOS"),
+    "y el archivo lleva la entrada LTYPE con su patrón, no sólo el nombre",
+  );
+  // Lo que el documento NOMBRA pero no DEFINE cae a Continuous y SE DICE: la
+  // diferencia entre «no sé» y un dato falso.
+  assert.equal(capa("FANTASMA")?.linetypeName, "Continuous");
+  assert.ok(
+    exported.manifiestoDePerdidas.some(
+      (loss) => loss.code === "layer-linetype-not-writable" && loss.detail.includes("FANTASMA"),
+    ),
+    "la capa sin patrón definido se nombra en el manifiesto que ve el usuario",
+  );
+}
+
 console.log(
   "dwg-native-writer.spec: gate cerrado hasta el oráculo, round-trip íntegro, " +
-    "pérdidas con nombre y la frontera de ángulo documento↔DWG a 37,5°",
+    "pérdidas con nombre, la frontera de ángulo documento↔DWG a 37,5° y el estado " +
+    "y el tipo de línea de cada capa llegando al archivo exportado",
 );

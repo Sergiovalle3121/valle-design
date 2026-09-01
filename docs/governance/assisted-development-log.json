@@ -2361,6 +2361,69 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-EXPORTACION-PRODUCTO-CAPA-COMPLETA-20260901",
+      "date": "2026-09-01",
+      "initiative": "Los cuatro cortes anteriores ensenaron al codec a escribir el color, la congelacion, el bloqueo y el patron de trazos de una capa, y NADA de eso llegaba al DWG que exporta el producto. No era limitacion del codec: toCanonicalDocument (apps/web/src/lib/cad/dwg-native-writer.ts) mapeaba las capas como {id, name, color, visible, locked} y dejaba styles vacio, asi que TIRABA el estado y el tipo de linea antes de que el codec los viera, y sin declarar nada. Medido con exportCadDocumentToDwg sobre un documento con capa congelada, bloqueada y de ejes: CONGELADA salia descongelada y EJES salia continua, las dos EN SILENCIO; solo sobrevivian el bloqueo y el color. Ahora el adaptador lleva frozen, linetype y los patrones de styles.linetype, y el resultado es que una capa congelada se exporta congelada, una de ejes conserva TRAZOS y el archivo lleva su entrada LTYPE con el patron. Lo que el documento NOMBRA pero no DEFINE sigue cayendo a Continuous y SE DECLARA: la capa aparece en el manifiesto con layer-linetype-not-writable y la exportacion termina en exito_con_perdidas. POR QUE IMPORTA MAS QUE LOS ANTERIORES: los otros ampliaron lo que el laboratorio PUEDE hacer; este es el unico que hace que un usuario que dibuja en el producto y exporta un DWG se lleve su plano completo. Sin el, todo lo anterior se quedaba en la API del codec. Durante la verificacion hubo una falsa alarma propia: el probe leia out.lossManifest cuando el resultado expone manifiestoDePerdidas, asi que parecio que la perdida no llegaba al usuario; comprobado el campo real, llegaba bien. Ningun flag encendido, externalOracleVerified sigue en false y la exportacion sigue cerrada tras su gate.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de subir el nivel — «no quiero laboratorios, quiero mi propio DWG real y funcional; analiza que mas le falta y hazlo».",
+      "firstPartyInputs": [
+        "La medicion propia de la exportacion del producto hecha en esta misma sesion.",
+        "Los cuatro cortes anteriores del codec, que ya sabian escribir lo que el adaptador tiraba."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El binario ODA no se ejecuto en esta sesion.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/dwg-native-writer.ts (el adaptador lleva frozen, linetype y los patrones)",
+        "apps/web/src/lib/cad/dwg-native-writer.spec.ts (la spec lo vigila de punta a punta)",
+        "packages/dwg-codec/CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguno nuevo. La spec usa los valores del corpus real (TRAZOS, trazos [0.75, -0.25]).",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de dejar de tener un laboratorio y tener un DWG real y funcional."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-IMPORT-CAPA-CERO-REAL-20260901",
+      "date": "2026-09-01",
+      "initiative": "El corte anterior arreglo el sentido de SALIDA de la capa; este arregla el de ENTRADA, y es la misma clase de perdida: silenciosa, y en el adaptador, no en el codec. mapLayers (apps/web/src/lib/cad/dwg-document-bridge-layers.ts) anteponia una capa 0 SINTETICA de ACI 7 y sembraba con \"0\" el conjunto de nombres ya vistos, asi que cuando llegaba la capa 0 REAL del archivo la linea de deduplicacion la descartaba ENTERA -color, congelacion, bloqueo y tipo de linea- y ganaba el bootstrap, sin declarar ni una perdida: el manifiesto callaba porque el dato no faltaba, se tiraba. MEDIDO sobre un AC1032 real del corpus (04-capas.dwg) leido por el codec y pasado por el puente, antes y despues del cambio: antes la capa 0 salia {id, name, color #ffffff, visible, locked} y ahora sale ademas con frozen=false MEDIDO y linetype=CONTINUOUS, el del archivo, y sigue habiendo UNA sola capa 0. ALCANCE DE LA PERDIDA, medido y no supuesto: los 57 fixtures del corpus traen capa 0 con tipo de linea resuelto (CONTINUOUS x27, Continuous x30) y los 57 lo perdian; en cambio NINGUNO trae la capa 0 con color distinto de ACI 7, congelada ni bloqueada, y de las 131 capas del corpus las 131 tienen color decodificado. Asi que la mitad grave de esta perdida -un color o un estado REALES sustituidos por los del bootstrap, que es un dato FALSO y no una ausencia- es un camino ALCANZABLE y no ejercido por el corpus: se cierra y se prueba con fixtures, y no se afirma haberlo medido en un archivo real. El respaldo sintetico SIGUE existiendo cuando el archivo no trae capa 0 -toda entidad cuya capa no resuelve cae ahi- y sigue siendo la primera del documento; la spec lo prueba en los dos sentidos. SEGUNDO HALLAZGO, del mismo sitio: el comentario de esa funcion afirmaba desde siempre que el gris neutro de una capa sin color decodificado lo declaraba la perdida layer-color-not-decoded en el manifiesto, y ESE CODIGO NO EXISTIA: se pintaba el gris y el usuario no se enteraba. Ahora existe (dwg_layer_color_not_decoded) y se emite. El corpus tampoco ejerce ese camino y tambien se declara alcanzable y no medido. Ningun flag encendido, externalOracleVerified sigue en false.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de subir el nivel — «no quiero laboratorios, quiero mi propio DWG real y funcional; analiza que mas le falta y hazlo».",
+      "firstPartyInputs": [
+        "La medicion propia del corpus admitido hecha en esta misma sesion (57 fixtures, 131 capas).",
+        "La lectura antes/despues de 04-capas.dwg (AC1032) por el codec y el puente del producto."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El binario ODA no se ejecuto en esta sesion.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/dwg-document-bridge-layers.ts (la capa 0 del archivo manda sobre el respaldo; el color no decodificado se declara)",
+        "apps/web/src/lib/cad/dwg-document-bridge.ts (nuevo codigo de perdida dwg_layer_color_not_decoded)",
+        "apps/web/src/lib/cad/dwg-document-bridge-layer-state.spec.ts (lo vigila en los dos sentidos: con capa 0 real y sin ella)",
+        "packages/dwg-codec/CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguno nuevo. La spec usa una base neutral minima con los valores del corpus real.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de dejar de tener un laboratorio y tener un DWG real y funcional."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

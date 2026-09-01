@@ -1205,3 +1205,80 @@ inventan trazos**. La diferencia entre «no sé» y un dato falso.
 campo a campo: el parser DXF del oráculo ya extrae la tabla LTYPE con su
 longitud y sus trazos, así que si el patrón escrito no fuera el declarado, el
 cotejo lo diría. Con el gemelo público de cada caso, el titular corre **doce**.
+
+## Corte 2026-09-01 (g) — lo que el códec sabe escribir llega por fin al archivo que exporta el producto
+
+Los cuatro cortes anteriores enseñaron al códec a escribir el color, la
+congelación, el bloqueo y el patrón de trazos de una capa. **Nada de eso
+llegaba al DWG que exporta el producto**, y no por una limitación del códec:
+`toCanonicalDocument` (`apps/web/src/lib/cad/dwg-native-writer.ts`) mapeaba las
+capas como `{id, name, color, visible, locked}` y dejaba `styles` vacío, de
+modo que **tiraba el estado y el tipo de línea antes de que el códec los
+viera** — y sin declarar nada.
+
+Medido con `exportCadDocumentToDwg` sobre un documento con capa congelada,
+bloqueada y de ejes:
+
+| | antes | ahora |
+| --- | --- | --- |
+| `CONGELADA` frozen | **false** — perdido en silencio | **true** |
+| `BLOQUEADA` locked | true | true |
+| `EJES` linetype | **Continuous** — perdido en silencio | **TRAZOS** |
+| tabla LTYPE del archivo | sin el patrón | **lleva `TRAZOS`** |
+| color | correcto | correcto |
+
+**Lo que el documento nombra pero no define** sigue cayendo a Continuous, y eso
+**se declara**: la capa aparece en el manifiesto con
+`layer-linetype-not-writable` y la exportación termina en
+`exito_con_perdidas`. La diferencia entre «no sé» y un dato falso.
+
+**Por qué importa este corte más que los cuatro anteriores.** Los otros
+ampliaron lo que el laboratorio *puede* hacer; éste es el único que hace que un
+usuario que dibuja en el producto y exporta un DWG **se lleve su plano
+completo**. Sin él, todo lo anterior se quedaba en la API del códec.
+
+Sigue en pie lo de siempre: **ningún flag encendido**, `externalOracleVerified`
+en `false`, y la exportación DWG cerrada tras su gate hasta que el titular
+corra el oráculo.
+
+## Corte 2026-09-01 (h) — la capa «0» del archivo dejaba de existir al importar
+
+El corte (g) arregló el sentido de SALIDA. Éste arregla el de ENTRADA, y es la
+misma clase de pérdida: silenciosa, y en el adaptador, no en el códec.
+
+`mapLayers` (`apps/web/src/lib/cad/dwg-document-bridge-layers.ts`) anteponía una
+capa «0» **sintética** de ACI 7 y sembraba con `"0"` el conjunto de nombres ya
+vistos. Consecuencia: cuando llegaba la capa «0» **real del archivo**, la línea
+de deduplicación la descartaba **entera** —color, congelación, bloqueo y tipo de
+línea— y ganaba el bootstrap. Sin declarar ni una pérdida: el manifiesto callaba
+porque el dato no faltaba, se tiraba.
+
+Medido sobre un AC1032 real del corpus (`04-capas.dwg`), leído por el códec y
+pasado por el puente del producto:
+
+| | antes | ahora |
+| --- | --- | --- |
+| capas «0» en el documento | 1 | 1 (no se duplica) |
+| `frozen` de la capa «0» | **ausente** | `false` — el valor **medido** |
+| `linetype` de la capa «0» | **ausente** | `CONTINUOUS` — el del archivo |
+| color de la capa «0» | `#ffffff` | `#ffffff` |
+
+**Alcance de la pérdida, medido y no supuesto.** Los **57** fixtures del corpus
+traen capa «0» con tipo de línea resuelto (`CONTINUOUS` ×27, `Continuous` ×30):
+los 57 lo perdían. En cambio **ninguno** trae la capa «0» con color distinto de
+ACI 7, congelada ni bloqueada — de las 131 capas del corpus, las 131 tienen
+color decodificado. Así que la mitad grave de esta pérdida (un color o un estado
+REALES sustituidos por los del bootstrap, que es un dato **falso**, no una
+ausencia) es un camino **alcanzable y no ejercido por el corpus**: se cierra y
+se prueba con fixtures, y no se afirma haberlo medido en un archivo real.
+
+El respaldo sintético **sigue existiendo** cuando el archivo no trae capa «0» —
+toda entidad cuya capa no resuelve cae ahí, así que tiene que estar—, y sigue
+siendo la primera del documento.
+
+**Segundo hallazgo, del mismo sitio.** El comentario de esa función afirmaba
+desde siempre que el gris neutro de una capa sin color decodificado «lo declara
+la pérdida `layer-color-not-decoded` en el manifiesto». **Ese código de pérdida
+no existía**: se pintaba el gris y el usuario no se enteraba. Ahora existe
+(`dwg_layer_color_not_decoded`) y se emite. El corpus tampoco ejerce este
+camino, y también se declara como alcanzable y no medido.
