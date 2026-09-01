@@ -45,7 +45,7 @@ function buildBody(options: {
     );
   }
   const bodyBytes = body.toBytes();
-  const objectSize = bodyBytes.length - 2 /* MS */ - 1 /* UMC (small value) */;
+  const objectSize = bodyBytes.length - 2 /* MS */ - 1; /* UMC (small value) */
 
   const withHeader = new DwgBitEmitter();
   withHeader.emitRS(objectSize); // MS: una sola palabra, sin continuación
@@ -126,13 +126,19 @@ test("un tipo sin decodificador R2010+ medido falla UNSUPPORTED antes de tocar e
   // El chequeo de tipo ocurre justo tras el encabezado: el resto del cuerpo
   // no importa para esta prueba, sólo que exista y quede byte-alineado.
   const bytes = buildBody({
-    type: 0x01, // TEXT: tiene cadena, ningún decodificador R2010+ lo cubre aún
+    // 0x2C (MTEXT): lleva cadena y NINGÚN decodificador R2010+ lo cubre. Antes
+    // esta prueba usaba TEXT (0x01), que desde el intake del 2026-09-01 sí se
+    // decodifica: seguir usándolo probaría lo contrario de lo que dice.
+    type: 0x2c,
     handle: 3,
     handleStreamBits: 0,
     build: (body) => padZeroBits(body, 6), // 50 (header) + 6 = 56 bits = 7 bytes
   });
 
-  assertDwgError(() => readR2010EntityBody(bytes, "AC1024", 3), "DWG_VERSION_DECODER_UNSUPPORTED");
+  assertDwgError(
+    () => readR2010EntityBody(bytes, "AC1024", 3),
+    "DWG_VERSION_DECODER_UNSUPPORTED",
+  );
 });
 
 test("el bit de presencia de cadenas en 1 falla UNSUPPORTED: el flujo de strings no se decodifica", () => {
@@ -155,7 +161,10 @@ test("el bit de presencia de cadenas en 1 falla UNSUPPORTED: el flujo de strings
     },
   });
 
-  assertDwgError(() => readR2010EntityBody(bytes, "AC1024", 4), "DWG_VERSION_DECODER_UNSUPPORTED");
+  assertDwgError(
+    () => readR2010EntityBody(bytes, "AC1024", 4),
+    "DWG_VERSION_DECODER_UNSUPPORTED",
+  );
 });
 
 test("un aterrizaje que no cae exacto un bit antes del flujo de handles falla STRUCTURE_CORRUPT", () => {
@@ -180,5 +189,8 @@ test("un aterrizaje que no cae exacto un bit antes del flujo de handles falla ST
     },
   });
 
-  assertDwgError(() => readR2010EntityBody(bytes, "AC1024", 5), "DWG_STRUCTURE_CORRUPT");
+  assertDwgError(
+    () => readR2010EntityBody(bytes, "AC1024", 5),
+    "DWG_STRUCTURE_CORRUPT",
+  );
 });

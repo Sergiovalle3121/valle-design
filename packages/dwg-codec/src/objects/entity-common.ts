@@ -198,7 +198,13 @@ export function readAc1015EntityCommon(
   }
 
   const reactorCount = reader.readBL();
-  assertHandleCountFits(reader, reactorCount, bitSize, bodyBitLength, "reactor");
+  assertHandleCountFits(
+    reader,
+    reactorCount,
+    bitSize,
+    bodyBitLength,
+    "reactor",
+  );
 
   const noLinks = reader.readB() === 1;
   const color = reader.readCmC();
@@ -369,10 +375,12 @@ export function readAc1015EntityHandleHead(
   // Hecho 4 del intake: el bit de sin-vínculos a 0 significa que aquí viajan
   // los punteros a la entidad anterior y siguiente de la lista enlazada,
   // ANTES de la capa. No leerlos desalineaba capa y referencias del tipo.
-  const previousEntity =
-    common.noLinks ? undefined : resolveDwgHandleReference(reader.readH(), base);
-  const nextEntity =
-    common.noLinks ? undefined : resolveDwgHandleReference(reader.readH(), base);
+  const previousEntity = common.noLinks
+    ? undefined
+    : resolveDwgHandleReference(reader.readH(), base);
+  const nextEntity = common.noLinks
+    ? undefined
+    : resolveDwgHandleReference(reader.readH(), base);
   const layer = resolveDwgHandleReference(reader.readH(), base);
   const linetype =
     common.linetypeFlags === 3
@@ -438,7 +446,18 @@ export function readFiniteExtrusion(reader: DwgBitReader): DwgPoint3 {
  * criterios gemelos. Un RC de banderas abre el dato y cada bit a 1 declara
  * un campo AUSENTE; ausente se modela `undefined`.
  */
-export function decodeTextFields(reader: DwgBitReader): DwgTextFields {
+export function decodeTextFields(
+  reader: DwgBitReader,
+  /**
+   * Bytes de la cadena cuando NO viaja en línea. En R2000 el `TV` vive en la
+   * sección de datos; desde R2010+ se mudó al flujo de cadenas del final del
+   * cuerpo (medido: la secuencia es la MISMA menos ese `TV`, 15/15 campos
+   * exactos y aterrizaje exacto en el inicio del flujo). Pasarlos hace que
+   * esta función NO lea el `TV` — y así no existen dos copias de la
+   * secuencia, que es donde se colaría una divergencia silenciosa.
+   */
+  externalValueBytes?: readonly number[],
+): DwgTextFields {
   const dataFlags = reader.readRC();
 
   const elevation =
@@ -446,8 +465,16 @@ export function decodeTextFields(reader: DwgBitReader): DwgTextFields {
       ? finiteDecoded(reader, reader.readRD(), "a text elevation")
       : undefined;
 
-  const insertionX = finiteDecoded(reader, reader.readRD(), "a text insertion X");
-  const insertionY = finiteDecoded(reader, reader.readRD(), "a text insertion Y");
+  const insertionX = finiteDecoded(
+    reader,
+    reader.readRD(),
+    "a text insertion X",
+  );
+  const insertionY = finiteDecoded(
+    reader,
+    reader.readRD(),
+    "a text insertion Y",
+  );
   const insertion = frozenTextPoint2(insertionX, insertionY);
 
   let alignment: DwgPoint2 | undefined;
@@ -494,11 +521,18 @@ export function decodeTextFields(reader: DwgBitReader): DwgTextFields {
       ? finiteDecoded(reader, reader.readRD(), "a text width factor")
       : undefined;
 
-  // La cadena llega como bytes congelados: mismos bytes, mismo modelo.
-  const text = reader.readTV();
-  const valueBytes = new Array<number>(text.bytes.length);
-  for (let index = 0; index < text.bytes.length; index += 1) {
-    valueBytes[index] = text.bytes[index]!;
+  // La cadena llega como bytes congelados: mismos bytes, mismo modelo. En
+  // R2010+ los aporta el llamador desde el flujo de cadenas y aquí NO se lee
+  // ningún `TV`: leerlo desalinearía todo lo que viene detrás.
+  let valueBytes: number[];
+  if (externalValueBytes === undefined) {
+    const text = reader.readTV();
+    valueBytes = new Array<number>(text.bytes.length);
+    for (let index = 0; index < text.bytes.length; index += 1) {
+      valueBytes[index] = text.bytes[index]!;
+    }
+  } else {
+    valueBytes = [...externalValueBytes];
   }
 
   const generation = (dataFlags & 0x20) === 0 ? reader.readBS() : undefined;

@@ -1887,6 +1887,76 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-M4-TEXT-INSERT-Y-BLOQUES-R2010-20260901",
+      "date": "2026-09-01",
+      "initiative": "Cierra la matriz de entidades de AC1024/AC1027/AC1032 al nivel de AC1015: arc 2/2, circle 3/3, insert 6/6, line 15/15, lwpolyline 3/3, point 1/1 y text 5/5, con cero distintas, cero faltantes y cero inesperadas; las discrepancias por version bajan de 36 a 14. Tres mediciones: el cuerpo de TEXT es la misma secuencia de R2000 MENOS el TV (15/15 por dos caminos independientes, incluido el aterrizaje exacto en el inicio del flujo de cadenas); el cuerpo de INSERT no cambia y su puntero al BLOCK_RECORD es el primer handle tras la cabeza comun (6/6 nombres); y la pertenencia entidad-bloque. Esto ultimo obligo a CORREGIR UNA AFIRMACION FALSA que yo mismo publique en el corte anterior: escribi que el corpus no ejercitaba ni un solo objeto de modo 0, y contando los modos aparecen 5 LINE, 1 CIRCLE y 1 ARC -exactamente las 7 entidades que entonces quedaban descolocadas-. La afirmacion se hizo sin contar, que es la forma barata de equivocarse: bastaba un recuento de dos minutos. Sale ademas una regresion propia que encontro un test y no el corpus: localizar el flujo de cadenas antes de comprobar el bit de presencia convertia 'capacidad ausente' en 'corrupcion' para un tipo sin cadena; corregido en el codigo, no en el test.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de llevar el DWG a las versiones modernas para poder comercializar.",
+      "firstPartyInputs": [
+        "Corpus de conformidad propio leido del commit fijado via el gate consumidor.",
+        "El decodificador AC1015 propio como oraculo diferencial."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. Ninguna fuente documental nueva intervino.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/objects/entity-common.ts (decodeTextFields acepta la cadena desde fuera en vez de duplicar la secuencia)",
+        "packages/dwg-codec/src/objects/entities-core.ts (decodeTextWithExternalValue)",
+        "packages/dwg-codec/src/reader/r2010-entity-body.ts (tipos con cadena; regresion de categoria de error corregida)",
+        "packages/dwg-codec/src/reader/r2010-database-assembly.ts (puntero a bloque de INSERT y pertenencia entidad-bloque, en segunda pasada)",
+        "packages/dwg-codec/SOURCE_REGISTER.json (VALLE-CORPUS-R2010-TEXT-INSERT-BLOQUES, y el hecho falso del corte anterior marcado como CORREGIDO en su sitio)",
+        "packages/dwg-codec/CAPABILITIES.md (corte nuevo con la correccion fechada)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de completar el DWG moderno para comercializar sin licencia ODA."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-M4-CAMPOS-DE-TABLA-R2010-20260901",
+      "date": "2026-09-01",
+      "initiative": "Mide el BS de estado y el color CmC de una entrada LAYER en R2010+ y tambien el patron y los trazos de un LTYPE, y con ello el corpus completo queda en CERO discrepancias en las cinco versiones (AC1015 25/25, AC1018 8/8, AC1024/AC1027/AC1032 8/8 cada una; 57 de 57 archivos abiertos). A una distancia FIJA del primer bit de dato -7 bits en AC1024, 8 en AC1027/AC1032, la misma diferencia de un bit que ya separa el prefijo comun de entidad- va el BS de estado, y justo detras el color en la forma CmC de R2004 (BS+BL+RC), que el adaptador AC1018 de este mismo repo ya tenia medida. Se exigieron TRES condiciones a la vez en 54 capas de las tres versiones -estado igual al gemelo AC1015, mismo indice ACI y aterrizaje EXACTO en el inicio del flujo de cadenas- y se cumplen 54/54; la falsacion adversa (cabeza desplazada un bit) falla 54/54. ESTE CORTE CORRIGE UNA AFIRMACION FALSA QUE YO MISMO PUBLIQUE en el corte anterior: escribi que las banderas de capa de R2010+ no son el BS de R2000 en ninguna posicion, apoyandome en un barrido de 0..120 bits con cero aciertos. Si lo son. El barrido fallo por el metodo, no por el formato: (1) solo apuntaba un acierto de estado si ANTES coincidian los tres campos de xref, y esos tres son CONSTANTES en todo el corpus, asi que una lectura equivocada de lo inmedible vetaba la lectura correcta de lo medible; y (2) leia el color como el CmC de R2000 cuando el propio repo ya tenia medido que desde R2004 son tres campos. Reusar un hecho que ya estaba medido habria bastado. Corrijo ademas haber descrito esos campos de xref como 'ceros': xrefRef vale true en las 18 capas: lo que impide falsarlos no es que valgan cero, es que valen siempre lo mismo. Lo que sigue SIN MEDIR y no se finge: que hay exactamente en esos 7/8 bits de cabeza. Con este corpus no puede saberse -no hay ni un objeto con EED, ni uno con reactores, ni una entrada dependiente de xref-, asi que se mide la ANCHURA y no el contenido, y los tres campos de xref no se decodifican. La ambiguedad no es peligrosa porque el aterrizaje exacto es obligatorio: un archivo con otra cabeza falla cerrado con DWG_VERSION_DECODER_UNSUPPORTED en vez de devolver un color plausible y equivocado. LA MISMA cabeza sirve para el LTYPE: medida por separado sobre los tipos de linea sale identica, y que valga para un dato de 25 bits (patron vacio) y para uno de 429 (dos trazos) es lo que la hace la cabeza COMUN de una entrada de tabla y no una casualidad de un tipo; patron, alineacion y trazos coinciden con el gemelo en 78/78. Diferencia real con R2000, medida y no supuesta: el area de texto de 256 bytes del LTYPE NO esta en R2010+ (variante sin area 78/78, variante con area 0/78). LIMITE del LTYPE sin suavizar: de los 78 comparados solo 6 llevan un patron no vacio, asi que los campos por trazo que no varian estan LEIDOS pero NO falsados. Cero discrepancias NO promueve ninguna capacidad: que el laboratorio lea un archivo sin discrepancias no es que el producto lo abra, y ningun flag se enciende.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de llevar el DWG a las versiones modernas para poder comercializar.",
+      "firstPartyInputs": [
+        "Corpus de conformidad propio leido del commit fijado via el gate consumidor.",
+        "El decodificador AC1015 propio como oraculo diferencial.",
+        "El adaptador AC1018 propio, que ya tenia medida la forma CmC de R2004."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. Ninguna fuente documental nueva intervino.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/objects/color-2004.ts (proyeccion CmC 2004 -> ACI compartida; un solo criterio para AC1018 y R2010+)",
+        "packages/dwg-codec/src/reader/r2004-body-adapter.ts (deja de tener su copia privada del criterio)",
+        "packages/dwg-codec/src/reader/r2010-table-fields.ts (lectores de LAYER y LTYPE, con aterrizaje exacto obligatorio)",
+        "packages/dwg-codec/src/reader/r2010-database-assembly.ts (consume los lectores tras un solo envoltorio que absorbe SOLO capacidad ausente y propaga corrupcion; corrige en su sitio la afirmacion falsa)",
+        "packages/dwg-codec/src/reader/database-model.ts (que significa un colorIndex ausente)",
+        "packages/dwg-codec/CAPABILITIES.md (correccion fechada y corte nuevo)",
+        "scripts/dwg/probe-r2010-table-fields.mjs (sonda nueva, cableada a check:dwg)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de completar el DWG moderno para comercializar sin licencia ODA."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

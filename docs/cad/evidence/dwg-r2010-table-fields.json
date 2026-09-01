@@ -1,0 +1,2114 @@
+{
+  "$schema": "../../schema/dwg-evidence.schema.json",
+  "schemaVersion": 1,
+  "evidenceId": "dwg-r2010-table-fields",
+  "generadoPor": "scripts/dwg/probe-r2010-table-fields.mjs",
+  "generadoEn": "2026-09-01T01:51:58.179Z",
+  "environment": {
+    "node": "v22.22.2",
+    "platform": "linux",
+    "architecture": "x64",
+    "osType": "Linux",
+    "osRelease": "6.18.44-fc-v22",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "logicalCpuCount": 4,
+    "totalMemoryBytes": 16856133632,
+    "declaredMachine": "Intel(R) Xeon(R) Processor @ 2.80GHz (4 hilos lógicos), 16.9 GB de RAM, Linux 6.18.44-fc-v22"
+  },
+  "veredicto": "El estado y el color de una capa quedan medidos en R2010+ en 54/54 capas de las tres versiones, con TRES condiciones exigidas a la vez: el BS de estado reproduce el del gemelo AC1015 (54/54), el color R2004 (BS+BL+RC) proyecta al MISMO indice ACI (54/54) y el dato termina EXACTAMENTE donde empieza el flujo de cadenas (54/54). La cabeza previa mide 7 bits en AC1024 y 8 en AC1027/AC1032 -la misma diferencia de un bit que ya separa el prefijo comun de entidad-, y es UNICA por version. Falsacion adversa: desplazando esa cabeza un bit en cualquier direccion, las tres condiciones fallan en 54/54. Los valores VARIAN de verdad: 3 estados distintos [1008,1009,1016] y 7 indices ACI distintos [1,2,3,4,5,6,7]. LA MISMA cabeza sirve para el LTYPE: patron, alineacion y trazos coinciden con el gemelo en 78/78, con aterrizaje exacto y la MISMA anchura de cabeza medida por separado en un tipo cuyo dato mide 25/26 bits cuando el patron esta vacio y 429/430 cuando no; el area de texto de 256 bytes de R2000 se midio AUSENTE en R2010+ (la variante CON area no aterriza en ninguno) y la falsacion adversa falla en 78/78. LIMITE: de esos 78 LTYPE solo 6 llevan un patron NO vacio; los demas son patrones vacios, asi que la variedad de trazos ejercitada es poca y los campos por trazo que no varian (desplazamientos, escala, rotacion, banderas) estan leidos, no falsados.",
+  "alcance": "Campos NO-NOMBRE de las entradas de tabla con datos medidos en AC1024/AC1027/AC1032 -- LAYER (BS de estado y color CmC de R2004) y LTYPE (longitud de patron, alineacion y trazos) --, comparados contra la entrada del MISMO handle en el gemelo AC1015 del MISMO dibujo.",
+  "metodo": "Oráculo diferencial sobre los bundles fundacionales, ejecutando el camino REAL del códec (readR2010LayerFields y readR2010LinetypeFields), no una reimplementación de la sonda. Tres condiciones exigidas a la vez -valor de estado, indice ACI y aterrizaje exacto en el inicio del flujo de cadenas- mas una falsación adversa con la cabeza desplazada un bit. En el LTYPE se anade una segunda variante adversa: la disposicion de R2000 CON su area de texto de 256 bytes, que este intake mide AUSENTE en R2010+.",
+  "limiteDeLaEvidencia": "Qué hay EXACTAMENTE en los 7/8 bits de cabeza NO está resuelto y con este corpus no puede estarlo: no hay ni un objeto con EED, ni uno con reactores, ni una entrada dependiente de xref, asi que al menos dos composiciones distintas reproducen los mismos valores. Se mide la ANCHURA, no el contenido. Los tres campos de xref del modelo R2000 (xrefRef, xrefIndexPlusOne, xrefDependent) son CONSTANTES en todo el corpus -no cero: xrefRef vale true en las 18 capas-, asi que no discriminan ningun modelo y este intake NO los decodifica en R2010+. El aterrizaje exacto es lo que hace que la ambiguedad no sea peligrosa: un archivo con otra cabeza no aterriza y el codec falla cerrado con DWG_VERSION_DECODER_UNSUPPORTED en vez de devolver un color plausible y equivocado. En el LTYPE la variedad es escasa: de los 78 comparados solo 6 (dos por version) llevan un patron NO vacio, asi que los campos por trazo que no varian -desplazamientos, escala, rotacion y banderas- estan leidos pero NO falsados.",
+  "correccionFechada": "2026-09-01. Este intake CORRIGE una afirmación falsa del corte anterior: «las banderas de capa de R2010+ no son el BS de R2000 en ninguna posición». Sí lo son. El barrido que dio cero aciertos ponia un hecho medible (el estado) detras de uno inmedible (los tres campos de xref, constantes en el corpus), y leia el color como el CmC de R2000 cuando el adaptador AC1018 de este mismo repo ya tenia medido que desde R2004 son tres campos. El error no estaba en el formato sino en como se le pregunto.",
+  "resumen": {
+    "totalCapas": 54,
+    "estadoExacto": 54,
+    "colorExacto": 54,
+    "aterrizajeExacto": 54,
+    "lasTresALaVez": 54,
+    "cabezaDesplazadaNoCuela": 54,
+    "ltypeTotal": 78,
+    "ltypeExacto": 78,
+    "ltypeConPatronNoVacio": 6,
+    "ltypeAdversoNoCuela": 78,
+    "ltypePatronesDistintosEjercitados": [
+      "{\"patternLength\":0,\"alignment\":65,\"dashLengths\":[]}",
+      "{\"patternLength\":1,\"alignment\":65,\"dashLengths\":[0.75,-0.25]}"
+    ],
+    "anchuraDeCabezaPorVersion": {
+      "AC1024": 7,
+      "AC1027": 8,
+      "AC1032": 8
+    },
+    "anchuraDelDatoPorVersion": {
+      "AC1024": {
+        "69": 18
+      },
+      "AC1027": {
+        "70": 18
+      },
+      "AC1032": {
+        "70": 18
+      }
+    },
+    "estadosDistintosEjercitados": [
+      1008,
+      1009,
+      1016
+    ],
+    "coloresDistintosEjercitados": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ],
+    "porVersion": {
+      "AC1024": {
+        "total": 18,
+        "tres": 18,
+        "ltype": 26,
+        "ltypeOk": 26
+      },
+      "AC1027": {
+        "total": 18,
+        "tres": 18,
+        "ltype": 26,
+        "ltypeOk": 26
+      },
+      "AC1032": {
+        "total": 18,
+        "tres": 18,
+        "ltype": 26,
+        "ltypeOk": 26
+      }
+    }
+  },
+  "desviaciones": [],
+  "archivos": [
+    {
+      "version": "AC1024",
+      "archivo": "01-vacio.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 69,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1024",
+      "archivo": "02-una-linea.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 69,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1024",
+      "archivo": "03-figuras-basicas.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 69,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1024",
+      "archivo": "04-capas.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 69,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        },
+        {
+          "handle": 39,
+          "nombre": "MUROS",
+          "anchoDato": 69,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 1
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 1
+          }
+        },
+        {
+          "handle": 40,
+          "nombre": "EJES",
+          "anchoDato": 69,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 2
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 2
+          }
+        },
+        {
+          "handle": 41,
+          "nombre": "COTAS",
+          "anchoDato": 69,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 3
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 3
+          }
+        },
+        {
+          "handle": 42,
+          "nombre": "CONGELADA",
+          "anchoDato": 69,
+          "esperado": {
+            "stateFlags": 1009,
+            "colorIndex": 4
+          },
+          "medido": {
+            "stateFlags": 1009,
+            "colorIndex": 4
+          }
+        },
+        {
+          "handle": 43,
+          "nombre": "BLOQUEADA",
+          "anchoDato": 69,
+          "esperado": {
+            "stateFlags": 1016,
+            "colorIndex": 5
+          },
+          "medido": {
+            "stateFlags": 1016,
+            "colorIndex": 5
+          }
+        },
+        {
+          "handle": 44,
+          "nombre": "TEXTOS",
+          "anchoDato": 69,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 6
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 6
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 33,
+          "anchoDato": 429,
+          "esperado": {
+            "patternLength": 1,
+            "alignment": 65,
+            "dashLengths": [
+              0.75,
+              -0.25
+            ]
+          },
+          "medido": {
+            "patternLength": 1,
+            "alignment": 65,
+            "dashLengths": [
+              0.75,
+              -0.25
+            ]
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1024",
+      "archivo": "05-lwpolyline-bulges.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 69,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1024",
+      "archivo": "06-texto.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 69,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1024",
+      "archivo": "07-bloques-insert.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 69,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1024",
+      "archivo": "08-plano-mini.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 69,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        },
+        {
+          "handle": 39,
+          "nombre": "MUROS",
+          "anchoDato": 69,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 1
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 1
+          }
+        },
+        {
+          "handle": 40,
+          "nombre": "PUERTAS",
+          "anchoDato": 69,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 4
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 4
+          }
+        },
+        {
+          "handle": 41,
+          "nombre": "TEXTOS",
+          "anchoDato": 69,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 6
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 6
+          }
+        },
+        {
+          "handle": 42,
+          "nombre": "EJES",
+          "anchoDato": 69,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 2
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 2
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 33,
+          "anchoDato": 429,
+          "esperado": {
+            "patternLength": 1,
+            "alignment": 65,
+            "dashLengths": [
+              0.75,
+              -0.25
+            ]
+          },
+          "medido": {
+            "patternLength": 1,
+            "alignment": 65,
+            "dashLengths": [
+              0.75,
+              -0.25
+            ]
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 25,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1027",
+      "archivo": "01-vacio.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1027",
+      "archivo": "02-una-linea.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1027",
+      "archivo": "03-figuras-basicas.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1027",
+      "archivo": "04-capas.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        },
+        {
+          "handle": 39,
+          "nombre": "MUROS",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 1
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 1
+          }
+        },
+        {
+          "handle": 40,
+          "nombre": "EJES",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 2
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 2
+          }
+        },
+        {
+          "handle": 41,
+          "nombre": "COTAS",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 3
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 3
+          }
+        },
+        {
+          "handle": 42,
+          "nombre": "CONGELADA",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1009,
+            "colorIndex": 4
+          },
+          "medido": {
+            "stateFlags": 1009,
+            "colorIndex": 4
+          }
+        },
+        {
+          "handle": 43,
+          "nombre": "BLOQUEADA",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1016,
+            "colorIndex": 5
+          },
+          "medido": {
+            "stateFlags": 1016,
+            "colorIndex": 5
+          }
+        },
+        {
+          "handle": 44,
+          "nombre": "TEXTOS",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 6
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 6
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 33,
+          "anchoDato": 430,
+          "esperado": {
+            "patternLength": 1,
+            "alignment": 65,
+            "dashLengths": [
+              0.75,
+              -0.25
+            ]
+          },
+          "medido": {
+            "patternLength": 1,
+            "alignment": 65,
+            "dashLengths": [
+              0.75,
+              -0.25
+            ]
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1027",
+      "archivo": "05-lwpolyline-bulges.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1027",
+      "archivo": "06-texto.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1027",
+      "archivo": "07-bloques-insert.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1027",
+      "archivo": "08-plano-mini.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        },
+        {
+          "handle": 39,
+          "nombre": "MUROS",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 1
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 1
+          }
+        },
+        {
+          "handle": 40,
+          "nombre": "PUERTAS",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 4
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 4
+          }
+        },
+        {
+          "handle": 41,
+          "nombre": "TEXTOS",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 6
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 6
+          }
+        },
+        {
+          "handle": 42,
+          "nombre": "EJES",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 2
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 2
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 33,
+          "anchoDato": 430,
+          "esperado": {
+            "patternLength": 1,
+            "alignment": 65,
+            "dashLengths": [
+              0.75,
+              -0.25
+            ]
+          },
+          "medido": {
+            "patternLength": 1,
+            "alignment": 65,
+            "dashLengths": [
+              0.75,
+              -0.25
+            ]
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1032",
+      "archivo": "01-vacio.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1032",
+      "archivo": "02-una-linea.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1032",
+      "archivo": "03-figuras-basicas.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1032",
+      "archivo": "04-capas.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        },
+        {
+          "handle": 39,
+          "nombre": "MUROS",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 1
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 1
+          }
+        },
+        {
+          "handle": 40,
+          "nombre": "EJES",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 2
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 2
+          }
+        },
+        {
+          "handle": 41,
+          "nombre": "COTAS",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 3
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 3
+          }
+        },
+        {
+          "handle": 42,
+          "nombre": "CONGELADA",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1009,
+            "colorIndex": 4
+          },
+          "medido": {
+            "stateFlags": 1009,
+            "colorIndex": 4
+          }
+        },
+        {
+          "handle": 43,
+          "nombre": "BLOQUEADA",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1016,
+            "colorIndex": 5
+          },
+          "medido": {
+            "stateFlags": 1016,
+            "colorIndex": 5
+          }
+        },
+        {
+          "handle": 44,
+          "nombre": "TEXTOS",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 6
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 6
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 33,
+          "anchoDato": 430,
+          "esperado": {
+            "patternLength": 1,
+            "alignment": 65,
+            "dashLengths": [
+              0.75,
+              -0.25
+            ]
+          },
+          "medido": {
+            "patternLength": 1,
+            "alignment": 65,
+            "dashLengths": [
+              0.75,
+              -0.25
+            ]
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1032",
+      "archivo": "05-lwpolyline-bulges.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1032",
+      "archivo": "06-texto.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1032",
+      "archivo": "07-bloques-insert.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    },
+    {
+      "version": "AC1032",
+      "archivo": "08-plano-mini.dwg",
+      "capas": [
+        {
+          "handle": 16,
+          "nombre": "0",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 7
+          }
+        },
+        {
+          "handle": 39,
+          "nombre": "MUROS",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 1
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 1
+          }
+        },
+        {
+          "handle": 40,
+          "nombre": "PUERTAS",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 4
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 4
+          }
+        },
+        {
+          "handle": 41,
+          "nombre": "TEXTOS",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 6
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 6
+          }
+        },
+        {
+          "handle": 42,
+          "nombre": "EJES",
+          "anchoDato": 70,
+          "esperado": {
+            "stateFlags": 1008,
+            "colorIndex": 2
+          },
+          "medido": {
+            "stateFlags": 1008,
+            "colorIndex": 2
+          }
+        }
+      ],
+      "linetypes": [
+        {
+          "handle": 22,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 33,
+          "anchoDato": 430,
+          "esperado": {
+            "patternLength": 1,
+            "alignment": 65,
+            "dashLengths": [
+              0.75,
+              -0.25
+            ]
+          },
+          "medido": {
+            "patternLength": 1,
+            "alignment": 65,
+            "dashLengths": [
+              0.75,
+              -0.25
+            ]
+          }
+        },
+        {
+          "handle": 20,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        },
+        {
+          "handle": 21,
+          "anchoDato": 26,
+          "esperado": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          },
+          "medido": {
+            "patternLength": 0,
+            "alignment": 65,
+            "dashLengths": []
+          }
+        }
+      ]
+    }
+  ]
+}

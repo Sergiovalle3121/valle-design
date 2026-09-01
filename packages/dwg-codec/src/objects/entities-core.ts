@@ -471,7 +471,11 @@ export function decodeCircle(reader: DwgBitReader): DwgCircleEntity {
 /** ARC: los campos del círculo más los ángulos BD inicial y final. */
 export function decodeArc(reader: DwgBitReader): DwgArcEntity {
   const { center, radius, thickness, extrusion } = decodeCircleFields(reader);
-  const startAngle = finiteDecoded(reader, reader.readBD(), "an arc start angle");
+  const startAngle = finiteDecoded(
+    reader,
+    reader.readBD(),
+    "an arc start angle",
+  );
   const endAngle = finiteDecoded(reader, reader.readBD(), "an arc end angle");
   return Object.freeze({
     kind: "arc" as const,
@@ -503,7 +507,11 @@ function decodeCircleFields(reader: DwgBitReader): {
       "A circle radius cannot be negative.",
     );
   }
-  const thickness = finiteDecoded(reader, reader.readBT(), "a circle thickness");
+  const thickness = finiteDecoded(
+    reader,
+    reader.readBT(),
+    "a circle thickness",
+  );
   const extrusion = readFiniteExtrusion(reader);
   return { center, radius, thickness, extrusion };
 }
@@ -522,6 +530,21 @@ function decodeText(reader: DwgBitReader): DwgTextEntity {
   return Object.freeze({
     kind: "text" as const,
     ...decodeTextFields(reader),
+  });
+}
+
+/**
+ * TEXT cuya cadena NO viaja en línea sino en el flujo de cadenas del final
+ * del cuerpo (R2010+). Misma secuencia de campos, mismo decodificador: sólo
+ * cambia de dónde salen los bytes del valor.
+ */
+export function decodeTextWithExternalValue(
+  reader: DwgBitReader,
+  valueBytes: readonly number[],
+): DwgTextEntity {
+  return Object.freeze({
+    kind: "text" as const,
+    ...decodeTextFields(reader, valueBytes),
   });
 }
 
