@@ -1,3 +1,4 @@
+import { startTool } from '../fixtures/tool-palette';
 import { finishDraft } from '../fixtures/draft-toolbar';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
@@ -105,10 +106,6 @@ async function point(page: Page, x: string, y: string) {
 /** La barra CAD, acotada: hay otros botones con estos nombres en el editor. */
 const toolbar = (page: Page) => page.getByTestId('cad-toolbar');
 
-async function startTool(page: Page, name: string) {
-  await toolbar(page).getByRole('button', { name, exact: true }).click();
-  await expect(page.getByTestId('cad-dynamic-input')).toBeVisible();
-}
 
 async function expectNativeCount(page: Page, total: number) {
   await expect(page.getByTestId('cad-native-document-count')).toHaveText(`Native ${total}`);
@@ -173,25 +170,25 @@ test('every canonical draw records exactly one undo entry and one dirty transiti
   // seguía en pantalla.
   const draws: [string, () => Promise<void>][] = [
     ['Line', async () => {
-      await startTool(page, 'Line');
+      await startTool(page, 'line');
       await point(page, '1000', '1000');
       await point(page, '5000', '1000');
       await finishDraft(page);
     }],
     ['Pline', async () => {
-      await startTool(page, 'Pline');
+      await startTool(page, 'polyline');
       await point(page, '1000', '3000');
       await point(page, '4000', '3000');
       await point(page, '4000', '5000');
       await finishDraft(page);
     }],
     ['Rect', async () => {
-      await startTool(page, 'Rect');
+      await startTool(page, 'rect');
       await point(page, '6000', '1000');
       await point(page, '9000', '3000');
     }],
     ['Circle', async () => {
-      await startTool(page, 'Circle');
+      await startTool(page, 'circle');
       await point(page, '8000', '6000');
       await applyDynamicInput(page, { radius: '400' });
     }],
@@ -220,7 +217,7 @@ test('every canonical draw records exactly one undo entry and one dirty transiti
   }
 
   await test.step('REDO devuelve id, geometría, capa y orden idénticos', async () => {
-    await startTool(page, 'Line');
+    await startTool(page, 'line');
     await point(page, '2000', '2000');
     await point(page, '7000', '4000');
     await finishDraft(page);
@@ -251,7 +248,7 @@ test('every canonical draw records exactly one undo entry and one dirty transiti
     const historyBefore = await page.getByTestId('cad-history-depth').getAttribute('data-undo');
 
     // Dos veces el mismo punto no es una línea.
-    await startTool(page, 'Line');
+    await startTool(page, 'line');
     await point(page, '3000', '3000');
     await point(page, '3000', '3000');
     await finishDraft(page);
@@ -431,7 +428,7 @@ test('a locked layer refuses drawing and OFFSET, and rejection leaves zero histo
 
   await test.step('con la capa BLOQUEADA tampoco se dibuja encima', async () => {
     const depthBefore = await historyDepth(page);
-    await startTool(page, 'Line');
+    await startTool(page, 'line');
     await point(page, '500', '500');
     await point(page, '900', '900');
     await finishDraft(page);
