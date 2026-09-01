@@ -48,7 +48,6 @@ import {
   layoutToCadDocument,
   migrateCadDocument,
   type CadEntity,
-  type CadLayerDef,
   type CadLossManifestEntry,
   type CadOpaqueEntity,
 } from "./cad-document";
@@ -59,7 +58,7 @@ import {
 // Tabla ACI↔RGB real y ya usada por el resto del producto (plotting); el
 // laboratorio deja dicho en su propio mapeo canónico que "la tabla ACI
 // completa es del adaptador de integración" — este archivo es ese adaptador.
-import { aciToHex } from "./plot/aci-palette";
+import { mapLayers } from "./dwg-document-bridge-layers";
 import {
   cadDxfBlocksToCadDocumentParts,
   cadDxfHatchesToNativeEntities,
@@ -102,7 +101,6 @@ import type {
   DwgNeutralDatabase,
   DwgNeutralDatabaseReader,
   DwgNeutralEntityRecord,
-  DwgNeutralLayer,
 } from "./dwg-neutral-model";
 
 /** Códigos de pérdida del puente. Estables: la interfaz los agrupa por código. */
@@ -114,6 +112,7 @@ export const DWG_BRIDGE_LOSS_CODES = Object.freeze({
   danglingBlock: "dwg_insert_block_unresolved",
   hatchCurvedBoundary: "dwg_hatch_curved_boundary_dropped",
   layerStateFlags: "dwg_layer_state_flags_unmapped",
+  layerLinetype: "dwg_layer_linetype_unresolved",
   unitAssumed: "dwg_unit_assumed",
   blockBasePointAssumed: "dwg_block_base_point_assumed",
   primitiveProperty: "dwg_primitive_property_dropped",
@@ -146,7 +145,6 @@ const INSUNITS_TO_CAD_UNIT: Readonly<Record<number, string>> = Object.freeze({
  * Gris neutro para una capa cuyo color no se decodificó. No es un ACI: es una
  * señal de que el dato falta, y viaja siempre acompañado de su pérdida.
  */
-const LAYER_COLOR_NOT_DECODED = "#8a8f98";
 
 function resolveDwgUnit(insunits: number | undefined): string | undefined {
   // Sin INSUNITS leído no hay unidad que resolver, y devolver `undefined` es
@@ -461,69 +459,6 @@ function mapRecords(
   }
 
   return { primitives, inserts, mtexts, dimensions, hatches, opaques, losses };
-}
-
-function mapLayers(layers: readonly DwgNeutralLayer[]): {
-  names: Map<number, string>;
-  definitions: CadLayerDef[];
-  losses: CadLossManifestEntry[];
-} {
-  const names = new Map<number, string>();
-  const losses: CadLossManifestEntry[] = [];
-  const seen = new Set<string>(["0"]);
-  const definitions: CadLayerDef[] = [
-    // ACI 7 es el color por defecto tradicional de la capa "0" (blanco/negro
-    // según fondo) — no es un dato del archivo, es el bootstrap sintético que
-    // existe aunque la base neutral no traiga ninguna capa.
-    { id: "0", name: "0", color: aciToHex(7), visible: true, locked: false },
-  ];
-
-  for (const layer of layers) {
-    const name = decodeCodePageBytes(layer.name);
-    names.set(layer.handle, name);
-    if (layer.name.some((byte) => byte > 0x7f)) {
-      losses.push({
-        code: DWG_BRIDGE_LOSS_CODES.codePage,
-        sourceType: "layer",
-        detail: `El nombre de la capa ${layer.handle} lleva bytes fuera de ASCII y la página de códigos del dibujo no se decodifica: se leyó como Latin-1.`,
-        severity: "warning",
-      });
-    }
-    // El laboratorio expone `stateFlags` CRUDO a propósito: su semántica bit a
-    // bit (apagada/congelada/bloqueada/trazado) queda pendiente de corpus real
-    // que la confirme para el binario DWG (regla registrada junto a la tabla
-    // de capas del códec). Interpretarla aquí sería adivinar exactamente lo
-    // que esa regla prohíbe — se declara la pérdida en vez de fingir
-    // off/frozen/locked.
-    if (layer.stateFlags !== 0) {
-      losses.push({
-        code: DWG_BRIDGE_LOSS_CODES.layerStateFlags,
-        sourceType: "layer",
-        detail: `La capa "${name}" (handle ${layer.handle}) trae banderas de estado con valor crudo ${layer.stateFlags} (posible apagada/congelada/bloqueada/trazado): su significado bit a bit no está confirmado contra corpus real todavía, así que no se aplican al documento — la capa se importa visible y desbloqueada.`,
-        severity: "warning",
-      });
-    }
-    if (seen.has(name)) continue;
-    seen.add(name);
-    definitions.push({
-      id: name,
-      name,
-      // ACI real del archivo (índices 1–9/250–255 exactos, 10–249 por rampa
-      // reproducible) en vez de una paleta rotatoria inventada por posición.
-      // Sin color decodificado hay que pintar ALGO —el lienzo no puede no
-      // dibujar—, así que se usa un gris neutro DELIBERADAMENTE distinto de
-      // cualquier ACI básico: que se vea que no es el color del archivo. La
-      // pérdida `layer-color-not-decoded` lo declara en el manifiesto, que es
-      // donde el usuario lo lee, y no en un toast que desaparece.
-      color:
-        layer.colorIndex === undefined
-          ? LAYER_COLOR_NOT_DECODED
-          : aciToHex(layer.colorIndex),
-      visible: true,
-      locked: false,
-    });
-  }
-  return { names, definitions, losses };
 }
 
 function mapBlocks(

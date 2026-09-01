@@ -187,7 +187,17 @@ const profiles: readonly BenchmarkProfile[] = [
         expectedOutcome: "DWG_VERSION_UNKNOWN",
       },
       {
-        bytes: patterned(1_048_576, "AC1032"),
+        // ACTUALIZADO EL 2026-09-01. Este caso era AC1032 y su papel en el
+        // perfil es «firma RECONOCIDA cuyo decodificador no existe», para que
+        // la mezcla cubra los cinco desenlaces posibles. AC1032 dejó de servir
+        // porque ahora SÍ se decodifica —el corpus queda en cero discrepancias
+        // en las cinco versiones—, así que el sujeto cambia a AC1021, que es
+        // el caso que hoy cumple ese papel de verdad: su contenedor
+        // Reed-Solomon se rechaza por diseño, con error tipado.
+        //
+        // Se cambia el SUJETO, no la expectativa: el perfil sigue midiendo lo
+        // mismo, sobre el mismo tamaño de entrada.
+        bytes: patterned(1_048_576, "AC1021"),
         expectedOutcome: "DWG_VERSION_DECODER_UNSUPPORTED",
       },
     ],

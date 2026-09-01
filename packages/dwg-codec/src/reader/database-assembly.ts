@@ -15,6 +15,19 @@
  * - **Determinista**: mismo mapa de objetos → misma base, en su orden.
  * - Los offsets de error se TRASLADAN al byte real del archivo.
  */
+import { interpretLayerStateFlags } from "../objects/layer-state.js";
+import { resolveLayerLinetypeNames } from "./layer-linetype-resolve.js";
+import {
+  MODEL_SPACE_NAME,
+  PAPER_SPACE_NAME,
+  buildEntityRecord,
+  diagnostic,
+  findBlockByName,
+  freezeEntityRecord,
+  resolveToBlock,
+  sameBytes,
+  type MutableEntityRecord,
+} from "./database-assembly-records.js";
 import type { DwgDiagnostic } from "../api/diagnostics.js";
 import type { DwgResolvedHandle } from "../codecs/bitcodes.js";
 import type { DwgGeometryEntity } from "../model/entity-geometry.js";
@@ -197,6 +210,8 @@ export type DecodedObject =
       readonly name: readonly number[];
       readonly colorIndex: number;
       readonly stateFlags: number;
+      /** Handle de su entrada LTYPE; se resuelve a nombre al final. */
+      readonly linetypeHandle: number | undefined;
     }
   | {
       readonly kind: "blockRecord";
@@ -257,6 +272,7 @@ export function decodeMappedObject(
           offset: entry.offset,
           name: decoded.layer.name,
           colorIndex: decoded.layer.color.index,
+          linetypeHandle: decoded.layer.linetypeHandle,
           stateFlags: decoded.layer.stateFlags,
         };
       }
@@ -471,16 +487,29 @@ export function assembleDatabase(
       case "dictionaryFamily":
         dictionaryObjects.push(object.result);
         break;
-      case "layer":
-        layers.push(
-          Object.freeze({
-            handle: object.handle,
-            name: object.name,
-            colorIndex: object.colorIndex,
-            stateFlags: object.stateFlags,
-          }),
-        );
+      case "layer": {
+        // El estado se resuelve AQUÍ, en el origen, con el criterio único del
+        // códec: así el documento canónico y el adaptador del producto reciben
+        // congelada y bloqueada ya decididas y ninguno descifra el `BS` por su
+        // cuenta. Dos criterios de «qué bit es congelada» no los vería divergir
+        // ninguna prueba.
+        const state = interpretLayerStateFlags(object.stateFlags);
+        // El NOMBRE del tipo de línea no se puede poner aquí: la tabla LTYPE
+        // se construye después de esta pasada. Viaja el handle y se resuelve
+        // al cerrar, que es cuando de verdad se conoce.
+        layers.push({
+          handle: object.handle,
+          name: object.name,
+          colorIndex: object.colorIndex,
+          stateFlags: object.stateFlags,
+          frozen: state.frozen,
+          locked: state.locked,
+          unmeasuredStateBits: state.unmeasuredBits,
+          linetypeHandle: object.linetypeHandle,
+          linetypeName: undefined,
+        });
         break;
+      }
       case "blockBegin": {
         // R2000: el marcador resuelve por su propietario (modo 0). R2004+
         // (medición 32/32 del corpus AC1018): los marcadores de los espacios
@@ -600,7 +629,7 @@ export function assembleDatabase(
   );
 
   return Object.freeze({
-    layers: Object.freeze(layers),
+    layers: resolveLayerLinetypeNames(layers, tables.linetypes),
     blocks: Object.freeze(
       blockOrder.map((block) =>
         Object.freeze({
@@ -661,140 +690,4 @@ export function assembleDatabase(
     }
     modelSpace.push(record);
   }
-}
-
-/** El registro mutable durante el ensamblado; se congela al final. */
-interface MutableEntityRecord {
-  readonly handle: number;
-  readonly entity: DwgGeometryEntity;
-  readonly layerHandle: number | undefined;
-  readonly insertedBlockName: readonly number[] | undefined;
-  readonly attributes: MutableEntityRecord[];
-  readonly vertices: MutableEntityRecord[];
-  sequenceEndHandle: number | undefined;
-}
-
-/** Congela un registro y sus atributos; sin atributos viaja `undefined`. */
-function freezeEntityRecord(
-  record: MutableEntityRecord,
-): Ac1015DatabaseEntityRecord {
-  return Object.freeze({
-    handle: record.handle,
-    entity: record.entity,
-    layerHandle: record.layerHandle,
-    insertedBlockName: record.insertedBlockName,
-    attributes:
-      record.attributes.length === 0
-        ? undefined
-        : Object.freeze(record.attributes.map(freezeEntityRecord)),
-    vertices:
-      record.vertices.length === 0
-        ? undefined
-        : Object.freeze(record.vertices.map(freezeEntityRecord)),
-    sequenceEndHandle: record.sequenceEndHandle,
-  });
-}
-
-/** La entidad de la base: geometría + capa + referencia de INSERT resuelta. */
-function buildEntityRecord(
-  object: Extract<DecodedObject, { kind: "entity" }>,
-  blocksByHandle: ReadonlyMap<number, { readonly name: readonly number[] }>,
-  diagnostics: DwgDiagnostic[],
-): MutableEntityRecord {
-  const { entity, references, common } = object.decoded;
-  const layerHandle =
-    references.layer.kind === "null" ? undefined : references.layer.handle;
-
-  let insertedBlockName: readonly number[] | undefined;
-  if (common.type === AC1015_TYPE_INSERT) {
-    const reference = references.blockRecord;
-    const target =
-      reference === undefined || reference.kind === "null"
-        ? undefined
-        : blocksByHandle.get(reference.handle);
-    if (target === undefined) {
-      // La referencia que da sentido al INSERT no resuelve: diagnóstico de
-      // ERROR, nombre indefinido y la entidad sigue visible — no silencioso.
-      diagnostics.push(
-        diagnostic(
-          "database-insert-block-unresolved",
-          "error",
-          object.offset,
-          "An INSERT does not resolve to a known block record.",
-        ),
-      );
-    } else {
-      insertedBlockName = target.name;
-    }
-  }
-
-  return {
-    handle: object.handle,
-    entity,
-    layerHandle,
-    insertedBlockName,
-    attributes: [],
-    vertices: [],
-    sequenceEndHandle: undefined,
-  };
-}
-
-/** Resuelve una referencia de la cabeza del flujo a un bloque conocido. */
-function resolveToBlock<T>(
-  reference: DwgResolvedHandle | undefined,
-  blocksByHandle: ReadonlyMap<number, T>,
-): T | undefined {
-  if (reference === undefined || reference.kind === "null") return undefined;
-  return blocksByHandle.get(reference.handle);
-}
-
-/** "*Model_Space" y "*Paper_Space" en bytes, para los marcadores R2004+. */
-const MODEL_SPACE_NAME: readonly number[] = Object.freeze(
-  [...`*Model_Space`].map((character) => character.charCodeAt(0)),
-);
-const PAPER_SPACE_NAME: readonly number[] = Object.freeze(
-  [...`*Paper_Space`].map((character) => character.charCodeAt(0)),
-);
-
-/**
- * Busca un bloque por nombre, byte a byte SIN distinguir mayúsculas ASCII —
- * los nombres de bloque del formato no las distinguen y los escritores
- * reales varían la caja de los espacios canónicos.
- */
-function findBlockByName<T extends { readonly name: readonly number[] }>(
-  blocks: readonly T[],
-  name: readonly number[],
-): T | undefined {
-  const fold = (byte: number): number =>
-    byte >= 0x61 && byte <= 0x7a ? byte - 0x20 : byte;
-  for (const block of blocks) {
-    if (block.name.length !== name.length) continue;
-    let matches = true;
-    for (let index = 0; index < name.length; index += 1) {
-      if (fold(block.name[index]!) !== fold(name[index]!)) {
-        matches = false;
-        break;
-      }
-    }
-    if (matches) return block;
-  }
-  return undefined;
-}
-
-/** ¿Mismos bytes, byte a byte? Para contrastar nombres de bloque. */
-function sameBytes(left: readonly number[], right: readonly number[]): boolean {
-  if (left.length !== right.length) return false;
-  for (let index = 0; index < left.length; index += 1) {
-    if (left[index] !== right[index]) return false;
-  }
-  return true;
-}
-
-function diagnostic(
-  code: string,
-  severity: DwgDiagnostic["severity"],
-  offset: number,
-  message: string,
-): DwgDiagnostic {
-  return Object.freeze({ code, severity, offset, message });
 }

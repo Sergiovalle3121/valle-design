@@ -135,9 +135,15 @@ ARG NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA
 # encenderla no habilita nada, `dwg3dWireframeBetaImportIsEnabled` sigue
 # cerrada por conjunción (`dwg-interop-flag.ts`).
 ARG NEXT_PUBLIC_DWG_3D_WIREFRAME_IMPORT_BETA
+# Familia MODERNA (AC1024/AC1027/AC1032). El códec las lee con cero
+# discrepancias; encenderla NO habilita nada porque
+# `dwgModernBetaImportIsEnabled` sigue cerrada por conjunción — falta la firma
+# del titular para esta familia, no código.
+ARG NEXT_PUBLIC_DWG_MODERN_IMPORT_BETA
 ENV NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA=${NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA}
 ENV NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA=${NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA}
 ENV NEXT_PUBLIC_DWG_3D_WIREFRAME_IMPORT_BETA=${NEXT_PUBLIC_DWG_3D_WIREFRAME_IMPORT_BETA}
+ENV NEXT_PUBLIC_DWG_MODERN_IMPORT_BETA=${NEXT_PUBLIC_DWG_MODERN_IMPORT_BETA}
 
 ENV NEXT_OUTPUT=standalone
 ENV NEXT_TELEMETRY_DISABLED=1

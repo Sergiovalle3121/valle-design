@@ -629,7 +629,7 @@ versiones modernas: **de 0/8 a 8/8 abiertos en AC1024, AC1027 y AC1032**.
 
 | Capacidad                         | Evidencia          | Límite honesto                                                                                                                                                                                                    |
 | --------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Base neutral AC1024/AC1027/AC1032 | `experimental-lab` | Abre 8/8 con **0 geometrías distintas**. INSERT y TEXT no tienen cuerpo medido; el color y las banderas de capa, las variables de cabecera y los registros de clase **no se decodifican y se declaran ausentes**. |
+| Base neutral AC1024/AC1027/AC1032 | `experimental-lab` | Abre 8/8 con **0 geometrías distintas**. INSERT y TEXT no tienen cuerpo medido; las variables de cabecera y los registros de clase **no se decodifican y se declaran ausentes**. [CORREGIDO EL 2026-09-01: el color y las banderas de capa SÍ se decodifican desde la fase 1.F, y desde el corte 2026-09-01 (b) las banderas además se INTERPRETAN — congelada y bloqueada.] |
 
 **Lo que de verdad importa de la matriz: `geometriaDistinta = 0` en todo.** Nada
 decodifica a un valor equivocado. Lo que falta, falta.
@@ -869,3 +869,339 @@ cerrado** y el puente declara la suposición, en vez de inventar unidades.
 
 Evidencia: `docs/cad/evidence/dwg-r2010-header-variables.json`, reproducible con
 `node scripts/dwg/probe-r2010-header-variables.mjs`.
+
+## Corte 2026-09-01 quater — las versiones modernas llegan a la FRONTERA del producto
+
+Hasta este corte pasaba algo que conviene decir sin adornos: **el códec leía
+AC1024, AC1027 y AC1032 con cero discrepancias y el producto las rechazaba.**
+`readDwgNeutralDatabase` admitía exactamente `AC1015` y `AC1018`, así que un
+DWG de AutoCAD 2018 —el formato de guardado **por defecto** de AutoCAD
+2018–2026, o sea lo que produce un cliente real al pulsar Guardar— chocaba
+contra un mensaje de "esta beta sólo lee AutoCAD 2000".
+
+Leer bien y no dejar entrar es justo la distancia entre un laboratorio y un
+producto. Este corte cierra **el cableado**, no la puerta.
+
+**Lo que se construyó**, siguiendo el patrón EXACTO que ya usaban AC1018 y el
+perfil 3D, sin inventar mecanismos nuevos:
+
+| pieza | qué hace |
+| --- | --- |
+| `DWG_MODERN_BETA_AUTHORIZATION` | autorización **propia**, perfil `AC1024_AC1027_AC1032_MODELSPACE_2D_V1` |
+| `dwgModernBetaImportIsEnabled()` | la **misma** conjunción de tres condiciones: bandera + firma + beta base |
+| `allowModern` en `readDwgNeutralDatabase` | la puerta **acumula** versiones concretas en vez de abrir por familia |
+| `NEXT_PUBLIC_DWG_MODERN_IMPORT_BETA` | su variable propia, declarada en `.env.example`, Dockerfile y su validador |
+| `dwg-native-reader-modern.spec.ts` | vigila **las dos direcciones** |
+
+**Esto NO es una firma.** `ownerSigned` es literalmente `false` y está tipado
+`boolean` —no el literal `true` de AC1015 y AC1018— precisamente para que
+cambiarlo a mano haga **fallar** un spec en vez de dejar de compilar. Nadie ha
+tenido con el titular la conversación que sí tuvieron V1/V2/V3 y M3. Que el
+códec las lea perfectamente **no basta**: medir y autorizar son cosas
+distintas, y ésta es la segunda.
+
+**Por qué un mecanismo separado y no ampliar el de AC1018.** Comparten el
+contenedor R2004, así que colgar las tres versiones nuevas del flag que ya
+existe era la comodidad evidente — y es exactamente lo que el diseño de estos
+flags existe para impedir. Son cinco versiones con cinco riesgos distintos y
+cada una entra por su puerta. El spec lo comprueba: con `allowAc1018: true` y
+sin permiso moderno, las tres modernas **siguen fuera**.
+
+**La spec vigila las dos direcciones a propósito.** Que sin firma no entre
+nada es la mitad fácil; probar sólo eso dejaría pasar un cableado que no
+cablea nada. Así que también comprueba que con `allowModern` entran
+**exactamente** las tres, y que `AC1021` —que nadie ha autorizado nunca— sigue
+rechazándose con todos los permisos encendidos.
+
+**Una frase caducada, corregida en su sitio.** El bloque de AC1018 en
+`dwg-interop-flag.ts` afirmaba que «sólo AC1018 decodifica objetos hoy, la
+familia AC1024/1027/1032 abre el contenedor pero no sus cuerpos». Dejó de ser
+cierto y se corrige con su adenda fechada, porque una frase caduca sobre lo
+que el códec sabe hacer es justo la que lleva a ampliar un flag en silencio
+—«total, si ya lo lee»—.
+
+### Y una contradicción del propio códec, encontrada al cablear
+
+Al montar el cableado apareció algo que ningún gate veía y que lo habría
+dejado inservible: **`probeDwg` declaraba `unsupported` las tres versiones
+modernas mientras `readDwg` abría el mismo archivo sin problema.**
+
+Medido sobre `08-plano-mini.dwg`, el mismo dibujo en las cinco versiones:
+
+| versión | `probe.ok` (antes) | `readDwg` |
+| --- | --- | --- |
+| AC1015 / AC1018 | `true` | 5 capas, 3 bloques |
+| AC1024 / AC1027 / AC1032 | **`false`** | **5 capas, 3 bloques** |
+
+El origen era un dato caducado: `version-registry.ts` seguía marcando
+`decoderStatus: "unsupported"` para las tres, y `api/probe.ts` falla por ese
+campo. O sea que el códec **se desmentía a sí mismo delante del llamador**, y
+cualquier consumidor que sondeara antes de leer —que es lo sensato— concluía
+que no se podía. El cableado del producto llama a `probeDwg` primero, así que
+sin esta corrección `allowModern` no se habría alcanzado nunca.
+
+Corregido a `experimental-lab`, que es lo que el corpus mide. **AC1021 (R2007)
+se queda en `unsupported` y no por olvido**: su contenedor Reed-Solomon se
+rechaza por diseño, con error tipado.
+
+La corrección obligó a actualizar tres guardianes que habían congelado la
+afirmación falsa como si fuera un invariante —el test del registro, el
+adversario del probe y el generador determinista de fixtures—. Las fixtures se
+**regeneraron con la herramienta del repo**, nunca a mano: editar el manifiesto
+directamente lo detecta `check:fixtures`, y lo detectó.
+
+**Lo que sigue esperando, sin suavizar:** una firma del titular para esta
+familia. No es ingeniería: el cableado está hecho y probado, y el día que esa
+conversación ocurra, encender la familia moderna es cambiar una constante y
+una variable de entorno, no escribir código.
+
+## Corte 2026-09-01 (b) — el estado de una capa deja de ser un número crudo
+
+**CORRECCIÓN DE DOS AFIRMACIONES DE ESTE MISMO DOCUMENTO.** Arriba se lee, en
+el corte del 2026-08-21, que «los `stateFlags` de capa siguen crudos», y en el
+del 2026-08-24 que su semántica «no está confirmada contra corpus real para el
+binario DWG». Ambas eran ciertas cuando se escribieron y **han dejado de
+serlo**. No se reescriben: se corrigen aquí, fechadas, como exige la
+disciplina del repo.
+
+**Qué se midió.** El corpus admitido trae `04-capas`, un dibujo construido a
+propósito con una capa `CONGELADA` y una `BLOQUEADA`, y **su DXF fuente dice
+cuál es cuál antes de mirar el binario**. Eso convierte la semántica en una
+hipótesis contrastable contra un hecho externo, no en una lectura plausible.
+
+| | resultado |
+| --- | --- |
+| capas comparadas | **98**, de 57 fixtures, en las **cinco** versiones |
+| bit de congelada | **0** — acierta en 98/98 (5 positivos, 93 negativos) |
+| bit de bloqueada | **3** — acierta en 98/98 (5 positivos, 93 negativos) |
+| hipótesis rivales | las **16** posiciones de bit; ninguna otra separa nada |
+| bits constantes | 1, 2 y 4..15 — **sin significado atribuido** |
+
+**Se probaron todos los bits, no el que uno espera.** Un bit sólo se acepta si
+acierta siempre **y** es separable —al menos un positivo y un negativo—, porque
+un bit constante acierta en bloque sin falsar nada. Es exactamente la
+disciplina que hubo que aplicar para corregir el barrido de banderas de la
+fase 1.F.
+
+**La trampa que habría caído sola.** El grupo 70 del DXF marca «bloqueada» con
+el valor 4 —el **bit 2**— y el DWG la marca en el **bit 3**. Copiar la
+convención del DXF por analogía habría acertado en congelada y fallado en
+bloqueada: el peor error posible, el que funciona a medias y nadie mira dos
+veces. Sólo se ve midiendo.
+
+**Qué cambia en el producto.** Una capa congelada entra **congelada** y una
+bloqueada entra **bloqueada**, en las cinco versiones. Hasta hoy toda capa
+llegaba al lienzo `visible: true, locked: false` con una pérdida declarada —
+correcto mientras no se ha medido, y falso cuando sí. **Ninguna capacidad se
+promueve y ningún flag se enciende**: esto no amplía qué archivos entran,
+mejora lo que se hace con los que ya entraban.
+
+**Congelada viaja en `frozen`, no plegada en `visible`.** El producto ya
+modelaba la congelación como un estado propio —ni se dibuja, ni se regenera,
+ni entra en selección, `cad-layer-visibility.ts`— y usar `visible: false` para
+transportarla habría dicho «esta capa está apagada», que es **más de lo que se
+sabe**. La capa canónica del laboratorio gana el mismo campo por la misma
+razón.
+
+**Un criterio, no dos.** El estado se resuelve **en el ensamblado**, en el
+origen, y viaja resuelto en el dato hasta el lienzo. Se consideró exportar
+`interpretLayerStateFlags` en la superficie pública y **se descartó**: son
+siete llamables por diseño, y el test que los congela hizo bien su trabajo.
+Resolver en el origen deja al documento canónico y al adaptador del producto
+con el mismo criterio sin que ninguno descifre el `BS` por su cuenta.
+
+**Lo que NO se afirma, y no es un detalle.** La **capa apagada** no se mide y
+no se dice. El DXF la codifica con color negativo y en el corpus admitido no
+hay **ni una sola** capa apagada, así que el estado apagado/encendido no es
+falsable con esta evidencia: una capa apagada de un dibujo real entraría
+visible. Se declara como pérdida en la capa concreta en vez de dejar que el
+usuario lo descubra en el lienzo. Y los casos positivos vienen de **un solo
+dibujo**: lo que multiplica la evidencia son las cinco versiones y las capas
+normales de los otros siete. Todo el corpus sigue siendo salida del ODA File
+Converter — lo medido es cómo **ese** productor codifica el estado.
+
+## Corte 2026-09-01 (c) — qué capa usa qué tipo de línea
+
+El códec decodificaba la tabla LTYPE **entera** —patrón, alineación y trazos,
+en las cinco versiones— y también la tabla de capas. Lo que **no** sabía es
+**quién usa cuál**: el registro de capa no llevaba ninguna referencia al tipo
+de línea. Los dos extremos estaban leídos y el puente entre ellos no existía,
+así que una capa de ejes con `TRAZOS` salía del import sin tipo de línea y una
+reexportación a DXF ya no lo llevaba.
+
+**Dónde vivía el dato.** El hecho de que el tipo de línea viaja **por handle**
+en el flujo final de la entrada ya estaba registrado
+(`ODA-ODS-DWG-5.4.1-PUBLIC`); ese flujo se contabilizaba como tramo opaco —
+posición exacta, contenido sin interpretar—, que es la regla del laboratorio
+para lo que no se ha medido. Lo que faltaba era **su posición**.
+
+| | resultado |
+| --- | --- |
+| capas comparadas | **98**, de 57 fixtures, en las **cinco** versiones |
+| posición del tipo de línea | **4** — acierta en 98/98 |
+| hipótesis rivales | posiciones 0–3: **0/98**, y ninguna resuelve a un LTYPE |
+| tipos en juego | **4** distintos: CONTINUOUS, TRAZOS, OCULTA-VALLE, TRAZOS-VALLE |
+
+**Una posición, dos lectores.** R2000/R2004 la encuentra en el tramo opaco que
+el decodificador de LAYER ya localizaba; R2010+ en su flujo de handles propio,
+el ya medido en 105/105 objetos. Que una sola posición sirva para las cinco
+versiones es un **resultado medido**, no una analogía.
+
+**Tres caminos y no dos.** AC1015 y AC1018 comparten la forma del objeto pero
+**no el contenedor**, y además un cuerpo AC1018 debe pasar por el adaptador a
+forma R2000 antes de decodificarse. Omitirlo no da error visible: el
+decodificador no reconoce el tipo y las ocho capas de AC1018 quedan fuera de la
+medición **en silencio**. Se detectó porque la sonda declaraba cuatro versiones
+en vez de cinco.
+
+### Alcance honesto: qué gana el producto y qué NO
+
+Esto **no** hace que el lienzo dibuje la capa discontinua. Se comprobó antes de
+escribirlo: `applyLinetype` no lo usa nadie fuera de su propio módulo, y el
+trazo del lienzo no consulta el tipo de línea de la capa. Lo que sí gana:
+
+- el nombre del tipo de línea **llega al documento** desde el DWG;
+- **sobrevive la exportación DXF** (`dxf-document-export.ts`), así que un
+  DWG→DXF deja de perder el tipo de línea de todas sus capas;
+- entra en la huella de norma de oficina (`office-standard.ts`).
+
+**Limitaciones que se declaran, no se tapan.** El desplegable del gestor de
+capas muestra `CONTINUOUS` para cualquier nombre fuera de `CAD_LINETYPE_NAMES`
+—`TRAZOS` entre ellos—; es previo a este corte y afecta igual al import DXF.
+Y el **writer** AC1015 del laboratorio emite los cinco handles del flujo final
+**nulos** (placeholders confesos), así que hoy el códec **lee** el tipo de
+línea de una capa y **no lo escribe**: una asimetría real, ahora visible.
+
+**Nunca `CONTINUOUS` por defecto.** Un handle que la tabla LTYPE del dibujo no
+trae, o un handle nulo, dejan el nombre **ausente** y lo declaran como pérdida
+nombrando a qué apuntaba. `CONTINUOUS` es un tipo de línea real, no un «no sé».
+
+## Corte 2026-09-01 (d) — el oráculo externo verifica ahora el writer PÚBLICO
+
+**Una precondición firmada que no se estaba cumpliendo.** ADR-0009 §8.2 exige,
+**antes de cablear exportación al producto**, que exista una función pública de
+escritura y que **su salida** se verifique contra el ODA File Converter con la
+disciplina de `check:dwg`; dice, con esas palabras, que la evidencia previa «no
+nombra un contrato de API público». `scripts/dwg/oda-roundtrip.mjs` —el gate
+que sólo el titular puede correr, y del que depende mover
+`externalOracleVerified`— escribía sus cuatro casos con el writer **interno**
+`writeAc1015MinimalFile`. La corrida no podía satisfacer la precondición.
+
+**Y no era formalismo.** Al exigirla apareció un fallo real y silencioso: el
+camino público **perdía el color de cada capa**. Una capa cian (ACI 4) salía
+escrita como blanca (ACI 7), y **nada** aparecía en el manifiesto de pérdidas.
+
+| | |
+| --- | --- |
+| causa | `writeCanonicalDwg` recibe el color en **hexadecimal** (documento canónico) y empujaba la capa con su nombre y nada más |
+| por qué nadie lo veía | el writer **interno** recibe el índice ACI ya resuelto y siempre estuvo bien; verificar sólo uno de los dos no podía verlo |
+| medición | de los cuatro casos, **tres** salían byte a byte idénticos por ambos caminos y **`capa-linea` no** — el único con una capa de color |
+| tras el arreglo | **4/4 byte a byte idénticos** |
+
+**La tabla ACI vive ahora en un solo sitio, en las dos direcciones**
+(`objects/aci-basic.ts`). Dos tablas separadas es donde una divergencia entre
+leer y escribir no la ve ninguna prueba: la de ida diría cian y la de vuelta
+blanco. El blanco `#FFFFFF` es a la vez el 7 y el 255; gana el menor, que es el
+convencional. Un color fuera de la tabla básica **no se aproxima al más
+cercano**: se declara como pérdida, porque aproximar convertiría «no sé
+escribir este color» en «este color es gris».
+
+**Qué corre ahora el titular.** Ocho casos en vez de cuatro: los mismos cuatro
+dibujos escritos por el writer interno **y** por la API pública, cada uno como
+un caso independiente ante el conversor. Se comparan contra las mismas
+expectativas. Van los dos aunque hoy salgan idénticos: decir «son iguales, con
+verificar uno basta» es exactamente el atajo que dejó este agujero abierto.
+
+**Lo que sigue sin poder hacerse aquí.** El binario ODA es del titular y sólo
+él puede correrlo; `externalOracleVerified` sigue en `false` y esto no lo mueve.
+Lo que cambia es que, cuando lo corra, verificará **lo que el ADR nombra**.
+
+## Corte 2026-09-01 (e) — escribir el estado de la capa, y declarar el tipo de línea que no se sabe escribir
+
+**Lo que se medía perdido.** Con el color ya arreglado, un round-trip por el
+camino público (`writeCanonicalDwg` → `readDwg`) seguía perdiendo tres cosas de
+cada capa, **con el manifiesto de pérdidas vacío**:
+
+| escrito | volvía como | |
+| --- | --- | --- |
+| `CONGELADA` frozen=**true** | frozen=**false** | perdido, sin declarar |
+| `BLOQUEADA` locked=**true** | locked=**false** | perdido, sin declarar |
+| `EJES` linetype=**TRAZOS** | **Continuous** | **valor equivocado**, no ausencia |
+
+El tercero era el peor: no decía «no sé», decía *Continuous*. Una capa de ejes
+discontinua volvía sólida y con aspecto de dato bueno.
+
+**Causa, corregida respecto de un diagnóstico propio.** Al abrir el código
+resultó que hay **dos** writers de LAYER y que el que viaja en el archivo
+—`writeAc1015ResolvedLayerBody`— ya resolvía sus handles; los cinco nulos son
+del writer de tabla de la fase D3, que **no** es el que se escribe. Los huecos
+reales eran otros dos: al writer que sí viaja **nunca se le pasaba el estado**
+(caía al 1008 por defecto), y su `linetypeHandle` está fijado a Continuous
+porque el archivo mínimo **sólo lleva esa entrada LTYPE**.
+
+**Qué cambia.** El estado se compone con `encodeLayerStateFlags`, que vive
+junto a la función que lo lee: el mismo módulo, las dos direcciones. Si la
+lectura y la escritura tuvieran cada una su idea de qué bit es congelada, la
+divergencia no la vería ninguna prueba — se escribiría una cosa y se leería
+otra, y las dos serían coherentes consigo mismas. Los valores esperados en la
+spec son los **medidos en el corpus** (1008, 1009, 1016), no los que produzca
+la implementación.
+
+Resultado del mismo round-trip: **congelada y bloqueada sobreviven**, y el tipo
+de línea no emitible sale ahora con su pérdida `layer-linetype-not-writable`.
+
+**Lo que sigue sin poder hacerse, y queda dicho.** El archivo mínimo emite una
+sola entrada LTYPE, así que `TRAZOS` **se sigue escribiendo continuo** — la
+diferencia es que ahora se declara en vez de fingirse. Emitir entradas LTYPE
+propias con su patrón de trazos es un corte aparte y más grande.
+
+**Ante el oráculo.** El harness gana un caso, `capa-estado`, con una capa
+congelada y una bloqueada. El parser DXF del oráculo compara capas por nombre y
+color y **no** proyecta el estado, así que lo que ese caso pregunta a un lector
+ajeno es que el archivo con esos bits encendidos siga abriendo y convirtiendo
+limpio; que el estado *signifique* lo que decimos lo prueba el round-trip
+propio. Con el gemelo público de cada caso, el titular corre ahora **diez**.
+
+## Corte 2026-09-01 (f) — el patrón de trazos se escribe de verdad
+
+El corte anterior dejó dicho lo que faltaba: el archivo mínimo emitía **una
+sola** entrada LTYPE, Continuous, así que una capa con `TRAZOS` se exportaba
+sólida y —leída de vuelta— decía «Continuous». No una ausencia: **un valor
+equivocado con aspecto de dato bueno**. Eso se cierra aquí.
+
+**El writer de LTYPE tenía tres constantes donde debía haber datos**:
+`emitBD(0)` de longitud, `emitRC(0x41)` de alineación y `emitRC(0)` de **cero
+trazos**. Ahora emite el patrón real, con la MISMA séptupla por trazo que el
+lector ya medía —longitud `BD`, código de forma `BS`, dos desplazamientos `RD`,
+escala `BD`, rotación `BD`, banderas `BS`— y en el mismo orden. La red que hace
+innecesario confiar en ese orden ya existía: el lector exige que el área de
+texto de 256 bytes llene el tamaño declarado, así que un trazo de más o de
+menos lo detecta él solo.
+
+**El archivo lleva ahora las entradas del dibujo.** El plan de handles les
+reserva sitio, el LTYPE CONTROL las lista —una entrada que el control no liste
+queda huérfana— y **cada capa apunta a la suya** en vez de al Continuous fijo.
+Un detalle que descubrió el propio writer al intentarlo: sus handles salen del
+tramo dinámico, así que emitirlas junto a las fijas rompe el invariante de
+orden creciente; van al principio del tramo dinámico, antes que las capas que
+las referencian.
+
+**Ida y vuelta, con los valores del corpus real** (`04-capas`: `TRAZOS`,
+longitud 1, trazos `[0.75, -0.25]`) — no unos inventados, porque un emisor y un
+lector que se equivocaran del mismo modo serían coherentes entre sí y estarían
+los dos mal:
+
+| | |
+| --- | --- |
+| patrón definido por el documento | **se escribe y vuelve idéntico** |
+| capa que lo pide | **apunta a su entrada**, no a Continuous |
+| capa que no pide nada | sigue en Continuous — no se le presta el patrón de otra |
+| tipo de línea **nombrado pero no definido** | continua, **con su pérdida declarada** |
+
+Esa última fila es la línea que no se cruza: al que no trae patrón **no se le
+inventan trazos**. La diferencia entre «no sé» y un dato falso.
+
+**Ante el oráculo.** Nuevo caso `capa-tipo-de-linea`, y éste **sí** lo comprueba
+campo a campo: el parser DXF del oráculo ya extrae la tabla LTYPE con su
+longitud y sus trazos, así que si el patrón escrito no fuera el declarado, el
+cotejo lo diría. Con el gemelo público de cada caso, el titular corre **doce**.

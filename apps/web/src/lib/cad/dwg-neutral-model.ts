@@ -493,6 +493,35 @@ export interface DwgNeutralLayer {
    */
   readonly colorIndex: number | undefined;
   readonly stateFlags: number | undefined;
+  /**
+   * ESTADO YA INTERPRETADO POR EL ADAPTADOR AUTORIZADO. Desde el 2026-09-01
+   * los dos bits medidos contra el oráculo DXF —congelada (bit 0) y bloqueada
+   * (bit 3)— viajan resueltos en vez de crudos. Viajan así, y no como un
+   * número que cada consumidor descifre, porque el producto sólo puede
+   * importar el códec por un punto: si el puente interpretara el `BS` por su
+   * cuenta acabaría habiendo dos criterios de «qué bit es congelada», y la
+   * divergencia entre ellos no la vería ningún gate.
+   *
+   * `undefined` cuando el estado no se decodificó; nunca un `false` fingido.
+   */
+  readonly frozen: boolean | undefined;
+  readonly locked: boolean | undefined;
+  /**
+   * Bits del estado que se apartan del patrón constante del corpus medido. No
+   * es un error: es la frontera de lo medido, para que el puente pueda
+   * DECLARARLA en el manifiesto de pérdidas en vez de callarla.
+   */
+  readonly unmeasuredStateBits: number | undefined;
+  /**
+   * NOMBRE del tipo de línea de la capa, ya resuelto por el laboratorio
+   * contra la tabla LTYPE del propio dibujo (el enlace es un handle, y su
+   * posición en el flujo se midió sobre 98 capas de las cinco versiones).
+   *
+   * `undefined` cuando no se pudo resolver. Nunca `"CONTINUOUS"` por defecto:
+   * ése es un tipo de línea real y no un «no sé», y ponerlo convertiría una
+   * ausencia declarable en un dato inventado.
+   */
+  readonly linetypeName: string | undefined;
 }
 
 export interface DwgNeutralEntityRecord {

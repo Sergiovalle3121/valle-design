@@ -280,7 +280,7 @@ async function main() {
     environment: environment(),
     veredicto,
     alcance:
-      "Sólo el ENCABEZADO del cuerpo de objeto (tamaño MS, tamaño del flujo de handles UMC, tipo BOT y handle propio H) sobre los fixtures AC1024/AC1027/AC1032 del corpus admitido y verificado por hash. No decodifica el cuerpo: readR2004Database sigue fallando cerrado para estas tres versiones.",
+      "Sólo el ENCABEZADO del cuerpo de objeto (tamaño MS, tamaño del flujo de handles UMC, tipo BOT y handle propio H) sobre los fixtures AC1024/AC1027/AC1032 del corpus admitido y verificado por hash. No decodifica el cuerpo: cuando se midio esto, readR2004Database fallaba cerrado para las tres. [ACTUALIZADO EL 2026-09-01: ya no. Las tres se leen enteras y el corpus queda en cero discrepancias en las cinco versiones; esta sonda mide un ESCALON anterior y se conserva porque su medicion del encabezado sigue siendo la que sostiene todo lo que vino despues.]",
     metodo:
       "Los cinco bundles fundacionales son los mismos ocho dibujos en cinco contenedores desde un DXF fuente byte-idéntico. El gemelo AC1015 —ya validado con cero discrepancias contra su oráculo DXF— da el tipo esperado de cada handle. La falsación primaria es que el handle propio, que viaja pegado tras el tipo, aterrice exacto: un ancho equivocado en cualquiera de los tres campos previos lo desalinearía.",
     limiteDeLaEvidencia:

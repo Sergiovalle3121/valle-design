@@ -2150,6 +2150,219 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "DWG-PRODUCTO-FAMILIA-MODERNA-CABLEADA-20260901",
+      "date": "2026-09-01",
+      "initiative": "Cierra el hueco entre laboratorio y producto para las versiones modernas. El codec leia AC1024, AC1027 y AC1032 con CERO discrepancias y el producto las RECHAZABA: readDwgNeutralDatabase admitia exactamente AC1015 y AC1018, asi que un DWG de AutoCAD 2018 -el formato de guardado por defecto de AutoCAD 2018-2026, lo que produce un cliente real al pulsar Guardar- chocaba contra 'esta beta solo lee AutoCAD 2000'. Se construye el CABLEADO, no la puerta, siguiendo el patron exacto de AC1018 y del perfil 3D sin inventar mecanismos: DWG_MODERN_BETA_AUTHORIZATION con perfil propio, dwgModernBetaImportIsEnabled con la MISMA conjuncion de tres condiciones, opcion allowModern donde la puerta acumula versiones concretas en vez de abrir por familia, variable NEXT_PUBLIC_DWG_MODERN_IMPORT_BETA declarada en .env.example, Dockerfile y su validador, y una spec que vigila LAS DOS DIRECCIONES -que sin firma no entre nada, y que con allowModern entren exactamente las tres y AC1021 siga fuera-, porque probar solo la primera dejaria pasar un cableado que no cablea nada. NO ES UNA FIRMA: ownerSigned es false y esta tipado boolean, no el literal true de las autorizaciones reales, para que cambiarlo a mano haga FALLAR un spec en vez de dejar de compilar. Que el codec las lea perfectamente no basta: medir y autorizar son cosas distintas. Mecanismo separado y no ampliacion del de AC1018 a proposito: comparten contenedor R2004 y colgar las tres versiones nuevas del flag existente era la comodidad evidente, que es justo lo que este diseno impide. Se corrige ademas en su sitio una frase caducada del bloque AC1018 que afirmaba que la familia moderna 'abre el contenedor pero no sus cuerpos', falsa desde el corte de versiones modernas. HALLAZGO ADICIONAL, encontrado al cablear y que habria dejado el cableado inservible: el codec se CONTRADECIA a si mismo. probeDwg declaraba unsupported las tres versiones modernas mientras readDwg abria el mismo archivo (medido sobre 08-plano-mini.dwg en las cinco versiones: probe.ok=false y readDwg OK con 5 capas y 3 bloques). El origen era un dato caducado en version-registry.ts, que seguia con decoderStatus 'unsupported', y api/probe.ts falla por ese campo; como el cableado del producto sondea ANTES de leer, allowModern no se habria alcanzado nunca. Corregido a 'experimental-lab', que es lo que el corpus mide; AC1021 se queda unsupported por diseno (contenedor Reed-Solomon rechazado con error tipado). La correccion obligo a actualizar tres guardianes que habian congelado la afirmacion falsa como invariante -el test del registro, el adversario del probe y el generador determinista de fixtures-, y las fixtures se REGENERARON con la herramienta del repo: editar el manifiesto a mano lo detecta check:fixtures, y lo detecto.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de subir el nivel — «no quiero laboratorios, quiero mi propio DWG real y funcional».",
+      "firstPartyInputs": [
+        "El propio codec DWG, ya medido en cero discrepancias sobre el corpus admitido.",
+        "El patron de autorizacion ya firmado de AC1015 y AC1018, reusado sin cambios."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. Ninguna fuente documental nueva intervino.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/dwg-interop-flag.ts (autorizacion propia de la familia moderna; adenda fechada sobre la frase caducada)",
+        "apps/web/src/lib/cad/dwg-native-reader.ts (opcion allowModern; la puerta acumula versiones)",
+        "apps/web/src/lib/cad/document-import-client.ts y document-import.worker.ts (la variable llega resuelta al lector)",
+        "apps/web/src/lib/cad/dwg-native-reader-modern.spec.ts (spec nueva, las dos direcciones)",
+        "scripts/dwg/check-product-boundary.mjs (la spec nueva entra como importador autorizado)",
+        ".env.example, apps/web/Dockerfile y scripts/deploy/validate-dockerfiles.mjs (+ su spec)",
+        "packages/dwg-codec/CAPABILITIES.md (corte nuevo)",
+        "packages/dwg-codec/src/container/version-registry.ts (decoderStatus corregido en las tres modernas, con la razon fechada)",
+        "packages/dwg-codec/tests/unit/api.spec.ts y tests/adversarial/probe-boundary.spec.ts (los guardianes dejan de congelar la contradiccion)",
+        "packages/dwg-codec/fixtures/generators/generate-synthetic.ts (+ manifiesto REGENERADO con la herramienta)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de dejar de tener un laboratorio y tener un DWG real y funcional."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-CAPA-ESTADO-SEMANTICA-MEDIDA-20260901",
+      "date": "2026-09-01",
+      "initiative": "El codec decodificaba el BS de estado de LAYER en las cinco versiones y NO sabia que significaba: canonical-layers.ts lo declaraba perdida -'su semantica bit a bit sigue sin fuente registrada y no se interpreta'- y toda capa llegaba al lienzo visible y desbloqueada. Para el usuario eso no era prudencia, era un dibujo mal abierto: una capa CONGELADA se dibujaba igual que las demas. Se midio en vez de suponer. El corpus admitido trae 04-capas, un dibujo construido a proposito con una capa CONGELADA y una BLOQUEADA, y su DXF fuente dice cual es cual ANTES de mirar el binario: eso convierte la semantica en una hipotesis contrastable contra un hecho externo. La sonda probo LAS DIECISEIS posiciones de bit, no la esperada, sobre 98 capas de 57 fixtures en las cinco versiones: el bit 0 acierta siempre para congelada y el bit 3 siempre para bloqueada, y ninguna otra posicion separa ninguno de los dos hechos. Un bit se acepta solo si acierta siempre Y es separable -al menos un positivo y un negativo-, porque un bit constante acierta en bloque sin falsar nada; es la disciplina que hubo que aplicar para corregir el barrido de la fase 1.F. LA TRAMPA QUE HABRIA CAIDO SOLA: el grupo 70 del DXF marca bloqueada con el valor 4 -el bit 2- y el DWG la marca en el bit 3, asi que copiar la convencion del DXF por analogia habria acertado en congelada y fallado en bloqueada, el peor error posible, el que funciona a medias. UN CRITERIO Y NO DOS: el estado se resuelve en el ENSAMBLADO y viaja resuelto en el dato hasta el lienzo; se considero exportar interpretLayerStateFlags en la superficie publica y se DESCARTO porque son siete llamables por diseno y el test que los congela hizo bien su trabajo. LO QUE NO SE AFIRMA: la capa APAGADA no se mide y no se dice -el DXF la codifica con color negativo y en el corpus no hay ni una-, asi que una capa apagada de un dibujo real entraria visible, y eso se declara como perdida en la capa concreta en vez de dejar que el usuario lo descubra en el lienzo. NO promueve ninguna capacidad ni enciende ningun flag: no amplia que archivos entran, mejora lo que se hace con los que ya entraban. Ademas se corrigieron tres afirmaciones caducadas de este mismo repo -dos en CAPABILITIES.md y la cabecera de canonical-layers.ts- y se reescribio el test del puente que habia congelado la carencia como invariante.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de subir el nivel — «no quiero laboratorios, quiero mi propio DWG real y funcional; analiza que mas le falta y hazlo».",
+      "firstPartyInputs": [
+        "El corpus admitido de conformidad en su commit fijado, con los oraculos DXF de los cinco bundles fundacionales.",
+        "El helper de oraculo DXF del propio repo (scripts/dwg/dxf-oracle.mjs), importado sin modificar."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. Ninguna fuente documental nueva intervino; la medicion es contra el corpus propio.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/objects/layer-state.ts (criterio unico de interpretacion, nuevo)",
+        "packages/dwg-codec/src/reader/database-model.ts (el estado resuelto viaja en el dato)",
+        "packages/dwg-codec/src/reader/database-assembly.ts y r2010-database-assembly.ts (se resuelve en el origen)",
+        "packages/dwg-codec/src/api/canonical-layers.ts (consume el estado resuelto; adenda fechada sobre la cabecera caducada)",
+        "apps/web/src/lib/cad/dwg-neutral-model.ts y dwg-native-reader.ts (el estado resuelto cruza la frontera)",
+        "apps/web/src/lib/cad/dwg-document-bridge.ts (congelada oculta la capa, bloqueada la bloquea)",
+        "scripts/dwg/probe-layer-state-flags.mjs y docs/cad/evidence/dwg-layer-state-flags.json (sonda y evidencia)",
+        "packages/dwg-codec/CAPABILITIES.md (correccion fechada de dos afirmaciones propias caducadas)"
+      ],
+      "fixtures": "Ninguno nuevo. La medicion usa los fixtures y oraculos DXF ya admitidos del corpus.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de dejar de tener un laboratorio y tener un DWG real y funcional."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-CAPA-TIPO-DE-LINEA-MEDIDO-20260901",
+      "date": "2026-09-01",
+      "initiative": "El codec decodificaba la tabla LTYPE entera -patron, alineacion y trazos, en las cinco versiones- y tambien la tabla de capas, pero NO sabia quien usa cual: el registro de capa no llevaba ninguna referencia al tipo de linea. Los dos extremos estaban leidos y el puente entre ellos no existia, asi que una capa de ejes con TRAZOS salia del import sin tipo de linea y una reexportacion a DXF ya no lo llevaba. El hecho de que el tipo de linea viaja POR HANDLE en el flujo final ya estaba registrado; lo que faltaba era SU POSICION, y se midio contrastando TODAS las posiciones del flujo contra el oraculo DXF sobre 98 capas de las cinco versiones: la posicion 4 acierta 98/98, las posiciones 0 a 3 no aciertan ni una vez y ninguna resuelve siquiera a un LTYPE, y hay CUATRO tipos distintos en juego, asi que acertar significa algo. UNA POSICION Y DOS LECTORES: R2000/R2004 la encuentra en el tramo opaco que el decodificador de LAYER ya localizaba y R2010+ en su flujo de handles propio; que una sola posicion sirva para las cinco versiones es medido, no analogia. TRES CAMINOS Y NO DOS: AC1015 y AC1018 comparten la forma del objeto pero no el contenedor, y un cuerpo AC1018 debe pasar por el adaptador a forma R2000 antes de decodificarse; omitirlo no da error visible y deja las ocho capas de AC1018 fuera de la medicion en silencio, lo que se detecto porque la sonda declaraba cuatro versiones en vez de cinco. ALCANCE HONESTO, comprobado ANTES de escribirlo: esto NO hace que el lienzo dibuje la capa discontinua -applyLinetype no lo usa nadie fuera de su modulo-; lo que gana el producto es que el nombre llega al documento, SOBREVIVE la exportacion DXF y entra en la huella de norma de oficina. Se declaran dos limitaciones que no se tapan: el desplegable del gestor de capas muestra CONTINUOUS para nombres fuera de su catalogo (previo, afecta igual al DXF) y el writer AC1015 emite los cinco handles del flujo nulos, asi que el codec LEE el tipo de linea y no lo ESCRIBE. Nunca se rellena con CONTINUOUS: un handle que la tabla no trae deja el nombre ausente y lo declara nombrando a que apuntaba.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de subir el nivel — «no quiero laboratorios, quiero mi propio DWG real y funcional; analiza que mas le falta y hazlo».",
+      "firstPartyInputs": [
+        "El corpus admitido de conformidad en su commit fijado, con los oraculos DXF de los cinco bundles fundacionales.",
+        "El helper de oraculo DXF del propio repo (scripts/dwg/dxf-oracle.mjs), importado sin modificar.",
+        "El lector de flujo de handles R2010+ ya medido en 105/105 objetos, reusado sin cambios."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. Ninguna fuente documental nueva intervino; la medicion es contra el corpus propio.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/objects/layer-linetype.ts (criterio unico de posicion, nuevo)",
+        "packages/dwg-codec/src/objects/table-layer.ts (lector del flujo de handles de forma R2000)",
+        "packages/dwg-codec/src/reader/layer-linetype-resolve.ts (resolucion handle->nombre compartida)",
+        "packages/dwg-codec/src/reader/database-assembly.ts y r2010-database-assembly.ts (los dos cierres)",
+        "packages/dwg-codec/src/api/canonical.ts y canonical-layers.ts (el nombre llega al documento canonico)",
+        "apps/web/src/lib/cad/dwg-neutral-model.ts, dwg-native-reader.ts y dwg-document-bridge.ts (hasta CadLayerDef)",
+        "scripts/dwg/probe-layer-linetype.mjs y docs/cad/evidence/dwg-layer-linetype.json (sonda y evidencia)",
+        "packages/dwg-codec/CAPABILITIES.md (alcance y limitaciones declaradas)"
+      ],
+      "fixtures": "Ninguno nuevo. La medicion usa los fixtures y oraculos DXF ya admitidos del corpus.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de dejar de tener un laboratorio y tener un DWG real y funcional."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-ORACULO-EXTERNO-WRITER-PUBLICO-20260901",
+      "date": "2026-09-01",
+      "initiative": "ADR-0009 §8.2 exige, ANTES de cablear exportacion al producto, que exista una funcion publica de escritura y que SU salida se verifique contra el ODA File Converter, y dice con esas palabras que la evidencia previa 'no nombra un contrato de API publico'. El harness del oraculo -el gate que solo el titular puede correr y del que depende mover externalOracleVerified- escribia sus cuatro casos con el writer INTERNO writeAc1015MinimalFile, asi que la corrida no podia satisfacer la precondicion que el mismo firmo. Y no era formalismo: al exigirla aparecio un fallo real y SILENCIOSO en el camino publico, que perdia EL COLOR DE CADA CAPA. Una capa cian (ACI 4) salia escrita como blanca (ACI 7) y nada aparecia en el manifiesto de perdidas. La causa: writeCanonicalDwg recibe el color en HEXADECIMAL del documento canonico y empujaba la capa con su nombre y nada mas; el writer interno recibe el indice ya resuelto y siempre estuvo bien, por eso ninguna prueba lo veia. Medido: de los cuatro casos, TRES salian byte a byte identicos por ambos caminos y capa-linea no -el unico con una capa de color-; tras el arreglo son 4/4 identicos. La tabla ACI pasa a vivir en un solo sitio y en las DOS direcciones (objects/aci-basic.ts), con el inverso derivado de la misma tabla y no escrito a mano; el blanco ambiguo resuelve al indice menor y un color fuera de la tabla NO se aproxima al mas cercano, se declara. El harness corre ahora OCHO casos: los mismos cuatro dibujos por el writer interno y por la API publica, cada uno como caso independiente ante el conversor, aunque hoy salgan identicos. LIMITE: el binario ODA es del titular y solo el puede correrlo; externalOracleVerified sigue en false y esto no lo mueve, lo que cambia es que cuando lo corra verificara lo que el ADR nombra.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de subir el nivel — «no quiero laboratorios, quiero mi propio DWG real y funcional; analiza que mas le falta y hazlo». La precondicion la fija su propia firma de ADR-0009 §8.2.",
+      "firstPartyInputs": [
+        "ADR-0009 §8.2, firmado por el titular el 2026-08-25.",
+        "El propio harness del oraculo y los cuatro casos que ya tenia."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El binario del ODA File Converter es oraculo EJECUTADO, nunca inspeccionado ni descompilado, y en esta sesion no se ejecuto: no esta disponible aqui.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/objects/aci-basic.ts (tabla ACI en las dos direcciones, nueva)",
+        "packages/dwg-codec/src/api/write.ts (el writer publico conserva el color de capa y declara el que no sabe escribir)",
+        "packages/dwg-codec/src/api/canonical-layers.ts (consume la tabla compartida en vez de su copia)",
+        "packages/dwg-codec/tests/unit/aci-basic.spec.ts (guarda el fallo)",
+        "scripts/dwg/oda-roundtrip.mjs (ocho casos: interno y publico)",
+        "packages/dwg-codec/CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguno nuevo. El harness reusa sus cuatro casos y anade el gemelo publico de cada uno, derivado del mismo dibujo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Precondicion de su propia firma de ADR-0009 §8.2."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-CAPA-ESTADO-ESCRITO-20260901",
+      "date": "2026-09-01",
+      "initiative": "Con el color ya arreglado, un round-trip por el camino publico seguia perdiendo tres cosas de cada capa CON EL MANIFIESTO VACIO: congelada volvia descongelada, bloqueada volvia desbloqueada, y un tipo de linea TRAZOS volvia 'Continuous' -valor EQUIVOCADO, no ausencia-, que es la peor forma de la perdida porque parece un dato bueno. CORRECCION DE UN DIAGNOSTICO PROPIO: se habia anotado que la causa eran los cinco handles nulos del writer de LAYER; al abrir el codigo resulto que hay DOS writers y que el que viaja en el archivo (writeAc1015ResolvedLayerBody) ya resolvia sus handles -los nulos son del writer de tabla de la fase D3, que no se escribe-. Los huecos reales eran otros: al writer que si viaja NUNCA se le pasaba el estado, asi que caia al 1008 por defecto, y su linetypeHandle esta fijado a Continuous porque el archivo minimo solo lleva esa entrada LTYPE. El cambio al writer que no viaja se revirtio por disciplina de alcance: no arreglaba lo medido. El estado se compone ahora con encodeLayerStateFlags, que vive JUNTO a la funcion que lo lee -mismo modulo, dos direcciones-, porque si lectura y escritura tuvieran cada una su idea de que bit es congelada la divergencia no la veria ninguna prueba: se escribiria una cosa y se leeria otra y ambas serian coherentes consigo mismas. Los valores esperados en la spec son los MEDIDOS en el corpus (1008, 1009, 1016), no los que produzca la implementacion. Resultado: congelada y bloqueada sobreviven al round-trip y el tipo de linea no emitible sale con su perdida declarada. LIMITE QUE QUEDA DICHO: el archivo minimo emite UNA sola entrada LTYPE, asi que TRAZOS se sigue escribiendo continuo; la diferencia es que ahora se declara en vez de fingirse, y emitir entradas LTYPE propias con su patron es un corte aparte. El harness del oraculo gana un caso capa-estado; su parser DXF compara por nombre y color y NO proyecta el estado, asi que lo que pregunta a un lector ajeno es que el archivo con esos bits siga abriendo limpio, no que el estado signifique lo que decimos -eso lo prueba el round-trip propio-. Con el gemelo publico de cada caso, el titular corre ahora DIEZ.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de subir el nivel — «no quiero laboratorios, quiero mi propio DWG real y funcional; analiza que mas le falta y hazlo».",
+      "firstPartyInputs": [
+        "La medicion propia del round-trip publico hecha en esta misma sesion.",
+        "El criterio de estado de capa medido contra el oraculo DXF (VALLE-CORPUS-LAYER-ESTADO-SEMANTICA)."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El binario ODA no se ejecuto en esta sesion.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/objects/layer-state.ts (encodeLayerStateFlags, inverso del lector)",
+        "packages/dwg-codec/src/writer/ac1015-minimal-file-support.ts y ac1015-minimal-file-writer.ts (el estado llega al archivo)",
+        "packages/dwg-codec/src/api/write.ts (estado desde el documento canonico; tipo de linea no emitible declarado)",
+        "packages/dwg-codec/tests/unit/layer-state-write.spec.ts",
+        "scripts/dwg/oda-roundtrip.mjs (caso capa-estado)",
+        "packages/dwg-codec/CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguno nuevo del corpus. El harness anade un caso sintetico propio, capa-estado.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de dejar de tener un laboratorio y tener un DWG real y funcional."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-LTYPE-PATRON-ESCRITO-20260901",
+      "date": "2026-09-01",
+      "initiative": "El corte anterior dejo dicho lo que faltaba: el archivo minimo emitia UNA sola entrada LTYPE, Continuous, asi que una capa con TRAZOS se exportaba solida y leida de vuelta decia 'Continuous' -no una ausencia, un valor equivocado con aspecto de dato bueno-. Se cierra aqui. El writer de LTYPE tenia TRES CONSTANTES donde debia haber datos: emitBD(0) de longitud, emitRC(0x41) de alineacion y emitRC(0) de CERO trazos. Ahora emite el patron real con la MISMA septupla por trazo que el lector ya medía (longitud BD, codigo de forma BS, dos desplazamientos RD, escala BD, rotacion BD, banderas BS) y en el mismo orden; la red que hace innecesario confiar en ese orden ya existia, porque el lector exige que el area de texto de 256 bytes llene el tamano declarado y un trazo de mas o de menos lo detecta solo. El archivo lleva ahora las entradas del dibujo: el plan de handles les reserva sitio, el LTYPE CONTROL las lista -una entrada que el control no liste queda huerfana- y cada capa apunta a la SUYA en vez de al Continuous fijo. Un detalle lo descubrio el propio writer al intentarlo: sus handles salen del tramo dinamico, asi que emitirlas junto a las fijas rompe su invariante de orden creciente; van al principio del tramo dinamico, antes que las capas que las referencian. IDA Y VUELTA con los valores del CORPUS REAL (04-capas: TRAZOS, longitud 1, trazos [0.75,-0.25]) y no unos inventados, porque un emisor y un lector que se equivocaran del mismo modo serian coherentes entre si y estarian los dos mal: el patron definido por el documento se escribe y vuelve identico, la capa que lo pide apunta a su entrada, la que no pide nada sigue en Continuous -no se le presta el patron de otra- y un tipo de linea NOMBRADO PERO NO DEFINIDO se escribe continuo CON SU PERDIDA DECLARADA. Esa ultima es la linea que no se cruza: al que no trae patron no se le inventan trazos. Nuevo caso capa-tipo-de-linea ante el oraculo, que este SI comprueba campo a campo porque el parser DXF ya extrae la tabla LTYPE con su longitud y sus trazos. Con el gemelo publico de cada caso, el titular corre DOCE.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de subir el nivel — «no quiero laboratorios, quiero mi propio DWG real y funcional; analiza que mas le falta y hazlo».",
+      "firstPartyInputs": [
+        "El lector propio de LTYPE, que ya medía patron, alineacion y trazos en las cinco versiones.",
+        "Los valores del corpus admitido (04-capas: TRAZOS longitud 1, trazos [0.75, -0.25])."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El binario ODA no se ejecuto en esta sesion.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/writer/ac1015-structure-writers.ts (el LTYPE emite su patron)",
+        "packages/dwg-codec/src/writer/ac1015-minimal-file-support.ts y ac1015-minimal-file-writer.ts (entradas propias, plan de handles, control y enlace por capa)",
+        "packages/dwg-codec/src/api/write.ts (patrones desde styles.linetype del documento; perdida solo si NO esta definido)",
+        "packages/dwg-codec/tests/unit/linetype-pattern-write.spec.ts",
+        "scripts/dwg/oda-roundtrip.mjs (caso capa-tipo-de-linea)",
+        "packages/dwg-codec/CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguno nuevo del corpus. El harness anade un caso sintetico propio con los valores del corpus real.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de dejar de tener un laboratorio y tener un DWG real y funcional."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "GUARDA-DE-ALCANCE-DEL-PUNTO-DE-MUNDO-20260901",
       "date": "2026-09-01",
       "initiative": "El golden 53 llevaba días fallando con «Timeout exceeded while waiting on the predicate», un mensaje que no menciona el ratón, ni el lienzo, ni el punto: averiguar qué significaba costó horas. La fixture e2e/fixtures/world-point.ts mueve el ratón y espera a que el HUD del cursor cambie respecto de un vecino a 4 px; cuando no cambia, expect.poll agota su espera y no dice por qué. Se añade una guarda EN EL CAMINO DE FALLO —dentro del catch de sample(), no en el de éxito, que es donde estaba mal puesta al principio— que pregunta con document.elementFromPoint quién responde de verdad en ese píxel y lo dice. El motivo es que la misma clase de defecto ya había aparecido tres veces (la barra de videollamada sobre «Guardar», el dock de mensajería sobre el reportero de incidencias, el ViewCube duplicando los títulos de los presets), y el golden 67 que la acompaña la comprueba para TODOS los controles del estudio. Medido: la guarda es puramente diagnóstica —un try/catch que relanza con mejor mensaje— y no puede cambiar si una prueba pasa o falla. Se comprobó con un A/B en la misma máquina, el mismo build y las mismas cinco pruebas que usan la fixture, cambiando sólo el fichero: con la guarda 4 rojos y 2 verdes, con la fixture de main 6 rojos y 0 verdes. Los dos verdes de más NO se atribuyen a la guarda: con dos corridas eso es tan probablemente inestabilidad como mejora, y no se midió. Lo que sí quedó demostrado es que la guarda no empeora nada y que nombra la causa: en el golden 53 dijo «ahí SÍ responde el lienzo: NO es una capa tapando», con lo que falsó la hipótesis de partida, y entregó el dato que decide entre las dos lecturas restantes: el HUD imprime 6983.4917480377435, un flotante de precisión completa, así que no está sub-resuelto sino CONGELADO.",

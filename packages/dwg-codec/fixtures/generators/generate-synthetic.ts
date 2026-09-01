@@ -65,8 +65,23 @@ const ascii = (value: string): Uint8Array =>
 /**
  * Versiones cuyo decoder de laboratorio existe: su probe devuelve éxito.
  * Debe reflejar el `decoderStatus` real de `DWG_VERSION_REGISTRY`.
+ *
+ * ACTUALIZADO EL 2026-09-01. Entran AC1024, AC1027 y AC1032: el laboratorio
+ * las lee enteras y el corpus admitido queda en CERO discrepancias en las
+ * cinco versiones, así que su `decoderStatus` pasó a `experimental-lab` y
+ * esta lista tiene que decir lo mismo o el manifiesto vuelve a afirmar que el
+ * probe falla en archivos que el lector abre sin problema.
+ *
+ * AC1021 (R2007) sigue FUERA y no por olvido: su contenedor Reed-Solomon se
+ * rechaza por diseño, con error tipado.
  */
-const LAB_DECODED_SIGNATURES: readonly string[] = ["AC1015", "AC1018"];
+const LAB_DECODED_SIGNATURES: readonly string[] = [
+  "AC1015",
+  "AC1018",
+  "AC1024",
+  "AC1027",
+  "AC1032",
+];
 
 const signatureSpec = (
   category: "recognized" | "unknown",

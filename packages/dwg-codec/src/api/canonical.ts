@@ -63,6 +63,18 @@ export interface CanonicalCadDocumentJson {
     readonly color: string;
     readonly visible: boolean;
     readonly locked: boolean;
+    /**
+     * CONGELADA, que NO es apagada: ni se dibuja, ni se regenera, ni entra en
+     * selección. Se separa de `visible` porque el estado que este laboratorio
+     * mide es la congelación —el bit 0, contra el oráculo DXF— y el apagado
+     * NO: plegar una en la otra afirmaría de más.
+     */
+    readonly frozen?: boolean;
+    /**
+     * NOMBRE del tipo de línea de la capa, leído del archivo. Ausente cuando
+     * no se pudo resolver: nunca se rellena con `CONTINUOUS`, que es un tipo
+     * de línea real y no un «no sé».
+     */
     readonly linetype?: string;
   }[];
   readonly entities: Record<string, unknown>[];
