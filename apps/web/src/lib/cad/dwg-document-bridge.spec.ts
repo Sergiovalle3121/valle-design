@@ -45,6 +45,7 @@ import type { CadEntity } from "./cad-document";
 import type {
   DwgNeutralDatabase,
   DwgNeutralEntityRecord,
+  DwgNeutralLayer,
   DwgNeutralPoint3,
 } from "./dwg-neutral-model";
 
@@ -282,12 +283,30 @@ assert.ok(
   "las unidades asumidas se declaran SIEMPRE, prominente y persistente, no sólo cuando algo falta",
 );
 
+/**
+ * Una capa neutral como la entrega el ADAPTADOR AUTORIZADO: con el estado ya
+ * resuelto en booleanos. El puente no descifra el `BS` —ese criterio vive en
+ * el códec y lo prueba `layer-state.spec.ts`—, así que aquí se le dan los
+ * booleanos explícitos y se comprueba lo único que es suyo: aplicarlos.
+ */
+const capa = (
+  handle: number,
+  nombre: string,
+  colorIndex: number,
+  estado: Partial<Pick<DwgNeutralLayer, "stateFlags" | "frozen" | "locked" | "unmeasuredStateBits">> = {},
+): DwgNeutralLayer => ({
+  handle,
+  name: bytesDe(nombre),
+  colorIndex,
+  stateFlags: estado.stateFlags ?? 1008,
+  frozen: estado.frozen ?? false,
+  locked: estado.locked ?? false,
+  unmeasuredStateBits: estado.unmeasuredStateBits ?? 0,
+});
+
 const base: DwgNeutralDatabase = {
   insunits: 0,
-  layers: [
-    { handle: 0x10, name: bytesDe("MUROS"), colorIndex: 1, stateFlags: 0 },
-    { handle: 0x11, name: bytesDe("COTASÑ"), colorIndex: 2, stateFlags: 0 },
-  ],
+  layers: [capa(0x10, "MUROS", 1), capa(0x11, "COTASÑ", 2)],
   blocks: [
     {
       handle: 0x20,
@@ -503,34 +522,6 @@ assert.ok(
 assert.ok(
   codigos.has(DWG_BRIDGE_LOSS_CODES.blockBasePointAssumed),
   "el punto base {0,0} del bloque PUERTA se declara como suposición, no se esconde",
-);
-
-// ─── Fase 3: stateFlags de capa crudo, sin adivinar su semántica ──────────
-const conBanderas: DwgNeutralDatabase = {
-  ...base,
-  layers: [
-    { handle: 0x10, name: bytesDe("MUROS"), colorIndex: 1, stateFlags: 1 },
-    { handle: 0x11, name: bytesDe("COTASÑ"), colorIndex: 2, stateFlags: 0 },
-  ],
-};
-const informeBanderas = dwgNeutralDatabaseToCadDocument(conBanderas);
-assert.ok(
-  informeBanderas.document.lossManifest.some(
-    (entry) => entry.code === DWG_BRIDGE_LOSS_CODES.layerStateFlags && entry.detail.includes("MUROS"),
-  ),
-  "stateFlags!=0 en MUROS se declara como pérdida específica de esa capa",
-);
-assert.equal(
-  informeBanderas.document.lossManifest.filter(
-    (entry) => entry.code === DWG_BRIDGE_LOSS_CODES.layerStateFlags,
-  ).length,
-  1,
-  "COTASÑ tiene stateFlags=0: no genera pérdida — sólo se declara lo que de verdad está presente",
-);
-assert.equal(
-  informeBanderas.document.layers.find((layer) => layer.id === "MUROS")?.visible,
-  true,
-  "sin semántica de bit confirmada, la capa se importa visible en vez de adivinar 'apagada'",
 );
 
 // ─── Fase 3: propiedades de TEXT/LWPOLYLINE que no caben en la primitiva ──

@@ -107,9 +107,31 @@ function buildPhaseGoalFile(): Uint8Array {
 test("meta D4: la base neutral recupera la estructura EXACTA del contenedor", () => {
   const database = readAc1015Database(buildPhaseGoalFile());
 
+  // `unmeasuredStateBits: 1008` NO es un defecto de esta prueba: este archivo
+  // es SINTÉTICO y escribe `stateFlags: 0`, un patrón que las 98 capas reales
+  // del corpus admitido no producen nunca —ahí los bits 4..9 vienen siempre a
+  // uno—. Que el valor aparezca aquí es la señal funcionando: el códec dice
+  // «este estado se sale de lo medido» en vez de callarlo. Congelada y
+  // bloqueada, que son los dos bits medidos, se leen igual de bien.
   assert.deepEqual(database.layers, [
-    { handle: 2, name: [0x30], colorIndex: 7, stateFlags: 0 },
-    { handle: 3, name: MUROS, colorIndex: 4, stateFlags: 0 },
+    {
+      handle: 2,
+      name: [0x30],
+      colorIndex: 7,
+      stateFlags: 0,
+      frozen: false,
+      locked: false,
+      unmeasuredStateBits: 0b11_1111_0000,
+    },
+    {
+      handle: 3,
+      name: MUROS,
+      colorIndex: 4,
+      stateFlags: 0,
+      frozen: false,
+      locked: false,
+      unmeasuredStateBits: 0b11_1111_0000,
+    },
   ]);
 
   assert.deepEqual(database.blocks, [

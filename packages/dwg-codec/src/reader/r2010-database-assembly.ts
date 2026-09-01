@@ -75,6 +75,7 @@ import {
   readR2010ObjectHeader,
   type R2010ObjectBounds,
 } from "../container/r2010-object-envelope.js";
+import { interpretLayerStateFlags } from "../objects/layer-state.js";
 import { AC1015_TYPE_LAYER } from "../objects/table-layer.js";
 import {
   readR2010LayerFields,
@@ -310,12 +311,20 @@ export function assembleR2010Database(
           bound.start,
           diagnostics,
         );
+        // Mismo criterio único que el camino R2000/R2004. Cuando la entrada
+        // falló cerrada y no hay campos, el estado queda `undefined` entero:
+        // no se finge una capa visible y desbloqueada, se declara la ausencia.
+        const state =
+          fields === undefined ? undefined : interpretLayerStateFlags(fields.stateFlags);
         layers.push(
           Object.freeze({
             handle: bound.handle,
             name,
             colorIndex: fields?.colorIndex,
             stateFlags: fields?.stateFlags,
+            frozen: state?.frozen,
+            locked: state?.locked,
+            unmeasuredStateBits: state?.unmeasuredBits,
           }),
         );
       } else {

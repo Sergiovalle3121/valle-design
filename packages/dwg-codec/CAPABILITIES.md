@@ -629,7 +629,7 @@ versiones modernas: **de 0/8 a 8/8 abiertos en AC1024, AC1027 y AC1032**.
 
 | Capacidad                         | Evidencia          | Límite honesto                                                                                                                                                                                                    |
 | --------------------------------- | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Base neutral AC1024/AC1027/AC1032 | `experimental-lab` | Abre 8/8 con **0 geometrías distintas**. INSERT y TEXT no tienen cuerpo medido; el color y las banderas de capa, las variables de cabecera y los registros de clase **no se decodifican y se declaran ausentes**. |
+| Base neutral AC1024/AC1027/AC1032 | `experimental-lab` | Abre 8/8 con **0 geometrías distintas**. INSERT y TEXT no tienen cuerpo medido; las variables de cabecera y los registros de clase **no se decodifican y se declaran ausentes**. [CORREGIDO EL 2026-09-01: el color y las banderas de capa SÍ se decodifican desde la fase 1.F, y desde el corte 2026-09-01 (b) las banderas además se INTERPRETAN — congelada y bloqueada.] |
 
 **Lo que de verdad importa de la matriz: `geometriaDistinta = 0` en todo.** Nada
 decodifica a un valor equivocado. Lo que falta, falta.
@@ -954,3 +954,68 @@ directamente lo detecta `check:fixtures`, y lo detectó.
 familia. No es ingeniería: el cableado está hecho y probado, y el día que esa
 conversación ocurra, encender la familia moderna es cambiar una constante y
 una variable de entorno, no escribir código.
+
+## Corte 2026-09-01 (b) — el estado de una capa deja de ser un número crudo
+
+**CORRECCIÓN DE DOS AFIRMACIONES DE ESTE MISMO DOCUMENTO.** Arriba se lee, en
+el corte del 2026-08-21, que «los `stateFlags` de capa siguen crudos», y en el
+del 2026-08-24 que su semántica «no está confirmada contra corpus real para el
+binario DWG». Ambas eran ciertas cuando se escribieron y **han dejado de
+serlo**. No se reescriben: se corrigen aquí, fechadas, como exige la
+disciplina del repo.
+
+**Qué se midió.** El corpus admitido trae `04-capas`, un dibujo construido a
+propósito con una capa `CONGELADA` y una `BLOQUEADA`, y **su DXF fuente dice
+cuál es cuál antes de mirar el binario**. Eso convierte la semántica en una
+hipótesis contrastable contra un hecho externo, no en una lectura plausible.
+
+| | resultado |
+| --- | --- |
+| capas comparadas | **98**, de 57 fixtures, en las **cinco** versiones |
+| bit de congelada | **0** — acierta en 98/98 (5 positivos, 93 negativos) |
+| bit de bloqueada | **3** — acierta en 98/98 (5 positivos, 93 negativos) |
+| hipótesis rivales | las **16** posiciones de bit; ninguna otra separa nada |
+| bits constantes | 1, 2 y 4..15 — **sin significado atribuido** |
+
+**Se probaron todos los bits, no el que uno espera.** Un bit sólo se acepta si
+acierta siempre **y** es separable —al menos un positivo y un negativo—, porque
+un bit constante acierta en bloque sin falsar nada. Es exactamente la
+disciplina que hubo que aplicar para corregir el barrido de banderas de la
+fase 1.F.
+
+**La trampa que habría caído sola.** El grupo 70 del DXF marca «bloqueada» con
+el valor 4 —el **bit 2**— y el DWG la marca en el **bit 3**. Copiar la
+convención del DXF por analogía habría acertado en congelada y fallado en
+bloqueada: el peor error posible, el que funciona a medias y nadie mira dos
+veces. Sólo se ve midiendo.
+
+**Qué cambia en el producto.** Una capa congelada entra **congelada** y una
+bloqueada entra **bloqueada**, en las cinco versiones. Hasta hoy toda capa
+llegaba al lienzo `visible: true, locked: false` con una pérdida declarada —
+correcto mientras no se ha medido, y falso cuando sí. **Ninguna capacidad se
+promueve y ningún flag se enciende**: esto no amplía qué archivos entran,
+mejora lo que se hace con los que ya entraban.
+
+**Congelada viaja en `frozen`, no plegada en `visible`.** El producto ya
+modelaba la congelación como un estado propio —ni se dibuja, ni se regenera,
+ni entra en selección, `cad-layer-visibility.ts`— y usar `visible: false` para
+transportarla habría dicho «esta capa está apagada», que es **más de lo que se
+sabe**. La capa canónica del laboratorio gana el mismo campo por la misma
+razón.
+
+**Un criterio, no dos.** El estado se resuelve **en el ensamblado**, en el
+origen, y viaja resuelto en el dato hasta el lienzo. Se consideró exportar
+`interpretLayerStateFlags` en la superficie pública y **se descartó**: son
+siete llamables por diseño, y el test que los congela hizo bien su trabajo.
+Resolver en el origen deja al documento canónico y al adaptador del producto
+con el mismo criterio sin que ninguno descifre el `BS` por su cuenta.
+
+**Lo que NO se afirma, y no es un detalle.** La **capa apagada** no se mide y
+no se dice. El DXF la codifica con color negativo y en el corpus admitido no
+hay **ni una sola** capa apagada, así que el estado apagado/encendido no es
+falsable con esta evidencia: una capa apagada de un dibujo real entraría
+visible. Se declara como pérdida en la capa concreta en vez de dejar que el
+usuario lo descubra en el lienzo. Y los casos positivos vienen de **un solo
+dibujo**: lo que multiplica la evidencia son las cinco versiones y las capas
+normales de los otros siete. Todo el corpus sigue siendo salida del ODA File
+Converter — lo medido es cómo **ese** productor codifica el estado.
