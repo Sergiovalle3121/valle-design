@@ -1,7 +1,7 @@
 {
   "$schema": "./source-register.schema.json",
   "schemaVersion": "1.0.0",
-  "updatedAt": "2026-08-31",
+  "updatedAt": "2026-09-01",
   "entries": [
     {
       "id": "VALLE-OWNER-DWG0-2026-08-09",
@@ -770,7 +770,7 @@
         "Los REGISTROS DE CLASE de R2010+ tampoco: leerlos con la forma de AC1018 produce 'A text value extends outside the input' en 8/8 por version, porque los nombres de clase no viajan en esa forma de cadena. Su disposicion NO esta medida",
         "El COLOR y las BANDERAS de una capa no se pueden medir con este corpus. Barriendo la anchura del prologo de objeto de 0 a 120 bits -la misma tecnica que resolvio el cuerpo de entidad- el numero de anchuras que reproducen stateFlags del gemelo es CERO: las banderas de capa de R2010+ no son el BS de R2000 en ninguna posicion",
         "El modelo relajado que suelta el color acierta 18/18 en CUATRO anchuras distintas a la vez (4, 24, 53 y 59 en AC1024; 25, 54 y 60 en AC1027 y AC1032). Eso NO es evidencia y asi consta: los tres campos de xref valen su defecto en todo el corpus, de modo que coincidir con ellos es coincidir con ceros. Medirlos exige un corpus con capas de colores y estados variados",
-        "CAPACIDAD AUSENTE, DECLARADA: la pertenencia entidad->bloque usa la MISMA regla que el ensamblado AC1015 (modo 0 -> su bloque; modo 1 -> paper space; resto -> model space) pero NO esta medida en R2010+: el corpus admitido no trae ni un objeto de modo 0, y cada uso deja diagnostico",
+        "CAPACIDAD AUSENTE, DECLARADA: la pertenencia entidad->bloque usa la MISMA regla que el ensamblado AC1015 (modo 0 -> su bloque; modo 1 -> paper space; resto -> model space) pero NO esta medida en R2010+: el corpus admitido no trae ni un objeto de modo 0, y cada uso deja diagnostico [CORREGIDO EL 2026-09-01 POR VALLE-CORPUS-R2010-TEXT-INSERT-BLOQUES: ES FALSO. El corpus SI trae objetos de modo 0 -5 LINE, 1 CIRCLE y 1 ARC en AC1024-, que son exactamente las 7 entidades que quedaban descolocadas. La afirmacion se hizo sin contar.]",
         "CAPACIDAD AUSENTE, DECLARADA: insunits, colorIndex y stateFlags viajan undefined en el camino R2010+ en vez de cero. Un cero afirmaria 'el archivo declara sin unidades' o 'la capa es blanca y esta descongelada', que son afirmaciones distintas de 'no lo hemos leido', y el puente del producto declara cada ausencia en el manifiesto de perdidas",
         "El intake empujo canonical.ts (788 -> 900) y database-assembly.ts (778 -> 862) por encima del maximo de 800 lineas del presupuesto de monolito. Se dividieron en vez de ampliar el presupuesto, como manda la regla del repo: canonical-layers.ts (tabla ACI y mapeo de capas), canonical-to-dwg.ts (la direccion inversa) y database-model.ts (los tipos de la base neutral, re-exportados enteros para que ningun consumidor cambie de import). Cada extraido queda registrado bajo la MISMA fuente que su padre: su contenido viene de ahi, no de esta medicion"
       ],
@@ -789,6 +789,44 @@
       "reviewer": "Medicion automatizada reproducible (scripts/dwg/validate-corpus.mjs sobre el corpus admitido); revision humana del propietario pendiente, como toda promocion de capacidad",
       "reviewedAt": "2026-08-31",
       "notes": "La falsacion de este modulo son los 24 archivos DWG REALES del corpus admitido pasando por readR2004Database, no vectores sinteticos: es una prueba mas fuerte y esta wireada al gate via check:dwg-evidence. NO promueve ninguna capacidad de producto: el corte sigue en experimental-lab, ningun flag se enciende, y los tres estratos sin medir (variables de cabecera, registros de clase, campos no-nombre de las tablas) quedan declarados en CAPABILITIES.md."
+    },
+    {
+      "id": "VALLE-CORPUS-R2010-TEXT-INSERT-BLOQUES",
+      "owner": "Sergio Valle Zarate",
+      "origin": {
+        "type": "original-measurement",
+        "location": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance/tree/0688fb9c395b9cac4169d1ee9c23a7370cc28cf3/bundles/valle.fundacional.ac1027.001",
+        "accessedAt": "2026-09-01"
+      },
+      "title": "Mediciones first-party del cuerpo de TEXT, del puntero a bloque de INSERT y de la pertenencia entidad-bloque en R2010+",
+      "versionOrDate": "2026-09-01",
+      "terms": {
+        "license": "Valle first-party corpus measurement (admitted tool-converted-original bundles)",
+        "access": "Blobs leidos del commit fijado del repo hermano de conformidad via el gate consumidor (corpus-pin.json + SHA-256 verificado); ningun working tree",
+        "redistribution": "Solo se registran numeros observados (coincidencias de campo, offsets de aterrizaje, recuentos de modo) y decisiones de codigo derivadas; los bytes DWG permanecen en el repo hermano bajo su propia politica",
+        "notes": "Continuacion del ensamblado R2010+. Ninguna fuente documental nueva intervino."
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "El cuerpo de un TEXT en R2010+ es la MISMA secuencia de campos de R2000 MENOS el TV de la cadena, que se mudo al flujo de cadenas. Falsado por dos caminos independientes, 15/15 cada uno: todos los campos coinciden con el gemelo AC1015 (insercion, altura, rotacion, oblicuo, factor de anchura, elevacion, espesor, generacion y las dos alineaciones), y el dato del tipo aterriza EXACTAMENTE donde empieza el flujo de cadenas",
+        "El cuerpo de un INSERT NO cambia entre R2000 y R2010+: enchufar decodeInsert tal cual lee los 6 del corpus con geometria exacta",
+        "El puntero al BLOCK_RECORD de un INSERT es el PRIMER handle posterior a la cabeza comun del flujo -la misma posicion que el gemelo AC1015 lee justo tras ella- y resuelve el nombre correcto en 6/6",
+        "CORRECCION DE UN HECHO FALSO YA PUBLICADO: el corte del ensamblado (VALLE-CORPUS-R2010-DATABASE-ASSEMBLY) afirmo que el corpus no ejercita ni un solo objeto de modo 0. Es FALSO. El recuento de modos con deriveR2010HandleShape da, en AC1024: 5 LINE, 1 CIRCLE y 1 ARC de modo 0 -exactamente las 7 entidades que entonces quedaban descolocadas-, ademas de 8 objetos de modo 1 y el resto de modo 2. La afirmacion se hizo SIN CONTAR",
+        "Con la pertenencia entidad-bloque resuelta por el propietario del flujo de handles, la matriz de entidades de las tres versiones modernas queda IDENTICA a la de AC1015: arc 2/2, circle 3/3, insert 6/6, line 15/15, lwpolyline 3/3, point 1/1, text 5/5, con cero distintas, cero faltantes y cero inesperadas. Las discrepancias por version bajan de 36 a 14",
+        "Las 14 discrepancias que quedan por version son campos que este corte declara SIN MEDIR: el color de capa (12) y los trazos de tipo de linea (2). El validador las etiqueta 'distinto' porque compara valores y un valor ausente no es igual a uno presente; no son geometria equivocada",
+        "REGRESION PROPIA, encontrada por un test y no por el corpus: localizar el flujo de cadenas antes de comprobar el bit de presencia convertia un tipo SIN cadena con ese bit a 1 de DWG_VERSION_DECODER_UNSUPPORTED (capacidad ausente) en DWG_STRUCTURE_CORRUPT (corrupcion). Son cosas distintas y el llamador actua distinto ante cada una; corregido en el codigo y no en el test"
+      ],
+      "derivedFiles": [
+        "docs/cad/evidence/dwg-corpus-validation.json",
+        "packages/dwg-codec/src/objects/entities-core.ts",
+        "packages/dwg-codec/src/objects/entity-common.ts",
+        "packages/dwg-codec/src/reader/r2010-database-assembly.ts",
+        "packages/dwg-codec/src/reader/r2010-entity-body.ts",
+        "packages/dwg-codec/tests/unit/r2010-entity-body.spec.ts"
+      ],
+      "reviewer": "Medicion automatizada reproducible (scripts/dwg/validate-corpus.mjs sobre el corpus admitido); revision humana del propietario pendiente",
+      "reviewedAt": "2026-09-01",
+      "notes": "Cierra la matriz de entidades de AC1024/AC1027/AC1032 al nivel de AC1015. NO promueve ninguna capacidad de producto: el corte sigue en experimental-lab y ningun flag se enciende. Lo que queda sin medir (color de capa, trazos de tipo de linea, variables de cabecera, registros de clase) consta en CAPABILITIES.md."
     }
   ]
 }

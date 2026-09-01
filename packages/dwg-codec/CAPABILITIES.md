@@ -684,3 +684,64 @@ y cada uso deja diagnóstico. Ninguna capacidad se promueve: el corte sigue en
 
 Evidencia: `docs/cad/evidence/dwg-corpus-validation.json`, reproducible con
 `node scripts/dwg/validate-corpus.mjs`.
+
+## Evidencia del corte 2026-09-01 (TEXT, INSERT y pertenencia a bloque en R2010+)
+
+Continuación directa del ensamblado. La matriz de entidades de las tres
+versiones modernas queda **idéntica a la de AC1015**.
+
+| tipo         | esperado |  leído | distinto | falta | inesperado |
+| ------------ | -------: | -----: | -------: | ----: | ---------: |
+| `arc`        |        2 |  **2** |        0 |     0 |          0 |
+| `circle`     |        3 |  **3** |        0 |     0 |          0 |
+| `insert`     |        6 |  **6** |        0 |     0 |          0 |
+| `line`       |       15 | **15** |        0 |     0 |          0 |
+| `lwpolyline` |        3 |  **3** |        0 |     0 |          0 |
+| `point`      |        1 |  **1** |        0 |     0 |          0 |
+| `text`       |        5 |  **5** |        0 |     0 |          0 |
+
+(cifras de AC1024; AC1027 y AC1032 dan las mismas). Discrepancias por versión:
+**36 → 14**.
+
+### Tres mediciones
+
+1. **TEXT (0/5 → 5/5).** El cuerpo es la MISMA secuencia de campos de R2000
+   **menos el `TV`** de la cadena, que se mudó al flujo ya medido. Dos
+   falsaciones independientes, **15/15** cada una: todos los campos coinciden
+   con el gemelo (inserción, altura, rotación, oblicuo, factor de anchura,
+   elevación, espesor, generación y las dos alineaciones), y el dato del tipo
+   aterriza **exactamente** donde empieza el flujo de cadenas. `decodeTextFields`
+   acepta los bytes desde fuera en vez de duplicarse: dos copias de la
+   secuencia es donde se colaría una divergencia silenciosa.
+2. **INSERT (0/6 → 6/6).** Su cuerpo no cambia; lo que faltaba era el nombre
+   del bloque. El puntero al `BLOCK_RECORD` es el **primer handle posterior a
+   la cabeza común** —la misma posición que el gemelo lee justo tras ella— y
+   resuelve el nombre correcto en **6/6**. Se resuelve en una segunda pasada
+   porque el bloque puede aparecer después en el mapa.
+3. **Pertenencia a bloque (7 entidades descolocadas → 0).** Ver la corrección.
+
+### Corrección fechada de una afirmación FALSA del corte anterior
+
+El corte del ensamblado afirmó que «el corpus admitido no ejercita ni un solo
+objeto de modo 0». **Era falso.** Contando los modos con
+`deriveR2010HandleShape` sobre el corpus aparecen **5 LINE, 1 CIRCLE y 1 ARC**
+de modo 0 — exactamente las 7 entidades que entonces quedaban en model space
+en vez de en su bloque, y que se contabilizaban como `falta` + `inesperado`.
+
+La afirmación se hizo **sin contar**, que es la forma barata de equivocarse:
+bastaba un recuento de dos minutos. Con la pertenencia resuelta, las siete caen
+en su bloque y no queda ni un `falta` ni un `inesperado` en toda la matriz.
+
+**Y una regresión propia, encontrada por un test y no por el corpus**: al
+localizar el flujo de cadenas antes de tiempo, un tipo SIN cadena cuyo bit de
+presencia valiera 1 pasaba de fallar `DWG_VERSION_DECODER_UNSUPPORTED`
+(capacidad ausente) a `DWG_STRUCTURE_CORRUPT` (corrupción). Son cosas
+distintas y el llamador actúa distinto ante cada una. Corregido en el código,
+no en el test: el flujo sólo se localiza para los tipos que lo llevan.
+
+**Lo que sigue faltando**: las 14 discrepancias por versión son **campos que
+este corte declara SIN MEDIR** — el color de capa (12) y los trazos de tipo de
+línea (2). El validador las etiqueta «distinto» porque compara valores, y un
+valor ausente no es igual a uno presente; no son geometría equivocada. Medirlos
+exige un corpus con capas y tipos de línea variados, y es un intake aparte.
+Ninguna capacidad se promueve: el corte sigue en `experimental-lab`.

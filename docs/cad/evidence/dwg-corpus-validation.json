@@ -3,19 +3,19 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-corpus-validation-v1",
   "generadoPor": "node scripts/dwg/validate-corpus.mjs",
-  "generadoEn": "2026-08-31T23:29:14.433Z",
+  "generadoEn": "2026-09-01T01:08:29.140Z",
   "environment": {
     "node": "v22.22.2",
     "platform": "linux",
     "architecture": "x64",
     "osType": "Linux",
     "osRelease": "6.18.44-fc-v22",
-    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
     "logicalCpuCount": 4,
     "totalMemoryBytes": 16856133632,
-    "declaredMachine": "Intel(R) Xeon(R) Processor @ 2.10GHz (4 hilos lógicos), 16.9 GB de RAM, Linux 6.18.44-fc-v22"
+    "declaredMachine": "Intel(R) Xeon(R) Processor @ 2.80GHz (4 hilos lógicos), 16.9 GB de RAM, Linux 6.18.44-fc-v22"
   },
-  "veredicto": "Resultado por versión: AC1015 25/25 abiertos con 0 discrepancia(s); AC1018 8/8 abiertos con 0 discrepancia(s); AC1024 8/8 abiertos con 36 discrepancia(s); AC1027 8/8 abiertos con 36 discrepancia(s); AC1032 8/8 abiertos con 36 discrepancia(s). Ver discrepancias para el detalle.",
+  "veredicto": "Resultado por versión: AC1015 25/25 abiertos con 0 discrepancia(s); AC1018 8/8 abiertos con 0 discrepancia(s); AC1024 8/8 abiertos con 14 discrepancia(s); AC1027 8/8 abiertos con 14 discrepancia(s); AC1032 8/8 abiertos con 14 discrepancia(s). Ver discrepancias para el detalle.",
   "reglaCleanRoom": "Toda discrepancia se REGISTRA aquí y no se corrige en esta ola: corregir el decoder exige registrar antes el hecho de formato en packages/dwg-codec/SOURCE_REGISTER.json (ADR-0007).",
   "alcance": "Fixtures AC1015 y de la familia R2004 (AC1018/AC1024/AC1027/AC1032) del corpus admitido y verificado por hash, comparados POR VERSIÓN. El DXF oráculo es la fuente de autoría propia congelada en el mismo bundle; los DWG los produjo una implementación independiente (ver docs/TOOLS.md del repo hermano). Las versiones sin decodificador de objetos quedan como no-abre con su error tipado.",
   "corpus": {
@@ -313,24 +313,24 @@
         "matrizEntidades": {
           "line": {
             "esperado": 15,
-            "leidoCorrecto": 10,
+            "leidoCorrecto": 15,
             "geometriaDistinta": 0,
-            "faltante": 5,
-            "inesperado": 5
+            "faltante": 0,
+            "inesperado": 0
           },
           "arc": {
             "esperado": 2,
-            "leidoCorrecto": 1,
+            "leidoCorrecto": 2,
             "geometriaDistinta": 0,
-            "faltante": 1,
-            "inesperado": 1
+            "faltante": 0,
+            "inesperado": 0
           },
           "circle": {
             "esperado": 3,
-            "leidoCorrecto": 2,
+            "leidoCorrecto": 3,
             "geometriaDistinta": 0,
-            "faltante": 1,
-            "inesperado": 1
+            "faltante": 0,
+            "inesperado": 0
           },
           "point": {
             "esperado": 1,
@@ -348,20 +348,20 @@
           },
           "text": {
             "esperado": 5,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 5,
             "geometriaDistinta": 0,
-            "faltante": 5,
+            "faltante": 0,
             "inesperado": 0
           },
           "insert": {
             "esperado": 6,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 6,
             "geometriaDistinta": 0,
-            "faltante": 6,
+            "faltante": 0,
             "inesperado": 0
           }
         },
-        "discrepancias": 36
+        "discrepancias": 14
       },
       "AC1027": {
         "archivos": 8,
@@ -370,24 +370,24 @@
         "matrizEntidades": {
           "line": {
             "esperado": 15,
-            "leidoCorrecto": 10,
+            "leidoCorrecto": 15,
             "geometriaDistinta": 0,
-            "faltante": 5,
-            "inesperado": 5
+            "faltante": 0,
+            "inesperado": 0
           },
           "arc": {
             "esperado": 2,
-            "leidoCorrecto": 1,
+            "leidoCorrecto": 2,
             "geometriaDistinta": 0,
-            "faltante": 1,
-            "inesperado": 1
+            "faltante": 0,
+            "inesperado": 0
           },
           "circle": {
             "esperado": 3,
-            "leidoCorrecto": 2,
+            "leidoCorrecto": 3,
             "geometriaDistinta": 0,
-            "faltante": 1,
-            "inesperado": 1
+            "faltante": 0,
+            "inesperado": 0
           },
           "point": {
             "esperado": 1,
@@ -405,20 +405,20 @@
           },
           "text": {
             "esperado": 5,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 5,
             "geometriaDistinta": 0,
-            "faltante": 5,
+            "faltante": 0,
             "inesperado": 0
           },
           "insert": {
             "esperado": 6,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 6,
             "geometriaDistinta": 0,
-            "faltante": 6,
+            "faltante": 0,
             "inesperado": 0
           }
         },
-        "discrepancias": 36
+        "discrepancias": 14
       },
       "AC1032": {
         "archivos": 8,
@@ -427,24 +427,24 @@
         "matrizEntidades": {
           "line": {
             "esperado": 15,
-            "leidoCorrecto": 10,
+            "leidoCorrecto": 15,
             "geometriaDistinta": 0,
-            "faltante": 5,
-            "inesperado": 5
+            "faltante": 0,
+            "inesperado": 0
           },
           "arc": {
             "esperado": 2,
-            "leidoCorrecto": 1,
+            "leidoCorrecto": 2,
             "geometriaDistinta": 0,
-            "faltante": 1,
-            "inesperado": 1
+            "faltante": 0,
+            "inesperado": 0
           },
           "circle": {
             "esperado": 3,
-            "leidoCorrecto": 2,
+            "leidoCorrecto": 3,
             "geometriaDistinta": 0,
-            "faltante": 1,
-            "inesperado": 1
+            "faltante": 0,
+            "inesperado": 0
           },
           "point": {
             "esperado": 1,
@@ -462,20 +462,20 @@
           },
           "text": {
             "esperado": 5,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 5,
             "geometriaDistinta": 0,
-            "faltante": 5,
+            "faltante": 0,
             "inesperado": 0
           },
           "insert": {
             "esperado": 6,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 6,
             "geometriaDistinta": 0,
-            "faltante": 6,
+            "faltante": 0,
             "inesperado": 0
           }
         },
-        "discrepancias": 36
+        "discrepancias": 14
       }
     },
     "matrizEntidades": {
@@ -502,10 +502,10 @@
       },
       "line": {
         "esperado": 99,
-        "leidoCorrecto": 84,
+        "leidoCorrecto": 99,
         "geometriaDistinta": 0,
-        "faltante": 15,
-        "inesperado": 15
+        "faltante": 0,
+        "inesperado": 0
       },
       "ray": {
         "esperado": 2,
@@ -544,10 +544,10 @@
       },
       "circle": {
         "esperado": 18,
-        "leidoCorrecto": 15,
+        "leidoCorrecto": 18,
         "geometriaDistinta": 0,
-        "faltante": 3,
-        "inesperado": 3
+        "faltante": 0,
+        "inesperado": 0
       },
       "dimension": {
         "esperado": 8,
@@ -572,9 +572,9 @@
       },
       "insert": {
         "esperado": 34,
-        "leidoCorrecto": 16,
+        "leidoCorrecto": 34,
         "geometriaDistinta": 0,
-        "faltante": 18,
+        "faltante": 0,
         "inesperado": 0
       },
       "attdef": {
@@ -642,17 +642,17 @@
       },
       "text": {
         "esperado": 26,
-        "leidoCorrecto": 11,
+        "leidoCorrecto": 26,
         "geometriaDistinta": 0,
-        "faltante": 15,
+        "faltante": 0,
         "inesperado": 0
       },
       "arc": {
         "esperado": 10,
-        "leidoCorrecto": 7,
+        "leidoCorrecto": 10,
         "geometriaDistinta": 0,
-        "faltante": 3,
-        "inesperado": 3
+        "faltante": 0,
+        "inesperado": 0
       },
       "point": {
         "esperado": 5,
@@ -662,7 +662,7 @@
         "inesperado": 0
       }
     },
-    "discrepanciasRegistradas": 108
+    "discrepanciasRegistradas": 42
   },
   "porVersion": {
     "AC1015": {
@@ -919,24 +919,24 @@
       "matrizEntidades": {
         "line": {
           "esperado": 15,
-          "leidoCorrecto": 10,
+          "leidoCorrecto": 15,
           "geometriaDistinta": 0,
-          "faltante": 5,
-          "inesperado": 5
+          "faltante": 0,
+          "inesperado": 0
         },
         "arc": {
           "esperado": 2,
-          "leidoCorrecto": 1,
+          "leidoCorrecto": 2,
           "geometriaDistinta": 0,
-          "faltante": 1,
-          "inesperado": 1
+          "faltante": 0,
+          "inesperado": 0
         },
         "circle": {
           "esperado": 3,
-          "leidoCorrecto": 2,
+          "leidoCorrecto": 3,
           "geometriaDistinta": 0,
-          "faltante": 1,
-          "inesperado": 1
+          "faltante": 0,
+          "inesperado": 0
         },
         "point": {
           "esperado": 1,
@@ -954,20 +954,20 @@
         },
         "text": {
           "esperado": 5,
-          "leidoCorrecto": 0,
+          "leidoCorrecto": 5,
           "geometriaDistinta": 0,
-          "faltante": 5,
+          "faltante": 0,
           "inesperado": 0
         },
         "insert": {
           "esperado": 6,
-          "leidoCorrecto": 0,
+          "leidoCorrecto": 6,
           "geometriaDistinta": 0,
-          "faltante": 6,
+          "faltante": 0,
           "inesperado": 0
         }
       },
-      "discrepancias": 36
+      "discrepancias": 14
     },
     "AC1027": {
       "archivos": 8,
@@ -976,24 +976,24 @@
       "matrizEntidades": {
         "line": {
           "esperado": 15,
-          "leidoCorrecto": 10,
+          "leidoCorrecto": 15,
           "geometriaDistinta": 0,
-          "faltante": 5,
-          "inesperado": 5
+          "faltante": 0,
+          "inesperado": 0
         },
         "arc": {
           "esperado": 2,
-          "leidoCorrecto": 1,
+          "leidoCorrecto": 2,
           "geometriaDistinta": 0,
-          "faltante": 1,
-          "inesperado": 1
+          "faltante": 0,
+          "inesperado": 0
         },
         "circle": {
           "esperado": 3,
-          "leidoCorrecto": 2,
+          "leidoCorrecto": 3,
           "geometriaDistinta": 0,
-          "faltante": 1,
-          "inesperado": 1
+          "faltante": 0,
+          "inesperado": 0
         },
         "point": {
           "esperado": 1,
@@ -1011,20 +1011,20 @@
         },
         "text": {
           "esperado": 5,
-          "leidoCorrecto": 0,
+          "leidoCorrecto": 5,
           "geometriaDistinta": 0,
-          "faltante": 5,
+          "faltante": 0,
           "inesperado": 0
         },
         "insert": {
           "esperado": 6,
-          "leidoCorrecto": 0,
+          "leidoCorrecto": 6,
           "geometriaDistinta": 0,
-          "faltante": 6,
+          "faltante": 0,
           "inesperado": 0
         }
       },
-      "discrepancias": 36
+      "discrepancias": 14
     },
     "AC1032": {
       "archivos": 8,
@@ -1033,24 +1033,24 @@
       "matrizEntidades": {
         "line": {
           "esperado": 15,
-          "leidoCorrecto": 10,
+          "leidoCorrecto": 15,
           "geometriaDistinta": 0,
-          "faltante": 5,
-          "inesperado": 5
+          "faltante": 0,
+          "inesperado": 0
         },
         "arc": {
           "esperado": 2,
-          "leidoCorrecto": 1,
+          "leidoCorrecto": 2,
           "geometriaDistinta": 0,
-          "faltante": 1,
-          "inesperado": 1
+          "faltante": 0,
+          "inesperado": 0
         },
         "circle": {
           "esperado": 3,
-          "leidoCorrecto": 2,
+          "leidoCorrecto": 3,
           "geometriaDistinta": 0,
-          "faltante": 1,
-          "inesperado": 1
+          "faltante": 0,
+          "inesperado": 0
         },
         "point": {
           "esperado": 1,
@@ -1068,20 +1068,20 @@
         },
         "text": {
           "esperado": 5,
-          "leidoCorrecto": 0,
+          "leidoCorrecto": 5,
           "geometriaDistinta": 0,
-          "faltante": 5,
+          "faltante": 0,
           "inesperado": 0
         },
         "insert": {
           "esperado": 6,
-          "leidoCorrecto": 0,
+          "leidoCorrecto": 6,
           "geometriaDistinta": 0,
-          "faltante": 6,
+          "faltante": 0,
           "inesperado": 0
         }
       },
-      "discrepancias": 36
+      "discrepancias": 14
     }
   },
   "matrizEntidades": {
@@ -1108,10 +1108,10 @@
     },
     "line": {
       "esperado": 99,
-      "leidoCorrecto": 84,
+      "leidoCorrecto": 99,
       "geometriaDistinta": 0,
-      "faltante": 15,
-      "inesperado": 15
+      "faltante": 0,
+      "inesperado": 0
     },
     "ray": {
       "esperado": 2,
@@ -1150,10 +1150,10 @@
     },
     "circle": {
       "esperado": 18,
-      "leidoCorrecto": 15,
+      "leidoCorrecto": 18,
       "geometriaDistinta": 0,
-      "faltante": 3,
-      "inesperado": 3
+      "faltante": 0,
+      "inesperado": 0
     },
     "dimension": {
       "esperado": 8,
@@ -1178,9 +1178,9 @@
     },
     "insert": {
       "esperado": 34,
-      "leidoCorrecto": 16,
+      "leidoCorrecto": 34,
       "geometriaDistinta": 0,
-      "faltante": 18,
+      "faltante": 0,
       "inesperado": 0
     },
     "attdef": {
@@ -1248,17 +1248,17 @@
     },
     "text": {
       "esperado": 26,
-      "leidoCorrecto": 11,
+      "leidoCorrecto": 26,
       "geometriaDistinta": 0,
-      "faltante": 15,
+      "faltante": 0,
       "inesperado": 0
     },
     "arc": {
       "esperado": 10,
-      "leidoCorrecto": 7,
+      "leidoCorrecto": 10,
       "geometriaDistinta": 0,
-      "faltante": 3,
-      "inesperado": 3
+      "faltante": 0,
+      "inesperado": 0
     },
     "point": {
       "esperado": 5,
@@ -1336,371 +1336,6 @@
       }
     },
     {
-      "archivo": "06-texto",
-      "version": "AC1024",
-      "contexto": "model-space",
-      "tipo": "text",
-      "problema": "faltante",
-      "esperado": {
-        "insertion": [
-          10,
-          10
-        ],
-        "height": 5,
-        "rotation": 0,
-        "value": "VALLE DESIGN"
-      }
-    },
-    {
-      "archivo": "06-texto",
-      "version": "AC1024",
-      "contexto": "model-space",
-      "tipo": "text",
-      "problema": "faltante",
-      "esperado": {
-        "insertion": [
-          10,
-          30
-        ],
-        "height": 7,
-        "rotation": 0.2617993877991494,
-        "value": "PLANTA BAJA"
-      }
-    },
-    {
-      "archivo": "06-texto",
-      "version": "AC1024",
-      "contexto": "model-space",
-      "tipo": "text",
-      "problema": "faltante",
-      "esperado": {
-        "insertion": [
-          10,
-          50
-        ],
-        "height": 4,
-        "rotation": 0,
-        "value": "CORTE A-A"
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1024",
-      "contexto": "model-space",
-      "tipo": "circle",
-      "problema": "inesperado",
-      "cuantos": 1
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1024",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "problema": "faltante",
-      "esperado": {
-        "block": "MARCO-A",
-        "position": [
-          10,
-          10,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "rotation": 0
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1024",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "problema": "faltante",
-      "esperado": {
-        "block": "MARCO-A",
-        "position": [
-          50,
-          10,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "rotation": 0.5235987755982988
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1024",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "problema": "faltante",
-      "esperado": {
-        "block": "MARCO-A",
-        "position": [
-          90,
-          10,
-          0
-        ],
-        "scale": [
-          2,
-          1.5,
-          1
-        ],
-        "rotation": 0
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1024",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "problema": "faltante",
-      "esperado": {
-        "block": "MARCO-A",
-        "position": [
-          10,
-          40,
-          0
-        ],
-        "scale": [
-          0.5,
-          0.5,
-          1
-        ],
-        "rotation": 1.5707963267948966
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1024",
-      "contexto": "model-space",
-      "tipo": "line",
-      "problema": "inesperado",
-      "cuantos": 4
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1024",
-      "contexto": "bloque:MARCO-A",
-      "tipo": "circle",
-      "problema": "faltante",
-      "esperado": {
-        "center": [
-          10,
-          5,
-          0
-        ],
-        "radius": 3
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1024",
-      "contexto": "bloque:MARCO-A",
-      "tipo": "line",
-      "problema": "faltante",
-      "esperado": {
-        "start": [
-          0,
-          0,
-          0
-        ],
-        "end": [
-          20,
-          0,
-          0
-        ]
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1024",
-      "contexto": "bloque:MARCO-A",
-      "tipo": "line",
-      "problema": "faltante",
-      "esperado": {
-        "start": [
-          20,
-          0,
-          0
-        ],
-        "end": [
-          20,
-          10,
-          0
-        ]
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1024",
-      "contexto": "bloque:MARCO-A",
-      "tipo": "line",
-      "problema": "faltante",
-      "esperado": {
-        "start": [
-          20,
-          10,
-          0
-        ],
-        "end": [
-          0,
-          10,
-          0
-        ]
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1024",
-      "contexto": "bloque:MARCO-A",
-      "tipo": "line",
-      "problema": "faltante",
-      "esperado": {
-        "start": [
-          0,
-          10,
-          0
-        ],
-        "end": [
-          0,
-          0,
-          0
-        ]
-      }
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1024",
-      "contexto": "model-space",
-      "tipo": "arc",
-      "problema": "inesperado",
-      "cuantos": 1
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1024",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "problema": "faltante",
-      "esperado": {
-        "block": "PUERTA",
-        "position": [
-          60,
-          55,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "rotation": 0
-      }
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1024",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "problema": "faltante",
-      "esperado": {
-        "block": "PUERTA",
-        "position": [
-          60,
-          35,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "rotation": 1.5707963267948966
-      }
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1024",
-      "contexto": "model-space",
-      "tipo": "line",
-      "problema": "inesperado",
-      "cuantos": 1
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1024",
-      "contexto": "model-space",
-      "tipo": "text",
-      "problema": "faltante",
-      "esperado": {
-        "insertion": [
-          20,
-          45
-        ],
-        "height": 5,
-        "rotation": 0,
-        "value": "SALA"
-      }
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1024",
-      "contexto": "model-space",
-      "tipo": "text",
-      "problema": "faltante",
-      "esperado": {
-        "insertion": [
-          80,
-          45
-        ],
-        "height": 5,
-        "rotation": 0,
-        "value": "COCINA"
-      }
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1024",
-      "contexto": "bloque:PUERTA",
-      "tipo": "arc",
-      "problema": "faltante",
-      "esperado": {
-        "center": [
-          0,
-          0,
-          0
-        ],
-        "radius": 9,
-        "startAngle": 4.71238898038469,
-        "endAngle": 0
-      }
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1024",
-      "contexto": "bloque:PUERTA",
-      "tipo": "line",
-      "problema": "faltante",
-      "esperado": {
-        "start": [
-          0,
-          0,
-          0
-        ],
-        "end": [
-          0,
-          9,
-          0
-        ]
-      }
-    },
-    {
       "archivo": "08-plano-mini",
       "version": "AC1024",
       "tipo": "capa-color-distinto",
@@ -1819,371 +1454,6 @@
       }
     },
     {
-      "archivo": "06-texto",
-      "version": "AC1027",
-      "contexto": "model-space",
-      "tipo": "text",
-      "problema": "faltante",
-      "esperado": {
-        "insertion": [
-          10,
-          10
-        ],
-        "height": 5,
-        "rotation": 0,
-        "value": "VALLE DESIGN"
-      }
-    },
-    {
-      "archivo": "06-texto",
-      "version": "AC1027",
-      "contexto": "model-space",
-      "tipo": "text",
-      "problema": "faltante",
-      "esperado": {
-        "insertion": [
-          10,
-          30
-        ],
-        "height": 7,
-        "rotation": 0.2617993877991494,
-        "value": "PLANTA BAJA"
-      }
-    },
-    {
-      "archivo": "06-texto",
-      "version": "AC1027",
-      "contexto": "model-space",
-      "tipo": "text",
-      "problema": "faltante",
-      "esperado": {
-        "insertion": [
-          10,
-          50
-        ],
-        "height": 4,
-        "rotation": 0,
-        "value": "CORTE A-A"
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1027",
-      "contexto": "model-space",
-      "tipo": "circle",
-      "problema": "inesperado",
-      "cuantos": 1
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1027",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "problema": "faltante",
-      "esperado": {
-        "block": "MARCO-A",
-        "position": [
-          10,
-          10,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "rotation": 0
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1027",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "problema": "faltante",
-      "esperado": {
-        "block": "MARCO-A",
-        "position": [
-          50,
-          10,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "rotation": 0.5235987755982988
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1027",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "problema": "faltante",
-      "esperado": {
-        "block": "MARCO-A",
-        "position": [
-          90,
-          10,
-          0
-        ],
-        "scale": [
-          2,
-          1.5,
-          1
-        ],
-        "rotation": 0
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1027",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "problema": "faltante",
-      "esperado": {
-        "block": "MARCO-A",
-        "position": [
-          10,
-          40,
-          0
-        ],
-        "scale": [
-          0.5,
-          0.5,
-          1
-        ],
-        "rotation": 1.5707963267948966
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1027",
-      "contexto": "model-space",
-      "tipo": "line",
-      "problema": "inesperado",
-      "cuantos": 4
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1027",
-      "contexto": "bloque:MARCO-A",
-      "tipo": "circle",
-      "problema": "faltante",
-      "esperado": {
-        "center": [
-          10,
-          5,
-          0
-        ],
-        "radius": 3
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1027",
-      "contexto": "bloque:MARCO-A",
-      "tipo": "line",
-      "problema": "faltante",
-      "esperado": {
-        "start": [
-          0,
-          0,
-          0
-        ],
-        "end": [
-          20,
-          0,
-          0
-        ]
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1027",
-      "contexto": "bloque:MARCO-A",
-      "tipo": "line",
-      "problema": "faltante",
-      "esperado": {
-        "start": [
-          20,
-          0,
-          0
-        ],
-        "end": [
-          20,
-          10,
-          0
-        ]
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1027",
-      "contexto": "bloque:MARCO-A",
-      "tipo": "line",
-      "problema": "faltante",
-      "esperado": {
-        "start": [
-          20,
-          10,
-          0
-        ],
-        "end": [
-          0,
-          10,
-          0
-        ]
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1027",
-      "contexto": "bloque:MARCO-A",
-      "tipo": "line",
-      "problema": "faltante",
-      "esperado": {
-        "start": [
-          0,
-          10,
-          0
-        ],
-        "end": [
-          0,
-          0,
-          0
-        ]
-      }
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1027",
-      "contexto": "model-space",
-      "tipo": "arc",
-      "problema": "inesperado",
-      "cuantos": 1
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1027",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "problema": "faltante",
-      "esperado": {
-        "block": "PUERTA",
-        "position": [
-          60,
-          55,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "rotation": 0
-      }
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1027",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "problema": "faltante",
-      "esperado": {
-        "block": "PUERTA",
-        "position": [
-          60,
-          35,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "rotation": 1.5707963267948966
-      }
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1027",
-      "contexto": "model-space",
-      "tipo": "line",
-      "problema": "inesperado",
-      "cuantos": 1
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1027",
-      "contexto": "model-space",
-      "tipo": "text",
-      "problema": "faltante",
-      "esperado": {
-        "insertion": [
-          20,
-          45
-        ],
-        "height": 5,
-        "rotation": 0,
-        "value": "SALA"
-      }
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1027",
-      "contexto": "model-space",
-      "tipo": "text",
-      "problema": "faltante",
-      "esperado": {
-        "insertion": [
-          80,
-          45
-        ],
-        "height": 5,
-        "rotation": 0,
-        "value": "COCINA"
-      }
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1027",
-      "contexto": "bloque:PUERTA",
-      "tipo": "arc",
-      "problema": "faltante",
-      "esperado": {
-        "center": [
-          0,
-          0,
-          0
-        ],
-        "radius": 9,
-        "startAngle": 4.71238898038469,
-        "endAngle": 0
-      }
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1027",
-      "contexto": "bloque:PUERTA",
-      "tipo": "line",
-      "problema": "faltante",
-      "esperado": {
-        "start": [
-          0,
-          0,
-          0
-        ],
-        "end": [
-          0,
-          9,
-          0
-        ]
-      }
-    },
-    {
       "archivo": "08-plano-mini",
       "version": "AC1027",
       "tipo": "capa-color-distinto",
@@ -2299,371 +1569,6 @@
       "leido": {
         "trazos": [],
         "longitudPatron": null
-      }
-    },
-    {
-      "archivo": "06-texto",
-      "version": "AC1032",
-      "contexto": "model-space",
-      "tipo": "text",
-      "problema": "faltante",
-      "esperado": {
-        "insertion": [
-          10,
-          10
-        ],
-        "height": 5,
-        "rotation": 0,
-        "value": "VALLE DESIGN"
-      }
-    },
-    {
-      "archivo": "06-texto",
-      "version": "AC1032",
-      "contexto": "model-space",
-      "tipo": "text",
-      "problema": "faltante",
-      "esperado": {
-        "insertion": [
-          10,
-          30
-        ],
-        "height": 7,
-        "rotation": 0.2617993877991494,
-        "value": "PLANTA BAJA"
-      }
-    },
-    {
-      "archivo": "06-texto",
-      "version": "AC1032",
-      "contexto": "model-space",
-      "tipo": "text",
-      "problema": "faltante",
-      "esperado": {
-        "insertion": [
-          10,
-          50
-        ],
-        "height": 4,
-        "rotation": 0,
-        "value": "CORTE A-A"
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1032",
-      "contexto": "model-space",
-      "tipo": "circle",
-      "problema": "inesperado",
-      "cuantos": 1
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1032",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "problema": "faltante",
-      "esperado": {
-        "block": "MARCO-A",
-        "position": [
-          10,
-          10,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "rotation": 0
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1032",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "problema": "faltante",
-      "esperado": {
-        "block": "MARCO-A",
-        "position": [
-          50,
-          10,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "rotation": 0.5235987755982988
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1032",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "problema": "faltante",
-      "esperado": {
-        "block": "MARCO-A",
-        "position": [
-          90,
-          10,
-          0
-        ],
-        "scale": [
-          2,
-          1.5,
-          1
-        ],
-        "rotation": 0
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1032",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "problema": "faltante",
-      "esperado": {
-        "block": "MARCO-A",
-        "position": [
-          10,
-          40,
-          0
-        ],
-        "scale": [
-          0.5,
-          0.5,
-          1
-        ],
-        "rotation": 1.5707963267948966
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1032",
-      "contexto": "model-space",
-      "tipo": "line",
-      "problema": "inesperado",
-      "cuantos": 4
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1032",
-      "contexto": "bloque:MARCO-A",
-      "tipo": "circle",
-      "problema": "faltante",
-      "esperado": {
-        "center": [
-          10,
-          5,
-          0
-        ],
-        "radius": 3
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1032",
-      "contexto": "bloque:MARCO-A",
-      "tipo": "line",
-      "problema": "faltante",
-      "esperado": {
-        "start": [
-          0,
-          0,
-          0
-        ],
-        "end": [
-          20,
-          0,
-          0
-        ]
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1032",
-      "contexto": "bloque:MARCO-A",
-      "tipo": "line",
-      "problema": "faltante",
-      "esperado": {
-        "start": [
-          20,
-          0,
-          0
-        ],
-        "end": [
-          20,
-          10,
-          0
-        ]
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1032",
-      "contexto": "bloque:MARCO-A",
-      "tipo": "line",
-      "problema": "faltante",
-      "esperado": {
-        "start": [
-          20,
-          10,
-          0
-        ],
-        "end": [
-          0,
-          10,
-          0
-        ]
-      }
-    },
-    {
-      "archivo": "07-bloques-insert",
-      "version": "AC1032",
-      "contexto": "bloque:MARCO-A",
-      "tipo": "line",
-      "problema": "faltante",
-      "esperado": {
-        "start": [
-          0,
-          10,
-          0
-        ],
-        "end": [
-          0,
-          0,
-          0
-        ]
-      }
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1032",
-      "contexto": "model-space",
-      "tipo": "arc",
-      "problema": "inesperado",
-      "cuantos": 1
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1032",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "problema": "faltante",
-      "esperado": {
-        "block": "PUERTA",
-        "position": [
-          60,
-          55,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "rotation": 0
-      }
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1032",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "problema": "faltante",
-      "esperado": {
-        "block": "PUERTA",
-        "position": [
-          60,
-          35,
-          0
-        ],
-        "scale": [
-          1,
-          1,
-          1
-        ],
-        "rotation": 1.5707963267948966
-      }
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1032",
-      "contexto": "model-space",
-      "tipo": "line",
-      "problema": "inesperado",
-      "cuantos": 1
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1032",
-      "contexto": "model-space",
-      "tipo": "text",
-      "problema": "faltante",
-      "esperado": {
-        "insertion": [
-          20,
-          45
-        ],
-        "height": 5,
-        "rotation": 0,
-        "value": "SALA"
-      }
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1032",
-      "contexto": "model-space",
-      "tipo": "text",
-      "problema": "faltante",
-      "esperado": {
-        "insertion": [
-          80,
-          45
-        ],
-        "height": 5,
-        "rotation": 0,
-        "value": "COCINA"
-      }
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1032",
-      "contexto": "bloque:PUERTA",
-      "tipo": "arc",
-      "problema": "faltante",
-      "esperado": {
-        "center": [
-          0,
-          0,
-          0
-        ],
-        "radius": 9,
-        "startAngle": 4.71238898038469,
-        "endAngle": 0
-      }
-    },
-    {
-      "archivo": "08-plano-mini",
-      "version": "AC1032",
-      "contexto": "bloque:PUERTA",
-      "tipo": "line",
-      "problema": "faltante",
-      "esperado": {
-        "start": [
-          0,
-          0,
-          0
-        ],
-        "end": [
-          0,
-          9,
-          0
-        ]
       }
     },
     {
@@ -9337,53 +8242,13 @@
         "porTipo": {
           "text": {
             "esperado": 3,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 3,
             "geometriaDistinta": 0,
-            "faltante": 3,
+            "faltante": 0,
             "inesperado": 0
           }
         },
-        "detalles": [
-          {
-            "tipo": "text",
-            "problema": "faltante",
-            "esperado": {
-              "insertion": [
-                10,
-                10
-              ],
-              "height": 5,
-              "rotation": 0,
-              "value": "VALLE DESIGN"
-            }
-          },
-          {
-            "tipo": "text",
-            "problema": "faltante",
-            "esperado": {
-              "insertion": [
-                10,
-                30
-              ],
-              "height": 7,
-              "rotation": 0.2617993877991494,
-              "value": "PLANTA BAJA"
-            }
-          },
-          {
-            "tipo": "text",
-            "problema": "faltante",
-            "esperado": {
-              "insertion": [
-                10,
-                50
-              ],
-              "height": 4,
-              "rotation": 0,
-              "value": "CORTE A-A"
-            }
-          }
-        ]
+        "detalles": []
       },
       "bloques": {
         "esperados": [],
@@ -9394,10 +8259,6 @@
         "porBloque": {}
       },
       "tiposNoSoportados": [
-        {
-          "codigoBs": 1,
-          "cuantos": 3
-        },
         {
           "codigoBs": 4,
           "cuantos": 2
@@ -9565,112 +8426,15 @@
       },
       "entidades": {
         "porTipo": {
-          "circle": {
-            "esperado": 0,
-            "leidoCorrecto": 0,
-            "geometriaDistinta": 0,
-            "faltante": 0,
-            "inesperado": 1
-          },
           "insert": {
             "esperado": 4,
-            "leidoCorrecto": 0,
-            "geometriaDistinta": 0,
-            "faltante": 4,
-            "inesperado": 0
-          },
-          "line": {
-            "esperado": 0,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 4,
             "geometriaDistinta": 0,
             "faltante": 0,
-            "inesperado": 4
+            "inesperado": 0
           }
         },
-        "detalles": [
-          {
-            "tipo": "circle",
-            "problema": "inesperado",
-            "cuantos": 1
-          },
-          {
-            "tipo": "insert",
-            "problema": "faltante",
-            "esperado": {
-              "block": "MARCO-A",
-              "position": [
-                10,
-                10,
-                0
-              ],
-              "scale": [
-                1,
-                1,
-                1
-              ],
-              "rotation": 0
-            }
-          },
-          {
-            "tipo": "insert",
-            "problema": "faltante",
-            "esperado": {
-              "block": "MARCO-A",
-              "position": [
-                50,
-                10,
-                0
-              ],
-              "scale": [
-                1,
-                1,
-                1
-              ],
-              "rotation": 0.5235987755982988
-            }
-          },
-          {
-            "tipo": "insert",
-            "problema": "faltante",
-            "esperado": {
-              "block": "MARCO-A",
-              "position": [
-                90,
-                10,
-                0
-              ],
-              "scale": [
-                2,
-                1.5,
-                1
-              ],
-              "rotation": 0
-            }
-          },
-          {
-            "tipo": "insert",
-            "problema": "faltante",
-            "esperado": {
-              "block": "MARCO-A",
-              "position": [
-                10,
-                40,
-                0
-              ],
-              "scale": [
-                0.5,
-                0.5,
-                1
-              ],
-              "rotation": 1.5707963267948966
-            }
-          },
-          {
-            "tipo": "line",
-            "problema": "inesperado",
-            "cuantos": 4
-          }
-        ]
+        "detalles": []
       },
       "bloques": {
         "esperados": [
@@ -9688,97 +8452,20 @@
               "porTipo": {
                 "circle": {
                   "esperado": 1,
-                  "leidoCorrecto": 0,
+                  "leidoCorrecto": 1,
                   "geometriaDistinta": 0,
-                  "faltante": 1,
+                  "faltante": 0,
                   "inesperado": 0
                 },
                 "line": {
                   "esperado": 4,
-                  "leidoCorrecto": 0,
+                  "leidoCorrecto": 4,
                   "geometriaDistinta": 0,
-                  "faltante": 4,
+                  "faltante": 0,
                   "inesperado": 0
                 }
               },
-              "detalles": [
-                {
-                  "tipo": "circle",
-                  "problema": "faltante",
-                  "esperado": {
-                    "center": [
-                      10,
-                      5,
-                      0
-                    ],
-                    "radius": 3
-                  }
-                },
-                {
-                  "tipo": "line",
-                  "problema": "faltante",
-                  "esperado": {
-                    "start": [
-                      0,
-                      0,
-                      0
-                    ],
-                    "end": [
-                      20,
-                      0,
-                      0
-                    ]
-                  }
-                },
-                {
-                  "tipo": "line",
-                  "problema": "faltante",
-                  "esperado": {
-                    "start": [
-                      20,
-                      0,
-                      0
-                    ],
-                    "end": [
-                      20,
-                      10,
-                      0
-                    ]
-                  }
-                },
-                {
-                  "tipo": "line",
-                  "problema": "faltante",
-                  "esperado": {
-                    "start": [
-                      20,
-                      10,
-                      0
-                    ],
-                    "end": [
-                      0,
-                      10,
-                      0
-                    ]
-                  }
-                },
-                {
-                  "tipo": "line",
-                  "problema": "faltante",
-                  "esperado": {
-                    "start": [
-                      0,
-                      10,
-                      0
-                    ],
-                    "end": [
-                      0,
-                      0,
-                      0
-                    ]
-                  }
-                }
-              ]
+              "detalles": []
             }
           }
         }
@@ -9791,10 +8478,6 @@
         {
           "codigoBs": 5,
           "cuantos": 3
-        },
-        {
-          "codigoBs": 7,
-          "cuantos": 4
         },
         {
           "codigoBs": 42,
@@ -9889,38 +8572,7 @@
           "cuantos": 6
         }
       ],
-      "diagnosticos": [
-        {
-          "code": "r2010-owned-entity-not-measured",
-          "severity": "warning",
-          "offset": 2679,
-          "message": "An R2010+ entity declares an owner; block membership is implemented but not exercised by the admitted corpus, so it was kept in model space."
-        },
-        {
-          "code": "r2010-owned-entity-not-measured",
-          "severity": "warning",
-          "offset": 2722,
-          "message": "An R2010+ entity declares an owner; block membership is implemented but not exercised by the admitted corpus, so it was kept in model space."
-        },
-        {
-          "code": "r2010-owned-entity-not-measured",
-          "severity": "warning",
-          "offset": 2765,
-          "message": "An R2010+ entity declares an owner; block membership is implemented but not exercised by the admitted corpus, so it was kept in model space."
-        },
-        {
-          "code": "r2010-owned-entity-not-measured",
-          "severity": "warning",
-          "offset": 2808,
-          "message": "An R2010+ entity declares an owner; block membership is implemented but not exercised by the admitted corpus, so it was kept in model space."
-        },
-        {
-          "code": "r2010-owned-entity-not-measured",
-          "severity": "warning",
-          "offset": 2851,
-          "message": "An R2010+ entity declares an owner; block membership is implemented but not exercised by the admitted corpus, so it was kept in model space."
-        }
-      ]
+      "diagnosticos": []
     },
     {
       "bundle": "valle.fundacional.ac1024.001",
@@ -10077,18 +8729,11 @@
       },
       "entidades": {
         "porTipo": {
-          "arc": {
-            "esperado": 0,
-            "leidoCorrecto": 0,
-            "geometriaDistinta": 0,
-            "faltante": 0,
-            "inesperado": 1
-          },
           "insert": {
             "esperado": 2,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 2,
             "geometriaDistinta": 0,
-            "faltante": 2,
+            "faltante": 0,
             "inesperado": 0
           },
           "line": {
@@ -10096,7 +8741,7 @@
             "leidoCorrecto": 3,
             "geometriaDistinta": 0,
             "faltante": 0,
-            "inesperado": 1
+            "inesperado": 0
           },
           "lwpolyline": {
             "esperado": 1,
@@ -10107,86 +8752,13 @@
           },
           "text": {
             "esperado": 2,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 2,
             "geometriaDistinta": 0,
-            "faltante": 2,
+            "faltante": 0,
             "inesperado": 0
           }
         },
-        "detalles": [
-          {
-            "tipo": "arc",
-            "problema": "inesperado",
-            "cuantos": 1
-          },
-          {
-            "tipo": "insert",
-            "problema": "faltante",
-            "esperado": {
-              "block": "PUERTA",
-              "position": [
-                60,
-                55,
-                0
-              ],
-              "scale": [
-                1,
-                1,
-                1
-              ],
-              "rotation": 0
-            }
-          },
-          {
-            "tipo": "insert",
-            "problema": "faltante",
-            "esperado": {
-              "block": "PUERTA",
-              "position": [
-                60,
-                35,
-                0
-              ],
-              "scale": [
-                1,
-                1,
-                1
-              ],
-              "rotation": 1.5707963267948966
-            }
-          },
-          {
-            "tipo": "line",
-            "problema": "inesperado",
-            "cuantos": 1
-          },
-          {
-            "tipo": "text",
-            "problema": "faltante",
-            "esperado": {
-              "insertion": [
-                20,
-                45
-              ],
-              "height": 5,
-              "rotation": 0,
-              "value": "SALA"
-            }
-          },
-          {
-            "tipo": "text",
-            "problema": "faltante",
-            "esperado": {
-              "insertion": [
-                80,
-                45
-              ],
-              "height": 5,
-              "rotation": 0,
-              "value": "COCINA"
-            }
-          }
-        ]
+        "detalles": []
       },
       "bloques": {
         "esperados": [
@@ -10204,60 +8776,25 @@
               "porTipo": {
                 "arc": {
                   "esperado": 1,
-                  "leidoCorrecto": 0,
+                  "leidoCorrecto": 1,
                   "geometriaDistinta": 0,
-                  "faltante": 1,
+                  "faltante": 0,
                   "inesperado": 0
                 },
                 "line": {
                   "esperado": 1,
-                  "leidoCorrecto": 0,
+                  "leidoCorrecto": 1,
                   "geometriaDistinta": 0,
-                  "faltante": 1,
+                  "faltante": 0,
                   "inesperado": 0
                 }
               },
-              "detalles": [
-                {
-                  "tipo": "arc",
-                  "problema": "faltante",
-                  "esperado": {
-                    "center": [
-                      0,
-                      0,
-                      0
-                    ],
-                    "radius": 9,
-                    "startAngle": 4.71238898038469,
-                    "endAngle": 0
-                  }
-                },
-                {
-                  "tipo": "line",
-                  "problema": "faltante",
-                  "esperado": {
-                    "start": [
-                      0,
-                      0,
-                      0
-                    ],
-                    "end": [
-                      0,
-                      9,
-                      0
-                    ]
-                  }
-                }
-              ]
+              "detalles": []
             }
           }
         }
       },
       "tiposNoSoportados": [
-        {
-          "codigoBs": 1,
-          "cuantos": 2
-        },
         {
           "codigoBs": 4,
           "cuantos": 3
@@ -10265,10 +8802,6 @@
         {
           "codigoBs": 5,
           "cuantos": 3
-        },
-        {
-          "codigoBs": 7,
-          "cuantos": 2
         },
         {
           "codigoBs": 42,
@@ -10363,20 +8896,7 @@
           "cuantos": 6
         }
       ],
-      "diagnosticos": [
-        {
-          "code": "r2010-owned-entity-not-measured",
-          "severity": "warning",
-          "offset": 2965,
-          "message": "An R2010+ entity declares an owner; block membership is implemented but not exercised by the admitted corpus, so it was kept in model space."
-        },
-        {
-          "code": "r2010-owned-entity-not-measured",
-          "severity": "warning",
-          "offset": 3008,
-          "message": "An R2010+ entity declares an owner; block membership is implemented but not exercised by the admitted corpus, so it was kept in model space."
-        }
-      ]
+      "diagnosticos": []
     },
     {
       "bundle": "valle.fundacional.ac1027.001",
@@ -11512,53 +10032,13 @@
         "porTipo": {
           "text": {
             "esperado": 3,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 3,
             "geometriaDistinta": 0,
-            "faltante": 3,
+            "faltante": 0,
             "inesperado": 0
           }
         },
-        "detalles": [
-          {
-            "tipo": "text",
-            "problema": "faltante",
-            "esperado": {
-              "insertion": [
-                10,
-                10
-              ],
-              "height": 5,
-              "rotation": 0,
-              "value": "VALLE DESIGN"
-            }
-          },
-          {
-            "tipo": "text",
-            "problema": "faltante",
-            "esperado": {
-              "insertion": [
-                10,
-                30
-              ],
-              "height": 7,
-              "rotation": 0.2617993877991494,
-              "value": "PLANTA BAJA"
-            }
-          },
-          {
-            "tipo": "text",
-            "problema": "faltante",
-            "esperado": {
-              "insertion": [
-                10,
-                50
-              ],
-              "height": 4,
-              "rotation": 0,
-              "value": "CORTE A-A"
-            }
-          }
-        ]
+        "detalles": []
       },
       "bloques": {
         "esperados": [],
@@ -11569,10 +10049,6 @@
         "porBloque": {}
       },
       "tiposNoSoportados": [
-        {
-          "codigoBs": 1,
-          "cuantos": 3
-        },
         {
           "codigoBs": 4,
           "cuantos": 2
@@ -11740,112 +10216,15 @@
       },
       "entidades": {
         "porTipo": {
-          "circle": {
-            "esperado": 0,
-            "leidoCorrecto": 0,
-            "geometriaDistinta": 0,
-            "faltante": 0,
-            "inesperado": 1
-          },
           "insert": {
             "esperado": 4,
-            "leidoCorrecto": 0,
-            "geometriaDistinta": 0,
-            "faltante": 4,
-            "inesperado": 0
-          },
-          "line": {
-            "esperado": 0,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 4,
             "geometriaDistinta": 0,
             "faltante": 0,
-            "inesperado": 4
+            "inesperado": 0
           }
         },
-        "detalles": [
-          {
-            "tipo": "circle",
-            "problema": "inesperado",
-            "cuantos": 1
-          },
-          {
-            "tipo": "insert",
-            "problema": "faltante",
-            "esperado": {
-              "block": "MARCO-A",
-              "position": [
-                10,
-                10,
-                0
-              ],
-              "scale": [
-                1,
-                1,
-                1
-              ],
-              "rotation": 0
-            }
-          },
-          {
-            "tipo": "insert",
-            "problema": "faltante",
-            "esperado": {
-              "block": "MARCO-A",
-              "position": [
-                50,
-                10,
-                0
-              ],
-              "scale": [
-                1,
-                1,
-                1
-              ],
-              "rotation": 0.5235987755982988
-            }
-          },
-          {
-            "tipo": "insert",
-            "problema": "faltante",
-            "esperado": {
-              "block": "MARCO-A",
-              "position": [
-                90,
-                10,
-                0
-              ],
-              "scale": [
-                2,
-                1.5,
-                1
-              ],
-              "rotation": 0
-            }
-          },
-          {
-            "tipo": "insert",
-            "problema": "faltante",
-            "esperado": {
-              "block": "MARCO-A",
-              "position": [
-                10,
-                40,
-                0
-              ],
-              "scale": [
-                0.5,
-                0.5,
-                1
-              ],
-              "rotation": 1.5707963267948966
-            }
-          },
-          {
-            "tipo": "line",
-            "problema": "inesperado",
-            "cuantos": 4
-          }
-        ]
+        "detalles": []
       },
       "bloques": {
         "esperados": [
@@ -11863,97 +10242,20 @@
               "porTipo": {
                 "circle": {
                   "esperado": 1,
-                  "leidoCorrecto": 0,
+                  "leidoCorrecto": 1,
                   "geometriaDistinta": 0,
-                  "faltante": 1,
+                  "faltante": 0,
                   "inesperado": 0
                 },
                 "line": {
                   "esperado": 4,
-                  "leidoCorrecto": 0,
+                  "leidoCorrecto": 4,
                   "geometriaDistinta": 0,
-                  "faltante": 4,
+                  "faltante": 0,
                   "inesperado": 0
                 }
               },
-              "detalles": [
-                {
-                  "tipo": "circle",
-                  "problema": "faltante",
-                  "esperado": {
-                    "center": [
-                      10,
-                      5,
-                      0
-                    ],
-                    "radius": 3
-                  }
-                },
-                {
-                  "tipo": "line",
-                  "problema": "faltante",
-                  "esperado": {
-                    "start": [
-                      0,
-                      0,
-                      0
-                    ],
-                    "end": [
-                      20,
-                      0,
-                      0
-                    ]
-                  }
-                },
-                {
-                  "tipo": "line",
-                  "problema": "faltante",
-                  "esperado": {
-                    "start": [
-                      20,
-                      0,
-                      0
-                    ],
-                    "end": [
-                      20,
-                      10,
-                      0
-                    ]
-                  }
-                },
-                {
-                  "tipo": "line",
-                  "problema": "faltante",
-                  "esperado": {
-                    "start": [
-                      20,
-                      10,
-                      0
-                    ],
-                    "end": [
-                      0,
-                      10,
-                      0
-                    ]
-                  }
-                },
-                {
-                  "tipo": "line",
-                  "problema": "faltante",
-                  "esperado": {
-                    "start": [
-                      0,
-                      10,
-                      0
-                    ],
-                    "end": [
-                      0,
-                      0,
-                      0
-                    ]
-                  }
-                }
-              ]
+              "detalles": []
             }
           }
         }
@@ -11966,10 +10268,6 @@
         {
           "codigoBs": 5,
           "cuantos": 3
-        },
-        {
-          "codigoBs": 7,
-          "cuantos": 4
         },
         {
           "codigoBs": 42,
@@ -12064,38 +10362,7 @@
           "cuantos": 6
         }
       ],
-      "diagnosticos": [
-        {
-          "code": "r2010-owned-entity-not-measured",
-          "severity": "warning",
-          "offset": 2685,
-          "message": "An R2010+ entity declares an owner; block membership is implemented but not exercised by the admitted corpus, so it was kept in model space."
-        },
-        {
-          "code": "r2010-owned-entity-not-measured",
-          "severity": "warning",
-          "offset": 2728,
-          "message": "An R2010+ entity declares an owner; block membership is implemented but not exercised by the admitted corpus, so it was kept in model space."
-        },
-        {
-          "code": "r2010-owned-entity-not-measured",
-          "severity": "warning",
-          "offset": 2771,
-          "message": "An R2010+ entity declares an owner; block membership is implemented but not exercised by the admitted corpus, so it was kept in model space."
-        },
-        {
-          "code": "r2010-owned-entity-not-measured",
-          "severity": "warning",
-          "offset": 2814,
-          "message": "An R2010+ entity declares an owner; block membership is implemented but not exercised by the admitted corpus, so it was kept in model space."
-        },
-        {
-          "code": "r2010-owned-entity-not-measured",
-          "severity": "warning",
-          "offset": 2857,
-          "message": "An R2010+ entity declares an owner; block membership is implemented but not exercised by the admitted corpus, so it was kept in model space."
-        }
-      ]
+      "diagnosticos": []
     },
     {
       "bundle": "valle.fundacional.ac1027.001",
@@ -12252,18 +10519,11 @@
       },
       "entidades": {
         "porTipo": {
-          "arc": {
-            "esperado": 0,
-            "leidoCorrecto": 0,
-            "geometriaDistinta": 0,
-            "faltante": 0,
-            "inesperado": 1
-          },
           "insert": {
             "esperado": 2,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 2,
             "geometriaDistinta": 0,
-            "faltante": 2,
+            "faltante": 0,
             "inesperado": 0
           },
           "line": {
@@ -12271,7 +10531,7 @@
             "leidoCorrecto": 3,
             "geometriaDistinta": 0,
             "faltante": 0,
-            "inesperado": 1
+            "inesperado": 0
           },
           "lwpolyline": {
             "esperado": 1,
@@ -12282,86 +10542,13 @@
           },
           "text": {
             "esperado": 2,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 2,
             "geometriaDistinta": 0,
-            "faltante": 2,
+            "faltante": 0,
             "inesperado": 0
           }
         },
-        "detalles": [
-          {
-            "tipo": "arc",
-            "problema": "inesperado",
-            "cuantos": 1
-          },
-          {
-            "tipo": "insert",
-            "problema": "faltante",
-            "esperado": {
-              "block": "PUERTA",
-              "position": [
-                60,
-                55,
-                0
-              ],
-              "scale": [
-                1,
-                1,
-                1
-              ],
-              "rotation": 0
-            }
-          },
-          {
-            "tipo": "insert",
-            "problema": "faltante",
-            "esperado": {
-              "block": "PUERTA",
-              "position": [
-                60,
-                35,
-                0
-              ],
-              "scale": [
-                1,
-                1,
-                1
-              ],
-              "rotation": 1.5707963267948966
-            }
-          },
-          {
-            "tipo": "line",
-            "problema": "inesperado",
-            "cuantos": 1
-          },
-          {
-            "tipo": "text",
-            "problema": "faltante",
-            "esperado": {
-              "insertion": [
-                20,
-                45
-              ],
-              "height": 5,
-              "rotation": 0,
-              "value": "SALA"
-            }
-          },
-          {
-            "tipo": "text",
-            "problema": "faltante",
-            "esperado": {
-              "insertion": [
-                80,
-                45
-              ],
-              "height": 5,
-              "rotation": 0,
-              "value": "COCINA"
-            }
-          }
-        ]
+        "detalles": []
       },
       "bloques": {
         "esperados": [
@@ -12379,60 +10566,25 @@
               "porTipo": {
                 "arc": {
                   "esperado": 1,
-                  "leidoCorrecto": 0,
+                  "leidoCorrecto": 1,
                   "geometriaDistinta": 0,
-                  "faltante": 1,
+                  "faltante": 0,
                   "inesperado": 0
                 },
                 "line": {
                   "esperado": 1,
-                  "leidoCorrecto": 0,
+                  "leidoCorrecto": 1,
                   "geometriaDistinta": 0,
-                  "faltante": 1,
+                  "faltante": 0,
                   "inesperado": 0
                 }
               },
-              "detalles": [
-                {
-                  "tipo": "arc",
-                  "problema": "faltante",
-                  "esperado": {
-                    "center": [
-                      0,
-                      0,
-                      0
-                    ],
-                    "radius": 9,
-                    "startAngle": 4.71238898038469,
-                    "endAngle": 0
-                  }
-                },
-                {
-                  "tipo": "line",
-                  "problema": "faltante",
-                  "esperado": {
-                    "start": [
-                      0,
-                      0,
-                      0
-                    ],
-                    "end": [
-                      0,
-                      9,
-                      0
-                    ]
-                  }
-                }
-              ]
+              "detalles": []
             }
           }
         }
       },
       "tiposNoSoportados": [
-        {
-          "codigoBs": 1,
-          "cuantos": 2
-        },
         {
           "codigoBs": 4,
           "cuantos": 3
@@ -12440,10 +10592,6 @@
         {
           "codigoBs": 5,
           "cuantos": 3
-        },
-        {
-          "codigoBs": 7,
-          "cuantos": 2
         },
         {
           "codigoBs": 42,
@@ -12538,20 +10686,7 @@
           "cuantos": 6
         }
       ],
-      "diagnosticos": [
-        {
-          "code": "r2010-owned-entity-not-measured",
-          "severity": "warning",
-          "offset": 2975,
-          "message": "An R2010+ entity declares an owner; block membership is implemented but not exercised by the admitted corpus, so it was kept in model space."
-        },
-        {
-          "code": "r2010-owned-entity-not-measured",
-          "severity": "warning",
-          "offset": 3018,
-          "message": "An R2010+ entity declares an owner; block membership is implemented but not exercised by the admitted corpus, so it was kept in model space."
-        }
-      ]
+      "diagnosticos": []
     },
     {
       "bundle": "valle.fundacional.ac1032.001",
@@ -13667,53 +11802,13 @@
         "porTipo": {
           "text": {
             "esperado": 3,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 3,
             "geometriaDistinta": 0,
-            "faltante": 3,
+            "faltante": 0,
             "inesperado": 0
           }
         },
-        "detalles": [
-          {
-            "tipo": "text",
-            "problema": "faltante",
-            "esperado": {
-              "insertion": [
-                10,
-                10
-              ],
-              "height": 5,
-              "rotation": 0,
-              "value": "VALLE DESIGN"
-            }
-          },
-          {
-            "tipo": "text",
-            "problema": "faltante",
-            "esperado": {
-              "insertion": [
-                10,
-                30
-              ],
-              "height": 7,
-              "rotation": 0.2617993877991494,
-              "value": "PLANTA BAJA"
-            }
-          },
-          {
-            "tipo": "text",
-            "problema": "faltante",
-            "esperado": {
-              "insertion": [
-                10,
-                50
-              ],
-              "height": 4,
-              "rotation": 0,
-              "value": "CORTE A-A"
-            }
-          }
-        ]
+        "detalles": []
       },
       "bloques": {
         "esperados": [],
@@ -13724,10 +11819,6 @@
         "porBloque": {}
       },
       "tiposNoSoportados": [
-        {
-          "codigoBs": 1,
-          "cuantos": 3
-        },
         {
           "codigoBs": 4,
           "cuantos": 2
@@ -13891,112 +11982,15 @@
       },
       "entidades": {
         "porTipo": {
-          "circle": {
-            "esperado": 0,
-            "leidoCorrecto": 0,
-            "geometriaDistinta": 0,
-            "faltante": 0,
-            "inesperado": 1
-          },
           "insert": {
             "esperado": 4,
-            "leidoCorrecto": 0,
-            "geometriaDistinta": 0,
-            "faltante": 4,
-            "inesperado": 0
-          },
-          "line": {
-            "esperado": 0,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 4,
             "geometriaDistinta": 0,
             "faltante": 0,
-            "inesperado": 4
+            "inesperado": 0
           }
         },
-        "detalles": [
-          {
-            "tipo": "circle",
-            "problema": "inesperado",
-            "cuantos": 1
-          },
-          {
-            "tipo": "insert",
-            "problema": "faltante",
-            "esperado": {
-              "block": "MARCO-A",
-              "position": [
-                10,
-                10,
-                0
-              ],
-              "scale": [
-                1,
-                1,
-                1
-              ],
-              "rotation": 0
-            }
-          },
-          {
-            "tipo": "insert",
-            "problema": "faltante",
-            "esperado": {
-              "block": "MARCO-A",
-              "position": [
-                50,
-                10,
-                0
-              ],
-              "scale": [
-                1,
-                1,
-                1
-              ],
-              "rotation": 0.5235987755982988
-            }
-          },
-          {
-            "tipo": "insert",
-            "problema": "faltante",
-            "esperado": {
-              "block": "MARCO-A",
-              "position": [
-                90,
-                10,
-                0
-              ],
-              "scale": [
-                2,
-                1.5,
-                1
-              ],
-              "rotation": 0
-            }
-          },
-          {
-            "tipo": "insert",
-            "problema": "faltante",
-            "esperado": {
-              "block": "MARCO-A",
-              "position": [
-                10,
-                40,
-                0
-              ],
-              "scale": [
-                0.5,
-                0.5,
-                1
-              ],
-              "rotation": 1.5707963267948966
-            }
-          },
-          {
-            "tipo": "line",
-            "problema": "inesperado",
-            "cuantos": 4
-          }
-        ]
+        "detalles": []
       },
       "bloques": {
         "esperados": [
@@ -14014,97 +12008,20 @@
               "porTipo": {
                 "circle": {
                   "esperado": 1,
-                  "leidoCorrecto": 0,
+                  "leidoCorrecto": 1,
                   "geometriaDistinta": 0,
-                  "faltante": 1,
+                  "faltante": 0,
                   "inesperado": 0
                 },
                 "line": {
                   "esperado": 4,
-                  "leidoCorrecto": 0,
+                  "leidoCorrecto": 4,
                   "geometriaDistinta": 0,
-                  "faltante": 4,
+                  "faltante": 0,
                   "inesperado": 0
                 }
               },
-              "detalles": [
-                {
-                  "tipo": "circle",
-                  "problema": "faltante",
-                  "esperado": {
-                    "center": [
-                      10,
-                      5,
-                      0
-                    ],
-                    "radius": 3
-                  }
-                },
-                {
-                  "tipo": "line",
-                  "problema": "faltante",
-                  "esperado": {
-                    "start": [
-                      0,
-                      0,
-                      0
-                    ],
-                    "end": [
-                      20,
-                      0,
-                      0
-                    ]
-                  }
-                },
-                {
-                  "tipo": "line",
-                  "problema": "faltante",
-                  "esperado": {
-                    "start": [
-                      20,
-                      0,
-                      0
-                    ],
-                    "end": [
-                      20,
-                      10,
-                      0
-                    ]
-                  }
-                },
-                {
-                  "tipo": "line",
-                  "problema": "faltante",
-                  "esperado": {
-                    "start": [
-                      20,
-                      10,
-                      0
-                    ],
-                    "end": [
-                      0,
-                      10,
-                      0
-                    ]
-                  }
-                },
-                {
-                  "tipo": "line",
-                  "problema": "faltante",
-                  "esperado": {
-                    "start": [
-                      0,
-                      10,
-                      0
-                    ],
-                    "end": [
-                      0,
-                      0,
-                      0
-                    ]
-                  }
-                }
-              ]
+              "detalles": []
             }
           }
         }
@@ -14117,10 +12034,6 @@
         {
           "codigoBs": 5,
           "cuantos": 3
-        },
-        {
-          "codigoBs": 7,
-          "cuantos": 4
         },
         {
           "codigoBs": 42,
@@ -14211,38 +12124,7 @@
           "cuantos": 6
         }
       ],
-      "diagnosticos": [
-        {
-          "code": "r2010-owned-entity-not-measured",
-          "severity": "warning",
-          "offset": 2685,
-          "message": "An R2010+ entity declares an owner; block membership is implemented but not exercised by the admitted corpus, so it was kept in model space."
-        },
-        {
-          "code": "r2010-owned-entity-not-measured",
-          "severity": "warning",
-          "offset": 2728,
-          "message": "An R2010+ entity declares an owner; block membership is implemented but not exercised by the admitted corpus, so it was kept in model space."
-        },
-        {
-          "code": "r2010-owned-entity-not-measured",
-          "severity": "warning",
-          "offset": 2771,
-          "message": "An R2010+ entity declares an owner; block membership is implemented but not exercised by the admitted corpus, so it was kept in model space."
-        },
-        {
-          "code": "r2010-owned-entity-not-measured",
-          "severity": "warning",
-          "offset": 2814,
-          "message": "An R2010+ entity declares an owner; block membership is implemented but not exercised by the admitted corpus, so it was kept in model space."
-        },
-        {
-          "code": "r2010-owned-entity-not-measured",
-          "severity": "warning",
-          "offset": 2857,
-          "message": "An R2010+ entity declares an owner; block membership is implemented but not exercised by the admitted corpus, so it was kept in model space."
-        }
-      ]
+      "diagnosticos": []
     },
     {
       "bundle": "valle.fundacional.ac1032.001",
@@ -14399,18 +12281,11 @@
       },
       "entidades": {
         "porTipo": {
-          "arc": {
-            "esperado": 0,
-            "leidoCorrecto": 0,
-            "geometriaDistinta": 0,
-            "faltante": 0,
-            "inesperado": 1
-          },
           "insert": {
             "esperado": 2,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 2,
             "geometriaDistinta": 0,
-            "faltante": 2,
+            "faltante": 0,
             "inesperado": 0
           },
           "line": {
@@ -14418,7 +12293,7 @@
             "leidoCorrecto": 3,
             "geometriaDistinta": 0,
             "faltante": 0,
-            "inesperado": 1
+            "inesperado": 0
           },
           "lwpolyline": {
             "esperado": 1,
@@ -14429,86 +12304,13 @@
           },
           "text": {
             "esperado": 2,
-            "leidoCorrecto": 0,
+            "leidoCorrecto": 2,
             "geometriaDistinta": 0,
-            "faltante": 2,
+            "faltante": 0,
             "inesperado": 0
           }
         },
-        "detalles": [
-          {
-            "tipo": "arc",
-            "problema": "inesperado",
-            "cuantos": 1
-          },
-          {
-            "tipo": "insert",
-            "problema": "faltante",
-            "esperado": {
-              "block": "PUERTA",
-              "position": [
-                60,
-                55,
-                0
-              ],
-              "scale": [
-                1,
-                1,
-                1
-              ],
-              "rotation": 0
-            }
-          },
-          {
-            "tipo": "insert",
-            "problema": "faltante",
-            "esperado": {
-              "block": "PUERTA",
-              "position": [
-                60,
-                35,
-                0
-              ],
-              "scale": [
-                1,
-                1,
-                1
-              ],
-              "rotation": 1.5707963267948966
-            }
-          },
-          {
-            "tipo": "line",
-            "problema": "inesperado",
-            "cuantos": 1
-          },
-          {
-            "tipo": "text",
-            "problema": "faltante",
-            "esperado": {
-              "insertion": [
-                20,
-                45
-              ],
-              "height": 5,
-              "rotation": 0,
-              "value": "SALA"
-            }
-          },
-          {
-            "tipo": "text",
-            "problema": "faltante",
-            "esperado": {
-              "insertion": [
-                80,
-                45
-              ],
-              "height": 5,
-              "rotation": 0,
-              "value": "COCINA"
-            }
-          }
-        ]
+        "detalles": []
       },
       "bloques": {
         "esperados": [
@@ -14526,60 +12328,25 @@
               "porTipo": {
                 "arc": {
                   "esperado": 1,
-                  "leidoCorrecto": 0,
+                  "leidoCorrecto": 1,
                   "geometriaDistinta": 0,
-                  "faltante": 1,
+                  "faltante": 0,
                   "inesperado": 0
                 },
                 "line": {
                   "esperado": 1,
-                  "leidoCorrecto": 0,
+                  "leidoCorrecto": 1,
                   "geometriaDistinta": 0,
-                  "faltante": 1,
+                  "faltante": 0,
                   "inesperado": 0
                 }
               },
-              "detalles": [
-                {
-                  "tipo": "arc",
-                  "problema": "faltante",
-                  "esperado": {
-                    "center": [
-                      0,
-                      0,
-                      0
-                    ],
-                    "radius": 9,
-                    "startAngle": 4.71238898038469,
-                    "endAngle": 0
-                  }
-                },
-                {
-                  "tipo": "line",
-                  "problema": "faltante",
-                  "esperado": {
-                    "start": [
-                      0,
-                      0,
-                      0
-                    ],
-                    "end": [
-                      0,
-                      9,
-                      0
-                    ]
-                  }
-                }
-              ]
+              "detalles": []
             }
           }
         }
       },
       "tiposNoSoportados": [
-        {
-          "codigoBs": 1,
-          "cuantos": 2
-        },
         {
           "codigoBs": 4,
           "cuantos": 3
@@ -14587,10 +12354,6 @@
         {
           "codigoBs": 5,
           "cuantos": 3
-        },
-        {
-          "codigoBs": 7,
-          "cuantos": 2
         },
         {
           "codigoBs": 42,
@@ -14681,20 +12444,7 @@
           "cuantos": 6
         }
       ],
-      "diagnosticos": [
-        {
-          "code": "r2010-owned-entity-not-measured",
-          "severity": "warning",
-          "offset": 2975,
-          "message": "An R2010+ entity declares an owner; block membership is implemented but not exercised by the admitted corpus, so it was kept in model space."
-        },
-        {
-          "code": "r2010-owned-entity-not-measured",
-          "severity": "warning",
-          "offset": 3018,
-          "message": "An R2010+ entity declares an owner; block membership is implemented but not exercised by the admitted corpus, so it was kept in model space."
-        }
-      ]
+      "diagnosticos": []
     }
   ]
 }

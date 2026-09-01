@@ -1887,6 +1887,40 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-M4-TEXT-INSERT-Y-BLOQUES-R2010-20260901",
+      "date": "2026-09-01",
+      "initiative": "Cierra la matriz de entidades de AC1024/AC1027/AC1032 al nivel de AC1015: arc 2/2, circle 3/3, insert 6/6, line 15/15, lwpolyline 3/3, point 1/1 y text 5/5, con cero distintas, cero faltantes y cero inesperadas; las discrepancias por version bajan de 36 a 14. Tres mediciones: el cuerpo de TEXT es la misma secuencia de R2000 MENOS el TV (15/15 por dos caminos independientes, incluido el aterrizaje exacto en el inicio del flujo de cadenas); el cuerpo de INSERT no cambia y su puntero al BLOCK_RECORD es el primer handle tras la cabeza comun (6/6 nombres); y la pertenencia entidad-bloque. Esto ultimo obligo a CORREGIR UNA AFIRMACION FALSA que yo mismo publique en el corte anterior: escribi que el corpus no ejercitaba ni un solo objeto de modo 0, y contando los modos aparecen 5 LINE, 1 CIRCLE y 1 ARC -exactamente las 7 entidades que entonces quedaban descolocadas-. La afirmacion se hizo sin contar, que es la forma barata de equivocarse: bastaba un recuento de dos minutos. Sale ademas una regresion propia que encontro un test y no el corpus: localizar el flujo de cadenas antes de comprobar el bit de presencia convertia 'capacidad ausente' en 'corrupcion' para un tipo sin cadena; corregido en el codigo, no en el test.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de llevar el DWG a las versiones modernas para poder comercializar.",
+      "firstPartyInputs": [
+        "Corpus de conformidad propio leido del commit fijado via el gate consumidor.",
+        "El decodificador AC1015 propio como oraculo diferencial."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. Ninguna fuente documental nueva intervino.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/objects/entity-common.ts (decodeTextFields acepta la cadena desde fuera en vez de duplicar la secuencia)",
+        "packages/dwg-codec/src/objects/entities-core.ts (decodeTextWithExternalValue)",
+        "packages/dwg-codec/src/reader/r2010-entity-body.ts (tipos con cadena; regresion de categoria de error corregida)",
+        "packages/dwg-codec/src/reader/r2010-database-assembly.ts (puntero a bloque de INSERT y pertenencia entidad-bloque, en segunda pasada)",
+        "packages/dwg-codec/SOURCE_REGISTER.json (VALLE-CORPUS-R2010-TEXT-INSERT-BLOQUES, y el hecho falso del corte anterior marcado como CORREGIDO en su sitio)",
+        "packages/dwg-codec/CAPABILITIES.md (corte nuevo con la correccion fechada)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de completar el DWG moderno para comercializar sin licencia ODA."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

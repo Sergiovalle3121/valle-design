@@ -67,16 +67,23 @@ import {
   AC1015_TYPE_CIRCLE,
   AC1015_TYPE_LINE,
   AC1015_TYPE_POINT,
+  AC1015_TYPE_TEXT,
   decodeArc,
   decodeCircle,
   decodeLine,
   decodePoint,
+  decodeTextWithExternalValue,
 } from "../objects/entities-core.js";
 import {
   AC1015_TYPE_LWPOLYLINE,
   decodeLwPolyline,
 } from "../objects/entities-poly.js";
+import { AC1015_TYPE_INSERT, decodeInsert } from "../objects/entity-insert.js";
 import { throwDwgError } from "../security/parse-error.js";
+import {
+  locateR2010StringStream,
+  readR2010ObjectName,
+} from "./r2010-string-stream.js";
 
 /** Las tres versiones cuyo prefijo común-hasta-tipo está medido. */
 export type R2010MeasuredVersion = "AC1024" | "AC1027" | "AC1032";
@@ -94,6 +101,24 @@ export const R2010_TYPE_DATA_OFFSET_BITS: Readonly<
   AC1032: 40,
 });
 
+/**
+ * Tipos CON cadena: su decodificador recibe además los bytes que vienen del
+ * flujo de cadenas, porque en R2010+ el `TV` ya no viaja en la sección de
+ * datos. Medido 15/15 sobre los TEXT del corpus, por dos caminos: todos los
+ * campos coinciden con el gemelo AC1015 y el dato del tipo aterriza EXACTO en
+ * el inicio del flujo de cadenas.
+ */
+type R2010StringEntityDecoder = (
+  reader: DwgBitReader,
+  valueBytes: readonly number[],
+) => DwgGeometryEntity;
+const R2010_STRING_ENTITY_DECODERS: ReadonlyMap<
+  number,
+  R2010StringEntityDecoder
+> = new Map<number, R2010StringEntityDecoder>([
+  [AC1015_TYPE_TEXT, decodeTextWithExternalValue],
+]);
+
 /** Los únicos tipos de entidad cuyo cuerpo R2010+ este laboratorio decodifica. */
 type R2010EntityDecoder = (reader: DwgBitReader) => DwgGeometryEntity;
 const R2010_ENTITY_DECODERS: ReadonlyMap<number, R2010EntityDecoder> = new Map<
@@ -105,6 +130,7 @@ const R2010_ENTITY_DECODERS: ReadonlyMap<number, R2010EntityDecoder> = new Map<
   [AC1015_TYPE_CIRCLE, decodeCircle],
   [AC1015_TYPE_ARC, decodeArc],
   [AC1015_TYPE_LWPOLYLINE, decodeLwPolyline],
+  [AC1015_TYPE_INSERT, decodeInsert],
 ]);
 
 /** Un cuerpo R2010+ decodificado: encabezado ya resuelto más geometría. */
@@ -132,7 +158,8 @@ export function readR2010EntityBody(
   const typeDataOffsetBits = R2010_TYPE_DATA_OFFSET_BITS[version];
   const header = readR2010ObjectHeader(bodyBytes, expectedHandle);
   const decode = R2010_ENTITY_DECODERS.get(header.type);
-  if (decode === undefined) {
+  const decodeWithString = R2010_STRING_ENTITY_DECODERS.get(header.type);
+  if (decode === undefined && decodeWithString === undefined) {
     throwDwgError(
       "DWG_VERSION_DECODER_UNSUPPORTED",
       "unsupported",
@@ -151,9 +178,42 @@ export function readR2010EntityBody(
       "The measured R2010+ common header does not fit inside the object body.",
     );
   }
+
   const reader = new DwgBitReader(new BoundedByteCursor(bodyBytes));
   for (let index = 0; index < typeDataStart; index += 1) reader.readB();
-  const entity = decode(reader);
+
+  // El flujo de cadenas SÓLO se localiza para los tipos que lo llevan. Para
+  // los demás el camino no cambia en absoluto: un tipo sin cadena cuyo bit de
+  // presencia valga 1 es CAPACIDAD AUSENTE, no corrupción, y localizar el
+  // flujo antes de comprobarlo convertiría un error en el otro.
+  if (decodeWithString !== undefined) {
+    const span = locateR2010StringStream(bodyBytes, header);
+    if (!span.present) {
+      throwDwgError(
+        "DWG_STRUCTURE_CORRUPT",
+        "input",
+        0,
+        "An R2010+ entity of a string-bearing type declares no string stream.",
+      );
+    }
+    const valueBytes = readR2010ObjectName(bodyBytes, span);
+    const entity = decodeWithString(reader, valueBytes);
+    if (reader.bitPosition !== span.startBit) {
+      throwDwgError(
+        "DWG_STRUCTURE_CORRUPT",
+        "input",
+        Math.floor(reader.bitPosition / 8),
+        "The decoded R2010+ entity data does not land exactly where its string stream begins.",
+      );
+    }
+    return Object.freeze({ header, entity });
+  }
+
+  // Tipos SIN cadena: el dato termina exactamente un bit antes del flujo de
+  // handles, y ese bit —el de presencia— debe valer 0. Que valga 1 en un tipo
+  // que este laboratorio no sabe leer con cadena es capacidad ausente, no
+  // corrupción, y se dice así.
+  const entity = decode!(reader);
 
   // `objectSize` (MS) excluye sus propios bytes y los de UMC (medido): el
   // límite real usa `bodyBytes.length`, nunca `header.objectSize`.

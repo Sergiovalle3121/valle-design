@@ -3,17 +3,17 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-roundtrip-v1",
   "generadoPor": "node scripts/dwg/dwg-evidence.mjs",
-  "generadoEn": "2026-08-31T23:45:44.541Z",
+  "generadoEn": "2026-09-01T01:08:30.159Z",
   "environment": {
     "node": "v22.22.2",
     "platform": "linux",
     "architecture": "x64",
     "osType": "Linux",
     "osRelease": "6.18.44-fc-v22",
-    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
     "logicalCpuCount": 4,
     "totalMemoryBytes": 16856133632,
-    "declaredMachine": "Intel(R) Xeon(R) Processor @ 2.10GHz (4 hilos lógicos), 16.9 GB de RAM, Linux 6.18.44-fc-v22"
+    "declaredMachine": "Intel(R) Xeon(R) Processor @ 2.80GHz (4 hilos lógicos), 16.9 GB de RAM, Linux 6.18.44-fc-v22"
   },
   "declaracion": "Round-trips verificados contra un lector externo autorizado; la medición cruda vive en `oraculoExterno.fuente`.",
   "porQueNoCuentaElPropio": "El writer y el reader de Valle salen del mismo código y comparten sus errores: si el writer emite un campo mal y el reader lo lee igual de mal, el round-trip cierra y no ha demostrado nada. Por eso la cifra que se publica exige un lector independiente autorizado.",
