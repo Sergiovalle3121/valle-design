@@ -337,7 +337,8 @@
         "Capitulo 21 de la ODS (AcDb:ObjFreeSpace): la seccion del registro 3 del directorio R2000 lleva RL cero, RL recuento de objetos, los 8 bytes del instante TDUPDATE, RL cero, RL 4, y cuatro RL con offsets; contenido mayormente redundante",
         "Capitulo 22 de la ODS (AcDb:Template): la seccion del registro 4 lleva un RS de longitud de descripcion con sus bytes y un RS con la variable MEASUREMENT (0 ingles, 1 metrico)",
         "Capitulo 26 de la ODS (SECOND FILE HEADER R13-R15): sentinela de apertura D4 7B 21 CE 28 93 9F BF 53 24 40 09 12 3C AA 01, tamano RL, ubicacion L del propio sentinela, cadena de version, seis ceros y cuatro bits a cero, cuatro bytes fijos de version, y por cada una de las cuatro secciones un RC de numero con direccion L y tamano L; siguen un S con recuento 14 de registros de handle — handseed, y los controles de block, layer, shapefile(style), linetype, view, ucs, vport, regapp(appid), dimstyle, viewport entity header, dictionary(named objects), mlinestyle por defecto y group dictionary — cada uno como RC de tamano, RC de indice y los bytes del handle; CRC y sentinela de cierre 2B 84 DE 31 D7 6C 60 40 AC DB BF F6 ED C3 55 FE",
-        "Capitulo 27 de la ODS (AcDb:AuxHeader, registro 5 del directorio R2000): RC ff 77 01, RS de version DWG (AC1015 = 23), RS de mantenimiento, RL de numero de guardados, RL -1, dos RS de partes del contador, RL 0, dos pares RS de version/mantenimiento repetidos, la secuencia fija RS 0x0005 0x0893 0x0005 0x0893 0x0000 0x0001, cinco RL a cero, TD de creacion y actualizacion (dos RL cada uno), RL con el handseed si cabe, RL de sello educativo, y la cola de contadores documentada"
+        "Capitulo 27 de la ODS (AcDb:AuxHeader, registro 5 del directorio R2000): RC ff 77 01, RS de version DWG (AC1015 = 23), RS de mantenimiento, RL de numero de guardados, RL -1, dos RS de partes del contador, RL 0, dos pares RS de version/mantenimiento repetidos, la secuencia fija RS 0x0005 0x0893 0x0005 0x0893 0x0000 0x0001, cinco RL a cero, TD de creacion y actualizacion (dos RL cada uno), RL con el handseed si cabe, RL de sello educativo, y la cola de contadores documentada",
+        "PARTICION MECANICA 2026-09-01: los writers de MLINESTYLE y LAYOUT salieron de ac1015-structure-writers.ts a ac1015-layout-writers.ts, y el plan de handles de ac1015-minimal-file-writer.ts a ac1015-minimal-file-plan.ts, cuando ensenar al writer de LTYPE a emitir su patron de trazos empujo ambos archivos por encima del presupuesto de monolito. Es el MISMO codigo derivado de esta misma fuente, movido sin cambio de comportamiento; no hay hecho nuevo. Las costuras no son arbitrarias: ni MLINESTYLE ni LAYOUT son entradas de tabla, y el plan de handles es una funcion pura de las opciones que no emite un solo byte."
       ],
       "derivedFiles": [
         "packages/dwg-codec/DWG0_WORKLOG.md",
@@ -372,6 +373,8 @@
         "packages/dwg-codec/src/writer/ac1015-container-writer.ts",
         "packages/dwg-codec/src/writer/ac1015-entity-writer.ts",
         "packages/dwg-codec/src/writer/ac1015-header-writer.ts",
+        "packages/dwg-codec/src/writer/ac1015-layout-writers.ts",
+        "packages/dwg-codec/src/writer/ac1015-minimal-file-plan.ts",
         "packages/dwg-codec/src/writer/ac1015-minimal-file-writer.ts",
         "packages/dwg-codec/src/writer/ac1015-object-writer.ts",
         "packages/dwg-codec/src/writer/ac1015-structure-writers.ts",
@@ -554,7 +557,8 @@
         "Marco de seccion de datos R2010+ (AC1024/AC1027/AC1032, intake 2026-08-23): a diferencia de R2000/AC1018 (campo de tamano RL de 4 bytes tras el centinela de apertura), AcDb:Header y AcDb:Classes usan un campo de tamano de 8 bytes little-endian (los 4 bytes altos observados en 0 en todo el corpus); el CRC-16 semilla 0xC0C1 cubre [tamano de 8 bytes + payload] igual que R2000/AC1018 y el centinela de cierre aparece exactamente en sizeOffset+8+tamano+2. Confirmado por coincidencia EXACTA del CRC-16 almacenado: AC1024 (fixtures 01-vacio y 02-una-linea, AcDb:Header y AcDb:Classes), AC1027 y AC1032 (02-una-linea, AcDb:Header y AcDb:Classes) — 7/7 mediciones, 0 discrepancias. Los sentinelas y la semilla del CRC no cambian",
         "Envoltura de objeto R2010+ (AC1024/AC1027/AC1032, intake 2026-08-23) dentro de AcDb:AcDbObjects: a diferencia de R2000/AC1018 (tamano MS al frente + cuerpo + CRC-16), el cuerpo NO lleva ningun campo de tamano en bytes al frente; el CRC-16 RS little-endian semilla 0xC0C1 cubre el cuerpo COMPLETO empezando en el primer byte del objeto, termina EXACTAMENTE 2 bytes antes del offset del SIGUIENTE objeto segun el mapa de handles (mismo orden ascendente de offset) o del fin del payload de AcDb:AcDbObjects para el ultimo objeto, y no hay relleno entre objetos consecutivos. Medido por busqueda exhaustiva del rango [inicio, X) cuyo CRC-16 coincide con los 2 bytes almacenados en [X, X+2): la coincidencia es UNICA para cada objeto (sin ambiguedad frente a los demas rangos candidatos del mismo objeto) y X+2 aterriza EXACTO en el limite del mapa en el 100% de los objetos medidos — 148/148 (AC1024 02-una-linea), 165/165 (AC1024 08-plano-mini) y 117/117 (AC1027 08-plano-mini), 430/430 en total, 0 discrepancias",
         "Dentro de esa envoltura R2010+, el objeto handle=34 del bundle valle.fundacional.ac1024.001/02-una-linea.dwg se identifico de forma independiente como la entidad LINEA esperada por el oraculo DXF (extremo 100,50,0) mediante busqueda BIT A BIT (no alineada a byte) de los dobles IEEE-754 literales 100.0 y 50.0 dentro del cuerpo: ambos aparecen en las posiciones de bit que predice el ORDEN YA REGISTRADO de los campos de LINEA en R2000 (bit Z-nulas, RD X-inicial, DD X-final-contra-inicial, RD Y-inicial, DD Y-final-contra-inicial) — el hueco de 64 bits entre el final del campo DD de X (bit 222) y el inicio del campo DD de Y (bit 286) coincide EXACTO con un RD de 64 bits (Y-inicial = 0.0). Esto confirma que la CODIFICACION POR CAMPO de la geometria (RD/DD, BT, BE) no cambia para R2010+; el hallazgo NO alcanza a fijar la codificacion BOT del tipo de objeto ni la posicion del campo UMC del tamano del flujo de handles: los intentos de descomponer los 34 bits que preceden al handle propio H de ese mismo objeto (localizado por coincidencia UNICA del patron codigo=0/contador=1/valor=34) en un selector BOT de 2 bits mas un valor de ancho fijo (probado en 8, 16 y 32 bits) no reprodujeron el codigo de tipo LINE=0x13 ya registrado para R2000/AC1018 en ninguna combinacion; esa descomposicion queda SIN RESOLVER y no se registra como hecho — es la frontera declarada de este intake (ver DWG0_WORKLOG 2026-08-23)",
-        "DD forma 0b10 (parche de 6 bytes) - orden confirmado con el corpus: los 2 primeros bytes del flujo parchean las posiciones 4-5 de la representacion LE del defecto y los 4 siguientes las posiciones 0-3 (ODS 2.2). Censo 2026-08-30 sobre los 57 DWG: la forma aparece exactamente 2 veces, en 19-dim-radial-diameter.dwg (entity-wave-2-ac1015), como X final de dos LINE de flecha dentro de bloques anonimos de cota; con este orden decodifican 141 (defecto 138) y 68.57883832488648 (defecto 71.57883832488648), flechas de longitud exacta 3.0 coherentes con la geometria redonda del dibujo, mientras que la lectura secuencial 0..5 producia 136.00000000116415 y 70.74845976023441 (corrupcion silenciosa). La forma 0b01 sigue sin observarse en el corpus"
+        "DD forma 0b10 (parche de 6 bytes) - orden confirmado con el corpus: los 2 primeros bytes del flujo parchean las posiciones 4-5 de la representacion LE del defecto y los 4 siguientes las posiciones 0-3 (ODS 2.2). Censo 2026-08-30 sobre los 57 DWG: la forma aparece exactamente 2 veces, en 19-dim-radial-diameter.dwg (entity-wave-2-ac1015), como X final de dos LINE de flecha dentro de bloques anonimos de cota; con este orden decodifican 141 (defecto 138) y 68.57883832488648 (defecto 71.57883832488648), flechas de longitud exacta 3.0 coherentes con la geometria redonda del dibujo, mientras que la lectura secuencial 0..5 producia 136.00000000116415 y 70.74845976023441 (corrupcion silenciosa). La forma 0b01 sigue sin observarse en el corpus",
+        "PARTICION MECANICA 2026-09-01: el registro de entidad mutable y los ayudantes de colocacion por bloque salieron de database-assembly.ts a database-assembly-records.ts cuando el intake de la semantica de estado de capa empujo el archivo por encima del presupuesto de monolito. Es el MISMO codigo derivado de esta misma fuente, movido sin cambio de comportamiento; no hay hecho nuevo."
       ],
       "derivedFiles": [
         "packages/dwg-codec/CAPABILITIES.md",
@@ -567,6 +571,7 @@
         "packages/dwg-codec/src/container/r2010-object-envelope.ts",
         "packages/dwg-codec/src/objects/objects-dictionary.ts",
         "packages/dwg-codec/src/objects/tables-symbol.ts",
+        "packages/dwg-codec/src/reader/database-assembly-records.ts",
         "packages/dwg-codec/src/reader/database-assembly.ts",
         "packages/dwg-codec/src/reader/database-model.ts",
         "packages/dwg-codec/src/reader/r2004-body-adapter.ts",
@@ -906,6 +911,100 @@
       "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-r2010-header-variables.mjs sobre el corpus admitido); revision humana del propietario pendiente",
       "reviewedAt": "2026-09-01",
       "notes": "NO decodifica nada nuevo y NO promueve ninguna capacidad: el codec sigue fallando cerrado en las variables de cabecera de R2010+. El valor de esta entrada es que convierte un 'no medido' en un 'medido como no falsable, por esta razon exacta y con esta condicion de desbloqueo', para que nadie repita el intento a ciegas."
+    },
+    {
+      "id": "VALLE-CORPUS-LAYER-ESTADO-SEMANTICA",
+      "owner": "Sergio Valle Zarate",
+      "origin": {
+        "type": "original-measurement",
+        "location": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance/tree/0688fb9c395b9cac4169d1ee9c23a7370cc28cf3/bundles/valle.fundacional.ac1015.001/oracles/dxf",
+        "accessedAt": "2026-09-01"
+      },
+      "title": "Medicion first-party de la SEMANTICA bit a bit de las banderas de estado de capa (congelada y bloqueada) contra el oraculo DXF, en las cinco versiones",
+      "versionOrDate": "2026-09-01",
+      "terms": {
+        "license": "Valle first-party corpus measurement (admitted tool-converted-original bundles)",
+        "access": "Blobs leidos del commit fijado del repo hermano de conformidad via el gate consumidor (corpus-pin.json + SHA-256 verificado); ningun working tree",
+        "redistribution": "Solo se registran numeros observados (posiciones de bit, recuentos de acierto por hipotesis) y decisiones de codigo derivadas; los bytes DWG y los DXF permanecen en el repo hermano bajo su propia politica",
+        "notes": "Ninguna fuente documental nueva intervino. La location apunta al directorio de ORACULOS DXF del bundle AC1015 porque es exactamente lo que hace posible esta medicion -el DXF fuente dice que capa esta congelada antes de mirar el binario- y porque el gate exige una URL distinta por entrada; la medicion cubre por igual los cinco bundles fundacionales de ese MISMO commit."
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "El bit 0 del BS de estado de LAYER vale 1 EXACTAMENTE cuando el oraculo DXF del mismo dibujo declara la capa congelada, y el bit 3 exactamente cuando la declara bloqueada. Medido sobre 98 capas de 57 fixtures en las CINCO versiones (AC1015, AC1018, AC1024, AC1027, AC1032), con 5 casos positivos y 93 negativos por cada bandera",
+        "La hipotesis se probo contra TODAS las posiciones de bit 0..15, no contra la esperada: ninguna otra posicion separa ninguna de las dos banderas. Un bit se acepta solo si acierta siempre Y es separable -al menos un positivo y un negativo-, porque un bit constante acierta en bloque sin falsar nada. Es la disciplina que corrigio la sonda de campos de tabla en la fase 1.F",
+        "LA POSICION NO COINCIDE CON LA DEL DXF: el grupo 70 del DXF marca bloqueada con el valor 4 (bit 2) y el DWG la marca en el bit 3 (valor 8). Reutilizar la convencion del DXF por analogia habria dado un resultado equivocado en la bandera de bloqueo y correcto en la de congelacion, que es el peor de los errores posibles: el que funciona a medias",
+        "El valor de base de una capa normal es 1008 (0b0000001111110000) en las cinco versiones. Congelada da 1009 y bloqueada da 1016; los tres valores son los MISMOS en las cinco versiones, de modo que la semantica medida no es por version",
+        "CONFUSION DESCARTADA POR DATO, no por argumento: la capa CONGELADA de 04-capas tiene color 4, y la capa PUERTAS de 08-plano-mini tiene tambien color 4 y su bit 0 vale 0. La correlacion entre el bit y la bandera no es un artefacto del color",
+        "LIMITE: los bits 1, 2 y 4..15 son CONSTANTES en todo el corpus admitido (1..2 y 10..15 a cero; 4..9 a uno) y por eso NO se les atribuye ningun significado. Se lee lo que varia; lo que no varia queda declarado sin interpretar",
+        "LIMITE QUE IMPORTA AL PRODUCTO: la CAPA APAGADA no se mide y no se afirma. El DXF la codifica con color NEGATIVO y en el corpus admitido no hay ni una sola capa apagada, asi que el estado apagado/encendido no es falsable con esta evidencia. Una capa apagada de un dibujo real llegaria hoy al lienzo como visible, y eso se declara como perdida explicita en vez de ocultarse",
+        "LIMITE DE PROCEDENCIA, SIN SUAVIZAR: los casos positivos vienen de UN solo dibujo del corpus, 04-capas, el unico construido con una capa congelada y una bloqueada; lo que multiplica la evidencia son las cinco versiones y las capas normales de los otros siete dibujos, que aportan los negativos. Todo el corpus es salida del ODA File Converter desde un DXF fuente propio: lo medido es como ESE productor codifica el estado, y sigue sin haber un DWG producido por AutoCAD",
+        "CORRECCION DERIVADA 2026-09-01: al exigir lo que pide ADR-0009 §8.2 -que el oraculo externo verifique la funcion PUBLICA de escritura- aparecio que writeCanonicalDwg perdia el COLOR de cada capa sin declararlo: recibe el color en hexadecimal del documento canonico y empujaba la capa con su nombre y nada mas, asi que una capa cian (ACI 4) salia blanca (ACI 7). El writer interno recibe el indice ya resuelto y siempre estuvo bien. La tabla ACI basica pasa a vivir en un solo modulo y en las DOS direcciones, con el inverso derivado de la misma tabla; el blanco ambiguo (#FFFFFF es el 7 y el 255) resuelve al menor y un color fuera de la tabla se DECLARA en vez de aproximarse al mas cercano. Medido: 3 de 4 casos ya salian byte a byte identicos por ambos caminos y capa-linea -el unico con capa de color- no; tras el arreglo, 4/4"
+      ],
+      "derivedFiles": [
+        "docs/cad/evidence/dwg-layer-state-flags.json",
+        "packages/dwg-codec/src/api/canonical-layers.ts",
+        "packages/dwg-codec/src/api/write.ts",
+        "packages/dwg-codec/src/objects/aci-basic.ts",
+        "packages/dwg-codec/src/objects/layer-state.ts",
+        "packages/dwg-codec/src/reader/database-assembly.ts",
+        "packages/dwg-codec/src/reader/database-model.ts",
+        "packages/dwg-codec/src/reader/r2010-database-assembly.ts",
+        "packages/dwg-codec/src/writer/ac1015-minimal-file-support.ts",
+        "packages/dwg-codec/src/writer/ac1015-minimal-file-writer.ts",
+        "packages/dwg-codec/tests/unit/aci-basic.spec.ts",
+        "packages/dwg-codec/tests/unit/layer-state-write.spec.ts",
+        "packages/dwg-codec/tests/unit/layer-state.spec.ts",
+        "scripts/dwg/probe-layer-state-flags.mjs"
+      ],
+      "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-layer-state-flags.mjs sobre el corpus admitido, contrastando todas las posiciones de bit contra el oraculo DXF); revision humana del propietario pendiente",
+      "reviewedAt": "2026-09-01",
+      "notes": "NO promueve ninguna capacidad de producto ni enciende ningun flag. Lo que cambia es que dos hechos que el codec ya leia dejan de declararse perdida y llegan al lienzo: una capa congelada deja de dibujarse y una bloqueada deja de editarse. El estado apagado sigue sin medirse y se declara como perdida."
+    },
+    {
+      "id": "VALLE-CORPUS-LAYER-TIPO-DE-LINEA",
+      "owner": "Sergio Valle Zarate",
+      "origin": {
+        "type": "original-measurement",
+        "location": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance/tree/0688fb9c395b9cac4169d1ee9c23a7370cc28cf3/bundles/valle.fundacional.ac1024.001/oracles/dxf",
+        "accessedAt": "2026-09-01"
+      },
+      "title": "Medicion first-party del ENLACE entre una entrada LAYER y su entrada LTYPE por handle, contra el oraculo DXF, en las cinco versiones",
+      "versionOrDate": "2026-09-01",
+      "terms": {
+        "license": "Valle first-party corpus measurement (admitted tool-converted-original bundles)",
+        "access": "Blobs leidos del commit fijado del repo hermano de conformidad via el gate consumidor (corpus-pin.json + SHA-256 verificado); ningun working tree",
+        "redistribution": "Solo se registran numeros observados (posicion en el flujo de handles, recuentos de acierto por posicion) y decisiones de codigo derivadas; los bytes DWG y los DXF permanecen en el repo hermano bajo su propia politica",
+        "notes": "Ninguna fuente documental nueva intervino: el hecho de que el tipo de linea viaja POR HANDLE en el flujo final de la entrada ya estaba registrado en ODA-ODS-DWG-5.4.1-PUBLIC; lo que faltaba y aqui se mide es SU POSICION. La location apunta al directorio de oraculos DXF del bundle AC1024 porque el gate exige una URL distinta por entrada y la del AC1015 ya la usa VALLE-CORPUS-LAYER-ESTADO-SEMANTICA; la medicion cubre por igual los cinco bundles de ese MISMO commit."
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "El handle de la POSICION 4 del flujo final de una entrada LAYER es su TIPO DE LINEA: apunta a la entrada LTYPE cuyo nombre declara el oraculo DXF del mismo dibujo en 98/98 capas de las CINCO versiones (AC1015, AC1018, AC1024, AC1027, AC1032)",
+        "Se contrastaron TODAS las posiciones del flujo, no la esperada: las posiciones 0 a 3 no aciertan NI UNA sola vez en 98 capas, y ninguna de ellas resuelve siquiera a una entrada LTYPE. La posicion 5, presente en 36 de las 98, tampoco resuelve a un LTYPE -es el plotstyle segun el hecho ya registrado- y NO se interpreta",
+        "La falsacion es fuerte porque los valores VARIAN de verdad: hay CUATRO tipos de linea distintos en juego (CONTINUOUS, OCULTA-VALLE, TRAZOS, TRAZOS-VALLE), no un corpus entero en CONTINUOUS donde acertar no significaria nada",
+        "LA POSICION ES LA MISMA EN LAS DOS FAMILIAS, pero el LECTOR no: en R2000/R2004 el flujo es el tramo opaco que el decodificador de LAYER ya localizaba, y en R2010+ es el flujo de handles propio ya medido en 105/105 objetos. Que una sola posicion sirva para las cinco versiones es un resultado medido, no una analogia",
+        "TRES CAMINOS Y NO DOS: AC1015 y AC1018 comparten la FORMA DEL OBJETO pero no el CONTENEDOR -AC1018 ya es de la familia R2004- y ademas un cuerpo AC1018 debe pasar por el adaptador a forma R2000 antes de decodificarse. Omitirlo no da error visible: el decodificador no reconoce el tipo y las ocho capas de AC1018 quedan fuera de la medicion EN SILENCIO. Se detecto porque la version anterior de la sonda declaraba cuatro versiones en vez de cinco",
+        "LIMITE: los tipos de linea en juego son pocos y ninguno viene de un xref ni de una capa dependiente, asi que el caso de una entrada LTYPE de referencia externa NO esta ejercitado. El corpus entero es salida del ODA File Converter desde DXF fuente propios: lo medido es como ESE productor ordena el flujo",
+        "CONTEXTO DE POR QUE HACIA FALTA: el codec ya decodificaba la tabla LTYPE entera -patron, alineacion y trazos, en las cinco versiones- y tambien la tabla de capas, pero el registro de capa no llevaba NINGUNA referencia al tipo de linea. Los dos extremos estaban leidos y el puente entre ellos no existia, asi que una capa de ejes con TRAZOS llegaba al lienzo dibujada continua",
+        "ESCRITURA DERIVADA 2026-09-01: el mismo enlace medido permite ESCRIBIRLO. El writer de LTYPE emitia longitud 0, alineacion 'A' y CERO trazos como constantes, asi que el archivo solo podia llevar Continuous; ahora emite el patron con la MISMA septupla por trazo que el lector mide y en el mismo orden, y cada capa apunta a su entrada por el handle de la posicion 4. Verificado ida y vuelta con los valores del corpus (TRAZOS, longitud 1, trazos [0.75,-0.25])"
+      ],
+      "derivedFiles": [
+        "docs/cad/evidence/dwg-layer-linetype.json",
+        "packages/dwg-codec/src/api/canonical-layers.ts",
+        "packages/dwg-codec/src/api/canonical.ts",
+        "packages/dwg-codec/src/objects/layer-linetype.ts",
+        "packages/dwg-codec/src/objects/table-layer.ts",
+        "packages/dwg-codec/src/reader/database-assembly.ts",
+        "packages/dwg-codec/src/reader/database-model.ts",
+        "packages/dwg-codec/src/reader/layer-linetype-resolve.ts",
+        "packages/dwg-codec/src/reader/r2010-database-assembly.ts",
+        "packages/dwg-codec/src/writer/ac1015-structure-writers.ts",
+        "packages/dwg-codec/tests/unit/layer-linetype.spec.ts",
+        "packages/dwg-codec/tests/unit/linetype-pattern-write.spec.ts",
+        "scripts/dwg/probe-layer-linetype.mjs"
+      ],
+      "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-layer-linetype.mjs sobre el corpus admitido, contrastando todas las posiciones del flujo contra el oraculo DXF); revision humana del propietario pendiente",
+      "reviewedAt": "2026-09-01",
+      "notes": "NO promueve ninguna capacidad de producto ni enciende ningun flag."
     }
   ]
 }

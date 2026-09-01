@@ -53,6 +53,10 @@
  * espera de que el propietario lo corra con el ODA File Converter
  * (ADR-0009 §8.2 lo exige antes de cablear nada al producto).
  */
+import { aciIndexFromHex } from "../objects/aci-basic.js";
+
+/** El único tipo de línea que el archivo mínimo sabe emitir hoy. */
+const WRITABLE_LINETYPE_NAME = "CONTINUOUS";
 import {
   canonicalDocumentToDwgEntities,
   type CanonicalCadDocumentJson,
@@ -149,6 +153,29 @@ export function writeCanonicalDwg(
   }
   referencedLayerNames.delete("0");
 
+  // Las capas del documento canónico por nombre: de ahí sale su color.
+  const definitionByName = new Map(document.layers.map((layer) => [layer.name, layer] as const));
+
+  // LOS PATRONES DE TIPO DE LÍNEA QUE EL DOCUMENTO TRAE. El documento canónico
+  // los lleva en `styles.linetype` —el lector los proyecta desde la tabla LTYPE
+  // del dibujo—, así que el writer puede emitir la entrada REAL en vez de
+  // apuntarlo todo a Continuous. Continuous no entra aquí: el archivo mínimo ya
+  // la lleva fija, y duplicarla daría dos entradas con el mismo nombre.
+  const patternByLinetypeKey = new Map<string, { name: string; pattern: number[] }>();
+  for (const [styleName, style] of Object.entries(document.styles?.linetype ?? {})) {
+    const key = styleName.trim().toUpperCase();
+    if (key === WRITABLE_LINETYPE_NAME || key.length === 0) continue;
+    if (!Array.isArray(style?.pattern) || style.pattern.length === 0) continue;
+    if (!patternByLinetypeKey.has(key))
+      patternByLinetypeKey.set(key, { name: styleName, pattern: [...style.pattern] });
+  }
+  const linetypeSpecs = [...patternByLinetypeKey.values()].map((style) => ({
+    name: asciiNameBytes(style.name) ?? [],
+    // La longitud del patrón es la suma de los VALORES ABSOLUTOS de sus
+    // trazos: los negativos son huecos y también ocupan.
+    patternLength: style.pattern.reduce((total, dash) => total + Math.abs(dash), 0),
+    dashes: style.pattern.map((dash) => ({ length: dash })),
+  }));
   const layers: Ac1015MinimalFileLayerSpec[] = [];
   const layerIndexByName = new Map<string, number>();
   for (const name of referencedLayerNames) {
@@ -162,11 +189,62 @@ export function writeCanonicalDwg(
       });
       continue;
     }
+    // EL COLOR DE LA CAPA. Hasta el 2026-09-01 esta línea empujaba sólo el
+    // nombre, así que TODA capa exportada por el camino público salía con el
+    // color por defecto del archivo mínimo —el 7, blanco— y el color real del
+    // dibujo se perdía SIN declararlo. Se descubrió al exigir lo que pide el
+    // ADR-0009 §8.2: que el oráculo externo verifique la función PÚBLICA y no
+    // la interna. La interna recibe el índice ya resuelto y siempre estuvo
+    // bien; la pública recibe un documento canónico con el color en hexadecimal
+    // y no lo traducía. Verificar sólo una de las dos no podía ver esto.
+    const definition = definitionByName.get(name);
+    const colorIndex =
+      definition?.color === undefined ? undefined : aciIndexFromHex(definition.color);
+    if (definition?.color !== undefined && colorIndex === undefined) {
+      losses.push({
+        code: "layer-color-not-in-aci-basic",
+        sourceType: "LAYER",
+        detail: `La capa "${name}" usa el color ${definition!.color}, que no está en la tabla ACI básica que este writer sabe escribir; se escribe con el color por defecto y se declara en vez de aproximarlo al más cercano.`,
+        severity: "warning",
+      });
+    }
+    // EL TIPO DE LÍNEA SE ESCRIBE CUANDO EL DIBUJO LO DEFINE. Hasta el corte
+    // anterior el archivo sólo llevaba Continuous y toda capa salía continua;
+    // ahora el writer emite entradas propias, así que lo único que se pierde
+    // es un tipo de línea que el documento NOMBRA pero no DEFINE —y eso sí se
+    // declara, en vez de dejar que el archivo afirme un patrón inventado—.
+    const declaredLinetype = definition?.linetype;
+    const linetypeKey = declaredLinetype?.trim().toUpperCase();
+    if (
+      linetypeKey !== undefined &&
+      linetypeKey !== WRITABLE_LINETYPE_NAME &&
+      !patternByLinetypeKey.has(linetypeKey)
+    ) {
+      losses.push({
+        code: "layer-linetype-not-writable",
+        sourceType: "LAYER",
+        detail: `La capa "${name}" usa el tipo de línea "${declaredLinetype}", que el documento nombra pero no define con un patrón; la capa se escribe continua y se declara aquí en vez de inventarle trazos.`,
+        severity: "warning",
+      });
+    }
     // Se registra ANTES de empujar: layerIndex es 1-based (0 = "0" implícita
     // del archivo mínimo), así que el índice de esta capa es su posición
     // FINAL en `layers` (longitud actual, antes de añadirla) más uno.
     layerIndexByName.set(name, layers.length + 1);
-    layers.push({ name: bytes });
+    layers.push({
+      name: bytes,
+      ...(colorIndex === undefined ? {} : { colorIndex }),
+      // El estado viaja al archivo desde el 2026-09-01: antes toda capa
+      // exportada salía descongelada y desbloqueada, se pidiera lo que se
+      // pidiera, y sin declararlo.
+      ...(definition?.frozen === undefined ? {} : { frozen: definition.frozen }),
+      ...(definition?.locked === undefined ? {} : { locked: definition.locked }),
+      ...(declaredLinetype !== undefined &&
+      linetypeKey !== undefined &&
+      patternByLinetypeKey.has(linetypeKey)
+        ? { linetypeName: declaredLinetype }
+        : {}),
+    });
   }
   const layerIndexFor = (name: string): number =>
     name === "0" ? 0 : (layerIndexByName.get(name) ?? 0);
@@ -232,6 +310,11 @@ export function writeCanonicalDwg(
     });
   }
 
-  const bytes = writeAc1015MinimalFile({ layers, blocks, entities: finalEntities });
+  const bytes = writeAc1015MinimalFile({
+    layers,
+    ...(linetypeSpecs.length > 0 ? { linetypes: linetypeSpecs } : {}),
+    blocks,
+    entities: finalEntities,
+  });
   return { bytes, lossManifest: losses };
 }

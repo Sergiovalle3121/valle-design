@@ -1,0 +1,2789 @@
+{
+  "$schema": "urn:valle-design:schema:dwg-layer-state-flags:v1",
+  "schemaVersion": 1,
+  "evidenceId": "valle-design-dwg-layer-state-flags-v1",
+  "generadoPor": "node scripts/dwg/probe-layer-state-flags.mjs",
+  "generadoEn": "2026-09-01T08:55:25.175Z",
+  "environment": {
+    "node": "v22.22.2",
+    "platform": "linux",
+    "architecture": "x64",
+    "osType": "Linux",
+    "osRelease": "6.18.44-fc-v22",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "logicalCpuCount": 4,
+    "totalMemoryBytes": 16856133632,
+    "declaredMachine": "Intel(R) Xeon(R) Processor @ 2.10GHz (4 hilos lógicos), 16.9 GB de RAM, Linux 6.18.44-fc-v22"
+  },
+  "veredicto": "Sobre 98 capas de 57 fixtures en 5 versiones, el bit 0 de stateFlags vale 1 EXACTAMENTE cuando el oráculo DXF declara la capa congelada, y el bit 3 exactamente cuando la declara bloqueada. Ningún otro bit separa ninguno de los dos hechos. Los bits 1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 son CONSTANTES en todo el corpus y por eso no se les atribuye significado.",
+  "alcance": "Sólo las banderas CONGELADA y BLOQUEADA de la tabla LAYER, sobre los fixtures del corpus admitido que tienen oráculo DXF con el mismo nombre. No cubre «capa apagada», que en DXF se codifica con color negativo y NO aparece ni una vez en este corpus.",
+  "metodo": "Para cada posición de bit 0..15 se contrasta «este bit vale 1 exactamente cuando el oráculo lo declara» contra TODAS las capas observadas. Un bit se declara medido sólo si acierta siempre Y es separable, es decir si hay al menos un caso positivo y uno negativo: un bit constante acierta en bloque sin falsar nada. El oráculo es el DXF fuente del mismo dibujo, leído con el helper del repo importado sin modificar.",
+  "limiteDeLaEvidencia": "Los casos positivos vienen de un solo dibujo del corpus, `04-capas`, que es el único con capas congeladas o bloqueadas; lo que multiplica la evidencia son las cinco versiones y las capas normales de los demás dibujos, que aportan los negativos. El corpus entero es salida del ODA File Converter desde un DXF fuente propio, así que lo medido es cómo ESE productor codifica el estado; sigue sin haber un DWG producido por AutoCAD. La posición del bit de bloqueo NO coincide con la del DXF (grupo 70 usa el valor 4), de modo que reutilizar la convención del DXF habría dado un resultado equivocado.",
+  "corpus": {
+    "commit": "0688fb9c395b9cac4169d1ee9c23a7370cc28cf3",
+    "indexSha256": "59c69c1ba3a9524a5ca5fb246c7b0226e9980e0c3b9cdbdc2d6e2180d49ee07a",
+    "transporte": "local-mirror",
+    "bundles": [
+      "entity-wave-2-ac1015",
+      "foundational-entities-ac1015",
+      "valle.fundacional.ac1015.001",
+      "valle.fundacional.ac1018.001",
+      "valle.fundacional.ac1024.001",
+      "valle.fundacional.ac1027.001",
+      "valle.fundacional.ac1032.001"
+    ]
+  },
+  "resumen": {
+    "fixtures": 57,
+    "fixturesSinOraculo": 0,
+    "capasObservadas": 98,
+    "versiones": [
+      "AC1015",
+      "AC1018",
+      "AC1024",
+      "AC1027",
+      "AC1032"
+    ],
+    "capasCongeladas": 5,
+    "capasBloqueadas": 5,
+    "capasApagadas": 0,
+    "bitCongelada": [
+      0
+    ],
+    "bitBloqueada": [
+      3
+    ],
+    "bitsConstantes": [
+      {
+        "posicion": 1,
+        "valor": 0
+      },
+      {
+        "posicion": 2,
+        "valor": 0
+      },
+      {
+        "posicion": 4,
+        "valor": 1
+      },
+      {
+        "posicion": 5,
+        "valor": 1
+      },
+      {
+        "posicion": 6,
+        "valor": 1
+      },
+      {
+        "posicion": 7,
+        "valor": 1
+      },
+      {
+        "posicion": 8,
+        "valor": 1
+      },
+      {
+        "posicion": 9,
+        "valor": 1
+      },
+      {
+        "posicion": 10,
+        "valor": 0
+      },
+      {
+        "posicion": 11,
+        "valor": 0
+      },
+      {
+        "posicion": 12,
+        "valor": 0
+      },
+      {
+        "posicion": 13,
+        "valor": 0
+      },
+      {
+        "posicion": 14,
+        "valor": 0
+      },
+      {
+        "posicion": 15,
+        "valor": 0
+      }
+    ],
+    "medido": true
+  },
+  "hipotesisPorBit": {
+    "congelada": [
+      {
+        "posicion": 0,
+        "aciertos": 98,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": true,
+        "discrepancias": []
+      },
+      {
+        "posicion": 1,
+        "aciertos": 93,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1018",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1024",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1027",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1032",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          }
+        ]
+      },
+      {
+        "posicion": 2,
+        "aciertos": 93,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1018",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1024",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1027",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1032",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          }
+        ]
+      },
+      {
+        "posicion": 3,
+        "aciertos": 88,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1015",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1018",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1018",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1024",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1024",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1027",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1027",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1032",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1032",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": true,
+            "oraculo": false
+          }
+        ]
+      },
+      {
+        "posicion": 4,
+        "aciertos": 5,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "DETALLES",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "CONSTRUCCION",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "RELLENOS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "PIEZAS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "COTAS-R",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "20-dim-ordinate-angular",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          }
+        ]
+      },
+      {
+        "posicion": 5,
+        "aciertos": 5,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "DETALLES",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "CONSTRUCCION",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "RELLENOS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "PIEZAS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "COTAS-R",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "20-dim-ordinate-angular",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          }
+        ]
+      },
+      {
+        "posicion": 6,
+        "aciertos": 5,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "DETALLES",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "CONSTRUCCION",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "RELLENOS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "PIEZAS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "COTAS-R",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "20-dim-ordinate-angular",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          }
+        ]
+      },
+      {
+        "posicion": 7,
+        "aciertos": 5,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "DETALLES",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "CONSTRUCCION",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "RELLENOS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "PIEZAS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "COTAS-R",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "20-dim-ordinate-angular",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          }
+        ]
+      },
+      {
+        "posicion": 8,
+        "aciertos": 5,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "DETALLES",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "CONSTRUCCION",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "RELLENOS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "PIEZAS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "COTAS-R",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "20-dim-ordinate-angular",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          }
+        ]
+      },
+      {
+        "posicion": 9,
+        "aciertos": 5,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "DETALLES",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "CONSTRUCCION",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "RELLENOS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "PIEZAS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "COTAS-R",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "20-dim-ordinate-angular",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          }
+        ]
+      },
+      {
+        "posicion": 10,
+        "aciertos": 93,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1018",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1024",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1027",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1032",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          }
+        ]
+      },
+      {
+        "posicion": 11,
+        "aciertos": 93,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1018",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1024",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1027",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1032",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          }
+        ]
+      },
+      {
+        "posicion": 12,
+        "aciertos": 93,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1018",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1024",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1027",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1032",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          }
+        ]
+      },
+      {
+        "posicion": 13,
+        "aciertos": 93,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1018",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1024",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1027",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1032",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          }
+        ]
+      },
+      {
+        "posicion": 14,
+        "aciertos": 93,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1018",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1024",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1027",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1032",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          }
+        ]
+      },
+      {
+        "posicion": 15,
+        "aciertos": 93,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1018",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1024",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1027",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1032",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": false,
+            "oraculo": true
+          }
+        ]
+      }
+    ],
+    "bloqueada": [
+      {
+        "posicion": 0,
+        "aciertos": 88,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1018",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1018",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1024",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1024",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1027",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1027",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1032",
+            "archivo": "04-capas",
+            "capa": "CONGELADA",
+            "stateFlags": 1009,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1032",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          }
+        ]
+      },
+      {
+        "posicion": 1,
+        "aciertos": 93,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1018",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1024",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1027",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1032",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          }
+        ]
+      },
+      {
+        "posicion": 2,
+        "aciertos": 93,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1018",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1024",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1027",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1032",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          }
+        ]
+      },
+      {
+        "posicion": 3,
+        "aciertos": 98,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": true,
+        "discrepancias": []
+      },
+      {
+        "posicion": 4,
+        "aciertos": 5,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "DETALLES",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "CONSTRUCCION",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "RELLENOS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "PIEZAS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "COTAS-R",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "20-dim-ordinate-angular",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          }
+        ]
+      },
+      {
+        "posicion": 5,
+        "aciertos": 5,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "DETALLES",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "CONSTRUCCION",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "RELLENOS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "PIEZAS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "COTAS-R",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "20-dim-ordinate-angular",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          }
+        ]
+      },
+      {
+        "posicion": 6,
+        "aciertos": 5,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "DETALLES",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "CONSTRUCCION",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "RELLENOS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "PIEZAS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "COTAS-R",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "20-dim-ordinate-angular",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          }
+        ]
+      },
+      {
+        "posicion": 7,
+        "aciertos": 5,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "DETALLES",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "CONSTRUCCION",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "RELLENOS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "PIEZAS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "COTAS-R",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "20-dim-ordinate-angular",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          }
+        ]
+      },
+      {
+        "posicion": 8,
+        "aciertos": 5,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "DETALLES",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "CONSTRUCCION",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "RELLENOS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "PIEZAS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "COTAS-R",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "20-dim-ordinate-angular",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          }
+        ]
+      },
+      {
+        "posicion": 9,
+        "aciertos": 5,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "16-leader-tolerance",
+            "capa": "DETALLES",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "17-ray-xline",
+            "capa": "CONSTRUCCION",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "18-solid-trace-3dface",
+            "capa": "RELLENOS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "PIEZAS",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "19-dim-radial-diameter",
+            "capa": "COTAS-R",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          },
+          {
+            "version": "AC1015",
+            "archivo": "20-dim-ordinate-angular",
+            "capa": "0",
+            "stateFlags": 1008,
+            "bitLeido": true,
+            "oraculo": false
+          }
+        ]
+      },
+      {
+        "posicion": 10,
+        "aciertos": 93,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1018",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1024",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1027",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1032",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          }
+        ]
+      },
+      {
+        "posicion": 11,
+        "aciertos": 93,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1018",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1024",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1027",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1032",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          }
+        ]
+      },
+      {
+        "posicion": 12,
+        "aciertos": 93,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1018",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1024",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1027",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1032",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          }
+        ]
+      },
+      {
+        "posicion": 13,
+        "aciertos": 93,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1018",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1024",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1027",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1032",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          }
+        ]
+      },
+      {
+        "posicion": 14,
+        "aciertos": 93,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1018",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1024",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1027",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1032",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          }
+        ]
+      },
+      {
+        "posicion": 15,
+        "aciertos": 93,
+        "observaciones": 98,
+        "casosPositivos": 5,
+        "casosNegativos": 93,
+        "separable": true,
+        "concuerdaSiempre": false,
+        "discrepancias": [
+          {
+            "version": "AC1015",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1018",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1024",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1027",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          },
+          {
+            "version": "AC1032",
+            "archivo": "04-capas",
+            "capa": "BLOQUEADA",
+            "stateFlags": 1016,
+            "bitLeido": false,
+            "oraculo": true
+          }
+        ]
+      }
+    ]
+  },
+  "archivos": [
+    {
+      "bundle": "entity-wave-2-ac1015",
+      "version": "AC1015",
+      "archivo": "16-leader-tolerance",
+      "fixture": "bundles/entity-wave-2-ac1015/fixtures/16-leader-tolerance.dwg",
+      "sha256": "5de64b4d135fdf25f0d37c2bdd28fd5ab461ed9e1bd78774dae507d941363229",
+      "capasComparadas": 2
+    },
+    {
+      "bundle": "entity-wave-2-ac1015",
+      "version": "AC1015",
+      "archivo": "17-ray-xline",
+      "fixture": "bundles/entity-wave-2-ac1015/fixtures/17-ray-xline.dwg",
+      "sha256": "d31eb5ef0d7872a4642ec56b60e848b13d5aae21540e13ef49de6fb1a2308323",
+      "capasComparadas": 2
+    },
+    {
+      "bundle": "entity-wave-2-ac1015",
+      "version": "AC1015",
+      "archivo": "18-solid-trace-3dface",
+      "fixture": "bundles/entity-wave-2-ac1015/fixtures/18-solid-trace-3dface.dwg",
+      "sha256": "36798ba943c64c5bd2ac4d47e535bdbfc8977a49e76821742d73be3c09413247",
+      "capasComparadas": 2
+    },
+    {
+      "bundle": "entity-wave-2-ac1015",
+      "version": "AC1015",
+      "archivo": "19-dim-radial-diameter",
+      "fixture": "bundles/entity-wave-2-ac1015/fixtures/19-dim-radial-diameter.dwg",
+      "sha256": "a917565031df86b4eefa6bb7ceab2ec7e9aaabcf23e067dd1efa95cb00d8ac12",
+      "capasComparadas": 3,
+      "capasSinOraculo": [
+        "Defpoints"
+      ]
+    },
+    {
+      "bundle": "entity-wave-2-ac1015",
+      "version": "AC1015",
+      "archivo": "20-dim-ordinate-angular",
+      "fixture": "bundles/entity-wave-2-ac1015/fixtures/20-dim-ordinate-angular.dwg",
+      "sha256": "164862412230a442f479733d4a07c16061f6a937e4b5c9f826084a6a3a928708",
+      "capasComparadas": 3,
+      "capasSinOraculo": [
+        "Defpoints"
+      ]
+    },
+    {
+      "bundle": "entity-wave-2-ac1015",
+      "version": "AC1015",
+      "archivo": "21-hatch-islands",
+      "fixture": "bundles/entity-wave-2-ac1015/fixtures/21-hatch-islands.dwg",
+      "sha256": "a06b0402f8ac4a69755ef578e423a090341c5533d6e805cf8834e188b8e6860b",
+      "capasComparadas": 2
+    },
+    {
+      "bundle": "entity-wave-2-ac1015",
+      "version": "AC1015",
+      "archivo": "22-nested-attribs",
+      "fixture": "bundles/entity-wave-2-ac1015/fixtures/22-nested-attribs.dwg",
+      "sha256": "96067cd49aee6efdac39857628758e76489068c9e557c55a81ed5d37d9ea7abd",
+      "capasComparadas": 3
+    },
+    {
+      "bundle": "entity-wave-2-ac1015",
+      "version": "AC1015",
+      "archivo": "23-layout-viewport",
+      "fixture": "bundles/entity-wave-2-ac1015/fixtures/23-layout-viewport.dwg",
+      "sha256": "9c0759d67834a9911d7439454f5b004f9d742d7665324b60b5a8c60f8dc8d25b",
+      "capasComparadas": 2
+    },
+    {
+      "bundle": "entity-wave-2-ac1015",
+      "version": "AC1015",
+      "archivo": "24-mline",
+      "fixture": "bundles/entity-wave-2-ac1015/fixtures/24-mline.dwg",
+      "sha256": "dc3772be33c7b28b59fcb50391c0c051116af497a206dfd7002de7cf6b5548e9",
+      "capasComparadas": 2
+    },
+    {
+      "bundle": "entity-wave-2-ac1015",
+      "version": "AC1015",
+      "archivo": "25-vertex-mesh",
+      "fixture": "bundles/entity-wave-2-ac1015/fixtures/25-vertex-mesh.dwg",
+      "sha256": "4b0148a4646354bf237027bb65ffd9a815b54301737808a8f3701f02255805ae",
+      "capasComparadas": 2
+    },
+    {
+      "bundle": "foundational-entities-ac1015",
+      "version": "AC1015",
+      "archivo": "09-mtext",
+      "fixture": "bundles/foundational-entities-ac1015/fixtures/09-mtext.dwg",
+      "sha256": "94938dd94fc1d89f203c7eb897904794eb5092251b4fa72b981b48cb32e5e686",
+      "capasComparadas": 2
+    },
+    {
+      "bundle": "foundational-entities-ac1015",
+      "version": "AC1015",
+      "archivo": "10-dimension",
+      "fixture": "bundles/foundational-entities-ac1015/fixtures/10-dimension.dwg",
+      "sha256": "5225ff6d05cb669052811c21a1608d21c685bd46906b07206da8aa23383ac076",
+      "capasComparadas": 2,
+      "capasSinOraculo": [
+        "Defpoints"
+      ]
+    },
+    {
+      "bundle": "foundational-entities-ac1015",
+      "version": "AC1015",
+      "archivo": "11-hatch",
+      "fixture": "bundles/foundational-entities-ac1015/fixtures/11-hatch.dwg",
+      "sha256": "270e0bcde07c6460fd5009b0ed9caf689258d024631e6a55977ec12676fc912b",
+      "capasComparadas": 2
+    },
+    {
+      "bundle": "foundational-entities-ac1015",
+      "version": "AC1015",
+      "archivo": "12-attrib",
+      "fixture": "bundles/foundational-entities-ac1015/fixtures/12-attrib.dwg",
+      "sha256": "43a47513d934faa1c9ead9ad46518f9f2b140ecc34db470d4fb4bfa9e43cd61e",
+      "capasComparadas": 2
+    },
+    {
+      "bundle": "foundational-entities-ac1015",
+      "version": "AC1015",
+      "archivo": "13-polyline2d",
+      "fixture": "bundles/foundational-entities-ac1015/fixtures/13-polyline2d.dwg",
+      "sha256": "9a2b9262d16c6060b15e902877f3f63835c95d59a088a834988295b94512b8f2",
+      "capasComparadas": 2
+    },
+    {
+      "bundle": "foundational-entities-ac1015",
+      "version": "AC1015",
+      "archivo": "14-ellipse-spline",
+      "fixture": "bundles/foundational-entities-ac1015/fixtures/14-ellipse-spline.dwg",
+      "sha256": "edb5c01ae23aaeed24adf6fa4700706355d4fe803fad37fa5ccb29b85976aba0",
+      "capasComparadas": 2
+    },
+    {
+      "bundle": "foundational-entities-ac1015",
+      "version": "AC1015",
+      "archivo": "15-ltype-style",
+      "fixture": "bundles/foundational-entities-ac1015/fixtures/15-ltype-style.dwg",
+      "sha256": "1566f45b817a903b1678a622f29455df81ea723fecc6c9d6a26b20c7e7a9701d",
+      "capasComparadas": 3
+    },
+    {
+      "bundle": "valle.fundacional.ac1015.001",
+      "version": "AC1015",
+      "archivo": "01-vacio",
+      "fixture": "bundles/valle.fundacional.ac1015.001/fixtures/01-vacio.dwg",
+      "sha256": "32f282d96520950e59f026c31f97bf15af5c7b4fbc85d2c10f5a389ac5435975",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1015.001",
+      "version": "AC1015",
+      "archivo": "02-una-linea",
+      "fixture": "bundles/valle.fundacional.ac1015.001/fixtures/02-una-linea.dwg",
+      "sha256": "7953eff4b6e2859d4dc542a9c2f74bae26d15032c6174094fdb200b0030a16a4",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1015.001",
+      "version": "AC1015",
+      "archivo": "03-figuras-basicas",
+      "fixture": "bundles/valle.fundacional.ac1015.001/fixtures/03-figuras-basicas.dwg",
+      "sha256": "e34823f34a9a016100bbd529f42aeab9e8da09d808910086f1e5813e28535290",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1015.001",
+      "version": "AC1015",
+      "archivo": "04-capas",
+      "fixture": "bundles/valle.fundacional.ac1015.001/fixtures/04-capas.dwg",
+      "sha256": "f7f0717feda2f92dd87a443e019680275bdb039017b25fb1b54b2511826086c9",
+      "capasComparadas": 7
+    },
+    {
+      "bundle": "valle.fundacional.ac1015.001",
+      "version": "AC1015",
+      "archivo": "05-lwpolyline-bulges",
+      "fixture": "bundles/valle.fundacional.ac1015.001/fixtures/05-lwpolyline-bulges.dwg",
+      "sha256": "28546dc8229a047aa5e382b73dc6832bfd1095d54a64a423fd238522f3dc939e",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1015.001",
+      "version": "AC1015",
+      "archivo": "06-texto",
+      "fixture": "bundles/valle.fundacional.ac1015.001/fixtures/06-texto.dwg",
+      "sha256": "87790800ac5780e62f8d50ddc1e8a97492593f42979a7e3fdff74265f96f8024",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1015.001",
+      "version": "AC1015",
+      "archivo": "07-bloques-insert",
+      "fixture": "bundles/valle.fundacional.ac1015.001/fixtures/07-bloques-insert.dwg",
+      "sha256": "08d412b1981d12e610890847597f29940e6f9a30612af49bb7c65fa0c10f77ad",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1015.001",
+      "version": "AC1015",
+      "archivo": "08-plano-mini",
+      "fixture": "bundles/valle.fundacional.ac1015.001/fixtures/08-plano-mini.dwg",
+      "sha256": "bbdc3a39ce1ece7c657da21ea8ca07bd8d24799999b8227e183cb7ed092906c2",
+      "capasComparadas": 5
+    },
+    {
+      "bundle": "valle.fundacional.ac1018.001",
+      "version": "AC1018",
+      "archivo": "01-vacio",
+      "fixture": "bundles/valle.fundacional.ac1018.001/fixtures/01-vacio.dwg",
+      "sha256": "3b266f8c671c52677bca38dedd2e8e4123976c99ca4f7d5ec4774d9598def4c0",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1018.001",
+      "version": "AC1018",
+      "archivo": "02-una-linea",
+      "fixture": "bundles/valle.fundacional.ac1018.001/fixtures/02-una-linea.dwg",
+      "sha256": "14849b618d1dcf7e1ecf06012edbace76522525ba3b940ff182daae96846c867",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1018.001",
+      "version": "AC1018",
+      "archivo": "03-figuras-basicas",
+      "fixture": "bundles/valle.fundacional.ac1018.001/fixtures/03-figuras-basicas.dwg",
+      "sha256": "e5730c79fb86c5a7ea90dab59946b61f44c9838418fc13806b45994575f44c6c",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1018.001",
+      "version": "AC1018",
+      "archivo": "04-capas",
+      "fixture": "bundles/valle.fundacional.ac1018.001/fixtures/04-capas.dwg",
+      "sha256": "b9da9878345ee7b9fffbb173eac660f9ba15957336e56e28a4336bc5b1e64d1c",
+      "capasComparadas": 7
+    },
+    {
+      "bundle": "valle.fundacional.ac1018.001",
+      "version": "AC1018",
+      "archivo": "05-lwpolyline-bulges",
+      "fixture": "bundles/valle.fundacional.ac1018.001/fixtures/05-lwpolyline-bulges.dwg",
+      "sha256": "91bdc8de3e41ca2299ae73c00ea7d7b11ed5408f4cecac1149f06f0b79c92968",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1018.001",
+      "version": "AC1018",
+      "archivo": "06-texto",
+      "fixture": "bundles/valle.fundacional.ac1018.001/fixtures/06-texto.dwg",
+      "sha256": "fc52679fd3cc6bb2c2a3553894ff7a033d8380d034b3064d587fc2545dcd7064",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1018.001",
+      "version": "AC1018",
+      "archivo": "07-bloques-insert",
+      "fixture": "bundles/valle.fundacional.ac1018.001/fixtures/07-bloques-insert.dwg",
+      "sha256": "7a3f920b0dc29f6ee54c035354bfdb408fd287c4e882baf3a716bca435664e8b",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1018.001",
+      "version": "AC1018",
+      "archivo": "08-plano-mini",
+      "fixture": "bundles/valle.fundacional.ac1018.001/fixtures/08-plano-mini.dwg",
+      "sha256": "02a8032727177a85a3a928578006e3b7eb05fbbdb5b05e58b3872b524155d3be",
+      "capasComparadas": 5
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "version": "AC1024",
+      "archivo": "01-vacio",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/01-vacio.dwg",
+      "sha256": "34f0b47e5f363d2eac2b5870e7c89b4c9cbd249bf20cc94cb9adcb71be9388d6",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "version": "AC1024",
+      "archivo": "02-una-linea",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/02-una-linea.dwg",
+      "sha256": "18b833e4603d4e57296783137b639a2ba4a05af1ff033c229999c239c728da7a",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "version": "AC1024",
+      "archivo": "03-figuras-basicas",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/03-figuras-basicas.dwg",
+      "sha256": "590060bf0b58c0f64b659ef3d506f28aa8df7dbf9ebc7c55aa71a0acef39c062",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "version": "AC1024",
+      "archivo": "04-capas",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/04-capas.dwg",
+      "sha256": "6030998d528b1c25c3fabaaf9d962d5b953d965f2bf0d15b6172667580f197c6",
+      "capasComparadas": 7
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "version": "AC1024",
+      "archivo": "05-lwpolyline-bulges",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/05-lwpolyline-bulges.dwg",
+      "sha256": "4759ad24302a4544765bc8cabdf4275cabf88c4a86221a7dc5a2cddb5225a293",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "version": "AC1024",
+      "archivo": "06-texto",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/06-texto.dwg",
+      "sha256": "749bf4a160dba1a4c8b9b94df1f5bcb3b27af7b42693cbe8ade91718c98c63b2",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "version": "AC1024",
+      "archivo": "07-bloques-insert",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/07-bloques-insert.dwg",
+      "sha256": "a787db0cab259a7a712df5fa4bbc24e92c95cd7de5206f8c1a9ea8f8164df182",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1024.001",
+      "version": "AC1024",
+      "archivo": "08-plano-mini",
+      "fixture": "bundles/valle.fundacional.ac1024.001/fixtures/08-plano-mini.dwg",
+      "sha256": "066048b9ee745f94332bc43d83c5d469b666be335266e37f762f8a1c0670996e",
+      "capasComparadas": 5
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "version": "AC1027",
+      "archivo": "01-vacio",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/01-vacio.dwg",
+      "sha256": "4c77fde71832a4f281875afb3cd460af0790b47966bd32e7758aae3bd52127d5",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "version": "AC1027",
+      "archivo": "02-una-linea",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/02-una-linea.dwg",
+      "sha256": "93099d2e59432abd14093c9e5f9e5b7245b1a41c7013275786c9c858c1fef8a4",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "version": "AC1027",
+      "archivo": "03-figuras-basicas",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/03-figuras-basicas.dwg",
+      "sha256": "a8ef53c653a7ce4597added3dbde7bd14fd865bc304cc07661e5fbced4fcd663",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "version": "AC1027",
+      "archivo": "04-capas",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/04-capas.dwg",
+      "sha256": "9287870c6a5e2aeab5378f37daf0aa39c75487b7455f1af5d49d5d615a17e00f",
+      "capasComparadas": 7
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "version": "AC1027",
+      "archivo": "05-lwpolyline-bulges",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/05-lwpolyline-bulges.dwg",
+      "sha256": "ea0680d300ea1551f01678be6636b470213b04ce430e77c453834c57d169715b",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "version": "AC1027",
+      "archivo": "06-texto",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/06-texto.dwg",
+      "sha256": "a54eac813a87d4af02d9eeb3eebd04fc50c65eadccfdf0246bb4b6cee68dc6ea",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "version": "AC1027",
+      "archivo": "07-bloques-insert",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/07-bloques-insert.dwg",
+      "sha256": "e21ab1f13c32ee0d36fa4bc294d973f9f67883747e622471544fe110b619377c",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1027.001",
+      "version": "AC1027",
+      "archivo": "08-plano-mini",
+      "fixture": "bundles/valle.fundacional.ac1027.001/fixtures/08-plano-mini.dwg",
+      "sha256": "e572b1d0e96d35d1cabef2e8822bb6a3e3e161155dcb4e3f7a54a7fad0984e83",
+      "capasComparadas": 5
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "version": "AC1032",
+      "archivo": "01-vacio",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/01-vacio.dwg",
+      "sha256": "02910ffd1f78ed3e0003b5cd610be0b7e392591fcb66ce0fa7d3fe97232bf04b",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "version": "AC1032",
+      "archivo": "02-una-linea",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/02-una-linea.dwg",
+      "sha256": "20ee9f89a7be6e103ed664922e019f3f723a277e1230a9ffce1124e35ed939c9",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "version": "AC1032",
+      "archivo": "03-figuras-basicas",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/03-figuras-basicas.dwg",
+      "sha256": "5e430ae342e161c89f530ad03b8d0cd9be930327b202334f8426387b194439f4",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "version": "AC1032",
+      "archivo": "04-capas",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/04-capas.dwg",
+      "sha256": "c5b4fe4bf775de858eafebf72ab021a9b9b21902fe2b536f4d00e2a4d8a78b7a",
+      "capasComparadas": 7
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "version": "AC1032",
+      "archivo": "05-lwpolyline-bulges",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/05-lwpolyline-bulges.dwg",
+      "sha256": "c37490b12eb1c81542654cf3a7389ddb23dded6ff055e58b777df56b4c7e2f06",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "version": "AC1032",
+      "archivo": "06-texto",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/06-texto.dwg",
+      "sha256": "85bfe217ed3ee3dc6111c5584f37622e5e3e045ad3d9632c1e604045209b5b2b",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "version": "AC1032",
+      "archivo": "07-bloques-insert",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/07-bloques-insert.dwg",
+      "sha256": "9dd6d810fda049f650770082a8f5587d79a1a66b00afe2b582c76f0acd383969",
+      "capasComparadas": 0,
+      "capasSinOraculo": [
+        "0"
+      ]
+    },
+    {
+      "bundle": "valle.fundacional.ac1032.001",
+      "version": "AC1032",
+      "archivo": "08-plano-mini",
+      "fixture": "bundles/valle.fundacional.ac1032.001/fixtures/08-plano-mini.dwg",
+      "sha256": "13f815fcc40cba1659b635bd1a21d5db6a3edbe6ba6dbe163048cb1e0555dddd",
+      "capasComparadas": 5
+    }
+  ]
+}

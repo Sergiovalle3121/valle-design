@@ -75,7 +75,10 @@ import {
   readR2010ObjectHeader,
   type R2010ObjectBounds,
 } from "../container/r2010-object-envelope.js";
+import { interpretLayerStateFlags } from "../objects/layer-state.js";
 import { AC1015_TYPE_LAYER } from "../objects/table-layer.js";
+import { selectLayerLinetypeHandle } from "../objects/layer-linetype.js";
+import { resolveLayerLinetypeNames } from "./layer-linetype-resolve.js";
 import {
   readR2010LayerFields,
   readR2010LinetypeFields,
@@ -310,14 +313,38 @@ export function assembleR2010Database(
           bound.start,
           diagnostics,
         );
-        layers.push(
-          Object.freeze({
-            handle: bound.handle,
-            name,
-            colorIndex: fields?.colorIndex,
-            stateFlags: fields?.stateFlags,
-          }),
-        );
+        // Mismo criterio único que el camino R2000/R2004. Cuando la entrada
+        // falló cerrada y no hay campos, el estado queda `undefined` entero:
+        // no se finge una capa visible y desbloqueada, se declara la ausencia.
+        const state =
+          fields === undefined ? undefined : interpretLayerStateFlags(fields.stateFlags);
+        // EL TIPO DE LÍNEA VIVE EN EL FLUJO DE HANDLES, NO EN LOS CAMPOS, así
+        // que se lee aunque los campos hayan fallado cerrados: son dos hechos
+        // independientes del mismo objeto y perder uno no obliga a perder el
+        // otro. La posición es la MISMA que en R2000/R2004 —medida, no
+        // supuesta por analogía— y el criterio lo aporta un solo módulo.
+        let linetypeHandle: number | undefined;
+        try {
+          linetypeHandle = selectLayerLinetypeHandle(
+            readR2010HandleStream(bodyBytes, header),
+          );
+        } catch {
+          // Un flujo de handles ilegible no tumba la capa entera: su nombre,
+          // su estado y su color ya están leídos y valen. Se queda sin tipo
+          // de línea, que el mapeo canónico declara como pérdida.
+          linetypeHandle = undefined;
+        }
+        layers.push({
+          handle: bound.handle,
+          name,
+          colorIndex: fields?.colorIndex,
+          stateFlags: fields?.stateFlags,
+          frozen: state?.frozen,
+          locked: state?.locked,
+          unmeasuredStateBits: state?.unmeasuredBits,
+          linetypeHandle,
+          linetypeName: undefined,
+        });
       } else {
         blocks.push({
           handle: bound.handle,
@@ -452,7 +479,9 @@ export function assembleR2010Database(
   }
 
   return Object.freeze({
-    layers: Object.freeze(layers),
+    // Mismo cierre que el camino R2000/R2004: el nombre del tipo de línea se
+    // resuelve AQUÍ, cuando la tabla LTYPE ya está construida.
+    layers: resolveLayerLinetypeNames(layers, tables.linetypes),
     blocks: Object.freeze(
       blocks.map((b) =>
         Object.freeze({

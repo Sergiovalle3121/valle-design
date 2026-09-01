@@ -32,6 +32,11 @@ const expectedSpecs = [
   // Perfil 3D heredado propuesto (ADR-0009 §9): sus propias specs.
   "src/lib/cad/dwg-native-reader-3d-wireframe.spec.ts",
   "src/lib/cad/dwg-document-bridge-3d-wireframe.spec.ts",
+  // Familia moderna AC1024/AC1027/AC1032, cableada y SIN firma: su spec
+  // vigila las dos direcciones —que sin firma no entre nada, y que el
+  // cableado de verdad cablee las tres— porque probar sólo la primera
+  // dejaría pasar un permiso que no abre ninguna puerta.
+  "src/lib/cad/dwg-native-reader-modern.spec.ts",
 ];
 const forbiddenCodecReferences = [
   "@valle-design/dwg-codec",
@@ -69,6 +74,11 @@ const authorizedDwgNativeReaderImporters = new Set([
   join("apps", "web", "src", "lib", "cad", "dwg-native-reader.ts"),
   join("apps", "web", "src", "lib", "cad", "dwg-native-reader.spec.ts"),
   join("apps", "web", "src", "lib", "cad", "dwg-native-reader-3d-wireframe.spec.ts"),
+  // La spec de la familia moderna prueba la PUERTA de versiones, así que
+  // necesita llamar al adaptador para comprobar a quién deja pasar. Entra en
+  // esta lista por lo mismo que las otras dos specs: es una prueba del
+  // adaptador, no un consumidor de producto.
+  join("apps", "web", "src", "lib", "cad", "dwg-native-reader-modern.spec.ts"),
   join("apps", "web", "src", "lib", "cad", "document-import.worker.ts"),
 ]);
 /**

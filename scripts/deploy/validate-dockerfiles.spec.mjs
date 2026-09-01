@@ -237,8 +237,9 @@ FROM node:20-bookworm-slim AS runtime
       'NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA',
       'NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA',
       'NEXT_PUBLIC_DWG_3D_WIREFRAME_IMPORT_BETA',
+      'NEXT_PUBLIC_DWG_MODERN_IMPORT_BETA',
     ],
-    'el Dockerfile pre-P1 no declara ni propaga ninguno de los tres flags de build DWG',
+    'el Dockerfile pre-P1 no declara ni propaga ninguno de los cuatro flags de build DWG',
   );
 }
 
@@ -314,6 +315,7 @@ FROM node:20-bookworm-slim AS runtime
       'NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA',
       'NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA',
       'NEXT_PUBLIC_DWG_3D_WIREFRAME_IMPORT_BETA',
+      'NEXT_PUBLIC_DWG_MODERN_IMPORT_BETA',
     ],
     'un ARG sin su ENV correspondiente no cuenta como cableado: Docker no lo expone como variable de entorno a `RUN`',
   );

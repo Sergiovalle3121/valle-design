@@ -139,9 +139,26 @@ test("a detached Uint8Array is rejected as typed input failure", () => {
   }
 });
 
+/**
+ * Las versiones que el laboratorio decodifica de verdad, medidas contra el
+ * corpus admitido: 57/57 archivos abiertos y cero discrepancias en las cinco.
+ *
+ * ACTUALIZADO EL 2026-09-01. Entran AC1024/AC1027/AC1032: antes este test
+ * exigía que su probe FALLARA, lo que convertía en invariante una
+ * contradicción del propio códec —`probeDwg` decía que no y `readDwg` abría
+ * el mismo archivo—. AC1021 sigue fuera por diseño: contenedor Reed-Solomon
+ * rechazado con error tipado.
+ */
+const LAB_DECODED_SIGNATURES = new Set([
+  "AC1015",
+  "AC1018",
+  "AC1024",
+  "AC1027",
+  "AC1032",
+]);
+
 for (const signature of KNOWN_SIGNATURES) {
-  // AC1018 decodifica desde la campaña de objetos R2004 (corpus 8/8).
-  const decoded = signature === "AC1015" || signature === "AC1018";
+  const decoded = LAB_DECODED_SIGNATURES.has(signature);
   test(`known signature ${signature} declares its real decoder status`, () => {
     const result = probeDwg(ascii(signature));
     assert.equal(result.ok, decoded);

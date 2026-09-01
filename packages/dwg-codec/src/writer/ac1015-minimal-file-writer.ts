@@ -44,6 +44,7 @@
  * writer de contenedor.
  */
 import { crc16Dwg } from "../codecs/crc16.js";
+import { encodeLayerStateFlags } from "../objects/layer-state.js";
 import {
   AC1015_FILE_HEADER_END_SENTINEL,
   AC1015_MAGIC,
@@ -79,14 +80,16 @@ import {
   writeAc1015AppIdBody,
   writeAc1015DictionaryBody,
   writeAc1015DimStyleBody,
-  writeAc1015LayoutBody,
   writeAc1015LinetypeBody,
-  writeAc1015MlineStyleBody,
   writeAc1015PlaceholderBody,
   writeAc1015StructTableControlBody,
   writeAc1015TextStyleBody,
   writeAc1015VportBody,
 } from "./ac1015-structure-writers.js";
+import {
+  writeAc1015LayoutBody,
+  writeAc1015MlineStyleBody,
+} from "./ac1015-layout-writers.js";
 import {
   writeAc1015ResolvedEntityBody,
   writeAc1015ResolvedLayerBody,
@@ -153,6 +156,7 @@ import {
   pushUint32LE,
   validateOptions,
 } from "./ac1015-minimal-file-support.js";
+import { planAc1015MinimalFile } from "./ac1015-minimal-file-plan.js";
 
 // ---------------------------------------------------------------------------
 // Opciones — los tipos públicos viven en `ac1015-minimal-file-support.ts`
@@ -175,35 +179,6 @@ import type {
   Ac1015MinimalFilePlan,
 } from "./ac1015-minimal-file-support.js";
 
-/**
- * Calcula el plan de handles del archivo SIN emitir nada: función pura de
- * las opciones, compartida por el writer y por quien quiera comparar el
- * archivo campo a campo (specs y harness del oráculo externo).
- */
-export function planAc1015MinimalFile(
-  options: Ac1015MinimalFileOptions = {},
-): Ac1015MinimalFilePlan {
-  const { layers, blocks, entities } = validateOptions(options);
-  let next = H_DYNAMIC_BASE;
-  const layerHandles = [H_LAYER_ZERO, ...layers.map(() => next++)];
-  const blockRecordHandles: number[] = [];
-  const blockEntityHandles: number[][] = [];
-  for (const block of blocks) {
-    blockRecordHandles.push(next++);
-    next++; // BLOCK del bloque
-    blockEntityHandles.push(block.entities.map(() => next++));
-    next++; // ENDBLK del bloque
-  }
-  const modelEntityHandles = entities.map(() => next++);
-  next += 4; // BLOCK/ENDBLK de model space y de paper space
-  return Object.freeze({
-    layerHandles: Object.freeze(layerHandles),
-    blockRecordHandles: Object.freeze(blockRecordHandles),
-    modelEntityHandles: Object.freeze(modelEntityHandles),
-    blockEntityHandles: Object.freeze(blockEntityHandles.map((h) => Object.freeze(h))),
-    handseed: next,
-  });
-}
 
 /**
  * Escribe el archivo AC1015 COMPLETO. Determinista: mismas opciones → mismos
@@ -214,7 +189,7 @@ export function planAc1015MinimalFile(
 export function writeAc1015MinimalFile(
   options: Ac1015MinimalFileOptions = {},
 ): Uint8Array {
-  const { layers, blocks, entities, measurement } = validateOptions(options);
+  const { layers, linetypes, blocks, entities, measurement } = validateOptions(options);
   const plan = planAc1015MinimalFile(options);
 
   // ---- cuerpo de objetos, en orden ESTRICTO de handle -----------------
@@ -262,7 +237,10 @@ export function writeAc1015MinimalFile(
     H_LTYPE_CONTROL,
     writeAc1015StructTableControlBody(
       AC1015_TYPE_LTYPE_CONTROL,
-      [H_LTYPE_CONTINUOUS],
+      // Continuous SIEMPRE, y detrás las entradas propias del dibujo: un
+      // control que no las liste deja entradas huérfanas que el lector no
+      // encuentra por la tabla.
+      [H_LTYPE_CONTINUOUS, ...plan.linetypeHandles],
       H_LTYPE_CONTROL,
       [
         { code: 3, value: H_LTYPE_BYBLOCK },
@@ -519,6 +497,46 @@ export function writeAc1015MinimalFile(
   );
 
   // ---- dinámicos: capas extra, bloques de usuario, entidades, marcadores --
+  /**
+   * Handle del tipo de línea de una capa por su NOMBRE. Sin nombre, o con uno
+   * que el dibujo no define, cae a Continuous: el archivo no puede apuntar a
+   * una entrada que no existe, y fabricarla vacía sería peor —diría que el
+   * dibujo tiene un patrón que no tiene—.
+   */
+  // Las entradas LTYPE propias se empujan AQUÍ, al principio del tramo
+  // dinámico: sus handles salen de ese tramo y el archivo exige orden de
+  // handle creciente, así que emitirlas junto a las fijas —que llevan handles
+  // bajos— rompe el invariante. Lo dijo el propio writer al intentarlo.
+  linetypes.forEach((linetype, index) => {
+    const handle = plan.linetypeHandles[index]!;
+    push(
+      handle,
+      writeAc1015LinetypeBody(
+        {
+          name: linetype.name,
+          ...(linetype.description === undefined
+            ? {}
+            : { description: linetype.description }),
+          controlHandle: H_LTYPE_CONTROL,
+          ...(linetype.patternLength === undefined
+            ? {}
+            : { patternLength: linetype.patternLength }),
+          ...(linetype.dashes === undefined ? {} : { dashes: linetype.dashes }),
+        },
+        handle,
+      ),
+    );
+  });
+
+  const utf8Name = (bytes: readonly number[]): string => String.fromCharCode(...bytes);
+  const linetypeHandleByName = (name: string | undefined): number => {
+    if (name === undefined) return H_LTYPE_CONTINUOUS;
+    const index = linetypes.findIndex(
+      (candidate) => utf8Name(candidate.name).toUpperCase() === name.trim().toUpperCase(),
+    );
+    return index < 0 ? H_LTYPE_CONTINUOUS : plan.linetypeHandles[index]!;
+  };
+
   layers.forEach((layer, index) => {
     push(
       plan.layerHandles[index + 1]!,
@@ -526,9 +544,19 @@ export function writeAc1015MinimalFile(
         {
           name: layer.name,
           ...(layer.colorIndex === undefined ? {} : { colorIndex: layer.colorIndex }),
+          // EL ESTADO SE ESCRIBE DESDE EL 2026-09-01. Antes no se pasaba nunca,
+          // así que caía al 1008 por defecto y TODA capa exportada salía
+          // descongelada y desbloqueada: un round-trip perdía los dos hechos
+          // sin declararlos. El criterio es el mismo que los lee.
+          stateFlags: encodeLayerStateFlags(layer),
           controlHandle: H_LAYER_CONTROL,
           plotStyleHandle: H_PLACEHOLDER,
-          linetypeHandle: H_LTYPE_CONTINUOUS,
+          // CADA CAPA APUNTA A SU TIPO DE LÍNEA desde el 2026-09-01. Antes
+          // esto era fijo a Continuous porque el archivo no llevaba otra
+          // entrada, y una capa con TRAZOS se escribía sólida. Un nombre que
+          // el dibujo no define sigue cayendo a Continuous, y eso lo DECLARA
+          // el llamador público, que es quien sabe qué pedía el documento.
+          linetypeHandle: linetypeHandleByName(layer.linetypeName),
         },
         plan.layerHandles[index + 1]!,
       ),

@@ -27,10 +27,49 @@ export interface Ac1015DatabaseLayer {
    */
   readonly colorIndex: number | undefined;
   /**
-   * `BS` de estado crudo (semántica bit a bit pendiente de corpus). Misma
-   * regla de ausencia que `colorIndex`.
+   * `BS` de estado crudo. Misma regla de ausencia que `colorIndex`. Se
+   * conserva junto a su interpretación porque el número entero es lo que
+   * permite declarar con precisión qué bits quedaron sin interpretar.
    */
   readonly stateFlags: number | undefined;
+  /**
+   * ESTADO YA INTERPRETADO, RESUELTO EN EL ENSAMBLADO (2026-09-01). Congelada
+   * es el bit 0 y bloqueada el bit 3, medidos contra el oráculo DXF sobre 98
+   * capas de 57 fixtures en las cinco versiones
+   * (`scripts/dwg-layer-state-flags`, VALLE-CORPUS-LAYER-ESTADO-SEMANTICA).
+   *
+   * VIAJAN EN EL DATO Y NO COMO UNA FUNCIÓN PÚBLICA A PROPÓSITO. La superficie
+   * pública del paquete son SIETE llamables y ensancharla para esto habría
+   * sido pagar un precio de diseño permanente por una comodidad: resolver el
+   * estado una vez, en el origen, deja a todos los consumidores —el documento
+   * canónico y el adaptador del producto— con el MISMO criterio sin que
+   * ninguno tenga que descifrar el `BS` por su cuenta.
+   *
+   * `undefined` cuando el estado no se decodificó; nunca un `false` fingido.
+   */
+  readonly frozen: boolean | undefined;
+  readonly locked: boolean | undefined;
+  /**
+   * Bits del estado que se apartan del patrón constante del corpus medido —
+   * unos donde siempre hubo ceros, o ceros donde siempre hubo unos. Es la
+   * frontera de lo medido, para declararla en vez de callarla.
+   */
+  readonly unmeasuredStateBits: number | undefined;
+  /**
+   * Handle de la entrada LTYPE que usa la capa, leído de la posición MEDIDA
+   * del flujo final (`objects/layer-linetype.ts`). Se conserva junto al
+   * nombre porque el handle es lo que permite decir «apunta a algo que esta
+   * base no trae» en vez de callarlo.
+   */
+  readonly linetypeHandle: number | undefined;
+  /**
+   * NOMBRE de esa entrada LTYPE, ya resuelto contra la tabla del propio
+   * dibujo. `undefined` cuando el flujo no llega a la posición medida, cuando
+   * el handle viaja nulo, o cuando apunta a una entrada que la tabla no trae:
+   * en los tres casos se declara la ausencia y NUNCA se rellena con
+   * `CONTINUOUS`, que es un tipo de línea real y no un «no sé».
+   */
+  readonly linetypeName: string | undefined;
 }
 
 /** Una entidad colocada en la base: geometría, capa y referencia de INSERT. */

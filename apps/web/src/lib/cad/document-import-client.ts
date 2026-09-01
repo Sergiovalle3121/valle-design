@@ -40,6 +40,20 @@ export function isDwg3dWireframeImportBetaEnabled(): boolean {
   return process.env.NEXT_PUBLIC_DWG_3D_WIREFRAME_IMPORT_BETA === "true";
 }
 
+/**
+ * La familia MODERNA (AC1024/AC1027/AC1032) tiene SU variable, distinta de la
+ * de AC1018 aunque compartan contenedor R2004: colgar tres versiones nuevas de
+ * la variable que ya existe es justo la comodidad que el mecanismo separado
+ * de `dwg-interop-flag.ts` existe para impedir.
+ *
+ * Encenderla NO basta y no es un descuido: `dwgModernBetaImportIsEnabled`
+ * exige además la firma del titular, que hoy es `false`. El cableado existe
+ * para que ese día sea encender una variable, no escribir código.
+ */
+export function isDwgModernImportBetaEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_DWG_MODERN_IMPORT_BETA === "true";
+}
+
 type WorkerEvent =
   | { type: "progress"; progress: number; stage: string }
   | { type: "complete"; report: DocumentImportReport }
@@ -92,6 +106,7 @@ export function importDocumentFile(
   const dwgBetaEnabled = isDwgNativeImportBetaEnabled();
   const dwgAc1018BetaEnabled = isDwgAc1018ImportBetaEnabled();
   const dwg3dWireframeBetaEnabled = isDwg3dWireframeImportBetaEnabled();
+  const dwgModernBetaEnabled = isDwgModernImportBetaEnabled();
   validateImportFile(file.name, file.size, dwgBetaEnabled);
   return new Promise((resolve, reject) => {
     const worker = new Worker(
@@ -139,6 +154,7 @@ export function importDocumentFile(
         dwgBetaEnabled,
         dwgAc1018BetaEnabled,
         dwg3dWireframeBetaEnabled,
+        dwgModernBetaEnabled,
       });
   });
 }
