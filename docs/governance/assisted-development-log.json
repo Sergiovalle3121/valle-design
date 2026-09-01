@@ -2148,6 +2148,36 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "COTA-QUE-NO-SE-PIERDE-EN-SILENCIO-20260901",
+      "date": "2026-09-01",
+      "initiative": "Auditando el producto como cliente final —un despacho que abre un plano ajeno— se midió qué hace la importación DXF con la geometría que no vive en el plano del suelo. En DXF una entidad plana guarda puntos 2D sobre un plano propio, definido por su dirección de extrusión (código 210) y su elevación (código 38). Medido sobre mapDxfEntityToPrimitive con entidades tal y como las entrega dxf-parser: un CIRCLE con extrusión (1,0,0) —un círculo de pie en un muro— salía acostado en el suelo; una LWPOLYLINE en un faldón a 45° con elevación 3000 salía plana a cota 0; y una LINE de (0,0,0) a (0,0,3000) —un pilar de tres metros— salía con sus dos extremos en (0,0), es decir, de longitud CERO. En los tres casos el aviso era NINGUNO y summarizeDxfImportWarnings devolvía []. Que el documento canónico no sepa guardar todavía la normal ni la cota de una entidad plana es una carencia con su sitio en la escalera; que no se dijera era un defecto, porque el producto enseña un manifiesto de lo que perdió al importar y esto no salía en él. Dos cosas lo fijan como defecto: el comando LINE del editor se niega a crear un segmento de longitud cero y el importador creaba justo eso, y pt() en dxf-read-core.ts conserva el bulge por una vez anterior en que pasó lo mismo («descartarlo aplanaba a cuerda recta todos los arcos de polilínea del fichero importado, en silencio»). El mapeador se envuelve en vez de tocar sus quince puntos de retorno, y los motivos van sin números para que el resumidor agrupe: el spec lo fija con mil normales distintas, que deben dar UNA fila con contador 1000. Verificado sobre el árbol quieto: los 26 specs de DXF pasan (incluidos dxf-mirror-import, dxf-external-corpus y dxf-import-report, «un DXF limpio no inventa pérdidas»), tsc --noEmit limpio y eslint limpio en los dos ficheros tocados. Lo que NO hace: no importa bien la geometría inclinada; se sigue aplanando.",
+      "branch": "claude/cota-que-no-se-pierde-en-silencio",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo de probar el producto como cliente final y arreglar lo que falle para que realmente sirva.",
+      "firstPartyInputs": [
+        "El propio importador DXF del repositorio, medido en esta máquina con scripts de sondeo desechables.",
+        "El corpus DXF sintético del repositorio (dxf-external-corpus.ts), que imita dialectos AC1009 a AC1032."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. Los códigos de grupo 210 y 38 son la especificación pública del formato DXF, no una implementación.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/dxf-import.ts (aviso de cota perdida y envoltorio del mapeador)",
+        "apps/web/src/lib/cad/dxf-import-cota.spec.ts (nuevo)"
+      ],
+      "fixtures": "Ninguno nuevo. Las entidades de prueba se construyen en el propio spec.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Convierte una pérdida silenciosa de geometría del cliente en una fila del manifiesto de importación."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
