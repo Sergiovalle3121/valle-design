@@ -101,6 +101,25 @@ export function preflightCadDwgExport(
 }
 
 /**
+ * Los patrones de tipo de línea del documento, en la forma que el laboratorio
+ * espera. Se copian los arreglos: el documento del producto es del editor y no
+ * puede acabar compartiendo memoria con lo que se serializa.
+ */
+function toCanonicalLinetypeStyles(
+  styles: Record<string, { pattern: number[]; description?: string }>,
+): Record<string, { pattern: number[]; description?: string }> {
+  const projected: Record<string, { pattern: number[]; description?: string }> = {};
+  for (const [name, style] of Object.entries(styles)) {
+    if (!Array.isArray(style?.pattern)) continue;
+    projected[name] = {
+      pattern: [...style.pattern],
+      ...(style.description === undefined ? {} : { description: style.description }),
+    };
+  }
+  return projected;
+}
+
+/**
  * Proyección explícita del documento del producto al canónico del
  * laboratorio — campo a campo, nada de `as`: lo que el canónico de esta fase
  * no modela (espacios de papel, restricciones, referencias externas) se
@@ -125,18 +144,38 @@ function toCanonicalDocument(document: CadDocument): {
       schema: document.meta.schema,
       unit: document.meta.unit,
     },
+    // EL ESTADO Y EL TIPO DE LÍNEA DE CADA CAPA (2026-09-01). Hasta este corte
+    // aquí sólo viajaban id, nombre, color, visible y bloqueo: una capa
+    // CONGELADA se exportaba descongelada y una de ejes con TRAZOS salía
+    // continua, las dos EN SILENCIO. No era una limitación del códec —que ya
+    // sabe escribir ambas cosas— sino de este adaptador, que las tiraba antes
+    // de que el códec llegara a verlas.
     layers: document.layers.map((layer) => ({
       id: layer.id,
       name: layer.name,
       color: layer.color,
       visible: layer.visible,
       locked: layer.locked,
+      ...(layer.frozen === undefined ? {} : { frozen: layer.frozen }),
+      ...(layer.linetype === undefined ? {} : { linetype: layer.linetype }),
     })),
     entities: document.entities.map(toCanonicalEntity),
     history: [],
     modelSpace: { entityIds: [...document.modelSpace.entityIds] },
     paperSpaces: [],
-    styles: { text: {}, dimension: {}, table: {}, plot: {} },
+    // LOS PATRONES DE TIPO DE LÍNEA DEL DOCUMENTO. Sin ellos el writer no
+    // puede emitir la entrada LTYPE y toda capa cae a Continuous: el nombre
+    // solo no basta, hace falta el patrón. Los demás estilos siguen vacíos
+    // porque esta fase no los escribe, y eso ya estaba declarado.
+    styles: {
+      text: {},
+      dimension: {},
+      table: {},
+      plot: {},
+      ...(document.styles?.linetype === undefined
+        ? {}
+        : { linetype: toCanonicalLinetypeStyles(document.styles.linetype) }),
+    },
     blocks: document.blocks.map((block) => ({
       id: block.id,
       name: block.name,

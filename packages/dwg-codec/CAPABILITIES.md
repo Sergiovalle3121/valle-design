@@ -1205,3 +1205,38 @@ inventan trazos**. La diferencia entre «no sé» y un dato falso.
 campo a campo: el parser DXF del oráculo ya extrae la tabla LTYPE con su
 longitud y sus trazos, así que si el patrón escrito no fuera el declarado, el
 cotejo lo diría. Con el gemelo público de cada caso, el titular corre **doce**.
+
+## Corte 2026-09-01 (g) — lo que el códec sabe escribir llega por fin al archivo que exporta el producto
+
+Los cuatro cortes anteriores enseñaron al códec a escribir el color, la
+congelación, el bloqueo y el patrón de trazos de una capa. **Nada de eso
+llegaba al DWG que exporta el producto**, y no por una limitación del códec:
+`toCanonicalDocument` (`apps/web/src/lib/cad/dwg-native-writer.ts`) mapeaba las
+capas como `{id, name, color, visible, locked}` y dejaba `styles` vacío, de
+modo que **tiraba el estado y el tipo de línea antes de que el códec los
+viera** — y sin declarar nada.
+
+Medido con `exportCadDocumentToDwg` sobre un documento con capa congelada,
+bloqueada y de ejes:
+
+| | antes | ahora |
+| --- | --- | --- |
+| `CONGELADA` frozen | **false** — perdido en silencio | **true** |
+| `BLOQUEADA` locked | true | true |
+| `EJES` linetype | **Continuous** — perdido en silencio | **TRAZOS** |
+| tabla LTYPE del archivo | sin el patrón | **lleva `TRAZOS`** |
+| color | correcto | correcto |
+
+**Lo que el documento nombra pero no define** sigue cayendo a Continuous, y eso
+**se declara**: la capa aparece en el manifiesto con
+`layer-linetype-not-writable` y la exportación termina en
+`exito_con_perdidas`. La diferencia entre «no sé» y un dato falso.
+
+**Por qué importa este corte más que los cuatro anteriores.** Los otros
+ampliaron lo que el laboratorio *puede* hacer; éste es el único que hace que un
+usuario que dibuja en el producto y exporta un DWG **se lleve su plano
+completo**. Sin él, todo lo anterior se quedaba en la API del códec.
+
+Sigue en pie lo de siempre: **ningún flag encendido**, `externalOracleVerified`
+en `false`, y la exportación DWG cerrada tras su gate hasta que el titular
+corra el oráculo.

@@ -2361,6 +2361,37 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-EXPORTACION-PRODUCTO-CAPA-COMPLETA-20260901",
+      "date": "2026-09-01",
+      "initiative": "Los cuatro cortes anteriores ensenaron al codec a escribir el color, la congelacion, el bloqueo y el patron de trazos de una capa, y NADA de eso llegaba al DWG que exporta el producto. No era limitacion del codec: toCanonicalDocument (apps/web/src/lib/cad/dwg-native-writer.ts) mapeaba las capas como {id, name, color, visible, locked} y dejaba styles vacio, asi que TIRABA el estado y el tipo de linea antes de que el codec los viera, y sin declarar nada. Medido con exportCadDocumentToDwg sobre un documento con capa congelada, bloqueada y de ejes: CONGELADA salia descongelada y EJES salia continua, las dos EN SILENCIO; solo sobrevivian el bloqueo y el color. Ahora el adaptador lleva frozen, linetype y los patrones de styles.linetype, y el resultado es que una capa congelada se exporta congelada, una de ejes conserva TRAZOS y el archivo lleva su entrada LTYPE con el patron. Lo que el documento NOMBRA pero no DEFINE sigue cayendo a Continuous y SE DECLARA: la capa aparece en el manifiesto con layer-linetype-not-writable y la exportacion termina en exito_con_perdidas. POR QUE IMPORTA MAS QUE LOS ANTERIORES: los otros ampliaron lo que el laboratorio PUEDE hacer; este es el unico que hace que un usuario que dibuja en el producto y exporta un DWG se lleve su plano completo. Sin el, todo lo anterior se quedaba en la API del codec. Durante la verificacion hubo una falsa alarma propia: el probe leia out.lossManifest cuando el resultado expone manifiestoDePerdidas, asi que parecio que la perdida no llegaba al usuario; comprobado el campo real, llegaba bien. Ningun flag encendido, externalOracleVerified sigue en false y la exportacion sigue cerrada tras su gate.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de subir el nivel — «no quiero laboratorios, quiero mi propio DWG real y funcional; analiza que mas le falta y hazlo».",
+      "firstPartyInputs": [
+        "La medicion propia de la exportacion del producto hecha en esta misma sesion.",
+        "Los cuatro cortes anteriores del codec, que ya sabian escribir lo que el adaptador tiraba."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El binario ODA no se ejecuto en esta sesion.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/dwg-native-writer.ts (el adaptador lleva frozen, linetype y los patrones)",
+        "apps/web/src/lib/cad/dwg-native-writer.spec.ts (la spec lo vigila de punta a punta)",
+        "packages/dwg-codec/CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguno nuevo. La spec usa los valores del corpus real (TRAZOS, trazos [0.75, -0.25]).",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de dejar de tener un laboratorio y tener un DWG real y funcional."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
