@@ -87,7 +87,10 @@ export async function worldPoint(page: Page, target: { x: number; y: number }) {
     const errorX = target.x - measured.x;
     const errorY = target.y - measured.y;
     bestError = Math.max(Math.abs(errorX), Math.abs(errorY));
-    if (bestError <= acceptable) return position;
+    if (bestError <= acceptable) {
+      await exigirLienzoAlcanzable(page, position, target);
+      return position;
+    }
     position = {
       x: Math.round(position.x + (d * errorX - b * errorY) / determinant),
       y: Math.round(position.y + (-c * errorX + a * errorY) / determinant),
@@ -95,5 +98,53 @@ export async function worldPoint(page: Page, target: { x: number; y: number }) {
   }
   throw new Error(
     `worldPoint no convergió: error ${bestError.toFixed(2)} unidades con ${pixel.toFixed(2)} unidades/px`,
+  );
+}
+
+/**
+ * El punto CONVERGIÓ, pero ¿responde el lienzo ahí?
+ *
+ * Convertir mundo→pantalla y hacer clic son dos cosas distintas, y esta fixture
+ * sólo garantizaba la primera. Si una capa flotante se monta encima —y en este
+ * producto ya pasó tres veces: la barra de videollamada sobre «Guardar», el
+ * dock de mensajería sobre «Algo salió mal», la cinta sobre la banda alta del
+ * lienzo—, el clic se lo come la capa y el `worldPoint` sigue devolviendo un
+ * número perfectamente correcto.
+ *
+ * El coste de no comprobarlo se paga entero al diagnosticar: el golden 46 falla
+ * dos aserciones más abajo con «Native 1 ≠ Native 2», que no menciona ni el
+ * ratón, ni el lienzo, ni la capa culpable. Averiguar eso costó horas.
+ *
+ * `document.elementFromPoint` devuelve lo que el navegador le daría al usuario
+ * en ese píxel: si no es el lienzo ni algo suyo, el clic no va a llegar y esta
+ * fixture lo dice AQUÍ, nombrando a quien estorba, en vez de dejar que el
+ * síntoma aparezca lejos de su causa.
+ */
+async function exigirLienzoAlcanzable(
+  page: Page,
+  position: { x: number; y: number },
+  target: { x: number; y: number },
+): Promise<void> {
+  const estorbo = await page.evaluate(
+    ([x, y]) => {
+      const arriba = document.elementFromPoint(x, y);
+      if (!arriba) return "nada (el punto cae fuera de la ventana)";
+      const lienzo = document.querySelector('[data-testid="cad-canvas"]');
+      if (lienzo && (arriba === lienzo || lienzo.contains(arriba))) return null;
+      const conId = arriba.closest("[data-testid]") as HTMLElement | null;
+      if (conId) return `[data-testid="${conId.dataset.testid}"]`;
+      const titulado = arriba.closest("[title]") as HTMLElement | null;
+      if (titulado) return `${arriba.tagName.toLowerCase()}[title="${titulado.title}"]`;
+      return arriba.tagName.toLowerCase();
+    },
+    [position.x, position.y],
+  );
+  if (estorbo === null) return;
+  throw new Error(
+    `worldPoint(${target.x}, ${target.y}) cae en la pantalla (${position.x}, ${position.y}), ` +
+      `pero ahí NO responde el lienzo: responde ${estorbo}. ` +
+      "Un clic en ese punto se lo come esa capa, así que el comando no recibirá " +
+      "su punto y el fallo aparecería mucho más abajo, sin mencionar la causa. " +
+      "Mueva la capa que tapa, o elija un punto del dibujo que no quede debajo de ella.",
   );
 }
