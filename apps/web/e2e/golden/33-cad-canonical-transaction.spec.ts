@@ -1,3 +1,5 @@
+import { startTool } from '../fixtures/tool-palette';
+import { finishDraft } from '../fixtures/draft-toolbar';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
@@ -7,6 +9,7 @@ import type { CadDocument, CadEntity } from '../../src/lib/cad/cad-document';
 import { applyDynamicInput, applyDynamicPoint } from '../fixtures/dynamic-input';
 import { worldPoint } from '../fixtures/world-point';
 import { enter3DView } from '../fixtures/view-mode';
+import { topView, fitFootprint } from "../fixtures/camera-preset";
 
 /**
  * FASE 0 — la autoría canónica es TRANSACCIONAL y respeta el orden de dibujo.
@@ -103,10 +106,6 @@ async function point(page: Page, x: string, y: string) {
 /** La barra CAD, acotada: hay otros botones con estos nombres en el editor. */
 const toolbar = (page: Page) => page.getByTestId('cad-toolbar');
 
-async function startTool(page: Page, name: string) {
-  await toolbar(page).getByRole('button', { name, exact: true }).click();
-  await expect(page.getByTestId('cad-dynamic-input')).toBeVisible();
-}
 
 async function expectNativeCount(page: Page, total: number) {
   await expect(page.getByTestId('cad-native-document-count')).toHaveText(`Native ${total}`);
@@ -171,25 +170,25 @@ test('every canonical draw records exactly one undo entry and one dirty transiti
   // seguía en pantalla.
   const draws: [string, () => Promise<void>][] = [
     ['Line', async () => {
-      await startTool(page, 'Line');
+      await startTool(page, 'line');
       await point(page, '1000', '1000');
       await point(page, '5000', '1000');
-      await page.getByRole('button', { name: 'Terminar' }).click();
+      await finishDraft(page);
     }],
     ['Pline', async () => {
-      await startTool(page, 'Pline');
+      await startTool(page, 'polyline');
       await point(page, '1000', '3000');
       await point(page, '4000', '3000');
       await point(page, '4000', '5000');
-      await page.getByRole('button', { name: 'Terminar' }).click();
+      await finishDraft(page);
     }],
     ['Rect', async () => {
-      await startTool(page, 'Rect');
+      await startTool(page, 'rect');
       await point(page, '6000', '1000');
       await point(page, '9000', '3000');
     }],
     ['Circle', async () => {
-      await startTool(page, 'Circle');
+      await startTool(page, 'circle');
       await point(page, '8000', '6000');
       await applyDynamicInput(page, { radius: '400' });
     }],
@@ -218,10 +217,10 @@ test('every canonical draw records exactly one undo entry and one dirty transiti
   }
 
   await test.step('REDO devuelve id, geometría, capa y orden idénticos', async () => {
-    await startTool(page, 'Line');
+    await startTool(page, 'line');
     await point(page, '2000', '2000');
     await point(page, '7000', '4000');
-    await page.getByRole('button', { name: 'Terminar' }).click();
+    await finishDraft(page);
     await expectNativeCount(page, 1);
     await saveAndSettle(page, backend);
     const before = backend.snapshot().document;
@@ -249,10 +248,10 @@ test('every canonical draw records exactly one undo entry and one dirty transiti
     const historyBefore = await page.getByTestId('cad-history-depth').getAttribute('data-undo');
 
     // Dos veces el mismo punto no es una línea.
-    await startTool(page, 'Line');
+    await startTool(page, 'line');
     await point(page, '3000', '3000');
     await point(page, '3000', '3000');
-    await page.getByRole('button', { name: 'Terminar' }).click();
+    await finishDraft(page);
 
     await expectNativeCount(page, 1);
     await expect(page.getByTestId('cad-history-depth')).toHaveAttribute('data-undo', historyBefore!);
@@ -333,8 +332,8 @@ test('switching the active layer changes where the MOUSE draws, and it survives 
   test.setTimeout(180_000);
   const backend = await openStudio(context, page);
   await enter3DView(page);
-  await page.getByTitle(/Vista superior/).click();
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await topView(page);
+  await fitFootprint(page);
 
   // La capa se cambia DESPUÉS de montar el editor: es justo el caso que la
   // clausura obsoleta del efecto de la escena se comía.
@@ -381,7 +380,7 @@ test('a locked layer refuses drawing and OFFSET, and rejection leaves zero histo
   // abrir y cerrar el panel de capas a mitad de test, y el segundo
   // `worldPoint` invertía una cámara que ya no era cenital.
   await page.getByRole('button', { name: '2D', exact: true }).click();
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await fitFootprint(page);
 
   await test.step('OFFSET de un objeto designado crea UNA entidad y UNA entrada', async () => {
     await expectHistory(page, 0, 0);
@@ -429,10 +428,10 @@ test('a locked layer refuses drawing and OFFSET, and rejection leaves zero histo
 
   await test.step('con la capa BLOQUEADA tampoco se dibuja encima', async () => {
     const depthBefore = await historyDepth(page);
-    await startTool(page, 'Line');
+    await startTool(page, 'line');
     await point(page, '500', '500');
     await point(page, '900', '900');
-    await page.getByRole('button', { name: 'Terminar' }).click();
+    await finishDraft(page);
     await expectNativeCount(page, 1);
     await expect(page.getByTestId('cad-history-depth')).toHaveAttribute(
       'data-undo',

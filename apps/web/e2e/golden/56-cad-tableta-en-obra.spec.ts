@@ -13,6 +13,7 @@ import {
   touchTwoFingerPan,
 } from "../fixtures/touch";
 import type { CadDocument } from "../../src/lib/cad/cad-document";
+import { fitFootprint } from "../fixtures/camera-preset";
 
 /**
  * LA TABLETA EN LA OBRA — el recorrido que sólo se puede hacer con los dedos.
@@ -146,7 +147,7 @@ async function openPlan(context: BrowserContext, page: Page) {
   // Modo plano: planta bloqueada, que es como se dibuja. En 2D un dedo designa
   // y dos dedos son la cámara.
   await page.getByTitle(/Vista de plano 2D/).click();
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await fitFootprint(page);
   return backend;
 }
 
@@ -171,7 +172,7 @@ test("un arquitecto abre el plano en la tableta, encuadra, designa, dibuja y aco
   expect(shiftedPx, "dos dedos arrastran la vista: es el gesto universal").toBeGreaterThan(60);
 
   // ---- 2. PELLIZCAR PARA ACERCAR ------------------------------------------
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await fitFootprint(page);
   const beforePinch = await measureView(page);
   await touchPinch(cdp, beforePinch.center, 80, 320);
   const afterPinch = await measureView(page);
@@ -181,7 +182,7 @@ test("un arquitecto abre el plano en la tableta, encuadra, designa, dibuja y aco
   ).toBeGreaterThan(2);
 
   // ---- 3. DESIGNAR DE UN TOQUE --------------------------------------------
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await fitFootprint(page);
   await measureView(page);
   // Los píxeles de cada punto salen del helper compartido, que cierra el lazo
   // contra el HUD hasta que la coordenada leída ES la pedida. Extrapolar de una

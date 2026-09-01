@@ -108,7 +108,33 @@ export function CadIncidentReporter({
         encoger: cada línea que no se le añade cuenta, y este componente ya
         estaba montado con una sola.
       */
-      <div className="fixed bottom-14 left-3 z-[70] flex items-center gap-1.5">
+      /*
+        `left-3 top-[11.5rem]`, y el número está MEDIDO, no elegido.
+
+        Este par vivía en `bottom-14 left-3` desde antes de que existiera la
+        mensajería. Después, el dock de equipo se montó en `left-3 bottom-16`
+        con `z-[75]` — encima, y en la misma columna. Medido del DOM a
+        1280×720: el botón «Algo salió mal» ocupa y 639–664 y el borde inferior
+        del dock cae en y 656, así que el dock responde justo en el CENTRO del
+        botón (y 651). Playwright reintentó el clic 426 veces durante cinco
+        minutos antes de rendirse; un usuario habría desistido mucho antes, y
+        con él la vía por la que nos cuenta que algo se rompió.
+
+        Bajarlo no vale: los dos docks anclan su borde inferior en `bottom-16`
+        y crecen HACIA ARRIBA sin tope (`max-h-[min(60vh,32rem)]`), así que
+        cualquier hueco por debajo se lo come la barra de estado. La banda alta
+        del lienzo es la única libre —la barra superior ocupa y 0–48 y la cinta
+        y 48–162— y ahí ya vive la barra de llamada, en el lado derecho a la
+        misma altura. Éste toma el izquierdo: misma altura, esquina opuesta.
+
+        `z-[75]` porque el editor se monta en `fixed inset-0 z-[70]` y crea su
+        propio contexto de apilamiento; el chrome flotante necesita ese piso.
+
+        Y el envoltorio no intercepta el puntero, sólo su contenido: un
+        rectángulo invisible que se traga clics sobre el dibujo es la otra
+        mitad del mismo defecto.
+      */
+      <div className="pointer-events-none fixed left-3 top-[11.5rem] z-[75] flex items-center gap-1.5 [&>*]:pointer-events-auto">
         <button
           type="button"
           data-testid="cad-incident-open"

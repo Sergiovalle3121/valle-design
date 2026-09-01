@@ -15751,12 +15751,12 @@ export default function Layout3DEditor({
                               <span className="truncate font-semibold">
                                 {symbol.label}
                               </span>
-                              <span className="shrink-0 type-micro text-primary-ink/70">
+                              <span className="shrink-0 type-micro text-primary-ink">
                                 {Math.round(symbol.defaultWidth)}×
                                 {Math.round(symbol.defaultHeight)}
                               </span>
                             </span>
-                            <span className="mt-0.5 block truncate type-micro text-primary-ink/70">
+                            <span className="mt-0.5 block truncate type-micro text-primary-ink">
                               {symbol.category} · {symbol.layer} ·{" "}
                               {symbol.tags.join(", ")}
                             </span>
@@ -15989,7 +15989,7 @@ export default function Layout3DEditor({
                       </div>
                     )}
                     {recoveryCandidate.format !== "legacy-object" && (
-                      <div className="mt-1 type-micro text-primary-ink/80">
+                      <div className="mt-1 type-micro text-primary-ink">
                         Journal #{recoveryCandidate.journalSequence} ·{" "}
                         {(recoveryCandidate.storedBytes / 1_000_000).toFixed(2)}{" "}
                         MB local · {recoveryCandidate.format} ·{" "}
@@ -16055,7 +16055,7 @@ export default function Layout3DEditor({
                   <div className="mb-2 rounded-xl border border-indigo-400/15 bg-indigo-400/[0.06] p-2 type-micro text-primary-ink">
                     {/* Soporte honesto de formatos (contrato D5): DXF nativo; DWG sólo con proveedor licenciado. */}
                     <div
-                      className="mb-1 type-micro text-primary-ink/70"
+                      className="mb-1 type-micro text-primary-ink"
                       title={DWG_UNAVAILABLE_REASON}
                     >
                       Formatos: DXF ✓ nativo · DWG ✕ requiere proveedor
@@ -16070,7 +16070,7 @@ export default function Layout3DEditor({
                       entidades soportadas ·{" "}
                       {dxfImportPreview.layers.length || 1} capa(s)
                     </div>
-                    <div className="mt-1 text-primary-ink/75">
+                    <div className="mt-1 text-primary-ink">
                       {Object.entries(dxfPrimitiveSummary)
                         .map(([kind, count]) => `${kind}: ${count}`)
                         .join(" · ")}
@@ -18253,7 +18253,7 @@ export default function Layout3DEditor({
                   </div>
                   <pre
                     data-testid="cad-sheet-package-manifest"
-                    className="max-h-52 overflow-auto whitespace-pre-wrap rounded-lg bg-black/30 p-2 type-micro leading-relaxed text-primary-ink/80"
+                    className="max-h-52 overflow-auto whitespace-pre-wrap rounded-lg bg-black/30 p-2 type-micro leading-relaxed text-primary-ink"
                   >
                     {JSON.stringify(sheetPackageManifest, null, 2)}
                   </pre>

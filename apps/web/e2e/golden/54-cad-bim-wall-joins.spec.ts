@@ -6,6 +6,7 @@ import { saveAndSettle } from "../fixtures/cad-save";
 import { worldPoint } from "../fixtures/world-point";
 import type { CadDocument, CadWallEntity } from "../../src/lib/cad/cad-document";
 import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
+import { fitFootprint } from "../fixtures/camera-preset";
 
 /**
  * DOS MUROS ENCADENADOS EN L — la unión es receta, no geometría.
@@ -64,7 +65,7 @@ async function type(page: Page, value: string) {
 /** Vista de plano 2D + encuadre de la huella (la variante estable de 53). */
 async function settlePlanView(page: Page) {
   await page.getByRole("button", { name: "2D", exact: true }).click();
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await fitFootprint(page);
 }
 
 function wallsOf(document: CadDocument): CadWallEntity[] {

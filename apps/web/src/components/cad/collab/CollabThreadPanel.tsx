@@ -147,7 +147,7 @@ export default function CollabThreadPanel({
                     type="button"
                     data-testid="cad-collab-clear-anchor"
                     onClick={onClearAnchor}
-                    className="text-primary-ink/70 hover:text-primary-ink"
+                    className="text-primary-ink hover:text-primary-ink"
                     aria-label="Quitar el ancla"
                   >
                     ×
@@ -263,7 +263,7 @@ export default function CollabThreadPanel({
 function AnchorNote({ thread }: { thread: CadCommentThread }) {
   if (thread.anchor.status === "anchored") {
     return (
-      <span className="mt-0.5 block type-micro text-primary-ink/70">
+      <span className="mt-0.5 block type-micro text-primary-ink">
         Anclado en {Math.round(thread.anchor.anchor.x)},{" "}
         {Math.round(thread.anchor.anchor.y)}
         {thread.anchor.anchor.entityId ? ` · ${thread.anchor.anchor.entityId}` : ""}

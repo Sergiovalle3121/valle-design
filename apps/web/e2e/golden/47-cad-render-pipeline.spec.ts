@@ -4,6 +4,7 @@ import { installCadStudioBackend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import type { CadDocument } from '../../src/lib/cad/cad-document';
 import { enter3DView } from '../fixtures/view-mode';
+import { topView, fitFootprint } from "../fixtures/camera-preset";
 
 /**
  * FASE 1 — el pipeline de render por lotes DIBUJA el producto.
@@ -171,8 +172,8 @@ test('un documento con MTEXT, sombreado e inserción se dibuja con el pipeline p
   test.setTimeout(180_000);
   await openStudio(context, page);
   await enter3DView(page);
-  await page.getByTitle(/Vista superior/).click();
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await topView(page);
+  await fitFootprint(page);
 
   // 1. QUÉ pipeline dibuja. El defecto del producto es el nuevo; si alguien lo
   //    apagara «temporalmente», este golden lo diría en la primera línea.
@@ -220,8 +221,8 @@ test('apagar una capa no reconstruye la escena: es un booleano por lote', async 
   test.setTimeout(180_000);
   await openStudio(context, page);
   await enter3DView(page);
-  await page.getByTitle(/Vista superior/).click();
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await topView(page);
+  await fitFootprint(page);
   await settled(page);
 
   const before = await numberOf(page, 'data-batches');
@@ -229,7 +230,7 @@ test('apagar una capa no reconstruye la escena: es un booleano por lote', async 
 
   // Recorrer la vista tampoco reconstruye: los tiles que siguen dentro
   // conservan su geometría y sólo se reescriben cuatro uniformes de cámara.
-  await page.getByTitle(/Ajustar a la planta/).click();
+  await fitFootprint(page);
   await settled(page);
   expect(await numberOf(page, 'data-rendered')).toBe(await numberOf(page, 'data-visible'));
 });

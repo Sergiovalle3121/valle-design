@@ -1,3 +1,5 @@
+import { startTool } from '../fixtures/tool-palette';
+import { finishDraft } from '../fixtures/draft-toolbar';
 import { expect, test, type BrowserContext, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { installMockBackend } from '../fixtures/mock-backend';
@@ -63,10 +65,6 @@ const properties = (page: Page) => page.getByTestId('cad-native-properties');
  * Alimentar puntos antes de eso dejaba el primero en el vacío de vez en cuando
  * y la figura no llegaba a crearse.
  */
-async function startTool(page: Page, name: string) {
-  await page.getByRole('button', { name, exact: true }).click();
-  await expect(page.getByTestId('cad-dynamic-input')).toBeVisible();
-}
 
 /** Espera a que el EDITOR reconozca las entidades creadas hasta ahora. */
 async function expectNativeCount(page: Page, total: number) {
@@ -87,31 +85,31 @@ test('LINE, PLINE, RECT and CIRCLE author canonical geometry end to end', async 
   await expect(page.getByTestId('cad-canvas')).toBeVisible();
 
   await test.step('1. LINE crea UNA entidad `line`', async () => {
-    await startTool(page, 'Line');
+    await startTool(page, 'line');
     await point(page, '1000', '1000');
     await point(page, '5000', '1000');
-    await page.getByRole('button', { name: 'Terminar' }).click();
+    await finishDraft(page);
     await expectNativeCount(page, 1);
   });
 
   await test.step('2. PLINE crea UNA `polyline`, no un muro por tramo', async () => {
-    await startTool(page, 'Pline');
+    await startTool(page, 'polyline');
     await point(page, '1000', '3000');
     await point(page, '4000', '3000');
     await point(page, '4000', '5000');
-    await page.getByRole('button', { name: 'Terminar' }).click();
+    await finishDraft(page);
     await expectNativeCount(page, 2);
   });
 
   await test.step('3. RECT crea una `polyline` CERRADA de cuatro vértices', async () => {
-    await startTool(page, 'Rect');
+    await startTool(page, 'rect');
     await point(page, '6000', '1000');
     await point(page, '9000', '3000');
     await expectNativeCount(page, 3);
   });
 
   await test.step('4. CIRCLE crea una entidad `circle`', async () => {
-    await startTool(page, 'Circle');
+    await startTool(page, 'circle');
     await point(page, '8000', '6000');
     // El paso que señalaba el rojo de `main`: «Native 3» en vez de «Native 4»,
     // o sea el círculo que no llega a crearse. El punto del centro ya iba

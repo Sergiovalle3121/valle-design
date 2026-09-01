@@ -74,9 +74,6 @@ function hatchContains(entity: CadHatchEntity, point: CadPoint2): boolean {
  * `hatch-entity-adapter.spec.ts`, que la compara contra el tier real.
  */
 const CAD_HATCH_LOD_OUTLINE_ONLY_MAX_SEGMENTS = 8;
-const CAD_HATCH_LOD_COARSE_MAX_SEGMENTS = 32;
-/** A tier medio, el espaciado se ensancha: se ve la trama, no cada trazo. */
-const CAD_HATCH_LOD_COARSE_SPACING_FACTOR = 4;
 
 const hatchRenderer: CadEntityRenderer<CadHatchEntity> = {
   // `segments` no llegaba a usarse: el patrón costaba lo mismo en un sombreado
@@ -96,13 +93,23 @@ const hatchRenderer: CadEntityRenderer<CadHatchEntity> = {
     if (segments <= CAD_HATCH_LOD_OUTLINE_ONLY_MAX_SEGMENTS) return outlines;
     const bounds = pointsBounds(boundaries.flat());
     const diagonal = Math.hypot(bounds.maxX - bounds.minX, bounds.maxY - bounds.minY);
-    // Tier medio (≤320 px aparentes): el espaciado se ENSANCHA en vez de
-    // respetar el patrón exacto — se ve la trama, no cada línea, con una
-    // fracción de los trazos. Tier completo conserva el espaciado real, igual
-    // que antes de que existiera este escalón.
-    const coarseFactor =
-      segments <= CAD_HATCH_LOD_COARSE_MAX_SEGMENTS ? CAD_HATCH_LOD_COARSE_SPACING_FACTOR : 1;
-    const spacing = Math.max(entity.scale ?? diagonal / 40, diagonal / 256, 1e-6) * coarseFactor;
+    // Por encima de ese umbral, el espaciado es el EXACTO del patrón.
+    //
+    // Hubo un escalón intermedio que lo ensanchaba ×4 para todo el tier medio
+    // (≤320 px aparentes) y se retiró: el golden 47 lo cazó, y la aritmética le
+    // da la razón. Un sombreado de 3 000 mm encuadrado mide ~300 px y sus
+    // trazos caen a ~9 px unos de otros; ensanchar ×4 los pone a ~36 px, que no
+    // es «la trama en vez de cada línea», es OTRO dibujo — y a ese tamaño el
+    // usuario lo ve. El umbral de 320 px está calibrado para CURVAS, donde 32
+    // segmentos y 128 son indistinguibles porque la flecha de la cuerda cae por
+    // debajo del píxel; el espaciado de un patrón no funciona así.
+    //
+    // Y el ahorro no vivía aquí: en `architecture@100k` los 14 000 sombreados
+    // están por debajo de los 24 px, o sea en tier 0, que ya devuelve sólo el
+    // contorno. El tier medio sólo aparece cuando se ha hecho zoom lo bastante
+    // como para que quepan pocos sombreados en pantalla — justo cuando el
+    // rendimiento no era el problema.
+    const spacing = Math.max(entity.scale ?? diagonal / 40, diagonal / 256, 1e-6);
     const pattern = entity.pattern.trim().toUpperCase();
     const angles = pattern === "CROSS" ? [entity.angle ?? 45, (entity.angle ?? 45) + 90] : [entity.angle ?? 45];
     const strokes = angles.flatMap((angle) =>

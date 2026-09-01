@@ -3,6 +3,7 @@ import { installMockBackend } from '../fixtures/mock-backend';
 import { installCadV1Backend } from '../fixtures/cad-v1-backend';
 import { loginAsStandaloneOwner } from '../fixtures/standalone-identity';
 import { enter3DView } from '../fixtures/view-mode';
+import { topView, fitFootprint } from "../fixtures/camera-preset";
 
 const cadDocument = {
   meta: { version: 1, schema: 3, unit: 'mm' },
@@ -139,8 +140,8 @@ test('professional selection executes window, crossing, lasso and overlap cyclin
     await expect(palette).toBeHidden();
     await page.evaluate(() => window.dispatchEvent(new Event('resize')));
     await enter3DView(page);
-    await page.getByTitle(/Vista superior/).click();
-    await page.getByTitle(/Ajustar a la planta/).click();
+    await topView(page);
+    await fitFootprint(page);
   };
 
   await setCanvasMode('window');
