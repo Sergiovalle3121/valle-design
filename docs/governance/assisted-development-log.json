@@ -2119,6 +2119,35 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "RXJS-UNA-SOLA-COPIA-20260901",
+      "date": "2026-09-01",
+      "initiative": "Al validar el PR de dependencias que Dependabot regeneró tras el bloqueo de los mayores (#152), el typecheck de la API falló con TS2416: dos copias de rxjs, una izada en la raíz (7.8.1) y otra anidada en apps/api (7.8.2), que TypeScript trata como tipos distintos — el Subscriber de una no es asignable al de la otra. La causa: @nestjs/cli arrastra @angular-devkit@19.2.27, que fija rxjs 7.8.1, así que cuando apps/api pide ^7.8.2 la raíz se queda en 7.8.1 para satisfacer a angular-devkit y npm anida una segunda copia. No es un defecto del bump: es un peligro estructural que estaba latente y que sólo aparece cuando alguien sube ese rango. Se cura con un override de rxjs a ^7.8.2 en la raíz, que es exactamente el patrón que este repositorio ya usa para @nestjs/core, common y platform-express. Verificado: tras el override queda UNA copia (node_modules/rxjs 7.8.2, la anidada desaparece), el typecheck pasa de 6/8 a 8/8 tareas, 798 tests de la API y 500/500 specs de web. El bump de 7.8.1 a 7.8.2 es un parche, así que forzar la versión no rompe a angular-devkit ni a nestjs.",
+      "branch": "claude/rxjs-una-sola-copia",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo de resolver los PR abiertos dejando el repositorio sano.",
+      "firstPartyInputs": [
+        "El PR #152 de Dependabot, instalado y medido en esta máquina."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "package.json (override de rxjs)",
+        "package-lock.json (regenerado)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Desbloquea el PR semanal de dependencias."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
