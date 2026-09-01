@@ -25,7 +25,26 @@ export async function worldPoint(page: Page, target: { x: number; y: number }) {
     await expect.poll(read).not.toBe("|");
     const neighbor = await read();
     await page.mouse.move(x, y);
-    await expect.poll(read).not.toBe(neighbor);
+    try {
+      await expect.poll(read).not.toBe(neighbor);
+    } catch (causa) {
+      // EL HUD NO CAMBIÓ, y sin esto el fallo no dice por qué.
+      //
+      // Tal cual, `expect.poll` agota su espera y lanza «Timeout exceeded while
+      // waiting on the predicate» con el valor anterior: ni menciona el ratón,
+      // ni el lienzo, ni el punto. El golden 53 lleva días fallando así, y
+      // averiguar qué significaba costó horas.
+      //
+      // El HUD se alimenta del `pointermove` que recibe el LIENZO. Si en ese
+      // píxel responde otra cosa —una capa flotante montada encima—, el lienzo
+      // no se entera de nada y la lectura se queda congelada en la del vecino.
+      // Así que se pregunta quién responde ahí y se dice, que es la diferencia
+      // entre un fallo mudo y uno que se explica solo.
+      throw new Error(
+        `${await porQueNoSeMueveElHud(page, x, y, neighbor, await read())}` +
+          `\n\nCausa original: ${String(causa)}`,
+      );
+    }
     const [rawX, rawY] = (await read()).split("|");
     return { x: Number(rawX), y: Number(rawY) };
   };
@@ -95,5 +114,74 @@ export async function worldPoint(page: Page, target: { x: number; y: number }) {
   }
   throw new Error(
     `worldPoint no convergió: error ${bestError.toFixed(2)} unidades con ${pixel.toFixed(2)} unidades/px`,
+  );
+}
+
+/**
+ * ¿Por qué no se mueve el HUD en este píxel?
+ *
+ * El HUD del cursor se alimenta del `pointermove` que recibe el LIENZO. Si en
+ * ese punto responde otra cosa —una capa flotante montada encima—, el lienzo no
+ * ve el movimiento y la lectura se queda congelada.
+ *
+ * En este producto ya ha pasado CUATRO veces: la barra de videollamada sobre
+ * «Guardar», el dock de mensajería sobre «Algo salió mal», la cinta sobre la
+ * banda alta del lienzo, y el golden 53. Las cuatro se diagnosticaron a mano y
+ * las cuatro costaron horas, porque el síntoma aparece lejos de la causa.
+ *
+ * `document.elementFromPoint` devuelve lo que el navegador le daría al usuario
+ * en ese píxel. Con eso, el mensaje pasa de «el predicado agotó su espera» a
+ * «en (x, y) responde tal capa», que es lo que hacía falta desde el principio.
+ */
+async function porQueNoSeMueveElHud(
+  page: Page,
+  x: number,
+  y: number,
+  /** Lectura del vecino a −4 px, y la del destino: iguales, por eso falla. */
+  vecino: string,
+  destino: string,
+): Promise<string> {
+  const quien = await page.evaluate(
+    ([px, py]) => {
+      const arriba = document.elementFromPoint(px, py);
+      if (!arriba) return "nada — el punto cae fuera de la ventana";
+      const lienzo = document.querySelector('[data-testid="cad-canvas"]');
+      if (lienzo && (arriba === lienzo || lienzo.contains(arriba)))
+        return "el propio lienzo";
+      const conId = arriba.closest("[data-testid]") as HTMLElement | null;
+      if (conId) return `[data-testid="${conId.dataset.testid}"]`;
+      const titulado = arriba.closest("[title]") as HTMLElement | null;
+      if (titulado)
+        return `${arriba.tagName.toLowerCase()}[title="${titulado.title}"]`;
+      return arriba.tagName.toLowerCase();
+    },
+    [x, y],
+  );
+  if (quien === "el propio lienzo") {
+    return (
+      `El HUD del cursor no cambió al mover el ratón a (${x}, ${y}), y ahí SÍ ` +
+      `responde el lienzo: NO es una capa tapando. Leyó «${vecino}» en el ` +
+      `vecino a −4 px y «${destino}» en el destino.\n\n` +
+      "SI LOS DOS VALORES SON IGUALES, el HUD no distingue un punto de su " +
+      "vecino a 4 px, y eso admite dos lecturas MUY distintas que conviene no " +
+      "confundir.\n" +
+      "  · El HUD está VIVO pero su resolución no llega: a suficiente zoom de " +
+      "salida, 4 px caen dentro de lo que redondea, y la premisa de esta " +
+      "fixture —«4 px son decenas de unidades de mundo, muy por encima del " +
+      "redondeo»— deja de valer. Se separan más los dos puntos de muestreo.\n" +
+      "  · El HUD está CONGELADO: tiene un valor de antes y no reacciona a " +
+      "`pointermove`. Entonces el problema es del producto, no del muestreo, y " +
+      "separar los puntos sólo taparía el fallo.\n" +
+      "Se distinguen mirando si el valor cambia al mover MUCHO el ratón — si " +
+      "sigue igual cruzando medio lienzo, está congelado.\n\n" +
+      "Si son DISTINTOS, el HUD sí se movió y el fallo es de carrera: la vista " +
+      "seguía animándose."
+    );
+  }
+  return (
+    `El HUD del cursor no cambió al mover el ratón a (${x}, ${y}) porque ahí NO ` +
+    `responde el lienzo: responde ${quien}. Esa capa se come el pointermove, ` +
+    "así que el lienzo nunca se entera y la lectura se queda congelada. " +
+    "Mueva la capa que tapa, o elija un punto del dibujo que no quede debajo."
   );
 }
