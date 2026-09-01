@@ -652,7 +652,8 @@ declarado abajo — no se pierden, se colocan en otro sitio y se dice.
 
 ### Tres estratos que se encontraron abriendo, y que se declaran en vez de rellenarse
 
-1. **Variables de cabecera.** Leídas con la forma de AC1018 dan «A BD flag of
+1. **[PRECISADO EL 2026-09-01 — ver el corte de variables de cabecera abajo]
+   Variables de cabecera.** Leídas con la forma de AC1018 dan «A BD flag of
    0b11 is not defined by the format». Su disposición R2010+ no está medida, así
    que el marco se **valida** (centinelas + CRC, que es la comprobación que de
    verdad protege la sección) y los valores **no** se decodifican. `insunits`
@@ -817,3 +818,54 @@ Evidencia: `docs/cad/evidence/dwg-r2010-table-fields.json`, reproducible con
 `node scripts/dwg/probe-r2010-table-fields.mjs`; y
 `docs/cad/evidence/dwg-corpus-validation.json` con
 `node scripts/dwg/validate-corpus.mjs`.
+
+## Evidencia del corte 2026-09-01 ter (variables de cabecera en R2010+: un resultado NEGATIVO)
+
+Este corte **no decodifica nada nuevo**. Mide *por qué* no puede, con números,
+y se publica precisamente por eso: sin él, el siguiente que mire `AcDb:Header`
+en AC1024/AC1027/AC1032 repetiría el mismo intento a ciegas.
+
+**La pregunta se hizo en el orden correcto.** Antes de barrer ninguna
+disposición se contó **qué varía** en el corpus, porque una variable constante
+no puede falsar ninguna posición: un decodificador equivocado que cayera sobre
+su valor «acertaría» en los ocho dibujos. Es el mismo error que obligó a
+corregir el barrido de las banderas de capa, y esta vez se evitó por delante en
+vez de por detrás.
+
+**Lo que el censo dice, y es el resultado principal:**
+
+| | |
+| --- | --- |
+| Variables de cabecera observadas en el gemelo AC1015 | **343** |
+| De ellas, que **varían** entre los ocho dibujos | **6** |
+| De esas seis, reescritas por el conversor (marcas de tiempo, GUID, handles renumerados) | **5** |
+| **Anclas utilizables como oráculo diferencial** | **1** — `textsize` |
+| Valores distintos de **INSUNITS** en el corpus | **1** — `0` en los ocho |
+
+Con **una** sola ancla no se falsa una secuencia de 343 campos: se **ajusta**,
+que es otra cosa. Y `INSUNITS` —la única variable que el producto realmente
+consume— es constante, así que ni se puede falsar ni cambiaría nada
+decodificarla: `0` significa «el archivo no declara unidades», que es
+exactamente lo que el puente ya declara hoy.
+
+**Lo que sí se midió en positivo, con esa única ancla.** `textsize` aparece
+**una sola vez** y en un offset **estable por versión** dentro del marco de
+`AcDb:Header` — bit **327** en AC1018, **335** en AC1024, **338** en AC1027 y
+AC1032 — en **24/24** archivos modernos, y sus dos valores distintos (0.2 en
+siete dibujos, 2.5 en `06-texto`) caen en el **mismo** offset.
+
+**Y una hipótesis barata, falsada.** La cabecera de R2010+ **no** es la de
+AC1018 con un prólogo más largo. Desplazar el marco moderno los bits que
+predice el ancla y leerlo con el decodificador de AC1018 —que sí funciona
+8/8— lanza `A BD flag of 0b11 is not defined by the format`, y **ningún**
+desplazamiento de 0 a 64 bits decodifica ningún archivo. La divergencia está
+**dentro** de los primeros 327 bits, no delante de ellos.
+
+**Qué desbloquea esto, exactamente.** No es un problema de decodificación sino
+de corpus: hacen falta dibujos con cabeceras **distintas entre sí** — INSUNITS
+distinto de 0 y distinto entre archivos, límites, escalas y estilos variados.
+Es un intake de corpus, no más barridos. Hasta entonces el códec **falla
+cerrado** y el puente declara la suposición, en vez de inventar unidades.
+
+Evidencia: `docs/cad/evidence/dwg-r2010-header-variables.json`, reproducible con
+`node scripts/dwg/probe-r2010-header-variables.mjs`.

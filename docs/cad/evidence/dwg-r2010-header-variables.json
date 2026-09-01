@@ -1,0 +1,94 @@
+{
+  "$schema": "../../schema/dwg-evidence.schema.json",
+  "schemaVersion": 1,
+  "evidenceId": "dwg-r2010-header-variables",
+  "generadoPor": "scripts/dwg/probe-r2010-header-variables.mjs",
+  "generadoEn": "2026-09-01T03:48:35.403Z",
+  "environment": {
+    "node": "v22.22.2",
+    "platform": "linux",
+    "architecture": "x64",
+    "osType": "Linux",
+    "osRelease": "6.18.44-fc-v22",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "logicalCpuCount": 4,
+    "totalMemoryBytes": 16856133632,
+    "declaredMachine": "Intel(R) Xeon(R) Processor @ 2.80GHz (4 hilos lógicos), 16.9 GB de RAM, Linux 6.18.44-fc-v22"
+  },
+  "veredicto": "CAPACIDAD AUSENTE DECLARADA, con la razon medida. Las variables de cabecera de AC1024/AC1027/AC1032 NO se decodifican, y la causa no es dificultad sino falta de VARIEDAD en el corpus. (1) INSUNITS -la unica variable que el producto consume- vale [\"0\"] en los ocho dibujos: constante, no falsable, y decodificarla no cambiaria hoy nada en el producto porque 0 significa \"el archivo no declara unidades\", que es lo que el puente ya dice. (2) De 343 variables observadas solo 6 varian, y de esas solo 1 ([\"textsize\"]) sirve como oraculo: las demas las reescribe el conversor -marcas de tiempo, GUID y handles renumerados- asi que su valor moderno es legitimamente distinto del gemelo. Con UNA sola ancla no se falsa una secuencia de 343 campos: se ajusta, que no es lo mismo. (3) Con esa unica ancla si se midio algo firme: textsize aparece UNA sola vez y en un offset ESTABLE por version (AC1024 [335], AC1027 [338], AC1032 [338], frente a 327 en AC1018) en 24/24 archivos, con dos valores distintos (0.2 y 2.5). Y se FALSO la hipotesis barata: la cabecera R2010+ no es la de AC1018 con un prologo mas largo -desplazar el marco y correr el decodificador de AC1018 lanza un BD invalido, y NINGUN desplazamiento de 0 a 64 bits decodifica ningun archivo-, asi que la divergencia esta DENTRO de los primeros 327 bits. Lo que desbloquea esto es un intake de corpus con cabeceras variadas, no mas barridos.",
+  "alcance": "Seccion AcDb:Header en AC1024/AC1027/AC1032: censo de variedad del gemelo AC1015, ancla de textsize en el marco moderno y falsacion de la hipotesis 'AC1018 con prologo mas largo'.",
+  "metodo": "Se cuenta PRIMERO que varia en el corpus y solo despues se busca ninguna disposicion, porque una variable constante no puede falsar una posicion. El ancla se busca como patron consciente del formato (selector de BD incluido) alineado a bit. La hipotesis del prologo se falsa barriendo TODOS los desplazamientos de 0 a 64 bits, no solo el que predice el ancla.",
+  "limiteDeLaEvidencia": "Este es un resultado NEGATIVO y se publica como tal: no se decodifica ninguna variable de cabecera en R2010+, y el codec sigue fallando cerrado. Lo unico afirmado en positivo es la posicion del ancla de textsize y la falsacion del prologo desplazado. NO se afirma que la cabecera sea indescifrable: se afirma que con ESTE corpus no es falsable, porque solo una de sus 343 variables varia de forma utilizable.",
+  "resumen": {
+    "variablesObservadas": 343,
+    "variablesQueVarian": 6,
+    "variablesQueVarianDetalle": [
+      {
+        "variable": "tdcreate",
+        "valoresDistintos": 8
+      },
+      {
+        "variable": "tdupdate",
+        "valoresDistintos": 8
+      },
+      {
+        "variable": "fingerprintGuid",
+        "valoresDistintos": 8
+      },
+      {
+        "variable": "handles.handseed.value",
+        "valoresDistintos": 8
+      },
+      {
+        "variable": "handles.dimstyle.value",
+        "valoresDistintos": 4
+      },
+      {
+        "variable": "textsize",
+        "valoresDistintos": 2
+      }
+    ],
+    "anclasUtilizables": [
+      "textsize"
+    ],
+    "reescritasPorElConversor": [
+      "tdcreate",
+      "tdupdate",
+      "tdindwg",
+      "tdusrtimer",
+      "fingerprintGuid",
+      "versionGuid",
+      "handles"
+    ],
+    "insunitsValoresDistintos": [
+      "0"
+    ],
+    "anclaTextsizeUnica": "24/24",
+    "anclaEsUnicaYEstable": true,
+    "desplazamientosQueDecodificanEnTotal": 0,
+    "barridoDeDesplazamientoHasta": 64,
+    "porVersion": {
+      "AC1024": {
+        "archivos": 8,
+        "offsetsDeTextsize": [
+          335
+        ],
+        "desplazamientosQueDecodifican": []
+      },
+      "AC1027": {
+        "archivos": 8,
+        "offsetsDeTextsize": [
+          338
+        ],
+        "desplazamientosQueDecodifican": []
+      },
+      "AC1032": {
+        "archivos": 8,
+        "offsetsDeTextsize": [
+          338
+        ],
+        "desplazamientosQueDecodifican": []
+      }
+    }
+  }
+}
