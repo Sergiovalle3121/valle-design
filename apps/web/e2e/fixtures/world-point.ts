@@ -162,16 +162,18 @@ async function porQueNoSeMueveElHud(
       `El HUD del cursor no cambió al mover el ratón a (${x}, ${y}), y ahí SÍ ` +
       `responde el lienzo: NO es una capa tapando. Leyó «${vecino}» en el ` +
       `vecino a −4 px y «${destino}» en el destino.\n\n` +
-      "SI LOS DOS VALORES SON IGUALES, el HUD no puede distinguir un punto de " +
-      "su vecino, y hay dos motivos posibles. El primero, y el más fácil de " +
-      "pasar por alto: la lectura está SATURADA porque el punto cae fuera del " +
-      "dibujo — una coordenada clavada en un número redondo (la mitad de la " +
-      "huella, por ejemplo) delata que se está muestreando contra el borde, " +
-      "donde moverse no cambia nada. El segundo: a suficiente zoom de salida, " +
-      "los 4 px de separación caen dentro de lo que el HUD redondea, y la " +
-      "premisa de esta fixture —«4 px son decenas de unidades de mundo, muy " +
-      "por encima del redondeo»— deja de valer. En los dos casos se corrige el " +
-      "punto de muestreo, NO el producto.\n\n" +
+      "SI LOS DOS VALORES SON IGUALES, el HUD no distingue un punto de su " +
+      "vecino a 4 px, y eso admite dos lecturas MUY distintas que conviene no " +
+      "confundir.\n" +
+      "  · El HUD está VIVO pero su resolución no llega: a suficiente zoom de " +
+      "salida, 4 px caen dentro de lo que redondea, y la premisa de esta " +
+      "fixture —«4 px son decenas de unidades de mundo, muy por encima del " +
+      "redondeo»— deja de valer. Se separan más los dos puntos de muestreo.\n" +
+      "  · El HUD está CONGELADO: tiene un valor de antes y no reacciona a " +
+      "`pointermove`. Entonces el problema es del producto, no del muestreo, y " +
+      "separar los puntos sólo taparía el fallo.\n" +
+      "Se distinguen mirando si el valor cambia al mover MUCHO el ratón — si " +
+      "sigue igual cruzando medio lienzo, está congelado.\n\n" +
       "Si son DISTINTOS, el HUD sí se movió y el fallo es de carrera: la vista " +
       "seguía animándose."
     );
