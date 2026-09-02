@@ -44,8 +44,16 @@ const COMPLEX_MAX_COUNT = 65_536;
  * el camino polilínea y el bit de DERIVADO pide el tamaño de pixel al final.
  * El resto de bits viaja crudo en el modelo, sin interpretarse.
  */
-const HATCH_PATH_POLYLINE_BIT = 0x2;
-const HATCH_PATH_DERIVED_BIT = 0x4;
+/**
+ * Bits de la bandera de un camino de HATCH. Se EXPORTAN desde el 2026-09-01
+ * porque el writer los necesita para emitir un camino polilínea: dos
+ * definiciones de «qué bit significa polilínea» —una aquí y otra allá—
+ * divergirían sin que ninguna prueba lo viera, que es exactamente la clase de
+ * fallo que el round-trip no puede atrapar cuando ambos lados se equivocan
+ * igual.
+ */
+export const HATCH_PATH_POLYLINE_BIT = 0x2;
+export const HATCH_PATH_DERIVED_BIT = 0x4;
 
 /**
  * LEADER: bit sin nombre, tipos BS de anotación y camino, puntos con su

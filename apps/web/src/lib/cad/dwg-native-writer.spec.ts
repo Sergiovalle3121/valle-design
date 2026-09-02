@@ -230,7 +230,230 @@ const mixedDocument = baseDocument([
   );
 }
 
+// ─── 2.F: el estado y el tipo de línea de la capa LLEGAN al archivo ────────
+// Antes de este corte el adaptador mapeaba las capas como {id, name, color,
+// visible, locked} y dejaba `styles` vacío, así que una capa CONGELADA se
+// exportaba descongelada y una de ejes con TRAZOS salía continua, las dos EN
+// SILENCIO. No era una limitación del códec —que ya sabe escribir ambas— sino
+// de este adaptador, que las tiraba antes de que el códec las viera.
+{
+  const conCapas: CadDocument = {
+    ...baseDocument([
+      {
+        id: "l1",
+        type: "line",
+        layer: "EJES",
+        start: { x: 0, y: 0 },
+        end: { x: 100, y: 0 },
+      } as never,
+    ]),
+    layers: [
+      { id: "0", name: "0", color: "#ffffff", visible: true, locked: false },
+      { id: "CONGELADA", name: "CONGELADA", color: "#00ffff", visible: true, locked: false, frozen: true },
+      { id: "BLOQUEADA", name: "BLOQUEADA", color: "#0000ff", visible: true, locked: true },
+      { id: "EJES", name: "EJES", color: "#ffff00", visible: true, locked: false, linetype: "TRAZOS" },
+      { id: "FANTASMA", name: "FANTASMA", color: "#ff00ff", visible: true, locked: false, linetype: "NO_DEFINIDO" },
+    ],
+    // Los valores son los del corpus real (`04-capas`), no unos inventados.
+    styles: { text: {}, dimension: {}, mleader: {}, table: {}, plot: {}, linetype: { TRAZOS: { pattern: [0.75, -0.25] } } },
+  };
+
+  const exported = exportCadDocumentToDwg(conCapas, {
+    betaFlagOn: true,
+    gates: ORACLE_PASSED,
+  });
+  // `assert.equal` sobre `estado` estrecha la unión: la rama de rechazo no
+  // lleva bytes, y es el mismo modismo que usa el bloque de arriba.
+  assert.equal(exported.estado, "exito_con_perdidas", "FANTASMA no tiene patrón: se DICE");
+  const written = readDwg(exported.bytes);
+  const nombre = (bytes: readonly number[]): string => String.fromCharCode(...bytes);
+  const capa = (id: string) => written.layers.find((l) => nombre(l.name) === id);
+
+  assert.equal(capa("CONGELADA")?.frozen, true, "una capa congelada se exporta congelada");
+  assert.equal(capa("BLOQUEADA")?.locked, true, "una capa bloqueada se exporta bloqueada");
+  assert.equal(capa("EJES")?.linetypeName, "TRAZOS", "la capa de ejes conserva su tipo de línea");
+  assert.ok(
+    written.tables?.linetypes.some((e) => nombre(e.name) === "TRAZOS"),
+    "y el archivo lleva la entrada LTYPE con su patrón, no sólo el nombre",
+  );
+  // Lo que el documento NOMBRA pero no DEFINE cae a Continuous y SE DICE: la
+  // diferencia entre «no sé» y un dato falso.
+  assert.equal(capa("FANTASMA")?.linetypeName, "Continuous");
+  assert.ok(
+    exported.manifiestoDePerdidas.some(
+      (loss) => loss.code === "layer-linetype-not-writable" && loss.detail.includes("FANTASMA"),
+    ),
+    "la capa sin patrón definido se nombra en el manifiesto que ve el usuario",
+  );
+}
+
+// ─── 5.A: la ELIPSE llega al archivo, y con su arco en RADIANES ───────────
+// El writer del laboratorio la emitía desde hacía olas, pero el camino PÚBLICO
+// (`canonical-to-dwg.ts`) la mandaba al `default` y la declaraba no escribible,
+// así que `DWG_EXPORT_WRITABLE_TYPES` la excluía con razón. Al enrutarla hubo
+// que resolver una trampa de unidades: `startParameter`/`endParameter` están en
+// GRADOS en el documento del producto y en RADIANES en el canónico, así que
+// pasarlos crudos habría exportado TODA elipse recortada con el arco
+// equivocado, en silencio. Por eso la prueba usa un cuarto de elipse y no una
+// entera: una vuelta completa disimularía justo ese fallo.
+{
+  const conElipse: CadDocument = {
+    ...baseDocument([]),
+    entities: [
+      {
+        id: "el1",
+        type: "ellipse",
+        center: { x: 100, y: 50, z: 0 },
+        majorAxis: { x: 40, y: 0, z: 0 },
+        ratio: 0.5,
+        startParameter: 0,
+        endParameter: 90,
+        layer: "0",
+      } as never,
+    ],
+    modelSpace: { entityIds: ["el1"] },
+  };
+
+  const exportada = exportCadDocumentToDwg(conElipse, {
+    betaFlagOn: true,
+    gates: ORACLE_PASSED,
+  });
+  assert.equal(exportada.estado, "exito_con_perdidas", "la extrusión que no viaja se declara");
+  const leida = readDwg(exportada.bytes);
+  const elipse = leida.modelSpaceEntities.find((r) => r.entity.kind === "ellipse");
+  assert.ok(elipse, "la elipse llega al archivo, ya no se declara no escribible");
+  if (elipse?.entity.kind !== "ellipse") throw new Error("inalcanzable");
+  assert.ok(Math.abs(elipse.entity.center.x - 100) < 1e-9, "el centro viaja");
+  assert.ok(Math.abs(elipse.entity.majorAxisEndpoint.x - 40) < 1e-9, "el eje mayor viaja");
+  assert.ok(Math.abs(elipse.entity.axisRatio - 0.5) < 1e-9, "la razón de ejes viaja");
+  assert.ok(
+    Math.abs(elipse.entity.endAngle - Math.PI / 2) < 1e-9,
+    "y 90 GRADOS del producto salen como π/2 RADIANES, no como 90 radianes",
+  );
+  assert.ok(
+    exportada.manifiestoDePerdidas.some((p) => p.code === "ellipse-extrusion-not-carried"),
+    "y lo único que se pierde —el plano de la elipse— se nombra en el manifiesto",
+  );
+  assert.ok(
+    !exportada.manifiestoDePerdidas.some((p) => p.code === "canonical-type-not-writable"),
+    "y ya NO se declara no escribible: eso sería el guardián de una carencia cerrada",
+  );
+}
+
+// ─── 5.B: el HATCH viaja por INSTANCIA, no por tipo ───────────────────────
+// El sólido se escribe; el de patrón no, porque el canónico lleva el nombre
+// del patrón pero no su definición. Eso rompe el preflight por TIPO que valía
+// hasta ahora: un conjunto de clases tendría que mentir en una de las dos
+// direcciones —prometer sombreados con patrón que luego se pierden, o dar por
+// perdidos los sólidos que sí viajan—, y el preflight existe justamente para
+// que la pérdida no sorprenda DESPUÉS.
+{
+  const contorno = [
+    { x: 0, y: 0 },
+    { x: 10, y: 0 },
+    { x: 10, y: 6 },
+    { x: 0, y: 6 },
+  ];
+  const conSombreados: CadDocument = {
+    ...baseDocument([]),
+    entities: [
+      { id: "h1", type: "hatch", pattern: "SOLID", solid: true, boundaries: [contorno], layer: "0" } as never,
+      { id: "h2", type: "hatch", pattern: "ANSI31", solid: false, boundaries: [contorno], layer: "0" } as never,
+    ],
+    modelSpace: { entityIds: ["h1", "h2"] },
+  };
+
+  const preflight = preflightCadDwgExport(conSombreados);
+  assert.equal(preflight.writableCount, 1, "el preflight cuenta el sólido como escribible");
+  assert.equal(
+    preflight.unwritableByType["hatch"],
+    1,
+    "y el de patrón como perdido, en el mismo documento y el mismo tipo",
+  );
+
+  const exportado = exportCadDocumentToDwg(conSombreados, {
+    betaFlagOn: true,
+    gates: ORACLE_PASSED,
+  });
+  assert.equal(exportado.estado, "exito_con_perdidas");
+  const leido = readDwg(exportado.bytes);
+  const sombreados = leido.modelSpaceEntities.filter((r) => r.entity.kind === "hatch");
+  assert.equal(sombreados.length, 1, "sólo el sólido llega al archivo");
+  const h = sombreados[0]?.entity;
+  if (h?.kind !== "hatch") throw new Error("inalcanzable");
+  assert.equal(h.solidFill, true);
+  assert.equal(h.paths[0]?.kind === "polyline" ? h.paths[0].vertices.length : 0, 4);
+  assert.ok(
+    exportado.manifiestoDePerdidas.some((p) => p.code === "hatch-pattern-not-writable"),
+    "y el de patrón se nombra en el manifiesto que ve el usuario",
+  );
+}
+
 console.log(
   "dwg-native-writer.spec: gate cerrado hasta el oráculo, round-trip íntegro, " +
-    "pérdidas con nombre y la frontera de ángulo documento↔DWG a 37,5°",
+    "pérdidas con nombre, la frontera de ángulo documento↔DWG a 37,5° y el estado " +
+    "y el tipo de línea de cada capa llegando al archivo exportado, más la ELIPSE " +
+    "escrita con su arco convertido a radianes y su extrusión declarada, y el " +
+    "SOMBREADO sólido viajando mientras el de patrón se declara — por instancia, no por tipo",
 );
+
+// ─── 5.C: el MTEXT llega al archivo, con su anclaje y su giro en RADIANES ──
+// Tercera vez que el camino público enruta una clase que el writer YA emitía,
+// y tercera vez que la trampa está en las unidades: la rotación de un MTEXT
+// está en GRADOS en el documento del producto y en RADIANES en el canónico,
+// donde se convierte en el vector del eje X con cos/sin. Pasarla cruda no
+// habría fallado por ningún lado: habría girado cada párrafo a un ángulo
+// equivocado, en silencio. Por eso la prueba usa 30° y no 0°.
+//
+// Lo NUEVO de esta clase respecto de la elipse y el sombreado es el ANCLAJE:
+// su semántica no estaba en ninguna fuente registrada y hubo que medirla
+// contra el oráculo DXF del corpus. Por eso la prueba usa `middle-center`, que
+// es uno de los dos anclajes que el corpus ejerce de verdad.
+{
+  const conParrafo: CadDocument = {
+    ...baseDocument([]),
+    entities: [
+      {
+        id: "mt1",
+        type: "mtext",
+        insertion: { x: 10, y: 80, z: 0 },
+        text: "NOTAS GENERALES",
+        width: 140,
+        height: 5,
+        rotation: 30,
+        alignment: "middle-center",
+        lineSpacing: 1.5,
+        layer: "0",
+      } as never,
+    ],
+    modelSpace: { entityIds: ["mt1"] },
+  };
+
+  const exportado = exportCadDocumentToDwg(conParrafo, {
+    betaFlagOn: true,
+    gates: ORACLE_PASSED,
+  });
+  assert.equal(
+    exportado.estado,
+    "exito_con_perdidas",
+    "los extents que no viajan se declaran, así que hay pérdidas",
+  );
+  const leido = readDwg(exportado.bytes);
+  const parrafo = leido.modelSpaceEntities.find((r) => r.entity.kind === "mtext");
+  assert.ok(parrafo, "el MTEXT llega al archivo, ya no se declara no escribible");
+  if (parrafo?.entity.kind !== "mtext") throw new Error("inalcanzable");
+  assert.ok(Math.abs(parrafo.entity.insertion.x - 10) < 1e-9, "la inserción viaja");
+  assert.ok(Math.abs(parrafo.entity.rectWidth - 140) < 1e-9, "el ancho viaja");
+  assert.equal(parrafo.entity.attachment, 5, "y el anclaje MEDIDO viaja");
+  assert.ok(
+    Math.abs(
+      Math.atan2(parrafo.entity.xAxisDirection.y, parrafo.entity.xAxisDirection.x) -
+        Math.PI / 6,
+    ) < 1e-9,
+    "30 GRADOS del documento salen como π/6 RADIANES en el eje X, no como 30 radianes",
+  );
+  assert.ok(
+    exportado.manifiestoDePerdidas.some((p) => p.code === "mtext-authoring-defaults"),
+    "y lo que el canónico no lleva —los extents calculados— se nombra en el manifiesto",
+  );
+}

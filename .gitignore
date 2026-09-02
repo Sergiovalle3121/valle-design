@@ -27,6 +27,12 @@ dev.sqlite
 .venv/
 venv/
 node_modules/
+# Y SIN barra: un `node_modules/` sólo casa con un DIRECTORIO. El 2026-09-02
+# un árbol de trabajo auxiliar tenía `node_modules` como ENLACE SIMBÓLICO —para
+# no reinstalar 1,5 GB— y un `git add -A` lo metió en un commit, que llegó a
+# main. Un enlace absoluto a /home/... deja sin dependencias cualquier clon
+# nuevo y cualquier runner. Las dos formas se ignoran a partir de aquí.
+node_modules
 .mypy_cache/
 .pytest_cache/
 .gradle/

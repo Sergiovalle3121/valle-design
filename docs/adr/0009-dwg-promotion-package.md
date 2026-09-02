@@ -541,3 +541,70 @@ ese día exige decodificar (o preservar) ACIS, no reinterpretar wireframe.
 Sin esa firma, `DWG_3D_WIREFRAME_BETA_AUTHORIZATION.ownerSigned` sigue
 `false` y `dwg3dWireframeBetaImportIsEnabled` sigue devolviendo `false`
 pase lo que pase con las otras dos condiciones — exactamente como hoy.
+
+### 9.5 ADENDA 2026-09-01 — la fila «fidelidad contra corpus admitido» estaba mal, y el documento se contradecía
+
+No se reescribe nada de lo anterior: se corrige aquí, con fecha, como exige
+la disciplina de este repo.
+
+**El error.** §9.3 lleva la fila *«Fidelidad medida contra corpus admitido —
+☐ PENDIENTE de la admisión de la ola 3»*, y §9.2 dice que *«las dos specs de
+este perfil corren contra bytes sintéticos hechos a mano, no contra el corpus
+admitido»*. Leídas juntas dan a entender que del 3D heredado no hay **nada**
+medido contra bytes reales admitidos. Es falso, y el propio documento ya lo
+desmentía cuatro párrafos antes: **§9.1 afirma que las cuatro clases se
+decodifican «con fidelidad exacta contra el corpus admitido»**. Las dos cosas
+no podían ser ciertas a la vez.
+
+**Lo cierto.** `validate-corpus.mjs` —gate bloqueante dentro de `check:dwg`—
+ya compara las cuatro clases contra el oráculo DXF del mismo dibujo, con XYZ
+completo, banderas de invisibilidad, tamaños de malla e índices de cara.
+Corrida del 2026-09-01 sobre el corpus admitido: `face3d` 2/2, `polyline3d`
+1/1, `polymesh` 1/1, `polyfaceMesh` 1/1, **0 discrepancias geométricas**. Lo
+que pasaba es que ese dato vivía enterrado en una matriz de 39 tipos donde
+nadie lo miraba, así que la fila del checklist siguió diciendo que faltaba.
+Lo que §9.2 dice es cierto **de las dos specs**, no del decodificador.
+
+**Por qué importa.** Esa fila es una de las que el titular pesa para decidir
+si firma `DWG_3D_WIREFRAME_BETA_AUTHORIZATION`. Decir «no hay nada» cuando hay
+evidencia medida, con gate y sin discrepancias, empuja a esperar una admisión
+que quizá no haga falta esperar del todo.
+
+**Pero la evidencia es DELGADA, y eso también hay que decirlo.** La sonda
+nueva `scripts/dwg/probe-3d-legacy-coverage.mjs` (gate `check:dwg-3d-heredado`,
+evidencia `docs/cad/evidence/dwg-3d-legacy-coverage.json`) separa las dos
+mitades que la matriz agregada confundía —cero discrepancias sobre un corpus
+exigente y cero discrepancias sobre uno que no prueba casi nada se ven igual—
+y mide, dimensión a dimensión, qué casos se ejercen:
+
+| dimensión | estado | observado |
+| --- | --- | --- |
+| 3DFACE con Z real en las esquinas | **completo** | `[0,0,15,15]` y `[0,5,20,10]` |
+| 3DFACE: combinaciones de banderas de arista | **parcial** | sólo `0` y `5` de las 6; falta el triángulo degenerado |
+| POLYLINE 3D con Z distinta por vértice | **completo** | `[0,10,20,5]` |
+| POLYLINE 3D abierta y cerrada | **parcial** | sólo `closed=true` |
+| POLYLINE MESH: tamaños de malla | **parcial** | una sola, `3x4`; sin cerrada en N ni mayores |
+| POLYFACE con índice negativo (arista invisible) | **ausente** | ninguno en el corpus admitido |
+
+Resultado: **fidelidad 5/5 campo a campo, cobertura 2/6 dimensiones completas,
+3 parciales y 1 ausente.**
+
+**Corrección concreta a §9.2.** Entre lo que se dice que aportaría la ola 3,
+*«POLYLINE 3D con Z distinta por vértice»* **ya está en el corpus admitido**
+(`13-polyline2d.dwg`, Z `0/10/20/5`). Lo que la ola 3 sigue aportando de
+verdad es lo otro: las seis combinaciones de banderas de arista, el 3DFACE
+degenerado, las mallas 7×9 y 5×5 cerrada en N, y el polyface con índices
+negativos.
+
+**Cómo debe leerse la fila de §9.3 a partir de hoy** — no se tacha, se
+sustituye por esto:
+
+| Gate | Estado |
+| --- | --- |
+| Fidelidad medida contra corpus admitido | ⚠️ **MEDIDA Y DELGADA** — 5/5 entidades exactas contra el oráculo, en gate bloqueante; 2/6 dimensiones de caso completas. NO es «pendiente»; tampoco es suficiente para afirmar cobertura. |
+
+**Lo que esta adenda NO hace.** No mueve `ownerSigned`, que sigue en `false` y
+sigue siendo del titular. No admite la ola 3, que sigue sin admitir. No amplía
+el perfil: el 3D heredado sigue llegando al producto como objeto opaco en
+`unsupportedEntities`, con su pérdida `dwg_3d_wireframe_preserved_opaque`
+declarada, exactamente igual que antes de esta adenda.

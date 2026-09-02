@@ -1,7 +1,7 @@
 {
   "$schema": "./source-register.schema.json",
   "schemaVersion": "1.0.0",
-  "updatedAt": "2026-09-01",
+  "updatedAt": "2026-09-02",
   "entries": [
     {
       "id": "VALLE-OWNER-DWG0-2026-08-09",
@@ -372,6 +372,7 @@
         "packages/dwg-codec/src/writer/ac1015-block-writer.ts",
         "packages/dwg-codec/src/writer/ac1015-container-writer.ts",
         "packages/dwg-codec/src/writer/ac1015-entity-writer.ts",
+        "packages/dwg-codec/src/writer/ac1015-entity-emitters.ts",
         "packages/dwg-codec/src/writer/ac1015-header-writer.ts",
         "packages/dwg-codec/src/writer/ac1015-layout-writers.ts",
         "packages/dwg-codec/src/writer/ac1015-minimal-file-plan.ts",
@@ -1005,6 +1006,46 @@
       "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-layer-linetype.mjs sobre el corpus admitido, contrastando todas las posiciones del flujo contra el oraculo DXF); revision humana del propietario pendiente",
       "reviewedAt": "2026-09-01",
       "notes": "NO promueve ninguna capacidad de producto ni enciende ningun flag."
+    },
+    {
+      "id": "VALLE-CORPUS-MTEXT-ANCLAJE",
+      "owner": "Sergio Valle Zarate",
+      "origin": {
+        "type": "original-measurement",
+        "location": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance/tree/0688fb9c395b9cac4169d1ee9c23a7370cc28cf3/bundles/foundational-entities-ac1015/oracles/dxf",
+        "accessedAt": "2026-09-02"
+      },
+      "title": "Medicion first-party de la SEMANTICA del anclaje de MTEXT (que significa cada valor de attachment) contra el oraculo DXF del corpus admitido",
+      "versionOrDate": "2026-09-02",
+      "terms": {
+        "license": "Valle first-party corpus measurement (admitted tool-converted-original bundles)",
+        "access": "Blobs leidos del commit fijado del repo hermano de conformidad via el gate consumidor (corpus-pin.json + SHA-256 verificado); ningun working tree",
+        "redistribution": "Solo se registran numeros observados (valor de attachment por entidad, recuentos de acierto por hipotesis) y decisiones de codigo derivadas; los bytes DWG y los DXF permanecen en el repo hermano bajo su propia politica",
+        "notes": "Ninguna fuente documental nueva intervino. La DISPOSICION del campo -attachment como BS en esa posicion del cuerpo MTEXT- ya estaba registrada en ODA-ODS-DWG-5.4.1-PUBLIC; lo que faltaba y aqui se mide es SU SEMANTICA. La numeracion del lado DXF (codigo 71) no se importa de ninguna implementacion ajena: el producto ya la derivaba de la especificacion DXF publica en apps/web/src/lib/cad/dxf-export.ts. La location apunta al bundle foundational-entities-ac1015 porque es el que contiene el unico dibujo del corpus que EJERCE mas de un anclaje; la medicion cubre ademas entity-wave-2-ac1015 del MISMO commit."
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "El valor de attachment del cuerpo MTEXT coincide con el codigo 71 del DXF fuente del MISMO dibujo por IDENTIDAD, en 5 de 5 parejas de dos fixtures (09-mtext y 16-leader-tolerance)",
+        "Se contrastaron CINCO hipotesis rivales y no la esperada: identidad (5/5), dxf+1 (0/5), dxf-1 (0/5), la inversion 10-x (1/5) y la constante 1 (4/5). Sobrevive exactamente una",
+        "LA FALSACION ES REAL PORQUE EL CORPUS SEPARA: el dibujo 09-mtext trae un MTEXT anclado con 71=5 junto a dos con 71=1. La constante 1 muere exactamente en ese caso y la inversion 10-x sobrevive SOLO en el (porque 10-5=5) y muere en los otros cuatro. Sin ese unico valor distinto, identidad y constante acertarian igual y no se habria afirmado nada",
+        "EL EMPAREJAMIENTO NO SE SUPONE: cada pareja se confirma con dos campos ajenos al medido -altura (40) y ancho del rectangulo (41)- antes de contarse; una pareja que no case se descarta en vez de sumar acierto",
+        "COBERTURA REAL, DECLARADA: el corpus ejerce DOS de los nueve anclajes, el 1 (arriba-izquierda) y el 5 (centro). Los otros siete (2,3,4,6,7,8,9) NO estan ejercidos; para ellos la identidad es la unica hipotesis en pie pero NO una medicion, y el camino publico declara la perdida mtext-attachment-unmeasured al escribirlos",
+        "CONSTANTES OBSERVADAS en las 5 parejas: direccion de dibujo = 1, estilo de interlineado = 1, factor de interlineado = 1 y bit final = 0. Se escriben esos valores por ser los observados, no por analogia",
+        "LOS EXTENTS NO SON CONSTANTES: valen 0 en las tres entidades de 09-mtext pero llevan valores reales (3.5/39.5 y 9.333/29) en 16-leader-tolerance. Son la caja calculada del texto ya compuesto, que este writer no compone; se escriben a CERO -valor que el propio corpus atestigua en archivos de un productor real- y se declara la perdida mtext-authoring-defaults, sin llamar medido a lo que no lo es",
+        "CONTEXTO DE POR QUE HACIA FALTA: el writer AC1015 emitia MTEXT desde olas anteriores y el decodificador la leia entera, pero el camino PUBLICO la mandaba al default y la declaraba no escribible. El bloqueo no estaba en el writer ni en el esquema canonico -que transporta la alineacion, porque el producto la emite con el resto de la entidad- sino en que nadie sabia que significaba el numero"
+      ],
+      "derivedFiles": [
+        "apps/web/src/lib/cad/dwg-native-writer.ts",
+        "docs/cad/evidence/dwg-mtext-fields.json",
+        "packages/dwg-codec/src/api/canonical-mtext-anchor.ts",
+        "packages/dwg-codec/src/api/canonical-to-dwg.ts",
+        "packages/dwg-codec/src/api/canonical.ts",
+        "packages/dwg-codec/tests/unit/write-canonical-dwg.spec.ts",
+        "scripts/dwg/probe-mtext-fields.mjs"
+      ],
+      "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-mtext-fields.mjs sobre el corpus admitido, contrastando cinco hipotesis rivales contra el oraculo DXF); revision humana del propietario pendiente",
+      "reviewedAt": "2026-09-02",
+      "notes": "Habilita la DECIMA clase del camino publico de escritura (MTEXT). NO enciende ningun flag ni promueve ninguna version."
     }
   ]
 }

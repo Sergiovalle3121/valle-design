@@ -1205,3 +1205,394 @@ inventan trazos**. La diferencia entre «no sé» y un dato falso.
 campo a campo: el parser DXF del oráculo ya extrae la tabla LTYPE con su
 longitud y sus trazos, así que si el patrón escrito no fuera el declarado, el
 cotejo lo diría. Con el gemelo público de cada caso, el titular corre **doce**.
+
+## Corte 2026-09-01 (g) — lo que el códec sabe escribir llega por fin al archivo que exporta el producto
+
+Los cuatro cortes anteriores enseñaron al códec a escribir el color, la
+congelación, el bloqueo y el patrón de trazos de una capa. **Nada de eso
+llegaba al DWG que exporta el producto**, y no por una limitación del códec:
+`toCanonicalDocument` (`apps/web/src/lib/cad/dwg-native-writer.ts`) mapeaba las
+capas como `{id, name, color, visible, locked}` y dejaba `styles` vacío, de
+modo que **tiraba el estado y el tipo de línea antes de que el códec los
+viera** — y sin declarar nada.
+
+Medido con `exportCadDocumentToDwg` sobre un documento con capa congelada,
+bloqueada y de ejes:
+
+| | antes | ahora |
+| --- | --- | --- |
+| `CONGELADA` frozen | **false** — perdido en silencio | **true** |
+| `BLOQUEADA` locked | true | true |
+| `EJES` linetype | **Continuous** — perdido en silencio | **TRAZOS** |
+| tabla LTYPE del archivo | sin el patrón | **lleva `TRAZOS`** |
+| color | correcto | correcto |
+
+**Lo que el documento nombra pero no define** sigue cayendo a Continuous, y eso
+**se declara**: la capa aparece en el manifiesto con
+`layer-linetype-not-writable` y la exportación termina en
+`exito_con_perdidas`. La diferencia entre «no sé» y un dato falso.
+
+**Por qué importa este corte más que los cuatro anteriores.** Los otros
+ampliaron lo que el laboratorio *puede* hacer; éste es el único que hace que un
+usuario que dibuja en el producto y exporta un DWG **se lleve su plano
+completo**. Sin él, todo lo anterior se quedaba en la API del códec.
+
+Sigue en pie lo de siempre: **ningún flag encendido**, `externalOracleVerified`
+en `false`, y la exportación DWG cerrada tras su gate hasta que el titular
+corra el oráculo.
+
+## Corte 2026-09-01 (h) — la capa «0» del archivo dejaba de existir al importar
+
+El corte (g) arregló el sentido de SALIDA. Éste arregla el de ENTRADA, y es la
+misma clase de pérdida: silenciosa, y en el adaptador, no en el códec.
+
+`mapLayers` (`apps/web/src/lib/cad/dwg-document-bridge-layers.ts`) anteponía una
+capa «0» **sintética** de ACI 7 y sembraba con `"0"` el conjunto de nombres ya
+vistos. Consecuencia: cuando llegaba la capa «0» **real del archivo**, la línea
+de deduplicación la descartaba **entera** —color, congelación, bloqueo y tipo de
+línea— y ganaba el bootstrap. Sin declarar ni una pérdida: el manifiesto callaba
+porque el dato no faltaba, se tiraba.
+
+Medido sobre un AC1032 real del corpus (`04-capas.dwg`), leído por el códec y
+pasado por el puente del producto:
+
+| | antes | ahora |
+| --- | --- | --- |
+| capas «0» en el documento | 1 | 1 (no se duplica) |
+| `frozen` de la capa «0» | **ausente** | `false` — el valor **medido** |
+| `linetype` de la capa «0» | **ausente** | `CONTINUOUS` — el del archivo |
+| color de la capa «0» | `#ffffff` | `#ffffff` |
+
+**Alcance de la pérdida, medido y no supuesto.** Los **57** fixtures del corpus
+traen capa «0» con tipo de línea resuelto (`CONTINUOUS` ×27, `Continuous` ×30):
+los 57 lo perdían. En cambio **ninguno** trae la capa «0» con color distinto de
+ACI 7, congelada ni bloqueada — de las 131 capas del corpus, las 131 tienen
+color decodificado. Así que la mitad grave de esta pérdida (un color o un estado
+REALES sustituidos por los del bootstrap, que es un dato **falso**, no una
+ausencia) es un camino **alcanzable y no ejercido por el corpus**: se cierra y
+se prueba con fixtures, y no se afirma haberlo medido en un archivo real.
+
+El respaldo sintético **sigue existiendo** cuando el archivo no trae capa «0» —
+toda entidad cuya capa no resuelve cae ahí, así que tiene que estar—, y sigue
+siendo la primera del documento.
+
+**Segundo hallazgo, del mismo sitio.** El comentario de esa función afirmaba
+desde siempre que el gris neutro de una capa sin color decodificado «lo declara
+la pérdida `layer-color-not-decoded` en el manifiesto». **Ese código de pérdida
+no existía**: se pintaba el gris y el usuario no se enteraba. Ahora existe
+(`dwg_layer_color_not_decoded`) y se emite. El corpus tampoco ejerce este
+camino, y también se declara como alcanzable y no medido.
+
+## Corte 2026-09-01 (i) — el 3D heredado SÍ estaba medido, y el checklist decía que no
+
+Los dos cortes anteriores arreglaron la capa en los dos sentidos. Éste no
+arregla código: **corrige una afirmación falsa sobre lo que ya estaba medido**,
+que es la tercera vez esta jornada que un documento de gobernanza se queda por
+debajo de lo que el código hace.
+
+`ADR-0009 §9.3` llevaba la fila «Fidelidad medida contra corpus admitido» en
+**☐ PENDIENTE de la admisión de la ola 3**, y §9.2 decía que las specs del
+perfil corren «contra bytes sintéticos hechos a mano, no contra el corpus
+admitido». Leídas juntas sugieren que del 3D heredado no hay nada medido
+contra bytes reales admitidos. **El propio ADR ya lo desmentía cuatro párrafos
+antes**: §9.1 afirma fidelidad exacta contra el corpus admitido. El documento
+se contradecía consigo mismo.
+
+Lo cierto: `validate-corpus.mjs` —gate bloqueante— ya compara las cuatro
+clases contra el oráculo DXF del mismo dibujo con XYZ completo. Corrida del
+2026-09-01: `face3d` 2/2, `polyline3d` 1/1, `polymesh` 1/1, `polyfaceMesh` 1/1,
+**0 discrepancias**. El dato estaba enterrado en una matriz de 39 tipos donde
+nadie lo miraba.
+
+**Y sin embargo la evidencia es delgada.** Cero discrepancias sobre un corpus
+exigente y cero sobre uno que no prueba casi nada se ven idénticas desde la
+matriz agregada. La sonda nueva `probe-3d-legacy-coverage.mjs` (gate
+`check:dwg-3d-heredado`) separa las dos mitades y mide los casos:
+
+| dimensión | estado |
+| --- | --- |
+| 3DFACE con Z real en las esquinas | **completo** (`[0,0,15,15]`, `[0,5,20,10]`) |
+| 3DFACE: combinaciones de banderas de arista | **parcial** (2 de 6; sin triángulo degenerado) |
+| POLYLINE 3D con Z distinta por vértice | **completo** (`[0,10,20,5]`) |
+| POLYLINE 3D abierta y cerrada | **parcial** (sólo cerrada) |
+| POLYLINE MESH: tamaños de malla | **parcial** (una sola, `3x4`) |
+| POLYFACE con índice negativo (arista invisible) | **ausente** |
+
+**Fidelidad 5/5 campo a campo; cobertura 2/6 completas, 3 parciales, 1
+ausente.** Ése es el número honesto, y es el que el titular necesita para
+decidir si firma el perfil o espera a la ola 3.
+
+De paso, una corrección concreta: entre lo que §9.2 atribuye a la ola 3,
+«POLYLINE 3D con Z distinta por vértice» **ya está** en el corpus admitido. Lo
+que la ola 3 sigue aportando de verdad son las seis combinaciones de banderas,
+el 3DFACE degenerado, las mallas 7×9 y 5×5 cerrada en N, y los índices
+negativos.
+
+Nada de esto mueve una firma: `DWG_3D_WIREFRAME_BETA_AUTHORIZATION.ownerSigned`
+sigue en `false`, el perfil sigue sin ampliarse y el 3D heredado sigue llegando
+al producto como objeto opaco con su pérdida declarada.
+
+## Corte 2026-09-01 (j) — el camino PÚBLICO de escritura pasa de siete clases a ocho
+
+**Lo que había.** `ac1015-entity-writer.ts` —el writer interno— emitía nueve
+tipos: line, point, circle, arc, lwpolyline, text, insert, **ellipse** y
+**mtext**. Pero `canonical-to-dwg.ts`, que es el camino **público**, sólo
+enrutaba siete y mandaba el resto al `default`, declarándolo
+`canonical-type-not-writable`. La lista del producto
+(`DWG_EXPORT_WRITABLE_TYPES`) reflejaba fielmente ese siete, así que la brecha
+**no estaba en el producto ni en el writer**, sino en la traducción de en medio.
+
+**Lo que cambia.** ELLIPSE se enruta. Sus cinco campos mapean uno a uno en toda
+la cadena (`center`, `majorAxis`→`majorAxisEndpoint`, `ratio`→`axisRatio`,
+`startParameter`→`startAngle`, `endParameter`→`endAngle`), sin convertir nada
+y sin inventar nada.
+
+**La trampa que apareció al enrutarla, y que estuvo a punto de colarse.** Los
+parámetros de la elipse están en **GRADOS** en el documento del producto
+—`curve-edit.ts` los normaliza con `normalizeDeg`, `curve-model.ts` con
+`norm360`, y `paper-space.ts` compara la vuelta entera contra `359.999`— y en
+**RADIANES** en el canónico, como el resto de ángulos. Enrutarla sin convertir
+habría exportado **toda elipse recortada con el arco equivocado**, en silencio
+y sin pérdida declarada. Medido antes y después:
+
+| | antes | ahora |
+| --- | --- | --- |
+| ¿la elipse llega al archivo? | **no** | **sí** |
+| centro / eje mayor / razón | — | exactos |
+| arco de 90° | — | **1.570796 rad** (π/2) |
+| pérdida declarada | `canonical-type-not-writable` | `ellipse-extrusion-not-carried` |
+
+**La extrusión es lo único que se pierde, y ahora SE DICE en los dos sentidos.**
+El canónico no modela el plano de una elipse. Al escribir se emite el plano XY
+y se declara; al **leer** se descartaba en silencio, y desde este corte se
+declara `ellipse-extrusion-dropped` cuando el plano NO es el XY —sólo entonces,
+para no llenar el manifiesto de ruido en el caso normal, que es el de las dos
+elipses del corpus admitido, ambas con `(0,0,1)`.
+
+**Dos guardianes de la carencia, reescritos y no debilitados.** Había dos
+pruebas que usaban una elipse como ejemplo de «clase no escribible». Se cambian
+por SPLINE, que sigue sin emitirse de verdad, y se añaden las dos mitades
+nuevas: que la elipse se proyecta, y que va y vuelve exacta por el lector
+público con un arco RECORTADO —una vuelta entera habría disimulado justo el
+fallo de unidades.
+
+**Corrección de una afirmación falsa.** `oda-roundtrip.mjs` declaraba entre sus
+limitaciones que «MTEXT… sigue siendo pendiente declarado del writer:
+`writeAc1015EntityBody` aún no las emite». Es falso: `emitMText` existe y es
+espejo campo a campo de `decodeMText`. Lo que de verdad falta de MTEXT es el
+**camino público**, y por una razón concreta que ahora consta: el canónico no
+transporta ni la alineación ni el interlineado que el producto sí modela, así
+que enrutarla hoy los aplanaría en silencio. Se declara en vez de hacerlo.
+
+Sigue en pie: **ningún flag encendido**, `externalOracleVerified` en `false`, y
+un caso nuevo (`elipse`) esperando al titular en el harness del oráculo, con su
+gemelo público.
+
+## Corte 2026-09-02 — la novena clase escribible: el HATCH de relleno SÓLIDO
+
+El corte anterior enrutó la elipse, que era enrutado puro: el writer ya la
+emitía. Éste es distinto — el writer **no** emitía HATCH en absoluto—, y con
+un límite que el propio formato dicta.
+
+**Por qué sólo el sólido.** `decodeHatch` lee el bloque de definición del
+patrón —ángulo, escala, doble trama y las líneas con sus trazos— **sólo cuando
+`solidFill` es falso**. Un relleno sólido salta ese bloque entero. El documento
+canónico transporta el **nombre** del patrón, no su geometría, así que un
+sombreado con patrón sólo se podría escribir **inventándose** esa definición.
+Se escribe el sólido; el de patrón se declara `hatch-pattern-not-writable`
+nombrando el patrón concreto.
+
+**Medido de punta a punta** con `exportCadDocumentToDwg` sobre un documento con
+los dos:
+
+| | resultado |
+| --- | --- |
+| preflight | `writableCount: 1`, `unwritableByType: {hatch: 1}` |
+| sombreados en el archivo | **1 de 2** — el sólido, con sus 4 vértices y su cierre |
+| pérdidas | `hatch-authoring-defaults` y `hatch-pattern-not-writable` |
+
+**El preflight pasa a ser por INSTANCIA, no por tipo.** Hasta ahora cada clase
+era escribible entera o nada, y un `Set` de tipos bastaba. El HATCH lo rompe: un
+conjunto por tipo tendría que **mentir en una de las dos direcciones** —incluir
+`hatch` prometería sombreados con patrón que luego se pierden; excluirlo daría
+por perdidos los sólidos que sí viajan—. Como el preflight existe justamente
+para que la pérdida no sorprenda DESPUÉS, ahora pregunta por la entidad
+concreta (`cadEntityIsDwgWritable`).
+
+**Lo que se declara sin ser una pérdida del origen.** Asociatividad, estilo,
+tipo de patrón y puntos semilla no viajan en el canónico: se escriben en su
+valor neutro y se declara `hatch-authoring-defaults`. Son decisiones de autoría,
+como la extrusión de la elipse, y aun así constan: quien reexporte un sombreado
+asociativo de un archivo ajeno tiene que leer que dejó de serlo.
+
+**Lo que el round-trip propio NO puede probar, y por eso importa el oráculo.**
+El lector propio acepta lo que el writer propio escriba. Que un sombreado con
+cero semillas, estilo 0 y sin asociatividad sea un sombreado que **otro
+programa** abre sólo lo dice un lector ajeno: caso `sombreado-solido` nuevo en
+el harness, con su gemelo público. El titular corre ahora **dieciséis**.
+
+**Dos particiones por presupuesto de monolito, ninguna presupuestada.**
+`ac1015-entity-writer.ts` (842 líneas) se parte en `ac1015-entity-emitters.ts`:
+allá queda decidir QUÉ entidad se escribe —validación, código de tipo, prólogo
+común, handles—, aquí el saber concreto de cada clase, que es lo que crece al
+aprender una más. `oda-roundtrip.mjs` (861) se parte en
+`oda-roundtrip-cases.mjs`: el arnés no cambia al añadir un caso; los dibujos sí.
+
+Sigue en pie: **ningún flag encendido** y `externalOracleVerified` en `false`.
+
+## Corte 2026-09-02 (b) — el booleano del oráculo deja de poder afirmar más que su evidencia
+
+Este corte no amplía el códec. Ataca **lo que tenía el proyecto parado**.
+
+**El diagnóstico, medido.** `externalOracleVerified` es el **único** booleano
+entre «laboratorio» y el botón «Exportar DWG» encendido. Estaba escrito a mano
+en `apps/web/src/lib/cad/dwg-export-flag.ts`, **sin ninguna conexión con la
+evidencia que dice representar**:
+
+| | |
+| --- | --- |
+| evidencia committeada | `dwg-oda-roundtrip.json`, del **2026-08-21** |
+| casos que cubre | **4** (`vacio`, `capa-linea`, `figuras`, `bloque-insert`) |
+| casos que el harness exige hoy | **16** (8 casos y sus 8 gemelos `-publico`) |
+| gemelos públicos cubiertos | **cero** — y son los que ADR-0009 §8.2 exige de verdad |
+| ruta del conversor | `D:\dev\tools\oda\extracted\ODAFileConverter.exe` |
+| directorio de trabajo | el temporal de **una sesión concreta**, con su UUID dentro |
+
+Es decir: el gate dependía de una máquina, y su directorio de trabajo ni
+siquiera seguía existiendo **en esa máquina**.
+
+**Lo que cambia.**
+
+1. **Gate nuevo `check:dwg-oraculo`.** Deriva los casos exigidos de la lista
+   REAL del harness —no de una copia que se quedaría atrás, que es justo lo que
+   le pasó a la evidencia— e incluye el gemelo público de cada uno. Luego:
+   - **falla** si el producto declara `true` y la evidencia no lo sostiene, por
+     cobertura incompleta, caso no convertido o comparación que no coincide.
+     **Sobreafirmar deja de ser posible**: un booleano que sólo se verifica
+     leyéndolo no es una salvaguarda, es una nota.
+   - **no falla** con `false` —un gate conservador nunca es peligroso— pero dice
+     cuántos casos hay, cuáles faltan y **qué comando exacto** los produce.
+2. **El harness deja de estar atado a una máquina.** `ODA_FILE_CONVERTER` se
+   exige por entorno, sin ruta por defecto y con un mensaje que nombra las dos
+   formas del binario; el trabajo va al temporal del sistema. El conversor es
+   gratuito y tiene build de Linux, así que esto puede correr en CI.
+
+**Lo que esto NO hace.** No mueve el booleano ni finge la verificación. Nuestro
+lector acepta lo que nuestro writer escriba: sólo un lector **ajeno** dice si lo
+que escribimos lo abre otro programa. Lo que hace es convertir «llevamos
+semanas parados sin saber cuánto falta» en **un número exacto (4 de 16), una
+lista de lo que falta y un comando** — y garantizar que el día que la evidencia
+esté completa, nadie pueda encender la exportación sin ella ni dejarla encendida
+cuando se añada un caso nuevo.
+
+## Corte 2026-09-02 (c) — por qué NO se escribe cada clase, dicho de verdad
+
+Al abrir DIMENSION —la última clase del writer que no exigía decisión del
+titular— la medición cambió el diagnóstico del track entero.
+
+**El canónico de una cota** lleva `a`, `b`, `c?`, `dimensionKind`, `text?` y
+`textPosition`. El cuerpo DWG pide además una docena de campos que no viajan, y
+dos de esas ausencias no son de detalle:
+
+- **`actualMeasurement`** —el número que la cota muestra— no se transporta.
+  Escribir `0` daría una cota que dice «0»; calcularlo sería inventarlo.
+- **`angular3pt` y `angular2ln` se colapsan en `"angular"`** al leer, y sus
+  cuerpos son **estructuralmente distintos**: el de dos líneas lee un `point16`
+  extra, y primero. Desde el canónico **no hay forma de saber cuál escribir**.
+  Eso no es un campo que falte: es un **discriminador perdido**.
+
+**Y entonces el track deja de ser lo que parecía.** Las tres clases que quedan
+del writer —MTEXT, DIMENSION y LEADER— **no son tres tareas caras
+independientes**: están bloqueadas por lo mismo, el esquema del documento
+canónico. No es trabajo de códec acumulado; es **una decisión**.
+
+| clase | ¿la emite el writer? | qué falta en el canónico |
+| --- | --- | --- |
+| `mtext` | **sí**, desde hace olas | alineación e interlineado |
+| `dimension` | no | el valor medido y el discriminador de cota angular |
+| `leader` | no | no se modela en absoluto |
+
+**Lo que se corrige aquí.** Todas las clases no enrutadas recibían el mismo
+mensaje —«el writer AC1015 aún no emite X»—, que para MTEXT era **falso** y para
+DIMENSION y LEADER **engañoso**: señalaba al writer cuando el que no llega es el
+canónico. Son dos bloqueos con dos soluciones distintas, y esto lo lee el
+usuario en su manifiesto de pérdidas. Ahora hay dos códigos:
+
+- `canonical-schema-insufficient` — el formato pide lo que el canónico no lleva,
+  con la razón concreta de cada clase.
+- `canonical-type-not-writable` — el writer no lo emite; se conserva para las
+  clases donde eso es cierto, como SPLINE.
+
+Es la quinta vez en esta jornada que un texto del repo afirma algo distinto de
+lo que hace el código, y la primera que ese texto llegaba al cliente.
+
+## Corte 2026-09-02 (b) — la décima clase escribible: MTEXT, y el anclaje que hubo que MEDIR
+
+Tercera clase seguida que el camino público enruta, y la primera cuyo bloqueo
+**no era enrutado ni writer**: era que faltaba un **hecho**.
+
+**Qué faltaba de verdad.** El writer interno emitía MTEXT desde olas atrás y
+`decodeMText` lo lee entero. El documento canónico tampoco era el problema: el
+producto ya escupe `alignment` y `lineSpacing` con el resto de la entidad, y
+`entities` es `Record<string, unknown>[]` —abierto a propósito—, así que los
+campos ya viajaban. Lo que no existía era saber **qué significa el número del
+anclaje**. El hecho registrado de `ODA-ODS-DWG-5.4.1-PUBLIC` da su
+**disposición** («attachment BS» en esa posición del cuerpo), no su
+**semántica**. Escribir un 1 «porque suele ser arriba-izquierda» habría sido
+adivinar dónde queda anclado cada párrafo.
+
+**Cómo se resolvió: midiendo.** Cada fixture DWG del corpus admitido tiene su
+DXF fuente gemelo, y el DXF numera el anclaje en el código 71 con la semántica
+que el propio producto ya deriva de la especificación DXF pública. La sonda
+`probe-mtext-fields.mjs` compara los dos lados del mismo dibujo contra **cinco
+hipótesis rivales**:
+
+| hipótesis | aciertos | sobrevive |
+| --- | --- | --- |
+| identidad | **5/5** | **sí** |
+| dxf+1 | 0/5 | no |
+| dxf−1 | 0/5 | no |
+| inversión 10−x | 1/5 | no |
+| constante 1 | 4/5 | no |
+
+**La falsación es real porque el corpus separa.** `09-mtext.dwg` trae un MTEXT
+con 71=5 junto a dos con 71=1. La constante 1 muere **exactamente ahí**, y la
+inversión 10−x sobrevive **sólo ahí** (10−5=5) y muere en las otras cuatro. Sin
+ese único valor distinto, identidad y constante habrían acertado igual y no se
+habría afirmado nada. El emparejamiento tampoco se supone: cada pareja se
+confirma con dos campos ajenos al medido —altura (40) y ancho (41)— antes de
+contarse.
+
+**La cobertura, dicha entera.** El corpus ejerce **dos** de los nueve anclajes:
+el 1 y el 5. Para los otros siete la identidad es la única hipótesis en pie,
+pero eso **no es una medición**. Se escriben, y se declara
+`mtext-attachment-unmeasured` nombrando el anclaje concreto. Nueve anclajes
+respaldados por una medición de dos habría sido afirmar de más.
+
+**Lo que se declara sin ser pérdida del origen.** Los *extents* son la caja
+calculada del texto ya compuesto; este writer no compone texto. Se escriben a
+cero —valor que el propio corpus atestigua en archivos de un productor real,
+aunque **no** sea constante: `16-leader-tolerance.dwg` los trae con valores
+reales— y se declara `mtext-authoring-defaults`. La dirección de dibujo (1), el
+estilo de interlineado (1) y el bit final (0) sí son constantes en las cinco
+parejas medidas.
+
+**Y la lectura deja de perderlos.** Hasta este corte la proyección al canónico
+se quedaba con geometría y texto y tiraba **en silencio** el anclaje: un MTEXT
+centrado volvía anclado arriba-izquierda del round-trip, desplazado media caja,
+sin que nada lo dijera. Ahora viaja, y un anclaje fuera de los nueve declara
+`mtext-attachment-unknown` en vez de elegir uno parecido.
+
+**La trampa de unidades, por tercera vez.** La rotación va en **grados** en el
+documento del producto y en **radianes** en el canónico, donde se convierte en
+el vector del eje X con cos/sin. Pasarla cruda no habría fallado por ningún
+lado: habría girado cada párrafo a un ángulo equivocado, en silencio. Las
+pruebas usan 30°, no 0°.
+
+**Lo que el round-trip propio NO puede probar.** Que un párrafo con anclaje 5,
+extents a cero y estilo 1 sea un párrafo que **otro programa** abre anclado
+donde dijimos. Caso `parrafo-mtext` nuevo en el harness, con su gemelo público
+y una verificación suplementaria del grupo 71 contra el DXF crudo. El titular
+corre ahora **dieciocho** casos, no dieciséis — y ese número dejó de estar
+escrito a mano en los mensajes del gate, que era la misma clase de constante
+desactualizada que el gate existe para impedir.
