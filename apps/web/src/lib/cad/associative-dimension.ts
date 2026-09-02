@@ -1,5 +1,6 @@
 import type { CadEntity, CadPoint2 } from './cad-document';
 import { alignedDimension, DEFAULT_DIMENSION_STYLE, linearDimension, type DimensionStyle } from './dimension';
+import { cadDimensionToleranceOf, cadDimensionToleranceText } from './dimension-tolerance';
 
 export type CadDimensionEntity = Extract<CadEntity, { type: 'dimension' }>;
 export type CadDimensionPathRole = 'dimension' | 'extension' | 'arrow';
@@ -79,11 +80,18 @@ export function formatCadDimensionMeasurement(entity: CadDimensionEntity, measur
   if (entity.text?.trim()) return entity.text;
   const precision = Math.max(0, Math.min(8, Math.floor(entity.precision ?? 2)));
   const kind = entity.dimensionKind ?? 'aligned';
-  if (kind === 'angular') return `${entity.prefix ?? ''}${measurement.toFixed(precision)}°${entity.suffix ?? ''}`;
+  // Ola I: la tolerancia de fabricación vive en `context.metadata` (mm o
+  // grados) y rotula entre la medida y la unidad, en visor, lámina y DXF.
+  const tolerance = cadDimensionToleranceOf(entity);
+  if (kind === 'angular') {
+    const body = tolerance ? cadDimensionToleranceText(measurement, precision, tolerance) : measurement.toFixed(precision);
+    return `${entity.prefix ?? ''}${body}°${entity.suffix ?? ''}`;
+  }
   const sourceUnit = entity.sourceUnit ?? 'mm';
   const unit = entity.units ?? sourceUnit;
   const converted = (measurement * UNIT_TO_MM[sourceUnit]) / UNIT_TO_MM[unit];
-  let label = `${entity.prefix ?? ''}${converted.toFixed(precision)} ${unit}${entity.suffix ?? ''}`;
+  const body = tolerance ? cadDimensionToleranceText(converted, precision, tolerance, 1 / UNIT_TO_MM[unit]) : converted.toFixed(precision);
+  let label = `${entity.prefix ?? ''}${body} ${unit}${entity.suffix ?? ''}`;
   if (entity.alternateUnits) {
     const alternate = (measurement * UNIT_TO_MM[sourceUnit]) / UNIT_TO_MM[entity.alternateUnits];
     label += ` [${alternate.toFixed(precision)} ${entity.alternateUnits}]`;

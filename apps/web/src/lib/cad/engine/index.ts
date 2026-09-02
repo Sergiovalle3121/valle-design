@@ -41,6 +41,10 @@ import { CAD_MEP_SYMBOL_COMMANDS } from "./commands/mep-symbol";
 import { CAD_GEO_LOCATION_COMMANDS } from "./commands/geo-location";
 import { CAD_MAP_IMPORT_COMMANDS } from "./commands/map-import";
 import { CAD_RASTER_IMAGE_COMMANDS } from "./commands/raster-image";
+import { CAD_MECHANICAL_PART_COMMANDS } from "./commands/mechanical-parts";
+import { CAD_MECHANICAL_ANNOTATE_COMMANDS } from "./commands/mechanical-annotate";
+import { CAD_MECHANICAL_SYMBOL_COMMANDS } from "./commands/mechanical-symbols";
+import { CAD_DIMENSION_TOLERANCE_COMMANDS } from "./commands/dimension-tolerance";
 import { CAD_INQUIRY_LIST_COMMANDS } from "./commands/inquiry-list";
 import { CAD_INQUIRY_MEASURE_COMMANDS } from "./commands/inquiry-measure";
 import { CAD_REGION_COMMANDS } from "./commands/inquiry-region";
@@ -202,6 +206,11 @@ export const CAD_COMMAND_DESCRIPTORS = [
   // Ola H (Raster): el escaneo que se calca, con recorte y ajuste sobre la
   // entidad `image` que ya existía.
   ...CAD_RASTER_IMAGE_COMMANDS,
+  // Mechanical (Ola I): normalizados, globos y lista, soldadura y acabado, tolerancia de cota.
+  ...CAD_MECHANICAL_PART_COMMANDS,
+  ...CAD_MECHANICAL_ANNOTATE_COMMANDS,
+  ...CAD_MECHANICAL_SYMBOL_COMMANDS,
+  ...CAD_DIMENSION_TOLERANCE_COMMANDS,
   // Intercambio: DXFIN y DXFOUT. El bloqueo número uno de un despacho no es que
   // falte una orden de dibujo, es que el archivo del cliente no entre ni salga.
   ...CAD_DXF_INTEROP_COMMANDS,

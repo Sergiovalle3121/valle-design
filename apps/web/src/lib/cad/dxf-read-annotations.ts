@@ -19,6 +19,7 @@ import type {
   CadDxfSemanticMleader,
 } from "./dxf-import";
 import { num, rawDxfPairs } from "./dxf-read-core";
+import type { CadDimensionToleranceMode } from "./dimension-tolerance";
 
 const MAX_DXF_ENTITIES = 50000;
 const DEFAULT_LAYER = "0";
@@ -92,6 +93,29 @@ export function parseRawDxfSemanticDimensions(text: string): CadDxfSemanticDimen
     const textVertical = metadata.get("textVertical") ?? "";
     const textJustification = metadata.get("textJustification") ?? "";
     const paperSpace = first(67) === "1";
+    // Ola I: la tolerancia de fabricación. Entra sólo si el modo es uno de los
+    // tres y las dos desviaciones son números: una clave rota no inventa una
+    // tolerancia sobre una pieza que se va a mecanizar.
+    const toleranceRaw = metadata.get("tolerance") ?? "";
+    const toleranceMode: CadDimensionToleranceMode | null =
+      toleranceRaw === "symmetric" || toleranceRaw === "deviation" || toleranceRaw === "limits" ? toleranceRaw : null;
+    const toleranceUpper = numericMetadata("toleranceUpper");
+    const toleranceLower = numericMetadata("toleranceLower");
+    const toleranceDecimals = numericMetadata("toleranceDecimals");
+    const toleranceFit = metadata.get("toleranceFit") ?? "";
+    const tolerance =
+      toleranceMode !== null &&
+      toleranceUpper !== null &&
+      toleranceLower !== null &&
+      toleranceLower <= toleranceUpper
+        ? {
+            mode: toleranceMode,
+            upper: toleranceUpper,
+            lower: toleranceLower,
+            decimals: toleranceDecimals !== null ? Math.max(0, Math.min(6, Math.round(toleranceDecimals))) : 3,
+            ...(toleranceFit ? { fit: toleranceFit } : {}),
+          }
+        : null;
     dimensions.push({
       blockName,
       layer: first(8) || DEFAULT_LAYER,
@@ -133,6 +157,7 @@ export function parseRawDxfSemanticDimensions(text: string): CadDxfSemanticDimen
       ...(annotativeHeightMm !== null && annotativeHeightMm > 0
         ? { annotativeHeightMm }
         : {}),
+      ...(tolerance ? { tolerance } : {}),
     });
     start = end - 1;
   }

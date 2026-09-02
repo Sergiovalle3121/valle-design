@@ -29,6 +29,7 @@ import { blockEntityToDxfPrimitive } from "./dxf-block-primitive";
 import { clampedKnots } from "./dxf-nurbs-knots";
 import { schema4PrimitiveToEntity } from "./dxf-schema4-entities";
 import { cadSchema10ScaledFields } from "./cad-entities-v10";
+import { cadDimensionToleranceExport, cadDimensionToleranceMetadata } from "./dimension-tolerance";
 export { cadEntityToDxfPrimitive };
 export {
   cadDocumentDxfExportLosses,
@@ -318,17 +319,7 @@ export function cadDxfSemanticDimensionsToNativeEntities(
       projectedC;
     const properties = { ...dimension } as Record<string, unknown>;
     [
-      "blockName",
-      "a",
-      "b",
-      "c",
-      "offset",
-      "radius",
-      "arrowSize",
-      "extensionGap",
-      "extensionOvershoot",
-      "textGap", "textHeight",
-      "annotativeHeightMm",
+      "blockName", "a", "b", "c", "offset", "radius", "arrowSize", "extensionGap", "extensionOvershoot", "textGap", "textHeight", "annotativeHeightMm", "tolerance",
     ].forEach((key) => delete properties[key]);
     return {
       id: `${prefix}:dimension:${index.toString().padStart(6, "0")}`,
@@ -385,6 +376,7 @@ export function cadDxfSemanticDimensionsToNativeEntities(
           ...(dimension.annotativeHeightMm !== undefined && dimension.annotativeHeightMm > 0
             ? { annotativeHeightMm: dimension.annotativeHeightMm }
             : {}),
+          ...(dimension.tolerance ? cadDimensionToleranceMetadata(dimension.tolerance) : {}), // Ola I: mm o grados, sin proyectar.
         },
       },
     };
@@ -565,6 +557,7 @@ export function cadDocumentNativeDxfSemanticDimensions(
         typeof annotative === "number" ? annotative : Number(annotative);
       if (Number.isFinite(annotativeValue) && annotativeValue > 0)
         dimension.annotativeHeightMm = annotativeValue;
+      Object.assign(dimension, cadDimensionToleranceExport(entity)); // Ola I: por el mismo camino.
       [
         "id",
         "type",

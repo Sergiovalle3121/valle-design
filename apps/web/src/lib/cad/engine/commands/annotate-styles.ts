@@ -28,9 +28,17 @@
  */
 import type { CadStyleFamilyName } from "../../entity-commands";
 import {
+  CAD_DIMENSION_FAMILIES,
+  cadDimensionFamilyByKeyword,
+  cadDimensionSubStyleName,
+  cadDimensionSubStyles,
+  type CadDimensionFamily,
+} from "../../dimension-family";
+import {
   cadCompareDimensionStyles,
   cadDimensionStyleBake,
   resolveCadDimensionStyle,
+  type CadDimensionStyleDefinition,
 } from "../../dimension-style";
 import {
   CAD_ACCEPT_DISTANCE,
@@ -76,6 +84,13 @@ interface StyleCommandSpec {
 const DELETE_OPTION = { keyword: "Suprimir", shortcut: "S" } as const;
 const APPLY_OPTION = { keyword: "Aplicar", shortcut: "A" } as const;
 const COMPARE_OPTION = { keyword: "Comparar", shortcut: "C" } as const;
+/**
+ * DIMSTYLE → Familia (Ola I): un SUBESTILO `PADRE$n` para una familia de
+ * cotas. Se pide la familia, luego el padre (que debe existir) y los mismos
+ * campos con el valor del padre propuesto; sólo se escribe lo que difiere.
+ */
+const FAMILY_OPTION = { keyword: "Familia", shortcut: "F" } as const;
+const FAMILY_OPTIONS = CAD_DIMENSION_FAMILIES.map((family) => family.keyword);
 const YES = { keyword: "Sí", shortcut: "S" } as const;
 const NO = { keyword: "No", shortcut: "N" } as const;
 
@@ -175,19 +190,37 @@ interface StyleState {
   applying?: boolean;
   /** DIMSTYLE → Comparar: primer nombre ya capturado, se pide el segundo. */
   comparingWith?: string | null;
+  /** DIMSTYLE → Familia: `null` mientras se pide la familia; luego la elegida. */
+  family?: CadDimensionFamily | null;
+  /** El padre RESUELTO del subestilo: propone los valores y filtra lo igual. */
+  parent?: CadDimensionStyleDefinition;
 }
 
 function fieldOf(state: StyleState): StyleField | undefined {
   return state.spec.fields[state.field];
 }
 
+/** Lo que se propone para un campo: lo tecleado, el valor del padre (subestilo) o el de fábrica. */
+function fallbackFor(state: StyleState, field: StyleField): StyleValue {
+  const parent = state.parent?.[field.key as keyof CadDimensionStyleDefinition];
+  return state.values[field.key] ?? (parent !== undefined ? (parent as StyleValue) : field.fallback);
+}
+
 function styleStep(state: StyleState): CadCommandStep<StyleState> {
+  if (state.family === null)
+    return {
+      state,
+      prompt: { message: "Indique la familia del subestilo", options: FAMILY_OPTIONS },
+      accepts: CAD_ACCEPT_KEYWORD,
+    };
   if (state.field < 0) {
     const message = state.comparingWith
       ? `Escriba el SEGUNDO estilo a comparar con «${state.comparingWith}»`
       : state.applying
         ? `Escriba el estilo de ${state.spec.label} a APLICAR a sus cotas`
-        : `Escriba el nombre del estilo de ${state.spec.label}`;
+        : state.family
+          ? `Escriba el estilo PADRE del subestilo ${state.family.label}`
+          : `Escriba el nombre del estilo de ${state.spec.label}`;
     return {
       state,
       prompt: {
@@ -195,8 +228,9 @@ function styleStep(state: StyleState): CadCommandStep<StyleState> {
         options:
           state.spec.family === "dimension" &&
           !state.applying &&
+          !state.family &&
           state.comparingWith === undefined
-            ? [DELETE_OPTION, APPLY_OPTION, COMPARE_OPTION]
+            ? [DELETE_OPTION, APPLY_OPTION, COMPARE_OPTION, FAMILY_OPTION]
             : [DELETE_OPTION],
       },
       accepts: CAD_ACCEPT_TEXT | CAD_ACCEPT_KEYWORD,
@@ -208,7 +242,7 @@ function styleStep(state: StyleState): CadCommandStep<StyleState> {
     prompt: {
       message: field.prompt,
       options: field.kind === "boolean" ? [YES, NO] : [],
-      defaultValue: String(state.values[field.key] ?? field.fallback),
+      defaultValue: String(fallbackFor(state, field)),
     },
     accepts:
       field.kind === "boolean"
@@ -240,7 +274,21 @@ function advance(state: StyleState): CadCommandStep<StyleState> {
   // medias, con la fuente puesta y la altura ausente, obligaría a cada
   // consumidor a inventarse la que falta y cada uno inventaría la suya.
   const values: Record<string, StyleValue> = {};
-  for (const field of state.spec.fields) values[field.key] = state.values[field.key] ?? field.fallback;
+  for (const field of state.spec.fields) values[field.key] = fallbackFor(state, field);
+  if (state.parent) {
+    // Un subestilo sólo declara lo que CAMBIA respecto al padre: si repitiera
+    // todo, cambiar el padre después no alcanzaría a la familia, que es
+    // exactamente para lo que existe.
+    for (const field of state.spec.fields)
+      if (values[field.key] === (state.parent[field.key as keyof CadDimensionStyleDefinition] ?? field.fallback)) delete values[field.key];
+    if (Object.keys(values).length === 0)
+      return cadCommandRefused(state, `El subestilo «${state.name}» no cambia nada respecto a su padre: no hay nada que escribir.`);
+    return cadCommandWrites(
+      state,
+      [{ type: "style", op: "upsert", family: state.spec.family, name: state.name, values }],
+      `${state.spec.name} subestilo`,
+    );
+  }
   return cadCommandWrites(
     state,
     [{ type: "style", op: "upsert", family: state.spec.family, name: state.name, values }],
@@ -271,6 +319,10 @@ function styleDescriptor(spec: StyleCommandSpec): CadCommandDescriptor<StyleStat
       if (input.kind === "cancel") return cadCommandCancelled(state);
 
       if (input.kind === "keyword") {
+        if (state.family === null) {
+          const family = cadDimensionFamilyByKeyword(input.keyword);
+          return family ? styleStep({ ...state, family }) : styleStep(state);
+        }
         if (state.field < 0) {
           if (input.keyword === DELETE_OPTION.keyword)
             return styleStep({ ...state, deleting: true });
@@ -278,6 +330,8 @@ function styleDescriptor(spec: StyleCommandSpec): CadCommandDescriptor<StyleStat
             return styleStep({ ...state, applying: true });
           if (spec.family === "dimension" && input.keyword === COMPARE_OPTION.keyword)
             return styleStep({ ...state, comparingWith: null });
+          if (spec.family === "dimension" && input.keyword === FAMILY_OPTION.keyword && !state.deleting)
+            return styleStep({ ...state, family: null });
         }
         const field = fieldOf(state);
         if (field?.kind === "boolean" && (input.keyword === YES.keyword || input.keyword === NO.keyword))
@@ -310,15 +364,16 @@ function styleDescriptor(spec: StyleCommandSpec): CadCommandDescriptor<StyleStat
           }
 
           // Aplicar: re-hornea las cotas existentes del estilo — así una norma
-          // alcanza a un plano ya dibujado, no sólo a las cotas por nacer.
+          // alcanza a un plano ya dibujado, no sólo a las cotas por nacer. Cada
+          // cota se resuelve con SU familia (Ola I): la radial toma ISO-25$4.
           if (state.applying) {
-            const definition = resolveCadDimensionStyle(context.document?.().styles, name);
-            const baked = cadDimensionStyleBake(definition);
+            const styles = context.document?.().styles;
             const commands = [];
             for (const entityId of context.entityIds) {
               const entity = context.entity?.(entityId);
               if (!entity || entity.type !== "dimension") continue;
               if ((entity as { style?: string }).style !== name) continue;
+              const baked = cadDimensionStyleBake(resolveCadDimensionStyle(styles, name, entity.dimensionKind));
               commands.push({
                 type: "replace" as const,
                 entityId,
@@ -337,8 +392,27 @@ function styleDescriptor(spec: StyleCommandSpec): CadCommandDescriptor<StyleStat
             );
           }
 
+          // Familia: el nombre tecleado es el PADRE; el subestilo se llama
+          // `PADRE$n` y propone los valores efectivos del padre.
+          if (state.family) {
+            const table = context.document?.().styles?.dimension ?? {};
+            if (name !== "Standard" && !(name in table))
+              return cadCommandRefused(
+                state,
+                `El estilo padre «${name}» no existe: cree primero el estilo y luego su subestilo ${state.family.label}.`,
+              );
+            const parent = resolveCadDimensionStyle(context.document?.().styles, name);
+            return advance({ ...state, name: cadDimensionSubStyleName(name, state.family), parent, field: -1 });
+          }
+
           const named = { ...state, name };
           if (!state.deleting) return advance({ ...named, field: -1 });
+          const subStyles = spec.family === "dimension" ? cadDimensionSubStyles(context.document?.().styles, name) : [];
+          if (subStyles.length > 0)
+            return cadCommandRefused(
+              named,
+              `No se puede borrar el estilo de cota «${name}»: tiene ${subStyles.length} subestilo(s) (${subStyles.map((family) => cadDimensionSubStyleName(name, family)).join(", ")}). Bórrelos primero.`,
+            );
           const usage = styleUsage(named, context);
           if (usage > 0)
             return cadCommandRefused(

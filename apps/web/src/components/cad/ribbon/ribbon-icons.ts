@@ -1,12 +1,14 @@
 import {
-  Boxes,
   Box,
+  Boxes,
+  ClipboardPaste,
+  Cog,
   Command,
   Compass,
   CornerUpRight,
   DoorOpen,
-  Droplets,
   Download,
+  Droplets,
   Eye,
   Globe,
   Group,
@@ -30,11 +32,10 @@ import {
   Target,
   Terminal,
   Type,
+  type LucideIcon,
   Upload,
   Wrench,
   ZoomIn,
-  type LucideIcon,
-  ClipboardPaste,
 } from "lucide-react";
 
 /**
@@ -59,6 +60,9 @@ export const CAD_RIBBON_PANEL_ICONS: Readonly<Record<string, LucideIcon>> = {
   Sombreado: PaintBucket,
   Arquitectura: DoorOpen,
   Instalaciones: Droplets,
+  // Mechanical (Ola I): los normalizados en Insertar, el detallado en Anotar.
+  Normalizados: Cog,
+  Mecánica: Wrench,
   Sólidos: Box,
   // Insertar.
   Referencias: Link,

@@ -161,7 +161,7 @@ export type CadDxfSemanticDimension = Omit<
   CadDimensionEntity,
   "id" | "type" | "context" | "references" | "associative" | "associationStatus"
   /** annotativeHeightMm: flecha SOBRE PAPEL (mm) si la cota es anotativa. */
-> & { blockName: string; annotativeHeightMm?: number; paperSpace?: boolean };
+> & { blockName: string; annotativeHeightMm?: number; paperSpace?: boolean; tolerance?: import("./dimension-tolerance").CadDimensionTolerance };
 export type CadDxfSemanticMleader = Omit<
   CadMleaderEntity,
   "id" | "type" | "context" | "references" | "associative" | "associationStatus"

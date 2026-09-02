@@ -386,6 +386,7 @@ import {
   updateCadDocumentLayer,
 } from "@/lib/cad/cad-layer-manager";
 import { cadDimensionStyleOverrides } from "@/lib/cad/dimension-format";
+import { cadDimensionFamilyStyle } from "@/lib/cad/dimension-family";
 import {
   CAD_SHEET_PAPERS,
   buildCadPublishPlan,
@@ -5801,7 +5802,9 @@ export default function Layout3DEditor({
         );
         return;
       }
-      const style = document.styles.dimension[draft.style] ?? {};
+      // El estilo y, encima, su subestilo de familia (`NOMBRE$n`, Ola I): así
+      // una cota radial toma la flecha que su despacho fijó para los radios.
+      const style = cadDimensionFamilyStyle(document.styles, draft.style, draft.kind);
       const entity: CadNativeEntity = {
         id: newId("dim"),
         type: "dimension",

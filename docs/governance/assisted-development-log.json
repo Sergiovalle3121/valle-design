@@ -3084,6 +3084,46 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "OLA-I-MECHANICAL-20260902",
+      "date": "2026-09-02",
+      "initiative": "Ola I del encargo «Valle Design → AutoCAD completo»: el toolset Mechanical (detallado 2D con norma). Medido antes: `dimension-style.ts` sin noción de familia/subestilo, ninguna cota con tolerancia, ningún normalizado insertable. (1) Subestilos por familia (`lib/cad/dimension-family.ts`, nuevo): nombres `PADRE$n` con los códigos de AutoCAD, resueltos encima del padre en `resolveCadDimensionStyle(styles, name, kind)`, aplicados al crear la cota desde la paleta (`Layout3DEditor.tsx` vía `cadDimensionFamilyStyle`) y en DIMSTYLE → Aplicar; DIMSTYLE → Familia los crea declarando sólo lo que difiere del padre (`annotate-styles.ts`). (2) Tolerancia de fabricación (`lib/cad/dimension-tolerance.ts`, nuevo): cinco claves planas en `context.metadata` (mm o grados), `cadIsoFit` con las tablas ISO 286-1 (IT5–IT11, D–H/JS, d–h/js/k/m/n/p, ≤ 500 mm; K/M/N/P rechazados por la Δ), el rótulo en `formatCadDimensionMeasurement` (visor, lámina y DXF por el mismo formateador), la XDATA `tolerance=…` en `dxf-write-dimensions.ts` y su lectura en `dxf-read-annotations.ts`/`dxf-cad-document.ts`; la orden DIMTOLERANCE (`engine/commands/dimension-tolerance.ts`, nuevo): Simétrica/Desviación/Límites/Ajuste/Quitar sobre la designación. (3) Normalizados (`lib/cad/mechanical-parts.ts`, nuevo): tornillo ISO 4017, tuerca ISO 4032, rondana ISO 7089 (M6–M24) y las secciones PTR/OC/LI/CPS/IPR por medidas, como bloques `MECH-…` con denominación y norma en `description`; STDPART y STEELSHAPE (`engine/commands/mechanical-parts.ts`, nuevo) con la inserción escalada a la unidad del documento. (4) Globo, lista y símbolos (`lib/cad/mechanical-symbols.ts`, `lib/cad/mechanical-bom.ts`, nuevos): BALLOON y BOM (`engine/commands/mechanical-annotate.ts`), WELDSYMBOL y SURFACESYMBOL (`engine/commands/mechanical-symbols.ts`) materializados con líneas, polilíneas, círculos y MTEXT con marca `mechanical` en metadatos, como el marco de TOLERANCE. Ninguna decisión de formato persistido: sin entidad ni campo nuevo. Specs dimension-family (38), dimension-tolerance (71), mechanical (84), engine/commands/mechanical (151); golden 84; sonda de integridad 236 → 243 comandos con 0 éxitos falsos; cinta 243/243 (paneles Normalizados en Insertar y Mecánica en Anotar); `toolset-mechanical` de 0 a 3 de 4 (retiene 1 pt hasta evidencia independiente).",
+      "branch": "claude/valle-design-autocad-vqfa6u",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo escrito «Valle Design → AutoCAD completo, con sus siete toolsets», §Ola I (Mechanical, quinto y último toolset en alcance; Electrical y Plant 3D fuera, dichos en ESCALERA).",
+      "firstPartyInputs": [
+        "docs/competitive/distancia-autocad-completo-20260901.md §4 5º MECHANICAL («cajetines ISO/ANSI/DIN/JIS, BOM con globos, símbolos de soldadura, tolerancias geométricas» y la dependencia de los subestilos por familia) y docs/parity/ESCALERA.md (fila Mechanical en peldaño 0); cada afirmación se midió antes (cero apariciones de «family» en dimension-style.ts; `formatWithTolerance` sin llamadores en el documento; ningún bloque `MECH-`).",
+        "Specs de Node nuevos o ampliados, corridos en esta máquina: dimension-family (38), dimension-tolerance (71, con la ida y vuelta por DXF), mechanical (84), engine/commands/mechanical (151), dimension-style (23 + 27), annotate-styles (41), dimension-style-governs-drawing, dxf-xdata-golden, engine/index (243), ribbon (243 en 7 pestañas), command-summaries (243/243), keyboard-alias-collisions; sonda de integridad 243, 0 éxitos falsos.",
+        "Golden 84 (TORNILLO, Ctrl+A + GLOBO, BOM, DIMLINEAR + Ctrl+A + DTOL Ajuste H7, SOLDADURA y ACABADO tecleados; el bloque con su description, la inserción, el globo con su marca, la TABLE, la cota con su tolerancia en metadatos y los dos símbolos leídos de lo que recibió el servidor) verde en Chromium contra el build de producción."
+      ],
+      "externalSources": [
+        {
+          "source": "Las tablas públicas de ISO 286-1 (grados IT5–IT11 y desviaciones fundamentales d, e, f, g, h, js, k, m, n, p por escalón de diámetro hasta 500 mm); las tablas dimensionales públicas de ISO 4017 (entrecaras y altura de cabeza), ISO 4032 (altura de tuerca) e ISO 7089 (rondana plana); la disposición del símbolo de soldadura de ISO 2553 / AWS A2.4 y del símbolo de acabado de ISO 1302; la documentación pública de AutoCAD sobre los subestilos de cota (`ESTILO$n`) y de AutoCAD Mechanical sobre AMCONTENTLIB, AMSTLSHAP2D, AMBALLOON, AMBOM, AMWELDSYM y AMSURFSYM (nombres y vocabulario).",
+          "terms": "Normas y documentación públicas; no se copió implementación alguna. Los números de las tablas se transcribieron y se verifican en el spec contra valores conocidos (25H7, 40k6, 60p6, 20f7…).",
+          "usedFor": "Las tablas de `dimension-tolerance.ts` y `mechanical-parts.ts`, la geometría de `mechanical-symbols.ts`, los nombres de las órdenes y sus alias, y la convención `PADRE$n` de `dimension-family.ts`."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna. Todo el código es propio sobre los módulos que ya existían (dimension-style, associative-dimension, block-workflow, data-extraction).",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/{dimension-family.ts (nuevo), dimension-tolerance.ts (nuevo), mechanical-parts.ts (nuevo), mechanical-symbols.ts (nuevo), mechanical-bom.ts (nuevo), dimension-style.ts, associative-dimension.ts, dxf-write-dimensions.ts, dxf-read-annotations.ts, dxf-cad-document.ts, dxf-import.ts, dxf-export.ts, ribbon.ts, ribbon-order.ts}",
+        "apps/web/src/lib/cad/engine/{index.ts, command-summaries.ts, alias-table.ts}; engine/commands/{mechanical-parts.ts (nuevo), mechanical-annotate.ts (nuevo), mechanical-symbols.ts (nuevo), dimension-tolerance.ts (nuevo), annotate-styles.ts}",
+        "apps/web/src/components/cad/editor/Layout3DEditor.tsx (el subestilo de familia al crear la cota desde la paleta)",
+        "apps/web/e2e/golden/84-cad-plano-de-fabricacion.spec.ts (nuevo)",
+        "docs/competitive/{rubric.json, autocad-2027-gap-matrix.md, distancia-autocad-completo-20260901.md}, docs/parity/ESCALERA.md, docs/cad/evidence/{command-integrity.json, ui-command-reach.json}"
+      ],
+      "fixtures": "Ninguno con datos ajenos: los specs y el golden usan geometría sintética y los números de las normas públicas.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Las cuatro órdenes de anotación y las dos de inserción con specs contra papel, la tolerancia leída de vuelta del DXF, dieciséis ajustes contra la tabla de la norma y un golden que lee lo que recibió el servidor; ninguna decisión de formato persistido tomada por la sesión (subestilos por NOMBRE, tolerancia y marcas en `context.metadata`, normalizados como bloques con `description`)."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

@@ -119,7 +119,11 @@ export interface CadDxfExportMText {
 export type CadDxfExportSemanticDimension = Omit<
   CadDimensionEntity,
   "id" | "type" | "context" | "references" | "associative" | "associationStatus"
-> & { /** flecha SOBRE PAPEL (mm) si la cota es anotativa */ annotativeHeightMm?: number };
+> & {
+  /** flecha SOBRE PAPEL (mm) si la cota es anotativa */ annotativeHeightMm?: number;
+  /** Tolerancia de fabricación (Ola I): sube de `context.metadata` para que la XDATA la escriba. */
+  tolerance?: import("./dimension-tolerance").CadDimensionTolerance;
+};
 export type CadDxfExportMleader = Omit<
   CadMleaderEntity,
   "id" | "type" | "context" | "references" | "associative" | "associationStatus"

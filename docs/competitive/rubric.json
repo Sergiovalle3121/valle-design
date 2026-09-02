@@ -3483,17 +3483,37 @@
       "scope": "destino",
       "name": "Toolset Mechanical",
       "points": 4,
-      "gap": "Nada del toolset Mechanical existe: ni biblioteca de normalizados ni cotas de fabricación con tolerancias.",
+      "gap": "El detallado 2D con norma existe sobre lo que el formato ya tiene (Ola I, 2026-09-02): STDPART inserta tornillería ISO 4017/4032/7089 y STEELSHAPE la sección de PTR, OC, LI, CPS e IPR como bloques MECH-…; BALLOON numera y BOM lista; WELDSYMBOL (ISO 2553 / AWS) y SURFACESYMBOL (ISO 1302) se materializan con la geometría del documento; DIMTOLERANCE escribe en la cota su tolerancia simétrica, por desviaciones, por límites o la de un ajuste ISO 286 (IT5–IT11, hasta 500 mm) en `context.metadata`, y la cota la rotula en visor, lámina y DXF; DIMSTYLE gana subestilos por familia (`ISO-25$4`) con el nombre de AutoCAD. Sin cajetín ISO/ANSI/DIN, sin AMPOWERDIM, sin agujeros K/M/N/P (corrección Δ), sin entidad `balloon`/`weld`: en ESCALERA.",
       "criteria": [
         {
           "id": "toolset-mechanical.normalizados",
           "points": 2,
           "text": "Biblioteca de tornillería y perfiles normalizados insertables",
-          "costDays": null,
+          "costDays": 0,
           "evidence": [
             {
-              "kind": "todaviaNo",
-              "reason": "No hay biblioteca de normalizados. Quinto toolset de la campaña."
+              "kind": "command",
+              "name": "STDPART"
+            },
+            {
+              "kind": "command",
+              "name": "STEELSHAPE"
+            },
+            {
+              "kind": "command",
+              "name": "BOM"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/mechanical.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/mechanical.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/84-cad-plano-de-fabricacion.spec.ts"
             }
           ]
         },
@@ -3501,11 +3521,31 @@
           "id": "toolset-mechanical.cotas",
           "points": 2,
           "text": "Cotas de fabricación con tolerancias y símbolos de acabado",
-          "costDays": null,
+          "costDays": 0,
           "evidence": [
             {
-              "kind": "todaviaNo",
-              "reason": "TOLERANCE existe como marco de control; las cotas con tolerancia y acabados no."
+              "kind": "command",
+              "name": "DIMTOLERANCE"
+            },
+            {
+              "kind": "command",
+              "name": "SURFACESYMBOL"
+            },
+            {
+              "kind": "command",
+              "name": "WELDSYMBOL"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dimension-tolerance.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dimension-family.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/84-cad-plano-de-fabricacion.spec.ts"
             }
           ]
         }
