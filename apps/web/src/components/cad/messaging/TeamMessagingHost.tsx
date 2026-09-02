@@ -47,16 +47,20 @@ const DOCK =
   "fixed left-3 bottom-16 z-[75] flex max-w-[calc(100vw-1.5rem)] flex-col rounded-card border border-border bg-popover/95 text-popover-foreground p-2 shadow-floating backdrop-blur";
 const DOCK_WIDTH = { open: "w-[22rem]", collapsed: "w-auto" } as const;
 /**
- * En la BANDEJA de la barra de estado (`cad-status-tray`), plegado es un
- * elemento más del renglón y abierto se despliega hacia arriba, sobre el
- * lienzo. Medido el 2026-09-02 (golden 67): en `fixed left-3 bottom-16` la
- * píldora caía sobre el botón de una plantilla de la biblioteca en cuanto la
- * cinta cambió de alto — cualquier altura fija sobre una columna de paneles
- * tapa algo de esa columna; la barra de estado no tiene nada debajo.
+ * PLEGADO, en la BANDEJA de la barra de estado (`cad-status-tray`), un
+ * elemento más del renglón. Medido el 2026-09-02 (golden 67): en `fixed
+ * left-3 bottom-16` la píldora caía sobre el botón de una plantilla de la
+ * biblioteca en cuanto la cinta cambió de alto — cualquier altura fija sobre
+ * una columna de paneles tapa algo de esa columna; la barra de estado no
+ * tiene nada debajo.
+ *
+ * ABIERTO, abajo a la izquierda de siempre (`DOCK`), no desplegado desde la
+ * bandeja: medido con la colaboración (ca86fc6, `real/cad-presencia-viva`),
+ * un panel que se abre hacia arriba desde la bandeja cae sobre el CENTRO del
+ * lienzo y se come el puntero; ver `StudioCollaborationLayer`. Abierto tapa
+ * la parte baja de la biblioteca, y lo abrió el usuario.
  */
 const TRAY_COLLAPSED = "inline-flex items-center gap-1";
-const TRAY_OPEN =
-  "absolute bottom-full right-0 z-[75] mb-2 flex w-[22rem] max-w-[calc(100vw-1.5rem)] flex-col rounded-card border border-border bg-popover/95 text-popover-foreground p-2 shadow-floating backdrop-blur";
 
 /**
  * IZQUIERDA, mientras que la colaboración de revisión vive a la derecha
@@ -115,11 +119,7 @@ export default function TeamMessagingHost({
   const dock = (
     <aside
       className={
-        tray
-          ? collapsed
-            ? TRAY_COLLAPSED
-            : TRAY_OPEN
-          : `${DOCK} ${collapsed ? DOCK_WIDTH.collapsed : DOCK_WIDTH.open}`
+        tray && collapsed ? TRAY_COLLAPSED : `${DOCK} ${collapsed ? DOCK_WIDTH.collapsed : DOCK_WIDTH.open}`
       }
       data-testid="team-messaging-dock"
     >
@@ -161,7 +161,7 @@ export default function TeamMessagingHost({
       )}
     </aside>
   );
-  return tray ? createPortal(<span className="relative inline-flex">{dock}</span>, tray) : dock;
+  return tray && collapsed ? createPortal(<span className="relative inline-flex">{dock}</span>, tray) : dock;
 }
 
 function totalUnreadLabel(channels: readonly TeamChannelSummary[]): string {

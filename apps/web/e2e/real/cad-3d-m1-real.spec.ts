@@ -337,8 +337,13 @@ test.describe("3D-M1: muros/vanos/material nativos de punta a punta contra Postg
     // Sólo lo que ESTE test provoca: lo acumulado en 1-5 (login/logout,
     // navegación) no es lo que esta aserción quiere caracterizar.
     consoleErrors.length = 0;
+    // Acotado a la barra superior: el ViewCube lleva los mismos títulos a
+    // propósito (misma acción, mismo nombre) y `getByTitle` a página entera
+    // resolvía a dos elementos — medido en CI sobre ca86fc6, Chromium. Lo que
+    // esta prueba ejercita son los presets de la barra, como en
+    // `fixtures/camera-preset.ts`; el ViewCube tiene su propio golden.
     for (const title of VIEW_PRESET_TITLES) {
-      await page.getByTitle(title, { exact: true }).click();
+      await page.getByTestId("cad-top-toolbar").getByTitle(title, { exact: true }).click();
       await page.waitForTimeout(200);
     }
     expect(consoleErrors, `sin errores de consola: ${consoleErrors.join(" | ")}`).toEqual([]);

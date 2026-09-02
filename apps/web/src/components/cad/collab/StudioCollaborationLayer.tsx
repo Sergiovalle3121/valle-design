@@ -94,14 +94,23 @@ const DOCK =
  */
 const DOCK_WIDTH = { open: "w-[19rem]", collapsed: "w-auto" } as const;
 /**
- * En la BANDEJA de la barra de estado (`cad-status-tray`), como la mensajería
- * y la barra de llamada: plegado es un elemento del renglón, abierto se
- * despliega hacia arriba sobre el lienzo. El panel derecho ya no recibe
- * ninguna capa fija encima (goldens 19, 67 y 72, 2026-09-02).
+ * PLEGADO, en la BANDEJA de la barra de estado (`cad-status-tray`), como la
+ * mensajería y la barra de llamada: un elemento más del renglón, y el panel
+ * derecho ya no recibe ninguna capa fija encima (goldens 19, 67 y 72,
+ * 2026-09-02).
+ *
+ * ABIERTO, en la esquina inferior derecha de siempre (`DOCK`), NO desplegado
+ * desde la bandeja. Se midió lo otro (ca86fc6, `real/cad-presencia-viva`): el
+ * elemento de la bandeja cae hacia x ≈ 880–970 y un panel de 19 rem que se
+ * abre hacia arriba desde ahí cubre el lienzo entre x ≈ 580 y 880 e y ≈ 270 y
+ * 690 —el CENTRO del dibujo—; `document.elementFromPoint` en el centro
+ * devolvía la lista de compañeros, el `pointermove` nunca llegaba al lienzo y
+ * B no veía el cursor de A. Un panel abierto tapando el plano es además lo
+ * contrario de lo que se abre para ver. Abajo a la derecha se posa sobre la
+ * parte baja del panel derecho, donde nada se pulsa (ver el comentario de
+ * `DOCK`), y lo abrió el usuario.
  */
 const TRAY_COLLAPSED = "inline-flex items-center gap-1";
-const TRAY_OPEN =
-  "absolute bottom-full right-0 z-[75] mb-2 flex w-[19rem] max-w-[calc(100vw-1.5rem)] flex-col rounded-card border border-border bg-popover/95 text-popover-foreground p-2 shadow-floating backdrop-blur";
 
 export default function StudioCollaborationLayer({
   documentId,
@@ -261,11 +270,7 @@ export default function StudioCollaborationLayer({
         pista sobre el plano dice «Esc para cancelar» y Escape lo cancela.
       */
       className={`${
-        tray
-          ? collapsed
-            ? TRAY_COLLAPSED
-            : TRAY_OPEN
-          : `${DOCK} ${collapsed ? DOCK_WIDTH.collapsed : DOCK_WIDTH.open}`
+        tray && collapsed ? TRAY_COLLAPSED : `${DOCK} ${collapsed ? DOCK_WIDTH.collapsed : DOCK_WIDTH.open}`
       } ${placing ? "pointer-events-none" : ""}`}
       data-testid="cad-collab-dock"
     >
@@ -315,7 +320,10 @@ export default function StudioCollaborationLayer({
       )}
     </aside>
   );
-  return tray ? createPortal(<span className="relative inline-flex">{dock}</span>, tray) : dock;
+  // Sólo el muelle PLEGADO viaja a la bandeja; abierto se pinta donde
+  // siempre, fuera de ella (un `fixed` dentro de la bandeja heredaría el
+  // bloque contenedor de sus filtros).
+  return tray && collapsed ? createPortal(<span className="relative inline-flex">{dock}</span>, tray) : dock;
 }
 
 function viewportBoundsOf(surface: CadCollabSurface): CadBounds | null {

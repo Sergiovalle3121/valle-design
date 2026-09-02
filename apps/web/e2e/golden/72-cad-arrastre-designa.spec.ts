@@ -52,7 +52,18 @@ async function openPlan(context: BrowserContext, page: Page) {
   await fitFootprint(page);
 }
 
-/** Lo que el HUD lee en el centro del lienzo: la firma de la cámara. */
+/**
+ * Lo que el HUD lee en el centro del lienzo: la firma de la cámara.
+ *
+ * La lectura sólo vale cuando la cámara está QUIETA: «Ajustar a la planta» y
+ * los presets animan la cámara con amortiguación, y una lectura tomada
+ * mientras se asienta difiere de la siguiente por menos de un píxel. Medido
+ * en CI (ca86fc6, Chromium): tras ajustar y tocar el fondo, 3995,03 contra
+ * 3994,21 unidades —0,82 unidades, 0,12 px— y la aserción de «no se movió»
+ * (0,5 unidades) lo cantaba como movimiento. Por eso, tras la lectura del
+ * destino, se exige que dos lecturas seguidas del MISMO píxel coincidan: si
+ * la cámara sigue asentándose, difieren, y se espera.
+ */
 async function hudAtCenter(page: Page) {
   const box = (await page.getByTestId('cad-canvas').boundingBox())!;
   const center = { x: Math.round(box.x + box.width / 2), y: Math.round(box.y + box.height / 2) };
@@ -62,7 +73,21 @@ async function hudAtCenter(page: Page) {
   const neighbour = await read();
   await page.mouse.move(center.x, center.y);
   await expect.poll(read, { timeout: 15_000 }).not.toBe(neighbour);
-  const [x, y] = (await read()).split('|').map(Number);
+  let settled = await read();
+  await expect
+    .poll(
+      async () => {
+        await page.mouse.move(center.x - 4, center.y - 4);
+        await page.mouse.move(center.x, center.y);
+        const again = await read();
+        const same = again === settled;
+        settled = again;
+        return same;
+      },
+      { message: 'la cámara no se asentó: dos lecturas seguidas del centro difieren', timeout: 15_000 },
+    )
+    .toBe(true);
+  const [x, y] = settled.split('|').map(Number);
   return { center, x, y };
 }
 
