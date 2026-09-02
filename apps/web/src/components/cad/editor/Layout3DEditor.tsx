@@ -124,6 +124,20 @@ const CadTemplateChooserCard = dynamic(
     ),
   },
 );
+// Las paletas que se abren A DEMANDA viajan en su chunk y no en el del
+// estudio: medido el 2026-09-02 con source maps, las nueve sumaban 75 KB del
+// primer chunk (colaboración 15, layouts 13, capas 12, xref 7, MTEXT 7,
+// bloques 7, cota 5, directriz 5, sombreado 4) sin que ninguna se pintara al
+// abrir; `frontend-load-budget.spec.ts` es quien lo vigila.
+const CadHatchPalette = dynamic(() => import("@/components/cad/palettes/CadHatchPalette").then((m) => m.CadHatchPalette), { ssr: false });
+const CadMTextEditor = dynamic(() => import("@/components/cad/palettes/CadMTextEditor").then((m) => m.CadMTextEditor), { ssr: false });
+const CadDimensionPalette = dynamic(() => import("@/components/cad/palettes/CadDimensionPalette").then((m) => m.CadDimensionPalette), { ssr: false });
+const CadMLeaderPalette = dynamic(() => import("@/components/cad/palettes/CadMLeaderPalette").then((m) => m.CadMLeaderPalette), { ssr: false });
+const CadBlockPalette = dynamic(() => import("@/components/cad/palettes/CadBlockPalette").then((m) => m.CadBlockPalette), { ssr: false });
+const CadLayoutManager = dynamic(() => import("@/components/cad/palettes/CadLayoutManager").then((m) => m.CadLayoutManager), { ssr: false });
+const CadXrefPalette = dynamic(() => import("@/components/cad/palettes/CadXrefPalette").then((m) => m.CadXrefPalette), { ssr: false });
+const CadCollaborationPalette = dynamic(() => import("@/components/cad/palettes/CadCollaborationPalette").then((m) => m.CadCollaborationPalette), { ssr: false });
+const CadLayerManagerPalette = dynamic(() => import("@/components/cad/palettes/CadLayerManagerPalette").then((m) => m.CadLayerManagerPalette), { ssr: false });
 import {
   designChecks,
   type CheckBox,
@@ -160,16 +174,9 @@ import {
 } from "@/lib/cad/snap-scene";
 import { detectCadFormat } from "@/components/cad/interop/cad-format-detect";
 import type { PlotLayout } from "@/components/cad/plot/plot-scale";
-import {
-  createHistoryItem as createCadHistoryItem,
-  executeCadCommand,
-  parseCadCommand,
-  previewCadCommand,
-  splitCadCommandChain,
-  type CadCommandHistoryItem,
-  type CadCommandInput,
-  type CadOperation,
-} from "@/lib/cad/commands";
+import { createHistoryItem as createCadHistoryItem } from "@/lib/cad/commands/history";
+import { cadNlCommandsIfLoaded, loadCadNlCommands } from "@/lib/cad/commands/lazy";
+import type { CadCommandHistoryItem, CadCommandInput, CadOperation } from "@/lib/cad/commands/types";
 import {
   measureBoxes,
   measurementLabel,
@@ -597,30 +604,11 @@ import {
   CadSelectionPalette,
   type CadSelectionGeometryMode,
 } from "@/components/cad/palettes/CadSelectionPalette";
-import { CadHatchPalette } from "@/components/cad/palettes/CadHatchPalette";
-import {
-  CadMTextEditor,
-  type CadMTextDraft,
-} from "@/components/cad/palettes/CadMTextEditor";
-import {
-  CadDimensionPalette,
-  type CadDimensionDraft,
-} from "@/components/cad/palettes/CadDimensionPalette";
-import {
-  CadMLeaderPalette,
-  type CadMLeaderDraft,
-} from "@/components/cad/palettes/CadMLeaderPalette";
-import {
-  CadBlockPalette,
-  type CadBlockDefinitionDraft,
-  type CadBlockInsertDraft,
-} from "@/components/cad/palettes/CadBlockPalette";
-import { CadLayoutManager } from "@/components/cad/palettes/CadLayoutManager";
-import {
-  CadXrefPalette,
-  type CadXrefAttachDraft,
-} from "@/components/cad/palettes/CadXrefPalette";
-import { CadCollaborationPalette } from "@/components/cad/palettes/CadCollaborationPalette";
+import type { CadMTextDraft } from "@/components/cad/palettes/CadMTextEditor";
+import type { CadDimensionDraft } from "@/components/cad/palettes/CadDimensionPalette";
+import type { CadMLeaderDraft } from "@/components/cad/palettes/CadMLeaderPalette";
+import type { CadBlockDefinitionDraft, CadBlockInsertDraft } from "@/components/cad/palettes/CadBlockPalette";
+import type { CadXrefAttachDraft } from "@/components/cad/palettes/CadXrefPalette";
 import { CadWorkspaceDock } from "@/components/cad/palettes/CadWorkspaceDock";
 import { CadEntityPropertiesPanel } from "@/components/cad/palettes/CadEntityPropertiesPanel";
 import type {
@@ -642,7 +630,6 @@ import {
   useCadStyleManager,
   useCadStyleManagerHost,
 } from "@/components/cad/palettes/use-palettes";
-import { CadLayerManagerPalette } from "@/components/cad/palettes/CadLayerManagerPalette";
 import { useCadLayerActions } from "@/components/cad/palettes/use-layer-actions";
 import { useCadStyleActions } from "@/components/cad/palettes/use-style-actions";
 import {
@@ -11262,9 +11249,11 @@ export default function Layout3DEditor({
       })),
     ],
   });
-  const previewCommandText = (rawText: string) => {
+  const previewCommandText = async (rawText: string) => {
     const raw = rawText.trim();
     if (!raw) return;
+    // El parser de frases llega con la primera frase (`commands/lazy.ts`).
+    const { parseCadCommand, previewCadCommand, splitCadCommandChain } = await loadCadNlCommands();
     // Cadenas (VD-CAD-CHAIN-001): 'pon una puerta y luego céntrala' —
     // todos los pasos deben parsear; el preview muestra el primero y el
     // apply los ejecuta en orden contra el contexto vivo.
@@ -11635,6 +11624,10 @@ export default function Layout3DEditor({
       notifyReadOnly();
       return;
     }
+    // Hay previsualización ⇒ `previewCommandText` ya cargó el intérprete; se
+    // comprueba igual para no aplicar nada a ciegas si alguna vez no fuera así.
+    const nl = cadNlCommandsIfLoaded();
+    if (!nl) return toast.error("El intérprete de frases no terminó de cargar: vuelve a previsualizar la orden.", "Comando CAD");
     // Cadena o comando suelto (VD-CAD-CHAIN-001): cada paso se ejecuta
     // contra el contexto YA mutado por el anterior ('pon una puerta y luego
     // céntrala' centra la puerta recién creada); un solo snapshot → un undo.
@@ -11662,7 +11655,7 @@ export default function Layout3DEditor({
     };
     for (const input of inputs) {
       const commandStartedAt = Date.now();
-      const result = executeCadCommand(input, buildCommandContext());
+      const result = nl.executeCadCommand(input, buildCommandContext());
       const audit = () => ({
         rawInput: commandPreview.rawInput,
         durationMs: Date.now() - commandStartedAt,

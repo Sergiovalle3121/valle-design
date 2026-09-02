@@ -639,7 +639,9 @@ jobs:
     # `workers: 1` y `fullyParallel: false` de playwright.config.ts NO se tocan:
     # el estado CAD es secuencial a propósito y ahí no hay nada que ganar. El
     # sharding reparte ARCHIVOS entre trabajos; dentro de cada uno la ejecución
-    # sigue siendo exactamente la de siempre.
+    # sigue siendo exactamente la de siempre. La única excepción es el barrido
+    # de cables sueltos, que un solo archivo no puede repartir: cada fragmento
+    # corre su rebanada en una segunda invocación (ver el paso Playwright E2E).
     timeout-minutes: 60
     needs: quality-gates
 
@@ -889,7 +891,23 @@ jobs:
         # inútil y un servidor X de más en el runner.
         # Bajo Xvfb SIEMPRE, con o sin Firefox: lo único que cambia entre un PR
         # y `main` debe ser QUÉ navegadores corren, nunca CÓMO se ejecutan.
-        run: xvfb-run -a --server-args="-screen 0 1920x1080x24" npx playwright test ${{ steps.browsers.outputs.projects }} --shard=${{ matrix.shard }}/4
+        # El barrido de cables sueltos (`real/cables-sueltos.spec.ts`) se
+        # excluye del reparto por archivos y se corre APARTE, una rebanada por
+        # fragmento: medido el 2026-09-02, sus 582 controles a 6,3 s por
+        # control en serie eran 61 min en un solo trabajo (tope 60, y 30 por
+        # prueba), y la superficie crece con cada ola. La prueba de
+        # persistencia del mismo archivo va con la rebanada 4. El segundo
+        # `playwright test` escribe sus trazas en `.test-results-barrido` para
+        # no pisar las del primero; el informe HTML es sólo del primero.
+        # Los dos se corren aunque el primero falle: un golden rojo no debe
+        # tapar el veredicto del barrido, ni al revés. El paso falla si
+        # cualquiera de los dos falló.
+        run: |
+          ESTADO=0
+          xvfb-run -a --server-args="-screen 0 1920x1080x24" npx playwright test ${{ steps.browsers.outputs.projects }} --shard=${{ matrix.shard }}/4 --grep-invert "Cables sueltos" || ESTADO=$?
+          if [ "${{ matrix.shard }}" = "4" ]; then REBANADA="barrido 4/4|PERSISTIDO"; else REBANADA="barrido ${{ matrix.shard }}/4"; fi
+          xvfb-run -a --server-args="-screen 0 1920x1080x24" npx playwright test e2e/real/cables-sueltos.spec.ts ${{ steps.browsers.outputs.projects }} --grep "$REBANADA" --reporter=line --output e2e/.test-results-barrido || ESTADO=$?
+          exit $ESTADO
 
       # `include-hidden-files` NO es cosmético: sin él este paso nunca subió
       # nada. `.report` y `.test-results` empiezan por punto, y
@@ -906,6 +924,7 @@ jobs:
           path: |
             apps/web/e2e/.report
             apps/web/e2e/.test-results
+            apps/web/e2e/.test-results-barrido
           include-hidden-files: true
           retention-days: 14
 
