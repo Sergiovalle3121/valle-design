@@ -1484,3 +1484,44 @@ semanas parados sin saber cuánto falta» en **un número exacto (4 de 16), una
 lista de lo que falta y un comando** — y garantizar que el día que la evidencia
 esté completa, nadie pueda encender la exportación sin ella ni dejarla encendida
 cuando se añada un caso nuevo.
+
+## Corte 2026-09-02 (c) — por qué NO se escribe cada clase, dicho de verdad
+
+Al abrir DIMENSION —la última clase del writer que no exigía decisión del
+titular— la medición cambió el diagnóstico del track entero.
+
+**El canónico de una cota** lleva `a`, `b`, `c?`, `dimensionKind`, `text?` y
+`textPosition`. El cuerpo DWG pide además una docena de campos que no viajan, y
+dos de esas ausencias no son de detalle:
+
+- **`actualMeasurement`** —el número que la cota muestra— no se transporta.
+  Escribir `0` daría una cota que dice «0»; calcularlo sería inventarlo.
+- **`angular3pt` y `angular2ln` se colapsan en `"angular"`** al leer, y sus
+  cuerpos son **estructuralmente distintos**: el de dos líneas lee un `point16`
+  extra, y primero. Desde el canónico **no hay forma de saber cuál escribir**.
+  Eso no es un campo que falte: es un **discriminador perdido**.
+
+**Y entonces el track deja de ser lo que parecía.** Las tres clases que quedan
+del writer —MTEXT, DIMENSION y LEADER— **no son tres tareas caras
+independientes**: están bloqueadas por lo mismo, el esquema del documento
+canónico. No es trabajo de códec acumulado; es **una decisión**.
+
+| clase | ¿la emite el writer? | qué falta en el canónico |
+| --- | --- | --- |
+| `mtext` | **sí**, desde hace olas | alineación e interlineado |
+| `dimension` | no | el valor medido y el discriminador de cota angular |
+| `leader` | no | no se modela en absoluto |
+
+**Lo que se corrige aquí.** Todas las clases no enrutadas recibían el mismo
+mensaje —«el writer AC1015 aún no emite X»—, que para MTEXT era **falso** y para
+DIMENSION y LEADER **engañoso**: señalaba al writer cuando el que no llega es el
+canónico. Son dos bloqueos con dos soluciones distintas, y esto lo lee el
+usuario en su manifiesto de pérdidas. Ahora hay dos códigos:
+
+- `canonical-schema-insufficient` — el formato pide lo que el canónico no lleva,
+  con la razón concreta de cada clase.
+- `canonical-type-not-writable` — el writer no lo emite; se conserva para las
+  clases donde eso es cierto, como SPLINE.
+
+Es la quinta vez en esta jornada que un texto del repo afirma algo distinto de
+lo que hace el código, y la primera que ese texto llegaba al cliente.

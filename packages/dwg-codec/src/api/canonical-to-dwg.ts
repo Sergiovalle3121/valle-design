@@ -18,6 +18,22 @@ import type {
  * relleno sólido). Lo no escribible se declara en el manifiesto — el writer
  * jamás emite a medias.
  */
+/**
+ * Las clases cuyo bloqueo NO está en el writer sino en el documento canónico:
+ * el formato pide campos que el canónico no transporta, así que escribirlas
+ * exigiría inventárselos. Se separan del «aún no implementado» porque son dos
+ * problemas distintos con dos soluciones distintas — y porque decir que el
+ * writer no sabe hacer algo que sí sabe es, sencillamente, falso.
+ */
+const BLOQUEADAS_POR_EL_CANONICO: Readonly<Record<string, string>> = Object.freeze({
+  mtext:
+    'El writer AC1015 SÍ emite MTEXT; lo que no llega es el documento canónico, que no transporta la alineación ni el interlineado que el editor sí modela. Enrutarla hoy los aplanaría en silencio, así que se declara la pérdida en vez de entregar el texto mal compuesto.',
+  dimension:
+    'El documento canónico de una cota lleva sus puntos y su texto, pero no el VALOR MEDIDO que la cota muestra ni el resto del cuerpo que el formato pide, y colapsa las dos formas de cota angular (por tres puntos y por dos líneas) en una sola, que tienen cuerpos distintos: no hay forma de saber cuál escribir. Escribirla exigiría inventar el número y elegir una forma al azar.',
+  leader:
+    'El documento canónico no modela la directriz (LEADER) en absoluto: no hay nada que proyectar al writer. El decodificador sí la lee, así que la pérdida es de la ida al canónico, no de la lectura del archivo.',
+});
+
 export function canonicalDocumentToDwgEntities(
   document: CanonicalCadDocumentJson,
 ): CanonicalToDwgResult {
@@ -300,14 +316,26 @@ export function canonicalDocumentToDwgEntities(
         });
         break;
       }
-      default:
+      default: {
+        // POR QUÉ NO SE ESCRIBE, DE VERDAD (2026-09-02). Hasta este corte toda
+        // clase no enrutada recibía el mismo mensaje: «el writer AC1015 aún no
+        // emite X». Para `mtext` era FALSO —el writer la emite desde hace olas,
+        // `emitMText` es espejo de `decodeMText`— y para `dimension` y `leader`
+        // era engañoso: señalaba al writer cuando el que no llega es el
+        // DOCUMENTO CANÓNICO. Son dos bloqueos distintos con dos soluciones
+        // distintas, y el usuario lee esto en su manifiesto de pérdidas.
+        const razon = BLOQUEADAS_POR_EL_CANONICO[type];
         losses.push({
-          code: "canonical-type-not-writable",
+          code: razon ? "canonical-schema-insufficient" : "canonical-type-not-writable",
           entityId: id,
           sourceType: type,
-          detail: `El writer AC1015 aún no emite "${type}"; la entidad queda declarada como pérdida de exportación.`,
+          detail:
+            razon ??
+            `El writer AC1015 aún no emite "${type}"; la entidad queda declarada como pérdida de exportación.`,
           severity: "warning",
         });
+        break;
+      }
     }
   }
 

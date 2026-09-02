@@ -528,6 +528,49 @@ test("un HATCH CON PATRÓN no se emite y se declara con su razón", () => {
   );
 });
 
+// ─── Por qué NO se escribe, de verdad (2026-09-02) ────────────────────────
+// Todas las clases no enrutadas recibían el mismo mensaje —«el writer AC1015
+// aún no emite X»— y para MTEXT era FALSO: el writer la emite desde hace olas.
+// Para DIMENSION y LEADER era engañoso: señalaba al writer cuando el que no
+// llega es el canónico. Son dos bloqueos con dos soluciones distintas, y esto
+// lo lee el usuario en su manifiesto.
+test("una clase bloqueada por el CANÓNICO no se confunde con una que el writer no sabe emitir", () => {
+  const bloqueadaPorElCanonico = (entity: Record<string, unknown>) =>
+    writeCanonicalDwg(emptyDocument({ entities: [entity] })).lossManifest[0]!;
+
+  const mtext = bloqueadaPorElCanonico({
+    id: "m", type: "mtext", insertion: { x: 0, y: 0, z: 0 }, text: "HOLA", height: 2.5, layer: "0",
+  });
+  assert.equal(mtext.code, "canonical-schema-insufficient");
+  assert.ok(
+    mtext.detail.includes("SÍ emite MTEXT"),
+    "el manifiesto NO puede decir que el writer no sabe emitir algo que sí emite",
+  );
+
+  const cota = bloqueadaPorElCanonico({
+    id: "d", type: "dimension", a: { x: 0, y: 0 }, b: { x: 10, y: 0 },
+    dimensionKind: "angular", textPosition: { x: 5, y: 2 }, layer: "0",
+  });
+  assert.equal(cota.code, "canonical-schema-insufficient");
+  assert.ok(
+    cota.detail.includes("VALOR MEDIDO"),
+    "y en la cota se nombra lo que de verdad falta: el número que muestra",
+  );
+
+  // La clase que el writer REALMENTE no sabe emitir conserva su mensaje: la
+  // distinción sólo vale si separa de verdad los dos casos.
+  const spline = bloqueadaPorElCanonico({
+    id: "s", type: "spline", degree: 3, closed: false,
+    knots: [0, 0, 0, 0, 1, 1, 1, 1],
+    controlPoints: [
+      { x: 0, y: 0, z: 0 }, { x: 1, y: 2, z: 0 }, { x: 3, y: 2, z: 0 }, { x: 4, y: 0, z: 0 },
+    ],
+    layer: "0",
+  });
+  assert.equal(spline.code, "canonical-type-not-writable");
+  assert.ok(spline.detail.includes("aún no emite"));
+});
+
 test("el mapeo es determinista: mismo documento, mismos bytes y mismo manifiesto", () => {
   const document = emptyDocument({
     entities: [{ id: "e1", type: "circle", center: { x: 1, y: 1, z: 0 }, radius: 3, layer: "0" }],
