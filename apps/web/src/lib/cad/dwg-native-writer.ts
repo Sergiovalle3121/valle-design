@@ -39,8 +39,17 @@ const RADIANS_PER_DEGREE = Math.PI / 180;
  * (`dwg-document-bridge-primitives.ts:38`, `degrees()`); este lado de
  * ESCRITURA no lo hacía — pasaba el valor crudo, grados etiquetados como
  * radianes. Explícito por tipo, no un `map` genérico sobre todos los campos
- * numéricos: sólo ARC e INSERT tienen un ángulo en el subconjunto que este
- * writer escribe (`DWG_EXPORT_WRITABLE_TYPES` no incluye `ellipse`).
+ * numéricos: sólo ARC, INSERT y ELLIPSE tienen un ángulo en el subconjunto
+ * que este writer escribe.
+ *
+ * ELLIPSE se suma el 2026-09-01, con el mismo cuidado. Sus `startParameter` y
+ * `endParameter` están en GRADOS en el documento del producto —`curve-edit.ts`
+ * los normaliza con `normalizeDeg`, `curve-model.ts` con `norm360` y
+ * `paper-space.ts` compara la vuelta completa contra 359.999—, mientras que el
+ * canónico del laboratorio los espera en RADIANES, como el resto de ángulos.
+ * Enrutar la elipse sin convertir habría exportado TODA elipse recortada con
+ * su arco equivocado, en silencio y sin pérdida declarada, que es exactamente
+ * el defecto que este comentario existía para impedir.
  */
 function toCanonicalEntity(entity: CadDocument["entities"][number]): Record<string, unknown> {
   if (entity.type === "arc")
@@ -51,10 +60,31 @@ function toCanonicalEntity(entity: CadDocument["entities"][number]): Record<stri
     };
   if (entity.type === "insert")
     return { ...entity, rotation: entity.rotation * RADIANS_PER_DEGREE };
+  if (entity.type === "ellipse")
+    return {
+      ...entity,
+      startParameter: entity.startParameter * RADIANS_PER_DEGREE,
+      endParameter: entity.endParameter * RADIANS_PER_DEGREE,
+    };
+  // MTEXT COMPARTE LA TRAMPA DE LAS ANTERIORES. La rotación del editor viaja
+  // en GRADOS y el documento canónico la quiere en RADIANES; el camino
+  // público la convierte en el vector del eje X con `Math.cos`/`Math.sin`, así
+  // que dejarla en grados no habría fallado por ningún lado: habría girado
+  // cada párrafo a un ángulo equivocado, en silencio.
+  if (entity.type === "mtext")
+    return { ...entity, rotation: (entity.rotation ?? 0) * RADIANS_PER_DEGREE };
   return { ...entity };
 }
 
-/** El subconjunto §8.1 — el preflight cuenta contra ESTA lista, no adivina. */
+/**
+ * El subconjunto §8.1 — el preflight cuenta contra ESTA lista, no adivina.
+ *
+ * `ellipse` entra el 2026-09-01. No es que el writer aprendiera a emitirla:
+ * la emitía desde hacía olas. Lo que faltaba era el enrutado en el camino
+ * PÚBLICO (`canonical-to-dwg.ts`), que la mandaba al `default` y la declaraba
+ * no escribible. Esta lista reflejaba fielmente esa carencia, así que se
+ * actualiza cuando la carencia se cierra y no antes.
+ */
 export const DWG_EXPORT_WRITABLE_TYPES = new Set([
   "line",
   "point",
@@ -63,7 +93,40 @@ export const DWG_EXPORT_WRITABLE_TYPES = new Set([
   "polyline",
   "text",
   "insert",
+  "ellipse",
+  // `mtext` entra el 2026-09-02, y tampoco porque el writer aprendiera nada:
+  // lo emitía desde hacía olas. Lo que faltaba era la SEMÁNTICA del anclaje
+  // —qué significa cada número—, que no estaba en el hecho registrado de la
+  // fuente y ha habido que medir contra el oráculo DXF del corpus.
+  "mtext",
+  // `hatch` entra por INSTANCIA, no por tipo: ver `cadEntityIsDwgWritable`.
+  // El sólido viaja; el de patrón se declara. Aparece en el conjunto para que
+  // la lista siga siendo la única fuente de «qué clases toca el writer», y el
+  // predicado es quien decide el caso concreto.
+  "hatch",
 ]);
+
+/**
+ * ¿Viajará ESTA entidad, no su tipo?
+ *
+ * Hasta el 2026-09-01 el preflight preguntaba sólo por el TIPO, y bastaba
+ * porque cada clase era escribible entera o nada. El HATCH rompe eso: el de
+ * relleno SÓLIDO se escribe y el de PATRÓN no, porque el documento canónico
+ * lleva el nombre del patrón pero no su definición —ángulo, escala y líneas
+ * con sus trazos—, y esa definición no se deduce de los contornos.
+ *
+ * Un conjunto por tipo tendría que mentir en una de las dos direcciones:
+ * incluir `hatch` prometería exportar sombreados con patrón que luego se
+ * declaran perdidos, y excluirlo daría por perdidos los sólidos que sí
+ * viajan. El preflight existe justamente para que la pérdida NO sorprenda
+ * después, así que pregunta por la instancia.
+ */
+export function cadEntityIsDwgWritable(
+  entity: CadDocument["entities"][number],
+): boolean {
+  if (entity.type === "hatch") return entity.solid === true;
+  return DWG_EXPORT_WRITABLE_TYPES.has(entity.type);
+}
 
 export interface CadDwgExportPreflight {
   /** Cuántas entidades del documento caen dentro del subconjunto §8.1. */
@@ -94,10 +157,29 @@ export function preflightCadDwgExport(
   let writableCount = 0;
   const unwritableByType: Record<string, number> = {};
   for (const entity of document.entities) {
-    if (DWG_EXPORT_WRITABLE_TYPES.has(entity.type)) writableCount += 1;
+    if (cadEntityIsDwgWritable(entity)) writableCount += 1;
     else unwritableByType[entity.type] = (unwritableByType[entity.type] ?? 0) + 1;
   }
   return { writableCount, unwritableByType };
+}
+
+/**
+ * Los patrones de tipo de línea del documento, en la forma que el laboratorio
+ * espera. Se copian los arreglos: el documento del producto es del editor y no
+ * puede acabar compartiendo memoria con lo que se serializa.
+ */
+function toCanonicalLinetypeStyles(
+  styles: Record<string, { pattern: number[]; description?: string }>,
+): Record<string, { pattern: number[]; description?: string }> {
+  const projected: Record<string, { pattern: number[]; description?: string }> = {};
+  for (const [name, style] of Object.entries(styles)) {
+    if (!Array.isArray(style?.pattern)) continue;
+    projected[name] = {
+      pattern: [...style.pattern],
+      ...(style.description === undefined ? {} : { description: style.description }),
+    };
+  }
+  return projected;
 }
 
 /**
@@ -125,18 +207,38 @@ function toCanonicalDocument(document: CadDocument): {
       schema: document.meta.schema,
       unit: document.meta.unit,
     },
+    // EL ESTADO Y EL TIPO DE LÍNEA DE CADA CAPA (2026-09-01). Hasta este corte
+    // aquí sólo viajaban id, nombre, color, visible y bloqueo: una capa
+    // CONGELADA se exportaba descongelada y una de ejes con TRAZOS salía
+    // continua, las dos EN SILENCIO. No era una limitación del códec —que ya
+    // sabe escribir ambas cosas— sino de este adaptador, que las tiraba antes
+    // de que el códec llegara a verlas.
     layers: document.layers.map((layer) => ({
       id: layer.id,
       name: layer.name,
       color: layer.color,
       visible: layer.visible,
       locked: layer.locked,
+      ...(layer.frozen === undefined ? {} : { frozen: layer.frozen }),
+      ...(layer.linetype === undefined ? {} : { linetype: layer.linetype }),
     })),
     entities: document.entities.map(toCanonicalEntity),
     history: [],
     modelSpace: { entityIds: [...document.modelSpace.entityIds] },
     paperSpaces: [],
-    styles: { text: {}, dimension: {}, table: {}, plot: {} },
+    // LOS PATRONES DE TIPO DE LÍNEA DEL DOCUMENTO. Sin ellos el writer no
+    // puede emitir la entrada LTYPE y toda capa cae a Continuous: el nombre
+    // solo no basta, hace falta el patrón. Los demás estilos siguen vacíos
+    // porque esta fase no los escribe, y eso ya estaba declarado.
+    styles: {
+      text: {},
+      dimension: {},
+      table: {},
+      plot: {},
+      ...(document.styles?.linetype === undefined
+        ? {}
+        : { linetype: toCanonicalLinetypeStyles(document.styles.linetype) }),
+    },
     blocks: document.blocks.map((block) => ({
       id: block.id,
       name: block.name,

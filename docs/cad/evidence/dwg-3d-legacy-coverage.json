@@ -1,0 +1,390 @@
+{
+  "$schema": "urn:valle-design:schema:dwg-3d-legacy-coverage:v1",
+  "schemaVersion": 1,
+  "evidenceId": "valle-design-dwg-3d-legacy-coverage-v1",
+  "generadoPor": "node scripts/dwg/probe-3d-legacy-coverage.mjs",
+  "generadoEn": "2026-09-01T17:43:09.298Z",
+  "environment": {
+    "node": "v22.22.2",
+    "platform": "linux",
+    "architecture": "x64",
+    "osType": "Linux",
+    "osRelease": "6.18.44-fc-v22",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "logicalCpuCount": 4,
+    "totalMemoryBytes": 16856133632,
+    "declaredMachine": "Intel(R) Xeon(R) Processor @ 2.80GHz (4 hilos lógicos), 16.9 GB de RAM, Linux 6.18.44-fc-v22"
+  },
+  "veredicto": "El decodificador reproduce 5/5 entidades 3D heredadas del corpus ADMITIDO campo a campo contra el oráculo DXF (AC1015). Cobertura de casos: 2/6 dimensiones completas, 3 parcial(es), 1 ausente(s).",
+  "alcance": "Sólo las cuatro clases 3D heredadas del perfil AC1015_3D_WIREFRAME_V1 propuesto (3DFACE, POLYLINE 3D, POLYLINE MESH, POLYLINE PFACE), sobre los fixtures del corpus ADMITIDO que tienen oráculo DXF con el mismo nombre.",
+  "metodo": "Cada entidad se proyecta al mismo vocabulario por los dos caminos —bits del DWG por el laboratorio, texto del DXF por el oráculo— y se comparan como MULTICONJUNTO por clase, para no exigir un orden que ninguno de los dos formatos promete. Aparte, se comprueba dimensión a dimensión QUÉ CASOS ejerce el corpus, porque cero discrepancias sobre un corpus que no prueba casi nada se vería igual que cero discrepancias sobre uno exigente.",
+  "limiteDeLaEvidencia": "El 3D heredado del corpus admitido es REAL pero DELGADO: una instancia por clase salvo 3DFACE, que tiene dos. La ola 3 del repo hermano (valle-design-dwg-conformance#6, SIN ADMITIR) es la que aportaría las seis combinaciones de banderas de arista, el 3DFACE degenerado, las mallas 7x9 y 5x5 cerrada en N, y el polyface con índices negativos. Esta sonda NO sustituye esa admisión: la mide y declara lo que falta. Tampoco mueve ninguna firma: DWG_3D_WIREFRAME_BETA_AUTHORIZATION.ownerSigned sigue siendo del titular.",
+  "corpus": {
+    "commit": "0688fb9c395b9cac4169d1ee9c23a7370cc28cf3",
+    "indexSha256": "59c69c1ba3a9524a5ca5fb246c7b0226e9980e0c3b9cdbdc2d6e2180d49ee07a",
+    "transporte": "local-mirror"
+  },
+  "resumen": {
+    "fixturesCon3D": 3,
+    "entidades3D": 5,
+    "porClase": {
+      "face3d": 2,
+      "polyline3d": 1,
+      "polymesh": 1,
+      "polyfaceMesh": 1
+    },
+    "versiones": [
+      "AC1015"
+    ],
+    "concordanciaConOraculo": "5/5",
+    "dimensionesCompletas": "2/6",
+    "dimensionesParciales": 3,
+    "dimensionesAusentes": 1,
+    "medido": true
+  },
+  "cobertura": [
+    {
+      "dimension": "3DFACE con Z real en las esquinas",
+      "estado": "completo",
+      "observado": [
+        [
+          0,
+          0,
+          15,
+          15
+        ],
+        [
+          0,
+          5,
+          20,
+          10
+        ]
+      ],
+      "faltante": null
+    },
+    {
+      "dimension": "3DFACE: combinaciones de banderas de arista invisible",
+      "estado": "parcial",
+      "observado": [
+        0,
+        5
+      ],
+      "faltante": "sólo 2 de las 6 combinaciones posibles; falta también el caso degenerado (triángulo)"
+    },
+    {
+      "dimension": "POLYLINE 3D con Z distinta por vértice",
+      "estado": "completo",
+      "observado": [
+        [
+          0,
+          10,
+          20,
+          5
+        ]
+      ],
+      "faltante": null
+    },
+    {
+      "dimension": "POLYLINE 3D abierta y cerrada",
+      "estado": "parcial",
+      "observado": [
+        true
+      ],
+      "faltante": "sólo se observa closed=true"
+    },
+    {
+      "dimension": "POLYLINE MESH: tamaños de malla",
+      "estado": "parcial",
+      "observado": [
+        "3x4"
+      ],
+      "faltante": "una sola malla; sin caso cerrado en N ni mallas mayores"
+    },
+    {
+      "dimension": "POLYFACE con índice NEGATIVO (arista invisible)",
+      "estado": "ausente",
+      "observado": [
+        [
+          [
+            1,
+            2,
+            5,
+            0
+          ],
+          [
+            1,
+            2,
+            3,
+            4
+          ]
+        ]
+      ],
+      "faltante": "ningún índice negativo en el corpus admitido"
+    }
+  ],
+  "archivos": [
+    {
+      "bundle": "entity-wave-2-ac1015",
+      "version": "AC1015",
+      "archivo": "18-solid-trace-3dface",
+      "sha256": "36798ba943c64c5bd2ac4d47e535bdbfc8977a49e76821742d73be3c09413247",
+      "conOraculo": true,
+      "clases": {
+        "face3d": {
+          "coinciden": true,
+          "decodificadas": 2,
+          "esperadas": 2
+        }
+      }
+    },
+    {
+      "bundle": "entity-wave-2-ac1015",
+      "version": "AC1015",
+      "archivo": "25-vertex-mesh",
+      "sha256": "4b0148a4646354bf237027bb65ffd9a815b54301737808a8f3701f02255805ae",
+      "conOraculo": true,
+      "clases": {
+        "polymesh": {
+          "coinciden": true,
+          "decodificadas": 1,
+          "esperadas": 1
+        },
+        "polyfaceMesh": {
+          "coinciden": true,
+          "decodificadas": 1,
+          "esperadas": 1
+        }
+      }
+    },
+    {
+      "bundle": "foundational-entities-ac1015",
+      "version": "AC1015",
+      "archivo": "13-polyline2d",
+      "sha256": "9a2b9262d16c6060b15e902877f3f63835c95d59a088a834988295b94512b8f2",
+      "conOraculo": true,
+      "clases": {
+        "polyline3d": {
+          "coinciden": true,
+          "decodificadas": 1,
+          "esperadas": 1
+        }
+      }
+    }
+  ],
+  "entidades": [
+    {
+      "version": "AC1015",
+      "archivo": "18-solid-trace-3dface",
+      "clase": "face3d",
+      "handle": 260,
+      "campos": {
+        "corners": [
+          [
+            0,
+            60,
+            0
+          ],
+          [
+            30,
+            60,
+            0
+          ],
+          [
+            30,
+            90,
+            15
+          ],
+          [
+            0,
+            90,
+            15
+          ]
+        ],
+        "invisibility": 0
+      }
+    },
+    {
+      "version": "AC1015",
+      "archivo": "18-solid-trace-3dface",
+      "clase": "face3d",
+      "handle": 261,
+      "campos": {
+        "corners": [
+          [
+            50,
+            60,
+            0
+          ],
+          [
+            80,
+            60,
+            5
+          ],
+          [
+            80,
+            90,
+            20
+          ],
+          [
+            50,
+            90,
+            10
+          ]
+        ],
+        "invisibility": 5
+      }
+    },
+    {
+      "version": "AC1015",
+      "archivo": "25-vertex-mesh",
+      "clase": "polymesh",
+      "handle": 257,
+      "campos": {
+        "mSize": 3,
+        "nSize": 4,
+        "vertices": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            20,
+            2
+          ],
+          [
+            0,
+            40,
+            3
+          ],
+          [
+            0,
+            60,
+            1
+          ],
+          [
+            20,
+            0,
+            1
+          ],
+          [
+            20,
+            20,
+            4
+          ],
+          [
+            20,
+            40,
+            6
+          ],
+          [
+            20,
+            60,
+            2
+          ],
+          [
+            40,
+            0,
+            0
+          ],
+          [
+            40,
+            20,
+            3
+          ],
+          [
+            40,
+            40,
+            5
+          ],
+          [
+            40,
+            60,
+            1
+          ]
+        ]
+      }
+    },
+    {
+      "version": "AC1015",
+      "archivo": "25-vertex-mesh",
+      "clase": "polyfaceMesh",
+      "handle": 271,
+      "campos": {
+        "vertices": [
+          [
+            100,
+            0,
+            0
+          ],
+          [
+            140,
+            0,
+            0
+          ],
+          [
+            140,
+            30,
+            0
+          ],
+          [
+            100,
+            30,
+            0
+          ],
+          [
+            120,
+            15,
+            20
+          ]
+        ],
+        "faces": [
+          [
+            1,
+            2,
+            5,
+            0
+          ],
+          [
+            1,
+            2,
+            3,
+            4
+          ]
+        ]
+      }
+    },
+    {
+      "version": "AC1015",
+      "archivo": "13-polyline2d",
+      "clase": "polyline3d",
+      "handle": 270,
+      "campos": {
+        "closed": true,
+        "vertices": [
+          [
+            0,
+            80,
+            0
+          ],
+          [
+            40,
+            80,
+            10
+          ],
+          [
+            40,
+            120,
+            20
+          ],
+          [
+            0,
+            120,
+            5
+          ]
+        ]
+      }
+    }
+  ]
+}

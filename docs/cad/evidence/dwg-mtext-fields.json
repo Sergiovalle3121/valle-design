@@ -1,0 +1,292 @@
+{
+  "generadoPor": "scripts/dwg/probe-mtext-fields.mjs",
+  "corpus": {
+    "commit": "0688fb9c395b9cac4169d1ee9c23a7370cc28cf3",
+    "origen": "local-mirror"
+  },
+  "entorno": {
+    "node": "v22.22.2",
+    "platform": "linux",
+    "architecture": "x64",
+    "osType": "Linux",
+    "osRelease": "6.18.44-fc-v22",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.10GHz",
+    "logicalCpuCount": 4,
+    "totalMemoryBytes": 16856133632,
+    "declaredMachine": "Intel(R) Xeon(R) Processor @ 2.10GHz (4 hilos lógicos), 16.9 GB de RAM, Linux 6.18.44-fc-v22"
+  },
+  "veredicto": "El anclaje de MTEXT se corresponde con el código 71 del DXF por identidad, medido en 5 parejas con 2 valores distintos. El corpus ejerce 1 y 5; los otros 7 valores NO están ejercidos y se declaran como tales.",
+  "resumen": {
+    "archivosConMText": 2,
+    "parejas": 5,
+    "parejasUtiles": 5,
+    "valoresDeAnclajeDxf": [
+      1,
+      5
+    ],
+    "valoresDeAnclajeDwg": [
+      1,
+      5
+    ],
+    "separable": true,
+    "hipotesisSupervivientes": [
+      "identidad"
+    ],
+    "medido": true,
+    "anclajesEjercidos": [
+      {
+        "valor": 1,
+        "nombre": "top-left"
+      },
+      {
+        "valor": 5,
+        "nombre": "middle-center"
+      }
+    ],
+    "anclajesSinEjercer": [
+      {
+        "valor": 2,
+        "nombre": "top-center"
+      },
+      {
+        "valor": 3,
+        "nombre": "top-right"
+      },
+      {
+        "valor": 4,
+        "nombre": "middle-left"
+      },
+      {
+        "valor": 6,
+        "nombre": "middle-right"
+      },
+      {
+        "valor": 7,
+        "nombre": "bottom-left"
+      },
+      {
+        "valor": 8,
+        "nombre": "bottom-center"
+      },
+      {
+        "valor": 9,
+        "nombre": "bottom-right"
+      }
+    ],
+    "direccionDeDibujo": {
+      "valores": [
+        1
+      ],
+      "constante": true,
+      "valor": 1
+    },
+    "estiloDeInterlineado": {
+      "valores": [
+        1
+      ],
+      "constante": true,
+      "valor": 1
+    },
+    "factorDeInterlineado": {
+      "valores": [
+        1
+      ],
+      "constante": true,
+      "valor": 1
+    },
+    "extentsAlto": {
+      "valores": [
+        3.5,
+        9.333333333333334,
+        0
+      ],
+      "constante": false,
+      "valor": null
+    },
+    "extentsAncho": {
+      "valores": [
+        39.5,
+        29,
+        0
+      ],
+      "constante": false,
+      "valor": null
+    },
+    "bitFinal": {
+      "valores": [
+        0
+      ],
+      "constante": true,
+      "valor": 0
+    }
+  },
+  "hipotesisDeAnclaje": [
+    {
+      "nombre": "identidad",
+      "aciertos": 5,
+      "comparadas": 5,
+      "sobrevive": true
+    },
+    {
+      "nombre": "dxf+1",
+      "aciertos": 0,
+      "comparadas": 5,
+      "sobrevive": false
+    },
+    {
+      "nombre": "dxf-1",
+      "aciertos": 0,
+      "comparadas": 5,
+      "sobrevive": false
+    },
+    {
+      "nombre": "inversion-10-dxf",
+      "aciertos": 1,
+      "comparadas": 5,
+      "sobrevive": false
+    },
+    {
+      "nombre": "constante-1",
+      "aciertos": 4,
+      "comparadas": 5,
+      "sobrevive": false
+    }
+  ],
+  "parejas": [
+    {
+      "archivo": "16-leader-tolerance",
+      "version": "AC1015",
+      "indice": 0,
+      "emparejada": true,
+      "comprobacionDePareja": {
+        "alturaDwg": 3.5,
+        "alturaDxf": 3.5,
+        "anchoDwg": 40,
+        "anchoDxf": 40
+      },
+      "anclajeDwg": 1,
+      "anclajeDxf": 1,
+      "direccionDwg": 1,
+      "direccionDxf": 1,
+      "estiloInterlineadoDwg": 1,
+      "estiloInterlineadoDxf": null,
+      "factorInterlineadoDwg": 1,
+      "factorInterlineadoDxf": null,
+      "extentsAltoDwg": 3.5,
+      "extentsAnchoDwg": 39.5,
+      "bitFinalDwg": 0
+    },
+    {
+      "archivo": "16-leader-tolerance",
+      "version": "AC1015",
+      "indice": 1,
+      "emparejada": true,
+      "comprobacionDePareja": {
+        "alturaDwg": 3.5,
+        "alturaDxf": 3.5,
+        "anchoDwg": 45,
+        "anchoDxf": 45
+      },
+      "anclajeDwg": 1,
+      "anclajeDxf": 1,
+      "direccionDwg": 1,
+      "direccionDxf": 1,
+      "estiloInterlineadoDwg": 1,
+      "estiloInterlineadoDxf": null,
+      "factorInterlineadoDwg": 1,
+      "factorInterlineadoDxf": null,
+      "extentsAltoDwg": 9.333333333333334,
+      "extentsAnchoDwg": 29,
+      "bitFinalDwg": 0
+    },
+    {
+      "archivo": "09-mtext",
+      "version": "AC1015",
+      "indice": 0,
+      "emparejada": true,
+      "comprobacionDePareja": {
+        "alturaDwg": 5,
+        "alturaDxf": 5,
+        "anchoDwg": 140,
+        "anchoDxf": 140
+      },
+      "anclajeDwg": 1,
+      "anclajeDxf": 1,
+      "direccionDwg": 1,
+      "direccionDxf": 1,
+      "estiloInterlineadoDwg": 1,
+      "estiloInterlineadoDxf": null,
+      "factorInterlineadoDwg": 1,
+      "factorInterlineadoDxf": null,
+      "extentsAltoDwg": 0,
+      "extentsAnchoDwg": 0,
+      "bitFinalDwg": 0
+    },
+    {
+      "archivo": "09-mtext",
+      "version": "AC1015",
+      "indice": 1,
+      "emparejada": true,
+      "comprobacionDePareja": {
+        "alturaDwg": 7,
+        "alturaDxf": 7,
+        "anchoDwg": 200,
+        "anchoDxf": 200
+      },
+      "anclajeDwg": 1,
+      "anclajeDxf": 1,
+      "direccionDwg": 1,
+      "direccionDxf": 1,
+      "estiloInterlineadoDwg": 1,
+      "estiloInterlineadoDxf": null,
+      "factorInterlineadoDwg": 1,
+      "factorInterlineadoDxf": null,
+      "extentsAltoDwg": 0,
+      "extentsAnchoDwg": 0,
+      "bitFinalDwg": 0
+    },
+    {
+      "archivo": "09-mtext",
+      "version": "AC1015",
+      "indice": 2,
+      "emparejada": true,
+      "comprobacionDePareja": {
+        "alturaDwg": 2.5,
+        "alturaDxf": 2.5,
+        "anchoDwg": 60,
+        "anchoDxf": 60
+      },
+      "anclajeDwg": 5,
+      "anclajeDxf": 5,
+      "direccionDwg": 1,
+      "direccionDxf": 1,
+      "estiloInterlineadoDwg": 1,
+      "estiloInterlineadoDxf": null,
+      "factorInterlineadoDwg": 1,
+      "factorInterlineadoDxf": null,
+      "extentsAltoDwg": 0,
+      "extentsAnchoDwg": 0,
+      "bitFinalDwg": 0
+    }
+  ],
+  "archivos": [
+    {
+      "bundle": "entity-wave-2-ac1015",
+      "version": "AC1015",
+      "archivo": "16-leader-tolerance",
+      "fixture": "bundles/entity-wave-2-ac1015/fixtures/16-leader-tolerance.dwg",
+      "sha256": "5de64b4d135fdf25f0d37c2bdd28fd5ab461ed9e1bd78774dae507d941363229",
+      "mtextsEnElDxf": 2,
+      "mtextsEnElDwg": 2
+    },
+    {
+      "bundle": "foundational-entities-ac1015",
+      "version": "AC1015",
+      "archivo": "09-mtext",
+      "fixture": "bundles/foundational-entities-ac1015/fixtures/09-mtext.dwg",
+      "sha256": "94938dd94fc1d89f203c7eb897904794eb5092251b4fa72b981b48cb32e5e686",
+      "mtextsEnElDxf": 3,
+      "mtextsEnElDwg": 3
+    }
+  ]
+}
