@@ -157,6 +157,23 @@ la campaña; dos quedan fuera de alcance y se dice.
 | Electrical | 0 | — | **Fuera de alcance** de la campaña: esquemas y numeración de hilos son otro producto. La fila existe para que el denominador sea honesto. |
 | Plant 3D | 0 | — | **Fuera de alcance** de la campaña: P&ID y tubería 3D por especificación. Ídem. |
 
+## La cota y el plano inclinado (Ola C, 2026-09-02)
+
+La campaña midió antes que «todo punto que el usuario señala vive en z=0»
+y que la cota moría en cuatro fronteras del DXF. Cada fila de abajo dice
+en qué peldaño queda HOY y qué la subiría; lo que sigue en «todavía no» se
+dice aquí y en el prompt de la orden, no se aplana en silencio.
+
+| Capacidad | Peldaño hoy | Evidencia | Qué falta para subir |
+| --- | --- | --- | --- |
+| LINE, PLINE y RECTANG dibujan EN el plano del SCU inclinado | 3 | `draw-spatial.spec.ts` (25), `ucs-3d.spec.ts` (68): vértices sobre el plano a 1e-6 mm | Un golden de navegador pinchando sobre una cara (peldaño 5). PLINE Arco y RECTANG Empalme se rechazan sobre un plano inclinado: el bulge es un arco en planta. |
+| CIRCLE, ARC y las ocho primitivas sobre la planta ELEVADA | 3 | `draw-spatial.spec.ts`, `solids-primitives.spec.ts` (60) | Sobre un plano INCLINADO el motor las rechaza con su motivo: el documento no guarda un círculo fuera del plano horizontal ni un `box` con marco. **Todavía no.** |
+| Las ocho primitivas de sólido | 5 | golden 73 (BOX y CYLINDER tecleados, volumen recalculado por el kernel sobre lo que recibió el servidor) | Nada de peldaño; los modos 3P/2P/Ttr/Elíptico de CYLINDER y CONE, Arista de PYRAMID y Arco de POLYSOLID no se ofrecen. |
+| SOLIDEDIT · Cara Extruir, Cuerpo Comprobar, Cuerpo Separar | 3 | `solids-edit.spec.ts` (24) | Las otras once ramas (Mover/Girar/Desfasar/Inclinar/Borrar/Copiar/Color de cara, Copiar/Color de arista, Estampar/Vaciar/Limpiar de cuerpo): piden recomponer caras o designar aristas. **Todavía no**, dicho en el diálogo. |
+| La cota en el DXF: 30/31, elevación (38 y cabecera), polilínea 3D (bit 8), SCU reflejado (0,0,−1) | 5 | `verification/z-frontiers.spec.ts` (39) con `dxf-parser` de oráculo independiente, en el gate `check:cad-math`; `dxf-import-cota.spec.ts` | Nada de peldaño; la polilínea con ARCOS y cotas distintas no cabe en el formato y se declara en el manifiesto de pérdidas. |
+| El plano INCLINADO al importar DXF (extrusión distinta de ±Z) | 0 | `flattened_to_ground` sigue declarándose por entidad y capa | Que la entidad canónica guarde su normal y el visor la dibuje. **Todavía no.** |
+| Ver la cota en pantalla | 0 | el render (`CadRenderPath.points: CadPoint2[]`) dibuja en planta | El visor 3D representa la geometría 2D sobre el suelo; los sólidos sí van a su cota. **Todavía no.** |
+
 ## Cómo se usa
 
 - **Al añadir una entrada nueva a `BACKLOG.md`:** decir el peldaño ACTUAL

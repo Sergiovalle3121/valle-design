@@ -56,6 +56,8 @@ import { CAD_MIRROR_COMMANDS } from "./commands/modify-mirror";
 import { CAD_MODIFY_TRANSFORM_COMMANDS } from "./commands/modify-transform";
 import { CAD_PARAMETRIC_DIMENSION_COMMANDS } from "./commands/parametric-dimensions";
 import { CAD_SOLID_CREATE_COMMANDS } from "./commands/solids-create";
+import { CAD_SOLID_PRIMITIVE_COMMANDS } from "./commands/solids-primitives";
+import { CAD_SOLIDEDIT_COMMANDS } from "./commands/solids-edit";
 import { CAD_PRESSPULL_COMMANDS } from "./commands/solids-push-face";
 import { CAD_SOLID_INQUIRY_COMMANDS } from "./commands/solids-inquiry";
 import { CAD_SOLID_INTEROP_COMMANDS } from "./commands/solids-interop";
@@ -162,6 +164,11 @@ export const CAD_COMMAND_DESCRIPTORS = [
   // Esquema 5: modelado de sólidos. Enchufan el kernel B-rep de `lib/brep/`, que
   // hasta esta ola estaba construido, probado y sin un solo consumidor.
   ...CAD_SOLID_CREATE_COMMANDS,
+  // Ola C: las ocho primitivas (BOX … POLYSOLID) y SOLIDEDIT, cada una un
+  // nodo del mismo árbol reeditable; medido antes: el nodo `box` existía y
+  // ningún comando lo creaba.
+  ...CAD_SOLID_PRIMITIVE_COMMANDS,
+  ...CAD_SOLIDEDIT_COMMANDS,
   // PRESSPULL compone las dos máquinas: empujar una cara o extruir un
   // contorno. Decide el primer gesto, no una opción tecleada.
   ...CAD_PRESSPULL_COMMANDS,

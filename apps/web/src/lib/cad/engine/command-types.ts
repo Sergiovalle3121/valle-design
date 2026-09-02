@@ -485,8 +485,17 @@ export interface CadCommandDescriptor<S = unknown> {
    * documento sin declararse espacial, el punto se rechaza con su motivo en vez
    * de aceptarse a medias. Un comando se marca cuando su geometría conserva la
    * cota de punta a punta, no cuando «debería funcionar».
+   *
+   * Dos grados desde la Ola C (2026-09-02):
+   *
+   * - `true`: dibuja EN el plano del SCU, inclinado o no (LINE, PLINE, RECTANG).
+   * - `"elevation"`: conserva la cota del punto, así que honra un SCU llano
+   *   pero ELEVADO (la planta a +3000) y no uno inclinado (CIRCLE, ARC y las
+   *   primitivas de sólido, cuya forma vive en el plano horizontal). Un
+   *   círculo sobre un faldón sería una elipse en planta, y eso el documento
+   *   todavía no lo guarda; declararlo `true` mentiría exactamente ahí.
    */
-  spatial?: boolean;
+  spatial?: boolean | "elevation";
   begin(context: CadCommandContext): CadCommandStep<S>;
   step(state: S, input: CadCommandInput, context: CadCommandContext): CadCommandStep<S>;
   /** Cursor que muestra el viewport: cruz para puntos, caja para seleccionar. */

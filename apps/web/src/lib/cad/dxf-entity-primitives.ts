@@ -13,8 +13,8 @@
  *
  * Módulo puro: sin THREE, sin DOM, sin estado.
  */
-import type { CadDocument, CadEntity } from "./cad-document";
-import type { CadDxfPrimitive } from "./dxf-import";
+import type { CadDocument, CadEntity, CadPoint3 } from "./cad-document";
+import type { CadDxfPoint, CadDxfPrimitive } from "./dxf-import";
 import { cadEntityToSchema4Primitive } from "./dxf-schema4-primitives";
 import { wallFootprint } from "./wall-geometry";
 
@@ -38,6 +38,16 @@ export function cadEntityToDxfPrimitive(
     : primitive;
 }
 
+/**
+ * Punto del documento → punto DXF CON su cota. El cero se omite: es el suelo,
+ * y así una primitiva plana sigue siendo `{x, y}` para todo el que la compare.
+ * Hasta la Ola C aquí se escribía `{x, y}` siempre, y la cota de una LINE
+ * declarada `spatial` moría en este archivo sin que el escritor la viera.
+ */
+function dxfPoint(point: CadPoint3): CadDxfPoint {
+  return point.z ? { x: point.x, y: point.y, z: point.z } : { x: point.x, y: point.y };
+}
+
 function entityGeometryPrimitive(
   entity: CadEntity,
   document?: Pick<CadDocument, "imageDefinitions">,
@@ -46,7 +56,7 @@ function entityGeometryPrimitive(
     return {
       kind: "arc",
       layer: entity.layer,
-      points: [{ x: entity.center.x, y: entity.center.y }],
+      points: [dxfPoint(entity.center)],
       radius: entity.radius,
       startAngle: entity.startAngle,
       endAngle: entity.endAngle,
@@ -56,8 +66,8 @@ function entityGeometryPrimitive(
     return {
       kind: "ellipse",
       layer: entity.layer,
-      points: [{ x: entity.center.x, y: entity.center.y }],
-      majorAxis: { x: entity.majorAxis.x, y: entity.majorAxis.y },
+      points: [dxfPoint(entity.center)],
+      majorAxis: dxfPoint(entity.majorAxis),
       axisRatio: entity.ratio,
       startAngle: entity.startParameter,
       endAngle: entity.endParameter,
@@ -67,7 +77,7 @@ function entityGeometryPrimitive(
     return {
       kind: "spline",
       layer: entity.layer,
-      points: entity.controlPoints.map((point) => ({ x: point.x, y: point.y })),
+      points: entity.controlPoints.map(dxfPoint),
       degree: entity.degree,
       knots: [...entity.knots],
     };
@@ -76,17 +86,13 @@ function entityGeometryPrimitive(
     return {
       kind: "line",
       layer: entity.layer,
-      points: [
-        { x: entity.start.x, y: entity.start.y },
-        { x: entity.end.x, y: entity.end.y },
-      ],
+      points: [dxfPoint(entity.start), dxfPoint(entity.end)],
     };
   }
   if (entity.type === "polyline") {
     // Se conserva el bulge: sin él la exportación aplanaba cada arco a cuerda.
     const points = entity.vertices.map((point) => ({
-      x: point.x,
-      y: point.y,
+      ...dxfPoint(point),
       ...(typeof point.bulge === "number" && point.bulge !== 0
         ? { bulge: point.bulge }
         : {}),
@@ -121,7 +127,7 @@ function entityGeometryPrimitive(
     return {
       kind: "circle",
       layer: entity.layer,
-      points: [{ x: entity.center.x, y: entity.center.y }],
+      points: [dxfPoint(entity.center)],
       radius: entity.radius,
     };
   }

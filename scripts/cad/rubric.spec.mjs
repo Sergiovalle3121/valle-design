@@ -474,19 +474,18 @@ const byId = (scored, id) =>
   // Corte 2026-08-22: el denominador de DESTINO creció a 220 al nacer las
   // filas de integridad y de capacidad de crecer, y se publica JUNTO al de
   // HOY (las categorías scope:"hoy"), que es el que se enseña a un cliente.
-  //
   // Corte 2026-08-31: BAJÓ a 216. La categoría `nl-cad` (asistencia por IA)
   // valía 4 puntos de destino y se RETIRÓ con el motor: Valle Design no tiene
   // IA — era de Axos OS, el ERP del que nació este producto (`IDENTITY.md`).
-  // Un denominador que sigue contando una capacidad que el producto ya no
-  // quiere tener mide contra un producto que no existe. Bajarlo es la
-  // respuesta honesta: los puntos que la fila tenía ganados también se van, y
-  // el porcentaje se recalcula contra lo que de verdad se persigue.
+  // Un denominador que cuenta una capacidad que el producto ya no quiere mide
+  // contra un producto que no existe; los puntos ganados de la fila se van.
   // Corte 2026-09-02: SUBIÓ a 260 — nacen `recognition` (14 pt de HOY, medidos
   // por goldens y specs que leen bytes), las siete filas de toolsets (28 pt de
   // DESTINO, casi todas en 0) y `hatch.pattern-table` (2 pt). Subir el
   // denominador baja el porcentaje: un techo sin MEP medía contra otro producto.
-  eq(published.totalPoints, 260, "el denominador de destino publicado son 260 puntos");
+  // Ola C (2026-09-02): 265 — nace `modeling3d` (5 pt de DESTINO: ocho
+  // primitivas, SOLIDEDIT y la cota), medida antes como «faltan las ocho».
+  eq(published.totalPoints, 265, "el denominador de destino publicado son 265 puntos");
   eq(
     published.categories.every((c) => c.scope === "hoy" || c.scope === "destino"),
     true,

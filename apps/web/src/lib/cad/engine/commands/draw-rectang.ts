@@ -35,6 +35,8 @@
  */
 import type { CadPoint2 } from "../../cad-document";
 import type { CadNativeEntity } from "../../entity-runtime";
+import { cadActiveUcs, cadActiveUcsIsInclined } from "../../system-variables";
+import { CAD_WORLD_UCS, ucsToWorld, worldToUcs, type CadNamedUcs } from "../../ucs";
 import {
   CAD_ACCEPT_ANGLE,
   CAD_ACCEPT_DISTANCE,
@@ -111,6 +113,16 @@ interface LocalVertex {
   x: number;
   y: number;
   bulge?: number;
+}
+
+/**
+ * El plano de trabajo: el rectángulo se calcula en las coordenadas del SCU y
+ * se convierte al mundo al escribirlo, así que sobre un faldón queda sobre el
+ * faldón (Ola C, 2026-09-02). Sin variables —specs, sonda— es el del mundo, y
+ * entonces las conversiones son la identidad y los números los de siempre.
+ */
+function workPlane(context: CadCommandContext): CadNamedUcs {
+  return context.variables ? cadActiveUcs(context.variables) : CAD_WORLD_UCS;
 }
 
 /**
@@ -220,17 +232,32 @@ function rectangleEntity(
         "Las dos esquinas quedaron alineadas: el rectángulo saldría sin ancho o sin alto. Precise una esquina opuesta que no esté sobre la primera.",
     };
   if (local.error) return { error: local.error };
-  const first = state.first!;
+  // El empalme es un bulge, y un bulge es un arco EN PLANTA: sobre un plano
+  // inclinado no hay forma de guardarlo en su plano. Se dice, no se aplana.
+  if (state.fillet > 0 && context.variables && cadActiveUcsIsInclined(context.variables))
+    return {
+      error:
+        "El empalme no está disponible con el SCU inclinado: los arcos se guardarían en planta y no en el plano del SCU. Use Chaflán, o vuelva al SCU universal.",
+    };
+  const ucs = workPlane(context);
+  const first = worldToUcs(state.first!, ucs);
   const radians = (state.rotationDeg * Math.PI) / 180;
   const cos = Math.cos(radians);
   const sin = Math.sin(radians);
   const entity: CadNativeEntity = {
     id: context.newEntityId(),
     type: "polyline",
+    // Elevación: a lo largo de la Z del SCU, sumada a la cota de la primera
+    // esquina (cero cuando se pincha sobre el plano; la tecleada, si la hubo).
     vertices: local.vertices.map((vertex) => ({
-      x: first.x + vertex.x * cos - vertex.y * sin,
-      y: first.y + vertex.x * sin + vertex.y * cos,
-      z: state.elevation,
+      ...ucsToWorld(
+        {
+          x: first.x + vertex.x * cos - vertex.y * sin,
+          y: first.y + vertex.x * sin + vertex.y * cos,
+          z: first.z + state.elevation,
+        },
+        ucs,
+      ),
       ...(vertex.bulge !== undefined ? { bulge: vertex.bulge } : {}),
       ...(state.width > 0 ? { startWidth: state.width, endWidth: state.width } : {}),
     })),
@@ -317,38 +344,44 @@ function rectangStep(state: RectangState, context: CadCommandContext): CadComman
     // entidad, así que lo que el usuario ve bajo el cursor —chaflanes,
     // empalmes, rotación— es exactamente lo que se va a dibujar. Una
     // previsualización aproximada convierte cada opción en una sorpresa.
-    preview: rectanglePreview(state, context.cursor),
+    preview: rectanglePreview(state, context.cursor, workPlane(context)),
   };
 }
 
 function rectanglePreview(
   state: RectangState,
   cursor: CadPoint2 | undefined,
+  ucs: CadNamedUcs,
 ): { points: CadPoint2[]; closed: boolean }[] {
   if (!state.first || !cursor) return [];
-  const { w, h } = localSize(state, cursor);
+  const { w, h } = localSize(state, cursor, ucs);
   const local = localVertices(state, w, h);
   if (!local || local.error) return [];
+  const first = worldToUcs(state.first, ucs);
   const radians = (state.rotationDeg * Math.PI) / 180;
   const cos = Math.cos(radians);
   const sin = Math.sin(radians);
   return [
     {
-      points: local.vertices.map((vertex) => ({
-        x: state.first!.x + vertex.x * cos - vertex.y * sin,
-        y: state.first!.y + vertex.x * sin + vertex.y * cos,
-      })),
+      points: local.vertices.map((vertex) => {
+        const world = ucsToWorld(
+          { x: first.x + vertex.x * cos - vertex.y * sin, y: first.y + vertex.x * sin + vertex.y * cos, z: first.z },
+          ucs,
+        );
+        return { x: world.x, y: world.y };
+      }),
       closed: true,
     },
   ];
 }
 
-/** Componentes del vector primera→segunda esquina en el marco del rectángulo. */
-function localSize(state: RectangState, opposite: CadPoint2): { w: number; h: number } {
-  const first = state.first!;
+/** Componentes del vector primera→segunda esquina en el marco del rectángulo, medidos EN el plano del SCU. */
+function localSize(state: RectangState, opposite: CadPoint2, ucs: CadNamedUcs): { w: number; h: number } {
+  const first = worldToUcs(state.first!, ucs);
+  const other = worldToUcs(opposite, ucs);
   const radians = (-state.rotationDeg * Math.PI) / 180;
-  const dx = opposite.x - first.x;
-  const dy = opposite.y - first.y;
+  const dx = other.x - first.x;
+  const dy = other.y - first.y;
   return {
     w: dx * Math.cos(radians) - dy * Math.sin(radians),
     h: dx * Math.sin(radians) + dy * Math.cos(radians),
@@ -363,6 +396,9 @@ const rectangCommand: CadCommandDescriptor<RectangState> = {
   selection: "none",
   repeatable: true,
   mutates: true,
+  // Calcula en el plano del SCU y escribe en el mundo: sobre un faldón queda
+  // sobre el faldón. Lo único que no cabe ahí es el Empalme, y se dice.
+  spatial: true,
   cursor: "crosshair",
   begin: (context) => rectangStep(initialState(), context),
   step: (state, input, context) => {
@@ -460,7 +496,7 @@ const rectangCommand: CadCommandDescriptor<RectangState> = {
     if (state.dimensions) {
       // Con Dimensiones ya fijadas, el punto sólo elige el CUADRANTE: hacia
       // dónde crece el rectángulo desde la primera esquina.
-      const local = localSize(state, input.point);
+      const local = localSize(state, input.point, workPlane(context));
       return finish(
         state,
         Math.sign(local.w || 1) * state.dimensions.length,
@@ -468,7 +504,7 @@ const rectangCommand: CadCommandDescriptor<RectangState> = {
         context,
       );
     }
-    const { w, h } = localSize(state, input.point);
+    const { w, h } = localSize(state, input.point, workPlane(context));
     return finish(state, w, h, context);
   },
 };

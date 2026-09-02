@@ -417,6 +417,21 @@ export function cadActiveUcs(variables: CadVariableAccess): CadNamedUcs {
  */
 export function cadActiveUcsIsTilted(variables: CadVariableAccess): boolean {
   if (Number(variables.get("UCSORGZ") ?? 0) !== 0) return true;
+  return cadActiveUcsIsInclined(variables);
+}
+
+/**
+ * ¿El plano de trabajo está INCLINADO o VOLTEADO respecto al del mundo?
+ *
+ * Es la mitad dura de `cadActiveUcsIsTilted`: aquí NO cuenta la elevación.
+ * Desde la Ola C (2026-09-02) el motor distingue los dos casos porque un SCU
+ * llano pero elevado —la planta del segundo piso a +3000— lo honra cualquier
+ * comando que conserve la cota del punto (`spatial: "elevation"`), mientras
+ * que un plano inclinado sólo lo honran los que dibujan en el plano del SCU
+ * (`spatial: true`). Un círculo a +3000 es un círculo; un círculo sobre un
+ * faldón sería una elipse en planta, y eso el documento aún no lo guarda.
+ */
+export function cadActiveUcsIsInclined(variables: CadVariableAccess): boolean {
   if (Number(variables.get("UCSXDIRZ") ?? 0) !== 0) return true;
   if (Number(variables.get("UCSYDIRZ") ?? 0) !== 0) return true;
   // Componente Z del producto vectorial X×Y: negativa ⇒ el SCU mira hacia abajo.

@@ -124,7 +124,7 @@ porque el instrumento no tenía ni una fila para el reconocimiento.
 > Editarla a mano es reintroducir el defecto que motivó el script: la prosa
 > manual envejeció dos veces y en las dos direcciones.
 
-**Puntuación (rúbrica 2026-09-02.1).** **Alcance de HOY: 170/191 (89 %)** — el flujo diario de dibujo 2D técnico, la cifra que se enseña a un cliente. **Alcance de DESTINO: 204/260 (78.5 %)** — AutoCAD completo con sus verticales, la cifra que mide el camino; lo excluido de hoy es «todavía no», nunca «nunca». 5 pt provienen de evidencia INDEPENDIENTE y 199 pt sólo de evidencia propia; 19 fila(s) retienen 1 pt hasta tener evidencia independiente. 0 de 34 filas están en su tope. Una fila sólo llega a su tope cuando TODOS sus criterios verifican, incluidos los que nombran gaps documentados; un gap conocido se declara como criterio que falla, no como nota al pie.
+**Puntuación (rúbrica 2026-09-02.1).** **Alcance de HOY: 170/191 (89 %)** — el flujo diario de dibujo 2D técnico, la cifra que se enseña a un cliente. **Alcance de DESTINO: 208/265 (78.5 %)** — AutoCAD completo con sus verticales, la cifra que mide el camino; lo excluido de hoy es «todavía no», nunca «nunca». 5 pt provienen de evidencia INDEPENDIENTE y 203 pt sólo de evidencia propia; 20 fila(s) retienen 1 pt hasta tener evidencia independiente. 0 de 35 filas están en su tope. Una fila sólo llega a su tope cuando TODOS sus criterios verifican, incluidos los que nombran gaps documentados; un gap conocido se declara como criterio que falla, no como nota al pie.
 
 ### Núcleo del plano entregable — 100/112
 
@@ -161,12 +161,13 @@ porque el instrumento no tenía ni una fila para el reconocimiento.
 | Eventos e integración asíncrona | 3/4 | Parcial | Outbox transaccional con leases, reintentos y cola muerta; Contrato de eventos versionado; Evidencia operacional sostenida y replay auditado con receptor externo | Nada pendiente: todos los criterios declarados verifican |
 | Almacenamiento de objetos | 2/3 | Parcial | Puerto de blob store desacoplado del almacenamiento concreto; Adaptador BYTEA con aislamiento por organización y specs; Adaptador S3/MinIO cableado, con migración y operación documentadas | Nada pendiente: todos los criterios declarados verifican |
 
-### Frontera avanzada — 15/19
+### Frontera avanzada — 19/24
 
 | Categoría | Puntos | Estado | Qué verifica hoy | Qué falta exactamente |
 | --- | ---: | --- | --- | --- |
 | Import/export DWG | 6/7 | Parcial | Decisión de arquitectura publicada sobre DWG y el laboratorio clean-room; Decoder productivo con corpus independiente y matriz de entidades; Exportación DWG con round-trip verificado por lector externo | Integración en runtime con gates legal, de seguridad y de fidelidad superados (1 pt) |
 | Modelo 3D y sólidos B-rep FACETADO | 6/7 | Parcial | Topología, tolerancia e invariantes verificadas; Extrusión, barrido, booleanas y redondeo con specs; NURBS, superficies y teselado; STEP e IGES en los dos sentidos; El editor lo usa: algo fuera de lib/brep lo importa | Nada pendiente: todos los criterios declarados verifican |
+| Modelado 3D: primitivas, SOLIDEDIT y la cota | 4/5 | Parcial | BOX, WEDGE, CYLINDER, CONE, SPHERE, TORUS, PYRAMID y POLYSOLID tecleables, como UN nodo reeditable cada una, con el volumen medido en papel; SOLIDEDIT con Cara Extruir (nodo push), Cuerpo Comprobar y Cuerpo Separar, y sus otras once ramas declaradas en el propio diálogo; La cota cruza todas las fronteras: PLINE y RECTANG dibujan en el plano del SCU inclinado, CIRCLE y ARC en la planta elevada, y el DXF conserva 30/31, elevación, polilínea 3D y SCU reflejado (lector de terceros como oráculo) | Nada pendiente: todos los criterios declarados verifican |
 | Kernel Rust/WASM | 1/2 | Parcial | Puerta de entrada publicada con condición de activación explícita | Kernel WASM con paridad numérica verde Y enchufado: alguien fuera de lib/cad/wasm lo importa (regla 6) (1 pt) |
 | Nubes de puntos, raster georreferenciado y GIS | 2/3 | Parcial | LAS/LAZ, GeoTIFF o SHP leídos en el runtime: el importador de documentos usa lib/geo de verdad; Sistemas de referencia y reproyección, con spec; Índices espaciales y pruebas a escala real: el nivel mayor del artefacto indexa millones de puntos con presupuesto de bytes por punto | Nada pendiente: todos los criterios declarados verifican |
 

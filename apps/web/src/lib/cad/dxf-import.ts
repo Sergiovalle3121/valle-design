@@ -13,7 +13,7 @@ import type { CadDxfSchema4Kind, CadDxfSchema4Payload } from "./dxf-schema4";
 // en sus propios módulos: este archivo está en su asignación de tamaño y los
 // tipos del esquema 4 necesitaban sitio.
 import { num, pt, rawDxfPairs } from "./dxf-read-core";
-import { conCotaDeclarada } from "./dxf-import-cota";
+import { conCotaDeclarada, conExtrusionCruda, enElMundo } from "./dxf-import-cota";
 import {
   decodeComponent,
   insertSignature,
@@ -56,19 +56,16 @@ export type CadDxfPrimitiveKind =
   | "arc"
   | "ellipse"
   | "spline"
-  // Esquema 4. Entran por el MISMO canal que el resto —ver `dxf-schema4.ts`—
-  // para que exportar un XLINE no exija que cada intermediario aprenda una
-  // lista nueva; lo que no es geometría viaja en `schema4`.
+  // Esquema 4 (ver `dxf-schema4.ts`): entra por el MISMO canal para que exportar
+  // un XLINE no exija listas nuevas; lo que no es geometría viaja en `schema4`.
   | CadDxfSchema4Kind;
 export interface CadDxfPoint {
   x: number;
   y: number;
-  /**
-   * Abombamiento del segmento que ARRANCA en este vértice (código de grupo 42
-   * de DXF): `bulge = tan(θ/4)`, positivo = antihorario. Sólo aplica a
-   * polilíneas; su ausencia significa segmento recto.
-   */
+  /** Bulge del tramo que ARRANCA aquí (código 42): `tan(θ/4)`, positivo = antihorario; ausente = recto. */
   bulge?: number;
+  /** Cota (códigos 30/31), en unidades del fichero; ausente = 0, el suelo (Ola C, 2026-09-02). */
+  z?: number;
 }
 export interface CadDxfPrimitive {
   kind: CadDxfPrimitiveKind;
@@ -595,9 +592,9 @@ function mapDxfEntityToPrimitiveEnElPlano(entity: any): {
   };
 }
 
-/** El mapeador con la pérdida de cota DECLARADA. Ver `dxf-import-cota.ts`. */
+/** El mapeador devuelto al MUNDO y con la pérdida que quede DECLARADA. Ver `dxf-import-cota.ts`. */
 export const mapDxfEntityToPrimitive = (entity: any) =>
-  conCotaDeclarada(entity, mapDxfEntityToPrimitiveEnElPlano(entity));
+  conCotaDeclarada(entity, enElMundo(entity, mapDxfEntityToPrimitiveEnElPlano(entity)));
 
 const MAX_INSERT_DEPTH = 4;
 
@@ -1058,7 +1055,8 @@ export function importDxfPrimitives(text: string): CadDxfImportResult {
       }
       continue;
     }
-    const mapped = mapDxfEntityToPrimitive(entity);
+    // La extrusión que `dxf-parser` tira (CIRCLE) entra por los pares crudos.
+    const mapped = mapDxfEntityToPrimitive(conExtrusionCruda(entity, properties.entities[orderCursor - 1]));
     if (mapped.primitive) {
       const presentation = currentPresentation(type);
       primitives.push(presentation ? { ...mapped.primitive, presentation } : mapped.primitive);

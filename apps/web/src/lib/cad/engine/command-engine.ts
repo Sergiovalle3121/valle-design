@@ -27,6 +27,7 @@ import type { SnapType } from "../snap-engine";
 import type { CadEntityCommand } from "../entity-commands";
 import {
   cadActiveUcs,
+  cadActiveUcsIsInclined,
   cadActiveUcsIsTilted,
   type CadSystemVariableValue,
 } from "../system-variables";
@@ -308,30 +309,37 @@ export function cadCommandEngineReduce(
     };
   }
 
-  // Fallo cerrado ante un SCU inclinado: un comando que escribe geometría y no
-  // se ha declarado espacial aplanaría el punto contra el suelo sin decir nada.
-  // Se comprueba aquí, en el único sitio por el que pasan TODOS los puntos —los
-  // tecleados y los del puntero—, en vez de en cada comando.
+  // Fallo cerrado ante un SCU que no es el plano z = 0 del mundo: un comando
+  // que escribe geometría y no se ha declarado espacial aplanaría el punto
+  // contra el suelo sin decir nada. Se comprueba aquí, en el único sitio por el
+  // que pasan TODOS los puntos —los tecleados y los del puntero—, en vez de en
+  // cada comando. Dos grados (Ola C): un SCU ELEVADO lo honra cualquier
+  // `spatial` (`true` o `"elevation"`); uno INCLINADO, sólo `spatial: true`.
   if (
     action.input.kind === "point" &&
     descriptor.mutates &&
-    !descriptor.spatial &&
-    context.variables &&
-    cadActiveUcsIsTilted(context.variables)
-  )
-    return {
-      state,
-      effects: [
-        {
-          kind: "message",
-          text:
-            `${descriptor.name} todavía no sabe dibujar fuera del plano XY del mundo, y el SCU activo está ` +
-            "inclinado: el trazo se guardaría a cota cero, donde no lo puso usted. Vuelva al SCU universal " +
-            "con UCS Universal, o use LINE, que sí conserva la cota.",
-          level: "error",
-        },
-      ],
-    };
+    descriptor.spatial !== true &&
+    context.variables
+  ) {
+    const inclined = cadActiveUcsIsInclined(context.variables);
+    if (inclined || (!descriptor.spatial && cadActiveUcsIsTilted(context.variables)))
+      return {
+        state,
+        effects: [
+          {
+            kind: "message",
+            text: inclined
+              ? `${descriptor.name} todavía no sabe dibujar sobre un plano inclinado, y el SCU activo lo está: ` +
+                "el trazo se guardaría en planta, donde no lo puso usted. Vuelva al SCU universal con UCS " +
+                "Universal, o use LINE, PLINE o RECTANG, que sí dibujan en el plano del SCU."
+              : `${descriptor.name} todavía no sabe dibujar fuera del plano XY del mundo, y el SCU activo está ` +
+                "elevado: el trazo se guardaría a cota cero, donde no lo puso usted. Vuelva al SCU universal " +
+                "con UCS Universal, o use LINE, que sí conserva la cota.",
+            level: "error",
+          },
+        ],
+      };
+  }
 
   let step: CadCommandStep<unknown>;
   try {

@@ -2834,6 +2834,46 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "OLA-C-CIMIENTO-3D-20260902",
+      "date": "2026-09-02",
+      "initiative": "Ola C del encargo «Valle Design → AutoCAD completo»: el cimiento 3D. (1) La cota de punta a punta: `pt()` conserva el código 30 y `pushPoint` lo escribe (antes «0» fijo: un pilar de tres metros salía de longitud cero), la LINE escribe 31, la POLYLINE lleva su elevación en la cabecera o sale como polilínea 3D (bit 8, VERTEX 70=32) cuando sus cotas difieren y no hay bulge, `point3z` escala la z con la proyección, `dxf-read-properties.ts` captura 210/220/230 (dxf-parser los tira en CIRCLE) y `enElMundo` devuelve al mundo lo dibujado en un SCU reflejado (0,0,−1): (x,y,z)→(−x,y,−z), arcos de a→b a 180−b→180−a, bulge con el signo cambiado; `avisoDeCotaPerdida` sólo declara lo que sigue sin caber (plano inclinado, textos e inserciones) y el manifiesto de exportación sólo la polilínea con arcos y cotas distintas. Verificado en `verification/z-frontiers.spec.ts` con dxf-parser de oráculo. (2) `spatial` gana el grado `\"elevation\"` y el motor distingue el SCU elevado del inclinado (`cadActiveUcsIsInclined`): PLINE conserva la cota de cada vértice, prolonga Longitud en 3D y rechaza Arco sobre plano inclinado diciéndolo; RECTANG calcula en el plano del SCU (`worldToUcs`/`ucsToWorld`) y rechaza Empalme inclinado; CIRCLE y ARC toman la cota del primer punto; se teclea `x,y,z`. (3) Las ocho primitivas (`solids-primitives.ts`: BOX y WEDGE por esquinas con Centro/Cubo/Longitud/2Puntos; CYLINDER, CONE con Radio superior, SPHERE y TORUS con Diámetro; PYRAMID con Lados, Inscrito/Circunscrito y Radio superior; POLYSOLID con Altura/Ancho/Justificación/Objeto/Cerrar), cada una UN nodo reeditable (`box`, `extrude`, `revolve`, `brep`), con el volumen medido en papel (el cilindro exacto, el cono como pirámide N-gonal `N·r²·h·sin(2π/N)/6`). (4) SOLIDEDIT con Cara Extruir (nodo `push`), Cuerpo Comprobar y Cuerpo Separar (una unión de cuerpos que no interfieren, en un sólido por operando); las once ramas restantes declaradas en el diálogo. Medido antes: la sonda de integridad pasa de 204 a 213 comandos con 0 éxitos falsos; la cinta cubre 213/213; la rúbrica gana `modeling3d` (5 pt de DESTINO, denominador 265 con nota fechada). Lo que sigue en «todavía no» queda en ESCALERA: plano inclinado para círculos, arcos, primitivas e importación DXF; ver la cota en pantalla; las transformadas 3D, superficies y malla.",
+      "branch": "claude/valle-design-autocad-vqfa6u",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo escrito «Valle Design → AutoCAD completo, con sus siete toolsets», §Ola C (cimiento 3D).",
+      "firstPartyInputs": [
+        "docs/competitive/distancia-autocad-completo-20260901.md §Modelado 3D (la sonda de 69 órdenes: 24 presentes, 45 ausentes) y docs/competitive/liston-autocad-completo.md §1 y §5; cada frontera de la cota se midió antes con grep y specs de sonda en el scratchpad.",
+        "Specs de Node nuevos o ampliados, corridos en esta máquina: verification/z-frontiers (39), dxf-import-cota, dxf-export-losses, dxf-corpus-roundtrip, verification/dxf-roundtrip, draw-spatial (25), ucs-3d (68), precision-input (26), solids-primitives (60), solids-edit (24), command-summaries, ribbon, ribbon-golden, keyboard-alias-collisions; sonda de integridad 213 comandos, 0 ROJO.",
+        "Golden 73 (BOX y CYLINDER tecleados; el volumen se recalcula con el kernel sobre lo que recibió el servidor) contra el build de producción, Chromium, 1 worker: ver PR #176."
+      ],
+      "externalSources": [
+        {
+          "source": "Especificación DXF de Autodesk (documentación pública): códigos 30/31/38/210 y el algoritmo del eje arbitrario del OCS; bit 8 del código 70 de POLYLINE y 70=32 de VERTEX.",
+          "terms": "Documentación pública de referencia del formato; no se copió implementación alguna.",
+          "usedFor": "dxf-import-cota.ts (enElMundo), dxf-export.ts (pushPolyline), dxf-read-properties.ts (extrusionOrNothing)."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna. Las primitivas se construyen con los constructores propios de lib/brep (circleProfile, extrudeProfile, revolveProfile, buildBody).",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/{dxf-read-core.ts, dxf-write-core.ts, dxf-export.ts, dxf-entity-primitives.ts, dxf-projection.ts, dxf-cad-document.ts, dxf-import.ts, dxf-import-cota.ts, dxf-read-properties.ts, dxf-export-loss-manifest.ts, precision-input.ts, system-variables.ts}",
+        "apps/web/src/lib/cad/engine/{command-types.ts, command-engine.ts, spatial-point.ts (nuevo), index.ts, command-summaries.ts}; engine/commands/{draw-basics.ts, draw-curves.ts, draw-pline.ts, draw-rectang.ts, solids-primitives.ts (nuevo), solids-edit.ts (nuevo)}",
+        "apps/web/src/lib/cad/ribbon.ts; apps/web/e2e/golden/73-cad-primitivas-de-solido.spec.ts (nuevo)",
+        "docs/competitive/{rubric.json, autocad-2027-gap-matrix.md, distancia-autocad-completo-20260901.md}, docs/parity/ESCALERA.md, docs/cad/evidence/{command-integrity.json, ui-command-reach.json}, scripts/cad/rubric.spec.mjs",
+        "apps/api/src/modules/identity/identity-mfa.pg.spec.ts (el caso de carrera emite sus dos desafíos en serie; la carrera medida sigue en paralelo)"
+      ],
+      "fixtures": "Ninguno nuevo con datos ajenos; los DXF de las specs se escriben a mano en el propio spec.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Ocho primitivas y SOLIDEDIT con specs de volumen y golden 73; la cota verificada contra un lector de terceros; la sonda de integridad a 213 con 0 éxitos falsos; lo que no cabe, en ESCALERA."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

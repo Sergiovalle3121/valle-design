@@ -40,6 +40,26 @@ ok(
   ok(r.ok && nearP(r.point, 10, 20), "absoluto tolera espacios");
 }
 
+// ── x,y,z: la cota tecleada (Ola C, 2026-09-02) ──
+{
+  const r = parseCoordinate("0,0,3000");
+  ok(r.ok && r.mode === "absolute" && nearP(r.point, 0, 0) && (r.point as { z?: number }).z === 3000, "absoluto 0,0,3000 lleva la cota");
+}
+{
+  const r = parseCoordinate("10,20");
+  ok(r.ok && !("z" in r.point), "sin tercera componente no se inventa una z");
+}
+{
+  const r = parseCoordinate("@0,0,3000", { last: { x: 10, y: 10 } });
+  ok(r.ok && r.mode === "relative" && nearP(r.point, 10, 10) && (r.point as { z?: number }).z === 3000, "relativo @0,0,3000 sube 3000 desde el último punto");
+}
+{
+  const r = parseCoordinate("@5,5", { last: { x: 10, y: 10, z: 3000 } as Point });
+  ok(r.ok && nearP(r.point, 15, 15) && (r.point as { z?: number }).z === 3000, "relativo sin z conserva la cota del último punto");
+}
+ok(!parseCoordinate("1,2,x").ok, "una z que no es número se rechaza");
+ok(!parseCoordinate("1,2,3,4").ok, "cuatro componentes se rechazan");
+
 // ── relativo @dx,dy ──
 {
   const r = parseCoordinate("@5,-3", { last: { x: 10, y: 10 } });

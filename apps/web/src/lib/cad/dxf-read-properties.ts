@@ -85,6 +85,14 @@ export interface CadDxfLayerDefinition {
 export interface CadDxfEntityProperties {
   type: string;
   presentation?: CadEntityPresentation;
+  /**
+   * Dirección de extrusión (210/220/230), leída aquí porque `dxf-parser` la
+   * TIRA en CIRCLE (`checkCommonEntityProperties` no la conoce) y la entrega
+   * con dos formas distintas en el resto. Un círculo dibujado en un SCU
+   * reflejado llegaba sin su (0,0,−1) y se importaba en el sitio equivocado
+   * sin que el mapeador pudiera saberlo (Ola C, 2026-09-02).
+   */
+  extrusion?: { x: number; y: number; z: number };
 }
 
 export interface CadDxfPropertyWarning {
@@ -287,15 +295,36 @@ function flushRecord(
   }
   if (SUB_ENTITY_TYPES.has(upper)) return;
   if (cursor.section === "ENTITIES") {
-    result.entities.push({ type: upper, ...presentationOrNothing(pairs, result.warnings, upper) });
+    result.entities.push({
+      type: upper,
+      ...presentationOrNothing(pairs, result.warnings, upper),
+      ...extrusionOrNothing(pairs),
+    });
     return;
   }
   if (cursor.section === "BLOCKS" && cursor.block && upper !== "BLOCK" && upper !== "ENDBLK") {
     (result.blocks[cursor.block] ??= []).push({
       type: upper,
       ...presentationOrNothing(pairs, result.warnings, upper),
+      ...extrusionOrNothing(pairs),
     });
   }
+}
+
+/** Los tres códigos de la extrusión, si el fichero trae alguno; los que falten valen 0. */
+function extrusionOrNothing(pairs: RawDxfPair[]): { extrusion?: { x: number; y: number; z: number } } {
+  const read = (code: number) => {
+    const value = pairs.find((pair) => pair.code === code)?.value;
+    return value === undefined ? null : Number(value);
+  };
+  const x = read(210);
+  const y = read(220);
+  const z = read(230);
+  if (x === null && y === null && z === null) return {};
+  const extrusion = { x: x ?? 0, y: y ?? 0, z: z ?? 0 };
+  return Number.isFinite(extrusion.x) && Number.isFinite(extrusion.y) && Number.isFinite(extrusion.z)
+    ? { extrusion }
+    : {};
 }
 
 function presentationOrNothing(

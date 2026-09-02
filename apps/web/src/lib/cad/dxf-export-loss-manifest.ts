@@ -208,7 +208,25 @@ const SCHEMA4_LOSS_RULES: Record<string, Schema4LossRule> = {
 };
 
 /** ¿Alguna coordenada de la entidad vive fuera del plano Z=0? */
+/**
+ * Tipos cuya cota VIAJA al fichero desde la Ola C (2026-09-02): la LINE y la
+ * SPLINE con sus puntos WCS (30/31), el círculo, el arco y la elipse con la z
+ * de su centro. Para ellos una z distinta de cero ya no es una pérdida.
+ */
+const Z_TRAVELS = new Set<CadEntity["type"]>(["line", "circle", "arc", "ellipse", "spline"]);
+
 function entityElevations(entity: CadEntity): number[] {
+  if (Z_TRAVELS.has(entity.type)) return [];
+  if (entity.type === "polyline") {
+    // Una polilínea plana (aunque elevada) viaja con su elevación, y una
+    // alabeada pero RECTA viaja como polilínea 3D. Sólo pierde la cota la que
+    // combina arcos con vértices a cotas distintas: el formato no tiene
+    // polilínea 3D con bulge, y el escritor la aplana a la cota del primero.
+    const zs = entity.vertices.map((vertex) => vertex.z ?? 0);
+    const varies = zs.some((z) => Math.abs(z - zs[0]) > 1e-9);
+    const bulged = entity.vertices.some((vertex) => typeof vertex.bulge === "number" && vertex.bulge !== 0);
+    return varies && bulged ? zs.filter((z) => z !== zs[0]) : [];
+  }
   const points: (CadPoint3 | undefined)[] = [];
   const candidate = entity as unknown as Record<string, CadPoint3 | undefined>;
   // `basePoint` es de XLINE/RAY; el resto ya existían antes del esquema 4.
@@ -287,7 +305,10 @@ export function cadDocumentDxfExportLosses(
         entityId: entity.id,
         sourceType: entity.type,
         severity: "warning",
-        detail: `La elevación Z (${elevations[0]}) se aplanará a 0 al exportar a DXF. Si la cota importa, no uses este DXF como original.`,
+        detail:
+          entity.type === "polyline"
+            ? `La cota Z (${elevations[0]}) se perderá al exportar a DXF: el formato no tiene polilínea 3D con arcos, así que los vértices se escriben a la cota del primero. Si la cota importa, no uses este DXF como original.`
+            : `La elevación Z (${elevations[0]}) se aplanará a 0 al exportar a DXF: esta entidad se escribe sobre el plano del suelo. Si la cota importa, no uses este DXF como original.`,
       });
     }
 

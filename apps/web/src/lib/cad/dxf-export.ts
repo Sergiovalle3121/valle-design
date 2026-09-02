@@ -300,7 +300,7 @@ function pushLine(
   pushPoint(lines, from);
   pushPair(lines, 11, fmt(to.x));
   pushPair(lines, 21, fmt(to.y));
-  pushPair(lines, 31, "0");
+  pushPair(lines, 31, fmt(to.z ?? 0));
 }
 function pushPolyline(
   lines: string[],
@@ -309,21 +309,34 @@ function pushPolyline(
   closed: boolean,
   presentation?: CadEntityPresentation,
 ) {
+  // La cota decide la CLASE de polilínea, como en AutoCAD: si todos los
+  // vértices comparten z es una polilínea 2D elevada (la elevación va en el
+  // código 30 de la cabecera y se repite en cada VERTEX); si difieren, es una
+  // POLILÍNEA 3D (bit 8 del 70, VERTEX con 70 = 32), que en el formato no
+  // admite bulge. Con bulge Y cotas distintas se conserva el arco y se aplana
+  // a la cota del primer vértice: el manifiesto de pérdidas lo declara.
+  const elevation = points[0]?.z ?? 0;
+  const spatial =
+    points.some((point) => Math.abs((point.z ?? 0) - elevation) > 1e-9) &&
+    !points.some((point) => typeof point.bulge === "number" && point.bulge !== 0);
   pushPair(lines, 0, "POLYLINE");
   pushPair(lines, 8, layer);
   pushPresentation(lines, presentation);
   pushPair(lines, 66, 1);
-  pushPair(lines, 70, closed ? 1 : 0);
+  // La cabecera sólo lleva su punto (10/20 siempre 0) cuando hay elevación:
+  // un fichero plano sigue saliendo byte a byte como antes.
+  if (!spatial && elevation !== 0) pushPoint(lines, { x: 0, y: 0, z: elevation });
+  pushPair(lines, 70, (closed ? 1 : 0) | (spatial ? 8 : 0));
   for (const point of points) {
     pushPair(lines, 0, "VERTEX");
     pushPair(lines, 8, layer);
-    pushPoint(lines, point);
+    pushPoint(lines, spatial ? point : { ...point, z: elevation });
+    if (spatial) pushPair(lines, 70, 32);
     // Código de grupo 42: abombamiento del segmento que arranca aquí. Sin
     // emitirlo, cada arco de la polilínea salía como cuerda recta y la
     // pérdida era además silenciosa.
-    if (typeof point.bulge === "number" && point.bulge !== 0) {
+    else if (typeof point.bulge === "number" && point.bulge !== 0)
       pushPair(lines, 42, fmt(point.bulge));
-    }
   }
   pushPair(lines, 0, "SEQEND");
 }
@@ -374,7 +387,7 @@ function pushEllipse(
   // 11/21/31: extremo del eje mayor RELATIVO al centro (convención DXF).
   pushPair(lines, 11, fmt(majorAxis.x));
   pushPair(lines, 21, fmt(majorAxis.y));
-  pushPair(lines, 31, "0");
+  pushPair(lines, 31, fmt(majorAxis.z ?? 0));
   pushPair(lines, 40, fmt(axisRatio));
   // 41/42: parámetros en RADIANES en el archivo; el modelo usa grados.
   pushPair(lines, 41, fmt((startAngleDeg * Math.PI) / 180));

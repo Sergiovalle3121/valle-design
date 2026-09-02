@@ -291,13 +291,16 @@ describePostgres('segundo factor (PostgreSQL real)', () => {
     const usuario = await cuenta();
     const { respaldos } = await conSegundoFactor(usuario);
 
-    const desafios = await Promise.all([
-      identity.login(CORREO, CONTRASENA),
-      identity.login(CORREO, CONTRASENA),
-    ]);
-    // Emitir un desafío invalida el anterior, así que sólo el último sirve; se
-    // usa ése dos veces en paralelo, que es la carrera que interesa.
-    const ultimo = desafios[desafios.length - 1];
+    // Dos inicios de sesión SEGUIDOS, no en paralelo. Emitir un desafío
+    // invalida el anterior, y con dos logins simultáneos —cada uno en su
+    // transacción bajo `lockIdentitySubject`— no está definido cuál de los dos
+    // se ejecuta el último: el segundo de la lista podía ser el INVALIDADO y
+    // las dos peticiones de abajo fallaban a la vez (0 éxitos; medido en CI el
+    // 2026-09-02 sobre e8d8850, con el mismo caso verde 5/5 en local). La
+    // carrera que este caso prueba es la de ABAJO, sobre el respaldo, y ésa
+    // sigue en paralelo.
+    await identity.login(CORREO, CONTRASENA);
+    const ultimo = await identity.login(CORREO, CONTRASENA);
     if (ultimo.kind !== 'mfa') throw new Error('se esperaba un desafío');
 
     const resultados = await Promise.allSettled([

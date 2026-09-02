@@ -30,9 +30,11 @@ import {
   type CadCommandStep,
   type CadPreviewPath,
 } from "../command-types";
+import { cadLiftPoint } from "../spatial-point";
 
+/** Punto 3D: la cota del punto si la trae (SCU elevado, `x,y,z` tecleado), o el suelo. */
 function flat(point: CadPoint2) {
-  return { x: point.x, y: point.y, z: 0 };
+  return cadLiftPoint(point);
 }
 
 function distance(a: CadPoint2, b: CadPoint2): number {
@@ -158,9 +160,11 @@ function arcFromThreePoints(
   return [
     {
       type: "insert",
+      // El centro calculado no trae cota: toma la del punto inicial, que
+      // es el plano del arco (SCU elevado).
       entity: arcEntity(
         context.newEntityId(),
-        circle.center,
+        cadLiftPoint(circle.center, start),
         circle.radius,
         from,
         to,
@@ -193,7 +197,7 @@ function arcFromCenter(
       type: "insert",
       entity: arcEntity(
         context.newEntityId(),
-        center,
+        cadLiftPoint(center, start),
         radius,
         realFrom,
         to,
@@ -276,6 +280,9 @@ const arcCommand: CadCommandDescriptor<ArcState> = {
   selection: "none",
   repeatable: true,
   mutates: true,
+  // Como CIRCLE: conserva la cota del plano (SCU elevado) y no sabe dibujar
+  // sobre uno inclinado, donde el arco por tres puntos se resuelve en planta.
+  spatial: "elevation",
   cursor: "crosshair",
   begin: (context) => arcStep({ mode: "three-point", points: [], byAngle: false }, context),
   step: (state, input, context) => {

@@ -4,7 +4,7 @@
   "version": "2026-09-02.1",
   "title": "Rúbrica competitiva CAD — Valle Design frente a AutoCAD 2027",
   "cutoffDate": "2026-08-22",
-  "totalPoints": 260,
+  "totalPoints": 265,
   "manualMaxAgeDays": 180,
   "notes": [
     "Hay DOS denominadores y los dos se publican SIEMPRE con su etiqueta: «Alcance de HOY» (las filas con scope 'hoy': el flujo diario de dibujo 2D técnico; la cifra que se enseña a un cliente y se vende contra AutoCAD LT) y «Alcance de DESTINO» (todas las filas: AutoCAD completo con sus siete toolsets). Un porcentaje sin su etiqueta de alcance no se cita en ningún informe: «88,6 %» a secas fue el error de la auditoría del 2026-09-01.",
@@ -34,7 +34,7 @@
     {
       "id": "frontier",
       "name": "Frontera avanzada",
-      "points": 19
+      "points": 24
     },
     {
       "id": "truth",
@@ -2506,6 +2506,100 @@
             {
               "kind": "imported",
               "module": "apps/web/src/lib/brep"
+            }
+          ]
+        }
+      ],
+      "scope": "destino"
+    },
+    {
+      "id": "modeling3d",
+      "group": "frontier",
+      "name": "Modelado 3D: primitivas, SOLIDEDIT y la cota",
+      "points": 5,
+      "gap": "Ola C (2026-09-02). Medido antes: faltaban LAS OCHO primitivas (el nodo `box` existía y ningún comando lo creaba), SOLIDEDIT entero y la cota moría en cuatro fronteras del DXF (30/31 fijos a cero, `pt()` y `point3()` la tiraban). Lo que sigue en «todavía no»: CIRCLE/ARC y las primitivas sobre un plano INCLINADO (honran el elevado), el plano inclinado al importar DXF (normal ≠ ±Z) y las ramas de SOLIDEDIT que piden recomponer caras (Mover, Girar, Desfasar…) o designar aristas.",
+      "criteria": [
+        {
+          "id": "modeling3d.primitives",
+          "points": 2,
+          "text": "BOX, WEDGE, CYLINDER, CONE, SPHERE, TORUS, PYRAMID y POLYSOLID tecleables, como UN nodo reeditable cada una, con el volumen medido en papel",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "command",
+              "name": "BOX"
+            },
+            {
+              "kind": "command",
+              "name": "WEDGE"
+            },
+            {
+              "kind": "command",
+              "name": "CYLINDER"
+            },
+            {
+              "kind": "command",
+              "name": "CONE"
+            },
+            {
+              "kind": "command",
+              "name": "SPHERE"
+            },
+            {
+              "kind": "command",
+              "name": "TORUS"
+            },
+            {
+              "kind": "command",
+              "name": "PYRAMID"
+            },
+            {
+              "kind": "command",
+              "name": "POLYSOLID"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/solids-primitives.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/73-cad-primitivas-de-solido.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "modeling3d.solidedit",
+          "points": 1,
+          "text": "SOLIDEDIT con Cara Extruir (nodo push), Cuerpo Comprobar y Cuerpo Separar, y sus otras once ramas declaradas en el propio diálogo",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "command",
+              "name": "SOLIDEDIT"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/solids-edit.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "modeling3d.z-roundtrip",
+          "points": 2,
+          "text": "La cota cruza todas las fronteras: PLINE y RECTANG dibujan en el plano del SCU inclinado, CIRCLE y ARC en la planta elevada, y el DXF conserva 30/31, elevación, polilínea 3D y SCU reflejado (lector de terceros como oráculo)",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/verification/z-frontiers.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/draw-spatial.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dxf-import-cota.spec.ts"
             }
           ]
         }
