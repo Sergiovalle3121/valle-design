@@ -36,6 +36,8 @@ import { CAD_DRAW_OPENING_COMMANDS } from "./commands/draw-opening";
 import { CAD_DRAW_WALL_COMMANDS } from "./commands/draw-wall";
 import { CAD_ARCHITECTURE_STAIR_COMMANDS } from "./commands/architecture-stair";
 import { CAD_ARCHITECTURE_ROOF_COMMANDS } from "./commands/architecture-roof";
+import { CAD_MEP_TRACING_COMMANDS } from "./commands/mep-tracing";
+import { CAD_MEP_SYMBOL_COMMANDS } from "./commands/mep-symbol";
 import { CAD_INQUIRY_LIST_COMMANDS } from "./commands/inquiry-list";
 import { CAD_INQUIRY_MEASURE_COMMANDS } from "./commands/inquiry-measure";
 import { CAD_REGION_COMMANDS } from "./commands/inquiry-region";
@@ -188,6 +190,8 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_DRAW_WALL_COMMANDS,
   ...CAD_ARCHITECTURE_STAIR_COMMANDS,
   ...CAD_ARCHITECTURE_ROOF_COMMANDS,
+  ...CAD_MEP_TRACING_COMMANDS,
+  ...CAD_MEP_SYMBOL_COMMANDS,
   // Intercambio: DXFIN y DXFOUT. El bloqueo número uno de un despacho no es que
   // falte una orden de dibujo, es que el archivo del cliente no entre ni salga.
   ...CAD_DXF_INTEROP_COMMANDS,

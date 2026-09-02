@@ -16,6 +16,7 @@ import { buildCadDimensionGeometry } from "./associative-dimension";
 import { buildCadMleaderGeometry } from "./associative-mleader";
 import { plotEntityFromRegistry } from "./paper-space-registry-fallback";
 import { cadTableCellTextCommands } from "./paper-space-table";
+import { cadLinetypeTextCommands } from "./paper-space-linetype-text";
 import { IDENTITY, multiply, point, type Affine } from "./paper-space-affine";
 import { blockPresentation, styleFor, unitToMm } from "./paper-space-style";
 
@@ -82,6 +83,8 @@ export interface CadVectorStyle {
   fill?: string;
   lineWidth: number;
   dash?: number[];
+  /** Nombre efectivo del tipo de línea; con él se rotulan los complejos (Ola F). */
+  linetype?: string;
 }
 
 export type CadVectorCommand =
@@ -504,16 +507,16 @@ function renderEntity(
       (value): value is CadVectorCommand => !!value,
     );
   }
-  if (entity.type === "line") {
-    return [path([entity.start, entity.end])].filter(
-      (value): value is CadVectorCommand => !!value,
-    );
-  }
-  if (entity.type === "polyline") {
-    return [path(entity.vertices, entity.closed)].filter(
-      (value): value is CadVectorCommand => !!value,
-    );
-  }
+  // GAS_LINE y familia (Ola F): el guion va en `style.dash`; el texto, aquí.
+  const linetypeTexts = (points: (CadPoint2 & { bulge?: number })[], closed: boolean) =>
+    cadLinetypeTextCommands(points, closed, {
+      entityId: entity.id, viewportId: context.viewport.id, linetype: style.linetype,
+      toPaper: (anchor) => point(matrix, anchor), linetypeScale: context.document.meta.linetypeScale ?? 1, color: style.stroke,
+    });
+  if (entity.type === "line")
+    return [...[path([entity.start, entity.end])].filter((value): value is CadVectorCommand => !!value), ...linetypeTexts([entity.start, entity.end], false)];
+  if (entity.type === "polyline")
+    return [...[path(entity.vertices, entity.closed)].filter((value): value is CadVectorCommand => !!value), ...linetypeTexts(entity.vertices, entity.closed)];
   if (entity.type === "circle") {
     const points = tessellateArc(entity.center, entity.radius, 0, 360, 96);
     return [path(points, true)].filter(

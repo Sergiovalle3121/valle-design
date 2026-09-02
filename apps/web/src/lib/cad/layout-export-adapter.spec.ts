@@ -98,4 +98,42 @@ assert.ok(exported.content.includes("1\n5 mm"), "exports measurement label");
 // La medición viaja como UNA entidad DIMENSION nativa con bloque *D (CAD-NEXT-066).
 assert.ok(exported.content.includes("0\nDIMENSION"), "measurement is a native DIMENSION");
 assert.equal(exported.entityCount, 5, "counts box labels as DXF entities");
-console.log("cad layout export adapter specs passed");
+// Con el DOCUMENTO (Ola F, 2026-09-02): las capas llevan su tipo de línea y
+// grosor, la tabla LTYPE viaja (con el texto de los complejos) y $LTSCALE
+// también — la misma traducción que DXFOUT. Medido antes: GAS = GAS_LINE
+// salía como `6 CONTINUOUS`, sin LTYPE ni $LTSCALE.
+{
+  const documento = {
+    layers: [
+      { id: "0", name: "0", color: "#ffffff", visible: true, locked: false },
+      { id: "GAS", name: "GAS", color: "#f59e0b", visible: true, locked: false, linetype: "GAS_LINE", lineweight: 0.35 },
+      { id: "EJES", name: "EJES", color: "#94a3b8", visible: true, locked: false, linetype: "CENTER", frozen: true },
+    ],
+    entities: [],
+    styles: { text: {}, dimension: {}, table: {}, plot: {} },
+    meta: { linetypeScale: 500 },
+  } as never;
+  const withDocument = cadLayoutToDxfExportModel({
+    primitives: [
+      { kind: "line", layer: "GAS", points: [{ x: 0, y: 0 }, { x: 10_000, y: 0 }] },
+      { kind: "line", layer: "EJES", points: [{ x: 0, y: 1000 }, { x: 10_000, y: 1000 }] },
+    ],
+    document: documento,
+  });
+  const gas = withDocument.layers?.find((layer) => layer.name === "GAS");
+  assert.equal(gas?.linetype, "GAS_LINE", "la capa GAS lleva su tipo de línea");
+  assert.equal(gas?.lineweight, 35, "y su grosor en centésimas");
+  assert.equal(withDocument.layers?.find((layer) => layer.name === "EJES")?.frozen, true, "y EJES congelada");
+  assert.equal(withDocument.linetypeScale, 500, "$LTSCALE viaja");
+  const ltype = withDocument.linetypes?.find((entry) => entry.name === "GAS_LINE");
+  assert.deepEqual(ltype?.pattern, [0.5, -0.2, -0.25], "la tabla LTYPE lleva GAS_LINE con sus tramos");
+  assert.equal(ltype?.texts?.[0]?.text, "GAS", "y su texto");
+  const content = exportCadLayoutDxf({ primitives: [{ kind: "line", layer: "GAS", points: [{ x: 0, y: 0 }, { x: 10_000, y: 0 }] }], document: documento }).content;
+  assert.match(content, /\nGAS\n\s*70\n\s*0\n\s*62\n\s*\d+\n\s*6\nGAS_LINE\n/, "LAYER GAS con 6 GAS_LINE");
+  assert.match(content, /\n\s*49\n\s*-0\.25\n\s*74\n\s*2\n/, "y el LTYPE complejo con 74 = 2");
+  assert.match(content, /\$LTSCALE\n\s*40\n\s*500\n/, "y $LTSCALE 500");
+  const without = cadLayoutToDxfExportModel({ primitives: [{ kind: "line", layer: "GAS", points: [{ x: 0, y: 0 }, { x: 10, y: 0 }] }] });
+  assert.equal(without.layers?.find((layer) => layer.name === "GAS")?.linetype, undefined, "sin documento, como antes: sólo el nombre");
+}
+
+console.log("cad layout export adapter specs passed — con documento, las capas llevan tipo de línea y grosor, la tabla LTYPE y $LTSCALE viajan");

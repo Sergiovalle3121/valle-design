@@ -111,7 +111,8 @@ export function buildCadDataExtractionCsv(schedule: CadBimSchedule): string {
  * el cuadro de muros, el de superficies y el de carpintería; tenerlo tres
  * veces habría dejado tres anchos de columna distintos para el mismo texto.
  */
-function scheduleTable(
+/** La TABLE de un cuadro: título, cabecera y filas; lo comparten los cuatro cuadros. */
+export function scheduleTable(
   title: string,
   headers: readonly string[],
   rows: readonly (readonly string[])[],

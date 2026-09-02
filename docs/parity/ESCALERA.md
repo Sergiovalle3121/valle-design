@@ -150,7 +150,7 @@ la campaña; dos quedan fuera de alcance y se dice.
 | Toolset | Peldaño hoy | Objetivo | Qué hay y qué falta |
 | --- | --- | --- | --- |
 | Architecture | 5 | 5 | WALL, DOOR y WINDOW (golden 53); STAIR (78); ROOF y SLAB (79); los cuadros de superficies —con el nombre del local— y de carpintería salen en la lámina (77, `paper-space-table.spec.ts` leyendo los bytes del PDF). La rúbrica retiene 1 pt hasta que haya evidencia independiente. Lo que sigue en «todavía no» está en su sección (Ola E). |
-| MEP (mitad 2D) | 0 | 3 | Nada: conductos, tuberías y bandejas en planta con sus tablas. Segundo de la campaña. |
+| MEP (mitad 2D) | 5 | 3 | PIPE, DUCT, CABLETRAY y MEPSYMBOL sobre el mismo motor (polilíneas, capas de servicio con tipo de línea con texto, bloques MEP-…), y el cuadro de instalaciones por DATAEXTRACTION Instalaciones en la lámina (golden 81; `mep-tracing.spec.ts`). La mitad 3D —ruteo con colisiones, diámetros por especificación— queda fuera y se dice. |
 | Map 3D | 0 | 3 | Nada: sistema de coordenadas georreferenciado y capas GIS. Tercero. |
 | Raster Design (mitad útil) | 1 | 3 | IMAGE inserta un escaneo; falta el recorte por polígono, el ajuste de imagen y la vectorización. Cuarto. |
 | Mechanical | 0 | 3 | Nada: normalizados y cotas de fabricación con tolerancia. Quinto. |
@@ -209,6 +209,25 @@ el prompt de la orden.
 | ROOF: cubierta a cuatro, dos o un agua sobre un rectángulo, con alero y pendiente | 5 | golden 79; `architecture-roof.spec.ts` (109): V = h·W·((L−W)/2 + W/3) a cuatro aguas, L·W·h/2 a dos y a una, pirámide sobre cuadrado, girado 30° | Sólo rectángulos: sobre un polígono en L se rechaza diciéndolo. Sin faldones de pendiente distinta, buhardillas ni limahoyas; el sólido es el volumen bajo cubierta, no una losa inclinada con espesor. **Todavía no.** |
 | SLAB: losa por contorno cerrado, cara superior a la cota | 5 | golden 79; `architecture-roof.spec.ts`: 24 m² × 150 = 3,6 m³, círculo como 64-gono | Sin huecos tecleados (entran como REGION con interiores), sin pendiente ni cantos. |
 | Una entidad `stair`, `roof` o `slab` persistida y reeditable desde el panel | 0 | Las tres se descomponen en planta + SOLID3D con la receta en el nombre | Añadir tipos de entidad es tocar el formato persistido: decisión del titular, no tomada por la sesión. |
+
+## Las instalaciones y el tipo de línea con texto (Ola F, 2026-09-02)
+
+La campaña midió antes que el bloqueo de un plano de instalaciones no era
+MEP sino los tipos de línea con texto incrustado, que el lector `.lin`
+declaraba imposibles, y que no existía ninguna orden MEP. Cada fila dice en
+qué peldaño queda HOY y qué la subiría; lo que sigue en «todavía no» se
+dice aquí y en el prompt de la orden.
+
+| Capacidad | Peldaño hoy | Evidencia | Qué falta para subir |
+| --- | --- | --- | --- |
+| Tipos de línea con TEXTO (GAS_LINE, HOT_WATER_SUPPLY, AGUA_FRIA, AGUA_CALIENTE, SANITARIO, PLUVIAL, CONTRA_INCENDIO) en pantalla, lámina, PDF y DXF | 5 | golden 80 (30 glifos a LTSCALE 1000, 60 a 500, el DXF con 74 = 2); `linetype-complex.spec.ts` (37): rótulos cada 950 desde 600, el PDF leído de sus bytes, el LTYPE de ida y vuelta | Son de FÁBRICA y por nombre: un `.lin` propio con texto sigue sin cargarse porque el documento sólo guarda trazos (formato: decisión del titular) y el lector lo dice nombrando la familia. Las FORMAS (.shx: FENCELINE, TRACKS, ZIGZAG, BATTING) no están. Los arcos llevan los trazos, no el texto. La lectura del 74 = 2 por AutoCAD queda sin oráculo (el corpus no trae ninguno). **Todavía no.** |
+| LTSCALE tecleado mueve el dibujo | 5 | golden 80: LTSCALE 500 duplica los rótulos en vivo y el DXF sale con $LTSCALE 500 | Nada de peldaño. La escala se lee en unidades de dibujo en pantalla y en mm sobre el papel (PSLTSCALE/MSLTSCALE no existen): **todavía no.** |
+| El diálogo «Exportar a DXF» escribe las capas con su tipo de línea y grosor, la tabla LTYPE y $LTSCALE | 5 | golden 80; `layout-export-adapter.spec.ts` | Medido antes: GAS = GAS_LINE salía como `6 CONTINUOUS` sin aviso. El color de la capa sigue saliendo de la tabla fija por nombre (ACI), no del color CSS del documento. |
+| PIPE por servicio (agua Fría, agua Caliente, Sanitario, Pluvial, Gas, contra Incendio) con Diámetro | 5 | golden 81; `mep-tracing.spec.ts` (71) | Sin accesorios automáticos (codos, tes, reducciones), sin pendientes ni tramos curvos, sin ruteo 3D ni diámetros por especificación (la mitad 3D de MEP, fuera de alcance). |
+| DUCT y CABLETRAY a doble línea con esquinas a inglete y eje CENTER | 5 | golden 81; codo 300 × (2.000 + 2.000) = 1.200.000 en papel | Sin transiciones ni derivaciones como piezas; una te son dos tramos. |
+| MEPSYMBOL: ocho símbolos como BLOQUES con geometría (válvula, difusor, rejilla, luminaria, contacto, apagador, tablero, extractor) | 5 | golden 81 (el bloque se define una vez y se inserta); `mep-tracing.spec.ts` | Ocho, no el catálogo entero de un despacho; sin atributos (marca, modelo). Se amplía por contenido, no por motor. |
+| Cuadro de instalaciones (longitudes por servicio y tamaño, equipos por símbolo) en la lámina | 5 | golden 81 (7,00 m Ø19, 4,00 m de ducto, 1 válvula); `paper-space-table.spec.ts` para la lámina | Una tubería dibujada a mano en la capa del servicio cuenta sin diámetro («-»); el CSV sigue siendo el de muros. |
+| Una entidad `pipe`/`duct` persistida y reeditable desde el panel | 0 | Todo son polilíneas, capas y `context.metadata`, que el formato ya tiene | Añadir tipos de entidad es tocar el formato persistido: decisión del titular, no tomada por la sesión. |
 
 ## Cómo se usa
 

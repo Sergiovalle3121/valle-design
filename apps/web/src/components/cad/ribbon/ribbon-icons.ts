@@ -5,6 +5,7 @@ import {
   Compass,
   CornerUpRight,
   DoorOpen,
+  Droplets,
   Download,
   Eye,
   Group,
@@ -56,6 +57,7 @@ export const CAD_RIBBON_PANEL_ICONS: Readonly<Record<string, LucideIcon>> = {
   Portapapeles: ClipboardPaste,
   Sombreado: PaintBucket,
   Arquitectura: DoorOpen,
+  Instalaciones: Droplets,
   Sólidos: Box,
   // Insertar.
   Referencias: Link,

@@ -111,8 +111,8 @@ precision highp float;
 
 // La tabla de tipos de línea: ${CAD_LINETYPE_SLOTS} ranuras × ${CAD_LINETYPE_MAX_ELEMENTS} tramos
 // con signo (>0 trazo, <0 hueco, 0 punto), empaquetados de cuatro en cuatro, y
-// por ranura [tramos, periodo]. 64 vec4 + 32 vec2 = 96 vectores, por debajo de
-// los 224 mínimos de WebGL2. Medido el 2026-09-02: con el par (trazo, hueco)
+// por ranura [tramos, periodo]. 96 vec4 + 48 vec2 = 144 vectores (48 ranuras
+// desde la Ola F; eran 32), por debajo de los 224 mínimos de WebGL2. Medido el 2026-09-02: con el par (trazo, hueco)
 // anterior CENTER, DASHDOT, PHANTOM, BORDER y DIVIDE se dibujaban como DASHED.
 uniform vec4 cadLinetypeDash[${CAD_LINETYPE_SLOTS * 2}];
 uniform vec2 cadLinetypeMeta[${CAD_LINETYPE_SLOTS}];

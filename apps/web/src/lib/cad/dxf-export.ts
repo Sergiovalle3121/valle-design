@@ -4,6 +4,7 @@ import type { CadTextAnchor } from "./cad-entities-v4";
 import type { CadDimensionEntity } from "./associative-dimension";
 import { buildCadMleaderGeometry, type CadMleaderEntity } from "./associative-mleader";
 import { DEFAULT_MLEADER_STYLE } from "./mleader";
+import type { CadLinetypeTextElement } from "./linetype-complex";
 import { clampedKnots } from "./dxf-nurbs-knots";
 import { DXF_XDATA_APP_BLOCK, DXF_XDATA_APP_MLEADER } from "@valle-design/contracts";
 // Los pares código/valor, el saneado de nombres y el formato numérico viven en
@@ -78,6 +79,8 @@ export interface CadDxfExportLinetype {
   description?: string;
   /** Longitudes con signo: >0 trazo, <0 hueco, 0 punto. */
   pattern: number[];
+  /** Rótulos de un tipo complejo, cada uno sobre el tramo en cuyo arranque va (Ola F). */
+  texts?: readonly CadLinetypeTextElement[];
 }
 export interface CadDxfExportText {
   layer?: string;

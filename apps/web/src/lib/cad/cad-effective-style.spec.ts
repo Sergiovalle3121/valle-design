@@ -107,7 +107,8 @@ assert.equal([...mixed.slots.values()].filter((slot) => slot === 1).length, 1, "
 ok(true, "sin catálogo, un dibujo nuevo tiene ranura para CENTER; con catálogo, la fábrica va detrás sin duplicar");
 
 // ---------------------------------------------------------------------------
-// 3. Tope 32 medido, no 8: 20 nombres caben; el 33.º no, y se DICE.
+// 3. Tope 48 medido (32 hasta la Ola F; 8 antes): 20 nombres caben con los
+//    quince de fábrica; el 48.º nombre no, y se DICE.
 // ---------------------------------------------------------------------------
 const twenty: Record<string, number[]> = {};
 for (let index = 0; index < 20; index += 1) twenty[`LT${String(index).padStart(2, "0")}`] = [1 + index, -0.5];
@@ -115,10 +116,10 @@ const roomy = buildCadLinetypeSlots(styles(twenty));
 assert.deepEqual(roomy.overflow, [], "veinte nombres de despacho caben sin desbordar");
 assert.equal(roomy.slots.size, 20 + builtinOrder.length, "y los de fábrica siguen detrás");
 const many: Record<string, number[]> = {};
-for (let index = 0; index < 40; index += 1) many[`LT${String(index).padStart(2, "0")}`] = [1 + index, -0.5];
+for (let index = 0; index < 60; index += 1) many[`LT${String(index).padStart(2, "0")}`] = [1 + index, -0.5];
 const crowded = buildCadLinetypeSlots(styles(many));
 assert.equal(crowded.slots.size, CAD_LINETYPE_SLOT_LIMIT - 1, "caben exactamente SLOT_LIMIT − 1 nombres no continuos");
-assert.equal(crowded.overflow[0], "LT31", "el primer desbordado es el 32.º nombre en orden alfabético");
+assert.equal(crowded.overflow[0], "LT47", "el primer desbordado es el 48.º nombre en orden alfabético");
 ok(crowded.overflow.includes("DASHED") && crowded.overflow.includes("CENTER"), "y los de fábrica desplazados se declaran en overflow, no se pierden en silencio");
 ok(true, `el tope de ${CAD_LINETYPE_SLOT_LIMIT} ranuras se declara: ${crowded.overflow.length} nombres en overflow`);
 

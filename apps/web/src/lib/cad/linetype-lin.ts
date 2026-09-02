@@ -21,11 +21,17 @@
  * ## Qué hace con lo que no entiende
  *
  * Lo cuenta. Un `.lin` de un estudio real trae definiciones complejas —con
- * texto y formas incrustados, `["GAS",STANDARD,S=.1,...]`— que este lector no
- * sabe dibujar. Saltárselas en silencio produciría un tipo de línea que se
- * llama igual y se ve distinto, que es peor que no cargarlo: se descubre al
- * imprimir. Cada una sale en `skipped` con su nombre y su razón.
+ * texto y formas incrustados, `["GAS",STANDARD,S=.1,...]`— que el documento
+ * no sabe GUARDAR: persiste sólo trazos y huecos, y añadir el texto sería
+ * tocar el formato, decisión del titular. Saltárselas en silencio produciría
+ * un tipo de línea que se llama igual y se ve distinto, que es peor que no
+ * cargarlo: se descubre al imprimir. Cada una sale en `skipped` con su nombre
+ * y su razón; desde la Ola F (2026-09-02) la razón dice qué texto llevaba y
+ * que la familia de fábrica con texto (`linetype-complex.ts`: GAS_LINE,
+ * AGUA_FRIA…) se usa por nombre.
  */
+
+import { CAD_COMPLEX_LINETYPES } from "./linetype-complex";
 
 export interface CadLinetypeDefinition {
   name: string;
@@ -51,6 +57,10 @@ export const CAD_BUILTIN_LINETYPES: readonly CadLinetypeDefinition[] = [
   { name: "Dashdot", description: "Trazo y punto _ . _ . _ .", pattern: [0.5, -0.25, 0, -0.25] },
   { name: "Divide", description: "División __ . . __ . . __", pattern: [0.5, -0.25, 0, -0.25, 0, -0.25] },
   { name: "Border", description: "Borde __ __ . __ __ . __", pattern: [0.5, -0.25, 0.5, -0.25, 0, -0.25] },
+  // Los de TEXTO (Ola F): aquí sólo sus trazos y huecos, que es lo que el
+  // visor, la lámina y el DXF ya saben repartir; el texto lo pone
+  // `linetype-complex.ts` por nombre en cada superficie.
+  ...CAD_COMPLEX_LINETYPES.map(({ name, description, pattern }) => ({ name, description, pattern: [...pattern] })),
 ];
 
 /**
@@ -90,9 +100,7 @@ export function parseCadLinetypeLibrary(source: string): CadLinetypeLibrary {
     index += 1;
 
     if (next.includes("[")) {
-      skipped.push(
-        `"${name}": lleva texto o formas incrustados y este lector sólo entiende trazos y huecos.`,
-      );
+      skipped.push(`"${name}": ${embeddedReason(next)}`);
       continue;
     }
 
@@ -131,6 +139,24 @@ export function parseCadLinetypeLibrary(source: string): CadLinetypeLibrary {
   }
 
   return { definitions, skipped };
+}
+
+/**
+ * Por qué no se carga una definición con `[…]`: se dice QUÉ lleva.
+ *
+ * Un texto entre comillas (`["GAS",STANDARD,S=.1,…]`) se nombra y se remite a
+ * la familia de fábrica que sí lo dibuja; una forma (`[CIRC1,ltypeshp.shx,…]`)
+ * pide un `.shx` que no hay.
+ */
+function embeddedReason(patternLine: string): string {
+  const texts = [...patternLine.matchAll(/\[\s*"([^"]*)"/g)].map((match) => match[1]);
+  const builtin = CAD_COMPLEX_LINETYPES.map((entry) => entry.name).join(", ");
+  if (texts.length > 0)
+    return (
+      `lleva el texto ${texts.map((text) => `«${text}»`).join(" y ")} incrustado, y el documento sólo guarda trazos y huecos ` +
+      `(guardar el texto es tocar el formato persistido). Los de fábrica con texto se usan por nombre: ${builtin}.`
+    );
+  return "lleva una forma (.shx) incrustada, y no hay archivo de formas que la dibuje.";
 }
 
 /**

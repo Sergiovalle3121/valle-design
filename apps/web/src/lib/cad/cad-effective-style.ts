@@ -165,8 +165,14 @@ export function resolveCadEntityStyle(
  * 96 vectores de uniformes en el fragment, muy por debajo de los 224 mínimos
  * de WebGL2 (three 0.185 es sólo WebGL2). Con el tope anterior de 8, el
  * octavo nombre no continuo ya caía a «continuo en silencio».
+ *
+ * Ola F (2026-09-02): la familia con texto (`linetype-complex.ts`) suma siete
+ * de fábrica más —quince no continuos— y veinte nombres de despacho ya no
+ * cabían en 32 (medido: cuatro desbordaban). 48 ranuras son 96 vec4 + 48 vec2
+ * = 144 vectores, todavía bajo los 224; el tamaño de los uniformes del shader
+ * sale de esta constante.
  */
-export const CAD_LINETYPE_SLOT_LIMIT = 32;
+export const CAD_LINETYPE_SLOT_LIMIT = 48;
 /** Tramos por patrón que viajan al shader: PHANTOM, DIVIDE y BORDER traen 6. */
 export const CAD_LINETYPE_MAX_ELEMENTS = 8;
 export interface CadLinetypeSlots {

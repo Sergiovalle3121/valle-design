@@ -70,5 +70,7 @@ export function styleFor(
     pattern && pattern.length > 0
       ? cadLinetypeDashArray(pattern, document.meta.linetypeScale ?? 1, lineWidth)
       : undefined;
-  return { stroke: color || "#334155", lineWidth, ...(dash ? { dash } : {}) };
+  // El NOMBRE viaja con el estilo para que el texto del tipo de línea
+  // (`paper-space-linetype-text.ts`) se resuelva con la misma regla que el guion.
+  return { stroke: color || "#334155", lineWidth, ...(dash ? { dash } : {}), ...(linetypeName ? { linetype: linetypeName } : {}) };
 }

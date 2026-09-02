@@ -143,6 +143,7 @@ const CAD_PANEL_NAME_PATTERNS: readonly [RegExp, string][] = [
   [/^(-?TEXT|MTEXT|DTEXT|SPELL|-?TABLE|DDEDIT|TEXTALIGN)$/, "Texto y tablas"],
   [/^TOLERANCE$/, "Tolerancias"],
   [/^(-?WALL|DOOR|WINDOW|-?OPENING|STAIR|ROOF|SLAB)$/, "Arquitectura"],
+  [/^(PIPE|DUCT|CABLETRAY|MEPSYMBOL)$/, "Instalaciones"],
   [
     /^(LINE|XLINE|RAY|-?PLINE|POLYGON|RECTANG|CIRCLE|ARC|ELLIPSE|-?SPLINE|DONUT|-?POINT|DIVIDE|MEASURE|-?REGION|SOLID|REVCLOUD|WIPEOUT)$/,
     "Dibujo",

@@ -3981,6 +3981,23 @@ export default function Layout3DEditor({
     setHist(history.depths());
   }, [applyHistoryDocument, notifyReadOnly, snapshotDocument]);
 
+  // LTSCALE tecleado (Ola F): la escala de tipo de línea es del DOCUMENTO,
+  // con su entrada de deshacer; antes la variable se quedaba en la sesión y el
+  // dibujo no cambiaba un guion. El motor la lee y la escribe por la fachada.
+  const setDocumentLinetypeScale = useCallback(
+    (value: number) => {
+      const current = loadedCadDocumentRef.current;
+      if (!current || !(value > 0) || (current.meta.linetypeScale ?? 1) === value) return;
+      if (drawingReadOnly) {
+        notifyReadOnly();
+        return;
+      }
+      pushHistory();
+      applyHistoryDocument(commitChange({ ...current, meta: { ...current.meta, linetypeScale: value } }, "LTSCALE"), false);
+    },
+    [applyHistoryDocument, drawingReadOnly, notifyReadOnly, pushHistory],
+  );
+
   const applyCollaborationDocument = useCallback(
     (next: CadDocument, label: string) => {
       if (drawingReadOnly) {
@@ -4845,6 +4862,10 @@ export default function Layout3DEditor({
     view: viewControllerRef,
     activeLayer: activeCadLayer,
     newEntityId: () => newId("cad"),
+    linetypeScale: {
+      get: () => loadedCadDocumentRef.current?.meta.linetypeScale ?? 1,
+      set: setDocumentLinetypeScale,
+    },
     apply: (commands) => {
       // Dibujar con la BARRA deja lo creado designado (como el camino heredado);
       // tecleado NO: la línea de comandos nunca designó, y designar cambiaría
@@ -12849,6 +12870,10 @@ export default function Layout3DEditor({
           mleaders,
           blocks,
           inserts,
+          // Las capas con su tipo de línea y grosor, la tabla LTYPE y $LTSCALE
+          // salen del DOCUMENTO (Ola F): sin él, GAS = GAS_LINE volvía como
+          // 6 CONTINUOUS y el plano de instalaciones se abría continuo.
+          document: dxfDocument,
         },
         {
           units: options.units,

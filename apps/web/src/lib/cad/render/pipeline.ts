@@ -80,6 +80,7 @@ import { cadRenderCount, cadRenderMark, cadRenderStage } from "./render-profile"
 import { defaultCadRenderStyle } from "./render-style";
 import { CAD_RENDER_ORIGIN_ZERO, cadPaperSpaceEntityIds, cadRenderOriginFromBounds, unionCadBounds, type CadRenderOrigin } from "./render-origin";
 import { cadEntityIsTextOnly, cadTextQuadRequestsFor } from "./text-requests";
+import { cadLinetypeTextRequestsFor } from "./linetype-text-requests";
 
 export type { CadOffThreadTessellator, CadRenderTessellationSource, CadRenderOrigin };
 export {
@@ -550,7 +551,7 @@ export class CadRenderPipeline {
       // worker: la respuesta reencola el tile y reentra aquí con el cursor sin
       // avanzar; antes de la guarda cada reencolado duplicaría el rótulo.
       const style = this.styleOf(entity);
-      const labels = cadTextQuadRequestsFor(entity, this.colorOf, depth, this.document);
+      const labels = [...cadTextQuadRequestsFor(entity, this.colorOf, depth, this.document), ...cadLinetypeTextRequestsFor(entity, this.document, this.colorOf, depth)];
       if (labels.length > 0) resident.textRequests.push(...labels);
       const tessellationStarted = cadRenderMark();
       const tessellation = this.cache.get(id, tier, () =>

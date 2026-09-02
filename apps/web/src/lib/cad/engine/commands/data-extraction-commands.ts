@@ -14,6 +14,8 @@
  * prueba en Node comparando la cadena, igual que hace DXFOUT.
  */
 import { buildCadBimSchedule } from "../../bim-schedule";
+import { buildCadMepSchedule } from "../../mep-schedule";
+import { buildCadMepScheduleTable } from "../../data-extraction/mep-schedule-table";
 import {
   buildCadDataExtractionCsv,
   buildCadDataExtractionTable,
@@ -36,22 +38,24 @@ const NO_DOCUMENT_VIEW =
 
 // Tres cuadros y el CSV (Ola E, 2026-09-02): `Tabla` sigue siendo el de
 // muros; `Superficies` es el cuadro de áreas con el nombre de cada local y
-// `carPintería` el de puertas y ventanas. Los tres salen en la lámina.
+// `carPintería` el de puertas y ventanas; `Instalaciones` (Ola F) el de
+// longitudes por servicio y equipos. Los cuatro salen en la lámina.
 const OUTPUT_OPTIONS = [
   { keyword: "Tabla", shortcut: "T" },
   { keyword: "Superficies", shortcut: "S" },
   { keyword: "carPintería", shortcut: "P" },
+  { keyword: "Instalaciones", shortcut: "I" },
   { keyword: "CSV", shortcut: "C" },
 ] as const;
 
 interface DataExtractionState {
-  output: "table" | "rooms" | "openings" | "csv" | null;
+  output: "table" | "rooms" | "openings" | "mep" | "csv" | null;
 }
 
-const TABLE_NAMES = { table: "la tabla de muros", rooms: "el cuadro de superficies", openings: "el cuadro de carpintería" } as const;
+const TABLE_NAMES = { table: "la tabla de muros", rooms: "el cuadro de superficies", openings: "el cuadro de carpintería", mep: "el cuadro de instalaciones" } as const;
 
 function ask(state: DataExtractionState): CadCommandStep<DataExtractionState> {
-  if (state.output === "table" || state.output === "rooms" || state.output === "openings")
+  if (state.output === "table" || state.output === "rooms" || state.output === "openings" || state.output === "mep")
     return {
       state,
       prompt: { message: `Precise el punto de inserción de ${TABLE_NAMES[state.output]}`, options: [] },
@@ -108,6 +112,7 @@ const dataExtractionCommand: CadCommandDescriptor<DataExtractionState> = {
       if (input.keyword === "Tabla") return ask({ output: "table" });
       if (input.keyword === "Superficies") return ask({ output: "rooms" });
       if (input.keyword === "carPintería") return ask({ output: "openings" });
+      if (input.keyword === "Instalaciones") return ask({ output: "mep" });
       return ask(state);
     }
 
@@ -120,6 +125,13 @@ const dataExtractionCommand: CadCommandDescriptor<DataExtractionState> = {
         return cadCommandRefused(state, "Los muros no cierran ningún local: no hay cuadro de superficies que insertar. Rotule cada local con un TEXT dentro para que salga con su nombre.");
       const table = buildCadRoomScheduleTable(schedule, input.point, context.activeLayer, context.newEntityId);
       return cadCommandWrites(state, [{ type: "insert", entity: table }], "DATAEXTRACTION Superficies");
+    }
+    if (state.output === "mep") {
+      const mep = buildCadMepSchedule(view);
+      if (mep.runs.length === 0 && mep.devices.length === 0)
+        return cadCommandRefused(state, "El dibujo no tiene tuberías, ductos, charolas ni símbolos MEP (capas IH-, IS-, IG-, PCI-, AA-, IE- o bloques MEP-): no hay cuadro de instalaciones que insertar.");
+      const table = buildCadMepScheduleTable(mep, input.point, context.activeLayer, context.newEntityId, context.unit);
+      return cadCommandWrites(state, [{ type: "insert", entity: table }], "DATAEXTRACTION Instalaciones");
     }
     if (state.output === "openings") {
       if (schedule.openings.length === 0)

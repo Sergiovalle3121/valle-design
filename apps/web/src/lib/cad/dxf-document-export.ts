@@ -22,6 +22,8 @@ import type {
 } from "./cad-document";
 import { CAD_LINEWEIGHT_DEFAULT } from "./cad-effective-style";
 import { cadLinetypePatternFor } from "./linetype-resolve";
+import { cadComplexLinetypeFor } from "./linetype-complex";
+import type { CadDxfExportLayer, CadDxfExportLinetype } from "./dxf-export";
 import {
   cadDocumentDxfBlocks,
   cadDocumentDxfExportLosses,
@@ -105,15 +107,7 @@ export function cadDocumentToDxfExportModel(
     // MILÍMETROS con −1 por «por defecto» y el fichero pide CENTÉSIMAS con −3.
     // La conversión de ida vive en el importador y la resolución en
     // `cad-effective-style.ts`; los tres sitios se editan juntos.
-    layers: document.layers.map((layer) => ({
-      name: layer.name,
-      ...(layer.linetype ? { linetype: layer.linetype } : {}),
-      ...(typeof layer.lineweight === "number"
-        ? { lineweight: layer.lineweight < 0 ? CAD_LINEWEIGHT_DEFAULT : Math.round(layer.lineweight * 100) }
-        : {}),
-      // Congelada viaja al bit 1 del código 70; el importador ya lo leía.
-      ...(layer.frozen === true ? { frozen: true } : {}),
-    })),
+    layers: cadDocumentDxfLayerDefinitions(document),
     ...cadDxfLinetypeTable(document),
     // La norma de acotación viaja como TABLA (además del nombre en código 3 y
     // los overrides XDATA por entidad): un despacho que fija su DIMSTYLE lo
@@ -164,21 +158,56 @@ export function exportCadDocumentDxf(
 }
 
 /**
+ * Las capas del documento como las quiere la tabla LAYER: nombre, tipo de
+ * línea, grosor y congelada. Es la ÚNICA traducción; la usan DXFOUT y el
+ * diálogo de exportación del estudio (`layout-export-adapter.ts`), que hasta
+ * la Ola F (2026-09-02) montaba las capas sólo por nombre y devolvía GAS =
+ * GAS_LINE como `6 CONTINUOUS` sin un aviso.
+ */
+export function cadDocumentDxfLayerDefinitions(
+  document: Pick<CadDxfDocumentExportSource, "layers">,
+): CadDxfExportLayer[] {
+  return document.layers.map((layer) => ({
+    name: layer.name,
+    ...(layer.linetype ? { linetype: layer.linetype } : {}),
+    // El grosor cruza aquí su frontera de unidades: la paleta de capas guarda
+    // MILÍMETROS con −1 por «por defecto» y el fichero pide CENTÉSIMAS con −3.
+    // La conversión de ida vive en el importador y la resolución en
+    // `cad-effective-style.ts`; los tres sitios se editan juntos.
+    ...(typeof layer.lineweight === "number"
+      ? { lineweight: layer.lineweight < 0 ? CAD_LINEWEIGHT_DEFAULT : Math.round(layer.lineweight * 100) }
+      : {}),
+    // Congelada viaja al bit 1 del código 70; el importador ya lo leía.
+    ...(layer.frozen === true ? { frozen: true } : {}),
+  }));
+}
+
+/**
  * La tabla LTYPE del fichero: el catálogo del documento y, DETRÁS, los tipos
  * de fábrica que alguna capa o entidad referencia sin que el catálogo los
  * defina. Medido antes: un dibujo nuevo con la capa EJES=CENTER exportaba
  * CENTER con patrón `[]` («referenciado pero no definido») y AutoCAD lo abría
  * continuo.
  */
-function cadDxfLinetypeTable(
+export function cadDxfLinetypeTable(
   document: Pick<CadDxfDocumentExportSource, "layers" | "entities" | "styles">,
-): { linetypes?: Array<{ name: string; pattern: number[]; description?: string }> } {
+): { linetypes?: CadDxfExportLinetype[] } {
   const catalog: Record<string, { pattern: number[]; description?: string }> =
     document.styles?.linetype ?? {};
-  const entries = Object.entries(catalog).map(([name, entry]) => ({
+  // Un tipo con texto (Ola F) sale con su rótulo si su nombre es uno de la
+  // familia de fábrica Y sus tramos son los de fábrica: un catálogo que
+  // hubiera redefinido GAS_LINE con otros trazos no lleva un texto que no le
+  // corresponde. El texto no se persiste (formato: decisión del titular).
+  const withTexts = (name: string, pattern: number[]): Pick<CadDxfExportLinetype, "texts"> => {
+    const complex = cadComplexLinetypeFor(name);
+    const same = complex && complex.pattern.length === pattern.length && complex.pattern.every((value, index) => Math.abs(value - pattern[index]) < 1e-9);
+    return same ? { texts: complex.texts } : {};
+  };
+  const entries: CadDxfExportLinetype[] = Object.entries(catalog).map(([name, entry]) => ({
     name,
     pattern: entry.pattern,
     ...(entry.description ? { description: entry.description } : {}),
+    ...withTexts(name, entry.pattern),
   }));
   const known = new Set(entries.map((entry) => entry.name.toUpperCase()));
   const referenced = new Set<string>();
@@ -192,7 +221,7 @@ function cadDxfLinetypeTable(
     if (known.has(upper) || upper === "CONTINUOUS") continue;
     const pattern = cadLinetypePatternFor(document, name);
     if (!pattern || pattern.length === 0) continue;
-    entries.push({ name, pattern: [...pattern] });
+    entries.push({ name, pattern: [...pattern], ...withTexts(name, [...pattern]) });
     known.add(upper);
   }
   return entries.length > 0 ? { linetypes: entries } : {};

@@ -3289,17 +3289,45 @@
       "scope": "destino",
       "name": "Toolset MEP (mitad 2D)",
       "points": 4,
-      "gap": "Nada del toolset MEP existe: ni conductos, tuberías o bandejas en planta ni sus tablas.",
+      "gap": "La mitad 2D existe como contenido sobre el mismo motor (Ola F, 2026-09-02): PIPE por servicio con su tipo de línea con texto, DUCT y CABLETRAY a doble línea con esquinas a inglete, MEPSYMBOL con ocho bloques y el cuadro de instalaciones en la lámina. La mitad 3D —ruteo con colisiones, diámetros por especificación— queda fuera y se dice en ESCALERA.",
       "criteria": [
         {
           "id": "toolset-mep.trazado",
           "points": 2,
           "text": "Conductos, tuberías y bandejas de cables en planta con uniones y símbolos",
-          "costDays": null,
+          "costDays": 0,
           "evidence": [
             {
-              "kind": "todaviaNo",
-              "reason": "No hay entidades ni comandos MEP. Después de Architecture en la campaña."
+              "kind": "command",
+              "name": "PIPE"
+            },
+            {
+              "kind": "command",
+              "name": "DUCT"
+            },
+            {
+              "kind": "command",
+              "name": "CABLETRAY"
+            },
+            {
+              "kind": "command",
+              "name": "MEPSYMBOL"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/mep-tracing.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/linetype-complex.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/80-cad-tipo-de-linea-con-texto.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/81-cad-instalaciones.spec.ts"
             }
           ]
         },
@@ -3307,11 +3335,23 @@
           "id": "toolset-mep.tablas",
           "points": 2,
           "text": "Tablas de equipos y longitudes que salen en la lámina",
-          "costDays": null,
+          "costDays": 0,
           "evidence": [
             {
-              "kind": "todaviaNo",
-              "reason": "Sin trazado MEP no hay tablas MEP."
+              "kind": "command",
+              "name": "DATAEXTRACTION"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/mep-tracing.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/paper-space-table.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/81-cad-instalaciones.spec.ts"
             }
           ]
         }

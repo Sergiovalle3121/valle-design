@@ -24,7 +24,7 @@ export const CAD_RIBBON_PANEL_ORDER: Readonly<Record<CadRibbonTabId, readonly st
   // final—.
   inicio: [
     "Dibujo", "Modificar", "Anotación", "Capas", "Bloque", "Propiedades",
-    "Grupos", "Utilidades", "Portapapeles", "Sombreado", "Arquitectura", "Sólidos",
+    "Grupos", "Utilidades", "Portapapeles", "Sombreado", "Arquitectura", "Instalaciones", "Sólidos",
   ],
   insertar: ["Referencias", "Importar y extraer", "Paletas"],
   anotar: ["Texto y tablas", "Cotas", "Directrices", "Tolerancias", "Estilos"],

@@ -2958,6 +2958,51 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "OLA-F-MEP-20260902",
+      "date": "2026-09-02",
+      "initiative": "Ola F del encargo «Valle Design → AutoCAD completo»: el toolset MEP (mitad 2D). (1) Tipos de línea con TEXTO: `lib/cad/linetype-complex.ts` (nuevo) con siete de fábrica (GAS_LINE y HOT_WATER_SUPPLY de acad.lin; AGUA_FRIA, AGUA_CALIENTE, SANITARIO, PLUVIAL, CONTRA_INCENDIO) referenciados por NOMBRE, porque el documento persiste sólo trazos y guardar el texto sería tocar el formato (decisión del titular, no tomada); `render/linetype-text-requests.ts` (nuevo) pide al atlas un quad por rótulo con el tipo efectivo de la entidad y LTSCALE × la propia, enganchado en `render/pipeline.ts`; `paper-space-linetype-text.ts` (nuevo) emite el texto por ciclo con la misma regla que el guion del papel (`paper-space-style.ts` devuelve ahora el nombre del tipo); `dxf-write-tables.ts` escribe el LTYPE complejo (74 = 2, 75, 46, 50, 44, 45, 9 sobre el tramo en cuyo arranque lo coloca el .lin; sin 340 porque el escritor no asigna handles a STYLE; sin oráculo externo: el corpus admitido no trae ningún 74 ≠ 0 y dxf-parser lo ignora, dicho en ESCALERA); el lector `.lin` dice qué texto llevaba lo que no carga y nombra la familia de fábrica; la tabla del shader pasa de 32 a 48 ranuras (144 vectores, bajo los 224 mínimos de WebGL2) porque veinte nombres de despacho ya no cabían con quince de fábrica. `linetype-complex.spec.ts` (37, con el PDF leído de sus bytes y el DXF de ida y vuelta). (2) Medido y arreglado por el camino: `LTSCALE 500` tecleado no movía un guion (la variable se quedaba en la sesión) — ahora es `meta.linetypeScale` por la fachada de `use-command-engine.ts`, como CLAYER, con su entrada de deshacer en el editor; y el diálogo «Exportar a DXF» montaba las capas sólo por nombre (GAS = GAS_LINE salía como `6 CONTINUOUS`, sin tabla LTYPE ni $LTSCALE) — `layout-export-adapter.ts` toma capas, tabla y escala del documento por `cadDocumentDxfLayerDefinitions`/`cadDxfLinetypeTable`, la misma traducción que DXFOUT (`layout-export-adapter.spec.ts`). Golden 80. (3) MEP como contenido sobre el mismo motor: `engine/commands/mep-support.ts` (servicios, capas IH-/IS-/IG-/PCI-/AA-/IE- con su color y tipo de línea, doble línea a inglete cuya área en un codo es ancho × (L₁ + L₂)), `mep-tracing.ts` (PIPE con Diámetro y servicio; DUCT y CABLETRAY con aNcho: contorno + eje CENTER; receta en `context.metadata`, que el formato ya tiene), `lib/cad/mep-symbols.ts` + `mep-symbol.ts` (MEPSYMBOL: ocho bloques con geometría definidos la primera vez que se insertan), `lib/cad/mep-schedule.ts` + `data-extraction/mep-schedule-table.ts` (longitudes por servicio y tamaño por el eje, equipos por símbolo) y DATAEXTRACTION Instalaciones. `mep-tracing.spec.ts` (71). Golden 81. (4) Instrumento: sonda de integridad 227 → 231 comandos con 0 éxitos falsos; cinta 231/231 con el panel Instalaciones; `toolset-mep` de 0 a 3 de 4 (retiene 1 pt hasta evidencia independiente).",
+      "branch": "claude/valle-design-autocad-vqfa6u",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo escrito «Valle Design → AutoCAD completo, con sus siete toolsets», §Ola F (MEP, mitad 2D, tras Architecture).",
+      "firstPartyInputs": [
+        "docs/competitive/distancia-autocad-completo-20260901.md §4 2º MEP (el bloqueo son los tipos de línea complejos) y §Frente 1; docs/competitive/liston-autocad-completo.md §[I] tipos de línea; cada afirmación se midió antes (el .lin con texto salía por `skipped`; LTSCALE tecleado no cambiaba `meta.linetypeScale`; el DXF del diálogo con `6 CONTINUOUS`, capturado en el scratchpad).",
+        "Specs de Node nuevos o ampliados, corridos en esta máquina: linetype-complex (37), mep-tracing (71), layout-export-adapter, cad-effective-style (48 ranuras), linetype, session-catalogs, render/line-batch, render/scene, render/text-requests, dxf-export, dxf-linetype-table, paper-space-table, data-extraction-commands (Instalaciones), command-summaries (231/231), ribbon (231 en 7 pestañas); sonda de integridad 231, 0 éxitos falsos.",
+        "Goldens 80 (GAS_LINE en pantalla, LTSCALE en vivo, DXF con 74 = 2) y 81 (PIPE, DUCTO, MEPSYMBOL, DATAEXTRACTION Instalaciones) verdes en Chromium contra el build de producción."
+      ],
+      "externalSources": [
+        {
+          "source": "acad.lin de AutoCAD (documentación pública del formato .lin y de GAS_LINE/HOT_WATER_SUPPLY) y la referencia pública del DXF para los códigos 73/40/49/74/75/46/50/44/45/9 de LTYPE.",
+          "terms": "Documentación pública de referencia del formato; no se copió implementación alguna. Los siete ciclos se escriben aquí con los números del .lin público.",
+          "usedFor": "La geometría del ciclo con texto y los códigos de grupo del LTYPE complejo."
+        },
+        {
+          "source": "Documentación pública de AutoCAD MEP sobre PIPEADD, DUCTADD, CABLETRAYADD y DEVICEADD; NOM-001-SEDE para los símbolos eléctricos (contacto, apagador).",
+          "terms": "Documentación pública; se usan nombres y convenciones de dibujo, no código.",
+          "usedFor": "Alias, vocabulario de las opciones y el dibujo de los símbolos."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna. El lote de líneas, el atlas de texto, el plan de publicación, el escritor DXF y el ejecutor de lotes son módulos propios ya existentes.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/{linetype-complex.ts (nuevo), linetype-lin.ts, cad-effective-style.ts, paper-space.ts, paper-space-style.ts, paper-space-linetype-text.ts (nuevo), dxf-export.ts, dxf-write-tables.ts, dxf-document-export.ts, layout-export-adapter.ts, mep-symbols.ts (nuevo), mep-schedule.ts (nuevo), ribbon.ts, ribbon-order.ts}; render/{pipeline.ts, linetype-text-requests.ts (nuevo), line-batch-three.ts}; data-extraction/{data-extraction.ts, mep-schedule-table.ts (nuevo)}",
+        "apps/web/src/lib/cad/engine/{index.ts, command-summaries.ts, alias-table.ts}; engine/commands/{mep-support.ts (nuevo), mep-tracing.ts (nuevo), mep-symbol.ts (nuevo), data-extraction-commands.ts}",
+        "apps/web/src/components/cad/command-line/use-command-engine.ts (LTSCALE por la fachada), components/cad/editor/Layout3DEditor.tsx (setDocumentLinetypeScale; el documento al diálogo de exportación), components/cad/ribbon/ribbon-icons.ts",
+        "apps/web/e2e/golden/{80-cad-tipo-de-linea-con-texto, 81-cad-instalaciones}.spec.ts (nuevos)",
+        "docs/competitive/{rubric.json, autocad-2027-gap-matrix.md, distancia-autocad-completo-20260901.md}, docs/parity/ESCALERA.md, docs/cad/evidence/{command-integrity.json, ui-command-reach.json}"
+      ],
+      "fixtures": "Ninguno nuevo con datos ajenos; las plantas de los goldens y de los specs se montan en el propio fichero.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "El tipo de línea con texto medido en las cuatro superficies (glifos, plan, bytes del PDF, LTYPE del DXF); MEP con specs en papel y goldens; la sonda de integridad a 231 con 0 éxitos falsos; lo que no cabe, en ESCALERA; ninguna decisión de formato persistido tomada por la sesión."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
