@@ -61,26 +61,16 @@ function normaliza(fila: string): string {
  */
 const ACCION: Record<string, RegExp> = {
   "ctrl+k": /paleta|comandos/u,
-  v: /seleccion/u,
-  m: /medir|medici/u,
   l: /l[íi]nea|trazar|muro/u,
-  p: /polil[íi]nea/u,
-  b: /rect[áa]ngulo/u,
   c: /c[íi]rculo/u,
   "shift+o": /desfas|offset/u,
-  a: /pasillo|holgura/u,
-  "shift+l": /unir|conect|polil[íi]nea/u,
-  z: /[áa]rea|zona/u,
   i: /biblioteca|s[íi]mbolo|bloque/u,
   t: /nota|texto/u,
-  f: /ajustar|encuadr|enfoc/u,
   "ctrl+z": /deshacer/u,
   "ctrl+shift+z": /rehacer/u,
   "ctrl+s": /guardar/u,
   "ctrl+y": /rehacer/u,
   escape: /deseleccionar|salir|cerrar|cancelar/u,
-  g: /grilla|rejilla/u,
-  o: /snap/u,
   f3: /snap|objeto/u,
   f7: /grilla|rejilla/u,
   f9: /rejilla|forzar/u,
@@ -89,10 +79,6 @@ const ACCION: Record<string, RegExp> = {
   f10: /polar/u,
   f11: /osnap|rastre/u,
   "shift+v": /revisi[óo]n|valid/u,
-  e: /dxf|exportar/u,
-  r: /rotar/u,
-  s: /escalar/u,
-  x: /espejo/u,
 };
 
 /**
@@ -103,6 +89,15 @@ const NO_SE_ANUNCIAN: Record<string, string> = {
   "ctrl+y": "es el segundo nombre de Rehacer, ya anunciado como Ctrl/⌘+Z / ⇧+Z",
   escape: "se anuncia en la sección «Selección» como «Esc», sin combinación",
 };
+
+/**
+ * Teclas y gestos que atiende el editor sin pasar por el registro
+ * (`editor-keyboard.ts` fase 2, el ratón y el modo caminata), normalizados
+ * como `normaliza` los deja. Cualquier otra fila sin atajo real es mentira.
+ */
+const TECLAS_DEL_EDITOR = new Set(
+  ["?", "\\", "← → ↑ ↓", "Supr", "Clic", "Shift+clic", "Arrastrar", "Arrastrar fondo", "Rueda", "Recorrido", "Esc", "Ctrl/⌘+A", "Ctrl/⌘+D", "Shift+F"].map(normaliza),
+);
 
 const filas = HELP_SECTIONS.flatMap((seccion) =>
   seccion.rows.map(([tecla, texto]) => ({ seccion: seccion.title, tecla, texto })),
@@ -122,7 +117,17 @@ const porCombo = new Map(
 for (const fila of filas) {
   const clave = normaliza(fila.tecla);
   const real = porCombo.get(clave);
-  if (!real) continue; // Teclas que atiende el editor (W, ?, \\, flechas, Supr).
+  if (!real) {
+    // Lo que el editor atiende FUERA del registro se declara aquí, tecla por
+    // tecla. Antes se saltaba en silencio cualquier fila huérfana: «M — Medir»
+    // sobrevivía sin que M hiciera nada (medido: 13 filas de letras sueltas
+    // que en acad.pgp son alias, y «Q — algo inventado» pasaba verde).
+    ok(
+      TECLAS_DEL_EDITOR.has(clave),
+      `«${fila.tecla} — ${fila.texto}» no está en el registro ni en la lista de teclas del editor`,
+    );
+    continue;
+  }
   const esperado = ACCION[clave];
   ok(
     !!esperado,
@@ -139,6 +144,8 @@ for (const fila of filas) {
 const anunciados = new Set(filas.map((fila) => normaliza(fila.tecla)));
 const callados: string[] = [];
 for (const shortcut of CAD_KEYBOARD_SHORTCUTS) {
+  // Sin tecla por defecto no hay nada que anunciar: se reasigna desde el dock.
+  if (!shortcut.key) continue;
   const clave = combo(shortcut);
   if (anunciados.has(clave)) continue;
   if (clave in NO_SE_ANUNCIAN) continue;

@@ -1554,3 +1554,20 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* ===========================================================================
+   BARRA DE ESTADO DEL CAD: cada elemento mide lo mismo (1,25 rem).
+   Va en la capa `components`, y no como utilidad `[&>*]:h-5` en el padre,
+   porque una utilidad del padre le ganaba a `hidden` en el hijo y los
+   elementos de segundo orden no se ocultaban bajo 40 rem (medido el
+   2026-09-02: barra de 69 px en tres renglones con el panel de bloques
+   abierto). Con altura uniforme, reenvolver no cambia el alto de la barra y
+   la cámara del lienzo no se mueve (golden 72).
+   =========================================================================== */
+@layer components {
+  .cad-status-bar > * {
+    display: inline-flex;
+    align-items: center;
+    height: 1.25rem;
+  }
+}

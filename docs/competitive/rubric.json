@@ -1,18 +1,19 @@
 {
   "$schema": "urn:valle-design:schema:cad-competitive-rubric:v1",
   "schemaVersion": 1,
-  "version": "2026-08-22.1",
+  "version": "2026-09-02.1",
   "title": "Rúbrica competitiva CAD — Valle Design frente a AutoCAD 2027",
   "cutoffDate": "2026-08-22",
-  "totalPoints": 216,
+  "totalPoints": 258,
   "manualMaxAgeDays": 180,
   "notes": [
-    "El denominador es 200 y se publica.",
+    "Hay DOS denominadores y los dos se publican SIEMPRE con su etiqueta: «Alcance de HOY» (las filas con scope 'hoy': el flujo diario de dibujo 2D técnico; la cifra que se enseña a un cliente y se vende contra AutoCAD LT) y «Alcance de DESTINO» (todas las filas: AutoCAD completo con sus siete toolsets). Un porcentaje sin su etiqueta de alcance no se cita en ningún informe: «88,6 %» a secas fue el error de la auditoría del 2026-09-01.",
     "Un criterio se concede sólo si TODA su evidencia verifica. Sin evidencia, cero.",
     "Los puntos se reparten por PESO COMERCIAL, no por esfuerzo de implementación. El argumento está en autocad-2027-gap-matrix.md §Reparto.",
     "costDays es una estimación de esfuerzo declarada por quien escribe el criterio; alimenta la tabla de prioridad y no la nota.",
     "Corte 2026-08-20: la evidencia de existencia se re-basó a contenido. El 189/200 del corte anterior concedía puntos por que un JSON existiera aunque su contenido desmintiera el criterio (browser-slo medía 48 s de detalle completo). Ahora un criterio de ≥2 pt sólo-existencia es un error de definición, y los gaps documentados (frozen, PAGESETUP, hatch en PDF, BEDIT, F7/F9/F12, .shx, kernel WASM sin importador) son criterios que fallan, no notas al pie.",
-    "Corte 2026-08-22 (campaña de cimientos): DOS denominadores publicados — alcance de hoy (categorías scope:hoy) y alcance de destino (todas). Evidencia clasificada en propia vs independiente: una categoría sin NINGUNA evidencia independiente no puede llegar a su tope (se retiene 1 punto con nota). Filas nuevas: integridad (comandos que hacen lo que dicen, pérdidas nunca silenciosas) y capacidad de crecer (las ocho puertas del anexo). Correcciones de honestidad: plugins ya no declara .NET/VBA, BEDIT-en-sitio y bloques dinámicos son «todavía no» explícitos, el SLO de navegador se exige también sobre la mezcla architecture@100k, y detectar-y-rechazar DWG puntúa en integridad, no en soporte DWG."
+    "Corte 2026-08-22 (campaña de cimientos): DOS denominadores publicados — alcance de hoy (categorías scope:hoy) y alcance de destino (todas). Evidencia clasificada en propia vs independiente: una categoría sin NINGUNA evidencia independiente no puede llegar a su tope (se retiene 1 punto con nota). Filas nuevas: integridad (comandos que hacen lo que dicen, pérdidas nunca silenciosas) y capacidad de crecer (las ocho puertas del anexo). Correcciones de honestidad: plugins ya no declara .NET/VBA, BEDIT-en-sitio y bloques dinámicos son «todavía no» explícitos, el SLO de navegador se exige también sobre la mezcla architecture@100k, y detectar-y-rechazar DWG puntúa en integridad, no en soporte DWG.",
+    "Corte 2026-09-02: eje de RECONOCIMIENTO (scope hoy) con criterios que miran la PANTALLA —texto dibujado, orden de la cinta, teclas a la línea de comandos, ventana por arrastre, nada tapa el lienzo—, medidos por goldens de Playwright y no por existencia de código; y las SIETE filas de toolsets (scope destino) aunque hoy valgan cero: el denominador de destino dice a qué distancia está el producto de AutoCAD completo, no sólo de AutoCAD LT."
   ],
   "groups": [
     {
@@ -39,6 +40,16 @@
       "id": "truth",
       "name": "Integridad y capacidad de crecer",
       "points": 21
+    },
+    {
+      "id": "recog",
+      "name": "Reconocimiento: se ve y se maneja como AutoCAD",
+      "points": 14
+    },
+    {
+      "id": "toolsets",
+      "name": "Los siete toolsets de AutoCAD",
+      "points": 28
     }
   ],
   "categories": [
@@ -877,12 +888,16 @@
         {
           "id": "layers.linetype",
           "points": 2,
-          "text": "Tipos de línea y escala aplicables a la entidad",
+          "text": "Tipos de línea y escala aplicables a la entidad, resueltos por capa (BYLAYER) con respaldo de fábrica",
           "costDays": 0,
           "evidence": [
             {
               "kind": "file",
-              "path": "apps/web/src/lib/cad/linetype.ts"
+              "path": "apps/web/src/lib/cad/linetype-resolve.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/cad-effective-style.spec.ts"
             },
             {
               "kind": "spec",
@@ -2823,6 +2838,386 @@
               "path": "scripts/dwg/corpus-consumer.mjs",
               "pattern": "mirrorEnv",
               "min": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recognition",
+      "group": "recog",
+      "scope": "hoy",
+      "name": "Reconocimiento en pantalla",
+      "points": 14,
+      "gap": "Lo que un dibujante de AutoCAD reconoce en los primeros cinco minutos: el texto se ve, la cinta está donde la espera, teclea sin pulsar la caja, arrastra para designar nada le tapa el plano y los ejes se ven a trazo y punto. Cada criterio lo mide un golden en Chromium o un spec que lee los bytes; ninguno concede puntos por que exista un módulo.",
+      "criteria": [
+        {
+          "id": "recognition.text-visible",
+          "points": 2,
+          "text": "TEXT, la etiqueta de la cota, el texto de la directriz y las celdas de la tabla se dibujan en el espacio modelo (atlas de texto: ≥56 glifos rasterizados en el golden)",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/47-cad-render-pipeline.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/render/text-requests.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "recognition.ribbon-order",
+          "points": 2,
+          "text": "La cinta abre en Inicio con Dibujo · Modificar · Anotación · Capas · Bloque · Propiedades, LINE es el primer botón y existe la pestaña Paramétrico",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/ribbon.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/61-cad-ribbon-mouse-only.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "recognition.keys-to-command-line",
+          "points": 2,
+          "text": "Teclear con el lienzo enfocado escribe en la línea de comandos sin pulsarla, Intro devuelve el foco y Espacio vale por Intro",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/editor-keyboard.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/44-cad-command-line.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "recognition.no-alias-collisions",
+          "points": 2,
+          "text": "Ninguna letra suelta del lienzo roba un alias de una letra de acad.pgp (M, E, O, P, Z, A, B, F, G, V, W, S, X): la letra suelta es de la línea de comandos",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/keyboard-alias-collisions.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/components/cad/studio/shortcuts-help.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "recognition.drag-selects",
+          "points": 2,
+          "text": "Arrastrar sobre el fondo designa por ventana (izq→der) o cruce (der→izq), el botón central encuadra y dos dedos siguen encuadrando",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/components/cad/viewport/background-drag-policy.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/72-cad-arrastre-designa.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "recognition.nothing-covers",
+          "points": 2,
+          "text": "Ningún panel tapa el área de dibujo ni un control: cada punto de una rejilla del lienzo responde <canvas> y cada control recibe su clic",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/67-cad-nada-tapa-un-control.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/68-cad-nada-tapa-el-lienzo.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "recognition.linetype-shape",
+          "points": 2,
+          "text": "Un eje en capa CENTER se ve, se imprime y se exporta con su forma completa (trazo largo · hueco · trazo corto · hueco): la ranura llega al lote, el PDF lleva el operador d con esos milímetros y el DXF escribe el patrón de fábrica",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/render/line-batch.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/components/cad/viewport/render-pipeline-host.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/plot-linetype-pattern.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dxf-linetype-table.spec.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "toolset-architecture",
+      "group": "toolsets",
+      "scope": "destino",
+      "name": "Toolset Architecture",
+      "points": 4,
+      "gap": "Muros, puertas y ventanas ya se teclean y se dibujan (WALL, DOOR, WINDOW); faltan escaleras, techos, cubiertas y las tablas de superficies y carpintería en la lámina. Es el primer toolset de la campaña (Ola E).",
+      "criteria": [
+        {
+          "id": "toolset-architecture.envolvente",
+          "points": 2,
+          "text": "WALL, DOOR y WINDOW son tecleables y alojan huecos en el muro",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "command",
+              "name": "WALL"
+            },
+            {
+              "kind": "command",
+              "name": "DOOR"
+            },
+            {
+              "kind": "command",
+              "name": "WINDOW"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/53-cad-bim-wall.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "toolset-architecture.interiores",
+          "points": 2,
+          "text": "Escaleras, techos y cubiertas paramétricos, y tablas de superficies y carpintería que salen en la lámina",
+          "costDays": null,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "No existen escaleras, techos ni cubiertas paramétricos, ni tablas de superficies/carpintería en espacio papel. Ola E de la campaña «AutoCAD completo»."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "toolset-mep",
+      "group": "toolsets",
+      "scope": "destino",
+      "name": "Toolset MEP (mitad 2D)",
+      "points": 4,
+      "gap": "Nada del toolset MEP existe: ni conductos, tuberías o bandejas en planta ni sus tablas.",
+      "criteria": [
+        {
+          "id": "toolset-mep.trazado",
+          "points": 2,
+          "text": "Conductos, tuberías y bandejas de cables en planta con uniones y símbolos",
+          "costDays": null,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "No hay entidades ni comandos MEP. Después de Architecture en la campaña."
+            }
+          ]
+        },
+        {
+          "id": "toolset-mep.tablas",
+          "points": 2,
+          "text": "Tablas de equipos y longitudes que salen en la lámina",
+          "costDays": null,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "Sin trazado MEP no hay tablas MEP."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "toolset-map3d",
+      "group": "toolsets",
+      "scope": "destino",
+      "name": "Toolset Map 3D",
+      "points": 4,
+      "gap": "Nada del toolset Map 3D existe: ni sistemas de coordenadas georreferenciados ni capas de datos GIS.",
+      "criteria": [
+        {
+          "id": "toolset-map3d.georreferencia",
+          "points": 2,
+          "text": "Sistema de coordenadas del dibujo (EPSG) y transformación entre sistemas",
+          "costDays": null,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "No hay georreferenciación. Tercer toolset de la campaña."
+            }
+          ]
+        },
+        {
+          "id": "toolset-map3d.datos",
+          "points": 2,
+          "text": "Importar capas GIS (SHP/GeoJSON) como objetos con atributos",
+          "costDays": null,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "No hay importador GIS."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "toolset-raster",
+      "group": "toolsets",
+      "scope": "destino",
+      "name": "Toolset Raster Design (mitad útil)",
+      "points": 4,
+      "gap": "Se adjunta una imagen (IMAGE), pero no hay corrección, recorte por polígono, vectorización ni calibración de un plano escaneado.",
+      "criteria": [
+        {
+          "id": "toolset-raster.imagen",
+          "points": 2,
+          "text": "Insertar, recortar por polígono y ajustar (brillo/contraste/transparencia) un plano escaneado",
+          "costDays": null,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "IMAGE inserta; el recorte por polígono y el ajuste de imagen no existen. Cuarto toolset de la campaña."
+            }
+          ]
+        },
+        {
+          "id": "toolset-raster.vectorizacion",
+          "points": 2,
+          "text": "Vectorizar líneas y textos de un escaneo a entidades",
+          "costDays": null,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "No hay vectorización."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "toolset-mechanical",
+      "group": "toolsets",
+      "scope": "destino",
+      "name": "Toolset Mechanical",
+      "points": 4,
+      "gap": "Nada del toolset Mechanical existe: ni biblioteca de normalizados ni cotas de fabricación con tolerancias.",
+      "criteria": [
+        {
+          "id": "toolset-mechanical.normalizados",
+          "points": 2,
+          "text": "Biblioteca de tornillería y perfiles normalizados insertables",
+          "costDays": null,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "No hay biblioteca de normalizados. Quinto toolset de la campaña."
+            }
+          ]
+        },
+        {
+          "id": "toolset-mechanical.cotas",
+          "points": 2,
+          "text": "Cotas de fabricación con tolerancias y símbolos de acabado",
+          "costDays": null,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "TOLERANCE existe como marco de control; las cotas con tolerancia y acabados no."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "toolset-electrical",
+      "group": "toolsets",
+      "scope": "destino",
+      "name": "Toolset Electrical (fuera de alcance)",
+      "points": 4,
+      "gap": "Fuera del alcance de la campaña «AutoCAD completo» (docs/parity/ESCALERA.md): se declara la fila para que el denominador de destino sea honesto.",
+      "criteria": [
+        {
+          "id": "toolset-electrical.esquemas",
+          "points": 2,
+          "text": "Esquemas eléctricos con símbolos normalizados y numeración de hilos",
+          "costDays": null,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "Fuera de alcance declarado. Fila a cero a propósito."
+            }
+          ]
+        },
+        {
+          "id": "toolset-electrical.informes",
+          "points": 2,
+          "text": "Informes de cableado y listas de materiales",
+          "costDays": null,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "Fuera de alcance declarado."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "toolset-plant3d",
+      "group": "toolsets",
+      "scope": "destino",
+      "name": "Toolset Plant 3D (fuera de alcance)",
+      "points": 4,
+      "gap": "Fuera del alcance de la campaña «AutoCAD completo» (docs/parity/ESCALERA.md): se declara la fila para que el denominador de destino sea honesto.",
+      "criteria": [
+        {
+          "id": "toolset-plant3d.pid",
+          "points": 2,
+          "text": "Diagramas P&ID con catálogo de equipos y líneas",
+          "costDays": null,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "Fuera de alcance declarado. Fila a cero a propósito."
+            }
+          ]
+        },
+        {
+          "id": "toolset-plant3d.tuberia",
+          "points": 2,
+          "text": "Tubería 3D por especificación e isométricos",
+          "costDays": null,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "Fuera de alcance declarado."
             }
           ]
         }

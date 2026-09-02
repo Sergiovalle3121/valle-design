@@ -104,6 +104,17 @@ demanda comercial real y directa. B-rep (7) la tiene indirecta —vende en el
 comparativo, no en el uso diario—. WASM (2) es una optimización condicionada y
 GIS (3) es otro producto.
 
+Desde el corte 2026-09-02 el denominador de DESTINO suma dos grupos más y por
+eso los repartos de arriba (55/22/13/10 %) se leen sobre 216, la base anterior:
+**reconocimiento** (14 pt, alcance de HOY) mide en pantalla lo que un dibujante
+de AutoCAD reconoce en cinco minutos —el texto se ve, la cinta está donde la
+espera, teclea sin pulsar la caja, arrastra para designar, nada le tapa el
+plano y los ejes se ven a trazo y punto—, y **los siete toolsets** (28 pt, alcance de DESTINO) declaran una fila
+por vertical aunque hoy valgan cero, con Electrical y Plant 3D fuera de alcance
+por escrito. Una nota de la auditoría del 2026-09-01 lo dejó medido: el
+producto sumaba 88,6 % del alcance de HOY y «no se parecía en nada» a AutoCAD,
+porque el instrumento no tenía ni una fila para el reconocimiento.
+
 ## Capacidades: las 25 filas al día
 
 <!-- rubric:begin -->
@@ -113,7 +124,7 @@ GIS (3) es otro producto.
 > Editarla a mano es reintroducir el defecto que motivó el script: la prosa
 > manual envejeció dos veces y en las dos direcciones.
 
-**Puntuación (rúbrica 2026-08-22.1).** **Alcance de HOY: 155/175 (88.6 %)** — el flujo diario de dibujo 2D técnico, la cifra que se enseña a un cliente. **Alcance de DESTINO: 187/216 (86.6 %)** — AutoCAD completo con sus verticales, la cifra que mide el camino; lo excluido de hoy es «todavía no», nunca «nunca». 5 pt provienen de evidencia INDEPENDIENTE y 182 pt sólo de evidencia propia; 18 fila(s) retienen 1 pt hasta tener evidencia independiente. 0 de 26 filas están en su tope. Una fila sólo llega a su tope cuando TODOS sus criterios verifican, incluidos los que nombran gaps documentados; un gap conocido se declara como criterio que falla, no como nota al pie.
+**Puntuación (rúbrica 2026-09-02.1).** **Alcance de HOY: 168/189 (88.9 %)** — el flujo diario de dibujo 2D técnico, la cifra que se enseña a un cliente. **Alcance de DESTINO: 202/258 (78.3 %)** — AutoCAD completo con sus verticales, la cifra que mide el camino; lo excluido de hoy es «todavía no», nunca «nunca». 5 pt provienen de evidencia INDEPENDIENTE y 197 pt sólo de evidencia propia; 19 fila(s) retienen 1 pt hasta tener evidencia independiente. 0 de 34 filas están en su tope. Una fila sólo llega a su tope cuando TODOS sus criterios verifican, incluidos los que nombran gaps documentados; un gap conocido se declara como criterio que falla, no como nota al pie.
 
 ### Núcleo del plano entregable — 98/110
 
@@ -124,7 +135,7 @@ GIS (3) es otro producto.
 | Cotas asociativas | 11/12 | Parcial | Entidad DIMENSION canónica con asociatividad al geométrico medido; Formato de cota: unidades, precisión y presentación del valor; Round-trip DXF de DIMENSION con XDATA propietaria; DIMLINEAR, DIMALIGNED, DIMANGULAR, DIMRADIUS y DIMDIAMETER tecleables (DLI, DAL, DAN, DRA, DDI resuelven); DIMSTYLE aplicable: núcleo de ~30 DIMVARs con nombre, aplicación retroactiva, comparación y round-trip DXF de la tabla | Nada pendiente: todos los criterios declarados verifican |
 | HATCH asociativo | 9/10 | Parcial | Motor de sombreado poligonal con asociatividad al contorno; Round-trip DXF de HATCH; HATCH tecleable con detección de contorno por punto interior (H y BH resuelven); Contornos curvos e islas anidadas con corpus de casos y criterio por caso | Nada pendiente: todos los criterios declarados verifican |
 | MTEXT y texto | 8/9 | Parcial | Entidad MTEXT con maquetación de párrafo; MTEXT viaja por DXF en los dos sentidos; MTEXT, TEXT y STYLE tecleables (T, MT, DT y ST resuelven); Códigos de control (\P, apilado, cambio de fuente) con sustitución de fuentes declarada | Una fuente de trazos (SHX o equivalente de dominio público) resuelve glifos de verdad en vez de sustituirse (1 pt) |
-| Capas y propiedades | 9/10 | Parcial | Capa canónica con mapa DXF probado; Gestor de capas con bloquear y visibilidad; Congelar de verdad: `frozen` en la capa del documento canónico (CadLayerDef), distinto de apagar, persistido y con viaje DXF del bit 1 del código 70; Paleta de propiedades multi-objeto; Tipos de línea y escala aplicables a la entidad; LAYER, LINETYPE, LWEIGHT, COLOR y PROPERTIES tecleables (LA, LT, LW, COL, CH resuelven) | Nada pendiente: todos los criterios declarados verifican |
+| Capas y propiedades | 9/10 | Parcial | Capa canónica con mapa DXF probado; Gestor de capas con bloquear y visibilidad; Congelar de verdad: `frozen` en la capa del documento canónico (CadLayerDef), distinto de apagar, persistido y con viaje DXF del bit 1 del código 70; Paleta de propiedades multi-objeto; Tipos de línea y escala aplicables a la entidad, resueltos por capa (BYLAYER) con respaldo de fábrica; LAYER, LINETYPE, LWEIGHT, COLOR y PROPERTIES tecleables (LA, LT, LW, COL, CH resuelven) | Nada pendiente: todos los criterios declarados verifican |
 | Bloques y atributos | 7/9 | Parcial | Definición e inserción de bloques con biblioteca profesional; ATTDEF tecleable con atributos persistidos en el documento; Round-trip DXF de INSERT con transformación y de la tabla de bloques; BLOCK, INSERT y WBLOCK tecleables (B, I, W resuelven) | Editor de bloques EN SITIO (BEDIT como editor real, no como puerta al panel) (1 pt); Bloques dinámicos (parámetros y acciones de AutoCAD) y comportamiento anotativo (1 pt) |
 | Import/export DXF de texto | 10/12 | Parcial | Importador DXF en TypeScript con specs; Exportador con manifiesto de pérdidas y preflight antes de entregar; Round-trip por entidad: polilínea con bulge, polilínea cerrada, hatch, cota e insert; XDATA con nombres de aplicación registrados y estables; Corpus propio versionado con round-trip completo; DXFIN y DXFOUT tecleables | Corpus DXF de terceros, autorizado y diverso, con matriz por entidad y pérdidas aceptadas (2 pt) |
 | Layouts, viewports y publicación | 9/10 | Parcial | Paper space con múltiples viewports; Hoja de ploteo y adaptador de exportación del layout; Publicaciones versionadas y consultables desde el cliente; LAYOUT, MVIEW, MSPACE, PSPACE, PLOT y PAGESETUP tecleables; Fidelidad geométrica de publicación MEDIDA sobre los bytes del PDF: error de escala bajo la tolerancia de 0,001 mm y veredicto verde, con máquina declarada; PAGESETUP recoloca la ventana gráfica al cambiar el papel: cero segmentos fuera del área imprimible en el caso medido A1→A3; El sombreado llega al PDF publicado con su patrón, no sólo el contorno | Nada pendiente: todos los criterios declarados verifican |
@@ -166,6 +177,24 @@ GIS (3) es otro producto.
 | Integridad: el producto hace lo que dice | 12/13 | Parcial | Cada comando del registro hace lo que dice: el arnés de veracidad corre en check:cad con CERO éxitos falsos y exenciones declaradas; La interfaz detecta y rechaza el formato en vez de fingir soporte; Ninguna pérdida es silenciosa: el manifiesto de pérdidas viaja con el documento, con el DXF exportado y con la publicación por lotes; Los límites se declaran donde el usuario y el lector los ven: README con límites explícitos, CAPABILITIES del laboratorio con columna de límites, y los anfitriones responden «no disponible» en vez de fingir | Nada pendiente: todos los criterios declarados verifican |
 | Capacidad de crecer: las puertas que no se cierran | 7/8 | Parcial | La migración aditiva es invariante escrita (ADR-0011) y probada: documentos de esquemas anteriores abren con cero pérdida; La API pública tiene política de versionado y el manifiesto de plugins es formato con versión; El mecanismo de niveles existe: guard genérico por capacidad y catálogo con N entitlements por plan (aunque hoy se venda UNA); El uso por organización se registra desde ya (documentos guardados y publicados, con idempotencia); La puerta única de interoperabilidad está escrita: bytes → neutral → canónico con pérdidas en ambos sentidos; La deuda del monolito está publicada con meta (<8,000 líneas), método por costuras y registro por campaña; el trinquete existe; El mecanismo de corpus independiente está montado: consumo fail-closed con pin y procedimiento de donación publicado en el repo de conformidad | Nada pendiente: todos los criterios declarados verifican |
 
+### Reconocimiento: se ve y se maneja como AutoCAD — 13/14
+
+| Categoría | Puntos | Estado | Qué verifica hoy | Qué falta exactamente |
+| --- | ---: | --- | --- | --- |
+| Reconocimiento en pantalla | 13/14 | Parcial | TEXT, la etiqueta de la cota, el texto de la directriz y las celdas de la tabla se dibujan en el espacio modelo (atlas de texto: ≥56 glifos rasterizados en el golden); La cinta abre en Inicio con Dibujo · Modificar · Anotación · Capas · Bloque · Propiedades, LINE es el primer botón y existe la pestaña Paramétrico; Teclear con el lienzo enfocado escribe en la línea de comandos sin pulsarla, Intro devuelve el foco y Espacio vale por Intro; Ninguna letra suelta del lienzo roba un alias de una letra de acad.pgp (M, E, O, P, Z, A, B, F, G, V, W, S, X): la letra suelta es de la línea de comandos; Arrastrar sobre el fondo designa por ventana (izq→der) o cruce (der→izq), el botón central encuadra y dos dedos siguen encuadrando; Ningún panel tapa el área de dibujo ni un control: cada punto de una rejilla del lienzo responde <canvas> y cada control recibe su clic; Un eje en capa CENTER se ve, se imprime y se exporta con su forma completa (trazo largo · hueco · trazo corto · hueco): la ranura llega al lote, el PDF lleva el operador d con esos milímetros y el DXF escribe el patrón de fábrica | Nada pendiente: todos los criterios declarados verifican |
+
+### Los siete toolsets de AutoCAD — 2/28
+
+| Categoría | Puntos | Estado | Qué verifica hoy | Qué falta exactamente |
+| --- | ---: | --- | --- | --- |
+| Toolset Architecture | 2/4 | Parcial | WALL, DOOR y WINDOW son tecleables y alojan huecos en el muro | Escaleras, techos y cubiertas paramétricos, y tablas de superficies y carpintería que salen en la lámina (2 pt) |
+| Toolset MEP (mitad 2D) | 0/4 | Ausente | Nada verificado | Conductos, tuberías y bandejas de cables en planta con uniones y símbolos (2 pt); Tablas de equipos y longitudes que salen en la lámina (2 pt) |
+| Toolset Map 3D | 0/4 | Ausente | Nada verificado | Sistema de coordenadas del dibujo (EPSG) y transformación entre sistemas (2 pt); Importar capas GIS (SHP/GeoJSON) como objetos con atributos (2 pt) |
+| Toolset Raster Design (mitad útil) | 0/4 | Ausente | Nada verificado | Insertar, recortar por polígono y ajustar (brillo/contraste/transparencia) un plano escaneado (2 pt); Vectorizar líneas y textos de un escaneo a entidades (2 pt) |
+| Toolset Mechanical | 0/4 | Ausente | Nada verificado | Biblioteca de tornillería y perfiles normalizados insertables (2 pt); Cotas de fabricación con tolerancias y símbolos de acabado (2 pt) |
+| Toolset Electrical (fuera de alcance) | 0/4 | Ausente | Nada verificado | Esquemas eléctricos con símbolos normalizados y numeración de hilos (2 pt); Informes de cableado y listas de materiales (2 pt) |
+| Toolset Plant 3D (fuera de alcance) | 0/4 | Ausente | Nada verificado | Diagramas P&ID con catálogo de equipos y líneas (2 pt); Tubería 3D por especificación e isométricos (2 pt) |
+
 ### Prioridad: los diez puntos más baratos por valor comercial
 
 Entre los criterios NO otorgados, ordenados por puntos entre `costDays`
@@ -182,6 +211,7 @@ declarados. Reproducible con `node scripts/cad/rubric.mjs --priorities`.
 | 7 | 1 | 20 | Import/export DWG | Integración en runtime con gates legal, de seguridad y de fidelidad superados |
 | 8 | 2 | 60 | Automatización: AutoLISP y plugins JS | Puente .NET/VBA para rutinas heredadas de despacho |
 | 9 | 1 | 30 | Kernel Rust/WASM | Kernel WASM con paridad numérica verde Y enchufado: alguien fuera de lib/cad/wasm lo importa (regla 6) |
+| 10 | 2 | ? | Toolset Architecture | Escaleras, techos y cubiertas paramétricos, y tablas de superficies y carpintería que salen en la lámina |
 
 <!-- rubric:end -->
 

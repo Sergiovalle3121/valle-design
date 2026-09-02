@@ -16,6 +16,7 @@ import { buildCadDimensionGeometry } from "./associative-dimension";
 import { buildCadMleaderGeometry } from "./associative-mleader";
 import { plotEntityFromRegistry } from "./paper-space-registry-fallback";
 import { IDENTITY, multiply, point, type Affine } from "./paper-space-affine";
+import { blockPresentation, styleFor, unitToMm } from "./paper-space-style";
 
 export const CAD_SHEET_PAPERS = {
   A4: { width: 210, height: 297 },
@@ -150,12 +151,6 @@ const DEFAULT_MARGIN = 10;
 const DEFAULT_TITLE_BLOCK_HEIGHT = 30;
 const MAX_BLOCK_DEPTH = 8;
 
-function unitToMm(unit: string): number {
-  if (unit === "m") return 1000;
-  if (unit === "cm") return 10;
-  if (unit === "in") return 25.4;
-  return 1;
-}
 
 function safeText(value: unknown, fallback: string): string {
   const text = String(value ?? "").trim();
@@ -402,53 +397,6 @@ function visibleLayer(
   return viewport.layerVisibility?.[layerId] ?? (!layer || cadLayerShown(layer));
 }
 
-function blockPresentation(
-  own: CadEntityPresentation | undefined,
-  inherited: CadEntityPresentation | undefined,
-): CadEntityPresentation | undefined {
-  if (!own) return undefined;
-  const property = <T extends { source: "byLayer" | "byBlock" | "explicit" }>(
-    value: T | undefined,
-    parent: T | undefined,
-  ) => value?.source === "byBlock" ? parent : value;
-  return {
-    color: property(own.color, inherited?.color),
-    linetype: property(own.linetype, inherited?.linetype),
-    lineweight: property(own.lineweight, inherited?.lineweight),
-  };
-}
-
-function styleFor(
-  entity: CadEntity,
-  layerId: string,
-  layers: Map<string, CadLayerDef>,
-  viewport: CadPaperViewport,
-  colorMode: "color" | "monochrome",
-  lineweightScale: number,
-  inheritedPresentation?: CadEntityPresentation,
-): CadVectorStyle {
-  const layer = layers.get(layerId);
-  const override = viewport.layerOverrides?.[layerId];
-  const presentation = blockPresentation(entity.context?.presentation, inheritedPresentation);
-  const explicit = presentation?.color;
-  const color =
-    colorMode === "monochrome"
-      ? "#111827"
-      : (override?.color ??
-        (explicit?.source === "explicit" ? explicit.value : undefined) ??
-        layer?.color ??
-        "#334155");
-  const rawWidth =
-    override?.lineweight ??
-    (presentation?.lineweight?.source === "explicit" ? presentation.lineweight.value : undefined) ??
-    layer?.lineweight ??
-    0.18;
-  return {
-    stroke: color || "#334155",
-    lineWidth: Math.max(0.05, rawWidth * Math.max(0.1, lineweightScale)),
-  };
-}
-
 function rectPoints(
   entity: Extract<CadEntity, { type: "box" | "station" }>,
 ): CadPoint2[] {
@@ -532,6 +480,7 @@ function renderEntity(
     context.colorMode,
     context.lineweightScale,
     context.inheritedPresentation,
+    context.document,
   );
   const path = (points: CadPoint2[], closed = false, fill?: string) =>
     commandPath(
@@ -670,8 +619,13 @@ function renderEntity(
     // El patrón viaja como trazos reales; la guarda de densidad degrada a
     // contorno con aviso honesto antes que fabricar un PDF imposible.
     const pattern = buildCadHatchPublishStrokes(entity, Math.hypot(matrix.a, matrix.b));
-    // Dos puntos SIEMPRE forman un path: el `!` no esconde ningún caso.
-    for (const segment of pattern.strokes) commands.push(path([segment.a, segment.b])!);
+    // Las líneas de la trama son CONTINUAS aunque la capa lleve tipo de línea:
+    // AutoCAD no raya un sombreado con el patrón de su capa.
+    const hatchStyle: CadVectorStyle = { stroke: style.stroke, lineWidth: style.lineWidth, ...(style.fill ? { fill: style.fill } : {}) };
+    for (const segment of pattern.strokes) {
+      const stroke = commandPath(entity.id, context.viewport.id, [segment.a, segment.b], false, matrix, hatchStyle);
+      if (stroke) commands.push(stroke);
+    }
     if (pattern.warning)
       context.warnings.push({ ...pattern.warning, sheetId: context.sheetId, viewportId: context.viewport.id, entityId: entity.id });
     return commands;

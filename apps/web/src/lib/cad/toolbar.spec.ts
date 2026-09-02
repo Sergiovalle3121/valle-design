@@ -11,11 +11,9 @@ assert.equal(
   CAD_TOOLBAR_ACTIONS.length,
   "toolbar action ids are unique",
 );
-assert.equal(
-  findToolbarAction("measure")?.shortcut,
-  "M",
-  "measure action has shortcut",
-);
+// La barra no anuncia lo que el registro no tiene: M, P y B son alias de
+// acad.pgp (MOVE, PAN, BLOCK) y la letra suelta es de la línea de comandos.
+assert.equal(findToolbarAction("measure")?.shortcut, undefined, "measure ya no anuncia M");
 assert.equal(
   findToolbarAction("text")?.shortcut,
   "T",
@@ -26,16 +24,8 @@ assert.equal(
   "L",
   "line action owns the plain drafting shortcut",
 );
-assert.equal(
-  findToolbarAction("polyline")?.shortcut,
-  "P",
-  "polyline action has shortcut",
-);
-assert.equal(
-  findToolbarAction("rect")?.shortcut,
-  "B",
-  "rect action has shortcut",
-);
+assert.equal(findToolbarAction("polyline")?.shortcut, undefined, "polyline ya no anuncia P");
+assert.equal(findToolbarAction("rect")?.shortcut, undefined, "rect ya no anuncia B");
 assert.equal(
   toolbarActionsByGroup("history").length,
   2,

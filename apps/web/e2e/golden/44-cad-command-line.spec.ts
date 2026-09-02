@@ -23,8 +23,9 @@ import type { CadDocument } from '../../src/lib/cad/cad-document';
  * entidades nacieron, con qué coordenadas y en qué capa. Un diálogo que imprime
  * el prompt correcto y no crea geometría no prueba nada.
  *
- * De momento el puntero NO pasa por el motor: se dibuja tecleando. Esa frontera
- * es deliberada y está explicada en `Layout3DEditor.tsx`, junto al montaje.
+ * Se teclea con el LIENZO enfocado, sin pulsar la caja: la primera tecla la
+ * enfoca (editor-keyboard.ts, fase 0) e Intro devuelve el foco. Es lo que hace
+ * que Supr y Ctrl+Z sigan siendo del dibujo entre orden y orden.
  */
 function seedDocument(): CadDocument {
   return {
@@ -43,12 +44,19 @@ async function installCadBackend(context: BrowserContext) {
   });
 }
 
-/** Teclea en la línea de comandos y confirma, como se haría de verdad. */
+/**
+ * Teclea con el LIENZO enfocado, como en AutoCAD: sin clic previo. La primera
+ * tecla enfoca la caja (editor-keyboard.ts, fase 0) y el navegador inserta el
+ * carácter; Intro envía la orden y DEVUELVE el foco al lienzo. `keyboard.type`,
+ * no `press('Shift+2')`: medido que éste produce «2».
+ */
 async function type(page: Page, value: string) {
   const input = page.getByTestId('cad-command-input');
-  await input.click();
-  await input.fill(value);
-  await input.press('Enter');
+  await expect(input).not.toBeFocused();
+  await page.keyboard.type(value);
+  await expect(input).toHaveValue(value);
+  await page.keyboard.press('Enter');
+  await expect(input).not.toBeFocused();
 }
 
 /** Espera a que el EDITOR reconozca las entidades creadas hasta ahora. */
@@ -96,24 +104,36 @@ test('la línea de comandos dibuja: L, coordenadas relativas, Cerrar, Espacio re
   // 2000,1500 → 0,0. Es la comprobación que distingue «cerrar» de «terminar».
   await expectNativeCount(page, 3);
 
-  // --- Espacio repite el último comando --------------------------------------
-  const input = page.getByTestId('cad-command-input');
-  await input.click();
-  await input.press('Space');
-  await expect(prompt).toBeVisible();
-
-  // --- Esc cancela sin escribir ----------------------------------------------
-  await type(page, '5000,5000');
-  await input.press('Escape');
-  await expect(prompt).toBeHidden();
+  // --- Ctrl+Z sigue siendo del lienzo aunque se acabe de teclear ---------------
+  // Sin el blur tras Intro, Ctrl+Z era el historyUndo del navegador dentro de
+  // la caja (medido) y el dibujo no se enteraba.
+  await page.keyboard.press('Control+z');
+  await expect(page.getByTestId('cad-native-document-count')).not.toHaveText('Native 3');
+  await page.keyboard.press('Control+Shift+z');
   await expectNativeCount(page, 3);
+  // --- Espacio DESDE EL LIENZO repite el último comando ----------------------
+  await page.keyboard.press('Space');
+  await expect(prompt).toBeVisible();
+  // --- y Espacio durante LINE vale por Intro (termina el comando) ------------
+  await type(page, '5000,5000');
+  await type(page, '@1000,0');
+  await page.keyboard.press('Space');
+  await expect(prompt).toBeHidden();
+  await expectNativeCount(page, 4);
+  // --- Esc desde el lienzo cancela sin escribir --------------------------------
+  await page.keyboard.press('Space');
+  await expect(prompt).toBeVisible();
+  await type(page, '7000,7000');
+  await page.keyboard.press('Escape');
+  await expect(prompt).toBeHidden();
+  await expectNativeCount(page, 4);
 
   // --- lo dibujado es geometría canónica y persiste --------------------------
   await saveAndSettle(page, backend);
   const saved = backend.snapshot().document.entities;
-  expect(saved).toHaveLength(3);
+  expect(saved).toHaveLength(4);
   expect(saved.every((entity) => entity.type === 'line')).toBe(true);
-  expect(saved.map((entity) => entity.layer)).toEqual(['0', '0', '0']);
+  expect(saved.map((entity) => entity.layer)).toEqual(['0', '0', '0', '0']);
   // El contorno cerrado: cada segmento arranca donde acabó el anterior y el
   // último vuelve al origen. Si «Cerrar» sólo hubiera terminado el comando,
   // aquí habría dos segmentos y ninguno volvería a 0,0.

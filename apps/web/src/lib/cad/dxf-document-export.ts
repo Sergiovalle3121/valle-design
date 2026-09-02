@@ -21,6 +21,7 @@ import type {
   CadStyleTable,
 } from "./cad-document";
 import { CAD_LINEWEIGHT_DEFAULT } from "./cad-effective-style";
+import { cadLinetypePatternFor } from "./linetype-resolve";
 import {
   cadDocumentDxfBlocks,
   cadDocumentDxfExportLosses,
@@ -113,15 +114,7 @@ export function cadDocumentToDxfExportModel(
       // Congelada viaja al bit 1 del código 70; el importador ya lo leía.
       ...(layer.frozen === true ? { frozen: true } : {}),
     })),
-    ...(document.styles?.linetype
-      ? {
-          linetypes: Object.entries(document.styles.linetype).map(([name, entry]) => ({
-            name,
-            pattern: entry.pattern,
-            ...(entry.description ? { description: entry.description } : {}),
-          })),
-        }
-      : {}),
+    ...cadDxfLinetypeTable(document),
     // La norma de acotación viaja como TABLA (además del nombre en código 3 y
     // los overrides XDATA por entidad): un despacho que fija su DIMSTYLE lo
     // recupera al reabrir el fichero, no sólo el aspecto de cada cota.
@@ -168,4 +161,39 @@ export function exportCadDocumentDxf(
     layers: exported.layers,
     losses,
   };
+}
+
+/**
+ * La tabla LTYPE del fichero: el catálogo del documento y, DETRÁS, los tipos
+ * de fábrica que alguna capa o entidad referencia sin que el catálogo los
+ * defina. Medido antes: un dibujo nuevo con la capa EJES=CENTER exportaba
+ * CENTER con patrón `[]` («referenciado pero no definido») y AutoCAD lo abría
+ * continuo.
+ */
+function cadDxfLinetypeTable(
+  document: Pick<CadDxfDocumentExportSource, "layers" | "entities" | "styles">,
+): { linetypes?: Array<{ name: string; pattern: number[]; description?: string }> } {
+  const catalog: Record<string, { pattern: number[]; description?: string }> =
+    document.styles?.linetype ?? {};
+  const entries = Object.entries(catalog).map(([name, entry]) => ({
+    name,
+    pattern: entry.pattern,
+    ...(entry.description ? { description: entry.description } : {}),
+  }));
+  const known = new Set(entries.map((entry) => entry.name.toUpperCase()));
+  const referenced = new Set<string>();
+  for (const layer of document.layers) if (layer.linetype) referenced.add(layer.linetype);
+  for (const entity of document.entities) {
+    const linetype = (entity as { context?: { presentation?: { linetype?: { source?: string; value?: string } } } }).context?.presentation?.linetype;
+    if (linetype?.source === "explicit" && linetype.value) referenced.add(linetype.value);
+  }
+  for (const name of [...referenced].sort()) {
+    const upper = name.toUpperCase();
+    if (known.has(upper) || upper === "CONTINUOUS") continue;
+    const pattern = cadLinetypePatternFor(document, name);
+    if (!pattern || pattern.length === 0) continue;
+    entries.push({ name, pattern: [...pattern] });
+    known.add(upper);
+  }
+  return entries.length > 0 ? { linetypes: entries } : {};
 }

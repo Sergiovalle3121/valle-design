@@ -204,7 +204,12 @@ import {
   interpretEditorKeyAfterEngine,
   interpretEditorKeyBeforeEngine,
   type EditorKeyAction,
+  editorKeyEventLike,
 } from "@/lib/cad/editor-keyboard";
+import {
+  cadBackgroundDragGesture,
+  cadPointerDownBeforeHit,
+} from "@/components/cad/viewport/background-drag-policy";
 import {
   CAD_WORKSPACE_DEFAULTS,
   applyCadWorkspaceProfile,
@@ -6570,14 +6575,23 @@ export default function Layout3DEditor({
           increment,
           draftSettingsHost.ortho ? 45 : Math.min(6, increment / 4),
         );
-        if (tracked.snapped)
+        if (tracked.snapped) {
+          // Con la rejilla de captura encendida, la DISTANCIA a lo largo del
+          // rayo también se captura al paso de la rejilla (el PolarSnap de
+          // AutoCAD): el rastreo devolvía el punto crudo proyectado y un muro
+          // pinchado a 8011 quedaba en 8011 con SNAP on (golden 53, medido:
+          // y exacta por el rayo a 0°, x con el error del píxel).
+          const along = Math.hypot(tracked.point.x - anchor.x, tracked.point.y - anchor.y);
+          const stepped = snapWorld(along);
+          const ratio = along > 1e-9 ? stepped / along : 0;
           return {
-            wx: tracked.point.x,
-            wy: tracked.point.y,
+            wx: anchor.x + (tracked.point.x - anchor.x) * ratio,
+            wy: anchor.y + (tracked.point.y - anchor.y) * ratio,
             onDxf: false,
             tracking: draftSettingsHost.ortho ? "ortho" : "polar",
             trackingAngle: tracked.angle,
           };
+        }
       }
       return { wx: snapWorld(wx), wy: snapWorld(wy), wz, onDxf: false };
     };
@@ -6713,6 +6727,14 @@ export default function Layout3DEditor({
       if (drawingReadOnlyRef.current && toolRef.current !== "select") return;
       if (toolRef.current !== "select") return; // measure/wall resolve on click (pointerup); drag still orbits
       if (nativeGripController.handlePointerDown(e)) return;
+      // El botón central ENCUADRA (camera-policy.ts) y no designa nada: se
+      // corta antes de los hit-tests, que corren para cualquier botón, y con
+      // preventDefault para que Windows no arranque el autoscroll. El grip
+      // pendiente va antes a propósito: un arrastre ya empezado es suyo.
+      if (cadPointerDownBeforeHit(e).kind === "camera") {
+        e.preventDefault();
+        return;
+      }
       if (e.button === 0 && hatchPickModeRef.current) {
         const world = floorWorld(e);
         if (world) hatchPickCallbackRef.current({ x: world.wx, y: world.wy });
@@ -6960,17 +6982,33 @@ export default function Layout3DEditor({
         controls.enabled = false;
         rebuildAll();
         renderer.domElement.setPointerCapture(e.pointerId);
-      } else if (e.button === 0 && e.shiftKey) {
-        // Shift+arrastre en el fondo = marquee (ADR §220). Shift+clic simple
-        // sobre el fondo no hace nada (se resuelve en onUp por distancia).
-        const w = floorWorld(e);
-        if (w) {
-          marquee = { x0: w.wx, y0: w.wy, x1: w.wx, y1: w.wy };
-          controls.enabled = false;
-          renderer.domElement.setPointerCapture(e.pointerId);
-        }
-      } else if (e.button === 0 && !e.shiftKey) {
-        if (selectionOperationRef.current === "replace") {
+      } else {
+        // Fondo: ventana/cruce por defecto en 2D (como AutoCAD; medido antes:
+        // «0 sel» y la cámara se movía), Shift+arrastre como siempre, y el
+        // encuadre con izquierdo sólo con comando abierto, herramienta de
+        // dibujo, 3D, dedo o la preferencia «pan» (background-drag-policy.ts).
+        const gesture = cadBackgroundDragGesture({
+          pointerType: e.pointerType,
+          button: e.button,
+          shiftKey: e.shiftKey,
+          viewMode: viewModeRef.current,
+          tool: toolRef.current,
+          engineActive: enginePointerRouter.active,
+          selectionOperation: selectionOperationRef.current,
+          backgroundDrag: workspacePreferencesRef.current.backgroundDrag,
+        });
+        if (gesture.kind === "marquee") {
+          const w = floorWorld(e);
+          if (w) {
+            if (gesture.clearSelection) {
+              applyProfessionalSelection({ type: "clear" });
+              rebuildAll();
+            }
+            marquee = { x0: w.wx, y0: w.wy, x1: w.wx, y1: w.wy };
+            controls.enabled = false;
+            renderer.domElement.setPointerCapture(e.pointerId);
+          }
+        } else if (gesture.kind === "clear" && selectionOperationRef.current === "replace") {
           applyProfessionalSelection({ type: "clear" });
           rebuildAll();
         }
@@ -7229,7 +7267,10 @@ export default function Layout3DEditor({
           maxX = Math.max(m.x0, m.x1);
         const minY = Math.min(m.y0, m.y1),
           maxY = Math.max(m.y0, m.y1);
-        if (maxX - minX < 5 && maxY - minY < 5) return; // fue un shift+clic, no un arrastre
+        // Fue un clic, no un arrastre: se mide en PÍXELES. Con la ventana por
+        // defecto, «5 unidades de mundo» eran ~0,3 px a escala de planta y un
+        // clic con un píxel de temblor ejecutaba la ventana entera.
+        if (Math.hypot(e.clientX - downX, e.clientY - downY) < 4) return;
         const explicitMode = selectionGeometryModeRef.current;
         const crossing =
           explicitMode === "crossing" ||
@@ -12024,6 +12065,14 @@ export default function Layout3DEditor({
       return;
     }
     if (id === "select" || id === "pan") setToolMode("select");
+    // «Encuadre» y «Seleccionar» comparten modo; lo que cambian es qué hace
+    // arrastrar sobre el fondo. Es la misma preferencia que el select del dock
+    // del workspace, así que el botón y el dock no pueden contradecirse.
+    if (id === "select" || id === "pan") {
+      const backgroundDrag = id === "pan" ? "pan" : "marquee";
+      if (workspacePreferencesRef.current.backgroundDrag !== backgroundDrag)
+        updateWorkspacePreferences({ ...workspacePreferencesRef.current, backgroundDrag });
+    }
     else if (id === "measure") setToolMode("measure");
     else if (
       id === "line" ||
@@ -13468,11 +13517,11 @@ export default function Layout3DEditor({
       case "commit-draft":
         commitActiveDraftCommand();
         return;
-      case "toggle-measure":
-        toggleMeasure();
+      case "command-line":
+        commandInputRef.current?.focus();
         return;
-      case "toggle-wall":
-        toggleWall();
+      case "repeat-last-command":
+        commandEngine.repeat();
         return;
       case "fit-view":
         fitView(action.target);
@@ -13483,11 +13532,6 @@ export default function Layout3DEditor({
       case "delete-selection":
         if (action.native) removeNativeSelection();
         else removeSelected();
-        return;
-      case "rotate-selection":
-        if (action.native)
-          transformNativeSelection({ rotationDeg: action.deltaDeg });
-        else rotateSelected(action.deltaDeg);
         return;
       case "duplicate-selection":
         if (action.native) copyNativeSelection();
@@ -13516,28 +13560,17 @@ export default function Layout3DEditor({
     }
   };
   const handleEditorKeyDown = (e: KeyboardEvent) => {
-    const tgt = e.target as HTMLElement | null;
-    const eventLike = {
-      key: e.key,
-      ctrlKey: e.ctrlKey,
-      metaKey: e.metaKey,
-      shiftKey: e.shiftKey,
-      altKey: e.altKey,
-      targetKind:
-        tgt &&
-        (tgt.tagName === "INPUT" ||
-          tgt.tagName === "TEXTAREA" ||
-          tgt.isContentEditable)
-          ? ("editable" as const)
-          : ("other" as const),
-    };
+    const eventLike = editorKeyEventLike(e);
     const before = interpretEditorKeyBeforeEngine(eventLike, {
       readOnly: drawingReadOnlyRef.current,
       walkMode: !!walkRef.current,
       workspaceShortcuts: workspaceShortcutsRef.current,
+      commandLineOpen: showCommand && !drawingReadOnlyRef.current,
     });
     if (before) {
-      e.preventDefault();
+      // La única acción SIN preventDefault: el navegador inserta el carácter en
+      // la caja recién enfocada (editor-keyboard.ts, fase 0; medido en Chromium).
+      if (before.type !== "command-line") e.preventDefault();
       executeEditorKeyAction(before);
       return;
     }
@@ -14673,7 +14706,7 @@ export default function Layout3DEditor({
         <T3Btn
           active={tool === "select"}
           onClick={() => setToolMode("select")}
-          title="Seleccionar / mover (V)"
+          title="Seleccionar / mover"
         >
           <MousePointer2 className="w-4 h-4" />
         </T3Btn>
@@ -14693,14 +14726,14 @@ export default function Layout3DEditor({
         <T3Btn
           active={tool === "measure"}
           onClick={toggleMeasure}
-          title="Medir / acotar (M)"
+          title="Medir / acotar"
         >
           <Ruler className="w-4 h-4" />
         </T3Btn>
         <T3Btn
           active={tool === "wall"}
           onClick={toggleWall}
-          title="Dibujar muros (W) — clic en puntos, Esc termina"
+          title="Dibujar muros — clic en puntos, Esc termina"
         >
           <Spline className="w-4 h-4" />
         </T3Btn>
@@ -14831,7 +14864,7 @@ export default function Layout3DEditor({
         )}
         <T3Btn
           onClick={() => fitView("all")}
-          title="Ajustar a contenido — encuadra todo el layout (F)"
+          title="Ajustar a contenido — encuadra todo el layout"
         >
           <Expand className="w-4 h-4" />
         </T3Btn>
@@ -16045,14 +16078,21 @@ export default function Layout3DEditor({
                 (`commandEngineRef.current.invoke`), así que un comando
                 encadenable invocado DESDE LA CINTA (p. ej. LINE, PLINE) deja
                 `engineCommand` activo sin que `tool` cambie nunca, y sin este
-                botón no había ninguna forma de cerrarlo sin teclado. */}
-            {!walk && engineCommand && (
+                botón no había ninguna forma de cerrarlo sin teclado.
+                Vive en la banda ALTA del lienzo (`top-3`), encima de la
+                entrada dinámica (`top-12`), y se apaga cuando se muestra
+                `CadDraftToolbar` (ya trae su propio «Terminar») o el aviso de
+                HATCH, que usa esa misma banda. Medido el 2026-09-02 en el
+                golden 61: en `bottom-3 left-1/2` quedaba debajo de la línea de
+                comandos (`bottom-3 left-3`, 30 rem) en un lienzo de ~780 px y
+                Playwright no podía pulsarlo. */}
+            {!walk && engineCommand && !hatchPickMode && !(tool === "wall" || isCadDrawTool(tool)) && (
               <button
                 type="button"
                 data-testid="cad-engine-command-finish"
                 onClick={() => commitActiveDraftCommand()}
                 title="Terminar el comando activo (Intro)"
-                className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-control border border-border bg-surface/95 px-3 py-1.5 type-caption font-medium text-foreground shadow-resting hover:bg-muted"
+                className="absolute top-3 left-1/2 z-20 -translate-x-1/2 rounded-control border border-border bg-surface/95 px-3 py-1.5 type-caption font-medium text-foreground shadow-resting hover:bg-muted"
               >
                 Terminar comando
               </button>
@@ -16076,19 +16116,28 @@ export default function Layout3DEditor({
               />
             )}
             {/*
-              La línea de comandos. No se enfoca sola: robarle el teclado al
-              lienzo rompería Supr, Ctrl+Z y las teclas de captura, que es
-              exactamente el reproche que se le hace al copiloto de lenguaje
-              natural. Se pulsa y se escribe.
+              La línea de comandos. Se enfoca sola cuando el lienzo recibe un
+              CARÁCTER (editor-keyboard.ts, fase 0) y devuelve el foco al
+              terminar con Intro o Esc: así Supr, Ctrl+Z y las teclas de
+              captura siguen siendo del lienzo (golden 44 lo mide sin un solo
+              input.click()).
             */}
             {/* El envoltorio lleva `pointer-events-none`: flota sobre la barra
                 inferior y, con el diálogo lleno, tapaba Undo. Los controles del
                 muelle reactivan el ratón por su cuenta. */}
             {/* showCommand ES la preferencia commandDock del workspace. */}
             {!walk && showCommand && (
-              <div className="pointer-events-none absolute bottom-14 left-3 z-30 w-[min(30rem,42vw)]">
+              /* `bottom-3`, no `bottom-14`: los 56 px reservaban el hueco de la
+                 barra de estado cuando ésta flotaba sobre el lienzo. Desde la
+                 Ola B la barra vive DEBAJO del lienzo en su propia franja, y la
+                 línea de comandos se queda pegada al borde inferior del dibujo,
+                 como la ventana de comandos de AutoCAD. Medido: con 56 px más
+                 27 px de holgura la línea tapaba y=2000 del plano y los clics
+                 de LINE del golden 46 caían sobre ella. */
+              <div className="pointer-events-none absolute bottom-3 left-3 z-30 w-[min(30rem,42vw)]">
                 <CadCommandLineDock
                   host={commandEngine}
+                  inputRef={commandInputRef}
                   disabled={drawingReadOnly}
                 />
               </div>

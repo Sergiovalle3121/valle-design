@@ -12,7 +12,6 @@
  * ambos números.
  */
 import React from "react";
-import { useCadStatusBarClearance } from "./use-status-bar-clearance";
 import { CadGuidedTourDock } from "../onboarding/CadGuidedTourDock";
 import { CadLispDock } from "../lisp/CadLispDock";
 import { submitCadLisp } from "../lisp/use-lisp";
@@ -24,12 +23,13 @@ export interface CadCommandLineDockProps {
   host: CadCommandEngineHost;
   /** El dibujo está en sólo lectura: se muestra el diálogo, no se acepta orden. */
   disabled?: boolean;
+  /** La caja, para que el editor la enfoque al recibir un carácter desde el lienzo. */
+  inputRef?: React.RefObject<HTMLInputElement | null>;
 }
 
-export function CadCommandLineDock({ host, disabled }: CadCommandLineDockProps) {
+export function CadCommandLineDock({ host, disabled, inputRef }: CadCommandLineDockProps) {
   const snapshot = useCadCommandEngine(host);
   // El muelle se aparta de la barra de estado por su cuenta; ver el módulo.
-  useCadStatusBarClearance();
   return (
     <div className="flex w-full flex-col gap-1">
       {/*
@@ -61,6 +61,7 @@ export function CadCommandLineDock({ host, disabled }: CadCommandLineDockProps) 
         onKeyword={(shortcut) => host.submit(shortcut)}
         onCancel={() => host.cancel()}
         onRepeat={() => host.repeat()}
+        inputRef={inputRef}
       />
     </div>
   );

@@ -38,6 +38,8 @@ import CollabThreadPanel from "./CollabThreadPanel";
 import { useCadComments, type CadCommentSource } from "./use-cad-comments";
 import { useCadPresence } from "./use-cad-presence";
 import ReviewLinkIssuer from "./ReviewLinkIssuer";
+import { useStudioTraySlot } from "@/components/cad/studio/use-studio-tray";
+import { createPortal } from "react-dom";
 
 export interface StudioCollaborationLayerProps {
   documentId: string;
@@ -91,6 +93,15 @@ const DOCK =
  * px sobre el panel derecho para no enseñar nada en ella.
  */
 const DOCK_WIDTH = { open: "w-[19rem]", collapsed: "w-auto" } as const;
+/**
+ * En la BANDEJA de la barra de estado (`cad-status-tray`), como la mensajería
+ * y la barra de llamada: plegado es un elemento del renglón, abierto se
+ * despliega hacia arriba sobre el lienzo. El panel derecho ya no recibe
+ * ninguna capa fija encima (goldens 19, 67 y 72, 2026-09-02).
+ */
+const TRAY_COLLAPSED = "inline-flex items-center gap-1";
+const TRAY_OPEN =
+  "absolute bottom-full right-0 z-[75] mb-2 flex w-[19rem] max-w-[calc(100vw-1.5rem)] flex-col rounded-card border border-border bg-popover/95 text-popover-foreground p-2 shadow-floating backdrop-blur";
 
 export default function StudioCollaborationLayer({
   documentId,
@@ -114,6 +125,7 @@ export default function StudioCollaborationLayer({
    * guiado: lo que flota sobre una superficie de trabajo se queda el ratón.
    */
   const [collapsed, setCollapsed] = useState(true);
+  const tray = useStudioTraySlot();
   const [placing, setPlacing] = useState(false);
   const [pendingAnchor, setPendingAnchor] = useState<CadCommentAnchorPoint | null>(
     null,
@@ -236,7 +248,7 @@ export default function StudioCollaborationLayer({
   // enseñarlo flotando sobre una pantalla de carga sería un muñón.
   if (!surface) return null;
 
-  return (
+  const dock = (
     <aside
       /*
         EN MODO COLOCAR EL MUELLE SE APARTA DEL RATÓN.
@@ -248,13 +260,17 @@ export default function StudioCollaborationLayer({
         subtree intercepts pointer events». No se pierde forma de cancelar: la
         pista sobre el plano dice «Esc para cancelar» y Escape lo cancela.
       */
-      className={`${DOCK} ${collapsed ? DOCK_WIDTH.collapsed : DOCK_WIDTH.open} ${
-        placing ? "pointer-events-none" : ""
-      }`}
+      className={`${
+        tray
+          ? collapsed
+            ? TRAY_COLLAPSED
+            : TRAY_OPEN
+          : `${DOCK} ${collapsed ? DOCK_WIDTH.collapsed : DOCK_WIDTH.open}`
+      } ${placing ? "pointer-events-none" : ""}`}
       data-testid="cad-collab-dock"
     >
       <div className="flex items-center justify-between gap-2">
-        <strong className="type-micro text-foreground">Colaboración</strong>
+        <strong className={`type-micro text-foreground ${tray && collapsed ? "@max-[40rem]:hidden" : ""}`}>Colaboración</strong>
         <button
           type="button"
           data-testid="cad-collab-toggle"
@@ -299,6 +315,7 @@ export default function StudioCollaborationLayer({
       )}
     </aside>
   );
+  return tray ? createPortal(<span className="relative inline-flex">{dock}</span>, tray) : dock;
 }
 
 function viewportBoundsOf(surface: CadCollabSurface): CadBounds | null {

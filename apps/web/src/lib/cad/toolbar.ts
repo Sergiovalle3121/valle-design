@@ -25,11 +25,18 @@ export interface CadToolbarAction {
   description: string;
 }
 
+/*
+ * Sin `shortcut` en Seleccionar, Distancia, Polilínea, Rectángulo, Pasillo,
+ * Área y Ajustar todo: V, M, P, B, A, Z y F son alias de una letra de
+ * acad.pgp (VIEW, MOVE, PAN, BLOCK, ARC, ZOOM, FILLET) y el lienzo ya no las
+ * roba —la letra suelta es de la línea de comandos—. Anunciar una tecla que
+ * no está dada de alta es una etiqueta falsa (ver arriba). Quedan L, C, I, T,
+ * que coinciden con LINE, CIRCLE, INSERT y MTEXT.
+ */
 export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
   {
     id: "select",
     label: "Seleccionar",
-    shortcut: "V",
     group: "navigate",
     description: "Seleccionar y mover objetos.",
   },
@@ -43,7 +50,6 @@ export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
   {
     id: "measure",
     label: "Distancia",
-    shortcut: "M",
     group: "draw",
     description: "Medir distancia entre puntos.",
   },
@@ -57,14 +63,12 @@ export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
   {
     id: "polyline",
     label: "Polilínea",
-    shortcut: "P",
     group: "draw",
     description: "Trazar una polilínea de muros y terminar con Enter.",
   },
   {
     id: "rect",
     label: "Rectángulo",
-    shortcut: "B",
     group: "draw",
     description: "Dibujar un rectangulo desde dos esquinas.",
   },
@@ -111,7 +115,6 @@ export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
   {
     id: "aisle",
     label: "Pasillo",
-    shortcut: "A",
     group: "draw",
     description: "Preparar un pasillo o una holgura entre dos objetos.",
   },
@@ -120,7 +123,6 @@ export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
   {
     id: "zone",
     label: "Área",
-    shortcut: "Z",
     group: "insert",
     description: "Insertar un área rectangular editable.",
   },
@@ -141,7 +143,6 @@ export const CAD_TOOLBAR_ACTIONS: CadToolbarAction[] = [
   {
     id: "fit_view",
     label: "Ajustar todo",
-    shortcut: "F",
     group: "navigate",
     description: "Encuadrar el dibujo completo.",
   },

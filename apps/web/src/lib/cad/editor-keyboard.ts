@@ -31,8 +31,67 @@ export interface EditorKeyEventLike {
   readonly metaKey: boolean;
   readonly shiftKey: boolean;
   readonly altKey: boolean;
-  /** "editable" = INPUT/TEXTAREA/contentEditable: el editor no interviene. */
-  readonly targetKind: "editable" | "other";
+  /** Composición IME en curso: la tecla no es de nadie todavía. */
+  readonly isComposing?: boolean;
+  /**
+   * "editable" = INPUT/TEXTAREA/contentEditable: el editor no interviene.
+   * "control" = BUTTON/A/SELECT/SUMMARY enfocado: Intro y Espacio son suyos
+   * (activan el control), las letras van a la línea de comandos.
+   */
+  readonly targetKind: "editable" | "control" | "other";
+}
+
+const EDITABLE_TAGS = new Set(["INPUT", "TEXTAREA"]);
+const CONTROL_TAGS = new Set(["BUTTON", "A", "SELECT", "SUMMARY"]);
+
+/** Traduce un KeyboardEvent real al objeto plano que el intérprete entiende. */
+export function editorKeyEventLike(
+  e: Pick<KeyboardEvent, "key" | "ctrlKey" | "metaKey" | "shiftKey" | "altKey" | "isComposing"> & {
+    target: EventTarget | null;
+  },
+): EditorKeyEventLike {
+  const target = e.target as { tagName?: string; isContentEditable?: boolean } | null;
+  const tagName = target?.tagName ?? "";
+  return {
+    key: e.key,
+    ctrlKey: e.ctrlKey,
+    metaKey: e.metaKey,
+    shiftKey: e.shiftKey,
+    altKey: e.altKey,
+    isComposing: e.isComposing,
+    targetKind:
+      EDITABLE_TAGS.has(tagName) || target?.isContentEditable === true
+        ? "editable"
+        : CONTROL_TAGS.has(tagName)
+          ? "control"
+          : "other",
+  };
+}
+
+/**
+ * Las dos imprimibles que siguen siendo del editor con la línea de comandos
+ * abierta: «?» abre la ayuda y «\» el modo enfoque; las anuncian el panel de
+ * atajos, el título del botón y dos e2e (primera-hora, axe-estudio).
+ */
+const EDITOR_CHARACTER_KEYS = new Set(["?", "\\"]);
+
+/**
+ * Fase 0 — ¿esta tecla es un CARÁCTER para la línea de comandos?
+ *
+ * Medido en Chromium: `key.length === 1` deja fuera Enter, Escape, F3, Tab,
+ * las flechas, Dead, Process y Unidentified. Espacio NO es un carácter: es
+ * Intro para el motor, para el borrador heredado y para los grips
+ * (native-grip-controller.ts). Ctrl sin Alt y Meta son atajos; Ctrl+Alt es
+ * AltGr («@» = AltGr+2 en es-ES) y Alt solo es Option en Mac («@» = ⌥2),
+ * pero Alt+letra o Alt+dígito en Linux/Windows enfoca sin insertar nada
+ * (medido), así que se deja pasar.
+ */
+export function isCommandLineCharacter(event: EditorKeyEventLike): boolean {
+  if (event.key.length !== 1 || event.key === " ") return false;
+  if (event.metaKey || (event.ctrlKey && !event.altKey)) return false;
+  if (event.altKey && !event.ctrlKey && /^[a-z0-9]$/i.test(event.key)) return false;
+  if (event.isComposing) return false;
+  return !EDITOR_CHARACTER_KEYS.has(event.key);
 }
 
 /** Atajos del registro que despachan directo a la barra de herramientas. */
@@ -87,9 +146,6 @@ export function isReadOnlyMutationKey(
     "arrowright",
     "arrowup",
     "arrowdown",
-    "m",
-    "r",
-    "w",
   ].includes(key);
 }
 
@@ -128,12 +184,13 @@ export type EditorKeyAction =
   | { type: "undo" }
   | { type: "redo" }
   | { type: "commit-draft" }
-  | { type: "toggle-measure" }
-  | { type: "toggle-wall" }
+  /** La tecla es un carácter: enfocar la línea de comandos SIN preventDefault, para que el navegador lo inserte. */
+  | { type: "command-line" }
+  /** Intro o Espacio en reposo desde el lienzo: repetir el último comando, como en AutoCAD. */
+  | { type: "repeat-last-command" }
   | { type: "fit-view"; target: "selection" | "all" | "plant" }
   | { type: "toggle-focus-mode" }
   | { type: "delete-selection"; native: boolean }
-  | { type: "rotate-selection"; deltaDeg: number; native: boolean }
   | { type: "duplicate-selection"; native: boolean }
   | { type: "copy-selection"; native: boolean }
   | { type: "paste" }
@@ -145,6 +202,8 @@ export interface EditorKeyContextBeforeEngine {
   readonly readOnly: boolean;
   readonly walkMode: boolean;
   readonly workspaceShortcuts: readonly CadKeyboardShortcut[];
+  /** El muelle de la línea de comandos está montado y acepta órdenes. */
+  readonly commandLineOpen: boolean;
 }
 
 /**
@@ -174,6 +233,13 @@ export function interpretEditorKeyBeforeEngine(
   // En modo caminata WASD/mirada mandan; sólo Esc (salir) llega aquí.
   if (ctx.walkMode) {
     return event.key === "Escape" ? { type: "toggle-walk" } : null;
+  }
+  // Fase 0: con la línea de comandos abierta, teclear «L» escribe «L» en ella
+  // (y arranca LINE con Intro), como en AutoCAD; medido antes: «l» arrancaba
+  // la herramienta sin Intro y «1», «@» o «,» morían en el body. Los atajos
+  // de una letra del registro sólo viven con el muelle oculto (golden 19).
+  if (ctx.commandLineOpen && isCommandLineCharacter(event)) {
+    return { type: "command-line" };
   }
   if (
     cadShortcut &&
@@ -264,14 +330,19 @@ export function interpretEditorKeyAfterEngine(
     ((event.key === "y" || event.key === "Y") && ctrl)
   )
     return { type: "redo" };
-  if (event.key === "Enter" && ctx.drawCommandActive)
-    return { type: "commit-draft" };
-  if (event.key === "m" || event.key === "M") return { type: "toggle-measure" };
-  if (event.key === "w" || event.key === "W") return { type: "toggle-wall" };
-  if (event.key === "f" && !event.shiftKey && !event.ctrlKey && !event.metaKey)
-    return { type: "fit-view", target: hasSel ? "selection" : "all" };
+  // Espacio vale por Intro, como en AutoCAD y como ya hace la caja vacía de la
+  // línea de comandos. Sobre un BUTTON enfocado ninguno de los dos se roba:
+  // activan el control (medido: Intro sobre BUTTON = click).
+  const enterOrSpace = (event.key === "Enter" || event.key === " ") && event.targetKind === "other";
+  if (enterOrSpace && ctx.drawCommandActive) return { type: "commit-draft" };
+  if (enterOrSpace) return { type: "repeat-last-command" };
+  // Sin m/w/f/r sueltas: M=MOVE, W=WBLOCK, F=FILLET son alias de acad.pgp y la
+  // letra suelta es de la línea de comandos; R rotaba +15° sin preguntar
+  // mientras la ayuda prometía «pide grados». ROTATE, MOVE y FILLET se teclean.
+  // Shift+F exige Shift de verdad: «F» con Bloq Mayús encuadraba la planta.
   if (
-    (event.key === "F" || (event.key === "f" && event.shiftKey)) &&
+    (event.key === "F" || event.key === "f") &&
+    event.shiftKey &&
     !event.ctrlKey &&
     !event.metaKey
   )
@@ -279,12 +350,6 @@ export function interpretEditorKeyAfterEngine(
   if (event.key === "\\") return { type: "toggle-focus-mode" };
   if ((event.key === "Delete" || event.key === "Backspace") && hasSel)
     return { type: "delete-selection", native };
-  if ((event.key === "r" || event.key === "R") && hasSel)
-    return {
-      type: "rotate-selection",
-      deltaDeg: event.shiftKey ? -15 : 15,
-      native,
-    };
   if ((event.key === "d" || event.key === "D") && ctrl && hasSel)
     return { type: "duplicate-selection", native };
   if (

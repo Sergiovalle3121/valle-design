@@ -74,16 +74,21 @@ export const THEMES: Record<
  * Las teclas que NO viven en el registro —W, ?, \, las flechas, el recorrido a
  * pie— las atiende el propio editor y se marcan en el gate como tales.
  */
+/*
+ * Sin filas para W, P, B, Z, V, M, A, E, R, S, X, G, O ni F: trece de ellas
+ * eran alias de una letra de acad.pgp (MOVE, ERASE, OFFSET, PAN, ZOOM, ARC,
+ * BLOCK, FILLET, GROUP, VIEW, WBLOCK, STRETCH, EXPLODE) y el lienzo ya no las
+ * roba; R rotaba +15° sin preguntar mientras aquí prometía «pide grados», y
+ * Shift+L (connector) no tenía salida en ninguna fase (medido: null). La
+ * letra suelta es de la línea de comandos: `shortcuts-help.spec.ts` impide
+ * que vuelvan.
+ */
 export const HELP_SECTIONS: { title: string; rows: [string, string][] }[] = [
   {
     title: "Dibujar",
     rows: [
-      ["W", "Dibujar muros (Shift = 45°)"],
       ["L", "Trazar líneas encadenadas"],
-      ["P", "Trazar polilínea de muros"],
-      ["B", "Rectángulo desde dos esquinas"],
       ["C", "Círculo por centro y radio"],
-      ["Z", "Insertar un área editable"],
       ["T", "Agregar nota de texto"],
       ["I", "Biblioteca de símbolos y bloques"],
     ],
@@ -91,14 +96,9 @@ export const HELP_SECTIONS: { title: string; rows: [string, string][] }[] = [
   {
     title: "Herramientas",
     rows: [
-      ["V", "Seleccionar / mover"],
-      ["M", "Medir / acotar"],
-      ["A", "Preparar pasillo / holgura"],
-      ["Shift+L", "Unir la selección con una polilínea"],
       ["Shift+O", "Desfasar la selección (offset)"],
       ["Ctrl/⌘+K", "Paleta de comandos"],
       ["Shift+V", "Revisión de diseño"],
-      ["E", "Exportar DXF"],
       ["Recorrido", "Caminar en primera persona"],
     ],
   },
@@ -116,9 +116,6 @@ export const HELP_SECTIONS: { title: string; rows: [string, string][] }[] = [
     rows: [
       ["Arrastrar", "Mover (en grupo si hay varios)"],
       ["← → ↑ ↓", "Ajustar (Shift = ×5)"],
-      ["R", "Rotar la selección (pide grados)"],
-      ["S", "Escalar la selección (pide factor)"],
-      ["X", "Espejo de la selección"],
       ["Ctrl/⌘+D", "Duplicar"],
       ["Supr", "Borrar selección"],
       ["Ctrl/⌘+Z", "Deshacer"],
@@ -129,8 +126,6 @@ export const HELP_SECTIONS: { title: string; rows: [string, string][] }[] = [
   {
     title: "Ayudas al dibujo",
     rows: [
-      ["G", "Mostrar / ocultar la grilla"],
-      ["O", "Snap a objetos y al plano DXF"],
       ["F3", "Snap a objetos"],
       ["F7", "Grilla"],
       ["F8", "Ortho"],
@@ -145,7 +140,6 @@ export const HELP_SECTIONS: { title: string; rows: [string, string][] }[] = [
     rows: [
       ["Arrastrar fondo", "Orbitar"],
       ["Rueda", "Acercar / alejar"],
-      ["F", "Ajustar a contenido / selección"],
       ["Shift+F", "Ajustar a toda la planta"],
       ["\\", "Modo foco (ocultar paneles)"],
       ["Recorrido", "Arrastrar = mirar · WASD = caminar"],

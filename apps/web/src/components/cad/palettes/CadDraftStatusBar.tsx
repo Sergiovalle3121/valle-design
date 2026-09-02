@@ -58,19 +58,19 @@ export const CadDraftStatusBar = React.memo(function CadDraftStatusBar({
     {
       id: "osnap",
       active: settings.osnap,
-      label: `OSNAP ${settings.osnap ? "on" : "off"} · F3`,
+      label: `OSNAP ${settings.osnap ? "on" : "off"}`, key: "F3",
       onClick: onToggleOsnap,
     },
     {
       id: "ortho",
       active: settings.ortho,
-      label: `ORTHO ${settings.ortho ? "on" : "off"} · F8`,
+      label: `ORTHO ${settings.ortho ? "on" : "off"}`, key: "F8",
       onClick: onToggleOrtho,
     },
     {
       id: "polar",
       active: settings.polar,
-      label: `POLAR ${settings.polar ? `${settings.polarIncrement}°` : "off"} · F10`,
+      label: `POLAR ${settings.polar ? `${settings.polarIncrement}°` : "off"}`, key: "F10",
       onClick: onTogglePolar,
     },
   ];
@@ -89,6 +89,10 @@ export const CadDraftStatusBar = React.memo(function CadDraftStatusBar({
           className={toggle.active ? TOGGLE_ON : TOGGLE_OFF}
         >
           {toggle.label}
+          {/* La tecla es de segundo orden bajo 40 rem: con el panel derecho
+              ancho el lienzo baja a ~500 px y cada sufijo cuesta un renglón
+              de barra, que a 720 px de alto se lo come el lienzo (golden 19). */}
+          <span className="@max-[40rem]:hidden">{` · ${toggle.key}`}</span>
         </button>
       ))}
       <select
@@ -96,7 +100,7 @@ export const CadDraftStatusBar = React.memo(function CadDraftStatusBar({
         data-testid="cad-draft-status-polar-increment"
         value={settings.polarIncrement}
         onChange={(event) => onPolarIncrement(Number(event.target.value))}
-        className="type-micro rounded-control bg-surface/60 px-1.5 py-0.5 text-foreground outline-none"
+        className="type-micro rounded-control bg-surface/60 px-1.5 py-0.5 text-foreground outline-none @max-[40rem]:hidden"
       >
         {polarIncrements.map((value) => (
           <option key={value} value={value} className="text-foreground">
@@ -114,7 +118,7 @@ export const CadDraftStatusBar = React.memo(function CadDraftStatusBar({
         {settings.objectSnapTracking
           ? `on · ${settings.acquiredTrackingPoints}`
           : "off"}{" "}
-        · F11
+        <span className="@max-[40rem]:hidden"> · F11</span>
       </button>
       {settings.acquiredTrackingPoints > 0 && (
         <button
@@ -129,7 +133,7 @@ export const CadDraftStatusBar = React.memo(function CadDraftStatusBar({
         data-testid="cad-draft-status-settings"
         onClick={onOpenSettings}
         title="Ayudas al dibujo (DSETTINGS)"
-        className={TOGGLE_OFF}
+        className={`${TOGGLE_OFF} @max-[40rem]:hidden`}
       >
         DSETTINGS
       </button>
@@ -137,7 +141,7 @@ export const CadDraftStatusBar = React.memo(function CadDraftStatusBar({
         data-testid="cad-draft-status-styles"
         onClick={onOpenStyles}
         title="Gestor de estilos: texto, cota, directriz, tabla y ploteo"
-        className={TOGGLE_OFF}
+        className={`${TOGGLE_OFF} @max-[40rem]:hidden`}
       >
         ESTILOS
       </button>

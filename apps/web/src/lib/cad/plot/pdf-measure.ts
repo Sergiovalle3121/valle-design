@@ -42,6 +42,8 @@ export interface CadPdfSegment {
   y2: number;
   lengthMm: number;
   lineWidthMm: number;
+  /** Patrón `d` vigente al trazar, en milímetros; ausente = continua. */
+  dashMm?: number[];
 }
 
 export interface CadPdfLabel {
@@ -220,7 +222,24 @@ function scanStream(body: string, pageHeightMm: number): StreamScan {
 
   const tokens = body.match(/\([^)\\]*(?:\\.[^)\\]*)*\)|<[0-9A-Fa-f\s]*>|\/[^\s/[\]<>()]+|[^\s]+/g) ?? [];
 
+  let dashMm: number[] | undefined;
+  let dashArray: number[] | null = null;
+  let pendingArray: number[] | null = null;
   for (const token of tokens) {
+    // `[a b c] fase d`: el array llega troceado por espacios («[3.54», «0.7]»
+    // o «[]»); se recoge entero y `d` lo convierte a milímetros.
+    if (token.startsWith("[") || dashArray) {
+      if (token.startsWith("[")) dashArray = [];
+      const inner = token.startsWith("[") ? token.slice(1) : token;
+      const closes = inner.endsWith("]");
+      const body = closes ? inner.slice(0, -1) : inner;
+      if (body !== "" && Number.isFinite(Number(body))) dashArray!.push(Number(body));
+      if (closes) {
+        pendingArray = dashArray;
+        dashArray = null;
+      }
+      continue;
+    }
     const numeric = Number(token);
     if (token !== "" && Number.isFinite(numeric) && /^[-+.\d]/.test(token)) {
       stack.push(numeric);
@@ -283,6 +302,7 @@ function scanStream(body: string, pageHeightMm: number): StreamScan {
             y2: next.y,
             lengthMm: Math.hypot(next.x - current.x, next.y - current.y),
             lineWidthMm,
+            ...(dashMm ? { dashMm } : {}),
           });
         current = next;
         break;
@@ -296,6 +316,7 @@ function scanStream(body: string, pageHeightMm: number): StreamScan {
             y2: subpathStart.y,
             lengthMm: Math.hypot(subpathStart.x - current.x, subpathStart.y - current.y),
             lineWidthMm,
+            ...(dashMm ? { dashMm } : {}),
           });
         current = subpathStart;
         break;
@@ -313,13 +334,17 @@ function scanStream(body: string, pageHeightMm: number): StreamScan {
           [left, bottom, left, top],
         ] as const;
         for (const [x1, y1, x2, y2] of corners)
-          segments.push({ x1, y1, x2, y2, lengthMm: Math.hypot(x2 - x1, y2 - y1), lineWidthMm });
+          segments.push({ x1, y1, x2, y2, lengthMm: Math.hypot(x2 - x1, y2 - y1), lineWidthMm, ...(dashMm ? { dashMm } : {}) });
         current = null;
         subpathStart = null;
         break;
       }
       case "w":
         lineWidthMm = (stack.at(-1) ?? 0) / PDF_MM_TO_POINTS;
+        break;
+      case "d":
+        dashMm = pendingArray && pendingArray.length > 0 ? pendingArray.map((value) => value / PDF_MM_TO_POINTS) : undefined;
+        pendingArray = null;
         break;
       case "Tf":
         fontSizeMm = (stack.at(-1) ?? 0) / PDF_MM_TO_POINTS;

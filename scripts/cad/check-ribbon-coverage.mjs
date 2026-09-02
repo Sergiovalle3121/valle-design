@@ -21,10 +21,11 @@ const root = path.resolve(here, "../..");
 const web = path.join(root, "apps/web");
 
 const probeSource = `
-import { cadRibbonCoverageGaps, CAD_RIBBON_DATA, CAD_RIBBON_UNEXPOSED } from "./src/lib/cad/ribbon";
+import { cadRibbonCoverageGaps, cadRibbonExposedNames, CAD_RIBBON_UNEXPOSED } from "./src/lib/cad/ribbon";
 import { CAD_COMMAND_DESCRIPTORS } from "./src/lib/cad/engine";
 const gaps = cadRibbonCoverageGaps();
-const total = CAD_RIBBON_DATA.reduce((n, t) => n + t.commandCount, 0);
+// Nombres únicos: los espejos de Inicio son botones repetidos, no comandos nuevos.
+const total = cadRibbonExposedNames().size;
 process.stdout.write(JSON.stringify({
   gaps,
   exposedCount: total,

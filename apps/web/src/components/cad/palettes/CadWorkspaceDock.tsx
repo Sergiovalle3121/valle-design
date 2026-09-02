@@ -9,6 +9,7 @@ import {
 } from "@/lib/cad/keyboard-shortcuts";
 import {
   buildCadWorkspaceShortcuts,
+  cadWorkspaceAliasCollisions,
   cadWorkspaceShortcutConflicts,
   type CadWorkspacePreferences,
   type CadWorkspaceProfile,
@@ -50,7 +51,10 @@ export function CadWorkspaceDock({
     value: CadWorkspacePreferences[K],
   ) => onChange({ ...preferences, [key]: value });
   const shortcuts = buildCadWorkspaceShortcuts(preferences);
-  const conflicts = cadWorkspaceShortcutConflicts(shortcuts);
+  // Un override que roba un alias de acad.pgp cuenta como conflicto: no se
+  // arma, y el título del campo dice por qué.
+  const aliasCollisions = cadWorkspaceAliasCollisions(preferences);
+  const conflicts = [...cadWorkspaceShortcutConflicts(shortcuts), ...aliasCollisions];
   const labels = english
     ? {
         title: "Professional workspace",
@@ -72,6 +76,9 @@ export function CadWorkspaceDock({
         pickbox: "Pick box",
         aperture: "Snap aperture",
         rightClick: "Right-click behavior",
+        backgroundDrag: "Drag on empty space",
+        marquee: "Selects (window / crossing)",
+        pan: "Pans the view",
         context: "Context menu",
         enter: "Enter / finish",
         repeat: "Repeat last command",
@@ -100,6 +107,9 @@ export function CadWorkspaceDock({
         pickbox: "Pick box",
         aperture: "Apertura OSNAP",
         rightClick: "Comportamiento de clic derecho",
+        backgroundDrag: "Arrastrar sobre el fondo",
+        marquee: "Designa (ventana / cruce)",
+        pan: "Encuadra la vista",
         context: "Menú contextual",
         enter: "Enter / terminar",
         repeat: "Repetir último comando",
@@ -253,6 +263,23 @@ export function CadWorkspaceDock({
             <option value="repeat">{labels.repeat}</option>
           </select>
         </label>
+        <label className="flex items-center justify-between gap-2 text-muted-foreground">
+          {labels.backgroundDrag}
+          <select
+            data-testid="cad-workspace-background-drag"
+            value={preferences.backgroundDrag}
+            onChange={(event) =>
+              update(
+                "backgroundDrag",
+                event.target.value as CadWorkspacePreferences["backgroundDrag"],
+              )
+            }
+            className={select}
+          >
+            <option value="marquee">{labels.marquee}</option>
+            <option value="pan">{labels.pan}</option>
+          </select>
+        </label>
       </section>
 
       <section className={`${panel} mt-2`}>
@@ -310,6 +337,15 @@ export function CadWorkspaceDock({
                 </span>
                 <input
                   data-testid={`cad-workspace-shortcut-${id}`}
+                  title={aliasCollisions
+                    .filter((collision) => collision.startsWith(`${id}:`))
+                    .map((collision) => {
+                      const stolen = collision.slice(collision.indexOf("→") + 1);
+                      return english
+                        ? `${value} is ${stolen} on the command line; pick another key or a combination`
+                        : `${value} es ${stolen} en la línea de comandos; elige otra tecla o una combinación`;
+                    })
+                    .join(" · ") || undefined}
                   value={value}
                   onChange={(event) =>
                     update("shortcutOverrides", {

@@ -86,3 +86,18 @@ function controlsFalsos() {
 }
 
 console.log("✔ política de cámara: 14 aserciones verdes");
+
+// --- 7 · el botón central ENCUADRA en los dos modos, con y sin comando -------
+// De fábrica OrbitControls lo trae en DOLLY (medido con tsx sobre three
+// 0.185.1): la rueda hacía zoom dos veces y encuadrar con el central era
+// imposible. Es el gesto de AutoCAD.
+for (const [mode, picking] of [["2d", false], ["2d", true], ["3d", false], ["3d", true]] as const) {
+  const c = controlsFalsos();
+  applyCadCameraPolicy(c, mode, picking);
+  assert.equal(
+    (c.mouseButtons as { MIDDLE?: unknown }).MIDDLE,
+    THREE.MOUSE.PAN,
+    `el botón central encuadra en ${mode}${picking ? " con comando" : ""}`,
+  );
+}
+

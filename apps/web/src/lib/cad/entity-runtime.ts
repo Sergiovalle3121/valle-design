@@ -125,6 +125,14 @@ export interface CadEntityRenderer<E extends CadNativeEntity = CadNativeEntity> 
    */
   readonly needsDocument?: true;
   /**
+   * Rótulo puro: su texto va al atlas del pipeline por lotes y `paths` es sólo
+   * la caja de designación, que NO se tesela. Se pregunta al registro y no a
+   * una lista de tipos en render/ por la misma razón que `needsDocument`: la
+   * lista «todo menos INSERT» mintió el día que WALL cambió. Medido antes de
+   * la marca: TEXT y ATTDEF se dibujaban como un marco vacío de 4 segmentos.
+   */
+  readonly textOnly?: true;
+  /**
    * Los ids cuya geometría cambia cuando cambia ESTA entidad.
    *
    * Con derivaciones por vecindad —las uniones de muro— el teselado cacheado

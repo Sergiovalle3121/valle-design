@@ -10,6 +10,13 @@ import { expect, type Page } from "@playwright/test";
  * a la planta) para que la transformación mundo↔pantalla sea invertible.
  */
 export async function worldPoint(page: Page, target: { x: number; y: number }) {
+  // El recorrido guiado de la primera vez flota sobre el cuarto inferior
+  // izquierdo del lienzo y su botón «Saltar» puede caer justo en un punto de
+  // muestreo (medido en el golden 39: centro+80 px respondía ese botón y la
+  // afín salía singular). El usuario lo cierra antes de dibujar; el muestreo
+  // también.
+  const skip = page.getByTestId("cad-guided-tour-skip");
+  if (await skip.isVisible().catch(() => false)) await skip.click();
   const box = await page.getByTestId("cad-canvas").boundingBox();
   if (!box) throw new Error("CAD canvas has no bounding box");
   const coordinate = page.getByTestId("cad-cursor-coordinate");

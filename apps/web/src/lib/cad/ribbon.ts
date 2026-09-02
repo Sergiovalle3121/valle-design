@@ -18,6 +18,9 @@
  *   1. Patrón del NOMBRE canónico (p. ej. `PLOT`, `XREF`, `INSERT`): cubre
  *      las familias que un `kind` de seis valores no distingue.
  *   2. Si ningún patrón coincide, se cae al `kind` (tabla `CAD_KIND_TAB`).
+ *   3. Dentro de la pestaña, el panel sale de `CAD_PANEL_NAME_PATTERNS` y el
+ *      ORDEN de paneles y botones de `ribbon-order.ts`, declarado: antes lo
+ *      decidía un `localeCompare` y LINE era el botón 15 de «Dibujo».
  *
  * El resultado es TOTAL: todo comando cae en alguna pestaña, así que la
  * cobertura del registro es un invariante de construcción, no una promesa —
@@ -35,11 +38,18 @@ import {
   type CadCommandKind,
 } from "./engine";
 import { cadCommandSummary } from "./engine/command-summaries";
+import {
+  CAD_RIBBON_COMMAND_ORDER,
+  CAD_RIBBON_INICIO_ESPEJOS,
+  CAD_RIBBON_PANEL_ORDER,
+  compareDeclared,
+} from "./ribbon-order";
 
 export type CadRibbonTabId =
   | "inicio"
   | "insertar"
   | "anotar"
+  | "parametrico"
   | "vista"
   | "salida"
   | "administrar";
@@ -53,6 +63,7 @@ export const CAD_RIBBON_TABS: readonly CadRibbonTabMeta[] = [
   { id: "inicio", label: "Inicio" },
   { id: "insertar", label: "Insertar" },
   { id: "anotar", label: "Anotar" },
+  { id: "parametrico", label: "Paramétrico" },
   { id: "vista", label: "Vista" },
   { id: "salida", label: "Salida" },
   { id: "administrar", label: "Administrar" },
@@ -69,20 +80,36 @@ const CAD_KIND_TAB: Readonly<Record<CadCommandKind, CadRibbonTabId>> = {
 };
 
 /**
- * Patrones de nombre → pestaña, en orden de prioridad. Cubren las familias
- * que el `kind` por sí solo mete todas en "administrar": inserción de
- * contenido externo (bloques, xrefs, DXF) y salida de lámina (trazar,
- * publicar, exportar, la vista derivada de sólidos).
+ * Patrones de nombre → pestaña, en orden de prioridad y ANCLADOS (`^…$`).
+ * Cubren lo que el `kind` por sí solo no separa: sin ellos casi todo lo no
+ * gráfico caía en «Administrar» (81 comandos de `kind: manage`), y las capas,
+ * los bloques y las propiedades —que en AutoCAD viven en Inicio— quedaban a
+ * dos pestañas de distancia. Sin ancla, `DIMSTYLE` caía en «Cotas» y
+ * `LINETYPE` en «Dibujo» (medido antes de anclar).
  */
 const CAD_TAB_NAME_PATTERNS: readonly [RegExp, CadRibbonTabId][] = [
   [
-    /^(-?INSERT|BLOCK|-?BEDIT|WBLOCK|MINSERT|DDINSERT|BLOCKREPLACE|GROUP|-?XREF|XATTACH|XCLIP|XBIND|REFEDIT|ADCENTER|DESIGNCENTER|DXFIN|DXFATTACH)/,
+    /^(GC[A-Z]+|DC(LINEAR|ANGULAR|RADIUS|DIAMETER)|AUTOCONSTRAIN|GEOMCONSTRAINT|DELCONSTRAINT|DIMCONSTRAINT|PARAMETERS)$/,
+    "parametrico",
+  ],
+  [
+    /^(-?LAYER|LAYERSTATE|LAY(?!OUT|TRANS)[A-Z]+|VPLAYER|PROPERTIES|MATCHPROP|COLOR|-?LINETYPE|LWEIGHT|LTSCALE|CELTSCALE|-?INSERT|BLOCK|-?BEDIT|WBLOCK|ATTDEF|ATTEDIT|BURST|BASE|GROUP|UNGROUP|DRAWORDER|QSELECT|FILTER)$/,
+    "inicio",
+  ],
+  [
+    /^(-?XREF|XATTACH|XCLIP|XBIND|REFEDIT|ADCENTER|DESIGNCENTER|DXFIN|DXFATTACH|IMAGE|IMPORT|DATAEXTRACTION)$/,
     "insertar",
   ],
   [
-    /^(PLOT|-?PLOT|PUBLISH|PAGESETUP|-?PAGESETUP|LAYOUT|-?LAYOUT|MVIEW|VPORTS?|-?VPORTS|SOLVIEW|SOLDRAW|FLATSHOT|SOLPROF|DXFOUT|EXPORT|EXPORTPDF|EXPORTLAYOUT|SHEETSET)/,
+    /^(-?PLOT|PUBLISH|-?PAGESETUP|-?LAYOUT|MVIEW|-?VPORTS?|SOLVIEW|SOLDRAW|FLATSHOT|SOLPROF|DXFOUT|EXPORT|EXPORTPDF|EXPORTLAYOUT|SHEETSET|ETRANSMIT)$/,
     "salida",
   ],
+  [/^(-?TOOLPALETTES|-?UCSMAN|UCS|UCSICON|MSPACE|PSPACE)$/, "vista"],
+  [
+    /^(CHECKSTANDARDS|GETVAR|SETVAR|NORMAMX|MEXSTANDARD|LAYTRANS|AUDIT|RECOVER|PURGE|RENAME|OPTIONS)$/,
+    "administrar",
+  ],
+  [/^(-?STYLE|-?DIMSTYLE|-?MLEADERSTYLE|TABLESTYLE)$/, "anotar"],
 ];
 
 function ribbonTabForCommand(descriptor: CadCommandDescriptor): CadRibbonTabId {
@@ -93,47 +120,81 @@ function ribbonTabForCommand(descriptor: CadCommandDescriptor): CadRibbonTabId {
 }
 
 /**
- * Patrones de nombre → panel, sólo dentro de su pestaña. Es agrupación de
- * presentación (como hacen ya las paletas montadas, `CadPaletteOverlays`):
- * si nada coincide, el comando sigue apareciendo — sólo en el panel genérico
- * de su pestaña — así que un patrón incompleto nunca esconde un comando.
+ * Patrones de nombre → panel, sólo dentro de su pestaña. Agrupación de
+ * presentación, anclada (`^…$`): «Estilos» va ANTES que «Cotas», «Directrices»
+ * y «Texto y tablas» para que DIMSTYLE, MLEADERSTYLE y TABLESTYLE no se
+ * dispersen uno por panel. Si nada coincide, el comando sigue apareciendo —en
+ * el panel de reposo de su pestaña—, así que un patrón incompleto nunca
+ * esconde un comando; antes de anclar, ese reposo («Dibujo») tenía 31 botones
+ * de los que 15 no dibujaban (medido).
  */
 const CAD_PANEL_NAME_PATTERNS: readonly [RegExp, string][] = [
-  [/^(DIM|-?DIM)/, "Cotas"],
-  [/^(LEADER|MLEADER|QLEADER|-?LEADER)/, "Directrices"],
-  [/^(HATCH|GRADIENT|-?HATCH|BOUNDARY|-?BOUNDARY)/, "Sombreado"],
-  [/^(TEXT|MTEXT|DTEXT|-?TEXT|SPELL|TABLE|-?TABLE)/, "Texto y tablas"],
-  [/^(TOLERANCE)/, "Tolerancias"],
-  [/^(STYLE|-?STYLE|DIMSTYLE|-?DIMSTYLE|MLEADERSTYLE|-?MLEADERSTYLE|TABLESTYLE)/, "Estilos"],
-  [/^(LINE|XLINE|RAY|PLINE|-?PLINE|POLYGON|RECTANG|CIRCLE|ARC|SPLINE|-?SPLINE|DONUT|POINT|-?POINT|DIVIDE|MEASURE|WALL|-?WALL|OPENING|-?OPENING|REGION|-?REGION)/, "Dibujo"],
-  [/^(MOVE|COPY|ROTATE|SCALE|MIRROR|ARRAY|-?ARRAY|ALIGN|-?ALIGN|STRETCH|TRIM|EXTEND|FILLET|CHAMFER|BREAK|JOIN|BLEND|PEDIT|-?PEDIT|OFFSET|EXPLODE|ERASE|LENGTHEN|OVERKILL|PURGE)/, "Modificar"],
-  [/^(BOX|SPHERE|CYLINDER|CONE|WEDGE|TORUS|EXTRUDE|REVOLVE|SWEEP|LOFT|UNION|SUBTRACT|INTERSECT|SLICE|SHELL|MASSPROP|PRESSPULL)/, "Sólidos"],
-  [/^(DIST|-?DIST|AREA|-?AREA|LIST|-?LIST|ID|-?ID|QSELECT|-?QSELECT|SELECT)/, "Utilidades"],
-  [/^(LAYER|-?LAYER|LAY(?!OUT)[A-Z]+|PROPERTIES|-?PROPERTIES|MATCHPROP)/, "Capas y propiedades"],
-  [/^(COPYCLIP|PASTECLIP|CUTCLIP|COPYBASE)/, "Portapapeles"],
-  [/^(ZOOM|PAN|-?PAN)/, "Encuadre y zoom"],
-  [/^(3DORBIT|3DFORBIT|3DPAN|3DZOOM|VPOINT|PLAN|VIEW|-?VIEW)/, "Vistas 3D"],
-  [/^(VISUALSTYLES?|-?VISUALSTYLES?|SHADEMODE)/, "Estilos visuales"],
-  [/^(UCS|UCSICON|-?UCSMAN)/, "SCU"],
-  [/^(VPORTS?|-?VPORTS|MVIEW)/, "Ventanas"],
-  [/^(UNITS|-?UNITS|DDPTYPE|OSNAP|-?OSNAP|DSETTINGS|-?DSETTINGS|LINETYPE|-?LINETYPE|MEXSTANDARD|NORMAMX)/, "Variables"],
-  [/^(SCRIPT|-?SCRIPT|LISP|APPLOAD|VLIDE|VBA)/, "AutoLISP y scripts"],
-  [/^(TOOLPALETTES|-?TOOLPALETTES|ADCENTER|DESIGNCENTER)/, "Plugins y paletas"],
+  [/^(-?LAYER|LAYERSTATE|LAY(?!OUT|TRANS)[A-Z]+|VPLAYER)$/, "Capas"],
+  [/^(PROPERTIES|MATCHPROP|COLOR|-?LINETYPE|LWEIGHT|LTSCALE|CELTSCALE)$/, "Propiedades"],
+  [/^(-?INSERT|BLOCK|-?BEDIT|WBLOCK|ATTDEF|ATTEDIT|BURST|BASE)$/, "Bloque"],
+  [/^(GROUP|UNGROUP)$/, "Grupos"],
+  [/^(GC[A-Z]+|AUTOCONSTRAIN|GEOMCONSTRAINT)$/, "Geométricas"],
+  [/^(DC(LINEAR|ANGULAR|RADIUS|DIAMETER)|DIMCONSTRAINT)$/, "Dimensionales"],
+  [/^(PARAMETERS|DELCONSTRAINT)$/, "Gestionar"],
+  [/^(-?STYLE|-?DIMSTYLE|-?MLEADERSTYLE|TABLESTYLE)$/, "Estilos"],
+  [/^(-?DIM[A-Z]*|QDIM)$/, "Cotas"],
+  [/^(-?LEADER|MLEADER|QLEADER)$/, "Directrices"],
+  [/^(-?HATCH|GRADIENT|-?BOUNDARY)$/, "Sombreado"],
+  [/^(-?TEXT|MTEXT|DTEXT|SPELL|-?TABLE|DDEDIT|TEXTALIGN)$/, "Texto y tablas"],
+  [/^TOLERANCE$/, "Tolerancias"],
+  [/^(-?WALL|DOOR|WINDOW|-?OPENING)$/, "Arquitectura"],
+  [
+    /^(LINE|XLINE|RAY|-?PLINE|POLYGON|RECTANG|CIRCLE|ARC|ELLIPSE|-?SPLINE|DONUT|-?POINT|DIVIDE|MEASURE|-?REGION|SOLID|REVCLOUD|WIPEOUT)$/,
+    "Dibujo",
+  ],
+  [
+    /^(MOVE|COPY|ROTATE|SCALE|MIRROR|-?ARRAY|ARRAYEDIT|-?ALIGN|STRETCH|TRIM|EXTEND|FILLET|CHAMFER|BREAK|JOIN|BLEND|-?PEDIT|SPLINEDIT|OFFSET|EXPLODE|ERASE|LENGTHEN|OVERKILL|DRAWORDER)$/,
+    "Modificar",
+  ],
+  [
+    /^(BOX|SPHERE|CYLINDER|CONE|WEDGE|TORUS|EXTRUDE|REVOLVE|SWEEP|LOFT|UNION|SUBTRACT|INTERSECT|SLICE|SHELL|MASSPROP|PRESSPULL|FILLETEDGE|CHAMFEREDGE|SECTION|INTERFERE)$/,
+    "Sólidos",
+  ],
+  [/^(-?DIST|-?AREA|-?LIST|-?ID|-?QSELECT|SELECT|FILTER)$/, "Utilidades"],
+  [/^(COPYCLIP|PASTECLIP|CUTCLIP|COPYBASE)$/, "Portapapeles"],
+  [/^(-?XREF|XATTACH|XCLIP|XBIND|REFEDIT|IMAGE)$/, "Referencias"],
+  [/^(DXFIN|IMPORT|DATAEXTRACTION)$/, "Importar y extraer"],
+  [/^(ADCENTER|DESIGNCENTER|-?TOOLPALETTES)$/, "Paletas"],
+  [/^(ZOOM|-?PAN)$/, "Encuadre y zoom"],
+  [/^(3DORBIT|3DFORBIT|3DPAN|3DZOOM|VPOINT|PLAN|-?VIEW)$/, "Vistas 3D"],
+  [/^(-?VISUALSTYLES?|SHADEMODE|VSCURRENT)$/, "Estilos visuales"],
+  [/^(REGEN|REGENALL)$/, "Vistas"],
+  [/^(UCS|UCSICON|-?UCSMAN)$/, "SCU"],
+  [/^(-?VPORTS?|MVIEW|MSPACE|PSPACE)$/, "Ventanas"],
+  [/^(-?PLOT|PUBLISH|-?PAGESETUP|SHEETSET|ETRANSMIT|-?LAYOUT)$/, "Trazar y publicar"],
+  [/^(DXFOUT|EXPORT|EXPORTPDF|EXPORTLAYOUT|FLATSHOT|SOLPROF|SOLVIEW|SOLDRAW)$/, "Exportar"],
+  [/^(-?UNITS|DDPTYPE|-?OSNAP|-?DSETTINGS|SETVAR|GETVAR|OPTIONS)$/, "Variables"],
+  [/^(MEXSTANDARD|NORMAMX|CHECKSTANDARDS|LAYTRANS|AUDIT|RECOVER|PURGE|RENAME)$/, "Normas y reparación"],
+  [/^(-?SCRIPT|RSCRIPT|LISP|APPLOAD|VLIDE|VBA)$/, "AutoLISP y scripts"],
 ];
 
-function ribbonPanelForCommand(descriptor: CadCommandDescriptor): string {
+/** Panel de reposo por pestaña: donde cae un comando que ningún patrón reclama. */
+export const CAD_RIBBON_FALLBACK_PANEL: Readonly<Record<CadRibbonTabId, string>> = {
+  inicio: "Dibujo",
+  insertar: "Referencias",
+  anotar: "Anotación",
+  parametrico: "Geométricas",
+  vista: "Vistas",
+  salida: "Trazar y publicar",
+  administrar: "Herramientas",
+};
+
+function ribbonPanelForCommand(descriptor: CadCommandDescriptor): { panel: string; matched: boolean } {
   for (const [pattern, panel] of CAD_PANEL_NAME_PATTERNS) {
-    if (pattern.test(descriptor.name)) return panel;
+    if (pattern.test(descriptor.name)) return { panel, matched: true };
   }
-  const fallback: Readonly<Record<CadRibbonTabId, string>> = {
-    inicio: "Dibujo",
-    insertar: "Bloques y referencias",
-    anotar: "Anotación",
-    vista: "Vistas",
-    salida: "Trazar y publicar",
-    administrar: "Herramientas",
-  };
-  return fallback[ribbonTabForCommand(descriptor)];
+  return { panel: CAD_RIBBON_FALLBACK_PANEL[ribbonTabForCommand(descriptor)], matched: false };
+}
+
+/** Nombres que ningún patrón de panel reclamó. La red de seguridad debe estar VACÍA. */
+const RIBBON_PANEL_FALLBACKS: string[] = [];
+export function cadRibbonPanelFallbacks(): readonly string[] {
+  return RIBBON_PANEL_FALLBACKS;
 }
 
 export interface CadRibbonCommand {
@@ -166,30 +227,51 @@ export const CAD_RIBBON_UNEXPOSED: Readonly<Record<string, string>> = {};
 function buildRibbonTabs(): CadRibbonTab[] {
   const byTab = new Map<CadRibbonTabId, Map<string, CadRibbonCommand[]>>();
   for (const meta of CAD_RIBBON_TABS) byTab.set(meta.id, new Map());
+  const byName = new Map<string, CadRibbonCommand>();
   for (const descriptor of CAD_COMMAND_DESCRIPTORS) {
     if (descriptor.name in CAD_RIBBON_UNEXPOSED) continue;
     const tabId = ribbonTabForCommand(descriptor);
-    const panelLabel = ribbonPanelForCommand(descriptor);
+    const { panel: panelLabel, matched } = ribbonPanelForCommand(descriptor);
+    if (!matched) RIBBON_PANEL_FALLBACKS.push(descriptor.name);
     const panels = byTab.get(tabId)!;
     const commands = panels.get(panelLabel) ?? [];
-    commands.push({
+    const command: CadRibbonCommand = {
       name: descriptor.name,
       aliases: descriptor.aliases,
       summary: cadCommandSummary(descriptor.name),
       panel: panelLabel,
-    });
+    };
+    commands.push(command);
+    byName.set(command.name, command);
     panels.set(panelLabel, commands);
+  }
+  // Espejos en Inicio (Home > Annotation de AutoCAD). Un nombre que no exista
+  // en el registro es un cadáver en la tabla: se dice en voz alta al cargar.
+  // Es una COPIA con `panel` propio: el icono del botón sale de `command.panel`
+  // (CadRibbonButton.tsx), no del panel donde se monta.
+  const inicio = byTab.get("inicio")!;
+  for (const [panelLabel, names] of Object.entries(CAD_RIBBON_INICIO_ESPEJOS)) {
+    const commands = inicio.get(panelLabel) ?? [];
+    for (const name of names) {
+      const original = byName.get(name);
+      if (!original) throw new Error(`ribbon: el espejo «${name}» no existe en el registro`);
+      commands.push({ ...original, panel: panelLabel });
+    }
+    inicio.set(panelLabel, commands);
   }
   return CAD_RIBBON_TABS.map((meta) => {
     const panels = [...byTab.get(meta.id)!.entries()]
-      .sort(([a], [b]) => a.localeCompare(b, "es-MX"))
+      .sort(([a], [b]) => compareDeclared(CAD_RIBBON_PANEL_ORDER[meta.id], a, b))
       .map(([label, commands]) => ({
         label,
-        commands: [...commands].sort((a, b) => a.name.localeCompare(b.name, "es-MX")),
+        commands: [...commands].sort((a, b) =>
+          compareDeclared(CAD_RIBBON_COMMAND_ORDER[label], a.name, b.name),
+        ),
       }));
     return {
       ...meta,
       panels,
+      // Botones, espejos incluidos: es lo que la pestaña muestra en su insignia.
       commandCount: panels.reduce((total, panel) => total + panel.commands.length, 0),
     };
   });
@@ -206,12 +288,7 @@ export const CAD_RIBBON_DATA: readonly CadRibbonTab[] = buildRibbonTabs();
  * reimplementación paralela que pueda decir una cosa distinta.
  */
 export function cadRibbonCoverageGaps(): string[] {
-  const exposed = new Set<string>();
-  for (const tab of CAD_RIBBON_DATA) {
-    for (const panel of tab.panels) {
-      for (const command of panel.commands) exposed.add(command.name);
-    }
-  }
+  const exposed = cadRibbonExposedNames();
   const gaps: string[] = [];
   for (const descriptor of CAD_COMMAND_DESCRIPTORS) {
     if (exposed.has(descriptor.name)) continue;
@@ -219,6 +296,20 @@ export function cadRibbonCoverageGaps(): string[] {
     gaps.push(descriptor.name);
   }
   return gaps;
+}
+
+/**
+ * Nombres ÚNICOS con botón. Con los espejos de Inicio, `commandCount` suma
+ * botones y no comandos; la cobertura del registro se mide con esto.
+ */
+export function cadRibbonExposedNames(): ReadonlySet<string> {
+  const exposed = new Set<string>();
+  for (const tab of CAD_RIBBON_DATA) {
+    for (const panel of tab.panels) {
+      for (const command of panel.commands) exposed.add(command.name);
+    }
+  }
+  return exposed;
 }
 
 export function findCadRibbonCommand(name: string): CadRibbonCommand | undefined {

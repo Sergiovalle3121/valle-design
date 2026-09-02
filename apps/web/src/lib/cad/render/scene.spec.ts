@@ -204,6 +204,41 @@ assert.ok(
 ok(true, `ocultar una capa apaga ${hidden.length} lotes sin liberar ni una geometría`);
 
 // ---------------------------------------------------------------------------
+// TIPOS DE LÍNEA: la tabla llega al shader cuando llega el documento. Medido el
+// 2026-09-02: la escena creaba el material sin patrones y nadie escribía el
+// uniforme, así que las 8 ranuras valían (0, 0) y toda línea era continua
+// aunque su ranura fuese correcta.
+// ---------------------------------------------------------------------------
+const untouched = scene.linetypeUniforms();
+assert.ok(untouched.meta.every((value) => value === 0), "sin documento no hay ninguna ranura con tramos");
+const documentWithCenter = {
+  ...corpus.document,
+  meta: { ...corpus.document.meta, linetypeScale: 25 },
+  styles: {
+    ...corpus.document.styles,
+    linetype: { CENTER: { pattern: [1.25, -0.25, 0.25, -0.25] } },
+  },
+};
+scene.replace(corpus.nativeEntities, corpus.document.modelSpace.entityIds, documentWithCenter);
+const lined = scene.linetypeUniforms();
+assert.deepEqual([...lined.meta.slice(2, 4)], [4, 2], "la ranura 1 (CENTER, catálogo alfabético) lleva [4 tramos, periodo 2]");
+assert.deepEqual([...lined.dash.slice(8, 12)], [1.25, -0.25, 0.25, -0.25], "y sus cuatro tramos con signo");
+assert.equal(lined.scale, 25, "LTSCALE del documento viaja como uniforme");
+assert.deepEqual(lined.overflow, [], "nueve de fábrica más el catálogo no desbordan");
+// Una edición con el MISMO catálogo no reempaqueta: misma referencia.
+scene.setView(scenario.initial);
+while (!scene.settled) scene.runFrame();
+scene.invalidate([editedId], [movedEntity], documentWithCenter);
+assert.equal(scene.linetypeUniforms().dash, lined.dash, "editar sin cambiar el catálogo no reempaqueta los uniformes");
+// Otro catálogo sí: la ranura 1 pasa a ser DASHED2.
+scene.invalidate([editedId], [movedEntity], {
+  ...documentWithCenter,
+  styles: { ...documentWithCenter.styles, linetype: { DASHED2: { pattern: [0.25, -0.125] } } },
+});
+assert.deepEqual([...scene.linetypeUniforms().meta.slice(2, 4)], [2, 0.375], "cambiar el catálogo reescribe la tabla");
+ok(true, "la tabla de tipos de línea entra en los uniformes con el documento, y sólo se reempaqueta cuando cambia el catálogo");
+
+// ---------------------------------------------------------------------------
 // dispose() suelta la escena entera.
 // ---------------------------------------------------------------------------
 scene.dispose();
@@ -213,5 +248,5 @@ assert.equal(scene.stats().meshes, 0);
 ok(true, "dispose() vacía el grupo y suelta el pipeline");
 
 console.log(
-  `scene: ${checks} comprobaciones verdes — 4.000 entidades se dibujan con ${first.created} objetos de escena (${stats.instances} instancias), panear conserva ${panned.retained} mallas y ocultar una capa apaga ${hidden.length} lotes sin liberar geometría.`,
+  `scene: ${checks} comprobaciones verdes — 4.000 entidades se dibujan con ${first.created} objetos de escena (${stats.instances} instancias), panear conserva ${panned.retained} mallas, ocultar una capa apaga ${hidden.length} lotes sin liberar geometría y CENTER llega al shader con sus 4 tramos.`,
 );

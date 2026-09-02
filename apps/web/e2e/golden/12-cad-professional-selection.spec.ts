@@ -44,6 +44,10 @@ const spatialCadDocument = {
 };
 
 async function worldPoint(page: Page, target: { x: number; y: number }) {
+  // El recorrido guiado de la primera vez puede tapar un punto de muestreo con
+  // su botón «Saltar» (medido en el golden 39); se cierra antes de muestrear.
+  const skip = page.getByTestId('cad-guided-tour-skip');
+  if (await skip.isVisible().catch(() => false)) await skip.click();
   const canvas = page.getByTestId('cad-canvas');
   const box = await canvas.boundingBox();
   if (!box) throw new Error('CAD canvas has no bounding box');

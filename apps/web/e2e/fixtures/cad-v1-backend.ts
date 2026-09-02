@@ -323,10 +323,13 @@ export class CadV1Backend {
     // sesión ni CSRF de primera parte, y exigírselos aquí haría imposible el
     // caso que este fixture existe para reproducir. `/v1/cad/review-sessions/*`
     // NO entra (no acaba en barra): ésa es del autor y sí exige sesión.
+    // Un EventSource (presencia) no manda cookie ni cabeceras entre orígenes: se
+    // contesta como flujo vacío ANTES de la comprobación de primera parte, o su
+    // 401 JSON acaba en «MIME type» en consola (golden 10, medido).
+    if (method === "GET" && (request.headers()["accept"] ?? "").includes("text/event-stream"))
+      return route.fulfill({ status: 200, contentType: "text/event-stream", body: "retry: 600000\n\n" });
     const authFailure = firstPartyRequestFailure(request);
-    if (authFailure && !path.startsWith("/v1/cad/review/")) {
-      return json(authFailure.body, authFailure.status);
-    }
+    if (authFailure && !path.startsWith("/v1/cad/review/")) return json(authFailure.body, authFailure.status);
 
     const commentReply = this.comments.handle({
       path,
@@ -443,6 +446,10 @@ export class CadV1Backend {
     if (docMatch) {
       const row = byId(docMatch[1]);
       const rest = docMatch[2] ?? "";
+      // ── Presencia: el latido responde 204 (el flujo SSE se contesta arriba,
+      // antes de la comprobación de primera parte). Va ANTES de comprobar la
+      // fila: un documento que este fixture no conoce también late.
+      if (rest === "presence" && method === "POST") return route.fulfill({ status: 204, body: "" });
 
       // ── Apertura HIDRATADA (semántica R3: nunca un puntero a blob) ──
       if (!rest && method === "GET") {
@@ -460,6 +467,7 @@ export class CadV1Backend {
       }
       if (!row || !row.available)
         return notFound("Documento CAD no encontrado.");
+
 
       // Rollback acotado de importación. La autorización first-party/CSRF
       // ya se comprobó arriba; este fixture conserva la misma precondición

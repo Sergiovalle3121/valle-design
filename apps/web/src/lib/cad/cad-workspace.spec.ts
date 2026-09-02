@@ -4,6 +4,7 @@ import {
   CAD_WORKSPACE_DEFAULTS,
   applyCadWorkspaceProfile,
   buildCadWorkspaceShortcuts,
+  cadWorkspaceAliasCollisions,
   cadWorkspaceShortcutConflicts,
   cadWorkspaceStorageKey,
   normalizeCadWorkspacePreferences,
@@ -35,6 +36,22 @@ assert.deepEqual(cadWorkspaceShortcutConflicts([
   { ...line, id: 'line', key: 'q' },
   { ...line, id: 'select', key: 'q' },
 ]), ['line:select']);
+// Dos entradas SIN tecla por defecto no chocan entre sí (medido: se contaban).
+assert.deepEqual(cadWorkspaceShortcutConflicts([
+  { ...line, id: 'measure', key: '' },
+  { ...line, id: 'select', key: '' },
+]), []);
+// Un override que roba un alias de acad.pgp se conserva en la preferencia,
+// NO se arma y se explica: la migración no borra nada del usuario.
+const robado = buildCadWorkspaceShortcuts({ shortcutOverrides: { select: 'm', polyline: 'P' } });
+assert.equal(robado.find((shortcut) => shortcut.id === 'select')?.key, '', 'select:m no se arma (M=MOVE)');
+assert.equal(robado.find((shortcut) => shortcut.id === 'polyline')?.key, '', 'polyline:P no se arma (P=PAN)');
+assert.deepEqual(cadWorkspaceAliasCollisions({ shortcutOverrides: { select: 'm', polyline: 'P', line: 'Ctrl+Shift+L' } }), ['polyline:p→PAN', 'select:m→MOVE']);
 assert.equal(normalizeCadWorkspacePreferences(null).profile, CAD_WORKSPACE_DEFAULTS.profile);
+// Arrastre sobre el fondo: ventana de fábrica; sólo 'pan' explícito la quita.
+assert.equal(CAD_WORKSPACE_DEFAULTS.backgroundDrag, 'marquee');
+assert.equal(normalizeCadWorkspacePreferences({}).backgroundDrag, 'marquee');
+assert.equal(normalizeCadWorkspacePreferences({ backgroundDrag: 'pan' }).backgroundDrag, 'pan');
+assert.equal(normalizeCadWorkspacePreferences({ backgroundDrag: 'zoom' }).backgroundDrag, 'marquee');
 
 console.log('cad workspace preference specs passed');

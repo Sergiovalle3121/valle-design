@@ -37,6 +37,7 @@ import type {
   CadEntityPresentation,
   CadLayerDef,
 } from "./cad-document";
+import { CAD_BUILTIN_LINETYPES } from "./linetype-lin";
 
 /** El tipo de línea sin patrón. En DXF se llama así y no se traduce. */
 export const CAD_CONTINUOUS = "CONTINUOUS";
@@ -71,7 +72,10 @@ export interface CadLinetypeCatalogEntry {
 export function cadLinetypeCatalog(
   document: Pick<CadDocument, "styles">,
 ): Record<string, CadLinetypeCatalogEntry> {
-  const catalog = (document.styles as { linetype?: Record<string, CadLinetypeCatalogEntry> }).linetype;
+  // `styles` es obligatorio en `CadDocument`, pero un documento a medio
+  // migrar o un fragmento de prueba puede no traerlo: sin tabla no hay
+  // catálogo, no un TypeError en el visor.
+  const catalog = (document.styles as { linetype?: Record<string, CadLinetypeCatalogEntry> } | undefined)?.linetype;
   return catalog ?? {};
 }
 
@@ -153,47 +157,42 @@ export function resolveCadEntityStyle(
   };
 }
 
-/** Máximo de patrones que el shader del lote instanciado sabe descodificar. */
-export const CAD_LINETYPE_SLOT_LIMIT = 8;
-
+/**
+ * Máximo de patrones que el shader del lote instanciado sabe descodificar.
+ *
+ * Medido el 2026-09-02: los nueve de fábrica más los que trae un DXF de
+ * despacho caben con holgura; 32 ranuras × 8 tramos son 64 vec4 + 32 vec2 =
+ * 96 vectores de uniformes en el fragment, muy por debajo de los 224 mínimos
+ * de WebGL2 (three 0.185 es sólo WebGL2). Con el tope anterior de 8, el
+ * octavo nombre no continuo ya caía a «continuo en silencio».
+ */
+export const CAD_LINETYPE_SLOT_LIMIT = 32;
+/** Tramos por patrón que viajan al shader: PHANTOM, DIVIDE y BORDER traen 6. */
+export const CAD_LINETYPE_MAX_ELEMENTS = 8;
 export interface CadLinetypeSlots {
   /** Nombre en mayúsculas → ranura. La continua no está: es la ranura 0. */
   slots: ReadonlyMap<string, number>;
-  /** Patrón (trazo, hueco) por ranura, en unidades de dibujo. */
-  patterns: ReadonlyArray<readonly [number, number]>;
   /**
-   * Tipos que no cupieron. Se dibujan continuos, y quien construya la tabla
-   * tiene la lista para decirlo: siete patrones a la vez es un límite del
-   * shader, no una propiedad del dibujo, y callarlo lo haría parecer lo segundo.
+   * Secuencia `.lin` completa por ranura (>0 trazo, <0 hueco, 0 punto), en
+   * unidades de dibujo; la ranura 0 es la continua (`[]`). Antes se guardaba
+   * sólo el par (primer trazo, primer hueco) y CENTER, DASHDOT, PHANTOM,
+   * BORDER y DIVIDE se dibujaban idénticos a DASHED (medido).
    */
+  patterns: ReadonlyArray<readonly number[]>;
+  /** Tipos que no cupieron. Se dibujan continuos, y quien construya la tabla tiene la lista para decirlo. */
   overflow: readonly string[];
-  /**
-   * Tipos cuyo patrón se SIMPLIFICÓ a un par (trazo, hueco). CENTER lleva
-   * cuatro longitudes y el shader admite dos: se conserva el primer trazo y el
-   * primer hueco, que es lo que hace que se lea como eje, y se declara.
-   */
+  /** Tipos cuyo patrón se TRUNCÓ a `CAD_LINETYPE_MAX_ELEMENTS` tramos. */
   simplified: readonly string[];
 }
-
 /**
- * Tabla de ranuras del visor a partir del catálogo del documento.
- *
- * Determinista y ordenada por nombre: la misma escena tiene que producir las
- * mismas ranuras entre cuadros, o el lote instanciado se invalida entero cada
- * vez que alguien añade una entidad.
- */
-/**
- * Caché por tabla de estilos.
- *
- * El visor pide la ranura UNA VEZ POR ENTIDAD y por cuadro. Recorrer y ordenar
- * el catálogo cada vez convierte una tabla de ocho patrones en trabajo
- * cuadrático sobre un dibujo de cien mil entidades, que es justo el tamaño en
- * el que este producto se juega el rendimiento. La clave es el objeto `styles`:
- * el documento es inmutable por cambio, así que una tabla nueva es un
- * documento nuevo y la caché no puede quedarse rancia.
+ * Tabla de ranuras del visor: el catálogo del documento (alfabético, como
+ * siempre) y DETRÁS los tipos de fábrica que el catálogo no defina, en su
+ * orden fijo. El índice depende sólo del catálogo —no de qué capas o
+ * entidades referencian qué—, porque viaja horneado en cada lote y un índice
+ * que cambiara al añadir una entidad dejaría los tiles no reconstruidos con
+ * la ranura vieja sin que nada lo diagnosticara.
  */
 const SLOT_CACHE = new WeakMap<object, CadLinetypeSlots>();
-
 export function buildCadLinetypeSlots(
   document: Pick<CadDocument, "styles">,
 ): CadLinetypeSlots {
@@ -203,33 +202,37 @@ export function buildCadLinetypeSlots(
   if (document.styles) SLOT_CACHE.set(document.styles, built);
   return built;
 }
-
 function computeCadLinetypeSlots(
   document: Pick<CadDocument, "styles">,
 ): CadLinetypeSlots {
   const catalog = cadLinetypeCatalog(document);
   const slots = new Map<string, number>();
-  const patterns: Array<readonly [number, number]> = [[0, 0]];
+  const patterns: Array<readonly number[]> = [[]];
   const overflow: string[] = [];
   const simplified: string[] = [];
+  const candidates: Array<[string, readonly number[]]> = [];
   for (const name of Object.keys(catalog).sort()) {
-    const upper = name.toUpperCase();
+    candidates.push([name.toUpperCase(), catalog[name]?.pattern ?? []]);
+  }
+  const declared = new Set(candidates.map(([name]) => name));
+  for (const builtin of CAD_BUILTIN_LINETYPES) {
+    const upper = builtin.name.toUpperCase();
+    if (!declared.has(upper)) candidates.push([upper, builtin.pattern]);
+  }
+  for (const [upper, pattern] of candidates) {
     if (upper === CAD_CONTINUOUS) continue;
-    const pattern = catalog[name]?.pattern ?? [];
-    const dash = pattern.find((value) => value > 0);
-    const gap = pattern.find((value) => value < 0);
-    if (dash === undefined || gap === undefined) continue;
+    if (pattern.reduce((total, value) => total + Math.abs(value), 0) <= 0) continue;
+    if (slots.has(upper)) continue;
     if (patterns.length >= CAD_LINETYPE_SLOT_LIMIT) {
       overflow.push(upper);
       continue;
     }
-    if (pattern.length > 2) simplified.push(upper);
+    if (pattern.length > CAD_LINETYPE_MAX_ELEMENTS) simplified.push(upper);
     slots.set(upper, patterns.length);
-    patterns.push([dash, Math.abs(gap)]);
+    patterns.push(pattern.slice(0, CAD_LINETYPE_MAX_ELEMENTS));
   }
   return { slots, patterns, overflow, simplified };
 }
-
 /** Medio grosor en píxeles para el lote instanciado. */
 export const CAD_RENDER_DEFAULT_HALF_WIDTH_PX = 0.5;
 

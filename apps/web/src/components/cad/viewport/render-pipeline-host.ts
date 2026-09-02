@@ -52,12 +52,8 @@ import type { CadNativeEntity } from "@/lib/cad/entity-runtime";
 import { CAD_ENTITY_REGISTRY } from "@/lib/cad/entity-runtime";
 import type { CadThreeViewport } from "@/lib/cad/entity-three";
 import { CadRenderScene } from "@/lib/cad/render/scene";
-import type { CadRenderOrigin } from "@/lib/cad/render/pipeline";
-import {
-  CAD_RENDER_DEFAULT_COLOR,
-  CAD_RENDER_DEFAULT_HALF_WIDTH_PX,
-  type CadRenderView,
-} from "@/lib/cad/render/pipeline";
+import type { CadRenderOrigin, CadRenderView } from "@/lib/cad/render/pipeline";
+import { defaultCadRenderStyle } from "@/lib/cad/render/render-style";
 import type { CadLineStyle } from "@/lib/cad/render/line-batch";
 import { disposeCadTessellateWorker } from "@/lib/cad/render/tessellate-worker-client";
 import type { CadScreenYSign } from "@/lib/cad/render/text-atlas";
@@ -165,6 +161,14 @@ export class CadViewportRenderHost {
   private readonly scene: CadRenderScene;
   private readonly parent: THREE.Object3D;
   private selection: ReadonlySet<string> = new Set();
+  /**
+   * El documento vigente, para resolver BYLAYER/BYBLOCK y la ranura del tipo
+   * de línea. Medido el 2026-09-02: sin él, `styleOf` devolvía `linetypeIndex:
+   * 0` fijo y ningún tipo de línea llegaba a la pantalla aunque la sonda
+   * `visor.linetypeIndex` de la matriz de propiedades —que sí pasa el
+   * documento— dijera «intacto».
+   */
+  private document: CadDocument | null = null;
   private glyphs = 0;
   private droppedGlyphs = 0;
   /** Pendiente de reconciliar mallas. Sincronizar en cada cuadro sería caro. */
@@ -226,6 +230,11 @@ export class CadViewportRenderHost {
     this.scene.group.visible = visible;
   }
 
+  /** La tabla de tipos de línea que el shader tiene ahora; ver `CadRenderScene.linetypeUniforms`. */
+  linetypeUniforms(): ReturnType<CadRenderScene["linetypeUniforms"]> {
+    return this.scene.linetypeUniforms();
+  }
+
   /**
    * Estilo por entidad. La selección viaja como COLOR de instancia, no como un
    * objeto aparte: el pipeline no tiene una malla por entidad que recolorear.
@@ -233,23 +242,13 @@ export class CadViewportRenderHost {
    * hace que el cambio de color llegue a la GPU.
    */
   private styleOf(entity: CadNativeEntity): CadLineStyle {
-    const presentation = entity.context?.presentation;
-    const value = presentation?.color?.value;
-    const color = this.selection.has(entity.id)
-      ? CAD_RENDER_SELECTED_COLOR
-      : value && /^#[0-9a-f]{6}$/i.test(value)
-        ? Number.parseInt(value.slice(1), 16)
-        : CAD_RENDER_DEFAULT_COLOR;
-    const weight = presentation?.lineweight?.value;
-    return {
-      color,
-      halfWidthPx:
-        typeof weight === "number" && weight > 0
-          ? Math.max(CAD_RENDER_DEFAULT_HALF_WIDTH_PX, weight / 50)
-          : CAD_RENDER_DEFAULT_HALF_WIDTH_PX,
-      linetypeIndex: 0,
-      layer: entity.layer,
-    };
+    // El MISMO resolutor que mide la matriz de propiedades del DXF: grosor y
+    // ranura ya resueltos contra capa y bloque. La selección sólo cambia el
+    // color, no el grosor ni el guion.
+    const style = defaultCadRenderStyle(entity, this.document ?? undefined);
+    return this.selection.has(entity.id)
+      ? { ...style, color: CAD_RENDER_SELECTED_COLOR }
+      : style;
   }
 
   /**
@@ -308,6 +307,7 @@ export class CadViewportRenderHost {
     const drawOrder = excluded
       ? document.modelSpace.entityIds.filter((id) => !excluded.has(id))
       : document.modelSpace.entityIds;
+    this.document = document;
     this.scene.replace(entities, drawOrder, document);
     this.hasContent = true;
     this.dirty = true;
@@ -331,7 +331,9 @@ export class CadViewportRenderHost {
     upserts: readonly CadNativeEntity[] = [],
     document?: CadDocument,
   ): void {
-    if (this.disposed || affectedEntityIds.length === 0) return;
+    if (this.disposed) return;
+    if (document) this.document = document;
+    if (affectedEntityIds.length === 0) return;
     this.scene.invalidate(affectedEntityIds, upserts, document);
     this.dirty = true;
   }
@@ -346,6 +348,7 @@ export class CadViewportRenderHost {
     document: CadDocument | null,
   ): void {
     if (this.disposed) return;
+    if (document) this.document = document;
     const next = new Set(entityIds);
     const touched: string[] = [];
     for (const id of this.selection) if (!next.has(id)) touched.push(id);
@@ -502,6 +505,7 @@ export class CadViewportRenderHost {
     if (this.disposed) return;
     this.disposed = true;
     this.hasContent = false;
+    this.document = null;
     this.published = EMPTY_DIAGNOSTICS;
     for (const listener of this.listeners) listener();
     this.scene.dispose();

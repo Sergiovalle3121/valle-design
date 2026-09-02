@@ -93,7 +93,10 @@ function attdefAsMText(entity: CadAttdefEntity): CadMTextEntity {
 
 export const attdefAdapter: CadEntityAdapter<CadAttdefEntity> = {
   type: "attdef",
-  renderer: { paths: (entity) => [{ points: layoutCadMText(attdefAsMText(entity)).corners, closed: true }] },
+  renderer: {
+    paths: (entity) => [{ points: layoutCadMText(attdefAsMText(entity)).corners, closed: true }],
+    textOnly: true,
+  },
   bounds: { bounds: (entity) => layoutCadMText(attdefAsMText(entity)).bounds },
   hitTester: {
     hitTest: (entity, point, tolerance) => {
@@ -383,3 +386,6 @@ export const tableAdapter: CadEntityAdapter<CadTableEntity> = {
 };
 
 export const __testables = { attdefAsMText, tableFrame };
+
+/** El mismo marco (x a la derecha, y hacia ABAJO) para quien rotula las celdas: `render/text-requests.ts`. */
+export { tableFrame as cadTableFrame };

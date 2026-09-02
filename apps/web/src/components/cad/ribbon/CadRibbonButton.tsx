@@ -37,7 +37,11 @@ export function CadRibbonButton({
         onClick={() => onRun(command.name)}
         title={`${command.name}${shortcut ? ` (${shortcut})` : ""} — ${command.summary}`}
         className={cx(
-          "group/ribbon flex w-16 shrink-0 flex-col items-center gap-1 rounded-control px-1.5 py-1.5",
+          // py-0.5 y gap-0.5: la cinta medía 116 px (pestañas 34 + paneles 80) y
+          // con la barra de estado en dos renglones el lienzo bajaba a 511 px,
+          // por debajo de los 520 que el golden 19 exige a 720 de alto. Medido
+          // el 2026-09-02 con e2e/scratch antes de ajustar.
+          "group/ribbon flex w-16 shrink-0 flex-col items-center gap-0.5 rounded-control px-1.5 py-0.5",
           "text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           "disabled:pointer-events-none disabled:opacity-40",

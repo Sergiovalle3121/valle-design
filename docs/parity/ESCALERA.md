@@ -139,6 +139,24 @@ medida — el canal "algo salió mal" vía outbox (OLA 3.2 de esta misma
 campaña) es la pieza de instrumentación que falta para que una fila
 pueda subir a este peldaño alguna vez.
 
+## Las filas de los siete toolsets
+
+La campaña «Valle Design → AutoCAD completo» (2026-09-02) mide el producto
+contra AutoCAD **con sus siete toolsets**, no sólo contra AutoCAD LT. Cada
+toolset tiene su fila en `docs/competitive/rubric.json` (grupo `toolsets`,
+alcance DESTINO) aunque hoy valga cero, y su peldaño aquí. El orden es el de
+la campaña; dos quedan fuera de alcance y se dice.
+
+| Toolset | Peldaño hoy | Objetivo | Qué hay y qué falta |
+| --- | --- | --- | --- |
+| Architecture | 3 | 5 | WALL, DOOR y WINDOW existen con goldens propios (53); faltan escaleras, techos, cubiertas y las tablas de superficies y carpintería en la lámina (Ola E). |
+| MEP (mitad 2D) | 0 | 3 | Nada: conductos, tuberías y bandejas en planta con sus tablas. Segundo de la campaña. |
+| Map 3D | 0 | 3 | Nada: sistema de coordenadas georreferenciado y capas GIS. Tercero. |
+| Raster Design (mitad útil) | 1 | 3 | IMAGE inserta un escaneo; falta el recorte por polígono, el ajuste de imagen y la vectorización. Cuarto. |
+| Mechanical | 0 | 3 | Nada: normalizados y cotas de fabricación con tolerancia. Quinto. |
+| Electrical | 0 | — | **Fuera de alcance** de la campaña: esquemas y numeración de hilos son otro producto. La fila existe para que el denominador sea honesto. |
+| Plant 3D | 0 | — | **Fuera de alcance** de la campaña: P&ID y tubería 3D por especificación. Ídem. |
+
 ## Cómo se usa
 
 - **Al añadir una entrada nueva a `BACKLOG.md`:** decir el peldaño ACTUAL

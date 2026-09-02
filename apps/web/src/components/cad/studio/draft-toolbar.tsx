@@ -69,7 +69,18 @@ export function CadDraftToolbar({
     // barra nunca llegaba al motor (medido: golden 46, test 2; el tamaño del
     // área muerta dependía hasta de la métrica de la fuente). El mismo patrón
     // que ya usa el dock del tour guiado.
-    <div className="pointer-events-none absolute top-12 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-full border border-border bg-surface/90 px-2 py-1.5 backdrop-blur">
+    // DOS RENGLONES COMO MUCHO. Con `flex-wrap` a secas la píldora se partía en
+    // tres filas y bajaba hasta y≈340 px: los dos clics de LINE del golden 46
+    // (mundo y=2000 → pantalla y≈322) caían sobre sus etiquetas y su botón
+    // «REL». La causa no era el wrap sino el ANCHO: un absoluto en `left-1/2`
+    // sólo dispone de media anchura del lienzo para encoger, así que envolvía
+    // a la mitad. `w-max` le da su anchura de contenido y `max-w` la acota al
+    // lienzo; la entrada dinámica es UNA unidad sin partir, y sólo «Terminar»
+    // y «Cerrar» bajan a una segunda fila cuando no caben. Con `flex-nowrap`
+    // (medido el 2026-09-02, golden 33, PLINE con «Cerrar»): la fila medía más
+    // que el lienzo, se centraba y su botón «ABS» quedaba fuera, bajo el panel
+    // izquierdo, sin que ningún clic pudiera alcanzarlo.
+    <div className="pointer-events-none absolute top-12 left-1/2 z-20 flex w-max max-w-[calc(100%-1.5rem)] -translate-x-1/2 flex-wrap items-center justify-center gap-1.5 whitespace-nowrap rounded-card border border-border bg-surface/90 px-2 py-1.5 backdrop-blur">
       <button
         onClick={onToggleOrtho}
         title="Orto: restringe los muros a 0/90/180/270 (como F8 de AutoCAD)"
@@ -78,7 +89,7 @@ export function CadDraftToolbar({
         ORTO
       </button>
       {dynamicInputEnabled && (
-        <span className="pointer-events-auto flex items-center gap-1.5">
+        <span className="pointer-events-auto flex min-w-0 max-w-full items-center gap-1.5">
           <CadDynamicInput key={dynamicInputKey} {...dynamicInput} />
         </span>
       )}

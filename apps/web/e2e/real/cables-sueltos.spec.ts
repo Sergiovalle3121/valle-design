@@ -92,7 +92,8 @@ const NO_OPERAN_POR_ESTAR_ACTIVOS: Record<string, string> = {
   "Vista de plano 2D (superior, solo paneo y zoom)":
     "el estudio carga ya en vista de planta",
   Model: "la pestaña de espacio modelo ya está seleccionada",
-  "Seleccionar / mover (V)": "es la herramienta activa al cargar",
+  // Sin «(V)»: el lienzo dejó de robar la V (alias VIEW) y el título ya no la anuncia.
+  "Seleccionar / mover": "es la herramienta activa al cargar",
   // Antes era "Puntos" (compatibilidad con estaciones heredadas del
   // planificador industrial, ver IDENTITY.md): esa pestaña ahora sólo
   // aparece cuando el documento cargado de verdad trae estaciones, y el
@@ -103,11 +104,12 @@ const NO_OPERAN_POR_ESTAR_ACTIVOS: Record<string, string> = {
   // Firefox de CI los delató: en Chromium el hash del lienzo cambia entre dos
   // capturas y tapaba a cualquier control sin efecto real; el render de
   // Firefox es determinista y midió la verdad.
-  "Seleccionar · V — Seleccionar y mover objetos.":
-    "es la herramienta activa al cargar (gemelo de «Seleccionar / mover (V)»)",
+  "Seleccionar — Seleccionar y mover objetos.":
+    "es la herramienta activa al cargar (gemelo de «Seleccionar / mover»)",
   "Encuadre · Space — Navegar el plano sin cambiar la geometria.":
-    "pan comparte modo con select (la navegación por arrastre vive en el modo " +
-    "de selección) y el estudio ya carga en él",
+    "pan comparte modo con select y escribe la preferencia backgroundDrag='pan' " +
+    "(el arrastre izquierdo vuelve a encuadrar): un cambio de preferencia, sin " +
+    "efecto en el DOM que el barrido pueda ver",
 };
 
 /**

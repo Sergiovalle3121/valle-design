@@ -29,9 +29,11 @@ import {
   createCadLineBatchMaterial,
   disposeCadLineBatchMesh,
   setCadLineBatchHiddenLayers,
+  setCadLineBatchLinetypes,
   updateCadLineBatchUniforms,
   type CadLineBatchUniforms,
 } from "./line-batch-three";
+import { buildCadLinetypeSlots, type CadLinetypeSlots } from "../cad-effective-style";
 import {
   CadCanvasTextAtlas,
   buildCadTextAtlasMesh,
@@ -100,6 +102,8 @@ export class CadRenderScene {
   private pixelsPerUnit = 1;
   private hiddenLayers: ReadonlySet<string> = new Set();
   private readonly yScreenSign: CadScreenYSign;
+  /** La tabla de ranuras vigente; `null` hasta que llega un documento. */
+  private linetypes: CadLinetypeSlots | null = null;
 
   constructor(options: CadRenderSceneOptions) {
     this.pipeline = new CadRenderPipeline(options);
@@ -135,7 +139,34 @@ export class CadRenderScene {
     document?: CadDocument,
   ): void {
     this.pipeline.replace(entities, drawOrderIds, document);
+    if (document) this.applyLinetypes(document);
     this.clearMeshes();
+  }
+
+  /**
+   * La tabla de tipos de línea viaja en UNIFORMES, no por instancia: cada
+   * segmento sólo lleva su ranura. Se escribe cuando llega el documento, con la
+   * misma tabla que `defaultCadRenderStyle` usa para asignar ranuras, y por
+   * eso las dos no pueden discrepar. La escala por ENTIDAD (código 48) no
+   * llega al lote: la clave de cubo no la incluye y el uniforme es global —
+   * el papel sí la honra, porque resuelve por entidad.
+   */
+  private applyLinetypes(document: CadDocument): void {
+    const slots = buildCadLinetypeSlots(document);
+    if (slots === this.linetypes && this.uniforms.cadLinetypeScale.value === (document.meta.linetypeScale ?? 1)) return;
+    this.linetypes = slots;
+    setCadLineBatchLinetypes(this.uniforms, slots.patterns, document.meta.linetypeScale ?? 1);
+  }
+
+  /** Lo que el shader tiene ahora mismo; lo lee el spec y el diagnóstico. */
+  linetypeUniforms(): { dash: Float32Array; meta: Float32Array; scale: number; overflow: readonly string[]; simplified: readonly string[] } {
+    return {
+      dash: this.uniforms.cadLinetypeDash.value,
+      meta: this.uniforms.cadLinetypeMeta.value,
+      scale: this.uniforms.cadLinetypeScale.value,
+      overflow: this.linetypes?.overflow ?? [],
+      simplified: this.linetypes?.simplified ?? [],
+    };
   }
 
   /** El documento acompaña a la edición: ver `CadRenderPipeline.invalidate`. */
@@ -145,6 +176,7 @@ export class CadRenderScene {
     document?: CadDocument,
   ): void {
     this.pipeline.invalidate(affectedEntityIds, upserts, document);
+    if (document) this.applyLinetypes(document);
   }
 
   /**

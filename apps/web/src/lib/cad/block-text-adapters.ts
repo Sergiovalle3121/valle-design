@@ -90,6 +90,8 @@ function isCadCardinalRotationDeg(degrees: number): boolean {
 type CadMTextEntity = Extract<CadNativeEntity, { type: "mtext" }>;
 
 const mtextRenderer: CadEntityRenderer<CadMTextEntity> = {
+  // Rótulo puro: el texto va al atlas del pipeline; `paths` es su caja de designación.
+  textOnly: true,
   paths: (entity) => [{ points: layoutCadMText(entity).corners, closed: true }],
 };
 

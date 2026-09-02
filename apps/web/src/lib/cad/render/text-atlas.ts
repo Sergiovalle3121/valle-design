@@ -165,6 +165,15 @@ export interface CadTextQuadRequest {
   x: number;
   y: number;
   rotationDeg?: number;
+  /**
+   * De qué lado del origen crece el rótulo a lo largo de su línea base. Se
+   * resuelve AQUÍ, con el avance real de los glifos, y no con una anchura
+   * estimada: `measureCadMText` supone 0,58 em por carácter y con Arial
+   * «4000.00 mm» mide 6,11 em, así que centrar con la estimación dejaba el
+   * rótulo de una cota ≈0,42 em a la derecha del centro (medido). Ausente =
+   * `left`, el comportamiento de siempre.
+   */
+  align?: "left" | "center" | "right";
   color: number;
   /** Profundidad NDC del orden de dibujo, de `cadDrawOrderDepth`. */
   depth: number;
@@ -255,7 +264,13 @@ export function buildCadTextQuads(
     // desplaza — el avance de cada glifo (`localX`/`localY`) ya es pequeño.
     const baseX = request.x - originX;
     const baseY = request.y - originY;
-    let pen = 0;
+    // Alineación con la métrica REAL: la pluma arranca detrás del origen lo
+    // que mide el rótulo entero (o la mitad), sumando el avance de cada glifo.
+    let run = 0;
+    if (request.align && request.align !== "left") {
+      for (const character of request.text) run += source.metrics(character, request.fontKey)?.advance ?? 0;
+    }
+    let pen = request.align === "center" ? -run / 2 : request.align === "right" ? -run : 0;
     for (const character of request.text) {
       const metrics = source.metrics(character, request.fontKey);
       if (!metrics) continue;

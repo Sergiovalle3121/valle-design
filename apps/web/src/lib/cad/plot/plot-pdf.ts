@@ -374,6 +374,8 @@ function drawCommand(
     const [r, g, b] = rgb(command.style.stroke);
     pdf.setDrawColor(r, g, b);
     pdf.setLineWidth(command.style.lineWidth);
+    // El tipo de línea de la capa, en milímetros de papel (paper-space-style.ts).
+    pdf.setLineDashPattern(command.style.dash ?? [], 0);
     const points = command.points;
     // `lines` toma DELTAS desde el punto inicial: pasarle coordenadas absolutas
     // dibuja una espiral que se va de la hoja, y es el error que hace que un

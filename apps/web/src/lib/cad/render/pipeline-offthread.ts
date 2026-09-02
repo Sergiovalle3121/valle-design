@@ -36,6 +36,7 @@ import {
   cadRenderStage,
 } from "./render-profile";
 import type { CadRenderOrigin } from "./render-origin";
+import { cadEntityIsTextOnly } from "./text-requests";
 
 /**
  * Tope del LOTE que viaja al worker de teselado, en segmentos ESTIMADOS.
@@ -153,7 +154,9 @@ export function collectCadOffThreadBatch(
     if (entities.length >= CAD_RENDER_OFFTHREAD_BATCH_MAX_ENTITIES) break;
     if (estimatedSegments >= CAD_RENDER_OFFTHREAD_BATCH_SEGMENT_BUDGET) break;
     const entity = resolve(pending[index]);
-    if (!entity || entity.type === "mtext") continue;
+    // Los rótulos puros no viajan: su caja no se tesela (medido: TEXT y ATTDEF
+    // llegaban al worker y sembraban la caché con 4 segmentos de marco).
+    if (!entity || cadEntityIsTextOnly(entity)) continue;
     if (!cadEntityTessellatesWithoutDocument(entity)) continue;
     const tier = tierOf(entity.id);
     if (tierByEntity.has(entity.id) || cached(entity.id, tier)) continue;

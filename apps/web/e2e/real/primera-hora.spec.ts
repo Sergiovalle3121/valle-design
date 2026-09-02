@@ -255,7 +255,9 @@ test.describe("La primera hora de un desconocido", () => {
     ).not.toMatch(/Conectar flujo/iu);
 
     // Y los atajos que un dibujante busca primero tienen que estar.
-    for (const anunciado of ["Ctrl/⌘+S", "Ctrl/⌘+K", "F8", "Shift+L"])
+    // Shift+L (connector) se retiró: no tenía salida en el intérprete. Shift+O
+    // (offset) es el atajo con modificador que sí funciona.
+    for (const anunciado of ["Ctrl/⌘+S", "Ctrl/⌘+K", "F8", "Shift+O"])
       expect(texto, `el panel anuncia «${anunciado}»`).toContain(anunciado);
   });
 });
