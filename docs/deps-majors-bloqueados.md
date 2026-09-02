@@ -43,3 +43,19 @@ tabla, para que el grupo semanal deje de re-proponer lo ya probado roto y
 sólo agrupe lo que sí es seguro. Al tachar una fila de esta tabla con
 evidencia de que el bloqueo se resolvió, quitar también su entrada
 `ignore` correspondiente en `dependabot.yml`.
+
+## next-intl 4.14 (2026-09-02) — retenido, con su medición
+
+| Paquete | Por qué no entra | Qué lo desbloquea |
+| --- | --- | --- |
+| next-intl >= 4.14.0 | 4.14 añadió una dependencia de **tiempo de ejecución** a `@swc/core ~1.16`, cuyo *peer* exige `@swc/helpers >= 0.5.17`. `next` fija `@swc/helpers 0.5.15` **exacto** y npm lo iza a la raíz, así que el árbol queda incoherente. Medido sobre el fichero de bloqueo del PR #155, sin instalar: `node_modules/@swc/helpers` → 0.5.15, y `node_modules/next-intl/node_modules/@swc/core` → 1.16.1 con `peerDependencies: {"@swc/helpers": ">=0.5.17"}`. `npm ci` **sí** instala —el job del CI llegó hasta `check:governance`— pero `npm sbom` aborta con `ESBOMPROBLEMS`, y el SBOM es un artefacto de cumplimiento que no puede describir un árbol roto. | Que `next` mueva su pin de `@swc/helpers` a >= 0.5.17. |
+
+**La salida que NO se tomó, y por qué.** Un `override` de `@swc/helpers` a
+`^0.5.17` haría coherente el árbol en una línea, y es el patrón que este
+repositorio ya usa para `rxjs` y para tres paquetes de NestJS. Aquí no se usa
+porque **no está medido**: los helpers de SWC van acoplados a la versión del
+compilador que emitió el código, y forzarlos por encima del pin exacto de Next
+es plausible pero no comprobado. Se retiene el paquete y entran los otros diez
+bumps del grupo semanal; el día que alguien mida que Next funciona con 0.5.17,
+esta fila se tacha y se quita su entrada `ignore` de `dependabot.yml`.
+
