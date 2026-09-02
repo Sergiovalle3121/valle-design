@@ -25,6 +25,22 @@ const webServerPort =
  */
 export default defineConfig({
   testDir: "./e2e",
+  // `e2e/auditoria/` NO corre en la suite, y no es un descuido: son las pruebas
+  // de la auditoría de cliente final, y están ROJAS A PROPÓSITO. Cada una
+  // reproduce en el navegador un defecto confirmado —el que la publicación deja
+  // el dibujo sin poder guardarse, el que una línea sobre la fachada se va al
+  // suelo, el que redefinir un bloque mueve las instancias nueve metros— y
+  // seguirá roja hasta que ese defecto se arregle. Meterlas en la suite pondría
+  // el veredicto en rojo permanente, que es exactamente cómo se pierde un
+  // veredicto: cuando siempre está rojo, deja de mirarse.
+  //
+  // Una exclusión así se pudre en silencio, así que no está sola:
+  // `scripts/cad/check-auditoria-manifest.mjs` exige que cada archivo de aquí
+  // esté declarado en `e2e/auditoria/manifiesto.json` con su defecto, y que la
+  // lista SÓLO ENCOJA. Cuando un defecto se arregla, su spec no se borra: se
+  // GRADÚA a `e2e/golden/` y pasa a defender el arreglo. Ver el README de esa
+  // carpeta.
+  testIgnore: ["auditoria/**"],
   outputDir: "./e2e/.test-results",
   fullyParallel: false,
   forbidOnly: !!process.env.CI,

@@ -1,0 +1,164 @@
+{
+  "descripcion": "Pruebas de la auditoría de cliente final del 2026-09-01. Corren en el navegador contra el estudio real y están ROJAS A PROPÓSITO: cada una reproduce un defecto confirmado. NO entran en la suite (playwright.config.ts las excluye con testIgnore). Cuando su defecto se arregla, la prueba NO se borra: se GRADÚA a e2e/golden/ y pasa a defender el arreglo. Ver README.md.",
+  "comoSeCorren": "cd apps/web && NEXT_PUBLIC_API_URL=http://localhost:4000 npx turbo run build --filter=web && E2E_PROD=1 E2E_API_ORIGIN=http://localhost:4000 npx playwright test e2e/auditoria/<archivo> --project=chromium --reporter=line",
+  "techo": 31,
+  "notaSobreElTecho": "El techo SÓLO BAJA. Es el número de specs de auditoría pendientes de graduarse. Subirlo requiere una auditoría nueva y su entrada en la bitácora; bajarlo es lo que pasa cuando un defecto se arregla y su prueba se muda a e2e/golden/.",
+  "pruebas": [
+    {
+      "archivo": "00-arranque.spec.ts",
+      "reproduce": "Ninguno: es el esqueleto que copian los demás. Comprueba que el TERRENO está puesto —lienzo visible, recorrido guiado descartado— para que un rojo de los hermanos no se confunda con un fallo del arnés.",
+      "impacto": "arnes"
+    },
+    {
+      "archivo": "acotar.spec.ts",
+      "reproduce": "Acotar un tabique dibujado con polilínea, moverlo, y la cota se queda atrás acotando el aire — y sigue diciendo 4.000 con la misma pinta de estar viva.",
+      "impacto": "molesta_mucho"
+    },
+    {
+      "archivo": "bloques.spec.ts",
+      "reproduce": "Redefinir un bloque dibujando el recambio al lado del plano mueve las tres instancias exactamente el desplazamiento de dónde se dibujó el recambio (+9000, +8000).",
+      "impacto": "bloquea_el_trabajo"
+    },
+    {
+      "archivo": "capas.spec.ts",
+      "reproduce": "El estándar de capas del despacho sobrevive a guardar y recargar, pero ningún tipo de línea se dibuja ni se imprime: un plano no distingue un eje de un muro.",
+      "impacto": "molesta_mucho"
+    },
+    {
+      "archivo": "equipo.spec.ts",
+      "reproduce": "No hay forma de anclar un MENSAJE del chat a un punto del plano, ni de escribirle a una sola persona en vez de al canal del proyecto.",
+      "impacto": "molesta_poco"
+    },
+    {
+      "archivo": "imprimir.spec.ts",
+      "reproduce": "«PLOT → Extensión → Trazar», la forma normal de sacar un dibujo en AutoCAD, no traza nunca.",
+      "impacto": "molesta_mucho"
+    },
+    {
+      "archivo": "intercambio.spec.ts",
+      "reproduce": "Los rótulos TEXT llegan al otro despacho en una capa «Text» que nadie creó, en vez de en su capa NOTAS; y el cuadro de exportar promete una capa que el fichero no lleva.",
+      "impacto": "molesta_mucho"
+    },
+    {
+      "archivo": "modificar.spec.ts",
+      "reproduce": "El clic con el que se designa se PIERDE si cae sobre un pinzamiento, y recortar pinchando el sobrante por su extremo con el muro designado tampoco recorta.",
+      "impacto": "molesta_mucho"
+    },
+    {
+      "archivo": "planta.spec.ts",
+      "reproduce": "Ninguno: la tarea número uno de un despacho SALE. Se conserva como prueba de que el recorrido bueno sigue bueno mientras se arregla lo demás.",
+      "impacto": "arnes"
+    },
+    {
+      "archivo": "precision.spec.ts",
+      "reproduce": "Ninguno: el número exacto se respeta —3500 se guarda como 3500, y el enganche a extremo devuelve la coordenada del vértice, no la del ratón—. Se conserva por la misma razón.",
+      "impacto": "arnes"
+    },
+    {
+      "archivo": "refutacion-block-redefine.spec.ts",
+      "reproduce": "Teclear BLOCK con el nombre de un bloque que ya existe —la forma de redefinir en AutoCAD— manda a un sitio que no existe.",
+      "impacto": "molesta_mucho"
+    },
+    {
+      "archivo": "refutacion-cara-visible.spec.ts",
+      "reproduce": "La cara que se mira no está pintada y designarla no la resalta: no se ve qué cara se va a empujar.",
+      "impacto": "molesta_mucho"
+    },
+    {
+      "archivo": "refutacion-cmdk-silla.spec.ts",
+      "reproduce": "Buscar «silla» en la caja del estudio ofrece algo que no es el bloque de la biblioteca del despacho.",
+      "impacto": "molesta_mucho"
+    },
+    {
+      "archivo": "refutacion-cotas-resumen.spec.ts",
+      "reproduce": "El resumen del cuadro de exportar dice que el fichero lleva 0 cotas cuando lleva una.",
+      "impacto": "molesta_poco"
+    },
+    {
+      "archivo": "refutacion-equipo-sin-proyecto.spec.ts",
+      "reproduce": "Un plano sin proyecto deja el panel de equipo sin salida. Lleva su propia refutación al lado: el mismo plano en un despacho que ya tiene un canal.",
+      "impacto": "molesta_poco"
+    },
+    {
+      "archivo": "refutacion-escala-bloqueada.spec.ts",
+      "reproduce": "En una hoja recién creada el desplegable de escala nace apagado y nada explica por qué.",
+      "impacto": "molesta_mucho"
+    },
+    {
+      "archivo": "refutacion-imprimir.spec.ts",
+      "reproduce": "Publicar avanza la versión en el servidor, el cliente no se entera, y el guardado siguiente da 409 CAS con «autosave detenido». El control —guardar SIN publicar antes— pasa, que es lo que aísla la causa.",
+      "impacto": "bloquea_el_trabajo"
+    },
+    {
+      "archivo": "refutacion-linea-comandos-opacidad.spec.ts",
+      "reproduce": "Mapa de opacidad al ratón del panel de la línea de comandos: qué zonas suyas se comen el clic del lienzo.",
+      "impacto": "molesta_poco"
+    },
+    {
+      "archivo": "refutacion-linea-comandos-tapa.spec.ts",
+      "reproduce": "Si la línea de comandos desplegada impide pulsar lo que hay debajo.",
+      "impacto": "molesta_poco"
+    },
+    {
+      "archivo": "refutacion-mensaje-anclado.spec.ts",
+      "reproduce": "Contraprueba de que no hay manera de clavar un mensaje del chat en un punto del plano.",
+      "impacto": "molesta_poco"
+    },
+    {
+      "archivo": "refutacion-mensaje-directo.spec.ts",
+      "reproduce": "Contraprueba de que no hay por dónde escribirle a una sola persona en vez de al canal.",
+      "impacto": "molesta_poco"
+    },
+    {
+      "archivo": "refutacion-mis-bloques.spec.ts",
+      "reproduce": "El botón «Mis bloques» está muerto.",
+      "impacto": "molesta_mucho"
+    },
+    {
+      "archivo": "refutacion-notas-solo-text.spec.ts",
+      "reproduce": "Contraprueba de la capa perdida al exportar: si le pasa a todo o sólo a las entidades TEXT.",
+      "impacto": "molesta_mucho"
+    },
+    {
+      "archivo": "refutacion-palabra-imprimir.spec.ts",
+      "reproduce": "Buscar la palabra «Imprimir» en el estudio, como haría cualquiera, no lleva a imprimir.",
+      "impacto": "molesta_poco"
+    },
+    {
+      "archivo": "refutacion-panel-bloques-designar.spec.ts",
+      "reproduce": "Contraprueba de si el panel de bloques permite designar lo que ofrece.",
+      "impacto": "molesta_mucho"
+    },
+    {
+      "archivo": "refutacion-pinzamiento.spec.ts",
+      "reproduce": "OFFSET sobre el mismo píxel y con la misma distancia crea la paralela SIN designar y no crea nada CON el eje designado: el clic se lo come el pinzamiento.",
+      "impacto": "molesta_mucho"
+    },
+    {
+      "archivo": "refutacion-plot-extension.spec.ts",
+      "reproduce": "Contraprueba aislada de «PLOT → Extensión» sin el resto del recorrido de impresión.",
+      "impacto": "molesta_mucho"
+    },
+    {
+      "archivo": "refutacion-scu-raton.spec.ts",
+      "reproduce": "Contraprueba aislada de que el punto del ratón bajo un SCU inclinado sale del plano del suelo y no del plano de trabajo.",
+      "impacto": "bloquea_el_trabajo"
+    },
+    {
+      "archivo": "refutacion-texto-capa.spec.ts",
+      "reproduce": "Contraprueba aislada de la capa que se pierde al exportar un TEXT.",
+      "impacto": "molesta_mucho"
+    },
+    {
+      "archivo": "refutacion-trim.spec.ts",
+      "reproduce": "Contraprueba de TRIM: qué combinaciones de designación y de punto de corte recortan y cuáles no.",
+      "impacto": "molesta_mucho"
+    },
+    {
+      "archivo": "tresd.spec.ts",
+      "reproduce": "Con el SCU apoyado en la fachada, una línea de dos clics se va al suelo sin decir nada: el primer punto sale en el centro de la huella del suelo, ni siquiera sobre el sólido. Y no se puede dibujar un rectángulo en la fachada: sólo LINE se declara espacial.",
+      "impacto": "bloquea_el_trabajo"
+    }
+  ],
+  "notaSobreElNombre": "Las `refutacion-*` son las contrapruebas adversarias: cada una intentó TUMBAR un fallo reportado, y se conservan tanto si lo confirmaron como si lo refutaron —una refutación guardada es lo que impide volver a perseguir un defecto que no existe—. Nacieron con el prefijo `zz-`, que .gitignore reserva para sondas temporales que no son producto; dejaron de serlo al quedar declaradas aquí con su defecto y su regla de graduación, así que se les cambió el nombre en vez de tocar esa regla, que sigue protegiendo las sondas que sí son de usar y tirar."
+}
