@@ -2564,6 +2564,37 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-RAZON-REAL-DE-CADA-CLASE-NO-ESCRITA-20260902",
+      "date": "2026-09-02",
+      "initiative": "Al abrir DIMENSION —la ultima clase del writer que no exigia decision del titular— la medicion cambio el diagnostico del track entero. El canonico de una cota lleva a, b, c?, dimensionKind, text? y textPosition; el cuerpo DWG pide ademas una docena de campos que no viajan, y dos de esas ausencias no son de detalle: actualMeasurement (el numero que la cota muestra) no se transporta, asi que escribir 0 daria una cota que dice 0 y calcularlo seria inventarlo; y angular3pt y angular2ln se COLAPSAN en 'angular' al leer, con cuerpos estructuralmente distintos (el de dos lineas lee un point16 extra, y primero), asi que desde el canonico no hay forma de saber cual escribir. Eso no es un campo que falte: es un discriminador perdido. CONSECUENCIA: las tres clases que quedan del writer —MTEXT, DIMENSION y LEADER— NO son tres tareas caras independientes. Estan bloqueadas por lo mismo, el esquema del documento canonico. No es trabajo de codec acumulado, es UNA decision, y es del titular porque el canonico es superficie publica. LO CORREGIDO: todas las clases no enrutadas recibian el mismo mensaje, 'el writer AC1015 aun no emite X'. Para MTEXT era FALSO —emitMText existe y es espejo de decodeMText— y para DIMENSION y LEADER era enganoso, porque senalaba al writer cuando el que no llega es el canonico. Son dos bloqueos con dos soluciones distintas y esto lo lee el usuario en su manifiesto de perdidas. Ahora hay dos codigos: canonical-schema-insufficient, con la razon concreta de cada clase, y canonical-type-not-writable, que se conserva donde es cierto (SPLINE lo verifica en la spec). Es la quinta vez en esta jornada que un texto del repo afirma algo distinto de lo que hace el codigo, y la primera que ese texto llegaba al cliente.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: «dale con la siguiente fase, analiza bien... qué te tiene detenido y encuentra la solución».",
+      "firstPartyInputs": [
+        "La lectura propia de decodeDimension y de la proyeccion canonica de la cota.",
+        "La comprobacion propia de los cuatro mensajes resultantes por writeCanonicalDwg."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/api/canonical-to-dwg.ts (dos codigos de perdida y la razon concreta de cada clase)",
+        "packages/dwg-codec/tests/unit/write-canonical-dwg.spec.ts (spec que separa los dos bloqueos)",
+        "packages/dwg-codec/CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguno.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso de seguir con la fase siguiente y analizar bien lo que bloquea."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
