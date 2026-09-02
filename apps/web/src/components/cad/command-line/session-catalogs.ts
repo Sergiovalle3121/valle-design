@@ -25,8 +25,10 @@
 import { useEffect, useMemo } from "react";
 import {
   registerCadUiHandler,
+  pickCadFiles,
   pickCadTextFile,
 } from "@/components/cad/palettes/palette-command-bus";
+import { cadGeoBundleName, encodeCadGeoBundle } from "@/lib/cad/geo-import-bundle";
 import type { CadSessionCatalogs } from "@/lib/cad/engine/command-types";
 import { CadLayerStateCatalog } from "@/lib/cad/layer-states";
 import {
@@ -108,9 +110,19 @@ export function useCadFileCommandHandlers(
   session: CadSessionState,
   onScript: (name: string, text: string) => void,
   onDxf: (name: string, text: string) => void,
+  onGeo: (name: string, text: string) => void,
 ): void {
   useEffect(() => {
     const unregister = [
+      registerCadUiHandler("geo-file", () => {
+        // Los cuatro del shapefile y el GeoJSON, varios a la vez: el sobre
+        // (`geo-import-bundle.ts`) los lleva por la misma puerta que el DXF.
+        void pickCadFiles(".shp,.shx,.dbf,.prj,.cpg,.geojson,.json").then((files) => {
+          if (files.length === 0) return;
+          onGeo(cadGeoBundleName(files), encodeCadGeoBundle(files));
+        });
+        return true;
+      }),
       registerCadUiHandler("dxf-file", () => {
         // `.dxf` a secas en el filtro: un DWG no se ofrece porque no se sabe
         // leer, y ofrecerlo para después rechazarlo sería prometer soporte que
@@ -139,5 +151,5 @@ export function useCadFileCommandHandlers(
     return () => {
       for (const off of unregister) off();
     };
-  }, [session, onScript, onDxf]);
+  }, [session, onScript, onDxf, onGeo]);
 }

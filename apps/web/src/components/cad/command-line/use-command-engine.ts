@@ -454,6 +454,14 @@ export function useCadStudioCommandEngine(
       },
       [engine],
     ),
+    // MAPIMPORT (Ola G): el mismo trato que DXFIN, con el sobre de archivos.
+    useCallback(
+      (name: string, text: string) => {
+        if (!engine.busy) engine.invoke("MAPIMPORT");
+        engine.feedFile(name, text);
+      },
+      [engine],
+    ),
   );
 
   return engine;

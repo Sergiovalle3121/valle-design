@@ -3363,17 +3363,33 @@
       "scope": "destino",
       "name": "Toolset Map 3D",
       "points": 4,
-      "gap": "Nada del toolset Map 3D existe: ni sistemas de coordenadas georreferenciados ni capas de datos GIS.",
+      "gap": "La georreferencia y la importación GIS existen sobre lo que el formato ya tiene (Ola G, 2026-09-02): GEOGRAPHICLOCATION guarda el sistema (WGS 84 / UTM 11N a 16N, datums WGS84/ITRF) y el este/norte de un punto en un marcador POINT de la capa GEO, ID informa el este/norte y la latitud/longitud, y MAPIMPORT mete un shapefile o un GeoJSON en el plano abierto, reproyectado al sistema del dibujo, con la fila de atributos en metadatos. Sin tabla de georreferencia persistida (sería tocar el formato: decisión del titular), sin NAD27/NAD83, sin mapa de fondo, sin topología ni consultas: en ESCALERA.",
       "criteria": [
         {
           "id": "toolset-map3d.georreferencia",
           "points": 2,
           "text": "Sistema de coordenadas del dibujo (EPSG) y transformación entre sistemas",
-          "costDays": null,
+          "costDays": 0,
           "evidence": [
             {
-              "kind": "todaviaNo",
-              "reason": "No hay georreferenciación. Tercer toolset de la campaña."
+              "kind": "command",
+              "name": "GEOGRAPHICLOCATION"
+            },
+            {
+              "kind": "command",
+              "name": "ID"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/geo-location.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/geo/crs.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/82-cad-georreferencia.spec.ts"
             }
           ]
         },
@@ -3381,11 +3397,23 @@
           "id": "toolset-map3d.datos",
           "points": 2,
           "text": "Importar capas GIS (SHP/GeoJSON) como objetos con atributos",
-          "costDays": null,
+          "costDays": 0,
           "evidence": [
             {
-              "kind": "todaviaNo",
-              "reason": "No hay importador GIS."
+              "kind": "command",
+              "name": "MAPIMPORT"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/map-import.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/geo/geojson.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/82-cad-georreferencia.spec.ts"
             }
           ]
         }

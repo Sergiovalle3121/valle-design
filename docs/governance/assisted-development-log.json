@@ -3003,6 +3003,47 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "OLA-G-MAP3D-20260902",
+      "date": "2026-09-02",
+      "initiative": "Ola G del encargo «Valle Design → AutoCAD completo»: el toolset Map 3D. (1) La georreferencia como MARCADOR, sin tocar el formato: `lib/cad/georeference.ts` (nuevo) lee y fabrica un POINT en la capa GEO con `{geo: \"marker\", crs, east, north}` en `context.metadata` —que el formato ya tiene— y traduce entre unidades del dibujo y metros (`cadGeoreferencePlacement`, `cadGeoreferenceWorld`, `cadGeoreferenceGeographic` sobre `lib/geo/crs.ts`); una tabla de georreferencia persistida sería decisión del titular, no tomada. `engine/commands/geo-location.ts` (nuevo): GEOGRAPHICLOCATION (alias GEO, GEOLOCATION, MAPCSASSIGN, GEORREFERENCIAR) con Zona (11N–16N, las verificadas), Datum (WGS84/ITRF92/ITRF2008/ITRF2020), Geográfica (latitud y longitud, guardadas como el este/norte de la zona que toca porque un grado no es una unidad de dibujo) e Informe; emite un lote (capa GEO si falta, marcador viejo fuera, nuevo dentro) y dice sus números. ID añade el este/norte y la latitud/longitud en un dibujo georreferenciado (`inquiry-measure.ts`). `geo-location.spec.ts` (44). (2) MAPIMPORT (alias IMPORTARGIS), el conjunto GIS dentro del plano abierto: `engine/commands/map-import.ts` (nuevo) pide los archivos por el canal de interfaz `geo-file` (nuevo en `command-types.ts`; `palette-command-bus.ts` gana `pickCadFiles`, varios a la vez y como bytes; `session-catalogs.ts` y `use-command-engine.ts` los entregan por `feedFile` como DXFIN), `lib/cad/geo-import-bundle.ts` (nuevo) los empaqueta en base64 —sobre que no se persiste— y `lib/cad/geo-import-plan.ts` (nuevo) decide las cuatro situaciones y las enseña antes de escribir: georreferenciado + `.prj` → reproyectado vértice a vértice y colocado con la georreferencia del dibujo; georreferenciado + sin `.prj` → rechazado (colocarlo sería adivinar); sin georreferencia + archivo con sistema → origen local redondo y el dibujo QUEDA georreferenciado con el marcador en (0, 0); ni uno ni otro → origen local con aviso. `geo-cad-document.ts` gana `placement`, `newEntityId`, `reprojectTo` (pérdida `geo_reprojected`) y `attributesAsMetadata` (la fila del DBF en `context.metadata`, por posición; si la tabla no cuadra, `geo_attributes_unaligned` en vez de heredar los del vecino). `map-import.spec.ts` (46). (3) GeoJSON: `lib/geo/geojson.ts` (nuevo) lee RFC 7946 a la MISMA forma que el shapefile (rasgo sin geometría como nulo con su fila), `readGeoDataset` lo reconoce por sus bytes y el cuadro «Importar» admite `.geojson` proyectado a la zona UTM de su centro (`document-import.ts`, `document-import-validation.ts`). `geojson.spec.ts` (34). (4) Instrumento: cinta con el panel «Ubicación» en Insertar; sonda de integridad 231 → 233 comandos con 0 éxitos falsos; `toolset-map3d` de 0 a 3 de 4 (retiene 1 pt hasta evidencia independiente); golden 82.",
+      "branch": "claude/valle-design-autocad-vqfa6u",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo escrito «Valle Design → AutoCAD completo, con sus siete toolsets», §Ola G (Map 3D, tras MEP).",
+      "firstPartyInputs": [
+        "docs/competitive/distancia-autocad-completo-20260901.md §4 3º MAP 3D (el cimiento `lib/geo` sin enchufar al dibujo; los atributos del DBF no llegaban; la importación creaba un documento nuevo) y docs/competitive/auditoria-cliente-final-20260901.md (Map 3D ≈ 8 %: calidad, no cobertura); cada afirmación se midió antes (el `.shp` entraba sólo por el cuadro «Importar»; `shapefileToCadEntities` usaba `attributes` sólo para el aviso de codificación).",
+        "Specs de Node nuevos o ampliados, corridos en esta máquina: geojson (34), geo-location (44), map-import (46), geo/index, geo-cad-document, document-import, document-import-fuzz, interop-dxf, command-summaries (233/233), ribbon (233 en 7 pestañas); sonda de integridad 233, 0 éxitos falsos; los números de control de crs.spec.ts (E 660 000 N 2 140 000 en 14N → 19,3477° N 97,4768° O; Guadalajara → EPSG:32613 E 671 873,00).",
+        "Golden 82 (GEO, ID y MAPIMPORT por el selector de archivos del navegador, con el marcador y el predio en el servidor) verde en Chromium contra el build de producción."
+      ],
+      "externalSources": [
+        {
+          "source": "RFC 7946 (GeoJSON) y la documentación pública de ESRI del shapefile (orientación horaria de los anillos exteriores); documentación pública de AutoCAD Map 3D sobre GEOGRAPHICLOCATION, MAPCSASSIGN y MAPIMPORT.",
+          "terms": "Especificaciones y documentación públicas de referencia; no se copió implementación alguna.",
+          "usedFor": "La forma del GeoJSON (orden lon/lat, cierre de anillos, `crs` ignorado), los nombres y alias de las órdenes y el vocabulario de las opciones."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna. La proyección UTM (Krüger), el lector de shapefile/DBF, el lote de órdenes y el canal de interfaz son módulos propios ya existentes; el sobre base64 usa `btoa`/`atob` de la plataforma.",
+      "derivedAreas": [
+        "apps/web/src/lib/geo/{geojson.ts (nuevo), index.ts}",
+        "apps/web/src/lib/cad/{georeference.ts (nuevo), geo-import-bundle.ts (nuevo), geo-import-plan.ts (nuevo), geo-cad-document.ts, document-import.ts, document-import-validation.ts, ribbon.ts, ribbon-order.ts}",
+        "apps/web/src/lib/cad/engine/{index.ts, command-summaries.ts, alias-table.ts, command-types.ts}; engine/commands/{geo-location.ts (nuevo), map-import.ts (nuevo), inquiry-measure.ts}",
+        "apps/web/src/components/cad/{palettes/palette-command-bus.ts, command-line/session-catalogs.ts, command-line/use-command-engine.ts, ribbon/ribbon-icons.ts}",
+        "apps/web/e2e/golden/82-cad-georreferencia.spec.ts (nuevo)",
+        "docs/competitive/{rubric.json, autocad-2027-gap-matrix.md, distancia-autocad-completo-20260901.md}, docs/parity/ESCALERA.md, docs/cad/evidence/{command-integrity.json, ui-command-reach.json}"
+      ],
+      "fixtures": "Ninguno nuevo con datos ajenos; el predio de 40 × 30 m y su tabla se fabrican en el propio spec y en el golden con `lib/geo/fixtures.ts`.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "La georreferencia y la importación con specs contra los números de control de crs.ts y un golden que lee lo que recibió el servidor; la sonda de integridad a 233 con 0 éxitos falsos; lo que no cabe, en ESCALERA; ninguna decisión de formato persistido tomada por la sesión (el marcador y los atributos usan `context.metadata`, que ya existía)."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

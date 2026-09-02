@@ -8,6 +8,7 @@ import {
   Droplets,
   Download,
   Eye,
+  Globe,
   Group,
   Layers,
   LayoutGrid,
@@ -62,6 +63,7 @@ export const CAD_RIBBON_PANEL_ICONS: Readonly<Record<string, LucideIcon>> = {
   // Insertar.
   Referencias: Link,
   "Importar y extraer": Download,
+  Ubicación: Globe,
   Paletas: Puzzle,
   // Anotar.
   "Texto y tablas": Type,

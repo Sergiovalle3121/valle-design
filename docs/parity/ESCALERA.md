@@ -151,7 +151,7 @@ la campaña; dos quedan fuera de alcance y se dice.
 | --- | --- | --- | --- |
 | Architecture | 5 | 5 | WALL, DOOR y WINDOW (golden 53); STAIR (78); ROOF y SLAB (79); los cuadros de superficies —con el nombre del local— y de carpintería salen en la lámina (77, `paper-space-table.spec.ts` leyendo los bytes del PDF). La rúbrica retiene 1 pt hasta que haya evidencia independiente. Lo que sigue en «todavía no» está en su sección (Ola E). |
 | MEP (mitad 2D) | 5 | 3 | PIPE, DUCT, CABLETRAY y MEPSYMBOL sobre el mismo motor (polilíneas, capas de servicio con tipo de línea con texto, bloques MEP-…), y el cuadro de instalaciones por DATAEXTRACTION Instalaciones en la lámina (golden 81; `mep-tracing.spec.ts`). La mitad 3D —ruteo con colisiones, diámetros por especificación— queda fuera y se dice. |
-| Map 3D | 0 | 3 | Nada: sistema de coordenadas georreferenciado y capas GIS. Tercero. |
+| Map 3D | 5 | 3 | GEOGRAPHICLOCATION georreferencia el dibujo con un marcador POINT en GEO (UTM 11N–16N, WGS84/ITRF; o latitud y longitud), ID informa el este/norte y la lat/lon, y MAPIMPORT mete un shapefile o GeoJSON en el plano abierto reproyectado al sistema del dibujo con los atributos en metadatos (golden 82; `geo-location.spec.ts`, `map-import.spec.ts`, `geojson.spec.ts`). La rúbrica retiene 1 pt hasta evidencia independiente. Lo que sigue en «todavía no» está en su sección (Ola G). |
 | Raster Design (mitad útil) | 1 | 3 | IMAGE inserta un escaneo; falta el recorte por polígono, el ajuste de imagen y la vectorización. Cuarto. |
 | Mechanical | 0 | 3 | Nada: normalizados y cotas de fabricación con tolerancia. Quinto. |
 | Electrical | 0 | — | **Fuera de alcance** de la campaña: esquemas y numeración de hilos son otro producto. La fila existe para que el denominador sea honesto. |
@@ -228,6 +228,24 @@ dice aquí y en el prompt de la orden.
 | MEPSYMBOL: ocho símbolos como BLOQUES con geometría (válvula, difusor, rejilla, luminaria, contacto, apagador, tablero, extractor) | 5 | golden 81 (el bloque se define una vez y se inserta); `mep-tracing.spec.ts` | Ocho, no el catálogo entero de un despacho; sin atributos (marca, modelo). Se amplía por contenido, no por motor. |
 | Cuadro de instalaciones (longitudes por servicio y tamaño, equipos por símbolo) en la lámina | 5 | golden 81 (7,00 m Ø19, 4,00 m de ducto, 1 válvula); `paper-space-table.spec.ts` para la lámina | Una tubería dibujada a mano en la capa del servicio cuenta sin diámetro («-»); el CSV sigue siendo el de muros. |
 | Una entidad `pipe`/`duct` persistida y reeditable desde el panel | 0 | Todo son polilíneas, capas y `context.metadata`, que el formato ya tiene | Añadir tipos de entidad es tocar el formato persistido: decisión del titular, no tomada por la sesión. |
+
+## El mapa (Ola G, 2026-09-02)
+
+La campaña midió antes que `lib/geo` sabía leer shapefiles, datums y zonas
+UTM y que ningún dibujo sabía dónde estaba: el `.shp` entraba sólo como
+documento nuevo, a un origen local propio, sin atributos. Cada fila dice en
+qué peldaño queda HOY y qué la subiría; lo que sigue en «todavía no» se dice
+aquí y en el prompt de la orden.
+
+| Capacidad | Peldaño hoy | Evidencia | Qué falta para subir |
+| --- | --- | --- | --- |
+| GEOGRAPHICLOCATION: un punto del dibujo y su Este/Norte UTM (zona 11N–16N, datum WGS84/ITRF92/ITRF2008/ITRF2020) o su latitud y longitud, guardados como marcador POINT en la capa GEO con `{geo, crs, east, north}` en `context.metadata`; `Informe` lee sin escribir | 5 | golden 82 ((0,0) = E 660 000 N 2 140 000 en 14N); `geo-location.spec.ts` (44): Guadalajara por `Geográfica` → EPSG:32613 E 671 873,00 contra `crs.spec.ts` | Sólo el hemisferio norte y las zonas 11N a 16N (lo que `crs.ts` verifica); sin NAD27/NAD83 (rechazados por nombre, a propósito); sin giro de cuadrícula (convergencia) ni escala de proyección aplicados al dibujo; sin tabla de georreferencia persistida —sería tocar el formato: decisión del titular, no tomada—. **Todavía no.** |
+| ID en un dibujo georreferenciado informa el este/norte y la latitud/longitud del punto | 5 | golden 82 («E 660,001.00 N 2,140,001.00 · 19.3477° N, 97.4767° O»); `geo-location.spec.ts` | Sólo ID; LIST, DIST y las cotas siguen en unidades de dibujo. Sin coordenadas geográficas en la barra de estado. |
+| MAPIMPORT: `.shp` con `.shx`/`.dbf`/`.prj`/`.cpg` o `.geojson` por el selector del navegador (varios a la vez, en un sobre base64 por la puerta de texto del motor) o un GeoJSON pegado, con el plan a la vista antes de escribir | 5 | golden 82 (el predio 14N cae en (10 000, 10 000) mm con su CLAVE); `map-import.spec.ts` (46): las cuatro situaciones | Sin exportar a SHP/GeoJSON; sin GeoPackage, KML ni GML; el tope de vértices es el del lector. Un LAS se lee pero no entra al plano (sigue siendo así, y se dice). |
+| Reproyección al sistema del dibujo (UTM ↔ UTM entre zonas 11N–16N, WGS 84 geográfico → UTM) vértice a vértice, declarada en el manifiesto (`geo_reprojected`) | 5 | `map-import.spec.ts`: la mojonera en grados cae a < 1 mm del marcador; `crs.spec.ts` (ida y vuelta ±2,36e-9 m) | Sin desplazamiento de datum (WGS84 ↔ ITRF se tratan como una familia, ±0,1 m, como `crs.ts` declara); sin NAD27. |
+| Los atributos del DBF/GeoJSON llegan al dibujo: la fila de cada registro en `context.metadata` de su entidad, por posición, y si la tabla no cuadra se declara (`geo_attributes_unaligned`) en vez de heredar los del vecino | 5 | golden 82 (`{CLAVE, USO}` en el servidor); `map-import.spec.ts`; `geojson.spec.ts` (34) | Sin rotular por atributo ni simbolizar por valor (color/tipo de línea según USO); sin consulta ni filtro por atributo (QSELECT no mira metadatos); sin tabla de atributos en la lámina. |
+| GeoJSON (RFC 7946) leído a la misma forma que el shapefile: Feature, FeatureCollection, las seis geometrías simples, rasgo sin geometría como nulo con su fila; el cuadro «Importar» admite `.geojson` proyectado a su zona UTM | 5 | `geojson.spec.ts` (34): 8 rechazos con código; `readGeoDataset` lo reconoce por sus bytes | GeometryCollection se rechaza diciéndolo; un `crs` antiguo del archivo se ignora (la especificación lo manda). |
+| Mapa de fondo (ortofoto, teselas en línea), topología, limpieza de dibujo, clasificación de entidades, COGO | 0 | — | No es de esta ola: un marcador y un predio en su sitio no son un servidor de mapas, y el producto no llama a servicios externos desde el lienzo. **Todavía no.** |
 
 ## Cómo se usa
 

@@ -390,7 +390,14 @@ export type CadUiTarget =
    * del motor y no puede reentrar en él sin reentrar en sí mismo. Mismo reparto
    * que `script-file`, por la misma razón exacta.
    */
-  | "dxf-file";
+  | "dxf-file"
+  /**
+   * Selector de archivos de `MAPIMPORT` (Ola G): VARIOS a la vez, porque un
+   * shapefile son cuatro archivos y dos son binarios. El anfitrión los
+   * empaqueta en un texto (`geo-import-bundle.ts`) y los entrega por la misma
+   * puerta que el DXF. Mismo reparto, por la misma razón exacta.
+   */
+  | "geo-file";
 
 export interface CadUiRequest {
   target: CadUiTarget;

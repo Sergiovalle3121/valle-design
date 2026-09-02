@@ -154,6 +154,8 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   MATCHPROP: "Copia las propiedades de un objeto a otros (pincel).",
   MEASURE: "Reparte puntos o bloques a distancia fija sobre un objeto.",
   MEPSYMBOL: "Símbolo MEP como bloque: válvula, difusor, rejilla, luminaria, contacto, tablero.",
+  GEOGRAPHICLOCATION: "Georreferencia el dibujo: un punto y su Este/Norte UTM o su latitud y longitud, con zona y datum.",
+  MAPIMPORT: "Importa un shapefile o GeoJSON al dibujo como entidades con atributos, en el sistema del dibujo.",
   MIRROR: "Simetría de la selección respecto de un eje.",
   MLEADER: "Directriz múltiple con texto.",
   MLEADERSTYLE: "Gestor de estilos de directriz.",

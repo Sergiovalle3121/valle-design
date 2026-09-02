@@ -97,7 +97,7 @@ const CAD_TAB_NAME_PATTERNS: readonly [RegExp, CadRibbonTabId][] = [
     "inicio",
   ],
   [
-    /^(-?XREF|XATTACH|XCLIP|XBIND|REFEDIT|ADCENTER|DESIGNCENTER|DXFIN|DXFATTACH|IMAGE|IMPORT|DATAEXTRACTION)$/,
+    /^(-?XREF|XATTACH|XCLIP|XBIND|REFEDIT|ADCENTER|DESIGNCENTER|DXFIN|DXFATTACH|IMAGE|IMPORT|DATAEXTRACTION|GEOGRAPHICLOCATION|MAPIMPORT)$/,
     "insertar",
   ],
   [
@@ -160,6 +160,8 @@ const CAD_PANEL_NAME_PATTERNS: readonly [RegExp, string][] = [
   [/^(COPYCLIP|PASTECLIP|CUTCLIP|COPYBASE|PASTEORIG)$/, "Portapapeles"],
   [/^(-?XREF|XATTACH|XCLIP|XBIND|REFEDIT|IMAGE)$/, "Referencias"],
   [/^(DXFIN|IMPORT|DATAEXTRACTION)$/, "Importar y extraer"],
+  // Map 3D (Ola G): el panel «Ubicación» de la pestaña Insertar de AutoCAD.
+  [/^(GEOGRAPHICLOCATION|MAPIMPORT)$/, "Ubicación"],
   [/^(ADCENTER|DESIGNCENTER|-?TOOLPALETTES)$/, "Paletas"],
   [/^(ZOOM|-?PAN)$/, "Encuadre y zoom"],
   [/^(3DORBIT|3DFORBIT|3DPAN|3DZOOM|VPOINT|PLAN|-?VIEW)$/, "Vistas 3D"],

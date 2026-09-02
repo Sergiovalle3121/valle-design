@@ -8,6 +8,10 @@
  *   manzana. Lo entrega el topógrafo, lo publican el catastro y el INEGI.
  * · **LAS sin comprimir, 1.0 a 1.4** — completo, formatos de registro 0, 1, 2,
  *   3, 6, 7 y 8. Es el levantamiento con láser.
+ * · **GeoJSON (RFC 7946)** — completo para lo que un dibujo puede recibir:
+ *   Feature, FeatureCollection y las seis geometrías simples, siempre en
+ *   WGS 84. Se lee a la MISMA forma que el shapefile (`geojson.ts`), así que
+ *   todo lo que se hace con uno se hace con el otro (Ola G, 2026-09-02).
  *
  * ## Qué NO se lee, dicho aquí y no escondido
  *
@@ -16,9 +20,9 @@
  * · **GeoTIFF**. La ortofoto de fondo. Se DETECTA —un TIFF se reconoce por sus
  *   dos primeros bytes— y se rechaza diciendo qué es, para que nadie confunda
  *   «no lo soportamos» con «tu archivo está roto».
- * · Cualquier otra cosa del mundo GIS: GeoPackage, GML, KML, GeoJSON.
+ * · Cualquier otra cosa del mundo GIS: GeoPackage, GML, KML.
  *
- * Dos formatos leídos bien es lo que hay. No se anuncia GIS completo.
+ * Tres formatos leídos bien es lo que hay. No se anuncia GIS completo.
  *
  * ## Cero dependencias de terceros, y por qué no es una virtud presumida
  *
@@ -55,6 +59,7 @@ import {
   type GeoShapefileInput,
 } from "./shapefile";
 import { readDbf, type GeoDbfTable } from "./dbf";
+import { looksLikeGeoJson, readGeoJson } from "./geojson";
 
 export * from "./errors";
 export * from "./crs";
@@ -62,6 +67,7 @@ export * from "./crs-prj";
 export * from "./shapefile";
 export * from "./dbf";
 export * from "./las";
+export * from "./geojson";
 
 // ---------------------------------------------------------------------------
 // Reconocer el archivo por sus bytes, no por su nombre
@@ -81,10 +87,11 @@ export type GeoFormat =
   | "las"
   | "laz"
   | "geotiff"
+  | "geojson"
   | "desconocido";
 
 /** Formatos que este producto lee de verdad. Los demás se nombran y se rechazan. */
-export const GEO_READABLE_FORMATS: readonly GeoFormat[] = ["shapefile", "las"];
+export const GEO_READABLE_FORMATS: readonly GeoFormat[] = ["shapefile", "las", "geojson"];
 
 export function detectGeoFormat(bytes: ArrayBuffer | Uint8Array): GeoFormat {
   const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
@@ -114,6 +121,10 @@ export function detectGeoFormat(bytes: ArrayBuffer | Uint8Array): GeoFormat {
     const magic = view.getUint16(2, littleEndianTiff);
     if (magic === 42 || magic === 43) return "geotiff";
   }
+
+  // GeoJSON: texto que abre un objeto y declara un "type" de los suyos en su
+  // primer tramo. Un `{` (0x7b) no es cabecera de ningún binario de esta lista.
+  if (looksLikeGeoJson(new TextDecoder("utf-8").decode(data.subarray(0, 512)))) return "geojson";
 
   // dBASE: el primer byte es la versión y los tres siguientes una fecha
   // plausible. Es una firma débil, y por eso va la última.
@@ -195,6 +206,17 @@ export function readGeoDataset(input: GeoDatasetInput): GeoDataset {
     return { kind: "shapefile", shapefile, attributes };
   }
 
+  if (format === "geojson") {
+    let text: string;
+    try {
+      text = new TextDecoder("utf-8", { fatal: true }).decode(input.bytes instanceof Uint8Array ? input.bytes : new Uint8Array(input.bytes));
+    } catch {
+      throw new GeoError("variante-no-soportada", `«${source}» no es UTF-8 válido: un GeoJSON lo es siempre (RFC 7946 §1).`, { source, detail: {} });
+    }
+    const read = readGeoJson(text, source);
+    return { kind: "shapefile", shapefile: read.shapefile, attributes: read.attributes };
+  }
+
   if (format === "las")
     return {
       kind: "point-cloud",
@@ -234,8 +256,8 @@ function unsupportedMessage(format: GeoFormat): string {
       "adjunta el .dbf: los datos entrarán con los polígonos."
     );
   return (
-    "El archivo no es ninguno de los formatos que este producto lee: shapefile (.shp) y LAS sin " +
-    "comprimir (.las)."
+    "El archivo no es ninguno de los formatos que este producto lee: shapefile (.shp), GeoJSON " +
+    "(.geojson) y LAS sin comprimir (.las)."
   );
 }
 

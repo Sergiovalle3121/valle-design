@@ -22,20 +22,24 @@
  *    un DXF. Sin la conversión, un predio de 40 m mediría 40 unidades junto a un
  *    muro de 3 000, y el conjunto sería ilegible sin que nada avisara.
  *
- * ## Lo que NO hace
+ * ## Lo que NO hace solo
  *
- * No reproyecta. Si el archivo viene en la zona 14N y el dibujo estaba en la
- * 15N, este módulo no lo arregla: coloca lo que hay y declara en qué sistema
- * está. Reproyectar en silencio al importar es la clase de amabilidad que mueve
- * un lindero dos metros sin que nadie lo pida.
+ * No reproyecta POR SU CUENTA. Si el archivo viene en la zona 14N y el dibujo
+ * estaba en la 15N, este módulo coloca lo que hay y declara en qué sistema
+ * está — salvo que quien llama diga a qué sistema (`reprojectTo`, Ola G: el
+ * del marcador GEO del dibujo), y entonces reproyecta vértice a vértice con
+ * `lib/geo/crs.ts` y lo DECLARA en el manifiesto. Reproyectar en silencio al
+ * importar es la clase de amabilidad que mueve un lindero dos metros sin que
+ * nadie lo pida; reproyectar al sistema que el dibujo declara, diciéndolo, es
+ * lo que hace que el predio caiga en su sitio.
  *
  * No lee nubes de puntos hacia el documento. Un LAS de diez millones de puntos
  * no son diez millones de entidades canónicas: eso es un subsistema de render
  * propio, no una importación, y prometerlo aquí sería prometer lo que no hay.
  */
 import type { CadEntity, CadLayerDef, CadLossManifestEntry } from "./cad-document";
-import type { GeoDbfTable, GeoPlacement, GeoShape, GeoShapefile } from "../geo";
-import { geoPlace, geoPlacementFor } from "../geo";
+import type { GeoBoundingBox, GeoCrs, GeoDbfTable, GeoPlacement, GeoShape, GeoShapefile } from "../geo";
+import { geoPlace, geoPlacementFor, reprojectGeoPoint } from "../geo";
 
 /** Nombre de la capa cuando el archivo no sugiere ninguno. */
 export const CAD_GEO_DEFAULT_LAYER = "TOPOGRAFIA";
@@ -59,6 +63,30 @@ export interface CadGeoImportOptions {
   unit?: "mm" | "cm" | "m";
   /** Tabla de atributos, para rotular con la clave catastral. */
   attributes?: GeoDbfTable;
+  /**
+   * Colocación impuesta: la del dibujo ya georreferenciado (Ola G). Si falta,
+   * se calcula un origen local redondo a partir del conjunto.
+   */
+  placement?: GeoPlacement;
+  /**
+   * Unidades de dibujo por metro cuando el documento no está en mm/cm/m
+   * (`cadUnitsPerMetre`). Sólo se usa al calcular la colocación local.
+   */
+  unitScale?: number;
+  /** Identificadores del motor de órdenes. Si falta, `idPrefix-n`. */
+  newEntityId?: () => string;
+  /**
+   * Sistema del dibujo. Si el archivo declara otro (`shapefile.crs`), cada
+   * vértice se reproyecta con `lib/geo/crs.ts` ANTES de colocarlo y se declara
+   * en el manifiesto. Sin `.prj` no se reproyecta nada: se coloca y se avisa.
+   */
+  reprojectTo?: GeoCrs;
+  /**
+   * `true`: la fila de atributos de cada registro va en `context.metadata` de
+   * sus entidades — la clave catastral viaja con el polígono, que es lo que
+   * el formato ya tiene. La unión es posicional, como en el archivo.
+   */
+  attributesAsMetadata?: boolean;
 }
 
 /**
@@ -71,23 +99,29 @@ export interface CadGeoImportOptions {
  * contorno y hay un patio, y el que mida sabrá restar.
  */
 export function shapefileToCadEntities(
-  shapefile: GeoShapefile,
+  source: GeoShapefile,
   options: CadGeoImportOptions = {},
 ): CadGeoImportResult {
   const prefix = options.idPrefix ?? "geo";
   const layerName = sanitizeLayerName(options.layer) ?? CAD_GEO_DEFAULT_LAYER;
   const unit = options.unit ?? "mm";
-  const placement = geoPlacementFor(shapefile.measuredBounds, { unit });
+  const shapefile = reprojectShapefile(source, options.reprojectTo);
+  const reprojectedFrom = shapefile === source ? undefined : source.crs;
+  const local = geoPlacementFor(shapefile.measuredBounds, { unit });
+  const placement = options.placement ?? (options.unitScale ? { ...local, unitScale: options.unitScale } : local);
+  const metadataRows = metadataRowsOf(options, shapefile.shapes.length);
 
   const entities: CadEntity[] = [];
   let skipped = 0;
   let sequence = 0;
-  const nextId = () => `${prefix}-${(sequence += 1)}`;
+  const nextId = options.newEntityId ?? (() => `${prefix}-${(sequence += 1)}`);
 
-  for (const shape of shapefile.shapes) {
+  shapefile.shapes.forEach((shape, index) => {
+    const metadata = metadataRows?.[index];
+    const context = metadata && Object.keys(metadata).length > 0 ? { context: { metadata } } : {};
     if (shape.kind === "null" || shape.vertices.length === 0) {
       skipped += 1;
-      continue;
+      return;
     }
     if (shape.kind === "point" || shape.kind === "multipoint") {
       for (const vertex of shape.vertices) {
@@ -97,9 +131,10 @@ export function shapefileToCadEntities(
           type: "point",
           position: { x: placed.x, y: placed.y, z: elevation(vertex.z, placement) },
           layer: layerName,
+          ...context,
         });
       }
-      continue;
+      return;
     }
     for (const ring of ringsOf(shape)) {
       // Un anillo de polígono llega con el primer vértice repetido al final: es
@@ -115,9 +150,9 @@ export function shapefileToCadEntities(
         skipped += 1;
         continue;
       }
-      entities.push({ id: nextId(), type: "polyline", vertices, closed, layer: layerName });
+      entities.push({ id: nextId(), type: "polyline", vertices, closed, layer: layerName, ...context });
     }
-  }
+  });
 
   return {
     entities,
@@ -126,9 +161,54 @@ export function shapefileToCadEntities(
       { id: layerName, name: layerName, color: "#8bc34a", visible: true, locked: false },
     ],
     placement,
-    losses: declareTransformations(shapefile, placement, unit, skipped, options.attributes),
+    losses: declareTransformations(shapefile, placement, unit, skipped, options.attributes, {
+      ...(reprojectedFrom ? { reprojectedFrom } : {}),
+      imposed: options.placement !== undefined,
+      attributesAligned: metadataRows !== null,
+    }),
     skipped,
   };
+}
+
+/**
+ * Reproyecta el conjunto entero al sistema pedido, si hace falta.
+ *
+ * Devuelve el MISMO objeto cuando no hay nada que hacer (sin destino, sin
+ * `.prj`, o ya en el sistema): así quien llama distingue «reproyectado» de
+ * «tal cual» por identidad, sin una bandera aparte. Los datums incompatibles
+ * los rechaza `reprojectGeoPoint` con su `GeoError`, que se propaga: un
+ * lindero reproyectado entre marcos que no se corresponden no es un lindero.
+ */
+function reprojectShapefile(shapefile: GeoShapefile, to: GeoCrs | undefined): GeoShapefile {
+  const from = shapefile.crs;
+  if (!to || !from || from.id === to.id) return shapefile;
+  const bounds: GeoBoundingBox = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity };
+  const shapes = shapefile.shapes.map((shape) => ({
+    ...shape,
+    vertices: shape.vertices.map((vertex) => {
+      const moved = reprojectGeoPoint({ x: vertex.x, y: vertex.y }, from, to);
+      bounds.minX = Math.min(bounds.minX, moved.x);
+      bounds.minY = Math.min(bounds.minY, moved.y);
+      bounds.maxX = Math.max(bounds.maxX, moved.x);
+      bounds.maxY = Math.max(bounds.maxY, moved.y);
+      return { ...vertex, x: moved.x, y: moved.y };
+    }),
+  }));
+  return { ...shapefile, shapes, crs: to, measuredBounds: bounds, declaredBounds: bounds };
+}
+
+/**
+ * Una fila de metadatos por geometría, en el orden del archivo; `undefined`
+ * si no se pidió y `null` si se pidió y la tabla no cuadra con la geometría
+ * (se declara, no se adivina qué fila es de quién).
+ */
+function metadataRowsOf(
+  options: CadGeoImportOptions,
+  shapeCount: number,
+): Array<Record<string, string | number | boolean | null>> | null | undefined {
+  if (!options.attributesAsMetadata || !options.attributes) return undefined;
+  if (options.attributes.records.length !== shapeCount) return null;
+  return options.attributes.records.map((record) => ({ ...record }));
 }
 
 /**
@@ -145,6 +225,7 @@ function declareTransformations(
   unit: string,
   skipped: number,
   attributes: GeoDbfTable | undefined,
+  how: { reprojectedFrom?: GeoCrs; imposed: boolean; attributesAligned: boolean },
 ): CadLossManifestEntry[] {
   const losses: CadLossManifestEntry[] = [
     {
@@ -152,8 +233,10 @@ function declareTransformations(
       sourceType: "shapefile",
       severity: "info",
       detail:
-        `El conjunto se trasladó al origen local (${placement.originX}, ${placement.originY}) del ` +
-        "sistema del archivo. Para volver a coordenadas del terreno, suma esos dos números a " +
+        (how.imposed
+          ? `El conjunto se colocó con la georreferencia del dibujo: origen (${placement.originX}, ${placement.originY}) del sistema del dibujo. `
+          : `El conjunto se trasladó al origen local (${placement.originX}, ${placement.originY}) del sistema del archivo. `) +
+        "Para volver a coordenadas del terreno, suma esos dos números a " +
         `cualquier punto del dibujo dividido entre ${placement.unitScale}. El traslado es exacto: ` +
         "no pierde ninguna cifra.",
     },
@@ -168,7 +251,17 @@ function declareTransformations(
     },
   ];
 
-  losses.push(
+  if (how.reprojectedFrom && shapefile.crs)
+    losses.push({
+      code: "geo_reprojected",
+      sourceType: "shapefile",
+      severity: "info",
+      detail:
+        `Las coordenadas se reproyectaron vértice a vértice de ${how.reprojectedFrom.name} ` +
+        `(${how.reprojectedFrom.id}) a ${shapefile.crs.name} (${shapefile.crs.id}), el sistema del ` +
+        "dibujo, con las cuentas verificadas de lib/geo (zonas 11N a 16N). El archivo no cambia.",
+    });
+  else losses.push(
     shapefile.crs
       ? {
           code: "geo_crs_declared",
@@ -198,6 +291,17 @@ function declareTransformations(
       detail:
         "No se aportó el índice .shx, así que la lectura no se pudo contrastar con él. El .shp se " +
         "validó consigo mismo, que es suficiente, pero con el .shx la comprobación es doble.",
+    });
+
+  if (!how.attributesAligned && attributes)
+    losses.push({
+      code: "geo_attributes_unaligned",
+      sourceType: "dbf",
+      severity: "warning",
+      detail:
+        `La tabla trae ${attributes.records.length} fila(s) viva(s) y el archivo ${shapefile.shapes.length} ` +
+        "geometría(s): no se puede saber qué fila es de qué predio, así que las entidades entran SIN " +
+        "atributos en vez de con los de otro.",
     });
 
   if (attributes && !attributes.encodingDeclared)

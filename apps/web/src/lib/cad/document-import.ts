@@ -20,7 +20,7 @@ import {
 } from "./dxf-import-report";
 import { scopeDxfImportToModelSpace } from "./dxf-model-space-scope";
 import { shapefileToCadEntities } from "./geo-cad-document";
-import { readGeoDataset } from "../geo";
+import { geoUtmCrs, geoUtmZoneForLongitude, readGeoDataset } from "../geo";
 import { dwgNeutralDatabaseToCadDocument } from "./dwg-document-bridge";
 import {
   importFileExtension as extension,
@@ -78,9 +78,12 @@ export function importDocumentText(
     throw new Error(
       "Este formato es binario: no se puede importar como texto. Vuelve a elegir el archivo.",
     );
-  return extension(fileName) === "dxf"
-    ? importDxfDocument(content)
-    : importCanonicalJson(content);
+  const kind = extension(fileName);
+  if (kind === "dxf") return importDxfDocument(content);
+  // GeoJSON (Ola G): la misma forma que el shapefile, por `readGeoDataset`,
+  // que lo reconoce por su contenido y lo lee a WGS 84.
+  if (kind === "geojson") return importGeoDocument("geojson", fileName, new TextEncoder().encode(content), {});
+  return importCanonicalJson(content);
 }
 
 /**
@@ -118,7 +121,7 @@ export function importDocumentBytes(
     // mensaje de error que hablaría de `.shp` sobre un archivo `.obj`.
     throw new Error(`«${fileName}» es un modelo 3D: usa importMeshFileDocument(), no importDocumentBytes().`);
   }
-  return importShapefileDocument(fileName, data, sidecars);
+  return importGeoDocument("shp", fileName, data, sidecars);
 }
 
 /**
@@ -323,15 +326,21 @@ export async function importMeshFileDocument(
 }
 
 /**
- * Shapefile → documento canónico.
+ * Shapefile o GeoJSON → documento canónico.
  *
  * El fallo cerrado del lector se propaga TAL CUAL: si el `.shp` está cortado o
  * su `.prj` dice NAD27, aquí no se captura ni se degrada a aviso. La
  * importación entera muere con el mensaje del lector, que ya explica qué pasó y
  * qué hacer. Convertir eso en «se importó con avisos» sería exactamente la
  * mentira que el subárbol `lib/geo` existe para no cometer.
+ *
+ * Un GeoJSON viene en grados (WGS 84), y un grado no es una unidad de dibujo:
+ * se proyecta a la zona UTM de su centro (11N a 16N; fuera, el lector lo dice)
+ * y así el documento nuevo queda en metros como el del shapefile. Los
+ * atributos van en `context.metadata` de cada entidad, en los dos formatos.
  */
-function importShapefileDocument(
+function importGeoDocument(
+  format: "shp" | "geojson",
   fileName: string,
   bytes: Uint8Array,
   sidecars: {
@@ -355,11 +364,15 @@ function importShapefileDocument(
         "hoy este producto la lee pero no la importa al plano.",
     );
 
+  const crs = dataset.shapefile.crs;
   const converted = shapefileToCadEntities(dataset.shapefile, {
     idPrefix: "geo",
     layer: fileName,
     unit: "mm",
-    ...(dataset.attributes ? { attributes: dataset.attributes } : {}),
+    ...(dataset.attributes ? { attributes: dataset.attributes, attributesAsMetadata: true } : {}),
+    ...(crs && crs.kind === "geographic"
+      ? { reprojectTo: geoUtmCrs(geoUtmZoneForLongitude((dataset.shapefile.measuredBounds.minX + dataset.shapefile.measuredBounds.maxX) / 2), crs.datum) }
+      : {}),
   });
   // Fallo cerrado: un archivo legible del que no sale ni una entidad. Aplicarlo
   // se vería como un éxito silencioso, que es la peor forma de fallar en una
@@ -379,7 +392,7 @@ function importShapefileDocument(
     lossManifest: converted.losses,
   });
   return {
-    format: "shp",
+    format,
     document,
     importedEntityCount: document.entities.length,
     importedBlockCount: 0,
