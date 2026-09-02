@@ -3207,7 +3207,7 @@
       "scope": "destino",
       "name": "Toolset Architecture",
       "points": 4,
-      "gap": "Muros, puertas y ventanas ya se teclean y se dibujan (WALL, DOOR, WINDOW); faltan escaleras, techos, cubiertas y las tablas de superficies y carpintería en la lámina. Es el primer toolset de la campaña (Ola E).",
+      "gap": "Muros, puertas, ventanas, escaleras, cubiertas y losas se teclean y se dibujan (WALL, DOOR, WINDOW, STAIR, ROOF, SLAB), y los cuadros de superficies y carpintería salen en la lámina con el nombre del local (Ola E, 2026-09-02). Lo que queda —escaleras de varios tramos, cubiertas sobre polígonos, huecos en losas— está en ESCALERA.",
       "criteria": [
         {
           "id": "toolset-architecture.envolvente",
@@ -3237,11 +3237,47 @@
           "id": "toolset-architecture.interiores",
           "points": 2,
           "text": "Escaleras, techos y cubiertas paramétricos, y tablas de superficies y carpintería que salen en la lámina",
-          "costDays": null,
+          "costDays": 0,
           "evidence": [
             {
-              "kind": "todaviaNo",
-              "reason": "No existen escaleras, techos ni cubiertas paramétricos, ni tablas de superficies/carpintería en espacio papel. Ola E de la campaña «AutoCAD completo»."
+              "kind": "command",
+              "name": "STAIR"
+            },
+            {
+              "kind": "command",
+              "name": "ROOF"
+            },
+            {
+              "kind": "command",
+              "name": "SLAB"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/architecture-stair.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/architecture-roof.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/paper-space-table.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/bim-schedule.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/77-cad-cuadros-de-superficies-y-carpinteria.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/78-cad-escalera.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/79-cad-cubierta-y-losa.spec.ts"
             }
           ]
         }

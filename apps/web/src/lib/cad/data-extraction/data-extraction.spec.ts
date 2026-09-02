@@ -7,6 +7,8 @@ import { strict as assert } from "node:assert";
 import type { CadWallEntity } from "../cad-entities-v6";
 import { buildCadBimSchedule } from "../bim-schedule";
 import {
+  buildCadOpeningScheduleTable,
+  buildCadRoomScheduleTable,
   buildCadDataExtractionCsv,
   buildCadDataExtractionTable,
   CAD_DATA_EXTRACTION_VOLUME_CAVEAT,
@@ -79,5 +81,34 @@ ok(
   wallRowCells.some((cell) => cell.text === "14.000"),
   `la longitud agregada tiene que estar en la tabla: ${JSON.stringify(wallRowCells)}`,
 );
+
+// --- Ola E (2026-09-02): cuadro de superficies con nombre y cuadro de carpintería
+{
+  const named = buildCadBimSchedule({
+    entities: [
+      ...room(),
+      { id: "rotulo", type: "text", x: 2_000, y: 1_500, text: "COCINA", height: 150, layer: "0" },
+      { id: "p1", type: "opening", kind: "door", hostId: "w1", position: 1_000, width: 900, height: 2_100, sill: 0, swing: "left", hinge: "start", layer: "MUROS" },
+      { id: "v1", type: "opening", kind: "window", hostId: "w3", position: 2_000, width: 1_200, height: 1_200, sill: 900, swing: "left", hinge: "start", layer: "MUROS" },
+    ],
+  } as never);
+  let ids = 0;
+  const rooms = buildCadRoomScheduleTable(named, { x: 0, y: 0 }, "0", () => `s${(ids += 1)}`);
+  ok(rooms.type === "table" && rooms.columns === 5 && rooms.rows === 3, "cuadro de superficies: título, cabecera y un local");
+  const localRow = rooms.cells.filter((cell) => cell.row === 2).map((cell) => cell.text);
+  ok(localRow[0] === "COCINA" && localRow[1] === "Cocina", `nombre y uso en la fila: ${JSON.stringify(localRow)}`);
+  ok(localRow[2] === "12.00", `área a ejes 4 × 3 = 12,00 m²: ${localRow[2]}`);
+  ok(rooms.cells.some((cell) => cell.row === 0 && cell.text.startsWith("Cuadro de superficies")), "con su título");
+
+  const openings = buildCadOpeningScheduleTable(named, { x: 0, y: 0 }, "0", () => `c${(ids += 1)}`);
+  ok(openings.columns === 6 && openings.rows === 4, "cuadro de carpintería: título, cabecera, puerta y ventana");
+  const rowsText = [2, 3].map((row) => openings.cells.filter((cell) => cell.row === row).map((cell) => cell.text));
+  ok(rowsText[0][0] === "P-090x210" && rowsText[0][1] === "Puerta" && rowsText[0][4] === "0", `la puerta: ${JSON.stringify(rowsText[0])}`);
+  ok(rowsText[1][0] === "V-120x120" && rowsText[1][4] === "900", `la ventana con su antepecho: ${JSON.stringify(rowsText[1])}`);
+
+  const csvNamed = buildCadDataExtractionCsv(named);
+  ok(csvNamed.includes("COCINA,Cocina,12.00"), "el CSV lleva nombre y uso del local");
+  ok(csvNamed.includes("Antepecho (mm)"), "y el antepecho en la carpintería");
+}
 
 console.log(`data-extraction.spec: ${checks} comprobaciones OK`);

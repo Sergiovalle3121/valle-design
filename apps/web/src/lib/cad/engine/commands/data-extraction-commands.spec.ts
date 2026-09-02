@@ -104,4 +104,19 @@ function context(hasDocument: boolean): CadCommandContext {
   );
 }
 
+// --- Ola E (2026-09-02): Superficies y carPintería ---------------------------
+{
+  const begin = command.begin(context(true));
+  ok(begin.prompt.options.some((option) => option.keyword === "Superficies" && option.shortcut === "S"), "ofrece Superficies");
+  ok(begin.prompt.options.some((option) => option.keyword === "carPintería" && option.shortcut === "P"), "y carPintería");
+  // Un solo muro no cierra ningún local ni aloja huecos: las dos negativas se dicen.
+  const rooms = command.step(begin.state, { kind: "keyword", keyword: "Superficies" }, context(true));
+  ok(rooms.prompt.message.includes("cuadro de superficies"), "pide el punto del cuadro de superficies");
+  const noRooms = command.step(rooms.state, { kind: "point", point: { x: 0, y: 0 }, source: "typed" }, context(true));
+  ok(noRooms.result?.kind === "message" && noRooms.result.text.includes("no cierran ningún local"), `sin local cerrado lo dice: ${JSON.stringify(noRooms.result)}`);
+  const openings = command.step(begin.state, { kind: "keyword", keyword: "carPintería" }, context(true));
+  const noOpenings = command.step(openings.state, { kind: "point", point: { x: 0, y: 0 }, source: "typed" }, context(true));
+  ok(noOpenings.result?.kind === "message" && noOpenings.result.text.includes("puertas ni ventanas"), "sin huecos lo dice");
+}
+
 console.log(`data-extraction-commands.spec: ${checks} comprobaciones OK`);

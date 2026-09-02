@@ -222,6 +222,8 @@ function finish(
           : result.commands,
       label: result.label,
     });
+  if (result?.kind === "document" && result.notice)
+    effects.push({ kind: "message", text: result.notice, level: "info" });
   if (result?.kind === "view")
     effects.push({ kind: "view", request: result.request, label: result.label });
   if (result?.kind === "host")

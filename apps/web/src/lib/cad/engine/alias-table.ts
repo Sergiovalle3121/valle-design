@@ -47,6 +47,18 @@ export const CAD_COMMAND_ALIASES: Readonly<Record<string, string>> = {
   MURO: "WALL",
   // `DOORADD` y `WINDOWADD` son los nombres con los que AutoCAD Architecture
   // coloca huecos; `PUERTA` y `VENTANA`, la memoria muscular en español.
+  // `STAIRADD` coloca escaleras en AutoCAD Architecture; `ESCALERA`, en español.
+  STAIRADD: "STAIR",
+  ESCALERA: "STAIR",
+  // `DX` es el alias de acad.pgp de DATAEXTRACTION. El descriptor ya lo
+  // declaraba y el registro lo resolvía, pero el PIPELINE de entrada consulta
+  // ESTA tabla: tecleado, «DX» no llegaba a ninguna parte (medido en el
+  // golden 77: la «P» siguiente arrancaba PAN).
+  DX: "DATAEXTRACTION",
+  ROOFADD: "ROOF",
+  CUBIERTA: "ROOF",
+  SLABADD: "SLAB",
+  LOSA: "SLAB",
   DOORADD: "DOOR",
   PUERTA: "DOOR",
   WINDOWADD: "WINDOW",

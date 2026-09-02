@@ -15,6 +15,7 @@ import { tessellateArc, tessellateEllipse, tessellateSpline } from "./curve-tess
 import { buildCadDimensionGeometry } from "./associative-dimension";
 import { buildCadMleaderGeometry } from "./associative-mleader";
 import { plotEntityFromRegistry } from "./paper-space-registry-fallback";
+import { cadTableCellTextCommands } from "./paper-space-table";
 import { IDENTITY, multiply, point, type Affine } from "./paper-space-affine";
 import { blockPresentation, styleFor, unitToMm } from "./paper-space-style";
 
@@ -737,6 +738,18 @@ function renderEntity(
     (points, closed) => path(points, closed) ?? null,
   );
   if (fallback.warning) context.warnings.push(fallback.warning);
+  // El registro aporta la rejilla de una TABLE; el texto de sus celdas iba
+  // a ninguna parte (medido: 3 caminos, 0 textos). Ver paper-space-table.ts.
+  if (entity.type === "table")
+    return [
+      ...fallback.commands,
+      ...cadTableCellTextCommands(entity, {
+        viewportId: context.viewport.id,
+        toPaper: (anchor) => point(matrix, anchor),
+        scale: Math.hypot(matrix.a, matrix.b),
+        color: style.stroke,
+      }),
+    ];
   return fallback.commands;
 }
 

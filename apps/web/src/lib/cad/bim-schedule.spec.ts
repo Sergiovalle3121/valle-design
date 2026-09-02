@@ -477,6 +477,50 @@ const shell = (): CadWallEntity[] => [
   );
 }
 
+
+// --- Ola E (2026-09-02): el local toma el nombre del rótulo que tiene dentro --
+{
+  // Dos locales: un tabique en x = 3.000 parte el rectángulo de 5.000 × 4.000.
+  const walls = [...shell(), wall("tabique", [3_000, 0], [3_000, 4_000])];
+  const label = (id: string, x: number, y: number, text: string, height = 200) =>
+    ({ id, type: "text", x, y, text, height, layer: "MUROS" }) as never;
+  const doc = documentOf([
+    ...walls,
+    label("r1", 1_500, 2_000, "RECÁMARA PRINCIPAL"),
+    // Una nota pequeña en la esquina del mismo local no lo rebautiza.
+    label("nota", 200, 200, "ver detalle 3", 60),
+    label("b1", 4_000, 2_000, "baño"),
+  ]);
+  const schedule = buildCadBimSchedule(doc);
+  ok(schedule.rooms.length === 2, `dos locales: ${schedule.rooms.length}`);
+  const grande = schedule.rooms.find((room) => room.axisArea === 12_000_000);
+  const chico = schedule.rooms.find((room) => room.axisArea === 8_000_000);
+  ok(grande?.name === "RECÁMARA PRINCIPAL", `el local grande se llama como su rótulo grande: ${grande?.name}`);
+  ok(grande?.labelId === "r1", "y sabe de qué entidad salió el nombre");
+  ok(grande?.use === "Recámara", `el clasificador en español reconoce el uso: ${grande?.use}`);
+  ok(chico?.name === "baño" && chico.use === "Baño", `el chico: ${chico?.name} / ${chico?.use}`);
+  ok(grande?.id === "L-01" && chico?.id === "L-02", "la clave geométrica sigue existiendo debajo del nombre");
+
+  // Sin rótulo no hay nombre: la fila enseña la clave, no un invento.
+  const sinRotulo = buildCadBimSchedule(documentOf(shell()));
+  ok(sinRotulo.rooms[0].name === undefined && sinRotulo.rooms[0].use === undefined, "sin rótulo, sin nombre ni uso");
+  // Un rótulo que no es un uso conocido da nombre pero no uso.
+  const raro = buildCadBimSchedule(documentOf([...shell(), label("x", 2_500, 2_000, "ZONA 7")]));
+  ok(raro.rooms[0].name === "ZONA 7" && raro.rooms[0].use === undefined, "«ZONA 7» es el nombre y no tiene uso canónico");
+}
+
+// --- Ola E: dos antepechos distintos son dos filas de carpintería -------------
+{
+  const opening = (id: string, position: number, sill: number): CadOpeningEntity => ({
+    id, type: "opening", kind: "window", hostId: "sur", position, width: 1_200, height: 1_200, sill,
+    swing: "left", hinge: "start", layer: "MUROS",
+  });
+  const schedule = buildCadBimSchedule(documentOf([...shell(), opening("v1", 1_000, 900), opening("v2", 2_500, 900), opening("v3", 4_000, 1_500)]));
+  ok(schedule.openings.length === 2, `misma marca, dos antepechos: dos filas (${schedule.openings.length})`);
+  ok(schedule.openings[0].mark === "V-120x120" && schedule.openings[0].sill === 900 && schedule.openings[0].count === 2, "la de antepecho 900 cuenta dos");
+  ok(schedule.openings[1].sill === 1_500 && schedule.openings[1].count === 1, "la de 1.500 cuenta una");
+}
+
 console.log(
   `bim-schedule: ${checks} aserciones verdes. El cuadro de áreas sale de los ejes de los muros ` +
     `—un local, dos con un tabique en T, el exterior nunca—, con área a ejes y área útil calculadas ` +

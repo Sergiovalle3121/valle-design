@@ -47,6 +47,8 @@ import type { CadWallEntity } from "./cad-entities-v6";
 import { wallLength } from "./wall-geometry";
 import { cadWallJunctionOverlaps } from "./wall-junction-overlap";
 import { wallOpeningFit } from "./wall-openings";
+import { cadPointInBoundary } from "./hatch-associativity";
+import { roomDepartmentFromTags, roomUseTypeFromTags } from "./architecture";
 
 /**
  * Cuantización de nudos del grafo. Dos extremos que caen dentro de esta
@@ -83,6 +85,8 @@ export interface CadOpeningQuantityRow {
   kind: CadOpeningKind;
   width: number;
   height: number;
+  /** Antepecho sobre el suelo (0 en una puerta). Dos antepechos distintos son dos filas. */
+  sill: number;
   count: number;
   /** Marca de tipo legible: `P-090x210`, `V-120x120`. */
   mark: string;
@@ -91,6 +95,16 @@ export interface CadOpeningQuantityRow {
 export interface CadRoomAreaRow {
   /** Estable dentro de un mismo documento: se numera por orden geométrico. */
   id: string;
+  /**
+   * El nombre que el dibujante ya escribió: el TEXT o MTEXT que cae dentro
+   * del anillo del local (Ola E, 2026-09-02). Sin rótulo no hay nombre y el
+   * cuadro enseña el `id` (L-01…), que es la verdad y no un invento.
+   */
+  name?: string;
+  /** El uso canónico en español que el clasificador reconoce en el nombre («Recámara», «Baño»…). */
+  use?: string;
+  /** La entidad de texto de la que salió el nombre. */
+  labelId?: string;
   /** Área encerrada por los EJES de los muros. */
   axisArea: number;
   /** Área útil, con los lados metidos medio grosor. Ausente si no se puede. */
@@ -140,9 +154,14 @@ type OpeningLike = CadOpeningEntity;
 export function buildCadBimSchedule(document: Pick<CadDocument, "entities">): CadBimSchedule {
   const walls: WallLike[] = [];
   const openings: OpeningLike[] = [];
+  const labels: RoomLabel[] = [];
   for (const entity of document.entities) {
     if (entity.type === "wall") walls.push(entity);
     else if (entity.type === "opening") openings.push(entity);
+    else if (entity.type === "text" && entity.text.trim())
+      labels.push({ id: entity.id, text: entity.text, height: entity.height ?? 0, at: { x: entity.x, y: entity.y } });
+    else if (entity.type === "mtext" && entity.text.trim())
+      labels.push({ id: entity.id, text: entity.text, height: entity.height ?? 0, at: { x: entity.insertion.x, y: entity.insertion.y } });
   }
 
   const problems: string[] = [];
@@ -172,13 +191,17 @@ export function buildCadBimSchedule(document: Pick<CadDocument, "entities">): Ca
       (openingAreaByWall.get(host.id) ?? 0) + area,
     );
     const mark = openingMark(opening);
-    const row = openingRows.get(mark);
+    // La marca cuenta ancho × alto; el antepecho no entra en ella pero SÍ
+    // separa filas: una ventana a 900 y otra a 1.200 no son la misma pieza.
+    const rowKey = `${mark}\u0000${opening.sill}`;
+    const row = openingRows.get(rowKey);
     if (row) row.count += 1;
     else
-      openingRows.set(mark, {
+      openingRows.set(rowKey, {
         kind: opening.kind,
         width: opening.width,
         height: opening.height,
+        sill: opening.sill,
         count: 1,
         mark,
       });
@@ -245,12 +268,13 @@ export function buildCadBimSchedule(document: Pick<CadDocument, "entities">): Ca
   }
 
   const rooms = detectCadRooms(walls);
+  for (const room of rooms.rooms) nameCadRoom(room, labels);
   return {
     walls: [...wallRows.values()].sort(
       (a, b) => a.layer.localeCompare(b.layer) || a.thickness - b.thickness,
     ),
     openings: [...openingRows.values()].sort((a, b) =>
-      a.mark.localeCompare(b.mark),
+      a.mark.localeCompare(b.mark) || a.sill - b.sill,
     ),
     rooms: rooms.rooms,
     exteriorRing: rooms.exteriorRing,
@@ -265,6 +289,40 @@ export function buildCadBimSchedule(document: Pick<CadDocument, "entities">): Ca
  * carpintería, y porque sin redondear dos puertas de 900 y 900,0001 —lo que deja
  * un escalado— saldrían como dos tipos distintos en la tabla.
  */
+interface RoomLabel {
+  id: string;
+  text: string;
+  height: number;
+  at: CadPoint2;
+}
+
+/**
+ * El nombre del local es el rótulo que ya está dentro de él (Ola E,
+ * 2026-09-02). Medido antes: el cuadro decía «L-03» porque la fila no tenía
+ * campo de nombre, y el único módulo que nombra locales en español
+ * (`architecture.ts`) operaba sobre los rectángulos del planificador, no sobre
+ * el grafo de muros. Aquí se cose esa costura por el camino que ya sigue
+ * cualquier despacho: se escribe «RECÁMARA» dentro del cuarto.
+ *
+ * Con varios rótulos dentro gana el de mayor altura de texto y, a igual
+ * altura, el más cercano al centro del local: el rótulo del local es el
+ * grande; una nota pequeña en la esquina no lo rebautiza.
+ */
+export function nameCadRoom(room: CadRoomAreaRow, labels: readonly RoomLabel[]): void {
+  const inside = labels.filter((label) => cadPointInBoundary(label.at, room.ring));
+  if (inside.length === 0) return;
+  const centroid = room.ring.reduce(
+    (total, point) => ({ x: total.x + point.x / room.ring.length, y: total.y + point.y / room.ring.length }),
+    { x: 0, y: 0 },
+  );
+  const distance = (label: RoomLabel) => Math.hypot(label.at.x - centroid.x, label.at.y - centroid.y);
+  const [best] = [...inside].sort((a, b) => b.height - a.height || distance(a) - distance(b));
+  const name = best.text.replace(/\s+/g, " ").trim();
+  room.name = name;
+  room.labelId = best.id;
+  if (roomUseTypeFromTags(undefined, name) !== "unclassified") room.use = roomDepartmentFromTags(undefined, name);
+}
+
 export function openingMark(
   opening: Pick<CadOpeningEntity, "kind" | "width" | "height">,
 ): string {

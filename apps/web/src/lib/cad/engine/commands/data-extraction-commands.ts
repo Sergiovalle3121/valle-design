@@ -14,7 +14,12 @@
  * prueba en Node comparando la cadena, igual que hace DXFOUT.
  */
 import { buildCadBimSchedule } from "../../bim-schedule";
-import { buildCadDataExtractionCsv, buildCadDataExtractionTable } from "../../data-extraction/data-extraction";
+import {
+  buildCadDataExtractionCsv,
+  buildCadDataExtractionTable,
+  buildCadOpeningScheduleTable,
+  buildCadRoomScheduleTable,
+} from "../../data-extraction/data-extraction";
 import {
   CAD_ACCEPT_KEYWORD,
   CAD_ACCEPT_POINT,
@@ -29,20 +34,27 @@ import { cadCommandCancelled, cadCommandRefused, cadCommandWrites } from "./anno
 const NO_DOCUMENT_VIEW =
   "Este espacio de trabajo no expone el documento entero: DATAEXTRACTION no puede leer el cuadro de cantidades aquí.";
 
+// Tres cuadros y el CSV (Ola E, 2026-09-02): `Tabla` sigue siendo el de
+// muros; `Superficies` es el cuadro de áreas con el nombre de cada local y
+// `carPintería` el de puertas y ventanas. Los tres salen en la lámina.
 const OUTPUT_OPTIONS = [
   { keyword: "Tabla", shortcut: "T" },
+  { keyword: "Superficies", shortcut: "S" },
+  { keyword: "carPintería", shortcut: "P" },
   { keyword: "CSV", shortcut: "C" },
 ] as const;
 
 interface DataExtractionState {
-  output: "table" | "csv" | null;
+  output: "table" | "rooms" | "openings" | "csv" | null;
 }
 
+const TABLE_NAMES = { table: "la tabla de muros", rooms: "el cuadro de superficies", openings: "el cuadro de carpintería" } as const;
+
 function ask(state: DataExtractionState): CadCommandStep<DataExtractionState> {
-  if (state.output === "table")
+  if (state.output === "table" || state.output === "rooms" || state.output === "openings")
     return {
       state,
-      prompt: { message: "Precise el punto de inserción de la tabla", options: [] },
+      prompt: { message: `Precise el punto de inserción de ${TABLE_NAMES[state.output]}`, options: [] },
       accepts: CAD_ACCEPT_POINT,
     };
   return {
@@ -94,6 +106,8 @@ const dataExtractionCommand: CadCommandDescriptor<DataExtractionState> = {
         };
       }
       if (input.keyword === "Tabla") return ask({ output: "table" });
+      if (input.keyword === "Superficies") return ask({ output: "rooms" });
+      if (input.keyword === "carPintería") return ask({ output: "openings" });
       return ask(state);
     }
 
@@ -101,6 +115,18 @@ const dataExtractionCommand: CadCommandDescriptor<DataExtractionState> = {
     const view = context.document?.();
     if (!view) return cadCommandRefused(state, NO_DOCUMENT_VIEW);
     const schedule = buildCadBimSchedule(view);
+    if (state.output === "rooms") {
+      if (schedule.rooms.length === 0)
+        return cadCommandRefused(state, "Los muros no cierran ningún local: no hay cuadro de superficies que insertar. Rotule cada local con un TEXT dentro para que salga con su nombre.");
+      const table = buildCadRoomScheduleTable(schedule, input.point, context.activeLayer, context.newEntityId);
+      return cadCommandWrites(state, [{ type: "insert", entity: table }], "DATAEXTRACTION Superficies");
+    }
+    if (state.output === "openings") {
+      if (schedule.openings.length === 0)
+        return cadCommandRefused(state, "El dibujo no tiene puertas ni ventanas alojadas en muro: no hay cuadro de carpintería que insertar.");
+      const table = buildCadOpeningScheduleTable(schedule, input.point, context.activeLayer, context.newEntityId);
+      return cadCommandWrites(state, [{ type: "insert", entity: table }], "DATAEXTRACTION Carpintería");
+    }
     if (schedule.walls.length === 0)
       return cadCommandRefused(state, "El dibujo no tiene ningún muro que contar: no hay tabla que insertar.");
     const table = buildCadDataExtractionTable(schedule, input.point, context.activeLayer, context.newEntityId);

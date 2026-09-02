@@ -2914,6 +2914,50 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "OLA-E-ARCHITECTURE-20260902",
+      "date": "2026-09-02",
+      "initiative": "Ola E del encargo «Valle Design → AutoCAD completo»: el toolset Architecture. (1) Los cuadros salen en la lámina: `paper-space-table.ts` (nuevo) emite un comando de texto por celda con la misma ancla que el visor (`middle-left`, relleno 0,15 × fila, línea base 0,35 × alto bajo el centro), enganchado en `paper-space.ts` tras la rejilla del registro; antes, medido con `buildCadPublishPlan`, un cuadro de 2 × 2 lleno llegaba como 3 caminos y 0 textos con `warnings: []`. `paper-space-table.spec.ts` (14) mide la ancla contra un MTEXT colocado a mano y lee el texto de vuelta de los bytes del PDF con `measureCadPdf`. (2) El cuadro de superficies con NOMBRE: `bim-schedule.ts` recoge los TEXT/MTEXT del dibujo y nombra cada local por el rótulo que cae dentro de su anillo (`cadPointInBoundary`; el de mayor altura, a igualdad el más cercano al centroide) y le pone el uso con `roomUseTypeFromTags` de `architecture.ts` — la costura medida en distancia §4 1º («un cuadro que dice L-03 no se entrega»); las filas de huecos llevan antepecho y se agrupan por marca + antepecho. `data-extraction.ts` gana `buildCadRoomScheduleTable` y `buildCadOpeningScheduleTable`; DATAEXTRACTION ofrece Tabla/Superficies/carPintería/CSV y se niega, diciéndolo, sin locales o sin huecos. Golden 77. (3) STAIR (`architecture-stair.ts`, nuevo): arranque y dirección; N = ⌈H/cmax⌉, c = H/N, h = 630 − 2c (Blondel) o tecleada; contrahuella ≤ 180 y huella ≥ 250 (Reglamento de Construcciones CDMX/NTC; vale en el CTE) se imponen al teclearlos con el número; Blondel fuera de 600–650 se dice, no se prohíbe. Emite la planta (contorno, N − 2 contrahuellas interiores, subida, flecha, SUBE girado) y UN SOLID3D `extrude` de canto (el marco de WEDGE) con volumen `ancho · h · c · (N − 1) · N / 2`, contrastado en `architecture-stair.spec.ts` (78). Golden 78. (4) ROOF y SLAB (`architecture-roof.ts`, nuevo): ROOF sobre un rectángulo (cuatro/dos/un agua, pendiente %, alero; cumbrera, limatesas, flechas y rótulos en %; sólido `brep` con volumen `h·W·((L−W)/2 + W/3)` o `L·W·h/2`, pirámide sobre cuadrado; se niega sobre pentágonos, romboides, abiertas y líneas diciendo por qué); SLAB por contorno cerrado con la cara superior a la cota (o `Elevación`) y el contorno conservado. `architecture-roof.spec.ts` (109). Golden 79. (5) Instrumento: el resultado `document` gana `notice` (la orden que escribe puede decir sus números; el anfitrión lo registra tras el lote); `architecture-support.ts` (nuevo) unifica la tabla mm/unidad que WALL tenía en privado; la sonda de integridad pasa de 224 a 227 comandos con 0 éxitos falsos; la cinta cubre 227/227 (panel Arquitectura); la rúbrica `toolset-architecture.interiores` pasa de «todavía no» a evidencia real (2 pt; la fila retiene 1 pt hasta evidencia independiente: DESTINO 214/271). Sin entidad `stair`/`roof`/`slab` persistida ni HPGAPTOL por sombreado: formato persistido, decisión del titular.",
+      "branch": "claude/valle-design-autocad-vqfa6u",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo escrito «Valle Design → AutoCAD completo, con sus siete toolsets», §Ola E (Architecture: escaleras, techos, cubiertas, tablas de superficies y carpintería en la lámina).",
+      "firstPartyInputs": [
+        "docs/competitive/distancia-autocad-completo-20260901.md §4 1º ARCHITECTURE (la costura de los dos modelos de local, la rama `table` del Frente 1) y docs/parity/ESCALERA.md (fila Architecture); cada afirmación se midió antes con `buildCadPublishPlan` y sondas en el scratchpad (3 caminos y 0 textos por cuadro; `room.id = L-01` sin nombre).",
+        "Specs de Node nuevos o ampliados, corridos en esta máquina: paper-space-table (14), bim-schedule (57), data-extraction (24), data-extraction-commands (20), architecture-stair (78), architecture-roof (109), draw-wall, engine/index (227), solids-primitives (60), ribbon (227 en 7 pestañas); sonda de integridad 227 comandos, 0 éxitos falsos.",
+        "Goldens 77 (los dos cuadros con nombre), 78 (STAIR con los defaults y con Altura/Huella) y 79 (ROOF a dos aguas y SLAB sobre el perímetro) verdes en Chromium contra el build de producción."
+      ],
+      "externalSources": [
+        {
+          "source": "Reglamento de Construcciones para el Distrito Federal y sus Normas Técnicas Complementarias (huella mínima 25 cm, peralte máximo 18 cm) y CTE DB-SUA 1 (contrahuella 13–18,5 cm, huella ≥ 28 cm); la regla de Blondel (2c + h ≈ 63 cm).",
+          "terms": "Normativa pública; se usan los números, no texto alguno.",
+          "usedFor": "Los límites de STAIR y su horquilla de comodidad."
+        },
+        {
+          "source": "Documentación pública de AutoCAD Architecture sobre STAIRADD, ROOFADD y SLABADD.",
+          "terms": "Documentación pública de referencia del comportamiento; no se copió implementación alguna.",
+          "usedFor": "Los nombres de alias y el vocabulario de las opciones."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna. El kernel B-rep, la extracción de perfiles (`solid3d-profiles.ts`), el cosido de anillos y la clasificación de locales son módulos propios ya existentes.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/{paper-space.ts, paper-space-table.ts (nuevo), bim-schedule.ts, data-extraction/data-extraction.ts}",
+        "apps/web/src/lib/cad/engine/{command-types.ts (notice), command-engine.ts, index.ts, command-summaries.ts, alias-table.ts}; engine/commands/{architecture-support.ts (nuevo), architecture-stair.ts (nuevo), architecture-roof.ts (nuevo), draw-wall.ts, solids-support.ts, data-extraction-commands.ts}; lib/cad/ribbon.ts",
+        "apps/web/e2e/golden/{77-cad-cuadros-de-superficies-y-carpinteria, 78-cad-escalera, 79-cad-cubierta-y-losa}.spec.ts (nuevos)",
+        "docs/competitive/{rubric.json, autocad-2027-gap-matrix.md, distancia-autocad-completo-20260901.md}, docs/parity/ESCALERA.md, docs/cad/evidence/{command-integrity.json, ui-command-reach.json}"
+      ],
+      "fixtures": "Ninguno nuevo con datos ajenos; las plantas de los goldens y de los specs se montan en el propio fichero.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Los cuadros en la lámina medidos en los bytes del PDF; STAIR, ROOF y SLAB con volúmenes por fórmula en papel y goldens; la sonda de integridad a 227 con 0 éxitos falsos; lo que no cabe, en ESCALERA; ninguna decisión de formato persistido tomada por la sesión."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

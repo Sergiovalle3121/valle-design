@@ -149,7 +149,7 @@ la campaña; dos quedan fuera de alcance y se dice.
 
 | Toolset | Peldaño hoy | Objetivo | Qué hay y qué falta |
 | --- | --- | --- | --- |
-| Architecture | 3 | 5 | WALL, DOOR y WINDOW existen con goldens propios (53); faltan escaleras, techos, cubiertas y las tablas de superficies y carpintería en la lámina (Ola E). |
+| Architecture | 5 | 5 | WALL, DOOR y WINDOW (golden 53); STAIR (78); ROOF y SLAB (79); los cuadros de superficies —con el nombre del local— y de carpintería salen en la lámina (77, `paper-space-table.spec.ts` leyendo los bytes del PDF). La rúbrica retiene 1 pt hasta que haya evidencia independiente. Lo que sigue en «todavía no» está en su sección (Ola E). |
 | MEP (mitad 2D) | 0 | 3 | Nada: conductos, tuberías y bandejas en planta con sus tablas. Segundo de la campaña. |
 | Map 3D | 0 | 3 | Nada: sistema de coordenadas georreferenciado y capas GIS. Tercero. |
 | Raster Design (mitad útil) | 1 | 3 | IMAGE inserta un escaneo; falta el recorte por polígono, el ajuste de imagen y la vectorización. Cuarto. |
@@ -190,6 +190,25 @@ subiría; lo que sigue en «todavía no» se dice aquí y en el prompt.
 | XPLODE, SETBYLAYER, CHPROP y NCOPY | 5 | golden 76; `modify-foreign.spec.ts` (54) | XPLODE Heredar da lo mismo que Explotar (la resolución del bloque ya coloca capa 0 y PorBloque con lo de la inserción, medido; la etiqueta lo dice) y no ofrece Grosor. NCOPY sólo copia desde inserciones. |
 | CECOLOR, CELTYPE y CELWEIGHT llegan a lo que se dibuja | 3 | `engine/current-presentation.spec.ts` (15) contra el motor: LINE con COLOR 1 sale con color 1, COPY no lo hereda | Un golden que teclee COLOR y dibuje (peldaño 5). Sólo órdenes de dibujo y anotación: lo copiado y lo pegado conservan lo suyo, como en AutoCAD. |
 | Ver la cota en pantalla; la cota que sigue a la polilínea al moverla | 0 | `auditoria/acotar.spec.ts` sigue en el manifiesto (28) | Sigue de la Ola C. **Todavía no.** |
+
+## La arquitectura (Ola E, 2026-09-02)
+
+La campaña midió antes que un cuadro de superficies llegaba a la lámina
+como una rejilla vacía (3 caminos, 0 textos, sin advertencia), que el local
+se llamaba `L-03` porque `bim-schedule.ts` no tenía campo de nombre, y que
+no existían escaleras, cubiertas ni losas. Cada fila dice en qué peldaño
+queda HOY y qué la subiría; lo que sigue en «todavía no» se dice aquí y en
+el prompt de la orden.
+
+| Capacidad | Peldaño hoy | Evidencia | Qué falta para subir |
+| --- | --- | --- | --- |
+| El texto de las celdas de una TABLE sale en la lámina (plan, vista previa y PDF) | 5 | `paper-space-table.spec.ts` (14): la ancla de la celda coincide a 1e-6 con un MTEXT colocado a mano, y `measureCadPdf` lee «Local», «12.50» y «Rec…» de los bytes; golden 77 guarda los dos cuadros | Nada de peldaño. El tamaño del texto en papel se acota a [1,5; 12] mm como un MTEXT: una tabla a escala 1:500 se lee, no desaparece. |
+| Cuadro de superficies con el NOMBRE del local (el rótulo TEXT/MTEXT dentro del anillo) y su uso | 5 | `bim-schedule.spec.ts` (57), `data-extraction.spec.ts` (24), `data-extraction-commands.spec.ts` (20); golden 77: RECÁMARA 16,00 m², BAÑO 8,00 m² | Un local sin rótulo sigue llamándose por su `L-nn`. El uso sale del clasificador de `architecture.ts`; un nombre que no reconoce da «—». |
+| Cuadro de carpintería: marca, tipo, ancho, alto, antepecho, cantidad | 5 | golden 77 (P-090x210 y V-120x120 con antepecho 900); `bim-schedule.spec.ts` | Sin material ni herraje: la entidad `opening` no los guarda y añadirlos es formato persistido (decisión del titular). |
+| STAIR: escalera recta paramétrica (Blondel y reglamento; planta y sólido) | 5 | golden 78; `architecture-stair.spec.ts` (78): 2400 → 14 × 171,4 / 287,1; 3000 con Huella 280 → 17 × 176,5 / 280; volumen del dentado en papel | Sólo un tramo recto: sin descansos, tramos en L o U, compensadas ni de caracol; sin Justificación (el arranque es la esquina izquierda); el sólido es macizo, no una zanca con canto. **Todavía no.** |
+| ROOF: cubierta a cuatro, dos o un agua sobre un rectángulo, con alero y pendiente | 5 | golden 79; `architecture-roof.spec.ts` (109): V = h·W·((L−W)/2 + W/3) a cuatro aguas, L·W·h/2 a dos y a una, pirámide sobre cuadrado, girado 30° | Sólo rectángulos: sobre un polígono en L se rechaza diciéndolo. Sin faldones de pendiente distinta, buhardillas ni limahoyas; el sólido es el volumen bajo cubierta, no una losa inclinada con espesor. **Todavía no.** |
+| SLAB: losa por contorno cerrado, cara superior a la cota | 5 | golden 79; `architecture-roof.spec.ts`: 24 m² × 150 = 3,6 m³, círculo como 64-gono | Sin huecos tecleados (entran como REGION con interiores), sin pendiente ni cantos. |
+| Una entidad `stair`, `roof` o `slab` persistida y reeditable desde el panel | 0 | Las tres se descomponen en planta + SOLID3D con la receta en el nombre | Añadir tipos de entidad es tocar el formato persistido: decisión del titular, no tomada por la sesión. |
 
 ## Cómo se usa
 

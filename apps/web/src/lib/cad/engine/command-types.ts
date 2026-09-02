@@ -405,7 +405,19 @@ export interface CadUiRequest {
 }
 
 export type CadCommandResult =
-  | { kind: "document"; commands: readonly CadEntityCommand[]; label: string }
+  | {
+      kind: "document";
+      commands: readonly CadEntityCommand[];
+      label: string;
+      /**
+       * Lo que la orden quiere DECIR además de escribir. STAIR reparte
+       * contrahuellas y huellas y el dibujante tiene que leer los números sin
+       * abrir el panel; sin este campo una orden que escribe es muda (el
+       * anfitrión aplica el lote y no imprime la etiqueta). Se registra como
+       * mensaje DESPUÉS del lote.
+       */
+      notice?: string;
+    }
   /**
    * Cambio de ENCUADRE, no de documento.
    *
