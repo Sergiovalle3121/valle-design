@@ -2728,6 +2728,44 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "EL-CI-NO-OPINABA-Y-AHORA-DISPARA-EN-CADA-RAMA-20260902",
+      "date": "2026-09-02",
+      "initiative": "Tarea 0 del encargo «Valle Design → AutoCAD completo»: el repositorio fusionaba a ciegas. Medido con la API de Actions sobre las corridas de ci.yml del 2026-09-01/02: la rama claude/nada-tapa-un-control (#157) tuvo UNA corrida al abrir el PR (07:10 del día 1) y ninguna más hasta un commit titulado «Merge remote-tracking branch 'origin/main' … # Conflicts: docs/governance/assisted-development-log.json», que disparó la única otra corrida 17 s antes de la fusión; claude/lo-que-la-auditoria-midio (#166) y claude/dibujar-fuera-del-suelo (#170) no tuvieron ninguna corrida hasta ese mismo commit de resolución. La causa no era el filtro paths, ni el borrador, ni el workflow desactivado: GitHub no ejecuta los workflows de pull_request mientras el PR tiene conflicto de fusión (documentado en «Events that trigger workflows»), y en este repositorio cada campaña añade al mismo array de este fichero, así que todo PR entra en conflicto en cuanto se fusiona otro. Arreglo: `push` dispara en TODAS las ramas con el mismo filtro paths, el grupo de concurrencia pasa a ser el NOMBRE DE LA RAMA (head_ref || ref_name) para que la corrida de push y la de pull_request de la misma rama se sustituyan en vez de pagarse las dos, y todo lo que decidía «¿es main?» por el nombre del evento pasa a decidirlo por github.ref (navegadores, techos, e2e-perf, presupuesto de render). El filtro paths re-incluye docs/**/*.json y docs/competitive/**: check:cad lee rubric.json y regenera la matriz, y check:governance valida este mismo fichero, así que un PR que sólo tocara uno de ellos no corría nada. check:governance gana dos aserciones —push en todas las ramas y listas paths idénticas— con sus dos pruebas, verificadas mordiendo: mutar `branches: [\"**\"]` a `[main]` o desviar una lista devuelve 1. Lo que NO arregla, dicho: fusionar sin esperar el veredicto (#157 se fusionó 17 s después de arrancar su corrida y 44 s antes de que check:cad la pusiera en rojo) lo permite enforceAdmins:false, y `actions: write` para relanzar corridas desde una sesión (cancel_workflow_run devuelve 403 «Resource not accessible by integration», medido en esta sesión) son dos permisos que sólo el titular puede conceder. Medido también el estado real de main (ca21804): quality-gates verde, E2E rojo con los goldens 10, 19, 46-pointer-engine y 53 en el fragmento 1/4 (123 verdes en 33,1 min), 3/4 rojo, y 2/4 y 4/4 CANCELADOS a los 58 min de su techo de 60.",
+      "branch": "claude/valle-design-autocad-vqfa6u",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo escrito «Valle Design → AutoCAD completo, con sus siete toolsets», §4 «TAREA 0, antes de tocar producto: el CI no opina».",
+      "firstPartyInputs": [
+        "Las corridas de ci.yml y sus jobs/logs, leídos por la API de GitHub Actions (runs 33480893400, 33587565621, 33594091948, 33593969073, 33594595974).",
+        "Los PR #157, #166, #170, #156 y #174 y el mensaje del commit de cabecera de cada rama al fusionarse.",
+        "docs/governance/repository-protection-baseline.json y scripts/check-proprietary-governance.mjs."
+      ],
+      "externalSources": [
+        {
+          "name": "GitHub Docs — Events that trigger workflows (pull_request)",
+          "url": "https://docs.github.com/en/actions/reference/events-that-trigger-workflows#pull_request",
+          "terms": "Documentación pública de GitHub, consultada como referencia de comportamiento; no se copió texto ni código.",
+          "usedFor": "La regla de que un PR con conflicto de fusión no dispara workflows de pull_request, que es lo que la medición confirmó."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        ".github/workflows/ci.yml (push en todas las ramas, concurrencia por nombre de rama, condiciones por github.ref, paths que re-incluyen docs JSON y docs/competitive)",
+        "scripts/check-proprietary-governance.mjs y su spec (dos aserciones nuevas sobre ci.yml, con prueba que muerde)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Un PR con conflicto de fusión vuelve a tener veredicto sobre su propio SHA; el gate de gobernanza impide que el disparador de push se retire o que las dos listas paths se desvíen."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

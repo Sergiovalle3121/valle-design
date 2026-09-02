@@ -220,6 +220,34 @@ for (const jobName of [
     `el nombre estable del check ${jobName}`,
   );
 }
+// El disparador de `push` cubre TODAS las ramas, y las dos listas `paths`
+// son idénticas. Medido el 2026-09-02: GitHub no ejecuta `pull_request`
+// mientras el PR tiene conflicto de fusión, y en este repositorio todo PR lo
+// tiene en cuanto se fusiona otro (todos añaden al mismo array de
+// assisted-development-log.json). Sin `push` en la rama, un PR conflictivo
+// no tiene NINGÚN veredicto y se fusiona a ciegas (#157, #166, #170). Las
+// listas van copiadas y no ancladas porque GitHub Actions no garantiza anclas
+// YAML; este gate es lo que impide que se desvíen.
+{
+  const pathLists = [...workflow.matchAll(/^    paths:\n((?:      - .*\n)+)/gm)].map(
+    (match) => match[1],
+  );
+  if (pathLists.length !== 2) {
+    failures.push(
+      `ci.yml: se esperaban exactamente 2 listas \`paths\` (pull_request y push), hay ${pathLists.length}`,
+    );
+  } else if (pathLists[0] !== pathLists[1]) {
+    failures.push(
+      "ci.yml: las listas `paths` de pull_request y push difieren; un PR con conflicto sólo tiene la corrida de push, así que deben filtrar lo mismo",
+    );
+  }
+  if (!/^  push:\n(?:    #.*\n)*    branches: \["\*\*"\]/m.test(workflow)) {
+    failures.push(
+      'ci.yml: `push` debe disparar en todas las ramas (`branches: ["**"]`): un PR con conflicto de fusión no dispara pull_request y se quedaría sin veredicto',
+    );
+  }
+}
+
 const pinnedActions = new Map([
   ["actions/checkout", "11d5960a326750d5838078e36cf38b85af677262"],
   ["actions/setup-node", "49933ea5288caeca8642d1e84afbd3f7d6820020"],
