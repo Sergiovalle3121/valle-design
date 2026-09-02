@@ -2531,6 +2531,39 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-GATE-ORACULO-DERIVADO-DE-EVIDENCIA-20260902",
+      "date": "2026-09-02",
+      "initiative": "Encargo expreso del titular: dejar todo mergeado y encontrar la solucion a lo que tiene el proyecto parado, para poder decir que hay DWG real y no un laboratorio. DIAGNOSTICO MEDIDO. Las puertas del producto estan asi: la IMPORTACION de AC1015 (perfil V3) y AC1018 ya esta FIRMADA por el titular, asi que abrir un DWG real no esta bloqueado por nada tecnico —solo por la variable de entorno NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA / NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA, que es una decision de despliegue—. La EXPORTACION esta bloqueada por UN solo booleano, externalOracleVerified, y ese booleano estaba escrito a mano en dwg-export-flag.ts sin ninguna conexion con la evidencia que dice representar. La evidencia committeada (docs/cad/evidence/dwg-oda-roundtrip.json) es del 2026-08-21 y cubre 4 casos; el harness exige hoy 16 (8 casos y sus 8 gemelos -publico) y NINGUN gemelo publico esta cubierto, que es justo lo que ADR-0009 §8.2 exige. Ademas el harness tenia dos rutas atadas a una maquina: el conversor en D:\\dev\\tools\\oda\\... y el directorio de trabajo en el temporal de UNA SESION CONCRETA con su UUID dentro, que ya no existe ni en esa maquina. Se comprobo antes de proponer nada si habia un lector DWG independiente obtenible en este entorno: no hay ODAFileConverter, dwg2dxf, dwgread ni libredwg-config instalados, y libredwg no esta en las fuentes apt disponibles. Asi que no se podia producir la evidencia aqui, y la solucion no era buscar otro oraculo sino quitar la razon por la que la verificacion nunca ocurre. SOLUCION ENTREGADA: (1) gate nuevo check:dwg-oraculo que deriva los casos exigidos de la lista REAL del harness —no de una copia gemela que se quedaria atras, que es exactamente lo que le paso a la evidencia— y FALLA si el producto declara true sin que la evidencia lo sostenga, de modo que sobreafirmar deja de ser posible; con false no falla, porque un gate conservador nunca es peligroso, pero dice cuantos casos hay, cuales faltan y que comando exacto los produce. Verificadas las dos ramas: exit 1 con el booleano puesto en true a mano, exit 0 con el false real. (2) el harness deja de estar atado a una maquina: ODA_FILE_CONVERTER se exige por entorno sin ruta por defecto y con mensaje que nombra las dos formas del binario, y el trabajo va al temporal del sistema, asi que puede correr en CI. Lo que esto NO hace, y se dice: no mueve el booleano ni finge la verificacion. Nuestro lector acepta lo que nuestro writer escriba; solo un lector ajeno dice si lo que escribimos lo abre otro programa. Lo que hace es convertir 'llevamos semanas parados sin saber cuanto falta' en un numero exacto (4 de 16), una lista de lo que falta y un comando, y garantizar que nadie pueda encender la exportacion sin evidencia ni dejarla encendida al anadir un caso nuevo.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: «asegúrate de dejar todo mergeado y dale con la siguiente fase, analiza bien, tiene que poder decir ya tenemos el DWG real, nada de laboratorios; qué te tiene detenido y encuentra la solución».",
+      "firstPartyInputs": [
+        "La lectura propia de las puertas del producto (dwg-export-flag.ts, dwg-interop-flag.ts, document-import-client.ts).",
+        "La comprobacion propia de que no hay lector DWG independiente instalable en este entorno.",
+        "El reporte del oraculo ya committeado, del 2026-08-21."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El binario ODA no se ejecuto ni se pudo obtener en este entorno.",
+      "derivedAreas": [
+        "scripts/dwg/check-oracle-evidence.mjs (gate nuevo)",
+        "scripts/dwg/oda-roundtrip.mjs (rutas portables, sin maquina fija)",
+        "package.json (check:dwg-oraculo, encadenado en check:dwg)",
+        "packages/dwg-codec/CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguno.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso de encontrar y resolver lo que tiene el proyecto parado."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
