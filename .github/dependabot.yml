@@ -49,6 +49,19 @@ updates:
       - dependency-name: "eslint-config-next"
         versions: [">= 16.3.0"]
       - dependency-name: "@playwright/test"
+      # next-intl 4.14 añadió una dependencia de TIEMPO DE EJECUCIÓN a
+      # @swc/core ~1.16, cuyo peer exige @swc/helpers >= 0.5.17. `next` fija
+      # @swc/helpers 0.5.15 EXACTO y npm lo iza a la raíz, así que el árbol
+      # queda incoherente: `npm ci` instala, pero `npm sbom` aborta con
+      # ESBOMPROBLEMS y el SBOM es un artefacto de cumplimiento que no puede
+      # describir un árbol roto. Medido el 2026-09-02 sobre el PR #155.
+      #
+      # Forzar @swc/helpers por encima del pin de Next es plausible y NO está
+      # medido: los helpers van acoplados al compilador que emitió el código.
+      # Se retiene next-intl hasta que Next mueva su pin, y los demás bumps del
+      # grupo semanal siguen entrando.
+      - dependency-name: "next-intl"
+        versions: [">= 4.14.0"]
       # @nestjs 12 arrastra @angular-devkit@22.1.5, que exige Node ^22.22.3 y
       # este repo fija 20 en .nvmrc y en ambos Dockerfiles. Medido el
       # 2026-09-01 sobre el PR #144, que además NO instalaba: su lockfile
