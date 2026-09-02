@@ -41,7 +41,11 @@ export const pt = (v: any): CadDxfPoint | null => {
   // El bulge viaja en el vértice: descartarlo aplanaba a cuerda recta todos
   // los arcos de polilínea del fichero importado, en silencio.
   const bulge = num(v?.bulge);
-  return bulge == null || bulge === 0 ? { x, y } : { x, y, bulge };
+  // La cota (código 30) viaja igual, y por la misma razón: descartarla
+  // aplanaba contra el suelo cada pilar y cada planta elevada, también en
+  // silencio (Ola C, 2026-09-02). El cero se omite: el suelo es la ausencia.
+  const z = num(v?.z);
+  return { x, y, ...(bulge ? { bulge } : {}), ...(z ? { z } : {}) };
 };
 
 export function decodeComponent(value: string | undefined): string {

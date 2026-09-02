@@ -28,6 +28,8 @@
  * esa proyección para cuando se enganche.
  */
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useStudioTraySlot } from "@/components/cad/studio/use-studio-tray";
 import type { TeamChannelSummary } from "@/lib/cad/messaging/channel-state";
 import { totalUnreadCount } from "@/lib/cad/messaging/channel-state";
 import TeamMessagingPanel from "./TeamMessagingPanel";
@@ -44,6 +46,21 @@ export interface TeamMessagingHostProps {
 const DOCK =
   "fixed left-3 bottom-16 z-[75] flex max-w-[calc(100vw-1.5rem)] flex-col rounded-card border border-border bg-popover/95 text-popover-foreground p-2 shadow-floating backdrop-blur";
 const DOCK_WIDTH = { open: "w-[22rem]", collapsed: "w-auto" } as const;
+/**
+ * PLEGADO, en la BANDEJA de la barra de estado (`cad-status-tray`), un
+ * elemento más del renglón. Medido el 2026-09-02 (golden 67): en `fixed
+ * left-3 bottom-16` la píldora caía sobre el botón de una plantilla de la
+ * biblioteca en cuanto la cinta cambió de alto — cualquier altura fija sobre
+ * una columna de paneles tapa algo de esa columna; la barra de estado no
+ * tiene nada debajo.
+ *
+ * ABIERTO, abajo a la izquierda de siempre (`DOCK`), no desplegado desde la
+ * bandeja: medido con la colaboración (ca86fc6, `real/cad-presencia-viva`),
+ * un panel que se abre hacia arriba desde la bandeja cae sobre el CENTRO del
+ * lienzo y se come el puntero; ver `StudioCollaborationLayer`. Abierto tapa
+ * la parte baja de la biblioteca, y lo abrió el usuario.
+ */
+const TRAY_COLLAPSED = "inline-flex items-center gap-1";
 
 /**
  * IZQUIERDA, mientras que la colaboración de revisión vive a la derecha
@@ -58,6 +75,7 @@ export default function TeamMessagingHost({
   canWrite,
 }: TeamMessagingHostProps) {
   const [collapsed, setCollapsed] = useState(true);
+  const tray = useStudioTraySlot();
   const [draft, setDraft] = useState("");
   const messaging = useTeamMessaging({
     viewerUserId,
@@ -98,13 +116,15 @@ export default function TeamMessagingHost({
       }
     : null;
 
-  return (
+  const dock = (
     <aside
-      className={`${DOCK} ${collapsed ? DOCK_WIDTH.collapsed : DOCK_WIDTH.open}`}
+      className={
+        tray && collapsed ? TRAY_COLLAPSED : `${DOCK} ${collapsed ? DOCK_WIDTH.collapsed : DOCK_WIDTH.open}`
+      }
       data-testid="team-messaging-dock"
     >
       <div className="flex items-center justify-between gap-2">
-        <strong className="type-micro text-foreground">Equipo</strong>
+        <strong className={`type-micro text-foreground ${tray && collapsed ? "@max-[40rem]:hidden" : ""}`}>Equipo</strong>
         <button
           type="button"
           data-testid="team-messaging-toggle"
@@ -141,6 +161,7 @@ export default function TeamMessagingHost({
       )}
     </aside>
   );
+  return tray && collapsed ? createPortal(<span className="relative inline-flex">{dock}</span>, tray) : dock;
 }
 
 function totalUnreadLabel(channels: readonly TeamChannelSummary[]): string {

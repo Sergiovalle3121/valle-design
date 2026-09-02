@@ -7,7 +7,7 @@ import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
 import { resolveCadInsert } from "../../src/lib/cad/professional-blocks";
 
 /**
- * AUDITORÍA — EL DELINEANTE QUE REUTILIZA MOBILIARIO.
+ * EL DELINEANTE QUE REUTILIZA MOBILIARIO — graduada de `e2e/auditoria/bloques.spec.ts`.
  *
  * Nadie dibuja la misma silla catorce veces. Se dibuja UNA, se guarda como
  * bloque y se coloca; y cuando el cliente cambia la silla, se cambia la
@@ -22,29 +22,23 @@ import { resolveCadInsert } from "../../src/lib/cad/professional-blocks";
  *   4. MOVER una copia con MOVE
  *   5. COPIAR una copia con COPY — y que la copia siga siendo del mismo bloque
  *   6. BEDIT: la puerta tecleable a editar la definición
- *   7. REDEFINIR la definición y comprobar que CAMBIAN TODAS LAS COPIAS
- *   8. Los OTROS dos sitios donde el estudio dice «bloque» o «símbolo»:
- *      el panel «Mis bloques» de la izquierda y la caja de buscar (Cmd-K)
+ *   7. REDEFINIR la definición y comprobar que CAMBIAN TODAS LAS COPIAS, y
+ *      que se quedan DONDE ESTABAN
  *
- * LO QUE ENCONTRÓ, resumido, para que no haya que leer 600 líneas:
- *   · Insertar, mover y copiar una referencia de bloque: exacto al milímetro.
- *   · Redefinir PROPAGA a todas las instancias —y eso es lo difícil— pero no
- *     pregunta el punto base, así que desplaza el mueble tantos metros como
- *     haya entre el origen y el sitio donde uno dibujó el recambio (paso 7b).
- *   · Teclear BLOCK con un nombre que ya existe manda «redefínalo» y no hay
- *     ningún comando con el que redefinir (paso 7a).
- *   · «Mis bloques» lista el bloque como «0 obj» y al pincharlo no hace nada
- *     ni dice por qué (paso 8a).
- *   · La caja de buscar ofrece un «Silla» que NO es el bloque: es un símbolo
- *     del catálogo antiguo y al colocarlo nace un `box`, no una referencia
- *     (paso 8b).
+ * LO QUE LA AUDITORÍA DEL 2026-09-01 MIDIÓ, y lo que este golden defiende:
+ *   · Redefinir propagaba a todas las instancias pero NO preguntaba el punto
+ *     base: cada silla se iba el vector que va del origen a donde uno dibujó
+ *     el recambio, +9000,+8000 mm, fuera del comedor (paso 7b de entonces).
+ *   · Teclear BLOCK con un nombre existente respondía «redefínalo» y no había
+ *     ninguna orden con la que hacerlo (paso 7a de entonces).
+ *   Ahora BLOCK con el nombre existente pregunta «¿Redefinirlo?», pide el
+ *   punto base de la nueva definición y consume los objetos designados; el
+ *   botón «Redefinir» del panel arranca ese mismo gesto.
  *
- * CÓMO SE CORRE (el puerto no es opcional):
- *   cd apps/web
- *   E2E_PROD=1 E2E_API_ORIGIN=http://localhost:4000 \
- *     npx playwright test e2e/auditoria/bloques.spec.ts --project=chromium --reporter=line
+ * Los pasos 8a/8b de la auditoría («Mis bloques» muerto, «Silla» de Ctrl+K que
+ * no es el bloque) NO se gradúan aquí: siguen rojos en sus propias pruebas
+ * `refutacion-mis-bloques` y `refutacion-cmdk-silla`.
  */
-
 /* ─────────────────── la biblioteca que el producto publica ────────────────
  * Estas dos definiciones NO se las inventa la prueba: son las que siembra la
  * migración `20260817090000-ArchitecturalBlockLibrarySeed` en
@@ -497,8 +491,8 @@ test("la biblioteca de mobiliario: buscar, insertar, mover, copiar y redefinir",
     );
   });
 
-  /* ── 7. REDEFINIR: ¿CAMBIAN TODAS LAS COPIAS? ──────────────────────────── */
-  await test.step("7a. BLOCK con un nombre que ya existe", async () => {
+  /* ── 7. REDEFINIR: ¿CAMBIAN TODAS LAS COPIAS, Y SE QUEDAN DONDE ESTABAN? ── */
+  await test.step("7a. BLOCK con un nombre que ya existe PREGUNTA, y Enter es No", async () => {
     await cerrarBloques(page);
     await designar(page, "silla-v2");
     await teclear(page, "B");
@@ -506,14 +500,19 @@ test("la biblioteca de mobiliario: buscar, insertar, mover, copiar y redefinir",
       "nombre del bloque",
     );
     await teclear(page, SILLA.name);
-    // Lo que conteste el producto queda registrado aquí: es el camino que un
-    // usuario de AutoCAD prueba primero para redefinir.
-    const linea = await page.getByTestId("cad-command-line").innerText();
-    console.log(`[auditoría] BLOCK con nombre existente responde: ${linea}`);
+    // La pregunta de `-BLOCK` en AutoCAD, con No por defecto: pisar una
+    // definición con todas sus inserciones no se acepta por descuido.
+    await expect(page.getByTestId("cad-command-prompt")).toContainText("Redefinirlo");
+    await terminar(page);
+    await expect(page.getByTestId("cad-command-prompt")).toContainText(
+      "nombre del bloque",
+    );
     await page.getByTestId("cad-command-input").press("Escape");
+    const documento = await guardar(page, backend);
+    expect(documento.blocks.find((b) => b.id === SILLA.id)!.version).toBe(1);
   });
 
-  await test.step("7b. redefinir desde el panel y ver si cambian las TRES", async () => {
+  await test.step("7b. redefinir desde el panel: pide el punto base y las TRES se quedan en su sitio", async () => {
     await cerrarBloques(page);
     await designar(page, "silla-v2");
     // La selección tiene que SOBREVIVIR a abrir el panel: si abrir el panel de
@@ -522,64 +521,60 @@ test("la biblioteca de mobiliario: buscar, insertar, mover, copiar y redefinir",
     await page.getByTestId(`cad-block-row-${SILLA.name}`).click();
     await palette.getByRole("button", { name: "Redefinir" }).click();
 
+    // El gesto es el de AutoCAD: el panel arranca BLOCK → Sí, y el motor pide
+    // el punto base de la NUEVA definición. Se teclea la esquina del recambio.
+    await expect(page.getByTestId("cad-command-prompt")).toContainText(
+      `punto base de la nueva definición de ${SILLA.name}`,
+    );
+    await teclear(page, "9000,8000");
+    await expect(page.getByTestId("cad-command-prompt")).toContainText("Designe objetos");
+    await terminar(page);
+    await expect(page.getByTestId("cad-command-prompt")).toBeHidden();
+
     const documento = await guardar(page, backend);
     const definicion = documento.blocks.find((b) => b.id === SILLA.id)!;
 
-    // (a) la definición cambió y subió de versión
+    // (a) la definición cambió, subió de versión y su punto base es el señalado
     expect(definicion.entities, "la definición no se sustituyó").toHaveLength(1);
     expect(definicion.version, "redefinir tiene que subir la versión").toBe(2);
+    expect(definicion.basePoint).toMatchObject({ x: 9_000, y: 8_000 });
 
-    // (b) siguen siendo tres referencias del mismo bloque: redefinir no aplana
+    // (b) el recambio pasó a SER el bloque: ya no está suelto en el plano
+    expect(documento.entities.some((e) => e.id === "silla-v2")).toBe(false);
+
+    // (c) siguen siendo tres referencias del mismo bloque: redefinir no aplana
     const puestas = inserciones(documento);
     expect(puestas).toHaveLength(3);
     for (const puesta of puestas) expect(puesta.block).toBe(SILLA.id);
 
-    // (c) LAS TRES cambiaron de dibujo. Es la propiedad que decide si el
-    //     producto sirve para un despacho.
-    const cajas = [primera, segunda, tercera].map((id) => ({
-      id,
-      insercion: puestas.find((i) => i.id === id)!.insertion,
-      caja: envolvente(documento, id),
-    }));
-    for (const { id, insercion, caja } of cajas)
-      console.log(
-        `[auditoría] ${id} insertado en (${insercion.x},${insercion.y}) dibuja en ` +
-          `[${caja.minX}..${caja.maxX}] × [${caja.minY}..${caja.maxY}] ` +
-          `(${caja.maxX - caja.minX} × ${caja.maxY - caja.minY} mm)`,
-      );
-
-    // Ninguna sigue midiendo 450 × 500: la silla vieja desapareció de las tres.
-    for (const { caja } of cajas) {
-      expect(caja.maxX - caja.minX).toBe(600);
-      expect(caja.maxY - caja.minY).toBe(600);
-    }
-
-    // (d) LO QUE SÍ FALLA, Y ES GRAVE: ninguna se dibuja ya donde estaba.
-    //
-    // «Redefinir» toma la selección EN COORDENADAS DE MUNDO y la mete tal cual
-    // en la definición, sin preguntar el punto base y sin restarlo. El bloque
-    // conserva su punto base (0,0), así que cada instancia se desplaza el vector
-    // que va del origen a donde uno dibujó el recambio: aquí (9.000, 8.000), o
-    // sea NUEVE METROS a la derecha y OCHO hacia arriba, fuera del comedor.
-    //
-    // No es un detalle de precisión: es que la única forma de redefinir un
-    // bloque tira el plano al monte salvo que el recambio se haya dibujado
-    // encima del origen. Se afirma el desplazamiento medido para que el día que
-    // se arregle esta prueba lo cante.
-    for (const { id, insercion, caja } of cajas) {
+    // (d) LAS TRES cambiaron de dibujo Y se quedaron en su punto de inserción.
+    //     Con el punto base en la esquina del recambio, cada silla dibuja de su
+    //     inserción hacia +X/+Y, 600 × 600. Es la propiedad que decide si el
+    //     producto sirve para un despacho: el día 1 de septiembre salían a
+    //     +9000, +8000.
+    for (const id of [primera, segunda, tercera]) {
+      const insercion = puestas.find((i) => i.id === id)!.insertion;
+      const caja = envolvente(documento, id);
       expect(
-        { x: caja.minX - insercion.x, y: caja.minY - insercion.y },
-        `DEFECTO: redefinir desplazó la silla ${id}; debería quedarse en su punto de inserción`,
-      ).toEqual({ x: 9_000, y: 8_000 });
+        { x: caja.minX, y: caja.minY, w: caja.maxX - caja.minX, h: caja.maxY - caja.minY },
+        `la silla ${id} no se quedó en su punto de inserción`,
+      ).toEqual({ x: insercion.x, y: insercion.y, w: 600, h: 600 });
     }
   });
 
-  await test.step("7c. testigo: con el recambio dibujado sobre el origen, redefinir es exacto", async () => {
+  await test.step("7c. testigo: con el recambio dibujado sobre el origen, el punto base 0,0 la deja centrada", async () => {
     await cerrarBloques(page);
     await designar(page, "silla-v3");
     await abrirBloques(page);
     await page.getByTestId(`cad-block-row-${SILLA.name}`).click();
     await palette.getByRole("button", { name: "Redefinir" }).click();
+    await expect(page.getByTestId("cad-command-prompt")).toContainText(
+      "punto base de la nueva definición",
+    );
+    await teclear(page, "0,0");
+    await expect(page.getByTestId("cad-command-prompt")).toContainText("Designe objetos");
+    await terminar(page);
+    await expect(page.getByTestId("cad-command-prompt")).toBeHidden();
 
     const documento = await guardar(page, backend);
     expect(documento.blocks.find((b) => b.id === SILLA.id)!.version).toBe(3);
@@ -589,86 +584,12 @@ test("la biblioteca de mobiliario: buscar, insertar, mover, copiar y redefinir",
     for (const id of [primera, segunda, tercera]) {
       const insercion = puestas.find((i) => i.id === id)!.insertion;
       const caja = envolvente(documento, id);
-      // 700 × 700 centrada EXACTAMENTE en su punto de inserción: la máquina de
-      // propagar es correcta al milímetro. Lo que falta es que el gesto de
-      // redefinir pregunte el punto base, como lo pregunta el de crear.
+      // 700 × 700 centrada EXACTAMENTE en su punto de inserción.
       expect({ x: caja.minX, y: caja.minY, w: caja.maxX - caja.minX }).toEqual({
         x: insercion.x - 350,
         y: insercion.y - 350,
         w: 700,
       });
     }
-  });
-
-  /* ── 8. LOS OTROS DOS SITIOS DONDE PONE «BLOQUE» ───────────────────────── */
-  await test.step("8a. «Mis bloques», el panel de la izquierda", async () => {
-    await cerrarBloques(page);
-    const contador = page.getByTestId("cad-native-document-count");
-    const antes = await contador.innerText();
-
-    // El MISMO bloque del catálogo, listado en el panel de la izquierda bajo
-    // «Mis bloques» —el sitio con el nombre más obvio para buscarlo— pero
-    // contado como «0 obj», que es lo que ve quien no sabe que hay otro panel.
-    const fila = page.getByRole("button", { name: `${SILLA.name} 0 obj` });
-    await expect(
-      fila,
-      "el bloque de la biblioteca aparece en «Mis bloques» como 0 obj",
-    ).toBeVisible();
-
-    await fila.click();
-    await page.waitForTimeout(1_500);
-
-    // Y no pasa NADA: ni se inserta, ni se avisa de por qué no.
-    await expect(contador).toHaveText(antes);
-    await expect(
-      page.getByText(/insertado como grupo/i),
-      "DEFECTO: «Mis bloques» no inserta el bloque y tampoco dice por qué",
-    ).toHaveCount(0);
-  });
-
-  await test.step("8b. buscar «silla» en la caja de buscar del estudio", async () => {
-    const antes = await guardar(page, backend);
-
-    await page.getByTitle(/^Paleta de comandos/).click();
-    const buscador = page.getByPlaceholder(
-      "Buscar comando, herramienta o símbolo...",
-    );
-    await expect(buscador).toBeVisible();
-    await buscador.fill("silla");
-
-    // Las entradas de esta caja llevan su tipo a la derecha (SYMBOL, TOOL…).
-    const cajaDeBuscar = buscador.locator("xpath=ancestor::div[2]");
-    const entradas = cajaDeBuscar.getByRole("button");
-    const rotulos = await entradas.allInnerTexts();
-    console.log(`[auditoría] Cmd-K «silla» ofrece: ${JSON.stringify(rotulos)}`);
-
-    // Hay una entrada que se llama exactamente «Silla» —igual que el bloque del
-    // catálogo, y con sus mismas medidas— pero es un SÍMBOLO del catálogo
-    // antiguo, no el bloque. Colocarla no crea ninguna referencia.
-    const cual = rotulos.findIndex((texto) =>
-      texto.startsWith(`${SILLA.name}\n`),
-    );
-    expect(
-      cual,
-      `la caja de buscar no ofrece ninguna «${SILLA.name}»`,
-    ).toBeGreaterThanOrEqual(0);
-    for (const texto of rotulos.filter((t) => t.includes(SILLA.name)))
-      expect(
-        texto.trim().endsWith("SYMBOL"),
-        `la caja de buscar sólo ofrece símbolos para «${SILLA.name}»: ${texto}`,
-      ).toBe(true);
-
-    await entradas.nth(cual).click();
-    const despues = await guardar(page, backend);
-    expect(
-      inserciones(despues).length,
-      "DEFECTO: el «Silla» de la caja de buscar no es el bloque — no crea referencia",
-    ).toBe(inserciones(antes).length);
-    const nuevos = despues.entities
-      .filter((e) => !antes.entities.some((viejo) => viejo.id === e.id))
-      .map((e) => e.type);
-    console.log(
-      `[auditoría] colocar «Silla» desde Cmd-K añade: ${JSON.stringify(nuevos)}`,
-    );
   });
 });

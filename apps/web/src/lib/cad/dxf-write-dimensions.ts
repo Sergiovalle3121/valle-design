@@ -12,6 +12,7 @@
  */
 import type { CadDimensionEntity } from "./associative-dimension";
 import { buildCadDimensionGeometry, type CadDimensionGeometry } from "./associative-dimension";
+import { cadDimensionToleranceMetadata } from "./dimension-tolerance";
 import {
   alignedDimension,
   DEFAULT_DIMENSION_STYLE,
@@ -146,7 +147,15 @@ export function prepareSemanticDimensions(
   blockOffset: number,
 ): PreparedSemanticDimension[] {
   return dimensions.flatMap((entity, index) => {
-    const canonical: CadDimensionEntity = { id: `dxf-dimension:${index}`, type: "dimension", ...entity };
+    // La tolerancia vuelve a su bolsillo para que el rótulo del bloque *D y el
+    // grupo 1 la lleven: un lector ajeno ve «40.00 +0.025/0 mm» aunque no
+    // entienda la XDATA.
+    const canonical: CadDimensionEntity = {
+      id: `dxf-dimension:${index}`,
+      type: "dimension",
+      ...entity,
+      ...(entity.tolerance ? { context: { metadata: cadDimensionToleranceMetadata(entity.tolerance) } } : {}),
+    };
     const geometry = buildCadDimensionGeometry(canonical);
     return geometry ? [{ entity, geometry, blockName: `*D${blockOffset + index + 1}` }] : [];
   });
@@ -205,6 +214,13 @@ export function pushSemanticDimension(lines: string[], dimension: PreparedSemant
     `extensionLineColor=${entity.extensionLineColor ?? ""}`,
     `textVertical=${entity.textVertical ?? ""}`,
     `textJustification=${entity.textJustification ?? ""}`,
+    // Ola I — la tolerancia de fabricación: modo, desviaciones (mm o grados,
+    // con signo), decimales y ajuste. Vacío significa «esta cota no lleva».
+    `tolerance=${entity.tolerance?.mode ?? ""}`,
+    `toleranceUpper=${entity.tolerance ? fmt(entity.tolerance.upper) : ""}`,
+    `toleranceLower=${entity.tolerance ? fmt(entity.tolerance.lower) : ""}`,
+    `toleranceDecimals=${entity.tolerance ? String(entity.tolerance.decimals) : ""}`,
+    `toleranceFit=${entity.tolerance?.fit ?? ""}`,
   ];
   metadata.forEach((value) => pushPair(lines, 1000, safeText(value).slice(0, 240)));
 }

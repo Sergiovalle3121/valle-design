@@ -38,6 +38,8 @@ import CollabThreadPanel from "./CollabThreadPanel";
 import { useCadComments, type CadCommentSource } from "./use-cad-comments";
 import { useCadPresence } from "./use-cad-presence";
 import ReviewLinkIssuer from "./ReviewLinkIssuer";
+import { useStudioTraySlot } from "@/components/cad/studio/use-studio-tray";
+import { createPortal } from "react-dom";
 
 export interface StudioCollaborationLayerProps {
   documentId: string;
@@ -91,6 +93,24 @@ const DOCK =
  * px sobre el panel derecho para no enseñar nada en ella.
  */
 const DOCK_WIDTH = { open: "w-[19rem]", collapsed: "w-auto" } as const;
+/**
+ * PLEGADO, en la BANDEJA de la barra de estado (`cad-status-tray`), como la
+ * mensajería y la barra de llamada: un elemento más del renglón, y el panel
+ * derecho ya no recibe ninguna capa fija encima (goldens 19, 67 y 72,
+ * 2026-09-02).
+ *
+ * ABIERTO, en la esquina inferior derecha de siempre (`DOCK`), NO desplegado
+ * desde la bandeja. Se midió lo otro (ca86fc6, `real/cad-presencia-viva`): el
+ * elemento de la bandeja cae hacia x ≈ 880–970 y un panel de 19 rem que se
+ * abre hacia arriba desde ahí cubre el lienzo entre x ≈ 580 y 880 e y ≈ 270 y
+ * 690 —el CENTRO del dibujo—; `document.elementFromPoint` en el centro
+ * devolvía la lista de compañeros, el `pointermove` nunca llegaba al lienzo y
+ * B no veía el cursor de A. Un panel abierto tapando el plano es además lo
+ * contrario de lo que se abre para ver. Abajo a la derecha se posa sobre la
+ * parte baja del panel derecho, donde nada se pulsa (ver el comentario de
+ * `DOCK`), y lo abrió el usuario.
+ */
+const TRAY_COLLAPSED = "inline-flex items-center gap-1";
 
 export default function StudioCollaborationLayer({
   documentId,
@@ -114,6 +134,7 @@ export default function StudioCollaborationLayer({
    * guiado: lo que flota sobre una superficie de trabajo se queda el ratón.
    */
   const [collapsed, setCollapsed] = useState(true);
+  const tray = useStudioTraySlot();
   const [placing, setPlacing] = useState(false);
   const [pendingAnchor, setPendingAnchor] = useState<CadCommentAnchorPoint | null>(
     null,
@@ -236,7 +257,7 @@ export default function StudioCollaborationLayer({
   // enseñarlo flotando sobre una pantalla de carga sería un muñón.
   if (!surface) return null;
 
-  return (
+  const dock = (
     <aside
       /*
         EN MODO COLOCAR EL MUELLE SE APARTA DEL RATÓN.
@@ -248,13 +269,13 @@ export default function StudioCollaborationLayer({
         subtree intercepts pointer events». No se pierde forma de cancelar: la
         pista sobre el plano dice «Esc para cancelar» y Escape lo cancela.
       */
-      className={`${DOCK} ${collapsed ? DOCK_WIDTH.collapsed : DOCK_WIDTH.open} ${
-        placing ? "pointer-events-none" : ""
-      }`}
+      className={`${
+        tray && collapsed ? TRAY_COLLAPSED : `${DOCK} ${collapsed ? DOCK_WIDTH.collapsed : DOCK_WIDTH.open}`
+      } ${placing ? "pointer-events-none" : ""}`}
       data-testid="cad-collab-dock"
     >
       <div className="flex items-center justify-between gap-2">
-        <strong className="type-micro text-foreground">Colaboración</strong>
+        <strong className={`type-micro text-foreground ${tray && collapsed ? "@max-[40rem]:hidden" : ""}`}>Colaboración</strong>
         <button
           type="button"
           data-testid="cad-collab-toggle"
@@ -299,6 +320,10 @@ export default function StudioCollaborationLayer({
       )}
     </aside>
   );
+  // Sólo el muelle PLEGADO viaja a la bandeja; abierto se pinta donde
+  // siempre, fuera de ella (un `fixed` dentro de la bandeja heredaría el
+  // bloque contenedor de sus filtros).
+  return tray && collapsed ? createPortal(<span className="relative inline-flex">{dock}</span>, tray) : dock;
 }
 
 function viewportBoundsOf(surface: CadCollabSurface): CadBounds | null {

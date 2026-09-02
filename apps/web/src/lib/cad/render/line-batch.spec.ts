@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import {
   CAD_DRAW_ORDER_DEPTH_RANGE,
+  CAD_LINETYPE_MAX_ELEMENTS,
   CAD_LINETYPE_SLOTS,
   CadLineBatchBuilder,
   buildCadLineBatches,
@@ -8,7 +9,9 @@ import {
   cadLineBatchStats,
   cadLineStyleKey,
   cadLineVertexWorldPosition,
+  cadLinetypeCoverage,
   packCadColor,
+  packCadLinetypeUniforms,
   unpackCadColor,
   type CadLineStyle,
 } from "./line-batch";
@@ -16,6 +19,7 @@ import {
   CAD_LINE_BATCH_FRAGMENT_SHADER,
   CAD_LINE_BATCH_VERTEX_SHADER,
   createCadLineBatchMaterial,
+  setCadLineBatchLinetypes,
 } from "./line-batch-three";
 import type { CadTessellation } from "./tessellation-cache";
 
@@ -225,11 +229,60 @@ assert.deepEqual(stats, { batches: 2, instances: 3, attributeBytes: 3 * 10 * 4 }
 ok(true, `cadLineBatchStats: ${stats.instances} instancias en ${stats.batches} lotes, ${stats.attributeBytes} bytes`);
 
 // ---------------------------------------------------------------------------
+// TIPOS DE LÍNEA: la secuencia `.lin` completa viaja al shader. Medido el
+// 2026-09-02 antes de esta tabla: las ranuras guardaban sólo (primer trazo,
+// primer hueco) y CENTER, DASHDOT, PHANTOM, BORDER y DIVIDE se dibujaban como
+// DASHED; DOT no entraba en ninguna ranura. Aquí se comprueba el empaquetado
+// exacto y la regla de cobertura, que es el espejo en TS del bucle del GLSL.
+// ---------------------------------------------------------------------------
+const CENTER = [1.25, -0.25, 0.25, -0.25];
+const DASHDOT = [0.5, -0.25, 0, -0.25];
+const packed = packCadLinetypeUniforms([[], CENTER, DASHDOT]);
+assert.equal(packed.dash.length, CAD_LINETYPE_SLOTS * CAD_LINETYPE_MAX_ELEMENTS);
+assert.equal(packed.meta.length, CAD_LINETYPE_SLOTS * 2);
+assert.deepEqual([...packed.meta.slice(0, 6)], [0, 0, 4, 2, 4, 1], "meta = [tramos, periodo] por ranura; el punto no suma periodo");
+assert.deepEqual([...packed.dash.slice(8, 12)], CENTER, "la ranura 1 guarda los cuatro tramos de CENTER con signo");
+assert.deepEqual([...packed.dash.slice(16, 20)], DASHDOT, "y la 2 conserva el 0 del punto de DASHDOT");
+ok(true, "packCadLinetypeUniforms empaqueta secuencias completas, no el par (trazo, hueco)");
+
+// CENTER a escala 1: trazo largo 0–1,25, hueco 1,25–1,5, trazo corto 1,5–1,75,
+// hueco 1,75–2. La fase 1,6 es EL trazo corto que el par perdía.
+assert.equal(cadLinetypeCoverage(0.6, packed, 1), true, "0,6 cae en el trazo largo");
+assert.equal(cadLinetypeCoverage(1.4, packed, 1), false, "1,4 cae en el primer hueco");
+assert.equal(cadLinetypeCoverage(1.6, packed, 1), true, "1,6 cae en el trazo corto — el que se perdía");
+assert.equal(cadLinetypeCoverage(1.9, packed, 1), false, "1,9 cae en el segundo hueco");
+assert.equal(cadLinetypeCoverage(2.1, packed, 1), true, "2,1 vuelve al trazo largo: el patrón es periódico");
+assert.equal(cadLinetypeCoverage(-0.6, packed, 1), false, "una fase negativa se pliega al periodo (mod positivo): −0,6 → 1,4, hueco");
+// Escala ×10 (LTSCALE): el mismo punto cae en otro tramo.
+assert.equal(cadLinetypeCoverage(1.6, packed, 1, 10), true, "a escala 10 la fase 1,6 sigue en el trazo largo de 12,5");
+assert.equal(cadLinetypeCoverage(14, packed, 1, 10), false, "y 14 cae en el hueco 12,5–15");
+// DASHDOT con punto de longitud 0,05: 0,5 trazo, 0,25 hueco, punto, 0,25 hueco.
+assert.equal(cadLinetypeCoverage(0.76, packed, 2, 1, 0.05), true, "el punto pinta lo que mide dotLength");
+assert.equal(cadLinetypeCoverage(0.9, packed, 2, 1, 0.05), false, "y después del punto viene el hueco");
+assert.equal(cadLinetypeCoverage(0.76, packed, 2, 1, 0), false, "con dotLength 0 el punto no pinta nunca: por eso el shader le da dos píxeles");
+assert.equal(cadLinetypeCoverage(123.4, packed, 0), true, "la ranura 0 es continua: siempre pinta");
+ok(true, "cadLinetypeCoverage reproduce trazo largo–hueco–trazo corto–hueco de CENTER y el punto de DASHDOT");
+
+// Los uniformes del material reciben la tabla y la escala.
+const lined = createCadLineBatchMaterial({
+  viewport: { scale: 1, width: 100, height: 100 },
+  pixelsPerUnit: 1,
+});
+assert.equal(lined.uniforms.cadLinetypeMeta.value[2], 0, "recién creado, ninguna ranura tiene tramos");
+setCadLineBatchLinetypes(lined.uniforms, [[], CENTER], 25);
+assert.deepEqual([...lined.uniforms.cadLinetypeMeta.value.slice(2, 4)], [4, 2]);
+assert.deepEqual([...lined.uniforms.cadLinetypeDash.value.slice(8, 12)], CENTER);
+assert.equal(lined.uniforms.cadLinetypeScale.value, 25, "LTSCALE viaja como uniforme");
+assert.equal(lined.uniforms.cadLinetypeDash.value.length, CAD_LINETYPE_SLOTS * CAD_LINETYPE_MAX_ELEMENTS, "vec4[SLOTS*2] = SLOTS*8 floats");
+ok(true, "setCadLineBatchLinetypes escribe dash, meta y escala en los uniformes del material");
+
+// ---------------------------------------------------------------------------
 // El shader existe y hace lo que este módulo promete. No se puede ejecutar GLSL
 // en Node, así que se comprueba lo que sí es comprobable: que la profundidad se
-// escribe, que el bucle del tipo de línea tiene tope constante (GLSL ES 1.00 no
-// admite indexar uniformes con expresión variable) y que el atributo `position`
-// NO se redeclara — hacerlo rompe la compilación en THREE.
+// escribe, que el bucle del tipo de línea recorre los TRAMOS con tope constante
+// e indexa la ranura dinámicamente (legal desde `#version 300 es`, que three
+// 0.185 antepone a todo ShaderMaterial) y que el atributo `position` NO se
+// redeclara — hacerlo rompe la compilación en THREE.
 // ---------------------------------------------------------------------------
 assert.ok(
   CAD_LINE_BATCH_VERTEX_SHADER.includes(
@@ -266,15 +319,32 @@ for (const attribute of ["instanceStart", "instanceEnd", "instanceStyle", "insta
     `falta el atributo por instancia ${attribute}`,
   );
 assert.ok(
-  CAD_LINE_BATCH_FRAGMENT_SHADER.includes(`slot < ${CAD_LINETYPE_SLOTS}`),
-  "el bucle del tipo de línea necesita tope constante",
+  CAD_LINE_BATCH_FRAGMENT_SHADER.includes(`element < ${CAD_LINETYPE_MAX_ELEMENTS}`),
+  "el bucle del tipo de línea recorre los tramos con tope constante",
+);
+assert.ok(
+  CAD_LINE_BATCH_FRAGMENT_SHADER.includes(`uniform vec4 cadLinetypeDash[${CAD_LINETYPE_SLOTS * 2}]`) &&
+    CAD_LINE_BATCH_FRAGMENT_SHADER.includes(`uniform vec2 cadLinetypeMeta[${CAD_LINETYPE_SLOTS}]`),
+  "la tabla viaja como vec4[SLOTS*2] + vec2[SLOTS]: 96 vectores, no 256 floats sueltos",
+);
+assert.ok(
+  !CAD_LINE_BATCH_FRAGMENT_SHADER.includes("cadLinetypePattern["),
+  "el uniforme del par (trazo, hueco) ya no existe",
+);
+assert.ok(
+  CAD_LINE_BATCH_FRAGMENT_SHADER.includes("cadLinetypeMeta[slot]"),
+  "la ranura se indexa dinámicamente (GLSL ES 3.00)",
+);
+assert.ok(
+  CAD_LINE_BATCH_FRAGMENT_SHADER.includes("2.0 * cadWorldPerPixel"),
+  "un punto mide dos píxeles en pantalla, o no se pintaría",
 );
 assert.ok(
   CAD_LINE_BATCH_VERTEX_SHADER.includes("cadWorldPerPixel"),
   "el grosor en píxeles necesita el inverso del zoom",
 );
-ok(true, "el shader escribe la profundidad, no redeclara `position` y acota el bucle de tipos de línea");
+ok(true, "el shader escribe la profundidad, no redeclara `position` y recorre los tramos del tipo de línea con tope constante");
 
 console.log(
-  `line-batch: ${checks} comprobaciones verdes — orden de dibujo resoluble a 100k (paso ${consecutiveStep.toExponential(2)} NDC), grosor invariante al zoom en 5 órdenes de magnitud, ${stats.instances} instancias agrupadas en ${stats.batches} lotes.`,
+  `line-batch: ${checks} comprobaciones verdes — orden de dibujo resoluble a 100k (paso ${consecutiveStep.toExponential(2)} NDC), grosor invariante al zoom en 5 órdenes de magnitud, ${stats.instances} instancias agrupadas en ${stats.batches} lotes, CENTER con sus cuatro tramos (${CAD_LINETYPE_SLOTS} ranuras × ${CAD_LINETYPE_MAX_ELEMENTS}).`,
 );

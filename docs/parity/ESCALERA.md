@@ -139,6 +139,151 @@ medida — el canal "algo salió mal" vía outbox (OLA 3.2 de esta misma
 campaña) es la pieza de instrumentación que falta para que una fila
 pueda subir a este peldaño alguna vez.
 
+## Las filas de los siete toolsets
+
+La campaña «Valle Design → AutoCAD completo» (2026-09-02) mide el producto
+contra AutoCAD **con sus siete toolsets**, no sólo contra AutoCAD LT. Cada
+toolset tiene su fila en `docs/competitive/rubric.json` (grupo `toolsets`,
+alcance DESTINO) aunque hoy valga cero, y su peldaño aquí. El orden es el de
+la campaña; dos quedan fuera de alcance y se dice.
+
+| Toolset | Peldaño hoy | Objetivo | Qué hay y qué falta |
+| --- | --- | --- | --- |
+| Architecture | 5 | 5 | WALL, DOOR y WINDOW (golden 53); STAIR (78); ROOF y SLAB (79); los cuadros de superficies —con el nombre del local— y de carpintería salen en la lámina (77, `paper-space-table.spec.ts` leyendo los bytes del PDF). La rúbrica retiene 1 pt hasta que haya evidencia independiente. Lo que sigue en «todavía no» está en su sección (Ola E). |
+| MEP (mitad 2D) | 5 | 3 | PIPE, DUCT, CABLETRAY y MEPSYMBOL sobre el mismo motor (polilíneas, capas de servicio con tipo de línea con texto, bloques MEP-…), y el cuadro de instalaciones por DATAEXTRACTION Instalaciones en la lámina (golden 81; `mep-tracing.spec.ts`). La mitad 3D —ruteo con colisiones, diámetros por especificación— queda fuera y se dice. |
+| Map 3D | 5 | 3 | GEOGRAPHICLOCATION georreferencia el dibujo con un marcador POINT en GEO (UTM 11N–16N, WGS84/ITRF; o latitud y longitud), ID informa el este/norte y la lat/lon, y MAPIMPORT mete un shapefile o GeoJSON en el plano abierto reproyectado al sistema del dibujo con los atributos en metadatos (golden 82; `geo-location.spec.ts`, `map-import.spec.ts`, `geojson.spec.ts`). La rúbrica retiene 1 pt hasta evidencia independiente. Lo que sigue en «todavía no» está en su sección (Ola G). |
+| Raster Design (mitad útil) | 5 | 3 | IMAGEATTACH mete el escaneo dentro del dibujo y por primera vez SE VE (visor, lámina, PDF); IMAGECLIP recorta por polígono o rectángulo; IMAGEADJUST ajusta brillo, contraste y atenuación (golden 83; `raster-image.spec.ts`, `image-layer-three.spec.ts`, `paper-space-image.spec.ts`). La rúbrica retiene 1 pt hasta evidencia independiente. La vectorización, IMAGEFRAME y TRANSPARENCY siguen en «todavía no» (Ola H). |
+| Mechanical | 5 | 3 | STDPART (tornillería ISO 4017/4032/7089) y STEELSHAPE (PTR, OC, LI, CPS, IPR por medidas) como bloques MECH-…; BALLOON y BOM; WELDSYMBOL y SURFACESYMBOL como geometría con marca; DIMTOLERANCE con ajustes ISO 286 sobre la cota, que rotula en visor, lámina y DXF; DIMSTYLE Familia (`ISO-25$4`) (golden 84; `mechanical.spec.ts`, `engine/commands/mechanical.spec.ts`, `dimension-tolerance.spec.ts`, `dimension-family.spec.ts`). La rúbrica retiene 1 pt hasta evidencia independiente. Lo que sigue en «todavía no» está en su sección (Ola I). |
+| Electrical | 0 | — | **Fuera de alcance** de la campaña: esquemas y numeración de hilos son otro producto. La fila existe para que el denominador sea honesto. |
+| Plant 3D | 0 | — | **Fuera de alcance** de la campaña: P&ID y tubería 3D por especificación. Ídem. |
+
+## La cota y el plano inclinado (Ola C, 2026-09-02)
+
+La campaña midió antes que «todo punto que el usuario señala vive en z=0»
+y que la cota moría en cuatro fronteras del DXF. Cada fila de abajo dice
+en qué peldaño queda HOY y qué la subiría; lo que sigue en «todavía no» se
+dice aquí y en el prompt de la orden, no se aplana en silencio.
+
+| Capacidad | Peldaño hoy | Evidencia | Qué falta para subir |
+| --- | --- | --- | --- |
+| LINE, PLINE y RECTANG dibujan EN el plano del SCU inclinado | 3 | `draw-spatial.spec.ts` (25), `ucs-3d.spec.ts` (68): vértices sobre el plano a 1e-6 mm | Un golden de navegador pinchando sobre una cara (peldaño 5). PLINE Arco y RECTANG Empalme se rechazan sobre un plano inclinado: el bulge es un arco en planta. |
+| CIRCLE, ARC y las ocho primitivas sobre la planta ELEVADA | 3 | `draw-spatial.spec.ts`, `solids-primitives.spec.ts` (60) | Sobre un plano INCLINADO el motor las rechaza con su motivo: el documento no guarda un círculo fuera del plano horizontal ni un `box` con marco. **Todavía no.** |
+| Las ocho primitivas de sólido | 5 | golden 73 (BOX y CYLINDER tecleados, volumen recalculado por el kernel sobre lo que recibió el servidor) | Nada de peldaño; los modos 3P/2P/Ttr/Elíptico de CYLINDER y CONE, Arista de PYRAMID y Arco de POLYSOLID no se ofrecen. |
+| SOLIDEDIT · Cara Extruir, Cuerpo Comprobar, Cuerpo Separar | 3 | `solids-edit.spec.ts` (24) | Las otras once ramas (Mover/Girar/Desfasar/Inclinar/Borrar/Copiar/Color de cara, Copiar/Color de arista, Estampar/Vaciar/Limpiar de cuerpo): piden recomponer caras o designar aristas. **Todavía no**, dicho en el diálogo. |
+| La cota en el DXF: 30/31, elevación (38 y cabecera), polilínea 3D (bit 8), SCU reflejado (0,0,−1) | 5 | `verification/z-frontiers.spec.ts` (39) con `dxf-parser` de oráculo independiente, en el gate `check:cad-math`; `dxf-import-cota.spec.ts` | Nada de peldaño; la polilínea con ARCOS y cotas distintas no cabe en el formato y se declara en el manifiesto de pérdidas. |
+| El plano INCLINADO al importar DXF (extrusión distinta de ±Z) | 0 | `flattened_to_ground` sigue declarándose por entidad y capa | Que la entidad canónica guarde su normal y el visor la dibuje. **Todavía no.** |
+| Ver la cota en pantalla | 0 | el render (`CadRenderPath.points: CadPoint2[]`) dibuja en planta | El visor 3D representa la geometría 2D sobre el suelo; los sólidos sí van a su cota. **Todavía no.** |
+
+## El trabajo ajeno (Ola D, 2026-09-02)
+
+La campaña midió antes que la prueba de despacho del área 2 —recibir un
+DWG, unir 34 líneas mal empatadas y obtener perímetro y superficie— fallaba
+en el primer paso, que Ctrl+C duplicaba en el sitio y que seis órdenes del
+plano ajeno no existían. Cada fila dice en qué peldaño queda HOY y qué la
+subiría; lo que sigue en «todavía no» se dice aquí y en el prompt.
+
+| Capacidad | Peldaño hoy | Evidencia | Qué falta para subir |
+| --- | --- | --- | --- |
+| HPGAPTOL y `Tolerancia` en HATCH, BOUNDARY y JOIN; distancia de aproximación en PEDIT Juntar | 5 | golden 74 (la prueba de despacho entera), `verification/prueba-de-despacho.spec.ts` (72, oráculo en papel: 92.840.000 mm² y 46.297 mm), `modify-pedit.spec.ts` | Nada de peldaño. La tolerancia no se guarda en el sombreado: nace NO asociativo y el prompt lo dice; guardarla es tocar el formato persistido, decisión del titular. |
+| Portapapeles de geometría canónica: COPYCLIP, CUTCLIP, COPYBASE, PASTECLIP, PASTEORIG y Ctrl+C/X/V | 5 | golden 75; `clipboard.spec.ts` (33), `engine/commands/clipboard.spec.ts` (48), anfitrión con dos editores que comparten el almacén | No toca el portapapeles del SISTEMA: no hay PASTESPEC ni PASTEBLOCK, ni pegar en otra pestaña del navegador. **Todavía no.** |
+| SELECTSIMILAR y ADDSELECTED | 5 | golden 76; `select-similar.spec.ts` (24); anfitrión que encadena la orden y devuelve CLAYER/CECOLOR/CELTYPE | SELECTSIMILARMODE no existe: siempre tipo, capa y bloque. ADDSELECTED de un tipo sin orden (muro heredado, tabla de activos) lo dice con su nombre. |
+| XPLODE, SETBYLAYER, CHPROP y NCOPY | 5 | golden 76; `modify-foreign.spec.ts` (54) | XPLODE Heredar da lo mismo que Explotar (la resolución del bloque ya coloca capa 0 y PorBloque con lo de la inserción, medido; la etiqueta lo dice) y no ofrece Grosor. NCOPY sólo copia desde inserciones. |
+| CECOLOR, CELTYPE y CELWEIGHT llegan a lo que se dibuja | 3 | `engine/current-presentation.spec.ts` (15) contra el motor: LINE con COLOR 1 sale con color 1, COPY no lo hereda | Un golden que teclee COLOR y dibuje (peldaño 5). Sólo órdenes de dibujo y anotación: lo copiado y lo pegado conservan lo suyo, como en AutoCAD. |
+| Ver la cota en pantalla; la cota que sigue a la polilínea al moverla | 0 | `auditoria/acotar.spec.ts` sigue en el manifiesto (28) | Sigue de la Ola C. **Todavía no.** |
+
+## La arquitectura (Ola E, 2026-09-02)
+
+La campaña midió antes que un cuadro de superficies llegaba a la lámina
+como una rejilla vacía (3 caminos, 0 textos, sin advertencia), que el local
+se llamaba `L-03` porque `bim-schedule.ts` no tenía campo de nombre, y que
+no existían escaleras, cubiertas ni losas. Cada fila dice en qué peldaño
+queda HOY y qué la subiría; lo que sigue en «todavía no» se dice aquí y en
+el prompt de la orden.
+
+| Capacidad | Peldaño hoy | Evidencia | Qué falta para subir |
+| --- | --- | --- | --- |
+| El texto de las celdas de una TABLE sale en la lámina (plan, vista previa y PDF) | 5 | `paper-space-table.spec.ts` (14): la ancla de la celda coincide a 1e-6 con un MTEXT colocado a mano, y `measureCadPdf` lee «Local», «12.50» y «Rec…» de los bytes; golden 77 guarda los dos cuadros | Nada de peldaño. El tamaño del texto en papel se acota a [1,5; 12] mm como un MTEXT: una tabla a escala 1:500 se lee, no desaparece. |
+| Cuadro de superficies con el NOMBRE del local (el rótulo TEXT/MTEXT dentro del anillo) y su uso | 5 | `bim-schedule.spec.ts` (57), `data-extraction.spec.ts` (24), `data-extraction-commands.spec.ts` (20); golden 77: RECÁMARA 16,00 m², BAÑO 8,00 m² | Un local sin rótulo sigue llamándose por su `L-nn`. El uso sale del clasificador de `architecture.ts`; un nombre que no reconoce da «—». |
+| Cuadro de carpintería: marca, tipo, ancho, alto, antepecho, cantidad | 5 | golden 77 (P-090x210 y V-120x120 con antepecho 900); `bim-schedule.spec.ts` | Sin material ni herraje: la entidad `opening` no los guarda y añadirlos es formato persistido (decisión del titular). |
+| STAIR: escalera recta paramétrica (Blondel y reglamento; planta y sólido) | 5 | golden 78; `architecture-stair.spec.ts` (78): 2400 → 14 × 171,4 / 287,1; 3000 con Huella 280 → 17 × 176,5 / 280; volumen del dentado en papel | Sólo un tramo recto: sin descansos, tramos en L o U, compensadas ni de caracol; sin Justificación (el arranque es la esquina izquierda); el sólido es macizo, no una zanca con canto. **Todavía no.** |
+| ROOF: cubierta a cuatro, dos o un agua sobre un rectángulo, con alero y pendiente | 5 | golden 79; `architecture-roof.spec.ts` (109): V = h·W·((L−W)/2 + W/3) a cuatro aguas, L·W·h/2 a dos y a una, pirámide sobre cuadrado, girado 30° | Sólo rectángulos: sobre un polígono en L se rechaza diciéndolo. Sin faldones de pendiente distinta, buhardillas ni limahoyas; el sólido es el volumen bajo cubierta, no una losa inclinada con espesor. **Todavía no.** |
+| SLAB: losa por contorno cerrado, cara superior a la cota | 5 | golden 79; `architecture-roof.spec.ts`: 24 m² × 150 = 3,6 m³, círculo como 64-gono | Sin huecos tecleados (entran como REGION con interiores), sin pendiente ni cantos. |
+| Una entidad `stair`, `roof` o `slab` persistida y reeditable desde el panel | 0 | Las tres se descomponen en planta + SOLID3D con la receta en el nombre | Añadir tipos de entidad es tocar el formato persistido: decisión del titular, no tomada por la sesión. |
+
+## Las instalaciones y el tipo de línea con texto (Ola F, 2026-09-02)
+
+La campaña midió antes que el bloqueo de un plano de instalaciones no era
+MEP sino los tipos de línea con texto incrustado, que el lector `.lin`
+declaraba imposibles, y que no existía ninguna orden MEP. Cada fila dice en
+qué peldaño queda HOY y qué la subiría; lo que sigue en «todavía no» se
+dice aquí y en el prompt de la orden.
+
+| Capacidad | Peldaño hoy | Evidencia | Qué falta para subir |
+| --- | --- | --- | --- |
+| Tipos de línea con TEXTO (GAS_LINE, HOT_WATER_SUPPLY, AGUA_FRIA, AGUA_CALIENTE, SANITARIO, PLUVIAL, CONTRA_INCENDIO) en pantalla, lámina, PDF y DXF | 5 | golden 80 (30 glifos a LTSCALE 1000, 60 a 500, el DXF con 74 = 2); `linetype-complex.spec.ts` (37): rótulos cada 950 desde 600, el PDF leído de sus bytes, el LTYPE de ida y vuelta | Son de FÁBRICA y por nombre: un `.lin` propio con texto sigue sin cargarse porque el documento sólo guarda trazos (formato: decisión del titular) y el lector lo dice nombrando la familia. Las FORMAS (.shx: FENCELINE, TRACKS, ZIGZAG, BATTING) no están. Los arcos llevan los trazos, no el texto. La lectura del 74 = 2 por AutoCAD queda sin oráculo (el corpus no trae ninguno). **Todavía no.** |
+| LTSCALE tecleado mueve el dibujo | 5 | golden 80: LTSCALE 500 duplica los rótulos en vivo y el DXF sale con $LTSCALE 500 | Nada de peldaño. La escala se lee en unidades de dibujo en pantalla y en mm sobre el papel (PSLTSCALE/MSLTSCALE no existen): **todavía no.** |
+| El diálogo «Exportar a DXF» escribe las capas con su tipo de línea y grosor, la tabla LTYPE y $LTSCALE | 5 | golden 80; `layout-export-adapter.spec.ts` | Medido antes: GAS = GAS_LINE salía como `6 CONTINUOUS` sin aviso. El color de la capa sigue saliendo de la tabla fija por nombre (ACI), no del color CSS del documento. |
+| PIPE por servicio (agua Fría, agua Caliente, Sanitario, Pluvial, Gas, contra Incendio) con Diámetro | 5 | golden 81; `mep-tracing.spec.ts` (71) | Sin accesorios automáticos (codos, tes, reducciones), sin pendientes ni tramos curvos, sin ruteo 3D ni diámetros por especificación (la mitad 3D de MEP, fuera de alcance). |
+| DUCT y CABLETRAY a doble línea con esquinas a inglete y eje CENTER | 5 | golden 81; codo 300 × (2.000 + 2.000) = 1.200.000 en papel | Sin transiciones ni derivaciones como piezas; una te son dos tramos. |
+| MEPSYMBOL: ocho símbolos como BLOQUES con geometría (válvula, difusor, rejilla, luminaria, contacto, apagador, tablero, extractor) | 5 | golden 81 (el bloque se define una vez y se inserta); `mep-tracing.spec.ts` | Ocho, no el catálogo entero de un despacho; sin atributos (marca, modelo). Se amplía por contenido, no por motor. |
+| Cuadro de instalaciones (longitudes por servicio y tamaño, equipos por símbolo) en la lámina | 5 | golden 81 (7,00 m Ø19, 4,00 m de ducto, 1 válvula); `paper-space-table.spec.ts` para la lámina | Una tubería dibujada a mano en la capa del servicio cuenta sin diámetro («-»); el CSV sigue siendo el de muros. |
+| Una entidad `pipe`/`duct` persistida y reeditable desde el panel | 0 | Todo son polilíneas, capas y `context.metadata`, que el formato ya tiene | Añadir tipos de entidad es tocar el formato persistido: decisión del titular, no tomada por la sesión. |
+
+## El mapa (Ola G, 2026-09-02)
+
+La campaña midió antes que `lib/geo` sabía leer shapefiles, datums y zonas
+UTM y que ningún dibujo sabía dónde estaba: el `.shp` entraba sólo como
+documento nuevo, a un origen local propio, sin atributos. Cada fila dice en
+qué peldaño queda HOY y qué la subiría; lo que sigue en «todavía no» se dice
+aquí y en el prompt de la orden.
+
+| Capacidad | Peldaño hoy | Evidencia | Qué falta para subir |
+| --- | --- | --- | --- |
+| GEOGRAPHICLOCATION: un punto del dibujo y su Este/Norte UTM (zona 11N–16N, datum WGS84/ITRF92/ITRF2008/ITRF2020) o su latitud y longitud, guardados como marcador POINT en la capa GEO con `{geo, crs, east, north}` en `context.metadata`; `Informe` lee sin escribir | 5 | golden 82 ((0,0) = E 660 000 N 2 140 000 en 14N); `geo-location.spec.ts` (44): Guadalajara por `Geográfica` → EPSG:32613 E 671 873,00 contra `crs.spec.ts` | Sólo el hemisferio norte y las zonas 11N a 16N (lo que `crs.ts` verifica); sin NAD27/NAD83 (rechazados por nombre, a propósito); sin giro de cuadrícula (convergencia) ni escala de proyección aplicados al dibujo; sin tabla de georreferencia persistida —sería tocar el formato: decisión del titular, no tomada—. **Todavía no.** |
+| ID en un dibujo georreferenciado informa el este/norte y la latitud/longitud del punto | 5 | golden 82 («E 660,001.00 N 2,140,001.00 · 19.3477° N, 97.4767° O»); `geo-location.spec.ts` | Sólo ID; LIST, DIST y las cotas siguen en unidades de dibujo. Sin coordenadas geográficas en la barra de estado. |
+| MAPIMPORT: `.shp` con `.shx`/`.dbf`/`.prj`/`.cpg` o `.geojson` por el selector del navegador (varios a la vez, en un sobre base64 por la puerta de texto del motor) o un GeoJSON pegado, con el plan a la vista antes de escribir | 5 | golden 82 (el predio 14N cae en (10 000, 10 000) mm con su CLAVE); `map-import.spec.ts` (46): las cuatro situaciones | Sin exportar a SHP/GeoJSON; sin GeoPackage, KML ni GML; el tope de vértices es el del lector. Un LAS se lee pero no entra al plano (sigue siendo así, y se dice). |
+| Reproyección al sistema del dibujo (UTM ↔ UTM entre zonas 11N–16N, WGS 84 geográfico → UTM) vértice a vértice, declarada en el manifiesto (`geo_reprojected`) | 5 | `map-import.spec.ts`: la mojonera en grados cae a < 1 mm del marcador; `crs.spec.ts` (ida y vuelta ±2,36e-9 m) | Sin desplazamiento de datum (WGS84 ↔ ITRF se tratan como una familia, ±0,1 m, como `crs.ts` declara); sin NAD27. |
+| Los atributos del DBF/GeoJSON llegan al dibujo: la fila de cada registro en `context.metadata` de su entidad, por posición, y si la tabla no cuadra se declara (`geo_attributes_unaligned`) en vez de heredar los del vecino | 5 | golden 82 (`{CLAVE, USO}` en el servidor); `map-import.spec.ts`; `geojson.spec.ts` (34) | Sin rotular por atributo ni simbolizar por valor (color/tipo de línea según USO); sin consulta ni filtro por atributo (QSELECT no mira metadatos); sin tabla de atributos en la lámina. |
+| GeoJSON (RFC 7946) leído a la misma forma que el shapefile: Feature, FeatureCollection, las seis geometrías simples, rasgo sin geometría como nulo con su fila; el cuadro «Importar» admite `.geojson` proyectado a su zona UTM | 5 | `geojson.spec.ts` (34): 8 rechazos con código; `readGeoDataset` lo reconoce por sus bytes | GeometryCollection se rechaza diciéndolo; un `crs` antiguo del archivo se ignora (la especificación lo manda). |
+| Mapa de fondo (ortofoto, teselas en línea), topología, limpieza de dibujo, clasificación de entidades, COGO | 0 | — | No es de esta ola: un marcador y un predio en su sitio no son un servidor de mapas, y el producto no llama a servicios externos desde el lienzo. **Todavía no.** |
+
+## El plano escaneado (Ola H, 2026-09-02)
+
+La campaña midió antes que IMAGE insertaba una entidad que sólo se veía
+como MARCO, exigía un `asset://` que nadie resolvía, y que no había
+recorte ni ajuste: calcar encima era imposible. Cada fila dice en qué
+peldaño queda HOY y qué la subiría; lo que sigue en «todavía no» se dice
+aquí y en el prompt de la orden.
+
+| Capacidad | Peldaño hoy | Evidencia | Qué falta para subir |
+| --- | --- | --- | --- |
+| IMAGEATTACH: el archivo (PNG, JPEG, GIF, WebP, BMP; hasta 8 MB) por el selector del navegador, decodificado una vez para su tamaño y metido DENTRO del dibujo como `data:` en `uri` (cadena que el formato ya admite); inserción, ancho en unidades y giro | 5 | golden 83 (8 × 4 px a 500 mm por píxel, el `data:image/png` en el servidor); `raster-image.spec.ts` (75) | Sin almacén de activos ni API: la imagen pesa en el documento (base64, ×1,33) y el tope es 8 MB por archivo; un `asset://` sigue sin resolverse. Un almacén con su API es la evolución natural. **Todavía no.** |
+| Los píxeles en el visor: una malla por imagen bajo los lotes de líneas, con la MISMA convención de origen flotante y lámina de profundidad; recorte como polígono triangulado; brillo, contraste y atenuación en el shader | 5 | golden 83 (`data-images="1"` en el indicador del pipeline); `image-layer-three.spec.ts` (22): UV en píxeles/tamaño, textura pedida una vez por URI, `asset://` y `showImage` apagado se saltan, capa oculta | Sólo el pipeline por lotes (el heredado no la dibuja); sin mipmaps ni submuestreo para escaneos enormes; TRANSPARENCY (el canal alfa siempre se honra, no se puede apagar) e IMAGEFRAME (el marco siempre se dibuja) no existen. |
+| IMAGECLIP Nuevo Poligonal/Rectangular y Eliminar, con el contorno en píxeles de la imagen (`clipBoundary`, que ya existía) | 5 | golden 83 (recorte rectangular exacto en píxeles); `raster-image.spec.ts` | Sin Activar/Desactivar (el recorte se elimina, no se apaga); sin invertir el recorte; sin recorte por polilínea designada. |
+| IMAGEADJUST brillo, contraste y atenuación 0–100 con Restablecer, con la fórmula de AutoCAD (50/50 neutro) compartida por visor y lámina | 5 | golden 83 (atenuación 40 en el servidor); `image-geometry.spec.ts` (44): los extremos del ajuste | El brillo y el contraste no se aplican en el PDF (jsPDF incrusta los píxeles originales; el aviso lo dice); la atenuación sí, como opacidad. |
+| La imagen en la lámina y en el PDF: comando `image` del plan con esquinas y recorte en papel, `addImage` girada, recorte `W n`, atenuación como estado gráfico; `rasterCommandCount` deja de ser un 0 literal | 5 | `paper-space-image.spec.ts` (29): el XObject 4 × 2 y el `Do` leídos de los bytes del PDF con `measureCadPdf` | Una imagen sesgada o reflejada sale sólo como marco (jsPDF no refleja); un `http(s)` no se descarga al trazar; la vista previa SVG del gestor de láminas no la pinta. |
+| DXF: la imagen embebida sale con su NOMBRE en IMAGEDEF y el manifiesto dice qué archivo dejar al lado | 5 | `dxf-export-losses.spec.ts`; `dxf_export_image_embedded_pixels` | El DXF nunca lleva píxeles (formato); exportar el archivo junto al DXF es del usuario. |
+| Vectorizar líneas y textos de un escaneo (REM), calibrar/enderezar (deskew), cuatro puntos de control | 0 | — | Fuera de alcance de la campaña: es procesamiento de imagen, no CAD, y se dice. **Todavía no.** |
+
+## El plano de fabricación (Ola I, 2026-09-02)
+
+La campaña midió antes que `dimension-style.ts` no tenía subestilos por
+familia, que ninguna cota podía llevar tolerancia y que no había un solo
+normalizado insertable: el toolset Mechanical valía cero. Cada fila dice en
+qué peldaño queda HOY y qué la subiría; lo que sigue en «todavía no» se dice
+aquí y en el prompt de la orden.
+
+| Capacidad | Peldaño hoy | Evidencia | Qué falta para subir |
+| --- | --- | --- | --- |
+| Subestilos de cota por familia: `PADRE$n` en la misma tabla (`$0` lineal y alineada, `$2` angular, `$3` diámetro, `$4` radio, `$6` coordenada), resueltos encima del padre al crear la cota desde la paleta y en DIMSTYLE → Aplicar; DIMSTYLE → Familia los crea declarando sólo lo que cambia | 3 | `dimension-family.spec.ts` (38), `engine/commands/mechanical.spec.ts` (Familia, Aplicar, Suprimir con subestilos) | Un golden que teclee el subestilo y mida la flecha en pantalla (peldaño 5). Las cotas tecleadas por DIMLINEAR/DIMRADIUS no nombran estilo (como antes); la longitud de arco no tiene familia. Sin oráculo de AutoCAD leyendo `ISO-25$4` del DXF (el nombre es el suyo; no se ha comprobado con el corpus). |
+| DIMTOLERANCE: simétrica, por desviaciones, por límites, `Ajuste` ISO 286 (agujeros D–H y JS, ejes d–h, js, k, m, n, p; IT5–IT11; nominal ≤ 500 mm) calculado sobre lo que mide ESA cota, y `Quitar`; en `context.metadata`, sin campo nuevo | 5 | golden 84 (40H7 → «40.00 +0.025/0 mm» en el servidor); `dimension-tolerance.spec.ts` (71: dieciséis ajustes contra la tabla de la norma, los rechazos con motivo, el rótulo, la ida y vuelta por DXF) | Los agujeros K, M, N y P (corrección Δ) y los grados IT01–IT4 y IT12+ se rechazan diciéndolo. El DXF lleva la tolerancia en la XDATA propia y en el rótulo del grupo 1; los DIMVARs DIMTOL/DIMTP/DIMTM no se escriben como override DSTYLE, así que AutoCAD ve el texto con tolerancia, no una cota «tolerada» editable. |
+| El rótulo con tolerancia en visor, lámina y DXF: un solo formateador (`formatCadDimensionMeasurement`) que los tres consumen | 3 | `dimension-tolerance.spec.ts` (`buildCadDimensionGeometry`, el grupo 1 del DXF, la reimportación) | El rótulo va en una línea («40.00 +0.025/0 mm»); las desviaciones apiladas de AutoCAD (DIMTFAC) no existen. |
+| STDPART: tornillo hexagonal ISO 4017 (M6–M24, alzado con cabeza, chaflán y rosca en d3), tuerca ISO 4032 y rondana ISO 7089 (planta), como bloques `MECH-…` con denominación y norma en `description`; la inserción se escala a la unidad del documento | 5 | golden 84 (el bloque con sus 6 entidades y su `description` en el servidor); `mechanical.spec.ts` (84) | Sin M14, M30+, roscas finas, cabezas cilíndricas ni tornillería en pulgadas; sin vistas alternativas (planta del tornillo, alzado de la tuerca); sin agujero pasante ni roscado automáticos en la pieza. |
+| STEELSHAPE: la sección de PTR, OC, LI, CPS e IPR por sus medidas tecleadas, con sección y peso lineal en el aviso | 3 | `mechanical.spec.ts` (573,6 mm² y 4,50 kg/m del PTR 50,8 × 50,8 × 3, en papel) | Sin catálogo IMCA con designaciones cerradas (el usuario teclea las medidas; los defaults son comerciales redondos), sin radios de acuerdo ni de esquina, sin perfiles en alzado ni 3D. |
+| BALLOON y BOM: el globo numera solo, se queda con el bloque designado (o con la designación previa) y la lista da a cada normalizado la posición de su globo y a cada inserción su cantidad, como TABLE en la lámina | 5 | golden 84 (la TABLE con «1 · 1 · Tornillo hexagonal M10 × 40 · ISO 4017» en el servidor); `mechanical.spec.ts` (la lista con globo, sin globo y sobre un objeto sin normalizado) | El globo no es una entidad: son cuatro con la misma marca y no se mueven como un objeto (como el marco de TOLERANCE). Sin renumerar, sin globos apilados, sin material ni peso por fila, sin exportar la lista a CSV. |
+| WELDSYMBOL (ISO 2553 / AWS A2.4: nueve tipos, lado, tamaño, longitud, todo alrededor, en obra, cola) y SURFACESYMBOL (ISO 1302: básico, con o sin arranque de material, Ra, dirección de estrías, giro) como geometría con marca | 5 | golden 84 (cinco piezas cada uno con su marca en el servidor); `mechanical.spec.ts` (la disposición del símbolo con la flecha a cada lado, la bandera, la cola; las patas a 60°, la barra, el círculo, el giro) | Símbolos compuestos (dos tipos en el mismo lado), contorno del cordón, intermitencia (paso), símbolos de acabado con Rz/Rmax o valor máximo y mínimo: todavía no. Tampoco son entidades: mismas consecuencias que el globo. |
+| Cajetines ISO/ANSI/DIN/JIS, AMPOWERDIM, referencias cruzadas de piezas, centros de agujero y chaveteros paramétricos, cálculo de tornillería | 0 | — | Fuera de esta ola y dicho: el cajetín es una plantilla de lámina (Frente 1), el resto es contenido paramétrico sobre lo que ya existe. **Todavía no.** |
+
 ## Cómo se usa
 
 - **Al añadir una entrada nueva a `BACKLOG.md`:** decir el peldaño ACTUAL

@@ -2728,6 +2728,440 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "EL-CI-NO-OPINABA-Y-AHORA-DISPARA-EN-CADA-RAMA-20260902",
+      "date": "2026-09-02",
+      "initiative": "Tarea 0 del encargo «Valle Design → AutoCAD completo»: el repositorio fusionaba a ciegas. Medido con la API de Actions sobre las corridas de ci.yml del 2026-09-01/02: la rama claude/nada-tapa-un-control (#157) tuvo UNA corrida al abrir el PR (07:10 del día 1) y ninguna más hasta un commit titulado «Merge remote-tracking branch 'origin/main' … # Conflicts: docs/governance/assisted-development-log.json», que disparó la única otra corrida 17 s antes de la fusión; claude/lo-que-la-auditoria-midio (#166) y claude/dibujar-fuera-del-suelo (#170) no tuvieron ninguna corrida hasta ese mismo commit de resolución. La causa no era el filtro paths, ni el borrador, ni el workflow desactivado: GitHub no ejecuta los workflows de pull_request mientras el PR tiene conflicto de fusión (documentado en «Events that trigger workflows»), y en este repositorio cada campaña añade al mismo array de este fichero, así que todo PR entra en conflicto en cuanto se fusiona otro. Arreglo: `push` dispara en TODAS las ramas con el mismo filtro paths, el grupo de concurrencia pasa a ser el NOMBRE DE LA RAMA (head_ref || ref_name) para que la corrida de push y la de pull_request de la misma rama se sustituyan en vez de pagarse las dos, y todo lo que decidía «¿es main?» por el nombre del evento pasa a decidirlo por github.ref (navegadores, techos, e2e-perf, presupuesto de render). El filtro paths re-incluye docs/**/*.json y docs/competitive/**: check:cad lee rubric.json y regenera la matriz, y check:governance valida este mismo fichero, así que un PR que sólo tocara uno de ellos no corría nada. check:governance gana dos aserciones —push en todas las ramas y listas paths idénticas— con sus dos pruebas, verificadas mordiendo: mutar `branches: [\"**\"]` a `[main]` o desviar una lista devuelve 1. Lo que NO arregla, dicho: fusionar sin esperar el veredicto (#157 se fusionó 17 s después de arrancar su corrida y 44 s antes de que check:cad la pusiera en rojo) lo permite enforceAdmins:false, y `actions: write` para relanzar corridas desde una sesión (cancel_workflow_run devuelve 403 «Resource not accessible by integration», medido en esta sesión) son dos permisos que sólo el titular puede conceder. Medido también el estado real de main (ca21804): quality-gates verde, E2E rojo con los goldens 10, 19, 46-pointer-engine y 53 en el fragmento 1/4 (123 verdes en 33,1 min), 3/4 rojo, y 2/4 y 4/4 CANCELADOS a los 58 min de su techo de 60.",
+      "branch": "claude/valle-design-autocad-vqfa6u",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo escrito «Valle Design → AutoCAD completo, con sus siete toolsets», §4 «TAREA 0, antes de tocar producto: el CI no opina».",
+      "firstPartyInputs": [
+        "Las corridas de ci.yml y sus jobs/logs, leídos por la API de GitHub Actions (runs 33480893400, 33587565621, 33594091948, 33593969073, 33594595974).",
+        "Los PR #157, #166, #170, #156 y #174 y el mensaje del commit de cabecera de cada rama al fusionarse.",
+        "docs/governance/repository-protection-baseline.json y scripts/check-proprietary-governance.mjs."
+      ],
+      "externalSources": [
+        {
+          "name": "GitHub Docs — Events that trigger workflows (pull_request)",
+          "url": "https://docs.github.com/en/actions/reference/events-that-trigger-workflows#pull_request",
+          "terms": "Documentación pública de GitHub, consultada como referencia de comportamiento; no se copió texto ni código.",
+          "usedFor": "La regla de que un PR con conflicto de fusión no dispara workflows de pull_request, que es lo que la medición confirmó."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        ".github/workflows/ci.yml (push en todas las ramas, concurrencia por nombre de rama, condiciones por github.ref, paths que re-incluyen docs JSON y docs/competitive)",
+        "scripts/check-proprietary-governance.mjs y su spec (dos aserciones nuevas sobre ci.yml, con prueba que muerde)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Un PR con conflicto de fusión vuelve a tener veredicto sobre su propio SHA; el gate de gobernanza impide que el disparador de push se retire o que las dos listas paths se desvíen."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "OLA-B-LOS-TRES-QUE-BLOQUEAN-EL-TRABAJO-20260902",
+      "date": "2026-09-02",
+      "initiative": "Ola B del encargo «Valle Design → AutoCAD completo»: los tres defectos «bloquea el trabajo» de la auditoría de cliente final del 2026-09-01, cada uno con su prueba de auditoría graduada a golden. (1) Publicar dejaba el dibujo sin poder guardarse: publicar avanza la versión CAS en el servidor y publishSheetSetPdf refrescaba data.cadDocumentVersion pero no versionByDocumentRef, el token con el que persistCanonicalSave guarda de verdad; medido antes del arreglo con e2e/auditoria/refutacion-imprimir: control sin publicar PUT 200 y 200, caso publicando antes PUT 409 y «Conflicto CAS · servidor v2 · autosave detenido» sin segundo PDF; tras el arreglo, guardado tras publicar «Guardado», PUT 200, segunda publicación con PDF y versión de servidor 4 (3/3 verdes, graduada como golden 71). El render jsPDF (~180 líneas) sale del monolito a sheet-set-pdf.ts como función pura del plan: Layout3DEditor.tsx baja de 18455 a 18307 líneas. (2) Redefinir un bloque movía las instancias exactamente el desplazamiento de dónde se dibujó el recambio (+9000, +8000 medidos): BLOCK con un nombre existente pasa a preguntar «¿Redefinirlo? [Sí/No] <No>» como -BLOCK de AutoCAD, pide el punto base de la nueva definición y consume los objetos designados con op:redefine (que el aplicador ya sabía subir de versión); el botón «Redefinir» del panel arranca ese mismo gesto y la biblioteca del despacho se sincroniza al aplicarse la orden. Spec del comando ampliada (43 comprobaciones) y verificada mordiendo: contra el blocks.ts anterior falla. Graduadas: bloques.spec.ts → golden 69 (los pasos 8a/8b, «Mis bloques» y Ctrl+K, siguen rojos en sus propias refutaciones) y refutacion-block-redefine → golden 70. (3) La barra de estado estaba montada dentro de cad-canvas, absoluta abajo a la derecha, y se comía el pointerdown de los arrastres (3 objetos a 180 px del centro, 0 a 200 px): pasa a su propia franja bajo el lienzo, ancho completo y con las coordenadas primero, como en AutoCAD. Golden 68, gemelo del 67 para el área de dibujo: rejilla de 9×7 puntos más una fila a 40 px del borde inferior, cada uno debe responder <canvas>; antes del cambio midió que abajo a la derecha respondía el minimapa (div absolute bottom-3 right-3 bg-black/55) y, movido arriba a la derecha, seguía robando esa esquina, así que el minimapa queda apagado de fábrica (AutoCAD no tiene) y vive en la esquina de navegación cuando el usuario lo enciende. Efecto colateral medido por el golden 67 y arreglado: a 720 px de alto la columna de 16 botones de la paleta de herramientas no cabía bajo la barra («Área» y «Símbolos» tapados), así que en ventanas ≤820 px pasa a dos columnas; y el único residuo conocido del 67 («Release Sin validar» bajo la barra de herramientas) desapareció y su línea se borra, como exige el trinquete. Manifiesto de auditoría: 31 → 28.",
+      "branch": "claude/valle-design-autocad-vqfa6u",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo escrito «Valle Design → AutoCAD completo, con sus siete toolsets», §5 Ola B.",
+      "firstPartyInputs": [
+        "docs/competitive/auditoria-cliente-final-20260901.md y las pruebas de apps/web/e2e/auditoria/ (refutacion-imprimir, bloques, refutacion-block-redefine, capas), corridas en esta máquina antes y después de cada arreglo.",
+        "Los goldens 67 y 68 corridos contra el build de producción con NEXT_PUBLIC_API_URL=http://localhost:4000."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "apps/web/src/components/cad/editor/Layout3DEditor.tsx (token CAS tras publicar; barra de estado como hermana del lienzo; minimapa en la esquina de navegación; Redefinir → BLOCK)",
+        "apps/web/src/components/cad/editor/sheet-set-pdf.ts (nuevo: render jsPDF extraído)",
+        "apps/web/src/lib/cad/engine/commands/blocks.ts y blocks.spec.ts; apps/web/src/lib/cad/blocks/block-workflow.ts (cadRedefineBlockCommands)",
+        "apps/web/src/components/cad/studio/CadStatusBar.tsx, viewport/CadOverviewMinimap.tsx, editor/CadToolPalette.tsx, palettes/CadBlockPalette.tsx, lib/cad/cad-workspace.ts, app/globals.css",
+        "apps/web/e2e/golden/67, 68 (nuevo), 69, 70 y 71 (graduados de auditoria/) y apps/web/e2e/auditoria/manifiesto.json"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Tres pruebas de auditoría que estaban rojas a propósito pasan a goldens en verde, y un golden nuevo vigila que ninguna capa vuelva a robarle el ratón al área de dibujo."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "OLA-A-RECONOCIMIENTO-COMO-AUTOCAD-20260902",
+      "date": "2026-09-02",
+      "initiative": "Ola A del encargo «Valle Design → AutoCAD completo»: que un dibujante de AutoCAD reconozca el producto en cinco minutos, con el instrumento arreglado primero. Instrumento: rubric.json publica los dos denominadores con su etiqueta (HOY 189 pt, DESTINO 258 pt), nace el eje `recognition` (7 criterios, 14 pt, cada uno con golden o spec que lee bytes) y las siete filas de toolsets (28 pt, casi todas a cero y dichas así; Electrical y Plant 3D fuera de alcance por escrito en ESCALERA); rubric.spec.mjs fija los denominadores nuevos con nota fechada. A1 · TEXT, la etiqueta de la cota, la directriz y las celdas de la tabla se dibujan en espacio modelo: el pipeline pide al adaptador sus peticiones de texto (`textOnly` en el registro, `text-requests.ts`), el atlas alinea por métrica real y el golden 47 cuenta ≥56 glifos. A2 · La cinta abre en Inicio con Dibujo · Modificar · Anotación · Capas · Bloque · Propiedades, LINE primero, pestaña Paramétrico, orden declarado en `ribbon-order.ts` y sin panel de respaldo (`cadRibbonPanelFallbacks()` vacío). A3 · Teclear con el lienzo enfocado escribe en la línea de comandos (fase 0 de `editor-keyboard.ts`), Intro devuelve el foco y Espacio vale por Intro/repite. A4 · Las 12 letras sueltas que robaban alias de acad.pgp (M E O P Z A B F G V W R) se apagan; `keyboard-alias-collisions.spec` vigila registro, ayuda, títulos y overrides persistidos. A5 · Arrastrar sobre el fondo designa (ventana izq→der, cruce der→izq), el botón central encuadra (`mouseButtons.MIDDLE = PAN`), dos dedos siguen encuadrando y nunca abren marquee; preferencia `backgroundDrag` en el workspace. A6 (mitad de tipos de línea) · las ranuras guardan la secuencia .lin completa (32 × 8 tramos; catálogo y detrás la fábrica en orden fijo, `overflow`/`simplified` declarados), el shader recorre los tramos con índice dinámico (#version 300 es), la escena rellena el uniforme al llegar el documento, el anfitrión resuelve BYLAYER con `defaultCadRenderStyle` (medido antes: `linetypeIndex: 0` fijo), el papel lleva `dash`, plot-pdf emite `[…] 0 d` y el DXF escribe el patrón de fábrica de los tipos referenciados. A6 (mitad de sombreados) · `hatch-pattern-table.ts` define 24 patrones por familias (ángulo, separación, desfase, corrimiento por fila, trazos y puntos) y `hatch-pattern-strokes.ts` es el único generador para pantalla, papel y DXF (antes: ocho nombres, un mismo sha1); `entity.angle` conserva su significado (ángulo absoluto de la primera familia, base 45 en ANSI31) y el DXF escribe el giro real en 52 (antes 52 = 53 = 45 y AutoCAD abría las rayas a 90°) y una definición 53/43-46/79/49 por familia; la importación suma la base al 52; el comando HATCH toma la base del patrón elegido salvo ángulo tecleado. Efectos medidos y arreglados por el camino: el botón «Terminar comando» quedaba bajo la línea de comandos (golden 61) y pasa a la banda alta; la barra de llamada en `fixed right-3 top-[11.5rem]` tapaba «Cerrar panel profesional» (goldens 19 y 72, 485 reintentos) y, con ella, la mensajería (`left-3 bottom-16`, que cayó sobre una plantilla de la biblioteca en cuanto la cinta cambió de alto, golden 67) y la colaboración pasan a la bandeja de la barra de estado por portal (`use-studio-tray.ts`); la barra de borrador en `flex-nowrap` se salía del lienzo con PLINE y «Cerrar» (golden 33) y pasa a dos renglones como máximo con `w-max`; la cinta baja de 116 a 96 px y la barra de estado oculta lo de segundo orden bajo 40 rem con altura uniforme por elemento (golden 19: lienzo 511 → 529 px a 720 de alto; golden 72: 33 unidades de deriva por un renglón 3 px más alto); con rastreo polar y rejilla de captura, la distancia a lo largo del rayo se captura al paso de la rejilla (PolarSnap; golden 53: un muro pinchado a 8011 quedaba en 8011).",
+      "branch": "claude/valle-design-autocad-vqfa6u",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo escrito «Valle Design → AutoCAD completo, con sus siete toolsets», §Ola A y §instrumento.",
+      "firstPartyInputs": [
+        "docs/competitive/auditoria-cliente-final-20260901.md, distancia-autocad-completo-20260901.md y liston-autocad-completo.md, leídos enteros antes de tocar código; cada frente se midió antes (grep, scripts en scratchpad, goldens) y después.",
+        "Specs de Node nuevos o ampliados, corridos en esta máquina: text-requests (42), editor-keyboard (115), keyboard-alias-collisions (8), shortcuts-help (54), background-drag-policy (15), pointer-router (19), camera-policy, cad-workspace, ribbon/ribbon-golden/ribbon-icons, cad-effective-style (9), line-batch (17), scene (9), render-pipeline-host (25), plot-linetype-pattern, dxf-linetype-table, dxf-property-loss (58 sondas, 0 pérdidas en silencio).",
+        "Goldens corridos contra el build de producción con NEXT_PUBLIC_API_URL=http://localhost:4000 (Chromium, 1 worker): ver PR #176 para el recuento de la última tanda."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. Los nombres y secuencias de los tipos de línea de fábrica son los ya presentes en linetype-lin.ts; el shader es propio.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/render/{text-requests.ts, pipeline.ts, pipeline-offthread.ts, text-atlas.ts, line-batch.ts, line-batch-three.ts, scene.ts, render-style.ts}; lib/cad/{dimension-text-context.ts, entity-runtime.ts, text-entity-adapter.ts, annotation-v4-adapters.ts, block-text-adapters.ts}",
+        "apps/web/src/lib/cad/{ribbon.ts, ribbon-order.ts, keyboard-shortcuts.ts, editor-keyboard.ts, cad-workspace.ts, toolbar.ts, cad-effective-style.ts, linetype-resolve.ts, paper-space.ts, paper-space-style.ts, dxf-document-export.ts, plot/plot-pdf.ts, plot/pdf-measure.ts}",
+        "apps/web/src/components/cad/{editor/Layout3DEditor.tsx (18.349 líneas, techo 18.454), viewport/background-drag-policy.ts, viewport/camera-policy.ts, viewport/pointer-router.ts, viewport/live-cursor.ts, viewport/render-pipeline-host.ts, command-line/*, studio/CadStatusBar.tsx, studio/use-studio-tray.ts, studio/draft-toolbar.tsx, studio/editor-presentation.ts, palettes/CadDynamicInput.tsx, palettes/CadWorkspaceDock.tsx, ribbon/*, calls/CallBar.tsx, messaging/TeamMessagingHost.tsx, collab/StudioCollaborationLayer.tsx, palettes/CadDraftStatusBar.tsx}; app/globals.css",
+        "apps/web/e2e/golden/72-cad-arrastre-designa.spec.ts (nuevo) y goldens 12, 19, 44, 47, 61 ajustados; e2e/fixtures/{cad-v1-backend.ts, mock-backend.ts, world-point.ts}; e2e/real/{cables-sueltos, primera-hora}",
+        "docs/competitive/{rubric.json, autocad-2027-gap-matrix.md, distancia-autocad-completo-20260901.md}, docs/parity/ESCALERA.md, scripts/cad/{rubric.spec.mjs, check-ribbon-coverage.mjs}",
+        "apps/web/src/lib/cad/{hatch-pattern-table.ts, hatch-pattern-strokes.ts} (nuevos), hatch-entity-adapter.ts, hatch-publish-strokes.ts, dxf-export.ts, dxf-cad-document.ts, engine/commands/annotate-hatch.ts"
+      ],
+      "fixtures": "Ninguno nuevo con datos ajenos; los documentos de prueba son geometría sintética.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Siete criterios de reconocimiento medidos en pantalla o en bytes, un golden nuevo (72) y el instrumento con sus dos denominadores etiquetados; la mitad de sombreados de A6 queda declarada pendiente."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "OLA-C-CIMIENTO-3D-20260902",
+      "date": "2026-09-02",
+      "initiative": "Ola C del encargo «Valle Design → AutoCAD completo»: el cimiento 3D. (1) La cota de punta a punta: `pt()` conserva el código 30 y `pushPoint` lo escribe (antes «0» fijo: un pilar de tres metros salía de longitud cero), la LINE escribe 31, la POLYLINE lleva su elevación en la cabecera o sale como polilínea 3D (bit 8, VERTEX 70=32) cuando sus cotas difieren y no hay bulge, `point3z` escala la z con la proyección, `dxf-read-properties.ts` captura 210/220/230 (dxf-parser los tira en CIRCLE) y `enElMundo` devuelve al mundo lo dibujado en un SCU reflejado (0,0,−1): (x,y,z)→(−x,y,−z), arcos de a→b a 180−b→180−a, bulge con el signo cambiado; `avisoDeCotaPerdida` sólo declara lo que sigue sin caber (plano inclinado, textos e inserciones) y el manifiesto de exportación sólo la polilínea con arcos y cotas distintas. Verificado en `verification/z-frontiers.spec.ts` con dxf-parser de oráculo. (2) `spatial` gana el grado `\"elevation\"` y el motor distingue el SCU elevado del inclinado (`cadActiveUcsIsInclined`): PLINE conserva la cota de cada vértice, prolonga Longitud en 3D y rechaza Arco sobre plano inclinado diciéndolo; RECTANG calcula en el plano del SCU (`worldToUcs`/`ucsToWorld`) y rechaza Empalme inclinado; CIRCLE y ARC toman la cota del primer punto; se teclea `x,y,z`. (3) Las ocho primitivas (`solids-primitives.ts`: BOX y WEDGE por esquinas con Centro/Cubo/Longitud/2Puntos; CYLINDER, CONE con Radio superior, SPHERE y TORUS con Diámetro; PYRAMID con Lados, Inscrito/Circunscrito y Radio superior; POLYSOLID con Altura/Ancho/Justificación/Objeto/Cerrar), cada una UN nodo reeditable (`box`, `extrude`, `revolve`, `brep`), con el volumen medido en papel (el cilindro exacto, el cono como pirámide N-gonal `N·r²·h·sin(2π/N)/6`). (4) SOLIDEDIT con Cara Extruir (nodo `push`), Cuerpo Comprobar y Cuerpo Separar (una unión de cuerpos que no interfieren, en un sólido por operando); las once ramas restantes declaradas en el diálogo. Medido antes: la sonda de integridad pasa de 204 a 213 comandos con 0 éxitos falsos; la cinta cubre 213/213; la rúbrica gana `modeling3d` (5 pt de DESTINO, denominador 265 con nota fechada). Lo que sigue en «todavía no» queda en ESCALERA: plano inclinado para círculos, arcos, primitivas e importación DXF; ver la cota en pantalla; las transformadas 3D, superficies y malla.",
+      "branch": "claude/valle-design-autocad-vqfa6u",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo escrito «Valle Design → AutoCAD completo, con sus siete toolsets», §Ola C (cimiento 3D).",
+      "firstPartyInputs": [
+        "docs/competitive/distancia-autocad-completo-20260901.md §Modelado 3D (la sonda de 69 órdenes: 24 presentes, 45 ausentes) y docs/competitive/liston-autocad-completo.md §1 y §5; cada frontera de la cota se midió antes con grep y specs de sonda en el scratchpad.",
+        "Specs de Node nuevos o ampliados, corridos en esta máquina: verification/z-frontiers (39), dxf-import-cota, dxf-export-losses, dxf-corpus-roundtrip, verification/dxf-roundtrip, draw-spatial (25), ucs-3d (68), precision-input (26), solids-primitives (60), solids-edit (24), command-summaries, ribbon, ribbon-golden, keyboard-alias-collisions; sonda de integridad 213 comandos, 0 ROJO.",
+        "Golden 73 (BOX y CYLINDER tecleados; el volumen se recalcula con el kernel sobre lo que recibió el servidor) contra el build de producción, Chromium, 1 worker: ver PR #176."
+      ],
+      "externalSources": [
+        {
+          "source": "Especificación DXF de Autodesk (documentación pública): códigos 30/31/38/210 y el algoritmo del eje arbitrario del OCS; bit 8 del código 70 de POLYLINE y 70=32 de VERTEX.",
+          "terms": "Documentación pública de referencia del formato; no se copió implementación alguna.",
+          "usedFor": "dxf-import-cota.ts (enElMundo), dxf-export.ts (pushPolyline), dxf-read-properties.ts (extrusionOrNothing)."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna. Las primitivas se construyen con los constructores propios de lib/brep (circleProfile, extrudeProfile, revolveProfile, buildBody).",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/{dxf-read-core.ts, dxf-write-core.ts, dxf-export.ts, dxf-entity-primitives.ts, dxf-projection.ts, dxf-cad-document.ts, dxf-import.ts, dxf-import-cota.ts, dxf-read-properties.ts, dxf-export-loss-manifest.ts, precision-input.ts, system-variables.ts}",
+        "apps/web/src/lib/cad/engine/{command-types.ts, command-engine.ts, spatial-point.ts (nuevo), index.ts, command-summaries.ts}; engine/commands/{draw-basics.ts, draw-curves.ts, draw-pline.ts, draw-rectang.ts, solids-primitives.ts (nuevo), solids-edit.ts (nuevo)}",
+        "apps/web/src/lib/cad/ribbon.ts; apps/web/e2e/golden/73-cad-primitivas-de-solido.spec.ts (nuevo)",
+        "docs/competitive/{rubric.json, autocad-2027-gap-matrix.md, distancia-autocad-completo-20260901.md}, docs/parity/ESCALERA.md, docs/cad/evidence/{command-integrity.json, ui-command-reach.json}, scripts/cad/rubric.spec.mjs",
+        "apps/api/src/modules/identity/identity-mfa.pg.spec.ts (el caso de carrera emite sus dos desafíos en serie; la carrera medida sigue en paralelo)"
+      ],
+      "fixtures": "Ninguno nuevo con datos ajenos; los DXF de las specs se escriben a mano en el propio spec.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Ocho primitivas y SOLIDEDIT con specs de volumen y golden 73; la cota verificada contra un lector de terceros; la sonda de integridad a 213 con 0 éxitos falsos; lo que no cabe, en ESCALERA."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "OLA-D-TRABAJO-AJENO-20260902",
+      "date": "2026-09-02",
+      "initiative": "Ola D del encargo «Valle Design → AutoCAD completo»: el trabajo ajeno. (1) HPGAPTOL como variable de sistema (`real`, mínimo 0) y `cadHatchGapTolerance` en `hatch-support.ts`: los dos llamadores de `stitchCadBoundaryPaths` pasan la tolerancia (antes, medido, un solo argumento y 1e-4 mm fijo); HATCH, BOUNDARY y JOIN ofrecen la palabra `Tolerancia`, PEDIT Juntar acepta la distancia de aproximación, y un sombreado que sólo cierra con tolerancia nace NO asociativo y el prompt lo dice (guardarla por sombreado sería tocar el formato persistido: decisión del titular, no tomada). La prueba de despacho del área 2 —34 LINE con huecos de 0,2 a 0,92 mm— vive en `verification/prueba-de-despacho.spec.ts` (72, oráculo en papel: 92.840.000 mm² y 46.297,06 mm) y en el golden 74 (HATCH que dice que no cierra con HPGAPTOL 0 y cierra con 2; BOUNDARY; Ctrl+A + JOIN Tolerancia; AREA Objeto con el ratón). (2) Portapapeles de geometría canónica: `lib/cad/clipboard.ts` (almacén en memoria compartido entre editores, punto base por envolvente o tecleado, pegado por `adapter.commands.transform`, lo asociativo desligado, el bloque que falta definido) y `engine/commands/clipboard.ts` (COPYCLIP, CUTCLIP, COPYBASE piden al anfitrión con `CadHostRequest` `clipboard`; PASTECLIP y PASTEORIG leen `context.clipboard`); Ctrl+C/X/V sobre lo nativo van por el motor (antes, medido, Ctrl+C duplicaba en el sitio y el botón prometía un portapapeles); golden 75. (3) SELECTSIMILAR (tipo, capa y bloque, como designación) y ADDSELECTED (petición `chain-command`: el anfitrión pone CLAYER/CECOLOR/CELTYPE, arranca la orden del tipo y las devuelve al terminar); XPLODE (capa, color, tipo de línea sobre las piezas de `cadExplodeCommands`; Heredar = Explotar porque la resolución del bloque ya coloca capa 0 y PorBloque, medido y dicho en la etiqueta), SETBYLAYER, CHPROP (en bucle, un lote) y NCOPY (la pieza que el clic toca dentro del bloque colocado); golden 76. (4) Por el camino, medido: COLOR/LINETYPE/LWEIGHT escribían CECOLOR/CELTYPE/CELWEIGHT y ninguna orden las leía; `engine/current-presentation.ts` las aplica en `finish` a lo que dibujan las órdenes de dibujo y anotación (con las variables de fábrica el lote es el mismo array). La sonda de integridad pasa de 213 a 224 comandos con 0 éxitos falsos; la cinta cubre 224/224 con el panel Portapapeles en Inicio; la rúbrica gana `foreign-work` (6 pt de HOY: denominadores 197/271 con nota fechada).",
+      "branch": "claude/valle-design-autocad-vqfa6u",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo escrito «Valle Design → AutoCAD completo, con sus siete toolsets», §Ola D (trabajo ajeno).",
+      "firstPartyInputs": [
+        "docs/competitive/distancia-autocad-completo-20260901.md §FRENTE 3 (la prueba de despacho, el portapapeles que duplicaba, las seis órdenes ausentes) y docs/competitive/liston-autocad-completo.md §2; cada afirmación se midió antes con grep y sondas en el scratchpad (resolveCadInsert coloca capa 0 y PorBloque; el INSERT sin documento mide 5950 y con documento 5800).",
+        "Specs de Node nuevos o ampliados, corridos en esta máquina: verification/prueba-de-despacho (72), clipboard (33), engine/commands/clipboard (48), select-similar (24), modify-foreign (54), current-presentation (15), modify-pedit (13 anclas), editor-keyboard (120), command-engine-host (portapapeles entre dos editores; ADDSELECTED encadena y devuelve), annotate-hatch (77), modify-join, hatch-associativity, system-variables (108), command-summaries (224/224), ribbon, ribbon-icons; sonda de integridad 224 comandos, 0 éxitos falsos.",
+        "Goldens 74 (la prueba de despacho, dos recorridos), 75 (Ctrl+C/V/X y PASTEORIG) y 76 (ADDSELECTED, SETBYLAYER, SELECTSIMILAR + Ctrl+X, CHPROP, XPLODE) verdes en Chromium contra el build de producción."
+      ],
+      "externalSources": [
+        {
+          "source": "Documentación pública de AutoCAD sobre HPGAPTOL, SELECTSIMILARMODE, XPLODE, NCOPY y el comportamiento de COPYCLIP/PASTECLIP (punto base implícito, ByLayer al pegar).",
+          "terms": "Documentación pública de referencia del comportamiento; no se copió implementación alguna.",
+          "usedFor": "El vocabulario de las órdenes y sus opciones (Tolerancia, Insertar, Heredar) y las reglas de pegado."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna. El cosido de contornos, la traslación de entidades y la resolución de bloques son los módulos propios ya existentes (hatch-associativity.ts, entity-runtime.ts, professional-blocks.ts).",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/{system-variables.ts, clipboard.ts (nuevo), editor-keyboard.ts, ribbon.ts, ribbon-order.ts, verification/planta-mal-empatada.ts (nuevo)}",
+        "apps/web/src/lib/cad/engine/{command-types.ts, command-engine.ts, host-requests.ts, current-presentation.ts (nuevo), index.ts, command-summaries.ts}; engine/commands/{hatch-support.ts, annotate-hatch.ts, modify-join.ts, modify-pedit.ts, clipboard.ts (nuevo), select-similar.ts (nuevo), modify-foreign.ts (nuevo)}",
+        "apps/web/src/components/cad/command-line/{command-engine-host.ts, plot-host.ts}; components/cad/ribbon/ribbon-icons.ts; components/cad/editor/Layout3DEditor.tsx (Ctrl+C/X/V al motor, el título del botón dice la verdad)",
+        "apps/web/e2e/golden/{74-cad-prueba-de-despacho, 75-cad-portapapeles, 76-cad-trabajo-ajeno}.spec.ts (nuevos)",
+        "docs/competitive/{rubric.json, autocad-2027-gap-matrix.md, distancia-autocad-completo-20260901.md}, docs/parity/ESCALERA.md, docs/cad/evidence/{command-integrity.json, ui-command-reach.json}, scripts/cad/rubric.spec.mjs"
+      ],
+      "fixtures": "Ninguno nuevo con datos ajenos; la planta de 34 tramos se genera en `planta-mal-empatada.ts` y el DXF se escribe en el propio spec.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "La prueba de despacho como spec con oráculo en papel y como golden; el portapapeles y las seis órdenes con specs y goldens; la sonda de integridad a 224 con 0 éxitos falsos; lo que no cabe, en ESCALERA; ninguna decisión de formato persistido tomada por la sesión."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "OLA-E-ARCHITECTURE-20260902",
+      "date": "2026-09-02",
+      "initiative": "Ola E del encargo «Valle Design → AutoCAD completo»: el toolset Architecture. (1) Los cuadros salen en la lámina: `paper-space-table.ts` (nuevo) emite un comando de texto por celda con la misma ancla que el visor (`middle-left`, relleno 0,15 × fila, línea base 0,35 × alto bajo el centro), enganchado en `paper-space.ts` tras la rejilla del registro; antes, medido con `buildCadPublishPlan`, un cuadro de 2 × 2 lleno llegaba como 3 caminos y 0 textos con `warnings: []`. `paper-space-table.spec.ts` (14) mide la ancla contra un MTEXT colocado a mano y lee el texto de vuelta de los bytes del PDF con `measureCadPdf`. (2) El cuadro de superficies con NOMBRE: `bim-schedule.ts` recoge los TEXT/MTEXT del dibujo y nombra cada local por el rótulo que cae dentro de su anillo (`cadPointInBoundary`; el de mayor altura, a igualdad el más cercano al centroide) y le pone el uso con `roomUseTypeFromTags` de `architecture.ts` — la costura medida en distancia §4 1º («un cuadro que dice L-03 no se entrega»); las filas de huecos llevan antepecho y se agrupan por marca + antepecho. `data-extraction.ts` gana `buildCadRoomScheduleTable` y `buildCadOpeningScheduleTable`; DATAEXTRACTION ofrece Tabla/Superficies/carPintería/CSV y se niega, diciéndolo, sin locales o sin huecos. Golden 77. (3) STAIR (`architecture-stair.ts`, nuevo): arranque y dirección; N = ⌈H/cmax⌉, c = H/N, h = 630 − 2c (Blondel) o tecleada; contrahuella ≤ 180 y huella ≥ 250 (Reglamento de Construcciones CDMX/NTC; vale en el CTE) se imponen al teclearlos con el número; Blondel fuera de 600–650 se dice, no se prohíbe. Emite la planta (contorno, N − 2 contrahuellas interiores, subida, flecha, SUBE girado) y UN SOLID3D `extrude` de canto (el marco de WEDGE) con volumen `ancho · h · c · (N − 1) · N / 2`, contrastado en `architecture-stair.spec.ts` (78). Golden 78. (4) ROOF y SLAB (`architecture-roof.ts`, nuevo): ROOF sobre un rectángulo (cuatro/dos/un agua, pendiente %, alero; cumbrera, limatesas, flechas y rótulos en %; sólido `brep` con volumen `h·W·((L−W)/2 + W/3)` o `L·W·h/2`, pirámide sobre cuadrado; se niega sobre pentágonos, romboides, abiertas y líneas diciendo por qué); SLAB por contorno cerrado con la cara superior a la cota (o `Elevación`) y el contorno conservado. `architecture-roof.spec.ts` (109). Golden 79. (5) Instrumento: el resultado `document` gana `notice` (la orden que escribe puede decir sus números; el anfitrión lo registra tras el lote); `architecture-support.ts` (nuevo) unifica la tabla mm/unidad que WALL tenía en privado; la sonda de integridad pasa de 224 a 227 comandos con 0 éxitos falsos; la cinta cubre 227/227 (panel Arquitectura); la rúbrica `toolset-architecture.interiores` pasa de «todavía no» a evidencia real (2 pt; la fila retiene 1 pt hasta evidencia independiente: DESTINO 214/271). Sin entidad `stair`/`roof`/`slab` persistida ni HPGAPTOL por sombreado: formato persistido, decisión del titular.",
+      "branch": "claude/valle-design-autocad-vqfa6u",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo escrito «Valle Design → AutoCAD completo, con sus siete toolsets», §Ola E (Architecture: escaleras, techos, cubiertas, tablas de superficies y carpintería en la lámina).",
+      "firstPartyInputs": [
+        "docs/competitive/distancia-autocad-completo-20260901.md §4 1º ARCHITECTURE (la costura de los dos modelos de local, la rama `table` del Frente 1) y docs/parity/ESCALERA.md (fila Architecture); cada afirmación se midió antes con `buildCadPublishPlan` y sondas en el scratchpad (3 caminos y 0 textos por cuadro; `room.id = L-01` sin nombre).",
+        "Specs de Node nuevos o ampliados, corridos en esta máquina: paper-space-table (14), bim-schedule (57), data-extraction (24), data-extraction-commands (20), architecture-stair (78), architecture-roof (109), draw-wall, engine/index (227), solids-primitives (60), ribbon (227 en 7 pestañas); sonda de integridad 227 comandos, 0 éxitos falsos.",
+        "Goldens 77 (los dos cuadros con nombre), 78 (STAIR con los defaults y con Altura/Huella) y 79 (ROOF a dos aguas y SLAB sobre el perímetro) verdes en Chromium contra el build de producción."
+      ],
+      "externalSources": [
+        {
+          "source": "Reglamento de Construcciones para el Distrito Federal y sus Normas Técnicas Complementarias (huella mínima 25 cm, peralte máximo 18 cm) y CTE DB-SUA 1 (contrahuella 13–18,5 cm, huella ≥ 28 cm); la regla de Blondel (2c + h ≈ 63 cm).",
+          "terms": "Normativa pública; se usan los números, no texto alguno.",
+          "usedFor": "Los límites de STAIR y su horquilla de comodidad."
+        },
+        {
+          "source": "Documentación pública de AutoCAD Architecture sobre STAIRADD, ROOFADD y SLABADD.",
+          "terms": "Documentación pública de referencia del comportamiento; no se copió implementación alguna.",
+          "usedFor": "Los nombres de alias y el vocabulario de las opciones."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna. El kernel B-rep, la extracción de perfiles (`solid3d-profiles.ts`), el cosido de anillos y la clasificación de locales son módulos propios ya existentes.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/{paper-space.ts, paper-space-table.ts (nuevo), bim-schedule.ts, data-extraction/data-extraction.ts}",
+        "apps/web/src/lib/cad/engine/{command-types.ts (notice), command-engine.ts, index.ts, command-summaries.ts, alias-table.ts}; engine/commands/{architecture-support.ts (nuevo), architecture-stair.ts (nuevo), architecture-roof.ts (nuevo), draw-wall.ts, solids-support.ts, data-extraction-commands.ts}; lib/cad/ribbon.ts",
+        "apps/web/e2e/golden/{77-cad-cuadros-de-superficies-y-carpinteria, 78-cad-escalera, 79-cad-cubierta-y-losa}.spec.ts (nuevos)",
+        "docs/competitive/{rubric.json, autocad-2027-gap-matrix.md, distancia-autocad-completo-20260901.md}, docs/parity/ESCALERA.md, docs/cad/evidence/{command-integrity.json, ui-command-reach.json}"
+      ],
+      "fixtures": "Ninguno nuevo con datos ajenos; las plantas de los goldens y de los specs se montan en el propio fichero.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Los cuadros en la lámina medidos en los bytes del PDF; STAIR, ROOF y SLAB con volúmenes por fórmula en papel y goldens; la sonda de integridad a 227 con 0 éxitos falsos; lo que no cabe, en ESCALERA; ninguna decisión de formato persistido tomada por la sesión."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "OLA-F-MEP-20260902",
+      "date": "2026-09-02",
+      "initiative": "Ola F del encargo «Valle Design → AutoCAD completo»: el toolset MEP (mitad 2D). (1) Tipos de línea con TEXTO: `lib/cad/linetype-complex.ts` (nuevo) con siete de fábrica (GAS_LINE y HOT_WATER_SUPPLY de acad.lin; AGUA_FRIA, AGUA_CALIENTE, SANITARIO, PLUVIAL, CONTRA_INCENDIO) referenciados por NOMBRE, porque el documento persiste sólo trazos y guardar el texto sería tocar el formato (decisión del titular, no tomada); `render/linetype-text-requests.ts` (nuevo) pide al atlas un quad por rótulo con el tipo efectivo de la entidad y LTSCALE × la propia, enganchado en `render/pipeline.ts`; `paper-space-linetype-text.ts` (nuevo) emite el texto por ciclo con la misma regla que el guion del papel (`paper-space-style.ts` devuelve ahora el nombre del tipo); `dxf-write-tables.ts` escribe el LTYPE complejo (74 = 2, 75, 46, 50, 44, 45, 9 sobre el tramo en cuyo arranque lo coloca el .lin; sin 340 porque el escritor no asigna handles a STYLE; sin oráculo externo: el corpus admitido no trae ningún 74 ≠ 0 y dxf-parser lo ignora, dicho en ESCALERA); el lector `.lin` dice qué texto llevaba lo que no carga y nombra la familia de fábrica; la tabla del shader pasa de 32 a 48 ranuras (144 vectores, bajo los 224 mínimos de WebGL2) porque veinte nombres de despacho ya no cabían con quince de fábrica. `linetype-complex.spec.ts` (37, con el PDF leído de sus bytes y el DXF de ida y vuelta). (2) Medido y arreglado por el camino: `LTSCALE 500` tecleado no movía un guion (la variable se quedaba en la sesión) — ahora es `meta.linetypeScale` por la fachada de `use-command-engine.ts`, como CLAYER, con su entrada de deshacer en el editor; y el diálogo «Exportar a DXF» montaba las capas sólo por nombre (GAS = GAS_LINE salía como `6 CONTINUOUS`, sin tabla LTYPE ni $LTSCALE) — `layout-export-adapter.ts` toma capas, tabla y escala del documento por `cadDocumentDxfLayerDefinitions`/`cadDxfLinetypeTable`, la misma traducción que DXFOUT (`layout-export-adapter.spec.ts`). Golden 80. (3) MEP como contenido sobre el mismo motor: `engine/commands/mep-support.ts` (servicios, capas IH-/IS-/IG-/PCI-/AA-/IE- con su color y tipo de línea, doble línea a inglete cuya área en un codo es ancho × (L₁ + L₂)), `mep-tracing.ts` (PIPE con Diámetro y servicio; DUCT y CABLETRAY con aNcho: contorno + eje CENTER; receta en `context.metadata`, que el formato ya tiene), `lib/cad/mep-symbols.ts` + `mep-symbol.ts` (MEPSYMBOL: ocho bloques con geometría definidos la primera vez que se insertan), `lib/cad/mep-schedule.ts` + `data-extraction/mep-schedule-table.ts` (longitudes por servicio y tamaño por el eje, equipos por símbolo) y DATAEXTRACTION Instalaciones. `mep-tracing.spec.ts` (71). Golden 81. (4) Instrumento: sonda de integridad 227 → 231 comandos con 0 éxitos falsos; cinta 231/231 con el panel Instalaciones; `toolset-mep` de 0 a 3 de 4 (retiene 1 pt hasta evidencia independiente).",
+      "branch": "claude/valle-design-autocad-vqfa6u",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo escrito «Valle Design → AutoCAD completo, con sus siete toolsets», §Ola F (MEP, mitad 2D, tras Architecture).",
+      "firstPartyInputs": [
+        "docs/competitive/distancia-autocad-completo-20260901.md §4 2º MEP (el bloqueo son los tipos de línea complejos) y §Frente 1; docs/competitive/liston-autocad-completo.md §[I] tipos de línea; cada afirmación se midió antes (el .lin con texto salía por `skipped`; LTSCALE tecleado no cambiaba `meta.linetypeScale`; el DXF del diálogo con `6 CONTINUOUS`, capturado en el scratchpad).",
+        "Specs de Node nuevos o ampliados, corridos en esta máquina: linetype-complex (37), mep-tracing (71), layout-export-adapter, cad-effective-style (48 ranuras), linetype, session-catalogs, render/line-batch, render/scene, render/text-requests, dxf-export, dxf-linetype-table, paper-space-table, data-extraction-commands (Instalaciones), command-summaries (231/231), ribbon (231 en 7 pestañas); sonda de integridad 231, 0 éxitos falsos.",
+        "Goldens 80 (GAS_LINE en pantalla, LTSCALE en vivo, DXF con 74 = 2) y 81 (PIPE, DUCTO, MEPSYMBOL, DATAEXTRACTION Instalaciones) verdes en Chromium contra el build de producción."
+      ],
+      "externalSources": [
+        {
+          "source": "acad.lin de AutoCAD (documentación pública del formato .lin y de GAS_LINE/HOT_WATER_SUPPLY) y la referencia pública del DXF para los códigos 73/40/49/74/75/46/50/44/45/9 de LTYPE.",
+          "terms": "Documentación pública de referencia del formato; no se copió implementación alguna. Los siete ciclos se escriben aquí con los números del .lin público.",
+          "usedFor": "La geometría del ciclo con texto y los códigos de grupo del LTYPE complejo."
+        },
+        {
+          "source": "Documentación pública de AutoCAD MEP sobre PIPEADD, DUCTADD, CABLETRAYADD y DEVICEADD; NOM-001-SEDE para los símbolos eléctricos (contacto, apagador).",
+          "terms": "Documentación pública; se usan nombres y convenciones de dibujo, no código.",
+          "usedFor": "Alias, vocabulario de las opciones y el dibujo de los símbolos."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna. El lote de líneas, el atlas de texto, el plan de publicación, el escritor DXF y el ejecutor de lotes son módulos propios ya existentes.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/{linetype-complex.ts (nuevo), linetype-lin.ts, cad-effective-style.ts, paper-space.ts, paper-space-style.ts, paper-space-linetype-text.ts (nuevo), dxf-export.ts, dxf-write-tables.ts, dxf-document-export.ts, layout-export-adapter.ts, mep-symbols.ts (nuevo), mep-schedule.ts (nuevo), ribbon.ts, ribbon-order.ts}; render/{pipeline.ts, linetype-text-requests.ts (nuevo), line-batch-three.ts}; data-extraction/{data-extraction.ts, mep-schedule-table.ts (nuevo)}",
+        "apps/web/src/lib/cad/engine/{index.ts, command-summaries.ts, alias-table.ts}; engine/commands/{mep-support.ts (nuevo), mep-tracing.ts (nuevo), mep-symbol.ts (nuevo), data-extraction-commands.ts}",
+        "apps/web/src/components/cad/command-line/use-command-engine.ts (LTSCALE por la fachada), components/cad/editor/Layout3DEditor.tsx (setDocumentLinetypeScale; el documento al diálogo de exportación), components/cad/ribbon/ribbon-icons.ts",
+        "apps/web/e2e/golden/{80-cad-tipo-de-linea-con-texto, 81-cad-instalaciones}.spec.ts (nuevos)",
+        "docs/competitive/{rubric.json, autocad-2027-gap-matrix.md, distancia-autocad-completo-20260901.md}, docs/parity/ESCALERA.md, docs/cad/evidence/{command-integrity.json, ui-command-reach.json}"
+      ],
+      "fixtures": "Ninguno nuevo con datos ajenos; las plantas de los goldens y de los specs se montan en el propio fichero.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "El tipo de línea con texto medido en las cuatro superficies (glifos, plan, bytes del PDF, LTYPE del DXF); MEP con specs en papel y goldens; la sonda de integridad a 231 con 0 éxitos falsos; lo que no cabe, en ESCALERA; ninguna decisión de formato persistido tomada por la sesión."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "OLA-G-MAP3D-20260902",
+      "date": "2026-09-02",
+      "initiative": "Ola G del encargo «Valle Design → AutoCAD completo»: el toolset Map 3D. (1) La georreferencia como MARCADOR, sin tocar el formato: `lib/cad/georeference.ts` (nuevo) lee y fabrica un POINT en la capa GEO con `{geo: \"marker\", crs, east, north}` en `context.metadata` —que el formato ya tiene— y traduce entre unidades del dibujo y metros (`cadGeoreferencePlacement`, `cadGeoreferenceWorld`, `cadGeoreferenceGeographic` sobre `lib/geo/crs.ts`); una tabla de georreferencia persistida sería decisión del titular, no tomada. `engine/commands/geo-location.ts` (nuevo): GEOGRAPHICLOCATION (alias GEO, GEOLOCATION, MAPCSASSIGN, GEORREFERENCIAR) con Zona (11N–16N, las verificadas), Datum (WGS84/ITRF92/ITRF2008/ITRF2020), Geográfica (latitud y longitud, guardadas como el este/norte de la zona que toca porque un grado no es una unidad de dibujo) e Informe; emite un lote (capa GEO si falta, marcador viejo fuera, nuevo dentro) y dice sus números. ID añade el este/norte y la latitud/longitud en un dibujo georreferenciado (`inquiry-measure.ts`). `geo-location.spec.ts` (44). (2) MAPIMPORT (alias IMPORTARGIS), el conjunto GIS dentro del plano abierto: `engine/commands/map-import.ts` (nuevo) pide los archivos por el canal de interfaz `geo-file` (nuevo en `command-types.ts`; `palette-command-bus.ts` gana `pickCadFiles`, varios a la vez y como bytes; `session-catalogs.ts` y `use-command-engine.ts` los entregan por `feedFile` como DXFIN), `lib/cad/geo-import-bundle.ts` (nuevo) los empaqueta en base64 —sobre que no se persiste— y `lib/cad/geo-import-plan.ts` (nuevo) decide las cuatro situaciones y las enseña antes de escribir: georreferenciado + `.prj` → reproyectado vértice a vértice y colocado con la georreferencia del dibujo; georreferenciado + sin `.prj` → rechazado (colocarlo sería adivinar); sin georreferencia + archivo con sistema → origen local redondo y el dibujo QUEDA georreferenciado con el marcador en (0, 0); ni uno ni otro → origen local con aviso. `geo-cad-document.ts` gana `placement`, `newEntityId`, `reprojectTo` (pérdida `geo_reprojected`) y `attributesAsMetadata` (la fila del DBF en `context.metadata`, por posición; si la tabla no cuadra, `geo_attributes_unaligned` en vez de heredar los del vecino). `map-import.spec.ts` (46). (3) GeoJSON: `lib/geo/geojson.ts` (nuevo) lee RFC 7946 a la MISMA forma que el shapefile (rasgo sin geometría como nulo con su fila), `readGeoDataset` lo reconoce por sus bytes y el cuadro «Importar» admite `.geojson` proyectado a la zona UTM de su centro (`document-import.ts`, `document-import-validation.ts`). `geojson.spec.ts` (34). (4) Instrumento: cinta con el panel «Ubicación» en Insertar; sonda de integridad 231 → 233 comandos con 0 éxitos falsos; `toolset-map3d` de 0 a 3 de 4 (retiene 1 pt hasta evidencia independiente); golden 82.",
+      "branch": "claude/valle-design-autocad-vqfa6u",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo escrito «Valle Design → AutoCAD completo, con sus siete toolsets», §Ola G (Map 3D, tras MEP).",
+      "firstPartyInputs": [
+        "docs/competitive/distancia-autocad-completo-20260901.md §4 3º MAP 3D (el cimiento `lib/geo` sin enchufar al dibujo; los atributos del DBF no llegaban; la importación creaba un documento nuevo) y docs/competitive/auditoria-cliente-final-20260901.md (Map 3D ≈ 8 %: calidad, no cobertura); cada afirmación se midió antes (el `.shp` entraba sólo por el cuadro «Importar»; `shapefileToCadEntities` usaba `attributes` sólo para el aviso de codificación).",
+        "Specs de Node nuevos o ampliados, corridos en esta máquina: geojson (34), geo-location (44), map-import (46), geo/index, geo-cad-document, document-import, document-import-fuzz, interop-dxf, command-summaries (233/233), ribbon (233 en 7 pestañas); sonda de integridad 233, 0 éxitos falsos; los números de control de crs.spec.ts (E 660 000 N 2 140 000 en 14N → 19,3477° N 97,4768° O; Guadalajara → EPSG:32613 E 671 873,00).",
+        "Golden 82 (GEO, ID y MAPIMPORT por el selector de archivos del navegador, con el marcador y el predio en el servidor) verde en Chromium contra el build de producción."
+      ],
+      "externalSources": [
+        {
+          "source": "RFC 7946 (GeoJSON) y la documentación pública de ESRI del shapefile (orientación horaria de los anillos exteriores); documentación pública de AutoCAD Map 3D sobre GEOGRAPHICLOCATION, MAPCSASSIGN y MAPIMPORT.",
+          "terms": "Especificaciones y documentación públicas de referencia; no se copió implementación alguna.",
+          "usedFor": "La forma del GeoJSON (orden lon/lat, cierre de anillos, `crs` ignorado), los nombres y alias de las órdenes y el vocabulario de las opciones."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna. La proyección UTM (Krüger), el lector de shapefile/DBF, el lote de órdenes y el canal de interfaz son módulos propios ya existentes; el sobre base64 usa `btoa`/`atob` de la plataforma.",
+      "derivedAreas": [
+        "apps/web/src/lib/geo/{geojson.ts (nuevo), index.ts}",
+        "apps/web/src/lib/cad/{georeference.ts (nuevo), geo-import-bundle.ts (nuevo), geo-import-plan.ts (nuevo), geo-cad-document.ts, document-import.ts, document-import-validation.ts, ribbon.ts, ribbon-order.ts}",
+        "apps/web/src/lib/cad/engine/{index.ts, command-summaries.ts, alias-table.ts, command-types.ts}; engine/commands/{geo-location.ts (nuevo), map-import.ts (nuevo), inquiry-measure.ts}",
+        "apps/web/src/components/cad/{palettes/palette-command-bus.ts, command-line/session-catalogs.ts, command-line/use-command-engine.ts, ribbon/ribbon-icons.ts}",
+        "apps/web/e2e/golden/82-cad-georreferencia.spec.ts (nuevo)",
+        "docs/competitive/{rubric.json, autocad-2027-gap-matrix.md, distancia-autocad-completo-20260901.md}, docs/parity/ESCALERA.md, docs/cad/evidence/{command-integrity.json, ui-command-reach.json}"
+      ],
+      "fixtures": "Ninguno nuevo con datos ajenos; el predio de 40 × 30 m y su tabla se fabrican en el propio spec y en el golden con `lib/geo/fixtures.ts`.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "La georreferencia y la importación con specs contra los números de control de crs.ts y un golden que lee lo que recibió el servidor; la sonda de integridad a 233 con 0 éxitos falsos; lo que no cabe, en ESCALERA; ninguna decisión de formato persistido tomada por la sesión (el marcador y los atributos usan `context.metadata`, que ya existía)."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "OLA-H-RASTER-20260902",
+      "date": "2026-09-02",
+      "initiative": "Ola H del encargo «Valle Design → AutoCAD completo»: el toolset Raster Design (mitad útil). Medido antes: la entidad `image` se dibujaba como su marco y nada más (ningún módulo cargaba una textura), IMAGE exigía un `asset://` que nadie resolvía, y la lámina trazaba el marco con `rasterCommandCount: 0` literal. (1) Ver: `lib/cad/render/image-layer-three.ts` (nuevo) dibuja una malla por imagen debajo de los lotes con la misma convención de origen flotante y lámina de profundidad NDC, el recorte como polígono triangulado (`THREE.ShapeUtils`) y brillo/contraste/atenuación en el fragment shader; `lib/cad/image-geometry.ts` (nuevo) es la cuenta única (esquinas, píxel ↔ plano, recorte, ajuste 0–100 con 50/50 neutro, qué URI se pinta); el anfitrión (`render-pipeline-host.ts`) la sincroniza con el documento y publica `images`/`imagesPending` en el diagnóstico (`data-images` en la insignia del pipeline). (2) Adjuntar: IMAGEATTACH (alias IAT, `engine/commands/raster-image.ts`, nuevo) pide el archivo por el canal de interfaz `image-file` (nuevo); `session-catalogs.ts` lo decodifica una vez con `createImageBitmap` para saber sus píxeles, lo empaqueta como `data:` (`image-attach-payload.ts`, nuevo; tope 8 MB, dicho) y lo entrega por `feedFile` como DXFIN; la orden pide inserción, ancho en unidades y giro y escribe la definición (`uri` `data:`, cadena que el formato ya admite) y la entidad al fondo. (3) Recortar y ajustar: IMAGECLIP (ICL; Nuevo Poligonal/Rectangular, Eliminar) escribe `clipBoundary` en píxeles e IMAGEADJUST (IAD; Brillo/Contraste/Atenuación/Restablecer) escribe los tres campos, ambos con `replace` sobre la entidad que ya existía: sin campo nuevo, sin formato nuevo. (4) Lámina: `paper-space-image.ts` (nuevo) emite el comando `image` del plan (esquinas y recorte en papel; `rasterCommandCount` pasa a contar), `plot-pdf.ts` lo incrusta con `addImage` girada, recorte `W n` y atenuación como estado gráfico (brillo/contraste no se aplican y se avisa; sesgada/reflejada/http(s) salen como marco y se avisa), `pdf-measure.ts` lee XObject imagen y `Do`; `plot-job.ts`, `sheet-set-pdf.ts` y `CadLayoutManager.tsx` dejan pasar el comando. (5) DXF: la imagen embebida sale por su nombre en IMAGEDEF (`dxf-schema4-primitives.ts`) y el manifiesto lo dice (`dxf_export_image_embedded_pixels`). (6) Por el camino: `IM` estaba sólo en el descriptor de IMAGE y no en la tabla acad.pgp que consulta el pipeline; dos aserciones de `geo-location.spec.ts` no compilaban bajo `typecheck` (que incluye specs). `image-fixtures.ts` (nuevo) fabrica un PNG válido sin zlib para specs y goldens. Specs image-geometry (44), image-layer-three (22), raster-image (75), paper-space-image (29); golden 83; sonda de integridad 233 → 236 comandos con 0 éxitos falsos; cinta 236/236; `toolset-raster` de 1 a 3 de 4 (retiene 1 pt hasta evidencia independiente).",
+      "branch": "claude/valle-design-autocad-vqfa6u",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo escrito «Valle Design → AutoCAD completo, con sus siete toolsets», §Ola H (Raster Design, mitad útil, tras Map 3D).",
+      "firstPartyInputs": [
+        "docs/competitive/distancia-autocad-completo-20260901.md §4 4º RASTER («insertar, escalar, atenuar, recortar, calcar encima»; la vectorización y REM fuera) y docs/parity/ESCALERA.md (fila Raster en peldaño 1); cada afirmación se midió antes (`fill-entity-adapters.ts` sólo emite caminos; ningún cargador de textura en `render/` ni en `components/cad`; `rasterCommandCount: 0` como tipo literal; `asset://` sin resolutor).",
+        "Specs de Node nuevos o ampliados, corridos en esta máquina: image-geometry (44), image-layer-three (22, con THREE en Node y cargador inyectado), raster-image (75), paper-space-image (29, el PDF leído de sus bytes), paper-space, plot-output, plot-fidelity, paper-space-plots-every-entity, dxf-export-losses, render-pipeline-host (25), scene, pipeline, engine/index (236), ribbon (236 en 7 pestañas), command-summaries (236/236); sonda de integridad 236, 0 éxitos falsos.",
+        "Golden 83 (IMAGEATTACH por el selector del navegador con un PNG de 8 × 4 fabricado en el propio spec, la imagen contada en pantalla por `data-images`, ICL y IAD con Ctrl+A, y la definición `data:`, el recorte en píxeles y la atenuación leídos de lo que recibió el servidor) verde en Chromium contra el build de producción."
+      ],
+      "externalSources": [
+        {
+          "source": "Especificación pública de PNG (ISO/IEC 15948: firma, IHDR/IDAT/IEND, CRC-32) y de zlib/deflate (RFC 1950/1951: bloques almacenados, Adler-32) para el fixture; documentación pública de AutoCAD Raster Design y de AutoCAD sobre IMAGEATTACH, IMAGECLIP e IMAGEADJUST (alias, vocabulario y el rango 0–100 con 50 neutro); documentación pública de jsPDF 4.2.1 (`addImage`, `clip`, `discardPath`, `GState`).",
+          "terms": "Especificaciones y documentación públicas; no se copió implementación alguna. jsPDF (MIT) ya era dependencia del producto.",
+          "usedFor": "Los bytes del PNG de prueba, los nombres y opciones de las órdenes, la fórmula de ajuste y la forma de incrustar y recortar en el PDF."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna. La triangulación es `THREE.ShapeUtils` de three (MIT, ya dependencia); el shader, la capa, el sobre y el plan son módulos propios.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/{image-geometry.ts (nuevo), image-attach-payload.ts (nuevo), image-fixtures.ts (nuevo), paper-space-image.ts (nuevo), paper-space.ts, dxf-schema4-primitives.ts, dxf-export-loss-manifest.ts, geo-import-bundle.ts, ribbon.ts}; render/image-layer-three.ts (nuevo); plot/{plot-pdf.ts, plot-job.ts, pdf-measure.ts}",
+        "apps/web/src/lib/cad/engine/{index.ts, command-summaries.ts, alias-table.ts, command-types.ts}; engine/commands/{raster-image.ts (nuevo), draw-fills.ts, geo-location.spec.ts}",
+        "apps/web/src/components/cad/{command-line/session-catalogs.ts, command-line/use-command-engine.ts, viewport/render-pipeline-host.ts, viewport/RenderPipelineBadge.tsx, editor/sheet-set-pdf.ts, palettes/CadLayoutManager.tsx}",
+        "apps/web/e2e/golden/83-cad-plano-escaneado.spec.ts (nuevo)",
+        "docs/competitive/{rubric.json, autocad-2027-gap-matrix.md, distancia-autocad-completo-20260901.md}, docs/parity/ESCALERA.md, docs/cad/evidence/{command-integrity.json, ui-command-reach.json}"
+      ],
+      "fixtures": "Ninguno con datos ajenos: el PNG de damero se fabrica en `image-fixtures.ts` a partir de la especificación, sin zlib.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "La imagen vista, recortada y ajustada con specs en las cuatro superficies (visor en Node con THREE, plan, PDF leído de sus bytes, DXF) y un golden que lee lo que recibió el servidor; ninguna decisión de formato persistido tomada por la sesión (la imagen viaja como `data:` en `uri`, una cadena que ya existía; el tope de 8 MB y la ausencia de almacén de activos quedan dichos para el titular)."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "OLA-I-MECHANICAL-20260902",
+      "date": "2026-09-02",
+      "initiative": "Ola I del encargo «Valle Design → AutoCAD completo»: el toolset Mechanical (detallado 2D con norma). Medido antes: `dimension-style.ts` sin noción de familia/subestilo, ninguna cota con tolerancia, ningún normalizado insertable. (1) Subestilos por familia (`lib/cad/dimension-family.ts`, nuevo): nombres `PADRE$n` con los códigos de AutoCAD, resueltos encima del padre en `resolveCadDimensionStyle(styles, name, kind)`, aplicados al crear la cota desde la paleta (`Layout3DEditor.tsx` vía `cadDimensionFamilyStyle`) y en DIMSTYLE → Aplicar; DIMSTYLE → Familia los crea declarando sólo lo que difiere del padre (`annotate-styles.ts`). (2) Tolerancia de fabricación (`lib/cad/dimension-tolerance.ts`, nuevo): cinco claves planas en `context.metadata` (mm o grados), `cadIsoFit` con las tablas ISO 286-1 (IT5–IT11, D–H/JS, d–h/js/k/m/n/p, ≤ 500 mm; K/M/N/P rechazados por la Δ), el rótulo en `formatCadDimensionMeasurement` (visor, lámina y DXF por el mismo formateador), la XDATA `tolerance=…` en `dxf-write-dimensions.ts` y su lectura en `dxf-read-annotations.ts`/`dxf-cad-document.ts`; la orden DIMTOLERANCE (`engine/commands/dimension-tolerance.ts`, nuevo): Simétrica/Desviación/Límites/Ajuste/Quitar sobre la designación. (3) Normalizados (`lib/cad/mechanical-parts.ts`, nuevo): tornillo ISO 4017, tuerca ISO 4032, rondana ISO 7089 (M6–M24) y las secciones PTR/OC/LI/CPS/IPR por medidas, como bloques `MECH-…` con denominación y norma en `description`; STDPART y STEELSHAPE (`engine/commands/mechanical-parts.ts`, nuevo) con la inserción escalada a la unidad del documento. (4) Globo, lista y símbolos (`lib/cad/mechanical-symbols.ts`, `lib/cad/mechanical-bom.ts`, nuevos): BALLOON y BOM (`engine/commands/mechanical-annotate.ts`), WELDSYMBOL y SURFACESYMBOL (`engine/commands/mechanical-symbols.ts`) materializados con líneas, polilíneas, círculos y MTEXT con marca `mechanical` en metadatos, como el marco de TOLERANCE. Ninguna decisión de formato persistido: sin entidad ni campo nuevo. Specs dimension-family (38), dimension-tolerance (71), mechanical (84), engine/commands/mechanical (151); golden 84; sonda de integridad 236 → 243 comandos con 0 éxitos falsos; cinta 243/243 (paneles Normalizados en Insertar y Mecánica en Anotar); `toolset-mechanical` de 0 a 3 de 4 (retiene 1 pt hasta evidencia independiente).",
+      "branch": "claude/valle-design-autocad-vqfa6u",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo escrito «Valle Design → AutoCAD completo, con sus siete toolsets», §Ola I (Mechanical, quinto y último toolset en alcance; Electrical y Plant 3D fuera, dichos en ESCALERA).",
+      "firstPartyInputs": [
+        "docs/competitive/distancia-autocad-completo-20260901.md §4 5º MECHANICAL («cajetines ISO/ANSI/DIN/JIS, BOM con globos, símbolos de soldadura, tolerancias geométricas» y la dependencia de los subestilos por familia) y docs/parity/ESCALERA.md (fila Mechanical en peldaño 0); cada afirmación se midió antes (cero apariciones de «family» en dimension-style.ts; `formatWithTolerance` sin llamadores en el documento; ningún bloque `MECH-`).",
+        "Specs de Node nuevos o ampliados, corridos en esta máquina: dimension-family (38), dimension-tolerance (71, con la ida y vuelta por DXF), mechanical (84), engine/commands/mechanical (151), dimension-style (23 + 27), annotate-styles (41), dimension-style-governs-drawing, dxf-xdata-golden, engine/index (243), ribbon (243 en 7 pestañas), command-summaries (243/243), keyboard-alias-collisions; sonda de integridad 243, 0 éxitos falsos.",
+        "Golden 84 (TORNILLO, Ctrl+A + GLOBO, BOM, DIMLINEAR + Ctrl+A + DTOL Ajuste H7, SOLDADURA y ACABADO tecleados; el bloque con su description, la inserción, el globo con su marca, la TABLE, la cota con su tolerancia en metadatos y los dos símbolos leídos de lo que recibió el servidor) verde en Chromium contra el build de producción."
+      ],
+      "externalSources": [
+        {
+          "source": "Las tablas públicas de ISO 286-1 (grados IT5–IT11 y desviaciones fundamentales d, e, f, g, h, js, k, m, n, p por escalón de diámetro hasta 500 mm); las tablas dimensionales públicas de ISO 4017 (entrecaras y altura de cabeza), ISO 4032 (altura de tuerca) e ISO 7089 (rondana plana); la disposición del símbolo de soldadura de ISO 2553 / AWS A2.4 y del símbolo de acabado de ISO 1302; la documentación pública de AutoCAD sobre los subestilos de cota (`ESTILO$n`) y de AutoCAD Mechanical sobre AMCONTENTLIB, AMSTLSHAP2D, AMBALLOON, AMBOM, AMWELDSYM y AMSURFSYM (nombres y vocabulario).",
+          "terms": "Normas y documentación públicas; no se copió implementación alguna. Los números de las tablas se transcribieron y se verifican en el spec contra valores conocidos (25H7, 40k6, 60p6, 20f7…).",
+          "usedFor": "Las tablas de `dimension-tolerance.ts` y `mechanical-parts.ts`, la geometría de `mechanical-symbols.ts`, los nombres de las órdenes y sus alias, y la convención `PADRE$n` de `dimension-family.ts`."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna. Todo el código es propio sobre los módulos que ya existían (dimension-style, associative-dimension, block-workflow, data-extraction).",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/{dimension-family.ts (nuevo), dimension-tolerance.ts (nuevo), mechanical-parts.ts (nuevo), mechanical-symbols.ts (nuevo), mechanical-bom.ts (nuevo), dimension-style.ts, associative-dimension.ts, dxf-write-dimensions.ts, dxf-read-annotations.ts, dxf-cad-document.ts, dxf-import.ts, dxf-export.ts, ribbon.ts, ribbon-order.ts}",
+        "apps/web/src/lib/cad/engine/{index.ts, command-summaries.ts, alias-table.ts}; engine/commands/{mechanical-parts.ts (nuevo), mechanical-annotate.ts (nuevo), mechanical-symbols.ts (nuevo), dimension-tolerance.ts (nuevo), annotate-styles.ts}",
+        "apps/web/src/components/cad/editor/Layout3DEditor.tsx (el subestilo de familia al crear la cota desde la paleta)",
+        "apps/web/e2e/golden/84-cad-plano-de-fabricacion.spec.ts (nuevo)",
+        "docs/competitive/{rubric.json, autocad-2027-gap-matrix.md, distancia-autocad-completo-20260901.md}, docs/parity/ESCALERA.md, docs/cad/evidence/{command-integrity.json, ui-command-reach.json}"
+      ],
+      "fixtures": "Ninguno con datos ajenos: los specs y el golden usan geometría sintética y los números de las normas públicas.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Las cuatro órdenes de anotación y las dos de inserción con specs contra papel, la tolerancia leída de vuelta del DXF, dieciséis ajustes contra la tabla de la norma y un golden que lee lo que recibió el servidor; ninguna decisión de formato persistido tomada por la sesión (subestilos por NOMBRE, tolerancia y marcas en `context.metadata`, normalizados como bloques con `description`)."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "CI-VERDE-FRAGMENTO-3-20260902",
+      "date": "2026-09-02",
+      "initiative": "Poner en verde el CI del PR #176 (encargo «Valle Design → AutoCAD completo»), pedido del titular: «asegúrate de dejar todo mergeado». Medido antes sobre a1ccda1: el fragmento 3/4 de E2E moría a los 60 min en todas las corridas del PR desde las 06:37 (en main, los fragmentos 2/4 y 4/4) porque `real/cables-sueltos` recorre 582 controles visibles a 6,3 s por control en serie (61 min; tope de la prueba 30 min); `frontend-load-budget` medía 4270,3 KB de JS al abrir el estudio contra un techo de 3980 (trinquete); y el golden 72 fallaba dos veces a 1,0 min sin resumen en el log. (1) Barrido en cuatro rebanadas (`e2e/real/cables-sueltos.spec.ts` y `.github/workflows/ci.yml`): medido también que tres páginas en paralelo sobre cuatro núcleos (carga media 8,6) seguían sin caber en 30 min; el inventario se reparte por índice módulo cuatro en cuatro pruebas «barrido k/4», cada fragmento de CI corre la suya con `--grep` (la de persistencia con la 4) tras el reparto por archivos, que excluye el archivo; dentro de cada rebanada dos páginas del mismo contexto se reparten los controles, cada control sobre su carga limpia con las mismas seis señales y ventana de efecto por sondeo de hasta 2,5 s. Medido después: de 9,3 a 10,5 min por rebanada (145 controles cada una, 4,2 s por control con dos carriles; 0 sin efecto, 1–2 no localizables por rebanada) y la prueba de persistencia verde. (2) Presupuesto de carga, atribuido con source maps sobre el build de producción: 306 KB eran `lib/cad/templates.ts` (cuerpo de las 149 plantillas) arrastrados por la tarjeta «Plantillas CAD»; 75 KB nueve paletas a demanda importadas estáticamente; 29 KB el parser de frases del registro heredado. Ahora la tarjeta lee `templates-catalog.ts` (generado por `scripts/templates-catalog.mts`, con `templates-catalog.spec.ts` que falla si se separa del origen o importa un valor), las nueve paletas van por `next/dynamic` y el parser/ejecutor llegan por `commands/lazy.ts` a la primera frase (el registro sigue estático: la asistencia y Cmd-K lo leen al abrir). Medido después: 3788,4 KB. `Layout3DEditor.tsx` de 18401 a 18394 líneas. Ningún umbral ni techo se movió. Suite dorada 121/121 en Chromium bajo Xvfb sobre el build resultante (46,7 min); el golden 72 pasa en 2,4 min y no se toca a ciegas — con el fragmento cabiendo en su hora, la corrida imprime el fallo con nombre si persiste. Segunda vuelta sobre la corrida de ca86fc6 (fragmento 3/4 con resumen): (4) `real/cad-presencia-viva` reproducido e instrumentado en local — el muelle de colaboración ABIERTO, que la Ola A había pasado a la bandeja de la barra de estado desplegándose hacia arriba, cubría el centro del lienzo (x ≈ 580–880, y ≈ 270–690 a 1280×720; `elementFromPoint` devolvía la lista de compañeros) y el cursor de A no llegaba a B; ahora sólo el muelle plegado vive en la bandeja y abierto vuelve a su esquina medida (colaboración abajo a la derecha, mensajería abajo a la izquierda; `StudioCollaborationLayer.tsx`, `TeamMessagingHost.tsx`). (5) Golden 72: `hudAtCenter` exige dos lecturas iguales seguidas antes de devolver (la cámara se asentaba tras «Ajustar a la planta»: 0,82 unidades de deriva contra 0,5 de tolerancia); umbral intacto. (6) `real/cad-3d-m1-real` 6 pide los presets a `cad-top-toolbar` (el ViewCube, en main desde #166, comparte títulos). Medido antes de empujar: `real/cad-presencia-viva` y `real/cad-3d-m1-real` 10/10 contra la API real bajo Xvfb (latencia de cursor 836 ms, tope 1000); goldens 19, 21, 22, 67 y 72 con el presupuesto de carga (3788,0 KB) 7/7 sobre el build resultante; golden 72 además dos veces seguidas con la lectura asentada; typecheck y lint limpios.",
+      "branch": "claude/valle-design-autocad-vqfa6u",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: «asegúrate de dejar todo mergeado una vez termines» y «asegúrate que todo el avance que hiciste realmente sí quede mergeado» (2026-09-02), sobre el encargo escrito «Valle Design → AutoCAD completo».",
+      "firstPartyInputs": [
+        "Los logs de CI de los trabajos E2E 3/4 de las corridas 33651188142 (f2ec8f8) y 33656846600 (a1ccda1), el de main 33594731613 y los de 33623472299/33599672513; `e2e/real/cables-sueltos.spec.ts`, `e2e/performance/frontend-load-budget.spec.ts` y `src/lib/cad/benchmark/frontend-load-baseline.json`; el build de producción con source maps atribuido por fuente."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "apps/web/e2e/real/cables-sueltos.spec.ts",
+        ".github/workflows/ci.yml (paso Playwright E2E: `--grep-invert` del barrido y segunda invocación por rebanada; artefacto `.test-results-barrido`)",
+        "apps/web/src/lib/cad/{templates-catalog.ts (generado), templates-summary.ts (nuevo), templates-catalog.spec.ts (nuevo), command-palette.ts, commands/lazy.ts (nuevo)}",
+        "apps/web/scripts/templates-catalog.mts (nuevo)",
+        "scripts/cad/check-no-industrial-domain.mjs (el catálogo generado hereda la exención de templates.ts: mismo texto, misma regla)",
+        "apps/web/src/components/cad/{editor/Layout3DEditor.tsx, editor/CadTemplateChooserCard.tsx, palette-actions.ts}",
+        "apps/web/src/lib/cad/benchmark/frontend-load-baseline.json (sólo la observación; el techo no cambia)",
+        "apps/web/src/components/cad/collab/StudioCollaborationLayer.tsx",
+        "apps/web/src/components/cad/messaging/TeamMessagingHost.tsx",
+        "apps/web/e2e/golden/72-cad-arrastre-designa.spec.ts",
+        "apps/web/e2e/real/cad-3d-m1-real.spec.ts"
+      ],
+      "fixtures": "Ninguno con datos ajenos.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "El barrido entero con la API real bajo Xvfb, el presupuesto de carga medido sobre el build de producción y la suite dorada completa en Chromium antes del push; el veredicto de CI sobre el commit resultante."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

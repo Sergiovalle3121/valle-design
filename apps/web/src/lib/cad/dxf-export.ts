@@ -4,6 +4,7 @@ import type { CadTextAnchor } from "./cad-entities-v4";
 import type { CadDimensionEntity } from "./associative-dimension";
 import { buildCadMleaderGeometry, type CadMleaderEntity } from "./associative-mleader";
 import { DEFAULT_MLEADER_STYLE } from "./mleader";
+import type { CadLinetypeTextElement } from "./linetype-complex";
 import { clampedKnots } from "./dxf-nurbs-knots";
 import { DXF_XDATA_APP_BLOCK, DXF_XDATA_APP_MLEADER } from "@valle-design/contracts";
 // Los pares código/valor, el saneado de nombres y el formato numérico viven en
@@ -50,6 +51,7 @@ import {
   pushSemanticDimension,
   semanticDimensionBlockPrimitives,
 } from "./dxf-write-dimensions";
+import { hatchLoops, pushHatch } from "./dxf-export-hatch";
 
 export type CadDxfExportUnit = "mm" | "m";
 export interface CadDxfExportOptions {
@@ -77,6 +79,8 @@ export interface CadDxfExportLinetype {
   description?: string;
   /** Longitudes con signo: >0 trazo, <0 hueco, 0 punto. */
   pattern: number[];
+  /** Rótulos de un tipo complejo, cada uno sobre el tramo en cuyo arranque va (Ola F). */
+  texts?: readonly CadLinetypeTextElement[];
 }
 export interface CadDxfExportText {
   layer?: string;
@@ -115,7 +119,11 @@ export interface CadDxfExportMText {
 export type CadDxfExportSemanticDimension = Omit<
   CadDimensionEntity,
   "id" | "type" | "context" | "references" | "associative" | "associationStatus"
-> & { /** flecha SOBRE PAPEL (mm) si la cota es anotativa */ annotativeHeightMm?: number };
+> & {
+  /** flecha SOBRE PAPEL (mm) si la cota es anotativa */ annotativeHeightMm?: number;
+  /** Tolerancia de fabricación (Ola I): sube de `context.metadata` para que la XDATA la escriba. */
+  tolerance?: import("./dimension-tolerance").CadDimensionTolerance;
+};
 export type CadDxfExportMleader = Omit<
   CadMleaderEntity,
   "id" | "type" | "context" | "references" | "associative" | "associationStatus"
@@ -299,7 +307,7 @@ function pushLine(
   pushPoint(lines, from);
   pushPair(lines, 11, fmt(to.x));
   pushPair(lines, 21, fmt(to.y));
-  pushPair(lines, 31, "0");
+  pushPair(lines, 31, fmt(to.z ?? 0));
 }
 function pushPolyline(
   lines: string[],
@@ -308,21 +316,34 @@ function pushPolyline(
   closed: boolean,
   presentation?: CadEntityPresentation,
 ) {
+  // La cota decide la CLASE de polilínea, como en AutoCAD: si todos los
+  // vértices comparten z es una polilínea 2D elevada (la elevación va en el
+  // código 30 de la cabecera y se repite en cada VERTEX); si difieren, es una
+  // POLILÍNEA 3D (bit 8 del 70, VERTEX con 70 = 32), que en el formato no
+  // admite bulge. Con bulge Y cotas distintas se conserva el arco y se aplana
+  // a la cota del primer vértice: el manifiesto de pérdidas lo declara.
+  const elevation = points[0]?.z ?? 0;
+  const spatial =
+    points.some((point) => Math.abs((point.z ?? 0) - elevation) > 1e-9) &&
+    !points.some((point) => typeof point.bulge === "number" && point.bulge !== 0);
   pushPair(lines, 0, "POLYLINE");
   pushPair(lines, 8, layer);
   pushPresentation(lines, presentation);
   pushPair(lines, 66, 1);
-  pushPair(lines, 70, closed ? 1 : 0);
+  // La cabecera sólo lleva su punto (10/20 siempre 0) cuando hay elevación:
+  // un fichero plano sigue saliendo byte a byte como antes.
+  if (!spatial && elevation !== 0) pushPoint(lines, { x: 0, y: 0, z: elevation });
+  pushPair(lines, 70, (closed ? 1 : 0) | (spatial ? 8 : 0));
   for (const point of points) {
     pushPair(lines, 0, "VERTEX");
     pushPair(lines, 8, layer);
-    pushPoint(lines, point);
+    pushPoint(lines, spatial ? point : { ...point, z: elevation });
+    if (spatial) pushPair(lines, 70, 32);
     // Código de grupo 42: abombamiento del segmento que arranca aquí. Sin
     // emitirlo, cada arco de la polilínea salía como cuerda recta y la
     // pérdida era además silenciosa.
-    if (typeof point.bulge === "number" && point.bulge !== 0) {
+    else if (typeof point.bulge === "number" && point.bulge !== 0)
       pushPair(lines, 42, fmt(point.bulge));
-    }
   }
   pushPair(lines, 0, "SEQEND");
 }
@@ -373,7 +394,7 @@ function pushEllipse(
   // 11/21/31: extremo del eje mayor RELATIVO al centro (convención DXF).
   pushPair(lines, 11, fmt(majorAxis.x));
   pushPair(lines, 21, fmt(majorAxis.y));
-  pushPair(lines, 31, "0");
+  pushPair(lines, 31, fmt(majorAxis.z ?? 0));
   pushPair(lines, 40, fmt(axisRatio));
   // 41/42: parámetros en RADIANES en el archivo; el modelo usa grados.
   pushPair(lines, 41, fmt((startAngleDeg * Math.PI) / 180));
@@ -696,69 +717,6 @@ function writePrimitiveGeometry(
  * cerrado). dxf-parser lo DESCARTA al leer (el import lo avisa honesto); los
  * CAD reales lo pintan como área rellena.
  */
-function hatchLoops(hatch: CadDxfExportHatch): CadDxfPoint[][] {
-  return (hatch.boundaries?.length ? hatch.boundaries : hatch.points ? [hatch.points] : [])
-    .map((boundary) => {
-      if (boundary.length > 3) {
-        const first = boundary[0];
-        const last = boundary.at(-1)!;
-        if (first.x === last.x && first.y === last.y) return boundary.slice(0, -1);
-      }
-      return boundary;
-    })
-    .filter((boundary) => boundary.length >= 3);
-}
-
-function pushHatch(lines: string[], layer: string, hatch: CadDxfExportHatch) {
-  const boundaries = hatchLoops(hatch);
-  const requestedPattern = safeText(hatch.pattern || (hatch.solid === false ? "ANSI31" : "SOLID")) || "SOLID";
-  const solid = hatch.solid ?? requestedPattern.toUpperCase() === "SOLID";
-  const pattern = solid ? "SOLID" : requestedPattern.toUpperCase() === "SOLID" ? "ANSI31" : requestedPattern;
-  const angle = Number.isFinite(hatch.angle) ? hatch.angle! : 45;
-  const scale = Number.isFinite(hatch.scale) && hatch.scale! > 0 ? hatch.scale! : 1;
-  const origin = hatch.origin ?? boundaries[0]?.[0] ?? { x: 0, y: 0 };
-  const islandStyle = hatch.islandStyle === "outer" ? 1 : hatch.islandStyle === "ignore" ? 2 : 0;
-  pushPair(lines, 0, "HATCH");
-  pushPair(lines, 8, layer);
-  pushPoint(lines, { x: 0, y: 0 }); // punto de elevación (siempre 0 en 2D)
-  pushPair(lines, 210, "0");
-  pushPair(lines, 220, "0");
-  pushPair(lines, 230, "1");
-  pushPair(lines, 2, pattern);
-  pushPair(lines, 70, solid ? 1 : 0);
-  pushPair(lines, 71, 0); // no asociativo
-  pushPair(lines, 91, boundaries.length);
-  for (const boundary of boundaries) {
-    pushPair(lines, 92, 2); // camino = polilínea
-    pushPair(lines, 72, 0); // sin bulge
-    pushPair(lines, 73, 1); // cerrado
-    pushPair(lines, 93, boundary.length);
-    for (const point of boundary) {
-      pushPair(lines, 10, fmt(point.x));
-      pushPair(lines, 20, fmt(point.y));
-    }
-    pushPair(lines, 97, 0); // sin objetos fuente
-  }
-  pushPair(lines, 75, islandStyle);
-  pushPair(lines, 76, 1); // patrón predefinido
-  if (!solid) {
-    const definitionAngles = pattern.toUpperCase() === "CROSS" ? [angle, angle + 90] : [angle];
-    pushPair(lines, 52, fmt(angle));
-    pushPair(lines, 41, fmt(scale));
-    pushPair(lines, 77, 0);
-    pushPair(lines, 78, definitionAngles.length);
-    for (const definitionAngle of definitionAngles) {
-      pushPair(lines, 53, fmt(definitionAngle));
-      pushPair(lines, 43, fmt(origin.x));
-      pushPair(lines, 44, fmt(origin.y));
-      pushPair(lines, 45, 0);
-      pushPair(lines, 46, fmt(scale));
-      pushPair(lines, 79, 0);
-    }
-  }
-  pushPair(lines, 98, 1);
-  pushPoint(lines, origin);
-}
 
 function pushMleader(lines: string[], entity: CadDxfExportMleader): boolean {
   const geometry = buildCadMleaderGeometry({ id: "dxf-mleader", type: "mleader", ...entity });

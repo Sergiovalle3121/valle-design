@@ -148,7 +148,10 @@ test('desde la cinta, con el ratón y sin teclear: se traza una línea, se acota
 
   // ── 3. CAMBIAR DE CAPA, desde la cinta ──────────────────────────────────
   await test.step('la cinta abre el gestor de capas y cambia la capa activa', async () => {
-    await selectRibbonTab(page, 'administrar');
+    // LAYER vive en Inicio > Capas, como en la Home de AutoCAD (antes caía en
+    // Administrar por su `kind: manage`). Sólo la pestaña activa está en el
+    // DOM, así que pulsar desde la pestaña equivocada es un timeout, no un clic.
+    await selectRibbonTab(page, 'inicio');
     await ribbonCommand(page, 'LAYER').click();
     const manager = page.getByTestId('cad-layer-manager');
     await expect(manager).toBeVisible();

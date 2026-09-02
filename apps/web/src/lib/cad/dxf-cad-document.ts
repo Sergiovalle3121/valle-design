@@ -21,15 +21,15 @@ import type {
   CadDxfExportSemanticDimension,
 } from "./dxf-export";
 import type { CadNativeEntity } from "./entity-runtime";
-// La traducción entidad→primitiva y la AUDITORÍA de lo que la exportación
-// pierde viven en sus propios módulos: este archivo ENSAMBLA el modelo de
-// exportación, y mezclar las tres cosas era lo que lo tenía en su techo.
+// Traducción entidad→primitiva y AUDITORÍA de pérdidas viven en sus propios
+// módulos: este archivo sólo ENSAMBLA el modelo de exportación (techo 961).
 import { cadEntityToDxfPrimitive } from "./dxf-entity-primitives";
 import { cadDxfTextPrimitiveToEntity } from "./dxf-text-entities";
 import { blockEntityToDxfPrimitive } from "./dxf-block-primitive";
 import { clampedKnots } from "./dxf-nurbs-knots";
 import { schema4PrimitiveToEntity } from "./dxf-schema4-entities";
 import { cadSchema10ScaledFields } from "./cad-entities-v10";
+import { cadDimensionToleranceExport, cadDimensionToleranceMetadata } from "./dimension-tolerance";
 export { cadEntityToDxfPrimitive };
 export {
   cadDocumentDxfExportLosses,
@@ -42,10 +42,12 @@ import {
   identityProjection,
   mappedVector,
   point3,
+  point3z,
   projectedAngle,
   projectionOrientation,
   type CadDxfProjection,
 } from "./dxf-projection";
+import { cadHatchPatternBaseAngle } from "./hatch-pattern-table";
 
 export type { CadDxfProjection };
 
@@ -95,7 +97,6 @@ export function cadDxfCurvesToNativeEntities(
       primitive.radius > 0
     ) {
       const center = primitive.points[0];
-      const projectedCenter = projection.point(center);
       const radiusX = Math.hypot(
         ...Object.values(
           mappedVector(projection, center, { x: primitive.radius, y: 0 }),
@@ -122,7 +123,7 @@ export function cadDxfCurvesToNativeEntities(
       entities.push({
         id,
         type: "arc",
-        center: point3(projectedCenter),
+        center: point3z(projection, center),
         radius: (radiusX + radiusY) / 2,
         startAngle: reflected ? end : start,
         endAngle: reflected ? start : end,
@@ -145,7 +146,7 @@ export function cadDxfCurvesToNativeEntities(
       entities.push({
         id,
         type: "ellipse",
-        center: point3(projection.point(center)),
+        center: point3z(projection, center),
         majorAxis: point3(
           mappedVector(projection, center, primitive.majorAxis),
         ),
@@ -169,9 +170,7 @@ export function cadDxfCurvesToNativeEntities(
         id,
         type: "spline",
         degree,
-        controlPoints: primitive.points.map((point) =>
-          point3(projection.point(point)),
-        ),
+        controlPoints: primitive.points.map((point) => point3z(projection, point)),
         knots:
           primitive.knots?.length === primitive.points.length + degree + 1
             ? [...primitive.knots]
@@ -218,10 +217,9 @@ export function cadDxfHatchesToNativeEntities(
         solid: hatch.solid,
         boundaries,
         scale: Math.max(1e-9, (hatch.scale ?? 1) * scaleFactor),
-        angle: projectedAngle(projection, { x: 0, y: 0 }, 1, hatch.angle ?? 0),
-        ...(hatch.origin
-          ? { origin: point3(projection.point(hatch.origin)) }
-          : {}),
+        // 52 es el GIRO; `angle` es el ángulo absoluto de la primera familia (ver hatch-pattern-table.ts).
+        angle: projectedAngle(projection, { x: 0, y: 0 }, 1, cadHatchPatternBaseAngle(hatch.pattern) + (hatch.angle ?? 0)),
+        ...(hatch.origin ? { origin: point3(projection.point(hatch.origin)) } : {}),
         islandStyle: hatch.islandStyle ?? "normal",
         associative: false,
         associationStatus: "detached",
@@ -321,17 +319,7 @@ export function cadDxfSemanticDimensionsToNativeEntities(
       projectedC;
     const properties = { ...dimension } as Record<string, unknown>;
     [
-      "blockName",
-      "a",
-      "b",
-      "c",
-      "offset",
-      "radius",
-      "arrowSize",
-      "extensionGap",
-      "extensionOvershoot",
-      "textGap", "textHeight",
-      "annotativeHeightMm",
+      "blockName", "a", "b", "c", "offset", "radius", "arrowSize", "extensionGap", "extensionOvershoot", "textGap", "textHeight", "annotativeHeightMm", "tolerance",
     ].forEach((key) => delete properties[key]);
     return {
       id: `${prefix}:dimension:${index.toString().padStart(6, "0")}`,
@@ -388,6 +376,7 @@ export function cadDxfSemanticDimensionsToNativeEntities(
           ...(dimension.annotativeHeightMm !== undefined && dimension.annotativeHeightMm > 0
             ? { annotativeHeightMm: dimension.annotativeHeightMm }
             : {}),
+          ...(dimension.tolerance ? cadDimensionToleranceMetadata(dimension.tolerance) : {}), // Ola I: mm o grados, sin proyectar.
         },
       },
     };
@@ -568,6 +557,7 @@ export function cadDocumentNativeDxfSemanticDimensions(
         typeof annotative === "number" ? annotative : Number(annotative);
       if (Number.isFinite(annotativeValue) && annotativeValue > 0)
         dimension.annotativeHeightMm = annotativeValue;
+      Object.assign(dimension, cadDimensionToleranceExport(entity)); // Ola I: por el mismo camino.
       [
         "id",
         "type",
@@ -621,8 +611,8 @@ function dxfPrimitiveToBlockEntity(
     return {
       id,
       type: "line",
-      start: point3(projection.point(primitive.points[0])),
-      end: point3(projection.point(primitive.points[1])),
+      start: point3z(projection, primitive.points[0]),
+      end: point3z(projection, primitive.points[1]),
       layer: primitive.layer,
       context,
     };
@@ -658,7 +648,7 @@ function dxfPrimitiveToBlockEntity(
       id,
       type: "polyline",
       vertices: (redundantClosingVertex ? source.slice(0, -1) : source).map((value) => ({
-        ...point3(projection.point(value)),
+        ...point3z(projection, value),
         ...(typeof value.bulge === "number" && value.bulge !== 0
           ? { bulge: reflected ? -value.bulge : value.bulge }
           : {}),
@@ -692,7 +682,7 @@ function dxfPrimitiveToBlockEntity(
       return {
         id,
         type: "circle",
-        center: point3(projection.point(center)),
+        center: point3z(projection, center),
         radius: (rx + ry) / 2,
         layer: primitive.layer,
         context,
@@ -700,7 +690,7 @@ function dxfPrimitiveToBlockEntity(
     return {
       id,
       type: "ellipse",
-      center: point3(projection.point(center)),
+      center: point3z(projection, center),
       majorAxis: point3(rx >= ry ? xAxis : yAxis),
       ratio: Math.min(rx, ry) / Math.max(rx, ry),
       startParameter: 0,

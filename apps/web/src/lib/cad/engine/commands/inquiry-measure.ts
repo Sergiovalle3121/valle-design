@@ -34,6 +34,7 @@ import {
   type CadAreaAccumulator,
 } from "../../inquiry/reports";
 import { cadEntityArea, cadPolygonArea } from "../../inquiry/contours";
+import { cadFormatGeoreferenced, cadGeoreferenceOf } from "../../georeference";
 import {
   CAD_ACCEPT_ENTITY_PICK,
   CAD_ACCEPT_KEYWORD,
@@ -155,7 +156,12 @@ const idCommand: CadCommandDescriptor<IdState> = {
     const local = lens.point(input.point);
     const header =
       lens.ucs.name && lens.ucs.name !== "*MUNDO*" ? ` (SCU "${lens.ucs.name}")` : "";
-    return finished({ points: [input.point] }, `${formatCadPoint(local, lens.format)}${header}`, {});
+    // Dibujo georreferenciado (Ola G): además, el este/norte y la latitud y
+    // longitud del punto en el sistema del marcador GEO.
+    const view = context.document?.();
+    const georeference = view ? cadGeoreferenceOf(view) : null;
+    const geo = georeference ? `\n${cadFormatGeoreferenced(georeference, input.point, context.unit)}` : "";
+    return finished({ points: [input.point] }, `${formatCadPoint(local, lens.format)}${header}${geo}`, {});
   },
 };
 

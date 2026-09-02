@@ -66,10 +66,16 @@ export class MockBackend {
     // La identidad se comprueba igual que en el servidor real: una petición sin
     // sesión o sin CSRF recibe LO QUE RECIBIRÍA de verdad. Un fixture que
     // regalara la sesión convertiría en verde cualquier fallo de autenticación.
+    // Un EventSource (mensajería, presencia) espera `text/event-stream` y NO
+    // puede mandar la cookie de sesión entre orígenes ni cabeceras propias: con
+    // el 401 JSON de la comprobación de primera parte, Chromium anotaba
+    // «EventSource's response has a MIME type» en consola y el golden 10, que
+    // exige consola limpia, caía por el fixture (medido). Va ANTES de esa
+    // comprobación a propósito.
+    if ((request.headers()["accept"] ?? "").includes("text/event-stream"))
+      return route.fulfill({ status: 200, contentType: "text/event-stream", body: "retry: 600000\n\n" });
     const authFailure = firstPartyRequestFailure(request);
     if (authFailure) return json(authFailure.body, authFailure.status);
-
-    // Vacío pero con ÉXITO. Nunca 401 ni 403 desde aquí.
     if (request.method().toUpperCase() === "GET") return json([]);
     return json({ ok: true });
   }

@@ -42,6 +42,8 @@ export interface CadPdfSegment {
   y2: number;
   lengthMm: number;
   lineWidthMm: number;
+  /** Patrón `d` vigente al trazar, en milímetros; ausente = continua. */
+  dashMm?: number[];
 }
 
 export interface CadPdfLabel {
@@ -73,11 +75,22 @@ export interface CadPdfFontEntry {
   subtype: string;
 }
 
+/** Un XObject `/Subtype /Image` del archivo (Ola H). */
+export interface CadPdfImageEntry {
+  widthPx: number;
+  heightPx: number;
+  filter: string;
+}
+
 export interface CadPdfMeasurement {
   pages: Array<{ widthMm: number; heightMm: number }>;
   segments: CadPdfSegment[];
   labels: CadPdfLabel[];
   fonts: CadPdfFontEntry[];
+  /** Imágenes incrustadas, con su tamaño en píxeles. */
+  images: CadPdfImageEntry[];
+  /** Cuántas veces se dibuja un XObject (`Do`) en las páginas. */
+  imageDraws: number;
   /**
    * Lo que este lector NO supo interpretar. Vacío es la única lectura en la
    * que se puede confiar para medir; con algo dentro, la medida es parcial y
@@ -125,7 +138,7 @@ function contentStreams(text: string): string[] {
   const streams: string[] = [];
   for (const match of text.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)) {
     const body = match[1];
-    if (/(^|\s)(m|l|re|Tj|TJ)(\s|$)/.test(body)) streams.push(body);
+    if (/(^|\s)(m|l|re|Tj|TJ|Do)(\s|$)/.test(body)) streams.push(body);
   }
   return streams;
 }
@@ -193,6 +206,20 @@ interface StreamScan {
   segments: Array<Omit<CadPdfSegment, "page">>;
   labels: Array<Omit<CadPdfLabel, "page">>;
   unreadable: string[];
+  imageDraws: number;
+}
+
+/** Los `/Subtype /Image` del archivo, leídos alrededor de cada aparición. */
+function imageEntries(text: string): CadPdfImageEntry[] {
+  const entries: CadPdfImageEntry[] = [];
+  for (const match of text.matchAll(/\/Subtype\s*\/Image\b/g)) {
+    const window = text.slice(Math.max(0, match.index - 200), match.index + 600);
+    const width = /\/Width\s+(\d+)/.exec(window);
+    const height = /\/Height\s+(\d+)/.exec(window);
+    if (!width || !height) continue;
+    entries.push({ widthPx: Number(width[1]), heightPx: Number(height[1]), filter: /\/Filter\s*\/(\w+)/.exec(window)?.[1] ?? "" });
+  }
+  return entries;
 }
 
 /**
@@ -206,6 +233,7 @@ function scanStream(body: string, pageHeightMm: number): StreamScan {
   const segments: StreamScan["segments"] = [];
   const labels: StreamScan["labels"] = [];
   const unreadable: string[] = [];
+  let imageDraws = 0;
 
   const toMmX = (points: number) => points / PDF_MM_TO_POINTS;
   const toMmY = (points: number) => pageHeightMm - points / PDF_MM_TO_POINTS;
@@ -220,7 +248,24 @@ function scanStream(body: string, pageHeightMm: number): StreamScan {
 
   const tokens = body.match(/\([^)\\]*(?:\\.[^)\\]*)*\)|<[0-9A-Fa-f\s]*>|\/[^\s/[\]<>()]+|[^\s]+/g) ?? [];
 
+  let dashMm: number[] | undefined;
+  let dashArray: number[] | null = null;
+  let pendingArray: number[] | null = null;
   for (const token of tokens) {
+    // `[a b c] fase d`: el array llega troceado por espacios («[3.54», «0.7]»
+    // o «[]»); se recoge entero y `d` lo convierte a milímetros.
+    if (token.startsWith("[") || dashArray) {
+      if (token.startsWith("[")) dashArray = [];
+      const inner = token.startsWith("[") ? token.slice(1) : token;
+      const closes = inner.endsWith("]");
+      const body = closes ? inner.slice(0, -1) : inner;
+      if (body !== "" && Number.isFinite(Number(body))) dashArray!.push(Number(body));
+      if (closes) {
+        pendingArray = dashArray;
+        dashArray = null;
+      }
+      continue;
+    }
     const numeric = Number(token);
     if (token !== "" && Number.isFinite(numeric) && /^[-+.\d]/.test(token)) {
       stack.push(numeric);
@@ -283,6 +328,7 @@ function scanStream(body: string, pageHeightMm: number): StreamScan {
             y2: next.y,
             lengthMm: Math.hypot(next.x - current.x, next.y - current.y),
             lineWidthMm,
+            ...(dashMm ? { dashMm } : {}),
           });
         current = next;
         break;
@@ -296,6 +342,7 @@ function scanStream(body: string, pageHeightMm: number): StreamScan {
             y2: subpathStart.y,
             lengthMm: Math.hypot(subpathStart.x - current.x, subpathStart.y - current.y),
             lineWidthMm,
+            ...(dashMm ? { dashMm } : {}),
           });
         current = subpathStart;
         break;
@@ -313,13 +360,17 @@ function scanStream(body: string, pageHeightMm: number): StreamScan {
           [left, bottom, left, top],
         ] as const;
         for (const [x1, y1, x2, y2] of corners)
-          segments.push({ x1, y1, x2, y2, lengthMm: Math.hypot(x2 - x1, y2 - y1), lineWidthMm });
+          segments.push({ x1, y1, x2, y2, lengthMm: Math.hypot(x2 - x1, y2 - y1), lineWidthMm, ...(dashMm ? { dashMm } : {}) });
         current = null;
         subpathStart = null;
         break;
       }
       case "w":
         lineWidthMm = (stack.at(-1) ?? 0) / PDF_MM_TO_POINTS;
+        break;
+      case "d":
+        dashMm = pendingArray && pendingArray.length > 0 ? pendingArray.map((value) => value / PDF_MM_TO_POINTS) : undefined;
+        pendingArray = null;
         break;
       case "Tf":
         fontSizeMm = (stack.at(-1) ?? 0) / PDF_MM_TO_POINTS;
@@ -344,13 +395,16 @@ function scanStream(body: string, pageHeightMm: number): StreamScan {
       case "cm":
         unreadable.push("matriz `cm`: las coordenadas siguientes van transformadas y no se aplican");
         break;
+      case "Do":
+        imageDraws += 1;
+        break;
       default:
         break;
     }
     stack = [];
   }
 
-  return { segments, labels, unreadable: [...new Set(unreadable)] };
+  return { segments, labels, unreadable: [...new Set(unreadable)], imageDraws };
 }
 
 /**
@@ -382,6 +436,7 @@ export function measureCadPdf(bytes: Uint8Array): CadPdfMeasurement {
   const segments: CadPdfSegment[] = [];
   const labels: CadPdfLabel[] = [];
   const unreadable = new Set<string>();
+  let imageDraws = 0;
 
   streams.forEach((stream, index) => {
     const scan = scanStream(stream, pages[index].heightMm);
@@ -389,9 +444,10 @@ export function measureCadPdf(bytes: Uint8Array): CadPdfMeasurement {
     for (const segment of scan.segments) segments.push({ page, ...segment });
     for (const label of scan.labels) labels.push({ page, ...label });
     for (const note of scan.unreadable) unreadable.add(note);
+    imageDraws += scan.imageDraws;
   });
 
-  return { pages, segments, labels, fonts: fontEntries(text), unreadable: [...unreadable] };
+  return { pages, segments, labels, fonts: fontEntries(text), images: imageEntries(text), imageDraws, unreadable: [...unreadable] };
 }
 
 /**

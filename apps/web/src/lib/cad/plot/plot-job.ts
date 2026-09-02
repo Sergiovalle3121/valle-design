@@ -129,6 +129,8 @@ function styleCommand(
   const monochrome = setup.colorMode === "monochrome";
   const weightScale = setup.plotLineweights ? Math.max(0.01, setup.lineweightScale) : 0;
 
+  // La imagen no tiene pluma: pasa tal cual (Ola H).
+  if (command.kind === "image") return command;
   if (command.kind === "text") {
     const resolved = resolveCadPlotStyle(table, { color: command.color });
     const color = monochrome ? toGrayscaleHex(resolved.color) : resolved.color;
@@ -331,7 +333,7 @@ export function buildCadPlotPreview(input: CadPlotJobInput): CadPlotPreview {
             color: command.style.stroke,
             lineWidth: command.style.lineWidth,
           });
-        else
+        else if (command.kind === "text")
           labels.push({
             x: command.point.x,
             y: command.point.y,

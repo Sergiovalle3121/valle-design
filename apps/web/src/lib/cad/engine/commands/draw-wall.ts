@@ -27,6 +27,7 @@ import type { CadPoint2 } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
 import type { CadNativeEntity } from "../../entity-runtime";
 import { wallFootprint } from "../../wall-geometry";
+import { cadFromMillimetres } from "./architecture-support";
 import {
   CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_KEYWORD,
@@ -44,17 +45,14 @@ const HEIGHT = { keyword: "Altura", shortcut: "A" } as const;
 const UNDO = { keyword: "desHacer", shortcut: "H" } as const;
 const CLOSE = { keyword: "Cerrar", shortcut: "C" } as const;
 
-/** Milímetros que vale UNA unidad del documento. */
-const MM_PER_UNIT: Record<string, number> = { mm: 1, cm: 10, m: 1000, in: 25.4, ft: 304.8 };
-
 /** Tabique de 200 mm expresado en la unidad del documento. */
 export function defaultWallThickness(unit: string | undefined): number {
-  return 200 / (MM_PER_UNIT[unit ?? "mm"] ?? 1);
+  return cadFromMillimetres(200, unit);
 }
 
 /** Altura de planta de 2400 mm expresada en la unidad del documento. */
 export function defaultWallHeight(unit: string | undefined): number {
-  return 2400 / (MM_PER_UNIT[unit ?? "mm"] ?? 1);
+  return cadFromMillimetres(2400, unit);
 }
 
 interface WallState {

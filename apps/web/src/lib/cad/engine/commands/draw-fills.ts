@@ -306,11 +306,10 @@ function imageFinish(
 const imageCommand: CadCommandDescriptor<ImageState> = {
   name: "IMAGE",
   // `XATTACH` ya NO es alias de IMAGE. En AutoCAD esa orden adjunta una
-  // referencia a un DIBUJO, no una imagen: la imagen se adjunta con
-  // IMAGEATTACH, que sigue aquí. Tener XATTACH apuntando a IMAGE hacía que
-  // teclear lo que todo el mundo teclea para referenciar un plano abriera el
-  // diálogo equivocado.
-  aliases: ["IM", "IMAGEATTACH"],
+  // referencia a un DIBUJO, no una imagen. Desde la Ola H, IMAGEATTACH es
+  // su propia orden (elige el archivo y lo mete dentro del dibujo); IMAGE
+  // sigue siendo la puerta para un URI tecleado.
+  aliases: ["IM"],
   kind: "draw",
   transparent: false,
   selection: "none",

@@ -15,7 +15,11 @@ import { tessellateArc, tessellateEllipse, tessellateSpline } from "./curve-tess
 import { buildCadDimensionGeometry } from "./associative-dimension";
 import { buildCadMleaderGeometry } from "./associative-mleader";
 import { plotEntityFromRegistry } from "./paper-space-registry-fallback";
+import { cadTableCellTextCommands } from "./paper-space-table";
+import { cadLinetypeTextCommands } from "./paper-space-linetype-text";
+import { cadImagePlotCommand, type CadImagePlotCommand } from "./paper-space-image";
 import { IDENTITY, multiply, point, type Affine } from "./paper-space-affine";
+import { blockPresentation, styleFor, unitToMm } from "./paper-space-style";
 
 export const CAD_SHEET_PAPERS = {
   A4: { width: 210, height: 297 },
@@ -80,6 +84,8 @@ export interface CadVectorStyle {
   fill?: string;
   lineWidth: number;
   dash?: number[];
+  /** Nombre efectivo del tipo de línea; con él se rotulan los complejos (Ola F). */
+  linetype?: string;
 }
 
 export type CadVectorCommand =
@@ -107,7 +113,9 @@ export type CadVectorCommand =
       underline?: boolean;
       backgroundMask?: boolean;
       backgroundColor?: string;
-    };
+    }
+  // Ola H: los píxeles de una imagen adjunta. Ver paper-space-image.ts.
+  | CadImagePlotCommand;
 
 export interface CadPublishWarning {
   code: string;
@@ -143,19 +151,14 @@ export interface CadPublishPlan {
   sheets: CadPublishSheet[];
   warnings: CadPublishWarning[];
   vectorCommandCount: number;
-  rasterCommandCount: 0;
+  /** Comandos `image`: imágenes adjuntas que van al PDF con sus píxeles (Ola H). */
+  rasterCommandCount: number;
 }
 
 const DEFAULT_MARGIN = 10;
 const DEFAULT_TITLE_BLOCK_HEIGHT = 30;
 const MAX_BLOCK_DEPTH = 8;
 
-function unitToMm(unit: string): number {
-  if (unit === "m") return 1000;
-  if (unit === "cm") return 10;
-  if (unit === "in") return 25.4;
-  return 1;
-}
 
 function safeText(value: unknown, fallback: string): string {
   const text = String(value ?? "").trim();
@@ -402,53 +405,6 @@ function visibleLayer(
   return viewport.layerVisibility?.[layerId] ?? (!layer || cadLayerShown(layer));
 }
 
-function blockPresentation(
-  own: CadEntityPresentation | undefined,
-  inherited: CadEntityPresentation | undefined,
-): CadEntityPresentation | undefined {
-  if (!own) return undefined;
-  const property = <T extends { source: "byLayer" | "byBlock" | "explicit" }>(
-    value: T | undefined,
-    parent: T | undefined,
-  ) => value?.source === "byBlock" ? parent : value;
-  return {
-    color: property(own.color, inherited?.color),
-    linetype: property(own.linetype, inherited?.linetype),
-    lineweight: property(own.lineweight, inherited?.lineweight),
-  };
-}
-
-function styleFor(
-  entity: CadEntity,
-  layerId: string,
-  layers: Map<string, CadLayerDef>,
-  viewport: CadPaperViewport,
-  colorMode: "color" | "monochrome",
-  lineweightScale: number,
-  inheritedPresentation?: CadEntityPresentation,
-): CadVectorStyle {
-  const layer = layers.get(layerId);
-  const override = viewport.layerOverrides?.[layerId];
-  const presentation = blockPresentation(entity.context?.presentation, inheritedPresentation);
-  const explicit = presentation?.color;
-  const color =
-    colorMode === "monochrome"
-      ? "#111827"
-      : (override?.color ??
-        (explicit?.source === "explicit" ? explicit.value : undefined) ??
-        layer?.color ??
-        "#334155");
-  const rawWidth =
-    override?.lineweight ??
-    (presentation?.lineweight?.source === "explicit" ? presentation.lineweight.value : undefined) ??
-    layer?.lineweight ??
-    0.18;
-  return {
-    stroke: color || "#334155",
-    lineWidth: Math.max(0.05, rawWidth * Math.max(0.1, lineweightScale)),
-  };
-}
-
 function rectPoints(
   entity: Extract<CadEntity, { type: "box" | "station" }>,
 ): CadPoint2[] {
@@ -532,6 +488,7 @@ function renderEntity(
     context.colorMode,
     context.lineweightScale,
     context.inheritedPresentation,
+    context.document,
   );
   const path = (points: CadPoint2[], closed = false, fill?: string) =>
     commandPath(
@@ -554,16 +511,16 @@ function renderEntity(
       (value): value is CadVectorCommand => !!value,
     );
   }
-  if (entity.type === "line") {
-    return [path([entity.start, entity.end])].filter(
-      (value): value is CadVectorCommand => !!value,
-    );
-  }
-  if (entity.type === "polyline") {
-    return [path(entity.vertices, entity.closed)].filter(
-      (value): value is CadVectorCommand => !!value,
-    );
-  }
+  // GAS_LINE y familia (Ola F): el guion va en `style.dash`; el texto, aquí.
+  const linetypeTexts = (points: (CadPoint2 & { bulge?: number })[], closed: boolean) =>
+    cadLinetypeTextCommands(points, closed, {
+      entityId: entity.id, viewportId: context.viewport.id, linetype: style.linetype,
+      toPaper: (anchor) => point(matrix, anchor), linetypeScale: context.document.meta.linetypeScale ?? 1, color: style.stroke,
+    });
+  if (entity.type === "line")
+    return [...[path([entity.start, entity.end])].filter((value): value is CadVectorCommand => !!value), ...linetypeTexts([entity.start, entity.end], false)];
+  if (entity.type === "polyline")
+    return [...[path(entity.vertices, entity.closed)].filter((value): value is CadVectorCommand => !!value), ...linetypeTexts(entity.vertices, entity.closed)];
   if (entity.type === "circle") {
     const points = tessellateArc(entity.center, entity.radius, 0, 360, 96);
     return [path(points, true)].filter(
@@ -670,8 +627,13 @@ function renderEntity(
     // El patrón viaja como trazos reales; la guarda de densidad degrada a
     // contorno con aviso honesto antes que fabricar un PDF imposible.
     const pattern = buildCadHatchPublishStrokes(entity, Math.hypot(matrix.a, matrix.b));
-    // Dos puntos SIEMPRE forman un path: el `!` no esconde ningún caso.
-    for (const segment of pattern.strokes) commands.push(path([segment.a, segment.b])!);
+    // Las líneas de la trama son CONTINUAS aunque la capa lleve tipo de línea:
+    // AutoCAD no raya un sombreado con el patrón de su capa.
+    const hatchStyle: CadVectorStyle = { stroke: style.stroke, lineWidth: style.lineWidth, ...(style.fill ? { fill: style.fill } : {}) };
+    for (const segment of pattern.strokes) {
+      const stroke = commandPath(entity.id, context.viewport.id, [segment.a, segment.b], false, matrix, hatchStyle);
+      if (stroke) commands.push(stroke);
+    }
     if (pattern.warning)
       context.warnings.push({ ...pattern.warning, sheetId: context.sheetId, viewportId: context.viewport.id, entityId: entity.id });
     return commands;
@@ -773,6 +735,17 @@ function renderEntity(
     return commands;
   }
 
+  // Ola H: la imagen adjunta va con sus píxeles DEBAJO de su marco, que sigue
+  // saliendo del registro. Lo que no se puede incrustar se dice en un aviso.
+  if (entity.type === "image") {
+    const raster = cadImagePlotCommand(entity, context.document, context.viewport.id, (anchor) => point(matrix, anchor));
+    if (raster.skipped)
+      context.warnings.push({ code: raster.skipped.code, sheetId: context.sheetId, viewportId: context.viewport.id, entityId: entity.id, detail: raster.skipped.detail });
+    const frame = plotEntityFromRegistry(entity, context.document, { sheetId: context.sheetId, viewportId: context.viewport.id }, (points, closed) => path(points, closed) ?? null);
+    if (frame.warning) context.warnings.push(frame.warning);
+    return [...(raster.command ? [raster.command] : []), ...frame.commands];
+  }
+
   // Lo que la escalera no supo trazar lo traza el REGISTRO. Doce tipos —muro y
   // hueco entre ellos— desaparecían del PDF en silencio; el porqué, en la
   // cabecera de `paper-space-registry-fallback.ts`.
@@ -783,6 +756,18 @@ function renderEntity(
     (points, closed) => path(points, closed) ?? null,
   );
   if (fallback.warning) context.warnings.push(fallback.warning);
+  // El registro aporta la rejilla de una TABLE; el texto de sus celdas iba
+  // a ninguna parte (medido: 3 caminos, 0 textos). Ver paper-space-table.ts.
+  if (entity.type === "table")
+    return [
+      ...fallback.commands,
+      ...cadTableCellTextCommands(entity, {
+        viewportId: context.viewport.id,
+        toPaper: (anchor) => point(matrix, anchor),
+        scale: Math.hypot(matrix.a, matrix.b),
+        color: style.stroke,
+      }),
+    ];
   return fallback.commands;
 }
 
@@ -881,7 +866,16 @@ export function buildCadPublishPlan(
     (sheetTotal, sheet) =>
       sheetTotal +
       sheet.viewports.reduce(
-        (viewportTotal, viewport) => viewportTotal + viewport.commands.length,
+        (viewportTotal, viewport) => viewportTotal + viewport.commands.filter((command) => command.kind !== "image").length,
+        0,
+      ),
+    0,
+  );
+  const rasterCommandCount = sheets.reduce(
+    (sheetTotal, sheet) =>
+      sheetTotal +
+      sheet.viewports.reduce(
+        (viewportTotal, viewport) => viewportTotal + viewport.commands.filter((command) => command.kind === "image").length,
         0,
       ),
     0,
@@ -891,6 +885,6 @@ export function buildCadPublishPlan(
     sheets,
     warnings,
     vectorCommandCount,
-    rasterCommandCount: 0,
+    rasterCommandCount,
   };
 }

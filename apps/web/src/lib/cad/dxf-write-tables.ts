@@ -91,7 +91,22 @@ function pushLinetypeTable(lines: string[], model: CadDxfExportModel, layers: st
     pushPair(lines, 72, 65);
     pushPair(lines, 73, entry.pattern.length);
     pushPair(lines, 40, fmt(entry.pattern.reduce((total, value) => total + Math.abs(value), 0)));
-    for (const value of entry.pattern) pushPair(lines, 49, fmt(value));
+    entry.pattern.forEach((value, index) => {
+      pushPair(lines, 49, fmt(value));
+      // Tipo complejo (Ola F): el rótulo va sobre el tramo en cuyo arranque lo
+      // coloca el `.lin`: 74 = 2 (texto), 75 = 0 (sin forma), S/R/X/Y y el
+      // texto. Sin puntero 340 al estilo: este escritor no asigna handles a
+      // STYLE, y un puntero a un handle inexistente es peor que ninguno.
+      const text = entry.texts?.find((element) => element.element === index);
+      pushPair(lines, 74, text ? 2 : 0);
+      if (!text) return;
+      pushPair(lines, 75, 0);
+      pushPair(lines, 46, fmt(text.height));
+      pushPair(lines, 50, fmt(text.rotation));
+      pushPair(lines, 44, fmt(text.dx));
+      pushPair(lines, 45, fmt(text.dy));
+      pushPair(lines, 9, safeText(text.text));
+    });
   }
   pushPair(lines, 0, "ENDTAB");
 }

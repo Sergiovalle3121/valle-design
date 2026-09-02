@@ -48,6 +48,7 @@ import type { CadViewRequest } from "../view/view-navigation";
 import type { CadXrefCatalogEntry } from "../xref/xref-paths";
 import type { CadHostRequest } from "./host-requests";
 import type { CadSystemVariableValue, CadVariableAccess } from "../system-variables";
+import type { CadClipboardReader } from "../clipboard";
 import type { CadNamedLayerState } from "../layer-states";
 import type { CadLinetypeDefinition } from "../linetype-lin";
 import type { CadNamedSelectionFilter } from "../selection/selection-filter";
@@ -310,6 +311,13 @@ export interface CadCommandContext {
   catalogs?: CadSessionCatalogs;
   /** Posición actual del puntero en unidades de dibujo, si se conoce. */
   cursor?: CadPoint2;
+  /**
+   * Lo que hay en el portapapeles de geometría (Ola D, 2026-09-02): PASTECLIP
+   * y PASTEORIG lo LEEN. Escribirlo es un efecto y va por `CadHostRequest`
+   * `clipboard`. Opcional por la misma razón que `variables`: una spec del
+   * motor montada con un puente de tres líneas no tiene por qué traerlo.
+   */
+  clipboard?: CadClipboardReader;
   /** Rastro de lo hecho en esta sesión. Ver `CadCommandSession`. */
   session?: CadCommandSession;
   /**
@@ -382,7 +390,20 @@ export type CadUiTarget =
    * del motor y no puede reentrar en él sin reentrar en sí mismo. Mismo reparto
    * que `script-file`, por la misma razón exacta.
    */
-  | "dxf-file";
+  | "dxf-file"
+  /**
+   * Selector de archivos de `MAPIMPORT` (Ola G): VARIOS a la vez, porque un
+   * shapefile son cuatro archivos y dos son binarios. El anfitrión los
+   * empaqueta en un texto (`geo-import-bundle.ts`) y los entrega por la misma
+   * puerta que el DXF. Mismo reparto, por la misma razón exacta.
+   */
+  | "geo-file"
+  /**
+   * Selector de archivo de `IMAGEATTACH` (Ola H): el navegador decodifica la
+   * imagen para saber su tamaño y la entrega como `data:` dentro de un sobre
+   * JSON por la misma puerta de texto (`image-attach-payload.ts`).
+   */
+  | "image-file";
 
 export interface CadUiRequest {
   target: CadUiTarget;
@@ -397,7 +418,19 @@ export interface CadUiRequest {
 }
 
 export type CadCommandResult =
-  | { kind: "document"; commands: readonly CadEntityCommand[]; label: string }
+  | {
+      kind: "document";
+      commands: readonly CadEntityCommand[];
+      label: string;
+      /**
+       * Lo que la orden quiere DECIR además de escribir. STAIR reparte
+       * contrahuellas y huellas y el dibujante tiene que leer los números sin
+       * abrir el panel; sin este campo una orden que escribe es muda (el
+       * anfitrión aplica el lote y no imprime la etiqueta). Se registra como
+       * mensaje DESPUÉS del lote.
+       */
+      notice?: string;
+    }
   /**
    * Cambio de ENCUADRE, no de documento.
    *
@@ -485,8 +518,17 @@ export interface CadCommandDescriptor<S = unknown> {
    * documento sin declararse espacial, el punto se rechaza con su motivo en vez
    * de aceptarse a medias. Un comando se marca cuando su geometría conserva la
    * cota de punta a punta, no cuando «debería funcionar».
+   *
+   * Dos grados desde la Ola C (2026-09-02):
+   *
+   * - `true`: dibuja EN el plano del SCU, inclinado o no (LINE, PLINE, RECTANG).
+   * - `"elevation"`: conserva la cota del punto, así que honra un SCU llano
+   *   pero ELEVADO (la planta a +3000) y no uno inclinado (CIRCLE, ARC y las
+   *   primitivas de sólido, cuya forma vive en el plano horizontal). Un
+   *   círculo sobre un faldón sería una elipse en planta, y eso el documento
+   *   todavía no lo guarda; declararlo `true` mentiría exactamente ahí.
    */
-  spatial?: boolean;
+  spatial?: boolean | "elevation";
   begin(context: CadCommandContext): CadCommandStep<S>;
   step(state: S, input: CadCommandInput, context: CadCommandContext): CadCommandStep<S>;
   /** Cursor que muestra el viewport: cruz para puntos, caja para seleccionar. */

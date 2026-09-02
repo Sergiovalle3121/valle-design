@@ -1,19 +1,19 @@
 "use client";
 
 import { Stamp } from "lucide-react";
-import {
-  CAD_LAYOUT_TEMPLATES,
-  type CadLayoutTemplateId,
-} from "@/lib/cad/templates";
+import { CAD_LAYOUT_TEMPLATE_CATALOG } from "@/lib/cad/templates-catalog";
+import type { CadLayoutTemplateId } from "@/lib/cad/templates";
 
 /**
  * La tarjeta «Plantillas CAD» del panel de equipamiento, extraída del
- * monolito con un propósito de BUNDLE, no de estética: este módulo es el
- * único del estudio que importa `@/lib/cad/templates` (4.900+ líneas de
- * datos de 149 plantillas) de forma estática, y el monolito lo carga con
- * `next/dynamic` — así el catálogo viaja en su propio chunk y abrir un plano
- * existente no lo descarga. La aplicación de la plantilla sigue siendo del
- * editor (`onApply`): aquí sólo se elige.
+ * monolito con un propósito de BUNDLE, no de estética. Primero se cargó con
+ * `next/dynamic` para que `@/lib/cad/templates` (4.900+ líneas de datos de
+ * 149 plantillas) viajara en su propio chunk; no bastó: la tarjeta se monta
+ * al abrir el estudio, así que ese chunk se descargaba igual — 306 KB de los
+ * 4.313 KB medidos el 2026-09-02 con source maps. Ahora lee el CATÁLOGO
+ * generado (`templates-catalog.ts`: etiqueta, grupo, descripción y número de
+ * objetos, 45 KB de fuente) y el cuerpo de las plantillas sólo lo carga el
+ * editor con `import()` al aplicar una (`onApply`): aquí sólo se elige.
  */
 export default function CadTemplateChooserCard({
   onApply,
@@ -27,11 +27,11 @@ export default function CadTemplateChooserCard({
           <Stamp className="h-3.5 w-3.5" /> Plantillas CAD
         </div>
         <span className="type-micro text-primary-ink">
-          {CAD_LAYOUT_TEMPLATES.length}
+          {CAD_LAYOUT_TEMPLATE_CATALOG.length}
         </span>
       </div>
       <div className="grid grid-cols-1 gap-1.5">
-        {CAD_LAYOUT_TEMPLATES.map((template) => (
+        {CAD_LAYOUT_TEMPLATE_CATALOG.map((template) => (
           <button
             key={template.id}
             onClick={() => onApply(template.id)}
@@ -41,7 +41,7 @@ export default function CadTemplateChooserCard({
             <span className="flex items-center justify-between gap-2">
               <span className="truncate font-semibold">{template.label}</span>
               <span className="shrink-0 type-micro text-primary-ink">
-                {template.assets.length} obj
+                {template.assetCount} obj
               </span>
             </span>
             <span className="mt-0.5 block truncate type-micro text-primary-ink">

@@ -27,7 +27,9 @@
 import * as THREE from "three";
 import type { CadThreeViewport } from "../entity-three";
 import {
+  CAD_LINETYPE_MAX_ELEMENTS,
   CAD_LINETYPE_SLOTS,
+  packCadLinetypeUniforms,
   type CadLineBatch,
 } from "./line-batch";
 
@@ -107,8 +109,15 @@ void main() {
 export const CAD_LINE_BATCH_FRAGMENT_SHADER = `
 precision highp float;
 
-uniform vec2 cadLinetypePattern[${CAD_LINETYPE_SLOTS}];
+// La tabla de tipos de línea: ${CAD_LINETYPE_SLOTS} ranuras × ${CAD_LINETYPE_MAX_ELEMENTS} tramos
+// con signo (>0 trazo, <0 hueco, 0 punto), empaquetados de cuatro en cuatro, y
+// por ranura [tramos, periodo]. 96 vec4 + 48 vec2 = 144 vectores (48 ranuras
+// desde la Ola F; eran 32), por debajo de los 224 mínimos de WebGL2. Medido el 2026-09-02: con el par (trazo, hueco)
+// anterior CENTER, DASHDOT, PHANTOM, BORDER y DIVIDE se dibujaban como DASHED.
+uniform vec4 cadLinetypeDash[${CAD_LINETYPE_SLOTS * 2}];
+uniform vec2 cadLinetypeMeta[${CAD_LINETYPE_SLOTS}];
 uniform float cadLinetypeScale;
+uniform float cadWorldPerPixel;
 uniform float cadOpacity;
 
 varying vec3 vColor;
@@ -117,17 +126,38 @@ varying float vLinetype;
 varying float vSide;
 varying float vHalfWidthPx;
 
+float cadDashElement(int slot, int element) {
+  vec4 quad = cadLinetypeDash[slot * 2 + element / 4];
+  int lane = element - (element / 4) * 4;
+  if (lane == 0) return quad.x;
+  if (lane == 1) return quad.y;
+  if (lane == 2) return quad.z;
+  return quad.w;
+}
+
 void main() {
-  // GLSL ES 1.00 no permite indexar un array de uniformes con una expresión no
-  // constante en el fragment shader; el bucle de tope constante sí es legal.
-  vec2 pattern = vec2(0.0);
-  for (int slot = 0; slot < ${CAD_LINETYPE_SLOTS}; slot++) {
-    if (float(slot) == vLinetype) pattern = cadLinetypePattern[slot];
-  }
-  float period = (pattern.x + pattern.y) * cadLinetypeScale;
-  if (period > 0.0) {
-    float phase = mod(vDash, period);
-    if (phase > pattern.x * cadLinetypeScale) discard;
+  // three 0.185 antepone «#version 300 es» a todo ShaderMaterial, así que el
+  // índice dinámico sobre el array de uniformes es legal (GLSL ES 3.00); el
+  // bucle de tope constante recorre los tramos, no las ranuras.
+  int slot = int(vLinetype + 0.5);
+  vec2 meta = cadLinetypeMeta[slot];
+  float period = meta.y * cadLinetypeScale;
+  if (meta.x > 0.5 && period > 0.0) {
+    float local = mod(vDash, period);
+    float accumulated = 0.0;
+    bool decided = false;
+    bool painted = true;
+    for (int element = 0; element < ${CAD_LINETYPE_MAX_ELEMENTS}; element++) {
+      if (element >= int(meta.x + 0.5)) break;
+      float value = cadDashElement(slot, element);
+      // Un punto (0) mide dos píxeles: con longitud cero no se pintaría nunca.
+      accumulated += value == 0.0 ? 2.0 * cadWorldPerPixel : abs(value) * cadLinetypeScale;
+      if (!decided && local < accumulated) {
+        painted = value >= 0.0;
+        decided = true;
+      }
+    }
+    if (!painted) discard;
   }
   // Cobertura del borde: una línea de menos de un píxel no desaparece, se
   // atenúa. El descarte mantiene la escritura de profundidad significativa.
@@ -143,7 +173,10 @@ export interface CadLineBatchUniforms {
   cadWorldPerPixel: { value: number };
   cadDepthBias: { value: number };
   cadDepthScale: { value: number };
-  cadLinetypePattern: { value: THREE.Vector2[] };
+  /** `vec4[SLOTS*2]`: los tramos con signo, de cuatro en cuatro. */
+  cadLinetypeDash: { value: Float32Array };
+  /** `vec2[SLOTS]`: [tramos, periodo] por ranura. */
+  cadLinetypeMeta: { value: Float32Array };
   cadLinetypeScale: { value: number };
   cadOpacity: { value: number };
   [uniform: string]: { value: unknown };
@@ -153,8 +186,8 @@ export interface CadLineBatchMaterialOptions {
   viewport: CadThreeViewport;
   /** Píxeles de pantalla por unidad de dibujo. El zoom, leído de `CadView`. */
   pixelsPerUnit: number;
-  /** Patrones (guion, hueco) en unidades de dibujo. El índice 0 es continua. */
-  linetypePatterns?: ReadonlyArray<readonly [number, number]>;
+  /** Secuencias `.lin` por ranura, en unidades de dibujo. El índice 0 es continua. */
+  linetypePatterns?: ReadonlyArray<readonly number[]>;
   linetypeScale?: number;
   opacity?: number;
   /** Centro de la lámina de profundidad en NDC. 0 = todo el búfer (por defecto). */
@@ -163,13 +196,21 @@ export interface CadLineBatchMaterialOptions {
   depthScale?: number;
 }
 
-function linetypeUniformValue(
-  patterns: ReadonlyArray<readonly [number, number]> = [],
-): THREE.Vector2[] {
-  return Array.from({ length: CAD_LINETYPE_SLOTS }, (_, slot) => {
-    const pattern = patterns[slot];
-    return new THREE.Vector2(pattern?.[0] ?? 0, pattern?.[1] ?? 0);
-  });
+/**
+ * Escribe la tabla de tipos de línea en los uniformes. Es lo que la escena
+ * llama cuando llega un documento; sin esta llamada las ranuras quedan a cero
+ * y toda línea se dibuja continua aunque su ranura fuese la correcta — que es
+ * exactamente lo que pasaba antes (medido: cero llamadores del uniforme).
+ */
+export function setCadLineBatchLinetypes(
+  uniforms: CadLineBatchUniforms,
+  patterns: ReadonlyArray<readonly number[]>,
+  linetypeScale = 1,
+): void {
+  const packed = packCadLinetypeUniforms(patterns);
+  uniforms.cadLinetypeDash.value = packed.dash;
+  uniforms.cadLinetypeMeta.value = packed.meta;
+  uniforms.cadLinetypeScale.value = linetypeScale;
 }
 
 /**
@@ -188,10 +229,13 @@ export function createCadLineBatchMaterial(
     cadWorldPerPixel: { value: 1 / Math.max(options.pixelsPerUnit, 1e-6) },
     cadDepthBias: { value: options.depthBias ?? 0 },
     cadDepthScale: { value: options.depthScale ?? 1 },
-    cadLinetypePattern: { value: linetypeUniformValue(options.linetypePatterns) },
+    cadLinetypeDash: { value: new Float32Array(CAD_LINETYPE_SLOTS * CAD_LINETYPE_MAX_ELEMENTS) },
+    cadLinetypeMeta: { value: new Float32Array(CAD_LINETYPE_SLOTS * 2) },
     cadLinetypeScale: { value: options.linetypeScale ?? 1 },
     cadOpacity: { value: options.opacity ?? 1 },
   };
+  if (options.linetypePatterns)
+    setCadLineBatchLinetypes(uniforms, options.linetypePatterns, options.linetypeScale ?? 1);
   const material = new THREE.ShaderMaterial({
     uniforms,
     vertexShader: CAD_LINE_BATCH_VERTEX_SHADER,

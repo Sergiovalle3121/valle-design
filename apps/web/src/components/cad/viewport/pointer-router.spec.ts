@@ -387,6 +387,23 @@ assert.deepEqual(
 );
 ok(true, "Esc cancela sin escribir; el menú abierto se cierra sin designar debajo");
 
+// Espacio vale por Intro mientras el motor manda, como en AutoCAD: con LINE
+// abierto y dos puntos designados, termina el comando y lo dice con
+// preventDefault (medido antes: keyDown devolvía false para " ").
+const spaceEnter = harness();
+spaceEnter.router.invoke("LINE");
+spaceEnter.router.click(spaceEnter.at(0, 0));
+spaceEnter.router.click(spaceEnter.at(1_000, 0));
+let spacePrevented = 0;
+assert.equal(
+  spaceEnter.router.keyDown({ key: " ", preventDefault: () => { spacePrevented += 1; } } as unknown as KeyboardEvent),
+  true,
+  "Espacio con LINE abierto vale por Intro",
+);
+assert.equal(spacePrevented, 1, "y se lo queda (preventDefault una vez)");
+assert.equal(spaceEnter.router.active, false, "y termina el comando");
+ok(true, "Espacio ≡ Intro para el motor");
+
 // Un DEDO apoyado sobre un paso sin palabras clave no puede terminar el comando.
 // El botón derecho del ratón sí lo hace —es el gesto de AutoCAD—, y por eso las
 // dos entradas se distinguen por el `pointerType` que trae el evento.

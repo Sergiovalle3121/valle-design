@@ -104,7 +104,7 @@ function CadExactPrintPreview({ sheet }: { sheet: CadPublishSheet }) {
                     strokeWidth={command.style.lineWidth}
                     strokeDasharray={command.style.dash?.join(" ")}
                   />
-                ) : (
+                ) : command.kind === "text" ? (
                   <text
                     key={`${command.entityId}:${index}`}
                     x={command.point.x}
@@ -124,7 +124,7 @@ function CadExactPrintPreview({ sheet }: { sheet: CadPublishSheet }) {
                   >
                     {command.text}
                   </text>
-                ),
+                ) : null,
               )}
             </g>
             <rect

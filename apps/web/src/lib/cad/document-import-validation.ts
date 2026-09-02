@@ -48,7 +48,7 @@ export const MAX_SHP_IMPORT_BYTES = 8_000_000;
  */
 export const MAX_DWG_IMPORT_BYTES = DWG_MAX_IMPORT_BYTES;
 
-export type DocumentImportFormat = "dxf" | "json" | "shp" | "dwg" | "obj" | "stl" | "gltf" | "collada";
+export type DocumentImportFormat = "dxf" | "json" | "shp" | "geojson" | "dwg" | "obj" | "stl" | "gltf" | "collada";
 
 /** La extensión en minúsculas, sin punto. `""` si el nombre no tiene ninguna. */
 export function importFileExtension(fileName: string): string {
@@ -119,12 +119,13 @@ export function validateImportFile(
     kind === "dxf" ||
     kind === "json" ||
     kind === "shp" ||
+    kind === "geojson" ||
     meshImportFormatOf(fileName) !== null ||
     (kind === "dwg" && (dwgImportIsEnabled() || dwgBetaImportIsEnabled(dwgBetaEnabled)));
   if (!admitted) {
     throw new Error(
-      "Formato no soportado. Usa DXF de texto, JSON canónico, shapefile (.shp) o un modelo 3D " +
-        "(OBJ, STL, glTF/GLB o COLLADA/DAE).",
+      "Formato no soportado. Usa DXF de texto, JSON canónico, shapefile (.shp), GeoJSON (.geojson) " +
+        "o un modelo 3D (OBJ, STL, glTF/GLB o COLLADA/DAE).",
     );
   }
   if (!Number.isSafeInteger(size) || size <= 0) {

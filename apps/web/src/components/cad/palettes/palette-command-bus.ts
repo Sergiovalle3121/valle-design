@@ -82,33 +82,54 @@ export function cadUiHandlerTargets(): CadUiTarget[] {
  * Devuelve `null` si el usuario cancela o si esto no corre en un navegador.
  */
 export async function pickCadTextFile(accept: string): Promise<{ name: string; text: string } | null> {
-  if (typeof document === "undefined") return null;
+  const [file] = await pickBrowserFiles(accept, false);
+  if (!file) return null;
+  try {
+    return { name: file.name, text: await file.text() };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Lee VARIOS archivos elegidos a la vez, como bytes.
+ *
+ * MAPIMPORT (Ola G) los necesita así: un shapefile son cuatro archivos y dos
+ * de ellos binarios, y `File.text()` sobre un binario lo destroza (sustituye
+ * cada byte inválido). Devuelve vacío si el usuario cancela.
+ */
+export async function pickCadFiles(accept: string): Promise<Array<{ name: string; bytes: Uint8Array }>> {
+  const files = await pickBrowserFiles(accept, true);
+  const read: Array<{ name: string; bytes: Uint8Array }> = [];
+  for (const file of files) {
+    try {
+      read.push({ name: file.name, bytes: new Uint8Array(await file.arrayBuffer()) });
+    } catch {
+      // Un archivo que el navegador no deja leer no entra; los demás sí.
+    }
+  }
+  return read;
+}
+
+function pickBrowserFiles(accept: string, multiple: boolean): Promise<File[]> {
+  if (typeof document === "undefined") return Promise.resolve([]);
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = accept;
+    input.multiple = multiple;
     input.style.display = "none";
     let settled = false;
-    const finish = (value: { name: string; text: string } | null) => {
+    const finish = (value: File[]) => {
       if (settled) return;
       settled = true;
       input.remove();
       resolve(value);
     };
-    input.addEventListener("change", () => {
-      const file = input.files?.[0];
-      if (!file) {
-        finish(null);
-        return;
-      }
-      file
-        .text()
-        .then((text) => finish({ name: file.name, text }))
-        .catch(() => finish(null));
-    });
+    input.addEventListener("change", () => finish([...(input.files ?? [])]));
     // `cancel` no existe en todos los navegadores; sin este respaldo la promesa
     // quedaría viva para siempre y con ella el `input` en el DOM.
-    input.addEventListener("cancel", () => finish(null));
+    input.addEventListener("cancel", () => finish([]));
     document.body.append(input);
     input.click();
   });

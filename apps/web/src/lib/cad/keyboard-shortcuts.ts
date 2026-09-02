@@ -1,3 +1,4 @@
+import { CAD_COMMAND_ALIASES } from "./engine/alias-table";
 export type CadKeyboardShortcutId =
   | "palette"
   | "select"
@@ -48,6 +49,23 @@ export interface CadKeyboardEventLike {
   altKey?: boolean;
 }
 
+/*
+ * LA LETRA SUELTA ES DE LA LÍNEA DE COMANDOS.
+ *
+ * Medido el 2026-09-02 (sonda tsx sobre `engine/alias-table.ts`): trece letras
+ * sueltas de este registro y del intérprete eran alias de una letra de
+ * acad.pgp —A=ARC, E=ERASE, M=MOVE, O=OFFSET, F=FILLET, S=STRETCH, X=EXPLODE,
+ * G=GROUP, B=BLOCK, W=WBLOCK, Z=ZOOM, P=PAN, V=VIEW— y el lienzo se las
+ * quedaba: teclear «M» para mover abría la medición. Las entradas que
+ * colisionaban conservan su `id` (siguen siendo reasignables desde el dock del
+ * workspace) y pierden su tecla por defecto (`key: ""`): el dock pinta el
+ * campo vacío hasta que el usuario elija una combinación. Las que coinciden
+ * con su alias —L=LINE, C=CIRCLE, T=MTEXT, I=INSERT— se quedan. G y O sueltas
+ * se retiran del todo: F7 y F3 ya eran sus gemelas. `connector` (Shift+L),
+ * `rotate`, `scale` y `mirror` no tenían salida en ninguna fase del
+ * intérprete (medido: null) y se retiran: un atajo que no hace nada es una
+ * etiqueta falsa. `keyboard-alias-collisions.spec.ts` vigila la intersección.
+ */
 export const CAD_KEYBOARD_SHORTCUTS: CadKeyboardShortcut[] = [
   {
     id: "palette",
@@ -56,11 +74,11 @@ export const CAD_KEYBOARD_SHORTCUTS: CadKeyboardShortcut[] = [
     ctrl: true,
     description: "Abrir Cmd-K CAD.",
   },
-  { id: "select", label: "Select", key: "v", description: "Modo seleccion." },
+  { id: "select", label: "Select", key: "", description: "Modo seleccion." },
   {
     id: "measure",
     label: "Measure",
-    key: "m",
+    key: "",
     description: "Herramienta de medicion.",
   },
   {
@@ -72,13 +90,13 @@ export const CAD_KEYBOARD_SHORTCUTS: CadKeyboardShortcut[] = [
   {
     id: "polyline",
     label: "Polyline",
-    key: "p",
+    key: "",
     description: "Trazar polilínea CAD de muros.",
   },
   {
     id: "rect",
     label: "Rectangle",
-    key: "b",
+    key: "",
     description: "Dibujar un rectangulo desde dos esquinas.",
   },
   {
@@ -97,20 +115,13 @@ export const CAD_KEYBOARD_SHORTCUTS: CadKeyboardShortcut[] = [
   {
     id: "aisle",
     label: "Corridor",
-    key: "a",
+    key: "",
     description: "Preparar un pasillo o una holgura desde el comando CAD.",
-  },
-  {
-    id: "connector",
-    label: "Connector",
-    key: "l",
-    shift: true,
-    description: "Unir con una polilinea los objetos seleccionados.",
   },
   {
     id: "zone",
     label: "Area",
-    key: "z",
+    key: "",
     description: "Insertar un area rectangular editable.",
   },
   {
@@ -128,7 +139,7 @@ export const CAD_KEYBOARD_SHORTCUTS: CadKeyboardShortcut[] = [
   {
     id: "fit_view",
     label: "Fit view",
-    key: "f",
+    key: "",
     description: "Encuadrar el dibujo completo.",
   },
   { id: "undo", label: "Undo", key: "z", ctrl: true, description: "Deshacer." },
@@ -159,18 +170,6 @@ export const CAD_KEYBOARD_SHORTCUTS: CadKeyboardShortcut[] = [
     label: "Cancel",
     key: "escape",
     description: "Cancelar herramienta actual.",
-  },
-  {
-    id: "grid_toggle",
-    label: "Grid",
-    key: "g",
-    description: "Mostrar u ocultar la grilla.",
-  },
-  {
-    id: "object_snap_toggle",
-    label: "Object snap",
-    key: "o",
-    description: "Activar o desactivar snaps a objetos/DXF.",
   },
   {
     id: "object_snap_toggle",
@@ -227,26 +226,8 @@ export const CAD_KEYBOARD_SHORTCUTS: CadKeyboardShortcut[] = [
   {
     id: "export_dxf",
     label: "Export DXF",
-    key: "e",
+    key: "",
     description: "Abrir exportacion DXF profesional.",
-  },
-  {
-    id: "rotate",
-    label: "Rotar",
-    key: "r",
-    description: "Rotar la seleccion (pide grados).",
-  },
-  {
-    id: "scale",
-    label: "Escalar",
-    key: "s",
-    description: "Escalar la seleccion (pide factor).",
-  },
-  {
-    id: "mirror",
-    label: "Espejo",
-    key: "x",
-    description: "Espejo de la seleccion (eje vertical).",
   },
 ];
 
@@ -258,6 +239,9 @@ export function matchCadShortcut(
   const ctrl = !!(event.ctrlKey || event.metaKey);
   return shortcuts.find(
     (shortcut) =>
+      // Una entrada sin tecla por defecto no casa con nada (medido: casaba con
+      // un evento de `key: ""`).
+      shortcut.key !== "" &&
       shortcut.key.toLowerCase() === key &&
       !!shortcut.ctrl === ctrl &&
       !!shortcut.shift === !!event.shiftKey &&
@@ -273,4 +257,28 @@ export function cadShortcutLabel(shortcut: CadKeyboardShortcut): string {
   ]
     .filter(Boolean)
     .join("+");
+}
+
+/**
+ * Atajos de una letra que EJECUTAN el mismo comando que su alias de acad.pgp,
+ * y por eso pueden convivir con la línea de comandos. Sólo puede contener ids
+ * cuya tecla sea exactamente el alias del comando declarado (el spec lo exige).
+ */
+export const CAD_SHORTCUTS_THAT_ARE_ALIASES: Readonly<Record<string, string>> = {
+  line: "LINE",
+  circle: "CIRCLE",
+  text: "MTEXT",
+  equipment: "INSERT",
+};
+
+/**
+ * Si este atajo, sin modificadores y de una sola letra, robaría un alias de
+ * acad.pgp, devuelve el comando robado; si no, `null`.
+ */
+export function cadShortcutAliasCollision(shortcut: CadKeyboardShortcut): string | null {
+  if (shortcut.ctrl || shortcut.shift || shortcut.alt) return null;
+  if (shortcut.key.length !== 1) return null;
+  const command = CAD_COMMAND_ALIASES[shortcut.key.toUpperCase()];
+  if (!command) return null;
+  return CAD_SHORTCUTS_THAT_ARE_ALIASES[shortcut.id] === command ? null : command;
 }

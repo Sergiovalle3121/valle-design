@@ -122,6 +122,11 @@ export const CAD_SYSTEM_VARIABLES: readonly CadSystemVariableDef[] = [
   }),
   real("CELTSCALE", 1, "Escala de tipo de línea de los objetos nuevos", { min: 1e-6 }),
   real("LTSCALE", 1, "Escala global de tipo de línea", { min: 1e-6 }),
+  // Ola D (2026-09-02): la tolerancia de hueco de HATCH y BOUNDARY. Medido
+  // antes: el cosido de contornos tenía 1e-4 fijo —una décima de micra en un
+  // dibujo en mm— y el DWG de un topógrafo con 34 líneas mal empatadas no se
+  // sombreaba ni daba contorno.
+  real("HPGAPTOL", 0, "Tolerancia de hueco al cerrar contornos de sombreado, en unidades de dibujo (0 = cierre exacto)", { min: 0 }),
   int("LWDISPLAY", 0, "Mostrar los grosores de línea en pantalla: 0 no, 1 sí", { enumerated: [0, 1] }),
   int("LWUNITS", 1, "Unidad de los grosores: 0 pulgadas, 1 milímetros", { enumerated: [0, 1] }),
 
@@ -417,6 +422,21 @@ export function cadActiveUcs(variables: CadVariableAccess): CadNamedUcs {
  */
 export function cadActiveUcsIsTilted(variables: CadVariableAccess): boolean {
   if (Number(variables.get("UCSORGZ") ?? 0) !== 0) return true;
+  return cadActiveUcsIsInclined(variables);
+}
+
+/**
+ * ¿El plano de trabajo está INCLINADO o VOLTEADO respecto al del mundo?
+ *
+ * Es la mitad dura de `cadActiveUcsIsTilted`: aquí NO cuenta la elevación.
+ * Desde la Ola C (2026-09-02) el motor distingue los dos casos porque un SCU
+ * llano pero elevado —la planta del segundo piso a +3000— lo honra cualquier
+ * comando que conserve la cota del punto (`spatial: "elevation"`), mientras
+ * que un plano inclinado sólo lo honran los que dibujan en el plano del SCU
+ * (`spatial: true`). Un círculo a +3000 es un círculo; un círculo sobre un
+ * faldón sería una elipse en planta, y eso el documento aún no lo guarda.
+ */
+export function cadActiveUcsIsInclined(variables: CadVariableAccess): boolean {
   if (Number(variables.get("UCSXDIRZ") ?? 0) !== 0) return true;
   if (Number(variables.get("UCSYDIRZ") ?? 0) !== 0) return true;
   // Componente Z del producto vectorial X×Y: negativa ⇒ el SCU mira hacia abajo.

@@ -79,6 +79,8 @@ import type { CadTextQuadRequest } from "./text-atlas";
 import { cadRenderCount, cadRenderMark, cadRenderStage } from "./render-profile";
 import { defaultCadRenderStyle } from "./render-style";
 import { CAD_RENDER_ORIGIN_ZERO, cadPaperSpaceEntityIds, cadRenderOriginFromBounds, unionCadBounds, type CadRenderOrigin } from "./render-origin";
+import { cadEntityIsTextOnly, cadTextQuadRequestsFor } from "./text-requests";
+import { cadLinetypeTextRequestsFor } from "./linetype-text-requests";
 
 export type { CadOffThreadTessellator, CadRenderTessellationSource, CadRenderOrigin };
 export {
@@ -207,6 +209,8 @@ export class CadRenderPipeline {
   private readonly cache: CadTessellationCache;
   private readonly scheduler: CadRenderScheduler;
   private readonly styleOf: CadRenderStyleResolver;
+  /** El color de un rótulo es el de su entidad según `styleOf` (selección incluida). */
+  private readonly colorOf = (entity: CadNativeEntity): number => this.styleOf(entity).color;
   /**
    * Carril del teselado FUERA del hilo principal, cuando hay con qué.
    *
@@ -520,22 +524,11 @@ export class CadRenderPipeline {
         continue;
       }
       const depth = cadDrawOrderDepth(this.drawOrder.get(id) ?? 0, this.drawOrderCount);
-      if (entity.type === "mtext") {
-        // El texto no se tesela: viaja como petición de quads para el atlas.
-        // Los productores de geometría de MText, cotas y mleader se conservan;
-        // este pipeline sólo cambia CÓMO se materializa el resultado.
+      if (cadEntityIsTextOnly(entity)) {
+        // Rótulo puro: viaja como petición de quads para el atlas y no tesela su caja.
         const textStarted = cadRenderMark();
         resident.cursor += 1;
-        resident.textRequests.push({
-          text: entity.text,
-          fontKey: entity.fontFamily ?? "Arial",
-          fontSize: entity.height ?? 120,
-          x: entity.insertion.x,
-          y: entity.insertion.y,
-          rotationDeg: entity.rotation ?? 0,
-          color: this.styleOf(entity).color,
-          depth,
-        });
+        resident.textRequests.push(...cadTextQuadRequestsFor(entity, this.colorOf, depth, this.document));
         resident.entityIds.push(id);
         cadRenderStage("textRequest", textStarted);
         continue;
@@ -554,6 +547,12 @@ export class CadRenderPipeline {
         return;
       }
       resident.cursor += 1;
+      // Los rótulos de cota, directriz y tabla van DESPUÉS de la guarda del
+      // worker: la respuesta reencola el tile y reentra aquí con el cursor sin
+      // avanzar; antes de la guarda cada reencolado duplicaría el rótulo.
+      const style = this.styleOf(entity);
+      const labels = [...cadTextQuadRequestsFor(entity, this.colorOf, depth, this.document), ...cadLinetypeTextRequestsFor(entity, this.document, this.colorOf, depth)];
+      if (labels.length > 0) resident.textRequests.push(...labels);
       const tessellationStarted = cadRenderMark();
       const tessellation = this.cache.get(id, tier, () =>
         tessellateCadEntity(entity, cadRenderSegmentBudget(tier), this.document, this.origin),
@@ -561,7 +560,6 @@ export class CadRenderPipeline {
       cadRenderStage("tessellate", tessellationStarted);
       if (tessellation.segmentCount === 0) continue;
       const batchStarted = cadRenderMark();
-      const style = this.styleOf(entity);
       const key = cadLineStyleKey(style);
       let bucket = resident.builders.get(key);
       if (!bucket) {

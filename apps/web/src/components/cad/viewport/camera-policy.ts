@@ -34,7 +34,9 @@ import { CAD_TOUCH_ONE_FINGER_IDLE } from "./touch-gestures";
  * se comporta como antes — el gesto que la gente ya tiene no se toca por una
  * capacidad que sólo aparece a ratos.
  *
- * El ratón no se toca: en plano su botón izquierdo panea como siempre.
+ * El ratón: en plano su botón izquierdo panea salvo que el editor abra una
+ * ventana de selección (`background-drag-policy.ts`, que desactiva los
+ * controles en el `pointerdown`); el central encuadra en los dos modos.
  *
  * ── SE APLICA TAMBIÉN AL CREAR LOS CONTROLES, no sólo al conmutar de modo ──
  *
@@ -73,6 +75,12 @@ export function applyCadCameraPolicy(
   // todo el hemisferio menos el rasante, que degenera la matriz de vista.
   controls.maxPolarAngle = plan ? 0.05 : Math.PI / 2.05;
   controls.enableRotate = !plan;
+  // El botón central ENCUADRA en los dos modos, como en AutoCAD. OrbitControls
+  // lo trae en DOLLY de fábrica (medido con tsx sobre three 0.185.1: MIDDLE
+  // = DOLLY en 2D y 3D), así que la rueda hacía zoom dos veces y encuadrar
+  // con el central era imposible. Va ANTES del bloque de designación para que
+  // valga también con un comando abierto.
+  controls.mouseButtons.MIDDLE = THREE.MOUSE.PAN;
 
   if (!plan && pickingActive) {
     // El izquierdo deja de mover la cámara para que el clic llegue al motor:

@@ -39,8 +39,69 @@
  */
 import type { CadTessellation } from "./tessellation-cache";
 
-/** Máximo de tipos de línea que el shader sabe descodificar. */
-export const CAD_LINETYPE_SLOTS = 8;
+/**
+ * Ranuras de tipo de línea y tramos por ranura que el shader sabe
+ * descodificar. Son las mismas cifras que `cad-effective-style.ts` y se
+ * reexportan para que el empaquetado y el shader lean UNA definición.
+ */
+export { CAD_LINETYPE_SLOT_LIMIT as CAD_LINETYPE_SLOTS, CAD_LINETYPE_MAX_ELEMENTS } from "../cad-effective-style";
+import { CAD_LINETYPE_SLOT_LIMIT, CAD_LINETYPE_MAX_ELEMENTS as MAX_ELEMENTS } from "../cad-effective-style";
+
+/** Los uniformes del tipo de línea, empaquetados: `dash` lleva los tramos con signo y `meta` [tramos, periodo] por ranura. */
+export interface CadLinetypeUniformData {
+  dash: Float32Array;
+  meta: Float32Array;
+}
+
+/**
+ * Empaqueta las secuencias `.lin` para el shader. Puro y probable en Node: la
+ * regla de cobertura que ejecuta el GLSL está escrita una segunda vez en
+ * `cadLinetypeCoverage`, y el spec las compara.
+ */
+export function packCadLinetypeUniforms(
+  patterns: ReadonlyArray<readonly number[]>,
+): CadLinetypeUniformData {
+  const dash = new Float32Array(CAD_LINETYPE_SLOT_LIMIT * MAX_ELEMENTS);
+  const meta = new Float32Array(CAD_LINETYPE_SLOT_LIMIT * 2);
+  for (let slot = 0; slot < CAD_LINETYPE_SLOT_LIMIT; slot += 1) {
+    const pattern = patterns[slot] ?? [];
+    const count = Math.min(pattern.length, MAX_ELEMENTS);
+    let period = 0;
+    for (let element = 0; element < count; element += 1) {
+      dash[slot * MAX_ELEMENTS + element] = pattern[element];
+      period += Math.abs(pattern[element]);
+    }
+    meta[slot * 2] = count;
+    meta[slot * 2 + 1] = period;
+  }
+  return { dash, meta };
+}
+
+/**
+ * ¿Se pinta este punto del trazo? Espejo exacto del bucle del fragment
+ * shader: se recorre la secuencia acumulando longitudes (un punto mide
+ * `dotLength`, dos píxeles en pantalla) y decide el tramo en el que cae la
+ * fase. `phase` es la distancia recorrida a lo largo de la polilínea.
+ */
+export function cadLinetypeCoverage(
+  phase: number,
+  packed: CadLinetypeUniformData,
+  slot: number,
+  scale = 1,
+  dotLength = 0,
+): boolean {
+  const count = packed.meta[slot * 2];
+  const period = packed.meta[slot * 2 + 1] * scale;
+  if (count <= 0 || period <= 0) return true;
+  const local = ((phase % period) + period) % period;
+  let accumulated = 0;
+  for (let element = 0; element < count; element += 1) {
+    const value = packed.dash[slot * MAX_ELEMENTS + element];
+    accumulated += value === 0 ? dotLength : Math.abs(value) * scale;
+    if (local < accumulated) return value >= 0;
+  }
+  return true;
+}
 
 /** Rango de profundidad NDC utilizable. No se llega a ±1 para dejar holgura. */
 export const CAD_DRAW_ORDER_DEPTH_RANGE = 0.9;
@@ -190,7 +251,7 @@ export class CadLineBatchBuilder {
     const halfWidthPx = Math.max(0, style.halfWidthPx);
     const linetypeIndex = Math.max(
       0,
-      Math.min(CAD_LINETYPE_SLOTS - 1, Math.floor(style.linetypeIndex)),
+      Math.min(CAD_LINETYPE_SLOT_LIMIT - 1, Math.floor(style.linetypeIndex)),
     );
     let written = 0;
     for (const path of tessellation.paths) {

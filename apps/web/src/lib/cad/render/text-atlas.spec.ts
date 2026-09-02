@@ -246,6 +246,21 @@ buildCadTextQuads(
 assert.equal(shared.glyphCount, before, "la memoria del atlas no crece con el número de rótulos");
 ok(true, "20.000 rótulos más no añaden ni un glifo al atlas");
 
+// ---------------------------------------------------------------------------
+// Alineación con el avance real: «AB» a 10 unidades avanza 0,6 em por glifo,
+// así que centrado arranca en −6 y a la derecha en −12 (más el bearing 0,5).
+// ---------------------------------------------------------------------------
+const alignedAtlas = new CadGlyphAtlas(256, 1);
+const alignedX = (align: "left" | "center" | "right" | undefined) =>
+  buildCadTextQuads(
+    [{ text: "AB", fontKey: "f", fontSize: 10, x: 0, y: 0, align, color: 0, depth: 0 }],
+    alignedAtlas,
+    monospace,
+  ).instanceOrigin[0];
+ok(Math.abs(alignedX(undefined) - 0.5) < 1e-9, `sin align la pluma nace en el origen (${alignedX(undefined)})`);
+ok(Math.abs(alignedX("center") - -5.5) < 1e-9, `center retrocede media anchura real: ${alignedX("center")}`);
+ok(Math.abs(alignedX("right") - -11.5) < 1e-9, `right retrocede la anchura entera: ${alignedX("right")}`);
+
 console.log(
   `text-atlas: ${checks} comprobaciones verdes — 22.000 rótulos caben en ${shared.glyphCount} glifos y ${(nextBytes / 1_048_576).toFixed(2)} MiB frente a los ${(legacyBytes / 1_048_576).toFixed(0)} MiB que gastaba un canvas por MTEXT. Sin campo de distancia: los glifos se magnifican con filtrado bilineal y se ablandan por encima de ~3× el tamaño rasterizado.`,
 );

@@ -94,6 +94,8 @@ export interface SolidCommandFinish<S> {
   label: string;
   /** Órdenes previas al alta del sólido: normalmente borrar los perfiles. */
   before?: CadEntityCommand[];
+  /** Lo que la orden dice tras escribir (los números de una receta). */
+  notice?: string;
 }
 
 /**
@@ -128,6 +130,7 @@ export function finishedSolid<S>(
         { type: "insert", entity: solid as CadNativeEntity },
       ],
       label: options.label,
+      ...(options.notice ? { notice: options.notice } : {}),
     },
   };
 }

@@ -92,7 +92,8 @@ const NO_OPERAN_POR_ESTAR_ACTIVOS: Record<string, string> = {
   "Vista de plano 2D (superior, solo paneo y zoom)":
     "el estudio carga ya en vista de planta",
   Model: "la pestaña de espacio modelo ya está seleccionada",
-  "Seleccionar / mover (V)": "es la herramienta activa al cargar",
+  // Sin «(V)»: el lienzo dejó de robar la V (alias VIEW) y el título ya no la anuncia.
+  "Seleccionar / mover": "es la herramienta activa al cargar",
   // Antes era "Puntos" (compatibilidad con estaciones heredadas del
   // planificador industrial, ver IDENTITY.md): esa pestaña ahora sólo
   // aparece cuando el documento cargado de verdad trae estaciones, y el
@@ -103,11 +104,12 @@ const NO_OPERAN_POR_ESTAR_ACTIVOS: Record<string, string> = {
   // Firefox de CI los delató: en Chromium el hash del lienzo cambia entre dos
   // capturas y tapaba a cualquier control sin efecto real; el render de
   // Firefox es determinista y midió la verdad.
-  "Seleccionar · V — Seleccionar y mover objetos.":
-    "es la herramienta activa al cargar (gemelo de «Seleccionar / mover (V)»)",
+  "Seleccionar — Seleccionar y mover objetos.":
+    "es la herramienta activa al cargar (gemelo de «Seleccionar / mover»)",
   "Encuadre · Space — Navegar el plano sin cambiar la geometria.":
-    "pan comparte modo con select (la navegación por arrastre vive en el modo " +
-    "de selección) y el estudio ya carga en él",
+    "pan comparte modo con select y escribe la preferencia backgroundDrag='pan' " +
+    "(el arrastre izquierdo vuelve a encuadrar): un cambio de preferencia, sin " +
+    "efecto en el DOM que el barrido pueda ver",
 };
 
 /**
@@ -218,6 +220,117 @@ async function abrirEstudio(page: Page, documentId: string): Promise<void> {
   await page.waitForTimeout(900);
 }
 
+type Veredicto = "vivo" | "muerto" | "no-localizable" | "deshabilitado";
+
+/**
+ * Pulsa UN control sobre una carga limpia del estudio y dice qué pasó. La
+ * ventana de efecto es por sondeo: hasta 2,5 s, y sale en cuanto cambia una
+ * de las seis señales. Un control vivo suele responder en menos de 300 ms;
+ * uno muerto agota la ventana entera, más larga que los 1,2 s fijos que
+ * había, para que tres carriles compartiendo CPU no conviertan un control
+ * lento en «muerto».
+ */
+async function pulsar(
+  page: Page,
+  documentId: string,
+  nombre: string,
+): Promise<Veredicto> {
+  await abrirEstudio(page, documentId);
+  const antes = await page.evaluate(firma);
+  const lienzoAntes = await huellaDelLienzo(page);
+
+  let descargas = 0;
+  let selectores = 0;
+  let dialogos = 0;
+  let peticiones = 0;
+  const alDescargar = () => {
+    descargas += 1;
+  };
+  const alElegirArchivo = () => {
+    selectores += 1;
+  };
+  // Con un manejador registrado Playwright deja de descartar los diálogos
+  // solo: hay que descartarlos aquí o el estudio se queda esperando.
+  const alDialogo = (dialog: { dismiss: () => Promise<void> }) => {
+    dialogos += 1;
+    void dialog.dismiss().catch(() => undefined);
+  };
+  const alPedir = (request: { url: () => string }) => {
+    if (request.url().startsWith(API_ORIGIN)) peticiones += 1;
+  };
+  page.on("download", alDescargar);
+  page.on("filechooser", alElegirArchivo);
+  page.on("dialog", alDialogo);
+  page.on("request", alPedir);
+  const soltar = () => {
+    page.off("download", alDescargar);
+    page.off("filechooser", alElegirArchivo);
+    page.off("dialog", alDialogo);
+    page.off("request", alPedir);
+  };
+
+  const escapado = nombre.replace(/"/gu, '\\"');
+  const control = page
+    .locator(`[aria-label="${escapado}"], [title="${escapado}"]`)
+    .first();
+  let pulsado = false;
+  try {
+    if (await control.count()) {
+      const etiqueta = await control.evaluate((element) =>
+        element.tagName.toLowerCase(),
+      );
+      if (etiqueta === "select") {
+        const valores = await control
+          .locator("option")
+          .evaluateAll((options) =>
+            options.map((option) => (option as HTMLOptionElement).value),
+          );
+        const actual = await control.inputValue();
+        const otro = valores.find((valor) => valor !== actual);
+        if (otro) {
+          await control.selectOption(otro, { timeout: 5_000 });
+          pulsado = true;
+        }
+      } else {
+        await control.click({ timeout: 5_000 });
+        pulsado = true;
+      }
+    } else {
+      const porTexto = page
+        .getByRole("button", { name: nombre, exact: true })
+        .first();
+      if (await porTexto.count()) {
+        await porTexto.click({ timeout: 5_000 });
+        pulsado = true;
+      }
+    }
+  } catch {
+    // Un control deshabilitado no se puede pulsar: es honesto y se declara.
+    soltar();
+    return DESHABILITADOS_CON_RAZON.has(nombre) ? "deshabilitado" : "no-localizable";
+  }
+  if (!pulsado) {
+    soltar();
+    return "no-localizable";
+  }
+
+  const limite = Date.now() + 2_500;
+  let efecto = false;
+  for (;;) {
+    efecto =
+      descargas > 0 ||
+      selectores > 0 ||
+      dialogos > 0 ||
+      peticiones > 0 ||
+      (await page.evaluate(firma)) !== antes ||
+      (await huellaDelLienzo(page)) !== lienzoAntes;
+    if (efecto || Date.now() >= limite) break;
+    await page.waitForTimeout(250);
+  }
+  soltar();
+  return efecto ? "vivo" : "muerto";
+}
+
 test.describe("Cables sueltos: cada control visible produce su efecto", () => {
   let context: BrowserContext;
   let page: Page;
@@ -270,7 +383,20 @@ test.describe("Cables sueltos: cada control visible produce su efecto", () => {
     await context?.close();
   });
 
-  test("1 · ningún control visible del estudio se pulsa sin consecuencia", async () => {
+  /**
+   * CUATRO REBANADAS, una por fragmento de CI. Medido el 2026-09-02 con la API
+   * real y el build de producción bajo Xvfb: 582 controles visibles a 6,3 s
+   * por control en serie son 61 min, y con tres páginas en paralelo sobre
+   * cuatro núcleos (carga media 8,6) el barrido entero seguía pasando de los
+   * 30 min de tope de una prueba. La superficie crece con cada ola, así que
+   * ningún presupuesto de un solo trabajo iba a durar: el inventario se
+   * reparte por índice módulo cuatro y `ci.yml` corre en cada fragmento su
+   * rebanada (`--grep "barrido k/4"`), que es lo que el sharding hace con los
+   * archivos. En local, sin `--grep`, corren las cuatro seguidas. Cada
+   * rebanada lee el inventario ENTERO (una carga) y sólo pulsa lo suyo: las
+   * declaraciones de arriba se comprueban contra el inventario completo.
+   */
+  for (const rebanada of [1, 2, 3, 4] as const) test(`barrido ${rebanada}/4 · ningún control visible del estudio se pulsa sin consecuencia`, async () => {
     test.setTimeout(1_800_000);
 
     await abrirEstudio(page, documentId);
@@ -300,115 +426,53 @@ test.describe("Cables sueltos: cada control visible produce su efecto", () => {
       "el estudio debe seguir exponiendo su superficie completa",
     ).toBeGreaterThan(60);
 
-    const muertos: string[] = [];
-    const vivos: string[] = [];
-    const noLocalizables: string[] = [];
-
-    for (const nombre of inventario) {
-      if (
-        Object.keys(FUERA_DEL_BARRIDO).some((clave) => nombre.startsWith(clave))
+    /**
+     * Dos carriles por rebanada: dos páginas del mismo contexto se reparten
+     * los controles. Cada carril es una PÁGINA propia sobre el mismo
+     * documento: la carga limpia, las seis señales y la pulsación son de esa
+     * página, así que la medida de un control no se mezcla con la de otro.
+     * Dos y no más: con tres sobre cuatro núcleos la carga media subió a 8,6
+     * y lo que se ganaba en paralelo se perdía en cada carga del estudio. El
+     * orden del inventario se conserva en el veredicto, no en la ejecución.
+     */
+    const CARRILES = 2;
+    const pendientes = inventario
+      .filter(
+        (nombre) =>
+          !Object.keys(FUERA_DEL_BARRIDO).some((clave) => nombre.startsWith(clave)),
       )
-        continue;
-
-      await abrirEstudio(page, documentId);
-      const antes = await page.evaluate(firma);
-      const lienzoAntes = await huellaDelLienzo(page);
-
-      let descargas = 0;
-      let selectores = 0;
-      let dialogos = 0;
-      let peticiones = 0;
-      const alDescargar = () => {
-        descargas += 1;
-      };
-      const alElegirArchivo = () => {
-        selectores += 1;
-      };
-      // Con un manejador registrado Playwright deja de descartar los diálogos
-      // solo: hay que descartarlos aquí o el estudio se queda esperando.
-      const alDialogo = (dialog: { dismiss: () => Promise<void> }) => {
-        dialogos += 1;
-        void dialog.dismiss().catch(() => undefined);
-      };
-      const alPedir = (request: { url: () => string }) => {
-        if (request.url().startsWith(API_ORIGIN)) peticiones += 1;
-      };
-      page.on("download", alDescargar);
-      page.on("filechooser", alElegirArchivo);
-      page.on("dialog", alDialogo);
-      page.on("request", alPedir);
-
-      const escapado = nombre.replace(/"/gu, '\\"');
-      const control = page
-        .locator(`[aria-label="${escapado}"], [title="${escapado}"]`)
-        .first();
-      let pulsado = false;
-      try {
-        if (await control.count()) {
-          const etiqueta = await control.evaluate((element) =>
-            element.tagName.toLowerCase(),
-          );
-          if (etiqueta === "select") {
-            const valores = await control
-              .locator("option")
-              .evaluateAll((options) =>
-                options.map((option) => (option as HTMLOptionElement).value),
-              );
-            const actual = await control.inputValue();
-            const otro = valores.find((valor) => valor !== actual);
-            if (otro) {
-              await control.selectOption(otro, { timeout: 5_000 });
-              pulsado = true;
-            }
-          } else {
-            await control.click({ timeout: 5_000 });
-            pulsado = true;
-          }
-        } else {
-          const porTexto = page
-            .getByRole("button", { name: nombre, exact: true })
-            .first();
-          if (await porTexto.count()) {
-            await porTexto.click({ timeout: 5_000 });
-            pulsado = true;
-          }
+      .filter((_, indice) => indice % 4 === rebanada - 1);
+    const arranque = Date.now();
+    let hechos = 0;
+    const carriles = [
+      page,
+      ...(await Promise.all(
+        Array.from({ length: CARRILES - 1 }, () => context.newPage()),
+      )),
+    ];
+    const veredictos = new Map<string, Veredicto>();
+    let siguiente = 0;
+    await Promise.all(
+      carriles.map(async (carril) => {
+        for (;;) {
+          const indice = siguiente;
+          siguiente += 1;
+          if (indice >= pendientes.length) return;
+          const nombre = pendientes[indice];
+          veredictos.set(nombre, await pulsar(carril, documentId, nombre));
+          hechos += 1;
+          if (hechos % 25 === 0 || hechos === pendientes.length)
+            console.log(`[barrido ${rebanada}/4] ${hechos}/${pendientes.length} · ${((Date.now() - arranque) / 1000).toFixed(0)} s`);
         }
-      } catch {
-        // Un control deshabilitado no se puede pulsar: es honesto y se declara.
-        page.off("download", alDescargar);
-        page.off("filechooser", alElegirArchivo);
-        page.off("dialog", alDialogo);
-        page.off("request", alPedir);
-        if (!DESHABILITADOS_CON_RAZON.has(nombre)) noLocalizables.push(nombre);
-        continue;
-      }
-      if (!pulsado) {
-        page.off("download", alDescargar);
-        page.off("filechooser", alElegirArchivo);
-        page.off("dialog", alDialogo);
-        page.off("request", alPedir);
-        noLocalizables.push(nombre);
-        continue;
-      }
+      }),
+    );
+    await Promise.all(carriles.slice(1).map((carril) => carril.close()));
 
-      await page.waitForTimeout(1_200);
-      const despues = await page.evaluate(firma);
-      const lienzoDespues = await huellaDelLienzo(page);
-      page.off("download", alDescargar);
-      page.off("filechooser", alElegirArchivo);
-      page.off("dialog", alDialogo);
-      page.off("request", alPedir);
-
-      const efecto =
-        antes !== despues ||
-        lienzoAntes !== lienzoDespues ||
-        descargas > 0 ||
-        selectores > 0 ||
-        dialogos > 0 ||
-        peticiones > 0;
-      if (efecto) vivos.push(nombre);
-      else muertos.push(nombre);
-    }
+    const vivos = pendientes.filter((nombre) => veredictos.get(nombre) === "vivo");
+    const muertos = pendientes.filter((nombre) => veredictos.get(nombre) === "muerto");
+    const noLocalizables = pendientes.filter(
+      (nombre) => veredictos.get(nombre) === "no-localizable",
+    );
 
     const muertosSinRazon = muertos.filter(
       (nombre) =>
@@ -416,7 +480,7 @@ test.describe("Cables sueltos: cada control visible produce su efecto", () => {
     );
 
     console.log(
-      `Barrido: ${inventario.length} controles · ${vivos.length} con efecto · ` +
+      `Barrido ${rebanada}/4: ${pendientes.length} de ${inventario.length} controles · ${vivos.length} con efecto · ` +
         `${muertos.length} sin efecto (${muertos.length - muertosSinRazon.length} declarados) · ` +
         `${noLocalizables.length} no localizables`,
     );
@@ -441,7 +505,9 @@ test.describe("Cables sueltos: cada control visible produce su efecto", () => {
       ).toContain(declarado);
     }
 
-    expect(vivos.length).toBeGreaterThan(50);
+    // 50 era el mínimo del barrido entero; por rebanada (un cuarto de 579
+    // pulsables el 2026-09-02, 140 largos) se exige el cuarto proporcional.
+    expect(vivos.length).toBeGreaterThan(12);
   });
 
   test("2 · lo que hace un control llega al documento PERSISTIDO", async () => {

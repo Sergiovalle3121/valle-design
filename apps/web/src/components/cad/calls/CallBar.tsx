@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   Mic,
   MicOff,
@@ -15,6 +16,7 @@ import { Badge, Button, Surface } from "@/components/ui";
 import type { CallHangupReason, PeerLinkStatus } from "@/lib/cad/calls/call-state";
 import { useCallSession } from "./use-call-session";
 import type { CallSessionHost, CallSessionSnapshot } from "./call-session-host";
+import { useStudioTraySlot } from "@/components/cad/studio/use-studio-tray";
 
 /**
  * LA BARRA DE LLAMADA — autocontenida, montable con una línea:
@@ -150,26 +152,52 @@ export function CallBar({
 }) {
   const { snapshot, host } = useCallSession(documentId, displayName);
   const { state, toggles, mediaError } = snapshot;
+  const tray = useStudioTraySlot();
 
-  // `fixed ... z-[75]`: el estudio monta el editor en `fixed inset-0 z-[70]`
-  // (su propio contexto de apilamiento — ver `StudioCollaborationLayer`),
-  // así que cualquier chrome flotante encima necesita el mismo piso.
+  // En el estudio la barra vive en la BANDEJA de la barra de estado
+  // (`cad-status-tray`, ver `CadStatusBar.tsx`): el botón en reposo es un
+  // elemento más de la barra, y la llamada activa se despliega hacia ARRIBA
+  // desde ahí, sobre el lienzo, como un panel que abrió el usuario.
   //
-  // `top-[11.5rem]` y no `top-3`, y el número está medido, no elegido: la barra
-  // superior del estudio ocupa y 0–48 y la cinta y 48–162, así que CUALQUIER
-  // cosa fija por encima de 162 px se sienta sobre el chrome del editor. Con
-  // `top-3` esta barra tapaba el botón «Guardar» —la barra superior hace scroll
-  // horizontal y lo trae justo debajo—, y eso rompía a la vez el guardado para
-  // el usuario y todos los goldens que guardan. 184 px deja la barra dentro del
-  // lienzo, con 22 px de holgura sobre la cinta.
-  //
-  // El lado derecho y no el izquierdo porque abajo-izquierda es la mensajería y
-  // abajo-derecha la capa de colaboración: las dos crecen HACIA ARRIBA desde
-  // `bottom-16`, así que la banda alta del lienzo es la única libre.
-  //
-  // El envoltorio no intercepta el puntero; sólo lo hace el contenido. Un
-  // rectángulo invisible que se traga clics sobre el dibujo es la otra mitad
-  // del mismo defecto.
+  // Medido el 2026-09-02 en los goldens 19 y 72: la posición anterior,
+  // `fixed right-3 top-[11.5rem]` (184 px: debajo de la cinta, «la banda alta
+  // del lienzo es la única libre»), caía sobre el botón «Cerrar panel
+  // profesional» del panel de workspace, que ocupa la columna derecha desde
+  // arriba — Playwright reintentó 485 veces durante siete minutos. Cualquier
+  // altura fija sobre una columna de paneles tapa algo de esa columna; sobre
+  // el lienzo la rechaza el golden 68. La barra de estado no tiene nada
+  // debajo.
+  if (tray)
+    return createPortal(
+      <span className="relative inline-flex items-center">
+        {state.phase === "inactiva" ? (
+          <button
+            type="button"
+            onClick={() => void host.start()}
+            data-testid="call-start-button"
+            aria-label="Videollamada"
+            title="Videollamada con quien tenga el plano abierto"
+            // Sólo el icono: un rótulo de 110 px no cabía en el último renglón
+            // de la barra a 500 px de lienzo y abría un cuarto (golden 19:
+            // lienzo de 474 px de alto, mínimo 520).
+            className="inline-flex items-center rounded-control border border-border bg-surface px-1.5 py-0.5 text-foreground hover:bg-muted"
+          >
+            <Phone className="h-3 w-3" aria-hidden="true" />
+            <span className="sr-only">Videollamada</span>
+          </button>
+        ) : (
+          <div className="absolute bottom-full right-0 z-[75] mb-2">
+            <CallBarContent state={state} toggles={toggles} mediaError={mediaError} host={host} />
+          </div>
+        )}
+      </span>,
+      tray,
+    );
+
+  // Sin bandeja (el estudio sin editor, o antes de que monte): la posición
+  // fija de siempre. `z-[75]` porque el editor se monta en `fixed inset-0
+  // z-[70]` y crea su propio contexto de apilamiento. El envoltorio no
+  // intercepta el puntero; sólo lo hace el contenido.
   return (
     <div className="pointer-events-none fixed right-3 top-[11.5rem] z-[75] [&>*]:pointer-events-auto">
       <CallBarContent

@@ -41,6 +41,7 @@ import {
 } from "@/lib/cad/system-variables";
 import type { CadNamedUcs } from "@/lib/cad/ucs";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
+import { CAD_SHARED_CLIPBOARD, cadClipboardContent, type CadClipboard } from "@/lib/cad/clipboard";
 import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import type { SnapType } from "@/lib/cad/snap-engine";
 import type { CadSolidFaceRef } from "@/lib/cad/cad-entities-v5";
@@ -130,15 +131,60 @@ export class CadCommandEngineHost {
    * entre editores abiertos: dos dibujos, dos «cota anterior» distintas.
    */
   private session: CadCommandSession = {};
+  /**
+   * ADDSELECTED en marcha: la orden encadenada y las variables que hay que
+   * devolver cuando termine. Se comprueba al final de cada despacho, que es el
+   * único momento en que el anfitrión sabe si el motor sigue ocupado.
+   */
+  private chained: { command: string; restore: Record<string, CadSystemVariableValue> } | null = null;
+  private pendingChain: Extract<CadHostRequest, { kind: "chain-command" }> | null = null;
 
+  /**
+   * El portapapeles de geometría (Ola D, 2026-09-02). Por defecto el de la
+   * pestaña, compartido entre editores —copiar en un dibujo y pegar en otro es
+   * su razón de ser—; las specs montan el suyo para no pisarse.
+   */
   constructor(
     private readonly registry: CadCommandRegistry,
     private readonly bridge: CadCommandEngineBridge,
+    private readonly clipboard: CadClipboard = CAD_SHARED_CLIPBOARD,
   ) {}
 
-  /** El contexto del editor MÁS lo que esta sesión recuerda. */
+  /** El contexto del editor MÁS lo que esta sesión recuerda y el portapapeles. */
   private context(): CadCommandContext {
-    return { ...this.bridge.context(), session: this.session };
+    return { ...this.bridge.context(), session: this.session, clipboard: this.clipboard };
+  }
+
+  /**
+   * COPYCLIP, CUTCLIP y COPYBASE: el comando designó; aquí se leen las
+   * entidades, se guardan con su punto base y, al cortar, se borran los
+   * originales como UN lote y UN paso de deshacer. Devuelve el renglón que el
+   * diálogo enseña, con la negativa cuando no había nada canónico que copiar.
+   */
+  private clipboardRequest(request: Extract<CadHostRequest, { kind: "clipboard" }>): string {
+    const context = this.bridge.context();
+    const entities = request.entityIds.flatMap((id) => {
+      const entity = context.entity?.(id);
+      return entity ? [entity] : [];
+    });
+    const content = cadClipboardContent(
+      entities,
+      context.blocks?.() ?? [],
+      request.basePoint,
+      request.op,
+      context.document?.(),
+    );
+    if (typeof content === "string") return `${request.op === "cut" ? "CUTCLIP" : "COPYCLIP"}: ${content}`;
+    this.clipboard.write(content);
+    if (request.op === "cut")
+      this.bridge.apply(
+        content.entities.map((entity): CadEntityCommand => ({ type: "delete", entityId: entity.id })),
+        "CUTCLIP",
+      );
+    const base = `${content.basePoint.x}, ${content.basePoint.y}`;
+    return request.op === "cut"
+      ? `${content.entities.length} objeto(s) cortado(s) al portapapeles; punto base ${base}.`
+      : `${content.entities.length} objeto(s) copiado(s) al portapapeles; punto base ${base}.`;
   }
 
   /**
@@ -376,7 +422,36 @@ export class CadCommandEngineHost {
     );
     this.state = reduction.state;
     for (const effect of reduction.effects) this.applyEffect(effect);
+    // ADDSELECTED: la orden encadenada arranca DESPUÉS de aplicar los efectos
+    // de la que la pidió —no en medio, que reentraría en este mismo bucle— y
+    // las variables vuelven a su valor cuando el motor queda libre.
+    if (this.pendingChain) {
+      const request = this.pendingChain;
+      this.pendingChain = null;
+      this.startChain(request);
+    } else if (this.chained && !this.state.active) {
+      const { restore } = this.chained;
+      this.chained = null;
+      this.bridge.variables?.(restore, false);
+    }
     this.publish();
+  }
+
+  private startChain(request: Extract<CadHostRequest, { kind: "chain-command" }>): void {
+    const access = this.bridge.context().variables;
+    if (!this.bridge.variables || !access) {
+      this.log("Este espacio de trabajo no sostiene las variables de sistema; ADDSELECTED no puede fijar capa, color ni tipo de línea.", "error");
+      return;
+    }
+    const restore: Record<string, CadSystemVariableValue> = {};
+    for (const name of Object.keys(request.variables)) {
+      const current = access.get(name);
+      if (current !== undefined) restore[name] = current;
+    }
+    for (const line of this.bridge.variables(request.variables, false)) this.log(line, "info");
+    this.chained = { command: request.command, restore };
+    this.log(`ADDSELECTED: ${request.command} con capa ${String(request.variables.CLAYER)}, color ${String(request.variables.CECOLOR)}, tipo de línea ${String(request.variables.CELTYPE)}.`, "info");
+    this.dispatch({ kind: "invoke", command: request.command });
   }
 
   private applyEffect(effect: CadCommandEffect): void {
@@ -402,6 +477,15 @@ export class CadCommandEngineHost {
         return;
       }
       case "host": {
+        if (effect.request.kind === "chain-command") {
+          this.pendingChain = effect.request;
+          return;
+        }
+        if (effect.request.kind === "clipboard") {
+          const answered = this.clipboardRequest(effect.request);
+          this.log(answered, answered.includes(": no ") || answered.includes(": lo ") ? "error" : "info");
+          return;
+        }
         const answered = this.bridge.host?.(effect.request) ?? null;
         this.log(
           answered ?? `${effect.label} no está disponible en este contexto.`,

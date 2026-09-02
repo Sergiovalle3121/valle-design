@@ -34,6 +34,17 @@ import { CAD_DRAW_RING_COMMANDS } from "./commands/draw-rings";
 import { CAD_DRAW_SPLINE_COMMANDS } from "./commands/draw-spline";
 import { CAD_DRAW_OPENING_COMMANDS } from "./commands/draw-opening";
 import { CAD_DRAW_WALL_COMMANDS } from "./commands/draw-wall";
+import { CAD_ARCHITECTURE_STAIR_COMMANDS } from "./commands/architecture-stair";
+import { CAD_ARCHITECTURE_ROOF_COMMANDS } from "./commands/architecture-roof";
+import { CAD_MEP_TRACING_COMMANDS } from "./commands/mep-tracing";
+import { CAD_MEP_SYMBOL_COMMANDS } from "./commands/mep-symbol";
+import { CAD_GEO_LOCATION_COMMANDS } from "./commands/geo-location";
+import { CAD_MAP_IMPORT_COMMANDS } from "./commands/map-import";
+import { CAD_RASTER_IMAGE_COMMANDS } from "./commands/raster-image";
+import { CAD_MECHANICAL_PART_COMMANDS } from "./commands/mechanical-parts";
+import { CAD_MECHANICAL_ANNOTATE_COMMANDS } from "./commands/mechanical-annotate";
+import { CAD_MECHANICAL_SYMBOL_COMMANDS } from "./commands/mechanical-symbols";
+import { CAD_DIMENSION_TOLERANCE_COMMANDS } from "./commands/dimension-tolerance";
 import { CAD_INQUIRY_LIST_COMMANDS } from "./commands/inquiry-list";
 import { CAD_INQUIRY_MEASURE_COMMANDS } from "./commands/inquiry-measure";
 import { CAD_REGION_COMMANDS } from "./commands/inquiry-region";
@@ -56,6 +67,11 @@ import { CAD_MIRROR_COMMANDS } from "./commands/modify-mirror";
 import { CAD_MODIFY_TRANSFORM_COMMANDS } from "./commands/modify-transform";
 import { CAD_PARAMETRIC_DIMENSION_COMMANDS } from "./commands/parametric-dimensions";
 import { CAD_SOLID_CREATE_COMMANDS } from "./commands/solids-create";
+import { CAD_SOLID_PRIMITIVE_COMMANDS } from "./commands/solids-primitives";
+import { CAD_SOLIDEDIT_COMMANDS } from "./commands/solids-edit";
+import { CAD_CLIPBOARD_COMMANDS } from "./commands/clipboard";
+import { CAD_SELECT_SIMILAR_COMMANDS } from "./commands/select-similar";
+import { CAD_MODIFY_FOREIGN_COMMANDS } from "./commands/modify-foreign";
 import { CAD_PRESSPULL_COMMANDS } from "./commands/solids-push-face";
 import { CAD_SOLID_INQUIRY_COMMANDS } from "./commands/solids-inquiry";
 import { CAD_SOLID_INTEROP_COMMANDS } from "./commands/solids-interop";
@@ -162,6 +178,14 @@ export const CAD_COMMAND_DESCRIPTORS = [
   // Esquema 5: modelado de sólidos. Enchufan el kernel B-rep de `lib/brep/`, que
   // hasta esta ola estaba construido, probado y sin un solo consumidor.
   ...CAD_SOLID_CREATE_COMMANDS,
+  // Ola C: las ocho primitivas (BOX … POLYSOLID) y SOLIDEDIT, cada una un
+  // nodo del mismo árbol reeditable; medido antes: el nodo `box` existía y
+  // ningún comando lo creaba.
+  ...CAD_SOLID_PRIMITIVE_COMMANDS,
+  ...CAD_SOLIDEDIT_COMMANDS,
+  ...CAD_CLIPBOARD_COMMANDS,
+  ...CAD_SELECT_SIMILAR_COMMANDS,
+  ...CAD_MODIFY_FOREIGN_COMMANDS,
   // PRESSPULL compone las dos máquinas: empujar una cara o extruir un
   // contorno. Decide el primer gesto, no una opción tecleada.
   ...CAD_PRESSPULL_COMMANDS,
@@ -171,6 +195,22 @@ export const CAD_COMMAND_DESCRIPTORS = [
   // Esquema 6: la primera rebanada BIM. El muro paramétrico entra por el mismo
   // registro que todo lo demás — no hay un «modo BIM», hay una orden más.
   ...CAD_DRAW_WALL_COMMANDS,
+  ...CAD_ARCHITECTURE_STAIR_COMMANDS,
+  ...CAD_ARCHITECTURE_ROOF_COMMANDS,
+  ...CAD_MEP_TRACING_COMMANDS,
+  ...CAD_MEP_SYMBOL_COMMANDS,
+  // Ola G (Map 3D): la georreferencia como marcador y el conjunto GIS dentro
+  // del plano. Mismo registro, mismas puertas (`document`, `ui`).
+  ...CAD_GEO_LOCATION_COMMANDS,
+  ...CAD_MAP_IMPORT_COMMANDS,
+  // Ola H (Raster): el escaneo que se calca, con recorte y ajuste sobre la
+  // entidad `image` que ya existía.
+  ...CAD_RASTER_IMAGE_COMMANDS,
+  // Mechanical (Ola I): normalizados, globos y lista, soldadura y acabado, tolerancia de cota.
+  ...CAD_MECHANICAL_PART_COMMANDS,
+  ...CAD_MECHANICAL_ANNOTATE_COMMANDS,
+  ...CAD_MECHANICAL_SYMBOL_COMMANDS,
+  ...CAD_DIMENSION_TOLERANCE_COMMANDS,
   // Intercambio: DXFIN y DXFOUT. El bloqueo número uno de un despacho no es que
   // falte una orden de dibujo, es que el archivo del cliente no entre ni salga.
   ...CAD_DXF_INTEROP_COMMANDS,

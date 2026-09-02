@@ -21,6 +21,7 @@
  * con el DXF (tabla DIMSTYLE) y con la cabeza de cualquier dibujante.
  */
 import type { CadStyleTable } from "./cad-document";
+import { cadDimensionFamilyFor, cadDimensionSubStyleName, type CadDimensionFamilyKind } from "./dimension-family";
 
 export type CadDimensionArrowhead =
   | "closed-filled"
@@ -152,18 +153,23 @@ export const CAD_DIMENSION_STYLE_DEFAULTS: Required<
 
 /**
  * Resuelve la definición EFECTIVA de un estilo por nombre: defaults de
- * `Standard` ← `Standard` del documento ← estilo nombrado. Un nombre que el
- * documento no define resuelve a `Standard` (misma tolerancia que AutoCAD con
- * un DIMSTYLE ausente: la cota no se queda sin dibujar).
+ * `Standard` ← `Standard` del documento ← estilo nombrado ← su subestilo de
+ * familia (`NOMBRE$n`, Ola I) cuando se dice para qué tipo de cota se
+ * resuelve. Un nombre que el documento no define resuelve a `Standard` (misma
+ * tolerancia que AutoCAD con un DIMSTYLE ausente: la cota no se queda sin
+ * dibujar).
  */
 export function resolveCadDimensionStyle(
   styles: CadStyleTable | undefined,
   name: string | undefined,
+  kind?: CadDimensionFamilyKind,
 ): CadDimensionStyleDefinition {
   const table = styles?.dimension ?? {};
   const standard = table.Standard ?? {};
   const named = name && name !== "Standard" ? (table[name] ?? {}) : {};
-  return { ...CAD_DIMENSION_STYLE_DEFAULTS, ...standard, ...named };
+  const family = cadDimensionFamilyFor(kind);
+  const sub = family ? (table[cadDimensionSubStyleName(name ?? "Standard", family)] ?? {}) : {};
+  return { ...CAD_DIMENSION_STYLE_DEFAULTS, ...standard, ...named, ...sub };
 }
 
 /**

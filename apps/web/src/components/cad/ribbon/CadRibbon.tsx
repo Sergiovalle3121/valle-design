@@ -54,7 +54,10 @@ export function CadRibbon({
           onChange={(id) => setActiveTab(id as CadRibbonTabId)}
           label="Pestañas de la cinta"
           size="sm"
-          className="flex-1 border-b-0 px-2"
+          // `[&_button]:py-1`: la fila de pestañas medía 34 px con el py-2 de
+          // `size="sm"`; a 720 px de alto cada píxel de cinta se lo come el
+          // lienzo (golden 19: lienzo 511 px con 520 de mínimo, medido).
+          className="flex-1 border-b-0 px-2 [&_button]:py-1"
         />
         <button
           type="button"
@@ -77,7 +80,7 @@ export function CadRibbon({
             <div
               data-testid={`cad-ribbon-panels-${tab.id}`}
               className={cx(
-                "flex items-stretch overflow-x-auto px-1 py-0.5",
+                "flex items-stretch overflow-x-auto px-1 py-0",
                 "[-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
                 readOnly && "pointer-events-none opacity-60",
               )}

@@ -56,8 +56,15 @@ const ROOT_CLASS =
   "pointer-events-none absolute left-0 top-0 z-30 flex items-start gap-1.5 will-change-transform";
 const BADGE_CLASS =
   "rounded bg-cyan-500/90 px-1.5 py-0.5 font-mono text-[11px] font-semibold text-gray-950 shadow";
+// `pointer-events-none`: los campos siguen al puntero y NUNCA deben recibirlo.
+// Medido en el golden 46: el cuadro se colocaba en la última muestra de
+// `pointermove`, el siguiente salto del ratón caía ENCIMA del campo «ángulo»,
+// y desde ahí el lienzo dejaba de ver `pointermove`, el clic y el `contextmenu`
+// —el cursor vivo se quedaba clavado y el botón derecho no abría el menú de
+// palabras clave—. Se teclea en ellos por Tab (`focusField`), como en la
+// entrada dinámica de AutoCAD, no con el ratón.
 const FIELD_CLASS =
-  "pointer-events-auto w-20 rounded border border-cyan-300/60 bg-gray-950/95 px-1 py-0.5 text-right font-mono text-[11px] text-cyan-100 outline-none focus:border-cyan-200";
+  "pointer-events-none w-20 rounded border border-cyan-300/60 bg-gray-950/95 px-1 py-0.5 text-right font-mono text-[11px] text-cyan-100 outline-none focus:border-cyan-200";
 const MENU_CLASS =
   "pointer-events-auto absolute z-40 flex min-w-32 flex-col rounded-md border border-white/15 bg-[#0b1020]/97 p-1 text-[12px] shadow-xl backdrop-blur";
 const MENU_ITEM_CLASS =

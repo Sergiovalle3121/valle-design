@@ -23,6 +23,12 @@
       "estudioJsKB": 3826.1,
       "estudioUsableMs": 1497,
       "nota": "tras sacar del tablero el catalogo de plantillas y el importador"
+    },
+    "20260902-ola-i-ci-verde": {
+      "landingJsKB": 824.9,
+      "estudioJsKB": 3788.4,
+      "estudioUsableMs": 2001,
+      "nota": "tras las olas A-I del encargo AutoCAD completo (4270,3 KB en CI antes de esta medida): el catalogo de plantillas fuera del primer chunk, nueve paletas a demanda por next/dynamic y el parser de frases cargado a la primera frase"
     }
   }
 }

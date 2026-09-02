@@ -310,10 +310,13 @@ function document(entities: CadEntity[]): CadDocument {
   // aparecen en un DXF con tres entidades no dice CUÁL de las tres lo escribió,
   // y un test que pasa con dos de tres es peor que ninguno. Así, si TEXT deja
   // de escribir su rotación, el fallo lleva su nombre.
+  // El HATCH persiste el ángulo ABSOLUTO de sus rayas; en el DXF viaja como
+  // giro (52 = ángulo − 45 para ANSI31) y como ángulo de familia (53 = ángulo).
+  // Se mide el 53, que es el que lleva los 37.5° en grados.
   for (const [label, entity, code] of [
     ["TEXT", text, 50],
     ["INSERT", insert, 50],
-    ["HATCH", hatch, 52],
+    ["HATCH", hatch, 53],
   ] as const) {
     const one = exportCadDocumentDxf(document([entity]));
     ok(

@@ -16,6 +16,8 @@ import type { CadEntityCommand } from "@/lib/cad/entity-commands";
 import type { CadPreviewPath } from "@/lib/cad/engine/command-types";
 import type { SnapType } from "@/lib/cad/snap-engine";
 import { CadCommandEngineHost } from "./command-engine-host";
+import { createCadClipboard } from "@/lib/cad/clipboard";
+import { createCadVariableAccess } from "@/lib/cad/system-variables";
 
 const registry = createCadCommandRegistry([...CAD_DRAW_BASIC_COMMANDS, ...CAD_MODIFY_BASIC_COMMANDS]);
 
@@ -259,6 +261,151 @@ function makeHost(selection: readonly string[] = []) {
   assert.ok(host.accepts & 64, "«Designe objetos» acepta ENTITY_PICK (bit 64)");
   assert.ok(!(host.accepts & 1), "y NO acepta POINT: el clic al vacío no es un punto");
   host.cancel();
+}
+
+// --- el portapapeles de geometría: copiar en un editor, pegar en OTRO -----------
+// Ola D (2026-09-02). Medido antes: Ctrl+C sobre lo nativo duplicaba en el
+// sitio y nada viajaba entre dibujos. El almacén se comparte entre anfitriones
+// a propósito —es la razón de ser de un portapapeles— y aquí se monta uno
+// aparte para no pisar el de la pestaña.
+{
+  const clipboard = createCadClipboard();
+  const origin = new Map<string, CadEntity>([
+    ["l1", { id: "l1", type: "line", start: { x: 1_000, y: 1_000, z: 0 }, end: { x: 2_000, y: 1_500, z: 0 }, layer: "MUROS" }],
+  ]);
+  const originApplied: Applied[] = [];
+  const editorA = new CadCommandEngineHost(
+    CAD_COMMAND_REGISTRY_V2,
+    {
+      context: () => ({
+        entityIds: [...origin.keys()],
+        entity: (id) => origin.get(id),
+        blocks: () => [],
+        selection: ["l1"],
+        activeLayer: "MUROS",
+        view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+        newEntityId: () => "nunca",
+      }),
+      apply: (commands, label) => originApplied.push({ commands, label }),
+      preview: () => {},
+      osnapOverride: () => {},
+      cursor: () => {},
+    },
+    clipboard,
+  );
+  const targetApplied: Applied[] = [];
+  let ids = 0;
+  const editorB = new CadCommandEngineHost(
+    CAD_COMMAND_REGISTRY_V2,
+    {
+      context: () => ({
+        entityIds: [],
+        entity: () => undefined,
+        blocks: () => [],
+        selection: [],
+        activeLayer: "0",
+        view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+        newEntityId: () => `b${++ids}`,
+      }),
+      apply: (commands, label) => targetApplied.push({ commands, label }),
+      preview: () => {},
+      osnapOverride: () => {},
+      cursor: () => {},
+    },
+    clipboard,
+  );
+
+  // Vacío: PASTECLIP lo dice y no deja comando colgado.
+  editorB.invoke("PASTECLIP");
+  assert.ok(!editorB.busy, "con el portapapeles vacío PASTECLIP termina");
+  const empty = editorB.getSnapshot().history.at(-1);
+  assert.ok(empty?.text.includes("vacío") && empty.text.includes("Ctrl+C"), `dice que está vacío y qué tecla lo llena: «${empty?.text}»`);
+
+  // COPYCLIP con selección previa: ni pregunta ni escribe en el dibujo.
+  editorA.invoke("COPYCLIP");
+  assert.ok(!editorA.busy, "COPYCLIP con selección termina de inmediato");
+  assert.equal(originApplied.length, 0, "copiar no toca el dibujo de origen");
+  const copied = editorA.getSnapshot().history.at(-1);
+  assert.ok(copied?.level === "info" && copied.text.includes("1 objeto(s) copiado(s)") && copied.text.includes("1000, 1000"), `el diálogo cuenta y da el punto base: «${copied?.text}»`);
+  assert.equal(clipboard.read()?.entities.length, 1, "el almacén compartido tiene la línea");
+
+  // PASTECLIP en el OTRO editor: pide el punto y aplica UN lote con la copia trasladada.
+  editorB.invoke("PASTECLIP");
+  assert.match(editorB.getSnapshot().prompt?.message ?? "", /punto de inserción \(1 objeto\(s\)\)/, "pide el punto de inserción y cuenta");
+  editorB.pickPoint({ x: 5_000, y: 5_000 });
+  assert.equal(targetApplied.length, 1, "un lote");
+  assert.equal(targetApplied[0].label, "PASTECLIP", "con su etiqueta");
+  const pasted = targetApplied[0].commands[0];
+  assert.ok(pasted.type === "insert" && pasted.entity.type === "line" && pasted.entity.id === "b1", "una LINE nueva con id del destino");
+  assert.deepEqual(pasted.type === "insert" && pasted.entity.type === "line" ? pasted.entity.end : null, { x: 6_000, y: 5_500, z: 0 }, "trasladada por (destino − base)");
+
+  // CUTCLIP: guarda Y borra el original como un lote del editor de origen.
+  editorA.invoke("CUTCLIP");
+  assert.equal(originApplied.length, 1, "cortar borra en el origen");
+  assert.deepEqual(originApplied[0], { commands: [{ type: "delete", entityId: "l1" }], label: "CUTCLIP" }, "un delete por objeto, etiqueta CUTCLIP");
+  assert.equal(clipboard.read()?.origin, "cut", "y el almacén sabe que fue un corte");
+  const cut = editorA.getSnapshot().history.at(-1);
+  assert.ok(cut?.text.includes("cortado(s)"), `el diálogo lo dice: «${cut?.text}»`);
+}
+
+// --- ADDSELECTED encadena la orden del tipo y DEVUELVE las variables ------------
+// Ola D (2026-09-02). El reductor no puede arrancar otra orden ni ver su final:
+// el anfitrión pone CLAYER/CECOLOR/CELTYPE, arranca LINE y, cuando LINE
+// termina (o se cancela), deja las variables como estaban.
+{
+  const variables = createCadVariableAccess({ CLAYER: "0", CECOLOR: "BYLAYER", CELTYPE: "ByLayer" });
+  const entities = new Map<string, CadEntity>([
+    ["eje", { id: "eje", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 100, y: 0, z: 0 }, layer: "MUROS", context: { presentation: { color: { source: "explicit", value: "#ff0000" } } } }],
+  ]);
+  const applied: Applied[] = [];
+  let ids = 0;
+  const host = new CadCommandEngineHost(CAD_COMMAND_REGISTRY_V2, {
+    context: () => ({
+      entityIds: [...entities.keys()],
+      entity: (id) => entities.get(id),
+      selection: ["eje"],
+      activeLayer: "0",
+      view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
+      newEntityId: () => `a${++ids}`,
+      variables,
+    }),
+    apply: (commands, label) => applied.push({ commands, label }),
+    preview: () => {},
+    osnapOverride: () => {},
+    cursor: () => {},
+    variables: (patch) => {
+      const lines: string[] = [];
+      for (const [name, value] of Object.entries(patch)) {
+        const outcome = variables.set(name, value);
+        if (!outcome.ok) lines.push(outcome.reason);
+      }
+      return lines;
+    },
+  });
+
+  host.invoke("ADDSELECTED");
+  assert.ok(host.busy, "LINE quedó activa: ADDSELECTED encadenó");
+  assert.equal(host.getSnapshot().activeCommand, "LINE", "la orden encadenada es LINE");
+  assert.equal(variables.get("CLAYER"), "MUROS", "CLAYER es la capa del original mientras se dibuja");
+  assert.equal(variables.get("CECOLOR"), "#ff0000", "y CECOLOR su color");
+  assert.ok(host.getSnapshot().history.some((entry) => entry.text.includes("ADDSELECTED: LINE con capa MUROS")), "el diálogo dice qué orden y con qué");
+
+  host.pickPoint({ x: 0, y: 500 });
+  host.pickPoint({ x: 100, y: 500 });
+  host.accept();
+  assert.ok(!host.busy, "LINE terminó");
+  assert.equal(applied.length, 1, "y escribió su lote");
+  const drawn = applied[0].commands.find((command) => command.type === "insert");
+  assert.ok(drawn?.type === "insert" && drawn.entity.context?.presentation?.color?.value === "#ff0000", "la línea nueva lleva el color del original (CECOLOR llegó al dibujo)");
+  assert.equal(variables.get("CLAYER"), "0", "al terminar, CLAYER vuelve a lo que era");
+  assert.equal(variables.get("CECOLOR"), "BYLAYER", "y CECOLOR también");
+
+  // Cancelar también devuelve.
+  host.invoke("ADDSELECTED");
+  assert.equal(variables.get("CLAYER"), "MUROS", "de nuevo con la capa del original");
+  host.cancel();
+  assert.ok(!host.busy, "cancelada");
+  assert.equal(variables.get("CLAYER"), "0", "y las variables vuelven aunque no se dibujara nada");
 }
 
 console.log("cad command engine host specs passed");

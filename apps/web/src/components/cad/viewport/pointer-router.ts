@@ -394,7 +394,9 @@ export class CadEnginePointerRouter {
       );
       return true;
     }
-    if (event.key === "Enter" && !this.bridge.cursor.owns) {
+    // Espacio vale por Intro, como en AutoCAD y como ya hace la caja vacía de
+    // la línea de comandos; el motor ya lo trata así (command-engine.ts).
+    if ((event.key === "Enter" || event.key === " ") && !this.bridge.cursor.owns) {
       event.preventDefault();
       this.accept();
       return true;

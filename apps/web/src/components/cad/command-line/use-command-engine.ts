@@ -119,6 +119,17 @@ export interface CadStudioCommandEngineOptions {
    */
   view: { current: (CadViewControllerLike & { view: CadView }) | null };
   activeLayer: string;
+  /**
+   * `LTSCALE` ES `document.meta.linetypeScale` (Ola F, 2026-09-02).
+   *
+   * Medido antes: `LTSCALE 500` escribía la variable de SESIÓN y el visor, la
+   * lámina y el DXF seguían leyendo `meta.linetypeScale`, así que la orden no
+   * movía un solo guion —justo el «LTSCALE 2 que no mueve nada» contra el que
+   * avisa `settings-variables.ts`. Por la fachada, como `CLAYER`: leer la
+   * variable devuelve la del documento y escribirla la aplica con su entrada
+   * de deshacer. Opcional: sin editor (un guion, una prueba) queda en sesión.
+   */
+  linetypeScale?: { get: () => number; set: (value: number) => void };
   /** Pestaña abierta, si el editor está en espacio papel. */
   activeLayout?: string | null;
   newEntityId: () => string;
@@ -319,19 +330,31 @@ export function useCadStudioCommandEngine(
   // —el editor observando la variable— y pertenece a quien traiga el panel de
   // capas al motor, no a este PR.
   const clayerWritten = useRef(false);
+  // LTSCALE vive en el documento (ver `linetypeScale` en las opciones): la
+  // tabla de sesión valida el valor (mínimo 1e-6) y, si lo admite, el editor
+  // lo aplica al documento, que es lo que leen el visor, la lámina y el DXF.
+  const applyLinetypeScale = (name: string, value: unknown) => {
+    if (name.toUpperCase() !== "LTSCALE" || typeof value !== "number") return;
+    live.current.linetypeScale?.set(value);
+  };
   const variables = useMemo<CadVariableAccess>(
     () => ({
-      get: (name) =>
-        name.toUpperCase() === "CLAYER" && !clayerWritten.current
-          ? live.current.activeLayer
-          : session.variables.get(name),
+      get: (name) => {
+        if (name.toUpperCase() === "CLAYER" && !clayerWritten.current) return live.current.activeLayer;
+        if (name.toUpperCase() === "LTSCALE" && live.current.linetypeScale) return live.current.linetypeScale.get();
+        return session.variables.get(name);
+      },
       set: (name, value) => {
         if (name.toUpperCase() === "CLAYER") clayerWritten.current = true;
-        return session.variables.set(name, value);
+        const outcome = session.variables.set(name, value);
+        if (outcome.ok) applyLinetypeScale(name, value);
+        return outcome;
       },
       publish: (name, value) => {
         if (name.toUpperCase() === "CLAYER") clayerWritten.current = true;
-        return session.variables.publish(name, value);
+        const outcome = session.variables.publish(name, value);
+        if (outcome.ok) applyLinetypeScale(name, value);
+        return outcome;
       },
     }),
     [session],
@@ -427,6 +450,22 @@ export function useCadStudioCommandEngine(
     useCallback(
       (name: string, text: string) => {
         if (!engine.busy) engine.invoke("DXFIN");
+        engine.feedFile(name, text);
+      },
+      [engine],
+    ),
+    // MAPIMPORT (Ola G): el mismo trato que DXFIN, con el sobre de archivos.
+    useCallback(
+      (name: string, text: string) => {
+        if (!engine.busy) engine.invoke("MAPIMPORT");
+        engine.feedFile(name, text);
+      },
+      [engine],
+    ),
+    // IMAGEATTACH (Ola H): ídem, con el sobre de la imagen.
+    useCallback(
+      (name: string, text: string) => {
+        if (!engine.busy) engine.invoke("IMAGEATTACH");
         engine.feedFile(name, text);
       },
       [engine],

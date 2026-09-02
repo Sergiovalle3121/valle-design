@@ -59,6 +59,10 @@ test('professional workbench persists, scales and keeps every palette outside th
   await page.getByTestId('cad-workspace-aperturePx').fill('18');
   await page.getByTestId('cad-workspace-shortcut-line').fill('Q');
   await page.getByTestId('cad-workspace-right-click').selectOption('context');
+  // Con el muelle de comandos montado una letra suelta es de la línea de
+  // comandos (editor-keyboard.ts, fase 0); el atajo personalizado se ejercita
+  // con el muelle oculto, el único estado en el que sigue siendo del editor.
+  await page.getByTestId('cad-workspace-commandDock').uncheck();
   await page.getByLabel('Cerrar panel profesional').click();
 
   const canvas = page.getByTestId('cad-canvas');

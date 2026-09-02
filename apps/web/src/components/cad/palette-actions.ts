@@ -29,15 +29,14 @@
  * mismo anfitrión, sin sumarle un efecto más al monolito.
  */
 import { useEffect, useMemo, useRef } from "react";
-import {
-  createHistoryItem,
-  parseCadCommand,
-  previewCadCommand,
-  type CadCommandContext,
-  type CadCommandHistoryItem,
-  type CadCommandInput,
-  type CadCommandPreview,
-} from "@/lib/cad/commands";
+import { createHistoryItem } from "@/lib/cad/commands/history";
+import { loadCadNlCommands } from "@/lib/cad/commands/lazy";
+import type {
+  CadCommandContext,
+  CadCommandHistoryItem,
+  CadCommandInput,
+  CadCommandPreview,
+} from "@/lib/cad/commands/types";
 import type { CadPaletteEntry } from "@/lib/cad/command-palette";
 import type { CadToolbarActionId } from "@/lib/cad/toolbar";
 import { registerCadUiHandler } from "./palettes/palette-command-bus";
@@ -85,10 +84,10 @@ export function rememberCadPaletteAction(
   return [key, ...items.filter((item) => item !== key)].slice(0, 5);
 }
 
-export function runCadPaletteEntry(
+export async function runCadPaletteEntry(
   entry: CadPaletteEntry,
   host: CadPaletteActionsHost,
-): void {
+): Promise<void> {
   if (host.isReadOnly() && entry.kind !== "tool") {
     host.notifyReadOnly();
     return;
@@ -108,8 +107,11 @@ export function runCadPaletteEntry(
     // orden en lenguaje natural sin enseñar antes qué va a tocar es la clase
     // de sorpresa que el copiloto existe para evitar.
     const example = entry.keywords.find((kw) => kw.includes(" ")) ?? entry.label;
-    const parsed = parseCadCommand(example);
     host.openNlCommand(example);
+    // El parser se carga al primer uso (`commands/lazy.ts`); la barra ya
+    // muestra la frase mientras llega.
+    const { parseCadCommand, previewCadCommand } = await loadCadNlCommands();
+    const parsed = parseCadCommand(example);
     if (parsed.ok && parsed.input) {
       const preview = previewCadCommand(parsed.input, host.nlCommandContext());
       host.setNlCommandPreview({ input: parsed.input, preview, rawInput: example });

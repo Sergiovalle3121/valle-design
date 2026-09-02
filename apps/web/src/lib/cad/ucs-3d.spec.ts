@@ -165,13 +165,15 @@ function sesion(): Sesion {
  * analizador de tokens —que es donde el SCU tiene que morder—, y un objeto
  * entra ya resuelto, que es lo que hace el puntero al designar.
  */
+// Contador GLOBAL de ids: dos `teclea` sobre la misma sesión no pueden repetir
+// `nueva-1`, o el lote del segundo se rechaza por id duplicado.
+let ids = 0;
 function teclea(
   sesion: Sesion,
   entradas: readonly (string | CadCommandInput)[],
   cursor?: { x: number; y: number },
 ): Sesion {
   let state = EMPTY_CAD_COMMAND_ENGINE;
-  let ids = 0;
   for (const entrada of entradas) {
     const context: CadCommandContext = {
       entityIds: sesion.document.entities.map((entity) => entity.id),
@@ -398,10 +400,35 @@ let errorFueraDePlano = 0;
     { kind: "enter" },
   ]);
   const antes = s.document.entities.length;
-  const negado = teclea(s, ["PLINE", "0,0", "40,0"]);
-  equal(negado.document.entities.length, antes, "PLINE no escribió nada con el SCU inclinado");
+  // Ola C (2026-09-02): PLINE y RECTANG dibujan EN el plano del SCU; hasta
+  // esta ola PLINE se negaba aquí con «cota cero».
+  const plano = cadActiveUcs(s.variables);
+  const conPline = teclea(s, ["PLINE", "0,0", "40,0", { kind: "enter" }]);
+  equal(conPline.document.entities.length, antes + 1, "PLINE escribió su polilínea sobre el SCU inclinado");
+  const polilinea = conPline.document.entities[conPline.document.entities.length - 1];
+  ok(polilinea.type === "polyline", "y es una polilínea");
+  if (polilinea.type === "polyline") {
+    for (const vertice of polilinea.vertices)
+      within(Math.abs(cadUcsPlaneDistance(vertice, plano)), TOLERANCIA_MM, "cada vértice está SOBRE el plano inclinado");
+    const segundo = worldToUcs(polilinea.vertices[1], plano);
+    within(Math.hypot(segundo.x - 40, segundo.y - 0), TOLERANCIA_MM, "el segundo vértice está donde se tecleó, medido en el SCU");
+  }
+  const conRect = teclea(s, ["RECTANG", "0,0", "40,25"]);
+  equal(conRect.document.entities.length, antes + 2, "RECTANG escribió su rectángulo sobre el SCU inclinado");
+  const rect = conRect.document.entities[conRect.document.entities.length - 1];
+  if (rect.type === "polyline") {
+    equal(rect.vertices.length, 4, "cuatro esquinas");
+    for (const vertice of rect.vertices)
+      within(Math.abs(cadUcsPlaneDistance(vertice, plano)), TOLERANCIA_MM, "cada esquina está SOBRE el plano inclinado");
+    const opuesta = worldToUcs(rect.vertices[2], plano);
+    within(Math.hypot(opuesta.x - 40, opuesta.y - 25), TOLERANCIA_MM, "la esquina opuesta mide 40 × 25 en el SCU");
+  }
+  // Lo que no dibuja en el plano se sigue negando y lo dice: CIRCLE conserva
+  // la cota (SCU elevado) pero no sabe inclinarse.
+  const negado = teclea(s, ["CIRCLE", "0,0", "20"]);
+  equal(negado.document.entities.length, antes + 2, "CIRCLE no escribió nada con el SCU inclinado");
   ok(
-    mensajes(negado.effects).some((text) => text.includes("PLINE") && text.includes("cota cero")),
+    mensajes(negado.effects).some((text) => text.includes("CIRCLE") && text.includes("plano inclinado")),
     "y lo dijo, en vez de aplanar el trazo en silencio",
   );
 
@@ -411,6 +438,37 @@ let errorFueraDePlano = 0;
   ok(
     mensajes(directa.effects).some((text) => text.includes("entrada directa")),
     "la entrada directa de distancia se niega sobre un SCU inclinado",
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 4b. El SCU ELEVADO (llano, a otra cota) lo honra todo lo que conserva la cota
+// ---------------------------------------------------------------------------
+
+{
+  const s = sesion();
+  // El origen llega como punto ya resuelto (el puntero sobre un objeto a
+  // +3000, o `.z` filtrado): UCS conserva su cota (ucs-commands.ts:180).
+  teclea(s, ["UCS", { kind: "point", point: { x: 0, y: 0, z: 3000 } as { x: number; y: number }, source: "typed" }, { kind: "enter" }]);
+  ok(cadActiveUcsIsTilted(s.variables), "el SCU elevado sigue siendo «fuera del plano del mundo» para el motor");
+  equal(Number(s.variables.get("UCSORGZ")), 3000, "y su origen está a +3000");
+  const antes = s.document.entities.length;
+  const circulo = teclea(s, ["CIRCLE", "10,20", "5"]);
+  equal(circulo.document.entities.length, antes + 1, "CIRCLE dibuja sobre la planta elevada");
+  const entidad = circulo.document.entities[circulo.document.entities.length - 1];
+  if (entidad.type === "circle") {
+    within(Math.abs(entidad.center.z - 3000), TOLERANCIA_MM, "y su centro está a +3000, que es donde está la planta");
+    within(Math.hypot(entidad.center.x - 10, entidad.center.y - 20), TOLERANCIA_MM, "en el sitio tecleado");
+  }
+  const arco = teclea(s, ["ARC", "0,0", "10,10", "20,0"]);
+  const ultimo = arco.document.entities[arco.document.entities.length - 1];
+  ok(ultimo.type === "arc" && Math.abs(ultimo.center.z - 3000) <= TOLERANCIA_MM, "ARC por tres puntos también sube a +3000");
+  // Lo que no conserva la cota se sigue negando y lo dice.
+  const elipse = teclea(s, ["ELLIPSE", "0,0", "40,0", "10"]);
+  equal(elipse.document.entities.length, antes + 2, "ELLIPSE no escribió nada con el SCU elevado");
+  ok(
+    mensajes(elipse.effects).some((text) => text.includes("ELLIPSE") && text.includes("elevado")),
+    "y lo dijo: el motor distingue elevado de inclinado",
   );
 }
 

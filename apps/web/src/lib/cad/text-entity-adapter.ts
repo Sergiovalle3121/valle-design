@@ -116,7 +116,7 @@ function textBounds(entity: NativeText) {
 
 export const textAdapter: CadEntityAdapter<NativeText> = {
   type: "text",
-  renderer: { paths: (entity) => textPaths(entity) },
+  renderer: { paths: (entity) => textPaths(entity), textOnly: true },
   bounds: { bounds: (entity) => textBounds(entity) },
   hitTester: {
     hitTest: (entity, point, tolerance) => {

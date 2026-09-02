@@ -32,7 +32,8 @@ import { topView, fitFootprint } from "../fixtures/camera-preset";
 
 function mixedDocument(): CadDocument {
   return {
-    meta: { version: 1, schema: 3, unit: 'mm' },
+    // Esquema 4: la TABLE es de esquema 4 (cad-document-migrate sólo rechaza > 10).
+    meta: { version: 1, schema: 4, unit: 'mm' },
     layers: [{ id: '0', name: '0', color: '#ffffff', visible: true, locked: false }],
     entities: [
       {
@@ -100,6 +101,42 @@ function mixedDocument(): CadDocument {
         height: 400,
         layer: '0',
       },
+      // Rótulos que ANTES no llegaban al atlas: TEXT (se teselaba como un marco
+      // vacío), MLEADER (sólo sus trazos) y TABLE (sólo la rejilla). La cota de
+      // arriba tampoco rotulaba su medida. Hoy los cinco tipos rotulan.
+      {
+        id: 'texto',
+        type: 'text',
+        x: 1_000,
+        y: 8_000,
+        text: 'NIVEL +0.00',
+        height: 300,
+        layer: '0',
+      },
+      {
+        id: 'directriz',
+        type: 'mleader',
+        vertices: [{ x: 7_000, y: 3_000, z: 0 }, { x: 8_000, y: 4_000, z: 0 }],
+        text: 'VER DETALLE',
+        textPosition: { x: 8_200, y: 4_000, z: 0 },
+        layer: '0',
+      },
+      {
+        id: 'tabla',
+        type: 'table',
+        insertion: { x: 1_000, y: 9_500, z: 0 },
+        rows: 2,
+        columns: 2,
+        rowHeights: [400, 400],
+        columnWidths: [1_500, 1_500],
+        cells: [
+          { row: 0, column: 0, text: 'CLAVE' },
+          { row: 0, column: 1, text: 'AREA' },
+          { row: 1, column: 0, text: 'A-1' },
+          { row: 1, column: 1, text: '12.50' },
+        ],
+        layer: '0',
+      },
       {
         id: 'insercion',
         type: 'insert',
@@ -117,7 +154,7 @@ function mixedDocument(): CadDocument {
     modelSpace: {
       entityIds: [
         'sombreado', 'linea', 'polilinea', 'circulo',
-        'arco', 'cota', 'rotulo', 'insercion',
+        'arco', 'cota', 'rotulo', 'texto', 'directriz', 'tabla', 'insercion',
       ],
     },
     paperSpaces: [],
@@ -151,7 +188,7 @@ async function openStudio(context: BrowserContext, page: Page, search = '') {
   });
   await page.goto(`/legacy/studio${search}`);
   await expect(page.getByTestId('cad-canvas')).toBeVisible();
-  await expect(page.getByTestId('cad-native-document-count')).toHaveText('Native 8');
+  await expect(page.getByTestId('cad-native-document-count')).toHaveText('Native 11');
   return backend;
 }
 
@@ -197,16 +234,18 @@ test('un documento con MTEXT, sombreado e inserción se dibuja con el pipeline p
 
   // 3. Geometría de verdad en la GPU: lotes instanciados con segmentos dentro.
   expect(await numberOf(page, 'data-batches')).toBeGreaterThan(0);
-  // Ocho entidades con arcos, sombreado y cota son cientos de segmentos, no
-  // ocho: si esto bajara a las decenas, algo estaría teselando al escalón más
+  // Once entidades con arcos, sombreado, cota y tabla son cientos de segmentos, no
+  // once: si esto bajara a las decenas, algo estaría teselando al escalón más
   // grueso o directamente saltándose entidades.
   expect(await numberOf(page, 'data-instances')).toBeGreaterThan(100);
 
   // 4. EL ATLAS DE TEXTO RASTERIZA. Ésta es la afirmación que ninguna prueba de
   //    Node podía hacer —«en Node no hay canvas, así que el atlas de texto no
-  //    entra en esta corrida», dice el propio benchmark—. `PLANTA BAJA` son 11
-  //    caracteres; el espacio no produce quad, así que salen 10 glifos.
-  expect(await numberOf(page, 'data-glyphs')).toBeGreaterThanOrEqual(10);
+  //    entra en esta corrida», dice el propio benchmark—. El espacio no produce
+  //    quad: `PLANTA BAJA` 10 + `NIVEL +0.00` 10 + `4000.00 mm` (la cota) 9 +
+  //    `VER DETALLE` 10 + celdas CLAVE 5, AREA 4, A-1 3, 12.50 5 = 56. Con la
+  //    rama anterior (sólo MTEXT) este contador leía 10.
+  expect(await numberOf(page, 'data-glyphs')).toBeGreaterThanOrEqual(56);
   // Y ninguno se cayó del atlas: un glifo descartado es un rótulo incompleto.
   expect(await numberOf(page, 'data-dropped-glyphs')).toBe(0);
 

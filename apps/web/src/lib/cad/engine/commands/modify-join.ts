@@ -37,7 +37,9 @@ import type { CadNativeEntity } from "../../entity-runtime";
 import { resolveCadInsert } from "../../professional-blocks";
 import { norm360 } from "../../primitives";
 import {
+  CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_ENTITY_PICK,
+  CAD_ACCEPT_KEYWORD,
   CAD_ACCEPT_SELECTION,
   asCadCommand,
   type CadAnyCommandDescriptor,
@@ -176,8 +178,11 @@ function curveEnds(curves: readonly CadCurve[]): { start: CadPoint2; end: CadPoi
   return { start: curvePointAt(curves[0], 0), end: curvePointAt(curves[curves.length - 1], 1) };
 }
 
-function samePoint(a: CadPoint2, b: CadPoint2): boolean {
-  return Math.hypot(a.x - b.x, a.y - b.y) <= 1e-6;
+/** Tolerancia de fábrica: dos extremos son el mismo punto a una micra. */
+const JOIN_EXACT = 1e-6;
+
+function samePoint(a: CadPoint2, b: CadPoint2, tolerance = JOIN_EXACT): boolean {
+  return Math.hypot(a.x - b.x, a.y - b.y) <= tolerance;
 }
 
 function reverseCurve(curve: CadCurve): CadCurve {
@@ -197,7 +202,7 @@ const bulgeOf = (curve: CadCurve) =>
  * conectando— pero no se admite un salto: dos trozos que no se tocan no forman
  * una polilínea, forman dos.
  */
-function joinChain(entities: readonly CadEntity[]): CadEntityCommand[] | string {
+function joinChain(entities: readonly CadEntity[], tolerance = JOIN_EXACT): CadEntityCommand[] | string {
   const pieces: { id: string; curves: CadCurve[] }[] = [];
   for (const entity of entities) {
     const curves = cadEntityCurves(entity);
@@ -217,10 +222,13 @@ function joinChain(entities: readonly CadEntity[]): CadEntityCommand[] | string 
       if (used.has(piece.id)) continue;
       const ends = curveEnds(chain);
       const own = curveEnds(piece.curves);
-      if (samePoint(ends.end, own.start)) chain.push(...piece.curves);
-      else if (samePoint(ends.end, own.end)) chain.push(...[...piece.curves].reverse().map(reverseCurve));
-      else if (samePoint(ends.start, own.end)) chain.unshift(...piece.curves);
-      else if (samePoint(ends.start, own.start))
+      // Con distancia de aproximación (Ola D) un hueco menor que ella cuenta
+      // como contacto: el vértice de la polilínea toma el ARRANQUE del tramo
+      // siguiente y el hueco desaparece, que es lo que hace PEDIT Juntar.
+      if (samePoint(ends.end, own.start, tolerance)) chain.push(...piece.curves);
+      else if (samePoint(ends.end, own.end, tolerance)) chain.push(...[...piece.curves].reverse().map(reverseCurve));
+      else if (samePoint(ends.start, own.end, tolerance)) chain.unshift(...piece.curves);
+      else if (samePoint(ends.start, own.start, tolerance))
         chain.unshift(...[...piece.curves].reverse().map(reverseCurve));
       else continue;
       used.add(piece.id);
@@ -229,12 +237,17 @@ function joinChain(entities: readonly CadEntity[]): CadEntityCommand[] | string 
   }
   if (used.size < pieces.length) {
     const loose = pieces.filter((piece) => !used.has(piece.id)).map((piece) => piece.id);
-    return `${loose.join(", ")} no toca ningún extremo de los demás: JOIN no rellena huecos entre objetos distintos.`;
+    return (
+      `${loose.join(", ")} no toca ningún extremo de los demás` +
+      (tolerance > JOIN_EXACT
+        ? ` ni queda a menos de ${tolerance} de ellos.`
+        : `: JOIN no rellena huecos entre objetos distintos. Teclee Tolerancia para admitir un hueco.`)
+    );
   }
 
   const first = entities.find((entity) => entity.id === pieces[0].id)!;
   const ends = curveEnds(chain);
-  const closed = chain.length > 2 && samePoint(ends.start, ends.end);
+  const closed = chain.length > 2 && samePoint(ends.start, ends.end, tolerance);
   const vertices: (CadPoint3 & { bulge?: number })[] = chain.map((curve) => {
     const point = curvePointAt(curve, 0);
     const bulge = bulgeOf(curve);
@@ -273,7 +286,11 @@ function joinChain(entities: readonly CadEntity[]): CadEntityCommand[] | string 
  * Cuando fallan las dos se cuentan LAS DOS razones. «No son colineales» a
  * secas dejaría pensando que basta con alinearlas, cuando además hay un hueco.
  */
-export function cadJoinCommands(entities: readonly CadEntity[]): CadEntityCommand[] | string {
+export function cadJoinCommands(
+  entities: readonly CadEntity[],
+  /** Distancia de aproximación: huecos menores cuentan como contacto (Ola D). */
+  tolerance = JOIN_EXACT,
+): CadEntityCommand[] | string {
   if (entities.length < 2) return "JOIN necesita al menos dos objetos.";
   let specific: string | null = null;
   if (entities.every((entity): entity is CadLine => entity.type === "line")) {
@@ -285,14 +302,19 @@ export function cadJoinCommands(entities: readonly CadEntity[]): CadEntityComman
     if (typeof merged !== "string") return merged;
     specific = merged;
   }
-  const chained = joinChain(entities);
+  const chained = joinChain(entities, tolerance);
   if (typeof chained !== "string") return chained;
   return specific ? `${specific} Y tampoco se encadenan: ${chained}` : chained;
 }
 
 interface JoinState {
   targets: string[];
+  /** Distancia de aproximación tecleada con `Tolerancia`; `null` = exacta. */
+  tolerance: number | null;
+  askingTolerance: boolean;
 }
+
+const JOIN_TOLERANCE = { keyword: "Tolerancia", shortcut: "T" } as const;
 
 const joinCommand: CadCommandDescriptor<JoinState> = {
   name: "JOIN",
@@ -303,28 +325,30 @@ const joinCommand: CadCommandDescriptor<JoinState> = {
   repeatable: true,
   mutates: true,
   cursor: "pick",
-  begin: (context) => ({
-    state: { targets: [...context.selection] },
-    prompt: { message: "Designe los objetos a unir", options: [] },
-    accepts: CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_SELECTION,
-  }),
+  begin: (context) => joinAsking({ targets: [...context.selection], tolerance: null, askingTolerance: false }),
   step: (state, input, context) => {
-    const asking = (next: JoinState): CadCommandStep<JoinState> => ({
-      state: next,
-      prompt: { message: "Designe los objetos a unir", options: [] },
-      accepts: CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_SELECTION,
-    });
+    const asking = joinAsking;
     const done = (result: CadCommandStep<JoinState>["result"]): CadCommandStep<JoinState> => ({
-      state: { targets: [] },
+      state: { targets: [], tolerance: null, askingTolerance: false },
       prompt: { message: "", options: [] },
       accepts: 0,
       result,
     });
     if (input.kind === "cancel") return done({ kind: "none" });
+    if (state.askingTolerance) {
+      if (input.kind === "distance") {
+        if (!(input.value >= 0)) return done({ kind: "message", text: "JOIN: la distancia de aproximación no puede ser negativa." });
+        return asking({ ...state, tolerance: input.value, askingTolerance: false });
+      }
+      if (input.kind === "enter") return asking({ ...state, askingTolerance: false });
+      return asking(state);
+    }
+    if (input.kind === "keyword" && input.keyword === JOIN_TOLERANCE.keyword)
+      return asking({ ...state, askingTolerance: true });
     if (input.kind === "entityPick")
-      return asking({ targets: [...new Set([...state.targets, input.entityId])] });
+      return asking({ ...state, targets: [...new Set([...state.targets, input.entityId])] });
     if (input.kind === "selection")
-      return asking({ targets: [...new Set([...state.targets, ...input.entityIds])] });
+      return asking({ ...state, targets: [...new Set([...state.targets, ...input.entityIds])] });
     if (input.kind !== "enter") return asking(state);
 
     const entities = state.targets
@@ -332,11 +356,40 @@ const joinCommand: CadCommandDescriptor<JoinState> = {
       .filter((entity): entity is CadEntity => !!entity);
     if (entities.length !== state.targets.length)
       return done({ kind: "message", text: "JOIN: alguno de los objetos designados ya no existe." });
-    const outcome = cadJoinCommands(entities);
+    const outcome = cadJoinCommands(entities, state.tolerance ?? JOIN_EXACT);
     if (typeof outcome === "string") return done({ kind: "message", text: `JOIN: ${outcome}` });
     return done({ kind: "document", commands: outcome, label: "JOIN" });
   },
 };
+
+/**
+ * El prompt de JOIN. `Tolerancia` es la distancia de aproximación de PEDIT
+ * Juntar (Ola D, 2026-09-02): AutoCAD no la tiene en JOIN, pero el trabajo
+ * ajeno llega con huecos de un milímetro y obligar a pasar por PEDIT para
+ * cerrarlos es hacer pagar dos órdenes por lo que es una.
+ */
+function joinAsking(state: JoinState): CadCommandStep<JoinState> {
+  if (state.askingTolerance)
+    return {
+      state,
+      prompt: {
+        message: "Precise la distancia de aproximación (huecos menores cuentan como contacto)",
+        options: [],
+        defaultValue: String(state.tolerance ?? 0),
+      },
+      accepts: CAD_ACCEPT_DISTANCE,
+    };
+  return {
+    state,
+    prompt: {
+      message: state.tolerance !== null && state.tolerance > JOIN_EXACT
+        ? `Distancia de aproximación ${state.tolerance}. Designe los objetos a unir`
+        : "Designe los objetos a unir",
+      options: [JOIN_TOLERANCE],
+    },
+    accepts: CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_SELECTION | CAD_ACCEPT_KEYWORD,
+  };
+}
 
 // ---------------------------------------------------------------------------
 // EXPLODE

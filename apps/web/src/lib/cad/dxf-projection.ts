@@ -31,6 +31,20 @@ export function point3(point: CadPoint2): CadPoint3 {
 }
 
 /**
+ * Punto DXF → mundo CON su cota. La proyección es plana (traslada, gira,
+ * refleja y escala el plano XY), así que la z sólo cambia de escala: se mide
+ * la de un vector unitario en el punto para no suponer una proyección afín.
+ * Hasta la Ola C todo pasaba por `point3(projection.point(p))`, que ponía
+ * `z: 0` sin mirar: un pilar importado quedaba de longitud cero.
+ */
+export function point3z(projection: CadDxfProjection, point: CadDxfPoint): CadPoint3 {
+  const flat = projection.point(point);
+  if (!point.z) return { x: flat.x, y: flat.y, z: 0 };
+  const unit = mappedVector(projection, point, { x: 1, y: 0 });
+  return { x: flat.x, y: flat.y, z: point.z * Math.hypot(unit.x, unit.y) };
+}
+
+/**
  * Imagen de un VECTOR bajo la proyección: se proyectan sus dos extremos y se
  * resta. Proyectar la punta a secas le sumaría la traslación y lo mandaría a
  * otro sitio del plano.

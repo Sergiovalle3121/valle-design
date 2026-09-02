@@ -90,7 +90,11 @@ export function CadDynamicInput({
           onCancel();
         }
       }}
-      className="flex max-w-[720px] flex-wrap items-center gap-1.5 rounded-card border border-warning/30 bg-surface/90 px-2 py-1.5 shadow-2xl backdrop-blur"
+      // Un renglón: envuelta, la píldora que la aloja tapaba el lienzo
+      // (draft-toolbar.tsx). Si el lienzo es más estrecho que la fila, ésta se
+      // desplaza dentro de su caja en vez de asomar fuera del lienzo, donde
+      // ningún clic la alcanza.
+      className="flex max-w-full flex-nowrap items-center gap-1.5 overflow-x-auto whitespace-nowrap rounded-card border border-warning/30 bg-surface/90 px-2 py-1.5 shadow-2xl backdrop-blur"
     >
       <span className="px-1 type-micro font-semibold uppercase tracking-wide text-warning-ink">
         DYN

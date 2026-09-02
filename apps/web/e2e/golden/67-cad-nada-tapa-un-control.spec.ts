@@ -202,15 +202,10 @@ const RESIDUO_CONOCIDO: {
   tapadoPor: string;
   motivo: string;
 }[] = [
-  {
-    control: 'button «Release Sin validar»',
-    tapadoPor: '[data-testid="cad-toolbar"]',
-    motivo:
-      'La insignia de estado de release cae bajo la barra de herramientas. Es ' +
-      'anterior a la mensajería y a las llamadas, e informativa: no es una acción ' +
-      'que el usuario necesite alcanzar. Se corrige rehaciendo la banda inferior, ' +
-      'no de un empujón.',
-  },
+  // Vacía desde 2026-09-02: la única entrada —«Release Sin validar» bajo la
+  // barra de herramientas— desapareció al sacar la barra de estado del lienzo
+  // a su propia franja (golden 68). Rehacer la banda inferior era exactamente
+  // lo que la entrada pedía.
 ];
 
 const mismaEntrada = (

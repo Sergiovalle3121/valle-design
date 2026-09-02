@@ -23,8 +23,8 @@
  * publicar el archivo imposible son las dos mentiras que la guarda evita.
  */
 import type { CadPoint2, CadPoint3 } from "./cad-document";
-import { hatchPolygon, type HatchSegment } from "./hatch";
-import { hatchRegionContainsPoint } from "./hatch-associativity";
+import type { HatchSegment } from "./hatch";
+import { cadHatchPatternLineEstimate, cadHatchPatternStrokes } from "./hatch-pattern-strokes";
 
 /** Espaciado mínimo del patrón EN PAPEL. Por debajo, tinta sólida: se degrada. */
 export const CAD_HATCH_MIN_PAPER_SPACING_MM = 0.3;
@@ -44,7 +44,8 @@ export interface CadHatchPatternSource {
 }
 
 export interface CadHatchPublishWarning {
-  code: "hatch_pattern_too_dense";
+  /** `hatch_pattern_unknown`: el nombre no está en la tabla y se publica el rayado de respaldo (ANSI31). */
+  code: "hatch_pattern_too_dense" | "hatch_pattern_unknown";
   detail: string;
 }
 
@@ -83,7 +84,6 @@ export function buildCadHatchPublishStrokes(
   }
   const diagonal = Math.hypot(maxX - minX, maxY - minY);
   const spacing = Math.max(entity.scale ?? diagonal / 40, diagonal / 256, 1e-6);
-  const passes = entity.pattern.trim().toUpperCase() === "CROSS" ? 2 : 1;
 
   const spacingOnPaperMm = spacing * Math.max(paperScale, 0);
   const tooDense = (detail: string): CadHatchPublishPlan => ({
@@ -99,25 +99,26 @@ export function buildCadHatchPublishStrokes(
   // puede partirse en varios trazos, pero nunca hay más líneas que diagonal /
   // espaciado. Estimar primero evita fabricar los cien mil trazos que la
   // guarda existe para no publicar.
-  const estimatedLines = Math.ceil(diagonal / spacing) * passes;
+  const estimatedLines = cadHatchPatternLineEstimate(entity.pattern, entity.angle, spacing, diagonal);
   if (estimatedLines > CAD_HATCH_MAX_PUBLISH_STROKES)
     return tooDense(
       `El patrón ${entity.pattern} necesitaría ~${estimatedLines} líneas de barrido ` +
         `(tope ${CAD_HATCH_MAX_PUBLISH_STROKES}): se publica el contorno.`,
     );
 
-  const angles =
-    passes === 2 ? [entity.angle ?? 45, (entity.angle ?? 45) + 90] : [entity.angle ?? 45];
-  const strokes = angles.flatMap((angle) =>
-    hatchPolygon(boundaries[0], { angle, spacing, origin: entity.origin }).filter((segment) => {
-      const midpoint = { x: (segment.a.x + segment.b.x) / 2, y: (segment.a.y + segment.b.y) / 2 };
-      return hatchRegionContainsPoint(boundaries, midpoint, entity.islandStyle ?? "normal");
-    }),
-  );
+  const { strokes, known } = cadHatchPatternStrokes(boundaries, entity, spacing);
   if (strokes.length > CAD_HATCH_MAX_PUBLISH_STROKES)
     return tooDense(
       `El patrón ${entity.pattern} produjo ${strokes.length} trazos ` +
         `(tope ${CAD_HATCH_MAX_PUBLISH_STROKES}): se publica el contorno.`,
     );
+  if (!known)
+    return {
+      strokes,
+      warning: {
+        code: "hatch_pattern_unknown",
+        detail: `El patrón ${entity.pattern} no está en la tabla: se publica el rayado de respaldo (ANSI31).`,
+      },
+    };
   return { strokes };
 }

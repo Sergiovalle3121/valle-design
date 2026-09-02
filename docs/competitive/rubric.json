@@ -1,24 +1,25 @@
 {
   "$schema": "urn:valle-design:schema:cad-competitive-rubric:v1",
   "schemaVersion": 1,
-  "version": "2026-08-22.1",
+  "version": "2026-09-02.1",
   "title": "Rúbrica competitiva CAD — Valle Design frente a AutoCAD 2027",
   "cutoffDate": "2026-08-22",
-  "totalPoints": 216,
+  "totalPoints": 271,
   "manualMaxAgeDays": 180,
   "notes": [
-    "El denominador es 200 y se publica.",
+    "Hay DOS denominadores y los dos se publican SIEMPRE con su etiqueta: «Alcance de HOY» (las filas con scope 'hoy': el flujo diario de dibujo 2D técnico; la cifra que se enseña a un cliente y se vende contra AutoCAD LT) y «Alcance de DESTINO» (todas las filas: AutoCAD completo con sus siete toolsets). Un porcentaje sin su etiqueta de alcance no se cita en ningún informe: «88,6 %» a secas fue el error de la auditoría del 2026-09-01.",
     "Un criterio se concede sólo si TODA su evidencia verifica. Sin evidencia, cero.",
     "Los puntos se reparten por PESO COMERCIAL, no por esfuerzo de implementación. El argumento está en autocad-2027-gap-matrix.md §Reparto.",
     "costDays es una estimación de esfuerzo declarada por quien escribe el criterio; alimenta la tabla de prioridad y no la nota.",
     "Corte 2026-08-20: la evidencia de existencia se re-basó a contenido. El 189/200 del corte anterior concedía puntos por que un JSON existiera aunque su contenido desmintiera el criterio (browser-slo medía 48 s de detalle completo). Ahora un criterio de ≥2 pt sólo-existencia es un error de definición, y los gaps documentados (frozen, PAGESETUP, hatch en PDF, BEDIT, F7/F9/F12, .shx, kernel WASM sin importador) son criterios que fallan, no notas al pie.",
-    "Corte 2026-08-22 (campaña de cimientos): DOS denominadores publicados — alcance de hoy (categorías scope:hoy) y alcance de destino (todas). Evidencia clasificada en propia vs independiente: una categoría sin NINGUNA evidencia independiente no puede llegar a su tope (se retiene 1 punto con nota). Filas nuevas: integridad (comandos que hacen lo que dicen, pérdidas nunca silenciosas) y capacidad de crecer (las ocho puertas del anexo). Correcciones de honestidad: plugins ya no declara .NET/VBA, BEDIT-en-sitio y bloques dinámicos son «todavía no» explícitos, el SLO de navegador se exige también sobre la mezcla architecture@100k, y detectar-y-rechazar DWG puntúa en integridad, no en soporte DWG."
+    "Corte 2026-08-22 (campaña de cimientos): DOS denominadores publicados — alcance de hoy (categorías scope:hoy) y alcance de destino (todas). Evidencia clasificada en propia vs independiente: una categoría sin NINGUNA evidencia independiente no puede llegar a su tope (se retiene 1 punto con nota). Filas nuevas: integridad (comandos que hacen lo que dicen, pérdidas nunca silenciosas) y capacidad de crecer (las ocho puertas del anexo). Correcciones de honestidad: plugins ya no declara .NET/VBA, BEDIT-en-sitio y bloques dinámicos son «todavía no» explícitos, el SLO de navegador se exige también sobre la mezcla architecture@100k, y detectar-y-rechazar DWG puntúa en integridad, no en soporte DWG.",
+    "Corte 2026-09-02: eje de RECONOCIMIENTO (scope hoy) con criterios que miran la PANTALLA —texto dibujado, orden de la cinta, teclas a la línea de comandos, ventana por arrastre, nada tapa el lienzo—, medidos por goldens de Playwright y no por existencia de código; y las SIETE filas de toolsets (scope destino) aunque hoy valgan cero: el denominador de destino dice a qué distancia está el producto de AutoCAD completo, no sólo de AutoCAD LT."
   ],
   "groups": [
     {
       "id": "core",
       "name": "Núcleo del plano entregable",
-      "points": 110
+      "points": 118
     },
     {
       "id": "pro",
@@ -33,12 +34,22 @@
     {
       "id": "frontier",
       "name": "Frontera avanzada",
-      "points": 19
+      "points": 24
     },
     {
       "id": "truth",
       "name": "Integridad y capacidad de crecer",
       "points": 21
+    },
+    {
+      "id": "recog",
+      "name": "Reconocimiento: se ve y se maneja como AutoCAD",
+      "points": 14
+    },
+    {
+      "id": "toolsets",
+      "name": "Los siete toolsets de AutoCAD",
+      "points": 28
     }
   ],
   "categories": [
@@ -465,6 +476,124 @@
       "scope": "hoy"
     },
     {
+      "id": "foreign-work",
+      "group": "core",
+      "scope": "hoy",
+      "name": "Trabajo ajeno: tomar el plano de otro y trabajar sobre él",
+      "points": 6,
+      "gap": "Ola D (2026-09-02). Medido antes (distancia-autocad-completo-20260901.md, FRENTE 3): la PRUEBA DE DESPACHO —recibir un DWG, unir 34 líneas mal empatadas y obtener perímetro y superficie— fallaba en el primer paso porque no existía HPGAPTOL y los dos llamadores de `stitchCadBoundaryPaths` pasaban un solo argumento; Ctrl+C sobre lo nativo duplicaba en el sitio mientras el botón prometía un portapapeles; y SELECTSIMILAR, ADDSELECTED, XPLODE, SETBYLAYER, CHPROP y NCOPY no estaban en el registro. Lo que sigue en «todavía no»: el portapapeles no toca el del sistema (ni PASTESPEC ni PASTEBLOCK), la tolerancia de hueco no se guarda en el sombreado (nace no asociativo y el prompt lo dice: guardarla es tocar el formato persistido, decisión del titular), SELECTSIMILARMODE no existe (siempre tipo, capa y bloque) y NCOPY sólo copia desde inserciones.",
+      "criteria": [
+        {
+          "id": "foreign-work.gap-tolerance",
+          "points": 2,
+          "text": "HPGAPTOL y la palabra Tolerancia en HATCH, BOUNDARY y JOIN, y la distancia de aproximación en PEDIT Juntar: la planta de 34 tramos con huecos de hasta 0,92 mm se sombrea, se contornea, se une y se mide contra el papel (92.840.000 mm², 46.297 mm)",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/verification/prueba-de-despacho.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/modify-pedit.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/74-cad-prueba-de-despacho.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "foreign-work.clipboard",
+          "points": 2,
+          "text": "COPYCLIP, CUTCLIP, COPYBASE, PASTECLIP y PASTEORIG con Ctrl+C/X/V: geometría canónica que viaja entre editores con su punto base, ids nuevos, el bloque que falta definido y lo asociativo desligado",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "command",
+              "name": "COPYCLIP"
+            },
+            {
+              "kind": "command",
+              "name": "CUTCLIP"
+            },
+            {
+              "kind": "command",
+              "name": "COPYBASE"
+            },
+            {
+              "kind": "command",
+              "name": "PASTECLIP"
+            },
+            {
+              "kind": "command",
+              "name": "PASTEORIG"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/clipboard.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/clipboard.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/75-cad-portapapeles.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "foreign-work.properties",
+          "points": 2,
+          "text": "SELECTSIMILAR, ADDSELECTED (con CECOLOR/CELTYPE/CELWEIGHT llegando por fin a lo que se dibuja), XPLODE, SETBYLAYER, CHPROP y NCOPY, tecleados sobre un plano ajeno",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "command",
+              "name": "SELECTSIMILAR"
+            },
+            {
+              "kind": "command",
+              "name": "ADDSELECTED"
+            },
+            {
+              "kind": "command",
+              "name": "XPLODE"
+            },
+            {
+              "kind": "command",
+              "name": "SETBYLAYER"
+            },
+            {
+              "kind": "command",
+              "name": "CHPROP"
+            },
+            {
+              "kind": "command",
+              "name": "NCOPY"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/select-similar.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/modify-foreign.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/current-presentation.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/76-cad-trabajo-ajeno.spec.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "dimensions",
       "group": "core",
       "name": "Cotas asociativas",
@@ -606,8 +735,8 @@
       "id": "hatch",
       "group": "core",
       "name": "HATCH asociativo",
-      "points": 10,
-      "gap": "El motor existe y no hay forma de invocarlo escribiendo H: el alias no resuelve a ningún comando.",
+      "points": 12,
+      "gap": "H y BH resuelven; desde el 2026-09-02 el nombre del patrón se consulta contra una tabla propia (medido antes: ocho nombres, un mismo trazado). Faltan los patrones cargados de un .pat del despacho.",
       "criteria": [
         {
           "id": "hatch.engine",
@@ -678,6 +807,22 @@
             {
               "kind": "spec",
               "path": "apps/web/src/lib/cad/hatch-islands-corpus.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "hatch.pattern-table",
+          "points": 2,
+          "text": "Una tabla de patrones (ANSI31–38, AR-B816, AR-BRSTD, AR-CONC, AR-SAND, BRICK, DOTS, EARTH, GRAVEL, HEX, HONEY, LINE, NET, NET3, STEEL, MUDST) con familias, trazos y puntos, consumida por pantalla, papel y DXF: ocho nombres dan ocho trazados y ANSI31 sigue byte a byte",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/hatch-pattern-table.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dxf-hatch.spec.ts"
             }
           ]
         }
@@ -877,12 +1022,16 @@
         {
           "id": "layers.linetype",
           "points": 2,
-          "text": "Tipos de línea y escala aplicables a la entidad",
+          "text": "Tipos de línea y escala aplicables a la entidad, resueltos por capa (BYLAYER) con respaldo de fábrica",
           "costDays": 0,
           "evidence": [
             {
               "kind": "file",
-              "path": "apps/web/src/lib/cad/linetype.ts"
+              "path": "apps/web/src/lib/cad/linetype-resolve.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/cad-effective-style.spec.ts"
             },
             {
               "kind": "spec",
@@ -2482,6 +2631,100 @@
       "scope": "destino"
     },
     {
+      "id": "modeling3d",
+      "group": "frontier",
+      "name": "Modelado 3D: primitivas, SOLIDEDIT y la cota",
+      "points": 5,
+      "gap": "Ola C (2026-09-02). Medido antes: faltaban LAS OCHO primitivas (el nodo `box` existía y ningún comando lo creaba), SOLIDEDIT entero y la cota moría en cuatro fronteras del DXF (30/31 fijos a cero, `pt()` y `point3()` la tiraban). Lo que sigue en «todavía no»: CIRCLE/ARC y las primitivas sobre un plano INCLINADO (honran el elevado), el plano inclinado al importar DXF (normal ≠ ±Z) y las ramas de SOLIDEDIT que piden recomponer caras (Mover, Girar, Desfasar…) o designar aristas.",
+      "criteria": [
+        {
+          "id": "modeling3d.primitives",
+          "points": 2,
+          "text": "BOX, WEDGE, CYLINDER, CONE, SPHERE, TORUS, PYRAMID y POLYSOLID tecleables, como UN nodo reeditable cada una, con el volumen medido en papel",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "command",
+              "name": "BOX"
+            },
+            {
+              "kind": "command",
+              "name": "WEDGE"
+            },
+            {
+              "kind": "command",
+              "name": "CYLINDER"
+            },
+            {
+              "kind": "command",
+              "name": "CONE"
+            },
+            {
+              "kind": "command",
+              "name": "SPHERE"
+            },
+            {
+              "kind": "command",
+              "name": "TORUS"
+            },
+            {
+              "kind": "command",
+              "name": "PYRAMID"
+            },
+            {
+              "kind": "command",
+              "name": "POLYSOLID"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/solids-primitives.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/73-cad-primitivas-de-solido.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "modeling3d.solidedit",
+          "points": 1,
+          "text": "SOLIDEDIT con Cara Extruir (nodo push), Cuerpo Comprobar y Cuerpo Separar, y sus otras once ramas declaradas en el propio diálogo",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "command",
+              "name": "SOLIDEDIT"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/solids-edit.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "modeling3d.z-roundtrip",
+          "points": 2,
+          "text": "La cota cruza todas las fronteras: PLINE y RECTANG dibujan en el plano del SCU inclinado, CIRCLE y ARC en la planta elevada, y el DXF conserva 30/31, elevación, polilínea 3D y SCU reflejado (lector de terceros como oráculo)",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/verification/z-frontiers.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/draw-spatial.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dxf-import-cota.spec.ts"
+            }
+          ]
+        }
+      ],
+      "scope": "destino"
+    },
+    {
       "id": "wasm",
       "group": "frontier",
       "name": "Kernel Rust/WASM",
@@ -2823,6 +3066,554 @@
               "path": "scripts/dwg/corpus-consumer.mjs",
               "pattern": "mirrorEnv",
               "min": 1
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "recognition",
+      "group": "recog",
+      "scope": "hoy",
+      "name": "Reconocimiento en pantalla",
+      "points": 14,
+      "gap": "Lo que un dibujante de AutoCAD reconoce en los primeros cinco minutos: el texto se ve, la cinta está donde la espera, teclea sin pulsar la caja, arrastra para designar nada le tapa el plano y los ejes se ven a trazo y punto. Cada criterio lo mide un golden en Chromium o un spec que lee los bytes; ninguno concede puntos por que exista un módulo.",
+      "criteria": [
+        {
+          "id": "recognition.text-visible",
+          "points": 2,
+          "text": "TEXT, la etiqueta de la cota, el texto de la directriz y las celdas de la tabla se dibujan en el espacio modelo (atlas de texto: ≥56 glifos rasterizados en el golden)",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/47-cad-render-pipeline.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/render/text-requests.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "recognition.ribbon-order",
+          "points": 2,
+          "text": "La cinta abre en Inicio con Dibujo · Modificar · Anotación · Capas · Bloque · Propiedades, LINE es el primer botón y existe la pestaña Paramétrico",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/ribbon.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/61-cad-ribbon-mouse-only.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "recognition.keys-to-command-line",
+          "points": 2,
+          "text": "Teclear con el lienzo enfocado escribe en la línea de comandos sin pulsarla, Intro devuelve el foco y Espacio vale por Intro",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/editor-keyboard.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/44-cad-command-line.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "recognition.no-alias-collisions",
+          "points": 2,
+          "text": "Ninguna letra suelta del lienzo roba un alias de una letra de acad.pgp (M, E, O, P, Z, A, B, F, G, V, W, S, X): la letra suelta es de la línea de comandos",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/keyboard-alias-collisions.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/components/cad/studio/shortcuts-help.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "recognition.drag-selects",
+          "points": 2,
+          "text": "Arrastrar sobre el fondo designa por ventana (izq→der) o cruce (der→izq), el botón central encuadra y dos dedos siguen encuadrando",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/components/cad/viewport/background-drag-policy.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/72-cad-arrastre-designa.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "recognition.nothing-covers",
+          "points": 2,
+          "text": "Ningún panel tapa el área de dibujo ni un control: cada punto de una rejilla del lienzo responde <canvas> y cada control recibe su clic",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/67-cad-nada-tapa-un-control.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/68-cad-nada-tapa-el-lienzo.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "recognition.linetype-shape",
+          "points": 2,
+          "text": "Un eje en capa CENTER se ve, se imprime y se exporta con su forma completa (trazo largo · hueco · trazo corto · hueco): la ranura llega al lote, el PDF lleva el operador d con esos milímetros y el DXF escribe el patrón de fábrica",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/render/line-batch.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/components/cad/viewport/render-pipeline-host.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/plot-linetype-pattern.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dxf-linetype-table.spec.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "toolset-architecture",
+      "group": "toolsets",
+      "scope": "destino",
+      "name": "Toolset Architecture",
+      "points": 4,
+      "gap": "Muros, puertas, ventanas, escaleras, cubiertas y losas se teclean y se dibujan (WALL, DOOR, WINDOW, STAIR, ROOF, SLAB), y los cuadros de superficies y carpintería salen en la lámina con el nombre del local (Ola E, 2026-09-02). Lo que queda —escaleras de varios tramos, cubiertas sobre polígonos, huecos en losas— está en ESCALERA.",
+      "criteria": [
+        {
+          "id": "toolset-architecture.envolvente",
+          "points": 2,
+          "text": "WALL, DOOR y WINDOW son tecleables y alojan huecos en el muro",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "command",
+              "name": "WALL"
+            },
+            {
+              "kind": "command",
+              "name": "DOOR"
+            },
+            {
+              "kind": "command",
+              "name": "WINDOW"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/53-cad-bim-wall.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "toolset-architecture.interiores",
+          "points": 2,
+          "text": "Escaleras, techos y cubiertas paramétricos, y tablas de superficies y carpintería que salen en la lámina",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "command",
+              "name": "STAIR"
+            },
+            {
+              "kind": "command",
+              "name": "ROOF"
+            },
+            {
+              "kind": "command",
+              "name": "SLAB"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/architecture-stair.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/architecture-roof.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/paper-space-table.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/bim-schedule.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/77-cad-cuadros-de-superficies-y-carpinteria.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/78-cad-escalera.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/79-cad-cubierta-y-losa.spec.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "toolset-mep",
+      "group": "toolsets",
+      "scope": "destino",
+      "name": "Toolset MEP (mitad 2D)",
+      "points": 4,
+      "gap": "La mitad 2D existe como contenido sobre el mismo motor (Ola F, 2026-09-02): PIPE por servicio con su tipo de línea con texto, DUCT y CABLETRAY a doble línea con esquinas a inglete, MEPSYMBOL con ocho bloques y el cuadro de instalaciones en la lámina. La mitad 3D —ruteo con colisiones, diámetros por especificación— queda fuera y se dice en ESCALERA.",
+      "criteria": [
+        {
+          "id": "toolset-mep.trazado",
+          "points": 2,
+          "text": "Conductos, tuberías y bandejas de cables en planta con uniones y símbolos",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "command",
+              "name": "PIPE"
+            },
+            {
+              "kind": "command",
+              "name": "DUCT"
+            },
+            {
+              "kind": "command",
+              "name": "CABLETRAY"
+            },
+            {
+              "kind": "command",
+              "name": "MEPSYMBOL"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/mep-tracing.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/linetype-complex.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/80-cad-tipo-de-linea-con-texto.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/81-cad-instalaciones.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "toolset-mep.tablas",
+          "points": 2,
+          "text": "Tablas de equipos y longitudes que salen en la lámina",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "command",
+              "name": "DATAEXTRACTION"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/mep-tracing.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/paper-space-table.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/81-cad-instalaciones.spec.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "toolset-map3d",
+      "group": "toolsets",
+      "scope": "destino",
+      "name": "Toolset Map 3D",
+      "points": 4,
+      "gap": "La georreferencia y la importación GIS existen sobre lo que el formato ya tiene (Ola G, 2026-09-02): GEOGRAPHICLOCATION guarda el sistema (WGS 84 / UTM 11N a 16N, datums WGS84/ITRF) y el este/norte de un punto en un marcador POINT de la capa GEO, ID informa el este/norte y la latitud/longitud, y MAPIMPORT mete un shapefile o un GeoJSON en el plano abierto, reproyectado al sistema del dibujo, con la fila de atributos en metadatos. Sin tabla de georreferencia persistida (sería tocar el formato: decisión del titular), sin NAD27/NAD83, sin mapa de fondo, sin topología ni consultas: en ESCALERA.",
+      "criteria": [
+        {
+          "id": "toolset-map3d.georreferencia",
+          "points": 2,
+          "text": "Sistema de coordenadas del dibujo (EPSG) y transformación entre sistemas",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "command",
+              "name": "GEOGRAPHICLOCATION"
+            },
+            {
+              "kind": "command",
+              "name": "ID"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/geo-location.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/geo/crs.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/82-cad-georreferencia.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "toolset-map3d.datos",
+          "points": 2,
+          "text": "Importar capas GIS (SHP/GeoJSON) como objetos con atributos",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "command",
+              "name": "MAPIMPORT"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/map-import.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/geo/geojson.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/82-cad-georreferencia.spec.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "toolset-raster",
+      "group": "toolsets",
+      "scope": "destino",
+      "name": "Toolset Raster Design (mitad útil)",
+      "points": 4,
+      "gap": "La mitad útil existe (Ola H, 2026-09-02): IMAGEATTACH mete el escaneo DENTRO del dibujo (data:, hasta 8 MB) y por primera vez se VE —los píxeles en el visor, en la lámina y en el PDF—; IMAGECLIP recorta por polígono o rectángulo e IMAGEADJUST ajusta brillo, contraste y atenuación, todo sobre la entidad image que el formato ya tenía. La vectorización y la calibración (REM, deskew) quedan fuera y se dicen en ESCALERA; IMAGEFRAME y TRANSPARENCY, también.",
+      "criteria": [
+        {
+          "id": "toolset-raster.imagen",
+          "points": 2,
+          "text": "Insertar, recortar por polígono y ajustar (brillo/contraste/transparencia) un plano escaneado",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "command",
+              "name": "IMAGEATTACH"
+            },
+            {
+              "kind": "command",
+              "name": "IMAGECLIP"
+            },
+            {
+              "kind": "command",
+              "name": "IMAGEADJUST"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/raster-image.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/render/image-layer-three.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/paper-space-image.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/83-cad-plano-escaneado.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "toolset-raster.vectorizacion",
+          "points": 2,
+          "text": "Vectorizar líneas y textos de un escaneo a entidades",
+          "costDays": null,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "No hay vectorización."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "toolset-mechanical",
+      "group": "toolsets",
+      "scope": "destino",
+      "name": "Toolset Mechanical",
+      "points": 4,
+      "gap": "El detallado 2D con norma existe sobre lo que el formato ya tiene (Ola I, 2026-09-02): STDPART inserta tornillería ISO 4017/4032/7089 y STEELSHAPE la sección de PTR, OC, LI, CPS e IPR como bloques MECH-…; BALLOON numera y BOM lista; WELDSYMBOL (ISO 2553 / AWS) y SURFACESYMBOL (ISO 1302) se materializan con la geometría del documento; DIMTOLERANCE escribe en la cota su tolerancia simétrica, por desviaciones, por límites o la de un ajuste ISO 286 (IT5–IT11, hasta 500 mm) en `context.metadata`, y la cota la rotula en visor, lámina y DXF; DIMSTYLE gana subestilos por familia (`ISO-25$4`) con el nombre de AutoCAD. Sin cajetín ISO/ANSI/DIN, sin AMPOWERDIM, sin agujeros K/M/N/P (corrección Δ), sin entidad `balloon`/`weld`: en ESCALERA.",
+      "criteria": [
+        {
+          "id": "toolset-mechanical.normalizados",
+          "points": 2,
+          "text": "Biblioteca de tornillería y perfiles normalizados insertables",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "command",
+              "name": "STDPART"
+            },
+            {
+              "kind": "command",
+              "name": "STEELSHAPE"
+            },
+            {
+              "kind": "command",
+              "name": "BOM"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/mechanical.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/mechanical.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/84-cad-plano-de-fabricacion.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "toolset-mechanical.cotas",
+          "points": 2,
+          "text": "Cotas de fabricación con tolerancias y símbolos de acabado",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "command",
+              "name": "DIMTOLERANCE"
+            },
+            {
+              "kind": "command",
+              "name": "SURFACESYMBOL"
+            },
+            {
+              "kind": "command",
+              "name": "WELDSYMBOL"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dimension-tolerance.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dimension-family.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/84-cad-plano-de-fabricacion.spec.ts"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "toolset-electrical",
+      "group": "toolsets",
+      "scope": "destino",
+      "name": "Toolset Electrical (fuera de alcance)",
+      "points": 4,
+      "gap": "Fuera del alcance de la campaña «AutoCAD completo» (docs/parity/ESCALERA.md): se declara la fila para que el denominador de destino sea honesto.",
+      "criteria": [
+        {
+          "id": "toolset-electrical.esquemas",
+          "points": 2,
+          "text": "Esquemas eléctricos con símbolos normalizados y numeración de hilos",
+          "costDays": null,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "Fuera de alcance declarado. Fila a cero a propósito."
+            }
+          ]
+        },
+        {
+          "id": "toolset-electrical.informes",
+          "points": 2,
+          "text": "Informes de cableado y listas de materiales",
+          "costDays": null,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "Fuera de alcance declarado."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "toolset-plant3d",
+      "group": "toolsets",
+      "scope": "destino",
+      "name": "Toolset Plant 3D (fuera de alcance)",
+      "points": 4,
+      "gap": "Fuera del alcance de la campaña «AutoCAD completo» (docs/parity/ESCALERA.md): se declara la fila para que el denominador de destino sea honesto.",
+      "criteria": [
+        {
+          "id": "toolset-plant3d.pid",
+          "points": 2,
+          "text": "Diagramas P&ID con catálogo de equipos y líneas",
+          "costDays": null,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "Fuera de alcance declarado. Fila a cero a propósito."
+            }
+          ]
+        },
+        {
+          "id": "toolset-plant3d.tuberia",
+          "points": 2,
+          "text": "Tubería 3D por especificación e isométricos",
+          "costDays": null,
+          "evidence": [
+            {
+              "kind": "todaviaNo",
+              "reason": "Fuera de alcance declarado."
             }
           ]
         }

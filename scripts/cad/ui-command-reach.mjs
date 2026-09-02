@@ -53,9 +53,10 @@ function runProbe() {
   writeFileSync(
     probePath,
     `
-import { CAD_RIBBON_DATA, CAD_RIBBON_UNEXPOSED, cadRibbonCoverageGaps } from "./src/lib/cad/ribbon";
+import { cadRibbonExposedNames, CAD_RIBBON_UNEXPOSED, cadRibbonCoverageGaps } from "./src/lib/cad/ribbon";
 import { CAD_COMMAND_DESCRIPTORS } from "./src/lib/cad/engine";
-const alcanzables = CAD_RIBBON_DATA.reduce((n, t) => n + t.commandCount, 0);
+// Nombres únicos: los espejos de Inicio son botones repetidos, no comandos nuevos.
+const alcanzables = cadRibbonExposedNames().size;
 process.stdout.write(JSON.stringify({
   registryTotal: CAD_COMMAND_DESCRIPTORS.length,
   alcanzablesConRaton: alcanzables,

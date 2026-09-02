@@ -242,6 +242,73 @@ export function cadDefineBlockCommands(input: CadDefineBlockInput): CadDefineBlo
 }
 
 // ---------------------------------------------------------------------------
+// BLOCK con un nombre que ya existe: REDEFINIR
+// ---------------------------------------------------------------------------
+
+export interface CadRedefineBlockInput {
+  /** La definición que se sustituye. Conserva id, nombre, biblioteca y descripción. */
+  target: CadBlockDefinition;
+  /**
+   * Punto base de la NUEVA definición, en las coordenadas en las que está
+   * dibujado el recambio. Es el dato que faltaba: `resolveCadInsert` resta el
+   * punto base antes de escalar, girar y llevar al punto de inserción, así que
+   * sin él cada instancia se desplaza el vector que va del origen a donde uno
+   * dibujó el recambio. Medido en la auditoría del 2026-09-01: recambio en
+   * [9000..9600]×[8000..8600] con base (0,0) → las tres sillas a +9000,+8000.
+   */
+  basePoint: CadPoint3;
+  entities: readonly CadEntity[];
+  scope?: "document" | "tenant";
+}
+
+/**
+ * Sustituye la geometría y el punto base de una definición existente y borra
+ * del dibujo los objetos designados: han pasado a SER el bloque, y cada
+ * INSERT que lo referencia se regenera solo. Es la semántica de `-BLOCK` en
+ * AutoCAD (los objetos se consumen; no se inserta una referencia nueva), que
+ * es la que mantiene intacto el número de instancias del plano.
+ *
+ * Los atributos declarados con ATTDEF en el recambio sustituyen a los de la
+ * definición; si el recambio no trae ninguno, se conservan los que había,
+ * porque un cajetín que pierde sus atributos al redefinirlo deja mudas todas
+ * sus inserciones.
+ */
+export function cadRedefineBlockCommands(input: CadRedefineBlockInput): CadEntityCommand[] {
+  if (input.entities.length === 0)
+    throw new Error("Un bloque necesita al menos un objeto designado.");
+  const attdefs = input.entities.filter((entity): entity is CadAttdefEntity => entity.type === "attdef");
+  const geometry = input.entities.filter((entity) => entity.type !== "attdef");
+  const declared: CadBlockAttributes = {};
+  for (const attdef of attdefs) {
+    const tag = attdef.tag.trim().toUpperCase();
+    if (tag) declared[tag] = attributeFromAttdef(attdef);
+  }
+  const attributes = Object.keys(declared).length > 0 ? declared : input.target.attributes;
+  const hasAttributes = !!attributes && Object.keys(attributes).length > 0;
+  if (geometry.length === 0 && !hasAttributes)
+    throw new Error("Un bloque necesita geometría o atributos.");
+  const { target } = input;
+  const definition: CadBlockDefinition = {
+    id: target.id,
+    name: target.name,
+    basePoint: { ...input.basePoint },
+    entities: remapEntities(geometry, target.id),
+    ...(hasAttributes ? { attributes } : {}),
+    ...(target.description !== undefined ? { description: target.description } : {}),
+    ...(target.keywords !== undefined ? { keywords: [...target.keywords] } : {}),
+    ...(target.version !== undefined ? { version: target.version } : {}),
+    ...(target.library || input.scope
+      ? { library: { ...(target.library ?? {}), scope: input.scope ?? target.library!.scope } }
+      : {}),
+    // La miniatura describía la geometría vieja: se descarta a propósito y quien
+    // la necesite la regenera de la definición nueva.
+  };
+  const commands: CadEntityCommand[] = [{ type: "block", op: "redefine", definition }];
+  for (const entity of input.entities) commands.push({ type: "delete", entityId: entity.id });
+  return commands;
+}
+
+// ---------------------------------------------------------------------------
 // INSERT
 // ---------------------------------------------------------------------------
 

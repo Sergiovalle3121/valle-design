@@ -50,6 +50,8 @@ import {
 } from "../command-types";
 import { cadCommandCancelled, cadCommandRefused, cadCommandWrites, flat } from "./annotate-support";
 import {
+  CAD_HATCH_STITCH_DEFAULT,
+  cadHatchGapTolerance,
   cadHatchRegionAtPoint,
   cadHatchRegionFromObjects,
   cadHatchSpacing,
@@ -57,6 +59,7 @@ import {
   type CadHatchRegion,
   type CadIslandStyle,
 } from "./hatch-support";
+import { cadHatchPatternBaseAngle } from "../../hatch-pattern-table";
 
 /** Un contorno que se cruza consigo mismo no delimita región: se dice cuál. */
 const contornoCruzado = (sources: readonly string[]): string =>
@@ -70,6 +73,8 @@ const SCALE = { keyword: "Escala", shortcut: "E" } as const;
 const ISLANDS = { keyword: "Islas", shortcut: "I" } as const;
 const SOLID = { keyword: "Sólido", shortcut: "S" } as const;
 const COLOR = { keyword: "Color", shortcut: "C" } as const;
+/** HPGAPTOL por la línea de comandos, como la `Tolerancia` de OVERKILL. */
+const GAP = { keyword: "Tolerancia", shortcut: "T" } as const;
 
 const NORMAL = { keyword: "Normal", shortcut: "N" } as const;
 const OUTER = { keyword: "Exterior", shortcut: "E" } as const;
@@ -90,18 +95,22 @@ const ISLAND_STYLES: Readonly<Record<string, CadIslandStyle>> = {
 const DEFAULT_ANGLE = 45;
 
 type Mode = "hatch" | "gradient" | "boundary";
-type Pending = "pick" | "objects" | "pattern" | "angle" | "scale" | "islands" | "color";
+type Pending = "pick" | "objects" | "pattern" | "angle" | "scale" | "islands" | "color" | "gap";
 
 interface HatchState {
   mode: Mode;
   pattern: string;
   solid: boolean;
   angle: number;
+  /** El usuario tecleó un ángulo: elegir otro patrón ya no lo sustituye por la base del patrón. */
+  angleTyped?: boolean;
   /** `null` = el espaciado se deriva del tamaño real del contorno. */
   scale: number | null;
   islandStyle: CadIslandStyle;
   islandKeyword: string;
   colors: string[];
+  /** Tolerancia de hueco tecleada en esta orden; `null` = la variable HPGAPTOL. */
+  gapTolerance: number | null;
   pending: Pending;
 }
 
@@ -113,19 +122,29 @@ const PROMPTS: Readonly<Record<Pending, string>> = {
   scale: "Precise el espaciado del patrón",
   islands: "Precise la detección de islas",
   color: "Escriba los colores del degradado, separados por coma",
+  gap: "Precise la tolerancia de hueco para cerrar el contorno (unidades de dibujo)",
 };
 
 function hatchStep(state: HatchState, context: CadCommandContext): CadCommandStep<HatchState> {
   const patternOptions =
     state.mode === "gradient"
-      ? [OBJECTS, COLOR, ANGLE, ISLANDS]
+      ? [OBJECTS, COLOR, ANGLE, ISLANDS, GAP]
       : state.mode === "boundary"
-        ? [OBJECTS, ISLANDS]
-        : [OBJECTS, PATTERN, ANGLE, SCALE, ISLANDS, SOLID];
+        ? [OBJECTS, ISLANDS, GAP]
+        : [OBJECTS, PATTERN, ANGLE, SCALE, ISLANDS, SOLID, GAP];
+  // Con tolerancia de hueco el resultado no puede ser asociativo (ver
+  // hatch-support.ts): se dice ANTES de pinchar, no después.
+  const gap = cadHatchGapTolerance(context, state.gapTolerance);
+  const gapNotice =
+    state.pending === "pick" && gap > CAD_HATCH_STITCH_DEFAULT && state.mode !== "boundary"
+      ? `Tolerancia de hueco ${gap} (el sombreado no será asociativo). `
+      : state.pending === "pick" && gap > CAD_HATCH_STITCH_DEFAULT
+        ? `Tolerancia de hueco ${gap}. `
+        : "";
   return {
     state,
     prompt: {
-      message: PROMPTS[state.pending],
+      message: `${gapNotice}${PROMPTS[state.pending]}`,
       options:
         state.pending === "pick"
           ? patternOptions
@@ -183,7 +202,10 @@ function emit(
     angle: state.angle,
     scale: spacing,
     islandStyle: state.islandStyle,
-    ...(region.sourceIds.length > 0
+    // Un contorno que sólo cierra con tolerancia de hueco no se puede seguir:
+    // el regenerador cose con la de fábrica y lo marcaría roto al primer
+    // movimiento. Nace desligado, y el prompt ya lo dijo.
+    ...(region.sourceIds.length > 0 && cadHatchGapTolerance(context, state.gapTolerance) <= CAD_HATCH_STITCH_DEFAULT
       ? {
           associative: true,
           associationStatus: "associated" as const,
@@ -215,7 +237,7 @@ function fromPoint(
   point: CadPoint2,
   context: CadCommandContext,
 ): CadCommandStep<HatchState> {
-  const region = cadHatchRegionAtPoint(point, context, state.islandStyle);
+  const region = cadHatchRegionAtPoint(point, context, state.islandStyle, cadHatchGapTolerance(context, state.gapTolerance));
   if (!region) {
     // El diagnóstico ANTES del consejo. Un contorno que se cruza consigo mismo
     // está cerrado, así que «cierra el perímetro» manda a buscar un hueco que
@@ -238,7 +260,7 @@ function fromObjects(
   context: CadCommandContext,
 ): CadCommandStep<HatchState> {
   if (entityIds.length === 0) return cadCommandCancelled(state);
-  const region = cadHatchRegionFromObjects(entityIds, context, state.islandStyle);
+  const region = cadHatchRegionFromObjects(entityIds, context, state.islandStyle, cadHatchGapTolerance(context, state.gapTolerance));
   if (!region) {
     const cruzados = cadSelfIntersectingBoundarySources(context, entityIds);
     if (cruzados.length)
@@ -262,6 +284,7 @@ function descriptor(mode: Mode): CadCommandDescriptor<HatchState> {
     islandStyle: "normal",
     islandKeyword: NORMAL.keyword,
     colors: ["#3b82f6", "#0f172a"],
+    gapTolerance: null,
     pending: "pick",
   };
   const name = mode === "hatch" ? "HATCH" : mode === "gradient" ? "GRADIENT" : "BOUNDARY";
@@ -290,6 +313,7 @@ function descriptor(mode: Mode): CadCommandDescriptor<HatchState> {
         if (input.keyword === SCALE.keyword) return hatchStep({ ...state, pending: "scale" }, context);
         if (input.keyword === COLOR.keyword) return hatchStep({ ...state, pending: "color" }, context);
         if (input.keyword === ISLANDS.keyword) return hatchStep({ ...state, pending: "islands" }, context);
+        if (input.keyword === GAP.keyword) return hatchStep({ ...state, pending: "gap" }, context);
         if (input.keyword === SOLID.keyword)
           return hatchStep({ ...state, solid: !state.solid, pending: "pick" }, context);
         const islandStyle = ISLAND_STYLES[input.keyword];
@@ -305,9 +329,17 @@ function descriptor(mode: Mode): CadCommandDescriptor<HatchState> {
         if (state.pending === "pattern") {
           const pattern = input.value.trim().toUpperCase().slice(0, 64) || "ANSI31";
           // `SOLID` como nombre de patrón es el relleno macizo: quien lo teclea
-          // no espera que además le pinten rayas.
+          // no espera que además le pinten rayas. El ángulo por defecto es la
+          // BASE del patrón elegido (45 en ANSI31, 0 en BRICK): con el 45 de
+          // ANSI31 fijo, un ladrillo salía girado 45°.
           return hatchStep(
-            { ...state, pattern, solid: pattern === "SOLID", pending: "pick" },
+            {
+              ...state,
+              pattern,
+              solid: pattern === "SOLID",
+              ...(state.angleTyped ? {} : { angle: cadHatchPatternBaseAngle(pattern) }),
+              pending: "pick",
+            },
             context,
           );
         }
@@ -326,8 +358,13 @@ function descriptor(mode: Mode): CadCommandDescriptor<HatchState> {
       }
 
       if (input.kind === "distance") {
+        if (state.pending === "gap") {
+          if (!(input.value >= 0))
+            return cadCommandRefused(state, "La tolerancia de hueco no puede ser negativa.");
+          return hatchStep({ ...state, gapTolerance: input.value, pending: "pick" }, context);
+        }
         if (state.pending === "angle")
-          return hatchStep({ ...state, angle: input.value, pending: "pick" }, context);
+          return hatchStep({ ...state, angle: input.value, angleTyped: true, pending: "pick" }, context);
         if (state.pending === "scale") {
           const scale = Math.abs(input.value);
           if (!(scale > 1e-9))
@@ -344,7 +381,8 @@ function descriptor(mode: Mode): CadCommandDescriptor<HatchState> {
       if (input.kind === "entityPick" && state.pending === "objects")
         return fromObjects(state, [input.entityId], context);
 
-      if (input.kind === "enter") return cadCommandCancelled(state);
+      if (input.kind === "enter")
+        return state.pending === "gap" ? hatchStep({ ...state, pending: "pick" }, context) : cadCommandCancelled(state);
       return hatchStep(state, context);
     },
   };

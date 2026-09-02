@@ -84,24 +84,29 @@ export function parseCoordinate(
   }
 
   if (body.includes(",")) {
-    const [xStr, yStr] = body.split(",");
+    const [xStr, yStr, zStr, ...rest] = body.split(",");
     const x = num(xStr);
     const y = num(yStr);
-    if (x === null || y === null)
-      return { ok: false, error: "Coordenada inválida (usa x,y)" };
+    // La tercera componente es la COTA (Ola C, 2026-09-02): `0,0,3000` es el
+    // pilar de tres metros y `@0,0,3000` sube desde el último punto. Antes se
+    // ignoraba en silencio y el punto caía al suelo.
+    const z = zStr === undefined ? null : num(zStr);
+    if (x === null || y === null || (zStr !== undefined && z === null) || rest.length > 0)
+      return { ok: false, error: "Coordenada inválida (usa x,y o x,y,z)" };
     if (relative) {
       if (!ctx.last)
         return {
           ok: false,
           error: "Sin punto previo para coordenada relativa (@)",
         };
+      const lastZ = "z" in ctx.last && typeof (ctx.last as { z?: unknown }).z === "number" ? (ctx.last as { z: number }).z : 0;
       return {
         ok: true,
-        point: { x: ctx.last.x + x, y: ctx.last.y + y },
+        point: { x: ctx.last.x + x, y: ctx.last.y + y, ...(z !== null || lastZ !== 0 ? { z: lastZ + (z ?? 0) } : {}) },
         mode: "relative",
       };
     }
-    return { ok: true, point: { x, y }, mode: "absolute" };
+    return { ok: true, point: { x, y, ...(z !== null ? { z } : {}) }, mode: "absolute" };
   }
 
   const d = num(body);

@@ -22,23 +22,78 @@ on:
     # agosto (PR #63, un único archivo Markdown, dos corridas completas) y fue
     # parte de por qué la cuota mensual se agotó a mitad de ciclo.
     #
-    # El filtro NO se aplica al push sobre `main`: ahí sí queremos veredicto
-    # de cada commit, cueste lo que cueste, porque es la rama de la que se
-    # despliega.
-    #
     # `paths` con negaciones y no `paths-ignore`: docs/cad/evidence/** son los
     # goldens que seis gates comparan contra el árbol — un PR que los toca SÍ
     # debe correr el pipeline, y `paths-ignore` no admite re-inclusiones con
     # `!`. El orden importa: la última regla que casa decide.
+    #
+    # `docs/**/*.json` y `docs/competitive/**` se RE-INCLUYEN (2026-09-02):
+    # `check:cad` lee docs/competitive/rubric.json y regenera la matriz de
+    # `docs/competitive/*.md` con `rubric.mjs --markdown --check`, y
+    # `check:governance` valida docs/governance/assisted-development-log.json.
+    # Un PR que sólo toca uno de esos ficheros SÍ puede poner un gate en rojo,
+    # y con la lista anterior no corría nada: eran justo los cambios que la
+    # campaña de rúbrica va a hacer.
     paths:
       - "**"
       - "!**/*.md"
       - "!docs/**"
       - "docs/cad/evidence/**"
+      - "docs/competitive/**"
+      - "docs/**/*.json"
       - "!LICENSE"
       - "!NOTICE"
+  # ───────────────────────────────────────────────────────────────────────────
+  # `push` en TODAS las ramas, y no sólo en `main`. La razón está medida.
+  #
+  # GitHub NO ejecuta los workflows de `pull_request` mientras el PR tiene un
+  # conflicto de fusión (documentado en «Events that trigger workflows»:
+  # «Workflows will not run on pull_request activity if the pull request has
+  # a merge conflict»). En este repositorio cada campaña añade una entrada al
+  # mismo array de docs/governance/assisted-development-log.json, así que un PR
+  # abierto entra en conflicto en cuanto se fusiona cualquier otro. Medido el
+  # 2026-09-02 sobre los cinco PR fusionados esa madrugada: #157 tuvo UNA
+  # corrida al abrirse (2026-09-01 07:10) y ninguna más hasta el commit «Merge
+  # remote-tracking branch 'origin/main' … # Conflicts:
+  # docs/governance/assisted-development-log.json», que disparó la única otra
+  # corrida 17 segundos antes de la fusión; #166 y #170 no tuvieron ninguna
+  # corrida hasta ese mismo commit de resolución. No era el filtro `paths`, ni
+  # el borrador, ni el workflow desactivado: era el conflicto.
+  #
+  # Un push a la rama sí dispara SIEMPRE, con o sin conflicto, porque no
+  # depende de que exista el commit de fusión. Así cada commit empujado tiene
+  # su veredicto sobre su propio SHA, que es además el SHA que la protección
+  # de rama exige verde (`pullRequestsRequireExactShaChecks` en
+  # docs/governance/repository-protection-baseline.json). Cuando el PR sí es
+  # fusionable, las dos corridas —push y pull_request— comparten grupo de
+  # concurrencia por nombre de rama (abajo) y la segunda cancela a la primera:
+  # se paga UNA corrida, la del commit de fusión, que es la que más dice.
+  #
+  # Lo que esto NO arregla, y hay que decirlo: fusionar sin esperar el
+  # veredicto. #157 se fusionó 17 s después de que arrancara su corrida y
+  # 44 s antes de que `check:cad` la pusiera en rojo. Eso lo permite
+  # `enforceAdmins: false` en la protección de rama, que sólo el titular puede
+  # cambiar; hasta entonces la regla es de procedimiento: no se fusiona sin el
+  # check verde sobre el SHA exacto, y quien no pueda esperarlo corre la suite
+  # entera en local y lo deja escrito en el PR.
+  # ───────────────────────────────────────────────────────────────────────────
   push:
-    branches: [main]
+    branches: ["**"]
+    # Mismo filtro que `pull_request`, copiado y no anclado: GitHub Actions no
+    # garantiza anclas YAML en los workflows, y un workflow que no parsea no
+    # produce CERO corridas en silencio —la enfermedad exacta de este cambio—.
+    # `check:governance` afirma que las dos listas son idénticas. Se aplica
+    # también a `main` porque el argumento es el mismo: un `.md` no puede
+    # romper un gate.
+    paths:
+      - "**"
+      - "!**/*.md"
+      - "!docs/**"
+      - "docs/cad/evidence/**"
+      - "docs/competitive/**"
+      - "docs/**/*.json"
+      - "!LICENSE"
+      - "!NOTICE"
   # Alarma sobre `main` aunque nadie empuje: un fallo intermitente que sólo
   # aparece 1 de cada N corridas no se ve en una foto, se ve en la serie.
   #
@@ -57,18 +112,32 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
-  # SÓLO se cancelan las corridas de PR, donde el push siguiente sustituye al
-  # anterior sobre el MISMO código propuesto.
+  # El grupo es el NOMBRE DE LA RAMA, no el ref del evento. Con `github.ref`
+  # la corrida de `push` (refs/heads/x) y la de `pull_request` (refs/pull/N/
+  # merge) de la misma rama caían en grupos distintos y se pagaban las dos;
+  # con `head_ref || ref_name` comparten grupo y la que llega segunda —la del
+  # commit de fusión, si el PR es fusionable— cancela a la primera.
+  group: ci-${{ github.head_ref || github.ref_name }}
+  # SÓLO se cancelan las corridas de rama, donde el push siguiente sustituye
+  # al anterior sobre el MISMO código propuesto.
   #
   # En `main` cancelar era activamente dañino y es la razón de que este repo
   # se quedara rojo sin que nadie lo viera: todos los merges comparten el ref
   # `refs/heads/main`, así que cada fusión mataba la corrida de la fusión
   # anterior. En la serie del 9 de agosto, CINCO commits consecutivos de `main`
   # (792c0603, 99e867d3, 9abe5287, ccffc17c, bfbd26b9) terminaron en
-  # «cancelled»: nunca hubo veredicto sobre ellos. Cada commit de `main`
-  # merece el suyo, aunque llegue tarde.
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  # «cancelled»: nunca hubo veredicto sobre ellos.
+  #
+  # Aviso medido (2026-09-02): sin cancelar, GitHub encola como mucho UNA
+  # corrida detrás de la que está en marcha y descarta la que ya esperaba. En
+  # cinco fusiones en doce minutos, 13f6646, ec84be3 y 0e5ca49 salieron
+  # «cancelled» mientras esperaban y sólo la punta de `main` llegó a correr.
+  # Es decir: `main` siempre acaba con veredicto sobre su ÚLTIMO commit, no
+  # sobre cada uno. Dar uno a cada uno exigiría un grupo por SHA y pagar cinco
+  # corridas completas por cinco fusiones, y la cuota no da; se elige el
+  # veredicto de la punta y se deja escrito aquí que los intermedios no lo
+  # tienen.
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   quality-gates:
@@ -77,7 +146,7 @@ jobs:
     # Sin techo, un cuelgue hereda el default de GitHub (360 min) y quema seis
     # horas de cuota sin producir veredicto. El techo es holgura sobre lo
     # medido (~35 min en main), no una aspiración.
-    timeout-minutes: ${{ github.event_name == 'pull_request' && 45 || 75 }}
+    timeout-minutes: ${{ github.ref != 'refs/heads/main' && 45 || 75 }}
 
     # Postgres efímero: las suites *.pg.spec.ts y el smoke de bootstrap deben
     # correr contra Postgres real (tipos jsonb/enum), no SQLite.
@@ -320,7 +389,7 @@ jobs:
       # es `main`, el cron y el disparo manual, que es donde el número tiene
       # significado; en una rama sólo encarece cada push.
       - name: CAD render pipeline budget (100k, blocking)
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main'
         working-directory: apps/web
         run: npm run benchmark:cad:render -- --repeat 3 --output ../../cad-benchmark-render.json
 
@@ -339,7 +408,7 @@ jobs:
       # cambia entre un push de rama y el siguiente: es un retrato del motor,
       # no una prueba del cambio propuesto.
       - name: CAD scale capability report (500k + 1M, hardware guarded)
-        if: github.event_name != 'pull_request'
+        if: github.ref == 'refs/heads/main'
         working-directory: apps/web
         run: npm run benchmark:cad:scale -- --output ../../cad-benchmark-scale.json
 
@@ -570,7 +639,9 @@ jobs:
     # `workers: 1` y `fullyParallel: false` de playwright.config.ts NO se tocan:
     # el estado CAD es secuencial a propósito y ahí no hay nada que ganar. El
     # sharding reparte ARCHIVOS entre trabajos; dentro de cada uno la ejecución
-    # sigue siendo exactamente la de siempre.
+    # sigue siendo exactamente la de siempre. La única excepción es el barrido
+    # de cables sueltos, que un solo archivo no puede repartir: cada fragmento
+    # corre su rebanada en una segunda invocación (ver el paso Playwright E2E).
     timeout-minutes: 60
     needs: quality-gates
 
@@ -647,14 +718,16 @@ jobs:
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cache/ms-playwright
-          key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.event_name == 'pull_request' && 'chromium' || 'both' }}
+          key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.ref != 'refs/heads/main' && 'chromium' || 'both' }}
 
       # Cobertura ESCALONADA por navegador, y la escala está elegida a partir
       # de los fallos reales de este repo, no por ahorrar sin más:
       #
-      #   PR      → Chromium. Los tres intermitentes que costaron un día entero
-      #             (goldens 18, 33 y 20) se reprodujeron en Chromium; el
-      #             navegador no era la variable.
+      #   rama    → Chromium (push a la rama o su pull_request: la misma
+      #             regla, decidida por la RAMA y no por el evento). Los tres
+      #             intermitentes que costaron un día entero (goldens 18, 33 y
+      #             20) se reprodujeron en Chromium; el navegador no era la
+      #             variable.
       #   main    → Chromium + Firefox. Aquí sí importa: Firefox necesita
       #             llvmpipe por X11 y es donde aparecieron dos de los tres
       #             rojos del 9 de agosto. Un commit de `main` sin veredicto de
@@ -665,7 +738,7 @@ jobs:
       - name: Seleccionar navegadores
         id: browsers
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
+          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
             echo "list=chromium" >> "$GITHUB_OUTPUT"
             echo "projects=--project=chromium" >> "$GITHUB_OUTPUT"
           else
@@ -818,7 +891,23 @@ jobs:
         # inútil y un servidor X de más en el runner.
         # Bajo Xvfb SIEMPRE, con o sin Firefox: lo único que cambia entre un PR
         # y `main` debe ser QUÉ navegadores corren, nunca CÓMO se ejecutan.
-        run: xvfb-run -a --server-args="-screen 0 1920x1080x24" npx playwright test ${{ steps.browsers.outputs.projects }} --shard=${{ matrix.shard }}/4
+        # El barrido de cables sueltos (`real/cables-sueltos.spec.ts`) se
+        # excluye del reparto por archivos y se corre APARTE, una rebanada por
+        # fragmento: medido el 2026-09-02, sus 582 controles a 6,3 s por
+        # control en serie eran 61 min en un solo trabajo (tope 60, y 30 por
+        # prueba), y la superficie crece con cada ola. La prueba de
+        # persistencia del mismo archivo va con la rebanada 4. El segundo
+        # `playwright test` escribe sus trazas en `.test-results-barrido` para
+        # no pisar las del primero; el informe HTML es sólo del primero.
+        # Los dos se corren aunque el primero falle: un golden rojo no debe
+        # tapar el veredicto del barrido, ni al revés. El paso falla si
+        # cualquiera de los dos falló.
+        run: |
+          ESTADO=0
+          xvfb-run -a --server-args="-screen 0 1920x1080x24" npx playwright test ${{ steps.browsers.outputs.projects }} --shard=${{ matrix.shard }}/4 --grep-invert "Cables sueltos" || ESTADO=$?
+          if [ "${{ matrix.shard }}" = "4" ]; then REBANADA="barrido 4/4|PERSISTIDO"; else REBANADA="barrido ${{ matrix.shard }}/4"; fi
+          xvfb-run -a --server-args="-screen 0 1920x1080x24" npx playwright test e2e/real/cables-sueltos.spec.ts ${{ steps.browsers.outputs.projects }} --grep "$REBANADA" --reporter=line --output e2e/.test-results-barrido || ESTADO=$?
+          exit $ESTADO
 
       # `include-hidden-files` NO es cosmético: sin él este paso nunca subió
       # nada. `.report` y `.test-results` empiezan por punto, y
@@ -835,6 +924,7 @@ jobs:
           path: |
             apps/web/e2e/.report
             apps/web/e2e/.test-results
+            apps/web/e2e/.test-results-barrido
           include-hidden-files: true
           retention-days: 14
 
@@ -854,15 +944,22 @@ jobs:
   #
   # Así que los fragmentos corren bajo un nombre nuevo y este job conserva el
   # viejo: cuesta ~10 s de runner y reduce a cero el riesgo del renombrado.
-  # `if: always()` es obligatorio — sin él GitHub SALTA el job cuando un
-  # fragmento falla, y un job saltado cuenta como no-fallo: exactamente el
-  # agujero de «cancelado no es fallo» reabierto por otra puerta.
+  # `if: ${{ !cancelled() }}` y no `always()`: sin condición GitHub SALTA el
+  # job cuando un fragmento falla, y un job saltado cuenta como no-fallo —el
+  # agujero de «cancelado no es fallo» reabierto por otra puerta—. Pero con
+  # `always()` el veredicto corría también cuando el grupo de concurrencia
+  # cancelaba la CORRIDA ENTERA (la de `push`, sustituida por la del PR) y
+  # dejaba un check rojo «E2E Playwright» sobre la misma cabeza, al lado del
+  # veredicto vivo: medido el 2026-09-02 en 2ad04a5, corrida 723 cancelada a
+  # los 4 s y su agregado en rojo mientras la 724 seguía corriendo. Un
+  # fragmento cancelado DENTRO de una corrida viva (runner perdido) no cancela
+  # la corrida: `cancelled()` es falso, el veredicto corre y sale rojo.
   # ───────────────────────────────────────────────────────────────────────────
   e2e:
     name: E2E Playwright (PostgreSQL · Chromium + Firefox)
     runs-on: ubuntu-latest
     needs: e2e-shard
-    if: always()
+    if: ${{ !cancelled() }}
     timeout-minutes: 5
     steps:
       - name: Veredicto de los cuatro fragmentos
@@ -894,7 +991,9 @@ jobs:
   # ───────────────────────────────────────────────────────────────────────────
   e2e-perf:
     name: E2E rendimiento (100k · Chromium · SwiftShader)
-    if: github.event_name != 'pull_request'
+    # Por RAMA y no por evento: desde que `push` dispara en toda rama, «no es
+    # pull_request» dejó de significar «es main».
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 75
     needs: quality-gates

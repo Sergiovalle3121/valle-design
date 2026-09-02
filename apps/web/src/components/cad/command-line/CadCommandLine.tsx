@@ -20,7 +20,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CadPrompt } from "@/lib/cad/engine/command-types";
 import { formatCadKeyword, formatCadPrompt } from "@/lib/cad/engine/prompt";
-import { CAD_COMMAND_LINE_CLEARANCE_VAR } from "./use-status-bar-clearance";
 
 export interface CadCommandLineEntry {
   /** Lo que se escribió, o el prompt que se resolvió. */
@@ -42,6 +41,8 @@ export interface CadCommandLineProps {
   onCancel(): void;
   /** Enter o Espacio con la caja vacía: repetir el último comando. */
   onRepeat(): void;
+  /** La caja, para que el lienzo la enfoque al recibir un carácter (editor-keyboard.ts, fase 0). */
+  inputRef?: React.RefObject<HTMLInputElement | null>;
 }
 
 const LEVEL_CLASS: Record<CadCommandLineEntry["level"], string> = {
@@ -60,10 +61,12 @@ export function CadCommandLine({
   onKeyword,
   onCancel,
   onRepeat,
+  inputRef: externalInputRef,
 }: CadCommandLineProps) {
   const [value, setValue] = useState("");
   const [recallIndex, setRecallIndex] = useState<number | null>(null);
-  const inputRef = useRef<HTMLInputElement | null>(null);
+  const localInputRef = useRef<HTMLInputElement | null>(null);
+  const inputRef = externalInputRef ?? localInputRef;
   const logRef = useRef<HTMLDivElement | null>(null);
 
   /** Sólo lo tecleado por el usuario se recupera con las flechas. */
@@ -84,7 +87,12 @@ export function CadCommandLine({
         // Esc con texto escrito lo borra; sin texto, cancela el comando. Es la
         // cascada de AutoCAD: primero se deshace lo tecleado, luego la orden.
         if (value) setValue("");
-        else onCancel();
+        else {
+          onCancel();
+          // El foco VUELVE al lienzo: la caja se enfoca sola con la siguiente
+          // tecla imprimible, y Supr o Ctrl+Z vuelven a ser del dibujo.
+          inputRef.current?.blur();
+        }
         setRecallIndex(null);
         return;
       }
@@ -103,6 +111,9 @@ export function CadCommandLine({
       if (event.key === "Enter" || (event.key === " " && !value)) {
         event.preventDefault();
         setRecallIndex(null);
+        // El foco VUELVE al lienzo (medido: Ctrl+Z dentro de la caja era el
+        // historyUndo del navegador, no el del dibujo).
+        inputRef.current?.blur();
         // Con la caja vacía, Enter y Espacio repiten. Es el gesto más usado de
         // AutoCAD y hoy no existe en ningún sitio del editor.
         if (!value.trim()) {
@@ -114,7 +125,7 @@ export function CadCommandLine({
         onSubmit(submitted);
       }
     },
-    [onCancel, onRepeat, onSubmit, recallIndex, typed, value],
+    [inputRef, onCancel, onRepeat, onSubmit, recallIndex, typed, value],
   );
 
   const line = prompt ? formatCadPrompt(prompt) : "";
@@ -137,15 +148,6 @@ export function CadCommandLine({
         hace leerse como herramienta profesional, y deja de ser una mancha negra
         en una interfaz clara.
       */
-      /*
-        EL DESFASE ES SUYO, no del envoltorio. La línea comparte columna con el
-        acompañante de los primeros cinco minutos y con la consola AutoLISP;
-        subir el envoltorio los sube a los tres y sus botones acaban sobre el
-        plano. `relative` + `bottom` mueve ESTA caja y deja el hueco donde
-        estaba, así que las dos de arriba no se enteran. Sin el módulo que
-        publica la variable, el desfase es cero.
-      */
-      style={{ bottom: `var(${CAD_COMMAND_LINE_CLEARANCE_VAR}, 0px)` }}
       className="pointer-events-none relative flex w-full flex-col rounded-control border border-border bg-popover/95 text-popover-foreground type-caption shadow-floating backdrop-blur"
     >
       <div

@@ -44,71 +44,123 @@ const avisoDe = (entity: unknown) => mapDxfEntityToPrimitive(entity as never).wa
 
 // ── Lo que ahora se declara ────────────────────────────────────────────────
 
+// Ola C (2026-09-02): el pilar ya no se aplana. `pt()` conserva el código 30 y
+// la primitiva lleva la cota; hasta esta ola este mismo caso exigía el aviso y
+// dos puntos en (0,0).
 const pilar = mapDxfEntityToPrimitive({
   type: "LINE",
   layer: "ESTRUCTURA",
   startPoint: { x: 0, y: 0, z: 0 },
   endPoint: { x: 0, y: 0, z: 3000 },
 } as never);
-assert.equal(
-  pilar.warning?.code,
-  "flattened_to_ground",
-  "una LINE perpendicular al suelo se declara aplanada",
-);
-assert.equal(pilar.primitive?.kind, "line", "y aun así se importa: declarar no es descartar");
+assert.equal(pilar.warning, undefined, "una LINE perpendicular al suelo ya no es pérdida");
+assert.equal(pilar.primitive?.kind, "line");
 assert.deepEqual(
   pilar.primitive?.points,
   [
     { x: 0, y: 0 },
-    { x: 0, y: 0 },
+    { x: 0, y: 0, z: 3000 },
   ],
-  "el aplanado la deja de longitud CERO — el número que justifica el aviso",
+  "los tres metros del pilar están en la primitiva",
 );
-assert.equal(pilar.warning?.entityType, "LINE", "el aviso dice de qué tipo era");
-assert.equal(pilar.warning?.layer, "ESTRUCTURA", "y en qué capa, que es por donde se busca");
 
+const depie = mapDxfEntityToPrimitive({
+  type: "CIRCLE",
+  layer: "MUROS",
+  center: { x: 100, y: 50 },
+  radius: 25,
+  extrusionDirectionX: 1,
+  extrusionDirectionY: 0,
+  extrusionDirectionZ: 0,
+} as never);
 assert.equal(
-  avisoDe({
-    type: "CIRCLE",
-    layer: "MUROS",
-    center: { x: 100, y: 50 },
-    radius: 25,
-    extrusionDirectionX: 1,
-    extrusionDirectionY: 0,
-    extrusionDirectionZ: 0,
-  })?.code,
+  depie.warning?.code,
   "flattened_to_ground",
-  "un círculo de pie —extrusión (1,0,0)— se declara",
+  "un círculo de pie —extrusión (1,0,0)— sigue declarándose: el plano inclinado es «todavía no»",
 );
+assert.equal(depie.warning?.entityType, "CIRCLE", "el aviso dice de qué tipo era");
+assert.equal(depie.warning?.layer, "MUROS", "y en qué capa, que es por donde se busca");
 
 // El caso MÁS frecuente de todos: AutoCAD escribe extrusión (0,0,-1) para
-// cualquier cosa dibujada en un SCU reflejado. Se ve plano y no lo es.
-assert.equal(
-  avisoDe({
-    type: "CIRCLE",
-    layer: "MUROS",
-    center: { x: 100, y: 50 },
-    radius: 25,
-    extrusionDirectionX: 0,
-    extrusionDirectionY: 0,
-    extrusionDirectionZ: -1,
-  })?.code,
-  "flattened_to_ground",
-  "un SCU reflejado —extrusión (0,0,-1)— también se declara",
-);
+// cualquier cosa dibujada en un SCU reflejado. Desde la Ola C `enElMundo` lo
+// devuelve al mundo: el eje X del OCS es (−1,0,0), así que x cambia de signo.
+const reflejado = mapDxfEntityToPrimitive({
+  type: "CIRCLE",
+  layer: "MUROS",
+  center: { x: 100, y: 50 },
+  radius: 25,
+  extrusionDirectionX: 0,
+  extrusionDirectionY: 0,
+  extrusionDirectionZ: -1,
+} as never);
+assert.equal(reflejado.warning, undefined, "un SCU reflejado —extrusión (0,0,-1)— ya no es pérdida");
+assert.deepEqual(reflejado.primitive?.points, [{ x: -100, y: 50 }], "el centro vuelve al mundo: (−x, y)");
 
+// Un ARC reflejado cambia de sentido: de `a`→`b` en su plano a `180−b`→`180−a`.
+const arcoReflejado = mapDxfEntityToPrimitive({
+  type: "ARC",
+  layer: "MUROS",
+  center: { x: 100, y: 50, z: 200 },
+  radius: 25,
+  startAngle: 0,
+  endAngle: Math.PI / 2,
+  extrusionDirectionX: 0,
+  extrusionDirectionY: 0,
+  extrusionDirectionZ: -1,
+} as never);
+assert.equal(arcoReflejado.warning, undefined);
+assert.deepEqual(arcoReflejado.primitive?.points, [{ x: -100, y: 50, z: -200 }], "la cota también se refleja");
+assert.equal(arcoReflejado.primitive?.startAngle, 90, "0°→90° en OCS reflejado es 90°→180° en el mundo");
+assert.equal(arcoReflejado.primitive?.endAngle, 180);
+
+// Una LWPOLYLINE reflejada: x cambia de signo y el bulge también (es un espejo).
+const plReflejada = mapDxfEntityToPrimitive({
+  type: "LWPOLYLINE",
+  layer: "MUROS",
+  vertices: [
+    { x: 0, y: 0, bulge: 0.5 },
+    { x: 1000, y: 0 },
+    { x: 1000, y: 500 },
+  ],
+  extrusionDirectionX: 0,
+  extrusionDirectionY: 0,
+  extrusionDirectionZ: -1,
+} as never);
+assert.equal(plReflejada.warning, undefined);
+assert.deepEqual(plReflejada.primitive?.points, [
+  { x: 0, y: 0, bulge: -0.5 },
+  { x: -1000, y: 0 },
+  { x: -1000, y: 500 },
+]);
+
+// La elevación del código 38 viaja a los vértices: tampoco es pérdida.
+const elevada = mapDxfEntityToPrimitive({
+  type: "LWPOLYLINE",
+  layer: "CUBIERTA",
+  vertices: [
+    { x: 0, y: 0 },
+    { x: 1000, y: 0 },
+  ],
+  elevation: 3000,
+} as never);
+assert.equal(elevada.warning, undefined, "la elevación del código 38 ya viaja");
+assert.deepEqual(elevada.primitive?.points, [
+  { x: 0, y: 0, z: 3000 },
+  { x: 1000, y: 0, z: 3000 },
+]);
+
+// Lo que SÍ sigue perdiéndose y se declara: la cota de un texto, y una
+// elevación del 38 con plano inclinado.
 assert.equal(
   avisoDe({
-    type: "LWPOLYLINE",
-    layer: "CUBIERTA",
-    vertices: [
-      { x: 0, y: 0 },
-      { x: 1000, y: 0 },
-    ],
-    elevation: 3000,
+    type: "TEXT",
+    layer: "ROTULOS",
+    position: { x: 0, y: 0, z: 1200 },
+    text: "N+1.20",
+    height: 5,
   })?.code,
   "flattened_to_ground",
-  "la elevación del código 38 se declara aunque el plano sea el del suelo",
+  "la cota de un TEXT todavía no viaja: se declara",
 );
 
 // ── Lo que NO debe disparar un aviso ───────────────────────────────────────

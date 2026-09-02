@@ -38,6 +38,8 @@
  */
 import type { CadPoint2 } from "../../cad-document";
 import type { CadNativeEntity } from "../../entity-runtime";
+import { cadActiveUcsIsInclined } from "../../system-variables";
+import { cadPointZ } from "../spatial-point";
 import {
   CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_KEYWORD,
@@ -87,6 +89,8 @@ interface PlineState {
   pendingWidthStart: number;
   /** Ángulo incluido fijado para el próximo tramo de arco, en grados. */
   arcAngleDeg: number | null;
+  /** Aviso que antecede al prompt siguiente (una opción rechazada); se borra al añadir vértice. */
+  notice: string;
 }
 
 function initialState(): PlineState {
@@ -98,7 +102,13 @@ function initialState(): PlineState {
     pending: "none",
     pendingWidthStart: 0,
     arcAngleDeg: null,
+    notice: "",
   };
+}
+
+/** ¿El plano de trabajo está inclinado? Sin variables (specs, sonda) es el del mundo. */
+function inclined(context: CadCommandContext): boolean {
+  return !!context.variables && cadActiveUcsIsInclined(context.variables);
 }
 
 /**
@@ -158,7 +168,7 @@ function pushVertex(state: PlineState, target: CadPoint2): PlineState {
       : vertex,
   );
   vertices.push({ point: target, bulge: 0, startWidth: state.startWidth, endWidth: state.endWidth });
-  return { ...state, vertices, arcAngleDeg: null, pending: "none" };
+  return { ...state, vertices, arcAngleDeg: null, pending: "none", notice: "" };
 }
 
 function polylineEntity(
@@ -173,7 +183,9 @@ function polylineEntity(
     vertices: state.vertices.map((vertex, index) => ({
       x: vertex.point.x,
       y: vertex.point.y,
-      z: 0,
+      // La cota del punto designado, si la trae (SCU elevado o inclinado, o
+      // `x,y,z` tecleado). Hasta la Ola C aquí había un `z: 0` fijo.
+      z: cadPointZ(vertex.point) ?? 0,
       // El último vértice de una polilínea ABIERTA no arranca ningún tramo, así
       // que no lleva ni bulge ni grosor: escribírselos sería describir un tramo
       // que no existe.
@@ -258,8 +270,11 @@ function plineStep(state: PlineState, context: CadCommandContext): CadCommandSte
       prompt: { message: "Precise el punto inicial", options: [] },
       accepts: CAD_ACCEPT_POINT,
     };
+  // Sobre un plano inclinado no se ofrece Arco: el bulge de una polilínea es
+  // un arco EN PLANTA y el documento no sabe guardar uno en otro plano. Se
+  // dice al rechazarlo (`notice`) en vez de aceptarlo y aplanarlo.
   const options = [
-    state.mode === "arc" ? LINE : ARC,
+    ...(state.mode === "arc" ? [LINE] : inclined(context) ? [] : [ARC]),
     ...(state.mode === "arc" ? [ANGLE] : [LENGTH]),
     HALFWIDTH,
     WIDTH,
@@ -270,7 +285,7 @@ function plineStep(state: PlineState, context: CadCommandContext): CadCommandSte
   return {
     state,
     prompt: {
-      message: state.mode === "arc" ? "Precise el extremo del arco" : "Precise el punto siguiente",
+      message: `${state.notice}${state.mode === "arc" ? "Precise el extremo del arco" : "Precise el punto siguiente"}`,
       options,
     },
     // Igual que LINE: un número suelto es entrada directa sobre la dirección
@@ -285,12 +300,31 @@ function plineStep(state: PlineState, context: CadCommandContext): CadCommandSte
 function extendByLength(state: PlineState, length: number): CadPoint2 | null {
   const last = state.vertices[state.vertices.length - 1];
   if (!last) return null;
+  const prev = state.vertices[state.vertices.length - 2];
+  const zLast = cadPointZ(last.point);
+  const zPrev = cadPointZ(prev?.point);
+  // Un tramo recto con cota distinta en sus extremos vive en un plano
+  // inclinado: se prolonga por SU recta, en 3D, y no por su sombra en planta,
+  // que mediría de menos y quedaría fuera del plano.
+  if (prev && prev.bulge === 0 && zLast !== undefined && zPrev !== undefined && zLast !== zPrev) {
+    const d = { x: last.point.x - prev.point.x, y: last.point.y - prev.point.y, z: zLast - zPrev };
+    const norm = Math.hypot(d.x, d.y, d.z);
+    if (norm < 1e-9) return null;
+    const target = {
+      x: last.point.x + (d.x / norm) * length,
+      y: last.point.y + (d.y / norm) * length,
+      z: zLast + (d.z / norm) * length,
+    };
+    return target;
+  }
   const direction = outgoingTangent(state.vertices);
   if (direction === null) return null;
-  return {
+  const target = {
     x: last.point.x + Math.cos(direction) * length,
     y: last.point.y + Math.sin(direction) * length,
+    ...(zLast !== undefined ? { z: zLast } : {}),
   };
+  return target;
 }
 
 const plineCommand: CadCommandDescriptor<PlineState> = {
@@ -301,6 +335,10 @@ const plineCommand: CadCommandDescriptor<PlineState> = {
   selection: "none",
   repeatable: true,
   mutates: true,
+  // Conserva la cota de cada vértice y prolonga (Longitud) en 3D, así que
+  // dibuja en el plano del SCU, inclinado o no; lo único que no cabe en ese
+  // plano es el Arco, y se rechaza diciéndolo en vez de aplanarlo.
+  spatial: true,
   cursor: "crosshair",
   begin: (context) => plineStep(initialState(), context),
   step: (state, input, context) => {
@@ -325,7 +363,17 @@ const plineCommand: CadCommandDescriptor<PlineState> = {
 
     if (input.kind === "keyword") {
       if (input.keyword === CLOSE.keyword) return finish(state, true, context);
-      if (input.keyword === ARC.keyword) return plineStep({ ...state, mode: "arc" }, context);
+      if (input.keyword === ARC.keyword)
+        return inclined(context)
+          ? plineStep(
+              {
+                ...state,
+                notice:
+                  "Arco no está disponible con el SCU inclinado: el arco se guardaría en planta, no en el plano del SCU. ",
+              },
+              context,
+            )
+          : plineStep({ ...state, mode: "arc" }, context);
       if (input.keyword === LINE.keyword)
         return plineStep({ ...state, mode: "line", arcAngleDeg: null }, context);
       if (input.keyword === WIDTH.keyword) return plineStep({ ...state, pending: "width-start" }, context);

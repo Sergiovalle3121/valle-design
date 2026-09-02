@@ -29,6 +29,7 @@ import {
   type CadCommandStep,
   type CadPreviewPath,
 } from "../command-types";
+import { cadLiftPoint } from "../spatial-point";
 
 const UNDO = { keyword: "desHacer", shortcut: "H" } as const;
 const CLOSE = { keyword: "Cerrar", shortcut: "C" } as const;
@@ -226,9 +227,11 @@ function circleResult(
             commands: [
               {
                 type: "insert",
+                // El centro calculado (2P, 3P) no trae cota: toma la del
+                // primer punto designado, que es el plano del círculo.
                 entity: circleEntity(
                   context.newEntityId(),
-                  center,
+                  cadLiftPoint(center, state.points[0]),
                   radius,
                   context.activeLayer,
                 ),
@@ -310,12 +313,13 @@ const circleCommand: CadCommandDescriptor<CircleState> = {
   selection: "none",
   repeatable: true,
   mutates: true,
-  // SIN `spatial`, y a conciencia: `2P` y `3P` resuelven el centro sobre la
-  // proyección XY de los puntos, que sobre un plano inclinado no es el centro
-  // de la circunferencia que pasa por ellos. Marcarlo aquí dejaría pasar un
-  // círculo con el radio equivocado; sin marcarlo, el motor lo rechaza y lo
-  // dice. Se destapará cuando el trazado por tres puntos trabaje en el plano
-  // del SCU y no en el del mundo.
+  // `"elevation"` y no `true`, a conciencia: el círculo conserva la cota de
+  // su centro —la planta a +3000 se dibuja a +3000—, pero `2P` y `3P`
+  // resuelven el centro sobre la proyección XY de los puntos, que sobre un
+  // plano INCLINADO no es el centro de la circunferencia que pasa por ellos, y
+  // el documento no guarda un círculo fuera del plano horizontal. Con el SCU
+  // inclinado el motor lo rechaza y lo dice.
+  spatial: "elevation",
   cursor: "crosshair",
   begin: (context) =>
     circleStep({ mode: "center", points: [], diameter: false }, context),

@@ -124,6 +124,20 @@ const CadTemplateChooserCard = dynamic(
     ),
   },
 );
+// Las paletas que se abren A DEMANDA viajan en su chunk y no en el del
+// estudio: medido el 2026-09-02 con source maps, las nueve sumaban 75 KB del
+// primer chunk (colaboración 15, layouts 13, capas 12, xref 7, MTEXT 7,
+// bloques 7, cota 5, directriz 5, sombreado 4) sin que ninguna se pintara al
+// abrir; `frontend-load-budget.spec.ts` es quien lo vigila.
+const CadHatchPalette = dynamic(() => import("@/components/cad/palettes/CadHatchPalette").then((m) => m.CadHatchPalette), { ssr: false });
+const CadMTextEditor = dynamic(() => import("@/components/cad/palettes/CadMTextEditor").then((m) => m.CadMTextEditor), { ssr: false });
+const CadDimensionPalette = dynamic(() => import("@/components/cad/palettes/CadDimensionPalette").then((m) => m.CadDimensionPalette), { ssr: false });
+const CadMLeaderPalette = dynamic(() => import("@/components/cad/palettes/CadMLeaderPalette").then((m) => m.CadMLeaderPalette), { ssr: false });
+const CadBlockPalette = dynamic(() => import("@/components/cad/palettes/CadBlockPalette").then((m) => m.CadBlockPalette), { ssr: false });
+const CadLayoutManager = dynamic(() => import("@/components/cad/palettes/CadLayoutManager").then((m) => m.CadLayoutManager), { ssr: false });
+const CadXrefPalette = dynamic(() => import("@/components/cad/palettes/CadXrefPalette").then((m) => m.CadXrefPalette), { ssr: false });
+const CadCollaborationPalette = dynamic(() => import("@/components/cad/palettes/CadCollaborationPalette").then((m) => m.CadCollaborationPalette), { ssr: false });
+const CadLayerManagerPalette = dynamic(() => import("@/components/cad/palettes/CadLayerManagerPalette").then((m) => m.CadLayerManagerPalette), { ssr: false });
 import {
   designChecks,
   type CheckBox,
@@ -160,16 +174,9 @@ import {
 } from "@/lib/cad/snap-scene";
 import { detectCadFormat } from "@/components/cad/interop/cad-format-detect";
 import type { PlotLayout } from "@/components/cad/plot/plot-scale";
-import {
-  createHistoryItem as createCadHistoryItem,
-  executeCadCommand,
-  parseCadCommand,
-  previewCadCommand,
-  splitCadCommandChain,
-  type CadCommandHistoryItem,
-  type CadCommandInput,
-  type CadOperation,
-} from "@/lib/cad/commands";
+import { createHistoryItem as createCadHistoryItem } from "@/lib/cad/commands/history";
+import { cadNlCommandsIfLoaded, loadCadNlCommands } from "@/lib/cad/commands/lazy";
+import type { CadCommandHistoryItem, CadCommandInput, CadOperation } from "@/lib/cad/commands/types";
 import {
   measureBoxes,
   measurementLabel,
@@ -204,7 +211,12 @@ import {
   interpretEditorKeyAfterEngine,
   interpretEditorKeyBeforeEngine,
   type EditorKeyAction,
+  editorKeyEventLike,
 } from "@/lib/cad/editor-keyboard";
+import {
+  cadBackgroundDragGesture,
+  cadPointerDownBeforeHit,
+} from "@/components/cad/viewport/background-drag-policy";
 import {
   CAD_WORKSPACE_DEFAULTS,
   applyCadWorkspaceProfile,
@@ -324,7 +336,6 @@ import {
   explodeCadInsert,
   insertCadBlock as insertCanonicalCadBlock,
   purgeUnusedCadBlocks,
-  redefineCadBlock,
   replaceCadBlock,
 } from "@/lib/cad/professional-blocks";
 // El catálogo de plantillas (4.900+ líneas de datos) NO se importa estático:
@@ -382,6 +393,7 @@ import {
   updateCadDocumentLayer,
 } from "@/lib/cad/cad-layer-manager";
 import { cadDimensionStyleOverrides } from "@/lib/cad/dimension-format";
+import { cadDimensionFamilyStyle } from "@/lib/cad/dimension-family";
 import {
   CAD_SHEET_PAPERS,
   buildCadPublishPlan,
@@ -464,6 +476,7 @@ import {
 import { publishCadViewport } from "@/lib/cad/collab/viewport-registry";
 import { CadCommandLineDock } from "@/components/cad/command-line/CadCommandLineDock";
 import { useCadCommandEngine } from "@/components/cad/command-line/use-command-engine";
+import { CAD_SHARED_CLIPBOARD } from "@/lib/cad/clipboard";
 import { formatCadPrompt } from "@/lib/cad/engine/prompt";
 import { useCadStudioCommandEngine } from "@/components/cad/command-line/use-command-engine";
 import { cadStudioEngineBridges } from "@/components/cad/command-line/studio-engine-bridges";
@@ -584,36 +597,18 @@ import {
   type FactoryPreset,
 } from "@/lib/cad/world-scale";
 import CadOverviewMinimap from "@/components/cad/viewport/CadOverviewMinimap";
+import { renderCadSheetSetPdf } from "./sheet-set-pdf";
 import ScaleBar from "./ScaleBar";
 import { mergeAnnotationLayers, syncLegacyTextShadow } from "./legacy-text-shadow-sync";
 import {
   CadSelectionPalette,
   type CadSelectionGeometryMode,
 } from "@/components/cad/palettes/CadSelectionPalette";
-import { CadHatchPalette } from "@/components/cad/palettes/CadHatchPalette";
-import {
-  CadMTextEditor,
-  type CadMTextDraft,
-} from "@/components/cad/palettes/CadMTextEditor";
-import {
-  CadDimensionPalette,
-  type CadDimensionDraft,
-} from "@/components/cad/palettes/CadDimensionPalette";
-import {
-  CadMLeaderPalette,
-  type CadMLeaderDraft,
-} from "@/components/cad/palettes/CadMLeaderPalette";
-import {
-  CadBlockPalette,
-  type CadBlockDefinitionDraft,
-  type CadBlockInsertDraft,
-} from "@/components/cad/palettes/CadBlockPalette";
-import { CadLayoutManager } from "@/components/cad/palettes/CadLayoutManager";
-import {
-  CadXrefPalette,
-  type CadXrefAttachDraft,
-} from "@/components/cad/palettes/CadXrefPalette";
-import { CadCollaborationPalette } from "@/components/cad/palettes/CadCollaborationPalette";
+import type { CadMTextDraft } from "@/components/cad/palettes/CadMTextEditor";
+import type { CadDimensionDraft } from "@/components/cad/palettes/CadDimensionPalette";
+import type { CadMLeaderDraft } from "@/components/cad/palettes/CadMLeaderPalette";
+import type { CadBlockDefinitionDraft, CadBlockInsertDraft } from "@/components/cad/palettes/CadBlockPalette";
+import type { CadXrefAttachDraft } from "@/components/cad/palettes/CadXrefPalette";
 import { CadWorkspaceDock } from "@/components/cad/palettes/CadWorkspaceDock";
 import { CadEntityPropertiesPanel } from "@/components/cad/palettes/CadEntityPropertiesPanel";
 import type {
@@ -635,7 +630,6 @@ import {
   useCadStyleManager,
   useCadStyleManagerHost,
 } from "@/components/cad/palettes/use-palettes";
-import { CadLayerManagerPalette } from "@/components/cad/palettes/CadLayerManagerPalette";
 import { useCadLayerActions } from "@/components/cad/palettes/use-layer-actions";
 import { useCadStyleActions } from "@/components/cad/palettes/use-style-actions";
 import {
@@ -3975,6 +3969,23 @@ export default function Layout3DEditor({
     setHist(history.depths());
   }, [applyHistoryDocument, notifyReadOnly, snapshotDocument]);
 
+  // LTSCALE tecleado (Ola F): la escala de tipo de línea es del DOCUMENTO,
+  // con su entrada de deshacer; antes la variable se quedaba en la sesión y el
+  // dibujo no cambiaba un guion. El motor la lee y la escribe por la fachada.
+  const setDocumentLinetypeScale = useCallback(
+    (value: number) => {
+      const current = loadedCadDocumentRef.current;
+      if (!current || !(value > 0) || (current.meta.linetypeScale ?? 1) === value) return;
+      if (drawingReadOnly) {
+        notifyReadOnly();
+        return;
+      }
+      pushHistory();
+      applyHistoryDocument(commitChange({ ...current, meta: { ...current.meta, linetypeScale: value } }, "LTSCALE"), false);
+    },
+    [applyHistoryDocument, drawingReadOnly, notifyReadOnly, pushHistory],
+  );
+
   const applyCollaborationDocument = useCallback(
     (next: CadDocument, label: string) => {
       if (drawingReadOnly) {
@@ -4832,12 +4843,17 @@ export default function Layout3DEditor({
    * No hay una segunda ruta de mutación, que es justo lo que el motor venía a
    * eliminar.
    */
+  const syncRedefinedBlockLibraryRef = useRef<(blockId: string) => void>(() => {});
   const commandEngine = useCadStudioCommandEngine({
     document: loadedCadDocumentRef,
     selection: nativeSelectionIdsRef,
     view: viewControllerRef,
     activeLayer: activeCadLayer,
     newEntityId: () => newId("cad"),
+    linetypeScale: {
+      get: () => loadedCadDocumentRef.current?.meta.linetypeScale ?? 1,
+      set: setDocumentLinetypeScale,
+    },
     apply: (commands) => {
       // Dibujar con la BARRA deja lo creado designado (como el camino heredado);
       // tecleado NO: la línea de comandos nunca designó, y designar cambiaría
@@ -4848,6 +4864,12 @@ export default function Layout3DEditor({
           )
         : [];
       commitNativeCommands([...commands], created.length ? created : undefined);
+      // BLOCK «¿Redefinirlo? Sí» sale del motor como op:redefine: la fila de
+      // la biblioteca del despacho tiene que versionarse igual que cuando el
+      // panel redefinía por su cuenta, o el catálogo enseña la silla vieja.
+      for (const command of commands)
+        if (command.type === "block" && command.op === "redefine")
+          syncRedefinedBlockLibraryRef.current(command.definition.id);
     },
     // El puntero ya alimenta al motor: éstas son las tres cosas que su puente
     // ignoraba «a conciencia hasta que el puntero llegue».
@@ -5287,53 +5309,57 @@ export default function Layout3DEditor({
     },
     [activeCadLayer, cadBlocks, commitBlockMutation],
   );
-  const redefineProfessionalBlock = useCallback(
+  const syncRedefinedBlockLibrary = useCallback(
     (blockId: string) => {
-      const entityIds = [
-        ...new Set([
-          ...selRef.current.map((item) => item.id),
-          ...nativeSelectionIdsRef.current,
-        ]),
-      ];
-      commitBlockMutation(
-        (document) => {
-          const entities = entityIds
-            .map((id) => document.entities.find((entity) => entity.id === id))
-            .filter((entity): entity is CadEntity => !!entity);
-          return redefineCadBlock(document, blockId, entities);
-        },
-        nativeSelectionIdsRef.current,
-        "Definición actualizada; todas sus instancias se regeneraron.",
-      );
       const updatedDefinition = loadedCadDocumentRef.current?.blocks.find(
         (block) => block.id === blockId,
       );
       const libraryRow = cadBlocks.find(
         (candidate) => candidate.definition?.id === blockId,
       );
-      if (updatedDefinition && libraryRow)
-        void legacyCadFetch(`cad-blocks/${libraryRow.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ definition: updatedDefinition }),
-        })
-          .then((response) =>
-            response.ok
-              ? loadCadBlocks()
-              : toast.error(
-                  "Redefinición local guardada; la biblioteca tenant no pudo versionarse.",
-                  "BLOCK",
-                ),
-          )
-          .catch(() =>
-            toast.error(
-              "Redefinición local guardada; falló la biblioteca tenant.",
-              "BLOCK",
-            ),
-          );
+      if (!updatedDefinition || !libraryRow) return;
+      void legacyCadFetch(`cad-blocks/${libraryRow.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ definition: updatedDefinition }),
+      })
+        .then((response) =>
+          response.ok
+            ? loadCadBlocks()
+            : toast.error(
+                "Redefinición local guardada; la biblioteca tenant no pudo versionarse.",
+                "BLOCK",
+              ),
+        )
+        .catch(() =>
+          toast.error(
+            "Redefinición local guardada; falló la biblioteca tenant.",
+            "BLOCK",
+          ),
+        );
     },
-    [cadBlocks, commitBlockMutation, toast],
+    [cadBlocks, toast],
   );
+  useEffect(() => {
+    syncRedefinedBlockLibraryRef.current = syncRedefinedBlockLibrary;
+  });
+  // «Redefinir» ya no sustituye la definición en el acto: arranca el gesto de
+  // AutoCAD —BLOCK con el nombre existente, «¿Redefinirlo?», punto base,
+  // objetos— y el motor hace el resto. El punto base es lo que faltaba: sin
+  // preguntarlo, la geometría del recambio entraba en coordenadas de mundo con
+  // el punto base viejo (0,0) y cada instancia se iba el vector que va del
+  // origen a donde uno dibujó el recambio (medido: +9000, +8000 en la
+  // auditoría del 2026-09-01, e2e/auditoria/bloques.spec.ts).
+  const redefineProfessionalBlock = useCallback((blockId: string) => {
+    const definition = loadedCadDocumentRef.current?.blocks.find(
+      (block) => block.id === blockId,
+    );
+    if (!definition) return;
+    const engine = commandEngineRef.current;
+    engine.invoke("BLOCK");
+    engine.submit(definition.name);
+    engine.submit("S");
+  }, []);
   const replaceProfessionalBlock = useCallback(
     (sourceBlock: string, targetBlock: string) => {
       commitBlockMutation(
@@ -5763,7 +5789,9 @@ export default function Layout3DEditor({
         );
         return;
       }
-      const style = document.styles.dimension[draft.style] ?? {};
+      // El estilo y, encima, su subestilo de familia (`NOMBRE$n`, Ola I): así
+      // una cota radial toma la flecha que su despacho fijó para los radios.
+      const style = cadDimensionFamilyStyle(document.styles, draft.style, draft.kind);
       const entity: CadNativeEntity = {
         id: newId("dim"),
         type: "dimension",
@@ -6559,14 +6587,23 @@ export default function Layout3DEditor({
           increment,
           draftSettingsHost.ortho ? 45 : Math.min(6, increment / 4),
         );
-        if (tracked.snapped)
+        if (tracked.snapped) {
+          // Con la rejilla de captura encendida, la DISTANCIA a lo largo del
+          // rayo también se captura al paso de la rejilla (el PolarSnap de
+          // AutoCAD): el rastreo devolvía el punto crudo proyectado y un muro
+          // pinchado a 8011 quedaba en 8011 con SNAP on (golden 53, medido:
+          // y exacta por el rayo a 0°, x con el error del píxel).
+          const along = Math.hypot(tracked.point.x - anchor.x, tracked.point.y - anchor.y);
+          const stepped = snapWorld(along);
+          const ratio = along > 1e-9 ? stepped / along : 0;
           return {
-            wx: tracked.point.x,
-            wy: tracked.point.y,
+            wx: anchor.x + (tracked.point.x - anchor.x) * ratio,
+            wy: anchor.y + (tracked.point.y - anchor.y) * ratio,
             onDxf: false,
             tracking: draftSettingsHost.ortho ? "ortho" : "polar",
             trackingAngle: tracked.angle,
           };
+        }
       }
       return { wx: snapWorld(wx), wy: snapWorld(wy), wz, onDxf: false };
     };
@@ -6702,6 +6739,14 @@ export default function Layout3DEditor({
       if (drawingReadOnlyRef.current && toolRef.current !== "select") return;
       if (toolRef.current !== "select") return; // measure/wall resolve on click (pointerup); drag still orbits
       if (nativeGripController.handlePointerDown(e)) return;
+      // El botón central ENCUADRA (camera-policy.ts) y no designa nada: se
+      // corta antes de los hit-tests, que corren para cualquier botón, y con
+      // preventDefault para que Windows no arranque el autoscroll. El grip
+      // pendiente va antes a propósito: un arrastre ya empezado es suyo.
+      if (cadPointerDownBeforeHit(e).kind === "camera") {
+        e.preventDefault();
+        return;
+      }
       if (e.button === 0 && hatchPickModeRef.current) {
         const world = floorWorld(e);
         if (world) hatchPickCallbackRef.current({ x: world.wx, y: world.wy });
@@ -6949,17 +6994,33 @@ export default function Layout3DEditor({
         controls.enabled = false;
         rebuildAll();
         renderer.domElement.setPointerCapture(e.pointerId);
-      } else if (e.button === 0 && e.shiftKey) {
-        // Shift+arrastre en el fondo = marquee (ADR §220). Shift+clic simple
-        // sobre el fondo no hace nada (se resuelve en onUp por distancia).
-        const w = floorWorld(e);
-        if (w) {
-          marquee = { x0: w.wx, y0: w.wy, x1: w.wx, y1: w.wy };
-          controls.enabled = false;
-          renderer.domElement.setPointerCapture(e.pointerId);
-        }
-      } else if (e.button === 0 && !e.shiftKey) {
-        if (selectionOperationRef.current === "replace") {
+      } else {
+        // Fondo: ventana/cruce por defecto en 2D (como AutoCAD; medido antes:
+        // «0 sel» y la cámara se movía), Shift+arrastre como siempre, y el
+        // encuadre con izquierdo sólo con comando abierto, herramienta de
+        // dibujo, 3D, dedo o la preferencia «pan» (background-drag-policy.ts).
+        const gesture = cadBackgroundDragGesture({
+          pointerType: e.pointerType,
+          button: e.button,
+          shiftKey: e.shiftKey,
+          viewMode: viewModeRef.current,
+          tool: toolRef.current,
+          engineActive: enginePointerRouter.active,
+          selectionOperation: selectionOperationRef.current,
+          backgroundDrag: workspacePreferencesRef.current.backgroundDrag,
+        });
+        if (gesture.kind === "marquee") {
+          const w = floorWorld(e);
+          if (w) {
+            if (gesture.clearSelection) {
+              applyProfessionalSelection({ type: "clear" });
+              rebuildAll();
+            }
+            marquee = { x0: w.wx, y0: w.wy, x1: w.wx, y1: w.wy };
+            controls.enabled = false;
+            renderer.domElement.setPointerCapture(e.pointerId);
+          }
+        } else if (gesture.kind === "clear" && selectionOperationRef.current === "replace") {
           applyProfessionalSelection({ type: "clear" });
           rebuildAll();
         }
@@ -7218,7 +7279,10 @@ export default function Layout3DEditor({
           maxX = Math.max(m.x0, m.x1);
         const minY = Math.min(m.y0, m.y1),
           maxY = Math.max(m.y0, m.y1);
-        if (maxX - minX < 5 && maxY - minY < 5) return; // fue un shift+clic, no un arrastre
+        // Fue un clic, no un arrastre: se mide en PÍXELES. Con la ventana por
+        // defecto, «5 unidades de mundo» eran ~0,3 px a escala de planta y un
+        // clic con un píxel de temblor ejecutaba la ventana entera.
+        if (Math.hypot(e.clientX - downX, e.clientY - downY) < 4) return;
         const explicitMode = selectionGeometryModeRef.current;
         const crossing =
           explicitMode === "crossing" ||
@@ -11185,9 +11249,11 @@ export default function Layout3DEditor({
       })),
     ],
   });
-  const previewCommandText = (rawText: string) => {
+  const previewCommandText = async (rawText: string) => {
     const raw = rawText.trim();
     if (!raw) return;
+    // El parser de frases llega con la primera frase (`commands/lazy.ts`).
+    const { parseCadCommand, previewCadCommand, splitCadCommandChain } = await loadCadNlCommands();
     // Cadenas (VD-CAD-CHAIN-001): 'pon una puerta y luego céntrala' —
     // todos los pasos deben parsear; el preview muestra el primero y el
     // apply los ejecuta en orden contra el contexto vivo.
@@ -11558,6 +11624,10 @@ export default function Layout3DEditor({
       notifyReadOnly();
       return;
     }
+    // Hay previsualización ⇒ `previewCommandText` ya cargó el intérprete; se
+    // comprueba igual para no aplicar nada a ciegas si alguna vez no fuera así.
+    const nl = cadNlCommandsIfLoaded();
+    if (!nl) return toast.error("El intérprete de frases no terminó de cargar: vuelve a previsualizar la orden.", "Comando CAD");
     // Cadena o comando suelto (VD-CAD-CHAIN-001): cada paso se ejecuta
     // contra el contexto YA mutado por el anterior ('pon una puerta y luego
     // céntrala' centra la puerta recién creada); un solo snapshot → un undo.
@@ -11585,7 +11655,7 @@ export default function Layout3DEditor({
     };
     for (const input of inputs) {
       const commandStartedAt = Date.now();
-      const result = executeCadCommand(input, buildCommandContext());
+      const result = nl.executeCadCommand(input, buildCommandContext());
       const audit = () => ({
         rawInput: commandPreview.rawInput,
         durationMs: Date.now() - commandStartedAt,
@@ -12013,6 +12083,14 @@ export default function Layout3DEditor({
       return;
     }
     if (id === "select" || id === "pan") setToolMode("select");
+    // «Encuadre» y «Seleccionar» comparten modo; lo que cambian es qué hace
+    // arrastrar sobre el fondo. Es la misma preferencia que el select del dock
+    // del workspace, así que el botón y el dock no pueden contradecirse.
+    if (id === "select" || id === "pan") {
+      const backgroundDrag = id === "pan" ? "pan" : "marquee";
+      if (workspacePreferencesRef.current.backgroundDrag !== backgroundDrag)
+        updateWorkspacePreferences({ ...workspacePreferencesRef.current, backgroundDrag });
+    }
     else if (id === "measure") setToolMode("measure");
     else if (
       id === "line" ||
@@ -12788,6 +12866,10 @@ export default function Layout3DEditor({
           mleaders,
           blocks,
           inserts,
+          // Las capas con su tipo de línea y grosor, la tabla LTYPE y $LTSCALE
+          // salen del DOCUMENTO (Ola F): sin él, GAS = GAS_LINE volvía como
+          // 6 CONTINUOUS y el plano de instalaciones se abría continuo.
+          document: dxfDocument,
         },
         {
           units: options.units,
@@ -13248,193 +13330,11 @@ export default function Layout3DEditor({
         toast.error("El conjunto no contiene hojas publicables.", "Hojas");
         return;
       }
-      const { jsPDF } = await import("jspdf");
-      const first = plan.sheets[0];
-      const pdf = new jsPDF({
-        orientation: first.orientation,
-        unit: "mm",
-        format: [first.width, first.height],
-        compress: true,
-        putOnlyUsedFonts: true,
+      const buffer = await renderCadSheetSetPdf(plan, {
+        model,
+        revision,
+        productLabel: branding.productLabel,
       });
-      const color = (hex: string): [number, number, number] => {
-        const clean = /^#[0-9a-f]{6}$/i.test(hex) ? hex.slice(1) : "334155";
-        return [
-          Number.parseInt(clean.slice(0, 2), 16),
-          Number.parseInt(clean.slice(2, 4), 16),
-          Number.parseInt(clean.slice(4, 6), 16),
-        ];
-      };
-      plan.sheets.forEach((sheet, sheetIndex) => {
-        if (sheetIndex > 0)
-          pdf.addPage([sheet.width, sheet.height], sheet.orientation);
-        pdf.setFillColor(255, 255, 255);
-        pdf.rect(0, 0, sheet.width, sheet.height, "F");
-        pdf.setDrawColor(17, 24, 39);
-        pdf.setLineWidth(0.45);
-        pdf.rect(6, 6, sheet.width - 12, sheet.height - 12);
-        sheet.viewports.forEach((viewport) => {
-          pdf.saveGraphicsState();
-          pdf.rect(
-            viewport.clip.x,
-            viewport.clip.y,
-            viewport.clip.width,
-            viewport.clip.height,
-          );
-          pdf.clip();
-          pdf.discardPath();
-          viewport.commands.forEach((command) => {
-            if (command.kind === "path") {
-              if (command.points.length < 2) return;
-              const [strokeR, strokeG, strokeB] = color(command.style.stroke);
-              pdf.setDrawColor(strokeR, strokeG, strokeB);
-              pdf.setLineWidth(command.style.lineWidth);
-              pdf.setLineDashPattern(command.style.dash ?? [], 0);
-              if (command.style.fill) {
-                const [fillR, fillG, fillB] = color(command.style.fill);
-                pdf.setFillColor(fillR, fillG, fillB);
-              }
-              const [origin, ...rest] = command.points;
-              const deltas = rest.map((point, index) => [
-                point.x - command.points[index].x,
-                point.y - command.points[index].y,
-              ]);
-              const style: "S" | "FD" = command.style.fill ? "FD" : "S";
-              pdf.lines(
-                deltas,
-                origin.x,
-                origin.y,
-                [1, 1],
-                style,
-                command.closed,
-              );
-            } else {
-              const [r, g, b] = color(command.color);
-              const maxWidth = Math.max(
-                1,
-                Math.min(
-                  command.maxWidth ?? viewport.clip.width,
-                  viewport.clip.width,
-                ),
-              );
-              const lines = command.text.replace(/\r\n?/g, "\n").split("\n");
-              const lineHeight = command.size * 0.4;
-              const alignOffset =
-                command.align === "center"
-                  ? maxWidth / 2
-                  : command.align === "right"
-                    ? maxWidth
-                    : 0;
-              if (command.backgroundMask) {
-                const [mr, mg, mb] = color(
-                  command.backgroundColor ?? "#ffffff",
-                );
-                pdf.setFillColor(mr, mg, mb);
-                pdf.rect(
-                  command.point.x - alignOffset - 0.8,
-                  command.point.y - command.size * 0.32,
-                  maxWidth + 1.6,
-                  Math.max(lineHeight, lines.length * lineHeight) + 1.2,
-                  "F",
-                );
-              }
-              pdf.setTextColor(r, g, b);
-              pdf.setFont(
-                "helvetica",
-                command.bold && command.italic
-                  ? "bolditalic"
-                  : command.bold
-                    ? "bold"
-                    : command.italic
-                      ? "italic"
-                      : "normal",
-              );
-              pdf.setFontSize(command.size);
-              pdf.text(command.text, command.point.x, command.point.y, {
-                align: command.align ?? "left",
-                angle: command.rotation,
-                maxWidth,
-              });
-              if (command.underline && Math.abs(command.rotation) < 1e-9) {
-                pdf.setDrawColor(r, g, b);
-                pdf.setLineWidth(Math.max(0.08, command.size * 0.015));
-                lines.forEach((line, index) => {
-                  const width = Math.min(maxWidth, pdf.getTextWidth(line));
-                  const x =
-                    command.point.x -
-                    (command.align === "center"
-                      ? width / 2
-                      : command.align === "right"
-                        ? width
-                        : 0);
-                  const y = command.point.y + index * lineHeight + 0.5;
-                  pdf.line(x, y, x + width, y);
-                });
-              }
-            }
-          });
-          pdf.restoreGraphicsState();
-          pdf.setLineDashPattern([], 0);
-          pdf.setDrawColor(100, 116, 139);
-          pdf.setLineWidth(0.15);
-          pdf.rect(
-            viewport.clip.x,
-            viewport.clip.y,
-            viewport.clip.width,
-            viewport.clip.height,
-          );
-          pdf.setFont("helvetica", "normal");
-          pdf.setFontSize(6);
-          pdf.setTextColor(71, 85, 105);
-          pdf.text(
-            `${viewport.name} · 1:${viewport.scale}${viewport.locked ? " · LOCK" : ""}`,
-            viewport.clip.x + 1.5,
-            viewport.clip.y + 4,
-          );
-        });
-        // Las CLAVES del cajetín (PROJECT, TITLE…) son contrato del documento
-        // y no se tocan; lo que se IMPRIME para el cliente va en es-MX.
-        const titleBlockEntries = [
-          ["PROYECTO", sheet.titleBlock.PROJECT ?? `Layout ${model}`],
-          ["TÍTULO", sheet.titleBlock.TITLE ?? sheet.name],
-          ["NO. DE PLANO", sheet.titleBlock.DRAWING_NO ?? "-"],
-          ["NO. DE HOJA", sheet.titleBlock.SHEET_NO ?? String(sheetIndex + 1)],
-          ["REVISIÓN", sheet.titleBlock.REVISION ?? revision],
-          ["DISCIPLINA", sheet.titleBlock.DISCIPLINE ?? "-"],
-          ["ELABORÓ", sheet.titleBlock.PREPARED_BY ?? "-"],
-          ["REVISÓ", sheet.titleBlock.CHECKED_BY ?? "-"],
-        ] as const;
-        const blockX = 8,
-          blockY = sheet.height - 34,
-          blockW = sheet.width - 16,
-          cellW = blockW / 4,
-          cellH = 13;
-        pdf.setDrawColor(17, 24, 39);
-        titleBlockEntries.forEach(([label, value], index) => {
-          const x = blockX + (index % 4) * cellW,
-            y = blockY + Math.floor(index / 4) * cellH;
-          pdf.rect(x, y, cellW, cellH);
-          pdf.setFont("helvetica", "normal");
-          pdf.setFontSize(5.5);
-          pdf.setTextColor(100, 116, 139);
-          pdf.text(label, x + 2, y + 4);
-          pdf.setFont("helvetica", "bold");
-          pdf.setFontSize(8);
-          pdf.setTextColor(17, 24, 39);
-          pdf.text(String(value).slice(0, 42), x + 2, y + 9.5, {
-            maxWidth: cellW - 4,
-          });
-        });
-        pdf.setFont("helvetica", "bold");
-        pdf.setFontSize(7);
-        pdf.text(
-          `${branding.productLabel} · ${sheetIndex + 1}/${plan.sheets.length}`,
-          sheet.width - 8,
-          5,
-          { align: "right" },
-        );
-      });
-      const buffer = pdf.output("arraybuffer");
       const digest = await crypto.subtle.digest("SHA-256", buffer);
       const sha256 = [...new Uint8Array(digest)]
         .map((value) => value.toString(16).padStart(2, "0"))
@@ -13469,6 +13369,15 @@ export default function Layout3DEditor({
         publication: CadPublicationRecord;
         cadDocumentVersion: number;
       };
+      // Publicar AVANZA la versión CAS en el servidor (el recibo es
+      // server-managed y suma uno). El token con el que guarda de verdad
+      // `persistCanonicalSave` es `versionByDocumentRef`, no
+      // `data.cadDocumentVersion`; sin esta línea el siguiente guardado viajaba
+      // con la versión caducada. Medido (e2e/auditoria/refutacion-imprimir):
+      // publicar → editar → guardar daba PUT /content → 409 y «Conflicto CAS ·
+      // servidor v2 · autosave detenido», y el control sin publicar daba 200.
+      if (documentId)
+        versionByDocumentRef.current.set(documentId, receipt.cadDocumentVersion);
       const nextCanonical = commitChange(
         {
           ...canonical,
@@ -13630,11 +13539,11 @@ export default function Layout3DEditor({
       case "commit-draft":
         commitActiveDraftCommand();
         return;
-      case "toggle-measure":
-        toggleMeasure();
+      case "command-line":
+        commandInputRef.current?.focus();
         return;
-      case "toggle-wall":
-        toggleWall();
+      case "repeat-last-command":
+        commandEngine.repeat();
         return;
       case "fit-view":
         fitView(action.target);
@@ -13646,21 +13555,29 @@ export default function Layout3DEditor({
         if (action.native) removeNativeSelection();
         else removeSelected();
         return;
-      case "rotate-selection":
-        if (action.native)
-          transformNativeSelection({ rotationDeg: action.deltaDeg });
-        else rotateSelected(action.deltaDeg);
-        return;
       case "duplicate-selection":
         if (action.native) copyNativeSelection();
         else duplicateSelected();
         return;
+      // Ola D (2026-09-02): Ctrl+C sobre lo nativo DUPLICABA en el sitio
+      // mientras el botón prometía un portapapeles. Ahora copia, corta y pega
+      // geometría canónica por el motor (COPYCLIP/CUTCLIP/PASTECLIP), que es
+      // lo que permite llevar una LINE o un INSERT a otro dibujo. Ctrl+D sigue
+      // duplicando en el sitio. Los activos heredados conservan su portapapeles.
       case "copy-selection":
-        if (action.native) copyNativeSelection();
+        if (action.native) commandEngine.invoke("COPYCLIP");
         else copySelection();
         return;
+      case "cut-selection":
+        if (action.native) commandEngine.invoke("CUTCLIP");
+        else {
+          copySelection();
+          removeSelected();
+        }
+        return;
       case "paste":
-        pasteClipboard();
+        if (CAD_SHARED_CLIPBOARD.read()) commandEngine.invoke("PASTECLIP");
+        else pasteClipboard();
         return;
       case "ungroup":
         ungroupSelection();
@@ -13678,28 +13595,17 @@ export default function Layout3DEditor({
     }
   };
   const handleEditorKeyDown = (e: KeyboardEvent) => {
-    const tgt = e.target as HTMLElement | null;
-    const eventLike = {
-      key: e.key,
-      ctrlKey: e.ctrlKey,
-      metaKey: e.metaKey,
-      shiftKey: e.shiftKey,
-      altKey: e.altKey,
-      targetKind:
-        tgt &&
-        (tgt.tagName === "INPUT" ||
-          tgt.tagName === "TEXTAREA" ||
-          tgt.isContentEditable)
-          ? ("editable" as const)
-          : ("other" as const),
-    };
+    const eventLike = editorKeyEventLike(e);
     const before = interpretEditorKeyBeforeEngine(eventLike, {
       readOnly: drawingReadOnlyRef.current,
       walkMode: !!walkRef.current,
       workspaceShortcuts: workspaceShortcutsRef.current,
+      commandLineOpen: showCommand && !drawingReadOnlyRef.current,
     });
     if (before) {
-      e.preventDefault();
+      // La única acción SIN preventDefault: el navegador inserta el carácter en
+      // la caja recién enfocada (editor-keyboard.ts, fase 0; medido en Chromium).
+      if (before.type !== "command-line") e.preventDefault();
       executeEditorKeyAction(before);
       return;
     }
@@ -14835,7 +14741,7 @@ export default function Layout3DEditor({
         <T3Btn
           active={tool === "select"}
           onClick={() => setToolMode("select")}
-          title="Seleccionar / mover (V)"
+          title="Seleccionar / mover"
         >
           <MousePointer2 className="w-4 h-4" />
         </T3Btn>
@@ -14855,14 +14761,14 @@ export default function Layout3DEditor({
         <T3Btn
           active={tool === "measure"}
           onClick={toggleMeasure}
-          title="Medir / acotar (M)"
+          title="Medir / acotar"
         >
           <Ruler className="w-4 h-4" />
         </T3Btn>
         <T3Btn
           active={tool === "wall"}
           onClick={toggleWall}
-          title="Dibujar muros (W) — clic en puntos, Esc termina"
+          title="Dibujar muros — clic en puntos, Esc termina"
         >
           <Spline className="w-4 h-4" />
         </T3Btn>
@@ -14993,7 +14899,7 @@ export default function Layout3DEditor({
         )}
         <T3Btn
           onClick={() => fitView("all")}
-          title="Ajustar a contenido — encuadra todo el layout (F)"
+          title="Ajustar a contenido — encuadra todo el layout"
         >
           <Expand className="w-4 h-4" />
         </T3Btn>
@@ -15801,10 +15707,17 @@ export default function Layout3DEditor({
             )}
           </div>
 
-          {/* 3D viewport */}
+          {/* 3D viewport, y debajo la barra de estado. La barra estaba montada
+              DENTRO de `cad-canvas`, absoluta abajo a la derecha, y se comía el
+              pointerdown de cualquier arrastre que empezara ahí: medido en la
+              auditoría del 2026-09-01, un recuadro de selección desde el centro
+              designaba 3 objetos a 180 px y CERO a 200 px. Como en AutoCAD, la
+              barra de estado ocupa su propia franja bajo el área de dibujo; el
+              golden 68 vigila que nada vuelva a robarle el ratón al lienzo. */}
+          <div className="flex min-w-0 flex-1 flex-col">
           <div
             data-testid="cad-canvas"
-            className="relative min-w-0 flex-1 overflow-hidden"
+            className="relative min-h-0 min-w-0 flex-1 overflow-hidden"
             onContextMenu={handleCadContextMenu}
             onPointerDown={() => setCadContextMenu(null)}
           >
@@ -15814,19 +15727,38 @@ export default function Layout3DEditor({
                 `view-3d.ts`) — ver el comentario de `CadViewCube`. Sólo tiene
                 sentido con la cámara en perspectiva 3D; en 2D (planta
                 bloqueada) no hay caras que mostrar. */}
-            {viewMode === "3d" && (
-              <div className="pointer-events-none absolute right-3 top-3 z-20 flex items-start gap-2">
-                <div className="pointer-events-auto">
-                  <CadViewCube onSelect={viewPreset} />
+            <div
+              data-testid="cad-navigation-corner"
+              className="pointer-events-none absolute right-3 top-3 z-20 flex flex-col items-end gap-2"
+            >
+              {viewMode === "3d" && (
+                <div className="flex items-start gap-2">
+                  <div className="pointer-events-auto">
+                    <CadViewCube onSelect={viewPreset} />
+                  </div>
+                  <div className="pointer-events-auto">
+                    <CadNavigationBar
+                      onFitView={fitView}
+                      hasSelection={selList.length > 0 || nativeSelectionIds.length > 0}
+                    />
+                  </div>
                 </div>
+              )}
+              {/* El minimapa vivía abajo a la derecha, absoluto sobre el lienzo,
+                  y era la capa que el golden 68 midió robando esa esquina. Va
+                  con las ayudas de navegación, donde AutoCAD pone las suyas. */}
+              {showMinimap && workspacePreferences.minimap && (
                 <div className="pointer-events-auto">
-                  <CadNavigationBar
-                    onFitView={fitView}
-                    hasSelection={selList.length > 0 || nativeSelectionIds.length > 0}
+                  <CadOverviewMinimap
+                    ctxRef={ctxRef}
+                    placementsRef={placementsRef}
+                    assetsRef={assetsRef}
+                    cameraRef={cameraRef}
+                    controlsRef={controlsRef}
                   />
                 </div>
-              </div>
-            )}
+              )}
+            </div>
             {webglUnavailable !== "ok" && (
               <div
                 data-testid="cad-webgl-unavailable"
@@ -16016,15 +15948,6 @@ export default function Layout3DEditor({
                 </div>
               </div>
             )}
-            {showMinimap && workspacePreferences.minimap && (
-              <CadOverviewMinimap
-                ctxRef={ctxRef}
-                placementsRef={placementsRef}
-                assetsRef={assetsRef}
-                cameraRef={cameraRef}
-                controlsRef={controlsRef}
-              />
-            )}
             <CadOverlayLegends gaps={showGaps} />
             <ScaleBar
               ctxRef={ctxRef}
@@ -16116,62 +16039,6 @@ export default function Layout3DEditor({
                 )}
               </div>
             )}
-            <CadStatusBar
-              diagnostics={{
-                enabled: diagnosticsEnabled,
-                tool,
-                selectionCount: professionalSelection.current.length,
-                nativeEntityCount: nativeEntities.length,
-                renderPipelineRef,
-                renderPipelineSlotRef,
-                nativeMassHostsRef,
-                historyUndo: hist.undo,
-                historyRedo: hist.redo,
-                nativeRenderStats,
-              }}
-              unit={data?.footprint.unit ?? "mm"}
-              cursorCoordinateRef={cursorCoordinateRef}
-              documentInfo={{
-                model,
-                revision,
-                version: data?.cadDocumentVersion ?? 0,
-              }}
-              saveState={{
-                saving,
-                dirty,
-                saveStatus,
-                saveIssue,
-                documentId,
-                recoverySavedAt,
-                recoveryWarning,
-                connectionState,
-              }}
-              layersInfo={{
-                cadLayers,
-                activeCadLayer,
-                cadLayerSummary,
-                gridOn: layers.grid,
-                snapOn: snap,
-              }}
-              draftSettings={draftSettings}
-              draftSettingsHost={draftSettingsHost}
-              paletteHost={paletteHost}
-              validation={{
-                onOpenChecks: openChecks,
-                releaseTone,
-                releaseState,
-                report,
-                cadValidationReport,
-                clearanceIssuesCount: clearanceIssues.length,
-                safetyIssuesCount: safetyIssues.length,
-                validationHighlightCount: validationHighlightIds.size,
-                onClearHighlights: clearValidationHighlights,
-              }}
-              misc={{
-                dxfWarningsCount: dxfWarnings.length,
-                snapshotsCount: localSnapshots.snapshots.length,
-              }}
-            />
             {hatchPickMode && (
               <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full bg-violet-600/95 px-3 py-1.5 type-caption font-semibold text-foreground">
                 HATCH {hatchPickSolid ? "SOLID" : "ANSI31"} · clic dentro de una
@@ -16246,14 +16113,21 @@ export default function Layout3DEditor({
                 (`commandEngineRef.current.invoke`), así que un comando
                 encadenable invocado DESDE LA CINTA (p. ej. LINE, PLINE) deja
                 `engineCommand` activo sin que `tool` cambie nunca, y sin este
-                botón no había ninguna forma de cerrarlo sin teclado. */}
-            {!walk && engineCommand && (
+                botón no había ninguna forma de cerrarlo sin teclado.
+                Vive en la banda ALTA del lienzo (`top-3`), encima de la
+                entrada dinámica (`top-12`), y se apaga cuando se muestra
+                `CadDraftToolbar` (ya trae su propio «Terminar») o el aviso de
+                HATCH, que usa esa misma banda. Medido el 2026-09-02 en el
+                golden 61: en `bottom-3 left-1/2` quedaba debajo de la línea de
+                comandos (`bottom-3 left-3`, 30 rem) en un lienzo de ~780 px y
+                Playwright no podía pulsarlo. */}
+            {!walk && engineCommand && !hatchPickMode && !(tool === "wall" || isCadDrawTool(tool)) && (
               <button
                 type="button"
                 data-testid="cad-engine-command-finish"
                 onClick={() => commitActiveDraftCommand()}
                 title="Terminar el comando activo (Intro)"
-                className="absolute bottom-3 left-1/2 z-20 -translate-x-1/2 rounded-control border border-border bg-surface/95 px-3 py-1.5 type-caption font-medium text-foreground shadow-resting hover:bg-muted"
+                className="absolute top-3 left-1/2 z-20 -translate-x-1/2 rounded-control border border-border bg-surface/95 px-3 py-1.5 type-caption font-medium text-foreground shadow-resting hover:bg-muted"
               >
                 Terminar comando
               </button>
@@ -16277,19 +16151,28 @@ export default function Layout3DEditor({
               />
             )}
             {/*
-              La línea de comandos. No se enfoca sola: robarle el teclado al
-              lienzo rompería Supr, Ctrl+Z y las teclas de captura, que es
-              exactamente el reproche que se le hace al copiloto de lenguaje
-              natural. Se pulsa y se escribe.
+              La línea de comandos. Se enfoca sola cuando el lienzo recibe un
+              CARÁCTER (editor-keyboard.ts, fase 0) y devuelve el foco al
+              terminar con Intro o Esc: así Supr, Ctrl+Z y las teclas de
+              captura siguen siendo del lienzo (golden 44 lo mide sin un solo
+              input.click()).
             */}
             {/* El envoltorio lleva `pointer-events-none`: flota sobre la barra
                 inferior y, con el diálogo lleno, tapaba Undo. Los controles del
                 muelle reactivan el ratón por su cuenta. */}
             {/* showCommand ES la preferencia commandDock del workspace. */}
             {!walk && showCommand && (
-              <div className="pointer-events-none absolute bottom-14 left-3 z-30 w-[min(30rem,42vw)]">
+              /* `bottom-3`, no `bottom-14`: los 56 px reservaban el hueco de la
+                 barra de estado cuando ésta flotaba sobre el lienzo. Desde la
+                 Ola B la barra vive DEBAJO del lienzo en su propia franja, y la
+                 línea de comandos se queda pegada al borde inferior del dibujo,
+                 como la ventana de comandos de AutoCAD. Medido: con 56 px más
+                 27 px de holgura la línea tapaba y=2000 del plano y los clics
+                 de LINE del golden 46 caían sobre ella. */
+              <div className="pointer-events-none absolute bottom-3 left-3 z-30 w-[min(30rem,42vw)]">
                 <CadCommandLineDock
                   host={commandEngine}
+                  inputRef={commandInputRef}
                   disabled={drawingReadOnly}
                 />
               </div>
@@ -16393,6 +16276,63 @@ export default function Layout3DEditor({
               canRedo={hist.redo > 0}
               onRun={runToolbarAction}
             />
+          </div>
+          <CadStatusBar
+            diagnostics={{
+              enabled: diagnosticsEnabled,
+              tool,
+              selectionCount: professionalSelection.current.length,
+              nativeEntityCount: nativeEntities.length,
+              renderPipelineRef,
+              renderPipelineSlotRef,
+              nativeMassHostsRef,
+              historyUndo: hist.undo,
+              historyRedo: hist.redo,
+              nativeRenderStats,
+            }}
+            unit={data?.footprint.unit ?? "mm"}
+            cursorCoordinateRef={cursorCoordinateRef}
+            documentInfo={{
+              model,
+              revision,
+              version: data?.cadDocumentVersion ?? 0,
+            }}
+            saveState={{
+              saving,
+              dirty,
+              saveStatus,
+              saveIssue,
+              documentId,
+              recoverySavedAt,
+              recoveryWarning,
+              connectionState,
+            }}
+            layersInfo={{
+              cadLayers,
+              activeCadLayer,
+              cadLayerSummary,
+              gridOn: layers.grid,
+              snapOn: snap,
+            }}
+            draftSettings={draftSettings}
+            draftSettingsHost={draftSettingsHost}
+            paletteHost={paletteHost}
+            validation={{
+              onOpenChecks: openChecks,
+              releaseTone,
+              releaseState,
+              report,
+              cadValidationReport,
+              clearanceIssuesCount: clearanceIssues.length,
+              safetyIssuesCount: safetyIssues.length,
+              validationHighlightCount: validationHighlightIds.size,
+              onClearHighlights: clearValidationHighlights,
+            }}
+            misc={{
+              dxfWarningsCount: dxfWarnings.length,
+              snapshotsCount: localSnapshots.snapshots.length,
+            }}
+          />
           </div>
 
           {/* right: propiedades. En tableta sólo aparece si el usuario ABRIÓ una
@@ -17243,7 +17183,7 @@ export default function Layout3DEditor({
                       </button>
                       <button
                         onClick={copySelection}
-                        title="Ctrl+C — copia al portapapeles CAD (pega aquí o en otro layout)"
+                        title="Ctrl+C — copia los activos al portapapeles (pega aquí o en otro layout)"
                         className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-muted/60 hover:bg-muted type-caption"
                       >
                         <ClipboardList className="w-3.5 h-3.5" /> Copiar

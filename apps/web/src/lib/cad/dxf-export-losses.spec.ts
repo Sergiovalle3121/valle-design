@@ -35,8 +35,10 @@ assert.deepEqual(
   "una línea plana exporta sin pérdidas: no debe inventarse un aviso",
 );
 
-// --- Elevación aplanada ---------------------------------------------------
+// --- Elevación: desde la Ola C (2026-09-02) VIAJA, y sólo se declara lo que no cabe ---
 
+// Una LINE elevada escribe su cota en 30/31 (ver z-frontiers.spec.ts): ya no
+// es pérdida. Hasta la Ola C este mismo caso exigía el aviso.
 const elevated: CadEntity = {
   id: "linea-elevada",
   type: "line",
@@ -44,15 +46,13 @@ const elevated: CadEntity = {
   end: { x: 10, y: 0, z: 250 },
   layer: "0",
 } as CadEntity;
+assert.deepEqual(
+  cadDocumentDxfExportLosses(documentWith([elevated])),
+  [],
+  "una línea elevada viaja con su cota: sin aviso",
+);
 
-const zLosses = cadDocumentDxfExportLosses(documentWith([elevated]));
-assert.equal(zLosses.length, 1);
-assert.equal(zLosses[0].code, "dxf_export_z_flattened");
-assert.equal(zLosses[0].entityId, "linea-elevada");
-assert.equal(zLosses[0].severity, "warning");
-assert.match(zLosses[0].detail, /250/, "el aviso debe decir QUÉ cota se pierde");
-
-// La elevación también se detecta en los vértices de una polilínea.
+// Una polilínea alabeada pero RECTA sale como polilínea 3D (bit 8): tampoco.
 const elevatedPolyline: CadEntity = {
   id: "pl-elevada",
   type: "polyline",
@@ -63,11 +63,31 @@ const elevatedPolyline: CadEntity = {
   closed: false,
   layer: "0",
 } as CadEntity;
-assert.equal(
-  cadDocumentDxfExportLosses(documentWith([elevatedPolyline]))[0]?.code,
-  "dxf_export_z_flattened",
-  "la elevación de un vértice de polilínea también cuenta",
+assert.deepEqual(
+  cadDocumentDxfExportLosses(documentWith([elevatedPolyline])),
+  [],
+  "una polilínea 3D recta viaja entera",
 );
+
+// Lo que el formato NO tiene es polilínea 3D con arcos: bulge Y cotas
+// distintas se aplana a la cota del primer vértice, y eso sí se declara.
+const bulgedSpatial: CadEntity = {
+  id: "pl-alabeada-con-arco",
+  type: "polyline",
+  vertices: [
+    { x: 0, y: 0, z: 0, bulge: 0.5 },
+    { x: 10, y: 0, z: 90 },
+  ],
+  closed: false,
+  layer: "0",
+} as CadEntity;
+const zLosses = cadDocumentDxfExportLosses(documentWith([bulgedSpatial]));
+assert.equal(zLosses.length, 1);
+assert.equal(zLosses[0].code, "dxf_export_z_flattened");
+assert.equal(zLosses[0].entityId, "pl-alabeada-con-arco");
+assert.equal(zLosses[0].severity, "warning");
+assert.match(zLosses[0].detail, /90/, "el aviso debe decir QUÉ cota se pierde");
+assert.match(zLosses[0].detail, /arcos/, "y por qué: el formato no tiene polilínea 3D con arcos");
 
 // --- Spline racional: los pesos no se exportan ----------------------------
 
@@ -190,7 +210,9 @@ assert.equal(brokenLosses[0].severity, "error");
 // Si divergieran, se avisaría de pérdidas en entidades que no viajan al
 // fichero, y ese ruido erosiona la confianza en el aviso.
 
-const mixed = documentWith([elevated, flat]);
+// La entidad con pérdida es la polilínea alabeada con arco: la LINE elevada
+// ya viaja entera (Ola C) y no cuenta.
+const mixed = documentWith([bulgedSpatial, elevated, flat]);
 
 assert.equal(
   cadDocumentDxfExportLosses(mixed).length,
@@ -201,14 +223,14 @@ assert.equal(
 assert.deepEqual(
   cadDocumentDxfExportLosses(mixed, (entity) => entity.id === "linea-plana"),
   [],
-  "si la entidad elevada queda fuera del ámbito exportado, no debe avisarse",
+  "si la entidad con pérdida queda fuera del ámbito exportado, no debe avisarse",
 );
 
 assert.equal(
-  cadDocumentDxfExportLosses(mixed, (entity) => entity.id === "linea-elevada")
+  cadDocumentDxfExportLosses(mixed, (entity) => entity.id === "pl-alabeada-con-arco")
     .length,
   1,
-  "si la entidad elevada SÍ se exporta, el aviso debe aparecer",
+  "si la entidad con pérdida SÍ se exporta, el aviso debe aparecer",
 );
 
 console.log("dxf-export-losses.spec.ts OK");

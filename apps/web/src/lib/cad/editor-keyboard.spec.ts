@@ -6,8 +6,10 @@
  */
 import { strict as assert } from "node:assert";
 import {
+  editorKeyEventLike,
   interpretEditorKeyAfterEngine,
   interpretEditorKeyBeforeEngine,
+  isCommandLineCharacter,
   isReadOnlyMutationKey,
   type EditorKeyContextAfterEngine,
   type EditorKeyContextBeforeEngine,
@@ -31,7 +33,11 @@ const BEFORE: EditorKeyContextBeforeEngine = {
   readOnly: false,
   walkMode: false,
   workspaceShortcuts: CAD_KEYBOARD_SHORTCUTS,
+  // Los casos históricos de fase 1 se escriben con el muelle OCULTO: es el
+  // único estado en el que una letra suelta sigue siendo del editor.
+  commandLineOpen: false,
 };
+const OPEN: EditorKeyContextBeforeEngine = { ...BEFORE, commandLineOpen: true };
 
 const AFTER: EditorKeyContextAfterEngine = {
   gridSize: 100,
@@ -52,6 +58,33 @@ function eq(actual: unknown, expected: unknown, message: string): void {
   checks += 1;
 }
 
+// ─── Fase 0: con la línea de comandos abierta, los caracteres son suyos ──────
+// Medido antes: «l» arrancaba LINE sin Intro por el camino del puntero y
+// «1», «,», «@» morían en el body.
+for (const k of ["l", "L", "1", ",", ".", "@", "<", "-", "ñ", "("]) {
+  eq(interpretEditorKeyBeforeEngine(key({ key: k }), OPEN), { type: "command-line" }, `«${k}» va a la línea de comandos`);
+}
+eq(interpretEditorKeyBeforeEngine(key({ key: "@", ctrlKey: true, altKey: true }), OPEN), { type: "command-line" }, "AltGr+2 («@» en es-ES) es un carácter");
+eq(interpretEditorKeyBeforeEngine(key({ key: "@", altKey: true }), OPEN), { type: "command-line" }, "Option+2 («@» en Mac) es un carácter");
+eq(interpretEditorKeyBeforeEngine(key({ key: "q", altKey: true }), OPEN), null, "Alt+letra en Linux/Windows enfoca sin insertar (medido): no se roba");
+eq(interpretEditorKeyBeforeEngine(key({ key: "l" }), BEFORE), { type: "toolbar", id: "line" }, "con el muelle oculto, la letra del registro sigue siendo del editor (golden 19)");
+for (const k of ["Enter", "Escape", "Delete", "Backspace", "F3", "ArrowLeft", "Tab", " ", "Dead", "Process", "Unidentified"]) {
+  assert.notDeepEqual(interpretEditorKeyBeforeEngine(key({ key: k }), OPEN), { type: "command-line" }, `«${k}» nunca es un carácter de la caja`);
+  checks += 1;
+}
+eq(interpretEditorKeyBeforeEngine(key({ key: "z", ctrlKey: true }), OPEN), { type: "toolbar", id: "undo" }, "Ctrl+Z sigue siendo deshacer con el muelle abierto");
+eq(interpretEditorKeyBeforeEngine(key({ key: "1", ctrlKey: true }), OPEN), { type: "reveal-properties" }, "Ctrl+1 sigue revelando propiedades");
+eq(interpretEditorKeyBeforeEngine(key({ key: "a", isComposing: true }), OPEN), null, "una composición IME no es de nadie todavía");
+eq(interpretEditorKeyBeforeEngine(key({ key: "l" }), { ...OPEN, walkMode: true }), null, "en caminata, la letra tampoco va a la caja");
+eq(interpretEditorKeyBeforeEngine(key({ key: "l" }), { ...OPEN, readOnly: true }), { type: "notify-read-only" }, "en solo lectura, una orden mutadora avisa antes de ir a la caja");
+eq(interpretEditorKeyBeforeEngine(key({ key: "?" }), OPEN), null, "«?» sigue siendo del editor (ayuda)");
+eq(interpretEditorKeyBeforeEngine(key({ key: "\\" }), OPEN), null, "«\\» sigue siendo del editor (modo enfoque)");
+eq(interpretEditorKeyBeforeEngine(key({ key: "c", targetKind: "control" }), OPEN), { type: "command-line" }, "con un botón enfocado, la letra va a la caja");
+eq(isCommandLineCharacter(key({ key: " " })), false, "Espacio no es un carácter: es Intro");
+eq(editorKeyEventLike({ key: "a", ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, isComposing: false, target: { tagName: "BUTTON" } as unknown as EventTarget }).targetKind, "control", "BUTTON es un control");
+eq(editorKeyEventLike({ key: "a", ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, isComposing: false, target: { tagName: "DIV", isContentEditable: true } as unknown as EventTarget }).targetKind, "editable", "contentEditable es editable");
+eq(editorKeyEventLike({ key: "a", ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, isComposing: false, target: null }).targetKind, "other", "sin objetivo es «other»");
+
 // ─── Fase 1: antes del motor ─────────────────────────────────────────────────
 
 eq(
@@ -71,12 +104,17 @@ eq(
   "solo lectura ataja una tecla mutadora antes que nada",
 );
 eq(
-  interpretEditorKeyBeforeEngine(key({ key: "f" }), {
+  interpretEditorKeyBeforeEngine(key({ key: "F3" }), {
     ...BEFORE,
     readOnly: true,
   }),
-  { type: "toolbar", id: "fit_view" },
-  "solo lectura deja pasar una tecla de navegación (fit_view es de lectura)",
+  { type: "osnap-toggle" },
+  "solo lectura deja pasar una tecla de navegación (F3 es de lectura)",
+);
+eq(
+  interpretEditorKeyBeforeEngine(key({ key: "f" }), BEFORE),
+  null,
+  "f suelta ya no encuadra: F=FILLET en acad.pgp, la letra suelta es de la línea de comandos",
 );
 eq(
   interpretEditorKeyBeforeEngine(key({ key: "1", ctrlKey: true }), BEFORE),
@@ -111,7 +149,9 @@ eq(
 );
 {
   const measure = interpretEditorKeyBeforeEngine(key({ key: "m" }), BEFORE);
-  eq(measure, { type: "toolbar", id: "measure" }, "m despacha a la barra");
+  eq(measure, null, "m suelta ya no mide: M=MOVE en acad.pgp (medido: 13 letras robadas)");
+  const line = interpretEditorKeyBeforeEngine(key({ key: "l" }), BEFORE);
+  eq(line, { type: "toolbar", id: "line" }, "l sigue trazando: coincide con su alias LINE");
 }
 {
   const save = interpretEditorKeyBeforeEngine(
@@ -200,33 +240,46 @@ eq(
 );
 eq(
   interpretEditorKeyAfterEngine(key({ key: "Enter" }), AFTER),
+  { type: "repeat-last-command" },
+  "Enter en reposo desde el lienzo repite el último comando, como en AutoCAD",
+);
+eq(
+  interpretEditorKeyAfterEngine(key({ key: " " }), AFTER),
+  { type: "repeat-last-command" },
+  "Espacio en reposo desde el lienzo repite el último comando",
+);
+eq(
+  interpretEditorKeyAfterEngine(key({ key: " " }), { ...AFTER, drawCommandActive: true }),
+  { type: "commit-draft" },
+  "Espacio con el borrador heredado abierto lo consuma, igual que Intro",
+);
+eq(
+  interpretEditorKeyAfterEngine(key({ key: "Enter", targetKind: "control" }), AFTER),
   null,
-  "Enter sin comando abierto no es del editor",
+  "Intro sobre un botón enfocado es del botón (lo activa), no del editor",
 );
 eq(
-  interpretEditorKeyAfterEngine(key({ key: "m" }), AFTER),
-  { type: "toggle-measure" },
-  "m (si el registro no la tomó) mide",
+  interpretEditorKeyAfterEngine(key({ key: " ", targetKind: "control" }), { ...AFTER, drawCommandActive: true }),
+  null,
+  "Espacio sobre un botón enfocado tampoco se roba con borrador abierto",
 );
-eq(
-  interpretEditorKeyAfterEngine(key({ key: "w" }), AFTER),
-  { type: "toggle-wall" },
-  "w alterna muro",
-);
-eq(
-  interpretEditorKeyAfterEngine(key({ key: "f" }), SEL),
-  { type: "fit-view", target: "selection" },
-  "f con selección encuadra la selección",
-);
-eq(
-  interpretEditorKeyAfterEngine(key({ key: "f" }), AFTER),
-  { type: "fit-view", target: "all" },
-  "f sin selección encuadra todo",
-);
+// Las letras sueltas que eran alias de acad.pgp (M=MOVE, W=WBLOCK, F=FILLET)
+// y la R que rotaba sin preguntar ya no son del editor en ninguna fase, con
+// o sin selección, en minúscula o con Bloq Mayús.
+for (const letra of ["m", "M", "w", "W", "f", "F", "r", "R"]) {
+  for (const ctx of [AFTER, SEL, NATIVE]) {
+    eq(interpretEditorKeyAfterEngine(key({ key: letra }), ctx), null, `«${letra}» suelta cae a la línea de comandos (selección: ${ctx.hasSelection || ctx.hasNativeSelection})`);
+  }
+}
 eq(
   interpretEditorKeyAfterEngine(key({ key: "f", shiftKey: true }), AFTER),
   { type: "fit-view", target: "plant" },
   "Shift+F encuadra la planta",
+);
+eq(
+  interpretEditorKeyAfterEngine(key({ key: "F", shiftKey: true }), AFTER),
+  { type: "fit-view", target: "plant" },
+  "Shift+F con la mayúscula que el navegador entrega también encuadra",
 );
 eq(
   interpretEditorKeyAfterEngine(key({ key: "\\" }), AFTER),
@@ -247,11 +300,6 @@ eq(
   interpretEditorKeyAfterEngine(key({ key: "Delete" }), AFTER),
   null,
   "Delete sin selección no hace nada",
-);
-eq(
-  interpretEditorKeyAfterEngine(key({ key: "r", shiftKey: true }), NATIVE),
-  { type: "rotate-selection", deltaDeg: -15, native: true },
-  "Shift+R rota −15°",
 );
 eq(
   interpretEditorKeyAfterEngine(key({ key: "d", ctrlKey: true }), SEL),
@@ -276,6 +324,32 @@ eq(
   { type: "paste" },
   "Cmd+V pega",
 );
+// Ola D (2026-09-02): Ctrl+X corta al portapapeles de geometría. Medido antes:
+// la tecla no hacía nada y cortar exigía Ctrl+C y Suprimir por separado.
+eq(
+  interpretEditorKeyAfterEngine(key({ key: "x", ctrlKey: true }), NATIVE),
+  { type: "cut-selection", native: true },
+  "Ctrl+X corta la selección nativa (CUTCLIP)",
+);
+eq(
+  interpretEditorKeyAfterEngine(key({ key: "X", metaKey: true }), SEL),
+  { type: "cut-selection", native: false },
+  "Cmd+X corta la selección heredada",
+);
+eq(
+  interpretEditorKeyAfterEngine(key({ key: "x", ctrlKey: true }), AFTER),
+  null,
+  "Ctrl+X sin selección no hace nada",
+);
+eq(
+  interpretEditorKeyAfterEngine(key({ key: "x", ctrlKey: true }), {
+    ...SEL,
+    hasDomTextSelection: true,
+  }),
+  null,
+  "Ctrl+X respeta el corte de texto del DOM",
+);
+eq(isReadOnlyMutationKey(key({ key: "x", ctrlKey: true })), true, "Ctrl+X muta (corta): en solo lectura avisa");
 eq(
   interpretEditorKeyAfterEngine(
     key({ key: "g", ctrlKey: true, shiftKey: true }),
@@ -309,6 +383,7 @@ eq(
 
 eq(isReadOnlyMutationKey(key({ key: "Delete" })), true, "Delete muta");
 eq(isReadOnlyMutationKey(key({ key: "f" })), false, "f no muta");
+eq(isReadOnlyMutationKey(key({ key: "m" })), false, "m ya no es una tecla del lienzo: no muta");
 eq(
   isReadOnlyMutationKey(key({ key: "s", ctrlKey: true })),
   true,

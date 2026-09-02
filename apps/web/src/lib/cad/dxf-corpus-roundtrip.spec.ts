@@ -97,7 +97,8 @@ const entities: CadEntity[] = [
   {
     id: "e8-elevated",
     type: "line",
-    // Degradación DECLARADA: este exportador escribe primitivas 2D.
+    // Hasta la Ola C (2026-09-02) era una degradación DECLARADA: el
+    // exportador escribía primitivas 2D. Ahora la cota viaja en 30/31.
     start: { x: 0, y: 7_000, z: 320 },
     end: { x: 2_000, y: 7_000, z: 320 },
     layer: "MUROS",
@@ -241,26 +242,28 @@ polylinesBefore.forEach((source, index) => {
   const elevated = losses.filter(
     (loss) => loss.code === "dxf_export_z_flattened",
   );
+  // Ola C (2026-09-02): la LINE elevada ya no es pérdida — su cota viaja en
+  // los códigos 30/31 (ver verification/z-frontiers.spec.ts). Hasta esta ola
+  // aquí se exigía UNA fila con `e8-elevated`.
   assert.equal(
     elevated.length,
-    1,
-    "la única entidad elevada aparece en el manifiesto",
+    0,
+    "ninguna entidad de este corpus pierde su cota al exportar",
   );
-  assert.equal(elevated[0].entityId, "e8-elevated", "y se identifica por id");
-  assert.equal(elevated[0].severity, "warning");
 
-  // Lo aplanado es EXACTAMENTE lo que el manifiesto anunció: la geometría XY
-  // vuelve intacta y sólo se pierde la cota.
-  const flattened = recovered.find(
+  // Y lo que el manifiesto no anuncia no se pierde: la geometría XY vuelve
+  // intacta Y la cota también.
+  const elevatedLine = recovered.find(
     (entity) =>
       entity.type === "line" &&
       Math.abs(entity.start.y - 7_000) <= TOLERANCE,
   );
-  assert.ok(flattened && flattened.type === "line");
-  if (!flattened || flattened.type !== "line") throw new Error("unreachable");
-  assert.equal(flattened.start.z, 0, "la cota se aplanó, como se avisó");
-  assert.ok(Math.abs(flattened.start.x - 0) <= TOLERANCE);
-  assert.ok(Math.abs(flattened.end.x - 2_000) <= TOLERANCE);
+  assert.ok(elevatedLine && elevatedLine.type === "line");
+  if (!elevatedLine || elevatedLine.type !== "line") throw new Error("unreachable");
+  assert.ok(Math.abs(elevatedLine.start.z - 320) <= TOLERANCE, "la cota vuelve (antes de la Ola C: 0)");
+  assert.ok(Math.abs(elevatedLine.end.z - 320) <= TOLERANCE);
+  assert.ok(Math.abs(elevatedLine.start.x - 0) <= TOLERANCE);
+  assert.ok(Math.abs(elevatedLine.end.x - 2_000) <= TOLERANCE);
 
   // Y no se inventa ninguna otra pérdida sobre lo que sí viaja bien.
   assert.equal(

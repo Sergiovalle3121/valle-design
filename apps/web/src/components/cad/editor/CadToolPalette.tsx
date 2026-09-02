@@ -99,7 +99,11 @@ export function CadToolPalette({
       data-testid="cad-toolbar"
       className="absolute top-3 left-3 z-20 rounded-card border border-border bg-surface/90 p-1.5 shadow-floating backdrop-blur"
     >
-      <div className="grid grid-cols-1 gap-0.5">
+      {/* `cad-tool-grid`: en una ventana baja (≤820 px) la columna de 16
+          botones no cabe en el lienzo y los últimos quedaban bajo la barra de
+          estado —el golden 67 los midió tapados a 720 px—; ahí la rejilla pasa
+          a dos columnas (`globals.css`). Todos los botones siguen a la vista. */}
+      <div className="cad-tool-grid grid grid-cols-1 gap-0.5">
         {CAD_TOOLBAR_ACTIONS.map((action) => (
           <ToolButton
             key={action.id}

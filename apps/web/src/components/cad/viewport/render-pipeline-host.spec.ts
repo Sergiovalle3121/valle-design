@@ -304,6 +304,54 @@ ok(
 ok(true, "la selección va y vuelve sin perder entidades");
 
 // ---------------------------------------------------------------------------
+// 4b. La RANURA del tipo de línea llega al lote. Medido el 2026-09-02: el
+//     anfitrión devolvía `linetypeIndex: 0` fijo y no resolvía BYLAYER, así
+//     que un dibujo nuevo con capa EJES=CENTER se veía continuo aunque la
+//     sonda `visor.linetypeIndex` de la matriz de propiedades dijera 1.
+// ---------------------------------------------------------------------------
+function slotsOf(hostUnderTest: CadViewportRenderHost): Set<number> {
+  const slots = new Set<number>();
+  for (const child of hostUnderTest.group.children) {
+    if (child.userData.cadLineBatch !== true) continue;
+    const geometry = (child as THREE.Mesh).geometry as THREE.InstancedBufferGeometry;
+    const style = geometry.getAttribute("instanceStyle");
+    for (let index = 0; index < geometry.instanceCount; index += 1) slots.add(style.getZ(index));
+  }
+  return slots;
+}
+const linedParent = new THREE.Group();
+const linedHost = new CadViewportRenderHost({ parent: linedParent, viewport });
+const linedDocument: CadDocument = {
+  ...mixedDocument(),
+  layers: [layer, { id: "EJES", name: "EJES", color: "#f97316", visible: true, locked: false, linetype: "CENTER" }],
+  entities: [
+    { id: "eje", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 400, y: 0, z: 0 }, layer: "EJES" },
+    { id: "muro", type: "line", start: { x: 0, y: 50, z: 0 }, end: { x: 400, y: 50, z: 0 }, layer: "0" },
+  ],
+  modelSpace: { ...mixedDocument().modelSpace, entityIds: ["eje", "muro"] },
+};
+// Sin `styles.linetype`: es un dibujo NUEVO, el caso que se veía continuo.
+linedHost.replace(linedDocument);
+settle(linedHost);
+const slots = slotsOf(linedHost);
+ok(slots.has(0), "la línea en la capa 0 va en la ranura 0 (continua)");
+ok([...slots].some((slot) => slot > 0), `la línea en EJES=CENTER lleva una ranura > 0: ${[...slots].join(", ")}`);
+assert.equal(slots.size, 2, "dos capas con dos tipos de línea son dos ranuras distintas");
+// Y la MISMA ranura que la tabla que la escena subió al shader: si el índice
+// horneado en el lote y la tabla de uniformes discreparan, el eje se dibujaría
+// con el patrón de otro tipo.
+const centerSlot = [...slots].find((slot) => slot > 0)!;
+const meta = linedHost.linetypeUniforms().meta;
+assert.deepEqual([...meta.slice(centerSlot * 2, centerSlot * 2 + 2)], [4, 2], "la ranura del eje apunta a CENTER en los uniformes: 4 tramos, periodo 2");
+// Seleccionar cambia el color y NADA más: la ranura sobrevive.
+linedHost.setSelection(["eje"], linedDocument);
+settle(linedHost);
+ok(hasColor(linedHost, CAD_RENDER_SELECTED_COLOR), "el eje seleccionado lleva el color de selección");
+assert.deepEqual([...slotsOf(linedHost)].sort(), [...slots].sort(), "seleccionar no toca la ranura del tipo de línea");
+linedHost.dispose();
+ok(true, "BYLAYER resuelve contra la capa: EJES=CENTER llega al lote con la ranura de CENTER, sin catálogo en el documento");
+
+// ---------------------------------------------------------------------------
 // 5. Los INSERT ya dibujados por el lote instanciado se excluyen — no se
 //    duplica geometría ni se toca `buildCadInsertBatches`.
 // ---------------------------------------------------------------------------

@@ -34,7 +34,11 @@ const requiredFiles = [
   baselinePath,
 ];
 
-function runFixture(mutateBaseline = () => {}, mutateAssistedLog = () => {}) {
+function runFixture(
+  mutateBaseline = () => {},
+  mutateAssistedLog = () => {},
+  mutateWorkflow = (text) => text,
+) {
   const fixtureRoot = mkdtempSync(join(tmpdir(), "valle-governance-"));
   try {
     for (const relativePath of requiredFiles) {
@@ -57,6 +61,12 @@ function runFixture(mutateBaseline = () => {}, mutateAssistedLog = () => {}) {
     writeFileSync(
       targetAssistedLog,
       `${JSON.stringify(assistedLog, null, 2)}\n`,
+    );
+
+    const targetWorkflow = join(fixtureRoot, ".github/workflows/ci.yml");
+    writeFileSync(
+      targetWorkflow,
+      mutateWorkflow(readFileSync(targetWorkflow, "utf8")),
     );
 
     return spawnSync(process.execPath, [checker], {
@@ -142,4 +152,36 @@ test("rechaza declarar a una IA como adoptante humana", () => {
   );
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Sergio debe figurar como adoptante humano/);
+});
+
+// Las dos pruebas siguientes existen porque el gate se escribió DESPUÉS de
+// medir que un PR con conflicto no tiene corrida de pull_request: si alguien
+// vuelve a `push: branches: [main]`, o deja que una de las dos listas `paths`
+// se desvíe, el CI vuelve a callarse exactamente donde más hablaba falta.
+test("rechaza que push deje de disparar en todas las ramas", () => {
+  const result = runFixture(
+    () => {},
+    () => {},
+    (text) => {
+      assert.ok(text.includes('    branches: ["**"]'));
+      return text.replace('    branches: ["**"]', "    branches: [main]");
+    },
+  );
+  assert.equal(result.status, 1);
+  assert.match(result.stderr + result.stdout, /todas las ramas/);
+});
+
+test("rechaza que las listas paths de pull_request y push se desvíen", () => {
+  const result = runFixture(
+    () => {},
+    () => {},
+    (text) => {
+      const marker = '      - "!NOTICE"\n';
+      const first = text.indexOf(marker);
+      assert.ok(first >= 0);
+      return `${text.slice(0, first)}      - "!CONTRIBUTING.md"\n${text.slice(first)}`;
+    },
+  );
+  assert.equal(result.status, 1);
+  assert.match(result.stderr + result.stdout, /difieren/);
 });

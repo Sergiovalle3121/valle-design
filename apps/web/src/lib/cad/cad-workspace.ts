@@ -2,6 +2,7 @@ import {
   CAD_KEYBOARD_SHORTCUTS,
   type CadKeyboardShortcut,
   type CadKeyboardShortcutId,
+  cadShortcutAliasCollision,
 } from './keyboard-shortcuts';
 import { readRenamedStorageKey, type RenamableStorage } from '../storage-rename';
 
@@ -25,6 +26,14 @@ export type CadRightClickAction = 'context' | 'enter' | 'repeat';
  * con el valor por defecto en cada documento que abre.
  */
 export type CadViewMode = '2d' | '3d';
+/**
+ * Qué hace arrastrar con el botón izquierdo sobre el FONDO del lienzo en 2D:
+ * «marquee» abre una ventana/cruce de selección (AutoCAD; medido antes: «0
+ * sel» y la cámara se movía ~2550 unidades), «pan» conserva el encuadre con
+ * izquierdo que el estudio tenía hasta 2026-09-02. El botón «Encuadre» de la
+ * paleta escribe 'pan' y «Seleccionar» vuelve a 'marquee'.
+ */
+export type CadBackgroundDrag = 'marquee' | 'pan';
 
 export interface CadWorkspacePreferences {
   schema: 1;
@@ -38,6 +47,8 @@ export interface CadWorkspacePreferences {
   pickBoxPx: number;
   aperturePx: number;
   rightClickAction: CadRightClickAction;
+  /** Arrastre izquierdo sobre el fondo. Ver `CadBackgroundDrag`. */
+  backgroundDrag: CadBackgroundDrag;
   /** Vista con la que abre un documento. Ver `CadViewMode`. */
   viewMode: CadViewMode;
   shortcutOverrides: Partial<Record<CadKeyboardShortcutId, string>>;
@@ -49,20 +60,26 @@ export const CAD_WORKSPACE_DEFAULTS: CadWorkspacePreferences = {
   leftDock: true,
   rightDock: true,
   commandDock: true,
-  minimap: true,
+  // Apagado de fábrica desde 2026-09-02. El minimapa es una capa que vive
+  // SOBRE el área de dibujo y se queda con el ratón donde está: abajo a la
+  // derecha se comía los arrastres de selección (auditoría del 2026-09-01) y
+  // arriba a la derecha roba esa esquina (golden 68). AutoCAD no tiene
+  // minimapa; quien lo quiera lo enciende en sus preferencias y sabe dónde está.
+  minimap: false,
   toolbarDensity: 'compact',
   crosshairPercent: 32,
   pickBoxPx: 8,
   aperturePx: 12,
   rightClickAction: 'context',
+  backgroundDrag: 'marquee',
   // 2D por defecto: es un CAD de planos, y el 3D es la comprobación.
   viewMode: '2d',
   shortcutOverrides: {},
 };
 
 export const CAD_WORKSPACE_PROFILES: Record<CadWorkspaceProfile, Pick<CadWorkspacePreferences, 'leftDock' | 'rightDock' | 'commandDock' | 'minimap' | 'toolbarDensity'>> = {
-  drafting: { leftDock: true, rightDock: true, commandDock: true, minimap: true, toolbarDensity: 'compact' },
-  review: { leftDock: false, rightDock: true, commandDock: true, minimap: true, toolbarDensity: 'comfortable' },
+  drafting: { leftDock: true, rightDock: true, commandDock: true, minimap: false, toolbarDensity: 'compact' },
+  review: { leftDock: false, rightDock: true, commandDock: true, minimap: false, toolbarDensity: 'comfortable' },
   presentation: { leftDock: false, rightDock: false, commandDock: false, minimap: false, toolbarDensity: 'comfortable' },
   focus: { leftDock: false, rightDock: false, commandDock: true, minimap: false, toolbarDensity: 'compact' },
 };
@@ -79,6 +96,8 @@ export function normalizeCadWorkspacePreferences(value: unknown): CadWorkspacePr
   // Sólo '3d' explícito cambia el defecto: cualquier valor corrupto o ausente
   // devuelve el plano, que es la vista que no puede sorprender a nadie.
   const viewMode: CadViewMode = raw.viewMode === '3d' ? '3d' : '2d';
+  // Sólo 'pan' explícito cambia el defecto; cualquier otra cosa es la ventana.
+  const backgroundDrag: CadBackgroundDrag = raw.backgroundDrag === 'pan' ? 'pan' : 'marquee';
   const overrides = raw.shortcutOverrides && typeof raw.shortcutOverrides === 'object'
     ? Object.fromEntries(Object.entries(raw.shortcutOverrides).filter(([key, binding]) =>
         CAD_KEYBOARD_SHORTCUTS.some((shortcut) => shortcut.id === key) && typeof binding === 'string' && binding.trim().length <= 32,
@@ -96,6 +115,7 @@ export function normalizeCadWorkspacePreferences(value: unknown): CadWorkspacePr
     pickBoxPx: clamp(raw.pickBoxPx, 3, 24, CAD_WORKSPACE_DEFAULTS.pickBoxPx),
     aperturePx: clamp(raw.aperturePx, 4, 40, CAD_WORKSPACE_DEFAULTS.aperturePx),
     rightClickAction,
+    backgroundDrag,
     viewMode,
     shortcutOverrides: overrides,
   };
@@ -177,14 +197,41 @@ export function buildCadWorkspaceShortcuts(
     if (!override) return [shortcut];
     if (emittedOverrides.has(shortcut.id)) return [];
     emittedOverrides.add(shortcut.id);
-    return [parseCadShortcutBinding(override, shortcut) ?? shortcut];
+    // Una letra-alias guardada antes de que el lienzo dejara de robarlas
+    // (p. ej. select: "m", que es MOVE) NO se arma, pero la preferencia se
+    // conserva tal cual: `cadWorkspaceAliasCollisions` la explica en el dock.
+    // Descartarla en `normalize` sería la migración muda.
+    const parsed = parseCadShortcutBinding(override, shortcut);
+    return [parsed && !cadShortcutAliasCollision(parsed) ? parsed : shortcut];
   });
+}
+
+/**
+ * Overrides persistidos que robarían un alias de una letra de acad.pgp, como
+ * `select:m→MOVE`. Se muestran, no se borran: la preferencia es del usuario.
+ */
+export function cadWorkspaceAliasCollisions(
+  preferences: Pick<CadWorkspacePreferences, 'shortcutOverrides'>,
+  defaults = CAD_KEYBOARD_SHORTCUTS,
+): string[] {
+  const collisions: string[] = [];
+  for (const shortcut of defaults) {
+    const override = preferences.shortcutOverrides[shortcut.id]?.trim();
+    if (!override) continue;
+    const parsed = parseCadShortcutBinding(override, shortcut);
+    const stolen = parsed ? cadShortcutAliasCollision(parsed) : null;
+    if (stolen) collisions.push(`${shortcut.id}:${parsed!.key}→${stolen}`);
+  }
+  return [...new Set(collisions)].sort();
 }
 
 export function cadWorkspaceShortcutConflicts(shortcuts: readonly CadKeyboardShortcut[]): string[] {
   const bindings = new Map<string, CadKeyboardShortcutId>();
   const conflicts = new Set<string>();
   for (const shortcut of shortcuts) {
+    // Sin tecla por defecto no hay combinación que chocar (medido: dos
+    // entradas vacías se contaban como conflicto entre sí).
+    if (!shortcut.key) continue;
     const binding = `${shortcut.ctrl ? 'c' : ''}${shortcut.shift ? 's' : ''}${shortcut.alt ? 'a' : ''}:${shortcut.key.toLowerCase()}`;
     const previous = bindings.get(binding);
     if (previous && previous !== shortcut.id) conflicts.add(`${previous}:${shortcut.id}`);

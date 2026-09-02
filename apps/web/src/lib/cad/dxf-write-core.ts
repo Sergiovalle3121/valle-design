@@ -46,7 +46,10 @@ export function pushPair(
 export function pushPoint(lines: string[], point: CadDxfPoint) {
   pushPair(lines, 10, fmt(point.x));
   pushPair(lines, 20, fmt(point.y));
-  pushPair(lines, 30, "0");
+  // La cota se escribe de verdad (Ola C): antes era un "0" fijo y una LINE
+  // vertical salía de longitud cero. `fmt(0)` sigue dando "0", así que los
+  // ficheros planos no cambian ni un byte.
+  pushPair(lines, 30, fmt(point.z ?? 0));
 }
 
 /**

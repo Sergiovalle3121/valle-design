@@ -32,8 +32,8 @@ function fmt(value: number, decimals = 2): string {
 }
 
 const WALL_HEADERS = ["Capa", "Espesor (mm)", "Cant.", "Longitud (m)", "Área paramento (m²)", "Volumen (m³)"];
-const OPENING_HEADERS = ["Marca", "Tipo", "Ancho (mm)", "Alto (mm)", "Cant."];
-const ROOM_HEADERS = ["Local", "Área a ejes (m²)", "Área útil (m²)", "Perímetro (m)"];
+const OPENING_HEADERS = ["Marca", "Tipo", "Ancho (mm)", "Alto (mm)", "Antepecho (mm)", "Cant."];
+const ROOM_HEADERS = ["Local", "Uso", "Área a ejes (m²)", "Área útil (m²)", "Perímetro (m)"];
 
 function wallRowValues(row: CadWallQuantityRow): string[] {
   return [
@@ -47,12 +47,15 @@ function wallRowValues(row: CadWallQuantityRow): string[] {
 }
 
 function openingRowValues(row: CadOpeningQuantityRow): string[] {
-  return [row.mark, row.kind === "door" ? "Puerta" : "Ventana", fmt(row.width, 0), fmt(row.height, 0), String(row.count)];
+  return [row.mark, row.kind === "door" ? "Puerta" : "Ventana", fmt(row.width, 0), fmt(row.height, 0), fmt(row.sill, 0), String(row.count)];
 }
 
 function roomRowValues(row: CadRoomAreaRow): string[] {
   return [
-    row.id,
+    // El nombre que el dibujante escribió dentro del local; sin rótulo, la
+    // clave geométrica (L-01…), que es la verdad y no un invento.
+    row.name ?? row.id,
+    row.use ?? "—",
     fmt(row.axisArea / 1_000_000, 2),
     row.clearArea === undefined ? "—" : fmt(row.clearArea / 1_000_000, 2),
     fmt(row.perimeter / 1000, 2),
@@ -102,6 +105,81 @@ export function buildCadDataExtractionCsv(schedule: CadBimSchedule): string {
  * tres a la vez no caben legibles en una sola tabla sin un diseño de columnas
  * que esta orden todavía no tiene — el CSV lleva las tres completas.
  */
+/**
+ * Una tabla nativa a partir de una cabecera y sus filas: el título en una
+ * celda fusionada, la cabecera y una fila por registro. Es lo que comparten
+ * el cuadro de muros, el de superficies y el de carpintería; tenerlo tres
+ * veces habría dejado tres anchos de columna distintos para el mismo texto.
+ */
+/** La TABLE de un cuadro: título, cabecera y filas; lo comparten los cuatro cuadros. */
+export function scheduleTable(
+  title: string,
+  headers: readonly string[],
+  rows: readonly (readonly string[])[],
+  insertion: CadPoint2,
+  layer: string,
+  newEntityId: () => string,
+  columnWidth = 1_400,
+): CadTableEntity {
+  const cells: CadTableCell[] = [];
+  cells.push({ row: 0, column: 0, text: title, columnSpan: headers.length, textHeight: 90 });
+  headers.forEach((header, column) => cells.push({ row: 1, column, text: header, textHeight: 100 }));
+  rows.forEach((values, index) => {
+    values.forEach((value, column) => cells.push({ row: index + 2, column, text: value, textHeight: 90 }));
+  });
+  return {
+    id: newEntityId(),
+    type: "table",
+    insertion: { x: insertion.x, y: insertion.y, z: 0 },
+    rows: rows.length + 2,
+    columns: headers.length,
+    rowHeights: Array.from({ length: rows.length + 2 }, () => 220),
+    columnWidths: Array.from({ length: headers.length }, () => columnWidth),
+    cells,
+    layer,
+  };
+}
+
+/**
+ * El CUADRO DE SUPERFICIES (Ola E, 2026-09-02): un local por fila, con el
+ * nombre que el dibujante escribió dentro de él. Es la tabla que se entrega
+ * con cada juego de planos y que antes decía «L-03» en vez de «Recámara».
+ */
+export function buildCadRoomScheduleTable(
+  schedule: CadBimSchedule,
+  insertion: CadPoint2,
+  layer: string,
+  newEntityId: () => string,
+): CadTableEntity {
+  return scheduleTable(
+    "Cuadro de superficies — áreas a ejes de muro; área útil con los lados metidos medio grosor",
+    ROOM_HEADERS,
+    schedule.rooms.map(roomRowValues),
+    insertion,
+    layer,
+    newEntityId,
+    1_600,
+  );
+}
+
+/** El CUADRO DE CARPINTERÍA: puertas y ventanas por marca y antepecho, con su cantidad. */
+export function buildCadOpeningScheduleTable(
+  schedule: CadBimSchedule,
+  insertion: CadPoint2,
+  layer: string,
+  newEntityId: () => string,
+): CadTableEntity {
+  return scheduleTable(
+    "Cuadro de carpintería — huecos de obra alojados en muro",
+    OPENING_HEADERS,
+    schedule.openings.map(openingRowValues),
+    insertion,
+    layer,
+    newEntityId,
+    1_200,
+  );
+}
+
 export function buildCadDataExtractionTable(
   schedule: CadBimSchedule,
   insertion: CadPoint2,

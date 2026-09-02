@@ -15,7 +15,8 @@
  * Este archivo declara SÓLO tipos y no importa nada en tiempo de ejecución: es
  * la frontera, y una frontera con dependencias deja de serlo.
  */
-import type { CadLossManifestEntry } from "../cad-document";
+import type { CadLossManifestEntry, CadPoint2 } from "../cad-document";
+import type { CadSystemVariableValue } from "../system-variables";
 import type { CadPlotRequest } from "../plot/page-setup";
 import type { CadVisualStyleId } from "../view/visual-styles";
 import type { CadUcsPlanView } from "../ucs-view";
@@ -109,4 +110,31 @@ export type CadHostRequest =
       action: "add" | "renumber" | "list";
       sheetSetId: string;
       sheet?: { documentId: string; layoutId: string; title: string };
+    }
+  /**
+   * COPYCLIP, CUTCLIP y COPYBASE (Ola D, 2026-09-02): el comando designa y
+   * decide el punto base; el ANFITRIÓN lee las entidades, las mete en el
+   * portapapeles compartido de la pestaña y, en `cut`, borra los originales
+   * como UN lote. Va por aquí porque escribir en un almacén es un efecto, y el
+   * motor es un reductor puro: el comando se prueba en Node comprobando la
+   * petición, y el anfitrión se prueba comprobando el portapapeles.
+   */
+  | {
+      kind: "clipboard";
+      op: "copy" | "cut";
+      entityIds: readonly string[];
+      /** Tecleado en COPYBASE; `null` = la esquina inferior izquierda de la envolvente. */
+      basePoint: CadPoint2 | null;
+    }
+  /**
+   * ADDSELECTED (Ola D, 2026-09-02): «dibuja uno como éste». El comando decide
+   * QUÉ orden y con qué CLAYER/CECOLOR/CELTYPE; el anfitrión pone las
+   * variables, arranca la orden y las DEVUELVE a su valor cuando ésta termina.
+   * Va por aquí porque un reductor no puede encadenar una orden ni ver el
+   * final de la siguiente: sólo el anfitrión, que despacha, sabe cuándo acabó.
+   */
+  | {
+      kind: "chain-command";
+      command: string;
+      variables: Readonly<Record<string, CadSystemVariableValue>>;
     };

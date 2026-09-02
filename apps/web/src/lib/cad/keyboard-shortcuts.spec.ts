@@ -20,42 +20,26 @@ assert.equal(
   "plain l starts precise line drafting",
 );
 assert.equal(
-  matchCadShortcut({ key: "l", shiftKey: true })?.id,
-  "connector",
-  "shift-l matches connector tool",
+  matchCadShortcut({ key: "l", shiftKey: true }),
+  undefined,
+  "shift-l ya no existe: connector no tenía salida en el intérprete",
 );
-assert.equal(
-  matchCadShortcut({ key: "p" })?.id,
-  "polyline",
-  "matches polyline drafting",
-);
-assert.equal(
-  matchCadShortcut({ key: "b" })?.id,
-  "rect",
-  "matches rectangle drafting",
-);
+// La letra suelta es de la línea de comandos: P=PAN, B=BLOCK, G=GROUP,
+// V=VIEW, E=ERASE, R/S/X en acad.pgp. El lienzo ya no las roba.
+assert.equal(matchCadShortcut({ key: "p" }), undefined, "p es PAN en acad.pgp: el lienzo no la roba");
+assert.equal(matchCadShortcut({ key: "b" }), undefined, "b es BLOCK en acad.pgp: el lienzo no la roba");
+assert.equal(matchCadShortcut({ key: "m" }), undefined, "m es MOVE en acad.pgp: el lienzo no la roba");
+assert.equal(matchCadShortcut({ key: "" }), undefined, "un evento sin tecla no casa con una entrada sin tecla");
 assert.equal(matchCadShortcut({ key: "c" })?.id, "circle", "matches circle drafting");
 assert.equal(matchCadShortcut({ key: "o", shiftKey: true })?.id, "offset", "matches precise offset");
-assert.equal(
-  matchCadShortcut({ key: "g" })?.id,
-  "grid_toggle",
-  "matches grid toggle",
-);
+assert.equal(matchCadShortcut({ key: "g" }), undefined, "g es GROUP en acad.pgp: la grilla es F7");
 assert.equal(
   matchCadShortcut({ key: "v", shiftKey: true })?.id,
   "validate_layout",
   "matches validation shortcut without stealing select",
 );
-assert.equal(
-  matchCadShortcut({ key: "v" })?.id,
-  "select",
-  "plain v remains select",
-);
-assert.equal(
-  matchCadShortcut({ key: "e" })?.id,
-  "export_dxf",
-  "matches DXF export shortcut",
-);
+assert.equal(matchCadShortcut({ key: "v" }), undefined, "v es VIEW en acad.pgp: seleccionar no tiene letra suelta");
+assert.equal(matchCadShortcut({ key: "e" }), undefined, "e es ERASE en acad.pgp: exportar DXF vive en la paleta");
 assert.equal(cadShortcutLabel(palette!), "Ctrl+K", "formats shortcut labels");
 assert.equal(
   cadShortcutLabel(matchCadShortcut({ key: "v", shiftKey: true })!),
@@ -64,10 +48,11 @@ assert.equal(
 );
 console.log("cad keyboard shortcuts specs passed");
 
-// Kit diario (VD-CAD-XFORM-001): R rota, S escala, X espeja.
-assert.equal(matchCadShortcut({ key: "r" })?.id, "rotate", "matches rotate");
-assert.equal(matchCadShortcut({ key: "s" })?.id, "scale", "matches scale");
-assert.equal(matchCadShortcut({ key: "x" })?.id, "mirror", "matches mirror");
+// R, S y X no tenían salida en el intérprete (medido: null en las dos fases)
+// y en acad.pgp S=STRETCH y X=EXPLODE: se retiraron del registro.
+assert.equal(matchCadShortcut({ key: "r" }), undefined, "r no es un atajo del lienzo");
+assert.equal(matchCadShortcut({ key: "s" }), undefined, "s es STRETCH en acad.pgp");
+assert.equal(matchCadShortcut({ key: "x" }), undefined, "x es EXPLODE en acad.pgp");
 assert.equal(
   matchCadShortcut({ key: "s", metaKey: true })?.id,
   "save",

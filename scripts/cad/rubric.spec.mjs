@@ -474,15 +474,18 @@ const byId = (scored, id) =>
   // Corte 2026-08-22: el denominador de DESTINO creció a 220 al nacer las
   // filas de integridad y de capacidad de crecer, y se publica JUNTO al de
   // HOY (las categorías scope:"hoy"), que es el que se enseña a un cliente.
-  //
   // Corte 2026-08-31: BAJÓ a 216. La categoría `nl-cad` (asistencia por IA)
   // valía 4 puntos de destino y se RETIRÓ con el motor: Valle Design no tiene
   // IA — era de Axos OS, el ERP del que nació este producto (`IDENTITY.md`).
-  // Un denominador que sigue contando una capacidad que el producto ya no
-  // quiere tener mide contra un producto que no existe. Bajarlo es la
-  // respuesta honesta: los puntos que la fila tenía ganados también se van, y
-  // el porcentaje se recalcula contra lo que de verdad se persigue.
-  eq(published.totalPoints, 216, "el denominador de destino publicado son 216 puntos");
+  // Un denominador que cuenta una capacidad que el producto ya no quiere mide
+  // contra un producto que no existe; los puntos ganados de la fila se van.
+  // Corte 2026-09-02: SUBIÓ a 260 — nacen `recognition` (14 pt de HOY, por
+  // goldens y specs que leen bytes), las siete filas de toolsets (28 pt de
+  // DESTINO, casi todas en 0) y `hatch.pattern-table` (2 pt): un techo sin MEP
+  // medía contra otro producto. Ola C: 265 — `modeling3d` (5 pt de DESTINO).
+  // Ola D (2026-09-02): 271 — `foreign-work` (6 pt de HOY: la prueba de
+  // despacho, el portapapeles y las seis órdenes del plano ajeno).
+  eq(published.totalPoints, 271, "el denominador de destino publicado son 271 puntos");
   eq(
     published.categories.every((c) => c.scope === "hoy" || c.scope === "destino"),
     true,
@@ -492,8 +495,8 @@ const byId = (scored, id) =>
     published.categories
       .filter((c) => c.scope === "hoy")
       .reduce((acc, c) => acc + c.points, 0),
-    175,
-    "el denominador de HOY (flujo diario 2D) son 175 puntos",
+    197,
+    "el denominador de HOY (flujo diario 2D + reconocimiento + trabajo ajeno) son 197 puntos",
   );
   const groups = new Map(published.groups.map((g) => [g.id, g.points]));
   for (const [id, points] of groups) {

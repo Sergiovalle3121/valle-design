@@ -1525,11 +1525,10 @@
      que ocupa envolviendo. */
   .cad-shell .cad-status-bar {
     flex-wrap: nowrap;
-    /* Sin tope, una caja absoluta anclada por la DERECHA que ya no envuelve
-       crece hacia la izquierda hasta salirse de la pantalla: medido, −681 px.
-       El tope la deja dentro del lienzo y es lo que hace que `overflow-x`
-       desplace en vez de desbordar. */
-    max-width: calc(100% - 1.5rem);
+    /* La barra ocupa su propia franja bajo el lienzo (ya no es una caja
+       absoluta anclada por la derecha): el tope es el ancho de esa franja, y
+       es lo que hace que `overflow-x` desplace en vez de desbordar. */
+    max-width: 100%;
     overflow-x: auto;
     overflow-y: hidden;
     white-space: nowrap;
@@ -1542,5 +1541,33 @@
 
   .cad-shell .cad-status-bar::-webkit-scrollbar {
     display: none;
+  }
+}
+
+/* La paleta de herramientas del estudio (`CadToolPalette`): una columna de
+   16 botones de 41 px mide ~700 px y, con la barra de estado ocupando su propia
+   franja bajo el lienzo, a 720 px de alto los dos últimos quedaban fuera del
+   área de dibujo (medido por el golden 67: «Área» y «Símbolos» tapados). En
+   una ventana baja la rejilla pasa a dos columnas y todos siguen a la vista. */
+@media (max-height: 820px) {
+  .cad-tool-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ===========================================================================
+   BARRA DE ESTADO DEL CAD: cada elemento mide lo mismo (1,25 rem).
+   Va en la capa `components`, y no como utilidad `[&>*]:h-5` en el padre,
+   porque una utilidad del padre le ganaba a `hidden` en el hijo y los
+   elementos de segundo orden no se ocultaban bajo 40 rem (medido el
+   2026-09-02: barra de 69 px en tres renglones con el panel de bloques
+   abierto). Con altura uniforme, reenvolver no cambia el alto de la barra y
+   la cámara del lienzo no se mueve (golden 72).
+   =========================================================================== */
+@layer components {
+  .cad-status-bar > * {
+    display: inline-flex;
+    align-items: center;
+    height: 1.25rem;
   }
 }

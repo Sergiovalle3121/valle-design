@@ -23,7 +23,7 @@
  * con contrato fail-closed: un comando sin resumen es un error de CI, no una
  * entrada muda.
  */
-import { CAD_COMMAND_REGISTRY } from "./commands";
+import { CAD_COMMAND_REGISTRY } from "./commands/registry";
 import { CAD_COMMAND_REGISTRY_V2 } from "./engine";
 import { cadCommandSummary } from "./engine/command-summaries";
 import { CAD_SYMBOL_LIBRARY } from "./symbols";

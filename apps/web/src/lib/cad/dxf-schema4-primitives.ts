@@ -9,6 +9,7 @@
  * traducir devuelve `null` y quien lo declara es el manifiesto de pérdidas.
  */
 import type { CadDocument, CadEntity, CadImageDefinition } from "./cad-document";
+import { cadImageFileName, cadImageIsEmbedded } from "./image-geometry";
 import type { CadDxfPoint, CadDxfPrimitive } from "./dxf-import";
 import type { CadDxfSchema4Payload } from "./dxf-schema4";
 
@@ -93,7 +94,10 @@ export function cadEntityToSchema4Primitive(
         : {}),
       definition: {
         key: imageDictionaryKey(definition),
-        path: definition.uri,
+        // Una imagen que viaja dentro del dibujo (`data:`, Ola H) va al DXF
+        // por su NOMBRE: el grupo 1 es una ruta, y diez megabytes de base64
+        // no son una ruta. El manifiesto de pérdidas dice qué archivo guardar.
+        path: cadImageIsEmbedded(definition) ? cadImageFileName(definition) : definition.uri,
         pixelWidth: definition.pixelWidth,
         pixelHeight: definition.pixelHeight,
         ...(definition.loaded === undefined ? {} : { loaded: definition.loaded }),

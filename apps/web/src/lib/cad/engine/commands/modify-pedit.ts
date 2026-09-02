@@ -152,6 +152,8 @@ interface PeditState {
   vertexIndex: number | null;
   vertexAction: "Mover" | "Insertar" | null;
   joinTargets: string[];
+  /** Distancia de aproximación de Juntar (AutoCAD «Fuzz distance»); 0 = extremos exactos. */
+  joinFuzz: number;
 }
 
 const EMPTY_PEDIT: PeditState = {
@@ -160,6 +162,7 @@ const EMPTY_PEDIT: PeditState = {
   vertexIndex: null,
   vertexAction: null,
   joinTargets: [],
+  joinFuzz: 0,
 };
 
 function peditStep(state: PeditState): CadCommandStep<PeditState> {
@@ -199,8 +202,16 @@ function peditStep(state: PeditState): CadCommandStep<PeditState> {
   if (state.phase === "join")
     return {
       state,
-      prompt: { message: "Designe los objetos a juntar", options: [] },
-      accepts: CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_SELECTION,
+      prompt: {
+        message:
+          state.joinFuzz > 0
+            ? `Distancia de aproximación ${state.joinFuzz}. Designe los objetos a juntar`
+            : "Designe los objetos a juntar, o teclee la distancia de aproximación",
+        options: [],
+      },
+      // La distancia de aproximación de AutoCAD (PEDIT Múltiple Juntar): un
+      // número en este prompt fija cuánto hueco cuenta como contacto (Ola D).
+      accepts: CAD_ACCEPT_ENTITY_PICK | CAD_ACCEPT_SELECTION | CAD_ACCEPT_DISTANCE,
     };
   return {
     state,
@@ -359,6 +370,10 @@ const peditCommand: CadCommandDescriptor<PeditState> = {
           ...state,
           joinTargets: [...new Set([...state.joinTargets, ...input.entityIds])],
         });
+      if (input.kind === "distance") {
+        if (!(input.value >= 0)) return reject("la distancia de aproximación no puede ser negativa.");
+        return peditStep({ ...state, joinFuzz: input.value });
+      }
       if (input.kind !== "enter") return peditStep(state);
       const others = state.joinTargets
         .map((id) => context.entity?.(id))
@@ -367,7 +382,7 @@ const peditCommand: CadCommandDescriptor<PeditState> = {
       // La unión es la MISMA que la de JOIN. Duplicar aquí sus reglas —qué es
       // colineal, qué encadena— habría dejado dos comandos que responden
       // distinto a la misma pareja de objetos.
-      const outcome = cadJoinCommands([polyline, ...others]);
+      const outcome = cadJoinCommands([polyline, ...others], state.joinFuzz > 0 ? state.joinFuzz : undefined);
       return typeof outcome === "string" ? reject(outcome) : emit(outcome);
     }
 

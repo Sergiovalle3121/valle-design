@@ -27,6 +27,7 @@ import type { SnapType } from "../snap-engine";
 import type { CadEntityCommand } from "../entity-commands";
 import {
   cadActiveUcs,
+  cadActiveUcsIsInclined,
   cadActiveUcsIsTilted,
   type CadSystemVariableValue,
 } from "../system-variables";
@@ -43,6 +44,7 @@ import {
   type CadPrompt,
 } from "./command-types";
 import { resolveCadToken, type CadTokenContext } from "./input-pipeline";
+import { cadCurrentPresentation, cadWithCurrentPresentation } from "./current-presentation";
 
 export interface CadActiveCommand {
   name: string;
@@ -189,6 +191,7 @@ function begin(
       descriptor,
       step,
       registry,
+      context,
     );
     return finished;
   }
@@ -204,11 +207,23 @@ function finish(
   descriptor: CadAnyCommandDescriptor,
   step: CadCommandStep<unknown>,
   registry: CadCommandRegistry,
+  context: CadCommandContext,
 ): CadCommandEngineReduction {
   const effects: CadCommandEffect[] = [];
   const result = step.result;
   if (result?.kind === "document" && result.commands.length > 0)
-    effects.push({ kind: "execute", commands: result.commands, label: result.label });
+    effects.push({
+      kind: "execute",
+      // CECOLOR/CELTYPE/CELWEIGHT sólo tocan lo que se DIBUJA (Ola D): ver
+      // current-presentation.ts. Con las variables de fábrica el lote es el mismo.
+      commands:
+        descriptor.kind === "draw" || descriptor.kind === "annotate"
+          ? cadWithCurrentPresentation(result.commands, cadCurrentPresentation(context.variables))
+          : result.commands,
+      label: result.label,
+    });
+  if (result?.kind === "document" && result.notice)
+    effects.push({ kind: "message", text: result.notice, level: "info" });
   if (result?.kind === "view")
     effects.push({ kind: "view", request: result.request, label: result.label });
   if (result?.kind === "host")
@@ -308,30 +323,37 @@ export function cadCommandEngineReduce(
     };
   }
 
-  // Fallo cerrado ante un SCU inclinado: un comando que escribe geometría y no
-  // se ha declarado espacial aplanaría el punto contra el suelo sin decir nada.
-  // Se comprueba aquí, en el único sitio por el que pasan TODOS los puntos —los
-  // tecleados y los del puntero—, en vez de en cada comando.
+  // Fallo cerrado ante un SCU que no es el plano z = 0 del mundo: un comando
+  // que escribe geometría y no se ha declarado espacial aplanaría el punto
+  // contra el suelo sin decir nada. Se comprueba aquí, en el único sitio por el
+  // que pasan TODOS los puntos —los tecleados y los del puntero—, en vez de en
+  // cada comando. Dos grados (Ola C): un SCU ELEVADO lo honra cualquier
+  // `spatial` (`true` o `"elevation"`); uno INCLINADO, sólo `spatial: true`.
   if (
     action.input.kind === "point" &&
     descriptor.mutates &&
-    !descriptor.spatial &&
-    context.variables &&
-    cadActiveUcsIsTilted(context.variables)
-  )
-    return {
-      state,
-      effects: [
-        {
-          kind: "message",
-          text:
-            `${descriptor.name} todavía no sabe dibujar fuera del plano XY del mundo, y el SCU activo está ` +
-            "inclinado: el trazo se guardaría a cota cero, donde no lo puso usted. Vuelva al SCU universal " +
-            "con UCS Universal, o use LINE, que sí conserva la cota.",
-          level: "error",
-        },
-      ],
-    };
+    descriptor.spatial !== true &&
+    context.variables
+  ) {
+    const inclined = cadActiveUcsIsInclined(context.variables);
+    if (inclined || (!descriptor.spatial && cadActiveUcsIsTilted(context.variables)))
+      return {
+        state,
+        effects: [
+          {
+            kind: "message",
+            text: inclined
+              ? `${descriptor.name} todavía no sabe dibujar sobre un plano inclinado, y el SCU activo lo está: ` +
+                "el trazo se guardaría en planta, donde no lo puso usted. Vuelva al SCU universal con UCS " +
+                "Universal, o use LINE, PLINE o RECTANG, que sí dibujan en el plano del SCU."
+              : `${descriptor.name} todavía no sabe dibujar fuera del plano XY del mundo, y el SCU activo está ` +
+                "elevado: el trazo se guardaría a cota cero, donde no lo puso usted. Vuelva al SCU universal " +
+                "con UCS Universal, o use LINE, que sí conserva la cota.",
+            level: "error",
+          },
+        ],
+      };
+  }
 
   let step: CadCommandStep<unknown>;
   try {
@@ -350,7 +372,7 @@ export function cadCommandEngineReduce(
   }
 
   const advanced: CadActiveCommand = { ...active, step };
-  if (step.result) return finish({ ...state, active: advanced }, descriptor, step, registry);
+  if (step.result) return finish({ ...state, active: advanced }, descriptor, step, registry, context);
 
   return {
     // Una captura consume el override; el siguiente punto vuelve a los modos

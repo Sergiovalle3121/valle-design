@@ -128,6 +128,10 @@ export const permittedFiles = [
   ["apps/web/src/lib/cad/symbols.ts", "catálogo de símbolos dibujables"],
   ["apps/web/src/lib/cad/symbols.spec.ts", "spec del catálogo de símbolos"],
   ["apps/web/src/lib/cad/templates.ts", "catálogo de plantillas dibujables"],
+  // Las FICHAS del mismo catálogo (etiqueta, grupo y descripción), generadas
+  // de `templates.ts` por `scripts/templates-catalog.mts` para que la paleta
+  // no cargue el cuerpo de las plantillas: mismo texto, misma regla.
+  ["apps/web/src/lib/cad/templates-catalog.ts", "fichas generadas del catálogo de plantillas"],
   // Valor PERSISTIDO congelado: `forklift_path` vive dentro de documentos
   // guardados. Se lee para no romperlos; ninguna acción del editor crea uno
   // nuevo (los pasillos se crean como `aisle`). Ver IDENTITY.md.

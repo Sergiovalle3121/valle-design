@@ -47,6 +47,63 @@ export const CAD_COMMAND_ALIASES: Readonly<Record<string, string>> = {
   MURO: "WALL",
   // `DOORADD` y `WINDOWADD` son los nombres con los que AutoCAD Architecture
   // coloca huecos; `PUERTA` y `VENTANA`, la memoria muscular en español.
+  // `STAIRADD` coloca escaleras en AutoCAD Architecture; `ESCALERA`, en español.
+  STAIRADD: "STAIR",
+  ESCALERA: "STAIR",
+  // `DX` es el alias de acad.pgp de DATAEXTRACTION. El descriptor ya lo
+  // declaraba y el registro lo resolvía, pero el PIPELINE de entrada consulta
+  // ESTA tabla: tecleado, «DX» no llegaba a ninguna parte (medido en el
+  // golden 77: la «P» siguiente arrancaba PAN).
+  DX: "DATAEXTRACTION",
+  ROOFADD: "ROOF",
+  CUBIERTA: "ROOF",
+  SLABADD: "SLAB",
+  LOSA: "SLAB",
+  // MEP (Ola F): los nombres de AutoCAD MEP y la memoria muscular en español.
+  PIPEADD: "PIPE",
+  TUBERIA: "PIPE",
+  DUCTADD: "DUCT",
+  DUCTO: "DUCT",
+  CABLETRAYADD: "CABLETRAY",
+  CHAROLA: "CABLETRAY",
+  DEVICEADD: "MEPSYMBOL",
+  SIMBOLOMEP: "MEPSYMBOL",
+  // Map 3D (Ola G): `GEO` es el alias de acad.pgp de GEOGRAPHICLOCATION;
+  // `MAPCSASSIGN` asigna el sistema en AutoCAD Map; `GEORREFERENCIAR` e
+  // `IMPORTARGIS`, la memoria muscular en español.
+  GEO: "GEOGRAPHICLOCATION",
+  GEOLOCATION: "GEOGRAPHICLOCATION",
+  MAPCSASSIGN: "GEOGRAPHICLOCATION",
+  GEORREFERENCIAR: "GEOGRAPHICLOCATION",
+  IMPORTARGIS: "MAPIMPORT",
+  // Raster (Ola H): los alias de acad.pgp y la memoria muscular en español.
+  // `IM` estaba sólo en el descriptor de IMAGE y el pipeline consulta ESTA
+  // tabla (medido en la Ola E con DX): tecleado no llegaba.
+  IM: "IMAGE",
+  IAT: "IMAGEATTACH",
+  ICL: "IMAGECLIP",
+  IAD: "IMAGEADJUST",
+  ADJUNTARIMAGEN: "IMAGEATTACH",
+  RECORTARIMAGEN: "IMAGECLIP",
+  AJUSTARIMAGEN: "IMAGEADJUST",
+  // Mechanical (Ola I): los nombres AM* de AutoCAD Mechanical y la memoria
+  // muscular en español.
+  AMCONTENTLIB: "STDPART",
+  NORMALIZADO: "STDPART",
+  TORNILLO: "STDPART",
+  AMSTLSHAP2D: "STEELSHAPE",
+  PERFIL: "STEELSHAPE",
+  PERFILACERO: "STEELSHAPE",
+  AMBALLOON: "BALLOON",
+  GLOBO: "BALLOON",
+  AMBOM: "BOM",
+  LISTAMATERIALES: "BOM",
+  AMWELDSYM: "WELDSYMBOL",
+  SOLDADURA: "WELDSYMBOL",
+  AMSURFSYM: "SURFACESYMBOL",
+  ACABADO: "SURFACESYMBOL",
+  TOLERANCIA: "DIMTOLERANCE",
+  DTOL: "DIMTOLERANCE",
   DOORADD: "DOOR",
   PUERTA: "DOOR",
   WINDOWADD: "WINDOW",

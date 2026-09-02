@@ -36,6 +36,7 @@ import {
   cadFindBlock,
   cadInsertBlockCommands,
   cadInsertableBlocks,
+  cadRedefineBlockCommands,
   cadSetDrawingBasePointCommands,
   type CadBlockAttributePrompt,
 } from "../../blocks/block-workflow";
@@ -43,6 +44,7 @@ import {
   CAD_ACCEPT_ANGLE,
   CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_ENTITY_PICK,
+  CAD_ACCEPT_KEYWORD,
   CAD_ACCEPT_POINT,
   CAD_ACCEPT_SELECTION,
   CAD_ACCEPT_TEXT,
@@ -106,7 +108,22 @@ interface DefineState {
   name: string | null;
   basePoint: CadPoint3 | null;
   selection: readonly string[];
+  /**
+   * La definición que se va a SUSTITUIR, cuando el nombre tecleado ya existe.
+   *
+   * `pending` es el nombre que espera la respuesta a «¿Redefinirlo?»; `target`
+   * es la definición aceptada. AutoCAD hace exactamente esta pregunta en
+   * `-BLOCK` («Block "X" already exists. Redefine it? [Yes/No] <N>») y era el
+   * camino que faltaba: la auditoría del 2026-09-01 tecleó B y el nombre de un
+   * bloque existente y el producto contestó «redefínalo» sin ninguna orden con
+   * la que hacerlo. Un despacho redefine un bloque cada vez que el cliente
+   * cambia la silla; no es un caso raro.
+   */
+  redefine: { pending: string } | { target: CadBlockDefinition } | null;
 }
+
+const REDEFINE_YES = { keyword: "Sí", shortcut: "S" } as const;
+const REDEFINE_NO = { keyword: "No", shortcut: "N" } as const;
 
 /**
  * BLOCK y WBLOCK comparten diálogo y difieren en dos decisiones, que es
@@ -125,6 +142,16 @@ function defineDescriptor(options: {
   disposition: "insert" | "retain";
 }): CadCommandDescriptor<DefineState> {
   const step = (state: DefineState): CadCommandStep<DefineState> => {
+    if (state.redefine && "pending" in state.redefine)
+      return {
+        state,
+        prompt: {
+          message: `El bloque ${state.redefine.pending} ya existe. ¿Redefinirlo?`,
+          options: [REDEFINE_YES, REDEFINE_NO],
+          defaultOption: REDEFINE_NO.keyword,
+        },
+        accepts: CAD_ACCEPT_KEYWORD,
+      };
     if (state.name === null)
       return {
         state,
@@ -134,7 +161,12 @@ function defineDescriptor(options: {
     if (!state.basePoint)
       return {
         state,
-        prompt: { message: "Precise el punto base de inserción", options: [] },
+        prompt: {
+          message: state.redefine
+            ? `Precise el punto base de la nueva definición de ${state.name}`
+            : "Precise el punto base de inserción",
+          options: [],
+        },
         accepts: CAD_ACCEPT_POINT,
       };
     return {
@@ -151,6 +183,13 @@ function defineDescriptor(options: {
         .filter((entity): entity is CadEntity => !!entity);
       if (entities.length !== state.selection.length)
         throw new Error("El anfitrión no puede leer la geometría designada.");
+      if (state.redefine && "target" in state.redefine)
+        return cadRedefineBlockCommands({
+          target: state.redefine.target,
+          basePoint: state.basePoint!,
+          entities,
+          scope: options.scope,
+        });
       return cadDefineBlockCommands({
         id: blockId(state.name!),
         name: state.name!,
@@ -171,13 +210,26 @@ function defineDescriptor(options: {
     repeatable: true,
     mutates: true,
     cursor: "crosshair",
-    begin: (context) => step({ name: null, basePoint: null, selection: context.selection }),
+    begin: (context) =>
+      step({ name: null, basePoint: null, selection: context.selection, redefine: null }),
     step: (state, input, context) => {
       if (input.kind === "cancel") return nothing(state);
+      if (state.redefine && "pending" in state.redefine) {
+        // Enter toma la opción por defecto —No—, igual que en AutoCAD: pisar
+        // una definición con todas sus inserciones no se acepta por descuido.
+        if (input.kind === "keyword" && input.keyword === REDEFINE_YES.keyword) {
+          const target = cadFindBlock(blocksOf(context), state.redefine.pending);
+          if (!target) return message(state, `El bloque ${state.redefine.pending} ya no existe.`);
+          return step({ ...state, name: target.name, redefine: { target } });
+        }
+        if (input.kind === "keyword" || input.kind === "enter")
+          return step({ ...state, redefine: null });
+        return step(state);
+      }
       if (input.kind === "text" && state.name === null) {
         const name = input.value.trim();
         if (cadFindBlock(blocksOf(context), name))
-          return message(state, `El bloque ${name} ya existe. Use otro nombre o redefínalo.`);
+          return step({ ...state, redefine: { pending: name } });
         return step({ ...state, name });
       }
       if (input.kind === "point" && state.name !== null && !state.basePoint)

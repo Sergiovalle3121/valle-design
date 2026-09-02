@@ -217,6 +217,13 @@ export class CadPlotHost {
       return "Este espacio de trabajo no sabe empaquetar ETRANSMIT: falta el anfitrión de empaquetado.";
     if (request.kind === "data-extraction-csv")
       return "Este espacio de trabajo no sabe entregar el CSV de DATAEXTRACTION: falta el anfitrión de extracción.";
+    // El portapapeles lo atiende el propio anfitrión del motor ANTES de
+    // reenviar nada (command-engine-host.ts): si llegara aquí sería un fallo
+    // de cableado, y se dice en vez de tratarlo como un trazado.
+    if (request.kind === "clipboard")
+      return "El portapapeles de geometría lo atiende el anfitrión del motor, no el de trazado.";
+    if (request.kind === "chain-command")
+      return "ADDSELECTED lo encadena el anfitrión del motor, no el de trazado.";
 
     const document = this.bridge.document();
     if (!document) return "No hay ningún dibujo abierto que trazar.";

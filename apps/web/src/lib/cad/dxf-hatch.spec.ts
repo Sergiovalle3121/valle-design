@@ -8,6 +8,7 @@ import { strict as assert } from "node:assert";
 import { exportCadDxf } from "./dxf-export";
 import { exportCadLayoutDxf } from "./layout-export-adapter";
 import { importDxfPrimitives } from "./dxf-import";
+import { cadHatchPatternBaseAngle } from "./hatch-pattern-table";
 
 // --- export kernel: HATCH SOLID con contorno cerrado -------------------------
 const exported = exportCadDxf({
@@ -38,13 +39,19 @@ const patterned = exportCadDxf({
 });
 assert.ok(patterned.content.includes("2\nANSI31"), "conserva el nombre de patrón");
 assert.ok(patterned.content.includes("91\n2"), "emite contorno exterior y hueco");
-assert.ok(patterned.content.includes("52\n30"), "emite el ángulo del patrón");
+// `angle: 30` son rayas de ANSI31 a 30° absolutos; el 52 del DXF es el giro
+// respecto al patrón (45°): −15. Antes se escribía 30 y AutoCAD lo abría a 75°.
+assert.ok(patterned.content.includes("52\n-15"), "emite el GIRO del patrón (ángulo − base)");
+assert.ok(patterned.content.includes("53\n30"), "y la familia lleva su ángulo absoluto");
 assert.ok(patterned.content.includes("41\n25"), "emite la escala del patrón");
 const patternedImport = importDxfPrimitives(patterned.content);
 assert.equal(patternedImport.hatches.length, 1);
 assert.equal(patternedImport.hatches[0].boundaries.length, 2);
 assert.equal(patternedImport.hatches[0].solid, false);
-assert.equal(patternedImport.hatches[0].angle, 30);
+// El lector crudo devuelve el 52 tal cual (el giro); el puente al documento
+// (`dxf-cad-document.ts`) le suma la base del patrón y recupera los 30°.
+assert.equal(patternedImport.hatches[0].angle, -15);
+assert.equal(cadHatchPatternBaseAngle("ANSI31") + patternedImport.hatches[0].angle, 30);
 assert.equal(patternedImport.hatches[0].scale, 25);
 
 // Un contorno degenerado (< 3 puntos) no emite nada.

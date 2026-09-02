@@ -12,6 +12,7 @@ import {
   type CadDxfExportResult,
 } from "./dxf-export";
 import type { CadDxfPrimitive } from "./dxf-import";
+import { cadDocumentDxfLayerDefinitions, cadDxfLinetypeTable, type CadDxfDocumentExportSource } from "./dxf-document-export";
 
 export interface CadExportBox {
   id: string;
@@ -71,6 +72,17 @@ export interface CadLayoutExportInput {
   /** Reusable canonical BLOCK definitions and live INSERT instances. */
   blocks?: CadDxfExportBlock[];
   inserts?: CadDxfExportInsert[];
+  /**
+   * El documento del que salen las capas (Ola F, 2026-09-02).
+   *
+   * Medido antes: este adaptador montaba la tabla LAYER sólo por NOMBRE, con
+   * un color de tabla fija, así que el diálogo de exportación del estudio
+   * devolvía GAS = GAS_LINE como `6 CONTINUOUS`, sin tabla LTYPE ni $LTSCALE,
+   * mientras DXFOUT (`dxf-document-export.ts`) sí los escribía. Con el
+   * documento, las capas llevan su tipo de línea, grosor y congelado, y el
+   * fichero su tabla LTYPE y su escala: la MISMA traducción que DXFOUT.
+   */
+  document?: Pick<CadDxfDocumentExportSource, "layers" | "entities" | "styles" | "meta">;
 }
 
 const CAD_DXF_LAYER_COLORS: Record<string, number> = {
@@ -125,11 +137,34 @@ function collectLayoutLayers(input: CadLayoutExportInput): CadDxfExportLayer[] {
     color: CAD_DXF_LAYER_COLORS[name] ?? 7,
   }));
 }
+/** Las capas por nombre, completadas con lo que el documento sabe de cada una. */
+function layoutLayers(input: CadLayoutExportInput): CadDxfExportLayer[] {
+  const named = collectLayoutLayers(input);
+  if (!input.document) return named;
+  const defined = new Map(cadDocumentDxfLayerDefinitions(input.document).map((layer) => [layer.name, layer]));
+  // Una capa que las entidades nombran por su ID y el documento por su nombre
+  // (el estudio deja que difieran) se casa por ambos.
+  const byId = new Map(input.document.layers.map((layer) => [layer.id, layer.name]));
+  return named.map((layer) => {
+    const definition = defined.get(layer.name) ?? defined.get(byId.get(layer.name) ?? "");
+    // El color sigue saliendo de la tabla fija por nombre: traducir el color
+    // CSS de la capa a índice ACI es otra costura, y no se toca aquí.
+    return {
+      ...layer,
+      ...(definition?.linetype ? { linetype: definition.linetype } : {}),
+      ...(typeof definition?.lineweight === "number" ? { lineweight: definition.lineweight } : {}),
+      ...(definition?.frozen ? { frozen: true } : {}),
+    };
+  });
+}
+
 export function cadLayoutToDxfExportModel(
   input: CadLayoutExportInput,
 ): CadDxfExportModel {
   return {
-    layers: collectLayoutLayers(input),
+    layers: layoutLayers(input),
+    ...(input.document ? cadDxfLinetypeTable(input.document) : {}),
+    ...(typeof input.document?.meta?.linetypeScale === "number" ? { linetypeScale: input.document.meta.linetypeScale } : {}),
     primitives: [
       ...(input.primitives ?? []),
       ...(input.boxes ?? []).map((box) =>
