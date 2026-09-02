@@ -2494,6 +2494,43 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-ESCRITURA-HATCH-SOLIDO-20260902",
+      "date": "2026-09-02",
+      "initiative": "Novena clase escribible: el HATCH de relleno SOLIDO. A diferencia de la ola anterior (la elipse, que era enrutado puro porque el writer ya la emitia), aqui el writer NO emitia HATCH en absoluto. EL LIMITE LO DICTA EL FORMATO, no la pereza: decodeHatch lee el bloque de definicion del patron —angulo, escala, doble trama y las lineas con sus trazos— SOLO cuando solidFill es falso. Un relleno solido salta ese bloque entero, asi que se puede escribir sin inventar nada. El canonico transporta el NOMBRE del patron, no su geometria, de modo que un sombreado con patron solo se podria escribir inventandose la definicion: se declara hatch-pattern-not-writable nombrando el patron concreto. Medido de punta a punta con exportCadDocumentToDwg sobre un documento con los dos: preflight writableCount 1 y unwritableByType {hatch:1}; 1 de 2 sombreados en el archivo, el solido, con sus 4 vertices y su cierre; perdidas hatch-authoring-defaults y hatch-pattern-not-writable. Antes de eso se verifico el emisor a nivel de cuerpo contra el lector propio: 106 bytes emitidos y de vuelta solidFill, los 4 vertices exactos, el cierre, estilo, semilla y nombre. EL PREFLIGHT PASA A SER POR INSTANCIA Y NO POR TIPO. Hasta ahora cada clase era escribible entera o nada y un Set de tipos bastaba. El HATCH lo rompe: un conjunto por tipo tendria que mentir en una de las dos direcciones —incluir hatch prometeria sombreados con patron que luego se pierden, excluirlo daria por perdidos los solidos que si viajan—. Como el preflight existe para que la perdida no sorprenda DESPUES, ahora pregunta por la entidad concreta con cadEntityIsDwgWritable. Se declara hatch-authoring-defaults por asociatividad, estilo, tipo de patron y semillas, que no viajan en el canonico: son decisiones de autoria como la extrusion de la elipse, y aun asi constan, porque quien reexporte un sombreado asociativo de un archivo ajeno tiene que leer que dejo de serlo. LO QUE EL ROUND-TRIP PROPIO NO PUEDE PROBAR: el lector propio acepta lo que el writer propio escriba. Que un sombreado con cero semillas, estilo 0 y sin asociatividad sea un sombreado que OTRO programa abre solo lo dice un lector ajeno. Caso sombreado-solido nuevo en el harness del oraculo con su gemelo publico; el titular corre ahora dieciseis. Se exporto HATCH_PATH_POLYLINE_BIT en vez de redefinirlo en el writer: dos definiciones de que bit significa polilinea divergirian sin que ninguna prueba lo viera, porque el round-trip no atrapa un fallo en el que ambos lados se equivocan igual. DOS PARTICIONES por presupuesto de monolito, ninguna presupuestada: ac1015-entity-writer.ts (842 lineas) se parte en ac1015-entity-emitters.ts —alla queda decidir QUE entidad se escribe, aqui el saber concreto de cada clase—, y oda-roundtrip.mjs (861) en oda-roundtrip-cases.mjs —el arnes no cambia al anadir un caso, los dibujos si—. El archivo nuevo del paquete se registro en SOURCE_REGISTER como derivado de la misma fuente que el que lo origino. Error propio corregido por el camino: un fichero de verificacion temporal quedo sin borrar porque el rm se ejecuto desde otro directorio, y lo destaparon la frontera de producto, el typecheck y el build. Tambien se perdio un estrechamiento de tipo al mover codigo entre modulos, y se hizo explicito en vez de depender de que el compilador dedujera que throwDwgError no vuelve. Ningun flag encendido; externalOracleVerified sigue en false.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: eligió expresamente «seguir con DWG: ampliar el writer».",
+      "firstPartyInputs": [
+        "La lectura propia de decodeHatch, que es la que revela que el bloque de patron solo existe si !solidFill.",
+        "El round-trip propio del emisor a nivel de cuerpo y la medicion de punta a punta por el producto."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El binario ODA no se ejecuto en esta sesion.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/writer/ac1015-entity-emitters.ts (modulo nuevo: emisores por clase, incluido emitHatch)",
+        "packages/dwg-codec/src/writer/ac1015-entity-writer.ts (validacion, codigo de tipo y despacho de hatch)",
+        "packages/dwg-codec/src/objects/entities-complex.ts (exporta los bits de bandera de camino)",
+        "packages/dwg-codec/src/api/canonical-to-dwg.ts (enrutado condicional del hatch)",
+        "packages/dwg-codec/tests/unit/write-canonical-dwg.spec.ts (round-trip del solido y declaracion del de patron)",
+        "apps/web/src/lib/cad/dwg-native-writer.ts (preflight por instancia)",
+        "apps/web/src/lib/cad/dwg-native-writer.spec.ts (bloque 5.B)",
+        "scripts/dwg/oda-roundtrip-cases.mjs y oda-roundtrip.mjs (caso nuevo y comparador de hatch)",
+        "packages/dwg-codec/SOURCE_REGISTER.json y CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguno nuevo del corpus. El caso del oraculo se escribe con el propio writer.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Eleccion expresa del titular de ampliar el writer como fase en curso."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

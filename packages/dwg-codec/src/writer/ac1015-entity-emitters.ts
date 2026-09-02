@@ -1,0 +1,255 @@
+/**
+ * CÓMO SE DISPONE CADA CLASE de entidad AC1015 en bits — la mitad "qué campos
+ * y en qué orden" del writer.
+ *
+ * Vive aparte de `ac1015-entity-writer.ts` desde el 2026-09-01, cuando el
+ * intake del HATCH sólido empujó aquel archivo por encima del presupuesto de
+ * monolito. La costura tiene sentido propio y no es un corte por tamaño: allá
+ * queda decidir QUÉ entidad se escribe —validación, código de tipo, prólogo
+ * común, handles y envoltura—, que es igual para todas; aquí queda el saber
+ * concreto de cada clase, que es lo que cambia cuando el laboratorio aprende
+ * a escribir una más.
+ *
+ * Cada emisor es el espejo campo a campo de su decodificador en `objects/`, y
+ * el round-trip contra el lector propio es lo que los mantiene honestos.
+ */
+import type { DwgBitEmitter } from "./dwg-bit-emitter.js";
+import { throwDwgError } from "../security/parse-error.js";
+import { HATCH_PATH_POLYLINE_BIT } from "../objects/entities-complex.js";
+import type {
+  DwgEllipseEntity,
+  DwgHatchEntity,
+  DwgInsertEntity,
+  DwgLwPolylineEntity,
+  DwgMTextEntity,
+  DwgTextEntity,
+} from "../model/entity-geometry.js";
+
+/**
+ * ELLIPSE: espejo campo a campo de `decodeEllipse` — centro, eje mayor y
+ * extrusión viajan como 3BD (tres BD, NO la forma comprimida BE de LINE/ARC:
+ * el propio decodificador usa `read3BD` sin atajo), seguidos de razón de
+ * ejes, ángulo de arranque y ángulo final, los cuatro BD sueltos.
+ */
+export function emitEllipse(emitter: DwgBitEmitter, entity: DwgEllipseEntity): void {
+  emitter.emit3BD(entity.center);
+  emitter.emit3BD(entity.majorAxisEndpoint);
+  emitter.emit3BD(entity.extrusion);
+  emitter.emitBD(entity.axisRatio);
+  emitter.emitBD(entity.startAngle);
+  emitter.emitBD(entity.endAngle);
+}
+
+/**
+ * MTEXT: espejo campo a campo de `decodeMText` — inserción, extrusión y
+ * dirección del eje X como 3BD, ancho/altura/extents como BD sueltos,
+ * attachment/dirección de dibujo como BS, la cadena como TV, interlineado
+ * BS+BD y el bit final sin semántica registrada, emitido tal cual viaja en
+ * el modelo (el decodificador lo expone crudo, así que el writer lo espeja
+ * en vez de inventarle un significado).
+ */
+export function emitMText(emitter: DwgBitEmitter, entity: DwgMTextEntity): void {
+  emitter.emit3BD(entity.insertion);
+  emitter.emit3BD(entity.extrusion);
+  emitter.emit3BD(entity.xAxisDirection);
+  emitter.emitBD(entity.rectWidth);
+  emitter.emitBD(entity.height);
+  emitter.emitBS(entity.attachment);
+  emitter.emitBS(entity.drawingDirection);
+  emitter.emitBD(entity.extentsHeight);
+  emitter.emitBD(entity.extentsWidth);
+  emitter.emitTV(entity.valueBytes);
+  emitter.emitBS(entity.lineSpacingStyle);
+  emitter.emitBD(entity.lineSpacingFactor);
+  emitter.pushBit(entity.trailingBit as 0 | 1);
+}
+
+/**
+ * HATCH DE RELLENO SÓLIDO — espejo campo a campo de `decodeHatch` para el
+ * único caso que se puede escribir sin inventar nada.
+ *
+ * POR QUÉ SÓLO EL SÓLIDO. El decodificador lee el bloque de patrón —ángulo,
+ * escala, doble trama y las líneas de definición con sus trazos— SÓLO cuando
+ * `solidFill` es falso. Un relleno sólido salta ese bloque entero, así que
+ * todo lo que el cuerpo necesita está en los contornos y en un puñado de
+ * banderas. Un HATCH con patrón exigiría deducir esa definición de los
+ * contornos, y no se deduce: `validateEntity` lo rechaza y quien llama
+ * declara la pérdida.
+ *
+ * `pixelSize` NO se emite: sólo existe cuando algún camino trae el bit
+ * DERIVADO, y este writer no emite caminos derivados. Emitirlo «por si acaso»
+ * desplazaría todos los bits siguientes.
+ */
+export function emitHatch(emitter: DwgBitEmitter, entity: DwgHatchEntity): void {
+  emitter.emitBD(entity.elevation);
+  emitter.emit3BD(entity.extrusion);
+  emitter.emitTV(entity.nameBytes);
+  emitter.pushBit(1); // solidFill: garantizado por validateEntity
+  emitter.pushBit(entity.associative ? 1 : 0);
+  emitter.emitBL(entity.paths.length);
+  for (const path of entity.paths) {
+    if (path.kind !== "polyline") {
+      // Inalcanzable por construcción —`canonicalDocumentToDwgEntities` sólo
+      // arma caminos polilínea— y aun así se falla cerrado en vez de emitir
+      // una forma que el lector interpretaría como otra cosa. El `continue`
+      // tras el throw no se ejecuta nunca: está para que el estrechamiento de
+      // tipo sea EXPLÍCITO y no dependa de que el compilador deduzca que
+      // `throwDwgError` no vuelve.
+      throwDwgError(
+        "DWG_VERSION_DECODER_UNSUPPORTED",
+        "unsupported",
+        0,
+        "Writing a HATCH boundary made of line/arc/spline segments is not implemented.",
+      );
+      continue;
+    }
+    // `hasBulges` es UNA bandera para todo el camino, y el lector, si está
+    // encendida, espera un BD DETRÁS DE CADA vértice. Se decide una sola vez
+    // aquí y se respeta en todo el bucle: encenderla y luego saltarse un
+    // bulge desplazaría todos los bits siguientes.
+    const bulges = path.bulges ?? [];
+    const hasBulges = bulges.length > 0;
+    emitter.emitBL(path.flags | HATCH_PATH_POLYLINE_BIT);
+    emitter.pushBit(hasBulges ? 1 : 0);
+    emitter.pushBit(path.closed ? 1 : 0);
+    emitter.emitBL(path.vertices.length);
+    for (const [index, vertex] of path.vertices.entries()) {
+      emitter.emitRD(vertex.x);
+      emitter.emitRD(vertex.y);
+      if (hasBulges) emitter.emitBD(bulges[index] ?? 0);
+    }
+    emitter.emitBL(path.boundaryObjectCount);
+  }
+  emitter.emitBS(entity.style);
+  emitter.emitBS(entity.patternType);
+  emitter.emitBL(entity.seedPoints.length);
+  for (const seed of entity.seedPoints) {
+    emitter.emitRD(seed.x);
+    emitter.emitRD(seed.y);
+  }
+}
+
+/**
+ * INSERT: inserción 3BD y la doble bandada de escalas — este writer emite
+ * SOLO sus formas totales, 0b11 (las tres escalas exactamente 1.0, bit a
+ * bit) o 0b00 (X como RD y las Y/Z como DD contra la X); las formas 0b01 y
+ * 0b10 son compresión que el lector ya acepta, como con DD. Después la
+ * rotación BD, la extrusión 3BD — hecho 3 del intake 2026-08-20: los 6
+ * INSERT reales desmintieron la BE que declaraba la ODS, y writer y lector
+ * se corrigieron JUNTOS — y el bit de ATTRIBs (siempre 0 aquí: emitir
+ * ATTRIBs queda declarado pendiente y el writer falla cerrado si el modelo
+ * lo pide).
+ */
+export function emitInsert(emitter: DwgBitEmitter, entity: DwgInsertEntity): void {
+  emitter.emitBD(entity.position.x);
+  emitter.emitBD(entity.position.y);
+  emitter.emitBD(entity.position.z);
+  const { x, y, z } = entity.scale;
+  if (Object.is(x, 1) && Object.is(y, 1) && Object.is(z, 1)) {
+    emitter.pushBits(0b11, 2);
+  } else {
+    emitter.pushBits(0b00, 2);
+    emitter.emitRD(x);
+    emitter.emitDD(y, x);
+    emitter.emitDD(z, x);
+  }
+  emitter.emitBD(entity.rotation);
+  emitter.emitBD(entity.extrusion.x);
+  emitter.emitBD(entity.extrusion.y);
+  emitter.emitBD(entity.extrusion.z);
+  emitter.pushBit(0); // sin ATTRIBs: pendiente declarado de la fase D4
+}
+
+/**
+ * LWPOLYLINE: la bandera BS se DERIVA de la presencia de cada campo del
+ * modelo (`undefined` = el archivo no lo lleva), los opcionales presentes se
+ * emiten en el orden del formato y los vértices tras el primero viajan como
+ * 2DD contra el anterior — el atajo DD sólo con igualdad exacta de bits, como
+ * en el resto del writer.
+ */
+export function emitLwPolyline(
+  emitter: DwgBitEmitter,
+  entity: DwgLwPolylineEntity,
+): void {
+  let flags = 0;
+  if (entity.extrusion !== undefined) flags |= 0x1;
+  if (entity.thickness !== undefined) flags |= 0x2;
+  if (entity.constantWidth !== undefined) flags |= 0x4;
+  if (entity.elevation !== undefined) flags |= 0x8;
+  if (entity.bulges !== undefined) flags |= 0x10;
+  if (entity.widths !== undefined) flags |= 0x20;
+  if (entity.closed) flags |= 0x200;
+  emitter.emitBS(flags);
+
+  if (entity.constantWidth !== undefined) emitter.emitBD(entity.constantWidth);
+  if (entity.elevation !== undefined) emitter.emitBD(entity.elevation);
+  if (entity.thickness !== undefined) emitter.emitBD(entity.thickness);
+  if (entity.extrusion !== undefined) emitter.emitBE(entity.extrusion);
+
+  emitter.emitBL(entity.vertices.length);
+  if (entity.bulges !== undefined) emitter.emitBL(entity.bulges.length);
+  if (entity.widths !== undefined) emitter.emitBL(entity.widths.length);
+
+  const first = entity.vertices[0]!;
+  emitter.emitRD(first.x);
+  emitter.emitRD(first.y);
+  for (let index = 1; index < entity.vertices.length; index += 1) {
+    const vertex = entity.vertices[index]!;
+    const previous = entity.vertices[index - 1]!;
+    emitter.emitDD(vertex.x, previous.x);
+    emitter.emitDD(vertex.y, previous.y);
+  }
+
+  if (entity.bulges !== undefined) {
+    for (const bulge of entity.bulges) {
+      emitter.emitBD(bulge);
+    }
+  }
+  if (entity.widths !== undefined) {
+    for (const width of entity.widths) {
+      emitter.emitBD(width.start);
+      emitter.emitBD(width.end);
+    }
+  }
+}
+
+/**
+ * TEXT: el RC de banderas se DERIVA de la presencia — un bit a 1 declara el
+ * campo AUSENTE, así que cada `undefined` del modelo enciende su bit y no
+ * emite nada. La alineación viaja como 2DD contra la inserción y la cadena
+ * como TV de bytes crudos.
+ */
+export function emitText(emitter: DwgBitEmitter, entity: DwgTextEntity): void {
+  let dataFlags = 0;
+  if (entity.elevation === undefined) dataFlags |= 0x01;
+  if (entity.alignment === undefined) dataFlags |= 0x02;
+  if (entity.obliqueAngle === undefined) dataFlags |= 0x04;
+  if (entity.rotation === undefined) dataFlags |= 0x08;
+  if (entity.widthFactor === undefined) dataFlags |= 0x10;
+  if (entity.generation === undefined) dataFlags |= 0x20;
+  if (entity.horizontalAlignment === undefined) dataFlags |= 0x40;
+  if (entity.verticalAlignment === undefined) dataFlags |= 0x80;
+  emitter.emitRC(dataFlags);
+
+  if (entity.elevation !== undefined) emitter.emitRD(entity.elevation);
+  emitter.emitRD(entity.insertion.x);
+  emitter.emitRD(entity.insertion.y);
+  if (entity.alignment !== undefined) {
+    emitter.emitDD(entity.alignment.x, entity.insertion.x);
+    emitter.emitDD(entity.alignment.y, entity.insertion.y);
+  }
+  emitter.emitBE(entity.extrusion);
+  emitter.emitBT(entity.thickness);
+  if (entity.obliqueAngle !== undefined) emitter.emitRD(entity.obliqueAngle);
+  if (entity.rotation !== undefined) emitter.emitRD(entity.rotation);
+  emitter.emitRD(entity.height);
+  if (entity.widthFactor !== undefined) emitter.emitRD(entity.widthFactor);
+  emitter.emitTV(entity.valueBytes);
+  if (entity.generation !== undefined) emitter.emitBS(entity.generation);
+  if (entity.horizontalAlignment !== undefined) {
+    emitter.emitBS(entity.horizontalAlignment);
+  }
+  if (entity.verticalAlignment !== undefined) {
+    emitter.emitBS(entity.verticalAlignment);
+  }
+}

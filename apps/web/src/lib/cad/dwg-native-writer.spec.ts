@@ -340,9 +340,59 @@ const mixedDocument = baseDocument([
   );
 }
 
+// ─── 5.B: el HATCH viaja por INSTANCIA, no por tipo ───────────────────────
+// El sólido se escribe; el de patrón no, porque el canónico lleva el nombre
+// del patrón pero no su definición. Eso rompe el preflight por TIPO que valía
+// hasta ahora: un conjunto de clases tendría que mentir en una de las dos
+// direcciones —prometer sombreados con patrón que luego se pierden, o dar por
+// perdidos los sólidos que sí viajan—, y el preflight existe justamente para
+// que la pérdida no sorprenda DESPUÉS.
+{
+  const contorno = [
+    { x: 0, y: 0 },
+    { x: 10, y: 0 },
+    { x: 10, y: 6 },
+    { x: 0, y: 6 },
+  ];
+  const conSombreados: CadDocument = {
+    ...baseDocument([]),
+    entities: [
+      { id: "h1", type: "hatch", pattern: "SOLID", solid: true, boundaries: [contorno], layer: "0" } as never,
+      { id: "h2", type: "hatch", pattern: "ANSI31", solid: false, boundaries: [contorno], layer: "0" } as never,
+    ],
+    modelSpace: { entityIds: ["h1", "h2"] },
+  };
+
+  const preflight = preflightCadDwgExport(conSombreados);
+  assert.equal(preflight.writableCount, 1, "el preflight cuenta el sólido como escribible");
+  assert.equal(
+    preflight.unwritableByType["hatch"],
+    1,
+    "y el de patrón como perdido, en el mismo documento y el mismo tipo",
+  );
+
+  const exportado = exportCadDocumentToDwg(conSombreados, {
+    betaFlagOn: true,
+    gates: ORACLE_PASSED,
+  });
+  assert.equal(exportado.estado, "exito_con_perdidas");
+  const leido = readDwg(exportado.bytes);
+  const sombreados = leido.modelSpaceEntities.filter((r) => r.entity.kind === "hatch");
+  assert.equal(sombreados.length, 1, "sólo el sólido llega al archivo");
+  const h = sombreados[0]?.entity;
+  if (h?.kind !== "hatch") throw new Error("inalcanzable");
+  assert.equal(h.solidFill, true);
+  assert.equal(h.paths[0]?.kind === "polyline" ? h.paths[0].vertices.length : 0, 4);
+  assert.ok(
+    exportado.manifiestoDePerdidas.some((p) => p.code === "hatch-pattern-not-writable"),
+    "y el de patrón se nombra en el manifiesto que ve el usuario",
+  );
+}
+
 console.log(
   "dwg-native-writer.spec: gate cerrado hasta el oráculo, round-trip íntegro, " +
     "pérdidas con nombre, la frontera de ángulo documento↔DWG a 37,5° y el estado " +
     "y el tipo de línea de cada capa llegando al archivo exportado, más la ELIPSE " +
-    "escrita con su arco convertido a radianes y su extrusión declarada",
+    "escrita con su arco convertido a radianes y su extrusión declarada, y el " +
+    "SOMBREADO sólido viajando mientras el de patrón se declara — por instancia, no por tipo",
 );

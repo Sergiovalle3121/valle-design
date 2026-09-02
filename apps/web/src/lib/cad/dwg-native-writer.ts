@@ -87,7 +87,34 @@ export const DWG_EXPORT_WRITABLE_TYPES = new Set([
   "text",
   "insert",
   "ellipse",
+  // `hatch` entra por INSTANCIA, no por tipo: ver `cadEntityIsDwgWritable`.
+  // El sólido viaja; el de patrón se declara. Aparece en el conjunto para que
+  // la lista siga siendo la única fuente de «qué clases toca el writer», y el
+  // predicado es quien decide el caso concreto.
+  "hatch",
 ]);
+
+/**
+ * ¿Viajará ESTA entidad, no su tipo?
+ *
+ * Hasta el 2026-09-01 el preflight preguntaba sólo por el TIPO, y bastaba
+ * porque cada clase era escribible entera o nada. El HATCH rompe eso: el de
+ * relleno SÓLIDO se escribe y el de PATRÓN no, porque el documento canónico
+ * lleva el nombre del patrón pero no su definición —ángulo, escala y líneas
+ * con sus trazos—, y esa definición no se deduce de los contornos.
+ *
+ * Un conjunto por tipo tendría que mentir en una de las dos direcciones:
+ * incluir `hatch` prometería exportar sombreados con patrón que luego se
+ * declaran perdidos, y excluirlo daría por perdidos los sólidos que sí
+ * viajan. El preflight existe justamente para que la pérdida NO sorprenda
+ * después, así que pregunta por la instancia.
+ */
+export function cadEntityIsDwgWritable(
+  entity: CadDocument["entities"][number],
+): boolean {
+  if (entity.type === "hatch") return entity.solid === true;
+  return DWG_EXPORT_WRITABLE_TYPES.has(entity.type);
+}
 
 export interface CadDwgExportPreflight {
   /** Cuántas entidades del documento caen dentro del subconjunto §8.1. */
@@ -118,7 +145,7 @@ export function preflightCadDwgExport(
   let writableCount = 0;
   const unwritableByType: Record<string, number> = {};
   for (const entity of document.entities) {
-    if (DWG_EXPORT_WRITABLE_TYPES.has(entity.type)) writableCount += 1;
+    if (cadEntityIsDwgWritable(entity)) writableCount += 1;
     else unwritableByType[entity.type] = (unwritableByType[entity.type] ?? 0) + 1;
   }
   return { writableCount, unwritableByType };
