@@ -32,7 +32,11 @@
  */
 import * as THREE from "three";
 import type { CadBounds } from "../entity-runtime";
-import type { CadPoint2 } from "../cad-document";
+import type { CadPoint2, CadPoint3 } from "../cad-document";
+import { isCadWorldUcs, type CadNamedUcs } from "../ucs";
+import { cadRayPlanePoint } from "../infer/inference-engine";
+import { cadSceneRayToDrawing } from "../pick3d/scene-ray";
+
 import { cadWorldToleranceFromView } from "../precision-tracking";
 import {
   cadViewBounds,
@@ -59,6 +63,22 @@ import {
   type CadVec3,
 } from "./view-3d";
 import type { CadProjectedPoint, CadSolidSnapProjector } from "./solid-snap";
+
+/**
+ * Un punto de dibujo que PUEDE traer cota.
+ *
+ * Bajo el SCU universal no la trae, y eso es deliberado, no un olvido: los
+ * comandos espaciales pasan el objeto del punto tal cual a la entidad que
+ * escriben, así que añadir `z: 0` a cada punto del ratón cambiaría los bytes de
+ * todo documento dibujado a mano. Con un SCU inclinado la cota SÍ viene, porque
+ * ahí es el dato que distingue un trazo sobre la fachada de un trazo en el
+ * suelo.
+ *
+ * El tipo lo dice en voz alta a propósito. La alternativa —devolver `CadPoint2`
+ * y colar la `z` por tipado estructural— es exactamente el mecanismo por el que
+ * `LINE` era «espacial» sin que nadie lo hubiera decidido.
+ */
+export type CadDrawingPoint = CadPoint2 | CadPoint3;
 
 export interface CadDrawingTransform {
   /** Unidades de escena por unidad de dibujo (`s` en el editor). */
@@ -553,14 +573,67 @@ export class CadViewController {
    * Punto de dibujo bajo un píxel del lienzo.
    *
    * En 2D es aritmética exacta y no toca THREE. En 3D no hay forma cerrada: hay
-   * que lanzar un rayo contra el plano del suelo, que es lo que se hace.
+   * que lanzar un rayo contra el PLANO DE TRABAJO, que es lo que se hace.
+   *
+   * ## Por qué esto no era así, y qué costaba
+   *
+   * Hasta ahora el rayo se cruzaba siempre contra el plano del SUELO, escrito a
+   * fuego. Con un SCU apoyado en una fachada, eso significaba que un arquitecto
+   * dibujaba una línea con dos clics **sobre la fachada** y el trazo aparecía en
+   * el suelo, sin aviso: medido en el navegador con el SCU en `(6000, 7500,
+   * 1500)` y eje Z `(0,1,0)`, la línea guardada salía
+   * `{start:{x:6000,y:5000,z:0}, end:{x:5613.69,y:7500,z:0}}` — el primer punto
+   * es el centro de la huella en el suelo, ni siquiera está sobre el sólido.
+   *
+   * Y era peor de lo que parece. El motor FALLA EN CERRADO ante un SCU
+   * inclinado para los comandos que no se declaran `spatial`
+   * (`command-engine.ts`), así que a casi todos les habría dicho que no. Pero
+   * `LINE` sí se declara espacial —conserva la cota del punto que recibe—, de
+   * modo que aceptaba de buena fe un punto que venía del suelo. El único
+   * comando que sabía dibujar fuera del plano era el único capaz de producir
+   * geometría equivocada en silencio.
+   *
+   * ## El SCU universal no cambia ni un bit
+   *
+   * El camino de siempre se conserva TAL CUAL para el SCU universal, y no por
+   * prudencia difusa: `intersectPlane` de THREE y `cadRayPlanePoint` resuelven
+   * la misma intersección con aritmética distinta, y una diferencia en el
+   * último bit movería el punto imantado en los goldens, que corren en 3D. El
+   * 99 % del trabajo es el SCU universal; ese camino queda intacto por
+   * construcción, no por un ajuste de tolerancia.
+   *
+   * Tampoco se le añade `z: 0` al punto del caso universal, aunque sería cierto:
+   * los comandos espaciales pasan el objeto del punto TAL CUAL a la entidad, así
+   * que una `z` de más cambiaría los bytes de todo documento dibujado a mano.
+   * La cota aparece sólo cuando hay cota que dar.
    */
-  screenToWorld(offsetX: number, offsetY: number): CadPoint2 | null {
+  screenToWorld(
+    offsetX: number,
+    offsetY: number,
+    plane?: CadNamedUcs,
+  ): CadDrawingPoint | null {
     if (this.current.mode === "2d") return cadViewScreenToWorld(this.current, offsetX, offsetY);
     const view = this.current;
     if (!(view.widthPx > 0) || !(view.heightPx > 0)) return null;
     this.ndc.set((offsetX / view.widthPx) * 2 - 1, -(offsetY / view.heightPx) * 2 + 1);
     this.raycaster.setFromCamera(this.ndc, this.perspective);
+    if (plane && !isCadWorldUcs(plane)) {
+      // El rayo de la ESCENA pasa a coordenadas de DIBUJO —el eje Y del dibujo
+      // es el Z de la escena y su Z es el Y— con el módulo que ya existe para
+      // designar caras, en vez de repetir aquí esa conversión. El SCU vive en
+      // coordenadas de dibujo, así que la intersección se resuelve ahí.
+      const rayo = cadSceneRayToDrawing(
+        {
+          origin: this.raycaster.ray.origin,
+          direction: this.raycaster.ray.direction,
+        },
+        { s: this.transform.scale, W: this.transform.width, H: this.transform.height },
+      );
+      // `null` cuando el rayo es paralelo al plano de trabajo o el plano queda a
+      // la espalda de la cámara. Devolverlo es lo correcto: un punto inventado
+      // ahí caería a kilómetros de donde el usuario está mirando.
+      return cadRayPlanePoint(rayo, plane);
+    }
     if (!this.raycaster.ray.intersectPlane(this.floorPlane, this.hit)) return null;
     return {
       x: this.hit.x / this.transform.scale + this.transform.width / 2,

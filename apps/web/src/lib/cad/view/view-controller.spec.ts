@@ -14,6 +14,7 @@ import * as THREE from "three";
 import type { CadPoint2 } from "../cad-document";
 import { cadViewBounds, cadViewFromViewport, cadViewWorldToScreen, type CadView } from "./cad-view";
 import { CadViewController } from "./view-controller";
+import { CAD_WORLD_UCS, cadUcsFromPlane, type CadNamedUcs } from "../ucs";
 
 const WIDTH_PX = 1600;
 const HEIGHT_PX = 900;
@@ -216,6 +217,134 @@ function controllerAt(view: Partial<CadView>): CadViewController {
   stop();
   controller.setView({ ...controller.view, centerX: 2 });
   assert.equal(calls, 2, "tras darse de baja ya no llega nada");
+}
+
+// --- el plano de trabajo deja de ser el suelo -------------------------------
+//
+// La prueba que decide si esto sirve: con un SCU apoyado en una FACHADA, el
+// punto bajo el cursor tiene que caer EN ESA FACHADA, no en el suelo. Se
+// comprueba contra la ecuación del plano —producto escalar con su normal— y no
+// contra un número calculado a mano, que sería comprobar la fórmula consigo
+// misma.
+{
+  const controller = controllerAt({});
+  controller.setMode("3d");
+  controller.perspective.position.set(0, 400, 400);
+  controller.perspective.lookAt(0, 0, 0);
+  controller.perspective.updateMatrixWorld();
+
+  // 1. El SCU universal no cambia ni un bit. Se compara el resultado SIN pasar
+  //    plano contra el de pasar el universal explícitamente: tienen que ser el
+  //    MISMO objeto punto, dígito a dígito, porque es el mismo camino.
+  const sinPlano = controller.screenToWorld(WIDTH_PX / 2, HEIGHT_PX / 2);
+  const conUniversal = controller.screenToWorld(
+    WIDTH_PX / 2,
+    HEIGHT_PX / 2,
+    CAD_WORLD_UCS,
+  );
+  assert.ok(sinPlano && conUniversal, "los dos caminos dan punto");
+  assert.equal(
+    (sinPlano as CadPoint2).x,
+    (conUniversal as CadPoint2).x,
+    "el SCU universal recorre el camino de siempre, sin desviarse ni en el último bit",
+  );
+  assert.equal(
+    (sinPlano as CadPoint2).y,
+    (conUniversal as CadPoint2).y,
+    "y lo mismo en Y",
+  );
+  // Y NO trae cota: añadir `z: 0` cambiaría los bytes de todo documento
+  // dibujado a mano, porque los comandos espaciales pasan el punto tal cual.
+  assert.equal(
+    (sinPlano as { z?: number }).z,
+    undefined,
+    "bajo el SCU universal el punto no inventa una cota",
+  );
+
+  // 2. Un SCU apoyado en una FACHADA: plano vertical, normal +Y del dibujo.
+  //    Es el caso del defecto medido en el navegador.
+  const fachada = cadUcsFromPlane(
+    "FACHADA",
+    { x: 6000, y: 7500, z: 1500 },
+    { x: 0, y: 1, z: 0 },
+    { x: 1, y: 0, z: 0 },
+  );
+  assert.ok(fachada.ok, "el marco de la fachada se construye");
+  const enFachada = controller.screenToWorld(
+    WIDTH_PX / 2,
+    HEIGHT_PX / 2,
+    (fachada as { ok: true; ucs: CadNamedUcs }).ucs,
+  );
+  assert.ok(enFachada, "con el SCU en la fachada también hay punto");
+  const p = enFachada as { x: number; y: number; z?: number };
+  assert.equal(typeof p.z, "number", "y ese punto SÍ trae cota: está fuera del suelo");
+  // La comprobación de verdad: el punto satisface la ecuación del plano.
+  // (p - origen) · normal = 0, con la normal del propio marco.
+  const ucs = (fachada as { ok: true; ucs: CadNamedUcs }).ucs;
+  const d = {
+    x: p.x - ucs.origin.x,
+    y: p.y - ucs.origin.y,
+    z: (p.z as number) - ucs.origin.z,
+  };
+  const fuera = d.x * ucs.zAxis.x + d.y * ucs.zAxis.y + d.z * ucs.zAxis.z;
+  assert.ok(
+    Math.abs(fuera) <= 1e-6,
+    `el punto está EN el plano de la fachada (distancia ${fuera})`,
+  );
+  // Y no es el mismo punto que daba el suelo: si lo fuera, el arreglo no hace
+  // nada. El defecto medido era exactamente que salían iguales.
+  assert.ok(
+    Math.abs(p.y - (sinPlano as CadPoint2).y) > 1,
+    "el punto de la fachada NO es el que daba el plano del suelo",
+  );
+
+  // 3. Un plano PARALELO al rayo no tiene intersección, y eso se dice con
+  //    `null` en vez de con un punto a kilómetros.
+  const canto = cadUcsFromPlane(
+    "CANTO",
+    { x: 0, y: 0, z: 0 },
+    // Normal perpendicular a la dirección de la cámara (que mira hacia -Z de la
+    // escena, es decir hacia -Y del dibujo, y hacia abajo).
+    { x: 1, y: 0, z: 0 },
+    { x: 0, y: 1, z: 0 },
+  );
+  assert.ok(canto.ok, "el marco del canto se construye");
+  const rayoCentral = controller.screenToWorld(
+    WIDTH_PX / 2,
+    HEIGHT_PX / 2,
+    (canto as { ok: true; ucs: CadNamedUcs }).ucs,
+  );
+  // El rayo central sí corta este plano (no es paralelo); lo que se comprueba
+  // es que, corte donde corte, cae EN él.
+  if (rayoCentral) {
+    const q = rayoCentral as { x: number; y: number; z?: number };
+    const u = (canto as { ok: true; ucs: CadNamedUcs }).ucs;
+    const dd = {
+      x: q.x - u.origin.x,
+      y: q.y - u.origin.y,
+      z: (q.z ?? 0) - u.origin.z,
+    };
+    const fueraCanto = dd.x * u.zAxis.x + dd.y * u.zAxis.y + dd.z * u.zAxis.z;
+    assert.ok(
+      Math.abs(fueraCanto) <= 1e-6,
+      `el punto del canto está en su plano (distancia ${fueraCanto})`,
+    );
+  }
+
+  // 4. En 2D el plano de trabajo no se consulta: ese camino es aritmética
+  //    exacta y no toca THREE. Pasar un SCU inclinado no debe desviarlo.
+  controller.setMode("2d");
+  const dosD = controller.screenToWorld(WIDTH_PX / 2, HEIGHT_PX / 2);
+  const dosDconPlano = controller.screenToWorld(
+    WIDTH_PX / 2,
+    HEIGHT_PX / 2,
+    (fachada as { ok: true; ucs: CadNamedUcs }).ucs,
+  );
+  assert.ok(dosD && dosDconPlano, "en 2D hay punto");
+  assert.ok(
+    pointNear(dosD as CadPoint2, dosDconPlano as CadPoint2, 0),
+    "en 2D el plano de trabajo no cambia nada: es el mismo camino cerrado",
+  );
 }
 
 console.log("cad view controller specs passed");

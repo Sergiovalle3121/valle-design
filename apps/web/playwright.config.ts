@@ -40,7 +40,11 @@ export default defineConfig({
   // lista SÓLO ENCOJA. Cuando un defecto se arregla, su spec no se borra: se
   // GRADÚA a `e2e/golden/` y pasa a defender el arreglo. Ver el README de esa
   // carpeta.
-  testIgnore: ["auditoria/**"],
+  // `E2E_AUDITORIA=1` las incluye, para poder correrlas a mano —que es lo que
+  // manda su README—. Sin esa variable no existen para Playwright, y sin esta
+  // puerta tampoco existirían para quien va a arreglarlas: una carpeta que no se
+  // puede correr no es un backlog ejecutable, es un archivo muerto.
+  testIgnore: process.env.E2E_AUDITORIA === "1" ? [] : ["auditoria/**"],
   outputDir: "./e2e/.test-results",
   fullyParallel: false,
   forbidOnly: !!process.env.CI,

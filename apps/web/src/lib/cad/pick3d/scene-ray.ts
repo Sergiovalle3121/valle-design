@@ -113,14 +113,25 @@ export function cadFacePickerFor(deps: {
  * podía probar sin montar un lienzo.
  */
 export function cadHonorSnapOverride<TSnap extends string>(
-  resolved: { x: number; y: number; snap?: TSnap },
-  raw: { x: number; y: number },
+  resolved: { x: number; y: number; z?: number; snap?: TSnap },
+  raw: { x: number; y: number; z?: number },
   override: readonly TSnap[] | null,
-): { point: { x: number; y: number }; snap?: TSnap } {
+): { point: { x: number; y: number; z?: number }; snap?: TSnap } {
   const snap = resolved.snap;
   if (override && override.length > 0 && (!snap || !override.includes(snap)))
     return { point: raw };
-  return { point: { x: resolved.x, y: resolved.y }, ...(snap ? { snap } : {}) };
+  // La cota VIAJA, y la propiedad se OMITE cuando no la hay. Las dos mitades
+  // importan: sin la primera, un trazo sobre una fachada se guarda en el suelo;
+  // sin la segunda, todo punto del ratón bajo el SCU universal ganaría un
+  // `z: 0` que acabaría en la entidad y cambiaría los bytes de cada documento
+  // dibujado a mano.
+  return {
+    point:
+      resolved.z === undefined
+        ? { x: resolved.x, y: resolved.y }
+        : { x: resolved.x, y: resolved.y, z: resolved.z },
+    ...(snap ? { snap } : {}),
+  };
 }
 
 /**

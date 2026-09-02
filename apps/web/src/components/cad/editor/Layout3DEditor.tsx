@@ -456,6 +456,7 @@ import {
   propagateCadConstraintsByDiff,
 } from "@/lib/cad/constraint-propagation";
 import { CadViewController } from "@/lib/cad/view/view-controller";
+import { cadDrawingPoint, cadDrawingPointOrNull, cadPointerWorldFromRay } from "@/lib/cad/view/pointer-work-plane";
 import {
   snapshotCadCamera,
   type CadCameraSnapshot,
@@ -6397,8 +6398,8 @@ export default function Layout3DEditor({
       ptr.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       ptr.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
     };
-    /** World (x,y) of the floor point under the pointer, or null. */
-    const floorWorld = (e: PointerEvent): { wx: number; wy: number } | null => {
+    /** Punto bajo el puntero sobre el PLANO DE TRABAJO; `wz` si está inclinado. */
+    const floorWorld = (e: PointerEvent): { wx: number; wy: number; wz?: number } | null => {
       setPtr(e);
       if (viewController.mode === "2d") {
         // Aritmética exacta: ni rayo, ni plano, ni escorzo.
@@ -6413,9 +6414,8 @@ export default function Layout3DEditor({
       // el NDC debe salir del rectángulo real del lienzo, no de un tamaño
       // cacheado que puede ir un frame por detrás.
       raycaster.setFromCamera(ptr, activeCamera());
-      if (!raycaster.ray.intersectPlane(floorPlane, hit)) return null;
-      const ctx = ctxRef.current!;
-      return { wx: hit.x / ctx.s + ctx.W / 2, wy: hit.z / ctx.s + ctx.H / 2 };
+      const w = commandEngineRef.current?.workPlane ?? null;
+      return cadPointerWorldFromRay(raycaster.ray, ctxRef.current!, w);
     };
     /**
      * OSNAP de escena completa (Fase 66 cableada, ADR §216): esquinas, puntos
@@ -6439,9 +6439,11 @@ export default function Layout3DEditor({
       wx: number,
       wy: number,
       acquire = false,
+      /** Cota del cursor; sobrevive si ningún enganche 2D la sustituye. */ wz?: number,
     ): {
       wx: number;
       wy: number;
+      wz?: number;
       onDxf: boolean;
       snapType?: SnapType;
       tracking?: "object" | "polar" | "ortho";
@@ -6566,7 +6568,7 @@ export default function Layout3DEditor({
             trackingAngle: tracked.angle,
           };
       }
-      return { wx: snapWorld(wx), wy: snapWorld(wy), onDxf: false };
+      return { wx: snapWorld(wx), wy: snapWorld(wy), wz, onDxf: false };
     };
     const showSnapMarker = (wx: number | null, wy?: number) => {
       const m = snapMarkerRef.current;
@@ -6601,16 +6603,14 @@ export default function Layout3DEditor({
       host: commandEngineRef.current!,
       preview: enginePreview,
       cursor: engineLiveCursor,
-      worldPoint: (event) => {
-        const world = floorWorld(event as PointerEvent);
-        return world ? { x: world.wx, y: world.wy } : null;
-      },
+      worldPoint: (event) => cadDrawingPointOrNull(floorWorld(event as PointerEvent)),
       // La captura la resuelve `snapFloor`, con los catorce modos ya
       // implementados. El motor no sabe de snaps: los pide por paso y aquí se
       // le devuelve el punto ya capturado junto con el modo que ganó.
       snap: (point, override) => {
-        const r = snapFloor(point.x, point.y, true);
-        return cadHonorSnapOverride({ x: r.wx, y: r.wy, snap: r.snapType }, point, override);
+        const r = snapFloor(point.x, point.y, true, (point as { z?: number }).z);
+        const p = { ...cadDrawingPoint(r.wx, r.wy, r.wz), snap: r.snapType };
+        return cadHonorSnapOverride(p, point, override);
       },
       hitEntity: (point) => hitCanonical(point, 1)[0]?.id ?? null,
       hitFace: cadFacePickerFor({
