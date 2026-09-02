@@ -225,9 +225,77 @@ assert.equal(
   "las capas que sí traen tipo de línea no generan ruido en el manifiesto",
 );
 
+// ─── Fase 2.G: la capa "0" del ARCHIVO manda sobre el respaldo sintético ──
+// Hasta el 2026-09-01 `mapLayers` sembraba `seen` con "0" y anteponía una capa
+// "0" sintética de ACI 7. La capa "0" REAL del archivo entraba en el bucle y
+// se descartaba entera —color, estado y tipo de línea— SIN declarar ni una
+// pérdida: el manifiesto no decía nada porque el dato no faltaba, se tiraba.
+// Medido sobre el corpus: los 57 fixtures traen capa "0" con tipo de línea
+// resuelto (CONTINUOUS ×27, Continuous ×30) y los 57 lo perdían en silencio.
+// Ninguno trae la capa "0" con color distinto de ACI 7 ni congelada, así que
+// esa mitad de la pérdida es ALCANZABLE y no medida — y se prueba aquí.
+const conCeroReal: DwgNeutralDatabase = {
+  ...base,
+  layers: [
+    capa(0x10, "0", 5, { frozen: true, linetypeName: "TRAZOS" }),
+    capa(0x11, "MUROS", 1),
+  ],
+};
+const informeCero = dwgNeutralDatabaseToCadDocument(conCeroReal);
+const capasCero = informeCero.document.layers.filter((layer) => layer.id === "0");
+assert.equal(capasCero.length, 1, "el documento lleva UNA capa 0, no el respaldo y la real");
+assert.equal(
+  informeCero.document.layers[0]?.id,
+  "0",
+  "y sigue siendo la primera: hay código que cuenta con que exista",
+);
+assert.equal(capasCero[0]?.color, "#0000ff", "con el color del ARCHIVO (ACI 5), no el ACI 7 supuesto");
+assert.equal(capasCero[0]?.frozen, true, "con el estado del archivo, no descongelada por omisión");
+assert.equal(capasCero[0]?.linetype, "TRAZOS", "y con su tipo de línea, que era lo que perdían los 57");
+
+// El respaldo SIGUE existiendo cuando el archivo no trae capa "0": la mitad
+// que hay que no romper. Sin esto, toda entidad cuya capa no resuelve —que el
+// puente manda a "0"— apuntaría a una capa que no está en el documento.
+const sinCero: DwgNeutralDatabase = { ...base, layers: [capa(0x10, "MUROS", 1)] };
+const informeSinCero = dwgNeutralDatabaseToCadDocument(sinCero);
+const respaldo = informeSinCero.document.layers.find((layer) => layer.id === "0");
+assert.equal(respaldo?.color, "#ffffff", "sin capa 0 en el archivo, el respaldo sintético usa ACI 7");
+assert.equal(respaldo?.linetype, undefined, "y no afirma un tipo de línea que nadie dijo");
+
+// ─── Fase 2.G: el color que NO se decodificó se DECLARA ───────────────────
+// El comentario del puente afirmaba desde siempre que esta pérdida constaba
+// en el manifiesto. No constaba en ninguna parte: el gris neutro se pintaba y
+// el usuario no se enteraba. El corpus no ejerce este camino —131 capas, las
+// 131 con color—, así que esto cierra un camino alcanzable, no medido.
+const sinColor: DwgNeutralDatabase = {
+  ...base,
+  layers: [{ ...capa(0x10, "MUROS", 1), colorIndex: undefined }],
+};
+const informeSinColor = dwgNeutralDatabaseToCadDocument(sinColor);
+assert.equal(
+  informeSinColor.document.layers.find((layer) => layer.id === "MUROS")?.color,
+  "#8a8f98",
+  "sin color decodificado se pinta un gris que NO es ACI, para que se vea que no es del archivo",
+);
+assert.ok(
+  informeSinColor.document.lossManifest.some(
+    (entry) => entry.code === DWG_BRIDGE_LOSS_CODES.layerColor && entry.detail.includes("MUROS"),
+  ),
+  "y ahora SE DICE, con el nombre de la capa dentro",
+);
+assert.equal(
+  informeCero.document.lossManifest.filter(
+    (entry) => entry.code === DWG_BRIDGE_LOSS_CODES.layerColor,
+  ).length,
+  0,
+  "las capas que sí traen color no generan ruido en el manifiesto",
+);
+
 console.log(
   "dwg-document-bridge-layer-state: una capa CONGELADA entra congelada (y por tanto no se " +
     "dibuja) sin marcarse apagada, una BLOQUEADA entra bloqueada, sin estado decodificado no se " +
     "inventa ninguno, los bits fuera de lo medido se nombran en el manifiesto, y el TIPO DE " +
-    "LÍNEA de la capa llega al documento o se declara ausente sin suponer CONTINUOUS",
+    "LÍNEA de la capa llega al documento o se declara ausente sin suponer CONTINUOUS; la capa " +
+    "0 REAL del archivo manda sobre el respaldo sintético sin duplicarse, el respaldo sigue " +
+    "existiendo cuando el archivo no la trae, y el color no decodificado por fin se declara",
 );

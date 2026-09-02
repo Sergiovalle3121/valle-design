@@ -2363,6 +2363,314 @@
       "aiClaimsAuthorship": false
     },
     {
+      "id": "DWG-EXPORTACION-PRODUCTO-CAPA-COMPLETA-20260901",
+      "date": "2026-09-01",
+      "initiative": "Los cuatro cortes anteriores ensenaron al codec a escribir el color, la congelacion, el bloqueo y el patron de trazos de una capa, y NADA de eso llegaba al DWG que exporta el producto. No era limitacion del codec: toCanonicalDocument (apps/web/src/lib/cad/dwg-native-writer.ts) mapeaba las capas como {id, name, color, visible, locked} y dejaba styles vacio, asi que TIRABA el estado y el tipo de linea antes de que el codec los viera, y sin declarar nada. Medido con exportCadDocumentToDwg sobre un documento con capa congelada, bloqueada y de ejes: CONGELADA salia descongelada y EJES salia continua, las dos EN SILENCIO; solo sobrevivian el bloqueo y el color. Ahora el adaptador lleva frozen, linetype y los patrones de styles.linetype, y el resultado es que una capa congelada se exporta congelada, una de ejes conserva TRAZOS y el archivo lleva su entrada LTYPE con el patron. Lo que el documento NOMBRA pero no DEFINE sigue cayendo a Continuous y SE DECLARA: la capa aparece en el manifiesto con layer-linetype-not-writable y la exportacion termina en exito_con_perdidas. POR QUE IMPORTA MAS QUE LOS ANTERIORES: los otros ampliaron lo que el laboratorio PUEDE hacer; este es el unico que hace que un usuario que dibuja en el producto y exporta un DWG se lleve su plano completo. Sin el, todo lo anterior se quedaba en la API del codec. Durante la verificacion hubo una falsa alarma propia: el probe leia out.lossManifest cuando el resultado expone manifiestoDePerdidas, asi que parecio que la perdida no llegaba al usuario; comprobado el campo real, llegaba bien. Ningun flag encendido, externalOracleVerified sigue en false y la exportacion sigue cerrada tras su gate.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de subir el nivel — «no quiero laboratorios, quiero mi propio DWG real y funcional; analiza que mas le falta y hazlo».",
+      "firstPartyInputs": [
+        "La medicion propia de la exportacion del producto hecha en esta misma sesion.",
+        "Los cuatro cortes anteriores del codec, que ya sabian escribir lo que el adaptador tiraba."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El binario ODA no se ejecuto en esta sesion.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/dwg-native-writer.ts (el adaptador lleva frozen, linetype y los patrones)",
+        "apps/web/src/lib/cad/dwg-native-writer.spec.ts (la spec lo vigila de punta a punta)",
+        "packages/dwg-codec/CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguno nuevo. La spec usa los valores del corpus real (TRAZOS, trazos [0.75, -0.25]).",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de dejar de tener un laboratorio y tener un DWG real y funcional."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-IMPORT-CAPA-CERO-REAL-20260901",
+      "date": "2026-09-01",
+      "initiative": "El corte anterior arreglo el sentido de SALIDA de la capa; este arregla el de ENTRADA, y es la misma clase de perdida: silenciosa, y en el adaptador, no en el codec. mapLayers (apps/web/src/lib/cad/dwg-document-bridge-layers.ts) anteponia una capa 0 SINTETICA de ACI 7 y sembraba con \"0\" el conjunto de nombres ya vistos, asi que cuando llegaba la capa 0 REAL del archivo la linea de deduplicacion la descartaba ENTERA -color, congelacion, bloqueo y tipo de linea- y ganaba el bootstrap, sin declarar ni una perdida: el manifiesto callaba porque el dato no faltaba, se tiraba. MEDIDO sobre un AC1032 real del corpus (04-capas.dwg) leido por el codec y pasado por el puente, antes y despues del cambio: antes la capa 0 salia {id, name, color #ffffff, visible, locked} y ahora sale ademas con frozen=false MEDIDO y linetype=CONTINUOUS, el del archivo, y sigue habiendo UNA sola capa 0. ALCANCE DE LA PERDIDA, medido y no supuesto: los 57 fixtures del corpus traen capa 0 con tipo de linea resuelto (CONTINUOUS x27, Continuous x30) y los 57 lo perdian; en cambio NINGUNO trae la capa 0 con color distinto de ACI 7, congelada ni bloqueada, y de las 131 capas del corpus las 131 tienen color decodificado. Asi que la mitad grave de esta perdida -un color o un estado REALES sustituidos por los del bootstrap, que es un dato FALSO y no una ausencia- es un camino ALCANZABLE y no ejercido por el corpus: se cierra y se prueba con fixtures, y no se afirma haberlo medido en un archivo real. El respaldo sintetico SIGUE existiendo cuando el archivo no trae capa 0 -toda entidad cuya capa no resuelve cae ahi- y sigue siendo la primera del documento; la spec lo prueba en los dos sentidos. SEGUNDO HALLAZGO, del mismo sitio: el comentario de esa funcion afirmaba desde siempre que el gris neutro de una capa sin color decodificado lo declaraba la perdida layer-color-not-decoded en el manifiesto, y ESE CODIGO NO EXISTIA: se pintaba el gris y el usuario no se enteraba. Ahora existe (dwg_layer_color_not_decoded) y se emite. El corpus tampoco ejerce ese camino y tambien se declara alcanzable y no medido. Ningun flag encendido, externalOracleVerified sigue en false.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de subir el nivel — «no quiero laboratorios, quiero mi propio DWG real y funcional; analiza que mas le falta y hazlo».",
+      "firstPartyInputs": [
+        "La medicion propia del corpus admitido hecha en esta misma sesion (57 fixtures, 131 capas).",
+        "La lectura antes/despues de 04-capas.dwg (AC1032) por el codec y el puente del producto."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El binario ODA no se ejecuto en esta sesion.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/dwg-document-bridge-layers.ts (la capa 0 del archivo manda sobre el respaldo; el color no decodificado se declara)",
+        "apps/web/src/lib/cad/dwg-document-bridge.ts (nuevo codigo de perdida dwg_layer_color_not_decoded)",
+        "apps/web/src/lib/cad/dwg-document-bridge-layer-state.spec.ts (lo vigila en los dos sentidos: con capa 0 real y sin ella)",
+        "packages/dwg-codec/CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguno nuevo. La spec usa una base neutral minima con los valores del corpus real.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de dejar de tener un laboratorio y tener un DWG real y funcional."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-3D-HEREDADO-COBERTURA-MEDIDA-20260901",
+      "date": "2026-09-01",
+      "initiative": "Al abrir la siguiente fase (3D heredado) el hallazgo fue que la medicion que se iba a construir YA EXISTIA y ya estaba verde: validate-corpus.mjs, gate bloqueante, ya compara las cuatro clases 3D heredadas (3DFACE, POLYLINE 3D, POLYLINE MESH, POLYLINE PFACE) contra el oraculo DXF del mismo dibujo con XYZ completo, banderas de invisibilidad, tamanos de malla e indices de cara. Corrida fresca: face3d 2/2, polyline3d 1/1, polymesh 1/1, polyfaceMesh 1/1, 0 discrepancias geometricas. Sin embargo ADR-0009 §9.3 llevaba la fila 'Fidelidad medida contra corpus admitido' en PENDIENTE de la admision de la ola 3, y §9.2 decia que las specs corren contra bytes sinteticos y no contra el corpus admitido. El propio ADR se CONTRADECIA: §9.1, cuatro parrafos antes, ya afirmaba fidelidad exacta contra el corpus admitido. El dato real vivia enterrado en una matriz de 39 tipos donde nadie lo miraba. Es la tercera vez en esta jornada que un documento de gobernanza se queda por debajo de lo que el codigo hace. PERO la evidencia es DELGADA, y eso tambien habia que decirlo: cero discrepancias sobre un corpus exigente y cero sobre uno que no prueba casi nada se ven identicas desde la matriz agregada. Por eso la entrega no es solo una correccion de documento sino una sonda nueva, probe-3d-legacy-coverage.mjs (gate check:dwg-3d-heredado), que separa las dos mitades: la CONCORDANCIA campo a campo contra el oraculo, y la COBERTURA por dimension con lo cubierto Y lo no cubierto declarado con nombre propio. Se uso deliberadamente la MISMA proyeccion de campos que validate-corpus.mjs: dos criterios distintos de que campos definen un 3DFACE divergirian sin que nada lo viera. La comparacion es por MULTICONJUNTO, no por posicion, porque un archivo con dos 3DFACE no promete el mismo orden en DWG y en DXF. Resultado medido: fidelidad 5/5 campo a campo; cobertura 2/6 dimensiones completas, 3 parciales, 1 ausente. Completas: 3DFACE con Z real, y POLYLINE 3D con Z distinta por vertice. Parciales: banderas de arista (solo 0 y 5 de 6, sin triangulo degenerado), POLYLINE 3D (solo cerrada), malla (una sola, 3x4). Ausente: polyface con indice negativo. Correccion concreta a §9.2: entre lo que atribuye a la ola 3, 'POLYLINE 3D con Z distinta por vertice' YA esta en el corpus admitido (13-polyline2d.dwg, Z 0/10/20/5). Lo que la ola 3 sigue aportando de verdad son las seis combinaciones de banderas, el 3DFACE degenerado, las mallas 7x9 y 5x5 cerrada en N, y los indices negativos. Durante la medicion hubo un error propio corregido antes de asentar nada: la primera sonda contaba extrusion {z:1} como profundidad (daba 61 de 61 lineas con Z, absurdo) y no miraba record.vertices; y una segunda version filtraba por v.kind cuando los vertices van anidados en v.entity.kind, lo que daba mallas con cero vertices. Ambas se rehicieron antes de escribir ninguna conclusion. Tambien se cambio el campo de cobertura de booleano a tres estados (completo/parcial/ausente) porque una casilla marcada junto a un texto que dice que falta algo se lee mal justo donde mas importa. Esta ola NO mueve ninguna firma: DWG_3D_WIREFRAME_BETA_AUTHORIZATION.ownerSigned sigue en false y es del titular; no admite la ola 3; no amplia el perfil. El 3D heredado sigue llegando al producto como objeto opaco con dwg_3d_wireframe_preserved_opaque declarado.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo expreso de subir el nivel — «no quiero laboratorios, quiero mi propio DWG real y funcional; analiza que mas le falta y hazlo».",
+      "firstPartyInputs": [
+        "La corrida propia de validate-corpus.mjs sobre el corpus admitido, hecha en esta sesion.",
+        "La medicion propia de cobertura campo a campo de las 5 entidades 3D heredadas del corpus admitido.",
+        "El oraculo DXF first-party del mismo dibujo, ya existente en el repo."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El binario ODA no se ejecuto en esta sesion.",
+      "derivedAreas": [
+        "scripts/dwg/probe-3d-legacy-coverage.mjs (sonda nueva de concordancia y cobertura)",
+        "docs/cad/evidence/dwg-3d-legacy-coverage.json (evidencia generada, no escrita a mano)",
+        "package.json (gates probe:dwg-3d-heredado y check:dwg-3d-heredado, encadenado en check:dwg)",
+        "docs/adr/0009-dwg-promotion-package.md (adenda fechada §9.5, sin reescribir lo anterior)",
+        "packages/dwg-codec/CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguno nuevo. Se mide contra el corpus ADMITIDO ya existente; la ola 3 sigue sin admitir.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso del titular de dejar de tener un laboratorio y tener un DWG real y funcional, tanto 2D como 3D."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-ESCRITURA-PUBLICA-ELIPSE-20260901",
+      "date": "2026-09-01",
+      "initiative": "Ampliar lo que el producto sabe ESCRIBIR (Fase 5 del plan). Medido primero: ac1015-entity-writer.ts ya emitia nueve tipos (line, point, circle, arc, lwpolyline, text, insert, ellipse, mtext) pero canonical-to-dwg.ts —el camino PUBLICO— solo enrutaba siete y mandaba el resto al default como canonical-type-not-writable. La lista del producto DWG_EXPORT_WRITABLE_TYPES reflejaba fielmente ese siete, asi que la brecha NO estaba en el producto ni en el writer sino en la traduccion de en medio. Correccion de mi propia lectura inicial, que atribuyo la carencia al producto. ELLIPSE se enruta: sus cinco campos mapean uno a uno. LA TRAMPA que aparecio al hacerlo y que estuvo a punto de colarse: los parametros de la elipse estan en GRADOS en el documento del producto (curve-edit.ts usa normalizeDeg, curve-model.ts usa norm360, paper-space.ts compara la vuelta entera contra 359.999) y en RADIANES en el canonico. Enrutarla sin convertir habria exportado TODA elipse recortada con el arco equivocado, en silencio. Lo delato el comentario que justificaba por que la conversion era solo para ARC e INSERT: 'DWG_EXPORT_WRITABLE_TYPES no incluye ellipse'. Medido antes y despues con exportCadDocumentToDwg: antes la elipse no llegaba al archivo y se declaraba canonical-type-not-writable; ahora llega con centro, eje mayor y razon exactos, y 90 grados del producto salen como 1.570796 radianes (pi/2). La extrusion es lo unico que se pierde y ahora SE DICE EN LOS DOS SENTIDOS: al escribir se emite el plano XY con ellipse-extrusion-not-carried declarado; al LEER se descartaba en silencio y ahora se declara ellipse-extrusion-dropped, solo cuando el plano no es el XY, para no llenar el manifiesto de ruido en el caso normal (las dos elipses del corpus admitido llevan 0,0,1). DOS GUARDIANES DE LA CARENCIA reescritos y no debilitados: dos pruebas usaban una elipse como ejemplo de clase no escribible. Se cambian por SPLINE, que sigue sin emitirse, y se anaden las mitades nuevas: que la elipse se proyecta y que va y vuelve exacta por el lector publico con un arco RECORTADO (una vuelta entera habria disimulado el fallo de unidades). CORRECCION DE UNA AFIRMACION FALSA en artefacto de evidencia: oda-roundtrip.mjs declaraba que MTEXT sigue pendiente del writer porque writeAc1015EntityBody aun no la emite. Es falso, emitMText existe y es espejo de decodeMText. Lo que falta de MTEXT es el camino publico, y por una razon concreta que ahora consta: el canonico no transporta alineacion ni interlineado, que el producto si modela, asi que enrutarla hoy los aplanaria en silencio. MTEXT queda FUERA con bloqueo declarado en vez de entregarse a medias. HALLAZGO COLATERAL NO ARREGLADO, declarado para que no se pierda: inquiry/contours.ts:279 compara el barrido de una elipse contra Math.PI*2 tratando el mismo campo como radianes, mientras curve-edit, curve-model y paper-space lo tratan como grados. Es una inconsistencia real del producto, fuera del camino de exportacion DWG y por tanto fuera del alcance de esta ola. Caso nuevo 'elipse' en el harness del oraculo, con arco recortado a proposito y su gemelo publico; el titular corre catorce. Ningun flag encendido, externalOracleVerified sigue en false.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: eligió expresamente «seguir con DWG: ampliar el writer» entre las opciones planteadas, dentro del encargo de subir el nivel.",
+      "firstPartyInputs": [
+        "La medicion propia antes/despues de exportCadDocumentToDwg sobre un documento con una elipse recortada.",
+        "La lectura propia de las unidades de startParameter en curve-edit.ts, curve-model.ts, paper-space.ts e inquiry/contours.ts.",
+        "El writer interno de elipse ya existente en el laboratorio."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El binario ODA no se ejecuto en esta sesion.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/api/canonical-to-dwg.ts (enrutado de ellipse, con la perdida de extrusion declarada)",
+        "packages/dwg-codec/src/api/canonical.ts (la extrusion descartada al leer deja de ser silenciosa)",
+        "packages/dwg-codec/tests/unit/write-canonical-dwg.spec.ts y canonical.spec.ts (guardianes reescritos + round-trip nuevo)",
+        "apps/web/src/lib/cad/dwg-native-writer.ts (ellipse escribible + conversion grados->radianes)",
+        "apps/web/src/lib/cad/dwg-native-writer.spec.ts (bloque 5.A)",
+        "scripts/dwg/oda-roundtrip.mjs (caso 'elipse' y correccion de la limitacion falsa sobre MTEXT)",
+        "packages/dwg-codec/CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguno nuevo del corpus. El caso del oraculo se escribe con el propio writer, como los demas.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Eleccion expresa del titular de ampliar el writer como siguiente fase."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-ESCRITURA-HATCH-SOLIDO-20260902",
+      "date": "2026-09-02",
+      "initiative": "Novena clase escribible: el HATCH de relleno SOLIDO. A diferencia de la ola anterior (la elipse, que era enrutado puro porque el writer ya la emitia), aqui el writer NO emitia HATCH en absoluto. EL LIMITE LO DICTA EL FORMATO, no la pereza: decodeHatch lee el bloque de definicion del patron —angulo, escala, doble trama y las lineas con sus trazos— SOLO cuando solidFill es falso. Un relleno solido salta ese bloque entero, asi que se puede escribir sin inventar nada. El canonico transporta el NOMBRE del patron, no su geometria, de modo que un sombreado con patron solo se podria escribir inventandose la definicion: se declara hatch-pattern-not-writable nombrando el patron concreto. Medido de punta a punta con exportCadDocumentToDwg sobre un documento con los dos: preflight writableCount 1 y unwritableByType {hatch:1}; 1 de 2 sombreados en el archivo, el solido, con sus 4 vertices y su cierre; perdidas hatch-authoring-defaults y hatch-pattern-not-writable. Antes de eso se verifico el emisor a nivel de cuerpo contra el lector propio: 106 bytes emitidos y de vuelta solidFill, los 4 vertices exactos, el cierre, estilo, semilla y nombre. EL PREFLIGHT PASA A SER POR INSTANCIA Y NO POR TIPO. Hasta ahora cada clase era escribible entera o nada y un Set de tipos bastaba. El HATCH lo rompe: un conjunto por tipo tendria que mentir en una de las dos direcciones —incluir hatch prometeria sombreados con patron que luego se pierden, excluirlo daria por perdidos los solidos que si viajan—. Como el preflight existe para que la perdida no sorprenda DESPUES, ahora pregunta por la entidad concreta con cadEntityIsDwgWritable. Se declara hatch-authoring-defaults por asociatividad, estilo, tipo de patron y semillas, que no viajan en el canonico: son decisiones de autoria como la extrusion de la elipse, y aun asi constan, porque quien reexporte un sombreado asociativo de un archivo ajeno tiene que leer que dejo de serlo. LO QUE EL ROUND-TRIP PROPIO NO PUEDE PROBAR: el lector propio acepta lo que el writer propio escriba. Que un sombreado con cero semillas, estilo 0 y sin asociatividad sea un sombreado que OTRO programa abre solo lo dice un lector ajeno. Caso sombreado-solido nuevo en el harness del oraculo con su gemelo publico; el titular corre ahora dieciseis. Se exporto HATCH_PATH_POLYLINE_BIT en vez de redefinirlo en el writer: dos definiciones de que bit significa polilinea divergirian sin que ninguna prueba lo viera, porque el round-trip no atrapa un fallo en el que ambos lados se equivocan igual. DOS PARTICIONES por presupuesto de monolito, ninguna presupuestada: ac1015-entity-writer.ts (842 lineas) se parte en ac1015-entity-emitters.ts —alla queda decidir QUE entidad se escribe, aqui el saber concreto de cada clase—, y oda-roundtrip.mjs (861) en oda-roundtrip-cases.mjs —el arnes no cambia al anadir un caso, los dibujos si—. El archivo nuevo del paquete se registro en SOURCE_REGISTER como derivado de la misma fuente que el que lo origino. Error propio corregido por el camino: un fichero de verificacion temporal quedo sin borrar porque el rm se ejecuto desde otro directorio, y lo destaparon la frontera de producto, el typecheck y el build. Tambien se perdio un estrechamiento de tipo al mover codigo entre modulos, y se hizo explicito en vez de depender de que el compilador dedujera que throwDwgError no vuelve. Ningun flag encendido; externalOracleVerified sigue en false.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: eligió expresamente «seguir con DWG: ampliar el writer».",
+      "firstPartyInputs": [
+        "La lectura propia de decodeHatch, que es la que revela que el bloque de patron solo existe si !solidFill.",
+        "El round-trip propio del emisor a nivel de cuerpo y la medicion de punta a punta por el producto."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El binario ODA no se ejecuto en esta sesion.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/writer/ac1015-entity-emitters.ts (modulo nuevo: emisores por clase, incluido emitHatch)",
+        "packages/dwg-codec/src/writer/ac1015-entity-writer.ts (validacion, codigo de tipo y despacho de hatch)",
+        "packages/dwg-codec/src/objects/entities-complex.ts (exporta los bits de bandera de camino)",
+        "packages/dwg-codec/src/api/canonical-to-dwg.ts (enrutado condicional del hatch)",
+        "packages/dwg-codec/tests/unit/write-canonical-dwg.spec.ts (round-trip del solido y declaracion del de patron)",
+        "apps/web/src/lib/cad/dwg-native-writer.ts (preflight por instancia)",
+        "apps/web/src/lib/cad/dwg-native-writer.spec.ts (bloque 5.B)",
+        "scripts/dwg/oda-roundtrip-cases.mjs y oda-roundtrip.mjs (caso nuevo y comparador de hatch)",
+        "packages/dwg-codec/SOURCE_REGISTER.json y CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguno nuevo del corpus. El caso del oraculo se escribe con el propio writer.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Eleccion expresa del titular de ampliar el writer como fase en curso."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-GATE-ORACULO-DERIVADO-DE-EVIDENCIA-20260902",
+      "date": "2026-09-02",
+      "initiative": "Encargo expreso del titular: dejar todo mergeado y encontrar la solucion a lo que tiene el proyecto parado, para poder decir que hay DWG real y no un laboratorio. DIAGNOSTICO MEDIDO. Las puertas del producto estan asi: la IMPORTACION de AC1015 (perfil V3) y AC1018 ya esta FIRMADA por el titular, asi que abrir un DWG real no esta bloqueado por nada tecnico —solo por la variable de entorno NEXT_PUBLIC_DWG_NATIVE_IMPORT_BETA / NEXT_PUBLIC_DWG_AC1018_IMPORT_BETA, que es una decision de despliegue—. La EXPORTACION esta bloqueada por UN solo booleano, externalOracleVerified, y ese booleano estaba escrito a mano en dwg-export-flag.ts sin ninguna conexion con la evidencia que dice representar. La evidencia committeada (docs/cad/evidence/dwg-oda-roundtrip.json) es del 2026-08-21 y cubre 4 casos; el harness exige hoy 16 (8 casos y sus 8 gemelos -publico) y NINGUN gemelo publico esta cubierto, que es justo lo que ADR-0009 §8.2 exige. Ademas el harness tenia dos rutas atadas a una maquina: el conversor en D:\\dev\\tools\\oda\\... y el directorio de trabajo en el temporal de UNA SESION CONCRETA con su UUID dentro, que ya no existe ni en esa maquina. Se comprobo antes de proponer nada si habia un lector DWG independiente obtenible en este entorno: no hay ODAFileConverter, dwg2dxf, dwgread ni libredwg-config instalados, y libredwg no esta en las fuentes apt disponibles. Asi que no se podia producir la evidencia aqui, y la solucion no era buscar otro oraculo sino quitar la razon por la que la verificacion nunca ocurre. SOLUCION ENTREGADA: (1) gate nuevo check:dwg-oraculo que deriva los casos exigidos de la lista REAL del harness —no de una copia gemela que se quedaria atras, que es exactamente lo que le paso a la evidencia— y FALLA si el producto declara true sin que la evidencia lo sostenga, de modo que sobreafirmar deja de ser posible; con false no falla, porque un gate conservador nunca es peligroso, pero dice cuantos casos hay, cuales faltan y que comando exacto los produce. Verificadas las dos ramas: exit 1 con el booleano puesto en true a mano, exit 0 con el false real. (2) el harness deja de estar atado a una maquina: ODA_FILE_CONVERTER se exige por entorno sin ruta por defecto y con mensaje que nombra las dos formas del binario, y el trabajo va al temporal del sistema, asi que puede correr en CI. Lo que esto NO hace, y se dice: no mueve el booleano ni finge la verificacion. Nuestro lector acepta lo que nuestro writer escriba; solo un lector ajeno dice si lo que escribimos lo abre otro programa. Lo que hace es convertir 'llevamos semanas parados sin saber cuanto falta' en un numero exacto (4 de 16), una lista de lo que falta y un comando, y garantizar que nadie pueda encender la exportacion sin evidencia ni dejarla encendida al anadir un caso nuevo.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: «asegúrate de dejar todo mergeado y dale con la siguiente fase, analiza bien, tiene que poder decir ya tenemos el DWG real, nada de laboratorios; qué te tiene detenido y encuentra la solución».",
+      "firstPartyInputs": [
+        "La lectura propia de las puertas del producto (dwg-export-flag.ts, dwg-interop-flag.ts, document-import-client.ts).",
+        "La comprobacion propia de que no hay lector DWG independiente instalable en este entorno.",
+        "El reporte del oraculo ya committeado, del 2026-08-21."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna. El binario ODA no se ejecuto ni se pudo obtener en este entorno.",
+      "derivedAreas": [
+        "scripts/dwg/check-oracle-evidence.mjs (gate nuevo)",
+        "scripts/dwg/oda-roundtrip.mjs (rutas portables, sin maquina fija)",
+        "package.json (check:dwg-oraculo, encadenado en check:dwg)",
+        "packages/dwg-codec/CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguno.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso de encontrar y resolver lo que tiene el proyecto parado."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-RAZON-REAL-DE-CADA-CLASE-NO-ESCRITA-20260902",
+      "date": "2026-09-02",
+      "initiative": "Al abrir DIMENSION —la ultima clase del writer que no exigia decision del titular— la medicion cambio el diagnostico del track entero. El canonico de una cota lleva a, b, c?, dimensionKind, text? y textPosition; el cuerpo DWG pide ademas una docena de campos que no viajan, y dos de esas ausencias no son de detalle: actualMeasurement (el numero que la cota muestra) no se transporta, asi que escribir 0 daria una cota que dice 0 y calcularlo seria inventarlo; y angular3pt y angular2ln se COLAPSAN en 'angular' al leer, con cuerpos estructuralmente distintos (el de dos lineas lee un point16 extra, y primero), asi que desde el canonico no hay forma de saber cual escribir. Eso no es un campo que falte: es un discriminador perdido. CONSECUENCIA: las tres clases que quedan del writer —MTEXT, DIMENSION y LEADER— NO son tres tareas caras independientes. Estan bloqueadas por lo mismo, el esquema del documento canonico. No es trabajo de codec acumulado, es UNA decision, y es del titular porque el canonico es superficie publica. LO CORREGIDO: todas las clases no enrutadas recibian el mismo mensaje, 'el writer AC1015 aun no emite X'. Para MTEXT era FALSO —emitMText existe y es espejo de decodeMText— y para DIMENSION y LEADER era enganoso, porque senalaba al writer cuando el que no llega es el canonico. Son dos bloqueos con dos soluciones distintas y esto lo lee el usuario en su manifiesto de perdidas. Ahora hay dos codigos: canonical-schema-insufficient, con la razon concreta de cada clase, y canonical-type-not-writable, que se conserva donde es cierto (SPLINE lo verifica en la spec). Es la quinta vez en esta jornada que un texto del repo afirma algo distinto de lo que hace el codigo, y la primera que ese texto llegaba al cliente.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: «dale con la siguiente fase, analiza bien... qué te tiene detenido y encuentra la solución».",
+      "firstPartyInputs": [
+        "La lectura propia de decodeDimension y de la proyeccion canonica de la cota.",
+        "La comprobacion propia de los cuatro mensajes resultantes por writeCanonicalDwg."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/api/canonical-to-dwg.ts (dos codigos de perdida y la razon concreta de cada clase)",
+        "packages/dwg-codec/tests/unit/write-canonical-dwg.spec.ts (spec que separa los dos bloqueos)",
+        "packages/dwg-codec/CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguno.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso de seguir con la fase siguiente y analizar bien lo que bloquea."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-MTEXT-DECIMA-CLASE-ANCLAJE-MEDIDO-20260902",
+      "date": "2026-09-02",
+      "initiative": "CORRIGE LA ENTRADA ANTERIOR DE ESTE MISMO DIA (DWG-RAZON-REAL-DE-CADA-CLASE-NO-ESCRITA-20260902), que afirmo que MTEXT, DIMENSION y LEADER estaban bloqueadas POR LO MISMO -el esquema del documento canonico- y que era UNA decision del titular. Para DIMENSION y LEADER sigue siendo cierto. Para MTEXT era FALSO, y se comprobo midiendo en vez de suponiendo: el campo `entities` del documento canonico es `Record<string, unknown>[]` -abierto a proposito, no congelado-, y el producto ya emite `alignment` y `lineSpacing` con el resto de la entidad, asi que los datos YA VIAJABAN. Lo que faltaba no era esquema ni decision: era un HECHO. La fuente registrada da la DISPOSICION del campo de anclaje ('attachment BS' en esa posicion del cuerpo) pero no su SEMANTICA, y sin saber que significa cada numero, escribir la clase habria sido decidir a ojo donde queda anclado cada parrafo. COMO SE RESOLVIO: midiendo el corpus admitido contra su oraculo DXF gemelo con cinco hipotesis rivales -identidad, +1, -1, la inversion 10-x y la constante 1-. Sobrevive exactamente una, la identidad, 5 de 5 parejas. La falsacion es real porque el corpus separa: 09-mtext.dwg trae un MTEXT con 71=5 junto a dos con 71=1, asi que la constante 1 muere justo ahi y la inversion sobrevive SOLO ahi. El emparejamiento tampoco se supone: se confirma con altura y ancho antes de contarse. COBERTURA DECLARADA SIN ADORNO: el corpus ejerce DOS de los nueve anclajes (1 y 5). Los otros siete se escriben con la unica hipotesis en pie pero se declara `mtext-attachment-unmeasured`, porque nueve anclajes respaldados por una medicion de dos habria sido afirmar de mas. TAMBIEN SE CIERRA UNA PERDIDA SILENCIOSA DE LECTURA: hasta ahora la proyeccion al canonico tiraba el anclaje sin decirlo, y un MTEXT centrado volvia anclado arriba-izquierda del round-trip, desplazado media caja. Y SE EVITO LA TRAMPA DE UNIDADES POR TERCERA VEZ: la rotacion va en GRADOS en el producto y en RADIANES en el canonico; pasarla cruda no habria fallado por ningun lado, solo habria girado cada parrafo en silencio.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: «dale con la siguiente fase... encuentra la solución» y, en la eleccion de via, «Seguir con DWG: ampliar el writer».",
+      "firstPartyInputs": [
+        "Medicion propia scripts/dwg/probe-mtext-fields.mjs sobre el corpus admitido (commit fijado), contrastando cinco hipotesis rivales contra el oraculo DXF gemelo.",
+        "La numeracion del lado DXF ya derivada por el producto de la especificacion DXF publica (apps/web/src/lib/cad/dxf-export.ts).",
+        "Round-trip propio writeCanonicalDwg -> readDwg -> dwgDatabaseToCanonicalDocument en las dos direcciones."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/api/canonical-mtext-anchor.ts (tabla medida, una sola fuente para las dos direcciones)",
+        "packages/dwg-codec/src/api/canonical-to-dwg.ts (case mtext y sus dos perdidas declaradas)",
+        "packages/dwg-codec/src/api/canonical.ts (la lectura deja de tirar anclaje e interlineado)",
+        "apps/web/src/lib/cad/dwg-native-writer.ts (mtext escribible y conversion grados->radianes)",
+        "scripts/dwg/probe-mtext-fields.mjs y docs/cad/evidence/dwg-mtext-fields.json",
+        "scripts/dwg/oda-roundtrip-cases.mjs y oda-roundtrip.mjs (caso parrafo-mtext y verificacion del grupo 71 contra el DXF crudo)",
+        "scripts/dwg/check-oracle-evidence.mjs (el recuento de casos deja de estar escrito a mano en los mensajes)",
+        "packages/dwg-codec/CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguna nueva: se midio sobre el corpus admitido ya fijado (09-mtext y 16-leader-tolerance).",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso de ampliar el writer tras elegir esa via entre las cuatro ofrecidas. Decima clase del camino publico de escritura. NO enciende ningun flag: externalOracleVerified sigue en false y ahora exige 18 casos, no 16."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
+      "id": "LO-QUE-LA-AUDITORIA-MIDIO-20260901",
+      "date": "2026-09-01",
+      "initiative": "El titular pidió dos cosas y las dos mandan: «no sólo se tiene que parecer, tiene que funcionar» y «la competencia es AutoCAD completo, 2D y 3D, con todo su toolset». Se midieron las dos en paralelo contra el producto real en el navegador. (a) ¿Funciona? Diez recorridos de despacho —levantar una planta, dibujar por coordenadas, montar el estándar de capas, acotar para obra, modificar un plano ajeno, sacarlo en papel a escala, intercambiarlo por DXF, mirarlo en 3D, reutilizar mobiliario, trabajar en equipo—: 3 «sirve», 7 «sirve con reservas», 0 «no sirve»; 26 fallos, de los que 22 sobrevivieron a un refutador adversario. (b) ¿Se parece? Medido contra AutoCAD completo y contando por lo que FALTA: 2D 55 %, capas 45 %, publicación 40 %, anotación 30 %, bloques 30 %, 3D→documentación 30 %, automatización 30 %, modelado 3D 20 %, los siete toolsets 6 %, reconocimiento ~0 %; media ponderada ≈29 % frente al 88,6 % que la rúbrica se auto-asigna. La contradicción se resuelve con aritmética, no con opinión: de los 336 ítems de la rúbrica, 314 comprueban que algo EXISTE (un fichero, un nombre en el registro, un alias que resuelve), 22 miran un valor y CERO miran la pantalla; y su denominador declarado es AutoCAD LT, por escrito, sin ninguna fila para los siete toolsets. Este PR guarda la evidencia: los tres informes destilados y las 31 pruebas de navegador que la produjeron. Las pruebas están rojas a propósito y se EXCLUYEN de la suite (testIgnore), porque un veredicto permanentemente rojo deja de mirarse; pero una carpeta excluida se pudre en silencio, que es la misma enfermedad, así que la exclusión no viaja sola: check:auditoria exige que cada archivo esté declarado con QUÉ defecto reproduce, que no haya entradas huérfanas, y que la lista SÓLO ENCOJA —una prueba se va de ahí cuando su defecto se arregla y ella se gradúa a e2e/golden/—. Verificado que el gate dispara en las tres direcciones: prueba sin declarar, techo subido a hurtadillas y motivo vacío. Al tipar un `any` que traía un spec, el typecheck destapó un fallo real: `find()` puede devolver undefined y la prueba leía `.version` a ciegas, así que un redefinir que borrase el bloque habría dado un TypeError mudo en vez de decir que el bloque desapareció.",
+      "branch": "claude/lo-que-la-auditoria-midio",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo de probar el producto como cliente final y de medir la distancia real contra AutoCAD completo.",
+      "firstPartyInputs": [
+        "El propio estudio del repositorio, usado en el navegador con build de producción.",
+        "El registro de comandos, la cinta y la rúbrica del repositorio, volcados y contados."
+      ],
+      "externalSources": [
+        "Documentación pública de Autodesk sobre el toolset de AutoCAD, consultada sólo para definir el listón; no se copió texto ni implementación."
+      ],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "docs/competitive/auditoria-cliente-final-20260901.md (nuevo)",
+        "docs/competitive/distancia-autocad-completo-20260901.md (nuevo)",
+        "docs/competitive/liston-autocad-completo.md (nuevo)",
+        "apps/web/e2e/auditoria/ (31 pruebas + README + manifiesto, nuevas)",
+        "apps/web/playwright.config.ts (testIgnore declarado con su motivo)",
+        "scripts/cad/check-auditoria-manifest.mjs (nuevo trinquete)",
+        "package.json (check:auditoria dentro de check:cad)"
+      ],
+      "fixtures": "Ninguno nuevo. Los documentos de prueba se construyen dentro de cada spec.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Convierte 22 defectos confirmados en un backlog ejecutable que no se puede olvidar en silencio, y deja escrito por qué el 88,6 % y el «no se parece» son ciertos a la vez."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
+    },
+    {
       "id": "COTA-QUE-NO-SE-PIERDE-EN-SILENCIO-20260901",
       "date": "2026-09-01",
       "initiative": "Auditando el producto como cliente final —un despacho que abre un plano ajeno— se midió qué hace la importación DXF con la geometría que no vive en el plano del suelo. En DXF una entidad plana guarda puntos 2D sobre un plano propio, definido por su dirección de extrusión (código 210) y su elevación (código 38). Medido sobre mapDxfEntityToPrimitive con entidades tal y como las entrega dxf-parser: un CIRCLE con extrusión (1,0,0) —un círculo de pie en un muro— salía acostado en el suelo; una LWPOLYLINE en un faldón a 45° con elevación 3000 salía plana a cota 0; y una LINE de (0,0,0) a (0,0,3000) —un pilar de tres metros— salía con sus dos extremos en (0,0), es decir, de longitud CERO. En los tres casos el aviso era NINGUNO y summarizeDxfImportWarnings devolvía []. Que el documento canónico no sepa guardar todavía la normal ni la cota de una entidad plana es una carencia con su sitio en la escalera; que no se dijera era un defecto, porque el producto enseña un manifiesto de lo que perdió al importar y esto no salía en él. Dos cosas lo fijan como defecto: el comando LINE del editor se niega a crear un segmento de longitud cero y el importador creaba justo eso, y pt() en dxf-read-core.ts conserva el bulge por una vez anterior en que pasó lo mismo («descartarlo aplanaba a cuerda recta todos los arcos de polilínea del fichero importado, en silencio»). El mapeador se envuelve en vez de tocar sus quince puntos de retorno, y los motivos van sin números para que el resumidor agrupe: el spec lo fija con mil normales distintas, que deben dar UNA fila con contador 1000. Verificado sobre el árbol quieto: los 26 specs de DXF pasan (incluidos dxf-mirror-import, dxf-external-corpus y dxf-import-report, «un DXF limpio no inventa pérdidas»), tsc --noEmit limpio y eslint limpio en los dos ficheros tocados. Lo que NO hace: no importa bien la geometría inclinada; se sigue aplanando.",

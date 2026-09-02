@@ -74,205 +74,26 @@ const READER_DIST = path.join(
  * precondición que él mismo firmó.
  */
 const PUBLIC_API_DIST = path.join(REPO_ROOT, "packages", "dwg-codec", "dist", "index.js");
-const CONVERTER =
-  process.env.ODA_FILE_CONVERTER ?? "D:\\dev\\tools\\oda\\extracted\\ODAFileConverter.exe";
+/**
+ * SIN RUTA POR DEFECTO, A PROPÓSITO (2026-09-02). Hasta este corte el
+ * conversor tenía como valor por defecto una ruta de Windows concreta y el
+ * directorio de trabajo apuntaba al temporal de UNA SESIÓN CONCRETA, con su
+ * UUID dentro. Las dos cosas ataban el único gate que separa el laboratorio
+ * del producto a una máquina, y la segunda ni siquiera seguía existiendo en
+ * esa máquina.
+ *
+ * Ahora el conversor se EXIGE por entorno —si no está, se dice qué falta y
+ * cómo— y el trabajo va al temporal del sistema operativo, que existe en
+ * cualquier parte: Linux, macOS, Windows o un runner de CI. El oráculo pasa a
+ * ser algo que se puede correr donde haga falta, no donde tocó.
+ */
+const CONVERTER = process.env.ODA_FILE_CONVERTER ?? "";
 const CONVERTER_VERSION = "27.1";
 const WORK_ROOT =
   process.env.ODA_ROUNDTRIP_WORKDIR ??
-  "C:\\Users\\sergi\\AppData\\Local\\Temp\\claude\\D--\\faacfa40-fc40-46ab-bca2-44f357e305c2\\scratchpad\\ola3\\roundtrip";
+  path.join(os.tmpdir(), "valle-dwg-oda-roundtrip");
 const TOLERANCE = 1e-6;
 
-const ascii = (text) => [...text].map((c) => c.charCodeAt(0));
-const utf = (bytes) => String.fromCharCode(...(bytes ?? []));
-
-// ---------------------------------------------------------------------------
-// Los casos: geometría escrita y expectativa contra el DXF regenerado.
-// ---------------------------------------------------------------------------
-
-const LINE = {
-  kind: "line",
-  start: { x: 1.5, y: 2.5, z: 0 },
-  end: { x: 40, y: 12.25, z: 0 },
-  thickness: 0,
-  extrusion: { x: 0, y: 0, z: 1 },
-};
-const POINT = {
-  kind: "point",
-  position: { x: -6, y: 8.5, z: 0 },
-  thickness: 0,
-  extrusion: { x: 0, y: 0, z: 1 },
-  xAxisAngle: 0,
-};
-const CIRCLE = {
-  kind: "circle",
-  center: { x: 10, y: 10, z: 0 },
-  radius: 4.5,
-  thickness: 0,
-  extrusion: { x: 0, y: 0, z: 1 },
-};
-const ARC = {
-  kind: "arc",
-  center: { x: -3, y: 7, z: 0 },
-  radius: 2.25,
-  thickness: 0,
-  extrusion: { x: 0, y: 0, z: 1 },
-  startAngle: 0.25,
-  endAngle: 2.5,
-};
-const TEXT = {
-  kind: "text",
-  insertion: { x: 5, y: 6 },
-  elevation: undefined,
-  alignment: undefined,
-  thickness: 0,
-  extrusion: { x: 0, y: 0, z: 1 },
-  obliqueAngle: undefined,
-  rotation: undefined,
-  height: 0.35,
-  widthFactor: undefined,
-  valueBytes: ascii("VALLE"),
-  generation: undefined,
-  horizontalAlignment: undefined,
-  verticalAlignment: undefined,
-};
-const LWPOLYLINE = {
-  kind: "lwpolyline",
-  closed: true,
-  vertices: [
-    { x: 0, y: 0 },
-    { x: 8, y: 0 },
-    { x: 8, y: 5 },
-    { x: 0, y: 5 },
-  ],
-  bulges: undefined,
-  widths: undefined,
-  constantWidth: undefined,
-  elevation: undefined,
-  thickness: undefined,
-  extrusion: undefined,
-};
-const INSERT = {
-  kind: "insert",
-  position: { x: 30, y: 4, z: 0 },
-  scale: { x: 1, y: 1, z: 1 },
-  rotation: 0,
-  extrusion: { x: 0, y: 0, z: 1 },
-  attributesFollow: false,
-};
-
-const CASES = [
-  {
-    name: "vacio",
-    options: {},
-    expectedLayers: [{ name: "0", color: 7 }],
-    expectedEntities: [],
-    expectedBlocks: {},
-  },
-  {
-    name: "capa-linea",
-    options: {
-      layers: [{ name: ascii("MUROS"), colorIndex: 4 }],
-      entities: [{ entity: LINE, layerIndex: 1 }],
-    },
-    expectedLayers: [
-      { name: "0", color: 7 },
-      { name: "MUROS", color: 4 },
-    ],
-    expectedEntities: [{ kind: "line", layer: "MUROS", entity: LINE }],
-    expectedBlocks: {},
-  },
-  {
-    name: "figuras",
-    options: {
-      entities: [
-        { entity: POINT },
-        { entity: CIRCLE },
-        { entity: ARC },
-        { entity: TEXT },
-        { entity: LWPOLYLINE },
-      ],
-    },
-    expectedLayers: [{ name: "0", color: 7 }],
-    expectedEntities: [
-      { kind: "point", layer: "0", entity: POINT },
-      { kind: "circle", layer: "0", entity: CIRCLE },
-      { kind: "arc", layer: "0", entity: ARC },
-      { kind: "text", layer: "0", entity: TEXT },
-      { kind: "lwpolyline", layer: "0", entity: LWPOLYLINE },
-    ],
-    expectedBlocks: {},
-  },
-  {
-    // PATRÓN DE TIPO DE LÍNEA ANTE EL ORÁCULO. Hasta el 2026-09-01 el archivo
-    // sólo llevaba Continuous, así que ningún caso ejercitaba un patrón. Los
-    // valores son los del corpus real (`04-capas`: TRAZOS, longitud 1, trazos
-    // [0.75, -0.25]), no unos inventados.
-    //
-    // Este caso SÍ lo comprueba el oráculo campo a campo: su parser DXF lee la
-    // tabla LTYPE con su longitud y sus trazos (`dxf-oracle.mjs` ya los
-    // extrae), así que si el patrón que escribimos no fuera el que dijimos, el
-    // cotejo lo diría.
-    name: "capa-tipo-de-linea",
-    options: {
-      linetypes: [
-        { name: ascii("TRAZOS"), patternLength: 1, dashes: [{ length: 0.75 }, { length: -0.25 }] },
-      ],
-      layers: [{ name: ascii("EJES"), colorIndex: 2, linetypeName: "TRAZOS" }],
-      entities: [{ entity: LINE, layerIndex: 1 }],
-    },
-    expectedLayers: [
-      { name: "0", color: 7 },
-      { name: "EJES", color: 2 },
-    ],
-    expectedEntities: [{ kind: "line", layer: "EJES", entity: LINE }],
-    expectedBlocks: {},
-  },
-  {
-    // ESTADO DE CAPA ANTE EL ORÁCULO. Los otros casos escriben capas normales,
-    // así que ninguno ejercitaba lo que el corpus real sí trae: una capa
-    // CONGELADA y una BLOQUEADA. Desde el 2026-09-01 el writer las escribe
-    // (antes toda capa salía normal, sin declararlo), y este caso es el que
-    // pregunta a un lector AJENO si se las cree.
-    //
-    // El oráculo DXF compara capas por NOMBRE Y COLOR —no por estado, que su
-    // parser no proyecta—, así que lo que este caso añade ante ODA es que el
-    // archivo con esos bits encendidos sigue siendo un DWG que abre y convierte
-    // limpio. Que el estado signifique lo que decimos lo prueba el round-trip
-    // propio en `layer-state-write.spec.ts`; que no rompa el archivo, esto.
-    name: "capa-estado",
-    options: {
-      layers: [
-        { name: ascii("CONGELADA"), colorIndex: 4, frozen: true },
-        { name: ascii("BLOQUEADA"), colorIndex: 5, locked: true },
-      ],
-      entities: [{ entity: LINE, layerIndex: 1 }],
-    },
-    expectedLayers: [
-      { name: "0", color: 7 },
-      { name: "CONGELADA", color: 4 },
-      { name: "BLOQUEADA", color: 5 },
-    ],
-    expectedEntities: [{ kind: "line", layer: "CONGELADA", entity: LINE }],
-    expectedBlocks: {},
-  },
-  {
-    name: "bloque-insert",
-    options: {
-      blocks: [{ name: ascii("PUERTA"), entities: [LINE, CIRCLE] }],
-      entities: [{ entity: INSERT, insertBlockIndex: 0 }],
-    },
-    expectedLayers: [{ name: "0", color: 7 }],
-    expectedEntities: [
-      { kind: "insert", layer: "0", entity: INSERT, block: "PUERTA" },
-    ],
-    expectedBlocks: {
-      PUERTA: [
-        { kind: "line", entity: LINE },
-        { kind: "circle", entity: CIRCLE },
-      ],
-    },
-  },
-];
 
 // ---------------------------------------------------------------------------
 // Comparadores campo a campo (tolerancia declarada)
@@ -323,6 +144,19 @@ function compareEntity(expected, normalized, mismatches, label) {
       if (!near(f.height, e.height)) push(`height ${f.height}`);
       if (f.value !== utf(e.valueBytes)) push(`value "${f.value}"`);
       return;
+    case "mtext":
+      // El helper del oráculo entrega la inserción, la altura y el texto de un
+      // MTEXT; el ANCLAJE (grupo 71) no tiene campo en su normalización, y es
+      // justamente lo que este caso existe para preguntar. Se verifica aparte
+      // contra el DXF crudo, igual que el conteo de vértices de la
+      // LWPOLYLINE, en vez de tocar el helper —que también usa la validación
+      // del corpus— para acomodar a este harness.
+      if (!near(f.insertion[0], e.insertion.x) || !near(f.insertion[1], e.insertion.y)) {
+        push(`insertion ${JSON.stringify(f.insertion)}`);
+      }
+      if (!near(f.height, e.height)) push(`height ${f.height}`);
+      if (f.value !== utf(e.valueBytes)) push(`value "${f.value}"`);
+      return;
     case "insert":
       if (expected.block !== undefined && f.block !== expected.block) {
         push(`bloque ${f.block}`);
@@ -330,6 +164,52 @@ function compareEntity(expected, normalized, mismatches, label) {
       if (!near3(f.position, e.position)) push(`position ${JSON.stringify(f.position)}`);
       if (!near3(f.scale, e.scale)) push(`scale ${JSON.stringify(f.scale)}`);
       if (!near(f.rotation, e.rotation)) push(`rotation ${f.rotation}`);
+      return;
+    case "hatch": {
+      // El helper del oráculo (importado sin modificar) proyecta un HATCH por
+      // su nombre de patrón EN MAYÚSCULAS, su bandera de sólido y los vértices
+      // de sus caminos polilínea. El estilo, la asociatividad y las semillas
+      // no tienen campo en su normalización —los seedpoints los deriva el
+      // propio conversor—, así que esta comparación se limita a lo que el
+      // helper entrega, igual que POINT e INSERT más arriba. Lo que este caso
+      // añade ante ODA es lo que ninguna prueba propia puede dar: que un
+      // sombreado escrito por nosotros abre y convierte limpio.
+      if (f.name !== utf(e.nameBytes).toUpperCase()) push(`name "${f.name}"`);
+      if (f.solidFill !== e.solidFill) push(`solidFill ${f.solidFill}`);
+      if (f.pathCount !== e.paths.length) push(`pathCount ${f.pathCount}`);
+      // Vértice a vértice con la MISMA tolerancia que el resto del harness,
+      // no comparando cadenas: dos dobles que difieren en el último bit de su
+      // representación decimal son el mismo punto, y declararlos distintos
+      // sería inventarse una discrepancia.
+      const esperados = e.paths.map((p) => p.vertices);
+      const leidos = f.polylineVertices ?? [];
+      if (leidos.length !== esperados.length) {
+        push(`polylinePaths ${leidos.length}`);
+      } else {
+        for (const [i, vs] of leidos.entries()) {
+          const ref = esperados[i] ?? [];
+          if (vs.length !== ref.length) {
+            push(`polylineVertices[${i}] ${vs.length} vértices`);
+            continue;
+          }
+          for (const [j, [x, y]] of vs.entries()) {
+            if (!near(x, ref[j].x) || !near(y, ref[j].y)) {
+              push(`polylineVertices[${i}][${j}] ${JSON.stringify([x, y])}`);
+            }
+          }
+        }
+      }
+      return;
+    }
+    case "ellipse":
+      // El helper del oráculo entrega los grupos 41/42 del DXF, que son el
+      // parámetro inicial y final EN RADIANES: es exactamente donde se vería
+      // una elipse escrita con grados, que es el fallo que este caso vigila.
+      if (!near3(f.center, e.center)) push(`center ${JSON.stringify(f.center)}`);
+      if (!near3(f.majorAxis, e.majorAxisEndpoint)) push(`majorAxis ${JSON.stringify(f.majorAxis)}`);
+      if (!near(f.ratio, e.axisRatio)) push(`ratio ${f.ratio}`);
+      if (!near(f.startAngle, e.startAngle)) push(`startAngle ${f.startAngle}`);
+      if (!near(f.endAngle, e.endAngle)) push(`endAngle ${f.endAngle}`);
       return;
     case "lwpolyline":
       // El helper del oráculo (importado sin modificar) no acumula los
@@ -367,6 +247,36 @@ function checkLwPolylineRaw(dxfText, expected, mismatches, label) {
     return;
   }
   mismatches.push(`${label}: el DXF no contiene ninguna LWPOLYLINE`);
+}
+
+/**
+ * Verificación suplementaria del MTEXT contra el DXF CRUDO: el anclaje.
+ *
+ * Es LA pregunta de este caso. La correspondencia entre el anclaje del cuerpo
+ * DWG y el grupo 71 del DXF se midió contra el corpus admitido
+ * (`scripts/dwg/probe-mtext-fields.mjs`), pero esa medición es sobre archivos
+ * que ODA produjo; lo que aquí se comprueba es la vuelta: que un MTEXT que
+ * ESCRIBIMOS con ese anclaje sale del conversor con el mismo. Si el anclaje
+ * escrito no significara lo que medimos, este número no cuadraría.
+ */
+function checkMTextRaw(dxfText, expected, mismatches, label) {
+  const lines = dxfText.split(/\r?\n/);
+  for (let index = 0; index < lines.length; index += 1) {
+    if (lines[index].trim() !== "MTEXT") continue;
+    let attachment = null;
+    for (let scan = index + 1; scan < Math.min(index + 121, lines.length - 1); scan += 2) {
+      const code = lines[scan].trim();
+      if (code === "0") break;
+      if (code === "71") attachment = Number.parseInt(lines[scan + 1]?.trim(), 10);
+    }
+    if (attachment !== expected.entity.attachment) {
+      mismatches.push(
+        `${label}: grupo 71 = ${attachment}, esperado ${expected.entity.attachment}`,
+      );
+    }
+    return;
+  }
+  mismatches.push(`${label}: el DXF no contiene ningún MTEXT`);
 }
 
 function compareCase(caseSpec, dxfText) {
@@ -408,6 +318,9 @@ function compareCase(caseSpec, dxfText) {
       compareEntity(expected, candidate, mismatches, label);
       if (expected.kind === "lwpolyline") {
         checkLwPolylineRaw(dxfText, expected, mismatches, label);
+      }
+      if (expected.kind === "mtext") {
+        checkMTextRaw(dxfText, expected, mismatches, label);
       }
     }
     entityReport.push({
@@ -462,6 +375,17 @@ async function main() {
     pathToFileURL(PUBLIC_API_DIST).href
   );
 
+  if (!CONVERTER) {
+    console.error(
+      "Falta ODA_FILE_CONVERTER: este harness NO adivina dónde está el conversor.\n" +
+        "  export ODA_FILE_CONVERTER=/ruta/a/ODAFileConverter      # Linux/macOS\n" +
+        '  set   ODA_FILE_CONVERTER=C:\\ruta\\ODAFileConverter.exe   # Windows\n' +
+        "El conversor es gratuito (registro en opendesign.com) y tiene build de Linux,\n" +
+        "así que esto puede correr en CI y no sólo en la máquina del titular.",
+    );
+    process.exitCode = 1;
+    return;
+  }
   if (!fs.existsSync(CONVERTER)) {
     console.error(`El conversor no existe en ${CONVERTER}; no hay oráculo que consultar.`);
     process.exitCode = 1;
@@ -691,7 +615,7 @@ async function main() {
     },
     limitaciones: [
       "El helper del oráculo (dxf-oracle.mjs, importado sin modificar) no acumula los vértices 10/20 repetidos de una LWPOLYLINE: el conteo de vértices y el cierre se verifican contra los grupos 90/70 del DXF crudo y la geometría exacta de vértices queda cubierta por el round-trip del lector propio.",
-      "Entidades de anotación (MTEXT, DIMENSION, HATCH, LEADER…) siguen siendo pendiente declarado del writer: el lector propio ya las decodifica, pero writeAc1015EntityBody aún no las emite.",
+      "Entidades de anotación (DIMENSION, HATCH, LEADER…) siguen siendo pendiente declarado del writer: el lector propio ya las decodifica, pero writeAc1015EntityBody aún no las emite. CORRECCIÓN 2026-09-01: esta lista incluía MTEXT y era FALSO — writeAc1015EntityBody sí la emite (`emitMText`, espejo campo a campo de `decodeMText`) desde antes de este corte. Lo que sigue sin llegar de MTEXT es el camino PÚBLICO: `canonical-to-dwg.ts` no la enruta, porque el documento canónico no transporta ni la alineación ni el interlineado que el producto sí modela, y enrutarla hoy los aplanaría en silencio.",
     ],
   };
 

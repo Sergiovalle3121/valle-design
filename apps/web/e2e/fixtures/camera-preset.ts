@@ -32,3 +32,17 @@ export async function topView(page: Page): Promise<void> {
 export async function fitFootprint(page: Page): Promise<void> {
   await toolbar(page).getByTitle(/Ajustar a la planta/).click();
 }
+
+/**
+ * Vista isométrica desde la barra superior.
+ *
+ * La añadió la auditoría de 3D: mirar el edificio EN VOLUMEN es el primer gesto
+ * de quien abre el modelo, y desde la planta no se designa ninguna cara —el
+ * lienzo sólo lanza rayo de cámara en modo 3D (`cadFacePickerFor`)—. Vive aquí y
+ * no en el spec porque el título es el mismo en la barra y en el ViewCube, y el
+ * gate `check:e2e-localizadores` prohíbe —con razón— nombrarlo fuera de esta
+ * fixture.
+ */
+export async function isoView(page: Page): Promise<void> {
+  await toolbar(page).getByTitle(/Vista isométrica/).click();
+}
