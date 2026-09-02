@@ -372,6 +372,7 @@
         "packages/dwg-codec/src/writer/ac1015-block-writer.ts",
         "packages/dwg-codec/src/writer/ac1015-container-writer.ts",
         "packages/dwg-codec/src/writer/ac1015-entity-writer.ts",
+        "packages/dwg-codec/src/writer/ac1015-entity-emitters.ts",
         "packages/dwg-codec/src/writer/ac1015-header-writer.ts",
         "packages/dwg-codec/src/writer/ac1015-layout-writers.ts",
         "packages/dwg-codec/src/writer/ac1015-minimal-file-plan.ts",

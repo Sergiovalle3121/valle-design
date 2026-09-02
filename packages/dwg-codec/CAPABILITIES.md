@@ -1387,3 +1387,55 @@ que enrutarla hoy los aplanaría en silencio. Se declara en vez de hacerlo.
 Sigue en pie: **ningún flag encendido**, `externalOracleVerified` en `false`, y
 un caso nuevo (`elipse`) esperando al titular en el harness del oráculo, con su
 gemelo público.
+
+## Corte 2026-09-02 — la novena clase escribible: el HATCH de relleno SÓLIDO
+
+El corte anterior enrutó la elipse, que era enrutado puro: el writer ya la
+emitía. Éste es distinto — el writer **no** emitía HATCH en absoluto—, y con
+un límite que el propio formato dicta.
+
+**Por qué sólo el sólido.** `decodeHatch` lee el bloque de definición del
+patrón —ángulo, escala, doble trama y las líneas con sus trazos— **sólo cuando
+`solidFill` es falso**. Un relleno sólido salta ese bloque entero. El documento
+canónico transporta el **nombre** del patrón, no su geometría, así que un
+sombreado con patrón sólo se podría escribir **inventándose** esa definición.
+Se escribe el sólido; el de patrón se declara `hatch-pattern-not-writable`
+nombrando el patrón concreto.
+
+**Medido de punta a punta** con `exportCadDocumentToDwg` sobre un documento con
+los dos:
+
+| | resultado |
+| --- | --- |
+| preflight | `writableCount: 1`, `unwritableByType: {hatch: 1}` |
+| sombreados en el archivo | **1 de 2** — el sólido, con sus 4 vértices y su cierre |
+| pérdidas | `hatch-authoring-defaults` y `hatch-pattern-not-writable` |
+
+**El preflight pasa a ser por INSTANCIA, no por tipo.** Hasta ahora cada clase
+era escribible entera o nada, y un `Set` de tipos bastaba. El HATCH lo rompe: un
+conjunto por tipo tendría que **mentir en una de las dos direcciones** —incluir
+`hatch` prometería sombreados con patrón que luego se pierden; excluirlo daría
+por perdidos los sólidos que sí viajan—. Como el preflight existe justamente
+para que la pérdida no sorprenda DESPUÉS, ahora pregunta por la entidad
+concreta (`cadEntityIsDwgWritable`).
+
+**Lo que se declara sin ser una pérdida del origen.** Asociatividad, estilo,
+tipo de patrón y puntos semilla no viajan en el canónico: se escriben en su
+valor neutro y se declara `hatch-authoring-defaults`. Son decisiones de autoría,
+como la extrusión de la elipse, y aun así constan: quien reexporte un sombreado
+asociativo de un archivo ajeno tiene que leer que dejó de serlo.
+
+**Lo que el round-trip propio NO puede probar, y por eso importa el oráculo.**
+El lector propio acepta lo que el writer propio escriba. Que un sombreado con
+cero semillas, estilo 0 y sin asociatividad sea un sombreado que **otro
+programa** abre sólo lo dice un lector ajeno: caso `sombreado-solido` nuevo en
+el harness, con su gemelo público. El titular corre ahora **dieciséis**.
+
+**Dos particiones por presupuesto de monolito, ninguna presupuestada.**
+`ac1015-entity-writer.ts` (842 líneas) se parte en `ac1015-entity-emitters.ts`:
+allá queda decidir QUÉ entidad se escribe —validación, código de tipo, prólogo
+común, handles—, aquí el saber concreto de cada clase, que es lo que crece al
+aprender una más. `oda-roundtrip.mjs` (861) se parte en
+`oda-roundtrip-cases.mjs`: el arnés no cambia al añadir un caso; los dibujos sí.
+
+Sigue en pie: **ningún flag encendido** y `externalOracleVerified` en `false`.

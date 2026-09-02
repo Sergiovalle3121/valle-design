@@ -445,6 +445,89 @@ test("una ELIPSE va y vuelve exacta por writeCanonicalDwg → readDwg, y declara
   assert.ok(Math.abs(written.extrusion.z - 1) < 1e-6, "y el plano escrito es el XY");
 });
 
+// ─── HATCH: la novena clase, y sólo la mitad que se puede escribir ────────
+// El cuerpo de un HATCH con patrón lleva, después de los contornos, un bloque
+// —ángulo, escala, doble trama y las líneas de definición con sus trazos— que
+// el sólido no tiene. El canónico transporta el NOMBRE del patrón, no su
+// geometría, así que un sombreado con patrón sólo se podría escribir
+// inventándosela. Se escribe el sólido y se declara el otro.
+test("un HATCH de relleno SÓLIDO va y vuelve exacto por writeCanonicalDwg → readDwg", () => {
+  const document = emptyDocument({
+    entities: [
+      {
+        id: "h1",
+        type: "hatch",
+        pattern: "SOLID",
+        solid: true,
+        boundaries: [
+          [
+            { x: 0, y: 0, z: 0 },
+            { x: 10, y: 0, z: 0 },
+            { x: 10, y: 6, z: 0 },
+            { x: 0, y: 6, z: 0 },
+          ],
+        ],
+        layer: "0",
+      },
+    ],
+  });
+
+  const { bytes, lossManifest } = writeCanonicalDwg(document);
+  const database = readDwg(bytes);
+  assert.equal(database.modelSpaceEntities.length, 1);
+  const written = database.modelSpaceEntities[0]!.entity;
+  assert.equal(written.kind, "hatch");
+  if (written.kind !== "hatch") throw new Error("inalcanzable");
+  assert.equal(written.solidFill, true, "se escribe como relleno sólido");
+  assert.equal(written.paths.length, 1, "un contorno, un camino");
+  const path = written.paths[0]!;
+  assert.equal(path.kind, "polyline");
+  if (path.kind !== "polyline") throw new Error("inalcanzable");
+  assert.equal(path.vertices.length, 4, "los cuatro vértices viajan");
+  assert.equal(path.closed, true, "y el contorno vuelve cerrado");
+  assert.ok(Math.abs(path.vertices[2]!.x - 10) < 1e-6, "con sus coordenadas exactas");
+  assert.ok(Math.abs(path.vertices[2]!.y - 6) < 1e-6);
+  assert.equal(String.fromCharCode(...written.nameBytes), "SOLID");
+
+  // Lo que el canónico no lleva son decisiones de autoría, y se declaran.
+  assert.equal(lossManifest.length, 1);
+  assert.equal(lossManifest[0]!.code, "hatch-authoring-defaults");
+});
+
+test("un HATCH CON PATRÓN no se emite y se declara con su razón", () => {
+  const document = emptyDocument({
+    entities: [
+      { id: "e1", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 1, y: 1, z: 0 }, layer: "0" },
+      {
+        id: "h2",
+        type: "hatch",
+        pattern: "ANSI31",
+        solid: false,
+        boundaries: [
+          [
+            { x: 0, y: 0, z: 0 },
+            { x: 4, y: 0, z: 0 },
+            { x: 4, y: 4, z: 0 },
+          ],
+        ],
+        layer: "0",
+      },
+    ],
+  });
+
+  const { bytes, lossManifest } = writeCanonicalDwg(document);
+  const database = readDwg(bytes);
+  assert.equal(database.modelSpaceEntities.length, 1, "sólo la línea llega al archivo");
+  assert.equal(database.modelSpaceEntities[0]!.entity.kind, "line");
+  assert.equal(lossManifest.length, 1);
+  assert.equal(lossManifest[0]!.code, "hatch-pattern-not-writable");
+  assert.equal(lossManifest[0]!.entityId, "h2");
+  assert.ok(
+    lossManifest[0]!.detail.includes("ANSI31"),
+    "y el manifiesto nombra el patrón concreto que no se supo escribir",
+  );
+});
+
 test("el mapeo es determinista: mismo documento, mismos bytes y mismo manifiesto", () => {
   const document = emptyDocument({
     entities: [{ id: "e1", type: "circle", center: { x: 1, y: 1, z: 0 }, radius: 3, layer: "0" }],
