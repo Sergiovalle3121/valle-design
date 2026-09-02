@@ -324,7 +324,6 @@ import {
   explodeCadInsert,
   insertCadBlock as insertCanonicalCadBlock,
   purgeUnusedCadBlocks,
-  redefineCadBlock,
   replaceCadBlock,
 } from "@/lib/cad/professional-blocks";
 // El catálogo de plantillas (4.900+ líneas de datos) NO se importa estático:
@@ -584,6 +583,7 @@ import {
   type FactoryPreset,
 } from "@/lib/cad/world-scale";
 import CadOverviewMinimap from "@/components/cad/viewport/CadOverviewMinimap";
+import { renderCadSheetSetPdf } from "./sheet-set-pdf";
 import ScaleBar from "./ScaleBar";
 import { mergeAnnotationLayers, syncLegacyTextShadow } from "./legacy-text-shadow-sync";
 import {
@@ -4832,6 +4832,7 @@ export default function Layout3DEditor({
    * No hay una segunda ruta de mutación, que es justo lo que el motor venía a
    * eliminar.
    */
+  const syncRedefinedBlockLibraryRef = useRef<(blockId: string) => void>(() => {});
   const commandEngine = useCadStudioCommandEngine({
     document: loadedCadDocumentRef,
     selection: nativeSelectionIdsRef,
@@ -4848,6 +4849,12 @@ export default function Layout3DEditor({
           )
         : [];
       commitNativeCommands([...commands], created.length ? created : undefined);
+      // BLOCK «¿Redefinirlo? Sí» sale del motor como op:redefine: la fila de
+      // la biblioteca del despacho tiene que versionarse igual que cuando el
+      // panel redefinía por su cuenta, o el catálogo enseña la silla vieja.
+      for (const command of commands)
+        if (command.type === "block" && command.op === "redefine")
+          syncRedefinedBlockLibraryRef.current(command.definition.id);
     },
     // El puntero ya alimenta al motor: éstas son las tres cosas que su puente
     // ignoraba «a conciencia hasta que el puntero llegue».
@@ -5287,53 +5294,57 @@ export default function Layout3DEditor({
     },
     [activeCadLayer, cadBlocks, commitBlockMutation],
   );
-  const redefineProfessionalBlock = useCallback(
+  const syncRedefinedBlockLibrary = useCallback(
     (blockId: string) => {
-      const entityIds = [
-        ...new Set([
-          ...selRef.current.map((item) => item.id),
-          ...nativeSelectionIdsRef.current,
-        ]),
-      ];
-      commitBlockMutation(
-        (document) => {
-          const entities = entityIds
-            .map((id) => document.entities.find((entity) => entity.id === id))
-            .filter((entity): entity is CadEntity => !!entity);
-          return redefineCadBlock(document, blockId, entities);
-        },
-        nativeSelectionIdsRef.current,
-        "Definición actualizada; todas sus instancias se regeneraron.",
-      );
       const updatedDefinition = loadedCadDocumentRef.current?.blocks.find(
         (block) => block.id === blockId,
       );
       const libraryRow = cadBlocks.find(
         (candidate) => candidate.definition?.id === blockId,
       );
-      if (updatedDefinition && libraryRow)
-        void legacyCadFetch(`cad-blocks/${libraryRow.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ definition: updatedDefinition }),
-        })
-          .then((response) =>
-            response.ok
-              ? loadCadBlocks()
-              : toast.error(
-                  "Redefinición local guardada; la biblioteca tenant no pudo versionarse.",
-                  "BLOCK",
-                ),
-          )
-          .catch(() =>
-            toast.error(
-              "Redefinición local guardada; falló la biblioteca tenant.",
-              "BLOCK",
-            ),
-          );
+      if (!updatedDefinition || !libraryRow) return;
+      void legacyCadFetch(`cad-blocks/${libraryRow.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ definition: updatedDefinition }),
+      })
+        .then((response) =>
+          response.ok
+            ? loadCadBlocks()
+            : toast.error(
+                "Redefinición local guardada; la biblioteca tenant no pudo versionarse.",
+                "BLOCK",
+              ),
+        )
+        .catch(() =>
+          toast.error(
+            "Redefinición local guardada; falló la biblioteca tenant.",
+            "BLOCK",
+          ),
+        );
     },
-    [cadBlocks, commitBlockMutation, toast],
+    [cadBlocks, toast],
   );
+  useEffect(() => {
+    syncRedefinedBlockLibraryRef.current = syncRedefinedBlockLibrary;
+  });
+  // «Redefinir» ya no sustituye la definición en el acto: arranca el gesto de
+  // AutoCAD —BLOCK con el nombre existente, «¿Redefinirlo?», punto base,
+  // objetos— y el motor hace el resto. El punto base es lo que faltaba: sin
+  // preguntarlo, la geometría del recambio entraba en coordenadas de mundo con
+  // el punto base viejo (0,0) y cada instancia se iba el vector que va del
+  // origen a donde uno dibujó el recambio (medido: +9000, +8000 en la
+  // auditoría del 2026-09-01, e2e/auditoria/bloques.spec.ts).
+  const redefineProfessionalBlock = useCallback((blockId: string) => {
+    const definition = loadedCadDocumentRef.current?.blocks.find(
+      (block) => block.id === blockId,
+    );
+    if (!definition) return;
+    const engine = commandEngineRef.current;
+    engine.invoke("BLOCK");
+    engine.submit(definition.name);
+    engine.submit("S");
+  }, []);
   const replaceProfessionalBlock = useCallback(
     (sourceBlock: string, targetBlock: string) => {
       commitBlockMutation(
@@ -13248,193 +13259,11 @@ export default function Layout3DEditor({
         toast.error("El conjunto no contiene hojas publicables.", "Hojas");
         return;
       }
-      const { jsPDF } = await import("jspdf");
-      const first = plan.sheets[0];
-      const pdf = new jsPDF({
-        orientation: first.orientation,
-        unit: "mm",
-        format: [first.width, first.height],
-        compress: true,
-        putOnlyUsedFonts: true,
+      const buffer = await renderCadSheetSetPdf(plan, {
+        model,
+        revision,
+        productLabel: branding.productLabel,
       });
-      const color = (hex: string): [number, number, number] => {
-        const clean = /^#[0-9a-f]{6}$/i.test(hex) ? hex.slice(1) : "334155";
-        return [
-          Number.parseInt(clean.slice(0, 2), 16),
-          Number.parseInt(clean.slice(2, 4), 16),
-          Number.parseInt(clean.slice(4, 6), 16),
-        ];
-      };
-      plan.sheets.forEach((sheet, sheetIndex) => {
-        if (sheetIndex > 0)
-          pdf.addPage([sheet.width, sheet.height], sheet.orientation);
-        pdf.setFillColor(255, 255, 255);
-        pdf.rect(0, 0, sheet.width, sheet.height, "F");
-        pdf.setDrawColor(17, 24, 39);
-        pdf.setLineWidth(0.45);
-        pdf.rect(6, 6, sheet.width - 12, sheet.height - 12);
-        sheet.viewports.forEach((viewport) => {
-          pdf.saveGraphicsState();
-          pdf.rect(
-            viewport.clip.x,
-            viewport.clip.y,
-            viewport.clip.width,
-            viewport.clip.height,
-          );
-          pdf.clip();
-          pdf.discardPath();
-          viewport.commands.forEach((command) => {
-            if (command.kind === "path") {
-              if (command.points.length < 2) return;
-              const [strokeR, strokeG, strokeB] = color(command.style.stroke);
-              pdf.setDrawColor(strokeR, strokeG, strokeB);
-              pdf.setLineWidth(command.style.lineWidth);
-              pdf.setLineDashPattern(command.style.dash ?? [], 0);
-              if (command.style.fill) {
-                const [fillR, fillG, fillB] = color(command.style.fill);
-                pdf.setFillColor(fillR, fillG, fillB);
-              }
-              const [origin, ...rest] = command.points;
-              const deltas = rest.map((point, index) => [
-                point.x - command.points[index].x,
-                point.y - command.points[index].y,
-              ]);
-              const style: "S" | "FD" = command.style.fill ? "FD" : "S";
-              pdf.lines(
-                deltas,
-                origin.x,
-                origin.y,
-                [1, 1],
-                style,
-                command.closed,
-              );
-            } else {
-              const [r, g, b] = color(command.color);
-              const maxWidth = Math.max(
-                1,
-                Math.min(
-                  command.maxWidth ?? viewport.clip.width,
-                  viewport.clip.width,
-                ),
-              );
-              const lines = command.text.replace(/\r\n?/g, "\n").split("\n");
-              const lineHeight = command.size * 0.4;
-              const alignOffset =
-                command.align === "center"
-                  ? maxWidth / 2
-                  : command.align === "right"
-                    ? maxWidth
-                    : 0;
-              if (command.backgroundMask) {
-                const [mr, mg, mb] = color(
-                  command.backgroundColor ?? "#ffffff",
-                );
-                pdf.setFillColor(mr, mg, mb);
-                pdf.rect(
-                  command.point.x - alignOffset - 0.8,
-                  command.point.y - command.size * 0.32,
-                  maxWidth + 1.6,
-                  Math.max(lineHeight, lines.length * lineHeight) + 1.2,
-                  "F",
-                );
-              }
-              pdf.setTextColor(r, g, b);
-              pdf.setFont(
-                "helvetica",
-                command.bold && command.italic
-                  ? "bolditalic"
-                  : command.bold
-                    ? "bold"
-                    : command.italic
-                      ? "italic"
-                      : "normal",
-              );
-              pdf.setFontSize(command.size);
-              pdf.text(command.text, command.point.x, command.point.y, {
-                align: command.align ?? "left",
-                angle: command.rotation,
-                maxWidth,
-              });
-              if (command.underline && Math.abs(command.rotation) < 1e-9) {
-                pdf.setDrawColor(r, g, b);
-                pdf.setLineWidth(Math.max(0.08, command.size * 0.015));
-                lines.forEach((line, index) => {
-                  const width = Math.min(maxWidth, pdf.getTextWidth(line));
-                  const x =
-                    command.point.x -
-                    (command.align === "center"
-                      ? width / 2
-                      : command.align === "right"
-                        ? width
-                        : 0);
-                  const y = command.point.y + index * lineHeight + 0.5;
-                  pdf.line(x, y, x + width, y);
-                });
-              }
-            }
-          });
-          pdf.restoreGraphicsState();
-          pdf.setLineDashPattern([], 0);
-          pdf.setDrawColor(100, 116, 139);
-          pdf.setLineWidth(0.15);
-          pdf.rect(
-            viewport.clip.x,
-            viewport.clip.y,
-            viewport.clip.width,
-            viewport.clip.height,
-          );
-          pdf.setFont("helvetica", "normal");
-          pdf.setFontSize(6);
-          pdf.setTextColor(71, 85, 105);
-          pdf.text(
-            `${viewport.name} · 1:${viewport.scale}${viewport.locked ? " · LOCK" : ""}`,
-            viewport.clip.x + 1.5,
-            viewport.clip.y + 4,
-          );
-        });
-        // Las CLAVES del cajetín (PROJECT, TITLE…) son contrato del documento
-        // y no se tocan; lo que se IMPRIME para el cliente va en es-MX.
-        const titleBlockEntries = [
-          ["PROYECTO", sheet.titleBlock.PROJECT ?? `Layout ${model}`],
-          ["TÍTULO", sheet.titleBlock.TITLE ?? sheet.name],
-          ["NO. DE PLANO", sheet.titleBlock.DRAWING_NO ?? "-"],
-          ["NO. DE HOJA", sheet.titleBlock.SHEET_NO ?? String(sheetIndex + 1)],
-          ["REVISIÓN", sheet.titleBlock.REVISION ?? revision],
-          ["DISCIPLINA", sheet.titleBlock.DISCIPLINE ?? "-"],
-          ["ELABORÓ", sheet.titleBlock.PREPARED_BY ?? "-"],
-          ["REVISÓ", sheet.titleBlock.CHECKED_BY ?? "-"],
-        ] as const;
-        const blockX = 8,
-          blockY = sheet.height - 34,
-          blockW = sheet.width - 16,
-          cellW = blockW / 4,
-          cellH = 13;
-        pdf.setDrawColor(17, 24, 39);
-        titleBlockEntries.forEach(([label, value], index) => {
-          const x = blockX + (index % 4) * cellW,
-            y = blockY + Math.floor(index / 4) * cellH;
-          pdf.rect(x, y, cellW, cellH);
-          pdf.setFont("helvetica", "normal");
-          pdf.setFontSize(5.5);
-          pdf.setTextColor(100, 116, 139);
-          pdf.text(label, x + 2, y + 4);
-          pdf.setFont("helvetica", "bold");
-          pdf.setFontSize(8);
-          pdf.setTextColor(17, 24, 39);
-          pdf.text(String(value).slice(0, 42), x + 2, y + 9.5, {
-            maxWidth: cellW - 4,
-          });
-        });
-        pdf.setFont("helvetica", "bold");
-        pdf.setFontSize(7);
-        pdf.text(
-          `${branding.productLabel} · ${sheetIndex + 1}/${plan.sheets.length}`,
-          sheet.width - 8,
-          5,
-          { align: "right" },
-        );
-      });
-      const buffer = pdf.output("arraybuffer");
       const digest = await crypto.subtle.digest("SHA-256", buffer);
       const sha256 = [...new Uint8Array(digest)]
         .map((value) => value.toString(16).padStart(2, "0"))
@@ -13469,6 +13298,15 @@ export default function Layout3DEditor({
         publication: CadPublicationRecord;
         cadDocumentVersion: number;
       };
+      // Publicar AVANZA la versión CAS en el servidor (el recibo es
+      // server-managed y suma uno). El token con el que guarda de verdad
+      // `persistCanonicalSave` es `versionByDocumentRef`, no
+      // `data.cadDocumentVersion`; sin esta línea el siguiente guardado viajaba
+      // con la versión caducada. Medido (e2e/auditoria/refutacion-imprimir):
+      // publicar → editar → guardar daba PUT /content → 409 y «Conflicto CAS ·
+      // servidor v2 · autosave detenido», y el control sin publicar daba 200.
+      if (documentId)
+        versionByDocumentRef.current.set(documentId, receipt.cadDocumentVersion);
       const nextCanonical = commitChange(
         {
           ...canonical,
@@ -15801,10 +15639,17 @@ export default function Layout3DEditor({
             )}
           </div>
 
-          {/* 3D viewport */}
+          {/* 3D viewport, y debajo la barra de estado. La barra estaba montada
+              DENTRO de `cad-canvas`, absoluta abajo a la derecha, y se comía el
+              pointerdown de cualquier arrastre que empezara ahí: medido en la
+              auditoría del 2026-09-01, un recuadro de selección desde el centro
+              designaba 3 objetos a 180 px y CERO a 200 px. Como en AutoCAD, la
+              barra de estado ocupa su propia franja bajo el área de dibujo; el
+              golden 68 vigila que nada vuelva a robarle el ratón al lienzo. */}
+          <div className="flex min-w-0 flex-1 flex-col">
           <div
             data-testid="cad-canvas"
-            className="relative min-w-0 flex-1 overflow-hidden"
+            className="relative min-h-0 min-w-0 flex-1 overflow-hidden"
             onContextMenu={handleCadContextMenu}
             onPointerDown={() => setCadContextMenu(null)}
           >
@@ -15814,19 +15659,38 @@ export default function Layout3DEditor({
                 `view-3d.ts`) — ver el comentario de `CadViewCube`. Sólo tiene
                 sentido con la cámara en perspectiva 3D; en 2D (planta
                 bloqueada) no hay caras que mostrar. */}
-            {viewMode === "3d" && (
-              <div className="pointer-events-none absolute right-3 top-3 z-20 flex items-start gap-2">
-                <div className="pointer-events-auto">
-                  <CadViewCube onSelect={viewPreset} />
+            <div
+              data-testid="cad-navigation-corner"
+              className="pointer-events-none absolute right-3 top-3 z-20 flex flex-col items-end gap-2"
+            >
+              {viewMode === "3d" && (
+                <div className="flex items-start gap-2">
+                  <div className="pointer-events-auto">
+                    <CadViewCube onSelect={viewPreset} />
+                  </div>
+                  <div className="pointer-events-auto">
+                    <CadNavigationBar
+                      onFitView={fitView}
+                      hasSelection={selList.length > 0 || nativeSelectionIds.length > 0}
+                    />
+                  </div>
                 </div>
+              )}
+              {/* El minimapa vivía abajo a la derecha, absoluto sobre el lienzo,
+                  y era la capa que el golden 68 midió robando esa esquina. Va
+                  con las ayudas de navegación, donde AutoCAD pone las suyas. */}
+              {showMinimap && workspacePreferences.minimap && (
                 <div className="pointer-events-auto">
-                  <CadNavigationBar
-                    onFitView={fitView}
-                    hasSelection={selList.length > 0 || nativeSelectionIds.length > 0}
+                  <CadOverviewMinimap
+                    ctxRef={ctxRef}
+                    placementsRef={placementsRef}
+                    assetsRef={assetsRef}
+                    cameraRef={cameraRef}
+                    controlsRef={controlsRef}
                   />
                 </div>
-              </div>
-            )}
+              )}
+            </div>
             {webglUnavailable !== "ok" && (
               <div
                 data-testid="cad-webgl-unavailable"
@@ -16016,15 +15880,6 @@ export default function Layout3DEditor({
                 </div>
               </div>
             )}
-            {showMinimap && workspacePreferences.minimap && (
-              <CadOverviewMinimap
-                ctxRef={ctxRef}
-                placementsRef={placementsRef}
-                assetsRef={assetsRef}
-                cameraRef={cameraRef}
-                controlsRef={controlsRef}
-              />
-            )}
             <CadOverlayLegends gaps={showGaps} />
             <ScaleBar
               ctxRef={ctxRef}
@@ -16116,62 +15971,6 @@ export default function Layout3DEditor({
                 )}
               </div>
             )}
-            <CadStatusBar
-              diagnostics={{
-                enabled: diagnosticsEnabled,
-                tool,
-                selectionCount: professionalSelection.current.length,
-                nativeEntityCount: nativeEntities.length,
-                renderPipelineRef,
-                renderPipelineSlotRef,
-                nativeMassHostsRef,
-                historyUndo: hist.undo,
-                historyRedo: hist.redo,
-                nativeRenderStats,
-              }}
-              unit={data?.footprint.unit ?? "mm"}
-              cursorCoordinateRef={cursorCoordinateRef}
-              documentInfo={{
-                model,
-                revision,
-                version: data?.cadDocumentVersion ?? 0,
-              }}
-              saveState={{
-                saving,
-                dirty,
-                saveStatus,
-                saveIssue,
-                documentId,
-                recoverySavedAt,
-                recoveryWarning,
-                connectionState,
-              }}
-              layersInfo={{
-                cadLayers,
-                activeCadLayer,
-                cadLayerSummary,
-                gridOn: layers.grid,
-                snapOn: snap,
-              }}
-              draftSettings={draftSettings}
-              draftSettingsHost={draftSettingsHost}
-              paletteHost={paletteHost}
-              validation={{
-                onOpenChecks: openChecks,
-                releaseTone,
-                releaseState,
-                report,
-                cadValidationReport,
-                clearanceIssuesCount: clearanceIssues.length,
-                safetyIssuesCount: safetyIssues.length,
-                validationHighlightCount: validationHighlightIds.size,
-                onClearHighlights: clearValidationHighlights,
-              }}
-              misc={{
-                dxfWarningsCount: dxfWarnings.length,
-                snapshotsCount: localSnapshots.snapshots.length,
-              }}
-            />
             {hatchPickMode && (
               <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2 rounded-full bg-violet-600/95 px-3 py-1.5 type-caption font-semibold text-foreground">
                 HATCH {hatchPickSolid ? "SOLID" : "ANSI31"} · clic dentro de una
@@ -16393,6 +16192,63 @@ export default function Layout3DEditor({
               canRedo={hist.redo > 0}
               onRun={runToolbarAction}
             />
+          </div>
+          <CadStatusBar
+            diagnostics={{
+              enabled: diagnosticsEnabled,
+              tool,
+              selectionCount: professionalSelection.current.length,
+              nativeEntityCount: nativeEntities.length,
+              renderPipelineRef,
+              renderPipelineSlotRef,
+              nativeMassHostsRef,
+              historyUndo: hist.undo,
+              historyRedo: hist.redo,
+              nativeRenderStats,
+            }}
+            unit={data?.footprint.unit ?? "mm"}
+            cursorCoordinateRef={cursorCoordinateRef}
+            documentInfo={{
+              model,
+              revision,
+              version: data?.cadDocumentVersion ?? 0,
+            }}
+            saveState={{
+              saving,
+              dirty,
+              saveStatus,
+              saveIssue,
+              documentId,
+              recoverySavedAt,
+              recoveryWarning,
+              connectionState,
+            }}
+            layersInfo={{
+              cadLayers,
+              activeCadLayer,
+              cadLayerSummary,
+              gridOn: layers.grid,
+              snapOn: snap,
+            }}
+            draftSettings={draftSettings}
+            draftSettingsHost={draftSettingsHost}
+            paletteHost={paletteHost}
+            validation={{
+              onOpenChecks: openChecks,
+              releaseTone,
+              releaseState,
+              report,
+              cadValidationReport,
+              clearanceIssuesCount: clearanceIssues.length,
+              safetyIssuesCount: safetyIssues.length,
+              validationHighlightCount: validationHighlightIds.size,
+              onClearHighlights: clearValidationHighlights,
+            }}
+            misc={{
+              dxfWarningsCount: dxfWarnings.length,
+              snapshotsCount: localSnapshots.snapshots.length,
+            }}
+          />
           </div>
 
           {/* right: propiedades. En tableta sólo aparece si el usuario ABRIÓ una

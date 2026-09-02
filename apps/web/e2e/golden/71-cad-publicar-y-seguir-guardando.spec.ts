@@ -6,7 +6,9 @@ import type { CadDocument } from "../../src/lib/cad/cad-document";
 import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
 
 /**
- * CONTRAPRUEBA DEL ESCÉPTICO — «después de imprimir, el dibujo no se guarda».
+ * PUBLICAR Y SEGUIR GUARDANDO — graduada de
+ * `e2e/auditoria/refutacion-imprimir.spec.ts`, la contraprueba del escéptico a
+ * «después de imprimir, el dibujo no se guarda».
  *
  * El informe original cambia la ESCALA de la ventana entre las dos
  * publicaciones, así que deja abierta una salida: que el defecto sea del
@@ -25,8 +27,13 @@ import { CAD_DOCUMENT_SCHEMA } from "../../src/lib/cad/cad-document-shared";
  *     detenido». La 2ª publicación no da PDF (publicar guarda primero).
  *   · DISCRIMINADOR, publicar dos veces sin tocar nada: los DOS PDF salen.
  *
- * Los dos primeros tests afirman el comportamiento CORRECTO, así que hoy
- * FALLAN: son la reproducción del defecto, no su documentación.
+ * LA CAUSA, Y EL ARREGLO (2026-09-02): publicar avanza la versión CAS en el
+ * servidor (el recibo es server-managed y suma uno) y `publishSheetSetPdf`
+ * refrescaba `data.cadDocumentVersion` pero NO `versionByDocumentRef`, que es
+ * el token con el que `persistCanonicalSave` guarda de verdad. Ahora el recibo
+ * actualiza el token, y las tres pruebas afirman el comportamiento correcto:
+ * medido tras el arreglo, guardado tras publicar = «Guardado», PUT /content →
+ * 200, segunda publicación con PDF, versión de servidor 4.
  */
 
 const FOOTPRINT = { footprintW: 12_000, footprintH: 10_000, unit: "mm", gridSize: 100 };

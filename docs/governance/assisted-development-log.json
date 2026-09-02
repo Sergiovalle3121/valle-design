@@ -2766,6 +2766,39 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "OLA-B-LOS-TRES-QUE-BLOQUEAN-EL-TRABAJO-20260902",
+      "date": "2026-09-02",
+      "initiative": "Ola B del encargo «Valle Design → AutoCAD completo»: los tres defectos «bloquea el trabajo» de la auditoría de cliente final del 2026-09-01, cada uno con su prueba de auditoría graduada a golden. (1) Publicar dejaba el dibujo sin poder guardarse: publicar avanza la versión CAS en el servidor y publishSheetSetPdf refrescaba data.cadDocumentVersion pero no versionByDocumentRef, el token con el que persistCanonicalSave guarda de verdad; medido antes del arreglo con e2e/auditoria/refutacion-imprimir: control sin publicar PUT 200 y 200, caso publicando antes PUT 409 y «Conflicto CAS · servidor v2 · autosave detenido» sin segundo PDF; tras el arreglo, guardado tras publicar «Guardado», PUT 200, segunda publicación con PDF y versión de servidor 4 (3/3 verdes, graduada como golden 71). El render jsPDF (~180 líneas) sale del monolito a sheet-set-pdf.ts como función pura del plan: Layout3DEditor.tsx baja de 18455 a 18307 líneas. (2) Redefinir un bloque movía las instancias exactamente el desplazamiento de dónde se dibujó el recambio (+9000, +8000 medidos): BLOCK con un nombre existente pasa a preguntar «¿Redefinirlo? [Sí/No] <No>» como -BLOCK de AutoCAD, pide el punto base de la nueva definición y consume los objetos designados con op:redefine (que el aplicador ya sabía subir de versión); el botón «Redefinir» del panel arranca ese mismo gesto y la biblioteca del despacho se sincroniza al aplicarse la orden. Spec del comando ampliada (43 comprobaciones) y verificada mordiendo: contra el blocks.ts anterior falla. Graduadas: bloques.spec.ts → golden 69 (los pasos 8a/8b, «Mis bloques» y Ctrl+K, siguen rojos en sus propias refutaciones) y refutacion-block-redefine → golden 70. (3) La barra de estado estaba montada dentro de cad-canvas, absoluta abajo a la derecha, y se comía el pointerdown de los arrastres (3 objetos a 180 px del centro, 0 a 200 px): pasa a su propia franja bajo el lienzo, ancho completo y con las coordenadas primero, como en AutoCAD. Golden 68, gemelo del 67 para el área de dibujo: rejilla de 9×7 puntos más una fila a 40 px del borde inferior, cada uno debe responder <canvas>; antes del cambio midió que abajo a la derecha respondía el minimapa (div absolute bottom-3 right-3 bg-black/55) y, movido arriba a la derecha, seguía robando esa esquina, así que el minimapa queda apagado de fábrica (AutoCAD no tiene) y vive en la esquina de navegación cuando el usuario lo enciende. Efecto colateral medido por el golden 67 y arreglado: a 720 px de alto la columna de 16 botones de la paleta de herramientas no cabía bajo la barra («Área» y «Símbolos» tapados), así que en ventanas ≤820 px pasa a dos columnas; y el único residuo conocido del 67 («Release Sin validar» bajo la barra de herramientas) desapareció y su línea se borra, como exige el trinquete. Manifiesto de auditoría: 31 → 28.",
+      "branch": "claude/valle-design-autocad-vqfa6u",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo escrito «Valle Design → AutoCAD completo, con sus siete toolsets», §5 Ola B.",
+      "firstPartyInputs": [
+        "docs/competitive/auditoria-cliente-final-20260901.md y las pruebas de apps/web/e2e/auditoria/ (refutacion-imprimir, bloques, refutacion-block-redefine, capas), corridas en esta máquina antes y después de cada arreglo.",
+        "Los goldens 67 y 68 corridos contra el build de producción con NEXT_PUBLIC_API_URL=http://localhost:4000."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "apps/web/src/components/cad/editor/Layout3DEditor.tsx (token CAS tras publicar; barra de estado como hermana del lienzo; minimapa en la esquina de navegación; Redefinir → BLOCK)",
+        "apps/web/src/components/cad/editor/sheet-set-pdf.ts (nuevo: render jsPDF extraído)",
+        "apps/web/src/lib/cad/engine/commands/blocks.ts y blocks.spec.ts; apps/web/src/lib/cad/blocks/block-workflow.ts (cadRedefineBlockCommands)",
+        "apps/web/src/components/cad/studio/CadStatusBar.tsx, viewport/CadOverviewMinimap.tsx, editor/CadToolPalette.tsx, palettes/CadBlockPalette.tsx, lib/cad/cad-workspace.ts, app/globals.css",
+        "apps/web/e2e/golden/67, 68 (nuevo), 69, 70 y 71 (graduados de auditoria/) y apps/web/e2e/auditoria/manifiesto.json"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Tres pruebas de auditoría que estaban rojas a propósito pasan a goldens en verde, y un golden nuevo vigila que ninguna capa vuelva a robarle el ratón al área de dibujo."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

@@ -142,7 +142,7 @@ export default function CadOverviewMinimap({
 
   return (
     <div
-      className="absolute bottom-3 right-3 z-20 rounded-lg border border-white/15 bg-black/55 backdrop-blur shadow-lg"
+      className="rounded-lg border border-white/15 bg-black/55 backdrop-blur shadow-lg"
       style={{ width: MINI_MAX_W + 8, height: MINI_MAX_H + 8, padding: 4 }}
       title="Minimapa — clic para centrar la vista"
     >

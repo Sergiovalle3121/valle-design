@@ -95,15 +95,48 @@ const enter: CadCommandInput = { kind: "enter" };
   checks += 4;
 }
 
-// --- 2. BLOCK no pisa un nombre existente -----------------------------------
+// --- 2. BLOCK con un nombre existente PREGUNTA, y por defecto no pisa --------
+//
+// La auditoría del 2026-09-01 tecleó B y «Silla» y el producto contestó
+// «ya existe … o redefínalo» sin ninguna orden con la que redefinir. Ahora es la
+// pregunta de `-BLOCK` de AutoCAD: Sí/No, y Enter vale por No.
 {
+  const context = makeContext({ blocks: [doorBlock] });
+  const asked = run(command("BLOCK"), [text("PUERTA")], context);
+  ok(!asked.result, "no termina: pregunta");
+  ok(/ya existe/.test(asked.prompt.message) && /Redefinirlo/.test(asked.prompt.message), "la pregunta es ¿Redefinirlo?");
+  ok(asked.prompt.options.map((o) => o.shortcut).join("") === "SN" && asked.prompt.defaultOption === "No", "Sí/No con No por defecto");
+
+  const declined = run(command("BLOCK"), [text("PUERTA"), enter], context);
+  ok(!declined.result && /nombre del bloque/.test(declined.prompt.message), "Enter = No: vuelve a pedir el nombre, sin escribir nada");
+  const declinedByWord = run(command("BLOCK"), [text("PUERTA"), { kind: "keyword", keyword: "No" }], context);
+  ok(!declinedByWord.result && /nombre del bloque/.test(declinedByWord.prompt.message), "«No» también vuelve al nombre");
+}
+
+// --- 2b. BLOCK «Sí» redefine: punto base propio, objetos consumidos, sin inserción nueva
+{
+  // El recambio está dibujado LEJOS del origen, como se dibuja de verdad: si
+  // el punto base no se guardara, cada inserción se iría (+9000, +8000).
+  const replacement: CadEntity[] = [
+    { id: "v2", type: "line", start: { x: 9_000, y: 8_000, z: 0 }, end: { x: 9_600, y: 8_000, z: 0 }, layer: "0" },
+  ];
+  const context = makeContext({ entities: replacement, blocks: [doorBlock] });
+  const asked = run(command("BLOCK"), [text("PUERTA"), { kind: "keyword", keyword: "Sí" }], context);
+  ok(!asked.result && /punto base de la nueva definición de PUERTA/.test(asked.prompt.message), "tras Sí pide el punto base de la nueva definición");
   const result = run(
     command("BLOCK"),
-    [text("PUERTA")],
-    makeContext({ blocks: [doorBlock] }),
+    [text("PUERTA"), { kind: "keyword", keyword: "Sí" }, point(9_000, 8_000), { kind: "selection", entityIds: ["v2"] }],
+    context,
   ).result;
-  assert.ok(result && result.kind === "message" && /ya existe/.test(result.text), "lo dice y no escribe");
-  checks += 1;
+  assert.ok(result && result.kind === "document", "redefinir emite un lote");
+  assert.deepEqual(result.commands.map((entry) => entry.type), ["block", "delete"], "redefinir, y consumir el recambio; NO inserta una referencia nueva");
+  const redefine = result.commands[0];
+  assert.ok(redefine.type === "block" && redefine.op === "redefine", "la orden es op:redefine, que es la que hace subir la versión al aplicarse");
+  assert.deepEqual(redefine.definition.basePoint, { x: 9_000, y: 8_000, z: 0 }, "el punto base es el señalado, no el de la definición vieja");
+  assert.equal(redefine.definition.id, doorBlock.id, "misma identidad: los INSERT siguen apuntando al mismo bloque");
+  assert.deepEqual(redefine.definition.attributes, doorBlock.attributes, "sin ATTDEF en el recambio, los atributos se conservan");
+  assert.equal(redefine.definition.entities[0].id, `${doorBlock.id}:entity:0`, "la geometría entra con ids del bloque");
+  checks += 6;
 }
 
 // --- 3. WBLOCK publica al inquilino y CONSERVA la geometría ------------------

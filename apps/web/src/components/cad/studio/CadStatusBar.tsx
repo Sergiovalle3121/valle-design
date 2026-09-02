@@ -131,7 +131,25 @@ export function CadStatusBar({
 }: CadStatusBarProps) {
   const nativeRenderStats = diagnostics.nativeRenderStats;
   return (
-    <div className="cad-status-bar absolute bottom-3 right-3 z-20 flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface/80 px-3 py-1.5 type-micro text-foreground shadow-xl backdrop-blur">
+    // Franja propia bajo el área de dibujo, ancho completo, como la barra de
+    // estado de AutoCAD. Ya no es `absolute` dentro del lienzo: montada así se
+    // comía el pointerdown de los arrastres de selección que empezaban abajo a
+    // la derecha (auditoría 2026-09-01; golden 68). El gancho `cad-status-bar`
+    // se conserva: `globals.css` y `use-status-bar-clearance` lo leen.
+    <div className="cad-status-bar flex shrink-0 flex-wrap items-center gap-2 border-t border-border bg-surface px-3 py-1 type-micro text-foreground">
+      {/* Las coordenadas van PRIMERO, a la izquierda: es lo primero que un
+          dibujante de AutoCAD busca en la barra, y estaban en medio. */}
+      <span
+        ref={cursorCoordinateRef}
+        data-testid="cad-cursor-coordinate"
+        data-x=""
+        data-y=""
+        className="font-mono tabular-nums"
+        title="Coordenadas del cursor en el dibujo"
+      >
+        X — · Y —
+      </span>
+      <span>{unit}</span>
       {/* 5.2 · Lo que sigue es telemetría de DESARROLLADOR: qué
           herramienta está activa, cuántas entidades nativas hay, qué
           pipeline dibuja y cuánta profundidad tiene el historial. Un
@@ -197,17 +215,6 @@ export function CadStatusBar({
             </span>
           )}
       </CadDiagnosticsReadout>
-      <span>{unit}</span>
-      <span
-        ref={cursorCoordinateRef}
-        data-testid="cad-cursor-coordinate"
-        data-x=""
-        data-y=""
-        className="font-mono tabular-nums"
-        title="Coordenadas del cursor en el dibujo"
-      >
-        X — · Y —
-      </span>
       <span title="Modelo, revisión funcional y versión CAS">
         {documentInfo.model} · {documentInfo.revision} · v{documentInfo.version}
       </span>

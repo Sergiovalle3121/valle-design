@@ -319,6 +319,7 @@ export function CadBlockPalette({
             onClick={() =>
               selectedDefinition && onRedefine(selectedDefinition.id)
             }
+            title="Redefinir con los objetos designados: el motor pide el punto base de la nueva definición y todas las inserciones se regeneran (BLOCK)"
             className="rounded border border-border px-2 py-1 text-foreground disabled:opacity-30"
           >
             Redefinir

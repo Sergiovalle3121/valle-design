@@ -49,7 +49,12 @@ export const CAD_WORKSPACE_DEFAULTS: CadWorkspacePreferences = {
   leftDock: true,
   rightDock: true,
   commandDock: true,
-  minimap: true,
+  // Apagado de fábrica desde 2026-09-02. El minimapa es una capa que vive
+  // SOBRE el área de dibujo y se queda con el ratón donde está: abajo a la
+  // derecha se comía los arrastres de selección (auditoría del 2026-09-01) y
+  // arriba a la derecha roba esa esquina (golden 68). AutoCAD no tiene
+  // minimapa; quien lo quiera lo enciende en sus preferencias y sabe dónde está.
+  minimap: false,
   toolbarDensity: 'compact',
   crosshairPercent: 32,
   pickBoxPx: 8,
@@ -61,8 +66,8 @@ export const CAD_WORKSPACE_DEFAULTS: CadWorkspacePreferences = {
 };
 
 export const CAD_WORKSPACE_PROFILES: Record<CadWorkspaceProfile, Pick<CadWorkspacePreferences, 'leftDock' | 'rightDock' | 'commandDock' | 'minimap' | 'toolbarDensity'>> = {
-  drafting: { leftDock: true, rightDock: true, commandDock: true, minimap: true, toolbarDensity: 'compact' },
-  review: { leftDock: false, rightDock: true, commandDock: true, minimap: true, toolbarDensity: 'comfortable' },
+  drafting: { leftDock: true, rightDock: true, commandDock: true, minimap: false, toolbarDensity: 'compact' },
+  review: { leftDock: false, rightDock: true, commandDock: true, minimap: false, toolbarDensity: 'comfortable' },
   presentation: { leftDock: false, rightDock: false, commandDock: false, minimap: false, toolbarDensity: 'comfortable' },
   focus: { leftDock: false, rightDock: false, commandDock: true, minimap: false, toolbarDensity: 'compact' },
 };
