@@ -34,7 +34,12 @@ import type {
   CadPrompt,
   CadUiRequest,
 } from "@/lib/cad/engine/command-types";
-import type { CadSystemVariableValue } from "@/lib/cad/system-variables";
+import {
+  cadActiveUcs,
+  cadActiveUcsIsTilted,
+  type CadSystemVariableValue,
+} from "@/lib/cad/system-variables";
+import type { CadNamedUcs } from "@/lib/cad/ucs";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
 import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import type { SnapType } from "@/lib/cad/snap-engine";
@@ -246,7 +251,13 @@ export class CadCommandEngineHost {
   }
 
   /** Designación en el lienzo, ya resuelta con snap y seguimiento. */
-  pickPoint(point: { x: number; y: number }, snap?: SnapType): void {
+  /**
+   * `z` opcional y declarada, no colada por tipado estructural: con un SCU
+   * inclinado el punto del ratón trae cota, y `flat()` de los comandos de
+   * dibujo la escribe en la entidad. Omitirla del tipo era lo que hacía que
+   * `LINE` fuese «espacial» sin que nadie lo hubiera decidido.
+   */
+  pickPoint(point: { x: number; y: number; z?: number }, snap?: SnapType): void {
     this.dispatch({ kind: "input", input: { kind: "point", point, source: "pointer", snap } });
   }
 
@@ -315,6 +326,30 @@ export class CadCommandEngineHost {
   /** Modos de captura pendientes; el editor los consulta al resolver el snap. */
   get osnapOverride(): readonly SnapType[] | null {
     return this.state.osnapOverride;
+  }
+
+  /**
+   * El plano sobre el que hay que resolver el punto del ratón, o `null` cuando
+   * es el del suelo.
+   *
+   * Vive junto a `accepts` y `osnapOverride` por la misma razón que ellos: el
+   * enrutador del puntero necesita decidir sin conocer el comando, y la
+   * pregunta —¿dónde cae el cursor?— la responde el SCU activo, no el comando.
+   *
+   * Devuelve `null`, y no el marco universal, cuando el SCU está en el plano del
+   * mundo. Dos motivos, y ninguno es cosmético. El primero es el coste: esto se
+   * consulta en CADA `pointermove`, y `cadActiveUcsIsTilted` responde con cinco
+   * lecturas mientras que componer el marco entero mete dos productos
+   * vectoriales y una raíz cuadrada en el camino del ratón —por eso esa función
+   * existe—. El segundo es que `null` deja al llamador tomar el camino de
+   * siempre, bit a bit, en vez de uno equivalente: la intersección con el suelo
+   * la resuelve THREE y una aritmética distinta movería el punto imantado en los
+   * goldens, que corren en 3D.
+   */
+  get workPlane(): CadNamedUcs | null {
+    const variables = this.bridge.context().variables;
+    if (!variables || !cadActiveUcsIsTilted(variables)) return null;
+    return cadActiveUcs(variables);
   }
 
   /**

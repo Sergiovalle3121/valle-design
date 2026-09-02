@@ -131,13 +131,20 @@ export interface CadEnginePointerBridge {
   host: CadCommandEngineHost;
   preview: CadPointerPreviewSurface;
   cursor: CadPointerCursorSurface;
-  /** Punto de DIBUJO bajo el evento, o null si no cae sobre el plano. */
-  worldPoint(event: PointerEvent | MouseEvent): CadPoint2 | null;
+  /**
+   * Punto de DIBUJO bajo el evento, o null si no cae sobre el plano de trabajo.
+   *
+   * Trae cota cuando ese plano NO es el del suelo. Va declarada, y no colada por
+   * tipado estructural: `flat()` de los comandos de dibujo la escribe en la
+   * entidad, y omitirla del tipo era lo que hacía que `LINE` fuese «espacial»
+   * sin que nadie lo hubiera decidido.
+   */
+  worldPoint(event: PointerEvent | MouseEvent): CadPoint2 | CadPoint3 | null;
   /** Captura a objeto, honrando los modos forzados por el paso actual. */
   snap(
-    point: CadPoint2,
+    point: CadPoint2 | CadPoint3,
     override: readonly SnapType[] | null,
-  ): { point: CadPoint2; snap?: SnapType };
+  ): { point: CadPoint2 | CadPoint3; snap?: SnapType };
   /**
    * Entidad canónica bajo el punto, con la apertura del pickbox del editor.
    * `null` si no hay ninguna. Sólo se consulta cuando el paso activo acepta
@@ -472,7 +479,7 @@ export class CadEnginePointerRouter {
     this.bridge.setCursor(null);
   }
 
-  private commitPoint(point: CadPoint2, snap?: SnapType): void {
+  private commitPoint(point: CadPoint2 | CadPoint3, snap?: SnapType): void {
     // El ancla se fija ANTES de despachar, y el orden no es cosmético.
     //
     // Despachar publica la instantánea del motor, y `useSyncExternalStore`

@@ -32,7 +32,7 @@
     "apps/web/src/lib/cad/commands/registry.ts": 2052,
     "apps/web/src/lib/cad/dxf-cad-document.ts": 961,
     "apps/web/src/lib/cad/dxf-export.ts": 978,
-    "apps/web/src/lib/cad/dxf-import.ts": 1111,
+    "apps/web/src/lib/cad/dxf-import.ts": 1116,
     "apps/web/src/lib/cad/legacy/layout-http-adapter.ts": 847,
     "apps/web/src/lib/cad/paper-space.ts": 896,
     "apps/web/src/lib/cad/symbols.ts": 1547,

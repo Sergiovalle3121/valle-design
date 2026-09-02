@@ -1,6 +1,6 @@
 {
   "descripcion": "Pruebas de la auditoría de cliente final del 2026-09-01. Corren en el navegador contra el estudio real y están ROJAS A PROPÓSITO: cada una reproduce un defecto confirmado. NO entran en la suite (playwright.config.ts las excluye con testIgnore). Cuando su defecto se arregla, la prueba NO se borra: se GRADÚA a e2e/golden/ y pasa a defender el arreglo. Ver README.md.",
-  "comoSeCorren": "cd apps/web && NEXT_PUBLIC_API_URL=http://localhost:4000 npx turbo run build --filter=web && E2E_PROD=1 E2E_API_ORIGIN=http://localhost:4000 npx playwright test e2e/auditoria/<archivo> --project=chromium --reporter=line",
+  "comoSeCorren": "cd apps/web && NEXT_PUBLIC_API_URL=http://localhost:4000 npx turbo run build --filter=web && E2E_PROD=1 E2E_AUDITORIA=1 E2E_API_ORIGIN=http://localhost:4000 npx playwright test e2e/auditoria/<archivo> --project=chromium --reporter=line",
   "techo": 31,
   "notaSobreElTecho": "El techo SÓLO BAJA. Es el número de specs de auditoría pendientes de graduarse. Subirlo requiere una auditoría nueva y su entrada en la bitácora; bajarlo es lo que pasa cuando un defecto se arregla y su prueba se muda a e2e/golden/.",
   "pruebas": [

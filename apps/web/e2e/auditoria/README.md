@@ -51,6 +51,9 @@ exacta, y una cota de 3500 mm se guarda como 3500 clavado.
 
 ## Cómo se corren
 
+**`E2E_AUDITORIA=1` tampoco es opcional**: sin ella Playwright no ve esta carpeta —está en
+`testIgnore`— y responde «No tests found», que parece un error de ruta y no lo es.
+
 El puerto **no es opcional**. El build de producción inlinea `NEXT_PUBLIC_API_URL`, y las
 fixtures interceptan el origen que diga `E2E_API_ORIGIN`. Si no casan, el estudio no carga y
 la pantalla dice «No existe un documento histórico compatible» o «Buscando documento
@@ -59,7 +62,7 @@ histórico…». Eso **no es un defecto del producto**: es el puerto.
 ```bash
 cd apps/web
 NEXT_PUBLIC_API_URL=http://localhost:4000 npx turbo run build --filter=web
-E2E_PROD=1 E2E_API_ORIGIN=http://localhost:4000 \
+E2E_PROD=1 E2E_AUDITORIA=1 E2E_API_ORIGIN=http://localhost:4000 \
   npx playwright test e2e/auditoria/<archivo> --project=chromium --reporter=line
 ```
 
