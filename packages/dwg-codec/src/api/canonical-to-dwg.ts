@@ -11,6 +11,11 @@ import type {
   CanonicalToDwgEntity,
   CanonicalToDwgResult,
 } from "./canonical.js";
+import {
+  ANCLAJES_MEDIDOS,
+  ANCLAJE_POR_ALINEACION,
+  ANCLAJE_POR_DEFECTO,
+} from "./canonical-mtext-anchor.js";
 
 /**
  * Proyecta un documento canónico al modelo neutral ESCRIBIBLE del writer
@@ -26,13 +31,12 @@ import type {
  * writer no sabe hacer algo que sí sabe es, sencillamente, falso.
  */
 const BLOQUEADAS_POR_EL_CANONICO: Readonly<Record<string, string>> = Object.freeze({
-  mtext:
-    'El writer AC1015 SÍ emite MTEXT; lo que no llega es el documento canónico, que no transporta la alineación ni el interlineado que el editor sí modela. Enrutarla hoy los aplanaría en silencio, así que se declara la pérdida en vez de entregar el texto mal compuesto.',
   dimension:
     'El documento canónico de una cota lleva sus puntos y su texto, pero no el VALOR MEDIDO que la cota muestra ni el resto del cuerpo que el formato pide, y colapsa las dos formas de cota angular (por tres puntos y por dos líneas) en una sola, que tienen cuerpos distintos: no hay forma de saber cuál escribir. Escribirla exigiría inventar el número y elegir una forma al azar.',
   leader:
     'El documento canónico no modela la directriz (LEADER) en absoluto: no hay nada que proyectar al writer. El decodificador sí la lee, así que la pérdida es de la ida al canónico, no de la lectura del archivo.',
 });
+
 
 export function canonicalDocumentToDwgEntities(
   document: CanonicalCadDocumentJson,
@@ -166,6 +170,72 @@ export function canonicalDocumentToDwgEntities(
           }),
         });
         break;
+      case "mtext": {
+        // El anclaje sale de la alineación que el editor YA modela y que el
+        // documento canónico YA transporta; sólo faltaba traducirla, y para
+        // traducirla había que medir qué significa cada número. Ausente, se
+        // escribe el anclaje 1 —arriba-izquierda, el mismo defecto del
+        // editor— y se declara.
+        const alineacion = raw["alignment"];
+        const anclaje =
+          typeof alineacion === "string" && alineacion in ANCLAJE_POR_ALINEACION
+            ? (ANCLAJE_POR_ALINEACION[alineacion] as number)
+            : ANCLAJE_POR_DEFECTO;
+        if (!ANCLAJES_MEDIDOS.has(anclaje)) {
+          losses.push({
+            code: "mtext-attachment-unmeasured",
+            entityId: id,
+            sourceType: "mtext",
+            detail: `La alineación "${String(alineacion)}" se escribe como anclaje ${anclaje}. La correspondencia entre alineación y anclaje está MEDIDA contra el oráculo DXF sólo en los anclajes 1 y 5, que son los que ejerce el corpus admitido; para este valor la identidad es la única hipótesis que sobrevive, pero no hay medición que la respalde.`,
+            severity: "warning",
+          });
+        }
+        // Lo que el cuerpo DWG pide y NO es dato del origen sino decisión de
+        // autoría. Los extents son la caja calculada del texto ya compuesto:
+        // este writer no compone texto, así que los escribe a cero —valor que
+        // el propio corpus atestigua en archivos de un productor real— y lo
+        // dice, en vez de fabricar una medida que no midió.
+        losses.push({
+          code: "mtext-authoring-defaults",
+          entityId: id,
+          sourceType: "mtext",
+          detail:
+            "El documento canónico no transporta la caja calculada del texto (extents) ni el estilo de interlineado: se escriben extents a cero y estilo 1, los valores que el corpus admitido observa en archivos reales. La dirección de dibujo se escribe 1, constante en las cinco parejas medidas.",
+          severity: "info",
+        });
+        const rotacion = Number(raw["rotation"] ?? 0);
+        const factor = Number(raw["lineSpacing"] ?? 1);
+        entities.push({
+          canonicalId: id,
+          layerName,
+          entity: Object.freeze({
+            kind: "mtext" as const,
+            insertion: canonicalPoint(raw["insertion"]),
+            extrusion: defaultExtrusion,
+            // El eje X es el INVERSO EXACTO de la proyección de ida, que
+            // obtiene la rotación con `atan2` sobre este mismo vector. No es
+            // una convención elegida aquí: es la vuelta de la que ya existe.
+            xAxisDirection: Object.freeze({
+              x: Math.cos(rotacion),
+              y: Math.sin(rotacion),
+              z: 0,
+            }),
+            rectWidth: Number(raw["width"] ?? 0),
+            height: Number(raw["height"] ?? 1),
+            attachment: anclaje,
+            drawingDirection: 1,
+            extentsHeight: 0,
+            extentsWidth: 0,
+            valueBytes: Object.freeze(
+              [...String(raw["text"] ?? "")].map((c) => c.charCodeAt(0) & 0xff),
+            ),
+            lineSpacingStyle: 1,
+            lineSpacingFactor: Number.isFinite(factor) && factor > 0 ? factor : 1,
+            trailingBit: 0 as const,
+          }),
+        });
+        break;
+      }
       case "insert":
         entities.push({
           canonicalId: id,

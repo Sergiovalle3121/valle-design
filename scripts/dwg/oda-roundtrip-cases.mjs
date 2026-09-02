@@ -68,6 +68,30 @@ const ELLIPSE = {
   endAngle: Math.PI / 2,
 };
 /**
+ * MTEXT CON ANCLAJE AL CENTRO Y GIRO, no el caso por defecto. El camino
+ * público aprendió a escribirlo el 2026-09-02, y lo que ahí puede fallar sin
+ * que ninguna prueba propia lo note es la SEMÁNTICA del anclaje: el valor 5 se
+ * midió contra el oráculo DXF del corpus, pero que un lector AJENO ancle de
+ * verdad el párrafo en su centro sólo lo dice ese lector. Un MTEXT con anclaje
+ * 1 y giro 0 —el defecto— no preguntaría nada.
+ */
+const MTEXT = {
+  kind: "mtext",
+  insertion: { x: 10, y: 80, z: 0 },
+  extrusion: { x: 0, y: 0, z: 1 },
+  xAxisDirection: { x: Math.cos(Math.PI / 6), y: Math.sin(Math.PI / 6), z: 0 },
+  rectWidth: 140,
+  height: 5,
+  attachment: 5,
+  drawingDirection: 1,
+  extentsHeight: 0,
+  extentsWidth: 0,
+  valueBytes: ascii("NOTAS GENERALES"),
+  lineSpacingStyle: 1,
+  lineSpacingFactor: 1.5,
+  trailingBit: 0,
+};
+/**
  * HATCH DE RELLENO SÓLIDO. Es la clase con más decisiones de AUTORÍA de todo
  * el harness —asociatividad, estilo, tipo de patrón y puntos semilla no viajan
  * en el canónico y se escriben en su valor neutro—, y ninguna de esas
@@ -237,6 +261,31 @@ const CASES = [
       { name: "RELLENOS", color: 6 },
     ],
     expectedEntities: [{ kind: "hatch", layer: "RELLENOS", entity: HATCH_SOLIDO }],
+    expectedBlocks: {},
+  },
+  {
+    // EL PÁRRAFO ANTE EL LECTOR AJENO. El writer interno emitía MTEXT desde
+    // hacía olas; lo que faltaba para enrutarlo por el camino público era
+    // saber QUÉ SIGNIFICA el número del anclaje, que el hecho registrado de la
+    // fuente no dice: da la disposición del campo, no su semántica. Se midió
+    // contra el oráculo DXF del corpus (anclajes 1 y 5, cinco parejas, una
+    // sola hipótesis superviviente).
+    //
+    // Lo que este caso pregunta a ODA y ninguna prueba propia puede responder:
+    // si un párrafo escrito con anclaje 5, extents a cero y estilo de
+    // interlineado 1 es un párrafo que otro programa abre anclado donde
+    // dijimos. El round-trip propio sólo demuestra que nuestro lector entiende
+    // a nuestro writer.
+    name: "parrafo-mtext",
+    options: {
+      layers: [{ name: ascii("TEXTOS"), colorIndex: 2 }],
+      entities: [{ entity: MTEXT, layerIndex: 1 }],
+    },
+    expectedLayers: [
+      { name: "0", color: 7 },
+      { name: "TEXTOS", color: 2 },
+    ],
+    expectedEntities: [{ kind: "mtext", layer: "TEXTOS", entity: MTEXT }],
     expectedBlocks: {},
   },
   {

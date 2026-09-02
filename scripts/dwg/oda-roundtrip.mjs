@@ -144,6 +144,19 @@ function compareEntity(expected, normalized, mismatches, label) {
       if (!near(f.height, e.height)) push(`height ${f.height}`);
       if (f.value !== utf(e.valueBytes)) push(`value "${f.value}"`);
       return;
+    case "mtext":
+      // El helper del oráculo entrega la inserción, la altura y el texto de un
+      // MTEXT; el ANCLAJE (grupo 71) no tiene campo en su normalización, y es
+      // justamente lo que este caso existe para preguntar. Se verifica aparte
+      // contra el DXF crudo, igual que el conteo de vértices de la
+      // LWPOLYLINE, en vez de tocar el helper —que también usa la validación
+      // del corpus— para acomodar a este harness.
+      if (!near(f.insertion[0], e.insertion.x) || !near(f.insertion[1], e.insertion.y)) {
+        push(`insertion ${JSON.stringify(f.insertion)}`);
+      }
+      if (!near(f.height, e.height)) push(`height ${f.height}`);
+      if (f.value !== utf(e.valueBytes)) push(`value "${f.value}"`);
+      return;
     case "insert":
       if (expected.block !== undefined && f.block !== expected.block) {
         push(`bloque ${f.block}`);
@@ -236,6 +249,36 @@ function checkLwPolylineRaw(dxfText, expected, mismatches, label) {
   mismatches.push(`${label}: el DXF no contiene ninguna LWPOLYLINE`);
 }
 
+/**
+ * Verificación suplementaria del MTEXT contra el DXF CRUDO: el anclaje.
+ *
+ * Es LA pregunta de este caso. La correspondencia entre el anclaje del cuerpo
+ * DWG y el grupo 71 del DXF se midió contra el corpus admitido
+ * (`scripts/dwg/probe-mtext-fields.mjs`), pero esa medición es sobre archivos
+ * que ODA produjo; lo que aquí se comprueba es la vuelta: que un MTEXT que
+ * ESCRIBIMOS con ese anclaje sale del conversor con el mismo. Si el anclaje
+ * escrito no significara lo que medimos, este número no cuadraría.
+ */
+function checkMTextRaw(dxfText, expected, mismatches, label) {
+  const lines = dxfText.split(/\r?\n/);
+  for (let index = 0; index < lines.length; index += 1) {
+    if (lines[index].trim() !== "MTEXT") continue;
+    let attachment = null;
+    for (let scan = index + 1; scan < Math.min(index + 121, lines.length - 1); scan += 2) {
+      const code = lines[scan].trim();
+      if (code === "0") break;
+      if (code === "71") attachment = Number.parseInt(lines[scan + 1]?.trim(), 10);
+    }
+    if (attachment !== expected.entity.attachment) {
+      mismatches.push(
+        `${label}: grupo 71 = ${attachment}, esperado ${expected.entity.attachment}`,
+      );
+    }
+    return;
+  }
+  mismatches.push(`${label}: el DXF no contiene ningún MTEXT`);
+}
+
 function compareCase(caseSpec, dxfText) {
   const parsed = parseOracleDxf(dxfText);
   const mismatches = [];
@@ -275,6 +318,9 @@ function compareCase(caseSpec, dxfText) {
       compareEntity(expected, candidate, mismatches, label);
       if (expected.kind === "lwpolyline") {
         checkLwPolylineRaw(dxfText, expected, mismatches, label);
+      }
+      if (expected.kind === "mtext") {
+        checkMTextRaw(dxfText, expected, mismatches, label);
       }
     }
     entityReport.push({

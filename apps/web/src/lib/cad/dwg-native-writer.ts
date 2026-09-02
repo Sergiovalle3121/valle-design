@@ -66,6 +66,13 @@ function toCanonicalEntity(entity: CadDocument["entities"][number]): Record<stri
       startParameter: entity.startParameter * RADIANS_PER_DEGREE,
       endParameter: entity.endParameter * RADIANS_PER_DEGREE,
     };
+  // MTEXT COMPARTE LA TRAMPA DE LAS ANTERIORES. La rotación del editor viaja
+  // en GRADOS y el documento canónico la quiere en RADIANES; el camino
+  // público la convierte en el vector del eje X con `Math.cos`/`Math.sin`, así
+  // que dejarla en grados no habría fallado por ningún lado: habría girado
+  // cada párrafo a un ángulo equivocado, en silencio.
+  if (entity.type === "mtext")
+    return { ...entity, rotation: (entity.rotation ?? 0) * RADIANS_PER_DEGREE };
   return { ...entity };
 }
 
@@ -87,6 +94,11 @@ export const DWG_EXPORT_WRITABLE_TYPES = new Set([
   "text",
   "insert",
   "ellipse",
+  // `mtext` entra el 2026-09-02, y tampoco porque el writer aprendiera nada:
+  // lo emitía desde hacía olas. Lo que faltaba era la SEMÁNTICA del anclaje
+  // —qué significa cada número—, que no estaba en el hecho registrado de la
+  // fuente y ha habido que medir contra el oráculo DXF del corpus.
+  "mtext",
   // `hatch` entra por INSTANCIA, no por tipo: ver `cadEntityIsDwgWritable`.
   // El sólido viaja; el de patrón se declara. Aparece en el conjunto para que
   // la lista siga siendo la única fuente de «qué clases toca el writer», y el

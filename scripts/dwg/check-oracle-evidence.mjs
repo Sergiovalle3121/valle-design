@@ -10,7 +10,9 @@
  *
  *   - Nadie podía saber, sin abrir el JSON y contar a mano, si el `false` era
  *     honesto o simplemente viejo. Lo era: la evidencia committeada cubría 4
- *     casos y el harness ya definía 16.
+ *     casos y el harness ya definía 16 (el 2026-09-02; el número crece con
+ *     cada clase escribible nueva, y por eso NO se escribe a mano en ningún
+ *     mensaje de este gate: se deriva de `CASES`).
  *   - Y un `true` escrito por descuido habría abierto la exportación sin que
  *     ningún gate se quejara. Un booleano que sólo se puede verificar leyéndolo
  *     no es una salvaguarda, es una nota.
@@ -144,7 +146,7 @@ function main() {
   // parados» en «queda un commit».
   if (!declarado && faltan.length === 0) {
     w("");
-    w("  ✔ LA EVIDENCIA YA ALCANZA. Los 16 casos están respaldados por el lector");
+    w(`  ✔ LA EVIDENCIA YA ALCANZA. Los ${esperados.length} casos están respaldados por el lector`);
     w("    ajeno y el producto sigue declarando false por conservadurismo.");
     w(`    Para abrir la exportación: poner externalOracleVerified en true en`);
     w(`    ${path.relative(REPO_ROOT, FLAG_FILE)} y volver a correr este gate.`);
@@ -161,7 +163,7 @@ function main() {
     w("    node scripts/dwg/oda-roundtrip.mjs");
     w("    git add docs/cad/evidence/dwg-oda-roundtrip.json && git commit");
     w("");
-    w("  El harness escribe los 16 casos, los hace convertir y coteja el DXF");
+    w(`  El harness escribe los ${esperados.length} casos, los hace convertir y coteja el DXF`);
     w("  campo a campo. Ninguna prueba propia puede sustituirlo: nuestro lector");
     w("  acepta lo que nuestro writer escriba.");
     return;
