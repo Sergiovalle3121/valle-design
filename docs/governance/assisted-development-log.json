@@ -2699,6 +2699,35 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "GUARDA-DE-ALCANCE-DEL-PUNTO-DE-MUNDO-20260901",
+      "date": "2026-09-01",
+      "initiative": "El golden 53 llevaba días fallando con «Timeout exceeded while waiting on the predicate», un mensaje que no menciona el ratón, ni el lienzo, ni el punto: averiguar qué significaba costó horas. La fixture e2e/fixtures/world-point.ts mueve el ratón y espera a que el HUD del cursor cambie respecto de un vecino a 4 px; cuando no cambia, expect.poll agota su espera y no dice por qué. Se añade una guarda EN EL CAMINO DE FALLO —dentro del catch de sample(), no en el de éxito, que es donde estaba mal puesta al principio— que pregunta con document.elementFromPoint quién responde de verdad en ese píxel y lo dice. El motivo es que la misma clase de defecto ya había aparecido tres veces (la barra de videollamada sobre «Guardar», el dock de mensajería sobre el reportero de incidencias, el ViewCube duplicando los títulos de los presets), y el golden 67 que la acompaña la comprueba para TODOS los controles del estudio. Medido: la guarda es puramente diagnóstica —un try/catch que relanza con mejor mensaje— y no puede cambiar si una prueba pasa o falla. Se comprobó con un A/B en la misma máquina, el mismo build y las mismas cinco pruebas que usan la fixture, cambiando sólo el fichero: con la guarda 4 rojos y 2 verdes, con la fixture de main 6 rojos y 0 verdes. Los dos verdes de más NO se atribuyen a la guarda: con dos corridas eso es tan probablemente inestabilidad como mejora, y no se midió. Lo que sí quedó demostrado es que la guarda no empeora nada y que nombra la causa: en el golden 53 dijo «ahí SÍ responde el lienzo: NO es una capa tapando», con lo que falsó la hipótesis de partida, y entregó el dato que decide entre las dos lecturas restantes: el HUD imprime 6983.4917480377435, un flotante de precisión completa, así que no está sub-resuelto sino CONGELADO.",
+      "branch": "claude/nada-tapa-un-control",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo de dejar el repositorio integrado y probar el producto como cliente final.",
+      "firstPartyInputs": [
+        "La suite de goldens del propio repositorio, corrida entera (101 pruebas) y por partes en esta máquina."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "apps/web/e2e/fixtures/world-point.ts (guarda de alcance en el camino de fallo)",
+        "apps/web/e2e/golden/67-cad-nada-tapa-un-control.spec.ts (nuevo)"
+      ],
+      "fixtures": "Ninguno nuevo.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Convierte un fallo mudo que costó horas en uno que nombra a quien estorba, y fija que ninguna capa flotante deje un control sin poder pulsarse."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
