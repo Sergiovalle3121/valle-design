@@ -40,6 +40,7 @@ import { CAD_MEP_TRACING_COMMANDS } from "./commands/mep-tracing";
 import { CAD_MEP_SYMBOL_COMMANDS } from "./commands/mep-symbol";
 import { CAD_GEO_LOCATION_COMMANDS } from "./commands/geo-location";
 import { CAD_MAP_IMPORT_COMMANDS } from "./commands/map-import";
+import { CAD_RASTER_IMAGE_COMMANDS } from "./commands/raster-image";
 import { CAD_INQUIRY_LIST_COMMANDS } from "./commands/inquiry-list";
 import { CAD_INQUIRY_MEASURE_COMMANDS } from "./commands/inquiry-measure";
 import { CAD_REGION_COMMANDS } from "./commands/inquiry-region";
@@ -198,6 +199,9 @@ export const CAD_COMMAND_DESCRIPTORS = [
   // del plano. Mismo registro, mismas puertas (`document`, `ui`).
   ...CAD_GEO_LOCATION_COMMANDS,
   ...CAD_MAP_IMPORT_COMMANDS,
+  // Ola H (Raster): el escaneo que se calca, con recorte y ajuste sobre la
+  // entidad `image` que ya existía.
+  ...CAD_RASTER_IMAGE_COMMANDS,
   // Intercambio: DXFIN y DXFOUT. El bloqueo número uno de un despacho no es que
   // falte una orden de dibujo, es que el archivo del cliente no entre ni salga.
   ...CAD_DXF_INTEROP_COMMANDS,

@@ -3044,6 +3044,46 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "OLA-H-RASTER-20260902",
+      "date": "2026-09-02",
+      "initiative": "Ola H del encargo «Valle Design → AutoCAD completo»: el toolset Raster Design (mitad útil). Medido antes: la entidad `image` se dibujaba como su marco y nada más (ningún módulo cargaba una textura), IMAGE exigía un `asset://` que nadie resolvía, y la lámina trazaba el marco con `rasterCommandCount: 0` literal. (1) Ver: `lib/cad/render/image-layer-three.ts` (nuevo) dibuja una malla por imagen debajo de los lotes con la misma convención de origen flotante y lámina de profundidad NDC, el recorte como polígono triangulado (`THREE.ShapeUtils`) y brillo/contraste/atenuación en el fragment shader; `lib/cad/image-geometry.ts` (nuevo) es la cuenta única (esquinas, píxel ↔ plano, recorte, ajuste 0–100 con 50/50 neutro, qué URI se pinta); el anfitrión (`render-pipeline-host.ts`) la sincroniza con el documento y publica `images`/`imagesPending` en el diagnóstico (`data-images` en la insignia del pipeline). (2) Adjuntar: IMAGEATTACH (alias IAT, `engine/commands/raster-image.ts`, nuevo) pide el archivo por el canal de interfaz `image-file` (nuevo); `session-catalogs.ts` lo decodifica una vez con `createImageBitmap` para saber sus píxeles, lo empaqueta como `data:` (`image-attach-payload.ts`, nuevo; tope 8 MB, dicho) y lo entrega por `feedFile` como DXFIN; la orden pide inserción, ancho en unidades y giro y escribe la definición (`uri` `data:`, cadena que el formato ya admite) y la entidad al fondo. (3) Recortar y ajustar: IMAGECLIP (ICL; Nuevo Poligonal/Rectangular, Eliminar) escribe `clipBoundary` en píxeles e IMAGEADJUST (IAD; Brillo/Contraste/Atenuación/Restablecer) escribe los tres campos, ambos con `replace` sobre la entidad que ya existía: sin campo nuevo, sin formato nuevo. (4) Lámina: `paper-space-image.ts` (nuevo) emite el comando `image` del plan (esquinas y recorte en papel; `rasterCommandCount` pasa a contar), `plot-pdf.ts` lo incrusta con `addImage` girada, recorte `W n` y atenuación como estado gráfico (brillo/contraste no se aplican y se avisa; sesgada/reflejada/http(s) salen como marco y se avisa), `pdf-measure.ts` lee XObject imagen y `Do`; `plot-job.ts`, `sheet-set-pdf.ts` y `CadLayoutManager.tsx` dejan pasar el comando. (5) DXF: la imagen embebida sale por su nombre en IMAGEDEF (`dxf-schema4-primitives.ts`) y el manifiesto lo dice (`dxf_export_image_embedded_pixels`). (6) Por el camino: `IM` estaba sólo en el descriptor de IMAGE y no en la tabla acad.pgp que consulta el pipeline; dos aserciones de `geo-location.spec.ts` no compilaban bajo `typecheck` (que incluye specs). `image-fixtures.ts` (nuevo) fabrica un PNG válido sin zlib para specs y goldens. Specs image-geometry (44), image-layer-three (22), raster-image (75), paper-space-image (29); golden 83; sonda de integridad 233 → 236 comandos con 0 éxitos falsos; cinta 236/236; `toolset-raster` de 1 a 3 de 4 (retiene 1 pt hasta evidencia independiente).",
+      "branch": "claude/valle-design-autocad-vqfa6u",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo escrito «Valle Design → AutoCAD completo, con sus siete toolsets», §Ola H (Raster Design, mitad útil, tras Map 3D).",
+      "firstPartyInputs": [
+        "docs/competitive/distancia-autocad-completo-20260901.md §4 4º RASTER («insertar, escalar, atenuar, recortar, calcar encima»; la vectorización y REM fuera) y docs/parity/ESCALERA.md (fila Raster en peldaño 1); cada afirmación se midió antes (`fill-entity-adapters.ts` sólo emite caminos; ningún cargador de textura en `render/` ni en `components/cad`; `rasterCommandCount: 0` como tipo literal; `asset://` sin resolutor).",
+        "Specs de Node nuevos o ampliados, corridos en esta máquina: image-geometry (44), image-layer-three (22, con THREE en Node y cargador inyectado), raster-image (75), paper-space-image (29, el PDF leído de sus bytes), paper-space, plot-output, plot-fidelity, paper-space-plots-every-entity, dxf-export-losses, render-pipeline-host (25), scene, pipeline, engine/index (236), ribbon (236 en 7 pestañas), command-summaries (236/236); sonda de integridad 236, 0 éxitos falsos.",
+        "Golden 83 (IMAGEATTACH por el selector del navegador con un PNG de 8 × 4 fabricado en el propio spec, la imagen contada en pantalla por `data-images`, ICL y IAD con Ctrl+A, y la definición `data:`, el recorte en píxeles y la atenuación leídos de lo que recibió el servidor) verde en Chromium contra el build de producción."
+      ],
+      "externalSources": [
+        {
+          "source": "Especificación pública de PNG (ISO/IEC 15948: firma, IHDR/IDAT/IEND, CRC-32) y de zlib/deflate (RFC 1950/1951: bloques almacenados, Adler-32) para el fixture; documentación pública de AutoCAD Raster Design y de AutoCAD sobre IMAGEATTACH, IMAGECLIP e IMAGEADJUST (alias, vocabulario y el rango 0–100 con 50 neutro); documentación pública de jsPDF 4.2.1 (`addImage`, `clip`, `discardPath`, `GState`).",
+          "terms": "Especificaciones y documentación públicas; no se copió implementación alguna. jsPDF (MIT) ya era dependencia del producto.",
+          "usedFor": "Los bytes del PNG de prueba, los nombres y opciones de las órdenes, la fórmula de ajuste y la forma de incrustar y recortar en el PDF."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna. La triangulación es `THREE.ShapeUtils` de three (MIT, ya dependencia); el shader, la capa, el sobre y el plan son módulos propios.",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/{image-geometry.ts (nuevo), image-attach-payload.ts (nuevo), image-fixtures.ts (nuevo), paper-space-image.ts (nuevo), paper-space.ts, dxf-schema4-primitives.ts, dxf-export-loss-manifest.ts, geo-import-bundle.ts, ribbon.ts}; render/image-layer-three.ts (nuevo); plot/{plot-pdf.ts, plot-job.ts, pdf-measure.ts}",
+        "apps/web/src/lib/cad/engine/{index.ts, command-summaries.ts, alias-table.ts, command-types.ts}; engine/commands/{raster-image.ts (nuevo), draw-fills.ts, geo-location.spec.ts}",
+        "apps/web/src/components/cad/{command-line/session-catalogs.ts, command-line/use-command-engine.ts, viewport/render-pipeline-host.ts, viewport/RenderPipelineBadge.tsx, editor/sheet-set-pdf.ts, palettes/CadLayoutManager.tsx}",
+        "apps/web/e2e/golden/83-cad-plano-escaneado.spec.ts (nuevo)",
+        "docs/competitive/{rubric.json, autocad-2027-gap-matrix.md, distancia-autocad-completo-20260901.md}, docs/parity/ESCALERA.md, docs/cad/evidence/{command-integrity.json, ui-command-reach.json}"
+      ],
+      "fixtures": "Ninguno con datos ajenos: el PNG de damero se fabrica en `image-fixtures.ts` a partir de la especificación, sin zlib.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "La imagen vista, recortada y ajustada con specs en las cuatro superficies (visor en Node con THREE, plan, PDF leído de sus bytes, DXF) y un golden que lee lo que recibió el servidor; ninguna decisión de formato persistido tomada por la sesión (la imagen viaja como `data:` en `uri`, una cadena que ya existía; el tope de 8 MB y la ausencia de almacén de activos quedan dichos para el titular)."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

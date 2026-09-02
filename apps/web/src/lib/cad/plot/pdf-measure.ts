@@ -75,11 +75,22 @@ export interface CadPdfFontEntry {
   subtype: string;
 }
 
+/** Un XObject `/Subtype /Image` del archivo (Ola H). */
+export interface CadPdfImageEntry {
+  widthPx: number;
+  heightPx: number;
+  filter: string;
+}
+
 export interface CadPdfMeasurement {
   pages: Array<{ widthMm: number; heightMm: number }>;
   segments: CadPdfSegment[];
   labels: CadPdfLabel[];
   fonts: CadPdfFontEntry[];
+  /** Imágenes incrustadas, con su tamaño en píxeles. */
+  images: CadPdfImageEntry[];
+  /** Cuántas veces se dibuja un XObject (`Do`) en las páginas. */
+  imageDraws: number;
   /**
    * Lo que este lector NO supo interpretar. Vacío es la única lectura en la
    * que se puede confiar para medir; con algo dentro, la medida es parcial y
@@ -127,7 +138,7 @@ function contentStreams(text: string): string[] {
   const streams: string[] = [];
   for (const match of text.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)) {
     const body = match[1];
-    if (/(^|\s)(m|l|re|Tj|TJ)(\s|$)/.test(body)) streams.push(body);
+    if (/(^|\s)(m|l|re|Tj|TJ|Do)(\s|$)/.test(body)) streams.push(body);
   }
   return streams;
 }
@@ -195,6 +206,20 @@ interface StreamScan {
   segments: Array<Omit<CadPdfSegment, "page">>;
   labels: Array<Omit<CadPdfLabel, "page">>;
   unreadable: string[];
+  imageDraws: number;
+}
+
+/** Los `/Subtype /Image` del archivo, leídos alrededor de cada aparición. */
+function imageEntries(text: string): CadPdfImageEntry[] {
+  const entries: CadPdfImageEntry[] = [];
+  for (const match of text.matchAll(/\/Subtype\s*\/Image\b/g)) {
+    const window = text.slice(Math.max(0, match.index - 200), match.index + 600);
+    const width = /\/Width\s+(\d+)/.exec(window);
+    const height = /\/Height\s+(\d+)/.exec(window);
+    if (!width || !height) continue;
+    entries.push({ widthPx: Number(width[1]), heightPx: Number(height[1]), filter: /\/Filter\s*\/(\w+)/.exec(window)?.[1] ?? "" });
+  }
+  return entries;
 }
 
 /**
@@ -208,6 +233,7 @@ function scanStream(body: string, pageHeightMm: number): StreamScan {
   const segments: StreamScan["segments"] = [];
   const labels: StreamScan["labels"] = [];
   const unreadable: string[] = [];
+  let imageDraws = 0;
 
   const toMmX = (points: number) => points / PDF_MM_TO_POINTS;
   const toMmY = (points: number) => pageHeightMm - points / PDF_MM_TO_POINTS;
@@ -369,13 +395,16 @@ function scanStream(body: string, pageHeightMm: number): StreamScan {
       case "cm":
         unreadable.push("matriz `cm`: las coordenadas siguientes van transformadas y no se aplican");
         break;
+      case "Do":
+        imageDraws += 1;
+        break;
       default:
         break;
     }
     stack = [];
   }
 
-  return { segments, labels, unreadable: [...new Set(unreadable)] };
+  return { segments, labels, unreadable: [...new Set(unreadable)], imageDraws };
 }
 
 /**
@@ -407,6 +436,7 @@ export function measureCadPdf(bytes: Uint8Array): CadPdfMeasurement {
   const segments: CadPdfSegment[] = [];
   const labels: CadPdfLabel[] = [];
   const unreadable = new Set<string>();
+  let imageDraws = 0;
 
   streams.forEach((stream, index) => {
     const scan = scanStream(stream, pages[index].heightMm);
@@ -414,9 +444,10 @@ export function measureCadPdf(bytes: Uint8Array): CadPdfMeasurement {
     for (const segment of scan.segments) segments.push({ page, ...segment });
     for (const label of scan.labels) labels.push({ page, ...label });
     for (const note of scan.unreadable) unreadable.add(note);
+    imageDraws += scan.imageDraws;
   });
 
-  return { pages, segments, labels, fonts: fontEntries(text), unreadable: [...unreadable] };
+  return { pages, segments, labels, fonts: fontEntries(text), images: imageEntries(text), imageDraws, unreadable: [...unreadable] };
 }
 
 /**

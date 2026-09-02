@@ -462,6 +462,14 @@ export function useCadStudioCommandEngine(
       },
       [engine],
     ),
+    // IMAGEATTACH (Ola H): ídem, con el sobre de la imagen.
+    useCallback(
+      (name: string, text: string) => {
+        if (!engine.busy) engine.invoke("IMAGEATTACH");
+        engine.feedFile(name, text);
+      },
+      [engine],
+    ),
   );
 
   return engine;

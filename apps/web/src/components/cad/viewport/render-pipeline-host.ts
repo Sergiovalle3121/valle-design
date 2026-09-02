@@ -52,6 +52,7 @@ import type { CadNativeEntity } from "@/lib/cad/entity-runtime";
 import { CAD_ENTITY_REGISTRY } from "@/lib/cad/entity-runtime";
 import type { CadThreeViewport } from "@/lib/cad/entity-three";
 import { CadRenderScene } from "@/lib/cad/render/scene";
+import { CadImageLayer, cadBrowserImageLoader, type CadImageLoader } from "@/lib/cad/render/image-layer-three";
 import type { CadRenderOrigin, CadRenderView } from "@/lib/cad/render/pipeline";
 import { defaultCadRenderStyle } from "@/lib/cad/render/render-style";
 import type { CadLineStyle } from "@/lib/cad/render/line-batch";
@@ -86,6 +87,8 @@ export interface CadViewportRenderHostOptions {
   viewport: CadThreeViewport;
   yScreenSign?: CadScreenYSign;
   frameBudgetMs?: number;
+  /** Cargador de imágenes; por defecto el del navegador. Las specs inyectan uno. */
+  imageLoader?: CadImageLoader;
 }
 
 export interface CadViewportRenderDiagnostics {
@@ -101,6 +104,10 @@ export interface CadViewportRenderDiagnostics {
   glyphs: number;
   /** Glifos que el atlas no pudo colocar. Un número > 0 es un fallo visible. */
   droppedGlyphs: number;
+  /** Imágenes adjuntas con sus píxeles en pantalla (Ola H). */
+  images: number;
+  /** Imágenes esperando su textura. */
+  imagesPending: number;
   meshes: number;
   visibleTiles: number;
   residentTiles: number;
@@ -150,6 +157,8 @@ const EMPTY_DIAGNOSTICS: CadViewportRenderDiagnostics = {
   instances: 0,
   glyphs: 0,
   droppedGlyphs: 0,
+  images: 0,
+  imagesPending: 0,
   meshes: 0,
   visibleTiles: 0,
   residentTiles: 0,
@@ -159,6 +168,9 @@ const EMPTY_DIAGNOSTICS: CadViewportRenderDiagnostics = {
 
 export class CadViewportRenderHost {
   private readonly scene: CadRenderScene;
+  /** Los píxeles de las imágenes adjuntas, debajo de los lotes (Ola H). */
+  private readonly images: CadImageLayer;
+  private images_: { images: number; pending: number } = { images: 0, pending: 0 };
   private readonly parent: THREE.Object3D;
   private selection: ReadonlySet<string> = new Set();
   /**
@@ -195,6 +207,19 @@ export class CadViewportRenderHost {
     });
     this.scene.group.renderOrder = CAD_RENDER_BATCH_ORDER;
     this.parent.add(this.scene.group);
+    this.images = new CadImageLayer({
+      viewport: options.viewport,
+      loader: options.imageLoader ?? cadBrowserImageLoader(),
+      depthBias: CAD_RENDER_DEPTH_BIAS,
+      depthScale: CAD_RENDER_DEPTH_SCALE,
+      // Una textura que termina de cargar es contenido nuevo: el siguiente
+      // cuadro reconcilia y publica, como cuando el planificador materializa.
+      onChange: () => {
+        this.dirty = true;
+      },
+    });
+    this.images.group.renderOrder = CAD_RENDER_BATCH_ORDER - 1;
+    this.parent.add(this.images.group);
   }
 
   /** El grupo THREE con los lotes; lo expone para pruebas y para ocultarlo. */
@@ -228,6 +253,12 @@ export class CadViewportRenderHost {
 
   setVisible(visible: boolean): void {
     this.scene.group.visible = visible;
+    this.images.group.visible = visible;
+  }
+
+  /** La capa de imágenes, para las specs. */
+  get imageLayer(): CadImageLayer {
+    return this.images;
   }
 
   /** La tabla de tipos de línea que el shader tiene ahora; ver `CadRenderScene.linetypeUniforms`. */
@@ -309,6 +340,7 @@ export class CadViewportRenderHost {
       : document.modelSpace.entityIds;
     this.document = document;
     this.scene.replace(entities, drawOrder, document);
+    this.images.replace(document);
     this.hasContent = true;
     this.dirty = true;
     // Contenido nuevo: hay que volver a fijar la vista para que los tiles del
@@ -335,6 +367,7 @@ export class CadViewportRenderHost {
     if (document) this.document = document;
     if (affectedEntityIds.length === 0) return;
     this.scene.invalidate(affectedEntityIds, upserts, document);
+    this.images.invalidate(affectedEntityIds, upserts, document);
     this.dirty = true;
   }
 
@@ -374,6 +407,8 @@ export class CadViewportRenderHost {
   setHiddenLayers(hiddenLayers: ReadonlySet<string>): void {
     if (this.disposed) return;
     this.scene.setHiddenLayers(hiddenLayers);
+    this.images.setHiddenLayers(hiddenLayers);
+    this.dirty = true;
   }
 
   /**
@@ -394,6 +429,7 @@ export class CadViewportRenderHost {
     // cuando la vista cambió de verdad.
     let viewMoved = false;
     if (viewport || this.viewChanged(view)) {
+      if (viewport) this.images.setView(viewport);
       const update = this.scene.setView(view, viewport);
       this.lastView = {
         bounds: { ...view.bounds },
@@ -419,6 +455,11 @@ export class CadViewportRenderHost {
       const sync = this.scene.sync();
       this.glyphs = sync.glyphs;
       this.droppedGlyphs = sync.droppedGlyphs;
+      // Las imágenes comparten origen flotante con los lotes; si cambió, la
+      // capa reconstruye sus mallas.
+      this.images.setOrigin(this.scene.renderOrigin);
+      const imagesSync = this.images.sync();
+      this.images_ = { images: imagesSync.images, pending: imagesSync.pending };
       // Las mallas nacen con `renderOrder` 0, que las dibujaría entremezcladas
       // con el suelo y los activos. La lámina de profundidad las pone delante,
       // pero el ORDEN de las llamadas también importa para lo translúcido.
@@ -471,6 +512,8 @@ export class CadViewportRenderHost {
       current.instances === next.instances &&
       current.glyphs === next.glyphs &&
       current.droppedGlyphs === next.droppedGlyphs &&
+      current.images === next.images &&
+      current.imagesPending === next.imagesPending &&
       current.meshes === next.meshes &&
       current.visibleTiles === next.visibleTiles &&
       current.residentTiles === next.residentTiles &&
@@ -493,6 +536,8 @@ export class CadViewportRenderHost {
       instances: stats.instances,
       glyphs: this.glyphs,
       droppedGlyphs: this.droppedGlyphs,
+      images: this.images_.images,
+      imagesPending: this.images_.pending,
       meshes: stats.meshes,
       visibleTiles: stats.visibleTiles,
       residentTiles: stats.residentTiles,
@@ -509,6 +554,7 @@ export class CadViewportRenderHost {
     this.published = EMPTY_DIAGNOSTICS;
     for (const listener of this.listeners) listener();
     this.scene.dispose();
+    this.images.dispose();
     // El worker de teselado es un singleton del módulo y éste es su consumidor
     // del editor: desmontar el lienzo lo cierra. Si el lienzo vuelve a
     // montarse, el cliente lo recrea perezosamente en la primera petición.

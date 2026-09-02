@@ -72,6 +72,16 @@ export function cadGeoBundleName(files: readonly CadGeoBundleFile[]): string {
 // grande revienta la pila de argumentos.
 const CHUNK = 0x8000;
 
+/** Bytes → base64. Lo usa también el sobre de IMAGEATTACH (Ola H). */
+export function cadBytesToBase64(bytes: Uint8Array): string {
+  return toBase64(bytes);
+}
+
+/** base64 → bytes. */
+export function cadBase64ToBytes(base64: string): Uint8Array {
+  return fromBase64(base64);
+}
+
 function toBase64(bytes: Uint8Array): string {
   let binary = "";
   for (let offset = 0; offset < bytes.length; offset += CHUNK)

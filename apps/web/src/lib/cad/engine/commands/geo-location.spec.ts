@@ -122,9 +122,9 @@ const marker: CadEntity[] = [];
   const driven = drive("ID", [point(1000, 1000)], makeContext(marker));
   const result = driven.result;
   assert.ok(result && result.kind === "variables", `ID informa por variables, dio ${result?.kind}`);
-  ok(result.text.includes("E 660,001.00 N 2,140,001.00 · 19.3477° N, 97.4767° O (WGS 84 / UTM zona 14N, EPSG:32614)"), `ID dice el este/norte y la latitud y longitud: ${result.text}`);
+  ok((result.text ?? "").includes("E 660,001.00 N 2,140,001.00 · 19.3477° N, 97.4767° O (WGS 84 / UTM zona 14N, EPSG:32614)"), `ID dice el este/norte y la latitud y longitud: ${result.text}`);
   const plain = drive("ID", [point(1000, 1000)], makeContext([]));
-  ok(plain.result?.kind === "variables" && !plain.result.text.includes("EPSG"), "sin marcador, ID no inventa coordenadas del mundo");
+  ok(plain.result?.kind === "variables" && !(plain.result.text ?? "").includes("EPSG"), "sin marcador, ID no inventa coordenadas del mundo");
 }
 
 /* ── Volver a georreferenciar, Informe, Geográfica, Zona, Datum ─────────── */

@@ -76,6 +76,16 @@ export const CAD_COMMAND_ALIASES: Readonly<Record<string, string>> = {
   MAPCSASSIGN: "GEOGRAPHICLOCATION",
   GEORREFERENCIAR: "GEOGRAPHICLOCATION",
   IMPORTARGIS: "MAPIMPORT",
+  // Raster (Ola H): los alias de acad.pgp y la memoria muscular en español.
+  // `IM` estaba sólo en el descriptor de IMAGE y el pipeline consulta ESTA
+  // tabla (medido en la Ola E con DX): tecleado no llegaba.
+  IM: "IMAGE",
+  IAT: "IMAGEATTACH",
+  ICL: "IMAGECLIP",
+  IAD: "IMAGEADJUST",
+  ADJUNTARIMAGEN: "IMAGEATTACH",
+  RECORTARIMAGEN: "IMAGECLIP",
+  AJUSTARIMAGEN: "IMAGEADJUST",
   DOORADD: "DOOR",
   PUERTA: "DOOR",
   WINDOWADD: "WINDOW",

@@ -87,7 +87,7 @@ export async function renderCadSheetSetPdf(
             style,
             command.closed,
           );
-        } else {
+        } else if (command.kind === "text") {
           const [r, g, b] = color(command.color);
           const maxWidth = Math.max(
             1,

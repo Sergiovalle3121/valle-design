@@ -17,6 +17,7 @@ import { buildCadMleaderGeometry } from "./associative-mleader";
 import { plotEntityFromRegistry } from "./paper-space-registry-fallback";
 import { cadTableCellTextCommands } from "./paper-space-table";
 import { cadLinetypeTextCommands } from "./paper-space-linetype-text";
+import { cadImagePlotCommand, type CadImagePlotCommand } from "./paper-space-image";
 import { IDENTITY, multiply, point, type Affine } from "./paper-space-affine";
 import { blockPresentation, styleFor, unitToMm } from "./paper-space-style";
 
@@ -112,7 +113,9 @@ export type CadVectorCommand =
       underline?: boolean;
       backgroundMask?: boolean;
       backgroundColor?: string;
-    };
+    }
+  // Ola H: los píxeles de una imagen adjunta. Ver paper-space-image.ts.
+  | CadImagePlotCommand;
 
 export interface CadPublishWarning {
   code: string;
@@ -148,7 +151,8 @@ export interface CadPublishPlan {
   sheets: CadPublishSheet[];
   warnings: CadPublishWarning[];
   vectorCommandCount: number;
-  rasterCommandCount: 0;
+  /** Comandos `image`: imágenes adjuntas que van al PDF con sus píxeles (Ola H). */
+  rasterCommandCount: number;
 }
 
 const DEFAULT_MARGIN = 10;
@@ -731,6 +735,17 @@ function renderEntity(
     return commands;
   }
 
+  // Ola H: la imagen adjunta va con sus píxeles DEBAJO de su marco, que sigue
+  // saliendo del registro. Lo que no se puede incrustar se dice en un aviso.
+  if (entity.type === "image") {
+    const raster = cadImagePlotCommand(entity, context.document, context.viewport.id, (anchor) => point(matrix, anchor));
+    if (raster.skipped)
+      context.warnings.push({ code: raster.skipped.code, sheetId: context.sheetId, viewportId: context.viewport.id, entityId: entity.id, detail: raster.skipped.detail });
+    const frame = plotEntityFromRegistry(entity, context.document, { sheetId: context.sheetId, viewportId: context.viewport.id }, (points, closed) => path(points, closed) ?? null);
+    if (frame.warning) context.warnings.push(frame.warning);
+    return [...(raster.command ? [raster.command] : []), ...frame.commands];
+  }
+
   // Lo que la escalera no supo trazar lo traza el REGISTRO. Doce tipos —muro y
   // hueco entre ellos— desaparecían del PDF en silencio; el porqué, en la
   // cabecera de `paper-space-registry-fallback.ts`.
@@ -851,7 +866,16 @@ export function buildCadPublishPlan(
     (sheetTotal, sheet) =>
       sheetTotal +
       sheet.viewports.reduce(
-        (viewportTotal, viewport) => viewportTotal + viewport.commands.length,
+        (viewportTotal, viewport) => viewportTotal + viewport.commands.filter((command) => command.kind !== "image").length,
+        0,
+      ),
+    0,
+  );
+  const rasterCommandCount = sheets.reduce(
+    (sheetTotal, sheet) =>
+      sheetTotal +
+      sheet.viewports.reduce(
+        (viewportTotal, viewport) => viewportTotal + viewport.commands.filter((command) => command.kind === "image").length,
         0,
       ),
     0,
@@ -861,6 +885,6 @@ export function buildCadPublishPlan(
     sheets,
     warnings,
     vectorCommandCount,
-    rasterCommandCount: 0,
+    rasterCommandCount,
   };
 }

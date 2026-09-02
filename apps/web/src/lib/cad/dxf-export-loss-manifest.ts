@@ -23,6 +23,7 @@
  *
  * Módulo puro: sin THREE, sin DOM, sin estado.
  */
+import { cadImageFileName, cadImageIsEmbedded } from "./image-geometry";
 import type {
   CadDocument,
   CadEntity,
@@ -146,6 +147,16 @@ const SCHEMA4_LOSS_RULES: Record<string, Schema4LossRule> = {
         detail:
           `IMAGE — la inserción referencia la definición «${entity.definition}», que no existe en el ` +
           "documento: sin IMAGEDEF que escribir, la imagen NO estará en el fichero.",
+      };
+    // Ola H: la imagen adjuntada con IMAGEATTACH viaja dentro del dibujo;
+    // al DXF va sólo su nombre, y hay que decir qué archivo dejar al lado.
+    if (cadImageIsEmbedded(definition))
+      return {
+        code: "dxf_export_image_embedded_pixels",
+        severity: "warning",
+        detail:
+          `IMAGE — «${cadImageFileName(definition)}» viaja dentro del dibujo y el DXF sólo lleva su nombre, ` +
+          "nunca los píxeles: guarda el archivo con ese nombre junto al DXF o quien lo abra verá el marco vacío.",
       };
     return {
       code: "dxf_export_image_reference_only",

@@ -29,6 +29,15 @@ import {
   pickCadTextFile,
 } from "@/components/cad/palettes/palette-command-bus";
 import { cadGeoBundleName, encodeCadGeoBundle } from "@/lib/cad/geo-import-bundle";
+import {
+  CAD_IMAGE_ATTACH_ACCEPT,
+  CAD_IMAGE_ATTACH_MAX_BYTES,
+  CAD_IMAGE_PAYLOAD_ERROR_KIND,
+  CAD_IMAGE_PAYLOAD_KIND,
+  cadImageDataUri,
+  cadImageMimeFor,
+  encodeCadImagePayload,
+} from "@/lib/cad/image-attach-payload";
 import type { CadSessionCatalogs } from "@/lib/cad/engine/command-types";
 import { CadLayerStateCatalog } from "@/lib/cad/layer-states";
 import {
@@ -111,9 +120,22 @@ export function useCadFileCommandHandlers(
   onScript: (name: string, text: string) => void,
   onDxf: (name: string, text: string) => void,
   onGeo: (name: string, text: string) => void,
+  onImage: (name: string, text: string) => void,
 ): void {
   useEffect(() => {
     const unregister = [
+      registerCadUiHandler("image-file", () => {
+        // IMAGEATTACH (Ola H): el navegador decodifica la imagen UNA vez para
+        // saber su tamaño y la entrega como `data:` en un sobre. Lo que no
+        // se puede adjuntar vuelve como sobre de error, con su motivo, para
+        // que la orden lo diga en la línea de comandos.
+        void pickCadFiles(CAD_IMAGE_ATTACH_ACCEPT).then(async (files) => {
+          const file = files[0];
+          if (!file) return;
+          onImage(file.name, await readCadImagePayload(file));
+        });
+        return true;
+      }),
       registerCadUiHandler("geo-file", () => {
         // Los cuatro del shapefile y el GeoJSON, varios a la vez: el sobre
         // (`geo-import-bundle.ts`) los lleva por la misma puerta que el DXF.
@@ -151,5 +173,24 @@ export function useCadFileCommandHandlers(
     return () => {
       for (const off of unregister) off();
     };
-  }, [session, onScript, onDxf, onGeo]);
+  }, [session, onScript, onDxf, onGeo, onImage]);
+}
+
+/** El sobre de IMAGEATTACH a partir del archivo elegido, o el motivo por el que no. */
+async function readCadImagePayload(file: { name: string; bytes: Uint8Array }): Promise<string> {
+  const reject = (reason: string) => encodeCadImagePayload({ kind: CAD_IMAGE_PAYLOAD_ERROR_KIND, name: file.name, reason });
+  const mime = cadImageMimeFor(file.name);
+  if (!mime) return reject("no es PNG, JPEG, GIF, WebP ni BMP.");
+  if (file.bytes.byteLength > CAD_IMAGE_ATTACH_MAX_BYTES)
+    return reject(`pesa ${(file.bytes.byteLength / 1_000_000).toFixed(1)} MB y el tope es ${CAD_IMAGE_ATTACH_MAX_BYTES / 1_000_000} MB; reduce la resolución del escaneo.`);
+  if (typeof createImageBitmap === "undefined") return reject("este navegador no sabe decodificar imágenes.");
+  try {
+    const bitmap = await createImageBitmap(new Blob([file.bytes as BlobPart], { type: mime }));
+    const { width, height } = bitmap;
+    bitmap.close();
+    if (!(width > 0 && height > 0)) return reject("el archivo no tiene píxeles.");
+    return encodeCadImagePayload({ kind: CAD_IMAGE_PAYLOAD_KIND, name: file.name, dataUri: cadImageDataUri(mime, file.bytes), width, height });
+  } catch {
+    return reject("el archivo no se pudo decodificar como imagen.");
+  }
 }

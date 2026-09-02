@@ -3425,17 +3425,41 @@
       "scope": "destino",
       "name": "Toolset Raster Design (mitad útil)",
       "points": 4,
-      "gap": "Se adjunta una imagen (IMAGE), pero no hay corrección, recorte por polígono, vectorización ni calibración de un plano escaneado.",
+      "gap": "La mitad útil existe (Ola H, 2026-09-02): IMAGEATTACH mete el escaneo DENTRO del dibujo (data:, hasta 8 MB) y por primera vez se VE —los píxeles en el visor, en la lámina y en el PDF—; IMAGECLIP recorta por polígono o rectángulo e IMAGEADJUST ajusta brillo, contraste y atenuación, todo sobre la entidad image que el formato ya tenía. La vectorización y la calibración (REM, deskew) quedan fuera y se dicen en ESCALERA; IMAGEFRAME y TRANSPARENCY, también.",
       "criteria": [
         {
           "id": "toolset-raster.imagen",
           "points": 2,
           "text": "Insertar, recortar por polígono y ajustar (brillo/contraste/transparencia) un plano escaneado",
-          "costDays": null,
+          "costDays": 0,
           "evidence": [
             {
-              "kind": "todaviaNo",
-              "reason": "IMAGE inserta; el recorte por polígono y el ajuste de imagen no existen. Cuarto toolset de la campaña."
+              "kind": "command",
+              "name": "IMAGEATTACH"
+            },
+            {
+              "kind": "command",
+              "name": "IMAGECLIP"
+            },
+            {
+              "kind": "command",
+              "name": "IMAGEADJUST"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/raster-image.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/render/image-layer-three.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/paper-space-image.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/83-cad-plano-escaneado.spec.ts"
             }
           ]
         },

@@ -29,6 +29,8 @@ const EMPTY: CadViewportRenderDiagnostics = {
   instances: 0,
   glyphs: 0,
   droppedGlyphs: 0,
+  images: 0,
+  imagesPending: 0,
   meshes: 0,
   visibleTiles: 0,
   residentTiles: 0,
@@ -60,6 +62,8 @@ export function CadRenderPipelineBadge({ pipeline, slot }: CadRenderPipelineBadg
       data-instances={diagnostics.instances}
       data-glyphs={diagnostics.glyphs}
       data-dropped-glyphs={diagnostics.droppedGlyphs}
+      data-images={diagnostics.images}
+      data-images-pending={diagnostics.imagesPending}
       data-meshes={diagnostics.meshes}
       data-tiles={diagnostics.visibleTiles}
       data-settled={diagnostics.settled ? "true" : "false"}

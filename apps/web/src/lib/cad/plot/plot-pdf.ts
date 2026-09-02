@@ -24,6 +24,8 @@
  * traza sepa lo que ha salido en vez de suponerlo. Nunca dice que incrustó una
  * fuente que no tenía.
  */
+import { cadImageOpacity, CAD_IMAGE_BRIGHTNESS_NEUTRAL, CAD_IMAGE_CONTRAST_NEUTRAL } from "../image-geometry";
+import { cadImagePlotPlacement, type CadImagePlotCommand } from "../paper-space-image";
 import type { CadPublishSheet, CadVectorCommand } from "../paper-space";
 import { parseHexColor } from "./aci-palette";
 import {
@@ -298,6 +300,7 @@ export async function renderCadPlotPdf(
           command,
           command.kind === "text" ? pickFont(familyOf(command.entityId)) : bodyFont,
           styleFor,
+          warnings,
         );
     }
 
@@ -368,7 +371,12 @@ function drawCommand(
   command: CadVectorCommand,
   bodyFont: string,
   styleFor: StyleResolver,
+  warnings: string[],
 ): void {
+  if (command.kind === "image") {
+    drawImageCommand(pdf, command, warnings);
+    return;
+  }
   if (command.kind === "path") {
     if (command.points.length < 2) return;
     const [r, g, b] = rgb(command.style.stroke);
@@ -406,6 +414,49 @@ function drawCommand(
     angle: command.rotation ? -command.rotation : undefined,
     ...(command.maxWidth ? { maxWidth: command.maxWidth } : {}),
   });
+}
+
+/**
+ * La imagen adjunta en la lámina (Ola H): recorte por camino + `W n`,
+ * atenuación como estado gráfico con opacidad, y `addImage` girada sobre su
+ * esquina inferior izquierda. Lo que jsPDF no sabe hacer —una imagen
+ * sesgada o reflejada, un `http(s)` que habría que descargar, el brillo y el
+ * contraste— se dice en los avisos del resultado en vez de trazarse mal.
+ */
+function drawImageCommand(pdf: PdfLike, command: CadImagePlotCommand, warnings: string[]): void {
+  const placement = cadImagePlotPlacement(command);
+  if ("reason" in placement) {
+    warnings.push(placement.reason);
+    return;
+  }
+  const mime = /^data:image\/(png|jpe?g|gif|webp|bmp)[;,]/i.exec(command.uri)?.[1]?.toUpperCase();
+  if (!mime) {
+    warnings.push(`IMAGE «${command.name}»: el PDF sólo incrusta imágenes que viajan dentro del dibujo (data:); «${command.uri.slice(0, 40)}» sale como marco.`);
+    return;
+  }
+  const format = mime === "JPG" ? "JPEG" : mime;
+  pdf.saveGraphicsState();
+  if (command.clip && command.clip.length >= 3) {
+    const clip = command.clip;
+    const deltas = clip.slice(1).map((point, index) => [point.x - clip[index].x, point.y - clip[index].y] as [number, number]);
+    // Camino sin pintar (`null`), recorte (`W`) y descarte (`n`): el estado
+    // gráfico guardado lo deshace al terminar.
+    pdf.lines(deltas, clip[0].x, clip[0].y, [1, 1], null, true);
+    pdf.clip();
+    pdf.discardPath();
+  }
+  if (command.fade > 0) {
+    const GState = (pdf as unknown as { GState: new (options: { opacity: number }) => object }).GState;
+    pdf.setGState(new GState({ opacity: cadImageOpacity(command.fade) }));
+  }
+  try {
+    pdf.addImage(command.uri, format, placement.x, placement.y, placement.width, placement.height, undefined, "FAST", placement.rotationDeg || undefined);
+  } catch (error) {
+    warnings.push(`IMAGE «${command.name}»: jsPDF no pudo incrustarla (${error instanceof Error ? error.message : String(error)}); sale su marco.`);
+  }
+  pdf.restoreGraphicsState();
+  if (command.brightness !== CAD_IMAGE_BRIGHTNESS_NEUTRAL || command.contrast !== CAD_IMAGE_CONTRAST_NEUTRAL)
+    warnings.push(`IMAGE «${command.name}»: el brillo/contraste (${command.brightness}/${command.contrast}) no se aplica en la lámina; el PDF lleva los píxeles originales.`);
 }
 
 /** Sólo el marco. Para la hoja que declara no llevar cajetín: la portada. */

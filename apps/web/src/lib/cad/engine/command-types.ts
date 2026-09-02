@@ -397,7 +397,13 @@ export type CadUiTarget =
    * empaqueta en un texto (`geo-import-bundle.ts`) y los entrega por la misma
    * puerta que el DXF. Mismo reparto, por la misma razón exacta.
    */
-  | "geo-file";
+  | "geo-file"
+  /**
+   * Selector de archivo de `IMAGEATTACH` (Ola H): el navegador decodifica la
+   * imagen para saber su tamaño y la entrega como `data:` dentro de un sobre
+   * JSON por la misma puerta de texto (`image-attach-payload.ts`).
+   */
+  | "image-file";
 
 export interface CadUiRequest {
   target: CadUiTarget;
