@@ -74,12 +74,24 @@ const READER_DIST = path.join(
  * precondición que él mismo firmó.
  */
 const PUBLIC_API_DIST = path.join(REPO_ROOT, "packages", "dwg-codec", "dist", "index.js");
-const CONVERTER =
-  process.env.ODA_FILE_CONVERTER ?? "D:\\dev\\tools\\oda\\extracted\\ODAFileConverter.exe";
+/**
+ * SIN RUTA POR DEFECTO, A PROPÓSITO (2026-09-02). Hasta este corte el
+ * conversor tenía como valor por defecto una ruta de Windows concreta y el
+ * directorio de trabajo apuntaba al temporal de UNA SESIÓN CONCRETA, con su
+ * UUID dentro. Las dos cosas ataban el único gate que separa el laboratorio
+ * del producto a una máquina, y la segunda ni siquiera seguía existiendo en
+ * esa máquina.
+ *
+ * Ahora el conversor se EXIGE por entorno —si no está, se dice qué falta y
+ * cómo— y el trabajo va al temporal del sistema operativo, que existe en
+ * cualquier parte: Linux, macOS, Windows o un runner de CI. El oráculo pasa a
+ * ser algo que se puede correr donde haga falta, no donde tocó.
+ */
+const CONVERTER = process.env.ODA_FILE_CONVERTER ?? "";
 const CONVERTER_VERSION = "27.1";
 const WORK_ROOT =
   process.env.ODA_ROUNDTRIP_WORKDIR ??
-  "C:\\Users\\sergi\\AppData\\Local\\Temp\\claude\\D--\\faacfa40-fc40-46ab-bca2-44f357e305c2\\scratchpad\\ola3\\roundtrip";
+  path.join(os.tmpdir(), "valle-dwg-oda-roundtrip");
 const TOLERANCE = 1e-6;
 
 
@@ -317,6 +329,17 @@ async function main() {
     pathToFileURL(PUBLIC_API_DIST).href
   );
 
+  if (!CONVERTER) {
+    console.error(
+      "Falta ODA_FILE_CONVERTER: este harness NO adivina dónde está el conversor.\n" +
+        "  export ODA_FILE_CONVERTER=/ruta/a/ODAFileConverter      # Linux/macOS\n" +
+        '  set   ODA_FILE_CONVERTER=C:\\ruta\\ODAFileConverter.exe   # Windows\n' +
+        "El conversor es gratuito (registro en opendesign.com) y tiene build de Linux,\n" +
+        "así que esto puede correr en CI y no sólo en la máquina del titular.",
+    );
+    process.exitCode = 1;
+    return;
+  }
   if (!fs.existsSync(CONVERTER)) {
     console.error(`El conversor no existe en ${CONVERTER}; no hay oráculo que consultar.`);
     process.exitCode = 1;

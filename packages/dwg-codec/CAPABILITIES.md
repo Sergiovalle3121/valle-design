@@ -1439,3 +1439,48 @@ aprender una más. `oda-roundtrip.mjs` (861) se parte en
 `oda-roundtrip-cases.mjs`: el arnés no cambia al añadir un caso; los dibujos sí.
 
 Sigue en pie: **ningún flag encendido** y `externalOracleVerified` en `false`.
+
+## Corte 2026-09-02 (b) — el booleano del oráculo deja de poder afirmar más que su evidencia
+
+Este corte no amplía el códec. Ataca **lo que tenía el proyecto parado**.
+
+**El diagnóstico, medido.** `externalOracleVerified` es el **único** booleano
+entre «laboratorio» y el botón «Exportar DWG» encendido. Estaba escrito a mano
+en `apps/web/src/lib/cad/dwg-export-flag.ts`, **sin ninguna conexión con la
+evidencia que dice representar**:
+
+| | |
+| --- | --- |
+| evidencia committeada | `dwg-oda-roundtrip.json`, del **2026-08-21** |
+| casos que cubre | **4** (`vacio`, `capa-linea`, `figuras`, `bloque-insert`) |
+| casos que el harness exige hoy | **16** (8 casos y sus 8 gemelos `-publico`) |
+| gemelos públicos cubiertos | **cero** — y son los que ADR-0009 §8.2 exige de verdad |
+| ruta del conversor | `D:\dev\tools\oda\extracted\ODAFileConverter.exe` |
+| directorio de trabajo | el temporal de **una sesión concreta**, con su UUID dentro |
+
+Es decir: el gate dependía de una máquina, y su directorio de trabajo ni
+siquiera seguía existiendo **en esa máquina**.
+
+**Lo que cambia.**
+
+1. **Gate nuevo `check:dwg-oraculo`.** Deriva los casos exigidos de la lista
+   REAL del harness —no de una copia que se quedaría atrás, que es justo lo que
+   le pasó a la evidencia— e incluye el gemelo público de cada uno. Luego:
+   - **falla** si el producto declara `true` y la evidencia no lo sostiene, por
+     cobertura incompleta, caso no convertido o comparación que no coincide.
+     **Sobreafirmar deja de ser posible**: un booleano que sólo se verifica
+     leyéndolo no es una salvaguarda, es una nota.
+   - **no falla** con `false` —un gate conservador nunca es peligroso— pero dice
+     cuántos casos hay, cuáles faltan y **qué comando exacto** los produce.
+2. **El harness deja de estar atado a una máquina.** `ODA_FILE_CONVERTER` se
+   exige por entorno, sin ruta por defecto y con un mensaje que nombra las dos
+   formas del binario; el trabajo va al temporal del sistema. El conversor es
+   gratuito y tiene build de Linux, así que esto puede correr en CI.
+
+**Lo que esto NO hace.** No mueve el booleano ni finge la verificación. Nuestro
+lector acepta lo que nuestro writer escriba: sólo un lector **ajeno** dice si lo
+que escribimos lo abre otro programa. Lo que hace es convertir «llevamos
+semanas parados sin saber cuánto falta» en **un número exacto (4 de 16), una
+lista de lo que falta y un comando** — y garantizar que el día que la evidencia
+esté completa, nadie pueda encender la exportación sin ella ni dejarla encendida
+cuando se añada un caso nuevo.
