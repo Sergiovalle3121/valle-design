@@ -32,6 +32,7 @@ import {
   Wrench,
   ZoomIn,
   type LucideIcon,
+  ClipboardPaste,
 } from "lucide-react";
 
 /**
@@ -52,6 +53,7 @@ export const CAD_RIBBON_PANEL_ICONS: Readonly<Record<string, LucideIcon>> = {
   Propiedades: SlidersHorizontal,
   Grupos: Group,
   Utilidades: Ruler,
+  Portapapeles: ClipboardPaste,
   Sombreado: PaintBucket,
   Arquitectura: DoorOpen,
   Sólidos: Box,

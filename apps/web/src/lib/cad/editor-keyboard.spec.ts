@@ -324,6 +324,32 @@ eq(
   { type: "paste" },
   "Cmd+V pega",
 );
+// Ola D (2026-09-02): Ctrl+X corta al portapapeles de geometría. Medido antes:
+// la tecla no hacía nada y cortar exigía Ctrl+C y Suprimir por separado.
+eq(
+  interpretEditorKeyAfterEngine(key({ key: "x", ctrlKey: true }), NATIVE),
+  { type: "cut-selection", native: true },
+  "Ctrl+X corta la selección nativa (CUTCLIP)",
+);
+eq(
+  interpretEditorKeyAfterEngine(key({ key: "X", metaKey: true }), SEL),
+  { type: "cut-selection", native: false },
+  "Cmd+X corta la selección heredada",
+);
+eq(
+  interpretEditorKeyAfterEngine(key({ key: "x", ctrlKey: true }), AFTER),
+  null,
+  "Ctrl+X sin selección no hace nada",
+);
+eq(
+  interpretEditorKeyAfterEngine(key({ key: "x", ctrlKey: true }), {
+    ...SEL,
+    hasDomTextSelection: true,
+  }),
+  null,
+  "Ctrl+X respeta el corte de texto del DOM",
+);
+eq(isReadOnlyMutationKey(key({ key: "x", ctrlKey: true })), true, "Ctrl+X muta (corta): en solo lectura avisa");
 eq(
   interpretEditorKeyAfterEngine(
     key({ key: "g", ctrlKey: true, shiftKey: true }),

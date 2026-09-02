@@ -71,6 +71,8 @@ const SCENE: CadEntity[] = [
   { id: "tail", type: "line", start: { x: 10, y: 10, z: 0 }, end: { x: 20, y: 10, z: 0 }, layer: "0" },
   // No toca a `poly`: la negativa tiene que explicarse.
   { id: "far", type: "line", start: { x: 90, y: 90, z: 0 }, end: { x: 99, y: 99, z: 0 }, layer: "0" },
+  // Arranca a 0,5 del final de `poly`: trabajo ajeno mal empatado (Ola D).
+  { id: "almost", type: "line", start: { x: 10.5, y: 10, z: 0 }, end: { x: 20, y: 10, z: 0 }, layer: "0" },
   {
     id: "spl",
     type: "spline",
@@ -291,6 +293,32 @@ const distance = (value: number): CadCommandInput => ({ kind: "distance", value 
     loose.kind === "message" && loose.text.includes("no toca ningún extremo"),
     "y la negativa es la misma que daría JOIN",
   );
+}
+
+// --- Juntar con distancia de aproximación (Ola D, 2026-09-02) -------------------------
+// La «Fuzz distance» de PEDIT Múltiple Juntar: un número tecleado en el prompt de
+// designar fija cuánto hueco cuenta como contacto. Medido antes: un tramo a
+// 0,5 mm del final de la polilínea no se juntaba y no había forma de pedirlo.
+{
+  const exact = run("PEDIT", [pick("poly"), keyword("Juntar"), pick("almost"), enter]);
+  assert.equal(exact?.kind, "message", "a 0,5 sin distancia de aproximación no se juntan");
+  assert.ok(exact.kind === "message" && exact.text.includes("Teclee Tolerancia"), "y la negativa dice cómo pedirlo");
+
+  const short = run("PEDIT", [pick("poly"), keyword("Juntar"), distance(0.3), pick("almost"), enter]);
+  assert.ok(
+    short?.kind === "message" && short.text.includes("a menos de 0.3"),
+    "con 0,3 sigue sin juntarse y la negativa nombra la distancia que no bastó",
+  );
+
+  const fuzzy = run("PEDIT", [pick("poly"), keyword("Juntar"), distance(1), pick("almost"), enter]);
+  assert.ok(fuzzy && fuzzy.kind === "document", "con distancia 1 el hueco de 0,5 cuenta como contacto");
+  const replace = fuzzy.commands[0];
+  assert.ok(replace.type === "replace" && replace.entity.type === "polyline");
+  assert.equal(replace.entity.vertices.length, 4, "los tres vértices de poly más el final del tramo");
+  // El vértice toma el ARRANQUE del tramo siguiente: el hueco desaparece.
+  near(replace.entity.vertices[2].x, 10.5, 1e-9, "vértice del empalme");
+  near(replace.entity.vertices[3].x, 20, 1e-9, "final del tramo");
+  assert.ok(fuzzy.commands.some((command) => command.type === "delete" && command.entityId === "almost"));
 }
 
 // --- PEDIT sólo edita polilíneas, y lo dice ---------------------------------------------

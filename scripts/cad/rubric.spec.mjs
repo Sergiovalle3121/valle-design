@@ -479,13 +479,13 @@ const byId = (scored, id) =>
   // IA — era de Axos OS, el ERP del que nació este producto (`IDENTITY.md`).
   // Un denominador que cuenta una capacidad que el producto ya no quiere mide
   // contra un producto que no existe; los puntos ganados de la fila se van.
-  // Corte 2026-09-02: SUBIÓ a 260 — nacen `recognition` (14 pt de HOY, medidos
-  // por goldens y specs que leen bytes), las siete filas de toolsets (28 pt de
-  // DESTINO, casi todas en 0) y `hatch.pattern-table` (2 pt). Subir el
-  // denominador baja el porcentaje: un techo sin MEP medía contra otro producto.
-  // Ola C (2026-09-02): 265 — nace `modeling3d` (5 pt de DESTINO: ocho
-  // primitivas, SOLIDEDIT y la cota), medida antes como «faltan las ocho».
-  eq(published.totalPoints, 265, "el denominador de destino publicado son 265 puntos");
+  // Corte 2026-09-02: SUBIÓ a 260 — nacen `recognition` (14 pt de HOY, por
+  // goldens y specs que leen bytes), las siete filas de toolsets (28 pt de
+  // DESTINO, casi todas en 0) y `hatch.pattern-table` (2 pt): un techo sin MEP
+  // medía contra otro producto. Ola C: 265 — `modeling3d` (5 pt de DESTINO).
+  // Ola D (2026-09-02): 271 — `foreign-work` (6 pt de HOY: la prueba de
+  // despacho, el portapapeles y las seis órdenes del plano ajeno).
+  eq(published.totalPoints, 271, "el denominador de destino publicado son 271 puntos");
   eq(
     published.categories.every((c) => c.scope === "hoy" || c.scope === "destino"),
     true,
@@ -495,8 +495,8 @@ const byId = (scored, id) =>
     published.categories
       .filter((c) => c.scope === "hoy")
       .reduce((acc, c) => acc + c.points, 0),
-    191,
-    "el denominador de HOY (flujo diario 2D + reconocimiento) son 191 puntos",
+    197,
+    "el denominador de HOY (flujo diario 2D + reconocimiento + trabajo ajeno) son 197 puntos",
   );
   const groups = new Map(published.groups.map((g) => [g.id, g.points]));
   for (const [id, points] of groups) {

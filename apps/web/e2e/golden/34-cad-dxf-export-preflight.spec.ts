@@ -42,13 +42,17 @@ const flatLine: CadEntity = {
 };
 
 /**
- * Una línea ELEVADA. Las primitivas de este exportador son 2D, así que su
- * cota se aplanará a 0: una degradación real, conocida y declarada.
+ * Un MTEXT ELEVADO. Desde la Ola C (2026-09-02) la cota de LINE, CIRCLE, ARC,
+ * ELLIPSE y SPLINE viaja en el DXF (30/31), así que una línea elevada ya no
+ * pierde nada y no hay informe que enseñar: antes este golden usaba una LINE a
+ * z = 150 y el preflight se quedó sin motivo (medido en CI sobre 7bd0176). Un
+ * texto sí se escribe sobre el plano del suelo: su cota se aplana a 0 y eso es
+ * una degradación real, conocida y declarada.
  */
-const elevatedLine: CadEntity = {
-  id: 'elevated', type: 'line',
-  start: { x: 1_000, y: 3_000, z: 150 },
-  end: { x: 5_000, y: 3_000, z: 150 },
+const elevatedNote: CadEntity = {
+  id: 'elevated', type: 'mtext',
+  insertion: { x: 1_000, y: 3_000, z: 150 },
+  text: 'NIVEL +0.15',
   layer: '0',
 };
 
@@ -88,7 +92,7 @@ async function expectNoDownload(page: Page) {
 
 test('a lossy DXF export shows its manifest before any download happens', async ({ context, page }) => {
   test.setTimeout(180_000);
-  await openStudio(context, page, [flatLine, elevatedLine]);
+  await openStudio(context, page, [flatLine, elevatedNote]);
   await openExportModal(page);
 
   await test.step('1. la primera pulsación NO descarga: enseña el informe', async () => {
@@ -118,12 +122,20 @@ test('a lossy DXF export shows its manifest before any download happens', async 
     const path = await download.path();
     expect(path).not.toBeNull();
 
-    const reimported = importDxfPrimitives(await readFile(path!, 'utf8'));
+    const dxf = await readFile(path!, 'utf8');
+    const reimported = importDxfPrimitives(dxf);
     const lines = reimported.primitives.filter((primitive) => primitive.kind === 'line');
-    expect(lines).toHaveLength(2);
-    // Exactamente lo que el informe anunció: la geometría XY viaja, la Z no.
-    const xs = lines.map((line) => [line.points[0].x, line.points[1].x]).sort();
-    expect(xs).toEqual([[1_000, 5_000], [1_000, 5_000]]);
+    expect(lines).toHaveLength(1);
+    expect([lines[0].points[0].x, lines[0].points[1].x]).toEqual([1_000, 5_000]);
+    // Exactamente lo que el informe anunció: el rótulo viaja (MTEXT con su
+    // texto) y su Z no (código 30 = 0). Se lee el fichero, no una relectura:
+    // el lector de primitivas deja el MTEXT al lector canónico.
+    const mtextAt = dxf.indexOf('\nMTEXT\n');
+    expect(mtextAt, 'el DXF lleva el MTEXT').toBeGreaterThan(-1);
+    const mtext = dxf.slice(mtextAt, mtextAt + 600);
+    expect(mtext).toContain('NIVEL +0.15');
+    expect(mtext).toMatch(/\n30\n0\n/);
+    expect(mtext).not.toMatch(/\n30\n150\n/);
   });
 });
 

@@ -137,7 +137,7 @@ export function isReadOnlyMutationKey(
   if (shortcutId) return !READ_ONLY_SHORTCUT_IDS.has(shortcutId);
   const key = event.key.toLowerCase();
   if (event.ctrlKey || event.metaKey)
-    return ["s", "z", "y", "d", "c", "v", "g"].includes(key);
+    return ["s", "z", "y", "d", "c", "v", "g", "x"].includes(key);
   return [
     "backspace",
     "delete",
@@ -193,6 +193,8 @@ export type EditorKeyAction =
   | { type: "delete-selection"; native: boolean }
   | { type: "duplicate-selection"; native: boolean }
   | { type: "copy-selection"; native: boolean }
+  /** Ctrl+X (Ola D, 2026-09-02): CUTCLIP sobre lo nativo; copiar y borrar sobre lo heredado. */
+  | { type: "cut-selection"; native: boolean }
   | { type: "paste" }
   | { type: "ungroup" }
   | { type: "group" }
@@ -359,6 +361,13 @@ export function interpretEditorKeyAfterEngine(
     !ctx.hasDomTextSelection
   )
     return { type: "copy-selection", native };
+  if (
+    (event.key === "x" || event.key === "X") &&
+    ctrl &&
+    hasSel &&
+    !ctx.hasDomTextSelection
+  )
+    return { type: "cut-selection", native };
   if ((event.key === "v" || event.key === "V") && ctrl)
     return { type: "paste" };
   if ((event.key === "g" || event.key === "G") && ctrl && event.shiftKey && hasSel)

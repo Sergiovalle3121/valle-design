@@ -2874,6 +2874,46 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "OLA-D-TRABAJO-AJENO-20260902",
+      "date": "2026-09-02",
+      "initiative": "Ola D del encargo «Valle Design → AutoCAD completo»: el trabajo ajeno. (1) HPGAPTOL como variable de sistema (`real`, mínimo 0) y `cadHatchGapTolerance` en `hatch-support.ts`: los dos llamadores de `stitchCadBoundaryPaths` pasan la tolerancia (antes, medido, un solo argumento y 1e-4 mm fijo); HATCH, BOUNDARY y JOIN ofrecen la palabra `Tolerancia`, PEDIT Juntar acepta la distancia de aproximación, y un sombreado que sólo cierra con tolerancia nace NO asociativo y el prompt lo dice (guardarla por sombreado sería tocar el formato persistido: decisión del titular, no tomada). La prueba de despacho del área 2 —34 LINE con huecos de 0,2 a 0,92 mm— vive en `verification/prueba-de-despacho.spec.ts` (72, oráculo en papel: 92.840.000 mm² y 46.297,06 mm) y en el golden 74 (HATCH que dice que no cierra con HPGAPTOL 0 y cierra con 2; BOUNDARY; Ctrl+A + JOIN Tolerancia; AREA Objeto con el ratón). (2) Portapapeles de geometría canónica: `lib/cad/clipboard.ts` (almacén en memoria compartido entre editores, punto base por envolvente o tecleado, pegado por `adapter.commands.transform`, lo asociativo desligado, el bloque que falta definido) y `engine/commands/clipboard.ts` (COPYCLIP, CUTCLIP, COPYBASE piden al anfitrión con `CadHostRequest` `clipboard`; PASTECLIP y PASTEORIG leen `context.clipboard`); Ctrl+C/X/V sobre lo nativo van por el motor (antes, medido, Ctrl+C duplicaba en el sitio y el botón prometía un portapapeles); golden 75. (3) SELECTSIMILAR (tipo, capa y bloque, como designación) y ADDSELECTED (petición `chain-command`: el anfitrión pone CLAYER/CECOLOR/CELTYPE, arranca la orden del tipo y las devuelve al terminar); XPLODE (capa, color, tipo de línea sobre las piezas de `cadExplodeCommands`; Heredar = Explotar porque la resolución del bloque ya coloca capa 0 y PorBloque, medido y dicho en la etiqueta), SETBYLAYER, CHPROP (en bucle, un lote) y NCOPY (la pieza que el clic toca dentro del bloque colocado); golden 76. (4) Por el camino, medido: COLOR/LINETYPE/LWEIGHT escribían CECOLOR/CELTYPE/CELWEIGHT y ninguna orden las leía; `engine/current-presentation.ts` las aplica en `finish` a lo que dibujan las órdenes de dibujo y anotación (con las variables de fábrica el lote es el mismo array). La sonda de integridad pasa de 213 a 224 comandos con 0 éxitos falsos; la cinta cubre 224/224 con el panel Portapapeles en Inicio; la rúbrica gana `foreign-work` (6 pt de HOY: denominadores 197/271 con nota fechada).",
+      "branch": "claude/valle-design-autocad-vqfa6u",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: encargo escrito «Valle Design → AutoCAD completo, con sus siete toolsets», §Ola D (trabajo ajeno).",
+      "firstPartyInputs": [
+        "docs/competitive/distancia-autocad-completo-20260901.md §FRENTE 3 (la prueba de despacho, el portapapeles que duplicaba, las seis órdenes ausentes) y docs/competitive/liston-autocad-completo.md §2; cada afirmación se midió antes con grep y sondas en el scratchpad (resolveCadInsert coloca capa 0 y PorBloque; el INSERT sin documento mide 5950 y con documento 5800).",
+        "Specs de Node nuevos o ampliados, corridos en esta máquina: verification/prueba-de-despacho (72), clipboard (33), engine/commands/clipboard (48), select-similar (24), modify-foreign (54), current-presentation (15), modify-pedit (13 anclas), editor-keyboard (120), command-engine-host (portapapeles entre dos editores; ADDSELECTED encadena y devuelve), annotate-hatch (77), modify-join, hatch-associativity, system-variables (108), command-summaries (224/224), ribbon, ribbon-icons; sonda de integridad 224 comandos, 0 éxitos falsos.",
+        "Goldens 74 (la prueba de despacho, dos recorridos), 75 (Ctrl+C/V/X y PASTEORIG) y 76 (ADDSELECTED, SETBYLAYER, SELECTSIMILAR + Ctrl+X, CHPROP, XPLODE) verdes en Chromium contra el build de producción."
+      ],
+      "externalSources": [
+        {
+          "source": "Documentación pública de AutoCAD sobre HPGAPTOL, SELECTSIMILARMODE, XPLODE, NCOPY y el comportamiento de COPYCLIP/PASTECLIP (punto base implícito, ByLayer al pegar).",
+          "terms": "Documentación pública de referencia del comportamiento; no se copió implementación alguna.",
+          "usedFor": "El vocabulario de las órdenes y sus opciones (Tolerancia, Insertar, Heredar) y las reglas de pegado."
+        }
+      ],
+      "externalImplementationConsulted": "Ninguna. El cosido de contornos, la traslación de entidades y la resolución de bloques son los módulos propios ya existentes (hatch-associativity.ts, entity-runtime.ts, professional-blocks.ts).",
+      "derivedAreas": [
+        "apps/web/src/lib/cad/{system-variables.ts, clipboard.ts (nuevo), editor-keyboard.ts, ribbon.ts, ribbon-order.ts, verification/planta-mal-empatada.ts (nuevo)}",
+        "apps/web/src/lib/cad/engine/{command-types.ts, command-engine.ts, host-requests.ts, current-presentation.ts (nuevo), index.ts, command-summaries.ts}; engine/commands/{hatch-support.ts, annotate-hatch.ts, modify-join.ts, modify-pedit.ts, clipboard.ts (nuevo), select-similar.ts (nuevo), modify-foreign.ts (nuevo)}",
+        "apps/web/src/components/cad/command-line/{command-engine-host.ts, plot-host.ts}; components/cad/ribbon/ribbon-icons.ts; components/cad/editor/Layout3DEditor.tsx (Ctrl+C/X/V al motor, el título del botón dice la verdad)",
+        "apps/web/e2e/golden/{74-cad-prueba-de-despacho, 75-cad-portapapeles, 76-cad-trabajo-ajeno}.spec.ts (nuevos)",
+        "docs/competitive/{rubric.json, autocad-2027-gap-matrix.md, distancia-autocad-completo-20260901.md}, docs/parity/ESCALERA.md, docs/cad/evidence/{command-integrity.json, ui-command-reach.json}, scripts/cad/rubric.spec.mjs"
+      ],
+      "fixtures": "Ninguno nuevo con datos ajenos; la planta de 34 tramos se genera en `planta-mal-empatada.ts` y el DXF se escribe en el propio spec.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "La prueba de despacho como spec con oráculo en papel y como golden; el portapapeles y las seis órdenes con specs y goldens; la sonda de integridad a 224 con 0 éxitos falsos; lo que no cabe, en ESCALERA; ninguna decisión de formato persistido tomada por la sesión."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

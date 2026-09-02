@@ -16,10 +16,13 @@
  * que nadie hubiera tocado el patrón. Peor todavía: el mismo dibujo saldría
  * distinto según el zoom que tuviera quien lo hizo.
  *
- * Lo mismo vale para la tolerancia de COSIDO —cuándo dos extremos de curva son
- * «el mismo punto»—: `stitchCadBoundaryPaths` la trae por defecto y aquí no se
- * cambia, porque el regenerador usa la suya y un contorno que cierra al crearse
- * y no cierra al regenerarse marca el sombreado como roto.
+ * La tolerancia de COSIDO —cuándo dos extremos de curva son «el mismo punto»—
+ * sí se cambia desde la Ola D (2026-09-02): HPGAPTOL o la palabra `Tolerancia`
+ * de la orden (`cadHatchGapTolerance`). El regenerador de sombreados
+ * asociativos sigue cosiendo con la de fábrica, así que un contorno que sólo
+ * cierra con tolerancia no se puede seguir: el HATCH que sale de él nace NO
+ * asociativo, y la orden lo dice en su prompt. Guardar la tolerancia en cada
+ * sombreado sería tocar el formato persistido, y eso es decisión del titular.
  *
  * Que la resolución dependa del DIBUJO (del radio del arco, no del zoom) es la
  * mejora pendiente, y hay que hacerla en `cadEntityBoundaryPaths` para que los
@@ -40,6 +43,20 @@ import { pointsBounds } from "../../entity-hit-geometry";
 import type { CadCommandContext } from "../command-types";
 
 export type CadIslandStyle = "normal" | "outer" | "ignore";
+
+/** La tolerancia de cosido de fábrica de `stitchCadBoundaryPaths`. */
+export const CAD_HATCH_STITCH_DEFAULT = 1e-4;
+
+/**
+ * La tolerancia de hueco EFECTIVA: la tecleada en la orden (`Tolerancia`), si
+ * no la variable HPGAPTOL, y nunca menos que la de fábrica. Es el mismo número
+ * que recibe `stitchCadBoundaryPaths`, y es lo que hace que el DWG con 34
+ * líneas mal empatadas (huecos de un milímetro) se sombree con HPGAPTOL = 2.
+ */
+export function cadHatchGapTolerance(context: CadCommandContext, override?: number | null): number {
+  const typed = override ?? Number(context.variables?.get("HPGAPTOL") ?? 0);
+  return Number.isFinite(typed) && typed > CAD_HATCH_STITCH_DEFAULT ? typed : CAD_HATCH_STITCH_DEFAULT;
+}
 
 export interface CadHatchRegion {
   boundaries: CadPoint2[][];
@@ -92,8 +109,9 @@ export function cadHatchRegionAtPoint(
   point: CadPoint2,
   context: CadCommandContext,
   islandStyle: CadIslandStyle,
+  gapTolerance: number = cadHatchGapTolerance(context),
 ): CadHatchRegion | null {
-  const built = stitchCadBoundaryPaths(cadCandidateBoundaryPaths(context));
+  const built = stitchCadBoundaryPaths(cadCandidateBoundaryPaths(context), gapTolerance);
   if (built.loops.length === 0) return null;
   const resolved = resolveCadHatchRegionWithSources(built, point, islandStyle);
   return resolved.boundaries.length > 0 ? resolved : null;
@@ -173,8 +191,9 @@ export function cadHatchRegionFromObjects(
   entityIds: readonly string[],
   context: CadCommandContext,
   islandStyle: CadIslandStyle,
+  gapTolerance: number = cadHatchGapTolerance(context),
 ): CadHatchRegion | null {
-  const built = stitchCadBoundaryPaths(cadCandidateBoundaryPaths(context, entityIds));
+  const built = stitchCadBoundaryPaths(cadCandidateBoundaryPaths(context, entityIds), gapTolerance);
   if (built.loops.length === 0) return null;
   const outer = built.loops.reduce((best, loop) =>
     Math.abs(cadBoundarySignedArea(loop)) > Math.abs(cadBoundarySignedArea(best)) ? loop : best,

@@ -24,7 +24,7 @@ export const CAD_RIBBON_PANEL_ORDER: Readonly<Record<CadRibbonTabId, readonly st
   // final—.
   inicio: [
     "Dibujo", "Modificar", "Anotación", "Capas", "Bloque", "Propiedades",
-    "Grupos", "Utilidades", "Sombreado", "Arquitectura", "Sólidos",
+    "Grupos", "Utilidades", "Portapapeles", "Sombreado", "Arquitectura", "Sólidos",
   ],
   insertar: ["Referencias", "Importar y extraer", "Paletas"],
   anotar: ["Texto y tablas", "Cotas", "Directrices", "Tolerancias", "Estilos"],
@@ -63,6 +63,9 @@ export const CAD_RIBBON_COMMAND_ORDER: Readonly<Record<string, readonly string[]
   Bloque: ["INSERT", "BLOCK", "BEDIT", "WBLOCK", "ATTDEF", "ATTEDIT", "BURST", "BASE"],
   Propiedades: ["PROPERTIES", "MATCHPROP", "COLOR", "LINETYPE", "LWEIGHT", "LTSCALE", "CELTSCALE", "-LINETYPE"],
   Utilidades: ["DIST", "AREA", "ID", "LIST", "QSELECT", "FILTER"],
+  // El reparto del panel Clipboard de AutoCAD: pegar primero, que es lo que
+  // se busca con el ratón; cortar y copiar tienen su tecla.
+  Portapapeles: ["PASTECLIP", "CUTCLIP", "COPYCLIP", "COPYBASE", "PASTEORIG"],
   Geométricas: [
     "AUTOCONSTRAIN", "GCCOINCIDENT", "GCCOLLINEAR", "GCCONCENTRIC", "GCFIX", "GCPARALLEL",
     "GCPERPENDICULAR", "GCHORIZONTAL", "GCVERTICAL", "GCTANGENT", "GCSMOOTH", "GCSYMMETRIC",

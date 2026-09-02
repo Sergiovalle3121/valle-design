@@ -174,6 +174,23 @@ dice aquí y en el prompt de la orden, no se aplana en silencio.
 | El plano INCLINADO al importar DXF (extrusión distinta de ±Z) | 0 | `flattened_to_ground` sigue declarándose por entidad y capa | Que la entidad canónica guarde su normal y el visor la dibuje. **Todavía no.** |
 | Ver la cota en pantalla | 0 | el render (`CadRenderPath.points: CadPoint2[]`) dibuja en planta | El visor 3D representa la geometría 2D sobre el suelo; los sólidos sí van a su cota. **Todavía no.** |
 
+## El trabajo ajeno (Ola D, 2026-09-02)
+
+La campaña midió antes que la prueba de despacho del área 2 —recibir un
+DWG, unir 34 líneas mal empatadas y obtener perímetro y superficie— fallaba
+en el primer paso, que Ctrl+C duplicaba en el sitio y que seis órdenes del
+plano ajeno no existían. Cada fila dice en qué peldaño queda HOY y qué la
+subiría; lo que sigue en «todavía no» se dice aquí y en el prompt.
+
+| Capacidad | Peldaño hoy | Evidencia | Qué falta para subir |
+| --- | --- | --- | --- |
+| HPGAPTOL y `Tolerancia` en HATCH, BOUNDARY y JOIN; distancia de aproximación en PEDIT Juntar | 5 | golden 74 (la prueba de despacho entera), `verification/prueba-de-despacho.spec.ts` (72, oráculo en papel: 92.840.000 mm² y 46.297 mm), `modify-pedit.spec.ts` | Nada de peldaño. La tolerancia no se guarda en el sombreado: nace NO asociativo y el prompt lo dice; guardarla es tocar el formato persistido, decisión del titular. |
+| Portapapeles de geometría canónica: COPYCLIP, CUTCLIP, COPYBASE, PASTECLIP, PASTEORIG y Ctrl+C/X/V | 5 | golden 75; `clipboard.spec.ts` (33), `engine/commands/clipboard.spec.ts` (48), anfitrión con dos editores que comparten el almacén | No toca el portapapeles del SISTEMA: no hay PASTESPEC ni PASTEBLOCK, ni pegar en otra pestaña del navegador. **Todavía no.** |
+| SELECTSIMILAR y ADDSELECTED | 5 | golden 76; `select-similar.spec.ts` (24); anfitrión que encadena la orden y devuelve CLAYER/CECOLOR/CELTYPE | SELECTSIMILARMODE no existe: siempre tipo, capa y bloque. ADDSELECTED de un tipo sin orden (muro heredado, tabla de activos) lo dice con su nombre. |
+| XPLODE, SETBYLAYER, CHPROP y NCOPY | 5 | golden 76; `modify-foreign.spec.ts` (54) | XPLODE Heredar da lo mismo que Explotar (la resolución del bloque ya coloca capa 0 y PorBloque con lo de la inserción, medido; la etiqueta lo dice) y no ofrece Grosor. NCOPY sólo copia desde inserciones. |
+| CECOLOR, CELTYPE y CELWEIGHT llegan a lo que se dibuja | 3 | `engine/current-presentation.spec.ts` (15) contra el motor: LINE con COLOR 1 sale con color 1, COPY no lo hereda | Un golden que teclee COLOR y dibuje (peldaño 5). Sólo órdenes de dibujo y anotación: lo copiado y lo pegado conservan lo suyo, como en AutoCAD. |
+| Ver la cota en pantalla; la cota que sigue a la polilínea al moverla | 0 | `auditoria/acotar.spec.ts` sigue en el manifiesto (28) | Sigue de la Ola C. **Todavía no.** |
+
 ## Cómo se usa
 
 - **Al añadir una entrada nueva a `BACKLOG.md`:** decir el peldaño ACTUAL

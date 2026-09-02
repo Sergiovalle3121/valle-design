@@ -58,6 +58,9 @@ import { CAD_PARAMETRIC_DIMENSION_COMMANDS } from "./commands/parametric-dimensi
 import { CAD_SOLID_CREATE_COMMANDS } from "./commands/solids-create";
 import { CAD_SOLID_PRIMITIVE_COMMANDS } from "./commands/solids-primitives";
 import { CAD_SOLIDEDIT_COMMANDS } from "./commands/solids-edit";
+import { CAD_CLIPBOARD_COMMANDS } from "./commands/clipboard";
+import { CAD_SELECT_SIMILAR_COMMANDS } from "./commands/select-similar";
+import { CAD_MODIFY_FOREIGN_COMMANDS } from "./commands/modify-foreign";
 import { CAD_PRESSPULL_COMMANDS } from "./commands/solids-push-face";
 import { CAD_SOLID_INQUIRY_COMMANDS } from "./commands/solids-inquiry";
 import { CAD_SOLID_INTEROP_COMMANDS } from "./commands/solids-interop";
@@ -169,6 +172,9 @@ export const CAD_COMMAND_DESCRIPTORS = [
   // ningún comando lo creaba.
   ...CAD_SOLID_PRIMITIVE_COMMANDS,
   ...CAD_SOLIDEDIT_COMMANDS,
+  ...CAD_CLIPBOARD_COMMANDS,
+  ...CAD_SELECT_SIMILAR_COMMANDS,
+  ...CAD_MODIFY_FOREIGN_COMMANDS,
   // PRESSPULL compone las dos máquinas: empujar una cara o extruir un
   // contorno. Decide el primer gesto, no una opción tecleada.
   ...CAD_PRESSPULL_COMMANDS,

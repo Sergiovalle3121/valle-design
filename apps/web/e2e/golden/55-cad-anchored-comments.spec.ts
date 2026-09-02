@@ -177,7 +177,15 @@ test("dos sesiones concurrentes comentan el mismo plano y se ven los anclajes", 
   const lienzo = arquitecta.getByTestId("cad-canvas");
   const caja = await lienzo.boundingBox();
   expect(caja).not.toBeNull();
-  await arquitecta.mouse.move(caja!.x + caja!.width / 2, caja!.y + caja!.height / 2);
+  // La rueda va sobre LIENZO LIBRE, en el cuarto superior izquierdo. Medido
+  // el 2026-09-02 a 1280×720 (CI sobre 7bd0176 y en local): en el centro del
+  // lienzo se posan el desplegable de Colaboración (abierto por esta misma
+  // prueba, 19 rem de ancho y hasta 60 vh de alto desde la bandeja de la
+  // barra de estado) y la tarjeta del recorrido guiado; la rueda desplazaba
+  // el panel y el plano no hacía zoom, así que la chincheta no se movía por
+  // una razón ajena a lo que aquí se mide. Lejos de la chincheta (a más de
+  // 100 px) para que el zoom en el cursor la desplace de verdad.
+  await arquitecta.mouse.move(caja!.x + caja!.width * 0.25, caja!.y + caja!.height * 0.25);
   await arquitecta.mouse.wheel(0, -600);
   await expect
     .poll(

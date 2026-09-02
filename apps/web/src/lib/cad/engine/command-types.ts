@@ -48,6 +48,7 @@ import type { CadViewRequest } from "../view/view-navigation";
 import type { CadXrefCatalogEntry } from "../xref/xref-paths";
 import type { CadHostRequest } from "./host-requests";
 import type { CadSystemVariableValue, CadVariableAccess } from "../system-variables";
+import type { CadClipboardReader } from "../clipboard";
 import type { CadNamedLayerState } from "../layer-states";
 import type { CadLinetypeDefinition } from "../linetype-lin";
 import type { CadNamedSelectionFilter } from "../selection/selection-filter";
@@ -310,6 +311,13 @@ export interface CadCommandContext {
   catalogs?: CadSessionCatalogs;
   /** Posición actual del puntero en unidades de dibujo, si se conoce. */
   cursor?: CadPoint2;
+  /**
+   * Lo que hay en el portapapeles de geometría (Ola D, 2026-09-02): PASTECLIP
+   * y PASTEORIG lo LEEN. Escribirlo es un efecto y va por `CadHostRequest`
+   * `clipboard`. Opcional por la misma razón que `variables`: una spec del
+   * motor montada con un puente de tres líneas no tiene por qué traerlo.
+   */
+  clipboard?: CadClipboardReader;
   /** Rastro de lo hecho en esta sesión. Ver `CadCommandSession`. */
   session?: CadCommandSession;
   /**

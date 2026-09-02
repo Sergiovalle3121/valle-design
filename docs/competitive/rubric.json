@@ -4,7 +4,7 @@
   "version": "2026-09-02.1",
   "title": "Rúbrica competitiva CAD — Valle Design frente a AutoCAD 2027",
   "cutoffDate": "2026-08-22",
-  "totalPoints": 265,
+  "totalPoints": 271,
   "manualMaxAgeDays": 180,
   "notes": [
     "Hay DOS denominadores y los dos se publican SIEMPRE con su etiqueta: «Alcance de HOY» (las filas con scope 'hoy': el flujo diario de dibujo 2D técnico; la cifra que se enseña a un cliente y se vende contra AutoCAD LT) y «Alcance de DESTINO» (todas las filas: AutoCAD completo con sus siete toolsets). Un porcentaje sin su etiqueta de alcance no se cita en ningún informe: «88,6 %» a secas fue el error de la auditoría del 2026-09-01.",
@@ -19,7 +19,7 @@
     {
       "id": "core",
       "name": "Núcleo del plano entregable",
-      "points": 112
+      "points": 118
     },
     {
       "id": "pro",
@@ -474,6 +474,124 @@
         }
       ],
       "scope": "hoy"
+    },
+    {
+      "id": "foreign-work",
+      "group": "core",
+      "scope": "hoy",
+      "name": "Trabajo ajeno: tomar el plano de otro y trabajar sobre él",
+      "points": 6,
+      "gap": "Ola D (2026-09-02). Medido antes (distancia-autocad-completo-20260901.md, FRENTE 3): la PRUEBA DE DESPACHO —recibir un DWG, unir 34 líneas mal empatadas y obtener perímetro y superficie— fallaba en el primer paso porque no existía HPGAPTOL y los dos llamadores de `stitchCadBoundaryPaths` pasaban un solo argumento; Ctrl+C sobre lo nativo duplicaba en el sitio mientras el botón prometía un portapapeles; y SELECTSIMILAR, ADDSELECTED, XPLODE, SETBYLAYER, CHPROP y NCOPY no estaban en el registro. Lo que sigue en «todavía no»: el portapapeles no toca el del sistema (ni PASTESPEC ni PASTEBLOCK), la tolerancia de hueco no se guarda en el sombreado (nace no asociativo y el prompt lo dice: guardarla es tocar el formato persistido, decisión del titular), SELECTSIMILARMODE no existe (siempre tipo, capa y bloque) y NCOPY sólo copia desde inserciones.",
+      "criteria": [
+        {
+          "id": "foreign-work.gap-tolerance",
+          "points": 2,
+          "text": "HPGAPTOL y la palabra Tolerancia en HATCH, BOUNDARY y JOIN, y la distancia de aproximación en PEDIT Juntar: la planta de 34 tramos con huecos de hasta 0,92 mm se sombrea, se contornea, se une y se mide contra el papel (92.840.000 mm², 46.297 mm)",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/verification/prueba-de-despacho.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/modify-pedit.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/74-cad-prueba-de-despacho.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "foreign-work.clipboard",
+          "points": 2,
+          "text": "COPYCLIP, CUTCLIP, COPYBASE, PASTECLIP y PASTEORIG con Ctrl+C/X/V: geometría canónica que viaja entre editores con su punto base, ids nuevos, el bloque que falta definido y lo asociativo desligado",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "command",
+              "name": "COPYCLIP"
+            },
+            {
+              "kind": "command",
+              "name": "CUTCLIP"
+            },
+            {
+              "kind": "command",
+              "name": "COPYBASE"
+            },
+            {
+              "kind": "command",
+              "name": "PASTECLIP"
+            },
+            {
+              "kind": "command",
+              "name": "PASTEORIG"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/clipboard.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/clipboard.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/75-cad-portapapeles.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "foreign-work.properties",
+          "points": 2,
+          "text": "SELECTSIMILAR, ADDSELECTED (con CECOLOR/CELTYPE/CELWEIGHT llegando por fin a lo que se dibuja), XPLODE, SETBYLAYER, CHPROP y NCOPY, tecleados sobre un plano ajeno",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "command",
+              "name": "SELECTSIMILAR"
+            },
+            {
+              "kind": "command",
+              "name": "ADDSELECTED"
+            },
+            {
+              "kind": "command",
+              "name": "XPLODE"
+            },
+            {
+              "kind": "command",
+              "name": "SETBYLAYER"
+            },
+            {
+              "kind": "command",
+              "name": "CHPROP"
+            },
+            {
+              "kind": "command",
+              "name": "NCOPY"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/select-similar.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/modify-foreign.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/current-presentation.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/76-cad-trabajo-ajeno.spec.ts"
+            }
+          ]
+        }
+      ]
     },
     {
       "id": "dimensions",

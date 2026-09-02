@@ -468,6 +468,7 @@ import {
 import { publishCadViewport } from "@/lib/cad/collab/viewport-registry";
 import { CadCommandLineDock } from "@/components/cad/command-line/CadCommandLineDock";
 import { useCadCommandEngine } from "@/components/cad/command-line/use-command-engine";
+import { CAD_SHARED_CLIPBOARD } from "@/lib/cad/clipboard";
 import { formatCadPrompt } from "@/lib/cad/engine/prompt";
 import { useCadStudioCommandEngine } from "@/components/cad/command-line/use-command-engine";
 import { cadStudioEngineBridges } from "@/components/cad/command-line/studio-engine-bridges";
@@ -13537,12 +13538,25 @@ export default function Layout3DEditor({
         if (action.native) copyNativeSelection();
         else duplicateSelected();
         return;
+      // Ola D (2026-09-02): Ctrl+C sobre lo nativo DUPLICABA en el sitio
+      // mientras el botón prometía un portapapeles. Ahora copia, corta y pega
+      // geometría canónica por el motor (COPYCLIP/CUTCLIP/PASTECLIP), que es
+      // lo que permite llevar una LINE o un INSERT a otro dibujo. Ctrl+D sigue
+      // duplicando en el sitio. Los activos heredados conservan su portapapeles.
       case "copy-selection":
-        if (action.native) copyNativeSelection();
+        if (action.native) commandEngine.invoke("COPYCLIP");
         else copySelection();
         return;
+      case "cut-selection":
+        if (action.native) commandEngine.invoke("CUTCLIP");
+        else {
+          copySelection();
+          removeSelected();
+        }
+        return;
       case "paste":
-        pasteClipboard();
+        if (CAD_SHARED_CLIPBOARD.read()) commandEngine.invoke("PASTECLIP");
+        else pasteClipboard();
         return;
       case "ungroup":
         ungroupSelection();
@@ -17148,7 +17162,7 @@ export default function Layout3DEditor({
                       </button>
                       <button
                         onClick={copySelection}
-                        title="Ctrl+C — copia al portapapeles CAD (pega aquí o en otro layout)"
+                        title="Ctrl+C — copia los activos al portapapeles (pega aquí o en otro layout)"
                         className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-muted/60 hover:bg-muted type-caption"
                       >
                         <ClipboardList className="w-3.5 h-3.5" /> Copiar
