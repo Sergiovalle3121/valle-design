@@ -3,17 +3,17 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-corpus-validation-v1",
   "generadoPor": "node scripts/dwg/validate-corpus.mjs",
-  "generadoEn": "2026-09-01T01:50:43.150Z",
+  "generadoEn": "2026-09-02T03:49:51.270Z",
   "environment": {
     "node": "v22.22.2",
     "platform": "linux",
     "architecture": "x64",
     "osType": "Linux",
     "osRelease": "6.18.44-fc-v22",
-    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.10GHz",
     "logicalCpuCount": 4,
     "totalMemoryBytes": 16856133632,
-    "declaredMachine": "Intel(R) Xeon(R) Processor @ 2.80GHz (4 hilos lógicos), 16.9 GB de RAM, Linux 6.18.44-fc-v22"
+    "declaredMachine": "Intel(R) Xeon(R) Processor @ 2.10GHz (4 hilos lógicos), 16.9 GB de RAM, Linux 6.18.44-fc-v22"
   },
   "veredicto": "El decoder abre los 57 DWG del corpus SIN discrepancias: AC1015 25/25 abiertos con 0 discrepancia(s); AC1018 8/8 abiertos con 0 discrepancia(s); AC1024 8/8 abiertos con 0 discrepancia(s); AC1027 8/8 abiertos con 0 discrepancia(s); AC1032 8/8 abiertos con 0 discrepancia(s).",
   "reglaCleanRoom": "Toda discrepancia se REGISTRA aquí y no se corrige en esta ola: corregir el decoder exige registrar antes el hecho de formato en packages/dwg-codec/SOURCE_REGISTER.json (ADR-0007).",
@@ -2719,13 +2719,13 @@
           "code": "database-paper-space-entity",
           "severity": "warning",
           "offset": 6346,
-          "message": "A paper-space entity is not modeled yet; it was kept in model space."
+          "message": "A paper-space entity was separated from model space and is NOT part of the model: consumers that only read model space will not see it. The layout it belongs to is not modeled yet."
         },
         {
           "code": "database-paper-space-entity",
           "severity": "warning",
           "offset": 6499,
-          "message": "A paper-space entity is not modeled yet; it was kept in model space."
+          "message": "A paper-space entity was separated from model space and is NOT part of the model: consumers that only read model space will not see it. The layout it belongs to is not modeled yet."
         }
       ]
     },

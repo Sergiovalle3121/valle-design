@@ -427,3 +427,68 @@ test("gemelo triste: un contenedor con bytes torcidos aborta tipado", () => {
 console.log(
   "ac1015-database.spec: fase D4 verde — el laboratorio lee una BASE de dibujo completa: capas, un bloque con contenido y un model space cuyo INSERT resuelve su bloque por nombre; lo no soportado se enumera y los límites caen tipados.",
 );
+
+// ─── PAPER SPACE DEJA DE MEZCLARSE CON EL MODELO (2026-09-02) ─────────────
+// El modo de entidad es un hecho registrado de la fuente: 0 = propietario en
+// el flujo, 1 = paper space, 2 = model space. Hasta este corte los modos 1 y 2
+// acababan los dos en `modelSpaceEntities`, así que el marco y los VIEWPORT de
+// una lámina llegaban al consumidor como geometría del dibujo. Esta prueba fija
+// el reparto y —lo que importa tanto como el reparto— que la pérdida se DECLARA:
+// una entidad que deja de estar en el modelo sin decirlo sería peor que estar
+// en el sitio equivocado, porque nadie podría enterarse.
+test("assembleDatabase separa el espacio papel del modelo y lo declara", () => {
+  const budget = new ResourceBudget(createDwgLimits({}), {});
+  const entidad = (handle: number, entityMode: number) => ({
+    kind: "entity" as const,
+    handle,
+    offset: handle,
+    decoded: {
+      common: {
+        type: 17,
+        entityMode,
+        reactorCount: 0,
+        ownHandle: { value: handle },
+        colorIndex: 1,
+        linetypeScale: 1,
+        invisibility: 0,
+        lineweight: 0,
+        bitSize: 0,
+        opaqueSpans: [],
+      },
+      references: { owner: undefined, layer: { kind: "null" as const } },
+      entity: {
+        kind: "circle" as const,
+        center: { x: 0, y: 0, z: 0 },
+        radius: 1,
+        thickness: 0,
+        extrusion: { x: 0, y: 0, z: 1 },
+      },
+    },
+  }) as unknown as Parameters<typeof assembleDatabase>[0][number];
+
+  const database = assembleDatabase(
+    [entidad(0x40, 2), entidad(0x41, 1)],
+    [],
+    [],
+    0,
+    budget,
+  );
+
+  assert.equal(database.modelSpaceEntities.length, 1, "el modo 2 se queda en el modelo");
+  assert.equal(database.modelSpaceEntities[0]!.handle, 0x40);
+  assert.equal(database.paperSpaceEntities.length, 1, "y el modo 1 sale del modelo");
+  assert.equal(database.paperSpaceEntities[0]!.handle, 0x41);
+
+  // LA PARTE QUE GUARDA ESTA PRUEBA DE VERDAD. Sacar la entidad del modelo sin
+  // declararlo la habría hecho desaparecer en silencio del consumidor, que es
+  // el fallo que este laboratorio persigue en todas partes.
+  const declarada = database.diagnostics.filter(
+    (d) => d.code === "database-paper-space-entity",
+  );
+  assert.equal(declarada.length, 1, "la entidad de presentación se declara una vez");
+  assert.equal(declarada[0]!.severity, "warning");
+  assert.ok(
+    declarada[0]!.message.includes("NOT part of the model"),
+    "y el mensaje dice la consecuencia, no sólo que existe",
+  );
+});

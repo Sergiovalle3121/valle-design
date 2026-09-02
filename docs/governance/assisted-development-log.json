@@ -2632,6 +2632,40 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-PAPER-SPACE-SEPARADO-DEL-MODELO-20260902",
+      "date": "2026-09-02",
+      "initiative": "Hasta este corte las entidades de PRESENTACION se volcaban dentro de modelSpaceEntities con un diagnostico: el marco, la caratula y los VIEWPORT de una lamina llegaban al consumidor como geometria del dibujo. En 23-layout-viewport el lector devolvia cinco entidades de modelo donde el dibujo tiene tres. LO QUE NO HUBO QUE MEDIR: el significado del modo de entidad ya era hecho registrado de la fuente (0 propietario en el flujo, 1 paper space, 2 model space). LO QUE SI SE MIDIO: que aplicarlo coincide con un oraculo independiente. Tres hipotesis contrastadas contra el grupo 67 del DXF gemelo -identidad 57/57, invertida 5/57, no-separar 56/57-; sobrevive una. LA FALSACION DEPENDE DE UN SOLO ARCHIVO Y SE DICE: 23-layout-viewport es el unico del corpus con presentacion (dos VIEWPORT), y es el que mata a la hipotesis de no separar, que acierta en los otros 56. EFECTO COLATERAL DETECTADO Y CUBIERTO: el harness de corpus usa un oraculo que NO lee el grupo 67, asi que enumera los dos espacios juntos; comparar solo el modelo habria dado una discrepancia FALSA de dos VIEWPORT. validate-corpus.mjs pasa a leer los dos espacios y la separacion se verifica en su propia sonda. Las 0 discrepancias se mantienen. RIESGO NUEVO, CUBIERTO A PROPOSITO: el producto solo lee modelSpaceEntities, asi que separar sin mas habria hecho desaparecer la entidad de presentacion SIN AVISO -cambiar un error visible por una perdida silenciosa, que es peor-. El diagnostico se mantiene en warning (no info), su mensaje nombra la consecuencia, y el puente del producto mapea todo diagnostico al manifiesto del usuario. LO QUE NO SE HACE: el reparto por laminas con nombre. Los LAYOUT se decodifican desde la ola D5 pero la asociacion entidad->layout NO esta medida (una sola presentacion en el corpus), asi que se entrega el paper space como UN espacio sin nombre en vez de inventarlo.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: «dale con la siguiente fase... encuentra la solución», continuando la via DWG que eligio.",
+      "firstPartyInputs": [
+        "Medicion propia scripts/dwg/probe-paper-space.mjs sobre el corpus admitido (commit fijado), contrastando tres hipotesis contra el grupo 67 del DXF fuente gemelo.",
+        "Recuento propio de entidades de paper space en los 57 fixtures antes de tocar nada: 1 archivo, 2 entidades."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/reader/database-assembly.ts y r2010-database-assembly.ts (reparto por modo de entidad)",
+        "packages/dwg-codec/src/reader/database-model.ts (paperSpaceEntities en el modelo neutral)",
+        "packages/dwg-codec/tests/unit/ac1015-database.spec.ts (reparto y perdida declarada)",
+        "scripts/dwg/probe-paper-space.mjs y docs/cad/evidence/dwg-paper-space.json",
+        "scripts/dwg/validate-corpus.mjs (lee los dos espacios para no producir una discrepancia falsa)",
+        "packages/dwg-codec/CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguna nueva: se midio sobre el corpus admitido ya fijado.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso de seguir con la fase siguiente del DWG. NO enciende ningun flag ni promueve version alguna."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

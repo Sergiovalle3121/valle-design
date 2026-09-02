@@ -114,6 +114,17 @@ export interface Ac1015NeutralDatabase {
   readonly blocks: readonly Ac1015DatabaseBlock[];
   readonly modelSpaceEntities: readonly Ac1015DatabaseEntityRecord[];
   /**
+   * Las entidades de PRESENTACIÓN (paper space), separadas del modelo desde
+   * 2026-09-02. Antes venían mezcladas dentro de `modelSpaceEntities`, así
+   * que el marco y los VIEWPORT de una lámina llegaban al consumidor como
+   * geometría del dibujo.
+   *
+   * Es UN solo espacio, sin nombre: a qué lámina concreta pertenece cada
+   * entidad NO está medido —el corpus admitido trae una sola presentación— y
+   * repartirlas por layouts sería inventarse el reparto.
+   */
+  readonly paperSpaceEntities: readonly Ac1015DatabaseEntityRecord[];
+  /**
    * BS crudo de INSUNITS (variables de cabecera, capítulo 9): unidades del
    * dibujo. `undefined` SÓLO en el camino R2010+, cuya sección de variables de
    * cabecera se VALIDA (centinelas y CRC) pero no se decodifica: su
