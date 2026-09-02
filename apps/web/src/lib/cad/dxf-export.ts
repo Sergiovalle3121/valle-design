@@ -50,6 +50,7 @@ import {
   pushSemanticDimension,
   semanticDimensionBlockPrimitives,
 } from "./dxf-write-dimensions";
+import { hatchLoops, pushHatch } from "./dxf-export-hatch";
 
 export type CadDxfExportUnit = "mm" | "m";
 export interface CadDxfExportOptions {
@@ -696,69 +697,6 @@ function writePrimitiveGeometry(
  * cerrado). dxf-parser lo DESCARTA al leer (el import lo avisa honesto); los
  * CAD reales lo pintan como área rellena.
  */
-function hatchLoops(hatch: CadDxfExportHatch): CadDxfPoint[][] {
-  return (hatch.boundaries?.length ? hatch.boundaries : hatch.points ? [hatch.points] : [])
-    .map((boundary) => {
-      if (boundary.length > 3) {
-        const first = boundary[0];
-        const last = boundary.at(-1)!;
-        if (first.x === last.x && first.y === last.y) return boundary.slice(0, -1);
-      }
-      return boundary;
-    })
-    .filter((boundary) => boundary.length >= 3);
-}
-
-function pushHatch(lines: string[], layer: string, hatch: CadDxfExportHatch) {
-  const boundaries = hatchLoops(hatch);
-  const requestedPattern = safeText(hatch.pattern || (hatch.solid === false ? "ANSI31" : "SOLID")) || "SOLID";
-  const solid = hatch.solid ?? requestedPattern.toUpperCase() === "SOLID";
-  const pattern = solid ? "SOLID" : requestedPattern.toUpperCase() === "SOLID" ? "ANSI31" : requestedPattern;
-  const angle = Number.isFinite(hatch.angle) ? hatch.angle! : 45;
-  const scale = Number.isFinite(hatch.scale) && hatch.scale! > 0 ? hatch.scale! : 1;
-  const origin = hatch.origin ?? boundaries[0]?.[0] ?? { x: 0, y: 0 };
-  const islandStyle = hatch.islandStyle === "outer" ? 1 : hatch.islandStyle === "ignore" ? 2 : 0;
-  pushPair(lines, 0, "HATCH");
-  pushPair(lines, 8, layer);
-  pushPoint(lines, { x: 0, y: 0 }); // punto de elevación (siempre 0 en 2D)
-  pushPair(lines, 210, "0");
-  pushPair(lines, 220, "0");
-  pushPair(lines, 230, "1");
-  pushPair(lines, 2, pattern);
-  pushPair(lines, 70, solid ? 1 : 0);
-  pushPair(lines, 71, 0); // no asociativo
-  pushPair(lines, 91, boundaries.length);
-  for (const boundary of boundaries) {
-    pushPair(lines, 92, 2); // camino = polilínea
-    pushPair(lines, 72, 0); // sin bulge
-    pushPair(lines, 73, 1); // cerrado
-    pushPair(lines, 93, boundary.length);
-    for (const point of boundary) {
-      pushPair(lines, 10, fmt(point.x));
-      pushPair(lines, 20, fmt(point.y));
-    }
-    pushPair(lines, 97, 0); // sin objetos fuente
-  }
-  pushPair(lines, 75, islandStyle);
-  pushPair(lines, 76, 1); // patrón predefinido
-  if (!solid) {
-    const definitionAngles = pattern.toUpperCase() === "CROSS" ? [angle, angle + 90] : [angle];
-    pushPair(lines, 52, fmt(angle));
-    pushPair(lines, 41, fmt(scale));
-    pushPair(lines, 77, 0);
-    pushPair(lines, 78, definitionAngles.length);
-    for (const definitionAngle of definitionAngles) {
-      pushPair(lines, 53, fmt(definitionAngle));
-      pushPair(lines, 43, fmt(origin.x));
-      pushPair(lines, 44, fmt(origin.y));
-      pushPair(lines, 45, 0);
-      pushPair(lines, 46, fmt(scale));
-      pushPair(lines, 79, 0);
-    }
-  }
-  pushPair(lines, 98, 1);
-  pushPoint(lines, origin);
-}
 
 function pushMleader(lines: string[], entity: CadDxfExportMleader): boolean {
   const geometry = buildCadMleaderGeometry({ id: "dxf-mleader", type: "mleader", ...entity });

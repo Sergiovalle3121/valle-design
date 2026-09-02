@@ -57,6 +57,7 @@ import {
   type CadHatchRegion,
   type CadIslandStyle,
 } from "./hatch-support";
+import { cadHatchPatternBaseAngle } from "../../hatch-pattern-table";
 
 /** Un contorno que se cruza consigo mismo no delimita región: se dice cuál. */
 const contornoCruzado = (sources: readonly string[]): string =>
@@ -97,6 +98,8 @@ interface HatchState {
   pattern: string;
   solid: boolean;
   angle: number;
+  /** El usuario tecleó un ángulo: elegir otro patrón ya no lo sustituye por la base del patrón. */
+  angleTyped?: boolean;
   /** `null` = el espaciado se deriva del tamaño real del contorno. */
   scale: number | null;
   islandStyle: CadIslandStyle;
@@ -305,9 +308,17 @@ function descriptor(mode: Mode): CadCommandDescriptor<HatchState> {
         if (state.pending === "pattern") {
           const pattern = input.value.trim().toUpperCase().slice(0, 64) || "ANSI31";
           // `SOLID` como nombre de patrón es el relleno macizo: quien lo teclea
-          // no espera que además le pinten rayas.
+          // no espera que además le pinten rayas. El ángulo por defecto es la
+          // BASE del patrón elegido (45 en ANSI31, 0 en BRICK): con el 45 de
+          // ANSI31 fijo, un ladrillo salía girado 45°.
           return hatchStep(
-            { ...state, pattern, solid: pattern === "SOLID", pending: "pick" },
+            {
+              ...state,
+              pattern,
+              solid: pattern === "SOLID",
+              ...(state.angleTyped ? {} : { angle: cadHatchPatternBaseAngle(pattern) }),
+              pending: "pick",
+            },
             context,
           );
         }
@@ -327,7 +338,7 @@ function descriptor(mode: Mode): CadCommandDescriptor<HatchState> {
 
       if (input.kind === "distance") {
         if (state.pending === "angle")
-          return hatchStep({ ...state, angle: input.value, pending: "pick" }, context);
+          return hatchStep({ ...state, angle: input.value, angleTyped: true, pending: "pick" }, context);
         if (state.pending === "scale") {
           const scale = Math.abs(input.value);
           if (!(scale > 1e-9))

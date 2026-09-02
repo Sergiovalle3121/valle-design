@@ -4,7 +4,7 @@
   "version": "2026-09-02.1",
   "title": "Rúbrica competitiva CAD — Valle Design frente a AutoCAD 2027",
   "cutoffDate": "2026-08-22",
-  "totalPoints": 258,
+  "totalPoints": 260,
   "manualMaxAgeDays": 180,
   "notes": [
     "Hay DOS denominadores y los dos se publican SIEMPRE con su etiqueta: «Alcance de HOY» (las filas con scope 'hoy': el flujo diario de dibujo 2D técnico; la cifra que se enseña a un cliente y se vende contra AutoCAD LT) y «Alcance de DESTINO» (todas las filas: AutoCAD completo con sus siete toolsets). Un porcentaje sin su etiqueta de alcance no se cita en ningún informe: «88,6 %» a secas fue el error de la auditoría del 2026-09-01.",
@@ -19,7 +19,7 @@
     {
       "id": "core",
       "name": "Núcleo del plano entregable",
-      "points": 110
+      "points": 112
     },
     {
       "id": "pro",
@@ -617,8 +617,8 @@
       "id": "hatch",
       "group": "core",
       "name": "HATCH asociativo",
-      "points": 10,
-      "gap": "El motor existe y no hay forma de invocarlo escribiendo H: el alias no resuelve a ningún comando.",
+      "points": 12,
+      "gap": "H y BH resuelven; desde el 2026-09-02 el nombre del patrón se consulta contra una tabla propia (medido antes: ocho nombres, un mismo trazado). Faltan los patrones cargados de un .pat del despacho.",
       "criteria": [
         {
           "id": "hatch.engine",
@@ -689,6 +689,22 @@
             {
               "kind": "spec",
               "path": "apps/web/src/lib/cad/hatch-islands-corpus.spec.ts"
+            }
+          ]
+        },
+        {
+          "id": "hatch.pattern-table",
+          "points": 2,
+          "text": "Una tabla de patrones (ANSI31–38, AR-B816, AR-BRSTD, AR-CONC, AR-SAND, BRICK, DOTS, EARTH, GRAVEL, HEX, HONEY, LINE, NET, NET3, STEEL, MUDST) con familias, trazos y puntos, consumida por pantalla, papel y DXF: ocho nombres dan ocho trazados y ANSI31 sigue byte a byte",
+          "costDays": 0,
+          "evidence": [
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/hatch-pattern-table.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/dxf-hatch.spec.ts"
             }
           ]
         }

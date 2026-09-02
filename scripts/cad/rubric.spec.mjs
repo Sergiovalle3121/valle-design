@@ -482,11 +482,11 @@ const byId = (scored, id) =>
   // quiere tener mide contra un producto que no existe. Bajarlo es la
   // respuesta honesta: los puntos que la fila tenía ganados también se van, y
   // el porcentaje se recalcula contra lo que de verdad se persigue.
-  // Corte 2026-09-02: SUBIÓ a 258 — nacen `recognition` (14 pt de HOY, medidos
-  // por goldens y specs que leen bytes) y las siete filas de toolsets (28 pt de
-  // DESTINO, casi todas en 0). Subir el denominador baja el porcentaje (78,3 %):
-  // un techo sin Architecture ni MEP medía contra el producto equivocado.
-  eq(published.totalPoints, 258, "el denominador de destino publicado son 258 puntos");
+  // Corte 2026-09-02: SUBIÓ a 260 — nacen `recognition` (14 pt de HOY, medidos
+  // por goldens y specs que leen bytes), las siete filas de toolsets (28 pt de
+  // DESTINO, casi todas en 0) y `hatch.pattern-table` (2 pt). Subir el
+  // denominador baja el porcentaje: un techo sin MEP medía contra otro producto.
+  eq(published.totalPoints, 260, "el denominador de destino publicado son 260 puntos");
   eq(
     published.categories.every((c) => c.scope === "hoy" || c.scope === "destino"),
     true,
@@ -496,8 +496,8 @@ const byId = (scored, id) =>
     published.categories
       .filter((c) => c.scope === "hoy")
       .reduce((acc, c) => acc + c.points, 0),
-    189,
-    "el denominador de HOY (flujo diario 2D + reconocimiento) son 189 puntos",
+    191,
+    "el denominador de HOY (flujo diario 2D + reconocimiento) son 191 puntos",
   );
   const groups = new Map(published.groups.map((g) => [g.id, g.points]));
   for (const [id, points] of groups) {

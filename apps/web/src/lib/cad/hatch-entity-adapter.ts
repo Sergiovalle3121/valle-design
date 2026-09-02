@@ -11,7 +11,8 @@
  * ángulo del patrón **se refleja**, no se suma. Ver `commands.transform`.
  */
 import type { CadPoint2, CadPoint3 } from "./cad-document";
-import { hatchPolygon } from "./hatch";
+import { cadHatchPatternBaseAngle } from "./hatch-pattern-table";
+import { cadHatchPatternStrokes } from "./hatch-pattern-strokes";
 import { hatchRegionContainsPoint } from "./hatch-associativity";
 import {
   cadTransformAngleBase,
@@ -110,14 +111,10 @@ const hatchRenderer: CadEntityRenderer<CadHatchEntity> = {
     // como para que quepan pocos sombreados en pantalla — justo cuando el
     // rendimiento no era el problema.
     const spacing = Math.max(entity.scale ?? diagonal / 40, diagonal / 256, 1e-6);
-    const pattern = entity.pattern.trim().toUpperCase();
-    const angles = pattern === "CROSS" ? [entity.angle ?? 45, (entity.angle ?? 45) + 90] : [entity.angle ?? 45];
-    const strokes = angles.flatMap((angle) =>
-      hatchPolygon(boundaries[0], { angle, spacing, origin: entity.origin }).filter((segment) => {
-        const midpoint = { x: (segment.a.x + segment.b.x) / 2, y: (segment.a.y + segment.b.y) / 2 };
-        return hatchRegionContainsPoint(boundaries, midpoint, entity.islandStyle ?? "normal");
-      }),
-    );
+    // Las familias, trazos y puntos del patrón salen de la tabla
+    // (`hatch-pattern-table.ts`): antes cualquier nombre que no fuera CROSS
+    // dibujaba el rayado de ANSI31 (medido: ocho patrones, un mismo sha1).
+    const { strokes } = cadHatchPatternStrokes(boundaries, entity, spacing);
     return [
       ...outlines,
       ...strokes.map((segment) => ({ points: [segment.a, segment.b], closed: false })),
@@ -219,7 +216,9 @@ export const hatchAdapter: CadEntityAdapter<CadHatchEntity> = {
       pattern: entity.pattern,
       solid: entity.solid,
       scale: entity.scale ?? 1,
-      angle: entity.angle ?? 0,
+      // El ángulo que se ENSEÑA es el que se dibuja: la base del patrón (45
+      // en ANSI31), no un 0 que el renderizador nunca usó.
+      angle: entity.angle ?? cadHatchPatternBaseAngle(entity.pattern),
       boundaryCount: entity.boundaries.length,
       islandStyle: entity.islandStyle ?? "normal",
       associative: entity.associative ?? false,
@@ -241,7 +240,7 @@ export const hatchAdapter: CadEntityAdapter<CadHatchEntity> = {
         pattern,
         solid,
         scale: positive(patch.scale, entity.scale ?? 1),
-        angle: finite(patch.angle, entity.angle ?? 0),
+        angle: finite(patch.angle, entity.angle ?? cadHatchPatternBaseAngle(pattern)),
         origin: {
           x: finite(patch.originX, entity.origin?.x ?? 0),
           y: finite(patch.originY, entity.origin?.y ?? 0),

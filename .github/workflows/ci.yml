@@ -925,15 +925,22 @@ jobs:
   #
   # Así que los fragmentos corren bajo un nombre nuevo y este job conserva el
   # viejo: cuesta ~10 s de runner y reduce a cero el riesgo del renombrado.
-  # `if: always()` es obligatorio — sin él GitHub SALTA el job cuando un
-  # fragmento falla, y un job saltado cuenta como no-fallo: exactamente el
-  # agujero de «cancelado no es fallo» reabierto por otra puerta.
+  # `if: ${{ !cancelled() }}` y no `always()`: sin condición GitHub SALTA el
+  # job cuando un fragmento falla, y un job saltado cuenta como no-fallo —el
+  # agujero de «cancelado no es fallo» reabierto por otra puerta—. Pero con
+  # `always()` el veredicto corría también cuando el grupo de concurrencia
+  # cancelaba la CORRIDA ENTERA (la de `push`, sustituida por la del PR) y
+  # dejaba un check rojo «E2E Playwright» sobre la misma cabeza, al lado del
+  # veredicto vivo: medido el 2026-09-02 en 2ad04a5, corrida 723 cancelada a
+  # los 4 s y su agregado en rojo mientras la 724 seguía corriendo. Un
+  # fragmento cancelado DENTRO de una corrida viva (runner perdido) no cancela
+  # la corrida: `cancelled()` es falso, el veredicto corre y sale rojo.
   # ───────────────────────────────────────────────────────────────────────────
   e2e:
     name: E2E Playwright (PostgreSQL · Chromium + Firefox)
     runs-on: ubuntu-latest
     needs: e2e-shard
-    if: always()
+    if: ${{ !cancelled() }}
     timeout-minutes: 5
     steps:
       - name: Veredicto de los cuatro fragmentos

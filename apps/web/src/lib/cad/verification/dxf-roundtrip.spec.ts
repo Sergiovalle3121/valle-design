@@ -335,9 +335,12 @@ const CASES: TypeCase[] = [
       scale: 20,
       layer: "MUROS",
     },
+    // `angle` es el ángulo ABSOLUTO de las rayas (base 45 en ANSI31); el 52
+    // del DXF es el GIRO (37.5 − 45 = −7.5) y el 53 de la familia lleva 37.5.
+    // Antes se escribía 52 = 37.5 y AutoCAD abría las rayas a 82.5°.
     expect: (_entities, dxf) => ({
-      ok: dxf.includes("HATCH") && /\n\s*52\n\s*37\.5/u.test(dxf),
-      detail: `HATCH con ángulo ${N.angle}° bajo el código 52`,
+      ok: dxf.includes("HATCH") && /\n\s*52\n\s*-7\.5/u.test(dxf) && /\n\s*53\n\s*37\.5/u.test(dxf),
+      detail: `HATCH con ángulo ${N.angle}° bajo el código 53 y giro ${N.angle - 45}° bajo el 52`,
     }),
   },
   {

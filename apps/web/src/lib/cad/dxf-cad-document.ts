@@ -46,6 +46,7 @@ import {
   projectionOrientation,
   type CadDxfProjection,
 } from "./dxf-projection";
+import { cadHatchPatternBaseAngle } from "./hatch-pattern-table";
 
 export type { CadDxfProjection };
 
@@ -218,10 +219,9 @@ export function cadDxfHatchesToNativeEntities(
         solid: hatch.solid,
         boundaries,
         scale: Math.max(1e-9, (hatch.scale ?? 1) * scaleFactor),
-        angle: projectedAngle(projection, { x: 0, y: 0 }, 1, hatch.angle ?? 0),
-        ...(hatch.origin
-          ? { origin: point3(projection.point(hatch.origin)) }
-          : {}),
+        // 52 es el GIRO; `angle` es el ángulo absoluto de la primera familia (ver hatch-pattern-table.ts).
+        angle: projectedAngle(projection, { x: 0, y: 0 }, 1, cadHatchPatternBaseAngle(hatch.pattern) + (hatch.angle ?? 0)),
+        ...(hatch.origin ? { origin: point3(projection.point(hatch.origin)) } : {}),
         islandStyle: hatch.islandStyle ?? "normal",
         associative: false,
         associationStatus: "detached",
