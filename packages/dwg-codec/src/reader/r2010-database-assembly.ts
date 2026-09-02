@@ -219,6 +219,7 @@ export function assembleR2010Database(
   const layers: Ac1015DatabaseLayer[] = [];
   const blocks: MutableBlock[] = [];
   const modelSpace: MutableEntityRecord[] = [];
+  const paperSpace: typeof modelSpace = [];
   const unsupported: Ac1015UnsupportedDatabaseObject[] = [];
   // Las ocho tablas de símbolos, cada una con sus entradas NOMBRADAS. Los
   // campos no-nombre de cada entrada NO se decodifican en R2010+ (misma razón
@@ -425,14 +426,23 @@ export function assembleR2010Database(
         continue;
       }
     } else if (shape.entityMode === 1) {
+      // MISMA separación que en AC1015, y con la MISMA reserva que ya estaba
+      // registrada: en R2010+ esta regla se aplica pero NO está medida —el
+      // corpus admitido no trae ni una entidad de paper space en las
+      // versiones modernas, todas vienen en modo 2—. Se separa igual porque
+      // el modo de entidad es un hecho registrado del formato y mezclarlas
+      // sería un error conocido; lo que no se hace es AFIRMAR que aquí está
+      // verificado, que es cosa distinta.
       diagnostics.push(
         diagnostic(
           "database-paper-space-entity",
           "warning",
           bound.start,
-          "A paper-space entity is not modeled yet; it was kept in model space.",
+          "A paper-space entity was separated from model space and is NOT part of the model: consumers that only read model space will not see it. The layout it belongs to is not modeled yet, and this split is unverified for R2010+ (the admitted corpus has no paper-space entity in those versions).",
         ),
       );
+      paperSpace.push(record);
+      continue;
     }
     modelSpace.push(record);
   }
@@ -494,6 +504,9 @@ export function assembleR2010Database(
     ),
     modelSpaceEntities: Object.freeze(
       modelSpace.map((r) => Object.freeze({ ...r })),
+    ),
+    paperSpaceEntities: Object.freeze(
+      paperSpace.map((r) => Object.freeze({ ...r })),
     ),
     insunits: context.insunits,
     tables: Object.freeze({

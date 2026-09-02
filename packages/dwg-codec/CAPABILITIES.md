@@ -1596,3 +1596,54 @@ y una verificación suplementaria del grupo 71 contra el DXF crudo. El titular
 corre ahora **dieciocho** casos, no dieciséis — y ese número dejó de estar
 escrito a mano en los mensajes del gate, que era la misma clase de constante
 desactualizada que el gate existe para impedir.
+
+## Corte 2026-09-02 (c) — el espacio papel deja de mezclarse con el modelo
+
+**Lo que pasaba.** Una entidad de **presentación** —el marco, la carátula, los
+VIEWPORT de una lámina— se volcaba dentro de `modelSpaceEntities` con un
+diagnóstico. El consumidor la recibía como si fuera geometría del dibujo: en
+`23-layout-viewport` el lector devolvía cinco entidades de modelo cuando el
+dibujo tiene tres, y los dos VIEWPORT de la lámina viajaban entre ellas.
+
+**Lo que NO hubo que medir.** El significado del modo de entidad ya era un
+hecho registrado de la fuente: «modo de entidad BB (0 con propietario en el
+flujo, **1 paper space**, 2 model space)». Separar no exigía descubrir nada.
+
+**Lo que SÍ se midió: que aplicarlo coincide con un oráculo independiente.**
+
+| hipótesis | aciertos | sobrevive |
+| --- | --- | --- |
+| modo 1 = paper space | **57/57** | **sí** |
+| invertida (modo 2 = paper) | 5/57 | no |
+| no separar, todo al modelo | 56/57 | no |
+
+**La falsación depende de UN archivo, y se dice.** `23-layout-viewport` es el
+único del corpus con entidades de presentación (dos VIEWPORT). Es el que mata a
+«no separar» —que acierta en los otros 56— y por eso el informe cuenta aparte
+los archivos que **ejercen** la separación de los que sólo la acompañan. Un
+corpus sin láminas habría dado 57/57 a las tres hipótesis.
+
+**Por qué la comparación del corpus tuvo que cambiar con ella.** El oráculo del
+harness (`dxf-oracle.mjs`) **no lee el grupo 67** del DXF, así que enumera los
+dos espacios juntos. Comparar sólo el modelo habría producido una discrepancia
+**falsa** —faltarían los dos VIEWPORT que el DXF sí enumera—, así que
+`validate-corpus.mjs` pasa a leer los dos espacios y la separación se verifica
+en su propia sonda, contra ese grupo 67, que es su sitio. Las 0 discrepancias
+del corpus se mantienen: `viewport 2/2`.
+
+**El riesgo que aparece al separar, y cómo se cubre.** El producto sólo lee
+`modelSpaceEntities`. Separar sin más habría hecho que una entidad de
+presentación dejara de llegarle **sin aviso** — cambiar un error visible por
+una pérdida silenciosa, que es peor. Por eso el diagnóstico se mantiene en
+severidad **warning** (no `info`) y su mensaje nombra la consecuencia («is NOT
+part of the model»); el puente del producto mapea todo diagnóstico al
+manifiesto de pérdidas que ve el usuario.
+
+**Lo que NO se hace, y por eso el diagnóstico no desaparece.** A qué **lámina
+concreta** pertenece cada entidad. Los objetos LAYOUT se decodifican desde la
+ola D5 (50 reales, bit a bit), pero la correspondencia entidad → layout con
+nombre **no está medida**: el corpus trae una sola presentación. Se entrega el
+espacio papel como **un** espacio sin nombre en vez de inventarse el reparto.
+Tampoco hay ni una entidad de paper space en AC1018 ni en la familia R2010+,
+donde la misma regla se aplica **sin verificar** — y el diagnóstico de esas
+versiones lo dice en su propio mensaje.

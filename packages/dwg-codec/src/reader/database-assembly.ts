@@ -439,6 +439,7 @@ export function assembleDatabase(
   const diagnostics: DwgDiagnostic[] = [];
   const layers: Ac1015DatabaseLayer[] = [];
   const modelSpace: MutableEntityRecord[] = [];
+  const paperSpace: MutableEntityRecord[] = [];
   const symbolObjects: Ac1015DecodedSymbolObject[] = [];
   const dictionaryObjects: Ac1015DecodedDictionaryFamily[] = [];
 
@@ -642,6 +643,7 @@ export function assembleDatabase(
       ),
     ),
     modelSpaceEntities: Object.freeze(modelSpace.map(freezeEntityRecord)),
+    paperSpaceEntities: Object.freeze(paperSpace.map(freezeEntityRecord)),
     insunits,
     tables,
     dictionaries,
@@ -677,16 +679,35 @@ export function assembleDatabase(
       return;
     }
     if (common.entityMode === 1) {
-      // Paper space no se modela aún: la entidad queda en model space
-      // con diagnóstico (decisión de laboratorio declarada).
+      // PAPER SPACE DEJA DE MEZCLARSE CON EL MODELO (2026-09-02). Hasta este
+      // corte una entidad de presentación se volcaba en `modelSpace` con un
+      // diagnóstico: el marco, la carátula y los VIEWPORT de la lámina
+      // llegaban al consumidor como si fueran geometría del dibujo. El modo
+      // de entidad es un hecho REGISTRADO de la fuente —«modo de entidad BB
+      // (0 con propietario en el flujo, 1 paper space, 2 model space)»—, así
+      // que separarlas no exige medir nada nuevo; lo que sí se midió es que
+      // la separación COINCIDE con el oráculo: en `23-layout-viewport` los
+      // dos VIEWPORT que aquí caen en paper space son exactamente los dos que
+      // el DXF gemelo marca con el grupo 67, y las otras tres entidades, que
+      // aquí caen en modelo, no lo llevan.
+      //
+      // LO QUE SIGUE SIN HACERSE, y por eso el diagnóstico no desaparece: a
+      // qué LÁMINA CONCRETA pertenece cada entidad. Los objetos LAYOUT se
+      // decodifican desde la ola D5, pero la correspondencia entre una
+      // entidad de paper space y su layout con nombre NO está medida —el
+      // corpus admitido trae UNA sola presentación—, así que se entrega el
+      // paper space como un solo espacio sin nombre en vez de inventarse un
+      // reparto por láminas.
       diagnostics.push(
         diagnostic(
           "database-paper-space-entity",
           "warning",
           object.offset,
-          "A paper-space entity is not modeled yet; it was kept in model space.",
+          "A paper-space entity was separated from model space and is NOT part of the model: consumers that only read model space will not see it. The layout it belongs to is not modeled yet.",
         ),
       );
+      paperSpace.push(record);
+      return;
     }
     modelSpace.push(record);
   }

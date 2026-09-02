@@ -209,6 +209,7 @@ test("un objeto ACIS se proyecta opaco, con su nombre de clase real como sourceT
         sequenceEndHandle: undefined,
       },
     ],
+    paperSpaceEntities: [],
     insunits: 4,
     tables: {
       styles: [],

@@ -1046,6 +1046,47 @@
       "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-mtext-fields.mjs sobre el corpus admitido, contrastando cinco hipotesis rivales contra el oraculo DXF); revision humana del propietario pendiente",
       "reviewedAt": "2026-09-02",
       "notes": "Habilita la DECIMA clase del camino publico de escritura (MTEXT). NO enciende ningun flag ni promueve ninguna version."
+    },
+    {
+      "id": "VALLE-CORPUS-PAPER-SPACE",
+      "owner": "Sergio Valle Zarate",
+      "origin": {
+        "type": "original-measurement",
+        "location": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance/tree/0688fb9c395b9cac4169d1ee9c23a7370cc28cf3/bundles/entity-wave-2-ac1015/oracles/dxf",
+        "accessedAt": "2026-09-02"
+      },
+      "title": "Verificacion first-party de que la separacion entre espacio papel y espacio modelo coincide con el grupo 67 del oraculo DXF",
+      "versionOrDate": "2026-09-02",
+      "terms": {
+        "license": "Valle first-party corpus measurement (admitted tool-converted-original bundles)",
+        "access": "Blobs leidos del commit fijado del repo hermano de conformidad via el gate consumidor (corpus-pin.json + SHA-256 verificado); ningun working tree",
+        "redistribution": "Solo se registran recuentos observados por archivo y espacio, y decisiones de codigo derivadas; los bytes DWG y los DXF permanecen en el repo hermano bajo su propia politica",
+        "notes": "LA REGLA NO SE MIDE AQUI: el significado del modo de entidad ya estaba registrado en ODA-ODS-DWG-5.4.1-PUBLIC -«modo de entidad BB (0 con propietario en el flujo, 1 paper space, 2 model space)»-. Lo que esta entrada aporta es la VERIFICACION de que aplicarla coincide con un oraculo independiente, y la constancia de hasta donde llega esa verificacion. La location apunta al bundle entity-wave-2-ac1015 porque es el unico del corpus que contiene una presentacion."
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "El conjunto de entidades que el ensamblado coloca en espacio papel coincide con el conjunto que el DXF fuente del mismo dibujo marca con el grupo 67 en 57/57 archivos del corpus admitido",
+        "Se contrastaron TRES hipotesis y no la esperada: la identidad (modo 1 = paper space) 57/57, la INVERTIDA (modo 2 = paper space) 5/57 y la de NO SEPARAR (todo al modelo) 56/57. Sobrevive exactamente una",
+        "LA FALSACION DEPENDE DE UN SOLO ARCHIVO, y se dice: 23-layout-viewport es el unico del corpus con entidades de presentacion (dos VIEWPORT). Es el que mata a la hipotesis de no separar -que acierta en los otros 56- y por eso el informe cuenta aparte los archivos que EJERCEN la separacion de los que solo la acompanan",
+        "El oraculo del harness de corpus (dxf-oracle.mjs) NO lee el grupo 67, asi que enumera los dos espacios juntos y NO puede falsar la separacion: con el, separar bien y no separar dan el mismo resultado. Por eso la comparacion de validate-corpus.mjs pasa a leer los dos espacios -si no, apareceria una discrepancia falsa de dos VIEWPORT- y la separacion se verifica en su propia sonda contra ese grupo 67",
+        "COBERTURA REAL, DECLARADA: una sola presentacion en todo el corpus, con dos entidades. NO hay varias laminas con nombre, NO esta medida la asociacion entidad -> LAYOUT concreto, y NO hay ni una entidad de paper space en AC1018 ni en la familia R2010+, donde la misma regla se aplica sin verificar",
+        "CONTEXTO DE POR QUE HACIA FALTA: hasta este corte las entidades de modo 1 se volcaban en modelSpaceEntities con un diagnostico, asi que el marco, la caratula y los VIEWPORT de una lamina llegaban al consumidor como geometria del dibujo",
+        "AL SEPARARLAS APARECE UN RIESGO NUEVO Y SE CUBRE: el producto solo lee modelSpaceEntities, asi que una entidad de presentacion dejaria de llegarle SIN AVISO. El diagnostico se mantiene en severidad warning -no info- y su mensaje nombra la consecuencia ('is NOT part of the model'), y el puente del producto mapea todo diagnostico al manifiesto de perdidas del usuario",
+        "PARTICION POR PRESUPUESTO, NO PRESUPUESTADA: el comentario que explica por que la comparacion lee los dos espacios empujo validate-corpus.mjs a 805 lineas, sobre el maximo de 800. Se partio por una costura real -la proyeccion y el cotejo de entidades frente al recorrido del corpus y el informe, el mismo corte que ya separo el oraculo en dxf-oracle.mjs- en scripts/dwg/corpus-entity-compare.mjs, sin anadirlo al manifiesto de excepciones. La semantica no cambia en la mudanza: 0 discrepancias antes y despues"
+      ],
+      "derivedFiles": [
+        "docs/cad/evidence/dwg-paper-space.json",
+        "packages/dwg-codec/src/reader/database-assembly.ts",
+        "packages/dwg-codec/src/reader/database-model.ts",
+        "packages/dwg-codec/src/reader/r2010-database-assembly.ts",
+        "packages/dwg-codec/tests/unit/ac1015-database.spec.ts",
+        "scripts/dwg/corpus-entity-compare.mjs",
+        "scripts/dwg/probe-paper-space.mjs",
+        "scripts/dwg/validate-corpus.mjs"
+      ],
+      "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-paper-space.mjs sobre el corpus admitido, contrastando tres hipotesis contra el grupo 67 del oraculo DXF); revision humana del propietario pendiente",
+      "reviewedAt": "2026-09-02",
+      "notes": "NO promueve ninguna capacidad de producto ni enciende ningun flag. El espacio papel se entrega como UN espacio sin nombre: el reparto por laminas no esta medido."
     }
   ]
 }
