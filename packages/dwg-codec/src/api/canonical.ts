@@ -21,6 +21,7 @@ import type {
 import type { DwgGeometryEntity, DwgPoint3 } from "../model/entity-geometry.js";
 import { projectAcisOpaqueEntity } from "./canonical-acis.js";
 import { mapCanonicalLayers } from "./canonical-layers.js";
+import { ALINEACION_POR_ANCLAJE } from "./canonical-mtext-anchor.js";
 
 // ---------------------------------------------------------------------------
 // Tipos espejo del documento canónico (subconjunto que este mapeo produce)
@@ -451,6 +452,25 @@ function mapEntity(
         entity.xAxisDirection.y,
         entity.xAxisDirection.x,
       );
+      // EL ANCLAJE Y EL INTERLINEADO DEJAN DE PERDERSE. Hasta este corte la
+      // proyección se quedaba con la geometría y el texto, y tiraba en
+      // silencio el punto de anclaje —que es lo que decide DÓNDE queda el
+      // párrafo respecto de su inserción— y el interlineado. Un MTEXT anclado
+      // al centro volvía anclado arriba-izquierda del round-trip, desplazado
+      // por media caja, sin que nada lo declarase. La correspondencia entre
+      // anclaje y alineación está medida: ver `canonical-mtext-anchor.ts`.
+      const alignment = ALINEACION_POR_ANCLAJE[entity.attachment];
+      if (alignment === undefined) {
+        // Fuera de los nueve anclajes conocidos no se elige uno «parecido»:
+        // se declara y el consumidor aplica su propio defecto sabiéndolo.
+        losses.push({
+          code: "mtext-attachment-unknown",
+          entityId: id,
+          sourceType: "mtext",
+          detail: `El MTEXT ${id} trae el anclaje ${entity.attachment}, que no es ninguno de los nueve del formato: no se traduce a ninguna alineación y el documento canónico viaja sin ella.`,
+          severity: "warning",
+        });
+      }
       return {
         id,
         type: "mtext",
@@ -459,6 +479,10 @@ function mapEntity(
         ...(entity.rectWidth !== 0 ? { width: entity.rectWidth } : {}),
         height: entity.height,
         ...(rotation !== 0 ? { rotation } : {}),
+        ...(alignment !== undefined ? { alignment } : {}),
+        ...(entity.lineSpacingFactor !== 1
+          ? { lineSpacing: entity.lineSpacingFactor }
+          : {}),
         layer,
       };
     }

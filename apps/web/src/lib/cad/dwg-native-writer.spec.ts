@@ -396,3 +396,64 @@ console.log(
     "escrita con su arco convertido a radianes y su extrusión declarada, y el " +
     "SOMBREADO sólido viajando mientras el de patrón se declara — por instancia, no por tipo",
 );
+
+// ─── 5.C: el MTEXT llega al archivo, con su anclaje y su giro en RADIANES ──
+// Tercera vez que el camino público enruta una clase que el writer YA emitía,
+// y tercera vez que la trampa está en las unidades: la rotación de un MTEXT
+// está en GRADOS en el documento del producto y en RADIANES en el canónico,
+// donde se convierte en el vector del eje X con cos/sin. Pasarla cruda no
+// habría fallado por ningún lado: habría girado cada párrafo a un ángulo
+// equivocado, en silencio. Por eso la prueba usa 30° y no 0°.
+//
+// Lo NUEVO de esta clase respecto de la elipse y el sombreado es el ANCLAJE:
+// su semántica no estaba en ninguna fuente registrada y hubo que medirla
+// contra el oráculo DXF del corpus. Por eso la prueba usa `middle-center`, que
+// es uno de los dos anclajes que el corpus ejerce de verdad.
+{
+  const conParrafo: CadDocument = {
+    ...baseDocument([]),
+    entities: [
+      {
+        id: "mt1",
+        type: "mtext",
+        insertion: { x: 10, y: 80, z: 0 },
+        text: "NOTAS GENERALES",
+        width: 140,
+        height: 5,
+        rotation: 30,
+        alignment: "middle-center",
+        lineSpacing: 1.5,
+        layer: "0",
+      } as never,
+    ],
+    modelSpace: { entityIds: ["mt1"] },
+  };
+
+  const exportado = exportCadDocumentToDwg(conParrafo, {
+    betaFlagOn: true,
+    gates: ORACLE_PASSED,
+  });
+  assert.equal(
+    exportado.estado,
+    "exito_con_perdidas",
+    "los extents que no viajan se declaran, así que hay pérdidas",
+  );
+  const leido = readDwg(exportado.bytes);
+  const parrafo = leido.modelSpaceEntities.find((r) => r.entity.kind === "mtext");
+  assert.ok(parrafo, "el MTEXT llega al archivo, ya no se declara no escribible");
+  if (parrafo?.entity.kind !== "mtext") throw new Error("inalcanzable");
+  assert.ok(Math.abs(parrafo.entity.insertion.x - 10) < 1e-9, "la inserción viaja");
+  assert.ok(Math.abs(parrafo.entity.rectWidth - 140) < 1e-9, "el ancho viaja");
+  assert.equal(parrafo.entity.attachment, 5, "y el anclaje MEDIDO viaja");
+  assert.ok(
+    Math.abs(
+      Math.atan2(parrafo.entity.xAxisDirection.y, parrafo.entity.xAxisDirection.x) -
+        Math.PI / 6,
+    ) < 1e-9,
+    "30 GRADOS del documento salen como π/6 RADIANES en el eje X, no como 30 radianes",
+  );
+  assert.ok(
+    exportado.manifiestoDePerdidas.some((p) => p.code === "mtext-authoring-defaults"),
+    "y lo que el canónico no lleva —los extents calculados— se nombra en el manifiesto",
+  );
+}

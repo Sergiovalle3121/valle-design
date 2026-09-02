@@ -1525,3 +1525,74 @@ usuario en su manifiesto de pérdidas. Ahora hay dos códigos:
 
 Es la quinta vez en esta jornada que un texto del repo afirma algo distinto de
 lo que hace el código, y la primera que ese texto llegaba al cliente.
+
+## Corte 2026-09-02 (b) — la décima clase escribible: MTEXT, y el anclaje que hubo que MEDIR
+
+Tercera clase seguida que el camino público enruta, y la primera cuyo bloqueo
+**no era enrutado ni writer**: era que faltaba un **hecho**.
+
+**Qué faltaba de verdad.** El writer interno emitía MTEXT desde olas atrás y
+`decodeMText` lo lee entero. El documento canónico tampoco era el problema: el
+producto ya escupe `alignment` y `lineSpacing` con el resto de la entidad, y
+`entities` es `Record<string, unknown>[]` —abierto a propósito—, así que los
+campos ya viajaban. Lo que no existía era saber **qué significa el número del
+anclaje**. El hecho registrado de `ODA-ODS-DWG-5.4.1-PUBLIC` da su
+**disposición** («attachment BS» en esa posición del cuerpo), no su
+**semántica**. Escribir un 1 «porque suele ser arriba-izquierda» habría sido
+adivinar dónde queda anclado cada párrafo.
+
+**Cómo se resolvió: midiendo.** Cada fixture DWG del corpus admitido tiene su
+DXF fuente gemelo, y el DXF numera el anclaje en el código 71 con la semántica
+que el propio producto ya deriva de la especificación DXF pública. La sonda
+`probe-mtext-fields.mjs` compara los dos lados del mismo dibujo contra **cinco
+hipótesis rivales**:
+
+| hipótesis | aciertos | sobrevive |
+| --- | --- | --- |
+| identidad | **5/5** | **sí** |
+| dxf+1 | 0/5 | no |
+| dxf−1 | 0/5 | no |
+| inversión 10−x | 1/5 | no |
+| constante 1 | 4/5 | no |
+
+**La falsación es real porque el corpus separa.** `09-mtext.dwg` trae un MTEXT
+con 71=5 junto a dos con 71=1. La constante 1 muere **exactamente ahí**, y la
+inversión 10−x sobrevive **sólo ahí** (10−5=5) y muere en las otras cuatro. Sin
+ese único valor distinto, identidad y constante habrían acertado igual y no se
+habría afirmado nada. El emparejamiento tampoco se supone: cada pareja se
+confirma con dos campos ajenos al medido —altura (40) y ancho (41)— antes de
+contarse.
+
+**La cobertura, dicha entera.** El corpus ejerce **dos** de los nueve anclajes:
+el 1 y el 5. Para los otros siete la identidad es la única hipótesis en pie,
+pero eso **no es una medición**. Se escriben, y se declara
+`mtext-attachment-unmeasured` nombrando el anclaje concreto. Nueve anclajes
+respaldados por una medición de dos habría sido afirmar de más.
+
+**Lo que se declara sin ser pérdida del origen.** Los *extents* son la caja
+calculada del texto ya compuesto; este writer no compone texto. Se escriben a
+cero —valor que el propio corpus atestigua en archivos de un productor real,
+aunque **no** sea constante: `16-leader-tolerance.dwg` los trae con valores
+reales— y se declara `mtext-authoring-defaults`. La dirección de dibujo (1), el
+estilo de interlineado (1) y el bit final (0) sí son constantes en las cinco
+parejas medidas.
+
+**Y la lectura deja de perderlos.** Hasta este corte la proyección al canónico
+se quedaba con geometría y texto y tiraba **en silencio** el anclaje: un MTEXT
+centrado volvía anclado arriba-izquierda del round-trip, desplazado media caja,
+sin que nada lo dijera. Ahora viaja, y un anclaje fuera de los nueve declara
+`mtext-attachment-unknown` en vez de elegir uno parecido.
+
+**La trampa de unidades, por tercera vez.** La rotación va en **grados** en el
+documento del producto y en **radianes** en el canónico, donde se convierte en
+el vector del eje X con cos/sin. Pasarla cruda no habría fallado por ningún
+lado: habría girado cada párrafo a un ángulo equivocado, en silencio. Las
+pruebas usan 30°, no 0°.
+
+**Lo que el round-trip propio NO puede probar.** Que un párrafo con anclaje 5,
+extents a cero y estilo 1 sea un párrafo que **otro programa** abre anclado
+donde dijimos. Caso `parrafo-mtext` nuevo en el harness, con su gemelo público
+y una verificación suplementaria del grupo 71 contra el DXF crudo. El titular
+corre ahora **dieciocho** casos, no dieciséis — y ese número dejó de estar
+escrito a mano en los mensajes del gate, que era la misma clase de constante
+desactualizada que el gate existe para impedir.

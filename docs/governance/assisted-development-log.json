@@ -2595,6 +2595,43 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "DWG-MTEXT-DECIMA-CLASE-ANCLAJE-MEDIDO-20260902",
+      "date": "2026-09-02",
+      "initiative": "CORRIGE LA ENTRADA ANTERIOR DE ESTE MISMO DIA (DWG-RAZON-REAL-DE-CADA-CLASE-NO-ESCRITA-20260902), que afirmo que MTEXT, DIMENSION y LEADER estaban bloqueadas POR LO MISMO -el esquema del documento canonico- y que era UNA decision del titular. Para DIMENSION y LEADER sigue siendo cierto. Para MTEXT era FALSO, y se comprobo midiendo en vez de suponiendo: el campo `entities` del documento canonico es `Record<string, unknown>[]` -abierto a proposito, no congelado-, y el producto ya emite `alignment` y `lineSpacing` con el resto de la entidad, asi que los datos YA VIAJABAN. Lo que faltaba no era esquema ni decision: era un HECHO. La fuente registrada da la DISPOSICION del campo de anclaje ('attachment BS' en esa posicion del cuerpo) pero no su SEMANTICA, y sin saber que significa cada numero, escribir la clase habria sido decidir a ojo donde queda anclado cada parrafo. COMO SE RESOLVIO: midiendo el corpus admitido contra su oraculo DXF gemelo con cinco hipotesis rivales -identidad, +1, -1, la inversion 10-x y la constante 1-. Sobrevive exactamente una, la identidad, 5 de 5 parejas. La falsacion es real porque el corpus separa: 09-mtext.dwg trae un MTEXT con 71=5 junto a dos con 71=1, asi que la constante 1 muere justo ahi y la inversion sobrevive SOLO ahi. El emparejamiento tampoco se supone: se confirma con altura y ancho antes de contarse. COBERTURA DECLARADA SIN ADORNO: el corpus ejerce DOS de los nueve anclajes (1 y 5). Los otros siete se escriben con la unica hipotesis en pie pero se declara `mtext-attachment-unmeasured`, porque nueve anclajes respaldados por una medicion de dos habria sido afirmar de mas. TAMBIEN SE CIERRA UNA PERDIDA SILENCIOSA DE LECTURA: hasta ahora la proyeccion al canonico tiraba el anclaje sin decirlo, y un MTEXT centrado volvia anclado arriba-izquierda del round-trip, desplazado media caja. Y SE EVITO LA TRAMPA DE UNIDADES POR TERCERA VEZ: la rotacion va en GRADOS en el producto y en RADIANES en el canonico; pasarla cruda no habria fallado por ningun lado, solo habria girado cada parrafo en silencio.",
+      "branch": "claude/dwg-construction-plan-7hyq1j",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate: «dale con la siguiente fase... encuentra la solución» y, en la eleccion de via, «Seguir con DWG: ampliar el writer».",
+      "firstPartyInputs": [
+        "Medicion propia scripts/dwg/probe-mtext-fields.mjs sobre el corpus admitido (commit fijado), contrastando cinco hipotesis rivales contra el oraculo DXF gemelo.",
+        "La numeracion del lado DXF ya derivada por el producto de la especificacion DXF publica (apps/web/src/lib/cad/dxf-export.ts).",
+        "Round-trip propio writeCanonicalDwg -> readDwg -> dwgDatabaseToCanonicalDocument en las dos direcciones."
+      ],
+      "externalSources": [],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "packages/dwg-codec/src/api/canonical-mtext-anchor.ts (tabla medida, una sola fuente para las dos direcciones)",
+        "packages/dwg-codec/src/api/canonical-to-dwg.ts (case mtext y sus dos perdidas declaradas)",
+        "packages/dwg-codec/src/api/canonical.ts (la lectura deja de tirar anclaje e interlineado)",
+        "apps/web/src/lib/cad/dwg-native-writer.ts (mtext escribible y conversion grados->radianes)",
+        "scripts/dwg/probe-mtext-fields.mjs y docs/cad/evidence/dwg-mtext-fields.json",
+        "scripts/dwg/oda-roundtrip-cases.mjs y oda-roundtrip.mjs (caso parrafo-mtext y verificacion del grupo 71 contra el DXF crudo)",
+        "scripts/dwg/check-oracle-evidence.mjs (el recuento de casos deja de estar escrito a mano en los mensajes)",
+        "packages/dwg-codec/CAPABILITIES.md"
+      ],
+      "fixtures": "Ninguna nueva: se midio sobre el corpus admitido ya fijado (09-mtext y 16-leader-tolerance).",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Encargo expreso de ampliar el writer tras elegir esa via entre las cuatro ofrecidas. Decima clase del camino publico de escritura. NO enciende ningun flag: externalOracleVerified sigue en false y ahora exige 18 casos, no 16."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }

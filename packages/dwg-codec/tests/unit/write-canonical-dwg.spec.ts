@@ -22,6 +22,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  dwgDatabaseToCanonicalDocument,
   readDwg,
   writeCanonicalDwg,
   type CanonicalCadDocumentJson,
@@ -445,6 +446,107 @@ test("una ELIPSE va y vuelve exacta por writeCanonicalDwg → readDwg, y declara
   assert.ok(Math.abs(written.extrusion.z - 1) < 1e-6, "y el plano escrito es el XY");
 });
 
+// ─── MTEXT: la décima clase, y el anclaje que hubo que MEDIR (2026-09-02) ──
+// Aquí el writer tampoco aprendió nada: emitía MTEXT desde hacía olas. Lo que
+// no existía era la SEMÁNTICA del anclaje —el hecho registrado de la fuente
+// da la disposición del campo, no qué significa cada número—, y sin ella
+// escribir la clase habría sido decidir a ojo dónde queda anclado el párrafo.
+// La correspondencia se midió contra el oráculo DXF del corpus; ver
+// `canonical-mtext-anchor.ts` y `docs/cad/evidence/dwg-mtext-fields.json`.
+test("un MTEXT va y vuelve por writeCanonicalDwg → readDwg conservando anclaje, giro e interlineado", () => {
+  const document = emptyDocument({
+    entities: [
+      {
+        id: "m1",
+        type: "mtext",
+        insertion: { x: 10, y: 80, z: 0 },
+        text: "NOTAS GENERALES",
+        width: 140,
+        height: 5,
+        // Un giro que NO es cero y un anclaje que NO es el defecto: con los
+        // valores por defecto, un enrutado que los perdiera pasaría igual.
+        rotation: Math.PI / 6,
+        alignment: "middle-center",
+        lineSpacing: 1.5,
+        layer: "0",
+      },
+    ],
+  });
+
+  const { bytes, lossManifest } = writeCanonicalDwg(document);
+  const database = readDwg(bytes);
+  assert.equal(database.modelSpaceEntities.length, 1);
+  const written = database.modelSpaceEntities[0]!.entity;
+  assert.equal(written.kind, "mtext");
+  if (written.kind !== "mtext") throw new Error("inalcanzable");
+  assert.ok(near3(written.insertion, { x: 10, y: 80, z: 0 }), "la inserción viaja");
+  assert.ok(near(written.rectWidth, 140), "el ancho del rectángulo viaja");
+  assert.ok(near(written.height, 5), "la altura viaja");
+  assert.equal(
+    written.attachment,
+    5,
+    "el anclaje central se escribe como 5, que es el valor MEDIDO contra el oráculo",
+  );
+  assert.ok(near(written.lineSpacingFactor, 1.5), "el interlineado viaja");
+  // El giro no viaja como número sino como vector del eje X: la vuelta se
+  // comprueba deshaciéndola, que es exactamente lo que hace la lectura.
+  assert.ok(
+    near(Math.atan2(written.xAxisDirection.y, written.xAxisDirection.x), Math.PI / 6),
+    "y el giro vuelve por donde se fue: atan2 del eje X",
+  );
+
+  // El anclaje 5 SÍ está medido, así que no se declara pérdida por él; la
+  // única pérdida es la de autoría, que es de otra naturaleza.
+  const codigos = lossManifest.map((l) => l.code);
+  assert.deepEqual(codigos, ["mtext-authoring-defaults"]);
+});
+
+test("un anclaje que el corpus NO ejerce se escribe, pero se declara como no medido", () => {
+  const conAlineacion = (alignment: string) =>
+    writeCanonicalDwg(
+      emptyDocument({
+        entities: [
+          {
+            id: "m", type: "mtext", insertion: { x: 0, y: 0, z: 0 },
+            text: "X", height: 2.5, alignment, layer: "0",
+          },
+        ],
+      }),
+    ).lossManifest.map((l) => l.code);
+
+  // Los dos que el corpus ejerce de verdad no arrastran la advertencia...
+  assert.deepEqual(conAlineacion("top-left"), ["mtext-authoring-defaults"]);
+  assert.deepEqual(conAlineacion("middle-center"), ["mtext-authoring-defaults"]);
+  // ...y los que no, sí. Si esto se cayera, la cobertura estaría afirmando de
+  // más: nueve anclajes respaldados por una medición de dos.
+  assert.deepEqual(conAlineacion("bottom-right"), [
+    "mtext-attachment-unmeasured",
+    "mtext-authoring-defaults",
+  ]);
+});
+
+test("el anclaje leído de un archivo vuelve a ser la alineación del editor", () => {
+  // Ida y vuelta COMPLETA por el canónico: se escribe desde una alineación, se
+  // lee el archivo y se proyecta otra vez al canónico. Si la tabla de anclajes
+  // se desincronizara entre las dos direcciones, esto lo vería.
+  for (const alignment of ["top-left", "middle-center", "bottom-right"]) {
+    const { bytes } = writeCanonicalDwg(
+      emptyDocument({
+        entities: [
+          {
+            id: "m", type: "mtext", insertion: { x: 1, y: 2, z: 0 },
+            text: "X", height: 2.5, alignment, layer: "0",
+          },
+        ],
+      }),
+    );
+    const proyectado = dwgDatabaseToCanonicalDocument(readDwg(bytes));
+    const entidad = proyectado.document.entities.find((e) => e["type"] === "mtext");
+    assert.ok(entidad, `la entidad tiene que sobrevivir para ${alignment}`);
+    assert.equal(entidad["alignment"], alignment, `y su alineación también (${alignment})`);
+  }
+});
+
 // ─── HATCH: la novena clase, y sólo la mitad que se puede escribir ────────
 // El cuerpo de un HATCH con patrón lleva, después de los contornos, un bloque
 // —ángulo, escala, doble trama y las líneas de definición con sus trazos— que
@@ -538,13 +640,18 @@ test("una clase bloqueada por el CANÓNICO no se confunde con una que el writer 
   const bloqueadaPorElCanonico = (entity: Record<string, unknown>) =>
     writeCanonicalDwg(emptyDocument({ entities: [entity] })).lossManifest[0]!;
 
-  const mtext = bloqueadaPorElCanonico({
-    id: "m", type: "mtext", insertion: { x: 0, y: 0, z: 0 }, text: "HOLA", height: 2.5, layer: "0",
+  // MTEXT ERA EL PRIMER EJEMPLO DE ESTA PRUEBA Y YA NO LO ES (2026-09-02):
+  // dejó de estar bloqueada. El canónico SÍ transportaba la alineación —el
+  // producto la escupe con el resto de la entidad—; lo que no existía era la
+  // SEMÁNTICA del anclaje, y eso se midió. La clase que queda de ejemplo es la
+  // que sigue bloqueada de verdad.
+  const leader = bloqueadaPorElCanonico({
+    id: "l", type: "leader", vertices: [{ x: 0, y: 0 }, { x: 5, y: 5 }], layer: "0",
   });
-  assert.equal(mtext.code, "canonical-schema-insufficient");
+  assert.equal(leader.code, "canonical-schema-insufficient");
   assert.ok(
-    mtext.detail.includes("SÍ emite MTEXT"),
-    "el manifiesto NO puede decir que el writer no sabe emitir algo que sí emite",
+    leader.detail.includes("no modela la directriz"),
+    "el manifiesto tiene que nombrar el bloqueo REAL: el canónico, no el writer",
   );
 
   const cota = bloqueadaPorElCanonico({
