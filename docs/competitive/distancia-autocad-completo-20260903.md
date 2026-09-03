@@ -259,3 +259,100 @@ renglones 2 y 3 (Espacio termina y repite) están escritos en el intérprete y
 Eso es exactamente lo que la Ola 1 va a construir: un golden «diez segundos»
 con los diez renglones, aprobado/reprobado, para que este párrafo deje de ser
 una deducción y pase a ser una medida.
+
+---
+
+## Nota fechada — Ola 1 (2026-09-03): el reconocimiento, medido y cerrado
+
+Esta ola construyó el instrumento A del informe anterior y lo corrió antes de
+tocar nada. **La prueba de los diez segundos marcaba 7 de 10**
+(`apps/web/e2e/golden/85-cad-diez-segundos.spec.ts`, con `expect.soft` para que
+un renglón rojo no tape los nueve siguientes):
+
+| # | Renglón | Antes | Después |
+| --- | --- | --- | --- |
+| 1 | `L` ⏎ con el lienzo enfocado empieza LINE | ✅ | ✅ |
+| 2 | Clic, clic, Espacio termina el comando | ✅ | ✅ |
+| 3 | Espacio otra vez repite LINE | ✅ | ✅ |
+| 4 | `M` ⏎ es MOVE, no la herramienta de medir | ✅ | ✅ |
+| 5 | `E` ⏎ es ERASE, no exportar DXF | ✅ | ✅ |
+| 6 | Arrastre izq→der designa por ventana | ✅ | ✅ |
+| 7 | Arrastre der→izq designa por cruce | ✅ | ✅ |
+| 8 | Doble clic sobre un MTEXT abre su editor | ❌ | ✅ |
+| 9 | La rueda acerca hacia el cursor | ❌ | ✅ |
+| 10 | `U` ⏎ deshace | ❌ | ✅ |
+
+**Corrección al informe de arriba, y se dice donde se dijo lo contrario.** Este
+documento afirmaba que los renglones 2 y 3 «están escritos en el intérprete y
+no hay ningún golden que los afirme sobre el DOM». Es falso:
+`44-cad-command-line.spec.ts` los afirma desde la campaña anterior —pulsa
+Espacio sobre el lienzo y comprueba que el prompt se cierra y que reaparece al
+repetir—. La deducción era mía y estaba mal hecha; el golden 85 los vuelve a
+medir de todos modos, que es como esto deja de ser una opinión.
+
+### Qué se movió, con su número
+
+- **Renglón 9.** Sin `zoomToCursor`, el punto de mundo bajo el puntero se
+  desplazaba **1.394 unidades** tras cuatro muescas a 216 px del centro. Con
+  `zoomToCursor = true` bajaba a **523**, y ahí se quedó: dos hipótesis
+  (inclinación de la cámara de plano, derivación del encuadre desde el suelo)
+  se probaron, no movieron el número y **se revirtieron**. La causa real la dio
+  una sonda de diagnóstico en el navegador: la vista 2D se DERIVA de la cámara
+  en perspectiva por el camino `change` → `adoptPerspectiveFraming`, y ese
+  cambio llega DESPUÉS del oyente de la rueda y del `requestAnimationFrame`
+  siguiente. El anclaje ahora es por EVENTO
+  (`components/cad/viewport/plan-wheel-anchor.ts`): la rueda anota el punto y
+  corrige el primer cambio de vista que traiga un zoom distinto. Medido después:
+  **1,7 · 0,1 · 0,4 unidades** de deriva en las muescas 2, 3 y 4.
+- **Renglón 10.** `U`, `UNDO` y `REDO` entran al registro (247 comandos, antes
+  244). `OOPS` no, y su motivo está en la ESCALERA.
+- **Renglón 8.** Ocho tipos de objeto responden al doble clic. `HATCHEDIT` y
+  `REFEDIT` siguen sin existir y el gesto NO se cae a un panel de consuelo.
+- **Iconos por comando:** de 0 a **247 comandos con 175 dibujos distintos**
+  (`command-icons.spec.ts`). Antes había uno por PANEL: las veintiséis órdenes
+  de «Modificar» compartían la misma llave inglesa.
+- **Selector de escala de anotación:** de 0 a un `<select>` en la barra de
+  estado que reescala las anotativas del espacio modelo (2,5 mm de papel → 125
+  unidades a 1:50, 250 a 1:100, afirmado sobre el documento que recibe el
+  servidor en el golden 86).
+- **Ctrl+2 y Ctrl+3** despachan ADCENTER y TOOLPALETTES por su nombre.
+- **F3, F7, F8, F9, F10, F11 y F12**: ya estaban. Se re-midió antes de
+  escribir una línea (`keyboard-shortcuts.ts`, siete entradas) y no se tocaron.
+
+### Los cinco reflejos, hoy
+
+| Reflejo | 2026-09-03 (mañana) | 2026-09-03 (Ola 1) |
+| --- | --- | --- |
+| Zoom hacia el cursor | 0 apariciones | ✅ anclado por evento, deriva ≈ 0 |
+| Inercia de cámara | encendida | ✅ apagada en los dos modos |
+| Doble clic para editar | 0 manejadores | ✅ ocho tipos |
+| Selector de escala de anotación | 0 | ✅ en la barra de estado |
+| Icono por comando | 0 (uno por panel) | ✅ 247 filas, 175 dibujos |
+
+### Lo que esta ola NO cerró, y por qué
+
+Una lámina sigue sin poder llevar **dos escalas de anotación**
+(`layout/annotative-scale.ts` decide en la primera ventana que ve la entidad).
+Y la escala elegida en la barra de estado **se pierde al recargar**. Las dos
+cosas piden lo mismo: campos nuevos en el formato persistido. Es decisión del
+titular y está propuesta abajo.
+
+### Decisión del titular pendiente — CANNOSCALE y la anotatividad por escala
+
+Dos campos, y la propuesta concreta de cada uno:
+
+1. **`CadDocumentMeta.annotationScale?: number`** — el denominador vigente
+   (50 = 1:50). Es lo que AutoCAD guarda en `CANNOSCALE`, viaja con el dibujo y
+   hace que abrirlo dos días después no reinicie la escala. Coste: un campo
+   opcional en `meta`, que cualquier consumidor que no lo conozca ignora.
+2. **`context.metadata.annotativeScales?: Record<string, number>`** — por
+   entidad, la altura de modelo para cada escala en la que se ve («50»: 125,
+   «100»: 250). Es lo que permite que el MISMO rótulo salga a 2,5 mm en la
+   ventana general a 1:100 y en el detalle a 1:5 de la misma hoja. Vive en el
+   bolsillo de metadatos que ya existe, así que no es una entidad nueva ni un
+   campo del esquema — pero sí es formato que se persiste, y por eso se
+   pregunta.
+
+Sin (1) la escala es de sesión; sin (2) una hoja sólo puede tener una escala de
+anotación por rótulo. Mientras no haya respuesta, las dos limitaciones están
+dichas aquí, en la ESCALERA y en el prompt del propio selector.

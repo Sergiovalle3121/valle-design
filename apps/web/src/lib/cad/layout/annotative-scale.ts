@@ -242,3 +242,88 @@ function readHeight(entity: CadEntity): number | null {
 function defaultVisibility(viewport: CadPaperViewport, entity: CadEntity): boolean {
   return viewport.layerVisibility?.[entity.layer] !== false;
 }
+
+/**
+ * CANNOSCALE: la escala de anotación del ESPACIO MODELO.
+ *
+ * ## Por qué hace falta, aparte de la de cada ventana
+ *
+ * `cadAnnotativeRescaleCommands` resuelve la lámina: cada ventana tiene su
+ * escala y los rótulos que se ven en ella se ajustan. Lo que no resolvía es el
+ * sitio donde el dibujante pasa el día — el espacio modelo—, donde no hay
+ * ventana ninguna y por tanto no había escala de la que sacar la altura. El
+ * resultado medido: un rótulo anotativo de 2,5 mm se dibujaba con la altura que
+ * tuviera puesta, que no significa nada hasta que alguien lo publica.
+ *
+ * En AutoCAD eso lo gobierna `CANNOSCALE`, y el sitio donde se elige es el
+ * selector de la barra de estado. Esta función es lo que ese selector ejecuta:
+ * para la escala elegida, deja cada entidad anotativa con la altura de modelo
+ * que la hará medir sus milímetros de papel.
+ *
+ * ## Lo que declara y no esconde
+ *
+ * Una entidad anotativa cuyo tipo no lleva altura (`cadEntitySupportsAnnotative
+ * Height`) sale en `skippedEntityIds` en vez de desaparecer del recuento. Y la
+ * escala vive en la SESIÓN, no en el documento: `CadDocumentMeta` no tiene
+ * campo para ella y añadirlo es tocar el formato persistido, que es decisión
+ * del titular — queda propuesto en el informe de la ola.
+ */
+export function cadAnnotativeModelRescaleCommands(
+  input: { entities: readonly CadEntity[]; unit?: string } | null,
+  denominator: number,
+): CadAnnotativeRescaleResult {
+  const commands: CadEntityCommand[] = [];
+  const rescaledEntityIds: string[] = [];
+  const skippedEntityIds: string[] = [];
+  if (!input || !(denominator > 0)) return { commands, rescaledEntityIds, skippedEntityIds };
+  const unit = input.unit ?? "mm";
+  for (const entity of input.entities) {
+    const paperHeight = cadAnnotativeHeightMm(entity);
+    if (paperHeight === null) continue;
+    if (!cadEntitySupportsAnnotativeHeight(entity)) {
+      skippedEntityIds.push(entity.id);
+      continue;
+    }
+    if (entity.type === "dimension") {
+      const sizes = cadAnnotativeDimensionSizes(entity, paperHeight, denominator, unit);
+      const current = (entity as { arrowSize?: number }).arrowSize;
+      if (typeof current === "number" && Math.abs(current - sizes.arrowSize) < 1e-9) continue;
+      commands.push({
+        type: "properties",
+        entityId: entity.id,
+        patch: { ...sizes },
+      });
+      rescaledEntityIds.push(entity.id);
+      continue;
+    }
+    const height = cadAnnotativeModelHeight(paperHeight, denominator, unit);
+    const current = (entity as { height?: number }).height;
+    if (!(height > 0) || (typeof current === "number" && Math.abs(current - height) < 1e-9))
+      continue;
+    commands.push({ type: "properties", entityId: entity.id, patch: { height } });
+    rescaledEntityIds.push(entity.id);
+  }
+  return { commands, rescaledEntityIds, skippedEntityIds };
+}
+
+/**
+ * El selector de la barra de estado, de principio a fin: calcula y aplica.
+ *
+ * Existe para que el editor no tenga que escribir tres líneas de pegamento —el
+ * monolito sólo puede encoger— y para que «elegir una escala» sea UNA cosa
+ * probable en Node en vez de una lambda dentro de un JSX de 18.000 líneas.
+ * Devuelve cuántas anotativas se movieron, que es lo que un renglón honesto
+ * puede decir.
+ */
+export function cadApplyAnnotationScale(
+  document: { entities: readonly CadEntity[]; meta?: { unit?: string } } | null,
+  denominator: number,
+  commit: (commands: CadEntityCommand[]) => unknown,
+): number {
+  const result = cadAnnotativeModelRescaleCommands(
+    document ? { entities: document.entities, unit: document.meta?.unit } : null,
+    denominator,
+  );
+  if (result.commands.length > 0) commit(result.commands);
+  return result.rescaledEntityIds.length;
+}

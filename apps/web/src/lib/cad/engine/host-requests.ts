@@ -23,6 +23,21 @@ import type { CadUcsPlanView } from "../ucs-view";
 
 export type CadHostRequest =
   /** Abre el cuadro de configuración de página de una presentación. */
+  /**
+   * Deshacer o rehacer N pasos del historial del editor.
+   *
+   * La pila de deshacer NO vive en el documento ni en el motor: la sostiene el
+   * editor (`CanonicalHistory`), porque es estado de SESIÓN —dos personas con
+   * el mismo plano abierto tienen cada una la suya— y porque deshacer no es una
+   * mutación más, es viajar entre snapshots. Un comando que la manipulara
+   * directamente tendría que conocer el editor entero.
+   *
+   * Así que `U`, `UNDO` y `REDO` piden el viaje y el editor lo hace, exactamente
+   * como PLOT pide un PDF. El anfitrión devuelve el renglón que se lee en la
+   * línea de comandos («Deshecho: 1 operación», «Nada que deshacer»), que es lo
+   * que un dibujante espera ver.
+   */
+  | { kind: "history"; action: "undo" | "redo"; steps: number }
   | { kind: "page-setup"; layoutId: string }
   /** Traza. `preview` se queda en pantalla; `plot` produce el archivo. */
   | { kind: "plot"; mode: "preview" | "plot"; request: CadPlotRequest }

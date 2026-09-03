@@ -51,6 +51,47 @@ import { CAD_TOUCH_ONE_FINGER_IDLE } from "./touch-gestures";
  * La lección: una política que sólo se aplica en las TRANSICIONES deja el
  * estado inicial a merced de que alguien haya copiado sus valores a mano.
  */
+/**
+ * EN PLANO, LA CÁMARA MIRA AL NORTE. Y no es cosmética: es el eje del zoom.
+ *
+ * ## El fallo, medido
+ *
+ * La vista 2D la dibuja una cámara ORTOGRÁFICA (`view-controller.ts`), pero
+ * quien recibe el ratón es la cámara en PERSPECTIVA de OrbitControls, y de ella
+ * se DERIVA el encuadre 2D. Mientras las dos no compartan orientación, todo lo
+ * que OrbitControls calcule a partir del puntero llega girado al dibujo que el
+ * usuario ve.
+ *
+ * `applyInitialCameraFraming` dejaba la cámara en `(0,45·W·s, 0,8·max·s,
+ * H·s+10)`, o sea con azimut `atan2(13,5, 32,5) ≈ 22,5°` para una huella de
+ * 8×6 m — una pose pensada para el modo 3D—, y el encuadre a la planta la
+ * conserva (`fitToBounds` reutiliza la dirección actual). Con `zoomToCursor`
+ * encendido, la sonda de diagnóstico del golden 85 midió el resultado: el
+ * centro de la vista se movía 1,445 unidades de escena por muesca contra las
+ * 1,431 que pedía un zoom perfecto hacia el cursor —el MÓDULO correcto— pero
+ * girado exactamente −22,5°. El punto bajo el cursor se iba 150 unidades de
+ * dibujo por muesca en vez de quedarse quieto.
+ *
+ * ## Qué hace
+ *
+ * Recoloca la cámara a azimut cero conservando distancia y ángulo polar, que es
+ * además lo que un CAD llama vista en planta: el norte, arriba. `PLAN` hace
+ * exactamente esto en AutoCAD.
+ *
+ * No se toca en 3D: allí la perspectiva SÍ es la que dibuja, y girarla sería
+ * mover la vista del usuario.
+ */
+export function alignCadPlanAzimuth(
+  camera: THREE.Object3D,
+  target: THREE.Vector3,
+): void {
+  const offset = camera.position.clone().sub(target);
+  if (!(offset.length() > 1e-6)) return;
+  const horizontal = Math.hypot(offset.x, offset.z);
+  camera.position.set(target.x, target.y + offset.y, target.z + horizontal);
+  camera.lookAt(target);
+}
+
 export function applyCadCameraPolicy(
   controls: OrbitControls,
   mode: "2d" | "3d",
@@ -70,9 +111,43 @@ export function applyCadCameraPolicy(
   pickingActive = false,
 ): void {
   const plan = mode === "2d";
+  // ── LA RUEDA VA AL CURSOR, Y NO AL CENTRO DE LA VISTA ──────────────────────
+  //
+  // `zoomToCursor` no se fijaba en NINGÚN sitio del repositorio, así que
+  // conservaba el defecto `false` de OrbitControls y toda la aplicación del
+  // desplazamiento al puntero está condicionada a él: la rueda acercaba al
+  // centro del lienzo. En AutoCAD la rueda acerca SIEMPRE al punto de mundo
+  // que hay bajo el cursor, y ése es el gesto con el que se navega un plano —
+  // se apunta a la esquina que interesa y se rueda.
+  //
+  // Medido en el golden 85 (la prueba de los diez segundos) antes de esta
+  // línea: tras cuatro muescas de rueda sobre un punto a 180 px del centro, el
+  // punto de mundo bajo el cursor se había desplazado 1394 unidades. El
+  // renglón 9 del instrumento exige que no se mueva.
+  //
+  // Va aquí y no en el monolito por la misma razón que el resto de esta
+  // función: la política se aplica al CREAR los controles y en cada cambio de
+  // modo, así que un valor puesto a mano en un solo sitio se pierde en el
+  // otro.
+  controls.zoomToCursor = true;
+  // ── Y NO PLANEA AL SOLTAR ──────────────────────────────────────────────────
+  //
+  // `enableDamping = true` con `dampingFactor = 0.1` vivía en el monolito y
+  // hacía que la cámara siguiera moviéndose después de soltar. Es la firma
+  // táctil de un visor 3D web y es justo lo que delata que esto no es un CAD:
+  // AutoCAD es 1:1 e instantáneo, el plano se para donde lo paras. Se apaga
+  // aquí, junto al resto de la política, para que valga también al crear los
+  // controles y en cada cambio de modo — que es la lección que este archivo ya
+  // había aprendido con `maxPolarAngle`.
+  //
+  // `controls.update()` sigue llamándose en el bucle de render: sin
+  // amortiguación deja de ser obligatorio, pero es lo que aplica los cambios de
+  // `target` y el desplazamiento de `zoomToCursor`, así que no se toca.
+  controls.enableDamping = false;
   controls.minPolarAngle = 0;
   // En plano la cámara queda clavada mirando hacia abajo; en 3D se le deja
   // todo el hemisferio menos el rasante, que degenera la matriz de vista.
+  //
   controls.maxPolarAngle = plan ? 0.05 : Math.PI / 2.05;
   controls.enableRotate = !plan;
   // El botón central ENCUADRA en los dos modos, como en AutoCAD. OrbitControls
@@ -143,6 +218,8 @@ export function applyInitialCameraFraming(
   footprintW: number,
   footprintH: number,
   restore?: CadCameraPose | null,
+  /** Modo de vista al abrir: en plano la cámara se pone al norte. */
+  mode: "2d" | "3d" = "3d",
 ): CadSceneContext {
   const W = footprintW || 1;
   const H = footprintH || 1;
@@ -155,6 +232,11 @@ export function applyInitialCameraFraming(
   const target = restore?.target ?? { x: 0, y: 0, z: 0 };
   camera.position.set(position.x, position.y, position.z);
   controls.target.set(target.x, target.y, target.z);
+  // La pose de arriba lleva 22,5° de azimut y está pensada para el modo 3D. En
+  // plano hay que quitárselos ANTES de que nadie la use: el encuadre a la
+  // planta reutiliza la dirección actual, así que un azimut heredado aquí
+  // sobrevive a todos los encuadres posteriores. Ver `alignCadPlanAzimuth`.
+  if (mode === "2d") alignCadPlanAzimuth(camera, controls.target);
   controls.update();
   return { s, W, H };
 }

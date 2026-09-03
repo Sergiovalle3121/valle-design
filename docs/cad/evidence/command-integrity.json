@@ -1,11 +1,11 @@
 {
   "generatedBy": "scripts/cad/check-command-integrity.mjs --write",
-  "total": 243,
+  "total": 247,
   "verdicts": {
     "muta": 80,
-    "delegado": 41,
+    "delegado": 44,
     "informa": 19,
-    "honesto-limitado": 95,
+    "honesto-limitado": 96,
     "no-concluyente": 8,
     "ROJO": 0
   },

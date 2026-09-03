@@ -79,6 +79,8 @@ import { CAD_SOLID_MODIFY_COMMANDS } from "./commands/solids-modify";
 import { CAD_PARAMETRIC_GEOMETRY_COMMANDS } from "./commands/parametric-geometry";
 import { CAD_VIEW_NAVIGATION_COMMANDS } from "./commands/view-navigation";
 import { CAD_VIEW_VISUAL_COMMANDS } from "./commands/view-visual";
+import { CAD_HISTORY_COMMANDS } from "./commands/history-commands";
+import { CAD_TABLE_EDIT_COMMANDS } from "./commands/annotate-table-edit";
 import { CAD_LAYOUT_COMMANDS } from "./commands/layout-commands";
 import { CAD_PLOT_COMMANDS } from "./commands/plot-commands";
 // Entrega del proyecto: PUBLISH/SHEETSET enchufan `lib/cad/sheet-set/`, que ya
@@ -167,6 +169,8 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_AUTOMATION_COMMANDS,
   ...CAD_VIEW_NAVIGATION_COMMANDS,
   ...CAD_VIEW_VISUAL_COMMANDS,
+  ...CAD_HISTORY_COMMANDS,
+  ...CAD_TABLE_EDIT_COMMANDS,
   ...CAD_LAYOUT_COMMANDS,
   ...CAD_PLOT_COMMANDS,
   ...CAD_BLOCK_COMMANDS,

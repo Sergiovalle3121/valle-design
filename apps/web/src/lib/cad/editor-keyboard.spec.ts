@@ -74,6 +74,10 @@ for (const k of ["Enter", "Escape", "Delete", "Backspace", "F3", "ArrowLeft", "T
 }
 eq(interpretEditorKeyBeforeEngine(key({ key: "z", ctrlKey: true }), OPEN), { type: "toolbar", id: "undo" }, "Ctrl+Z sigue siendo deshacer con el muelle abierto");
 eq(interpretEditorKeyBeforeEngine(key({ key: "1", ctrlKey: true }), OPEN), { type: "reveal-properties" }, "Ctrl+1 sigue revelando propiedades");
+// Ctrl+2 y Ctrl+3, los dos que faltaban del juego de AutoCAD, y por su NOMBRE
+// de comando: el atajo y teclear la orden tienen que ser la misma acción.
+eq(interpretEditorKeyBeforeEngine(key({ key: "2", ctrlKey: true }), OPEN), { type: "invoke", command: "ADCENTER" }, "Ctrl+2 abre el DesignCenter");
+eq(interpretEditorKeyBeforeEngine(key({ key: "3", ctrlKey: true }), OPEN), { type: "invoke", command: "TOOLPALETTES" }, "Ctrl+3 abre las paletas de herramientas");
 eq(interpretEditorKeyBeforeEngine(key({ key: "a", isComposing: true }), OPEN), null, "una composición IME no es de nadie todavía");
 eq(interpretEditorKeyBeforeEngine(key({ key: "l" }), { ...OPEN, walkMode: true }), null, "en caminata, la letra tampoco va a la caja");
 eq(interpretEditorKeyBeforeEngine(key({ key: "l" }), { ...OPEN, readOnly: true }), { type: "notify-read-only" }, "en solo lectura, una orden mutadora avisa antes de ir a la caja");
