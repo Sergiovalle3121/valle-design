@@ -346,11 +346,11 @@ function finishSet(
 /**
  * El bloque dinámico sobre el que se trabaja sale de la SELECCIÓN del editor.
  *
- * No de un `entityPick`: el puntero todavía no está enrutado al motor —lo
- * documenta `Layout3DEditor.tsx` y lo dice el golden 45—, así que una orden que
- * pidiera designar con el ratón sería una orden que nadie puede terminar en el
- * navegador. La selección del editor SÍ funciona, y es además el gesto de
- * AutoCAD: se elige el bloque y se le cambia el parámetro.
+ * Es el gesto de AutoCAD para esto: se elige el bloque y se le cambia el
+ * parámetro en propiedades, no se designa uno por orden. Designar con el ratón
+ * también funciona en este producto —el clic se resuelve como `entityPick`
+ * cuando el paso lo acepta, `viewport/pointer-router.ts`, y lo mide el golden
+ * 61—, así que la elección aquí es de gesto, no de límite técnico.
  */
 const setCommand: CadCommandDescriptor<SetState> = {
   name: "BLOQUEDINSET",
