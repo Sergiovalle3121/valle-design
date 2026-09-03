@@ -24,6 +24,7 @@
  * anfitrión y no un PDF con diecinueve hojas presentado como completo.
  */
 import type { CadDocument, CadPaperSpace } from "../cad-document";
+import { cadFindPlotStyleTable } from "../plot/plot-style-table";
 import type { CadPublishSheet } from "../paper-space";
 import { cadPageSetupFromLayout, type CadPageSetup } from "../plot/page-setup";
 import { buildCadPlotJob } from "../plot/plot-job";
@@ -177,8 +178,14 @@ export function buildCadSheetSetPublishPlan(
     });
     const stamped = withResolvedTitleBlock(layout, resolved.attributes);
     const pageSetup = input.pageSetup ?? cadPageSetupFromLayout(stamped);
+    // La MISMA regla de nombre que el trazado y su comprobación previa: un
+    // `Monochrome.CTB` escrito con otra caja no puede convertir una hoja del
+    // juego en una hoja OMITIDA (`plot-style-table.ts`).
     const table = pageSetup.plotStyleTable
-      ? (input.plotStyleTables?.get(pageSetup.plotStyleTable) ?? null)
+      ? cadFindPlotStyleTable(
+          input.plotStyleTables ?? new Map(),
+          pageSetup.plotStyleTable,
+        )
       : null;
     if (pageSetup.plotStyleTable && !table)
       skipped.push({

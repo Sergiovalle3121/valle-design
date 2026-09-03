@@ -17,6 +17,7 @@
  */
 import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
+import { cadFindPlotStyleTable } from "./plot-style-tables";
 import type { CadVisualStyleId } from "@/lib/cad/view/visual-styles";
 import { cadDocumentExtents } from "@/lib/cad/view/document-extents";
 import { buildCadPlotJob, buildCadPlotPreview, type CadPlotJob } from "@/lib/cad/plot/plot-job";
@@ -259,8 +260,14 @@ export class CadPlotHost {
     const document = this.bridge.document();
     if (!document) return "No hay ningún dibujo abierto que trazar.";
 
+    // El nombre lo teclea una persona en `PAGESETUP Estilos`: se busca sin
+    // distinguir mayúsculas ni extensión, como el archivo en Windows. Ver
+    // `plot-style-tables.ts`.
     const table = request.request.pageSetup.plotStyleTable
-      ? (this.bridge.plotStyleTables?.().get(request.request.pageSetup.plotStyleTable) ?? null)
+      ? cadFindPlotStyleTable(
+          this.bridge.plotStyleTables?.() ?? new Map(),
+          request.request.pageSetup.plotStyleTable,
+        )
       : null;
     if (request.request.pageSetup.plotStyleTable && !table)
       return `La tabla de plumas «${request.request.pageSetup.plotStyleTable}» no está cargada: el plano saldría con los grosores equivocados.`;

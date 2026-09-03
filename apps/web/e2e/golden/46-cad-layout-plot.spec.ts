@@ -253,6 +253,57 @@ test("presentación, ventana a escala con capa congelada y trazado a PDF", async
     "planta-general.pdf",
   );
 
+  /* ── 6 bis. Elegir una TABLA DE PLUMAS ya no rompe el trazado (Ola 3) ──── */
+  //
+  // Medido antes: `PAGESETUP Estilos monochrome` dejaba el nombre escrito en la
+  // presentación —eso sí funcionaba— y a partir de ahí PLOT se negaba a trazar
+  // esa hoja, porque el estudio no aportaba NINGUNA tabla cargada. Elegir una
+  // tabla de plumas convertía la hoja en no trazable.
+  await type(page, "PSET");
+  await type(page, "E"); // Estilos
+  await type(page, "Monochrome.ctb"); // con su extensión y otra caja, como se escribe
+  await expect(prompt).toBeHidden();
+
+  await saveAndSettle(page, backend);
+  expect(
+    backend.snapshot().document.paperSpaces[0].titleBlock?.attributes?.PLOT_STYLE_TABLE,
+    "la tabla queda escrita en la presentación que recibe el servidor — en los " +
+      "ATRIBUTOS del cajetín, que es formato que ya existía, no un campo nuevo",
+  ).toBe("Monochrome.ctb");
+
+  const conPlumas = page.waitForEvent("download", { timeout: 60_000 });
+  await type(page, "PLOT");
+  await type(page, "T");
+  await type(page, "planta-monocroma");
+  const trazadoConPlumas = await conPlumas;
+  expect(
+    trazadoConPlumas.suggestedFilename(),
+    "y la hoja SE TRAZA en vez de responder que la tabla no está cargada",
+  ).toBe("planta-monocroma.pdf");
+  const rutaMono = await trazadoConPlumas.path();
+  const bytesMono = new Uint8Array(await readFile(rutaMono!));
+  expect(inspectCadPdf(bytesMono).pageCount).toBe(1);
+
+  // Y la tabla que NO existe se sigue diciendo: la honestidad no se aflojó.
+  await type(page, "PSET");
+  await type(page, "E");
+  await type(page, "Estudio-2004.ctb");
+  await expect(prompt).toBeHidden();
+  await type(page, "PLOT");
+  await type(page, "T");
+  await type(page, "no-sale");
+  await expect(
+    page.getByTestId("cad-command-line"),
+    "una tabla que el estudio no tiene sigue impidiendo el trazado, con su nombre",
+  ).toContainText(/Estudio-2004\.ctb/);
+
+  // Se deshace para que el apartado 7 mida el dibujo sin este añadido.
+  await type(page, "PSET");
+  await type(page, "E");
+  await type(page, "Ninguna");
+  await expect(prompt).toBeHidden();
+  await saveAndSettle(page, backend);
+
   /* ── 7. Trazar NO cambia el dibujo ─────────────────────────────────────── */
   {
     const before = backend.snapshot().version;

@@ -18,6 +18,7 @@ import {
   resetCadPlotDeliveryListeners,
 } from "./plot-host";
 import { addCadSheet, createCadSheetSet, type CadSheetSet } from "@/lib/cad/sheet-set/sheet-set";
+import { cadBuiltinPlotStyleTables } from "./plot-style-tables";
 
 function drawing(): CadDocument {
   const layout = createCadLayout([], {
@@ -325,6 +326,48 @@ async function specs(): Promise<void> {
   }
 
   // --- sin dibujo abierto, se dice ----------------------------------------
+  // --- elegir una tabla de plumas ya no rompe el trazado (Ola 3) ----------
+  //
+  // Medido antes: `PAGESETUP Estilos monochrome` dejaba el nombre escrito en la
+  // hoja y a partir de ahí PLOT se negaba —«no está cargada»— porque nadie
+  // aportaba `plotStyleTables()`. Elegir una tabla rompía el trazado.
+  {
+    const conTabla: Downloaded[] = [];
+    const host = new CadPlotHost({
+      document: () => document,
+      plotStyleTables: cadBuiltinPlotStyleTables,
+      download: (fileName, bytes, mimeType) => conTabla.push({ fileName, bytes, mimeType }),
+    });
+    const conNombre = { ...pageSetup, plotStyleTable: "Monochrome.CTB" };
+    assert.match(
+      host.handle({
+        kind: "plot",
+        mode: "plot",
+        request: { layoutId: "layout:planta", pageSetup: conNombre, fileName: "mono", copies: 1 },
+      }),
+      /Trazando mono/,
+      "con la tabla publicada, y escrita con otra caja y con extensión, se traza",
+    );
+    for (let intento = 0; intento < 300 && conTabla.length === 0; intento += 1)
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.equal(conTabla.length, 1, "y sale el PDF");
+
+    // La que NO está sigue diciendo que no está: la honestidad no se afloja.
+    assert.match(
+      host.handle({
+        kind: "plot",
+        mode: "plot",
+        request: {
+          layoutId: "layout:planta",
+          pageSetup: { ...pageSetup, plotStyleTable: "Estudio-2004.ctb" },
+          fileName: "x",
+          copies: 1,
+        },
+      }),
+      /«Estudio-2004\.ctb» no está cargada/,
+    );
+  }
+
   // --- el conjunto que NO está en la mano se TRAE (Ola 3) -----------------
   //
   // Hasta esta ola, `PUBLISH set:x` en el estudio real respondía siempre «no

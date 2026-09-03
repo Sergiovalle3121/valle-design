@@ -54,6 +54,7 @@ import {
 } from "./navigation-host";
 import { CadPlotHost, downloadCadFile } from "./plot-host";
 import { cadStudioSheetSetBridge, type CadStudioSheetSetPort } from "./sheet-set-host";
+import { cadBuiltinPlotStyleTables } from "./plot-style-tables";
 import { createDesignSheetSetPort } from "./sheet-set-design-port";
 import { handleCadDxfHostRequest } from "./dxf-host";
 import { handleCadEtransmitHostRequest } from "./etransmit-host";
@@ -280,10 +281,16 @@ export function useCadStudioPlotHost(
     const sheetSets = cadStudioSheetSetBridge(
       options.sheetSetPort ?? createDesignSheetSetPort(),
     );
+    // Las tablas de plumas que el producto sabe construir, publicadas por su
+    // nombre de archivo. Sin este puente, `PAGESETUP Estilos monochrome`
+    // dejaba escrita en la hoja una tabla que PLOT no podía encontrar, y
+    // trazar esa hoja pasaba a ser imposible (`plot-style-tables.ts`).
+    const plotStyleTables = cadBuiltinPlotStyleTables();
     return new CadPlotHost({
       document: () => live.current.document.current,
       download: downloadCadFile,
       onResult: note,
+      plotStyleTables: () => plotStyleTables,
       sheetSet: (sheetSetId) => sheetSets.sheetSet(sheetSetId),
       loadSheetSet: (sheetSetId) => sheetSets.loadSheetSet(sheetSetId, note),
       saveSheetSet: (set) => sheetSets.saveSheetSet(set, note),

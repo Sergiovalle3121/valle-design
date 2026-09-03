@@ -25,6 +25,7 @@
  * cadenas que la presentación tiene y donde además ese dato suele imprimirse.
  */
 import type { CadPaperSpace, CadPoint2 } from "../cad-document";
+import { cadPlotStyleTableNameMatches } from "./plot-style-table";
 import type { CadBounds } from "../entity-runtime";
 import { CAD_SHEET_PAPERS, type CadSheetPaper } from "../paper-space";
 
@@ -349,7 +350,15 @@ export function preflightCadPageSetup(
       });
   }
 
-  if (setup.plotStyleTable && !knownPlotStyleTables.includes(setup.plotStyleTable))
+  // La MISMA regla de nombre que usa el trazado: `Monochrome.CTB` y
+  // `monochrome` son la misma tabla (`plot-style-table.ts`). Con `includes`
+  // cadena a cadena, escribir la extensión hacía imposible trazar la hoja.
+  if (
+    setup.plotStyleTable &&
+    !knownPlotStyleTables.some((known) =>
+      cadPlotStyleTableNameMatches(known, setup.plotStyleTable!),
+    )
+  )
     issues.push({
       code: "missing_plot_style_table",
       severity: "error",
