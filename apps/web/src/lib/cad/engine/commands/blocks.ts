@@ -40,6 +40,7 @@ import {
   cadSetDrawingBasePointCommands,
   type CadBlockAttributePrompt,
 } from "../../blocks/block-workflow";
+import { cadAttsyncCommands } from "../../blocks/attribute-sync";
 import {
   CAD_ACCEPT_ANGLE,
   CAD_ACCEPT_DISTANCE,
@@ -527,10 +528,87 @@ const attEditCommand: CadCommandDescriptor<AttEditState> = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// ATTSYNC
+// ---------------------------------------------------------------------------
+
+interface AttsyncState {
+  asked?: boolean;
+}
+
+/**
+ * ATTSYNC: pone al día los atributos de las referencias de un bloque.
+ *
+ * Redefinir un bloque no toca las referencias que ya estaban: les falta la
+ * etiqueta nueva y les sobra la que se quitó. Cuarenta láminas con el mismo
+ * cajetín son cuarenta ediciones a mano que nadie hace. Las reglas —qué se
+ * conserva, qué entra, qué sale y qué manda en un atributo constante— viven en
+ * `blocks/attribute-sync.ts`, sin motor y probadas aparte.
+ */
+const attsyncCommand: CadCommandDescriptor<AttsyncState> = {
+  name: "ATTSYNC",
+  aliases: [],
+  kind: "modify",
+  transparent: false,
+  selection: "none",
+  repeatable: true,
+  mutates: true,
+  cursor: "none",
+  begin: () => ({
+    state: {},
+    prompt: {
+      message: "Indique el bloque a sincronizar — Intro para todos",
+      options: [],
+      defaultValue: "todos",
+    },
+    accepts: CAD_ACCEPT_TEXT | CAD_ACCEPT_KEYWORD,
+  }),
+  step: (state, input, context) => {
+    if (input.kind === "cancel") return nothing(state);
+    const document = context.document?.();
+    if (!document) return message(state, "No hay ningún dibujo abierto.");
+    if (input.kind === "text" && input.value.trim() === "?")
+      return message(state, blockList(context));
+    if (input.kind !== "text" && input.kind !== "enter")
+      return message(state, "ATTSYNC espera el nombre de un bloque, o Intro para todos.");
+
+    const nombre = input.kind === "text" ? input.value.trim() : "";
+    const resultado = cadAttsyncCommands(document, nombre || undefined);
+    const alcance = nombre ? `«${nombre}»` : "el dibujo";
+    if (resultado.visited === 0)
+      return message(
+        state,
+        nombre
+          ? `No hay ninguna referencia de «${nombre}» en el dibujo.`
+          : "El dibujo no tiene ninguna referencia de bloque.",
+      );
+    if (resultado.commands.length === 0)
+      return message(state, `Los atributos de ${alcance} ya estaban al día (${resultado.visited} referencia(s)).`);
+
+    // Se cuenta QUÉ cambió, no «Hecho»: la etiqueta que entra y la que sale son
+    // justo lo que el dibujante necesita comprobar antes de seguir.
+    const partes = [`Sincronizadas ${resultado.updated} de ${resultado.visited} referencia(s) de ${alcance}`];
+    if (resultado.added.length > 0) partes.push(`añadido ${resultado.added.join(", ")}`);
+    if (resultado.removed.length > 0) partes.push(`retirado ${resultado.removed.join(", ")}`);
+    return {
+      state,
+      prompt: NO_PROMPT,
+      accepts: 0,
+      result: {
+        kind: "document",
+        commands: resultado.commands,
+        label: "ATTSYNC",
+        notice: `${partes.join(" · ")}.`,
+      },
+    };
+  },
+};
+
 export const CAD_BLOCK_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(defineDescriptor({ name: "BLOCK", aliases: ["B", "BMAKE"], scope: "document", disposition: "insert" })),
   asCadCommand(defineDescriptor({ name: "WBLOCK", aliases: ["W"], scope: "tenant", disposition: "retain" })),
   asCadCommand(baseCommand),
   asCadCommand(insertCommand),
   asCadCommand(attEditCommand),
+  asCadCommand(attsyncCommand),
 ];

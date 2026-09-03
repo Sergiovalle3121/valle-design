@@ -1100,7 +1100,7 @@
       "group": "core",
       "name": "Bloques y atributos",
       "points": 9,
-      "gap": "BEDIT no existe: el alias BE cuelga (es uno de los 2 alias sin resolver de la tabla acad.pgp). Sin editor de bloques en sitio, redefinir un bloque exige explotar y volver a definir.",
+      "gap": "BEDIT no existe: el alias BE cuelga (es uno de los 2 alias sin resolver de la tabla acad.pgp). Sin editor de bloques en sitio, redefinir un bloque exige explotar y volver a definir. Ola 3 (2026-09-03): `ATTSYNC` entra al registro y cierra el agujero de redefinir un bloque y que las referencias que ya estaban se queden desfasadas —conserva lo escrito, añade lo nuevo, retira la etiqueta huérfana y fija el atributo constante, con la geometría recalculada desde la definición—. Siguen en «todavía no» BEDIT en sitio y los bloques dinámicos, y siguen ausentes BATTMAN, ATTDISP, MINSERT, ATTEXT, COUNT, XOPEN y REFEDIT.",
       "criteria": [
         {
           "id": "blocks.library",
@@ -1360,7 +1360,7 @@
       "group": "core",
       "name": "Layouts, viewports y publicación",
       "points": 10,
-      "gap": "Cerrado en la Ola 2: PAGESETUP recoloca la ventana al cambiar el papel (Ola 1, medido en cero segmentos fuera) y el sombreado llega al PDF con su patrón, con guarda de densidad que degrada a contorno avisando. Ola 2 (2026-09-03): los rótulos de una .shx llegan al papel como TRAZOS y el giro de un rótulo en el papel pasa a ser el del dibujo — a 90° el coeficiente `b` de la matriz `Tm` del PDF pasa de −1 (se leía hacia abajo) a +1. Lo que sigue en «todavía no»: `drawCommand` dibuja todo camino con «S», así que un sombreado sólido y una máscara de fondo no se RELLENAN en el PDF de trazado.",
+      "gap": "Cerrado en la Ola 2: PAGESETUP recoloca la ventana al cambiar el papel (Ola 1, medido en cero segmentos fuera) y el sombreado llega al PDF con su patrón, con guarda de densidad que degrada a contorno avisando. Ola 2 (2026-09-03): los rótulos de una .shx llegan al papel como TRAZOS y el giro de un rótulo en el papel pasa a ser el del dibujo — a 90° el coeficiente `b` de la matriz `Tm` del PDF pasa de −1 (se leía hacia abajo) a +1. Lo que sigue en «todavía no»: `drawCommand` dibuja todo camino con «S», así que un sombreado sólido y una máscara de fondo no se RELLENAN en el PDF de trazado. Ola 3 (2026-09-03): `PUBLISH` y `SHEETSET` dejan de responder «el conjunto no está cargado en este estudio» —nadie aportaba el puente `sheetSet()`, que es el `P1-8` del BACKLOG—; y elegir una tabla de plumas dejaba la hoja SIN PODER TRAZARSE, porque tampoco había ninguna cargada: ahora el estudio publica las tres de fábrica y `STYLESMANAGER` carga el `.ctb` del despacho. Lo que sigue en «todavía no»: el DXF exportado no lleva presentaciones —`dxf-export.ts` no tiene noción de espacio papel: ni `*Paper_Space`, ni objetos LAYOUT, ni entidades VIEWPORT— así que un despacho que recibe el DXF recibe el modelo sin sus láminas.",
       "criteria": [
         {
           "id": "layouts.paper-space",
@@ -1421,7 +1421,7 @@
         {
           "id": "layouts.commands",
           "points": 2,
-          "text": "LAYOUT, MVIEW, MSPACE, PSPACE, PLOT y PAGESETUP tecleables",
+          "text": "LAYOUT, MVIEW, MSPACE, PSPACE, PLOT, PAGESETUP, PUBLISH y SHEETSET tecleables Y SERVIDAS: cada una produce su efecto en el documento que recibe el servidor o en los bytes del archivo entregado",
           "costDays": 6,
           "evidence": [
             {
@@ -1449,10 +1449,27 @@
               "name": "PAGESETUP"
             },
             {
+              "kind": "command",
+              "name": "PUBLISH"
+            },
+            {
+              "kind": "command",
+              "name": "SHEETSET"
+            },
+            {
               "kind": "alias",
               "alias": "PLO"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/46-cad-layout-plot.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/89-cad-conjunto-de-planos.spec.ts"
             }
-          ]
+          ],
+          "rationale": "La evidencia era la EXISTENCIA del nombre en el registro, y eso dejaba pasar el defecto que la Ola 3 midió: `PUBLISH` estaba en el registro, su anfitrión probado y su publicador escrito, y teclearlo respondía siempre «el conjunto no está cargado en este estudio» porque nadie aportaba el puente. Un comando que llega al registro y no llega a hacer nada no es un comando tecleable: ahora la fila la sostienen los goldens que miran el efecto."
         },
         {
           "id": "layouts.fidelity",

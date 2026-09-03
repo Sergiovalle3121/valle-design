@@ -17,6 +17,7 @@
  */
 import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
+import { cadFindPlotStyleTable } from "@/lib/cad/plot/plot-style-table";
 import type { CadVisualStyleId } from "@/lib/cad/view/visual-styles";
 import { cadDocumentExtents } from "@/lib/cad/view/document-extents";
 import { buildCadPlotJob, buildCadPlotPreview, type CadPlotJob } from "@/lib/cad/plot/plot-job";
@@ -68,6 +69,19 @@ export interface CadPlotHostBridge {
     set: CadSheetSet;
     documents: ReadonlyMap<string, CadDocument>;
   } | null;
+  /**
+   * Trae el conjunto que NO está en la mano. Es la pieza que faltaba para que
+   * `PUBLISH` y `SHEETSET` hicieran algo en el estudio real: `sheetSet` sólo
+   * puede responder por lo ya cargado, y hasta ahora nadie cargaba nada
+   * (`P1-8`). Traerlo es red, así que este anfitrión responde «Trayendo…» y
+   * escribe el veredicto por `onResult` cuando llega — el mismo reparto que
+   * `XATTACH` con `xref-attach`. Sin este puente, el mensaje honesto de
+   * siempre: el conjunto no está cargado.
+   */
+  loadSheetSet?(sheetSetId: string): Promise<{
+    set: CadSheetSet;
+    documents: ReadonlyMap<string, CadDocument>;
+  } | null>;
   /** Fecha de publicación. Inyectada: hace el PDF reproducible. */
   now?(): string;
   /**
@@ -189,10 +203,20 @@ export class CadPlotHost {
 
     if (request.kind === "publish") {
       const loaded = this.bridge.sheetSet?.(request.sheetSetId) ?? null;
-      if (!loaded)
+      if (loaded) {
+        void this.publish(loaded.set, loaded.documents, request.sheetIds);
+        return `Publicando «${loaded.set.name}» a un único PDF paginado…`;
+      }
+      if (!this.bridge.loadSheetSet)
         return `El conjunto de planos ${request.sheetSetId} no está cargado en este estudio.`;
-      void this.publish(loaded.set, loaded.documents, request.sheetIds);
-      return `Publicando «${loaded.set.name}» a un único PDF paginado…`;
+      void this.withSheetSet(request.sheetSetId, (traido) => {
+        this.bridge.onResult?.(
+          `Publicando «${traido.set.name}» a un único PDF paginado…`,
+          "info",
+        );
+        void this.publish(traido.set, traido.documents, request.sheetIds);
+      });
+      return `Trayendo el conjunto de planos ${request.sheetSetId}…`;
     }
 
     if (request.kind === "sheet-set-command") return this.sheetSetCommand(request);
@@ -236,8 +260,15 @@ export class CadPlotHost {
     const document = this.bridge.document();
     if (!document) return "No hay ningún dibujo abierto que trazar.";
 
+    // El nombre lo teclea una persona en `PAGESETUP Estilos`: se busca sin
+    // distinguir mayúsculas ni extensión, como el archivo en Windows. La regla
+    // vive con el modelo (`plot-style-table.ts`) y la comparten el trazado, la
+    // comprobación previa y el publicador de conjuntos.
     const table = request.request.pageSetup.plotStyleTable
-      ? (this.bridge.plotStyleTables?.().get(request.request.pageSetup.plotStyleTable) ?? null)
+      ? cadFindPlotStyleTable(
+          this.bridge.plotStyleTables?.() ?? new Map(),
+          request.request.pageSetup.plotStyleTable,
+        )
       : null;
     if (request.request.pageSetup.plotStyleTable && !table)
       return `La tabla de plumas «${request.request.pageSetup.plotStyleTable}» no está cargada: el plano saldría con los grosores equivocados.`;
@@ -290,9 +321,43 @@ export class CadPlotHost {
     request: Extract<CadHostRequest, { kind: "sheet-set-command" }>,
   ): string {
     const loaded = this.bridge.sheetSet?.(request.sheetSetId) ?? null;
-    if (!loaded)
+    if (loaded) return this.sheetSetAnswer(request, loaded);
+    if (!this.bridge.loadSheetSet)
       return `El conjunto de planos ${request.sheetSetId} no está cargado en este estudio.`;
+    void this.withSheetSet(request.sheetSetId, (traido) => {
+      const answer = this.sheetSetAnswer(request, traido);
+      this.bridge.onResult?.(answer, answer.includes("no puede") ? "error" : "info");
+    });
+    return `Trayendo el conjunto de planos ${request.sheetSetId}…`;
+  }
 
+  /**
+   * Trae el conjunto y llama a `then` sólo si llegó.
+   *
+   * Que no llegue NO es silencio: `loadSheetSet` ya avisó de su propio fallo
+   * —es quien sabe por qué—, y aquí se dice lo único que este anfitrión sabe:
+   * que la orden no se pudo servir.
+   */
+  private async withSheetSet(
+    sheetSetId: string,
+    then: (loaded: { set: CadSheetSet; documents: ReadonlyMap<string, CadDocument> }) => void,
+  ): Promise<void> {
+    const traido = await this.bridge.loadSheetSet?.(sheetSetId);
+    if (traido) {
+      then(traido);
+      return;
+    }
+    this.bridge.onResult?.(
+      `El conjunto de planos ${sheetSetId} no se pudo traer; la orden no se ejecutó.`,
+      "error",
+    );
+  }
+
+  /** La respuesta a una orden de conjunto, con el conjunto ya en la mano. */
+  private sheetSetAnswer(
+    request: Extract<CadHostRequest, { kind: "sheet-set-command" }>,
+    loaded: { set: CadSheetSet; documents: ReadonlyMap<string, CadDocument> },
+  ): string {
     if (request.action === "list") {
       const sheets = ordered(loaded.set);
       if (sheets.length === 0) return `«${loaded.set.name}» no tiene ninguna hoja todavía.`;

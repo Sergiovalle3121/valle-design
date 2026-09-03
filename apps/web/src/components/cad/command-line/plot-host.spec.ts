@@ -18,6 +18,7 @@ import {
   resetCadPlotDeliveryListeners,
 } from "./plot-host";
 import { addCadSheet, createCadSheetSet, type CadSheetSet } from "@/lib/cad/sheet-set/sheet-set";
+import { cadBuiltinPlotStyleTables } from "@/lib/cad/plot/plot-style-catalog";
 
 function drawing(): CadDocument {
   const layout = createCadLayout([], {
@@ -325,6 +326,122 @@ async function specs(): Promise<void> {
   }
 
   // --- sin dibujo abierto, se dice ----------------------------------------
+  // --- elegir una tabla de plumas ya no rompe el trazado (Ola 3) ----------
+  //
+  // Medido antes: `PAGESETUP Estilos monochrome` dejaba el nombre escrito en la
+  // hoja y a partir de ahí PLOT se negaba —«no está cargada»— porque nadie
+  // aportaba `plotStyleTables()`. Elegir una tabla rompía el trazado.
+  {
+    const conTabla: Downloaded[] = [];
+    const host = new CadPlotHost({
+      document: () => document,
+      plotStyleTables: cadBuiltinPlotStyleTables,
+      download: (fileName, bytes, mimeType) => conTabla.push({ fileName, bytes, mimeType }),
+    });
+    const conNombre = { ...pageSetup, plotStyleTable: "Monochrome.CTB" };
+    assert.match(
+      host.handle({
+        kind: "plot",
+        mode: "plot",
+        request: { layoutId: "layout:planta", pageSetup: conNombre, fileName: "mono", copies: 1 },
+      }),
+      /Trazando mono/,
+      "con la tabla publicada, y escrita con otra caja y con extensión, se traza",
+    );
+    for (let intento = 0; intento < 300 && conTabla.length === 0; intento += 1)
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.equal(conTabla.length, 1, "y sale el PDF");
+
+    // La que NO está sigue diciendo que no está: la honestidad no se afloja.
+    assert.match(
+      host.handle({
+        kind: "plot",
+        mode: "plot",
+        request: {
+          layoutId: "layout:planta",
+          pageSetup: { ...pageSetup, plotStyleTable: "Estudio-2004.ctb" },
+          fileName: "x",
+          copies: 1,
+        },
+      }),
+      /«Estudio-2004\.ctb» no está cargada/,
+    );
+  }
+
+  // --- el conjunto que NO está en la mano se TRAE (Ola 3) -----------------
+  //
+  // Hasta esta ola, `PUBLISH set:x` en el estudio real respondía siempre «no
+  // está cargado en este estudio», porque nadie aportaba `sheetSet()`. Ahora
+  // el anfitrión puede pedirlo: responde «Trayendo…» al instante y escribe el
+  // veredicto cuando llega, que es el reparto de XATTACH.
+  {
+    let set = createCadSheetSet({ id: "set:tarde", name: "Conjunto tardío" });
+    set = addCadSheet(set, { id: "s1", documentId: "doc", layoutId: "layout:planta", title: "Planta" });
+    const entregados: Downloaded[] = [];
+    const renglones: Array<{ message: string; level: string }> = [];
+    let pedido = 0;
+    const host = new CadPlotHost({
+      document: () => document,
+      // Nada en la mano: `sheetSet` dice la verdad y devuelve null.
+      sheetSet: () => null,
+      loadSheetSet: async () => {
+        pedido += 1;
+        await new Promise((resolve) => setTimeout(resolve, 1));
+        return { set, documents: new Map([["doc", document]]) };
+      },
+      now: () => "2026-09-03",
+      download: (fileName, bytes, mimeType) => entregados.push({ fileName, bytes, mimeType }),
+      onResult: (message, level) => renglones.push({ message, level }),
+    });
+
+    const inmediato = host.handle({ kind: "publish", sheetSetId: "set:tarde" });
+    assert.match(inmediato, /Trayendo el conjunto de planos set:tarde/, "responde al instante, sin bloquear la línea");
+    for (let intento = 0; intento < 300 && entregados.length === 0; intento += 1)
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.equal(pedido, 1, "se pidió una vez");
+    assert.equal(entregados.length, 1, "y el PDF del conjunto salió de verdad");
+    assert.ok(
+      renglones.some((renglon) => /Publicando «Conjunto tardío»/.test(renglon.message)),
+      "el renglón cuenta qué se está publicando cuando ya se sabe",
+    );
+
+    // `SHEETSET Listar` sobre un conjunto no cargado hace lo mismo.
+    const listado = host.handle({ kind: "sheet-set-command", action: "list", sheetSetId: "set:tarde" });
+    assert.match(listado, /Trayendo el conjunto de planos set:tarde/);
+    for (let intento = 0; intento < 300; intento += 1) {
+      if (renglones.some((renglon) => /Conjunto tardío» — 1 hoja/.test(renglon.message))) break;
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    assert.ok(
+      renglones.some((renglon) => /«Conjunto tardío» — 1 hoja\(s\)/.test(renglon.message)),
+      `el listado llega por el renglón: ${JSON.stringify(renglones.map((r) => r.message))}`,
+    );
+
+    // Y si NO se puede traer, se dice que la orden no se ejecutó — no se calla.
+    const mudo: Array<{ message: string; level: string }> = [];
+    const roto = new CadPlotHost({
+      document: () => document,
+      sheetSet: () => null,
+      loadSheetSet: async () => null,
+      download: () => {},
+      onResult: (message, level) => mudo.push({ message, level }),
+    });
+    roto.handle({ kind: "publish", sheetSetId: "set:roto" });
+    for (let intento = 0; intento < 300 && mudo.length === 0; intento += 1)
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    assert.match(mudo[0].message, /no se pudo traer; la orden no se ejecutó/);
+    assert.equal(mudo[0].level, "error");
+  }
+
+  // Sin puente de carga, la respuesta honesta de siempre.
+  {
+    const sinPuente = new CadPlotHost({ document: () => document, download: () => {} });
+    assert.match(
+      sinPuente.handle({ kind: "publish", sheetSetId: "set:nave" }),
+      /no está cargado en este estudio/,
+    );
+  }
+
   const empty = new CadPlotHost({ document: () => null, download: () => {} });
   assert.match(
     empty.handle({

@@ -456,3 +456,101 @@ de dónde salió cada uno y su versión. Nada de contenido de Autodesk ni de
 material de terceros con licencia restrictiva. Mientras no haya archivos
 autorizados, el corpus sigue siendo el sintético que ya existe y esta
 limitación queda dicha aquí y en la ESCALERA.
+
+## Nota fechada — Ola 3 (2026-09-03): bloques y publicación
+
+Esta ola encontró **el mismo defecto tres veces**, y merece nombre porque es el
+patrón más caro que arrastra el producto: **un subsistema entero escrito,
+probado y sin un cable**. El trabajo estaba hecho; nadie lo había enchufado.
+
+### 1 · `PUBLISH` y `SHEETSET` no publicaban nada
+
+Medido con el propio árbol:
+
+```
+$ grep -rn "sheetSet" apps/web/src --include=*.ts --include=*.tsx
+plot-host.ts:67    sheetSet?(sheetSetId: string): { … } | null;
+plot-host.ts:191   const loaded = this.bridge.sheetSet?.(…) ?? null;
+plot-host.spec.ts  …
+```
+
+El puente lo declaraba su interfaz, lo consumía su anfitrión y lo probaba su
+spec. Nadie lo aportaba. Así que `lib/cad/sheet-set/` —1.632 líneas con
+numeración automática, campos resueltos y publicación por lotes a un único PDF
+paginado con portada—, más los comandos en el registro real, daban entre todos
+exactamente esto al teclearlos: **«El conjunto de planos set:nave no está
+cargado en este estudio.»** Es el `P1-8` del BACKLOG.
+
+Ahora el conjunto se TRAE: `sheetSet()` sigue respondiendo sólo por lo que está
+en la mano y lo que no lo está se pide —«Trayendo…» al instante, el veredicto
+cuando llega—, que es el reparto que la Ola 2 estrenó con `XATTACH`. Medido
+después, sobre lo que recibe el servidor y sobre el archivo (golden 89):
+`SHEETSET Índice` lista las hojas que vinieron del servidor; `Renumerar` deja
+`sh-1:A-101, sh-2:A-102` en el cuerpo del PUT **con su `expectedVersion`**; y
+`PUBLISH` entrega un PDF de **3 páginas** —portada del juego más una por hoja—
+contadas sobre el archivo.
+
+### 2 · Elegir una tabla de plumas impedía trazar la hoja
+
+Peor que «no está». `PAGESETUP Estilos monochrome` sí escribía el nombre en la
+presentación —en los atributos del cajetín, formato que ya existía— y a partir
+de ese momento `PLOT` se negaba:
+
+```
+No se puede trazar: La tabla de plumas «monochrome» no está cargada;
+los grosores saldrían por defecto.
+```
+
+La negativa era correcta: sin la tabla, el plano saldría con los grosores
+equivocados. Lo que faltaba era la tabla. Ahora el estudio publica las tres que
+el producto ya sabía construir —`acad.ctb`, `monochrome.ctb` (ISO 128: 0,13
+ejes · 0,25 general · 0,35 contornos · 0,50 secciones) y `acad.stb`— y
+**`STYLESMANAGER`** carga el `.ctb` del despacho desde un archivo de verdad,
+con el mismo inflador que ya descomprime los flujos de un PDF.
+
+Al medirlo apareció un tercer defecto de la misma familia: la comprobación
+previa de la configuración de página comparaba el nombre **cadena a cadena**, así
+que escribir `Monochrome.CTB` en vez de `monochrome` bastaba para que la hoja
+dejara de trazarse. La regla de nombre —sin distinguir caja ni extensión, como
+el archivo en Windows— vive ahora con el modelo y la comparten los TRES que
+decidían por su cuenta: el trazado, la comprobación previa y el publicador de
+conjuntos.
+
+### 3 · Redefinir un bloque dejaba las referencias desfasadas
+
+`ATTSYNC` no estaba. Un despacho define su cajetín con seis atributos, lo
+inserta en cuarenta láminas, a media obra añade `REVISION` y quita una etiqueta
+que ya no usa… y las cuarenta referencias se quedan como estaban: sin la
+etiqueta nueva y con la vieja dentro, que viaja en el archivo guardado y sale
+en las extracciones de datos. Basura que parece dato.
+
+Medido después, sobre el documento que recibe el servidor (golden 90):
+`PROYECTO` conserva lo escrito, `REVISION` entra con su valor por defecto,
+`OBSOLETO` desaparece, el atributo constante queda con el valor de la
+definición aunque la referencia tuviera otro, y la geometría del rótulo se
+recalcula desde la definición —que es justo la mitad que un `ATTEDIT` no puede
+arreglar—. Correrlo dos veces responde «ya estaban al día» y **no sube la
+versión del documento**.
+
+### La lección, y qué se hizo con ella
+
+La rúbrica daba por buena la fila de publicación porque su criterio pedía que
+los comandos fueran **tecleables**, y lo eran. Un comando que llega al registro
+y no llega a hacer nada no es un comando tecleable: el criterio pasa a exigir
+que cada uno produzca su efecto **en el documento que recibe el servidor o en
+los bytes del archivo entregado**, y lo sostienen los goldens 46 y 89. La
+puntuación no sube por esta ola; el criterio se endurece, que es lo que
+corresponde cuando lo que se descubre es que se estaba midiendo poco.
+
+### Lo que esta ola NO cerró, y por qué
+
+- **El DXF exportado sigue sin llevar presentaciones.** `dxf-export.ts` no
+  tiene ni una aparición de espacio papel: ni bloques `*Paper_Space`, ni objetos
+  `LAYOUT` en la sección OBJECTS, ni entidades `VIEWPORT`. Un despacho que
+  recibe nuestro DXF recibe el modelo sin sus láminas. Es trabajo de una ola
+  entera —el DXF de ida y el de vuelta— y queda medido aquí.
+- **`BEDIT` en sitio y los bloques dinámicos** siguen sin estar, con su motivo
+  de siempre: el editor dentro del lienzo y los parámetros/acciones por pinzas
+  son diseño nuevo, no un cable que falte.
+- Siguen ausentes `BATTMAN`, `ATTDISP`, `MINSERT`, `ATTEXT`, `COUNT`, `XOPEN` y
+  `REFEDIT`.

@@ -53,6 +53,10 @@ import {
   type CadViewControllerLike,
 } from "./navigation-host";
 import { CadPlotHost, downloadCadFile } from "./plot-host";
+import { cadStudioSheetSetBridge, type CadStudioSheetSetPort } from "./sheet-set-host";
+import { createDesignSheetSetPort } from "./sheet-set-design-port";
+import { CadPlotStyleCatalog } from "@/lib/cad/plot/plot-style-catalog";
+import type { CadPlotStyleTable } from "@/lib/cad/plot/plot-style-table";
 import { handleCadDxfHostRequest } from "./dxf-host";
 import { handleCadEtransmitHostRequest } from "./etransmit-host";
 import { handleCadDataExtractionHostRequest } from "./data-extraction-host";
@@ -254,36 +258,67 @@ export function useCadStudioPlotHost(
   > & {
     /** Adónde va el renglón del trazado cuando termina. */
     note?: (text: string, level: "info" | "error") => void;
+    /**
+     * La red de los conjuntos de planos. Se inyecta para poder montar este
+     * anfitrión en una prueba sin tocar la API; en el estudio real es
+     * `createDesignSheetSetPort()`.
+     */
+    sheetSetPort?: CadStudioSheetSetPort;
+    /**
+     * Tablas de plumas de la SESIÓN: las tres de fábrica más el `.ctb` del
+     * despacho que `STYLESMANAGER Cargar` haya traído. Sin ellas, elegir una
+     * tabla con `PAGESETUP Estilos` dejaba la hoja sin poder trazarse.
+     */
+    plotStyles?: { tables(): ReadonlyMap<string, CadPlotStyleTable> };
   },
 ): CadPlotHost {
   const live = useRef(options);
   live.current = options;
-  return useMemo(
-    () =>
-      new CadPlotHost({
-        document: () => live.current.document.current,
-        download: downloadCadFile,
-        onResult: (text, level) => live.current.note?.(text, level),
-        setVisualStyle: (styleId) => live.current.visualStyle?.(styleId) ?? null,
-        // Los puentes de espacio y de configuración de página sólo existen si
-        // el editor los aporta: pasarlos como funciones que devuelven «no» los
-        // convertiría en éxitos falsos otra vez, que es lo que se acaba de
-        // arreglar. `undefined` deja que el anfitrión de trazado diga la verdad.
-        ...(options.setSpace
-          ? {
-              setSpace: (space: "model" | "paper", layoutId?: string) =>
-                live.current.setSpace?.(space, layoutId) ?? false,
-            }
-          : {}),
-        ...(options.openPageSetup
-          ? {
-              openPageSetup: (layoutId: string) =>
-                live.current.openPageSetup?.(layoutId),
-            }
-          : {}),
-      }),
-    [],
-  );
+  return useMemo(() => {
+    // El renglón de resultado se nombra UNA vez: lo comparten el anfitrión de
+    // trazado y el puente de conjuntos, y así la ref viva se lee en un solo
+    // sitio en vez de en dos.
+    const note = (text: string, level: "info" | "error") =>
+      live.current.note?.(text, level);
+    // El conjunto de planos, por fin enchufado (`P1-8`): hasta ahora nadie
+    // aportaba `sheetSet()`, así que PUBLISH y SHEETSET respondían siempre «el
+    // conjunto no está cargado en este estudio». El puente vive en
+    // `sheet-set-host.ts` porque el monolito sólo puede encoger; aquí se ata una
+    // sola vez, para que su caché sobreviva a los renders.
+    const sheetSets = cadStudioSheetSetBridge(
+      options.sheetSetPort ?? createDesignSheetSetPort(),
+    );
+    // Las tablas de plumas de la sesión. Sin este puente, `PAGESETUP Estilos
+    // monochrome` dejaba escrita en la hoja una tabla que PLOT no podía
+    // encontrar, y trazar esa hoja pasaba a ser imposible.
+    const plotStyles = options.plotStyles ?? new CadPlotStyleCatalog();
+    return new CadPlotHost({
+      document: () => live.current.document.current,
+      download: downloadCadFile,
+      onResult: note,
+      plotStyleTables: () => plotStyles.tables(),
+      sheetSet: (sheetSetId) => sheetSets.sheetSet(sheetSetId),
+      loadSheetSet: (sheetSetId) => sheetSets.loadSheetSet(sheetSetId, note),
+      saveSheetSet: (set) => sheetSets.saveSheetSet(set, note),
+      setVisualStyle: (styleId) => live.current.visualStyle?.(styleId) ?? null,
+      // Los puentes de espacio y de configuración de página sólo existen si
+      // el editor los aporta: pasarlos como funciones que devuelven «no» los
+      // convertiría en éxitos falsos otra vez, que es lo que se acaba de
+      // arreglar. `undefined` deja que el anfitrión de trazado diga la verdad.
+      ...(options.setSpace
+        ? {
+            setSpace: (space: "model" | "paper", layoutId?: string) =>
+              live.current.setSpace?.(space, layoutId) ?? false,
+          }
+        : {}),
+      ...(options.openPageSetup
+        ? {
+            openPageSetup: (layoutId: string) =>
+              live.current.openPageSetup?.(layoutId),
+          }
+        : {}),
+    });
+  }, []);
 }
 
 export function useCadStudioCommandEngine(
@@ -321,6 +356,9 @@ export function useCadStudioCommandEngine(
   const plot = useCadStudioPlotHost({
     document: options.document,
     note: (text, level) => engineRef.current?.note(text, level),
+    // Las tablas de plumas son de la SESIÓN, como los tipos de línea cargados:
+    // el mismo plano se traza con la tabla del cliente A o la del B.
+    plotStyles: session.plotStyles,
     visualStyle: options.visualStyle,
     ...(options.setSpace ? { setSpace: options.setSpace } : {}),
     ...(options.openPageSetup ? { openPageSetup: options.openPageSetup } : {}),

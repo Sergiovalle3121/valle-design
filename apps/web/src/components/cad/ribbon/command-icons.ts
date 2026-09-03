@@ -150,6 +150,7 @@ import {
   Ratio,
   RectangleHorizontal,
   Redo2,
+  RefreshCcw,
   Repeat,
   Repeat2,
   Rotate3d,
@@ -283,6 +284,8 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   WBLOCK: FolderOpen,
   ATTDEF: Tag,
   ATTEDIT: Tags,
+  // Sincronizar no es editar: el dibujo del ciclo lo dice antes que el rótulo.
+  ATTSYNC: RefreshCcw,
   BURST: Sparkles,
   BASE: Anchor,
   ADCENTER: FolderOpen,
@@ -394,6 +397,8 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   TABLEDIT: TableProperties,
   TABLESTYLE: TableCellsMerge,
   STYLE: Baseline,
+  // Las plumas del trazado: el dibujo de la pluma, no el del papel.
+  STYLESMANAGER: PenTool,
   DIMLINEAR: Ruler,
   DIMALIGNED: PencilRuler,
   DIMANGULAR: Triangle,

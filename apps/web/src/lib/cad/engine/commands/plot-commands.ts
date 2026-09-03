@@ -413,7 +413,77 @@ const plotCommand: CadCommandDescriptor<PlotState> = {
   },
 };
 
+// ---------------------------------------------------------------------------
+// STYLESMANAGER
+// ---------------------------------------------------------------------------
+
+const STYLES_LOAD = { keyword: "Cargar", shortcut: "C" } as const;
+const STYLES_LIST = { keyword: "Listar", shortcut: "L" } as const;
+
+/**
+ * STYLESMANAGER: qué tablas de plumas hay, y traer la del despacho.
+ *
+ * `PAGESETUP Estilos` deja el NOMBRE de una tabla escrito en la presentación, y
+ * PLOT se niega —con razón— si esa tabla no está cargada: sin ella el plano
+ * saldría con los grosores equivocados. Hasta ahora no había forma de cargar
+ * ninguna, así que la única salida era no usar tablas. Con las tres de fábrica
+ * ya publicadas, lo que faltaba es el `.ctb` del despacho.
+ *
+ * Leer un archivo es del navegador, así que `Cargar` termina en una petición de
+ * interfaz —el mismo reparto que `LINETYPE Cargar` y `DXFIN`— y `Listar`
+ * responde con lo que la sesión tiene en la mano.
+ */
+const stylesManagerCommand: CadCommandDescriptor<never> = {
+  name: "STYLESMANAGER",
+  aliases: [],
+  kind: "manage",
+  transparent: false,
+  selection: "none",
+  repeatable: false,
+  // No toca el dibujo: una tabla de plumas es un archivo del despacho, no del
+  // plano. El plano sólo guarda su nombre, y eso lo escribe PAGESETUP.
+  mutates: false,
+  cursor: "none",
+  begin: () => ({
+    state: undefined as never,
+    prompt: {
+      message: "Tablas de plumas: ¿cargar una o listar las cargadas?",
+      options: [STYLES_LOAD, STYLES_LIST],
+      defaultOption: STYLES_LIST.keyword,
+    },
+    accepts: CAD_ACCEPT_KEYWORD,
+  }),
+  step: (state, input, context) => {
+    if (input.kind === "cancel") return say("STYLESMANAGER cancelado.");
+    const keyword =
+      input.kind === "keyword" ? input.keyword : STYLES_LIST.keyword;
+    if (keyword === STYLES_LOAD.keyword)
+      return {
+        state,
+        prompt: { message: "", options: [] },
+        accepts: 0,
+        result: {
+          kind: "ui",
+          request: {
+            target: "plot-style-file",
+            unavailable:
+              "No hay de dónde cargar un .ctb en este espacio de trabajo; las tablas de " +
+              "fábrica siguen disponibles con la opción Listar.",
+          },
+          text: "Elija el archivo .ctb o .stb que cargar.",
+        },
+      };
+    const cargadas = context.catalogs?.plotStyles?.list() ?? [];
+    return say(
+      cargadas.length === 0
+        ? "No hay ninguna tabla de plumas cargada."
+        : `Tablas de plumas cargadas: ${cargadas.join(", ")}. Se elige con PAGESETUP Estilos.`,
+    );
+  },
+};
+
 export const CAD_PLOT_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(pageSetupCommand),
   asCadCommand(plotCommand),
+  asCadCommand(stylesManagerCommand),
 ];

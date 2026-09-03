@@ -90,6 +90,39 @@ export const CAD_DEFAULT_LINEWEIGHTS: readonly number[] = [
   0.7, 0.8, 0.9, 1.0, 1.06, 1.2, 1.4, 1.58, 2.0, 2.11,
 ];
 
+/**
+ * `Monochrome.CTB`, `monochrome.ctb` y `monochrome` son LA MISMA tabla.
+ *
+ * El nombre lo teclea una persona en `PAGESETUP Estilos` y el archivo viene de
+ * Windows, donde la caja no distingue. Comparar cadena a cadena convertía una
+ * mayúscula en «la tabla no está cargada» — un fallo inventado por el programa
+ * y no por el dibujo. Vive aquí, con el modelo, porque lo usan los DOS que
+ * deciden si una tabla está: la comprobación previa de la configuración de
+ * página y el propio trazado.
+ */
+export function cadPlotStyleTableNameMatches(a: string, b: string): boolean {
+  const bare = (name: string) => name.trim().toLowerCase().replace(/\.(ctb|stb)$/, "");
+  return a.trim() === b.trim() || bare(a) === bare(b);
+}
+
+/**
+ * La tabla que pide un nombre, o `null`.
+ *
+ * Prueba el nombre EXACTO primero: `acad.ctb` y `acad.stb` sólo se distinguen
+ * por la extensión, así que escribirla tiene que decidir en vez de dejarlo al
+ * orden del catálogo.
+ */
+export function cadFindPlotStyleTable(
+  tables: ReadonlyMap<string, CadPlotStyleTable>,
+  name: string,
+): CadPlotStyleTable | null {
+  const exacto = tables.get(name);
+  if (exacto) return exacto;
+  for (const [clave, tabla] of tables)
+    if (cadPlotStyleTableNameMatches(clave, name)) return tabla;
+  return null;
+}
+
 export function createCadPlotStyle(overrides: Partial<CadPlotStyle> = {}): CadPlotStyle {
   return {
     name: "Normal",
