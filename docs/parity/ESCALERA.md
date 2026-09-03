@@ -395,6 +395,25 @@ propia— y lo que falta para el cuarto está abajo, con su motivo.
 | Plano de gabinete atado al esquema | 0 | ninguna | La huella del componente en el tablero y su vínculo con el símbolo. **Todavía no.** |
 | Catálogo de fabricante | 0 | ninguna | Sin él, el cuadro de cargas no puede traer precios ni claves. **Todavía no.** |
 
+## La planta de proceso (Ola 6, 2026-09-03)
+
+Plant 3D estaba marcado **fuera de alcance**. El titular retiró la marca. La
+fila de la rúbrica pasa de 0/4 a **2/4**: se otorga el criterio de P&ID y no el
+de tubería 3D e isométricos, que no existe.
+
+| Capacidad | Peldaño | Evidencia | Qué falta para el siguiente |
+| --- | --- | --- | --- |
+| El número de línea `6"-P-1001-CS150`, leído como lo escribe un proyectista | 5 | `plant/line-numbers.spec.ts` (29): comilla tipográfica, minúsculas, espacios y fracciones como `1-1/2"`; y las formas que NO son un número de línea | Nada de peldaño. El correlativo sale del dibujo y arranca en 1001, que es la convención: los de tres cifras se confunden con los de equipo. |
+| Las cuatro comprobaciones que no piden el catálogo de nadie | 5 | `plant/line-numbers.spec.ts` y `plant-line.spec.ts` (28): número repetido, un servicio con dos especificaciones, diámetro no comercial y número ilegible contado con lo que se escribió | **No** se comprueba contra la especificación del proyecto, y el renglón lo dice: ése lo aprueba la ingeniería. Traer una especificación ajena sería un problema de derechos y un estorbo. |
+| El METRADO de cada línea, medido sobre el plano | 5 | `plant-line.spec.ts`: `6"-P-1001-CS150 (12.0 m)` sobre una polilínea de 12.000 unidades en un dibujo en milímetros | Es lo que un P&ID de AutoCAD no puede dar: no está a escala. Aquí la línea sí lo está. |
+| Catálogo de SEIS equipos dibujados desde primitivas | 5 | `plant-equipment.spec.ts` (34): los seis con geometría de verdad, no un rectángulo con nombre | Seis, y se dice el número en vez de prometer «todos». Añadir uno es añadir una entrada. Ninguna biblioteca ajena copiada, trazada ni adaptada. |
+| El equipo nace CON su etiqueta, en un paso de deshacer | 5 | `plant-equipment.spec.ts`: `PIDEQUIP B` deja `P-101` en los ATRIBUTOS, la capa dada de alta sola y el bloque definido | Nadie coloca una bomba para dejarla sin nombre. El correlativo arranca en 101 y cada prefijo lleva el suyo. |
+| El prefijo de etiqueta lo decide el PROYECTO | 5 | `plant-equipment.spec.ts`: se admite `BA` y se rechaza `BOMBAS` con motivo | La nomenclatura la fija la ingeniería; el programa no está para discutirla, sólo para que sea legible. |
+| Ruteo de tubería 3D por especificación | 0 | ninguna | La línea está en 2D con su número, servicio y especificación. **Todavía no.** |
+| Isométricos | 0 | ninguna | Sin ruteo 3D no hay de dónde sacarlos. **Todavía no.** |
+| Catálogo de fabricante con claves y precios | 0 | ninguna | El metrado sale; la requisición valorada no. **Todavía no.** |
+| Instrumento de panel y de programa | 0 | ninguna | Entra el de campo, que es el que más se dibuja, y está dicho en el módulo. **Todavía no.** |
+
 ## Cómo se usa
 
 - **Al añadir una entrada nueva a `BACKLOG.md`:** decir el peldaño ACTUAL

@@ -798,3 +798,72 @@ El denominador NO cambia: la fila ya existía a cero.
   y su vínculo con el símbolo del esquema.
 - **Catálogo de fabricante**: sin él, el cuadro de cargas no puede traer
   precios ni claves de compra.
+
+## Nota fechada — Ola 6 (2026-09-03): Plant 3D entra en alcance
+
+**La medida de partida, re-hecha hoy.** El informe del 1 de septiembre daba
+**Plant 3D = 0 %**: *«Cero aciertos de `p&id`, `isogen`, `piping`, `pipespec`.
+No hay P&ID, ni especificación, ni catálogo, ni isométricos, ni gestor de
+datos.»* Sondeé catorce nombres de la familia contra `engine/` —PLANTPROJECT,
+PIPESPEC, ISOGEN, PLANTPID, PIDLINE, LINENUMBER, EQUIPMENT, NOZZLE, VALVEADD,
+INSTRUMENT, SPECEDITOR, PLANTDATAMANAGER, ROUTEPIPE, ISOCONFIG— y salieron
+**cero aciertos**. Lo único de tubería era `PIPE`, del paquete MEP.
+
+### Se empieza por la clave, no por los isométricos
+
+En una planta una tubería no se llama «esa de allá»: se llama
+`6"-P-1001-CS150`. Diámetro, servicio, correlativo y especificación en un solo
+nombre, y ese nombre es la clave con la que la línea aparece en el P&ID, en el
+isométrico, en la lista de líneas, en la requisición y en la prueba
+hidrostática. Isométricos sin números de línea no son un entregable.
+
+### La especificación es del cliente, y por eso no se trae ninguna
+
+AutoCAD Plant 3D vende catálogos. Aquí no se transcribe ninguno: cada ingeniería
+tiene el suyo y el ajeno además tiene dueño. Lo que se comprueba es lo
+universal, que no pide el catálogo de nadie —número repetido, un servicio con
+dos especificaciones, diámetro no comercial, número ilegible— y el renglón lo
+declara: *«NO se comprueba contra el catálogo del proyecto: ése lo aprueba la
+ingeniería.»*
+
+### Lo que un P&ID de AutoCAD no puede dar
+
+**El metrado.** Un P&ID no está a escala, así que los metros se miden a mano
+sobre otro plano. Aquí la línea es una polilínea a escala y `PIDLIST` suma el
+recorrido —con sus codos, no la recta entre puntas—:
+
+```
+PIDLIST — 2 línea(s): 6"-P-1001-CS150 (12.0 m) · 4"-P-1002-CS150 (8.0 m).
+          sin hallazgos.
+```
+
+### El catálogo de equipos, dibujado desde cero
+
+Seis símbolos —recipiente, bomba, intercambiador, tanque, compresor e
+instrumento de campo— dibujados aquí con círculos, rectángulos y líneas a partir
+de la forma esquemática que cualquier libro de proceso enseña. **No se copia,
+traza ni adapta la biblioteca de nadie.** Y nacen CON su etiqueta: `PIDEQUIP`
+coloca y numera en un solo paso de deshacer, porque nadie coloca una bomba para
+dejarla sin nombre. El correlativo arranca en 101, que es la convención de
+planta, y el prefijo lo decide el proyecto —se admite cualquiera de una a tres
+letras—.
+
+### La rúbrica sube, y con qué
+
+`toolset-plant3d` deja de decir «(fuera de alcance)» y pasa de **0/4 a 2/4**: se
+otorga el criterio de P&ID —catálogo de equipos etiquetados y líneas numeradas,
+todo derivado del dibujo— y NO el de tubería 3D por especificación e
+isométricos, que no existe. El denominador no cambia: la fila ya estaba.
+
+**DESTINO pasa de 228/271 (84,1 %) a 230/271 (84,9 %).** HOY sigue en 175/197
+(88,8 %).
+
+### Lo que esta ola NO cerró
+
+- **Ruteo de tubería 3D por especificación**: la línea está en 2D con su número,
+  servicio y especificación. El 3D con accesorios y por especificación no está.
+- **Isométricos**: sin ruteo 3D no hay de dónde sacarlos.
+- **Un catálogo de fabricante con claves de compra y precios**: el metrado sale,
+  la requisición valorada no.
+- **Instrumentación completa**: entra el instrumento de campo, que es el que más
+  se dibuja; el de panel y el de programa, no, y está dicho en el módulo.

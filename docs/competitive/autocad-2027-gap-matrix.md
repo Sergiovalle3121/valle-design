@@ -124,7 +124,7 @@ porque el instrumento no tenía ni una fila para el reconocimiento.
 > Editarla a mano es reintroducir el defecto que motivó el script: la prosa
 > manual envejeció dos veces y en las dos direcciones.
 
-**Puntuación (rúbrica 2026-09-03.1).** **Alcance de HOY: 175/197 (88.8 %)** — el flujo diario de dibujo 2D técnico, la cifra que se enseña a un cliente. **Alcance de DESTINO: 228/271 (84.1 %)** — AutoCAD completo con sus verticales, la cifra que mide el camino; lo excluido de hoy es «todavía no», nunca «nunca». 5 pt provienen de evidencia INDEPENDIENTE y 223 pt sólo de evidencia propia; 27 fila(s) retienen 1 pt hasta tener evidencia independiente. 0 de 36 filas están en su tope. Una fila sólo llega a su tope cuando TODOS sus criterios verifican, incluidos los que nombran gaps documentados; un gap conocido se declara como criterio que falla, no como nota al pie.
+**Puntuación (rúbrica 2026-09-03.1).** **Alcance de HOY: 175/197 (88.8 %)** — el flujo diario de dibujo 2D técnico, la cifra que se enseña a un cliente. **Alcance de DESTINO: 230/271 (84.9 %)** — AutoCAD completo con sus verticales, la cifra que mide el camino; lo excluido de hoy es «todavía no», nunca «nunca». 5 pt provienen de evidencia INDEPENDIENTE y 225 pt sólo de evidencia propia; 27 fila(s) retienen 1 pt hasta tener evidencia independiente. 0 de 36 filas están en su tope. Una fila sólo llega a su tope cuando TODOS sus criterios verifican, incluidos los que nombran gaps documentados; un gap conocido se declara como criterio que falla, no como nota al pie.
 
 ### Núcleo del plano entregable — 105/118
 
@@ -185,7 +185,7 @@ porque el instrumento no tenía ni una fila para el reconocimiento.
 | --- | ---: | --- | --- | --- |
 | Reconocimiento en pantalla | 13/14 | Parcial | TEXT, la etiqueta de la cota, el texto de la directriz y las celdas de la tabla se dibujan en el espacio modelo (atlas de texto: ≥56 glifos rasterizados en el golden); La cinta abre en Inicio con Dibujo · Modificar · Anotación · Capas · Bloque · Propiedades, LINE es el primer botón y existe la pestaña Paramétrico; Teclear con el lienzo enfocado escribe en la línea de comandos sin pulsarla, Intro devuelve el foco y Espacio vale por Intro; Ninguna letra suelta del lienzo roba un alias de una letra de acad.pgp (M, E, O, P, Z, A, B, F, G, V, W, S, X): la letra suelta es de la línea de comandos; Arrastrar sobre el fondo designa por ventana (izq→der) o cruce (der→izq), el botón central encuadra y dos dedos siguen encuadrando; Ningún panel tapa el área de dibujo ni un control: cada punto de una rejilla del lienzo responde <canvas> y cada control recibe su clic; Un eje en capa CENTER se ve, se imprime y se exporta con su forma completa (trazo largo · hueco · trazo corto · hueco): la ranura llega al lote, el PDF lleva el operador d con esos milímetros y el DXF escribe el patrón de fábrica | Nada pendiente: todos los criterios declarados verifican |
 
-### Los siete toolsets de AutoCAD — 17/28
+### Los siete toolsets de AutoCAD — 19/28
 
 | Categoría | Puntos | Estado | Qué verifica hoy | Qué falta exactamente |
 | --- | ---: | --- | --- | --- |
@@ -195,7 +195,7 @@ porque el instrumento no tenía ni una fila para el reconocimiento.
 | Toolset Raster Design (mitad útil) | 2/4 | Parcial | Insertar, recortar por polígono y ajustar (brillo/contraste/transparencia) un plano escaneado | Vectorizar líneas y textos de un escaneo a entidades (2 pt) |
 | Toolset Mechanical | 3/4 | Parcial | Biblioteca de tornillería y perfiles normalizados insertables; Cotas de fabricación con tolerancias y símbolos de acabado | Nada pendiente: todos los criterios declarados verifican |
 | Toolset Electrical | 3/4 | Parcial | Esquemas eléctricos: símbolos normalizados, numeración de conductores y etiquetado de componentes, todo derivado del dibujo; Informes: listado de conductores, cuadro de cargas en el dibujo y revisión contra la NOM | Nada pendiente: todos los criterios declarados verifican |
-| Toolset Plant 3D | 0/4 | Ausente | Nada verificado | Diagramas P&ID con catálogo de equipos y líneas (2 pt); Tubería 3D por especificación e isométricos (2 pt) |
+| Toolset Plant 3D | 2/4 | Parcial | Diagramas P&ID: catálogo de equipos etiquetados y líneas numeradas, todo derivado del dibujo | Tubería 3D por especificación e isométricos (2 pt) |
 
 ### Prioridad: los diez puntos más baratos por valor comercial
 
@@ -212,8 +212,8 @@ declarados. Reproducible con `node scripts/cad/rubric.mjs --priorities`.
 | 6 | 1 | 20 | Import/export DWG | Integración en runtime con gates legal, de seguridad y de fidelidad superados |
 | 7 | 2 | 60 | Automatización: AutoLISP y plugins JS | Puente .NET/VBA para rutinas heredadas de despacho |
 | 8 | 1 | 30 | Kernel Rust/WASM | Kernel WASM con paridad numérica verde Y enchufado: alguien fuera de lib/cad/wasm lo importa (regla 6) |
-| 9 | 2 | ? | Toolset Plant 3D | Diagramas P&ID con catálogo de equipos y líneas |
-| 10 | 2 | ? | Toolset Plant 3D | Tubería 3D por especificación e isométricos |
+| 9 | 2 | ? | Toolset Plant 3D | Tubería 3D por especificación e isométricos |
+| 10 | 2 | ? | Toolset Raster Design (mitad útil) | Vectorizar líneas y textos de un escaneo a entidades |
 
 <!-- rubric:end -->
 

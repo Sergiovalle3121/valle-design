@@ -164,6 +164,8 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   AETAGLIST: "Dice qué componentes no llevan etiqueta y qué etiquetas se repiten. No escribe nada.",
   PIDLINE: "Línea de proceso con su número: diámetro, servicio, correlativo del dibujo y especificación.",
   PIDLIST: "Lista de líneas con su metrado del plano, y los errores que no piden catálogo. No escribe.",
+  PIDEQUIP: "Equipo de proceso colocado Y etiquetado en un acto: el correlativo lo pone el dibujo.",
+  PIDEQUIPLIST: "Lista los equipos, las etiquetas repetidas y los que no llevan. No escribe nada.",
   GEOGRAPHICLOCATION: "Georreferencia el dibujo: un punto y su Este/Norte UTM o su latitud y longitud, con zona y datum.",
   MAPIMPORT: "Importa un shapefile o GeoJSON al dibujo como entidades con atributos, en el sistema del dibujo.",
   IMAGEATTACH: "Adjunta un plano escaneado (PNG, JPEG…) dentro del dibujo: inserción, ancho y giro.",

@@ -2,7 +2,7 @@
   "$schema": "urn:valle-design:schema:ui-command-reach:v1",
   "schemaVersion": 1,
   "generatedBy": "scripts/cad/ui-command-reach.mjs --write",
-  "registryTotal": 257,
+  "registryTotal": 259,
   "antes": {
     "alcanzablesConRaton": 17,
     "porcentaje": 6.6,
@@ -10,7 +10,7 @@
     "fuente": "apps/web/src/lib/cad/toolbar.ts (CAD_TOOLBAR_ACTIONS), antes de la campaña de la cinta: una paleta vertical fija de 17 botones en inglés, escrita a mano y desconectada del registro de comandos. Dos de los 17 (\"Corridor\", \"Area\") eran vocabulario del planificador industrial del que nació el producto (ver IDENTITY.md)."
   },
   "despues": {
-    "alcanzablesConRaton": 257,
+    "alcanzablesConRaton": 259,
     "porcentaje": 100,
     "noExpuestosConRazon": 0,
     "fuente": "apps/web/src/lib/cad/ribbon.ts (CAD_RIBBON_DATA), generado de CAD_COMMAND_DESCRIPTORS: cada comando del registro real tiene un botón de cinta (components/cad/ribbon/CadRibbon.tsx) que lo despacha por el mismo camino que teclearlo — commandEngineRef.current.invoke(nombre). Verificado por scripts/cad/check-ribbon-coverage.mjs y apps/web/src/lib/cad/ribbon.spec.ts."
