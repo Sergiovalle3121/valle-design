@@ -135,18 +135,51 @@ test('arrastrar sobre el fondo designa por ventana o cruce; el botón central y 
   await expect(selection(page)).toContainText('1 sel');
 
   // ---- d. DOS DEDOS siguen encuadrando y un TOQUE en el fondo limpia sin mover
-  await fitFootprint(page);
-  const cdp = await touchSession(page);
-  const beforeTouch = await hudAtCenter(page);
-  await touchTwoFingerPan(cdp, beforeTouch.center, { x: 120, y: 0 });
-  const afterTouch = await hudAtCenter(page);
-  expect(Math.abs(afterTouch.x - beforeTouch.x), 'dos dedos arrastran la vista: un dedo nunca abre ventana').toBeGreaterThan(60);
-  await fitFootprint(page);
-  const beforeTap = await hudAtCenter(page);
-  await touchTap(cdp, { x: beforeTap.center.x + 40, y: beforeTap.center.y + 40 });
-  await expect(selection(page)).toContainText('0 sel');
-  const afterTap = await hudAtCenter(page);
-  expect(afterTap.x).toBeCloseTo(beforeTap.x, 0);
+  //
+  // El único apartado que NO se puede ejercitar en los dos navegadores, y se
+  // dice aquí en vez de perder el golden entero. Dos contactos simultáneos
+  // sólo entran por `Input.dispatchTouchEvent`, que es del protocolo de
+  // Chromium: en Firefox `newCDPSession` lanza «CDP session is only available
+  // in Chromium» y se llevaba por delante los otros CINCO apartados —todos de
+  // ratón— que Firefox sí sabe correr. Medido en `main` @11fc202, fragmento
+  // 4/4: era el único rojo de Firefox de ese fragmento (110 pasadas, 1 fallo).
+  //
+  // Ningún umbral baja y nada se salta en Chromium: los 60 px de encuadre y el
+  // «0 sel» del toque son los mismos de siempre. En Firefox el apartado queda
+  // DECLARADO no aplicable —con su motivo, visible en el informe de
+  // Playwright—, que es el mismo trato que el golden 56 de la tableta ya le da
+  // a los contactos múltiples. Cuando Playwright abra una puerta multitáctil
+  // en Firefox, este `if` se cae y el apartado corre en los dos.
+  if (test.info().project.name === 'chromium') {
+    await fitFootprint(page);
+    const cdp = await touchSession(page);
+    const beforeTouch = await hudAtCenter(page);
+    await touchTwoFingerPan(cdp, beforeTouch.center, { x: 120, y: 0 });
+    const afterTouch = await hudAtCenter(page);
+    expect(Math.abs(afterTouch.x - beforeTouch.x), 'dos dedos arrastran la vista: un dedo nunca abre ventana').toBeGreaterThan(60);
+    await fitFootprint(page);
+    const beforeTap = await hudAtCenter(page);
+    await touchTap(cdp, { x: beforeTap.center.x + 40, y: beforeTap.center.y + 40 });
+    await expect(selection(page)).toContainText('0 sel');
+    const afterTap = await hudAtCenter(page);
+    expect(afterTap.x).toBeCloseTo(beforeTap.x, 0);
+  } else {
+    test.info().annotations.push({
+      type: 'no aplicable en este navegador',
+      description:
+        'apartado d (dos dedos y toque): los contactos múltiples sólo se pueden ' +
+        'inyectar por el protocolo de Chromium (Input.dispatchTouchEvent). ' +
+        'Los apartados a, b, c, e y f sí se comprueban aquí.',
+    });
+    // El apartado (e) parte de CERO designado, que allí lo dejaba el toque.
+    // Con el ratón se limpia igual: se reencuadra para que el centro del
+    // lienzo vuelva a caer en fondo vacío —la planta mide 8×6 m y las dos
+    // líneas viven entre x=2000 y x=3000— y se pulsa ahí.
+    await fitFootprint(page);
+    const centroLimpio = await hudAtCenter(page);
+    await page.mouse.click(centroLimpio.center.x, centroLimpio.center.y);
+    await expect(selection(page)).toContainText('0 sel');
+  }
 
   // ---- e. La preferencia «pan» devuelve el encuadre con izquierdo, persistida
   await page.getByTitle(/Workspace profesional/).click();

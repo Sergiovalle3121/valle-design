@@ -284,6 +284,23 @@ aquí y en el prompt de la orden.
 | WELDSYMBOL (ISO 2553 / AWS A2.4: nueve tipos, lado, tamaño, longitud, todo alrededor, en obra, cola) y SURFACESYMBOL (ISO 1302: básico, con o sin arranque de material, Ra, dirección de estrías, giro) como geometría con marca | 5 | golden 84 (cinco piezas cada uno con su marca en el servidor); `mechanical.spec.ts` (la disposición del símbolo con la flecha a cada lado, la bandera, la cola; las patas a 60°, la barra, el círculo, el giro) | Símbolos compuestos (dos tipos en el mismo lado), contorno del cordón, intermitencia (paso), símbolos de acabado con Rz/Rmax o valor máximo y mínimo: todavía no. Tampoco son entidades: mismas consecuencias que el globo. |
 | Cajetines ISO/ANSI/DIN/JIS, AMPOWERDIM, referencias cruzadas de piezas, centros de agujero y chaveteros paramétricos, cálculo de tornillería | 0 | — | Fuera de esta ola y dicho: el cajetín es una plantilla de lámina (Frente 1), el resto es contenido paramétrico sobre lo que ya existe. **Todavía no.** |
 
+## El veredicto de Firefox y el instrumento de la distancia (Ola 0, 2026-09-03)
+
+La campaña «Valle Design → mejor que AutoCAD completo» midió antes, sobre
+`main` @11fc202 y leyendo el resumen de Playwright de los cuatro fragmentos de
+la corrida 33689365758: 502 pruebas pasadas entre los dos navegadores, **dos**
+rojos y uno intermitente. Los dos rojos eran de Firefox y ninguno era del
+producto. Y una premisa del encargo quedó corregida por la medida: los goldens
+heredados 10, 19, 46 y 53, que se daban por rojos en Firefox, **pasan** — viven
+en los fragmentos 1 y 2, que salieron sin un solo fallo.
+
+| Capacidad | Peldaño hoy | Evidencia | Qué falta para subir |
+| --- | --- | --- | --- |
+| El barrido de cables sueltos aguanta que un control NAVEGUE (Firefox aborta el `goto` que le cae encima; Chromium se lo traga) | 5 | rebanada 3/4 verde en local con la API real bajo Xvfb: 145 de 582 controles, 141 con efecto, 0 sin efecto, 2 no localizables — las mismas cifras que CI | Nada de peldaño. La espera es de la PRUEBA, no del producto: que un control navegue sigue siendo legítimo y por eso no se convierte en fallo. |
+| El reparto de dos dedos = encuadre / un dedo = designación | 5 en Chromium · **no aplicable** en Firefox | golden 72 apartado (d); el motivo viaja en `test.info().annotations` y se ve en el informe | Playwright sólo puede inyectar contactos múltiples por `Input.dispatchTouchEvent`, que es del protocolo de Chromium. No es una carencia del producto ni de Firefox: es una puerta que la herramienta no abre. El día que la abra, el `if` se cae. Mismo trato que el golden 56 de la tableta. |
+| Una rama puede verificar Firefox ANTES de fusionar | 5 | `.github/workflows/ci.yml`: `[firefox]` en el mensaje del commit o en el título del PR; en `main` sigue siendo obligatorio y no se puede quitar | Nada de peldaño. Sigue sin correrse por defecto en rama, y el motivo es el de siempre: duplica ~30 min de runner. |
+| La distancia contra AutoCAD completo se mide con un instrumento repetible | 3 | `scripts/cad/distancia-probe.mts` (`npm run probe:distancia`): ejecuta `begin()` contra el registro real, cuenta trazados de sombreado y ranuras de tipo de línea, y mira los cinco reflejos | Peldaño 4 exige un oráculo ajeno: hoy la lista de referencia son nombres del manual público de AutoCAD y quien juzga el porcentaje es una persona. La prueba de los cinco minutos con cinco arquitectos (Ola 11) es esa evidencia independiente. |
+
 ## Cómo se usa
 
 - **Al añadir una entrada nueva a `BACKLOG.md`:** decir el peldaño ACTUAL

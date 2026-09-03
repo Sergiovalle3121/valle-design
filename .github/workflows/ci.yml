@@ -711,15 +711,6 @@ jobs:
       - name: Exportar VALLE_DWG_CORPUS_MIRROR
         run: echo "VALLE_DWG_CORPUS_MIRROR=$GITHUB_WORKSPACE/.dwg-corpus-mirror" >> "$GITHUB_ENV"
 
-      # Los navegadores pesan cientos de megas y no cambian entre corridas: la
-      # clave los ata a la versión de Playwright del lockfile.
-      - name: Restaurar navegadores de Playwright
-        id: browsercache
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ github.ref != 'refs/heads/main' && 'chromium' || 'both' }}
-
       # Cobertura ESCALONADA por navegador, y la escala está elegida a partir
       # de los fallos reales de este repo, no por ahorrar sin más:
       #
@@ -735,16 +726,63 @@ jobs:
       #
       # Firefox DUPLICA el job (~30 min de runner por corrida). Correrlo en
       # cada push de rama es pagar dos veces por la señal que ya da el otro.
+      #
+      # ── La salida de emergencia: `[firefox]` en el mensaje del commit ──
+      #
+      # El escalón de arriba tiene un coste que se cobró entero el 2026-09-02:
+      # `main` quedó ROJO en dos fragmentos por dos defectos que SÓLO Firefox
+      # ve (una sesión CDP que Firefox no tiene, y un `page.goto` que Firefox
+      # aborta cuando le pisa otra navegación), y arreglarlos a ciegas exigía
+      # fusionar para enterarse. Un arreglo que no se puede verificar antes de
+      # fusionar no es un arreglo: es una apuesta.
+      #
+      # Así que la rama puede PEDIR Firefox escribiendo `[firefox]` en el
+      # mensaje del commit de cabecera o en el título del PR. No lo hace por
+      # defecto —el argumento de los ~30 min sigue en pie— y no puede QUITARLO
+      # en `main`, que es donde el veredicto es obligatorio.
+      #
+      # Se miran los DOS sitios porque los dos eventos ven cosas distintas: en
+      # `push` el commit de cabecera es el de la rama; en `pull_request` es el
+      # commit de fusión que GitHub fabrica, cuyo mensaje es «Merge … into …».
+      # El título del PR entra por `env` y no interpolado en el script: es
+      # texto de usuario y no tiene por qué poder escribir en el shell.
       - name: Seleccionar navegadores
         id: browsers
+        env:
+          PR_TITULO: ${{ github.event.pull_request.title }}
         run: |
-          if [ "${{ github.ref }}" != "refs/heads/main" ]; then
-            echo "list=chromium" >> "$GITHUB_OUTPUT"
-            echo "projects=--project=chromium" >> "$GITHUB_OUTPUT"
+          MENSAJE="$(git log -1 --pretty=%B 2>/dev/null || true)
+          $PR_TITULO"
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            AMBOS=1
+            MOTIVO="main: el veredicto de Firefox es obligatorio"
+          elif printf '%s' "$MENSAJE" | grep -qiF '[firefox]'; then
+            AMBOS=1
+            MOTIVO="la rama lo pidió con [firefox] en el mensaje del commit"
           else
+            AMBOS=0
+            MOTIVO="rama sin [firefox]: Chromium da la señal por la mitad de runner"
+          fi
+          if [ "$AMBOS" = "1" ]; then
             echo "list=chromium firefox" >> "$GITHUB_OUTPUT"
             echo "projects=" >> "$GITHUB_OUTPUT"
+            echo "cachekey=both" >> "$GITHUB_OUTPUT"
+          else
+            echo "list=chromium" >> "$GITHUB_OUTPUT"
+            echo "projects=--project=chromium" >> "$GITHUB_OUTPUT"
+            echo "cachekey=chromium" >> "$GITHUB_OUTPUT"
           fi
+          echo "Navegadores: $MOTIVO"
+
+      # Los navegadores pesan cientos de megas y no cambian entre corridas: la
+      # clave los ata a la versión de Playwright del lockfile Y al juego de
+      # navegadores que la selección de arriba acaba de decidir.
+      - name: Restaurar navegadores de Playwright
+        id: browsercache
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: pw-${{ runner.os }}-${{ hashFiles('package-lock.json') }}-${{ steps.browsers.outputs.cachekey }}
 
       - name: Install Playwright browsers
         working-directory: apps/web

@@ -210,8 +210,32 @@ async function huellaDelLienzo(page: Page): Promise<string> {
   }
 }
 
+/**
+ * Vuelve a abrir el estudio LIMPIO para el siguiente control.
+ *
+ * El barrido pulsa todo lo que se ve, y una parte de esa superficie NAVEGA
+ * (volver al panel, abrir la lámina, el enlace de revisión). Cuando la
+ * navegación que un control disparó sigue en vuelo, el `goto` que llega
+ * encima la interrumpe y Firefox lo canta como error —«Navigation to … is
+ * interrupted by another navigation to …», la MISMA URL a los dos lados—
+ * mientras Chromium se lo traga. Medido en `main` @11fc202, rebanada 3/4:
+ * ése es el único rojo de Firefox del fragmento, y el mismo en el reintento.
+ *
+ * Así que se espera a que la carga en curso termine ANTES de pedir la
+ * siguiente, y si aun así chocan se repite UNA vez. Repetir la apertura no
+ * puede tapar un control muerto: lo que el barrido mide se toma DESPUÉS de
+ * esta función, sobre la página ya cargada.
+ */
 async function abrirEstudio(page: Page, documentId: string): Promise<void> {
-  await page.goto(`/studio/${documentId}`);
+  const destino = `/studio/${documentId}`;
+  await page.waitForLoadState("domcontentloaded").catch(() => undefined);
+  try {
+    await page.goto(destino);
+  } catch (error) {
+    if (!/interrupted by another navigation/i.test(String(error))) throw error;
+    await page.waitForLoadState("domcontentloaded").catch(() => undefined);
+    await page.goto(destino);
+  }
   await expect(page.getByTestId("cad-command-line")).toBeVisible({
     timeout: 120_000,
   });

@@ -3162,6 +3162,46 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "VALLE-DESIGN-AUTOCAD-COMPLETO-20260903",
+      "date": "2026-09-03",
+      "initiative": "Campaña «Valle Design → mejor que AutoCAD completo, con sus siete toolsets» (encargo escrito del titular, 2026-09-03). Una entrada por campaña, ampliada ola a ola. · OLA 0 — main verde en los dos navegadores y la distancia re-medida. MEDIDO ANTES sobre main @11fc202 (corrida de CI 33689365758, leyendo el resumen de Playwright de los cuatro fragmentos, no el veredicto agregado): fragmento 1/4 137 pasadas y 0 fallos; 2/4 121 pasadas, 0 fallos y 1 intermitente (chromium, llamada-webrtc-real #4); 3/4 134 pasadas y UN fallo, `real/cables-sueltos` rebanada 3/4 en Firefox con «page.goto: Navigation to …/studio/<id> is interrupted by another navigation to …/studio/<id>» (la MISMA URL a los dos lados, también en el reintento); 4/4 110 pasadas y UN fallo, golden 72 en Firefox con «browserContext.newCDPSession: CDP session is only available in Chromium». Ésos son los DOS únicos rojos: los goldens heredados 10, 19, 46 y 53, que el encargo daba por rojos en Firefox, PASAN — están en los fragmentos 1 y 2, que salieron sin un solo fallo. Queda escrito porque corregir una premisa medida es parte del trabajo. (1) `abrirEstudio` del barrido espera la carga en curso antes de pedir la siguiente y repite UNA vez sólo ante ese error concreto: el barrido pulsa controles que NAVEGAN, y Firefox aborta el `goto` que les cae encima mientras Chromium se lo traga. Lo que el barrido mide se toma después, así que repetir la apertura no puede tapar un control muerto. Medido después en local (Chromium, API real, build de producción bajo Xvfb): rebanada 3/4 verde en 6,6 min con las MISMAS cifras que CI —145 de 582 controles, 141 con efecto, 0 sin efecto, 2 no localizables—. (2) El apartado (d) del golden 72 —dos dedos y un toque— queda DECLARADO no aplicable en Firefox, con su motivo visible en el informe de Playwright (`test.info().annotations`), y los cinco apartados de ratón pasan a comprobarse en los dos navegadores en vez de perderse con él. Es el mismo trato que el golden 56 de la tableta ya daba a los contactos múltiples. Ningún umbral baja: los 60 px de encuadre y el «0 sel» del toque son los de siempre, y en Firefox la selección se limpia con el ratón para que el apartado (e) siga partiendo de cero. Medido después: golden 72 verde en Chromium (1,4 min). (3) `ci.yml` permite PEDIR Firefox desde una rama escribiendo `[firefox]` en el mensaje del commit o en el título del PR, porque el escalón anterior —Firefox sólo en main— obligaba a fusionar para saber si un arreglo de Firefox funcionaba. La clave de caché de navegadores pasa a derivar de esa decisión y el paso de selección se adelanta para poder alimentarla. En `main` sigue siendo obligatorio y no se puede quitar. (4) La distancia se re-mide con instrumento nuevo y repetible, `scripts/cad/distancia-probe.mts` (`npm run probe:distancia`), que ejecuta `begin()` contra el registro real y cuenta lo que el informe del 1 de septiembre contó a mano. Resultado publicado en `docs/competitive/distancia-autocad-completo-20260903.md`: 2D 55→78 %, anotación 30→60 %, capas 45→65 %, bloques 30→42 %, publicación 40→52 %, 3D 20→40 %, 3D→documentación 30→33 %, toolsets 6→29 %, automatización 30→40 %. La rúbrica, con su etiqueta: HOY 175/197 (88,8 %), DESTINO 225/271 (83 %). Sin cambios de producto en esta ola: sólo pruebas, CI, instrumento y documentos.",
+      "branch": "claude/valle-design-autocad-sl4nya-ola-0",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate, encargo escrito «Valle Design → mejor que AutoCAD completo, con sus siete toolsets» (2026-09-03), con su plan de once olas y sus reglas no negociables: medir antes de tocar, fallar cerrado, los trinquetes sólo bajan, y nunca saltar, deshabilitar ni poner en cuarentena una prueba.",
+      "firstPartyInputs": [
+        "El resumen de Playwright de los cuatro fragmentos E2E de la corrida 33689365758 sobre main @11fc202 (trabajos 100448891940, 100448892039, 100448892063 y 100448891886).",
+        "`apps/web/e2e/real/cables-sueltos.spec.ts`, `apps/web/e2e/golden/72-cad-arrastre-designa.spec.ts`, `apps/web/e2e/golden/56-cad-tableta-en-obra.spec.ts` y `apps/web/e2e/fixtures/touch.ts`.",
+        "El registro real de comandos (`CAD_COMMAND_REGISTRY_V2`), `hatch-pattern-table.ts`, `linetype-lin.ts`, `linetype-complex.ts`, `render/text-requests.ts`, `layout/annotative-scale.ts`, `components/cad/command-line/plot-host.ts`, `dwg-interop-flag.ts` y `fonts/hershey-fonts.ts`.",
+        "`docs/competitive/distancia-autocad-completo-20260901.md` y `node scripts/cad/rubric.mjs`."
+      ],
+      "externalSources": [
+        "Nombres de orden del manual público de AutoCAD, usados SÓLO como vocabulario de comparación en `scripts/cad/distancia-probe.mts` (`REFERENCIA`), igual que `alias-table.ts` usa los alias de `acad.pgp`. No se copia ninguna descripción, icono ni implementación.",
+        "Documentación pública de Playwright 1.56 sobre `newCDPSession` (disponible sólo en Chromium) y sobre el error «interrupted by another navigation»."
+      ],
+      "externalImplementationConsulted": "Ninguna.",
+      "derivedAreas": [
+        "apps/web/e2e/real/cables-sueltos.spec.ts (abrirEstudio: espera la navegación en curso y repite una vez)",
+        "apps/web/e2e/golden/72-cad-arrastre-designa.spec.ts (apartado d declarado no aplicable en Firefox, con anotación y motivo)",
+        ".github/workflows/ci.yml (selección de navegadores adelantada, opción `[firefox]` en rama, clave de caché derivada)",
+        "scripts/cad/distancia-probe.mts (nuevo)",
+        "package.json (script `probe:distancia`)",
+        "docs/competitive/distancia-autocad-completo-20260903.md (nuevo)",
+        "docs/parity/ESCALERA.md (sección de la Ola 0)"
+      ],
+      "fixtures": "Ninguno con datos ajenos.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Verificación completa antes del push (check:cad con VALLE_DWG_CORPUS_MIRROR, typecheck, test, lint, build, presupuesto de monolito y de lint, manifiesto de auditoría, rubric.spec, rubric --check, integridad de comandos, alcance por ratón, cobertura de cinta y gobernanza), golden 72 y rebanada 3/4 del barrido corridos en local contra la API real, y el veredicto de CI sobre el SHA exacto con Firefox pedido por `[firefox]`."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
