@@ -119,7 +119,7 @@ function bodiesOf(
   }
   // Sin catálogo de alturas, sólo los sólidos B-rep pueden entrar, y el objeto
   // de planta se cuenta como excluido en vez de desaparecer.
-  return cadFlatshotBodies(entities, context.objectHeight ?? (() => null));
+  return cadFlatshotBodies(entities, context.objectVolume ?? (() => null));
 }
 
 /** «… y 3 objeto(s) sin volumen fuera», o nada cuando no se quedó nadie fuera. */
@@ -127,6 +127,11 @@ function skippedNote(skipped: readonly { reason: string }[]): string {
   if (skipped.length === 0) return "";
   const motivos = [...new Set(skipped.map((entry) => entry.reason))];
   return ` · ${skipped.length} fuera: ${motivos.slice(0, 2).join(" ")}`;
+}
+
+/** «· 2 hueco(s) restado(s)»: los huecos cambian el dibujo y se dicen. */
+function openingsNote(openings: number): string {
+  return openings > 0 ? ` · ${openings} hueco(s) restado(s)` : "";
 }
 
 /** Cota del punto señalado. Con SCU inclinado llega resuelta; en planta es 0. */
@@ -197,7 +202,7 @@ function runFlatshot(
   insertion: CadPoint3,
   context: CadCommandContext,
 ): CadCommandStep<FlatshotState> {
-  const { bodies, skipped } = bodiesOf(context, state.selection);
+  const { bodies, skipped, openings } = bodiesOf(context, state.selection);
   if (bodies.length === 0) return solidMessage(state, NO_SOLIDS);
 
   const visibleLayer: CadFlatshotLayer = { name: state.visibleLayer, color: "#ffffff", linetype: "CONTINUOUS" };
@@ -222,7 +227,7 @@ function runFlatshot(
   if (!result.ok) return solidMessage(state, `FLATSHOT no pudo aplanar: ${result.message}`);
 
   const verb = result.replaced ? "reemplazó" : "creó";
-  const dicho = `FLATSHOT ${verb} ${state.blockName}: ${result.visibleLines} línea(s) vista(s), ${result.hiddenLines} oculta(s)${skippedNote(skipped)}`;
+  const dicho = `FLATSHOT ${verb} ${state.blockName}: ${result.visibleLines} línea(s) vista(s), ${result.hiddenLines} oculta(s)${openingsNote(openings)}${skippedNote(skipped)}`;
   // La etiqueta va al historial de deshacer y NO se imprime: sin `notice`, el
   // aplanado salía sin decir una palabra.
   return solidBatch(state, result.commands, dicho, dicho);
@@ -356,7 +361,7 @@ function runSolprof(
   insertion: CadPoint3,
   context: CadCommandContext,
 ): CadCommandStep<SolprofState> {
-  const { bodies, skipped } = bodiesOf(context, state.selection);
+  const { bodies, skipped, openings } = bodiesOf(context, state.selection);
   if (bodies.length === 0)
     return solidMessage(state, "SOLPROF necesita al menos un objeto con volumen designado.");
   const projection = ucsProjection(context);
@@ -370,7 +375,7 @@ function runSolprof(
     newId: context.newEntityId,
   });
   if (!result.ok) return solidMessage(state, `SOLPROF no pudo perfilar: ${result.message}`);
-  const dicho = `SOLPROF en ${result.layers.join(" y ")}: ${result.visibleLines} vista(s), ${result.hiddenLines} oculta(s)${skippedNote(skipped)}`;
+  const dicho = `SOLPROF en ${result.layers.join(" y ")}: ${result.visibleLines} vista(s), ${result.hiddenLines} oculta(s)${openingsNote(openings)}${skippedNote(skipped)}`;
   return {
     state,
     prompt: { message: "", options: [] },

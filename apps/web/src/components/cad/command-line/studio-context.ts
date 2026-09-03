@@ -10,7 +10,7 @@
  * editor: entra un documento, sale un contexto.
  */
 import type { CadDocument, CadEntity } from "@/lib/cad/cad-document";
-import { cadObjectExtrusionHeight } from "@/components/cad/viewport/asset-catalog";
+import { cadObjectVolume } from "@/components/cad/viewport/asset-catalog";
 import { cadExpandSelectionByGroup } from "@/lib/cad/blocks/cad-groups";
 import type {
   CadCommandContext,
@@ -132,7 +132,7 @@ export function cadStudioCommandContext(
     // arquitectura no tiene ninguno: era el defecto (c) del informe de
     // distancia. El catálogo es el MISMO que el visor usa para extruirlos, así
     // que el alzado sale de lo que se está viendo y no de una tabla paralela.
-    objectHeight: (kind: string) => cadObjectExtrusionHeight(kind),
+    objectVolume: (kind: string) => cadObjectVolume(kind),
     newEntityId: inputs.newEntityId,
   };
 }

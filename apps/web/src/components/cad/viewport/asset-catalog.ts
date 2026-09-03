@@ -416,18 +416,26 @@ export function assetMeta(kind: string): AssetDef {
 }
 
 /**
- * La altura con la que un objeto de planta se levanta en 3D, o `null`.
+ * Qué volumen levanta un objeto de planta en 3D, o `null`.
  *
  * `assetMeta` cae al primer arquetipo cuando el `kind` no está, y para DIBUJAR
  * eso es razonable —algo hay que enseñar—. Para APLANAR no lo es: un objeto de
  * un `kind` desconocido saldría en el alzado con la altura de otra cosa, que es
  * un plano plausible y equivocado. Aquí se responde `null` y quien pregunta lo
  * cuenta como excluido (`flatshot-solids.ts`).
+ *
+ * `opening` marca lo que en un plano es un HUECO. Hoy sólo la puerta: es el
+ * único arquetipo del catálogo que atraviesa un muro. Una ventana sería la
+ * siguiente, y el día que exista bastará con marcarla aquí.
  */
-export function cadObjectExtrusionHeight(kind: string): number | null {
+export function cadObjectVolume(
+  kind: string,
+): { height: number; opening?: boolean } | null {
   const definition = BY_KIND.get(kind);
-  if (!definition) return null;
-  return definition.height > 0 ? definition.height : null;
+  if (!definition || !(definition.height > 0)) return null;
+  return definition.archetype === "door"
+    ? { height: definition.height, opening: true }
+    : { height: definition.height };
 }
 
 /** Catalog grouped by category, preserving declaration order — for palettes. */

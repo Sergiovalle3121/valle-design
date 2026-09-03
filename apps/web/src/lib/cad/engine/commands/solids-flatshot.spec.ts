@@ -102,7 +102,7 @@ function makeContext(
     selection?: readonly string[];
     ucs?: Record<string, number>;
     /** El catálogo de alturas del anfitrión. Sin él, sólo entran los B-rep. */
-    objectHeight?: (kind: string) => number | null;
+    objectVolume?: (kind: string) => { height: number; opening?: boolean } | null;
   } = {},
 ): CadCommandContext {
   return {
@@ -114,7 +114,7 @@ function makeContext(
     view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
     variables: createCadVariableAccess(options.ucs ?? {}),
     newEntityId: () => `f${++idCounter}`,
-    ...(options.objectHeight ? { objectHeight: options.objectHeight } : {}),
+    ...(options.objectVolume ? { objectVolume: options.objectVolume } : {}),
   };
 }
 
@@ -125,7 +125,7 @@ function run(
   options: {
     selection?: readonly string[];
     ucs?: Record<string, number>;
-    objectHeight?: (kind: string) => number | null;
+    objectVolume?: (kind: string) => { height: number; opening?: boolean } | null;
   } = {},
 ): CadCommandResult | undefined {
   const descriptor = CAD_COMMAND_REGISTRY_V2.get(name);
@@ -146,7 +146,7 @@ function apply(
   options: {
     selection?: readonly string[];
     ucs?: Record<string, number>;
-    objectHeight?: (kind: string) => number | null;
+    objectVolume?: (kind: string) => { height: number; opening?: boolean } | null;
   } = {},
 ): CadDocument {
   const result = run(name, inputs, document, options);
@@ -487,7 +487,8 @@ function boundsOf(lines: readonly CadEntity[]) {
       id, type: "box", kind: "wall", x, y: 0, w: 2_000, h: 150,
       rotation: 0, layer: LAYER, shape: "rect",
     }) as unknown as CadEntity;
-  const alturas = (kind: string) => (kind === "wall" ? 3_000 : null);
+  const alturas = (kind: string) =>
+    kind === "wall" ? { height: 3_000 } : kind === "door" ? { height: 2_200, opening: true } : null;
   const planta = documentWith([muroDePlanta("muro-a", 0), muroDePlanta("muro-b", 4_000)]);
 
   // Sin catálogo de alturas el anfitrión no puede levantar volumen, y la orden
@@ -500,7 +501,7 @@ function boundsOf(lines: readonly CadEntity[]) {
   // Con él, el alzado sale.
   const resultado = run("FLATSHOT", [point(0, 0)], planta, {
     ucs: ELEVATION_UCS,
-    objectHeight: alturas,
+    objectVolume: alturas,
   });
   assert.ok(resultado && resultado.kind === "document", "con catálogo, FLATSHOT escribe");
   ok(/línea\(s\) vista\(s\)/.test(resultado.label), `y cuenta sus líneas: ${resultado.label}`);
@@ -510,6 +511,21 @@ function boundsOf(lines: readonly CadEntity[]) {
   ok(resultado.notice === resultado.label, "el recuento se dice, no sólo se etiqueta");
   checks += 3;
 
+  // Una PUERTA es un hueco: se resta del muro y se cuenta. Antes, con el mismo
+  // catálogo, habría salido un bloque de 2,20 m plantado encima del muro.
+  const conPuerta = documentWith([
+    muroDePlanta("muro-a", 0),
+    { id: "puerta", type: "box", kind: "door", x: 800, y: -100, w: 900, h: 350, rotation: 0, layer: LAYER, shape: "rect" } as unknown as CadEntity,
+  ]);
+  const conHueco = run("FLATSHOT", [point(0, 0)], conPuerta, {
+    ucs: ELEVATION_UCS,
+    objectVolume: alturas,
+  });
+  assert.ok(conHueco && conHueco.kind === "document");
+  ok(/1 hueco\(s\) restado\(s\)/.test(conHueco.label), `el hueco se cuenta: ${conHueco.label}`);
+  ok(!/fuera/.test(conHueco.label), "y la puerta NO se cuenta como excluida: se restó");
+  checks += 2;
+
   // Un objeto sin altura declarada NO desaparece en silencio: se cuenta.
   const mixta = documentWith([
     muroDePlanta("muro-a", 0),
@@ -517,7 +533,7 @@ function boundsOf(lines: readonly CadEntity[]) {
   ]);
   const conFuera = run("FLATSHOT", [point(0, 0)], mixta, {
     ucs: ELEVATION_UCS,
-    objectHeight: alturas,
+    objectVolume: alturas,
   });
   assert.ok(conFuera && conFuera.kind === "document");
   ok(/1 fuera/.test(conFuera.label), `lo excluido se cuenta: ${conFuera.label}`);

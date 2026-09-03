@@ -41,7 +41,14 @@ const muro = (extra: Partial<Extract<CadEntity, { type: "box" }>> = {}): CadEnti
     ...extra,
   }) as CadEntity;
 
-const alturas = (kind: string) => (kind === "wall" ? 3_000 : kind === "column" ? 3_200 : null);
+const alturas = (kind: string) =>
+  kind === "wall"
+    ? { height: 3_000 }
+    : kind === "column"
+      ? { height: 3_200 }
+      : kind === "door"
+        ? { height: 2_200, opening: true }
+        : null;
 
 // --- 1 · un muro levanta un prisma -----------------------------------------
 {
@@ -115,5 +122,48 @@ const alturas = (kind: string) => (kind === "wall" ? 3_000 : kind === "column" ?
 // --- 6 · una altura no positiva no inventa un volumen ----------------------
 eq(cadFlatshotPrism(muro() as never, 0), null, "altura cero no produce cuerpo");
 eq(cadFlatshotPrism(muro() as never, -100), null, "y una negativa tampoco");
+
+// --- 7 · un HUECO se resta del muro, no se dibuja encima -------------------
+{
+  // Muro de 6 m con una puerta de 1 m atravesándolo por el centro. La puerta es
+  // MÁS GRUESA que el muro a propósito: así corta de lado a lado, que es lo que
+  // hace una puerta de verdad.
+  const entidades: CadEntity[] = [
+    muro({ id: "muro", w: 6_000, h: 150 }),
+    muro({ id: "puerta", kind: "door", x: 2_500, y: -100, w: 1_000, h: 350 }),
+  ];
+  const resultado = cadFlatshotBodies(entidades, alturas);
+  eq(resultado.bodies.length, 1, "el hueco no es un cuerpo más: sólo queda el muro");
+  eq(resultado.openings, 1, "y se cuenta que se restó uno");
+  eq(resultado.skipped.length, 0, "sin nada excluido");
+
+  // El muro con hueco tiene MÁS vértices que el muro entero: la resta dejó el
+  // dintel y las dos jambas.
+  const entero = cadFlatshotBodies([muro({ id: "muro", w: 6_000, h: 150 })], alturas);
+  ok(
+    resultado.bodies[0].vertices.length > entero.bodies[0].vertices.length,
+    `el muro con hueco tiene más vértices que el entero (${resultado.bodies[0].vertices.length} vs ${entero.bodies[0].vertices.length})`,
+  );
+
+  // Y el hueco llega hasta la altura de la puerta, no hasta arriba: queda dintel.
+  const zs = resultado.bodies[0].vertices.map((vertice) => vertice.point.z);
+  cerca(Math.max(...zs), 3_000, "el muro sigue midiendo 3.000 de alto", 1e-6);
+  ok(zs.some((z) => Math.abs(z - 2_200) < 1e-6), "y hay vértices a la altura del dintel");
+}
+
+// --- 8 · una puerta lejos del muro no corta nada, y no se cuenta -----------
+{
+  const resultado = cadFlatshotBodies(
+    [muro({ id: "muro", w: 1_000, h: 150 }), muro({ id: "puerta", kind: "door", x: 50_000, y: 50_000, w: 1_000, h: 350 })],
+    alturas,
+  );
+  eq(resultado.bodies.length, 1, "el muro sigue entero");
+  eq(resultado.openings, 0, "y no se cuenta un hueco que no cortó nada");
+  // Y NO se calla: una puerta que no toca ningún muro casi siempre es un
+  // objeto mal colocado, y el dibujante tiene que enterarse por la orden.
+  eq(resultado.skipped.length, 1, "el hueco que no cortó nada se cuenta");
+  eq(resultado.skipped[0].entityId, "puerta", "con su identificador");
+  ok(/no toca ningún cuerpo/.test(resultado.skipped[0].reason), "y con el motivo exacto");
+}
 
 console.log(`flatshot-solids: ${verdes} comprobaciones verdes`);

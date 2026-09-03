@@ -245,7 +245,7 @@ export interface CadCommandContext {
    */
   xrefCatalog?: () => readonly CadXrefCatalogEntry[];
   /**
-   * Altura de extrusión de un objeto de planta, por su `kind`.
+   * Qué volumen levanta un objeto de planta, por su `kind`.
    *
    * Un `box` no guarda altura: el visor 3D la saca de su catálogo de arquetipos
    * y por eso la sabe el ANFITRIÓN, no el motor. Sin esta función, `FLATSHOT` y
@@ -255,8 +255,11 @@ export interface CadCommandContext {
    * alturas dentro del motor sería tener dos verdades sobre lo que mide un
    * muro. `null` para un `kind` sin altura declarada: el objeto se queda fuera
    * del aplanado y la orden lo cuenta.
+   *
+   * `opening: true` marca lo que es un HUECO —una puerta— y se resta del muro
+   * que atraviesa en vez de dibujarse como un bloque (defecto (b)).
    */
-  objectHeight?: (kind: string) => number | null;
+  objectVolume?: (kind: string) => { height: number; opening?: boolean } | null;
   selection: readonly string[];
   activeLayer: string;
   /**

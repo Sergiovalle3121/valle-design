@@ -41,12 +41,15 @@ function planta(): CadDocument {
       // que la oculta tenga algo que resolver.
       muro('muro-frente', 0, 0, 6_000, 150),
       muro('muro-fondo', 0, 4_000, 6_000, 150),
+      // Una PUERTA en el muro del frente: en un alzado es un HUECO, no un
+      // bloque de 2,20 m plantado encima del muro.
+      { id: 'puerta', type: 'box', kind: 'door', x: 2_000, y: -175, w: 900, h: 500, rotation: 0, layer: '0', shape: 'rect' },
       // Un mueble cuyo `kind` no declara altura: tiene que quedarse fuera Y
       // contarse, no desaparecer.
       { id: 'mueble', type: 'box', kind: 'kind-inexistente', x: 1_000, y: 1_000, w: 1_200, h: 600, rotation: 0, layer: '0', shape: 'rect' },
     ],
     history: [],
-    modelSpace: { entityIds: ['muro-frente', 'muro-fondo', 'mueble'] },
+    modelSpace: { entityIds: ['muro-frente', 'muro-fondo', 'puerta', 'mueble'] },
     paperSpaces: [],
     styles: { text: {}, dimension: {}, mleader: {}, table: {}, plot: {} },
     blocks: [], constraints: [], externalReferences: [], unsupportedEntities: [], lossManifest: [], publications: [],
@@ -104,6 +107,9 @@ test('FLATSHOT aplana una planta de MUROS y deja el alzado en el documento del s
   await expect(log, 'el aplanado cuenta sus líneas en vez de decir «Hecho»').toContainText(
     /FLATSHOT (creó|reemplazó) .*línea\(s\) vista\(s\)/,
   );
+  await expect(log, 'la puerta se resta como HUECO, y se cuenta').toContainText(
+    /1 hueco\(s\) restado\(s\)/,
+  );
   await expect(log, 'y lo que se quedó fuera, con su motivo').toContainText(/1 fuera/);
   await expect(log).toContainText(/no declara altura/);
 
@@ -127,6 +133,14 @@ test('FLATSHOT aplana una planta de MUROS y deja el alzado en el documento del s
   const alto = Math.max(...ys) - Math.min(...ys);
   expect(alto, `el alzado mide la altura del muro (${alto})`).toBeGreaterThan(2_900);
   expect(alto).toBeLessThan(3_100);
+
+  // El HUECO de la puerta está de verdad en el alzado: hay vértices a la altura
+  // de su dintel (2.200) que un muro entero no tendría.
+  const alturaDelDintel = ys.filter((y) => Math.abs(y - 2_200) < 5).length;
+  expect(
+    alturaDelDintel,
+    `el dintel de la puerta aparece en el alzado (${alturaDelDintel} extremos a 2.200)`,
+  ).toBeGreaterThan(0);
 
   // Y hay una inserción del bloque, no sólo la definición.
   const insercion = guardado.entities.find(

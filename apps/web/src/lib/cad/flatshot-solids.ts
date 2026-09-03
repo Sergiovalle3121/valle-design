@@ -24,6 +24,15 @@
  * La BASE es `context.elevation` cuando el objeto la trae —campo que ya
  * existía— y 0 cuando no. Nada de campos nuevos.
  *
+ * ## Los huecos se RESTAN, no se dibujan
+ *
+ * Defecto (b) del mismo informe: «los huecos no existen en la vista derivada:
+ * alzados y cortes salen sin puertas ni ventanas». Una puerta no es un bloque
+ * de 2,20 m plantado en el muro: es la parte del muro que NO está. Levantarla
+ * como sólido daría un alzado con un tapón donde va la puerta —plausible y
+ * equivocado— así que se resta del muro que atraviesa, y el hueco resultante
+ * deja su dintel, que es lo que un alzado tiene que enseñar.
+ *
  * ## Lo que NO entra, y se cuenta
  *
  * Una entidad plana —una línea, un texto, un sombreado— no tiene volumen y no
@@ -35,7 +44,7 @@
  */
 import type { CadEntity, CadPoint2 } from "./cad-document";
 import { solid3dBody } from "./solid3d-build";
-import { extrudeProfile, type BrepBody } from "../brep";
+import { extrudeProfile, tryBoolean, type BrepBody } from "../brep";
 
 type CadBoxEntity = Extract<CadEntity, { type: "box" }>;
 type CadStationEntity = Extract<CadEntity, { type: "station" }>;
@@ -61,10 +70,25 @@ export interface CadFlatshotBodies {
   bodies: BrepBody[];
   /** Lo que no entró, con su motivo. Nunca se calla. */
   skipped: CadFlatshotSkipped[];
+  /** Huecos restados de verdad. Se cuentan porque cambian el dibujo. */
+  openings: number;
 }
 
-/** La altura de extrusión de un objeto por su `kind`, o `null` si no la tiene. */
-export type CadObjectHeightResolver = (kind: string) => number | null;
+/**
+ * Qué volumen levanta un `kind`, o `null` si no levanta ninguno.
+ *
+ * `opening: true` marca lo que en un plano es un HUECO y no un cuerpo: una
+ * puerta no es un bloque de 2,20 m plantado en el muro, es la parte del muro
+ * que no está. Dibujarla como sólido daría un alzado con un tapón donde va la
+ * puerta —plausible y equivocado, que es la peor clase de plano—, así que se
+ * RESTA del muro que atraviesa.
+ */
+export interface CadObjectVolume {
+  height: number;
+  opening?: boolean;
+}
+
+export type CadObjectVolumeResolver = (kind: string) => CadObjectVolume | null;
 
 /** El rectángulo del objeto en coordenadas de mundo, con su giro aplicado. */
 function rectangleOf(entity: CadPrismEntity): CadPoint2[] {
@@ -147,10 +171,14 @@ export function cadFlatshotPrism(
  */
 export function cadFlatshotBodies(
   entities: readonly CadEntity[],
-  heightFor: CadObjectHeightResolver,
+  volumeFor: CadObjectVolumeResolver,
 ): CadFlatshotBodies {
   const bodies: BrepBody[] = [];
+  // El hueco viaja con SU identificador: cuando no se puede restar hay que
+  // poder decir cuál, y «un hueco» no es una respuesta accionable.
+  const holes: { entityId: string; body: BrepBody }[] = [];
   const skipped: CadFlatshotSkipped[] = [];
+
   for (const entity of entities) {
     if (entity.type === "solid3d") {
       bodies.push(solid3dBody(entity));
@@ -164,20 +192,102 @@ export function cadFlatshotBodies(
       continue;
     }
     const kind = entity.type === "box" ? entity.kind : "station";
-    const height = heightFor(kind);
-    if (height === null || !(height > 0)) {
+    const volume = volumeFor(kind);
+    if (!volume || !(volume.height > 0)) {
       skipped.push({
         entityId: entity.id,
         reason: `«${kind}» no declara altura: sin ella no se puede levantar un volumen.`,
       });
       continue;
     }
-    const prism = cadFlatshotPrism(entity, height, entity.context?.elevation ?? 0);
+    const prism = cadFlatshotPrism(entity, volume.height, entity.context?.elevation ?? 0);
     if (!prism) {
       skipped.push({ entityId: entity.id, reason: `«${kind}» no tiene área en planta.` });
       continue;
     }
-    bodies.push(prism);
+    if (volume.opening) holes.push({ entityId: entity.id, body: prism });
+    else bodies.push(prism);
   }
-  return { bodies, skipped };
+
+  // Los huecos se restan al final, cuando ya se sabe qué cuerpos hay. Restar
+  // sobre la marcha dependería del ORDEN en que vienen las entidades, y el
+  // orden de dibujo no dice nada sobre qué atraviesa qué.
+  let openings = 0;
+  for (const hole of holes) {
+    let cortó = false;
+    let falló = false;
+    for (let index = 0; index < bodies.length; index += 1) {
+      // Sólo se intenta cuando las envolventes se tocan: una puerta del otro
+      // extremo de la planta no tiene por qué pagar una booleana.
+      if (!bodiesOverlap(bodies[index], hole.body)) continue;
+      const cut = safeDifference(bodies[index], hole.body);
+      if (cut === "falló") {
+        falló = true;
+        continue;
+      }
+      if (cut === null) {
+        // El hueco se comió el cuerpo entero. Es legítimo —una puerta más
+        // grande que su tabique— y el cuerpo desaparece.
+        bodies.splice(index, 1);
+        index -= 1;
+        cortó = true;
+        continue;
+      }
+      bodies[index] = cut;
+      cortó = true;
+    }
+    if (cortó) {
+      openings += 1;
+      continue;
+    }
+    // Un hueco que no cortó nada NO se calla. Las dos formas de no cortar
+    // dicen cosas distintas al dibujante y por eso se distinguen: o la
+    // booleana falló —y el muro sale entero, sin su puerta— o la puerta no
+    // toca ningún muro, que casi siempre es un objeto mal colocado.
+    skipped.push({
+      entityId: hole.entityId,
+      reason: falló
+        ? "el hueco no se pudo restar: el muro sale entero, sin él."
+        : "el hueco no toca ningún cuerpo: no hay nada de lo que restarlo.",
+    });
+  }
+
+  return { bodies, skipped, openings };
+}
+
+/** ¿Se tocan las envolventes? Barato, y evita booleanas que no cortan nada. */
+function bodiesOverlap(a: BrepBody, b: BrepBody): boolean {
+  const box = (body: BrepBody) => {
+    const xs = body.vertices.map((vertex) => vertex.point.x);
+    const ys = body.vertices.map((vertex) => vertex.point.y);
+    const zs = body.vertices.map((vertex) => vertex.point.z);
+    return {
+      minX: Math.min(...xs), maxX: Math.max(...xs),
+      minY: Math.min(...ys), maxY: Math.max(...ys),
+      minZ: Math.min(...zs), maxZ: Math.max(...zs),
+    };
+  };
+  const uno = box(a);
+  const otro = box(b);
+  return (
+    uno.minX <= otro.maxX && otro.minX <= uno.maxX &&
+    uno.minY <= otro.maxY && otro.minY <= uno.maxY &&
+    uno.minZ <= otro.maxZ && otro.minZ <= uno.maxZ
+  );
+}
+
+/**
+ * Resta que no rompe el aplanado.
+ *
+ * Una booleana sobre mallas facetadas puede fallar, y cuando falla lo que NO se
+ * puede hacer es dejar a medias el cuerpo del muro: se devuelve `"falló"` y el
+ * muro sigue entero, con su hueco sin restar. Un muro sin puerta es un plano
+ * incompleto; medio muro es un plano roto.
+ */
+function safeDifference(body: BrepBody, hole: BrepBody): BrepBody | null | "falló" {
+  try {
+    return tryBoolean("difference", body, hole);
+  } catch {
+    return "falló";
+  }
 }
