@@ -397,6 +397,8 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   TABLEDIT: TableProperties,
   TABLESTYLE: TableCellsMerge,
   STYLE: Baseline,
+  // Las plumas del trazado: el dibujo de la pluma, no el del papel.
+  STYLESMANAGER: PenTool,
   DIMLINEAR: Ruler,
   DIMALIGNED: PencilRuler,
   DIMANGULAR: Triangle,

@@ -17,7 +17,7 @@
  */
 import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
-import { cadFindPlotStyleTable } from "./plot-style-tables";
+import { cadFindPlotStyleTable } from "@/lib/cad/plot/plot-style-table";
 import type { CadVisualStyleId } from "@/lib/cad/view/visual-styles";
 import { cadDocumentExtents } from "@/lib/cad/view/document-extents";
 import { buildCadPlotJob, buildCadPlotPreview, type CadPlotJob } from "@/lib/cad/plot/plot-job";
@@ -261,8 +261,9 @@ export class CadPlotHost {
     if (!document) return "No hay ningún dibujo abierto que trazar.";
 
     // El nombre lo teclea una persona en `PAGESETUP Estilos`: se busca sin
-    // distinguir mayúsculas ni extensión, como el archivo en Windows. Ver
-    // `plot-style-tables.ts`.
+    // distinguir mayúsculas ni extensión, como el archivo en Windows. La regla
+    // vive con el modelo (`plot-style-table.ts`) y la comparten el trazado, la
+    // comprobación previa y el publicador de conjuntos.
     const table = request.request.pageSetup.plotStyleTable
       ? cadFindPlotStyleTable(
           this.bridge.plotStyleTables?.() ?? new Map(),

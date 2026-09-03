@@ -44,6 +44,9 @@ import {
   CadLinetypeCatalog,
   parseCadLinetypeLibrary,
 } from "@/lib/cad/linetype-lin";
+import { CadPlotStyleCatalog } from "@/lib/cad/plot/plot-style-catalog";
+import { importCadPlotStyleTable } from "@/lib/cad/plot/plot-style-table";
+import { cadPdfInflate } from "@/lib/cad/pdf/pdf-inflate";
 import { CadFilterCatalog } from "@/lib/cad/selection/selection-filter";
 import { CadSystemVariableStore } from "@/lib/cad/system-variables";
 import {
@@ -58,6 +61,8 @@ export interface CadSessionState {
   catalogs: CadSessionCatalogs;
   linetypes: CadLinetypeCatalog;
   toolPalettes: CadToolPaletteCatalog;
+  /** Tablas de plumas: las tres de fábrica más las que se carguen. */
+  plotStyles: CadPlotStyleCatalog;
 }
 
 export interface CadSessionScope {
@@ -86,6 +91,7 @@ export function useCadSessionState(scope: CadSessionScope = {}): CadSessionState
     const filters = new CadFilterCatalog();
     const layerStates = new CadLayerStateCatalog();
     const linetypes = new CadLinetypeCatalog();
+    const plotStyles = new CadPlotStyleCatalog();
     const coordinateSystems = new CadUcsCatalog();
     const toolPalettes = new CadToolPaletteCatalog(
       loadCadToolPalettes(storage(), scope),
@@ -97,7 +103,15 @@ export function useCadSessionState(scope: CadSessionScope = {}): CadSessionState
       variables,
       linetypes,
       toolPalettes,
-      catalogs: { filters, layerStates, linetypes, toolPalettes, coordinateSystems },
+      plotStyles,
+      catalogs: {
+        filters,
+        layerStates,
+        linetypes,
+        toolPalettes,
+        coordinateSystems,
+        plotStyles,
+      },
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -159,6 +173,32 @@ export function useCadFileCommandHandlers(
         void pickCadTextFile(".lin,text/plain").then((file) => {
           if (!file) return;
           session.linetypes.load(parseCadLinetypeLibrary(file.text));
+        });
+        return true;
+      }),
+      registerCadUiHandler("plot-style-file", () => {
+        // El `.ctb` del despacho. Puede venir COMPRIMIDO detrás de la cabecera
+        // de AutoCAD, así que llega en bytes y el inflador es el mismo que ya
+        // descomprime los flujos de un PDF: uno solo en el árbol, no dos.
+        void pickCadFiles(".ctb,.stb").then((files) => {
+          const file = files[0];
+          if (!file) return;
+          const name = file.name.replace(/\.(ctb|stb)$/i, "");
+          try {
+            const imported = importCadPlotStyleTable(file.bytes, name, {
+              inflate: (data) => cadPdfInflate(data).data,
+              deflate: () => {
+                // Este camino sólo IMPORTA. Exportar una tabla comprimida es
+                // otra orden y todavía no existe: prometerlo aquí sería un
+                // éxito falso esperando a que alguien lo llame.
+                throw new Error("Comprimir una tabla de plumas no está implementado.");
+              },
+            });
+            session.plotStyles.load(imported.table);
+          } catch {
+            // Un archivo ilegible no entra y no rompe la sesión; el usuario lo
+            // ve al listar, que es donde va a mirar.
+          }
         });
         return true;
       }),

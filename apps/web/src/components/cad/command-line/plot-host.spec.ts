@@ -18,7 +18,7 @@ import {
   resetCadPlotDeliveryListeners,
 } from "./plot-host";
 import { addCadSheet, createCadSheetSet, type CadSheetSet } from "@/lib/cad/sheet-set/sheet-set";
-import { cadBuiltinPlotStyleTables } from "./plot-style-tables";
+import { cadBuiltinPlotStyleTables } from "@/lib/cad/plot/plot-style-catalog";
 
 function drawing(): CadDocument {
   const layout = createCadLayout([], {

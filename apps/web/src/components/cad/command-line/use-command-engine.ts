@@ -54,8 +54,9 @@ import {
 } from "./navigation-host";
 import { CadPlotHost, downloadCadFile } from "./plot-host";
 import { cadStudioSheetSetBridge, type CadStudioSheetSetPort } from "./sheet-set-host";
-import { cadBuiltinPlotStyleTables } from "./plot-style-tables";
 import { createDesignSheetSetPort } from "./sheet-set-design-port";
+import { CadPlotStyleCatalog } from "@/lib/cad/plot/plot-style-catalog";
+import type { CadPlotStyleTable } from "@/lib/cad/plot/plot-style-table";
 import { handleCadDxfHostRequest } from "./dxf-host";
 import { handleCadEtransmitHostRequest } from "./etransmit-host";
 import { handleCadDataExtractionHostRequest } from "./data-extraction-host";
@@ -263,6 +264,12 @@ export function useCadStudioPlotHost(
      * `createDesignSheetSetPort()`.
      */
     sheetSetPort?: CadStudioSheetSetPort;
+    /**
+     * Tablas de plumas de la SESIÓN: las tres de fábrica más el `.ctb` del
+     * despacho que `STYLESMANAGER Cargar` haya traído. Sin ellas, elegir una
+     * tabla con `PAGESETUP Estilos` dejaba la hoja sin poder trazarse.
+     */
+    plotStyles?: { tables(): ReadonlyMap<string, CadPlotStyleTable> };
   },
 ): CadPlotHost {
   const live = useRef(options);
@@ -281,16 +288,15 @@ export function useCadStudioPlotHost(
     const sheetSets = cadStudioSheetSetBridge(
       options.sheetSetPort ?? createDesignSheetSetPort(),
     );
-    // Las tablas de plumas que el producto sabe construir, publicadas por su
-    // nombre de archivo. Sin este puente, `PAGESETUP Estilos monochrome`
-    // dejaba escrita en la hoja una tabla que PLOT no podía encontrar, y
-    // trazar esa hoja pasaba a ser imposible (`plot-style-tables.ts`).
-    const plotStyleTables = cadBuiltinPlotStyleTables();
+    // Las tablas de plumas de la sesión. Sin este puente, `PAGESETUP Estilos
+    // monochrome` dejaba escrita en la hoja una tabla que PLOT no podía
+    // encontrar, y trazar esa hoja pasaba a ser imposible.
+    const plotStyles = options.plotStyles ?? new CadPlotStyleCatalog();
     return new CadPlotHost({
       document: () => live.current.document.current,
       download: downloadCadFile,
       onResult: note,
-      plotStyleTables: () => plotStyleTables,
+      plotStyleTables: () => plotStyles.tables(),
       sheetSet: (sheetSetId) => sheetSets.sheetSet(sheetSetId),
       loadSheetSet: (sheetSetId) => sheetSets.loadSheetSet(sheetSetId, note),
       saveSheetSet: (set) => sheetSets.saveSheetSet(set, note),
@@ -350,6 +356,9 @@ export function useCadStudioCommandEngine(
   const plot = useCadStudioPlotHost({
     document: options.document,
     note: (text, level) => engineRef.current?.note(text, level),
+    // Las tablas de plumas son de la SESIÓN, como los tipos de línea cargados:
+    // el mismo plano se traza con la tabla del cliente A o la del B.
+    plotStyles: session.plotStyles,
     visualStyle: options.visualStyle,
     ...(options.setSpace ? { setSpace: options.setSpace } : {}),
     ...(options.openPageSetup ? { openPageSetup: options.openPageSetup } : {}),

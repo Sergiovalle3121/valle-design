@@ -7,10 +7,8 @@
  * que la que NO está sigue diciendo que no está.
  */
 import { strict as assert } from "node:assert";
-import {
-  cadBuiltinPlotStyleTables,
-  cadFindPlotStyleTable,
-} from "./plot-style-tables";
+import { cadBuiltinPlotStyleTables, CadPlotStyleCatalog } from "./plot-style-catalog";
+import { cadFindPlotStyleTable, createCadColorTable } from "./plot-style-table";
 
 let verdes = 0;
 const ok = (condicion: unknown, mensaje: string) => {
@@ -62,4 +60,18 @@ for (const nombre of ["monochrome.ctb", "monochrome", "MONOCHROME.CTB", " Monoch
 eq(cadFindPlotStyleTable(tablas, "Estudio-2004.ctb"), null, "una tabla del despacho no se inventa");
 eq(cadFindPlotStyleTable(new Map(), "monochrome"), null, "y sin catálogo no hay nada que encontrar");
 
-console.log(`plot-style-tables: ${verdes} comprobaciones verdes`);
+// --- 6 · el catálogo de sesión: cargar sustituye y se DICE ----------------
+{
+  const catalogo = new CadPlotStyleCatalog();
+  eq(catalogo.list().join(","), "acad.ctb,acad.stb,monochrome.ctb", "nace con las tres de fábrica");
+  eq(catalogo.find("MONOCHROME")?.name, "monochrome", "y las encuentra con la regla de nombre");
+  eq(catalogo.load(createCadColorTable("Estudio-2004")), "Estudio-2004.ctb", "cargar devuelve su nombre de archivo");
+  eq(catalogo.list().length, 4, "y la del despacho se suma a las de fábrica");
+  eq(catalogo.find("estudio-2004.ctb")?.name, "Estudio-2004", "se encuentra como cualquier otra");
+  // Cargar un `acad.ctb` propio SUSTITUYE al de fábrica: eso es justo lo que
+  // quiere quien lo carga, y `list()` sigue diciendo qué hay.
+  catalogo.load(createCadColorTable("acad"));
+  eq(catalogo.list().length, 4, "cargar el suyo no duplica la fila");
+}
+
+console.log(`plot-style-catalog: ${verdes} comprobaciones verdes`);

@@ -36,6 +36,7 @@ import type {
   CadBlockDefinition, CadConstraint, CadDocument, CadEntity, CadLayerDef,
   CadPaperSpace, CadParameter, CadPoint2, CadPoint3,
 } from "../cad-document";
+import type { CadPlotStyleTable } from "../plot/plot-style-table";
 import type { CadBounds } from "../entity-runtime";
 import type { CadSolidFaceRef } from "../cad-entities-v5";
 import type { CadEntityCommand } from "../entity-commands";
@@ -350,6 +351,18 @@ export interface CadSessionCatalogs {
   layerStates?: CadNamedCatalog<CadNamedLayerState>;
   toolPalettes?: CadNamedCatalog<CadToolPalette>;
   coordinateSystems?: CadNamedCatalog<CadNamedUcs>;
+  /**
+   * Tablas de plumas cargadas en la SESIÓN. No usa `CadNamedCatalog` porque su
+   * clave es el NOMBRE DE ARCHIVO —`acad.ctb` y `acad.stb` comparten nombre y
+   * son tablas distintas— y porque el motor sólo necesita LEER: cargar una
+   * pide un archivo, y eso es del anfitrión.
+   */
+  plotStyles?: {
+    /** Nombres de archivo cargados, en orden estable. */
+    list(): readonly string[];
+    /** La tabla de un nombre, con o sin extensión y sin distinguir caja. */
+    find(name: string): CadPlotStyleTable | null;
+  };
 }
 
 /**
@@ -384,6 +397,13 @@ export type CadUiTarget =
   | "block-editor"
   | "script-file"
   | "linetype-file"
+  /**
+   * Selector de archivo de `STYLESMANAGER`: el `.ctb` o `.stb` del despacho, el
+   * que lleva años decidiendo qué grosor tiene cada color en sus planos. Puede
+   * venir COMPRIMIDO detrás de la cabecera de AutoCAD, así que llega en bytes y
+   * no en texto — mismo reparto que `image-file`, por la misma razón.
+   */
+  | "plot-style-file"
   /**
    * Selector de archivo de `DXFIN`. Leer un fichero es del navegador y volver a
    * meter su contenido por el motor es del anfitrión: el comando está DENTRO

@@ -229,6 +229,7 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   STAIR: "Escalera recta paramétrica: contrahuellas por reglamento, huella por Blondel; planta y sólido.",
   STRETCH: "Estira lo capturado por la ventana sin despegar lo demás.",
   STYLE: "Gestor de estilos de texto.",
+  STYLESMANAGER: "Lista las tablas de plumas cargadas y carga el .ctb o .stb del despacho.",
   SUBTRACT: "Resta booleana de sólidos o regiones.",
   SWEEP: "Sólido por barrido de un perfil a lo largo de un camino.",
   TABLE: "Tabla editable con filas y columnas.",
