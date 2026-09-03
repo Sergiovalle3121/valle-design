@@ -269,6 +269,23 @@ function trazosDe(document: CadDocument, viewportId: string) {
           layer: entity.layer,
           puntos: entity.boundaries.flat().map((p) => ({ x: p.x, y: p.y })),
         };
+      // Rótulos y marcas (defecto (d)): el título de la vista con su escala, la
+      // marca de corte sobre la planta y el globo de detalle. Son trazos
+      // derivados como los demás —misma marca de metadatos, misma política de
+      // lo editado a mano— y por eso entran aquí en vez de tumbar la lectura.
+      if (entity.type === "mtext")
+        return {
+          tipo: "mtext" as const,
+          layer: entity.layer,
+          texto: entity.text,
+          puntos: [{ x: entity.insertion.x, y: entity.insertion.y }],
+        };
+      if (entity.type === "circle")
+        return {
+          tipo: "circle" as const,
+          layer: entity.layer,
+          puntos: [{ x: entity.center.x, y: entity.center.y }],
+        };
       throw new Error(`trazo derivado de tipo inesperado: ${entity.type}`);
     })
     .sort((a, b) =>

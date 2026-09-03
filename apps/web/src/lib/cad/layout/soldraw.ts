@@ -51,6 +51,11 @@ import type { CadEntityCommand } from "../entity-commands";
 import type { CadNativeEntity } from "../entity-runtime";
 import { cadSolviewEvaluate } from "./solview-associativity";
 import { cadSolviewLayerName } from "./solview";
+import {
+  cadSolviewDetailBubble,
+  cadSolviewLabelEntities,
+  cadSolviewSectionMark,
+} from "./solview-annotations";
 import type { CadSolviewContribution } from "./solview-model";
 
 /** Clave de metadatos que ata un trazo derivado a la ventana que lo produjo. */
@@ -116,9 +121,17 @@ export function cadSoldrawEntityDigest(entity: CadEntity): string {
     return `H${entity.pattern}|${entity.boundaries
       .map((loop) => loop.map((point) => `${round(point.x)},${round(point.y)}`).join(";"))
       .join("/")}|${entity.layer}`;
-  // Un trazo derivado sólo puede ser una de las dos cosas de arriba. Cualquier
-  // otro tipo con la marca es geometría que alguien transformó: se declara
-  // distinta de todo, que la convierte en «editada a mano» y la protege.
+  // Los rótulos, marcas y globos (defecto (d)) también son DERIVADOS: si no
+  // tuvieran huella propia, cada uno se declararía «editado a mano» la primera
+  // vez y no volvería a actualizarse nunca — un corte a 1:50 seguiría rotulado
+  // 1:50 después de reescalar la ventana a 1:100.
+  if (entity.type === "mtext")
+    return `M${entity.text}|${round(entity.insertion.x)},${round(entity.insertion.y)}|${round(entity.height ?? 0)}|${entity.layer}`;
+  if (entity.type === "circle")
+    return `C${round(entity.center.x)},${round(entity.center.y)},${round(entity.radius)}|${entity.layer}`;
+  // Cualquier otro tipo con la marca es geometría que alguien transformó: se
+  // declara distinta de todo, que la convierte en «editada a mano» y la
+  // protege.
   return `X${entity.id}:${entity.type}`;
 }
 
@@ -191,6 +204,44 @@ function drawContribution(
   return entities;
 }
 
+/**
+ * Los rótulos de la vista, y la marca o el globo que deja en su vista PADRE.
+ *
+ * Es lo que cierra el defecto (d): sin esto, una lámina con cuatro ventanas no
+ * dice cuál es cada una ni a qué escala, y un corte no dice por dónde pasa.
+ *
+ * Van con la MISMA marca de metadatos que el perfil, así que heredan gratis
+ * toda la política de lo editado a mano: quien mueva el rótulo se lo queda, y
+ * quien lo borre lo ve volver, exactamente igual que con una línea del alzado.
+ */
+function drawAnnotations(
+  space: CadPaperSpace,
+  viewport: CadPaperViewport,
+  newEntityId: () => string,
+): CadNativeEntity[] {
+  const derivation = viewport.derivation!;
+  const mark = { metadata: { [CAD_SOLVIEW_METADATA]: viewport.id } };
+  const entities: CadNativeEntity[] = [
+    ...cadSolviewLabelEntities({
+      viewport,
+      plate: viewport.modelBounds,
+      layerBase: derivation.layerBase,
+      mark,
+      newEntityId,
+    }),
+  ];
+  const parent = derivation.parentViewportId
+    ? (space.viewports ?? []).find((other) => other.id === derivation.parentViewportId)
+    : undefined;
+  if (!parent?.derivation) return entities;
+  const kind = viewport.view?.kind;
+  if (kind === "section")
+    entities.push(...cadSolviewSectionMark({ parent, child: viewport, mark, newEntityId }));
+  else if (kind === "detail")
+    entities.push(...cadSolviewDetailBubble({ parent, child: viewport, mark, newEntityId }));
+  return entities;
+}
+
 function drawViewport(
   document: Pick<CadDocument, "entities">,
   space: CadPaperSpace,
@@ -245,6 +296,23 @@ function drawViewport(
     created.push(
       ...drawContribution(contribution, viewport, derivation.layerBase, newEntityId),
     );
+  created.push(...drawAnnotations(space, viewport, newEntityId));
+  // La capa de rótulos se asegura AQUÍ y no sólo al crear la vista: las vistas
+  // que ya existían en documentos guardados no la tienen, y un rótulo en una
+  // capa inexistente es un rótulo que no se ve. Un `upsert` con un nombre que
+  // ya está no cambia nada, así que repetirlo es gratis.
+  commands.push({
+    type: "layer",
+    op: "upsert",
+    layer: {
+      id: cadSolviewLayerName(derivation.layerBase, "ROT"),
+      name: cadSolviewLayerName(derivation.layerBase, "ROT"),
+      color: "#ffff00",
+      visible: true,
+      locked: false,
+      plot: true,
+    },
+  });
   for (const entity of created)
     // Al fondo del orden de dibujo: el perfil derivado es el soporte sobre el
     // que se acota, no lo que tapa las cotas.

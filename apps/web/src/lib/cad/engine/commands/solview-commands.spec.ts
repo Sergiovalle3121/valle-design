@@ -134,10 +134,13 @@ const messages = (effects: readonly CadCommandEffect[]) =>
   assert.equal(derivadas[0].derivation?.status, "never-drawn");
   assert.equal(
     document.layers.length - antes,
-    4,
-    "SOLVIEW debe crear exactamente cuatro capas: -VIS, -HID, -HAT y -DIM",
+    5,
+    // -ROT entra con el defecto (d): el rótulo de la vista con su escala, la
+    // marca de corte y el globo de detalle. Va en su propia capa para poder
+    // apagarla — un juego de trabajo se imprime sin rótulos.
+    "SOLVIEW debe crear exactamente cinco capas: -VIS, -HID, -HAT, -DIM y -ROT",
   );
-  for (const sufijo of ["VIS", "HID", "HAT", "DIM"])
+  for (const sufijo of ["VIS", "HID", "HAT", "DIM", "ROT"])
     assert.ok(
       document.layers.some((layer) => layer.name === `ALZADO-SUR-${sufijo}`),
       `falta la capa ALZADO-SUR-${sufijo}`,
@@ -240,7 +243,10 @@ const messages = (effects: readonly CadCommandEffect[]) =>
 {
   let document = run(documento(), ["LAYOUT", "N", "Hoja"]).document;
   document = run(document, ["SOLVIEW", "PL", "Planta"]).document;
-  document = run(document, ["SOLVIEW", "DE", "Planta", "Detalle esquina"]).document;
+  // La AMPLIACIÓN se pregunta: era un ×2 fijo y sin forma de cambiarlo, que es
+  // la mitad del defecto (d). Un detalle constructivo a 1:5 sobre una planta a
+  // 1:100 es ×20, y con ×2 el «detalle» era la misma planta un poco más grande.
+  document = run(document, ["SOLVIEW", "DE", "Planta", "10", "Detalle esquina"]).document;
   const derivadas = (document.paperSpaces[0].viewports ?? []).filter((v) => v.derivation);
   assert.equal(derivadas.length, 2);
   const padre = derivadas[0];
@@ -252,13 +258,31 @@ const messages = (effects: readonly CadCommandEffect[]) =>
     "un detalle no es otra proyección: es la misma cámara más cerca",
   );
   assert.equal(hijo.derivation?.parentViewportId, padre.id);
+  const razon = padre.derivation!.window!.width / hijo.derivation!.window!.width;
   assert.ok(
-    hijo.derivation!.window!.width < padre.derivation!.window!.width,
-    "el detalle no se acercó",
+    Math.abs(razon - 10) < 1e-6,
+    `el detalle se acercó ×${razon}, no ×10: la ampliación tecleada no se usó`,
+  );
+
+  // Intro acepta el valor por defecto, como cualquier orden con un valor entre
+  // paréntesis angulares.
+  const porDefecto = run(document, ["SOLVIEW", "DE", "Planta", "\r", "Detalle por defecto"]).document;
+  const conDefecto = (porDefecto.paperSpaces[0].viewports ?? []).filter((v) => v.derivation)[2];
+  assert.ok(
+    Math.abs(padre.derivation!.window!.width / conDefecto.derivation!.window!.width - 2) < 1e-6,
+    "sin escribir nada, el detalle se amplía ×2",
+  );
+
+  // Y una ampliación que no es un número no se redondea a ninguna parte.
+  const disparate = run(document, ["SOLVIEW", "DE", "Planta", "grande", "X"]);
+  assert.ok(
+    messages(disparate.effects).some((text) => text.includes("no es una ampliación")),
+    `una ampliación ilegible debería decirse: ${messages(disparate.effects).join(" / ")}`,
   );
 }
 
 console.log(
-  "OK SOLVIEW/SOLDRAW tecleados: alias, cuatro capas por vista, corte con sombreado, " +
-    "aviso de obsolescencia, detalle heredado y cuatro negativas con motivo",
+  "OK SOLVIEW/SOLDRAW tecleados: alias, CINCO capas por vista (-VIS/-HID/-HAT/-DIM/-ROT), " +
+    "corte con sombreado, aviso de obsolescencia, detalle con la ampliación que se teclea " +
+    "—×2 por defecto, ilegible rechazada— y cinco negativas con motivo",
 );
