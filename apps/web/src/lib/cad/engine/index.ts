@@ -43,6 +43,8 @@ import { CAD_ELECTRICAL_CIRCUIT_COMMANDS } from "./commands/electrical-circuit";
 import { CAD_ELECTRICAL_TAG_COMMANDS } from "./commands/electrical-tag";
 import { CAD_PLANT_COMMANDS } from "./commands/plant-line";
 import { CAD_PLANT_EQUIPMENT_COMMANDS } from "./commands/plant-equipment";
+import { CAD_PLANT_ROUTE_COMMANDS } from "./commands/plant-route";
+import { CAD_PLANT_ISO_COMMANDS } from "./commands/plant-iso";
 import { CAD_GEO_LOCATION_COMMANDS } from "./commands/geo-location";
 import { CAD_MAP_IMPORT_COMMANDS } from "./commands/map-import";
 import { CAD_RASTER_IMAGE_COMMANDS } from "./commands/raster-image";
@@ -213,6 +215,8 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_ELECTRICAL_TAG_COMMANDS,
   ...CAD_PLANT_COMMANDS,
   ...CAD_PLANT_EQUIPMENT_COMMANDS,
+  ...CAD_PLANT_ROUTE_COMMANDS,
+  ...CAD_PLANT_ISO_COMMANDS,
   // Ola G (Map 3D): la georreferencia como marcador y el conjunto GIS dentro
   // del plano. Mismo registro, mismas puertas (`document`, `ui`).
   ...CAD_GEO_LOCATION_COMMANDS,
