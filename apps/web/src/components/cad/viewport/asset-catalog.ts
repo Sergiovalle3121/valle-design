@@ -415,6 +415,21 @@ export function assetMeta(kind: string): AssetDef {
   return BY_KIND.get(kind) ?? ASSET_CATALOG[0];
 }
 
+/**
+ * La altura con la que un objeto de planta se levanta en 3D, o `null`.
+ *
+ * `assetMeta` cae al primer arquetipo cuando el `kind` no está, y para DIBUJAR
+ * eso es razonable —algo hay que enseñar—. Para APLANAR no lo es: un objeto de
+ * un `kind` desconocido saldría en el alzado con la altura de otra cosa, que es
+ * un plano plausible y equivocado. Aquí se responde `null` y quien pregunta lo
+ * cuenta como excluido (`flatshot-solids.ts`).
+ */
+export function cadObjectExtrusionHeight(kind: string): number | null {
+  const definition = BY_KIND.get(kind);
+  if (!definition) return null;
+  return definition.height > 0 ? definition.height : null;
+}
+
 /** Catalog grouped by category, preserving declaration order — for palettes. */
 export const ASSET_CATEGORIES: {
   category: AssetCategory;

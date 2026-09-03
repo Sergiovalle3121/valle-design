@@ -98,7 +98,12 @@ const ELEVATION_UCS = {
 
 function makeContext(
   document: CadDocument,
-  options: { selection?: readonly string[]; ucs?: Record<string, number> } = {},
+  options: {
+    selection?: readonly string[];
+    ucs?: Record<string, number>;
+    /** El catálogo de alturas del anfitrión. Sin él, sólo entran los B-rep. */
+    objectHeight?: (kind: string) => number | null;
+  } = {},
 ): CadCommandContext {
   return {
     entityIds: document.entities.map((entity) => entity.id),
@@ -109,6 +114,7 @@ function makeContext(
     view: { pixelsPerUnit: 1, centerX: 0, centerY: 0 },
     variables: createCadVariableAccess(options.ucs ?? {}),
     newEntityId: () => `f${++idCounter}`,
+    ...(options.objectHeight ? { objectHeight: options.objectHeight } : {}),
   };
 }
 
@@ -116,7 +122,11 @@ function run(
   name: string,
   inputs: readonly CadCommandInput[],
   document: CadDocument,
-  options: { selection?: readonly string[]; ucs?: Record<string, number> } = {},
+  options: {
+    selection?: readonly string[];
+    ucs?: Record<string, number>;
+    objectHeight?: (kind: string) => number | null;
+  } = {},
 ): CadCommandResult | undefined {
   const descriptor = CAD_COMMAND_REGISTRY_V2.get(name);
   assert.ok(descriptor, `${name} debe estar en el registro del PRODUCTO`);
@@ -133,7 +143,11 @@ function apply(
   name: string,
   inputs: readonly CadCommandInput[],
   document: CadDocument,
-  options: { selection?: readonly string[]; ucs?: Record<string, number> } = {},
+  options: {
+    selection?: readonly string[];
+    ucs?: Record<string, number>;
+    objectHeight?: (kind: string) => number | null;
+  } = {},
 ): CadDocument {
   const result = run(name, inputs, document, options);
   assert.ok(result, `${name} no terminó`);
@@ -459,16 +473,70 @@ function boundsOf(lines: readonly CadEntity[]) {
 }
 
 // ---------------------------------------------------------------------------
+// 6 bis. EL MODELO DEL ARQUITECTO: muros y columnas, no sólo SOLID3D (Ola 4)
+//
+// El defecto (c) del informe de distancia lo decía así: «el único camino con
+// oculta exacta (FLATSHOT) RECHAZA los muros, así que el modelo del arquitecto
+// no puede usarlo». Y era literal: una planta de arquitectura no tiene un solo
+// SOLID3D — sus muros son objetos de planta con la altura en el catálogo del
+// anfitrión.
+// ---------------------------------------------------------------------------
+{
+  const muroDePlanta = (id: string, x: number): CadEntity =>
+    ({
+      id, type: "box", kind: "wall", x, y: 0, w: 2_000, h: 150,
+      rotation: 0, layer: LAYER, shape: "rect",
+    }) as unknown as CadEntity;
+  const alturas = (kind: string) => (kind === "wall" ? 3_000 : null);
+  const planta = documentWith([muroDePlanta("muro-a", 0), muroDePlanta("muro-b", 4_000)]);
+
+  // Sin catálogo de alturas el anfitrión no puede levantar volumen, y la orden
+  // lo DICE en vez de escribir un bloque vacío.
+  ok(
+    messageOf(run("FLATSHOT", [point(0, 0)], planta, { ucs: ELEVATION_UCS })).includes("volumen"),
+    "sin catálogo de alturas, FLATSHOT lo dice",
+  );
+
+  // Con él, el alzado sale.
+  const resultado = run("FLATSHOT", [point(0, 0)], planta, {
+    ucs: ELEVATION_UCS,
+    objectHeight: alturas,
+  });
+  assert.ok(resultado && resultado.kind === "document", "con catálogo, FLATSHOT escribe");
+  ok(/línea\(s\) vista\(s\)/.test(resultado.label), `y cuenta sus líneas: ${resultado.label}`);
+  ok(!/fuera/.test(resultado.label), "sin nada fuera, no se inventa una nota de exclusión");
+  // Y lo DICE: sin `notice`, una orden que escribe es muda —el anfitrión aplica
+  // el lote y no imprime la etiqueta— y el aplanado salía sin una palabra.
+  ok(resultado.notice === resultado.label, "el recuento se dice, no sólo se etiqueta");
+  checks += 3;
+
+  // Un objeto sin altura declarada NO desaparece en silencio: se cuenta.
+  const mixta = documentWith([
+    muroDePlanta("muro-a", 0),
+    { id: "mesa", type: "box", kind: "desk", x: 0, y: 500, w: 1_200, h: 600, rotation: 0, layer: LAYER, shape: "rect" } as unknown as CadEntity,
+  ]);
+  const conFuera = run("FLATSHOT", [point(0, 0)], mixta, {
+    ucs: ELEVATION_UCS,
+    objectHeight: alturas,
+  });
+  assert.ok(conFuera && conFuera.kind === "document");
+  ok(/1 fuera/.test(conFuera.label), `lo excluido se cuenta: ${conFuera.label}`);
+  ok(/no declara altura/.test(conFuera.label), "y con su motivo, no como un número suelto");
+  ok(/1 fuera/.test(conFuera.notice ?? ""), "y se DICE en la línea de comandos");
+  checks += 3;
+}
+
+// ---------------------------------------------------------------------------
 // 7. Fallo cerrado, y supervivencia al guardado
 // ---------------------------------------------------------------------------
 {
   const empty = documentWith([]);
   ok(
-    messageOf(run("FLATSHOT", [point(0, 0)], empty)).includes("sólido"),
-    "sin sólidos, FLATSHOT lo dice en vez de escribir un bloque vacío",
+    messageOf(run("FLATSHOT", [point(0, 0)], empty)).includes("volumen"),
+    "sin nada con volumen, FLATSHOT lo dice en vez de escribir un bloque vacío",
   );
   ok(
-    messageOf(run("SOLPROF", [select(), point(0, 0)], empty)).includes("SOLID3D"),
+    messageOf(run("SOLPROF", [select(), point(0, 0)], empty)).includes("volumen"),
     "y SOLPROF también",
   );
 

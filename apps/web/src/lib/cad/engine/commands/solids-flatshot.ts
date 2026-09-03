@@ -44,9 +44,11 @@
  * sale a su propia capa: se apaga desde el gestor de capas y no hay que volver a
  * calcular nada.
  */
-import type { CadPoint2, CadPoint3 } from "../../cad-document";
-import type { CadSolid3dEntity } from "../../cad-entities-v5";
-import { solid3dBody } from "../../solid3d-build";
+import type { CadPoint2, CadPoint3, CadEntity} from "../../cad-document";
+import {
+  cadFlatshotBodies,
+  type CadFlatshotBodies,
+} from "../../flatshot-solids";
 import { cadFlatshot, cadSolprof, type CadFlatshotLayer } from "../../flatshot";
 import { cadActiveUcs, createCadVariableAccess } from "../../system-variables";
 import { cadUcsPlanView } from "../../ucs-view";
@@ -75,7 +77,7 @@ const BLOCK = { keyword: "Bloque", shortcut: "B" } as const;
 const LAYERS = { keyword: "Capas", shortcut: "C" } as const;
 
 const NO_SOLIDS =
-  "No hay ningún sólido que aplanar. Designe uno o más SOLID3D, o pulse Intro para tomar todos los del dibujo.";
+  "No hay nada con volumen que aplanar. Designe sólidos u objetos de planta con altura, o pulse Intro para tomar todos los del dibujo.";
 
 function variablesOf(context: CadCommandContext) {
   return context.variables ?? createCadVariableAccess();
@@ -97,15 +99,34 @@ function ucsProjection(context: CadCommandContext): {
   return { view: { kind: "parallel", direction: plan.forward }, up: plan.up };
 }
 
-/** Los sólidos designados, o TODOS los del dibujo si no se designó nada. */
-function solidsOf(context: CadCommandContext, selection: readonly string[]): CadSolid3dEntity[] {
+/**
+ * Los CUERPOS designados, o los de todo el dibujo si no se designó nada.
+ *
+ * Antes esto recogía sólo `solid3d`, y por eso el modelo del arquitecto —muros
+ * y columnas, que son objetos de planta con altura de catálogo— no podía
+ * aplanarse: era el defecto (c) del informe de distancia. Ahora entra lo que
+ * TIENE volumen y lo que no se cuenta con su motivo (`flatshot-solids.ts`).
+ */
+function bodiesOf(
+  context: CadCommandContext,
+  selection: readonly string[],
+): CadFlatshotBodies {
   const ids = selection.length > 0 ? selection : context.entityIds;
-  const solids: CadSolid3dEntity[] = [];
+  const entities: CadEntity[] = [];
   for (const id of ids) {
     const entity = context.entity?.(id);
-    if (entity && entity.type === "solid3d") solids.push(entity);
+    if (entity) entities.push(entity);
   }
-  return solids;
+  // Sin catálogo de alturas, sólo los sólidos B-rep pueden entrar, y el objeto
+  // de planta se cuenta como excluido en vez de desaparecer.
+  return cadFlatshotBodies(entities, context.objectHeight ?? (() => null));
+}
+
+/** «… y 3 objeto(s) sin volumen fuera», o nada cuando no se quedó nadie fuera. */
+function skippedNote(skipped: readonly { reason: string }[]): string {
+  if (skipped.length === 0) return "";
+  const motivos = [...new Set(skipped.map((entry) => entry.reason))];
+  return ` · ${skipped.length} fuera: ${motivos.slice(0, 2).join(" ")}`;
 }
 
 /** Cota del punto señalado. Con SCU inclinado llega resuelta; en planta es 0. */
@@ -176,8 +197,8 @@ function runFlatshot(
   insertion: CadPoint3,
   context: CadCommandContext,
 ): CadCommandStep<FlatshotState> {
-  const solids = solidsOf(context, state.selection);
-  if (solids.length === 0) return solidMessage(state, NO_SOLIDS);
+  const { bodies, skipped } = bodiesOf(context, state.selection);
+  if (bodies.length === 0) return solidMessage(state, NO_SOLIDS);
 
   const visibleLayer: CadFlatshotLayer = { name: state.visibleLayer, color: "#ffffff", linetype: "CONTINUOUS" };
   // El trazo discontinuo va en la CAPA, no en cada línea: así se cambia el
@@ -187,7 +208,7 @@ function runFlatshot(
     : null;
 
   const projection = ucsProjection(context);
-  const result = cadFlatshot(solids.map(solid3dBody), {
+  const result = cadFlatshot(bodies, {
     view: projection.view,
     up: projection.up,
     insertion,
@@ -201,11 +222,10 @@ function runFlatshot(
   if (!result.ok) return solidMessage(state, `FLATSHOT no pudo aplanar: ${result.message}`);
 
   const verb = result.replaced ? "reemplazó" : "creó";
-  return solidBatch(
-    state,
-    result.commands,
-    `FLATSHOT ${verb} ${state.blockName}: ${result.visibleLines} línea(s) vista(s), ${result.hiddenLines} oculta(s)`,
-  );
+  const dicho = `FLATSHOT ${verb} ${state.blockName}: ${result.visibleLines} línea(s) vista(s), ${result.hiddenLines} oculta(s)${skippedNote(skipped)}`;
+  // La etiqueta va al historial de deshacer y NO se imprime: sin `notice`, el
+  // aplanado salía sin decir una palabra.
+  return solidBatch(state, result.commands, dicho, dicho);
 }
 
 const flatshotCommand: CadCommandDescriptor<FlatshotState> = {
@@ -336,11 +356,11 @@ function runSolprof(
   insertion: CadPoint3,
   context: CadCommandContext,
 ): CadCommandStep<SolprofState> {
-  const solids = solidsOf(context, state.selection);
-  if (solids.length === 0)
-    return solidMessage(state, "SOLPROF necesita al menos un SOLID3D designado.");
+  const { bodies, skipped } = bodiesOf(context, state.selection);
+  if (bodies.length === 0)
+    return solidMessage(state, "SOLPROF necesita al menos un objeto con volumen designado.");
   const projection = ucsProjection(context);
-  const result = cadSolprof(solids.map(solid3dBody), {
+  const result = cadSolprof(bodies, {
     view: projection.view,
     up: projection.up,
     insertion,
@@ -350,15 +370,13 @@ function runSolprof(
     newId: context.newEntityId,
   });
   if (!result.ok) return solidMessage(state, `SOLPROF no pudo perfilar: ${result.message}`);
+  const dicho = `SOLPROF en ${result.layers.join(" y ")}: ${result.visibleLines} vista(s), ${result.hiddenLines} oculta(s)${skippedNote(skipped)}`;
   return {
     state,
     prompt: { message: "", options: [] },
     accepts: 0,
-    result: {
-      kind: "document",
-      commands: result.commands,
-      label: `SOLPROF en ${result.layers.join(" y ")}: ${result.visibleLines} vista(s), ${result.hiddenLines} oculta(s)`,
-    },
+    // Igual que FLATSHOT: sin `notice`, el perfil se dibujaba en silencio.
+    result: { kind: "document", commands: result.commands, label: dicho, notice: dicho },
   };
 }
 
