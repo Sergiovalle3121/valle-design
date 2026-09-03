@@ -272,7 +272,10 @@ export function cadSolviewProject(
       const half = source.body.edges[edge]?.a;
       if (half === undefined || half < 0) continue;
       const segment = halfEdgeSegment(source.body, half);
-      if (view.kind === "section" && !keepsBehind(segment, view)) continue;
+      // Se corta por la PRESENCIA del plano y no por el nombre de la vista: una
+      // planta de arquitectura es un corte horizontal y se sigue llamando
+      // planta (defecto (e)).
+      if (view.sectionPlane && !keepsBehind(segment, view)) continue;
       segments.push({ a: project(segment.from), b: project(segment.to) });
     }
     return segments;
@@ -293,7 +296,7 @@ function sectionLoopsOf(
   frame: CadViewportViewFrame,
   view: CadViewportView,
 ): CadPoint2[][] {
-  if (view.kind !== "section" || !view.sectionPlane) return [];
+  if (!view.sectionPlane) return [];
   const loops: CadPoint2[][] = [];
   for (const loop of sectionLoopsOfSolid(source.body, view.sectionPlane)) {
     if (loop.length >= 3)
@@ -361,7 +364,7 @@ function exactContributions(
       if (!bucket) continue;
       // El corte descarta lo que queda del lado del observador. Se decide sobre
       // los extremos del MUNDO, que es donde el plano de corte está definido.
-      if (view.kind === "section" && !keepsBehind({ from: segment.from3, to: segment.to3 }, view))
+      if (view.sectionPlane && !keepsBehind({ from: segment.from3, to: segment.to3 }, view))
         continue;
       bucket.push({
         a: cadViewportProjectPoint(segment.from3, frame),

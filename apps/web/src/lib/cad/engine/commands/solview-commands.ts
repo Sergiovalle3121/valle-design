@@ -31,6 +31,7 @@ import { createCadSolView } from "../../layout/solview";
 import { describeCadSolviewFreshness } from "../../layout/solview-associativity";
 import {
   cadViewportOrthoView,
+  cadViewportPlanCutView,
   cadViewportSectionView,
   type CadViewportOrthoName,
 } from "../../layout/viewport-view";
@@ -114,6 +115,16 @@ const ALZADO_OPTIONS = [
 ] as const;
 
 /**
+ * Altura por defecto del corte de una planta, en milímetros.
+ *
+ * 1.200 mm es el antepecho de una ventana corriente: por debajo de ahí el corte
+ * enseña el HUECO, que es lo que una planta tiene que enseñar. Es la altura con
+ * la que se dibuja una planta de arquitectura en cualquier despacho, y por eso
+ * es la respuesta por defecto y no un número redondo.
+ */
+const PLAN_CUT_DEFAULT = 1_200;
+
+/**
  * Cuánto se acerca un DEtalle cuando no se pide otra cosa.
  *
  * Era un ×2 FIJO y sin forma de cambiarlo —defecto (d) del informe de
@@ -128,7 +139,7 @@ const DETAIL_ZOOM_MAX = 200;
 
 type SolviewOp =
   | { kind: "menu" }
-  | { kind: "plan"; name?: string }
+  | { kind: "plan"; cut?: number | "sin-corte"; name?: string }
   | { kind: "elevation"; ortho?: CadViewportOrthoName; name?: string }
   | { kind: "section"; from?: CadPoint2; to?: CadPoint2; name?: string }
   | { kind: "detail"; parentId?: string; zoom?: number; name?: string };
@@ -147,6 +158,15 @@ function solviewStep(state: SolviewState): CadCommandStep<SolviewState> {
         options: SOLVIEW_OPTIONS,
       },
       accepts: CAD_ACCEPT_KEYWORD,
+    };
+  if (op.kind === "plan" && op.cut === undefined)
+    return {
+      state,
+      prompt: {
+        message: `Altura del corte horizontal, Intro para proyectar sin cortar <${PLAN_CUT_DEFAULT}>`,
+        options: [],
+      },
+      accepts: CAD_ACCEPT_TEXT,
     };
   if (op.kind === "elevation" && !op.ortho)
     return {
@@ -231,7 +251,19 @@ function finishSolview(
   let camera;
   let window;
   let parentViewportId: string | undefined;
-  if (op.kind === "plan") camera = cadViewportOrthoView("planta", { x: 0, y: 0, z: 0 });
+  if (op.kind === "plan") {
+    // Una planta de arquitectura es un corte horizontal a la altura del
+    // antepecho: enseña el hueco de la ventana y no su alféizar, y los muros
+    // salen cortados. Proyectar el edificio entero desde arriba da un dibujo
+    // que parece una planta y enseña la cubierta (defecto (e)).
+    if (op.cut === "sin-corte" || op.cut === undefined)
+      camera = cadViewportOrthoView("planta", { x: 0, y: 0, z: 0 });
+    else {
+      const cortada = cadViewportPlanCutView({ cutHeight: op.cut });
+      if ("ok" in cortada) return say(cortada.message);
+      camera = cortada;
+    }
+  }
   else if (op.kind === "elevation")
     camera = cadViewportOrthoView(op.ortho ?? "frontal", { x: 0, y: 0, z: 0 });
   else if (op.kind === "section") {
@@ -359,6 +391,10 @@ const solviewCommand: CadCommandDescriptor<SolviewState> = {
     // como texto vacío, así que se atiende antes del filtro de texto.
     if (input.kind === "enter" && state.op.kind === "detail" && state.op.parentId && state.op.zoom === undefined)
       return solviewStep({ op: { ...state.op, zoom: DETAIL_ZOOM } });
+    // Intro sobre la altura de corte pide la planta SIN cortar, que es lo que
+    // había antes de esta ola: una lámina antigua se rehace igual.
+    if (input.kind === "enter" && state.op.kind === "plan" && state.op.cut === undefined)
+      return solviewStep({ op: { kind: "plan", cut: "sin-corte" } });
 
     if (input.kind !== "text") return solviewStep(state);
     if (state.op.kind === "detail" && !state.op.parentId) {
@@ -370,6 +406,17 @@ const solviewCommand: CadCommandDescriptor<SolviewState> = {
       const parent = findDerivedViewport(space, input.value);
       if (!parent?.view || !parent.derivation?.window) return say(noSuchView(input.value));
       return solviewStep({ op: { kind: "detail", parentId: input.value } });
+    }
+    if (state.op.kind === "plan" && state.op.cut === undefined) {
+      const escrito = input.value.trim().replace(",", ".");
+      if (escrito === "") return solviewStep({ op: { kind: "plan", cut: "sin-corte" } });
+      const altura = Number(escrito);
+      // Fallo cerrado: una altura ilegible no se redondea a ninguna parte. Una
+      // planta cortada a la altura equivocada es un plano equivocado que parece
+      // correcto.
+      if (!Number.isFinite(altura))
+        return say(`«${input.value}» no es una altura de corte: escriba un número.`);
+      return solviewStep({ op: { kind: "plan", cut: altura } });
     }
     if (state.op.kind === "detail" && state.op.zoom === undefined) {
       // Intro acepta el valor por defecto, como en cualquier orden con un

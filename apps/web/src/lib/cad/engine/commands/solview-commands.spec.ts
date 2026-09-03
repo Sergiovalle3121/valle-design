@@ -194,7 +194,7 @@ const messages = (effects: readonly CadCommandEffect[]) =>
 // --- 4. las negativas son explícitas, no láminas inventadas -------------------
 {
   // Sin presentación abierta no hay dónde poner la ventana.
-  const sinLamina = run(documento(), ["SOLVIEW", "PL", "Planta"]);
+  const sinLamina = run(documento(), ["SOLVIEW", "PL", "\r", "Planta"]);
   assert.ok(
     messages(sinLamina.effects).some((text) => text.includes("LAYOUT")),
     `SOLVIEW sin presentación debería decirlo: ${messages(sinLamina.effects).join(" / ")}`,
@@ -210,6 +210,7 @@ const messages = (effects: readonly CadCommandEffect[]) =>
   const sinModelo = run(run(vacio, ["LAYOUT", "N", "Hoja"]).document, [
     "SOLVIEW",
     "PL",
+    "\r",
     "Planta",
   ]);
   assert.ok(
@@ -219,8 +220,8 @@ const messages = (effects: readonly CadCommandEffect[]) =>
 
   // Dos vistas con el mismo nombre colisionarían en sus capas.
   let document = run(documento(), ["LAYOUT", "N", "Hoja"]).document;
-  document = run(document, ["SOLVIEW", "PL", "Planta"]).document;
-  const repetida = run(document, ["SOLVIEW", "PL", "Planta"]);
+  document = run(document, ["SOLVIEW", "PL", "\r", "Planta"]).document;
+  const repetida = run(document, ["SOLVIEW", "PL", "\r", "Planta"]);
   assert.ok(
     messages(repetida.effects).some((text) => text.includes("colisionarían")),
     `SOLVIEW con nombre repetido debería negarse: ${messages(repetida.effects).join(" / ")}`,
@@ -242,7 +243,7 @@ const messages = (effects: readonly CadCommandEffect[]) =>
 // --- 5. el DEtalle hereda la cámara de su padre y se acerca ------------------
 {
   let document = run(documento(), ["LAYOUT", "N", "Hoja"]).document;
-  document = run(document, ["SOLVIEW", "PL", "Planta"]).document;
+  document = run(document, ["SOLVIEW", "PL", "\r", "Planta"]).document;
   // La AMPLIACIÓN se pregunta: era un ×2 fijo y sin forma de cambiarlo, que es
   // la mitad del defecto (d). Un detalle constructivo a 1:5 sobre una planta a
   // 1:100 es ×20, y con ×2 el «detalle» era la misma planta un poco más grande.
@@ -281,8 +282,57 @@ const messages = (effects: readonly CadCommandEffect[]) =>
   );
 }
 
+// --- 6. la PLANTA se puede pedir CORTADA, tecleando su altura ---------------
+{
+  // Defecto (e): la sección sólo podía ser un plano vertical de dos puntos, así
+  // que el corte horizontal —el que más se dibuja en una obra— no se podía
+  // pedir. Ahora SOLVIEW Planta pregunta a qué altura corta.
+  let document = run(documento(), ["LAYOUT", "N", "Hoja"]).document;
+  document = run(document, ["SOLVIEW", "PL", "1200", "Baja"]).document;
+  const planta = (document.paperSpaces[0].viewports ?? []).find(
+    (v) => v.derivation?.layerBase === "BAJA",
+  );
+  assert.ok(planta, "la planta cortada se creó");
+  assert.equal(planta!.view?.kind, "plan", "y se sigue llamando planta");
+  assert.ok(
+    planta!.view?.sectionPlane,
+    "pero lleva plano de corte: es un corte horizontal, no una vista cenital",
+  );
+  assert.equal(
+    planta!.view!.sectionPlane!.origin.z,
+    1_200,
+    "a la altura que se tecleó",
+  );
+  assert.equal(
+    planta!.view!.sectionPlane!.normal.z,
+    1,
+    "con la normal hacia arriba: lo que queda por encima del corte se retira",
+  );
+
+  // Intro deja la planta SIN cortar, que es lo que había: una lámina antigua se
+  // rehace igual.
+  const sinCortar = run(document, ["SOLVIEW", "PL", "\r", "Cubierta"]).document;
+  const cubierta = (sinCortar.paperSpaces[0].viewports ?? []).find(
+    (v) => v.derivation?.layerBase === "CUBIERTA",
+  );
+  assert.ok(cubierta, "la planta sin cortar también se crea");
+  assert.equal(
+    cubierta!.view?.sectionPlane,
+    undefined,
+    "y no lleva plano de corte",
+  );
+
+  // Y una altura ilegible no se redondea a ninguna parte.
+  const disparate = run(document, ["SOLVIEW", "PL", "alto", "X"]);
+  assert.ok(
+    messages(disparate.effects).some((t) => t.includes("no es una altura de corte")),
+    `una altura ilegible debería decirse: ${messages(disparate.effects).join(" / ")}`,
+  );
+}
+
 console.log(
   "OK SOLVIEW/SOLDRAW tecleados: alias, CINCO capas por vista (-VIS/-HID/-HAT/-DIM/-ROT), " +
     "corte con sombreado, aviso de obsolescencia, detalle con la ampliación que se teclea " +
-    "—×2 por defecto, ilegible rechazada— y cinco negativas con motivo",
+    "—×2 por defecto, ilegible rechazada—, PLANTA CORTADA a la altura que se teclea " +
+    "y seis negativas con motivo",
 );

@@ -289,6 +289,49 @@ export function cadViewportSectionView(input: {
 }
 
 /**
+ * LA PLANTA DE VERDAD: un corte HORIZONTAL a la altura del antepecho.
+ *
+ * Una planta de arquitectura no es «el edificio visto desde arriba»: es un
+ * corte horizontal a ~1,20 m con el techo retirado. Por eso enseña el hueco de
+ * las ventanas y no su alféizar, y por eso los muros salen cortados y se
+ * sombrean. Proyectar el edificio entero desde arriba da un dibujo que parece
+ * una planta y no lo es: enseña la cubierta.
+ *
+ * Era el defecto (e) del informe de distancia —«la sección sólo puede ser un
+ * plano VERTICAL de dos puntos»—: el corte horizontal, que es el que más se
+ * dibuja en una obra, no se podía pedir.
+ *
+ * Se resuelve SIN campo nuevo: `sectionPlane` ya es opcional en cualquier
+ * vista, y quien lo lee ya decide por su PRESENCIA y no por el nombre de la
+ * vista. Una planta con plano de corte es una planta cortada, y se sigue
+ * llamando planta — que es como se llama en el plano.
+ */
+export function cadViewportPlanCutView(input: {
+  /** Altura del corte, en unidades de dibujo desde el nivel del suelo. */
+  cutHeight: number;
+  /** Cota del nivel. El corte va a `elevation + cutHeight`. */
+  elevation?: number;
+  /** Centro del encuadre en planta. Por defecto, el origen. */
+  center?: CadPoint2;
+}): CadViewportView | CadViewportViewFailure {
+  if (!Number.isFinite(input.cutHeight))
+    return fail("corte-invalido", "La altura de corte tiene que ser un número.");
+  const base = input.elevation ?? 0;
+  const z = base + input.cutHeight;
+  const target = v(input.center?.x ?? 0, input.center?.y ?? 0, z);
+  return {
+    projection: "parallel",
+    kind: "plan",
+    target,
+    direction: v(0, 0, -1),
+    up: v(0, 1, 0),
+    // La normal apunta hacia el ojo —arriba—: lo que queda por encima del corte
+    // está entre el observador y el plano, y es lo que se retira.
+    sectionPlane: { origin: { ...target }, normal: v(0, 0, 1) },
+  };
+}
+
+/**
  * ¿Es esta vista la de planta de toda la vida?
  *
  * Lo pregunta quien puede tomar un atajo 2D —el trazado, la vista previa— y

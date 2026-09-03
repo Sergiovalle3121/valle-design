@@ -148,7 +148,7 @@ const messages = (effects: readonly CadCommandEffect[]) =>
 
 // --- 2 · una lámina tecleada sale con sus rótulos ---------------------------
 let lamina = run(documento(), ["LAYOUT", "N", "Hoja"]).document;
-lamina = run(lamina, ["SOLVIEW", "PL", "Baja"]).document;
+lamina = run(lamina, ["SOLVIEW", "PL", "\r", "Baja"]).document;
 lamina = run(lamina, ["SOLVIEW", "AL", "F", "Sur"]).document;
 lamina = run(lamina, [
   "SOLVIEW", "CO", { punto: [0, 2_000] }, { punto: [6_000, 2_000] }, "A",
@@ -242,8 +242,8 @@ for (const [base, titulo] of [
 // --- 5 · sin una única planta, el corte se crea Y LO DICE -------------------
 {
   let dos = run(documento(), ["LAYOUT", "N", "Hoja"]).document;
-  dos = run(dos, ["SOLVIEW", "PL", "Baja"]).document;
-  dos = run(dos, ["SOLVIEW", "PL", "Alta"]).document;
+  dos = run(dos, ["SOLVIEW", "PL", "\r", "Baja"]).document;
+  dos = run(dos, ["SOLVIEW", "PL", "\r", "Alta"]).document;
   const corte = run(dos, ["SOLVIEW", "CO", { punto: [0, 2_000] }, { punto: [6_000, 2_000] }, "B"]);
   ok(
     messages(corte.effects).some((texto) => texto.includes("sin marca de corte")),

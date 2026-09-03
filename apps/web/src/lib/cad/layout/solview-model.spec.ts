@@ -24,7 +24,11 @@
  */
 import { strict as assert } from "node:assert";
 import type { CadViewportView } from "../cad-paper-viewport";
-import { cadViewportViewFrame } from "./viewport-view";
+import {
+  cadViewportOrthoView,
+  cadViewportPlanCutView,
+  cadViewportViewFrame,
+} from "./viewport-view";
 import {
   cadSolviewContributions,
   cadSolviewProject,
@@ -205,4 +209,44 @@ function resolver(entities: readonly unknown[], view: CadViewportView = ALZADO) 
   ok(mediana < 400, `una planta de 40 muros se resuelve en ${mediana.toFixed(1)} ms (techo 400)`);
 }
 
-console.log(`solview-model: ${verdes} comprobaciones verdes — qué tapa a qué entre cuerpos distintos`);
+// --- 6 · LA PLANTA DE VERDAD: un corte horizontal, no una vista cenital -----
+{
+  // Defecto (e): «la sección sólo puede ser un plano VERTICAL de dos puntos».
+  // Una planta de arquitectura es un corte horizontal a la altura del
+  // antepecho; proyectar el edificio desde arriba da un dibujo que parece una
+  // planta y enseña la cubierta.
+  const entities = [muro("muro", 0, 0, 4_000, 0, 3_000)];
+  const cortada = cadViewportPlanCutView({ cutHeight: 1_200 });
+  assert.ok(!("ok" in cortada), "la cámara de planta cortada se construye");
+  const vista = cortada as CadViewportView;
+  eq(vista.kind, "plan", "sigue llamándose planta, que es como se llama en el plano");
+  ok(vista.sectionPlane, "y lleva su plano de corte, sin campo nuevo en el esquema");
+
+  const outcome = cadViewportViewFrame(vista);
+  assert.ok(outcome.ok, "el marco se resuelve");
+  const sources = cadSolviewSources({ entities } as never);
+  const window = cadSolviewWindow(sources, outcome.frame, vista);
+  assert.ok(window, "la planta cortada encuadra el muro");
+  const aportes = cadSolviewContributions(sources, outcome.frame, vista, window);
+  eq(aportes.length, 1, "el muro entra en la planta cortada");
+
+  // Lo que hace que sea un CORTE y no una vista cenital: la huella cortada, que
+  // es lo que se sombrea, y que ningún trazo queda por encima del plano.
+  ok(aportes[0].sectionLoops.length > 0, "la planta cortada tiene huella de corte que sombrear");
+
+  // Y el control que lo convierte en medición: la planta SIN cortar del mismo
+  // muro no tiene ninguna huella.
+  const cenital = cadViewportOrthoView("planta", { x: 0, y: 0, z: 0 });
+  const marcoCenital = cadViewportViewFrame(cenital);
+  assert.ok(marcoCenital.ok, "la planta cenital también se resuelve");
+  const ventanaCenital = cadSolviewWindow(sources, marcoCenital.frame, cenital);
+  assert.ok(ventanaCenital, "y encuadra");
+  const cenitales = cadSolviewContributions(sources, marcoCenital.frame, cenital, ventanaCenital);
+  eq(
+    cenitales[0].sectionLoops.length,
+    0,
+    "control: la planta sin cortar no tiene huella — es una vista cenital",
+  );
+}
+
+console.log(`solview-model: ${verdes} comprobaciones verdes — qué tapa a qué entre cuerpos distintos y la planta que es un corte`);
