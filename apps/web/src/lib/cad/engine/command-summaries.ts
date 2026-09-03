@@ -172,6 +172,7 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   BLOQUEDIN: "Coloca un bloque DINÁMICO: una familia con parámetros en vez de veinte bloques casi iguales.",
   BLOQUEDINSET: "Cambia un parámetro de un bloque dinámico ya colocado, sin moverlo ni volver a insertarlo.",
   BLOQUEDINLIST: "Dice qué bloques dinámicos hay y con qué valores. No escribe nada.",
+  BLOQUEDINDEF: "Vuelve dinámico un bloque TUYO: declara un parámetro de estirado dentro de su definición.",
   GEOGRAPHICLOCATION: "Georreferencia el dibujo: un punto y su Este/Norte UTM o su latitud y longitud, con zona y datum.",
   MAPIMPORT: "Importa un shapefile o GeoJSON al dibujo como entidades con atributos, en el sistema del dibujo.",
   IMAGEATTACH: "Adjunta un plano escaneado (PNG, JPEG…) dentro del dibujo: inserción, ancho y giro.",

@@ -34,12 +34,11 @@
  * aquí todavía no existe. Ponerles esos nombres a estas órdenes sería prometer
  * el editor. Se llaman por lo que hacen.
  */
-import type { CadPoint2 } from "../../cad-document";
+import type { CadBlockDefinition, CadPoint2 } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
 import {
   CAD_DYNAMIC_BLOCKS,
   CAD_DYNAMIC_FAMILY_METADATA,
-  cadDynamicBlockFamily,
   cadDynamicInsertCommands,
   cadDynamicInsertFamilyId,
   cadDynamicInsertValues,
@@ -47,6 +46,18 @@ import {
   type CadDynamicBlockFamily,
   type CadDynamicParameter,
 } from "../../dynamic-blocks";
+import {
+  CAD_DIN_DEFAULT,
+  CAD_DIN_KIND,
+  CAD_DIN_LABEL,
+  CAD_DIN_LAYER,
+  CAD_DIN_MAX,
+  CAD_DIN_MIN,
+  CAD_DIN_PARAM,
+  CAD_DIN_STEPS,
+  cadUserDynamicFamilies,
+  cadUserDynamicFamily,
+} from "../../blocks/user-dynamic-family";
 import {
   CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_KEYWORD,
@@ -67,15 +78,29 @@ const say = (text: string): CadCommandStep<never> => ({
 });
 
 /**
+ * Las familias que el usuario puede colocar AHORA: las del programa y las que
+ * trae el DIBUJO.
+ *
+ * En este orden a propósito: si un despacho llama `nivel` a un bloque suyo, la
+ * suya gana sobre la del programa. El dibujo manda sobre el catálogo, que es lo
+ * que un despacho espera de su propia biblioteca.
+ */
+function familiesOf(context: CadCommandContext): CadDynamicBlockFamily[] {
+  const propias = cadUserDynamicFamilies(context.blocks?.() ?? []);
+  const suyas = new Set(propias.map((family) => family.id));
+  return [...propias, ...CAD_DYNAMIC_BLOCKS.filter((family) => !suyas.has(family.id))];
+}
+
+/**
  * Una palabra clave por familia, derivada de su id.
  *
  * El atajo es la inicial en mayúscula, como en toda la línea de órdenes de este
  * producto. Si dos familias empezaran por la misma letra, la segunda toma su
  * segunda letra: dos atajos iguales harían inalcanzable a una de las dos.
  */
-function familyKeywords(): { keyword: string; shortcut: string }[] {
+function familyKeywords(families: readonly CadDynamicBlockFamily[]): { keyword: string; shortcut: string }[] {
   const usados = new Set<string>();
-  return CAD_DYNAMIC_BLOCKS.map((family) => {
+  return families.map((family) => {
     const limpio = family.id.replace(/[^a-z]/gu, "");
     let atajo = limpio[0]?.toUpperCase() ?? "X";
     for (const letra of limpio)
@@ -86,10 +111,13 @@ function familyKeywords(): { keyword: string; shortcut: string }[] {
   });
 }
 
-const familyFor = (raw: string): CadDynamicBlockFamily | null => {
+const familyFor = (
+  families: readonly CadDynamicBlockFamily[],
+  raw: string,
+): CadDynamicBlockFamily | null => {
   const clave = raw.trim().toLowerCase();
   return (
-    CAD_DYNAMIC_BLOCKS.find(
+    families.find(
       (family) =>
         family.id.toLowerCase() === clave ||
         family.name.toLowerCase() === clave ||
@@ -115,6 +143,8 @@ function parameterPrompt(parameter: CadDynamicParameter): string {
 // ---------------------------------------------------------------------------
 
 interface InsertState {
+  /** Las familias disponibles cuando arrancó la orden: del dibujo y del programa. */
+  families: CadDynamicBlockFamily[];
   family: CadDynamicBlockFamily | null;
   /** Índice del parámetro que se está preguntando. */
   index: number;
@@ -124,11 +154,11 @@ interface InsertState {
 
 function insertStep(state: InsertState): CadCommandStep<InsertState> {
   if (!state.family) {
-    const options = familyKeywords();
+    const options = familyKeywords(state.families);
     return {
       state,
       prompt: {
-        message: `Familia dinámica (${CAD_DYNAMIC_BLOCKS.length} disponibles)`,
+        message: `Familia dinámica (${state.families.length} disponibles)`,
         options,
         defaultOption: options[0]?.keyword,
       },
@@ -212,18 +242,23 @@ const insertCommand: CadCommandDescriptor<InsertState> = {
   repeatable: true,
   mutates: true,
   cursor: "crosshair",
-  begin: () => insertStep({ family: null, index: 0, values: {}, point: null }),
+  begin: (context) => {
+    const families = familiesOf(context);
+    if (families.length === 0)
+      return say("No hay ninguna familia dinámica disponible en este dibujo ni en el programa.");
+    return insertStep({ families, family: null, index: 0, values: {}, point: null });
+  },
   step: (state, input, context) => {
     if (input.kind === "cancel") return say("BLOQUEDIN cancelado.");
     if (!state.family) {
       if (input.kind === "enter")
-        return insertStep({ ...state, family: CAD_DYNAMIC_BLOCKS[0] ?? null });
+        return insertStep({ ...state, family: state.families[0] ?? null });
       if (input.kind !== "keyword") return insertStep(state);
       // El motor ya rechaza con motivo una palabra que no está entre las
       // opciones del prompt («Entrada no válida "…"»), así que aquí no puede
       // llegar una familia inventada: lo que no se reconoce se vuelve a
       // preguntar en vez de escribir una rama que nadie puede alcanzar.
-      const family = familyFor(input.keyword);
+      const family = familyFor(state.families, input.keyword);
       return family ? insertStep({ ...state, family }) : insertStep(state);
     }
     const parameter = state.family.parameters[state.index];
@@ -337,14 +372,15 @@ const setCommand: CadCommandDescriptor<SetState> = {
           ? "BLOQUEDINSET trabaja sobre la selección: elija primero un bloque dinámico."
           : `Nada de lo seleccionado (${seleccionados.length}) es un bloque dinámico: ninguno lleva familia en sus metadatos. Coloque uno con BLOQUEDIN.`,
       );
-    let family: CadDynamicBlockFamily;
-    try {
-      family = cadDynamicBlockFamily(cadDynamicInsertFamilyId(dinamico)!);
-    } catch (error) {
-      // La familia viajó en el documento y este programa ya no la tiene: se
-      // dice cuál falta en vez de dejar el bloque mudo.
-      return say(error instanceof Error ? error.message : String(error));
-    }
+    const familyId = cadDynamicInsertFamilyId(dinamico)!;
+    const family = familiesOf(context).find((item) => item.id === familyId);
+    // La familia viajó en el INSERT y ni el dibujo ni el programa la tienen: se
+    // dice cuál falta en vez de dejar el bloque mudo. Pasa de verdad cuando un
+    // plano llega de otro despacho con su propia biblioteca y sin ella.
+    if (!family)
+      return say(
+        `Este bloque dice ser de la familia «${familyId}», que no está ni en el dibujo ni en el programa. Sin su definición no se puede cambiar un parámetro sin inventarse la geometría.`,
+      );
     return setStep({ entityId: dinamico.id, family, parameter: null });
   },
   step: (state, input, context) => {
@@ -384,15 +420,16 @@ const listCommand: CadCommandDescriptor<never> = {
   begin: (context) => {
     if (!context.entity)
       return say("BLOQUEDINLIST necesita leer el dibujo: este anfitrión no lo expone.");
+    const disponibles = familiesOf(context);
     const entidades = context.entityIds
       .map((id) => context.entity!(id))
       .filter((entity): entity is NonNullable<typeof entity> => !!entity)
       .filter((entity) => entity.context?.metadata?.[CAD_DYNAMIC_FAMILY_METADATA]);
     if (entidades.length === 0)
       return say(
-        `No hay ningún bloque dinámico colocado. Hay ${CAD_DYNAMIC_BLOCKS.length} familia(s) disponibles: ${CAD_DYNAMIC_BLOCKS.map(
-          (family) => family.id,
-        ).join(", ")}. Coloque uno con BLOQUEDIN.`,
+        `No hay ningún bloque dinámico colocado. Hay ${disponibles.length} familia(s) disponibles: ${disponibles
+          .map((family) => family.id)
+          .join(", ")}. Coloque uno con BLOQUEDIN.`,
       );
 
     const porFamilia = new Map<string, number>();
@@ -426,8 +463,220 @@ const listCommand: CadCommandDescriptor<never> = {
   }),
 };
 
+// ---------------------------------------------------------------------------
+// BLOQUEDINDEF — volver dinámico un bloque DEL USUARIO
+// ---------------------------------------------------------------------------
+
+/**
+ * Declara un parámetro sobre un bloque del dibujo.
+ *
+ * Es la orden que separa «el programa trae dos familias» de «un despacho puede
+ * hacer dinámica su biblioteca». El parámetro se escribe DENTRO de la
+ * definición como una línea marcada —ver `blocks/user-dynamic-family.ts`—, así
+ * que viaja al DXF, se ve en el bloque y se puede apagar por capa.
+ *
+ * La línea se teclea de base a punta: su dirección es la del estirado y su
+ * longitud es la medida de referencia. Lo que quede más allá de su punto medio
+ * es lo que se mueve.
+ */
+interface DefineState {
+  blockId: string | null;
+  name: string | null;
+  label: string | null;
+  base: CadPoint2 | null;
+  tip: CadPoint2 | null;
+  min: number | null;
+  max: number | null;
+  asked: "min" | "max" | "steps" | null;
+  steps: string | null;
+}
+
+function defineStep(state: DefineState): CadCommandStep<DefineState> {
+  if (!state.blockId)
+    return {
+      state,
+      prompt: { message: "Nombre del bloque que se vuelve dinámico", options: [] },
+      accepts: CAD_ACCEPT_TEXT,
+    };
+  if (!state.name)
+    return {
+      state,
+      prompt: { message: "Nombre del parámetro (letras, cifras y guiones)", options: [] },
+      accepts: CAD_ACCEPT_TEXT,
+    };
+  if (!state.label)
+    return {
+      state,
+      prompt: { message: `Rótulo que se leerá al preguntar, Intro para <${state.name}>`, options: [] },
+      accepts: CAD_ACCEPT_TEXT,
+    };
+  if (!state.base)
+    return {
+      state,
+      prompt: { message: "Punto BASE del parámetro (lo que NO se mueve)", options: [] },
+      accepts: CAD_ACCEPT_POINT,
+    };
+  if (!state.tip)
+    return {
+      state,
+      prompt: { message: "Punta del parámetro: dirección y medida de referencia", options: [] },
+      accepts: CAD_ACCEPT_POINT,
+    };
+  if (state.asked === "min")
+    return {
+      state,
+      prompt: { message: "Mínimo admitido, Intro para ninguno", options: [] },
+      accepts: CAD_ACCEPT_DISTANCE,
+    };
+  if (state.asked === "max")
+    return {
+      state,
+      prompt: { message: "Máximo admitido, Intro para ninguno", options: [] },
+      accepts: CAD_ACCEPT_DISTANCE,
+    };
+  return {
+    state,
+    prompt: {
+      message: "Medidas admitidas separadas por comas (600,700,800), Intro para libre",
+      options: [],
+    },
+    accepts: CAD_ACCEPT_TEXT,
+  };
+}
+
+function finishDefine(state: DefineState, context: CadCommandContext): CadCommandStep<never> {
+  const blocks = context.blocks?.() ?? [];
+  const definition = blocks.find((block) => block.id === state.blockId);
+  if (!definition) return say(`El bloque «${state.blockId}» ya no está en el dibujo.`);
+
+  const largo = Math.hypot(state.tip!.x - state.base!.x, state.tip!.y - state.base!.y);
+  const metadata: Record<string, string> = {
+    [CAD_DIN_PARAM]: state.name!,
+    [CAD_DIN_KIND]: "lineal",
+    [CAD_DIN_LABEL]: state.label!,
+    [CAD_DIN_DEFAULT]: String(Math.round(largo * 1_000) / 1_000),
+  };
+  if (state.min !== null) metadata[CAD_DIN_MIN] = String(state.min);
+  if (state.max !== null) metadata[CAD_DIN_MAX] = String(state.max);
+  if (state.steps) metadata[CAD_DIN_STEPS] = state.steps;
+
+  const carrier = {
+    id: context.newEntityId(),
+    type: "line",
+    start: { x: state.base!.x, y: state.base!.y, z: 0 },
+    end: { x: state.tip!.x, y: state.tip!.y, z: 0 },
+    // Capa propia para poder apagar los parámetros sin tocar el dibujo.
+    layer: CAD_DIN_LAYER,
+    context: { metadata },
+  } as unknown as CadBlockDefinition["entities"][number];
+
+  const propuesta: CadBlockDefinition = {
+    ...definition,
+    entities: [...definition.entities, carrier],
+  };
+  // Se lee con el MISMO lector que usará la orden de colocar: un parámetro que
+  // el lector no acepta dejaría un bloque que dice ser dinámico y no obedece.
+  const { family, findings } = cadUserDynamicFamily(propuesta);
+  if (!family || findings.length > 0)
+    return say(
+      `No se declaró el parámetro: ${findings.map((hallazgo) => hallazgo.detail).join(" ") || "el lector no reconoció ninguno."}`,
+    );
+
+  const dicho =
+    `BLOQUEDINDEF: «${definition.name}» ya es dinámico — parámetro ${state.name} (${state.label}), ` +
+    `referencia ${Math.round(largo)}${state.min !== null ? `, mín. ${state.min}` : ""}` +
+    `${state.max !== null ? `, máx. ${state.max}` : ""}${state.steps ? `, medidas ${state.steps}` : ""}. ` +
+    `Colóquelo con BLOQUEDIN ${definition.id}.`;
+  return {
+    state: undefined as never,
+    prompt: { message: "", options: [] },
+    accepts: 0,
+    result: {
+      kind: "document",
+      commands: [{ type: "block", op: "redefine", definition: propuesta }],
+      label: "BLOQUEDINDEF",
+      notice: dicho,
+    },
+  };
+}
+
+const defineCommand: CadCommandDescriptor<DefineState> = {
+  name: "BLOQUEDINDEF",
+  aliases: ["PARAMETRODEF", "DYNPARAM"],
+  kind: "manage",
+  transparent: false,
+  selection: "none",
+  repeatable: true,
+  mutates: true,
+  cursor: "crosshair",
+  begin: () =>
+    defineStep({
+      blockId: null,
+      name: null,
+      label: null,
+      base: null,
+      tip: null,
+      min: null,
+      max: null,
+      asked: null,
+      steps: null,
+    }),
+  step: (state, input, context) => {
+    if (input.kind === "cancel") return say("BLOQUEDINDEF cancelado.");
+    if (!state.blockId) {
+      if (input.kind !== "text" || input.value.trim() === "")
+        return say("BLOQUEDINDEF necesita el nombre del bloque que se vuelve dinámico.");
+      const clave = input.value.trim().toLowerCase();
+      const definition = (context.blocks?.() ?? []).find(
+        (block) => block.id.toLowerCase() === clave || block.name.toLowerCase() === clave,
+      );
+      return definition
+        ? defineStep({ ...state, blockId: definition.id })
+        : say(
+            `No hay ningún bloque «${input.value.trim()}» en el dibujo. Defínalo primero con BLOCK.`,
+          );
+    }
+    if (!state.name) {
+      if (input.kind !== "text" || input.value.trim() === "")
+        return say("Un parámetro sin nombre no se puede preguntar ni guardar.");
+      return defineStep({ ...state, name: input.value.trim() });
+    }
+    if (!state.label) {
+      if (input.kind === "enter") return defineStep({ ...state, label: state.name });
+      if (input.kind !== "text") return defineStep(state);
+      const escrito = input.value.trim();
+      return defineStep({ ...state, label: escrito === "" ? state.name : escrito });
+    }
+    if (!state.base) {
+      if (input.kind !== "point") return defineStep(state);
+      return defineStep({ ...state, base: input.point });
+    }
+    if (!state.tip) {
+      if (input.kind !== "point") return defineStep(state);
+      if (input.point.x === state.base.x && input.point.y === state.base.y)
+        return say("La punta no puede ser la base: sin dirección no hay estirado.");
+      return defineStep({ ...state, tip: input.point, asked: "min" });
+    }
+    if (state.asked === "min") {
+      if (input.kind === "enter") return defineStep({ ...state, asked: "max" });
+      if (input.kind !== "distance") return defineStep(state);
+      return defineStep({ ...state, min: input.value, asked: "max" });
+    }
+    if (state.asked === "max") {
+      if (input.kind === "enter") return defineStep({ ...state, asked: "steps" });
+      if (input.kind !== "distance") return defineStep(state);
+      return defineStep({ ...state, max: input.value, asked: "steps" });
+    }
+    if (input.kind === "enter") return finishDefine(state, context);
+    if (input.kind !== "text") return defineStep(state);
+    const escrito = input.value.trim();
+    return finishDefine({ ...state, steps: escrito === "" ? null : escrito }, context);
+  },
+};
+
 export const CAD_DYNAMIC_BLOCK_COMMANDS: readonly CadAnyCommandDescriptor[] = [
   asCadCommand(insertCommand),
   asCadCommand(setCommand),
   asCadCommand(listCommand),
+  asCadCommand(defineCommand),
 ];

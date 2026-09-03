@@ -117,12 +117,22 @@ export interface CadDynamicBlockFamily {
   attributes(values: CadDynamicValues): Record<string, { defaultValue: string; prompt: string }>;
 }
 
-/** Primitiva sin identidad: el id y la capa los pone la materialización. */
+/**
+ * Primitiva sin identidad: el id y la capa los pone la materialización.
+ *
+ * `entity` es el caso de las familias que salen de un bloque DEL USUARIO: su
+ * geometría es la que dibujó, y puede llevar texto, sombreado o cualquier otro
+ * tipo que este documento guarde. Recortarla a cuatro primitivas obligaría a
+ * decirle a un despacho que su bloque no puede ser dinámico porque tiene una
+ * rotulación dentro, que es un límite del programa disfrazado de límite del
+ * dibujo. La materialización le pone id nuevo y RESPETA su capa.
+ */
 export type CadDynamicShape =
   | { type: "line"; start: CadPoint3; end: CadPoint3 }
   | { type: "arc"; center: CadPoint3; radius: number; startAngle: number; endAngle: number }
   | { type: "circle"; center: CadPoint3; radius: number }
-  | { type: "polyline"; vertices: CadPoint3[]; closed: boolean };
+  | { type: "polyline"; vertices: CadPoint3[]; closed: boolean }
+  | { type: "entity"; entity: CadEntity };
 
 const p3 = (x: number, y: number): CadPoint3 => ({ x, y, z: 0 });
 const line = (x1: number, y1: number, x2: number, y2: number): CadDynamicShape => ({
@@ -235,6 +245,15 @@ export function cadDynamicBlockKey(
 /** Refleja una forma sobre el eje Y: `x → −x`. */
 function mirrorShape(shape: CadDynamicShape): CadDynamicShape {
   const flip = (point: CadPoint3): CadPoint3 => ({ ...point, x: -point.x });
+  // Una geometría de bloque de usuario NO llega aquí: `cadUserDynamicFamily`
+  // rechaza declarar un parámetro interruptor y lo dice. Si algún día llegara,
+  // fallar cerrado es lo correcto: reflejar «casi bien» un texto o un sombreado
+  // es peor que negarse, porque el error se ve en obra y no en pantalla.
+  if (shape.type === "entity")
+    throw new CadDynamicBlockError(
+      "cad_dynamic_parameter_unknown",
+      "Una familia con geometría de usuario todavía no admite parámetros de espejo.",
+    );
   if (shape.type === "line") return { ...shape, start: flip(shape.start), end: flip(shape.end) };
   if (shape.type === "circle") return { ...shape, center: flip(shape.center) };
   if (shape.type === "polyline")
@@ -274,9 +293,10 @@ export function materializeCadDynamicBlock(
   values: CadDynamicValues,
 ): CadBlockDefinition {
   const id = cadDynamicBlockKey(family, values);
-  const entities = cadDynamicShapes(family, values).map(
-    (shape, index) =>
-      ({ ...shape, id: `${id}:e${index}`, layer: family.layer }) as CadEntity,
+  const entities = cadDynamicShapes(family, values).map((shape, index) =>
+    shape.type === "entity"
+      ? ({ ...shape.entity, id: `${id}:e${index}` } as CadEntity)
+      : ({ ...shape, id: `${id}:e${index}`, layer: family.layer } as CadEntity),
   );
   return {
     id,

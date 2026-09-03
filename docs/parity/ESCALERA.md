@@ -421,6 +421,21 @@ de tubería 3D e isométricos, que no existe.
 | Catálogo de fabricante con claves y precios | 0 | ninguna | El metrado sale; la requisición valorada no. **Todavía no.** |
 | Instrumento de panel y de programa | 0 | ninguna | Entra el de campo, que es el que más se dibuja, y está dicho en el módulo. **Todavía no.** |
 
+## Los bloques dinámicos (Ola 7, 2026-09-03)
+
+`blocks.dynamic` estaba en «todavía no» con este motivo: *«No hay bloques
+dinámicos como tales (parámetros/acciones editables por grip).»* Se re-midió y
+la mitad de la frase era peor de lo que decía: el MOTOR existía —683 líneas y su
+spec verde— y **no lo importaba ni un comando ni un panel**.
+
+| Capacidad | Peldaño | Evidencia | Qué falta para el siguiente |
+| --- | --- | --- | --- |
+| Colocar una familia dinámica tecleando, con sus parámetros | 5 | `dynamic-block.spec.ts` (40) y golden 96: la puerta llega al servidor con `din:familia` y `din:claro` encima, así que sigue siendo paramétrica después de guardar | Nada de peldaño. Los valores que no son comerciales se ajustan y **se dice** que se ajustaron: un claro de 0,873 sale 0,90 con su aviso. |
+| Cambiar un parámetro sin mover ni volver a insertar el bloque | 5 | golden 96 sobre el documento persistido: mismo id, misma inserción, otra definición materializada, y el barrido de la hoja pasa de 900 a 1.000 | Es lo que distingue un bloque dinámico de borrar y poner otro. **Falta el GRIP**: hoy se cambia por orden sobre la selección, no arrastrando un tirador, porque el puntero no está enrutado al motor. **Todavía no.** |
+| Volver dinámico un bloque DEL USUARIO | 5 | `user-dynamic-family.spec.ts` (33): el parámetro es una línea marcada DENTRO de la definición; estirar mueve lo de la punta, deja lo de la base y el círculo de la pata sigue siendo un círculo | Sin campo nuevo en el formato: la línea viaja al DXF y se apaga por capa. Sólo parámetro LINEAL con acción de estirar; girar y reflejar geometría cualquiera se rechaza **por su nombre**, con el motivo. |
+| Comportamiento anotativo de un bloque | 5 | `dynamic-blocks.spec.ts`: la marca de nivel declara 3 mm de papel y la inserción los sella; `layout/annotative-scale.ts` los aplica | Entra por la misma puerta que el resto: `BLOQUEDIN` lo sella al colocar. |
+| Estados de visibilidad y tablas de consulta | 0 | ninguna | Un bloque con estados —puerta de una hoja / de dos— no existe. **Todavía no.** |
+
 ## Cómo se usa
 
 - **Al añadir una entrada nueva a `BACKLOG.md`:** decir el peldaño ACTUAL

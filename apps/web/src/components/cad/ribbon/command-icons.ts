@@ -355,6 +355,7 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   BLOQUEDIN: Blocks,
   BLOQUEDINSET: SlidersHorizontal,
   BLOQUEDINLIST: ListTree,
+  BLOQUEDINDEF: Ruler,
   BOX: Box,
   CYLINDER: Cylinder,
   CONE: Cone,

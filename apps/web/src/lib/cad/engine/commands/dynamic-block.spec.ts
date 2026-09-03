@@ -254,6 +254,103 @@ let dibujo = documento();
   ok(/claro=1000/.test(texto), `y dice sus valores actuales: ${texto}`);
 }
 
+// --- 7 · un bloque DEL USUARIO se vuelve dinámico tecleando --------------
+{
+  // Una mesa de 1.200 dibujada por el despacho, definida como bloque normal.
+  const conMesa = executeCadEntityCommandBatch(
+    documento(),
+    [
+      {
+        type: "block",
+        op: "define",
+        definition: {
+          id: "mesa",
+          name: "Mesa de trabajo",
+          basePoint: { x: 0, y: 0, z: 0 },
+          entities: [
+            {
+              id: "tapa",
+              type: "line",
+              start: { x: 0, y: 0, z: 0 },
+              end: { x: 1_200, y: 0, z: 0 },
+              layer: "0",
+            },
+            {
+              id: "costado",
+              type: "line",
+              start: { x: 1_200, y: 0, z: 0 },
+              end: { x: 1_200, y: 600, z: 0 },
+              layer: "0",
+            },
+          ],
+          version: 1,
+        },
+      } as never,
+    ],
+    "BLOCK",
+  ).document;
+
+  // BLOQUEDINDEF: nombre del bloque, del parámetro, rótulo, base, punta,
+  // mínimo, máximo y medidas.
+  const definido = run(conMesa, [
+    "BLOQUEDINDEF", "mesa", "largo", "Largo de la tapa",
+    { punto: [0, 0] }, { punto: [1_200, 0] },
+    "800", "2400", "\r",
+  ]);
+  ok(
+    dichos(definido.effects).some((t) => /BLOQUEDINDEF: «Mesa de trabajo» ya es dinámico/.test(t)),
+    `el bloque del usuario queda dinámico: ${dichos(definido.effects).join(" / ")}`,
+  );
+  const definicion = (definido.document.blocks ?? []).find((bloque) => bloque.id === "mesa");
+  eq(definicion!.entities.length, 3, "el parámetro se escribió DENTRO de la definición");
+  ok(
+    definicion!.entities.some((entidad) => entidad.context?.metadata?.["din:param"] === "largo"),
+    "como una línea marcada, que viaja al DXF y se puede apagar por capa",
+  );
+
+  // Y ya se puede colocar: la familia sale del DIBUJO, no del programa.
+  const colocada = run(definido.document, [
+    "BLOQUEDIN", "mesa", "1800", { punto: [5_000, 5_000] },
+  ]);
+  ok(
+    dichos(colocada.effects).some((t) => /BLOQUEDIN: Mesa de trabajo — Largo de la tapa 1800/.test(t)),
+    `y se coloca con el largo pedido: ${dichos(colocada.effects).join(" / ")}`,
+  );
+  const insercion = colocada.document.entities.find(
+    (entidad) => entidad.type === "insert" && entidad.context?.metadata?.["din:familia"] === "mesa",
+  );
+  assert.ok(insercion, "la mesa paramétrica llegó al documento");
+  verdes += 1;
+  const materializado = (colocada.document.blocks ?? []).find(
+    (bloque) => bloque.id === (insercion as { block: string }).block,
+  );
+  const tapa = materializado!.entities[0] as { end: { x: number } };
+  eq(tapa.end.x, 1_800, "y su tapa mide 1.800: la geometría se estiró de verdad");
+  eq(
+    materializado!.entities.length,
+    2,
+    "sin la línea del parámetro: es declaración, no dibujo",
+  );
+
+  // Un mínimo declarado se respeta y se dice.
+  const corta = run(definido.document, [
+    "BLOQUEDIN", "mesa", "300", { punto: [9_000, 5_000] },
+  ]);
+  ok(
+    dichos(corta.effects).some((t) => /AJUSTES: Largo de la tapa: 300 está por debajo del mínimo 800/.test(t)),
+    `el mínimo del despacho se respeta y se dice: ${dichos(corta.effects).join(" / ")}`,
+  );
+}
+
+// --- 8 · las negativas de BLOQUEDINDEF -----------------------------------
+{
+  const sinBloque = run(documento(), ["BLOQUEDINDEF", "mesa"]);
+  ok(
+    dichos(sinBloque.effects).some((t) => /No hay ningún bloque «mesa» en el dibujo/.test(t)),
+    `un bloque que no existe se dice: ${dichos(sinBloque.effects).join(" / ")}`,
+  );
+}
+
 console.log(
   `Bloques dinámicos tecleados: ${verdes} comprobaciones verdes — el motor que nadie alcanzaba ya se alcanza, la puerta lleva sus parámetros encima, cambiar uno no la mueve y el ajuste comercial se dice`,
 );
