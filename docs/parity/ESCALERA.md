@@ -145,7 +145,10 @@ La campaña «Valle Design → AutoCAD completo» (2026-09-02) mide el producto
 contra AutoCAD **con sus siete toolsets**, no sólo contra AutoCAD LT. Cada
 toolset tiene su fila en `docs/competitive/rubric.json` (grupo `toolsets`,
 alcance DESTINO) aunque hoy valga cero, y su peldaño aquí. El orden es el de
-la campaña; dos quedan fuera de alcance y se dice.
+la campaña. Electrical y Plant 3D estuvieron marcados **fuera de alcance**
+hasta el 3 de septiembre de 2026, cuando el titular retiró la marca: entran
+con objetivo 4/4 y su peldaño de hoy está más abajo, en sus secciones (Olas 5
+y 6).
 
 | Toolset | Peldaño hoy | Objetivo | Qué hay y qué falta |
 | --- | --- | --- | --- |
@@ -154,8 +157,8 @@ la campaña; dos quedan fuera de alcance y se dice.
 | Map 3D | 5 | 3 | GEOGRAPHICLOCATION georreferencia el dibujo con un marcador POINT en GEO (UTM 11N–16N, WGS84/ITRF; o latitud y longitud), ID informa el este/norte y la lat/lon, y MAPIMPORT mete un shapefile o GeoJSON en el plano abierto reproyectado al sistema del dibujo con los atributos en metadatos (golden 82; `geo-location.spec.ts`, `map-import.spec.ts`, `geojson.spec.ts`). La rúbrica retiene 1 pt hasta evidencia independiente. Lo que sigue en «todavía no» está en su sección (Ola G). |
 | Raster Design (mitad útil) | 5 | 3 | IMAGEATTACH mete el escaneo dentro del dibujo y por primera vez SE VE (visor, lámina, PDF); IMAGECLIP recorta por polígono o rectángulo; IMAGEADJUST ajusta brillo, contraste y atenuación (golden 83; `raster-image.spec.ts`, `image-layer-three.spec.ts`, `paper-space-image.spec.ts`). La rúbrica retiene 1 pt hasta evidencia independiente. La vectorización, IMAGEFRAME y TRANSPARENCY siguen en «todavía no» (Ola H). |
 | Mechanical | 5 | 3 | STDPART (tornillería ISO 4017/4032/7089) y STEELSHAPE (PTR, OC, LI, CPS, IPR por medidas) como bloques MECH-…; BALLOON y BOM; WELDSYMBOL y SURFACESYMBOL como geometría con marca; DIMTOLERANCE con ajustes ISO 286 sobre la cota, que rotula en visor, lámina y DXF; DIMSTYLE Familia (`ISO-25$4`) (golden 84; `mechanical.spec.ts`, `engine/commands/mechanical.spec.ts`, `dimension-tolerance.spec.ts`, `dimension-family.spec.ts`). La rúbrica retiene 1 pt hasta evidencia independiente. Lo que sigue en «todavía no» está en su sección (Ola I). |
-| Electrical | 0 | — | **Fuera de alcance** de la campaña: esquemas y numeración de hilos son otro producto. La fila existe para que el denominador sea honesto. |
-| Plant 3D | 0 | — | **Fuera de alcance** de la campaña: P&ID y tubería 3D por especificación. Ídem. |
+| Electrical | 5 | 5 | **EN ALCANCE desde la Ola 5 (2026-09-03).** AEWIRE numera conductores desde el dibujo, AECIRCUIT estampa los datos del circuito en un paso, AECHECK revisa contra la NOM-001-SEDE con la longitud REAL de la polilínea, AETAG etiqueta componentes —uno a uno o todos de golpe— y DATAEXTRACTION Circuitos saca el cuadro de cargas como TABLE (golden 93; `wire-numbering.spec.ts`, `nom-conductors.spec.ts`, `circuit-check.spec.ts`, `device-tags.spec.ts`). La rúbrica da 3/4 y retiene 1 pt hasta que un tercero autorizado verifique la transcripción de la tabla. Lo que sigue en «todavía no» está en su sección (Ola 5). |
+| Plant 3D | 5 | 5 | **EN ALCANCE desde la Ola 6 (2026-09-03).** PIDLINE numera la línea `6"-P-1001-CS150` con el correlativo del dibujo, PIDEQUIP coloca y etiqueta el equipo en un solo paso desde un catálogo de seis símbolos dibujados aquí, y PIDLIST da el METRADO medido sobre el plano —lo que un P&ID de AutoCAD no puede dar— más las comprobaciones que no piden el catálogo de nadie (golden 94; `line-numbers.spec.ts`, `plant-line.spec.ts`, `plant-equipment.spec.ts`). La rúbrica da 2/4: falta el ruteo 3D por especificación y los isométricos. Su sección está más abajo (Ola 6). |
 
 ## La cota y el plano inclinado (Ola C, 2026-09-02)
 
@@ -394,6 +397,26 @@ propia— y lo que falta para el cuarto está abajo, con su motivo.
 | Escalerilla (ladder) y E/S de PLC | 0 | ninguna | Maquinaria de esquema unifilar de control, que no existe. **Todavía no.** |
 | Plano de gabinete atado al esquema | 0 | ninguna | La huella del componente en el tablero y su vínculo con el símbolo. **Todavía no.** |
 | Catálogo de fabricante | 0 | ninguna | Sin él, el cuadro de cargas no puede traer precios ni claves. **Todavía no.** |
+
+## La planta de proceso (Ola 6, 2026-09-03)
+
+Plant 3D estaba marcado **fuera de alcance**. El titular retiró la marca. La
+fila de la rúbrica pasa de 0/4 a **2/4**: se otorga el criterio de P&ID y no el
+de tubería 3D e isométricos, que no existe.
+
+| Capacidad | Peldaño | Evidencia | Qué falta para el siguiente |
+| --- | --- | --- | --- |
+| El número de línea `6"-P-1001-CS150`, leído como lo escribe un proyectista | 5 | `plant/line-numbers.spec.ts` (29): comilla tipográfica, minúsculas, espacios y fracciones como `1-1/2"`; y las formas que NO son un número de línea | Nada de peldaño. El correlativo sale del dibujo y arranca en 1001, que es la convención: los de tres cifras se confunden con los de equipo. |
+| Las cuatro comprobaciones que no piden el catálogo de nadie | 5 | `plant/line-numbers.spec.ts` y `plant-line.spec.ts` (28): número repetido, un servicio con dos especificaciones, diámetro no comercial y número ilegible contado con lo que se escribió | **No** se comprueba contra la especificación del proyecto, y el renglón lo dice: ése lo aprueba la ingeniería. Traer una especificación ajena sería un problema de derechos y un estorbo. |
+| El METRADO de cada línea, medido sobre el plano | 5 | `plant-line.spec.ts`: `6"-P-1001-CS150 (12.0 m)` sobre una polilínea de 12.000 unidades en un dibujo en milímetros | Es lo que un P&ID de AutoCAD no puede dar: no está a escala. Aquí la línea sí lo está. |
+| Catálogo de SEIS equipos dibujados desde primitivas | 5 | `plant-equipment.spec.ts` (34): los seis con geometría de verdad, no un rectángulo con nombre | Seis, y se dice el número en vez de prometer «todos». Añadir uno es añadir una entrada. Ninguna biblioteca ajena copiada, trazada ni adaptada. |
+| El equipo nace CON su etiqueta, en un paso de deshacer | 5 | `plant-equipment.spec.ts`: `PIDEQUIP B` deja `P-101` en los ATRIBUTOS, la capa dada de alta sola y el bloque definido | Nadie coloca una bomba para dejarla sin nombre. El correlativo arranca en 101 y cada prefijo lleva el suyo. |
+| El prefijo de etiqueta lo decide el PROYECTO | 5 | `plant-equipment.spec.ts`: se admite `BA` y se rechaza `BOMBAS` con motivo | La nomenclatura la fija la ingeniería; el programa no está para discutirla, sólo para que sea legible. |
+| El P&ID entero, TECLEADO y afirmado sobre el documento del servidor | 5 | golden `94-cad-pid-planta.spec.ts`: tres líneas, la bomba, `PIDLIST` y `PIDEQUIPLIST` tecleados; después se afirma sobre lo PERSISTIDO —polilíneas con su marca, `INSERT` con `TAG` en atributos, definición de bloque en el documento, `TU-PROC` y `TU-EQ` en la tabla de capas— y se vuelve a medir el metrado sobre la geometría guardada | Nada de peldaño: es el tope de esta escala. Lo que falta es capacidad, no evidencia. |
+| Ruteo de tubería 3D por especificación | 0 | ninguna | La línea está en 2D con su número, servicio y especificación. **Todavía no.** |
+| Isométricos | 0 | ninguna | Sin ruteo 3D no hay de dónde sacarlos. **Todavía no.** |
+| Catálogo de fabricante con claves y precios | 0 | ninguna | El metrado sale; la requisición valorada no. **Todavía no.** |
+| Instrumento de panel y de programa | 0 | ninguna | Entra el de campo, que es el que más se dibuja, y está dicho en el módulo. **Todavía no.** |
 
 ## Cómo se usa
 

@@ -143,7 +143,7 @@ const CAD_PANEL_NAME_PATTERNS: readonly [RegExp, string][] = [
   [/^(-?TEXT|MTEXT|DTEXT|SPELL|-?TABLE|TABLEDIT|DDEDIT|TEXTALIGN)$/, "Texto y tablas"],
   [/^TOLERANCE$/, "Tolerancias"],
   [/^(-?WALL|DOOR|WINDOW|-?OPENING|STAIR|ROOF|SLAB)$/, "Arquitectura"],
-  [/^(PIPE|DUCT|CABLETRAY|MEPSYMBOL|AEWIRE|AEWIRELIST|AECIRCUIT|AECHECK|AETAG|AETAGLIST)$/, "Instalaciones"],
+  [/^(PIPE|DUCT|CABLETRAY|MEPSYMBOL|AEWIRE|AEWIRELIST|AECIRCUIT|AECHECK|AETAG|AETAGLIST|PIDLINE|PIDLIST|PIDEQUIP|PIDEQUIPLIST)$/, "Instalaciones"],
   // Mechanical (Ola I): normalizados en Insertar; globo, lista y símbolos en Anotar.
   [/^(STDPART|STEELSHAPE)$/, "Normalizados"],
   [/^(BALLOON|BOM|WELDSYMBOL|SURFACESYMBOL)$/, "Mecánica"],

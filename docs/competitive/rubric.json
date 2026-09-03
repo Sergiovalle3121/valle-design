@@ -3659,19 +3659,35 @@
       "id": "toolset-plant3d",
       "group": "toolsets",
       "scope": "destino",
-      "name": "Toolset Plant 3D (fuera de alcance)",
+      "name": "Toolset Plant 3D",
       "points": 4,
-      "gap": "Fuera del alcance de la campaña «AutoCAD completo» (docs/parity/ESCALERA.md): se declara la fila para que el denominador de destino sea honesto.",
+      "gap": "EN ALCANCE desde la Ola 6 (2026-09-03): el titular retiró la marca de «fuera de alcance». Lo que hay: el número de línea (6\"-P-1001-CS150) con su correlativo sacado del dibujo, un catálogo de SEIS equipos dibujados desde primitivas —recipiente, bomba, intercambiador, tanque, compresor e instrumento de campo— que nacen CON su etiqueta (P-101, V-101, TI-1001), la lista de líneas con el METRADO medido sobre el plano —que un P&ID de AutoCAD no puede dar porque no está a escala— y las comprobaciones que no piden el catálogo de nadie: número de línea repetido, un servicio con dos especificaciones, diámetro no comercial, número ilegible y etiqueta de equipo repetida o ausente. Lo que NO hay, y por eso la fila no llega a su tope: el ruteo de tubería 3D por especificación y la generación de isométricos.",
       "criteria": [
         {
           "id": "toolset-plant3d.pid",
           "points": 2,
-          "text": "Diagramas P&ID con catálogo de equipos y líneas",
-          "costDays": null,
+          "text": "Diagramas P&ID: catálogo de equipos etiquetados y líneas numeradas, todo derivado del dibujo",
+          "costDays": 0,
           "evidence": [
             {
-              "kind": "todaviaNo",
-              "reason": "Fuera de alcance declarado. Fila a cero a propósito."
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/plant/line-numbers.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/plant-line.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/plant-equipment.spec.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/plant/pid-symbols.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/94-cad-pid-planta.spec.ts"
             }
           ]
         },
@@ -3683,7 +3699,7 @@
           "evidence": [
             {
               "kind": "todaviaNo",
-              "reason": "Fuera de alcance declarado."
+              "reason": "La tubería está en 2D con su número, servicio y especificación, y su metrado sale del plano; el ruteo 3D por especificación y la generación de isométricos no existen."
             }
           ]
         }
