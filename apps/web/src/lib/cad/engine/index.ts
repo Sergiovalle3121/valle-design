@@ -39,6 +39,7 @@ import { CAD_ARCHITECTURE_ROOF_COMMANDS } from "./commands/architecture-roof";
 import { CAD_MEP_TRACING_COMMANDS } from "./commands/mep-tracing";
 import { CAD_MEP_SYMBOL_COMMANDS } from "./commands/mep-symbol";
 import { CAD_ELECTRICAL_COMMANDS } from "./commands/electrical-wire";
+import { CAD_ELECTRICAL_CIRCUIT_COMMANDS } from "./commands/electrical-circuit";
 import { CAD_GEO_LOCATION_COMMANDS } from "./commands/geo-location";
 import { CAD_MAP_IMPORT_COMMANDS } from "./commands/map-import";
 import { CAD_RASTER_IMAGE_COMMANDS } from "./commands/raster-image";
@@ -205,6 +206,7 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_MEP_TRACING_COMMANDS,
   ...CAD_MEP_SYMBOL_COMMANDS,
   ...CAD_ELECTRICAL_COMMANDS,
+  ...CAD_ELECTRICAL_CIRCUIT_COMMANDS,
   // Ola G (Map 3D): la georreferencia como marcador y el conjunto GIS dentro
   // del plano. Mismo registro, mismas puertas (`document`, `ui`).
   ...CAD_GEO_LOCATION_COMMANDS,
