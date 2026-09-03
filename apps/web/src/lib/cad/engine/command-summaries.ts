@@ -160,6 +160,8 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   AEWIRELIST: "Lista los conductores por circuito y CAZA los números repetidos. No escribe nada.",
   AECIRCUIT: "Protección, tensión y fases de un circuito, estampadas en todos sus conductores.",
   AECHECK: "Revisa los circuitos contra la NOM: ampacidad y caída de tensión con la longitud del plano.",
+  AETAG: "Etiqueta un componente, o TODOS los que falten, con el número que le toca por familia.",
+  AETAGLIST: "Dice qué componentes no llevan etiqueta y qué etiquetas se repiten. No escribe nada.",
   GEOGRAPHICLOCATION: "Georreferencia el dibujo: un punto y su Este/Norte UTM o su latitud y longitud, con zona y datum.",
   MAPIMPORT: "Importa un shapefile o GeoJSON al dibujo como entidades con atributos, en el sistema del dibujo.",
   IMAGEATTACH: "Adjunta un plano escaneado (PNG, JPEG…) dentro del dibujo: inserción, ancho y giro.",

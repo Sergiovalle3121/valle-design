@@ -3595,12 +3595,12 @@
       "scope": "destino",
       "name": "Toolset Electrical",
       "points": 4,
-      "gap": "EN ALCANCE desde la Ola 5 (2026-09-03): el titular retiró la marca de «fuera de alcance». Lo que hay: conductores numerados desde el DIBUJO con detección de números repetidos, datos de circuito estampados en un solo paso, revisión contra la NOM-001-SEDE (ampacidad, tope del conductor pequeño y caída de tensión calculada con la longitud REAL de la polilínea) y el cuadro de cargas como TABLE del documento. Lo que NO hay, y por eso la fila no llega a su tope: etiquetado automático de componentes con referencias cruzadas, escalerilla (ladder), E/S de PLC, plano de gabinete atado al esquema y catálogo de fabricante.",
+      "gap": "EN ALCANCE desde la Ola 5 (2026-09-03): el titular retiró la marca de «fuera de alcance». Lo que hay: conductores numerados desde el DIBUJO con detección de números repetidos, ETIQUETAS de componente en los atributos del bloque —una a una o todas de golpe, con la familia deducida del símbolo—, datos de circuito estampados en un solo paso, revisión contra la NOM-001-SEDE (ampacidad, tope del conductor pequeño y caída de tensión calculada con la longitud REAL de la polilínea) y el cuadro de cargas como TABLE del documento. Lo que NO hay: referencias cruzadas entre hojas, escalerilla (ladder), E/S de PLC, plano de gabinete atado al esquema y catálogo de fabricante.",
       "criteria": [
         {
           "id": "toolset-electrical.esquemas",
           "points": 2,
-          "text": "Esquemas eléctricos con símbolos normalizados y numeración de conductores derivada del dibujo",
+          "text": "Esquemas eléctricos: símbolos normalizados, numeración de conductores y etiquetado de componentes, todo derivado del dibujo",
           "costDays": 0,
           "evidence": [
             {
@@ -3618,6 +3618,14 @@
             {
               "kind": "golden",
               "path": "apps/web/e2e/golden/93-cad-circuito-nom.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/electrical/device-tags.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/electrical-tag.spec.ts"
             }
           ]
         },

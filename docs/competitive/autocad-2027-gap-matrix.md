@@ -194,7 +194,7 @@ porque el instrumento no tenía ni una fila para el reconocimiento.
 | Toolset Map 3D | 3/4 | Parcial | Sistema de coordenadas del dibujo (EPSG) y transformación entre sistemas; Importar capas GIS (SHP/GeoJSON) como objetos con atributos | Nada pendiente: todos los criterios declarados verifican |
 | Toolset Raster Design (mitad útil) | 2/4 | Parcial | Insertar, recortar por polígono y ajustar (brillo/contraste/transparencia) un plano escaneado | Vectorizar líneas y textos de un escaneo a entidades (2 pt) |
 | Toolset Mechanical | 3/4 | Parcial | Biblioteca de tornillería y perfiles normalizados insertables; Cotas de fabricación con tolerancias y símbolos de acabado | Nada pendiente: todos los criterios declarados verifican |
-| Toolset Electrical | 3/4 | Parcial | Esquemas eléctricos con símbolos normalizados y numeración de conductores derivada del dibujo; Informes: listado de conductores, cuadro de cargas en el dibujo y revisión contra la NOM | Nada pendiente: todos los criterios declarados verifican |
+| Toolset Electrical | 3/4 | Parcial | Esquemas eléctricos: símbolos normalizados, numeración de conductores y etiquetado de componentes, todo derivado del dibujo; Informes: listado de conductores, cuadro de cargas en el dibujo y revisión contra la NOM | Nada pendiente: todos los criterios declarados verifican |
 | Toolset Plant 3D (fuera de alcance) | 0/4 | Ausente | Nada verificado | Diagramas P&ID con catálogo de equipos y líneas (2 pt); Tubería 3D por especificación e isométricos (2 pt) |
 
 ### Prioridad: los diez puntos más baratos por valor comercial

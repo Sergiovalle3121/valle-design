@@ -338,6 +338,8 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   AEWIRELIST: ListChecks,
   AECIRCUIT: Zap,
   AECHECK: ShieldCheck,
+  AETAG: Tag,
+  AETAGLIST: Tags,
   BOX: Box,
   CYLINDER: Cylinder,
   CONE: Cone,
