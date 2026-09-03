@@ -41,6 +41,8 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   ARRAYEDIT: "Edita una matriz asociativa existente.",
   ATTDEF: "Define un atributo de bloque: la etiqueta que pide valor al insertar.",
   ATTEDIT: "Edita los valores de atributo de una referencia de bloque.",
+  ATTSYNC:
+    "Pone al día los atributos de las referencias de un bloque redefinido.",
   AUDIT: "Revisa el dibujo: geometría degenerada, referencias colgantes y objetos sin usar; repara al confirmar.",
   AUTOCONSTRAIN: "Aplica restricciones geométricas automáticas a la selección.",
   BASE: "Fija el punto base de inserción del dibujo.",
