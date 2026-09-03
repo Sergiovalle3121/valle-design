@@ -28,7 +28,7 @@ function wall(): CadWallEntity {
   };
 }
 
-function context(hasDocument: boolean): CadCommandContext {
+function context(hasDocument: boolean, propio?: unknown): CadCommandContext {
   return {
     entityIds: ["w1"],
     entity: () => wall(),
@@ -38,7 +38,7 @@ function context(hasDocument: boolean): CadCommandContext {
     newEntityId: () => "tabla1",
     ...(hasDocument
       ? {
-          document: () => ({
+          document: () => (propio ?? {
             meta: { version: 1, schema: 4, unit: "mm" },
             entities: [wall()],
             blocks: [],
@@ -47,7 +47,7 @@ function context(hasDocument: boolean): CadCommandContext {
             externalReferences: [],
             modelSpace: { entityIds: ["w1"] },
             unsupportedEntities: [],
-          }),
+          }) as never,
         }
       : {}),
   };
@@ -117,6 +117,80 @@ function context(hasDocument: boolean): CadCommandContext {
   const openings = command.step(begin.state, { kind: "keyword", keyword: "carPintería" }, context(true));
   const noOpenings = command.step(openings.state, { kind: "point", point: { x: 0, y: 0 }, source: "typed" }, context(true));
   ok(noOpenings.result?.kind === "message" && noOpenings.result.text.includes("puertas ni ventanas"), "sin huecos lo dice");
+}
+
+// --- El cuadro de CARGAS: el entregable de un proyecto eléctrico mexicano ---
+{
+  // Un ramal de 30 m de 12 AWG con protección de 20 A: cumple la ampacidad y se
+  // pasa de caída. El cuadro tiene que decirlo EN la tabla, no sólo en un
+  // renglón que desaparece.
+  const conductor = (id: string, x0: number, x1: number, extra: Record<string, string> = {}) => ({
+    id,
+    type: "polyline" as const,
+    vertices: [
+      { x: x0, y: 0, z: 0 },
+      { x: x1, y: 0, z: 0 },
+    ],
+    closed: false,
+    layer: "IE-CIR",
+    context: {
+      metadata: {
+        "ie:circuito": "C-1",
+        "ie:numero": id === "a" ? "1" : "2",
+        "ie:calibre": "12",
+        ...extra,
+      },
+    },
+  });
+  const conCircuitos = {
+    meta: { version: 1, schema: 4, unit: "mm" },
+    blocks: [],
+    layers: [],
+    styles: { text: {}, dimension: {}, mleader: {}, table: {}, plot: {} },
+    externalReferences: [],
+    unsupportedEntities: [],
+    modelSpace: { entityIds: ["a", "b"] },
+    entities: [
+      conductor("a", 0, 15_000, {
+        "ie:proteccion": "20",
+        "ie:tension": "127",
+        "ie:fases": "1",
+      }),
+      conductor("b", 15_000, 30_000),
+    ],
+  } as never;
+
+  const begin = command.begin(context(true, conCircuitos));
+  const elegido = command.step(begin.state, { kind: "keyword", keyword: "circUitos" }, context(true, conCircuitos));
+  const salida = command.step(
+    elegido.state,
+    { kind: "point", point: { x: 0, y: 0 }, source: "typed" },
+    context(true, conCircuitos),
+  );
+  ok(salida.result?.kind === "document", "el cuadro de cargas se inserta como documento");
+  const tabla = (salida.result as unknown as {
+    commands: { entity: { type: string } }[];
+  }).commands[0].entity;
+  ok(tabla.type === "table", "y es una TABLE del dibujo, no un texto suelto");
+  const texto = JSON.stringify(tabla);
+  ok(/Cuadro de cargas/.test(texto), "con su título");
+  ok(/AVISO/.test(texto), "con el veredicto DENTRO de la tabla");
+  ok(/30\.0/.test(texto), "con la longitud que mide el dibujo");
+  ok(
+    /No sustituye el memorial de cálculo/.test(texto),
+    "y con su límite en el título: un cuadro con veredictos y sin límite se lee como un memorial",
+  );
+
+  // Sin conductores numerados, se niega con motivo y no inserta nada.
+  const vacio = command.step(
+    command.step(command.begin(context(true)).state, { kind: "keyword", keyword: "circUitos" }, context(true)).state,
+    { kind: "point", point: { x: 0, y: 0 }, source: "typed" },
+    context(true),
+  );
+  ok(
+    vacio.result?.kind === "message" && /no tiene conductores numerados/.test(vacio.result.text),
+    "sin conductores se niega con motivo",
+  );
 }
 
 console.log(`data-extraction-commands.spec: ${checks} comprobaciones OK`);
