@@ -95,6 +95,8 @@ export interface CadSheetSetPublishPlan {
   /** Familias que piden los rótulos de todo el juego. */
   fontUsage: CadPlotFontUsage[];
   fontByEntity: Map<string, string>;
+  /** Familias que ya viajan dibujadas con sus trazos (`plot-stroke-text.ts`). */
+  strokedFamilies: string[];
 }
 
 /** Cajetín resuelto sobre una presentación, sin tocar el documento original. */
@@ -131,6 +133,7 @@ export function buildCadSheetSetPublishPlan(
   const skipped: CadSheetSetPublishPlan["skipped"] = [];
   const titleBlocks: CadTitleBlockLayout[] = [];
   const fontByEntity = new Map<string, string>();
+  const strokedFamilies = new Set<string>();
   const fontCounts = new Map<string, CadPlotFontUsage>();
 
   // Las hojas que de verdad van a salir se resuelven ANTES de numerar.
@@ -204,6 +207,7 @@ export function buildCadSheetSetPublishPlan(
     publishSheets.push(...job.sheets);
     titleBlocks.push(...job.titleBlocks);
     for (const [entityId, family] of job.fontByEntity) fontByEntity.set(entityId, family);
+    for (const family of job.strokedFamilies) strokedFamilies.add(family);
     for (const entry of job.fontUsage) {
       const accumulated = fontCounts.get(entry.family) ?? { family: entry.family, usageCount: 0 };
       accumulated.usageCount += entry.usageCount;
@@ -229,6 +233,7 @@ export function buildCadSheetSetPublishPlan(
     coverRows: cadCoverRowsFromTitleBlocks(titleBlocks),
     fontUsage: [...fontCounts.values()].sort((a, b) => a.family.localeCompare(b.family, "es")),
     fontByEntity,
+    strokedFamilies: [...strokedFamilies].sort((a, b) => a.localeCompare(b, "es")),
   };
 }
 
@@ -281,6 +286,7 @@ export async function publishCadSheetSet(
     ...(cover ? { sheetsWithoutTitleBlock: [cover.sheet.id] } : {}),
     fontUsage: plan.fontUsage,
     fontByEntity: plan.fontByEntity,
+    strokedFamilies: plan.strokedFamilies,
     metadata: {
       title: input.set.name,
       subject: input.set.description ?? "Conjunto de planos",

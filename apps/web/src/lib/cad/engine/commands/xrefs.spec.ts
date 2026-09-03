@@ -237,11 +237,15 @@ const distance = (value: number): CadCommandInput => ({ kind: "distance", value 
     },
   ];
 
-  // Sin biblioteca: explica QUÉ le falta al editor, no que el dibujo no exista.
-  const blind = command("XATTACH").begin(contextFor(documentWithXref())).result;
-  assert.ok(blind && blind.kind === "message" && /biblioteca/.test(blind.text));
-  ok(!/no existe/i.test(blind.text), "y no le echa la culpa al dibujo");
-  checks += 1;
+  // Sin biblioteca la orden YA NO se rinde (Ola 2): pregunta qué dibujo, y el
+  // trabajo de traerlo se lo pide al anfitrión al final del diálogo. Hasta esta
+  // ola terminaba aquí con un mensaje sobre lo que le faltaba al editor —
+  // honesto e inútil: era el `P1-2` del BACKLOG.
+  const blind = command("XATTACH").begin(contextFor(documentWithXref()));
+  ok(!blind.result, "sin biblioteca no termina: sigue preguntando");
+  ok(/activo@revisión/.test(blind.prompt.message), "y dice cómo nombrar el dibujo que quiere");
+  ok(!/biblioteca/.test(blind.prompt.message), "sin echarle la culpa al editor");
+  checks += 3;
 
   // Con biblioteca: el diálogo entero, y sale un lote de adjuntado.
   const context = contextFor(documentWithXref(), { catalog });
@@ -274,11 +278,29 @@ const distance = (value: number): CadCommandInput => ({ kind: "distance", value 
   assert.equal(overlayReference.reference.mode, "overlay");
   checks += 2;
 
-  // Conocerlo y no tener su contenido son dos problemas distintos.
-  const notFetched = run(command("XATTACH"), [text("SIN-TRAER")], context).result;
-  assert.ok(notFetched && notFetched.kind === "message" && /contenido no se ha traído/.test(notFetched.text));
-  const unknown = run(command("XATTACH"), [text("FANTASMA")], context).result;
-  assert.ok(unknown && unknown.kind === "message" && /biblioteca no tiene/.test(unknown.text));
+  // Listado pero SIN contenido cargado ya no es un callejón: el diálogo sigue y
+  // acaba pidiéndole al anfitrión que lo traiga, con todo resuelto.
+  const pending = run(
+    command("XATTACH"),
+    [text("asset-sin-traer@rev-1"), keyword("Adjuntar"), point(10, 20), { kind: "enter" }, { kind: "enter" }],
+    context,
+  ).result;
+  assert.ok(pending && pending.kind === "host" && pending.request.kind === "xref-attach");
+  assert.equal(pending.request.assetId, "asset-sin-traer");
+  assert.equal(pending.request.revision, "rev-1", "la revisión tecleada viaja tal cual");
+  assert.equal(pending.request.mode, "attachment");
+  assert.deepEqual(pending.request.insertion, { x: 10, y: 20 }, "y el punto donde lo quiere el dibujante");
+  checks += 5;
+
+  // Un nombre que la biblioteca no conoce TAMPOCO se rechaza aquí: quien sabe
+  // si el activo existe es el anfitrión, que es el que va a buscarlo.
+  const unknown = run(
+    command("XATTACH"),
+    [text("FANTASMA"), keyword("Adjuntar"), point(0, 0), { kind: "enter" }, { kind: "enter" }],
+    context,
+  ).result;
+  assert.ok(unknown && unknown.kind === "host" && unknown.request.kind === "xref-attach");
+  assert.equal(unknown.request.assetId, "FANTASMA");
   checks += 2;
 
   // Una escala no positiva se rechaza: `attachCadXref` la ignoraría, y aceptar

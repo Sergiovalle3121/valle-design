@@ -3,9 +3,9 @@
   "total": 247,
   "verdicts": {
     "muta": 80,
-    "delegado": 44,
+    "delegado": 45,
     "informa": 19,
-    "honesto-limitado": 96,
+    "honesto-limitado": 95,
     "no-concluyente": 8,
     "ROJO": 0
   },

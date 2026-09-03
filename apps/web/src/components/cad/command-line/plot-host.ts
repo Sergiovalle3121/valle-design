@@ -228,6 +228,10 @@ export class CadPlotHost {
     // enchufa antes que éste. Misma razón que las ramas de arriba.
     if (request.kind === "history")
       return "Este espacio de trabajo no tiene pila de deshacer: falta el anfitrión del historial.";
+    // XATTACH tampoco es trazado: lo sirve el anfitrión de referencias, que se
+    // enchufa antes que éste. Misma razón que las ramas de arriba.
+    if (request.kind === "xref-attach")
+      return "Este espacio de trabajo no sabe traer dibujos del inquilino: falta el anfitrión de referencias externas.";
 
     const document = this.bridge.document();
     if (!document) return "No hay ningún dibujo abierto que trazar.";
@@ -374,6 +378,7 @@ export class CadPlotHost {
         titleBlocks: job.titleBlocks,
         fontUsage: job.fontUsage,
         fontByEntity: job.fontByEntity,
+        strokedFamilies: job.strokedFamilies,
         metadata: { title: fileName },
       });
       if (result.pageCount === 0) {

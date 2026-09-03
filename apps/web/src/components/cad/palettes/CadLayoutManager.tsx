@@ -120,7 +120,12 @@ function CadExactPrintPreview({ sheet }: { sheet: CadPublishSheet }) {
                           ? "end"
                           : "start"
                     }
-                    transform={`rotate(${command.rotation} ${command.point.x} ${command.point.y})`}
+                    // El SVG mide la Y hacia abajo y `rotate()` positivo gira
+                    // en el sentido del reloj; el giro del plan es el del
+                    // dibujo (antihorario, Y hacia arriba). Sin el signo, la
+                    // previa enseñaba los rótulos verticales al revés que el
+                    // PDF del conjunto, que sí usaba el signo correcto.
+                    transform={`rotate(${-command.rotation} ${command.point.x} ${command.point.y})`}
                   >
                     {command.text}
                   </text>

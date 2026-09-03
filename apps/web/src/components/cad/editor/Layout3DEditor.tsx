@@ -403,6 +403,8 @@ import {
   type CadPublishWarning,
   type CadSheetPaper,
 } from "@/lib/cad/paper-space";
+import { cadDocumentFontByEntity } from "@/lib/cad/plot/plot-fonts";
+import { cadStrokeSheetText } from "@/lib/cad/plot/plot-stroke-text";
 import {
   createCadPaperViewport,
   deleteCadPaperViewport,
@@ -548,6 +550,9 @@ import { createCadTouchGestures } from "@/components/cad/viewport/touch-gestures
 import { attachCadPlanWheelAnchor } from "@/components/cad/viewport/plan-wheel-anchor";
 import { cadApplyAnnotationScale } from "@/lib/cad/layout/annotative-scale";
 import { attachCadDoubleClickEdit } from "@/components/cad/viewport/double-click-edit";
+import { cadStudioXrefBridge } from "@/components/cad/command-line/xref-host";
+import { cadStudioAttachXref } from "@/components/cad/command-line/xref-attach-studio";
+import type { CadCommandEngineHost } from "@/components/cad/command-line/command-engine-host";
 import {
   applyCadCameraPolicy,
   applyInitialCameraFraming,
@@ -4662,8 +4667,14 @@ export default function Layout3DEditor({
           : space,
       ),
     });
+    // Los rótulos de una .shx se dibujan con sus trazos también AQUÍ: la previa
+    // de la hoja y el PDF salen del mismo plan y no pueden enseñar cosas
+    // distintas (plot-stroke-text.ts).
+    const sheet = plan.sheets.find((item) => item.id === activePaperSpaceId);
     setLayoutPreviewSheet(
-      plan.sheets.find((sheet) => sheet.id === activePaperSpaceId) ?? null,
+      sheet
+        ? cadStrokeSheetText([sheet], cadDocumentFontByEntity(document)).sheets[0]
+        : null,
     );
   }, [activePaperSpaceId, paperSpaces, snapshotDocument, setLayoutPreviewSheet]);
 
@@ -4847,6 +4858,11 @@ export default function Layout3DEditor({
    * eliminar.
    */
   const syncRedefinedBlockLibraryRef = useRef<(blockId: string) => void>(() => {});
+  const attachXrefRef = useRef<(draft: CadXrefAttachDraft) => Promise<void>>(async () => {});
+  // El anfitrión del motor: se declara ANTES de crearlo porque sus propias
+  // opciones lo necesitan (XATTACH escribe en su diálogo), y se rellena en la
+  // línea siguiente a su creación, dentro del mismo render.
+  const commandEngineRef = useRef<CadCommandEngineHost>(undefined as unknown as CadCommandEngineHost);
   const commandEngine = useCadStudioCommandEngine({
     document: loadedCadDocumentRef,
     selection: nativeSelectionIdsRef,
@@ -4872,12 +4888,9 @@ export default function Layout3DEditor({
       cursor: engineCursorPointRef,
       drawPreview: (paths) => enginePreviewRef.current?.draw(paths),
     }),
+    attachXref: cadStudioXrefBridge(attachXrefRef, commandEngineRef),
   });
 
-  // El anfitrión del motor, alcanzable desde el efecto de la escena: la
-  // instancia es estable (useMemo sin deps) y la ref lo hace explícito allí
-  // donde esa estabilidad no se ve.
-  const commandEngineRef = useRef(commandEngine);
   commandEngineRef.current = commandEngine;
   const commandEngineSnapshot = useCadCommandEngine(commandEngine);
   // Al terminar un comando del motor, la herramienta vuelve a designar (el
@@ -5407,34 +5420,18 @@ export default function Layout3DEditor({
     [tenantId],
   );
 
-  const attachProfessionalXref = useCallback(
-    async (draft: CadXrefAttachDraft) => {
-      const source = await fetchCadXrefSnapshot(
-        draft.assetId,
-        draft.revision,
-        draft.name,
-      );
-      const id = newId("xref");
-      commitBlockMutation(
-        (document) =>
-          attachCadXref(document, {
-            id,
-            snapshot: source,
-            mode: draft.mode,
-            hostAssetId: `${model}@${revision}`,
-            insertion: { x: draft.x, y: draft.y, z: 0 },
-            scale: draft.scale,
-            rotation: draft.rotation,
-          }),
-        [`xref:${id}:insert`],
-        `${draft.mode === "overlay" ? "Overlay" : "Attachment"} ${draft.assetId}@${draft.revision} vinculado.`,
-        "XREF",
-        true,
-      );
-    },
+  const attachProfessionalXref = useMemo(
+    () =>
+      cadStudioAttachXref({
+        fetchSnapshot: fetchCadXrefSnapshot,
+        commit: commitBlockMutation,
+        newEntityId: () => newId("xref"),
+        hostAssetId: () => `${model}@${revision}`,
+      }),
     [commitBlockMutation, fetchCadXrefSnapshot, model, revision],
   );
 
+  attachXrefRef.current = attachProfessionalXref;
   const compareProfessionalXref = useCallback(
     async (
       reference: CadExternalReference,
@@ -13323,11 +13320,11 @@ export default function Layout3DEditor({
         toast.error("El conjunto no contiene hojas publicables.", "Hojas");
         return;
       }
-      const buffer = await renderCadSheetSetPdf(plan, {
-        model,
-        revision,
-        productLabel: branding.productLabel,
-      });
+      const buffer = await renderCadSheetSetPdf(
+        plan,
+        { model, revision, productLabel: branding.productLabel },
+        canonical,
+      );
       const digest = await crypto.subtle.digest("SHA-256", buffer);
       const sha256 = [...new Uint8Array(digest)]
         .map((value) => value.toString(16).padStart(2, "0"))

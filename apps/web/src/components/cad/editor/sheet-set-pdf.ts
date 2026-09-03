@@ -13,7 +13,10 @@
  * rótulo de escala de la ventana, el cajetín de ocho celdas en es-MX y el pie
  * con el producto y «n/N».
  */
+import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadPublishPlan } from "@/lib/cad/paper-space";
+import { cadDocumentFontByEntity } from "@/lib/cad/plot/plot-fonts";
+import { cadStrokeSheetText } from "@/lib/cad/plot/plot-stroke-text";
 
 export interface CadSheetSetPdfMeta {
   model: string;
@@ -22,13 +25,26 @@ export interface CadSheetSetPdfMeta {
   productLabel: string;
 }
 
-/** Rasteriza el plan a un PDF vectorial y devuelve sus bytes. */
+/**
+ * Rasteriza el plan a un PDF vectorial y devuelve sus bytes.
+ *
+ * El `document` es opcional y sirve para UNA cosa: saber qué familia pide cada
+ * rótulo, y así dibujar con sus trazos los que nombran una `.shx`
+ * (`plot-stroke-text.ts`). Sin él el conjunto sale como salía —con la fuente
+ * estándar más cercana—, que es el comportamiento que tenía este camino antes
+ * de que el trazado aprendiera a dibujarlas.
+ */
 export async function renderCadSheetSetPdf(
   plan: CadPublishPlan,
   meta: CadSheetSetPdfMeta,
+  document?: CadDocument,
 ): Promise<ArrayBuffer> {
   const { jsPDF } = await import("jspdf");
-  const first = plan.sheets[0];
+  const sheets = cadStrokeSheetText(
+    plan.sheets,
+    document ? cadDocumentFontByEntity(document) : new Map<string, string>(),
+  ).sheets;
+  const first = sheets[0];
   const pdf = new jsPDF({
     orientation: first.orientation,
     unit: "mm",
@@ -44,7 +60,7 @@ export async function renderCadSheetSetPdf(
       Number.parseInt(clean.slice(4, 6), 16),
     ];
   };
-  plan.sheets.forEach((sheet, sheetIndex) => {
+  sheets.forEach((sheet, sheetIndex) => {
     if (sheetIndex > 0)
       pdf.addPage([sheet.width, sheet.height], sheet.orientation);
     pdf.setFillColor(255, 255, 255);
