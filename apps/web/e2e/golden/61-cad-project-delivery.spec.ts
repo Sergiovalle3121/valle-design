@@ -12,13 +12,12 @@ import type { CadDocument } from "../../src/lib/cad/cad-document";
  * producto real, con el dibujo REAL que Layout3DEditor.tsx ya sostiene — sin
  * tocar ese archivo, que está en su techo exacto (19.002/19.002 líneas).
  *
- * PUBLISH y SHEETSET también se teclean aquí, y también son reales — llegan
- * hasta `plot-host.ts`, que sí sabe publicar y renumerar cuando recibe un
- * conjunto. Lo que este golden fija es la respuesta de HOY: el estudio no le
- * pasa ningún conjunto cargado (BACKLOG P1-8, bloqueado por el mismo techo de
- * `Layout3DEditor.tsx`), así que responden con su límite declarado — nunca un
- * «hecho» vacío. El día que P1-8 se resuelva, este golden es el que hay que
- * reescribir para afirmar el PDF de verdad.
+ * PUBLISH y SHEETSET también se teclean aquí, y desde la Ola 3 TRAEN el
+ * conjunto de planos del servidor: el `P1-8` del BACKLOG está cerrado y el PDF
+ * de verdad lo afirma el golden 89, que sí siembra un conjunto. Lo que este
+ * golden fija es el otro lado del mismo camino, y no es menos importante: este
+ * dibujo NO tiene ningún conjunto, así que la orden lo intenta, no lo consigue,
+ * y lo DICE con su identificador — nunca un «hecho» vacío ni un silencio.
  */
 function seedDocument(): CadDocument {
   return {
@@ -67,7 +66,7 @@ async function type(page: Page, value: string) {
   await input.press("Enter");
 }
 
-test("PUBLISH/SHEETSET declaran su límite; ETRANSMIT y DATAEXTRACTION entregan archivos reales", async ({
+test("PUBLISH/SHEETSET traen el conjunto y dicen si no pueden; ETRANSMIT y DATAEXTRACTION entregan archivos reales", async ({
   context,
   page,
 }) => {
@@ -81,20 +80,28 @@ test("PUBLISH/SHEETSET declaran su límite; ETRANSMIT y DATAEXTRACTION entregan 
   await expect(commandLine).toBeVisible();
   const prompt = page.getByTestId("cad-command-prompt");
 
-  /* ── PUBLISH: sin conjunto cargado, declara su límite ────────────────── */
+  /* ── PUBLISH: TRAE el conjunto, y dice si no puede (Ola 3) ───────────── */
+  //
+  // Hasta la Ola 3 esto respondía «el conjunto set:nave no está cargado en este
+  // estudio» porque NADIE aportaba el puente `sheetSet()` — era el `P1-8` del
+  // BACKLOG y este golden fijaba ese límite. Ahora la orden lo pide al
+  // servidor; este dibujo no tiene ningún conjunto, así que lo que se afirma es
+  // que lo INTENTA y que el fallo se cuenta con su id, en vez de callar o de
+  // fingir que publicó algo.
   await type(page, "PUBLISH");
   await expect(prompt).toBeVisible();
   await type(page, "set:nave");
   await expect(prompt).toContainText("Hojas a publicar");
   await type(page, ""); // Intro: todas las hojas
   await expect(prompt).toBeHidden();
-  await expect(commandLine).toContainText("set:nave no está cargado en este estudio");
+  await expect(commandLine).toContainText("Trayendo el conjunto de planos set:nave");
+  await expect(commandLine).toContainText("No se pudo traer el conjunto de planos set:nave");
 
-  /* ── SHEETSET Índice: mismo límite, mismo motivo ────────────────────── */
+  /* ── SHEETSET Índice: mismo camino, mismo motivo ────────────────────── */
   await type(page, "SHEETSET");
   await type(page, "set:nave");
   await type(page, "I");
-  await expect(commandLine).toContainText("set:nave no está cargado en este estudio");
+  await expect(commandLine).toContainText("Trayendo el conjunto de planos set:nave");
 
   /* ── DATAEXTRACTION Tabla: inserta una TABLE real con el muro contado ─── */
   await type(page, "DATAEXTRACTION");
