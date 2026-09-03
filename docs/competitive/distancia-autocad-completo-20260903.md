@@ -879,3 +879,70 @@ isométricos, que no existe. El denominador no cambia: la fila ya estaba.
   la requisición valorada no.
 - **Instrumentación completa**: entra el instrumento de campo, que es el que más
   se dibuja; el de panel y el de programa, no, y está dicho en el módulo.
+
+## Nota fechada — Ola 6, segunda mitad (2026-09-03): la tubería sube, y de ahí sale un isométrico
+
+Medido antes de tocar nada: DESTINO 230/271 (84,9 %), HOY 175/197 (88,8 %);
+`toolset-plant3d` en 2/4 con el criterio de tubería marcado «todavía no».
+
+### El montante, que es lo que hace que «3D» no sea una etiqueta
+
+Una tubería no vive en el suelo: arranca a +2.000 y sube a +5.000 para pasar
+sobre una viga. `PIDROUTE` pregunta la elevación de arranque y ofrece
+`Elevación` en cada punto: cambiarla mete el **montante** —el tramo vertical—
+en el sitio, sin que nadie lo dibuje. Sin eso, «ruteo 3D» habría sido una
+polilínea plana con una etiqueta que dice 3D, y este producto tiene una regla
+escrita contra exactamente eso.
+
+Y se nota en el número que importa: la ruta del golden mide **24,00 m en 3D y
+21 en planta**. La diferencia son los 3 m del montante, que es tubo que se
+compra.
+
+### Los accesorios se DEDUCEN, y por eso no mienten
+
+AutoCAD Plant 3D coloca un codo como objeto cuando ruteas. Aquí el codo se
+deduce de la geometría: si la ruta gira 90° en un vértice, ahí hay un codo de
+90°, y si mañana se mueve el vértice el codo se mueve con él. Colocarlo como
+entidad obligaría a mantener dos verdades sincronizadas —la geometría y el
+objeto—, y la lista de materiales de un plano modificado es justo donde esa
+desincronización se paga.
+
+Se deducen tubo, codo, te y reducción. Una brida, una válvula o un soporte no
+los implica la geometría, así que **no se inventan**, y está dicho en el módulo.
+
+### El isométrico: por qué las longitudes van como TEXTO
+
+La proyección es la isométrica del dibujante —ejes a 30°, 150° y vertical—, así
+que un tramo paralelo a un eje conserva su longitud, pero uno oblicuo se dibuja
+**más corto de lo que mide**: una diagonal de 1.414 sale de 1.000. Por eso la
+longitud se rotula como texto con el valor 3D verdadero y **no** como cota del
+dibujo: la cota mediría el trazo proyectado y diría 1,00 m donde hay 1,41. El
+propio título de la hoja lo declara: `SIN ESCALA`.
+
+### Y no es «unas líneas en diagonal»: es una hoja
+
+`PIDISO` hace las tres cosas que hacen falta para montar una tubería, en **un
+solo paso de deshacer**:
+
+1. el dibujo isométrico con las longitudes verdaderas y los accesorios marcados;
+2. la lista de materiales, como TABLE del documento, con su límite en el título;
+3. la HOJA, con su ventana encuadrando el dibujo **y** el cuadro —una ventana
+   que cortase la lista entregaría media requisición—.
+
+### La rúbrica sube otra vez
+
+`toolset-plant3d.tuberia` deja de estar en «todavía no» y la fila pasa de
+**2/4 a 3/4**, reteniendo 1 pt como las otras 27 filas cuya evidencia es toda
+propia. **DESTINO pasa de 230/271 (84,9 %) a 231/271 (85,2 %).** HOY sigue en
+175/197 (88,8 %).
+
+### Lo que esta mitad NO cerró, dicho aquí y en la rúbrica
+
+- **Catálogo de fabricante**: espesor, diámetro exterior, peso, clave de compra
+  y precio están en normas y catálogos con dueño. No se transcribe ninguno, y el
+  cuadro lo dice en su título.
+- **Sólido de tubería en el visor 3D**: la ruta es el EJE. Ver la tubería con su
+  diámetro real pide el exterior, que es catálogo.
+- **Choques contra estructura**: no hay detección de interferencias.
+- **Formato ISOGEN**: la hoja es del documento, no un fichero en el formato de
+  esa herramienta.

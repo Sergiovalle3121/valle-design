@@ -3661,7 +3661,7 @@
       "scope": "destino",
       "name": "Toolset Plant 3D",
       "points": 4,
-      "gap": "EN ALCANCE desde la Ola 6 (2026-09-03): el titular retiró la marca de «fuera de alcance». Lo que hay: el número de línea (6\"-P-1001-CS150) con su correlativo sacado del dibujo, un catálogo de SEIS equipos dibujados desde primitivas —recipiente, bomba, intercambiador, tanque, compresor e instrumento de campo— que nacen CON su etiqueta (P-101, V-101, TI-1001), la lista de líneas con el METRADO medido sobre el plano —que un P&ID de AutoCAD no puede dar porque no está a escala— y las comprobaciones que no piden el catálogo de nadie: número de línea repetido, un servicio con dos especificaciones, diámetro no comercial, número ilegible y etiqueta de equipo repetida o ausente. Lo que NO hay, y por eso la fila no llega a su tope: el ruteo de tubería 3D por especificación y la generación de isométricos.",
+      "gap": "EN ALCANCE desde la Ola 6 (2026-09-03): el titular retiró la marca de «fuera de alcance». Lo que hay: el número de línea (6\"-P-1001-CS150) con su correlativo sacado del dibujo; un catálogo de SEIS equipos dibujados desde primitivas que nacen CON su etiqueta; la lista de líneas con el METRADO medido sobre el plano —que un P&ID de AutoCAD no puede dar porque no está a escala—; el RUTEO EN 3D con cota, donde cambiar de elevación mete el montante solo y la especificación viaja con la ruta; los accesorios DEDUCIDOS de la geometría (codo, te y reducción), que no se desincronizan porque no se guardan; la lista de materiales sacada del modelo; y el ISOMÉTRICO con las longitudes verdaderas rotuladas, su norte, su cuadro de materiales y su HOJA con ventana, todo en un paso de deshacer. Lo que NO hay, y por eso la fila retiene su punto: catálogo de fabricante (espesor, diámetro exterior, peso, clave de compra y precio: están en normas y catálogos con dueño y no se transcribe ninguno), sólido de tubería con su diámetro real en el visor 3D —la ruta es el eje—, detección de choques contra estructura, y salida en el formato de ISOGEN. Toda la evidencia es propia.",
       "criteria": [
         {
           "id": "toolset-plant3d.pid",
@@ -3695,11 +3695,31 @@
           "id": "toolset-plant3d.tuberia",
           "points": 2,
           "text": "Tubería 3D por especificación e isométricos",
-          "costDays": null,
+          "costDays": 0,
           "evidence": [
             {
-              "kind": "todaviaNo",
-              "reason": "La tubería está en 2D con su número, servicio y especificación, y su metrado sale del plano; el ruteo 3D por especificación y la generación de isométricos no existen."
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/plant/pipe-route.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/plant/isometric.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/plant-route.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/plant-iso.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/95-cad-isometrico-tuberia.spec.ts"
+            },
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/plant/pipe-mto.ts"
             }
           ]
         }
