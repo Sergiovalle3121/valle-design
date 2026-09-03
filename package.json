@@ -24,6 +24,7 @@
     "check:no-industrial-domain": "node scripts/cad/check-no-industrial-domain.spec.mjs && node scripts/cad/check-no-industrial-domain.mjs",
     "check:monolith-budget": "node scripts/cad/check-monolith-budget.mjs",
     "check:rubric": "node scripts/cad/rubric.mjs",
+    "probe:distancia": "node --import tsx scripts/cad/distancia-probe.mts --resumen",
     "evidence:normas-mx": "node scripts/cad/mexican-drafting-standards-evidence.mjs",
     "check:normas-mx": "node scripts/cad/mexican-drafting-standards-evidence.mjs --check",
     "evidence:plot-fidelity": "node scripts/cad/plot-fidelity-evidence.mjs",
