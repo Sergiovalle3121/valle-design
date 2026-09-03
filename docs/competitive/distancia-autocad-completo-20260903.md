@@ -778,6 +778,18 @@ veredicto DENTRO de la tabla y el límite en su título. Sale en la lámina por 
 mismo camino que los demás cuadros y viaja al DXF. Rehacerlo después de mover un
 conductor es volver a teclear la orden — hoy eso es rehacer una hoja de cálculo.
 
+### Y se teclea entero, contra el documento que recibe el servidor
+
+`apps/web/e2e/golden/94-cad-pid-planta.spec.ts` teclea la cadena completa
+—tres líneas, la bomba, `PIDLIST` y `PIDEQUIPLIST`— con el lienzo enfocado y
+después afirma sobre el DOCUMENTO PERSISTIDO: que las líneas son polilíneas con
+su marca (ningún tipo de entidad nuevo), que los correlativos los puso el
+dibujo y llevan uno por servicio, que la bomba viaja como `INSERT` con su
+etiqueta en los ATRIBUTOS y su definición de bloque en el documento, que
+`TU-PROC` y `TU-EQ` están en la TABLA de capas —no sólo en las entidades— y que
+los 20 m que `PIDLIST` anunció se vuelven a medir sobre la geometría guardada.
+Nada mira una captura.
+
 ### La rúbrica sube, y con qué
 
 `toolset-electrical` deja de estar «fuera de alcance» y pasa de **0/4 a 3/4**,

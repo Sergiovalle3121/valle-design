@@ -3667,7 +3667,7 @@
           "id": "toolset-plant3d.pid",
           "points": 2,
           "text": "Diagramas P&ID: catálogo de equipos etiquetados y líneas numeradas, todo derivado del dibujo",
-          "costDays": null,
+          "costDays": 0,
           "evidence": [
             {
               "kind": "spec",
@@ -3684,6 +3684,10 @@
             {
               "kind": "file",
               "path": "apps/web/src/lib/cad/plant/pid-symbols.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/94-cad-pid-planta.spec.ts"
             }
           ]
         },
