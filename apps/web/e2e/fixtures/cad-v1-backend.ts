@@ -31,6 +31,12 @@ import type { BrowserContext, Route } from "@playwright/test";
 import { API_ORIGIN } from "./constants";
 import { firstPartyRequestFailure } from "./standalone-identity";
 import { CadReviewCommentStore } from "./cad-review-comments";
+import { CadSheetSetStore } from "./cad-v1-sheet-sets";
+import {
+  cadReviewLinkRoutes,
+  cadReviewSessionResource,
+  type CadReviewSessionRow,
+} from "./cad-v1-review-links";
 import { acknowledgeCadArchive } from "./cad-archive-fixture";
 
 export interface LegacyFootprint {
@@ -132,27 +138,16 @@ export function seedFootprint(
   return { ...document, meta };
 }
 
-/**
- * Sesión de revisión SERVER-OWNED (espejo de `cad_review_sessions`): el
- * fixture emite el token, guarda sólo su referencia interna y lo entrega UNA
- * vez, igual que la API real. Ningún token llega al documento.
- */
-interface ReviewSessionRow {
-  id: string;
-  documentId: string;
-  token: string;
-  status: "open" | "closed";
-  allowComments: boolean;
-  expiresAt: string;
-  revokedAt: string | null;
-  closedAt: string | null;
-}
-
 export class CadV1Backend {
   private readonly rows: DocRow[] = [];
+  /**
+   * Conjuntos de planos: su propia tabla y su propio CAS, en su propio módulo
+   * por presupuesto de tamaño (`cad-v1-sheet-sets.ts`).
+   */
+  readonly sheetSets = new CadSheetSetStore();
   private readonly library: LibraryBlockRow[] = [];
   readonly publicationRequests: PublicationRequest[] = [];
-  readonly reviewSessions: ReviewSessionRow[] = [];
+  readonly reviewSessions: CadReviewSessionRow[] = [];
   /**
    * Hilos de comentario, en su propio módulo por presupuesto de tamaño. Se le
    * pasa a ESTE backend como anfitrión para que la validez de un token la
@@ -183,6 +178,16 @@ export class CadV1Backend {
 
   constructor(seeds: CadV1DocumentSeed[]) {
     for (const seed of seeds) this.register(seed);
+  }
+
+  /** Siembra un conjunto de planos ya existente en el servidor. */
+  registerSheetSet(resource: Record<string, unknown>): void {
+    this.sheetSets.register(resource);
+  }
+
+  /** Cada PUT de conjunto recibido, en orden: lo que el servidor VIO. */
+  get sheetSetSaves(): ReadonlyArray<{ sheetSetId: string; body: Record<string, unknown> }> {
+    return this.sheetSets.saves;
   }
 
   register(seed: CadV1DocumentSeed): DocRow {
@@ -225,6 +230,11 @@ export class CadV1Backend {
     if (!found)
       throw new Error(`Documento no sembrado: ${model}@${revision ?? "*"}`);
     return found;
+  }
+
+  /** El id que el servidor le dio a un documento sembrado. */
+  idFor(model: string, revision?: string): string {
+    return this.row(model, revision).id;
   }
 
   snapshotFor(
@@ -357,89 +367,38 @@ export class CadV1Backend {
       return json(summaryOf(row), 201);
     }
 
-    const sessionResource = (session: ReviewSessionRow) => ({
-      id: session.id,
-      documentId: session.documentId,
-      status: session.status,
-      hasShareLink: true,
-      allowComments: session.allowComments,
-      expiresAt: session.expiresAt,
-      revokedAt: session.revokedAt,
-      closedAt: session.closedAt,
-      createdAt: NOW0,
-      createdBy: "e2e@valle",
-    });
-
-    // ── CANJE del review link: SOLO por cabecera, nunca por query string ──
-    if (path === "/v1/cad/review/context" && method === "GET") {
-      const token = request.headers()["x-review-token"] ?? "";
-      const session = this.reviewSessions.find(
-        (candidate) => candidate.token === token,
-      );
-      if (!token || !session) {
-        return json(
-          {
-            code: "review_token_invalid",
-            message: "El review link no es válido.",
-          },
-          401,
-        );
-      }
-      if (session.revokedAt || session.status !== "open") {
-        return json(
-          {
-            code: "review_token_revoked",
-            message: "El review link fue revocado.",
-          },
-          401,
-        );
-      }
-      if (Date.parse(session.expiresAt) <= Date.now()) {
-        return json(
-          { code: "review_token_expired", message: "El review link expiró." },
-          401,
-        );
-      }
-      const target = this.rows.find(
-        (candidate) => candidate.id === session.documentId,
-      );
-      if (!target) return notFound("Documento CAD no encontrado.");
-      return json({
-        session: sessionResource(session),
-        readOnly: true,
-        document: {
-          id: target.id,
-          name: target.name,
-          model: target.model,
-          revision: target.revision,
-          cadDocumentVersion: target.version,
-          layers: null,
-          cadDocument: structuredClone(target.document),
-          dxf: target.dxf ? { ...target.dxf.placement } : null,
+    // La superficie del INVITADO vive en `cad-v1-review-links.ts`: canjear el
+    // link y revocarlo tienen reglas propias (sólo cabecera, tres formas de
+    // rechazar) y el presupuesto de tamaño de este fixture no da para tenerlas
+    // aquí además de los conjuntos de planos.
+    const sessionResource = (session: CadReviewSessionRow) =>
+      cadReviewSessionResource(session, NOW0);
+    const reviewReply = cadReviewLinkRoutes(
+      { path, method, reviewToken: request.headers()["x-review-token"] ?? "" },
+      {
+        sessions: this.reviewSessions,
+        now: NOW0,
+        documentPayload: (documentId) => {
+          const target = this.rows.find((candidate) => candidate.id === documentId);
+          if (!target) return null;
+          return {
+            id: target.id,
+            name: target.name,
+            model: target.model,
+            revision: target.revision,
+            cadDocumentVersion: target.version,
+            layers: null,
+            cadDocument: structuredClone(target.document),
+            dxf: target.dxf ? { ...target.dxf.placement } : null,
+          };
         },
-      });
-    }
-
-    // ── Revocación de la sesión (cierra el link de inmediato) ──
-    const closeMatch = path.match(
-      /^\/v1\/cad\/review-sessions\/([^/]+)\/close$/,
+      },
     );
-    if (closeMatch && method === "POST") {
-      const session = this.reviewSessions.find(
-        (candidate) => candidate.id === closeMatch[1],
-      );
-      if (!session) return notFound("Sesión de revisión no encontrada.");
-      if (session.status === "closed") {
-        return json(
-          { code: "review_session_closed", message: "Ya estaba cerrada." },
-          409,
-        );
-      }
-      session.status = "closed";
-      session.closedAt = NOW0;
-      session.revokedAt = NOW0;
-      return json(sessionResource(session));
-    }
+    if (reviewReply) return json(reviewReply.body, reviewReply.status);
+
+    // ── Conjuntos de planos: su propia tabla y su propio CAS ──
+    const sheetSetReply = this.sheetSets.handle({ path, method, body });
+    if (sheetSetReply) return json(sheetSetReply.body, sheetSetReply.status);
 
     const byId = (id: string) => this.rows.find((row) => row.id === id);
     const docMatch = path.match(/^\/v1\/cad\/documents\/([^/]+)(?:\/(.+))?$/);
@@ -535,7 +494,7 @@ export class CadV1Backend {
       // ── Review link SERVER-OWNED: el token se emite AQUÍ y sólo aquí ──
       if (rest === "review-sessions" && method === "POST") {
         const dto = body();
-        const session: ReviewSessionRow = {
+        const session: CadReviewSessionRow = {
           id: `00000000-0000-4000-9000-${String(this.reviewSessions.length + 1).padStart(12, "0")}`,
           documentId: row.id,
           // Forma del token real (`vdrl_` + 256 bits): el fixture no lo
