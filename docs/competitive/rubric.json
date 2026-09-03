@@ -1197,7 +1197,7 @@
           "evidence": [
             {
               "kind": "todaviaNo",
-              "reason": "BEDIT v1 es la puerta tecleable al panel de bloques (honesta y útil); el editor en sitio con edición de la definición dentro del lienzo todavía no existe. Diseño esbozado en el backlog P1."
+              "reason": "Ola 7 (2026-09-03): REFEDIT, REFSET y REFCLOSE editan una referencia EN SITIO —la geometría del bloque sale al dibujo encima de la referencia, se edita con las órdenes de siempre, lo nuevo entra con REFSET y REFCLOSE la devuelve a la definición o la descarta, conservando los atributos que explotar perdía—. El criterio NO se otorga porque pide otra cosa: que BEDIT sea ese editor, y BEDIT sigue siendo la puerta al panel. Falta también editar en sitio una referencia GIRADA o ESCALADA, que hoy se niega por su nombre porque devolver geometría girada no es trasladarla. Otorgarlo con REFEDIT sería medir otra cosa de la que se pidió."
             }
           ]
         },

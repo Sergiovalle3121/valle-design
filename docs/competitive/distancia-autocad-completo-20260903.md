@@ -1021,3 +1021,43 @@ de 231/271 (85,2 %) a 232/271 (85,6 %)**.
   estirar.** Girar y reflejar geometría cualquiera —arcos, textos, sombreados—
   se puede hacer bien o se puede hacer «casi», y «casi» en un bloque que alguien
   imprime y construye no vale. Se rechazan POR SU NOMBRE, con el motivo.
+
+## Nota fechada — Ola 7, segunda parte (2026-09-03): editar un bloque sin explotarlo
+
+Medido antes de tocar nada: HOY 176/197 (89,3 %), DESTINO 232/271 (85,6 %).
+
+### El gesto más caro de un dibujo con biblioteca propia
+
+La fila `blocks` lo decía: *«Sin editor de bloques en sitio, redefinir un bloque
+exige explotar y volver a definir.»* Y explotar **pierde los atributos**: el
+`TAG` de cada referencia se va y hay que rellenarlo a mano, marca por marca.
+Corregir el detalle de una puerta o ajustar el símbolo de un cajetín es un gesto
+diario, y hasta hoy costaba eso.
+
+### REFEDIT, REFSET y REFCLOSE — y esta vez los nombres SÍ son los de AutoCAD
+
+Cuando el gesto es el mismo, el nombre tiene que ser el mismo: es memoria
+muscular de veinte años. `REFEDIT` saca la geometría de la definición **encima
+de la referencia designada** —no en el origen del mundo—, marcada en
+`context.metadata`; se edita con las órdenes de siempre, porque el editor de un
+bloque tiene que ser el editor y no uno más pequeño con la mitad de las
+herramientas; `REFSET` añade lo que se dibujó nuevo o retira lo que sobra; y
+`REFCLOSE` guarda en la definición —devolviendo la geometría a coordenadas del
+bloque— o descarta sin tocarla.
+
+Los atributos se conservan: es exactamente lo que explotar perdía.
+
+### Dos sesiones a la vez se niegan
+
+Guardar con dos ediciones abiertas mezclaría la geometría de dos bloques. Se
+dice cuáles están abiertas y se pide cerrar una, en vez de resolverlo adivinando.
+
+### La rúbrica NO se mueve, y es correcto
+
+El criterio pide **«BEDIT como editor real, no como puerta al panel»**, y BEDIT
+sigue abriendo el panel. La capacidad de editar en sitio existe hoy bajo los
+nombres que AutoCAD usa para ella, pero otorgar el punto sería medir otra cosa
+de la que se pidió. Queda escrito en el `todavía no` de la fila, con lo que falta:
+que BEDIT sea ese editor, y editar en sitio una referencia **girada o escalada**
+—que hoy se niega por su nombre, porque devolver geometría girada no es
+trasladarla y hacerlo «casi» deja un bloque de biblioteca torcido para siempre—.

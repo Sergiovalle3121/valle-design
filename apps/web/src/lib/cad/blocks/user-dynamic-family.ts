@@ -43,6 +43,7 @@ import type {
   CadDynamicValues,
 } from "../dynamic-blocks";
 import { cadStretchAnchorPoint } from "../stretch-anchor";
+import { cadTranslateEntity } from "../entity-translate";
 
 /** Nombre del parámetro que declara esta línea. Sin él, es geometría normal. */
 export const CAD_DIN_PARAM = "din:param";
@@ -125,25 +126,10 @@ function stretched(entity: CadEntity, carrier: Carrier, offset: number): CadEnti
   const dx = carrier.dir.x * offset;
   const dy = carrier.dir.y * offset;
   const anchor = cadStretchAnchorPoint(entity);
-  if (anchor) {
-    if (!moves(anchor, carrier)) return entity;
-    // Lo que no se estira por partes se mueve entero, como en STRETCH: un
-    // círculo estirado a medias sería una elipse que nadie pidió.
-    if (entity.type === "circle" || entity.type === "arc" || entity.type === "ellipse")
-      return { ...entity, center: shift(entity.center, dx, dy) };
-    if (entity.type === "mtext" || entity.type === "insert")
-      return { ...entity, insertion: shift(entity.insertion, dx, dy) };
-    if (entity.type === "text" || entity.type === "box" || entity.type === "station")
-      return { ...entity, x: entity.x + dx, y: entity.y + dy };
-    if (entity.type === "hatch")
-      return {
-        ...entity,
-        boundaries: entity.boundaries.map((loop) => loop.map((point) => shift(point, dx, dy))),
-      };
-    if (entity.type === "dimension")
-      return { ...entity, a: shift(entity.a, dx, dy), b: shift(entity.b, dx, dy) };
-    return entity;
-  }
+  // Lo que no se estira por partes se mueve ENTERO, como en STRETCH: un círculo
+  // estirado a medias sería una elipse que nadie pidió. La tabla de qué mover
+  // en cada tipo es la compartida (`entity-translate.ts`).
+  if (anchor) return moves(anchor, carrier) ? cadTranslateEntity(entity, dx, dy) : entity;
   if (entity.type === "line")
     return {
       ...entity,

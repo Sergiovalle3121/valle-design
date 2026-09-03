@@ -435,6 +435,7 @@ spec verde— y **no lo importaba ni un comando ni un panel**.
 | Volver dinámico un bloque DEL USUARIO | 5 | `user-dynamic-family.spec.ts` (33): el parámetro es una línea marcada DENTRO de la definición; estirar mueve lo de la punta, deja lo de la base y el círculo de la pata sigue siendo un círculo | Sin campo nuevo en el formato: la línea viaja al DXF y se apaga por capa. Sólo parámetro LINEAL con acción de estirar; girar y reflejar geometría cualquiera se rechaza **por su nombre**, con el motivo. |
 | Comportamiento anotativo de un bloque | 5 | `dynamic-blocks.spec.ts`: la marca de nivel declara 3 mm de papel y la inserción los sella; `layout/annotative-scale.ts` los aplica | Entra por la misma puerta que el resto: `BLOQUEDIN` lo sella al colocar. |
 | Estados de visibilidad y tablas de consulta | 0 | ninguna | Un bloque con estados —puerta de una hoja / de dos— no existe. **Todavía no.** |
+| Editar una referencia EN SITIO, sin explotarla | 5 | `reference-edit.spec.ts` (33): la geometría sale ENCIMA de la referencia designada, se edita con las órdenes de siempre, REFSET decide qué entra, REFCLOSE la devuelve a coordenadas del bloque conservando los ATRIBUTOS —lo que explotar perdía— y descartar deja la definición byte a byte igual | Los nombres son los de AutoCAD porque el gesto es el mismo. **Falta** que BEDIT sea ese editor (hoy abre el panel) y editar en sitio una referencia GIRADA o ESCALADA, que se niega por su nombre: devolver geometría girada no es trasladarla. **Todavía no.** |
 
 ## Cómo se usa
 
