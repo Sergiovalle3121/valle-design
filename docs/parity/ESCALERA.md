@@ -373,6 +373,26 @@ que redefinir un bloque dejaba desfasadas todas sus referencias.
 | Las seis transformaciones 3D (`3DMOVE`, `3DROTATE`, `3DALIGN`, `MIRROR3D`, `3DARRAY`, `3DSCALE`) | 0 | ninguna | `CadEntityTransform` es estrictamente 2D. No es añadir comandos: es ensanchar el transporte de transformaciones y decidir, adaptador por adaptador, qué entidad sabe moverse en Z. No toca el formato persistido. **Todavía no.** |
 | Las señales de una llamada se atienden en fila y ningún candidato ICE se tira | 5 | `call-session-host.spec.ts` (11) con control negativo: sobre el código anterior muere con el `InvalidStateError` de verdad | Queda un residual medido —tras un cruce de ofertas ninguno de los dos extremos llega a `iceConnectionState=checking`— anotado con su traza. La llamada de dos navegadores pasó 4 de 5 corridas. |
 
+## La instalación eléctrica (Ola 5, 2026-09-03)
+
+Electrical estaba marcado **fuera de alcance** en la tabla de los siete
+toolsets. El titular retiró esa marca para esta campaña, con objetivo 4/4. Hoy
+la fila de la rúbrica está en **3/4** —retiene 1 punto por tener sólo evidencia
+propia— y lo que falta para el cuarto está abajo, con su motivo.
+
+| Capacidad | Peldaño | Evidencia | Qué falta para el siguiente |
+| --- | --- | --- | --- |
+| Conductor con circuito, número y calibre, sin entidad nueva | 5 | golden 93 sobre el documento que recibe el servidor: dos POLILÍNEAS en `IE-CIR` con `ie:circuito`, `ie:numero` y `ie:calibre`; `wire-numbering.spec.ts` (25) y `electrical-wire.spec.ts` (26) | Nada de peldaño. La marca vive en `context.metadata`: no se añadió ningún tipo de entidad ni campo persistido. |
+| El número lo pone el DIBUJO, no un contador | 5 | `wire-numbering.spec.ts` con control: sin el 7, el siguiente es 2 — el hueco queda libre y a la vista | Reutilizar un hueco sería peor: el «7» del plano entregado y el nuevo serían conductores distintos con el mismo nombre. Es una decisión, no una carencia. |
+| Números repetidos cazados, vengan de donde vengan | 5 | `electrical-wire.spec.ts`: se copia el conductor con el ejecutor real y `AEWIRELIST` responde «REPETIDOS: C-1-1 en … y copia»; `AEWIRE` avisa ANTES de escribir | Nada de peldaño. Detecta también lo que entró por DXF ajeno o por fusionar dibujos, porque lee el documento. |
+| Revisión contra la NOM-001-SEDE con la longitud REAL del plano | 5 | golden 93 y `circuit-check.spec.ts` (42) contra cuentas hechas a mano: 2 × 30 m × 20 A × 6,5 Ω/km / 1000 = 7,8 V = 6,1 % sobre 127 V | **Evidencia independiente**: los valores están transcritos de la norma y nadie externo los ha cotejado. Para el peldaño 4 hace falta que un tercero autorizado verifique la transcripción contra el texto oficial. |
+| El tope del conductor pequeño (Art. 240-4(D)) manda sobre la ampacidad | 5 | `circuit-check.spec.ts`: el 12 AWG tiene 25 A de tabla y no pasa de 20 A de protección | Nada de peldaño. Sin esa regla la revisión aprobaría lo que la norma prohíbe. |
+| Cuadro de cargas como TABLE del dibujo, con veredicto y límite | 5 | `data-extraction-commands.spec.ts`: la tabla lleva «Cuadro de cargas», el AVISO, los 30.0 m y «No sustituye el memorial de cálculo» | Nada de peldaño para lo que hace. No trae precios ni claves de compra: eso pide catálogo de fabricante. |
+| Etiquetado automático de componentes con referencias cruzadas | 0 | ninguna | El símbolo existe y el bloque admite atributos; falta la numeración y el cruce entre hojas. **Todavía no.** |
+| Escalerilla (ladder) y E/S de PLC | 0 | ninguna | Maquinaria de esquema unifilar de control, que no existe. **Todavía no.** |
+| Plano de gabinete atado al esquema | 0 | ninguna | La huella del componente en el tablero y su vínculo con el símbolo. **Todavía no.** |
+| Catálogo de fabricante | 0 | ninguna | Sin él, el cuadro de cargas no puede traer precios ni claves. **Todavía no.** |
+
 ## Cómo se usa
 
 - **Al añadir una entrada nueva a `BACKLOG.md`:** decir el peldaño ACTUAL

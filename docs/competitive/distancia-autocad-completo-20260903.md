@@ -706,3 +706,95 @@ por participante y guardando los candidatos adelantados, con control negativo en
 `call-session-host.spec.ts`. Queda un residual —tras un cruce de ofertas ninguno
 de los dos extremos llega a `iceConnectionState=checking`— anotado con su traza
 para su propia investigación.
+
+## Nota fechada — Ola 5 (2026-09-03): Electrical entra en alcance
+
+**La medida de partida, re-hecha hoy y no heredada.** El informe del 1 de
+septiembre daba **Electrical ≈ 1 %**: *«Nada. Ni un comando, ni una entidad de
+cable o componente, ni numeración de conductores, ni escalerilla, ni PLC, ni
+base de catálogo, ni informes.»* Lo volví a medir sobre el árbol: sondeé catorce
+nombres de la familia contra `engine/` —AEWIRE, AECOMPONENT, AEPANEL, AELADDER,
+AEPLC, AEPOINT, AESCHEMATIC, AECONDUIT, CIRCUIT, WIRENUMBER, AEWIRENO, AEBOM,
+AEREPORT, WIRE— y salieron **cero aciertos**; `conductor`, `canalización`,
+`wireNumber` y `voltage` no aparecen en `lib/cad`. Lo único eléctrico eran
+cuatro SÍMBOLOS —luminaria, contacto, apagador y tablero, con la NOM-001-SEDE
+citada— colocables con `MEPSYMBOL`. **Símbolos sin conductores son iconos, no
+una instalación.**
+
+### Sin entidad nueva, y la razón no es sólo el esquema
+
+Un conductor ES una polilínea: eso es lo que se dibuja, lo que se traza y lo que
+viaja al DXF. Lo que lo convierte en conductor es lo que sabe de sí mismo
+—circuito, número, calibre—, y eso cabe en `context.metadata`. La ventaja
+práctica pesa más que la del formato: a una polilínea con metadatos la mueve
+MOVE, la recorta TRIM, la copia COPY y la traza PLOT desde el primer día. Un
+tipo de entidad nuevo habría empezado sin ninguna de las cuatro.
+
+### El número sale del DIBUJO, y el repetido se caza
+
+Un contador de sesión daría números distintos según quién abriera el archivo, y
+dos personas del mismo despacho acabarían con dos «14» en el mismo circuito —en
+obra, un empalme equivocado—. Se lee el documento. Los huecos no se reutilizan:
+el «7» de un plano entregado y un «7» nuevo serían conductores distintos con el
+mismo nombre.
+
+Y se cazan los repetidos, que es la mitad del valor: es el error que no se ve en
+pantalla —dos rayas idénticas— y que sí se ve en la obra. Como se detecta
+leyendo el documento, también caza el que entró por copiar y pegar, por un DXF
+ajeno o por fusionar dos dibujos. `AEWIRELIST` lo lista sin escribir nada.
+
+### Lo que AutoCAD Electrical no puede hacer, y por qué
+
+AutoCAD Electrical numera y saca listas. No comprueba si el calibre aguanta la
+protección ni cuánta tensión se cae, y **no puede**: sus conductores son
+esquemáticos, no están a escala, así que el dibujo no sabe cuánto mide un
+recorrido. El ingeniero mexicano acaba midiendo el plano a mano y llevándose los
+metros a una hoja de cálculo que miente en cuanto el plano cambia.
+
+Aquí el conductor está a escala. `AECHECK` mide la longitud RECORRIDA de la
+polilínea —no la recta entre extremos: un conductor que sube por un muro y baja
+por otro mide lo que recorre— y revisa contra la **NOM-001-SEDE**:
+
+```
+C-1 AVISO: la caída es del 6.1 % en 30.0 m y la NOM recomienda 3 %;
+           con 8 AWG bajaría del tope
+C-1 NO CUMPLE: el calibre 12 AWG admite hasta 20 A y la protección es de
+           30 A (tope del conductor pequeño, Art. 240-4(D); su ampacidad
+           de tabla es 25 A)
+```
+
+Dos decisiones hacen que esto sea seguro y no plausible. La **corriente de
+cálculo es la protección**, no la carga conectada: el dibujo no sabe cuánta
+corriente pasará, y suponerla menor sería aprobar de más. Y **el límite va
+siempre en el renglón y en el título del cuadro**, aprobado o no: sin corrección
+por temperatura ni agrupamiento, sin el 125 % de carga continua, sin tierra ni
+llenado de tubo, y la caída es resistiva. Una revisión que no dice lo que NO
+mira se lee como un certificado. Quien firma sigue firmando.
+
+### El cuadro de cargas, que es el entregable
+
+`DATAEXTRACTION circUitos` inserta el cuadro como TABLE del documento, con el
+veredicto DENTRO de la tabla y el límite en su título. Sale en la lámina por el
+mismo camino que los demás cuadros y viaja al DXF. Rehacerlo después de mover un
+conductor es volver a teclear la orden — hoy eso es rehacer una hoja de cálculo.
+
+### La rúbrica sube, y con qué
+
+`toolset-electrical` deja de estar «fuera de alcance» y pasa de **0/4 a 3/4**,
+reteniendo 1 punto por tener sólo evidencia propia, que es la regla de la casa.
+El denominador NO cambia: la fila ya existía a cero.
+
+**DESTINO pasa de 225/271 (83 %) a 228/271 (84,1 %).** HOY sigue en 175/197
+(88,8 %): esta ola no toca el flujo diario de dibujo 2D.
+
+### Lo que esta ola NO cerró, y por qué la fila no llega a 4/4
+
+- **Etiquetado automático de componentes** con referencias cruzadas entre hojas
+  (el `-M1`, `-PB2` de AutoCAD Electrical). El símbolo existe y el bloque admite
+  atributos; falta la numeración y el cruce.
+- **Escalerilla (ladder)** y **E/S de PLC**: son maquinaria de esquema unifilar
+  de control, y no hay ninguna.
+- **Plano de gabinete atado al esquema**: la huella del componente en el tablero
+  y su vínculo con el símbolo del esquema.
+- **Catálogo de fabricante**: sin él, el cuadro de cargas no puede traer
+  precios ni claves de compra.

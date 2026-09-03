@@ -16,6 +16,8 @@
 import { buildCadBimSchedule } from "../../bim-schedule";
 import { buildCadMepSchedule } from "../../mep-schedule";
 import { buildCadMepScheduleTable } from "../../data-extraction/mep-schedule-table";
+import { buildCadCircuitScheduleTable } from "../../data-extraction/circuit-schedule-table";
+import { cadCheckCircuits } from "../../electrical/circuit-check";
 import {
   buildCadDataExtractionCsv,
   buildCadDataExtractionTable,
@@ -45,17 +47,21 @@ const OUTPUT_OPTIONS = [
   { keyword: "Superficies", shortcut: "S" },
   { keyword: "carPintería", shortcut: "P" },
   { keyword: "Instalaciones", shortcut: "I" },
+  // `circUitos` (Ola 5): el cuadro de cargas, que es el entregable de un
+  // proyecto eléctrico mexicano y que hoy se hace en una hoja aparte con las
+  // longitudes medidas a mano. Aquí sale del dibujo, con su veredicto.
+  { keyword: "circUitos", shortcut: "U" },
   { keyword: "CSV", shortcut: "C" },
 ] as const;
 
 interface DataExtractionState {
-  output: "table" | "rooms" | "openings" | "mep" | "csv" | null;
+  output: "table" | "rooms" | "openings" | "mep" | "circuits" | "csv" | null;
 }
 
-const TABLE_NAMES = { table: "la tabla de muros", rooms: "el cuadro de superficies", openings: "el cuadro de carpintería", mep: "el cuadro de instalaciones" } as const;
+const TABLE_NAMES = { table: "la tabla de muros", rooms: "el cuadro de superficies", openings: "el cuadro de carpintería", mep: "el cuadro de instalaciones", circuits: "el cuadro de cargas" } as const;
 
 function ask(state: DataExtractionState): CadCommandStep<DataExtractionState> {
-  if (state.output === "table" || state.output === "rooms" || state.output === "openings" || state.output === "mep")
+  if (state.output === "table" || state.output === "rooms" || state.output === "openings" || state.output === "mep" || state.output === "circuits")
     return {
       state,
       prompt: { message: `Precise el punto de inserción de ${TABLE_NAMES[state.output]}`, options: [] },
@@ -113,6 +119,7 @@ const dataExtractionCommand: CadCommandDescriptor<DataExtractionState> = {
       if (input.keyword === "Superficies") return ask({ output: "rooms" });
       if (input.keyword === "carPintería") return ask({ output: "openings" });
       if (input.keyword === "Instalaciones") return ask({ output: "mep" });
+      if (input.keyword === "circUitos") return ask({ output: "circuits" });
       return ask(state);
     }
 
@@ -132,6 +139,13 @@ const dataExtractionCommand: CadCommandDescriptor<DataExtractionState> = {
         return cadCommandRefused(state, "El dibujo no tiene tuberías, ductos, charolas ni símbolos MEP (capas IH-, IS-, IG-, PCI-, AA-, IE- o bloques MEP-): no hay cuadro de instalaciones que insertar.");
       const table = buildCadMepScheduleTable(mep, input.point, context.activeLayer, context.newEntityId, context.unit);
       return cadCommandWrites(state, [{ type: "insert", entity: table }], "DATAEXTRACTION Instalaciones");
+    }
+    if (state.output === "circuits") {
+      const checks = cadCheckCircuits(view);
+      if (checks.length === 0)
+        return cadCommandRefused(state, "El dibujo no tiene conductores numerados: no hay cuadro de cargas que insertar. Trácelos con AEWIRE y deles datos con AECIRCUIT.");
+      const table = buildCadCircuitScheduleTable(checks, input.point, context.activeLayer, context.newEntityId);
+      return cadCommandWrites(state, [{ type: "insert", entity: table }], "DATAEXTRACTION Circuitos");
     }
     if (state.output === "openings") {
       if (schedule.openings.length === 0)
