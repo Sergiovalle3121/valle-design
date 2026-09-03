@@ -482,6 +482,11 @@ interface DdeditState {
 
 /** Tipos cuyo texto se puede reeditar, y con qué propiedad se escribe. */
 const EDITABLE_TEXT_PROPERTY: Readonly<Record<string, string>> = {
+  // TEXT de una línea: faltaba, y es la mitad de los rótulos de un plano
+  // heredado. En AutoCAD el doble clic sobre un TEXT abre su editor igual que
+  // sobre un MTEXT; sin esta fila, DDEDIT lo rechazaba diciendo que «no lleva
+  // texto» sobre una entidad cuyo único contenido ES texto.
+  text: "text",
   mtext: "text",
   mleader: "text",
   dimension: "textOverride",

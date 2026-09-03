@@ -1,8 +1,8 @@
 "use client";
 
-import { Command } from "lucide-react";
 import { cx, Tooltip } from "@/components/ui";
 import type { CadRibbonCommand } from "@/lib/cad/ribbon";
+import { CAD_COMMAND_ICONS } from "./command-icons";
 import { CAD_RIBBON_PANEL_ICONS } from "./ribbon-icons";
 
 /**
@@ -22,11 +22,15 @@ export function CadRibbonButton({
   onRun: (name: string) => void;
   disabled?: boolean;
 }) {
+  // UN icono POR COMANDO (`command-icons.ts`, 247 filas con 175 dibujos
+  // distintos y su gate). El del PANEL queda de red: sólo lo alcanzaría un
+  // comando sin fila, y `command-icons.spec.ts` hace que eso no pueda existir.
+  //
   // Indexar el mapa (no llamar una función) es lo que ya usa `CadToolPalette`
   // para el mismo problema: `react-hooks/static-components` marca un
   // componente resuelto por LLAMADA como "creado durante el render", pero no
   // el acceso directo a una tabla estática — que es justo lo que esto es.
-  const Icon = CAD_RIBBON_PANEL_ICONS[command.panel] ?? Command;
+  const Icon = CAD_COMMAND_ICONS[command.name] ?? CAD_RIBBON_PANEL_ICONS[command.panel];
   const shortcut = command.aliases[0];
   return (
     <Tooltip label={command.summary} shortcut={shortcut} side="bottom">

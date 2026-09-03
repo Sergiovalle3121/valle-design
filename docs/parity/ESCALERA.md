@@ -301,6 +301,27 @@ en los fragmentos 1 y 2, que salieron sin un solo fallo.
 | Una rama puede verificar Firefox ANTES de fusionar | 5 | `.github/workflows/ci.yml`: `[firefox]` en el mensaje del commit o en el título del PR; en `main` sigue siendo obligatorio y no se puede quitar | Nada de peldaño. Sigue sin correrse por defecto en rama, y el motivo es el de siempre: duplica ~30 min de runner. |
 | La distancia contra AutoCAD completo se mide con un instrumento repetible | 3 | `scripts/cad/distancia-probe.mts` (`npm run probe:distancia`): ejecuta `begin()` contra el registro real, cuenta trazados de sombreado y ranuras de tipo de línea, y mira los cinco reflejos | Peldaño 4 exige un oráculo ajeno: hoy la lista de referencia son nombres del manual público de AutoCAD y quien juzga el porcentaje es una persona. La prueba de los cinco minutos con cinco arquitectos (Ola 11) es esa evidencia independiente. |
 
+## El reconocimiento en los diez segundos (Ola 1, 2026-09-03)
+
+La campaña midió antes, con el instrumento A del informe de distancia
+convertido en golden (`apps/web/e2e/golden/85-cad-diez-segundos.spec.ts`, diez
+renglones con `expect.soft` para que un rojo no tape los nueve siguientes):
+**7 de 10**. Reprobaban el 8 (doble clic), el 9 (rueda al cursor: el punto de
+mundo bajo el puntero se iba 1.394 unidades) y el 10 (`U` respondía «Comando
+desconocido»). Después de esta ola: **10 de 10**.
+
+| Capacidad | Peldaño hoy | Evidencia | Qué falta para subir |
+| --- | --- | --- | --- |
+| La prueba de los diez segundos, entera | 5 | golden 85: teclear con el lienzo enfocado, Espacio termina y repite, `M`→MOVE y `E`→ERASE afirmados por su EFECTO, ventana y cruce, doble clic, rueda y `U` | Peldaño 6 es la prueba de los cinco minutos con cinco arquitectos (Ola 11): un golden mide gestos, no desconcierto. |
+| `U`, `UNDO` y `REDO` como órdenes del registro | 5 | golden 85 renglón 10; `history-host.spec.ts` (9 comprobaciones: cuenta los pasos que DIO, no dice «Hecho») | `OOPS` no está y se dice: restituir lo último BORRADO sin deshacer lo demás exige saber QUÉ hizo cada entrada del historial, y `CanonicalHistory` guarda snapshots sin etiqueta. Las opciones de control de `UNDO` (Auto, Marca, Retorno) piden la misma estructura. **Todavía no.** |
+| La rueda acerca al punto que hay bajo el cursor | 5 | golden 85 renglón 9 (deriva < 10 % de lo que la vista mide en 200 px); `plan-wheel-anchor.spec.ts` (12 comprobaciones de la aritmética pura); `camera-policy.spec.ts` (23) | Nada de peldaño. El anclaje CORRIGE después de OrbitControls en vez de sustituirlo: el día que el modo plano tenga controles propios, esta corrección se cae sola. |
+| La cámara no planea al soltar | 5 | `camera-policy.spec.ts`: `enableDamping = false` en los dos modos | Nada de peldaño. |
+| El doble clic abre el editor del objeto | 5 | golden 85 (MTEXT) y golden 86 (TEXT → DDEDIT con el objeto ya designado); `double-click-verb.spec.ts` (22, contra el registro real) | Ocho tipos responden (mtext, text, mleader, cota, atributo, tabla, inserción, polilínea). El sombreado y la referencia externa NO, y no se finge: `HATCHEDIT` y `REFEDIT` no existen todavía. La imagen tampoco: `IMAGEADJUST` pide sus valores por la línea y abrirlo a ciegas con dos clics sería más sorpresa que ayuda. |
+| `TABLEDIT`: cambiar lo que dice una celda | 3 | `command-integrity` (247 comandos, 0 éxitos falsos); el doble clic sobre una tabla lo arranca con la tabla designada | La celda se pide por FILA y COLUMNA porque el motor no ve la pantalla. Insertar y borrar filas, fusionar celdas y `DATALINK` no están: son órdenes propias en AutoCAD y prometerlas dentro de ésta sería un éxito falso. |
+| Un icono por comando en la cinta | 5 | `command-icons.spec.ts` (247 comandos, 175 dibujos distintos, 0 mudos); golden 86 compara LINE/CIRCLE/ARC y las cinco de Modificar | Los dibujos son de **lucide** (ISC, ya en el árbol); lo propio es la ASIGNACIÓN. 175 para 247 significa que unas cuantas familias comparten dibujo — las trece restricciones geométricas no, que era el caso que importaba. |
+| Ctrl+2 y Ctrl+3 | 5 | `editor-keyboard.spec.ts` (122); golden 86 los teclea y lee el diálogo | Los dos despachan la ORDEN por su nombre, así que el atajo y teclearla son la misma acción. |
+| El selector de escala de anotación (CANNOSCALE) | 3 | `annotative-scale.spec.ts` (el reescalado del espacio modelo, 2,5 mm → 125 unidades a 1:50 y 250 a 1:100); golden 86 lo mueve y lee el documento que recibe el servidor | La escala vive en la SESIÓN y se pierde al recargar: `CadDocumentMeta` no tiene campo para ella y añadirlo es tocar el formato persistido. **Decisión del titular**, con su propuesta en el informe de la ola. Y una lámina sigue sin poder llevar DOS escalas de anotación: eso pide representaciones por escala en cada objeto, que es formato nuevo también. |
+
 ## Cómo se usa
 
 - **Al añadir una entrada nueva a `BACKLOG.md`:** decir el peldaño ACTUAL

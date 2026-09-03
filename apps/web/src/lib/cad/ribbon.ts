@@ -140,7 +140,7 @@ const CAD_PANEL_NAME_PATTERNS: readonly [RegExp, string][] = [
   [/^(-?DIM[A-Z]*|QDIM)$/, "Cotas"],
   [/^(-?LEADER|MLEADER|QLEADER)$/, "Directrices"],
   [/^(-?HATCH|GRADIENT|-?BOUNDARY)$/, "Sombreado"],
-  [/^(-?TEXT|MTEXT|DTEXT|SPELL|-?TABLE|DDEDIT|TEXTALIGN)$/, "Texto y tablas"],
+  [/^(-?TEXT|MTEXT|DTEXT|SPELL|-?TABLE|TABLEDIT|DDEDIT|TEXTALIGN)$/, "Texto y tablas"],
   [/^TOLERANCE$/, "Tolerancias"],
   [/^(-?WALL|DOOR|WINDOW|-?OPENING|STAIR|ROOF|SLAB)$/, "Arquitectura"],
   [/^(PIPE|DUCT|CABLETRAY|MEPSYMBOL)$/, "Instalaciones"],
@@ -160,6 +160,10 @@ const CAD_PANEL_NAME_PATTERNS: readonly [RegExp, string][] = [
     "Sólidos",
   ],
   [/^(-?DIST|-?AREA|-?LIST|-?ID|-?QSELECT|SELECT|FILTER|SELECTSIMILAR|ADDSELECTED)$/, "Utilidades"],
+  // `U`, `UNDO` y `REDO` van con MODIFICAR y no con Dibujo, que es donde los
+  // dejaba el reposo de la pestaña Inicio: deshacer no dibuja nada, y en la
+  // cinta de AutoCAD viven con las órdenes que cambian lo dibujado.
+  [/^(U|UNDO|REDO|MREDO|OOPS)$/, "Modificar"],
   [/^(COPYCLIP|PASTECLIP|CUTCLIP|COPYBASE|PASTEORIG)$/, "Portapapeles"],
   [/^(-?XREF|XATTACH|XCLIP|XBIND|REFEDIT|IMAGE|IMAGEATTACH|IMAGECLIP|IMAGEADJUST)$/, "Referencias"],
   [/^(DXFIN|IMPORT|DATAEXTRACTION)$/, "Importar y extraer"],

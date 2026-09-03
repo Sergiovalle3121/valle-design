@@ -57,6 +57,7 @@ import { handleCadDxfHostRequest } from "./dxf-host";
 import { handleCadEtransmitHostRequest } from "./etransmit-host";
 import { handleCadDataExtractionHostRequest } from "./data-extraction-host";
 import { handleCadUcsPlanRequest } from "./ucs-plan-host";
+import { handleCadHistoryHostRequest } from "./history-host";
 import { cadStudioCommandContext } from "./studio-context";
 
 /**
@@ -189,6 +190,15 @@ export interface CadStudioCommandEngineOptions {
    * por línea de comandos, que siguen completas.
    */
   openPageSetup?(layoutId: string): void;
+  /**
+   * La pila de deshacer del editor, un paso cada vez (`U`, `UNDO`, `REDO`).
+   *
+   * Opcional: un guion o una prueba sin editor no tiene historial, y entonces
+   * las tres órdenes responden que no hay pila en vez de afirmar que
+   * deshicieron algo. Cada función devuelve si de verdad DIO el paso, que es lo
+   * que permite al anfitrión contar los que dio en vez de decir «Hecho».
+   */
+  history?: { undo(): boolean; redo(): boolean };
 }
 
 /**
@@ -393,6 +403,10 @@ export function useCadStudioCommandEngine(
     // su techo exacto (19.002/19.002 líneas) y `check:cad` prohíbe tocarlo.
     host: (request) =>
       live.current.host?.(request) ??
+      handleCadHistoryHostRequest(request, {
+        undo: () => live.current.history?.undo() ?? false,
+        redo: () => live.current.history?.redo() ?? false,
+      }) ??
       handleCadUcsPlanRequest(request, { controller: () => live.current.view.current ?? null }) ??
       handleCadDxfHostRequest(request, { download: downloadCadFile }) ??
       handleCadEtransmitHostRequest(request, { download: downloadCadFile }) ??

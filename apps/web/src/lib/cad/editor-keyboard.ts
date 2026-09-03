@@ -166,6 +166,15 @@ export type EditorKeyAction =
   | { type: "toggle-styles" }
   | { type: "toggle-draft-settings" }
   | { type: "open-palette" }
+  /**
+   * Teclear una orden del registro, por su nombre canónico.
+   *
+   * Existe para los Ctrl+N de AutoCAD que ABREN una paleta que ya es un comando
+   * —Ctrl+2 el DesignCenter, Ctrl+3 las paletas de herramientas— en vez de
+   * inventarles un `type` a cada uno. Un atajo nuevo de esa familia es una fila
+   * más en la tabla de abajo y ni una línea en el ejecutor.
+   */
+  | { type: "invoke"; command: string }
   | { type: "toggle-walk" }
   | { type: "toolbar"; id: CadToolbarActionId }
   | { type: "save" }
@@ -221,7 +230,8 @@ export function interpretEditorKeyBeforeEngine(
   if (ctx.readOnly && isReadOnlyMutationKey(event, cadShortcut?.id)) {
     return { type: "notify-read-only" };
   }
-  // Ctrl+1 propiedades, Ctrl+8 estilos, Ctrl+9 DSETTINGS — como en AutoCAD.
+  // Ctrl+1 propiedades, Ctrl+2 DesignCenter, Ctrl+3 paletas, Ctrl+8 estilos y
+  // Ctrl+9 DSETTINGS — como en AutoCAD.
   // No pasan por matchCadShortcut porque su registro vive fuera de la sesión
   // que las cableó; cuando el registro las admita, estas tres líneas se
   // sustituyen por sus ids.
@@ -231,6 +241,13 @@ export function interpretEditorKeyBeforeEngine(
     return { type: "toggle-styles" };
   if ((event.ctrlKey || event.metaKey) && event.key === "9")
     return { type: "toggle-draft-settings" };
+  // Ctrl+2 el DesignCenter y Ctrl+3 las paletas de herramientas, como en
+  // AutoCAD. Los dos son comandos del registro y se despachan por su nombre:
+  // el atajo y teclear `ADCENTER` ⏎ son la MISMA acción.
+  if ((event.ctrlKey || event.metaKey) && event.key === "2")
+    return { type: "invoke", command: "ADCENTER" };
+  if ((event.ctrlKey || event.metaKey) && event.key === "3")
+    return { type: "invoke", command: "TOOLPALETTES" };
   if (cadShortcut?.id === "palette") return { type: "open-palette" };
   // En modo caminata WASD/mirada mandan; sólo Esc (salir) llega aquí.
   if (ctx.walkMode) {

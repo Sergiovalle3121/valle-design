@@ -224,6 +224,10 @@ export class CadPlotHost {
       return "El portapapeles de geometría lo atiende el anfitrión del motor, no el de trazado.";
     if (request.kind === "chain-command")
       return "ADDSELECTED lo encadena el anfitrión del motor, no el de trazado.";
+    // `U`, `UNDO` y `REDO` viajan por la pila del EDITOR: su anfitrión se
+    // enchufa antes que éste. Misma razón que las ramas de arriba.
+    if (request.kind === "history")
+      return "Este espacio de trabajo no tiene pila de deshacer: falta el anfitrión del historial.";
 
     const document = this.bridge.document();
     if (!document) return "No hay ningún dibujo abierto que trazar.";

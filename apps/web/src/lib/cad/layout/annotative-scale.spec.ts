@@ -9,6 +9,7 @@
 import { strict as assert } from "node:assert";
 import type { CadDocument, CadEntity, CadPaperSpace } from "../cad-document";
 import {
+  cadAnnotativeModelRescaleCommands,
   CAD_ANNOTATIVE_HEIGHT_METADATA,
   cadAnnotativeHeightMm,
   cadAnnotativeModelHeight,
@@ -275,6 +276,83 @@ console.log("cad annotative scale specs passed");
   ];
   const again = cadAnnotativeRescaleCommands({ entities: settledEntities, unit: "mm" }, space);
   assert.deepEqual(again.commands, [], "sin cambio, sin orden");
+}
+
+// --- CANNOSCALE: la escala del ESPACIO MODELO ------------------------------
+//
+// El selector de la barra de estado ejecuta esto. Lo que se afirma es la
+// propiedad entera: elegida una escala, cada anotativa queda con la altura de
+// modelo que la hace medir sus milímetros de papel, y lo que no lleva altura se
+// DICE en vez de desaparecer del recuento.
+{
+  const rotulo = {
+    id: "rotulo",
+    type: "mtext",
+    insertion: { x: 0, y: 0, z: 0 },
+    text: "SALA",
+    height: 999,
+    layer: "0",
+    context: { metadata: { annotativeHeightMm: 2.5 } },
+  } as never as CadEntity;
+  const cota = {
+    id: "cota",
+    type: "dimension",
+    a: { x: 0, y: 0 },
+    b: { x: 1000, y: 0 },
+    offset: 200,
+    arrowSize: 999,
+    layer: "0",
+    context: { metadata: { annotativeHeightMm: 2.5 } },
+  } as never as CadEntity;
+  const linea = {
+    id: "linea",
+    type: "line",
+    start: { x: 0, y: 0, z: 0 },
+    end: { x: 1000, y: 0, z: 0 },
+    layer: "0",
+    context: { metadata: { annotativeHeightMm: 2.5 } },
+  } as never as CadEntity;
+
+  const a50 = cadAnnotativeModelRescaleCommands(
+    { entities: [rotulo, cota, linea], unit: "mm" },
+    50,
+  );
+  assert.deepEqual(a50.rescaledEntityIds, ["rotulo", "cota"], "reescala rótulo y cota");
+  assert.deepEqual(a50.skippedEntityIds, ["linea"], "y dice cuál no lleva altura");
+  const parche = new Map(
+    a50.commands.map((command) => [
+      (command as unknown as { entityId: string }).entityId,
+      (command as unknown as { patch: Record<string, number> }).patch,
+    ]),
+  );
+  assert.equal(parche.get("rotulo")!.height, 125, "2,5 mm a 1:50 son 125 unidades");
+  assert.equal(parche.get("cota")!.arrowSize, 125, "y la flecha de la cota, igual");
+
+  const a100 = cadAnnotativeModelRescaleCommands(
+    { entities: [rotulo], unit: "mm" },
+    100,
+  );
+  assert.equal(
+    (a100.commands[0] as unknown as { patch: { height: number } }).patch.height,
+    250,
+    "la misma anotativa a 1:100 mide el doble en el modelo",
+  );
+
+  // Ya asentada, no se emite nada: elegir dos veces la misma escala no ensucia
+  // la historia con un paso de deshacer vacío.
+  const asentado = { ...rotulo, height: 125 } as never as CadEntity;
+  assert.deepEqual(
+    cadAnnotativeModelRescaleCommands({ entities: [asentado], unit: "mm" }, 50).commands,
+    [],
+    "sin cambio, sin orden",
+  );
+
+  // Sin documento o con una escala imposible, nada — y sin lanzar.
+  assert.deepEqual(cadAnnotativeModelRescaleCommands(null, 50).commands, []);
+  assert.deepEqual(
+    cadAnnotativeModelRescaleCommands({ entities: [rotulo] }, 0).commands,
+    [],
+  );
 }
 
 console.log("cad annotative dimension specs passed");

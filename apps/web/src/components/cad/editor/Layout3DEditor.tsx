@@ -545,6 +545,9 @@ import {
 import { CadNativeGripController } from "@/components/cad/viewport/native-grip-controller";
 import { CadGripMenuOverlay } from "@/components/cad/viewport/grip-menu-host";
 import { createCadTouchGestures } from "@/components/cad/viewport/touch-gestures";
+import { attachCadPlanWheelAnchor } from "@/components/cad/viewport/plan-wheel-anchor";
+import { cadApplyAnnotationScale } from "@/lib/cad/layout/annotative-scale";
+import { attachCadDoubleClickEdit } from "@/components/cad/viewport/double-click-edit";
 import {
   applyCadCameraPolicy,
   applyInitialCameraFraming,
@@ -4850,43 +4853,24 @@ export default function Layout3DEditor({
     view: viewControllerRef,
     activeLayer: activeCadLayer,
     newEntityId: () => newId("cad"),
-    linetypeScale: {
-      get: () => loadedCadDocumentRef.current?.meta.linetypeScale ?? 1,
-      set: setDocumentLinetypeScale,
-    },
-    apply: (commands) => {
-      // Dibujar con la BARRA deja lo creado designado (como el camino heredado);
-      // tecleado NO: la línea de comandos nunca designó, y designar cambiaría
-      // lo que ve la orden siguiente (p. ej. un HATCH tras un MTEXT).
-      const created = enginePointerRouterRef.current?.startedByPointer
-        ? commands.flatMap((command) =>
-            command.type === "insert" ? [command.entity.id] : [],
-          )
-        : [];
-      commitNativeCommands([...commands], created.length ? created : undefined);
-      // BLOCK «¿Redefinirlo? Sí» sale del motor como op:redefine: la fila de
-      // la biblioteca del despacho tiene que versionarse igual que cuando el
-      // panel redefinía por su cuenta, o el catálogo enseña la silla vieja.
-      for (const command of commands)
-        if (command.type === "block" && command.op === "redefine")
-          syncRedefinedBlockLibraryRef.current(command.definition.id);
-    },
-    // El puntero ya alimenta al motor: éstas son las tres cosas que su puente
-    // ignoraba «a conciencia hasta que el puntero llegue».
-    cursor: engineCursorPointRef,
-    preview: (paths) => enginePreviewRef.current?.draw(paths),
-    osnapOverride: (modes) => {
-      engineOsnapOverrideRef.current = modes;
-    },
-    // VSCURRENT/SHADEMODE: estado del visor, no del documento.
-    visualStyle: (styleId) =>
-      solidShadeHostRef.current?.applyVisualStyle(styleId) ?? null,
-    // Designación, hoja activa y espacio: en su módulo (el monolito sólo baja).
+    // Aplicar el lote, designación, hoja activa, espacio, historial, captura,
+    // estilo visual, banda elástica y cursor: en su módulo (el monolito baja).
     ...cadStudioEngineBridges({
       document: () => loadedCadDocumentRef.current,
       activePaperSpaceId,
       setActivePaperSpaceId,
       selectNative,
+      history: canonicalHistoryRef,
+      undo,
+      redo,
+      osnapOverrideRef: engineOsnapOverrideRef,
+      solidShadeHost: solidShadeHostRef,
+      setLinetypeScale: setDocumentLinetypeScale,
+      startedByPointer: () => !!enginePointerRouterRef.current?.startedByPointer,
+      commit: (commands, created) => commitNativeCommands(commands, created ? [...created] : undefined),
+      syncRedefinedBlock: (blockId) => syncRedefinedBlockLibraryRef.current(blockId),
+      cursor: engineCursorPointRef,
+      drawPreview: (paths) => enginePreviewRef.current?.draw(paths),
     }),
   });
 
@@ -6176,10 +6160,8 @@ export default function Layout3DEditor({
     applySun();
 
     const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.1;
     applyCadCameraPolicy(controls, viewModeRef.current);
-    applyInitialCameraFraming(camera, controls, W, H, lastCamRef.current);
+    applyInitialCameraFraming(camera, controls, W, H, lastCamRef.current, viewModeRef.current);
     controlsRef.current = controls;
     lastCamRef.current = snapshotCadCamera(camera.position, controls.target);
 
@@ -6196,6 +6178,14 @@ export default function Layout3DEditor({
       batchedViewDirty = true;
     });
     viewController.setMode(viewModeRef.current);
+    const soltarAnclaRueda = attachCadPlanWheelAnchor(renderer.domElement, viewController, controls, s);
+    const soltarDobleClic = attachCadDoubleClickEdit(renderer.domElement, {
+      drawingPoint: (e) => cadDrawingPointOrNull(floorWorld(e as PointerEvent)),
+      entityId: (p) => hitCanonical(p, 1)[0]?.id,
+      document: () => loadedCadDocumentRef.current,
+      openMTextEditor,
+      engine: () => commandEngineRef.current,
+    });
     /** La cámara que se dibuja y contra la que se lanzan los rayos. */
     const activeCamera = () => viewController.camera;
     const syncViewFromOrbit = () =>
@@ -7662,6 +7652,8 @@ export default function Layout3DEditor({
 
     return () => {
       disposed = true;
+      soltarDobleClic();
+      soltarAnclaRueda();
       soltarGuardiaWebgl();
       cancelAnimationFrame(raf);
       if (viewportSyncTimer) clearTimeout(viewportSyncTimer);
@@ -7764,7 +7756,8 @@ export default function Layout3DEditor({
     // punto del comando anterior.
     enginePointerRouterRef.current?.cancel();
     enginePointerRouterRef.current?.end();
-  }, []);
+    // Los `setX` van declarados: el compilador ya no prueba que sean estables.
+  }, [setCanCloseDraftPolyline, setDrawPrompt, setMeasureLive]);
   const setToolMode = useCallback(
     (next: EditorTool) => {
       // La herramienta se resuelve FUERA del actualizador de estado. Arrancar
@@ -7797,7 +7790,7 @@ export default function Layout3DEditor({
       setDrawPrompt(cmd.prompt);
       setMeasureLive(cmd.prompt);
     },
-    [clearNativeSelection, endDraw, select],
+    [clearNativeSelection, endDraw, select, setDrawPrompt, setMeasureLive, setTool],
   );
   const toggleMeasure = useCallback(
     () => setToolMode("measure"),
@@ -13443,6 +13436,9 @@ export default function Layout3DEditor({
       case "open-palette":
         setShowPalette(true);
         return;
+      case "invoke":
+        commandEngineRef.current?.invoke(action.command);
+        return;
       case "toggle-walk":
         toggleWalk();
         return;
@@ -16278,6 +16274,7 @@ export default function Layout3DEditor({
             />
           </div>
           <CadStatusBar
+            onAnnotationScale={(d) => cadApplyAnnotationScale(loadedCadDocumentRef.current, d, commitNativeCommands)}
             diagnostics={{
               enabled: diagnosticsEnabled,
               tool,

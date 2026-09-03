@@ -10,6 +10,29 @@ import { strict as assert } from "node:assert";
 import * as THREE from "three";
 import { applyCadCameraPolicy } from "./camera-policy";
 
+/**
+ * Contador de aserciones EJECUTADAS, no de llamadas escritas.
+ *
+ * El renglón final decía «14» a mano y llevaba dos comprobaciones de retraso:
+ * varias de las de abajo viven dentro de bucles, así que contar apariciones de
+ * `assert.` en el archivo da un número que no es el que corre. Un número
+ * inventado en una prueba es exactamente la clase de cifra que este repositorio
+ * no se permite en ningún otro sitio.
+ */
+let verdes = 0;
+const eq = (actual: unknown, esperado: unknown, mensaje: string) => {
+  assert.equal(actual, esperado, mensaje);
+  verdes += 1;
+};
+const ok = (condicion: unknown, mensaje: string) => {
+  assert.ok(condicion, mensaje);
+  verdes += 1;
+};
+const noEq = (actual: unknown, esperado: unknown, mensaje: string) => {
+  assert.notEqual(actual, esperado, mensaje);
+  verdes += 1;
+};
+
 /** Un doble de OrbitControls con lo justo que la política toca. */
 function controlsFalsos() {
   return {
@@ -18,11 +41,15 @@ function controlsFalsos() {
     enableRotate: true,
     mouseButtons: { LEFT: undefined, MIDDLE: undefined, RIGHT: undefined },
     touches: { ONE: undefined, TWO: undefined },
+    zoomToCursor: false,
+    enableDamping: true,
   } as unknown as Parameters<typeof applyCadCameraPolicy>[0] & {
     mouseButtons: { LEFT: unknown; RIGHT: unknown };
     touches: { ONE: unknown };
     enableRotate: boolean;
     maxPolarAngle: number;
+    zoomToCursor: boolean;
+    enableDamping: boolean;
   };
 }
 
@@ -30,19 +57,19 @@ function controlsFalsos() {
 {
   const c = controlsFalsos();
   applyCadCameraPolicy(c, "2d");
-  assert.equal(c.mouseButtons.LEFT, THREE.MOUSE.PAN, "en plano el izquierdo panea");
-  assert.equal(c.enableRotate, false, "y no se orbita un plano");
-  assert.ok(c.maxPolarAngle < 0.1, "la cámara queda clavada mirando hacia abajo");
+  eq(c.mouseButtons.LEFT, THREE.MOUSE.PAN, "en plano el izquierdo panea");
+  eq(c.enableRotate, false, "y no se orbita un plano");
+  ok(c.maxPolarAngle < 0.1, "la cámara queda clavada mirando hacia abajo");
 }
 
 // --- 2 · en 3D SIN comando, el izquierdo orbita: el gesto de siempre --------
 {
   const c = controlsFalsos();
   applyCadCameraPolicy(c, "3d");
-  assert.equal(c.mouseButtons.LEFT, THREE.MOUSE.ROTATE, "sin comando activo, el izquierdo orbita");
-  assert.equal(c.enableRotate, true, "y la órbita está viva");
-  assert.equal(c.mouseButtons.RIGHT, null, "el derecho queda libre para el menú contextual y para valer por Enter");
-  assert.equal(c.touches.ONE, THREE.TOUCH.ROTATE, "y un dedo sigue orbitando");
+  eq(c.mouseButtons.LEFT, THREE.MOUSE.ROTATE, "sin comando activo, el izquierdo orbita");
+  eq(c.enableRotate, true, "y la órbita está viva");
+  eq(c.mouseButtons.RIGHT, null, "el derecho queda libre para el menú contextual y para valer por Enter");
+  eq(c.touches.ONE, THREE.TOUCH.ROTATE, "y un dedo sigue orbitando");
 }
 
 // --- 3 · en 3D CON comando, el izquierdo designa ----------------------------
@@ -53,10 +80,10 @@ function controlsFalsos() {
 {
   const c = controlsFalsos();
   applyCadCameraPolicy(c, "3d", true);
-  assert.equal(c.mouseButtons.LEFT, null, "con comando activo el izquierdo NO mueve la cámara");
-  assert.equal(c.mouseButtons.RIGHT, THREE.MOUSE.ROTATE, "y la órbita se muda al derecho, no se pierde");
-  assert.equal(c.enableRotate, true, "orbitar sigue siendo posible");
-  assert.notEqual(c.touches.ONE, THREE.TOUCH.ROTATE, "y un dedo designa en vez de orbitar");
+  eq(c.mouseButtons.LEFT, null, "con comando activo el izquierdo NO mueve la cámara");
+  eq(c.mouseButtons.RIGHT, THREE.MOUSE.ROTATE, "y la órbita se muda al derecho, no se pierde");
+  eq(c.enableRotate, true, "orbitar sigue siendo posible");
+  noEq(c.touches.ONE, THREE.TOUCH.ROTATE, "y un dedo designa en vez de orbitar");
 }
 
 // --- 4 · el modo designación NO se cuela en plano ---------------------------
@@ -66,7 +93,7 @@ function controlsFalsos() {
 {
   const c = controlsFalsos();
   applyCadCameraPolicy(c, "2d", true);
-  assert.equal(c.mouseButtons.LEFT, THREE.MOUSE.PAN, "en plano el izquierdo sigue paneando aunque haya comando");
+  eq(c.mouseButtons.LEFT, THREE.MOUSE.PAN, "en plano el izquierdo sigue paneando aunque haya comando");
 }
 
 // --- 5 · la política es idempotente y REVIERTE ------------------------------
@@ -79,13 +106,12 @@ function controlsFalsos() {
   const c = controlsFalsos();
   applyCadCameraPolicy(c, "3d", true);
   applyCadCameraPolicy(c, "3d", true);
-  assert.equal(c.mouseButtons.LEFT, null, "aplicarla dos veces no cambia nada");
+  eq(c.mouseButtons.LEFT, null, "aplicarla dos veces no cambia nada");
   applyCadCameraPolicy(c, "3d", false);
-  assert.equal(c.mouseButtons.LEFT, THREE.MOUSE.ROTATE, "al terminar el comando, la órbita vuelve al izquierdo");
-  assert.equal(c.mouseButtons.RIGHT, null, "y el derecho vuelve a quedar libre");
+  eq(c.mouseButtons.LEFT, THREE.MOUSE.ROTATE, "al terminar el comando, la órbita vuelve al izquierdo");
+  eq(c.mouseButtons.RIGHT, null, "y el derecho vuelve a quedar libre");
 }
 
-console.log("✔ política de cámara: 14 aserciones verdes");
 
 // --- 7 · el botón central ENCUADRA en los dos modos, con y sin comando -------
 // De fábrica OrbitControls lo trae en DOLLY (medido con tsx sobre three
@@ -94,10 +120,25 @@ console.log("✔ política de cámara: 14 aserciones verdes");
 for (const [mode, picking] of [["2d", false], ["2d", true], ["3d", false], ["3d", true]] as const) {
   const c = controlsFalsos();
   applyCadCameraPolicy(c, mode, picking);
-  assert.equal(
+  eq(
     (c.mouseButtons as { MIDDLE?: unknown }).MIDDLE,
     THREE.MOUSE.PAN,
     `el botón central encuadra en ${mode}${picking ? " con comando" : ""}`,
   );
 }
 
+// --- 5 · la rueda acerca al CURSOR en los dos modos -------------------------
+//
+// El defecto de OrbitControls es `false` y toda la aplicación del
+// desplazamiento al puntero está condicionada a él: sin esto la rueda acerca
+// al centro de la vista, que es la firma táctil de un visor 3D web y no la de
+// un CAD. Se comprueba en los dos modos porque la política se aplica en los
+// dos y un `if` mal puesto sólo se vería en uno.
+for (const modo of ["2d", "3d"] as const) {
+  const c = controlsFalsos();
+  applyCadCameraPolicy(c, modo);
+  eq(c.zoomToCursor, true, `la rueda acerca al cursor en ${modo}`);
+  eq(c.enableDamping, false, `y la cámara no planea al soltar en ${modo}`);
+}
+
+console.log(`✔ política de cámara: ${verdes} aserciones verdes`);

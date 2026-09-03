@@ -16,6 +16,7 @@ import { CadSaveStatus } from "./CadSaveStatus";
 import { cadConflictIncidentLabel } from "@/lib/cad/cad-conflict-incident";
 import type { AutosaveStatus } from "@/components/cad/document-lifecycle/autosave";
 import { CadDraftStatusBar } from "@/components/cad/palettes/CadDraftStatusBar";
+import { CadAnnotationScaleSelect } from "./CadAnnotationScaleSelect";
 import { CAD_POLAR_INCREMENTS } from "@/components/cad/palettes/draft-settings-host";
 import {
   useCadDraftSettings,
@@ -114,6 +115,15 @@ export interface CadStatusBarProps {
   paletteHost: ReturnType<typeof useCadPaletteHost>;
   validation: CadStatusBarValidation;
   misc: CadStatusBarMisc;
+  /**
+   * CANNOSCALE: la escala de anotación del espacio modelo.
+   *
+   * El estado vive en `CadAnnotationScaleSelect` y no en el editor porque el
+   * monolito tiene un TECHO DE `useState` (131) que sólo puede bajar. Aquí sólo
+   * viaja qué hacer cuando cambia: reescalar las anotativas del modelo por el
+   * mismo embudo de mutación que todo lo demás.
+   */
+  onAnnotationScale?(denominator: number): void;
 }
 
 export function CadStatusBar({
@@ -128,6 +138,7 @@ export function CadStatusBar({
   paletteHost,
   validation,
   misc,
+  onAnnotationScale,
 }: CadStatusBarProps) {
   const nativeRenderStats = diagnostics.nativeRenderStats;
   return (
@@ -290,6 +301,7 @@ export function CadStatusBar({
         Grilla {layersInfo.gridOn ? "on" : "off"} / Snap{" "}
         {layersInfo.snapOn ? "grid" : "free"}
       </span>
+      <CadAnnotationScaleSelect onChange={onAnnotationScale} />
       <CadDraftStatusBar
         settings={draftSettings}
         polarIncrements={CAD_POLAR_INCREMENTS}
