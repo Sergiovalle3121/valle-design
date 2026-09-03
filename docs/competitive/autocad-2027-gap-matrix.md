@@ -195,7 +195,7 @@ porque el instrumento no tenía ni una fila para el reconocimiento.
 | Toolset Raster Design (mitad útil) | 2/4 | Parcial | Insertar, recortar por polígono y ajustar (brillo/contraste/transparencia) un plano escaneado | Vectorizar líneas y textos de un escaneo a entidades (2 pt) |
 | Toolset Mechanical | 3/4 | Parcial | Biblioteca de tornillería y perfiles normalizados insertables; Cotas de fabricación con tolerancias y símbolos de acabado | Nada pendiente: todos los criterios declarados verifican |
 | Toolset Electrical | 3/4 | Parcial | Esquemas eléctricos: símbolos normalizados, numeración de conductores y etiquetado de componentes, todo derivado del dibujo; Informes: listado de conductores, cuadro de cargas en el dibujo y revisión contra la NOM | Nada pendiente: todos los criterios declarados verifican |
-| Toolset Plant 3D (fuera de alcance) | 0/4 | Ausente | Nada verificado | Diagramas P&ID con catálogo de equipos y líneas (2 pt); Tubería 3D por especificación e isométricos (2 pt) |
+| Toolset Plant 3D | 0/4 | Ausente | Nada verificado | Diagramas P&ID con catálogo de equipos y líneas (2 pt); Tubería 3D por especificación e isométricos (2 pt) |
 
 ### Prioridad: los diez puntos más baratos por valor comercial
 
@@ -212,8 +212,8 @@ declarados. Reproducible con `node scripts/cad/rubric.mjs --priorities`.
 | 6 | 1 | 20 | Import/export DWG | Integración en runtime con gates legal, de seguridad y de fidelidad superados |
 | 7 | 2 | 60 | Automatización: AutoLISP y plugins JS | Puente .NET/VBA para rutinas heredadas de despacho |
 | 8 | 1 | 30 | Kernel Rust/WASM | Kernel WASM con paridad numérica verde Y enchufado: alguien fuera de lib/cad/wasm lo importa (regla 6) |
-| 9 | 2 | ? | Toolset Plant 3D (fuera de alcance) | Diagramas P&ID con catálogo de equipos y líneas |
-| 10 | 2 | ? | Toolset Plant 3D (fuera de alcance) | Tubería 3D por especificación e isométricos |
+| 9 | 2 | ? | Toolset Plant 3D | Diagramas P&ID con catálogo de equipos y líneas |
+| 10 | 2 | ? | Toolset Plant 3D | Tubería 3D por especificación e isométricos |
 
 <!-- rubric:end -->
 
