@@ -19,6 +19,26 @@
  * Quien es cortés cede su propia oferta (rollback) ante una oferta entrante
  * en colisión; quien no, la ignora.
  *
+ * ## Las señales de un par se atienden EN FILA, y por qué
+ *
+ * Un `ice-candidate` sólo se puede añadir cuando ya hay descripción remota.
+ * Atender las señales según llegan —`void handle(...)` por cada mensaje del
+ * canal— las deja correr a la vez: el candidato que viene pisando los talones
+ * a la oferta entra en `addIceCandidate` mientras `setRemoteDescription` sigue
+ * en vuelo, el navegador lanza `InvalidStateError`, y ESE CANDIDATO SE PIERDE.
+ *
+ * Perder un candidato no rompe nada visible: la llamada se queda en
+ * «Conectando…» para siempre, sin un solo error en la consola, y el usuario
+ * concluye que las llamadas «a veces no van». Medido en este árbol el
+ * 2026-09-03: la prueba de dos navegadores reales falló 1 de cada 4 corridas
+ * por esta carrera, con los dos extremos viéndose en la sala y ningún enlace
+ * llegando a `connected`.
+ *
+ * Así que las señales de un mismo par se encadenan en una promesa —una fila
+ * por participante, no una global: dos pares no tienen por qué esperarse— y un
+ * candidato que aun así llegue antes de tiempo se GUARDA y se aplica en cuanto
+ * hay descripción remota, en vez de tirarse.
+ *
  * ## Qué pasa cuando el par se cae
  *
  * `oniceconnectionstatechange` alimenta `call-ice-policy.ts`. Un barrido
@@ -86,6 +106,15 @@ interface PeerRuntime {
   polite: boolean;
   makingOffer: boolean;
   ignoreOffer: boolean;
+  /** Fila de señales de ESTE par: se atienden en orden, nunca a la vez. */
+  signals: Promise<void>;
+  /**
+   * Candidatos llegados antes de que hubiera descripción remota.
+   *
+   * No se tiran: sin ellos la conexión puede no encontrar ninguna ruta y la
+   * llamada se queda en «Conectando…» sin decir nada.
+   */
+  pendingCandidates: RTCIceCandidateInit[];
   iceState: PeerIceState;
   remoteStream: MediaStream;
   videoSender: RTCRtpSender | null;
@@ -186,6 +215,8 @@ export function createCallSessionHost(
       polite,
       makingOffer: false,
       ignoreOffer: false,
+      signals: Promise.resolve(),
+      pendingCandidates: [],
       iceState: initialPeerIceState(now()),
       remoteStream: new MediaStream(),
       videoSender: null,
@@ -301,6 +332,37 @@ export function createCallSessionHost(
     }
   }
 
+  /**
+   * Encola una señal detrás de las que ya esperan a ESE par.
+   *
+   * Una fila por participante y no una global: dos pares distintos no tienen
+   * por qué esperarse, y en una malla de cuatro serializar todo convertiría la
+   * negociación en un cuello de botella. Lo que hay que impedir es que dos
+   * señales del MISMO par corran a la vez, porque comparten la misma
+   * `RTCPeerConnection` y su máquina de estados.
+   *
+   * Un fallo en una señal no puede romper la fila: se registra y la siguiente
+   * sigue. Dejar la promesa rechazada encadenaría el rechazo a todas las que
+   * vengan detrás y el par se quedaría mudo para siempre.
+   */
+  function enqueueSignal(signal: CallWireSignal): Promise<void> {
+    const active = activeState();
+    if (!active) return Promise.resolve();
+    const runtime = ensurePeer(signal.fromParticipantId);
+    runtime.signals = runtime.signals.then(
+      () => handleIncomingSignal(signal),
+      () => handleIncomingSignal(signal),
+    );
+    return runtime.signals.catch((error: unknown) => {
+      // No se calla: una señal que no se pudo atender explica una llamada que
+      // no conecta, y sin este renglón el diagnóstico es «a veces no va».
+      console.error(
+        `[llamada] señal ${signal.kind} de ${signal.fromParticipantId} no atendida:`,
+        error,
+      );
+    });
+  }
+
   async function handleIncomingSignal(signal: CallWireSignal) {
     const active = activeState();
     if (!active) return;
@@ -321,6 +383,13 @@ export function createCallSessionHost(
       } else {
         await pc.setRemoteDescription(description);
       }
+      await flushPendingCandidates(runtime);
+      // La decisión de ignorar es de ESA oferta y de ninguna más. Dejarla puesta
+      // silenciaba para siempre cualquier error de candidato de este par: el
+      // `catch` de abajo se traga el fallo cuando `ignoreOffer` es cierto, y
+      // nadie la volvía a poner en falso — así que el primer glare convertía a
+      // ese par en mudo ante cualquier fallo posterior.
+      runtime.ignoreOffer = false;
       const answer = await pc.createAnswer();
       await pc.setLocalDescription(answer);
       await signaling.sendSignal(
@@ -334,17 +403,48 @@ export function createCallSessionHost(
       await pc.setRemoteDescription(
         signal.payload as unknown as RTCSessionDescriptionInit,
       );
+      // Negociación cerrada: vuelve a valer la pena oír los errores de este par.
+      runtime.ignoreOffer = false;
+      await flushPendingCandidates(runtime);
     } else if (signal.kind === "ice-candidate") {
+      const candidate = signal.payload as unknown as RTCIceCandidateInit;
+      // Sin descripción remota, `addIceCandidate` no puede aceptar nada. El
+      // candidato se GUARDA en vez de tirarse: es exactamente el que puede
+      // faltar para que la conexión encuentre ruta.
+      if (!pc.remoteDescription) {
+        runtime.pendingCandidates.push(candidate);
+        return;
+      }
       try {
-        await pc.addIceCandidate(
-          signal.payload as unknown as RTCIceCandidateInit,
-        );
+        await pc.addIceCandidate(candidate);
       } catch (error) {
         if (!runtime.ignoreOffer) throw error;
       }
     } else if (signal.kind === "bye") {
       pc.close();
       peers.delete(participantId);
+    }
+  }
+
+  /**
+   * Aplica los candidatos que llegaron antes de tiempo, en su orden.
+   *
+   * Se llama en cuanto hay descripción remota —tras la oferta y tras la
+   * respuesta—. Un candidato que el navegador siga rechazando aquí se descarta
+   * con su motivo callado sólo si estamos ignorando la oferta de este par
+   * (colisión resuelta a nuestro favor); en cualquier otro caso el error sube,
+   * porque un candidato que no entra es una ruta que no existe.
+   */
+  async function flushPendingCandidates(runtime: PeerRuntime) {
+    if (runtime.pendingCandidates.length === 0) return;
+    const guardados = runtime.pendingCandidates;
+    runtime.pendingCandidates = [];
+    for (const candidate of guardados) {
+      try {
+        await runtime.connection.addIceCandidate(candidate);
+      } catch (error) {
+        if (!runtime.ignoreOffer) throw error;
+      }
     }
   }
 
@@ -475,7 +575,7 @@ export function createCallSessionHost(
       dispatch({ type: "roster-updated", roster });
       reconcilePeers(roster);
     } else if (event.type === "signal") {
-      void handleIncomingSignal(event.signal);
+      void enqueueSignal(event.signal);
     }
     // 'ping': sólo mantiene viva la conexión, no hay nada que hacer.
   }
