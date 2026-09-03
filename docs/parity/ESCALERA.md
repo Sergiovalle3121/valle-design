@@ -339,6 +339,23 @@ mismo PDF lleva **69** segmentos y ni un rótulo de esa familia como texto.
 | El giro de un rótulo en el papel es el del dibujo | 5 | `plot-text-rotation.spec.ts` sobre la matriz `Tm` del archivo: a 90° el coeficiente `b` pasa de −1 a +1, y a −90° se invierte | Nada de peldaño. Quedó alineado con `sheet-set-pdf.ts`, que ya usaba el signo correcto, y con `cadImagePlotPlacement`, que ya lo documentaba. |
 | El corpus de dibujos ajenos | 3 | el corpus DXF sintético que ya existía (`build-dxf-external-corpus.mjs`) | Peldaño 4 exige oráculo ajeno: archivos de terceros con procedencia y permiso, y una matriz de entidades por archivo con las pérdidas declaradas. **Decisión del titular**, con su propuesta en el informe de la ola. |
 
+## Bloques y publicación (Ola 3, 2026-09-03)
+
+La campaña midió antes con el propio árbol y encontró **el mismo defecto tres
+veces**: un subsistema entero escrito, probado y sin un cable. `PUBLISH` y
+`SHEETSET` respondían siempre «el conjunto no está cargado en este estudio»
+(`P1-8`); elegir una tabla de plumas con `PAGESETUP Estilos` dejaba la hoja SIN
+PODER TRAZARSE, porque no había ninguna cargada; y `ATTSYNC` no existía, así
+que redefinir un bloque dejaba desfasadas todas sus referencias.
+
+| Capacidad | Peldaño hoy | Evidencia | Qué falta para subir |
+| --- | --- | --- | --- |
+| Publicar un CONJUNTO de planos tecleado | 5 | golden 89: `SHEETSET Índice` lista lo que vino del servidor, `Renumerar` deja `A-101, A-102` en el cuerpo del PUT con su `expectedVersion`, y `PUBLISH` entrega un PDF de 3 páginas contadas sobre el archivo; `sheet-set-host.spec.ts` (31) | No hay INTERFAZ de conjuntos: se opera por la línea de comandos y el conjunto se nombra por su id. Un panel que los liste es trabajo de otra ola. **Todavía no.** |
+| El conjunto se guarda con CAS y un 409 no se reintenta | 5 | `sheet-set-host.spec.ts`: el conflicto se cuenta, se olvida la copia en la mano y la orden siguiente lee del servidor | Nada de peldaño. Es la misma disciplina que el documento. |
+| Trazar con una tabla de plumas | 5 | golden 46 (`PSET Estilos Monochrome.ctb` y la hoja SE TRAZA) y golden 91 (el `.ctb` del despacho, cargado desde un archivo de verdad y usado); `plot-style-catalog.spec.ts` (22) | Las tablas viven en la SESIÓN y se pierden al recargar. Persistirlas por inquilino es formato nuevo —**decisión del titular**— o un endpoint nuevo; mientras tanto se cargan cuando hacen falta. Y no hay EXPORTAR una tabla comprimida: el camino sólo importa, y lo dice. |
+| `ATTSYNC` | 5 | golden 90 sobre el documento que recibe el servidor: conserva lo escrito, añade lo nuevo, retira la huérfana, fija el constante y recalcula la geometría desde la definición; `attribute-sync.spec.ts` (26) | Nada de peldaño para sincronizar. `BATTMAN` —gestionar el orden y las propiedades de los atributos— no está, y no se finge. |
+| Las presentaciones viajan en el DXF | 0 | ninguna: `dxf-export.ts` no tiene noción de espacio papel | Peldaño 1 exige escribir los bloques `*Paper_Space`, los objetos `LAYOUT` de la sección OBJECTS y las entidades `VIEWPORT`, y leerlos de vuelta. Es una ola entera y está medida en el informe. **Todavía no.** |
+
 ## Cómo se usa
 
 - **Al añadir una entrada nueva a `BACKLOG.md`:** decir el peldaño ACTUAL
