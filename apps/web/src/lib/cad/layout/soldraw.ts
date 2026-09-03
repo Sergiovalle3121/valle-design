@@ -79,7 +79,14 @@ export interface CadSoldrawReport {
   adopted: string[];
   /** Entidades del modelo que alimentan la vista. */
   contributors: string[];
-  /** `false` si la visibilidad de aristas de algún cuerpo no es exacta. */
+  /**
+   * `false` cuando la visibilidad NO se resolvió sobre la escena entera.
+   *
+   * Desde la ola del defecto (a), la vista se resuelve junta con el
+   * solucionador analítico y lo normal es `true`. Un `false` significa que el
+   * solucionador rechazó la escena y se cayó a la clasificación por cuerpo, que
+   * no sabe qué tapa a qué entre cuerpos distintos.
+   */
   exact: boolean;
   /** Por qué se saltó, cuando `status` es `skipped`. */
   reason?: string;
@@ -325,7 +332,7 @@ export function describeCadSoldraw(result: CadSoldrawResult): string {
   const aproximadas = drawn.filter((report) => !report.exact).map((report) => report.layerBase);
   if (aproximadas.length > 0)
     parts.push(
-      `perfil oculto APROXIMADO en ${aproximadas.join(", ")}: hay cuerpos cóncavos y la clasificación por caras traseras no es exacta sobre ellos`,
+      `perfil oculto APROXIMADO en ${aproximadas.join(", ")}: el solucionador analítico rechazó la escena —una cara alabeada o una mirada degenerada— y se cayó a la clasificación por cuerpo, que no resuelve qué tapa a qué entre cuerpos distintos`,
     );
   for (const report of skipped) parts.push(`${report.layerBase} sin dibujar: ${report.reason}`);
   return `${parts.join(". ")}.`;
