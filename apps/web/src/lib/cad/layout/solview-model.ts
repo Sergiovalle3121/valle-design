@@ -5,8 +5,9 @@
  * Es la mitad geométrica de SOLVIEW/SOLDRAW. La otra —qué ventanas y qué capas
  * se crean, y cuándo hay que rehacer el dibujo— vive en `solview.ts` y
  * `solview-associativity.ts`. Están separadas porque esta parte es pura
- * geometría y se puede medir sola, y porque el día que la proyección mejore
- * (aristas ocultas exactas sobre cuerpos cóncavos) sólo cambia este archivo.
+ * geometría y se puede medir sola, y porque cuando la proyección mejora —como
+ * en esta ola, al pasar a ocultas exactas entre cuerpos— sólo cambia este
+ * archivo.
  *
  * ## Qué cuenta como CUERPO, y por qué el muro también
  *
@@ -22,14 +23,41 @@
  * una segunda copia que se desincroniza en cuanto alguien cambia el grosor, y
  * entonces el alzado enseñaría un muro que ya no existe.
  *
+ * ## Quién tapa a quién, y por qué eso obliga a resolver la vista ENTERA
+ *
+ * Hasta esta ola, cada cuerpo se clasificaba SOLO, con `view/hidden-lines.ts`:
+ * una arista se ocultaba si sus dos caras miraban para el otro lado. Sobre un
+ * prisma de muro —que es convexo— esa regla es exacta, y por eso el módulo se
+ * declaraba exacto. Y era falso, medido: en un alzado con dos muros paralelos,
+ * el de ATRÁS salía con sus cuatro aristas VISTAS, dibujado en la capa -VIS
+ * encima del de delante, y el informe de SOLDRAW decía `exact: true`.
+ *
+ * Es el defecto (a) del informe de distancia del 1 de septiembre: *«la vista
+ * que llega a la lámina no resuelve qué tapa a qué entre cuerpos distintos —y
+ * se declara exacta»*. La regla de caras traseras no puede resolverlo ni en
+ * principio: pregunta por la arista y su propio cuerpo, y nunca mira a los
+ * demás. No hay bandera que arreglar; hay que resolver la escena junta.
+ *
+ * Así que la visibilidad la resuelve ahora `view/hidden-line-solver.ts`, el
+ * mismo solucionador ANALÍTICO que FLATSHOT lleva usando: todos los cuerpos de
+ * la vista en una sola corrida, cortando cada arista donde cruza un contorno o
+ * el plano de una cara y preguntando por el punto medio de cada trozo. Cuesta
+ * más, y se puede pagar: SOLDRAW es una orden, no un gesto por cuadro.
+ *
+ * La PROYECCIÓN sigue siendo la de la ventana (`cadViewportProjectPoint`), no
+ * la del solucionador: lo que se le toma son los extremos en el MUNDO y su
+ * veredicto. Así el papel no se mueve ni un micrómetro —lo que ya estaba
+ * encuadrado sigue encuadrado— y lo único que cambia es qué capa recibe cada
+ * trazo, que es exactamente el defecto que se cierra.
+ *
  * ## Qué NO hace este módulo
  *
- * No resuelve la visibilidad de aristas por su cuenta: se la pide a
- * `view/hidden-lines.ts`, que hoy es EXACTA sólo sobre cuerpos convexos y lo
- * declara en `exact`. Esa bandera se propaga hasta la ventana y hasta el
- * informe de SOLDRAW en vez de taparse. Un prisma de muro es convexo, así que
- * la planta y los alzados de un edificio de muros rectos son exactos; una
- * pieza en L no lo es, y el producto lo dice.
+ * No inventa exactitud cuando no la hay. Si el solucionador rechaza la escena
+ * —una cara alabeada, una mirada degenerada— se vuelve a la clasificación por
+ * cuerpo Y se declara `exact: false` en cuanto hay más de un cuerpo, porque
+ * con dos cuerpos sin resolver entre ellos la vista no es exacta aunque cada
+ * uno lo sea. Un plano aproximado que se declara exacto es peor que uno que se
+ * declara aproximado: al segundo se le mira dos veces.
  */
 import type { CadDocument, CadEntity, CadPoint2, CadPoint3 } from "../cad-document";
 import type { CadSolid3dEntity } from "../cad-entities-v5";
@@ -38,6 +66,10 @@ import type { CadViewportView } from "../cad-paper-viewport";
 import { solid3dBody } from "../solid3d-build";
 import { sectionLoopsOfSolid } from "../solid3d-section";
 import { cadSolidEdgeVisibility } from "../view/hidden-lines";
+import {
+  cadHiddenLineDrawing,
+  type CadProjectedSegment,
+} from "../view/hidden-line-solver";
 import { wallJoinedFootprint, wallJoins, type CadWallJoinWall } from "../wall-joins";
 import {
   extrudeProfile,
@@ -240,25 +272,50 @@ export function cadSolviewProject(
       const half = source.body.edges[edge]?.a;
       if (half === undefined || half < 0) continue;
       const segment = halfEdgeSegment(source.body, half);
-      if (view.kind === "section" && !keepsBehind(segment, view)) continue;
+      // Se corta por la PRESENCIA del plano y no por el nombre de la vista: una
+      // planta de arquitectura es un corte horizontal y se sigue llamando
+      // planta (defecto (e)).
+      if (view.sectionPlane && !keepsBehind(segment, view)) continue;
       segments.push({ a: project(segment.from), b: project(segment.to) });
     }
     return segments;
   };
 
-  const visible = collect(visibility.visible);
-  const hidden = collect(visibility.hidden);
+  return assemble(
+    source,
+    collect(visibility.visible),
+    collect(visibility.hidden),
+    sectionLoopsOf(source, frame, view),
+    visibility.exact,
+  );
+}
 
-  const sectionLoops: CadPoint2[][] = [];
-  if (view.kind === "section" && view.sectionPlane) {
-    for (const loop of sectionLoopsOfSolid(source.body, view.sectionPlane)) {
-      if (loop.length >= 3) sectionLoops.push(loop.map(project));
-    }
+/** La huella del corte de UN cuerpo, ya en el papel. Vacía fuera de un corte. */
+function sectionLoopsOf(
+  source: CadSolviewSource,
+  frame: CadViewportViewFrame,
+  view: CadViewportView,
+): CadPoint2[][] {
+  if (!view.sectionPlane) return [];
+  const loops: CadPoint2[][] = [];
+  for (const loop of sectionLoopsOfSolid(source.body, view.sectionPlane)) {
+    if (loop.length >= 3)
+      loops.push(loop.map((point) => cadViewportProjectPoint(point, frame)));
   }
+  return loops;
+}
 
+/** Junta las tres listas en una aportación con su envolvente. */
+function assemble(
+  source: CadSolviewSource,
+  visible: CadSolviewSegment[],
+  hidden: CadSolviewSegment[],
+  sectionLoops: CadPoint2[][],
+  exact: boolean,
+): CadSolviewContribution {
   const all = [
-    ...visible.flatMap((s) => [s.a, s.b]),
-    ...hidden.flatMap((s) => [s.a, s.b]),
+    ...visible.flatMap((segment) => [segment.a, segment.b]),
+    ...hidden.flatMap((segment) => [segment.a, segment.b]),
     ...sectionLoops.flat(),
   ];
   return {
@@ -269,8 +326,58 @@ export function cadSolviewProject(
     hidden,
     sectionLoops,
     bounds: boundsOf(all),
-    exact: visibility.exact,
+    exact,
   };
+}
+
+/**
+ * La vista ENTERA resuelta de una vez, o `null` si el solucionador la rechaza.
+ *
+ * Ésta es la diferencia entre un alzado y un dibujo bonito: el veredicto de
+ * cada trozo de arista sale de mirar TODOS los cuerpos, así que el muro de
+ * atrás sale a la capa de ocultas y no encima del de delante.
+ *
+ * Se le piden las ocultas siempre —`includeHidden`— porque una vista derivada
+ * las lleva a su propia capa `-HID`, que es lo que permite apagarlas sin
+ * recalcular nada. Y se toman sus extremos en el MUNDO (`from3`/`to3`) para
+ * proyectarlos con la cámara de la ventana: el veredicto es suyo, el papel es
+ * de la ventana.
+ */
+function exactContributions(
+  sources: readonly CadSolviewSource[],
+  frame: CadViewportViewFrame,
+  view: CadViewportView,
+): CadSolviewContribution[] | null {
+  if (sources.length === 0) return [];
+  const outcome = cadHiddenLineDrawing(
+    sources.map((source) => source.body),
+    { kind: "parallel", direction: view.direction },
+    { includeHidden: true },
+  );
+  if (!outcome.ok) return null;
+
+  const visible: CadSolviewSegment[][] = sources.map(() => []);
+  const hidden: CadSolviewSegment[][] = sources.map(() => []);
+  const pour = (segments: readonly CadProjectedSegment[], into: CadSolviewSegment[][]) => {
+    for (const segment of segments) {
+      const bucket = into[segment.body];
+      if (!bucket) continue;
+      // El corte descarta lo que queda del lado del observador. Se decide sobre
+      // los extremos del MUNDO, que es donde el plano de corte está definido.
+      if (view.sectionPlane && !keepsBehind({ from: segment.from3, to: segment.to3 }, view))
+        continue;
+      bucket.push({
+        a: cadViewportProjectPoint(segment.from3, frame),
+        b: cadViewportProjectPoint(segment.to3, frame),
+      });
+    }
+  };
+  pour(outcome.visible, visible);
+  pour(outcome.hidden, hidden);
+
+  return sources.map((source, index) =>
+    assemble(source, visible[index], hidden[index], sectionLoopsOf(source, frame, view), true),
+  );
 }
 
 /** Profundidad de un punto respecto del ojo. Reexportada para quien ordene trazos. */
@@ -291,9 +398,19 @@ export function cadSolviewContributions(
   view: CadViewportView,
   window: CadSolviewRect,
 ): CadSolviewContribution[] {
+  // Primero la escena entera y exacta. Si el solucionador la rechaza se vuelve
+  // a la clasificación por cuerpo, que sigue siendo mejor que nada — pero con
+  // más de un cuerpo deja de ser exacta y así se declara: entre ellos no se ha
+  // resuelto nada.
+  const resolved =
+    exactContributions(sources, frame, view) ??
+    sources.map((source) => {
+      const contribution = cadSolviewProject(source, frame, view);
+      return sources.length > 1 ? { ...contribution, exact: false } : contribution;
+    });
+
   const contributions: CadSolviewContribution[] = [];
-  for (const source of sources) {
-    const contribution = cadSolviewProject(source, frame, view);
+  for (const contribution of resolved) {
     const empty =
       contribution.visible.length === 0 &&
       contribution.hidden.length === 0 &&

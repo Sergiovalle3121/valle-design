@@ -88,9 +88,10 @@ const LAYER_COLORS: Record<CadSolviewLayerSuffix, string> = {
   HID: "#808080",
   HAT: "#00a0a0",
   DIM: "#00c000",
+  ROT: "#ffff00",
 };
 
-/** Nombre de una de las capas de una vista: `<base>-VIS`, `-HID`, `-HAT`, `-DIM`. */
+/** Nombre de una capa de la vista: `<base>-VIS`, `-HID`, `-HAT`, `-DIM`, `-ROT`. */
 export function cadSolviewLayerName(base: string, suffix: CadSolviewLayerSuffix): string {
   return `${base}-${suffix}`;
 }

@@ -356,6 +356,23 @@ que redefinir un bloque dejaba desfasadas todas sus referencias.
 | `ATTSYNC` | 5 | golden 90 sobre el documento que recibe el servidor: conserva lo escrito, añade lo nuevo, retira la huérfana, fija el constante y recalcula la geometría desde la definición; `attribute-sync.spec.ts` (26) | Nada de peldaño para sincronizar. `BATTMAN` —gestionar el orden y las propiedades de los atributos— no está, y no se finge. |
 | Las presentaciones viajan en el DXF | 0 | ninguna: `dxf-export.ts` no tiene noción de espacio papel | Peldaño 1 exige escribir los bloques `*Paper_Space`, los objetos `LAYOUT` de la sección OBJECTS y las entidades `VIEWPORT`, y leerlos de vuelta. Es una ola entera y está medida en el informe. **Todavía no.** |
 
+## De 3D a documentación (Ola 4, 2026-09-03)
+
+| Capacidad | Peldaño | Evidencia | Qué falta para el siguiente |
+| --- | --- | --- | --- |
+| `FLATSHOT`/`SOLPROF` sobre el modelo del ARQUITECTO (muros, columnas, mobiliario), no sólo sobre `solid3d` | 5 | golden 92 sobre el documento que recibe el servidor: `UCS X 90` + `FLATSHOT` sobre dos muros en L deja el alzado con la altura del muro y cuenta lo excluido con su motivo; `flatshot-solids.spec.ts` (30) | Nada de peldaño para lo que hace. La altura sale del catálogo de arquetipos del visor: un `kind` que no está en él se queda fuera Y se cuenta, en vez de salir con la altura de otra cosa. |
+| El HUECO se resta del muro: alzados y cortes con sus puertas | 5 | golden 92: «1 hueco(s) restado(s)» y vértices a la cota 2.200 —el dintel— que un muro entero no tendría; `flatshot-solids.spec.ts` | Hoy sólo la PUERTA es hueco, que es el único arquetipo del catálogo que atraviesa un muro. Una ventana sería la siguiente y bastará con marcarla ahí. |
+| Qué tapa a qué ENTRE cuerpos distintos en la vista que llega a la lámina | 5 | `solview-model.spec.ts` (23) con control negativo: la clasificación por cuerpo daba 4 aristas vistas del muro tapado y se declaraba exacta; ahora da 0 | Nada de peldaño. Cuando el solucionador rechaza la escena se cae a la clasificación por cuerpo Y se declara `exact: false`: no se inventa exactitud. |
+| Rótulo de vista con su escala, marca de corte y globo de detalle | 5 | `solview-annotations.spec.ts` (27) tecleando: «PLANTA BAJA», «CORTE A-A», `ESC. 1:N` en sus capas `-ROT`; la marca deja 7 líneas y 2 letras sobre la PLANTA; el globo mide el radio de lo ampliado | Sin marca de corte cuando la lámina no tiene una única planta: se crea igual y se AVISA, en vez de ponerla en la planta que no es. |
+| La ampliación de un DEtalle se teclea | 5 | `solview-commands.spec.ts`: ×10 tecleado, ×2 con Intro, ilegible rechazada con motivo | Nada de peldaño. Era un ×2 fijo. |
+| La PLANTA como corte horizontal a la altura del antepecho | 5 | `solview-model.spec.ts` con control negativo (la planta cortada tiene huella de corte, la cenital cero) y `solview-commands.spec.ts` tecleando `SOLVIEW PL 1200` | Sin campo nuevo: `sectionPlane` ya era opcional en cualquier vista. |
+| Corte QUEBRADO y control de PROFUNDIDAD | 0 | ninguna | Piden dos campos nuevos en `CadViewportSectionPlane` (`path?: CadPoint3[]` y `depth?: number`). **Decisión del titular**, con propuesta concreta en el informe de distancia. **Todavía no.** |
+| Una ventana de presentación que enseñe una cámara 3D | 0 | ninguna: `viewportTransform` es una afín 2D | El camino que hoy llega a la lámina y al trazado es aplanar a una placa. La ventana orientada en 3D es otra ola. **Todavía no.** |
+| La familia `SECTIONPLANE`/`LIVESECTION` y `VIEWBASE`/`VIEWSECTION`/`VIEWDETAIL`/`VIEWUPDATE` por su nombre | 0 | ninguna | La capacidad está bajo `SOLVIEW`/`SOLDRAW`; los nombres no. **Todavía no.** |
+| Un modelo 3D AJENO que entra (3DSOLID, MESH, REGION en DXF) | 0 | ninguna: `dxf-import.ts` los descarta antes del mapeador | **Todavía no.** |
+| Las seis transformaciones 3D (`3DMOVE`, `3DROTATE`, `3DALIGN`, `MIRROR3D`, `3DARRAY`, `3DSCALE`) | 0 | ninguna | `CadEntityTransform` es estrictamente 2D. No es añadir comandos: es ensanchar el transporte de transformaciones y decidir, adaptador por adaptador, qué entidad sabe moverse en Z. No toca el formato persistido. **Todavía no.** |
+| Las señales de una llamada se atienden en fila y ningún candidato ICE se tira | 5 | `call-session-host.spec.ts` (11) con control negativo: sobre el código anterior muere con el `InvalidStateError` de verdad | Queda un residual medido —tras un cruce de ofertas ninguno de los dos extremos llega a `iceConnectionState=checking`— anotado con su traza. La llamada de dos navegadores pasó 4 de 5 corridas. |
+
 ## Cómo se usa
 
 - **Al añadir una entrada nueva a `BACKLOG.md`:** decir el peldaño ACTUAL

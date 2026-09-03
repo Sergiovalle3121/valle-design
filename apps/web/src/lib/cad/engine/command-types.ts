@@ -244,6 +244,22 @@ export interface CadCommandContext {
    * existe», que culparía al dibujo de una carencia del editor.
    */
   xrefCatalog?: () => readonly CadXrefCatalogEntry[];
+  /**
+   * Qué volumen levanta un objeto de planta, por su `kind`.
+   *
+   * Un `box` no guarda altura: el visor 3D la saca de su catálogo de arquetipos
+   * y por eso la sabe el ANFITRIÓN, no el motor. Sin esta función, `FLATSHOT` y
+   * `SOLPROF` sólo pueden aplanar sólidos B-rep — que es lo que hacían, y por
+   * eso «el modelo del arquitecto no podía usar el único camino con oculta
+   * exacta» (defecto (c) del informe de distancia). Cablear una tabla de
+   * alturas dentro del motor sería tener dos verdades sobre lo que mide un
+   * muro. `null` para un `kind` sin altura declarada: el objeto se queda fuera
+   * del aplanado y la orden lo cuenta.
+   *
+   * `opening: true` marca lo que es un HUECO —una puerta— y se resta del muro
+   * que atraviesa en vez de dibujarse como un bloque (defecto (b)).
+   */
+  objectVolume?: (kind: string) => { height: number; opening?: boolean } | null;
   selection: readonly string[];
   activeLayer: string;
   /**

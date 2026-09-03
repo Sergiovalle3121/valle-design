@@ -20,7 +20,7 @@
  * mueve un muro. Y SOLVIEW no dibuja: una ventana recién creada se declara sin
  * dibujar, que es distinto de estar al día y se ve en el aviso.
  */
-import type { CadDocument, CadPaperSpace, CadPoint2 } from "../../cad-document";
+import type { CadDocument, CadPaperSpace, CadPaperViewport, CadPoint2 } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
 import { findCadLayout } from "../../layout/layout-operations";
 import {
@@ -31,6 +31,7 @@ import { createCadSolView } from "../../layout/solview";
 import { describeCadSolviewFreshness } from "../../layout/solview-associativity";
 import {
   cadViewportOrthoView,
+  cadViewportPlanCutView,
   cadViewportSectionView,
   type CadViewportOrthoName,
 } from "../../layout/viewport-view";
@@ -48,12 +49,15 @@ import {
 function documentResult(
   commands: readonly CadEntityCommand[],
   label: string,
+  notice?: string,
 ): CadCommandStep<never> {
   return {
     state: undefined as never,
     prompt: { message: "", options: [] },
     accepts: 0,
-    result: { kind: "document", commands, label },
+    // `label` va al historial de deshacer y NO se imprime. Sin `notice`, una
+    // orden que escribe es MUDA: mismo defecto que cerró FLATSHOT en esta ola.
+    result: { kind: "document", commands, label, ...(notice ? { notice } : {}) },
   };
 }
 
@@ -110,15 +114,35 @@ const ALZADO_OPTIONS = [
   { keyword: "Derecha", shortcut: "D" },
 ] as const;
 
-/** Cuánto se acerca un DEtalle respecto de la vista de la que deriva. */
+/**
+ * Altura por defecto del corte de una planta, en milímetros.
+ *
+ * 1.200 mm es el antepecho de una ventana corriente: por debajo de ahí el corte
+ * enseña el HUECO, que es lo que una planta tiene que enseñar. Es la altura con
+ * la que se dibuja una planta de arquitectura en cualquier despacho, y por eso
+ * es la respuesta por defecto y no un número redondo.
+ */
+const PLAN_CUT_DEFAULT = 1_200;
+
+/**
+ * Cuánto se acerca un DEtalle cuando no se pide otra cosa.
+ *
+ * Era un ×2 FIJO y sin forma de cambiarlo —defecto (d) del informe de
+ * distancia—: un detalle constructivo se dibuja a 1:5 o a 1:10 sobre una planta
+ * a 1:100, o sea ×10 y ×20, y con ×2 el «detalle» era la misma planta un poco
+ * más grande. Ahora se pregunta, y esto es sólo la respuesta por defecto.
+ */
 const DETAIL_ZOOM = 2;
+
+/** Ampliación máxima admitida. Más allá, la ventana es un punto. */
+const DETAIL_ZOOM_MAX = 200;
 
 type SolviewOp =
   | { kind: "menu" }
-  | { kind: "plan"; name?: string }
+  | { kind: "plan"; cut?: number | "sin-corte"; name?: string }
   | { kind: "elevation"; ortho?: CadViewportOrthoName; name?: string }
   | { kind: "section"; from?: CadPoint2; to?: CadPoint2; name?: string }
-  | { kind: "detail"; parentId?: string; name?: string };
+  | { kind: "detail"; parentId?: string; zoom?: number; name?: string };
 
 interface SolviewState {
   op: SolviewOp;
@@ -134,6 +158,15 @@ function solviewStep(state: SolviewState): CadCommandStep<SolviewState> {
         options: SOLVIEW_OPTIONS,
       },
       accepts: CAD_ACCEPT_KEYWORD,
+    };
+  if (op.kind === "plan" && op.cut === undefined)
+    return {
+      state,
+      prompt: {
+        message: `Altura del corte horizontal, Intro para proyectar sin cortar <${PLAN_CUT_DEFAULT}>`,
+        options: [],
+      },
+      accepts: CAD_ACCEPT_TEXT,
     };
   if (op.kind === "elevation" && !op.ortho)
     return {
@@ -157,6 +190,15 @@ function solviewStep(state: SolviewState): CadCommandStep<SolviewState> {
     return {
       state,
       prompt: { message: "Indique la vista de la que se amplía el detalle", options: [] },
+      accepts: CAD_ACCEPT_TEXT,
+    };
+  if (op.kind === "detail" && op.zoom === undefined)
+    return {
+      state,
+      prompt: {
+        message: `Cuántas veces se amplía respecto de esa vista <${DETAIL_ZOOM}>`,
+        options: [],
+      },
       accepts: CAD_ACCEPT_TEXT,
     };
   return {
@@ -209,7 +251,19 @@ function finishSolview(
   let camera;
   let window;
   let parentViewportId: string | undefined;
-  if (op.kind === "plan") camera = cadViewportOrthoView("planta", { x: 0, y: 0, z: 0 });
+  if (op.kind === "plan") {
+    // Una planta de arquitectura es un corte horizontal a la altura del
+    // antepecho: enseña el hueco de la ventana y no su alféizar, y los muros
+    // salen cortados. Proyectar el edificio entero desde arriba da un dibujo
+    // que parece una planta y enseña la cubierta (defecto (e)).
+    if (op.cut === "sin-corte" || op.cut === undefined)
+      camera = cadViewportOrthoView("planta", { x: 0, y: 0, z: 0 });
+    else {
+      const cortada = cadViewportPlanCutView({ cutHeight: op.cut });
+      if ("ok" in cortada) return say(cortada.message);
+      camera = cortada;
+    }
+  }
   else if (op.kind === "elevation")
     camera = cadViewportOrthoView(op.ortho ?? "frontal", { x: 0, y: 0, z: 0 });
   else if (op.kind === "section") {
@@ -217,22 +271,25 @@ function finishSolview(
     const built = cadViewportSectionView({ from: op.from, to: op.to });
     if ("ok" in built) return say(built.message);
     camera = built;
+    // La MARCA de corte va sobre la planta, que es donde dice algo: es la única
+    // información que un corte no puede llevar dentro de sí mismo. Se ata aquí
+    // a la planta de la lámina; si no hay ninguna, o hay varias y no se sabe
+    // cuál, el corte se crea igual y el aviso lo dice — un corte sin marca es
+    // incompleto, pero un corte que no se crea es peor.
+    parentViewportId = onlyPlanViewport(space)?.id;
   } else if (op.kind === "detail") {
-    const parent = (space.viewports ?? []).find(
-      (viewport) =>
-        viewport.id === op.parentId ||
-        (viewport.name ?? "").trim().toLowerCase() === (op.parentId ?? "").trim().toLowerCase(),
-    );
+    const parent = findDerivedViewport(space, op.parentId ?? "");
     if (!parent?.view || !parent.derivation?.window)
-      return say(`«${op.parentId ?? ""}» no es una vista creada con SOLVIEW.`);
+      return say(noSuchView(op.parentId ?? ""));
     // Un detalle NO es otra proyección: es la misma cámara mirando más de cerca.
     camera = { ...parent.view, kind: "detail" as const };
+    const zoom = op.zoom ?? DETAIL_ZOOM;
     const source = parent.derivation.window;
     window = {
-      x: source.x + (source.width * (1 - 1 / DETAIL_ZOOM)) / 2,
-      y: source.y + (source.height * (1 - 1 / DETAIL_ZOOM)) / 2,
-      width: source.width / DETAIL_ZOOM,
-      height: source.height / DETAIL_ZOOM,
+      x: source.x + (source.width * (1 - 1 / zoom)) / 2,
+      y: source.y + (source.height * (1 - 1 / zoom)) / 2,
+      width: source.width / zoom,
+      height: source.height / zoom,
     };
     parentViewportId = parent.id;
   } else {
@@ -252,7 +309,37 @@ function finishSolview(
     ...(parentViewportId ? { parentViewportId } : {}),
   });
   if (!created.ok) return say(`SOLVIEW: ${created.message}`);
-  return documentResult(created.commands, "SOLVIEW");
+  const aviso =
+    op.kind === "section" && !parentViewportId
+      ? " · sin marca de corte: esta lámina no tiene una única PLANTA sobre la que ponerla"
+      : "";
+  const dicho = `SOLVIEW creó «${name}»${aviso}`;
+  return documentResult(created.commands, dicho, dicho);
+}
+
+/**
+ * La ÚNICA planta derivada de la lámina, o nada.
+ *
+ * Con dos plantas no se elige la primera: no se sabe cuál se está cortando, y
+ * poner la marca en la que no es manda a leer el corte por donde no pasa. Se
+ * devuelve nada, y quien pregunta lo dice.
+ */
+/** Una vista derivada por su id o por su nombre, sin distinguir mayúsculas. */
+function findDerivedViewport(space: CadPaperSpace, key: string): CadPaperViewport | undefined {
+  const buscado = key.trim().toLowerCase();
+  return (space.viewports ?? []).find(
+    (viewport) =>
+      viewport.id === key || (viewport.name ?? "").trim().toLowerCase() === buscado,
+  );
+}
+
+const noSuchView = (key: string) => `«${key}» no es una vista creada con SOLVIEW.`;
+
+function onlyPlanViewport(space: CadPaperSpace): CadPaperViewport | undefined {
+  const plantas = (space.viewports ?? []).filter(
+    (viewport) => viewport.derivation && viewport.view?.kind === "plan",
+  );
+  return plantas.length === 1 ? plantas[0] : undefined;
 }
 
 const solviewCommand: CadCommandDescriptor<SolviewState> = {
@@ -299,9 +386,54 @@ const solviewCommand: CadCommandDescriptor<SolviewState> = {
       return solviewStep({ op: { kind: "section", from: state.op.from, to: input.point } });
     }
 
+    // Intro sobre la ampliación acepta el valor por defecto, como cualquier
+    // orden con un valor entre paréntesis angulares. Llega como `enter`, no
+    // como texto vacío, así que se atiende antes del filtro de texto.
+    if (input.kind === "enter" && state.op.kind === "detail" && state.op.parentId && state.op.zoom === undefined)
+      return solviewStep({ op: { ...state.op, zoom: DETAIL_ZOOM } });
+    // Intro sobre la altura de corte pide la planta SIN cortar, que es lo que
+    // había antes de esta ola: una lámina antigua se rehace igual.
+    if (input.kind === "enter" && state.op.kind === "plan" && state.op.cut === undefined)
+      return solviewStep({ op: { kind: "plan", cut: "sin-corte" } });
+
     if (input.kind !== "text") return solviewStep(state);
-    if (state.op.kind === "detail" && !state.op.parentId)
+    if (state.op.kind === "detail" && !state.op.parentId) {
+      // El padre se comprueba AQUÍ y no al final: preguntar «cuántas veces se
+      // amplía» sobre una vista que no existe es hacer teclear un número para
+      // tirarlo. El error llega en la pregunta que lo causó.
+      const space = activeSpace(context);
+      if (!space) return say(NO_LAYOUT);
+      const parent = findDerivedViewport(space, input.value);
+      if (!parent?.view || !parent.derivation?.window) return say(noSuchView(input.value));
       return solviewStep({ op: { kind: "detail", parentId: input.value } });
+    }
+    if (state.op.kind === "plan" && state.op.cut === undefined) {
+      const escrito = input.value.trim().replace(",", ".");
+      if (escrito === "") return solviewStep({ op: { kind: "plan", cut: "sin-corte" } });
+      const altura = Number(escrito);
+      // Fallo cerrado: una altura ilegible no se redondea a ninguna parte. Una
+      // planta cortada a la altura equivocada es un plano equivocado que parece
+      // correcto.
+      if (!Number.isFinite(altura))
+        return say(`«${input.value}» no es una altura de corte: escriba un número.`);
+      return solviewStep({ op: { kind: "plan", cut: altura } });
+    }
+    if (state.op.kind === "detail" && state.op.zoom === undefined) {
+      // Intro acepta el valor por defecto, como en cualquier orden con un
+      // valor entre paréntesis angulares.
+      const escrito = input.value.trim().replace(",", ".");
+      if (escrito === "")
+        return solviewStep({ op: { ...state.op, zoom: DETAIL_ZOOM } });
+      const zoom = Number(escrito);
+      // Fallo cerrado: una ampliación que no es un número no se redondea a
+      // ninguna parte. Se dice y se vuelve a preguntar, porque una ventana de
+      // detalle con la ampliación equivocada es un plano a escala equivocada.
+      if (!Number.isFinite(zoom) || zoom <= 0 || zoom > DETAIL_ZOOM_MAX)
+        return say(
+          `«${input.value}» no es una ampliación: escriba un número mayor que 0 y hasta ${DETAIL_ZOOM_MAX}.`,
+        );
+      return solviewStep({ op: { ...state.op, zoom } });
+    }
     return finishSolview(context, state.op, input.value);
   },
 };

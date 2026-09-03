@@ -142,7 +142,15 @@ export const CAD_VIEWPORT_PLAN_VIEW: CadViewportView = {
 export type CadViewportDerivationStatus = "never-drawn" | "fresh" | "stale";
 
 /** Sufijos de capa que SOLVIEW crea, en el orden en que se dibujan. */
-export const CAD_SOLVIEW_LAYER_SUFFIXES = ["VIS", "HID", "HAT", "DIM"] as const;
+/**
+ * Las capas de una vista derivada.
+ *
+ * `ROT` —rótulos— entra con el defecto (d): el título de la vista con su
+ * escala, la marca de corte y el globo de detalle. Va en su propia capa y no
+ * en `-VIS` por la razón de siempre: para poder apagarla. Un juego de trabajo
+ * se imprime sin rótulos y el definitivo con ellos, y es la misma lámina.
+ */
+export const CAD_SOLVIEW_LAYER_SUFFIXES = ["VIS", "HID", "HAT", "DIM", "ROT"] as const;
 
 export type CadSolviewLayerSuffix = (typeof CAD_SOLVIEW_LAYER_SUFFIXES)[number];
 

@@ -134,10 +134,13 @@ const messages = (effects: readonly CadCommandEffect[]) =>
   assert.equal(derivadas[0].derivation?.status, "never-drawn");
   assert.equal(
     document.layers.length - antes,
-    4,
-    "SOLVIEW debe crear exactamente cuatro capas: -VIS, -HID, -HAT y -DIM",
+    5,
+    // -ROT entra con el defecto (d): el rótulo de la vista con su escala, la
+    // marca de corte y el globo de detalle. Va en su propia capa para poder
+    // apagarla — un juego de trabajo se imprime sin rótulos.
+    "SOLVIEW debe crear exactamente cinco capas: -VIS, -HID, -HAT, -DIM y -ROT",
   );
-  for (const sufijo of ["VIS", "HID", "HAT", "DIM"])
+  for (const sufijo of ["VIS", "HID", "HAT", "DIM", "ROT"])
     assert.ok(
       document.layers.some((layer) => layer.name === `ALZADO-SUR-${sufijo}`),
       `falta la capa ALZADO-SUR-${sufijo}`,
@@ -191,7 +194,7 @@ const messages = (effects: readonly CadCommandEffect[]) =>
 // --- 4. las negativas son explícitas, no láminas inventadas -------------------
 {
   // Sin presentación abierta no hay dónde poner la ventana.
-  const sinLamina = run(documento(), ["SOLVIEW", "PL", "Planta"]);
+  const sinLamina = run(documento(), ["SOLVIEW", "PL", "\r", "Planta"]);
   assert.ok(
     messages(sinLamina.effects).some((text) => text.includes("LAYOUT")),
     `SOLVIEW sin presentación debería decirlo: ${messages(sinLamina.effects).join(" / ")}`,
@@ -207,6 +210,7 @@ const messages = (effects: readonly CadCommandEffect[]) =>
   const sinModelo = run(run(vacio, ["LAYOUT", "N", "Hoja"]).document, [
     "SOLVIEW",
     "PL",
+    "\r",
     "Planta",
   ]);
   assert.ok(
@@ -216,8 +220,8 @@ const messages = (effects: readonly CadCommandEffect[]) =>
 
   // Dos vistas con el mismo nombre colisionarían en sus capas.
   let document = run(documento(), ["LAYOUT", "N", "Hoja"]).document;
-  document = run(document, ["SOLVIEW", "PL", "Planta"]).document;
-  const repetida = run(document, ["SOLVIEW", "PL", "Planta"]);
+  document = run(document, ["SOLVIEW", "PL", "\r", "Planta"]).document;
+  const repetida = run(document, ["SOLVIEW", "PL", "\r", "Planta"]);
   assert.ok(
     messages(repetida.effects).some((text) => text.includes("colisionarían")),
     `SOLVIEW con nombre repetido debería negarse: ${messages(repetida.effects).join(" / ")}`,
@@ -239,8 +243,11 @@ const messages = (effects: readonly CadCommandEffect[]) =>
 // --- 5. el DEtalle hereda la cámara de su padre y se acerca ------------------
 {
   let document = run(documento(), ["LAYOUT", "N", "Hoja"]).document;
-  document = run(document, ["SOLVIEW", "PL", "Planta"]).document;
-  document = run(document, ["SOLVIEW", "DE", "Planta", "Detalle esquina"]).document;
+  document = run(document, ["SOLVIEW", "PL", "\r", "Planta"]).document;
+  // La AMPLIACIÓN se pregunta: era un ×2 fijo y sin forma de cambiarlo, que es
+  // la mitad del defecto (d). Un detalle constructivo a 1:5 sobre una planta a
+  // 1:100 es ×20, y con ×2 el «detalle» era la misma planta un poco más grande.
+  document = run(document, ["SOLVIEW", "DE", "Planta", "10", "Detalle esquina"]).document;
   const derivadas = (document.paperSpaces[0].viewports ?? []).filter((v) => v.derivation);
   assert.equal(derivadas.length, 2);
   const padre = derivadas[0];
@@ -252,13 +259,80 @@ const messages = (effects: readonly CadCommandEffect[]) =>
     "un detalle no es otra proyección: es la misma cámara más cerca",
   );
   assert.equal(hijo.derivation?.parentViewportId, padre.id);
+  const razon = padre.derivation!.window!.width / hijo.derivation!.window!.width;
   assert.ok(
-    hijo.derivation!.window!.width < padre.derivation!.window!.width,
-    "el detalle no se acercó",
+    Math.abs(razon - 10) < 1e-6,
+    `el detalle se acercó ×${razon}, no ×10: la ampliación tecleada no se usó`,
+  );
+
+  // Intro acepta el valor por defecto, como cualquier orden con un valor entre
+  // paréntesis angulares.
+  const porDefecto = run(document, ["SOLVIEW", "DE", "Planta", "\r", "Detalle por defecto"]).document;
+  const conDefecto = (porDefecto.paperSpaces[0].viewports ?? []).filter((v) => v.derivation)[2];
+  assert.ok(
+    Math.abs(padre.derivation!.window!.width / conDefecto.derivation!.window!.width - 2) < 1e-6,
+    "sin escribir nada, el detalle se amplía ×2",
+  );
+
+  // Y una ampliación que no es un número no se redondea a ninguna parte.
+  const disparate = run(document, ["SOLVIEW", "DE", "Planta", "grande", "X"]);
+  assert.ok(
+    messages(disparate.effects).some((text) => text.includes("no es una ampliación")),
+    `una ampliación ilegible debería decirse: ${messages(disparate.effects).join(" / ")}`,
+  );
+}
+
+// --- 6. la PLANTA se puede pedir CORTADA, tecleando su altura ---------------
+{
+  // Defecto (e): la sección sólo podía ser un plano vertical de dos puntos, así
+  // que el corte horizontal —el que más se dibuja en una obra— no se podía
+  // pedir. Ahora SOLVIEW Planta pregunta a qué altura corta.
+  let document = run(documento(), ["LAYOUT", "N", "Hoja"]).document;
+  document = run(document, ["SOLVIEW", "PL", "1200", "Baja"]).document;
+  const planta = (document.paperSpaces[0].viewports ?? []).find(
+    (v) => v.derivation?.layerBase === "BAJA",
+  );
+  assert.ok(planta, "la planta cortada se creó");
+  assert.equal(planta!.view?.kind, "plan", "y se sigue llamando planta");
+  assert.ok(
+    planta!.view?.sectionPlane,
+    "pero lleva plano de corte: es un corte horizontal, no una vista cenital",
+  );
+  assert.equal(
+    planta!.view!.sectionPlane!.origin.z,
+    1_200,
+    "a la altura que se tecleó",
+  );
+  assert.equal(
+    planta!.view!.sectionPlane!.normal.z,
+    1,
+    "con la normal hacia arriba: lo que queda por encima del corte se retira",
+  );
+
+  // Intro deja la planta SIN cortar, que es lo que había: una lámina antigua se
+  // rehace igual.
+  const sinCortar = run(document, ["SOLVIEW", "PL", "\r", "Cubierta"]).document;
+  const cubierta = (sinCortar.paperSpaces[0].viewports ?? []).find(
+    (v) => v.derivation?.layerBase === "CUBIERTA",
+  );
+  assert.ok(cubierta, "la planta sin cortar también se crea");
+  assert.equal(
+    cubierta!.view?.sectionPlane,
+    undefined,
+    "y no lleva plano de corte",
+  );
+
+  // Y una altura ilegible no se redondea a ninguna parte.
+  const disparate = run(document, ["SOLVIEW", "PL", "alto", "X"]);
+  assert.ok(
+    messages(disparate.effects).some((t) => t.includes("no es una altura de corte")),
+    `una altura ilegible debería decirse: ${messages(disparate.effects).join(" / ")}`,
   );
 }
 
 console.log(
-  "OK SOLVIEW/SOLDRAW tecleados: alias, cuatro capas por vista, corte con sombreado, " +
-    "aviso de obsolescencia, detalle heredado y cuatro negativas con motivo",
+  "OK SOLVIEW/SOLDRAW tecleados: alias, CINCO capas por vista (-VIS/-HID/-HAT/-DIM/-ROT), " +
+    "corte con sombreado, aviso de obsolescencia, detalle con la ampliación que se teclea " +
+    "—×2 por defecto, ilegible rechazada—, PLANTA CORTADA a la altura que se teclea " +
+    "y seis negativas con motivo",
 );

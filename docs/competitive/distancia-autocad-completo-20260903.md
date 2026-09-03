@@ -554,3 +554,155 @@ corresponde cuando lo que se descubre es que se estaba midiendo poco.
   son diseño nuevo, no un cable que falte.
 - Siguen ausentes `BATTMAN`, `ATTDISP`, `MINSERT`, `ATTEXT`, `COUNT`, `XOPEN` y
   `REFEDIT`.
+
+## Nota fechada — Ola 4 (2026-09-03): de 3D a documentación
+
+**Lo que se midió antes de tocar nada.** El área «de 3D a documentación» del
+informe del 1 de septiembre daba **30 %** y su diagnóstico era literal: *«El
+70 % que falta no es lista de comandos, es que lo que sale no se entrega»*, con
+ocho defectos numerados. Esta ola cierra cuatro de ellos —(a), (b), (c) y el
+grueso de (e)— y deja escrito, con su motivo, qué falta de los otros.
+
+### (c) El único camino con oculta exacta rechazaba los muros
+
+`FLATSHOT` recogía sólo `entity.type === "solid3d"`, y una planta de
+arquitectura no tiene ni uno: sus muros, columnas y mobiliario son objetos de
+planta a los que el visor 3D ya da altura desde su catálogo de arquetipos. La
+orden respondía «no hay ningún sólido que aplanar» sobre un modelo lleno de
+ellos.
+
+Ahora un objeto de planta con altura levanta su prisma —con su giro y con su
+cota, que sale de `context.elevation`, campo que ya existía—; un objeto redondo
+se aproxima con un polígono de 24 lados, y el número se declara con su error de
+flecha (0,86 % del radio: una columna de 40 cm se sale 1,7 mm). La altura se
+PIDE al anfitrión (`context.objectVolume`) desde el MISMO catálogo con el que el
+visor extruye: cablear una tabla dentro del motor sería tener dos verdades sobre
+lo que mide un muro.
+
+**Y al medirlo apareció un defecto que no estaba en ninguna lista:** cuando
+FLATSHOT sí funcionaba, **no decía nada**. Un resultado `document` lleva
+`label` —que va al historial de deshacer— y el anfitrión no la imprime; sin el
+campo `notice`, una orden que escribe es MUDA. Lo mismo SOLPROF. Corregido.
+
+### (b) Los huecos no existían en la vista derivada
+
+Con los muros dentro, la puerta también entraba —como CUERPO—. El alzado salía
+con un tapón macizo donde va la puerta: un plano plausible y equivocado, que es
+la peor clase de plano porque nadie lo mira dos veces.
+
+Una puerta no es un bloque de 2,20 m plantado en el muro: es la parte del muro
+que NO está. Ahora se resta con una booleana, al final y no sobre la marcha
+—restar según llegan las entidades dependería del ORDEN de dibujo, que no dice
+nada sobre qué atraviesa qué—, y las tres formas de salir mal se cuentan con su
+identificador y su motivo: la booleana falla (el muro sale entero, sin su
+hueco), el hueco no toca ningún cuerpo (casi siempre un objeto mal colocado), o
+el hueco se come el cuerpo entero (legítimo: una puerta más ancha que su
+tabique).
+
+### (a) La vista que llegaba a la lámina no resolvía qué tapa a qué
+
+Medido sobre el árbol: un muro ENTERAMENTE detrás de otro salía con **4 aristas
+VISTAS** —a la capa `-VIS`, encima del muro de delante— y el informe de SOLDRAW
+declaraba `exact: true`.
+
+```
+ANTES  detras: 4 vistas, 8 ocultas, exact=true
+AHORA  detras: 0 vistas, 8 ocultas, exact=true
+```
+
+No era una bandera mal puesta: la clasificación por caras traseras pregunta por
+la arista y su PROPIO cuerpo, y no puede mirar a los demás ni en principio. La
+vista se resuelve ahora ENTERA con el solucionador analítico que FLATSHOT ya
+usaba. La proyección no cambia —se le toman los extremos en el mundo y su
+veredicto, y el papel lo sigue poniendo la cámara de la ventana—, así que el
+encuadre no se mueve y lo único que cambia es qué capa recibe cada trazo.
+
+Coste medido, no estimado: una planta de oficinas de diez crujías (40 muros) se
+resuelve en **20 ms**, mediana de cinco corridas. Asumible porque SOLDRAW es una
+orden y no un gesto por cuadro.
+
+### (d) Ni marca de corte, ni rótulo con escala, ni globo de detalle
+
+Medido tecleando: la lámina salía con sus ventanas dibujadas y **cero entidades
+de texto**. Cuatro dibujos sin nombre, sin escala, y un corte del que no había
+forma de saber por dónde pasa — que es la única información que un corte no
+puede llevar dentro de sí mismo.
+
+Entra una quinta capa por vista, `<base>-ROT`, con el rótulo (título, subrayado
+y `ESC. 1:N`), la marca de corte sobre la planta —línea, rabillo, flecha y
+letra en los dos extremos— y el globo de detalle, que mide exactamente lo
+ampliado. Los tamaños son de PAPEL multiplicados por la escala de la ventana: 5
+mm el título, 3 mm la escala. Y el DETALLE deja de ser un ×2 fijo: se pregunta
+la ampliación.
+
+La marca vive en la capa `-ROT` DEL PADRE aunque la genere el hijo, y no es un
+descuido: cada ventana congela las capas de las demás vistas, así que una marca
+en la capa del corte sería invisible justo en la ventana donde tiene que verse.
+
+### (e) La sección sólo podía ser un plano vertical de dos puntos
+
+El corte que más se dibuja en una obra no se podía pedir. Y no es un corte
+cualquiera: **una planta de arquitectura ES un corte horizontal** a ~1,20 m con
+el techo retirado. Por eso enseña el hueco de la ventana y no su alféizar. Lo
+que había —proyectar el edificio entero desde arriba— da un dibujo que parece
+una planta y enseña la cubierta.
+
+Se resuelve **sin campo nuevo**: `sectionPlane` ya era opcional en cualquier
+vista, y quien corta pasa a decidir por la PRESENCIA del plano y no por el
+nombre de la vista. Medido con control negativo: la planta cortada a 1.200
+produce huella de corte —lo que se sombrea— y la planta cenital del mismo muro
+produce cero.
+
+### Lo que esta ola NO cerró, y por qué
+
+- **Corte QUEBRADO y control de PROFUNDIDAD** (resto del defecto (e)). Los dos
+  piden campos nuevos en `CadViewportSectionPlane` —una polilínea de corte y una
+  distancia—, y esta campaña no añade campos persistidos sin decisión del dueño.
+  **Propuesta concreta para el dueño**: añadir a `CadViewportSectionPlane` dos
+  campos opcionales, `path?: CadPoint3[]` (los vértices del corte quebrado, en
+  el mundo; ausente = plano infinito, que es lo de hoy) y `depth?: number`
+  (cuánto se dibuja por detrás del corte; ausente = todo). Los dos son
+  opcionales y ausentes por omisión, así que ningún documento existente cambia
+  de bytes y la migración es la identidad.
+- **(f) Una ventana de presentación no puede enseñar una cámara 3D.** Sigue
+  igual: `paper-space.ts:viewportTransform` es una afín 2D. El camino que esta
+  ola refuerza —aplanar a una placa— es el que hoy llega a la lámina y al
+  trazado; la ventana flotante orientada en 3D es trabajo de otra ola.
+- **(g) La familia SECTIONPLANE/LIVESECTION/SECTIONPLANETOBLOCK y
+  VIEWBASE/VIEWSECTION/VIEWDETAIL/VIEWUPDATE** sigue ausente por su nombre. La
+  capacidad está (SOLVIEW/SOLDRAW), los nombres no.
+- **(h) Un modelo 3D ajeno no entra.** `dxf-import.ts` sigue descartando
+  3DSOLID, MESH y REGION antes del mapeador.
+- **Las seis transformaciones 3D** (3DMOVE, 3DROTATE, 3DALIGN, MIRROR3D,
+  3DARRAY, 3DSCALE) siguen sin estar, y ahora se sabe por qué cuesta:
+  `CadEntityTransform` es estrictamente 2D —traslación `CadPoint2`, espejo por
+  un eje del plano—, así que no es «añadir cuatro comandos», es ensanchar el
+  transporte de transformaciones y decidir, adaptador por adaptador, qué
+  entidad sabe moverse en Z. No cambia el formato persistido: los puntos ya son
+  `CadPoint3`.
+
+### Un rojo del CI que NO era de esta campaña, medido
+
+El fragmento 2/4 de E2E falló en `e2e/real/llamada-webrtc-real.spec.ts`. El
+diagnóstico honesto exigía descartar primero que fuera nuestro:
+
+```
+git diff origin/main <cabeza> -- apps/web/src/components/cad/calls \
+    apps/web/src/lib/cad/calls apps/api/src/modules/calls \
+    apps/web/e2e/real/llamada-webrtc-real.spec.ts
+(vacío)
+```
+
+Pila de llamadas idéntica a `main`. Reproducido en local con PostgreSQL 16 y la
+API real: **1 fallo de cada 4 corridas sobre un mismo artefacto compilado**. No
+es una regresión; es una carrera que el reparto en cuatro fragmentos ha hecho
+salir a la luz.
+
+La causa demostrada: las señales se atendían con `void handleIncomingSignal(...)`
+sin esperar a la anterior, así que un `ice-candidate` que llega pisando los
+talones a la oferta entraba en `addIceCandidate` con `setRemoteDescription` aún
+en vuelo y **se perdía**, sin un solo error en consola. Arreglado con una fila
+por participante y guardando los candidatos adelantados, con control negativo en
+`call-session-host.spec.ts`. Queda un residual —tras un cruce de ofertas ninguno
+de los dos extremos llega a `iceConnectionState=checking`— anotado con su traza
+para su propia investigación.

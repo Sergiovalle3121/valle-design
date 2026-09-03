@@ -145,18 +145,27 @@ export function solidCancelled<S>(state: S): CadCommandStep<S> {
   return { state, prompt: { message: "", options: [] }, accepts: 0, result: { kind: "none" } };
 }
 
-/** Termina emitiendo un lote ya construido. */
+/**
+ * Termina emitiendo un lote ya construido.
+ *
+ * `notice` es lo que la orden DICE además de escribir. Sin él una orden que
+ * escribe es MUDA: el anfitrión aplica el lote y no imprime la etiqueta, así
+ * que el dibujante ve aparecer geometría y no lee cuántas líneas salieron ni
+ * qué se quedó fuera. Medido en la Ola 4 con FLATSHOT: el aplanado funcionaba
+ * y la línea de comandos no decía absolutamente nada.
+ */
 export function solidBatch<S>(
   state: S,
   commands: readonly CadEntityCommand[],
   label: string,
+  notice?: string,
 ): CadCommandStep<S> {
   if (commands.length === 0) return solidCancelled(state);
   return {
     state,
     prompt: { message: "", options: [] },
     accepts: 0,
-    result: { kind: "document", commands, label },
+    result: { kind: "document", commands, label, ...(notice ? { notice } : {}) },
   };
 }
 
