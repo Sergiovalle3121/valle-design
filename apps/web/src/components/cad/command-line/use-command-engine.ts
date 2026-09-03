@@ -58,6 +58,7 @@ import { handleCadEtransmitHostRequest } from "./etransmit-host";
 import { handleCadDataExtractionHostRequest } from "./data-extraction-host";
 import { handleCadUcsPlanRequest } from "./ucs-plan-host";
 import { handleCadHistoryHostRequest } from "./history-host";
+import { handleCadXrefHostRequest, type CadXrefHostBridge } from "./xref-host";
 import { cadStudioCommandContext } from "./studio-context";
 
 /**
@@ -199,6 +200,11 @@ export interface CadStudioCommandEngineOptions {
    * que permite al anfitrión contar los que dio en vez de decir «Hecho».
    */
   history?: { undo(): boolean; redo(): boolean };
+  /**
+   * Trae un dibujo del inquilino y lo proyecta como referencia externa
+   * (`XATTACH`). Opcional: sin él la orden dice qué falta en vez de fingir.
+   */
+  attachXref?: CadXrefHostBridge;
 }
 
 /**
@@ -403,6 +409,7 @@ export function useCadStudioCommandEngine(
     // su techo exacto (19.002/19.002 líneas) y `check:cad` prohíbe tocarlo.
     host: (request) =>
       live.current.host?.(request) ??
+      handleCadXrefHostRequest(request, live.current.attachXref ?? null) ??
       handleCadHistoryHostRequest(request, {
         undo: () => live.current.history?.undo() ?? false,
         redo: () => live.current.history?.redo() ?? false,

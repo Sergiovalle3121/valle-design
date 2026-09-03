@@ -14,17 +14,23 @@
  * **Distinguir enlazar de insertar.** XBIND pregunta cuál de las dos, porque
  * son resultados distintos y uno no se deshace en el otro.
  *
- * ## De dónde salen los dibujos que XATTACH referencia
+ * ## De dónde salen los dibujos que XATTACH referencia (Ola 2, 2026-09-03)
  *
- * De `context.xrefCatalog`, que el anfitrión aporta ya cargado: traer el
- * contenido de un activo es I/O y este motor es síncrono y puro. El diálogo
- * está completo —elegir dibujo, adjuntar o superponer, punto, escala y giro— y
- * la proyección la construye `cadXrefAttachCommands`, la misma que usa el panel
- * de referencias externas. Lo que falta es que el estudio pase la biblioteca:
- * eso vive en el monolito, que es de otra sesión en esta ronda. Mientras tanto
- * la orden dice QUÉ le falta al editor en vez de decir que el dibujo no
- * existe, y distingue «no conozco ese dibujo» de «lo conozco y no tengo su
- * contenido», que se arreglan en sitios distintos.
+ * Por DOS caminos, y el segundo es el que hacía falta.
+ *
+ * 1. `context.xrefCatalog`, una biblioteca ya cargada: el camino puro, que se
+ *    prueba en Node sin red. Si el activo está ahí CON contenido, la orden
+ *    adjunta sin salir del motor.
+ * 2. Una PETICIÓN DE ANFITRIÓN (`{kind:"xref-attach"}`) cuando no hay
+ *    biblioteca o el activo listado no trae contenido. Traerlo es I/O y este
+ *    motor es síncrono; el estudio ya sabe hacerlo —es lo que el panel de
+ *    referencias externas hace desde hace campañas— y ahora la orden se lo
+ *    pide. Es el reparto de PLOT: el comando decide, el anfitrión ejecuta.
+ *
+ * Hasta esta ola el camino 2 no existía y XATTACH terminaba explicando que el
+ * editor no le pasaba la biblioteca. Era honesto y era inútil: `P1-2` del
+ * BACKLOG decía exactamente eso, «XATTACH por línea de comandos no puede
+ * adjuntar».
  *
  * `XATTACH` era hasta ahora un alias de IMAGE. En AutoCAD esa orden referencia
  * un DIBUJO; las imágenes se adjuntan con IMAGEATTACH, que sigue existiendo.
@@ -265,15 +271,31 @@ const XATTACH_OVERLAY = { keyword: "Superponer", shortcut: "S" } as const;
 
 interface XAttachState {
   entry: CadXrefCatalogEntry | null;
+  /** Lo tecleado cuando no hay biblioteca: se resuelve en el anfitrión. */
+  typed: string | null;
   mode: "attachment" | "overlay" | null;
   insertion: { x: number; y: number } | null;
   scale: number | null;
 }
 
-const EMPTY_XATTACH: XAttachState = { entry: null, mode: null, insertion: null, scale: null };
+const EMPTY_XATTACH: XAttachState = {
+  entry: null,
+  typed: null,
+  mode: null,
+  insertion: null,
+  scale: null,
+};
 
-const NO_LIBRARY =
-  "El anfitrión no expone la biblioteca de dibujos del inquilino, así que XATTACH no tiene de dónde traer el contenido a referenciar. XREF sí gestiona desde aquí las referencias que ya están.";
+/**
+ * Lo que el usuario teclea cuando no hay biblioteca: `activo` o
+ * `activo@revisión`. Sin revisión, la vigente — que es lo que el panel de
+ * referencias externas llama `UNIVERSAL`.
+ */
+function splitAsset(typed: string): { assetId: string; revision: string } {
+  const at = typed.lastIndexOf("@");
+  if (at <= 0) return { assetId: typed, revision: "UNIVERSAL" };
+  return { assetId: typed.slice(0, at), revision: typed.slice(at + 1) || "UNIVERSAL" };
+}
 
 function catalogList(catalog: readonly CadXrefCatalogEntry[]): string {
   return catalog
@@ -282,10 +304,15 @@ function catalogList(catalog: readonly CadXrefCatalogEntry[]): string {
 }
 
 function xattachStep(state: XAttachState, catalog: readonly CadXrefCatalogEntry[]): CadCommandStep<XAttachState> {
-  if (!state.entry)
+  if (!state.entry && !state.typed)
     return {
       state,
-      prompt: { message: `Indique el dibujo a referenciar (${catalogList(catalog)})`, options: [XREF_LIST] },
+      prompt: {
+        message: catalog.length
+          ? `Indique el dibujo a referenciar (${catalogList(catalog)})`
+          : "Indique el dibujo a referenciar (activo o activo@revisión)",
+        options: catalog.length ? [XREF_LIST] : [],
+      },
       accepts: CAD_ACCEPT_TEXT | CAD_ACCEPT_KEYWORD,
     };
   if (!state.mode)
@@ -323,11 +350,12 @@ function xattachStep(state: XAttachState, catalog: readonly CadXrefCatalogEntry[
  * XATTACH: referenciar OTRO dibujo.
  *
  * La orden está entera; lo que depende del anfitrión es de dónde salen los
- * dibujos, porque traer su contenido es I/O y el motor es síncrono y puro. El
- * estudio todavía no aporta esa biblioteca —vive en el monolito, que es de otra
- * sesión en esta ronda—, así que hoy la orden explica exactamente qué le falta
- * al editor en vez de decir que el dibujo no existe. En cuanto
- * `context.xrefCatalog` traiga entradas con contenido, adjunta.
+ * dibujos, porque traer su contenido es I/O y el motor es síncrono y puro. Con
+ * `context.xrefCatalog` y contenido cargado adjunta sin salir del motor; sin
+ * ellos termina en una petición `{kind:"xref-attach"}` con todo resuelto —qué
+ * activo, qué revisión, cómo, dónde, a qué escala y con qué giro— y el estudio
+ * la ejecuta. Ninguno de los dos caminos rechaza un nombre por su cuenta: quien
+ * sabe si el activo existe es quien va a buscarlo.
  */
 const xattachCommand: CadCommandDescriptor<XAttachState> = {
   name: "XATTACH",
@@ -338,24 +366,30 @@ const xattachCommand: CadCommandDescriptor<XAttachState> = {
   repeatable: true,
   mutates: true,
   cursor: "crosshair",
-  begin: (context) => {
-    const catalog = context.xrefCatalog?.();
-    if (!catalog || catalog.length === 0) return message(EMPTY_XATTACH, NO_LIBRARY);
-    return xattachStep(EMPTY_XATTACH, catalog);
-  },
+  begin: (context) => xattachStep(EMPTY_XATTACH, context.xrefCatalog?.() ?? []),
   step: (state, input, context) => {
     if (input.kind === "cancel") return nothing(state);
-    const catalog = context.xrefCatalog?.();
-    if (!catalog || catalog.length === 0) return message(state, NO_LIBRARY);
+    const catalog = context.xrefCatalog?.() ?? [];
     const document = context.document?.();
     if (!document) return message(state, NO_DOCUMENT);
 
-    if (!state.entry) {
+    if (!state.entry && !state.typed) {
       if (input.kind === "keyword" && input.keyword === XREF_LIST.keyword)
-        return message(state, `Dibujos disponibles: ${catalogList(catalog)}.`);
+        return message(
+          state,
+          catalog.length
+            ? `Dibujos disponibles: ${catalogList(catalog)}.`
+            : "El estudio no publica todavía la lista de dibujos del inquilino: escriba el activo (o activo@revisión) y se resolverá al adjuntar.",
+        );
       if (input.kind !== "text") return xattachStep(state, catalog);
       const typed = input.value.trim();
-      if (typed === "?") return message(state, `Dibujos disponibles: ${catalogList(catalog)}.`);
+      if (typed === "?")
+        return message(
+          state,
+          catalog.length
+            ? `Dibujos disponibles: ${catalogList(catalog)}.`
+            : "El estudio no publica todavía la lista de dibujos del inquilino: escriba el activo (o activo@revisión) y se resolverá al adjuntar.",
+        );
       const needle = typed.toLocaleLowerCase();
       const entry = catalog.find(
         (candidate) =>
@@ -363,13 +397,10 @@ const xattachCommand: CadCommandDescriptor<XAttachState> = {
           candidate.assetId.toLocaleLowerCase() === needle ||
           (candidate.relativePath ?? "").toLocaleLowerCase() === needle,
       );
-      if (!entry) return message(state, `La biblioteca no tiene ningún dibujo llamado ${typed}.`);
-      // Conocerlo y no tener su contenido son dos problemas distintos, y se
-      // arreglan en sitios distintos: decir «no existe» mandaría a buscar en el
-      // sitio equivocado.
-      if (!entry.snapshot)
-        return message(state, `${entry.name} está en la biblioteca pero su contenido no se ha traído todavía.`);
-      return xattachStep({ ...state, entry }, catalog);
+      // Con contenido cargado se adjunta SIN salir del motor. Sin él —o sin
+      // biblioteca— lo tecleado viaja al anfitrión, que es quien puede traerlo.
+      if (entry?.snapshot) return xattachStep({ ...state, entry }, catalog);
+      return xattachStep({ ...state, typed }, catalog);
     }
 
     if (!state.mode) {
@@ -403,6 +434,30 @@ const xattachCommand: CadCommandDescriptor<XAttachState> = {
             ? input.value
             : null;
     if (rotation === null) return xattachStep(state, catalog);
+    // Camino 2: sin contenido en la mano, se le pide al anfitrión. La orden ya
+    // tiene TODO lo que hace falta —qué dibujo, cómo, dónde, a qué escala y con
+    // qué giro—; lo único que no puede hacer es la red.
+    if (!state.entry) {
+      const { assetId, revision } = splitAsset(state.typed!);
+      return {
+        state,
+        prompt: { message: "", options: [] },
+        accepts: 0,
+        result: {
+          kind: "host",
+          request: {
+            kind: "xref-attach",
+            assetId,
+            revision,
+            mode: state.mode!,
+            insertion: { x: state.insertion!.x, y: state.insertion!.y },
+            scale: state.scale!,
+            rotation,
+          },
+          label: `XATTACH ${assetId}`,
+        },
+      };
+    }
     return attempt(state, "XATTACH", () =>
       cadXrefAttachCommands(document, {
         id: context.newEntityId(),

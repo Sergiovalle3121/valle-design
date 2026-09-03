@@ -31,6 +31,7 @@ import {
 import { cadViewportIsOn } from "../layout/viewport-operations";
 import { toGrayscaleHex } from "./aci-palette";
 import { cadDocumentFontByEntity, type CadPlotFontUsage } from "./plot-fonts";
+import { cadStrokeSheetText } from "./plot-stroke-text";
 import {
   layoutCadTitleBlock,
   type CadTitleBlockFields,
@@ -94,6 +95,12 @@ export interface CadPlotJob {
   fontUsage: CadPlotFontUsage[];
   /** Familia de cada rótulo, por `entityId`, para que el emisor la respete. */
   fontByEntity: Map<string, string>;
+  /**
+   * Familias que ya NO viajan como texto porque se dibujaron con sus trazos
+   * (`plot-stroke-text.ts`). El emisor no tiene que sustituirlas ni avisar de
+   * una sustitución que no ocurre.
+   */
+  strokedFamilies: string[];
 }
 
 /**
@@ -265,8 +272,14 @@ export function buildCadPlotJob(input: CadPlotJobInput): CadPlotJob {
   // texto: la familia implícita se declara aunque el modelo no la use.
   if (counts.size === 0) counts.set("Arial", { family: "Arial", usageCount: 0 });
 
+  // --- rótulos de .shx, a trazos -------------------------------------------
+  // DESPUÉS de contar: el informe de fuentes tiene que seguir sabiendo qué
+  // familia pedía el dibujo. Ver plot-stroke-text.ts.
+  const trazados = cadStrokeSheetText(sheets, fontByEntity);
+
   return {
-    sheets,
+    sheets: trazados.sheets,
+    strokedFamilies: trazados.strokedFamilies,
     plan,
     issues: preflightCadPageSetup(
       input.pageSetup,

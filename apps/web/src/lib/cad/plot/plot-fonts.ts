@@ -31,6 +31,7 @@
  * texto de la entidad, o de la familia explícita si la trae.
  */
 import type { CadDocument, CadEntity } from "../cad-document";
+import { cadStrokeFamilyFor } from "../paper-space-stroke-text";
 
 /** Familia que se usa cuando ni la entidad ni su estilo dicen nada. */
 export const CAD_DEFAULT_FONT_FAMILY = "Arial";
@@ -61,7 +62,15 @@ const STANDARD_FONTS: Readonly<Record<string, string>> = {
  */
 const RESIDENT = new Set(["helvetica", "times", "courier"]);
 
-export type CadFontDisposition = "embedded" | "resident" | "substituted";
+/**
+ * Las CUATRO formas en que una familia acaba en el papel.
+ *
+ * `stroked` es la que faltaba: la familia no viaja ni se cambia por otra tipo­
+ * grafía — se DIBUJA, con el juego de trazos de dominio público que le
+ * corresponde (`plot-stroke-text.ts`). El rótulo sale vectorial y con el trazo
+ * único de la `.shx` original; lo que cambia son las anchuras, y eso se dice.
+ */
+export type CadFontDisposition = "embedded" | "resident" | "substituted" | "stroked";
 
 export interface CadPlotFontResolution {
   /** Familia tal y como la pide el dibujo. */
@@ -157,11 +166,28 @@ export interface CadPlotFontUsage {
 export function resolveCadPlotFonts(
   usage: readonly CadPlotFontUsage[],
   embeddable: readonly string[] = [],
+  strokedFamilies: readonly string[] = [],
 ): CadPlotFontResolution[] {
   const embedded = new Set(embeddable.map((family) => family.trim().toLowerCase()));
+  const stroked = new Set(strokedFamilies.map((family) => family.trim().toLowerCase()));
   return usage
     .map((entry): CadPlotFontResolution => {
       const key = entry.family.trim().toLowerCase();
+      // Trazada gana a todo lo demás: sus rótulos ya NO son texto en el
+      // archivo, así que ni se incrusta ni se sustituye nada.
+      const strokeFamily = stroked.has(key) ? cadStrokeFamilyFor(entry.family) : null;
+      if (strokeFamily)
+        return {
+          family: entry.family,
+          // `baseFont` sigue siendo una fuente REAL del PDF: sus rótulos ya son
+          // geometría, pero si a esta familia le quedara algún texto —uno con
+          // máscara de fondo— tiene que poder escribirse con algo que exista.
+          // Poner aquí «Hershey ISO» dejaba a jsPDF sin fuente que buscar.
+          baseFont: cadStandardFontFor(entry.family),
+          disposition: "stroked",
+          substitutedBy: strokeFamily,
+          usageCount: entry.usageCount,
+        };
       if (embedded.has(key))
         return {
           family: entry.family,
@@ -196,6 +222,8 @@ export function describeCadPlotFonts(fonts: readonly CadPlotFontResolution[]): s
       return `${font.family}: incrustada en el PDF (${font.usageCount} rótulo(s)).`;
     if (font.disposition === "resident")
       return `${font.family}: residente en el visor, no se incrusta (${font.usageCount} rótulo(s)).`;
+    if (font.disposition === "stroked")
+      return `${font.family}: DIBUJADA con los trazos ${font.substitutedBy} (${font.usageCount} rótulo(s)); trazo único como la .shx, anchuras de Hershey.`;
     return `${font.family}: SUSTITUIDA por ${font.substitutedBy} (${font.usageCount} rótulo(s)); las anchuras no son las del dibujo.`;
   });
 }

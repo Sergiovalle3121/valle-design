@@ -356,3 +356,103 @@ Dos campos, y la propuesta concreta de cada uno:
 Sin (1) la escala es de sesión; sin (2) una hoja sólo puede tener una escala de
 anotación por rótulo. Mientras no haya respuesta, las dos limitaciones están
 dichas aquí, en la ESCALERA y en el prompt del propio selector.
+
+## Nota fechada — Ola 2 (2026-09-03): la primera hora con un plano ajeno
+
+El área del trabajo ajeno se mide por lo que pasa en la primera hora de un
+encargo: llega el dibujo de otro, hay que traerlo, ver qué trae roto, tirar lo
+que sobra, traducir sus capas, comprobar el estándar y devolverlo entregado. Lo
+que esta ola encontró **medido, antes de tocar nada**, fueron tres cosas.
+
+### 1 · `XATTACH` no adjuntaba, y el producto sí sabía adjuntar
+
+`BACKLOG` P1-2 y el informe de arriba lo decían igual. La orden estaba entera
+—dibujo, adjuntar o superponer, punto, escala, giro— y terminaba explicando
+que el editor no le pasaba la biblioteca del inquilino. Honesto e inútil: el
+panel de referencias externas adjunta desde hace campañas.
+
+Ahora la orden tiene **dos caminos**: con `context.xrefCatalog` y contenido
+cargado adjunta sin salir del motor; sin ellos termina en una petición de
+anfitrión `{kind:"xref-attach"}` con **todo** resuelto —activo, revisión, modo,
+punto, escala y giro— que el estudio ejecuta por el mismo camino que el panel.
+Ninguno de los dos rechaza un nombre por su cuenta: quien sabe si el activo
+existe es quien va a buscarlo. Lo fija `87-cad-xattach-tecleado.spec.ts` sobre
+el documento **que recibe el servidor**, no sobre una captura.
+
+### 2 · La cadena de reparación no tenía prueba como cadena
+
+`AUDIT`, `PURGE`, `LAYTRANS`, `CHECKSTANDARDS` y `ETRANSMIT` tenían prueba cada
+una por su lado; lo que no tenía prueba era usarlas **seguidas sobre el mismo
+dibujo**, que es la única forma en que se usan.
+`88-cad-primera-hora-plano-ajeno.spec.ts` teclea las cinco de principio a fin y
+afirma sobre el documento del servidor y sobre los **bytes** del paquete
+descargado.
+
+### 3 · El plano impreso no era el plano dibujado: dos defectos, los dos medidos
+
+**a) Una `.shx` salía como una fuente de contorno.** Las cinco `.shx` comunes ya
+se dibujaban con los trazos Hershey de dominio público en el VISOR desde la
+campaña de fuentes, pero ese camino lo consumía sólo `entity-three.ts`. En la
+lámina y en el PDF el rótulo pedía una de las catorce estándar. La sustitución
+se declaraba con honradez —y aun así lo entregado no era lo dibujado: una
+`.shx` es un trazo de un solo grosor y una Helvetica es un contorno relleno.
+
+Medido sobre el mismo dibujo (un muro y el rótulo «PLANTA BAJA», estilo
+`ISOCP.shx`, A1 a 1:50), leyendo los bytes del PDF:
+
+| | Antes (texto) | Ahora (trazos) |
+| --- | --- | --- |
+| `(PLANTA BAJA)` en el flujo de contenido | sí | **no** |
+| Segmentos de camino en la página | 13 | **69** |
+| Tamaño del archivo | 6.354 B | 10.742 B |
+| Informe de fuentes | «SUSTITUIDA por helvetica» | **`stroked` · dibujada con Hershey ISO** |
+| Avisos de sustitución | 1 | **0** |
+
+Lo fija `plot-shx-pdf.spec.ts` contra el archivo, con Arial como contraste: sin
+él, un emisor que se comiera todos los rótulos pasaría la prueba. Se convierte
+en el TRABAJO de trazado y **después** de contar las familias, para que el
+informe de fuentes siga rindiendo cuentas de la que el dibujo pedía; y la previa
+de la hoja sale del mismo plan, así que enseña lo mismo que el papel.
+
+Lo que NO se convierte, y se dice: una Arial (pasarla a trazos dejaría el PDF
+sin texto que buscar ni copiar) y un rótulo con **máscara de fondo** (la máscara
+es una caja rellena y el comando `path` no se rellena en ningún emisor de hoy;
+se pierde el trazo antes que perder la máscara, y su familia se sigue
+declarando sustituida). Las anchuras son las de Hershey, no las del binario que
+el dibujo nombraba: `mtext-fonts.ts` lo declara con `metricsDiffer: true`.
+
+**b) Un rótulo vertical se leía hacia abajo.** Al medir (a) apareció otro:
+`rotation` en el plan es el giro del DIBUJO —antihorario con la Y hacia arriba,
+como lo guarda DXF— y el emisor de PDF lo negaba, así que un rótulo a 90° salía
+leyéndose hacia abajo. La previa SVG hacía lo mismo, mientras el PDF del
+conjunto de planos (`sheet-set-pdf.ts`) usaba el signo correcto: **dos caminos y
+dos resultados para el mismo dibujo**. Y el propio repositorio ya lo tenía
+resuelto al lado: `cadImagePlotPlacement` documenta que jsPDF gira en sentido
+antihorario sobre el papel.
+
+`plot-text-rotation.spec.ts` lo mide sobre la matriz `Tm` que el archivo lleva
+escrita: a 90° el coeficiente `b` pasa de **−1 (se leía hacia abajo)** a **+1**,
+y a −90° el signo se invierte. Comprueba además que un segmento que sube en el
+plan sube en la página, que es lo que hace que papel y dibujo miren igual.
+
+### Lo que esta ola NO cerró, y por qué
+
+- **El corpus DXF de terceros** sigue siendo el que había: falta la matriz de
+  entidades por archivo con las pérdidas declaradas. Ampliarlo con archivos
+  reales autorizados es acción del titular (abajo).
+- **DWG sigue en beta** y esta ola no lo movió.
+- Un `hatch` sólido y una máscara de fondo **no se rellenan** en el PDF de
+  trazado: `drawCommand` dibuja todo camino con `"S"`. Es anterior a esta ola y
+  está fuera de su alcance; queda anotado aquí porque se encontró midiendo.
+
+### Decisión del titular pendiente — el corpus de dibujos ajenos
+
+Para medir el trabajo ajeno con archivos de verdad hacen falta DXF/DWG de
+terceros **con permiso para redistribuirlos** dentro del repositorio o del
+espejo de conformidad. Propuesta concreta: usar sólo dibujos de procedencia
+limpia —publicados por organismos públicos bajo licencia que permita
+redistribuir, o dibujados aquí— y declarar en la matriz, archivo por archivo,
+de dónde salió cada uno y su versión. Nada de contenido de Autodesk ni de
+material de terceros con licencia restrictiva. Mientras no haya archivos
+autorizados, el corpus sigue siendo el sintético que ya existe y esta
+limitación queda dicha aquí y en la ESCALERA.

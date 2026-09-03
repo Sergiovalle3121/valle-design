@@ -68,6 +68,12 @@ export interface CadPlotPdfOptions {
   fontUsage?: readonly CadPlotFontUsage[];
   /** Familia de cada rótulo, indexada por `entityId` del plan vectorial. */
   fontByEntity?: ReadonlyMap<string, string>;
+  /**
+   * Familias cuyos rótulos ya llegan DIBUJADOS con sus trazos y por tanto no
+   * hay que sustituir por ninguna estándar (`plot-stroke-text.ts`). El trabajo
+   * de trazado las devuelve en `strokedFamilies`.
+   */
+  strokedFamilies?: readonly string[];
   /** Cajetín paramétrico ya colocado, por hoja. */
   titleBlocks?: readonly CadTitleBlockLayout[];
   /**
@@ -232,7 +238,11 @@ export async function renderCadPlotPdf(
     if (!declared.has(program.family.trim().toLowerCase()))
       declared.set(program.family.trim().toLowerCase(), { family: program.family, usageCount: 0 });
 
-  const resolutions = resolveCadPlotFonts([...declared.values()], [...embedded.values()]);
+  const resolutions = resolveCadPlotFonts(
+    [...declared.values()],
+    [...embedded.values()],
+    options.strokedFamilies ?? [],
+  );
   const fontReports: CadPlotPdfFontReport[] = resolutions.map((resolution) => ({
     ...resolution,
     embedded: resolution.disposition === "embedded",
@@ -411,7 +421,12 @@ function drawCommand(
   pdf.setFontSize(Math.max(0.5, command.size) * MM_TO_POINTS);
   pdf.text(command.text, command.point.x, command.point.y, {
     align: command.align === "justify" ? "left" : (command.align ?? "left"),
-    angle: command.rotation ? -command.rotation : undefined,
+    // El giro del plan es el del DIBUJO: antihorario y con la Y hacia arriba,
+    // que es como lo mide DXF y como lo gira jsPDF sobre el papel (lo mismo que
+    // ya asumía `cadImagePlotPlacement`). Negarlo aquí —como se hacía— sacaba
+    // los rótulos verticales leyéndose HACIA ABAJO: `plot-text-rotation.spec.ts`
+    // mide el signo contra la matriz `Tm` del archivo, no contra una suposición.
+    angle: command.rotation ? command.rotation : undefined,
     ...(command.maxWidth ? { maxWidth: command.maxWidth } : {}),
   });
 }

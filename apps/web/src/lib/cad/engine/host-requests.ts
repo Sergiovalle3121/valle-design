@@ -38,6 +38,30 @@ export type CadHostRequest =
    * que un dibujante espera ver.
    */
   | { kind: "history"; action: "undo" | "redo"; steps: number }
+  /**
+   * Adjunta OTRO dibujo del inquilino como referencia externa.
+   *
+   * Traer el contenido de un activo es I/O y el motor es síncrono: por eso
+   * `XATTACH` no podía adjuntar nada mientras el anfitrión no le precargara la
+   * biblioteca entera, y el estudio no tiene ninguna que precargar —el panel de
+   * referencias externas pide el activo por su id y lo descarga cuando el
+   * usuario pulsa. Esta petición es ese mismo camino, abierto a la orden: el
+   * motor dice QUÉ adjuntar y DÓNDE, y el anfitrión lo trae y lo proyecta con
+   * la misma función que el panel (`attachCadXref`).
+   *
+   * Es exactamente el reparto de PLOT: el comando decide, el anfitrión ejecuta.
+   */
+  | {
+      kind: "xref-attach";
+      /** Lo que el usuario tecleó: id del activo o su nombre. */
+      assetId: string;
+      /** Revisión pedida; `UNIVERSAL` es la vigente. */
+      revision: string;
+      mode: "attachment" | "overlay";
+      insertion: CadPoint2;
+      scale: number;
+      rotation: number;
+    }
   | { kind: "page-setup"; layoutId: string }
   /** Traza. `preview` se queda en pantalla; `plot` produce el archivo. */
   | { kind: "plot"; mode: "preview" | "plot"; request: CadPlotRequest }

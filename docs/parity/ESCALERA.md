@@ -322,6 +322,23 @@ desconocido»). Después de esta ola: **10 de 10**.
 | Ctrl+2 y Ctrl+3 | 5 | `editor-keyboard.spec.ts` (122); golden 86 los teclea y lee el diálogo | Los dos despachan la ORDEN por su nombre, así que el atajo y teclearla son la misma acción. |
 | El selector de escala de anotación (CANNOSCALE) | 3 | `annotative-scale.spec.ts` (el reescalado del espacio modelo, 2,5 mm → 125 unidades a 1:50 y 250 a 1:100); golden 86 lo mueve y lee el documento que recibe el servidor | La escala vive en la SESIÓN y se pierde al recargar: `CadDocumentMeta` no tiene campo para ella y añadirlo es tocar el formato persistido. **Decisión del titular**, con su propuesta en el informe de la ola. Y una lámina sigue sin poder llevar DOS escalas de anotación: eso pide representaciones por escala en cada objeto, que es formato nuevo también. |
 
+## La primera hora con un plano ajeno (Ola 2, 2026-09-03)
+
+La campaña midió antes, con el informe de distancia y con el propio árbol:
+`XATTACH` figuraba en `command-integrity.json` como **honesto-limitado** —la
+orden entera terminando en «el editor no me pasa la biblioteca»— y el mismo
+dibujo con un estilo `ISOCP.shx` salía al PDF con **13** segmentos de camino y
+un `(PLANTA BAJA)` escrito en helvetica. Después: `XATTACH` es **delegado** y el
+mismo PDF lleva **69** segmentos y ni un rótulo de esa familia como texto.
+
+| Capacidad | Peldaño hoy | Evidencia | Qué falta para subir |
+| --- | --- | --- | --- |
+| `XATTACH` adjunta un dibujo ajeno tecleado | 5 | golden 87 sobre el documento que recibe el SERVIDOR; `xref-host.spec.ts` (8); `xrefs.spec.ts` (49) | Nada de peldaño para adjuntar. Lo que no hay es **catálogo del inquilino en el motor**: sin él la orden no puede listar («?» dice que escriba el activo). Enseñar una lista pide que el estudio publique la biblioteca en `context.xrefCatalog`, y eso vive en el monolito. **Todavía no.** |
+| La cadena de reparación de un plano ajeno, seguida | 5 | golden 88: `AUDIT`·`PURGE`·`LAYTRANS`·`CHECKSTANDARDS`·`ETRANSMIT` tecleadas sobre el mismo dibujo, afirmando sobre el documento del servidor y sobre los BYTES del paquete | Peldaño 6 pide archivos ajenos REALES con permiso para redistribuirlos: hoy el dibujo de la prueba lo siembra la propia prueba. Es la decisión del titular del informe de la ola. |
+| Una `.shx` se imprime como trazos en la lámina y en el PDF | 5 | `plot-shx-pdf.spec.ts` contra los bytes del archivo, con Arial de contraste; `plot-stroke-text.spec.ts` (26); `paper-space-stroke-text.spec.ts` (32) | Los trazos son de **Hershey** (dominio público, gobierno de EE. UU.), no del binario `.shx`: las anchuras no son las mismas y `mtext-fonts.ts` lo declara con `metricsDiffer: true`. Interpretar el formato `.shx` no está y no se finge. Un rótulo con **máscara de fondo** se queda como texto: la máscara es una caja rellena y el PDF de trazado dibuja todo camino con `"S"`. Y la rúbrica **retiene 1 pt** en la fila MTEXT porque toda su evidencia es propia: el oráculo ajeno que falta es cotejar la transcripción de la tabla Hershey contra la publicación original, no una prueba más escrita aquí. **Todavía no.** |
+| El giro de un rótulo en el papel es el del dibujo | 5 | `plot-text-rotation.spec.ts` sobre la matriz `Tm` del archivo: a 90° el coeficiente `b` pasa de −1 a +1, y a −90° se invierte | Nada de peldaño. Quedó alineado con `sheet-set-pdf.ts`, que ya usaba el signo correcto, y con `cadImagePlotPlacement`, que ya lo documentaba. |
+| El corpus de dibujos ajenos | 3 | el corpus DXF sintético que ya existía (`build-dxf-external-corpus.mjs`) | Peldaño 4 exige oráculo ajeno: archivos de terceros con procedencia y permiso, y una matriz de entidades por archivo con las pérdidas declaradas. **Decisión del titular**, con su propuesta en el informe de la ola. |
+
 ## Cómo se usa
 
 - **Al añadir una entrada nueva a `BACKLOG.md`:** decir el peldaño ACTUAL

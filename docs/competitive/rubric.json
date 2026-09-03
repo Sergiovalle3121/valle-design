@@ -1,7 +1,7 @@
 {
   "$schema": "urn:valle-design:schema:cad-competitive-rubric:v1",
   "schemaVersion": 1,
-  "version": "2026-09-02.1",
+  "version": "2026-09-03.1",
   "title": "Rúbrica competitiva CAD — Valle Design frente a AutoCAD 2027",
   "cutoffDate": "2026-08-22",
   "totalPoints": 271,
@@ -481,7 +481,7 @@
       "scope": "hoy",
       "name": "Trabajo ajeno: tomar el plano de otro y trabajar sobre él",
       "points": 6,
-      "gap": "Ola D (2026-09-02). Medido antes (distancia-autocad-completo-20260901.md, FRENTE 3): la PRUEBA DE DESPACHO —recibir un DWG, unir 34 líneas mal empatadas y obtener perímetro y superficie— fallaba en el primer paso porque no existía HPGAPTOL y los dos llamadores de `stitchCadBoundaryPaths` pasaban un solo argumento; Ctrl+C sobre lo nativo duplicaba en el sitio mientras el botón prometía un portapapeles; y SELECTSIMILAR, ADDSELECTED, XPLODE, SETBYLAYER, CHPROP y NCOPY no estaban en el registro. Lo que sigue en «todavía no»: el portapapeles no toca el del sistema (ni PASTESPEC ni PASTEBLOCK), la tolerancia de hueco no se guarda en el sombreado (nace no asociativo y el prompt lo dice: guardarla es tocar el formato persistido, decisión del titular), SELECTSIMILARMODE no existe (siempre tipo, capa y bloque) y NCOPY sólo copia desde inserciones.",
+      "gap": "Ola D (2026-09-02). Medido antes (distancia-autocad-completo-20260901.md, FRENTE 3): la PRUEBA DE DESPACHO —recibir un DWG, unir 34 líneas mal empatadas y obtener perímetro y superficie— fallaba en el primer paso porque no existía HPGAPTOL y los dos llamadores de `stitchCadBoundaryPaths` pasaban un solo argumento; Ctrl+C sobre lo nativo duplicaba en el sitio mientras el botón prometía un portapapeles; y SELECTSIMILAR, ADDSELECTED, XPLODE, SETBYLAYER, CHPROP y NCOPY no estaban en el registro. Lo que sigue en «todavía no»: el portapapeles no toca el del sistema (ni PASTESPEC ni PASTEBLOCK), la tolerancia de hueco no se guarda en el sombreado (nace no asociativo y el prompt lo dice: guardarla es tocar el formato persistido, decisión del titular), SELECTSIMILARMODE no existe (siempre tipo, capa y bloque) y NCOPY sólo copia desde inserciones. Ola 2 (2026-09-03): la cadena entera —AUDIT · PURGE · LAYTRANS · CHECKSTANDARDS · ETRANSMIT— tiene por fin prueba COMO CADENA sobre un mismo dibujo (golden 88), afirmando sobre el documento del servidor y sobre los bytes del paquete. Lo que sigue en «todavía no»: el dibujo ajeno de la prueba lo siembra la propia prueba; medir con archivos de terceros reales pide permiso para redistribuirlos, y es decisión del titular.",
       "criteria": [
         {
           "id": "foreign-work.gap-tolerance",
@@ -834,7 +834,7 @@
       "group": "core",
       "name": "MTEXT y texto",
       "points": 9,
-      "gap": "Ninguna .shx se resuelve —se sustituyen todas, y el artefacto de fidelidad lo mide (ISOCPEUR→helvetica)—. Además la maqueta mide con los valores de la ENTIDAD, no del tramo, y el espaciado entre caracteres y las sangrías siguen sin interpretarse.",
+      "gap": "Ola 2 (2026-09-03): las cinco .shx comunes —txt, simplex, romans, isocp, monotxt— YA no se sustituyen: se dibujan con los trazos Hershey (dominio público del gobierno de EE. UU.) en el visor, en la lámina y en el PDF, medido sobre los bytes del archivo. Lo que sigue en «todavía no»: las anchuras son las de Hershey y no las del binario .shx (metricsDiffer: true, declarado rótulo a rótulo en el informe de fuentes); no se interpreta el formato .shx; un rótulo con máscara de fondo se queda como texto porque el PDF de trazado dibuja todo camino con «S» y perder la máscara sería peor que perder el trazo; y la maqueta sigue midiendo con los valores de la ENTIDAD, no del tramo, con el espaciado entre caracteres y las sangrías sin interpretar.",
       "criteria": [
         {
           "id": "mtext.entity",
@@ -925,13 +925,26 @@
         {
           "id": "mtext.stroke-fonts",
           "points": 1,
-          "text": "Una fuente de trazos (SHX o equivalente de dominio público) resuelve glifos de verdad en vez de sustituirse",
+          "text": "Una fuente de trazos (SHX o equivalente de dominio público) resuelve glifos de verdad —cada letra dibuja algo distinto, ÁÉÍÓÚÜÑ °±Ø¿¡ incluidos— y llega así al visor, a la lámina y a los BYTES del PDF",
           "costDays": 6,
-          "rationale": "El criterio anterior decía «fuentes SHX/TTF resueltas» y su spec sólo probaba los códigos de control: el artefacto de fidelidad de trazado declara que TODA .shx se sustituye (ISOCPEUR→helvetica, medido). El punto de la resolución se separa y falla hasta que una spec demuestre glifos resueltos.",
+          "rationale": "El criterio anterior decía «fuentes SHX/TTF resueltas» y su spec sólo probaba los códigos de control. Ola 2: la evidencia es de contenido en los tres sitios — stroke-font-resolution.spec.ts afirma glifos distintos y cobertura del juego mexicano; plot-shx-pdf.spec.ts lee el PDF y comprueba que el rótulo YA no viaja como texto (13 → 69 segmentos de camino, 0 avisos de sustitución); y el grep fija que la conversión ocurre en el trabajo de trazado, no sólo en una función suelta que nadie llama — que fue la lección de la ola 1.",
           "evidence": [
             {
               "kind": "spec",
               "path": "apps/web/src/lib/cad/stroke-font-resolution.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/plot/plot-shx-pdf.spec.ts"
+            },
+            {
+              "kind": "imported",
+              "module": "apps/web/src/lib/cad/plot/plot-stroke-text"
+            },
+            {
+              "kind": "grep",
+              "path": "apps/web/src/lib/cad/plot/plot-job.ts",
+              "pattern": "cadStrokeSheetText"
             }
           ]
         }
@@ -1347,7 +1360,7 @@
       "group": "core",
       "name": "Layouts, viewports y publicación",
       "points": 10,
-      "gap": "Cerrado en la Ola 2: PAGESETUP recoloca la ventana al cambiar el papel (Ola 1, medido en cero segmentos fuera) y el sombreado llega al PDF con su patrón, con guarda de densidad que degrada a contorno avisando.",
+      "gap": "Cerrado en la Ola 2: PAGESETUP recoloca la ventana al cambiar el papel (Ola 1, medido en cero segmentos fuera) y el sombreado llega al PDF con su patrón, con guarda de densidad que degrada a contorno avisando. Ola 2 (2026-09-03): los rótulos de una .shx llegan al papel como TRAZOS y el giro de un rótulo en el papel pasa a ser el del dibujo — a 90° el coeficiente `b` de la matriz `Tm` del PDF pasa de −1 (se leía hacia abajo) a +1. Lo que sigue en «todavía no»: `drawCommand` dibuja todo camino con «S», así que un sombreado sólido y una máscara de fondo no se RELLENAN en el PDF de trazado.",
       "criteria": [
         {
           "id": "layouts.paper-space",
@@ -1825,7 +1838,7 @@
       "group": "pro",
       "name": "Xrefs",
       "points": 6,
-      "gap": "Sin bind, sin resolución de recursos y sin comandos.",
+      "gap": "Ola 2 (2026-09-03): XATTACH adjunta de verdad tecleado, por dos caminos —biblioteca cargada, o petición de anfitrión con activo, revisión, modo, punto, escala y giro ya resueltos—, y el golden lo afirma sobre el documento que recibe el servidor. Lo que sigue en «todavía no»: el motor no tiene CATÁLOGO del inquilino, así que «?» no puede listar los dibujos disponibles y pide que se escriba el activo; publicarlo en `context.xrefCatalog` vive en el monolito.",
       "criteria": [
         {
           "id": "xrefs.document",
@@ -1862,7 +1875,7 @@
         {
           "id": "xrefs.commands",
           "points": 2,
-          "text": "XREF, XATTACH, XBIND y XCLIP tecleables",
+          "text": "XREF, XATTACH, XBIND y XCLIP tecleables — y XATTACH deja la referencia en el documento que recibe el servidor",
           "costDays": 4,
           "evidence": [
             {
@@ -1880,6 +1893,14 @@
             {
               "kind": "command",
               "name": "XCLIP"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/components/cad/command-line/xref-host.spec.ts"
+            },
+            {
+              "kind": "golden",
+              "path": "apps/web/e2e/golden/87-cad-xattach-tecleado.spec.ts"
             }
           ]
         }

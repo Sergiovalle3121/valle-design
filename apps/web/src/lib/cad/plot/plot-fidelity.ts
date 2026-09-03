@@ -394,6 +394,7 @@ export async function measureCadPlotFidelity(
     titleBlocks: job.titleBlocks,
     fontUsage: job.fontUsage,
     fontByEntity: job.fontByEntity,
+    strokedFamilies: job.strokedFamilies,
     ...(input.fontPrograms ? { fonts: input.fontPrograms } : {}),
     metadata: { title: "Patrón de fidelidad" },
   });
