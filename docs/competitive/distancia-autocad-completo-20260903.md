@@ -1061,3 +1061,19 @@ de la que se pidió. Queda escrito en el `todavía no` de la fila, con lo que fa
 que BEDIT sea ese editor, y editar en sitio una referencia **girada o escalada**
 —que hoy se niega por su nombre, porque devolver geometría girada no es
 trasladarla y hacerlo «casi» deja un bloque de biblioteca torcido para siempre—.
+
+### Y BEDIT deja de ser una puerta
+
+La misma nota de arriba decía que el criterio no se otorgaba porque pedía *«BEDIT
+como editor real, no como puerta al panel»*. Ahora lo es: con una referencia
+designada o seleccionada, **BEDIT abre la definición en sitio** sobre su punto de
+inserción; con un nombre, con Intro, sobre un bloque sin geometría o sobre una
+referencia girada o escalada sigue abriendo el panel **y dice por qué**, en vez
+de dejar al usuario preguntándose por qué esta vez fue distinto.
+
+`blocks.bedit` se otorga. La fila `blocks` llega así a su tope de capacidad y
+queda en **8/9 reteniendo 1 pt** por la misma regla que otras veintiocho: toda su
+evidencia es propia. Las cifras totales no se mueven —HOY 176/197 (89,3 %),
+DESTINO 232/271 (85,6 %)— porque el punto ganado es exactamente el que la
+retención descuenta. Se dice así, con el mecanismo a la vista, en vez de anunciar
+una subida que la rúbrica no concede.
