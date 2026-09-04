@@ -24,6 +24,11 @@ ni recontar líneas: `command-summaries.ts:248` (P-tresd-01) y `:214`
 (P-tresd-03) y `:175` (P-tresd-04) conservan íntegras las celdas citadas.
 Ninguno de esos archivos se tocó desde este frente.
 
+**Nota del coordinador (2026-09-04, ventana de integración).** Ese párrafo describe el
+cierre de F3; desde entonces el grupo A de la ventana aplicó P-tresd-01 y la mitad de
+P-tresd-03 que vive en `command-summaries.ts`. El estado de cada petición, abajo, manda
+sobre el recuento de este párrafo.
+
 ### P-tresd-01 · El resumen de SOLIDEDIT nombra tres ramas que ya no son todas
 - **Archivo:** `apps/web/src/lib/cad/engine/command-summaries.ts` (línea 248)
 - **Por qué:** entrega 1 de la cola («SOLIDEDIT: tres ramas más»). El resumen que
@@ -61,7 +66,11 @@ Ninguno de esos archivos se tocó desde este frente.
   ausentes), y `npx tsx src/lib/cad/solid3d-frontera.spec.ts` (279
   comprobaciones: las dieciséis ramas de SOLIDEDIT y los 52 caminos de las ocho
   primitivas, cada uno conducido hasta su efecto o hasta su límite).
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04, ventana de integración, grupo A). Con un desvío: el
+  texto pedido medía 124 caracteres y `command-summaries.spec.ts` corta la línea de paleta
+  en 110. Se acortó el texto, nunca el gate: queda «Sólidos: extruir, desfasar o copiar una
+  cara, copiar aristas, comprobar, separar, limpiar o vaciar un cuerpo.» (109), que nombra
+  las ocho ramas y conserva la distinción cara / arista / cuerpo.
 
 ### P-tresd-02 · `CAD_ACCEPT_EDGE_PICK`: designar UNA arista
 - **Archivo:** `apps/web/src/lib/cad/engine/command-types.ts`
@@ -150,7 +159,11 @@ Ninguno de esos archivos se tocó desde este frente.
   con el volumen de cada modo contra papel y la corrección de faceta en número)
   y `npm run check:command-integrity`. No hay comando nuevo: ni el registro, ni
   la cinta, ni `docs/cad/evidence/ui-command-reach.json` cambian.
-- **Estado:** pendiente
+- **Estado:** aplicada 1/2 (2026-09-04, ventana de integración, grupo A). El renglón de
+  `command-summaries.ts` (POLYSOLID) queda sustituido tal cual se pidió. La parte 2/2
+  —`docs/parity/ESCALERA.md`, línea 174— NO se aplica en este grupo por decisión del
+  coordinador: la ESCALERA se reescribe al final de la ventana con la foto completa, no a
+  trozos por grupo. Sigue pendiente ahí.
 
 ### P-tresd-04 · La ESCALERA declara ausente un SOLIDEDIT que ya tiene ocho ramas
 - **Archivo:** `docs/parity/ESCALERA.md` (archivo compartido prohibido: lo aplica

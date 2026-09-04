@@ -176,7 +176,12 @@ petición todavía es un hueco reservado, no un descuido.
   `node scripts/cad/check-ribbon-coverage.mjs` y `node scripts/cad/ui-command-reach.mjs --check`
   cierran el alcance con ratón; `apps/web/src/lib/cad/engine/command-summaries.spec.ts` cierra el
   contrato fail-closed de los resúmenes.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04, ventana de integración, grupo A). Los diez descriptores
+  entran por `CAD_PDF_UNDERLAY_COMMANDS`, con sus diez resúmenes, sus diez alias y los dos
+  patrones de cinta pedidos; `ui-command-reach.json` regenerado, no escrito a mano. Un paso
+  que la petición no preveía: `command-icons.spec.ts` es fail-closed igual que los resúmenes
+  —todo comando registrado tiene su icono— así que las diez llevan icono nuevo en
+  `components/cad/ribbon/command-icons.ts`.
 
 ### P-express-04 · Petición de anfitrión `compare-fetch` para COMPARE sin biblioteca precargada
 
@@ -294,7 +299,11 @@ petición todavía es un hueco reservado, no un descuido.
   hay, sin «hecho» vacío—; `node scripts/cad/check-ribbon-coverage.mjs` y
   `node scripts/cad/ui-command-reach.mjs --check` cierran el alcance con ratón;
   `apps/web/src/lib/cad/engine/command-summaries.spec.ts` cierra el contrato fail-closed.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04, ventana de integración, grupo A). Con dos desvíos
+  anotados: (a) la tabla de alias no tiene hoy un «bloque de gestión junto a
+  `AUDITORIA`/`PURGAR`» —esos dos alias no existen—, así que `COMPARAR` y `DWGCOMPARE` abren
+  una sección `gestión` propia antes de la de interoperabilidad; (b) el panel nuevo
+  «Comparar» obligó a darle icono en `ribbon-icons.ts`, que es fail-closed por panel.
 
 ### P-express-06 · Registrar las cinco Express Tools puras
 
@@ -374,7 +383,16 @@ petición todavía es un hueco reservado, no un descuido.
   `node scripts/cad/ui-command-reach.mjs --check` cierran el alcance con ratón;
   `apps/web/src/lib/cad/engine/command-summaries.spec.ts` cierra el contrato fail-closed;
   `npx tsx apps/web/src/lib/cad/engine/commands/express-tools.spec.ts` sigue en 99.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04, ventana de integración, grupo A). Con un desvío que el
+  registro destapó al cablearlas: `FLATTEN` declaraba el alias `APLANAR`, que ya es de
+  `FLATSHOT` desde antes y con su spec (`solids-flatshot.spec.ts`: «APLANAR → FLATSHOT»).
+  El registro rechaza un alias que apunta a dos comandos, así que `FLATTEN` pasa a
+  `APLASTAR` —que es además lo que su propio resumen dice que hace— en el descriptor y en
+  la tabla. Y una medida que no cuadra con lo previsto: de las cinco sólo `BREAKLINE` sale
+  «muta» en `check:command-integrity`; `FLATTEN`, `LAYDEL`, `TCOUNT` y `TXT2MTXT` salen
+  «honesto-limitado» porque la sonda las alcanza sin designación y ellas lo declaran. Ni
+  ROJO ni exentas: el gate pasa, pero la frase «las cinco MUTAN» de esta petición no era
+  cierta.
 
 ### P-express-07 · Dos defectos de `unit-format.ts` que la ida y vuelta destapó
 
