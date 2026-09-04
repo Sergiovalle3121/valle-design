@@ -20,8 +20,7 @@
  * no se decima y la cota de error en el único en que sí.
  */
 import { strict as assert } from "node:assert";
-import type { CadEntity } from "./cad-document";
-import { CAD_ENTITY_REGISTRY } from "./entity-runtime";
+import { CAD_ENTITY_REGISTRY, type CadNativeEntity } from "./entity-runtime";
 
 let verdes = 0;
 const ok = (condicion: unknown, mensaje: string) => {
@@ -40,15 +39,15 @@ function serpentea(
   largo: number,
   ruido: number,
   extra: Record<string, unknown> = {},
-): CadEntity {
+): CadNativeEntity {
   const vertices = Array.from({ length: n }, (_, index) => ({
     x: (index / (n - 1)) * largo,
     y: index % 2 === 0 ? ruido : -ruido,
   }));
-  return { id, type: "polyline", vertices, closed: false, layer: "0", ...extra } as unknown as CadEntity;
+  return { id, type: "polyline", vertices, closed: false, layer: "0", ...extra } as unknown as CadNativeEntity;
 }
 
-const dibuja = (entity: CadEntity, segments: number) =>
+const dibuja = (entity: CadNativeEntity, segments: number) =>
   CAD_ENTITY_REGISTRY.adapter(entity).renderer.paths(entity, segments)[0].points;
 
 // --- 1 · el ruido subpíxel se va, y los extremos se quedan -----------------
