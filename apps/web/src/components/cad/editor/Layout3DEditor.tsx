@@ -172,13 +172,11 @@ import {
   cadSnapSceneAddEntities,
   cadSnapSceneFromBoxes,
 } from "@/lib/cad/snap-scene";
-import { cadPdfBytesFromDataUri } from "@/lib/cad/pdf/pdf-attach-payload";
-import { cadPdfUnderlayOf } from "@/lib/cad/pdf/pdf-underlay";
-import {
-  cadPdfSnapGeometry,
-  cadPdfSnapSceneAdd,
-  type CadPdfSnapGeometryResult,
-} from "@/lib/cad/pdf/pdf-snap-geometry";
+// El parser de PDF (56,3 KB) entraba por AQUÍ además de por el registro; ahora
+// llega por `pdf/lazy.ts` si el plano trae sustrato. Ver su cabecera.
+import { cadEntityCarriesPdfUnderlay } from "@/lib/cad/pdf/underlay-key";
+import { cadPdfSnapIfLoaded, loadCadPdfSnap } from "@/lib/cad/pdf/lazy";
+import type { CadPdfSnapGeometryResult } from "@/lib/cad/pdf/pdf-snap-geometry";
 import { detectCadFormat } from "@/components/cad/interop/cad-format-detect";
 import type { PlotLayout } from "@/components/cad/plot/plot-scale";
 import { createHistoryItem as createCadHistoryItem } from "@/lib/cad/commands/history";
@@ -2807,6 +2805,9 @@ export default function Layout3DEditor({
           })),
         );
         setPublicationRecords([...loadedCadDocumentRef.current.publications]);
+        // El parser se adelanta si el documento trae sustrato de verdad.
+        if (loadedCadDocumentRef.current.entities.some(cadEntityCarriesPdfUnderlay))
+          void loadCadPdfSnap();
         // El canje del review link NO vive aquí: ver el efecto de montaje
         // `redeemReviewLink`. Colgarlo de esta rama lo ataba a que el
         // documento canónico cargara, y un invitado que llega con un enlace
@@ -6541,11 +6542,16 @@ export default function Layout3DEditor({
             if (e.type === "image") laminas += 1;
           if (memoriaPdf.size > laminas) memoriaPdf.clear();
         }
+        const pdf = cadPdfSnapIfLoaded();
         for (const entidad of documentoVivo?.entities ?? []) {
           if (entidad.type !== "image") continue;
-          const ficha = cadPdfUnderlayOf(entidad);
+          // Sin ficha no hay sustrato. Con ficha y sin parser se pide una vez y
+          // se sale: hasta que llegue, el sustrato no imanta y el resto sí.
+          if (!cadEntityCarriesPdfUnderlay(entidad)) continue;
+          if (!pdf) { void loadCadPdfSnap(); break; }
+          const ficha = pdf.cadPdfUnderlayOf(entidad);
           if (!ficha || ficha.status !== "loaded") continue;
-          const bytes = cadPdfBytesFromDataUri(ficha.uri);
+          const bytes = pdf.cadPdfBytesFromDataUri(ficha.uri);
           // Una ruta que no es `data:` —`tenant-asset://`, el día que haya
           // almacén— se salta: resolverla es petición de anfitrión (P-express-01)
           // y leerla aquí metería una espera en el camino del ratón.
@@ -6558,13 +6564,13 @@ export default function Layout3DEditor({
           const geometria =
             guardado?.firma === firma
               ? guardado.geometria
-              : cadPdfSnapGeometry(documentoVivo!, entidad.id, bytes);
+              : pdf.cadPdfSnapGeometry(documentoVivo!, entidad.id, bytes);
           if (guardado?.firma !== firma)
             memoriaPdf.set(entidad.id, { firma, geometria });
           // La ventana por cursor no es adorno: `resolveOsnap` cruza los tramos
           // entre sí buscando intersecciones, que es O(n²), y una lámina de
           // arquitectura tiene miles.
-          cadPdfSnapSceneAdd(scene, geometria, { cursor: { x: wx, y: wy }, radius: tol * 8 });
+          pdf.cadPdfSnapSceneAdd(scene, geometria, { cursor: { x: wx, y: wy }, radius: tol * 8 });
         }
         const hit = resolveOsnap({ x: wx, y: wy }, scene, {
           tolerance: tol,

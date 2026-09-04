@@ -36,7 +36,7 @@
  *   que promete mutar. Ésos son los que el gate no deja pasar.
  */
 import { writeFileSync } from "node:fs";
-import { CAD_COMMAND_REGISTRY_V2 } from "../src/lib/cad/engine";
+import { CAD_COMMAND_REGISTRY_V2, cadWarmAllCommands } from "../src/lib/cad/engine";
 import {
   cadCommandEngineReduce,
   EMPTY_CAD_COMMAND_ENGINE,
@@ -352,6 +352,19 @@ function runCommand(name: string): ProbeOutcome {
     ...(note ? { note } : {}),
   };
 }
+
+/**
+ * Las 291 implementaciones, TRAÍDAS ENTERAS antes de ejecutarlas.
+ *
+ * Desde 2026-09-04 la máquina de estados `begin`/`step` llega a demanda
+ * (`engine/lazy-commands.ts`) para que abrir un plano no descargue las 291. Eso
+ * es una decisión de CARGA en el navegador; aquí, en Node, cargarlas todas no
+ * cuesta nada. Esta línea NO es una exención ni una cuarentena: la sonda sigue
+ * ejecutando los 291 comandos REALES, uno por uno, con el mismo reductor del
+ * producto. Sin ella la sonda mediría el envoltorio perezoso en vez del
+ * comando, que es justamente el «éxito sin efecto» que existe para prohibir.
+ */
+await cadWarmAllCommands();
 
 const names = [...CAD_COMMAND_REGISTRY_V2.names()].sort();
 const outcomes: ProbeOutcome[] = [];

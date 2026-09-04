@@ -29,7 +29,7 @@ import { registerCadUiHandler, requestCadUi } from "@/components/cad/palettes/pa
 import { cadActionScript } from "@/lib/cad/automation/action-recorder";
 import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
-import { runCadScript } from "@/lib/cad/script-runner";
+import { parseCadScript, runCadScript } from "@/lib/cad/script-runner";
 import type { CadVariableAccess } from "@/lib/cad/system-variables";
 import type { CadHostRequest } from "@/lib/cad/engine/host-requests";
 import type { CadView } from "@/lib/cad/view/cad-view";
@@ -497,9 +497,15 @@ export function useCadStudioCommandEngine(
     session,
     useCallback(
       (name: string, text: string) => {
-        const report = runCadScript(text, engine);
-        for (const warning of report.warnings) engine.note(warning, "error");
-        engine.note(`${name}: ${report.executed} renglón(es) ejecutado(s).`, "info");
+        // Las implementaciones ANTES de empujar renglones. Un `.scr` entra de
+        // golpe y lee `busy` al final para saber si quedó un comando a medias;
+        // esa lectura sólo dice la verdad si ya está todo lo que va a usar
+        // (`engine/lazy-commands.ts`). El aviso de fallo lo da el anfitrión.
+        void engine.warmCommands(parseCadScript(text).map((entry) => entry.token)).then(() => {
+          const report = runCadScript(text, engine);
+          for (const warning of report.warnings) engine.note(warning, "error");
+          engine.note(`${name}: ${report.executed} renglón(es) ejecutado(s).`, "info");
+        });
       },
       [engine],
     ),
@@ -606,14 +612,19 @@ function useCadActionRecorder(engine: CadCommandEngineHost): void {
             );
             return true;
           }
-          engine.replay(() => {
-            const report = runCadScript(cadActionScript(macro), engine);
-            for (const warning of report.warnings) engine.note(warning, "error");
-            engine.note(
-              `ACTMANAGER: «${macro.name}» repetido, ${report.executed} renglón(es).`,
-              "info",
-            );
-          });
+          const script = cadActionScript(macro);
+          void engine
+            .warmCommands(parseCadScript(script).map((entry) => entry.token))
+            .then(() => {
+              engine.replay(() => {
+                const report = runCadScript(script, engine);
+                for (const warning of report.warnings) engine.note(warning, "error");
+                engine.note(
+                  `ACTMANAGER: «${macro.name}» repetido, ${report.executed} renglón(es).`,
+                  "info",
+                );
+              });
+            });
           return true;
         }
         return false;

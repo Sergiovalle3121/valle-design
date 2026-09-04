@@ -42,6 +42,8 @@ import {
   CAD_ACCEPT_SELECTION,
   CAD_ACCEPT_TEXT,
   CAD_COMMAND_REGISTRY_V2,
+  cadCommandIfLoaded,
+  loadCadCommand,
   type CadCommandContext,
   type CadCommandRegistry,
   type CadCommandInput,
@@ -455,6 +457,22 @@ export function runCommand(
    * escribió sobraría: `(command "ERASE" ss "")` fallaría por argumentos de
    * más. El conjunto entra como ENTRADA, que es su sitio.
    */
+  // La IMPLEMENTACIÓN llega a demanda (`engine/lazy-commands.ts`) y este
+  // evaluador es síncrono: no puede esperar a un `import()` a mitad de una
+  // expresión. Quien invoca una rutina calienta el registro entero antes
+  // (`CadCommandEngineHost.cargaPendiente`, marca `"lisp"`), así que llegar aquí
+  // sin implementación significa que la rutina se evaluó por otra puerta. Se
+  // dice, en vez de fallar luego por «sobran argumentos», que no explica nada.
+  if (registry === CAD_COMMAND_REGISTRY_V2 && !cadCommandIfLoaded(descriptor.name)) {
+    void loadCadCommand(descriptor.name).catch(() => {
+      /* el siguiente intento lo vuelve a pedir; el renglón ya avisó */
+    });
+    throw new LispError(
+      `command: "${descriptor.name}" todavía no terminó de cargar. Se está trayendo ahora; ` +
+        `vuelva a ejecutar la rutina en un instante.`,
+    );
+  }
+
   const context = commandContext(host, []);
   let step = descriptor.begin(context) as CadCommandStep<unknown>;
 
