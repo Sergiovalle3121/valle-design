@@ -4,9 +4,15 @@
  *
  *   - STDPART: Intro toma Tornillo M10 × 40; la inserción se escala a la
  *     unidad del documento (0,001 en metros); M11 se rechaza enumerando.
+ *   - STDPART rodamiento y chaveta: el 6204 sale como MECH-RODAMIENTO-6204 y
+ *     dice que va con la representación simplificada de ISO 8826-1; un eje de
+ *     Ø25 pide 8 × 7 y uno de Ø40, 12 × 8; el 6404 se rechaza enumerando; y los
+ *     dos insertados salen como dos posiciones de la lista de materiales.
  *   - STEELSHAPE: PTR con los defaults, IPR tecleado, medidas imposibles.
  *   - BALLOON sobre un INSERT se queda con su bloque y numera solo; BOM la
  *     cuenta; sin normalizados se niega diciéndolo.
+ *   - BOM Actualizar: con la tabla de ayer en el dibujo y una pieza más, UN
+ *     reemplazo con el id intacto y las celdas de hoy; sin tabla se niega.
  *   - WELDSYMBOL y SURFACESYMBOL con todas sus opciones y con Intro.
  *   - DIMTOLERANCE: Ajuste H7 sobre una cota de 40 → «40.00 +0.025/0 mm»;
  *     simétrica, desviaciones, límites, Quitar; los rechazos.
@@ -21,7 +27,8 @@ import { resolveCadCommandAlias } from "../alias-table";
 import { cadDimensionToleranceOf } from "../../dimension-tolerance";
 import { buildCadDimensionGeometry } from "../../associative-dimension";
 import { cadBalloonMetadata } from "../../mechanical-symbols";
-import { cadMechanicalBlockDefinition, cadMechanicalBolt } from "../../mechanical-parts";
+import { buildCadMechanicalBom, buildCadMechanicalBomTable } from "../../mechanical-bom";
+import { cadMechanicalBlockDefinition, cadMechanicalBolt, cadMechanicalNut } from "../../mechanical-parts";
 import { cadParseSignedNumber } from "./dimension-tolerance";
 
 // Las implementaciones de los comandos llegan a demanda en el navegador
@@ -143,6 +150,88 @@ const insertOf = (commands: readonly { type: string }[]) => {
   eq(insertOf(washer.commands).block, "MECH-RONDANA-M8", "la rondana no pide largo");
 }
 
+/* ── STDPART · rodamiento y chaveta ─────────────────────────────────────── */
+{
+  // El primer prompt: cinco familias, letras de acceso distintas, y Tornillo
+  // por defecto — que es lo que el golden 84 teclea a golpe de Intro.
+  const begun = CAD_COMMAND_REGISTRY_V2.get("STDPART")!.begin(makeContext());
+  eq(begun.prompt.options.map((option) => option.keyword), ["Tornillo", "tueRca", "rOndana", "roDamiento", "Chaveta"], "las cinco familias, en su orden");
+  eq(begun.prompt.defaultOption, "Tornillo", "Intro sigue tomando Tornillo: STDPART se completa como antes");
+  eq(new Set(begun.prompt.options.map((option) => option.shortcut)).size, 5, "cinco letras de acceso distintas: T, R, O, D, C");
+
+  const driven = drive("STDPART", [keyword("roDamiento"), enter, point(100, 200), enter]);
+  eq(driven.prompts.slice(0, 4), [
+    "Indique el normalizado",
+    "Precise la designación del rodamiento (ISO 15: 6200 a 6212, 6300 a 6312)",
+    "Rodamiento rígido de bolas 6204 (20 × 47 × 14) (ISO 15). Precise el punto de inserción",
+    "Ángulo de rotación",
+  ], "el rodamiento se pide por su designación, no por una métrica");
+  const { commands, notice } = written(driven, "STDPART");
+  const bearing = insertOf(commands);
+  eq([bearing.block, bearing.insertion, bearing.layer], ["MECH-RODAMIENTO-6204", { x: 100, y: 200, z: 0 }, "PIEZAS"], "el 6204 en su punto, con id de bloque estable");
+  const definition = (commands.find((command) => command.type === "block") as { definition: CadBlockDefinition }).definition;
+  eq(definition.description, "Rodamiento rígido de bolas 6204 (20 × 47 × 14) · ISO 15", "denominación y norma donde la lista de materiales ya sabe leerlas");
+  eq(definition.entities.length, 6, "las dos medias secciones simplificadas");
+  ok(notice.includes("representación simplificada ISO 8826-1 (el conjunto no dibuja pistas ni bolas)"), "la orden DICE con qué está dibujado en vez de fingir el detalle");
+
+  eq(insertOf(written(drive("STDPART", [keyword("roDamiento"), text("6304"), point(0, 0), enter]), "STDPART").commands).block, "MECH-RODAMIENTO-6304", "la serie media, tecleada");
+  eq(insertOf(written(drive("STDPART", [keyword("roDamiento"), text(" 6210 "), point(0, 0), enter]), "STDPART").commands).block, "MECH-RODAMIENTO-6210", "con espacios de sobra, la misma designación");
+  const rechazo = messageOf(drive("STDPART", [keyword("roDamiento"), text("6404")]));
+  ok(rechazo.includes("El rodamiento 6404 no está en el catálogo"), "una designación fuera de catálogo se rechaza");
+  ok(rechazo.includes("6200, 6201, 6202") && rechazo.includes("6312"), "…ENUMERANDO las que hay, mismo criterio que M11");
+
+  const enMetros = written(drive("STDPART", [keyword("roDamiento"), enter, point(1, 2), enter], makeContext({ unit: "m" })), "STDPART");
+  ok(near(insertOf(enMetros.commands).scale.x, 0.001), "en un dibujo en metros el rodamiento entra a 0,001: el catálogo está en mm");
+}
+{
+  const driven = drive("STDPART", [keyword("Chaveta"), enter, enter, point(300, 0), enter]);
+  eq(driven.prompts.slice(0, 5), [
+    "Indique el normalizado",
+    "Precise el diámetro del eje (mm); él manda la sección de la chaveta",
+    "Precise la longitud de la chaveta (mm)",
+    "Chaveta paralela A 8 × 7 × 40 (cuñero: eje t1 4, cubo t2 3.3) (ISO 773 / DIN 6885). Precise el punto de inserción",
+    "Ángulo de rotación",
+  ], "el eje manda la sección; t1 y t2 salen en la denominación antes de insertar");
+  const { commands, notice } = written(driven, "STDPART");
+  eq(insertOf(commands).block, "MECH-CHAVETA-8x7x40", "un eje de Ø25 pide chaveta 8 × 7");
+  ok(notice.includes("para eje Ø25 (ISO 773 da esta sección de más de 22 y hasta 30 mm)"), "y la orden dice de qué intervalo salió");
+  eq((commands.find((command) => command.type === "block") as { definition: CadBlockDefinition }).definition.entities.length, 4, "dos flancos y dos extremos redondeados de la forma A");
+
+  const eje40 = written(drive("STDPART", [keyword("Chaveta"), distance(40), distance(50), point(0, 0), enter]), "STDPART");
+  eq(insertOf(eje40.commands).block, "MECH-CHAVETA-12x8x50", "y uno de Ø40 pide 12 × 8");
+  eq(insertOf(written(drive("STDPART", [keyword("Chaveta"), distance(30), distance(40), point(0, 0), enter]), "STDPART").commands).block, "MECH-CHAVETA-8x7x40", "«hasta 30» incluye el 30: sigue siendo 8 × 7");
+
+  const fuera = messageOf(drive("STDPART", [keyword("Chaveta"), distance(200)]));
+  ok(fuera.includes("Un eje de Ø200 queda fuera de la tabla de chavetas de ISO 773"), "un eje fuera de la tabla se rechaza");
+  ok(fuera.includes("más de 6 mm y hasta 130 mm"), "…diciendo hasta dónde llega la tabla");
+  ok(messageOf(drive("STDPART", [keyword("Chaveta"), distance(25), distance(8)])).includes("una longitud de 8 no pasa del ancho b = 8"), "una chaveta tan corta como ancha se niega, y se dice por qué");
+
+  const fueraDeSerie = written(drive("STDPART", [keyword("Chaveta"), distance(25), distance(41), point(0, 0), enter]), "STDPART");
+  eq(insertOf(fueraDeSerie.commands).block, "MECH-CHAVETA-8x7x41", "una longitud fuera de serie se dibuja: la chaveta se corta a la medida del cuñero");
+  ok(fueraDeSerie.notice.includes("aviso: la longitud 41 no es de la serie de ISO 773, cuyas vecinas son 40 y 45"), "…pero se AVISA con las dos vecinas, sin elegir por el proyectista");
+}
+
+/* ── …y la lista de materiales los cuenta sin tocar mechanical-bom.ts ───── */
+{
+  const rodamiento = written(drive("STDPART", [keyword("roDamiento"), enter, point(0, 0), enter]), "STDPART");
+  const chaveta = written(drive("STDPART", [keyword("Chaveta"), enter, enter, point(200, 0), enter]), "STDPART");
+  const definiciones = [...rodamiento.commands, ...chaveta.commands]
+    .filter((command) => command.type === "block")
+    .map((command) => (command as { definition: CadBlockDefinition }).definition);
+  const insertados: CadEntity[] = [
+    { ...insertOf(rodamiento.commands), id: "e1" },
+    { ...insertOf(chaveta.commands), id: "e2" },
+  ];
+  const listado = drive("BOM", [point(9000, 0)], makeContext({ entities: insertados, blocks: definiciones }));
+  const { commands, notice } = written(listado, "BOM");
+  const table = (commands[0] as { entity: CadEntity }).entity;
+  assert.ok(table.type === "table");
+  const fila = (row: number) => table.cells.filter((cell) => cell.row === row).sort((a, b) => a.column - b.column).map((cell) => cell.text);
+  eq(fila(2), ["1", "1", "Chaveta paralela A 8 × 7 × 40 (cuñero: eje t1 4, cubo t2 3.3)", "ISO 773 / DIN 6885", "MECH-CHAVETA-8x7x40"], "la chaveta, con su cuñero, como posición 1");
+  eq(fila(3), ["2", "1", "Rodamiento rígido de bolas 6204 (20 × 47 × 14)", "ISO 15", "MECH-RODAMIENTO-6204"], "y el rodamiento como posición 2");
+  eq(notice, "BOM: 2 posición(es), 2 unidad(es), 0 globo(s) en (9000, 0).", "dos posiciones: la lista los cuenta sola, con el mismo prefijo MECH- de siempre");
+}
+
 /* ── STEELSHAPE ─────────────────────────────────────────────────────────── */
 {
   const driven = drive("STEELSHAPE", [enter, enter, enter, enter, point(0, 0), enter]);
@@ -201,6 +290,62 @@ const insertEntity = (id: string, block: string): CadEntity => ({ id, type: "ins
   ok(messageOf(drive("BOM", [point(0, 0)])).includes("no tiene normalizados"), "sin normalizados ni globos se niega diciéndolo");
   ok(messageOf(drive("BOM", [point(0, 0)], makeContext({ document: false }))).includes("no expone el documento"), "sin vista del documento se dice");
   ok(messageOf(drive("BOM", [enter])).includes("necesita un punto"), "Intro se niega");
+}
+
+/* ── BOM Actualizar ─────────────────────────────────────────────────────── */
+{
+  const nut = cadMechanicalBlockDefinition(cadMechanicalNut(10)!);
+  // La lista que BOM insertó ayer, cuando el dibujo tenía DOS tornillos y nada más.
+  const ayer = { entities: [insertEntity("i1", bolt.id), insertEntity("i2", bolt.id)], blocks: [bolt, nut] };
+  const tablaDeAyer = (id: string, insertion = { x: 5000, y: 0 }) =>
+    buildCadMechanicalBomTable(buildCadMechanicalBom(ayer), insertion, "LISTA", () => id) as CadEntity;
+
+  // Hoy alguien atornilló una tuerca: dos posiciones y tres unidades.
+  const hoy = [...ayer.entities, insertEntity("i3", nut.id)];
+  const tabla = tablaDeAyer("t1");
+  const driven = drive("BOM", [keyword("Actualizar")], makeContext({ entities: [...hoy, tabla], blocks: [bolt, nut] }));
+  eq(driven.prompts[0], "Precise el punto de inserción de la lista de materiales", "el mismo prompt: Actualizar es una opción, no otro comando");
+  const { commands, notice } = written(driven, "BOM Actualizar");
+  eq(commands.length, 1, "UN comando, no un borrado y una inserción");
+  const replaced = commands[0] as { type: "replace"; entityId: string; entity: CadEntity };
+  eq([replaced.type, replaced.entityId], ["replace", "t1"], "reemplazo POR SU ID: la tabla sigue siendo la misma entidad");
+  assert.ok(replaced.entity.type === "table", "y sigue siendo una tabla");
+  const celda = (row: number) => replaced.entity.type === "table" ? replaced.entity.cells.filter((c) => c.row === row).sort((a, b) => a.column - b.column).map((c) => c.text) : [];
+  eq([replaced.entity.id, replaced.entity.insertion, replaced.entity.layer], ["t1", { x: 5000, y: 0, z: 0 }, "LISTA"], "id, sitio y capa de la tabla de ayer, no los de la sesión de hoy");
+  eq(replaced.entity.rows, 4, "título, cabecera y dos posiciones");
+  eq(celda(2), ["1", "2", "Tornillo hexagonal M10 × 40", "ISO 4017", "MECH-TORNILLO-M10x40"], "los dos tornillos siguen siendo dos");
+  eq(celda(3), ["2", "1", "Tuerca hexagonal M10", "ISO 4032", "MECH-TUERCA-M10"], "y la tuerca de hoy entra como posición 2");
+  eq(notice, "BOM Actualizar: de 1 posición(es) y 2 unidad(es) a 2 posición(es) y 3 unidad(es).", "el renglón dice qué cambió, no «Hecho»");
+
+  // Lo que el dibujante ajustó a mano sobrevive al recálculo.
+  const ajustada = { ...(tablaDeAyer("t9") as Extract<CadEntity, { type: "table" }>), columnWidths: [900, 900, 3000, 900, 900], rotation: 15, style: "CUADROS", context: { handle: "2A", metadata: { mechanical: "bom", nota: "cajetín" } } } as CadEntity;
+  const conservada = written(drive("BOM", [keyword("Actualizar")], makeContext({ entities: [...hoy, ajustada], blocks: [bolt, nut] })), "BOM Actualizar").commands[0] as { entity: CadEntity };
+  assert.ok(conservada.entity.type === "table");
+  eq([conservada.entity.columnWidths, conservada.entity.rotation, conservada.entity.style], [[900, 900, 3000, 900, 900], 15, "CUADROS"], "ancho de columna, giro y estilo se conservan: la orden recalcula filas, no rediseña el cuadro");
+  eq([conservada.entity.context?.handle, conservada.entity.context?.metadata?.nota], ["2A", "cajetín"], "y el bolsillo de contexto conserva sus otras claves");
+
+  // Se borraron todas las piezas: la lista deja de decir dos.
+  const vaciada = written(drive("BOM", [keyword("Actualizar")], makeContext({ entities: [tablaDeAyer("t2")], blocks: [bolt, nut] })), "BOM Actualizar");
+  eq(vaciada.notice, "BOM Actualizar: de 1 posición(es) y 2 unidad(es) a 0 posición(es) y 0 unidad(es).", "sin piezas la lista dice cero, no se queda con la de ayer");
+
+  // Varias tablas del mismo dibujo: todas dicen la misma lista o el plano miente en una de ellas.
+  const dos = written(drive("BOM", [keyword("Actualizar")], makeContext({ entities: [...hoy, tablaDeAyer("t3"), tablaDeAyer("t4", { x: 9000, y: 0 })], blocks: [bolt, nut] })), "BOM Actualizar");
+  eq(dos.commands.map((command) => (command as { entityId: string }).entityId), ["t3", "t4"], "dos tablas, dos reemplazos");
+  eq(dos.notice, "BOM Actualizar: de 1 posición(es) y 2 unidad(es) a 2 posición(es) y 3 unidad(es) · 2 tabla(s) actualizada(s).", "…y el renglón las cuenta");
+
+  const alDia = buildCadMechanicalBomTable(buildCadMechanicalBom({ entities: hoy, blocks: [bolt, nut] }), { x: 9000, y: 0 }, "LISTA", () => "t5") as CadEntity;
+  const mixta = written(drive("BOM", [keyword("Actualizar")], makeContext({ entities: [...hoy, tablaDeAyer("t6"), alDia], blocks: [bolt, nut] })), "BOM Actualizar");
+  eq(mixta.commands.length, 1, "la que ya estaba al día no se reescribe: un paso de deshacer vacío es ruido");
+  eq(mixta.notice, "BOM Actualizar: de 1 posición(es) y 2 unidad(es) a 2 posición(es) y 3 unidad(es) · 1 ya al día.", "y se dice cuántas estaban al día");
+
+  const soloUno = { entities: [insertEntity("i1", bolt.id)], blocks: [bolt] };
+  const desigual = buildCadMechanicalBomTable(buildCadMechanicalBom(soloUno), { x: 9000, y: 0 }, "LISTA", () => "t7") as CadEntity;
+  const dispares = written(drive("BOM", [keyword("Actualizar")], makeContext({ entities: [...hoy, tablaDeAyer("t8"), desigual], blocks: [bolt, nut] })), "BOM Actualizar");
+  eq(dispares.notice, "BOM Actualizar: 2 tabla(s) que no decían lo mismo entre sí, ahora 2 posición(es) y 3 unidad(es).", "dos tablas que se contradecían no se resumen en un «antes» falso");
+
+  ok(messageOf(drive("BOM", [keyword("Actualizar")], makeContext({ entities: [...hoy, alDia], blocks: [bolt, nut] }))).includes("ya estaba al día (2 posición(es) y 3 unidad(es))"), "una lista al día no se reescribe, y se dice");
+  ok(messageOf(drive("BOM", [keyword("Actualizar")], makeContext({ entities: hoy, blocks: [bolt, nut] }))).includes("no tiene ninguna tabla de lista de materiales"), "sin tabla previa se niega diciendo el motivo");
+  ok(messageOf(drive("BOM", [keyword("Actualizar")], makeContext({ document: false }))).includes("no expone el documento"), "sin vista del documento se dice también al actualizar");
 }
 
 /* ── WELDSYMBOL ─────────────────────────────────────────────────────────── */

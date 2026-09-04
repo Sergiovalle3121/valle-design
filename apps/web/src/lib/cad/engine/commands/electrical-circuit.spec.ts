@@ -13,6 +13,17 @@
  * ampacidad pero se pasa de caída —6,1 %, calculado con los 20 A de la
  * protección, que es el máximo que el circuito puede llevar—; con 30 A no
  * cumple ni la ampacidad, por el tope del conductor pequeño del Art. 240-4(D).
+ *
+ * ## Lo que los bloques 7 a 9 añaden, y por qué se teclea también
+ *
+ * Que la Tabla 250-122 y el Art. 240-6(A) estén bien ya lo mide
+ * `circuit-check.spec.ts` contra la tabla. Aquí se comprueba lo otro: que salen
+ * por la ORDEN, en el renglón que el dibujante lee, DETRÁS del que resume el
+ * circuito —si fueran delante, el circuito aprobado perdería sus números— y con
+ * el límite reescrito, que ya no puede decir «sin tierra» porque sería falso.
+ * El bloque 9 teclea tres alimentadores enteros para ver los escalones de la
+ * tabla por el tablero y no sólo por la biblioteca: 60 A → 10 AWG, 100 A →
+ * 8 AWG, 200 A → 6 AWG.
  */
 import { strict as assert } from "node:assert";
 import { migrateCadDocument, type CadDocument } from "../../cad-document";
@@ -235,6 +246,82 @@ dibujo = run(dibujo, [
   ok(/use AECIRCUIT/.test(texto), `y se dice con qué orden se arregla: ${texto}`);
 }
 
+// --- 7 · la tierra y la capacidad estándar, TECLEADAS ---------------------
+{
+  // El ramal de 30 m con 20 A que ya está trazado: su tierra sale de la
+  // protección, no de un conductor dibujado, y se dice con esas palabras.
+  const texto = dichos(run(dibujo, ["AECHECK"]).effects).join(" ");
+  ok(
+    /puesta a tierra de equipos: mínimo 12 AWG de cobre para 20 A \(Tabla 250-122\)/.test(texto),
+    `20 A pide 12 AWG de tierra, y AECHECK lo dice citando su tabla: ${texto}`,
+  );
+  ok(
+    /se calcula de la protección, no se coteja contra un conductor del dibujo/.test(texto),
+    `y dice que se calcula, no que se comprobó: ${texto}`,
+  );
+  // El límite dejó de decir «sin tierra» —era falso desde que la tabla entró—
+  // y ahora declara el límite verdadero.
+  ok(!/sin tierra/.test(texto), `el renglón ya no puede decir «sin tierra»: ${texto}`);
+  ok(
+    /tierra física se calcula de la protección con la Tabla 250-122/.test(texto),
+    `el límite declara el límite verdadero: ${texto}`,
+  );
+  // Y el renglón que resume el circuito no se desplazó: la caída del golden 93
+  // sigue delante de los dos renglones nuevos.
+  ok(
+    texto.indexOf("caída es del 6.1 % en 30.0 m") < texto.indexOf("puesta a tierra de equipos"),
+    `lo nuevo va DETRÁS del resumen del circuito, no delante: ${texto}`,
+  );
+}
+
+// --- 8 · un «22 A» tecleado deja de pasar en silencio ---------------------
+{
+  // Es el error que ninguna de las otras reglas puede cazar por sí sola: hay
+  // ampacidad que lo respalda en calibres gruesos y la caída sale bien. Lo que
+  // pasa es que ese interruptor no se fabrica, y en obra se compra otro.
+  const conVeintidos = run(dibujo, ["AECIRCUIT", "C-1", "22", "127", "M"]).document;
+  const texto = dichos(run(conVeintidos, ["AECHECK"]).effects).join(" ");
+  ok(
+    /la capacidad de 22 A no es una de las estándar del Art\. 240-6\(A\)/.test(texto),
+    `22 A se marca, citando el artículo: ${texto}`,
+  );
+  ok(
+    /las inmediatas son 20 A y 25 A/.test(texto),
+    `y se ponen las dos opciones delante, sin elegir por el proyectista: ${texto}`,
+  );
+  // Con 22 A la tierra ya no es la de 20: la columna de la 250-122 dice «sin
+  // exceder de», así que 22 cae en la fila de 60 A.
+  ok(
+    /mínimo 10 AWG de cobre para 22 A/.test(texto),
+    `y su tierra sube a 10 AWG, que es la fila de 60 A: ${texto}`,
+  );
+}
+
+// --- 9 · los cuatro escalones de la Tabla 250-122, por el tablero ---------
+{
+  // Tres alimentadores trifásicos cortos y bien calibrados, tecleados enteros,
+  // para que los escalones de la tabla se vean por la ORDEN y no sólo por la
+  // biblioteca: 60 A → 10 AWG, 100 A → 8 AWG, 200 A → 6 AWG.
+  let tablero = documento();
+  for (const [circuito, calibre, amperes, extremo] of [
+    ["A-1", "6", "60", 5_000],
+    ["A-2", "3", "100", 4_000],
+    ["A-3", "4/0", "200", 5_000],
+  ] as const) {
+    tablero = run(tablero, [
+      "AEWIRE", circuito, calibre,
+      { punto: [0, 0] }, { punto: [extremo, 0] }, "\r",
+    ]).document;
+    tablero = run(tablero, ["AECIRCUIT", circuito, amperes, "220", "T"]).document;
+  }
+  const texto = dichos(run(tablero, ["AECHECK"]).effects).join(" ");
+  ok(/A-1 cumple/.test(texto), `60 A en 6 AWG y 5 m cumple: ${texto}`);
+  ok(/mínimo 10 AWG de cobre para 60 A/.test(texto), `60 A → 10 AWG de tierra: ${texto}`);
+  ok(/mínimo 8 AWG de cobre para 100 A/.test(texto), `100 A → 8 AWG: ${texto}`);
+  ok(/mínimo 6 AWG de cobre para 200 A/.test(texto), `200 A → 6 AWG: ${texto}`);
+  ok(/3 cumple\(n\), 0 no cumple/.test(texto), `y los tres cumplen: ${texto}`);
+}
+
 console.log(
-  `AECIRCUIT/AECHECK tecleados: ${verdes} comprobaciones verdes — los datos del circuito en un paso, y la revisión de la NOM con la longitud que mide el plano`,
+  `AECIRCUIT/AECHECK tecleados: ${verdes} comprobaciones verdes — los datos del circuito en un paso, la revisión con la longitud que mide el plano, la capacidad de 22 A que no se fabrica y la tierra de la Tabla 250-122`,
 );

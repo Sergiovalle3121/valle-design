@@ -259,6 +259,145 @@ let dibujo = documento();
   );
 }
 
+// --- 7 · AEWIRELIST dice DE/A, cuenta los sueltos y declara su criterio ----
+{
+  /** Un componente etiquetado, como el que deja AETAG. */
+  const componente = (id: string, tag: string, x: number, y: number) =>
+    ({
+      id,
+      type: "insert",
+      block: "MEP-TABLERO",
+      insertion: { x, y, z: 0 },
+      scale: { x: 1, y: 1, z: 1 },
+      rotation: 0,
+      attributes: { TAG: tag },
+      layer: "IE-FUERZA",
+    }) as never;
+
+  const conComponentes = (componentes: readonly unknown[]) =>
+    executeCadEntityCommandBatch(
+      documento(),
+      componentes.map((entity) => ({ type: "insert", entity }) as never),
+      "AETAG",
+    ).document;
+
+  // (a) Tablero → motor con los dos extremos en su sitio.
+  {
+    const base = conComponentes([
+      componente("tb", "-TB1", 0, 0),
+      componente("m", "-M1", 5_000, 0),
+    ]);
+    const trazado = run(base, [
+      "AEWIRE",
+      "C-1",
+      "12",
+      { punto: [0, 0] },
+      { punto: [2_500, 1_200] },
+      { punto: [5_000, 0] },
+      "\r",
+    ]);
+    const texto = dichos(run(trazado.document, ["AEWIRELIST"]).effects).join(" ");
+    ok(
+      texto.startsWith("AEWIRELIST — 1 conductor(es)"),
+      `el arranque del renglón no cambia, para no volverse otro veredicto ante la sonda: ${texto}`,
+    );
+    ok(/DE\/A: C-1-1 de -TB1 a -M1/.test(texto), `el de/a tiene que salir: ${texto}`);
+    ok(/SUELTOS: ninguno/.test(texto), `y decir que no hay sueltos: ${texto}`);
+    ok(
+      /tolerancia declarada de 10 mm de dibujo/.test(texto),
+      `con la tolerancia dicha en el propio renglón: ${texto}`,
+    );
+    ok(
+      /una conexión deducida no es una conexión declarada/.test(texto),
+      `y sin insinuar que la conexión sea un dato del proyecto: ${texto}`,
+    );
+  }
+
+  // (b) El mismo conductor, con la punta a dos centímetros del motor.
+  {
+    const base = conComponentes([
+      componente("tb", "-TB1", 0, 0),
+      componente("m", "-M1", 5_000, 0),
+    ]);
+    const trazado = run(base, [
+      "AEWIRE",
+      "C-1",
+      "12",
+      { punto: [0, 0] },
+      { punto: [4_980, 0] },
+      "\r",
+    ]);
+    const texto = dichos(run(trazado.document, ["AEWIRELIST"]).effects).join(" ");
+    ok(/DE\/A: C-1-1 de -TB1 a \(suelto\)/.test(texto), `dos centímetros no llegan: ${texto}`);
+    ok(/SUELTOS: 1 de 1 conductor\(es\)/.test(texto), `y se cuentan: ${texto}`);
+    ok(
+      /C-1-1 extremo «a» queda a 20 mm de -M1/.test(texto),
+      `diciendo cuánto le falta y a quién: ${texto}`,
+    );
+  }
+
+  // (c) Dos componentes a distinta distancia del mismo extremo.
+  {
+    const base = conComponentes([
+      componente("m", "-M1", 5_000, 0),
+      componente("sw", "-SW1", 5_003, 0),
+    ]);
+    const trazado = run(base, [
+      "AEWIRE",
+      "C-2",
+      "\r",
+      { punto: [0, 0] },
+      { punto: [5_004, 0] },
+      "\r",
+    ]);
+    const texto = dichos(run(trazado.document, ["AEWIRELIST"]).effects).join(" ");
+    ok(
+      /a -SW1/.test(texto) && !/a -M1/.test(texto),
+      `gana el que está a 1 mm, no el que está a 4: ${texto}`,
+    );
+  }
+
+  // (d) Un dibujo sin componentes etiquetados LO DICE, en vez de callar o de
+  //     devolver una lista de sueltos que sólo significaría que nadie etiquetó.
+  {
+    const trazado = run(documento(), [
+      "AEWIRE",
+      "C-3",
+      "\r",
+      { punto: [0, 0] },
+      { punto: [1_000, 0] },
+      "\r",
+    ]);
+    const texto = dichos(run(trazado.document, ["AEWIRELIST"]).effects).join(" ");
+    ok(
+      /DE\/A: no hay ningún componente etiquetado/.test(texto),
+      `sin componentes hay que decirlo: ${texto}`,
+    );
+    ok(/AETAG/.test(texto), `y remitir a la orden que los etiqueta: ${texto}`);
+    ok(!/SUELTOS/.test(texto), `sin contar sueltos que no significarían nada: ${texto}`);
+  }
+
+  // (e) Y sigue sin escribir nada: AEWIRELIST es consulta.
+  {
+    const base = conComponentes([componente("tb", "-TB1", 0, 0)]);
+    const trazado = run(base, [
+      "AEWIRE",
+      "C-4",
+      "\r",
+      { punto: [0, 0] },
+      { punto: [1_000, 0] },
+      "\r",
+    ]);
+    const antes = trazado.document.entities.length;
+    const lista = run(trazado.document, ["AEWIRELIST"]);
+    eq(
+      lista.document.entities.length,
+      antes,
+      "el de/a se deduce leyendo: AEWIRELIST sigue sin tocar el dibujo",
+    );
+  }
+}
+
 console.log(
-  `AEWIRE/AEWIRELIST tecleados: ${verdes} comprobaciones verdes — el número lo pone el dibujo, la capa se da de alta sola, el repetido se caza y las negativas llevan motivo`,
+  `AEWIRE/AEWIRELIST tecleados: ${verdes} comprobaciones verdes — el número lo pone el dibujo, la capa se da de alta sola, el repetido se caza, el de/a dice a qué componente llega cada extremo con su criterio y su tolerancia, y las negativas llevan motivo`,
 );

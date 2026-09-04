@@ -24,8 +24,19 @@
  *
  * Aprobado o no. Una revisión que no dice lo que NO mira se lee como un
  * certificado, y esto no lo es: no aplica corrección por temperatura ni
- * agrupamiento, no considera el 125 % de carga continua, no revisa tierra ni
- * llenado de tubo, y la caída es resistiva. Quien firma sigue firmando.
+ * agrupamiento, no considera el 125 % de carga continua y no comprueba el
+ * llenado del tubo, y la caída es resistiva. La tierra física SÍ se dice, pero
+ * calculada de la protección con la Tabla 250-122 — no cotejada contra un
+ * conductor de tierra del dibujo—, y el límite lo declara con esas palabras.
+ * Quien firma sigue firmando.
+ *
+ * ## Lo que AECHECK ganó sin pedir un dato nuevo
+ *
+ * `AECIRCUIT` ya estampa la protección, así que la revisión aplica además el
+ * **Art. 240-6(A)** —la capacidad tiene que ser una de las estándar, de modo
+ * que un «22 A» tecleado deja de pasar en silencio— y la **Tabla 250-122** —el
+ * calibre mínimo de tierra que corresponde a esa protección—. Los dos renglones
+ * van detrás del que resume cada circuito: informan, no desplazan.
  */
 import type { CadEntity } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";

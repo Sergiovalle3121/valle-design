@@ -16,10 +16,32 @@
  * ISO, no DIN (M10 16 y no 17; M12 18 y no 19). Los perfiles se dibujan por
  * sus medidas tecleadas —la designación IMCA manda; los defaults son medidas
  * comerciales redondas—, sin radios de esquina ni de acuerdo, y se dice.
+ *
+ * ## Los dos que la máquina pide y la tornillería no da (2026-09-04)
+ *
+ * Un plano de un árbol de transmisión no se termina con tornillos: lleva
+ * RODAMIENTOS y lleva CHAVETAS, y hasta hoy había que dibujarlos a mano en
+ * cada plano, con lo que ni la lista de materiales los contaba ni había dos
+ * planos que los dibujaran igual. Sus medidas viven en
+ * `mechanical-parts-catalog.ts` —ISO 15 para el rodamiento, ISO 773 para la
+ * chaveta— y aquí sólo se dibujan. Los dos salen como bloques `MECH-…` con id
+ * estable, así que `mechanical-bom.ts` los cuenta sin enterarse de que son
+ * nuevos: es el mismo prefijo y la misma `description`.
  */
 import type { CadBlockDefinition, CadEntity, CadPoint2 } from "./cad-document";
+import {
+  cadBearingSizeFor,
+  cadKeySizeFor,
+  type CadBearingSize,
+} from "./mechanical-parts-catalog";
 
-export type CadMechanicalFamily = "tornillo" | "tuerca" | "rondana" | "perfil";
+export type CadMechanicalFamily =
+  | "tornillo"
+  | "tuerca"
+  | "rondana"
+  | "perfil"
+  | "rodamiento"
+  | "chaveta";
 
 export interface CadMechanicalPart {
   /** Id del bloque en el documento; ESTABLE: viaja en los INSERT guardados. */
@@ -39,6 +61,8 @@ const flat = (point: CadPoint2) => ({ ...point, z: 0 });
 const line = (id: string, a: CadPoint2, b: CadPoint2): CadEntity => ({ id, type: "line", start: flat(a), end: flat(b), layer: L });
 const circle = (id: string, center: CadPoint2, radius: number): CadEntity => ({ id, type: "circle", center: flat(center), radius, layer: L });
 const ring = (id: string, points: CadPoint2[]): CadEntity => ({ id, type: "polyline", vertices: points.map(flat), closed: true, layer: L });
+/** Arco por centro, radio y ángulos en GRADOS, de `startAngle` a `endAngle` en sentido antihorario. */
+const arc = (id: string, center: CadPoint2, radius: number, startAngle: number, endAngle: number): CadEntity => ({ id, type: "arc", center: flat(center), radius, startAngle, endAngle, layer: L });
 
 /** Número para un id o un nombre: sin ceros de sobra, con punto decimal. */
 export function cadMechanicalNumber(value: number): string {
@@ -158,6 +182,117 @@ export function cadMechanicalWasher(metric: number): CadMechanicalPart | null {
     family: "rondana",
     areaMm2: null,
     entities: [circle(`${prefix}-int`, { x: 0, y: 0 }, size.washer.d1 / 2), circle(`${prefix}-ext`, { x: 0, y: 0 }, size.washer.d2 / 2)],
+  };
+}
+
+/* ──────────────────── Rodamientos y chavetas ─────────────────────────── */
+
+/**
+ * Rodamiento rígido de bolas en CORTE, con la REPRESENTACIÓN SIMPLIFICADA
+ * GENERAL de ISO 8826-1: cada media sección es un rectángulo —de `d/2` a `D/2`
+ * en radio y de `−B/2` a `B/2` en ancho— con una cruz recta dentro que NO toca
+ * el contorno, que es lo que la norma pide. El punto base es el centro del
+ * rodamiento, sobre el eje: es el punto que se engancha a la línea de eje del
+ * árbol.
+ *
+ * Y se dibuja así a propósito. Un plano de conjunto no lleva las pistas, las
+ * bolas ni la jaula: quien las dibuja está inventando un detalle que el
+ * fabricante decide y que nadie va a mecanizar, y además obliga a redibujar el
+ * bloque cada vez que se cambia de marca. La norma existe justamente para eso,
+ * así que el bloque dice la norma con la que está dibujado en vez de fingir un
+ * detalle que no le corresponde.
+ *
+ * El eje de simetría no va dentro del bloque: una línea de ejes se dibuja con
+ * su tipo de línea (eje-punto) y su capa, y ésas son decisiones del dibujo, no
+ * de la pieza.
+ */
+export function cadMechanicalBearing(designation: string): CadMechanicalPart | null {
+  const size = cadBearingSizeFor(designation);
+  if (!size) return null;
+  const code = designation.trim().toUpperCase();
+  const id = `MECH-RODAMIENTO-${code}`;
+  const prefix = id.toLowerCase();
+  const n = cadMechanicalNumber;
+  return {
+    id,
+    name: `Rodamiento rígido de bolas ${code} (${n(size.d)} × ${n(size.D)} × ${n(size.B)})`,
+    standard: "ISO 15",
+    family: "rodamiento",
+    areaMm2: null,
+    entities: [
+      ...bearingHalf(`${prefix}-sup`, size, 1),
+      ...bearingHalf(`${prefix}-inf`, size, -1),
+    ],
+  };
+}
+
+/**
+ * La proporción de la cruz respecto de su rectángulo. Cualquier valor menor
+ * que 1 cumple la norma —la cruz no debe tocar el contorno—; 0,6 es el que
+ * deja la cruz visible en las dos series sin que la 6300, mucho más alta que
+ * ancha, salga con una cruz pegada a las tapas.
+ */
+const BEARING_CROSS_RATIO = 0.6;
+
+/** Una media sección: su rectángulo y su cruz, arriba (`side` 1) o abajo (−1). */
+function bearingHalf(prefix: string, size: CadBearingSize, side: 1 | -1): CadEntity[] {
+  const inner = (size.d / 2) * side;
+  const outer = (size.D / 2) * side;
+  const half = size.B / 2;
+  const centreY = (inner + outer) / 2;
+  const armX = half * BEARING_CROSS_RATIO;
+  const armY = (Math.abs(outer - inner) / 2) * BEARING_CROSS_RATIO;
+  return [
+    ring(`${prefix}-contorno`, [
+      { x: -half, y: inner },
+      { x: half, y: inner },
+      { x: half, y: outer },
+      { x: -half, y: outer },
+    ]),
+    line(`${prefix}-cruz-h`, { x: -armX, y: centreY }, { x: armX, y: centreY }),
+    line(`${prefix}-cruz-v`, { x: 0, y: centreY - armY }, { x: 0, y: centreY + armY }),
+  ];
+}
+
+/**
+ * Chaveta paralela forma A de ISO 773 (DIN 6885) en PLANTA: la sección b × h
+ * sale del DIÁMETRO DEL EJE por la tabla, y la longitud se teclea.
+ *
+ * Se dibuja la planta —b × L, con los dos extremos redondeados de radio b/2—
+ * porque es la vista donde la forma A se distingue de la B, que los tiene
+ * rectos; la altura h no se ve en planta y por eso viaja en la DENOMINACIÓN,
+ * junto con `t1` y `t2`. Esas dos profundidades son la razón de que la
+ * denominación las lleve: quien mecaniza el cuñero necesita saber cuánto baja
+ * en el eje y cuánto en el cubo, y ese dato no se deduce de la chaveta
+ * dibujada.
+ *
+ * El id sale de b × h × L y NO del eje: dos árboles de Ø25 y Ø28 llevan la
+ * misma chaveta 8 × 7, y la lista de materiales tiene que contarla como UNA
+ * posición y no como dos. Devuelve `null` —como el tornillo con una métrica
+ * que no existe— cuando el eje queda fuera de la tabla o la longitud no pasa
+ * del ancho; la prosa de la negativa la escribe la orden, que es quien tiene
+ * delante al dibujante.
+ */
+export function cadMechanicalKey(shaftDiameter: number, length: number): CadMechanicalPart | null {
+  const size = cadKeySizeFor(shaftDiameter);
+  if (!size || !(length > size.b)) return null;
+  const n = cadMechanicalNumber;
+  const id = `MECH-CHAVETA-${n(size.b)}x${n(size.h)}x${n(length)}`;
+  const prefix = id.toLowerCase();
+  const flank = (length - size.b) / 2;
+  const radius = size.b / 2;
+  return {
+    id,
+    name: `Chaveta paralela A ${n(size.b)} × ${n(size.h)} × ${n(length)} (cuñero: eje t1 ${n(size.t1)}, cubo t2 ${n(size.t2)})`,
+    standard: "ISO 773 / DIN 6885",
+    family: "chaveta",
+    areaMm2: null,
+    entities: [
+      line(`${prefix}-flanco-a`, { x: -flank, y: radius }, { x: flank, y: radius }),
+      line(`${prefix}-flanco-b`, { x: -flank, y: -radius }, { x: flank, y: -radius }),
+      arc(`${prefix}-extremo-a`, { x: flank, y: 0 }, radius, 270, 90),
+      arc(`${prefix}-extremo-b`, { x: -flank, y: 0 }, radius, 90, 270),
+    ],
   };
 }
 
