@@ -33,6 +33,28 @@
  * así que calcular con ella es el lado seguro, y es el criterio con el que se
  * dimensiona un ramal.
  *
+ * ## Las dos reglas que no necesitan un dato nuevo
+ *
+ * La protección y la tensión ya viajan en los metadatos, así que dos artículos
+ * más de la NOM se pueden aplicar sin pedirle nada al dibujante:
+ *
+ *  · **Art. 240-6(A)** — la capacidad nominal tiene que ser una de las estándar
+ *    (15, 20, 25, 30, 35, 40…). Un «22 A» tecleado por error tiene ampacidad
+ *    que lo respalda y caída que sale bien: sin esta regla pasa en silencio, y
+ *    en la obra se compra un 20 o un 25, con lo que el plano deja de describir
+ *    la instalación.
+ *  · **Tabla 250-122** — el calibre mínimo del conductor de puesta a tierra de
+ *    equipos que corresponde a esa protección. Es un dato que el cuadro de
+ *    cargas mexicano lleva y que se buscaba a mano en la tabla impresa. Se
+ *    CALCULA de la protección: no se coteja contra un conductor de tierra
+ *    dibujado, porque el dibujo todavía no distingue uno de tierra de uno de
+ *    fase. El límite lo dice con esas palabras, no con un «sin tierra» que
+ *    ahora sería falso.
+ *
+ * Los dos renglones van DETRÁS del que resume el circuito. Si fueran delante,
+ * `findings` nunca estaría vacío y el circuito aprobado perdería la línea con
+ * sus números — la que el golden y el dibujante leen.
+ *
  * ## Fallo cerrado
  *
  * Un circuito al que le falta un dato NO se aprueba en silencio ni se rechaza
@@ -45,7 +67,11 @@ import { cadUnitsPerMetre } from "../georeference";
 import {
   CAD_NOM_BRANCH_DROP_PERCENT,
   cadNomConductor,
+  cadNomEquipmentGround,
+  cadNomGroundLabel,
+  cadNomIsStandardBreaker,
   cadNomMaxBreaker,
+  cadNomNearestStandardBreakers,
   cadNomSuggestGauge,
   cadNomVoltageDrop,
 } from "./nom-conductors";
@@ -74,6 +100,22 @@ export interface CadCircuitCheck {
   dropVolts: number | null;
   /** Caída en porcentaje de la tensión del circuito. */
   dropPercent: number | null;
+  /**
+   * Si la capacidad de la protección es una de las estándar del Art. 240-6(A).
+   *
+   * `null` cuando no se declaró protección: no se afirma nada de un dato que
+   * no existe.
+   */
+  breakerStandard: boolean | null;
+  /**
+   * Calibre MÍNIMO del conductor de puesta a tierra de equipos que pide la
+   * Tabla 250-122 para esa protección, con su unidad («12 AWG», «250 kcmil»).
+   *
+   * Se CALCULA de la protección; no es el resultado de cotejar un conductor de
+   * tierra del dibujo, porque hoy el dibujo no distingue uno de tierra de uno
+   * de fase. `null` cuando no hay protección o cuando se sale de la tabla.
+   */
+  groundGauge: string | null;
   verdict: CadCircuitVerdict;
   /** Qué se encontró, en la lengua del plano. Nunca vacío. */
   findings: string[];
@@ -247,10 +289,57 @@ export function cadCheckCircuits(
       }
     }
 
+    // El renglón que resume el circuito aprobado se calcula ANTES que los dos
+    // de abajo, y no después: si la capacidad estándar y la tierra se añadieran
+    // primero, `findings` nunca estaría vacío y el circuito que cumple dejaría
+    // de decir sus números. Lo que se añade detrás informa; no desplaza.
     if (findings.length === 0)
       findings.push(
         `${conductor!.gauge} AWG con ${breakerAmps} A y ${entrada.lengthM.toFixed(1)} m: caída del ${dropPercent!.toFixed(1)} %`,
       );
+
+    // --- Art. 240-6(A): la capacidad tiene que ser una de las que se fabrican
+    let breakerStandard: boolean | null = null;
+    let groundGauge: string | null = null;
+    if (breakerAmps !== null) {
+      breakerStandard = cadNomIsStandardBreaker(breakerAmps);
+      if (!breakerStandard) {
+        const { below, above } = cadNomNearestStandardBreakers(breakerAmps);
+        const vecinas =
+          below !== null && above !== null
+            ? `las inmediatas son ${below} A y ${above} A`
+            : above !== null
+              ? `la inmediata es ${above} A`
+              : below !== null
+                ? `la inmediata es ${below} A`
+                : "no hay ninguna cercana en la tabla";
+        // AVISO y no negativa: el Art. 240-6 admite en sus incisos (B) y (C)
+        // capacidades distintas en interruptores de disparo ajustable con
+        // acceso restringido. Casi siempre es un dedazo, pero llamarlo
+        // incumplimiento sería afirmar más de lo que dice la norma.
+        findings.push(
+          `la capacidad de ${breakerAmps} A no es una de las estándar del Art. 240-6(A): ${vecinas}`,
+        );
+        peor("aviso");
+      }
+
+      // --- Tabla 250-122: la tierra física, que hasta hoy no se decía --------
+      const tierra = cadNomEquipmentGround(breakerAmps);
+      if (tierra) {
+        groundGauge = cadNomGroundLabel(tierra);
+        // Se informa SIEMPRE, cumpla o no: es un dato que el cuadro de cargas
+        // lleva y que el proyectista hoy busca a mano en la tabla impresa. No
+        // es un hallazgo, así que no toca el veredicto.
+        findings.push(
+          `puesta a tierra de equipos: mínimo ${groundGauge} de cobre para ${breakerAmps} A (Tabla 250-122); se calcula de la protección, no se coteja contra un conductor del dibujo`,
+        );
+      } else {
+        findings.push(
+          `la Tabla 250-122 llega a 6000 A y la protección es de ${breakerAmps} A: el calibre de tierra queda fuera de tabla`,
+        );
+        peor("sin-datos");
+      }
+    }
 
     filas.push({
       circuit,
@@ -262,6 +351,8 @@ export function cadCheckCircuits(
       phases,
       dropVolts,
       dropPercent,
+      breakerStandard,
+      groundGauge,
       verdict,
       findings,
     });
@@ -289,4 +380,4 @@ export function cadCircuitMetadata(input: {
  * se lee como un certificado, y esto no lo es.
  */
 export const CAD_NOM_CHECK_LIMITS =
-  "No es memorial de cálculo: sin corrección por temperatura ni agrupamiento, sin el 125 % de carga continua, sin tierra ni llenado de tubo, y la caída es resistiva (sin reactancia).";
+  "No es memorial de cálculo: sin corrección por temperatura ni agrupamiento, sin el 125 % de carga continua y sin llenado de tubo; la caída es resistiva (sin reactancia), y la tierra física se calcula de la protección con la Tabla 250-122, no se coteja contra un conductor de tierra dibujado.";

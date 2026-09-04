@@ -156,6 +156,70 @@ conserva su veredicto «muta» y `docs/cad/evidence/command-integrity.json` no c
 nombre nuevo, así que `command-summaries`, `command-icons`, `alias-table` y `ribbon` siguen
 intactos y el resumen de paleta de BOM sigue siendo cierto.
 
+### 2026-09-04 · Entregado 2/5 · La NOM más allá del conductor: capacidad estándar y tierra física
+
+Hecho y verificado. `AECHECK` gana dos reglas citadas **sin pedirle un dato nuevo al
+dibujante**: la protección ya viaja en los metadatos desde `AECIRCUIT`, así que dos artículos
+más de la NOM-001-SEDE se pueden aplicar sobre lo que el dibujo YA declara.
+
+- **Art. 240-6(A) — la capacidad tiene que ser una de las que se fabrican.** Es el único error
+  de esta familia que las reglas anteriores no pueden cazar: un «22 A» tecleado por error tiene
+  ampacidad que lo respalda (el 10 AWG llega a 30 A) y una caída que sale bien, así que pasaba
+  en silencio — y en la obra se compra un 20 o un 25, con lo que el plano deja de describir la
+  instalación. `CAD_NOM_STANDARD_BREAKER_AMPS` (15…6000) más las cinco que el artículo añade
+  sólo para fusibles (1, 3, 6, 10, 601), que se aceptan porque el dibujo declara «protección» y
+  no si es fusible o interruptor: marcar un fusible de 6 A sería una falsa alarma, y una
+  revisión que da falsas alarmas se apaga.
+- **Tabla 250-122 — el calibre mínimo de puesta a tierra de equipos.** El dato que el cuadro de
+  cargas mexicano lleva y que hasta hoy no se decía en ninguna parte del producto. La trampa de
+  esa tabla, que está afirmada en la spec, es que su columna dice «sin exceder de»: una
+  protección de 30 A NO cae en la fila de 20 A sino en la de 60, así que su tierra es 10 AWG y
+  no 12 — devolver el 12 sería devolver un calibre insuficiente, que es peor que no decir nada.
+
+Decisiones con motivo:
+
+- **Es AVISO y no negativa.** El Art. 240-6 admite en sus incisos (B) y (C) capacidades
+  distintas en interruptores de disparo ajustable con acceso restringido. Casi siempre es un
+  dedazo, pero llamarlo incumplimiento sería afirmar más de lo que dice la norma. Y se dan **las
+  dos** capacidades vecinas, no «la correcta»: bajar protege el conductor pero puede disparar
+  con la carga real, y subir obliga a revisar otra vez el calibre. Esa decisión es del
+  proyectista.
+- **Los dos renglones van DETRÁS del que resume el circuito.** Si fueran delante, `findings`
+  nunca estaría vacío y el circuito aprobado perdería la línea con sus números — la que el
+  golden 93 y el dibujante leen. El renglón de tierra informa siempre y **no toca el veredicto**:
+  no es un hallazgo.
+- **`CAD_NOM_CHECK_LIMITS` se reescribió porque decía algo falso.** Decía «sin tierra»; desde
+  hoy la tierra sí se dice. El límite verdadero es otro y se declara tal cual: *la tierra física
+  se calcula de la protección con la Tabla 250-122, no se coteja contra un conductor de tierra
+  dibujado* — porque el documento todavía no distingue un conductor de tierra de uno de fase.
+  Sigue sin haber corrección por temperatura, agrupamiento, 125 % de carga continua ni llenado
+  de tubo, y la caída sigue siendo resistiva.
+- **`groundGauge` lleva su unidad** («12 AWG», «250 kcmil»): arriba de 4/0 la norma cambia de
+  unidad y el renglón no puede escribir «250 AWG», que no significa nada.
+- **La spec rápida duplica a propósito las tres subcadenas del golden 93** («caída es del 6.1 %
+  en 30.0 m», «con 8 AWG bajaría del tope», «No es memorial de cálculo»). Ese golden tarda
+  minutos y sólo corre en CI; estas tres líneas cuestan milisegundos, así que el golden no puede
+  romperse sin que la spec lo cace primero.
+
+Procedencia, dicha sin adorno: las dos tablas se transcribieron **sin acceso al texto oficial en
+línea** —este entorno sólo alcanza GitHub; `curl` a `dof.gob.mx` devuelve 403 del proxy—, en la
+misma condición en que ya estaban la ampacidad de la 310-15(b)(16) y la resistencia del Cap. 9
+Tabla 8. El módulo lo dice en su cabecera: el cotejo contra la norma impresa no es una cortesía,
+es el control que falta.
+
+Evidencia: `npx tsx src/lib/cad/electrical/circuit-check.spec.ts` → **88** comprobaciones (eran
+42); `npx tsx src/lib/cad/engine/commands/electrical-circuit.spec.ts` → **41** (eran 28), con los
+tres alimentadores tecleados enteros que enseñan los escalones por la ORDEN y no sólo por la
+biblioteca (60 A → 10 AWG, 100 A → 8 AWG, 200 A → 6 AWG). Las otras cinco specs del territorio
+siguen verdes (wire-numbering 25, device-tags 31, electrical-wire 26, electrical-tag 25,
+mechanical 90 + 179), y `data-extraction-commands` 27 también. `npm run typecheck` verde;
+`npm run check:command-integrity` → 290 comandos, 0 éxitos falsos y
+`docs/cad/evidence/command-integrity.json` sin cambio; `npm run check:cad` sale 0.
+
+Ningún archivo fuera del territorio: cinco de `electrical/` y `engine/commands/`, más esta
+bitácora y una petición (P-mech-elec-01, la columna de tierra en el cuadro de cargas, que vive
+en `data-extraction/` y por tanto no toco).
+
 ## «Todavía no»
 
 Con fecha, con motivo, y sin insinuar que estén hechos.

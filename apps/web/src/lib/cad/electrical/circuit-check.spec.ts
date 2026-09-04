@@ -21,6 +21,23 @@
  * El mismo circuito con 10 AWG (4,07 Ω/km): 2 × 30 × 16 × 4,07 / 1000 = 3,907 V
  * = 3,08 %, que TAMBIÉN se pasa; con 8 AWG (2,55 Ω/km) da 2,448 V = 1,93 %.
  * Por eso el sugerido de ese caso es el 8, y no el 10.
+ *
+ * ## Y las dos reglas que no necesitan un dato nuevo (bloques 12 a 14)
+ *
+ * `Art. 240-6(A)`: la capacidad nominal tiene que ser una de las que se
+ * fabrican. Es el único error de esta familia que las reglas anteriores no
+ * pueden cazar — un «22 A» tiene ampacidad que lo respalda y caída que sale
+ * bien—, y por eso se afirma aparte.
+ *
+ * `Tabla 250-122`: el calibre de tierra que corresponde a la protección. La
+ * trampa de esa tabla, que también se afirma, es que su columna dice «sin
+ * exceder de»: una protección de 30 A NO cae en la fila de 20 A sino en la de
+ * 60, así que su tierra es 10 AWG y no 12. Devolver el 12 sería devolver un
+ * calibre insuficiente, que es peor que no decir nada.
+ *
+ * El bloque 15 duplica a propósito las tres subcadenas que afirma el golden de
+ * navegador `93-cad-circuito-nom.spec.ts`: ese golden tarda minutos y sólo
+ * corre en CI, así que aquí cuestan milisegundos y lo cazan primero.
  */
 import { strict as assert } from "node:assert";
 import type { CadDocument, CadEntity } from "../cad-document";
@@ -32,8 +49,14 @@ import {
 } from "./circuit-check";
 import {
   CAD_NOM_CONDUCTORS,
+  CAD_NOM_EQUIPMENT_GROUND,
+  CAD_NOM_STANDARD_BREAKER_AMPS,
   cadNomConductor,
+  cadNomEquipmentGround,
+  cadNomGroundLabel,
+  cadNomIsStandardBreaker,
   cadNomMaxBreaker,
+  cadNomNearestStandardBreakers,
   cadNomSuggestGauge,
   cadNomVoltageDrop,
 } from "./nom-conductors";
@@ -302,13 +325,190 @@ const doc = (entities: CadEntity[]): Pick<CadDocument, "entities" | "meta"> => (
   cerca(fila.lengthM, 30, "y el recorrido del circuito es la suma: 12 + 18");
 }
 
-// --- 11 · el límite se declara siempre -------------------------------------
+// --- 11 · el límite se declara siempre, y dice el límite VERDADERO ---------
 {
   ok(/No es memorial de cálculo/.test(CAD_NOM_CHECK_LIMITS), "empieza diciendo lo que NO es");
-  for (const trozo of ["temperatura", "agrupamiento", "125 %", "tierra", "reactancia"])
+  for (const trozo of ["temperatura", "agrupamiento", "125 %", "llenado de tubo", "reactancia"])
     ok(CAD_NOM_CHECK_LIMITS.includes(trozo), `y nombra «${trozo}» entre lo que no mira`);
+  // Decía «sin tierra» y era falso desde que la Tabla 250-122 entró: ahora la
+  // tierra SÍ se dice. El límite verdadero es otro y tiene que decirse tal cual
+  // —se calcula de la protección, no se coteja contra un conductor dibujado—,
+  // porque un límite que se queda corto se lee como un certificado y un límite
+  // que sobra hace que nadie lea el renglón.
+  ok(
+    !/sin tierra/.test(CAD_NOM_CHECK_LIMITS),
+    `ya no puede decir «sin tierra»: ${CAD_NOM_CHECK_LIMITS}`,
+  );
+  ok(
+    /tierra física se calcula de la protección/.test(CAD_NOM_CHECK_LIMITS),
+    "dice que la tierra se CALCULA de la protección",
+  );
+  ok(
+    /250-122/.test(CAD_NOM_CHECK_LIMITS),
+    "citando la tabla con la que se calcula, para poder cotejarla",
+  );
+  ok(
+    /no se coteja contra un conductor de tierra dibujado/.test(CAD_NOM_CHECK_LIMITS),
+    "y dice lo que NO hace: cotejar contra un conductor de tierra del dibujo",
+  );
+}
+
+// --- 12 · Art. 240-6(A): la capacidad que no se fabrica ------------------
+{
+  // El error que ninguna de las reglas anteriores puede cazar: 22 A tiene
+  // ampacidad que lo respalda (el 10 AWG llega a 30) y caída que sale bien.
+  ok(cadNomIsStandardBreaker(20), "20 A es estándar");
+  ok(cadNomIsStandardBreaker(15), "15 A también");
+  ok(cadNomIsStandardBreaker(200), "y 200 A");
+  ok(!cadNomIsStandardBreaker(22), "22 A NO es una capacidad estándar");
+  ok(!cadNomIsStandardBreaker(55), "ni 55 A");
+  ok(cadNomIsStandardBreaker(6), "un fusible de 6 A sí: el artículo los añade aparte");
+  ok(
+    CAD_NOM_STANDARD_BREAKER_AMPS.every((valor, i, todas) => i === 0 || valor > todas[i - 1]),
+    "la lista va de menor a mayor y no repite",
+  );
+  eq(CAD_NOM_STANDARD_BREAKER_AMPS[0], 15, "empieza en 15 A");
+  eq(
+    CAD_NOM_STANDARD_BREAKER_AMPS[CAD_NOM_STANDARD_BREAKER_AMPS.length - 1],
+    6_000,
+    "y termina en 6000 A",
+  );
+
+  const vecinas = cadNomNearestStandardBreakers(22);
+  eq(vecinas.below, 20, "por debajo del 22 está el 20");
+  eq(vecinas.above, 25, "y por encima el 25");
+  // Se dan LAS DOS y no «la correcta»: bajar protege el conductor pero puede
+  // disparar con la carga real, y subir obliga a revisar otra vez el calibre.
+  eq(cadNomNearestStandardBreakers(9_000).above, null, "arriba de la tabla no se inventa una");
+}
+
+// --- 13 · Tabla 250-122: la tierra que hasta hoy no se decía --------------
+{
+  const tierra = (amps: number) => {
+    const fila = cadNomEquipmentGround(amps);
+    return fila ? cadNomGroundLabel(fila) : null;
+  };
+  eq(tierra(20), "12 AWG", "20 A pide 12 AWG de tierra");
+  eq(tierra(60), "10 AWG", "60 A pide 10 AWG");
+  eq(tierra(100), "8 AWG", "100 A pide 8 AWG");
+  eq(tierra(200), "6 AWG", "200 A pide 6 AWG");
+  eq(tierra(15), "14 AWG", "y el más pequeño de la tabla, 15 A, pide 14 AWG");
+  // La trampa de la tabla: la columna dice «sin exceder de», así que 30 A NO
+  // cae en la fila de 20 — cae en la de 60, y su tierra es 10 y no 12.
+  eq(tierra(30), "10 AWG", "30 A cae en la fila de 60 A: la columna dice «sin exceder de»");
+  eq(tierra(21), "10 AWG", "y 21 A también, aunque esté pegado al 20");
+  eq(tierra(1_600), "4/0 AWG", "1600 A pide 4/0");
+  // Arriba de 4/0 la norma cambia de unidad; el renglón no puede decir «250 AWG».
+  eq(tierra(2_000), "250 kcmil", "y de ahí para arriba la norma habla en kcmil");
+  eq(cadNomEquipmentGround(9_000), null, "arriba de 6000 A la tabla se acaba y se dice");
+  ok(
+    CAD_NOM_EQUIPMENT_GROUND.every(
+      (fila, i, todas) => i === 0 || fila.maxDeviceAmps > todas[i - 1].maxDeviceAmps,
+    ),
+    "la tabla va de menor a mayor: si no, la búsqueda devolvería un calibre insuficiente",
+  );
+}
+
+// --- 14 · las dos reglas SOBRE UN CIRCUITO, detrás del resumen ------------
+{
+  // 10 AWG aguanta 30 A, así que 22 A no falla por ampacidad ni por caída en
+  // 5 m: lo único que tiene de malo es que ese interruptor no se fabrica.
+  const documento = doc([
+    tramo("c1", 5, {
+      ...cadWireMetadata({ circuit: "C-9", number: 1, gauge: "10" }),
+      ...cadCircuitMetadata({ breakerAmps: 22, volts: 127, phases: 1 }),
+    }),
+  ]);
+  const [fila] = cadCheckCircuits(documento);
+  eq(fila.breakerStandard, false, "22 A no es capacidad estándar");
+  eq(fila.verdict, "aviso", "y es AVISO: el 240-6 admite otras en disparo ajustable (incisos B y C)");
+  ok(
+    fila.findings.some((f) => /no es una de las estándar del Art\. 240-6\(A\)/.test(f)),
+    `citando el artículo, para poder cotejarlo: ${fila.findings.join(" | ")}`,
+  );
+  ok(
+    fila.findings.some((f) => /las inmediatas son 20 A y 25 A/.test(f)),
+    `y poniendo las dos opciones delante sin elegir: ${fila.findings.join(" | ")}`,
+  );
+  eq(fila.groundGauge, "10 AWG", "y su tierra, calculada de los 22 A, es 10 AWG");
+  ok(
+    fila.findings.some((f) => /Tabla 250-122/.test(f)),
+    `la tierra se dice citando su tabla: ${fila.findings.join(" | ")}`,
+  );
+  ok(
+    fila.findings.some((f) => /no se coteja contra un conductor del dibujo/.test(f)),
+    "y diciendo en el mismo renglón que se calcula, no que se comprobó",
+  );
+
+  // El circuito que CUMPLE sigue diciendo sus números en el PRIMER renglón: la
+  // tierra va detrás. Si fuera delante, `findings` nunca estaría vacío y el
+  // resumen del circuito aprobado desaparecería.
+  const bueno = doc([
+    tramo("c1", 8, {
+      ...cadWireMetadata({ circuit: "C-10", number: 1, gauge: "12" }),
+      ...cadCircuitMetadata({ breakerAmps: 20, volts: 127, phases: 1 }),
+    }),
+  ]);
+  const [limpio] = cadCheckCircuits(bueno);
+  eq(limpio.verdict, "ok", "20 A en 12 AWG y 8 m sigue cumpliendo");
+  eq(limpio.breakerStandard, true, "20 A sí es estándar");
+  eq(limpio.groundGauge, "12 AWG", "y su tierra es 12 AWG");
+  ok(
+    /^12 AWG con 20 A y 8\.0 m/.test(limpio.findings[0]),
+    `el resumen del circuito sigue siendo el PRIMER renglón: ${limpio.findings.join(" | ")}`,
+  );
+  ok(
+    /Tabla 250-122/.test(limpio.findings[limpio.findings.length - 1]),
+    "y la tierra va detrás, informando sin desplazar",
+  );
+
+  // Sin protección declarada no se afirma nada de ninguna de las dos: un dato
+  // que no existe no tiene ni capacidad estándar ni tierra que le corresponda.
+  const [sinDatos] = cadCheckCircuits(
+    doc([tramo("c1", 5, cadWireMetadata({ circuit: "C-11", number: 1, gauge: "12" }))]),
+  );
+  eq(sinDatos.breakerStandard, null, "sin protección no se dice si es estándar");
+  eq(sinDatos.groundGauge, null, "ni se inventa un calibre de tierra");
+
+  // Y por arriba de la tabla, fallo cerrado: 9000 A se sale de la 250-122, así
+  // que no hay calibre de tierra que decir y se dice que no lo hay.
+  const [fuera] = cadCheckCircuits(
+    doc([
+      tramo("c1", 5, {
+        ...cadWireMetadata({ circuit: "C-12", number: 1, gauge: "4/0" }),
+        ...cadCircuitMetadata({ breakerAmps: 9_000, volts: 220, phases: 3 }),
+      }),
+    ]),
+  );
+  eq(fuera.groundGauge, null, "arriba de 6000 A no se inventa un calibre de tierra");
+  ok(
+    fuera.findings.some((f) => /el calibre de tierra queda fuera de tabla/.test(f)),
+    `y se dice en vez de callarlo: ${fuera.findings.join(" | ")}`,
+  );
+}
+
+// --- 15 · las tres subcadenas que el golden 93 afirma ---------------------
+{
+  // `apps/web/e2e/golden/93-cad-circuito-nom.spec.ts` afirma POR SUBCADENA
+  // sobre el renglón de AECHECK. Un golden de navegador tarda minutos y sólo
+  // corre en CI; estas tres líneas cuestan milisegundos y corren en cada
+  // cambio, así que el golden no puede romperse sin que esto lo cace primero.
+  // El caso es el mismo que teclea el golden: 30 m de 12 AWG con 20 A a 127 V.
+  const documento = doc([
+    tramo("a", 15, {
+      ...cadWireMetadata({ circuit: "C-1", number: 1, gauge: "12" }),
+      ...cadCircuitMetadata({ breakerAmps: 20, volts: 127, phases: 1 }),
+    }),
+    tramo("b", 15, cadWireMetadata({ circuit: "C-1", number: 2, gauge: "12" })),
+  ]);
+  const [fila] = cadCheckCircuits(documento);
+  const renglon = `${fila.circuit}: ${fila.findings.join("; ")}. ${CAD_NOM_CHECK_LIMITS}`;
+  // 2 × 30 m × 20 A × 6,5 Ω/km / 1000 = 7,8 V, que sobre 127 V es 6,14 %.
+  ok(/caída es del 6\.1 % en 30\.0 m/.test(renglon), `golden 93 · la caída y los metros: ${renglon}`);
+  ok(/con 8 AWG bajaría del tope/.test(renglon), `golden 93 · el calibre propuesto: ${renglon}`);
+  ok(/No es memorial de cálculo/.test(renglon), `golden 93 · el límite en el renglón: ${renglon}`);
 }
 
 console.log(
-  `circuit-check: ${verdes} comprobaciones verdes — la caída sale del PLANO, el conductor pequeño manda, y lo que falta no pasa en silencio`,
+  `circuit-check: ${verdes} comprobaciones verdes — la caída sale del PLANO, el conductor pequeño manda, la capacidad de 22 A no se fabrica, la tierra sale de la Tabla 250-122 y lo que falta no pasa en silencio`,
 );
