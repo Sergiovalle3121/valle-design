@@ -83,3 +83,27 @@ Formato de cada petición:
   evidencia independiente hasta que F11 consiga el oráculo ajeno. Eso también es
   parte de la decisión: se estaría comprando código, no evidencia.
 - **Estado:** pendiente
+
+### P-architecture-03 · La fila de STAIR en la ESCALERA ya no dice la verdad
+- **Archivo:** `docs/parity/ESCALERA.md` (línea 211, la fila de STAIR)
+- **Por qué:** entrega `stair-tramos-descansos`, ya construida y probada en mi
+  territorio (`apps/web/src/lib/cad/engine/commands/architecture-stair.ts` y su
+  spec). La fila declara hoy como límite «Sólo un tramo recto: sin descansos,
+  tramos en L o U…», y eso dejó de ser cierto: STAIR reparte las N contrahuellas
+  entre dos tramos (`Forma Ele`) o tres (`Forma U`) con descanso de fondo ≥ ancho.
+  La ESCALERA es archivo compartido (R2) y no la toco; pero una frontera escrita
+  que ya no corresponde es peor que una ausente, porque se cita como evidencia.
+- **Cambio exacto:** sustituir la fila entera (línea 211) por esta, sin tocar
+  ninguna otra fila ni el peldaño, que sigue en 5:
+
+  ```markdown
+  | STAIR: escalera paramétrica recta, en L y en U con descanso por reglamento (Blondel y RCDMX; planta y sólidos) | 5 | golden 78; `architecture-stair.spec.ts` (656): recta 2400 → 14 × 171,4 / 287,1 (desarrollo 3.732,9); en L 7 + 7 con descanso de 1.000 (desarrollo 4.445,7); en U 5 + 5 + 4 con dos descansos (5.158,6); volumen `ancho·h·c·(n−1)·n/2` por tramo y `ancho·fondo·c·k` por descanso, medido por el kernel sobre el árbol persistido; la escalera recta se contrasta contra la huella SHA-256 de cinco lotes capturados ANTES del cambio | Los giros son siempre por descanso y siempre a la izquierda: sin peldaños compensados en el giro, sin caracol, y la U es de dos cuartos de vuelta (tres tramos), no de media vuelta. El máximo de peraltes por tramo de las NTC no se comprueba: el reparto se niega por defecto de tramo (< 3 contrahuellas), nunca por exceso. Sin Justificación (el arranque es la esquina izquierda); el sólido es macizo, no una zanca con canto, y bajo los tramos por encima del primero no se modela nada. **Todavía no.** |
+  ```
+
+  El «golden 78» se queda como está: la escalera RECTA emite byte a byte el
+  mismo lote que antes —lo fija la huella SHA-256 de la spec—, así que ningún
+  golden que dibuje una escalera cambia.
+- **Cómo se comprueba:** `cd apps/web && npx tsx src/lib/cad/engine/commands/architecture-stair.spec.ts`
+  imprime «656 comprobaciones» en ~1,4 s; `npm run typecheck` y
+  `npm run check:command-integrity` (290 comandos) siguen verdes.
+- **Estado:** pendiente

@@ -112,6 +112,51 @@ se deriva de `material`, que ya se persiste; el área construida se deriva del
 grafo de ejes; la escalera de varios tramos se descompone en planta + sólidos
 como ya hacen STAIR, ROOF y SLAB.
 
+### E1 · STAIR en L y en U con descanso por reglamento (2026-09-04)
+
+`Forma` (Recto / Ele / U) reparte las N contrahuellas que ya calculaba la receta
+entre uno, dos o tres tramos, y `Descanso` mide el fondo del descanso. El reparto
+es el más parejo que permite la división entera con la contrahuella de más en los
+primeros tramos —14 → 7 + 7 en L, 5 + 5 + 4 en U— y se NIEGA con el número
+cuando un tramo caería por debajo de tres contrahuellas, igual que ya se negaba
+una contrahuella de 200 mm; el descanso arranca con fondo = ancho, que es lo que
+pide el RCDMX («el ancho de los descansos será cuando menos igual al ancho de la
+escalera»), y un fondo menor se niega con las dos cifras — también al ensanchar
+la escalera DESPUÉS de teclearlo.
+
+Emite en el mismo lote el contorno de cada tramo y el rectángulo de cada descanso
+en orden de subida, las contrahuellas interiores, la línea de subida QUEBRADA por
+el centro de cada descanso con su flecha en el último tramo, el SUBE girado con el
+primero, y un SOLID3D por pieza: `extrude` de canto por tramo, prisma del
+rectángulo por descanso.
+
+Medido: `architecture-stair.spec.ts` pasa de 78 a **656 comprobaciones** en 1,4 s
+(117 de ellas son el reparto de N entre 1, 2 y 3 tramos, que tiene que sumar N
+exacto). El desarrollo total se mide sobre las COORDENADAS EMITIDAS —la suma de
+los primeros lados de los contornos— y cuadra con el que dice el aviso: 4.445,7
+en L, 5.158,6 en U. Los volúmenes los da el kernel B-rep sobre el árbol
+persistido y se contrastan contra `ancho·h·c·(n−1)·n/2` por tramo y
+`ancho·fondo·c·k` por descanso. Y la escalera RECTA se compara contra la huella
+SHA-256 de cinco lotes capturados del árbol ANTES del cambio: mismos ids, mismo
+orden, mismos vértices hasta la última cifra, mismo aviso.
+
+Fuera del territorio queda P-architecture-03: la fila de STAIR en
+`docs/parity/ESCALERA.md` sigue declarando «sólo un tramo recto», y la ESCALERA
+es archivo del coordinador.
+
+Lo que esta entrega NO trajo, con su motivo:
+
+- **Peldaños compensados en el giro y escalera de caracol.** Los giros son
+  siempre por descanso. Compensar exige repartir el ángulo entre peldaños de
+  huella variable, que no es el mismo dentado y no cabía en esta entrega.
+- **La U de media vuelta** (dos tramos y un descanso de doble fondo). La U que
+  entra es la de dos cuartos de vuelta, tres tramos, como pedía la entrega.
+- **El máximo de peraltes por tramo de las NTC.** El reparto se niega por defecto
+  de tramo, nunca por exceso: añadir el tope cambiaría lo que hoy emite una
+  escalera recta alta, y esta entrega se comprometió a no mover la recta.
+- **Giro a la derecha.** El giro es siempre a la izquierda; una palabra clave
+  `Giro` es el siguiente paso natural y no está.
+
 ## «Todavía no»
 
 - **IFC 4 de exportación (punto 6 de la cola) — 2026-09-04.** No se abre en esta
