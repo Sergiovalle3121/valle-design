@@ -217,6 +217,84 @@ let dibujo = documento();
   );
 }
 
+// --- 6 · al cerrar la ruta se dice contra qué se acaba de chocar ----------
+{
+  // Un muro de 10 m con una puerta centrada, lejos de las rutas anteriores.
+  const conMuro = migrateCadDocument({
+    meta: { version: 1, schema: 8, unit: "mm" },
+    layers: [{ id: "0", name: "0", visible: true, locked: false, color: "#ffffff" }],
+    entities: [
+      {
+        id: "w1",
+        type: "wall",
+        start: { x: 0, y: 20_000, z: 0 },
+        end: { x: 10_000, y: 20_000, z: 0 },
+        thickness: 200,
+        height: 3_000,
+        layer: "0",
+      },
+      {
+        id: "v1",
+        type: "opening",
+        kind: "door",
+        hostId: "w1",
+        position: 5_000,
+        width: 900,
+        height: 2_100,
+        sill: 0,
+        swing: "left",
+        hinge: "start",
+        layer: "0",
+      },
+    ],
+    modelSpace: { entityIds: ["w1", "v1"] },
+  } as never);
+
+  const choca = run(conMuro, [
+    "PIDROUTE", '6"', "P", "CS150",
+    "2500",                                        // por encima del dintel
+    { punto: [2_000, 19_000] }, { punto: [2_000, 21_000] }, "\r",
+  ]);
+  const dichoChoque = dichos(choca.effects).join(" / ");
+  ok(
+    /CHOQUE contra w1/.test(dichoChoque),
+    `al cerrar la ruta se dice contra qué se chocó: ${dichoChoque}`,
+  );
+  ok(/de calado/.test(dichoChoque), `y cuánto se meten una en otra: ${dichoChoque}`);
+  ok(
+    /diámetro NOMINAL/.test(dichoChoque),
+    `con el límite al lado, que es de dónde sale el número: ${dichoChoque}`,
+  );
+
+  // La MISMA maniobra a la cota del vano de la puerta: no choca, se informa.
+  const pasa = run(conMuro, [
+    "PIDROUTE", '6"', "P", "CS150",
+    "1000",
+    { punto: [5_000, 19_000] }, { punto: [5_000, 21_000] }, "\r",
+  ]);
+  const dichoPaso = dichos(pasa.effects).join(" / ");
+  ok(
+    /PASO POR HUECO contra v1/.test(dichoPaso),
+    `cruzar por el vano se informa, no se acusa: ${dichoPaso}`,
+  );
+  ok(!/CHOQUE contra/.test(dichoPaso), `y no se llama choque: ${dichoPaso}`);
+
+  // Y PIDMTO lista el choque junto a los hallazgos que ya daba.
+  const listado = run(choca.document, ["PIDMTO"]);
+  const dichoMto = dichos(listado.effects).join(" / ");
+  ok(/CHOQUE:/.test(dichoMto), `PIDMTO lista los choques: ${dichoMto}`);
+  ok(/atraviesa el muro w1/.test(dichoMto), `con su renglón legible: ${dichoMto}`);
+  ok(/sin hallazgos/.test(dichoMto), `sin perder el renglón de hallazgos de siempre: ${dichoMto}`);
+  ok(/2\.00 m de tubo/.test(dichoMto), `ni el metrado, que es a lo que se venía: ${dichoMto}`);
+
+  // Sin estructura no se finge un «todo bien»: se dice que no hay contra qué.
+  const sinMuros = run(dibujo, ["PIDMTO"]);
+  ok(
+    !/CHOQUE/.test(dichos(sinMuros.effects).join(" ")),
+    "un dibujo sin muros ni sólidos no inventa choques",
+  );
+}
+
 console.log(
-  `PIDROUTE/PIDMTO tecleados: ${verdes} comprobaciones verdes — la cota llega a cada vértice, el montante sale solo al cambiar de elevación y la lista de materiales cuenta metros y piezas con su límite`,
+  `PIDROUTE/PIDMTO tecleados: ${verdes} comprobaciones verdes — la cota llega a cada vértice, el montante sale solo al cambiar de elevación y la lista de materiales cuenta metros y piezas con su límite, y al cerrar la ruta se dice contra qué se acaba de chocar`,
 );

@@ -72,7 +72,11 @@ Formato de cada petición:
   `{ "kind": "spec", "path": "apps/web/src/lib/cad/plant/pipe-solid.spec.ts" }`.
 - **Cómo se comprueba:** `node scripts/cad/rubric.spec.mjs` y
   `node scripts/cad/rubric.mjs --markdown --check`.
-- **Estado:** pendiente — se pide sólo cuando las dos specs estén verdes y committeadas.
+- **Estado:** pendiente — **la mitad de choques ya está verde y committeada**
+  (`apps/web/src/lib/cad/plant/clash.spec.ts`, 56 comprobaciones, 2026-09-04). Falta
+  `pipe-solid.spec.ts` (T2). Si T2 no llegara, la petición sigue siendo válida recortada:
+  sustituir sólo «detección de choques contra estructura, » por nada y añadir la evidencia
+  de `clash.spec.ts`, dejando intacto lo del sólido de tubería.
 
 ### P-mep-plant-04 · ESCALERA: los «todavía no» de MEP y Plant
 - **Archivo:** `docs/parity/ESCALERA.md` — **archivo de coordinador, F6 no lo toca (R2)**

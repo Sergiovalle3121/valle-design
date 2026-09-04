@@ -28,6 +28,23 @@
  * especificación a mitad, que un codo sea de un ángulo que se compra, que no
  * haya tramos de longitud cero, que una ruta que quedó toda a la misma cota lo
  * diga—; contra el catálogo del proyecto no se comprueba, y se dice.
+ *
+ * ## El choque se avisa AL CERRAR la ruta, no en una orden aparte
+ *
+ * `plant/clash.ts` mide la ruta contra lo que el dibujo tiene construido
+ * —muros con su altura y sus vanos restados, sólidos por su envolvente, y las
+ * demás rutas—. Ese aviso cuelga de PIDROUTE y de PIDMTO en vez de vivir en una
+ * orden nueva por dos razones, y la segunda es la que manda:
+ *
+ *  · El momento en que sirve saber que la tubería atraviesa un muro es el
+ *    instante en que se acaba de tender, no media hora después cuando a alguien
+ *    se le ocurre preguntar. Una comprobación que hay que acordarse de teclear
+ *    es una comprobación que no se hace.
+ *  · Una orden NUEVA obliga a tocar `ribbon.ts` y `docs/cad/evidence/
+ *    ui-command-reach.json`, los dos fuera del territorio de este frente
+ *    (`docs/execution/frentes/mep-plant-peticiones.md`, P-mep-plant-02). El
+ *    diseño de `PIDCLASH` está escrito ahí por si el titular la quiere; sin
+ *    ella la capacidad entrega igual, que es la condición para no fingir.
  */
 import type { CadPoint3 } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
@@ -45,6 +62,12 @@ import {
   cadPipeRoutesOf,
 } from "../../plant/pipe-route";
 import { CAD_PL_MTO_LIMITS, cadPipeMto } from "../../plant/pipe-mto";
+import {
+  CAD_PL_CLASH_LIMITS,
+  CAD_PL_CLASH_WORD,
+  cadPipeClashReport,
+  cadPipeClashSummary,
+} from "../../plant/clash";
 import { cadPointZ } from "../spatial-point";
 import {
   CAD_ACCEPT_DISTANCE,
@@ -171,36 +194,58 @@ function finishRoute(state: RouteState, context: CadCommandContext): CadCommandS
       },
     });
 
-  commands.push({
-    type: "insert",
-    entity: {
-      id: context.newEntityId(),
-      type: "polyline",
-      vertices: state.points.map((point) => ({ x: point.x, y: point.y, z: point.z })),
-      closed: false,
-      layer: CAD_PL_ROUTE_LAYER,
-      context: {
-        metadata: {
-          ...cadPlantLineMetadata({
-            size: state.size!,
-            service: state.service!,
-            number,
-            spec: state.spec!,
-          }),
-          [CAD_PL_ROUTE]: CAD_PL_ROUTE_MARK,
-        },
+  // La entidad se guarda aparte de la orden porque el aviso de choque necesita
+  // verla YA en el dibujo: el informe se calcula sobre el documento más la
+  // ruta que se acaba de cerrar, que todavía no está insertada.
+  const nueva = {
+    id: context.newEntityId(),
+    type: "polyline",
+    vertices: state.points.map((point) => ({ x: point.x, y: point.y, z: point.z })),
+    closed: false,
+    layer: CAD_PL_ROUTE_LAYER,
+    context: {
+      metadata: {
+        ...cadPlantLineMetadata({
+          size: state.size!,
+          service: state.service!,
+          number,
+          spec: state.spec!,
+        }),
+        [CAD_PL_ROUTE]: CAD_PL_ROUTE_MARK,
       },
-    } as never,
-  });
+    },
+  };
+  commands.push({ type: "insert", entity: nueva as never });
 
   const cotas = [...new Set(state.points.map((point) => Math.round(point.z)))].sort(
     (a, b) => a - b,
   );
-  const dicho =
+  const partes = [
     `PIDROUTE: ${linea}, ${state.points.length} punto(s) en ${CAD_PL_ROUTE_LAYER}, ` +
-    (cotas.length === 1
-      ? `toda a la cota ${cotas[0]}`
-      : `cotas de ${cotas[0]} a ${cotas[cotas.length - 1]}`);
+      (cotas.length === 1
+        ? `toda a la cota ${cotas[0]}`
+        : `cotas de ${cotas[0]} a ${cotas[cotas.length - 1]}`),
+  ];
+  // Contra QUÉ se acaba de chocar, dicho en el mismo aliento en que se tiende.
+  const informe = cadPipeClashReport(
+    { entities: [...entities, nueva as never] },
+    { unit: context.unit, routeIds: [nueva.id] },
+  );
+  if (informe.obstacles > 0) {
+    partes.push(
+      informe.clashes.length === 0
+        ? cadPipeClashSummary(informe)
+        : informe.clashes
+            .map(
+              (choque) =>
+                `${CAD_PL_CLASH_WORD[choque.kind]} contra ${choque.againstId}` +
+                (choque.depth === undefined ? ` a ${choque.gap}` : ` con ${choque.depth} de calado`),
+            )
+            .join("; "),
+    );
+    partes.push(CAD_PL_CLASH_LIMITS);
+  }
+  const dicho = partes.join(". ");
   return {
     state: undefined as never,
     prompt: { message: "", options: [] },
@@ -332,6 +377,26 @@ const mtoCommand: CadCommandDescriptor<never> = {
           .join("; "),
       );
     else partes.push("sin hallazgos");
+
+    // Los choques van JUNTO a los hallazgos de la ruta porque son la misma
+    // pregunta —«¿esto se puede construir?»— contestada sobre dos fuentes: la
+    // geometría de la propia línea y lo que el dibujo ya tiene levantado.
+    const choques = cadPipeClashReport({ entities }, { unit: context.unit });
+    if (choques.obstacles > 0) {
+      partes.push(
+        choques.clashes.length === 0
+          ? cadPipeClashSummary(choques)
+          : choques.clashes
+              .map((choque) => `${CAD_PL_CLASH_WORD[choque.kind]}: ${choque.detail}`)
+              .join("; "),
+      );
+      partes.push(CAD_PL_CLASH_LIMITS);
+    }
+    if (choques.skipped.length > 0)
+      partes.push(
+        `sin medir: ${choques.skipped.map((salto) => `${salto.entityId} (${salto.reason})`).join("; ")}`,
+      );
+
     partes.push(CAD_PL_MTO_LIMITS);
     return say(`PIDMTO — ${partes.join(". ")}.`);
   },
