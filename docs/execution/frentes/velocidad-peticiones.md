@@ -53,3 +53,56 @@ Formato de cada petición:
   `docs/cad/evidence/curve-kernel-render-100k.json: PASA`. Para ver que el gate MUERDE, basta
   cambiar a mano `environment.gpu` a `true` en el artefacto: el spec lo rechaza citando `gpu`.
 - **Estado:** pendiente
+
+### P-velocidad-02 · Regenerar la matriz competitiva: lleva desactualizada desde el cableado del kernel
+
+- **Archivo:** `docs/competitive/autocad-2027-gap-matrix.md` — fuera del territorio de este
+  frente (R1) y vecino directo de la rúbrica, que es archivo compartido (R2).
+- **Por qué:** `npm run check:cad` está ROJO en este árbol por esto. Su último paso,
+  `node scripts/cad/rubric.mjs --markdown --check`, dice literalmente «La matriz versionada está
+  DESACTUALIZADA respecto al script». La causa es el commit `ff82c85` de este mismo frente (el
+  cableado del kernel al teselado): al pasar a verde el criterio
+  `wasm.toolchain`, la fila «Kernel Rust/WASM» dejó de tener criterios pendientes y entró en el
+  conjunto de filas que retienen 1 pt por falta de evidencia independiente. Ese commit no
+  regeneró la matriz y este frente no puede hacerlo sin salirse de su territorio.
+- **Cambio exacto:** correr, sin editar nada a mano,
+
+  ```
+  node scripts/cad/rubric.mjs --markdown
+  ```
+
+  y committear el fichero que escribe. El diff comprobado en este árbol es de **3 líneas
+  añadidas y 4 quitadas**, todas dentro del bloque `<!-- rubric:begin -->…<!-- rubric:end -->`:
+
+  1. «29 fila(s) retienen 1 pt» → «30 fila(s) retienen 1 pt»;
+  2. la fila `Kernel Rust/WASM` pasa de listar el criterio del cableado como pendiente a
+     listarlo entre los verificados, con «Nada pendiente: todos los criterios declarados
+     verifican» en la columna de pendientes (**la fila sigue en 1/2**: el techo por evidencia
+     propia no se mueve, ver el «Todavía no» del 2026-09-04 en `velocidad.md`);
+  3. la tabla de prioridades pierde su fila 6 (el criterio del kernel, ya cumplido) y la que era
+     la 7 pasa a ser la 6.
+
+  **La puntuación NO cambia**: sigue siendo 176/197 hoy y 232/271 destino. No hay que tocar
+  `docs/competitive/rubric.json` para nada.
+- **Cómo se comprueba:** `node scripts/cad/rubric.mjs --markdown --check` pasa en silencio, y con
+  él el último tramo de `npm run check:cad`.
+- **Estado:** pendiente
+
+### P-velocidad-03 · Aviso: `check:dwg-evidence` falla en este contenedor por entorno, no por código
+
+- **Archivo:** ninguno. Es un aviso para la ventana de integración, no un cambio.
+- **Por qué:** `npm run check:cad` se detiene antes de llegar a la matriz, en
+  `node scripts/dwg/dwg-evidence.spec.mjs`, con «el artefacto del disco coincide con lo que el
+  árbol sostiene hoy». El artefacto versionado declara 7 bundles admitidos y 14 validaciones
+  independientes; regenerado AQUÍ declara 0, porque `VALLE_DWG_CORPUS_MIRROR` no está definida en
+  este contenedor y el espejo del corpus DWG no existe. Es exactamente el fallo por entorno contra
+  el que avisa `AGENTS.md` («o los gates DWG mienten por entorno»).
+- **Cambio exacto:** ninguno por parte de este frente. **Concretamente: NO regenerar el artefacto
+  desde aquí.** Hacerlo bajaría la evidencia DWG publicada de 7 bundles a 0, que es relajar un
+  gate (R6) y además falsearía a la baja el estado del producto. La corrida de verdad se hace en
+  una máquina con `VALLE_DWG_CORPUS_MIRROR` apuntando al clon de
+  `valle-design-dwg-conformance`.
+- **Cómo se comprueba:** `git diff HEAD~1 --name-only` desde el commit de la entrega 2 no toca
+  ningún archivo DWG; el fallo es anterior a este frente y ajeno a él.
+- **Estado:** pendiente
+

@@ -33,12 +33,14 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
+import { BENCH_MIXES, median } from "./curve-kernel-render-bench.mjs";
+// La REGLA se importa de donde vive, no del programa que la aplica: si el spec
+// la tomara del generador, un cambio que aflojara la regla para que el número
+// pasara vendría acompañado de un spec que también se aflojó.
 import {
-  BENCH_MIXES,
   EVIDENCE_FILE,
-  median,
   verificarArtefacto,
-} from "./curve-kernel-render-bench.mjs";
+} from "./curve-kernel-render-contract.mjs";
 
 let checks = 0;
 const ok = (condition, message) => {

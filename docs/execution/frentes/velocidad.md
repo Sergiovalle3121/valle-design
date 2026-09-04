@@ -104,7 +104,12 @@ por qué la FILA sigue mostrando 1/2.
 
 Qué existe ahora que antes no: `docs/cad/evidence/curve-kernel-render-100k.json`, generado por
 `node scripts/perf/curve-kernel-render-bench.mjs` (15 min en este contenedor) y verificado por
-`node scripts/perf/curve-kernel-render-bench.spec.mjs` (50 comprobaciones, milisegundos).
+`node scripts/perf/curve-kernel-render-bench.spec.mjs` (50 comprobaciones, milisegundos). La
+REGLA por la que el artefacto se acepta o se rechaza vive en un archivo aparte
+—`scripts/perf/curve-kernel-render-contract.mjs`— y el spec la importa de ahí, no del generador:
+un verificador enterrado dentro del programa que produce lo verificado invita a que los dos se
+aflojen juntos el día que el número no pase. (El presupuesto de monolito obligó al corte a 800
+líneas; el corte salió mejor que el archivo único, así que se queda.)
 **La fuente de toda cifra de abajo es ese archivo**: esta bitácora la cita para contar qué pasó,
 y si alguna vez discrepan, el que tiene razón es el artefacto y esta entrada está caduca.
 
@@ -148,10 +153,25 @@ Y ata la cifra al binario: `kernel.binarySha256` tiene que ser el de
 `crates/valle-cad-kernel/kernel-manifest.json`, así que una recompilación del crate deja el
 artefacto caduco en voz alta en vez de en silencio.
 
-Regresión verde: `npm run typecheck` (8/8), `npm run check:json-keys`,
-`npm run check:no-industrial-domain`, `npm run check:lint-budget` (487/492, sin mover el techo) y
-`node scripts/cad/rubric.mjs` (232/271, sin cambio: la fila del kernel sigue reteniendo 1 pt por
-falta de oráculo externo, como ya decía el «Todavía no» de esta misma fecha).
+Regresión verde: `npm run typecheck` (8/8), `npm run check:json-keys`, `check:doctor`,
+`check:fonts`, `check:contrast`, `check:surface`, `check:conventions`, el contrato de diseño, el
+candado legacy, `check:no-industrial-domain`, el **presupuesto de monolito**, la cobertura de
+cinta, el alcance de comandos, `build-kernel.mjs --check` (sha 09ad4f6e…), las normas mexicanas,
+`check:lint-budget` (487/492, sin mover el techo), `check:precision-evidence`, `check:cad-math`,
+`check:legal`, `check:e2e-localizadores`, `check:auditoria`, `check:authz`, `rubric.spec.mjs`,
+`check:template-gallery`, `check:dxf-corpus`, `check:pdf-corpus`, `check:dxf-props` y
+`check:api-console`. `node scripts/cad/rubric.mjs` sigue en 232/271, sin cambio: la fila del
+kernel retiene 1 pt por falta de oráculo externo, como ya decía el «Todavía no» de esta fecha.
+
+`npm run check:cad` entero NO pasa en este árbol, y por dos motivos **ajenos a esta entrega**;
+los dos están medidos y con petición escrita, no escondidos: `check:dwg-evidence` falla por
+entorno (`VALLE_DWG_CORPUS_MIRROR` sin definir en este contenedor, justo el fallo contra el que
+avisa `AGENTS.md`) y la matriz competitiva está desactualizada desde `ff82c85`, el commit
+ANTERIOR de este mismo frente. `git diff HEAD~1 --name-only` de esta entrega no toca ni un
+archivo DWG ni la matriz. Ver **P-velocidad-02** y **P-velocidad-03** en
+`docs/execution/frentes/velocidad-peticiones.md`: regenerar la matriz cae fuera del territorio
+(R1) y regenerar la evidencia DWG desde aquí la bajaría de 7 bundles a 0, que sería relajar un
+gate (R6).
 
 ## «Todavía no»
 
