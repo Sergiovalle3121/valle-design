@@ -157,6 +157,88 @@ Lo que esta entrega NO trajo, con su motivo:
 - **Giro a la derecha.** El giro es siempre a la izquierda; una palabra clave
   `Giro` es el siguiente paso natural y no está.
 
+### E2 · Área CONSTRUIDA por local, y la huella de la planta (2026-09-04)
+
+El cuadro de superficies ya daba área a ejes y área ÚTIL. Faltaba la que pide una
+licencia: la CONSTRUIDA. Sale del MISMO recorrido de caras que las otras dos —no
+de una segunda medición que pudiera discrepar—, desplazando cada lado antes de
+volver a cerrar las esquinas por intersección:
+
+- si la semi-arista GEMELA del lado pertenece a otra cara-local, el muro es
+  medianero y el lado **no se mueve**: se mide al eje, medio para cada local;
+- si no, el muro es perimetral y el lado **sale medio grosor a paño exterior**.
+
+Esa asimetría no es un detalle de gusto: es lo único que hace que la suma de las
+construidas de todos los locales sea EXACTAMENTE la huella construida de la
+planta. Con el medianero a paño por los dos lados cada tabique se contaría dos
+veces y el cuadro sumaría más metros de los que tiene el predio.
+
+Lo entregado, con su ruta:
+
+- `apps/web/src/lib/cad/bim-areas.ts` (nuevo, 193 líneas): la geometría —
+  `cadOffsetRingArea` (el anillo desplazado, esquinas por intersección) y las dos
+  lecturas con nombre, `cadRoomClearArea` y `cadRoomBuiltArea`. Vive aparte para
+  no engordar `bim-schedule.ts`, que pasa de 612 a 641 líneas (tope 800) porque
+  la vieja `clearArea` se fue con ella.
+- `CadRoomAreaRow.builtArea` y `CadRoomAreaRow.wallShareArea` (la fábrica que le
+  toca al local: construida − útil, expuesta para poder auditar la diferencia).
+- `CadBimSchedule.builtArea`: la huella de la planta, ya sumada, `null` si a
+  algún local le falta la suya. Un total incompleto se presenta igual que uno
+  completo, y ahí está el error caro.
+- `apps/web/src/lib/cad/bim-areas.spec.ts` (nueva, 41 aserciones, 0,79 s):
+  rectángulo de 5.000 × 4.000 con muros de 250 partido por un tabique de 150 —
+  12,00 / 10,50 / 13,28 m² y 8,00 / 6,75 / 9,03 m², a mano— y la IDENTIDAD
+  medida por un camino distinto del que la produce: la huella se calcula desde el
+  anillo EXTERIOR desplazado 125 hacia fuera (5.250 × 4.250 = 22.312.500 mm²) y
+  se contrasta con la suma de los locales, a 1e-9. Y otra vez sobre una planta en
+  L con esquina entrante (26.812.500 mm²), para que no fuera un artefacto del
+  rectángulo. Partir un cuarto con un tabique NO cambia la huella: la misma cifra
+  con y sin él.
+- `bim-schedule.spec.ts` pasa de 57 a 66 aserciones (0,94 s) y sigue verde
+  entera: fija que los tres campos llegan por `buildCadBimSchedule`, que es la
+  puerta de DATAEXTRACTION, del CSV y de las funciones LISP.
+
+Un hallazgo que no estaba en la entrega y se arregló porque el número acaba en
+una licencia: la vieja `clearArea` sólo miraba el SIGNO del área para detectar
+que un local es más estrecho que sus propios muros, y en un local CUADRADO el
+pliegue es simétrico y el área vuelve a salir positiva — un cuarto de 1,00 × 1,00
+con muros de 1,20 declaraba 0,04 m² de superficie útil en vez de decir que no
+tiene. `cadOffsetRingArea` comprueba además que ningún lado desplazado acabe
+recorrido al revés que el original. Los tres motivos de ausencia se nombran por
+separado en `problems` (`parallel`, `degenerate`, `collapsed`): «lados paralelos»
+y «más estrecho que sus muros» son averías distintas del dibujo y se arreglan
+distinto.
+
+Fuera del territorio: la columna «Área construida» del cuadro y del CSV vive en
+`data-extraction.ts`, que es de otro frente. Ya estaba escrita como
+**P-architecture-01** con las tres ediciones exactas, y el diseño que se entregó
+encaja con ella sin tocar una coma: `builtArea` es opcional, así que ese archivo
+compila igual antes y después. Hasta que el coordinador la aplique, el número
+existe y está probado pero **no lo ve nadie** — fix-or-hide, dicho aquí.
+
+Gates a la hora de cerrar: `npm run typecheck` verde sobre el árbol entero;
+`node scripts/cad/check-monolith-budget.mjs` verde (2.533 archivos); verdes
+también los seis specs que consumen el cuadro (`data-extraction` 24,
+`room-solid` 20, `wall-openings` 123, `wall-takeoff-solid-parity`,
+`appload` 44, `room-solid-host`) y `bim-claim-boundary`. `npm run check:cad`
+llega hasta `check:dwg-evidence` y ahí falla por ENTORNO, no por este cambio:
+`VALLE_DWG_CORPUS_MIRROR` no está definido en este árbol y el mismo gate falla
+igual con los cambios guardados (`git stash` → `EXIT=1`).
+
+Lo que esta entrega NO trajo, con su motivo:
+
+- **Descuento del hueco de escalera y de los patios.** Un patio cerrado por
+  muros sale hoy como un local más, así que entra en la huella. Es coherente —
+  los locales siguen tapizando el contorno— pero un cuadro de licencia
+  distingue superficie cubierta de descubierta, y eso exige saber qué cara
+  TIENE techo, que hoy nadie declara.
+- **Área construida por NIVEL.** Hay una planta, no un edificio: sin campo
+  persistido de nivel (esquema prohibido, R2) sumar plantas sería inventarse el
+  dato.
+- **Muros compuestos multicapa.** El desplazamiento es medio grosor TOTAL. El
+  día que el muro tenga capas, la construida se medirá a la cara del acabado
+  exterior y este módulo tendrá que preguntárselo al estilo, no al grosor.
+
 ## «Todavía no»
 
 - **IFC 4 de exportación (punto 6 de la cola) — 2026-09-04.** No se abre en esta
