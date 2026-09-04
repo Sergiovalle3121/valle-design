@@ -3548,8 +3548,39 @@
           "costDays": null,
           "evidence": [
             {
-              "kind": "todaviaNo",
-              "reason": "No hay vectorización."
+              "kind": "command",
+              "name": "VECTORIZE"
+            },
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/raster-decode.ts",
+              "minLines": 400
+            },
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/raster-vectorize.ts",
+              "minLines": 400
+            },
+            {
+              "kind": "file",
+              "path": "apps/web/src/lib/cad/raster-text-recognize.ts",
+              "minLines": 400
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/raster-decode.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/raster-vectorize.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/raster-text-recognize.spec.ts"
+            },
+            {
+              "kind": "spec",
+              "path": "apps/web/src/lib/cad/engine/commands/vectorize-raster.spec.ts"
             }
           ]
         }

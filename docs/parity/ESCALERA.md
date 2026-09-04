@@ -520,6 +520,42 @@ Cada renglón dice el peldaño de HOY y qué lo subiría; lo que no llegó está
   y el presupuesto sólo baja, pero el siguiente que necesite tocar el monolito **tiene que
   extraer antes de añadir**.
 
+## La campaña «Superar a AutoCAD completo» — ventana 2 (2026-09-04)
+
+Cuatro toolsets integrados uno a uno sobre la ventana 1. La suite subió de 593 a
+604 specs. Y aquí ocurre lo único que mueve la puntuación en toda la campaña.
+
+| Capacidad | Peldaño hoy | Evidencia | Qué falta para subir |
+| --- | --- | --- | --- |
+| **Vectorizar un escaneo: líneas Y textos a entidades** | 3 | `raster-decode.spec.ts` (61), `raster-vectorize.spec.ts` (43), `raster-text-recognize.spec.ts` (94) y `engine/commands/vectorize-raster.spec.ts` (98) = **296 comprobaciones**, verificadas por el coordinador y no releídas del informe. Un PNG de 40×30 adjuntado a 1 px = 100 mm y girado 90° vuelve como dos polilíneas cuyos seis vértices caen a menos de UNA MICRA del original; «PREDIO 4-A · 1 240.50 m2» vuelve carácter a carácter con la altura exacta; cinco motas de polvo sembradas no producen ni una entidad y el manifiesto dice que las quitó | Un golden de navegador (peldaño 5): la capacidad está probada con datos propios, no ejercitada por un usuario en pantalla. Y del propio aviso del comando: arcos, círculos y sombreados; del texto, manuscrito, tipografías de contorno relleno, letras que se tocan, más de 3° de inclinación y MTEXT. |
+| COGO: levantamiento por rumbos y distancias, y cuadro de construcción | 3 | `geo-cogo.spec.ts` (86): un cuadro pegado sale como UNA polilínea de seis vértices en un solo lote de deshacer, con su versión compensada | Un golden. COGO es NO CONCLUYENTE para la sonda de integridad —pide un rumbo tecleado que el auto-respondedor no fabrica— y por eso está en la lista de exenciones CITANDO el spec que sí lo conduce hasta escribir. |
+| Catálogo de puertas y ventanas por clave de despacho | 3 | `architecture-openings-catalog.spec.ts` (336): nueve tipos sin clave ni marca repetida; las medidas van y vuelven de mm/cm/m/in/ft con deriva máxima de 2.3e-13 mm; un tipo inventado se niega nombrando los que hay y no coloca nada | Un golden. |
+
+### Lo que esta ventana enseña sobre la rúbrica, y vale más que el punto
+
+`toolset-raster.vectorizacion` llevaba una evidencia escrita a mano —«No hay
+vectorización»— que dejó de ser cierta. Sustituida por evidencia real (el comando
+VECTORIZE más tres archivos y cuatro specs), el script recalcula solo:
+
+- **La campaña pasa de 232/271 a 233/271.** Es el primer punto que se mueve.
+- **El criterio valía 2 puntos y la fila sólo subió 1**, de 2/4 a 3/4. Al
+  completarse, entra en el conjunto de filas que retienen un punto por carecer de
+  evidencia INDEPENDIENTE. Las filas así pasan de 30 a 31.
+
+Dicho de otro modo: construir la capacidad entera da la mitad del punto que
+promete, y la otra mitad no la da ningún código. La da un archivo de un tercero o
+un usuario que trabaje con ello. Eso no es un defecto de la rúbrica; es la rúbrica
+funcionando.
+
+### La condición que se exigió antes de otorgarlo
+
+VECTORIZE existió durante horas con sus 296 comprobaciones y **sin poder
+teclearse**, porque registrarlo caía fuera del territorio de su frente. Mientras
+tanto no se otorgó nada: por fix-or-hide, una capacidad que el usuario no puede
+invocar no está implementada. El criterio se concedió sólo cuando el comando
+quedó registrado (294 comandos), alcanzable con el ratón (294 de 294) y
+CONCLUYENTE en la sonda de integridad sin exención alguna.
+
 ## Cómo se usa
 
 - **Al añadir una entrada nueva a `BACKLOG.md`:** decir el peldaño ACTUAL
