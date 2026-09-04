@@ -14,6 +14,12 @@ import { executeCadEntityCommandBatch } from "../../entity-commands";
 import { CAD_PL_LINE } from "../../plant/line-numbers";
 import { CAD_PL_ROUTE, CAD_PL_ROUTE_LAYER, CAD_PL_ROUTE_MARK } from "../../plant/pipe-route";
 import {
+  CAD_PL_SOLID_LAYER,
+  CAD_PL_SOLID_OF,
+  cadPipeSolidsStale,
+} from "../../plant/pipe-solid";
+import { solid3dMassProperties } from "../../solid3d-build";
+import {
   EMPTY_CAD_COMMAND_ENGINE,
   cadCommandEngineReduce,
   type CadCommandEffect,
@@ -222,6 +228,171 @@ let dibujo = documento();
   );
 }
 
+// --- 6 · al cerrar la ruta se dice contra qué se acaba de chocar ----------
+{
+  // Un muro de 10 m con una puerta centrada, lejos de las rutas anteriores.
+  const conMuro = migrateCadDocument({
+    meta: { version: 1, schema: 8, unit: "mm" },
+    layers: [{ id: "0", name: "0", visible: true, locked: false, color: "#ffffff" }],
+    entities: [
+      {
+        id: "w1",
+        type: "wall",
+        start: { x: 0, y: 20_000, z: 0 },
+        end: { x: 10_000, y: 20_000, z: 0 },
+        thickness: 200,
+        height: 3_000,
+        layer: "0",
+      },
+      {
+        id: "v1",
+        type: "opening",
+        kind: "door",
+        hostId: "w1",
+        position: 5_000,
+        width: 900,
+        height: 2_100,
+        sill: 0,
+        swing: "left",
+        hinge: "start",
+        layer: "0",
+      },
+    ],
+    modelSpace: { entityIds: ["w1", "v1"] },
+  } as never);
+
+  const choca = run(conMuro, [
+    "PIDROUTE", '6"', "P", "CS150",
+    "2500",                                        // por encima del dintel
+    { punto: [2_000, 19_000] }, { punto: [2_000, 21_000] }, "\r",
+  ]);
+  const dichoChoque = dichos(choca.effects).join(" / ");
+  ok(
+    /CHOQUE contra w1/.test(dichoChoque),
+    `al cerrar la ruta se dice contra qué se chocó: ${dichoChoque}`,
+  );
+  ok(/de calado/.test(dichoChoque), `y cuánto se meten una en otra: ${dichoChoque}`);
+  ok(
+    /diámetro NOMINAL/.test(dichoChoque),
+    `con el límite al lado, que es de dónde sale el número: ${dichoChoque}`,
+  );
+
+  // La MISMA maniobra a la cota del vano de la puerta: no choca, se informa.
+  const pasa = run(conMuro, [
+    "PIDROUTE", '6"', "P", "CS150",
+    "1000",
+    { punto: [5_000, 19_000] }, { punto: [5_000, 21_000] }, "\r",
+  ]);
+  const dichoPaso = dichos(pasa.effects).join(" / ");
+  ok(
+    /PASO POR HUECO contra v1/.test(dichoPaso),
+    `cruzar por el vano se informa, no se acusa: ${dichoPaso}`,
+  );
+  ok(!/CHOQUE contra/.test(dichoPaso), `y no se llama choque: ${dichoPaso}`);
+
+  // Y PIDMTO lista el choque junto a los hallazgos que ya daba.
+  const listado = run(choca.document, ["PIDMTO"]);
+  const dichoMto = dichos(listado.effects).join(" / ");
+  ok(/CHOQUE:/.test(dichoMto), `PIDMTO lista los choques: ${dichoMto}`);
+  ok(/atraviesa el muro w1/.test(dichoMto), `con su renglón legible: ${dichoMto}`);
+  ok(/sin hallazgos/.test(dichoMto), `sin perder el renglón de hallazgos de siempre: ${dichoMto}`);
+  ok(/2\.00 m de tubo/.test(dichoMto), `ni el metrado, que es a lo que se venía: ${dichoMto}`);
+
+  // Sin estructura no se finge un «todo bien»: se dice que no hay contra qué.
+  const sinMuros = run(dibujo, ["PIDMTO"]);
+  ok(
+    !/CHOQUE/.test(dichos(sinMuros.effects).join(" ")),
+    "un dibujo sin muros ni sólidos no inventa choques",
+  );
+}
+
+// --- 8 · `Sólido`: el tubo con volumen, en el MISMO lote de deshacer ------
+{
+  // Sin la palabra clave no hay sólido: el comportamiento de siempre no cambia.
+  const soloRuta = run(documento(), [
+    "PIDROUTE", '6"', "P", "CS150",
+    "0",
+    { punto: [0, 0] }, { punto: [6_000, 0] }, "\r",
+  ]);
+  eq(
+    soloRuta.document.entities.filter((entidad) => entidad.type === "solid3d").length,
+    0,
+    "sin teclear Sólido, PIDROUTE sigue escribiendo sólo la ruta",
+  );
+
+  const antes = pasos;
+  const conSolido = run(documento(), [
+    "PIDROUTE", '6"', "P", "CS150",
+    "0",
+    "S",                          // el interruptor, antes del primer punto
+    { punto: [0, 0] }, { punto: [6_000, 0] },
+    "E", "3000",                  // y con montante, que es donde se paga el barrido
+    "\r",
+  ]);
+  eq(pasos - antes, 1, "la polilínea y el sólido salen en UN solo lote de deshacer");
+
+  const solidos = conSolido.document.entities.filter((entidad) => entidad.type === "solid3d");
+  eq(solidos.length, 1, "el cuerpo facetado llegó al documento");
+  eq(solidos[0].layer, CAD_PL_SOLID_LAYER, "en TU-SOLIDO, aparte del eje");
+  const rutaTendida = rutas(conSolido.document)[0];
+  eq(
+    solidos[0].context?.metadata?.[CAD_PL_SOLID_OF],
+    rutaTendida.id,
+    "y declara de qué ruta salió",
+  );
+  eq(
+    conSolido.document.layers.some((capa) => capa.id === CAD_PL_SOLID_LAYER),
+    true,
+    "la capa se da de alta en el mismo lote, no se supone",
+  );
+
+  // El volumen: 6 000 en planta más 3 000 de montante de una 6", dentro del 1 %.
+  const teorico = Math.PI * 76.2 * 76.2 * 9_000;
+  const volumen = solid3dMassProperties(
+    solidos[0] as Extract<CadDocument["entities"][number], { type: "solid3d" }>,
+  ).volume;
+  ok(
+    Math.abs((volumen - teorico) / teorico) <= 0.01,
+    `el tubo tecleado ocupa el volumen del tubo nominal — ${(((volumen - teorico) / teorico) * 100).toFixed(3)} %`,
+  );
+
+  const dicho = dichos(conSolido.effects).join(" / ");
+  ok(/sólido facetado en TU-SOLIDO/.test(dicho), `y la orden lo dice: ${dicho}`);
+  ok(/FACETADO/.test(dicho), `con la palabra que le corresponde: ${dicho}`);
+  ok(/prisma de 16 lados/.test(dicho), `y con su límite al lado: ${dicho}`);
+
+  // --- la deuda de persistirlo, cobrada por PIDMTO ------------------------
+  eq(
+    cadPipeSolidsStale(conSolido.document).length,
+    0,
+    "recién tendida, la huella cuadra y no hay nada que declarar",
+  );
+  const movido: CadDocument = {
+    ...conSolido.document,
+    entities: conSolido.document.entities.map((entidad) =>
+      entidad.id === rutaTendida.id && entidad.type === "polyline"
+        ? {
+            ...entidad,
+            vertices: entidad.vertices.map((vertice, indice) =>
+              indice === entidad.vertices.length - 1 ? { ...vertice, z: 4_500 } : vertice,
+            ),
+          }
+        : entidad,
+    ),
+  };
+  const avisado = run(movido, ["PIDMTO"]);
+  const dichoMto = dichos(avisado.effects).join(" / ");
+  ok(
+    /el sólido de 6"-P-1001-CS150 quedó viejo/.test(dichoMto),
+    `mover un vértice y PIDMTO lo declara: ${dichoMto}`,
+  );
+  const quieto = dichos(run(conSolido.document, ["PIDMTO"]).effects).join(" / ");
+  ok(
+    !/quedó viejo/.test(quieto),
+    `y sobre la ruta sin tocar PIDMTO no acusa a nadie: ${quieto}`,
+  );
+}
+
 console.log(
-  `PIDROUTE/PIDMTO tecleados: ${verdes} comprobaciones verdes — la cota llega a cada vértice, el montante sale solo al cambiar de elevación y la lista de materiales cuenta metros y piezas con su límite`,
+  `PIDROUTE/PIDMTO tecleados: ${verdes} comprobaciones verdes — la cota llega a cada vértice, el montante sale solo al cambiar de elevación y la lista de materiales cuenta metros y piezas con su límite, y al cerrar la ruta se dice contra qué se acaba de chocar, y \`Sólido\` emite el tubo facetado en el mismo lote y PIDMTO declara el que quedó viejo`,
 );
