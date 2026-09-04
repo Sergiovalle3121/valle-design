@@ -67,8 +67,81 @@ npm run check:cad                       # antes de cerrar
 
 ## Bitácora
 
-_(sin entradas todavía)_
+### 2026-09-04 · Entregable 1/5 — arnés de re-escritura del corpus
+
+**Qué se construyó.** `scripts/dwg/corpus-rewrite.mjs` (+ `corpus-rewrite-compare.mjs`,
+partido por el presupuesto de 800 líneas) y su spec. Por cada uno de los 57 fixtures
+ADMITIDOS: decodificar → ofrecer cada entidad al writer → armar un archivo propio →
+releerlo → cotejar CAMPO A CAMPO → anclar los valores contra el DXF del oráculo con los
+helpers de `dxf-oracle.mjs` importados sin modificar. Evidencia en
+`docs/cad/evidence/dwg-corpus-rewrite.json`, regenerable y determinista.
+
+**La cifra de partida, tal como salió.** De **327 entidades ajenas el writer regraba 269
+(82,3 %)** y rechaza 58. Las 269 vuelven **idénticas campo a campo** (cero diferencias) y
+212 quedan ancladas al DXF del oráculo sin un solo valor distinto.
+
+| Estado | Clases |
+| --- | --- |
+| `regrabada-integra` (8) | `arc`, `circle`, `ellipse`, `line`, `lwpolyline`, `mtext`, `point`, `text` |
+| `regrabada-con-perdida-declarada` (2) | `hatch` (2 de 4: el patrón falla cerrado), `insert` (30 de 34: con ATTRIBs falla cerrado) |
+| `no-escribible` (17) | `attdef`, `attrib`, `dimension`, `face3d`, `leader`, `mline`, `polyfaceMesh`, `polyline2d`, `polyline3d`, `polymesh`, `ray`, `solid`, `spline`, `tolerance`, `trace`, `viewport`, `xline` |
+
+**Tres hechos que el arnés encontró y no se sabían con este detalle.**
+
+1. La frontera del INSERT con atributos NO es «se escribe sin los ATTRIBs»: es un fallo
+   CERRADO en `validateEntity` (`DWG_INPUT_INVALID: Writing insert attributes is not
+   implemented by the phase-D4 laboratory`). Un INSERT con atributos hoy no se escribe en
+   absoluto — 4 de 34 en el corpus. Lo mismo el HATCH de patrón: 2 de 4.
+2. **62 de 74 capas cambian el nombre de su tipo de línea al re-escribirse**: el corpus
+   ajeno lo deletrea `CONTINUOUS` y nuestro writer emite `Continuous`. No es pérdida de
+   información (la capa sigue siendo continua) y no se ha tocado nada: queda REGISTRADO en
+   `resumenDeObservacionesDeCapa`. Si un lector ajeno distingue mayúsculas ahí, esto sería
+   un defecto real; que lo distinga o no NO está medido en este entorno.
+3. Ninguna de las 269 entidades regrabadas movió un solo campo, y ninguna se apartó del
+   DXF del oráculo. Color de capa, congelada/bloqueada y patrón de LTYPE propio también
+   sobreviven exactos.
+
+**El límite, escrito en el propio informe (`limiteDeclarado`).** El cotejo enfrenta
+NUESTRO writer con NUESTRO lector: un error SIMÉTRICO seguiría oculto. El anclaje al DXF
+del oráculo lo estrecha —esos valores los escribió otro— pero no lo cierra. Sólo un
+conversor ajeno leyendo NUESTRO archivo lo cierra, y eso es `oda-roundtrip.mjs`, acción
+del titular con su binario con licencia.
+
+**Cómo se corre** (el prefijo de entorno tiene que estar EXPORTADO: `--check` sin corpus
+falla cerrado a propósito, y no inventa una ruta por defecto — esa atadura a una máquina
+es la que `oda-roundtrip.mjs` se quitó el 2026-09-02):
+
+```
+export VALLE_DWG_CORPUS_MIRROR=/home/user/valle-design-dwg-conformance
+node scripts/dwg/corpus-rewrite.spec.mjs && node scripts/dwg/corpus-rewrite.mjs --check
+```
+
+**Esto es el patrón de medida de 2, 3 y 4.** Cada clase que el writer aprenda se ve como
+una fila que cambia de estado en `matrizPorClase`, y el porcentaje del veredicto sube
+solo. No hace falta un informe nuevo por clase.
 
 ## «Todavía no»
 
-_(sin entradas todavía)_
+- **2026-09-04 · `npm run check:cad` ya estaba ROJO al cortar la rama, y no por este
+  frente.** `check:dwg-evidence` compara `docs/cad/evidence/dwg-decoder-matrix.json` y
+  `dwg-roundtrip.json` con lo que el árbol genera hoy, y esos dos artefactos guardan el
+  campo `origen` con la RUTA LOCAL del espejo del corpus. Committeados sin espejo dicen
+  `estado: "unavailable"`, `bundlesAdmitidos: 0` y la URL del repositorio; regenerados con
+  espejo dicen `verified`, `7` y `/home/user/valle-design-dwg-conformance`. Ninguna de las
+  dos formas pasa el gate en las dos máquinas: el artefacto es dependiente del entorno por
+  construcción. Verificado con `git stash -u` que el rojo existe sin mis cambios
+  (`typecheck` sigue verde). **Diseño del arreglo, para la tarea siguiente de este frente:**
+  que `dwg-evidence.mjs` grabe el TIPO de transporte (`local-mirror` / `git-fetch`), como ya
+  hace `corpus-rewrite.mjs`, y nunca la ruta; y que la comparación del spec ignore el bloque
+  de corpus cuando no hay espejo, en vez de exigir el estado de cero. No se toca en este
+  entregable para no mezclar dos cosas en un commit. **Trampa que costó un susto:**
+  `dwg-evidence.mjs` NO respeta `--out` — correrlo para inspeccionar su salida REESCRIBE los
+  dos artefactos committeados con la ruta de la máquina dentro. `corpus-rewrite.mjs` sí lo
+  respeta, y el arreglo de arriba debería incluirlo.
+- **2026-09-04 · El anclaje no cubre los bloques anónimos `*D`.** El DXF del oráculo es la
+  fuente de autoría propia y no los tiene (los genera el conversor al producir el DWG), así
+  que las 57 entidades escritas que viven dentro de ellos (4 `arc`, 21 `line`, 8 `mtext`,
+  24 `point`) se re-escriben y se cotejan campo a campo,
+  pero NO se anclan contra nadie. Por eso `ancladasAlOraculo` es menor que `escritas` en
+  `line`, `point`, `mtext` y `arc`. Está declarado en el informe; cerrarlo exigiría un
+  oráculo que describa el bloque anónimo, que hoy no existe.
