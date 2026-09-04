@@ -1,0 +1,545 @@
+{
+  "$schema": "urn:valle-design:schema:cad-curve-kernel-render-evidence:v1",
+  "schemaVersion": 1,
+  "evidenceId": "valle-design-curve-kernel-render-100k-v1",
+  "startedAt": "2026-09-04T08:52:45.835Z",
+  "finishedAt": "2026-09-04T09:07:50.698Z",
+  "question": "Con el kernel de curvas cableado al teselado del render, ¿cuánto ahorra el binario frente al motor JavaScript sobre el corpus del producto, por la función que el worker ejecuta de verdad?",
+  "enforcement": "gate-en-spec sobre la PARIDAD y la frontera; report-only en los tiempos",
+  "enforcementRationale": "La paridad de puntos SÍ bloquea: `scripts/perf/curve-kernel-render-bench.spec.mjs` rechaza el artefacto si los dos motores no devuelven exactamente el mismo recuento por entidad, y la sonda ni siquiera llega a publicar en ese caso. Los TIEMPOS no fijan presupuesto: están medidos en un contenedor cloud compartido, y convertirlos en umbral produciría un gate que falla por contención de máquina y no por una regresión del producto. Se publica el suelo por corrida para que la cifra citable sea la defendible.",
+  "verdict": {
+    "passed": true,
+    "violations": []
+  },
+  "environment": {
+    "node": "v22.22.2",
+    "v8": "12.4.254.21-node.39",
+    "platform": "linux",
+    "architecture": "x64",
+    "osType": "Linux",
+    "osRelease": "6.18.44-fc-v24",
+    "cpuModel": "Intel(R) Xeon(R) Processor @ 2.80GHz",
+    "logicalCpuCount": 4,
+    "availableParallelism": 4,
+    "totalMemoryBytes": 16856092672,
+    "freeMemoryBytesAtStart": 15951863808,
+    "measurementKind": "cpu-node",
+    "gpu": false,
+    "browser": false,
+    "declaredMachine": "Intel(R) Xeon(R) Processor @ 2.80GHz (4 hilos lógicos), 15.7 GB de RAM, Linux 6.18.44-fc-v24, contenedor cloud de la sesión de agente que generó el artefacto.",
+    "whatThisIsNot": "NO es una medida de navegador ni de GPU. En este contenedor no hay GPU y no hay navegadores de Playwright (bajarlos sale por egreso denegado), así que aquí no se puede medir ni un fotograma ni el tiempo hasta detalle completo en pantalla. Esta cifra no sustituye a docs/cad/evidence/browser-slo-100k.json y no se compara con ella número a número."
+  },
+  "kernel": {
+    "abi": 1,
+    "binarySha256": "09ad4f6e8e1b8ec1092918a86b174eef84871cd5bcbfa7dec2f00b1f7a6ba3a6",
+    "binaryBytes": 29258,
+    "rustc": "rustc 1.94.1 (e408947bf 2026-03-25)",
+    "target": "wasm32-unknown-unknown",
+    "rebuildWith": "node scripts/wasm/build-kernel.mjs",
+    "verifyWith": "node scripts/wasm/build-kernel.mjs --check",
+    "note": "el binario que produjo estas cifras, por su sha256. Si el crate se recompila, este artefacto queda caduco y hay que regenerarlo: el spec lo comprueba contra crates/valle-cad-kernel/kernel-manifest.json y falla si se han separado."
+  },
+  "method": {
+    "defaultRuns": 3,
+    "defaultRepeatsPerRun": 9,
+    "defaultCurveRepeatsPerRun": 9,
+    "defaultWarmupPerRun": 1,
+    "aggregation": "por defecto, mediana de 3 corridas en PROCESOS SEPARADOS y, dentro de cada una, mediana de 9 repeticiones de la etapa y 9 del sublote de curvas, alternando los dos motores. Los campos `default*` de este bloque son sólo eso, el defecto: el presupuesto REAL de cada mezcla viaja en `measurements[].budget` y dice por qué es el que es. Una mezcla cuya pasada cuesta minutos lleva menos repeticiones, y la que se publica en cero lleva el mínimo.",
+    "whyAlternated": "medir «N veces JavaScript y luego N veces wasm» le regala al segundo motor un montón ya crecido y unas cachés de CPU calientes con este corpus. Alternando, la mediana de cada motor sale de repeticiones que vieron el mismo estado de la máquina.",
+    "whySeparateProcesses": "repetir en caliente dentro del mismo proceso mide un JIT ya especializado sobre este corpus concreto, que es justo lo que NO le pasa al navegador de un arquitecto abriendo un plano.",
+    "generator": "scripts/perf/curve-kernel-render-bench.mjs",
+    "probe": "scripts/perf/curve-kernel-render-probe.mts",
+    "timedFunction": "apps/web/src/lib/cad/render/curve-kernel-tessellation.ts · tessellateCadEntitiesWithCurveKernel",
+    "workerEntryPoint": "apps/web/src/lib/cad/render/tessellate.worker.ts · tessellateCadEntityBatch, cuyo cuerpo es exactamente la función cronometrada. La sonda lo comprueba llamando a la puerta y exigiendo los mismos recuentos antes de publicar.",
+    "engineInjection": "el kernel se pasa por parámetro y NO con setCadRenderCurveKernel, porque ese instalador libera el kernel anterior al cambiarlo: alternar motores por ahí liberaría el binario en la primera vuelta.",
+    "segmentPolicy": {
+      "levels": [
+        8,
+        32,
+        128
+      ],
+      "assignment": "rotación de los tres escalones de LOD por índice de entidad"
+    },
+    "batchPolicy": {
+      "maxEntities": 512,
+      "segmentBudget": 16384,
+      "stageBatches": 341,
+      "curveBatches": 239,
+      "source": "apps/web/src/lib/cad/render/pipeline-offthread.ts · CAD_RENDER_OFFTHREAD_BATCH_MAX_ENTITIES y CAD_RENDER_OFFTHREAD_BATCH_SEGMENT_BUDGET",
+      "rationale": "el producto nunca tesela el documento entero de una vez: el carril fuera de hilo corta el lote por 512 entidades o 16.384 segmentos estimados y ése es el mensaje que recibe un worker. Medir la llamada monolítica le regalaría al kernel un agrupado por (tipo × pasos) sobre 100.000 entidades que ninguna vista real produce."
+    },
+    "rebuildKernelWith": "node scripts/wasm/build-kernel.mjs",
+    "verifyKernelWith": "node scripts/wasm/build-kernel.mjs --check",
+    "everyNumberReadFrom": "la ejecución de la etapa de teselado del render con cada motor, cronometrada con performance.now() y con el recuento de puntos hecho FUERA de la ventana medida."
+  },
+  "headline": {
+    "statement": "mechanical@100000: ×1.286 en la etapa entera (×1.582 sobre el sublote de curvas, que es el 80.8 % del coste de la etapa) · plano-real@100000: ×0.954 en la etapa entera (×1.262 sobre el sublote de curvas, que es el 0.2 % del coste de la etapa).",
+    "whatToCite": "el SUELO por mezcla (`speedup.stageFloor`), con la máquina declarada al lado. Nunca la mediana suelta y nunca la cifra de `wasm-parity.json`, que mide el motor en aislado sobre un lote sintético y no lo que el producto ahorra.",
+    "whyTheNumbersDiffer": "porque la ganancia de la etapa es la del motor MULTIPLICADA por la fracción de la etapa que el motor toca, y esa fracción la fija la MEZCLA, no el kernel. Ver `measurements[].amdahl`: donde las curvas son la mayor parte del trabajo la etapa mejora, y donde son una minoría el binario no puede mover lo que no calcula. Publicar sólo la mezcla favorable sería elegir la cifra."
+  },
+  "measurements": [
+    {
+      "mix": "mechanical",
+      "entities": 100000,
+      "budget": {
+        "runs": 3,
+        "repeatsPerRun": 9,
+        "curveRepeatsPerRun": 9,
+        "warmupPerRun": 1,
+        "note": "mediana de 3 proceso(s) × 9 repetición(es) de la etapa y 9 del sublote de curvas, alternando los dos motores, tras 1 vuelta(s) de calentamiento que no cuentan. El sublote se repite más porque cuesta menos: repetir donde es barato es lo que impide que una pausa del recolector decida la cifra."
+      },
+      "corpus": {
+        "mix": "mechanical",
+        "entities": 100000,
+        "documentSha256": "155bd949d2a1a888299689e19a937d2ec21d241b296460f678a8c245241d74d5",
+        "manifestSha256": "155bd949d2a1a888299689e19a937d2ec21d241b296460f678a8c245241d74d5",
+        "matchesManifest": true,
+        "entityMix": {
+          "line": 14000,
+          "circle": 8000,
+          "arc": 38000,
+          "ellipse": 10000,
+          "spline": 14000,
+          "dimension": 16000
+        },
+        "acceptedEntities": 100000,
+        "curveEntities": 70000,
+        "curveShare": 0.7
+      },
+      "kernelManifest": {
+        "abi": 1,
+        "binarySha256": "09ad4f6e8e1b8ec1092918a86b174eef84871cd5bcbfa7dec2f00b1f7a6ba3a6",
+        "binaryBytes": 29258,
+        "rustc": "rustc 1.94.1 (e408947bf 2026-03-25)",
+        "target": "wasm32-unknown-unknown"
+      },
+      "segmentPolicy": {
+        "levels": [
+          8,
+          32,
+          128
+        ],
+        "assignment": "rotación de los tres escalones de LOD por índice de entidad"
+      },
+      "batchPolicy": {
+        "maxEntities": 512,
+        "segmentBudget": 16384,
+        "stageBatches": 341,
+        "curveBatches": 239,
+        "source": "apps/web/src/lib/cad/render/pipeline-offthread.ts · CAD_RENDER_OFFTHREAD_BATCH_MAX_ENTITIES y CAD_RENDER_OFFTHREAD_BATCH_SEGMENT_BUDGET",
+        "rationale": "el producto nunca tesela el documento entero de una vez: el carril fuera de hilo corta el lote por 512 entidades o 16.384 segmentos estimados y ése es el mensaje que recibe un worker. Medir la llamada monolítica le regalaría al kernel un agrupado por (tipo × pasos) sobre 100.000 entidades que ninguna vista real produce."
+      },
+      "kernelReach": {
+        "kernelEntities": 70000,
+        "adapterEntities": 30000,
+        "kernelCalls": 16046,
+        "curveShareOfEntities": 0.7,
+        "note": "70,000 entidades cruzan la frontera en 16,046 llamadas: arcos y elipses agrupados por (tipo × pasos), y una llamada por spline porque la ABI v1 no tiene lote para nudos de longitud libre."
+      },
+      "workerGate": {
+        "entryPoint": "apps/web/src/lib/cad/render/tessellate.worker.ts · tessellateCadEntityBatch",
+        "sameCountsAsTimedFunction": true
+      },
+      "runs": [
+        {
+          "engine": "wasm",
+          "backend": "wasm",
+          "fallbackReason": null,
+          "corpusSha256": "155bd949d2a1a888299689e19a937d2ec21d241b296460f678a8c245241d74d5",
+          "stageMedianMsPerRun": [
+            493.428,
+            533.952,
+            472.868
+          ],
+          "stageMedianMs": 493.428,
+          "stageWorstMs": 533.952,
+          "curveOnlyMedianMsPerRun": [
+            331.649,
+            421.639,
+            332.367
+          ],
+          "curveOnlyMedianMs": 332.367,
+          "pointCount": 2315764,
+          "pathCount": 154508,
+          "pointCountsDigest": "870e93f1",
+          "kernelEntities": 70000,
+          "adapterEntities": 30000,
+          "kernelCalls": 16046
+        },
+        {
+          "engine": "javascript",
+          "backend": "javascript",
+          "fallbackReason": null,
+          "corpusSha256": "155bd949d2a1a888299689e19a937d2ec21d241b296460f678a8c245241d74d5",
+          "stageMedianMsPerRun": [
+            658.783,
+            686.483,
+            616.188
+          ],
+          "stageMedianMs": 658.783,
+          "stageWorstMs": 686.483,
+          "curveOnlyMedianMsPerRun": [
+            531.94,
+            706.048,
+            525.645
+          ],
+          "curveOnlyMedianMs": 531.94,
+          "pointCount": 2315764,
+          "pathCount": 154508,
+          "pointCountsDigest": "870e93f1",
+          "kernelEntities": 70000,
+          "adapterEntities": 30000,
+          "kernelCalls": 16046
+        }
+      ],
+      "pointParity": {
+        "entitiesCompared": 100000,
+        "mismatchedEntities": 0,
+        "totalPointsJavascript": 2315764,
+        "totalPointsWasm": 2315764,
+        "digestsMatch": true,
+        "pointCountsMatch": true,
+        "pathCountsMatch": true,
+        "criterion": "puntos POR ENTIDAD, índice a índice, no sólo el total: dos motores pueden sumar lo mismo repartiéndolo distinto. La huella FNV-1a de la secuencia de recuentos lo cierra."
+      },
+      "amdahl": {
+        "stageMedianMsJavascript": 658.783,
+        "stageMedianMsWasm": 493.428,
+        "curveOnlyMedianMsJavascript": 531.94,
+        "curveOnlyMedianMsWasm": 332.367,
+        "curveShareOfStage": 0.8075,
+        "whereTheRestIs": "en el carril de adaptadores: sombreados, INSERT expandiendo su definición, cotas y polilíneas. El kernel no los toca hoy y ninguna mejora suya puede moverlos — el siguiente cable está ahí, no en el binario."
+      },
+      "speedup": {
+        "stageMedian": 1.303,
+        "stageFloor": 1.286,
+        "stagePerRun": [
+          1.335,
+          1.286,
+          1.303
+        ],
+        "curveOnlyMedian": 1.604,
+        "curveOnlyFloor": 1.582,
+        "curveOnlyPerRun": [
+          1.604,
+          1.675,
+          1.582
+        ],
+        "whatToCite": "stageFloor — la peor corrida de la etapa entera — es la cifra defendible fuera de este archivo. curveOnly* dice cuánto gana el motor donde el motor trabaja, y sirve para explicar la diferencia entre las dos, no para citarse suelta."
+      },
+      "zeroByConstruction": null,
+      "runToRunDiscrepancies": []
+    },
+    {
+      "mix": "plano-real",
+      "entities": 100000,
+      "budget": {
+        "runs": 3,
+        "repeatsPerRun": 1,
+        "curveRepeatsPerRun": 9,
+        "warmupPerRun": 1,
+        "note": "mediana de 3 proceso(s) × 1 repetición(es) de la etapa y 9 del sublote de curvas, alternando los dos motores, tras 1 vuelta(s) de calentamiento que no cuentan. El sublote se repite más porque cuesta menos: repetir donde es barato es lo que impide que una pausa del recolector decida la cifra."
+      },
+      "corpus": {
+        "mix": "plano-real",
+        "entities": 100000,
+        "documentSha256": "142a5499b6360a0f4891b156c6c40a0beeebdda4ba66d66a9b8318d48e45b022",
+        "manifestSha256": "142a5499b6360a0f4891b156c6c40a0beeebdda4ba66d66a9b8318d48e45b022",
+        "matchesManifest": true,
+        "entityMix": {
+          "line": 29000,
+          "polyline": 15000,
+          "circle": 6000,
+          "arc": 6000,
+          "hatch": 7000,
+          "mtext": 10000,
+          "dimension": 13000,
+          "insert": 14000
+        },
+        "acceptedEntities": 100000,
+        "curveEntities": 12000,
+        "curveShare": 0.12
+      },
+      "kernelManifest": {
+        "abi": 1,
+        "binarySha256": "09ad4f6e8e1b8ec1092918a86b174eef84871cd5bcbfa7dec2f00b1f7a6ba3a6",
+        "binaryBytes": 29258,
+        "rustc": "rustc 1.94.1 (e408947bf 2026-03-25)",
+        "target": "wasm32-unknown-unknown"
+      },
+      "segmentPolicy": {
+        "levels": [
+          8,
+          32,
+          128
+        ],
+        "assignment": "rotación de los tres escalones de LOD por índice de entidad"
+      },
+      "batchPolicy": {
+        "maxEntities": 512,
+        "segmentBudget": 16384,
+        "stageBatches": 341,
+        "curveBatches": 41,
+        "source": "apps/web/src/lib/cad/render/pipeline-offthread.ts · CAD_RENDER_OFFTHREAD_BATCH_MAX_ENTITIES y CAD_RENDER_OFFTHREAD_BATCH_SEGMENT_BUDGET",
+        "rationale": "el producto nunca tesela el documento entero de una vez: el carril fuera de hilo corta el lote por 512 entidades o 16.384 segmentos estimados y ése es el mensaje que recibe un worker. Medir la llamada monolítica le regalaría al kernel un agrupado por (tipo × pasos) sobre 100.000 entidades que ninguna vista real produce."
+      },
+      "kernelReach": {
+        "kernelEntities": 12000,
+        "adapterEntities": 88000,
+        "kernelCalls": 1022,
+        "curveShareOfEntities": 0.12,
+        "note": "12,000 entidades cruzan la frontera en 1,022 llamadas: arcos y elipses agrupados por (tipo × pasos), y una llamada por spline porque la ABI v1 no tiene lote para nudos de longitud libre."
+      },
+      "workerGate": {
+        "entryPoint": "apps/web/src/lib/cad/render/tessellate.worker.ts · tessellateCadEntityBatch",
+        "sameCountsAsTimedFunction": true
+      },
+      "runs": [
+        {
+          "engine": "wasm",
+          "backend": "wasm",
+          "fallbackReason": null,
+          "corpusSha256": "142a5499b6360a0f4891b156c6c40a0beeebdda4ba66d66a9b8318d48e45b022",
+          "stageMedianMsPerRun": [
+            23513.287,
+            23718.355,
+            22529.995
+          ],
+          "stageMedianMs": 23513.287,
+          "stageWorstMs": 23718.355,
+          "curveOnlyMedianMsPerRun": [
+            40.83,
+            39.284,
+            40.153
+          ],
+          "curveOnlyMedianMs": 40.153,
+          "pointCount": 34489174,
+          "pathCount": 16881167,
+          "pointCountsDigest": "cdfce7ca",
+          "kernelEntities": 12000,
+          "adapterEntities": 88000,
+          "kernelCalls": 1022
+        },
+        {
+          "engine": "javascript",
+          "backend": "javascript",
+          "fallbackReason": null,
+          "corpusSha256": "142a5499b6360a0f4891b156c6c40a0beeebdda4ba66d66a9b8318d48e45b022",
+          "stageMedianMsPerRun": [
+            22437.27,
+            24858.084,
+            22214.794
+          ],
+          "stageMedianMs": 22437.27,
+          "stageWorstMs": 24858.084,
+          "curveOnlyMedianMsPerRun": [
+            54.909,
+            54.361,
+            50.685
+          ],
+          "curveOnlyMedianMs": 54.361,
+          "pointCount": 34489174,
+          "pathCount": 16881167,
+          "pointCountsDigest": "cdfce7ca",
+          "kernelEntities": 12000,
+          "adapterEntities": 88000,
+          "kernelCalls": 1022
+        }
+      ],
+      "pointParity": {
+        "entitiesCompared": 100000,
+        "mismatchedEntities": 0,
+        "totalPointsJavascript": 34489174,
+        "totalPointsWasm": 34489174,
+        "digestsMatch": true,
+        "pointCountsMatch": true,
+        "pathCountsMatch": true,
+        "criterion": "puntos POR ENTIDAD, índice a índice, no sólo el total: dos motores pueden sumar lo mismo repartiéndolo distinto. La huella FNV-1a de la secuencia de recuentos lo cierra."
+      },
+      "amdahl": {
+        "stageMedianMsJavascript": 22437.27,
+        "stageMedianMsWasm": 23513.287,
+        "curveOnlyMedianMsJavascript": 54.361,
+        "curveOnlyMedianMsWasm": 40.153,
+        "curveShareOfStage": 0.0024,
+        "whereTheRestIs": "en el carril de adaptadores: sombreados, INSERT expandiendo su definición, cotas y polilíneas. El kernel no los toca hoy y ninguna mejora suya puede moverlos — el siguiente cable está ahí, no en el binario."
+      },
+      "speedup": {
+        "stageMedian": 0.986,
+        "stageFloor": 0.954,
+        "stagePerRun": [
+          0.954,
+          1.048,
+          0.986
+        ],
+        "curveOnlyMedian": 1.345,
+        "curveOnlyFloor": 1.262,
+        "curveOnlyPerRun": [
+          1.345,
+          1.384,
+          1.262
+        ],
+        "whatToCite": "stageFloor — la peor corrida de la etapa entera — es la cifra defendible fuera de este archivo. curveOnly* dice cuánto gana el motor donde el motor trabaja, y sirve para explicar la diferencia entre las dos, no para citarse suelta."
+      },
+      "zeroByConstruction": null,
+      "runToRunDiscrepancies": []
+    },
+    {
+      "mix": "architecture",
+      "entities": 100000,
+      "budget": {
+        "runs": 1,
+        "repeatsPerRun": 1,
+        "curveRepeatsPerRun": 9,
+        "warmupPerRun": 0,
+        "note": "una corrida, una repetición y ningún calentamiento bastan: aquí no se publica un tiempo sino un cero por construcción, y lo que hay que comprobar es el alcance del enrutador y la paridad. Una pasada de esta mezcla cuesta minutos —34.000 INSERT expandiendo su bloque— y calentar V8 para un número que nadie va a citar no compra nada. Por eso sus tiempos NO se citan: se publican para que se vea que se corrió."
+      },
+      "corpus": {
+        "mix": "architecture",
+        "entities": 100000,
+        "documentSha256": "2029d760018bf27073de4aa6d0794b270f2795f72599a22a6bd6e11d468a3480",
+        "manifestSha256": "2029d760018bf27073de4aa6d0794b270f2795f72599a22a6bd6e11d468a3480",
+        "matchesManifest": true,
+        "entityMix": {
+          "line": 7000,
+          "polyline": 18000,
+          "hatch": 14000,
+          "mtext": 10000,
+          "dimension": 17000,
+          "insert": 34000
+        },
+        "acceptedEntities": 100000,
+        "curveEntities": 0,
+        "curveShare": 0
+      },
+      "kernelManifest": {
+        "abi": 1,
+        "binarySha256": "09ad4f6e8e1b8ec1092918a86b174eef84871cd5bcbfa7dec2f00b1f7a6ba3a6",
+        "binaryBytes": 29258,
+        "rustc": "rustc 1.94.1 (e408947bf 2026-03-25)",
+        "target": "wasm32-unknown-unknown"
+      },
+      "segmentPolicy": {
+        "levels": [
+          8,
+          32,
+          128
+        ],
+        "assignment": "rotación de los tres escalones de LOD por índice de entidad"
+      },
+      "batchPolicy": {
+        "maxEntities": 512,
+        "segmentBudget": 16384,
+        "stageBatches": 341,
+        "curveBatches": 0,
+        "source": "apps/web/src/lib/cad/render/pipeline-offthread.ts · CAD_RENDER_OFFTHREAD_BATCH_MAX_ENTITIES y CAD_RENDER_OFFTHREAD_BATCH_SEGMENT_BUDGET",
+        "rationale": "el producto nunca tesela el documento entero de una vez: el carril fuera de hilo corta el lote por 512 entidades o 16.384 segmentos estimados y ése es el mensaje que recibe un worker. Medir la llamada monolítica le regalaría al kernel un agrupado por (tipo × pasos) sobre 100.000 entidades que ninguna vista real produce."
+      },
+      "kernelReach": {
+        "kernelEntities": 0,
+        "adapterEntities": 100000,
+        "kernelCalls": 0,
+        "curveShareOfEntities": 0,
+        "note": "ninguna entidad cruza la frontera en esta mezcla."
+      },
+      "workerGate": {
+        "entryPoint": "apps/web/src/lib/cad/render/tessellate.worker.ts · tessellateCadEntityBatch",
+        "sameCountsAsTimedFunction": true
+      },
+      "runs": [
+        {
+          "engine": "wasm",
+          "backend": "wasm",
+          "fallbackReason": null,
+          "corpusSha256": "2029d760018bf27073de4aa6d0794b270f2795f72599a22a6bd6e11d468a3480",
+          "stageMedianMsPerRun": [
+            147572.085
+          ],
+          "stageMedianMs": 147572.085,
+          "stageWorstMs": 147572.085,
+          "curveOnlyMedianMsPerRun": [
+            0
+          ],
+          "curveOnlyMedianMs": 0,
+          "pointCount": 237614966,
+          "pathCount": 118494468,
+          "pointCountsDigest": "8368577b",
+          "kernelEntities": 0,
+          "adapterEntities": 100000,
+          "kernelCalls": 0
+        },
+        {
+          "engine": "javascript",
+          "backend": "javascript",
+          "fallbackReason": null,
+          "corpusSha256": "2029d760018bf27073de4aa6d0794b270f2795f72599a22a6bd6e11d468a3480",
+          "stageMedianMsPerRun": [
+            147415.581
+          ],
+          "stageMedianMs": 147415.581,
+          "stageWorstMs": 147415.581,
+          "curveOnlyMedianMsPerRun": [
+            0
+          ],
+          "curveOnlyMedianMs": 0,
+          "pointCount": 237614966,
+          "pathCount": 118494468,
+          "pointCountsDigest": "8368577b",
+          "kernelEntities": 0,
+          "adapterEntities": 100000,
+          "kernelCalls": 0
+        }
+      ],
+      "pointParity": {
+        "entitiesCompared": 100000,
+        "mismatchedEntities": 0,
+        "totalPointsJavascript": 237614966,
+        "totalPointsWasm": 237614966,
+        "digestsMatch": true,
+        "pointCountsMatch": true,
+        "pathCountsMatch": true,
+        "criterion": "puntos POR ENTIDAD, índice a índice, no sólo el total: dos motores pueden sumar lo mismo repartiéndolo distinto. La huella FNV-1a de la secuencia de recuentos lo cierra."
+      },
+      "amdahl": {
+        "stageMedianMsJavascript": 147415.581,
+        "stageMedianMsWasm": 147572.085,
+        "curveOnlyMedianMsJavascript": 0,
+        "curveOnlyMedianMsWasm": 0,
+        "curveShareOfStage": 0,
+        "whereTheRestIs": "en el carril de adaptadores: sombreados, INSERT expandiendo su definición, cotas y polilíneas. El kernel no los toca hoy y ninguna mejora suya puede moverlos — el siguiente cable está ahí, no en el binario."
+      },
+      "speedup": {
+        "stageMedian": 0.999,
+        "stageFloor": 0.999,
+        "stagePerRun": [
+          0.999
+        ],
+        "curveOnlyMedian": null,
+        "curveOnlyFloor": null,
+        "curveOnlyPerRun": [],
+        "whatToCite": "ninguna: en esta mezcla el kernel no interviene y cualquier razón entre los dos tiempos es ruido de la máquina, no ganancia."
+      },
+      "zeroByConstruction": {
+        "declared": true,
+        "reason": "La mezcla architecture no emite arco, círculo, elipse ni spline de primer nivel: su reparto es línea, polilínea, sombreado, MTEXT, cota e INSERT. Los arcos que un plano así tiene de verdad —el barrido de una puerta, por ejemplo— viven DENTRO de la definición del bloque y los tesela `insertRenderPaths` al expandir la instancia, un camino que no pasa por el enrutador del kernel. Así que aquí el kernel no toca una sola entidad y la ganancia es CERO por construcción, no por casualidad de la medida.",
+        "gain": 0
+      },
+      "runToRunDiscrepancies": []
+    }
+  ],
+  "scope": {
+    "measured": [
+      "el tiempo de la etapa de teselado del render sobre el corpus entero, con cada motor",
+      "el mismo tiempo restringido al sublote de curvas, que es el numerador de Amdahl",
+      "que los dos motores devuelven el MISMO número de puntos por entidad",
+      "que lo cronometrado es el cuerpo de `tessellateCadEntityBatch`, la puerta del worker",
+      "que el corpus medido es el que declara `corpus-mixes-manifest.json` (sha256)"
+    ],
+    "notMeasured": [
+      "fotogramas, fps o tiempo hasta detalle completo: eso es navegador y aquí no hay",
+      "GPU: este contenedor no tiene",
+      "el resto del pipeline (índice espacial, subida por lotes, atlas de texto): esta medida es la etapa de teselado y sólo ella",
+      "la ganancia dentro de las definiciones de bloque, que hoy no pasan por el enrutador"
+    ]
+  }
+}

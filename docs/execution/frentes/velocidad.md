@@ -100,6 +100,59 @@ Rúbrica: el criterio `wasm.toolchain` pasa de ✖ «NADIE lo importa» a ✅ ci
 `apps/web/src/lib/cad/render/curve-kernel-tessellation.ts`. Ver el «Todavía no» de abajo sobre
 por qué la FILA sigue mostrando 1/2.
 
+### 2026-09-04 · Cola 2 (2/2) · La ganancia del kernel, medida sobre el corpus del producto
+
+Qué existe ahora que antes no: `docs/cad/evidence/curve-kernel-render-100k.json`, generado por
+`node scripts/perf/curve-kernel-render-bench.mjs` (15 min en este contenedor) y verificado por
+`node scripts/perf/curve-kernel-render-bench.spec.mjs` (50 comprobaciones, milisegundos).
+**La fuente de toda cifra de abajo es ese archivo**: esta bitácora la cita para contar qué pasó,
+y si alguna vez discrepan, el que tiene razón es el artefacto y esta entrada está caduca.
+
+Qué mide: la MISMA etapa de teselado dos veces sobre el mismo corpus versionado, cambiando sólo
+el kernel inyectado —binario `.wasm` del árbol contra motor JavaScript—. La función cronometrada
+es `tessellateCadEntitiesWithCurveKernel`, que es el cuerpo de `tessellateCadEntityBatch`, y la
+sonda lo demuestra en cada corrida: llama a la puerta del worker y exige los mismos recuentos
+antes de publicar (`workerGate.sameCountsAsTimedFunction`). El lote se trocea con la regla de
+tamaño del carril fuera de hilo (≤512 entidades o ≤16.384 segmentos, de `pipeline-offthread.ts`),
+que es el mensaje que un worker recibe de verdad: 341 lotes por mezcla.
+
+Lo medido, en una frase por mezcla:
+
+- **`mechanical@100k`** —70.000 curvas, el 70 % de las entidades— la etapa entera baja de 658,8 ms
+  a 493,4 ms: **×1,286 en la peor de tres corridas** (×1,303 mediana). El sublote de curvas solo,
+  ×1,582 en la peor. Las curvas son el **80,7 %** del coste de esa etapa, así que el ×1,6 del motor
+  se convierte en el ×1,29 de la etapa: Amdahl, medido y no supuesto.
+- **`plano-real@100k`** —12.000 curvas, el 12 %— la etapa **NO mejora**: ×0,954 en la peor corrida,
+  ×0,986 mediana. No es un fallo del binario: en esta mezcla las curvas son el **0,24 %** del coste
+  de la etapa (54 ms de 22,4 s), y el sublote de curvas sí gana ×1,262. **El binario no puede mover
+  lo que no calcula.** El 99,8 % restante es sombreado, INSERT expandiendo su definición, cota y
+  polilínea, todos por el carril de adaptadores. Ahí está el siguiente cable, no en el kernel.
+- **`architecture@100k`** se publica en **CERO por construcción** y se dice por qué: la mezcla no
+  emite arco, círculo, elipse ni spline de primer nivel, y los arcos que un plano así tiene de
+  verdad —el barrido de una puerta— viven dentro de la definición del bloque, donde los tesela
+  `insertRenderPaths` sin pasar por el enrutador. Callarla habría insinuado una ganancia que ahí
+  no existe.
+
+La condición sin la cual nada de lo anterior se publica: **paridad exacta de puntos por entidad**.
+La sonda compara los recuentos índice a índice y sale con error si uno solo difiere; el artefacto
+lleva además la huella FNV-1a de la secuencia, porque dos motores pueden sumar el mismo total
+repartiéndolo distinto. Cero descuadres en las tres mezclas, sobre 2.315.764 · 34.489.174 ·
+237.614.966 puntos. **Un artefacto con ganancia y sin paridad lo rechaza el spec**, y eso está
+probado en las dos direcciones: el spec fabrica un artefacto con ×3,2 y 200.000 puntos de menos
+y exige que sea rechazado citando el total de puntos.
+
+El spec también exige lo que este contenedor NO puede medir: `environment.gpu === false`,
+`environment.browser === false`, `measurementKind === "cpu-node"` y una máquina descrita. Un
+artefacto de este generador que declarara GPU o navegador estaría mintiendo por construcción.
+Y ata la cifra al binario: `kernel.binarySha256` tiene que ser el de
+`crates/valle-cad-kernel/kernel-manifest.json`, así que una recompilación del crate deja el
+artefacto caduco en voz alta en vez de en silencio.
+
+Regresión verde: `npm run typecheck` (8/8), `npm run check:json-keys`,
+`npm run check:no-industrial-domain`, `npm run check:lint-budget` (487/492, sin mover el techo) y
+`node scripts/cad/rubric.mjs` (232/271, sin cambio: la fila del kernel sigue reteniendo 1 pt por
+falta de oráculo externo, como ya decía el «Todavía no» de esta misma fecha).
+
 ## «Todavía no»
 
 ### 2026-09-04 · La fila «Kernel Rust/WASM» sigue en 1/2 pese a tener sus dos criterios verdes
@@ -134,3 +187,44 @@ la trae el binario, y medirla como la ve un usuario exige navegador: aquí **no 
 de Playwright y no se pueden instalar** (`npx playwright install chromium` sale por egreso
 denegado, `/root/.cache/ms-playwright` no existe) ni hay GPU. Lo que sí está medido aquí es la
 PARIDAD con el binario cargado en Node, que es lo que autoriza a encenderlo.
+
+**Actualización del mismo día, después de la entrega 2/5.** La mitad de CPU de esta entrada ya
+NO es cierta y conviene tacharla en vez de dejarla contradiciendo la evidencia: la ganancia con
+el binario cargado en Node **sí** está medida sobre el corpus del producto y publicada en
+`docs/cad/evidence/curve-kernel-render-100k.json`. Lo que sigue siendo verdad, entero, es la
+mitad de navegador: **fotogramas, fps y tiempo hasta detalle completo no se pueden medir aquí**,
+y el propio artefacto lo declara en `environment.whatThisIsNot` y en `scope.notMeasured` para
+que nadie lo lea como si fuera evidencia de navegador.
+
+### 2026-09-04 · El siguiente cuello no es el kernel: es el carril de adaptadores
+
+Medido, no supuesto (`measurements[].amdahl` del artefacto de la ganancia): en `plano-real@100k`
+las curvas son el **0,24 %** del coste de la etapa de teselado y en `architecture@100k` son el
+**0 %**. Una pasada del lote entero cuesta ahí **22,4 s** y **147 s** respectivamente, contra
+0,66 s de `mechanical@100k`. El coste está en sombreados, INSERT expandiendo su definición, cotas
+y polilíneas — y `architecture@100k` produce **237,6 millones de puntos** en una pasada completa,
+que es por lo que la llamada monolítica (sin trocear en lotes de worker) mata el proceso por falta
+de memoria en este contenedor. Ninguna mejora del binario puede moverlo. Optimizar eso es otra
+entrega y no cabía en ésta; queda medido y con su artefacto para que la siguiente empiece por el
+número y no por la sospecha.
+
+### 2026-09-04 · Las curvas dentro de las definiciones de bloque no pasan por el kernel
+
+`cadCurveKernelRouteFor` clasifica ENTIDADES DE PRIMER NIVEL. Un arco dentro de la definición de
+un bloque lo tesela `insertRenderPaths` al expandir la instancia, por su propio camino, y por eso
+`architecture@100k` —34.000 INSERT— llega al kernel con cero curvas. Es correcto hoy (el enrutador
+recibe el lote que el worker recibe, y ahí una instancia es una entidad), pero deja fuera del
+kernel justo la mezcla más pesada. Enrutar la expansión de bloques exigiría meter el kernel dentro
+de `insertRenderPaths` o teselar la definición una vez y transformar sus puntos, que es un cambio
+de diseño con su propia paridad que probar. No entra aquí; queda declarado en el artefacto
+(`zeroByConstruction.reason`) para que el cero no se lea como una medida fallida.
+
+### 2026-09-04 · El spec del artefacto no está encadenado a ningún gate
+
+`node scripts/perf/curve-kernel-render-bench.spec.mjs` y
+`node scripts/perf/curve-kernel-render-bench.mjs --check` corren en milisegundos y muerden —se
+comprobó cambiando `environment.gpu` a `true` en una copia: FALLA citando `gpu`—, pero hoy hay que
+invocarlos a mano porque encadenarlos exige tocar `package.json`, que es archivo compartido (R2).
+El diseño completo, con el punto exacto de la cadena de `check:cad` y el porqué del orden, está en
+`docs/execution/frentes/velocidad-peticiones.md` como **P-velocidad-01**. Hasta que el coordinador
+lo aplique, este artefacto se comprueba a mano.
