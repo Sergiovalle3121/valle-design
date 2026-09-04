@@ -106,3 +106,45 @@ Formato de cada petición:
   ningún archivo DWG; el fallo es anterior a este frente y ajeno a él.
 - **Estado:** pendiente
 
+
+### P-velocidad-04 · Dar comando propio al runner de GPU real y encadenar su spec
+
+- **Archivo:** `package.json` (raíz) — archivo compartido, R2.
+- **Por qué:** entrega 4 de la cola («medición en GPU real reproducible por el titular con un
+  solo comando»). El runner ya existe y funciona
+  (`node scripts/perf/slo-navegador.mjs`), pero un comando que hay que recordar por su ruta no
+  es «un solo comando»: el titular lo va a correr una vez cada varias semanas, justo el intervalo
+  en el que se olvida una ruta. Y su spec —que es lo que garantiza que el runner SE NIEGA— hoy
+  hay que invocarlo a mano, igual que el de P-velocidad-01.
+- **Cambio exacto:** añadir a `scripts` de `package.json` (raíz):
+
+  ```json
+  "perf:slo-navegador": "node scripts/perf/slo-navegador.mjs",
+  "check:slo-navegador": "node scripts/perf/slo-navegador.spec.mjs"
+  ```
+
+  y encadenar **sólo el segundo** dentro de `check:cad`, junto a `check:curve-kernel-render` de
+  P-velocidad-01:
+
+  ```
+  … && npm run check:curve-kernel-render && npm run check:slo-navegador && …
+  ```
+
+  `perf:slo-navegador` NO se encadena a ningún gate y no debe encadenarse nunca: lanza
+  Playwright en el escalón `full` más tres corridas del estrés denso, que son horas de máquina,
+  y exige GPU real. En un runner de CI (sin GPU) se negaría siempre, que es precisamente lo que
+  tiene que hacer.
+
+  El spec sí es barato y no depende de la máquina en un sentido y sí en el otro, que conviene
+  saber leer: **corre en cualquier parte** (20 s; lanza Chromium unos segundos para observar el
+  rasterizador) y **se adapta al entorno sin relajarse**. Si la máquina NO puede medir con GPU
+  real —CI, este contenedor— exige que el runner aborte con código distinto de cero sin escribir
+  nada; si SÍ puede —la máquina del titular— comprueba el plan con `--dry-run` y no lanza la
+  corrida larga. Las otras 70 comprobaciones (contrato, parseo, rechazo de máquina vacía o
+  genérica, corrida parcial, corrida que encoge) son idénticas en las dos.
+- **Cómo se comprueba:** `npm run check:slo-navegador` imprime
+  `slo-navegador: 74 comprobaciones — …` y termina en 0. Para ver que MUERDE: quitar la regla
+  del rasterizador por software del contrato hace fallar tres comprobaciones citando
+  SwiftShader, y borrar el `run.complete` del artefacto sintético hace fallar la de la corrida
+  parcial.
+- **Estado:** pendiente

@@ -248,3 +248,78 @@ invocarlos a mano porque encadenarlos exige tocar `package.json`, que es archivo
 El diseño completo, con el punto exacto de la cadena de `check:cad` y el porqué del orden, está en
 `docs/execution/frentes/velocidad-peticiones.md` como **P-velocidad-01**. Hasta que el coordinador
 lo aplique, este artefacto se comprueba a mano.
+
+### 2026-09-04 · Cola 4 · Un solo comando para medir en la GPU del titular
+
+Qué existe ahora que antes no: `node scripts/perf/slo-navegador.mjs`. En UNA invocación
+comprueba, mide y publica, y —sobre todo— **se niega**.
+
+**Comprueba antes de medir**, y lo hace lanzando el navegador de verdad en vez de mirar rutas:
+que el binario de Playwright exista (lo dice el propio lanzador, no una heurística), que lo que
+rasteriza sea una GPU y no SwiftShader/llvmpipe, y que haya build de producción o un servidor de
+producción ya en marcha. Esa última comprobación tiene una razón concreta: `playwright.config.ts`
+REUTILIZA un servidor ya levantado fuera de CI, así que un `npm run dev` olvidado en el puerto
+3000 haría que la corrida midiera React en modo desarrollo sin minificar y publicara esos
+milisegundos como los del producto. Se detecta por los marcadores que Next inyecta sólo en dev.
+
+**Mide** el SLO de navegador en el escalón `full` (`CAD_RENDER_BROWSER_TIER=full`, que es el que
+trae los 100k) y el estrés de edición densa a 100k tantas veces como el cruce exige (tres), con
+`CAD_PERF_REAL_GPU=1` —el canal `chromium` completo, no el `headless-shell`, que rasteriza por
+software aunque la máquina tenga tarjeta— y `E2E_PROD=1`.
+
+**Publica** `docs/cad/evidence/browser-slo-100k.json` y `docs/cad/evidence/cad-dense-editing-100k.json`
+con `environment.declaredMachine` COMPUESTO de datos reales: modelo de CPU, hilos, RAM, sistema
+operativo, navegador con su versión y el rasterizador que WebGL declaró. Los dos specs de
+`e2e/performance/` lo reciben por `CAD_PERF_DECLARED_MACHINE`. El de edición densa traía escrito
+a mano «portátil de desarrollo CON CARGA VECINA: otros agentes trabajando en el mismo equipo»,
+que era cierto donde nació el spec y es **falso** en la máquina del titular: una evidencia que
+describe otra máquina es peor que una sin describir. Ahora la declara quien la conoce, y sin
+runner se declara lo poco que se ve desde dentro diciendo que no consta ni navegador ni
+rasterizador. El cruce denso no se reimplementa: se invoca `scripts/cad/dense-editing-evidence.mjs`,
+que ya se niega con menos de tres corridas, y si lo que escribe no pasa el contrato se **restaura
+byte a byte** el fichero anterior.
+
+**Se niega** —y esto es la mitad del entregable— si la comprobación previa falla, si Playwright
+sale con código distinto de cero, si el artefacto trae `run.complete: false` (campo nuevo, junto a
+`plannedProfiles`/`producedProfiles`: sin ellos «doce perfiles» y «veinte perfiles» se leen igual
+de completos), si `declaredMachine` saldría vacía o genérica, o si la corrida **ENCOGE** la
+cobertura publicada. Esa última regla es la que impide el daño peor: medir dos perfiles con GPU
+real y perder los veinte que ya había. Para explorar está `--output <dir>`.
+
+La regla vive aparte del runner (`slo-navegador-contract.mjs`), como en la entrega 2 y por el
+mismo motivo. El spec (`node scripts/perf/slo-navegador.spec.mjs`, **74 comprobaciones**, 20 s)
+la ejercita en las dos direcciones y **con el negativo REAL de este contenedor**: invoca el runner
+con el registro de navegadores apuntando a un directorio vacío (falla el lanzador de Playwright,
+no una bandera de prueba) y lo invoca otra vez con esta máquina tal cual es. En los dos casos:
+código distinto de cero, cero bytes escritos y el `browser-slo-100k.json` vigente
+(sha `558948ba3b3a…`) intacto.
+
+Cableado comprobado de punta a punta aquí, con la corrida más barata que existe
+(`baseline-line-circle-arc@10000`, 15 s): el artefacto crudo salió con `complete: true`,
+`plannedProfiles: 2`, `producedProfiles: 2`, la máquina en `declaredMachine` y las nueve mezclas
+no medidas listadas en `skipped`. Y al ofrecérselo al escritor, RECHAZADO por sus dos motivos
+reales: rasterizado por SwiftShader y encogería la evidencia en 18 perfiles.
+
+#### Todavía no (2026-09-04)
+
+- **Aquí no se puede medir, y esta entrega no lo disimula.** Este contenedor no tiene GPU:
+  Chromium rasteriza con `ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero)),
+  SwiftShader driver)`. Ninguna cifra de fps, detalle completo o memoria de GPU sale de aquí, y
+  el runner se niega a producirla. `performance.architecture-100k` y el artefacto de la edición
+  densa quedan desbloqueados **para cuando el titular corra el comando**, no cumplidos.
+- **Corrección a la bitácora del reconocimiento.** La entrada anterior decía «no hay navegadores
+  de Playwright y no se pueden instalar». La primera mitad es FALSA en este contenedor:
+  `PLAYWRIGHT_BROWSERS_PATH=/opt/pw-browsers` y Chromium 141.0.7390.37 está instalado y arranca
+  (canal `chromium` incluido). Lo que no está es **Firefox** (`/opt/pw-browsers/firefox-1495/`
+  no existe) ni WebKit, y lo que sigue siendo cierto es que no hay GPU y que el egreso para
+  descargar más navegadores está denegado. El negativo del spec usa las dos cosas reales.
+- **El cruce denso sólo se publica sobre `docs/cad/evidence`.** `scripts/cad/dense-editing-evidence.mjs`
+  no toma destino y está fuera del territorio de este frente (R1), así que con `--output <dir>`
+  el runner deja las corridas copiadas en `<dir>/corridas-densas/` y lo dice, en vez de escribir
+  donde no toca. Cambiarlo pide una petición al coordinador; no hacía falta para el entregable.
+- **El spec de este runner tampoco está encadenado a ningún gate**, por lo mismo que
+  P-velocidad-01: encadenarlo exige `package.json`. Diseño completo en **P-velocidad-04**.
+- **La corrida de 100k con GPU no se ha cronometrado nunca en la máquina del titular con este
+  runner.** El plan estima con el dato que hay —la corrida publicada tardó 7,8 min de punta a
+  punta— y NO inventa una estimación para las tres corridas densas, que en CI rozaron los 35 min
+  cada una sin GPU.
