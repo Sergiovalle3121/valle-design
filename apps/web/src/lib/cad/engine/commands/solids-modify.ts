@@ -26,11 +26,18 @@
  * No es «todas», y la razón no es pereza: el kernel no sabe fundir dos redondeos
  * que se encuentran en un vértice —haría falta una transición esférica que no
  * implementa— y se niega, correctamente, antes de producir astillas degeneradas.
- * Hay además una fragilidad conocida de las booleanas encadenadas: sin fusión de
- * caras coplanarias, cada corte fragmenta el cuerpo y el tercero o el cuarto
- * puede fallar sobre ciertas topologías con tamaños de chaflán pequeños. Cuando
- * pasa, la orden termina con el mensaje del kernel y NO escribe — que es la
+ * Hay además una fragilidad conocida de las booleanas encadenadas: cada corte
+ * fragmenta el cuerpo en caras coplanarias, y el tercero o el cuarto puede
+ * fallar sobre ciertas topologías con tamaños de chaflán pequeños. Cuando pasa,
+ * la orden termina con el mensaje del kernel y NO escribe — que es la
  * diferencia entre «no se pudo» y «el documento quedó con un sólido roto».
+ *
+ * Desde el 2026-09-04 el remedio EXISTE y es manual: `SOLIDEDIT Cuerpo Limpiar`
+ * funde las coplanarias del sólido designado (`mergeCoplanarFaces` en
+ * `lib/brep/coplanar-merge.ts`) y devuelve la caja de 200×100×50 a sus 6 caras.
+ * No se aplica sola aquí a propósito: la fusión HORNEA el cuerpo como geometría
+ * explícita, y un FILLETEDGE que además borrase el árbol paramétrico del sólido
+ * sin que nadie lo pidiera sería una orden que hace dos cosas.
  *
  * Cuando exista la designación de aristas, el nodo ya guarda sus índices: el
  * esquema no cambia.

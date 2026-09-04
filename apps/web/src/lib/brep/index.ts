@@ -38,9 +38,28 @@
  *     sobre caras planas y rechazan las curvas con un mensaje explícito.
  *   · Transición esférica donde se encuentran dos redondeos en un vértice.
  *   · Redondeo de radio variable, y redondeo de aristas cóncavas.
- *   · Fusión de caras coplanarias tras una booleana: el resultado es correcto
- *     pero queda fragmentado en triángulos.
+ *   · Cerrar un ANILLO al fundir caras coplanarias: `mergeCoplanarFaces` funde
+ *     pares que comparten UNA cadena contigua de aristas, y descarta —contando
+ *     el descarte— los que se tocan por dos cadenas separadas o por un lazo
+ *     interior. Medido: una placa de 100×100×20 con agujero pasante baja de 36
+ *     caras a 12 en vez de a las 10 canónicas, porque cada tapa se queda en dos
+ *     mitades en C. El sólido es correcto y de género 1; sólo está a medio
+ *     fundir, y el informe lo dice.
  *   · Transformadas generales de cuerpos: sólo hay traslación.
+ *   · Vaciar un cuerpo CÓNCAVO. `shellBody` desfasa el plano de cada cara hacia
+ *     dentro y recalcula los vértices como intersección de los planos de sus
+ *     caras; en un rincón entrante esos planos se cruzan del lado equivocado y
+ *     el «interior» se sale del sólido. Vaciar un cóncavo pide offset con
+ *     RECORTE —decidir qué trozo de cada plano desfasado sobrevive—, que es
+ *     otro algoritmo. Se comprueba con `edgeDihedralAngle` sobre todas las
+ *     aristas y se rechaza nombrando la peor.
+ *   · La cáscara ABIERTA: vaciar retirando las caras designadas, que es lo que
+ *     convierte la caja en una caja sin tapa. Pide quitar caras del exterior y
+ *     coser interior con exterior por el borde del hueco: cirugía topológica,
+ *     no una resta booleana.
+ *   · Vaciar un cuerpo cuyo vértice toca CUATRO planos o más que no concurren
+ *     al desfasarlos (el ápice de una pirámide de base rectangular). Partir el
+ *     vértice en varios cambiaría la topología, y este desfase la conserva.
  */
 
 export {
@@ -154,6 +173,26 @@ export {
 } from "./topology";
 
 export { BodyBuilder, buildBody, reverseBody, bodyToFaceSpecs, assignShells, type FaceSpec } from "./body-builder";
+
+export {
+  mergeCoplanarFaces,
+  canonicalPlane,
+  type CanonicalPlane,
+  type CoplanarMergeReport,
+} from "./coplanar-merge";
+
+export {
+  shellBody,
+  offsetInnerBody,
+  shellLimit,
+  maxShellThickness,
+  bodyConvexity,
+  type ShellOptions,
+  type ShellResult,
+  type ShellReport,
+  type ShellLimit,
+  type ConvexityReport,
+} from "./shell";
 
 export {
   validateBody,
