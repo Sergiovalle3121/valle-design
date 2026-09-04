@@ -357,7 +357,12 @@ function flattenStep(state: FlattenState): CadCommandStep<FlattenState> {
  */
 const flattenCommand: CadCommandDescriptor<FlattenState> = {
   name: "FLATTEN",
-  aliases: ["APLANAR"],
+  // `APLASTAR`, no `APLANAR`: ese alias lo tiene FLATSHOT desde antes —con su
+  // spec (`solids-flatshot.spec.ts`: «APLANAR → FLATSHOT»)— y el registro
+  // rechaza un alias que apunta a dos comandos. Aplastar a Z=0 es además lo
+  // que esta orden hace, y aplanar el modelo 3D a un dibujo 2D es lo que hace
+  // la otra: la palabra distinta describe mejor las dos.
+  aliases: ["APLASTAR"],
   kind: "modify",
   transparent: false,
   selection: "optional",

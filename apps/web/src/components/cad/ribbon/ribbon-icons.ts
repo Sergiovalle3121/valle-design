@@ -10,6 +10,7 @@ import {
   Download,
   Droplets,
   Eye,
+  GitCompare,
   Globe,
   Group,
   Layers,
@@ -93,6 +94,7 @@ export const CAD_RIBBON_PANEL_ICONS: Readonly<Record<string, LucideIcon>> = {
   "Normas y reparación": ShieldCheck,
   Variables: Settings2,
   "AutoLISP y scripts": Terminal,
+  Comparar: GitCompare,
   Herramientas: Wrench,
 };
 

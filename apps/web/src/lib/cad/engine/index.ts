@@ -11,6 +11,7 @@ import { CAD_BLOCK_COMMANDS } from "./commands/blocks";
 import { CAD_BLOCK_EDIT_COMMANDS } from "./commands/blocks-edit";
 import { CAD_GROUP_COMMANDS } from "./commands/groups";
 import { CAD_XREF_COMMANDS } from "./commands/xrefs";
+import { CAD_COMPARE_COMMANDS } from "./commands/compare-drawings";
 import { CAD_DESIGN_CENTER_COMMANDS } from "./commands/design-center";
 import { CAD_DXF_INTEROP_COMMANDS } from "./commands/interop-dxf";
 import { CAD_DRAW_BASIC_COMMANDS } from "./commands/draw-basics";
@@ -52,6 +53,7 @@ import { CAD_DRAWING_FIELD_COMMANDS } from "./commands/drawing-fields";
 import { CAD_GEO_LOCATION_COMMANDS } from "./commands/geo-location";
 import { CAD_MAP_IMPORT_COMMANDS } from "./commands/map-import";
 import { CAD_RASTER_IMAGE_COMMANDS } from "./commands/raster-image";
+import { CAD_PDF_UNDERLAY_COMMANDS } from "./commands/pdf-underlay-commands";
 import { CAD_MECHANICAL_PART_COMMANDS } from "./commands/mechanical-parts";
 import { CAD_MECHANICAL_ANNOTATE_COMMANDS } from "./commands/mechanical-annotate";
 import { CAD_MECHANICAL_SYMBOL_COMMANDS } from "./commands/mechanical-symbols";
@@ -119,6 +121,7 @@ import { CAD_LAYTRANS_COMMANDS } from "./commands/manage-laytrans";
 import { CAD_CHECKSTANDARDS_COMMANDS } from "./commands/manage-standards";
 import { CAD_ANNOTATE_QUICK_COMMANDS } from "./commands/annotate-quick";
 import { CAD_BURST_COMMANDS } from "./commands/blocks-burst";
+import { CAD_EXPRESS_TOOL_COMMANDS } from "./commands/express-tools";
 import { CAD_QLEADER_COMMANDS } from "./commands/annotate-quickleader";
 
 export * from "./command-types";
@@ -189,6 +192,9 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_BLOCK_EDIT_COMMANDS,
   ...CAD_GROUP_COMMANDS,
   ...CAD_XREF_COMMANDS,
+  // Comparar dos dibujos del inquilino y marcar la diferencia con nubes de
+  // revisión. Estaba construida y probada, y sin registrar: no se podía teclear.
+  ...CAD_COMPARE_COMMANDS,
   ...CAD_DESIGN_CENTER_COMMANDS,
   // Esquema 5: modelado de sólidos. Enchufan el kernel B-rep de `lib/brep/`, que
   // hasta esta ola estaba construido, probado y sin un solo consumidor.
@@ -232,6 +238,9 @@ export const CAD_COMMAND_DESCRIPTORS = [
   // Ola H (Raster): el escaneo que se calca, con recorte y ajuste sobre la
   // entidad `image` que ya existía.
   ...CAD_RASTER_IMAGE_COMMANDS,
+  // PDF: las diez órdenes del sustrato que se calca y de la importación de
+  // vectores. Arrastran `pdf-underlay-edit-commands.ts` por importación.
+  ...CAD_PDF_UNDERLAY_COMMANDS,
   // Mechanical (Ola I): normalizados, globos y lista, soldadura y acabado, tolerancia de cota.
   ...CAD_MECHANICAL_PART_COMMANDS,
   ...CAD_MECHANICAL_ANNOTATE_COMMANDS,
@@ -267,6 +276,9 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_CHECKSTANDARDS_COMMANDS,
   ...CAD_ANNOTATE_QUICK_COMMANDS,
   ...CAD_BURST_COMMANDS,
+  // Express Tools: BREAKLINE, FLATTEN, LAYDEL, TCOUNT y TXT2MTXT. El array ya
+  // concatena los dos de `express-tools-text.ts`.
+  ...CAD_EXPRESS_TOOL_COMMANDS,
   ...CAD_QLEADER_COMMANDS,
 ] as const;
 

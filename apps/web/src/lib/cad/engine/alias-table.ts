@@ -39,6 +39,7 @@ export const CAD_COMMAND_ALIASES: Readonly<Record<string, string>> = {
   BO: "BOUNDARY",
   REG: "REGION",
   WIPE: "WIPEOUT",
+  ROTURA: "BREAKLINE",
   DIV: "DIVIDE",
   ME: "MEASURE",
   // BIM. `WA` es el alias histórico de WALLADD en AutoCAD Architecture, y
@@ -86,6 +87,19 @@ export const CAD_COMMAND_ALIASES: Readonly<Record<string, string>> = {
   ADJUNTARIMAGEN: "IMAGEATTACH",
   RECORTARIMAGEN: "IMAGECLIP",
   AJUSTARIMAGEN: "IMAGEADJUST",
+  // PDF: el sustrato que se calca y la importación de vectores. Mismos alias
+  // en español que ya declaran los descriptores; el pipeline de entrada
+  // resuelve por ESTA tabla, no por el descriptor.
+  ADJUNTARPDF: "PDFATTACH",
+  IMPORTARPDF: "PDFIMPORT",
+  RECORTARPDF: "PDFCLIP",
+  AJUSTARPDF: "PDFADJUST",
+  PAGINAPDF: "PDFPAGE",
+  ESCALARPDF: "PDFSCALE",
+  DESADJUNTARPDF: "PDFDETACH",
+  DESCARGARPDF: "PDFUNLOAD",
+  RECARGARPDF: "PDFRELOAD",
+  LISTARPDF: "PDFLIST",
   // Mechanical (Ola I): los nombres AM* de AutoCAD Mechanical y la memoria
   // muscular en español.
   AMCONTENTLIB: "STDPART",
@@ -139,6 +153,7 @@ export const CAD_COMMAND_ALIASES: Readonly<Record<string, string>> = {
   G: "GROUP",
   UNG: "UNGROUP",
   DR: "DRAWORDER",
+  APLASTAR: "FLATTEN",
 
   // --- anotación ------------------------------------------------------------
   T: "MTEXT",
@@ -163,6 +178,8 @@ export const CAD_COMMAND_ALIASES: Readonly<Record<string, string>> = {
   TS: "TABLESTYLE",
   LE: "LEADER",
   TOL: "TOLERANCE",
+  NUMTEXTO: "TCOUNT",
+  TEXTOAMTEXTO: "TXT2MTXT",
 
   // --- bloques y referencias ------------------------------------------------
   B: "BLOCK",
@@ -181,6 +198,7 @@ export const CAD_COMMAND_ALIASES: Readonly<Record<string, string>> = {
 
   // --- capas y propiedades --------------------------------------------------
   LA: "LAYER",
+  CAPABORRAR: "LAYDEL",
   LT: "LINETYPE",
   LTS: "LTSCALE",
   LW: "LWEIGHT",
@@ -221,6 +239,12 @@ export const CAD_COMMAND_ALIASES: Readonly<Record<string, string>> = {
   PRINT: "PLOT",
   PLO: "PLOT",
   PSET: "PAGESETUP",
+
+  // --- gestión --------------------------------------------------------------
+  // `DWGCOMPARE` es el nombre con el que AutoCAD 2019+ compara dos dibujos;
+  // `COMPARAR`, la memoria muscular en español.
+  COMPARAR: "COMPARE",
+  DWGCOMPARE: "COMPARE",
 
   // --- interoperabilidad ----------------------------------------------------
   EXP: "EXPORT",
