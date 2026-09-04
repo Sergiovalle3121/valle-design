@@ -1477,3 +1477,39 @@ Este contenedor no la es, así que esta ola no publica un tiempo: publica el
 TRABAJO que el producto se impone a sí mismo, que sale igual en cualquier
 máquina y es lo que se puede trinquetear (`hatch-lod-volume.spec.ts`). El
 tiempo lo dirá el trabajo de rendimiento en CI. **Todavía no.**
+
+### Y la respuesta al SLO ya estaba escrita en el repositorio
+
+Buscando dónde estaba el tiempo de la vista encajada apareció, en
+`viewport-baseline.json`, la nota que el propio proyecto dejó sobre el perfil
+`viewport-100k`. Dice, textualmente, qué bloquea el objetivo:
+
+> El rasterizador POR SOFTWARE del runner. La fidelidad sigue en su objetivo
+> (1,0 al abrir y tras el zoom) y el TESELADO ya corre en un worker fuera del
+> hilo principal […]. **Lo que queda NO es teselado: es materializar los lotes
+> instanciados y pintar 100.000 entidades por ANGLE/SwiftShader sin GPU**, en el
+> hilo principal a 8 ms por cuadro. Ni este spec ni el benchmark de Node miden
+> la máquina del usuario, que sí tiene GPU, y eso sigue sin medirse.
+
+La calibración lo confirma: `Chromium 141 · ANGLE (SwiftShader, sin GPU)`, cuatro
+núcleos, Xeon a 2,80 GHz.
+
+Tres consecuencias, y conviene decirlas sin rodeos:
+
+1. **El SLO que falla está bloqueado por el ENTORNO DE MEDIDA, no por el código
+   del producto.** Los segundos y los fps que arrastra esta campaña salen de un
+   runner sin GPU pintando 100.000 entidades por software.
+2. **Seguir optimizando teselado para ese número era perseguir una GPU que
+   falta.** Esta ola empezó a hacerlo —el kernel WASM primero, el sombreado
+   después— y sólo la medición lo desvió. El sombreado dio un 40× real, pero en
+   el escalón de zoom, no en la vista donde se mide el SLO.
+3. **El benchmark de RENDER a 100k, que sí es bloqueante, ya pasa** —«la corrida
+   real cae 8,5× por dentro del presupuesto», calibrado con dos núcleos y la
+   máquina disputada—. El producto no está lento: está sin medir donde importa.
+
+**DECISIÓN DEL TITULAR, no bloqueante para seguir:** una sola corrida de
+calibración en una máquina con GPU —la que tiene cualquier cliente que pague los
+199 MXN— convertiría `viewport-100k` de «objetivo bloqueado por el runner» en un
+número real que se puede prometer o perseguir. Hoy no existe ese número, y
+mientras no exista, cualquier promesa de rendimiento a 100.000 entidades es una
+suposición. Esta campaña no las hace.
