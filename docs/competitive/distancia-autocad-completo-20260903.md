@@ -1391,7 +1391,7 @@ Medida la mezcla de entidades de cada corpus a 100.000:
 punto de rúbrica y cero rendimiento. Queda escrito porque la tentación era real
 y la medición es lo único que la desarmó.
 
-### Dónde está el tiempo: el sombreado, y no por lo que parecía
+### Dónde está el trabajo: el sombreado, y no por lo que parecía
 
 Contando puntos y caminos —no cronometrando: en una máquina compartida el reloj
 mide a los vecinos— sobre `architecture@20k`, con el escalón medio del LOD:
@@ -1444,6 +1444,31 @@ que significa. Lo cazó en la primera corrida.
 El umbral ahora es el valor EXACTO del escalón medio (32), no un «por debajo
 de». La diferencia entre un umbral y un escalón es la diferencia entre que la
 prueba pase por suerte y que pase por lo que dice.
+
+### CORRECCIÓN a la lectura anterior: a qué zoom aplica este 40×
+
+Medido después de arreglarlo, que es cuando había que preguntarlo: el sombreado
+mediano de `architecture@100k` (652 unidades sobre un corpus de 285.208 × 284.219)
+mide
+
+| vista | tamaño aparente | escalón |
+| --- | ---: | ---: |
+| ajustada a pantalla (1280 px) | 2,76 px | **0** |
+| zoom ×8 | 22,06 px | 0 |
+| zoom ×40 | 110,31 px | **1** |
+
+Es decir: **a la vista donde se mide el SLO, los sombreados están en el escalón
+0** y sólo pagan su contorno, como ya hacían antes de esta ola. El 40× de arriba
+es real y vale para la sesión de trabajo de verdad —un dibujante trabaja con
+zoom, no con el plano entero encajado—, pero **no es la causa de los 25,3 s** y
+no se debe leer como si lo fuera.
+
+Dicho sin adornos: esta ola encontró y quitó un acantilado de 24.000× que un
+usuario con zoom pisa a diario, y **NO ha encontrado todavía la causa del SLO que
+falla**. A escalón 0 las 20.000 entidades sólo suman 122.000 puntos —trabajo de
+teselado modesto—, así que los 25,3 s de la vista encajada no son volumen de
+teselado: están en otra parte (construcción de escena, tiles, subida a GPU). Ese
+es el siguiente sitio donde mirar, y se mirará midiendo, no suponiendo.
 
 ### Lo que esta ola NO puede medir aquí
 

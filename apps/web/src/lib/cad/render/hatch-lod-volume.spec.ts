@@ -28,6 +28,15 @@
  * trocear el patrón ahí, este presupuesto lo dice antes que un usuario con un
  * plano denso.
  *
+ * ## A qué zoom aplica esto
+ *
+ * Medido: el sombreado mediano de `architecture@100k` mide 2,76 px con el plano
+ * ajustado a pantalla y 110 px a zoom ×40. Es decir que **a la vista donde se
+ * mide el SLO los sombreados están en el escalón 0** y ya sólo pagaban su
+ * contorno. Lo que esta prueba protege es la SESIÓN DE TRABAJO —un dibujante
+ * trabaja con zoom, no con el plano encajado—, no el número del SLO. Decirlo
+ * aquí evita que alguien lea este presupuesto como una promesa de 25,3 s.
+ *
  * Los topes son GENEROSOS a propósito —el doble de lo medido—: esto es un
  * trinquete contra una regresión de orden de magnitud, no un ajuste fino que
  * se rompa porque el corpus cambie una entidad.
