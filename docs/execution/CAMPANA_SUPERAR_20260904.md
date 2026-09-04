@@ -29,9 +29,27 @@ Bitácora del coordinador. Si un contexto se compacta, este archivo se relee pri
   `min(16, nproc-2)` = **2**. Los once frentes existen y tienen cola, pero avanzan
   de dos en dos por orden de prioridad; R8 se cumple en su intención (paralelismo real
   hasta donde la máquina lo sostiene), no en su cifra.
-- Red: `raw.githubusercontent.com` responde 200; la web general la deniega la política
-  de egreso (Wikipedia 403). El corpus ajeno de F11 sólo puede venir de GitHub con
-  licencia clara, y así se registra.
+- Red: **esta afirmación era FALSA y la corrige F11 el mismo día; se deja el error a la
+  vista porque limitó la campaña.** Lo que el coordinador escribió: «`raw.githubusercontent.com`
+  responde 200; la web general la deniega la política de egreso; el corpus ajeno sólo puede venir
+  de GitHub». Lo comprobado después, y verificado por el coordinador antes de aceptarlo:
+
+  | destino | respuesta |
+  | --- | --- |
+  | `raw.githubusercontent.com` | 200 |
+  | `pypi.org` · `index.crates.io` · `registry.npmjs.org` | **200** |
+  | `api.github.com` (listar un repositorio) | 403 |
+  | web general (Wikipedia) | 403 |
+
+  O sea: GitHub está cerrado SALVO rutas exactas de `raw`, pero los tres registros de
+  paquetes están abiertos. El segundo oráculo binario de F1 —declarado «probablemente
+  imposible en este entorno»— dejó de serlo, y el corpus ajeno tenía una fuente más.
+
+  Lo que duele del error: esos tres hosts estaban escritos en el `noProxy` que el
+  coordinador LEYÓ en su primera hora, en la salida de `__agentproxy/status`. Tenía la
+  evidencia delante y concluyó lo contrario porque probó dos destinos y generalizó. Es
+  la misma falta que la campaña corrigió tres veces en otros —concluir de más con poca
+  medición— cometida por quien la hacía cumplir.
 - Cada frente tiene su árbol propio (`git worktree`) con `node_modules` enlazado por
   hardlink desde el árbol principal: 11 copias ocupan 1.2 GB en total, no 13 GB.
 
