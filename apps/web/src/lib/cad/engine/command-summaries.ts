@@ -179,6 +179,8 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   ACTRECORD: "Empieza a grabar lo que tecleas como macro: los puntos se guardan como coordenadas.",
   ACTSTOP: "Cierra la grabación y guarda el macro como un guión .scr legible.",
   ACTMANAGER: "Lista los macros grabados en la sesión y repite uno.",
+  FIELD: "Texto que se rellena solo: área, longitud, fecha o variable, sacados del dibujo.",
+  UPDATEFIELD: "Vuelve a resolver los campos del dibujo; lo que no se puede resolver se cuenta.",
   GEOGRAPHICLOCATION: "Georreferencia el dibujo: un punto y su Este/Norte UTM o su latitud y longitud, con zona y datum.",
   MAPIMPORT: "Importa un shapefile o GeoJSON al dibujo como entidades con atributos, en el sistema del dibujo.",
   IMAGEATTACH: "Adjunta un plano escaneado (PNG, JPEG…) dentro del dibujo: inserción, ancho y giro.",

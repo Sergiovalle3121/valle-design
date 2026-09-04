@@ -48,6 +48,7 @@ import { CAD_PLANT_ISO_COMMANDS } from "./commands/plant-iso";
 import { CAD_DYNAMIC_BLOCK_COMMANDS } from "./commands/dynamic-block";
 import { CAD_REFERENCE_EDIT_COMMANDS } from "./commands/reference-edit";
 import { CAD_ACTION_RECORDER_COMMANDS } from "./commands/automation-actions";
+import { CAD_DRAWING_FIELD_COMMANDS } from "./commands/drawing-fields";
 import { CAD_GEO_LOCATION_COMMANDS } from "./commands/geo-location";
 import { CAD_MAP_IMPORT_COMMANDS } from "./commands/map-import";
 import { CAD_RASTER_IMAGE_COMMANDS } from "./commands/raster-image";
@@ -223,6 +224,7 @@ export const CAD_COMMAND_DESCRIPTORS = [
   ...CAD_DYNAMIC_BLOCK_COMMANDS,
   ...CAD_REFERENCE_EDIT_COMMANDS,
   ...CAD_ACTION_RECORDER_COMMANDS,
+  ...CAD_DRAWING_FIELD_COMMANDS,
   // Ola G (Map 3D): la georreferencia como marcador y el conjunto GIS dentro
   // del plano. Mismo registro, mismas puertas (`document`, `ui`).
   ...CAD_GEO_LOCATION_COMMANDS,

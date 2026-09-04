@@ -1194,3 +1194,37 @@ una**: añadir una fila para cobrarla sería inflar el denominador, que es lo qu
 - **Los macros viven en la SESIÓN.** Para guardarlos hay que copiar el guión que
   ACTSTOP imprime a un `.scr`. Persistirlos pediría un sitio nuevo en el formato
   y es decisión del titular.
+
+### Y el área que se entera de que movieron el muro (Ola 8, 2/n)
+
+`FIELD`, `UPDATEFIELD`, `DATALINK` y `DATALINKUPDATE` no estaban en el registro:
+la familia de campos, en 1 de 5. Lo que sí había eran los campos del CAJETÍN
+—`%<SheetNumber>%`, resueltos al publicar un conjunto—, que son la mitad del
+problema. La otra mitad es **el área de un local escrita a mano en el plano**,
+que deja de ser cierta en cuanto alguien mueve un muro y nadie se entera hasta
+que el cliente suma.
+
+`FIELD` coloca un texto que se rellena solo: área, longitud, fecha o variable de
+sistema. La EXPRESIÓN vive en `context.metadata` y el VALOR resuelto en el
+texto, así que el plano enseña «25.00 m²» —que es lo que se imprime— y el dibujo
+sigue sabiendo de dónde salió el número. Sin un campo nuevo en el formato.
+
+Se usa la MISMA sintaxis del cajetín (`%<Area:id>%`) a propósito: dos sintaxis
+para lo mismo son dos cosas que aprender y una que olvidar.
+
+**Dos defectos que sólo aparecieron tecleando la orden de verdad**, y los dos
+quedaron fijados con su caso:
+
+1. `"Área"[0].toLowerCase()` es `"á"`, no `"a"`. La tabla indexada por la
+   inicial **no reconocía la palabra que el propio prompt ofrece**, y el prompt
+   volvía a preguntar sin decir por qué. Ahora la inicial se normaliza.
+2. Con el local todavía designado —lo deja la orden anterior—, `UPDATEFIELD`
+   decía «No hay ningún campo en el dibujo». Era **falso** y mandaba al usuario
+   a colocar un campo que ya tenía. Ahora distingue: *«Ninguno de los N objetos
+   designados es un campo, y el dibujo tiene M.»*
+
+Un campo cuyo objeto ya no está **conserva su último valor y se cuenta**: un
+cero silencioso en una tabla de superficies es un error que se imprime.
+
+Lo que no hay: `DATALINK` —enlace a hoja de cálculo—, que es traer datos de
+fuera y pide decisiones que no son de este motor.

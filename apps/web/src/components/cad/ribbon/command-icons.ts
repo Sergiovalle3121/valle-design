@@ -144,6 +144,8 @@ import {
   PenLine,
   PenTool,
   Check,
+  Variable,
+  RefreshCw,
   PlayCircle,
   PencilRuler,
   Pentagon,
@@ -497,6 +499,8 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   ACTRECORD: Circle,
   ACTSTOP: Square,
   ACTMANAGER: PlayCircle,
+  FIELD: Variable,
+  UPDATEFIELD: RefreshCw,
 };
 
 /**
