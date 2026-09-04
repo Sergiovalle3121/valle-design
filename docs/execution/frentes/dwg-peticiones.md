@@ -161,4 +161,10 @@ Formato de cada petición:
 - **Cómo se comprueba:** `npm run check:dwg-firma` imprime el resumen y termina en cero;
   la spec pasa sus comprobaciones y está verificada por mutación (neutralizar el detector
   de cifras, el de casos inventados o la comparación de bloques la pone roja, las tres).
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04). `check:dwg-firma` en `scripts` y encadenado al FINAL de
+  `check:dwg`, justo después de `npm run check:dwg-oraculo`. Verde sin espejo y con él:
+  `50 comprobaciones · 5 bloques generados · 12 casos derivados de CASES` y «El paquete de firma
+  no afirma nada que su evidencia no sostenga». Muerde y se propaga: añadida a mano la línea «El
+  oráculo cubre 18 de 24 casos del corpus.» al paquete, `npm run check:dwg` sale 1 citando la
+  cifra escrita a mano (`{ linea: 465, forma: «N de M», texto: «18 de 24» }`); deshecha la
+  rotura, `npm run check:dwg` vuelve a verde en 57 s.

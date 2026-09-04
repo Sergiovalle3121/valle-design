@@ -52,7 +52,13 @@ Formato de cada petición:
   `curve-kernel-render-bench: N comprobaciones — …` y
   `docs/cad/evidence/curve-kernel-render-100k.json: PASA`. Para ver que el gate MUERDE, basta
   cambiar a mano `environment.gpu` a `true` en el artefacto: el spec lo rechaza citando `gpu`.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04). `check:curve-kernel-render` en `scripts` y encadenado en
+  `check:cad` justo después de `node scripts/wasm/build-kernel.mjs --check`, en el orden que la
+  petición razona. Verde: `curve-kernel-render-bench: 50 comprobaciones — …` y
+  `docs/cad/evidence/curve-kernel-render-100k.json: PASA`. Muerde y se propaga: puesto a mano
+  `environment.gpu` en `true`, `npm run check:cad` sale 1 en ese eslabón citando «environment.gpu
+  debe ser false: esta medida es CPU en Node»; deshecha la rotura, vuelve a verde. La
+  REGENERACIÓN sigue fuera de todo gate, como pedía la petición.
 
 ### P-velocidad-02 · Regenerar la matriz competitiva: lleva desactualizada desde el cableado del kernel
 
@@ -155,7 +161,14 @@ Formato de cada petición:
   del rasterizador por software del contrato hace fallar tres comprobaciones citando
   SwiftShader, y borrar el `run.complete` del artefacto sintético hace fallar la de la corrida
   parcial.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04). `perf:slo-navegador` y `check:slo-navegador` en `scripts`;
+  encadenado SÓLO el segundo, junto a `check:curve-kernel-render`. Verde:
+  `slo-navegador: 74 comprobaciones — … NEGATIVO REAL …` en 4 s. Muerde y se propaga: retirada la
+  regla del rasterizador por software de `slo-navegador-contract.mjs`, `npm run check:cad` sale 1
+  citando «tiene que quedar fuera: es rasterizado por software»; deshecha la rotura, vuelve a
+  verde. `perf:slo-navegador` se corrió aquí a propósito: se niega con código 1 y NO escribe («NO
+  se mide y NO se escribe nada»), que es exactamente lo que debe hacer sin GPU real. No se
+  encadena a ningún gate.
 
 ### P-velocidad-05 · Encadenar el trinquete del reparto por etapa a `check:cad`
 
@@ -195,7 +208,13 @@ Formato de cada petición:
   node -e "const f='docs/cad/evidence/render-stage-architecture-100k.json';const a=require('./'+f);a.corridas[0].runs[0].stages.ms.tessellate*=2;require('fs').writeFileSync('/tmp/roto.json',JSON.stringify(a))"
   node scripts/perf/check-etapas-100k.mjs --evidencia /tmp/roto.json   # sale 1 y cita tessellate
   ```
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04). `check:etapas-100k` y `perf:etapas-100k` en `scripts`;
+  encadenado SÓLO el primero, tras `check:slo-navegador`. Verde:
+  `check-etapas-100k.spec.mjs · 117 comprobaciones · OK` y la tabla del trinquete en `VERDE`.
+  Muerde y se propaga: duplicado a mano `corridas[0].runs[0].stages.ms.tessellate` en el
+  artefacto, `npm run check:cad` sale 1 en ese eslabón citando «tessellate 7133.712 ms se pasa
+  del techo 4200.751 ms (+69.8 %)»; deshecha la rotura, vuelve a verde. `perf:etapas-100k`
+  comprobado con `-- --dry-run` (corre y no escribe) y no se encadena a nada.
 
 ### P-velocidad-06 · El LOD del sombreado cuesta ×3.448 en cuanto pasa de 24 px, y en el recorrido medido pasa siempre
 
@@ -279,4 +298,11 @@ Formato de cada petición:
   ver que MUERDE, sin tocar nada versionado: cambiar `Math.hypot(x1 - x0, y1 - y0)` del atajo de
   dos puntos de `line-batch.ts` por `Math.hypot(x1 - x0, y1 - y0) * 1.0000001` y volver a
   invocarlo — sale 1, cita los primeros descuadres y **no publica**.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04). `perf:batchpush` en `scripts`, con el `cd apps/web` que la
+  petición pide, y **sin encadenar a ningún gate**. Corrido aquí: 6,7 s, termina en 0, imprime los
+  tres relojes, `paridad: 0 descuadres` y publica. El artefacto que esa corrida publicó se DESHIZO
+  (`git checkout`): esta ventana cablea el comando, no republica evidencia. Aviso para el frente:
+  sobre el árbol de hoy —con las Olas 9 y 10 de `main` ya mergeadas, que traen los dos acantilados
+  de LOD— la sonda mide 233.485 caminos y 418.887 instancias donde el artefacto vigente dice
+  981.724 y 1.167.126. Ningún gate juzga ese artefacto (la petición pide expresamente que no lo
+  haya), pero está desactualizado; republicarlo es del frente.
