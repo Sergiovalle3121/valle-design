@@ -89,3 +89,46 @@ Formato de cada petición:
   UNA línea, la de esa arista» y a `pick3d` su spec de rayo-contra-arista. Sin
   ella el gate actual sigue verde: la rama copia todas y lo dice.
 - **Estado:** pendiente
+
+### P-tresd-03 · El resumen de POLYSOLID/CYLINDER y el renglón de la ESCALERA
+- **Archivos:** `apps/web/src/lib/cad/engine/command-summaries.ts` y
+  `docs/parity/ESCALERA.md` (este segundo, además, en la lista de archivos
+  compartidos prohibidos: lo aplica sólo el coordinador).
+- **Por qué:** entrega 2 de la cola. Desde el 2026-09-04 CYLINDER y CONE aceptan
+  2Puntos, 3Puntos y Elíptico; PYRAMID acepta Arista; POLYSOLID traza tramos de
+  Arco y engrosa una polilínea con `bulge`. Los dos textos siguen describiendo
+  el estado anterior, y uno de ellos —la ESCALERA— lo declara como ausencia.
+  Dejarlo así no es un error de código: es evidencia que envejeció, y el
+  criterio de la casa es que lo que gana su evidencia se dice.
+- **Cambio exacto (1/2):** en `command-summaries.ts`, sustituir
+
+  ```ts
+  POLYSOLID: "Muro al vuelo: recorrido de tramos rectos con ancho y altura, o desde una línea.",
+  ```
+
+  por
+
+  ```ts
+  POLYSOLID: "Muro al vuelo: recorrido de tramos rectos y de arco con ancho y altura, o desde una línea o polilínea.",
+  ```
+
+  Nada más de ese archivo: los resúmenes de CYLINDER, CONE y PYRAMID no nombran
+  hoy ningún modo, así que no dicen nada que haya dejado de ser cierto.
+- **Cambio exacto (2/2):** en `docs/parity/ESCALERA.md`, línea 174, la celda de
+  «Las ocho primitivas de sólido» dice hoy
+
+  ```
+  | Nada de peldaño; los modos 3P/2P/Ttr/Elíptico de CYLINDER y CONE, Arista de PYRAMID y Arco de POLYSOLID no se ofrecen. |
+  ```
+
+  y debe decir
+
+  ```
+  | Nada de peldaño; CYLINDER y CONE aceptan 2P, 3P y Elíptico, PYRAMID acepta Arista y POLYSOLID traza tramos de arco (105 comprobaciones en `solids-primitives.spec.ts`, 2026-09-04). Ttr sigue fuera: pide resolver tangencias contra dos entidades designadas y estas órdenes no designan objetos. |
+  ```
+- **Cómo se comprueba:** `cd apps/web && npx tsx
+  src/lib/cad/engine/commands/solids-primitives.spec.ts` (105 comprobaciones,
+  con el volumen de cada modo contra papel y la corrección de faceta en número)
+  y `npm run check:command-integrity`. No hay comando nuevo: ni el registro, ni
+  la cinta, ni `docs/cad/evidence/ui-command-reach.json` cambian.
+- **Estado:** pendiente

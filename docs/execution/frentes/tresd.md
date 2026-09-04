@@ -71,6 +71,72 @@ npm run check:cad                       # antes de cerrar
 
 ## Bitácora
 
+### 2026-09-04 · Los modos de las primitivas (entrega 2/5)
+
+La cabecera de `solids-primitives.ts` declaraba ausentes, uno por uno, los modos
+de designación de AutoCAD. Estaban ausentes **por diálogo, no por kernel**: un
+cilindro por dos puntos es el mismo nodo `extrude` con el centro puesto en otro
+sitio. Lo que faltaba era la aritmética entre lo que se DESIGNA y lo que la
+receta pide, y ahora existe y está medida.
+
+NUEVO: `solids-primitive-modes.ts` (413 líneas) — la aritmética de los modos:
+
+- **2Puntos**: los dos puntos son el DIÁMETRO de la base. Medido: CYLINDER 2P
+  entre (0,0) y (100,0) con altura 40 produce el **mismo nodo, bit a bit** que
+  CYLINDER centro (50,0) radio 50 altura 40 (`JSON.stringify` de los nodos
+  idéntico), y mide π·50²·40 exacto. Dos modos de la misma orden no pueden dar
+  dos sólidos para la misma pieza.
+- **3Puntos**: circuncentro. Por (0,0), (100,0) y (50,50) pasa la circunferencia
+  de centro (50,0) y radio 50. Tres puntos COLINEALES se rechazan con esa
+  palabra —el determinante se compara contra el tamaño del triángulo, no contra
+  un absoluto— en vez de dibujar un cilindro a kilómetros.
+- **Elíptico**: perfil de elipse de 48 lados. Para CYLINDER es un nodo `extrude`
+  con el giro en el `xAxis` del marco; para CONE es el MISMO abanico `brep`
+  base→vértice que ya usaba PYRAMID (`ringSolidNode`), así que no se estrenó
+  maquinaria.
+- **Arista** (PYRAMID): R = L/(2·sen(π/n)) entra por `vertexRadius` sin tocarla,
+  y el GIRO va con él: prometer «esta arista» y dibujar otra sería peor que no
+  ofrecer el modo. Medido: L = 100 con 6 lados da R = 100, la arista designada
+  queda en (0,0)-(100,0) y los seis lados miden 100.
+- **Arco** (POLYSOLID): el recorrido pasa a ser una POLILÍNEA (vértices con
+  `bulge`) y se tesela ANTES de `offsetPath`, que sigue engrosando sólo rectas.
+  El arco sale tangente al tramo anterior (`bulge = tan(ang/2)`), la aritmética
+  se pide a `curve-model` en vez de copiarla por tercera vez, y `desHacer` quita
+  el arco ENTERO. La rama Objeto deja de rechazar una polilínea con `bulge`.
+
+### La faceta, en números y no en adjetivos
+
+`ellipseProfile` tiene el mismo interruptor `matchArea` que `circleProfile`, y
+cada primitiva usa el que la deja CONTINUA con su hermana circular:
+
+| pieza             | perfil            | volumen                      | con a = b                          |
+| ----------------- | ----------------- | ---------------------------- | ---------------------------------- |
+| cilindro elíptico | elipse corregida  | π·a·b·h **exacto**           | el cilindro circular, bit a bit    |
+| cono elíptico     | elipse inscrita   | π·a·b·h/3 × sen θ/θ          | el cono circular facetado, exacto  |
+
+con θ = 2π/48 = π/24 y sen θ/θ = **0,99714666**. Es la corrección que
+`circleProfile` ya documentaba; queda medida en el spec en las dos direcciones
+(el área del polígono corregido es π·a·b, la del inscrito es sen θ/θ de ella).
+
+MODIFICADO: `solids-primitives.ts` **767 → 745 líneas**: ENCOGE aunque gana cinco
+modos, porque salieron de él `offsetPath`/`polysolidFootprint` (al módulo de
+modos) y las recetas de las ocho primitivas (a `solids-primitive-shapes.ts`, 180
+líneas, nuevo). La línea de corte no es de conveniencia: allí se PREGUNTA y aquí
+se ESCRIBE la receta. Los tres archivos quedan por debajo del techo de 800.
+
+MODIFICADO: `solids-primitives.spec.ts` (230 → 358 líneas, 60 → 105
+comprobaciones).
+
+Evidencia: `npx tsx src/lib/cad/engine/commands/solids-primitives.spec.ts` → 105
+comprobaciones. `node scripts/cad/check-monolith-budget.mjs` → OK (745 / 413 /
+180, ninguno con asignación). `npm run check:command-integrity` → OK, 274
+comandos, 0 éxitos falsos. `npm run typecheck` → 8/8. `node
+apps/web/scripts/run-specs.mjs` → 575/576 (el que falla, `plan-budget.spec.ts`,
+es un benchmark de máquina y falla IGUAL en el árbol limpio: 45,2 ms de
+`zoomFrameP95Ms` contra 22 de presupuesto, sin nada mío en medio).
+
+No se tocó el registro, ni la cinta, ni el esquema, ni ningún archivo compartido.
+
 ### 2026-09-04 · SOLIDEDIT gana tres ramas (entrega 1/5)
 
 De tres operaciones a **seis**. Lo nuevo, y por qué el kernel ya lo sostenía:
@@ -108,6 +174,29 @@ intacto.
 
 
 ## «Todavía no»
+
+### 2026-09-04 · Ttr de CYLINDER y CONE, y los submodos del arco
+
+**Ttr** (tangente-tangente-radio) sigue fuera y el prompt no lo anuncia. Motivo:
+no es aritmética de puntos designados —pide resolver tangencias contra DOS
+entidades del dibujo— y ninguna de las ocho primitivas designa objetos salvo
+POLYSOLID Objeto. Construirlo pide un paso de designación en el diálogo y el
+solucionador de tangencias de `intersect.ts`; es trabajo de otra ventana, no un
+renglón.
+
+Del **Arco** de POLYSOLID está el modo por defecto —tangente al tramo anterior—
+y no sus submodos (Dirección, Radio, Ángulo, Segundo punto), ni el arco como
+PRIMER tramo, que no tiene dirección de entrada a la que ser tangente: la opción
+no aparece hasta que la hay, en vez de ofrecerse y no poder contestarse.
+
+### 2026-09-04 · El resumen de la paleta y la ESCALERA hablan del ayer
+
+`engine/command-summaries.ts:214` sigue diciendo que POLYSOLID es un «recorrido
+de tramos rectos», y `docs/parity/ESCALERA.md:174` que «los modos 3P/2P/Ttr/
+Elíptico de CYLINDER y CONE, Arista de PYRAMID y Arco de POLYSOLID no se
+ofrecen». Los dos son archivos FUERA del territorio de este frente (la ESCALERA
+está además en la lista de prohibidos). Pedidos con su texto exacto en
+`tresd-peticiones.md` (**P-tresd-03**).
 
 ### 2026-09-04 · Designar UNA arista suelta
 
