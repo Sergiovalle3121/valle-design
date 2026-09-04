@@ -1513,3 +1513,57 @@ calibración en una máquina con GPU —la que tiene cualquier cliente que pague
 número real que se puede prometer o perseguir. Hoy no existe ese número, y
 mientras no exista, cualquier promesa de rendimiento a 100.000 entidades es una
 suposición. Esta campaña no las hace.
+
+### Ola 10 (2/n) — la polilínea que dibujaba veinte vértices dentro de diez píxeles
+
+Medido el resto de corpus con el mismo instrumento, para ver si el acantilado
+del sombreado era único. No lo era, y el segundo tenía otra forma:
+
+| corpus @20k | escalón 0 | escalón 1 | detalle |
+| --- | ---: | ---: | ---: |
+| architecture | 122.000 | 1.800.388 | 72.680.244 |
+| mechanical | 119.290 | 289.532 | 974.565 |
+| **cartography** | **362.479** | **362.479** | **362.479** |
+| **text-hostile** | **56.000** | **56.000** | **56.000** |
+
+Las dos últimas filas son iguales en los tres escalones: **el LOD no hacía nada
+con las polilíneas**, porque `segments` sólo gobernaba los arcos de `bulge`.
+
+Y `cartography` son 18.400 polilíneas de 20 vértices de mediana que, con el
+plano ajustado a pantalla, ocupan **9,74 px** con sus vértices a **0,796 px**
+unos de otros: veinte vértices dentro de diez píxeles. Mismo desperdicio que los
+guiones, mismo criterio para quitarlo.
+
+**362.479 → 122.543 puntos (3,0×)** en el escalón grueso —que es la vista de
+apertura—, 1,15× en el medio, y **nada** en el valor por defecto ni en el
+detalle. `architecture`, `text-hostile` y `mechanical` no se mueven ni un punto.
+
+#### Lo que NO se decima, que es la parte que importa
+
+Los vértices de una polilínea **son** el dibujo, no un adorno como la trama de
+un sombreado. Por eso el arreglo se estrecha a mano:
+
+- **cerradas, nunca**: son locales, predios y piezas; colapsar una hacia su
+  cuerda no quita detalle, cambia la FIGURA. (Medido: las 3.600 de
+  `architecture` y las 4.000 de `text-hostile` son cerradas, y no pierden nada
+  porque ya eran de cuatro vértices.)
+- **con `bulge`, nunca**: ese tramo es un arco, y su curvatura no es ruido.
+- **sólo en el camino de DIBUJO**: designación, contención, bounds y export
+  siguen viendo todos los vértices. Esto es cómo se pinta, no qué es.
+- **los extremos no se mueven**: Douglas–Peucker los conserva, así que la
+  polilínea empieza y acaba donde empezaba y acababa.
+
+La tolerancia sale del tamaño que el escalón GARANTIZA (`diagonal/24` en el
+grueso = un píxel en su tope), y el spec comprueba la cota: ningún vértice
+original queda a más de esa distancia del trazo que se dibuja.
+
+Y la misma lección del sombreado, aplicada de entrada en vez de tropezando: los
+escalones se comparan **por igualdad**, no con un «menor que», para que el valor
+por defecto del renderizador (96, «nadie pidió LOD») no se lo trague.
+
+#### Sin implementar dos veces
+
+Douglas–Peucker ya existía en el motor (`draw-spline.ts`, para el ajuste de
+splines). Se extrajo a `lib/cad/simplify.ts` —un adaptador de entidad no puede
+importar de un comando sin cerrar un ciclo— y el comando lo reexporta. Una
+implementación, no dos.
