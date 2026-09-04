@@ -68,7 +68,63 @@ npm run check:cad                       # antes de cerrar
 
 ## Bitácora
 
-_(sin entradas todavía)_
+### C1 · Reconocimiento del territorio (2026-09-04)
+
+Medido, no supuesto. El registro real (`CAD_COMMAND_DESCRIPTORS`) tiene **274 comandos** y
+`node scripts/cad/ui-command-reach.mjs` da **274/274 alcanzables con el ratón** — la cinta se
+genera del propio registro (`ribbon.ts` recorre los descriptores), así que un comando nuevo
+nace con botón. Lo que cuesta registrar un comando son cuatro archivos FUERA de mi territorio:
+`engine/index.ts`, `engine/command-summaries.ts` (contrato fail-closed, un comando mudo rompe
+CI), `engine/alias-table.ts` (el pipeline de entrada resuelve por ESTA tabla, no por el
+descriptor) y `docs/cad/evidence/ui-command-reach.json` (regenerado). Todo eso va por petición.
+
+**De la cola 1 (Express Tools), lo que YA existe en el registro:** `LAYWALK`, `LAYMRG`,
+`BURST`, `NCOPY`, `TEXTALIGN`, `QDIM`, `QLEADER`, `XPLODE`, `OVERKILL`, `SETBYLAYER`, `CHPROP`.
+**Lo que NO existe:** `BREAKLINE`, `TXTEXP`, `FLATTEN`, `ALIASEDIT`, `ARCTEXT`, `TCOUNT`,
+`TXT2MTXT`, `EXTRIM`, `MOCORO`, `DIMEX`, `DIMIM`, `SUPERHATCH`, `LAYDEL`.
+
+**Cola 4 (PDF) — el hallazgo caro.** `apps/web/src/lib/cad/pdf/` son ~250 KB de motor
+TERMINADO y probado contra corpus real: `importCadPdf`, `readCadPdfPageList`,
+`cadPdfAttachCommands`, `cadPdfClipCommands`, `cadPdfUnderlayFadeCommands`,
+`cadPdfScaleToDistanceCommands`, `cadPdfUnderlayPageCommands`, informe de pérdidas, y
+`check:pdf-corpus` de gate. **Ningún comando lo alcanza.** `grep PDFATTACH|PDFIMPORT` en
+`engine/` da cero; el único consumidor del subsistema fuera de sí mismo es `cadPdfInflate`
+desde `session-catalogs.ts`, para descomprimir `.ctb`. Por la regla 1 de la campaña de
+cimientos, hoy PDF **no está implementado**: es un subsistema sin importador.
+
+**Cola 2 (COMPARE).** No hay diff de entidades en ningún sitio. Lo único que existe es
+`snapshots.ts`: `diffCadSnapshots` compara dos HASHES y devuelve `changed: true|false`. No
+hay añadido/borrado/modificado, no hay nubes de revisión, no hay comparar dos archivos.
+Greenfield entero, y entero dentro de mi territorio (`compare*`). `revcloudVertices` y
+`REVCLOUD_BULGE` ya existen exportados en `engine/commands/draw-rings.ts`.
+
+**Cola 3 (unidades imperiales).** Existe la mitad de SALIDA: `unit-format.ts` formatea
+`architectural`/`engineering`/`fractional`, `system-variables.ts` mapea `LUNITS`→sistema y
+`inquiry/reports.ts` lo consume. Falta lo demás, y está medido con sonda:
+
+- **Entrada: imposible.** `parseCoordinate` usa `Number(s)`. Medido hoy — `1'-6 1/2"`, `12'`,
+  `6"`, `6 1/2`, `1'6` → `{ok:false,"No se pudo interpretar la entrada"}`; `@1'-0",0` →
+  `{ok:false,"Coordenada inválida"}`.
+- **Cota: métrica y nada más.** `dimension-format.ts` declara
+  `type LengthUnit = 'mm' | 'cm' | 'm'`. No hay pulgada ni pie en el rótulo de una cota.
+- **DXF: no viaja.** `dxf-export.ts` escribe `$INSUNITS` desde `options.units` (mm/cm/m) y
+  **no escribe `$LUNITS` ni `$LUPREC`**: el ajuste arquitectónico del dibujo no sobrevive al
+  archivo.
+
+**Cola 6 (CTB/STB).** Está mucho más avanzado de lo que la cola sugiere:
+`plot/plot-style-table.ts` lee un `.ctb` real (detecta `PIAFILEVERSION`, localiza el flujo
+zlib y lo descomprime con el códec inyectado), tiene CTB y STB, y `session-catalogs.ts` ya
+enchufa `importCadPlotStyleTable` + `cadPdfInflate` en la sesión. Queda por medir si la tabla
+GOBIERNA el PDF de salida; `plot/` no es territorio mío.
+
+**Cola 5 (portapapeles).** `COPYCLIP/CUTCLIP/COPYBASE/PASTECLIP/PASTEORIG` existen y viajan
+por la petición de anfitrión `clipboard`. `PASTESPEC` no existe, y lo copiado vive dentro de la pestaña: no llega al portapapeles del sistema.
+
+**Frontera que este reconocimiento deja escrita:** `lib/cad/clipboard.ts`,
+`lib/cad/precision-input.ts`, `lib/cad/dimension-format.ts`, `lib/cad/dxf-export.ts`,
+`lib/cad/snap-engine.ts`, `engine/command-types.ts` y `lib/cad/plot/` están FUERA de mi
+territorio aunque la cola los toque. Todo lo que necesiten va a `express-peticiones.md` con
+el diseño completo.
 
 ## «Todavía no»
 
