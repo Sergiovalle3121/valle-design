@@ -56,6 +56,20 @@ async function installCadBackend(context: BrowserContext) {
 
 async function type(page: Page, value: string) {
   const input = page.getByTestId('cad-command-input');
+  // El foco se pide aquí a propósito, y es el INSTRUMENTO, no el producto.
+  //
+  // Playwright sintetiza los caracteres que no están en el teclado —la «Á» de
+  // «Área»— como `insertText`, que va al elemento CON FOCO en vez de generar
+  // los eventos de tecla que el estudio enruta a la línea de comandos. Con el
+  // foco en un control de la paleta, Firefox perdía justo esa primera letra y
+  // llegaba «rea»: el fallo era del método de tecleo del test, no de que el
+  // producto no aceptara la palabra acentuada.
+  //
+  // Enfocar la entrada quita esa dependencia en TODOS los navegadores. No se
+  // pierde cobertura: el enrutado «teclea donde sea» lo siguen probando los
+  // demás goldens, que teclean ASCII y pasan en Firefox — éste y el 99 son los
+  // dos únicos que teclean un acento.
+  await input.focus();
   await page.keyboard.type(value);
   await expect(input).toHaveValue(value);
   await page.keyboard.press('Enter');
