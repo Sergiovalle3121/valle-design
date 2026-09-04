@@ -658,3 +658,166 @@ Sobre un sustrato descargado, `null`.
   el PDF cuesta milisegundos y quien la llama decide cuándo. La memoria con firma de la lámina
   va en el editor y su diseño está en `P-express-11`; ponerla aquí escondería un estado global
   en un módulo que hoy se puede probar sin montar nada.
+
+### C7 · Cierre del frente: correr todo lo que se afirmó (2026-09-04)
+
+**Este apunte no añade código.** Es la pasada de cierre: correr los gates sobre el árbol QUIETO
+—committeado, `git status` vacío— y volver a medir lo que C1–C6 afirmaron. Un frente que se cierra
+sin correr lo suyo no entrega trabajo, entrega claims.
+
+**Lo que hay en la rama, contado por git y no por la memoria.**
+`git log --oneline campana/superar/express ^646b969` da ocho commits:
+
+| Commit | Entregable |
+| --- | --- |
+| `6c14775` | reconocimiento del territorio (C1) |
+| `0f8d00b` | las diez órdenes de PDF (C2) |
+| `b7b4485` | COMPARE y las nubes de revisión (C3) |
+| `c464362` | las cinco Express Tools puras (C4) |
+| `24b4ccd` | pies y pulgadas: entrada y rótulo (C5) |
+| `adef08d` | la geometría de enganche del sustrato (C6) |
+| `056db70` | corrección de la cifra de `P-express-11` |
+| `bceb733` | el camino cerrado llega cerrado (C6) |
+
+`git diff --stat 646b969..campana/superar/express`: **25 archivos, 10 154 líneas añadidas, 3
+borradas**. Los 23 de código caen todos dentro del territorio del frente (`lib/cad/pdf*`,
+`lib/cad/units*`, `lib/cad/compare*`, `lib/cad/engine/commands/express*|compare*|pdf*`) y los otros
+dos son esta bitácora y su archivo de peticiones. **Ni un solo archivo fuera de R1**, y ninguno de
+los prohibidos por R2. Eso se comprueba leyendo el `--stat`, no confiando en el apunte.
+
+**Los gates, con su salida literal.**
+
+```
+npm run typecheck
+ Tasks:    8 successful, 8 total
+Cached:    3 cached, 8 total
+  Time:    12.034s
+
+npm run check:command-integrity
+Integridad de comandos OK: 274 comandos · 82 mutan verificado · 48 delegan · 21 informan ·
+115 declaran su límite · 8 exentos declarados · 0 éxitos falsos.
+
+node scripts/cad/ui-command-reach.mjs
+ui-command-reach OK — 17 → 274 de 274 comandos alcanzables con el ratón.
+
+node scripts/cad/check-ribbon-coverage.mjs
+check:ribbon-coverage OK — 274 comandos en la cinta, 0 declarados no-expuestos, 274 en el registro.
+
+node scripts/cad/check-monolith-budget.mjs
+Presupuesto: apps/web/src/components/cad/editor/Layout3DEditor.tsx → 18388 líneas, 131 useState.
+Presupuesto de monolito OK: 2498 archivos, 13 con asignación explícita.
+
+npm run check:no-industrial-domain
+Spec del gate de identidad OK: 114 comprobaciones, 0 entradas de residuo pendientes.
+Gate de identidad OK: 2220 fuentes de producto sin dominio industrial.
+
+npm run check:contrast
+Gate de contraste OK: 76 pares medidos en 2 temas (38 por tema). El par más ajustado es
+«la tarjeta despegada de la página» en claro: 1,09:1 sobre un mínimo de 1,05:1.
+
+npm run check:lint-budget
+Trinquete de lint OK: 487 aviso(s) dentro del presupuesto (492).
+
+npm test --workspace=web
+586/586 specs verdes
+```
+
+Y los gates que van DESPUÉS del que revienta la cadena, corridos uno a uno a propósito —porque
+esconderse detrás de un fallo de entorno es la forma barata de no mirar: `check:precision-evidence`
+(peor error 0.0000028763897716999054 unidades a magnitud 10⁷), `check:cad-math` (894 casos contra
+oráculo independiente, 0 desviaciones), `check:legal`, `check:e2e-localizadores`, `check:auditoria`,
+`check:authz`, `check:template-gallery`, `check:dxf-corpus`, **`check:pdf-corpus`**
+(«pdf-import-corpus-matrix.json al día»), `check:dxf-props`, `check:api-console`,
+`rubric.spec.mjs` (59 comprobaciones) y `rubric.mjs --markdown --check` (232/271, matriz al día).
+**Todos verdes, salida 0.**
+
+**Las diez specs del frente corren dentro de la suite, no sólo sueltas.** El runner
+(`apps/web/scripts/run-specs.mjs`) las descubre solo, y aparecen con su palomita en las 586:
+`compare-documents`, `compare-revision-clouds`, `compare-drawings`, `express-tools`,
+`pdf-underlay-commands`, `pdf-attach-payload`, `pdf-snap-geometry`, `units-imperial`,
+`units-label` y `verification/units-imperial`. Sus recuentos propios: 65, 68, 46, 99, 118, 28, 95,
+788, 1 037 y 22 comprobaciones.
+
+**Verificación de dos afirmaciones del frente, sin creerle a la spec.**
+
+1. **«PDFADJUST compone el bloqueo sobre el desvanecido ya puesto».** Comprobado leyendo el código,
+   no el apunte: `pdf-underlay.ts:392` devuelve `[replaceEntity({ ...entity, fade })]` —sustitución
+   de la entidad ENTERA, que es de donde nacía el defecto— y
+   `pdf-underlay-edit-commands.ts:258-261` construye `patched` mapeando las entidades con el
+   `fade` nuevo y le pasa ESO a `cadPdfUnderlayLockCommands`, no el `document` de entrada. El
+   razonamiento está escrito en tres renglones de comentario junto a la línea. **Se sostiene.**
+2. **«Las órdenes nuevas no están registradas, y por eso no cuentan».** Comprobado por grep sobre
+   los cuatro archivos del registro (`engine/index.ts`, `engine/command-summaries.ts`,
+   `engine/alias-table.ts`, `lib/cad/ribbon.ts`): **cero referencias** a cada uno de PDFATTACH,
+   PDFIMPORT, PDFLIST, PDFCLIP, PDFADJUST, PDFPAGE, PDFSCALE, PDFDETACH, COMPARE, BREAKLINE,
+   TCOUNT, TXT2MTXT, FLATTEN y LAYDEL. Y el gate lo confirma por el otro lado: sigue diciendo
+   **274**, no 284/279. **Se sostiene**, y con ella se sostiene lo incómodo: por la regla 1 de
+   cimientos, dieciséis órdenes construidas y probadas **no cuentan como implementadas hoy**.
+
+**Una afirmación de C5 que NO se sostiene, y que se corrige aquí.** C5 escribió que
+`npm run check:cad` fallaba también «en el gate de contraste, en `globals.css`, por los tokens
+`--muted-foreground`». **Es falso.** Corrido solo, `npm run check:contrast` termina con salida 0,
+`# fail 0`, y su renglón final es «Gate de contraste OK: 76 pares medidos». Lo que C5 leyó como un
+fallo son los renglones `# Gate de contraste: FALLÓ` que imprimen los SUBTESTS de
+`check-contrast.spec.mjs` al comprobar que el gate sabe rechazar una paleta mala: un gate que sólo
+se prueba en verde no está probado. Confundir la prueba negativa de un gate con el gate en rojo es
+el error que esta corrección deja anotado. **El árbol tiene un solo gate en rojo, no dos.**
+
+**El único rojo, con su causa medida.** `npm run check:cad` corta en `check:dwg-evidence`:
+
+```
+AssertionError [ERR_ASSERTION]: el artefacto del disco coincide con lo que el árbol sostiene hoy
++ actual   "bundlesAdmitidos": 7
+- expected "bundlesAdmitidos": 0
+           "cero bundles admitidos en el corpus independiente"
+```
+
+`VALLE_DWG_CORPUS_MIRROR` está **vacío** en este entorno, así que el corpus independiente aporta
+cero bundles y el árbol recalcula 0 donde el artefacto committeado guarda 7. Es exactamente lo que
+`AGENTS.md` avisa: «`VALLE_DWG_CORPUS_MIRROR` apunta al clon local de
+`valle-design-dwg-conformance` o los gates DWG mienten por entorno». **No es de este frente**, y la
+prueba no es una opinión: el `--stat` de la rama no toca `packages/dwg-codec/`, `scripts/dwg/` ni
+`docs/dwg/`, ni un solo archivo. No se tocó, no se relajó y no se marcó como saltado.
+
+**La cifra del encabezado de esta ficha está vencida.** «Lo que hay que tener presente» dice que la
+campaña mantiene **243/243**; los gates miden hoy **274/274**. No la reescribo —el encabezado es el
+encargo del coordinador, no memoria del frente— pero queda anotado aquí para que se corrija en la
+ventana de integración: por la regla 4 de cimientos, una cifra escrita a mano en un doc es un
+defecto aunque coincida, y ésta ni siquiera coincide.
+
+### El cierre del frente, al 2026-09-04
+
+- **Dieciséis órdenes construidas y probadas siguen sin poder teclearse.** Las diez de PDF
+  (`P-express-03`), COMPARE (`P-express-05`) y las cinco Express Tools (`P-express-06`). El
+  registro es de fuera (R1) y las tres peticiones llevan el diseño completo: imports, líneas de
+  resumen ya redactadas, alias en español y patrones de cinta. Aplicadas las tres, la cifra pasa de
+  274/274 a **290/290** —diez, más una, más cinco—; hasta entonces, **por la regla 1 de cimientos
+  no cuentan como implementadas** y así queda dicho, sin insinuar lo contrario.
+
+  La cifra se contó ejecutando los tres arrays, no sumando de memoria: `CAD_PDF_UNDERLAY_COMMANDS`
+  da 10 (PDFATTACH, PDFIMPORT, PDFCLIP, PDFADJUST, PDFPAGE, PDFSCALE, PDFDETACH, PDFUNLOAD,
+  PDFRELOAD, PDFLIST), `CAD_EXPRESS_TOOL_COMMANDS` da 5 (BREAKLINE, FLATTEN, LAYDEL, TCOUNT,
+  TXT2MTXT) y `CAD_COMPARE_COMMANDS` da 1. Este renglón dijo «289» en su primera escritura, por una
+  suma a mano equivocada, y se corrigió al contarlo: es justo el defecto contra el que avisa la
+  regla 4 de cimientos, cometido y corregido dentro del mismo cierre.
+- **La entrada imperial no llega al teclado** (`P-express-10`), **la cota sigue rotulando en
+  decimal** (`P-express-08`) y **`$LUNITS` no viaja en el DXF** (`P-express-09`). La aritmética está
+  entregada y medida; los tres puntos de consumo son de fuera.
+- **El sustrato de PDF se ve y no imanta** (`P-express-11`): la geometría de enganche existe y el
+  `snap()` real la usa en la spec, pero quien arma la escena en cada `pointermove` es
+  `Layout3DEditor.tsx`, que no es territorio del frente.
+- **`Archivo` no abre el selector en PDFATTACH/PDFIMPORT** (`P-express-01`) y **COMPARE sólo compara
+  contra la biblioteca ya cargada** (`P-express-04`). Las dos DECLARAN su límite en voz alta en vez
+  de callar o de fingir un cuadro que no existe, que es la salida que la regla 2 admite.
+- **De la cola 1 siguen faltando ocho** (TXTEXP, ARCTEXT, EXTRIM, MOCORO, SUPERHATCH, ALIASEDIT,
+  DIMEX, DIMIM) con el motivo de cada una escrito en «Las Express Tools, al 2026-09-04». **La cola 5
+  (portapapeles del sistema) y la cola 6 (CTB/STB gobernando el trazado) no se abrieron**: la mitad
+  interesante de la 5 es `navigator.clipboard` y no se verifica en Node, y la 6 hay que MEDIRLA
+  antes de tocarla desde `lib/cad/plot/`, que tiene otro dueño.
+- **`npm run check:cad` no termina en verde en este entorno** y no se puede afirmar lo contrario:
+  corta en `check:dwg-evidence` por `VALLE_DWG_CORPUS_MIRROR` vacío. Queda pendiente correrlo
+  entero en un entorno con el clon del corpus antes de dar la cadena por buena.
+- **Ninguna de las diez peticiones (`P-express-01`, `03`–`11`; el 02 es un hueco reservado) está
+  aplicada** — diez «Estado: pendiente» contados en el archivo. El frente no las
+  aplica; el coordinador sí. Mientras sigan pendientes, lo entregado es aritmética probada y
+  descriptores probados, no capacidad de producto — y así se dice.
