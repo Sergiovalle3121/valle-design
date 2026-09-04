@@ -1,6 +1,6 @@
 /**
  * SOLIDEDIT: lo que hace, medido sobre el árbol; lo que no hace, dicho.
- * (Ola C, 2026-09-02)
+ * (Ola C, 2026-09-02 · tres ramas más, 2026-09-04)
  */
 import { strict as assert } from "node:assert";
 import { planarBodyVolume } from "../../../brep";
@@ -88,11 +88,19 @@ function topFacePick(solid: CadSolid3dEntity): CadCommandInput {
   ok(root.prompts[0] === "Introduzca una opción de edición de sólidos" && root.options.join(",") === "Cara,Arista,cUerpo,Salir", "las tres ramas y Salir");
   ok(drive([enter]).result?.kind === "none", "Intro toma Salir: no escribe nada");
   const face = drive([keyword("Cara")]);
-  ok(face.options.join(",") === "Extruir,Salir", "la rama Cara sólo anuncia lo que existe: Extruir");
+  ok(face.options.join(",") === "Extruir,Desfasar,Copiar,Salir", "la rama Cara ofrece las tres que existen");
+  ok(/Mover, Girar, Inclinar, Borrar y Color todavía no/.test(face.prompts[1]), "y nombra una por una las cinco de Cara que no");
   const body = drive([keyword("cUerpo")]);
   ok(body.options.join(",") === "Separar,Comprobar,Salir", "la rama Cuerpo anuncia Separar y Comprobar");
+  ok(/Estampar, Vaciar y Limpiar todavía no/.test(body.prompts[1]), "y nombra las tres de Cuerpo que no");
   const edge = drive([keyword("Arista")]);
-  ok(edge.result?.kind === "message" && /todavía no está disponible/.test(edge.result.text), "la rama Arista termina con su motivo");
+  ok(edge.options.join(",") === "Copiar,Salir", "la rama Arista ya es una rama: ofrece Copiar");
+  ok(/Color todavía no/.test(edge.prompts[1]), "y nombra la de Arista que no");
+  // Las ausentes se NOMBRAN en el renglón del prompt, nunca como opción: una
+  // palabra clave que responde «todavía no» es una opción que no hace nada.
+  const ausentes = ["Mover", "Girar", "Inclinar", "Borrar", "Color", "Estampar", "Vaciar", "Limpiar"];
+  const ofrecidas = [...face.options, ...edge.options, ...body.options];
+  ok(ausentes.every((nombre) => !ofrecidas.includes(nombre)), "ninguna ausente se ofrece como palabra clave");
   ok(descriptor.kind === "modify" && descriptor.mutates === true, "es una orden de modificación");
 }
 
@@ -115,6 +123,95 @@ function topFacePick(solid: CadSolid3dEntity): CadCommandInput {
   ok(missing.result?.kind === "message" && /necesita una cara designada/.test(missing.result.text), "sin cara designada, lo dice");
   const zero = drive([keyword("Cara"), keyword("Extruir"), topFacePick(caja), distance(0)], [caja]);
   ok(zero.result?.kind === "message" && /distancia cero/.test(zero.result.text), "distancia cero: no toca el documento y lo dice");
+}
+
+/* ── Cara · Desfasar: el mismo nodo push, con el signo de AutoCAD ────────── */
+{
+  const caja = box("caja");
+  ok(near(volumeOf(caja), 100 * 100 * 50), "la caja de partida mide 500 000");
+  const driven = drive([keyword("Cara"), keyword("Desfasar"), topFacePick(caja), distance(20)], [caja]);
+  ok(driven.result?.kind === "document", `Cara Desfasar escribe: ${driven.result?.kind === "message" ? driven.result.text : ""}`);
+  if (driven.result?.kind === "document") {
+    ok(driven.result.commands.some((entry) => entry.type === "delete" && entry.entityId === "caja"), "sustituye la caja por su versión desfasada");
+    const insert = driven.result.commands.find((entry) => entry.type === "insert");
+    if (insert && insert.type === "insert" && insert.entity.type === "solid3d") {
+      const pushed = insert.entity as CadSolid3dEntity;
+      const empujes = pushed.nodes.filter((node) => node.op === "push");
+      ok(empujes.length === 1, "añade UN nodo push, no dos");
+      ok(pushed.root === empujes[0].id, "y ése es la raíz: el desfase es reeditable");
+      ok(pushed.nodes.some((node) => node.id === "caja-caja" && node.op === "box"), "el árbol sigue teniendo la caja debajo (no se hornea)");
+      ok(near(volumeOf(pushed), 700_000), `positivo hacia fuera: 500 000 → 700 000 (dio ${volumeOf(pushed)})`);
+    }
+    ok(typeof driven.result.notice === "string" && /volumen pasa de/.test(driven.result.notice ?? ""), "y la orden dice cuánto creció el sólido");
+  }
+  const dentro = drive([keyword("Cara"), keyword("Desfasar"), topFacePick(caja), distance(-20)], [caja]);
+  if (dentro.result?.kind === "document") {
+    const insert = dentro.result.commands.find((entry) => entry.type === "insert");
+    if (insert && insert.type === "insert" && insert.entity.type === "solid3d")
+      ok(near(volumeOf(insert.entity as CadSolid3dEntity), 300_000), "negativo hacia dentro: 500 000 → 300 000");
+  } else ok(false, "un desfase negativo que cabe en el sólido debería escribir");
+  const sinCara = drive([keyword("Cara"), keyword("Desfasar"), enter], [caja]);
+  ok(sinCara.result?.kind === "message" && /Desfasar necesita una cara designada/.test(sinCara.result.text), "sin cara designada, Desfasar responde con su motivo y no escribe");
+  const cero = drive([keyword("Cara"), keyword("Desfasar"), topFacePick(caja), distance(0)], [caja]);
+  ok(cero.result?.kind === "message" && /distancia cero/.test(cero.result.text), "un desfase de cero no toca el documento y lo dice");
+}
+
+/* ── Cara · Copiar: los lazos de la cara, como una REGION del mundo ──────── */
+{
+  const caja = box("caja");
+  const driven = drive([keyword("Cara"), keyword("Copiar"), topFacePick(caja)], [caja]);
+  ok(driven.result?.kind === "document", `Cara Copiar escribe: ${driven.result?.kind === "message" ? driven.result.text : ""}`);
+  if (driven.result?.kind === "document") {
+    const inserts = driven.result.commands.filter((entry) => entry.type === "insert");
+    ok(inserts.length === 1 && driven.result.commands.length === 1, "exactamente una entidad, y ninguna orden más");
+    const region = inserts[0].type === "insert" ? inserts[0].entity : null;
+    ok(region?.type === "region", "y es una REGION");
+    if (region && region.type === "region") {
+      ok(region.outer.length === 4, `el contorno de la tapa tiene 4 puntos (dio ${region.outer.length})`);
+      ok(region.outer.every((point) => near(point.z, 50)), "en coordenadas del MUNDO, con su z real (50)");
+      ok(region.inners === undefined, "una tapa sin agujeros no lleva contornos interiores");
+      ok(region.layer === "0", "hereda la capa del sólido");
+      const xs = region.outer.map((point) => point.x).sort((a, b) => a - b);
+      const ys = region.outer.map((point) => point.y).sort((a, b) => a - b);
+      ok(near(xs[0], 0) && near(xs[3], 100) && near(ys[0], 0) && near(ys[3], 100), "y cubre los 100 × 100 de la cara");
+    }
+    ok(!driven.result.commands.some((entry) => entry.type === "delete"), "copiar NO borra el sólido");
+    ok(/no se toca/.test(driven.result.notice ?? ""), "y la orden lo dice");
+  }
+  const sinCara = drive([keyword("Cara"), keyword("Copiar"), enter], [caja]);
+  ok(sinCara.result?.kind === "message" && /Copiar necesita una cara designada/.test(sinCara.result.text), "sin cara designada, Copiar responde con su motivo y no escribe");
+}
+
+/* ── Arista · Copiar: las doce aristas de la caja, como líneas ───────────── */
+{
+  const caja = box("caja");
+  const driven = drive([keyword("Arista"), keyword("Copiar"), { kind: "selection", entityIds: ["caja"] }, enter], [caja]);
+  ok(driven.result?.kind === "document", `Arista Copiar escribe: ${driven.result?.kind === "message" ? driven.result.text : ""}`);
+  if (driven.result?.kind === "document") {
+    const lines = driven.result.commands
+      .map((entry) => (entry.type === "insert" ? entry.entity : null))
+      .filter((entity): entity is Extract<CadEntity, { type: "line" }> => entity?.type === "line");
+    ok(lines.length === 12 && lines.length === driven.result.commands.length, `la caja da 12 líneas y nada más (dio ${lines.length})`);
+    // El par de vértices se normaliza: la misma arista al revés es la misma.
+    const claves = new Set(
+      lines.map((line) => {
+        const tag = (p: { x: number; y: number; z: number }) => `${p.x},${p.y},${p.z}`;
+        return [tag(line.start), tag(line.end)].sort().join("|");
+      }),
+    );
+    ok(claves.size === 12, `ninguna arista repetida (${claves.size} distintas de 12)`);
+    ok(lines.every((line) => line.layer === "0"), "todas en la capa del sólido");
+    const longitudes = lines.map((line) => Math.hypot(line.end.x - line.start.x, line.end.y - line.start.y, line.end.z - line.start.z));
+    ok(longitudes.filter((value) => near(value, 100)).length === 8, "ocho aristas de 100 (el contorno en planta)");
+    ok(longitudes.filter((value) => near(value, 50)).length === 4, "y cuatro montantes de 50");
+    ok(/12 arista\(s\) copiadas/.test(driven.result.notice ?? ""), "y la orden dice cuántas salieron");
+    ok(!driven.result.commands.some((entry) => entry.type === "delete"), "copiar aristas NO borra el sólido");
+  }
+  const preseleccion = drive([keyword("Arista"), keyword("Copiar")], [caja], ["caja"]);
+  ok(preseleccion.result?.kind === "document", "con designación previa responde al teclear la opción (PICKFIRST)");
+  const line = { id: "l", type: "line", layer: "0", start: { x: 0, y: 0, z: 0 }, end: { x: 1, y: 0, z: 0 } } as CadEntity;
+  const nada = drive([keyword("Arista"), keyword("Copiar"), { kind: "selection", entityIds: ["l"] }, enter], [line]);
+  ok(nada.result?.kind === "message" && /no hay ningún SOLID3D/.test(nada.result.text), "sin sólido en lo designado, Arista Copiar responde con su motivo y no escribe");
 }
 
 /* ── Cuerpo · Comprobar: informa, no escribe ─────────────────────────────── */
@@ -152,4 +249,4 @@ function topFacePick(solid: CadSolid3dEntity): CadCommandInput {
   ok(__testables.subtree(apart.nodes, "a-caja").map((node) => node.id).join(",") === "a-caja", "el subárbol de un operando es sólo su nodo");
 }
 
-console.log(`solids-edit: ${checks} comprobaciones sobre SOLIDEDIT`);
+console.log(`solids-edit: ${checks} comprobaciones sobre SOLIDEDIT (seis ramas construidas, ocho declaradas ausentes)`);

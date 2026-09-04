@@ -1,15 +1,24 @@
 /**
- * SOLIDEDIT, el subconjunto que hoy se puede hacer con honestidad (Ola C,
- * 2026-09-02).
+ * SOLIDEDIT, el subconjunto que hoy se puede hacer con honestidad.
+ * (Ola C, 2026-09-02 · ampliado 2026-09-04.)
  *
  * En AutoCAD SOLIDEDIT son tres ramas —Cara, Arista y Cuerpo— con unas
  * catorce operaciones. Medido antes (`distancia-autocad-completo-20260901.md`):
  * faltaba ENTERO. Aquí entra lo que el kernel y el visor ya saben hacer, y el
- * diálogo sólo ANUNCIA eso:
+ * diálogo sólo OFRECE eso:
  *
  *   - Cara · Extruir: designar una cara con el rayo de cámara (la misma
  *     designación que PRESSPULL) y empujarla una distancia. Es un nodo `push`
  *     sobre el árbol: reeditable, no horneado.
+ *   - Cara · Desfasar: la misma cara, desplazada a lo largo de su normal con
+ *     el signo de AutoCAD (positivo hacia fuera). También un nodo `push`, y a
+ *     diferencia de Extruir está COMPLETA: la Desfasar de AutoCAD es
+ *     exactamente esto, mientras que su Extruir admite además trayectoria y
+ *     ángulo de inclinación, que este nodo no lleva.
+ *   - Cara · Copiar: los lazos de la cara salen como una entidad REGION en
+ *     coordenadas del mundo, con su `z` real. El sólido no se toca.
+ *   - Arista · Copiar: las aristas del sólido designado salen como entidades
+ *     `line`. Designar UNA arista suelta todavía no se puede y se dice.
  *   - Cuerpo · Comprobar: evalúa el árbol, valida los invariantes y responde
  *     con caras, aristas y volumen — o con el motivo por el que no es un
  *     sólido válido.
@@ -17,21 +26,29 @@
  *     tocan se parte en un sólido por operando, cada uno con su subárbol. Si
  *     los operandos interfieren no hay nada que separar, y se dice.
  *
- * Lo que NO se ofrece, y por qué:
+ * Las operaciones se construyen en `solids-edit-branches.ts`; este módulo es
+ * el DIÁLOGO —qué se pregunta, en qué orden y qué se rechaza—.
  *
- *   - Cara · Mover, Girar, Desfasar, Inclinar, Borrar, Copiar y Color: piden
- *     recomponer las caras adyacentes (el kernel no rehace una cara movida)
- *     o un atributo de cara que el esquema no guarda. El prompt de la rama
- *     Cara sólo anuncia Extruir.
- *   - Arista (Copiar, Color): las aristas no se pueden designar en el visor.
- *     La rama termina con su motivo.
+ * ## Lo que sigue fuera, nombrado una por una
+ *
+ * El prompt de cada rama las nombra en su propio renglón, sin ofrecerlas como
+ * opción: una opción que no funciona es peor que una ausencia declarada.
+ *
+ *   - Cara · Mover, Girar, Inclinar y Borrar: piden recomponer las caras
+ *     adyacentes, y el kernel no rehace una cara movida.
+ *   - Color, tanto de cara como de arista: el esquema no guarda un atributo
+ *     por cara ni por arista, y el color de una entidad es de la entidad
+ *     entera.
  *   - Cuerpo · Estampar, Vaciar (SHELL) y Limpiar: sin operación de kernel.
+ *
+ * Son ocho operaciones distintas —nueve renglones, porque Color aparece en dos
+ * ramas por el mismo motivo—. Ninguna se insinúa como próxima.
  *
  * La orden termina tras UNA operación en vez de volver al menú de la rama:
  * es el único punto en que se aparta del diálogo de AutoCAD, y se prefiere a
  * un bucle que anunciara ramas que no existen.
  */
-import type { CadSolid3dEntity, CadSolidFaceRef, CadSolidNode } from "../../cad-entities-v5";
+import type { CadSolid3dEntity, CadSolidNode } from "../../cad-entities-v5";
 import type { CadEntityCommand } from "../../entity-commands";
 import { booleanEpsilon, meshVolume, tessellateBody, tryBoolean } from "../../../brep";
 import { evaluateSolidTree, solid3dBody, validateSolidTree } from "../../solid3d-build";
@@ -48,6 +65,7 @@ import {
   type CadCommandDescriptor,
   type CadCommandStep,
 } from "../command-types";
+import { copyEdges, copyFace, offsetFace, type SolidEditFacePick } from "./solids-edit-branches";
 import { withPushedFace } from "./solids-push-face";
 import { finishedSolid, formatMagnitude, selectedSolids, solidBatch, solidCancelled, solidMessage } from "./solids-support";
 
@@ -56,20 +74,41 @@ const EDGE = { keyword: "Arista", shortcut: "A" } as const;
 const BODY = { keyword: "cUerpo", shortcut: "U" } as const;
 const EXIT = { keyword: "Salir", shortcut: "S" } as const;
 const EXTRUDE = { keyword: "Extruir", shortcut: "E" } as const;
+const OFFSET = { keyword: "Desfasar", shortcut: "D" } as const;
+const COPY = { keyword: "Copiar", shortcut: "C" } as const;
 const SEPARATE = { keyword: "Separar", shortcut: "P" } as const;
 const CHECK = { keyword: "Comprobar", shortcut: "C" } as const;
 
-type Branch = "root" | "face" | "body";
-type Action = "none" | "extrude" | "check" | "separate";
+/**
+ * Los renglones que nombran lo ausente.
+ *
+ * Van en el MENSAJE del prompt y no en sus opciones: el analizador de entrada
+ * sólo reconoce las palabras clave que el prompt ofrece, así que ofrecerlas
+ * para responder «todavía no» sería fabricar una opción que no hace nada.
+ * Nombrarlas en el renglón las deja visibles sin volverlas pulsables.
+ */
+const FACE_PROMPT = "Introduzca una opción de edición de caras; Mover, Girar, Inclinar, Borrar y Color todavía no";
+const EDGE_PROMPT = "Introduzca una opción de edición de aristas; Color todavía no";
+const BODY_PROMPT = "Introduzca una opción de edición de cuerpos; Estampar, Vaciar y Limpiar todavía no";
+
+type Branch = "root" | "face" | "edge" | "body";
+type Action = "none" | "extrude" | "offset" | "copyFace" | "copyEdges" | "check" | "separate";
 
 export interface SolidEditState {
   branch: Branch;
   action: Action;
   selection: readonly string[];
-  face: { entityId: string; ref: CadSolidFaceRef } | null;
+  face: SolidEditFacePick | null;
 }
 
 const EMPTY: SolidEditState = { branch: "root", action: "none", selection: [], face: null };
+
+/** Cómo se llama la cara en cada rama, para no preguntar tres veces lo mismo. */
+const FACE_PICK_PROMPT: Record<string, string> = {
+  extrude: "Designe la cara que extruir",
+  offset: "Designe la cara que desfasar",
+  copyFace: "Designe la cara que copiar",
+};
 
 function solidEditStep(state: SolidEditState): CadCommandStep<SolidEditState> {
   if (state.branch === "root")
@@ -82,21 +121,46 @@ function solidEditStep(state: SolidEditState): CadCommandStep<SolidEditState> {
     if (state.action === "none")
       return {
         state,
-        prompt: { message: "Introduzca una opción de edición de caras", options: [EXTRUDE, EXIT], defaultOption: EXIT.keyword },
+        prompt: { message: FACE_PROMPT, options: [EXTRUDE, OFFSET, COPY, EXIT], defaultOption: EXIT.keyword },
         accepts: CAD_ACCEPT_KEYWORD,
       };
     if (!state.face)
-      return { state, prompt: { message: "Designe la cara que extruir", options: [] }, accepts: CAD_ACCEPT_FACE_PICK };
+      return {
+        state,
+        prompt: { message: FACE_PICK_PROMPT[state.action] ?? "Designe la cara", options: [] },
+        accepts: CAD_ACCEPT_FACE_PICK,
+      };
     return {
       state,
-      prompt: { message: "Precise la altura de la extrusión (negativa para hundir)", options: [] },
+      prompt: {
+        message:
+          state.action === "offset"
+            ? "Precise la distancia de desfase (positiva hacia fuera)"
+            : "Precise la altura de la extrusión (negativa para hundir)",
+        options: [],
+      },
       accepts: CAD_ACCEPT_DISTANCE | CAD_ACCEPT_POINT,
+    };
+  }
+  if (state.branch === "edge") {
+    if (state.action === "none")
+      return {
+        state,
+        prompt: { message: EDGE_PROMPT, options: [COPY, EXIT], defaultOption: EXIT.keyword },
+        accepts: CAD_ACCEPT_KEYWORD,
+      };
+    return {
+      state,
+      // Se dice aquí, donde se pide, y no en un aviso posterior: el dibujante
+      // que esperaba señalar UNA arista tiene que saberlo antes de designar.
+      prompt: { message: "Designe el sólido cuyas aristas copiar (salen todas: el visor todavía no designa una arista suelta)", options: [] },
+      accepts: CAD_ACCEPT_SELECTION | CAD_ACCEPT_ENTITY_PICK,
     };
   }
   if (state.action === "none")
     return {
       state,
-      prompt: { message: "Introduzca una opción de edición de cuerpos", options: [SEPARATE, CHECK, EXIT], defaultOption: EXIT.keyword },
+      prompt: { message: BODY_PROMPT, options: [SEPARATE, CHECK, EXIT], defaultOption: EXIT.keyword },
       accepts: CAD_ACCEPT_KEYWORD,
     };
   return {
@@ -204,6 +268,13 @@ function separateBody(state: SolidEditState, context: CadCommandContext): CadCom
   return solidBatch(state, commands, "SOLIDEDIT Separar");
 }
 
+/** El motivo, con el nombre de la rama que lo pide. */
+function faceNeeded(action: Action): string {
+  if (action === "offset") return "SOLIDEDIT Cara Desfasar necesita una cara designada.";
+  if (action === "copyFace") return "SOLIDEDIT Cara Copiar necesita una cara designada.";
+  return "SOLIDEDIT Cara Extruir necesita una cara designada.";
+}
+
 const solidEditCommand: CadCommandDescriptor<SolidEditState> = {
   name: "SOLIDEDIT",
   aliases: [],
@@ -221,11 +292,7 @@ const solidEditCommand: CadCommandDescriptor<SolidEditState> = {
       if (input.kind === "enter" || (input.kind === "keyword" && input.keyword === EXIT.keyword)) return solidCancelled(state);
       if (input.kind === "keyword" && input.keyword === FACE.keyword) return solidEditStep({ ...state, branch: "face" });
       if (input.kind === "keyword" && input.keyword === BODY.keyword) return solidEditStep({ ...state, branch: "body" });
-      if (input.kind === "keyword" && input.keyword === EDGE.keyword)
-        return solidMessage(
-          state,
-          "SOLIDEDIT Arista (Copiar, Color) todavía no está disponible: las aristas no se pueden designar en el visor. Están Cara Extruir y Cuerpo Separar/Comprobar.",
-        );
+      if (input.kind === "keyword" && input.keyword === EDGE.keyword) return solidEditStep({ ...state, branch: "edge" });
       return solidEditStep(state);
     }
 
@@ -233,16 +300,41 @@ const solidEditCommand: CadCommandDescriptor<SolidEditState> = {
       if (state.action === "none") {
         if (input.kind === "enter" || (input.kind === "keyword" && input.keyword === EXIT.keyword)) return solidCancelled(state);
         if (input.kind === "keyword" && input.keyword === EXTRUDE.keyword) return solidEditStep({ ...state, action: "extrude" });
+        if (input.kind === "keyword" && input.keyword === OFFSET.keyword) return solidEditStep({ ...state, action: "offset" });
+        if (input.kind === "keyword" && input.keyword === COPY.keyword) return solidEditStep({ ...state, action: "copyFace" });
         return solidEditStep(state);
       }
       if (!state.face) {
-        if (input.kind === "facePick") return solidEditStep({ ...state, face: { entityId: input.entityId, ref: input.face } });
-        if (input.kind === "enter") return solidMessage(state, "SOLIDEDIT Cara Extruir necesita una cara designada.");
+        if (input.kind === "facePick") {
+          const picked: SolidEditState = { ...state, face: { entityId: input.entityId, ref: input.face } };
+          // Copiar no pide distancia: la cara designada YA es toda la orden.
+          return state.action === "copyFace" ? copyFace(picked, picked.face, context) : solidEditStep(picked);
+        }
+        if (input.kind === "enter") return solidMessage(state, faceNeeded(state.action));
         return solidEditStep(state);
       }
-      if (input.kind === "distance") return extrudeFace(state, input.value, context);
-      if (input.kind === "point") return extrudeFace(state, Math.hypot(input.point.x, input.point.y), context);
+      if (input.kind === "distance")
+        return state.action === "offset" ? offsetFace(state, state.face, input.value, context) : extrudeFace(state, input.value, context);
+      if (input.kind === "point") {
+        const magnitude = Math.hypot(input.point.x, input.point.y);
+        return state.action === "offset" ? offsetFace(state, state.face, magnitude, context) : extrudeFace(state, magnitude, context);
+      }
       return solidEditStep(state);
+    }
+
+    if (state.branch === "edge") {
+      if (state.action === "none") {
+        if (input.kind === "enter" || (input.kind === "keyword" && input.keyword === EXIT.keyword)) return solidCancelled(state);
+        if (input.kind === "keyword" && input.keyword === COPY.keyword)
+          return state.selection.length > 0
+            ? copyEdges({ ...state, action: "copyEdges" }, selectedSolids(context, state.selection), context)
+            : solidEditStep({ ...state, action: "copyEdges" });
+        return solidEditStep(state);
+      }
+      if (input.kind === "selection") return solidEditStep({ ...state, selection: input.entityIds });
+      if (input.kind === "entityPick") return solidEditStep({ ...state, selection: [...new Set([...state.selection, input.entityId])] });
+      if (input.kind !== "enter") return solidEditStep(state);
+      return copyEdges(state, selectedSolids(context, state.selection), context);
     }
 
     // Cuerpo

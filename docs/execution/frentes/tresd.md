@@ -71,8 +71,68 @@ npm run check:cad                       # antes de cerrar
 
 ## Bitácora
 
-_(sin entradas todavía)_
+### 2026-09-04 · SOLIDEDIT gana tres ramas (entrega 1/5)
+
+De tres operaciones a **seis**. Lo nuevo, y por qué el kernel ya lo sostenía:
+
+- **Cara · Desfasar** — el nodo `push` de PRESSPULL con el signo de AutoCAD
+  (positivo hacia fuera). Reutiliza `withPushedFace` entero; no hay una segunda
+  versión que se pueda desincronizar. Se ofrece por su nombre porque la Desfasar
+  de AutoCAD es EXACTAMENTE esto y aquí está completa, mientras que su Extruir
+  admite además trayectoria y ángulo de inclinación que este nodo no lleva.
+  Medido: caja 100×100×50 con d = +20 → 700 000; con d = −20 → 300 000; UN solo
+  nodo `push` y la caja sigue debajo (reeditable, no horneado).
+- **Cara · Copiar** — los lazos de la cara resueltos con `cadResolveFaceRef` +
+  `faceOuterLoop`/`faceInnerLoops`/`loopPoints` salen como una entidad `region`
+  en coordenadas del mundo con su z real. Mismo camino que SECTION
+  (`solids-modify.ts`), no se inventó transporte. Medido: la tapa de esa caja da
+  UNA región de 4 puntos con z = 50, sin `inners`, y el sólido no se toca.
+- **Arista · Copiar** — las aristas del sólido designado salen como entidades
+  `line` con `start`/`end` en `CadPoint3`. Medido: 12 líneas por caja, ninguna
+  repetida (par de vértices normalizado y cuantizado), 8 de 100 y 4 de 50.
+
+El diálogo deja de anunciar como ausentes las tres que ya existen y **nombra una
+por una** las que no, en el renglón del prompt de su rama y nunca como opción
+pulsable: el analizador sólo reconoce las palabras clave que el prompt ofrece,
+así que ofrecer «Mover» para responder «todavía no» sería fabricar una opción
+que no hace nada.
+
+No se tocó el registro, ni la cinta, ni el esquema. Las operaciones viven en
+`solids-edit-branches.ts` (nuevo, 307 líneas) y `solids-edit.ts` se queda con el
+diálogo (359).
+
+Evidencia: `npx tsx src/lib/cad/engine/commands/solids-edit.spec.ts` → 60
+comprobaciones (eran 24). `npm run check:command-integrity` → OK, 274 comandos,
+SOLIDEDIT sigue en «informa». `npm run typecheck` → 8/8. Presupuesto de monolito
+intacto.
+
 
 ## «Todavía no»
 
-_(sin entradas todavía)_
+### 2026-09-04 · Designar UNA arista suelta
+
+`SOLIDEDIT Arista Copiar` copia **todas** las aristas del sólido designado, no
+la que se señale. Motivo escrito: `CAD_ACCEPT_EDGE_PICK` no existe (cero
+apariciones en el árbol) y crearlo obliga a tocar
+`apps/web/src/lib/cad/engine/command-types.ts`, que está **fuera** del territorio
+de este frente. Pedido con su diseño completo en `tresd-peticiones.md`
+(**P-tresd-02**); la rama lo dice en su propio prompt en vez de fingir una
+designación fina.
+
+### 2026-09-04 · Las ocho ramas de SOLIDEDIT que siguen fuera
+
+Nombradas una por una en el prompt de su rama, con su motivo en la cabecera de
+`solids-edit.ts`. Son ocho operaciones distintas y nueve renglones, porque Color
+aparece en dos ramas por el mismo motivo:
+
+| Rama                                    | Motivo                                                        |
+| --------------------------------------- | ------------------------------------------------------------- |
+| Cara · Mover, Girar, Inclinar, Borrar   | piden recomponer las caras adyacentes; el kernel no rehace una cara movida |
+| Color (de cara y de arista)             | el esquema no guarda un atributo por cara ni por arista       |
+| Cuerpo · Estampar, Vaciar (SHELL), Limpiar | sin operación de kernel                                    |
+
+### 2026-09-04 · El resumen de la paleta se quedó corto
+
+`engine/command-summaries.ts:248` sigue describiendo el SOLIDEDIT de tres ramas.
+Es archivo fuera de territorio; pedido en `tresd-peticiones.md` (**P-tresd-01**)
+con el renglón exacto de sustitución.
