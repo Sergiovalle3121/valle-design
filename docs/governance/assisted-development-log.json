@@ -3261,6 +3261,41 @@
       },
       "aiCoAuthorTrailers": true,
       "aiClaimsAuthorship": false
+    },
+    {
+      "id": "VALLE-DESIGN-SUPERAR-AUTOCAD-20260904",
+      "date": "2026-09-04",
+      "initiative": "Campaña «Superar a AutoCAD completo» (encargo escrito del titular, 2026-09-04), con su mapa de brechas contra AutoCAD 2027 y sus siete toolsets. Una entrada por campaña, ampliada ventana a ventana. · C0 — CORTE INICIAL. Medido ANTES de tocar nada, sobre 25898dc6: `npm run typecheck` 8/8 tareas en 52 s y `npm test` 576/576 specs verdes en 7/7 tareas; rúbrica 232/271 (85.6 %) en alcance DESTINO y 176/197 (89.3 %) en alcance HOY, con 5 pt de evidencia independiente y 29 filas —no 25, como decía el encargo— reteniendo 1 pt por carecer de evidencia ajena. Los criterios ABIERTOS son siete y suman 10 pt: estrés de edición densa a 100k, architecture@100k a SLO y kernel WASM enchufado (los tres del frente de velocidad); corpus DXF de terceros autorizado (evidencia independiente); vectorización de escaneos (Raster Design); la integración DWG en runtime, que NO se toca porque depende de la firma del titular; y el puente .NET/VBA, declarado imposible. Los 29 puntos restantes hasta los 39 del encargo no son criterios abiertos sino filas que retienen su último punto por evidencia propia, y sólo suben con material ajeno. · DOS LÍMITES DEL ENTORNO, ANOTADOS EN VEZ DE FINGIDOS: la máquina tiene 4 CPU, así que el techo de agentes concurrentes es dos y los once frentes avanzan en tres tandas (F1-F4, F5-F8, F9-F11) con ventana de integración entre ellas —R8 se cumple en su intención, no en su cifra—; y la política de egreso sólo deja pasar GitHub (raw.githubusercontent.com responde 200, la web general 403), así que el corpus ajeno y los oráculos binarios sólo pueden venir de ahí, y lo que no se pueda instalar se declara con el intento y el motivo en lugar de etiquetarse como hecho. · PROTOCOLO ESCRITO ANTES DE ABRIR UN SOLO FRENTE, porque este repositorio ya vivió lo contrario (claves JSON duplicadas que apagaron tres gates, 74 ramas huérfanas, dos sesiones pintando el mismo archivo): once árboles de trabajo `git worktree` con rama propia desde el mismo corte, territorio exclusivo por frente, archivos compartidos reservados al coordinador —rúbrica, ESCALERA, presupuestos, CI, esquema del documento canónico— y un archivo de peticiones por frente para lo que caiga fuera de su territorio.",
+      "branch": "claude/superar-autocad-coordinator-lwl3ul (coordinador) con once ramas campana/superar/<frente> que se integran en ella y nunca se publican por separado",
+      "assistants": [
+        "Claude Code (Anthropic), sesión operada por el titular"
+      ],
+      "authority": "Sergio Valle Zárate, encargo escrito «PROMPT MAESTRO — CAMPAÑA MULTI-SESIÓN «SUPERAR A AUTOCAD COMPLETO»» (2026-09-04) y su mapa «Valle Design contra AutoCAD completo — el mapa de brechas restantes», con sus reglas no negociables: territorios exclusivos, archivos compartidos sólo del coordinador, prohibido relajar gates, umbrales, goldens o presupuestos, prohibido tocar identificadores persistidos, fix-or-hide, ningún claim sin evidencia, y las banderas DWG apagadas hasta que él las firme.",
+      "firstPartyInputs": [
+        "El árbol completo en 25898dc6 y su suite: `npm run typecheck` y `npm test` corridos antes de crear el primer árbol de trabajo.",
+        "`docs/competitive/rubric.json` evaluado por `scripts/cad/rubric.mjs` con dependencias instaladas, del que salen las cifras del corte y la lista de criterios abiertos.",
+        "`docs/competitive/distancia-autocad-completo-20260903.md` y `docs/parity/ESCALERA.md` como estado declarado previo.",
+        "`AGENTS.md` e `IDENTITY.md` como reglas de la casa entregadas a cada frente."
+      ],
+      "externalSources": [
+        "Ninguna en el corte inicial: C0 no consultó material ajeno. Las fuentes que los frentes usen se registran en su propia ventana, y el corpus ajeno sólo puede venir de GitHub con licencia clara y procedencia escrita."
+      ],
+      "externalImplementationConsulted": "Ninguna en el corte inicial.",
+      "derivedAreas": [
+        "docs/execution/CAMPANA_SUPERAR_20260904.md (bitácora del coordinador: corte medido, límites del entorno, tandas)",
+        "docs/execution/frentes/*.md (once fichas de frente con territorio, cola y cierre)",
+        "docs/execution/frentes/*-peticiones.md (once buzones para lo que cae fuera del territorio o en archivo compartido)"
+      ],
+      "fixtures": "Ninguno con datos ajenos en el corte inicial.",
+      "dependenciesAdded": [],
+      "adoption": {
+        "required": true,
+        "status": "proposed",
+        "adopter": "Sergio Valle Zárate",
+        "evidence": "Línea base medida y escrita antes de abrir un frente: typecheck 8/8 en 52 s y 576/576 specs verdes sobre 25898dc6, con la rúbrica en 232/271. Esa cifra es la vara: tras integrar cada frente se vuelve a correr la suite completa, y el frente que la baje se revierte en vez de negociarse."
+      },
+      "aiCoAuthorTrailers": true,
+      "aiClaimsAuthorship": false
     }
   ]
 }
