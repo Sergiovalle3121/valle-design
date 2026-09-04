@@ -94,10 +94,14 @@ ok(
   } as never);
   let ids = 0;
   const rooms = buildCadRoomScheduleTable(named, { x: 0, y: 0 }, "0", () => `s${(ids += 1)}`);
-  ok(rooms.type === "table" && rooms.columns === 5 && rooms.rows === 3, "cuadro de superficies: título, cabecera y un local");
+  ok(rooms.type === "table" && rooms.columns === 6 && rooms.rows === 3, "cuadro de superficies: título, cabecera y un local");
   const localRow = rooms.cells.filter((cell) => cell.row === 2).map((cell) => cell.text);
   ok(localRow[0] === "COCINA" && localRow[1] === "Cocina", `nombre y uso en la fila: ${JSON.stringify(localRow)}`);
   ok(localRow[2] === "12.00", `área a ejes 4 × 3 = 12,00 m²: ${localRow[2]}`);
+  // Las TRES medidas en la misma fila, cada una a su paño: ejes 4,00 × 3,00;
+  // útil 3,80 × 2,80 = 10,64; construida 4,20 × 3,20 = 13,44 (los cuatro muros
+  // son perimetrales, así que los cuatro lados salen medio grosor hacia fuera).
+  ok(localRow[3] === "10.64" && localRow[4] === "13.44", `útil y construida en la fila: ${JSON.stringify(localRow)}`);
   ok(rooms.cells.some((cell) => cell.row === 0 && cell.text.startsWith("Cuadro de superficies")), "con su título");
 
   const openings = buildCadOpeningScheduleTable(named, { x: 0, y: 0 }, "0", () => `c${(ids += 1)}`);
