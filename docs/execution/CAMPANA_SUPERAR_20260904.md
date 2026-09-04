@@ -19,7 +19,9 @@ Bitácora del coordinador. Si un contexto se compacta, este archivo se relee pri
   | 2 | Vectorizar líneas y textos de un escaneo a entidades | F8 |
   | 1 | DWG: integración en runtime con gates legal, seguridad y fidelidad | F1 — **requiere firma del titular**, no se enciende aquí |
   | 2 | Puente .NET/VBA | declarado imposible; F9 documenta la alternativa |
-- Typecheck y build del corte: **verdes** (`npm run typecheck`, 8/8 tareas, 52 s).
+- Línea base del corte, medida y verde: `npm run typecheck` 8/8 tareas en 52 s;
+  `npm test` **576/576 specs verdes**, 7/7 tareas. Es la vara contra la que se mide
+  cada integración: si tras integrar un frente la cifra baja, el frente se revierte.
 
 ## El entorno (y lo que impone)
 
@@ -57,5 +59,17 @@ Bitácora del coordinador. Si un contexto se compacta, este archivo se relee pri
 - Once árboles de trabajo creados desde `25898dc6`, con `node_modules` por hardlink.
 - Rúbrica medida y sus criterios abiertos repartidos por frente (tabla de arriba).
 - Escritos este archivo, los once `docs/execution/frentes/<frente>.md` y sus
-  `-peticiones.md`.
+  `-peticiones.md`, y commiteados en `646b969` — el corte del que nacen las once ramas.
+
+### Tandas (R8, ajustado al techo de dos agentes)
+
+| Tanda | Frentes | Estado |
+|---|---|---|
+| 1 | F1 DWG · F2 Velocidad · F3 3D · F4 Express | lanzada |
+| 2 | F5 Architecture · F6 MEP/Plant · F7 Mech/Elec · F8 Map/Raster | pendiente |
+| 3 | F9 Extensibilidad · F10 Escritorio · F11 Evidencia | pendiente |
+
+Entre tanda y tanda va una ventana de integración (R5): se recogen las peticiones de
+archivos compartidos y se aplican, se integra frente por frente con la suite completa
+**después de cada uno**, y se hace un solo push.
 
