@@ -124,7 +124,7 @@ porque el instrumento no tenía ni una fila para el reconocimiento.
 > Editarla a mano es reintroducir el defecto que motivó el script: la prosa
 > manual envejeció dos veces y en las dos direcciones.
 
-**Puntuación (rúbrica 2026-09-03.1).** **Alcance de HOY: 176/197 (89.3 %)** — el flujo diario de dibujo 2D técnico, la cifra que se enseña a un cliente. **Alcance de DESTINO: 232/271 (85.6 %)** — AutoCAD completo con sus verticales, la cifra que mide el camino; lo excluido de hoy es «todavía no», nunca «nunca». 5 pt provienen de evidencia INDEPENDIENTE y 227 pt sólo de evidencia propia; 29 fila(s) retienen 1 pt hasta tener evidencia independiente. 0 de 36 filas están en su tope. Una fila sólo llega a su tope cuando TODOS sus criterios verifican, incluidos los que nombran gaps documentados; un gap conocido se declara como criterio que falla, no como nota al pie.
+**Puntuación (rúbrica 2026-09-03.1).** **Alcance de HOY: 176/197 (89.3 %)** — el flujo diario de dibujo 2D técnico, la cifra que se enseña a un cliente. **Alcance de DESTINO: 232/271 (85.6 %)** — AutoCAD completo con sus verticales, la cifra que mide el camino; lo excluido de hoy es «todavía no», nunca «nunca». 5 pt provienen de evidencia INDEPENDIENTE y 227 pt sólo de evidencia propia; 30 fila(s) retienen 1 pt hasta tener evidencia independiente. 0 de 36 filas están en su tope. Una fila sólo llega a su tope cuando TODOS sus criterios verifican, incluidos los que nombran gaps documentados; un gap conocido se declara como criterio que falla, no como nota al pie.
 
 ### Núcleo del plano entregable — 106/118
 
@@ -169,7 +169,7 @@ porque el instrumento no tenía ni una fila para el reconocimiento.
 | Import/export DWG | 6/7 | Parcial | Decisión de arquitectura publicada sobre DWG y el laboratorio clean-room; Decoder productivo con corpus independiente y matriz de entidades; Exportación DWG con round-trip verificado por lector externo | Integración en runtime con gates legal, de seguridad y de fidelidad superados (1 pt) |
 | Modelo 3D y sólidos B-rep FACETADO | 6/7 | Parcial | Topología, tolerancia e invariantes verificadas; Extrusión, barrido, booleanas y redondeo con specs; NURBS, superficies y teselado; STEP e IGES en los dos sentidos; El editor lo usa: algo fuera de lib/brep lo importa | Nada pendiente: todos los criterios declarados verifican |
 | Modelado 3D: primitivas, SOLIDEDIT y la cota | 4/5 | Parcial | BOX, WEDGE, CYLINDER, CONE, SPHERE, TORUS, PYRAMID y POLYSOLID tecleables, como UN nodo reeditable cada una, con el volumen medido en papel; SOLIDEDIT con Cara Extruir (nodo push), Cuerpo Comprobar y Cuerpo Separar, y sus otras once ramas declaradas en el propio diálogo; La cota cruza todas las fronteras: PLINE y RECTANG dibujan en el plano del SCU inclinado, CIRCLE y ARC en la planta elevada, y el DXF conserva 30/31, elevación, polilínea 3D y SCU reflejado (lector de terceros como oráculo) | Nada pendiente: todos los criterios declarados verifican |
-| Kernel Rust/WASM | 1/2 | Parcial | Puerta de entrada publicada con condición de activación explícita | Kernel WASM con paridad numérica verde Y enchufado: alguien fuera de lib/cad/wasm lo importa (regla 6) (1 pt) |
+| Kernel Rust/WASM | 1/2 | Parcial | Puerta de entrada publicada con condición de activación explícita; Kernel WASM con paridad numérica verde Y enchufado: alguien fuera de lib/cad/wasm lo importa (regla 6) | Nada pendiente: todos los criterios declarados verifican |
 | Nubes de puntos, raster georreferenciado y GIS | 2/3 | Parcial | LAS/LAZ, GeoTIFF o SHP leídos en el runtime: el importador de documentos usa lib/geo de verdad; Sistemas de referencia y reproyección, con spec; Índices espaciales y pruebas a escala real: el nivel mayor del artefacto indexa millones de puntos con presupuesto de bytes por punto | Nada pendiente: todos los criterios declarados verifican |
 
 ### Integridad y capacidad de crecer — 19/21
@@ -209,8 +209,7 @@ declarados. Reproducible con `node scripts/cad/rubric.mjs --priorities`.
 | 3 | 1 | 8 | Rendimiento 10k/100k | La mezcla architecture@100k cumple el mismo SLO: detalle completo ≤5 s y paneo ≥30 fps p95 |
 | 4 | 1 | 20 | Import/export DWG | Integración en runtime con gates legal, de seguridad y de fidelidad superados |
 | 5 | 2 | 60 | Automatización: AutoLISP y plugins JS | Puente .NET/VBA para rutinas heredadas de despacho |
-| 6 | 1 | 30 | Kernel Rust/WASM | Kernel WASM con paridad numérica verde Y enchufado: alguien fuera de lib/cad/wasm lo importa (regla 6) |
-| 7 | 2 | ? | Toolset Raster Design (mitad útil) | Vectorizar líneas y textos de un escaneo a entidades |
+| 6 | 2 | ? | Toolset Raster Design (mitad útil) | Vectorizar líneas y textos de un escaneo a entidades |
 
 <!-- rubric:end -->
 
