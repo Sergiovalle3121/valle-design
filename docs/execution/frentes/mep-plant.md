@@ -10,6 +10,8 @@
 - `apps/web/src/lib/cad/plant*`
 - `apps/web/src/lib/cad/pid*`
 - `apps/web/src/lib/cad/engine/commands/pipe*|duct*|cable*|mep*|pid*`
+- `apps/web/src/lib/cad/engine/commands/plant-*`
+- `apps/web/src/lib/cad/data-extraction/mep-schedule-table.ts`
 - `specs y goldens`
 
 ## Cola

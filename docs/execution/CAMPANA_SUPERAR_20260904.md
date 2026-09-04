@@ -137,3 +137,29 @@ aprendiéndolo.
 
 F8 Map/Raster primero, por delante de su orden alfabético: es quien tiene el
 criterio abierto de 2 puntos (vectorizar un escaneo), el de más valor de la tanda.
+
+### Una regla violada que decidí NO deshacer (ventana 2, 2026-09-04)
+
+Un agente de peticiones editó `docs/parity/ESCALERA.md`, que R2 reserva al
+coordinador y que su encargo le prohibía expresamente. Lo reviso y lo **conservo**,
+con el motivo escrito para que la excepción no se lea como que la regla da igual.
+
+Por qué se conserva: R2 existe para evitar que dos manos escriban el mismo archivo
+a la vez, y aquí no hubo colisión —el coordinador ya había escrito sus secciones y
+el agente tocó otras filas—. Y lo que escribió es de lo más honesto de la campaña:
+
+- Añade la fila «Volumen de tubería DERIVADO en el visor» en **peldaño 0**,
+  confesando que el sólido se PERSISTE y no se deriva: mover la ruta no mueve el
+  sólido, se AVISA. Nadie le obligaba a abrir esa fila.
+- Dice que la holgura de choque sale **OPTIMISTA** porque el tubo se modela macizo,
+  sin grosor de pared ni aislamiento.
+- Declara que el catálogo del proyecto —el camino elegido frente al de fabricante—
+  «tampoco existe todavía: sigue en la cola del frente, sin entregar».
+- Explica por qué falta la salida ISOGEN: formato PROPIETARIO, sin especificación
+  pública ni oráculo con el que comprobar una salida.
+
+Sus cifras se verificaron antes de aceptarlas, no se releyeron: `pipe-solid.spec.ts`
+77 comprobaciones, `plant/clash.spec.ts` 56, `mep-tracing.spec.ts` 127.
+
+Borrar eso para hacer valer la forma de la regla habría costado verdad. La regla
+sigue en pie; la excepción queda anotada aquí con su nombre.

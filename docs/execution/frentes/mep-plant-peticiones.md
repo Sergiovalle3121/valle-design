@@ -14,6 +14,71 @@ Formato de cada petición:
 - **Estado:** pendiente | aplicada | rechazada (<motivo>)
 ```
 
+## Ventana de integración 2 · 2026-09-04 (aplicada por el coordinador)
+
+Tres de las seis se aplicaron (P-01, P-04 y la mitad de ESCALERA de P-06). Las otras
+tres NO, y por motivos distintos que conviene no mezclar:
+
+- **La rúbrica no se toca en esta ventana, por ninguna razón.** P-03 y la mitad de
+  `rubric.json` de P-06 piden mover el `gap` de dos filas y añadir evidencias. Un
+  criterio abierto lo otorga **quien lo evalúa**, no quien lo construye ni quien lo
+  integra: queda para la pasada de evaluación del coordinador, con las dos mitades
+  ya verdes y medidas aquí (`clash.spec.ts` 56, `pipe-solid.spec.ts` 77,
+  `mep-tracing.spec.ts` 127, `plant-route.spec.ts` 49).
+- **P-02 la decide el titular, no el coordinador.** PIDCLASH, PIDSOLID y MEPRISER
+  **no existen en el árbol**: `grep` sólo los encuentra en prosa (esta petición, la
+  bitácora del frente y la cabecera de `plant-route.ts`). Meterlos en el patrón del
+  panel «Instalaciones» pondría en la cinta tres nombres que ningún registro
+  responde. La cola de F6 eligió a propósito colgar de PIDROUTE, PIDMTO, PIPE, DUCT
+  y CABLETRAY, y con esa decisión entrega igual.
+- **P-05 se comprobó y el diagnóstico salió AL REVÉS**, así que se declara corregido
+  y sigue sin arreglarse (ver su Estado).
+
+Lo que estas peticiones no podían saber, porque se escribieron antes:
+
+- **«Ola G» no es la ola de MEP en ESCALERA.** P-06 fecha la cota de PIPE/DUCT/
+  CABLETRAY «desde la Ola G»; en `ESCALERA.md` la Ola G es **el mapa** (línea 157) y
+  las instalaciones son la Ola F. Se escribió «desde la ventana 2 de la campaña
+  (2026-09-04)», que es cuando ocurrió de verdad.
+- **El catálogo del PROYECTO tampoco existe.** P-03, P-04 y P-06 dan por hecho que
+  «lo que sí hay es el catálogo del proyecto, que la organización escribe y amplía».
+  No lo hay: es la T4 de la cola y **no se entregó** —no hay ningún módulo de
+  catálogo bajo `lib/cad/plant/`, y la propia bitácora del frente lo declara tres
+  veces como «se cierra el día que exista»—. Escribir esa frase habría sido meter en
+  ESCALERA justo el claim sin evidencia que la campaña existe para cerrar, así que en
+  las tres filas se dice que el catálogo del proyecto **es el camino elegido y
+  todavía no existe**.
+- **Dos de los tres «todavía no» de P-04 ya tenían fila.** El catálogo de fabricante
+  y la salida ISOGEN ya estaban declarados en la tabla de la Ola 6; lo que les
+  faltaba era el **motivo**. Se ampliaron esas filas en vez de añadir renglones
+  duplicados. El tercero —el volumen derivado— sí es nuevo y entra como fila propia.
+- **Aplicar P-04 obligó a corregir una frase que se volvió falsa.** La fila «Ruteo de
+  tubería 3D» de la Ola 6 decía «lo que falta es el SÓLIDO de tubería… **Todavía
+  no.**», y el sólido existe desde el T2. Añadir límites del sólido dejando en pie
+  una fila que niega el sólido habría dejado el documento contradiciéndose. Fuera de
+  petición, forzado por P-04.
+- **Ningún peldaño se movió.** Las cinco filas tocadas siguen en el que tenían (5, 5,
+  5, 5 y 0) y la fila nueva nace en 0. Lo que se movió es prosa que había dejado de
+  ser cierta o que no daba su motivo. La prohibición de la ventana es editar ESCALERA
+  «para que algo pase»: aquí no pasa nada por editarla —ningún gate ni ninguna spec
+  la lee— y lo que se añade son MÁS límites declarados, no menos.
+- **Deliberadamente NO se añadió fila positiva para la detección de choques**, que es
+  la entrega más visible del frente (T1) y hoy no figura en ESCALERA. Otorgar un
+  peldaño es evaluar, y evaluar es la otra pasada. ESCALERA queda reclamando de menos,
+  que es el lado seguro.
+- **El golden 81 no se pudo correr aquí.** No hay navegadores de Playwright
+  (`~/.cache/ms-playwright` no existe). Lo que sí se comprobó: sus cuatro renglones
+  exactos —la cabecera de siete columnas y las filas de ducto, tubería y válvula—
+  están tecleados literalmente dentro de `mep-tracing.spec.ts`, que corre verde con
+  127 comprobaciones; los montantes y los codos salen DESPUÉS de la fila 4, así que
+  no tocan lo que el golden afirma. Queda declarado que no se ejecutó, en vez de
+  insinuar que pasó.
+
+Gates de esta ventana: `npm run typecheck` 8/8; los tres gates de comandos cuadrando
+en **294** (manifiesto, integridad, alcance con el ratón y cinta); `npm run test:specs`
+**604/604**. Ningún archivo de código cambió: esta ventana es documental de punta a
+punta, porque el código de F6 ya se integró en `34a159c` y estaba verde.
+
 ## Peticiones
 
 ### P-mep-plant-01 · Aclarar que `plant-*` y `mep-schedule-table` son de F6
@@ -31,7 +96,11 @@ Formato de cada petición:
 - **Cómo se comprueba:** ningún otro frente los reclama (F3 `solid*|3d*|section*|render*`,
   F5 `wall*|door*|window*|stair*|roof*|slab*|space*|elevation*|section*`,
   F7 `std*|balloon*|bom*|weld*|dimtol*|ae*`). Comprobado leyendo las tres fichas.
-- **Estado:** pendiente — F6 trabaja sobre ellos asumiendo que son suyos y lo declara aquí.
+- **Estado:** **aplicada** (2026-09-04) tal cual: las dos líneas están en la lista de
+  territorio de `mep-plant.md`, antes de `specs y goldens`. Recomprobado leyendo las
+  ONCE fichas de frente y no sólo las tres que cita la petición: nadie más reclama
+  `commands/plant-*` (lo más cerca, F3 con `section*` y F5 con `section*`, que no
+  colisionan) ni `data-extraction/`, que no aparece en ningún territorio.
 
 ### P-mep-plant-02 · Cinta y alcance con el ratón, si se quieren órdenes nuevas
 - **Archivos:** `apps/web/src/lib/cad/ribbon.ts` y `docs/cad/evidence/ui-command-reach.json`
@@ -49,7 +118,15 @@ Formato de cada petición:
   `node scripts/cad/ui-command-reach.mjs --write` y committear el JSON regenerado.
 - **Cómo se comprueba:** `node scripts/cad/check-ribbon-coverage.mjs` y
   `node scripts/cad/ui-command-reach.mjs` (modo `--check`, el de `npm run check:cad`).
-- **Estado:** pendiente — sólo si el titular quiere órdenes propias. Sin ella F6 entrega igual.
+- **Estado:** **rechazada** (2026-09-04) — la decide el titular, no el coordinador, y su
+  premisa no se cumple. PIDCLASH, PIDSOLID y MEPRISER **no existen**: `grep` sobre `.ts`,
+  `.mjs`, `.json` y `.md` sólo los encuentra en prosa (esta petición, la bitácora de F6 y
+  la cabecera de `plant-route.ts`). Con el mecanismo de HOY una orden nueva ya no cuesta
+  dos archivos sino cuatro pasos —thunk en `engine/lazy-commands.ts`, manifiesto
+  regenerado con `build-command-manifest.mjs --write`, icono en `command-icons.ts` (falla
+  cerrado) y resumen de ≤ 110 caracteres—, y ninguno de los tres tiene implementación que
+  registrar. Añadir su nombre al patrón del panel «Instalaciones» pondría en la cinta tres
+  botones que nada responde. Los tres gates de comandos cuadran hoy en 294 y siguen en 294.
 
 ### P-mep-plant-03 · Rúbrica: la brecha de `toolset-plant3d` cuando bajen T1 y T2
 - **Archivo:** `docs/competitive/rubric.json` (fila `toolset-plant3d`, campo `gap` y las
@@ -72,13 +149,17 @@ Formato de cada petición:
   `{ "kind": "spec", "path": "apps/web/src/lib/cad/plant/pipe-solid.spec.ts" }`.
 - **Cómo se comprueba:** `node scripts/cad/rubric.spec.mjs` y
   `node scripts/cad/rubric.mjs --markdown --check`.
-- **Estado:** pendiente — **las dos mitades ya están verdes y committeadas**
-  (`apps/web/src/lib/cad/plant/clash.spec.ts`, 56 comprobaciones, y
-  `apps/web/src/lib/cad/plant/pipe-solid.spec.ts`, 77 comprobaciones, ambas 2026-09-04). El
-  cambio exacto de arriba se puede aplicar entero. Matiz que el texto ya recoge y conviene
-  no perder al copiarlo: el diámetro del sólido es el **NOMINAL** y el cuerpo es
-  **FACETADO** (prisma de 16 lados de área equivalente); llamarlo «diámetro real» sería
-  justo el claim sin evidencia que la regla 3 prohíbe.
+- **Estado:** **pendiente — la decide el coordinador en su pasada de evaluación**
+  (2026-09-04). `docs/competitive/rubric.json` no se edita en esta ventana por ninguna
+  razón: un criterio abierto lo otorga quien lo EVALÚA, no quien lo construye ni quien lo
+  integra. Lo que esta ventana sí deja hecho para esa pasada es **medir** las dos mitades
+  en el árbol integrado, no releerlas del informe: `npx tsx src/lib/cad/plant/clash.spec.ts`
+  → 56 verdes, `pipe-solid.spec.ts` → 77 verdes (volumen dentro del 0,33 % de `π r² L` en
+  el montante de 90°, contra el −12,73 % que costaría quitar el densificado). Aviso para
+  quien la aplique: **la frase propuesta dice «el exterior real lo da el catálogo del
+  proyecto» y ese catálogo NO existe** (T4 de la cola, sin entregar), así que hay que
+  reescribir esa mitad antes de pegarla. El matiz NOMINAL/FACETADO sí es correcto y está
+  ya escrito así en la ESCALERA.
 
 ### P-mep-plant-04 · ESCALERA: los «todavía no» de MEP y Plant
 - **Archivo:** `docs/parity/ESCALERA.md` — **archivo de coordinador, F6 no lo toca (R2)**
@@ -94,7 +175,21 @@ Formato de cada petición:
      emite como `solid3d` con su receta de barrido, no se deriva de la polilínea en cada
      dibujado. Mover la ruta no mueve el sólido; PIDMTO avisa de que el sólido quedó viejo.»
 - **Cómo se comprueba:** lectura; ESCALERA no tiene gate propio.
-- **Estado:** pendiente.
+- **Estado:** **aplicada con su intención, no al pie de la letra** (2026-09-04), en la
+  tabla de la Ola 6 («La planta de proceso»), que es donde viven estas capacidades:
+  1. El catálogo de FABRICANTE ya tenía fila («Catálogo de fabricante con claves y
+     precios», peldaño 0). Se amplió esa fila en vez de duplicarla: ahora nombra las cinco
+     cosas que faltan (espesor de pared, diámetro exterior, peso, clave de compra, precio),
+     dice que no se transcribe ninguno y —**corrigiendo la petición**— que el catálogo del
+     PROYECTO es el camino elegido y **tampoco existe todavía**, con su consecuencia: la
+     holgura sale optimista y el tubo se modela macizo.
+  2. ISOGEN ya estaba declarado en la fila del isométrico, pero **sin decir por qué**. Se
+     le añadió el motivo (formato propietario, sin especificación pública ni oráculo con
+     el que comprobar una salida) y que el isométrico propio sí existe.
+  3. El volumen DERIVADO sí es nuevo: entra como fila propia en peldaño 0, con la
+     evidencia de lo que sí está probado —el aviso— citando `pipe-solid.spec.ts` (77) y
+     `plant-route.spec.ts` (49), medidos aquí.
+  Los tres llevan la fecha 2026-09-04 en el texto. Ningún peldaño se movió.
 
 ### P-mep-plant-05 · Aviso: `check:cad` está en rojo por `check:dwg-evidence`, y no lo causó F6
 - **Archivos:** `docs/cad/evidence/dwg-decoder-matrix.json` y `packages/dwg-codec/` —
@@ -118,8 +213,30 @@ Formato de cada petición:
   mienten por entorno»; aquí está SIN DEFINIR, y aun así el laboratorio encuentra siete
   bundles admitidos, que es lo que hay que explicar antes de regenerar nada).
 - **Cómo se comprueba:** `npm run check:dwg-evidence` y después `npm run check:cad` entero.
-- **Estado:** pendiente — F6 lo declara en vez de callarlo, y **no lo arregla**: regenerar
-  ese artefacto desde este frente sería promover capacidades DWG con la firma equivocada.
+- **Estado:** **rechazada como arreglo, y el diagnóstico CORREGIDO** (2026-09-04). El rojo
+  sigue vivo en el árbol integrado —`npm run check:dwg-evidence` para en el mismo
+  `AssertionError`—, pero **va en el sentido contrario al que describe la petición**, y eso
+  cambia lo que hay que hacer:
+  - El artefacto **del disco** dice `bundlesAdmitidos: 7`, `validacionesIndependientes: 14`,
+    `capacidadesPromovidas: 2` y `corpus.estado: "verified"`. Lo que el laboratorio
+    **regenera hoy** son ceros: `node scripts/dwg/dwg-evidence.mjs` imprime «0 capacidades
+    promovidas, 4 round-trips externos, **0 bundles admitidos**». La petición lo leyó al
+    revés (creyó que el disco era el de «CERO BUNDLES»), probablemente porque el `+` del
+    diff de `assert` es el ACTUAL, es decir el disco.
+  - Por qué salen ceros, medido: el artefacto fija
+    `corpus.commitFijado = 0688fb9c395b9cac4169d1ee9c23a7370cc28cf3` y el corpus que hay en
+    esta máquina (`/home/user/valle-design-dwg-conformance`, que **sí existe**) está en
+    `aa2f561b0e52921737de6ff179d3d9e2c59e6518`. `VALLE_DWG_CORPUS_MIRROR` sigue sin definir.
+    Es el caso exacto que AGENTS.md avisa: los gates DWG mienten por entorno.
+  - **Consecuencia que obliga a NO tocarlo:** correr `--write` aquí no «pondría el artefacto
+    al día», lo **degradaría** —borraría siete bundles admitidos y dos capacidades
+    promovidas— y publicaría como evidencia una ausencia causada por el entorno. Se queda
+    rojo y declarado. Lo arregla quien tenga el territorio DWG (`docs/cad/evidence/dwg-*`,
+    `packages/dwg-codec/**`, `scripts/dwg/**`), fijando el corpus al commit que el artefacto
+    declara o volviendo a fijar el artefacto al corpus, con la firma correcta.
+  - No lo causó ningún frente de la tanda 2: los seis commits de la ventana no tocan
+    `packages/dwg-codec/`, `scripts/dwg/` ni `docs/cad/evidence/dwg-*` (sólo
+    `command-integrity.json` y `ui-command-reach.json`).
 
 ### P-mep-plant-06 · Rúbrica y ESCALERA: la mitad 3D de MEP dejó de estar fuera
 - **Archivos:** `docs/competitive/rubric.json` (fila `toolset-mep`, campo `gap` y evidencias
@@ -162,6 +279,20 @@ Formato de cada petición:
   proyecto)»; el «(71)» de la columna de evidencia pasa a «(127)».
 - **Cómo se comprueba:** `node scripts/cad/rubric.spec.mjs` y
   `node scripts/cad/rubric.mjs --markdown --check`.
-- **Estado:** pendiente — la capacidad ya está verde y committeada
-  (`apps/web/src/lib/cad/engine/commands/mep-tracing.spec.ts`, 127 comprobaciones,
-  2026-09-04). F6 no toca ninguno de los dos archivos.
+- **Estado:** **partida en dos** (2026-09-04).
+  - **`rubric.json`: pendiente — la decide el coordinador** en su pasada de evaluación,
+    igual que P-03 y por el mismo motivo. En esta ventana la rúbrica no se edita.
+  - **`ESCALERA.md`: aplicada**, las dos líneas, con dos correcciones que la petición no
+    podía prever:
+    1. **«desde la Ola G» es falso en este documento**: la Ola G de `ESCALERA.md` es *el
+       mapa* (línea 157) y las instalaciones son la Ola F. Se escribió «desde la ventana 2
+       de la campaña (2026-09-04)».
+    2. **«el catálogo es del proyecto» insinúa que existe**, y no existe (ver la cabecera
+       de esta ventana). En la fila de PIPE se escribió «no se transcribe ningún catálogo y
+       el del proyecto sigue en la cola, sin entregar».
+    La cifra `(71)` → `(127)` se aplicó tras MEDIRLA:
+    `npx tsx src/lib/cad/engine/commands/mep-tracing.spec.ts` imprime 127. Se añadió la
+    segunda fuente que la propia petición ofrecía (`plant/clash.spec.ts`, 56, medida
+    también) a la fila de MEP, y se conservó entera la mitad que declara lo que sigue
+    FUERA: diámetro por especificación y canto del ducto. Los peldaños de las dos filas
+    siguen en 5.
