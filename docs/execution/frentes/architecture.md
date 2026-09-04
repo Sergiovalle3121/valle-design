@@ -239,6 +239,110 @@ Lo que esta entrega NO trajo, con su motivo:
   día que el muro tenga capas, la construida se medirá a la cara del acabado
   exterior y este módulo tendrá que preguntárselo al estilo, no al grosor.
 
+### E3 · Puertas y ventanas por catálogo, con la marca del cuadro (2026-09-04)
+
+DOOR y WINDOW sabían de tres números sueltos y nada más: cada hueco del plano se
+tecleaba a mano. Un despacho no pide «900 × 2.100», pide «una P-090» — y teclear
+los números uno a uno es la manera fiable de acabar con `P-090x210` y `P-090x211`
+en la misma planta, es decir con dos filas del cuadro de carpintería donde hay
+una sola pieza.
+
+Ahora las dos órdenes tienen la palabra clave `TIpo` (atajo `I`, porque la `T` ya
+es la de `alTura` y dos atajos iguales dejan de servir para los DOS) y ofrecen un
+catálogo CERRADO: cinco puertas de 2.100 de alto —P-060 baño, P-070 servicio,
+P-080 recámara, P-090 acceso, P-100 acceso principal— y cuatro ventanas con su
+antepecho de norma —V-060x040 a 1.800 (la alta de baño, la altura a la que deja
+de verse desde fuera), V-120x120, V-150x120 y V-180x120 a 900—.
+
+Lo entregado, con su ruta:
+
+- `apps/web/src/lib/cad/architecture-openings-catalog.ts` (nuevo, 208 líneas): la
+  tabla cerrada. Es cerrada por la misma razón que `wall-materials.ts` —una clave
+  que no resuelve no debe cruzar la frontera del servidor— y aquí el motivo es
+  más directo todavía, porque de la clave salen MEDIDAS: un `Tipo` inventado que
+  cayera a un default en silencio colocaría un hueco que nadie pidió y el plano y
+  la tabla de cantidades lo darían por bueno. `cadOpeningTypeRefusal` lo niega
+  nombrando las claves válidas de su clase.
+- `engine/commands/draw-opening.ts` (255 → 366 líneas): el paso del tipo, que
+  acepta palabra clave Y texto libre a propósito —sin el texto, un tipo que no
+  existe moriría en el analizador con un «Entrada no válida» genérico y el
+  usuario no sabría cuáles existen—. El rechazo NO devuelve al paso de designar:
+  se queda en el prompt del tipo, así que el siguiente clic sobre el muro no
+  coloca nada. Y el prompt principal dice qué se va a colocar («…alojar la puerta
+  P-090») y deja de decirlo en cuanto una medida tecleada a mano saca al hueco
+  del catálogo: un renglón que siguiera diciendo P-090 sobre una puerta de 850
+  sería la mentira más barata de todas.
+- `architecture-openings-catalog.spec.ts` (nueva, 336 aserciones, 1,5 s).
+
+Las tres propiedades que hacen que el catálogo sirva para algo, y que se miden:
+
+1. **Una sola marca.** Cada entrada nombra la suya con `openingMark`, la MISMA
+   función con la que `bim-schedule.ts` agrupa el cuadro de carpintería, y la
+   spec la contrasta carácter a carácter contra la marca que sale de la entidad
+   `opening` REALMENTE colocada por la orden. No hay tabla de marcas aquí y otra
+   allá.
+2. **Elegir y teclear son el mismo camino.** `Tipo P-090` y `Anchura 900 ·
+   alTura 2100` producen la misma entidad campo por campo, en las cinco unidades.
+   Y el default de cada orden ES una entrada del catálogo por REFERENCIA (no una
+   copia de sus números): `defaultOpeningSize` la lee de ahí, así que el hueco
+   que sale sin tocar nada tampoco puede despegarse de la tabla.
+3. **La unidad no cambia la pieza.** Las medidas viven en milímetros y se
+   convierten con `cadFromMillimetres` —la misma tabla de WALL, STAIR, ROOF y
+   SLAB; de paso desapareció el `MM_PER_UNIT` duplicado que `draw-opening.ts`
+   tenía en privado—. Una P-090 en un plano en metros mide 0,9. El ida y vuelta a
+   milímetros se comprueba en mm/cm/m/in/ft y la peor deriva se IMPRIME en vez de
+   suponerse: 2,3 × 10⁻¹³ mm (el último bit del doble, en pies).
+
+Ningún campo nuevo en el documento canónico (R2): la clave del catálogo no se
+persiste. El hueco sigue guardando sus tres medidas y la marca se DERIVA de
+ellas, de modo que no existe una clave guardada que pueda contradecir a la
+geometría diciendo «P-090» sobre una puerta de 850.
+
+Gates a la hora de cerrar: `npm run typecheck` verde sobre el árbol entero (8/8);
+`npm run check:command-integrity` verde y SIN MOVER una cifra —290 comandos, 0
+éxitos falsos, mismo reparto de veredictos—, porque el auto-respondedor designa
+entidades antes que teclear palabras clave y nunca llega al paso del tipo;
+`check:cad-contract`, `check:no-industrial-domain`, `check-import-direction`,
+`check-monolith-budget` y el trinquete de lint (487/492, sin mover) verdes; y
+verdes también los once specs vecinos que tocan el cuadro, el motor o los
+candados de identidad (`bim-schedule`, `wall-openings`, `bim-areas`,
+`wall-takeoff-solid-parity`, `bim-claim-boundary`, `no-ai-boundary`,
+`persisted-identifiers`, `locale-es-mx`, `keyboard-alias-collisions`,
+`command-engine`, `architecture-stair`).
+
+La suite entera del web (`npm run test:specs`, 592 specs) queda en 591 verdes y
+una roja: `benchmark/plan-budget.spec.ts`, que es un cronómetro de pared sobre un
+plano de 20.000 entidades y en esta máquina compartida es INESTABLE. Se midió en
+vez de suponerlo: ocho pasadas con los cambios (seis verdes; las dos rojas por
+métricas DISTINTAS —`panFrameP95Ms` 27,47 sobre 27 y `zoomFrameP95Ms` 23,22 sobre
+22, un 2 % y un 6 %—) y cinco con el árbol limpio por `git stash` (cinco verdes,
+una de ellas rozando el techo con 26,46 sobre 27). El presupuesto NO se toca: la
+regla dice que un umbral no se relaja para pasar. Lo que se declara es la cifra
+real y que la métrica que falla —el tiempo de un cuadro de paneo, que sale del
+índice espacial y del recorte de viewport— no tiene ninguna relación con una
+tabla de datos y una palabra clave de comando.
+
+Lo que esta entrega NO trajo, con su motivo:
+
+- **La marca en un documento que no está en milímetros.** `openingMark` lee sus
+  números como mm, así que en un plano en metros o en pies el cuadro de
+  carpintería imprime `P-000x000` para todo. Es un defecto VIEJO de
+  `bim-schedule.ts`, anterior a este catálogo, y sigue en pie: lo que la spec
+  garantiza en las cinco unidades es que catálogo y medida a mano dan la misma
+  entidad y por tanto la misma fila, sea cual sea esa fila. Arreglarlo pide que
+  `buildCadBimSchedule` lea `meta.unit` y se lo pase a la marca; se deja escrito
+  aquí en vez de mezclarlo con esta entrega.
+- **Elegir el tipo desde la paleta de propiedades de un hueco ya colocado.**
+  `components/cad/palettes/property-model.ts` está fuera del territorio. Hoy el
+  catálogo se alcanza por la línea de comandos, que es su superficie legítima; no
+  se anuncia en ninguna otra.
+- **Puertas de dos hojas, corredizas y cancelería de piso a techo.** La anchura
+  del catálogo es la del HUECO de obra y no hay hoja modelada: una de dos hojas
+  de 1,60 se teclea a mano hasta que el símbolo sepa dibujarla.
+- **Estilo del hueco (carpintería, herrería, marco).** El esquema 7 ya tiene
+  `symbolBlock` para el símbolo, pero un «estilo» con material y despiece sería
+  campo persistido nuevo (R2).
+
 ## «Todavía no»
 
 - **IFC 4 de exportación (punto 6 de la cola) — 2026-09-04.** No se abre en esta
