@@ -41,10 +41,14 @@
  * ## Lo que TODAVÍA NO hace, dicho aquí y repetido donde se lea
  *
  * Arcos, círculos y sombreados. Un arco sale como una polilínea de tramos
- * rectos, no como ARC; una zona maciza sale como su contorno, no como HATCH;
- * y las letras salen como trazos, no como TEXT. Reconocerlas es ajustar
- * primitivas a la cadena (mínimos cuadrados sobre círculo, detección de
- * relleno, plantillas contra los trazos Hershey) y no es de esta entrega.
+ * rectos, no como ARC; una zona maciza sale como su contorno, no como HATCH.
+ * Reconocerlos es ajustar primitivas a la cadena (mínimos cuadrados sobre
+ * círculo, detección de relleno) y no es de esta entrega.
+ *
+ * Las letras SÍ se reconocen, pero no aquí: esta tubería devuelve sus trazos y
+ * `raster-text-recognize.ts` los compara por plantilla contra las fuentes
+ * Hershey. VECTORIZE aplica los dos pasos y quita del calco los trazos que ya
+ * salieron como TEXT, para que ninguna letra se escriba dos veces.
  *
  * ## El sistema de coordenadas
  *
@@ -55,11 +59,19 @@
  */
 import { cadRasterLuminance, type CadRasterImage } from "./raster-decode";
 
+/**
+ * La línea que habla de las letras. Se publica aparte porque quien SÍ las
+ * reconoce —VECTORIZE, con `raster-text-recognize.ts`— tiene que quitarla de
+ * su plan: dejarla puesta cuando el rótulo ya salió como TEXT sería declarar
+ * un límite que en ese momento no existe.
+ */
+export const CAD_RASTER_NOT_YET_TEXT = "esta tubería devuelve las letras como trazos: reconocerlas es otro paso, el de `raster-text-recognize.ts`";
+
 /** Lo que esta tubería no reconoce todavía. Se enseña antes de escribir nada. */
 export const CAD_RASTER_NOT_YET: readonly string[] = [
   "arcos y círculos salen como polilíneas de tramos rectos, no como ARC ni CIRCLE",
   "los sombreados y las zonas macizas salen como su contorno, no como HATCH",
-  "el texto sale como trazos: VECTORIZE no reconoce letras",
+  CAD_RASTER_NOT_YET_TEXT,
 ];
 
 export interface CadRasterVectorizeOptions {
@@ -140,6 +152,38 @@ export function cadRasterOtsuThreshold(luminance: Uint8Array): number {
   return best;
 }
 
+export interface CadRasterInkMask {
+  /** 1 = tinta, 0 = papel. Fila 0 ARRIBA, como el archivo. */
+  ink: Uint8Array;
+  width: number;
+  height: number;
+  threshold: number;
+  thresholdAuto: boolean;
+  inkPixels: number;
+}
+
+/**
+ * Tinta contra papel, y nada más. Se publica aparte porque el reconocedor de
+ * texto (`raster-text-recognize.ts`) tiene que partir de EXACTAMENTE la misma
+ * separación que la tubería: si cada uno umbraliza por su cuenta, las cajas de
+ * los glifos leídos y las polilíneas del calco dejan de corresponderse y una
+ * letra saldría dos veces —como TEXT y como trazos— sin que nada lo avise.
+ */
+export function cadRasterInkMask(image: CadRasterImage, threshold?: number): CadRasterInkMask {
+  const luminance = cadRasterLuminance(image);
+  const thresholdAuto = threshold === undefined;
+  const level = thresholdAuto ? cadRasterOtsuThreshold(luminance) : Math.round(Math.min(255, Math.max(0, threshold)));
+  const ink = new Uint8Array(image.width * image.height);
+  let inkPixels = 0;
+  for (let index = 0; index < ink.length; index += 1) {
+    if (luminance[index] <= level) {
+      ink[index] = 1;
+      inkPixels += 1;
+    }
+  }
+  return { ink, width: image.width, height: image.height, threshold: level, thresholdAuto, inkPixels };
+}
+
 /** El escaneo entero, de píxeles a trazos. Puro: ni red, ni navegador, ni azar. */
 export function cadRasterVectorize(image: CadRasterImage, options: CadRasterVectorizeOptions = {}): CadRasterVectorizeResult {
   const { width, height } = image;
@@ -148,21 +192,10 @@ export function cadRasterVectorize(image: CadRasterImage, options: CadRasterVect
   const collinearDeg = Math.max(0, options.collinearDeg ?? 8);
   const minLengthPx = Math.max(0, options.minLengthPx ?? 2);
 
-  const luminance = cadRasterLuminance(image);
-  const thresholdAuto = options.threshold === undefined;
-  const threshold = thresholdAuto ? cadRasterOtsuThreshold(luminance) : Math.round(Math.min(255, Math.max(0, options.threshold!)));
-
-  const ink = new Uint8Array(width * height);
-  let inkPixels = 0;
-  for (let index = 0; index < ink.length; index += 1) {
-    if (luminance[index] <= threshold) {
-      ink[index] = 1;
-      inkPixels += 1;
-    }
-  }
+  const { ink, threshold, thresholdAuto, inkPixels } = cadRasterInkMask(image, options.threshold);
 
   const cleaned = despeckle(ink, width, height, minBlobPixels);
-  thinZhangSuen(ink, width, height);
+  cadRasterThin(ink, width, height);
   let skeletonPixels = 0;
   for (const value of ink) skeletonPixels += value;
 
@@ -246,8 +279,16 @@ function despeckle(ink: Uint8Array, width: number, height: number, minBlobPixels
 // 3. Adelgazamiento de Zhang-Suen
 // ---------------------------------------------------------------------------
 
-/** Deja la línea media de un píxel sin romper la conexión. Trabaja sobre `ink`. */
-function thinZhangSuen(ink: Uint8Array, width: number, height: number): void {
+/**
+ * Deja la línea media de un píxel sin romper la conexión. Trabaja sobre `ink`.
+ *
+ * Se publica porque el reconocedor de texto compara ESQUELETO contra
+ * ESQUELETO: una fuente de trazos es una línea de grosor cero, y comparar un
+ * trazo engrosado por la tinta contra una plantilla de un píxel mide sobre
+ * todo el grosor, no la forma. Los dos lados tienen que pasar por el MISMO
+ * adelgazamiento o la comparación no es una comparación.
+ */
+export function cadRasterThin(ink: Uint8Array, width: number, height: number): void {
   const doomed: number[] = [];
   const at = (x: number, y: number) => (x < 0 || y < 0 || x >= width || y >= height ? 0 : ink[y * width + x]);
   // Un esqueleto converge en pocas pasadas (la mitad del grosor del trazo);

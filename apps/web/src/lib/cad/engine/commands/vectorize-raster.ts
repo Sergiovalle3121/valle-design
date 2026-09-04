@@ -23,12 +23,25 @@
  * sin escribir, que es como se afina un escaneo de verdad: mirando el número
  * de trazos, no adivinando.
  *
+ * ## El rótulo vuelve a ser un TEXT (Ola I, 2º entregable)
+ *
+ * Antes de escribir el calco, el escaneo pasa por `raster-text-recognize.ts`:
+ * los renglones se leen por PLANTILLA contra las mismas fuentes de trazos con
+ * las que el producto dibuja su TEXT, y lo que gana el margen sale como una
+ * entidad TEXT con la altura, la inserción y el giro MEDIDOS en el renglón.
+ * Los trazos de esos glifos NO se escriben además como polilíneas —se quitan
+ * por su caja— para que una letra no acabe dos veces en el dibujo. Lo que no
+ * gana el margen no se inventa: se queda como polilínea y el aviso dice
+ * cuántos glifos se leyeron y cuántas manchas se dejaron como geometría. La
+ * opción Texto apaga el reconocimiento y devuelve el comportamiento anterior.
+ *
  * ## Todavía no, dicho en el propio aviso
  *
- * Arcos, círculos y sombreados. Todo sale como polilínea de tramos rectos; una
- * zona maciza sale como su contorno y no como HATCH; las letras salen como
- * trazos y no como TEXT. Va escrito en el plan y en el aviso que queda
- * registrado, para que nadie lo descubra midiendo.
+ * Arcos, círculos y sombreados. Salen como polilínea de tramos rectos y una
+ * zona maciza sale como su contorno, no como HATCH. Y el reconocimiento de
+ * texto lee fuentes de TRAZOS (txt, simplex, romans, isocp, monotxt): ni
+ * manuscrito ni tipografías de contorno relleno. Va escrito en el plan y en el
+ * aviso que queda registrado, para que nadie lo descubra midiendo.
  */
 import type { CadLayerDef } from "../../cad-document";
 import type { CadImageEntity } from "../../cad-entities-v4";
@@ -36,7 +49,13 @@ import type { CadEntityCommand } from "../../entity-commands";
 import type { CadNativeEntity } from "../../entity-runtime";
 import { cadImagePixelToWorld, cadImageFileName, cadImageUnitsPerPixel } from "../../image-geometry";
 import { cadRasterDecodeDataUri, isCadRasterDecodeError, type CadRasterImage } from "../../raster-decode";
-import { cadRasterVectorize, type CadRasterVectorizeOptions, type CadRasterVectorizeResult } from "../../raster-vectorize";
+import { CAD_RASTER_NOT_YET_TEXT, cadRasterVectorize, type CadRasterVectorizeOptions, type CadRasterVectorizeResult } from "../../raster-vectorize";
+import {
+  cadRasterRecognizeText,
+  cadRasterTextCovers,
+  cadRasterTextReadBoxes,
+  type CadRasterTextResult,
+} from "../../raster-text-recognize";
 import {
   CAD_ACCEPT_DISTANCE,
   CAD_ACCEPT_ENTITY_PICK,
@@ -55,6 +74,9 @@ const NO_KEYWORD = { keyword: "No", shortcut: "N" } as const;
 const TOLERANCE_KEYWORD = { keyword: "Tolerancia", shortcut: "T" } as const;
 const BLOB_KEYWORD = { keyword: "Mancha", shortcut: "M" } as const;
 const THRESHOLD_KEYWORD = { keyword: "Umbral", shortcut: "U" } as const;
+// «teXto»: la T ya es de Tolerancia, y la letra mayúscula dentro de la palabra
+// es la convención de AutoCAD para el atajo cuando la inicial está tomada.
+const TEXT_KEYWORD = { keyword: "Texto", shortcut: "X" } as const;
 
 /** Color de la capa del calco: distinto del escaneo, para apagarlo de un golpe. */
 const VECTORIZE_LAYER_COLOR = "#f59e0b";
@@ -65,7 +87,11 @@ export interface CadVectorizePlan {
   layer: string;
   commands: CadEntityCommand[];
   strokeCount: number;
+  /** Entidades TEXT que salen del reconocimiento, una por renglón leído. */
+  textCount: number;
   result: CadRasterVectorizeResult;
+  /** El reconocimiento, o `null` cuando la opción Texto lo apagó. */
+  text: CadRasterTextResult | null;
   /** Lo que se enseña antes de escribir: una línea por hecho. */
   lines: string[];
   /** Lo que se registra al aplicar. */
@@ -78,11 +104,13 @@ interface VectorizeState {
   name: string;
   pixels: CadRasterImage | null;
   options: CadRasterVectorizeOptions;
+  /** ¿Se leen los rótulos? Encendido de fábrica: es lo que el escaneo trae. */
+  recognizeText: boolean;
   pending: "tolerance" | "blob" | "threshold" | null;
   plan: CadVectorizePlan | null;
 }
 
-const EMPTY: VectorizeState = { phase: "target", image: null, name: "", pixels: null, options: {}, pending: null, plan: null };
+const EMPTY: VectorizeState = { phase: "target", image: null, name: "", pixels: null, options: {}, recognizeText: true, pending: null, plan: null };
 
 function say(state: VectorizeState, text: string): CadCommandStep<VectorizeState> {
   return { state, prompt: { message: "", options: [] }, accepts: 0, result: { kind: "message", text } };
@@ -99,8 +127,14 @@ export function planCadVectorize(
   pixels: CadRasterImage,
   options: CadRasterVectorizeOptions,
   context: CadCommandContext,
+  recognizeText = true,
 ): CadVectorizePlan {
   const result = cadRasterVectorize(pixels, options);
+  // El reconocimiento parte del MISMO umbral que la vectorización: si cada uno
+  // separase la tinta a su manera, las cajas de los glifos leídos no taparían
+  // los trazos que produjeron y la letra saldría dos veces.
+  const text = recognizeText ? cadRasterRecognizeText(pixels, { threshold: result.thresholdAuto ? undefined : result.threshold }) : null;
+  const readBoxes = text ? cadRasterTextReadBoxes(text) : [];
   const layer = layerNameFor(imageName);
   const commands: CadEntityCommand[] = [];
   const existing = context.layers?.() ?? [];
@@ -112,7 +146,48 @@ export function planCadVectorize(
     umbral: result.threshold,
     tolerancia: result.tolerancePx,
   };
+
+  // Primero los renglones leídos: el TEXT va antes que el calco porque es la
+  // lectura, no el residuo.
+  const unitsPerPixel = cadImageUnitsPerPixel(image);
+  let textCount = 0;
+  for (const row of text?.rows ?? []) {
+    if (row.readGlyphs === 0) continue;
+    const insertion = cadImagePixelToWorld(image, row.insertion.x, row.insertion.y);
+    // El giro del rótulo en el DIBUJO es el del renglón en la imagen llevado
+    // por los vectores de la propia IMAGE: así el texto cae derecho aunque el
+    // escaneo esté colocado girado.
+    const radians = (row.rotationDeg * Math.PI) / 180;
+    const along = {
+      x: image.uVector.x * Math.cos(radians) + image.vVector.x * Math.sin(radians),
+      y: image.uVector.y * Math.cos(radians) + image.vVector.y * Math.sin(radians),
+    };
+    const rotation = (Math.atan2(along.y, along.x) * 180) / Math.PI;
+    commands.push({
+      type: "insert",
+      entity: {
+        id: context.newEntityId(),
+        type: "text",
+        x: insertion.x,
+        y: insertion.y,
+        text: row.text,
+        height: row.capHeightPx * unitsPerPixel,
+        ...(Math.abs(rotation) > 1e-9 ? { rotation } : {}),
+        layer,
+        context: { metadata: { ...metadata, glifos: row.readGlyphs, fuente: text!.family } },
+      } as CadNativeEntity,
+    });
+    textCount += 1;
+  }
+
+  let strokesAsText = 0;
   for (const stroke of result.strokes) {
+    // Un trazo que cae entero dentro de la caja de un glifo YA LEÍDO no se
+    // escribe: ya está en el dibujo, y como letra.
+    if (cadRasterTextCovers(readBoxes, stroke.points)) {
+      strokesAsText += 1;
+      continue;
+    }
     const vertices = stroke.points.map((point) => {
       const world = cadImagePixelToWorld(image, point.x, point.y);
       return { x: world.x, y: world.y, z: 0 };
@@ -129,9 +204,9 @@ export function planCadVectorize(
       } as CadNativeEntity,
     });
   }
+  const strokeCount = result.strokes.length - strokesAsText;
 
   const unit = context.unit ?? "mm";
-  const unitsPerPixel = cadImageUnitsPerPixel(image);
   const despeckle =
     result.removedBlobs > 0
       ? `${result.removedBlobs} mancha(s) de menos de ${result.minBlobPixels} px fuera (${result.removedPixels} píxel(es) descartados)`
@@ -141,15 +216,38 @@ export function planCadVectorize(
     `  · umbral ${result.threshold}${result.thresholdAuto ? " (Otsu, automático)" : " (fijado a mano)"}: ${result.inkPixels} píxel(es) de tinta`,
     `  · despeckle: ${despeckle}`,
     `  · esqueleto de ${result.skeletonPixels} px → ${result.strokes.length} trazo(s), ajustados con tolerancia ${formatNumber(result.tolerancePx)} px`,
-    `  · a la capa ${layer}; 1 px = ${formatNumber(unitsPerPixel)} ${unit}`,
-    ...result.notYet.map((line) => `  · todavía no: ${line}`),
+    textLine(text, textCount, strokesAsText),
+    `  · a la capa ${layer}; ${strokeCount} polilínea(s) y ${textCount} texto(s); 1 px = ${formatNumber(unitsPerPixel)} ${unit}`,
+    // Con el reconocimiento encendido, la línea que dice que las letras salen
+    // como trazos ya no es verdad: se quita en vez de contradecir al plan.
+    ...result.notYet.filter((line) => !(text && line === CAD_RASTER_NOT_YET_TEXT)).map((line) => `  · todavía no: ${line}`),
   ];
   const notice =
-    `VECTORIZE: ${result.strokes.length} polilínea(s) de «${imageName}» en la capa ${layer}; umbral ${result.threshold}` +
+    `VECTORIZE: ${strokeCount} polilínea(s) y ${textCount} texto(s) de «${imageName}» en la capa ${layer}; umbral ${result.threshold}` +
     `${result.thresholdAuto ? " (Otsu)" : ""}, ${result.removedBlobs} mancha(s) descartada(s) (${result.removedPixels} px), tolerancia ` +
-    `${formatNumber(result.tolerancePx)} px. Todavía no: arcos, círculos, sombreados ni texto — todo sale como polilínea de tramos rectos.`;
+    `${formatNumber(result.tolerancePx)} px. ${textNotice(text)} Todavía no: arcos, círculos ni sombreados — salen como polilínea de tramos rectos.`;
 
-  return { imageId: image.id, imageName, layer, commands, strokeCount: result.strokes.length, result, lines, notice };
+  return { imageId: image.id, imageName, layer, commands, strokeCount, textCount, result, text, lines, notice };
+}
+
+/** La línea del plan que habla de los rótulos, encendido o apagado. */
+function textLine(text: CadRasterTextResult | null, textCount: number, strokesAsText: number): string {
+  if (!text) return "  · texto: sin reconocer (Texto lo enciende); los rótulos salen como trazos";
+  if (text.readGlyphs === 0)
+    return `  · texto: ningún glifo se pudo leer contra ${text.family}; ${text.leftAsGeometry} mancha(s) quedan como polilínea`;
+  return (
+    `  · texto: ${text.readGlyphs} glifo(s) leído(s) contra ${text.family} en ${textCount} renglón(es); ` +
+    `${text.leftAsGeometry} mancha(s) sin lectura quedan como polilínea, y ${strokesAsText} trazo(s) salen del calco por estar ya escritos`
+  );
+}
+
+/** Lo mismo, para el aviso que queda registrado en el dibujo. */
+function textNotice(text: CadRasterTextResult | null): string {
+  if (!text) return "El reconocimiento de rótulos se dejó apagado (opción Texto).";
+  return (
+    `Texto: ${text.readGlyphs} glifo(s) leído(s) contra ${text.family} y ${text.leftAsGeometry} mancha(s) dejada(s) como geometría; ` +
+    "lee rótulos trazados con una fuente de TRAZOS (txt, simplex, romans, isocp, monotxt), ni manuscrito ni tipografías de contorno relleno."
+  );
 }
 
 function confirmStep(state: VectorizeState): CadCommandStep<VectorizeState> {
@@ -158,7 +256,7 @@ function confirmStep(state: VectorizeState): CadCommandStep<VectorizeState> {
     state,
     prompt: {
       message: `${plan.lines.join("\n")}\n¿Vectorizar?`,
-      options: [YES_KEYWORD, NO_KEYWORD, TOLERANCE_KEYWORD, BLOB_KEYWORD, THRESHOLD_KEYWORD],
+      options: [YES_KEYWORD, NO_KEYWORD, TOLERANCE_KEYWORD, BLOB_KEYWORD, THRESHOLD_KEYWORD, TEXT_KEYWORD],
       defaultOption: YES_KEYWORD.keyword,
     },
     accepts: CAD_ACCEPT_KEYWORD,
@@ -205,7 +303,7 @@ function preselectedImage(context: CadCommandContext): CadImageEntity | null {
 }
 
 /** Decodifica y planifica; devuelve el paso a enseñar (plan o motivo). */
-function beginWith(entity: CadImageEntity, context: CadCommandContext, options: CadRasterVectorizeOptions): CadCommandStep<VectorizeState> {
+function beginWith(entity: CadImageEntity, context: CadCommandContext, options: CadRasterVectorizeOptions, recognizeText: boolean): CadCommandStep<VectorizeState> {
   const definition = context.document?.()?.imageDefinitions?.find((candidate) => candidate.id === entity.definition);
   if (!definition) return say(EMPTY, `VECTORIZE: la imagen designada apunta a la definición «${entity.definition}», que el dibujo no tiene. Vuelve a adjuntarla con IMAGEATTACH.`);
   const name = cadImageFileName(definition);
@@ -216,15 +314,15 @@ function beginWith(entity: CadImageEntity, context: CadCommandContext, options: 
     const detail = isCadRasterDecodeError(error) ? error.message : error instanceof Error ? error.message : String(error);
     return say(EMPTY, `VECTORIZE: «${name}» no se pudo leer. ${detail}`);
   }
-  const plan = planCadVectorize(entity, name, pixels, options, context);
-  const state: VectorizeState = { phase: "confirm", image: entity, name, pixels, options, pending: null, plan };
+  const plan = planCadVectorize(entity, name, pixels, options, context, recognizeText);
+  const state: VectorizeState = { phase: "confirm", image: entity, name, pixels, options, recognizeText, pending: null, plan };
   return confirmStep(state);
 }
 
 /** Rehace el plan con las opciones nuevas, sin volver a inflar el archivo. */
-function replan(state: VectorizeState, context: CadCommandContext, options: CadRasterVectorizeOptions): CadCommandStep<VectorizeState> {
-  const plan = planCadVectorize(state.image!, state.name, state.pixels!, options, context);
-  return confirmStep({ ...state, phase: "confirm", pending: null, options, plan });
+function replan(state: VectorizeState, context: CadCommandContext, options: CadRasterVectorizeOptions, recognizeText = state.recognizeText): CadCommandStep<VectorizeState> {
+  const plan = planCadVectorize(state.image!, state.name, state.pixels!, options, context, recognizeText);
+  return confirmStep({ ...state, phase: "confirm", pending: null, options, recognizeText, plan });
 }
 
 const vectorizeCommand: CadCommandDescriptor<VectorizeState> = {
@@ -243,12 +341,12 @@ const vectorizeCommand: CadCommandDescriptor<VectorizeState> = {
     if (state.phase === "target") {
       if (input.kind === "enter") {
         const preselected = preselectedImage(context);
-        return preselected ? beginWith(preselected, context, state.options) : say(state, "VECTORIZE necesita una imagen designada. Adjunta el escaneo con IMAGEATTACH y vuelve a intentarlo.");
+        return preselected ? beginWith(preselected, context, state.options, state.recognizeText) : say(state, "VECTORIZE necesita una imagen designada. Adjunta el escaneo con IMAGEATTACH y vuelve a intentarlo.");
       }
       const picked = pickImage(input, context);
       if (!picked) return targetStep;
       if ("reason" in picked) return say(state, `VECTORIZE: ${picked.reason}`);
-      return beginWith(picked.entity, context, state.options);
+      return beginWith(picked.entity, context, state.options, state.recognizeText);
     }
 
     if (state.phase === "value") {
@@ -277,19 +375,21 @@ const vectorizeCommand: CadCommandDescriptor<VectorizeState> = {
     if (keyword === TOLERANCE_KEYWORD.keyword) return valueStep({ ...state, phase: "value", pending: "tolerance" });
     if (keyword === BLOB_KEYWORD.keyword) return valueStep({ ...state, phase: "value", pending: "blob" });
     if (keyword === THRESHOLD_KEYWORD.keyword) return valueStep({ ...state, phase: "value", pending: "threshold" });
+    if (keyword === TEXT_KEYWORD.keyword) return replan(state, context, state.options, !state.recognizeText);
 
     const plan = state.plan!;
-    if (plan.strokeCount === 0)
+    if (plan.strokeCount === 0 && plan.textCount === 0)
       return say(
         state,
         `VECTORIZE: «${plan.imageName}» no dejó ni un trazo con este umbral (${plan.result.threshold}) y esta área mínima (${plan.result.minBlobPixels} px). ` +
           "El dibujo no ha cambiado; prueba con Umbral o con Mancha.",
       );
+    const label = plan.textCount > 0 ? `VECTORIZE (${plan.strokeCount} polilíneas, ${plan.textCount} textos)` : `VECTORIZE (${plan.strokeCount} polilíneas)`;
     return {
       state,
       prompt: { message: "", options: [] },
       accepts: 0,
-      result: { kind: "document", commands: plan.commands, label: `VECTORIZE (${plan.strokeCount} polilíneas)`, notice: plan.notice },
+      result: { kind: "document", commands: plan.commands, label, notice: plan.notice },
     };
   },
 };

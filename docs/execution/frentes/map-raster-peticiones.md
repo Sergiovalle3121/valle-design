@@ -75,8 +75,13 @@ Formato de cada petición:
 - **Cambio exacto:** junto a `IMAGEADJUST`, en el mismo bloque de raster:
 
   ```ts
-  VECTORIZE: "Convierte los trazos de una imagen escaneada en polilíneas del dibujo: umbral, limpieza de manchas y ajuste.",
+  VECTORIZE: "Convierte una imagen escaneada en geometría del dibujo: polilíneas por umbral, limpieza y ajuste, y los rótulos trazados con una fuente de trazos como TEXT.",
   ```
+
+  **Actualizado el 2026-09-04 (2º entregable):** el resumen anterior decía sólo «polilíneas»;
+  desde que VECTORIZE reconoce el texto por plantilla contra las fuentes Hershey, quedarse en
+  polilíneas sería un resumen que miente por omisión. Si el coordinador ya aplicó la versión
+  anterior, basta con sustituir esa línea.
 
 - **Cómo se comprueba:** `npx tsx src/lib/cad/engine/command-summaries.spec.ts`.
 - **Estado:** pendiente
@@ -110,7 +115,7 @@ Formato de cada petición:
   no-concluyente, añadir a `noConcluyentes`:
 
   ```json
-  "VECTORIZE": "Necesita una entidad image cuya definición traiga un data:image/png legible; la sonda no fabrica esa situación. Cubierto por vectorize-raster.spec.ts, que lo conduce hasta escribir 2 polilíneas."
+  "VECTORIZE": "Necesita una entidad image cuya definición traiga un data:image/png legible; la sonda no fabrica esa situación. Cubierto por vectorize-raster.spec.ts, que lo conduce hasta escribir 2 polilíneas y, con un rótulo trazado, hasta escribir un TEXT."
   ```
 
 - **Cómo se comprueba:** `npm run check:command-integrity`.
@@ -134,8 +139,19 @@ Formato de cada petición:
     5 motas fuera con su recuento; rectángulo cerrado de 4 vértices y diagonal de 2; los 6
     vértices caen EXACTOS en coordenadas del dibujo a 1 px = 100 mm girado 90°; sólo polvo →
     0 entidades.
-  - `npx tsx src/lib/cad/engine/commands/vectorize-raster.spec.ts` → 68 comprobaciones: el PNG
-    entra por IMAGEATTACH y vuelve como 2 polilíneas a menos de una micra del original.
-  - Lo que TODAVÍA NO hace, declarado en el propio aviso del comando: arcos, círculos,
-    sombreados y texto.
+  - `npx tsx src/lib/cad/engine/commands/vectorize-raster.spec.ts` → 98 comprobaciones: el PNG
+    entra por IMAGEATTACH y vuelve como 2 polilíneas a menos de una micra del original, y el
+    rótulo trazado vuelve como UNA entidad TEXT en su sitio.
+  - **Añadido el 2026-09-04 (2º entregable, texto):**
+    `npx tsx src/lib/cad/raster-text-recognize.spec.ts` → 94 comprobaciones. El criterio de la
+    fila dice «líneas y **textos**», así que sin esto la fila no estaba entera. «PREDIO 4-A ·
+    1 240.50 m2» trazado con `cadHersheyTextStrokes` a 24 px y rasterizado vuelve carácter a
+    carácter, con la altura EXACTA (se pedía < 5 %) y la inserción en el píxel exacto (se pedía
+    < 1 px); lo mismo con el trazo engrosado y un 2 % de ruido; un garabato a mano queda a
+    0,065 de su mejor plantilla —corte 0,04—, sale como geometría y el aviso lo cuenta, sin
+    inventar una letra parecida. De punta a punta: TEXT de altura 240 mm en (245, 235) y sus 36
+    trazos NO duplicados.
+  - Lo que TODAVÍA NO hace, declarado en el propio aviso del comando: arcos, círculos y
+    sombreados. Y del texto: manuscrito, tipografías de contorno relleno, letras que se tocan,
+    más de 3° de inclinación y MTEXT.
 - **Estado:** pendiente

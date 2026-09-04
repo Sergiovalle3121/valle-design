@@ -9,6 +9,8 @@
  * 64 × 64; no está pensado para más de 65 535 bytes por bloque, y lo dice.
  */
 
+import { cadHersheyTextStrokes, type CadHersheyFamily } from "./fonts/hershey-fonts";
+
 export type CadPngPixel = (x: number, y: number) => readonly [number, number, number, number];
 
 /** Un PNG RGBA de 8 bits por canal, `width × height`, píxel a píxel. */
@@ -268,4 +270,143 @@ export function cadBmpFixture(options: CadBmpOptions): Uint8Array {
     }
   }
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// El rótulo trazado, para probar el reconocimiento de texto (Ola I, 2026-09-04)
+// ---------------------------------------------------------------------------
+//
+// El reconocedor (`raster-text-recognize.ts`) compara contra las MISMAS
+// fuentes de trazos con las que el producto dibuja su TEXT. Probarlo de
+// verdad es cerrar ese círculo: trazar el rótulo con `cadHersheyTextStrokes`,
+// pasarlo a píxeles como lo haría un plóter, y volverlo a leer. De ahí este
+// fabricante: engrosa el trazo como lo engrosa la tinta sobre el papel y
+// ensucia con ruido REPRODUCIBLE —un generador propio y su semilla, nunca
+// `Math.random`, o el spec fallaría un día de cada cien sin poder repetirlo—.
+
+
+export interface CadPngLabelOptions {
+  /** El rótulo. Lo que la fuente no tenga lo dibuja como `?`, y así se lee. */
+  text: string;
+  family?: CadHersheyFamily;
+  /** Altura de mayúscula, en píxeles. */
+  capHeightPx: number;
+  /** Columna y fila del origen de la línea base. */
+  originX?: number;
+  baselineY?: number;
+  /** Márgenes hasta el borde del PNG, si no se dan ancho y alto. */
+  marginPx?: number;
+  width?: number;
+  height?: number;
+  /** Inclinación del renglón, en grados antihorarios sobre el origen de la base. */
+  skewDeg?: number;
+  /** Pasadas de engrosado: 0 = trazo de un píxel, 1 = como una plumilla gorda. */
+  thicken?: number;
+  /** Fracción de píxeles invertidos, de 0 a 1. Es sal y pimienta de escaneo. */
+  noise?: number;
+  seed?: number;
+  /** Marcas propias del que llama: recibe un trazador de segmentos en píxeles. */
+  extra?: (draw: (x0: number, y0: number, x1: number, y1: number) => void) => void;
+}
+
+export interface CadPngLabel {
+  png: Uint8Array;
+  width: number;
+  height: number;
+  /** Dónde quedó la línea base, para comprobar la inserción que se lea. */
+  originX: number;
+  baselineY: number;
+  /** Ancho del renglón trazado, en píxeles. */
+  strokeWidthPx: number;
+}
+
+/** Un PNG con un rótulo TRAZADO con la fuente Hershey, opcionalmente sucio. */
+export function cadPngHersheyLabel(options: CadPngLabelOptions): CadPngLabel {
+  const family = options.family ?? "Hershey Simplex";
+  const margin = options.marginPx ?? Math.ceil(options.capHeightPx);
+  const drawn = cadHersheyTextStrokes(family, options.text, options.capHeightPx);
+  const originX = options.originX ?? margin;
+  const baselineY = options.baselineY ?? margin + Math.ceil(options.capHeightPx);
+  const width = options.width ?? Math.ceil(originX + drawn.width + margin);
+  const height = options.height ?? Math.ceil(baselineY + margin);
+  const ink = new Uint8Array(width * height);
+  const plot = (x: number, y: number) => {
+    if (x >= 0 && y >= 0 && x < width && y < height) ink[y * width + x] = 1;
+  };
+  // Bresenham: el mismo segmento de un píxel que traza un plóter de plumilla.
+  const draw = (x0: number, y0: number, x1: number, y1: number) => {
+    let x = Math.round(x0);
+    let y = Math.round(y0);
+    const endX = Math.round(x1);
+    const endY = Math.round(y1);
+    const dx = Math.abs(endX - x);
+    const dy = -Math.abs(endY - y);
+    const sx = x < endX ? 1 : -1;
+    const sy = y < endY ? 1 : -1;
+    let error = dx + dy;
+    for (let guard = 0; guard < 1 << 16; guard += 1) {
+      plot(x, y);
+      if (x === endX && y === endY) return;
+      const doubled = 2 * error;
+      if (doubled >= dy) {
+        error += dy;
+        x += sx;
+      }
+      if (doubled <= dx) {
+        error += dx;
+        y += sy;
+      }
+    }
+  };
+  // El renglón se gira sobre el origen de su línea base: es lo que hace un
+  // escáner con la hoja mal puesta, y lo que el reconocedor tiene que medir.
+  const skew = ((options.skewDeg ?? 0) * Math.PI) / 180;
+  const cos = Math.cos(skew);
+  const sin = Math.sin(skew);
+  const place = (point: { x: number; y: number }) => ({
+    // `cadHersheyTextStrokes` da la `y` HACIA ARRIBA desde la base; el lienzo
+    // la tiene hacia abajo, y por eso se resta.
+    x: originX + point.x * cos - point.y * sin,
+    y: baselineY - (point.x * sin + point.y * cos),
+  });
+  for (const stroke of drawn.strokes)
+    for (let index = 0; index + 1 < stroke.length; index += 1) {
+      const from = place(stroke[index]);
+      const to = place(stroke[index + 1]);
+      draw(from.x, from.y, to.x, to.y);
+    }
+  options.extra?.(draw);
+
+  for (let pass = 0; pass < (options.thicken ?? 0); pass += 1) {
+    const grown = new Uint8Array(ink);
+    for (let y = 0; y < height; y += 1)
+      for (let x = 0; x < width; x += 1) {
+        if (!ink[y * width + x]) continue;
+        for (let dy = -1; dy <= 1; dy += 1)
+          for (let dx = -1; dx <= 1; dx += 1) {
+            const nx = x + dx;
+            const ny = y + dy;
+            if (nx >= 0 && ny >= 0 && nx < width && ny < height) grown[ny * width + nx] = 1;
+          }
+      }
+    ink.set(grown);
+  }
+
+  if (options.noise) {
+    // Mulberry32: cuatro líneas, sin dependencias y con la misma sucesión en
+    // cualquier máquina. Un spec que no se puede repetir no es evidencia.
+    let state = (options.seed ?? 20260904) >>> 0;
+    const random = () => {
+      state = (state + 0x6d2b79f5) >>> 0;
+      let value = Math.imul(state ^ (state >>> 15), 1 | state);
+      value = (value + Math.imul(value ^ (value >>> 7), 61 | value)) ^ value;
+      return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+    };
+    for (let at = 0; at < ink.length; at += 1) if (random() < options.noise) ink[at] = ink[at] ? 0 : 1;
+  }
+
+  // Gris de tinta sobre gris de papel: un escaneo no tiene 0 ni 255, y el
+  // umbral de Otsu tiene que decidir de verdad.
+  const png = cadPngFixture(width, height, (x, y) => (ink[y * width + x] ? [40, 40, 44, 255] : [236, 234, 228, 255]));
+  return { png, width, height, originX, baselineY, strokeWidthPx: drawn.width };
 }

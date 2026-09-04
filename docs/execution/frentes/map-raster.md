@@ -92,7 +92,7 @@ Evidencia, con las tres órdenes que la producen:
 cd /home/user/vd-map-raster/apps/web
 npx tsx src/lib/cad/raster-decode.spec.ts                       # 61 comprobaciones
 npx tsx src/lib/cad/raster-vectorize.spec.ts                    # 43 comprobaciones
-npx tsx src/lib/cad/engine/commands/vectorize-raster.spec.ts    # 68 comprobaciones
+npx tsx src/lib/cad/engine/commands/vectorize-raster.spec.ts    # 68 comprobaciones (hoy 98: el spec creció con el texto)
 ```
 
 El número que cierra la entrega: un PNG de 40 × 30 con un rectángulo de (5, 5) a (34, 24) y una
@@ -123,6 +123,81 @@ El árbol compila (`npm run typecheck`, 8 de 8) y los vecinos siguen verdes
 (`image-geometry.spec.ts` 44, `raster-image.spec.ts` 75, `paper-space-image.spec.ts` 29,
 `pdf/pdf-inflate.spec.ts` 73).
 
+### 2026-09-04 · VECTORIZE, segunda mitad: el rótulo vuelve a ser un TEXT
+
+`raster-text-recognize.ts` (759 líneas) y `raster-text-templates.ts` (318) reconocen el texto de
+un escaneo por PLANTILLA contra las MISMAS fuentes de trazos Hershey con las que el producto
+dibuja su TEXT (`lib/cad/fonts/`). No es un OCR y no se vende como tal: lee rótulos trazados con
+una fuente de trazos —`txt`, `simplex`, `romans`, `isocp`, `monotxt`—, no manuscrito ni
+tipografías de contorno relleno, y ese límite va escrito en la cabecera del módulo, en el plan
+del comando y en el aviso que queda registrado en el dibujo.
+
+La tubería, con el porqué de cada paso:
+
+1. **La misma tinta que el calco.** `cadRasterInkMask` se extrajo de `raster-vectorize.ts` y lo
+   usan los dos: si cada mitad umbralizara por su cuenta, las cajas de los glifos leídos no
+   taparían los trazos que los produjeron y la letra saldría dos veces en el dibujo.
+2. **Esqueleto contra esqueleto.** Mancha y plantilla pasan por el MISMO `cadRasterThin`. Sin
+   eso la distancia mide sobre todo el GROSOR de la plumilla: medido, con el rótulo engrosado la
+   `I` quedaba a 0,025 y la `1` a 0,026, y ninguna ganaba el margen.
+3. **Renglones por solape vertical**, con los acentos sueltos pegados después a la letra que
+   tienen debajo — sin ese paso `AÑO` se lee `ANO`, que es otra palabra y no una errata.
+4. **Base y altura ajustadas, no sólo medidas.** La línea base es una RECTA de mínimos cuadrados
+   por los pies de las letras (por debajo de un cuarto de grado manda la mediana, porque ahí el
+   ajuste es ruido), y sobre la altura medida se prueban siete hipótesis de escala: gana la que
+   más glifos lee.
+5. **Chanfle simétrico normalizado**, alineando por la línea base —lo que separa una coma de un
+   apóstrofo— y por el CENTRO DE MASA horizontal, probando los tres corrimientos enteros
+   vecinos. Alinear por el canto izquierdo hacía que un píxel de ruido corriera el glifo entero:
+   la `I` de PREDIO se leía `í`. Medio píxel de redondeo sube la distancia de un glifo exacto de
+   0,004 a 0,035.
+6. **Los espacios se miden.** Con el glifo reconocido se sabe su avance; el hueco hasta la
+   siguiente célula, dividido entre el avance del espacio, da cuántos van. Nada de umbrales a
+   ojo sobre la separación.
+
+Los dos cortes son constantes con su medida detrás: `CAD_RASTER_TEXT_MAX_DISTANCE = 0,04`
+(un glifo limpio queda entre 0,000 y 0,013; engrosado y con 2 % de ruido, hasta 0,024; una
+estrella de cinco puntas dibujada a mano da 0,046 y un garabato 0,070) y
+`CAD_RASTER_TEXT_MARGIN = 0,12` sobre la segunda plantilla. Lo que no los gana **no se
+inventa**: se queda como polilínea y el recuento lo dice.
+
+Cómo se comprueba:
+
+```
+cd /home/user/vd-map-raster/apps/web
+npx tsx src/lib/cad/raster-text-recognize.spec.ts               # 94 comprobaciones
+npx tsx src/lib/cad/engine/commands/vectorize-raster.spec.ts    # 98 comprobaciones
+```
+
+Los números que cierran la entrega. «PREDIO 4-A · 1 240.50 m2» trazado con
+`cadHersheyTextStrokes` a 24 px de altura de mayúscula y rasterizado a un PNG de
+`cadPngFixture` vuelve **carácter a carácter**, con la altura EXACTA (el criterio pedía menos
+del 5 %) y la inserción en el píxel exacto (el criterio pedía menos de 1 px). El mismo rótulo
+con el trazo engrosado una pasada y un 2 % de píxeles invertidos da la misma cadena, la misma
+altura y la misma inserción. Un garabato a mano metido en el hueco del rótulo queda a 0,065 de
+su mejor plantilla —por encima del corte 0,04—, sale como geometría y el aviso lo cuenta; en su
+sitio NO aparece ninguna letra parecida. De punta a punta: el PNG del rótulo adjuntado con
+IMAGEATTACH a 1 px = 10 mm vuelve como UNA entidad TEXT de altura 240 mm en (245, 235), sin que
+ninguno de sus 36 trazos se escriba además como polilínea; con la imagen girada 90° el texto
+sale girado 90°.
+
+Decisiones que conviene no volver a discutir:
+
+- **El `·` no se lee como `·`, y está bien.** La colección Hershey no tiene punto medio y
+  `cadHersheyGlyph` lo dibuja como `?`. Lo que se compara es lo que SE DIBUJÓ, así que se lee
+  `?`. Afirmar que se leyó un `·` sería afirmar que se leyó un glifo que nadie trazó.
+- **`I` y `l` son el mismo trazo** en el juego Simplex, con el mismo avance. No hay píxel que
+  las separe: las plantillas idénticas se colapsan en una clase, se lee la primera del orden
+  declarado (`I`) y el glifo publica en `ambiguousWith` con quién se colapsó.
+- **Por plantilla y no por rasgos.** Un clasificador de rasgos necesitaría datos de
+  entrenamiento que este repositorio no tiene y no podría citar. Una plantilla necesita la
+  fuente, que sí está aquí y es de dominio público.
+
+El árbol compila (`npm run typecheck`, 8 de 8), el presupuesto de monolito sigue OK (ningún
+archivo nuevo pasa de 800 líneas: por eso el reconocimiento va en dos módulos, la tubería y la
+ventana de comparación) y los vecinos siguen verdes (`raster-decode.spec.ts` 61,
+`raster-vectorize.spec.ts` 43, `fonts/hershey-fonts.spec.ts`).
+
 ## «Todavía no»
 
 ### 2026-09-04 · Lo que VECTORIZE no reconoce
@@ -132,9 +207,32 @@ Declarado en el propio plan del comando y en el aviso que queda registrado, no s
 - **Arcos y círculos.** Todo trazo sale como polilínea de tramos rectos. Reconocerlos es ajustar
   primitivas a la cadena por mínimos cuadrados; no es de esta entrega.
 - **Sombreados y zonas macizas.** Salen como su contorno, no como HATCH.
-- **Texto.** Las letras salen como trazos. El reconocimiento por plantilla contra los glifos
-  Hershey de `lib/cad/fonts/` es viable —se traza con el mismo juego de trazos— y es la segunda
-  mitad del criterio.
+- ~~**Texto.**~~ Hecho el 2026-09-04 (segunda mitad): se reconoce por plantilla contra los
+  glifos Hershey y sale como TEXT. Lo que de ESO sigue sin hacerse va abajo, en su propia
+  entrada.
+
+### 2026-09-04 · Lo que el reconocimiento de texto NO lee
+
+Declarado en `CAD_RASTER_TEXT_LIMITS`, en el plan de VECTORIZE y en su aviso:
+
+- **Manuscrito y tipografías de contorno relleno.** Esto compara contra fuentes de TRAZOS. Una
+  Arial escaneada es un contorno macizo, no un esqueleto, y su plantilla aquí no existe.
+- **Letras que se tocan.** Con el trazo muy engrosado, `r` y `t` de «vertice» se leen como una
+  sola mancha, no ganan el margen y salen como polilínea. Medido: 41 de 54 rótulos de una
+  batería deliberadamente dura (seis rótulos × nueve condiciones de altura, engrosado y ruido)
+  salen carácter a carácter; los 13 restantes pierden un glifo o un punto decimal, y ninguno
+  inventa una palabra distinta.
+- **Más de 3° de inclinación.** A 1°, 1,5°, 2° y 3° se leen los 19 glifos del rótulo y el giro
+  sale a menos de una décima del real; a 5° la franja del renglón deja de solaparse consigo
+  misma de un extremo al otro y el renglón entero se deja como geometría en vez de leerse a
+  trozos. `CAD_RASTER_TEXT_MAX_SKEW_DEG = 3` lo dice.
+- **Alturas de mayúscula pequeñas.** Por debajo de unos 18 px el punto decimal tiene cuatro
+  píxeles o menos y se pierde: «240.50» se lee «240 50». El área mínima del reconocedor son 4 px
+  a propósito —lo que mide ese punto—, y una mota de cuatro píxeles sobre la línea base es,
+  píxel a píxel, indistinguible de un punto: por eso el aviso dice cuántas manchas se
+  descartaron.
+- **MTEXT, párrafos y estilos.** Cada renglón sale como un TEXT independiente. Ni se agrupan en
+  un MTEXT, ni se reconoce negrita, ni oblicuidad, ni factor de anchura.
 
 ### 2026-09-04 · Lo que el decodificador no lee
 

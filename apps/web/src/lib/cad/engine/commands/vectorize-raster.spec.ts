@@ -18,6 +18,14 @@
  *   - Designar una LINE, una imagen sin definición y un JPEG adjunto se
  *     rechazan cada uno con SU motivo.
  *   - El aviso que queda registrado dice lo que todavía no reconoce.
+ *
+ * Y el segundo recorrido, el del RÓTULO (Ola I, 2º entregable): un PNG con
+ * «PREDIO 4-A · 1 240.50 m2» TRAZADO con las mismas fuentes Hershey con las
+ * que el producto dibuja su TEXT se adjunta a 1 px = 10 mm y vuelve como UNA
+ * entidad TEXT con su cadena, su altura y su inserción en unidades de dibujo;
+ * sus 36 trazos NO se escriben además como polilíneas; con la imagen girada
+ * 90° el texto sale girado 90°; y la opción Texto apaga el reconocimiento y
+ * devuelve las 36 polilíneas de antes.
  */
 import { strict as assert } from "node:assert";
 import type { CadEntity, CadLayerDef } from "../../cad-document";
@@ -26,7 +34,7 @@ import type { CadCommandContext, CadCommandInput } from "../command-types";
 import { CAD_COMMAND_REGISTRY_V2 } from "../index";
 import { cadImageDataUri } from "../../image-attach-payload";
 import { CAD_IMAGE_PAYLOAD_KIND, encodeCadImagePayload } from "../../image-attach-payload";
-import { cadPngFixture } from "../../image-fixtures";
+import { cadPngFixture, cadPngHersheyLabel } from "../../image-fixtures";
 import { CAD_VECTORIZE_RASTER_COMMANDS, layerNameFor } from "./vectorize-raster";
 
 let checks = 0;
@@ -151,9 +159,10 @@ const attached = makeContext([image as unknown as CadEntity], [definition]);
   ok(plan.includes("umbral 50 (Otsu, automático): 114 píxel(es) de tinta"), `y con qué umbral separó la tinta: ${plan}`);
   ok(plan.includes("despeckle: 5 mancha(s) de menos de 8 px fuera (5 píxel(es) descartados)"), "y cuántas manchas quitó, con sus píxeles");
   ok(plan.includes("esqueleto de 109 px → 2 trazo(s), ajustados con tolerancia 1.5 px"), "y con qué tolerancia ajustó");
-  ok(plan.includes("a la capa VECTORIZADO-PREDIO; 1 px = 100 mm"), "y dónde va a caer");
+  ok(plan.includes("a la capa VECTORIZADO-PREDIO; 2 polilínea(s) y 0 texto(s); 1 px = 100 mm"), `y dónde va a caer: ${plan}`);
   ok(plan.includes("todavía no: arcos y círculos salen como polilíneas de tramos rectos"), "los arcos y los círculos, declarados ANTES de escribir");
-  ok(plan.includes("todavía no: los sombreados") && plan.includes("todavía no: el texto"), "y los sombreados y el texto también");
+  ok(plan.includes("todavía no: los sombreados"), "y los sombreados también");
+  ok(plan.includes("texto: ningún glifo se pudo leer contra Hershey Simplex"), `un dibujo sin rótulos lo dice, no lo calla: ${plan}`);
   ok(plan.endsWith("¿Vectorizar?"), "y termina preguntando: nada se ha escrito todavía");
   ok(planned.result === undefined, "en efecto, sin resultado: el dibujo no ha cambiado");
 }
@@ -205,9 +214,9 @@ const attached = makeContext([image as unknown as CadEntity], [definition]);
   ok(closed.vertices.every((vertex) => vertex.z === 0), "planas, en z = 0");
 
   const notice = driven.result.notice ?? "";
-  ok(notice.startsWith("VECTORIZE: 2 polilínea(s) de «predio.png» en la capa VECTORIZADO-PREDIO"), notice);
+  ok(notice.startsWith("VECTORIZE: 2 polilínea(s) y 0 texto(s) de «predio.png» en la capa VECTORIZADO-PREDIO"), notice);
   ok(notice.includes("umbral 50 (Otsu), 5 mancha(s) descartada(s) (5 px), tolerancia 1.5 px"), `el manifiesto en el aviso: ${notice}`);
-  ok(notice.includes("Todavía no: arcos, círculos, sombreados ni texto"), `y lo que no hace, en el mismo aviso: ${notice}`);
+  ok(notice.includes("Todavía no: arcos, círculos ni sombreados"), `y lo que no hace, en el mismo aviso: ${notice}`);
 }
 
 /* ── No cancela; la capa que ya existe no se vuelve a crear ─────────────── */
@@ -276,6 +285,98 @@ const attached = makeContext([image as unknown as CadEntity], [definition]);
   eq(driven.result.commands.length, 3, "la capa y las dos polilíneas");
 }
 
+/* ── El rótulo trazado vuelve a ser un TEXT ─────────────────────────────── */
+{
+  // El mismo rótulo del reconocedor, trazado con `cadHersheyTextStrokes` y
+  // adjuntado de verdad con IMAGEATTACH: 567 px de ancho sobre 5 670 unidades,
+  // es decir 1 px = 10 mm, y la línea base en la fila 48.
+  const rotulo = cadPngHersheyLabel({ text: "PREDIO 4-A · 1 240.50 m2", capHeightPx: 24 });
+  const LEIDO = "PREDIO 4-A ? 1 240.50 m2"; // el · no está en el juego Hershey: la fuente lo dibuja ?
+  const rotuloPayload = encodeCadImagePayload({
+    kind: CAD_IMAGE_PAYLOAD_KIND,
+    name: "rotulo.png",
+    dataUri: cadImageDataUri("image/png", rotulo.png),
+    width: rotulo.width,
+    height: rotulo.height,
+  });
+  const attach = CAD_COMMAND_REGISTRY_V2.get("IMAGEATTACH")!;
+
+  const attachAt = (degrees: number) => {
+    const context = makeContext();
+    let step = attach.begin(context);
+    for (const input of [text(rotuloPayload), point(0, 0), distance(rotulo.width * 10), angle(degrees)]) {
+      if (step.result) break;
+      step = attach.step(step.state, input, context);
+    }
+    assert.ok(step.result?.kind === "document", `IMAGEATTACH debía escribir: ${step.result?.kind}`);
+    checks += 1;
+    const [definitionCommand, insertCommand] = step.result.commands;
+    assert.ok(definitionCommand.type === "image-definition" && insertCommand.type === "insert" && insertCommand.entity.type === "image");
+    return { definition: definitionCommand.definition, entity: insertCommand.entity as CadImageEntity };
+  };
+
+  const derecho = attachAt(0);
+  const context = makeContext([derecho.entity as unknown as CadEntity], [derecho.definition]);
+  const driven = drive(VECTORIZE, [pick(derecho.entity.id), enter], context);
+
+  const plan = driven.prompts[1];
+  ok(plan.includes("texto: 19 glifo(s) leído(s) contra Hershey Simplex en 1 renglón(es)"), `el plan dice cuántos glifos leyó y contra qué juego: ${plan}`);
+  ok(plan.includes("0 mancha(s) sin lectura quedan como polilínea, y 36 trazo(s) salen del calco por estar ya escritos"), `y qué se fue del calco por estar ya escrito: ${plan}`);
+  ok(plan.includes("a la capa VECTORIZADO-ROTULO; 0 polilínea(s) y 1 texto(s); 1 px = 10 mm"), `y qué va a escribir: ${plan}`);
+  ok(!plan.includes("todavía no: esta tubería devuelve las letras"), "y ya NO declara que las letras salgan como trazos: en este plan no salen así");
+
+  assert.ok(driven.result?.kind === "document", `Intro escribe: ${driven.result?.kind}`);
+  checks += 1;
+  eq(driven.result.label, "VECTORIZE (0 polilíneas, 1 textos)", "la etiqueta de deshacer cuenta las dos cosas");
+  const commands = driven.result.commands;
+  eq(commands.length, 2, "la capa y UNA entidad de texto: ni una polilínea suelta del rótulo");
+  const insert = commands[1];
+  assert.ok(insert.type === "insert" && insert.entity.type === "text", "la segunda es un TEXT");
+  checks += 1;
+  const rotuloText = insert.entity;
+  eq(rotuloText.text, LEIDO, "con la cadena leída del escaneo");
+  // La inserción del renglón cae en el píxel (24,5 · 23,5) y la imagen está
+  // en (0, 0) a 10 unidades por píxel: 245 y 235 en el dibujo.
+  eq({ x: rotuloText.x, y: rotuloText.y }, { x: 245, y: 235 }, "en el punto de inserción medido, llevado a unidades de dibujo");
+  eq(rotuloText.height, 240, "con la altura de mayúscula medida (24 px × 10 mm) como altura de texto");
+  eq(rotuloText.rotation, undefined, "sin giro: el renglón está derecho y la imagen también");
+  eq(rotuloText.layer, "VECTORIZADO-ROTULO", "a la capa del calco");
+  eq(rotuloText.context?.metadata, { origen: "VECTORIZE", imagen: "rotulo.png", umbral: 40, tolerancia: 1.5, glifos: 19, fuente: "Hershey Simplex" }, "con su procedencia, sus números y el juego de trazos");
+
+  const notice = driven.result.notice ?? "";
+  ok(notice.startsWith("VECTORIZE: 0 polilínea(s) y 1 texto(s) de «rotulo.png»"), notice);
+  ok(notice.includes("Texto: 19 glifo(s) leído(s) contra Hershey Simplex y 0 mancha(s) dejada(s) como geometría"), `el recuento en el aviso: ${notice}`);
+  ok(
+    notice.includes("lee rótulos trazados con una fuente de TRAZOS (txt, simplex, romans, isocp, monotxt), ni manuscrito ni tipografías de contorno relleno"),
+    `y el límite en el mismo aviso: ${notice}`,
+  );
+
+  // Girada 90°, el rótulo sale girado 90°: el giro del renglón se compone con
+  // el de la IMAGE, no se pierde ni se duplica.
+  const girado = attachAt(90);
+  const rotated = drive(VECTORIZE, [pick(girado.entity.id), enter], makeContext([girado.entity as unknown as CadEntity], [girado.definition]));
+  assert.ok(rotated.result?.kind === "document");
+  checks += 1;
+  const rotatedInsert = rotated.result.commands[1];
+  assert.ok(rotatedInsert.type === "insert" && rotatedInsert.entity.type === "text");
+  checks += 1;
+  eq(rotatedInsert.entity.text, LEIDO, "la misma cadena");
+  ok(Math.abs((rotatedInsert.entity.rotation ?? 0) - 90) < 1e-9, `y girado 90°: ${rotatedInsert.entity.rotation}`);
+  ok(
+    Math.abs(rotatedInsert.entity.x + 235) < 1e-9 && Math.abs(rotatedInsert.entity.y - 245) < 1e-9,
+    `con la inserción girada con la imagen: (${rotatedInsert.entity.x}, ${rotatedInsert.entity.y})`,
+  );
+
+  // Y Texto lo apaga: vuelven las 36 polilíneas y ni un TEXT.
+  const apagado = drive(VECTORIZE, [pick(derecho.entity.id), keyword("Texto"), enter], context);
+  ok(apagado.prompts[2].includes("texto: sin reconocer (Texto lo enciende); los rótulos salen como trazos"), `apagado se declara: ${apagado.prompts[2]}`);
+  assert.ok(apagado.result?.kind === "document");
+  checks += 1;
+  eq(apagado.result.label, "VECTORIZE (36 polilíneas)", "y salen las 36 polilíneas de los trazos");
+  eq(apagado.result.commands.filter((command) => command.type === "insert" && command.entity.type === "text").length, 0, "sin ninguna entidad de texto");
+  ok((apagado.result.notice ?? "").includes("El reconocimiento de rótulos se dejó apagado (opción Texto)"), "y el aviso dice que se apagó a propósito");
+}
+
 console.log(
-  `vectorize-raster: ${checks} comprobaciones · el PNG entra por IMAGEATTACH a 1 px = 100 mm girado 90° y vuelve como 2 polilíneas cuyos 6 vértices caen a menos de una micra del original en coordenadas del dibujo; plan con umbral 50 (Otsu), 5 manchas fuera y tolerancia 1,5 px antes de escribir; Tolerancia, Mancha y Umbral rehacen sin tocar; LINE, definición perdida, JPEG y hoja en blanco rechazados con su motivo`,
+  `vectorize-raster: ${checks} comprobaciones · el PNG entra por IMAGEATTACH a 1 px = 100 mm girado 90° y vuelve como 2 polilíneas cuyos 6 vértices caen a menos de una micra del original en coordenadas del dibujo; plan con umbral 50 (Otsu), 5 manchas fuera y tolerancia 1,5 px antes de escribir; Tolerancia, Mancha y Umbral rehacen sin tocar; LINE, definición perdida, JPEG y hoja en blanco rechazados con su motivo; y el rótulo «PREDIO 4-A · 1 240.50 m2» trazado con Hershey vuelve como UN TEXT de altura 240 mm en (245, 235), sin duplicar sus 36 trazos, girado 90° con la imagen, y la opción Texto lo apaga`,
 );
