@@ -1,5 +1,5 @@
 /**
- * Los 106 módulos de comandos, con `import` ESTÁTICO. GENERADO — no se edita a mano.
+ * Los 108 módulos de comandos, con `import` ESTÁTICO. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` y `--check`
  * lo verifica, del mismo tirón que `command-manifest.ts`.
@@ -64,68 +64,70 @@ import * as m040 from "./commands/electrical-tag";
 import * as m041 from "./commands/electrical-wire";
 import * as m042 from "./commands/etransmit-commands";
 import * as m043 from "./commands/express-tools";
-import * as m044 from "./commands/geo-location";
-import * as m045 from "./commands/groups";
-import * as m046 from "./commands/history-commands";
-import * as m047 from "./commands/inquiry-list";
-import * as m048 from "./commands/inquiry-measure";
-import * as m049 from "./commands/inquiry-region";
-import * as m050 from "./commands/interop-dxf";
-import * as m051 from "./commands/layout-commands";
-import * as m052 from "./commands/manage-audit";
-import * as m053 from "./commands/manage-laytrans";
-import * as m054 from "./commands/manage-recover";
-import * as m055 from "./commands/manage-standards";
-import * as m056 from "./commands/map-import";
-import * as m057 from "./commands/mechanical-annotate";
-import * as m058 from "./commands/mechanical-parts";
-import * as m059 from "./commands/mechanical-symbols";
-import * as m060 from "./commands/mep-symbol";
-import * as m061 from "./commands/mep-tracing";
-import * as m062 from "./commands/modify-align";
-import * as m063 from "./commands/modify-array";
-import * as m064 from "./commands/modify-basics";
-import * as m065 from "./commands/modify-blend";
-import * as m066 from "./commands/modify-cleanup";
-import * as m067 from "./commands/modify-edges";
-import * as m068 from "./commands/modify-foreign";
-import * as m069 from "./commands/modify-join";
-import * as m070 from "./commands/modify-mirror";
-import * as m071 from "./commands/modify-pedit";
-import * as m072 from "./commands/modify-stretch";
-import * as m073 from "./commands/modify-transform";
-import * as m074 from "./commands/parametric-dimensions";
-import * as m075 from "./commands/parametric-geometry";
-import * as m076 from "./commands/pdf-underlay-commands";
-import * as m077 from "./commands/plant-equipment";
-import * as m078 from "./commands/plant-iso";
-import * as m079 from "./commands/plant-line";
-import * as m080 from "./commands/plant-route";
-import * as m081 from "./commands/plot-commands";
-import * as m082 from "./commands/raster-image";
-import * as m083 from "./commands/reference-edit";
-import * as m084 from "./commands/select-query";
-import * as m085 from "./commands/select-similar";
-import * as m086 from "./commands/settings-layer-tools";
-import * as m087 from "./commands/settings-mexican-standard";
-import * as m088 from "./commands/settings-palettes";
-import * as m089 from "./commands/settings-variables";
-import * as m090 from "./commands/sheet-set-commands";
-import * as m091 from "./commands/solids-create";
-import * as m092 from "./commands/solids-edit";
-import * as m093 from "./commands/solids-flatshot";
-import * as m094 from "./commands/solids-inquiry";
-import * as m095 from "./commands/solids-interop";
-import * as m096 from "./commands/solids-modify";
-import * as m097 from "./commands/solids-primitives";
-import * as m098 from "./commands/solids-push-face";
-import * as m099 from "./commands/solview-commands";
-import * as m100 from "./commands/ucs-commands";
-import * as m101 from "./commands/ucs-view-commands";
-import * as m102 from "./commands/view-navigation";
-import * as m103 from "./commands/view-navigation-3d";
-import * as m104 from "./commands/view-visual";
-import * as m105 from "./commands/xrefs";
+import * as m044 from "./commands/geo-cogo";
+import * as m045 from "./commands/geo-location";
+import * as m046 from "./commands/groups";
+import * as m047 from "./commands/history-commands";
+import * as m048 from "./commands/inquiry-list";
+import * as m049 from "./commands/inquiry-measure";
+import * as m050 from "./commands/inquiry-region";
+import * as m051 from "./commands/interop-dxf";
+import * as m052 from "./commands/layout-commands";
+import * as m053 from "./commands/manage-audit";
+import * as m054 from "./commands/manage-laytrans";
+import * as m055 from "./commands/manage-recover";
+import * as m056 from "./commands/manage-standards";
+import * as m057 from "./commands/map-import";
+import * as m058 from "./commands/mechanical-annotate";
+import * as m059 from "./commands/mechanical-parts";
+import * as m060 from "./commands/mechanical-symbols";
+import * as m061 from "./commands/mep-symbol";
+import * as m062 from "./commands/mep-tracing";
+import * as m063 from "./commands/modify-align";
+import * as m064 from "./commands/modify-array";
+import * as m065 from "./commands/modify-basics";
+import * as m066 from "./commands/modify-blend";
+import * as m067 from "./commands/modify-cleanup";
+import * as m068 from "./commands/modify-edges";
+import * as m069 from "./commands/modify-foreign";
+import * as m070 from "./commands/modify-join";
+import * as m071 from "./commands/modify-mirror";
+import * as m072 from "./commands/modify-pedit";
+import * as m073 from "./commands/modify-stretch";
+import * as m074 from "./commands/modify-transform";
+import * as m075 from "./commands/parametric-dimensions";
+import * as m076 from "./commands/parametric-geometry";
+import * as m077 from "./commands/pdf-underlay-commands";
+import * as m078 from "./commands/plant-equipment";
+import * as m079 from "./commands/plant-iso";
+import * as m080 from "./commands/plant-line";
+import * as m081 from "./commands/plant-route";
+import * as m082 from "./commands/plot-commands";
+import * as m083 from "./commands/raster-image";
+import * as m084 from "./commands/reference-edit";
+import * as m085 from "./commands/select-query";
+import * as m086 from "./commands/select-similar";
+import * as m087 from "./commands/settings-layer-tools";
+import * as m088 from "./commands/settings-mexican-standard";
+import * as m089 from "./commands/settings-palettes";
+import * as m090 from "./commands/settings-variables";
+import * as m091 from "./commands/sheet-set-commands";
+import * as m092 from "./commands/solids-create";
+import * as m093 from "./commands/solids-edit";
+import * as m094 from "./commands/solids-flatshot";
+import * as m095 from "./commands/solids-inquiry";
+import * as m096 from "./commands/solids-interop";
+import * as m097 from "./commands/solids-modify";
+import * as m098 from "./commands/solids-primitives";
+import * as m099 from "./commands/solids-push-face";
+import * as m100 from "./commands/solview-commands";
+import * as m101 from "./commands/ucs-commands";
+import * as m102 from "./commands/ucs-view-commands";
+import * as m103 from "./commands/vectorize-raster";
+import * as m104 from "./commands/view-navigation";
+import * as m105 from "./commands/view-navigation-3d";
+import * as m106 from "./commands/view-visual";
+import * as m107 from "./commands/xrefs";
 
 cadRegisterCommandModules([
   m000,
@@ -234,4 +236,6 @@ cadRegisterCommandModules([
   m103,
   m104,
   m105,
+  m106,
+  m107,
 ]);

@@ -25,6 +25,8 @@ import type { CadTableCell } from "../../cad-entities-v4";
 import type { CadAnyCommandDescriptor, CadCommandContext, CadCommandInput } from "../command-types";
 import { cadGeoreferenceMarker } from "../../georeference";
 import { geoUtmCrs } from "../../../geo/crs";
+import { CAD_COMMAND_REGISTRY_V2 } from "../index";
+import { resolveCadCommandAlias } from "../alias-table";
 import { CAD_GEO_COGO_COMMANDS, CAD_CUADRO_TEXT_HEIGHT, cadCuadroRing } from "./geo-cogo";
 
 let checks = 0;
@@ -334,6 +336,20 @@ let closedPolyline: CadEntity;
   const context = makeContext([closedPolyline], "mm", ["predio"]);
   const step = CUADRO.begin(context);
   ok(step.prompt.message.includes("Precise el punto de inserción"), `con el predio ya designado, CUADROCONSTRUCCION pide directamente la inserción: ${step.prompt.message}`);
+}
+
+/* ── 10. Tecleadas LLEGAN: el registro y la tabla de alias ──────────────── */
+{
+  const known = new Set(CAD_COMMAND_REGISTRY_V2.all().map((command) => command.name));
+  ok(CAD_COMMAND_REGISTRY_V2.get("COGO") !== undefined, "COGO está en el registro: se puede teclear");
+  ok(CAD_COMMAND_REGISTRY_V2.get("CUADROCONSTRUCCION") !== undefined, "CUADROCONSTRUCCION también");
+  // El pipeline de ENTRADA resuelve por `alias-table.ts` y no por el
+  // descriptor (medido en la Ola E con DX): sin su línea en la tabla,
+  // «poligonal» tecleado no llega aunque el descriptor lo declare.
+  eq(resolveCadCommandAlias("poligonal", known), "COGO", "«poligonal» tecleado llega a COGO");
+  eq(resolveCadCommandAlias("rumbos", known), "COGO", "«rumbos» tecleado llega a COGO");
+  eq(resolveCadCommandAlias("cuadro", known), "CUADROCONSTRUCCION", "«cuadro» tecleado llega a CUADROCONSTRUCCION");
+  eq(resolveCadCommandAlias("cogotable", known), "CUADROCONSTRUCCION", "y «cogotable», el nombre de AutoCAD Map");
 }
 
 console.log(`engine/commands/geo-cogo.spec.ts: ${checks} comprobaciones en verde.`);

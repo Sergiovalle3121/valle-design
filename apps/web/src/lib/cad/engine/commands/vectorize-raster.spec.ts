@@ -40,6 +40,7 @@ import { CAD_COMMAND_REGISTRY_V2 } from "../index";
 import { cadImageDataUri } from "../../image-attach-payload";
 import { CAD_IMAGE_PAYLOAD_KIND, encodeCadImagePayload } from "../../image-attach-payload";
 import { cadPngFixture, cadPngHersheyLabel } from "../../image-fixtures";
+import { resolveCadCommandAlias } from "../alias-table";
 import { CAD_VECTORIZE_RASTER_COMMANDS, layerNameFor } from "./vectorize-raster";
 
 let checks = 0;
@@ -380,6 +381,17 @@ const attached = makeContext([image as unknown as CadEntity], [definition]);
   eq(apagado.result.label, "VECTORIZE (36 polilíneas)", "y salen las 36 polilíneas de los trazos");
   eq(apagado.result.commands.filter((command) => command.type === "insert" && command.entity.type === "text").length, 0, "sin ninguna entidad de texto");
   ok((apagado.result.notice ?? "").includes("El reconocimiento de rótulos se dejó apagado (opción Texto)"), "y el aviso dice que se apagó a propósito");
+}
+
+/* ── 11. Tecleado LLEGA: el registro y la tabla de alias ────────────────── */
+{
+  const known = new Set(CAD_COMMAND_REGISTRY_V2.all().map((command) => command.name));
+  ok(CAD_COMMAND_REGISTRY_V2.get("VECTORIZE") !== undefined, "VECTORIZE está en el registro: se puede teclear");
+  // El pipeline de ENTRADA resuelve por `alias-table.ts` y no por el
+  // descriptor (medido en la Ola E con DX): que el descriptor declare `VEC`
+  // no basta para que tecleado llegue a ninguna parte.
+  eq(resolveCadCommandAlias("vec", known), "VECTORIZE", "«vec» tecleado llega a VECTORIZE");
+  eq(resolveCadCommandAlias("vectorizar", known), "VECTORIZE", "«vectorizar» tecleado llega a VECTORIZE");
 }
 
 console.log(

@@ -24,10 +24,10 @@
  * lo leen al abrir para proponer frases». Aquí igual con los descriptores: LOS
  * METADATOS SON ESTÁTICOS —viven en `command-manifest.ts`, GENERADO de los
  * módulos reales— y sólo la máquina de estados `begin`/`step` llega a demanda.
- * Por eso los tres gates que cuentan comandos siguen contando 291 de 291.
+ * Por eso los tres gates que cuentan comandos siguen contando 294 de 294.
  *
  * Los thunks son LITERALES, uno por línea, para que el empaquetador pueda
- * partirlos en 106 chunks; un `import(variable)` le obliga a incluirlos todos.
+ * partirlos en 108 chunks; un `import(variable)` le obliga a incluirlos todos.
  *
  * ## Honestidad
  *
@@ -39,10 +39,10 @@
 import type { CadAnyCommandDescriptor } from "./command-types";
 
 /**
- * Los 106 módulos que implementan el registro, con su thunk literal.
+ * Los 108 módulos que implementan el registro, con su thunk literal.
  *
  * `scripts/cad/build-command-manifest.mjs` los importa DE VERDAD en Node —donde
- * el peso es gratis— y de ahí saca los metadatos de los 291 comandos. Esta
+ * el peso es gratis— y de ahí saca los metadatos de los 294 comandos. Esta
  * tabla es la única lista escrita a mano del arreglo; todo lo demás se genera
  * de ella y `--check` falla si el manifiesto committeado no coincide.
  */
@@ -91,6 +91,7 @@ export const CAD_COMMAND_MODULE_LOADERS = {
   "commands/electrical-wire": () => import("./commands/electrical-wire"),
   "commands/etransmit-commands": () => import("./commands/etransmit-commands"),
   "commands/express-tools": () => import("./commands/express-tools"),
+  "commands/geo-cogo": () => import("./commands/geo-cogo"),
   "commands/geo-location": () => import("./commands/geo-location"),
   "commands/groups": () => import("./commands/groups"),
   "commands/history-commands": () => import("./commands/history-commands"),
@@ -149,6 +150,7 @@ export const CAD_COMMAND_MODULE_LOADERS = {
   "commands/solview-commands": () => import("./commands/solview-commands"),
   "commands/ucs-commands": () => import("./commands/ucs-commands"),
   "commands/ucs-view-commands": () => import("./commands/ucs-view-commands"),
+  "commands/vectorize-raster": () => import("./commands/vectorize-raster"),
   "commands/view-navigation": () => import("./commands/view-navigation"),
   "commands/view-navigation-3d": () => import("./commands/view-navigation-3d"),
   "commands/view-visual": () => import("./commands/view-visual"),
@@ -165,14 +167,14 @@ const pending = new Map<string, Promise<void>>();
 /**
  * Registra las implementaciones que traiga un módulo ya importado.
  *
- * Es público porque `all-commands.ts` —los 106 módulos con `import` ESTÁTICO,
+ * Es público porque `all-commands.ts` —los 108 módulos con `import` ESTÁTICO,
  * para Node— lo llama con todos de golpe: en un spec o en una sonda no hay
  * forma de esperar a un `import()` (los `.spec.ts` se cargan como CommonJS y no
  * admiten `await` de nivel superior), y una línea de import estático les
  * devuelve el registro completo sin tocar lo que descarga el navegador.
  */
 export function cadRegisterCommandModules(modules: readonly unknown[]): void {
-  for (const module of modules) harvest(module as Record<string, unknown>);
+  for (const cargado of modules) harvest(cargado as Record<string, unknown>);
 }
 
 function harvest(module: Record<string, unknown>): void {
@@ -181,7 +183,7 @@ function harvest(module: Record<string, unknown>): void {
   // hace `express-tools.ts` con `express-tools-text.ts`), y quedarse sólo con
   // uno de los dos dejaría comandos sin implementación según qué nombre se
   // hubiera elegido. Verificado el 2026-09-04: cosechar así da exactamente los
-  // 291 del registro, ni uno de más ni de menos, y ninguno en dos módulos.
+  // 294 del registro, ni uno de más ni de menos, y ninguno en dos módulos.
   for (const value of Object.values(module)) {
     if (!Array.isArray(value)) continue;
     for (const candidate of value) {
@@ -219,7 +221,7 @@ export function cadCommandImplementation(name: string): CadAnyCommandDescriptor 
 }
 
 /**
- * Carga los 106 módulos. Es para NODE —la sonda de integridad, las specs y el
+ * Carga los 108 módulos. Es para NODE —la sonda de integridad, las specs y el
  * generador del manifiesto—, donde cargarlos todos no cuesta nada; en el
  * navegador devolvería exactamente los bytes que este archivo saca del camino.
  */

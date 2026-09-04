@@ -1,8 +1,8 @@
 /**
- * METADATOS de los 291 comandos del registro. GENERADO — no se edita a mano.
+ * METADATOS de los 294 comandos del registro. GENERADO — no se edita a mano.
  *
  * Lo escribe `node scripts/cad/build-command-manifest.mjs --write` importando los
- * 106 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
+ * 108 módulos REALES de `./commands/*` en Node, y `--check` —enganchado en
  * `npm run check:cad`— falla si lo committeado deja de coincidir con lo que los
  * descriptores dicen hoy. Regla 4 de la campaña de cimientos: ninguna cifra vive
  * en dos lugares, y un comando nuevo no puede entrar sin aparecer aquí.
@@ -132,6 +132,8 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "LAYDEL", aliases: ["CAPABORRAR"], kind: "manage", transparent: false, selection: "none", repeatable: false, mutates: true, cursor: "none", module: "commands/express-tools" },
   { name: "TCOUNT", aliases: ["NUMTEXTO"], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/express-tools" },
   { name: "TXT2MTXT", aliases: ["TEXTOAMTEXTO"], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/express-tools" },
+  { name: "COGO", aliases: ["POLIGONAL", "RUMBOS", "MAPCOGO"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/geo-cogo" },
+  { name: "CUADROCONSTRUCCION", aliases: ["CUADRODECONSTRUCCION", "COGOTABLE", "MAPCOGOTABLE"], kind: "annotate", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/geo-cogo" },
   { name: "GEOGRAPHICLOCATION", aliases: ["GEO", "GEOLOCATION", "MAPCSASSIGN", "GEORREFERENCIAR"], kind: "manage", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/geo-location" },
   { name: "GROUP", aliases: ["G"], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/groups" },
   { name: "UNGROUP", aliases: ["UNG"], kind: "manage", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/groups" },
@@ -163,9 +165,9 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "WELDSYMBOL", aliases: ["AMWELDSYM", "SOLDADURA"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/mechanical-symbols" },
   { name: "SURFACESYMBOL", aliases: ["AMSURFSYM", "ACABADO"], kind: "annotate", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/mechanical-symbols" },
   { name: "MEPSYMBOL", aliases: ["DEVICEADD", "SIMBOLOMEP"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/mep-symbol" },
-  { name: "PIPE", aliases: ["PIPEADD", "TUBERIA"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/mep-tracing" },
-  { name: "DUCT", aliases: ["DUCTADD", "DUCTO"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/mep-tracing" },
-  { name: "CABLETRAY", aliases: ["CABLETRAYADD", "CHAROLA"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/mep-tracing" },
+  { name: "PIPE", aliases: ["PIPEADD", "TUBERIA"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, spatial: true, cursor: "crosshair", module: "commands/mep-tracing" },
+  { name: "DUCT", aliases: ["DUCTADD", "DUCTO"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, spatial: "elevation", cursor: "crosshair", module: "commands/mep-tracing" },
+  { name: "CABLETRAY", aliases: ["CABLETRAYADD", "CHAROLA"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, spatial: "elevation", cursor: "crosshair", module: "commands/mep-tracing" },
   { name: "ALIGN", aliases: ["AL"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-align" },
   { name: "MATCHPROP", aliases: ["MA"], kind: "modify", transparent: false, selection: "command-first", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-align" },
   { name: "ARRAY", aliases: ["AR", "ARR"], kind: "modify", transparent: false, selection: "optional", repeatable: true, mutates: true, cursor: "pick", module: "commands/modify-array" },
@@ -313,6 +315,7 @@ export const CAD_COMMAND_MANIFEST: readonly CadCommandManifestEntry[] = [
   { name: "UCS", aliases: ["SCU"], kind: "manage", transparent: true, selection: "none", repeatable: false, mutates: false, spatial: true, cursor: "crosshair", module: "commands/ucs-commands" },
   { name: "UCSICON", aliases: [], kind: "view", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/ucs-view-commands" },
   { name: "PLAN", aliases: [], kind: "view", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/ucs-view-commands" },
+  { name: "VECTORIZE", aliases: ["VECTORIZAR", "VEC"], kind: "draw", transparent: false, selection: "none", repeatable: true, mutates: true, cursor: "crosshair", module: "commands/vectorize-raster" },
   { name: "ZOOM", aliases: ["Z"], kind: "view", transparent: true, selection: "optional", repeatable: true, mutates: false, cursor: "crosshair", module: "commands/view-navigation" },
   { name: "PAN", aliases: ["P"], kind: "view", transparent: true, selection: "none", repeatable: true, mutates: false, cursor: "crosshair", module: "commands/view-navigation" },
   { name: "VIEW", aliases: ["V"], kind: "view", transparent: true, selection: "none", repeatable: false, mutates: false, cursor: "none", module: "commands/view-navigation" },

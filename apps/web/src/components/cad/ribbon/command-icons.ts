@@ -94,6 +94,7 @@ import {
   FileCog,
   FileMinus,
   FilePlus2,
+  FileSpreadsheet,
   FileStack,
   FileX,
   FileInput,
@@ -121,6 +122,7 @@ import {
   House,
   Image,
   ImagePlus,
+  LandPlot,
   Layers,
   Layers2,
   LayoutGrid,
@@ -180,6 +182,7 @@ import {
   Scaling,
   Scan,
   ScanLine,
+  ScanSearch,
   Scissors,
   ScrollText,
   Search,
@@ -319,6 +322,9 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   IMAGEATTACH: ImagePlus,
   IMAGECLIP: Crop,
   IMAGEADJUST: SlidersHorizontal,
+  // Raster (Ola I): VECTORIZE no adjunta ni ajusta la imagen, la LEE — de ahí
+  // la lupa sobre el escaneo, y no otra variante del icono de imagen.
+  VECTORIZE: ScanSearch,
   // PDF: el sustrato que se calca. Recortar y ajustar comparten dibujo con
   // sus gemelas de imagen a propósito — es la misma operación sobre otro
   // sustrato, y el dibujante la reconoce por eso.
@@ -483,6 +489,11 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   STEELSHAPE: Columns2,
   GEOGRAPHICLOCATION: Globe,
   MAPIMPORT: Map,
+  // Map 3D (Ola I): la topografía. COGO levanta el LINDERO del predio (de ahí
+  // la parcela) y CUADROCONSTRUCCION emite la LÁMINA que se protocoliza (de
+  // ahí la hoja con renglones, distinta de la TABLE genérica).
+  COGO: LandPlot,
+  CUADROCONSTRUCCION: FileSpreadsheet,
   AUTOCONSTRAIN: Magnet,
   GEOMCONSTRAINT: Network,
   GCCOINCIDENT: CircleDot,

@@ -18,9 +18,9 @@
  *
  * El reparto que arregla eso es el que ya dejó escrito `commands/lazy.ts` un
  * piso más arriba: «el REGISTRO se queda estático a propósito». Aquí igual —
- * los 291 descriptores existen desde el primer instante con sus metadatos
+ * los 294 descriptores existen desde el primer instante con sus metadatos
  * reales (`command-manifest.ts`, GENERADO de los módulos), así que la cinta, la
- * paleta y los tres gates que cuentan comandos siguen viendo 291 de 291; lo que
+ * paleta y los tres gates que cuentan comandos siguen viendo 294 de 294; lo que
  * llega a demanda es sólo la máquina de estados `begin`/`step`
  * (`lazy-commands.ts`).
  *
@@ -72,19 +72,19 @@ const MODULE_BY_NAME = new Map<string, CadCommandManifestEntry["module"]>(
  *
  * Es el gemelo de `loadCadNlCommands()` de `lib/cad/commands/lazy.ts`, y existe
  * por lo mismo: quien despacha está en un contexto donde puede esperar, y
- * esperar una vez al teclear la primera orden es preferible a descargar las 291
+ * esperar una vez al teclear la primera orden es preferible a descargar las 294
  * implementaciones al abrir el plano.
  */
 export async function loadCadCommand(name: string): Promise<CadAnyCommandDescriptor> {
   const canonical = CAD_COMMAND_REGISTRY_V2.get(name)?.name ?? name.trim().toUpperCase();
   const already = cadCommandImplementation(canonical);
   if (already) return already;
-  const module = MODULE_BY_NAME.get(canonical);
-  if (!module) throw new Error(`Comando desconocido "${name}".`);
-  await loadCadCommandModule(module);
+  const moduloId = MODULE_BY_NAME.get(canonical);
+  if (!moduloId) throw new Error(`Comando desconocido "${name}".`);
+  await loadCadCommandModule(moduloId);
   const loaded = cadCommandImplementation(canonical);
   if (!loaded)
-    throw new Error(`El módulo ${module} cargó pero no trae el comando ${canonical}.`);
+    throw new Error(`El módulo ${moduloId} cargó pero no trae el comando ${canonical}.`);
   return loaded;
 }
 
@@ -94,8 +94,8 @@ export function cadCommandIfLoaded(name: string): CadAnyCommandDescriptor | null
 }
 
 /**
- * Carga las 291 implementaciones. Para NODE: la sonda de integridad
- * (`apps/web/scripts/command-integrity-probe.mts`) ejecuta los 291 comandos
+ * Carga las 294 implementaciones. Para NODE: la sonda de integridad
+ * (`apps/web/scripts/command-integrity-probe.mts`) ejecuta los 294 comandos
  * REALES y los necesita todos. No es una exención ni una cuarentena — en Node
  * cargarlos no cuesta bytes de red.
  */
