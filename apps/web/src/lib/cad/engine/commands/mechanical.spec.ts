@@ -4,6 +4,10 @@
  *
  *   - STDPART: Intro toma Tornillo M10 × 40; la inserción se escala a la
  *     unidad del documento (0,001 en metros); M11 se rechaza enumerando.
+ *   - STDPART rodamiento y chaveta: el 6204 sale como MECH-RODAMIENTO-6204 y
+ *     dice que va con la representación simplificada de ISO 8826-1; un eje de
+ *     Ø25 pide 8 × 7 y uno de Ø40, 12 × 8; el 6404 se rechaza enumerando; y los
+ *     dos insertados salen como dos posiciones de la lista de materiales.
  *   - STEELSHAPE: PTR con los defaults, IPR tecleado, medidas imposibles.
  *   - BALLOON sobre un INSERT se queda con su bloque y numera solo; BOM la
  *     cuenta; sin normalizados se niega diciéndolo.
@@ -139,6 +143,88 @@ const insertOf = (commands: readonly { type: string }[]) => {
   ok(messageOf(drive("STDPART", [enter, enter, distance(0)])).includes("mayor que cero"), "largo cero se niega");
   const washer = written(drive("STDPART", [keyword("rOndana"), distance(8), point(0, 0), enter]), "STDPART");
   eq(insertOf(washer.commands).block, "MECH-RONDANA-M8", "la rondana no pide largo");
+}
+
+/* ── STDPART · rodamiento y chaveta ─────────────────────────────────────── */
+{
+  // El primer prompt: cinco familias, letras de acceso distintas, y Tornillo
+  // por defecto — que es lo que el golden 84 teclea a golpe de Intro.
+  const begun = CAD_COMMAND_REGISTRY_V2.get("STDPART")!.begin(makeContext());
+  eq(begun.prompt.options.map((option) => option.keyword), ["Tornillo", "tueRca", "rOndana", "roDamiento", "Chaveta"], "las cinco familias, en su orden");
+  eq(begun.prompt.defaultOption, "Tornillo", "Intro sigue tomando Tornillo: STDPART se completa como antes");
+  eq(new Set(begun.prompt.options.map((option) => option.shortcut)).size, 5, "cinco letras de acceso distintas: T, R, O, D, C");
+
+  const driven = drive("STDPART", [keyword("roDamiento"), enter, point(100, 200), enter]);
+  eq(driven.prompts.slice(0, 4), [
+    "Indique el normalizado",
+    "Precise la designación del rodamiento (ISO 15: 6200 a 6212, 6300 a 6312)",
+    "Rodamiento rígido de bolas 6204 (20 × 47 × 14) (ISO 15). Precise el punto de inserción",
+    "Ángulo de rotación",
+  ], "el rodamiento se pide por su designación, no por una métrica");
+  const { commands, notice } = written(driven, "STDPART");
+  const bearing = insertOf(commands);
+  eq([bearing.block, bearing.insertion, bearing.layer], ["MECH-RODAMIENTO-6204", { x: 100, y: 200, z: 0 }, "PIEZAS"], "el 6204 en su punto, con id de bloque estable");
+  const definition = (commands.find((command) => command.type === "block") as { definition: CadBlockDefinition }).definition;
+  eq(definition.description, "Rodamiento rígido de bolas 6204 (20 × 47 × 14) · ISO 15", "denominación y norma donde la lista de materiales ya sabe leerlas");
+  eq(definition.entities.length, 6, "las dos medias secciones simplificadas");
+  ok(notice.includes("representación simplificada ISO 8826-1 (el conjunto no dibuja pistas ni bolas)"), "la orden DICE con qué está dibujado en vez de fingir el detalle");
+
+  eq(insertOf(written(drive("STDPART", [keyword("roDamiento"), text("6304"), point(0, 0), enter]), "STDPART").commands).block, "MECH-RODAMIENTO-6304", "la serie media, tecleada");
+  eq(insertOf(written(drive("STDPART", [keyword("roDamiento"), text(" 6210 "), point(0, 0), enter]), "STDPART").commands).block, "MECH-RODAMIENTO-6210", "con espacios de sobra, la misma designación");
+  const rechazo = messageOf(drive("STDPART", [keyword("roDamiento"), text("6404")]));
+  ok(rechazo.includes("El rodamiento 6404 no está en el catálogo"), "una designación fuera de catálogo se rechaza");
+  ok(rechazo.includes("6200, 6201, 6202") && rechazo.includes("6312"), "…ENUMERANDO las que hay, mismo criterio que M11");
+
+  const enMetros = written(drive("STDPART", [keyword("roDamiento"), enter, point(1, 2), enter], makeContext({ unit: "m" })), "STDPART");
+  ok(near(insertOf(enMetros.commands).scale.x, 0.001), "en un dibujo en metros el rodamiento entra a 0,001: el catálogo está en mm");
+}
+{
+  const driven = drive("STDPART", [keyword("Chaveta"), enter, enter, point(300, 0), enter]);
+  eq(driven.prompts.slice(0, 5), [
+    "Indique el normalizado",
+    "Precise el diámetro del eje (mm); él manda la sección de la chaveta",
+    "Precise la longitud de la chaveta (mm)",
+    "Chaveta paralela A 8 × 7 × 40 (cuñero: eje t1 4, cubo t2 3.3) (ISO 773 / DIN 6885). Precise el punto de inserción",
+    "Ángulo de rotación",
+  ], "el eje manda la sección; t1 y t2 salen en la denominación antes de insertar");
+  const { commands, notice } = written(driven, "STDPART");
+  eq(insertOf(commands).block, "MECH-CHAVETA-8x7x40", "un eje de Ø25 pide chaveta 8 × 7");
+  ok(notice.includes("para eje Ø25 (ISO 773 da esta sección de más de 22 y hasta 30 mm)"), "y la orden dice de qué intervalo salió");
+  eq((commands.find((command) => command.type === "block") as { definition: CadBlockDefinition }).definition.entities.length, 4, "dos flancos y dos extremos redondeados de la forma A");
+
+  const eje40 = written(drive("STDPART", [keyword("Chaveta"), distance(40), distance(50), point(0, 0), enter]), "STDPART");
+  eq(insertOf(eje40.commands).block, "MECH-CHAVETA-12x8x50", "y uno de Ø40 pide 12 × 8");
+  eq(insertOf(written(drive("STDPART", [keyword("Chaveta"), distance(30), distance(40), point(0, 0), enter]), "STDPART").commands).block, "MECH-CHAVETA-8x7x40", "«hasta 30» incluye el 30: sigue siendo 8 × 7");
+
+  const fuera = messageOf(drive("STDPART", [keyword("Chaveta"), distance(200)]));
+  ok(fuera.includes("Un eje de Ø200 queda fuera de la tabla de chavetas de ISO 773"), "un eje fuera de la tabla se rechaza");
+  ok(fuera.includes("más de 6 mm y hasta 130 mm"), "…diciendo hasta dónde llega la tabla");
+  ok(messageOf(drive("STDPART", [keyword("Chaveta"), distance(25), distance(8)])).includes("una longitud de 8 no pasa del ancho b = 8"), "una chaveta tan corta como ancha se niega, y se dice por qué");
+
+  const fueraDeSerie = written(drive("STDPART", [keyword("Chaveta"), distance(25), distance(41), point(0, 0), enter]), "STDPART");
+  eq(insertOf(fueraDeSerie.commands).block, "MECH-CHAVETA-8x7x41", "una longitud fuera de serie se dibuja: la chaveta se corta a la medida del cuñero");
+  ok(fueraDeSerie.notice.includes("aviso: la longitud 41 no es de la serie de ISO 773, cuyas vecinas son 40 y 45"), "…pero se AVISA con las dos vecinas, sin elegir por el proyectista");
+}
+
+/* ── …y la lista de materiales los cuenta sin tocar mechanical-bom.ts ───── */
+{
+  const rodamiento = written(drive("STDPART", [keyword("roDamiento"), enter, point(0, 0), enter]), "STDPART");
+  const chaveta = written(drive("STDPART", [keyword("Chaveta"), enter, enter, point(200, 0), enter]), "STDPART");
+  const definiciones = [...rodamiento.commands, ...chaveta.commands]
+    .filter((command) => command.type === "block")
+    .map((command) => (command as { definition: CadBlockDefinition }).definition);
+  const insertados: CadEntity[] = [
+    { ...insertOf(rodamiento.commands), id: "e1" },
+    { ...insertOf(chaveta.commands), id: "e2" },
+  ];
+  const listado = drive("BOM", [point(9000, 0)], makeContext({ entities: insertados, blocks: definiciones }));
+  const { commands, notice } = written(listado, "BOM");
+  const table = (commands[0] as { entity: CadEntity }).entity;
+  assert.ok(table.type === "table");
+  const fila = (row: number) => table.cells.filter((cell) => cell.row === row).sort((a, b) => a.column - b.column).map((cell) => cell.text);
+  eq(fila(2), ["1", "1", "Chaveta paralela A 8 × 7 × 40 (cuñero: eje t1 4, cubo t2 3.3)", "ISO 773 / DIN 6885", "MECH-CHAVETA-8x7x40"], "la chaveta, con su cuñero, como posición 1");
+  eq(fila(3), ["2", "1", "Rodamiento rígido de bolas 6204 (20 × 47 × 14)", "ISO 15", "MECH-RODAMIENTO-6204"], "y el rodamiento como posición 2");
+  eq(notice, "BOM: 2 posición(es), 2 unidad(es), 0 globo(s) en (9000, 0).", "dos posiciones: la lista los cuenta sola, con el mismo prefijo MECH- de siempre");
 }
 
 /* ── STEELSHAPE ─────────────────────────────────────────────────────────── */

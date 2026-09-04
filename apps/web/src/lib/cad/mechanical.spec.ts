@@ -5,6 +5,10 @@
  *   - Tornillo ISO 4017 M10 × 40: cabeza de 6,4 × e (e = 16 / cos 30°), vástago
  *     con chaflán de 1 mm y rosca en el diámetro menor (d − 1,2269 p).
  *   - Tuerca ISO 4032 y rondana ISO 7089 por sus tablas.
+ *   - Rodamiento ISO 15 (6204 = 20 × 47 × 14) con la representación
+ *     simplificada de ISO 8826-1: rectángulo y cruz que no toca el contorno.
+ *   - Chaveta ISO 773 forma A: el eje manda la sección (Ø25 → 8 × 7, Ø40 →
+ *     12 × 8), «hasta 30» incluye el 30, y t1 y t2 van en la denominación.
  *   - Perfiles por medidas: sección y peso lineal en papel (PTR 50,8 × 50,8 × 3
  *     → 573,6 mm², 4,50 kg/m).
  *   - Globo, soldadura y acabado: cuántas piezas, dónde, con qué marca.
@@ -26,8 +30,10 @@ import {
   CAD_METRIC_LIST,
   CAD_STEEL_SHAPES,
   cadHexagon,
+  cadMechanicalBearing,
   cadMechanicalBlockDefinition,
   cadMechanicalBolt,
+  cadMechanicalKey,
   cadMechanicalNut,
   cadMechanicalPartOf,
   cadMechanicalSteelShape,
@@ -36,6 +42,14 @@ import {
   cadSteelKgPerMetre,
   cadSteelShapeFor,
 } from "./mechanical-parts";
+import {
+  CAD_BEARING_LIST,
+  CAD_KEY_SIZES,
+  cadBearingSizeFor,
+  cadKeyIsStandardLength,
+  cadKeyNearestLengths,
+  cadKeySizeFor,
+} from "./mechanical-parts-catalog";
 import { cadBalloonEntities, cadBalloonMetadata, cadSurfaceSymbolEntities, cadWeldSymbolEntities } from "./mechanical-symbols";
 
 let checks = 0;
@@ -99,6 +113,80 @@ ok(near(cadMetricMinorDiameter(10, 1.5), 8.15965), "d3 de M10 = 10 − 1,2269 ·
   eq(radii, [3.2, 6], "agujero 6,4 y exterior 12");
   eq(cadMechanicalWasher(7), null, "M7 no está");
 }
+
+/* ── Rodamientos: ISO 15 y la representación simplificada de ISO 8826-1 ─── */
+eq(CAD_BEARING_LIST.length, 26, "las dos series completas: 6200…6212 y 6300…6312");
+eq([CAD_BEARING_LIST[0], CAD_BEARING_LIST[25]], ["6200", "6312"], "de la primera a la última");
+eq(cadBearingSizeFor("6204"), { d: 20, D: 47, B: 14 }, "el 6204 mide 20 × 47 × 14, que es lo que dice ISO 15");
+eq(cadBearingSizeFor(" 6204 "), { d: 20, D: 47, B: 14 }, "el espacio sobrante no cambia la designación");
+eq(cadBearingSizeFor("6404"), null, "la serie 64 no está en el catálogo");
+eq(cadBearingSizeFor("6304"), { d: 20, D: 52, B: 15 }, "mismo agujero que el 6204 y más exterior: eso es la serie media");
+{
+  const bearing = cadMechanicalBearing("6204")!;
+  eq([bearing.id, bearing.name, bearing.standard, bearing.family], ["MECH-RODAMIENTO-6204", "Rodamiento rígido de bolas 6204 (20 × 47 × 14)", "ISO 15", "rodamiento"], "id estable, denominación con sus tres medidas y norma");
+  eq(bearing.entities.length, 6, "dos medias secciones, cada una con su contorno y su cruz");
+  const contour = bearing.entities[0];
+  assert.ok(contour.type === "polyline");
+  eq(contour.closed, true, "el contorno es cerrado");
+  const xs = contour.vertices.map((v) => v.x);
+  const ys = contour.vertices.map((v) => v.y);
+  ok(near(Math.min(...xs), -7) && near(Math.max(...xs), 7), "el ancho B = 14, centrado: x ∈ [−7, 7]");
+  ok(near(Math.min(...ys), 10) && near(Math.max(...ys), 23.5), "la media sección superior va de d/2 = 10 a D/2 = 23,5");
+  const below = bearing.entities[3];
+  assert.ok(below.type === "polyline");
+  const lowYs = below.vertices.map((v) => v.y);
+  ok(near(Math.min(...lowYs), -23.5) && near(Math.max(...lowYs), -10), "y la inferior es su espejo");
+  const crossH = bearing.entities[1];
+  const crossV = bearing.entities[2];
+  assert.ok(crossH.type === "line" && crossV.type === "line");
+  ok(near(crossH.start.y, 16.75) && near(crossV.start.x, 0) && near(crossV.end.x, 0), "la cruz es recta y va centrada en la media sección");
+  ok(Math.abs(crossH.end.x) < 7 && crossH.end.x > 0, "el brazo horizontal no llega al contorno: ISO 8826-1 pide que la cruz no lo toque");
+  ok(crossV.end.y < 23.5 && crossV.start.y > 10, "…y el vertical tampoco");
+  ok(bearing.entities.every((entity) => entity.layer === "0"), "todo en capa 0, como el resto del catálogo");
+  eq(cadMechanicalBearing("6404"), null, "fuera de catálogo no se inventa una medida");
+  eq(cadMechanicalBearing("6300")!.id, "MECH-RODAMIENTO-6300", "la serie media tiene su propio bloque");
+}
+
+/* ── Chavetas: ISO 773 / DIN 6885 forma A ───────────────────────────────── */
+eq(CAD_KEY_SIZES.length, 16, "dieciséis secciones, de ejes de 6 a 130 mm");
+eq(cadKeySizeFor(25), { overShaft: 22, upToShaft: 30, b: 8, h: 7, t1: 4, t2: 3.3 }, "un eje de Ø25 pide chaveta 8 × 7, con cuñero t1 4 y t2 3,3");
+eq(cadKeySizeFor(40)!.b, 12, "y uno de Ø40 pide 12 × 8");
+eq(cadKeySizeFor(40)!.h, 8, "…con h = 8");
+eq(cadKeySizeFor(30)!.b, 8, "«hasta 30» incluye el 30: Ø30 sigue siendo 8 × 7 y no 10 × 8");
+eq(cadKeySizeFor(30.5)!.b, 10, "…y a partir de ahí sí sube");
+eq(cadKeySizeFor(6), null, "«mayor que 6» excluye el 6: la tabla no llega a ejes tan finos");
+eq(cadKeySizeFor(130)!.b, 32, "el eje más grueso de la tabla lleva 32 × 18");
+eq(cadKeySizeFor(131), null, "y uno más no");
+{
+  const key = cadMechanicalKey(25, 40)!;
+  eq([key.id, key.standard, key.family], ["MECH-CHAVETA-8x7x40", "ISO 773 / DIN 6885", "chaveta"], "id por b × h × L, no por el eje");
+  eq(key.name, "Chaveta paralela A 8 × 7 × 40 (cuñero: eje t1 4, cubo t2 3.3)", "la denominación lleva t1 y t2 para quien mecaniza el cuñero");
+  eq(cadMechanicalKey(28, 40)!.id, key.id, "dos ejes distintos del mismo intervalo son LA MISMA chaveta: una sola posición en la lista");
+  eq(key.entities.length, 4, "dos flancos rectos y dos extremos redondeados");
+  const flank = key.entities[0];
+  assert.ok(flank.type === "line");
+  ok(near(flank.start.x, -16) && near(flank.end.x, 16) && near(flank.start.y, 4), "el flanco recto mide L − b = 32, a b/2 = 4 del eje");
+  const right = key.entities[2];
+  const left = key.entities[3];
+  assert.ok(right.type === "arc" && left.type === "arc");
+  eq([right.center.x, right.radius, right.startAngle, right.endAngle], [16, 4, 270, 90], "el extremo derecho es medio círculo de radio b/2: eso es la forma A");
+  eq([left.center.x, left.startAngle, left.endAngle], [-16, 90, 270], "y el izquierdo, el otro medio");
+  const at = (arc: { center: { x: number; y: number }; radius: number }, degrees: number) => ({
+    x: arc.center.x + arc.radius * Math.cos((degrees * Math.PI) / 180),
+    y: arc.center.y + arc.radius * Math.sin((degrees * Math.PI) / 180),
+  });
+  const start = at(right, right.startAngle);
+  const end = at(left, left.startAngle);
+  ok(near(start.x, 16) && near(start.y, -4) && near(end.x, -16) && near(end.y, 4), "los arcos empiezan donde acaban los flancos: el contorno cierra");
+  ok(key.entities.every((entity) => entity.layer === "0"), "todo en capa 0");
+  eq(cadMechanicalKey(25, 8), null, "una chaveta de 8 de largo y 8 de ancho no es una chaveta");
+  eq(cadMechanicalKey(25, 8.5)!.id, "MECH-CHAVETA-8x7x8.5", "…y una de 8,5 sí, aunque no sea de serie");
+  eq(cadMechanicalKey(200, 40), null, "un eje fuera de la tabla no da chaveta");
+}
+ok(cadKeyIsStandardLength(40) && cadKeyIsStandardLength(400), "40 y 400 son de la serie de ISO 773");
+ok(!cadKeyIsStandardLength(41), "41 no lo es");
+eq(cadKeyNearestLengths(41), { below: 40, above: 45 }, "y sus vecinas son 40 y 45: se ponen las dos, no se elige por el proyectista");
+eq(cadKeyNearestLengths(500), { below: 400, above: null }, "por encima de la serie sólo hay vecina por abajo");
 
 /* ── El bloque ──────────────────────────────────────────────────────────── */
 {

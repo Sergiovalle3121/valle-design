@@ -47,3 +47,40 @@ Formato de cada petición:
   (b) que la de 200 A trae `6 AWG`, y (c) que el título ya no dice «ni llenado de tubo»
   precedido de «tierra». El golden 93 no toca esta tabla, así que no se ve afectado.
 - **Estado:** pendiente
+
+### P-mech-elec-02 · El resumen de paleta de STDPART se quedó corto: ahora son cinco familias
+
+- **Archivo:** `apps/web/src/lib/cad/engine/command-summaries.ts`, línea del
+  catálogo `CAD_COMMAND_SUMMARIES.STDPART` (territorio del motor de comandos,
+  no mío: `command-summaries.spec.ts` es fail-closed y lo aplica el coordinador).
+- **Por qué:** el entregable 3/5 de este frente añadió a STDPART las familias
+  **Rodamiento** (rígido de bolas de las series 6200 y 6300 de ISO 15, dibujado
+  con la representación simplificada de ISO 8826-1) y **Chaveta** (paralela
+  forma A de ISO 773 / DIN 6885, con `t1` y `t2` en la denominación). No se
+  registró ningún nombre de orden nuevo —entran como opciones del primer prompt
+  de STDPART—, así que el gate no falla; pero la línea que el dibujante lee en
+  la paleta sigue diciendo que STDPART hace tres cosas cuando hace cinco. Un
+  resumen que se queda corto esconde capacidad ya construida, que es la versión
+  suave del claim sin evidencia.
+- **Cambio exacto:** sustituir
+
+  ```ts
+  STDPART: "Normalizado como bloque: tornillo ISO 4017, tuerca ISO 4032, rondana ISO 7089.",
+  ```
+
+  por
+
+  ```ts
+  STDPART: "Normalizado como bloque: tornillo, tuerca y rondana ISO, rodamiento ISO 15 y chaveta paralela ISO 773.",
+  ```
+
+  Son 102 caracteres, por debajo del tope de 110 que afirma
+  `command-summaries.spec.ts`; las normas de la tornillería se abrevian a «ISO»
+  porque en 110 caracteres no caben las cinco con su número, y las dos nuevas se
+  nombran con la suya, que es el dato que todavía no está en ninguna parte de la
+  interfaz. Ninguna otra clave cambia, y `command-icons.ts`, `ribbon.ts` y
+  `alias-table.ts` no se tocan: STDPART ya existía en las tres.
+- **Cómo se comprueba:** `npx tsx src/lib/cad/engine/command-summaries.spec.ts`
+  (sigue en 290 resúmenes para 290 comandos, con el largo dentro del tope) y
+  `node scripts/cad/check-ribbon-coverage.mjs`, que no ve un nombre nuevo.
+- **Estado:** pendiente

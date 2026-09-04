@@ -220,6 +220,69 @@ Ningún archivo fuera del territorio: cinco de `electrical/` y `engine/commands/
 bitácora y una petición (P-mech-elec-01, la columna de tierra en el cuadro de cargas, que vive
 en `data-extraction/` y por tanto no toco).
 
+### 2026-09-04 · Rodamientos y chavetas: los dos normalizados que el árbol de transmisión pide
+
+Medido antes: `grep -rin "rodamiento\|chaveta" apps/web/src` daba **cero** aciertos. Un plano de
+un árbol de transmisión no se termina con tornillos —lleva rodamientos y lleva chavetas—, así que
+hasta hoy había que dibujarlos a mano en cada plano: ni la lista de materiales los contaba, ni
+había dos planos del mismo despacho que los dibujaran igual.
+
+STDPART pasa de **tres familias a cinco**. Y por opciones, no por órdenes nuevas: un nombre de
+comando nuevo obliga a tocar `command-summaries.ts`, `command-icons.ts`, `alias-table.ts` y la
+cinta —fail-closed y fuera de este territorio—, y dejaría la rama roja hasta la ventana de
+integración. `Tornillo` sigue siendo la opción por defecto, así que STDPART se sigue completando
+a golpe de Intro exactamente como antes y el golden 84 no se entera.
+
+Archivo nuevo `apps/web/src/lib/cad/mechanical-parts-catalog.ts` (180 líneas) con las dos tablas:
+veintiséis rodamientos de ISO 15 (series 62 y 63, 6200…6212 y 6300…6312, con `d`, `D` y `B`) y
+dieciséis secciones de chaveta de ISO 773 / DIN 6885 indexadas por el DIÁMETRO DEL EJE, con `b`,
+`h` y las dos profundidades de cuñero `t1` y `t2`. Va aparte porque `mechanical-parts.ts` dibuja y
+tiene 800 líneas de techo: dos tablas normalizadas son datos, no geometría.
+
+Decisiones con su motivo, escritas en el código:
+
+- **El rodamiento se dibuja con la REPRESENTACIÓN SIMPLIFICADA GENERAL de ISO 8826-1** —dos medias
+  secciones rectangulares con una cruz recta dentro que **no toca el contorno**, que es lo que la
+  norma pide— y la orden **lo dice** en su renglón. Un plano de conjunto no lleva pistas, bolas ni
+  jaula: dibujarlas es inventar un detalle que decide el fabricante y que nadie va a mecanizar.
+  Decirlo es la diferencia entre un bloque terminado y uno que parece a medias.
+- **El eje de simetría no va dentro del bloque:** una línea de ejes se dibuja con su tipo de línea
+  y su capa, y ésas son decisiones del dibujo, no de la pieza.
+- **La chaveta se dibuja en PLANTA (b × L, extremos redondeados de radio b/2)** porque es la vista
+  donde la forma A se distingue de la B; `h`, `t1` y `t2` no se ven en planta y por eso viajan en
+  la DENOMINACIÓN — «Chaveta paralela A 8 × 7 × 40 (cuñero: eje t1 4, cubo t2 3.3)» —, que es lo
+  que lee quien mecaniza el cuñero y lo que falta en el 90 % de los planos que llegan al taller.
+- **El id de la chaveta sale de b × h × L y NO del eje.** Dos árboles de Ø25 y Ø28 llevan la misma
+  chaveta 8 × 7: si el id llevara el eje, la lista contaría dos posiciones donde hay una.
+- **La trampa de «mayor que … y hasta …» está codificada y afirmada:** Ø30 exacto sigue siendo
+  8 × 7 y no 10 × 8. Es la misma trampa que el «sin exceder de» de la Tabla 250-122 y se codifica
+  igual, con `>` en el mínimo y `<=` en el máximo.
+- **Una designación fuera de catálogo se rechaza ENUMERANDO** las veintiséis que hay — el mismo
+  criterio que M11 —, porque quien teclea 6404 no necesita saber que no existe: necesita ver cuál
+  de las que hay se parece a la que buscaba.
+- **Una longitud de chaveta fuera de la serie de ISO 773 se dibuja y se AVISA** con las dos
+  vecinas (41 → «40 y 45»), sin cambiarla: una chaveta se corta a la medida del cuñero. Es el
+  mismo criterio que la capacidad estándar del Art. 240-6(A) en la revisión eléctrica.
+
+Los dos salen como bloques `MECH-…` con id estable y con denominación y norma en `description`, así
+que **`mechanical-bom.ts` no se tocó**: la lista los cuenta sola, con el mismo prefijo de siempre.
+
+Evidencia: `npx tsx src/lib/cad/mechanical.spec.ts` → **133** comprobaciones (eran 90);
+`npx tsx src/lib/cad/engine/commands/mechanical.spec.ts` → **220** (eran 179), con el 6204 en
+20 × 47 × 14 y bloque `MECH-RODAMIENTO-6204`, Ø25 → 8 × 7 y Ø40 → 12 × 8, el 6404 rechazado con la
+lista entera delante, y **un rodamiento y una chaveta insertados por la ORDEN saliendo como dos
+posiciones de la lista de materiales** (cadena completa: STDPART emite, BOM cuenta).
+`npm run typecheck` verde; `node scripts/cad/check-monolith-budget.mjs` OK —ningún archivo del
+territorio pasa de 800 líneas: 501, 180, 342, 359 y 463—;
+`npm run check:command-integrity` → 290 comandos, 0 éxitos falsos y
+`docs/cad/evidence/command-integrity.json` sin cambio; `npx tsx src/lib/cad/engine/command-summaries.spec.ts`
+sigue en 290 para 290. Las otras cinco specs del territorio, verdes.
+
+Ningún archivo fuera del territorio: un archivo nuevo y cuatro tocados, todos en `lib/cad/` y
+`lib/cad/engine/commands/`, más esta bitácora y una petición (P-mech-elec-02, la línea de paleta de
+STDPART, que vive en `command-summaries.ts` y por tanto no toco).
+
+
 ## «Todavía no»
 
 Con fecha, con motivo, y sin insinuar que estén hechos.
@@ -240,6 +303,15 @@ Con fecha, con motivo, y sin insinuar que estén hechos.
   conductor y de tubo se transcribirían de memoria y no se podrían cotejar contra el texto
   oficial. Publicar una tabla normativa sin poder verificarla es exactamente el claim sin
   evidencia que la casa prohíbe. Se reabre con acceso al texto de la norma.
+- **2026-09-04 · La chaveta en CORTE y el cuñero dibujado sobre el eje.** El bloque da la planta
+  b × L, que es donde la forma A se distingue; el corte b × h y la ranura mecanizada sobre la
+  circunferencia del árbol son otra pieza de dibujo —depende de dónde esté el eje y con qué giro—
+  y no cabe en un bloque de catálogo sin inventarle un contexto. Se hará como opción `Corte` de
+  STDPART si sobra ventana.
+- **2026-09-04 · Rodamientos que no sean rígidos de bolas.** Sólo están las series 62 y 63 de ISO
+  15. Cónicos (302xx/303xx), de rodillos y axiales tienen otra tabla y, sobre todo, otra
+  representación simplificada en ISO 8826-1: copiar la del rígido de bolas sería dibujar mal a
+  propósito. Se añaden cuando se pueda cotejar su figura contra el texto de la norma.
 - **2026-09-04 · Cálculo de ejes y resortes.** Cabe técnicamente, pero es una calculadora de
   ingeniería, no dibujo: su valor por hora está por debajo de los cinco de arriba y arrastra el
   riesgo de leerse como memorial de cálculo. Última de la fila.
