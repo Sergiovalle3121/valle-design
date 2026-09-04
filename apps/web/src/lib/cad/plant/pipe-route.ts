@@ -82,6 +82,18 @@ export interface CadPipeRoute {
   number: number;
   spec: string;
   points: CadPoint3[];
+  /**
+   * Diámetro nominal en milímetros YA RESUELTO, para las conducciones que no lo
+   * rotulan en pulgadas.
+   *
+   * Una ruta de proceso lo lleva en `size` (`6"`) y lo resuelve
+   * `cadPipeNominalMillimetres`. Una corrida MEP —agua fría de Ø19, un ducto de
+   * 300 de ancho— lo lleva en milímetros o en unidades de dibujo, y ese lector
+   * devolvería `null` para las dos: sin este campo, meterlas en el análisis de
+   * choques habría exigido escribirles un tamaño en pulgadas que nadie tecleó.
+   * Ausente en una ruta de proceso, que ya lo dice en `size`.
+   */
+  nominalMm?: number;
 }
 
 const z = (point: { z?: number }): number =>

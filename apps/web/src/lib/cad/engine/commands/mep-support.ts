@@ -20,11 +20,16 @@
  * —con su color y su tipo de línea— y NO la toca si ya existe: un despacho
  * que tenga su IH-AF con otro color la conserva.
  */
-import type { CadLayerDef, CadPoint2 } from "../../cad-document";
+import type { CadLayerDef, CadPoint2, CadPoint3 } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
+import { cadPipeTurnAngle } from "../../plant/pipe-route";
+import { cadPointZ } from "../spatial-point";
 import type { CadCommandContext, CadKeyword } from "../command-types";
 
 export type CadMepKind = "pipe" | "duct" | "tray";
+
+/** Un giro por debajo de esto es una recta con ruido de tecleo, no un codo. */
+const CAD_MEP_TURN_EPSILON_DEG = 0.5;
 
 export interface CadMepService {
   id: string;
@@ -89,12 +94,79 @@ export function cadMepLayerCommands(service: CadMepService, context: CadCommandC
   return exists ? [] : [{ type: "layer", op: "upsert", layer: cadMepLayerDefinition(service) }];
 }
 
-/** Longitud de un camino de tramos rectos. */
-export function cadPathLength(points: readonly CadPoint2[]): number {
+/** Un punto de camino: la cota es opcional y ausente significa suelo. */
+type CadMepPathPoint = CadPoint2 | CadPoint3;
+
+/** La cota de un punto de camino; cero si no la trae. */
+const cota = (point: CadMepPathPoint): number => cadPointZ(point) ?? 0;
+
+/**
+ * Longitud de un camino de tramos rectos, medida EN TRES DIMENSIONES.
+ *
+ * Hasta la Ola G medía sólo en planta, y ahí estaba el defecto que más caro
+ * salía: un MONTANTE —el tramo vertical que sube o baja la corrida en el
+ * mismo sitio— tiene desplazamiento nulo en planta, así que contaba CERO
+ * metros. Un plano de instalaciones con ocho bajadas de 2 m perdía 16 m de
+ * tubo en el cuadro y nadie lo veía, porque el número que faltaba no dejaba
+ * hueco: salía redondo.
+ *
+ * Un punto sin `z` cuenta como cota cero, así que un trazo en planta mide
+ * exactamente lo que medía antes. Esa igualdad es lo que deja intacto el
+ * golden `81-cad-instalaciones`, y la spec la fija.
+ */
+export function cadPathLength(points: readonly CadMepPathPoint[]): number {
   let total = 0;
   for (let index = 1; index < points.length; index += 1)
-    total += Math.hypot(points[index].x - points[index - 1].x, points[index].y - points[index - 1].y);
+    total += Math.hypot(
+      points[index].x - points[index - 1].x,
+      points[index].y - points[index - 1].y,
+      cota(points[index]) - cota(points[index - 1]),
+    );
   return total;
+}
+
+/**
+ * Los MONTANTES de un camino: los tramos que suben o bajan EN EL SITIO.
+ *
+ * Un tramo vertical es el que no se mueve en planta y cambia de cota; un tramo
+ * inclinado —una bajante con pendiente sanitaria, por ejemplo— tiene
+ * componente vertical y NO es un montante, porque en obra no es la misma
+ * pieza ni el mismo soporte. Por eso se miran las dos cosas por separado y no
+ * se suma «lo que sube» a secas.
+ */
+export function cadMepRisers(points: readonly CadMepPathPoint[]): { count: number; rise: number } {
+  let count = 0;
+  let rise = 0;
+  for (let index = 1; index < points.length; index += 1) {
+    const plano = Math.hypot(points[index].x - points[index - 1].x, points[index].y - points[index - 1].y);
+    const salto = Math.abs(cota(points[index]) - cota(points[index - 1]));
+    if (plano > 1e-9 || salto <= 1e-9) continue;
+    count += 1;
+    rise += salto;
+  }
+  return { count, rise };
+}
+
+/**
+ * Los CODOS que la geometría implica: un vértice donde la corrida gira es un
+ * codo, y si mañana se mueve el vértice el codo se mueve con él.
+ *
+ * Es el MISMO criterio de `plant/pipe-route.ts` —y su misma trigonometría, de
+ * ahí importada— porque un codo de agua fría y uno de proceso son el mismo
+ * accesorio visto por dos toolsets: una segunda copia del cálculo sería la que
+ * se queda sin arreglar el día que aparezca un defecto.
+ *
+ * Aquí se cuentan, no se listan: el cuadro de instalaciones dice cuántos hay
+ * por servicio y tamaño, y quién quiera el ángulo de cada uno tiene la ruta de
+ * proceso, que sí los detalla.
+ */
+export function cadMepElbows(points: readonly CadMepPathPoint[]): number {
+  const espacial = points.map((point) => ({ x: point.x, y: point.y, z: cota(point) }));
+  let codos = 0;
+  for (let index = 1; index < espacial.length - 1; index += 1)
+    if (cadPipeTurnAngle(espacial[index - 1], espacial[index], espacial[index + 1]) >= CAD_MEP_TURN_EPSILON_DEG)
+      codos += 1;
+  return codos;
 }
 
 /**

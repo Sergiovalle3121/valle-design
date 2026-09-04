@@ -120,3 +120,48 @@ Formato de cada petición:
 - **Cómo se comprueba:** `npm run check:dwg-evidence` y después `npm run check:cad` entero.
 - **Estado:** pendiente — F6 lo declara en vez de callarlo, y **no lo arregla**: regenerar
   ese artefacto desde este frente sería promover capacidades DWG con la firma equivocada.
+
+### P-mep-plant-06 · Rúbrica y ESCALERA: la mitad 3D de MEP dejó de estar fuera
+- **Archivos:** `docs/competitive/rubric.json` (fila `toolset-mep`, campo `gap` y evidencias
+  de `toolset-mep.trazado` y `toolset-mep.tablas`) y `docs/parity/ESCALERA.md` (línea 156 y
+  línea 229) — **archivos de coordinador, F6 no los toca (R2)**
+- **Por qué:** las dos afirman hoy que *«la mitad 3D —ruteo con colisiones, diámetros por
+  especificación— queda fuera»*. Con el T3 (2026-09-04) la mitad de esa frase dejó de ser
+  cierta: PIPE, DUCT y CABLETRAY tienen `Elevación` y montante, cada vértice escribe su `z`,
+  el cuadro mide en tres dimensiones —un montante de 2 m sumaba cero metros y ahora suma los
+  suyos— y las corridas MEP entran en el mismo análisis de choques que la tubería de
+  proceso, con muros, huecos y sólidos. Lo que sigue fuera es el **diámetro por
+  especificación** (el catálogo es del proyecto y no se transcribe) y el **canto del ducto**
+  (el formato guarda el ancho, no el alto). Una cifra que no se corrige es un defecto.
+- **Cambio exacto, `rubric.json` — `toolset-mep.gap`:** sustituir el trozo final
+  «La mitad 3D —ruteo con colisiones, diámetros por especificación— queda fuera y se dice en
+  ESCALERA.»
+  por
+  «La cota está en las tres órdenes desde la Ola G (2026-09-04): `Elevación` mete el
+  montante en el sitio, cada vértice lleva su `z`, el cuadro mide en TRES dimensiones —un
+  montante de 2 m sumaba cero metros— y suma montantes y codos deducidos de la geometría, y
+  las corridas MEP se miden contra muros, huecos y sólidos del propio dibujo por distancia
+  exacta. Queda fuera el diámetro por especificación —el catálogo es del proyecto y no se
+  transcribe— y el canto del ducto, que el formato no guarda: la holgura vertical de un
+  ducto es la de su ancho, y se dice.»
+- **Cambio exacto, `rubric.json` — evidencias:** ninguna que añadir en `toolset-mep.trazado`
+  ni en `toolset-mep.tablas`: la spec que las sostiene es la misma
+  (`apps/web/src/lib/cad/engine/commands/mep-tracing.spec.ts`) y pasó de 71 a 127
+  comprobaciones. Si se quiere una segunda fuente para el choque de las corridas MEP, la
+  hay: `{ "kind": "spec", "path": "apps/web/src/lib/cad/plant/clash.spec.ts" }`.
+- **Cambio exacto, `ESCALERA.md`:** en la línea 156 (fila «MEP (mitad 2D)») sustituir
+  «La mitad 3D —ruteo con colisiones, diámetros por especificación— queda fuera y se dice.»
+  por
+  «Con cota desde la Ola G: `Elevación` y montante en las tres órdenes, longitudes en tres
+  dimensiones y choques contra muros, huecos y sólidos (`mep-tracing.spec.ts`, 127). Queda
+  fuera el diámetro por especificación y el canto del ducto.»
+  Y en la línea 229 (fila de PIPE) sustituir
+  «sin ruteo 3D ni diámetros por especificación (la mitad 3D de MEP, fuera de alcance)»
+  por
+  «con ruteo 3D por cota y montante, sin diámetros por especificación (el catálogo es del
+  proyecto)»; el «(71)» de la columna de evidencia pasa a «(127)».
+- **Cómo se comprueba:** `node scripts/cad/rubric.spec.mjs` y
+  `node scripts/cad/rubric.mjs --markdown --check`.
+- **Estado:** pendiente — la capacidad ya está verde y committeada
+  (`apps/web/src/lib/cad/engine/commands/mep-tracing.spec.ts`, 127 comprobaciones,
+  2026-09-04). F6 no toca ninguno de los dos archivos.

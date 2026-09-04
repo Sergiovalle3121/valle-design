@@ -197,6 +197,79 @@ así que la salida del generador no puede haber cambiado por este frente; queda 
 árbol y sólo falla cuando el runner resuelve `tsx` desde el checkout vecino y acaba leyendo
 el `builtins/interaction.ts` de allí (el de aquí no tiene ningún `import(`).
 
+### T3 · MEP con cota: el montante se dibuja y se cuenta (2026-09-04)
+
+PIPE, DUCT y CABLETRAY ganan `Elevación` y el montante, `mep-schedule.ts` mide en TRES
+dimensiones y las corridas MEP entran por el mismo análisis de choques que la tubería de
+proceso. El defecto que cierra estaba medido en el R0 y era de CANTIDAD, no de estilo:
+`lift()` escribía `z: 0` en cada vértice y `cadPathLength` medía en planta, así que **un
+montante de 2 m contaba cero metros** en el cuadro de instalaciones. Un número que falta y
+no deja hueco es peor que un número mal: sale redondo y nadie lo revisa.
+
+Cinco decisiones que valen más que el código:
+
+1. **La cota no se pregunta al arrancar, se teclea a mitad de trazo.** PIDROUTE pregunta la
+   elevación de arranque antes del primer punto; PIPE **no puede**, porque el golden
+   `81-cad-instalaciones` teclea `PIPE ⏎ · 0,0 ⏎` y una pregunta nueva se comería ese `0,0`
+   como si fuera una distancia. Así que la cota arranca en el suelo y `Elevación` la mueve
+   cuando alguien la quiere: sin cota, la orden se comporta EXACTAMENTE como antes, y con
+   ella mete el tramo vertical en el sitio. La restricción del golden acabó dando la mejor
+   interacción de las dos.
+2. **`Elevación` lleva atajo de DOS letras (`EL`).** En DUCT la `E` ya es de `Extracción`, y
+   `matchCadKeyword` no resuelve un empate —devuelve `null` a propósito, para no adivinar—.
+   Una `E` nueva habría dejado mudo un servicio que hoy funciona: la capacidad nueva no
+   puede cobrarse rompiendo la vieja.
+3. **`spatial` no es el mismo grado en las tres.** PIPE es `spatial: true` —su única entidad
+   es la polilínea de los puntos tal como llegan, así que dibuja en el plano del SCU—; DUCT
+   y CABLETRAY son `spatial: "elevation"`, porque su contorno a doble línea es una
+   convención de PLANTA y se dibuja a la cota de arranque: sobre un faldón saldría plano
+   bajo un eje que no lo está. Declararlos `true` mentiría exactamente ahí.
+4. **El filtro de puntos coincidentes pasa a medir en 3D.** Dos puntos iguales en planta y
+   distintos en cota SON un montante; el filtro de 2D lo habría borrado justo después de
+   trazarlo. Es el defecto que habría convertido toda la entrega en una cota que no llega.
+5. **Un lector, no dos.** `mep-runs.ts` es ahora el único sitio que sabe qué es una corrida
+   MEP (LINE o POLYLINE en capa de servicio, con su receta; el contorno del ducto NO lo es),
+   y de ahí beben el cuadro y `plant/clash.ts`. La segunda copia de esa lectura habría sido
+   la que se queda sin arreglar.
+
+Lo que entrega, con sus números:
+
+- **El montante se cuenta.** La misma traza de 3.000 en planta, con una cota de 2.000
+  tecleada a mitad, mide 5.000 en el cuadro: **2.000 mm más**, los que valían cero. Medida
+  en planta seguiría dando 3.000, y la spec lo comprueba con las dos medidas sobre la misma
+  tubería.
+- **El cuadro suma montantes y CODOS por servicio y tamaño**, deducidos de la geometría con
+  la misma trigonometría de `plant/pipe-route.ts` (importada, no copiada). Salen en dos
+  secciones nuevas de la TABLE, **después** de las corridas y los equipos y en las mismas
+  siete columnas: el golden 81 fija la cabecera y los tres primeros renglones con igualdad
+  exacta, así que una columna nueva habría roto el cuadro de todo el mundo para meter dos
+  números que caben en «Tipo» y «Cantidad».
+- **La interferencia con la arquitectura sale también para las instalaciones.** La misma
+  tubería de agua fría a la cota 1.500 atraviesa un muro de 3 m —`CHOQUE contra w1 con 109.5
+  de calado`, dicho al tenderla— y a la cota 3.500 pasa por encima sin decir nada. Antes de
+  esta ola ese aviso sólo existía para la tubería de proceso.
+- **Un trazo a cota cero sale idéntico**: los mismos vértices, los mismos tres metadatos y
+  el mismo aviso palabra por palabra. Es la condición para no romper el golden, y está
+  fijada con igualdad exacta, no con «contiene».
+
+NUEVO — `apps/web/src/lib/cad/mep-runs.ts` (158 líneas): `cadMepRunsOf`, `cadMepRunLabel` y
+`cadMepRunsAsRoutes`, que viste las corridas con la forma de `CadPipeRoute` para el análisis
+de choques (con `nominalMm` ya resuelto: una corrida MEP no rotula pulgadas).
+
+MODIFICADO — `engine/commands/mep-tracing.ts` (`Elevación`, montante, vértices con su `z`,
+`spatial` por grados, aviso de montantes y de choques); `engine/commands/mep-support.ts`
+(`cadPathLength` en 3D, `cadMepRisers`, `cadMepElbows`); `mep-schedule.ts` (lee por
+`mep-runs.ts`; cada renglón lleva `rise`, `risers` y `elbows`);
+`data-extraction/mep-schedule-table.ts` (secciones de montantes y codos al final);
+`plant/clash.ts` (las corridas MEP entran en el mismo informe; `radioDe` acepta el nominal ya
+resuelto); `plant/pipe-route.ts` (`nominalMm` opcional en `CadPipeRoute`).
+
+SPEC — `engine/commands/mep-tracing.spec.ts`: **127 comprobaciones** (71 antes), con el
+golden 81 tecleado entero contra el registro real —sus cuatro cadenas exactas y sus cuatro
+renglones de tabla— porque en este entorno no hay navegador con el que correrlo. Verde
+también `npm run typecheck`, `npm run check:command-integrity` (290 comandos, 0 éxitos
+falsos), el presupuesto de monolito y los 86 specs de `engine/`.
+
 ## «Todavía no»
 
 - **El diámetro es el NOMINAL, no el exterior** (2026-09-04). La holgura se mide con
@@ -234,3 +307,25 @@ el `builtins/interaction.ts` de allí (el de aquí no tiene ningún `import(`).
   día borra el sólido y vuelve a tender con `Sólido`. Regenerar exigiría una orden nueva
   —`ribbon.ts` + `ui-command-reach.json`, fuera de este territorio— y está pedida por
   escrito en `mep-plant-peticiones.md`.
+
+- **El ducto se mide como un cilindro de su ANCHO, sin canto** (2026-09-04). El dibujo
+  guarda el ancho del ducto y su eje, no su alto: la orden traza el contorno en planta, que
+  es una proyección y no una sección. En el análisis de choques eso hace la holgura
+  conservadora en horizontal y **optimista en vertical**, y está dicho en
+  `CAD_PL_CLASH_LIMITS`. Se cierra el día que el ducto guarde su canto, que es tocar el
+  formato persistido: decisión del titular, no tomada.
+- **El contorno a doble línea de un ducto con montante queda a la cota de ARRANQUE**
+  (2026-09-04). Una proyección no tiene una sola cota cuando el eje sube. Se elige la del
+  arranque, se declara en el aviso de la propia orden y el cuadro nunca lo cuenta: el que
+  mide es el eje. Un contorno que siguiera la cota vértice a vértice sería una cinta que no
+  es ni planta ni sección, y eso sí sería peor que decirlo.
+- **El cuadro de instalaciones no gana columnas** (2026-09-04). Los montantes y los codos
+  salen en renglones al final, no en columnas nuevas, porque `e2e/golden/81-cad-instalaciones.spec.ts`
+  compara la cabecera y tres renglones con igualdad exacta y **ese golden no se puede correr
+  en este entorno** (necesita navegador). La secuencia entera del golden está tecleada en
+  `mep-tracing.spec.ts` contra el registro real, que es lo más cerca que se puede estar sin
+  navegador; la vuelta completa la da el coordinador en la ventana de integración.
+- **PIPE, DUCT y CABLETRAY no emiten sólido** (2026-09-04). La ruta de proceso sí lo hace
+  con la palabra clave `Sólido` (T2); una corrida MEP no, porque el ducto no guarda su canto
+  y barrer un cilindro del ancho sería dibujar un tubo donde hay un rectángulo. La tubería
+  MEP sí podría, y queda para la cola.

@@ -27,6 +27,16 @@
  *    —nunca de menos—, y para saber si el choque es real de verdad está
  *    `INTERFERE`, que sí corta el sólido.
  *
+ * ## Y también las instalaciones, no sólo la planta de proceso
+ *
+ * Lo que se mide son las CONDUCCIONES del dibujo: las rutas 3D de tubería y —
+ * desde la Ola G— las corridas MEP (tubería, ducto y charola), que entran por
+ * el lector del cuadro de instalaciones (`mep-runs.ts`) con su diámetro o su
+ * ancho ya resuelto. La pregunta del que resuelve la hidráulica de una casa es
+ * la misma que la del tubero de una planta —«¿esta bajante atraviesa la
+ * trabe?»— y tenerla contestada sólo en las órdenes PID era tenerla en el
+ * sitio equivocado.
+ *
  * ## El diámetro es el NOMINAL, y eso también hay que decirlo
  *
  * El radio con el que se mide la holgura es `pulgadas × 25,4 / 2`. En las
@@ -64,6 +74,7 @@ import type { CadWallEntity } from "../cad-entities-v6";
 import { cadUnitToMillimetres } from "../layout/annotative-scale";
 import { solid3dBody } from "../solid3d-build";
 import { bodyBounds } from "../../brep";
+import { cadMepRunsAsRoutes } from "../mep-runs";
 import { wallOpeningFit, wallOpeningVerticalFit } from "../wall-openings";
 import {
   CAD_PL_JOIN_TOLERANCE,
@@ -95,7 +106,7 @@ export const CAD_PL_CLASH_CLEARANCE_MM = 50;
 
 /** Lo que este análisis NO comprueba, entero y en un solo sitio. */
 export const CAD_PL_CLASH_LIMITS =
-  "Distancia medida con el diámetro NOMINAL (pulgadas × 25,4); el exterior real y el aislamiento los da el catálogo del proyecto, así que la holgura es optimista. Los muros se miden como caja con su altura y sus vanos restados; los sólidos, por su caja envolvente —para el corte exacto de dos sólidos designados está INTERFERE—. No se comprueban losas, cubiertas, escaleras ni objetos sin volumen";
+  "Distancia medida con el diámetro NOMINAL (pulgadas × 25,4); el exterior real y el aislamiento los da el catálogo del proyecto, así que la holgura es optimista. Los muros se miden como caja con su altura y sus vanos restados; los sólidos, por su caja envolvente —para el corte exacto de dos sólidos designados está INTERFERE—. No se comprueban losas, cubiertas, escaleras ni objetos sin volumen. Una corrida MEP se mide como un cilindro de su diámetro, y un ducto o una charola como un cilindro de su ANCHO: el canto no lo guarda el dibujo";
 
 /** Holgura por defecto en unidades de dibujo, según la unidad del documento. */
 export function cadPipeClashClearance(unit = "mm"): number {
@@ -528,8 +539,10 @@ const redondo = (valor: number): number => Math.round(valor * 100) / 100;
 
 /** Radio del tubo en unidades de dibujo, o `null` si el diámetro no se lee. */
 function radioDe(route: CadPipeRoute, unit: string): number | null {
-  const mm = cadPipeNominalMillimetres(route.size);
-  if (mm === null) return null;
+  // El nominal ya resuelto manda: una corrida MEP lo trae en milímetros porque
+  // no rotula pulgadas, y leer su `size` daría `null` para todas.
+  const mm = route.nominalMm ?? cadPipeNominalMillimetres(route.size);
+  if (mm === null || mm === undefined || !(mm > 0)) return null;
   const porUnidad = cadUnitToMillimetres(unit);
   return mm / 2 / (porUnidad > 0 ? porUnidad : 1);
 }
@@ -591,7 +604,11 @@ export function cadPipeClashReport(
 ): CadPipeClashReport {
   const unit = options.unit ?? "mm";
   const clearance = options.clearance ?? cadPipeClashClearance(unit);
-  const todas = cadPipeRoutesOf(document);
+  // Las conducciones del dibujo son las rutas de proceso Y las corridas MEP:
+  // una bajante de agua fría atraviesa la misma trabe que un tubo de vapor, y
+  // hasta la Ola G sólo se avisaba de una de las dos. Entran por el lector del
+  // cuadro de instalaciones (`mep-runs.ts`), no por una segunda lectura propia.
+  const todas = [...cadPipeRoutesOf(document), ...cadMepRunsAsRoutes(document, unit)];
   const { obstacles, skipped } = cadPipeClashObstacles(document);
   const mias = options.routeIds
     ? todas.filter((route) => options.routeIds!.includes(route.entityId))
@@ -604,7 +621,10 @@ export function cadPipeClashReport(
     if (radio === null) {
       sinDiametro.push({
         entityId: route.entityId,
-        reason: `«${route.size}» no es una medida en pulgadas: sin diámetro no hay holgura que medir`,
+        reason:
+          route.size.trim() === ""
+            ? `${route.line} no dice su tamaño: sin diámetro no hay holgura que medir`
+            : `«${route.size}» no es una medida en pulgadas: sin diámetro no hay holgura que medir`,
       });
       continue;
     }
