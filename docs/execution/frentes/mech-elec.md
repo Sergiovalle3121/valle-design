@@ -98,7 +98,8 @@ secuencia.
 
 ### 2026-09-04 · La cola, ordenada por valor comercial por hora
 
-1. **`BOM Actualizar`: la lista de materiales deja de mentir.** Hoy BOM se GENERA; si se
+1. **`BOM Actualizar`: la lista de materiales deja de mentir.** ENTREGADO el 2026-09-04, ver
+   la entrada de abajo. Hoy BOM se GENERA; si se
    inserta otro tornillo, la tabla del plano queda vieja y nadie avisa. Con `Actualizar`, BOM
    marca su tabla (`context.metadata.mechanical = "bom"`), la vuelve a encontrar y la
    SUSTITUYE por id (`{ type: "replace" }`, que conserva id y orden de dibujo). Sería el primer
@@ -118,6 +119,42 @@ secuencia.
    hoy no ve nadie—.
 5. **Terminales y borneras.** Familia de bornera en las etiquetas y regleta leída del dibujo
    con sus bornes repetidos, en AETAGLIST.
+
+### 2026-09-04 · Entregado 1/5 · `BOM Actualizar`: la lista deja de mentir
+
+Hecho y verificado. La tabla que inserta BOM nace marcada con
+`context.metadata.mechanical = "bom"` (`CAD_BOM_MARK`, hermana de la marca del globo), y
+`buildCadMechanicalBomTable` acepta un id forzado. Con eso, la opción de teclado **Actualizar**
+del descriptor BOM localiza las tablas de lista del documento
+(`findCadMechanicalBomTables`), recalcula las filas con el MISMO `buildCadMechanicalBom` que
+las escribió y las devuelve con `{ type: "replace", entityId, entity }` — que conserva id,
+punto de inserción, capa, orden de dibujo y las referencias que la apunten. Es el primer cuadro
+autoactualizable del producto: antes de hoy, `grep -R "Actualizar" engine/commands` daba cero.
+
+Decisiones que no eran obvias, con su motivo:
+
+- **Se actualizan TODAS las tablas marcadas, no la última.** Todas dicen la misma lista del
+  mismo dibujo; dejar una sin tocar es dejar el plano mintiendo en esa. Es el criterio de
+  `UPDATEFIELD`, que ya refresca todos los campos del dibujo.
+- **Si nada cambió, no se escribe.** Se compara CELDA a CELDA (no sólo las cifras: renombrar un
+  bloque cambia el texto sin cambiar la cuenta) y se termina con mensaje. Un paso de deshacer
+  vacío es ruido, como el Intro sin texto de `TABLEDIT`.
+- **El renglón dice cifras, no «Hecho»:** «de 1 posición(es) y 2 unidad(es) a 2 posición(es) y
+  3 unidad(es)». El «antes» se lee de las CELDAS de la tabla, que es lo que el usuario tenía
+  delante. Con varias tablas que se contradecían entre sí no se inventa un «antes» único: se
+  dice que no decían lo mismo.
+- **Lo que el dibujante ajustó sobrevive:** giro, estilo, ancho de columna (si el número de
+  columnas no cambió) y las demás claves de `context`. La orden recalcula filas, no rediseña el
+  cuadro.
+- **Sin ninguna tabla de lista se niega diciéndolo** y remite a insertarla con BOM y un punto.
+
+Evidencia: `npx tsx src/lib/cad/mechanical.spec.ts` → 90 comprobaciones (eran 84);
+`npx tsx src/lib/cad/engine/commands/mechanical.spec.ts` → 179 (eran 151); `npm run typecheck`
+verde; `npm run check:command-integrity` → 290 comandos, 83 mutan, 0 éxitos falsos (BOM
+conserva su veredicto «muta» y `docs/cad/evidence/command-integrity.json` no cambia);
+`npm run check:cad` completo en verde. Ningún archivo fuera del territorio: no se registró
+nombre nuevo, así que `command-summaries`, `command-icons`, `alias-table` y `ribbon` siguen
+intactos y el resumen de paleta de BOM sigue siendo cierto.
 
 ## «Todavía no»
 

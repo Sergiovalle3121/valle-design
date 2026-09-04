@@ -7,6 +7,8 @@
  *   - STEELSHAPE: PTR con los defaults, IPR tecleado, medidas imposibles.
  *   - BALLOON sobre un INSERT se queda con su bloque y numera solo; BOM la
  *     cuenta; sin normalizados se niega diciéndolo.
+ *   - BOM Actualizar: con la tabla de ayer en el dibujo y una pieza más, UN
+ *     reemplazo con el id intacto y las celdas de hoy; sin tabla se niega.
  *   - WELDSYMBOL y SURFACESYMBOL con todas sus opciones y con Intro.
  *   - DIMTOLERANCE: Ajuste H7 sobre una cota de 40 → «40.00 +0.025/0 mm»;
  *     simétrica, desviaciones, límites, Quitar; los rechazos.
@@ -21,7 +23,8 @@ import { resolveCadCommandAlias } from "../alias-table";
 import { cadDimensionToleranceOf } from "../../dimension-tolerance";
 import { buildCadDimensionGeometry } from "../../associative-dimension";
 import { cadBalloonMetadata } from "../../mechanical-symbols";
-import { cadMechanicalBlockDefinition, cadMechanicalBolt } from "../../mechanical-parts";
+import { buildCadMechanicalBom, buildCadMechanicalBomTable } from "../../mechanical-bom";
+import { cadMechanicalBlockDefinition, cadMechanicalBolt, cadMechanicalNut } from "../../mechanical-parts";
 import { cadParseSignedNumber } from "./dimension-tolerance";
 
 let checks = 0;
@@ -196,6 +199,62 @@ const insertEntity = (id: string, block: string): CadEntity => ({ id, type: "ins
   ok(messageOf(drive("BOM", [point(0, 0)])).includes("no tiene normalizados"), "sin normalizados ni globos se niega diciéndolo");
   ok(messageOf(drive("BOM", [point(0, 0)], makeContext({ document: false }))).includes("no expone el documento"), "sin vista del documento se dice");
   ok(messageOf(drive("BOM", [enter])).includes("necesita un punto"), "Intro se niega");
+}
+
+/* ── BOM Actualizar ─────────────────────────────────────────────────────── */
+{
+  const nut = cadMechanicalBlockDefinition(cadMechanicalNut(10)!);
+  // La lista que BOM insertó ayer, cuando el dibujo tenía DOS tornillos y nada más.
+  const ayer = { entities: [insertEntity("i1", bolt.id), insertEntity("i2", bolt.id)], blocks: [bolt, nut] };
+  const tablaDeAyer = (id: string, insertion = { x: 5000, y: 0 }) =>
+    buildCadMechanicalBomTable(buildCadMechanicalBom(ayer), insertion, "LISTA", () => id) as CadEntity;
+
+  // Hoy alguien atornilló una tuerca: dos posiciones y tres unidades.
+  const hoy = [...ayer.entities, insertEntity("i3", nut.id)];
+  const tabla = tablaDeAyer("t1");
+  const driven = drive("BOM", [keyword("Actualizar")], makeContext({ entities: [...hoy, tabla], blocks: [bolt, nut] }));
+  eq(driven.prompts[0], "Precise el punto de inserción de la lista de materiales", "el mismo prompt: Actualizar es una opción, no otro comando");
+  const { commands, notice } = written(driven, "BOM Actualizar");
+  eq(commands.length, 1, "UN comando, no un borrado y una inserción");
+  const replaced = commands[0] as { type: "replace"; entityId: string; entity: CadEntity };
+  eq([replaced.type, replaced.entityId], ["replace", "t1"], "reemplazo POR SU ID: la tabla sigue siendo la misma entidad");
+  assert.ok(replaced.entity.type === "table", "y sigue siendo una tabla");
+  const celda = (row: number) => replaced.entity.type === "table" ? replaced.entity.cells.filter((c) => c.row === row).sort((a, b) => a.column - b.column).map((c) => c.text) : [];
+  eq([replaced.entity.id, replaced.entity.insertion, replaced.entity.layer], ["t1", { x: 5000, y: 0, z: 0 }, "LISTA"], "id, sitio y capa de la tabla de ayer, no los de la sesión de hoy");
+  eq(replaced.entity.rows, 4, "título, cabecera y dos posiciones");
+  eq(celda(2), ["1", "2", "Tornillo hexagonal M10 × 40", "ISO 4017", "MECH-TORNILLO-M10x40"], "los dos tornillos siguen siendo dos");
+  eq(celda(3), ["2", "1", "Tuerca hexagonal M10", "ISO 4032", "MECH-TUERCA-M10"], "y la tuerca de hoy entra como posición 2");
+  eq(notice, "BOM Actualizar: de 1 posición(es) y 2 unidad(es) a 2 posición(es) y 3 unidad(es).", "el renglón dice qué cambió, no «Hecho»");
+
+  // Lo que el dibujante ajustó a mano sobrevive al recálculo.
+  const ajustada = { ...(tablaDeAyer("t9") as Extract<CadEntity, { type: "table" }>), columnWidths: [900, 900, 3000, 900, 900], rotation: 15, style: "CUADROS", context: { handle: "2A", metadata: { mechanical: "bom", nota: "cajetín" } } } as CadEntity;
+  const conservada = written(drive("BOM", [keyword("Actualizar")], makeContext({ entities: [...hoy, ajustada], blocks: [bolt, nut] })), "BOM Actualizar").commands[0] as { entity: CadEntity };
+  assert.ok(conservada.entity.type === "table");
+  eq([conservada.entity.columnWidths, conservada.entity.rotation, conservada.entity.style], [[900, 900, 3000, 900, 900], 15, "CUADROS"], "ancho de columna, giro y estilo se conservan: la orden recalcula filas, no rediseña el cuadro");
+  eq([conservada.entity.context?.handle, conservada.entity.context?.metadata?.nota], ["2A", "cajetín"], "y el bolsillo de contexto conserva sus otras claves");
+
+  // Se borraron todas las piezas: la lista deja de decir dos.
+  const vaciada = written(drive("BOM", [keyword("Actualizar")], makeContext({ entities: [tablaDeAyer("t2")], blocks: [bolt, nut] })), "BOM Actualizar");
+  eq(vaciada.notice, "BOM Actualizar: de 1 posición(es) y 2 unidad(es) a 0 posición(es) y 0 unidad(es).", "sin piezas la lista dice cero, no se queda con la de ayer");
+
+  // Varias tablas del mismo dibujo: todas dicen la misma lista o el plano miente en una de ellas.
+  const dos = written(drive("BOM", [keyword("Actualizar")], makeContext({ entities: [...hoy, tablaDeAyer("t3"), tablaDeAyer("t4", { x: 9000, y: 0 })], blocks: [bolt, nut] })), "BOM Actualizar");
+  eq(dos.commands.map((command) => (command as { entityId: string }).entityId), ["t3", "t4"], "dos tablas, dos reemplazos");
+  eq(dos.notice, "BOM Actualizar: de 1 posición(es) y 2 unidad(es) a 2 posición(es) y 3 unidad(es) · 2 tabla(s) actualizada(s).", "…y el renglón las cuenta");
+
+  const alDia = buildCadMechanicalBomTable(buildCadMechanicalBom({ entities: hoy, blocks: [bolt, nut] }), { x: 9000, y: 0 }, "LISTA", () => "t5") as CadEntity;
+  const mixta = written(drive("BOM", [keyword("Actualizar")], makeContext({ entities: [...hoy, tablaDeAyer("t6"), alDia], blocks: [bolt, nut] })), "BOM Actualizar");
+  eq(mixta.commands.length, 1, "la que ya estaba al día no se reescribe: un paso de deshacer vacío es ruido");
+  eq(mixta.notice, "BOM Actualizar: de 1 posición(es) y 2 unidad(es) a 2 posición(es) y 3 unidad(es) · 1 ya al día.", "y se dice cuántas estaban al día");
+
+  const soloUno = { entities: [insertEntity("i1", bolt.id)], blocks: [bolt] };
+  const desigual = buildCadMechanicalBomTable(buildCadMechanicalBom(soloUno), { x: 9000, y: 0 }, "LISTA", () => "t7") as CadEntity;
+  const dispares = written(drive("BOM", [keyword("Actualizar")], makeContext({ entities: [...hoy, tablaDeAyer("t8"), desigual], blocks: [bolt, nut] })), "BOM Actualizar");
+  eq(dispares.notice, "BOM Actualizar: 2 tabla(s) que no decían lo mismo entre sí, ahora 2 posición(es) y 3 unidad(es).", "dos tablas que se contradecían no se resumen en un «antes» falso");
+
+  ok(messageOf(drive("BOM", [keyword("Actualizar")], makeContext({ entities: [...hoy, alDia], blocks: [bolt, nut] }))).includes("ya estaba al día (2 posición(es) y 3 unidad(es))"), "una lista al día no se reescribe, y se dice");
+  ok(messageOf(drive("BOM", [keyword("Actualizar")], makeContext({ entities: hoy, blocks: [bolt, nut] }))).includes("no tiene ninguna tabla de lista de materiales"), "sin tabla previa se niega diciendo el motivo");
+  ok(messageOf(drive("BOM", [keyword("Actualizar")], makeContext({ document: false }))).includes("no expone el documento"), "sin vista del documento se dice también al actualizar");
 }
 
 /* ── WELDSYMBOL ─────────────────────────────────────────────────────────── */

@@ -9,10 +9,19 @@
  *     → 573,6 mm², 4,50 kg/m).
  *   - Globo, soldadura y acabado: cuántas piezas, dónde, con qué marca.
  *   - La lista: el globo da la posición, lo insertado da la cantidad.
+ *   - Y la tabla queda MARCADA y localizable, con su id forzado: es lo que
+ *     permite que «Actualizar» la sustituya sin cambiarle la identidad.
  */
 import { strict as assert } from "node:assert";
 import type { CadBlockDefinition, CadEntity } from "./cad-document";
-import { BOM_HEADERS, buildCadMechanicalBom, buildCadMechanicalBomTable } from "./mechanical-bom";
+import {
+  BOM_HEADERS,
+  CAD_BOM_MARK,
+  buildCadMechanicalBom,
+  buildCadMechanicalBomTable,
+  findCadMechanicalBomTables,
+  readCadMechanicalBomTable,
+} from "./mechanical-bom";
 import {
   CAD_METRIC_LIST,
   CAD_STEEL_SHAPES,
@@ -244,6 +253,19 @@ eq(cadSteelShapeFor("HSS"), undefined, "HSS no es designación IMCA");
   eq([table.rows, table.columns, table.insertion, table.layer], [5, 5, { x: 5000, y: 100, z: 0 }, "LISTA"], "la tabla en su sitio");
   eq(buildCadMechanicalBom({ entities: [insert("i5", "MEP-VALVULA")], blocks }).rows, [], "sin normalizados ni globos, sin filas");
   eq(buildCadMechanicalBom({ entities: [insert("i9", "MECH-HUERFANO")], blocks }).rows[0], { item: 1, count: 1, name: "MECH-HUERFANO", standard: "—", blockId: "MECH-HUERFANO", ballooned: false }, "un MECH sin definición sale por su id");
+
+  /* ── La tabla se deja encontrar, y se deja releer ──────────────────────── */
+  eq(table.context?.metadata?.mechanical, CAD_BOM_MARK, "la tabla nace marcada: sin marca, nadie la vuelve a encontrar");
+  const forzada = buildCadMechanicalBomTable(bom, { x: 0, y: 0 }, "LISTA", () => "NO-DEBERÍA-USARSE", "t-vieja");
+  eq(forzada.id, "t-vieja", "el id forzado manda: actualizar conserva la identidad de la tabla de ayer");
+
+  const otraTabla: CadEntity = { ...forzada, id: "otra", context: { metadata: { mechanical: "balloon" } } };
+  const tablaMuda: CadEntity = { ...forzada, id: "muda", context: undefined };
+  eq(findCadMechanicalBomTables({ entities: [tablaMuda, forzada as CadEntity, otraTabla, insert("i1", bolt.id)] }).map((t) => t.id), ["t-vieja"], "sólo la tabla marcada como lista; ni el cuadro de muros ni un globo");
+  eq(findCadMechanicalBomTables({ entities: [] }).length, 0, "un dibujo sin lista no tiene ninguna");
+
+  eq(readCadMechanicalBomTable(forzada), { items: 3, units: 5 }, "lo que la tabla DICE hoy sale de sus celdas: tres posiciones, 1 + 1 + 3 unidades");
+  eq(readCadMechanicalBomTable(buildCadMechanicalBomTable({ rows: [], balloons: 0 }, { x: 0, y: 0 }, "LISTA", newId)), { items: 0, units: 0 }, "una lista vacía dice cero, no miente con la última que tuvo");
 }
 
 console.log(`✅ mechanical.spec: ${checks} comprobaciones`);
