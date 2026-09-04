@@ -375,12 +375,12 @@ limpio (comprobado con `git stash`), y `dwg/` no es territorio de este frente.
 - **El selector de archivo no abre.** `PDFATTACH`/`PDFIMPORT` con la opción `Archivo` declaran el
   límite con esas palabras; el archivo entra por la puerta de texto del anfitrión. Se cierra con
   `P-express-01`, que son diez líneas fuera y cuatro dentro.
-- **El sustrato no tiene referencia a objeto propia.** La cola pide «PDF como underlay con
-  snap». `snap-engine.ts` está fuera de mi territorio y el sustrato entra como entidad `image`,
-  así que hoy se calca a ojo sobre la lámina: no hay punto final ni intersección del trazo del
-  PDF. Es lo que falta de verdad de la cola 4 después de esto, y necesita su propio diseño (los
-  trazos de la página existen —`scanCadPdfContent` los da— pero llevarlos al motor de snaps sin
-  importarlos es trabajo, no una petición de tres líneas).
+- **El sustrato no tiene referencia a objeto propia.** ~~La cola pide «PDF como underlay con
+  snap».~~ **Corregido a medias el 2026-09-04 (C6):** la geometría enganchable ya existe, es
+  pura y está probada con anclas absolutas (`lib/cad/pdf/pdf-snap-geometry.ts`). Lo que sigue
+  faltando es el CABLEADO: `Layout3DEditor.tsx` está fuera de mi territorio y es quien arma la
+  `SnapScene` en cada `pointermove`. Hasta que se aplique `P-express-11`, el sustrato se ve y no
+  imanta, y **«calcar con snap» no cuenta como implementado**.
 - **PDFIMPORT entra a tamaño de papel y lo dice.** No hay ajuste por dos puntos como el de
   `PDFSCALE`: para geometría ya importada se usa `SCALE`. El aviso lo declara.
 
@@ -533,3 +533,119 @@ que entrara en silencio dejaría la evidencia mintiendo, que es peor que el defe
 - **El sufijo de `INSUNITS` desconocido no se traduce.** Millas, yardas, angstroms y las demás
   quince entradas de la tabla del DXF devuelven `null` en vez de caer en milímetros: quien
   pregunta merece saber que el fichero declaró una unidad que no entendemos.
+
+### C6 · Calcar de verdad: la geometría del sustrato a la que el cursor se engancha (2026-09-04)
+
+**Lo que faltaba, dicho sin adornos.** C2 dejó diez órdenes de PDF alcanzables y su propia
+sección «todavía no» decía que el sustrato **se ve pero no imanta**: una lámina colocada es una
+entidad `image`, y una imagen no tiene extremos. Calcar sobre un fondo sin referencias a objeto
+es dibujar a pulso mirando un gris: la esquina que se ve en la pantalla no es la que queda en el
+documento, y el error de dos píxeles aparece al acotar. Eso es lo que este entregable cierra.
+
+**Dos archivos nuevos, 1 244 líneas, y NI UNA de lectura de PDF.**
+
+1. `apps/web/src/lib/cad/pdf/pdf-snap-geometry.ts` (639) — el módulo puro. Dado el sustrato ya
+   adjunto y los bytes del archivo, devuelve `Segment[]` y `Point[]` **ya en coordenadas del
+   dibujo**, en la forma exacta que `snap-engine.ts` consume: tramos con `pathId`/`ordinal`,
+   extremos, puntos medios, centros de arco y orígenes de rótulo.
+2. `apps/web/src/lib/cad/pdf/pdf-snap-geometry.spec.ts` (605) — **91 comprobaciones**, todas
+   sobre el documento resultante de aplicar el lote con `executeCadEntityCommandBatch`.
+
+**No hay lector nuevo, y ése era el punto.** La cadena
+`pdf-objects → pdf-pages → pdf-content → pdf-curves → pdf-import` ya está probada contra el
+corpus real y contra `check:pdf-corpus`, y es la que se llama. Lo que se construye es lo otro:
+la **traducción de página a mundo** y los **dos filtros** que deciden qué se ofrece.
+
+**Seis decisiones, cada una escrita junto a su código.**
+
+1. **`importCadPdf` se llama con `unitsPerPoint: 1` e inserción en el origen.** Así devuelve la
+   página en PUNTOS con la esquina del papel en (0,0) —el mismo sistema en el que viven
+   `clipBoundary` y `worldToPage`— y la colocación se aplica UNA vez, al final, en un solo
+   sitio. Pedirle a `importCadPdf` que ya escale pondría la escala en dos sitios, y dos verdades
+   sobre lo mismo discrepan en cuanto alguien usa `PDFSCALE`.
+2. **La colocación sale de los VECTORES de la entidad, no de la ficha.** `uVector`/`vVector` son
+   lo que el render usa; la ficha guarda el mismo número por comodidad del gestor. Una copia que
+   se consulta es una copia que algún día miente, y la spec lo mide: tras
+   `cadPdfScaleToDistanceCommands` los mismos puntos se mueven con la lámina.
+3. **`curveMode: "spline"`, y la teselación se hace aquí.** Una Bézier cúbica ES una NURBS de
+   grado 3: error cero por álgebra. Aproximar después permite dos cosas que el modo polilínea no
+   permitiría: saber qué tramos son CUERDAS de una curva —para no ofrecerlos como punto medio ni
+   como pie de perpendicular, exactamente como hace `snap-scene.ts`— y recuperar el CENTRO del
+   arco cuando la curva de verdad lo es.
+4. **El centro de arco se comprueba, no se supone.** Se toma el circuncentro de la curva en
+   t = 0, ½ y 1, y después se VERIFICA en t = ¼ y ¾ contra el 2 % del radio. Sin la
+   comprobación cualquier curva daría centro —por tres puntos no alineados siempre pasa una
+   circunferencia— y un centro falso es peor que ninguno: el cursor se pega a él con la misma
+   confianza que a uno real. Medido: la Bézier del corpus (controles en 216/252) se desvía un
+   9,86 % y se rechaza; el cuarto de círculo canónico se desvía un 0,026 % —medido en t = ¼ y ¾,
+   que es donde se comprueba— y da su centro exacto.
+5. **Las intersecciones NO se precalculan.** `snap-engine.ts` cruza los tramos de la escena y
+   saca la real y la aparente. Precalcularlas aquí sería hacerlo sin saber contra qué: lo
+   interesante al calcar es la intersección entre el muro NUEVO y la línea de la lámina, y eso
+   sólo lo sabe el motor cuando tiene las dos.
+6. **El papel es el primer recorte y siempre está.** Lo que el PDF dibuja fuera del `MediaBox`
+   no aparece en la lámina, así que tampoco puede imantar. `PDFCLIP` es el segundo. Los tramos
+   se CORTAN con `cadClipPath` de `xclip.ts` —la función que ya recorta xrefs— y los puntos
+   notables se FILTRAN; los cabos de un tramo cortado no se ofrecen como extremos, porque el
+   borde del recorte no es una esquina del dibujo.
+
+**Las anclas absolutas de la spec, con su aritmética escrita.** La lámina del corpus es Carta,
+612 × 792 puntos, y su contenido está en coordenadas conocidas:
+
+| Ancla | Qué se exige |
+| --- | --- |
+| esquina inferior izquierda | `cadPdfPageToWorld(entidad)({0,0})` cae en el punto de inserción |
+| esquina opuesta | 612 pt = **215,9 mm** y 792 pt = **279,4 mm**, escrito con el número |
+| extremo conocido | (72,72) pt del rectángulo exterior cae a **25,4 mm** —una pulgada— del papel |
+| punto medio | (180,72) pt, el de la línea de abajo |
+| tras `PDFSCALE` | el punto designado se queda quieto y el otro queda a **5 000 mm** exactos |
+| giro | la lámina girada 90° manda (72,72) pt a (−25,4 ; 25,4) |
+
+Y los recuentos se exigen con su cifra: **12** extremos (4 del rectángulo exterior + 4 del `re`
++ 2 cabos de la Bézier + 2 de la línea azul, contados a mano sobre el flujo del corpus, con los
+repetidos fundidos) y **9** puntos medios.
+
+**Los dos casos que devuelven cero, con su motivo.** Un sustrato pasado por
+`cadPdfUnloadCommands` da `status: "unloaded"`, cero candidatos y una nota que dice `PDFRELOAD`;
+un recorte sobre papel en blanco da `status: "clipped_out"` y dice que la culpa es del recorte.
+Un escaneo da `status: "raster"` y remite a calcar a pulso. Preguntar por un sustrato que no
+está es `no_underlay`, no una excepción: desadjuntar y volver a preguntar es lo más normal.
+
+**El atajo del recorte se toma sólo donde vale.** «Todos los vértices dentro, luego el camino
+entero está dentro» es un teorema en un contorno CONVEXO y una mentira en uno cóncavo: entre dos
+vértices de dentro, el tramo puede salirse por la escotadura y volver. El papel y el rectángulo
+de `PDFCLIP` son convexos, así que el atajo se toma casi siempre; la convexidad se comprueba una
+vez por sustrato y, cuando falla, se recorta de verdad.
+
+**Las dos pruebas de que los filtros son de verdad, por mutación.** Se mutó el módulo quitando el
+filtro por recorte: la spec **falló**. Se mutó forzando el atajo a `true` con un recorte en «L»:
+la spec **falló** en el renglón de la escotadura. Restaurados los dos, vuelve a pasar. Un filtro
+que no se puede romper no estaba filtrando.
+
+**El enganche de punta a punta ya está medido.** La sección 10 de la spec construye una
+`SnapScene` con `cadPdfSnapSceneAdd` y llama al `snap()` real del motor: devuelve `endpoint` en
+la esquina del plano de fondo, al micrómetro. Con ventana por cursor y sin ella, el mismo punto.
+Sobre un sustrato descargado, `null`.
+
+### El enganche al sustrato, al 2026-09-04
+
+- **No está cableado al editor.** `Layout3DEditor.tsx` es quien arma la `SnapScene` en cada
+  `pointermove` (línea ~6505) y está fuera de mi territorio. `P-express-11` lleva el diseño
+  completo: un import, un `ref` de memoria con firma de la lámina y ocho líneas en
+  `resolvePointer`. Hasta que se aplique, **el sustrato se ve y no imanta**, y por la regla 1 de
+  cimientos «calcar con snap» **no cuenta como implementado**.
+- **Sólo se leen los sustratos con ruta `data:`.** Es lo que `PDFATTACH` produce hoy desde el
+  navegador y lo que `PDFPAGE` ya usa para cambiar de página. Un `tenant-asset://` necesita el
+  canal de anfitrión de `P-express-01`; leerlo dentro de `resolvePointer` metería una lectura
+  asíncrona en el camino del ratón, y eso no se hace.
+- **No hay CUADRANTE ni NODO del sustrato.** El centro del arco sí sale; sus cuatro cuadrantes,
+  no. Se podrían derivar del centro y del radio, pero habría que comprobar que cada uno cae
+  DENTRO del arco dibujado —un cuarto de círculo tiene un cuadrante, no cuatro— y eso es otro
+  entregable. Nodo no aplica: el PDF no tiene entidad de punto.
+- **El texto sólo aporta su ORIGEN, no su caja.** `insertions` lleva el arranque de la línea
+  base de cada rótulo. La caja envolvente exigiría medir la fuente, que es lo que `pdf-fonts.ts`
+  hace a medias y sólo para traducir caracteres.
+- **La extracción no está en caché dentro del módulo, a propósito.** Es una función pura: leer
+  el PDF cuesta milisegundos y quien la llama decide cuándo. La memoria con firma de la lámina
+  va en el editor y su diseño está en `P-express-11`; ponerla aquí escondería un estado global
+  en un módulo que hoy se puede probar sin montar nada.

@@ -752,3 +752,99 @@ petición todavía es un hueco reservado, no un descuido.
   `npx tsx src/lib/cad/verification/units-imperial.spec.ts` y
   `npm run check:command-integrity`.
 - **Estado:** pendiente
+
+### P-express-11 · El sustrato de PDF entra en la escena de referencias a objeto
+
+- **Archivo:** `apps/web/src/components/cad/editor/Layout3DEditor.tsx` (un import, un `ref` y
+  ocho líneas dentro de `resolvePointer`, junto a la llamada a `cadSnapSceneAddEntities` de la
+  línea ~6505)
+- **Por qué:** cola 4, la mitad que faltaba para poder decir «con snap». La geometría enganchable
+  del sustrato ya está construida y probada
+  (`apps/web/src/lib/cad/pdf/pdf-snap-geometry.ts`, 86 comprobaciones con anclas absolutas), y
+  devuelve exactamente `Segment[]` y `Point[]` en coordenadas del dibujo, que es lo que
+  `snap-engine.ts` consume. Lo único que falta es volcarla en la escena que el editor arma en
+  cada `pointermove`. Ese archivo está fuera del territorio del frente. Hasta que se aplique,
+  el sustrato se ve pero **no imanta**, y por la regla 1 de cimientos «calcar con snap» **no
+  cuenta como implementado**.
+- **Cambio exacto:**
+
+  1. Junto a los demás imports de `@/lib/cad/…`:
+
+     ```ts
+     import { cadPdfBytesFromDataUri } from "@/lib/cad/pdf/pdf-attach-payload";
+     import { cadPdfUnderlayOf } from "@/lib/cad/pdf/pdf-underlay";
+     import {
+       cadPdfSnapGeometry,
+       cadPdfSnapSceneAdd,
+       type CadPdfSnapGeometryResult,
+     } from "@/lib/cad/pdf/pdf-snap-geometry";
+     ```
+
+  2. Junto a los demás `useRef` del componente, la memoria de la extracción. **Es obligatoria,
+     no una optimización:** leer el PDF entero cuesta milisegundos y esto corre en cada
+     movimiento del ratón; sin memoria, arrastrar sobre un sustrato bloquearía el hilo.
+
+     ```ts
+     /**
+      * La geometría enganchable de cada sustrato de PDF, ya extraída.
+      *
+      * La clave es la firma de la LÁMINA —colocación, vectores, tamaño, recorte
+      * y estado—, no el id: así, mover el sustrato con PDFSCALE o recortarlo con
+      * PDFCLIP invalida la entrada por sí solo, sin que nadie tenga que acordarse
+      * de vaciarla desde el manejador de esas órdenes.
+      */
+     const pdfSnapGeometryRef = useRef(new Map<string, { firma: string; geometria: CadPdfSnapGeometryResult }>());
+     ```
+
+  3. Dentro de `resolvePointer`, **justo después** de la llamada a `cadSnapSceneAddEntities`
+     (línea ~6505) y **antes** de `resolveOsnap`:
+
+     ```ts
+     // El sustrato de PDF: se calca encima, así que sus esquinas y sus puntos
+     // medios tienen que imantar igual que los de una polilínea del documento.
+     // Un sustrato descargado o recortado no aporta nada y lo declara él mismo.
+     const documentoVivo = loadedCadDocumentRef.current;
+     for (const entidad of documentoVivo?.entities ?? []) {
+       if (entidad.type !== "image") continue;
+       const ficha = cadPdfUnderlayOf(entidad);
+       if (!ficha || ficha.status !== "loaded") continue;
+       const bytes = cadPdfBytesFromDataUri(ficha.uri);
+       if (!bytes) continue; // ruta que el anfitrión aún no resuelve; ver P-express-01
+       const firma = JSON.stringify([
+         entidad.insertion, entidad.uVector, entidad.vVector,
+         entidad.size, entidad.clipBoundary ?? null, entidad.showImage !== false, ficha.page,
+       ]);
+       const guardado = pdfSnapGeometryRef.current.get(entidad.id);
+       const geometria =
+         guardado?.firma === firma
+           ? guardado.geometria
+           : cadPdfSnapGeometry(documentoVivo!, entidad.id, bytes);
+       if (guardado?.firma !== firma)
+         pdfSnapGeometryRef.current.set(entidad.id, { firma, geometria });
+       // La ventana por cursor no es adorno: `resolveOsnap` cruza los tramos
+       // entre sí buscando intersecciones, que es O(n²), y una lámina de
+       // arquitectura tiene miles.
+       cadPdfSnapSceneAdd(scene, geometria, { cursor: { x: wx, y: wy }, radius: tol * 8 });
+     }
+     ```
+
+     `loadedCadDocumentRef` es el ref del documento canónico vivo que el componente ya mantiene
+     (declarado en la línea ~1891); es el mismo que alimenta a `syncCadLayerState` y al índice de
+     designación, y por eso la geometría del sustrato se recalcula sola cuando `PDFCLIP` o
+     `PDFSCALE` cambian la lámina.
+
+  4. Al desadjuntar (`PDFDETACH`) la entrada de la memoria queda huérfana. Una línea en el mismo
+     bucle la retira sin manejador nuevo: antes del `for`, si el mapa tiene más entradas que
+     entidades `image` del documento, `pdfSnapGeometryRef.current.clear()`. Es un mapa de
+     unidades, no de miles: vaciarlo entero cuesta menos que llevar la cuenta.
+
+- **Lo que esta petición NO incluye, y por qué:** el sustrato cuya ruta no es un `data:`
+  —`tenant-asset://`, el día que haya almacén— se salta con `continue` en vez de leerse. No es
+  un olvido: resolver una ruta remota es una petición de anfitrión, la misma de `P-express-01`,
+  y hacerlo dentro de `resolvePointer` metería una lectura asíncrona en el camino del ratón.
+  Cuando ese canal exista, la memoria se llena desde él al adjuntar y este bucle sólo lee.
+- **Cómo se comprueba:** `npx tsx src/lib/cad/pdf/pdf-snap-geometry.spec.ts` ya demuestra la
+  aritmética de punta a punta —incluido el enganche real con `snap()` del motor sobre una
+  escena construida con `cadPdfSnapSceneAdd`—; lo que la petición añade es el cableado, y se
+  ve con `npm run typecheck` y con la E2E de calcado si se escribe. `npm test` cierra el resto.
+- **Estado:** pendiente
