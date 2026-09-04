@@ -375,3 +375,380 @@ petición todavía es un hueco reservado, no un descuido.
   `apps/web/src/lib/cad/engine/command-summaries.spec.ts` cierra el contrato fail-closed;
   `npx tsx apps/web/src/lib/cad/engine/commands/express-tools.spec.ts` sigue en 99.
 - **Estado:** pendiente
+
+### P-express-07 · Dos defectos de `unit-format.ts` que la ida y vuelta destapó
+
+- **Archivo:** `apps/web/src/lib/cad/unit-format.ts`
+- **Por qué:** cola 3. Al cerrar la ida y vuelta `formatLength` → `parseImperialLength`
+  (`units-imperial.spec.ts`, 324 idas y vueltas: tres sistemas × `LUPREC` 0..8 × doce
+  valores) aparecieron **siete** casos en los que formatear el valor releído da una cadena
+  distinta de la original. No son ruido de coma flotante: son dos defectos con nombre, los dos
+  medidos el 2026-09-04.
+
+  1. **El acarreo de ingeniería (4 casos).** `architectural` acarrea las pulgadas al pie
+     cuando el redondeo de la fracción llega a doce; `engineering` **no**, porque parte en
+     pies ANTES de redondear. Medido:
+     `formatLength(23.6, { system: "engineering", precision: 0 })` → `1'-12"`, y
+     `formatLength(143.7, …)` → `11'-12"`. Ningún plano lleva doce pulgadas en el campo de las
+     pulgadas, y además rompe la idempotencia: `1'-12"` se relee 24 y se reescribe `2'-0"`.
+  2. **El menos cero (3 casos).** El signo se decide antes de redondear, así que un valor que
+     redondea a cero se escribe con menos: `formatLength(-0.4, { system: "architectural",
+     denominator: 1 })` → `-0'-0"`. Al releerlo da `-0`, y al reescribirlo el menos
+     desaparece. `dimension-format.ts` ya tropezó con lo mismo y lo tapó por su cuenta con
+     `Math.abs(value) < 1e-12 ? 0 : value`; aquí falta.
+
+  `units-label.ts` —el rótulo por el que el producto escribe— ya hace las dos cosas bien por
+  su cuenta (`units-label.spec.ts`: 324 idas y vueltas, **cero** inestables), así que esto no
+  bloquea el entregable. Se pide porque `inquiry/reports.ts` sigue llamando a `unit-format.ts`
+  directamente y DIST puede imprimir `1'-12"` hoy.
+
+- **Cambio exacto:**
+
+  1. En `formatLength`, sustituir el `case "engineering"` entero por:
+
+     ```ts
+       case "engineering": {
+         // El acarreo se hace ANTES de partir en pies. Partir primero y
+         // redondear después emite `1'-12"` para 23.6" con precisión 0: doce
+         // pulgadas en el campo de las pulgadas, que además se relee como 24 y
+         // se reescribe `2'-0"` (medido, F4 2026-09-04).
+         const rounded = Number(abs.toFixed(precision));
+         if (rounded === 0) return `0'-${(0).toFixed(precision)}"`;
+         const feet = Math.floor(rounded / 12 + 1e-9);
+         const remInches = Math.max(0, rounded - feet * 12);
+         return `${sign}${feet}'-${remInches.toFixed(precision)}"`;
+       }
+     ```
+
+     (`sign` y `abs` ya existen arriba, en el cuerpo de la función.)
+
+  2. Para el menos cero, una guarda al calcular el signo. Sustituir
+
+     ```ts
+       const sign = value < 0 ? "-" : "";
+       const abs = Math.abs(value);
+     ```
+
+     por
+
+     ```ts
+       const abs = Math.abs(value);
+       // Un valor que REDONDEA a cero no lleva signo: `-0'-0"` no es una
+       // longitud, es el orden de las operaciones asomando. El paso depende del
+       // sistema —el denominador en los fraccionarios, la potencia de diez en
+       // los decimales— y sólo se aplica cuando el número cabe sin perder
+       // dígitos al escalarlo.
+       const step = options.system === "architectural" || options.system === "fractional" ? denom : 10 ** precision;
+       const scaled = abs * step;
+       const roundsToZero = scaled < Number.MAX_SAFE_INTEGER && Math.round(scaled) === 0;
+       const sign = value < 0 && !roundsToZero ? "-" : "";
+     ```
+
+     `denom` y `precision` ya están calculados encima de esas dos líneas; sólo hay que mover
+     el bloque del signo por debajo de ellos.
+
+- **Cómo se comprueba:** `npx tsx src/lib/cad/unit-format.spec.ts` sigue verde (ninguna de sus
+  aserciones toca los dos casos). En `units-imperial.spec.ts` hay que actualizar, en el mismo
+  commit, las dos aserciones que hoy declaran la cifra REAL —están juntas y comentadas—:
+  `formatLength(23.6, …)` pasa de `1'-12"` a `2'-0"`, `formatLength(-0.4, …)` pasa de `-0'-0"`
+  a `0'-0"`, y los dos `ok(familias.* > 0)` pasan a `eq(familias.*, 0)` con `inestables` en 0.
+  Están escritas así a propósito: el arreglo no puede entrar en silencio.
+- **Estado:** pendiente
+
+### P-express-08 · La cota rotula en pies y pulgadas (sitio 2 de 3)
+
+- **Archivos:** `apps/web/src/lib/cad/associative-dimension.ts`
+- **Por qué:** cola 3, «unidades imperiales … en entrada, cota, DXF y PDF». Medido: la cota
+  puede declarar `units: 'in'` o `'ft'` (el esquema canónico ya los admite) pero
+  `formatCadDimensionMeasurement` escribe `converted.toFixed(precision)`, así que un plano
+  arquitectónico en pulgadas rotula `126.0000 in` donde lleva `10'-6"`. Con `LUNITS` no tiene
+  nada que ver: la cota no lo mira. `verification/units-imperial.spec.ts` lo deja medido en su
+  renglón final.
+
+  El rótulo ya existe y está probado: `cadLengthLabel` de `lib/cad/units-label.ts`. Esta
+  petición sólo hace que la cota lo llame.
+
+- **Cambio exacto:** en `associative-dimension.ts`, dentro de
+  `formatCadDimensionMeasurement`, sustituir el tramo lineal (desde `const sourceUnit` hasta
+  el `return label`) por:
+
+  ```ts
+    const sourceUnit = entity.sourceUnit ?? 'mm';
+    const unit = entity.units ?? sourceUnit;
+    const converted = (measurement * UNIT_TO_MM[sourceUnit]) / UNIT_TO_MM[unit];
+    // Una cota en PIES es una cota arquitectónica: en un plano nadie escribe
+    // «10.5000 ft», se escribe «10'-6"». Es la única unidad del enum que
+    // cambia de comportamiento, y cambia porque su nombre ya lo pedía; `in`
+    // sigue en decimal, que es lo que un plano mecánico quiere leer.
+    //
+    // La tolerancia se queda en el camino decimal a propósito: «10'-6" ± 1/8"»
+    // no es una forma que ISO 129-1 ni la práctica americana usen sobre una
+    // cota arquitectónica, y hornear una aquí sería inventarse una norma.
+    if (unit === 'ft' && !tolerance) {
+      const label = cadLengthLabel(measurement, {
+        drawingUnit: sourceUnit,
+        // `precision` de la cota es el exponente del denominador, igual que
+        // LUPREC: 4 → 1/16, que es la precisión con la que se dibuja en pies.
+        lunits: 4,
+        luprec: precision,
+      });
+      return `${entity.prefix ?? ''}${label}${entity.suffix ?? ''}`;
+    }
+    const body = tolerance ? cadDimensionToleranceText(converted, precision, tolerance, 1 / UNIT_TO_MM[unit]) : converted.toFixed(precision);
+    let label = `${entity.prefix ?? ''}${body} ${unit}${entity.suffix ?? ''}`;
+    if (entity.alternateUnits) {
+      const alternate = (measurement * UNIT_TO_MM[sourceUnit]) / UNIT_TO_MM[entity.alternateUnits];
+      label += ` [${alternate.toFixed(precision)} ${entity.alternateUnits}]`;
+    }
+    return label;
+  ```
+
+  con `import { cadLengthLabel } from './units-label';` junto a los demás imports del archivo.
+
+  **Y una limpieza que va en el mismo commit, o no va:** `UNIT_TO_MM` de
+  `associative-dimension.ts` (línea 22) y `TO_MM` de `dimension-format.ts` son la misma tabla
+  escrita dos veces, y ahora tres con `CAD_DRAWING_UNIT_TO_MM` de `units-imperial.ts`. La
+  regla 4 de cimientos prohíbe exactamente eso. Sustituir las dos por
+  `import { CAD_DRAWING_UNIT_TO_MM as UNIT_TO_MM } from './units-imperial';` en
+  `associative-dimension.ts`, y en `dimension-format.ts` por
+  `const TO_MM = CAD_DRAWING_UNIT_TO_MM;` (su `LengthUnit` es un subconjunto de
+  `CadDrawingUnit`, así que el tipo sigue cuadrando sin tocar la firma pública de
+  `convertLength`).
+
+- **Cómo se comprueba:** `npx tsx src/lib/cad/verification/units-and-scale.spec.ts` sigue en
+  verde con su golden `«3.50 m»` intacto —el camino métrico no cambia ni un carácter—;
+  `npx tsx src/lib/cad/verification/units-imperial.spec.ts` imprime en su último renglón
+  «la cota dice …» y ahí tiene que aparecer `10'-6"`;
+  `npx tsx src/lib/cad/associative-dimension.spec.ts`,
+  `npx tsx src/lib/cad/dimension-format.spec.ts` y
+  `npx tsx src/lib/cad/dimension-tolerance.spec.ts` cierran lo que ya existía.
+- **Estado:** pendiente
+
+### P-express-09 · `$LUNITS` y `$LUPREC` viajan en el DXF (sitio 3 de 3)
+
+- **Archivos:** `apps/web/src/lib/cad/dxf-export.ts`,
+  `apps/web/src/lib/cad/dxf-document-export.ts`
+- **Por qué:** cola 3. Medido: `pushHeader` escribe `$ACADVER`, `$INSUNITS`, `$LTSCALE`,
+  `$PDMODE` y `$PDSIZE`, y **no escribe `$LUNITS` ni `$LUPREC`**. Un despacho que deja el
+  dibujo en arquitectónico a 1/16 y lo manda a un colega ve el fichero abrirse en decimal:
+  el ajuste no está en ninguna parte del archivo. Es la misma clase de pérdida silenciosa que
+  el comentario de `$LTSCALE` ya explica dos líneas más abajo, y se arregla igual.
+- **Cambio exacto:**
+
+  1. En `dxf-export.ts`, ampliar `CadDxfExportOptions`:
+
+     ```ts
+     export interface CadDxfExportOptions {
+       units?: CadDxfExportUnit;
+       fileComment?: string;
+       /**
+        * Cómo se ESCRIBEN las longitudes en el dibujo: `$LUNITS` (1 científico,
+        * 2 decimal, 3 ingeniería, 4 arquitectónico, 5 fraccionario) y `$LUPREC`
+        * (decimales, o exponente del denominador en los fraccionarios). Sin
+        * ellas, el ajuste arquitectónico del dibujo no sobrevive al fichero.
+        */
+       lengthUnits?: { lunits: number; luprec: number };
+     }
+     ```
+
+  2. En `pushHeader`, justo después del par de `$INSUNITS`:
+
+     ```ts
+       // El FORMATO de las longitudes es del dibujo, igual que su unidad. Sin
+       // estos dos pares, un plano dejado en pies y pulgadas se abre en decimal
+       // en el otro extremo y nadie puede saber que estaba en otra cosa.
+       if (options.lengthUnits) {
+         pushPair(lines, 9, "$LUNITS");
+         pushPair(lines, 70, Math.max(1, Math.min(5, Math.trunc(options.lengthUnits.lunits))));
+         pushPair(lines, 9, "$LUPREC");
+         pushPair(lines, 70, Math.max(0, Math.min(8, Math.trunc(options.lengthUnits.luprec))));
+       }
+     ```
+
+  3. En `dxf-document-export.ts`, `exportCadDocumentDxf` pasa `options ?? {}` tal cual a
+     `exportCadDxf`, así que no hay que tocar nada más ahí: quien exporta (el comando `DXFOUT`
+     y la sesión) es quien tiene las variables vivas y quien compone
+     `{ lengthUnits: { lunits: Number(variables.get("LUNITS") ?? 2), luprec: Number(variables.get("LUPREC") ?? 4) } }`.
+     Si se prefiere que el documento lo lleve, `CadDxfDocumentExportSource.meta` ya tiene el
+     precedente de `linetypeScale` y se replicaría igual (`meta?.lengthUnits`).
+
+- **Cómo se comprueba:** `npx tsx src/lib/cad/verification/units-imperial.spec.ts` — ya lleva
+  escrita la comprobación condicional: **si** el DXF escribe `$LUNITS`, tiene que decir 4 en
+  el caso arquitectónico, y su último renglón deja de imprimir «NO viaja».
+  `npm run check:dxf-corpus` y `npx tsx src/lib/cad/dxf-export.spec.ts` cierran que la
+  cabecera sigue siendo legible.
+- **Estado:** pendiente
+
+### P-express-10 · La ENTRADA acepta pies y pulgadas (sitio 1 de 3, el que más pesa)
+
+- **Archivos:** `apps/web/src/lib/cad/precision-input.ts`,
+  `apps/web/src/lib/cad/engine/input-pipeline.ts`, `apps/web/src/lib/cad/engine/command-engine.ts`
+- **Por qué:** cola 3. Es el agujero grande y está medido dos veces (bitácora C1 y otra vez el
+  2026-09-04 dentro de `units-imperial.spec.ts`, que lo vuelve a medir en cada corrida):
+  **quince de las dieciocho formas** que un dibujante teclea devuelven hoy `{ok:false}`, y las
+  tres que pasan son las que no llevan ni marca ni fracción. `parseCoordinate` analiza con
+  `Number(s)`. La gramática ya está construida y probada en `lib/cad/units-imperial.ts`
+  (`parseImperialLength`, `parseCadLengthInDrawingUnits`, 788 comprobaciones); esta petición
+  la enchufa.
+- **Cambio exacto:** son tres capas y la primera vale por sí sola.
+
+  **Capa A — `precision-input.ts`.** Dos cambios y un import.
+
+  ```ts
+  import {
+    cadTextLooksImperial,
+    parseCadLengthInDrawingUnits,
+    type CadDrawingUnit,
+  } from "./units-imperial";
+  ```
+
+  1. `ParseContext` gana dos campos:
+
+     ```ts
+     export interface ParseContext {
+       last?: Point | null;
+       lockedAngleDeg?: number | null;
+       /**
+        * Unidad del documento. `10'-6"` son 3200.4 en un dibujo en milímetros y
+        * 126 en uno en pulgadas. Sin declararla se supone la pulgada, que es lo
+        * que AutoCAD hace cuando el dibujo no dice su unidad.
+        */
+       drawingUnit?: CadDrawingUnit;
+       /** Si un número DESNUDO se lee en pulgadas (`LUNITS` 3 o 4). */
+       assumeInches?: boolean;
+     }
+     ```
+
+  2. Los espacios se NORMALIZAN en vez de borrarse. Sustituir
+
+     ```ts
+       const input = raw.trim().replace(/\s+/g, "");
+     ```
+
+     por
+
+     ```ts
+       const input = normalizeCoordinateInput(raw);
+     ```
+
+     con esta función junto a `num`:
+
+     ```ts
+     /**
+      * Borrar TODOS los espacios rompe las fracciones, y las rompe en silencio:
+      * `1'-6 1/2"` queda `1'-61/2"`, que también se lee —`61/2` es una fracción
+      * impropia legal— y da 42.5" en vez de 18.5". Un número equivocado que
+      * nadie ve es peor que un rechazo. Se colapsan los espacios a uno y se
+      * quitan sólo los que rodean a los separadores estructurales, que es lo
+      * único que el borrado conseguía de útil (`1 , 2`, `30 < 45`, `@ 10,20`).
+      */
+     function normalizeCoordinateInput(raw: string): string {
+       return raw.trim().replace(/\s+/gu, " ").replace(/\s*([,<@*])\s*/gu, "$1");
+     }
+     ```
+
+  3. `num` deja de ser `Number` para las LONGITUDES —y sólo para ellas—:
+
+     ```ts
+     /** Una LONGITUD tecleada, en unidades de dibujo. Acepta pies y pulgadas. */
+     function num(s: string, ctx: ParseContext = {}): number | null {
+       const parsed = parseCadLengthInDrawingUnits(s, {
+         // Sin unidad declarada, una unidad de dibujo es una pulgada: es la
+         // suposición de AutoCAD y deja `6"` valiendo 6, no 152.4.
+         drawingUnit: ctx.drawingUnit ?? "in",
+         assumeInches: ctx.assumeInches,
+       });
+       return parsed.ok ? parsed.value : null;
+     }
+
+     /** Un ÁNGULO tecleado. En grados, y por tanto sin unidades de dibujo. */
+     function angleNum(s: string): number | null {
+       if (s.trim() === "") return null;
+       const n = Number(s.trim());
+       return Number.isFinite(n) ? n : null;
+     }
+     ```
+
+     y en el cuerpo de `parseCoordinate`: en la rama polar, `const d = num(dStr, ctx);` y
+     `const a = angleNum(aStr);` — **el ángulo no pasa por el analizador de longitudes**, que
+     es el error fácil de esta petición: `30<45` son treinta unidades a cuarenta y cinco
+     GRADOS, y convertir el 45 a unidades de dibujo giraría la línea. En la rama de la
+     coordenada, `num(xStr, ctx)`, `num(yStr, ctx)`, `num(zStr, ctx)`. En la entrada directa,
+     `num(body, ctx)`.
+
+  4. `cadTextLooksImperial` no se usa en el cuerpo: se importa para el mensaje de error, que
+     conviene que deje de ser mudo cuando el texto SÍ parecía una medida imperial. Si se
+     prefiere no tocar los mensajes, quítese del import.
+
+  **Capa B — `input-pipeline.ts`.** El guardián `NUMBER` (línea 115) rechaza `1'-6"` antes de
+  llegar a nada, así que la entrada directa de distancia seguiría rota. Dos cambios:
+
+  1. `CadTokenContext` gana los mismos dos campos que `ParseContext`
+     (`drawingUnit?: CadDrawingUnit; assumeInches?: boolean`), documentados igual.
+  2. En el paso 5 («Número suelto»), sustituir
+
+     ```ts
+       if (NUMBER.test(token)) {
+         const value = Number(token);
+     ```
+
+     por
+
+     ```ts
+       // La distancia se lee con el analizador de longitudes, no con `Number`:
+       // `3000` y `10'-6"` son las dos formas de teclear la misma distancia, y
+       // la segunda es la única que un despacho americano usa.
+       const typedLength = parseCadLengthInDrawingUnits(token, {
+         drawingUnit: context.drawingUnit ?? "in",
+         assumeInches: context.assumeInches,
+       });
+       if (typedLength.ok) {
+         const value = typedLength.value;
+     ```
+
+     (el `NUMBER` deja de tener consumidores; bórrese la constante). El resto del bloque no
+     cambia. Y en el paso 4, la llamada a `parseCoordinate` pasa el contexto:
+
+     ```ts
+       const parsed = parseCoordinate(body, {
+         last: last ?? null,
+         ...(context.drawingUnit ? { drawingUnit: context.drawingUnit } : {}),
+         ...(context.assumeInches ? { assumeInches: true } : {}),
+       });
+     ```
+
+  **Capa C — `command-engine.ts`.** Rellenar los dos campos desde las variables vivas, en el
+  mismo `tokenContext` donde ya se calcula el SCU (línea 274):
+
+  ```ts
+    ...(context.variables
+      ? {
+          ucs: cadActiveUcs(context.variables),
+          // La unidad del documento y el ajuste de UNITS llegan hasta el
+          // teclado: `10'-6"` se guarda como 3200.4 en un dibujo en milímetros,
+          // y con LUNITS arquitectónico un `6` desnudo son seis pulgadas.
+          ...(cadDrawingUnitFromInsunits(Number(context.variables.get("INSUNITS") ?? 4))
+            ? { drawingUnit: cadDrawingUnitFromInsunits(Number(context.variables.get("INSUNITS") ?? 4))! }
+            : {}),
+          ...([3, 4].includes(Number(context.variables.get("LUNITS") ?? 2)) ? { assumeInches: true } : {}),
+        }
+      : {}),
+  ```
+
+  con `import { cadDrawingUnitFromInsunits } from "../units-imperial";`.
+
+- **El único cambio de comportamiento que esta petición trae, dicho antes de aplicarla:** hoy
+  `parseCoordinate("1 2")` devuelve 12, porque borra el espacio y concatena los dígitos.
+  Después devolverá un error. Es deliberado: `1 2` no es una medida y el 12 que salía era un
+  accidente del borrado. `precision-input.spec.ts` no tiene ningún caso con espacio interior
+  (comprobado el 2026-09-04), así que la suite no lo cubre ni a favor ni en contra.
+- **Cómo se comprueba:** `npx tsx src/lib/cad/units-imperial.spec.ts` lleva la comprobación que
+  cierra esto: vuelve a medir `parseCoordinate` renglón a renglón contra la columna «roto» de
+  la tabla, así que **fallará en cuanto la petición se aplique** y hay que actualizar los
+  quince `roto: true` en el mismo commit — está escrita así a propósito, para que el arreglo
+  no pueda entrar sin que la evidencia lo diga. Además:
+  `npx tsx src/lib/cad/precision-input.spec.ts`,
+  `npx tsx src/lib/cad/engine/command-engine.spec.ts`,
+  `npx tsx src/lib/cad/verification/units-imperial.spec.ts` y
+  `npm run check:command-integrity`.
+- **Estado:** pendiente

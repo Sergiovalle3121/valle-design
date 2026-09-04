@@ -430,3 +430,106 @@ limpio (comprobado con `git stash`), y `dwg/` no es territorio de este frente.
 - **TCOUNT numera TEXT y MTEXT, no atributos de bloque.** Un atributo se edita con ATTEDIT y su
   texto no es una entidad del espacio modelo; numerarlos exigiría entrar por
   `positionedAttributes`, que es otro camino de escritura.
+
+### C5 · Pies y pulgadas: el analizador de entrada y el sitio único del rótulo (2026-09-04)
+
+**Lo que había.** La mitad de SALIDA, y sólo ella: `unit-format.ts` sabe escribir
+arquitectónico, ingeniería y fraccionario desde VD-CAD-DEPTH-B5, y `inquiry/reports.ts` lo
+consume con las variables vivas. Lo demás estaba roto o partido, y esta vez se volvió a medir
+en vez de citar C1:
+
+- **La entrada, medida el 2026-09-04 sobre `parseCoordinate`:** de las dieciocho formas que un
+  dibujante teclea, **quince devuelven `{ok:false}`**. Las tres que pasan (`6.5`, `.5`, `18.5`)
+  son las únicas sin marca ni fracción. El analizador usa `Number(s)`.
+- **El rótulo, partido en dos módulos que no se hablan:** `unit-format.ts` sabe de pulgadas y
+  no sabe del documento (interpreta su argumento en pulgadas SIEMPRE, así que un muro de
+  3200.4 mm le sale `266'-8 3/8"`); `dimension-format.ts` sabe del documento y su
+  `LengthUnit` es `'mm' | 'cm' | 'm'`. Resultado medido: el ajuste arquitectónico se ve en
+  DIST y en LIST y NO se ve en la cota, que es donde el cliente lo lee.
+
+**Lo que hay ahora.** Dos módulos puros y tres specs, 1 456 líneas:
+
+| Archivo | Qué es |
+| --- | --- |
+| `lib/cad/units-imperial.ts` (341) | La gramática (`parseImperialLength` → PULGADAS), la conversión a unidad de dibujo (`parseCadLengthInDrawingUnits` → lo que se GUARDA), `CAD_DRAWING_UNIT_TO_MM` y el mapa de `$INSUNITS` |
+| `lib/cad/units-label.ts` (206) | El sitio ÚNICO donde una longitud se vuelve texto: valor en unidades de dibujo + unidad del documento + `LUNITS`/`LUPREC`/`INSUNITS` → rótulo |
+| `lib/cad/units-imperial.spec.ts` (344) | 788 comprobaciones: la tabla de 18 formas, 12 negativas razonadas y 324 idas y vueltas contra `unit-format.ts` |
+| `lib/cad/units-label.spec.ts` (285) | 1 037 comprobaciones: un número por cinco unidades y cinco `LUNITS`, y 324 idas y vueltas **sin una sola inestabilidad** |
+| `lib/cad/verification/units-imperial.spec.ts` (280) | 22 comprobaciones: el gemelo imperial de `units-and-scale.spec.ts` |
+
+**El número de la campaña, cruzado:** `10'-6"` tecleado son **3200.4 mm** de dibujo, se rotulan
+`10'-6"` con LUNITS 4 y LUPREC 4, y ocupan **64.008 mm** de papel a 1:50 con `buildPlotSheet`.
+Y la cadena cierra hacia atrás: el rótulo se vuelve a teclear y da el mismo número.
+
+**Las cuatro decisiones, cada una escrita junto a su código.**
+
+1. **La marca manda, y nunca se adivina.** `6"` son seis pulgadas se teclee donde se teclee;
+   `6` a secas son seis unidades de dibujo. Un `6` interpretado como pulgada en un plano en
+   milímetros mete 152.4 donde iban 6, y nadie lo ve hasta que la pieza no entra. La única
+   forma de que un número desnudo signifique pulgadas es que el DIBUJO lo diga (`LUNITS` 3 o
+   4, que es como AutoCAD se comporta), y eso viaja explícito en `assumeInches`.
+2. **La desviación deliberada respecto de AutoCAD, en el rótulo.** AutoCAD asume que una unidad
+   de dibujo es una pulgada cuando `LUNITS` está en arquitectónico o ingeniería. El nuestro lee
+   `INSUNITS`, así que 3200.4 mm con LUNITS 4 se rotulan `10'-6"` y no `266'-8 3/8"`. La
+   comilla ya declara «esto son pulgadas»: escribir la otra cifra sería mentir en el
+   vocabulario del propio formato. El FRACCIONARIO no se convierte, y también a propósito: no
+   lleva marca de unidad, es sólo una manera de escribir un número.
+3. **La negativa razonada es parte del entregable, no un resto.** `1'2'` no se lee y se dice por
+   qué. Un analizador que ante lo ambiguo devuelve un número es peor que uno que no lee nada,
+   porque el número equivocado llega al plano.
+4. **El pie se escribe `304.8` y no `25.4 * 12`.** En coma flotante binaria ese producto da
+   304.79999999999995, y una tabla de factores con error en el último bit contamina todas las
+   conversiones que pasan por ella.
+
+**Dos defectos que la ida y vuelta destapó, medidos y no supuestos.** De las 324 idas y vueltas
+contra `unit-format.ts`, **siete** no vuelven a la misma cadena, y son dos familias con nombre:
+
+- **el acarreo de ingeniería (4):** `formatLength(23.6, { system: "engineering", precision: 0 })`
+  da `1'-12"` porque parte en pies ANTES de redondear (`architectural` sí acarrea);
+- **el menos cero (3):** `formatLength(-0.4, { system: "architectural", denominator: 1 })` da
+  `-0'-0"` porque decide el signo antes de redondear.
+
+`units-label.ts` hace las dos cosas bien por su cuenta —sus 324 idas y vueltas dan **cero**
+inestables— así que el producto ya rotula bien por el camino nuevo. El arreglo de
+`unit-format.ts` va en `P-express-07` con el parche exacto, porque ese archivo está fuera del
+territorio del frente.
+
+**Las cuatro peticiones que este entregable deja escritas** (`express-peticiones.md`), las tres
+primeras son los tres sitios que deben delegar:
+
+| Petición | Sitio | Qué cambia |
+| --- | --- | --- |
+| `P-express-07` | `unit-format.ts` | El acarreo de ingeniería y el menos cero |
+| `P-express-08` | la COTA (`associative-dimension.ts`) | `units: 'ft'` rotula `10'-6"` en vez de `10.5000 ft`, delegando en `cadLengthLabel`; y las tres copias de la tabla mm-por-unidad pasan a ser una |
+| `P-express-09` | el DXF (`dxf-export.ts`) | `$LUNITS` y `$LUPREC` viajan en la cabecera |
+| `P-express-10` | la ENTRADA (`precision-input.ts`, `input-pipeline.ts`, `command-engine.ts`) | Las quince formas rotas pasan a leerse, con la unidad del documento |
+
+Dos de las specs están escritas para FALLAR cuando su petición se aplique, a propósito y con el
+aviso dentro: `units-imperial.spec.ts` vuelve a medir `parseCoordinate` renglón a renglón contra
+la columna «roto», y declara con su cifra exacta los dos defectos de `unit-format.ts`. Un arreglo
+que entrara en silencio dejaría la evidencia mintiendo, que es peor que el defecto.
+
+### Las unidades imperiales, al 2026-09-04
+
+- **La entrada todavía no llega al teclado del usuario.** `parseImperialLength` y
+  `parseCadLengthInDrawingUnits` existen, están probadas y son puras, pero `precision-input.ts`,
+  `input-pipeline.ts` y `command-engine.ts` están fuera de mi territorio: hasta que se aplique
+  `P-express-10`, el dibujante sigue sin poder teclear `1'-6 1/2"`. Por la regla 1 de cimientos,
+  mientras tanto **la entrada imperial no cuenta como implementada**, y así se declara.
+- **La cota sigue rotulando en decimal.** `verification/units-imperial.spec.ts` lo imprime en su
+  último renglón: dice «126.0000 in» donde el plano lleva «10'-6"». Lo cierra `P-express-08`.
+- **El DXF sigue sin llevar `$LUNITS`/`$LUPREC`.** Medido en la misma spec. Lo cierra
+  `P-express-09`. La comprobación ya está escrita en forma condicional, así que el día que
+  viajen se validan solos.
+- **El PDF no entra en este entregable.** La cola 3 dice «entrada, cota, DXF y PDF»; el rótulo
+  de la hoja (`plot-sheet.ts`, cajetín y barra de escala) vive en `lib/cad/plot*`, que no es
+  territorio del frente. Lo que sí se comprueba es la ARITMÉTICA del papel: 64.008 mm a 1:50,
+  con `buildPlotSheet` real. El cajetín en pies y pulgadas queda sin hacer, no descartado.
+- **No hay `UNITS` interactivo.** El ajuste se cambia con `SETVAR LUNITS`/`LUPREC`, que ya
+  existe y ya gobierna el rótulo. El cuadro de diálogo de AutoCAD (`UNITS`) no está; sería una
+  orden nueva en el registro y por tanto cuatro archivos fuera del territorio.
+- **Las unidades de agrimensor (`1234'-5"` con separador de miles) no se leen ni se escriben.**
+  AutoCAD tampoco las escribe por defecto; se menciona porque un topógrafo americano las teclea.
+- **El sufijo de `INSUNITS` desconocido no se traduce.** Millas, yardas, angstroms y las demás
+  quince entradas de la tabla del DXF devuelven `null` en vez de caer en milímetros: quien
+  pregunta merece saber que el fichero declaró una unidad que no entendemos.
