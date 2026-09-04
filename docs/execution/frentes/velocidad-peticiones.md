@@ -148,3 +148,94 @@ Formato de cada petición:
   SwiftShader, y borrar el `run.complete` del artefacto sintético hace fallar la de la corrida
   parcial.
 - **Estado:** pendiente
+
+### P-velocidad-05 · Encadenar el trinquete del reparto por etapa a `check:cad`
+
+- **Archivo:** `package.json` (raíz) — archivo compartido, R2.
+- **Por qué:** entrega 4 de la cola 1. El trinquete existe y muerde
+  (`node scripts/perf/check-etapas-100k.mjs`), pero un gate que hay que acordarse de invocar no
+  es un gate: es documentación. El ×6,75 de `architecture@100k` ya se perdió una vez sin que
+  nadie se enterara —ver la entrada del 2026-09-04 en `velocidad.md`— justamente porque el
+  artefacto estaba publicado y no lo vigilaba ningún comando.
+- **Cambio exacto:** añadir a `scripts` de `package.json` (raíz):
+
+  ```json
+  "check:etapas-100k": "node scripts/perf/check-etapas-100k.spec.mjs && node scripts/perf/check-etapas-100k.mjs",
+  "perf:etapas-100k": "node scripts/perf/etapas-100k-medir.mjs"
+  ```
+
+  y encadenar **sólo el primero** dentro de `check:cad`, junto a `check:curve-kernel-render`
+  (P-velocidad-01) y `check:slo-navegador` (P-velocidad-04):
+
+  ```
+  … && npm run check:curve-kernel-render && npm run check:slo-navegador && npm run check:etapas-100k && …
+  ```
+
+  `check:etapas-100k` es barato y **no mide nada**: lee el artefacto publicado y el presupuesto y
+  los compara (medio segundo en total, spec incluida). No lanza el perfilador, así que no depende de la
+  velocidad del runner ni de su carga — sólo del contenido de dos ficheros versionados. Por eso
+  puede vivir dentro de `check:cad` sin volverlo lento ni intermitente.
+
+  `perf:etapas-100k` NO se encadena a ningún gate y no debe encadenarse: son tres corridas del
+  perfilador (~80 s aquí) y su resultado depende de la carga de la máquina. Es el comando que se
+  invoca a mano cuando se quiere republicar el reparto, y después `--bajar` para apretar techos.
+- **Cómo se comprueba:** `npm run check:etapas-100k` imprime
+  `check-etapas-100k.spec.mjs · 117 comprobaciones · OK` y luego la tabla del trinquete con
+  `VERDE`, y termina en 0. Para ver que MUERDE, sin tocar nada versionado:
+
+  ```
+  node -e "const f='docs/cad/evidence/render-stage-architecture-100k.json';const a=require('./'+f);a.corridas[0].runs[0].stages.ms.tessellate*=2;require('fs').writeFileSync('/tmp/roto.json',JSON.stringify(a))"
+  node scripts/perf/check-etapas-100k.mjs --evidencia /tmp/roto.json   # sale 1 y cita tessellate
+  ```
+- **Estado:** pendiente
+
+### P-velocidad-06 · El LOD del sombreado cuesta ×3.448 en cuanto pasa de 24 px, y en el recorrido medido pasa siempre
+
+- **Archivo:** `apps/web/src/lib/cad/hatch-entity-adapter.ts` (y su spec) — **fuera del territorio
+  de F2** (R1). Este frente no lo toca; lo mide y lo entrega medido.
+- **Por qué:** es la deuda que el trinquete del reparto por etapa dejó al descubierto, y hoy vale
+  ×7,99 de `tessellate` en `architecture@100k`. Todo lo que sigue está medido en este contenedor
+  y publicado en `docs/cad/evidence/render-stage-architecture-100k.json` (bloque `lod`):
+
+  1. Un HATCH devuelve **4** segmentos a tier 0 y **13.790,8** a tier 1: un salto de **×3.447,7**
+     en el primer escalón por encima de los 24 px aparentes.
+  2. **Tier 1 y tier 2 son idénticos** (13.790,8 los dos). El escalón intermedio ya no ahorra
+     nada desde que `11fc202` retiró el ensanchado ×4 del espaciado — retirada correcta: el
+     golden 47 la cazó y a ~300 px el usuario ve la diferencia. El problema no es esa retirada,
+     es que no quedó nada en su lugar.
+  3. El comentario del adaptador («en `architecture@100k` los 14.000 sombreados están por debajo
+     de los 24 px, o sea en tier 0») es cierto en la vista inicial y **falso en la parada de zoom
+     del mismo recorrido** que mide el reparto: a 0,08970 px/unidad, 24 px son 267,6 unidades y
+     **los 14.000 sombreados caen en tier 1, ninguno en tier 0**. El censo por escalón lo publica
+     la sonda en cada corrida.
+  4. Consecuencia medida: 414 entidades detalladas al reposo producen **2.199.624** instancias
+     residentes, frente a las 15.250 de agosto (×144,2), y `tessellate` pasa de 477,8 ms a
+     3.818,9 ms sobre el mismo corpus y las mismas 91.175 llamadas.
+- **Cambio exacto (propuesta; la decisión es de quien gobierna el adaptador):** el coste de un
+  sombreado a tier 1 **no depende de su tamaño aparente**, y ahí está la avería. `spacing` sale de
+  `max(entity.scale ?? diagonal/40, diagonal/256, 1e-6)`, que es geometría del modelo: un
+  sombreado de 25 px aparentes emite los mismos ~13.790 segmentos que uno de 300 px, es decir
+  ~550 segmentos por píxel. Ensanchar el espaciado por un factor fijo ya se probó y cambia el
+  dibujo. Lo que no lo cambia es dejar de emitir lo que **no cabe en un píxel**, que es el mismo
+  criterio de sagita que `cadRenderSegmentsForSagitta` ya aplica a las curvas:
+
+  - Hoy `renderer.paths(entity, segments)` sólo recibe el escalón, y un escalón es una BANDA
+    (tier 1 = 24…320 px), no un tamaño. Con la banda no se puede decidir si un trazo cae por
+    debajo del píxel; con el tamaño aparente, sí.
+  - La forma mínima de darle ese dato sin tocar la firma del registro es derivarlo del propio
+    escalón por su cota superior: a tier 1 el sombreado mide **como mucho** 320 px, así que más
+    de ~320 trazos por familia no los puede resolver ninguna pantalla. Recortar a esa cota es
+    conservador por construcción —nunca quita un trazo que el usuario podría distinguir— y
+    corta el caso de los ~13.790.
+  - La forma correcta, si se quiere hacer bien, es pasar el tamaño aparente (o los px/unidad) a
+    `paths()` como ya se pasa `segments`, y decidir con él. Eso toca `CadEntityRenderer` y a
+    todos los adaptadores, así que es un cambio de diseño con dueño y ADR, no un parche.
+  - Sea cual sea el camino, la condición de aceptación NO es un número de milisegundos: es que
+    el golden 47 siga verde y que `hatch-entity-adapter.spec.ts` siga fijando que tier completo
+    es bit a bit el cálculo de siempre. Un ahorro que cambia el dibujo no vale.
+- **Cómo se comprueba:** `node scripts/perf/etapas-100k-medir.mjs` republica el reparto y
+  `node scripts/perf/check-etapas-100k.mjs --bajar` baja los techos con la ganancia que sea. El
+  bloque `deuda` del presupuesto lleva el cociente contra agosto etapa por etapa: hoy
+  `tessellate` ×7,99 y `segmentsAtRest` ×144,24, y bajan solos conforme la deuda se pague.
+  Mientras tanto el trinquete impide que empeore más.
+- **Estado:** pendiente

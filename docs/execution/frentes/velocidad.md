@@ -323,3 +323,83 @@ reales: rasterizado por SwiftShader y encogería la evidencia en 18 perfiles.
   runner.** El plan estima con el dato que hay —la corrida publicada tardó 7,8 min de punta a
   punta— y NO inventa una estimación para las tres corridas densas, que en CI rozaron los 35 min
   cada una sin GPU.
+
+### 2026-09-04 · Cola 1 · Trinquete sobre el reparto por etapa, y lo que encontró al ponerlo
+
+Qué existe ahora que antes no: el ×6,75 de `architecture@100k` tiene **techo**, y quien lo pase
+se pone rojo con nombre y apellido.
+
+**NUEVOS (territorio propio, `scripts/perf/**` y `docs/cad/evidence/*100k*`):**
+
+- `scripts/perf/etapas-100k-budget.json` — techo por etapa (`tessellate`, `batchPush`,
+  `spatialIndex`, `insertExpand`, `tileEnqueue`) más dos totales, `stageTotalMs` y
+  `segmentsAtRest`. Los dos totales no son adorno: sin el primero, mover coste a una etapa sin
+  techo (`textRequest`, `offThreadSeed`) pasaría en verde; sin el segundo, bajar el reloj
+  dibujando menos también. Ningún número está elegido a mano: salen de tres corridas medidas
+  aquí, y el fichero declara su máquina, su carga (`loadavg1m` 3,88 / 3,46 / 3,71 sobre cuatro
+  hilos), su dispersión por etapa y su margen.
+- `scripts/perf/check-etapas-100k.mjs` — la REGLA, aparte del programa que produce lo juzgado,
+  por la misma cicatriz de la entrega 2. Juzga **las tres** corridas, no la mejor. Se niega si
+  falta `environment` (no declara máquina), si `declaredMachine` sale corta o con «desconocido»,
+  si el artefacto se declara con GPU o navegador, si no trae identificador de publicación o de
+  corrida, si el corpus no es el sha versionado del presupuesto, o si la vista al reposo cambió
+  —`detailedAtRest`, `visibleAtRest`, llamadas a `tessellate`—, que es el candado contra «más
+  rápido porque dibuja menos». `--bajar` recalcula techos y **sólo baja**.
+- `scripts/perf/etapas-100k-medir.mjs` — el productor. Tres corridas en procesos separados (una
+  repetición dentro del mismo proceso mediría una V8 ya caliente), comprueba que las tres salen
+  de la misma CPU y el mismo Node antes de agregarlas, compone la máquina desde `os` en vez de
+  escribirla —la constante del perfilador decía «Xeon a 2.10GHz» y esta máquina es un Xeon a
+  2.80GHz— y **arrastra verbatim** el `comparisonWithinThisSession` de agosto: es la única copia
+  de esa medición y republicar encima la habría borrado sin ruido.
+- `scripts/perf/etapas-100k-lod-probe.mts` — la sonda que ata el corpus a su sha del manifiesto
+  y explica de dónde sale el coste: segmentos por tipo y por escalón, y el censo de qué escalón
+  se paga **en la parada de zoom** del recorrido que se mide.
+- `scripts/perf/check-etapas-100k.spec.mjs` — **117 comprobaciones**, medio segundo. Degrada etapa por
+  etapa rotando la corrida degradada (un verificador que sólo mirara la primera lo delataría),
+  prueba el techo justo por encima y justo encima, mete presupuestos rotos, artefactos sin
+  máquina y corridas más rápidas dibujando menos, y ejerce el trinquete en las dos direcciones.
+  Comprobado con cinco mutaciones al verificador: cada una tumba el spec.
+
+**Y lo que el trinquete encontró el primer día, que es la mitad de esta entrega.** El artefacto
+publicado el 2026-08-31 declaraba `tessellate` 477,8 ms y 15.250 instancias residentes. Medido
+hoy sobre el MISMO corpus (sha `2029d760…`), el MISMO escenario y con las MISMAS 91.175 llamadas:
+**3.818,9 ms y 2.199.624 instancias** — ×7,99 y ×144,2. No lo explica la máquina: en las mismas
+corridas `spatialIndex` va ×1,12 y `insertExpand` ×1,36 contra agosto. Es trabajo nuevo, no
+lentitud.
+
+La causa está medida, no supuesta, y la publica la sonda dentro del artefacto: un HATCH devuelve
+**4** segmentos a tier 0 y **13.790,8** a tier 1 —y tier 1 y tier 2 son idénticos desde que
+`11fc202` retiró el escalón intermedio, por una razón de corrección del dibujo que sigue siendo
+buena—; y en la parada de zoom de este recorrido (0,08970 px/unidad, 24 px = 267,6 unidades)
+**los 14.000 sombreados están en tier 1, ninguno en tier 0**. El comentario del adaptador dice
+lo contrario («están por debajo de los 24 px»), y es cierto en la vista inicial y falso en el
+zoom del mismo recorrido. Petición **P-velocidad-06** con el diseño; el adaptador no es
+territorio de este frente y no se toca.
+
+No se relajó nada para que esto pasara: los techos son los que esta máquina mide HOY, y el
+presupuesto lo dice en su bloque `deuda`, con el cociente contra agosto etapa por etapa. Un techo
+que se presenta como meta sería peor que no tener techo.
+
+#### Todavía no (2026-09-04)
+
+- **El ×6,75 publicado no es lo que el árbol entrega hoy, y esta entrega no lo arregla: lo hace
+  visible.** Bajar `tessellate` de 3,8 s a los 477 ms de agosto es trabajo de quien gobierna el
+  LOD del sombreado (P-velocidad-06), no del trinquete. Lo que el trinquete garantiza es que a
+  partir de ahora el siguiente resbalón sale en rojo el mismo día.
+- **Los techos están calibrados bajo carga 3,5–3,9 sobre cuatro hilos**, con otro agente
+  trabajando en el mismo contenedor: son entre un 10 % y un 15 % más flojos que el suelo de esta
+  máquina en silencio (una calibración anterior, con carga 0,5–1,0, dio `tessellate` 3.610 ms
+  frente a los 4.200 de ahora). No se eligió la corrida favorable a propósito. Se aprieta solo:
+  `node scripts/perf/check-etapas-100k.mjs --bajar` en una máquina tranquila baja los techos y
+  nunca los sube.
+- **El trinquete no está encadenado a ningún gate**, por lo mismo que P-velocidad-01 y
+  P-velocidad-04: encadenarlo exige `package.json`, que es R2. Diseño completo en
+  **P-velocidad-05**. Hasta entonces se invoca a mano.
+- **`firstDetailMs` no tiene techo.** Se mide y se publica (mediana 1.061 ms), pero no se
+  presupuesta: es el reloj de pared del recorrido entero y su dispersión mezcla el coste del
+  pipeline con el bucle de eventos. Presupuestarlo hoy sería un gate que falla por el vecino.
+  La etapa a la que ese milisegundo pertenece sí tiene techo.
+- **El escenario juzgado es uno solo** (`sync · sin reconciliar · reloj real`). Los otros dos que
+  el perfilador mide —`sync · reconcilia` y `offthread`— se publican enteros en cada corrida pero
+  no se juzgan: `offthread` paga `offThreadSeed`, que en este contenedor sin hilos libres mide el
+  planificador de Node más que el producto.
