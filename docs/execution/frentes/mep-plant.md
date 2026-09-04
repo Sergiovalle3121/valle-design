@@ -60,8 +60,50 @@ npm run check:cad                       # antes de cerrar
 
 ## Bitácora
 
-_(sin entradas todavía)_
+### R0 · Reconocimiento del territorio (2026-09-04)
+
+Leí la ficha, el corte de campaña y AGENTS.md, y **medí lo que ya existe** antes de
+planear nada. Lo construido, con su tamaño:
+
+- **MEP (Ola F, 2026-09-02)** — `mep-support.ts` (diez servicios con capa, color y tipo de
+  línea; doble línea a inglete), `mep-symbols.ts` (ocho bloques dibujados),
+  `mep-schedule.ts` (cuadro de instalaciones), órdenes `PIPE`/`DUCT`/`CABLETRAY`
+  (`mep-tracing.ts`, 195 líneas) y `MEPSYMBOL` (`mep-symbol.ts`). **Todo en planta, z = 0**:
+  `lift()` de `mep-tracing.ts` escribe `z: 0` en cada vértice y `cadPathLength` mide en 2D.
+- **Plant (Ola 6, 2026-09-03)** — `plant/line-numbers.ts` (número de línea
+  `6"-P-1001-CS150` con sus cuatro hallazgos), `plant/equipment-tags.ts`,
+  `plant/pid-symbols.ts`, `plant/pipe-route.ts` (346 líneas: rutas 3D con cota, accesorios
+  DEDUCIDOS —codo, te, reducción— y cuatro hallazgos), `plant/pipe-mto.ts` (lista de
+  materiales del modelo, con su límite escrito en el título del cuadro),
+  `plant/isometric.ts` (isométrico con longitudes verdaderas). Órdenes: `PIDLINE`,
+  `PIDLIST`, `PIDEQUIP`, `PIDEQUIPLIST`, `PIDROUTE`, `PIDMTO`, `PIDISO`, todas en la cinta
+  (panel «Instalaciones», `ribbon.ts:146`).
+
+Lo que **falta de verdad**, y coincide con lo que la propia rúbrica declara en el `gap` de
+`toolset-plant3d`: sólido de tubería con diámetro en el visor 3D, detección de choques
+contra estructura, y —de mi cola— la mitad 3D de MEP (cota, metros reales, interferencias),
+el catálogo de especificación ampliable por la organización y la conciliación P&ID ↔ 3D.
+
+Tres restricciones que descubrí midiendo, y que deciden la forma de la cola:
+
+1. **Una orden NUEVA cuesta dos archivos fuera de mi territorio.** `ribbon.ts` y
+   `docs/cad/evidence/ui-command-reach.json` (que `npm run check:cad` compara contra el
+   registro). Una orden nueva dejaría `check:cad` en rojo en este árbol hasta la ventana de
+   integración. **Decisión: la cola no añade órdenes**; cuelga de PIDROUTE, PIDMTO, PIDLIST,
+   PIPE, DUCT y CABLETRAY, que ya tienen botón. Queda escrito como P-mep-plant-02 por si el
+   titular prefiere PIDCLASH/PIDSOLID propios.
+2. **El barrido del kernel se estrecha en las esquinas, y se mide.** Prototipé el sólido de
+   tubería con un nodo `sweep` de `solid3d` (6", camino de 5 m + montante de 3 m, perfil de
+   16 lados) y medí con `solid3dMassProperties`: sin densificar el camino el cuerpo pierde
+   **13,6 %** de volumen contra el cilindro teórico (122 931 071 vs 142 209 817), porque el
+   perfil se coloca en el plano bisector y la sección se interpola desde el arranque. Con
+   puntos extra a ±200 mm del vértice queda en 0,73 % y a ±100 mm en **0,37 %**. Ésa es la
+   cifra que la spec de T2 va a fijar, y por eso T2 no es «llamar a sweep».
+3. **El sólido `solid3d` ya se ve y ya se corta.** `flatshot-solids.ts:183` recoge
+   `entity.type === "solid3d"`, así que emitir el tubo como `solid3d` lo pone en el visor 3D
+   **y** en FLATSHOT sin tocar nada de F3 — los ortográficos desde el modelo salen de
+   propina, no como entrega aparte.
 
 ## «Todavía no»
 
-_(sin entradas todavía)_
+_(sin entradas todavía — las de la campaña se declaran al cerrar cada entrega)_
