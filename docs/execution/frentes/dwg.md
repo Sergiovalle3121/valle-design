@@ -488,6 +488,50 @@ el injerto de la sección 10 en ADR-0009, con su texto completo, es `P-dwg-02` e
 aplique P-dwg-03, este gate no lo corre nadie automáticamente** — está escrito, pasa, y
 espera su cable.
 
+### 2026-09-04 · Cierre del frente — verificación de lo afirmado
+
+No entra código nuevo. Se corrieron los gates y se comprobaron las afirmaciones de los
+cinco entregables antes de dar el frente por cerrado. **Una no se sostuvo y está retirada**
+(ver la entrada corregida sobre `check:cad` en «Todavía no»).
+
+**Gates, con su salida literal.**
+
+| Gate | Resultado |
+| --- | --- |
+| `npm run typecheck` | `Tasks: 8 successful, 8 total` · EXIT=0 |
+| `npm run check:cad` **con** `VALLE_DWG_CORPUS_MIRROR` | EXIT=0, entero y verde |
+| `npm run check:cad` **sin** la variable | EXIT=1 en `check:dwg-evidence` — falta el espejo, no una regresión |
+| `npm test` de `packages/dwg-codec` | `# pass 512  # fail 0` · EXIT=0 |
+| `node scripts/dwg/check-product-boundary.mjs` | `9 signatures, 8 product specs, 5 authorized runtime import site(s), 0 unauthorized` |
+| `npm run check:dwg-oraculo` | `casos exigidos: 24 · casos respaldados: 4 · externalOracleVerified = false` |
+| `node scripts/dwg/check-firma-package.mjs --check` | `✔ El paquete de firma no afirma nada que su evidencia no sostenga.` |
+
+**Afirmaciones comprobadas corriendo su spec, no releyendo el informe.**
+
+1. **La cifra de cobertura sobre material ajeno: CONFIRMADA exacta.**
+   `VALLE_DWG_CORPUS_MIRROR=… node scripts/dwg/corpus-rewrite.spec.mjs` imprime
+   `153 comprobaciones · corpus: 57 archivos ajenos · 284/327 entidades regrabadas (86.9%) ·
+   12 clases íntegras, 0 con pérdida declarada, 15 no escribibles`. Coincide con lo que el
+   entregable 4 declaró (284/327, 86,9 %, 12 íntegras, 15 no escribibles). Y
+   `corpus-rewrite.mjs --check` responde `la evidencia coincide con una corrida fresca
+   (57 archivos ajenos, 327 entidades)`: la evidencia committeada es de verdad regenerable.
+   **Corrección menor de conteo:** el entregable 1 dijo «156 comprobaciones» y son **153**;
+   sin el espejo el mismo spec corre 32 y lo DICE (`sin VALLE_DWG_CORPUS_MIRROR: la parte de
+   corpus no corrió`), que es la mitad no-corpus prometida.
+2. **Los tres entregables de escritura: CONFIRMADOS.**
+   `npx tsx --test tests/unit/insert-attrib-write.spec.ts paper-space-viewport-write.spec.ts
+   hatch-pattern-write.spec.ts` da `# pass 36  # fail 0` — exactamente los 8 + 11 + 17 que
+   los entregables 2, 3 y 4 declararon, ni uno de menos.
+3. **Las dos banderas siguen APAGADAS**, comprobado en el código y no en el informe:
+   `DWG_EXPORT_FLAG: boolean = false` en `dwg-export-flag.ts` y
+   `DWG_IMPORT_FLAG: boolean = false` en `dwg-interop-flag.ts`.
+
+**Lo que este cierre NO hace:** no corrige el writer, no toca archivos compartidos y no
+enciende nada. El límite de método que arrastran los cinco entregables sigue en pie y sin
+suavizar — **ningún lector ajeno ha abierto todavía un archivo escrito por este writer**;
+todo lo medido enfrenta nuestro writer con nuestro lector, estrechado por el anclaje al DXF
+del oráculo, y `externalOracleVerified` sigue en `false` con 4 de 24 casos respaldados.
+
 
 ## «Todavía no»
 
@@ -586,22 +630,54 @@ espera su cable.
   secuencia trazo/hueco, las tramas de varias familias y el tamaño de píxel los espeja el
   writer del decodificador y los mide el round-trip propio: no hay medición ajena de ellos
   y no se afirma que la haya.
-- **2026-09-04 · `npm run check:cad` ya estaba ROJO al cortar la rama, y no por este
-  frente.** `check:dwg-evidence` compara `docs/cad/evidence/dwg-decoder-matrix.json` y
-  `dwg-roundtrip.json` con lo que el árbol genera hoy, y esos dos artefactos guardan el
-  campo `origen` con la RUTA LOCAL del espejo del corpus. Committeados sin espejo dicen
-  `estado: "unavailable"`, `bundlesAdmitidos: 0` y la URL del repositorio; regenerados con
-  espejo dicen `verified`, `7` y `/home/user/valle-design-dwg-conformance`. Ninguna de las
-  dos formas pasa el gate en las dos máquinas: el artefacto es dependiente del entorno por
-  construcción. Verificado con `git stash -u` que el rojo existe sin mis cambios
-  (`typecheck` sigue verde). **Diseño del arreglo, para la tarea siguiente de este frente:**
-  que `dwg-evidence.mjs` grabe el TIPO de transporte (`local-mirror` / `git-fetch`), como ya
-  hace `corpus-rewrite.mjs`, y nunca la ruta; y que la comparación del spec ignore el bloque
-  de corpus cuando no hay espejo, en vez de exigir el estado de cero. No se toca en este
-  entregable para no mezclar dos cosas en un commit. **Trampa que costó un susto:**
-  `dwg-evidence.mjs` NO respeta `--out` — correrlo para inspeccionar su salida REESCRIBE los
-  dos artefactos committeados con la ruta de la máquina dentro. `corpus-rewrite.mjs` sí lo
-  respeta, y el arreglo de arriba debería incluirlo.
+- **2026-09-04 · CORREGIDO EN EL CIERRE — lo que este frente dijo cuatro veces sobre
+  `check:cad` era FALSO.** Los entregables 1, 3 y 4 declararon que `npm run check:cad`
+  «ya estaba rojo al cortar la rama», que la causa era el campo `origen` con la RUTA LOCAL
+  del espejo dentro de `dwg-decoder-matrix.json` / `dwg-roundtrip.json`, y que «ninguna de
+  las dos formas pasa el gate en las dos máquinas: el artefacto es dependiente del entorno
+  por construcción». **Las tres afirmaciones son incorrectas y se retiran.** Medido en el
+  cierre:
+
+  1. `VALLE_DWG_CORPUS_MIRROR=/home/user/valle-design-dwg-conformance npm run check:cad`
+     termina en **EXIT=0, entero y verde**, con los artefactos committeados TAL CUAL están.
+     El gate no es irreparable: estaba rojo porque la variable no se exportó en la sesión.
+  2. La causa señalada era la equivocada. `dwg-evidence.mjs` ya declara
+     `VOLATILE_KEYS = {generadoEn, environment, corpus}` y `stable()` los BORRA antes de
+     comparar: el bloque `corpus` —con `origen` y la ruta local dentro— **nunca se compara**,
+     así que no podía ser la causa de nada. Lo que sí se compara son las cifras DERIVADAS del
+     corpus, que viven fuera de ese bloque: `resumen.bundlesAdmitidos` (7 con espejo, 0 sin
+     él), `validacionesIndependientes` (14 / 0), `capacidadesPromovidas` (2 / 0),
+     `capacidades[].promovida`, `capacidades[].bloqueos` y `versionesCubiertas`
+     (cinco versiones / lista vacía). El diff completo son 346 líneas y **todas** salen de
+     ese único factor.
+  3. Los artefactos committeados son la forma CON espejo y coinciden exactamente con una
+     corrida fresca con espejo. No hay nada que arreglar en ellos, y el «diseño del arreglo»
+     que este frente dejó escrito para la tarea siguiente —grabar el tipo de transporte en
+     vez de la ruta— **no habría arreglado el gate**, porque la ruta ya estaba excluida de
+     la comparación.
+  4. **CI ya está configurado para esto y siempre lo estuvo.** `.github/workflows/ci.yml`
+     clona el espejo y hace `echo "VALLE_DWG_CORPUS_MIRROR=$GITHUB_WORKSPACE/.dwg-corpus-mirror"
+     >> "$GITHUB_ENV"` ANTES de `npm run check:cad` (y otra vez en el job de e2e, que es otro
+     runner y no hereda la variable). Es decir: la forma committeada es exactamente la que CI
+     espera, y la máquina que decide si esto entra en `main` ve el gate VERDE. No hace falta
+     ninguna petición al coordinador por este asunto.
+
+  De dónde salió el error: se corrió `git stash -u` con el árbol ya limpio (los cinco
+  entregables estaban committeados), así que el stash no revirtió nada y el rojo observado
+  «sin mis cambios» era el mismo rojo de siempre — la ausencia de la variable, no una
+  regresión y tampoco un defecto del artefacto. La lección, que es la razón de que esta
+  entrada exista: `git stash -u` sólo prueba algo cuando hay algo sin committear que quitar.
+
+  **Lo que sí queda como fragilidad real, mucho más pequeña que la declarada:** sin la
+  variable, el gate no dice «falta el espejo», dice «no coincide con lo que el árbol genera
+  hoy; corre npm run evidence:dwg» — y obedecer ese consejo sin espejo REESCRIBE los dos
+  artefactos con ceros y borra evidencia buena. Es un problema de diagnosticabilidad del
+  mensaje, no de corrección del artefacto. Candidato barato para la ventana siguiente: que
+  `readAdmittedCorpus` distinga «sin espejo configurado» de «espejo con cero bundles» y que
+  el gate lo diga con esas palabras. **Trampa relacionada, esta sí verificada y en pie:**
+  `dwg-evidence.mjs` NO respeta `--out` — su punto de entrada sólo distingue `--check` de
+  escribir, así que correrlo para inspeccionar su salida reescribe los artefactos
+  committeados. `corpus-rewrite.mjs` sí lo respeta.
 - **2026-09-04 · El anclaje no cubre los bloques anónimos `*D`.** El DXF del oráculo es la
   fuente de autoría propia y no los tiene (los genera el conversor al producir el DWG), así
   que las 57 entidades escritas que viven dentro de ellos (4 `arc`, 21 `line`, 8 `mtext`,
@@ -636,3 +712,30 @@ espera su cable.
   blanca de `check-product-boundary.mjs`, pero ese módulo no existe: el botón «Exportar
   DWG» se cablea el día que el oráculo respalde los casos, y hasta entonces lo único
   honesto es describir el paso, no fingir que está dado.
+
+### Del cierre del frente (2026-09-04)
+
+- **2026-09-04 · El mensaje del gate del corpus no distingue «sin espejo» de «cero
+  bundles», y el consejo que da destruye evidencia.** Sin
+  `VALLE_DWG_CORPUS_MIRROR`, `check:dwg-evidence` dice «no coincide con lo que el árbol
+  genera hoy; corre `npm run evidence:dwg`» — y obedecerlo sin espejo REESCRIBE
+  `dwg-decoder-matrix.json` y `dwg-roundtrip.json` con ceros, borrando evidencia buena.
+  No se arregló aquí porque el cierre no mete código: es la primera candidata de la ventana
+  siguiente y es barata (que `readAdmittedCorpus` separe los dos casos y que
+  `dwg-evidence.mjs` respete `--out`). **Motivo de que no fuera antes:** este frente pasó
+  cuatro entregables creyendo que el artefacto era irreparable, y no lo es.
+- **2026-09-04 · `npm test` completo del monorepo NO se corrió en el cierre.** Se corrieron
+  `typecheck` (árbol entero), `check:cad` (entero, con espejo), la suite completa de
+  `packages/dwg-codec` (512 pruebas) y los cuatro gates DWG. La suite de `apps/web` es lenta
+  y este frente no tocó su runner, pero eso es una razón para no correrla, no una prueba de
+  que pase: **no está verificada en el cierre y no se afirma que lo esté.**
+- **2026-09-04 · El conteo de comprobaciones de `corpus-rewrite.spec.mjs` estaba mal
+  declarado.** El entregable 1 dijo 156 y son 153. Corregido en la bitácora. Ninguna cifra
+  de COBERTURA estaba afectada — las de cobertura salen del artefacto y se verificaron
+  exactas—, pero una cifra escrita de memoria en un informe es exactamente lo que el gate
+  del paquete de firma existe para impedir, y aquí se coló en la bitácora, que no tiene gate.
+- **2026-09-04 · Sigue sin haber un solo lector ajeno que haya abierto un archivo de este
+  writer.** Es el límite que no se movió en toda la campaña y el que decide si algo de esto
+  vale para encender la bandera. `externalOracleVerified = false`, 4 de 24 casos
+  respaldados, y los 12 casos del harness escritos y esperando el ODA File Converter con
+  licencia del titular. Ninguna de las mediciones de los cinco entregables lo sustituye.
