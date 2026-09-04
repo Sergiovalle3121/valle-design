@@ -47,7 +47,18 @@ function runProbe() {
   writeFileSync(
     probePath,
     `
+import { pathToFileURL } from "node:url";
 import { CAD_COMMAND_MODULE_LOADERS } from "./src/lib/cad/engine/lazy-commands";
+
+// Los módulos se importan por RUTA ABSOLUTA, no llamando a los thunks de
+// \`lazy-commands.ts\`. Los thunks son correctos —el empaquetador los necesita
+// literales para partir 106 chunks— pero esta sonda los ejecuta bajo \`tsx\`, que
+// envuelve el módulo en una URL \`data:\` para inyectar su shim de \`require\`; desde
+// esa base un \`import("./commands/x")\` RELATIVO no tiene dónde resolverse y Node 20
+// lanza ERR_INVALID_URL. Node 22 lo tolera, así que el fallo sólo aparecía en CI,
+// que corre el 20 del \`.nvmrc\`. La sonda es una herramienta de construcción: puede
+// resolver rutas ella misma, y así no depende de cómo tsx cargue el módulo.
+const BASE = pathToFileURL(process.cwd() + "/src/lib/cad/engine/");
 
 type Bruto = Record<string, unknown>;
 const entradas: Bruto[] = [];
@@ -57,7 +68,7 @@ const entradas: Bruto[] = [];
 // \`localeCompare\`, y el registro ordena \`all()\` por nombre—, así que se elige el
 // que un generador puede reproducir siempre igual.
 for (const id of Object.keys(CAD_COMMAND_MODULE_LOADERS).sort()) {
-  const modulo = (await CAD_COMMAND_MODULE_LOADERS[id as keyof typeof CAD_COMMAND_MODULE_LOADERS]()) as Bruto;
+  const modulo = (await import(new URL(id + ".ts", BASE).href)) as Bruto;
   const vistos = new Set<string>();
   for (const valor of Object.values(modulo)) {
     if (!Array.isArray(valor)) continue;
