@@ -38,6 +38,11 @@ export const CIRCUIT_HEADERS = [
   "Circuito",
   "Conductores",
   "Calibre AWG",
+  // La tierra física de la Tabla 250-122, junto al calibre de fase, que es
+  // donde se lee de corrido. El encabezado dice «mín.» y NO «(AWG)»: es un
+  // mínimo calculado de la protección, y arriba de 4/0 la propia tabla cambia
+  // de unidad («250 kcmil»), así que la unidad viaja en la celda y no aquí.
+  "Tierra (mín.)",
   "Protección (A)",
   "Tensión (V)",
   "Fases",
@@ -72,6 +77,7 @@ export function buildCadCircuitScheduleTable(
     check.circuit,
     String(check.wires),
     dash(check.gauge),
+    dash(check.groundGauge),
     dash(check.breakerAmps),
     dash(check.volts),
     check.phases === null ? "—" : check.phases === 3 ? "3F" : "1F",
@@ -83,12 +89,14 @@ export function buildCadCircuitScheduleTable(
   return scheduleTable(
     // El límite viaja EN el título del cuadro: es lo que se imprime y lo que
     // alguien lee dentro de un año, cuando el renglón de la orden ya no está.
-    "Cuadro de cargas: longitudes medidas sobre el dibujo; caída resistiva calculada con la protección. No sustituye el memorial de cálculo (sin temperatura, agrupamiento, 125 % de carga continua, tierra ni llenado de tubo)",
+    "Cuadro de cargas: longitudes medidas sobre el dibujo; caída resistiva calculada con la protección. No sustituye el memorial de cálculo (sin temperatura, agrupamiento, 125 % de carga continua ni llenado de tubo; la tierra es el mínimo de la Tabla 250-122 calculado de la protección, no la medida de un conductor del dibujo)",
     CIRCUIT_HEADERS,
     rows,
     insertion,
     layer,
     newEntityId,
-    1_400,
+    // Once columnas en vez de diez: el ancho sube para que la nueva no estreche
+    // a las demás.
+    1_550,
   );
 }

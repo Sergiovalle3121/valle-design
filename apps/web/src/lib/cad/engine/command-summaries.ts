@@ -287,7 +287,7 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   TEXT: "Texto de una sola línea.",
   TEXTALIGN: "Alinea texto existente sobre una recta definida por dos puntos.",
   TOLERANCE: "Marco de tolerancia geométrica (GD&T).",
-  STDPART: "Normalizado como bloque: tornillo ISO 4017, tuerca ISO 4032, rondana ISO 7089.",
+  STDPART: "Normalizado como bloque: tornillo, tuerca y rondana ISO, rodamiento ISO 15 y chaveta paralela ISO 773.",
   STEELSHAPE: "Sección de perfil de acero como bloque: PTR, OC, LI, CPS, IPR por sus medidas.",
   BALLOON: "Globo de lista de materiales sobre una pieza, numerado solo.",
   BOM: "Lista de materiales: normalizados insertados y globos, como tabla.",

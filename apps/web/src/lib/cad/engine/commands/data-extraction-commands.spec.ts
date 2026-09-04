@@ -149,7 +149,7 @@ function context(hasDocument: boolean, propio?: unknown): CadCommandContext {
     styles: { text: {}, dimension: {}, mleader: {}, table: {}, plot: {} },
     externalReferences: [],
     unsupportedEntities: [],
-    modelSpace: { entityIds: ["a", "b"] },
+    modelSpace: { entityIds: ["a", "b", "c"] },
     entities: [
       conductor("a", 0, 15_000, {
         "ie:proteccion": "20",
@@ -157,6 +157,16 @@ function context(hasDocument: boolean, propio?: unknown): CadCommandContext {
         "ie:fases": "1",
       }),
       conductor("b", 15_000, 30_000),
+      // Un alimentador de 200 A en 3/0: es la fila que enseña que la tierra no
+      // se lee «en la fila de 200» de la Tabla 250-122 por casualidad, sino por
+      // el «sin exceder de» que también da 10 AWG a una protección de 30 A.
+      conductor("c", 0, 40_000, {
+        "ie:circuito": "C-2",
+        "ie:calibre": "3/0",
+        "ie:proteccion": "200",
+        "ie:tension": "220",
+        "ie:fases": "3",
+      }),
     ],
   } as never;
 
@@ -179,6 +189,51 @@ function context(hasDocument: boolean, propio?: unknown): CadCommandContext {
   ok(
     /No sustituye el memorial de cálculo/.test(texto),
     "y con su límite en el título: un cuadro con veredictos y sin límite se lee como un memorial",
+  );
+
+  // --- La tierra física, también en la columna (2026-09-04) ------------------
+  // `AECHECK` ya decía el calibre de tierra en su renglón, pero el ENTREGABLE de
+  // un proyecto eléctrico mexicano es el cuadro de cargas: si la tierra no está
+  // en la tabla, no está en el plano. Se comprueba POR POSICIÓN y no por
+  // subcadena: «12 AWG» suelto en el JSON no dice en qué columna cayó.
+  const celdas = (tabla as unknown as { cells: { row: number; column: number; text: string }[] }).cells;
+  const celda = (row: number, column: number): string =>
+    celdas.find((c) => c.row === row && c.column === column)?.text ?? "";
+  const filaDe = (circuito: string): number => {
+    const encontrada = celdas.find((c) => c.column === 0 && c.text === circuito);
+    return encontrada ? encontrada.row : -1;
+  };
+  ok(celda(1, 2) === "Calibre AWG", `la columna 2 sigue siendo el calibre de fase: ${celda(1, 2)}`);
+  ok(
+    celda(1, 3) === "Tierra (mín.)",
+    `la tierra entra entre el calibre de fase y la protección, y dice que es un mínimo: ${celda(1, 3)}`,
+  );
+  ok(celda(1, 4) === "Protección (A)", `y la protección se corre a la 4: ${celda(1, 4)}`);
+  ok(
+    (tabla as unknown as { columns: number }).columns === 11,
+    `once columnas en vez de diez: ${(tabla as unknown as { columns: number }).columns}`,
+  );
+  ok(filaDe("C-1") > 1 && filaDe("C-2") > 1, "las dos filas de circuito están en la tabla");
+  ok(
+    celda(filaDe("C-1"), 3) === "12 AWG",
+    `20 A → 12 AWG de tierra (Tabla 250-122): ${celda(filaDe("C-1"), 3)}`,
+  );
+  ok(
+    celda(filaDe("C-2"), 3) === "6 AWG",
+    `200 A → 6 AWG de tierra (Tabla 250-122): ${celda(filaDe("C-2"), 3)}`,
+  );
+  ok(
+    celda(filaDe("C-2"), 2) === "3/0" && celda(filaDe("C-2"), 4) === "200",
+    "la fase y la protección del alimentador siguen en su sitio, corridas una columna",
+  );
+  const titulo = celda(0, 0);
+  ok(
+    !/tierra ni llenado de tubo/.test(titulo),
+    `el título ya no puede negar la tierra: la tabla la trae. Decía «…, tierra ni llenado de tubo»: ${titulo}`,
+  );
+  ok(
+    /mínimo de la Tabla 250-122 calculado de la protección, no la medida de un conductor del dibujo/.test(titulo),
+    `y dice de qué está hecha la columna nueva: ${titulo}`,
   );
 
   // Sin conductores numerados, se niega con motivo y no inserta nada.
