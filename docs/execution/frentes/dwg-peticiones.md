@@ -63,3 +63,102 @@ Formato de cada petición:
   cad-document.spec.ts` y `persisted-identifiers.spec.ts` deben seguir verdes: el campo es
   nuevo y opcional, no renombra nada persistido.
 - **Estado:** pendiente
+
+### P-dwg-02 · Injertar en ADR-0009 la sección del encendido, ENLAZANDO el paquete de firma
+
+- **Archivo:** `docs/adr/0009-dwg-promotion-package.md` (fuera del territorio del frente
+  por R1; el frente no lo toca).
+- **Por qué:** entrega 5/5 del frente. El paquete de firma existe y está vivo en
+  `docs/cad/evidence/dwg-firma-encendido-20260904.md`, verificado por
+  `node scripts/dwg/check-firma-package.mjs`. Lo que falta es que la ADR —el documento
+  que el titular firma— **apunte** a él. La ADR no puede repetir sus cifras: eso las
+  pondría a envejecer en dos sitios, que es justo lo que la regla 4 de la campaña de
+  cimientos prohíbe y lo que este entregable construyó para evitar.
+- **Cambio exacto:** añadir al FINAL del archivo, después de §9.5, esta sección
+  completa. No toca ninguna sección existente y no cambia ningún gate:
+
+  ```markdown
+  ## 10. PROPUESTA — encendido de `DWG_IMPORT_FLAG` y `DWG_EXPORT_FLAG` — 2026-09-04 — SIN FIRMAR
+
+  El frente F1 de la campaña «Superar a AutoCAD completo» dejó redactado el paquete
+  que esta sección necesitaba: **`docs/cad/evidence/dwg-firma-encendido-20260904.md`**.
+  Esta sección lo INCORPORA POR REFERENCIA y no copia una sola de sus cifras — están
+  todas en bloques generados desde los artefactos de evidencia, y
+  `node scripts/dwg/check-firma-package.mjs` falla si alguna se queda atrás. Una tabla
+  duplicada aquí envejecería en silencio, que es exactamente el defecto que esa página
+  existe para no cometer.
+
+  Qué contiene ese paquete, y dónde:
+
+  | Lo que esta ADR necesita | Sección del paquete |
+  | --- | --- |
+  | Qué se encendería y por qué la bandera no basta | §1 |
+  | Las dos mediciones sobre material ajeno, con su corpus fijado | §2 |
+  | Matriz de soporte por clase: lectura, perfil de producto, escritura, anclaje | §3 |
+  | Límites declarados (cota, directriz, TABLE, familia moderna, xrefs, hoja) | §4 |
+  | Riesgos legales y de seguridad, con el gate que cubre cada uno | §5 |
+  | El segundo oráculo: qué se intentó, qué lo impidió y qué haría falta | §6 |
+  | Los pasos exactos del titular, con la lista de casos derivada del arnés | §7 |
+  | Dónde está hoy el oráculo externo | §8 |
+  | El commit del encendido, paso por paso | §9 |
+
+  **Lo que esta propuesta pide firmar**, si el titular decide hacerlo DESPUÉS de correr
+  §7 del paquete en su máquina y de que `npm run check:dwg-oraculo` diga que la
+  evidencia ya alcanza:
+
+  1. **Autorizar** el encendido de las dos banderas con el alcance de la matriz de §3
+     del paquete y los límites de §4, con rollout por organización y nunca activación
+     global.
+  2. **Aceptar** que sigue habiendo UN solo oráculo externo. La política pide dos
+     (`DWG_REQUIRED_INDEPENDENT_VALIDATIONS`), y §6 del paquete declara por qué el
+     segundo no se pudo cablear y qué haría falta. `independentValidations` no llega a
+     su umbral sin él.
+  3. **Mantener** `legalReviewCleared` en `false` hasta el dictamen externo, como ya
+     decidió §6-bis.2. Encender las banderas no lo mueve.
+
+  **Lo que NO autoriza:** disponibilidad general, afirmación de compatibilidad con
+  AutoCAD real, escritura de la familia moderna, ni tratar el perfil de escritura como
+  equivalente al de lectura.
+  ```
+
+  Y añadir, en la tabla de §5 «Checklist de gates», una fila nueva al final —sin tocar
+  las existentes—:
+
+  ```markdown
+  | Paquete de firma del encendido | ✅ `docs/cad/evidence/dwg-firma-encendido-20260904.md`, verificado por `scripts/dwg/check-firma-package.mjs` |
+  ```
+
+- **Cómo se comprueba:** `node scripts/dwg/check-firma-package.mjs` sigue verde (la ADR
+  no toca el paquete) y `npm run check:dwg-oraculo` sigue diciendo `false` (la ADR no
+  toca ninguna bandera ni ningún gate). Si el coordinador prefiere que la ADR también
+  quede vigilada, la comprobación natural es un aserto en el propio gate que exija que
+  `docs/adr/0009-dwg-promotion-package.md` mencione la ruta del paquete: son tres líneas
+  y el frente las escribe en cuanto la sección exista.
+- **Estado:** pendiente
+
+### P-dwg-03 · Encadenar `check:dwg-firma` en `check:dwg`
+
+- **Archivo:** `package.json` de la raíz (archivo COMPARTIDO por R2).
+- **Por qué:** entrega 5/5. `scripts/dwg/check-firma-package.mjs` existe y pasa, pero un
+  gate que nadie corre no es un gate. Sin encadenarlo, el paquete de firma envejece
+  igual que si no tuviera verificación — sólo que con la ilusión de tenerla.
+- **Cambio exacto:** dos ediciones en `"scripts"`, sin tocar nada más:
+
+  1. Añadir la entrada:
+
+     ```json
+     "check:dwg-firma": "node scripts/dwg/check-firma-package.spec.mjs && node scripts/dwg/check-firma-package.mjs",
+     ```
+
+  2. En `"check:dwg"`, añadir ` && npm run check:dwg-firma` al FINAL de la cadena, justo
+     después de `npm run check:dwg-oraculo`. El orden importa: el paquete de firma habla
+     de la cobertura del oráculo, así que se verifica después de que el gate del oráculo
+     haya dicho lo suyo.
+
+  No necesita corpus ni red: el gate lee sólo artefactos committeados y fuentes del
+  árbol, así que da el mismo resultado con espejo y sin él —al contrario que
+  `check:dwg-evidence`, que hoy es dependiente del entorno—.
+- **Cómo se comprueba:** `npm run check:dwg-firma` imprime el resumen y termina en cero;
+  la spec pasa sus comprobaciones y está verificada por mutación (neutralizar el detector
+  de cifras, el de casos inventados o la comparación de bloques la pone roja, las tres).
+- **Estado:** pendiente

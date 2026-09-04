@@ -382,6 +382,113 @@ esté en `no-escribible` o fuera de `regrabada-integra`— y `viewport` dejó de
 dos. Es la misma aritmética que ya movió el número cuando entraron el HATCH de trama y el
 ATTRIB.
 
+### 2026-09-04 · Entregable 5/5 — el paquete de firma del encendido, con sus cifras atadas
+
+**Qué se construyó.** `docs/cad/evidence/dwg-firma-encendido-20260904.md`: el documento
+que el titular lee ANTES de encender las dos banderas, y `scripts/dwg/check-firma-package.mjs`
+(+ su spec) que impide que envejezca. Las banderas siguen apagadas y
+`npm run check:dwg-oraculo` sigue diciendo `false`: el paquete explica qué falta, no lo
+declara hecho.
+
+**El problema que resuelve, que es de forma y no de contenido.** Un paquete de firma
+falla siempre de las dos mismas maneras, y las dos son silenciosas. **Envejece**: se
+escribe con las cifras del día y seis semanas después el writer aprendió dos clases y el
+documento sigue diciendo la cifra vieja, sin que nada la compare con nada. Y **miente
+sobre la lista de pasos**: si copia a mano los casos del arnés, el día que `CASES` crece
+el titular corre una lista incompleta, cree que terminó, y la evidencia queda con un
+hueco que ningún gate ve — que es EXACTAMENTE lo que le pasó a `dwg-oda-roundtrip.json`,
+committeado con cuatro casos mientras el arnés ya definía muchos más.
+
+**Cómo se resolvió.** El documento no escribe cifras: lleva CINCO BLOQUES GENERADOS
+—`banderas`, `veredicto`, `matriz-por-clase`, `pasos-del-titular`, `cobertura-del-oraculo`—
+delimitados por comentarios HTML, que el gate produce desde los artefactos de evidencia y
+desde las fuentes del producto. `--check` los regenera y exige igualdad exacta; `--write`
+los reescribe. Es el mismo reparto que ya usa `scripts/cad/rubric.mjs --markdown --check`
+para la matriz competitiva, y es la regla 4 de la campaña de cimientos aplicada al
+documento que más tentación da de copiar sus números.
+
+Las tres columnas de la matriz por clase salen de sitios DISTINTOS a propósito: la
+lectura de `dwg-corpus-validation.json`, la escritura de `dwg-corpus-rewrite.json` y el
+perfil de importación PARSEADO de `BETA_PROFILE_ENTITY_KINDS` en `dwg-native-reader.ts`.
+El hueco interesante está justo entre ellas: una clase que el lector lee y el perfil no
+admite es una pérdida del PRODUCTO, no del laboratorio, y hasta ahora eso no se veía
+junto en ningún sitio.
+
+**Y una cosa que el propio documento tiene que declarar y declara**: los denominadores de
+las dos columnas medidas NO son el mismo conjunto. La lectura cuenta lo que el DXF oráculo
+declara por fixture; la escritura cuenta cada entidad que el decodificador le ofreció al
+writer, incluidas las que viven dentro de los bloques anónimos `*D` que el DXF oráculo no
+describe. Restarlas sin saberlo daría un número falso.
+
+**Las cuatro reglas del gate, y por qué cada una existe.**
+
+1. **Bloques regenerados y comparados** — ninguna cifra se queda atrás sin que el gate lo
+   diga, y un bloque cuya clave nadie genera se DENUNCIA en vez de reescribirse en
+   silencio (si se reescribiera, un bloque huérfano parecería verificado).
+2. **Los casos se derivan del arnés.** La forma es `caso ‹nombre›` entre acentos graves:
+   cualquier caso nombrado así tiene que existir en `CASES`, y todo caso de `CASES` tiene
+   que aparecer nombrado al menos una vez. Inventar uno y saltarse uno fallan los dos. La
+   forma es EXPLÍCITA y no adivinada: en este documento conviven `no-escribible`,
+   `local-mirror` y `dwg-corpus-rewrite.json` entre acentos graves, y ninguno es un caso.
+3. **Ninguna cifra de cobertura a mano fuera de un bloque.** Un porcentaje, una fracción
+   `N/M`, un «N de M» o un «N entidades/casos/clases…». Lo que NO persigue está probado
+   con la misma dureza: una fecha, `ADR-0009 §8.2`, `AC1015`, la versión `27.1` del
+   conversor y «16 MiB» no disparan nada. Un gate ruidoso se acaba apagando.
+4. **Las dos banderas siguen apagadas.** Un paquete de firma publicado después del
+   encendido deja de ser el documento que se lee antes de firmar y pasa a ser la
+   explicación de por qué se firmó.
+
+**La declaración honesta del segundo oráculo (§6 del paquete), que es lo que la cola 4
+del frente pedía.** Se intentó, en este orden: `apt-cache search libredwg` con
+`main universe restricted multiverse` habilitados → **vacío**, LibreDWG no está
+empaquetado para Ubuntu 24.04 (verificado: un paquete de universe cualquiera sí resuelve);
+`snap` y `flatpak` no existen en la imagen; y preguntar a la API de GitHub por la LISTA de
+artefactos publicados —no por el código— devuelve `HTTP 403` del proxy de la sesión, así
+que desde aquí no se puede ni averiguar si existe un binario precompilado. Quedaba
+compilar el fuente, y **eso no se hizo a propósito**: la regla de la campaña dice que los
+oráculos valen sólo como binarios, y el propio arnés la lleva escrita en el reporte que
+produce («sólo el BINARIO es oráculo permitido; su código ni se consulta ni se
+descompila»). Poner el fuente de otra implementación de DWG en la misma máquina donde se
+escribe una reimplementación clean-room es la contaminación que ADR-0007 existe para
+evitar, y un oráculo obtenido poniéndole el código delante a quien implementa deja de ser
+evidencia independiente. Qué haría falta, concreto: el binario llegado de fuera (paquete
+de distribución, o compilación en una máquina que no sea la de implementación); su entrada
+en `SOURCE_REGISTER.json` como oráculo BINARIO con su procedencia; un transporte de
+conversor en `oda-roundtrip.mjs` —hoy la línea de órdenes de ODA está escrita fija y
+`dwg2dxf` tiene otra forma, archivo a archivo con `-o`—; y que `check-oracle-evidence.mjs`
+exija CUÁL de los dos respalda cada caso.
+
+**Un arreglo de camino: la lista de casos exigidos deja de derivarse dos veces.**
+`check-oracle-evidence.mjs` exporta ahora `casosExigidos()` y `coberturaDelOraculo()`, y
+sólo corre su `main()` cuando se le invoca directamente. El paquete de firma consume esas
+dos funciones en vez de repetir la derivación: una segunda copia, aunque hoy diera el
+mismo resultado, es la cifra viviendo en dos lugares que la regla 4 prohíbe. La salida de
+`npm run check:dwg-oraculo` es idéntica byte a byte antes y después.
+
+**Cómo se demuestra** (todo corrido hasta verlo verde, y sin necesitar el espejo del
+corpus — el gate lee sólo artefactos committeados):
+
+```
+node scripts/dwg/check-firma-package.spec.mjs   # 50 comprobaciones
+node scripts/dwg/check-firma-package.mjs        # la página no afirma de más
+npm run check:dwg-oraculo                       # y sigue diciendo false
+npm run typecheck
+```
+
+La spec está **verificada por mutación**, las tres reglas que importan: neutralizar el
+detector de cifras, el de casos inventados o la comparación de bloques la pone roja cada
+una por su lado. Cinco de sus comprobaciones toman el documento REAL, lo estropean a
+propósito —caso inventado, caso saltado, fila editada a mano, bloque borrado, porcentaje
+escrito a mano— y exigen que el gate lo note; ninguna escribe en el documento.
+
+**Lo que queda fuera y va como petición.** `docs/adr/` no es territorio de este frente:
+el injerto de la sección 10 en ADR-0009, con su texto completo, es `P-dwg-02` en
+`dwg-peticiones.md`. Y encadenar `check:dwg-firma` dentro de `check:dwg` toca el
+`package.json` de la raíz, archivo compartido: es `P-dwg-03`. **Hasta que el coordinador
+aplique P-dwg-03, este gate no lo corre nadie automáticamente** — está escrito, pasa, y
+espera su cable.
+
+
 ## «Todavía no»
 
 - **2026-09-04 · Varias ventanas por hoja.** El archivo escribe UNA por lámina. No es un
@@ -502,3 +609,30 @@ ATTRIB.
   pero NO se anclan contra nadie. Por eso `ancladasAlOraculo` es menor que `escritas` en
   `line`, `point`, `mtext` y `arc`. Está declarado en el informe; cerrarlo exigiría un
   oráculo que describa el bloque anónimo, que hoy no existe.
+
+- **2026-09-04 · El paquete de firma no lo corre ningún gate encadenado.** Vive en
+  `scripts/dwg/check-firma-package.mjs` y pasa, pero `check:dwg` no lo llama porque
+  encadenarlo toca el `package.json` de la raíz (R2). Va como `P-dwg-03`. Mientras tanto
+  hay que correrlo a mano, que es exactamente la fragilidad que el gate existe para
+  quitar — sólo que un nivel más arriba.
+- **2026-09-04 · La ADR todavía no apunta al paquete.** `docs/adr/0009-dwg-promotion-package.md`
+  no menciona `dwg-firma-encendido-20260904.md`: el injerto es `P-dwg-02` y lo aplica el
+  coordinador. En cuanto la sección exista, el gate puede ganar un aserto de tres líneas
+  que exija esa mención — hoy no puede exigirla porque exigiría algo que no está.
+- **2026-09-04 · El segundo oráculo sigue sin existir, y no por falta de intento.** El
+  detalle completo está en §6 del paquete y en la entrada de arriba: no está empaquetado
+  para esta distribución, la API que diría si hay binario precompilado está bloqueada por
+  el proxy de la sesión, y compilar el fuente aquí rompería la disciplina clean-room que
+  hace valioso al oráculo. `independentValidations` sigue en cero y el documento NO afirma
+  doble validación en ningún sitio.
+- **2026-09-04 · El detector de cifras persigue una FORMA, no un significado.** Un
+  porcentaje, una fracción, un «N de M» y un recuento de material medido. Una cifra de
+  cobertura escrita en palabras («ocho de cada diez entidades») pasaría, y una tabla
+  inventada con recuentos también si evitara esas cuatro formas. Cerrar eso de verdad
+  exigiría entender la frase, no reconocerla; lo que el gate sí garantiza es que las
+  cifras que SÍ hay salen de su artefacto. Se declara en vez de insinuar que cubre más.
+- **2026-09-04 · El paquete no mide la interfaz, porque todavía no hay interfaz.** §9
+  describe el commit del encendido incluida la entrada del módulo de interfaz en la lista
+  blanca de `check-product-boundary.mjs`, pero ese módulo no existe: el botón «Exportar
+  DWG» se cablea el día que el oráculo respalde los casos, y hasta entonces lo único
+  honesto es describir el paso, no fingir que está dado.
