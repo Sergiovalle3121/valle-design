@@ -1366,3 +1366,204 @@ que ni siquiera va dentro, y un aviso falso enseña a ignorar los verdaderos. La
 puerta va donde están las hojas de verdad, en el anfitrión, y pide además decidir
 cómo se dice que sí sin un prompt de comando. **Todavía no**, con el sitio ya
 localizado.
+
+## Ola 10 — rendimiento y escala: dónde estaba el tiempo de verdad (2026-09-04)
+
+### Lo medido antes de tocar nada, y lo que descartó
+
+El SLO que falla es `architecture@100k`: 25,3 s hasta el detalle y 8,57 fps
+contra ≤5 s y ≥30 fps. La rúbrica tiene además un punto esperando por el kernel
+WebAssembly, que existe con paridad numérica verde y **no lo importa nadie**
+fuera de `lib/cad/wasm` — el patrón de «motor sin puerta» que más ha rendido en
+esta campaña.
+
+Medida la mezcla de entidades de cada corpus a 100.000:
+
+| corpus | curvas | mezcla |
+| --- | ---: | --- |
+| **architecture** (el que falla) | **0 %** | insert 34k · polyline 18k · dimension 17k · hatch 14k · mtext 10k |
+| mechanical | 70 % | arc 38k · spline 14k · ellipse 10k · circle 8k |
+| cartography | 0 % | polyline 92k |
+| text-hostile | 0 % | line 60k · mtext 20k |
+
+**El kernel de curvas no habría movido el número que falla ni un milisegundo**:
+`architecture` no tiene ni una curva. Habría sido una ola entera para ganar un
+punto de rúbrica y cero rendimiento. Queda escrito porque la tentación era real
+y la medición es lo único que la desarmó.
+
+### Dónde está el trabajo: el sombreado, y no por lo que parecía
+
+Contando puntos y caminos —no cronometrando: en una máquina compartida el reloj
+mide a los vecinos— sobre `architecture@20k`, con el escalón medio del LOD:
+
+- **el sombreado era el 99,8 % de todos los puntos teselados**: 2.800 sombreados
+  producían 36,1 millones de caminos y 72,3 millones de puntos. Todo lo demás
+  junto: 0,2 %.
+- un solo `AR-CONC` sobre un contorno de **cuatro vértices** producía **24.004
+  trazos**.
+
+Y esos 24.004 no eran líneas: eran **guiones**. Mediana 0,543 unidades de dibujo
+sobre una diagonal de 652. El suelo `diagonal/256` que ya existía acota las
+LÍNEAS del patrón; nadie acotaba los guiones a lo largo de cada línea.
+
+A 320 px aparentes —el tope del escalón medio, el sombreado más grande que llega
+ahí— ese guión mediano mide **0,27 px**. A 100 px mide 0,083 px.
+
+### El arreglo, y lo que NO es
+
+Por debajo del escalón de detalle se dibuja la línea entera en vez de sus
+guiones. Es el mismo criterio que el producto ya acepta para las curvas —la
+flecha de la cuerda por debajo del píxel— aplicado a lo LARGO de la línea en vez
+de a través de ella.
+
+**No se toca el espaciado entre líneas.** Ensancharlo sí cambia el dibujo; se
+intentó en una ola anterior y el golden 47 lo cazó con razón. Aquí las líneas
+son las mismas, en el mismo sitio y con el mismo espaciado: sólo se dejan de
+partir donde la partición no se puede ver.
+
+| escalón | puntos antes | puntos después |
+| --- | ---: | ---: |
+| 0 · ≤24 px | 122.000 | **122.000** (igual) |
+| 1 · ≤320 px | 72.493.044 | **1.800.388** (40×) |
+| por defecto (96) | 72.617.844 | **72.617.844** (igual) |
+| 2 · detalle | 72.680.244 | **72.680.244** (igual) |
+
+El trazado a papel no cambia: `hatch-publish-strokes.ts` llama sin la opción, y
+un plano impreso conserva sus guiones.
+
+### El primer intento estaba mal, y lo cazó una prueba de la casa
+
+El umbral inicial era «por debajo de 128 segmentos». Se tragaba el valor **por
+defecto** del renderizador, que es 96 y no significa «escalón medio» sino «nadie
+pidió LOD, dame el dibujo de verdad» —lo usan el trazado de bloques y las
+pruebas que comparan patrones—. Con él, **dos de los ocho patrones se volvían
+indistinguibles**, que es justamente el defecto que `hatch-pattern-table.spec.ts`
+existe para cazar: un plano que no distingue concreto de mampostería no dice lo
+que significa. Lo cazó en la primera corrida.
+
+El umbral ahora es el valor EXACTO del escalón medio (32), no un «por debajo
+de». La diferencia entre un umbral y un escalón es la diferencia entre que la
+prueba pase por suerte y que pase por lo que dice.
+
+### CORRECCIÓN a la lectura anterior: a qué zoom aplica este 40×
+
+Medido después de arreglarlo, que es cuando había que preguntarlo: el sombreado
+mediano de `architecture@100k` (652 unidades sobre un corpus de 285.208 × 284.219)
+mide
+
+| vista | tamaño aparente | escalón |
+| --- | ---: | ---: |
+| ajustada a pantalla (1280 px) | 2,76 px | **0** |
+| zoom ×8 | 22,06 px | 0 |
+| zoom ×40 | 110,31 px | **1** |
+
+Es decir: **a la vista donde se mide el SLO, los sombreados están en el escalón
+0** y sólo pagan su contorno, como ya hacían antes de esta ola. El 40× de arriba
+es real y vale para la sesión de trabajo de verdad —un dibujante trabaja con
+zoom, no con el plano entero encajado—, pero **no es la causa de los 25,3 s** y
+no se debe leer como si lo fuera.
+
+Dicho sin adornos: esta ola encontró y quitó un acantilado de 24.000× que un
+usuario con zoom pisa a diario, y **NO ha encontrado todavía la causa del SLO que
+falla**. A escalón 0 las 20.000 entidades sólo suman 122.000 puntos —trabajo de
+teselado modesto—, así que los 25,3 s de la vista encajada no son volumen de
+teselado: están en otra parte (construcción de escena, tiles, subida a GPU). Ese
+es el siguiente sitio donde mirar, y se mirará midiendo, no suponiendo.
+
+### Lo que esta ola NO puede medir aquí
+
+Los segundos y los fps de `architecture@100k` piden una máquina sin vecinos.
+Este contenedor no la es, así que esta ola no publica un tiempo: publica el
+TRABAJO que el producto se impone a sí mismo, que sale igual en cualquier
+máquina y es lo que se puede trinquetear (`hatch-lod-volume.spec.ts`). El
+tiempo lo dirá el trabajo de rendimiento en CI. **Todavía no.**
+
+### Y la respuesta al SLO ya estaba escrita en el repositorio
+
+Buscando dónde estaba el tiempo de la vista encajada apareció, en
+`viewport-baseline.json`, la nota que el propio proyecto dejó sobre el perfil
+`viewport-100k`. Dice, textualmente, qué bloquea el objetivo:
+
+> El rasterizador POR SOFTWARE del runner. La fidelidad sigue en su objetivo
+> (1,0 al abrir y tras el zoom) y el TESELADO ya corre en un worker fuera del
+> hilo principal […]. **Lo que queda NO es teselado: es materializar los lotes
+> instanciados y pintar 100.000 entidades por ANGLE/SwiftShader sin GPU**, en el
+> hilo principal a 8 ms por cuadro. Ni este spec ni el benchmark de Node miden
+> la máquina del usuario, que sí tiene GPU, y eso sigue sin medirse.
+
+La calibración lo confirma: `Chromium 141 · ANGLE (SwiftShader, sin GPU)`, cuatro
+núcleos, Xeon a 2,80 GHz.
+
+Tres consecuencias, y conviene decirlas sin rodeos:
+
+1. **El SLO que falla está bloqueado por el ENTORNO DE MEDIDA, no por el código
+   del producto.** Los segundos y los fps que arrastra esta campaña salen de un
+   runner sin GPU pintando 100.000 entidades por software.
+2. **Seguir optimizando teselado para ese número era perseguir una GPU que
+   falta.** Esta ola empezó a hacerlo —el kernel WASM primero, el sombreado
+   después— y sólo la medición lo desvió. El sombreado dio un 40× real, pero en
+   el escalón de zoom, no en la vista donde se mide el SLO.
+3. **El benchmark de RENDER a 100k, que sí es bloqueante, ya pasa** —«la corrida
+   real cae 8,5× por dentro del presupuesto», calibrado con dos núcleos y la
+   máquina disputada—. El producto no está lento: está sin medir donde importa.
+
+**DECISIÓN DEL TITULAR, no bloqueante para seguir:** una sola corrida de
+calibración en una máquina con GPU —la que tiene cualquier cliente que pague los
+199 MXN— convertiría `viewport-100k` de «objetivo bloqueado por el runner» en un
+número real que se puede prometer o perseguir. Hoy no existe ese número, y
+mientras no exista, cualquier promesa de rendimiento a 100.000 entidades es una
+suposición. Esta campaña no las hace.
+
+### Ola 10 (2/n) — la polilínea que dibujaba veinte vértices dentro de diez píxeles
+
+Medido el resto de corpus con el mismo instrumento, para ver si el acantilado
+del sombreado era único. No lo era, y el segundo tenía otra forma:
+
+| corpus @20k | escalón 0 | escalón 1 | detalle |
+| --- | ---: | ---: | ---: |
+| architecture | 122.000 | 1.800.388 | 72.680.244 |
+| mechanical | 119.290 | 289.532 | 974.565 |
+| **cartography** | **362.479** | **362.479** | **362.479** |
+| **text-hostile** | **56.000** | **56.000** | **56.000** |
+
+Las dos últimas filas son iguales en los tres escalones: **el LOD no hacía nada
+con las polilíneas**, porque `segments` sólo gobernaba los arcos de `bulge`.
+
+Y `cartography` son 18.400 polilíneas de 20 vértices de mediana que, con el
+plano ajustado a pantalla, ocupan **9,74 px** con sus vértices a **0,796 px**
+unos de otros: veinte vértices dentro de diez píxeles. Mismo desperdicio que los
+guiones, mismo criterio para quitarlo.
+
+**362.479 → 122.543 puntos (3,0×)** en el escalón grueso —que es la vista de
+apertura—, 1,15× en el medio, y **nada** en el valor por defecto ni en el
+detalle. `architecture`, `text-hostile` y `mechanical` no se mueven ni un punto.
+
+#### Lo que NO se decima, que es la parte que importa
+
+Los vértices de una polilínea **son** el dibujo, no un adorno como la trama de
+un sombreado. Por eso el arreglo se estrecha a mano:
+
+- **cerradas, nunca**: son locales, predios y piezas; colapsar una hacia su
+  cuerda no quita detalle, cambia la FIGURA. (Medido: las 3.600 de
+  `architecture` y las 4.000 de `text-hostile` son cerradas, y no pierden nada
+  porque ya eran de cuatro vértices.)
+- **con `bulge`, nunca**: ese tramo es un arco, y su curvatura no es ruido.
+- **sólo en el camino de DIBUJO**: designación, contención, bounds y export
+  siguen viendo todos los vértices. Esto es cómo se pinta, no qué es.
+- **los extremos no se mueven**: Douglas–Peucker los conserva, así que la
+  polilínea empieza y acaba donde empezaba y acababa.
+
+La tolerancia sale del tamaño que el escalón GARANTIZA (`diagonal/24` en el
+grueso = un píxel en su tope), y el spec comprueba la cota: ningún vértice
+original queda a más de esa distancia del trazo que se dibuja.
+
+Y la misma lección del sombreado, aplicada de entrada en vez de tropezando: los
+escalones se comparan **por igualdad**, no con un «menor que», para que el valor
+por defecto del renderizador (96, «nadie pidió LOD») no se lo trague.
+
+#### Sin implementar dos veces
+
+Douglas–Peucker ya existía en el motor (`draw-spline.ts`, para el ajuste de
+splines). Se extrajo a `lib/cad/simplify.ts` —un adaptador de entidad no puede
+importar de un comando sin cerrar un ciclo— y el comando lo reexporta. Una
+implementación, no dos.

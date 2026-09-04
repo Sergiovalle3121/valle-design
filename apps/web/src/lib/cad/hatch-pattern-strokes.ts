@@ -82,10 +82,31 @@ export function cadHatchDashChord(
  * contorno exterior, filtradas por las islas en su punto medio (la regla de
  * siempre) y troceadas si la familia lleva secuencia.
  */
+/**
+ * Trocear en guiones cuando el guión es SUBPÍXEL es coste sin dibujo.
+ *
+ * MEDIDO en `architecture@100k`: un `AR-CONC` de 652 unidades de diagonal
+ * produce 24.004 trazos, y son guiones, no líneas: mediana 0,543 unidades. A
+ * 320 px aparentes —el TOPE del escalón medio, el hatch más grande que llega
+ * aquí— ese guión mide **0,27 px**, y a 100 px mide 0,083 px. Un guión de un
+ * cuarto de píxel no se ve como guión: se ve como la línea continua sobre la
+ * que está.
+ *
+ * Así que por debajo de ese escalón se dibuja la línea ENTERA en vez de sus
+ * guiones. Es el mismo criterio que el producto ya acepta para las curvas —la
+ * flecha de la cuerda por debajo del píxel— aplicado a lo largo de la línea en
+ * vez de a través de ella.
+ *
+ * Lo que NO se toca es el ESPACIADO entre líneas. Ensancharlo sí cambia el
+ * dibujo, se probó en una ola anterior y el golden 47 lo cazó con razón. Aquí
+ * las líneas son las mismas, en el mismo sitio: sólo se deja de partirlas donde
+ * la partición no se puede ver.
+ */
 export function cadHatchPatternStrokes(
   boundaries: readonly CadPoint2[][],
   entity: CadHatchPatternInput,
   scale: number,
+  options: { collapseDashes?: boolean } = {},
 ): CadHatchPatternStrokes {
   const outer = boundaries[0];
   if (!outer || outer.length < 3) return { strokes: [], known: true, lineCount: 0 };
@@ -104,7 +125,7 @@ export function cadHatchPatternStrokes(
       return hatchRegionContainsPoint(boundaries, midpoint, entity.islandStyle ?? "normal");
     });
     lineCount += chords.length;
-    if (!family.dash) {
+    if (!family.dash || options.collapseDashes) {
       strokes.push(...chords);
       continue;
     }

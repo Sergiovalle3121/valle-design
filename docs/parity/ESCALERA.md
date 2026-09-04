@@ -471,6 +471,20 @@ filtros de una vez.
 | La entrega FALLA CERRADO con hallazgos que bloquean | 5 | `etransmit-commands.spec.ts` (28): con dos luminarias `-LT1` no sale paquete y se dice QUÉ bloquea; un Enter no vale por un sí; dicho que sí, el ZIP lleva `REVISION.txt` y `manifiesto.json` diciendo que se armó a pesar de los bloqueos; y un plano limpio pasa de largo **sin preguntar nada** | **AutoCAD no puede hacer esto**: su informe de eTransmit sabe de FICHEROS, no del proyecto. El informe viaja SIEMPRE, con hallazgos o sin ellos: uno que sólo aparece cuando hay algo malo enseña a no leerlo. Falta la misma puerta en `PUBLISH`, y **no va en el comando**: `PUBLISH` recibe el ID de un conjunto y no tiene los documentos: los resuelve el anfitrión (`plot-host.ts`, `loaded.documents`). Revisar ahí el dibujo ABIERTO sería peor que no revisar —bloquearía un conjunto por un plano que no va dentro—, así que la puerta va donde están las hojas de verdad. **Todavía no.** |
 | Firmar el informe y archivarlo con la entrega | 0 | ninguna | Un informe que se archiva con el plano necesita un sitio en el formato persistido: **decisión del titular**. Hoy el informe se lee en la línea de comandos y se vuelve a producir tecleando `REVISA`. **Todavía no.** |
 
+## Rendimiento: el trabajo que el producto se impone (Ola 10, 2026-09-04)
+
+Auditados los CUATRO corpus del banco con el mismo instrumento —contando puntos
+y caminos por escalón de LOD, no cronometrando: en una máquina compartida el
+reloj mide a los vecinos—. Dos tenían un defecto, uno estaba sano y uno no tiene
+nada que ganar.
+
+| Capacidad | Peldaño | Evidencia | Qué falta para el siguiente |
+| --- | --- | --- | --- |
+| El sombreado no cuesta 72 millones de puntos con zoom | 5 | `hatch-lod-volume.spec.ts` (6) sobre `architecture@20k`: escalón medio 72.493.044 → 1.800.388 puntos (40×), escalón 0 y detalle idénticos | Los guiones subpíxel se colapsan en la línea que los lleva; el ESPACIADO entre líneas no se toca —ensancharlo cambia el dibujo y el golden 47 lo cazó en una ola anterior—. **A la vista del SLO los sombreados ya estaban en escalón 0**: esto vale para la sesión con zoom, no para los 25,3 s. |
+| La polilínea no dibuja vértices dentro del mismo píxel | 5 | `polyline-lod-decimation.spec.ts` (13) y el corpus: `cartography@20k` 362.479 → 122.543 puntos (3,0×) en la vista de apertura | Sólo abiertas y sin `bulge`, sólo en el camino de dibujo, extremos intactos y con cota de error comprobada. Las cerradas no se decimarán: colapsar un predio cambia la figura, no el detalle. **Nunca.** |
+| Los cuatro corpus auditados por escalón | 5 | La tabla del informe de distancia: `architecture` tenía el acantilado del sombreado, `cartography` y `text-hostile` no tenían LOD para polilíneas, `mechanical` está sano (119k → 290k → 975k, repartido en arc/spline/circle) | `text-hostile` no tiene nada que ganar: 2,8 puntos por entidad, líneas y textos. Auditar es parte del trabajo aunque el resultado sea «aquí no hay nada». |
+| El SLO de 100k medido en una máquina de verdad | 0 | ninguna | El propio `viewport-baseline.json` dice qué bloquea el objetivo: «el rasterizador POR SOFTWARE del runner… lo que queda NO es teselado: es pintar 100.000 entidades por ANGLE/SwiftShader **sin GPU**». **Decisión del titular**: una corrida de calibración en una máquina con GPU. Mientras no exista, cualquier promesa de rendimiento a 100.000 entidades sería una suposición. **Todavía no.** |
+
 ## Cómo se usa
 
 - **Al añadir una entrada nueva a `BACKLOG.md`:** decir el peldaño ACTUAL

@@ -29,6 +29,7 @@ import type { CadPoint2, CadPoint3 } from "./cad-document";
 // De `entity-hit-geometry` y NO de `entity-runtime`: aquél importa este módulo,
 // así que pedirle un VALOR de vuelta cierra un ciclo que revienta al cargar.
 import { commonHitTester } from "./entity-hit-geometry";
+import { simplifyWithinTolerance } from "./simplify";
 import { cadTransformIsReflecting, cadTransformPoint3, cadTransformScaleFactor } from "./transform2d";
 import type {
   CadBoundsProvider,
@@ -136,11 +137,75 @@ export function polylinePoints(
   return points;
 }
 
+/**
+ * Escalones EXACTOS del LOD en los que se puede decimar, con el tamaño aparente
+ * que cada uno garantiza (`CAD_RENDER_LOD_COARSE_MAX_PX`, `…_MEDIUM_MAX_PX`).
+ *
+ * Se comparan por IGUALDAD y no con un «menor que» a propósito: el valor por
+ * defecto del renderizador es 96 y significa «nadie pidió LOD, dame el dibujo de
+ * verdad». Un umbral se lo tragaría, y en el sombreado eso ya volvió
+ * indistinguibles dos patrones — el mismo error, dos veces, no.
+ */
+const POLYLINE_LOD_DECIMATION: ReadonlyMap<number, number> = new Map([
+  [8, 24],
+  [32, 320],
+]);
+
+/**
+ * Decimación por LOD: no dibujar vértices que caen dentro del mismo píxel.
+ *
+ * MEDIDO en `cartography@20k`: 18.400 polilíneas de 20 vértices de mediana que,
+ * con el plano ajustado a pantalla, ocupan **9,74 px** con los vértices a
+ * **0,796 px** unos de otros. Veinte vértices dentro de diez píxeles. Es el
+ * mismo desperdicio que los guiones subpíxel del sombreado, y se quita con el
+ * mismo criterio: por debajo del píxel no hay dibujo que perder. Resultado
+ * medido: 358.079 → 118.143 vértices en el escalón grueso (3,0×).
+ *
+ * La tolerancia sale del tamaño que el escalón GARANTIZA: en el grueso la
+ * entidad mide como mucho 24 px, así que `diagonal/24` es un píxel — y como la
+ * mayoría de las entidades del escalón son más pequeñas que su tope, la
+ * desviación real queda por debajo. Douglas–Peucker no mueve los extremos, así
+ * que la polilínea sigue empezando y acabando donde empezaba y acababa.
+ *
+ * ## Lo que NO se decima, y por qué
+ *
+ * - **Con `bulge`**: un tramo con bulge es un ARCO, y su curvatura no es ruido
+ *   subpíxel; decimarlo lo convertiría en la cuerda.
+ * - **Cerradas**: son locales, predios, piezas. Colapsar una hacia su cuerda no
+ *   quita detalle, cambia la FIGURA. Medido: las 3.600 polilíneas de
+ *   `architecture` y las 4.000 de `text-hostile` son cerradas y quedan fuera
+ *   —no pierden nada, porque ya son de cuatro vértices y no había qué decimar—.
+ * - **Fuera del camino de dibujo**: designación, contención, bounds y export
+ *   siguen viendo TODOS los vértices. Esto es cómo se pinta, no qué es.
+ */
+function decimateForLod(
+  entity: CadPolylineEntity,
+  points: CadPoint2[],
+  segments: number,
+): CadPoint2[] {
+  const apparentPx = POLYLINE_LOD_DECIMATION.get(segments);
+  if (apparentPx === undefined || entity.closed || points.length <= 2) return points;
+  if (entity.vertices.some((vertex) => (vertex.bulge ?? 0) !== 0)) return points;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const point of points) {
+    if (point.x < minX) minX = point.x;
+    if (point.x > maxX) maxX = point.x;
+    if (point.y < minY) minY = point.y;
+    if (point.y > maxY) maxY = point.y;
+  }
+  const diagonal = Math.hypot(maxX - minX, maxY - minY);
+  if (!(diagonal > 0)) return points;
+  return simplifyWithinTolerance(points, diagonal / apparentPx);
+}
+
 const polylineRenderer: CadEntityRenderer<CadPolylineEntity> = {
   paths: (entity, segments = 96) => {
     const points = polylinePoints(entity, segments);
     if (points.length === 0) return [];
-    return [{ points, closed: entity.closed }];
+    return [{ points: decimateForLod(entity, points, segments), closed: entity.closed }];
   },
 };
 
