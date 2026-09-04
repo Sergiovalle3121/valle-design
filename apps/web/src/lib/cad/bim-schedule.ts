@@ -22,17 +22,26 @@
  *    dibuja un polígono de local ni lo etiqueta: si los muros cierran, hay
  *    local; si no cierran, no lo hay, y eso también se dice.
  *
- * ## Área a ejes y área útil, las dos
+ * ## Tres áreas por local, porque significan tres cosas
  *
- * El recorrido de caras da el área A EJES. El área ÚTIL —la que se vende y la
- * que exige el reglamento— se saca metiendo cada lado hacia dentro medio grosor
- * del muro que lo produjo e intersecando los lados consecutivos. Se dan las dos
- * porque significan cosas distintas y confundirlas cuesta dinero: nadie debería
- * tener que adivinar cuál de las dos está mirando.
+ * El recorrido de caras da el área A EJES. Del MISMO anillo salen las otras dos,
+ * desplazando cada lado antes de volver a cerrar las esquinas (`bim-areas.ts`):
  *
- * Cuando dos lados consecutivos son paralelos no hay intersección y el área útil
- * de ese local se declara ausente en vez de aproximarse. Un número aproximado
- * en un cuadro de áreas es peor que ninguno: se copia al proyecto ejecutivo.
+ *  - **Útil**: cada lado medio grosor hacia dentro. La que se habita y la que
+ *    mide un reglamento de dimensión mínima.
+ *  - **Construida**: hacia fuera medio grosor si el muro es perimetral —se mide
+ *    a paño exterior— y quieto sobre el eje si es medianero —medio para cada
+ *    local—. Es la que pide una licencia de construcción, y con ese criterio la
+ *    suma de las construidas de todos los locales es la huella construida de la
+ *    planta, ni un metro de más ni de menos.
+ *
+ * Se dan las tres porque confundirlas cuesta dinero: nadie debería tener que
+ * adivinar cuál está mirando.
+ *
+ * Cuando dos lados consecutivos son paralelos no hay intersección y no hay
+ * esquina: esas áreas se declaran ausentes, con su motivo en `problems`, en vez
+ * de aproximarse. Un número aproximado en un cuadro de áreas es peor que
+ * ninguno: se copia al proyecto ejecutivo y nadie vuelve a mirarlo.
  *
  * ## Lo roto se NOMBRA, no se descarta
  *
@@ -49,6 +58,11 @@ import { cadWallJunctionOverlaps } from "./wall-junction-overlap";
 import { wallOpeningFit } from "./wall-openings";
 import { cadPointInBoundary } from "./hatch-associativity";
 import { roomDepartmentFromTags, roomUseTypeFromTags } from "./architecture";
+import {
+  cadRoomBuiltArea,
+  cadRoomClearArea,
+  type CadRoomSide,
+} from "./bim-areas";
 
 /**
  * Cuantización de nudos del grafo. Dos extremos que caen dentro de esta
@@ -109,6 +123,19 @@ export interface CadRoomAreaRow {
   axisArea: number;
   /** Área útil, con los lados metidos medio grosor. Ausente si no se puede. */
   clearArea?: number;
+  /**
+   * Área CONSTRUIDA: a paño exterior en los muros perimetrales, al eje en los
+   * medianeros. Es la que se declara en una licencia. Ausente —y dicho en
+   * `problems`— cuando el contorno no deja resolver alguna esquina.
+   */
+  builtArea?: number;
+  /**
+   * La parte de la fábrica que le toca a este local: `builtArea − clearArea`.
+   * Es lo que la construida añade sobre la útil, y se expone para poder
+   * auditar la diferencia entre las dos sin restarlas a mano en la memoria de
+   * cálculo. Ausente si falta cualquiera de las dos.
+   */
+  wallShareArea?: number;
   /** Perímetro a ejes. */
   perimeter: number;
   /** Muros que cierran el local, sin repetir. */
@@ -137,6 +164,18 @@ export interface CadBimSchedule {
    * cierran ningún contorno.
    */
   exteriorRing: CadPoint2[] | null;
+  /**
+   * La HUELLA CONSTRUIDA de la planta: la suma de las áreas construidas de
+   * todos los locales, que es la superficie que se declara en una licencia.
+   * Por cómo se mide cada local —a paño exterior en el perímetro, al eje en el
+   * medianero— los locales teselan el contorno exterior desplazado medio
+   * grosor hacia fuera, así que esa suma es exactamente esa huella.
+   *
+   * `null` cuando no hay ningún local, o cuando a alguno le falta su área
+   * construida: un total al que le falta un cuarto no es un total, y darlo
+   * como si lo fuera es justo el error que este módulo existe para impedir.
+   */
+  builtArea: number | null;
   /** Lo que no se pudo contar, y por qué. Nunca vacío por conveniencia. */
   problems: string[];
 }
@@ -278,6 +317,7 @@ export function buildCadBimSchedule(document: Pick<CadDocument, "entities">): Ca
     ),
     rooms: rooms.rooms,
     exteriorRing: rooms.exteriorRing,
+    builtArea: rooms.builtArea,
     problems: [...problems, ...rooms.problems],
   };
 }
@@ -354,11 +394,17 @@ interface GraphEdge {
  *     cara es la que sigue en orden angular a la de vuelta.
  *  3. Cada ciclo cerrado es una cara. Las de área POSITIVA son locales; la
  *     negativa es el contorno exterior de la planta, que no es un local.
+ *  4. La semi-arista GEMELA de cada lado dice qué hay al otro lado del muro:
+ *     si pertenece a otra cara-local, el muro es medianero; si no, es
+ *     perimetral. Es lo único que hace falta para medir el área construida, y
+ *     sale del mismo recorrido — no hay una segunda pasada que pudiera
+ *     discrepar de la primera sobre qué es un local.
  */
 export function detectCadRooms(walls: readonly WallLike[]): {
   rooms: CadRoomAreaRow[];
   problems: string[];
   exteriorRing: CadPoint2[] | null;
+  builtArea: number | null;
 } {
   const problems: string[] = [];
   const points = new Map<string, CadPoint2>();
@@ -380,7 +426,8 @@ export function detectCadRooms(walls: readonly WallLike[]): {
         Math.hypot(axis.b.x - axis.a.x, axis.b.y - axis.a.y) >
         CAD_ROOM_NODE_TOLERANCE,
     );
-  if (axes.length === 0) return { rooms: [], problems, exteriorRing: null };
+  if (axes.length === 0)
+    return { rooms: [], problems, exteriorRing: null, builtArea: null };
 
   const ends = axes.flatMap((axis) => [axis.a, axis.b]);
   const edges: GraphEdge[] = [];
@@ -405,7 +452,8 @@ export function detectCadRooms(walls: readonly WallLike[]): {
       });
     }
   }
-  if (edges.length === 0) return { rooms: [], problems, exteriorRing: null };
+  if (edges.length === 0)
+    return { rooms: [], problems, exteriorRing: null, builtArea: null };
 
   /** Semi-aristas salientes por nudo, ordenadas por ángulo. */
   const outgoing = new Map<string, GraphEdge[]>();
@@ -451,6 +499,15 @@ export function detectCadRooms(walls: readonly WallLike[]): {
         faces.push({ ring, area: signedArea(ring, points) });
     }
 
+  // Las semi-aristas que pertenecen a una cara-LOCAL. Un lado cuya gemela está
+  // en este conjunto separa dos locales (medianero); cualquier otro da a la
+  // calle, a un patio o a nada (perimetral). Se calcula de una vez, antes de
+  // medir, porque un local necesita saberlo de sus vecinos y el orden en que
+  // salen las caras del recorrido no está garantizado.
+  const roomHalves = new Set<string>();
+  for (const face of faces)
+    if (face.area > 0) for (const edge of face.ring) roomHalves.add(half(edge));
+
   const rooms: CadRoomAreaRow[] = [];
   let exteriorFace: { ring: GraphEdge[]; area: number } | null = null;
   for (const face of faces) {
@@ -476,18 +533,41 @@ export function detectCadRooms(walls: readonly WallLike[]): {
     const ring = face.ring.map((edge) => points.get(edge.from)!);
     const perimeter = ringPerimeter(ring);
     const wallIds = [...new Set(face.ring.map((edge) => edge.wallId))].sort();
-    const clear = clearArea(face.ring, points);
+    const sides: CadRoomSide[] = face.ring.map((edge) => ({
+      from: points.get(edge.from)!,
+      to: points.get(edge.to)!,
+      thickness: edge.thickness,
+      shared: roomHalves.has(`${edge.to}>${edge.from}`),
+    }));
+    const clear = cadRoomClearArea(sides);
+    const built = cadRoomBuiltArea(sides);
     rooms.push({
       id: "",
       axisArea: face.area,
-      ...(clear === null ? {} : { clearArea: clear }),
+      ...(clear.area === null ? {} : { clearArea: clear.area }),
+      ...(built.area === null ? {} : { builtArea: built.area }),
+      ...(clear.area === null || built.area === null
+        ? {}
+        : { wallShareArea: built.area - clear.area }),
       perimeter,
       wallIds,
       ring,
     });
-    if (clear === null)
+    // Cada motivo se nombra por lo que es. «Lados paralelos» y «más estrecho
+    // que sus propios muros» son averías distintas del dibujo y se arreglan de
+    // forma distinta: colapsarlas en un mismo aviso obligaría a quien lo lee a
+    // adivinar cuál de las dos tiene delante.
+    if (clear.area === null && built.area === null)
       problems.push(
-        `Un local de ${round(face.area)} a ejes tiene lados paralelos consecutivos y su área útil no está definida: se da sólo la de ejes.`,
+        `Un local de ${round(face.area)} a ejes tiene lados paralelos consecutivos: sin esquina que resolver no hay área útil ni área construida, así que se da sólo la de ejes.`,
+      );
+    else if (clear.area === null)
+      problems.push(
+        `Un local de ${round(face.area)} a ejes es más estrecho que sus propios muros: al meter los lados medio grosor el contorno se cierra sobre sí mismo y no hay área útil que dar.`,
+      );
+    else if (built.area === null)
+      problems.push(
+        `Un local de ${round(face.area)} a ejes no deja resolver su contorno a paño exterior: se dan la de ejes y la útil, pero no la construida.`,
       );
   }
 
@@ -503,7 +583,16 @@ export function detectCadRooms(walls: readonly WallLike[]): {
   const exteriorRing = exteriorFace
     ? exteriorFace.ring.map((edge) => points.get(edge.from)!).reverse()
     : null;
-  return { rooms, problems, exteriorRing };
+  // La huella de la planta es la SUMA de las construidas, no una medición
+  // aparte del contorno exterior: si fueran dos cálculos distintos podrían
+  // discrepar, y el cuadro dejaría de cuadrar consigo mismo. Si a un local le
+  // falta la suya, no hay total — un total incompleto se presenta igual que uno
+  // completo y ahí está el error caro.
+  const builtArea =
+    rooms.length > 0 && rooms.every((room) => room.builtArea !== undefined)
+      ? rooms.reduce((total, room) => total + room.builtArea!, 0)
+      : null;
+  return { rooms, problems, exteriorRing, builtArea };
 }
 
 function round(value: number): string {
@@ -549,64 +638,4 @@ function ringPerimeter(ring: readonly CadPoint2[]): number {
     total += Math.hypot(to.x - from.x, to.y - from.y);
   }
   return total;
-}
-
-/**
- * Área ÚTIL: la cara del anillo metida hacia dentro medio grosor del muro que
- * la produjo, con las esquinas resueltas por intersección de los lados
- * desplazados. Es exactamente el mismo criterio con el que se limpia un inglete
- * en `wall-joins.ts`, aplicado al interior del local.
- *
- * `null` cuando dos lados consecutivos son paralelos: no hay intersección y no
- * hay esquina. Véase la cabecera sobre por qué no se aproxima.
- */
-function clearArea(
-  ring: readonly GraphEdge[],
-  points: Map<string, CadPoint2>,
-): number | null {
-  const lines = ring.map((edge) => {
-    const from = points.get(edge.from)!;
-    const to = points.get(edge.to)!;
-    const dx = to.x - from.x;
-    const dy = to.y - from.y;
-    const length = Math.hypot(dx, dy);
-    if (!(length > 0)) return null;
-    // El anillo interior se recorre en sentido antihorario (área positiva), así
-    // que la normal que apunta HACIA DENTRO del local es la de la izquierda.
-    const offset = edge.thickness / 2;
-    const nx = (-dy / length) * offset;
-    const ny = (dx / length) * offset;
-    return {
-      point: { x: from.x + nx, y: from.y + ny },
-      direction: { x: dx / length, y: dy / length },
-    };
-  });
-  if (lines.some((line) => line === null)) return null;
-
-  const corners: CadPoint2[] = [];
-  for (let index = 0; index < lines.length; index += 1) {
-    const current = lines[index]!;
-    const next = lines[(index + 1) % lines.length]!;
-    const cross =
-      current.direction.x * next.direction.y -
-      current.direction.y * next.direction.x;
-    if (Math.abs(cross) < 1e-9) return null;
-    const dx = next.point.x - current.point.x;
-    const dy = next.point.y - current.point.y;
-    const t = (dx * next.direction.y - dy * next.direction.x) / cross;
-    corners.push({
-      x: current.point.x + current.direction.x * t,
-      y: current.point.y + current.direction.y * t,
-    });
-  }
-  let total = 0;
-  for (let index = 0; index < corners.length; index += 1) {
-    const from = corners[index];
-    const to = corners[(index + 1) % corners.length];
-    total += from.x * to.y - to.x * from.y;
-  }
-  const area = total / 2;
-  // Un local más estrecho que sus muros se cierra sobre sí mismo al meter los
-  // lados: el área sale negativa o nula y lo honesto es no dar ninguna.
-  return area > 0 ? area : null;
 }
