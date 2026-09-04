@@ -12,10 +12,11 @@
  * "../all-commands"`— tiene las 291 implementaciones y sigue probando lo mismo
  * que probaba. En Node cargarlas todas no cuesta bytes de red.
  *
- * NO PARA EL NAVEGADOR. Importar esto desde el estudio deshace entero el
- * arreglo de carga del 2026-09-04 y devuelve los 728,5 KB al primer chunk.
- * Quien lo haga lo verá en `e2e/performance/frontend-load-budget.spec.ts`, que
- * mide lo que el navegador descarga de verdad contra un techo que sólo baja.
+ * NO PARA EL NAVEGADOR. Importar esto desde el estudio deshace entero el arreglo
+ * de carga del 2026-09-04 y devuelve las 291 implementaciones al primer chunk.
+ * Lo impiden dos gates: `build-command-manifest.mjs --check`, que nombra el
+ * fichero culpable en segundos, y `e2e/performance/frontend-load-budget.spec.ts`,
+ * que mide lo que el navegador descarga de verdad contra un techo que sólo baja.
  */
 import { cadRegisterCommandModules } from "./lazy-commands";
 

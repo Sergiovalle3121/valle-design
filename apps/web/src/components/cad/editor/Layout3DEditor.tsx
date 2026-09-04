@@ -172,7 +172,7 @@ import {
   cadSnapSceneAddEntities,
   cadSnapSceneFromBoxes,
 } from "@/lib/cad/snap-scene";
-// El parser de PDF (56,3 KB) entraba por AQUÍ además de por el registro; ahora
+// El parser de PDF entraba por AQUÍ además de por el registro de comandos; ahora
 // llega por `pdf/lazy.ts` si el plano trae sustrato. Ver su cabecera.
 import { cadEntityCarriesPdfUnderlay } from "@/lib/cad/pdf/underlay-key";
 import { cadPdfSnapIfLoaded, loadCadPdfSnap } from "@/lib/cad/pdf/lazy";

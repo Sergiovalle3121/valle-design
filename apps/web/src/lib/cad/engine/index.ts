@@ -11,12 +11,10 @@
  *
  * Este archivo hacía 106 `import` ESTÁTICOS de `./commands/*` sólo para
  * construir `CAD_COMMAND_DESCRIPTORS`, y `command-palette.ts` lo importa desde
- * `Layout3DEditor`. Medido con mapas de fuente sobre el build de producción
- * —el mismo método que cita `lib/cad/commands/lazy.ts`—: 728,5 KB minificados
- * del chunk del estudio (de 1.873,3 KB) eran alcanzables ÚNICAMENTE a través de
- * esas implementaciones, 2.463,3 KB de fuente en 208 ficheros. Abrir un plano
- * para dibujar una línea descargaba el motor de comparación de dibujos, el
- * parser de PDF, el trazado de tuberías y el enrutado eléctrico.
+ * `Layout3DEditor`. Abrir un plano para dibujar una línea descargaba el motor de
+ * comparación de dibujos, el parser de PDF, el trazado de tuberías y el enrutado
+ * eléctrico. El porqué con su medida está en `lazy-commands.ts`; la cifra de
+ * punta a punta, en `lib/cad/benchmark/frontend-load-baseline.json`.
  *
  * El reparto que arregla eso es el que ya dejó escrito `commands/lazy.ts` un
  * piso más arriba: «el REGISTRO se queda estático a propósito». Aquí igual —
@@ -31,9 +29,15 @@
  * Un descriptor cuya implementación no está cargada NO finge: termina con un
  * renglón que dice que no terminó de cargar, y dispara la carga para que el
  * segundo intento funcione. Regla 2 de la campaña de cimientos: ningún comando
- * responde éxito sin efecto. Quien despacha —`CadCommandEngineHost.dispatch`,
- * `script-runner.ts`, el `(command …)` de LISP— pide la implementación ANTES de
- * reducir, así que ese renglón es la red de seguridad, no el camino normal.
+ * responde éxito sin efecto.
+ *
+ * Ese renglón es la RED DE SEGURIDAD, no el camino normal: quien despacha pide
+ * la implementación antes de reducir. En el producto eso ocurre en un solo
+ * sitio, `CadCommandEngineHost.dispatch`; los dos consumidores síncronos que no
+ * pueden esperar —el `.scr` que empuja renglones de golpe y el `(command …)` de
+ * una rutina `.lsp`— se calientan por delante (`warmCommands`, y el registro
+ * entero al invocar una rutina, porque puede llamar a cualquiera). En Node, los
+ * specs y las sondas usan `all-commands.ts`, que los importa estáticos.
  */
 import { CAD_COMMAND_MANIFEST, type CadCommandManifestEntry } from "./command-manifest";
 import {

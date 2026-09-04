@@ -9,7 +9,7 @@
   },
   "gate": {
     "landingJsKB": 840.0,
-    "estudioJsKB": 3980.0
+    "estudioJsKB": 3488.8
   },
   "observado": {
     "20260829-antes": {
@@ -29,6 +29,12 @@
       "estudioJsKB": 3788.4,
       "estudioUsableMs": 2001,
       "nota": "tras las olas A-I del encargo AutoCAD completo (4270,3 KB en CI antes de esta medida): el catalogo de plantillas fuera del primer chunk, nueve paletas a demanda por next/dynamic y el parser de frases cargado a la primera frase"
+    },
+    "20260904-ordenes-a-demanda": {
+      "landingJsKB": 826.2,
+      "estudioJsKB": 3354.6,
+      "estudioUsableMs": 2876,
+      "nota": "tras sacar del primer chunk las IMPLEMENTACIONES de los 291 comandos: engine/index.ts hacia 106 import estaticos de ./commands/* solo para construir CAD_COMMAND_DESCRIPTORS, y command-palette.ts lo importa desde Layout3DEditor. Ahora los METADATOS son estaticos (engine/command-manifest.ts, generado de los modulos reales por scripts/cad/build-command-manifest.mjs) y la maquina begin/step llega por import() (engine/lazy-commands.ts, 106 thunks literales); la espera se resuelve en una sola costura, el dispatch de CadCommandEngineHost. Ademas, la SEGUNDA puerta del parser de PDF: Layout3DEditor lo importaba por su cuenta para el imantado del sustrato y ahora llega por pdf/lazy.ts cuando el documento trae sustrato de verdad. 4114,0 -> 3354,6 KB, 759,4 KB menos, con el techo de 3980 INTACTO durante la medida y bajado despues a medido+4%. Los tres gates siguen contando 291: check:command-integrity 291 con 0 exitos falsos, ui-command-reach 291 de 291 y check-ribbon-coverage 291. Corridas repetidas del mismo build dan 3354,6 KB estables. El estudioUsableMs se midio con la suite de specs corriendo en la misma maquina, asi que no es comparable con los 2001 ms de 20260902: lo que esta medida gobierna son los KB."
     }
   }
 }

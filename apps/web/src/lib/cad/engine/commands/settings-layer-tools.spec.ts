@@ -25,6 +25,11 @@ import type { CadCommandContext, CadCommandInput } from "../command-types";
 import { CAD_COMMAND_REGISTRY_V2 } from "../index";
 import { CAD_LAYER_ISOLATION_MEMORY } from "./settings-layer-tools";
 
+// Las implementaciones de los comandos llegan a demanda en el navegador
+// (`engine/lazy-commands.ts`). Un `.spec.ts` se carga como CommonJS y no puede
+// esperarlas con `await`, así que las trae de golpe con este import estático.
+import "@/lib/cad/engine/all-commands";
+
 const registry = CAD_COMMAND_REGISTRY_V2;
 
 const METADATA = {

@@ -3,9 +3,8 @@
  *
  * ## Por qué es un módulo aparte de 20 líneas
  *
- * `pdf-underlay.ts` arrastra el parser de PDF completo —objetos, contenidos,
- * `inflate`, fuentes, páginas, curvas, geometría de imantado: 56,3 KB medidos el
- * 2026-09-04 con mapas de fuente sobre el build de producción—. El editor
+ * `pdf-underlay.ts` arrastra el parser de PDF completo: objetos, contenidos,
+ * `inflate`, fuentes, páginas, curvas y geometría de imantado. El editor
  * necesitaba UNA cosa de todo eso antes de saber si el plano trae un sustrato:
  * mirar si la entidad lleva la ficha. Preguntarlo importando `pdf-underlay.ts`
  * traía el parser entero a la primera carga de CUALQUIER plano, tuviera PDF o

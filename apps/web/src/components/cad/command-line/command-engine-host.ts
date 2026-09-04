@@ -16,6 +16,22 @@
  * que es exactamente la dirección a la que va la descomposición: un controlador
  * imperativo con suscripción, y componentes que leen lo que necesitan. Cumplir
  * la regla y avanzar la arquitectura resultan ser la misma cosa.
+ *
+ * ## La costura de la carga a demanda (2026-09-04)
+ *
+ * Los METADATOS de los 291 comandos están desde el primer instante
+ * (`engine/command-manifest.ts`); la máquina de estados `begin`/`step` llega por
+ * `import()` cuando se usa (`engine/lazy-commands.ts`). Esa espera se resuelve
+ * en UN solo sitio: `dispatch`, por donde ya pasaban invocar, teclear, repetir y
+ * la orden encadenada de ADDSELECTED. Si la acción arranca un comando cuya
+ * implementación falta, se pide el módulo, se ENCOLA lo que llegue entretanto y
+ * se re-despacha en orden; `busy` responde que sí mientras tanto, para que el
+ * enrutador del puntero no mande el clic siguiente a la máquina heredada.
+ *
+ * Encolar no es un lujo: `runCadScript` empuja los renglones de un `.scr` de
+ * golpe, y despachar el segundo antes de que arranque el primero metería la
+ * entrada de uno en otro. Quien empuja de golpe además llama a `warmCommands`
+ * antes, para que su lectura final de `busy` diga la verdad.
  */
 import {
   EMPTY_CAD_COMMAND_ENGINE,
@@ -27,7 +43,7 @@ import {
 } from "@/lib/cad/engine/command-engine";
 import {
   CAD_COMMAND_REGISTRY_V2,
-  cadCommandIfLoaded,
+  cadCommandNeedsImplementation,
   cadWarmAllCommands,
   loadCadCommand,
 } from "@/lib/cad/engine";
@@ -558,12 +574,16 @@ export class CadCommandEngineHost {
   private cargaPendiente(action: CadCommandAction): string | "lisp" | null {
     const nombre = this.nombreQueArranca(action);
     if (!nombre) return null;
-    const nativo = CAD_COMMAND_REGISTRY_V2.get(nombre);
-    if (nativo) return cadCommandIfLoaded(nativo.name) ? null : nativo.name;
+    // Se pregunta al registro de ESTE anfitrión, no al del producto: un spec
+    // del motor monta el suyo con descriptores de verdad y no tiene nada que
+    // esperar. `cadCommandNeedsImplementation` sólo dice que sí ante un
+    // descriptor perezoso al que todavía le falta su módulo.
+    const descriptor = this.registry.get(nombre);
+    if (!descriptor) return null;
+    if (cadCommandNeedsImplementation(descriptor)) return descriptor.name;
     if (this.lispCalentado) return null;
-    // No lo reclama el motor. O no existe —y el reductor lo dirá con su
-    // «Comando desconocido»— o lo aporta el registro compuesto de LISP.
-    return this.registry.get(nombre) ? "lisp" : null;
+    // Está y no es del motor: es una rutina `.lsp`, y su evaluador es síncrono.
+    return CAD_COMMAND_REGISTRY_V2.get(nombre) ? null : "lisp";
   }
 
   /**
@@ -579,18 +599,25 @@ export class CadCommandEngineHost {
     for (const bruto of names) {
       const nombre = (bruto.trim().split(/\s+/)[0] ?? "").replace(/^'/, "");
       if (!nombre) continue;
-      const nativo = CAD_COMMAND_REGISTRY_V2.get(nombre);
-      if (nativo) {
-        if (!cadCommandIfLoaded(nativo.name)) pendientes.add(nativo.name);
-        continue;
-      }
-      if (!this.lispCalentado && this.registry.get(nombre)) lisp = true;
+      const descriptor = this.registry.get(nombre);
+      if (!descriptor) continue;
+      if (cadCommandNeedsImplementation(descriptor)) pendientes.add(descriptor.name);
+      else if (!this.lispCalentado && !CAD_COMMAND_REGISTRY_V2.get(nombre)) lisp = true;
     }
-    if (lisp) {
-      await this.calentarTodo();
-      return;
+    try {
+      if (lisp) await this.calentarTodo();
+      else await Promise.all([...pendientes].map((nombre) => loadCadCommand(nombre)));
+    } catch (causa) {
+      // No se relanza: quien llama sigue y el guión se ejecuta igual. Lo que no
+      // cargó lo dirá cada orden al llegarle el turno, con su nombre delante,
+      // en vez de tragarse el guión entero en silencio.
+      this.note(
+        `No se pudo traer parte del registro de comandos ` +
+          `(${causa instanceof Error ? causa.message : String(causa)}). ` +
+          "Las órdenes que falten lo dirán al ejecutarse.",
+        "error",
+      );
     }
-    await Promise.all([...pendientes].map((nombre) => loadCadCommand(nombre)));
   }
 
   private async calentarTodo(): Promise<void> {

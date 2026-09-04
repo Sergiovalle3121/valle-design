@@ -20,6 +20,11 @@ import { CAD_COMMAND_REGISTRY_V2 } from "../index";
 import type { CadCommandContext, CadCommandInput } from "../command-types";
 import { defaultWallHeight, defaultWallThickness } from "./draw-wall";
 
+// Las implementaciones de los comandos llegan a demanda en el navegador
+// (`engine/lazy-commands.ts`). Un `.spec.ts` se carga como CommonJS y no puede
+// esperarlas con `await`, así que las trae de golpe con este import estático.
+import "@/lib/cad/engine/all-commands";
+
 const known = new Set(CAD_COMMAND_REGISTRY_V2.all().map((command) => command.name));
 const descriptor = CAD_COMMAND_REGISTRY_V2.get("WALL");
 assert.ok(descriptor, "WALL llegó al registro del producto");

@@ -18,6 +18,11 @@ import { withPushedFace } from "./solids-push-face";
 import type { CadSolid3dEntity, CadSolidNode } from "../../cad-entities-v5";
 import type { CadCommandContext, CadCommandInput, CadCommandResult } from "../command-types";
 
+// Las implementaciones de los comandos llegan a demanda en el navegador
+// (`engine/lazy-commands.ts`). Un `.spec.ts` se carga como CommonJS y no puede
+// esperarlas con `await`, así que las trae de golpe con este import estático.
+import "@/lib/cad/engine/all-commands";
+
 /**
  * El índice de la cara que mira hacia arriba.
  *

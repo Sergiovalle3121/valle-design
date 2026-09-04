@@ -5,11 +5,11 @@
  * ## Qué problema resuelve
  *
  * `apps/web/src/lib/cad/engine/index.ts` hacía 106 `import` ESTÁTICOS de
- * `./commands/*` sólo para construir `CAD_COMMAND_DESCRIPTORS`. Medido el
- * 2026-09-04 con mapas de fuente sobre el build de producción: 728,5 KB
- * minificados del chunk del estudio colgaban exclusivamente de esas
- * implementaciones. Pero la cinta, la paleta Ctrl+K y la asistencia de la línea
- * NO necesitan la máquina de estados: leen `name`, `aliases` y `kind`.
+ * `./commands/*` sólo para construir `CAD_COMMAND_DESCRIPTORS`, y eso metía las
+ * 291 implementaciones en el primer chunk del estudio (la cifra medida está en
+ * `apps/web/src/lib/cad/benchmark/frontend-load-baseline.json`). Pero la cinta,
+ * la paleta Ctrl+K, la asistencia de la línea y los tres gates que cuentan
+ * comandos NO necesitan la máquina de estados: leen `name`, `aliases` y `kind`.
  *
  * Así que los metadatos se quedan estáticos —en `command-manifest.ts`— y la
  * implementación llega a demanda (`lazy-commands.ts`). Es el mismo reparto que
@@ -31,7 +31,7 @@
  */
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -141,11 +141,11 @@ function renderEntrada(entrada) {
 const cabecera = `/**
  * METADATOS de los ${entradas.length} comandos del registro. GENERADO — no se edita a mano.
  *
- * Lo escribe \`node scripts/cad/build-command-manifest.mjs --write\` importando
- * los ${modulos} módulos REALES de \`./commands/*\` en Node, y
- * \`--check\` (enganchado en \`npm run check:cad\`) falla si lo committeado deja de
- * coincidir con lo que los descriptores dicen hoy. Regla 4 de la campaña de
- * cimientos: ninguna cifra vive en dos lugares.
+ * Lo escribe \`node scripts/cad/build-command-manifest.mjs --write\` importando los
+ * ${modulos} módulos REALES de \`./commands/*\` en Node, y \`--check\` —enganchado en
+ * \`npm run check:cad\`— falla si lo committeado deja de coincidir con lo que los
+ * descriptores dicen hoy. Regla 4 de la campaña de cimientos: ninguna cifra vive
+ * en dos lugares, y un comando nuevo no puede entrar sin aparecer aquí.
  *
  * ## Qué hace aquí
  *
@@ -208,10 +208,11 @@ const allCommands = `/**
  * "../all-commands"\`— tiene las 291 implementaciones y sigue probando lo mismo
  * que probaba. En Node cargarlas todas no cuesta bytes de red.
  *
- * NO PARA EL NAVEGADOR. Importar esto desde el estudio deshace entero el
- * arreglo de carga del 2026-09-04 y devuelve los 728,5 KB al primer chunk.
- * Quien lo haga lo verá en \`e2e/performance/frontend-load-budget.spec.ts\`, que
- * mide lo que el navegador descarga de verdad contra un techo que sólo baja.
+ * NO PARA EL NAVEGADOR. Importar esto desde el estudio deshace entero el arreglo
+ * de carga del 2026-09-04 y devuelve las 291 implementaciones al primer chunk.
+ * Lo impiden dos gates: \`build-command-manifest.mjs --check\`, que nombra el
+ * fichero culpable en segundos, y \`e2e/performance/frontend-load-budget.spec.ts\`,
+ * que mide lo que el navegador descarga de verdad contra un techo que sólo baja.
  */
 import { cadRegisterCommandModules } from "./lazy-commands";
 
@@ -222,6 +223,49 @@ ${ids.map((_, index) => `  ${alias(index)},`).join("\n")}
 ]);
 `;
 const allCommandsPath = path.join(web, "src/lib/cad/engine/all-commands.ts");
+
+/**
+ * `all-commands.ts` es SÓLO para Node. Importarlo desde código de producto
+ * devuelve las 291 implementaciones al primer chunk y deshace el arreglo entero.
+ *
+ * Lo vigila también `e2e/performance/frontend-load-budget.spec.ts` —midiendo lo
+ * que el navegador descarga de verdad—, pero esa spec necesita un build de
+ * producción y un navegador. Esta comprobación cuesta un recorrido de ficheros y
+ * dice el nombre del archivo culpable, que es lo que hace falta para arreglarlo.
+ */
+function importadoresDeAllCommands() {
+  const raiz = path.join(web, "src");
+  const culpables = [];
+  const visitar = (dir) => {
+    for (const entrada of readdirSync(dir)) {
+      const absoluto = path.join(dir, entrada);
+      if (statSync(absoluto).isDirectory()) {
+        visitar(absoluto);
+        continue;
+      }
+      if (!/\.(ts|tsx)$/.test(entrada)) continue;
+      // Los specs SÍ deben importarlo: es su forma de tener el registro entero
+      // sin `await` de nivel superior, que un `.spec.ts` no admite.
+      if (entrada.endsWith(".spec.ts") || entrada.endsWith(".spec.tsx")) continue;
+      if (absoluto === allCommandsPath) continue;
+      const fuente = readFileSync(absoluto, "utf8");
+      if (/\bfrom\s+"[^"]*all-commands"|\bimport\s+"[^"]*all-commands"/.test(fuente))
+        culpables.push(path.relative(root, absoluto));
+    }
+  };
+  visitar(raiz);
+  return culpables;
+}
+
+const culpables = importadoresDeAllCommands();
+if (culpables.length > 0) {
+  console.error(
+    `command-manifest: ${culpables.join(", ")} importa(n) all-commands.ts desde código de producto. ` +
+      "Eso devuelve las 291 implementaciones al primer chunk del estudio. Use `loadCadCommand(nombre)` " +
+      "(o `cadWarmAllCommands()` en un contexto que pueda esperar) en su lugar.",
+  );
+  process.exit(1);
+}
 
 const artefactos = [
   { file: outPath, content: rendered },

@@ -458,7 +458,7 @@ export function runCommand(
    * más. El conjunto entra como ENTRADA, que es su sitio.
    */
   // La IMPLEMENTACIÓN llega a demanda (`engine/lazy-commands.ts`) y este
-  // evaluador es síncrono: no puede esperar a un `import()` a mitad de una
+  // evaluador es síncrono: no puede esperar a una carga a mitad de una
   // expresión. Quien invoca una rutina calienta el registro entero antes
   // (`CadCommandEngineHost.cargaPendiente`, marca `"lisp"`), así que llegar aquí
   // sin implementación significa que la rutina se evaluó por otra puerta. Se

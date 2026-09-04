@@ -1,38 +1,40 @@
 /**
- * Las IMPLEMENTACIONES de los comandos, cargadas cuando se teclea la primera
- * orden y no al abrir el estudio.
+ * Las IMPLEMENTACIONES de los comandos, cargadas cuando se usa la primera orden
+ * y no al abrir el estudio.
  *
  * ## Por qué existe, medido
  *
- * Medido el 2026-09-04 con mapas de fuente sobre el build de producción — el
- * mismo método que cita `lib/cad/commands/lazy.ts`—: 728,5 KB minificados del
- * chunk del estudio (de 1.873,3 KB) eran alcanzables ÚNICAMENTE a través de las
- * implementaciones de comandos, 2.463,3 KB de fuente en 208 ficheros. No los
- * traía la interfaz: los traía `engine/index.ts`, que hacía 106 `import`
- * estáticos de `./commands/*` sólo para construir `CAD_COMMAND_DESCRIPTORS`, y
- * `command-palette.ts` lo importa desde el editor. Abrir un plano para dibujar
- * una línea descargaba el motor de comparación de dibujos, el parser de PDF,
- * el trazado de tuberías y el enrutado eléctrico.
+ * `engine/index.ts` hacía 106 `import` ESTÁTICOS de `./commands/*` sólo para
+ * construir `CAD_COMMAND_DESCRIPTORS`, y `command-palette.ts` lo importa desde
+ * `Layout3DEditor`. El diagnóstico de partida —mapas de fuente sobre el build de
+ * producción, el mismo método que cita `lib/cad/commands/lazy.ts`— atribuyó
+ * 728,5 KB minificados del chunk del estudio EXCLUSIVAMENTE a esas
+ * implementaciones. Lo que este archivo produjo de punta a punta está medido en
+ * `lib/cad/benchmark/frontend-load-baseline.json`, observación `20260904-…`:
+ * ahí vive la cifra, y aquí no se copia (regla 4 de la campaña de cimientos).
+ *
+ * En castellano: abrir un plano para dibujar una línea descargaba el motor de
+ * comparación de dibujos, el parser de PDF, el trazado de tuberías y el
+ * enrutado eléctrico.
  *
  * ## El diseño es el precedente, un piso más abajo
  *
  * `lib/cad/commands/lazy.ts` dejó escrita la regla: «el REGISTRO se queda
  * estático a propósito: la asistencia de la línea de comandos y la paleta Cmd-K
- * lo leen al abrir para proponer frases». Aquí pasa lo mismo con los
- * descriptores: LOS METADATOS SON ESTÁTICOS —viven en `command-manifest.ts`,
- * generado de los módulos reales— y sólo la máquina de estados `begin`/`step`
- * llega a demanda.
+ * lo leen al abrir para proponer frases». Aquí igual con los descriptores: LOS
+ * METADATOS SON ESTÁTICOS —viven en `command-manifest.ts`, GENERADO de los
+ * módulos reales— y sólo la máquina de estados `begin`/`step` llega a demanda.
+ * Por eso los tres gates que cuentan comandos siguen contando 291 de 291.
  *
  * Los thunks son LITERALES, uno por línea, para que el empaquetador pueda
  * partirlos en 106 chunks; un `import(variable)` le obliga a incluirlos todos.
  *
  * ## Honestidad
  *
- * Un módulo que no termina de cargar no se traga: `cadCommandImplementation`
- * devuelve `null` y quien pregunta lo dice en voz alta, igual que
- * `Layout3DEditor.tsx` dice «El intérprete de frases no terminó de cargar» en
- * vez de fingir que aplicó. Regla 2 de la campaña de cimientos: ningún comando
- * responde éxito sin efecto.
+ * Un módulo que no llega no se traga: `cadCommandImplementation` devuelve `null`
+ * y quien pregunta lo dice en voz alta, igual que `Layout3DEditor.tsx` dice «El
+ * intérprete de frases no terminó de cargar» en vez de fingir que aplicó. Regla
+ * 2 de la campaña de cimientos: ningún comando responde éxito sin efecto.
  */
 import type { CadAnyCommandDescriptor } from "./command-types";
 
@@ -150,7 +152,8 @@ export const CAD_COMMAND_MODULE_LOADERS = {
   "commands/view-navigation": () => import("./commands/view-navigation"),
   "commands/view-navigation-3d": () => import("./commands/view-navigation-3d"),
   "commands/view-visual": () => import("./commands/view-visual"),
-  "commands/xrefs": () => import("./commands/xrefs"),} as const;
+  "commands/xrefs": () => import("./commands/xrefs"),
+} as const;
 
 export type CadCommandModuleId = keyof typeof CAD_COMMAND_MODULE_LOADERS;
 

@@ -33,6 +33,11 @@ import type { CadCommandContext } from "../engine/command-types";
 import { CAD_COMMAND_REGISTRY_V2 } from "../engine/index";
 import { cadSolviewScaleText, cadSolviewViewTitle } from "./solview-annotations";
 
+// Las implementaciones de los comandos llegan a demanda en el navegador
+// (`engine/lazy-commands.ts`). Un `.spec.ts` se carga como CommonJS y no puede
+// esperarlas con `await`, así que las trae de golpe con este import estático.
+import "@/lib/cad/engine/all-commands";
+
 let verdes = 0;
 const ok = (condicion: unknown, mensaje: string) => {
   assert.ok(condicion, mensaje);

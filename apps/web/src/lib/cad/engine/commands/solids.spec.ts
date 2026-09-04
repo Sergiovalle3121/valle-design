@@ -32,6 +32,11 @@ import { CAD_INTEROP_EPOCH, exportSolidEntity, importSolidEntity } from "../../s
 import { CAD_COMMAND_REGISTRY_V2 } from "../index";
 import type { CadCommandContext, CadCommandInput, CadCommandResult } from "../command-types";
 
+// Las implementaciones de los comandos llegan a demanda en el navegador
+// (`engine/lazy-commands.ts`). Un `.spec.ts` se carga como CommonJS y no puede
+// esperarlas con `await`, así que las trae de golpe con este import estático.
+import "@/lib/cad/engine/all-commands";
+
 const layer = "MUROS";
 
 function documentWith(entities: CadEntity[]): CadDocument {

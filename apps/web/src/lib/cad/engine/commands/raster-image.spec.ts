@@ -20,6 +20,11 @@ import { resolveCadCommandAlias } from "../alias-table";
 import { CAD_IMAGE_PAYLOAD_ERROR_KIND, CAD_IMAGE_PAYLOAD_KIND, cadImageDataUri, decodeCadImagePayload, encodeCadImagePayload } from "../../image-attach-payload";
 import { cadPngChecker } from "../../image-fixtures";
 
+// Las implementaciones de los comandos llegan a demanda en el navegador
+// (`engine/lazy-commands.ts`). Un `.spec.ts` se carga como CommonJS y no puede
+// esperarlas con `await`, así que las trae de golpe con este import estático.
+import "@/lib/cad/engine/all-commands";
+
 let checks = 0;
 const ok = (condition: boolean, message: string) => {
   assert.ok(condition, message);

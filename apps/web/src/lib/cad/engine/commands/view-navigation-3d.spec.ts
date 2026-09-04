@@ -30,6 +30,11 @@ import {
 import { CadViewController } from "../../view/view-controller";
 import { CadNavigationHost } from "@/components/cad/command-line/navigation-host";
 
+// Las implementaciones de los comandos llegan a demanda en el navegador
+// (`engine/lazy-commands.ts`). Un `.spec.ts` se carga como CommonJS y no puede
+// esperarlas con `await`, así que las trae de golpe con este import estático.
+import "@/lib/cad/engine/all-commands";
+
 const registry = CAD_COMMAND_REGISTRY_V2;
 
 function context(): CadCommandContext {

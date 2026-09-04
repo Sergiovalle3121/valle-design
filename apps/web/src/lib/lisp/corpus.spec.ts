@@ -22,6 +22,11 @@ import { printLisp } from "./printer";
 import { LispSession, ScriptedResponder } from "./session";
 import { list, real, str, type LispResponse, type LispValue } from "./values";
 
+// Las implementaciones de los comandos llegan a demanda en el navegador
+// (`engine/lazy-commands.ts`). Un `.spec.ts` se carga como CommonJS y no puede
+// esperarlas con `await`, así que las trae de golpe con este import estático.
+import "@/lib/cad/engine/all-commands";
+
 let checks = 0;
 // `fileURLToPath` y no `.pathname`: en Windows el pathname de un file URL es
 // `/D:/…`, y unirlo con `path.join` fabrica rutas imposibles (`D:\D:\…`).

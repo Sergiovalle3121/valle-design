@@ -23,6 +23,11 @@ import type { CadCommandContext } from "../command-types";
 import { CAD_COMMAND_REGISTRY_V2 } from "../index";
 import { cadStaleSolviews } from "../../layout/solview-associativity";
 
+// Las implementaciones de los comandos llegan a demanda en el navegador
+// (`engine/lazy-commands.ts`). Un `.spec.ts` se carga como CommonJS y no puede
+// esperarlas con `await`, así que las trae de golpe con este import estático.
+import "@/lib/cad/engine/all-commands";
+
 const registry = CAD_COMMAND_REGISTRY_V2;
 
 const muro = (id: string, ax: number, ay: number, bx: number, by: number): CadEntity => ({

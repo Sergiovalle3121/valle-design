@@ -19,6 +19,11 @@ import { CadCommandEngineHost } from "./command-engine-host";
 import { createCadClipboard } from "@/lib/cad/clipboard";
 import { createCadVariableAccess } from "@/lib/cad/system-variables";
 
+// Las implementaciones de los comandos llegan a demanda en el navegador
+// (`engine/lazy-commands.ts`). Un `.spec.ts` se carga como CommonJS y no puede
+// esperarlas con `await`, así que las trae de golpe con este import estático.
+import "@/lib/cad/engine/all-commands";
+
 const registry = createCadCommandRegistry([...CAD_DRAW_BASIC_COMMANDS, ...CAD_MODIFY_BASIC_COMMANDS]);
 
 interface Applied {

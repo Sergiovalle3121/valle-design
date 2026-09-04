@@ -7,11 +7,11 @@
  * primera carga: sus implementaciones llegan por `engine/lazy-commands.ts` como
  * las otras 281. Pero eso NO sacaba el parser del primer chunk, y ésa es la
  * medida que corrigió el diagnóstico: `Layout3DEditor.tsx` importaba
- * `pdf-attach-payload`, `pdf-underlay` y `pdf-snap-geometry` POR SU CUENTA, en
- * sus líneas 175-181, para un único uso —que el sustrato imante como cualquier
- * polilínea—. Con esa puerta abierta, los 56,3 KB del parser (medidos el
- * 2026-09-04 con mapas de fuente sobre el build de producción) entraban hicieras
- * lo que hicieras con el registro.
+ * `pdf-attach-payload`, `pdf-underlay` y `pdf-snap-geometry` POR SU CUENTA, para
+ * un único uso —que el sustrato imante como cualquier polilínea—. Con esa puerta
+ * abierta, el parser entero entraba en el primer chunk hicieras lo que hicieras
+ * con el registro; el diagnóstico de partida lo pesó en 56,3 KB con mapas de
+ * fuente sobre el build de producción.
  *
  * ## El molde es el de siempre
  *

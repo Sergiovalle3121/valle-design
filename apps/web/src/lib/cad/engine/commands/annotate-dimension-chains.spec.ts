@@ -15,6 +15,11 @@ import { migrateCadDocument, type CadDocument, type CadEntity } from "../../cad-
 import { buildCadDimensionGeometry, type CadDimensionEntity } from "../../associative-dimension";
 import { executeCadEntityCommandBatch, type CadEntityCommand } from "../../entity-commands";
 import { CAD_COMMAND_REGISTRY_V2 } from "../index";
+// Las implementaciones de los comandos llegan a demanda en el navegador
+// (`engine/lazy-commands.ts`). Un `.spec.ts` se carga como CommonJS y no puede
+// esperarlas con `await`, así que las trae de golpe con este import estático.
+import "@/lib/cad/engine/all-commands";
+
 import type {
   CadCommandContext,
   CadCommandInput,
