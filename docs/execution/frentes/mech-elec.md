@@ -283,9 +283,82 @@ Ningún archivo fuera del territorio: un archivo nuevo y cuatro tocados, todos e
 STDPART, que vive en `command-summaries.ts` y por tanto no toco).
 
 
+### 2026-09-04 · Entregado 4/5 · El reporte DE/A: de qué componente a cuál, y cuál se quedó suelto
+
+Medido antes: `grep -rin "de/a\|from.*to.*componente\|conexión" apps/web/src/lib/cad/electrical`
+daba **cero**. El territorio sabía QUÉ conductores hay (`wire-numbering.ts`) y QUÉ componentes hay
+(`device-tags.ts`), y no cruzaba las dos cosas. La pregunta que un electricista hace con el plano en
+la mano —«éste, ¿de dónde sale y a dónde llega?»— no tenía respuesta, y la lista de conductores era
+un inventario de rayas numeradas.
+
+Módulo nuevo `apps/web/src/lib/cad/electrical/wire-connections.ts` (337 líneas): para cada conductor
+numerado, qué componente etiquetado toca cada uno de sus dos extremos, por proximidad al punto de
+inserción del símbolo. `AEWIRELIST` añade a su renglón la sección **DE/A** y la cuenta de
+conductores con un extremo **SUELTO** — el conductor que en la pantalla parece llegar al motor y en
+el dibujo termina a dos centímetros. Ningún nombre de orden nuevo: la orden de informe ya existía.
+
+Decisiones, con su motivo:
+
+- **La tolerancia se declara en MILÍMETROS y se DERIVA de la unidad del documento**, no es un número
+  mágico. El criterio es físico: la plumilla más fina de la ISO 128 traza 0,13 mm de papel, y a las
+  escalas con las que se plotea un plano eléctrico mexicano —1:50 en fuerza y alumbrado, 1:100 en
+  planta de conjunto— esos 0,13 mm valen entre 6,5 y 13 mm de dibujo. La tolerancia es el centro de
+  ese intervalo: **10 mm de dibujo**. Por debajo, el hueco no se ve ni ploteando; por encima, existe
+  de verdad. `cadWireLinkTolerance` lo baja a la unidad: 10 unidades en un dibujo en mm, 0,01 en uno
+  en metros, 0,3937 en uno en pulgadas. Un `50` escrito a pelo habría sido cinco centímetros en un
+  dibujo y cincuenta metros en otro, y la spec lo afirma con el MISMO hueco de 2 cm juzgado igual en
+  mm y en metros.
+- **El límite es «hasta», no «menos de»:** a exactamente 10 mm conecta. Un criterio que no dice de
+  qué lado cae su propio límite lo aplica cada quien como quiere. Afirmado.
+- **Se mide en PLANTA (x, y).** En un plano eléctrico el símbolo y el conductor se dibujan en planta
+  aunque el aparato esté a 1,20 m de altura; medir en 3D declararía suelto todo contacto con cota z,
+  que es el falso positivo que haría que nadie leyera el reporte.
+- **Gana el MÁS CERCANO**, con comparación estrictamente menor sobre una lista ordenada por
+  etiqueta: el empate lo resuelve el orden alfabético y no el orden en que se guardó el documento,
+  así que dos corridas del mismo dibujo dan el mismo reporte.
+- **Un suelto dice cuánto le falta y a quién** («C-1-1 extremo «a» queda a 20 mm de -M1»). Decir
+  «suelto» a secas obliga a medir a mano lo que el reporte ya midió.
+- **Sin ningún componente etiquetado, se DICE** y se remite a AETAG, en vez de devolver una lista de
+  «todos sueltos» que significaría un plano mal dibujado cuando lo que pasa es que nadie etiquetó.
+- **El criterio y su tolerancia van en el propio renglón.** Una conexión deducida por proximidad no
+  es una conexión declarada —el dibujo no guarda «C-1-1 remata en el borne 3 de -M1»— y un renglón
+  que la enseñara sin decir de qué está hecha invitaría a leerla como dato del proyecto. La sección
+  empieza por `DE/A:` y el criterio dice `DEDUCIDO`.
+- **La sección va al FINAL del renglón y el arranque de AEWIRELIST no se toca.** Es lo que lee quien
+  tecleó la orden y es lo que ve la sonda de integridad: el documento de la sonda no tiene
+  conductores, así que entra por la rama de «no hay ningún conductor numerado», que queda intacta.
+
+Evidencia: `npx tsx src/lib/cad/electrical/wire-connections.spec.ts` → **40** comprobaciones verdes
+(tablero → motor da «C-1-1 de -TB1 a -M1»; el mismo con la punta a 2 cm da «a (suelto)»; a 10 mm
+exactos conecta; dos componentes a 1 y 4 mm eligen el de 1 y no cambian si se invierte el orden del
+documento; sin componentes etiquetados lo dice; lo que no tiene recorrido se cuenta aparte).
+`npx tsx src/lib/cad/engine/commands/electrical-wire.spec.ts` → **39** (eran 26), con los cuatro
+casos tecleados de punta a punta y el renglón afirmado por subcadena, incluido que sigue empezando
+por `AEWIRELIST — 1 conductor(es)` y que AEWIRELIST no escribe nada. `npm run typecheck` verde;
+`npx eslint` sin avisos; `npm run check:command-integrity` → 290 comandos, 21 informan, 0 éxitos
+falsos y `docs/cad/evidence/command-integrity.json` **sin cambio** (`git status` limpio en
+`docs/cad/evidence/`); `node scripts/cad/check-monolith-budget.mjs` OK; las otras seis specs del
+territorio, verdes.
+
+Ningún archivo fuera del territorio: dos nuevos y dos tocados, todos en `lib/cad/electrical/` y
+`lib/cad/engine/commands/`, más esta bitácora.
+
+
 ## «Todavía no»
 
 Con fecha, con motivo, y sin insinuar que estén hechos.
+
+- **2026-09-04 · La conexión DECLARADA al borne.** El de/a que entregó 4/5 es DEDUCIDO por
+  cercanía y lo dice en cada renglón. Una conexión declarada —«C-1-1 remata en el borne 3 de
+  -M1»— necesita que el componente tenga bornes numerados y que el conductor guarde a cuál va, y
+  eso es un dato persistido nuevo en el símbolo, no en los metadatos de la polilínea. Cabe, pero
+  arrastra el catálogo de borneras, que es otro entregable. Mientras no exista, el reporte no
+  puede afirmar más de lo que mide, y por eso el criterio viaja con el resultado.
+- **2026-09-04 · El de/a de un conductor que remata en OTRO conductor.** Hoy un extremo se resuelve
+  contra componentes etiquetados; un empalme conductor-a-conductor sale «suelto» aunque en obra sea
+  una derivación legítima. Distinguir un empalme de un olvido exige saber si el punto es un vértice
+  compartido a propósito, y eso es una noción de nodo que el documento todavía no tiene. Se declara
+  aquí para que la cuenta de sueltos no se lea como «todos son defectos».
 
 - **2026-09-04 · Agujeros y chaflanes normalizados.** Exige un nombre de comando nuevo
   (`HOLE`/`CHAMFERSTD`) y por tanto resumen, icono, alias, patrón de cinta y regeneración de
