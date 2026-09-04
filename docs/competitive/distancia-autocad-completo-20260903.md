@@ -1358,4 +1358,11 @@ Sin campo nuevo en el formato: el manifiesto del paquete es un artefacto
 GENERADO, no el documento persistido.
 
 Lo que falta: la misma puerta en `PUBLISH`, que es la otra salida por la que un
-plano sale del estudio. **Todavía no.**
+plano sale del estudio. Medido al ir a hacerlo, y por eso NO se hizo: `PUBLISH`
+recibe el ID de un conjunto y **no tiene los documentos** —los resuelve el
+anfitrión (`plot-host.ts`, `loaded.documents`)—. Revisar ahí el dibujo ABIERTO
+sería peor que no revisar: bloquearía la publicación de un conjunto por un plano
+que ni siquiera va dentro, y un aviso falso enseña a ignorar los verdaderos. La
+puerta va donde están las hojas de verdad, en el anfitrión, y pide además decidir
+cómo se dice que sí sin un prompt de comando. **Todavía no**, con el sitio ya
+localizado.
