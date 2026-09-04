@@ -98,7 +98,8 @@ export const CAD_COMMAND_SUMMARIES: Readonly<Record<string, string>> = {
   DXFOUT: "Exporta el dibujo a DXF.",
   ELLIPSE: "Elipse por sus ejes, o arco elíptico.",
   ERASE: "Borra la selección.",
-  ETRANSMIT: "Empaqueta el dibujo abierto —y lo que se resuelva de sus xrefs e imágenes— en un ZIP con manifiesto.",
+  ETRANSMIT:
+    "Empaqueta el dibujo, sus xrefs y la revisión de entrega en un ZIP; con bloqueos, pregunta antes de armarlo.",
   EXPLODE: "Descompone polilíneas, bloques, cotas y directrices en sus piezas.",
   EXPORT: "Exporta el dibujo a otros formatos.",
   EXTEND: "Alarga objetos hasta un borde de corte.",

@@ -1329,3 +1329,33 @@ AutoCAD no tiene no tiene fila donde sumar. Añadirle una sería inflar el
 denominador para que el numerador luzca, que es exactamente lo que esta campaña
 prohíbe. `REVISA` se registra aquí y en `ESCALERA.md`, con su peldaño y su
 evidencia; el marcador queda donde estaba.
+
+### La puerta de entrega: ETRANSMIT falla cerrado (Ola 9, 2/n)
+
+MEDIDO: hasta esta ola `ETRANSMIT` no consultaba **nada**. Empaquetaba igual de
+contento un plano correcto y uno con dos equipos llamados `P-101`, un conductor
+que no aguanta su protección y un área que dejó de ser cierta. El eTransmit de
+AutoCAD hace lo mismo, y **no puede hacer otra cosa**: su informe sabe de
+FICHEROS —qué va dentro del ZIP—, no del proyecto.
+
+Ahora el paquete pasa por la revisión antes de armarse. Con hallazgos que
+bloquean **no se empaqueta**. No es un veto: hay entregas parciales y quien firma
+decide, así que hay una palabra clave para armarlo igual — y entonces el paquete
+**lo dice por dentro**, en `manifiesto.json` (un campo, para una máquina) y en un
+`REVISION.txt` que se lee sin abrir un `.json`. Lo caro no es mandar un plano con
+defectos: es que quien lo recibe no lo sepa.
+
+Tres decisiones que el spec fija, y que son el módulo entero:
+
+1. **El informe viaja SIEMPRE**, con hallazgos o sin ellos. Uno que sólo aparece
+   cuando hay algo malo enseña a no leerlo.
+2. **Un plano limpio no pregunta nada.** Una puerta que siempre pregunta se
+   aprende a saltar, y entonces deja de ser una puerta.
+3. **Un Enter no vale por un sí.** Armar una entrega con defectos es una
+   decisión, y las decisiones se toman, no se dejan pasar.
+
+Sin campo nuevo en el formato: el manifiesto del paquete es un artefacto
+GENERADO, no el documento persistido.
+
+Lo que falta: la misma puerta en `PUBLISH`, que es la otra salida por la que un
+plano sale del estudio. **Todavía no.**
