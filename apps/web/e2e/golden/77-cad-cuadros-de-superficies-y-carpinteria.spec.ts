@@ -128,7 +128,7 @@ test("DATAEXTRACTION Superficies y carPintería insertan los dos cuadros con el 
 
   const superficies = tables.find((table) => table.insertion.y === 4_000);
   expect(superficies, "el cuadro de superficies está en (9000, 4000)").toBeTruthy();
-  expect(cellTexts(superficies!, 1)).toEqual(["Local", "Uso", "Área a ejes (m²)", "Área útil (m²)", "Perímetro (m)"]);
+  expect(cellTexts(superficies!, 1)).toEqual(["Local", "Uso", "Área a ejes (m²)", "Área útil (m²)", "Área construida (m²)", "Perímetro (m)"]);
   // De mayor a menor área: la recámara (4 × 4 = 16 m²) y el baño (2 × 4 = 8 m²),
   // cada uno con el nombre de su rótulo y el uso que el clasificador reconoce.
   expect(cellTexts(superficies!, 2).slice(0, 3)).toEqual(["RECÁMARA", "Recámara", "16.00"]);

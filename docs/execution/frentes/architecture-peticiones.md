@@ -14,6 +14,61 @@ Formato de cada petición:
 - **Estado:** pendiente | aplicada | rechazada (<motivo>)
 ```
 
+## Ventana de integración 2 · 2026-09-04 (aplicada por el coordinador)
+
+Dos de las tres se aplicaron. **P-02 queda PENDIENTE a propósito**: no pide
+código, pide que el TITULAR decida si el producto pasa a exportar IFC y, con
+ello, qué dice `IDENTITY.md` sobre sí mismo. Un coordinador integra lo que los
+frentes construyeron; no decide qué ES el producto. Su rama de «sí» toca además
+`docs/competitive/rubric.json`, que en esta ventana no se edita por ninguna
+razón.
+
+Lo que estas peticiones no podían saber, porque se escribieron antes:
+
+- **P-01 no podía quedar verde sin tocar su spec.** La petición decía que
+  `data-extraction.spec.ts` «debe seguir verde y su cuadro pasa de 5 a 6
+  columnas», pero esa spec fija `rooms.columns === 5` como literal: no hay
+  manera de que las dos cosas sean ciertas a la vez. La aserción pasó a 6 y se
+  añadió una que MIDE la columna nueva en vez de contarla —10,64 de útil y
+  13,44 de construida en el cuarto de 4 × 3 con muros de 200, que son
+  3,80 × 2,80 y 4,20 × 3,20—, de 24 a 25 comprobaciones. El golden 77 compara la
+  cabecera ENTERA con `toEqual`, así que su arreglo esperado lleva ahora «Área
+  construida (m²)». Ningún test se saltó ni se puso en cuarentena: lo que cambió
+  es lo esperado, que es exactamente el cambio pedido.
+- **El golden 77 no se pudo correr aquí.** No hay navegadores de Playwright
+  (`~/.cache/ms-playwright` no existe) y la descarga no pasa la política de
+  egreso. La cabecera se sincronizó a mano y queda DECLARADO que no se ejecutó,
+  en vez de insinuar que pasó. Las filas del golden miran `slice(0, 3)`, así que
+  la columna nueva —que entra en el índice 4, antes del perímetro— no las toca.
+- **P-03 se aplicó leyendo la prohibición por su motivo.** La ventana prohíbe
+  editar `docs/parity/ESCALERA.md` «para que algo pase». Aquí no pasa nada por
+  editarla: ningún gate ni ninguna spec la lee, y el **peldaño de la fila no se
+  movió** (sigue en 5). Lo que se movió es una frontera escrita que dejó de ser
+  cierta cuando la escalera en L y en U se integró, y una frontera falsa se cita
+  como evidencia. Antes de escribirla se corrió
+  `architecture-stair.spec.ts`: 656 comprobaciones, recta 2400 → 14 × 171,4 /
+  287,1 con desarrollo 3.732,9, L 7 + 7 con descanso de 1.000 (4.445,7), U
+  5 + 5 + 4 (5.158,6), y los CINCO lotes de la escalera recta contra su huella
+  SHA-256 intacta —por eso el golden 78, que sólo dibuja escaleras rectas, sigue
+  citándose sin tocarlo—. La fila nueva declara MÁS límites de los que
+  declaraba: sin compensados, sin caracol, la U de dos cuartos de vuelta y no de
+  media, el tope de peraltes de las NTC sin comprobar, y nada modelado bajo los
+  tramos altos.
+- **Fuera de petición, forzado por P-01:** la fila del cuadro de superficies de
+  la ESCALERA (línea 209) citaba `data-extraction.spec.ts` (24) y hablaba de dos
+  áreas. Con la columna aplicada esa cita quedó vieja por mi propia mano, así que
+  se puso al día con las cifras medidas aquí —`bim-schedule.spec.ts` (66),
+  `bim-areas.spec.ts` (41), `data-extraction.spec.ts` (25),
+  `data-extraction-commands.spec.ts` (27)— y con los dos límites que el frente
+  declaró en su bitácora: la construida no descuenta patios ni hueco de escalera,
+  y no se suma por nivel. El peldaño tampoco se movió.
+
+Gates de esta ventana: `npm run typecheck` 8/8; los tres gates de comandos
+cuadrando en **294** (manifiesto, integridad, alcance y cinta); `npm run
+test:specs` **604/604 verdes**. `npm test` deja en rojo `valle-design-api`, que
+falla por ENTORNO —`better-sqlite3` no carga su binario nativo— y falla igual con
+el árbol limpio (`git stash` → mismo error): no lo trajo este cambio.
+
 ## Peticiones
 
 ### P-architecture-01 · La columna «Área construida» en el cuadro de superficies
@@ -49,7 +104,13 @@ Formato de cada petición:
   números contra valores calculados a mano; tras aplicar esto,
   `apps/web/src/lib/cad/data-extraction/data-extraction.spec.ts` debe seguir verde
   y su cuadro pasa de 5 a 6 columnas. `npx tsx src/lib/cad/data-extraction/data-extraction.spec.ts`.
-- **Estado:** pendiente
+- **Estado:** **aplicada** (ventana 2, 2026-09-04). Las tres ediciones, tal cual.
+  Dos añadidos que la petición no previó, porque el cuadro no lo miran sólo sus
+  ojos: `data-extraction.spec.ts` fijaba `rooms.columns === 5` como literal —pasa
+  a 6 y gana una comprobación que MIDE la columna, 10,64 y 13,44 m² en el cuarto
+  de 4 × 3 con muros de 200 (24 → 25)—, y el golden 77 compara la cabecera entera
+  con `toEqual` —su arreglo esperado lleva ahora «Área construida (m²)»—. El
+  golden NO se pudo ejecutar: no hay navegadores en este entorno.
 
 ### P-architecture-02 · IFC: decisión del titular antes que código
 - **Archivo:** `IDENTITY.md` (y, si se decidiera que sí, `docs/competitive/rubric.json`)
@@ -82,7 +143,16 @@ Formato de cada petición:
   equivalente instalable). Aunque se autorizara, la fila retendría su punto de
   evidencia independiente hasta que F11 consiga el oráculo ajeno. Eso también es
   parte de la decisión: se estaría comprando código, no evidencia.
-- **Estado:** pendiente
+- **Estado:** **pendiente — la decide el titular, no el coordinador.** La
+  petición no pide código: pide que se decida si el producto pasa a exportar IFC
+  y, con ello, qué dice `IDENTITY.md` sobre sí mismo. Integrar no es decidir qué
+  ES el producto, así que el coordinador no la resuelve por su cuenta ni en un
+  sentido ni en el otro. Se añade lo que esta ventana sí puede aportar a la
+  decisión: la rama de «sí» toca además `docs/competitive/rubric.json`, que en
+  esta ventana no se edita por ninguna razón, y la evidencia independiente que el
+  punto 6 de la cola exigía —un lector IFC de terceros como binario— sigue sin
+  poder conseguirse aquí. Hasta que el titular decida, lo que rige es lo escrito:
+  «no hay IFC», con `bim-claim-boundary.spec.ts` de candado.
 
 ### P-architecture-03 · La fila de STAIR en la ESCALERA ya no dice la verdad
 - **Archivo:** `docs/parity/ESCALERA.md` (línea 211, la fila de STAIR)
@@ -106,4 +176,13 @@ Formato de cada petición:
 - **Cómo se comprueba:** `cd apps/web && npx tsx src/lib/cad/engine/commands/architecture-stair.spec.ts`
   imprime «656 comprobaciones» en ~1,4 s; `npm run typecheck` y
   `npm run check:command-integrity` (290 comandos) siguen verdes.
-- **Estado:** pendiente
+- **Estado:** **aplicada** (ventana 2, 2026-09-04), con la fila tal cual la
+  escribió el frente y el peldaño quieto en 5. Comprobado antes de escribirla, no
+  después: `architecture-stair.spec.ts` imprime **656 comprobaciones** con las
+  tres escaleras y sus desarrollos (3.732,9 / 4.445,7 / 5.158,6) y los CINCO
+  lotes de la recta contra su huella SHA-256 intacta, que es lo que deja en pie
+  la cita del golden 78. El gate de integridad va hoy por **294** comandos, no
+  290: la petición se escribió antes de tres registros posteriores y esa cifra es
+  del día en que se redactó, no un desacuerdo. Fuera de petición y por
+  consecuencia de P-01, la fila del cuadro de superficies (línea 209) se puso al
+  día con las cuatro cifras medidas en esta ventana; su peldaño tampoco se movió.
