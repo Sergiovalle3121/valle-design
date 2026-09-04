@@ -1255,3 +1255,114 @@ El slice se revirtió entero. Queda escrito por tres motivos:
    LISP, escrita en otra ola, que afirma lo que APPLOAD hace de verdad. Es el
    argumento entero a favor de que cada capacidad tenga una prueba que la
    nombre.
+
+## Ola 9 — la revisión de entrega (2026-09-04)
+
+### Lo medido antes de tocar nada
+
+Veintiséis nombres de revisión sondeados **contra el registro compuesto** que
+usa el estudio, no contra el nativo: es la lección de la Ola 8, y esta vez el
+sondeo se hizo bien desde el principio. Existen 13:
+
+| Clase | Comandos | Qué miran |
+| --- | --- | --- |
+| De AutoCAD | `AUDIT`, `RECOVER`, `PURGE` | el ARCHIVO: geometría degenerada, referencias colgantes, objetos sin usar |
+| De AutoCAD | `CHECKSTANDARDS`, `LAYTRANS` | las CAPAS y los estilos contra un estándar de despacho |
+| De esta campaña | `AECHECK`, `PIDLIST`, `PIDMTO`, `AETAGLIST`, `PIDEQUIPLIST`, `UPDATEFIELD`, `BLOQUEDINLIST` | UNA disciplina cada uno |
+
+No existían, en ningún registro: `REVISA`, `ENTREGA`, `PREFLIGHT`, `QAQC`,
+`CHECK`, `VALIDATE`, `REVISION`, `DWGCHECK`, `REVISAR`, `ENTREGABLE`,
+`AUDITORIA`, `INFORME`, `REPORTE`. **Nadie pasaba el plano ENTERO por todos sus
+filtros de una vez.**
+
+### Por qué esto supera a AutoCAD y no sólo lo iguala
+
+`AUDIT` sabe de ARCHIVOS. `CHECKSTANDARDS` sabe de CAPAS. Ninguno de los dos
+sabe nada del PROYECTO: no sabe que el conductor de ese circuito no aguanta su
+protección, que dos equipos se llaman `P-101`, que una línea de proceso usa dos
+especificaciones, ni que el área escrita en el plano dejó de ser cierta cuando
+movieron el muro.
+
+Este producto sí lo sabe, **porque su geometría lleva encima lo que significa**.
+Y por eso puede hacer en una orden lo que un despacho hace a mano la noche antes
+de entregar, que es cuando peor se hace.
+
+Hay además un hallazgo que **AutoCAD no puede tener**: una edición de referencia
+abierta. Su `REFEDIT` es modal —no se puede guardar con una sesión abierta—; el
+de aquí no lo es, y un dibujo entregado con una copia de trabajo encima duplica
+esa geometría. La capacidad de más trae el riesgo de más, así que se revisa.
+
+### Sin una regla nueva
+
+`REVISA` no implementa ni un criterio. Compone los módulos que ya publican cada
+orden de dominio: `circuit-check`, `wire-numbering`, `device-tags`,
+`line-numbers`, `equipment-tags`, `pipe-route`, `drawing-fields`,
+`reference-edit`. Si `AECHECK` cambia de criterio, `REVISA` cambia con él el
+mismo día. Dos implementaciones del mismo criterio se separan el día que alguien
+toca una.
+
+### Un informe que dice lo que MIRÓ
+
+El modo de fallo caro de una revisión no es un hallazgo de más —eso se lee y se
+descarta en un minuto—: es **un dibujo sucio que sale «limpio» porque el área ni
+se miró**. De lejos, un informe sin hallazgos y un informe de un dibujo que nadie
+miró se parecen demasiado. Por eso el reporte lleva `checked` con lo que contó en
+cada área, `skipped` con las que no aplican, y sus `limits` SIEMPRE, con
+hallazgos o sin ellos.
+
+El caso 8 del spec es el que da valor a los otros siete: **un dibujo correcto de
+las dos disciplinas no inventa ni un hallazgo**. Sin ese negativo de control, un
+módulo que dijera «todo mal» pasaría el resto de la prueba.
+
+### Un defecto de alcance, cazado escribiendo el spec
+
+La primera versión saltaba el área eléctrica entera si no había conductores. Un
+plano de alumbrado con cien luminarias y ningún tramo trazado todavía —que es un
+plano normal a media semana— habría salido **«limpio» sin mirarse**. Ahora el
+área se revisa si hay conductores **o** componentes, y el renglón de revisado
+cuenta las dos cosas por separado.
+
+### Lo que la rúbrica NO hace con esto
+
+**No sube.** La rúbrica mide paridad contra AutoCAD 2027, y una capacidad que
+AutoCAD no tiene no tiene fila donde sumar. Añadirle una sería inflar el
+denominador para que el numerador luzca, que es exactamente lo que esta campaña
+prohíbe. `REVISA` se registra aquí y en `ESCALERA.md`, con su peldaño y su
+evidencia; el marcador queda donde estaba.
+
+### La puerta de entrega: ETRANSMIT falla cerrado (Ola 9, 2/n)
+
+MEDIDO: hasta esta ola `ETRANSMIT` no consultaba **nada**. Empaquetaba igual de
+contento un plano correcto y uno con dos equipos llamados `P-101`, un conductor
+que no aguanta su protección y un área que dejó de ser cierta. El eTransmit de
+AutoCAD hace lo mismo, y **no puede hacer otra cosa**: su informe sabe de
+FICHEROS —qué va dentro del ZIP—, no del proyecto.
+
+Ahora el paquete pasa por la revisión antes de armarse. Con hallazgos que
+bloquean **no se empaqueta**. No es un veto: hay entregas parciales y quien firma
+decide, así que hay una palabra clave para armarlo igual — y entonces el paquete
+**lo dice por dentro**, en `manifiesto.json` (un campo, para una máquina) y en un
+`REVISION.txt` que se lee sin abrir un `.json`. Lo caro no es mandar un plano con
+defectos: es que quien lo recibe no lo sepa.
+
+Tres decisiones que el spec fija, y que son el módulo entero:
+
+1. **El informe viaja SIEMPRE**, con hallazgos o sin ellos. Uno que sólo aparece
+   cuando hay algo malo enseña a no leerlo.
+2. **Un plano limpio no pregunta nada.** Una puerta que siempre pregunta se
+   aprende a saltar, y entonces deja de ser una puerta.
+3. **Un Enter no vale por un sí.** Armar una entrega con defectos es una
+   decisión, y las decisiones se toman, no se dejan pasar.
+
+Sin campo nuevo en el formato: el manifiesto del paquete es un artefacto
+GENERADO, no el documento persistido.
+
+Lo que falta: la misma puerta en `PUBLISH`, que es la otra salida por la que un
+plano sale del estudio. Medido al ir a hacerlo, y por eso NO se hizo: `PUBLISH`
+recibe el ID de un conjunto y **no tiene los documentos** —los resuelve el
+anfitrión (`plot-host.ts`, `loaded.documents`)—. Revisar ahí el dibujo ABIERTO
+sería peor que no revisar: bloquearía la publicación de un conjunto por un plano
+que ni siquiera va dentro, y un aviso falso enseña a ignorar los verdaderos. La
+puerta va donde están las hojas de verdad, en el anfitrión, y pide además decidir
+cómo se dice que sí sin un prompt de comando. **Todavía no**, con el sitio ya
+localizado.

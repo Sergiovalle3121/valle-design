@@ -450,6 +450,27 @@ automatización, en 4 de 36.
 | Pausa para pedir datos a mitad de la repetición | 0 | ninguna | Es ACTUSERINPUT. Un macro de hoy repite exactamente lo grabado. **Todavía no.** |
 | Guardar los macros entre sesiones | 0 | ninguna | Hoy viven en la sesión y se copian a un `.scr` desde el diálogo. Persistirlos pide un sitio nuevo en el formato: **decisión del titular**. |
 
+## La revisión de entrega (Ola 9, 2026-09-04)
+
+Sondeados **26 nombres de revisión contra el registro COMPUESTO** que usa el
+estudio —el nativo más lo que aportan las rutinas `.lsp` y la consola, que es la
+lección de la Ola 8—: existen 13 y son de dos clases. Los de AutoCAD miran el
+ARCHIVO (`AUDIT`, `RECOVER`, `PURGE`) o las CAPAS (`CHECKSTANDARDS`,
+`LAYTRANS`); los de esta campaña miran UNA disciplina cada uno (`AECHECK`,
+`PIDLIST`, `PIDMTO`, `AETAGLIST`, `PIDEQUIPLIST`, `UPDATEFIELD`,
+`BLOQUEDINLIST`). `REVISA`, `ENTREGA`, `PREFLIGHT`, `QAQC`, `VALIDATE`,
+`DWGCHECK` y siete más: **cero**. Nadie pasaba el plano entero por todos sus
+filtros de una vez.
+
+| Capacidad | Peldaño | Evidencia | Qué falta para el siguiente |
+| --- | --- | --- | --- |
+| Una orden revisa el plano ENTERO antes de entregar | 5 | `delivery-review.spec.ts` (29) y golden 99: un plano sucio en DOS disciplinas a la vez —protección que no cabe en su conductor y un área que dejó de ser cierta al agrandar el local— y **una** orden que encuentra las dos, con el arreglo comprobado en el documento que recibe el servidor | Nada de peldaño. Lo que falta es ALCANCE: hoy mira eléctrico, planta, campos y sesión de trabajo, no capas contra el estándar (eso es `CHECKSTANDARDS`) ni la integridad del archivo (eso es `AUDIT`). |
+| El informe dice QUÉ MIRÓ, no sólo qué encontró | 5 | `delivery-review.spec.ts` caso 1: un dibujo vacío no dice «limpio», declara las áreas que no aplican; el caso 8 es el negativo de control —un dibujo correcto no inventa ni un hallazgo— sin el cual los otros siete los pasaría un módulo que dijera «todo mal» | Es la diferencia entre un informe y un certificado. `limits` viaja SIEMPRE con el reporte, con hallazgos o sin ellos. |
+| Clasificar por a quién le toca, no por gravedad sentida | 5 | golden 99: lo que **BLOQUEA** lo arregla el proyectista antes de firmar; el **aviso** lo decide la ingeniería. Arreglado el bloqueo de verdad, el veredicto pasa a entregable **sin tocar ningún umbral** | El criterio de cada hallazgo sale del módulo de dominio que ya lo publica: aquí no se implementa ni una regla. Si `AECHECK` cambia de criterio, `REVISA` cambia con él el mismo día. |
+| Detectar una edición de referencia abierta al entregar | 5 | `delivery-review.spec.ts` caso 6: el dibujo lleva ENCIMA una copia de trabajo de un bloque y entregarlo así duplica esa geometría | **Este hallazgo AutoCAD no lo tiene** porque su REFEDIT es modal: no se puede guardar con una sesión abierta. Aquí sí, y por eso hay que decirlo. |
+| La entrega FALLA CERRADO con hallazgos que bloquean | 5 | `etransmit-commands.spec.ts` (28): con dos luminarias `-LT1` no sale paquete y se dice QUÉ bloquea; un Enter no vale por un sí; dicho que sí, el ZIP lleva `REVISION.txt` y `manifiesto.json` diciendo que se armó a pesar de los bloqueos; y un plano limpio pasa de largo **sin preguntar nada** | **AutoCAD no puede hacer esto**: su informe de eTransmit sabe de FICHEROS, no del proyecto. El informe viaja SIEMPRE, con hallazgos o sin ellos: uno que sólo aparece cuando hay algo malo enseña a no leerlo. Falta la misma puerta en `PUBLISH`, y **no va en el comando**: `PUBLISH` recibe el ID de un conjunto y no tiene los documentos: los resuelve el anfitrión (`plot-host.ts`, `loaded.documents`). Revisar ahí el dibujo ABIERTO sería peor que no revisar —bloquearía un conjunto por un plano que no va dentro—, así que la puerta va donde están las hojas de verdad. **Todavía no.** |
+| Firmar el informe y archivarlo con la entrega | 0 | ninguna | Un informe que se archiva con el plano necesita un sitio en el formato persistido: **decisión del titular**. Hoy el informe se lee en la línea de comandos y se vuelve a producir tecleando `REVISA`. **Todavía no.** |
+
 ## Cómo se usa
 
 - **Al añadir una entrada nueva a `BACKLOG.md`:** decir el peldaño ACTUAL
