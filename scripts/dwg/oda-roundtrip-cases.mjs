@@ -241,6 +241,34 @@ const INSERT = {
   extrusion: { x: 0, y: 0, z: 1 },
   attributesFollow: false,
 };
+/**
+ * EL MISMO INSERT, PERO CON RÓTULO. `attributesFollow` a 1 es una promesa: el
+ * lector ajeno va a buscar los ATTRIB y el SEQEND por el flujo de handles del
+ * INSERT. Este caso es el que pregunta si esa promesa se cumple.
+ */
+const INSERT_CON_ATRIBUTOS = { ...INSERT, position: { x: 30, y: 40, z: 0 }, attributesFollow: true };
+/** Un ATTRIB con los campos que un cuadro de rótulo real usa. */
+const attrib = (tag, value, insertion, height) => ({
+  kind: "attrib",
+  insertion,
+  elevation: undefined,
+  alignment: undefined,
+  thickness: 0,
+  extrusion: { x: 0, y: 0, z: 1 },
+  obliqueAngle: undefined,
+  rotation: undefined,
+  height,
+  widthFactor: undefined,
+  valueBytes: ascii(value),
+  generation: undefined,
+  horizontalAlignment: undefined,
+  verticalAlignment: undefined,
+  tagBytes: ascii(tag),
+  fieldLength: 0,
+  attributeFlags: 0,
+});
+const ATTRIB_PLANO = attrib("PLANO", "PLANTA BAJA", { x: 32, y: 46 }, 2.5);
+const ATTRIB_ESCALA = attrib("ESCALA", "1:50", { x: 32, y: 42 }, 2);
 
 const CASES = [
   {
@@ -425,6 +453,54 @@ const CASES = [
     ],
     expectedEntities: [{ kind: "line", layer: "CONGELADA", entity: LINE }],
     expectedBlocks: {},
+  },
+  {
+    // EL CUADRO DE RÓTULO ANTE EL LECTOR AJENO. Hasta el 2026-09-04 el writer
+    // fijaba el bit de ATTRIBs a 0 y fallaba CERRADO si el modelo pedía
+    // atributos: un INSERT con rótulo no se escribía en absoluto — el bloque
+    // entero desaparecía del archivo, no sólo su texto.
+    //
+    // Lo que este caso pregunta a ODA y ninguna prueba propia puede responder:
+    // si los tres handles que el INSERT añade a su flujo —primer ATTRIB y
+    // último como punteros blandos, SEQEND como propietario duro— son los que
+    // otro programa sigue para encontrar el rótulo. La forma está MEDIDA en
+    // los cuatro INSERT con atributos del corpus admitido
+    // (`VALLE-CORPUS-INSERT-ATRIBUTOS`), pero medir cómo lo escribe ODA no es
+    // lo mismo que comprobar que ODA lee lo que escribimos nosotros.
+    //
+    // DOS ATRIBUTOS, no uno: con uno solo, primero y último apuntan al mismo
+    // handle y la cadena de los ATTRIB queda aislada, así que no se ejercita
+    // ni el enlace ±1 entre atributos ni la distinción entre primero y último.
+    name: "bloque-con-atributos",
+    options: {
+      layers: [{ name: ascii("ROTULOS"), colorIndex: 2 }],
+      blocks: [{ name: ascii("CAJETIN"), entities: [LWPOLYLINE] }],
+      entities: [
+        {
+          entity: INSERT_CON_ATRIBUTOS,
+          insertBlockIndex: 0,
+          layerIndex: 1,
+          attributes: [{ entity: ATTRIB_PLANO }, { entity: ATTRIB_ESCALA }],
+        },
+      ],
+    },
+    expectedLayers: [
+      { name: "0", color: 7 },
+      { name: "ROTULOS", color: 2 },
+    ],
+    expectedEntities: [
+      {
+        kind: "insert",
+        layer: "ROTULOS",
+        entity: INSERT_CON_ATRIBUTOS,
+        block: "CAJETIN",
+      },
+      { kind: "attrib", layer: "ROTULOS", entity: ATTRIB_PLANO },
+      { kind: "attrib", layer: "ROTULOS", entity: ATTRIB_ESCALA },
+    ],
+    expectedBlocks: {
+      CAJETIN: [{ kind: "lwpolyline", entity: LWPOLYLINE }],
+    },
   },
   {
     name: "bloque-insert",

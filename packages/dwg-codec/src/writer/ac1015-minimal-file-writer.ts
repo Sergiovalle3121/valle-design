@@ -90,8 +90,8 @@ import {
   writeAc1015LayoutBody,
   writeAc1015MlineStyleBody,
 } from "./ac1015-layout-writers.js";
+import { pushAc1015ScopeEntities } from "./ac1015-minimal-file-entities.js";
 import {
-  writeAc1015ResolvedEntityBody,
   writeAc1015ResolvedLayerBody,
   writeAc1015StructBlockBeginBody,
   writeAc1015StructBlockEndBody,
@@ -164,6 +164,8 @@ import { planAc1015MinimalFile } from "./ac1015-minimal-file-plan.js";
 // para que nada que ya importe de este módulo note el traslado.
 // ---------------------------------------------------------------------------
 export type {
+  Ac1015AttributeGroupHandles,
+  Ac1015MinimalFileAttributeSpec,
   Ac1015MinimalFileBlockEntityInput,
   Ac1015MinimalFileBlockSpec,
   Ac1015MinimalFileEntitySpec,
@@ -563,14 +565,18 @@ export function writeAc1015MinimalFile(
     );
   });
 
+  // Los dos espacios resuelven capa y bloque insertado igual; el helper
+  // existe para que no haya dos criterios que puedan separarse.
+  const layerHandleOf = (layerIndex: number | undefined): number =>
+    plan.layerHandles[layerIndex ?? 0]!;
+  const blockRecordHandleOf = (blockIndex: number): number =>
+    plan.blockRecordHandles[blockIndex]!;
+
   blocks.forEach((block, index) => {
     const recordHandle = plan.blockRecordHandles[index]!;
     const beginHandle = recordHandle + 1;
     const contentHandles = plan.blockEntityHandles[index]!;
-    const endHandle =
-      contentHandles.length === 0
-        ? beginHandle + 1
-        : contentHandles[contentHandles.length - 1]! + 1;
+    const endHandle = plan.blockEndblkHandles[index]!;
     push(
       recordHandle,
       writeAc1015StructBlockRecordBody(
@@ -601,20 +607,15 @@ export function writeAc1015MinimalFile(
         beginHandle,
       ),
     );
-    block.entities.forEach((spec, entityIndex) => {
-      const layerHandle = plan.layerHandles[spec.layerIndex ?? 0]!;
-      push(
-        contentHandles[entityIndex]!,
-        writeAc1015ResolvedEntityBody(spec.entity, contentHandles[entityIndex]!, {
-          ownerBlockHandle: recordHandle,
-          layerHandle,
-          chainPosition: chainPositionFor(entityIndex, contentHandles.length),
-          ...(spec.entity.kind === "text" ? { textStyleHandle: H_STYLE_STANDARD } : {}),
-          ...(spec.insertBlockIndex === undefined
-            ? {}
-            : { insertBlockHandle: plan.blockRecordHandles[spec.insertBlockIndex]! }),
-        }),
-      );
+    pushAc1015ScopeEntities({
+      entities: block.entities,
+      entityHandles: contentHandles,
+      attributeGroups: plan.blockAttributeHandles[index]!,
+      layerHandleOf,
+      blockRecordHandleOf,
+      textStyleHandle: H_STYLE_STANDARD,
+      ownerBlockHandle: recordHandle,
+      push,
     });
     push(
       endHandle,
@@ -625,20 +626,14 @@ export function writeAc1015MinimalFile(
     );
   });
 
-  entities.forEach((spec, index) => {
-    const handle = plan.modelEntityHandles[index]!;
-    const layerHandle = plan.layerHandles[spec.layerIndex ?? 0]!;
-    push(
-      handle,
-      writeAc1015ResolvedEntityBody(spec.entity, handle, {
-        layerHandle,
-        chainPosition: chainPositionFor(index, entities.length),
-        ...(spec.entity.kind === "text" ? { textStyleHandle: H_STYLE_STANDARD } : {}),
-        ...(spec.insertBlockIndex === undefined
-          ? {}
-          : { insertBlockHandle: plan.blockRecordHandles[spec.insertBlockIndex]! }),
-      }),
-    );
+  pushAc1015ScopeEntities({
+    entities,
+    entityHandles: plan.modelEntityHandles,
+    attributeGroups: plan.modelAttributeHandles,
+    layerHandleOf,
+    blockRecordHandleOf,
+    textStyleHandle: H_STYLE_STANDARD,
+    push,
   });
 
   push(
@@ -786,13 +781,4 @@ export function writeAc1015MinimalFile(
   return file;
 }
 
-function chainPositionFor(
-  index: number,
-  total: number,
-): "isolated" | "first" | "middle" | "last" {
-  if (total <= 1) return "isolated";
-  if (index === 0) return "first";
-  if (index === total - 1) return "last";
-  return "middle";
-}
 

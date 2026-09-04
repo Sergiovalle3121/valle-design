@@ -123,6 +123,27 @@ const insertProjection = projectForOracle(
 );
 eq(insertProjection.block, "MARCO-A", "el nombre del bloque insertado viaja en mayúsculas, como el oráculo");
 
+// El ATTRIB se proyecta con la ETIQUETA, que es lo que lo separa de un TEXT
+// suelto: sin ella, un atributo mal escrito se anclaría contra el texto de al
+// lado y el informe diría que volvió.
+const attribProjection = projectForOracle({
+  kind: "attrib",
+  insertion: { x: 15, y: 30 },
+  height: 5,
+  valueBytes: [...Buffer.from("PLANTA BAJA", "latin1")],
+  tagBytes: [...Buffer.from("PLANO", "latin1")],
+});
+eq(attribProjection.tag, "PLANO", "el ATTRIB proyecta su etiqueta para el oráculo");
+eq(attribProjection.value, "PLANTA BAJA", "y su valor");
+eq(
+  oracleFieldDiffs(
+    { tag: "PLANO", value: "PLANTA BAJA" },
+    { tag: "ESCALA", value: "PLANTA BAJA" },
+  ).length,
+  1,
+  "un atributo con OTRA etiqueta y el mismo valor no se da por anclado",
+);
+
 eq(
   oracleFieldDiffs({ radius: 5 }, { radius: 5 + 1e-9 }),
   [],

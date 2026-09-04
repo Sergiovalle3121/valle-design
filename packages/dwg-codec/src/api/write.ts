@@ -301,6 +301,11 @@ export function writeCanonicalDwg(
         entity: item.entity,
         layerIndex: layerIndexFor(item.layerName),
         insertBlockIndex: blockIndex,
+        // LOS ATTRIB DEL RÓTULO. Van en la capa del INSERT porque es lo que
+        // el producto modela: un atributo posicionado no tiene capa propia.
+        ...(item.attributes === undefined
+          ? {}
+          : { attributes: item.attributes.map((entity) => ({ entity })) }),
       });
       continue;
     }

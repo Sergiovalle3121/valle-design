@@ -199,7 +199,129 @@ npm run check --workspace=@valle-design/dwg-codec && npm run typecheck
 La spec del códec se verificó por MUTACIÓN: intercambiar el punto base y el desfase en el
 emisor la pone roja en 3 de 8.
 
+### 2026-09-04 · Entregable 3/5 — el cuadro de rótulo llega con su texto
+
+**Qué estaba roto, medido.** No era una pérdida parcial. `emitInsert` fijaba el bit de
+ATTRIBs a 0 y `validateEntity` fallaba CERRADO ante un INSERT que dijera llevarlos
+(`Writing insert attributes is not implemented by the phase-D4 laboratory`): de las 34
+referencias a bloque del corpus ajeno, **4 no se escribían en absoluto** — el bloque
+entero desaparecía del archivo, no sólo su texto. Un plano exportado perdía su cajetín.
+
+**Qué se construyó.**
+
+- `ac1015-entity-emitters.ts`: `emitAttrib` (los trece campos de TEXT por la MISMA función
+  que `emitText` —el ATTRIB no es «como un TEXT», ES un TEXT más tres campos— seguidos de
+  tag TV, longitud de campo BS y banderas RC), y el bit de ATTRIBs del INSERT sale del
+  modelo en vez de estar clavado a 0.
+- `ac1015-entity-writer.ts`: acepta `attrib` y `seqend`; el SEQEND no emite un solo bit de
+  dato de tipo (medido: en los cuatro SEQEND del corpus el tamaño declarado cae EXACTAMENTE
+  donde termina el común). `validatedAttributeHandles` exige que la bandera y los tres
+  handles del grupo viajen JUNTOS: prometer atributos que el archivo no lleva y escribir
+  objetos que la bandera no anuncia fallan los dos.
+- `ac1015-entity-validators.ts` (NUEVO): los criterios de entrada de cada clase, partidos
+  del writer por el presupuesto de 800 líneas — la misma costura que ya separó los
+  emisores. `validateText` pasa a `validateTextFields` sobre `DwgTextFields` para que
+  ATTRIB y TEXT se validen por el mismo camino.
+- `ac1015-minimal-file-entities.ts` (NUEVO): el reparto de una lista de entidades con su
+  cadena, y el grupo ATTRIB+SEQEND de un INSERT con rótulo.
+- `ac1015-minimal-file-plan.ts` / `-support.ts`: el plan reparte los handles del grupo
+  DESPUÉS de todas las entidades de su espacio. No es comodidad: las posiciones
+  `first`/`middle`/`last` usan los códigos relativos ±1 ya medidos, que exigen handles
+  consecutivos. Intercalarlos rompería la cadena del espacio en silencio.
+- `canonical.ts` / `canonical-to-dwg.ts` / `write.ts`: el camino DWG→canónico proyecta
+  ahora `positionedAttributes` (antes sólo el mapa plano tag→valor, y la vuelta no podía
+  escribir nada), y el canónico→DWG escribe los ATTRIB desde ahí.
+- `apps/web/src/lib/cad/dwg-native-writer.ts`: `toCanonicalInsert` convierte la rotación de
+  cada atributo de GRADOS a RADIANES, la misma trampa que ya pagaron ARC, INSERT, ELLIPSE,
+  MTEXT y el HATCH.
+
+**Lo que NO se dibuja al azar.** Un `attributes` plano sin su gemelo `positionedAttributes`
+se declara como pérdida `insert-attributes-without-geometry`: el mapa dice qué vale cada
+etiqueta y no dónde se dibuja, y deducir la posición desde la definición del bloque pondría
+el texto en un sitio distinto del que el usuario ve —que es exactamente lo que el
+exportador DXF ya documenta—.
+
+**El hecho que hubo que medir, y está registrado.** `VALLE-CORPUS-INSERT-ATRIBUTOS` en
+`SOURCE_REGISTER.json`. La ODS ya registraba QUÉ handles lleva un INSERT con ATTRIBs; no
+sus CÓDIGOS ni de quién es la propiedad. Medido bit a bit en los cuatro INSERT con
+atributos del corpus (`12-attrib`, `22-nested-attribs`):
+
+- flujo del INSERT: `[5:bloque 4:primerATTRIB 4:últimoATTRIB 3:SEQEND]` — primero y último
+  son punteros BLANDOS y el SEQEND es propietario DURO;
+- con UN solo atributo, primero y último son el MISMO handle (`4:280 4:280 3:281`);
+- cada ATTRIB y el SEQEND van en modo 0 con el INSERT como propietario, no el bloque —
+  también cuando el INSERT vive dentro de otro bloque;
+- los ATTRIB forman su PROPIA cadena (`4:0 6:0` el primero, `8:0 4:0` el último);
+- cada ATTRIB cierra con el hard pointer a su STYLE, como un TEXT; el SEQEND no;
+- las banderas del atributo y su longitud de campo están a CERO en los siete ATTRIB del
+  corpus: la semántica de «invisible» no está ejercida por material ajeno, así que se
+  escriben ceros y se DECLARA (`attrib-flags-not-measured`).
+
+**La cifra sobre material ajeno** (mismo arnés del entregable 1, mismo corpus fijado):
+
+| | antes | ahora |
+| --- | --- | --- |
+| entidades regrabadas | 271/327 (82,9 %) | **282/327 (86,2 %)** |
+| ancladas al DXF del oráculo | 214 | **225** |
+| clases `regrabada-integra` | 10 | **11** (entra `attrib`) |
+| clases con pérdida declarada | 1 (`insert`) | **0** |
+| fila `insert` | 34/30 con pérdida | **34/34/34/34 íntegra** |
+| fila `attrib` | no escribible 7/0 | **regrabada-integra 7/7/7/7** |
+
+`12-attrib` y `22-nested-attribs` pasan de perder sus INSERT a re-escribirlos enteros, con
+sus siete atributos volviendo campo a campo y anclados al DXF del oráculo.
+
+**Ante el oráculo externo.** Caso `bloque-con-atributos` en `CASES`, con DOS atributos a
+propósito: con uno solo, primero y último apuntan al mismo handle y no se ejercita ni el
+enlace ±1 entre atributos ni la distinción entre primero y último.
+`npm run check:dwg-oraculo` lo cuenta ya como PENDIENTE junto a su gemelo `-publico`: 22
+casos exigidos, 4 cubiertos. Sigue siendo acción del titular con su binario con licencia.
+
+**Cómo se comprueba** (todo corrido hasta verlo verde):
+
+```
+npx tsx --test packages/dwg-codec/tests/unit/insert-attrib-write.spec.ts   # 11 pruebas
+cd apps/web && npx tsx src/lib/cad/dwg-native-writer.spec.ts               # sección 5.D
+export VALLE_DWG_CORPUS_MIRROR=/home/user/valle-design-dwg-conformance
+node scripts/dwg/corpus-rewrite.spec.mjs && node scripts/dwg/corpus-rewrite.mjs --check
+npm run check --workspace=@valle-design/dwg-codec && npm run typecheck
+```
+
+El comparador nuevo del arnés se verificó por MUTACIÓN: quitar la etiqueta de
+`projectForOracle` pone roja su spec.
+
 ## «Todavía no»
+
+- **2026-09-04 · El ATTDEF sigue sin escribirse, y con él la DEFINICIÓN del rótulo.** Un
+  ATTRIB dice qué vale una etiqueta en UNA inserción; el ATTDEF, dentro del bloque, dice
+  qué etiquetas EXISTEN, con su texto de aviso y su valor por defecto. El corpus trae 5 y
+  siguen en `no-escribible`. El cuerpo es el del ATTRIB más un prompt TV —el emisor sería
+  de tres líneas— pero el bloqueo real está en el otro extremo: el documento canónico
+  guarda las definiciones en `blocks[].attributes` como un mapa `tag → {defaultValue,
+  prompt, position, height}`, y `write.ts` hoy no lo lee al armar el contenido del bloque.
+  Cerrarlo es un entregable con su propia medición, no un apéndice de éste: un bloque cuyo
+  ATTDEF diga una cosa y cuyos ATTRIB digan otra es peor que un bloque sin definiciones.
+- **2026-09-04 · La bandera de «invisible» de un atributo no viaja.** El producto la
+  modela (`CadPositionedAttribute.invisible`) y el formato la guarda en el RC de banderas,
+  pero los siete ATTRIB del corpus admitido lo traen a CERO: no hay material ajeno que
+  permita comprobar qué número significa invisible. Se escribe 0 y se declara con el código
+  `attrib-flags-not-measured`; traducirlo a ojo sería inventar una semántica. Lo mismo con
+  la alineación del texto del atributo. Reabre cuando haya un archivo ajeno con un atributo
+  invisible que medir.
+- **2026-09-04 · Los handles del grupo se reparten DESPUÉS del espacio, no intercalados.**
+  Los archivos ajenos los intercalan y por eso su INSERT necesita punteros de cadena con
+  desplazamiento arbitrario (`H(10,4)` = propio+4). Este writer conserva los códigos
+  relativos ±1 ya medidos y reparte el grupo al final del espacio: el archivo resultante es
+  válido y la cadena queda intacta, pero NO reproduce byte a byte la disposición ajena.
+  Está registrado en `VALLE-CORPUS-INSERT-ATRIBUTOS` como observación, no como defecto:
+  estrenar un puntero con desplazamiento que el corpus sólo muestra en un sitio sería
+  adivinar.
+- **2026-09-04 · El anclaje del ATTRIB al oráculo no compara la CAPA propia.** El corpus
+  pone los atributos en una capa distinta de la de su INSERT y el arnés lo respeta al
+  escribir (`layerIndex` por atributo), pero el camino público los manda todos a la capa
+  del INSERT porque es lo que el producto modela: un atributo posicionado no tiene capa
+  propia en el documento. No es pérdida de material ajeno —el arnés sí la conserva— sino
+  un límite del esquema del producto, y cambiarlo tocaría archivo COMPARTIDO (R2).
 
 - **2026-09-04 · La trama que ENTRA por el producto se sigue perdiendo.** El camino
   `DWG → canónico` ya copia la definición del patrón, pero el importador del producto

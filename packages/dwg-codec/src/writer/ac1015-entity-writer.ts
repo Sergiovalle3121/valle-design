@@ -4,10 +4,13 @@
  *
  * Emite el cuerpo COMPLETO de una entidad real (LINE, POINT, CIRCLE, ARC,
  * LWPOLYLINE y TEXT desde la fase D3, INSERT desde la D4, ELLIPSE y MTEXT
- * desde la ola de escritura V1→V3 de 2026-08-31):
+ * desde la ola de escritura V1→V3 de 2026-08-31, ATTRIB y SEQEND desde el
+ * 2026-09-04 — sin ellos un cuadro de rótulo se exportaba MUDO):
  * tipo BS, tamaño RL en bits, handle propio H, cabecera común mínima
  * coherente, datos del tipo y un flujo de handles final confesadamente
- * mínimo. El cuerpo resultante es válido para la envoltura de la fase D1
+ * mínimo; los CRITERIOS de entrada de cada clase viven en
+ * `ac1015-entity-validators.ts` (presupuesto de líneas del monorepo). El
+ * cuerpo resultante es válido para la envoltura de la fase D1
  * (`wrapAc1015ObjectBody`), de modo que `writeAc1015Container({objects})`
  * pueda emitir entidades REALES y el pipeline lector completo (mapa →
  * envoltura → común → tipo) recupere la geometría EXACTA.
@@ -34,7 +37,6 @@
  */
 import {
   DWG_GEOMETRY_ENTITY_KINDS,
-  isFiniteDwgPoint2,
   isFiniteDwgPoint3,
   type DwgEllipseEntity,
   type DwgGeometryEntity,
@@ -54,8 +56,13 @@ import {
   AC1015_TYPE_POINT,
   AC1015_TYPE_TEXT,
 } from "../objects/entities-core.js";
-import { AC1015_TYPE_MTEXT } from "../objects/entities-annotation.js";
 import {
+  AC1015_TYPE_ATTRIB,
+  AC1015_TYPE_MTEXT,
+  AC1015_TYPE_SEQEND,
+} from "../objects/entities-annotation.js";
+import {
+  emitAttrib,
   emitEllipse,
   emitHatch,
   emitInsert,
@@ -64,10 +71,13 @@ import {
   emitText,
 } from "./ac1015-entity-emitters.js";
 import {
-  AC1015_TYPE_HATCH,
-  HATCH_PATH_DERIVED_BIT,
-  HATCH_PATH_POLYLINE_BIT,
-} from "../objects/entities-complex.js";
+  validateAttrib,
+  validateHatch,
+  validateLwPolyline,
+  validateMText,
+  validateTextFields,
+} from "./ac1015-entity-validators.js";
+import { AC1015_TYPE_HATCH } from "../objects/entities-complex.js";
 import { AC1015_TYPE_ELLIPSE } from "../objects/entities-curves-surfaces.js";
 import { throwDwgError } from "../security/parse-error.js";
 
@@ -88,10 +98,29 @@ export { AC1015_ENTITY_WRITER_MAX_BITS, DwgBitEmitter };
  * - `insertBlockHandle`: obligatorio para un INSERT (y prohibido para el
  *   resto): el hard pointer al BLOCK_RECORD insertado, tras la cabeza común
  *   del flujo.
+ * - `insertAttributeHandles`: obligatorio EXACTAMENTE cuando el INSERT dice
+ *   llevar atributos, y prohibido en cualquier otro caso.
  */
 export interface Ac1015EntityWriteOptions {
   readonly ownerBlockHandle?: number;
   readonly insertBlockHandle?: number;
+  readonly insertAttributeHandles?: Ac1015InsertAttributeHandles;
+}
+
+/**
+ * Los tres handles que un INSERT con ATTRIBs añade a su flujo, tal como los
+ * MIDIÓ `VALLE-CORPUS-INSERT-ATRIBUTOS` en los cuatro INSERT con atributos
+ * del corpus admitido: primer ATTRIB y último ATTRIB como punteros BLANDOS
+ * (código 4) y el SEQEND como propietario DURO (código 3), en ese orden y
+ * justo detrás del hard pointer al BLOCK_RECORD.
+ *
+ * Con un solo atributo, primero y último son el MISMO handle: así lo escribe
+ * el INSERT 0x117 de `22-nested-attribs`, y por eso no se exige que difieran.
+ */
+export interface Ac1015InsertAttributeHandles {
+  readonly firstAttribHandle: number;
+  readonly lastAttribHandle: number;
+  readonly seqendHandle: number;
 }
 
 /**
@@ -139,6 +168,7 @@ export function writeAc1015EntityBody(
       "Only an insert entity may reference an inserted block.",
     );
   }
+  const attributeHandles = validatedAttributeHandles(entity, options);
 
   const tail = new DwgBitEmitter();
   emitAc1015EntityCommonTail(tail, ownHandle, ownerBlockHandle !== undefined);
@@ -159,7 +189,57 @@ export function writeAc1015EntityBody(
     if (insertBlockHandle !== undefined) {
       stream.emitH(5, insertBlockHandle);
     }
+    if (attributeHandles !== undefined) {
+      stream.emitH(4, attributeHandles.firstAttribHandle);
+      stream.emitH(4, attributeHandles.lastAttribHandle);
+      stream.emitH(3, attributeHandles.seqendHandle);
+    }
   });
+}
+
+/**
+ * La bandera de ATTRIBs y los tres handles que la sostienen van JUNTAS o no
+ * va ninguna.
+ *
+ * Encender el bit sin los handles escribiría un INSERT que PROMETE atributos
+ * que el archivo no lleva —un lector ajeno se iría a buscarlos—, y darlos con
+ * el bit apagado dejaría tres punteros que nadie va a leer. Las dos formas
+ * son un archivo que miente sobre sí mismo, así que las dos fallan cerrado.
+ * Hasta el 2026-09-04 aquí sólo había el primer rechazo, con la bandera
+ * clavada a 0: un cuadro de rótulo salía MUDO.
+ */
+function validatedAttributeHandles(
+  entity: DwgGeometryEntity,
+  options: Ac1015EntityWriteOptions,
+): Ac1015InsertAttributeHandles | undefined {
+  const given = options.insertAttributeHandles;
+  const wanted = entity.kind === "insert" && entity.attributesFollow;
+  if (!wanted && given === undefined) return undefined;
+  if (wanted !== (given !== undefined)) {
+    throwDwgError(
+      "DWG_INPUT_INVALID",
+      "input",
+      0,
+      "An insert that declares attributes needs the handles of its first and last ATTRIB and of its SEQEND, and only such an insert may carry them.",
+    );
+  }
+  const handles = given!;
+  for (const [what, value] of [
+    ["first attribute", handles.firstAttribHandle],
+    ["last attribute", handles.lastAttribHandle],
+    ["SEQEND", handles.seqendHandle],
+  ] as const) {
+    optionalHandle(value, `An insert ${what} handle`);
+    if (value === undefined) {
+      throwDwgError(
+        "DWG_INPUT_INVALID",
+        "input",
+        0,
+        `An insert ${what} handle is required when the insert declares attributes.`,
+      );
+    }
+  }
+  return handles;
 }
 
 /**
@@ -279,6 +359,15 @@ function emitEntitySpecific(
     case "text":
       emitText(emitter, entity);
       return;
+    case "attrib":
+      emitAttrib(emitter, entity);
+      return;
+    case "seqend":
+      // SEQEND no lleva campos propios tras el común (hecho registrado, y
+      // medido: en los cuatro SEQEND del corpus el tamaño en bits declarado
+      // cae EXACTAMENTE donde termina la cabecera común). No emitir nada es
+      // el cuerpo correcto, no una omisión.
+      return;
     case "insert":
       emitInsert(emitter, entity);
       return;
@@ -309,6 +398,10 @@ function typeOf(entity: DwgGeometryEntity): number {
       return AC1015_TYPE_LWPOLYLINE;
     case "text":
       return AC1015_TYPE_TEXT;
+    case "attrib":
+      return AC1015_TYPE_ATTRIB;
+    case "seqend":
+      return AC1015_TYPE_SEQEND;
     case "insert":
       return AC1015_TYPE_INSERT;
     case "ellipse":
@@ -342,6 +435,8 @@ type Ac1015WritableEntity =
   | import("../model/entity-geometry.js").DwgArcEntity
   | import("../model/entity-geometry.js").DwgLwPolylineEntity
   | import("../model/entity-geometry.js").DwgTextEntity
+  | import("../model/entity-geometry.js").DwgAttribEntity
+  | import("../model/entity-geometry.js").DwgSeqendEntity
   | import("../model/entity-geometry.js").DwgInsertEntity
   | import("../model/entity-geometry.js").DwgEllipseEntity
   | import("../model/entity-geometry.js").DwgMTextEntity
@@ -370,6 +465,8 @@ function validateEntity(
     case "arc":
     case "lwpolyline":
     case "text":
+    case "attrib":
+    case "seqend":
     case "insert":
     case "ellipse":
     case "mtext":
@@ -410,6 +507,7 @@ function validateEntity(
     );
   if (
     entity.kind !== "lwpolyline" &&
+    entity.kind !== "seqend" &&
     entity.kind !== "insert" &&
     entity.kind !== "ellipse" &&
     entity.kind !== "mtext" &&
@@ -452,7 +550,13 @@ function validateEntity(
       validateLwPolyline(entity, invalid);
       return;
     case "text":
-      validateText(entity, invalid);
+      validateTextFields(entity, invalid);
+      return;
+    case "attrib":
+      validateAttrib(entity, invalid);
+      return;
+    case "seqend":
+      // El SEQEND no tiene campos que validar: es un marcador con handle.
       return;
     case "insert":
       if (
@@ -464,16 +568,8 @@ function validateEntity(
       ) {
         invalid();
       }
-      if (entity.attributesFollow) {
-        // Emitir ATTRIBs es pendiente DECLARADO de la fase D4: fallo cerrado
-        // en vez de emitir una bandera que promete objetos que no existen.
-        throwDwgError(
-          "DWG_INPUT_INVALID",
-          "input",
-          0,
-          "Writing insert attributes is not implemented by the phase-D4 laboratory.",
-        );
-      }
+      // La bandera de ATTRIBs ya no se rechaza aquí: la sostiene
+      // `validatedAttributeHandles`, que exige los tres handles del flujo.
       return;
     case "ellipse":
       if (
@@ -497,224 +593,3 @@ function validateEntity(
   }
 }
 
-/**
- * El sombreado del modelo debe ser emitible tal cual. Hasta el 2026-09-04
- * esta validación NO existía —el HATCH salía del primer `switch` sin pasar
- * por el segundo— y con relleno sólido casi no dolía: los contornos son RD y
- * un valor no finito lo cazaba el emisor. Con patrón sí duele, porque el
- * bloque de definición es la parte del cuerpo cuyo recuento decide cuántos
- * bits vienen detrás.
- *
- * Se valida lo que el emisor va a escribir: cota y extrusión finitas, al
- * menos un camino, vértices y bulges finitos y alineados, los códigos BS en
- * rango, y —si no es sólido— los CUATRO campos del patrón presentes y
- * finitos, con cada línea de definición completa. `pixelSize` es obligatorio
- * exactamente cuando algún camino trae el bit DERIVADO, que es la misma
- * condición con la que el decodificador decide leerlo.
- */
-function validateHatch(entity: DwgHatchEntity, invalid: () => never): void {
-  // `Array.isArray` sobre un `readonly T[]` lo ESTRECHA a `any[]`, y desde
-  // ahí todo lo que se lea del arreglo llega como `any` —el compilador deja
-  // de vigilar justo dentro del validador—. Este envoltorio comprueba lo
-  // mismo en tiempo de ejecución sin tocar el tipo.
-  const esArreglo = (value: unknown): boolean => Array.isArray(value);
-  if (
-    !Number.isFinite(entity.elevation) ||
-    !isFiniteDwgPoint3(entity.extrusion) ||
-    !esArreglo(entity.nameBytes) ||
-    typeof entity.solidFill !== "boolean" ||
-    typeof entity.associative !== "boolean" ||
-    !esArreglo(entity.paths) ||
-    entity.paths.length < 1 ||
-    !esArreglo(entity.seedPoints)
-  ) {
-    invalid();
-  }
-  for (const code of [entity.style, entity.patternType]) {
-    if (!Number.isInteger(code) || code < 0 || code > 0xffff) invalid();
-  }
-  for (const path of entity.paths) {
-    if (!Number.isInteger(path.flags) || path.boundaryObjectCount < 0) invalid();
-    if (path.kind !== "polyline") continue;
-    if (path.vertices.length < 1) invalid();
-    for (const vertex of path.vertices) {
-      if (!isFiniteDwgPoint2(vertex)) invalid();
-    }
-    // Un arreglo de bulges VACÍO no es un arreglo mal alineado: el emisor
-    // decide con `bulges.length > 0` si enciende el bit, así que vacío y
-    // ausente significan lo mismo —y el camino público arma justamente el
-    // vacío—. Alineado se exige sólo cuando hay bulges que emitir.
-    if (
-      path.bulges !== undefined &&
-      path.bulges.length > 0 &&
-      (path.bulges.length !== path.vertices.length ||
-        path.bulges.some((bulge) => !Number.isFinite(bulge)))
-    ) {
-      invalid();
-    }
-  }
-  for (const seed of entity.seedPoints) {
-    if (!isFiniteDwgPoint2(seed)) invalid();
-  }
-  if (
-    entity.paths.some((path) => (path.flags & HATCH_PATH_DERIVED_BIT) !== 0) &&
-    !Number.isFinite(entity.pixelSize)
-  ) {
-    invalid();
-  }
-  if (entity.solidFill) return;
-  const { angle, scaleOrSpacing, doubleHatch, definitionLines } = entity;
-  if (
-    !Number.isFinite(angle) ||
-    !Number.isFinite(scaleOrSpacing) ||
-    typeof doubleHatch !== "boolean" ||
-    !esArreglo(definitionLines)
-  ) {
-    invalid();
-  }
-  for (const line of definitionLines ?? []) {
-    if (
-      !Number.isFinite(line.angle) ||
-      !isFiniteDwgPoint2(line.basePoint) ||
-      !isFiniteDwgPoint2(line.offset) ||
-      !esArreglo(line.dashes) ||
-      line.dashes.some((dash) => !Number.isFinite(dash))
-    ) {
-      invalid();
-    }
-  }
-}
-
-/**
- * La polilínea del modelo debe ser emitible tal cual: al menos un vértice
- * finito, arrays de bulges/anchos alineados vértice a vértice cuando existen,
- * anchos y ancho constante no negativos, y opcionales o bien ausentes
- * (`undefined`) o bien finitos — exactamente lo que el lector aceptará.
- */
-function validateLwPolyline(
-  entity: DwgLwPolylineEntity,
-  invalid: () => never,
-): void {
-  if (
-    typeof entity.closed !== "boolean" ||
-    !Array.isArray(entity.vertices) ||
-    entity.vertices.length < 1
-  ) {
-    invalid();
-  }
-  for (const vertex of entity.vertices) {
-    if (!isFiniteDwgPoint2(vertex)) invalid();
-  }
-  if (entity.bulges !== undefined) {
-    if (
-      !Array.isArray(entity.bulges) ||
-      entity.bulges.length !== entity.vertices.length ||
-      entity.bulges.some((bulge) => !Number.isFinite(bulge))
-    ) {
-      invalid();
-    }
-  }
-  if (entity.widths !== undefined) {
-    if (
-      !Array.isArray(entity.widths) ||
-      entity.widths.length !== entity.vertices.length ||
-      entity.widths.some(
-        (width) =>
-          !Number.isFinite(width.start) ||
-          width.start < 0 ||
-          !Number.isFinite(width.end) ||
-          width.end < 0,
-      )
-    ) {
-      invalid();
-    }
-  }
-  if (
-    entity.constantWidth !== undefined &&
-    (!Number.isFinite(entity.constantWidth) || entity.constantWidth < 0)
-  ) {
-    invalid();
-  }
-  if (entity.elevation !== undefined && !Number.isFinite(entity.elevation)) {
-    invalid();
-  }
-  if (entity.thickness !== undefined && !Number.isFinite(entity.thickness)) {
-    invalid();
-  }
-  if (entity.extrusion !== undefined && !isFiniteDwgPoint3(entity.extrusion)) {
-    invalid();
-  }
-}
-
-/**
- * El texto del modelo debe ser emitible tal cual: inserción finita, altura
- * finita no negativa, opcionales ausentes o finitos, códigos BS en rango y
- * bytes de cadena 0–255 (el emisor TV los revalida bit a bit).
- */
-function validateText(entity: DwgTextEntity, invalid: () => never): void {
-  if (
-    !isFiniteDwgPoint2(entity.insertion) ||
-    !Number.isFinite(entity.height) ||
-    entity.height < 0 ||
-    !Array.isArray(entity.valueBytes)
-  ) {
-    invalid();
-  }
-  if (entity.alignment !== undefined && !isFiniteDwgPoint2(entity.alignment)) {
-    invalid();
-  }
-  for (const optional of [
-    entity.elevation,
-    entity.obliqueAngle,
-    entity.rotation,
-    entity.widthFactor,
-  ]) {
-    if (optional !== undefined && !Number.isFinite(optional)) invalid();
-  }
-  for (const code of [
-    entity.generation,
-    entity.horizontalAlignment,
-    entity.verticalAlignment,
-  ]) {
-    if (
-      code !== undefined &&
-      (!Number.isInteger(code) || code < 0 || code > 0xffff)
-    ) {
-      invalid();
-    }
-  }
-}
-
-/**
- * El MTEXT del modelo debe ser emitible tal cual: los tres puntos y los
- * cinco campos BD/DD sueltos finitos, los códigos BS en rango, la cadena
- * como array de bytes y el bit final estrictamente 0 o 1 — el decodificador
- * no le da otro significado, así que el writer tampoco inventa uno.
- */
-function validateMText(entity: DwgMTextEntity, invalid: () => never): void {
-  if (
-    !isFiniteDwgPoint3(entity.insertion) ||
-    !isFiniteDwgPoint3(entity.extrusion) ||
-    !isFiniteDwgPoint3(entity.xAxisDirection) ||
-    !Array.isArray(entity.valueBytes)
-  ) {
-    invalid();
-  }
-  for (const value of [
-    entity.rectWidth,
-    entity.height,
-    entity.extentsHeight,
-    entity.extentsWidth,
-    entity.lineSpacingFactor,
-  ]) {
-    if (!Number.isFinite(value)) invalid();
-  }
-  for (const code of [
-    entity.attachment,
-    entity.drawingDirection,
-    entity.lineSpacingStyle,
-  ]) {
-    if (!Number.isInteger(code) || code < 0 || code > 0xffff) invalid();
-  }
-  if (entity.trailingBit !== 0 && entity.trailingBit !== 1) invalid();
-}

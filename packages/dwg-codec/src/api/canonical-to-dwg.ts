@@ -4,7 +4,7 @@
  * de monolito. Es una unidad con sentido propio: la traducción de vuelta, con
  * sus pérdidas simétricas a las de la ida.
  */
-import type { DwgPoint3 } from "../model/entity-geometry.js";
+import type { DwgAttribEntity, DwgPoint3 } from "../model/entity-geometry.js";
 import type {
   CanonicalCadDocumentJson,
   CanonicalLossEntry,
@@ -122,6 +122,75 @@ function canonicalHatchPattern(value: unknown):
     double: source.double,
     lines: Object.freeze(lines),
   };
+}
+
+/**
+ * Los ATTRIB de un INSERT a partir de `positionedAttributes` del canónico.
+ *
+ * POR QUÉ SE VALIDA Y NO SE CONFÍA, igual que la trama del HATCH: la entidad
+ * canónica es `Record<string, unknown>`, y un atributo a medias no daría un
+ * rótulo feo — daría un ATTRIB con un campo ausente y el cuerpo del archivo
+ * desincronizado desde ese bit. Se acepta el atributo COMPLETO o ninguno; el
+ * que no cumple se salta y quien llama declara la diferencia de recuento.
+ *
+ * LO QUE NO VIAJA Y POR QUÉ. Las banderas del atributo se escriben a 0 y la
+ * longitud de campo también: el hecho registrado da su DISPOSICIÓN (RC y BS
+ * en esa posición) pero no su semántica, y los cinco ATTRIB del corpus
+ * admitido las traen a cero, así que no hay nada medido que permita traducir
+ * «invisible» a un número. Escribir un 1 «porque suele ser invisible» sería
+ * inventar una semántica, que es justo lo que este laboratorio no hace.
+ */
+function canonicalPositionedAttributes(value: unknown): readonly DwgAttribEntity[] {
+  if (!Array.isArray(value)) return [];
+  const attributes: DwgAttribEntity[] = [];
+  for (const raw of value as unknown[]) {
+    const source = raw as {
+      tag?: unknown;
+      value?: unknown;
+      insertion?: { x?: unknown; y?: unknown; z?: unknown };
+      height?: unknown;
+      rotation?: unknown;
+    };
+    const tag = typeof source.tag === "string" ? source.tag : "";
+    const insertion = source.insertion;
+    if (
+      tag.length === 0 ||
+      insertion === undefined ||
+      !Number.isFinite(insertion.x) ||
+      !Number.isFinite(insertion.y)
+    ) {
+      continue;
+    }
+    const height = Number(source.height ?? 0);
+    const rotation = Number(source.rotation ?? 0);
+    if (!(height > 0) || !Number.isFinite(rotation)) continue;
+    const bytes = (text: string): readonly number[] =>
+      Object.freeze([...text].map((c) => c.charCodeAt(0) & 0xff));
+    attributes.push(
+      Object.freeze({
+        kind: "attrib" as const,
+        insertion: Object.freeze({ x: Number(insertion.x), y: Number(insertion.y) }),
+        elevation: undefined,
+        alignment: undefined,
+        thickness: 0,
+        extrusion: Object.freeze({ x: 0, y: 0, z: 1 }),
+        obliqueAngle: undefined,
+        rotation: rotation === 0 ? undefined : rotation,
+        height,
+        widthFactor: undefined,
+        valueBytes: bytes(
+          typeof source.value === "string" ? source.value : String(source.value ?? ""),
+        ),
+        generation: undefined,
+        horizontalAlignment: undefined,
+        verticalAlignment: undefined,
+        tagBytes: bytes(tag),
+        fieldLength: 0,
+        attributeFlags: 0,
+      }),
+    );
+  }
+  return Object.freeze(attributes);
 }
 
 export function canonicalDocumentToDwgEntities(
@@ -322,21 +391,79 @@ export function canonicalDocumentToDwgEntities(
         });
         break;
       }
-      case "insert":
+      // EL RÓTULO VIAJA CON SU BLOQUE (2026-09-04). Hasta este corte todo
+      // INSERT salía con `attributesFollow: false` y el cuadro de rótulo se
+      // exportaba MUDO: el bloque llegaba, su texto no. Los ATTRIB salen de
+      // `positionedAttributes`, que YA trae la geometría de cada etiqueta.
+      case "insert": {
+        const posicionados = raw["positionedAttributes"];
+        const atributos = canonicalPositionedAttributes(posicionados);
+        const declarados = Array.isArray(posicionados) ? posicionados.length : 0;
+        if (declarados > atributos.length) {
+          losses.push({
+            code: "insert-attribute-incomplete",
+            entityId: id,
+            sourceType: "insert",
+            detail: `El INSERT "${id}" declara ${declarados} atributo(s) con geometría y sólo ${atributos.length} traen los cuatro campos que el archivo pide (etiqueta, valor, inserción y altura positiva): los incompletos no se escriben, porque un ATTRIB a medias desincroniza el cuerpo entero.`,
+            severity: "warning",
+          });
+        }
+        // Lo que el ATTRIB del formato lleva y el canónico NO puede traducir
+        // todavía: la bandera de invisible y la alineación del texto. No es
+        // una carencia del canónico —las trae— sino de la MEDICIÓN: los cinco
+        // ATTRIB del corpus admitido traen banderas y alineación a cero, así
+        // que no hay con qué comprobar la traducción. Se declara.
+        if (
+          Array.isArray(posicionados) &&
+          posicionados.some((attribute) => {
+            const a = attribute as { invisible?: unknown; alignment?: unknown };
+            return a?.invisible === true || typeof a?.alignment === "string";
+          })
+        ) {
+          losses.push({
+            code: "attrib-flags-not-measured",
+            entityId: id,
+            sourceType: "insert",
+            detail: `Algún atributo del INSERT "${id}" pide ser invisible o llevar alineación; el archivo guarda las dos cosas en códigos cuya SEMÁNTICA no está medida contra ningún archivo ajeno (los cinco ATTRIB del corpus admitido los traen a cero), así que se escriben visibles y sin alineación en vez de adivinar el número.`,
+            severity: "info",
+          });
+        }
+        // UN MAPA PLANO SIN SU GEMELO POSICIONADO NO SE DIBUJA AL AZAR. El
+        // mapa dice qué vale cada etiqueta pero no dónde va; deducir la
+        // posición desde la definición del bloque pondría el texto en un
+        // sitio distinto del que el usuario ve en pantalla, que es el defecto
+        // que el exportador DXF ya documenta. Se declara la pérdida.
+        const planos = raw["attributes"];
+        if (
+          atributos.length === 0 &&
+          typeof planos === "object" &&
+          planos !== null &&
+          Object.keys(planos as Record<string, unknown>).length > 0
+        ) {
+          losses.push({
+            code: "insert-attributes-without-geometry",
+            entityId: id,
+            sourceType: "insert",
+            detail: `El INSERT "${id}" trae ${Object.keys(planos as Record<string, unknown>).length} atributo(s) en el mapa plano pero ninguno con geometría (\`positionedAttributes\`): el mapa dice qué vale cada etiqueta y no dónde se dibuja, así que el bloque se escribe sin su rótulo en vez de colocar el texto en un sitio inventado.`,
+            severity: "warning",
+          });
+        }
         entities.push({
           canonicalId: id,
           layerName,
           blockName: String(raw["block"] ?? ""),
+          ...(atributos.length === 0 ? {} : { attributes: atributos }),
           entity: Object.freeze({
             kind: "insert" as const,
             position: canonicalPoint(raw["insertion"]),
             scale: canonicalPoint(raw["scale"] ?? { x: 1, y: 1, z: 1 }),
             rotation: Number(raw["rotation"] ?? 0),
             extrusion: defaultExtrusion,
-            attributesFollow: false,
+            attributesFollow: atributos.length > 0,
           }),
         });
         break;
+      }
       // ELLIPSE (2026-09-01). El writer interno la emitía desde hace olas
       // —`emitEllipse` es espejo campo a campo de `decodeEllipse`— pero ESTE
       // camino, el público, la mandaba al `default` de abajo y la declaraba

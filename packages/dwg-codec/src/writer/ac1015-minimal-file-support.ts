@@ -70,6 +70,24 @@ export interface Ac1015MinimalFileEntitySpec {
   readonly layerIndex?: number;
   /** Sólo INSERT: índice del bloque insertado en `blocks`. */
   readonly insertBlockIndex?: number;
+  /**
+   * Sólo INSERT: los ATTRIB que lo acompañan, en el orden en que se escriben.
+   * Van con `entity.attributesFollow` a `true` o no van: la bandera y los
+   * objetos son la misma afirmación dicha dos veces, y que se contradigan es
+   * un archivo que promete un rótulo que no lleva.
+   */
+  readonly attributes?: readonly Ac1015MinimalFileAttributeSpec[];
+}
+
+/**
+ * Un ATTRIB de un INSERT. Su capa es propia —el corpus admitido pone los
+ * atributos en una capa distinta de la del INSERT que los lleva— y ausente
+ * cae a la del INSERT, que es lo que hace el producto.
+ */
+export interface Ac1015MinimalFileAttributeSpec {
+  readonly entity: DwgGeometryEntity;
+  /** 0 = capa "0"; 1.. = índice+1 en `layers`. Ausente = la del INSERT. */
+  readonly layerIndex?: number;
 }
 
 /**
@@ -100,6 +118,26 @@ export interface Ac1015MinimalFileOptions {
   readonly measurement?: 0 | 1;
 }
 
+/**
+ * Los handles del grupo de atributos de UN INSERT: sus ATTRIB en orden y el
+ * SEQEND que los cierra.
+ *
+ * DÓNDE CAEN Y POR QUÉ. El grupo se reparte DESPUÉS de todas las entidades de
+ * su espacio (o de su bloque), no pegado a su INSERT. La razón es la cadena:
+ * las posiciones `first`/`middle`/`last` que este writer escribe usan los
+ * códigos relativos ±1 medidos en el corpus, y eso exige que los handles de
+ * las entidades del espacio sean CONSECUTIVOS. Un archivo real puede
+ * intercalarlos porque escribe el salto explícito (el INSERT 0x10b de
+ * `12-attrib` lleva `next` como H(10,4), «propio + 4»); este writer prefiere
+ * no estrenar una forma de puntero que el corpus sólo muestra en un sitio.
+ */
+export interface Ac1015AttributeGroupHandles {
+  /** Handles de los ATTRIB, CONSECUTIVOS y en el orden de las opciones. */
+  readonly attributeHandles: readonly number[];
+  /** Handle del SEQEND que cierra la secuencia. */
+  readonly seqendHandle: number;
+}
+
 /** El plan determinista de handles de un archivo mínimo. */
 export interface Ac1015MinimalFilePlan {
   /** Handle de cada capa: [capa "0", ...capas extra]. */
@@ -110,6 +148,12 @@ export interface Ac1015MinimalFilePlan {
   readonly blockRecordHandles: readonly number[];
   /** Handles de las entidades de model space, en orden de las opciones. */
   readonly modelEntityHandles: readonly number[];
+  /** Grupo ATTRIB+SEQEND de cada entidad de model space, o null si no lleva. */
+  readonly modelAttributeHandles: readonly (Ac1015AttributeGroupHandles | null)[];
+  /** Lo mismo para las entidades de cada bloque de usuario. */
+  readonly blockAttributeHandles: readonly (readonly (Ac1015AttributeGroupHandles | null)[])[];
+  /** Handle del ENDBLK de cada bloque de usuario. */
+  readonly blockEndblkHandles: readonly number[];
   /** Handles de las entidades de cada bloque, en orden. */
   readonly blockEntityHandles: readonly (readonly number[])[];
   /** El siguiente handle libre: la HANDSEED del archivo. */
@@ -581,6 +625,14 @@ function assertEntitySpec(
         "An INSERT entity needs the index of a declared block.",
       );
     }
+    assertAttributeSpecs(spec, layers);
+  } else if (spec.attributes !== undefined) {
+    throwDwgError(
+      "DWG_INPUT_INVALID",
+      "input",
+      0,
+      "Only an INSERT entity may carry ATTRIB entities.",
+    );
   } else if (spec.insertBlockIndex !== undefined) {
     throwDwgError(
       "DWG_INPUT_INVALID",
@@ -588,6 +640,63 @@ function assertEntitySpec(
       0,
       "Only an INSERT entity may name an inserted block.",
     );
+  }
+}
+
+/**
+ * LOS ATRIBUTOS Y SU BANDERA SE COMPRUEBAN JUNTOS. `attributesFollow` es lo
+ * que un lector ajeno mira para decidir si va a buscar los ATTRIB; los specs
+ * son los objetos que encontrará. Un INSERT con la bandera encendida y sin
+ * atributos manda al lector a buscar algo que no existe, y uno con atributos
+ * y la bandera apagada escribe objetos que nadie va a leer. Las dos formas
+ * son un archivo que se contradice a sí mismo, así que las dos fallan
+ * cerrado aquí, antes de repartir un solo handle.
+ */
+function assertAttributeSpecs(
+  spec: Ac1015MinimalFileEntitySpec,
+  layers: readonly Ac1015MinimalFileLayerSpec[],
+): void {
+  const attributes = spec.attributes;
+  const declared =
+    spec.entity.kind === "insert" && spec.entity.attributesFollow === true;
+  if (attributes !== undefined && !Array.isArray(attributes)) {
+    throwDwgError(
+      "DWG_INPUT_INVALID",
+      "input",
+      0,
+      "The ATTRIB entities of an INSERT must be an array.",
+    );
+  }
+  const count = attributes?.length ?? 0;
+  if (declared !== count > 0) {
+    throwDwgError(
+      "DWG_INPUT_INVALID",
+      "input",
+      0,
+      "An INSERT must declare attributesFollow exactly when it carries ATTRIB entities.",
+    );
+  }
+  for (const attribute of attributes ?? []) {
+    if (attribute?.entity?.kind !== "attrib") {
+      throwDwgError(
+        "DWG_INPUT_INVALID",
+        "input",
+        0,
+        "The attributes of an INSERT must be ATTRIB entities.",
+      );
+    }
+    const layerIndex = attribute.layerIndex;
+    if (
+      layerIndex !== undefined &&
+      (!Number.isInteger(layerIndex) || layerIndex < 0 || layerIndex > layers.length)
+    ) {
+      throwDwgError(
+        "DWG_INPUT_INVALID",
+        "input",
+        0,
+        "An ATTRIB layer index escapes the declared layers.",
+      );
+    }
   }
 }
 

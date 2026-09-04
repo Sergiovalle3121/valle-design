@@ -20,12 +20,14 @@ import {
   HATCH_PATH_POLYLINE_BIT,
 } from "../objects/entities-complex.js";
 import type {
+  DwgAttribEntity,
   DwgEllipseEntity,
   DwgHatchEntity,
   DwgInsertEntity,
   DwgLwPolylineEntity,
   DwgMTextEntity,
   DwgTextEntity,
+  DwgTextFields,
 } from "../model/entity-geometry.js";
 
 /**
@@ -197,9 +199,14 @@ function emitHatchPattern(emitter: DwgBitEmitter, entity: DwgHatchEntity): void 
  * 0b10 son compresión que el lector ya acepta, como con DD. Después la
  * rotación BD, la extrusión 3BD — hecho 3 del intake 2026-08-20: los 6
  * INSERT reales desmintieron la BE que declaraba la ODS, y writer y lector
- * se corrigieron JUNTOS — y el bit de ATTRIBs (siempre 0 aquí: emitir
- * ATTRIBs queda declarado pendiente y el writer falla cerrado si el modelo
- * lo pide).
+ * se corrigieron JUNTOS — y el bit de ATTRIBs.
+ *
+ * EL BIT DE ATTRIBs SALE DEL MODELO DESDE EL 2026-09-04. Estuvo clavado a 0
+ * mientras el laboratorio no sabía emitir ATTRIB: un cuadro de rótulo se
+ * exportaba MUDO. Ahora lo emite `emitAttrib` y el bit dice la verdad — pero
+ * encenderlo es una promesa, así que `validateEntity` exige que quien llama
+ * traiga los handles del primer y último ATTRIB y del SEQEND antes de que
+ * este bit llegue a valer 1.
  */
 export function emitInsert(emitter: DwgBitEmitter, entity: DwgInsertEntity): void {
   emitter.emitBD(entity.position.x);
@@ -218,7 +225,7 @@ export function emitInsert(emitter: DwgBitEmitter, entity: DwgInsertEntity): voi
   emitter.emitBD(entity.extrusion.x);
   emitter.emitBD(entity.extrusion.y);
   emitter.emitBD(entity.extrusion.z);
-  emitter.pushBit(0); // sin ATTRIBs: pendiente declarado de la fase D4
+  emitter.pushBit(entity.attributesFollow ? 1 : 0);
 }
 
 /**
@@ -281,6 +288,29 @@ export function emitLwPolyline(
  * como TV de bytes crudos.
  */
 export function emitText(emitter: DwgBitEmitter, entity: DwgTextEntity): void {
+  emitTextFields(emitter, entity);
+}
+
+/**
+ * ATTRIB: los campos de TEXT y, detrás, tag TV, longitud de campo BS y las
+ * banderas RC del atributo (hecho registrado; `decodeAttrib` los lee en ese
+ * orden). Por eso el cuerpo de TEXT vive en `emitTextFields` y no dentro de
+ * `emitText`: el ATTRIB no es «como un TEXT», ES un TEXT más tres campos, y
+ * duplicar aquí los trece campos del texto crearía dos disposiciones que
+ * podrían separarse sin que nada lo viera.
+ *
+ * Las banderas y la longitud de campo viajan CRUDAS: el hecho registrado da
+ * su disposición, no su semántica, y este writer no inventa la que no midió.
+ */
+export function emitAttrib(emitter: DwgBitEmitter, entity: DwgAttribEntity): void {
+  emitTextFields(emitter, entity);
+  emitter.emitTV(entity.tagBytes);
+  emitter.emitBS(entity.fieldLength);
+  emitter.emitRC(entity.attributeFlags);
+}
+
+/** Los trece campos que TEXT y ATTRIB comparten, en el orden del formato. */
+function emitTextFields(emitter: DwgBitEmitter, entity: DwgTextFields): void {
   let dataFlags = 0;
   if (entity.elevation === undefined) dataFlags |= 0x01;
   if (entity.alignment === undefined) dataFlags |= 0x02;

@@ -523,3 +523,122 @@ console.log(
     "y lo que el canónico no lleva —los extents calculados— se nombra en el manifiesto",
   );
 }
+
+// ─── 5.D: el CUADRO DE RÓTULO llega con su texto ──────────────────────────
+// Hasta el 2026-09-04 esto no era una pérdida parcial: el códec fallaba
+// CERRADO ante un INSERT con atributos, así que el bloque entero desaparecía
+// del archivo. Un plano exportado perdía su cajetín completo, no sólo lo que
+// decía.
+//
+// Lo que este bloque vigila, que es donde se rompe en silencio:
+//   1. que el texto y su POSICIÓN lleguen desde `positionedAttributes` —el
+//      mapa plano no dice dónde se dibuja—;
+//   2. que la rotación del atributo se convierta de GRADOS a RADIANES, la
+//      misma trampa que ya pagaron ARC, INSERT, ELLIPSE, MTEXT y el HATCH;
+//   3. que un INSERT con SÓLO el mapa plano se DECLARE como pérdida en vez de
+//      colocar el texto en un sitio deducido.
+{
+  const conRotulo: CadDocument = {
+    ...baseDocument([]),
+    blocks: [
+      {
+        id: "b1",
+        name: "ROTULO",
+        basePoint: { x: 0, y: 0, z: 0 },
+        entities: [
+          { id: "bl1", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 400, y: 0, z: 0 }, layer: "0" },
+        ],
+      } as never,
+    ],
+    entities: [
+      {
+        id: "i1",
+        type: "insert",
+        block: "ROTULO",
+        insertion: { x: 1_000, y: 500, z: 0 },
+        scale: { x: 1, y: 1, z: 1 },
+        rotation: 0,
+        layer: "0",
+        attributes: { PLANO: "PLANTA BAJA", ESCALA: "1:50" },
+        positionedAttributes: [
+          { tag: "PLANO", value: "PLANTA BAJA", insertion: { x: 1_020, y: 560, z: 0 }, height: 35 },
+          { tag: "ESCALA", value: "1:50", insertion: { x: 1_020, y: 520, z: 0 }, height: 25, rotation: 30 },
+        ],
+      } as never,
+      // El gemelo SIN geometría: mismo bloque, mismo mapa plano, ningún
+      // atributo posicionado. Es el que tiene que declararse.
+      {
+        id: "i2",
+        type: "insert",
+        block: "ROTULO",
+        insertion: { x: 2_000, y: 500, z: 0 },
+        scale: { x: 1, y: 1, z: 1 },
+        rotation: 0,
+        layer: "0",
+        attributes: { PLANO: "CORTE A-A" },
+      } as never,
+    ],
+    modelSpace: { entityIds: ["i1", "i2"] },
+  };
+
+  const exportado = exportCadDocumentToDwg(conRotulo, {
+    betaFlagOn: true,
+    gates: ORACLE_PASSED,
+  });
+  assert.equal(exportado.estado, "exito_con_perdidas");
+  const leido = readDwg(exportado.bytes);
+  const inserciones = leido.modelSpaceEntities.filter((r) => r.entity.kind === "insert");
+  assert.equal(inserciones.length, 2, "los dos INSERT llegan al archivo");
+
+  const conTexto = inserciones[0];
+  assert.ok(conTexto, "el INSERT con rótulo existe");
+  const atributos = conTexto.attributes ?? [];
+  assert.equal(atributos.length, 2, "el cuadro de rótulo ya no viaja mudo");
+  const primero = atributos[0]?.entity;
+  if (primero?.kind !== "attrib") throw new Error("inalcanzable");
+  assert.equal(String.fromCharCode(...primero.tagBytes), "PLANO");
+  assert.equal(String.fromCharCode(...primero.valueBytes), "PLANTA BAJA");
+  assert.ok(
+    Math.abs(primero.insertion.x - 1_020) < 1e-9 &&
+      Math.abs(primero.insertion.y - 560) < 1e-9,
+    "y con la POSICIÓN que el usuario ve, no una deducida del bloque",
+  );
+  assert.equal(primero.height, 35);
+  const segundo = atributos[1]?.entity;
+  if (segundo?.kind !== "attrib") throw new Error("inalcanzable");
+  assert.ok(
+    Math.abs((segundo.rotation ?? 0) - Math.PI / 6) < 1e-9,
+    "30 GRADOS del documento salen como π/6 RADIANES, no como 30 radianes",
+  );
+  assert.ok(
+    conTexto.sequenceEndHandle !== undefined,
+    "y el SEQEND cierra la secuencia del INSERT",
+  );
+
+  const sinGeometria = inserciones[1];
+  assert.ok(sinGeometria, "el INSERT del mapa plano también llega");
+  assert.equal(
+    (sinGeometria.attributes ?? []).length,
+    0,
+    "sin geometría no se dibuja el texto en un sitio inventado",
+  );
+  assert.ok(
+    exportado.manifiestoDePerdidas.some(
+      (p) => p.code === "insert-attributes-without-geometry" && p.entityId === "i2",
+    ),
+    "y esa pérdida se nombra en el manifiesto que ve el usuario",
+  );
+  assert.equal(
+    exportado.manifiestoDePerdidas.filter(
+      (p) => p.code === "insert-attributes-without-geometry",
+    ).length,
+    1,
+    "el que sí viajó no genera ruido en el manifiesto",
+  );
+}
+
+console.log(
+  "dwg-native-writer.spec (5.D): el cuadro de rótulo llega con su texto y su " +
+    "posición, la rotación del atributo convertida a radianes y el SEQEND " +
+    "cerrando la secuencia; un INSERT con sólo el mapa plano se declara como pérdida",
+);

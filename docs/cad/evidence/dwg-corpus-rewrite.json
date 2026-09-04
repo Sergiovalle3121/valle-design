@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-corpus-rewrite-v1",
   "generadoPor": "node scripts/dwg/corpus-rewrite.mjs",
-  "veredicto": "De 327 entidades ajenas, el writer regraba 271 (82.9%) y rechaza 56; 271 vuelven idénticas campo a campo y 214 quedan ancladas al DXF del oráculo. Íntegras: arc, circle, ellipse, hatch, line, lwpolyline, mtext, point, text. Con pérdida declarada: insert. No escribibles: attdef, attrib, dimension, face3d, leader, mline, polyfaceMesh, polyline2d, polyline3d, polymesh, ray, solid, spline, tolerance, trace, viewport, xline.",
+  "veredicto": "De 327 entidades ajenas, el writer regraba 282 (86.2%) y rechaza 45; 282 vuelven idénticas campo a campo y 225 quedan ancladas al DXF del oráculo. Íntegras: arc, attrib, circle, ellipse, hatch, insert, line, lwpolyline, mtext, point, text. Con pérdida declarada: ninguna. No escribibles: attdef, dimension, face3d, leader, mline, polyfaceMesh, polyline2d, polyline3d, polymesh, ray, solid, spline, tolerance, trace, viewport, xline.",
   "alcance": "Los fixtures ADMITIDOS del corpus de conformidad (AC1015 con el lector R2000; AC1018/AC1024/AC1027/AC1032 con el R2004), decodificados a la base neutral, re-escritos con writeAc1015MinimalFile —que emite SIEMPRE AC1015, de modo que un fixture moderno se mide como bajada de versión— y releídos con readAc1015Database. Los DWG los produjo una implementación independiente (ODA); el DXF oráculo es la fuente de autoría propia congelada en el mismo bundle.",
   "limiteDeclarado": "Esta medición NO cierra el hueco del oráculo externo. El cotejo campo a campo enfrenta NUESTRO writer con NUESTRO lector: un error SIMÉTRICO —escribir mal un campo y leerlo mal igual— seguiría oculto. El anclaje contra el DXF del oráculo lo estrecha, porque esos valores los escribió otro, pero sigue siendo nuestro decoder el que lee nuestro archivo. Sólo un conversor AJENO leyendo NUESTRO archivo cierra el hueco: eso es scripts/dwg/oda-roundtrip.mjs y exige el binario con licencia del titular, que no corre en este entorno.",
   "notaDeVocabulario": "El vocabulario del oráculo no es el del modelo neutral: una POLYLINE 2D del DXF se proyecta a `lwpolyline` y en el DWG llega como `polyline2d`. Por eso `declaradasPorOraculoSinAnclar` NO decide el estado de una fila —un esperado sin anclar puede pertenecer a otra clase del writer—; lo que sí lo decide es `valorDistintoDelOraculo`, donde el emparejamiento es real y el valor no coincide.",
@@ -49,28 +49,27 @@
     "reescritos": 57,
     "releidos": 57,
     "entidadesVistas": 327,
-    "entidadesEscritas": 271,
-    "entidadesNoEscribibles": 56,
-    "entidadesReleidasIguales": 271,
-    "entidadesAncladasAlOraculo": 214,
-    "porcentajeRegrabado": 82.9,
+    "entidadesEscritas": 282,
+    "entidadesNoEscribibles": 45,
+    "entidadesReleidasIguales": 282,
+    "entidadesAncladasAlOraculo": 225,
+    "porcentajeRegrabado": 86.2,
     "clasesIntegras": [
       "arc",
+      "attrib",
       "circle",
       "ellipse",
       "hatch",
+      "insert",
       "line",
       "lwpolyline",
       "mtext",
       "point",
       "text"
     ],
-    "clasesConPerdidaDeclarada": [
-      "insert"
-    ],
+    "clasesConPerdidaDeclarada": [],
     "clasesNoEscribibles": [
       "attdef",
-      "attrib",
       "dimension",
       "face3d",
       "leader",
@@ -89,7 +88,7 @@
     ],
     "capasComparadas": 74,
     "capasConDiferencia": 62,
-    "diferenciasRegistradas": 56
+    "diferenciasRegistradas": 45
   },
   "resumenDeObservacionesDeCapa": [
     {
@@ -150,19 +149,17 @@
       ]
     },
     "attrib": {
-      "estado": "no-escribible",
+      "estado": "regrabada-integra",
       "vistas": 7,
-      "escritas": 0,
-      "noEscribibles": 7,
-      "releidasIguales": 0,
+      "escritas": 7,
+      "noEscribibles": 0,
+      "releidasIguales": 7,
       "releidasConDiferencia": 0,
       "declaradasPorOraculo": 7,
-      "ancladasAlOraculo": 0,
+      "ancladasAlOraculo": 7,
       "valorDistintoDelOraculo": 0,
-      "declaradasPorOraculoSinAnclar": 7,
-      "motivos": [
-        "DWG_VERSION_DECODER_UNSUPPORTED: Writing a \"attrib\" entity is not implemented by the laboratory writer yet."
-      ]
+      "declaradasPorOraculoSinAnclar": 0,
+      "motivos": []
     },
     "circle": {
       "estado": "regrabada-integra",
@@ -234,19 +231,17 @@
       "motivos": []
     },
     "insert": {
-      "estado": "regrabada-con-perdida-declarada",
+      "estado": "regrabada-integra",
       "vistas": 34,
-      "escritas": 30,
-      "noEscribibles": 4,
-      "releidasIguales": 30,
+      "escritas": 34,
+      "noEscribibles": 0,
+      "releidasIguales": 34,
       "releidasConDiferencia": 0,
       "declaradasPorOraculo": 34,
-      "ancladasAlOraculo": 30,
+      "ancladasAlOraculo": 34,
       "valorDistintoDelOraculo": 0,
-      "declaradasPorOraculoSinAnclar": 4,
-      "motivos": [
-        "DWG_INPUT_INVALID: Writing insert attributes is not implemented by the phase-D4 laboratory."
-      ]
+      "declaradasPorOraculoSinAnclar": 0,
+      "motivos": []
     },
     "leader": {
       "estado": "no-escribible",
@@ -1448,24 +1443,6 @@
     {
       "archivo": "22-nested-attribs",
       "version": "AC1015",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "motivo": "writer-rechaza",
-      "code": "DWG_INPUT_INVALID",
-      "mensaje": "Writing insert attributes is not implemented by the phase-D4 laboratory."
-    },
-    {
-      "archivo": "22-nested-attribs",
-      "version": "AC1015",
-      "contexto": "model-space",
-      "tipo": "attrib",
-      "motivo": "writer-rechaza",
-      "code": "DWG_VERSION_DECODER_UNSUPPORTED",
-      "mensaje": "Writing a \"attrib\" entity is not implemented by the laboratory writer yet."
-    },
-    {
-      "archivo": "22-nested-attribs",
-      "version": "AC1015",
       "contexto": "bloque:TITULO",
       "tipo": "attdef",
       "motivo": "writer-rechaza",
@@ -1480,33 +1457,6 @@
       "motivo": "writer-rechaza",
       "code": "DWG_VERSION_DECODER_UNSUPPORTED",
       "mensaje": "Writing a \"attdef\" entity is not implemented by the laboratory writer yet."
-    },
-    {
-      "archivo": "22-nested-attribs",
-      "version": "AC1015",
-      "contexto": "bloque:CONJUNTO",
-      "tipo": "insert",
-      "motivo": "writer-rechaza",
-      "code": "DWG_INPUT_INVALID",
-      "mensaje": "Writing insert attributes is not implemented by the phase-D4 laboratory."
-    },
-    {
-      "archivo": "22-nested-attribs",
-      "version": "AC1015",
-      "contexto": "bloque:CONJUNTO",
-      "tipo": "attrib",
-      "motivo": "writer-rechaza",
-      "code": "DWG_VERSION_DECODER_UNSUPPORTED",
-      "mensaje": "Writing a \"attrib\" entity is not implemented by the laboratory writer yet."
-    },
-    {
-      "archivo": "22-nested-attribs",
-      "version": "AC1015",
-      "contexto": "bloque:CONJUNTO",
-      "tipo": "attrib",
-      "motivo": "writer-rechaza",
-      "code": "DWG_VERSION_DECODER_UNSUPPORTED",
-      "mensaje": "Writing a \"attrib\" entity is not implemented by the laboratory writer yet."
     },
     {
       "archivo": "22-nested-attribs",
@@ -1651,60 +1601,6 @@
       "motivo": "writer-rechaza",
       "code": "DWG_VERSION_DECODER_UNSUPPORTED",
       "mensaje": "Writing a \"solid\" entity is not implemented by the laboratory writer yet."
-    },
-    {
-      "archivo": "12-attrib",
-      "version": "AC1015",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "motivo": "writer-rechaza",
-      "code": "DWG_INPUT_INVALID",
-      "mensaje": "Writing insert attributes is not implemented by the phase-D4 laboratory."
-    },
-    {
-      "archivo": "12-attrib",
-      "version": "AC1015",
-      "contexto": "model-space",
-      "tipo": "attrib",
-      "motivo": "writer-rechaza",
-      "code": "DWG_VERSION_DECODER_UNSUPPORTED",
-      "mensaje": "Writing a \"attrib\" entity is not implemented by the laboratory writer yet."
-    },
-    {
-      "archivo": "12-attrib",
-      "version": "AC1015",
-      "contexto": "model-space",
-      "tipo": "attrib",
-      "motivo": "writer-rechaza",
-      "code": "DWG_VERSION_DECODER_UNSUPPORTED",
-      "mensaje": "Writing a \"attrib\" entity is not implemented by the laboratory writer yet."
-    },
-    {
-      "archivo": "12-attrib",
-      "version": "AC1015",
-      "contexto": "model-space",
-      "tipo": "insert",
-      "motivo": "writer-rechaza",
-      "code": "DWG_INPUT_INVALID",
-      "mensaje": "Writing insert attributes is not implemented by the phase-D4 laboratory."
-    },
-    {
-      "archivo": "12-attrib",
-      "version": "AC1015",
-      "contexto": "model-space",
-      "tipo": "attrib",
-      "motivo": "writer-rechaza",
-      "code": "DWG_VERSION_DECODER_UNSUPPORTED",
-      "mensaje": "Writing a \"attrib\" entity is not implemented by the laboratory writer yet."
-    },
-    {
-      "archivo": "12-attrib",
-      "version": "AC1015",
-      "contexto": "model-space",
-      "tipo": "attrib",
-      "motivo": "writer-rechaza",
-      "code": "DWG_VERSION_DECODER_UNSUPPORTED",
-      "mensaje": "Writing a \"attrib\" entity is not implemented by the laboratory writer yet."
     },
     {
       "archivo": "12-attrib",
@@ -2086,12 +1982,12 @@
       "sha256": "96067cd49aee6efdac39857628758e76489068c9e557c55a81ed5d37d9ea7abd",
       "abre": true,
       "entidadesVistas": 16,
-      "entidadesNoEscribibles": 8,
+      "entidadesNoEscribibles": 3,
       "reescribe": true,
       "releeElPropio": true,
       "bytesAjenos": 97762,
-      "bytesPropios": 4792,
-      "entidadesEscritas": 8,
+      "bytesPropios": 5138,
+      "entidadesEscritas": 10,
       "capas": [
         {
           "nombre": "MARCOS",
@@ -2115,16 +2011,16 @@
         "modelSpace": {
           "attrib": {
             "declaradasPorOraculo": 1,
-            "ancladas": 0,
+            "ancladas": 1,
             "valorDistinto": 0,
-            "sinAnclar": 1,
+            "sinAnclar": 0,
             "releidasSinPareja": 0
           },
           "insert": {
             "declaradasPorOraculo": 1,
-            "ancladas": 0,
+            "ancladas": 1,
             "valorDistinto": 0,
-            "sinAnclar": 1,
+            "sinAnclar": 0,
             "releidasSinPareja": 0
           }
         },
@@ -2155,16 +2051,16 @@
             },
             "attrib": {
               "declaradasPorOraculo": 2,
-              "ancladas": 0,
+              "ancladas": 2,
               "valorDistinto": 0,
-              "sinAnclar": 2,
+              "sinAnclar": 0,
               "releidasSinPareja": 0
             },
             "insert": {
               "declaradasPorOraculo": 1,
-              "ancladas": 0,
+              "ancladas": 1,
               "valorDistinto": 0,
-              "sinAnclar": 1,
+              "sinAnclar": 0,
               "releidasSinPareja": 0
             },
             "line": {
@@ -2450,12 +2346,12 @@
       "sha256": "43a47513d934faa1c9ead9ad46518f9f2b140ecc34db470d4fb4bfa9e43cd61e",
       "abre": true,
       "entidadesVistas": 13,
-      "entidadesNoEscribibles": 8,
+      "entidadesNoEscribibles": 2,
       "reescribe": true,
       "releeElPropio": true,
       "bytesAjenos": 97341,
-      "bytesPropios": 4513,
-      "entidadesEscritas": 5,
+      "bytesPropios": 4933,
+      "entidadesEscritas": 7,
       "capas": [
         {
           "nombre": "TEXTOS",
@@ -2471,16 +2367,16 @@
         "modelSpace": {
           "attrib": {
             "declaradasPorOraculo": 4,
-            "ancladas": 0,
+            "ancladas": 4,
             "valorDistinto": 0,
-            "sinAnclar": 4,
+            "sinAnclar": 0,
             "releidasSinPareja": 0
           },
           "insert": {
             "declaradasPorOraculo": 2,
-            "ancladas": 0,
+            "ancladas": 2,
             "valorDistinto": 0,
-            "sinAnclar": 2,
+            "sinAnclar": 0,
             "releidasSinPareja": 0
           }
         },
@@ -4593,7 +4489,7 @@
       }
     }
   ],
-  "generadoEn": "2026-09-04T07:48:27.267Z",
+  "generadoEn": "2026-09-04T09:22:51.837Z",
   "environment": {
     "node": "v22.22.2",
     "platform": "linux",

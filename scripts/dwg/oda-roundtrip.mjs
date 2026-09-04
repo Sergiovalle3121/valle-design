@@ -157,6 +157,17 @@ function compareEntity(expected, normalized, mismatches, label) {
       if (!near(f.height, e.height)) push(`height ${f.height}`);
       if (f.value !== utf(e.valueBytes)) push(`value "${f.value}"`);
       return;
+    case "attrib":
+      // El helper del oráculo entrega inserción, altura, valor y ETIQUETA de
+      // un ATTRIB. La etiqueta es lo que lo separa de un texto suelto: sin
+      // ella, un rótulo escrito con las etiquetas cambiadas pasaría.
+      if (!near(f.insertion[0], e.insertion.x) || !near(f.insertion[1], e.insertion.y)) {
+        push(`insertion ${JSON.stringify(f.insertion)}`);
+      }
+      if (!near(f.height, e.height)) push(`height ${f.height}`);
+      if (f.value !== utf(e.valueBytes)) push(`value "${f.value}"`);
+      if (f.tag !== utf(e.tagBytes)) push(`tag "${f.tag}"`);
+      return;
     case "insert":
       if (expected.block !== undefined && f.block !== expected.block) {
         push(`bloque ${f.block}`);

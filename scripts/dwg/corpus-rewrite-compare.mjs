@@ -119,6 +119,15 @@ export function projectForOracle(entity, insertedBlockName) {
         height: entity.height,
         value: decodeBytes(entity.valueBytes),
       };
+    // El ATTRIB del oráculo declara los mismos campos de un TEXT más la
+    // ETIQUETA, que es lo que lo hace un atributo y no un texto suelto.
+    case "attrib":
+      return {
+        insertion: [entity.insertion.x, entity.insertion.y],
+        height: entity.height,
+        value: decodeBytes(entity.valueBytes),
+        tag: decodeBytes(entity.tagBytes),
+      };
     case "insert":
       return {
         block: decodeBytes(insertedBlockName).toUpperCase(),

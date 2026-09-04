@@ -100,6 +100,12 @@ const BUILTIN_LINETYPES = new Set(["BYBLOCK", "BYLAYER", "CONTINUOUS"]);
  * entidades que siguen al INSERT— y los SEQEND estructurales se descartan,
  * porque el oráculo también los descarta. Misma convención que
  * `validate-corpus.mjs`, para que las dos mediciones cuenten lo mismo.
+ *
+ * Es la vista para CONTAR y para ANCLAR, no la de escribir: desde el
+ * 2026-09-04 el writer sabe emitir un INSERT con sus ATTRIB, y el plan de
+ * re-escritura los mantiene ATADOS a su INSERT (ver `acceptAll`). Aplanarlos
+ * también al escribir habría medido otra cosa: atributos sueltos en model
+ * space, que no es lo que el archivo ajeno lleva.
  */
 function flattenRecords(records) {
   const out = [];
@@ -135,15 +141,39 @@ function planRewrite(database, writeEntityBody) {
   });
 
   const rejected = [];
+  /** Los ATTRIB atados a un INSERT, sin el SEQEND que los cierra. */
+  const attributesOf = (record) =>
+    (record.attributes ?? []).filter((item) => item.entity.kind === "attrib");
   /** Ofrece UNA entidad al writer y devuelve su spec, o null con el motivo. */
   const accept = (record, contexto) => {
     const kind = record.entity.kind;
+    const attributes = kind === "insert" ? attributesOf(record) : [];
     try {
+      // La MISMA puerta de aceptación que usa el archivo completo. Un INSERT
+      // con atributos necesita los tres handles de su grupo para pasar por
+      // ella: aquí van de mentira —el writer sólo comprueba que existan y
+      // sean handles— porque el reparto REAL lo hace el plan del archivo.
       writeEntityBody(
         record.entity,
         0x100,
-        kind === "insert" ? { insertBlockHandle: 0x200 } : {},
+        kind === "insert"
+          ? {
+              insertBlockHandle: 0x200,
+              ...(record.entity.attributesFollow
+                ? {
+                    insertAttributeHandles: {
+                      firstAttribHandle: 0x300,
+                      lastAttribHandle: 0x301,
+                      seqendHandle: 0x302,
+                    },
+                  }
+                : {}),
+            }
+          : {},
       );
+      for (const attribute of attributes) {
+        writeEntityBody(attribute.entity, 0x400);
+      }
     } catch (error) {
       rejected.push({
         contexto,
@@ -173,6 +203,27 @@ function planRewrite(database, writeEntityBody) {
         return null;
       }
       spec.insertBlockIndex = target;
+      // LA BANDERA Y LOS OBJETOS VAN JUNTOS. El writer lo exige, y con razón:
+      // un INSERT que promete atributos que el archivo no lleva manda al
+      // lector ajeno a buscarlos. Si el lector ató una cantidad distinta de
+      // la que la bandera dice, el INSERT entero se declara en vez de
+      // escribir la mitad del rótulo.
+      if (record.entity.attributesFollow !== attributes.length > 0) {
+        rejected.push({
+          contexto,
+          tipo: kind,
+          motivo: "atributos-descuadrados",
+          code: "INSERT_ATTRIBUTES_MISMATCH",
+          mensaje: `el INSERT declara attributesFollow=${record.entity.attributesFollow} y el lector le ató ${attributes.length} ATTRIB`,
+        });
+        return null;
+      }
+      if (attributes.length > 0) {
+        spec.attributes = attributes.map((attribute) => ({
+          entity: attribute.entity,
+          layerIndex: layerIndexByHandle.get(attribute.layerHandle) ?? 0,
+        }));
+      }
     }
     return spec;
   };
@@ -180,7 +231,10 @@ function planRewrite(database, writeEntityBody) {
   const acceptAll = (records, contexto) => {
     const seen = flattenRecords(records);
     const kept = [];
-    for (const record of seen) {
+    // Se recorre la lista SIN aplanar: los ATTRIB viajan dentro de su INSERT,
+    // y el SEQEND lo escribe el writer de archivo por su cuenta.
+    for (const record of records) {
+      if (record.entity.kind === "seqend") continue;
       const spec = accept(record, contexto);
       if (spec !== null) kept.push({ spec, source: record });
     }
@@ -385,28 +439,51 @@ export async function runCorpusRewrite({ env = process.env } = {}) {
         plan.blocks.reduce((total, block) => total + block.kept.length, 0);
 
       // --- campo a campo: lo que entró contra lo que volvió ---------------
+      /** Coteja UNA entidad escrita contra la releída y anota su fila. */
+      const compareOne = (written, back, contexto) => {
+        const kind = written.kind;
+        const row = rowOf(kind);
+        row.escritas += 1;
+        const diffs =
+          back === undefined
+            ? [{ campo: "(entidad)", escrito: kind, releido: null }]
+            : deepDiff(written, back);
+        if (diffs.length === 0) {
+          row.releidasIguales += 1;
+          return;
+        }
+        row.releidasConDiferencia += 1;
+        noteReason(kind, `campo distinto al releer: ${diffs.map((d) => d.campo).join(", ")}`);
+        registrar({
+          contexto,
+          tipo: kind,
+          problema: "campo-distinto-al-releer",
+          diferencias: diffs.slice(0, 12),
+        });
+      };
       const compareKept = (kept, actual, contexto) => {
         kept.forEach((item, index) => {
-          const kind = item.spec.entity.kind;
-          const row = rowOf(kind);
-          row.escritas += 1;
-          const back = actual[index]?.entity;
-          const diffs =
-            back === undefined
-              ? [{ campo: "(entidad)", escrito: kind, releido: null }]
-              : deepDiff(item.spec.entity, back);
-          if (diffs.length === 0) {
-            row.releidasIguales += 1;
-            return;
-          }
-          row.releidasConDiferencia += 1;
-          noteReason(kind, `campo distinto al releer: ${diffs.map((d) => d.campo).join(", ")}`);
-          registrar({
-            contexto,
-            tipo: kind,
-            problema: "campo-distinto-al-releer",
-            diferencias: diffs.slice(0, 12),
+          const back = actual[index];
+          compareOne(item.spec.entity, back?.entity, contexto);
+          // Los ATTRIB de un INSERT se cotejan como lo que son: miembros de
+          // ESE INSERT, en su orden. Compararlos sueltos en model space diría
+          // que volvieron aunque el vínculo con su bloque se hubiera perdido.
+          const attributes = item.spec.attributes ?? [];
+          const backAttributes = (back?.attributes ?? []).filter(
+            (candidate) => candidate.entity.kind === "attrib",
+          );
+          attributes.forEach((attribute, at) => {
+            compareOne(attribute.entity, backAttributes[at]?.entity, contexto);
           });
+          if (attributes.length > 0 && back?.sequenceEndHandle === undefined) {
+            noteReason(item.spec.entity.kind, "el SEQEND no vuelve cerrando la secuencia");
+            registrar({
+              contexto,
+              tipo: item.spec.entity.kind,
+              problema: "secuencia-sin-seqend",
+              cuantas: attributes.length,
+            });
+          }
         });
       };
       compareKept(plan.modelSpace.kept, reread.modelSpaceEntities, "model-space");

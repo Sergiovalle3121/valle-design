@@ -63,8 +63,7 @@ function toCanonicalEntity(entity: CadDocument["entities"][number]): Record<stri
       startAngle: entity.startAngle * RADIANS_PER_DEGREE,
       endAngle: entity.endAngle * RADIANS_PER_DEGREE,
     };
-  if (entity.type === "insert")
-    return { ...entity, rotation: entity.rotation * RADIANS_PER_DEGREE };
+  if (entity.type === "insert") return toCanonicalInsert(entity);
   if (entity.type === "ellipse")
     return {
       ...entity,
@@ -80,6 +79,46 @@ function toCanonicalEntity(entity: CadDocument["entities"][number]): Record<stri
     return { ...entity, rotation: (entity.rotation ?? 0) * RADIANS_PER_DEGREE };
   if (entity.type === "hatch") return toCanonicalHatch(entity);
   return { ...entity };
+}
+
+/**
+ * EL RÓTULO DEL BLOQUE, CON SU TEXTO (2026-09-04). Hasta este corte el
+ * códec fijaba el bit de ATTRIBs a 0 y fallaba cerrado si el modelo pedía
+ * atributos: un INSERT con cuadro de rótulo NO se escribía —el bloque entero
+ * desaparecía del archivo, no sólo su texto—. Ahora los escribe, y este lado
+ * le manda lo que el laboratorio no puede resolver por su cuenta.
+ *
+ * `positionedAttributes` ES LA FUENTE, no el mapa plano. El mapa dice qué
+ * vale cada etiqueta; esto dice DÓNDE se dibuja, ya en coordenadas del mundo.
+ * Es la misma decisión que tomó el exportador DXF (`dxf-export.ts`,
+ * `pushInsert`) cuando recomponer la posición desde la definición del bloque
+ * dejaba el texto en un sitio distinto del que el usuario ve en pantalla; sin
+ * el gemelo posicionado, el laboratorio declara la pérdida en vez de
+ * inventarse una posición.
+ *
+ * LAS UNIDADES, otra vez: la rotación de un atributo viaja en GRADOS en el
+ * documento del producto y en RADIANES en el archivo, igual que la del INSERT
+ * que lo lleva. Convertirla aquí es lo que impide que una etiqueta girada
+ * salga a un ángulo equivocado en silencio.
+ */
+function toCanonicalInsert(
+  entity: Extract<CadDocument["entities"][number], { type: "insert" }>,
+): Record<string, unknown> {
+  const rotation = entity.rotation * RADIANS_PER_DEGREE;
+  const positioned = entity.positionedAttributes;
+  if (positioned === undefined || positioned.length === 0) {
+    return { ...entity, rotation };
+  }
+  return {
+    ...entity,
+    rotation,
+    positionedAttributes: positioned.map((attribute) => ({
+      ...attribute,
+      ...(attribute.rotation === undefined
+        ? {}
+        : { rotation: attribute.rotation * RADIANS_PER_DEGREE }),
+    })),
+  };
 }
 
 /**

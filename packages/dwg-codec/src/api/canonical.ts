@@ -18,7 +18,11 @@ import type {
   Ac1015DatabaseEntityRecord,
   Ac1015NeutralDatabase,
 } from "../reader/ac1015-database-reader.js";
-import type { DwgGeometryEntity, DwgPoint3 } from "../model/entity-geometry.js";
+import type {
+  DwgAttribEntity,
+  DwgGeometryEntity,
+  DwgPoint3,
+} from "../model/entity-geometry.js";
 import { projectAcisOpaqueEntity } from "./canonical-acis.js";
 import { mapCanonicalLayers } from "./canonical-layers.js";
 import { ALINEACION_POR_ANCLAJE } from "./canonical-mtext-anchor.js";
@@ -487,13 +491,31 @@ function mapEntity(
       };
     }
     case "insert": {
+      // DOS PROYECCIONES DEL MISMO ATRIBUTO, Y LAS DOS HACEN FALTA. El mapa
+      // plano dice QUÉ VALE cada etiqueta —es lo que el editor consulta— y
+      // `positionedAttributes` dice DÓNDE SE DIBUJA. Hasta el 2026-09-04 sólo
+      // viajaba el mapa, y la vuelta al DWG no podía escribir los ATTRIB:
+      // recomponer la posición desde la definición del bloque los habría
+      // puesto en otro sitio del que el archivo de origen decía. La geometría
+      // está aquí, medida; sólo faltaba llevarla.
       const attributes: Record<string, string> = {};
+      const positioned: Record<string, unknown>[] = [];
       for (const attribute of record.attributes ?? []) {
-        if (attribute.entity.kind === "attrib") {
-          attributes[decodeBytes(attribute.entity.tagBytes)] = decodeBytes(
-            attribute.entity.valueBytes,
-          );
-        }
+        if (attribute.entity.kind !== "attrib") continue;
+        const attrib = attribute.entity;
+        const tag = decodeBytes(attrib.tagBytes);
+        attributes[tag] = decodeBytes(attrib.valueBytes);
+        positioned.push({
+          tag,
+          value: decodeBytes(attrib.valueBytes),
+          insertion: Object.freeze({
+            x: attrib.insertion.x,
+            y: attrib.insertion.y,
+            z: attrib.elevation ?? 0,
+          }),
+          height: attrib.height,
+          ...(attrib.rotation === undefined ? {} : { rotation: attrib.rotation }),
+        });
       }
       return {
         id,
@@ -503,6 +525,7 @@ function mapEntity(
         scale: point3(entity.scale),
         rotation: entity.rotation,
         ...(Object.keys(attributes).length > 0 ? { attributes } : {}),
+        ...(positioned.length > 0 ? { positionedAttributes: positioned } : {}),
         layer,
       };
     }
@@ -752,6 +775,12 @@ export interface CanonicalToDwgEntity {
   readonly layerName: string;
   readonly blockName?: string;
   readonly canonicalId: string;
+  /**
+   * Sólo INSERT: los ATTRIB del rótulo, ya con su geometría. Van en la capa
+   * del INSERT —es lo que hace el producto, que no le da capa propia a un
+   * atributo— y sólo existen cuando `entity.attributesFollow` es true.
+   */
+  readonly attributes?: readonly DwgAttribEntity[];
 }
 
 export interface CanonicalToDwgResult {
