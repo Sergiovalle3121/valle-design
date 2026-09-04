@@ -3,13 +3,18 @@
  *
  * La regla de esta spec es que la tabla se lee como una tabla: cada renglón
  * lleva el texto tal y como se teclea, las pulgadas que tiene que dar y si la
- * medida trae marca. **Quince de los dieciocho renglones están MEDIDOS como
- * fallo hoy** —vuelto a medir el 2026-09-04 sobre `parseCoordinate` de
- * `precision-input.ts`, que analiza con `Number(s)`—: sólo `6.5`, `.5` y `18.5`
- * pasan, porque son los tres que no llevan ni marca ni fracción. Seis de esos
- * quince son los que la bitácora del frente nombró en C1 (cinco escalares más
- * la coordenada `@1'-0",0`), y van marcados aparte para que el recuento delate
- * a quien borre un renglón incómodo.
+ * medida trae marca. **Quince de los dieciocho renglones estaban MEDIDOS como
+ * fallo** —medidos el 2026-09-04 sobre `parseCoordinate` de
+ * `precision-input.ts`, que analizaba con `Number(s)`—: sólo `6.5`, `.5` y
+ * `18.5` pasaban, porque son los tres que no llevan ni marca ni fracción. Seis
+ * de esos quince son los que la bitácora del frente nombró en C1 (cinco
+ * escalares más la coordenada `@1'-0",0`), y van marcados aparte para que el
+ * recuento delate a quien borre un renglón incómodo.
+ *
+ * **P-express-10 los cerró** (ventana de integración, 2026-09-04, grupo C): la
+ * columna «roto» está VACÍA y se vuelve a medir en cada corrida contra el
+ * analizador de hoy, así que una regresión la vuelve a llenar sola. Las
+ * dieciocho formas se teclean y las dieciocho dan su número.
  *
  * Y comprueba la negativa RAZONADA: `1'2'` no se lee, y el motivo se dice.
  * Un analizador que ante lo ambiguo devuelve un número es peor que uno que no
@@ -51,7 +56,11 @@ interface Row {
   pulgadas: number;
   /** Si el texto trae marca de pie o de pulgada. */
   marca: boolean;
-  /** Si hoy `parseCoordinate` lo rechaza (medido el 2026-09-04). */
+  /**
+   * Si `parseCoordinate` lo rechaza. Se vuelve a MEDIR más abajo contra el
+   * analizador de hoy: hoy no hay ninguno, y el día que lo haya, este campo
+   * y la medida tienen que volver a coincidir.
+   */
   roto?: true;
   /** Si además lo nombra la bitácora del frente en C1. */
   bitacora?: true;
@@ -59,31 +68,31 @@ interface Row {
 }
 
 const TABLA: readonly Row[] = [
-  { texto: `1'-6 1/2"`, pulgadas: 18.5, marca: true, roto: true, bitacora: true, porque: "la forma canónica del plano arquitectónico" },
-  { texto: `1'6`, pulgadas: 18, marca: true, roto: true, bitacora: true, porque: "sin guion y sin cerrar: como se teclea con prisa" },
-  { texto: `1'6"`, pulgadas: 18, marca: true, roto: true, porque: "sin guion, cerrada" },
-  { texto: `1'-6"`, pulgadas: 18, marca: true, roto: true, porque: "con guion, sin fracción" },
-  { texto: `1'-6 1/2`, pulgadas: 18.5, marca: true, roto: true, porque: "con fracción, sin cerrar" },
-  { texto: `12'`, pulgadas: 144, marca: true, roto: true, bitacora: true, porque: "pies redondos" },
-  { texto: `1'`, pulgadas: 12, marca: true, roto: true, porque: "un pie" },
-  { texto: `1.5'`, pulgadas: 18, marca: true, roto: true, porque: "pies decimales: legales en ingeniería" },
-  { texto: `6"`, pulgadas: 6, marca: true, roto: true, bitacora: true, porque: "pulgadas sueltas" },
-  { texto: `6 1/2"`, pulgadas: 6.5, marca: true, roto: true, porque: "pulgadas con fracción, cerradas" },
-  { texto: `6 1/2`, pulgadas: 6.5, marca: false, roto: true, bitacora: true, porque: "entero y fracción, sin marca" },
-  { texto: `1/2"`, pulgadas: 0.5, marca: true, roto: true, porque: "sólo fracción, cerrada" },
-  { texto: `1/2`, pulgadas: 0.5, marca: false, roto: true, porque: "sólo fracción, sin marca" },
-  { texto: `1'-6.5"`, pulgadas: 18.5, marca: true, roto: true, porque: "el decimal dentro de la pulgada (ingeniería)" },
+  { texto: `1'-6 1/2"`, pulgadas: 18.5, marca: true, bitacora: true, porque: "la forma canónica del plano arquitectónico" },
+  { texto: `1'6`, pulgadas: 18, marca: true, bitacora: true, porque: "sin guion y sin cerrar: como se teclea con prisa" },
+  { texto: `1'6"`, pulgadas: 18, marca: true, porque: "sin guion, cerrada" },
+  { texto: `1'-6"`, pulgadas: 18, marca: true, porque: "con guion, sin fracción" },
+  { texto: `1'-6 1/2`, pulgadas: 18.5, marca: true, porque: "con fracción, sin cerrar" },
+  { texto: `12'`, pulgadas: 144, marca: true, bitacora: true, porque: "pies redondos" },
+  { texto: `1'`, pulgadas: 12, marca: true, porque: "un pie" },
+  { texto: `1.5'`, pulgadas: 18, marca: true, porque: "pies decimales: legales en ingeniería" },
+  { texto: `6"`, pulgadas: 6, marca: true, bitacora: true, porque: "pulgadas sueltas" },
+  { texto: `6 1/2"`, pulgadas: 6.5, marca: true, porque: "pulgadas con fracción, cerradas" },
+  { texto: `6 1/2`, pulgadas: 6.5, marca: false, bitacora: true, porque: "entero y fracción, sin marca" },
+  { texto: `1/2"`, pulgadas: 0.5, marca: true, porque: "sólo fracción, cerrada" },
+  { texto: `1/2`, pulgadas: 0.5, marca: false, porque: "sólo fracción, sin marca" },
+  { texto: `1'-6.5"`, pulgadas: 18.5, marca: true, porque: "el decimal dentro de la pulgada (ingeniería)" },
   { texto: `6.5`, pulgadas: 6.5, marca: false, porque: "el decimal de siempre" },
   { texto: `.5`, pulgadas: 0.5, marca: false, porque: "el decimal sin cero delante" },
-  { texto: `-1'-6"`, pulgadas: -18, marca: true, roto: true, porque: "negativo: el signo va delante, el guion de dentro es separador" },
+  { texto: `-1'-6"`, pulgadas: -18, marca: true, porque: "negativo: el signo va delante, el guion de dentro es separador" },
   { texto: `18.5`, pulgadas: 18.5, marca: false, porque: "el decimal de siempre, con parte fraccionaria" },
 ];
 
 eq(TABLA.length, 18, "la tabla tiene dieciocho formas");
 eq(
   TABLA.filter((row) => row.roto).length,
-  15,
-  "quince de las dieciocho fallan hoy en el analizador de entrada",
+  0,
+  "y ninguna falla ya en el analizador de entrada: las quince que fallaban entran",
 );
 eq(
   TABLA.filter((row) => row.bitacora).length,
@@ -93,8 +102,12 @@ eq(
 
 /**
  * La cifra no es de memoria: se vuelve a medir aquí, contra el analizador de
- * hoy. Si alguien aplica la petición del analizador de entrada sin actualizar
+ * hoy. Si alguien deshace la petición del analizador de entrada sin actualizar
  * esta spec, este renglón lo dice — que es exactamente lo que se quiere.
+ *
+ * Y no basta con que ENTREN: se comprueba el NÚMERO que llega. Un analizador
+ * que acepta `1'-6 1/2"` y devuelve 42.5 es peor que el que lo rechazaba, y el
+ * único sitio donde eso se ve es aquí.
  */
 {
   const fallanHoy = TABLA.filter(
@@ -104,6 +117,30 @@ eq(
     fallanHoy.map((row) => row.texto).sort(),
     TABLA.filter((row) => row.roto).map((row) => row.texto).sort(),
     "y la columna «roto» coincide renglón a renglón con lo que `parseCoordinate` rechaza ahora mismo",
+  );
+  // Sin unidad declarada la unidad de dibujo es la pulgada, así que el número
+  // que sale por la entrada directa es el mismo de la columna «pulgadas»,
+  // lleve marca o no.
+  for (const row of TABLA) {
+    const parsed = parseCoordinate(row.texto, { last: { x: 0, y: 0 }, lockedAngleDeg: 0 });
+    ok(
+      parsed.ok && near(parsed.point.x, row.pulgadas, 1e-9),
+      `«${row.texto}» tecleado da ${row.pulgadas} (obtenido ${parsed.ok ? parsed.point.x : parsed.error})`,
+    );
+  }
+  // Y la coordenada de la bitácora, la sexta forma que C1 nombró: el pie
+  // dentro de una pareja x,y.
+  const coordenada = parseCoordinate(`@1'-0",0`, { last: { x: 0, y: 0 } });
+  ok(
+    coordenada.ok && near(coordenada.point.x, 12, 1e-9) && near(coordenada.point.y, 0, 1e-9),
+    `«@1'-0",0» son doce pulgadas en X (obtenido ${coordenada.ok ? coordenada.point.x : coordenada.error})`,
+  );
+  // El ángulo NO se convierte: `30<45` son treinta unidades a cuarenta y cinco
+  // grados. Es el error fácil de esta petición y se mide para que no vuelva.
+  const polar = parseCoordinate(`30<45`, { last: { x: 0, y: 0 } });
+  ok(
+    polar.ok && near(polar.point.x, 30 * Math.cos(Math.PI / 4), 1e-9),
+    "«30<45» sigue siendo treinta unidades a 45 grados: el ángulo no pasa por el analizador de longitudes",
   );
 }
 
@@ -172,12 +209,14 @@ for (const [texto, porque] of AMBIGUAS) {
 }
 
 /**
- * El renglón que explica por qué la petición del analizador de entrada no es
- * cosmética. `parseCoordinate` colapsa TODOS los espacios (`replace(/\s+/g,"")`),
- * así que `1'-6 1/2"` le llega a la gramática como `1'-61/2"`. Y eso SE LEE:
- * `61/2` es una fracción impropia perfectamente válida, 30.5 pulgadas. El
- * resultado es 42.5" en vez de 18.5" — un número equivocado y silencioso, que
- * es el peor de los fallos posibles en un plano.
+ * El renglón que explica por qué la petición del analizador de entrada no era
+ * cosmética. `parseCoordinate` colapsaba TODOS los espacios
+ * (`replace(/\s+/g,"")`), así que `1'-6 1/2"` le llegaba a la gramática como
+ * `1'-61/2"`. Y eso SE LEE: `61/2` es una fracción impropia perfectamente
+ * válida, 30.5 pulgadas. El resultado habría sido 42.5" en vez de 18.5" — un
+ * número equivocado y silencioso, que es el peor de los fallos posibles en un
+ * plano. P-express-10 dejó de borrar los espacios y sólo los quita alrededor de
+ * los separadores estructurales (`,`, `<`, `@`, `*`).
  */
 {
   const conEspacio = parseImperialLength(`1'-6 1/2"`);
@@ -186,6 +225,29 @@ for (const [texto, porque] of AMBIGUAS) {
   ok(sinEspacio.ok && near(sinEspacio.inches, 42.5, 1e-9), "sin espacio son 42.5\": el espacio NO es decorativo");
   ok(cadTextLooksImperial(`1'-6 1/2"`), "y el texto se reconoce como imperial antes de tocarle los espacios");
   ok(!cadTextLooksImperial(`3500`), "mientras que un número desnudo no lo es");
+  // Y el espacio sobrevive de verdad al camino de entrada, que es lo que se
+  // arregló: no basta con que la gramática sepa leerlo.
+  const porElTeclado = parseCoordinate(`1'-6 1/2"`, { last: { x: 0, y: 0 }, lockedAngleDeg: 0 });
+  ok(
+    porElTeclado.ok && near(porElTeclado.point.x, 18.5, 1e-9),
+    `tecleado da 18.5 y no 42.5 (obtenido ${porElTeclado.ok ? porElTeclado.point.x : porElTeclado.error})`,
+  );
+  // Los espacios alrededor de los separadores SÍ se siguen quitando: es lo
+  // único que el borrado conseguía de útil.
+  const conHolgura = parseCoordinate(`@ 10 , 20`, { last: { x: 0, y: 0 } });
+  ok(
+    conHolgura.ok && near(conHolgura.point.x, 10, 1e-9) && near(conHolgura.point.y, 20, 1e-9),
+    "«@ 10 , 20» sigue leyéndose: los espacios de los separadores se siguen quitando",
+  );
+  /**
+   * EL ÚNICO CAMBIO DE COMPORTAMIENTO de P-express-10, medido y dicho.
+   *
+   * Antes `1 2` devolvía 12, porque el borrado de espacios concatenaba los
+   * dígitos. Ahora es un error. Es deliberado: `1 2` no es una medida y el 12
+   * que salía era un accidente del borrado.
+   */
+  const dosNumeros = parseCoordinate(`1 2`, { last: { x: 0, y: 0 }, lockedAngleDeg: 0 });
+  ok(!dosNumeros.ok, "«1 2» se rechaza en vez de devolver 12 por concatenación de dígitos");
 }
 
 /* ── LA CONVERSIÓN A UNIDADES DE DIBUJO ───────────────────────────────────── */
@@ -254,12 +316,13 @@ eq(parseCadLengthInDrawingUnits(`1'2'`).ok, false, "y lo ambiguo se niega tambi�
  * para los tres sistemas imperiales. Es la prueba de que las dos mitades —la
  * que ya existía y la que este entregable añade— hablan el mismo idioma.
  *
- * Y volver a formatear tiene que dar la MISMA cadena. Ahí aparece el único
- * defecto que esta ida y vuelta destapa, medido y no supuesto: en ingeniería,
- * `unit-format.ts` parte en pies ANTES de redondear, así que 23.6" con
- * `LUPREC 0` sale `1'-12"`, que se relee como 24 y se reescribe `2'-0"`. Va en
- * la petición P-express-07 con el parche exacto; `units-label.ts` ya lo hace
- * bien por su cuenta (lo comprueba `units-label.spec.ts`).
+ * Y volver a formatear tiene que dar la MISMA cadena. Ahí aparecieron los dos
+ * defectos que esta ida y vuelta destapó, medidos y no supuestos: el ACARREO de
+ * ingeniería (23.6" con `LUPREC 0` salía `1'-12"`, que se relee 24 y se
+ * reescribe `2'-0"`) y el MENOS CERO (`-0'-0"`). Los dos quedaron cerrados por
+ * P-express-07 en `unit-format.ts`, así que este barrido corre hoy con CERO
+ * inestables; los dos contadores de familia siguen aquí para que una regresión
+ * vuelva a nombrarse sola.
  */
 const VALORES_PULGADA = [0, 0.5, 6.5, 11.99, 12, 18.5, 23.6, 100.375, 126, 143.7, -18.5, -0.4];
 const SISTEMAS: readonly UnitSystem[] = ["architectural", "engineering", "fractional"];
@@ -306,28 +369,29 @@ for (const system of SISTEMAS) {
 ok(idasYVueltas === SISTEMAS.length * 9 * VALORES_PULGADA.length, `las ${idasYVueltas} idas y vueltas se corrieron todas`);
 
 /**
- * El defecto, con su cifra exacta. Cuando P-express-07 se aplique a
- * `unit-format.ts`, esta comprobación pasa a `2'-0"` y el `inestables` de arriba
- * baja a cero — está escrito así a propósito, para que el arreglo no pueda
- * entrar en silencio.
+ * El defecto, con su cifra exacta, ya CERRADO: P-express-07 se aplicó a
+ * `unit-format.ts` (ventana de integración, 2026-09-04, grupo C) y las dos
+ * cifras cambiaron aquí en el mismo commit. `inestables` baja a cero — está
+ * escrito así a propósito, para que el arreglo no pueda entrar en silencio.
  */
 eq(
   formatLength(23.6, { system: "engineering", precision: 0 }),
-  `1'-12"`,
-  'hoy ingeniería no acarrea: 23.6" con LUPREC 0 sale «1\'-12"»',
+  `2'-0"`,
+  'ingeniería acarrea: 23.6" con LUPREC 0 sale «2\'-0"», no «1\'-12"»',
 );
 eq(
   formatLength(-0.4, { system: "architectural", denominator: 1 }),
-  `-0'-0"`,
-  'y el signo se decide antes de redondear: -0.4" con LUPREC 0 sale «-0\'-0"»',
+  `0'-0"`,
+  'y el signo se decide DESPUÉS de redondear: -0.4" con LUPREC 0 sale «0\'-0"»',
 );
-ok(familias.acarreo > 0, `el acarreo de ingeniería aparece ${familias.acarreo} veces`);
-ok(familias.menosCero > 0, `y el menos cero, ${familias.menosCero}`);
+eq(familias.acarreo, 0, `el acarreo de ingeniería ya no aparece (${familias.acarreo} veces)`);
+eq(familias.menosCero, 0, `ni el menos cero (${familias.menosCero})`);
 eq(
   familias.acarreo + familias.menosCero,
   inestables,
   `las ${inestables} inestabilidades se reparten entre esas dos familias y ninguna más`,
 );
+eq(inestables, 0, "la ida y vuelta de `unit-format.ts` ya no tiene ninguna inestabilidad");
 
 /* ── Las unidades del dibujo, cruzadas ────────────────────────────────────── */
 
@@ -338,7 +402,7 @@ for (const unit of UNIDADES) {
 }
 
 console.log(
-  `units-imperial.spec: ${checks} comprobaciones — 18 formas (15 rotas hoy en la entrada), ` +
+  `units-imperial.spec: ${checks} comprobaciones — 18 formas (las 15 que estaban rotas en la entrada, dentro), ` +
     `${AMBIGUAS.length} negativas razonadas, ${idasYVueltas} idas y vueltas ` +
     `(${inestables} inestables: ${familias.acarreo} de acarreo, ${familias.menosCero} de menos cero)`,
 );

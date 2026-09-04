@@ -1,6 +1,8 @@
 import type { CadEntity, CadPoint2 } from './cad-document';
 import { alignedDimension, DEFAULT_DIMENSION_STYLE, linearDimension, type DimensionStyle } from './dimension';
 import { cadDimensionToleranceOf, cadDimensionToleranceText } from './dimension-tolerance';
+import { cadLengthLabel } from './units-label';
+import { CAD_DRAWING_UNIT_TO_MM as UNIT_TO_MM } from './units-imperial';
 
 export type CadDimensionEntity = Extract<CadEntity, { type: 'dimension' }>;
 export type CadDimensionPathRole = 'dimension' | 'extension' | 'arrow';
@@ -18,8 +20,6 @@ export interface CadDimensionGeometry {
   textAngle: number;
   paths: CadDimensionPath[];
 }
-
-const UNIT_TO_MM = { mm: 1, cm: 10, m: 1_000, in: 25.4, ft: 304.8 } as const;
 
 const add = (a: CadPoint2, b: CadPoint2): CadPoint2 => ({ x: a.x + b.x, y: a.y + b.y });
 const sub = (a: CadPoint2, b: CadPoint2): CadPoint2 => ({ x: a.x - b.x, y: a.y - b.y });
@@ -90,6 +90,24 @@ export function formatCadDimensionMeasurement(entity: CadDimensionEntity, measur
   const sourceUnit = entity.sourceUnit ?? 'mm';
   const unit = entity.units ?? sourceUnit;
   const converted = (measurement * UNIT_TO_MM[sourceUnit]) / UNIT_TO_MM[unit];
+  // Una cota en PIES es una cota arquitectónica: en un plano nadie escribe
+  // «10.5000 ft», se escribe «10'-6"». Es la única unidad del enum que
+  // cambia de comportamiento, y cambia porque su nombre ya lo pedía; `in`
+  // sigue en decimal, que es lo que un plano mecánico quiere leer.
+  //
+  // La tolerancia se queda en el camino decimal a propósito: «10'-6" ± 1/8"»
+  // no es una forma que ISO 129-1 ni la práctica americana usen sobre una
+  // cota arquitectónica, y hornear una aquí sería inventarse una norma.
+  if (unit === 'ft' && !tolerance) {
+    const label = cadLengthLabel(measurement, {
+      drawingUnit: sourceUnit,
+      // `precision` de la cota es el exponente del denominador, igual que
+      // LUPREC: 4 → 1/16, que es la precisión con la que se dibuja en pies.
+      lunits: 4,
+      luprec: precision,
+    });
+    return `${entity.prefix ?? ''}${label}${entity.suffix ?? ''}`;
+  }
   const body = tolerance ? cadDimensionToleranceText(converted, precision, tolerance, 1 / UNIT_TO_MM[unit]) : converted.toFixed(precision);
   let label = `${entity.prefix ?? ''}${body} ${unit}${entity.suffix ?? ''}`;
   if (entity.alternateUnits) {

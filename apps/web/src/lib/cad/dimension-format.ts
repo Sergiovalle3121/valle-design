@@ -8,10 +8,15 @@
  *
  * Correr tests:  npx tsx src/lib/cad/dimension-format.spec.ts
  */
+import { CAD_DRAWING_UNIT_TO_MM } from './units-imperial';
 
 export type LengthUnit = 'mm' | 'cm' | 'm';
 
-const TO_MM: Record<LengthUnit, number> = { mm: 1, cm: 10, m: 1000 };
+// Regla 4 de cimientos: ninguna cifra vive en dos lugares. La tabla canónica de
+// unidades de dibujo es la de `units-imperial.ts`; `LengthUnit` es un
+// subconjunto de `CadDrawingUnit`, así que el tipo cuadra sin tocar la firma
+// pública de `convertLength`.
+const TO_MM = CAD_DRAWING_UNIT_TO_MM;
 
 /** Convierte una longitud entre unidades. */
 export function convertLength(value: number, from: LengthUnit, to: LengthUnit): number {

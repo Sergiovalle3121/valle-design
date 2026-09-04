@@ -9,6 +9,7 @@ import {
 import { CAD_DOCUMENT_SCHEMA, type CadDocument, type CadEntity } from "../cad-document";
 import { createCadVariableAccess } from "../system-variables";
 import { parseCadLengthInDrawingUnits, parseImperialLength } from "../units-imperial";
+import { parseCoordinate } from "../precision-input";
 import { cadLengthLabel, cadLengthLabelFromVariables } from "../units-label";
 import { dist } from "./oracle";
 
@@ -86,8 +87,10 @@ function document(entities: CadEntity[]): CadDocument {
 
 /**
  * La etapa que no existía. Medido el 2026-09-04: `parseCoordinate` de
- * `precision-input.ts` devuelve `{ok:false}` para las quince formas imperiales
- * de `units-imperial.spec.ts`, porque analiza con `Number(s)`.
+ * `precision-input.ts` devolvía `{ok:false}` para las quince formas imperiales
+ * de `units-imperial.spec.ts`, porque analizaba con `Number(s)`. P-express-10
+ * lo enchufó a la gramática (ventana de integración, grupo C), así que el muro
+ * se teclea de verdad y no sólo se analiza en un módulo aparte.
  */
 const entrada = parseCadLengthInDrawingUnits(TECLEADO, { drawingUnit: "mm" });
 ok(entrada.ok, `«${TECLEADO}» se teclea y se lee`);
@@ -101,6 +104,20 @@ ok(
   `y en un dibujo en milímetros se guardan como 3200.4 (obtenido ${entrada.value})`,
 );
 ok(entrada.explicit, "la medida traía marca de pie y de pulgada: no hubo que adivinar nada");
+
+// Y por el TECLADO de verdad, con la unidad del dibujo declarada: es el camino
+// que el dibujante recorre, no el módulo suelto.
+{
+  const porElTeclado = parseCoordinate(TECLEADO, {
+    last: { x: 0, y: 0 },
+    lockedAngleDeg: 0,
+    drawingUnit: "mm",
+  });
+  ok(
+    porElTeclado.ok && near(porElTeclado.point.x, WALL_MM, 1e-9),
+    `«${TECLEADO}» tecleado en la línea de órdenes da ${WALL_MM} (obtenido ${porElTeclado.ok ? porElTeclado.point.x : porElTeclado.error})`,
+  );
+}
 
 // Y lo ambiguo no entra: un número equivocado en un plano cuesta más que un
 // rechazo, porque nadie lo ve hasta que el muro está levantado.
@@ -223,28 +240,38 @@ let escalaElegida = 0;
   );
 }
 
-/* ── LA FRONTERA, MEDIDA Y DICHA ──────────────────────────────────────────── */
+/* ── REPRESENTACIÓN 5: EL FICHERO Y LA COTA ───────────────────────────────── */
 
 /**
- * Lo que ESTA verificación NO puede cerrar todavía, porque vive fuera del
- * territorio del frente. Se mide y se imprime; no se asevera ni en un sentido
- * ni en el otro, para que la spec siga siendo cierta cuando las peticiones se
- * apliquen.
+ * Los dos tramos que vivían fuera del territorio del frente y que la ventana de
+ * integración cerró el 2026-09-04 (grupo C):
  *
- *  · El DXF no escribe `$LUNITS` ni `$LUPREC` (P-express-09): el ajuste
- *    arquitectónico del dibujo no viaja con el fichero. Si algún día los
- *    escribe, tienen que decir 4 y 4 — y eso sí se comprueba.
- *  · La cota rotula en decimal aunque su unidad sea la pulgada (P-express-08):
- *    dice «126.0000 in» donde el plano lleva «10'-6"».
+ *  · P-express-09: el DXF escribe `$LUNITS` y `$LUPREC` cuando quien exporta se
+ *    los pasa. Quien tiene las variables vivas es la sesión, así que es DXFOUT
+ *    quien los compone; aquí se hace lo mismo, con las mismas 4 y 4 del caso.
+ *  · P-express-08: una cota en PIES rotula en pies y pulgadas. `in` sigue en
+ *    decimal a propósito —es lo que un plano mecánico quiere leer—, así que la
+ *    cota de un plano arquitectónico declara `units: 'ft'`, que es lo que es.
  */
-const exportado = exportCadDocumentDxf(document([wall]));
+const exportado = exportCadDocumentDxf(document([wall]), undefined, {
+  lengthUnits: { lunits: 4, luprec: 4 },
+});
 const lunitsViaja = /\$LUNITS/u.test(exportado.content);
-if (lunitsViaja) {
-  ok(
-    /\$LUNITS\n\s*70\n\s*4/u.test(exportado.content),
-    "si el DXF escribe $LUNITS, tiene que decir 4 (arquitectónico)",
-  );
-}
+ok(lunitsViaja, "el DXF escribe $LUNITS: el ajuste del dibujo viaja con el fichero");
+ok(
+  /\$LUNITS\n\s*70\n\s*4/u.test(exportado.content),
+  "y dice 4 (arquitectónico), que es como se dejó el dibujo",
+);
+ok(
+  /\$LUPREC\n\s*70\n\s*4/u.test(exportado.content),
+  "y $LUPREC dice 4 (1/16 de pulgada), que es la precisión con la que se dibujó",
+);
+// Sin ese ajuste el fichero no se inventa ninguno: la ausencia se declara
+// callando, no escribiendo un decimal que nadie eligió.
+ok(
+  !/\$LUNITS/u.test(exportCadDocumentDxf(document([wall])).content),
+  "y un dibujo que no declara su formato de longitud no lo escribe: no se inventa un decimal",
+);
 
 const cota = buildCadDimensionGeometry({
   id: "cota",
@@ -254,7 +281,7 @@ const cota = buildCadDimensionGeometry({
   a: { x: 0, y: 0 },
   b: { x: WALL_MM, y: 0 },
   sourceUnit: "mm",
-  units: "in",
+  units: "ft",
   precision: 4,
 } as CadDimensionEntity)!;
 ok(
@@ -270,11 +297,34 @@ ok(
   cotaQueTocaria === TECLEADO,
   `y el rótulo que le tocaría llevar ya existe: «${cotaQueTocaria}»`,
 );
+ok(
+  cota.label === TECLEADO,
+  `y es el que LLEVA: la cota dice «${cota.label}» (esperado «${TECLEADO}»)`,
+);
+// La pulgada NO cambia de comportamiento, y eso también se mide: un plano
+// mecánico acotado en pulgadas sigue leyendo su decimal.
+{
+  const mecanica = buildCadDimensionGeometry({
+    id: "cota-in",
+    type: "dimension",
+    layer: "COTAS",
+    dimensionKind: "aligned",
+    a: { x: 0, y: 0 },
+    b: { x: WALL_MM, y: 0 },
+    sourceUnit: "mm",
+    units: "in",
+    precision: 4,
+  } as CadDimensionEntity)!;
+  ok(
+    mecanica.label === "126.0000 in",
+    `y una cota en pulgadas sigue en decimal: «${mecanica.label}»`,
+  );
+}
 
 console.log(
   `verificación 1.5-bis (unidades imperiales): ${checks} comprobaciones — ` +
     `«${TECLEADO}» tecleado = ${WALL_MM} mm de dibujo = «${TECLEADO}» rotulado = ` +
-    `${WALL_ON_PAPER_MM} mm de papel a 1:${PLOT_SCALE}\n` +
-    `  todavía no: $LUNITS en el DXF ${lunitsViaja ? "SÍ viaja" : "NO viaja"} (P-express-09) · ` +
-    `la cota dice «${cota.label}» donde el plano lleva «${cotaQueTocaria}» (P-express-08)`,
+    `${WALL_ON_PAPER_MM} mm de papel a 1:${PLOT_SCALE} = «${cota.label}» acotado\n` +
+    `  $LUNITS en el DXF ${lunitsViaja ? "SÍ viaja" : "NO viaja"} (P-express-09) · ` +
+    `la cota en pies dice «${cota.label}» (P-express-08)`,
 );

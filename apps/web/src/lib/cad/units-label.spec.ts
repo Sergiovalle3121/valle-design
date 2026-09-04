@@ -134,15 +134,17 @@ eq(
   "y un sufijo literal gana sobre el nombre de la unidad",
 );
 
-/* ── LOS DOS DEFECTOS QUE ESTE MÓDULO CIERRA ──────────────────────────────── */
+/* ── LOS DOS DEFECTOS QUE ESTE MÓDULO CERRÓ PRIMERO ───────────────────────── */
 
 /**
- * El acarreo de ingeniería. `unit-format.ts` parte en pies antes de redondear y
- * emite `1'-12"`; aquí se redondea primero. Los dos números están medidos, uno
- * al lado del otro, para que la diferencia no sea una afirmación sino una
- * comparación.
+ * El acarreo de ingeniería. `unit-format.ts` partía en pies antes de redondear
+ * y emitía `1'-12"`; aquí siempre se redondeó primero. P-express-07 llevó el
+ * acarreo también al otro módulo (ventana de integración, 2026-09-04), así que
+ * los dos números se miden hoy uno al lado del otro para comprobar que
+ * COINCIDEN: la comparación se queda porque es la que detecta la regresión si
+ * alguno de los dos vuelve a partir antes de redondear.
  */
-eq(formatLength(23.6, { system: "engineering", precision: 0 }), `1'-12"`, "unit-format: 23.6\" → «1'-12\"»");
+eq(formatLength(23.6, { system: "engineering", precision: 0 }), `2'-0"`, "unit-format: 23.6\" → «2'-0\"»");
 eq(
   cadLengthLabel(23.6, { drawingUnit: "in", lunits: 3, luprec: 0 }),
   `2'-0"`,
@@ -157,9 +159,9 @@ eq(
 /**
  * El menos cero. Una medida que redondea a cero no lleva signo: `-0'-0"` es un
  * artefacto de decidir el signo antes de redondear, y además rompe la ida y
- * vuelta.
+ * vuelta. También cerrado en `unit-format.ts` por P-express-07.
  */
-eq(formatLength(-0.4, { system: "architectural", denominator: 1 }), `-0'-0"`, "unit-format: -0.4\" → «-0'-0\"»");
+eq(formatLength(-0.4, { system: "architectural", denominator: 1 }), `0'-0"`, "unit-format: -0.4\" → «0'-0\"»");
 eq(
   cadLengthLabel(-0.4, { drawingUnit: "in", lunits: 4, luprec: 0 }),
   `0'-0"`,

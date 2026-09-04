@@ -509,7 +509,19 @@ petición todavía es un hueco reservado, no un descuido.
   `formatLength(23.6, …)` pasa de `1'-12"` a `2'-0"`, `formatLength(-0.4, …)` pasa de `-0'-0"`
   a `0'-0"`, y los dos `ok(familias.* > 0)` pasan a `eq(familias.*, 0)` con `inestables` en 0.
   Están escritas así a propósito: el arreglo no puede entrar en silencio.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04, ventana de integración, grupo C). Los dos parches entraron
+  tal cual y las dos aserciones de `units-imperial.spec.ts` cambiaron en el mismo commit:
+  `formatLength(23.6, engineering, 0)` pasa de `1'-12"` a `2'-0"`, `formatLength(-0.4,
+  architectural, denom 1)` pasa de `-0'-0"` a `0'-0"`, y las 324 idas y vueltas salen con
+  **cero inestables** (`familias.acarreo` 0, `familias.menosCero` 0, con un `eq(inestables, 0)`
+  añadido para que la cifra quede aseverada y no sólo impresa). Con un desvío que la petición
+  no previó: `units-label.spec.ts` también aseveraba el valor ROTO de `unit-format.ts` —lo
+  medía al lado del suyo para enseñar la diferencia— y se puso rojo al aplicar el parche. Sus
+  dos aserciones se actualizaron en el mismo commit y la comparación se queda escrita: ahora
+  comprueba que los dos módulos COINCIDEN, que es lo que detecta la regresión si alguno vuelve
+  a partir en pies antes de redondear. El menos cero del camino DECIMAL de `unit-format.ts`
+  (`formatLength(-0.004, decimal, 2)` sigue dando `-0.00`) NO se tocó: la petición no lo pide
+  —su rama `decimal` no pasa por el signo— y `units-label.ts` ya lo cubre por su cuenta.
 
 ### P-express-08 · La cota rotula en pies y pulgadas (sitio 2 de 3)
 
@@ -578,7 +590,17 @@ petición todavía es un hueco reservado, no un descuido.
   `npx tsx src/lib/cad/associative-dimension.spec.ts`,
   `npx tsx src/lib/cad/dimension-format.spec.ts` y
   `npx tsx src/lib/cad/dimension-tolerance.spec.ts` cierran lo que ya existía.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04, ventana de integración, grupo C). El tramo de
+  `formatCadDimensionMeasurement` entró tal cual, con su import de `cadLengthLabel`, y la
+  limpieza de la regla 4 fue en el mismo commit: `UNIT_TO_MM` de `associative-dimension.ts` y
+  `TO_MM` de `dimension-format.ts` son ahora la misma tabla, `CAD_DRAWING_UNIT_TO_MM`. Con un
+  desvío que el árbol de hoy obligó a arreglar: la cota de `verification/units-imperial.spec.ts`
+  declaraba `units: 'in'`, y el cambio —por decisión escrita de la propia petición— sólo toca
+  `'ft'`. Con `'in'` el rótulo seguía siendo `126.0000 in` y el último renglón habría seguido
+  diciendo lo mismo que antes. La cota del caso pasa a `units: 'ft'`, que es lo que una cota
+  arquitectónica es, y el renglón dice `10'-6"`. Se añadió al lado la medida de que la pulgada
+  NO cambia de comportamiento (`126.0000 in`), porque una decisión deliberada sin comprobación
+  es una decisión que el próximo cambio borra sin enterarse.
 
 ### P-express-09 · `$LUNITS` y `$LUPREC` viajan en el DXF (sitio 3 de 3)
 
@@ -633,7 +655,20 @@ petición todavía es un hueco reservado, no un descuido.
   el caso arquitectónico, y su último renglón deja de imprimir «NO viaja».
   `npm run check:dxf-corpus` y `npx tsx src/lib/cad/dxf-export.spec.ts` cierran que la
   cabecera sigue siendo legible.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04, ventana de integración, grupo C). Los pasos 1 y 2 entraron
+  tal cual en `dxf-export.ts`. El paso 3 dice que en `dxf-document-export.ts` no hay nada que
+  tocar —`exportCadDocumentDxf` ya reenvía `options ?? {}`— y así quedó: cero líneas cambiadas
+  ahí. Pero eso dejaba `lengthUnits` sin un solo llamador del producto, que es exactamente lo
+  que la regla 1 de cimientos prohíbe («ningún módulo cuenta por existir»), así que se cableó
+  quien la propia petición nombra como compositor: `DXFOUT`. `planCadDxfExport`
+  (`engine/commands/interop-dxf.ts`, archivo no listado en la petición) gana un tercer
+  parámetro `options` y la orden compone
+  `{ lengthUnits: { lunits: Number(variables.get("LUNITS") ?? 2), luprec: Number(variables.get("LUPREC") ?? 4) } }`
+  desde las variables vivas, tal y como la petición lo escribe. Se descartó la alternativa
+  `meta?.lengthUnits`: replicar el precedente de `linetypeScale` de punta a punta exige tocar
+  `Layout3DEditor.tsx`, que está en su techo y donde `check:cad` sólo deja encoger. La
+  verificación aseveró las tres cosas: `$LUNITS` 4, `$LUPREC` 4, y que un dibujo que no declara
+  formato **no** escribe los pares en vez de inventarse un decimal.
 
 ### P-express-10 · La ENTRADA acepta pies y pulgadas (sitio 1 de 3, el que más pesa)
 
@@ -807,7 +842,20 @@ petición todavía es un hueco reservado, no un descuido.
   `npx tsx src/lib/cad/engine/command-engine.spec.ts`,
   `npx tsx src/lib/cad/verification/units-imperial.spec.ts` y
   `npm run check:command-integrity`.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04, ventana de integración, grupo C). Las tres capas entraron
+  tal cual, con el ángulo fuera del analizador de longitudes (`angleNum`) y el import de
+  `cadTextLooksImperial` consumido de verdad: cuando el texto parecía una medida imperial y no
+  se pudo leer, `parseCoordinate` propaga el motivo de la gramática en vez de decir «No se pudo
+  interpretar la entrada». `NUMBER` se quedó sin consumidores y se borró. La tabla de
+  `units-imperial.spec.ts` perdió los quince `roto: true` y la medida contra `parseCoordinate`
+  se quedó escrita, ahora con el NÚMERO además del veredicto: las dieciocho formas entran y las
+  dieciocho dan su valor, más `@1'-0",0` (la sexta forma de la bitácora) y `30<45`, que sigue
+  siendo treinta unidades a cuarenta y cinco grados. **El cambio de comportamiento anunciado se
+  midió antes de darlo por bueno y quedó aseverado**: `parseCoordinate("1 2")` devuelve error en
+  vez de 12; `@ 10 , 20` se sigue leyendo (los espacios de los separadores se siguen quitando);
+  `precision-input.spec.ts` sigue en 26/26 sin tocar una línea, `command-engine.spec.ts` verde y
+  `check:command-integrity` en 290 comandos con 0 éxitos falsos. La entrada MÉTRICA no se movió:
+  la suite entera sigue en 590/590 y `units-and-scale.spec.ts` conserva su golden «3.50 m».
 
 ### P-express-11 · El sustrato de PDF entra en la escena de referencias a objeto
 

@@ -68,8 +68,19 @@ function formatFraction(whole: number, num: number, den: number): string {
 export function formatLength(value: number, options: UnitFormatOptions): string {
   const precision = options.precision ?? 2;
   const denom = options.denominator ?? 16;
-  const sign = value < 0 ? "-" : "";
   const abs = Math.abs(value);
+  // Un valor que REDONDEA a cero no lleva signo: `-0'-0"` no es una
+  // longitud, es el orden de las operaciones asomando. El paso depende del
+  // sistema —el denominador en los fraccionarios, la potencia de diez en
+  // los decimales— y sólo se aplica cuando el número cabe sin perder
+  // dígitos al escalarlo.
+  const step =
+    options.system === "architectural" || options.system === "fractional"
+      ? denom
+      : 10 ** precision;
+  const scaled = abs * step;
+  const roundsToZero = scaled < Number.MAX_SAFE_INTEGER && Math.round(scaled) === 0;
+  const sign = value < 0 && !roundsToZero ? "-" : "";
 
   switch (options.system) {
     case "decimal":
@@ -93,8 +104,14 @@ export function formatLength(value: number, options: UnitFormatOptions): string 
       return `${sign}${feet}'-${inchPart}"`;
     }
     case "engineering": {
-      const feet = Math.floor(abs / 12);
-      const remInches = abs - feet * 12;
+      // El acarreo se hace ANTES de partir en pies. Partir primero y
+      // redondear después emite `1'-12"` para 23.6" con precisión 0: doce
+      // pulgadas en el campo de las pulgadas, que además se relee como 24 y
+      // se reescribe `2'-0"` (medido, F4 2026-09-04).
+      const rounded = Number(abs.toFixed(precision));
+      if (rounded === 0) return `0'-${(0).toFixed(precision)}"`;
+      const feet = Math.floor(rounded / 12 + 1e-9);
+      const remInches = Math.max(0, rounded - feet * 12);
       return `${sign}${feet}'-${remInches.toFixed(precision)}"`;
     }
   }

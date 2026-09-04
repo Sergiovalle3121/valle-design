@@ -31,6 +31,7 @@ import {
   cadActiveUcsIsTilted,
   type CadSystemVariableValue,
 } from "../system-variables";
+import { cadDrawingUnitFromInsunits } from "../units-imperial";
 import type { CadViewRequest } from "../view/view-navigation";
 import type { CadHostRequest } from "./host-requests";
 import {
@@ -281,7 +282,18 @@ export function cadCommandEngineReduce(
       // veinte SOBRE EL PLANO DE TRABAJO, no sobre el suelo. Sin esto el SCU
       // decidía cómo se leía un punto pero no cómo se escribía, que es media
       // función y la mitad que menos se usa.
-      ...(context.variables ? { ucs: cadActiveUcs(context.variables) } : {}),
+      ...(context.variables
+        ? {
+            ucs: cadActiveUcs(context.variables),
+            // La unidad del documento y el ajuste de UNITS llegan hasta el
+            // teclado: `10'-6"` se guarda como 3200.4 en un dibujo en milímetros,
+            // y con LUNITS arquitectónico un `6` desnudo son seis pulgadas.
+            ...(cadDrawingUnitFromInsunits(Number(context.variables.get("INSUNITS") ?? 4))
+              ? { drawingUnit: cadDrawingUnitFromInsunits(Number(context.variables.get("INSUNITS") ?? 4))! }
+              : {}),
+            ...([3, 4].includes(Number(context.variables.get("LUNITS") ?? 2)) ? { assumeInches: true } : {}),
+          }
+        : {}),
     };
     const resolved = resolveCadToken(action.value, tokenContext);
     if (resolved.kind === "error")
