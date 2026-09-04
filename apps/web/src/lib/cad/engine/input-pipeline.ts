@@ -28,6 +28,7 @@
  */
 import { parseCoordinate, type Point } from "../precision-input";
 import {
+  cadTextLooksImperial,
   parseCadLengthInDrawingUnits,
   type CadDrawingUnit,
 } from "../units-imperial";
@@ -179,9 +180,16 @@ export function resolveCadToken(raw: string, context: CadTokenContext): CadResol
   // La distancia se lee con el analizador de longitudes, no con `Number`:
   // `3000` y `10'-6"` son las dos formas de teclear la misma distancia, y
   // la segunda es la única que un despacho americano usa.
+  // Un número DESNUDO son unidades de dibujo, siempre: `assumeInches` sólo
+  // viaja cuando el texto lleva marcas imperiales, donde ya sobra. Sin la
+  // guarda, `LUNITS` 3 o 4 convertía cada distancia tecleada —`42` valía
+  // 1066.8 en un dibujo en milímetros— y el golden 46 lo cazó. El motivo
+  // largo está en `precision-input.ts`, junto a la misma guarda.
   const typedLength = parseCadLengthInDrawingUnits(token, {
     drawingUnit: context.drawingUnit ?? "in",
-    ...(context.assumeInches === undefined ? {} : { assumeInches: context.assumeInches }),
+    ...(context.assumeInches !== undefined && cadTextLooksImperial(token)
+      ? { assumeInches: context.assumeInches }
+      : {}),
   });
   if (typedLength.ok) {
     const value = typedLength.value;

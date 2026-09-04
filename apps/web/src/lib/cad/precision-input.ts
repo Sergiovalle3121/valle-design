@@ -68,13 +68,27 @@ function normalizeCoordinateInput(raw: string): string {
   return raw.trim().replace(/\s+/gu, " ").replace(/\s*([,<@*])\s*/gu, "$1");
 }
 
-/** Una LONGITUD tecleada, en unidades de dibujo. Acepta pies y pulgadas. */
+/**
+ * Una LONGITUD tecleada, en unidades de dibujo. Acepta pies y pulgadas.
+ *
+ * UN NÚMERO DESNUDO SON UNIDADES DE DIBUJO, SIEMPRE. `assumeInches` sólo se
+ * reenvía cuando el texto LLEVA marcas imperiales, donde además es
+ * irrelevante porque las marcas ya dicen la unidad. Sin esa guarda, encender
+ * `LUNITS` 3 o 4 reinterpretaba toda coordenada tecleada: en un dibujo en
+ * milímetros, `42` pasaba a valer 1066.8 —medido— y el punto se iba a otro
+ * sitio. Lo cazó el golden 46, que mide 0,0 → 42,0 con unidades
+ * arquitectónicas y espera `3'-6"`; ese golden es anterior a esta campaña y
+ * codifica el contrato: cambiar el FORMATO en que se escribe una medida no
+ * cambia lo que significa un número al teclearlo.
+ */
 function num(s: string, ctx: ParseContext = {}): number | null {
   const parsed = parseCadLengthInDrawingUnits(s, {
     // Sin unidad declarada, una unidad de dibujo es una pulgada: es la
     // suposición de AutoCAD y deja `6"` valiendo 6, no 152.4.
     drawingUnit: ctx.drawingUnit ?? "in",
-    ...(ctx.assumeInches === undefined ? {} : { assumeInches: ctx.assumeInches }),
+    ...(ctx.assumeInches !== undefined && cadTextLooksImperial(s)
+      ? { assumeInches: ctx.assumeInches }
+      : {}),
   });
   return parsed.ok ? parsed.value : null;
 }
