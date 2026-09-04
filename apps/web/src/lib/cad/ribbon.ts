@@ -180,7 +180,7 @@ const CAD_PANEL_NAME_PATTERNS: readonly [RegExp, string][] = [
   [/^(DXFOUT|EXPORT|EXPORTPDF|EXPORTLAYOUT|FLATSHOT|SOLPROF|SOLVIEW|SOLDRAW)$/, "Exportar"],
   [/^(-?UNITS|DDPTYPE|-?OSNAP|-?DSETTINGS|SETVAR|GETVAR|OPTIONS)$/, "Variables"],
   [/^(MEXSTANDARD|NORMAMX|CHECKSTANDARDS|LAYTRANS|AUDIT|RECOVER|PURGE|RENAME)$/, "Normas y reparación"],
-  [/^(-?SCRIPT|RSCRIPT|LISP|APPLOAD|VLIDE|VBA)$/, "AutoLISP y scripts"],
+  [/^(-?SCRIPT|RSCRIPT|LISP|APPLOAD|VLIDE|VBA|ACTRECORD|ACTSTOP|ACTMANAGER)$/, "AutoLISP y scripts"],
 ];
 
 /** Panel de reposo por pestaña: donde cae un comando que ningún patrón reclama. */

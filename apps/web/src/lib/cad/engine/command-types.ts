@@ -412,6 +412,13 @@ export type CadUiTarget =
    */
   | "block-editor"
   | "script-file"
+  /**
+   * El GRABADOR DE ACCIONES. `params.action` dice qué se pide —`start`, `stop`,
+   * `list` o `play`— y `params.name` el nombre del macro. Lo atiende el propio
+   * anfitrión del motor y no un panel de React, porque grabar es quedarse con
+   * la sucesión de acciones y ese hilo sólo pasa por ahí.
+   */
+  | "action-recorder"
   | "linetype-file"
   /**
    * Selector de archivo de `STYLESMANAGER`: el `.ctb` o `.stb` del despacho, el
@@ -451,6 +458,18 @@ export interface CadUiRequest {
    * todavía en su espacio de trabajo; si no, la orden se traga en silencio.
    */
   unavailable: string;
+  /**
+   * `true` cuando el ANFITRIÓN contesta esta petición sin abrir nada ni pedirle
+   * nada al usuario.
+   *
+   * Existe por un defecto concreto: `cadCommandsNeedingInterface` marca «abre un
+   * cuadro» a toda orden cuyo primer paso devuelve `ui`, y el ejecutor de `.scr`
+   * se para ante ellas. Con el grabador de acciones eso sería FALSO —ACTSTOP lo
+   * atiende el propio anfitrión de la línea de órdenes, sin interfaz—, y el
+   * módulo del ejecutor ya dice por qué un aviso falso es peor que ninguno: se
+   * aprende a ignorarlo, y el día que uno sea verdad también se ignora.
+   */
+  scriptable?: boolean;
 }
 
 export type CadCommandResult =

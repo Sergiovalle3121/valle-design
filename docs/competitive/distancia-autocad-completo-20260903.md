@@ -1132,3 +1132,65 @@ runtime .NET ni VBA en un navegador y fingirlo con un comando que abre un aviso
 sería exactamente la clase de puerta falsa que esta campaña rechaza. El camino
 de extensión de este producto es AutoLISP más plugins JS con manifiesto
 versionado, y está documentado.
+
+## Nota fechada — Ola 8 (2026-09-04): grabar una vez, repetir veinte
+
+Medido antes de tocar nada: la familia de grabación de AutoCAD —ACTRECORD,
+ACTSTOP, ACTMANAGER, ACTUSERINPUT, ACTUSERMESSAGE— estaba en **0 de 5**.
+
+### Por qué este motor puede hacerlo mejor que nadie
+
+Aquí una orden es una máquina de estados que se alimenta de TOKENS, y un `.scr`
+es exactamente una lista de tokens. Así que grabar no es interceptar la
+interfaz: es quedarse con lo que ya pasa por la línea de órdenes. Y repetir es
+meterlo por la misma puerta —`runCadScript` sobre el mismo anfitrión—, de modo
+que **un macro repetido y un guión ejecutado recorren el mismo camino**: no hay
+dos intérpretes que puedan divergir.
+
+El resultado de grabar es un `.scr` **legible, editable y ejecutable con
+SCRIPT**, con su cabecera. No un formato opaco que sólo entienda el grabador. Se
+imprime entero en el diálogo a propósito: verlo es lo que permite copiarlo a un
+archivo y llevarlo a otro proyecto.
+
+### Las cuatro decisiones que hacen que un macro sirva
+
+1. **Los puntos se graban TECLEADOS, no como clics.** Un clic vale para el
+   dibujo donde se hizo y para ningún otro; `0,0` vale siempre. Una designación
+   con el ratón se guarda también como su coordenada: al repetir, designará lo
+   que haya en ese punto, que es lo que un `.scr` puede decir.
+2. **Una orden CANCELADA no se graba.** Nadie quiere repetir veinte veces un
+   intento que no llegó a nada; y peor, un cancelado a mitad de macro deja el
+   resto de los tokens contestando a la orden equivocada.
+3. **El grabador no se graba a sí mismo**, ni grabando ni repitiendo. Un macro
+   que se graba mientras se repite se duplica solo.
+4. **Un token con el motor LIBRE abre una orden; con una orden en curso,
+   contesta a su prompt.** De esa distinción depende dónde empieza cada orden en
+   el macro, y por eso el grabador vive en el anfitrión —el único que ve la
+   sucesión— y no en el motor, que es un reductor puro.
+
+### Un defecto que la propia campaña cazó: el aviso falso
+
+`cadCommandsNeedingInterface` marca «abre un cuadro y un guión no puede
+pulsarlo» a toda orden cuyo primer paso pide interfaz, y `ACTSTOP` la pide —la
+atiende el anfitrión, sin cuadro ninguno—. La spec del ejecutor lo detectó al
+instante. La salida fácil era apuntar ACTSTOP en la tabla de comandos con
+cuadro; habría sido **un aviso falso**, y el propio módulo dice por qué eso es
+peor que ninguno: se aprende a ignorarlo, y el día que uno sea verdad también se
+ignora. Se añadió en su lugar `scriptable` a la petición de interfaz, que
+distingue «el anfitrión contesta» de «hay que pulsar algo».
+
+### La rúbrica NO se mueve, y es correcto
+
+La fila de automatización mide 6/8 y lo que le falta es el puente .NET/VBA, que
+en un navegador no existe. El grabador no tiene fila propia y **no se le inventa
+una**: añadir una fila para cobrarla sería inflar el denominador, que es lo que
+`rubric.spec.mjs` existe para impedir. La superficie medida pasa de **4/36 a
+7/36**; el valor está ahí, no en la nota.
+
+### Lo que esta rebanada NO cerró
+
+- **ACTUSERINPUT y ACTUSERMESSAGE**: un macro de este grabador repite
+  exactamente lo grabado; no se para a pedir un dato ni muestra un mensaje.
+- **Los macros viven en la SESIÓN.** Para guardarlos hay que copiar el guión que
+  ACTSTOP imprime a un `.scr`. Persistirlos pediría un sitio nuevo en el formato
+  y es decisión del titular.
