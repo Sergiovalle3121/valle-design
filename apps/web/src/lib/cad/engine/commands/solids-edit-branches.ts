@@ -130,14 +130,16 @@ import {
   faceOuterLoop,
   halfEdgeSegment,
   loopPoints,
-  mergeCoplanarFaces,
   meshVolume,
-  shellBody,
   tessellateBody,
   type BrepBody,
-  type CoplanarMergeReport,
   type Vec3,
 } from "../../../brep";
+// Desde su módulo y no desde el barril: reexportarlos metía sus 1160 líneas en
+// el chunk de `/plantillas`, que sólo enseña miniaturas, y la ruta se comía su
+// presupuesto de bytes. El motivo entero está en `lib/brep/index.ts`.
+import { mergeCoplanarFaces, type CoplanarMergeReport } from "../../../brep/coplanar-merge";
+import { shellBody } from "../../../brep/shell";
 import { cadResolveFaceRef } from "../../pick3d/solid-face-ref";
 import { bodyToSolidNode, solid3dBody } from "../../solid3d-build";
 import type { CadCommandContext, CadCommandStep } from "../command-types";

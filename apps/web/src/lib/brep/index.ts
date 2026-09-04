@@ -174,25 +174,24 @@ export {
 
 export { BodyBuilder, buildBody, reverseBody, bodyToFaceSpecs, assignShells, type FaceSpec } from "./body-builder";
 
-export {
-  mergeCoplanarFaces,
-  canonicalPlane,
-  type CanonicalPlane,
-  type CoplanarMergeReport,
-} from "./coplanar-merge";
-
-export {
-  shellBody,
-  offsetInnerBody,
-  shellLimit,
-  maxShellThickness,
-  bodyConvexity,
-  type ShellOptions,
-  type ShellResult,
-  type ShellReport,
-  type ShellLimit,
-  type ConvexityReport,
-} from "./shell";
+// `coplanar-merge` y `shell` NO se reexportan aquí, y no es un olvido.
+//
+// Este barril lo importa `template-render.ts` por la cadena del explorador de
+// plantillas, que es una ruta PÚBLICA de marketing y no modela sólidos. Al
+// reexportar los dos módulos, sus 1160 líneas entraron en el chunk de
+// `/plantillas` y la ruta se comió su presupuesto de bytes: 358.4 KB gzip
+// contra un techo de 356.5. El techo no se sube —«sólo bajan», dice el propio
+// presupuesto—, así que lo que se corrige es la dependencia.
+//
+// Su único consumidor, `engine/commands/solids-edit-branches.ts`, los importa
+// desde su módulo:
+//
+//     import { mergeCoplanarFaces } from "../../../brep/coplanar-merge";
+//     import { shellBody, shellLimit } from "../../../brep/shell";
+//
+// Los tipos se importan igual desde ahí. Si algún día un tercer consumidor los
+// necesita, que haga lo mismo: reexportarlos vuelve a meterlos en el chunk de
+// una página que sólo enseña miniaturas.
 
 export {
   validateBody,
