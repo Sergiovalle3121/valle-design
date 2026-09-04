@@ -163,3 +163,31 @@ Sus cifras se verificaron antes de aceptarlas, no se releyeron: `pipe-solid.spec
 
 Borrar eso para hacer valer la forma de la regla habría costado verdad. La regla
 sigue en pie; la excepción queda anotada aquí con su nombre.
+
+### Dos faltas del coordinador que los propios frentes destaparon
+
+**Comitear el trabajo en vuelo de un agente.** F8 lo dejó escrito en su informe:
+«no soy yo quien tecleó estos dos commits; terminé de verificar con el árbol sucio
+y, antes de commitear, otro agente de esta misma sesión commiteó mi árbol de
+trabajo íntegro». Ese otro agente era el coordinador, empujando por el gate de git.
+Pasó dos veces —con el grupo A de la ventana 1 y con F8 en la 2— y las dos veces el
+agente tuvo que verificar DESPUÉS que su contenido había sobrevivido. No se perdió
+nada, pero eso se supo por comprobación, no por diseño. La regla que faltaba:
+mientras un agente tenga el árbol, sus archivos son suyos; el coordinador comitea
+lo que verificó él, no lo que encuentra a medio escribir.
+
+**Prometer en la rúbrica algo que no existe.** P-mep-plant-03 proponía escribir que
+«el exterior real lo da el catálogo del proyecto», y el propio frente avisó en su
+petición de que ese catálogo NO existe —sigue en su cola, sin entregar—. Se aplicó
+la petición con esa mitad reescrita: el `gap` de Plant 3D dice ahora que el
+diámetro EXTERIOR sigue sin salir, que el catálogo que lo daría no existe todavía,
+y que la holgura de choque es OPTIMISTA porque el tubo se modela macizo. Un frente
+avisando de su propia frase de más es exactamente lo que estas peticiones debían
+producir.
+
+### Lo que la ventana 2 dejó en manos del titular, no del coordinador
+
+- **IFC** (P-architecture-02): la petición no pide código, pide una decisión sobre
+  alcance. Se deja sin aplicar y sin insinuar.
+- **PIDCLASH, PIDSOLID y MEPRISER en la cinta** (P-mep-plant-02): la propia petición
+  lo condiciona a «si el titular quiere órdenes propias». No se inventa la respuesta.
