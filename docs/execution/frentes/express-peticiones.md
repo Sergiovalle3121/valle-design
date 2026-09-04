@@ -760,7 +760,7 @@ petición todavía es un hueco reservado, no un descuido.
   línea ~6505)
 - **Por qué:** cola 4, la mitad que faltaba para poder decir «con snap». La geometría enganchable
   del sustrato ya está construida y probada
-  (`apps/web/src/lib/cad/pdf/pdf-snap-geometry.ts`, 86 comprobaciones con anclas absolutas), y
+  (`apps/web/src/lib/cad/pdf/pdf-snap-geometry.ts`, 91 comprobaciones con anclas absolutas), y
   devuelve exactamente `Segment[]` y `Point[]` en coordenadas del dibujo, que es lo que
   `snap-engine.ts` consume. Lo único que falta es volcarla en la escena que el editor arma en
   cada `pointermove`. Ese archivo está fuera del territorio del frente. Hasta que se aplique,
