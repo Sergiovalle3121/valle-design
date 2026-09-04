@@ -67,9 +67,19 @@ import { bodyBounds } from "../../brep";
 import { wallOpeningFit, wallOpeningVerticalFit } from "../wall-openings";
 import {
   CAD_PL_JOIN_TOLERANCE,
+  cadPipeNominalMillimetres,
   cadPipeRoutesOf,
   type CadPipeRoute,
 } from "./pipe-route";
+import { CAD_PL_SOLID_OF } from "./pipe-solid";
+
+/**
+ * El diámetro nominal vive en `pipe-route.ts` —es propiedad de la ruta, no de
+ * este análisis— y se reexporta aquí porque nació en este módulo y sus
+ * consumidores lo importan por este nombre. Mover la definición sin dejar la
+ * reexportación habría roto llamadas ajenas por una cuestión de orden interno.
+ */
+export { cadPipeNominalMillimetres } from "./pipe-route";
 
 /**
  * Holgura exigida por defecto, en MILÍMETROS.
@@ -91,32 +101,6 @@ export const CAD_PL_CLASH_LIMITS =
 export function cadPipeClashClearance(unit = "mm"): number {
   const mm = cadUnitToMillimetres(unit);
   return mm > 0 ? CAD_PL_CLASH_CLEARANCE_MM / mm : CAD_PL_CLASH_CLEARANCE_MM;
-}
-
-/**
- * Diámetro NOMINAL en milímetros a partir del tamaño rotulado.
- *
- * `6"` → 152,4. `1-1/2"` → 38,1. `3/4"` → 19,05. `null` cuando el tamaño no
- * tiene la forma de una medida en pulgadas: sin diámetro no se puede medir una
- * holgura, y suponerlo sería inventar el número que más importa.
- */
-export function cadPipeNominalMillimetres(size: string): number | null {
-  const limpio = size.trim().replace(/[″”“]/gu, '"').replace(/\s+/gu, "");
-  const mixto = /^(\d+)-(\d+)\/(\d+)"$/u.exec(limpio);
-  if (mixto) {
-    const divisor = Number(mixto[3]);
-    if (!(divisor > 0)) return null;
-    return (Number(mixto[1]) + Number(mixto[2]) / divisor) * 25.4;
-  }
-  const fraccion = /^(\d+)\/(\d+)"$/u.exec(limpio);
-  if (fraccion) {
-    const divisor = Number(fraccion[2]);
-    if (!(divisor > 0)) return null;
-    return (Number(fraccion[1]) / divisor) * 25.4;
-  }
-  const entero = /^(\d+)"$/u.exec(limpio);
-  if (entero) return Number(entero[1]) * 25.4;
-  return null;
 }
 
 // ---------------------------------------------------------------------------
@@ -463,6 +447,12 @@ export function cadPipeClashObstacles(
       continue;
     }
     if (entity.type !== "solid3d") continue;
+    // El sólido de una tubería NO es un obstáculo: es la misma tubería vista
+    // con volumen. Contarlo acusaría a cada ruta de chocar contra su propio
+    // cuerpo —y con el radio entero de calado—, y el choque entre dos tuberías
+    // ya lo mide la pasada de ruta contra ruta, que además sabe perdonar los
+    // empalmes. Ver `pipe-solid.ts`.
+    if (typeof entity.context?.metadata?.[CAD_PL_SOLID_OF] === "string") continue;
     try {
       const bounds = bodyBounds(solid3dBody(entity));
       if (!Number.isFinite(bounds.min.x) || !Number.isFinite(bounds.max.x)) {

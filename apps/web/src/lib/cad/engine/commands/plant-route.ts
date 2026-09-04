@@ -45,6 +45,20 @@
  *    (`docs/execution/frentes/mep-plant-peticiones.md`, P-mep-plant-02). El
  *    diseño de `PIDCLASH` está escrito ahí por si el titular la quiere; sin
  *    ella la capacidad entrega igual, que es la condición para no fingir.
+ *
+ * ## `Sólido`: el tubo con volumen, en el MISMO lote de deshacer
+ *
+ * Con la palabra clave `Sólido` activa, PIDROUTE escribe dos entidades: la
+ * polilínea de la ruta en `TU-RUTA` y el cuerpo FACETADO en `TU-SOLIDO`
+ * (`plant/pipe-solid.ts`). Van en un solo lote a propósito: son la misma
+ * decisión del dibujante, y un deshacer que dejara el sólido sin su eje —o al
+ * revés— sería un documento que no describe nada.
+ *
+ * Es una OPCIÓN y no el comportamiento por defecto porque un sólido persistido
+ * envejece: en cuanto alguien mueve un vértice de la ruta, el cuerpo deja de
+ * corresponder. La ruta sola nunca miente; el sólido sirve para ver y para
+ * `FLATSHOT`, y trae esa deuda encima. PIDMTO la cobra: compara la huella que
+ * el sólido guarda con la geometría de hoy y declara los que quedaron viejos.
  */
 import type { CadPoint3 } from "../../cad-document";
 import type { CadEntityCommand } from "../../entity-commands";
@@ -62,6 +76,13 @@ import {
   cadPipeRoutesOf,
 } from "../../plant/pipe-route";
 import { CAD_PL_MTO_LIMITS, cadPipeMto } from "../../plant/pipe-mto";
+import {
+  CAD_PL_SOLID_LAYER,
+  CAD_PL_SOLID_LIMITS,
+  cadPipeSolidEntity,
+  cadPipeSolidsStale,
+} from "../../plant/pipe-solid";
+import { evaluateSolidTree, validateSolidTree } from "../../solid3d-build";
 import {
   CAD_PL_CLASH_LIMITS,
   CAD_PL_CLASH_WORD,
@@ -96,6 +117,7 @@ function entitiesOf(context: CadCommandContext) {
 }
 
 const ELEVATION = { keyword: "Elevación", shortcut: "E" } as const;
+const SOLID = { keyword: "Sólido", shortcut: "S" } as const;
 
 interface RouteState {
   size: string | null;
@@ -106,6 +128,8 @@ interface RouteState {
   points: CadPoint3[];
   /** `true` mientras se espera la nueva cota tras pedir `Elevación`. */
   askingElevation: boolean;
+  /** `true` cuando la ruta va a llevar además su cuerpo facetado. */
+  solid: boolean;
 }
 
 function routeStep(state: RouteState): CadCommandStep<RouteState> {
@@ -142,16 +166,20 @@ function routeStep(state: RouteState): CadCommandStep<RouteState> {
       },
       accepts: CAD_ACCEPT_DISTANCE,
     };
+  // El estado del sólido viaja EN EL PROMPT porque es un interruptor y un
+  // interruptor que no se ve es un interruptor que se olvida: quien teclea
+  // `Sólido` dos veces tiene que poder leer en qué quedó.
+  const conSolido = state.solid ? "con sólido" : "sin sólido";
   return {
     state,
     prompt: {
       message:
         state.points.length === 0
-          ? `Precise el origen de la ruta, a la cota ${Math.round(state.elevation)}`
-          : "Precise el siguiente punto, Elevación para subir o bajar, Intro para terminar",
-      options: state.points.length === 0 ? [] : [ELEVATION],
+          ? `Precise el origen de la ruta, a la cota ${Math.round(state.elevation)} (${conSolido})`
+          : `Precise el siguiente punto (${conSolido}), Elevación para subir o bajar, Sólido para el tubo con volumen, Intro para terminar`,
+      options: state.points.length === 0 ? [SOLID] : [ELEVATION, SOLID],
     },
-    accepts: CAD_ACCEPT_POINT | (state.points.length === 0 ? 0 : CAD_ACCEPT_KEYWORD),
+    accepts: CAD_ACCEPT_POINT | CAD_ACCEPT_KEYWORD,
     ...(state.points.length > 0
       ? { preview: [{ points: state.points.map((point) => ({ x: point.x, y: point.y })) }] }
       : {}),
@@ -174,25 +202,17 @@ function finishRoute(state: RouteState, context: CadCommandContext): CadCommandS
 
   const commands: CadEntityCommand[] = [];
   const layers = context.layers?.();
-  if (
-    layers &&
+  const faltaCapa = (nombre: string) =>
+    !!layers &&
     !layers.some(
-      (layer) =>
-        layer.name.toUpperCase() === CAD_PL_ROUTE_LAYER ||
-        layer.id.toUpperCase() === CAD_PL_ROUTE_LAYER,
-    )
-  )
-    commands.push({
-      type: "layer",
-      op: "upsert",
-      layer: {
-        id: CAD_PL_ROUTE_LAYER,
-        name: CAD_PL_ROUTE_LAYER,
-        color: "#38bdf8",
-        visible: true,
-        locked: false,
-      },
-    });
+      (layer) => layer.name.toUpperCase() === nombre || layer.id.toUpperCase() === nombre,
+    );
+  const altaDeCapa = (nombre: string, color: string): CadEntityCommand => ({
+    type: "layer",
+    op: "upsert",
+    layer: { id: nombre, name: nombre, color, visible: true, locked: false },
+  });
+  if (faltaCapa(CAD_PL_ROUTE_LAYER)) commands.push(altaDeCapa(CAD_PL_ROUTE_LAYER, "#38bdf8"));
 
   // La entidad se guarda aparte de la orden porque el aviso de choque necesita
   // verla YA en el dibujo: el informe se calcula sobre el documento más la
@@ -217,6 +237,49 @@ function finishRoute(state: RouteState, context: CadCommandContext): CadCommandS
   };
   commands.push({ type: "insert", entity: nueva as never });
 
+  // El cuerpo facetado, cuando se pidió. Va DESPUÉS de la polilínea y en el
+  // mismo lote: un deshacer que dejara uno sin el otro describiría un dibujo
+  // que nunca se dibujó.
+  let dichoSolido: string | null = null;
+  if (state.solid) {
+    const { solid, reason } = cadPipeSolidEntity(
+      {
+        entityId: nueva.id,
+        line: linea,
+        size: state.size!,
+        service: state.service!,
+        number,
+        spec: state.spec!,
+        points: state.points,
+      },
+      context.newEntityId(),
+      { unit: context.unit },
+    );
+    // El mismo guardián que `finishedSolid` pone entre la operación y la
+    // escritura: un sólido roto en el documento revienta dos órdenes más
+    // tarde y para entonces nadie sabe de dónde salió. Si no se puede montar,
+    // la RUTA se escribe igual y el motivo se dice — media capacidad entregada
+    // es mejor que una orden que no hace nada.
+    let problema = reason ?? null;
+    if (solid && !problema) {
+      const estructura = validateSolidTree(solid);
+      if (estructura.length > 0) problema = estructura[0].message;
+      else
+        try {
+          evaluateSolidTree(solid);
+        } catch (error) {
+          problema = error instanceof Error ? error.message : String(error);
+        }
+    }
+    if (solid && !problema) {
+      if (faltaCapa(CAD_PL_SOLID_LAYER)) commands.push(altaDeCapa(CAD_PL_SOLID_LAYER, "#fbbf24"));
+      commands.push({ type: "insert", entity: solid as never });
+      dichoSolido = `sólido facetado en ${CAD_PL_SOLID_LAYER}`;
+    } else {
+      dichoSolido = `sin sólido: ${problema ?? "no se pudo montar el cuerpo"}`;
+    }
+  }
+
   const cotas = [...new Set(state.points.map((point) => Math.round(point.z)))].sort(
     (a, b) => a - b,
   );
@@ -226,6 +289,10 @@ function finishRoute(state: RouteState, context: CadCommandContext): CadCommandS
         ? `toda a la cota ${cotas[0]}`
         : `cotas de ${cotas[0]} a ${cotas[cotas.length - 1]}`),
   ];
+  if (dichoSolido) {
+    partes.push(dichoSolido);
+    if (dichoSolido.startsWith("sólido")) partes.push(CAD_PL_SOLID_LIMITS);
+  }
   // Contra QUÉ se acaba de chocar, dicho en el mismo aliento en que se tiende.
   const informe = cadPipeClashReport(
     { entities: [...entities, nueva as never] },
@@ -278,6 +345,7 @@ const routeCommand: CadCommandDescriptor<RouteState> = {
       elevation: null,
       points: [],
       askingElevation: false,
+      solid: false,
     }),
   step: (state, input, context) => {
     if (input.kind === "cancel") return say("PIDROUTE cancelado.");
@@ -318,7 +386,11 @@ const routeCommand: CadCommandDescriptor<RouteState> = {
       });
     }
     if (input.kind === "keyword") {
-      if (input.keyword.trim().toLowerCase().startsWith("e"))
+      const palabra = input.keyword.trim().toLowerCase();
+      // `Sólido` es un INTERRUPTOR, no una pregunta: se puede encender antes
+      // del primer punto o a mitad de la ruta, y el prompt dice en qué quedó.
+      if (palabra.startsWith("s")) return routeStep({ ...state, solid: !state.solid });
+      if (state.points.length > 0 && palabra.startsWith("e"))
         return routeStep({ ...state, askingElevation: true });
       return routeStep(state);
     }
@@ -392,6 +464,13 @@ const mtoCommand: CadCommandDescriptor<never> = {
       );
       partes.push(CAD_PL_CLASH_LIMITS);
     }
+    // La deuda de PERSISTIR el sólido en vez de derivarlo, cobrada a la vista:
+    // si la ruta se movió desde que se barrió, el cuerpo que está en el visor
+    // 3D y en los ortográficos ya no es el de esta línea.
+    const viejos = cadPipeSolidsStale({ entities });
+    if (viejos.length > 0)
+      partes.push(viejos.map((solido) => solido.detail).join("; "));
+
     if (choques.skipped.length > 0)
       partes.push(
         `sin medir: ${choques.skipped.map((salto) => `${salto.entityId} (${salto.reason})`).join("; ")}`,

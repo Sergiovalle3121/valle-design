@@ -143,6 +143,60 @@ Evidencia: `npx tsx src/lib/cad/plant/clash.spec.ts` (56 verdes) y
 `npm run typecheck` verde en los ocho paquetes; `npm run check:command-integrity` verde
 (290 comandos, 0 éxitos falsos).
 
+### T2 · El tubo como sólido FACETADO, visible en el visor 3D y en FLATSHOT (2026-09-04)
+
+`apps/web/src/lib/cad/plant/pipe-solid.ts` barre la ruta 3D y produce el cuerpo del tubo: un
+nodo `sweep` de `solid3d` —el esquema ya lo tenía, no se tocó el formato— con un perfil
+POLIGONAL de 16 lados al diámetro NOMINAL. PIDROUTE gana la palabra clave `Sólido` y emite
+la polilínea y el cuerpo en el MISMO lote de deshacer, en `TU-RUTA` y `TU-SOLIDO`.
+
+Cuatro decisiones que valen más que el código:
+
+1. **El camino se densifica a ±100 mm de cada vértice, y no es cosmético.**
+   `lib/brep/sweep.ts` coloca el perfil en el plano bisector del vértice y —lo dice su
+   propia cabecera— no lo estira por `1/cos(θ/2)`. Sin puntos intermedios ese
+   estrechamiento se INTERPOLA a lo largo de metros de tubo. Medido con
+   `solid3dMassProperties` sobre una 6" con montante de 90° (6 000 + 3 000, `π r² L` =
+   164 173 223): **143 270 359 crudo (−12,73 %)** frente a **163 638 943 densificado
+   (−0,33 %)**. `pipe-solid.spec.ts` fija las DOS cifras a propósito: quitar el densificado
+   es perder el 12 % del metrado, y nadie debería poder hacerlo sin verlo romperse.
+2. **El polígono es de ÁREA EQUIVALENTE, no inscrito.** Un 16-gono inscrito en el círculo
+   nominal tiene 2,55 % menos de sección, y ese 2,55 % viaja al volumen y a cualquier
+   metrado que salga del sólido. El circunradio es `r·√(2π/(n·sen(2π/n)))` = `1,013·r`, así
+   que la sección vale exactamente `π r²` y el tramo recto sale EXACTO. Consecuencia dicha
+   en voz alta y probada: entre caras el tubo mide 0,65 % menos que el nominal y entre
+   aristas 1,3 % más. Es una faceta, no un cilindro.
+3. **El sólido se PERSISTE, y la deuda se cobra a la vista.** `pipe-route.ts` deduce los
+   accesorios en vez de colocarlos, justamente para no mantener dos verdades. Aquí no hay
+   alternativa —el visor 3D y `FLATSHOT` leen entidades, no derivaciones—, así que el
+   cuerpo lleva una HUELLA de la geometría de la ruta (`pl:huella`, FNV-1a de las
+   coordenadas cuantizadas a milésimas, más el diámetro) y PIDMTO la compara con la ruta de
+   hoy: «el sólido de 6"-P-1001-CS150 quedó viejo», o «huérfano» si se borró la ruta. Un
+   sólido que miente en silencio sería peor que no tenerlo.
+4. **Un tubo no choca contra su propio cuerpo.** `clash.ts` deja de contar como obstáculo
+   los `solid3d` que declaran su ruta: contarlos acusaría a cada línea de chocar consigo
+   misma con el radio entero de calado, y el choque entre tuberías ya lo mide la pasada de
+   ruta contra ruta, que además perdona los empalmes.
+
+De propina, sin tocar a F3 ni a `flatshot-solids.ts`: ese módulo ya recoge cualquier
+`solid3d`, y `components/cad/viewport/solid-shade-host.ts` ya sombrea los `solid3d` del
+documento. El spec lo COMPRUEBA en vez de afirmarlo —`cadFlatshotBodies` devuelve el tubo
+con su envolvente exacta—, porque una propina sin evidencia es un claim.
+
+Evidencia: `npx tsx src/lib/cad/plant/pipe-solid.spec.ts` (77 verdes) y
+`npx tsx src/lib/cad/engine/commands/plant-route.spec.ts` (49 verdes, 36 antes);
+`clash.spec.ts` sigue en 56; `npm run typecheck` verde en los ocho paquetes;
+`npm run check:command-integrity` verde (290 comandos, 0 éxitos falsos); la suite completa
+del web, 592/593 verdes. **`npm run check:cad` está en ROJO en este árbol y no por T2**: se
+para en `check:dwg-evidence`, cuyo artefacto de disco no cuadra con lo que el laboratorio DWG
+regenera hoy. El commit de T2 no toca `packages/dwg-codec/`, `docs/cad/evidence/` ni
+`scripts/dwg/` —`git diff --name-only HEAD~1 HEAD` sobre esas rutas devuelve cero líneas—,
+así que la salida del generador no puede haber cambiado por este frente; queda declarado en
+`P-mep-plant-05` para quien tenga ese territorio. El único rojo de la suite,
+`lib/lisp/sandbox-surface.spec.ts`, tampoco es de T2: pasa al correrlo con el `tsx` de este
+árbol y sólo falla cuando el runner resuelve `tsx` desde el checkout vecino y acaba leyendo
+el `builtins/interaction.ts` de allí (el de aquí no tiene ningún `import(`).
+
 ## «Todavía no»
 
 - **El diámetro es el NOMINAL, no el exterior** (2026-09-04). La holgura se mide con
@@ -164,3 +218,19 @@ Evidencia: `npx tsx src/lib/cad/plant/clash.spec.ts` (56 verdes) y
 - **La holgura por defecto son 50 mm y no salen de ninguna norma** (2026-09-04). No se
   transcribe ninguna; quien tenga la de su proyecto la pasa en `clearance` y la constante no
   interviene. Dicho en la constante, con su porqué.
+- **El tubo es MACIZO: no hay espesor de pared** (2026-09-04). El barrido lleva un perfil sin
+  agujero, así que el sólido ocupa el diámetro nominal entero. Para ver dónde estorba —que
+  es para lo que se modela— es lo correcto y es más barato; para pesar el tubo NO sirve, y
+  está dicho en `CAD_PL_SOLID_LIMITS`. Se cierra el día que exista el catálogo de
+  especificación ampliable por la organización (T4 de la cola), que es quien tiene el
+  espesor.
+- **Los codos son a inglete, sin radio de curvatura** (2026-09-04). El vértice de la ruta se
+  resuelve con el perfil en el plano bisector: geométricamente es un codo de gajo, no el
+  radio 1,5 D de un codo de catálogo. El volumen coincide con `π r² L` dentro del 0,33 %
+  —un corte oblicuo por el eje conserva el volumen— pero la FORMA del codo no es la del
+  accesorio que se compra. Dicho en el límite.
+- **Mover la ruta no rehace el sólido; sólo se avisa** (2026-09-04). No hay orden que
+  regenere el cuerpo desde la ruta: PIDMTO declara el que quedó viejo y quien lo quiera al
+  día borra el sólido y vuelve a tender con `Sólido`. Regenerar exigiría una orden nueva
+  —`ribbon.ts` + `ui-command-reach.json`, fuera de este territorio— y está pedida por
+  escrito en `mep-plant-peticiones.md`.

@@ -72,11 +72,13 @@ Formato de cada petición:
   `{ "kind": "spec", "path": "apps/web/src/lib/cad/plant/pipe-solid.spec.ts" }`.
 - **Cómo se comprueba:** `node scripts/cad/rubric.spec.mjs` y
   `node scripts/cad/rubric.mjs --markdown --check`.
-- **Estado:** pendiente — **la mitad de choques ya está verde y committeada**
-  (`apps/web/src/lib/cad/plant/clash.spec.ts`, 56 comprobaciones, 2026-09-04). Falta
-  `pipe-solid.spec.ts` (T2). Si T2 no llegara, la petición sigue siendo válida recortada:
-  sustituir sólo «detección de choques contra estructura, » por nada y añadir la evidencia
-  de `clash.spec.ts`, dejando intacto lo del sólido de tubería.
+- **Estado:** pendiente — **las dos mitades ya están verdes y committeadas**
+  (`apps/web/src/lib/cad/plant/clash.spec.ts`, 56 comprobaciones, y
+  `apps/web/src/lib/cad/plant/pipe-solid.spec.ts`, 77 comprobaciones, ambas 2026-09-04). El
+  cambio exacto de arriba se puede aplicar entero. Matiz que el texto ya recoge y conviene
+  no perder al copiarlo: el diámetro del sólido es el **NOMINAL** y el cuerpo es
+  **FACETADO** (prisma de 16 lados de área equivalente); llamarlo «diámetro real» sería
+  justo el claim sin evidencia que la regla 3 prohíbe.
 
 ### P-mep-plant-04 · ESCALERA: los «todavía no» de MEP y Plant
 - **Archivo:** `docs/parity/ESCALERA.md` — **archivo de coordinador, F6 no lo toca (R2)**
@@ -93,3 +95,28 @@ Formato de cada petición:
      dibujado. Mover la ruta no mueve el sólido; PIDMTO avisa de que el sólido quedó viejo.»
 - **Cómo se comprueba:** lectura; ESCALERA no tiene gate propio.
 - **Estado:** pendiente.
+
+### P-mep-plant-05 · Aviso: `check:cad` está en rojo por `check:dwg-evidence`, y no lo causó F6
+- **Archivos:** `docs/cad/evidence/dwg-decoder-matrix.json` y `packages/dwg-codec/` —
+  **territorio del frente DWG, F6 no los toca (R2)**
+- **Por qué:** al correr `npm run check:cad` sobre el árbol QUIETO de
+  `campana/superar/mep-plant` (commit del T2), la cadena se para en
+  `npm run check:dwg-evidence` con
+  `AssertionError: el artefacto del disco coincide con lo que el árbol sostiene hoy`. El
+  artefacto committeado declara «CERO BUNDLES ADMITIDOS, CERO CAPACIDADES PROMOVIDAS» y lo
+  que el laboratorio regenera hoy dice `bundlesAdmitidos: 7`,
+  `validacionesIndependientes: 14`, `capacidadesPromovidas: 2`. Es decir: el corpus llegó al
+  árbol y el artefacto no se regeneró con él.
+- **Que no lo causó F6, medido:** el commit del T2 toca ocho archivos y ninguno está bajo
+  `packages/dwg-codec/`, `docs/cad/evidence/` ni `scripts/dwg/`
+  (`git diff --name-only HEAD~1 HEAD -- packages/dwg-codec docs/cad/evidence scripts/dwg`
+  devuelve 0 líneas, y `git status --porcelain` sobre esas rutas también). El generador no
+  lee nada de `lib/cad/plant/`, así que su salida no puede haber cambiado por este frente.
+- **Cambio exacto:** quien tenga el territorio DWG corre
+  `node scripts/dwg/dwg-evidence.mjs --write` y committea el artefacto regenerado, **o**
+  comprueba que `VALLE_DWG_CORPUS_MIRROR` apunta a donde debe (AGENTS.md: «o los gates DWG
+  mienten por entorno»; aquí está SIN DEFINIR, y aun así el laboratorio encuentra siete
+  bundles admitidos, que es lo que hay que explicar antes de regenerar nada).
+- **Cómo se comprueba:** `npm run check:dwg-evidence` y después `npm run check:cad` entero.
+- **Estado:** pendiente — F6 lo declara en vez de callarlo, y **no lo arregla**: regenerar
+  ese artefacto desde este frente sería promover capacidades DWG con la firma equivocada.

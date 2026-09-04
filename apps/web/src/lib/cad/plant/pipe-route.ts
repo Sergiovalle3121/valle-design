@@ -115,6 +115,34 @@ export function cadPipeRoutesOf(document: Pick<CadDocument, "entities">): CadPip
   return routes;
 }
 
+/**
+ * Diámetro NOMINAL en milímetros a partir del tamaño rotulado.
+ *
+ * `6"` → 152,4. `1-1/2"` → 38,1. `3/4"` → 19,05. `null` cuando el tamaño no
+ * tiene la forma de una medida en pulgadas: sin diámetro no se puede medir una
+ * holgura ni barrer un tubo, y suponerlo sería inventar el número que más
+ * importa. Vive aquí —y no en quien lo consume— porque el diámetro es una
+ * propiedad de la RUTA: lo usan por igual el informe de choques y el sólido.
+ */
+export function cadPipeNominalMillimetres(size: string): number | null {
+  const limpio = size.trim().replace(/[″”“]/gu, '"').replace(/\s+/gu, "");
+  const mixto = /^(\d+)-(\d+)\/(\d+)"$/u.exec(limpio);
+  if (mixto) {
+    const divisor = Number(mixto[3]);
+    if (!(divisor > 0)) return null;
+    return (Number(mixto[1]) + Number(mixto[2]) / divisor) * 25.4;
+  }
+  const fraccion = /^(\d+)\/(\d+)"$/u.exec(limpio);
+  if (fraccion) {
+    const divisor = Number(fraccion[2]);
+    if (!(divisor > 0)) return null;
+    return (Number(fraccion[1]) / divisor) * 25.4;
+  }
+  const entero = /^(\d+)"$/u.exec(limpio);
+  if (entero) return Number(entero[1]) * 25.4;
+  return null;
+}
+
 /** Longitud recorrida EN TRES DIMENSIONES, en unidades de dibujo. */
 export function cadPipeRouteLength(points: readonly CadPoint3[]): number {
   let total = 0;

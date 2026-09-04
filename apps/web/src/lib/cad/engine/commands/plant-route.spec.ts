@@ -14,6 +14,12 @@ import { executeCadEntityCommandBatch } from "../../entity-commands";
 import { CAD_PL_LINE } from "../../plant/line-numbers";
 import { CAD_PL_ROUTE, CAD_PL_ROUTE_LAYER, CAD_PL_ROUTE_MARK } from "../../plant/pipe-route";
 import {
+  CAD_PL_SOLID_LAYER,
+  CAD_PL_SOLID_OF,
+  cadPipeSolidsStale,
+} from "../../plant/pipe-solid";
+import { solid3dMassProperties } from "../../solid3d-build";
+import {
   EMPTY_CAD_COMMAND_ENGINE,
   cadCommandEngineReduce,
   type CadCommandEffect,
@@ -295,6 +301,93 @@ let dibujo = documento();
   );
 }
 
+// --- 8 · `Sólido`: el tubo con volumen, en el MISMO lote de deshacer ------
+{
+  // Sin la palabra clave no hay sólido: el comportamiento de siempre no cambia.
+  const soloRuta = run(documento(), [
+    "PIDROUTE", '6"', "P", "CS150",
+    "0",
+    { punto: [0, 0] }, { punto: [6_000, 0] }, "\r",
+  ]);
+  eq(
+    soloRuta.document.entities.filter((entidad) => entidad.type === "solid3d").length,
+    0,
+    "sin teclear Sólido, PIDROUTE sigue escribiendo sólo la ruta",
+  );
+
+  const antes = pasos;
+  const conSolido = run(documento(), [
+    "PIDROUTE", '6"', "P", "CS150",
+    "0",
+    "S",                          // el interruptor, antes del primer punto
+    { punto: [0, 0] }, { punto: [6_000, 0] },
+    "E", "3000",                  // y con montante, que es donde se paga el barrido
+    "\r",
+  ]);
+  eq(pasos - antes, 1, "la polilínea y el sólido salen en UN solo lote de deshacer");
+
+  const solidos = conSolido.document.entities.filter((entidad) => entidad.type === "solid3d");
+  eq(solidos.length, 1, "el cuerpo facetado llegó al documento");
+  eq(solidos[0].layer, CAD_PL_SOLID_LAYER, "en TU-SOLIDO, aparte del eje");
+  const rutaTendida = rutas(conSolido.document)[0];
+  eq(
+    solidos[0].context?.metadata?.[CAD_PL_SOLID_OF],
+    rutaTendida.id,
+    "y declara de qué ruta salió",
+  );
+  eq(
+    conSolido.document.layers.some((capa) => capa.id === CAD_PL_SOLID_LAYER),
+    true,
+    "la capa se da de alta en el mismo lote, no se supone",
+  );
+
+  // El volumen: 6 000 en planta más 3 000 de montante de una 6", dentro del 1 %.
+  const teorico = Math.PI * 76.2 * 76.2 * 9_000;
+  const volumen = solid3dMassProperties(
+    solidos[0] as Extract<CadDocument["entities"][number], { type: "solid3d" }>,
+  ).volume;
+  ok(
+    Math.abs((volumen - teorico) / teorico) <= 0.01,
+    `el tubo tecleado ocupa el volumen del tubo nominal — ${(((volumen - teorico) / teorico) * 100).toFixed(3)} %`,
+  );
+
+  const dicho = dichos(conSolido.effects).join(" / ");
+  ok(/sólido facetado en TU-SOLIDO/.test(dicho), `y la orden lo dice: ${dicho}`);
+  ok(/FACETADO/.test(dicho), `con la palabra que le corresponde: ${dicho}`);
+  ok(/prisma de 16 lados/.test(dicho), `y con su límite al lado: ${dicho}`);
+
+  // --- la deuda de persistirlo, cobrada por PIDMTO ------------------------
+  eq(
+    cadPipeSolidsStale(conSolido.document).length,
+    0,
+    "recién tendida, la huella cuadra y no hay nada que declarar",
+  );
+  const movido: CadDocument = {
+    ...conSolido.document,
+    entities: conSolido.document.entities.map((entidad) =>
+      entidad.id === rutaTendida.id && entidad.type === "polyline"
+        ? {
+            ...entidad,
+            vertices: entidad.vertices.map((vertice, indice) =>
+              indice === entidad.vertices.length - 1 ? { ...vertice, z: 4_500 } : vertice,
+            ),
+          }
+        : entidad,
+    ),
+  };
+  const avisado = run(movido, ["PIDMTO"]);
+  const dichoMto = dichos(avisado.effects).join(" / ");
+  ok(
+    /el sólido de 6"-P-1001-CS150 quedó viejo/.test(dichoMto),
+    `mover un vértice y PIDMTO lo declara: ${dichoMto}`,
+  );
+  const quieto = dichos(run(conSolido.document, ["PIDMTO"]).effects).join(" / ");
+  ok(
+    !/quedó viejo/.test(quieto),
+    `y sobre la ruta sin tocar PIDMTO no acusa a nadie: ${quieto}`,
+  );
+}
+
 console.log(
-  `PIDROUTE/PIDMTO tecleados: ${verdes} comprobaciones verdes — la cota llega a cada vértice, el montante sale solo al cambiar de elevación y la lista de materiales cuenta metros y piezas con su límite, y al cerrar la ruta se dice contra qué se acaba de chocar`,
+  `PIDROUTE/PIDMTO tecleados: ${verdes} comprobaciones verdes — la cota llega a cada vértice, el montante sale solo al cambiar de elevación y la lista de materiales cuenta metros y piezas con su límite, y al cerrar la ruta se dice contra qué se acaba de chocar, y \`Sólido\` emite el tubo facetado en el mismo lote y PIDMTO declara el que quedó viejo`,
 );
