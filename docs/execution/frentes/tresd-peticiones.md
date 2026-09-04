@@ -16,6 +16,14 @@ Formato de cada petición:
 
 ## Peticiones
 
+**Verificado en el cierre del 2026-09-04.** Las cuatro siguen **pendientes**, y
+se comprobó una por una que el texto que cada una cita sigue siendo **subcadena
+exacta** de su archivo, de modo que el coordinador puede sustituir sin adivinar
+ni recontar líneas: `command-summaries.ts:248` (P-tresd-01) y `:214`
+(P-tresd-03) siguen palabra por palabra como se citan, y `ESCALERA.md:174`
+(P-tresd-03) y `:175` (P-tresd-04) conservan íntegras las celdas citadas.
+Ninguno de esos archivos se tocó desde este frente.
+
 ### P-tresd-01 · El resumen de SOLIDEDIT nombra tres ramas que ya no son todas
 - **Archivo:** `apps/web/src/lib/cad/engine/command-summaries.ts` (línea 248)
 - **Por qué:** entrega 1 de la cola («SOLIDEDIT: tres ramas más»). El resumen que
