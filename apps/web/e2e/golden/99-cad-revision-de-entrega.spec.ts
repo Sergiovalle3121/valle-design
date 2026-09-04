@@ -65,6 +65,14 @@ async function installCadBackend(context: BrowserContext) {
 
 async function type(page: Page, value: string) {
   const input = page.getByTestId('cad-command-input');
+  // El foco se pide aquí a propósito, y es el INSTRUMENTO, no el producto:
+  // Playwright sintetiza lo que no está en el teclado —la «Á» de «Área»— como
+  // `insertText`, que va al elemento CON FOCO en vez de generar los eventos de
+  // tecla que el estudio enruta a la línea de comandos. Sin esto, Firefox
+  // perdía esa primera letra y llegaba «rea» (medido en el fragmento 4/4 de la
+  // PR #186, sobre el golden 98). El enrutado «teclea donde sea» lo siguen
+  // probando los demás goldens, que teclean ASCII.
+  await input.focus();
   await page.keyboard.type(value);
   await expect(input).toHaveValue(value);
   await page.keyboard.press('Enter');

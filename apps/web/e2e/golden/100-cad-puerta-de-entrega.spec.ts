@@ -60,6 +60,11 @@ async function installCadBackend(context: BrowserContext) {
 
 async function type(page: Page, value: string) {
   const input = page.getByTestId('cad-command-input');
+  // Mismo enfoque que en los goldens 98 y 99: se pide el foco antes de teclear
+  // para no depender de cómo cada navegador sintetiza lo que no está en el
+  // teclado. Aquí todo lo tecleado es ASCII, pero un ayudante que se comporta
+  // distinto entre goldens hermanos es cómo vuelve el mismo fallo.
+  await input.focus();
   await page.keyboard.type(value);
   await expect(input).toHaveValue(value);
   await page.keyboard.press('Enter');
