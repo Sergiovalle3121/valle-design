@@ -15,7 +15,10 @@
  */
 import type { DwgBitEmitter } from "./dwg-bit-emitter.js";
 import { throwDwgError } from "../security/parse-error.js";
-import { HATCH_PATH_POLYLINE_BIT } from "../objects/entities-complex.js";
+import {
+  HATCH_PATH_DERIVED_BIT,
+  HATCH_PATH_POLYLINE_BIT,
+} from "../objects/entities-complex.js";
 import type {
   DwgEllipseEntity,
   DwgHatchEntity,
@@ -65,26 +68,33 @@ export function emitMText(emitter: DwgBitEmitter, entity: DwgMTextEntity): void 
 }
 
 /**
- * HATCH DE RELLENO SÓLIDO — espejo campo a campo de `decodeHatch` para el
- * único caso que se puede escribir sin inventar nada.
+ * HATCH — espejo campo a campo de `decodeHatch`, relleno sólido y patrón.
  *
- * POR QUÉ SÓLO EL SÓLIDO. El decodificador lee el bloque de patrón —ángulo,
- * escala, doble trama y las líneas de definición con sus trazos— SÓLO cuando
- * `solidFill` es falso. Un relleno sólido salta ese bloque entero, así que
- * todo lo que el cuerpo necesita está en los contornos y en un puñado de
- * banderas. Un HATCH con patrón exigiría deducir esa definición de los
- * contornos, y no se deduce: `validateEntity` lo rechaza y quien llama
- * declara la pérdida.
+ * EL BLOQUE DE PATRÓN, QUE HASTA EL 2026-09-04 NO SE ESCRIBÍA. El
+ * decodificador lee, cuando `solidFill` es falso y JUSTO detrás del estilo y
+ * el tipo de patrón, el ángulo BD del patrón, su escala BD, el bit de doble
+ * trama y un recuento BS de líneas de definición, cada una con su ángulo BD,
+ * su punto base 2BD, su desfase 2BD y un recuento BS de trazos con sus
+ * longitudes BD (hecho REGISTRADO de HATCH R2000 en SOURCE_REGISTER). El
+ * writer lo emitía a ciegas como sólido —bit fijo a 1— porque el documento
+ * canónico no traía esa definición; ahora la trae, así que el bit sale del
+ * modelo y el bloque se escribe.
  *
- * `pixelSize` NO se emite: sólo existe cuando algún camino trae el bit
- * DERIVADO, y este writer no emite caminos derivados. Emitirlo «por si acaso»
- * desplazaría todos los bits siguientes.
+ * NO SE DEDUCE NADA AQUÍ. Si el modelo dice «patrón» y no trae los cuatro
+ * campos, este emisor falla cerrado: media definición desplazaría todos los
+ * bits siguientes y el lector ajeno leería otro dibujo, no un dibujo
+ * incompleto.
+ *
+ * `pixelSize` sólo existe cuando algún camino trae el bit DERIVADO —el mismo
+ * `anyDerived` que calcula el decodificador—, y por eso se decide contando
+ * los caminos ya emitidos en vez de omitirse siempre: emitirlo o saltárselo
+ * a destiempo desplaza todos los bits que siguen.
  */
 export function emitHatch(emitter: DwgBitEmitter, entity: DwgHatchEntity): void {
   emitter.emitBD(entity.elevation);
   emitter.emit3BD(entity.extrusion);
   emitter.emitTV(entity.nameBytes);
-  emitter.pushBit(1); // solidFill: garantizado por validateEntity
+  emitter.pushBit(entity.solidFill ? 1 : 0);
   emitter.pushBit(entity.associative ? 1 : 0);
   emitter.emitBL(entity.paths.length);
   for (const path of entity.paths) {
@@ -122,10 +132,61 @@ export function emitHatch(emitter: DwgBitEmitter, entity: DwgHatchEntity): void 
   }
   emitter.emitBS(entity.style);
   emitter.emitBS(entity.patternType);
+  if (!entity.solidFill) emitHatchPattern(emitter, entity);
+  if (entity.paths.some((path) => (path.flags & HATCH_PATH_DERIVED_BIT) !== 0)) {
+    if (entity.pixelSize === undefined) {
+      throwDwgError(
+        "DWG_INPUT_INVALID",
+        "input",
+        0,
+        "A hatch with a derived boundary path must carry its pixel size.",
+      );
+    }
+    emitter.emitBD(entity.pixelSize);
+  }
   emitter.emitBL(entity.seedPoints.length);
   for (const seed of entity.seedPoints) {
     emitter.emitRD(seed.x);
     emitter.emitRD(seed.y);
+  }
+}
+
+/**
+ * El bloque de patrón de un HATCH no sólido, en el orden EXACTO en que
+ * `decodeHatch` lo lee. Vive aparte porque es la parte del cuerpo que sólo
+ * existe a veces: mezclarla en el cuerpo principal escondería que el resto se
+ * emite siempre.
+ *
+ * Los cuatro campos van juntos o no va ninguno. `validateEntity` ya lo
+ * garantiza; este guardia existe igual porque el precio de equivocarse aquí
+ * no es un campo malo sino un archivo desincronizado desde este bit hasta el
+ * final.
+ */
+function emitHatchPattern(emitter: DwgBitEmitter, entity: DwgHatchEntity): void {
+  const { angle, scaleOrSpacing, doubleHatch, definitionLines } = entity;
+  if (
+    angle === undefined ||
+    scaleOrSpacing === undefined ||
+    doubleHatch === undefined ||
+    definitionLines === undefined
+  ) {
+    throwDwgError(
+      "DWG_VERSION_DECODER_UNSUPPORTED",
+      "unsupported",
+      0,
+      "Writing a patterned HATCH requires its pattern definition: angle, scale, double flag and definition lines.",
+    );
+  }
+  emitter.emitBD(angle);
+  emitter.emitBD(scaleOrSpacing);
+  emitter.pushBit(doubleHatch ? 1 : 0);
+  emitter.emitBS(definitionLines.length);
+  for (const line of definitionLines) {
+    emitter.emitBD(line.angle);
+    emitter.emit2BD(line.basePoint);
+    emitter.emit2BD(line.offset);
+    emitter.emitBS(line.dashes.length);
+    for (const dash of line.dashes) emitter.emitBD(dash);
   }
 }
 

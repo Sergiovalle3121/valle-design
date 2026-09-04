@@ -38,6 +38,92 @@ const BLOQUEADAS_POR_EL_CANONICO: Readonly<Record<string, string>> = Object.free
 });
 
 
+/**
+ * La definición de trama que la entidad canónica trae, o `undefined` si no
+ * trae una utilizable.
+ *
+ * POR QUÉ SE VALIDA AQUÍ Y NO SE CONFÍA. `CanonicalCadDocumentJson.entities`
+ * es `Record<string, unknown>`: cualquiera puede poner cualquier cosa en
+ * `patternDefinition`. Una línea a medias no daría un patrón feo — daría un
+ * recuento que no cuadra con lo que sigue, y el cuerpo entero se
+ * desincroniza. Se acepta la forma COMPLETA o ninguna.
+ *
+ * Los ángulos vienen en RADIANES, como todos los del canónico. Es lo que el
+ * archivo lleva: el ANSI31 de los dos sombreados con trama del corpus
+ * admitido guarda 0.7853981633974483 en la línea de definición, y el DXF del
+ * oráculo del mismo bundle escribe 53 = 45.0 para esa misma línea.
+ */
+function canonicalHatchPattern(value: unknown):
+  | {
+      angle: number;
+      scale: number;
+      double: boolean;
+      lines: readonly {
+        angle: number;
+        basePoint: { x: number; y: number };
+        offset: { x: number; y: number };
+        dashes: readonly number[];
+      }[];
+    }
+  | undefined {
+  if (typeof value !== "object" || value === null) return undefined;
+  const source = value as {
+    angle?: unknown;
+    scale?: unknown;
+    double?: unknown;
+    lines?: unknown;
+  };
+  if (
+    !Number.isFinite(source.angle) ||
+    !Number.isFinite(source.scale) ||
+    typeof source.double !== "boolean" ||
+    !Array.isArray(source.lines) ||
+    source.lines.length === 0
+  ) {
+    return undefined;
+  }
+  const lines = [];
+  for (const raw of source.lines as unknown[]) {
+    const line = raw as {
+      angle?: unknown;
+      basePoint?: { x?: unknown; y?: unknown };
+      offset?: { x?: unknown; y?: unknown };
+      dashes?: unknown;
+    };
+    const point = (candidate: { x?: unknown; y?: unknown } | undefined) =>
+      candidate !== undefined &&
+      Number.isFinite(candidate.x) &&
+      Number.isFinite(candidate.y)
+        ? Object.freeze({ x: Number(candidate.x), y: Number(candidate.y) })
+        : undefined;
+    const basePoint = point(line.basePoint);
+    const offset = point(line.offset);
+    const dashes = Array.isArray(line.dashes) ? (line.dashes as unknown[]) : [];
+    if (
+      !Number.isFinite(line.angle) ||
+      basePoint === undefined ||
+      offset === undefined ||
+      dashes.some((dash) => !Number.isFinite(dash))
+    ) {
+      return undefined;
+    }
+    lines.push(
+      Object.freeze({
+        angle: Number(line.angle),
+        basePoint,
+        offset,
+        dashes: Object.freeze(dashes.map((dash) => Number(dash))),
+      }),
+    );
+  }
+  return {
+    angle: Number(source.angle),
+    scale: Number(source.scale),
+    double: source.double,
+    lines: Object.freeze(lines),
+  };
+}
+
 export function canonicalDocumentToDwgEntities(
   document: CanonicalCadDocumentJson,
 ): CanonicalToDwgResult {
@@ -288,20 +374,27 @@ export function canonicalDocumentToDwgEntities(
         });
         break;
       }
-      // HATCH DE RELLENO SÓLIDO (2026-09-01). Sólo el sólido, y por una razón
-      // de formato, no de pereza: el cuerpo de un HATCH con patrón lleva
-      // después de los contornos un bloque —ángulo, escala, doble trama y las
-      // líneas de definición con sus trazos— que el sólido no tiene y que NO
-      // se deduce de los contornos. El canónico transporta el NOMBRE del
-      // patrón, no su geometría, así que escribir uno con patrón exigiría
-      // inventársela. Se declara y no se emite.
+      // HATCH, SÓLIDO Y DE PATRÓN (2026-09-04). El sólido viaja desde el
+      // 2026-09-01. El de patrón lleva, después de los contornos, un bloque
+      // que el sólido no tiene —ángulo, escala, doble trama y las líneas de
+      // definición con sus trazos— y ese bloque SIGUE sin deducirse de los
+      // contornos: lo que cambió es que ahora puede VIAJAR con la entidad
+      // canónica, en `patternDefinition`, resuelto por quien sí tiene una
+      // tabla de patrones propia (el producto: `hatch-pattern-table.ts`).
+      // Este módulo no puede resolverlo por su cuenta —el laboratorio no
+      // importa el producto, ADR-0007— así que hace lo único honesto: si la
+      // definición llegó, la escribe; si no llegó, la declara.
       case "hatch": {
-        if (raw["solid"] !== true) {
+        const solid = raw["solid"] === true;
+        const pattern = solid
+          ? undefined
+          : canonicalHatchPattern(raw["patternDefinition"]);
+        if (!solid && pattern === undefined) {
           losses.push({
-            code: "hatch-pattern-not-writable",
+            code: "hatch-pattern-definition-missing",
             entityId: id,
             sourceType: "hatch",
-            detail: `El sombreado "${String(raw["pattern"] ?? "")}" no es de relleno sólido: el documento canónico lleva el NOMBRE del patrón pero no su definición (ángulo, escala y líneas con sus trazos), y esa definición no se deduce de los contornos. Se declara en vez de inventarla.`,
+            detail: `El sombreado "${String(raw["pattern"] ?? "")}" no es de relleno sólido y la entidad canónica no trae la definición de su trama (ángulo, escala y líneas con sus trazos): ese bloque no se deduce de los contornos, así que se declara en vez de inventar una trama que el archivo diría tuya.`,
             severity: "warning",
           });
           break;
@@ -371,15 +464,22 @@ export function canonicalDocumentToDwgEntities(
                 (c) => c.charCodeAt(0) & 0xff,
               ),
             ),
-            solidFill: true,
+            solidFill: solid,
             associative: false,
             paths: Object.freeze(paths),
             style: 0,
+            // TIPO DE PATRÓN: el canónico no lo transporta y se escribe 0,
+            // como el estilo — ya declarado en `hatch-authoring-defaults`. Se
+            // deja igual para el sólido y para el de trama a propósito: los
+            // dos archivos reales del corpus llevan 1 y nosotros escribimos
+            // 0, y esa diferencia se REGISTRA en la bitácora en vez de
+            // corregirse a ojo, porque qué hace un lector ajeno con ese
+            // número no lo dice ningún hecho medido todavía (ADR-0007).
             patternType: 0,
-            angle: undefined,
-            scaleOrSpacing: undefined,
-            doubleHatch: undefined,
-            definitionLines: undefined,
+            angle: pattern?.angle,
+            scaleOrSpacing: pattern?.scale,
+            doubleHatch: pattern?.double,
+            definitionLines: pattern?.lines,
             pixelSize: undefined,
             seedPoints: Object.freeze([]),
           }),

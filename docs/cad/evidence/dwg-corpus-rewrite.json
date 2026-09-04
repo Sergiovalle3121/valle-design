@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-corpus-rewrite-v1",
   "generadoPor": "node scripts/dwg/corpus-rewrite.mjs",
-  "veredicto": "De 327 entidades ajenas, el writer regraba 269 (82.3%) y rechaza 58; 269 vuelven idénticas campo a campo y 212 quedan ancladas al DXF del oráculo. Íntegras: arc, circle, ellipse, line, lwpolyline, mtext, point, text. Con pérdida declarada: hatch, insert. No escribibles: attdef, attrib, dimension, face3d, leader, mline, polyfaceMesh, polyline2d, polyline3d, polymesh, ray, solid, spline, tolerance, trace, viewport, xline.",
+  "veredicto": "De 327 entidades ajenas, el writer regraba 271 (82.9%) y rechaza 56; 271 vuelven idénticas campo a campo y 214 quedan ancladas al DXF del oráculo. Íntegras: arc, circle, ellipse, hatch, line, lwpolyline, mtext, point, text. Con pérdida declarada: insert. No escribibles: attdef, attrib, dimension, face3d, leader, mline, polyfaceMesh, polyline2d, polyline3d, polymesh, ray, solid, spline, tolerance, trace, viewport, xline.",
   "alcance": "Los fixtures ADMITIDOS del corpus de conformidad (AC1015 con el lector R2000; AC1018/AC1024/AC1027/AC1032 con el R2004), decodificados a la base neutral, re-escritos con writeAc1015MinimalFile —que emite SIEMPRE AC1015, de modo que un fixture moderno se mide como bajada de versión— y releídos con readAc1015Database. Los DWG los produjo una implementación independiente (ODA); el DXF oráculo es la fuente de autoría propia congelada en el mismo bundle.",
   "limiteDeclarado": "Esta medición NO cierra el hueco del oráculo externo. El cotejo campo a campo enfrenta NUESTRO writer con NUESTRO lector: un error SIMÉTRICO —escribir mal un campo y leerlo mal igual— seguiría oculto. El anclaje contra el DXF del oráculo lo estrecha, porque esos valores los escribió otro, pero sigue siendo nuestro decoder el que lee nuestro archivo. Sólo un conversor AJENO leyendo NUESTRO archivo cierra el hueco: eso es scripts/dwg/oda-roundtrip.mjs y exige el binario con licencia del titular, que no corre en este entorno.",
   "notaDeVocabulario": "El vocabulario del oráculo no es el del modelo neutral: una POLYLINE 2D del DXF se proyecta a `lwpolyline` y en el DWG llega como `polyline2d`. Por eso `declaradasPorOraculoSinAnclar` NO decide el estado de una fila —un esperado sin anclar puede pertenecer a otra clase del writer—; lo que sí lo decide es `valorDistintoDelOraculo`, donde el emparejamiento es real y el valor no coincide.",
@@ -49,15 +49,16 @@
     "reescritos": 57,
     "releidos": 57,
     "entidadesVistas": 327,
-    "entidadesEscritas": 269,
-    "entidadesNoEscribibles": 58,
-    "entidadesReleidasIguales": 269,
-    "entidadesAncladasAlOraculo": 212,
-    "porcentajeRegrabado": 82.3,
+    "entidadesEscritas": 271,
+    "entidadesNoEscribibles": 56,
+    "entidadesReleidasIguales": 271,
+    "entidadesAncladasAlOraculo": 214,
+    "porcentajeRegrabado": 82.9,
     "clasesIntegras": [
       "arc",
       "circle",
       "ellipse",
+      "hatch",
       "line",
       "lwpolyline",
       "mtext",
@@ -65,7 +66,6 @@
       "text"
     ],
     "clasesConPerdidaDeclarada": [
-      "hatch",
       "insert"
     ],
     "clasesNoEscribibles": [
@@ -89,7 +89,7 @@
     ],
     "capasComparadas": 74,
     "capasConDiferencia": 62,
-    "diferenciasRegistradas": 58
+    "diferenciasRegistradas": 56
   },
   "resumenDeObservacionesDeCapa": [
     {
@@ -221,19 +221,17 @@
       ]
     },
     "hatch": {
-      "estado": "regrabada-con-perdida-declarada",
+      "estado": "regrabada-integra",
       "vistas": 4,
-      "escritas": 2,
-      "noEscribibles": 2,
-      "releidasIguales": 2,
+      "escritas": 4,
+      "noEscribibles": 0,
+      "releidasIguales": 4,
       "releidasConDiferencia": 0,
       "declaradasPorOraculo": 4,
-      "ancladasAlOraculo": 2,
+      "ancladasAlOraculo": 4,
       "valorDistintoDelOraculo": 0,
-      "declaradasPorOraculoSinAnclar": 2,
-      "motivos": [
-        "DWG_VERSION_DECODER_UNSUPPORTED: Writing a patterned HATCH is not implemented: its pattern definition lines cannot be derived from the boundaries."
-      ]
+      "declaradasPorOraculoSinAnclar": 0,
+      "motivos": []
     },
     "insert": {
       "estado": "regrabada-con-perdida-declarada",
@@ -1448,15 +1446,6 @@
       "mensaje": "Writing a \"solid\" entity is not implemented by the laboratory writer yet."
     },
     {
-      "archivo": "21-hatch-islands",
-      "version": "AC1015",
-      "contexto": "model-space",
-      "tipo": "hatch",
-      "motivo": "writer-rechaza",
-      "code": "DWG_VERSION_DECODER_UNSUPPORTED",
-      "mensaje": "Writing a patterned HATCH is not implemented: its pattern definition lines cannot be derived from the boundaries."
-    },
-    {
       "archivo": "22-nested-attribs",
       "version": "AC1015",
       "contexto": "model-space",
@@ -1662,15 +1651,6 @@
       "motivo": "writer-rechaza",
       "code": "DWG_VERSION_DECODER_UNSUPPORTED",
       "mensaje": "Writing a \"solid\" entity is not implemented by the laboratory writer yet."
-    },
-    {
-      "archivo": "11-hatch",
-      "version": "AC1015",
-      "contexto": "model-space",
-      "tipo": "hatch",
-      "motivo": "writer-rechaza",
-      "code": "DWG_VERSION_DECODER_UNSUPPORTED",
-      "mensaje": "Writing a patterned HATCH is not implemented: its pattern definition lines cannot be derived from the boundaries."
     },
     {
       "archivo": "12-attrib",
@@ -2068,12 +2048,12 @@
       "sha256": "a06b0402f8ac4a69755ef578e423a090341c5533d6e805cf8834e188b8e6860b",
       "abre": true,
       "entidadesVistas": 2,
-      "entidadesNoEscribibles": 1,
+      "entidadesNoEscribibles": 0,
       "reescribe": true,
       "releeElPropio": true,
       "bytesAjenos": 96627,
-      "bytesPropios": 4279,
-      "entidadesEscritas": 1,
+      "bytesPropios": 4443,
+      "entidadesEscritas": 2,
       "capas": [
         {
           "nombre": "MUROS-2",
@@ -2089,9 +2069,9 @@
         "modelSpace": {
           "hatch": {
             "declaradasPorOraculo": 2,
-            "ancladas": 1,
+            "ancladas": 2,
             "valorDistinto": 0,
-            "sinAnclar": 1,
+            "sinAnclar": 0,
             "releidasSinPareja": 0
           }
         },
@@ -2432,12 +2412,12 @@
       "sha256": "270e0bcde07c6460fd5009b0ed9caf689258d024631e6a55977ec12676fc912b",
       "abre": true,
       "entidadesVistas": 2,
-      "entidadesNoEscribibles": 1,
+      "entidadesNoEscribibles": 0,
       "reescribe": true,
       "releeElPropio": true,
       "bytesAjenos": 96658,
-      "bytesPropios": 4277,
-      "entidadesEscritas": 1,
+      "bytesPropios": 4473,
+      "entidadesEscritas": 2,
       "capas": [
         {
           "nombre": "MUROS",
@@ -2453,9 +2433,9 @@
         "modelSpace": {
           "hatch": {
             "declaradasPorOraculo": 2,
-            "ancladas": 1,
+            "ancladas": 2,
             "valorDistinto": 0,
-            "sinAnclar": 1,
+            "sinAnclar": 0,
             "releidasSinPareja": 0
           }
         },
@@ -4613,7 +4593,7 @@
       }
     }
   ],
-  "generadoEn": "2026-09-04T06:55:09.704Z",
+  "generadoEn": "2026-09-04T07:48:27.267Z",
   "environment": {
     "node": "v22.22.2",
     "platform": "linux",

@@ -131,6 +131,76 @@ const HATCH_SOLIDO = {
   pixelSize: undefined,
   seedPoints: [],
 };
+/**
+ * HATCH CON TRAMA — el caso que no existía porque la clase no se escribía.
+ *
+ * Hasta el 2026-09-04 el writer fijaba el bit de relleno sólido a 1 y
+ * rechazaba cerrado cualquier otro sombreado: no había nada que preguntarle
+ * al conversor. Ahora el bloque de trama —ángulo, escala, doble trama y las
+ * líneas de definición con sus trazos— se escribe cuando viaja con la
+ * entidad, y el producto lo resuelve contra su tabla propia
+ * (`apps/web/src/lib/cad/hatch-pattern-table.ts`).
+ *
+ * Los valores son la forma que produce esa tabla para EARTH a escala 10: dos
+ * familias cruzadas, con corrimiento por fila y secuencia de trazo y hueco.
+ * Se eligió una trama de DOS familias CON TRAZOS a propósito: una sola
+ * familia continua no distinguiría un recuento bien puesto de uno que el
+ * lector interpreta de casualidad.
+ *
+ * LO QUE ESTE CASO PREGUNTA A ODA, sin adornar: si un DWG con este bloque de
+ * trama abre y convierte limpio, y si el sombreado sigue siendo un sombreado
+ * con ESE nombre y ESOS contornos. El cotejo campo a campo del oráculo
+ * proyecta del DXF el nombre, el bit de sólido, el recuento de caminos y los
+ * vértices — NO las líneas de definición. Que las líneas vuelvan idénticas lo
+ * mide el round-trip propio (`hatch-pattern-write.spec.ts`) y el arnés de
+ * re-escritura del corpus sobre los dos sombreados con trama ajenos; que otro
+ * programa DIBUJE esa trama sigue siendo pregunta abierta, y se dice.
+ */
+const HATCH_TRAMA = {
+  kind: "hatch",
+  elevation: 0,
+  extrusion: { x: 0, y: 0, z: 1 },
+  nameBytes: ascii("EARTH"),
+  solidFill: false,
+  associative: false,
+  paths: [
+    {
+      kind: "polyline",
+      flags: 0,
+      closed: true,
+      vertices: [
+        { x: 60, y: 0 },
+        { x: 100, y: 0 },
+        { x: 100, y: 40 },
+        { x: 60, y: 40 },
+      ],
+      bulges: [],
+      boundaryObjectCount: 0,
+    },
+  ],
+  style: 0,
+  patternType: 0,
+  // El GIRO del patrón, no el ángulo de sus rayas: EARTH sin girar es 0.
+  angle: 0,
+  scaleOrSpacing: 10,
+  doubleHatch: false,
+  definitionLines: [
+    {
+      angle: 0,
+      basePoint: { x: 0, y: 0 },
+      offset: { x: 10, y: 10 },
+      dashes: [10, -10],
+    },
+    {
+      angle: Math.PI / 2,
+      basePoint: { x: 0, y: 0 },
+      offset: { x: -10, y: 10 },
+      dashes: [10, -10],
+    },
+  ],
+  pixelSize: undefined,
+  seedPoints: [],
+};
 const TEXT = {
   kind: "text",
   insertion: { x: 5, y: 6 },
@@ -261,6 +331,25 @@ const CASES = [
       { name: "RELLENOS", color: 6 },
     ],
     expectedEntities: [{ kind: "hatch", layer: "RELLENOS", entity: HATCH_SOLIDO }],
+    expectedBlocks: {},
+  },
+  {
+    // EL SOMBREADO CON TRAMA ANTE EL LECTOR AJENO — el hueco que dejaba el
+    // caso de al lado. `sombreado-solido` pregunta por el relleno; éste
+    // pregunta por la trama, que es la parte del cuerpo HATCH que el writer
+    // no escribía y que ninguna prueba propia puede validar sola: nuestro
+    // lector acepta lo que nuestro writer escriba, y un error simétrico en
+    // los dos seguiría invisible.
+    name: "sombreado-patron",
+    options: {
+      layers: [{ name: ascii("TRAMAS"), colorIndex: 3 }],
+      entities: [{ entity: HATCH_TRAMA, layerIndex: 1 }],
+    },
+    expectedLayers: [
+      { name: "0", color: 7 },
+      { name: "TRAMAS", color: 3 },
+    ],
+    expectedEntities: [{ kind: "hatch", layer: "TRAMAS", entity: HATCH_TRAMA }],
     expectedBlocks: {},
   },
   {

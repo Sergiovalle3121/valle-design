@@ -341,12 +341,16 @@ const mixedDocument = baseDocument([
 }
 
 // ─── 5.B: el HATCH viaja por INSTANCIA, no por tipo ───────────────────────
-// El sólido se escribe; el de patrón no, porque el canónico lleva el nombre
-// del patrón pero no su definición. Eso rompe el preflight por TIPO que valía
-// hasta ahora: un conjunto de clases tendría que mentir en una de las dos
-// direcciones —prometer sombreados con patrón que luego se pierden, o dar por
-// perdidos los sólidos que sí viajan—, y el preflight existe justamente para
-// que la pérdida no sorprenda DESPUÉS.
+// El sólido se escribe siempre. El de trama se escribía NUNCA —«el canónico
+// lleva el nombre del patrón pero no su definición»—, y eso dejó de ser
+// cierto el 2026-09-04: `hatch-pattern-table.ts` es una tabla propia con
+// ángulo, separación, desfase, corrimiento y trazos por familia, y este lado
+// la resuelve y la manda con la entidad. La frontera se movió, no
+// desapareció: el nombre que la tabla NO conoce se sigue declarando, porque
+// escribirlo exigiría inventarle una trama.
+//
+// Por eso el preflight sigue preguntando por la INSTANCIA: en el mismo
+// documento y el mismo tipo hay sombreados que viajan y sombreados que no.
 {
   const contorno = [
     { x: 0, y: 0 },
@@ -358,17 +362,26 @@ const mixedDocument = baseDocument([
     ...baseDocument([]),
     entities: [
       { id: "h1", type: "hatch", pattern: "SOLID", solid: true, boundaries: [contorno], layer: "0" } as never,
-      { id: "h2", type: "hatch", pattern: "ANSI31", solid: false, boundaries: [contorno], layer: "0" } as never,
+      // ANSI31 GIRADO A 90°, no al ángulo por defecto: `angle` es el ángulo
+      // ABSOLUTO de la primera familia (45 en ANSI31), así que el archivo
+      // lleva el GIRO (90 − 45 = 45) y la línea de definición el absoluto
+      // (90). Un ANSI31 sin girar no distinguiría los dos números.
+      { id: "h2", type: "hatch", pattern: "ANSI31", solid: false, angle: 90, scale: 25, boundaries: [contorno], layer: "0" } as never,
+      // EARTH: dos familias y una secuencia de trazos. Es lo que separa
+      // «escribimos un ángulo» de «escribimos una trama».
+      { id: "h3", type: "hatch", pattern: "EARTH", solid: false, scale: 10, boundaries: [contorno], layer: "0" } as never,
+      // Y el nombre que la tabla no conoce: NO se le pone el respaldo ANSI31.
+      { id: "h4", type: "hatch", pattern: "TRAMA-QUE-NO-EXISTE", solid: false, boundaries: [contorno], layer: "0" } as never,
     ],
-    modelSpace: { entityIds: ["h1", "h2"] },
+    modelSpace: { entityIds: ["h1", "h2", "h3", "h4"] },
   };
 
   const preflight = preflightCadDwgExport(conSombreados);
-  assert.equal(preflight.writableCount, 1, "el preflight cuenta el sólido como escribible");
+  assert.equal(preflight.writableCount, 3, "el sólido y los dos de trama conocida");
   assert.equal(
     preflight.unwritableByType["hatch"],
     1,
-    "y el de patrón como perdido, en el mismo documento y el mismo tipo",
+    "y sólo el de nombre desconocido queda declarado, en el mismo tipo",
   );
 
   const exportado = exportCadDocumentToDwg(conSombreados, {
@@ -377,15 +390,67 @@ const mixedDocument = baseDocument([
   });
   assert.equal(exportado.estado, "exito_con_perdidas");
   const leido = readDwg(exportado.bytes);
-  const sombreados = leido.modelSpaceEntities.filter((r) => r.entity.kind === "hatch");
-  assert.equal(sombreados.length, 1, "sólo el sólido llega al archivo");
-  const h = sombreados[0]?.entity;
-  if (h?.kind !== "hatch") throw new Error("inalcanzable");
-  assert.equal(h.solidFill, true);
-  assert.equal(h.paths[0]?.kind === "polyline" ? h.paths[0].vertices.length : 0, 4);
+  const sombreados = leido.modelSpaceEntities
+    .map((r) => r.entity)
+    .filter((e) => e.kind === "hatch");
+  assert.equal(sombreados.length, 3, "el achurado de trama ya no desaparece del DWG");
+
+  const solido = sombreados[0];
+  if (solido?.kind !== "hatch") throw new Error("inalcanzable");
+  assert.equal(solido.solidFill, true);
+  assert.equal(solido.paths[0]?.kind === "polyline" ? solido.paths[0].vertices.length : 0, 4);
+  assert.equal(solido.definitionLines, undefined, "el sólido sigue sin bloque de trama");
+
+  // ANSI31 a 90°, con la frontera de UNIDADES que es donde esto se rompe en
+  // silencio: el documento guarda GRADOS y el archivo lleva RADIANES.
+  const ansi31 = sombreados[1];
+  if (ansi31?.kind !== "hatch") throw new Error("inalcanzable");
+  assert.equal(ansi31.solidFill, false);
+  assert.equal(String.fromCharCode(...ansi31.nameBytes), "ANSI31");
   assert.ok(
-    exportado.manifiestoDePerdidas.some((p) => p.code === "hatch-pattern-not-writable"),
-    "y el de patrón se nombra en el manifiesto que ve el usuario",
+    Math.abs((ansi31.angle ?? 0) - Math.PI / 4) < 1e-9,
+    "el giro del patrón son 45 GRADOS (90 − 45) escritos como π/4 RADIANES",
+  );
+  assert.equal(ansi31.scaleOrSpacing, 25);
+  assert.equal(ansi31.definitionLines?.length, 1, "ANSI31 es una sola familia");
+  const familia = ansi31.definitionLines?.[0];
+  assert.ok(
+    Math.abs((familia?.angle ?? 0) - Math.PI / 2) < 1e-9,
+    "y la raya, a 90 GRADOS absolutos, sale como π/2 RADIANES",
+  );
+  // Separación 25 girada 90°: el vector entre rayas sucesivas apunta a −X.
+  assert.ok(Math.abs((familia?.offset.x ?? 0) + 25) < 1e-9);
+  assert.ok(Math.abs(familia?.offset.y ?? 0) < 1e-9);
+  assert.deepEqual(familia?.dashes, [], "ANSI31 es continua");
+
+  const earth = sombreados[2];
+  if (earth?.kind !== "hatch") throw new Error("inalcanzable");
+  assert.equal(earth.definitionLines?.length, 2, "EARTH son dos familias cruzadas");
+  assert.deepEqual(
+    earth.definitionLines?.[0]?.dashes,
+    [10, -10],
+    "y sus trazos llegan en unidades de dibujo, no en unidades de patrón",
+  );
+  assert.ok(
+    Math.abs((earth.definitionLines?.[1]?.angle ?? 0) - Math.PI / 2) < 1e-9,
+    "la segunda familia es la perpendicular",
+  );
+
+  assert.ok(
+    exportado.manifiestoDePerdidas.some(
+      (p) =>
+        p.code === "hatch-pattern-definition-missing" &&
+        p.entityId === "h4" &&
+        p.detail.includes("TRAMA-QUE-NO-EXISTE"),
+    ),
+    "y el de nombre desconocido se nombra en el manifiesto que ve el usuario",
+  );
+  assert.equal(
+    exportado.manifiestoDePerdidas.filter(
+      (p) => p.code === "hatch-pattern-definition-missing",
+    ).length,
+    1,
+    "los que sí viajaron no generan ruido en el manifiesto",
   );
 }
 
@@ -394,7 +459,8 @@ console.log(
     "pérdidas con nombre, la frontera de ángulo documento↔DWG a 37,5° y el estado " +
     "y el tipo de línea de cada capa llegando al archivo exportado, más la ELIPSE " +
     "escrita con su arco convertido a radianes y su extrusión declarada, y el " +
-    "SOMBREADO sólido viajando mientras el de patrón se declara — por instancia, no por tipo",
+    "SOMBREADO sólido y el de TRAMA CONOCIDA viajando con sus líneas de definición " +
+    "en radianes mientras el de nombre desconocido se declara — por instancia, no por tipo",
 );
 
 // ─── 5.C: el MTEXT llega al archivo, con su anclaje y su giro en RADIANES ──

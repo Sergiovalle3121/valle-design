@@ -621,6 +621,42 @@ function mapEntity(
           severity: "warning",
         });
       }
+      // LA TRAMA VIAJA CON LA ENTIDAD (2026-09-04). Hasta este corte esta
+      // proyección se quedaba con el NOMBRE del patrón y tiraba su
+      // definición —ángulo, escala, doble trama y las líneas con sus
+      // trazos—, de modo que un sombreado ajeno leído y vuelto a escribir
+      // por el camino canónico salía sin trama. El nombre no basta: el
+      // catálogo de tramas de cada programa es suyo, y «ANSI31» dibujado con
+      // la tabla de otro no es el mismo dibujo. Se copia lo MEDIDO en el
+      // archivo, sin interpretarlo, en la misma forma que el camino de
+      // vuelta (`canonical-to-dwg.ts`) sabe leer.
+      const source = entity as {
+        angle?: number;
+        scaleOrSpacing?: number;
+        doubleHatch?: boolean;
+        definitionLines?: readonly {
+          angle: number;
+          basePoint: { x: number; y: number };
+          offset: { x: number; y: number };
+          dashes: readonly number[];
+        }[];
+      };
+      const patternDefinition =
+        source.angle !== undefined &&
+        source.scaleOrSpacing !== undefined &&
+        source.definitionLines !== undefined
+          ? {
+              angle: source.angle,
+              scale: source.scaleOrSpacing,
+              double: source.doubleHatch === true,
+              lines: source.definitionLines.map((line) => ({
+                angle: line.angle,
+                basePoint: { x: line.basePoint.x, y: line.basePoint.y },
+                offset: { x: line.offset.x, y: line.offset.y },
+                dashes: [...line.dashes],
+              })),
+            }
+          : undefined;
       return {
         id,
         type: "hatch",
@@ -629,6 +665,7 @@ function mapEntity(
         ),
         solid: Boolean((entity as { solidFill?: boolean }).solidFill),
         boundaries,
+        ...(patternDefinition === undefined ? {} : { patternDefinition }),
         layer,
       };
     }

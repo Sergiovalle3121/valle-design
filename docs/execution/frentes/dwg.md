@@ -120,8 +120,112 @@ node scripts/dwg/corpus-rewrite.spec.mjs && node scripts/dwg/corpus-rewrite.mjs 
 una fila que cambia de estado en `matrizPorClase`, y el porcentaje del veredicto sube
 solo. No hace falta un informe nuevo por clase.
 
+### 2026-09-04 · Entregable 2/5 — el achurado de patrón deja de desaparecer del DWG
+
+**Qué estaba mal.** `emitHatch` fijaba el bit de relleno sólido a 1 y `validateEntity`
+rechazaba cerrado cualquier otro sombreado (`DWG_VERSION_DECODER_UNSUPPORTED`), así que
+todo achurado con trama se descartaba con la pérdida `hatch-pattern-not-writable`. El
+motivo escrito —«el canónico lleva el NOMBRE del patrón pero no su definición»— había
+dejado de ser cierto: `apps/web/src/lib/cad/hatch-pattern-table.ts` es una tabla PROPIA
+con ángulo, separación, desfase, corrimiento y trazos por familia, y ya alimenta la
+pantalla, el papel y el DXF. Lo único que faltaba era llevarla al DWG.
+
+**Qué se construyó.**
+
+- `emitHatch` abre la rama SIN relleno sólido exactamente como la registra el hecho de
+  HATCH R2000: ángulo BD, escala BD, bit de doble trama, recuento BS de líneas de
+  definición con ángulo BD, punto base 2BD, desfase 2BD y recuento BS de trazos con sus
+  longitudes BD. El bit de sólido sale del modelo en vez de estar clavado. De paso,
+  `pixelSize` se emite cuando algún camino trae el bit DERIVADO —la MISMA condición con la
+  que el decodificador decide leerlo—: antes no se emitía nunca y un camino derivado habría
+  desincronizado el cuerpo entero.
+- `validateEntity` acepta el sombreado de trama cuando la definición viaja con él y sigue
+  fallando cerrado cuando no viaja. Se añadió `validateHatch`, que NO existía: el HATCH
+  salía del primer `switch` sin pasar por el segundo y su geometría no se validaba.
+- El lado del producto (`dwg-native-writer.ts`) resuelve nombre + ángulo + escala contra la
+  tabla propia y manda la definición ya resuelta en `patternDefinition`. Reutiliza
+  `cadHatchPatternDxfLines`, que es la MISMA función que escribe las líneas del DXF: el
+  mismo sombreado exportado a DXF y a DWG lleva la misma trama, sin una segunda
+  trigonometría que pudiera separarse.
+- `canonical-to-dwg.ts` valida esa definición (entera o ninguna: media línea no da una
+  trama fea, da un recuento que desincroniza el cuerpo) y conserva la pérdida CON CÓDIGO
+  NUEVO —`hatch-pattern-definition-missing`— para el nombre que la tabla no conoce. No se
+  le pone el respaldo ANSI31: un archivo que dice llevar tu trama y lleva otra es peor que
+  uno que dice que no la lleva.
+- `canonical.ts` (DWG → canónico) copia la trama MEDIDA del archivo en la misma forma. Sin
+  eso, el gemelo público del caso del oráculo perdía el sombreado: verificado corriendo la
+  cadena `writeAc1015MinimalFile → readDwg → dwgDatabaseToCanonicalDocument →
+  writeCanonicalDwg → readDwg` sobre los diez casos.
+
+**La cifra, tal como salió** (`node scripts/dwg/corpus-rewrite.mjs`, mismo arnés que el
+entregable 1, mismo corpus fijado):
+
+| | antes | ahora |
+| --- | --- | --- |
+| entidades ajenas regrabadas | 269/327 (82,3 %) | **271/327 (82,9 %)** |
+| ancladas al DXF del oráculo | 212 | **214** |
+| fila `hatch` | `regrabada-con-perdida-declarada` 4/2 | **`regrabada-integra` 4/4/4/4** |
+| clases íntegras | 8 | **9** |
+
+Los dos sombreados con trama del corpus ajeno (`11-hatch` y `21-hatch-islands`) vuelven
+IDÉNTICOS campo a campo —incluidas sus líneas de definición— y quedan anclados al DXF del
+oráculo de su bundle. `insert` queda como la ÚNICA clase con pérdida declarada.
+
+**El hecho que hubo que medir, y está registrado.** `VALLE-CORPUS-HATCH-TRAMA` en
+`SOURCE_REGISTER.json`: la disposición del bloque ya estaba en la ODS, pero no sus
+UNIDADES. Medido en los dos sombreados con trama del corpus: la línea de definición del
+ANSI31 guarda `0.7853981633974483` y el DXF del oráculo del mismo bundle escribe `53 =
+45.0` — el DWG va en RADIANES donde el DXF va en GRADOS. El desfase es el MISMO vector en
+los dos formatos, ya girado al dibujo: `45/46 = (-0.0883883476483184, 0.0883883476483184)`,
+que es girar `(0, 0.125)` 45°. Y el ángulo de arriba es el GIRO del patrón, no el de sus
+rayas: vale 0 mientras la raya vale 45.
+
+**Ante el oráculo externo.** Caso `sombreado-patron` añadido a `CASES` (trama de DOS
+familias CON trazos: una familia continua no distinguiría un recuento bien puesto de uno
+que el lector interpreta de casualidad). `npm run check:dwg-oraculo` lo cuenta ya como
+PENDIENTE junto a su gemelo `-publico`: 20 casos exigidos, 4 cubiertos. Sigue siendo
+acción del titular con su binario con licencia.
+
+**Cómo se comprueba** (todo corrido hasta verlo verde):
+
+```
+npx tsx --test packages/dwg-codec/tests/unit/hatch-pattern-write.spec.ts   # 8 pruebas
+cd apps/web && npx tsx src/lib/cad/dwg-native-writer.spec.ts
+export VALLE_DWG_CORPUS_MIRROR=/home/user/valle-design-dwg-conformance
+node scripts/dwg/corpus-rewrite.spec.mjs && node scripts/dwg/corpus-rewrite.mjs --check
+npm run check --workspace=@valle-design/dwg-codec && npm run typecheck
+```
+
+La spec del códec se verificó por MUTACIÓN: intercambiar el punto base y el desfase en el
+emisor la pone roja en 3 de 8.
+
 ## «Todavía no»
 
+- **2026-09-04 · La trama que ENTRA por el producto se sigue perdiendo.** El camino
+  `DWG → canónico` ya copia la definición del patrón, pero el importador del producto
+  (`dwg-native-reader.ts` → `dwg-document-bridge-*`) no pasa por ese camino: construye la
+  entidad del documento por su cuenta, y el documento del producto no tiene dónde guardar
+  las líneas de definición de un patrón ajeno —sólo `pattern`, `angle` y `scale`—. Un
+  ANSI31 importado se redibuja con NUESTRA tabla, que a escala 1 separa 1 unidad donde el
+  archivo ajeno separaba 0.125. Cerrarlo exige un campo nuevo en el esquema del documento
+  canónico, que es archivo COMPARTIDO (R2): va como petición, no como parche.
+- **2026-09-04 · El anclaje al oráculo NO compara las líneas de definición.** El proyector
+  DXF de `dxf-oracle.mjs` saca del HATCH el nombre, el bit de sólido, el recuento de
+  caminos y los vértices; la trama no. Ampliarlo tocaría el instrumento de medida que
+  comparte `validate-corpus.mjs` (la medición del LECTOR, de otro entregable), así que se
+  declara en vez de tocarse. Que las líneas vuelvan idénticas lo mide el round-trip propio;
+  que otro programa las DIBUJE, el caso `sombreado-patron` cuando el titular lo corra.
+- **2026-09-04 · Tipo de patrón 0 contra 1, REGISTRADO y no corregido.** Los dos archivos
+  ajenos con trama llevan tipo de patrón 1 (`76 = 1` en su DXF) y el camino público de este
+  repositorio escribe 0, tanto en el sólido como en el de trama; nuestro propio exportador
+  DXF escribe 1. Qué hace un lector ajeno con ese número no lo dice ningún hecho medido, y
+  ADR-0007 manda registrar antes de tocar. Queda en `factsConsulted` de
+  `VALLE-CORPUS-HATCH-TRAMA`.
+- **2026-09-04 · Trazos y varias familias, sin material ajeno que los ejerza.** El corpus
+  admitido trae UN patrón (ANSI31), UNA familia, SIN trazos y SIN caminos derivados. La
+  secuencia trazo/hueco, las tramas de varias familias y el tamaño de píxel los espeja el
+  writer del decodificador y los mide el round-trip propio: no hay medición ajena de ellos
+  y no se afirma que la haya.
 - **2026-09-04 · `npm run check:cad` ya estaba ROJO al cortar la rama, y no por este
   frente.** `check:dwg-evidence` compara `docs/cad/evidence/dwg-decoder-matrix.json` y
   `dwg-roundtrip.json` con lo que el árbol genera hoy, y esos dos artefactos guardan el

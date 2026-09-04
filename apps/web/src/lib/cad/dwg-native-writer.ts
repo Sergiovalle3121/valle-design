@@ -23,6 +23,11 @@ import {
 } from "@valle-design/dwg-codec";
 import type { CadDocument } from "./cad-document";
 import {
+  cadHatchPatternBaseAngle,
+  cadHatchPatternDefinition,
+} from "./hatch-pattern-table";
+import { cadHatchPatternDxfLines } from "./hatch-pattern-strokes";
+import {
   DWG_EXPORT_GATES,
   dwgBetaExportIsEnabled,
   dwgExportBlockers,
@@ -73,7 +78,66 @@ function toCanonicalEntity(entity: CadDocument["entities"][number]): Record<stri
   // cada párrafo a un ángulo equivocado, en silencio.
   if (entity.type === "mtext")
     return { ...entity, rotation: (entity.rotation ?? 0) * RADIANS_PER_DEGREE };
+  if (entity.type === "hatch") return toCanonicalHatch(entity);
   return { ...entity };
+}
+
+/**
+ * EL SOMBREADO DE PATRÓN, CON SU TRAMA (2026-09-04). Hasta este corte todo
+ * achurado que no fuera sólido se DESCARTABA, y el motivo escrito —«el
+ * canónico lleva el nombre del patrón pero no su definición»— dejó de ser
+ * cierto el día que `hatch-pattern-table.ts` se volvió una tabla propia con
+ * ángulo, separación, desfase, corrimiento y trazos por familia. El
+ * laboratorio no puede consultarla (ADR-0007 le prohíbe importar el
+ * producto), así que la resuelve ESTE lado y la manda ya resuelta.
+ *
+ * NO ES UNA SEGUNDA DEFINICIÓN DEL PATRÓN. Son las MISMAS líneas que escribe
+ * el DXF —`cadHatchPatternDxfLines`, con el vector entre rayas ya girado al
+ * dibujo—, de modo que el mismo sombreado exportado a DXF y a DWG lleva la
+ * misma trama. Duplicar aquí la trigonometría habría creado dos tramas que
+ * podían separarse sin que nada lo viera.
+ *
+ * LAS UNIDADES, que es donde esto se rompe en silencio: el producto guarda
+ * los ángulos en GRADOS y el archivo DWG los lleva en RADIANES —medido: el
+ * ANSI31 de `11-hatch` del corpus guarda 0.7853981633974483 en su línea de
+ * definición, y el DXF del oráculo del mismo bundle escribe 53 = 45.0—, así
+ * que se convierten aquí, como ya se convierten los de ARC, INSERT, ELLIPSE
+ * y MTEXT. Y `angle` del archivo es el GIRO del patrón (`ángulo − base`), no
+ * el ángulo de las rayas: la misma resta que hace el DXF.
+ *
+ * UN NOMBRE QUE LA TABLA NO CONOCE NO SE INVENTA. No se le pone el respaldo
+ * ANSI31: se manda sin definición y el laboratorio lo declara como pérdida.
+ * Un archivo que dice llevar tu trama y lleva otra es peor que uno que dice
+ * que no la lleva.
+ */
+function toCanonicalHatch(
+  entity: Extract<CadDocument["entities"][number], { type: "hatch" }>,
+): Record<string, unknown> {
+  if (entity.solid || cadHatchPatternDefinition(entity.pattern) === undefined) {
+    return { ...entity };
+  }
+  const scale =
+    Number.isFinite(entity.scale) && (entity.scale ?? 0) > 0 ? entity.scale! : 1;
+  const base = cadHatchPatternBaseAngle(entity.pattern);
+  const angle = Number.isFinite(entity.angle) ? entity.angle! : base;
+  const origin = entity.origin ??
+    entity.boundaries[0]?.[0] ?? { x: 0, y: 0, z: 0 };
+  return {
+    ...entity,
+    patternDefinition: {
+      angle: (angle - base) * RADIANS_PER_DEGREE,
+      scale,
+      double: false,
+      lines: cadHatchPatternDxfLines(entity.pattern, angle, scale, origin).map(
+        (line) => ({
+          angle: line.angle * RADIANS_PER_DEGREE,
+          basePoint: { x: line.base.x, y: line.base.y },
+          offset: { x: line.offset.x, y: line.offset.y },
+          dashes: [...line.dashes],
+        }),
+      ),
+    },
+  };
 }
 
 /**
@@ -100,9 +164,10 @@ export const DWG_EXPORT_WRITABLE_TYPES = new Set([
   // fuente y ha habido que medir contra el oráculo DXF del corpus.
   "mtext",
   // `hatch` entra por INSTANCIA, no por tipo: ver `cadEntityIsDwgWritable`.
-  // El sólido viaja; el de patrón se declara. Aparece en el conjunto para que
-  // la lista siga siendo la única fuente de «qué clases toca el writer», y el
-  // predicado es quien decide el caso concreto.
+  // El sólido viaja, y desde el 2026-09-04 también el de patrón cuyo nombre
+  // conoce la tabla propia; el que la tabla no conoce se declara. Aparece en
+  // el conjunto para que la lista siga siendo la única fuente de «qué clases
+  // toca el writer», y el predicado es quien decide el caso concreto.
   "hatch",
 ]);
 
@@ -110,21 +175,25 @@ export const DWG_EXPORT_WRITABLE_TYPES = new Set([
  * ¿Viajará ESTA entidad, no su tipo?
  *
  * Hasta el 2026-09-01 el preflight preguntaba sólo por el TIPO, y bastaba
- * porque cada clase era escribible entera o nada. El HATCH rompe eso: el de
- * relleno SÓLIDO se escribe y el de PATRÓN no, porque el documento canónico
- * lleva el nombre del patrón pero no su definición —ángulo, escala y líneas
- * con sus trazos—, y esa definición no se deduce de los contornos.
+ * porque cada clase era escribible entera o nada. El HATCH rompe eso, y
+ * desde el 2026-09-04 la frontera se movió pero NO desapareció: el de
+ * relleno sólido viaja siempre, y el de patrón viaja si su nombre está en la
+ * tabla propia —de ahí salen las líneas de definición que el archivo lleva—.
+ * El nombre que la tabla no conoce sigue sin viajar, porque escribirlo
+ * exigiría inventarle una trama.
  *
  * Un conjunto por tipo tendría que mentir en una de las dos direcciones:
- * incluir `hatch` prometería exportar sombreados con patrón que luego se
- * declaran perdidos, y excluirlo daría por perdidos los sólidos que sí
- * viajan. El preflight existe justamente para que la pérdida NO sorprenda
- * después, así que pregunta por la instancia.
+ * incluir `hatch` prometería exportar sombreados que luego se declaran
+ * perdidos, y excluirlo daría por perdidos los que sí viajan. El preflight
+ * existe justamente para que la pérdida NO sorprenda después, así que
+ * pregunta por la instancia.
  */
 export function cadEntityIsDwgWritable(
   entity: CadDocument["entities"][number],
 ): boolean {
-  if (entity.type === "hatch") return entity.solid === true;
+  if (entity.type === "hatch") {
+    return entity.solid === true || cadHatchPatternDefinition(entity.pattern) !== undefined;
+  }
   return DWG_EXPORT_WRITABLE_TYPES.has(entity.type);
 }
 

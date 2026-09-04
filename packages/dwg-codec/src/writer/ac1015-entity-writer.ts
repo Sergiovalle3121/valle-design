@@ -65,6 +65,7 @@ import {
 } from "./ac1015-entity-emitters.js";
 import {
   AC1015_TYPE_HATCH,
+  HATCH_PATH_DERIVED_BIT,
   HATCH_PATH_POLYLINE_BIT,
 } from "../objects/entities-complex.js";
 import { AC1015_TYPE_ELLIPSE } from "../objects/entities-curves-surfaces.js";
@@ -374,18 +375,21 @@ function validateEntity(
     case "mtext":
       break;
     case "hatch":
-      // SÓLO EL RELLENO SÓLIDO. Un HATCH con patrón lleva, después de los
-      // caminos, un bloque que el sólido no tiene: ángulo, escala, doble
-      // trama y las líneas de definición con sus trazos. Nada de eso se puede
-      // deducir de los contornos, así que emitirlo exigiría inventarlo. El
-      // writer falla cerrado y quien llama declara la pérdida — jamás un
-      // patrón a medias que el lector ajeno interpretaría como otro dibujo.
-      if (!entity.solidFill) {
+      // EL PATRÓN SE ESCRIBE CUANDO VIAJA CON EL MODELO (2026-09-04). Un
+      // HATCH no sólido lleva, después de los caminos, un bloque que el
+      // sólido no tiene: ángulo, escala, doble trama y las líneas de
+      // definición con sus trazos. Ese bloque NO se deduce de los contornos
+      // —eso sigue siendo cierto y por eso el rechazo se conserva— pero sí
+      // llega en el modelo cuando quien llama lo trae, y entonces escribirlo
+      // no inventa nada: es el espejo de lo que el decodificador lee. Sin
+      // definición se falla cerrado y quien llama declara la pérdida, jamás
+      // un patrón a medias que el lector ajeno interpretaría como otro dibujo.
+      if (!entity.solidFill && entity.definitionLines === undefined) {
         throwDwgError(
           "DWG_VERSION_DECODER_UNSUPPORTED",
           "unsupported",
           0,
-          "Writing a patterned HATCH is not implemented: its pattern definition lines cannot be derived from the boundaries.",
+          "Writing a patterned HATCH requires its pattern definition lines: they cannot be derived from the boundaries.",
         );
       }
       break;
@@ -487,6 +491,97 @@ function validateEntity(
     case "mtext":
       validateMText(entity, invalid);
       return;
+    case "hatch":
+      validateHatch(entity, invalid);
+      return;
+  }
+}
+
+/**
+ * El sombreado del modelo debe ser emitible tal cual. Hasta el 2026-09-04
+ * esta validación NO existía —el HATCH salía del primer `switch` sin pasar
+ * por el segundo— y con relleno sólido casi no dolía: los contornos son RD y
+ * un valor no finito lo cazaba el emisor. Con patrón sí duele, porque el
+ * bloque de definición es la parte del cuerpo cuyo recuento decide cuántos
+ * bits vienen detrás.
+ *
+ * Se valida lo que el emisor va a escribir: cota y extrusión finitas, al
+ * menos un camino, vértices y bulges finitos y alineados, los códigos BS en
+ * rango, y —si no es sólido— los CUATRO campos del patrón presentes y
+ * finitos, con cada línea de definición completa. `pixelSize` es obligatorio
+ * exactamente cuando algún camino trae el bit DERIVADO, que es la misma
+ * condición con la que el decodificador decide leerlo.
+ */
+function validateHatch(entity: DwgHatchEntity, invalid: () => never): void {
+  // `Array.isArray` sobre un `readonly T[]` lo ESTRECHA a `any[]`, y desde
+  // ahí todo lo que se lea del arreglo llega como `any` —el compilador deja
+  // de vigilar justo dentro del validador—. Este envoltorio comprueba lo
+  // mismo en tiempo de ejecución sin tocar el tipo.
+  const esArreglo = (value: unknown): boolean => Array.isArray(value);
+  if (
+    !Number.isFinite(entity.elevation) ||
+    !isFiniteDwgPoint3(entity.extrusion) ||
+    !esArreglo(entity.nameBytes) ||
+    typeof entity.solidFill !== "boolean" ||
+    typeof entity.associative !== "boolean" ||
+    !esArreglo(entity.paths) ||
+    entity.paths.length < 1 ||
+    !esArreglo(entity.seedPoints)
+  ) {
+    invalid();
+  }
+  for (const code of [entity.style, entity.patternType]) {
+    if (!Number.isInteger(code) || code < 0 || code > 0xffff) invalid();
+  }
+  for (const path of entity.paths) {
+    if (!Number.isInteger(path.flags) || path.boundaryObjectCount < 0) invalid();
+    if (path.kind !== "polyline") continue;
+    if (path.vertices.length < 1) invalid();
+    for (const vertex of path.vertices) {
+      if (!isFiniteDwgPoint2(vertex)) invalid();
+    }
+    // Un arreglo de bulges VACÍO no es un arreglo mal alineado: el emisor
+    // decide con `bulges.length > 0` si enciende el bit, así que vacío y
+    // ausente significan lo mismo —y el camino público arma justamente el
+    // vacío—. Alineado se exige sólo cuando hay bulges que emitir.
+    if (
+      path.bulges !== undefined &&
+      path.bulges.length > 0 &&
+      (path.bulges.length !== path.vertices.length ||
+        path.bulges.some((bulge) => !Number.isFinite(bulge)))
+    ) {
+      invalid();
+    }
+  }
+  for (const seed of entity.seedPoints) {
+    if (!isFiniteDwgPoint2(seed)) invalid();
+  }
+  if (
+    entity.paths.some((path) => (path.flags & HATCH_PATH_DERIVED_BIT) !== 0) &&
+    !Number.isFinite(entity.pixelSize)
+  ) {
+    invalid();
+  }
+  if (entity.solidFill) return;
+  const { angle, scaleOrSpacing, doubleHatch, definitionLines } = entity;
+  if (
+    !Number.isFinite(angle) ||
+    !Number.isFinite(scaleOrSpacing) ||
+    typeof doubleHatch !== "boolean" ||
+    !esArreglo(definitionLines)
+  ) {
+    invalid();
+  }
+  for (const line of definitionLines ?? []) {
+    if (
+      !Number.isFinite(line.angle) ||
+      !isFiniteDwgPoint2(line.basePoint) ||
+      !isFiniteDwgPoint2(line.offset) ||
+      !esArreglo(line.dashes) ||
+      line.dashes.some((dash) => !Number.isFinite(dash))
+    ) {
+      invalid();
+    }
   }
 }
 

@@ -1,7 +1,7 @@
 {
   "$schema": "./source-register.schema.json",
   "schemaVersion": "1.0.0",
-  "updatedAt": "2026-09-02",
+  "updatedAt": "2026-09-04",
   "entries": [
     {
       "id": "VALLE-OWNER-DWG0-2026-08-09",
@@ -1046,6 +1046,47 @@
       "reviewer": "Medicion automatizada reproducible (scripts/dwg/probe-mtext-fields.mjs sobre el corpus admitido, contrastando cinco hipotesis rivales contra el oraculo DXF); revision humana del propietario pendiente",
       "reviewedAt": "2026-09-02",
       "notes": "Habilita la DECIMA clase del camino publico de escritura (MTEXT). NO enciende ningun flag ni promueve ninguna version."
+    },
+    {
+      "id": "VALLE-CORPUS-HATCH-TRAMA",
+      "owner": "Sergio Valle Zarate",
+      "origin": {
+        "type": "original-measurement",
+        "location": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance/tree/0688fb9c395b9cac4169d1ee9c23a7370cc28cf3/bundles/foundational-entities-ac1015/oracles/dxf/11-hatch.dxf",
+        "accessedAt": "2026-09-04"
+      },
+      "title": "Medicion first-party del BLOQUE DE TRAMA de un HATCH no solido (unidades del angulo, forma del desfase y valores por defecto) contra los dos sombreados con trama del corpus admitido y el oraculo DXF de sus mismos bundles",
+      "versionOrDate": "2026-09-04",
+      "terms": {
+        "license": "Valle first-party corpus measurement (admitted tool-converted-original bundles)",
+        "access": "Blobs leidos del commit fijado del repo hermano de conformidad via el gate consumidor (corpus-pin.json + SHA-256 verificado); ningun working tree",
+        "redistribution": "Solo se registran numeros observados (angulo, escala, desfase y recuentos de la trama por entidad) y las decisiones de codigo derivadas; los bytes DWG y los DXF permanecen en el repo hermano bajo su propia politica",
+        "notes": "Ninguna fuente documental nueva intervino. La DISPOSICION del bloque -angulo BD, escala BD, bit de doble trama, recuento BS de lineas con angulo BD, punto base 2BD, desfase 2BD y recuento BS de trazos- ya estaba registrada en ODA-ODS-DWG-5.4.1-PUBLIC; lo que faltaba y aqui se mide son las UNIDADES y la FORMA de esos numeros. La tabla de patrones del producto (apps/web/src/lib/cad/hatch-pattern-table.ts) es propia y anterior a esta medicion: no se copio ningun fichero .pat de nadie, y de ella salen las tramas que el producto escribe. La location apunta al DXF oraculo de 11-hatch porque es el dibujo del corpus que trae el sombreado con trama junto a uno solido; la medicion cubre ademas 21-hatch-islands del bundle entity-wave-2-ac1015, del MISMO commit fijado."
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "Los DOS unicos sombreados con trama del corpus admitido (11-hatch de foundational-entities-ac1015 y 21-hatch-islands de entity-wave-2-ac1015) llevan el mismo bloque: angulo 0, escala 1, doble trama falsa y UNA linea de definicion con angulo 0.7853981633974483, punto base (0,0), desfase (-0.0883883476483184, 0.0883883476483184) y CERO trazos",
+        "EL ANGULO DEL DWG VA EN RADIANES donde el DXF escribe GRADOS: el oraculo DXF del mismo bundle escribe para esa misma linea 53 = 45.0, y 0.7853981633974483 es pi/4. Es la unica lectura que sobrevive: 45 radianes no es un angulo que ningun productor escriba para un ANSI31",
+        "EL DESFASE ES EL MISMO VECTOR EN LOS DOS FORMATOS y viaja YA GIRADO al dibujo: el DXF escribe 45 = -0.0883883476483184 y 46 = 0.0883883476483184, identicos digito a digito a los del DWG. Girar (0, 0.125) 45 grados los reproduce, o sea el vector es la perpendicular unitaria de la raya multiplicada por la separacion (0.125 a escala 1)",
+        "EL ANGULO DE ARRIBA ES EL GIRO DEL PATRON, NO EL DE SUS RAYAS: vale 0 mientras la linea de definicion vale 45 grados. El DXF lo confirma en su propio vocabulario (52 = 0.0 junto a 53 = 45.0)",
+        "LA ESCALA DE ARRIBA acompana a la definicion sin sustituirla: 41 = 1.0 en el DXF y 1 en el DWG, con las lineas ya expresadas en unidades de dibujo",
+        "OBSERVACION REGISTRADA Y NO CORREGIDA: los dos archivos ajenos llevan tipo de patron 1 (76 = 1 en su DXF) y el camino publico de este repositorio escribe 0, tanto en el sombreado solido como en el de trama. Que hace un lector ajeno con ese numero no lo dice ningun hecho medido, asi que se anota en vez de cambiarse a ojo (ADR-0007)",
+        "COBERTURA REAL, DECLARADA: el corpus ejerce UN solo patron (ANSI31), con UNA familia, SIN trazos y SIN caminos derivados. La secuencia de trazos con hueco, las tramas de varias familias y el tamano de pixel de un camino derivado NO estan ejercidos por material ajeno: el writer los espeja del decodificador y los mide su round-trip propio (packages/dwg-codec/tests/unit/hatch-pattern-write.spec.ts), y el caso sombreado-patron de scripts/dwg/oda-roundtrip-cases.mjs es el que se lo preguntara a un conversor ajeno",
+        "CONTEXTO DE POR QUE HACIA FALTA: el writer fijaba el bit de relleno solido a 1 y rechazaba cerrado cualquier otro sombreado, de modo que de las cuatro entidades HATCH del corpus dos se regrababan y dos se declaraban perdidas. El motivo escrito -que el canonico no lleva la definicion de la trama- dejo de ser cierto cuando la tabla de patrones del producto paso a tener angulo, separacion, desfase, corrimiento y trazos por familia"
+      ],
+      "derivedFiles": [
+        "apps/web/src/lib/cad/dwg-native-writer.ts",
+        "docs/cad/evidence/dwg-corpus-rewrite.json",
+        "packages/dwg-codec/src/api/canonical-to-dwg.ts",
+        "packages/dwg-codec/src/api/canonical.ts",
+        "packages/dwg-codec/src/writer/ac1015-entity-emitters.ts",
+        "packages/dwg-codec/src/writer/ac1015-entity-writer.ts",
+        "packages/dwg-codec/tests/unit/hatch-pattern-write.spec.ts",
+        "scripts/dwg/oda-roundtrip-cases.mjs"
+      ],
+      "reviewer": "Medicion automatizada reproducible (scripts/dwg/corpus-rewrite.mjs re-escribe y coteja campo a campo los cuatro HATCH del corpus admitido) mas lectura directa del DXF oraculo del bundle fijado; revision humana del propietario pendiente",
+      "reviewedAt": "2026-09-04",
+      "notes": "Abre la rama SIN relleno solido del HATCH en el camino publico de escritura. NO enciende ningun flag ni promueve ninguna version."
     }
   ]
 }
