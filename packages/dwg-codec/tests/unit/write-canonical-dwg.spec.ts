@@ -596,7 +596,13 @@ test("un HATCH de relleno SÓLIDO va y vuelve exacto por writeCanonicalDwg → r
   assert.equal(lossManifest[0]!.code, "hatch-authoring-defaults");
 });
 
-test("un HATCH CON PATRÓN no se emite y se declara con su razón", () => {
+// El HATCH con trama SÍ se emite desde el 2026-09-04, pero sólo cuando la
+// definición viaja con la entidad (`patternDefinition`, que el producto
+// resuelve contra su tabla de patrones). Lo que esta prueba guarda es el otro
+// lado de esa frontera: sin definición no se inventa una trama, se declara.
+// El camino completo —trama escrita y releída idéntica— vive en
+// `hatch-pattern-write.spec.ts`.
+test("un HATCH CON PATRÓN pero SIN su definición no se emite y se declara", () => {
   const document = emptyDocument({
     entities: [
       { id: "e1", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 1, y: 1, z: 0 }, layer: "0" },
@@ -622,7 +628,7 @@ test("un HATCH CON PATRÓN no se emite y se declara con su razón", () => {
   assert.equal(database.modelSpaceEntities.length, 1, "sólo la línea llega al archivo");
   assert.equal(database.modelSpaceEntities[0]!.entity.kind, "line");
   assert.equal(lossManifest.length, 1);
-  assert.equal(lossManifest[0]!.code, "hatch-pattern-not-writable");
+  assert.equal(lossManifest[0]!.code, "hatch-pattern-definition-missing");
   assert.equal(lossManifest[0]!.entityId, "h2");
   assert.ok(
     lossManifest[0]!.detail.includes("ANSI31"),

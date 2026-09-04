@@ -68,6 +68,50 @@ const ELLIPSE = {
   endAngle: Math.PI / 2,
 };
 /**
+ * LA VENTANA DE UNA HOJA, con los valores MEDIDOS en `23-layout-viewport`
+ * (`VALLE-CORPUS-VIEWPORT-PAPEL`): una A4 apaisada, vista de planta, escala 1.
+ * No son valores de gusto —son los que escribió un productor ajeno— y por eso
+ * son los que se le enseñan al oráculo.
+ */
+const VIEWPORT = {
+  kind: "viewport",
+  center: { x: 148.5, y: 105, z: 0 },
+  width: 297,
+  height: 210,
+  viewTarget: { x: 0, y: 0, z: 0 },
+  viewDirection: { x: 0, y: 0, z: 1 },
+  twistAngle: 0,
+  viewHeight: 210,
+  lensLength: 50,
+  frontClip: 0,
+  backClip: 0,
+  snapAngle: 0,
+  viewCenter: { x: 148.5, y: 105 },
+  snapBase: { x: 0, y: 0 },
+  snapSpacing: { x: 10, y: 10 },
+  gridSpacing: { x: 10, y: 10 },
+  circleZoom: 100,
+  frozenLayerCount: 0,
+  statusFlags: 0,
+  styleSheetBytes: [],
+  renderMode: 0,
+  ucsAtOrigin: 0,
+  ucsPerViewport: 1,
+  ucsOrigin: { x: 0, y: 0, z: 0 },
+  ucsXAxis: { x: 1, y: 0, z: 0 },
+  ucsYAxis: { x: 0, y: 1, z: 0 },
+  ucsElevation: 0,
+  ucsOrthoViewType: 0,
+};
+/** El marco del cajetín: una línea DIBUJADA SOBRE LA HOJA, no en el modelo. */
+const LINEA_DE_HOJA = {
+  kind: "line",
+  start: { x: 10, y: 10, z: 0 },
+  end: { x: 287, y: 10, z: 0 },
+  thickness: 0,
+  extrusion: { x: 0, y: 0, z: 1 },
+};
+/**
  * MTEXT CON ANCLAJE AL CENTRO Y GIRO, no el caso por defecto. El camino
  * público aprendió a escribirlo el 2026-09-02, y lo que ahí puede fallar sin
  * que ninguna prueba propia lo note es la SEMÁNTICA del anclaje: el valor 5 se
@@ -131,6 +175,76 @@ const HATCH_SOLIDO = {
   pixelSize: undefined,
   seedPoints: [],
 };
+/**
+ * HATCH CON TRAMA — el caso que no existía porque la clase no se escribía.
+ *
+ * Hasta el 2026-09-04 el writer fijaba el bit de relleno sólido a 1 y
+ * rechazaba cerrado cualquier otro sombreado: no había nada que preguntarle
+ * al conversor. Ahora el bloque de trama —ángulo, escala, doble trama y las
+ * líneas de definición con sus trazos— se escribe cuando viaja con la
+ * entidad, y el producto lo resuelve contra su tabla propia
+ * (`apps/web/src/lib/cad/hatch-pattern-table.ts`).
+ *
+ * Los valores son la forma que produce esa tabla para EARTH a escala 10: dos
+ * familias cruzadas, con corrimiento por fila y secuencia de trazo y hueco.
+ * Se eligió una trama de DOS familias CON TRAZOS a propósito: una sola
+ * familia continua no distinguiría un recuento bien puesto de uno que el
+ * lector interpreta de casualidad.
+ *
+ * LO QUE ESTE CASO PREGUNTA A ODA, sin adornar: si un DWG con este bloque de
+ * trama abre y convierte limpio, y si el sombreado sigue siendo un sombreado
+ * con ESE nombre y ESOS contornos. El cotejo campo a campo del oráculo
+ * proyecta del DXF el nombre, el bit de sólido, el recuento de caminos y los
+ * vértices — NO las líneas de definición. Que las líneas vuelvan idénticas lo
+ * mide el round-trip propio (`hatch-pattern-write.spec.ts`) y el arnés de
+ * re-escritura del corpus sobre los dos sombreados con trama ajenos; que otro
+ * programa DIBUJE esa trama sigue siendo pregunta abierta, y se dice.
+ */
+const HATCH_TRAMA = {
+  kind: "hatch",
+  elevation: 0,
+  extrusion: { x: 0, y: 0, z: 1 },
+  nameBytes: ascii("EARTH"),
+  solidFill: false,
+  associative: false,
+  paths: [
+    {
+      kind: "polyline",
+      flags: 0,
+      closed: true,
+      vertices: [
+        { x: 60, y: 0 },
+        { x: 100, y: 0 },
+        { x: 100, y: 40 },
+        { x: 60, y: 40 },
+      ],
+      bulges: [],
+      boundaryObjectCount: 0,
+    },
+  ],
+  style: 0,
+  patternType: 0,
+  // El GIRO del patrón, no el ángulo de sus rayas: EARTH sin girar es 0.
+  angle: 0,
+  scaleOrSpacing: 10,
+  doubleHatch: false,
+  definitionLines: [
+    {
+      angle: 0,
+      basePoint: { x: 0, y: 0 },
+      offset: { x: 10, y: 10 },
+      dashes: [10, -10],
+    },
+    {
+      angle: Math.PI / 2,
+      basePoint: { x: 0, y: 0 },
+      offset: { x: -10, y: 10 },
+      dashes: [10, -10],
+    },
+  ],
+  pixelSize: undefined,
+  seedPoints: [],
+};
 const TEXT = {
   kind: "text",
   insertion: { x: 5, y: 6 },
@@ -171,6 +285,34 @@ const INSERT = {
   extrusion: { x: 0, y: 0, z: 1 },
   attributesFollow: false,
 };
+/**
+ * EL MISMO INSERT, PERO CON RÓTULO. `attributesFollow` a 1 es una promesa: el
+ * lector ajeno va a buscar los ATTRIB y el SEQEND por el flujo de handles del
+ * INSERT. Este caso es el que pregunta si esa promesa se cumple.
+ */
+const INSERT_CON_ATRIBUTOS = { ...INSERT, position: { x: 30, y: 40, z: 0 }, attributesFollow: true };
+/** Un ATTRIB con los campos que un cuadro de rótulo real usa. */
+const attrib = (tag, value, insertion, height) => ({
+  kind: "attrib",
+  insertion,
+  elevation: undefined,
+  alignment: undefined,
+  thickness: 0,
+  extrusion: { x: 0, y: 0, z: 1 },
+  obliqueAngle: undefined,
+  rotation: undefined,
+  height,
+  widthFactor: undefined,
+  valueBytes: ascii(value),
+  generation: undefined,
+  horizontalAlignment: undefined,
+  verticalAlignment: undefined,
+  tagBytes: ascii(tag),
+  fieldLength: 0,
+  attributeFlags: 0,
+});
+const ATTRIB_PLANO = attrib("PLANO", "PLANTA BAJA", { x: 32, y: 46 }, 2.5);
+const ATTRIB_ESCALA = attrib("ESCALA", "1:50", { x: 32, y: 42 }, 2);
 
 const CASES = [
   {
@@ -264,6 +406,25 @@ const CASES = [
     expectedBlocks: {},
   },
   {
+    // EL SOMBREADO CON TRAMA ANTE EL LECTOR AJENO — el hueco que dejaba el
+    // caso de al lado. `sombreado-solido` pregunta por el relleno; éste
+    // pregunta por la trama, que es la parte del cuerpo HATCH que el writer
+    // no escribía y que ninguna prueba propia puede validar sola: nuestro
+    // lector acepta lo que nuestro writer escriba, y un error simétrico en
+    // los dos seguiría invisible.
+    name: "sombreado-patron",
+    options: {
+      layers: [{ name: ascii("TRAMAS"), colorIndex: 3 }],
+      entities: [{ entity: HATCH_TRAMA, layerIndex: 1 }],
+    },
+    expectedLayers: [
+      { name: "0", color: 7 },
+      { name: "TRAMAS", color: 3 },
+    ],
+    expectedEntities: [{ kind: "hatch", layer: "TRAMAS", entity: HATCH_TRAMA }],
+    expectedBlocks: {},
+  },
+  {
     // EL PÁRRAFO ANTE EL LECTOR AJENO. El writer interno emitía MTEXT desde
     // hacía olas; lo que faltaba para enrutarlo por el camino público era
     // saber QUÉ SIGNIFICA el número del anclaje, que el hecho registrado de la
@@ -335,6 +496,99 @@ const CASES = [
       { name: "BLOQUEADA", color: 5 },
     ],
     expectedEntities: [{ kind: "line", layer: "CONGELADA", entity: LINE }],
+    expectedBlocks: {},
+  },
+  {
+    // EL CUADRO DE RÓTULO ANTE EL LECTOR AJENO. Hasta el 2026-09-04 el writer
+    // fijaba el bit de ATTRIBs a 0 y fallaba CERRADO si el modelo pedía
+    // atributos: un INSERT con rótulo no se escribía en absoluto — el bloque
+    // entero desaparecía del archivo, no sólo su texto.
+    //
+    // Lo que este caso pregunta a ODA y ninguna prueba propia puede responder:
+    // si los tres handles que el INSERT añade a su flujo —primer ATTRIB y
+    // último como punteros blandos, SEQEND como propietario duro— son los que
+    // otro programa sigue para encontrar el rótulo. La forma está MEDIDA en
+    // los cuatro INSERT con atributos del corpus admitido
+    // (`VALLE-CORPUS-INSERT-ATRIBUTOS`), pero medir cómo lo escribe ODA no es
+    // lo mismo que comprobar que ODA lee lo que escribimos nosotros.
+    //
+    // DOS ATRIBUTOS, no uno: con uno solo, primero y último apuntan al mismo
+    // handle y la cadena de los ATTRIB queda aislada, así que no se ejercita
+    // ni el enlace ±1 entre atributos ni la distinción entre primero y último.
+    name: "bloque-con-atributos",
+    options: {
+      layers: [{ name: ascii("ROTULOS"), colorIndex: 2 }],
+      blocks: [{ name: ascii("CAJETIN"), entities: [LWPOLYLINE] }],
+      entities: [
+        {
+          entity: INSERT_CON_ATRIBUTOS,
+          insertBlockIndex: 0,
+          layerIndex: 1,
+          attributes: [{ entity: ATTRIB_PLANO }, { entity: ATTRIB_ESCALA }],
+        },
+      ],
+    },
+    expectedLayers: [
+      { name: "0", color: 7 },
+      { name: "ROTULOS", color: 2 },
+    ],
+    expectedEntities: [
+      {
+        kind: "insert",
+        layer: "ROTULOS",
+        entity: INSERT_CON_ATRIBUTOS,
+        block: "CAJETIN",
+      },
+      { kind: "attrib", layer: "ROTULOS", entity: ATTRIB_PLANO },
+      { kind: "attrib", layer: "ROTULOS", entity: ATTRIB_ESCALA },
+    ],
+    expectedBlocks: {
+      CAJETIN: [{ kind: "lwpolyline", entity: LWPOLYLINE }],
+    },
+  },
+  {
+    // LA HOJA ANTE EL LECTOR AJENO — el caso que ningún otro cubre, porque
+    // todos los demás viven en model space. Hasta el 2026-09-04 el archivo
+    // escribía el BLOCK_RECORD `*Paper_Space`, su BLOCK/ENDBLK y el LAYOUT
+    // «Layout1» y NINGUNA entidad podía caer ahí: la cadena de entidades era
+    // una sola y era la del modelo.
+    //
+    // Lo que este caso pregunta a ODA y ninguna prueba propia puede responder:
+    // si una entidad en modo 1, colgada de la cadena propia de *Paper_Space,
+    // es una entidad que otro programa coloca EN LA HOJA; y si un VIEWPORT
+    // cuya cola son cuatro punteros duros —contorno de recorte nulo, VPORT
+    // ENTITY HEADER real y los dos UCS nulos— es una ventana que otro
+    // programa abre. Las dos formas están MEDIDAS en los dos VIEWPORT de
+    // `23-layout-viewport`, pero medir cómo lo escribe ODA no es lo mismo que
+    // comprobar que ODA lee lo que escribimos nosotros.
+    //
+    // DOS ENTIDADES EN LA HOJA Y UNA EN EL MODELO, a propósito: con una sola
+    // por espacio la posición de cadena sería «isolated» en las dos y no se
+    // ejercitarían los enlaces ±1 que separan las dos cadenas.
+    //
+    // LA VENTANA VA EN LA CAPA "0" porque es donde la ponen las dos del
+    // corpus y donde la pone el camino público —el documento canónico no le
+    // da capa propia a una ventana—: en otra capa, el gemelo «-publico» de
+    // este caso diría una capa distinta y el cotejo señalaría una diferencia
+    // que no es del formato sino del alcance declarado.
+    name: "hoja-con-ventana",
+    options: {
+      layers: [{ name: ascii("CAJETIN"), colorIndex: 4 }],
+      entities: [
+        { entity: LINE },
+        { entity: VIEWPORT, space: "paper" },
+        { entity: LINEA_DE_HOJA, space: "paper", layerIndex: 1 },
+      ],
+    },
+    expectedLayers: [
+      { name: "0", color: 7 },
+      { name: "CAJETIN", color: 4 },
+    ],
+    expectedEntities: [
+      { kind: "line", layer: "0", entity: LINE },
+      { kind: "viewport", layer: "0", entity: VIEWPORT },
+      { kind: "line", layer: "CAJETIN", entity: LINEA_DE_HOJA },
+    ],
     expectedBlocks: {},
   },
   {

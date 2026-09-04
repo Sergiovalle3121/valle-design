@@ -14,14 +14,28 @@
  * round-trip DWG→canónico→DWG sólo puede diferir dentro de esas pérdidas
  * declaradas (spec sobre el corpus del laboratorio).
  */
+import type { CanonicalPaperSpaceJson } from "./canonical-paper.js";
+import { canonicalPaperSpaceFromDwg } from "./canonical-paper.js";
 import type {
   Ac1015DatabaseEntityRecord,
   Ac1015NeutralDatabase,
 } from "../reader/ac1015-database-reader.js";
-import type { DwgGeometryEntity, DwgPoint3 } from "../model/entity-geometry.js";
-import { projectAcisOpaqueEntity } from "./canonical-acis.js";
+import type {
+  DwgAttribEntity,
+  DwgGeometryEntity,
+  DwgPoint3,
+  DwgViewportEntity,
+} from "../model/entity-geometry.js";
 import { mapCanonicalLayers } from "./canonical-layers.js";
-import { ALINEACION_POR_ANCLAJE } from "./canonical-mtext-anchor.js";
+// La traducción de UNA entidad —y las cuatro ayudas que sólo ella usa— vive en
+// `canonical-from-dwg.ts` desde el 2026-09-04 (presupuesto de 800 líneas).
+import {
+  decodeBytes,
+  handleId,
+  mapEntity,
+  point3,
+  PROVIDER,
+} from "./canonical-from-dwg.js";
 
 // ---------------------------------------------------------------------------
 // Tipos espejo del documento canónico (subconjunto que este mapeo produce)
@@ -81,7 +95,9 @@ export interface CanonicalCadDocumentJson {
   readonly entities: Record<string, unknown>[];
   readonly history: { readonly version: number; readonly label: string }[];
   readonly modelSpace: { readonly entityIds: string[] };
-  readonly paperSpaces: never[];
+  /** LAS HOJAS. Qué de ellas viaja al archivo lo decide `canonical-paper.ts`;
+   * la dirección DWG→canónico sigue devolviendo `[]` (pendiente declarado). */
+  readonly paperSpaces: readonly CanonicalPaperSpaceJson[];
   readonly styles: {
     readonly text: Record<string, { fontFamily?: string; height?: number }>;
     readonly dimension: Record<string, Record<string, unknown>>;
@@ -119,17 +135,8 @@ export interface CanonicalMappingResult {
   readonly lossManifest: readonly CanonicalLossEntry[];
 }
 
-const PROVIDER = "valle-dwg-codec";
 const CANONICAL_SCHEMA = 9;
 
-/** ACI básicos exactos; el resto se aproxima y se DECLARA como pérdida. */
-const decodeBytes = (bytes: readonly number[] | undefined): string =>
-  (bytes ?? []).map((b) => String.fromCharCode(b)).join("");
-
-const handleId = (handle: number): string => `h${handle.toString(16)}`;
-
-const point3 = (p: DwgPoint3): CanonicalPoint3 =>
-  Object.freeze({ x: p.x, y: p.y, z: p.z });
 
 // ---------------------------------------------------------------------------
 // DWG → canónico
@@ -158,12 +165,22 @@ export function dwgDatabaseToCanonicalDocument(
   const opaque: CanonicalOpaqueEntity[] = [];
   const entityIds: string[] = [];
 
+  // LA HOJA VUELVE (2026-09-04). El lector sigue COLOCANDO las entidades de
+  // papel en `modelSpaceEntities` —pendiente declarado— pero ya dice de qué
+  // espacio son, así que aquí se reparten: la ventana arma la lámina y lo
+  // demás (cajetín, marco, rótulos) va a sus `entityIds`. Sin esto, un
+  // archivo con hoja volvía con la hoja disuelta en el modelo.
+  const hoja = { entityIds: [] as string[], viewports: [] as DwgViewportEntity[] };
   for (const record of database.modelSpaceEntities) {
-    const mapped = mapEntity(record, layerOf(record), losses, opaque);
-    if (mapped !== null) {
-      entities.push(mapped);
-      entityIds.push(mapped["id"] as string);
+    const enHoja = record.space === "paper";
+    if (enHoja && record.entity.kind === "viewport") {
+      hoja.viewports.push(record.entity);
+      continue;
     }
+    const mapped = mapEntity(record, layerOf(record), losses, opaque);
+    if (mapped === null) continue;
+    entities.push(mapped);
+    (enHoja ? hoja.entityIds : entityIds).push(mapped["id"] as string);
   }
 
   const blocks = database.blocks
@@ -303,7 +320,7 @@ export function dwgDatabaseToCanonicalDocument(
     entities,
     history: [{ version: 1, label: "importado por valle-dwg-codec" }],
     modelSpace: { entityIds },
-    paperSpaces: [],
+    paperSpaces: canonicalPaperSpaceFromDwg(hoja),
     styles: {
       text: textStyles,
       dimension: dimensionStyles,
@@ -323,387 +340,6 @@ export function dwgDatabaseToCanonicalDocument(
   return { document, lossManifest: losses };
 }
 
-/** Mapea una entidad de la base; null = viajó al manifiesto/opacos. */
-function mapEntity(
-  record: Ac1015DatabaseEntityRecord,
-  layer: string,
-  losses: CanonicalLossEntry[],
-  opaque: CanonicalOpaqueEntity[],
-): Record<string, unknown> | null {
-  const id = handleId(record.handle);
-  const entity = record.entity;
-  switch (entity.kind) {
-    case "line":
-      return {
-        id,
-        type: "line",
-        start: point3(entity.start),
-        end: point3(entity.end),
-        layer,
-      };
-    case "circle":
-      return {
-        id,
-        type: "circle",
-        center: point3(entity.center),
-        radius: entity.radius,
-        layer,
-      };
-    case "arc":
-      return {
-        id,
-        type: "arc",
-        center: point3(entity.center),
-        radius: entity.radius,
-        startAngle: entity.startAngle,
-        endAngle: entity.endAngle,
-        layer,
-      };
-    case "point":
-      return { id, type: "point", position: point3(entity.position), layer };
-    case "ray":
-      return {
-        id,
-        type: "ray",
-        basePoint: point3(entity.basePoint),
-        direction: point3(entity.direction),
-        layer,
-      };
-    case "xline":
-      return {
-        id,
-        type: "xline",
-        basePoint: point3(entity.basePoint),
-        direction: point3(entity.direction),
-        layer,
-      };
-    case "lwpolyline": {
-      const vertices = entity.vertices.map((v, index) => ({
-        x: v.x,
-        y: v.y,
-        z: 0,
-        ...(entity.bulges?.[index] ? { bulge: entity.bulges[index] } : {}),
-        ...(entity.widths?.[index]
-          ? {
-              startWidth: entity.widths[index]!.start,
-              endWidth: entity.widths[index]!.end,
-            }
-          : {}),
-      }));
-      return { id, type: "polyline", vertices, closed: entity.closed, layer };
-    }
-    case "polyline2d": {
-      const children = record.vertices ?? [];
-      const vertices = children
-        .filter((v) => v.entity.kind === "vertex2d")
-        .map((v) => {
-          const vertex = v.entity as Extract<
-            DwgGeometryEntity,
-            { kind: "vertex2d" }
-          >;
-          return {
-            x: vertex.position.x,
-            y: vertex.position.y,
-            z: 0,
-            ...(vertex.bulge !== 0 ? { bulge: vertex.bulge } : {}),
-          };
-        });
-      return {
-        id,
-        type: "polyline",
-        vertices,
-        closed: (entity.flags & 1) === 1,
-        layer,
-      };
-    }
-    case "polyline3d": {
-      const children = record.vertices ?? [];
-      const vertices = children
-        .filter((v) => v.entity.kind === "vertex3d")
-        .map((v) =>
-          point3(
-            (v.entity as Extract<DwgGeometryEntity, { kind: "vertex3d" }>)
-              .position,
-          ),
-        );
-      return {
-        id,
-        type: "polyline",
-        vertices,
-        closed: (entity.closedFlags & 1) === 1,
-        layer,
-      };
-    }
-    case "text":
-      return {
-        id,
-        type: "text",
-        x: entity.insertion.x,
-        y: entity.insertion.y,
-        text: decodeBytes(entity.valueBytes),
-        height: entity.height,
-        ...(entity.rotation !== undefined && entity.rotation !== 0
-          ? { rotation: entity.rotation }
-          : {}),
-        layer,
-      };
-    case "mtext": {
-      const rotation = Math.atan2(
-        entity.xAxisDirection.y,
-        entity.xAxisDirection.x,
-      );
-      // EL ANCLAJE Y EL INTERLINEADO DEJAN DE PERDERSE. Hasta este corte la
-      // proyección se quedaba con la geometría y el texto, y tiraba en
-      // silencio el punto de anclaje —que es lo que decide DÓNDE queda el
-      // párrafo respecto de su inserción— y el interlineado. Un MTEXT anclado
-      // al centro volvía anclado arriba-izquierda del round-trip, desplazado
-      // por media caja, sin que nada lo declarase. La correspondencia entre
-      // anclaje y alineación está medida: ver `canonical-mtext-anchor.ts`.
-      const alignment = ALINEACION_POR_ANCLAJE[entity.attachment];
-      if (alignment === undefined) {
-        // Fuera de los nueve anclajes conocidos no se elige uno «parecido»:
-        // se declara y el consumidor aplica su propio defecto sabiéndolo.
-        losses.push({
-          code: "mtext-attachment-unknown",
-          entityId: id,
-          sourceType: "mtext",
-          detail: `El MTEXT ${id} trae el anclaje ${entity.attachment}, que no es ninguno de los nueve del formato: no se traduce a ninguna alineación y el documento canónico viaja sin ella.`,
-          severity: "warning",
-        });
-      }
-      return {
-        id,
-        type: "mtext",
-        insertion: point3(entity.insertion),
-        text: decodeBytes(entity.valueBytes),
-        ...(entity.rectWidth !== 0 ? { width: entity.rectWidth } : {}),
-        height: entity.height,
-        ...(rotation !== 0 ? { rotation } : {}),
-        ...(alignment !== undefined ? { alignment } : {}),
-        ...(entity.lineSpacingFactor !== 1
-          ? { lineSpacing: entity.lineSpacingFactor }
-          : {}),
-        layer,
-      };
-    }
-    case "insert": {
-      const attributes: Record<string, string> = {};
-      for (const attribute of record.attributes ?? []) {
-        if (attribute.entity.kind === "attrib") {
-          attributes[decodeBytes(attribute.entity.tagBytes)] = decodeBytes(
-            attribute.entity.valueBytes,
-          );
-        }
-      }
-      return {
-        id,
-        type: "insert",
-        block: decodeBytes(record.insertedBlockName ?? []),
-        insertion: point3(entity.position),
-        scale: point3(entity.scale),
-        rotation: entity.rotation,
-        ...(Object.keys(attributes).length > 0 ? { attributes } : {}),
-        layer,
-      };
-    }
-    case "ellipse": {
-      // LA EXTRUSIÓN DE LA ELIPSE SE PIERDE, Y DESDE 2026-09-01 SE DICE. El
-      // canónico no modela el plano de una elipse, así que al proyectar se
-      // descarta; hasta este corte se descartaba EN SILENCIO, y una elipse
-      // inclinada volvía tumbada del round-trip sin que nada lo declarase. Se
-      // declara sólo cuando NO es el plano XY: hacerlo siempre llenaría el
-      // manifiesto de ruido en el caso normal, que es el de las dos elipses
-      // del corpus admitido, ambas con (0,0,1).
-      const { x, y, z } = entity.extrusion;
-      if (x !== 0 || y !== 0 || z !== 1) {
-        losses.push({
-          code: "ellipse-extrusion-dropped",
-          entityId: id,
-          sourceType: "ellipse",
-          detail: `La elipse ${id} vive en un plano inclinado (extrusión ${x}, ${y}, ${z}) que el documento canónico no representa: se importa en el plano XY.`,
-          severity: "warning",
-        });
-      }
-      return {
-        id,
-        type: "ellipse",
-        center: point3(entity.center),
-        majorAxis: point3(entity.majorAxisEndpoint),
-        ratio: entity.axisRatio,
-        startParameter: entity.startAngle,
-        endParameter: entity.endAngle,
-        layer,
-      };
-    }
-    case "spline": {
-      if (entity.scenario !== 1) {
-        losses.push({
-          code: "spline-fit-scenario-opaque",
-          entityId: id,
-          sourceType: "SPLINE",
-          detail:
-            "La spline viaja en escenario de puntos de ajuste (2); el canónico modela control+nudos, así que se conserva opaca.",
-          severity: "warning",
-        });
-        opaque.push({
-          id,
-          provider: PROVIDER,
-          sourceType: "SPLINE-scenario-2",
-          layer,
-          raw: JSON.stringify({ fitPoints: entity.fitPoints ?? [] }),
-          editable: false,
-        });
-        return null;
-      }
-      return {
-        id,
-        type: "spline",
-        degree: entity.degree,
-        controlPoints: (entity.controlPoints ?? []).map(point3),
-        knots: [...(entity.knots ?? [])],
-        ...(entity.weights !== undefined
-          ? { weights: [...entity.weights] }
-          : {}),
-        ...(entity.closed ? { closed: true } : {}),
-        layer,
-      };
-    }
-    case "solid":
-    case "trace": {
-      // El formato guarda las esquinas en orden de "pajarita" (la 3.ª y la
-      // 4.ª cruzadas); el canónico pide orden de CONTORNO: [0,1,3,2].
-      const corners = entity.corners;
-      const points = [corners[0], corners[1], corners[3], corners[2]].map(
-        (c) => ({
-          x: c.x,
-          y: c.y,
-          z: entity.elevation,
-        }),
-      );
-      if (entity.kind === "trace") {
-        losses.push({
-          code: "trace-projected-as-solid",
-          entityId: id,
-          sourceType: "TRACE",
-          detail:
-            "TRACE se proyecta como solid canónico (misma geometría de relleno).",
-          severity: "info",
-        });
-      }
-      return { id, type: "solid", points, layer };
-    }
-    case "hatch": {
-      const boundaries: CanonicalPoint3[][] = [];
-      let nonPolyline = 0;
-      for (const path of entity.paths ?? []) {
-        const anyPath = path as {
-          kind?: string;
-          vertices?: { x: number; y: number }[];
-        };
-        if (anyPath.kind === "polyline" && anyPath.vertices) {
-          boundaries.push(
-            anyPath.vertices.map((v) => ({
-              x: v.x,
-              y: v.y,
-              z: entity.elevation ?? 0,
-            })),
-          );
-        } else {
-          nonPolyline += 1;
-        }
-      }
-      if (nonPolyline > 0) {
-        losses.push({
-          code: "hatch-non-polyline-boundary",
-          entityId: id,
-          sourceType: "HATCH",
-          detail: `${nonPolyline} camino(s) de contorno con segmentos línea/arco/spline no se proyectan como polígonos; el canónico modela contornos por vértices.`,
-          severity: "warning",
-        });
-      }
-      return {
-        id,
-        type: "hatch",
-        pattern: decodeBytes(
-          (entity as { nameBytes?: readonly number[] }).nameBytes ?? [],
-        ),
-        solid: Boolean((entity as { solidFill?: boolean }).solidFill),
-        boundaries,
-        layer,
-      };
-    }
-    case "dimension": {
-      const a = entity.point13 ?? entity.definitionPoint;
-      const b = entity.point14 ?? entity.definitionPoint;
-      const kindMap: Record<string, string> = {
-        linear: "linear",
-        aligned: "aligned",
-        angular3pt: "angular",
-        angular2ln: "angular",
-        radius: "radius",
-        diameter: "diameter",
-        ordinate: "ordinate",
-      };
-      losses.push({
-        code: "dimension-style-not-projected",
-        entityId: id,
-        sourceType: "DIMENSION",
-        detail:
-          "El estilo de cota y su bloque anónimo no se proyectan: el canónico regenera la representación desde sus estilos.",
-        severity: "info",
-      });
-      return {
-        id,
-        type: "dimension",
-        a: { x: a.x, y: a.y },
-        b: { x: b.x, y: b.y },
-        ...(entity.point15 !== undefined
-          ? { c: { x: entity.point15.x, y: entity.point15.y } }
-          : {}),
-        dimensionKind: kindMap[entity.dimensionKind] ?? "linear",
-        ...(entity.userTextBytes.length > 0
-          ? { text: decodeBytes(entity.userTextBytes) }
-          : {}),
-        textPosition: { x: entity.textMidpoint.x, y: entity.textMidpoint.y },
-        layer,
-      };
-    }
-    case "seqend":
-      return null;
-    case "acisOpaque": {
-      // Extraído a `canonical-acis.ts` por presupuesto de líneas: es la
-      // única rama que necesita su propia forma de payload bit-exacto.
-      const projection = projectAcisOpaqueEntity(
-        entity,
-        id,
-        layer,
-        PROVIDER,
-        decodeBytes(entity.classNameBytes),
-      );
-      losses.push(projection.loss);
-      opaque.push(projection.opaque);
-      return null;
-    }
-    default: {
-      losses.push({
-        code: "entity-kind-not-projected",
-        entityId: id,
-        sourceType: entity.kind.toUpperCase(),
-        detail: `La entidad "${entity.kind}" no tiene proyección canónica en este mapeo; se conserva opaca.`,
-        severity: "warning",
-      });
-      opaque.push({
-        id,
-        provider: PROVIDER,
-        sourceType: `dwg-${entity.kind}`,
-        layer,
-        raw: JSON.stringify(entity),
-        editable: false,
-      });
-      return null;
-    }
-  }
-}
 
 // ---------------------------------------------------------------------------
 // canónico → DWG (subconjunto escribible)
@@ -713,8 +349,16 @@ function mapEntity(
 export interface CanonicalToDwgEntity {
   readonly entity: DwgGeometryEntity;
   readonly layerName: string;
+  /** Ausente o "model" = model space; "paper" = la hoja «Layout1». */
+  readonly space?: "model" | "paper";
   readonly blockName?: string;
   readonly canonicalId: string;
+  /**
+   * Sólo INSERT: los ATTRIB del rótulo, ya con su geometría. Van en la capa
+   * del INSERT —es lo que hace el producto, que no le da capa propia a un
+   * atributo— y sólo existen cuando `entity.attributesFollow` es true.
+   */
+  readonly attributes?: readonly DwgAttribEntity[];
 }
 
 export interface CanonicalToDwgResult {
@@ -724,3 +368,4 @@ export interface CanonicalToDwgResult {
 }
 
 export { canonicalDocumentToDwgEntities } from "./canonical-to-dwg.js";
+export type { CanonicalPaperSpaceJson, CanonicalPaperViewportJson, CanonicalRectJson } from "./canonical-paper.js";

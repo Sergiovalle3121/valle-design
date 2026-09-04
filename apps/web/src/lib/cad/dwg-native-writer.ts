@@ -23,6 +23,11 @@ import {
 } from "@valle-design/dwg-codec";
 import type { CadDocument } from "./cad-document";
 import {
+  cadHatchPatternBaseAngle,
+  cadHatchPatternDefinition,
+} from "./hatch-pattern-table";
+import { cadHatchPatternDxfLines } from "./hatch-pattern-strokes";
+import {
   DWG_EXPORT_GATES,
   dwgBetaExportIsEnabled,
   dwgExportBlockers,
@@ -58,8 +63,7 @@ function toCanonicalEntity(entity: CadDocument["entities"][number]): Record<stri
       startAngle: entity.startAngle * RADIANS_PER_DEGREE,
       endAngle: entity.endAngle * RADIANS_PER_DEGREE,
     };
-  if (entity.type === "insert")
-    return { ...entity, rotation: entity.rotation * RADIANS_PER_DEGREE };
+  if (entity.type === "insert") return toCanonicalInsert(entity);
   if (entity.type === "ellipse")
     return {
       ...entity,
@@ -73,7 +77,106 @@ function toCanonicalEntity(entity: CadDocument["entities"][number]): Record<stri
   // cada párrafo a un ángulo equivocado, en silencio.
   if (entity.type === "mtext")
     return { ...entity, rotation: (entity.rotation ?? 0) * RADIANS_PER_DEGREE };
+  if (entity.type === "hatch") return toCanonicalHatch(entity);
   return { ...entity };
+}
+
+/**
+ * EL RÓTULO DEL BLOQUE, CON SU TEXTO (2026-09-04). Hasta este corte el
+ * códec fijaba el bit de ATTRIBs a 0 y fallaba cerrado si el modelo pedía
+ * atributos: un INSERT con cuadro de rótulo NO se escribía —el bloque entero
+ * desaparecía del archivo, no sólo su texto—. Ahora los escribe, y este lado
+ * le manda lo que el laboratorio no puede resolver por su cuenta.
+ *
+ * `positionedAttributes` ES LA FUENTE, no el mapa plano. El mapa dice qué
+ * vale cada etiqueta; esto dice DÓNDE se dibuja, ya en coordenadas del mundo.
+ * Es la misma decisión que tomó el exportador DXF (`dxf-export.ts`,
+ * `pushInsert`) cuando recomponer la posición desde la definición del bloque
+ * dejaba el texto en un sitio distinto del que el usuario ve en pantalla; sin
+ * el gemelo posicionado, el laboratorio declara la pérdida en vez de
+ * inventarse una posición.
+ *
+ * LAS UNIDADES, otra vez: la rotación de un atributo viaja en GRADOS en el
+ * documento del producto y en RADIANES en el archivo, igual que la del INSERT
+ * que lo lleva. Convertirla aquí es lo que impide que una etiqueta girada
+ * salga a un ángulo equivocado en silencio.
+ */
+function toCanonicalInsert(
+  entity: Extract<CadDocument["entities"][number], { type: "insert" }>,
+): Record<string, unknown> {
+  const rotation = entity.rotation * RADIANS_PER_DEGREE;
+  const positioned = entity.positionedAttributes;
+  if (positioned === undefined || positioned.length === 0) {
+    return { ...entity, rotation };
+  }
+  return {
+    ...entity,
+    rotation,
+    positionedAttributes: positioned.map((attribute) => ({
+      ...attribute,
+      ...(attribute.rotation === undefined
+        ? {}
+        : { rotation: attribute.rotation * RADIANS_PER_DEGREE }),
+    })),
+  };
+}
+
+/**
+ * EL SOMBREADO DE PATRÓN, CON SU TRAMA (2026-09-04). Hasta este corte todo
+ * achurado que no fuera sólido se DESCARTABA, y el motivo escrito —«el
+ * canónico lleva el nombre del patrón pero no su definición»— dejó de ser
+ * cierto el día que `hatch-pattern-table.ts` se volvió una tabla propia con
+ * ángulo, separación, desfase, corrimiento y trazos por familia. El
+ * laboratorio no puede consultarla (ADR-0007 le prohíbe importar el
+ * producto), así que la resuelve ESTE lado y la manda ya resuelta.
+ *
+ * NO ES UNA SEGUNDA DEFINICIÓN DEL PATRÓN. Son las MISMAS líneas que escribe
+ * el DXF —`cadHatchPatternDxfLines`, con el vector entre rayas ya girado al
+ * dibujo—, de modo que el mismo sombreado exportado a DXF y a DWG lleva la
+ * misma trama. Duplicar aquí la trigonometría habría creado dos tramas que
+ * podían separarse sin que nada lo viera.
+ *
+ * LAS UNIDADES, que es donde esto se rompe en silencio: el producto guarda
+ * los ángulos en GRADOS y el archivo DWG los lleva en RADIANES —medido: el
+ * ANSI31 de `11-hatch` del corpus guarda 0.7853981633974483 en su línea de
+ * definición, y el DXF del oráculo del mismo bundle escribe 53 = 45.0—, así
+ * que se convierten aquí, como ya se convierten los de ARC, INSERT, ELLIPSE
+ * y MTEXT. Y `angle` del archivo es el GIRO del patrón (`ángulo − base`), no
+ * el ángulo de las rayas: la misma resta que hace el DXF.
+ *
+ * UN NOMBRE QUE LA TABLA NO CONOCE NO SE INVENTA. No se le pone el respaldo
+ * ANSI31: se manda sin definición y el laboratorio lo declara como pérdida.
+ * Un archivo que dice llevar tu trama y lleva otra es peor que uno que dice
+ * que no la lleva.
+ */
+function toCanonicalHatch(
+  entity: Extract<CadDocument["entities"][number], { type: "hatch" }>,
+): Record<string, unknown> {
+  if (entity.solid || cadHatchPatternDefinition(entity.pattern) === undefined) {
+    return { ...entity };
+  }
+  const scale =
+    Number.isFinite(entity.scale) && (entity.scale ?? 0) > 0 ? entity.scale! : 1;
+  const base = cadHatchPatternBaseAngle(entity.pattern);
+  const angle = Number.isFinite(entity.angle) ? entity.angle! : base;
+  const origin = entity.origin ??
+    entity.boundaries[0]?.[0] ?? { x: 0, y: 0, z: 0 };
+  return {
+    ...entity,
+    patternDefinition: {
+      angle: (angle - base) * RADIANS_PER_DEGREE,
+      scale,
+      double: false,
+      lines: cadHatchPatternDxfLines(entity.pattern, angle, scale, origin).map(
+        (line) => ({
+          angle: line.angle * RADIANS_PER_DEGREE,
+          basePoint: { x: line.base.x, y: line.base.y },
+          offset: { x: line.offset.x, y: line.offset.y },
+          dashes: [...line.dashes],
+        }),
+      ),
+    },
+  };
 }
 
 /**
@@ -100,9 +203,10 @@ export const DWG_EXPORT_WRITABLE_TYPES = new Set([
   // fuente y ha habido que medir contra el oráculo DXF del corpus.
   "mtext",
   // `hatch` entra por INSTANCIA, no por tipo: ver `cadEntityIsDwgWritable`.
-  // El sólido viaja; el de patrón se declara. Aparece en el conjunto para que
-  // la lista siga siendo la única fuente de «qué clases toca el writer», y el
-  // predicado es quien decide el caso concreto.
+  // El sólido viaja, y desde el 2026-09-04 también el de patrón cuyo nombre
+  // conoce la tabla propia; el que la tabla no conoce se declara. Aparece en
+  // el conjunto para que la lista siga siendo la única fuente de «qué clases
+  // toca el writer», y el predicado es quien decide el caso concreto.
   "hatch",
 ]);
 
@@ -110,21 +214,25 @@ export const DWG_EXPORT_WRITABLE_TYPES = new Set([
  * ¿Viajará ESTA entidad, no su tipo?
  *
  * Hasta el 2026-09-01 el preflight preguntaba sólo por el TIPO, y bastaba
- * porque cada clase era escribible entera o nada. El HATCH rompe eso: el de
- * relleno SÓLIDO se escribe y el de PATRÓN no, porque el documento canónico
- * lleva el nombre del patrón pero no su definición —ángulo, escala y líneas
- * con sus trazos—, y esa definición no se deduce de los contornos.
+ * porque cada clase era escribible entera o nada. El HATCH rompe eso, y
+ * desde el 2026-09-04 la frontera se movió pero NO desapareció: el de
+ * relleno sólido viaja siempre, y el de patrón viaja si su nombre está en la
+ * tabla propia —de ahí salen las líneas de definición que el archivo lleva—.
+ * El nombre que la tabla no conoce sigue sin viajar, porque escribirlo
+ * exigiría inventarle una trama.
  *
  * Un conjunto por tipo tendría que mentir en una de las dos direcciones:
- * incluir `hatch` prometería exportar sombreados con patrón que luego se
- * declaran perdidos, y excluirlo daría por perdidos los sólidos que sí
- * viajan. El preflight existe justamente para que la pérdida NO sorprenda
- * después, así que pregunta por la instancia.
+ * incluir `hatch` prometería exportar sombreados que luego se declaran
+ * perdidos, y excluirlo daría por perdidos los que sí viajan. El preflight
+ * existe justamente para que la pérdida NO sorprenda después, así que
+ * pregunta por la instancia.
  */
 export function cadEntityIsDwgWritable(
   entity: CadDocument["entities"][number],
 ): boolean {
-  if (entity.type === "hatch") return entity.solid === true;
+  if (entity.type === "hatch") {
+    return entity.solid === true || cadHatchPatternDefinition(entity.pattern) !== undefined;
+  }
   return DWG_EXPORT_WRITABLE_TYPES.has(entity.type);
 }
 
@@ -183,24 +291,88 @@ function toCanonicalLinetypeStyles(
 }
 
 /**
+ * LAS HOJAS DEL DOCUMENTO, PROYECTADAS (2026-09-04).
+ *
+ * Hasta este corte esta función no existía y `toCanonicalDocument` vaciaba
+ * `paperSpaces` con una sola pérdida —«el DWG de esta fase escribe SOLO model
+ * space»—: el cajetín, el marco y la ventana de una lámina se exportaban al
+ * MODELO, encima del dibujo, o no se exportaban en absoluto. Ahora la hoja
+ * sale como hoja.
+ *
+ * LO QUE VIAJA: los ids de lo que se dibuja sobre la lámina y, de su primera
+ * ventana, los dos rectángulos —el hueco en el papel y el trozo de modelo que
+ * enseña— más la dirección de la cámara. De los dos rectángulos sale la
+ * escala, así que `scale` no se manda: dos fuentes para el mismo hecho acaban
+ * discrepando, y la que manda en el papel es la geometría.
+ *
+ * LO QUE NO VIAJA, DECLARADO AQUÍ Y NO EN SILENCIO: el bloqueo de la ventana,
+ * su escala de anotación, la visibilidad y los sobreescritos de capa por
+ * ventana, la vista derivada de SOLVIEW y la configuración de página (tamaño
+ * de papel, márgenes, monocromo). Nada de eso tiene sitio medido en el
+ * archivo de esta ola, y escribirlo a ojo sería inventar.
+ */
+function toCanonicalPaperSpaces(
+  document: CadDocument,
+  losses: CanonicalLossEntry[],
+): CanonicalCadDocumentJson["paperSpaces"] {
+  const hojas = document.paperSpaces;
+  if (hojas.length === 0) return [];
+  const conVentanaConfigurada = hojas.filter((hoja) =>
+    (hoja.viewports ?? []).some(
+      (ventana) =>
+        ventana.locked ||
+        ventana.annotationScale !== undefined ||
+        ventana.layerVisibility !== undefined ||
+        ventana.layerOverrides !== undefined ||
+        ventana.derivation !== undefined,
+    ),
+  );
+  if (conVentanaConfigurada.length > 0) {
+    losses.push({
+      code: "paper-viewport-settings-not-written",
+      sourceType: "PAPER_SPACE",
+      detail: `${conVentanaConfigurada.length} hoja(s) tienen ventanas con bloqueo, escala de anotación, visibilidad de capas por ventana o vista derivada: el DWG de esta ola escribe el recorte y la vista, no esos ajustes. La lámina sigue completa en el documento, en el PDF y en el DXF.`,
+      severity: "warning",
+    });
+  }
+  if (hojas.some((hoja) => hoja.pageSetup !== undefined)) {
+    losses.push({
+      code: "paper-page-setup-not-written",
+      sourceType: "PAPER_SPACE",
+      detail:
+        "La configuración de página de la lámina (tamaño de papel, márgenes, monocromo, escala de grosores) no viaja: el LAYOUT del archivo lleva los valores medidos del corpus, no los del documento.",
+      severity: "info",
+    });
+  }
+  return hojas.map((hoja) => ({
+    id: hoja.id,
+    name: hoja.name,
+    entityIds: [...hoja.entityIds],
+    viewports: (hoja.viewports ?? []).map((ventana) => ({
+      id: ventana.id,
+      paperBounds: { ...ventana.paperBounds },
+      modelBounds: { ...ventana.modelBounds },
+      // La dirección de mirada va del OJO a la escena en el documento; el
+      // laboratorio la invierte al escribirla, en un solo sitio. Sin `view`
+      // —un documento anterior al esquema 8— la ventana es de planta, que es
+      // lo que toda ventana significaba entonces.
+      viewDirection: { ...(ventana.view?.direction ?? { x: 0, y: 0, z: -1 }) },
+    })),
+  }));
+}
+
+/**
  * Proyección explícita del documento del producto al canónico del
  * laboratorio — campo a campo, nada de `as`: lo que el canónico de esta fase
- * no modela (espacios de papel, restricciones, referencias externas) se
- * VACÍA aquí y se declara como pérdida, no se cuela tipado a la fuerza.
+ * no modela (restricciones y referencias externas) se VACÍA aquí y se declara
+ * como pérdida, no se cuela tipado a la fuerza.
  */
 function toCanonicalDocument(document: CadDocument): {
   canonical: CanonicalCadDocumentJson;
   droppedLosses: CanonicalLossEntry[];
 } {
   const droppedLosses: CanonicalLossEntry[] = [];
-  if (document.paperSpaces.length > 0) {
-    droppedLosses.push({
-      code: "paper-spaces-not-written",
-      sourceType: "PAPER_SPACE",
-      detail: `El documento tiene ${document.paperSpaces.length} espacio(s) de papel; el DWG de esta fase escribe SOLO model space — las hojas siguen intactas en el documento y en el PDF/DXF.`,
-      severity: "warning",
-    });
-  }
+  const paperSpaces = toCanonicalPaperSpaces(document, droppedLosses);
   const canonical: CanonicalCadDocumentJson = {
     meta: {
       version: document.meta.version,
@@ -225,7 +397,7 @@ function toCanonicalDocument(document: CadDocument): {
     entities: document.entities.map(toCanonicalEntity),
     history: [],
     modelSpace: { entityIds: [...document.modelSpace.entityIds] },
-    paperSpaces: [],
+    paperSpaces,
     // LOS PATRONES DE TIPO DE LÍNEA DEL DOCUMENTO. Sin ellos el writer no
     // puede emitir la entrada LTYPE y toda capa cae a Continuous: el nombre
     // solo no basta, hace falta el patrón. Los demás estilos siguen vacíos

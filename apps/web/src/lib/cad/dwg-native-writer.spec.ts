@@ -341,12 +341,16 @@ const mixedDocument = baseDocument([
 }
 
 // ─── 5.B: el HATCH viaja por INSTANCIA, no por tipo ───────────────────────
-// El sólido se escribe; el de patrón no, porque el canónico lleva el nombre
-// del patrón pero no su definición. Eso rompe el preflight por TIPO que valía
-// hasta ahora: un conjunto de clases tendría que mentir en una de las dos
-// direcciones —prometer sombreados con patrón que luego se pierden, o dar por
-// perdidos los sólidos que sí viajan—, y el preflight existe justamente para
-// que la pérdida no sorprenda DESPUÉS.
+// El sólido se escribe siempre. El de trama se escribía NUNCA —«el canónico
+// lleva el nombre del patrón pero no su definición»—, y eso dejó de ser
+// cierto el 2026-09-04: `hatch-pattern-table.ts` es una tabla propia con
+// ángulo, separación, desfase, corrimiento y trazos por familia, y este lado
+// la resuelve y la manda con la entidad. La frontera se movió, no
+// desapareció: el nombre que la tabla NO conoce se sigue declarando, porque
+// escribirlo exigiría inventarle una trama.
+//
+// Por eso el preflight sigue preguntando por la INSTANCIA: en el mismo
+// documento y el mismo tipo hay sombreados que viajan y sombreados que no.
 {
   const contorno = [
     { x: 0, y: 0 },
@@ -358,17 +362,26 @@ const mixedDocument = baseDocument([
     ...baseDocument([]),
     entities: [
       { id: "h1", type: "hatch", pattern: "SOLID", solid: true, boundaries: [contorno], layer: "0" } as never,
-      { id: "h2", type: "hatch", pattern: "ANSI31", solid: false, boundaries: [contorno], layer: "0" } as never,
+      // ANSI31 GIRADO A 90°, no al ángulo por defecto: `angle` es el ángulo
+      // ABSOLUTO de la primera familia (45 en ANSI31), así que el archivo
+      // lleva el GIRO (90 − 45 = 45) y la línea de definición el absoluto
+      // (90). Un ANSI31 sin girar no distinguiría los dos números.
+      { id: "h2", type: "hatch", pattern: "ANSI31", solid: false, angle: 90, scale: 25, boundaries: [contorno], layer: "0" } as never,
+      // EARTH: dos familias y una secuencia de trazos. Es lo que separa
+      // «escribimos un ángulo» de «escribimos una trama».
+      { id: "h3", type: "hatch", pattern: "EARTH", solid: false, scale: 10, boundaries: [contorno], layer: "0" } as never,
+      // Y el nombre que la tabla no conoce: NO se le pone el respaldo ANSI31.
+      { id: "h4", type: "hatch", pattern: "TRAMA-QUE-NO-EXISTE", solid: false, boundaries: [contorno], layer: "0" } as never,
     ],
-    modelSpace: { entityIds: ["h1", "h2"] },
+    modelSpace: { entityIds: ["h1", "h2", "h3", "h4"] },
   };
 
   const preflight = preflightCadDwgExport(conSombreados);
-  assert.equal(preflight.writableCount, 1, "el preflight cuenta el sólido como escribible");
+  assert.equal(preflight.writableCount, 3, "el sólido y los dos de trama conocida");
   assert.equal(
     preflight.unwritableByType["hatch"],
     1,
-    "y el de patrón como perdido, en el mismo documento y el mismo tipo",
+    "y sólo el de nombre desconocido queda declarado, en el mismo tipo",
   );
 
   const exportado = exportCadDocumentToDwg(conSombreados, {
@@ -377,15 +390,67 @@ const mixedDocument = baseDocument([
   });
   assert.equal(exportado.estado, "exito_con_perdidas");
   const leido = readDwg(exportado.bytes);
-  const sombreados = leido.modelSpaceEntities.filter((r) => r.entity.kind === "hatch");
-  assert.equal(sombreados.length, 1, "sólo el sólido llega al archivo");
-  const h = sombreados[0]?.entity;
-  if (h?.kind !== "hatch") throw new Error("inalcanzable");
-  assert.equal(h.solidFill, true);
-  assert.equal(h.paths[0]?.kind === "polyline" ? h.paths[0].vertices.length : 0, 4);
+  const sombreados = leido.modelSpaceEntities
+    .map((r) => r.entity)
+    .filter((e) => e.kind === "hatch");
+  assert.equal(sombreados.length, 3, "el achurado de trama ya no desaparece del DWG");
+
+  const solido = sombreados[0];
+  if (solido?.kind !== "hatch") throw new Error("inalcanzable");
+  assert.equal(solido.solidFill, true);
+  assert.equal(solido.paths[0]?.kind === "polyline" ? solido.paths[0].vertices.length : 0, 4);
+  assert.equal(solido.definitionLines, undefined, "el sólido sigue sin bloque de trama");
+
+  // ANSI31 a 90°, con la frontera de UNIDADES que es donde esto se rompe en
+  // silencio: el documento guarda GRADOS y el archivo lleva RADIANES.
+  const ansi31 = sombreados[1];
+  if (ansi31?.kind !== "hatch") throw new Error("inalcanzable");
+  assert.equal(ansi31.solidFill, false);
+  assert.equal(String.fromCharCode(...ansi31.nameBytes), "ANSI31");
   assert.ok(
-    exportado.manifiestoDePerdidas.some((p) => p.code === "hatch-pattern-not-writable"),
-    "y el de patrón se nombra en el manifiesto que ve el usuario",
+    Math.abs((ansi31.angle ?? 0) - Math.PI / 4) < 1e-9,
+    "el giro del patrón son 45 GRADOS (90 − 45) escritos como π/4 RADIANES",
+  );
+  assert.equal(ansi31.scaleOrSpacing, 25);
+  assert.equal(ansi31.definitionLines?.length, 1, "ANSI31 es una sola familia");
+  const familia = ansi31.definitionLines?.[0];
+  assert.ok(
+    Math.abs((familia?.angle ?? 0) - Math.PI / 2) < 1e-9,
+    "y la raya, a 90 GRADOS absolutos, sale como π/2 RADIANES",
+  );
+  // Separación 25 girada 90°: el vector entre rayas sucesivas apunta a −X.
+  assert.ok(Math.abs((familia?.offset.x ?? 0) + 25) < 1e-9);
+  assert.ok(Math.abs(familia?.offset.y ?? 0) < 1e-9);
+  assert.deepEqual(familia?.dashes, [], "ANSI31 es continua");
+
+  const earth = sombreados[2];
+  if (earth?.kind !== "hatch") throw new Error("inalcanzable");
+  assert.equal(earth.definitionLines?.length, 2, "EARTH son dos familias cruzadas");
+  assert.deepEqual(
+    earth.definitionLines?.[0]?.dashes,
+    [10, -10],
+    "y sus trazos llegan en unidades de dibujo, no en unidades de patrón",
+  );
+  assert.ok(
+    Math.abs((earth.definitionLines?.[1]?.angle ?? 0) - Math.PI / 2) < 1e-9,
+    "la segunda familia es la perpendicular",
+  );
+
+  assert.ok(
+    exportado.manifiestoDePerdidas.some(
+      (p) =>
+        p.code === "hatch-pattern-definition-missing" &&
+        p.entityId === "h4" &&
+        p.detail.includes("TRAMA-QUE-NO-EXISTE"),
+    ),
+    "y el de nombre desconocido se nombra en el manifiesto que ve el usuario",
+  );
+  assert.equal(
+    exportado.manifiestoDePerdidas.filter(
+      (p) => p.code === "hatch-pattern-definition-missing",
+    ).length,
+    1,
+    "los que sí viajaron no generan ruido en el manifiesto",
   );
 }
 
@@ -394,7 +459,8 @@ console.log(
     "pérdidas con nombre, la frontera de ángulo documento↔DWG a 37,5° y el estado " +
     "y el tipo de línea de cada capa llegando al archivo exportado, más la ELIPSE " +
     "escrita con su arco convertido a radianes y su extrusión declarada, y el " +
-    "SOMBREADO sólido viajando mientras el de patrón se declara — por instancia, no por tipo",
+    "SOMBREADO sólido y el de TRAMA CONOCIDA viajando con sus líneas de definición " +
+    "en radianes mientras el de nombre desconocido se declara — por instancia, no por tipo",
 );
 
 // ─── 5.C: el MTEXT llega al archivo, con su anclaje y su giro en RADIANES ──
@@ -457,3 +523,229 @@ console.log(
     "y lo que el canónico no lleva —los extents calculados— se nombra en el manifiesto",
   );
 }
+
+// ─── 5.D: el CUADRO DE RÓTULO llega con su texto ──────────────────────────
+// Hasta el 2026-09-04 esto no era una pérdida parcial: el códec fallaba
+// CERRADO ante un INSERT con atributos, así que el bloque entero desaparecía
+// del archivo. Un plano exportado perdía su cajetín completo, no sólo lo que
+// decía.
+//
+// Lo que este bloque vigila, que es donde se rompe en silencio:
+//   1. que el texto y su POSICIÓN lleguen desde `positionedAttributes` —el
+//      mapa plano no dice dónde se dibuja—;
+//   2. que la rotación del atributo se convierta de GRADOS a RADIANES, la
+//      misma trampa que ya pagaron ARC, INSERT, ELLIPSE, MTEXT y el HATCH;
+//   3. que un INSERT con SÓLO el mapa plano se DECLARE como pérdida en vez de
+//      colocar el texto en un sitio deducido.
+{
+  const conRotulo: CadDocument = {
+    ...baseDocument([]),
+    blocks: [
+      {
+        id: "b1",
+        name: "ROTULO",
+        basePoint: { x: 0, y: 0, z: 0 },
+        entities: [
+          { id: "bl1", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 400, y: 0, z: 0 }, layer: "0" },
+        ],
+      } as never,
+    ],
+    entities: [
+      {
+        id: "i1",
+        type: "insert",
+        block: "ROTULO",
+        insertion: { x: 1_000, y: 500, z: 0 },
+        scale: { x: 1, y: 1, z: 1 },
+        rotation: 0,
+        layer: "0",
+        attributes: { PLANO: "PLANTA BAJA", ESCALA: "1:50" },
+        positionedAttributes: [
+          { tag: "PLANO", value: "PLANTA BAJA", insertion: { x: 1_020, y: 560, z: 0 }, height: 35 },
+          { tag: "ESCALA", value: "1:50", insertion: { x: 1_020, y: 520, z: 0 }, height: 25, rotation: 30 },
+        ],
+      } as never,
+      // El gemelo SIN geometría: mismo bloque, mismo mapa plano, ningún
+      // atributo posicionado. Es el que tiene que declararse.
+      {
+        id: "i2",
+        type: "insert",
+        block: "ROTULO",
+        insertion: { x: 2_000, y: 500, z: 0 },
+        scale: { x: 1, y: 1, z: 1 },
+        rotation: 0,
+        layer: "0",
+        attributes: { PLANO: "CORTE A-A" },
+      } as never,
+    ],
+    modelSpace: { entityIds: ["i1", "i2"] },
+  };
+
+  const exportado = exportCadDocumentToDwg(conRotulo, {
+    betaFlagOn: true,
+    gates: ORACLE_PASSED,
+  });
+  assert.equal(exportado.estado, "exito_con_perdidas");
+  const leido = readDwg(exportado.bytes);
+  const inserciones = leido.modelSpaceEntities.filter((r) => r.entity.kind === "insert");
+  assert.equal(inserciones.length, 2, "los dos INSERT llegan al archivo");
+
+  const conTexto = inserciones[0];
+  assert.ok(conTexto, "el INSERT con rótulo existe");
+  const atributos = conTexto.attributes ?? [];
+  assert.equal(atributos.length, 2, "el cuadro de rótulo ya no viaja mudo");
+  const primero = atributos[0]?.entity;
+  if (primero?.kind !== "attrib") throw new Error("inalcanzable");
+  assert.equal(String.fromCharCode(...primero.tagBytes), "PLANO");
+  assert.equal(String.fromCharCode(...primero.valueBytes), "PLANTA BAJA");
+  assert.ok(
+    Math.abs(primero.insertion.x - 1_020) < 1e-9 &&
+      Math.abs(primero.insertion.y - 560) < 1e-9,
+    "y con la POSICIÓN que el usuario ve, no una deducida del bloque",
+  );
+  assert.equal(primero.height, 35);
+  const segundo = atributos[1]?.entity;
+  if (segundo?.kind !== "attrib") throw new Error("inalcanzable");
+  assert.ok(
+    Math.abs((segundo.rotation ?? 0) - Math.PI / 6) < 1e-9,
+    "30 GRADOS del documento salen como π/6 RADIANES, no como 30 radianes",
+  );
+  assert.ok(
+    conTexto.sequenceEndHandle !== undefined,
+    "y el SEQEND cierra la secuencia del INSERT",
+  );
+
+  const sinGeometria = inserciones[1];
+  assert.ok(sinGeometria, "el INSERT del mapa plano también llega");
+  assert.equal(
+    (sinGeometria.attributes ?? []).length,
+    0,
+    "sin geometría no se dibuja el texto en un sitio inventado",
+  );
+  assert.ok(
+    exportado.manifiestoDePerdidas.some(
+      (p) => p.code === "insert-attributes-without-geometry" && p.entityId === "i2",
+    ),
+    "y esa pérdida se nombra en el manifiesto que ve el usuario",
+  );
+  assert.equal(
+    exportado.manifiestoDePerdidas.filter(
+      (p) => p.code === "insert-attributes-without-geometry",
+    ).length,
+    1,
+    "el que sí viajó no genera ruido en el manifiesto",
+  );
+}
+
+console.log(
+  "dwg-native-writer.spec (5.D): el cuadro de rótulo llega con su texto y su " +
+    "posición, la rotación del atributo convertida a radianes y el SEQEND " +
+    "cerrando la secuencia; un INSERT con sólo el mapa plano se declara como pérdida",
+);
+
+// ─── 5.E: la LÁMINA sale como lámina ──────────────────────────────────────
+// Hasta el 2026-09-04 este adaptador vaciaba `paperSpaces` con UNA pérdida
+// —«el DWG de esta fase escribe SOLO model space»— y el cajetín, el marco y
+// la ventana de una lámina o se exportaban ENCIMA del dibujo o no salían. No
+// era una carencia del códec: el archivo llevaba el BLOCK_RECORD
+// `*Paper_Space`, su BLOCK/ENDBLK y el LAYOUT «Layout1» desde la ola 3.
+//
+// Lo que este bloque vigila, que es donde se rompe en silencio:
+//   1. que lo dibujado SOBRE la lámina caiga en la HOJA y no en el modelo;
+//   2. que la ventana salga con el rectángulo del PAPEL y el trozo de MODELO
+//      que enseña —de los dos sale la escala—;
+//   3. que la dirección de la cámara se INVIERTA (el documento mira del ojo a
+//      la escena; el archivo guarda del objetivo al ojo);
+//   4. que lo que NO viaja —bloqueo, escala de anotación, visibilidad de capas
+//      por ventana, configuración de página— se DECLARE con su código.
+{
+  const conLamina: CadDocument = {
+    ...baseDocument([
+      { id: "l1", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 1_000, y: 0, z: 0 }, layer: "0" },
+      { id: "marco", type: "line", start: { x: 10, y: 10, z: 0 }, end: { x: 287, y: 10, z: 0 }, layer: "MURO" },
+    ]),
+    modelSpace: { entityIds: ["l1"] },
+    paperSpaces: [
+      {
+        id: "hoja-1",
+        name: "Lámina 1",
+        entityIds: ["marco"],
+        page: { width: 297, height: 210, unit: "mm", orientation: "landscape" },
+        pageSetup: {
+          paper: "A3",
+          margins: { top: 10, right: 10, bottom: 10, left: 10 },
+          colorMode: "color",
+          lineweightScale: 1,
+        },
+        viewports: [
+          {
+            id: "v1",
+            paperBounds: { x: 10, y: 30, width: 277, height: 170 },
+            modelBounds: { x: 0, y: 0, width: 554, height: 340 },
+            scale: 0.5,
+            locked: true,
+          },
+        ],
+      },
+    ],
+  } as CadDocument;
+
+  const exportado = exportCadDocumentToDwg(conLamina, {
+    betaFlagOn: true,
+    gates: ORACLE_PASSED,
+  });
+  assert.equal(exportado.estado, "exito_con_perdidas");
+  const leido = readDwg(exportado.bytes);
+  assert.deepEqual(
+    leido.modelSpaceEntities.map((r) => `${r.entity.kind}@${r.space}`),
+    ["line@model", "line@paper", "viewport@paper"],
+    "el marco cae en la HOJA y la ventana con él; sólo la línea del dibujo queda en el modelo",
+  );
+
+  const ventana = leido.modelSpaceEntities.find((r) => r.entity.kind === "viewport")?.entity;
+  if (ventana?.kind !== "viewport") throw new Error("inalcanzable");
+  assert.deepEqual(
+    ventana.center,
+    { x: 148.5, y: 115, z: 0 },
+    "el centro de la ventana es el centro de su rectángulo de PAPEL",
+  );
+  assert.equal(ventana.width, 277);
+  assert.equal(ventana.height, 170);
+  assert.deepEqual(
+    ventana.viewCenter,
+    { x: 277, y: 170 },
+    "lo que la ventana enseña es el centro del rectángulo de MODELO",
+  );
+  assert.equal(ventana.viewHeight, 340);
+  assert.equal(
+    ventana.height / ventana.viewHeight,
+    0.5,
+    "la escala 1:2 sale de los dos rectángulos, no de un número aparte",
+  );
+  assert.deepEqual(
+    ventana.viewDirection,
+    { x: 0, y: 0, z: 1 },
+    "la mirada de planta del documento (0,0,−1) se guarda invertida",
+  );
+  assert.equal(ventana.frozenLayerCount, 0, "congelar capas por ventana es «todavía no»");
+
+  const codigos = exportado.manifiestoDePerdidas.map((p) => p.code);
+  assert.ok(
+    codigos.includes("paper-viewport-settings-not-written"),
+    "el bloqueo de la ventana se declara en vez de perderse callando",
+  );
+  assert.ok(
+    codigos.includes("paper-page-setup-not-written"),
+    "la configuración de página se declara",
+  );
+  assert.ok(
+    !codigos.includes("paper-spaces-not-written"),
+    "la pérdida general de espacios de papel ya no es cierta y no se emite",
+  );
+}
+
+console.log(
+  "dwg-native-writer.spec (5.E): la lámina sale como lámina — el marco en la " +
+    "hoja, la ventana con sus dos rectángulos y la mirada invertida, y los " +
+    "ajustes que no viajan declarados con su código",
+);

@@ -123,7 +123,15 @@ export function writeCanonicalDwg(
   for (const name of referencedBlockNames) {
     const blockDef = blockDefByName.get(name);
     if (blockDef === undefined) continue; // sin definición: bloque vacío, declarado más abajo.
-    const sub = canonicalDocumentToDwgEntities({ ...document, entities: blockDef.entities });
+    // `paperSpaces: []` NO es una omisión: el documento sintético existe para
+    // traducir el CONTENIDO de un bloque, y las hojas del documento real no
+    // son suyas. Sin este vaciado la ventana de la hoja se escribiría una vez
+    // por bloque referenciado, dentro de cada bloque.
+    const sub = canonicalDocumentToDwgEntities({
+      ...document,
+      entities: blockDef.entities,
+      paperSpaces: [],
+    });
     for (const loss of sub.lossManifest) losses.push(loss);
     const kept: CanonicalToDwgEntity[] = [];
     for (const item of sub.entities) {
@@ -300,13 +308,23 @@ export function writeCanonicalDwg(
       finalEntities.push({
         entity: item.entity,
         layerIndex: layerIndexFor(item.layerName),
+        ...(item.space === "paper" ? { space: "paper" as const } : {}),
         insertBlockIndex: blockIndex,
+        // LOS ATTRIB DEL RÓTULO. Van en la capa del INSERT porque es lo que
+        // el producto modela: un atributo posicionado no tiene capa propia.
+        ...(item.attributes === undefined
+          ? {}
+          : { attributes: item.attributes.map((entity) => ({ entity })) }),
       });
       continue;
     }
     finalEntities.push({
       entity: item.entity,
       layerIndex: layerIndexFor(item.layerName),
+      // EL ESPACIO VIAJA (2026-09-04). Sin esta línea la ventana y el cajetín
+      // de una hoja caerían en model space, que es donde caía TODO hasta esta
+      // ola: el archivo llevaría el dibujo, pero no la hoja.
+      ...(item.space === "paper" ? { space: "paper" as const } : {}),
     });
   }
 

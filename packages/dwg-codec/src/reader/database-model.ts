@@ -86,6 +86,19 @@ export interface Ac1015DatabaseEntityRecord {
   readonly vertices: readonly Ac1015DatabaseEntityRecord[] | undefined;
   /** Sólo INSERT/POLYLINE: handle del SEQEND que cierra su secuencia. */
   readonly sequenceEndHandle: number | undefined;
+  /**
+   * EL ESPACIO QUE EL ARCHIVO DECLARA para esta entidad: "model" (modo 2) o
+   * "paper" (modo 1). `undefined` cuando la entidad pertenece a un BLOQUE
+   * (modo 0), porque entonces su sitio es el bloque y no un espacio.
+   *
+   * Se REPORTA desde el 2026-09-04 y no mueve nada: una entidad de hoja sigue
+   * apareciendo en `modelSpaceEntities` con su diagnóstico
+   * `database-paper-space-entity`, igual que antes. Lo que cambia es que el
+   * dato deja de perderse: antes el lector SABÍA que la entidad era de papel
+   * —lo dice el diagnóstico— y no había forma de preguntárselo, así que
+   * cualquiera que re-escribiera el archivo la mandaba al modelo en silencio.
+   */
+  readonly space: "model" | "paper" | undefined;
 }
 
 /** Un bloque de la base: registro, marcadores y contenido en orden del mapa. */

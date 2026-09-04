@@ -311,6 +311,8 @@ const mkRecord = (handle: number, entity: DwgGeometryEntity) => ({
   attributes: undefined,
   vertices: undefined,
   sequenceEndHandle: undefined,
+  // El espacio que el archivo declara; estos registros son de model space.
+  space: "model" as const,
 });
 
 const perfilV3 = toBetaProfileDatabase({

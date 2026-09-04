@@ -158,6 +158,8 @@ test("meta D4: la base neutral recupera la estructura EXACTA del contenedor", ()
           attributes: undefined,
           vertices: undefined,
           sequenceEndHandle: undefined,
+          // Dentro de un BLOQUE no hay espacio que declarar: su sitio es el bloque.
+          space: undefined,
         },
         {
           handle: 8,
@@ -167,6 +169,7 @@ test("meta D4: la base neutral recupera la estructura EXACTA del contenedor", ()
           attributes: undefined,
           vertices: undefined,
           sequenceEndHandle: undefined,
+          space: undefined,
         },
       ],
     },
@@ -181,6 +184,8 @@ test("meta D4: la base neutral recupera la estructura EXACTA del contenedor", ()
       attributes: undefined,
       vertices: undefined,
       sequenceEndHandle: undefined,
+      // El espacio que el archivo declara (modo 2).
+      space: "model",
     },
     {
       handle: 11,
@@ -190,6 +195,7 @@ test("meta D4: la base neutral recupera la estructura EXACTA del contenedor", ()
       attributes: undefined,
       vertices: undefined,
       sequenceEndHandle: undefined,
+      space: "model",
     },
     {
       handle: 12,
@@ -199,6 +205,7 @@ test("meta D4: la base neutral recupera la estructura EXACTA del contenedor", ()
       attributes: undefined,
       vertices: undefined,
       sequenceEndHandle: undefined,
+      space: "model",
     },
   ]);
 

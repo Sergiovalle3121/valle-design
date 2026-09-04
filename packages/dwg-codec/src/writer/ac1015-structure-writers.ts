@@ -29,6 +29,9 @@ import {
   DwgBitEmitter,
 } from "./ac1015-entity-writer.js";
 import { emitAc1015TableObjectCommonTail } from "./ac1015-table-writer.js";
+// El LECTOR ya nombra el tipo del VPORT ENTITY HEADER: se importa de su
+// módulo en vez de declararlo otra vez aquí (la regla de arriba, aplicada).
+import { AC1015_TYPE_VP_ENT_HDR } from "../objects/tables-symbol.js";
 
 // ---------------------------------------------------------------------------
 // Códigos de tipo de los objetos estructurales que el LECTOR aún no decodifica
@@ -518,6 +521,50 @@ export function writeAc1015AppIdBody(
     emitRef(stream, ref(3, 0));
     emitRef(stream, ref(5, 0));
   });
+}
+
+/**
+ * El VPORT ENTITY HEADER de una VENTANA de hoja: la entrada de tabla a la que
+ * el VIEWPORT apunta con su segundo puntero duro.
+ *
+ * MEDIDO EN LOS TRES DEL CORPUS (`VALLE-CORPUS-VIEWPORT-PAPEL`,
+ * `23-layout-viewport`): común de objeto de tabla, NOMBRE VACÍO —los tres lo
+ * llevan vacío, y por eso este writer ni siquiera acepta uno—, la cabeza de
+ * entrada de tabla ya conocida y UN bit de bandera; ese bit vale 1 en los dos
+ * que cuelgan de un VIEWPORT y 0 en el que no cuelga de ninguno. Flujo:
+ * `H(4,control) H(3,0) H(5,0) H(4,ventana) H(5,0)`.
+ *
+ * El cuarto handle es el VÍNCULO DE VUELTA a la ventana; sin él la entrada
+ * existiría sin decir de quién es. El quinto es nulo: es lo que escriben el
+ * que no tiene ventana y el que cierra la lista, y una hoja de esta ola lleva
+ * UNA sola ventana, así que siempre cierra.
+ */
+export function writeAc1015VportEntityHeaderBody(
+  spec: Ac1015VportEntityHeaderWriteSpec,
+  ownHandle: number,
+): Uint8Array {
+  assertHandle(ownHandle, "A vport entity header handle");
+  assertHandle(spec.controlHandle, "A vport entity header control handle");
+  assertHandle(spec.viewportHandle, "A vport entity header viewport handle");
+
+  const tail = new DwgBitEmitter();
+  emitAc1015TableObjectCommonTail(tail, ownHandle);
+  // El nombre va vacío a propósito: es lo que llevan los tres del corpus.
+  emitTableEntryHead(tail, []);
+  tail.pushBit(1); // la bandera que llevan los DOS que cuelgan de una ventana
+  return composeAc1015ObjectBody(AC1015_TYPE_VP_ENT_HDR, tail, (stream) => {
+    emitRef(stream, ref(4, spec.controlHandle));
+    emitRef(stream, ref(3, 0));
+    emitRef(stream, ref(5, 0));
+    emitRef(stream, ref(4, spec.viewportHandle));
+    emitRef(stream, ref(5, 0));
+  });
+}
+
+export interface Ac1015VportEntityHeaderWriteSpec {
+  readonly controlHandle: number;
+  /** La VENTANA a la que esta entrada pertenece (puntero blando de vuelta). */
+  readonly viewportHandle: number;
 }
 
 export interface Ac1015DimStyleWriteSpec {
