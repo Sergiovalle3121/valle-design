@@ -510,6 +510,7 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   PURGE: Trash2,
   RENAME: CaseSensitive,
   CHECKSTANDARDS: ShieldCheck,
+  REVISA: ClipboardCheck,
   NORMAMX: BadgeCheck,
   UNITS: Ratio,
   OPTIONS: Cog,

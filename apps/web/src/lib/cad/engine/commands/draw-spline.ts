@@ -76,39 +76,12 @@ function initialState(): SplineState {
 }
 
 /** Distancia perpendicular de `point` al segmento `a`–`b`. */
-function distanceToSegment(point: CadPoint2, a: CadPoint2, b: CadPoint2): number {
-  const dx = b.x - a.x;
-  const dy = b.y - a.y;
-  const lengthSquared = dx * dx + dy * dy;
-  if (lengthSquared <= 1e-18) return Math.hypot(point.x - a.x, point.y - a.y);
-  const t = Math.max(0, Math.min(1, ((point.x - a.x) * dx + (point.y - a.y) * dy) / lengthSquared));
-  return Math.hypot(point.x - (a.x + t * dx), point.y - (a.y + t * dy));
-}
-
-/**
- * Douglas–Peucker: conserva los puntos que se apartan más de `tolerance` de la
- * cuerda. Con `tolerance` 0 devuelve la lista intacta.
- */
-export function simplifyWithinTolerance(
-  points: readonly CadPoint2[],
-  tolerance: number,
-): CadPoint2[] {
-  if (!(tolerance > 0) || points.length <= 2) return [...points];
-  let worst = 0;
-  let index = 0;
-  for (let current = 1; current < points.length - 1; current += 1) {
-    const distance = distanceToSegment(points[current], points[0], points[points.length - 1]);
-    if (distance > worst) {
-      worst = distance;
-      index = current;
-    }
-  }
-  if (worst <= tolerance) return [points[0], points[points.length - 1]];
-  return [
-    ...simplifyWithinTolerance(points.slice(0, index + 1), tolerance).slice(0, -1),
-    ...simplifyWithinTolerance(points.slice(index), tolerance),
-  ];
-}
+// Douglas–Peucker vive en `lib/cad/simplify.ts`: los adaptadores de entidad lo
+// necesitan para el LOD y no pueden importar de un comando sin cerrar un ciclo.
+// Se reexporta para que quien ya lo importaba de aquí siga funcionando y siga
+// habiendo UNA implementación.
+export { simplifyWithinTolerance } from "../../simplify";
+import { simplifyWithinTolerance } from "../../simplify";
 
 /** Nudos clamped uniformes: `n + grado + 1` valores. */
 function clampedKnots(controlCount: number, degree: number): number[] {
