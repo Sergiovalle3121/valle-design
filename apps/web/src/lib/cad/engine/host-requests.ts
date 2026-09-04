@@ -62,6 +62,23 @@ export type CadHostRequest =
       scale: number;
       rotation: number;
     }
+  /**
+   * Trae OTRO dibujo del inquilino para compararlo con el abierto.
+   *
+   * Es el mismo reparto que `xref-attach` y por la misma razón: el motor
+   * decide qué comparar, el anfitrión lo descarga. La diferencia es que
+   * aquí NO se proyecta nada en el documento — el dibujo traído se compara
+   * y se tira, y lo único que se escribe son las nubes de revisión.
+   */
+  | {
+      kind: "compare-fetch";
+      /** Lo que el usuario tecleó: id del activo o su nombre. */
+      assetId: string;
+      /** Revisión pedida; `UNIVERSAL` es la vigente. */
+      revision: string;
+      /** Qué hacer al recibirlo: marcar con nubes o sólo informar. */
+      mode: "clouds" | "report";
+    }
   | { kind: "page-setup"; layoutId: string }
   /** Traza. `preview` se queda en pantalla; `plot` produce el archivo. */
   | { kind: "plot"; mode: "preview" | "plot"; request: CadPlotRequest }

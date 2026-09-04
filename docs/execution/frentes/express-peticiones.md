@@ -96,7 +96,18 @@ petición todavía es un hueco reservado, no un descuido.
   contando tres páginas; tras (4), la spec de órdenes cambia la comprobación «la opción Archivo
   DECLARA su límite» por «Archivo pide el archivo por el canal `pdf-file`», que es la misma
   comprobación que `raster-image.spec.ts` hace para `image-file`.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04, ventana de integración, grupo B). Los tres pasos que son del
+  coordinador, tal como se pidieron: `pdf-file` entra en `CadUiTarget` con su comentario;
+  `useCadFileCommandHandlers` gana el parámetro `onPdf` —después de `onImage` y en las
+  dependencias del `useEffect`— con el manejador `registerCadUiHandler("pdf-file", …)` sobre
+  `CAD_PDF_ATTACH_ACCEPT` y `cadPdfAttachPayloadFor`; y `use-command-engine.ts` el quinto
+  `useCallback`, calcado del de IMAGEATTACH, que reinvoca `PDFATTACH` si no hay orden viva.
+  Sin desvíos: `pickCadFiles` ya entrega `{ name, bytes }`, que es justo lo que el sobre pide.
+  El paso (4) NO entra en esta ventana y sigue pendiente por diseño —la propia petición lo
+  reserva al frente, en su territorio: las dos ramas `say(state, "PDF…: " + FILE_PICKER_PENDING)`
+  de `pdf-underlay-commands.ts`, líneas 235 y 400—. Dicho sin adornos: hasta que ese paso entre,
+  el canal está abierto y registrado pero ninguna orden lo pide, así que la opción Archivo sigue
+  declarando su límite y el ratón todavía no abre nada.
 
 ### P-express-03 · Registrar las diez órdenes de PDF
 
@@ -236,7 +247,34 @@ petición todavía es un hueco reservado, no un descuido.
   (sección 4) hoy exige que las dos ramas DIGAN por qué no pueden comparar; con la petición
   aplicada la spec exige la petición de anfitrión con su `assetId`, su `revision` y su `mode`,
   y conserva el mensaje como la respuesta al anfitrión ausente.
-- **Estado:** pendiente
+- **Estado:** aplicada 1/3 — sólo el canal (2026-09-04, ventana de integración, grupo B).
+
+  Aplicado (1): `{ kind: "compare-fetch" }` con su `assetId`, su `revision` y su `mode` entra en
+  `CadHostRequest` con el comentario pedido. Un paso que la petición no preveía: la unión se
+  recorre ENTERA en `plot-host.ts` —la rama final lee `request.request`—, así que añadir una
+  clase dejaba el typecheck en rojo (nueve errores, todos en ese archivo y en ningún otro).
+  Lleva ya su rama de exhaustividad con el límite declarado, igual que las de DXFOUT, PLAN,
+  ETRANSMIT, DATAEXTRACTION y XATTACH.
+
+  NO aplicados (2) ni (3). El motivo está medido, no opinado:
+
+  - (2) no cabe donde la petición lo pone: `session-catalogs.ts` registra objetivos de INTERFAZ
+    (`registerCadUiHandler`), y `compare-fetch` es petición de ANFITRIÓN; el análogo real de
+    `xref-attach` es `xref-host.ts`, enrutado desde `use-command-engine.ts`.
+  - Y la premisa de (2) no se sostiene en el árbol de hoy: «al volver, el activo ya está en
+    `xrefCatalog()` CON su `snapshot`». `cadStudioCommandContext` **no publica `xrefCatalog`**
+    —fuera de `command-types.ts` y de las specs no hay ni una aparición—, así que en el estudio
+    COMPARE cae siempre en `NO_CATALOG`; y `handleCadXrefHostRequest` tampoco reentra en la
+    orden: adjunta al documento y escribe un renglón. Un manejador que descargara y reentrara
+    volvería a caer en `NO_CATALOG`, que es un bucle, no un flujo.
+  - Traer el activo exige una vía de descarga (`fetchSnapshot`), que hoy sólo tiene el editor
+    (`cadStudioAttachXref`). Ofrecérsela al motor obliga a añadir líneas a `Layout3DEditor.tsx`,
+    que está en su techo exacto y donde `check:cad` sólo deja encoger.
+  - (3) depende de (2): cambiar `noContent(entry)` y `NO_CATALOG` por la petición dejaría a
+    COMPARE emitiendo algo que nadie atiende, sustituiría el mensaje que hoy explica por dónde
+    entra el segundo dibujo por un «falta el anfitrión» más pobre, y obligaría a reescribir la
+    sección 4 de la spec del frente. No se fuerza: el canal queda declarado, y (2) y (3) son un
+    cambio contenido para quien monte la biblioteca del inquilino en el estudio.
 
 ### P-express-05 · Registrar COMPARE
 

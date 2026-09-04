@@ -256,6 +256,14 @@ export class CadPlotHost {
     // enchufa antes que éste. Misma razón que las ramas de arriba.
     if (request.kind === "xref-attach")
       return "Este espacio de trabajo no sabe traer dibujos del inquilino: falta el anfitrión de referencias externas.";
+    // COMPARE tampoco es trazado, y hoy NADIE lo atiende: el canal
+    // `compare-fetch` existe en la unión para que el motor pueda pedir el
+    // segundo dibujo, pero el anfitrión que lo descarga todavía no está
+    // montado. La rama está aquí por la misma razón que las de arriba —la
+    // exhaustividad de la unión avisa de una petición sin dueño— y dice qué
+    // falta en vez de caer en la rama de PLOT y pedir una hoja.
+    if (request.kind === "compare-fetch")
+      return "Este espacio de trabajo no sabe traer dibujos del inquilino para compararlos: falta el anfitrión de comparación.";
 
     const document = this.bridge.document();
     if (!document) return "No hay ningún dibujo abierto que trazar.";

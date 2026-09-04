@@ -116,7 +116,15 @@ sobre el recuento de este párrafo.
   `solids-edit.spec.ts` el caso «designar la arista superior de una caja emite
   UNA línea, la de esa arista» y a `pick3d` su spec de rayo-contra-arista. Sin
   ella el gate actual sigue verde: la rama copia todas y lo dice.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04, ventana de integración, grupo B). Los dos añadidos, tal como
+  se pidieron y los dos aditivos: `CAD_ACCEPT_EDGE_PICK = 256` (el siguiente bit libre; 128
+  sigue siendo el de la cara) y la entrada `edgePick` con índice más huella —`from`/`to` en
+  coordenadas del mundo y `point` para el enganche—, junto a `facePick`. Sin desvíos: no hay
+  ningún `switch` exhaustivo sobre `CadCommandInput` ni nada que enumere los bits de
+  `CadInputMask` (`pointer-router.ts` y `lisp-commands.ts` los consultan uno a uno), así que no
+  se movió nada más y el typecheck no pidió una sola línea extra. `solids-edit.spec.ts` sigue en
+  119 y `solid3d-frontera.spec.ts` en 279. Falta lo que la propia petición deja fuera y
+  construye el frente: el resolutor de `pick3d` y el consumo en `SOLIDEDIT Arista`.
 
 ### P-tresd-03 · El resumen de POLYSOLID/CYLINDER y el renglón de la ESCALERA
 - **Archivos:** `apps/web/src/lib/cad/engine/command-summaries.ts` y

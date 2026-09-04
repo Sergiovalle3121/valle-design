@@ -530,6 +530,17 @@ export function useCadStudioCommandEngine(
       },
       [engine],
     ),
+    // PDF (F4, 2026-09-04): ídem, con el sobre del PDF. La orden que se
+    // reinvoca depende de cuál pidió el archivo y el motor no lo dice, así que
+    // se toma la que esté viva y, si no hay ninguna, se arranca `PDFATTACH`
+    // —que es el caso mayoritario: el escaneo—.
+    useCallback(
+      (name: string, text: string) => {
+        if (!engine.busy) engine.invoke("PDFATTACH");
+        engine.feedFile(name, text);
+      },
+      [engine],
+    ),
   );
 
   useCadActionRecorder(engine);

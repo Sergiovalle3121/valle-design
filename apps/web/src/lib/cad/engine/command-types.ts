@@ -113,6 +113,8 @@ export const CAD_ACCEPT_ENTITY_PICK = 64;
  * espera.
  */
 export const CAD_ACCEPT_FACE_PICK = 128;
+/** El anfitrión puede designar UNA arista del sólido bajo el cursor. */
+export const CAD_ACCEPT_EDGE_PICK = 256;
 
 export type CadCommandInput =
   | { kind: "point"; point: CadPoint2; snap?: SnapType; source: "pointer" | "typed" | "tracked" }
@@ -132,6 +134,17 @@ export type CadCommandInput =
       point: CadPoint3;
       /** Normal unitaria de la cara en ese punto: la dirección del empujón. */
       normal: CadPoint3;
+    }
+  | {
+      kind: "edgePick";
+      entityId: string;
+      /** Índice de la arista en el cuerpo evaluado, como vía rápida. */
+      edge: number;
+      /** Los dos extremos en coordenadas del mundo: la huella que se comprueba. */
+      from: CadPoint3;
+      to: CadPoint3;
+      /** Punto tocado sobre la arista, para el enganche. */
+      point: CadPoint2;
     }
   | { kind: "enter" }
   | { kind: "cancel" };
@@ -446,7 +459,16 @@ export type CadUiTarget =
    * imagen para saber su tamaño y la entrega como `data:` dentro de un sobre
    * JSON por la misma puerta de texto (`image-attach-payload.ts`).
    */
-  | "image-file";
+  | "image-file"
+  /**
+   * Selector de archivo de `PDFATTACH` y `PDFIMPORT`: el levantamiento del
+   * topógrafo o la lámina del municipio. Llega en BYTES —un PDF no es texto—
+   * y el anfitrión lo empaqueta como `data:` con
+   * `cadPdfAttachPayloadFor` (`lib/cad/pdf/pdf-attach-payload.ts`). A
+   * diferencia de `image-file`, el sobre NO declara páginas ni tamaños: el
+   * lector de PDF vive dentro del motor y los deduce él.
+   */
+  | "pdf-file";
 
 export interface CadUiRequest {
   target: CadUiTarget;

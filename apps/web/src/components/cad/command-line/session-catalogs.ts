@@ -46,6 +46,10 @@ import {
 } from "@/lib/cad/linetype-lin";
 import { CadPlotStyleCatalog } from "@/lib/cad/plot/plot-style-catalog";
 import { importCadPlotStyleTable } from "@/lib/cad/plot/plot-style-table";
+import {
+  CAD_PDF_ATTACH_ACCEPT,
+  cadPdfAttachPayloadFor,
+} from "@/lib/cad/pdf/pdf-attach-payload";
 import { cadPdfInflate } from "@/lib/cad/pdf/pdf-inflate";
 import { CadFilterCatalog } from "@/lib/cad/selection/selection-filter";
 import { CadSystemVariableStore } from "@/lib/cad/system-variables";
@@ -135,9 +139,20 @@ export function useCadFileCommandHandlers(
   onDxf: (name: string, text: string) => void,
   onGeo: (name: string, text: string) => void,
   onImage: (name: string, text: string) => void,
+  onPdf: (name: string, text: string) => void,
 ): void {
   useEffect(() => {
     const unregister = [
+      registerCadUiHandler("pdf-file", () => {
+        // El PDF entra en bytes y sale como sobre `data:`. No hace falta
+        // decodificar nada aquí: las páginas las cuenta el motor.
+        void pickCadFiles(CAD_PDF_ATTACH_ACCEPT).then((files) => {
+          const file = files[0];
+          if (!file) return;
+          onPdf(file.name, cadPdfAttachPayloadFor(file));
+        });
+        return true;
+      }),
       registerCadUiHandler("image-file", () => {
         // IMAGEATTACH (Ola H): el navegador decodifica la imagen UNA vez para
         // saber su tamaño y la entrega como `data:` en un sobre. Lo que no
@@ -213,7 +228,7 @@ export function useCadFileCommandHandlers(
     return () => {
       for (const off of unregister) off();
     };
-  }, [session, onScript, onDxf, onGeo, onImage]);
+  }, [session, onScript, onDxf, onGeo, onImage, onPdf]);
 }
 
 /** El sobre de IMAGEATTACH a partir del archivo elegido, o el motivo por el que no. */
