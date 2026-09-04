@@ -642,3 +642,110 @@ console.log(
     "posición, la rotación del atributo convertida a radianes y el SEQEND " +
     "cerrando la secuencia; un INSERT con sólo el mapa plano se declara como pérdida",
 );
+
+// ─── 5.E: la LÁMINA sale como lámina ──────────────────────────────────────
+// Hasta el 2026-09-04 este adaptador vaciaba `paperSpaces` con UNA pérdida
+// —«el DWG de esta fase escribe SOLO model space»— y el cajetín, el marco y
+// la ventana de una lámina o se exportaban ENCIMA del dibujo o no salían. No
+// era una carencia del códec: el archivo llevaba el BLOCK_RECORD
+// `*Paper_Space`, su BLOCK/ENDBLK y el LAYOUT «Layout1» desde la ola 3.
+//
+// Lo que este bloque vigila, que es donde se rompe en silencio:
+//   1. que lo dibujado SOBRE la lámina caiga en la HOJA y no en el modelo;
+//   2. que la ventana salga con el rectángulo del PAPEL y el trozo de MODELO
+//      que enseña —de los dos sale la escala—;
+//   3. que la dirección de la cámara se INVIERTA (el documento mira del ojo a
+//      la escena; el archivo guarda del objetivo al ojo);
+//   4. que lo que NO viaja —bloqueo, escala de anotación, visibilidad de capas
+//      por ventana, configuración de página— se DECLARE con su código.
+{
+  const conLamina: CadDocument = {
+    ...baseDocument([
+      { id: "l1", type: "line", start: { x: 0, y: 0, z: 0 }, end: { x: 1_000, y: 0, z: 0 }, layer: "0" },
+      { id: "marco", type: "line", start: { x: 10, y: 10, z: 0 }, end: { x: 287, y: 10, z: 0 }, layer: "MURO" },
+    ]),
+    modelSpace: { entityIds: ["l1"] },
+    paperSpaces: [
+      {
+        id: "hoja-1",
+        name: "Lámina 1",
+        entityIds: ["marco"],
+        page: { width: 297, height: 210, unit: "mm", orientation: "landscape" },
+        pageSetup: {
+          paper: "A3",
+          margins: { top: 10, right: 10, bottom: 10, left: 10 },
+          colorMode: "color",
+          lineweightScale: 1,
+        },
+        viewports: [
+          {
+            id: "v1",
+            paperBounds: { x: 10, y: 30, width: 277, height: 170 },
+            modelBounds: { x: 0, y: 0, width: 554, height: 340 },
+            scale: 0.5,
+            locked: true,
+          },
+        ],
+      },
+    ],
+  } as CadDocument;
+
+  const exportado = exportCadDocumentToDwg(conLamina, {
+    betaFlagOn: true,
+    gates: ORACLE_PASSED,
+  });
+  assert.equal(exportado.estado, "exito_con_perdidas");
+  const leido = readDwg(exportado.bytes);
+  assert.deepEqual(
+    leido.modelSpaceEntities.map((r) => `${r.entity.kind}@${r.space}`),
+    ["line@model", "line@paper", "viewport@paper"],
+    "el marco cae en la HOJA y la ventana con él; sólo la línea del dibujo queda en el modelo",
+  );
+
+  const ventana = leido.modelSpaceEntities.find((r) => r.entity.kind === "viewport")?.entity;
+  if (ventana?.kind !== "viewport") throw new Error("inalcanzable");
+  assert.deepEqual(
+    ventana.center,
+    { x: 148.5, y: 115, z: 0 },
+    "el centro de la ventana es el centro de su rectángulo de PAPEL",
+  );
+  assert.equal(ventana.width, 277);
+  assert.equal(ventana.height, 170);
+  assert.deepEqual(
+    ventana.viewCenter,
+    { x: 277, y: 170 },
+    "lo que la ventana enseña es el centro del rectángulo de MODELO",
+  );
+  assert.equal(ventana.viewHeight, 340);
+  assert.equal(
+    ventana.height / ventana.viewHeight,
+    0.5,
+    "la escala 1:2 sale de los dos rectángulos, no de un número aparte",
+  );
+  assert.deepEqual(
+    ventana.viewDirection,
+    { x: 0, y: 0, z: 1 },
+    "la mirada de planta del documento (0,0,−1) se guarda invertida",
+  );
+  assert.equal(ventana.frozenLayerCount, 0, "congelar capas por ventana es «todavía no»");
+
+  const codigos = exportado.manifiestoDePerdidas.map((p) => p.code);
+  assert.ok(
+    codigos.includes("paper-viewport-settings-not-written"),
+    "el bloqueo de la ventana se declara en vez de perderse callando",
+  );
+  assert.ok(
+    codigos.includes("paper-page-setup-not-written"),
+    "la configuración de página se declara",
+  );
+  assert.ok(
+    !codigos.includes("paper-spaces-not-written"),
+    "la pérdida general de espacios de papel ya no es cierta y no se emite",
+  );
+}
+
+console.log(
+  "dwg-native-writer.spec (5.E): la lámina sale como lámina — el marco en la " +
+    "hoja, la ventana con sus dos rectángulos y la mirada invertida, y los " +
+    "ajustes que no viajan declarados con su código",
+);

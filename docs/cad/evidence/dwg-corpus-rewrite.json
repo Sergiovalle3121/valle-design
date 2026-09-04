@@ -3,7 +3,7 @@
   "schemaVersion": 1,
   "evidenceId": "valle-design-dwg-corpus-rewrite-v1",
   "generadoPor": "node scripts/dwg/corpus-rewrite.mjs",
-  "veredicto": "De 327 entidades ajenas, el writer regraba 282 (86.2%) y rechaza 45; 282 vuelven idénticas campo a campo y 225 quedan ancladas al DXF del oráculo. Íntegras: arc, attrib, circle, ellipse, hatch, insert, line, lwpolyline, mtext, point, text. Con pérdida declarada: ninguna. No escribibles: attdef, dimension, face3d, leader, mline, polyfaceMesh, polyline2d, polyline3d, polymesh, ray, solid, spline, tolerance, trace, viewport, xline.",
+  "veredicto": "De 327 entidades ajenas, el writer regraba 284 (86.9%) y rechaza 43; 284 vuelven idénticas campo a campo y 227 quedan ancladas al DXF del oráculo. Íntegras: arc, attrib, circle, ellipse, hatch, insert, line, lwpolyline, mtext, point, text, viewport. Con pérdida declarada: ninguna. No escribibles: attdef, dimension, face3d, leader, mline, polyfaceMesh, polyline2d, polyline3d, polymesh, ray, solid, spline, tolerance, trace, xline.",
   "alcance": "Los fixtures ADMITIDOS del corpus de conformidad (AC1015 con el lector R2000; AC1018/AC1024/AC1027/AC1032 con el R2004), decodificados a la base neutral, re-escritos con writeAc1015MinimalFile —que emite SIEMPRE AC1015, de modo que un fixture moderno se mide como bajada de versión— y releídos con readAc1015Database. Los DWG los produjo una implementación independiente (ODA); el DXF oráculo es la fuente de autoría propia congelada en el mismo bundle.",
   "limiteDeclarado": "Esta medición NO cierra el hueco del oráculo externo. El cotejo campo a campo enfrenta NUESTRO writer con NUESTRO lector: un error SIMÉTRICO —escribir mal un campo y leerlo mal igual— seguiría oculto. El anclaje contra el DXF del oráculo lo estrecha, porque esos valores los escribió otro, pero sigue siendo nuestro decoder el que lee nuestro archivo. Sólo un conversor AJENO leyendo NUESTRO archivo cierra el hueco: eso es scripts/dwg/oda-roundtrip.mjs y exige el binario con licencia del titular, que no corre en este entorno.",
   "notaDeVocabulario": "El vocabulario del oráculo no es el del modelo neutral: una POLYLINE 2D del DXF se proyecta a `lwpolyline` y en el DWG llega como `polyline2d`. Por eso `declaradasPorOraculoSinAnclar` NO decide el estado de una fila —un esperado sin anclar puede pertenecer a otra clase del writer—; lo que sí lo decide es `valorDistintoDelOraculo`, donde el emparejamiento es real y el valor no coincide.",
@@ -49,11 +49,11 @@
     "reescritos": 57,
     "releidos": 57,
     "entidadesVistas": 327,
-    "entidadesEscritas": 282,
-    "entidadesNoEscribibles": 45,
-    "entidadesReleidasIguales": 282,
-    "entidadesAncladasAlOraculo": 225,
-    "porcentajeRegrabado": 86.2,
+    "entidadesEscritas": 284,
+    "entidadesNoEscribibles": 43,
+    "entidadesReleidasIguales": 284,
+    "entidadesAncladasAlOraculo": 227,
+    "porcentajeRegrabado": 86.9,
     "clasesIntegras": [
       "arc",
       "attrib",
@@ -65,7 +65,8 @@
       "lwpolyline",
       "mtext",
       "point",
-      "text"
+      "text",
+      "viewport"
     ],
     "clasesConPerdidaDeclarada": [],
     "clasesNoEscribibles": [
@@ -83,12 +84,11 @@
       "spline",
       "tolerance",
       "trace",
-      "viewport",
       "xline"
     ],
     "capasComparadas": 74,
     "capasConDiferencia": 62,
-    "diferenciasRegistradas": 45
+    "diferenciasRegistradas": 43
   },
   "resumenDeObservacionesDeCapa": [
     {
@@ -474,19 +474,17 @@
       ]
     },
     "viewport": {
-      "estado": "no-escribible",
+      "estado": "regrabada-integra",
       "vistas": 2,
-      "escritas": 0,
-      "noEscribibles": 2,
-      "releidasIguales": 0,
+      "escritas": 2,
+      "noEscribibles": 0,
+      "releidasIguales": 2,
       "releidasConDiferencia": 0,
       "declaradasPorOraculo": 2,
-      "ancladasAlOraculo": 0,
+      "ancladasAlOraculo": 2,
       "valorDistintoDelOraculo": 0,
-      "declaradasPorOraculoSinAnclar": 2,
-      "motivos": [
-        "DWG_VERSION_DECODER_UNSUPPORTED: Writing a \"viewport\" entity is not implemented by the laboratory writer yet."
-      ]
+      "declaradasPorOraculoSinAnclar": 0,
+      "motivos": []
     },
     "xline": {
       "estado": "no-escribible",
@@ -1468,24 +1466,6 @@
       "mensaje": "Writing a \"attdef\" entity is not implemented by the laboratory writer yet."
     },
     {
-      "archivo": "23-layout-viewport",
-      "version": "AC1015",
-      "contexto": "model-space",
-      "tipo": "viewport",
-      "motivo": "writer-rechaza",
-      "code": "DWG_VERSION_DECODER_UNSUPPORTED",
-      "mensaje": "Writing a \"viewport\" entity is not implemented by the laboratory writer yet."
-    },
-    {
-      "archivo": "23-layout-viewport",
-      "version": "AC1015",
-      "contexto": "model-space",
-      "tipo": "viewport",
-      "motivo": "writer-rechaza",
-      "code": "DWG_VERSION_DECODER_UNSUPPORTED",
-      "mensaje": "Writing a \"viewport\" entity is not implemented by the laboratory writer yet."
-    },
-    {
       "archivo": "24-mline",
       "version": "AC1015",
       "contexto": "model-space",
@@ -2082,12 +2062,12 @@
       "sha256": "9c0759d67834a9911d7439454f5b004f9d742d7665324b60b5a8c60f8dc8d25b",
       "abre": true,
       "entidadesVistas": 5,
-      "entidadesNoEscribibles": 2,
+      "entidadesNoEscribibles": 0,
       "reescribe": true,
       "releeElPropio": true,
       "bytesAjenos": 97415,
-      "bytesPropios": 4317,
-      "entidadesEscritas": 3,
+      "bytesPropios": 4668,
+      "entidadesEscritas": 5,
       "capas": [
         {
           "nombre": "PLANTA",
@@ -2117,9 +2097,9 @@
           },
           "viewport": {
             "declaradasPorOraculo": 2,
-            "ancladas": 0,
+            "ancladas": 2,
             "valorDistinto": 0,
-            "sinAnclar": 2,
+            "sinAnclar": 0,
             "releidasSinPareja": 0
           }
         },
@@ -4489,7 +4469,7 @@
       }
     }
   ],
-  "generadoEn": "2026-09-04T09:22:51.837Z",
+  "generadoEn": "2026-09-04T10:34:19.869Z",
   "environment": {
     "node": "v22.22.2",
     "platform": "linux",

@@ -11,6 +11,7 @@ import type {
   CanonicalToDwgEntity,
   CanonicalToDwgResult,
 } from "./canonical.js";
+import { canonicalPaperSpaceProjection } from "./canonical-paper.js";
 import {
   ANCLAJES_MEDIDOS,
   ANCLAJE_POR_ALINEACION,
@@ -637,5 +638,25 @@ export function canonicalDocumentToDwgEntities(
   }
 
   const layerNames = [...new Set(document.layers.map((l) => l.name || l.id))];
-  return { entities, layerNames, lossManifest: losses };
+  // ---- LA HOJA (2026-09-04) --------------------------------------------
+  // El reparto por espacio se hace AQUÍ, sobre las entidades ya traducidas, y
+  // no dentro del `switch`: qué espacio ocupa una entidad no depende de su
+  // clase —una línea de cajetín y una del modelo se traducen igual—, sino de
+  // en qué lista de la hoja aparece su id. Meterlo en cada `case` habría
+  // repetido la misma pregunta trece veces.
+  const hoja = canonicalPaperSpaceProjection(document.paperSpaces ?? []);
+  for (const loss of hoja.losses) losses.push(loss);
+  const conEspacio =
+    hoja.paperEntityIds.size === 0
+      ? entities
+      : entities.map((item) =>
+          hoja.paperEntityIds.has(item.canonicalId)
+            ? { ...item, space: "paper" as const }
+            : item,
+        );
+  return {
+    entities: [...conEspacio, ...hoja.viewports],
+    layerNames,
+    lossManifest: losses,
+  };
 }

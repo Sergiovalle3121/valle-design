@@ -24,6 +24,7 @@ import {
   type DwgLwPolylineEntity,
   type DwgMTextEntity,
   type DwgTextFields,
+  type DwgViewportEntity,
 } from "../model/entity-geometry.js";
 import { HATCH_PATH_DERIVED_BIT } from "../objects/entities-complex.js";
 
@@ -283,4 +284,84 @@ export function validateAttrib(
   ) {
     invalid();
   }
+}
+
+/**
+ * La VENTANA del modelo debe ser emitible tal cual: los seis puntos 3D y los
+ * cuatro pares 2D finitos, los BD sueltos finitos, los códigos BS/BL/RC en
+ * rango, los dos bits de UCS estrictamente 0 o 1 y la hoja de estilos como
+ * arreglo de bytes.
+ *
+ * Y DOS RECHAZOS QUE NO SON DE FORMA SINO DE ALCANCE, declarados aquí en vez
+ * de callados:
+ *
+ * - `frozenLayerCount` distinto de cero. El recuento viaja en el CUERPO y los
+ *   handles de esas capas en el FLUJO FINAL; el writer no los emite todavía,
+ *   así que un recuento mayor que cero produciría un archivo cuyo flujo se
+ *   desincroniza desde ese punto. Es «todavía no» (congelar capas por
+ *   ventana), no un campo que se pueda redondear a cero: hacerlo escribiría
+ *   una hoja donde todas las capas se ven, que es un dibujo DISTINTO del que
+ *   se pidió.
+ * - ancho o alto no positivos. Una ventana de área cero no recorta nada; el
+ *   archivo la llevaría y ningún lector podría dibujar lo que enseña.
+ */
+export function validateViewport(
+  entity: DwgViewportEntity,
+  invalid: () => never,
+): void {
+  for (const point of [
+    entity.center,
+    entity.viewTarget,
+    entity.viewDirection,
+    entity.ucsOrigin,
+    entity.ucsXAxis,
+    entity.ucsYAxis,
+  ]) {
+    if (!isFiniteDwgPoint3(point)) invalid();
+  }
+  for (const point of [
+    entity.viewCenter,
+    entity.snapBase,
+    entity.snapSpacing,
+    entity.gridSpacing,
+  ]) {
+    if (!isFiniteDwgPoint2(point)) invalid();
+  }
+  for (const value of [
+    entity.twistAngle,
+    entity.viewHeight,
+    entity.lensLength,
+    entity.frontClip,
+    entity.backClip,
+    entity.snapAngle,
+    entity.ucsElevation,
+  ]) {
+    if (!Number.isFinite(value)) invalid();
+  }
+  if (
+    !Number.isFinite(entity.width) ||
+    entity.width <= 0 ||
+    !Number.isFinite(entity.height) ||
+    entity.height <= 0
+  ) {
+    invalid();
+  }
+  for (const code of [entity.circleZoom, entity.ucsOrthoViewType]) {
+    if (!Number.isInteger(code) || code < 0 || code > 0xffff) invalid();
+  }
+  if (
+    !Number.isInteger(entity.statusFlags) ||
+    entity.statusFlags < 0 ||
+    entity.statusFlags > 0xffffffff ||
+    !Number.isInteger(entity.renderMode) ||
+    entity.renderMode < 0 ||
+    entity.renderMode > 0xff ||
+    !Array.isArray(entity.styleSheetBytes)
+  ) {
+    invalid();
+  }
+  for (const bit of [entity.ucsAtOrigin, entity.ucsPerViewport]) {
+    if (bit !== 0 && bit !== 1) invalid();
+  }
+  if (entity.frozenLayerCount !== 0) invalid();
 }

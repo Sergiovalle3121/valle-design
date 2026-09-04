@@ -153,10 +153,8 @@ function planRewrite(database, writeEntityBody) {
       // con atributos necesita los tres handles de su grupo para pasar por
       // ella: aquí van de mentira —el writer sólo comprueba que existan y
       // sean handles— porque el reparto REAL lo hace el plan del archivo.
-      writeEntityBody(
-        record.entity,
-        0x100,
-        kind === "insert"
+      writeEntityBody(record.entity, 0x100, {
+        ...(kind === "insert"
           ? {
               insertBlockHandle: 0x200,
               ...(record.entity.attributesFollow
@@ -169,8 +167,12 @@ function planRewrite(database, writeEntityBody) {
                   }
                 : {}),
             }
-          : {},
-      );
+          : {}),
+        // Una VENTANA exige el handle de su VPORT ENTITY HEADER, igual que un
+        // INSERT exige el de su bloque: aquí va de mentira porque el reparto
+        // REAL lo hace el plan del archivo.
+        ...(kind === "viewport" ? { viewportEntityHeaderHandle: 0x500 } : {}),
+      });
       for (const attribute of attributes) {
         writeEntityBody(attribute.entity, 0x400);
       }
@@ -187,6 +189,11 @@ function planRewrite(database, writeEntityBody) {
     const spec = {
       entity: record.entity,
       layerIndex: layerIndexByHandle.get(record.layerHandle) ?? 0,
+      // EL ESPACIO QUE EL ARCHIVO AJENO DECLARA (2026-09-04). El lector lo
+      // REPORTA aunque siga colocando la entidad de papel en model space; sin
+      // esta línea una ventana de hoja se re-escribiría en el modelo, que es
+      // medir otra cosa distinta de la que el archivo ajeno lleva.
+      ...(record.space === "paper" ? { space: "paper" } : {}),
     };
     if (kind === "insert") {
       const target = blockIndexByName.get(
@@ -238,6 +245,14 @@ function planRewrite(database, writeEntityBody) {
       const spec = accept(record, contexto);
       if (spec !== null) kept.push({ spec, source: record });
     }
+    // EL ORDEN DE ESCRITURA, NO EL DE LECTURA. El archivo mínimo escribe todo
+    // model space y después toda la hoja; el cotejo campo a campo empareja
+    // por ÍNDICE contra lo releído, así que la lista tiene que ir en ese
+    // mismo orden o un archivo que intercalara los dos espacios compararía
+    // cada entidad contra otra distinta. Es un `sort` ESTABLE: dentro de cada
+    // espacio se conserva el orden del archivo ajeno.
+    const espacio = (item) => (item.spec.space === "paper" ? 1 : 0);
+    kept.sort((a, b) => espacio(a) - espacio(b));
     return { seen, kept };
   };
 

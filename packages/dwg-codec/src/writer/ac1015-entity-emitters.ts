@@ -28,6 +28,7 @@ import type {
   DwgMTextEntity,
   DwgTextEntity,
   DwgTextFields,
+  DwgViewportEntity,
 } from "../model/entity-geometry.js";
 
 /**
@@ -190,6 +191,65 @@ function emitHatchPattern(emitter: DwgBitEmitter, entity: DwgHatchEntity): void 
     emitter.emitBS(line.dashes.length);
     for (const dash of line.dashes) emitter.emitBD(dash);
   }
+}
+
+/**
+ * VIEWPORT — la VENTANA de una hoja, espejo campo a campo de `decodeViewport`.
+ *
+ * Es la primera clase que este writer emite y que NO vive en model space: su
+ * sitio es el espacio papel, y por eso llega con la ola que parte la cadena de
+ * entidades en dos. El cuerpo va entero —el formato no tiene aquí campos
+ * opcionales que se puedan omitir— en el orden que el hecho registrado de
+ * VIEWPORT R2000 fija: centro 3BD, ancho y alto BD, objetivo y dirección de
+ * vista 3BD, giro/altura de vista/lente/recortes/ángulo de snap BD, los cuatro
+ * pares 2RD de centro de vista, base y espaciado de snap y espaciado de grid,
+ * el zoom de círculo BS y la cola de R2000+: recuento BL de capas congeladas,
+ * banderas de estado BL, hoja de estilos TV, modo de render RC, los dos bits
+ * de UCS, origen y ejes del UCS 3BD, elevación BD y tipo de vista ortográfica
+ * BS.
+ *
+ * EL RECUENTO DE CAPAS CONGELADAS SE EMITE, PERO SUS HANDLES NO EXISTEN AQUÍ:
+ * viven en el flujo final, que compone `ac1015-entity-writer.ts`. Escribir un
+ * recuento distinto de cero sin esos handles desincronizaría el flujo entero,
+ * así que `validateViewport` lo rechaza cerrado antes de llegar a este emisor
+ * — la congelación por ventana es «todavía no», no un campo que se redondee.
+ */
+export function emitViewport(
+  emitter: DwgBitEmitter,
+  entity: DwgViewportEntity,
+): void {
+  emitter.emit3BD(entity.center);
+  emitter.emitBD(entity.width);
+  emitter.emitBD(entity.height);
+  emitter.emit3BD(entity.viewTarget);
+  emitter.emit3BD(entity.viewDirection);
+  emitter.emitBD(entity.twistAngle);
+  emitter.emitBD(entity.viewHeight);
+  emitter.emitBD(entity.lensLength);
+  emitter.emitBD(entity.frontClip);
+  emitter.emitBD(entity.backClip);
+  emitter.emitBD(entity.snapAngle);
+  for (const point of [
+    entity.viewCenter,
+    entity.snapBase,
+    entity.snapSpacing,
+    entity.gridSpacing,
+  ]) {
+    emitter.emitRD(point.x);
+    emitter.emitRD(point.y);
+  }
+  emitter.emitBS(entity.circleZoom);
+  emitter.emitBL(entity.frozenLayerCount);
+  emitter.emitBL(entity.statusFlags);
+  emitter.emitTV([...entity.styleSheetBytes]);
+  emitter.emitRC(entity.renderMode);
+  emitter.pushBit(entity.ucsAtOrigin as 0 | 1);
+  emitter.pushBit(entity.ucsPerViewport as 0 | 1);
+  emitter.emit3BD(entity.ucsOrigin);
+  emitter.emit3BD(entity.ucsXAxis);
+  emitter.emit3BD(entity.ucsYAxis);
+  emitter.emitBD(entity.ucsElevation);
+  emitter.emitBS(entity.ucsOrthoViewType);
 }
 
 /**

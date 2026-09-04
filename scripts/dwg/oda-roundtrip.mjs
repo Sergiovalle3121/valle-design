@@ -168,6 +168,21 @@ function compareEntity(expected, normalized, mismatches, label) {
       if (f.value !== utf(e.valueBytes)) push(`value "${f.value}"`);
       if (f.tag !== utf(e.tagBytes)) push(`tag "${f.tag}"`);
       return;
+    case "viewport":
+      // El helper del oráculo entrega el CENTRO de la ventana en el papel
+      // (10/20) y su tamaño (40/41), que es lo que decide dónde se recorta la
+      // hoja. Los veintitantos campos restantes del cuerpo —la vista, el snap,
+      // el UCS— no tienen campo en su normalización, así que no se comparan
+      // aquí: inventarles un esperado sería comparar contra nosotros mismos.
+      if (
+        !near(f.center[0], e.center.x) ||
+        !near(f.center[1], e.center.y)
+      ) {
+        push(`center ${JSON.stringify(f.center)}`);
+      }
+      if (!near(f.width, e.width)) push(`width ${f.width}`);
+      if (!near(f.height, e.height)) push(`height ${f.height}`);
+      return;
     case "insert":
       if (expected.block !== undefined && f.block !== expected.block) {
         push(`bloque ${f.block}`);

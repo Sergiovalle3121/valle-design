@@ -154,6 +154,15 @@ export function projectForOracle(entity, insertedBlockName) {
         startAngle: entity.startAngle,
         endAngle: entity.endAngle,
       };
+    // La VENTANA: el oráculo declara su centro en el papel (10/20) y su
+    // tamaño (40/41), y nada más de los veintitantos campos del cuerpo. Se
+    // comparan esos tres y no se inventa el resto.
+    case "viewport":
+      return {
+        center: [entity.center.x, entity.center.y],
+        width: entity.width,
+        height: entity.height,
+      };
     case "hatch": {
       const polylinePaths = entity.paths.filter((path) => path.kind === "polyline");
       return {

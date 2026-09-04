@@ -290,7 +290,138 @@ npm run check --workspace=@valle-design/dwg-codec && npm run typecheck
 El comparador nuevo del arnés se verificó por MUTACIÓN: quitar la etiqueta de
 `projectForOracle` pone roja su spec.
 
+### 2026-09-04 · Entregable 4/5 — el espacio papel con una ventana: la hoja sale como hoja
+
+**Qué estaba roto, y no era lo que la ficha suponía.** El archivo mínimo ya escribía el
+BLOCK_RECORD `*Paper_Space`, su BLOCK/ENDBLK y el LAYOUT «Layout1» desde la ola 3 — los
+andamios de la hoja llevaban semanas puestos. Lo que no había era **por dónde entrar**: la
+cadena de entidades del archivo era UNA y era la del modelo, así que `*Paper_Space`
+apuntaba a primera y última entidad NULAS por construcción y ninguna entidad podía caer
+ahí. En el camino público el efecto era doble y silencioso: el adaptador del producto
+vaciaba `paperSpaces` con una sola pérdida general, y `CanonicalCadDocumentJson.paperSpaces`
+era literalmente `never[]` — el tipo decía «aquí no cabe nada». Un plano con lámina se
+exportaba con el cajetín y el marco **encima del dibujo, en model space**, o sin ellos. Y
+`viewport` era una de las 17 clases que el arnés del entregable 1 marcaba `no-escribible`.
+
+**El hecho, medido ANTES de tocar código (ADR-0007).** `VALLE-CORPUS-VIEWPORT-PAPEL` en
+`packages/dwg-codec/SOURCE_REGISTER.json` (22/22 fuentes, provenance verde), sobre los dos
+VIEWPORT y los tres VPORT ENTITY HEADER de `23-layout-viewport`:
+
+1. una entidad de hoja viaja en **modo 1** y sin propietario en el flujo, igual que una de
+   model space viaja en modo 2 — no en modo 0 con `*Paper_Space` de dueño;
+2. los dos espacios tienen **cadenas separadas**, con las mismas cuatro formas de puntero
+   (`4:0` / `6:0` / `8:0`) ya medidas para la del modelo;
+3. la **cola del flujo de un VIEWPORT son cuatro punteros duros** detrás de la capa:
+   `[5:0 5:<VPORT ENT HDR> 5:0 5:0]` — contorno de recorte nulo, la entrada de la ventana, y
+   los dos UCS nulos;
+4. el **cuerpo del VPORT ENTITY HEADER**: común de tabla, nombre VACÍO, la cabeza de entrada
+   ya conocida y UN bit de bandera (1 en los dos que cuelgan de una ventana, 0 en el que no),
+   con flujo `H(4,control) H(3,0) H(5,0) H(4,ventana) H(5,0)`;
+5. los valores que un productor real escribe en una ventana de planta a escala 1 (lente 50,
+   snap y grid (10,10), zoom de círculo 100, UCS por ventana 1…), y que **la altura de vista
+   es la del MODELO**: la escala sale de altura-de-papel entre altura-de-vista, no de un
+   número aparte.
+
+**Qué se construyó.**
+
+- `writer/ac1015-entity-writer.ts`: `space?: "model" | "paper"` en las opciones de entidad
+  (modo 1 frente a modo 2, y prohibido junto a `ownerBlockHandle`), `viewportEntityHeaderHandle`
+  obligatorio para un VIEWPORT y prohibido para el resto, y `emitAc1015ViewportTailHandles`
+  con los cuatro punteros medidos — una sola función porque la escriben DOS composiciones.
+- `writer/ac1015-entity-emitters.ts` / `-validators.ts`: `emitViewport` (espejo campo a campo
+  de `decodeViewport`, cola de R2000+ incluida) y `validateViewport`, que **falla cerrado**
+  con capas congeladas (su recuento va en el cuerpo y sus handles en el flujo: escribir el
+  primero sin los segundos desincroniza todo) y con una ventana de área cero.
+- `writer/ac1015-minimal-file-plan.ts` y `-support.ts`: `space` en el spec de entidad, la
+  partición por espacio hecha **una sola vez** en la validación (dos filtros gemelos podrían
+  separarse y dejar una cadena apuntando al otro espacio), y handles para las entradas VPORT
+  ENTITY HEADER repartidos DESPUÉS de los dos espacios.
+- `writer/ac1015-minimal-file-entities.ts`: `pushAc1015DynamicScopes` — bloques de usuario,
+  model space, la HOJA, las entradas de las ventanas y los cuatro marcadores, en el orden de
+  handle que el plan reparte. `cadenaDelEspacio` es la MISMA función para los tres.
+- `writer/ac1015-structure-writers.ts`: `writeAc1015VportEntityHeaderBody`, y el control de
+  la tabla (0x0B) ya lista sus entradas en vez de declarar cero.
+- `reader/`: el lector **REPORTA** el espacio de cada entidad (`space: "model" | "paper" |
+  undefined`). No mueve nada —una entidad de papel sigue en `modelSpaceEntities` con su
+  diagnóstico— pero el dato deja de perderse: sin él, re-escribir un archivo ajeno mandaba
+  su hoja al modelo en silencio.
+- `api/canonical-paper.ts` (NUEVO): la traducción de la hoja en las dos direcciones, con la
+  inversión de la dirección de mirada en UN solo sitio. `api/canonical.ts` deja de declarar
+  `paperSpaces: never[]`; `api/write.ts` pasa el espacio al archivo.
+- `apps/web/src/lib/cad/dwg-native-writer.ts`: `toCanonicalPaperSpaces` proyecta la lámina y
+  declara lo que no viaja con código propio.
+
+**La cifra sobre material ajeno** (mismo arnés, mismo corpus fijado): de **282/327 (86,2 %)
+a 284/327 (86,9 %)**; ancladas al DXF del oráculo de 225 a 227; `viewport` pasa de
+`no-escribible` a `regrabada-integra` 2/2/2/2; clases íntegras de 11 a 12; clases no
+escribibles de 17 a 15 (`viewport` sale, y `attrib` ya había salido).
+
+**Cómo se demuestra.**
+
+```
+npx tsx --test packages/dwg-codec/tests/unit/paper-space-viewport-write.spec.ts   # 17
+cd apps/web && npx tsx src/lib/cad/dwg-native-writer.spec.ts                      # sección 5.E
+export VALLE_DWG_CORPUS_MIRROR=/home/user/valle-design-dwg-conformance
+node scripts/dwg/corpus-rewrite.spec.mjs && node scripts/dwg/corpus-rewrite.mjs --check
+npm run typecheck && npm test
+```
+
+La prueba que importa **no** es que la ventana «vuelva»: es que el spec lee el flujo de
+handles del BLOCK_RECORD `*Paper_Space` **del archivo producido** y exige que su primera y
+su última entidad sean las de la hoja y que ninguna del modelo esté ahí. Un round-trip por
+el modelo neutral no puede decir eso, porque el lector todavía coloca las entidades de papel
+en `modelSpaceEntities`.
+
+Caso `hoja-con-ventana` en `scripts/dwg/oda-roundtrip-cases.mjs` (12 casos, 24 con sus
+gemelos públicos), con DOS entidades en la hoja y una en el modelo a propósito: con una sola
+por espacio las dos posiciones de cadena serían «isolated» y no se ejercitaría la separación.
+
+`corpus-rewrite.spec.mjs` baja de 155 a 153 comprobaciones y NO es una spec debilitada: el
+recuento es dependiente de los datos —dos de sus asertos son condicionales a que una fila
+esté en `no-escribible` o fuera de `regrabada-integra`— y `viewport` dejó de estar en las
+dos. Es la misma aritmética que ya movió el número cuando entraron el HATCH de trama y el
+ATTRIB.
+
 ## «Todavía no»
+
+- **2026-09-04 · Varias ventanas por hoja.** El archivo escribe UNA por lámina. No es un
+  límite del formato ni del writer —la cadena de la hoja admite tantas como se le den— sino
+  del alcance declarado de este entregable: cada ventana adicional necesita su propia entrada
+  VPORT ENTITY HEADER y el corpus sólo enseña DOS ventanas en un archivo, las dos de la misma
+  hoja, sin solapes. La segunda y siguientes se declaran como
+  `paper-space-extra-viewport-not-written`.
+- **2026-09-04 · Varias HOJAS.** El archivo mínimo escribe UN «Layout1» —su handle es fijo en
+  el esquema canónico (0x1C) y el diccionario de layouts lo lista solo—. La segunda lámina se
+  declara entera como `paper-space-beyond-first-not-written`. Abrirlo exige repartir
+  BLOCK_RECORD, BLOCK/ENDBLK y LAYOUT por hoja en el tramo dinámico, que es trabajo del mismo
+  tamaño que este entregable.
+- **2026-09-04 · Ventana recortada por contorno.** El primer puntero de la cola del VIEWPORT
+  es el contorno de recorte y este writer lo escribe NULO: las dos ventanas del corpus son
+  rectangulares y ninguna lo usa. Escribirlo sin material ajeno que lo ejerza sería estrenar
+  una forma no medida.
+- **2026-09-04 · Capas congeladas por ventana.** El recuento viaja en el CUERPO y los handles
+  de esas capas en el FLUJO FINAL. `validateViewport` **falla cerrado** con cualquier recuento
+  distinto de cero en vez de redondearlo a cero, que escribiría una hoja donde todas las capas
+  se ven — un dibujo distinto del pedido. Las dos ventanas del corpus traen cero, así que no
+  hay material ajeno que lo ejerza.
+- **2026-09-04 · La ventana va siempre en la capa "0".** Es donde la ponen las dos del corpus
+  y donde la deja el camino público: el documento canónico no le da capa propia a una ventana.
+  El `CadPaperViewport` del producto tampoco tiene ese campo, y añadírselo tocaría el esquema
+  del documento canónico, que es archivo COMPARTIDO (R2).
+- **2026-09-04 · La lectura sigue metiendo la hoja en model space.** `readAc1015Database`
+  coloca las entidades de papel en `modelSpaceEntities` con el diagnóstico
+  `database-paper-space-entity`, como antes; lo único que cambió es que ahora DICE de qué
+  espacio son. Modelar la hoja en la base neutral movería entidades de lista y cambiaría los
+  recuentos de `dwg-corpus-validation.json`, que es la medición del LECTOR y de otro
+  entregable: se declara en vez de mezclarse.
+- **2026-09-04 · El LAYOUT no apunta a su ventana activa.** El flujo del LAYOUT lleva un
+  puntero a «último viewport activo» y sigue escribiéndose nulo: qué escribe ahí un productor
+  real no está medido en este corpus y no se adivina.
+- **2026-09-04 · El ancho del rectángulo de modelo se DERIVA en la vuelta.** El VIEWPORT
+  guarda el centro y la ALTURA de vista, no el ancho: el ancho lo fija la proporción del hueco
+  de papel. `canonicalPaperSpaceFromDwg` lo reconstruye de esa proporción, que devuelve el
+  mismo rectángulo cuando entró por la ida de este mismo módulo, pero una ventana ajena cuyo
+  `modelBounds` no guardara la proporción de su papel volvería con otro ancho.
 
 - **2026-09-04 · El ATTDEF sigue sin escribirse, y con él la DEFINICIÓN del rótulo.** Un
   ATTRIB dice qué vale una etiqueta en UNA inserción; el ATTDEF, dentro del bloque, dice

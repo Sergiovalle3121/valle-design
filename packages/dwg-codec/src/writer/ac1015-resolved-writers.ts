@@ -21,7 +21,9 @@ import type { DwgGeometryEntity } from "../model/entity-geometry.js";
 import {
   composeAc1015ObjectBody,
   DwgBitEmitter,
+  emitAc1015ViewportTailHandles,
   writeAc1015EntityBody,
+  type Ac1015EntitySpace,
   type Ac1015InsertAttributeHandles,
 } from "./ac1015-entity-writer.js";
 import { emitAc1015TableObjectCommonTail } from "./ac1015-table-writer.js";
@@ -320,6 +322,17 @@ export interface Ac1015ResolvedEntityRefs {
    * forma MEDIDA en los cuatro INSERT con atributos del corpus.
    */
   readonly attributeHandles?: Ac1015InsertAttributeHandles;
+  /**
+   * Sólo VIEWPORT: el VPORT ENTITY HEADER que la hoja le asocia. Cierra el
+   * flujo con los cuatro punteros duros medidos en el corpus.
+   */
+  readonly viewportEntityHeaderHandle?: number;
+  /**
+   * En qué ESPACIO vive, cuando no pertenece a un bloque: "model" (el defecto
+   * de siempre) o "paper". Es el bit por el que un lector ajeno decide si la
+   * entidad se dibuja en el modelo o sobre la hoja.
+   */
+  readonly space?: Ac1015EntitySpace;
   /** Posición en la cadena de entidades. Por defecto, "isolated". */
   readonly chainPosition?: Ac1015EntityChainPosition;
 }
@@ -327,7 +340,8 @@ export interface Ac1015ResolvedEntityRefs {
 /**
  * Emite el cuerpo de una entidad REAL con el flujo de handles RESUELTO:
  * `[dueño H(4)] xdic H(3,0) prev H(4,0) next H(4,0) capa H(5) [estilo H(5)]
- * [bloque H(5)] [1er ATTRIB H(4) último ATTRIB H(4) SEQEND H(3)]`
+ * [bloque H(5)] [1er ATTRIB H(4) último ATTRIB H(4) SEQEND H(3)]
+ * [recorte H(5,0) VPORT ENT HDR H(5) UCS H(5,0) UCS H(5,0)]`
  * — la forma medida en el corpus (los productores reales escriben vínculos
  * explícitos nulos, no la cadena implícita del común D2).
  *
@@ -382,6 +396,10 @@ export function writeAc1015ResolvedEntityBody(
     ...(refs.attributeHandles === undefined
       ? {}
       : { insertAttributeHandles: refs.attributeHandles }),
+    ...(refs.viewportEntityHeaderHandle === undefined
+      ? {}
+      : { viewportEntityHeaderHandle: refs.viewportEntityHeaderHandle }),
+    ...(refs.space === undefined ? {} : { space: refs.space }),
   });
 
   // Disposición del cuerpo base (invariante del writer D2): tipo BS en forma
@@ -471,6 +489,9 @@ export function writeAc1015ResolvedEntityBody(
     body.emitH(4, refs.attributeHandles.firstAttribHandle);
     body.emitH(4, refs.attributeHandles.lastAttribHandle);
     body.emitH(3, refs.attributeHandles.seqendHandle);
+  }
+  if (refs.viewportEntityHeaderHandle !== undefined) {
+    emitAc1015ViewportTailHandles(body, refs.viewportEntityHeaderHandle);
   }
   return body.toBytes();
 }

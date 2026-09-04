@@ -86,6 +86,7 @@
         "packages/dwg-codec/scripts/schema-validation.ts",
         "packages/dwg-codec/source-register.schema.json",
         "packages/dwg-codec/src/api/canonical-acis.ts",
+        "packages/dwg-codec/src/api/canonical-from-dwg.ts",
         "packages/dwg-codec/src/api/canonical-layers.ts",
         "packages/dwg-codec/src/api/canonical-to-dwg.ts",
         "packages/dwg-codec/src/api/canonical.ts",
@@ -578,6 +579,7 @@
         "packages/dwg-codec/src/reader/r2004-body-adapter.ts",
         "packages/dwg-codec/src/reader/r2004-database-reader.ts",
         "packages/dwg-codec/src/writer/ac1015-minimal-file-support.ts",
+        "packages/dwg-codec/src/writer/ac1015-minimal-file-validation.ts",
         "packages/dwg-codec/src/writer/ac1015-minimal-file-writer.ts",
         "packages/dwg-codec/src/writer/ac1015-resolved-writers.ts",
         "packages/dwg-codec/src/writer/ac1015-structure-writers.ts",
@@ -784,6 +786,7 @@
         "apps/web/src/lib/cad/dwg-document-bridge.ts",
         "apps/web/src/lib/cad/dwg-neutral-model.ts",
         "docs/cad/evidence/dwg-corpus-validation.json",
+        "packages/dwg-codec/src/api/canonical-from-dwg.ts",
         "packages/dwg-codec/src/api/canonical-layers.ts",
         "packages/dwg-codec/src/api/canonical-to-dwg.ts",
         "packages/dwg-codec/src/api/canonical.ts",
@@ -951,6 +954,7 @@
         "packages/dwg-codec/src/reader/database-model.ts",
         "packages/dwg-codec/src/reader/r2010-database-assembly.ts",
         "packages/dwg-codec/src/writer/ac1015-minimal-file-support.ts",
+        "packages/dwg-codec/src/writer/ac1015-minimal-file-validation.ts",
         "packages/dwg-codec/src/writer/ac1015-minimal-file-writer.ts",
         "packages/dwg-codec/tests/unit/aci-basic.spec.ts",
         "packages/dwg-codec/tests/unit/layer-state-write.spec.ts",
@@ -990,6 +994,7 @@
       ],
       "derivedFiles": [
         "docs/cad/evidence/dwg-layer-linetype.json",
+        "packages/dwg-codec/src/api/canonical-from-dwg.ts",
         "packages/dwg-codec/src/api/canonical-layers.ts",
         "packages/dwg-codec/src/api/canonical.ts",
         "packages/dwg-codec/src/objects/layer-linetype.ts",
@@ -1037,6 +1042,7 @@
       "derivedFiles": [
         "apps/web/src/lib/cad/dwg-native-writer.ts",
         "docs/cad/evidence/dwg-mtext-fields.json",
+        "packages/dwg-codec/src/api/canonical-from-dwg.ts",
         "packages/dwg-codec/src/api/canonical-mtext-anchor.ts",
         "packages/dwg-codec/src/api/canonical-to-dwg.ts",
         "packages/dwg-codec/src/api/canonical.ts",
@@ -1077,6 +1083,7 @@
       "derivedFiles": [
         "apps/web/src/lib/cad/dwg-native-writer.ts",
         "docs/cad/evidence/dwg-corpus-rewrite.json",
+        "packages/dwg-codec/src/api/canonical-from-dwg.ts",
         "packages/dwg-codec/src/api/canonical-to-dwg.ts",
         "packages/dwg-codec/src/api/canonical.ts",
         "packages/dwg-codec/src/writer/ac1015-entity-emitters.ts",
@@ -1121,6 +1128,7 @@
         "apps/web/src/lib/cad/dwg-native-writer.spec.ts",
         "apps/web/src/lib/cad/dwg-native-writer.ts",
         "docs/cad/evidence/dwg-corpus-rewrite.json",
+        "packages/dwg-codec/src/api/canonical-from-dwg.ts",
         "packages/dwg-codec/src/api/canonical-to-dwg.ts",
         "packages/dwg-codec/src/api/canonical.ts",
         "packages/dwg-codec/src/api/write.ts",
@@ -1130,6 +1138,7 @@
         "packages/dwg-codec/src/writer/ac1015-minimal-file-entities.ts",
         "packages/dwg-codec/src/writer/ac1015-minimal-file-plan.ts",
         "packages/dwg-codec/src/writer/ac1015-minimal-file-support.ts",
+        "packages/dwg-codec/src/writer/ac1015-minimal-file-validation.ts",
         "packages/dwg-codec/src/writer/ac1015-minimal-file-writer.ts",
         "packages/dwg-codec/src/writer/ac1015-resolved-writers.ts",
         "packages/dwg-codec/tests/unit/insert-attrib-write.spec.ts",
@@ -1142,6 +1151,64 @@
       "reviewer": "Medicion automatizada reproducible (scripts/dwg/corpus-rewrite.mjs re-escribe y coteja campo a campo los 34 INSERT y los 7 ATTRIB del corpus admitido) mas lectura directa del flujo de handles de los cuatro INSERT con atributos del commit fijado; revision humana del propietario pendiente",
       "reviewedAt": "2026-09-04",
       "notes": "Abre la escritura del INSERT con ATTRIB y del SEQEND que los cierra. NO enciende ningun flag ni promueve ninguna version."
+    },
+    {
+      "id": "VALLE-CORPUS-VIEWPORT-PAPEL",
+      "owner": "Sergio Valle Zarate",
+      "origin": {
+        "type": "original-measurement",
+        "location": "https://github.com/Sergiovalle3121/valle-design-dwg-conformance/tree/0688fb9c395b9cac4169d1ee9c23a7370cc28cf3/bundles/entity-wave-2-ac1015/fixtures/23-layout-viewport.dwg",
+        "accessedAt": "2026-09-04"
+      },
+      "title": "Medicion first-party de COMO CUELGA UNA VENTANA DE SU HOJA en R2000: modo de entidad del espacio papel, cadena propia de *Paper_Space, cola del flujo de handles de VIEWPORT y cuerpo del VPORT ENTITY HEADER al que apunta",
+      "versionOrDate": "2026-09-04",
+      "terms": {
+        "license": "Valle first-party corpus measurement (admitted tool-converted-original bundles)",
+        "access": "Blobs leidos del commit fijado del repo hermano de conformidad via el gate consumidor (corpus-pin.json + SHA-256 verificado); ningun working tree",
+        "redistribution": "Solo se registran las FORMAS observadas -modo de entidad, codigos y posiciones de handle, bits de la cabeza de entrada de tabla y tamanos en bits- y las decisiones de codigo derivadas; los bytes DWG y los DXF permanecen en el repo hermano bajo su propia politica",
+        "notes": "Ninguna fuente documental nueva intervino. Que un VIEWPORT lleve los handles de sus capas congeladas y de su contorno de recorte en el flujo final ya estaba registrado en ODA-ODS-DWG-5.4.1-PUBLIC, igual que la disposicion completa de su cuerpo; lo que faltaba y aqui se mide es CUANTOS punteros lleva esa cola, en que orden y con que codigo, a que objeto apunta el unico no nulo, y que cuerpo tiene ese objeto. La medicion cubre 23-layout-viewport de entity-wave-2-ac1015 (dos VIEWPORT, tres VPORT ENTITY HEADER) del commit fijado."
+      },
+      "status": "allowed",
+      "factsConsulted": [
+        "UNA ENTIDAD DE HOJA VIAJA EN MODO 1 Y SIN PROPIETARIO EN EL FLUJO: los dos VIEWPORT de 23-layout-viewport (0x104 y 0x105) declaran modo de entidad 1 -no 0 con el BLOCK_RECORD de *Paper_Space como dueno-, exactamente como una entidad de model space declara 2. El DXF del oraculo del mismo bundle escribe para los dos el grupo 67=1 y el propietario 330=1B, que es el handle canonico de *Paper_Space",
+        "LOS DOS ESPACIOS TIENEN CADENAS SEPARADAS: 0x104 lleva prev nulo (4:0) y next relativo +1 (6:0) y 0x105 lleva prev relativo -1 (8:0) y next nulo (4:0). Son las mismas cuatro formas ya medidas para la cadena de model space en VALLE-CORPUS-INTAKE-A60EBE2, aplicadas a una lista propia: la hoja no continua la cadena del modelo ni al reves",
+        "LA COLA DEL FLUJO DE UN VIEWPORT SON CUATRO PUNTEROS DUROS detras de la capa, con recuento de capas congeladas a cero: los dos VIEWPORT escriben [5:0 5:<VPORT ENTITY HEADER> 5:0 5:0]. El unico no nulo es el segundo y apunta a un objeto de tipo 0x47 (VPORT ENT HDR): 0x104 apunta a 0x10041 y 0x105 a 0x10042",
+        "EL CUERPO DEL VPORT ENTITY HEADER, MEDIDO EN LOS TRES DEL ARCHIVO: comun de objeto de tabla (handle propio, EED vacio, reactores BL 0), NOMBRE VACIO como TV, la cabeza de entrada de tabla ya conocida -bit 64 a 1, xrefindex+1 BS 0, bit de dependiente de xref a 0- y UN bit de bandera. Ese bit vale 1 en los dos que cuelgan de un VIEWPORT (0x10041, 0x10042) y 0 en el tercero (0x10040), que no cuelga de ninguno",
+        "SU FLUJO SON CINCO HANDLES: control H(4,0x1003F), xdictionary H(3,0), un H(5,0) nulo, el VIEWPORT como puntero BLANDO H(4,handle) y un ultimo H(5). El cuarto es el vinculo de vuelta -0x10041 escribe 4:0x104 y 0x10042 escribe 4:0x105-, y el tercero de la lista, 0x10040, escribe 4:0 porque no tiene ventana. El quinto vale 0 en 0x10040 y en 0x10042 y 0x10042 en 0x10041; este writer escribe 0, que es la forma medida de los que cierran",
+        "EL CONTROL DE VPORT ENTITY HEADER LOS LISTA COMO ENTRADAS NORMALES: 0x1003F (tipo 0x46) declara recuento 3 y su flujo es H(4,0) H(3,0) y las tres entradas con codigo 2, que es la misma disposicion que ya emite el writer de controles de tabla para layers y ltypes",
+        "LOS VALORES QUE UN PRODUCTOR REAL ESCRIBE EN UNA VENTANA DE PLANTA A ESCALA 1: direccion de vista (0,0,1) -del objetivo al ojo, opuesta a la direccion de mirada del documento del producto-, giro 0, lente 50, planos de recorte 0 y 0, angulo de snap 0, base de snap (0,0), espaciado de snap y de grid (10,10), zoom de circulo 100, capas congeladas 0, banderas de estado 0, hoja de estilos vacia, modo de render 0, UCS en origen 0, UCS por ventana 1, origen UCS (0,0,0), ejes UCS (1,0,0) y (0,1,0), elevacion UCS 0 y tipo de vista ortografica 0",
+        "LA ALTURA DE VISTA ES LA DEL MODELO, NO LA DEL PAPEL: el VIEWPORT 0x104 mide 297 x 210 de papel y declara altura de vista 210 con centro de vista (148.5, 105) -el archivo es una A4 apaisada a escala 1-, de modo que la escala de la ventana es altura de papel entre altura de vista. El DXF del oraculo lo confirma con 41=210.0 (alto en papel) y 45=210.0 (alto de vista) y 12/22=148.5/105.0 (centro de vista)",
+        "LO QUE ESTE CORPUS NO EJERCE, Y POR ESO NO SE ESCRIBE: ninguna de las dos ventanas tiene capas congeladas (recuento 0), ninguna tiene contorno de recorte (el primer puntero de la cola es nulo en las dos) y ninguna aparece dos veces en la misma hoja con solapes. Una ventana con capas congeladas exigiria escribir tantos handles como el recuento declare, y escribir el recuento sin los handles desincronizaria el flujo entero: el writer falla CERRADO si el modelo trae un recuento distinto de cero",
+        "CONTEXTO DE POR QUE HACIA FALTA: hasta esta medicion el archivo minimo escribia el BLOCK_RECORD *Paper_Space, su BLOCK/ENDBLK y el LAYOUT Layout1, pero NINGUNA entidad podia caer ahi -toda entidad iba a model space- y VIEWPORT era una de las 17 clases no escribibles del arnes de re-escritura del corpus"
+      ],
+      "derivedFiles": [
+        "apps/web/src/lib/cad/dwg-native-writer.ts",
+        "docs/cad/evidence/dwg-corpus-rewrite.json",
+        "packages/dwg-codec/src/api/canonical-from-dwg.ts",
+        "packages/dwg-codec/src/api/canonical-paper.ts",
+        "packages/dwg-codec/src/api/canonical-to-dwg.ts",
+        "packages/dwg-codec/src/api/canonical.ts",
+        "packages/dwg-codec/src/api/write.ts",
+        "packages/dwg-codec/src/reader/database-assembly-records.ts",
+        "packages/dwg-codec/src/reader/database-model.ts",
+        "packages/dwg-codec/src/writer/ac1015-entity-emitters.ts",
+        "packages/dwg-codec/src/writer/ac1015-entity-validators.ts",
+        "packages/dwg-codec/src/writer/ac1015-entity-writer.ts",
+        "packages/dwg-codec/src/writer/ac1015-minimal-file-entities.ts",
+        "packages/dwg-codec/src/writer/ac1015-minimal-file-plan.ts",
+        "packages/dwg-codec/src/writer/ac1015-minimal-file-support.ts",
+        "packages/dwg-codec/src/writer/ac1015-minimal-file-validation.ts",
+        "packages/dwg-codec/src/writer/ac1015-minimal-file-writer.ts",
+        "packages/dwg-codec/src/writer/ac1015-resolved-writers.ts",
+        "packages/dwg-codec/src/writer/ac1015-structure-writers.ts",
+        "packages/dwg-codec/tests/unit/paper-space-viewport-write.spec.ts",
+        "scripts/dwg/corpus-rewrite-compare.mjs",
+        "scripts/dwg/corpus-rewrite.mjs",
+        "scripts/dwg/oda-roundtrip-cases.mjs"
+      ],
+      "reviewer": "Medicion automatizada reproducible (scripts/dwg/corpus-rewrite.mjs re-escribe y coteja campo a campo los dos VIEWPORT del corpus admitido) mas lectura directa del flujo de handles de los dos VIEWPORT y de los tres VPORT ENTITY HEADER del commit fijado; revision humana del propietario pendiente",
+      "reviewedAt": "2026-09-04",
+      "notes": "Abre la escritura del espacio papel con UNA ventana rectangular por hoja. NO enciende ningun flag ni promueve ninguna version."
     }
   ]
 }

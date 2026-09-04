@@ -26,6 +26,8 @@ export interface MutableEntityRecord {
   readonly attributes: MutableEntityRecord[];
   readonly vertices: MutableEntityRecord[];
   sequenceEndHandle: number | undefined;
+  /** Espacio declarado por el archivo; `undefined` dentro de un bloque. */
+  readonly space: "model" | "paper" | undefined;
 }
 
 /** Congela un registro y sus atributos; sin atributos viaja `undefined`. */
@@ -46,6 +48,7 @@ export function freezeEntityRecord(
         ? undefined
         : Object.freeze(record.vertices.map(freezeEntityRecord)),
     sequenceEndHandle: record.sequenceEndHandle,
+    space: record.space,
   });
 }
 
@@ -90,7 +93,21 @@ export function buildEntityRecord(
     attributes: [],
     vertices: [],
     sequenceEndHandle: undefined,
+    space: spaceOfEntityMode(common.entityMode),
   };
+}
+
+/**
+ * El espacio que declara el modo de entidad: 1 = papel, 2 = modelo, 0 = la
+ * entidad pertenece a un bloque y no vive en un espacio. Los tres valores son
+ * los MEDIDOS en el corpus; el modo 3 lo rechaza antes el decodificador.
+ */
+export function spaceOfEntityMode(
+  entityMode: number,
+): "model" | "paper" | undefined {
+  if (entityMode === 1) return "paper";
+  if (entityMode === 2) return "model";
+  return undefined;
 }
 
 /** Resuelve una referencia de la cabeza del flujo a un bloque conocido. */

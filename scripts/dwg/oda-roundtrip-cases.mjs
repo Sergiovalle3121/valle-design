@@ -68,6 +68,50 @@ const ELLIPSE = {
   endAngle: Math.PI / 2,
 };
 /**
+ * LA VENTANA DE UNA HOJA, con los valores MEDIDOS en `23-layout-viewport`
+ * (`VALLE-CORPUS-VIEWPORT-PAPEL`): una A4 apaisada, vista de planta, escala 1.
+ * No son valores de gusto —son los que escribió un productor ajeno— y por eso
+ * son los que se le enseñan al oráculo.
+ */
+const VIEWPORT = {
+  kind: "viewport",
+  center: { x: 148.5, y: 105, z: 0 },
+  width: 297,
+  height: 210,
+  viewTarget: { x: 0, y: 0, z: 0 },
+  viewDirection: { x: 0, y: 0, z: 1 },
+  twistAngle: 0,
+  viewHeight: 210,
+  lensLength: 50,
+  frontClip: 0,
+  backClip: 0,
+  snapAngle: 0,
+  viewCenter: { x: 148.5, y: 105 },
+  snapBase: { x: 0, y: 0 },
+  snapSpacing: { x: 10, y: 10 },
+  gridSpacing: { x: 10, y: 10 },
+  circleZoom: 100,
+  frozenLayerCount: 0,
+  statusFlags: 0,
+  styleSheetBytes: [],
+  renderMode: 0,
+  ucsAtOrigin: 0,
+  ucsPerViewport: 1,
+  ucsOrigin: { x: 0, y: 0, z: 0 },
+  ucsXAxis: { x: 1, y: 0, z: 0 },
+  ucsYAxis: { x: 0, y: 1, z: 0 },
+  ucsElevation: 0,
+  ucsOrthoViewType: 0,
+};
+/** El marco del cajetín: una línea DIBUJADA SOBRE LA HOJA, no en el modelo. */
+const LINEA_DE_HOJA = {
+  kind: "line",
+  start: { x: 10, y: 10, z: 0 },
+  end: { x: 287, y: 10, z: 0 },
+  thickness: 0,
+  extrusion: { x: 0, y: 0, z: 1 },
+};
+/**
  * MTEXT CON ANCLAJE AL CENTRO Y GIRO, no el caso por defecto. El camino
  * público aprendió a escribirlo el 2026-09-02, y lo que ahí puede fallar sin
  * que ninguna prueba propia lo note es la SEMÁNTICA del anclaje: el valor 5 se
@@ -501,6 +545,51 @@ const CASES = [
     expectedBlocks: {
       CAJETIN: [{ kind: "lwpolyline", entity: LWPOLYLINE }],
     },
+  },
+  {
+    // LA HOJA ANTE EL LECTOR AJENO — el caso que ningún otro cubre, porque
+    // todos los demás viven en model space. Hasta el 2026-09-04 el archivo
+    // escribía el BLOCK_RECORD `*Paper_Space`, su BLOCK/ENDBLK y el LAYOUT
+    // «Layout1» y NINGUNA entidad podía caer ahí: la cadena de entidades era
+    // una sola y era la del modelo.
+    //
+    // Lo que este caso pregunta a ODA y ninguna prueba propia puede responder:
+    // si una entidad en modo 1, colgada de la cadena propia de *Paper_Space,
+    // es una entidad que otro programa coloca EN LA HOJA; y si un VIEWPORT
+    // cuya cola son cuatro punteros duros —contorno de recorte nulo, VPORT
+    // ENTITY HEADER real y los dos UCS nulos— es una ventana que otro
+    // programa abre. Las dos formas están MEDIDAS en los dos VIEWPORT de
+    // `23-layout-viewport`, pero medir cómo lo escribe ODA no es lo mismo que
+    // comprobar que ODA lee lo que escribimos nosotros.
+    //
+    // DOS ENTIDADES EN LA HOJA Y UNA EN EL MODELO, a propósito: con una sola
+    // por espacio la posición de cadena sería «isolated» en las dos y no se
+    // ejercitarían los enlaces ±1 que separan las dos cadenas.
+    //
+    // LA VENTANA VA EN LA CAPA "0" porque es donde la ponen las dos del
+    // corpus y donde la pone el camino público —el documento canónico no le
+    // da capa propia a una ventana—: en otra capa, el gemelo «-publico» de
+    // este caso diría una capa distinta y el cotejo señalaría una diferencia
+    // que no es del formato sino del alcance declarado.
+    name: "hoja-con-ventana",
+    options: {
+      layers: [{ name: ascii("CAJETIN"), colorIndex: 4 }],
+      entities: [
+        { entity: LINE },
+        { entity: VIEWPORT, space: "paper" },
+        { entity: LINEA_DE_HOJA, space: "paper", layerIndex: 1 },
+      ],
+    },
+    expectedLayers: [
+      { name: "0", color: 7 },
+      { name: "CAJETIN", color: 4 },
+    ],
+    expectedEntities: [
+      { kind: "line", layer: "0", entity: LINE },
+      { kind: "viewport", layer: "0", entity: VIEWPORT },
+      { kind: "line", layer: "CAJETIN", entity: LINEA_DE_HOJA },
+    ],
+    expectedBlocks: {},
   },
   {
     name: "bloque-insert",

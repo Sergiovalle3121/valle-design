@@ -291,24 +291,88 @@ function toCanonicalLinetypeStyles(
 }
 
 /**
+ * LAS HOJAS DEL DOCUMENTO, PROYECTADAS (2026-09-04).
+ *
+ * Hasta este corte esta función no existía y `toCanonicalDocument` vaciaba
+ * `paperSpaces` con una sola pérdida —«el DWG de esta fase escribe SOLO model
+ * space»—: el cajetín, el marco y la ventana de una lámina se exportaban al
+ * MODELO, encima del dibujo, o no se exportaban en absoluto. Ahora la hoja
+ * sale como hoja.
+ *
+ * LO QUE VIAJA: los ids de lo que se dibuja sobre la lámina y, de su primera
+ * ventana, los dos rectángulos —el hueco en el papel y el trozo de modelo que
+ * enseña— más la dirección de la cámara. De los dos rectángulos sale la
+ * escala, así que `scale` no se manda: dos fuentes para el mismo hecho acaban
+ * discrepando, y la que manda en el papel es la geometría.
+ *
+ * LO QUE NO VIAJA, DECLARADO AQUÍ Y NO EN SILENCIO: el bloqueo de la ventana,
+ * su escala de anotación, la visibilidad y los sobreescritos de capa por
+ * ventana, la vista derivada de SOLVIEW y la configuración de página (tamaño
+ * de papel, márgenes, monocromo). Nada de eso tiene sitio medido en el
+ * archivo de esta ola, y escribirlo a ojo sería inventar.
+ */
+function toCanonicalPaperSpaces(
+  document: CadDocument,
+  losses: CanonicalLossEntry[],
+): CanonicalCadDocumentJson["paperSpaces"] {
+  const hojas = document.paperSpaces;
+  if (hojas.length === 0) return [];
+  const conVentanaConfigurada = hojas.filter((hoja) =>
+    (hoja.viewports ?? []).some(
+      (ventana) =>
+        ventana.locked ||
+        ventana.annotationScale !== undefined ||
+        ventana.layerVisibility !== undefined ||
+        ventana.layerOverrides !== undefined ||
+        ventana.derivation !== undefined,
+    ),
+  );
+  if (conVentanaConfigurada.length > 0) {
+    losses.push({
+      code: "paper-viewport-settings-not-written",
+      sourceType: "PAPER_SPACE",
+      detail: `${conVentanaConfigurada.length} hoja(s) tienen ventanas con bloqueo, escala de anotación, visibilidad de capas por ventana o vista derivada: el DWG de esta ola escribe el recorte y la vista, no esos ajustes. La lámina sigue completa en el documento, en el PDF y en el DXF.`,
+      severity: "warning",
+    });
+  }
+  if (hojas.some((hoja) => hoja.pageSetup !== undefined)) {
+    losses.push({
+      code: "paper-page-setup-not-written",
+      sourceType: "PAPER_SPACE",
+      detail:
+        "La configuración de página de la lámina (tamaño de papel, márgenes, monocromo, escala de grosores) no viaja: el LAYOUT del archivo lleva los valores medidos del corpus, no los del documento.",
+      severity: "info",
+    });
+  }
+  return hojas.map((hoja) => ({
+    id: hoja.id,
+    name: hoja.name,
+    entityIds: [...hoja.entityIds],
+    viewports: (hoja.viewports ?? []).map((ventana) => ({
+      id: ventana.id,
+      paperBounds: { ...ventana.paperBounds },
+      modelBounds: { ...ventana.modelBounds },
+      // La dirección de mirada va del OJO a la escena en el documento; el
+      // laboratorio la invierte al escribirla, en un solo sitio. Sin `view`
+      // —un documento anterior al esquema 8— la ventana es de planta, que es
+      // lo que toda ventana significaba entonces.
+      viewDirection: { ...(ventana.view?.direction ?? { x: 0, y: 0, z: -1 }) },
+    })),
+  }));
+}
+
+/**
  * Proyección explícita del documento del producto al canónico del
  * laboratorio — campo a campo, nada de `as`: lo que el canónico de esta fase
- * no modela (espacios de papel, restricciones, referencias externas) se
- * VACÍA aquí y se declara como pérdida, no se cuela tipado a la fuerza.
+ * no modela (restricciones y referencias externas) se VACÍA aquí y se declara
+ * como pérdida, no se cuela tipado a la fuerza.
  */
 function toCanonicalDocument(document: CadDocument): {
   canonical: CanonicalCadDocumentJson;
   droppedLosses: CanonicalLossEntry[];
 } {
   const droppedLosses: CanonicalLossEntry[] = [];
-  if (document.paperSpaces.length > 0) {
-    droppedLosses.push({
-      code: "paper-spaces-not-written",
-      sourceType: "PAPER_SPACE",
-      detail: `El documento tiene ${document.paperSpaces.length} espacio(s) de papel; el DWG de esta fase escribe SOLO model space — las hojas siguen intactas en el documento y en el PDF/DXF.`,
-      severity: "warning",
-    });
-  }
+  const paperSpaces = toCanonicalPaperSpaces(document, droppedLosses);
   const canonical: CanonicalCadDocumentJson = {
     meta: {
       version: document.meta.version,
@@ -333,7 +397,7 @@ function toCanonicalDocument(document: CadDocument): {
     entities: document.entities.map(toCanonicalEntity),
     history: [],
     modelSpace: { entityIds: [...document.modelSpace.entityIds] },
-    paperSpaces: [],
+    paperSpaces,
     // LOS PATRONES DE TIPO DE LÍNEA DEL DOCUMENTO. Sin ellos el writer no
     // puede emitir la entrada LTYPE y toda capa cae a Continuous: el nombre
     // solo no basta, hace falta el patrón. Los demás estilos siguen vacíos

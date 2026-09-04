@@ -23,6 +23,13 @@ import type {
  * las opciones, compartida por el writer y por quien quiera comparar el
  * archivo campo a campo (specs y harness del oráculo externo).
  *
+ * EL ORDEN DE LOS DOS ESPACIOS, desde el 2026-09-04: primero TODO model space
+ * —sus entidades y después sus grupos de atributos— y a continuación TODA la
+ * hoja, de la misma forma; al final, las entradas VPORT ENTITY HEADER de las
+ * ventanas, en ese mismo orden. Cada espacio necesita sus handles
+ * CONSECUTIVOS para su propia cadena, así que intercalarlos rompería las dos
+ * a la vez.
+ *
  * EL ORDEN DENTRO DE UN ESPACIO, desde el 2026-09-04: primero TODAS sus
  * entidades y sólo después los grupos ATTRIB+SEQEND de los INSERT que los
  * lleven. No es una comodidad: las posiciones `first`/`middle`/`last` de la
@@ -35,7 +42,8 @@ import type {
 export function planAc1015MinimalFile(
   options: Ac1015MinimalFileOptions = {},
 ): Ac1015MinimalFilePlan {
-  const { layers, linetypes, blocks, entities } = validateOptions(options);
+  const { layers, linetypes, blocks, modelEntities, paperEntities } =
+    validateOptions(options);
   let next = H_DYNAMIC_BASE;
   // Las entradas LTYPE propias van PRIMERO en el tramo dinámico: una capa las
   // referencia por handle, así que tienen que existir antes que ella.
@@ -64,8 +72,21 @@ export function planAc1015MinimalFile(
     blockAttributeHandles.push(block.entities.map(takeAttributeGroup));
     blockEndblkHandles.push(next++); // ENDBLK del bloque
   }
-  const modelEntityHandles = entities.map(() => next++);
-  const modelAttributeHandles = entities.map(takeAttributeGroup);
+  const modelEntityHandles = modelEntities.map(() => next++);
+  const modelAttributeHandles = modelEntities.map(takeAttributeGroup);
+  const paperEntityHandles = paperEntities.map(() => next++);
+  const paperAttributeHandles = paperEntities.map(takeAttributeGroup);
+  /**
+   * Una entrada VPORT ENTITY HEADER por VENTANA, repartidas DESPUÉS de las
+   * entidades de los dos espacios: sus handles no participan de ninguna
+   * cadena, así que caben aquí sin romper nada, y el archivo exige orden de
+   * handle creciente.
+   */
+  const takeViewportHeader = (
+    spec: Ac1015MinimalFileEntitySpec,
+  ): number | null => (spec.entity.kind === "viewport" ? next++ : null);
+  const modelViewportHeaderHandles = modelEntities.map(takeViewportHeader);
+  const paperViewportHeaderHandles = paperEntities.map(takeViewportHeader);
   next += 4; // BLOCK/ENDBLK de model space y de paper space
   return Object.freeze({
     linetypeHandles: Object.freeze(linetypeHandles),
@@ -73,6 +94,10 @@ export function planAc1015MinimalFile(
     blockRecordHandles: Object.freeze(blockRecordHandles),
     modelEntityHandles: Object.freeze(modelEntityHandles),
     modelAttributeHandles: Object.freeze(modelAttributeHandles),
+    paperEntityHandles: Object.freeze(paperEntityHandles),
+    paperAttributeHandles: Object.freeze(paperAttributeHandles),
+    modelViewportHeaderHandles: Object.freeze(modelViewportHeaderHandles),
+    paperViewportHeaderHandles: Object.freeze(paperViewportHeaderHandles),
     blockEntityHandles: Object.freeze(blockEntityHandles.map((h) => Object.freeze(h))),
     blockAttributeHandles: Object.freeze(
       blockAttributeHandles.map((groups) => Object.freeze(groups)),

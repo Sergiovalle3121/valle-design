@@ -68,6 +68,21 @@ export interface Ac1015MinimalFileEntitySpec {
   readonly entity: DwgGeometryEntity;
   /** 0 = capa "0" (por defecto); 1.. = índice+1 en `layers`. */
   readonly layerIndex?: number;
+  /**
+   * EN QUÉ ESPACIO CAE (2026-09-04). Ausente o "model" = model space, que es
+   * lo único que este archivo sabía escribir hasta esta ola; "paper" = la
+   * hoja «Layout1», cuyo BLOCK_RECORD, BLOCK/ENDBLK y LAYOUT el archivo ya
+   * escribía VACÍOS desde la ola 3.
+   *
+   * Los dos espacios tienen CADENAS SEPARADAS de entidades: cada uno cuelga
+   * de su propio BLOCK_RECORD con su primera y su última, y una entidad de
+   * hoja viaja en modo 1 en vez de 2. Mezclarlas en una sola cadena dejaría
+   * la hoja vacía y el modelo con dibujos que no son suyos.
+   *
+   * Dentro de un BLOQUE este campo no aplica: el espacio de esa entidad es el
+   * bloque, y declararlo falla cerrado.
+   */
+  readonly space?: Ac1015MinimalFileSpace;
   /** Sólo INSERT: índice del bloque insertado en `blocks`. */
   readonly insertBlockIndex?: number;
   /**
@@ -78,6 +93,9 @@ export interface Ac1015MinimalFileEntitySpec {
    */
   readonly attributes?: readonly Ac1015MinimalFileAttributeSpec[];
 }
+
+/** Los dos espacios en los que una entidad suelta del archivo puede caer. */
+export type Ac1015MinimalFileSpace = "model" | "paper";
 
 /**
  * Un ATTRIB de un INSERT. Su capa es propia —el corpus admitido pone los
@@ -150,6 +168,17 @@ export interface Ac1015MinimalFilePlan {
   readonly modelEntityHandles: readonly number[];
   /** Grupo ATTRIB+SEQEND de cada entidad de model space, o null si no lleva. */
   readonly modelAttributeHandles: readonly (Ac1015AttributeGroupHandles | null)[];
+  /** Lo mismo para las entidades de la HOJA, con su propia cadena. */
+  readonly paperEntityHandles: readonly number[];
+  readonly paperAttributeHandles: readonly (Ac1015AttributeGroupHandles | null)[];
+  /**
+   * Handle del VPORT ENTITY HEADER de cada entidad, o null si no es una
+   * VENTANA. Paralelos a los handles de entidad de su espacio: el writer
+   * empuja las entradas en ese mismo orden —primero las del modelo, después
+   * las de la hoja—, que es el orden en que el plan las reparte.
+   */
+  readonly modelViewportHeaderHandles: readonly (number | null)[];
+  readonly paperViewportHeaderHandles: readonly (number | null)[];
   /** Lo mismo para las entidades de cada bloque de usuario. */
   readonly blockAttributeHandles: readonly (readonly (Ac1015AttributeGroupHandles | null)[])[];
   /** Handle del ENDBLK de cada bloque de usuario. */
@@ -496,231 +525,6 @@ export function byteLengthOf(value: number): number {
   return length;
 }
 // ---------------------------------------------------------------------------
-// Validación de opciones (fallo cerrado)
-// ---------------------------------------------------------------------------
-
-/** Un bloque YA normalizado: sus entidades son siempre la forma larga. */
-export interface ValidatedBlockSpec {
-  readonly name: readonly number[];
-  readonly entities: readonly Ac1015MinimalFileEntitySpec[];
-}
-
-export interface ValidatedOptions {
-  readonly layers: readonly Ac1015MinimalFileLayerSpec[];
-  readonly linetypes: readonly Ac1015MinimalFileLinetypeSpec[];
-  readonly blocks: readonly ValidatedBlockSpec[];
-  readonly entities: readonly Ac1015MinimalFileEntitySpec[];
-  readonly measurement: 0 | 1;
-}
-
-/**
- * Resuelve la forma corta de una entidad de bloque (`DwgGeometryEntity` a
- * secas) a la larga (`{ entity }`, capa "0" implícita) — la forma larga pasa
- * tal cual. El discriminador es la presencia de `entity`: ninguna entidad
- * neutral del modelo tiene ese campo en su nivel superior.
- */
-function normalizeBlockEntity(
-  item: Ac1015MinimalFileBlockSpec["entities"][number],
-): Ac1015MinimalFileEntitySpec {
-  if (typeof item === "object" && item !== null && "entity" in item) {
-    return item as Ac1015MinimalFileEntitySpec;
-  }
-  return { entity: item as DwgGeometryEntity };
-}
-
-export function validateOptions(options: Ac1015MinimalFileOptions): ValidatedOptions {
-  if (typeof options !== "object" || options === null) {
-    throwDwgError(
-      "DWG_INPUT_INVALID",
-      "input",
-      0,
-      "The minimal file options must be an object.",
-    );
-  }
-  const layers = options.layers ?? [];
-  const linetypes = options.linetypes ?? [];
-  const blocks = options.blocks ?? [];
-  const entities = options.entities ?? [];
-  const measurement = options.measurement ?? 0;
-  if (
-    !Array.isArray(layers) ||
-    !Array.isArray(linetypes) ||
-    !Array.isArray(blocks) ||
-    !Array.isArray(entities)
-  ) {
-    throwDwgError(
-      "DWG_INPUT_INVALID",
-      "input",
-      0,
-      "The minimal file layers, linetypes, blocks and entities must be arrays.",
-    );
-  }
-  if (measurement !== 0 && measurement !== 1) {
-    throwDwgError(
-      "DWG_INPUT_INVALID",
-      "input",
-      0,
-      "The MEASUREMENT variable must be 0 (English) or 1 (metric).",
-    );
-  }
-  for (const layer of layers) {
-    assertNameBytes(layer.name, "A minimal file layer name");
-  }
-  const normalizedBlocks: ValidatedBlockSpec[] = blocks.map((block) => {
-    assertNameBytes(block.name, "A minimal file block name");
-    if (!Array.isArray(block.entities)) {
-      throwDwgError(
-        "DWG_INPUT_INVALID",
-        "input",
-        0,
-        "A minimal file block needs an entities array.",
-      );
-    }
-    const normalizedEntities = block.entities.map(normalizeBlockEntity);
-    for (const spec of normalizedEntities) {
-      assertEntitySpec(spec, layers, blocks.length);
-    }
-    return { name: block.name, entities: normalizedEntities };
-  });
-  entities.forEach((spec) => {
-    assertEntitySpec(spec, layers, blocks.length);
-  });
-  return { layers, linetypes, blocks: normalizedBlocks, entities, measurement };
-}
-
-/**
- * Un `Ac1015MinimalFileEntitySpec` es válido tanto en model space como
- * dentro de un bloque — misma forma, misma validación (cero marcos gemelos).
- * Un INSERT dentro de un bloque referencia OTRO bloque por índice, igual que
- * en model space: el handle de cada BLOCK_RECORD ya está resuelto por
- * adelantado (`planAc1015MinimalFile`), así que una referencia hacia
- * adelante en `blocks` resuelve igual que una hacia atrás.
- */
-function assertEntitySpec(
-  spec: Ac1015MinimalFileEntitySpec,
-  layers: readonly Ac1015MinimalFileLayerSpec[],
-  blocksCount: number,
-): void {
-  const layerIndex = spec.layerIndex ?? 0;
-  if (!Number.isInteger(layerIndex) || layerIndex < 0 || layerIndex > layers.length) {
-    throwDwgError(
-      "DWG_INPUT_INVALID",
-      "input",
-      0,
-      "A minimal file entity layer index escapes the declared layers.",
-    );
-  }
-  if (spec.entity.kind === "insert") {
-    const blockIndex = spec.insertBlockIndex;
-    if (
-      blockIndex === undefined ||
-      !Number.isInteger(blockIndex) ||
-      blockIndex < 0 ||
-      blockIndex >= blocksCount
-    ) {
-      throwDwgError(
-        "DWG_INPUT_INVALID",
-        "input",
-        0,
-        "An INSERT entity needs the index of a declared block.",
-      );
-    }
-    assertAttributeSpecs(spec, layers);
-  } else if (spec.attributes !== undefined) {
-    throwDwgError(
-      "DWG_INPUT_INVALID",
-      "input",
-      0,
-      "Only an INSERT entity may carry ATTRIB entities.",
-    );
-  } else if (spec.insertBlockIndex !== undefined) {
-    throwDwgError(
-      "DWG_INPUT_INVALID",
-      "input",
-      0,
-      "Only an INSERT entity may name an inserted block.",
-    );
-  }
-}
-
-/**
- * LOS ATRIBUTOS Y SU BANDERA SE COMPRUEBAN JUNTOS. `attributesFollow` es lo
- * que un lector ajeno mira para decidir si va a buscar los ATTRIB; los specs
- * son los objetos que encontrará. Un INSERT con la bandera encendida y sin
- * atributos manda al lector a buscar algo que no existe, y uno con atributos
- * y la bandera apagada escribe objetos que nadie va a leer. Las dos formas
- * son un archivo que se contradice a sí mismo, así que las dos fallan
- * cerrado aquí, antes de repartir un solo handle.
- */
-function assertAttributeSpecs(
-  spec: Ac1015MinimalFileEntitySpec,
-  layers: readonly Ac1015MinimalFileLayerSpec[],
-): void {
-  const attributes = spec.attributes;
-  const declared =
-    spec.entity.kind === "insert" && spec.entity.attributesFollow === true;
-  if (attributes !== undefined && !Array.isArray(attributes)) {
-    throwDwgError(
-      "DWG_INPUT_INVALID",
-      "input",
-      0,
-      "The ATTRIB entities of an INSERT must be an array.",
-    );
-  }
-  const count = attributes?.length ?? 0;
-  if (declared !== count > 0) {
-    throwDwgError(
-      "DWG_INPUT_INVALID",
-      "input",
-      0,
-      "An INSERT must declare attributesFollow exactly when it carries ATTRIB entities.",
-    );
-  }
-  for (const attribute of attributes ?? []) {
-    if (attribute?.entity?.kind !== "attrib") {
-      throwDwgError(
-        "DWG_INPUT_INVALID",
-        "input",
-        0,
-        "The attributes of an INSERT must be ATTRIB entities.",
-      );
-    }
-    const layerIndex = attribute.layerIndex;
-    if (
-      layerIndex !== undefined &&
-      (!Number.isInteger(layerIndex) || layerIndex < 0 || layerIndex > layers.length)
-    ) {
-      throwDwgError(
-        "DWG_INPUT_INVALID",
-        "input",
-        0,
-        "An ATTRIB layer index escapes the declared layers.",
-      );
-    }
-  }
-}
-
-function assertNameBytes(name: readonly number[], what: string): void {
-  if (!Array.isArray(name) || name.length < 1 || name.length > 0xff) {
-    throwDwgError(
-      "DWG_INPUT_INVALID",
-      "input",
-      0,
-      `${what} needs between 1 and 255 byte values.`,
-    );
-  }
-  for (const byte of name) {
-    if (!Number.isInteger(byte) || byte < 0 || byte > 0xff) {
-      throwDwgError(
-        "DWG_INPUT_INVALID",
-        "input",
-        0,
-        `${what} must hold byte values between 0 and 255.`,
-      );
-    }
-  }
-}
-// ---------------------------------------------------------------------------
 // Primitivas de bytes little-endian del ensamblado
 // ---------------------------------------------------------------------------
 
@@ -742,3 +546,17 @@ export function pushRecord(into: number[], id: number, start: number, size: numb
   pushUint32LE(into, start);
   pushUint32LE(into, size);
 }
+
+// ---------------------------------------------------------------------------
+// Validación de opciones: vive en `ac1015-minimal-file-validation.ts` desde el
+// 2026-09-04 (presupuesto de 800 líneas del monorepo) y se re-exporta aquí tal
+// cual, para que nada que ya importara de este módulo note el traslado.
+// ---------------------------------------------------------------------------
+export {
+  spaceOfEntitySpec,
+  validateOptions,
+} from "./ac1015-minimal-file-validation.js";
+export type {
+  ValidatedBlockSpec,
+  ValidatedOptions,
+} from "./ac1015-minimal-file-validation.js";

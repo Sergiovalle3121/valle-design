@@ -90,11 +90,12 @@ import {
   writeAc1015LayoutBody,
   writeAc1015MlineStyleBody,
 } from "./ac1015-layout-writers.js";
-import { pushAc1015ScopeEntities } from "./ac1015-minimal-file-entities.js";
+import {
+  cadenaDelEspacio,
+  pushAc1015DynamicScopes,
+} from "./ac1015-minimal-file-entities.js";
 import {
   writeAc1015ResolvedLayerBody,
-  writeAc1015StructBlockBeginBody,
-  writeAc1015StructBlockEndBody,
   writeAc1015StructBlockRecordBody,
 } from "./ac1015-resolved-writers.js";
 import { DwgBitEmitter } from "./dwg-bit-emitter.js";
@@ -172,6 +173,7 @@ export type {
   Ac1015MinimalFileLayerSpec,
   Ac1015MinimalFileOptions,
   Ac1015MinimalFilePlan,
+  Ac1015MinimalFileSpace,
 } from "./ac1015-minimal-file-support.js";
 import type {
   Ac1015MinimalFileBlockSpec,
@@ -191,7 +193,8 @@ import type {
 export function writeAc1015MinimalFile(
   options: Ac1015MinimalFileOptions = {},
 ): Uint8Array {
-  const { layers, linetypes, blocks, entities, measurement } = validateOptions(options);
+  const { layers, linetypes, blocks, modelEntities, paperEntities, measurement } =
+    validateOptions(options);
   const plan = planAc1015MinimalFile(options);
 
   // ---- cuerpo de objetos, en orden ESTRICTO de handle -----------------
@@ -286,7 +289,17 @@ export function writeAc1015MinimalFile(
   );
   push(
     H_VPENT_CONTROL,
-    writeAc1015StructTableControlBody(AC1015_TYPE_VPENT_CONTROL, [], H_VPENT_CONTROL),
+    writeAc1015StructTableControlBody(
+      AC1015_TYPE_VPENT_CONTROL,
+      // Las entradas de las VENTANAS del archivo. Un control que no las liste
+      // deja entradas huérfanas que el lector no encuentra por la tabla, y es
+      // el mismo criterio con que se listan capas y tipos de línea.
+      [
+        ...plan.modelViewportHeaderHandles,
+        ...plan.paperViewportHeaderHandles,
+      ].filter((handle): handle is number => handle !== null),
+      H_VPENT_CONTROL,
+    ),
   );
   push(
     H_NOD,
@@ -425,6 +438,11 @@ export function writeAc1015MinimalFile(
         name: ascii("*Paper_Space"),
         controlHandle: H_BLOCK_CONTROL,
         blockEntityHandle: modelMarkers.paperBegin,
+        // LA HOJA TIENE CADENA PROPIA desde el 2026-09-04. Hasta entonces
+        // estos dos punteros iban SIEMPRE nulos y el espacio papel estaba
+        // condenado a quedarse vacío por construcción, por muy escrito que
+        // estuviera su BLOCK_RECORD.
+        ...cadenaDelEspacio(plan.paperEntityHandles),
         endblkHandle: modelMarkers.paperEnd,
         layoutHandle: H_PAPER_LAYOUT,
       },
@@ -452,13 +470,7 @@ export function writeAc1015MinimalFile(
         name: ascii("*Model_Space"),
         controlHandle: H_BLOCK_CONTROL,
         blockEntityHandle: modelMarkers.modelBegin,
-        ...(plan.modelEntityHandles.length === 0
-          ? {}
-          : {
-              firstEntityHandle: plan.modelEntityHandles[0]!,
-              lastEntityHandle:
-                plan.modelEntityHandles[plan.modelEntityHandles.length - 1]!,
-            }),
+        ...cadenaDelEspacio(plan.modelEntityHandles),
         endblkHandle: modelMarkers.modelEnd,
         layoutHandle: H_MODEL_LAYOUT,
       },
@@ -572,98 +584,21 @@ export function writeAc1015MinimalFile(
   const blockRecordHandleOf = (blockIndex: number): number =>
     plan.blockRecordHandles[blockIndex]!;
 
-  blocks.forEach((block, index) => {
-    const recordHandle = plan.blockRecordHandles[index]!;
-    const beginHandle = recordHandle + 1;
-    const contentHandles = plan.blockEntityHandles[index]!;
-    const endHandle = plan.blockEndblkHandles[index]!;
-    push(
-      recordHandle,
-      writeAc1015StructBlockRecordBody(
-        {
-          name: block.name,
-          controlHandle: H_BLOCK_CONTROL,
-          blockEntityHandle: beginHandle,
-          ...(contentHandles.length === 0
-            ? {}
-            : {
-                firstEntityHandle: contentHandles[0]!,
-                lastEntityHandle: contentHandles[contentHandles.length - 1]!,
-              }),
-          endblkHandle: endHandle,
-        },
-        recordHandle,
-      ),
-    );
-    push(
-      beginHandle,
-      writeAc1015StructBlockBeginBody(
-        {
-          name: block.name,
-          mode: 0,
-          ownerBlockRecordHandle: recordHandle,
-          layerHandle: H_LAYER_ZERO,
-        },
-        beginHandle,
-      ),
-    );
-    pushAc1015ScopeEntities({
-      entities: block.entities,
-      entityHandles: contentHandles,
-      attributeGroups: plan.blockAttributeHandles[index]!,
-      layerHandleOf,
-      blockRecordHandleOf,
-      textStyleHandle: H_STYLE_STANDARD,
-      ownerBlockHandle: recordHandle,
-      push,
-    });
-    push(
-      endHandle,
-      writeAc1015StructBlockEndBody(
-        { mode: 0, ownerBlockRecordHandle: recordHandle, layerHandle: H_LAYER_ZERO },
-        endHandle,
-      ),
-    );
-  });
-
-  pushAc1015ScopeEntities({
-    entities,
-    entityHandles: plan.modelEntityHandles,
-    attributeGroups: plan.modelAttributeHandles,
+  pushAc1015DynamicScopes({
+    blocks,
+    modelEntities,
+    paperEntities,
+    plan,
     layerHandleOf,
     blockRecordHandleOf,
     textStyleHandle: H_STYLE_STANDARD,
+    layerZeroHandle: H_LAYER_ZERO,
+    blockControlHandle: H_BLOCK_CONTROL,
+    vportEntityHeaderControlHandle: H_VPENT_CONTROL,
+    modelSpaceName: ascii("*Model_Space"),
+    paperSpaceName: ascii("*Paper_Space"),
     push,
   });
-
-  push(
-    modelMarkers.modelBegin,
-    writeAc1015StructBlockBeginBody(
-      { name: ascii("*Model_Space"), mode: 2, layerHandle: H_LAYER_ZERO },
-      modelMarkers.modelBegin,
-    ),
-  );
-  push(
-    modelMarkers.modelEnd,
-    writeAc1015StructBlockEndBody(
-      { mode: 2, layerHandle: H_LAYER_ZERO },
-      modelMarkers.modelEnd,
-    ),
-  );
-  push(
-    modelMarkers.paperBegin,
-    writeAc1015StructBlockBeginBody(
-      { name: ascii("*Paper_Space"), mode: 1, layerHandle: H_LAYER_ZERO },
-      modelMarkers.paperBegin,
-    ),
-  );
-  push(
-    modelMarkers.paperEnd,
-    writeAc1015StructBlockEndBody(
-      { mode: 1, layerHandle: H_LAYER_ZERO },
-      modelMarkers.paperEnd,
-    ),
-  );
 
   if (objects.length > AC1015_WRITER_MAX_OBJECTS) {
     throwDwgError(

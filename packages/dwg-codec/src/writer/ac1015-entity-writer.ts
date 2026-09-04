@@ -69,6 +69,7 @@ import {
   emitLwPolyline,
   emitMText,
   emitText,
+  emitViewport,
 } from "./ac1015-entity-emitters.js";
 import {
   validateAttrib,
@@ -76,8 +77,12 @@ import {
   validateLwPolyline,
   validateMText,
   validateTextFields,
+  validateViewport,
 } from "./ac1015-entity-validators.js";
-import { AC1015_TYPE_HATCH } from "../objects/entities-complex.js";
+import {
+  AC1015_TYPE_HATCH,
+  AC1015_TYPE_VIEWPORT,
+} from "../objects/entities-complex.js";
 import { AC1015_TYPE_ELLIPSE } from "../objects/entities-curves-surfaces.js";
 import { throwDwgError } from "../security/parse-error.js";
 
@@ -100,12 +105,29 @@ export { AC1015_ENTITY_WRITER_MAX_BITS, DwgBitEmitter };
  *   del flujo.
  * - `insertAttributeHandles`: obligatorio EXACTAMENTE cuando el INSERT dice
  *   llevar atributos, y prohibido en cualquier otro caso.
+ * - `space`: en qué ESPACIO vive la entidad cuando no pertenece a un bloque —
+ *   "model" (modo 2, el defecto de siempre) o "paper" (modo 1). No es una
+ *   etiqueta decorativa: es el bit por el que un lector ajeno decide si la
+ *   entidad se dibuja en el modelo o sobre la hoja, y el corpus lo mide en los
+ *   dos VIEWPORT de `23-layout-viewport`. Con `ownerBlockHandle` presente no
+ *   aplica —el espacio lo da el bloque dueño— y pedir los dos falla cerrado.
+ * - `viewportEntityHeaderHandle`: obligatorio para un VIEWPORT (y prohibido
+ *   para el resto): el hard pointer al VPORT ENTITY HEADER que la hoja le
+ *   asocia, medido en las dos ventanas del corpus.
  */
 export interface Ac1015EntityWriteOptions {
   readonly ownerBlockHandle?: number;
   readonly insertBlockHandle?: number;
   readonly insertAttributeHandles?: Ac1015InsertAttributeHandles;
+  readonly space?: Ac1015EntitySpace;
+  readonly viewportEntityHeaderHandle?: number;
 }
+
+/**
+ * Los dos espacios que una entidad suelta puede habitar. Un tercer valor no
+ * existe: el contenido de un bloque no vive en un espacio, vive en el bloque.
+ */
+export type Ac1015EntitySpace = "model" | "paper";
 
 /**
  * Los tres handles que un INSERT con ATTRIBs añade a su flujo, tal como los
@@ -169,9 +191,39 @@ export function writeAc1015EntityBody(
     );
   }
   const attributeHandles = validatedAttributeHandles(entity, options);
+  const space = validatedSpace(options, ownerBlockHandle !== undefined);
+  const viewportHeaderHandle = optionalHandle(
+    options.viewportEntityHeaderHandle,
+    "A viewport entity header handle",
+  );
+  if (entity.kind === "viewport" && viewportHeaderHandle === undefined) {
+    // Las dos ventanas del corpus apuntan a un VPORT ENTITY HEADER real. Un
+    // VIEWPORT sin él sería estrenar una forma que ningún archivo ajeno
+    // muestra, así que se rechaza cerrado en vez de emitir un nulo a ver qué
+    // pasa.
+    throwDwgError(
+      "DWG_INPUT_INVALID",
+      "input",
+      0,
+      "A viewport entity requires the handle of its VPORT entity header.",
+    );
+  }
+  if (entity.kind !== "viewport" && viewportHeaderHandle !== undefined) {
+    throwDwgError(
+      "DWG_INPUT_INVALID",
+      "input",
+      0,
+      "Only a viewport entity may reference a VPORT entity header.",
+    );
+  }
 
   const tail = new DwgBitEmitter();
-  emitAc1015EntityCommonTail(tail, ownHandle, ownerBlockHandle !== undefined);
+  emitAc1015EntityCommonTail(
+    tail,
+    ownHandle,
+    ownerBlockHandle !== undefined,
+    space,
+  );
   emitEntitySpecific(tail, entity);
 
   // Flujo de handles mínimo coherente con las banderas emitidas: propietario
@@ -194,7 +246,67 @@ export function writeAc1015EntityBody(
       stream.emitH(4, attributeHandles.lastAttribHandle);
       stream.emitH(3, attributeHandles.seqendHandle);
     }
+    if (viewportHeaderHandle !== undefined) {
+      emitAc1015ViewportTailHandles(stream, viewportHeaderHandle);
+    }
   });
+}
+
+/**
+ * La cola de un VIEWPORT: CUATRO punteros duros detrás de la capa, con el
+ * VPORT ENTITY HEADER en el segundo sitio y los otros tres nulos — la forma
+ * MEDIDA en los dos VIEWPORT de `23-layout-viewport`
+ * (`VALLE-CORPUS-VIEWPORT-PAPEL`).
+ *
+ * Los nulos no son relleno: el primero es el contorno de recorte —esta ola
+ * escribe ventanas RECTANGULARES, así que no hay contorno que apuntar— y los
+ * dos últimos son los UCS de la ventana, que ninguna de las dos ajenas usa.
+ * Con capas congeladas irían aquí sus handles, tantos como diga el recuento
+ * del cuerpo; por eso `validateViewport` exige que ese recuento sea cero.
+ *
+ * Vive en una función propia porque la escriben DOS composiciones —ésta y la
+ * del flujo resuelto de `ac1015-resolved-writers.ts`— y dos copias de cuatro
+ * punteros podrían separarse sin que nada lo viera.
+ */
+export function emitAc1015ViewportTailHandles(
+  stream: DwgBitEmitter,
+  viewportEntityHeaderHandle: number,
+): void {
+  stream.emitH(5, 0); // contorno de recorte: ventana rectangular
+  stream.emitH(5, viewportEntityHeaderHandle);
+  stream.emitH(5, 0); // UCS con nombre
+  stream.emitH(5, 0); // UCS base
+}
+
+/**
+ * El espacio de una entidad suelta, con las dos incoherencias cerradas: una
+ * entidad que pertenece a un bloque no puede además declarar espacio (el
+ * espacio es el del bloque), y un valor que no sea "model" ni "paper" no
+ * existe en el formato.
+ */
+function validatedSpace(
+  options: Ac1015EntityWriteOptions,
+  ownedByBlock: boolean,
+): Ac1015EntitySpace {
+  const space = options.space;
+  if (space === undefined) return "model";
+  if (space !== "model" && space !== "paper") {
+    throwDwgError(
+      "DWG_INPUT_INVALID",
+      "input",
+      0,
+      "An entity space must be either model or paper.",
+    );
+  }
+  if (ownedByBlock) {
+    throwDwgError(
+      "DWG_INPUT_INVALID",
+      "input",
+      0,
+      "An entity owned by a block record cannot also declare its own space.",
+    );
+  }
+  return space;
 }
 
 /**
@@ -253,11 +365,15 @@ export function emitAc1015EntityCommonTail(
   tail: DwgBitEmitter,
   ownHandle: number,
   ownerInStream: boolean,
+  space: Ac1015EntitySpace = "model",
 ): void {
   tail.emitH(0, ownHandle); // handle propio, código 0
   tail.emitBS(0); // EED vacío
   tail.pushBit(0); // sin gráfico de previsualización
-  tail.pushBits(ownerInStream ? 0b00 : 0b10, 2); // modo 0 (bloque) o 2 (model)
+  // Modo 0 (contenido de un bloque, dueño en el flujo), 1 (espacio papel) o
+  // 2 (model space). El 1 entra el 2026-09-04 con el espacio papel: hasta
+  // entonces toda entidad suelta se escribía en el modelo.
+  tail.pushBits(ownerInStream ? 0b00 : space === "paper" ? 0b01 : 0b10, 2);
   tail.emitBL(0); // cero reactores
   tail.pushBit(1); // sin vínculos de subentidad
   tail.emitCMC(256); // color ByLayer
@@ -380,6 +496,9 @@ function emitEntitySpecific(
     case "hatch":
       emitHatch(emitter, entity);
       return;
+    case "viewport":
+      emitViewport(emitter, entity);
+      return;
   }
 }
 
@@ -410,6 +529,8 @@ function typeOf(entity: DwgGeometryEntity): number {
       return AC1015_TYPE_MTEXT;
     case "hatch":
       return AC1015_TYPE_HATCH;
+    case "viewport":
+      return AC1015_TYPE_VIEWPORT;
     default:
       // El lector ya decodifica más tipos de los que este writer emite; un
       // modelo que el writer no sabe escribir se rechaza cerrado y declarado,
@@ -440,7 +561,8 @@ type Ac1015WritableEntity =
   | import("../model/entity-geometry.js").DwgInsertEntity
   | import("../model/entity-geometry.js").DwgEllipseEntity
   | import("../model/entity-geometry.js").DwgMTextEntity
-  | import("../model/entity-geometry.js").DwgHatchEntity;
+  | import("../model/entity-geometry.js").DwgHatchEntity
+  | import("../model/entity-geometry.js").DwgViewportEntity;
 
 /** Geometría no finita o specs imposibles: el writer falla cerrado. */
 function validateEntity(
@@ -470,6 +592,7 @@ function validateEntity(
     case "insert":
     case "ellipse":
     case "mtext":
+    case "viewport":
       break;
     case "hatch":
       // EL PATRÓN SE ESCRIBE CUANDO VIAJA CON EL MODELO (2026-09-04). Un
@@ -512,6 +635,7 @@ function validateEntity(
     entity.kind !== "ellipse" &&
     entity.kind !== "mtext" &&
     entity.kind !== "hatch" &&
+    entity.kind !== "viewport" &&
     (!Number.isFinite(entity.thickness) || !isFiniteDwgPoint3(entity.extrusion))
   ) {
     invalid();
@@ -589,6 +713,9 @@ function validateEntity(
       return;
     case "hatch":
       validateHatch(entity, invalid);
+      return;
+    case "viewport":
+      validateViewport(entity, invalid);
       return;
   }
 }

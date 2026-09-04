@@ -22,11 +22,20 @@
  * - el SEQEND va en la capa del INSERT que cierra, y los ATTRIB en la suya.
  */
 import { throwDwgError } from "../security/parse-error.js";
-import { writeAc1015ResolvedEntityBody } from "./ac1015-resolved-writers.js";
+import {
+  writeAc1015ResolvedEntityBody,
+  writeAc1015StructBlockBeginBody,
+  writeAc1015StructBlockEndBody,
+  writeAc1015StructBlockRecordBody,
+} from "./ac1015-resolved-writers.js";
+import { writeAc1015VportEntityHeaderBody } from "./ac1015-structure-writers.js";
 import type { Ac1015EntityChainPosition } from "./ac1015-resolved-writers.js";
 import type {
   Ac1015AttributeGroupHandles,
   Ac1015MinimalFileEntitySpec,
+  Ac1015MinimalFilePlan,
+  Ac1015MinimalFileSpace,
+  ValidatedBlockSpec,
 } from "./ac1015-minimal-file-support.js";
 
 export interface Ac1015ScopeWriteContext {
@@ -36,6 +45,18 @@ export interface Ac1015ScopeWriteContext {
   readonly entityHandles: readonly number[];
   /** El grupo ATTRIB+SEQEND de cada entidad, o null. */
   readonly attributeGroups: readonly (Ac1015AttributeGroupHandles | null)[];
+  /**
+   * El VPORT ENTITY HEADER de cada entidad, o null si no es una VENTANA.
+   * Paralelo a `entities`; en el contenido de un bloque va siempre a null
+   * porque una ventana no puede vivir ahí (lo rechaza la validación).
+   */
+  readonly viewportHeaderHandles?: readonly (number | null)[];
+  /**
+   * El espacio de estas entidades cuando NO son el contenido de un bloque.
+   * Es el bit que un lector ajeno mira para dibujarlas en el modelo o sobre
+   * la hoja.
+   */
+  readonly space?: Ac1015MinimalFileSpace;
   /** Handle de la capa de un `layerIndex` del spec. */
   readonly layerHandleOf: (layerIndex: number | undefined) => number;
   /** Handle del BLOCK_RECORD de un `insertBlockIndex` del spec. */
@@ -74,6 +95,13 @@ export function pushAc1015ScopeEntities(context: Ac1015ScopeWriteContext): void 
         ...(spec.insertBlockIndex === undefined
           ? {}
           : { insertBlockHandle: context.blockRecordHandleOf(spec.insertBlockIndex) }),
+        ...(context.space === undefined ? {} : { space: context.space }),
+        ...((context.viewportHeaderHandles?.[index] ?? null) === null
+          ? {}
+          : {
+              viewportEntityHeaderHandle:
+                context.viewportHeaderHandles![index]!,
+            }),
         ...(group === null
           ? {}
           : {
@@ -149,4 +177,179 @@ export function chainPositionFor(
   if (index === 0) return "first";
   if (index === total - 1) return "last";
   return "middle";
+}
+
+/**
+ * Lo que el TRAMO DINÁMICO del archivo necesita para empujarse: los dos
+ * espacios, los bloques de usuario y las entradas VPORT ENTITY HEADER de las
+ * ventanas.
+ */
+export interface Ac1015DynamicScopesContext {
+  readonly blocks: readonly ValidatedBlockSpec[];
+  readonly modelEntities: readonly Ac1015MinimalFileEntitySpec[];
+  /** Las entidades de la HOJA. Cadena propia, modo 1. */
+  readonly paperEntities: readonly Ac1015MinimalFileEntitySpec[];
+  readonly plan: Ac1015MinimalFilePlan;
+  readonly layerHandleOf: (layerIndex: number | undefined) => number;
+  readonly blockRecordHandleOf: (blockIndex: number) => number;
+  readonly textStyleHandle: number;
+  readonly layerZeroHandle: number;
+  readonly blockControlHandle: number;
+  /** Control de VPORT ENTITY HEADER, dueño de las entradas de las ventanas. */
+  readonly vportEntityHeaderControlHandle: number;
+  /** Nombres en bytes de los dos espacios, tal como el archivo los escribe. */
+  readonly modelSpaceName: readonly number[];
+  readonly paperSpaceName: readonly number[];
+  readonly push: (handle: number, body: Uint8Array) => void;
+}
+
+/**
+ * Empuja el TRAMO DINÁMICO del archivo EN ORDEN DE HANDLE: los bloques de
+ * usuario con su contenido, model space, la HOJA, las entradas VPORT ENTITY
+ * HEADER de las ventanas de los dos espacios y los cuatro marcadores
+ * BLOCK/ENDBLK que cierran los espacios.
+ *
+ * El orden no es una preferencia: el archivo exige handles crecientes y el
+ * plan los reparte exactamente así. Vive aquí —y no en
+ * `ac1015-minimal-file-writer.ts`— desde que la hoja duplicó el tramo: allá
+ * queda el ARMADO del archivo (secciones, directorio, mapa, centinelas), que
+ * no cambia al aprender un espacio más.
+ */
+export function pushAc1015DynamicScopes(
+  context: Ac1015DynamicScopesContext,
+): void {
+  const { plan, push } = context;
+  const comun = {
+    layerHandleOf: context.layerHandleOf,
+    blockRecordHandleOf: context.blockRecordHandleOf,
+    textStyleHandle: context.textStyleHandle,
+    push,
+  };
+  context.blocks.forEach((block, index) => {
+    const recordHandle = plan.blockRecordHandles[index]!;
+    const beginHandle = recordHandle + 1;
+    const contentHandles = plan.blockEntityHandles[index]!;
+    const endHandle = plan.blockEndblkHandles[index]!;
+    push(
+      recordHandle,
+      writeAc1015StructBlockRecordBody(
+        {
+          name: block.name,
+          controlHandle: context.blockControlHandle,
+          blockEntityHandle: beginHandle,
+          ...cadenaDelEspacio(contentHandles),
+          endblkHandle: endHandle,
+        },
+        recordHandle,
+      ),
+    );
+    push(
+      beginHandle,
+      writeAc1015StructBlockBeginBody(
+        {
+          name: block.name,
+          mode: 0,
+          ownerBlockRecordHandle: recordHandle,
+          layerHandle: context.layerZeroHandle,
+        },
+        beginHandle,
+      ),
+    );
+    pushAc1015ScopeEntities({
+      ...comun,
+      entities: block.entities,
+      entityHandles: contentHandles,
+      attributeGroups: plan.blockAttributeHandles[index]!,
+      ownerBlockHandle: recordHandle,
+    });
+    push(
+      endHandle,
+      writeAc1015StructBlockEndBody(
+        {
+          mode: 0,
+          ownerBlockRecordHandle: recordHandle,
+          layerHandle: context.layerZeroHandle,
+        },
+        endHandle,
+      ),
+    );
+  });
+
+  pushAc1015ScopeEntities({
+    ...comun,
+    entities: context.modelEntities,
+    entityHandles: plan.modelEntityHandles,
+    attributeGroups: plan.modelAttributeHandles,
+    viewportHeaderHandles: plan.modelViewportHeaderHandles,
+    space: "model",
+  });
+  pushAc1015ScopeEntities({
+    ...comun,
+    entities: context.paperEntities,
+    entityHandles: plan.paperEntityHandles,
+    attributeGroups: plan.paperAttributeHandles,
+    viewportHeaderHandles: plan.paperViewportHeaderHandles,
+    space: "paper",
+  });
+
+  // Las entradas VPORT ENTITY HEADER, en el MISMO orden en que el plan las
+  // repartió: primero las de las ventanas del modelo, después las de la hoja.
+  for (const [headerHandles, entityHandles] of [
+    [plan.modelViewportHeaderHandles, plan.modelEntityHandles],
+    [plan.paperViewportHeaderHandles, plan.paperEntityHandles],
+  ] as const) {
+    headerHandles.forEach((headerHandle, index) => {
+      if (headerHandle === null) return;
+      push(
+        headerHandle,
+        writeAc1015VportEntityHeaderBody(
+          {
+            controlHandle: context.vportEntityHeaderControlHandle,
+            viewportHandle: entityHandles[index]!,
+          },
+          headerHandle,
+        ),
+      );
+    });
+  }
+
+  const marcadores = [
+    { handle: plan.handseed - 4, kind: "begin", mode: 2, name: context.modelSpaceName },
+    { handle: plan.handseed - 3, kind: "end", mode: 2, name: context.modelSpaceName },
+    { handle: plan.handseed - 2, kind: "begin", mode: 1, name: context.paperSpaceName },
+    { handle: plan.handseed - 1, kind: "end", mode: 1, name: context.paperSpaceName },
+  ] as const;
+  for (const marcador of marcadores) {
+    push(
+      marcador.handle,
+      marcador.kind === "begin"
+        ? writeAc1015StructBlockBeginBody(
+            {
+              name: marcador.name,
+              mode: marcador.mode,
+              layerHandle: context.layerZeroHandle,
+            },
+            marcador.handle,
+          )
+        : writeAc1015StructBlockEndBody(
+            { mode: marcador.mode, layerHandle: context.layerZeroHandle },
+            marcador.handle,
+          ),
+    );
+  }
+}
+
+/**
+ * Los punteros de primera y última entidad de un BLOCK_RECORD, o nada cuando
+ * el espacio está vacío. Lo usan los tres —bloques de usuario, model space y
+ * la hoja—, y una copia por sitio podría separarse sin que nada lo viera.
+ */
+export function cadenaDelEspacio(
+  entityHandles: readonly number[],
+): { firstEntityHandle: number; lastEntityHandle: number } | Record<string, never> {
+  if (entityHandles.length === 0) return {};
+  return {
+    firstEntityHandle: entityHandles[0]!,
+    lastEntityHandle: entityHandles[entityHandles.length - 1]!,
+  };
 }
