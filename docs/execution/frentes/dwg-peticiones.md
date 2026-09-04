@@ -62,7 +62,51 @@ Formato de cada petición:
   0.125 y no 1 — hoy esa spec no se puede ni escribir. `apps/web/src/lib/cad/
   cad-document.spec.ts` y `persisted-identifiers.spec.ts` deben seguir verdes: el campo es
   nuevo y opcional, no renombra nada persistido.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04, ventana de integración, grupo F). El campo entró con su nombre,
+  su forma y sus nombres internos exactos (`lines[].angle` en GRADOS, `base`, `offset`, `dashes`),
+  opcional y aditivo, sin tocar un solo campo existente, sin subir `CAD_DOCUMENT_SCHEMA` —sigue en
+  10— y sin migración, tal como la petición razona.
+
+  **Lo que NO cupo donde la petición lo ponía, y qué se hizo en su lugar.** `cad-document.ts`
+  estaba en 799 líneas de un tope DURO de 800: no figura en `allowances` de
+  `scripts/cad/monolith-budget.json`, así que le aplica `maxLines`. El campo con su comentario
+  —doce líneas— habría dejado el archivo en 811 y `check:cad` en rojo, y meterlo en `allowances`
+  habría sido relajar un presupuesto, que está prohibido. Se aplicó el precedente que el propio
+  repositorio dejó escrito para este caso exacto en `cad-entities-v10.ts` («`cad-document.ts`
+  tiene tope de 800 líneas y lo que se añade se extrae»): el campo vive DOCUMENTADO en un módulo
+  HOJA nuevo, `apps/web/src/lib/cad/cad-hatch-imported-pattern.ts` (su único import es
+  `import type`, así que no cierra ciclo), y el miembro `hatch` lo intersecta igual que
+  `dimension` intersecta `CadSchema10DimensionFields`. En `cad-document.ts` eso cuesta UNA línea
+  —el `import type`— y dos caracteres: `| {` → `| ({` y `}` → `} & CadHatchImportedPattern)`. El
+  tipo público no cambia: `Extract<CadDocument["entities"][number], { type: "hatch" }>` sigue
+  resolviendo y el estrechamiento por `type === "hatch"` sigue funcionando, que es lo que
+  `dimension` lleva demostrando desde el esquema 10.
+
+  **Consecuencia que hay que decir sin adornos:** `cad-document.ts` queda en 800/800. El
+  siguiente campo del esquema NO cabe en ese archivo; quien lo necesite tendrá que extraer antes,
+  y el gate se lo dirá con su propio mensaje («Divídelo; no lo añadas al manifiesto salvo que
+  exista una razón escrita»).
+
+  **La colisión de nombre que conviene conocer, medida y no supuesta:** `dwg-native-writer.ts` ya
+  usaba la clave `patternDefinition` en el registro que manda al laboratorio, pero con OTRA forma
+  —`angle`/`scale`/`double` arriba, `basePoint` en vez de `base`, y en RADIANES—. Ahora que la
+  entidad canónica también puede traer una, se midió qué cambia: nada. Un sombreado NO sólido con
+  nombre que la tabla no conoce ni llega al conversor (`cadEntityIsDwgWritable` lo filtra antes y
+  lo declara como pérdida); uno de patrón conocido se sobrescribe con la trama resuelta por la
+  tabla propia; y uno sólido no mira el campo. Medido sobre los tres casos con el campo nuevo
+  puesto: preflight `{"writableCount":2,"unwritableByType":{"hatch":1}}`, el ANSI31 sale con
+  1.5707963267948966 rad —los 90° de NUESTRA tabla, no los 45° del campo ajeno—, el sólido sigue
+  sin bloque de trama y el desconocido sigue en `hatch-pattern-definition-missing`. NO se tocó
+  `dwg-native-writer.ts`: es territorio del frente, no de este grupo.
+
+  Verde: `cad-document.spec.ts`, `persisted-identifiers.spec.ts` y `cad-document-migrate.spec.ts`
+  pasan; `npm run typecheck` 8/8; la suite 593/593; `check:cad` y `check:dwg` completos en verde
+  con el espejo del corpus (`check:dwg-firma`: 50 comprobaciones, banderas apagadas).
+
+  Lo que queda para el frente, tal como la propia petición lo reparte: cerrar el círculo en
+  `dwg-document-bridge-entities.ts` y escribir la spec que importa `11-hatch` del corpus admitido
+  y exige 0.125 en vez de 1. Hasta que eso entre, el campo existe y nadie lo escribe: el
+  sombreado ajeno se sigue redibujando con la tabla propia.
 
 ### P-dwg-02 · Injertar en ADR-0009 la sección del encendido, ENLAZANDO el paquete de firma
 

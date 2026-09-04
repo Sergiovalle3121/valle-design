@@ -29,6 +29,7 @@ import type { CadSchema5Entity } from "./cad-entities-v5";
 import type { CadSchema6Entity } from "./cad-entities-v6";
 import type { CadSchema7Entity } from "./cad-entities-v7";
 import type { CadSchema10DimensionFields } from "./cad-entities-v10";
+import type { CadHatchImportedPattern } from "./cad-hatch-imported-pattern";
 import { byId, byName } from "./cad-document-shared";
 
 // ---------------------------------------------------------------------------
@@ -303,7 +304,7 @@ export type CadEntity =
       layer: string;
       context?: CadEntityContext;
     }
-  | {
+  | ({
       id: string;
       type: "hatch";
       pattern: string;
@@ -318,7 +319,7 @@ export type CadEntity =
       associationStatus?: "associated" | "broken" | "detached";
       layer: string;
       context?: CadEntityContext;
-    }
+    } & CadHatchImportedPattern)
   | {
       id: string;
       type: "mleader";

@@ -951,4 +951,40 @@ petición todavía es un hueco reservado, no un descuido.
   aritmética de punta a punta —incluido el enganche real con `snap()` del motor sobre una
   escena construida con `cadPdfSnapSceneAdd`—; lo que la petición añade es el cableado, y se
   ve con `npm run typecheck` y con la E2E de calcado si se escribe. `npm test` cierra el resto.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04, ventana de integración, grupo F). Los tres imports, el `ref`
+  con su comentario y el bloque dentro de `resolvePointer` —justo después de
+  `cadSnapSceneAddEntities` y antes de `resolveOsnap`— entraron tal como están escritos, con
+  `loadedCadDocumentRef` como fuente del documento vivo.
+
+  **Dos ajustes, ninguno de diseño, ambos dichos:** (1) el paso 4 se aplicó literal —si el mapa
+  tiene más entradas que entidades `image`, se vacía entero— pero con una guarda delante: el
+  recuento sólo se paga cuando el mapa NO está vacío, que es el caso de todo dibujo sin sustrato.
+  Sin ella, cada `pointermove` del producto entero recorrería las entidades una vez de más para
+  contar cero. (2) El bloque entró COMPRIMIDO —la firma en tres renglones y la llamada a
+  `cadPdfSnapSceneAdd` en uno— por el presupuesto del monolito, no por gusto: en su forma
+  desplegada el archivo daba 18 455 y el techo es 18 454.
+  `Layout3DEditor.tsx` queda en **18 447 de 18 454**; sobran SIETE líneas. Los `useState` siguen
+  en 131, que es el techo exacto, y `node scripts/cad/check-monolith-budget.mjs` sale verde.
+
+  **Medido, no supuesto.** `npx tsx src/lib/cad/pdf/pdf-snap-geometry.spec.ts` sigue en sus 95
+  comprobaciones. Además se corrió el bloque REAL —copiado renglón a renglón desde el editor—
+  contra un documento montado como lo monta el producto (`pdf-underlay-commands.ts:209` guarda el
+  `dataUri` del sobre, no la ruta remota): lámina del corpus `cad-vector-compressed` adjuntada en
+  (1000, 500) mm, y el cursor a 0,05 mm de la esquina del rectángulo exterior **engancha**:
+  `{ type: "endpoint", x: 1025.4, y: 525.4 }`, que es exactamente una pulgada —25,4 mm— desde la
+  esquina del papel. La ventana por cursor recorta a 2 tramos y 1 extremo lo que si no serían
+  cientos. La memoria hace lo que promete: el segundo `pointermove` con la misma lámina reutiliza
+  la entrada, `PDFCLIP` la invalida por sí solo (el recorte está en la firma) y `PDFDETACH` deja
+  el mapa en cero sin manejador nuevo. `npm run typecheck` 8/8, suite 593/593, `npm run lint` 0
+  errores (trinquete de avisos 487/492), `check:cad` completo en verde con el espejo del corpus.
+
+  **Lo que sigue sin gate, dicho para que nadie lo dé por cubierto:** la aritmética del sustrato
+  la vigila `pdf-snap-geometry.spec.ts` y el cableado lo vigila `typecheck`, pero NINGÚN test
+  ejecuta el bloque tal como vive en `resolvePointer` — la comprobación de arriba es una réplica,
+  y una réplica se puede quedar atrás del original sin que nada avise. La E2E de calcado que la
+  propia petición menciona es lo que cerraría ese hueco.
+
+  **El límite que la petición excluye sigue en pie:** un sustrato cuya ruta no es `data:`
+  —`tenant-asset://`, el día que haya almacén— se salta con `continue`. Hoy no le toca a nadie,
+  porque `PDFATTACH` guarda el `dataUri`; cuando exista el canal de anfitrión de `P-express-01`,
+  la memoria se llenará desde él al adjuntar y este bucle sólo leerá.
