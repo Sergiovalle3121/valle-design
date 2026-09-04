@@ -245,3 +245,74 @@ Declarado en `CAD_RASTER_TEXT_LIMITS`, en el plan de VECTORIZE y en su aviso:
 - **Zhang-Suen come dos píxeles en cada punta** de un trazo romo (una barra de 24 × 3 px da una
   línea media de 20 px). Es la cifra real, medida en el spec, no una holgura: corregir el
   extremo pide una reconstrucción del final del trazo que no está hecha.
+
+### 2026-09-04 · COGO y el cuadro de construcción: la lámina que se protocoliza
+
+Lo que existe ahora y antes no:
+
+- `apps/web/src/lib/cad/geo-cogo.ts` — la aritmética de un levantamiento, PURA: no conoce
+  entidades ni unidades de dibujo. Rumbo por cuadrante (`N 45°30'20" E`) ↔ azimut ↔ radianes del
+  motor, con los cuatro ejes en forma CANÓNICA para que la ida y vuelta valga también en 0°,
+  90°, 180° y 270°. Grados-minutos-segundos que van y vuelven campo a campo, con el acarreo que
+  evita escribir `44°59'60"`. Lectura de rumbos en las escrituras con que se teclean de verdad
+  (`N45d30m20sE`, `N 45-30-20 E`, `S 12°04'10" O`, `SUR`) y RECHAZO CON MOTIVO de lo que no lo
+  es: ningún rumbo mal escrito degrada a 0. Poligonal levantada de una lista de rumbo+distancia
+  o de un cuadro PEGADO con un tramo por renglón; error de cierre lineal con su rumbo y su
+  precisión 1:N; superficie por Gauss; ángulos interiores; cierre ANGULAR contra los ángulos
+  leídos; y compensación por la regla del compás (Bowditch), que cierra exacto y dice cuánto se
+  movió cada vértice.
+- `apps/web/src/lib/cad/engine/commands/geo-cogo.ts` — las dos órdenes. **COGO** dibuja la
+  polilínea, enseña el plan (cada lado, perímetro, superficie, cierre y precisión) y sólo
+  escribe al confirmar; **no cierra la poligonal a la fuerza** —el último vértice queda donde
+  las cuentas lo dejan— y `Compensar` la cierra por la regla del compás DICIENDO cuánto repartió.
+  Las distancias se leen en METROS, que es como viene un cuadro, y `Unidades` cambia a las del
+  documento. **CUADROCONSTRUCCION** designa una polilínea cerrada y emite una entidad TABLE
+  canónica de 8 filas × 7 columnas: `EST · PV · RUMBO · DISTANCIA · V · X · Y` y el renglón de
+  superficie. Con el marcador GEO puesto, X e Y son el ESTE y el NORTE de verdad, vía
+  `cadGeoreferenceWorld`.
+
+Evidencia, con las dos órdenes que la producen:
+
+```
+cd /home/user/vd-map-raster/apps/web
+npx tsx src/lib/cad/geo-cogo.spec.ts                       # 200 comprobaciones
+npx tsx src/lib/cad/engine/commands/geo-cogo.spec.ts       # 86 comprobaciones
+```
+
+Los números que cierran la entrega: la poligonal de cinco lados de un cuadro real —rumbos a
+segundo entero y distancias al milímetro— cierra a **0.401 mm** con precisión **1:348 787**, y
+su superficie, **1 231.53 m²**, coincide con la de Gauss calculada en la propia spec sobre los
+vértices, por camino independiente. Con el marcador GEO de la zona 14N en el origen del dibujo,
+la columna X del vértice 1 del cuadro dice **660,000.000** y la del vértice 2 **660,042.150**.
+
+Dos cosas que se aprendieron construyendo, y que están escritas en el código:
+
+- **Gauss sobre coordenadas UTM pierde cifras.** Los productos `x·y` de la fórmula valen
+  1,4 × 10¹² y el área que sale de restarlos vale dos mil: el `float64` se come seis cifras y la
+  superficie del predio baila en la quinta décima (6,6 µm² medidos en la spec). El anillo se
+  traslada al primer vértice antes de sumar —exactamente reversible— y las cifras vuelven.
+- **Compensar mueve el rumbo.** Repartir 0,4 mm de cierre entre cinco lados desplaza el vértice
+  2 tres décimas de milímetro, y sobre un lado de 42 m eso es un segundo de arco: el cuadro
+  publica `N 89°58'19" E` donde la libreta decía `20"`. Por eso los rumbos del cuadro se
+  RECALCULAN sobre las coordenadas que se publican: así la lámina es consistente consigo misma,
+  que es lo que el Registro comprueba.
+
+Cinco peticiones nuevas (P-map-raster-07 a 12) para registrar las órdenes, sus alias, sus
+resúmenes y su sitio en la cinta: hasta que el coordinador las aplique, las dos órdenes existen
+y están probadas pero **no se pueden teclear**, y nada en la interfaz las anuncia.
+
+### 2026-09-04 · Lo que COGO todavía no hace
+
+- **Distancia de cuadrícula, no de terreno.** No se aplica el factor de escala de la proyección
+  (0,9996 en el meridiano central de una zona UTM) ni la reducción al nivel del mar. Va escrito
+  en el plan y en el aviso de las dos órdenes: son unos cuatro centímetros por kilómetro, y
+  callarlos movería un lindero.
+- **Lados en ARCO.** Una polilínea con `bulge` se RECHAZA diciendo que un cuadro de construcción
+  publica lados rectos y que los curvos —con su radio, su desarrollo y su cuerda— todavía no se
+  emiten.
+- **Compensación por mínimos cuadrados.** La que hay es la regla del compás, que es la que se
+  enseña y la que un cuadro declara.
+- **La libreta de tránsito completa.** `cadCoursesFromAngles` levanta la poligonal desde el
+  azimut del primer lado más los ángulos interiores, y `cadAngularClosure` mide el cierre
+  angular de esas lecturas; lo que no hay es una orden que capture ángulo a ángulo desde el
+  aparato.
