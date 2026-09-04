@@ -438,6 +438,18 @@ spec verde— y **no lo importaba ni un comando ni un panel**.
 | BEDIT abre la referencia EN SITIO, no el panel | 5 | `blocks-edit.spec.ts` v2: con una referencia designada o seleccionada, BEDIT saca la geometría sobre su punto de inserción; sin geometría, girada o por nombre cae al panel **y dice por qué** | Con esto la fila `blocks` llega a su tope de capacidad y sólo retiene 1 pt por evidencia propia. Falta editar en sitio una referencia GIRADA o ESCALADA. **Todavía no.** |
 | Editar una referencia EN SITIO, sin explotarla | 5 | `reference-edit.spec.ts` (33): la geometría sale ENCIMA de la referencia designada, se edita con las órdenes de siempre, REFSET decide qué entra, REFCLOSE la devuelve a coordenadas del bloque conservando los ATRIBUTOS —lo que explotar perdía— y descartar deja la definición byte a byte igual | Los nombres son los de AutoCAD porque el gesto es el mismo. **Falta** que BEDIT sea ese editor (hoy abre el panel) y editar en sitio una referencia GIRADA o ESCALADA, que se niega por su nombre: devolver geometría girada no es trasladarla. **Todavía no.** |
 
+## El grabador de acciones (Ola 8, 2026-09-04)
+
+La familia de grabación de AutoCAD estaba en 0 de 5. La superficie entera de
+automatización, en 4 de 36.
+
+| Capacidad | Peldaño | Evidencia | Qué falta para el siguiente |
+| --- | --- | --- | --- |
+| Grabar lo tecleado como macro | 5 | `action-recorder.spec.ts` (25) y `action-recorder-host.spec.ts` (19); golden 97 teclea el circuito entero y afirma sobre el documento persistido | Los puntos se guardan como COORDENADAS y lo cancelado no entra. El macro es un `.scr` legible, no un formato propio. |
+| Repetir un macro | 5 | golden 97: tras repetir, hay **dos** muros en el documento del servidor, los dos de 0 a 4.000 | Se repite por la MISMA puerta que un `.scr` (`runCadScript`), así que no hay dos intérpretes que diverjan. |
+| Pausa para pedir datos a mitad de la repetición | 0 | ninguna | Es ACTUSERINPUT. Un macro de hoy repite exactamente lo grabado. **Todavía no.** |
+| Guardar los macros entre sesiones | 0 | ninguna | Hoy viven en la sesión y se copian a un `.scr` desde el diálogo. Persistirlos pide un sitio nuevo en el formato: **decisión del titular**. |
+
 ## Cómo se usa
 
 - **Al añadir una entrada nueva a `BACKLOG.md`:** decir el peldaño ACTUAL

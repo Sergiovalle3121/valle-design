@@ -35,6 +35,15 @@ import type {
   CadUiRequest,
 } from "@/lib/cad/engine/command-types";
 import {
+  CAD_ACTION_RECORDER_IDLE,
+  cadActionRecorderReduce,
+  cadActionRecorderStart,
+  cadActionRecorderStop,
+  type CadActionEvent,
+  type CadActionRecorderState,
+  type CadActionRecording,
+} from "@/lib/cad/automation/action-recorder";
+import {
   cadActiveUcs,
   cadActiveUcsIsTilted,
   type CadSystemVariableValue,
@@ -138,6 +147,18 @@ export class CadCommandEngineHost {
    */
   private chained: { command: string; restore: Record<string, CadSystemVariableValue> } | null = null;
   private pendingChain: Extract<CadHostRequest, { kind: "chain-command" }> | null = null;
+  /**
+   * El GRABADOR DE ACCIONES vive aquí y no en el motor por una razón: el motor
+   * es un reductor puro que ve UNA acción cada vez, y grabar es justo lo
+   * contrario —quedarse con la sucesión—. Este anfitrión es el único sitio por
+   * el que pasan todas, y por eso es el único que puede grabarlas sin
+   * interceptar la interfaz.
+   */
+  private recorder: CadActionRecorderState = CAD_ACTION_RECORDER_IDLE;
+  /** Lo grabado en esta sesión, por nombre. Ver `startRecording` sobre el límite. */
+  private readonly macros = new Map<string, CadActionRecording>();
+  /** Mientras se repite un macro NO se graba: si no, grabaría su propia copia. */
+  private replaying = false;
 
   /**
    * El portapapeles de geometría (Ola D, 2026-09-02). Por defecto el de la
@@ -413,7 +434,82 @@ export class CadCommandEngineHost {
     this.bridge.preview(refreshed.preview ?? []);
   }
 
+  /**
+   * El evento que le toca al grabador, o `null` si esta acción no se graba.
+   *
+   * `activo` es si había una orden EN CURSO antes de esta acción: un token con
+   * el motor libre es el NOMBRE de una orden —y eso abre una orden nueva en el
+   * grabador—, y con una orden en curso es una respuesta a su prompt. Sin esa
+   * distinción, un macro no sabría dónde empieza cada orden y un `cancel` se
+   * llevaría por delante lo que no debía.
+   */
+  private recorderEvent(action: CadCommandAction, activo: boolean): CadActionEvent | null {
+    if (action.kind === "invoke") return { kind: "command", name: action.command };
+    if (action.kind === "token")
+      return activo ? { kind: "token", value: action.value } : { kind: "command", name: action.value };
+    if (action.kind !== "input") return null;
+    const input = action.input;
+    if (input.kind === "point") return { kind: "point", x: input.point.x, y: input.point.y };
+    // Una designación con el ratón se graba como su COORDENADA: al repetir el
+    // macro en otro plano designará lo que haya en ese punto, que es lo que un
+    // `.scr` puede decir. Grabar el id de la entidad daría un macro que sólo
+    // sirve en el dibujo donde se grabó.
+    if (input.kind === "entityPick") return { kind: "point", x: input.point.x, y: input.point.y };
+    if (input.kind === "enter") return { kind: "enter" };
+    if (input.kind === "cancel") return { kind: "cancel" };
+    if (input.kind === "text") return { kind: "token", value: input.value };
+    return null;
+  }
+
+  /** Arranca la grabación. Devuelve el renglón que se le dice al usuario. */
+  startRecording(name: string): string {
+    if (this.recorder.recording)
+      return `Ya se está grabando «${this.recorder.name}». Pare con ACTSTOP antes de empezar otro.`;
+    this.recorder = cadActionRecorderStart(name);
+    return (
+      `ACTRECORD: grabando «${this.recorder.name}». Todo lo que teclee entra en el macro; ` +
+      "los puntos se guardan como coordenadas para que se pueda repetir en otro plano. " +
+      "Pare con ACTSTOP."
+    );
+  }
+
+  /** Cierra la grabación y guarda el macro en la sesión. */
+  stopRecording(): { recording: CadActionRecording } | { message: string } {
+    if (!this.recorder.recording)
+      return { message: "No se está grabando nada. Empiece con ACTRECORD." };
+    const recording = cadActionRecorderStop(this.recorder);
+    this.recorder = CAD_ACTION_RECORDER_IDLE;
+    if (recording.lines.length === 0)
+      return { message: `ACTSTOP: «${recording.name}» quedó vacío; no se guarda un macro que no hace nada.` };
+    this.macros.set(recording.name.toLowerCase(), recording);
+    return { recording };
+  }
+
+  /** Los macros grabados en esta sesión. */
+  recordedMacros(): CadActionRecording[] {
+    return [...this.macros.values()];
+  }
+
+  /** Uno por nombre, sin distinguir mayúsculas. */
+  recordedMacro(name: string): CadActionRecording | null {
+    return this.macros.get(name.trim().toLowerCase()) ?? null;
+  }
+
+  /** Envuelve la repetición para que el grabador no se grabe repitiendo. */
+  replay(run: () => void): void {
+    this.replaying = true;
+    try {
+      run();
+    } finally {
+      this.replaying = false;
+    }
+  }
+
   private dispatch(action: CadCommandAction): void {
+    if (this.recorder.recording && !this.replaying) {
+      const event = this.recorderEvent(action, this.state.active !== null);
+      if (event) this.recorder = cadActionRecorderReduce(this.recorder, event);
+    }
     const reduction = cadCommandEngineReduce(
       this.state,
       action,

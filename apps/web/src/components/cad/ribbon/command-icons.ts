@@ -144,6 +144,9 @@ import {
   PenLine,
   PenTool,
   Check,
+  Variable,
+  RefreshCw,
+  PlayCircle,
   PencilRuler,
   Pentagon,
   Percent,
@@ -493,6 +496,11 @@ export const CAD_COMMAND_ICONS: Readonly<Record<string, LucideIcon>> = {
   "-TOOLPALETTES": Terminal,
   SCRIPT: FileCode,
   RSCRIPT: Repeat,
+  ACTRECORD: Circle,
+  ACTSTOP: Square,
+  ACTMANAGER: PlayCircle,
+  FIELD: Variable,
+  UPDATEFIELD: RefreshCw,
 };
 
 /**

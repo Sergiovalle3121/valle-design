@@ -22,10 +22,11 @@
  * despacharse desde un manejador que corre ANTES de que los efectos de ese
  * render se hayan ejecutado.
  */
-import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { CAD_COMMAND_REGISTRY_V2 } from "@/lib/cad/engine";
 import type { CadCommandRegistry } from "@/lib/cad/engine/command-engine";
-import { requestCadUi } from "@/components/cad/palettes/palette-command-bus";
+import { registerCadUiHandler, requestCadUi } from "@/components/cad/palettes/palette-command-bus";
+import { cadActionScript } from "@/lib/cad/automation/action-recorder";
 import type { CadDocument } from "@/lib/cad/cad-document";
 import type { CadEntityCommand } from "@/lib/cad/entity-commands";
 import { runCadScript } from "@/lib/cad/script-runner";
@@ -531,7 +532,83 @@ export function useCadStudioCommandEngine(
     ),
   );
 
+  useCadActionRecorder(engine);
+
   return engine;
+}
+
+/**
+ * Cierra el circuito del GRABADOR DE ACCIONES.
+ *
+ * Las órdenes (`engine/commands/automation-actions.ts`) piden; el anfitrión
+ * graba —es el único que ve la sucesión de acciones—; y aquí se conectan las
+ * dos cosas, más la REPETICIÓN, que vuelve a entrar por la misma puerta que
+ * SCRIPT: `runCadScript` sobre el mismo anfitrión. Un macro repetido y un
+ * guión ejecutado recorren exactamente el mismo camino, así que no hay dos
+ * intérpretes que puedan divergir.
+ */
+function useCadActionRecorder(engine: CadCommandEngineHost): void {
+  useEffect(
+    () =>
+      registerCadUiHandler("action-recorder", (request) => {
+        const action = request.params?.action ?? "";
+        const name = request.params?.name ?? "";
+        if (action === "start") {
+          engine.note(engine.startRecording(name), "info");
+          return true;
+        }
+        if (action === "stop") {
+          const result = engine.stopRecording();
+          if ("message" in result) {
+            engine.note(result.message, "error");
+            return true;
+          }
+          // El macro se imprime ENTERO en el diálogo a propósito: es un `.scr`
+          // legible, y verlo es lo que permite copiarlo a un archivo y llevarlo
+          // a otro proyecto. Los macros viven en la sesión; el archivo, no.
+          engine.note(
+            `ACTSTOP: «${result.recording.name}» grabado con ${result.recording.commands} ` +
+              `orden(es). Repítalo con ACTMANAGER, o cópielo a un .scr:`,
+            "info",
+          );
+          engine.note(cadActionScript(result.recording), "info");
+          return true;
+        }
+        if (action === "list") {
+          const macros = engine.recordedMacros();
+          engine.note(
+            macros.length === 0
+              ? "No hay ningún macro grabado en esta sesión. Grabe uno con ACTRECORD."
+              : `Macros de esta sesión: ${macros
+                  .map((macro) => `${macro.name} (${macro.commands} orden(es))`)
+                  .join(" · ")}.`,
+            "info",
+          );
+          return true;
+        }
+        if (action === "play") {
+          const macro = engine.recordedMacro(name);
+          if (!macro) {
+            engine.note(
+              `No hay ningún macro «${name}» en esta sesión. Liste los que hay con ACTMANAGER e Intro.`,
+              "error",
+            );
+            return true;
+          }
+          engine.replay(() => {
+            const report = runCadScript(cadActionScript(macro), engine);
+            for (const warning of report.warnings) engine.note(warning, "error");
+            engine.note(
+              `ACTMANAGER: «${macro.name}» repetido, ${report.executed} renglón(es).`,
+              "info",
+            );
+          });
+          return true;
+        }
+        return false;
+      }),
+    [engine],
+  );
 }
 
 /**

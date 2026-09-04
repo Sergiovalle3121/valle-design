@@ -1077,3 +1077,181 @@ evidencia es propia. Las cifras totales no se mueven —HOY 176/197 (89,3 %),
 DESTINO 232/271 (85,6 %)— porque el punto ganado es exactamente el que la
 retención descuenta. Se dice así, con el mecanismo a la vista, en vez de anunciar
 una subida que la rúbrica no concede.
+
+## Medición de arranque — Ola 8 (2026-09-04): automatización y personalización
+
+Antes de tocar nada, y con dos sorpresas.
+
+### La tabla de alias ya no cuelga
+
+El criterio `command-line.alias-complete` decía: *«los 129 alias, incluidos
+BE→BEDIT y BLE→BLEND, que hoy cuelgan»*. Sondeada la tabla entera contra el
+registro real:
+
+```
+alias declarados: 183
+sin resolver: 0
+```
+
+Ninguno cuelga. La fila ya está a su tope y sólo retiene 1 pt por evidencia
+propia. **No hay trabajo aquí**, y decirlo es parte del trabajo: la alternativa
+era «mejorar» algo que ya estaba y contarlo como avance.
+
+### La superficie de automatización, en cambio, está en 4 de 36
+
+Sondeados treinta y seis nombres de la familia contra el registro:
+
+| Familia | Hay | Faltan |
+| --- | --- | --- |
+| AutoLISP y scripting | 2/9 (SCRIPT, RSCRIPT) | APPLOAD, VLIDE, LOAD, SCRIPTCALL, DELAY, RESUME, MACRO |
+| Personalización de interfaz | 1/10 (TOOLPALETTES) | CUI, CUILOAD, CUIUNLOAD, CUIEXPORT, CUIIMPORT, CUSTOMIZE, WSSAVE, WSSETTINGS, MENU |
+| Acciones y grabación | 0/5 | ACTRECORD, ACTSTOP, ACTMANAGER, ACTUSERINPUT, ACTUSERMESSAGE |
+| Parámetros y campos | 1/5 (PARAMETERS) | FIELD, UPDATEFIELD, DATALINK, DATALINKUPDATE |
+| Automatización externa | 0/7 | NETLOAD, VBALOAD, VBARUN, VBAIDE, OPENSHEETSET, JSLOAD, PLUGIN |
+| **TOTAL** | **4/36** | |
+
+La rúbrica no ve este hueco: la fila `Automatización: AutoLISP y plugins JS`
+mide 6/8 y lo que le falta es el puente .NET/VBA, que en un navegador no
+existe y se dice. Pero **4/36 es el número honesto de la superficie**, y hay
+capacidades ahí que un despacho usa a diario.
+
+### Lo que esta ola va a atacar, y por qué en este orden
+
+1. **El grabador de acciones** (ACTRECORD / ACTSTOP / ACTMANAGER). Es el que más
+   vale y el que este motor puede hacer mejor que nadie: las órdenes son
+   máquinas de estados que se alimentan de tokens, así que grabar es guardar lo
+   que el usuario tecleó y repetir es meterlo por la misma puerta —la de
+   `parseCadScript`, que ya existe—. Un despacho graba una vez y lo repite en
+   veinte planos.
+2. **DELAY, RESUME y SCRIPTCALL**, que son lo que le falta al `.scr` para
+   encadenar guiones.
+3. **CUI/WSSAVE**, la personalización de la cinta y del espacio de trabajo.
+
+Lo que NO se va a hacer, dicho ya: **NETLOAD, VBALOAD, VBARUN y VBAIDE**. No hay
+runtime .NET ni VBA en un navegador y fingirlo con un comando que abre un aviso
+sería exactamente la clase de puerta falsa que esta campaña rechaza. El camino
+de extensión de este producto es AutoLISP más plugins JS con manifiesto
+versionado, y está documentado.
+
+## Nota fechada — Ola 8 (2026-09-04): grabar una vez, repetir veinte
+
+Medido antes de tocar nada: la familia de grabación de AutoCAD —ACTRECORD,
+ACTSTOP, ACTMANAGER, ACTUSERINPUT, ACTUSERMESSAGE— estaba en **0 de 5**.
+
+### Por qué este motor puede hacerlo mejor que nadie
+
+Aquí una orden es una máquina de estados que se alimenta de TOKENS, y un `.scr`
+es exactamente una lista de tokens. Así que grabar no es interceptar la
+interfaz: es quedarse con lo que ya pasa por la línea de órdenes. Y repetir es
+meterlo por la misma puerta —`runCadScript` sobre el mismo anfitrión—, de modo
+que **un macro repetido y un guión ejecutado recorren el mismo camino**: no hay
+dos intérpretes que puedan divergir.
+
+El resultado de grabar es un `.scr` **legible, editable y ejecutable con
+SCRIPT**, con su cabecera. No un formato opaco que sólo entienda el grabador. Se
+imprime entero en el diálogo a propósito: verlo es lo que permite copiarlo a un
+archivo y llevarlo a otro proyecto.
+
+### Las cuatro decisiones que hacen que un macro sirva
+
+1. **Los puntos se graban TECLEADOS, no como clics.** Un clic vale para el
+   dibujo donde se hizo y para ningún otro; `0,0` vale siempre. Una designación
+   con el ratón se guarda también como su coordenada: al repetir, designará lo
+   que haya en ese punto, que es lo que un `.scr` puede decir.
+2. **Una orden CANCELADA no se graba.** Nadie quiere repetir veinte veces un
+   intento que no llegó a nada; y peor, un cancelado a mitad de macro deja el
+   resto de los tokens contestando a la orden equivocada.
+3. **El grabador no se graba a sí mismo**, ni grabando ni repitiendo. Un macro
+   que se graba mientras se repite se duplica solo.
+4. **Un token con el motor LIBRE abre una orden; con una orden en curso,
+   contesta a su prompt.** De esa distinción depende dónde empieza cada orden en
+   el macro, y por eso el grabador vive en el anfitrión —el único que ve la
+   sucesión— y no en el motor, que es un reductor puro.
+
+### Un defecto que la propia campaña cazó: el aviso falso
+
+`cadCommandsNeedingInterface` marca «abre un cuadro y un guión no puede
+pulsarlo» a toda orden cuyo primer paso pide interfaz, y `ACTSTOP` la pide —la
+atiende el anfitrión, sin cuadro ninguno—. La spec del ejecutor lo detectó al
+instante. La salida fácil era apuntar ACTSTOP en la tabla de comandos con
+cuadro; habría sido **un aviso falso**, y el propio módulo dice por qué eso es
+peor que ninguno: se aprende a ignorarlo, y el día que uno sea verdad también se
+ignora. Se añadió en su lugar `scriptable` a la petición de interfaz, que
+distingue «el anfitrión contesta» de «hay que pulsar algo».
+
+### La rúbrica NO se mueve, y es correcto
+
+La fila de automatización mide 6/8 y lo que le falta es el puente .NET/VBA, que
+en un navegador no existe. El grabador no tiene fila propia y **no se le inventa
+una**: añadir una fila para cobrarla sería inflar el denominador, que es lo que
+`rubric.spec.mjs` existe para impedir. La superficie medida pasa de **4/36 a
+7/36**; el valor está ahí, no en la nota.
+
+### Lo que esta rebanada NO cerró
+
+- **ACTUSERINPUT y ACTUSERMESSAGE**: un macro de este grabador repite
+  exactamente lo grabado; no se para a pedir un dato ni muestra un mensaje.
+- **Los macros viven en la SESIÓN.** Para guardarlos hay que copiar el guión que
+  ACTSTOP imprime a un `.scr`. Persistirlos pediría un sitio nuevo en el formato
+  y es decisión del titular.
+
+### Y el área que se entera de que movieron el muro (Ola 8, 2/n)
+
+`FIELD`, `UPDATEFIELD`, `DATALINK` y `DATALINKUPDATE` no estaban en el registro:
+la familia de campos, en 1 de 5. Lo que sí había eran los campos del CAJETÍN
+—`%<SheetNumber>%`, resueltos al publicar un conjunto—, que son la mitad del
+problema. La otra mitad es **el área de un local escrita a mano en el plano**,
+que deja de ser cierta en cuanto alguien mueve un muro y nadie se entera hasta
+que el cliente suma.
+
+`FIELD` coloca un texto que se rellena solo: área, longitud, fecha o variable de
+sistema. La EXPRESIÓN vive en `context.metadata` y el VALOR resuelto en el
+texto, así que el plano enseña «25.00 m²» —que es lo que se imprime— y el dibujo
+sigue sabiendo de dónde salió el número. Sin un campo nuevo en el formato.
+
+Se usa la MISMA sintaxis del cajetín (`%<Area:id>%`) a propósito: dos sintaxis
+para lo mismo son dos cosas que aprender y una que olvidar.
+
+**Dos defectos que sólo aparecieron tecleando la orden de verdad**, y los dos
+quedaron fijados con su caso:
+
+1. `"Área"[0].toLowerCase()` es `"á"`, no `"a"`. La tabla indexada por la
+   inicial **no reconocía la palabra que el propio prompt ofrece**, y el prompt
+   volvía a preguntar sin decir por qué. Ahora la inicial se normaliza.
+2. Con el local todavía designado —lo deja la orden anterior—, `UPDATEFIELD`
+   decía «No hay ningún campo en el dibujo». Era **falso** y mandaba al usuario
+   a colocar un campo que ya tenía. Ahora distingue: *«Ninguno de los N objetos
+   designados es un campo, y el dibujo tiene M.»*
+
+Un campo cuyo objeto ya no está **conserva su último valor y se cuenta**: un
+cero silencioso en una tabla de superficies es un error que se imprime.
+
+Lo que no hay: `DATALINK` —enlace a hoja de cálculo—, que es traer datos de
+fuera y pide decisiones que no son de este motor.
+
+### Corrección de la medición de arranque: eran 6 de 36, no 4
+
+La medición con la que abrí esta ola sondeaba `CAD_COMMAND_REGISTRY_V2`, el
+registro **nativo**. El estudio no usa ése: usa un registro **compuesto** —los
+nativos primero y, si allí no está, lo que aporten las rutinas `.lsp` y la
+consola LISP—, y en él ya existían `APPLOAD` (con su alias `AP` de acad.pgp) y
+`LISPCON` (con alias `VLIDE` y `LSP`).
+
+Lo descubrí de la peor manera posible y de la mejor: añadí un `APPLOAD` nativo
+—«nadie puede teclearlo», decía mi medición— y **rompí el que ya funcionaba**.
+Un nativo gana siempre sobre lo que aporta la biblioteca, así que el mío tapó al
+bueno: abría la consola pero ya no pedía el selector de fichero. `lisp-enchufe.spec.ts`
+lo cazó en la misma corrida, con su nombre: *«APPLOAD la abre»*, falso.
+
+El slice se revirtió entero. Queda escrito por tres motivos:
+
+1. **La cifra correcta es 6 de 36**, no 4. Las que existían y no vi: `APPLOAD`
+   y `VLIDE`.
+2. **La lección de método**: sondear el registro equivocado produce una carencia
+   inventada, y una carencia inventada produce trabajo que rompe cosas. Cuando
+   este informe diga «no existe», el sondeo tiene que ser contra el registro que
+   el usuario toca.
+3. **Lo que sí salvó el día fue una prueba ajena.** No la mía: la del subsistema
+   LISP, escrita en otra ola, que afirma lo que APPLOAD hace de verdad. Es el
+   argumento entero a favor de que cada capacidad tenga una prueba que la
+   nombre.

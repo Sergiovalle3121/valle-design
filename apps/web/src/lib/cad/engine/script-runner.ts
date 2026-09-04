@@ -137,7 +137,10 @@ export function cadCommandsNeedingInterface(
   for (const descriptor of descriptors) {
     let asksForUi = false;
     try {
-      asksForUi = descriptor.begin(context).result?.kind === "ui";
+      const result = descriptor.begin(context).result;
+      // `scriptable` marca la petición que el anfitrión contesta SIN interfaz:
+      // ésa no cuelga un guión y no debe avisarse como si lo hiciera.
+      asksForUi = result?.kind === "ui" && result.request.scriptable !== true;
     } catch {
       // Un comando que necesita más contexto del que se le da no es un comando
       // con cuadro: se deja fuera en vez de contarlo por no haber podido mirar.
