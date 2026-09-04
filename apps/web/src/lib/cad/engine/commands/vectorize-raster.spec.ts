@@ -27,6 +27,11 @@
  * 90° el texto sale girado 90°; y la opción Texto apaga el reconocimiento y
  * devuelve las 36 polilíneas de antes.
  */
+// Las implementaciones de los comandos llegan a demanda en el navegador
+// (`engine/lazy-commands.ts`). Un `.spec.ts` se carga como CommonJS y no puede
+// esperarlas con `await`, así que las trae de golpe con este import estático.
+import "@/lib/cad/engine/all-commands";
+
 import { strict as assert } from "node:assert";
 import type { CadEntity, CadLayerDef } from "../../cad-document";
 import type { CadImageDefinition, CadImageEntity } from "../../cad-entities-v4";

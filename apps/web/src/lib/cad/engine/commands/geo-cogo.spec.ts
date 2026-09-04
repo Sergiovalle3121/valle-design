@@ -14,6 +14,11 @@
  * puesto en el origen del dibujo, la columna X del vértice 1 es el ESTE UTM
  * que le corresponde, no una coordenada local disfrazada.
  */
+// Las implementaciones de los comandos llegan a demanda en el navegador
+// (`engine/lazy-commands.ts`). Un `.spec.ts` se carga como CommonJS y no puede
+// esperarlas con `await`, así que las trae de golpe con este import estático.
+import "@/lib/cad/engine/all-commands";
+
 import { strict as assert } from "node:assert";
 import type { CadEntity, CadLayerDef } from "../../cad-document";
 import type { CadTableCell } from "../../cad-entities-v4";
