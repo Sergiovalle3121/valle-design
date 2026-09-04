@@ -262,6 +262,107 @@ está registrada).
 (registrar COMPARE), las dos con el diseño completo en `express-peticiones.md`.
 
 
+### C4 · Las cinco Express Tools puras que faltaban (2026-09-04)
+
+**Lo que había.** El reconocimiento (C1) lo dejó medido: de las quince de la cola 1 ya estaban
+`LAYWALK`, `LAYMRG`, `BURST`, `NCOPY`, `TEXTALIGN`, `QDIM`, `QLEADER`, `XPLODE` y `OVERKILL`, y
+faltaban trece. Cinco de esas trece son PURAS —geometría y documento, sin fuente vectorizada,
+sin esquema nuevo, sin anfitrión— y son las de esta entrega. `grep` sobre `engine/` da cero para
+las cinco antes de hoy.
+
+**Lo que hay ahora.** Tres módulos y su spec:
+
+| Archivo | Qué es |
+| --- | --- |
+| `engine/commands/express-tools.ts` (617) | `BREAKLINE`, `FLATTEN`, `LAYDEL` y el array de los cinco descriptores |
+| `engine/commands/express-tools-text.ts` (434) | `TCOUNT` y `TXT2MTXT`: las dos que trabajan sobre el texto ya escrito |
+| `engine/commands/express-tools-support.ts` (285) | El aplastado como función pura, los nombres en español de cada tipo de entidad y los tres remates de paso |
+| `engine/commands/express-tools.spec.ts` (646) | 99 comprobaciones, todas sobre el documento resultante |
+
+Se partió en tres porque el archivo único pasaba de 800 líneas y `check:monolith-budget` da 800
+a un archivo nuevo; el corte no es arbitrario: geometría y tablas por un lado, documento escrito
+por otro, y lo que se prueba solo —el aplastado— fuera del diálogo.
+
+**Las seis decisiones que este entregable tomó, y por qué.**
+
+1. **BREAKLINE dibuja el símbolo como GEOMETRÍA de la misma polilínea, no como bloque.** En
+   AutoCAD es `BRKLINE.DWG` insertado y recortado. Un bloque exige una definición en el
+   documento, un nombre que puede chocar con el del cliente y un INSERT que hay que explotar
+   antes de exportar; una sola polilínea se estira, se recorta, se acota y viaja a DXF sin nada
+   detrás.
+2. **La escala del símbolo es `DIMSCALE`, no una variable propia.** Una rotura es un símbolo de
+   ANOTACIÓN, igual que una flecha de cota, y en AutoCAD todo lo anotativo se escala por la
+   misma variable. El tamaño base sale del UNIDAD del documento —cinco milímetros de papel, que
+   es lo que hace que la rotura se lea impresa— y no del `0.1` de fábrica de AutoCAD, que está
+   en pulgadas: en un dibujo en metros ese `0.1` da una rotura de diez centímetros y en uno en
+   milímetros la da de una décima de milímetro.
+3. **El orden de lectura de un montón de textos sueltos es el de un plano, no el de un array.**
+   De arriba abajo y, a la misma altura, de izquierda a derecha; y los empates se rompen hasta
+   por el identificador. Un orden que dependiera de en qué orden llegaron las entidades daría
+   una numeración distinta cada vez que se abre el dibujo, y eso no es numerar.
+4. **FLATTEN sustituye con `replace`, no borra y crea.** La entidad conserva su identificador,
+   su sitio en el orden de dibujo y las cotas y sombreados que la apuntan: aplastar una línea no
+   puede romper la cota que la mide.
+5. **La lista de campos aplastables es EXPLÍCITA, no un recorrido ciego.** `insert.scale` es un
+   `{x,y,z}` y no es un punto: un aplastado genérico le pondría `z: 0` y convertiría un bloque
+   escalado en uno de altura nula — un defecto que no se ve en planta y aparece al exportar. Los
+   VECTORES sí entran (`ellipse.majorAxis`, `image.uVector`), porque proyectarlos es exactamente
+   lo que se pide.
+6. **LAYDEL no es LAYMRG con otro nombre.** LAYMRG reasigna y no pierde nada, así que se
+   resuelve con una orden de tabla y sin preguntar. LAYDEL BORRA, y por eso hace las dos cosas
+   que hace AutoCAD: contar en voz alta cuántos objetos van a desaparecer y exigir un «Sí»
+   explícito, con «No» por defecto.
+
+**Evidencia medida, no adjetivos.**
+
+```
+cd apps/web
+npx tsx src/lib/cad/engine/commands/express-tools.spec.ts   → 99 comprobaciones
+```
+
+Cada orden se conduce entera desde su descriptor y su lote se APLICA con
+`executeCadEntityCommandBatch`; lo que se comprueba es el documento, con números absolutos:
+
+- **BREAKLINE.** Con `DIMSCALE 20` y tamaño base 10, la polilínea que queda tiene seis vértices
+  y su excursión perpendicular va de `−100` a `+100`: **200 exactos**, que es 10 × 20, y la
+  etiqueta lo dice («símbolo de 200 (tamaño 10 × DIMSCALE 20)»). El gesto cae en el punto medio
+  con Enter y en la abscisa 800 cuando se pide ahí. La prolongación por defecto sigue al tamaño
+  mientras nadie la fije, así que la polilínea arranca en `−100` y termina en `1100` sobre un
+  tramo de 0 a 1000. Con `DIMSCALE 50` sobre un tramo de 30 se NIEGA («no cabe») y el documento
+  se queda vacío.
+- **TCOUNT.** Tres textos desordenados en Y —designados medio, alto, bajo— dan `1COCINA`,
+  `2SALA`, `3BAÑO` por Y, y `1SALA`, `2COCINA`, `3BAÑO` por designación: **el mismo conjunto
+  numerado distinto según el orden pedido**, que es la prueba de que el orden se obedece. Por X
+  con `10,5` y afijos `(,)` y Sustituir da `(10)`, `(15)`, `(20)`. Un incremento de 0 se rechaza
+  con su motivo y la orden sigue.
+- **TXT2MTXT.** Tres TEXT dejan **1 MTEXT y 0 TEXT**, con `modelSpace.entityIds` de longitud 1
+  —sin identificadores fantasma—, el texto `primera\nsegunda\ntercera` en orden de lectura,
+  altura 250, estilo `ROTULO`, capa `NOTAS`, anclaje `top-left` e inserción en (100, 900), que
+  es la esquina superior izquierda del conjunto. Con un color explícito y dos alturas distintas,
+  el aviso las declara.
+- **FLATTEN.** Sobre siete objetos: la etiqueta dice «5 objetos aplastados a Z=0 (2 líneas, 1
+  círculo, 1 polilínea, 1 muro), 10 puntos bajados» y el aviso «ya estaban en Z=0: 1 texto»,
+  el motivo del sólido 3D con su salida (FLATSHOT) y que el muro CONSERVA su altura. En el
+  documento: cada z de cada punto de los cinco vale 0, el muro sigue con `height: 2400`, el
+  sólido sigue con su volumen y siguen siendo siete entidades. Todo ya plano no escribe lote:
+  lo dice.
+- **LAYDEL.** Sobre la capa `0` contesta «La capa 0 no se puede borrar: es la que define el
+  formato PorBloque…» y la tabla sigue con sus cuatro capas; sobre la actual y sobre una
+  bloqueada, lo mismo con su motivo y su salida. Sobre `AUXILIAR` la confirmación dice «Se
+  borrarán 2 objetos de la capa "AUXILIAR"» y **Enter no borra** (el defecto es No); con «Sí»
+  quedan `l0` y `m1`, la capa desaparece de la tabla y el orden de dibujo tampoco guarda
+  fantasmas. Designando un objeto en vez de teclear el nombre, igual.
+
+Gates sobre el árbol: `npm run typecheck` (8/8), `eslint` de los cuatro archivos sin avisos,
+`check:monolith-budget` (ninguno pasa de 800), `check:no-industrial-domain`,
+`check:command-integrity` (274, sin cambio: las cinco todavía no están registradas).
+`check:cad` completo NO pasa, y no por esto: `check:dwg-evidence` falla también con el árbol
+limpio (comprobado con `git stash`), y `dwg/` no es territorio de este frente.
+
+**Petición abierta:** `P-express-06` (registrar las cinco), con el diseño completo en
+`express-peticiones.md`.
+
+
 ## «Todavía no»
 
 ### El PDF, al 2026-09-04
@@ -300,3 +401,32 @@ está registrada).
 - **No se comparan las TABLAS del documento.** El diff es de entidades: una capa renombrada, un
   estilo de cota retocado o un bloque redefinido no aparecen como diferencia salvo que muevan
   alguna entidad. Es el mismo alcance que DWG Compare, y se dice.
+
+### Las Express Tools, al 2026-09-04
+
+- **No están registradas.** Las cinco existen y pasan su spec, pero `engine/index.ts`,
+  `command-summaries.ts`, `alias-table.ts` y `ribbon.ts` están fuera de mi territorio: hasta que
+  se aplique `P-express-06`, el registro sigue en 274 y `ui-command-reach` en 274/274. Por la
+  regla 1 de cimientos, mientras tanto **las cinco no cuentan como implementadas**, y así se
+  declara.
+- **Faltan ocho de las trece.** De la cola 1 siguen sin existir `TXTEXP`, `ARCTEXT`, `EXTRIM`,
+  `MOCORO`, `SUPERHATCH`, `ALIASEDIT`, `DIMEX` y `DIMIM`. No son puras y por eso no entraron en
+  esta entrega: `TXTEXP` y `ARCTEXT` necesitan la geometría de los glifos de la fuente (el motor
+  no tiene métricas: el rótulo se dibuja en el atlas del pipeline, no en el documento);
+  `SUPERHATCH` necesita un bloque o una imagen como patrón; `ALIASEDIT` escribe `alias-table.ts`,
+  que es del registro; `DIMEX`/`DIMIM` son archivo de ida y vuelta, o sea anfitrión. `EXTRIM` y
+  `MOCORO` sí son puras y sólo les faltó ventana en esta entrega.
+- **LAYDEL no entra en las definiciones de bloque.** La geometría que vive dentro de un bloque
+  no está en `document.entities`, así que un bloque que dibuje en la capa borrada sigue
+  insertándola y la capa renace al insertarlo. AutoCAD entra en las definiciones; esto todavía
+  no, y el aviso de la orden lo dice con esas palabras.
+- **TXT2MTXT no reajusta líneas.** El MTEXT nace SIN ancho de columna, así que conserva
+  exactamente los saltos de los TEXT originales. Poner un ancho exigiría medir el avance de cada
+  glifo y el motor no tiene métricas de fuente: un ancho por promedio partiría párrafos donde no
+  toca.
+- **FLATTEN no proyecta sólidos.** Se niega sobre un `solid3d` y manda a FLATSHOT/SOLPROF, que
+  es donde vive la línea oculta. AutoCAD sí lo proyecta desde FLATTEN; aquí sería una segunda
+  implementación de lo mismo, peor.
+- **TCOUNT numera TEXT y MTEXT, no atributos de bloque.** Un atributo se edita con ATTEDIT y su
+  texto no es una entidad del espacio modelo; numerarlos exigiría entrar por
+  `positionedAttributes`, que es otro camino de escritura.

@@ -295,3 +295,83 @@ petición todavía es un hueco reservado, no un descuido.
   `node scripts/cad/ui-command-reach.mjs --check` cierran el alcance con ratón;
   `apps/web/src/lib/cad/engine/command-summaries.spec.ts` cierra el contrato fail-closed.
 - **Estado:** pendiente
+
+### P-express-06 · Registrar las cinco Express Tools puras
+
+- **Archivos:** `apps/web/src/lib/cad/engine/index.ts`,
+  `apps/web/src/lib/cad/engine/command-summaries.ts`,
+  `apps/web/src/lib/cad/engine/alias-table.ts`, `apps/web/src/lib/cad/ribbon.ts`,
+  `docs/cad/evidence/ui-command-reach.json`
+- **Por qué:** cola 1. `BREAKLINE`, `TCOUNT`, `TXT2MTXT`, `FLATTEN` y `LAYDEL` están
+  construidas y probadas (`engine/commands/express-tools.ts`, `express-tools-text.ts`,
+  `express-tools-support.ts`, 99 comprobaciones con el lote aplicado), pero los cuatro archivos
+  del registro están fuera del territorio del frente. Hasta que se aplique, el registro sigue
+  en 274 y, por la regla 1 de cimientos, las cinco **no cuentan como implementadas**.
+- **Cambio exacto:**
+
+  1. `engine/index.ts`: junto a los demás imports de `./commands/…`,
+
+     ```ts
+     import { CAD_EXPRESS_TOOL_COMMANDS } from "./commands/express-tools";
+     ```
+
+     y en la lista de descriptores, junto a `...CAD_BURST_COMMANDS`,
+
+     ```ts
+       ...CAD_EXPRESS_TOOL_COMMANDS,
+     ```
+
+     Son CINCO descriptores en un solo array: `express-tools.ts` ya concatena los dos de
+     `express-tools-text.ts`, así que no hay un segundo import que olvidar.
+
+  2. `engine/command-summaries.ts`: cinco entradas, cada una en su sitio del orden alfabético
+     del objeto.
+
+     ```ts
+       BREAKLINE: "Dibuja la línea de rotura entre dos puntos, con el símbolo a la escala del dibujo (DIMSCALE).",
+       FLATTEN: "Aplasta los objetos designados a Z=0 y declara lo que no pudo aplastar.",
+       LAYDEL: "Borra una capa y todos sus objetos, con confirmación; se niega sobre la 0, la actual y las bloqueadas.",
+       TCOUNT: "Numera los textos designados por X, por Y o por orden de designación, con prefijo, sufijo e incremento.",
+       TXT2MTXT: "Funde varios TEXT en un solo MTEXT en orden de lectura y borra los originales.",
+     ```
+
+  3. `engine/alias-table.ts`: los cinco alias en español que ya declaran los descriptores. El
+     pipeline de entrada resuelve por ESTA tabla, no por el descriptor, así que sin esto los
+     alias no llegan a ninguna parte (es el defecto medido del golden 77 con `DX`).
+
+     ```ts
+       ROTURA: "BREAKLINE",
+       APLANAR: "FLATTEN",
+       CAPABORRAR: "LAYDEL",
+       NUMTEXTO: "TCOUNT",
+       TEXTOAMTEXTO: "TXT2MTXT",
+     ```
+
+  4. `lib/cad/ribbon.ts`: sin esto las cinco aparecen igual —caen en el panel de reposo de la
+     pestaña de su `kind`—, pero dispersas. `LAYDEL` **no necesita nada**: el patrón
+     `LAY(?!OUT|TRANS)[A-Z]+` ya lo lleva a la pestaña Inicio y al panel «Capas», junto a
+     LAYMRG y LAYISO, que es donde AutoCAD lo pone. Las otras cuatro son cuatro alternancias
+     dentro de `CAD_PANEL_NAME_PATTERNS`, sin patrones nuevos:
+
+     - panel «Dibujo»: añadir `|BREAKLINE` a la alternancia que hoy termina en `|WIPEOUT`;
+     - panel «Modificar»: añadir `|FLATTEN` a la alternancia que hoy termina en `|DRAWORDER`
+       (la primera de las dos entradas de «Modificar», la que empieza en `MOVE`);
+     - panel «Texto y tablas»: añadir `|TCOUNT|TXT2MTXT` a la alternancia que hoy termina en
+       `|UPDATEFIELD`.
+
+     No hace falta tocar `CAD_TAB_NAME_PATTERNS`: `BREAKLINE` (`draw`) y `FLATTEN` (`modify`)
+     caen en Inicio por su `kind`, `TCOUNT` y `TXT2MTXT` (`annotate`) en Anotar, y `LAYDEL` ya
+     lo resuelve el patrón de la familia LAY.
+
+  5. `docs/cad/evidence/ui-command-reach.json`: **no se edita**, se regenera con
+     `node scripts/cad/ui-command-reach.mjs --write`. Con las cinco registradas la cifra pasa de
+     274/274 a 279/279 (y a 290/290 si `P-express-03` y `P-express-05` entran en la misma
+     ventana).
+
+- **Cómo se comprueba:** `npm run check:command-integrity` da veredicto sobre las cinco —las
+  cinco MUTAN y las cinco terminan con efecto verificado; ninguna es exenta ni «declara su
+  límite»—; `node scripts/cad/check-ribbon-coverage.mjs` y
+  `node scripts/cad/ui-command-reach.mjs --check` cierran el alcance con ratón;
+  `apps/web/src/lib/cad/engine/command-summaries.spec.ts` cierra el contrato fail-closed;
+  `npx tsx apps/web/src/lib/cad/engine/commands/express-tools.spec.ts` sigue en 99.
+- **Estado:** pendiente
