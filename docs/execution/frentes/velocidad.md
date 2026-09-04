@@ -249,6 +249,15 @@ El diseño completo, con el punto exacto de la cadena de `check:cad` y el porqu�
 `docs/execution/frentes/velocidad-peticiones.md` como **P-velocidad-01**. Hasta que el coordinador
 lo aplique, este artefacto se comprueba a mano.
 
+### 2026-09-04 · Cierre del frente: el árbol entra en VERDE de typecheck y ROJO de `check:cad`
+
+`npm run typecheck` pasa entero (8/8 tareas) y los 19 specs de `render/` pasan, así que lo que
+este frente escribió puede integrarse. `npm run check:cad` NO pasa en este árbol, y ninguna de
+las dos causas la produce este frente: `check:dwg-evidence` falla por entorno
+(**P-velocidad-03**) y la matriz competitiva está por regenerar desde `ff82c85`
+(**P-velocidad-02**, diff recomprobado hoy: 3 líneas +, 4 −, puntuación sin cambio). El detalle
+de todo lo corrido, con su salida literal, está en la entrada de cierre de la Bitácora.
+
 ### 2026-09-04 · Cola 4 · Un solo comando para medir en la GPU del titular
 
 Qué existe ahora que antes no: `node scripts/perf/slo-navegador.mjs`. En UNA invocación
@@ -507,3 +516,107 @@ se haya medido ausente.
   2.600.624 que el pipeline empaqueta contando relevos de octava y trozos. La forma es la misma
   (93,3 % de caminos de dos puntos contra 97,2 %) y la paridad vale igual; el reloj de la etapa
   entera se sigue midiendo donde se medía.
+
+### 2026-09-04 · Cierre del frente · Lo que se corrió al cerrar, y lo que salió
+
+Esta entrada no añade producto: verifica. La escribe el cierre del frente después de correr, no
+de leer, todo lo que las cinco entregas afirmaron. Salidas literales.
+
+**La condición de integración: `npm run typecheck` — VERDE.**
+
+```
+ Tasks:    8 successful, 8 total
+Cached:    3 cached, 8 total
+  Time:    14.084s
+```
+
+**Los 19 specs de `apps/web/src/lib/cad/render/` — los 19 verdes**, incluidos los dos módulos que
+esta campaña reescribió (`line-batch.ts`, `pipeline.ts`) y los ocho consumidores de
+`tessellateCadEntityBatch`. Ninguna regresión.
+
+**`npm run check:command-integrity` — VERDE:**
+
+```
+Integridad de comandos OK: 274 comandos · 82 mutan verificado · 48 delegan · 21 informan ·
+115 declaran su límite · 8 exentos declarados · 0 éxitos falsos.
+```
+
+**`npm run check:cad` — ROJO, `EXIT=1`, y por nada que este frente haya tocado.** Se detiene en
+`check:dwg-evidence` con `AssertionError: el artefacto del disco coincide con lo que el árbol
+sostiene hoy`: el artefacto versionado declara 7 bundles admitidos y regenerado aquí declara 0,
+porque `VALLE_DWG_CORPUS_MIRROR` está SIN DEFINIR en este contenedor. Comprobado que es ajeno:
+`git diff --name-only 646b969..HEAD` no toca ni un archivo DWG (las 26 rutas del frente están
+todas en `apps/web/src/lib/cad/render/`, `apps/web/e2e/performance/`, `scripts/perf/`,
+`docs/cad/evidence/*100k*` y `docs/execution/frentes/`). No se regeneró: bajar la evidencia DWG
+publicada de 7 bundles a 0 sería relajar un gate (R6). Es **P-velocidad-03**.
+Verificado también que el frente no tocó **ningún** archivo compartido prohibido: ni
+`package.json`, ni `turbo.json`, ni `.github/workflows/*`, ni `rubric.json`, ni
+`lint-budget.json`, ni el esquema del documento canónico.
+
+**Los pasos que la cadena ya no alcanza, corridos sueltos.** `node scripts/cad/rubric.mjs
+--markdown --check` sigue en `EXIT=1` con «La matriz versionada está DESACTUALIZADA respecto al
+script» (**P-velocidad-02**). Se recomprobó el diff exacto y coincide con lo que la petición
+promete: **3 líneas añadidas, 4 quitadas**, `29 fila(s) retienen 1 pt` → `30`, y la puntuación
+SIN CAMBIO (176/197 hoy, 232/271 destino).
+
+#### Las dos afirmaciones que se eligieron para verificar, y qué pasó
+
+**1) «`render/` es ahora importador NO-spec de `lib/cad/wasm`, que es lo que la regla 6 exigía y
+hoy fallaba» — SE SOSTIENE, y lo dice el propio instrumento, no el frente.** En el diff de la
+matriz regenerada, la fila `Kernel Rust/WASM` mueve el criterio «Kernel WASM con paridad numérica
+verde Y enchufado: alguien fuera de lib/cad/wasm lo importa (regla 6)» de la columna de
+PENDIENTES a la de verificados, y su pendiente pasa a «Nada pendiente: todos los criterios
+declarados verifican». Y se sostiene también la parte incómoda: **la fila sigue en 1/2**, porque
+el conteo de filas capadas sube de 29 a 30 — el techo por evidencia propia se aplicó exactamente
+como el «Todavía no» de arriba anticipó. La entrega no infló nada.
+`curve-kernel-tessellation.spec.ts`: **28 comprobaciones verdes**, 7.530.200 coordenadas exactas
+contra el carril de adaptadores, peor desviación relativa `0.000e+0`, con el binario instalado y
+sin él.
+
+**2) «`batchPush` baja de 646,341 a 521,356 ms de mediana y el techo del trinquete baja detrás» —
+SE SOSTIENE CON UN MATIZ QUE HAY QUE DECIR.** Lo que se comprobó corriendo:
+`node scripts/perf/check-etapas-100k.mjs` sale **VERDE juzgando las TRES corridas publicadas**,
+con `batchPush` en 521,356 / 539,243 / 414,091 ms contra un techo de **646,534 ms** que
+efectivamente bajó desde 732,068 (el trinquete sólo baja, nunca sube: es más estricto, no menos).
+`line-batch.spec.ts`: **24 comprobaciones verdes**, 9.449 segmentos empaquetados BIT A BIT como
+antes (huella `1d4ff37f`) y 85.041 en dos bloques con los mismos bytes. Y la sonda pareada,
+re-corrida hoy contra salida en scratch para no pisar la evidencia versionada, reprodujo
+**0 descuadres sobre 1.167.126 instancias con la MISMA huella `1d5cc389`** que el artefacto
+publicado, y la ganancia en la misma dirección (×1,356 con 3 pasadas, contra el ×1,164
+publicado con 9 — el publicado es el conservador, que es el que se debe publicar).
+**El matiz:** el titular «de 646,341 a 521,356 ms de mediana» compara medianas de dos conjuntos de
+corridas medidos con CARGA DISTINTA de la máquina (3,5–3,9 la de agosto-septiembre de la entrega 4,
+0,78–1,29 la republicada). Parte de esa diferencia es la máquina, no el código. La evidencia que
+sí aísla el código es la **sonda pareada** —los dos bucles alternados en el mismo proceso, mismo
+corpus, arrays ya reservados: 91,39 → 78,52 ns por segmento, ×1,164 en el suelo—, y ésa es la que
+hay que citar cuando se cite la ganancia. El número de la mediana es el del trinquete, no el de la
+ganancia.
+
+#### Todavía no (2026-09-04)
+
+- **El ×7,99 del titular de la entrega 4 ya no es el número del árbol: hoy publica ×7,465.** La
+  regresión de `tessellate` contra el 2026-08-31 es real y sigue siendo enorme, pero la
+  republicación de la entrega 5 la volvió a medir y el artefacto vigente dice
+  `tessellate: agostoMs 477,828 · hoyMedianaMs 3.566,856 · cociente 7,465` (era 3.818,924 /
+  7,992). Las dos son medidas honestas de días y cargas distintas; **la del artefacto es la
+  autoridad**, y cualquier resumen que siga citando ×7,99 está citando una corrida superada.
+  Se deja escrito para que nadie lo lea como dos hechos en conflicto.
+- **`npm run check:cad` entero sigue rojo** por P-velocidad-02 y P-velocidad-03, ninguna de las
+  dos de este frente y ninguna arreglable desde su territorio.
+- **Ningún spec de este frente está encadenado a un gate.** Los cinco
+  (`curve-kernel-render-bench.spec.mjs`, `slo-navegador.spec.mjs`, `check-etapas-100k.spec.mjs`,
+  y las dos comprobaciones de artefacto `--check`) muerden y corren en segundos, pero encadenarlos
+  exige `package.json` (R2). Diseños completos en **P-velocidad-01, -04, -05 y -07**. Hasta que el
+  coordinador los aplique se invocan a mano, y por tanto **pueden pudrirse sin que nadie se entere**:
+  ése es el riesgo real de dejarlos fuera, dicho aquí en vez de insinuado.
+- **Sigue sin haber una sola cifra de GPU ni de navegador de este frente.** El contenedor rasteriza
+  con SwiftShader y el runner de la cola 4 se NIEGA a publicar por eso —comprobado hoy: su spec de
+  74 comprobaciones enseña el negativo real, «ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device…))
+  es rasterizado POR SOFTWARE: sus fps no son los de ningún usuario»—. La fila del SLO sigue
+  diciendo 25,3 s y 8,57 fps del 2026-08-21 hasta que el titular corra
+  `node scripts/perf/slo-navegador.mjs` en su máquina.
+- **Aviso operativo para quien trabaje en este árbol:** `node scripts/cad/rubric.mjs --markdown`
+  **escribe** `docs/competitive/autocad-2027-gap-matrix.md` en el disco; no imprime el markdown por
+  stdout. Correrlo «sólo para mirar» ensucia un archivo fuera del territorio de este frente. Se
+  corrió al verificar P-velocidad-02 y se revirtió con `git checkout --` en el acto; queda dicho
+  para que el siguiente no lo committee sin darse cuenta.

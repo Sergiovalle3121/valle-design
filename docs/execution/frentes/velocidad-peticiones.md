@@ -86,6 +86,11 @@ Formato de cada petición:
   `docs/competitive/rubric.json` para nada.
 - **Cómo se comprueba:** `node scripts/cad/rubric.mjs --markdown --check` pasa en silencio, y con
   él el último tramo de `npm run check:cad`.
+- **Ojo al correrlo:** `--markdown` **escribe el fichero en el disco**; no imprime el markdown por
+  stdout. Correrlo desde un árbol de frente ensucia un archivo fuera de su territorio.
+- **Recomprobado al cierre del frente (2026-09-04):** el diff sigue siendo exactamente el descrito
+  —3 líneas añadidas, 4 quitadas, `29 fila(s)` → `30 fila(s)`, puntuación intacta en 176/197 y
+  232/271—. Nada que actualizar en esta petición.
 - **Estado:** pendiente
 
 ### P-velocidad-03 · Aviso: `check:dwg-evidence` falla en este contenedor por entorno, no por código
@@ -104,6 +109,9 @@ Formato de cada petición:
   `valle-design-dwg-conformance`.
 - **Cómo se comprueba:** `git diff HEAD~1 --name-only` desde el commit de la entrega 2 no toca
   ningún archivo DWG; el fallo es anterior a este frente y ajeno a él.
+- **Recomprobado al cierre del frente (2026-09-04):** `git diff --name-only 646b969..HEAD` —el
+  frente ENTERO, no sólo una entrega— no toca ni un archivo DWG, y `VALLE_DWG_CORPUS_MIRROR`
+  sigue sin definir en este contenedor. El fallo se reproduce idéntico.
 - **Estado:** pendiente
 
 
