@@ -542,13 +542,13 @@ entidad `image`, y una imagen no tiene extremos. Calcar sobre un fondo sin refer
 es dibujar a pulso mirando un gris: la esquina que se ve en la pantalla no es la que queda en el
 documento, y el error de dos píxeles aparece al acotar. Eso es lo que este entregable cierra.
 
-**Dos archivos nuevos, 1 244 líneas, y NI UNA de lectura de PDF.**
+**Dos archivos nuevos, 1 282 líneas, y NI UNA de lectura de PDF.**
 
-1. `apps/web/src/lib/cad/pdf/pdf-snap-geometry.ts` (639) — el módulo puro. Dado el sustrato ya
+1. `apps/web/src/lib/cad/pdf/pdf-snap-geometry.ts` (654) — el módulo puro. Dado el sustrato ya
    adjunto y los bytes del archivo, devuelve `Segment[]` y `Point[]` **ya en coordenadas del
    dibujo**, en la forma exacta que `snap-engine.ts` consume: tramos con `pathId`/`ordinal`,
    extremos, puntos medios, centros de arco y orígenes de rótulo.
-2. `apps/web/src/lib/cad/pdf/pdf-snap-geometry.spec.ts` (605) — **91 comprobaciones**, todas
+2. `apps/web/src/lib/cad/pdf/pdf-snap-geometry.spec.ts` (628) — **95 comprobaciones**, todas
    sobre el documento resultante de aplicar el lote con `executeCadEntityCommandBatch`.
 
 **No hay lector nuevo, y ése era el punto.** La cadena
@@ -617,10 +617,19 @@ vértices de dentro, el tramo puede salirse por la escotadura y volver. El papel
 de `PDFCLIP` son convexos, así que el atajo se toma casi siempre; la convexidad se comprueba una
 vez por sustrato y, cuando falla, se recorta de verdad.
 
-**Las dos pruebas de que los filtros son de verdad, por mutación.** Se mutó el módulo quitando el
-filtro por recorte: la spec **falló**. Se mutó forzando el atajo a `true` con un recorte en «L»:
-la spec **falló** en el renglón de la escotadura. Restaurados los dos, vuelve a pasar. Un filtro
-que no se puede romper no estaba filtrando.
+**Un camino cerrado tiene que llegar cerrado.** `cadPdfFlattenSubpath` escribe el retorno al
+arranque como un VÉRTICE explícito —el `h` del PDF no viaja en la entidad—, así que el rectángulo
+`re` llegaba como una polilínea abierta de cinco puntos. Al motor eso le dice que el primer tramo
+y el último no son vecinos, y entonces se inventa una intersección en esa esquina: exactamente el
+ruido que `pathId`/`ordinal` existen para evitar. Se reconoce el vértice repetido, se funde y el
+camino se marca cerrado, con su `pathLength` correcto. La spec lo exige con la cifra: **un** solo
+camino cerrado, de **cuatro** tramos con ordinales 0-3.
+
+**Las tres pruebas de que esto no es decorativo, por mutación.** Se quitó el filtro por recorte:
+la spec **falló**. Se forzó el atajo de convexidad a `true` con un recorte en «L»: la spec
+**falló** en el renglón de la escotadura. Se quitó el reconocimiento del cierre: la spec **falló**
+en el renglón del camino cerrado. Restaurados los tres, vuelve a pasar. Un filtro que no se puede
+romper no estaba filtrando.
 
 **El enganche de punta a punta ya está medido.** La sección 10 de la spec construye una
 `SnapScene` con `cadPdfSnapSceneAdd` y llama al `snap()` real del motor: devuelve `endpoint` en

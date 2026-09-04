@@ -363,7 +363,22 @@ export function cadPdfSnapGeometryOf(
     if (item.type === "polyline") {
       const points = item.vertices.map((vertex) => ({ x: vertex.x, y: vertex.y }));
       if (points.length < 2) continue;
-      runs.push({ points, closed: item.closed === true, curved: false, pathId });
+      let closed = item.closed === true;
+      // Un camino cerrado del PDF vuelve al arranque con un VÉRTICE explícito:
+      // el operador `h` no viaja en la entidad, lo escribió `cadPdfFlattenSubpath`
+      // al aplanar. Reconocerlo y marcarlo cerrado es lo que le dice al motor que
+      // el primer tramo y el último son VECINOS; sin eso inventaría una
+      // intersección en esa esquina, que es exactamente el ruido que `pathId` y
+      // `ordinal` existen para evitar.
+      if (!closed && points.length > 3) {
+        const first = points[0];
+        const last = points[points.length - 1];
+        if (Math.hypot(last.x - first.x, last.y - first.y) < 1e-9) {
+          points.pop();
+          closed = true;
+        }
+      }
+      runs.push({ points, closed, curved: false, pathId });
       rawEndpoints.push(...points);
       continue;
     }

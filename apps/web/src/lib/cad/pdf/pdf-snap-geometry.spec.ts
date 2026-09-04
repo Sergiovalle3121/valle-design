@@ -166,6 +166,29 @@ const MM_PER_POINT = CAD_PDF_UNDERLAY_MM_PER_POINT;
   ok(geometry.segments.length > geometry.perpendicularSegments.length, "la Bézier aporta tramos que NO son aristas");
   eq(geometry.clippedAway, 0, "sin recorte, no se queda nada fuera");
   ok(geometry.note.includes("levantamiento.pdf"), `la nota dice de qué sustrato habla: ${geometry.note}`);
+
+  // El `re` del corpus es un camino CERRADO, y tiene que llegar al motor
+  // marcado como tal: es lo que le dice que el primer tramo y el último son
+  // vecinos. Sin eso inventaría una intersección en esa esquina, que es
+  // justamente el ruido que `pathId`/`ordinal` existen para evitar.
+  const porCamino = new Map<string, typeof geometry.segments>();
+  for (const segment of geometry.segments) {
+    const lista = porCamino.get(segment.pathId!) ?? [];
+    lista.push(segment);
+    porCamino.set(segment.pathId!, lista);
+  }
+  const cerrados = [...porCamino.values()].filter((lista) => lista.every((s) => s.closed === true));
+  eq(cerrados.length, 1, "un solo camino cerrado: el rectángulo `re` de la lámina");
+  eq(cerrados[0].length, 4, "y son cuatro tramos, no cinco: el vértice repetido del cierre se funde");
+  eq(
+    cerrados[0].map((s) => s.ordinal).sort((a, b) => a! - b!),
+    [0, 1, 2, 3],
+    "con sus ordinales seguidos, que es lo que el motor lee para saber quién es vecino de quién",
+  );
+  ok(
+    cerrados[0].every((s) => s.pathLength === 4),
+    "y su longitud declarada es 4: el último tramo y el primero se tocan",
+  );
 }
 
 // ---------------------------------------------------------------------------
