@@ -2,10 +2,15 @@
  * SOLIDEDIT, el subconjunto que hoy se puede hacer con honestidad.
  * (Ola C, 2026-09-02 · ampliado 2026-09-04.)
  *
- * En AutoCAD SOLIDEDIT son tres ramas —Cara, Arista y Cuerpo— con unas
- * catorce operaciones. Medido antes (`distancia-autocad-completo-20260901.md`):
- * faltaba ENTERO. Aquí entra lo que el kernel y el visor ya saben hacer, y el
- * diálogo sólo OFRECE eso:
+ * En AutoCAD SOLIDEDIT son tres ramas —Cara, Arista y Cuerpo— con DIECISÉIS
+ * operaciones: nueve de Cara (Extruir, Mover, Girar, Desfasar, Inclinar,
+ * Borrar, Copiar, Color, Material), dos de Arista (Copiar, Color) y cinco de
+ * Cuerpo (Estampar, Separar, Vaciar, Limpiar, Comprobar). Deshacer y Salir no
+ * cuentan: son navegación y no editan nada. Esta cabecera decía «unas catorce»
+ * —una aproximación de memoria— hasta que `solid3d-frontera.spec.ts` obligó a
+ * enumerarlas una por una. Medido antes
+ * (`distancia-autocad-completo-20260901.md`): faltaba ENTERO. Aquí entra lo que
+ * el kernel y el visor ya saben hacer, y el diálogo sólo OFRECE eso:
  *
  *   - Cara · Extruir: designar una cara con el rayo de cámara (la misma
  *     designación que PRESSPULL) y empujarla una distancia. Es un nodo `push`
@@ -45,9 +50,9 @@
  *
  *   - Cara · Mover, Girar, Inclinar y Borrar: piden recomponer las caras
  *     adyacentes, y el kernel no rehace una cara movida.
- *   - Color, tanto de cara como de arista: el esquema no guarda un atributo
- *     por cara ni por arista, y el color de una entidad es de la entidad
- *     entera.
+ *   - Color, tanto de cara como de arista, y Material de cara: el esquema no
+ *     guarda un atributo por cara ni por arista, y el color de una entidad es
+ *     de la entidad entera. Son tres renglones y una sola razón.
  *   - Cuerpo · Estampar: pide imprimir una curva del dibujo sobre una cara
  *     —partirla por una arista nueva—, y esa cirugía no existe en `lib/brep/`.
  *   - La cáscara ABIERTA de Vaciar: retirar las caras designadas para que el
@@ -55,8 +60,12 @@
  *     lo dice ahí mismo. Quitar caras pide coser el interior con el exterior
  *     por el borde del hueco: otra vez cirugía topológica, no una resta.
  *
- * Son seis operaciones distintas más un modo —siete renglones, porque Color
- * aparece en dos ramas por el mismo motivo—. Ninguna se insinúa como próxima.
+ * Son siete operaciones distintas más un modo —ocho renglones de rama, porque
+ * Color aparece en dos ramas por el mismo motivo—. Ocho de las dieciséis
+ * existen; estas ocho no, y ninguna se insinúa como próxima. El recuento no es
+ * decorativo: `solid3d-frontera.spec.ts` lo comprueba en los dos sentidos
+ * contra este mismo prompt, así que una ausencia que se deje de nombrar —o un
+ * nombre que sobreviva a su construcción— rompe el gate.
  *
  * La orden termina tras UNA operación en vez de volver al menú de la rama:
  * es el único punto en que se aparta del diálogo de AutoCAD, y se prefiere a
@@ -103,7 +112,7 @@ const SHELL = { keyword: "Vaciar", shortcut: "V" } as const;
  * para responder «todavía no» sería fabricar una opción que no hace nada.
  * Nombrarlas en el renglón las deja visibles sin volverlas pulsables.
  */
-const FACE_PROMPT = "Introduzca una opción de edición de caras; Mover, Girar, Inclinar, Borrar y Color todavía no";
+const FACE_PROMPT = "Introduzca una opción de edición de caras; Mover, Girar, Inclinar, Borrar, Color y Material todavía no";
 const EDGE_PROMPT = "Introduzca una opción de edición de aristas; Color todavía no";
 const BODY_PROMPT = "Introduzca una opción de edición de cuerpos; Estampar todavía no";
 

@@ -90,7 +90,7 @@ function topFacePick(solid: CadSolid3dEntity): CadCommandInput {
   ok(drive([enter]).result?.kind === "none", "Intro toma Salir: no escribe nada");
   const face = drive([keyword("Cara")]);
   ok(face.options.join(",") === "Extruir,Desfasar,Copiar,Salir", "la rama Cara ofrece las tres que existen");
-  ok(/Mover, Girar, Inclinar, Borrar y Color todavía no/.test(face.prompts[1]), "y nombra una por una las cinco de Cara que no");
+  ok(/Mover, Girar, Inclinar, Borrar, Color y Material todavía no/.test(face.prompts[1]), "y nombra una por una las seis de Cara que no");
   const body = drive([keyword("cUerpo")]);
   ok(body.options.join(",") === "Separar,Vaciar,Limpiar,Comprobar,Salir", `la rama Cuerpo anuncia Separar, Vaciar, Limpiar y Comprobar (dio ${body.options.join(",")})`);
   ok(/Estampar todavía no/.test(body.prompts[1]), "y nombra la única de Cuerpo que no");
@@ -100,7 +100,7 @@ function topFacePick(solid: CadSolid3dEntity): CadCommandInput {
   ok(/Color todavía no/.test(edge.prompts[1]), "y nombra la de Arista que no");
   // Las ausentes se NOMBRAN en el renglón del prompt, nunca como opción: una
   // palabra clave que responde «todavía no» es una opción que no hace nada.
-  const ausentes = ["Mover", "Girar", "Inclinar", "Borrar", "Color", "Estampar"];
+  const ausentes = ["Mover", "Girar", "Inclinar", "Borrar", "Color", "Material", "Estampar"];
   const ofrecidas = [...face.options, ...edge.options, ...body.options];
   ok(ausentes.every((nombre) => !ofrecidas.includes(nombre)), "ninguna ausente se ofrece como palabra clave");
   ok(descriptor.kind === "modify" && descriptor.mutates === true, "es una orden de modificación");
@@ -406,4 +406,4 @@ function topFacePick(solid: CadSolid3dEntity): CadCommandInput {
   ok(freeNodeId([...nodos, { ...nodos[0], id: "interior2" }], "interior") === "interior3", "hasta encontrar hueco");
 }
 
-console.log(`solids-edit: ${checks} comprobaciones sobre SOLIDEDIT (ocho ramas construidas, seis declaradas ausentes)`);
+console.log(`solids-edit: ${checks} comprobaciones sobre SOLIDEDIT (ocho ramas construidas, ocho declaradas ausentes)`);

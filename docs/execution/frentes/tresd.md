@@ -507,3 +507,158 @@ Es archivo fuera de territorio; pedido en `tresd-peticiones.md` (**P-tresd-01**)
 con el renglón exacto de sustitución. Con la entrega 3/5 el renglón pedido cambia
 otra vez —ahora son siete ramas, con Limpiar—: **P-tresd-01** queda actualizado
 con el texto definitivo.
+
+### 2026-09-04 · Entrega 5/5 · La frontera del 3D, ejecutable
+
+Nuevo `apps/web/src/lib/cad/solid3d-frontera.spec.ts` (764 líneas, **279
+comprobaciones**). No mide geometría —eso ya lo hacen `solids-edit.spec.ts`
+(119), `solids-primitives.spec.ts` (105), `coplanar-merge.spec.ts` (76) y
+`shell.spec.ts` (89)—: mide la **frontera**. Recorre una por una las ramas de
+SOLIDEDIT y los caminos de las ocho primitivas y exige de cada una que haga UNA
+de tres cosas, nunca otra —y de paso comprueba **54 sólidos cerrados** sobre el
+árbol persistido, el contador que impide que el veredicto se vuelva un sello de
+goma—:
+
+- `escribe`: conducida hasta el final termina en `result.kind === "document"` con
+  al menos una orden, y todo sólido que inserte o sustituya es un cuerpo
+  **cerrado** (`bodyIsClosed` sobre el árbol persistido). Es la única forma de
+  decir «esto existe».
+- `responde`: existe y no toca el documento —una consulta, o un límite que se
+  rechaza a tiempo—, y termina en `message` con texto **no vacío** que contiene
+  su motivo. Un «Hecho» vacío no cuenta.
+- `ausente`: no se ofrece como palabra clave, su nombre aparece donde el
+  dibujante lo lee, y forzarla no escribe **nada**.
+
+#### Por qué es un candado y no una lista
+
+Las dos tablas se cotejan **en los dos sentidos** contra lo que el propio diálogo
+anuncia, y ninguna de las dos fuentes se copia a mano:
+
+1. Las palabras clave se **descubren** recorriendo la máquina de estados de cada
+   orden en anchura (`teclasOfrecidas`), con las opciones de cada prompt más un
+   alfabeto fijo de puntos, distancia e Intro. Toda clave descubierta tiene que
+   estar declarada; toda clave declarada tiene que ser ofrecida.
+2. Los nombres que cada prompt declara «todavía no» se **parsean del mensaje** y
+   se cotejan con los renglones `ausente` de esa rama, en los dos sentidos.
+
+Probado con tres mutaciones, y las tres rompen el spec:
+
+| Mutación                                          | Lo que dice el fallo                                          |
+| ------------------------------------------------- | ------------------------------------------------------------- |
+| quitar `Material` del renglón del prompt de Cara  | «SOLIDEDIT Cara Material: y lo que dice la nombra»            |
+| quitar `CLEAN` de las opciones de Cuerpo          | «rama cUerpo: toda operación declarada como existente se ofrece de verdad» |
+| añadir `CUBE` a las opciones de POLYSOLID         | «POLYSOLID: toda opción que la orden ofrece está declarada como modo (sobran Cubo)» |
+
+#### La cifra real: no son catorce, son DIECISÉIS
+
+La cabecera de `solids-edit.ts` decía «unas catorce operaciones» y la cola de
+este frente hablaba de «las once ramas restantes». Enumerarlas una por una para
+la tabla obligó a contarlas: SOLIDEDIT reparte **dieciséis** operaciones entre
+sus tres ramas —nueve de Cara (Extruir, Mover, Girar, Desfasar, Inclinar,
+Borrar, Copiar, Color, **Material**), dos de Arista (Copiar, Color) y cinco de
+Cuerpo (Estampar, Separar, Vaciar, Limpiar, Comprobar)—, sin contar Deshacer y
+Salir, que son navegación y no editan nada. `Material` faltaba en el recuento y
+en el prompt: se añadió al renglón de ausencias de Cara (mismo motivo que Color,
+el esquema no guarda atributos por cara) y la cabecera pasó de la aproximación a
+la enumeración.
+
+| Rama   | Operación   | Estado    | Cómo termina                                             |
+| ------ | ----------- | --------- | -------------------------------------------------------- |
+| Cara   | Extruir     | escribe   | nodo `push` reeditable                                    |
+| Cara   | Desfasar    | escribe   | nodo `push` con el signo de AutoCAD                       |
+| Cara   | Copiar      | escribe   | una REGION en coordenadas del mundo                       |
+| Cara   | Mover       | ausente   | el kernel no rehace una cara movida                       |
+| Cara   | Girar       | ausente   | ídem                                                      |
+| Cara   | Inclinar    | ausente   | ídem, y el ángulo puede invalidar el sólido               |
+| Cara   | Borrar      | ausente   | coser el hueco es cirugía topológica que no existe        |
+| Cara   | Color       | ausente   | no hay atributo por cara en el esquema                    |
+| Cara   | Material    | ausente   | ídem                                                      |
+| Arista | Copiar      | escribe   | todas las aristas como entidades `line`                   |
+| Arista | Color       | ausente   | no hay atributo por arista en el esquema                  |
+| Cuerpo | Separar     | escribe   | un sólido por operando de la unión                        |
+| Cuerpo | Vaciar      | escribe   | interior `brep` + nodo `subtract`, sólo convexos          |
+| Cuerpo | Limpiar     | escribe   | funde coplanarias y hornea                                |
+| Cuerpo | Comprobar   | responde  | caras, aristas y volumen, sin tocar el documento          |
+| Cuerpo | Estampar    | ausente   | partir una cara por una curva no existe en `lib/brep/`    |
+
+Ocho existen (siete escriben, una responde) y ocho no. Más un **modo** ausente
+—la cáscara abierta de Vaciar—, declarado en el prompt del espesor y comprobado
+aparte.
+
+#### Los modos de las ocho primitivas: 52 caminos
+
+Cincuenta y dos renglones, cada uno conducido de verdad: 48 escriben un sólido
+cerrado, 1 responde su límite (el toro cuyo tubo es mayor que el toro, que se
+cortaría a sí mismo) y 3 están declarados ausentes por escrito en la cabecera
+del módulo (Ttr de CYLINDER, Ttr de CONE y los submodos del Arco de POLYSOLID).
+
+| Orden     | Caminos | Detalle                                                            |
+| --------- | ------- | ------------------------------------------------------------------ |
+| BOX       | 5       | esquinas, Centro, Cubo, Longitud, altura por 2Puntos                |
+| WEDGE     | 5       | los mismos cinco                                                    |
+| CYLINDER  | 7       | centro+radio, Diámetro, 2Puntos, 3Puntos, Elíptico, altura 2Puntos, **Ttr ausente** |
+| CONE      | 8       | los seis de CYLINDER + radio Superior, **Ttr ausente**              |
+| SPHERE    | 2       | centro+radio, Diámetro                                              |
+| TORUS     | 4       | centro+radios, Diámetro del toro, Diámetro del tubo, **límite del tubo** |
+| PYRAMID   | 8       | centro+radio, Lados, Inscrito, Circunscrito, Diámetro, Arista, radio Superior, altura 2Puntos |
+| POLYSOLID | 13      | al vuelo, Objeto (línea y polilínea), Altura, Ancho, tres Justificaciones, Cerrar, desHacer, Arco, Línea, **submodos del Arco ausentes** |
+
+Además: `Arco` **no** se ofrece con un solo punto —no hay tangente de entrada— y
+sí en cuanto hay un tramo del que salir; las dos cosas se comprueban.
+
+### 2026-09-04 · «Todavía no» de la entrega 5/5, con fecha
+
+- **El recorrido de descubrimiento es ACOTADO** (profundidad 10, 3000 nodos) y el
+  spec lo dice en su cabecera. Una palabra clave escondida más allá de esa
+  profundidad no la vería. Con los diálogos de hoy sobra —el más hondo,
+  POLYSOLID, cierra en 13 estados—, pero es un límite real del candado, no una
+  garantía absoluta.
+- **Las ocho ramas ausentes de SOLIDEDIT siguen ausentes** tras esta ventana:
+  Cara·Mover, Cara·Girar, Cara·Inclinar, Cara·Borrar, Cara·Color, Cara·Material,
+  Arista·Color y Cuerpo·Estampar. Son siete operaciones distintas y ocho
+  renglones (Color aparece en dos ramas por el mismo motivo). Ninguna se insinúa
+  como próxima y ninguna es pulsable: el spec lo comprueba renglón a renglón.
+- **La cáscara ABIERTA de Vaciar** (retirar las caras designadas) sigue fuera,
+  declarada en el prompt del espesor.
+- **Ttr de CYLINDER y CONE** sigue fuera: pide un solucionador de tangencias
+  contra DOS entidades del dibujo y un paso de designación que estos diálogos no
+  tienen.
+- **Los submodos del Arco de POLYSOLID** (Dirección, Radio, Ángulo, Segundo
+  punto) siguen fuera; entra sólo el arco tangente, que es el modo por defecto de
+  PLINE.
+- **Designar UNA arista suelta** sigue fuera (`CAD_ACCEPT_EDGE_PICK` no existe;
+  P-tresd-02).
+- **La cota Z del visor** sigue fuera de este territorio: `scenePoint` de
+  `entity-three.ts` ignora la z del punto y el arreglo no es mío.
+- **De la cola de este frente quedan sin abrir** los puntos 1 (entidad con
+  normal: pide cambio de esquema, archivo compartido), 5 (SECTIONPLANE /
+  LIVESECTION / SECTIONPLANETOBLOCK), 6 (materiales, luces, cámaras y render) y
+  7 (ANIPATH). Ninguno se ha insinuado como hecho en ningún sitio.
+
+### 2026-09-04 · Lo que queda pedido al coordinador
+
+Cuatro peticiones, todas con su diseño completo en `tresd-peticiones.md` y todas
+**pendientes** al cierre de la ventana:
+
+| Petición    | Archivo fuera de territorio                    | Qué pide                                                     |
+| ----------- | ---------------------------------------------- | ------------------------------------------------------------ |
+| P-tresd-01  | `engine/command-summaries.ts`                  | el resumen de SOLIDEDIT nombra las ocho ramas construidas     |
+| P-tresd-02  | `engine/command-types.ts`                      | `CAD_ACCEPT_EDGE_PICK`, para designar UNA arista              |
+| P-tresd-03  | `engine/command-summaries.ts`, `ESCALERA.md`   | POLYSOLID ya no es «sólo tramos rectos»; los modos existen    |
+| P-tresd-04  | `docs/parity/ESCALERA.md`                       | el renglón de SOLIDEDIT, la fusión coplanaria y SHELL         |
+
+Ninguna se aplicó desde aquí: son archivos compartidos o fuera del territorio del
+frente, y la regla R1 no se negocia.
+
+### 2026-09-04 · Un gate ROJO que no es mío, declarado
+
+`npm run check:cad` se detiene en `check:dwg-evidence` con
+«el artefacto del disco coincide con lo que el árbol sostiene hoy» —el artefacto
+de evidencia DWG ha quedado desfasado del árbol—. **Falla igual en HEAD sin
+ninguno de mis cambios**, comprobado con `git stash -u` sobre este mismo árbol:
+no lo causó esta ventana. Es territorio del frente DWG y de
+`packages/dwg-codec/` + `docs/dwg/`, y las banderas `DWG_IMPORT_FLAG` y
+`DWG_EXPORT_FLAG` no se tocan en esta campaña. Los **veintiocho** pasos restantes
+de `check:cad` se corrieron uno por uno y están en verde, igual que
+`npm run typecheck`, `npm test` (579/579 specs) y
+`npm run check:command-integrity` (274 comandos, 0 éxitos falsos).

@@ -49,8 +49,10 @@ Formato de cada petición:
 - **Cómo se comprueba:** `npm run check:command-integrity` (SOLIDEDIT sigue en
   «informa», ni ROJO ni no-concluyente) y
   `cd apps/web && npx tsx src/lib/cad/engine/commands/solids-edit.spec.ts`
-  (119 comprobaciones, las ocho ramas construidas y las seis declaradas
-  ausentes).
+  (119 comprobaciones, las ocho ramas construidas y las ocho declaradas
+  ausentes), y `npx tsx src/lib/cad/solid3d-frontera.spec.ts` (279
+  comprobaciones: las dieciséis ramas de SOLIDEDIT y los 52 caminos de las ocho
+  primitivas, cada uno conducido hasta su efecto o hasta su límite).
 - **Estado:** pendiente
 
 ### P-tresd-02 · `CAD_ACCEPT_EDGE_PICK`: designar UNA arista
@@ -148,7 +150,8 @@ Formato de cada petición:
 - **Por qué:** entregas 3 y 4 de la cola. Desde el 2026-09-04 `SOLIDEDIT` tiene
   ocho ramas construidas —Cara·Extruir, Cara·Desfasar, Cara·Copiar,
   Arista·Copiar, Cuerpo·Comprobar, Cuerpo·Separar, Cuerpo·Limpiar y
-  Cuerpo·Vaciar— y seis operaciones declaradas ausentes con su motivo. El
+  Cuerpo·Vaciar— y siete operaciones declaradas ausentes con su motivo, en ocho
+  renglones (Color aparece en dos ramas por la misma razón). El
   renglón de la ESCALERA describe el estado anterior. Es evidencia que
   envejeció; el criterio de la casa es que lo que gana su evidencia se dice, y lo
   que no, se declara con su cifra.
@@ -156,7 +159,7 @@ Formato de cada petición:
   por
 
   ```
-  Ocho ramas construidas y con spec (119 comprobaciones en `solids-edit.spec.ts`, 2026-09-04): Cara·Extruir, Cara·Desfasar, Cara·Copiar, Arista·Copiar, Cuerpo·Comprobar, Cuerpo·Separar, Cuerpo·Limpiar (fusión de caras coplanarias: la unión de dos cajas contiguas pasa de 20 caras y 30 aristas a 6 y 12, con el volumen intacto) y Cuerpo·Vaciar (SHELL sobre cuerpos convexos: la caja de 100³ vaciada 10 deja 488 000 = 10⁶ − 80³, cerrada y con dos cáscaras; el interior entra como nodo `brep` y un nodo `subtract`, así que el árbol del exterior sobrevive intacto). Siguen fuera, nombradas una por una en el prompt de su rama: Cara·Mover, Girar, Inclinar y Borrar (piden recomponer las caras adyacentes), Color de cara y de arista (el esquema no guarda atributos por cara ni por arista) y Cuerpo·Estampar (sin operación de kernel). De Vaciar falta el MODO abierto —retirar las caras designadas—, declarado en el propio prompt del espesor; y vaciar un cuerpo cóncavo se rechaza nombrándolo, con la convexidad comprobada arista por arista. Designar UNA arista suelta sigue fuera: `CAD_ACCEPT_EDGE_PICK` no existe (P-tresd-02).
+  Ocho ramas construidas y con spec (119 comprobaciones en `solids-edit.spec.ts`, 2026-09-04): Cara·Extruir, Cara·Desfasar, Cara·Copiar, Arista·Copiar, Cuerpo·Comprobar, Cuerpo·Separar, Cuerpo·Limpiar (fusión de caras coplanarias: la unión de dos cajas contiguas pasa de 20 caras y 30 aristas a 6 y 12, con el volumen intacto) y Cuerpo·Vaciar (SHELL sobre cuerpos convexos: la caja de 100³ vaciada 10 deja 488 000 = 10⁶ − 80³, cerrada y con dos cáscaras; el interior entra como nodo `brep` y un nodo `subtract`, así que el árbol del exterior sobrevive intacto). Siguen fuera, nombradas una por una en el prompt de su rama: Cara·Mover, Girar, Inclinar y Borrar (piden recomponer las caras adyacentes), Color de cara y de arista y Material de cara (el esquema no guarda atributos por cara ni por arista) y Cuerpo·Estampar (sin operación de kernel). Son ocho de las DIECISÉIS operaciones que SOLIDEDIT reparte entre sus tres ramas, y las dieciséis se recorren una por una en `solid3d-frontera.spec.ts` (279 comprobaciones, 2026-09-04): cada una termina escribiendo en el documento, respondiendo su motivo, o declarada ausente sin ser pulsable. De Vaciar falta el MODO abierto —retirar las caras designadas—, declarado en el propio prompt del espesor; y vaciar un cuerpo cóncavo se rechaza nombrándolo, con la convexidad comprobada arista por arista. Designar UNA arista suelta sigue fuera: `CAD_ACCEPT_EDGE_PICK` no existe (P-tresd-02).
   ```
 
   Si la ESCALERA lleva además un renglón para la fusión de caras coplanarias del
@@ -173,8 +176,9 @@ Formato de cada petición:
   concurren al desfasarlos (el ápice de una pirámide de base rectangular).
 - **Cómo se comprueba:** `cd apps/web && npx tsx
   src/lib/brep/coplanar-merge.spec.ts` (76 comprobaciones), `npx tsx
-  src/lib/brep/shell.spec.ts` (89) y `npx tsx
-  src/lib/cad/engine/commands/solids-edit.spec.ts` (119). No hay comando nuevo:
+  src/lib/brep/shell.spec.ts` (89), `npx tsx
+  src/lib/cad/engine/commands/solids-edit.spec.ts` (119) y `npx tsx
+  src/lib/cad/solid3d-frontera.spec.ts` (279). No hay comando nuevo:
   ni el registro, ni la cinta, ni `docs/cad/evidence/ui-command-reach.json`
   cambian.
 - **Estado:** pendiente
