@@ -66,8 +66,71 @@ npm run check:cad                       # antes de cerrar
 
 ## Bitácora
 
-_(sin entradas todavía)_
+### 2026-09-04 · Cola 2 · El kernel WASM, enchufado al teselado caliente
+
+Qué existe ahora que antes no: `apps/web/src/lib/cad/render/curve-kernel-tessellation.ts`
+enruta **arcos, círculos, elipses y splines** al kernel de curvas y deja todo lo demás en el
+carril de adaptadores. Arcos y elipses cruzan la frontera **por lotes**, agrupados por
+(tipo × pasos) —y «pasos» es el escalón de LOD que ya resolvía `cadRenderSegmentBudget`—, así
+que `mechanical@10k` entero cruza en **6 llamadas** para sus 5.600 arcos/círculos/elipses. La
+spline cruza una vez por curva: la ABI v1 del binario no tiene entrada de lote para ella
+porque cada una trae su vector de nudos de longitud propia, y el crate no se toca en esta
+entrega.
+
+El punto de inserción es `tessellate.worker.ts`: su núcleo `tessellateCadEntityBatch` delega
+en el módulo nuevo, de modo que el carril fuera de hilo del pipeline (activo por defecto en el
+navegador, `resolveCadOffThreadTessellator`) y su reserva síncrona pasan los dos por el kernel
+sin cambiar ni una firma. El **binario se calienta desde el worker**, no desde el hilo
+principal: `warmCadRenderCurveKernel()` se lanza sin esperarla al arrancar el worker y, hasta
+que llega, el motor JavaScript sirve los lotes.
+
+Evidencia (`npx tsx src/lib/cad/render/curve-kernel-tessellation.spec.ts`, 12 s, 28
+comprobaciones): **7.530.200 coordenadas EXACTAS** —igualdad de bits, no tolerancia— entre el
+carril del kernel y el de adaptadores sobre `mechanical@10k` y `plano-real@10k` (8.200 curvas
+desviadas); las mismas 7.530.200 con el **binario del árbol instalado**, con peor desviación
+relativa medida **0,000e+0**, es decir que el empaquetado a `Float32Array` absorbe entera la
+diferencia entre los dos motores; y las mismas 7.530.200 idénticas **sin binario**, tras
+calentar contra una URL que no existe.
+
+Regresión verde: los 18 specs de `render/`, `wasm/curve-kernel-parity`,
+`wasm/curve-kernel-fallback`, `curve-tessellate`, `npm run typecheck` del árbol entero y
+`npm run check:cad`.
+
+Rúbrica: el criterio `wasm.toolchain` pasa de ✖ «NADIE lo importa» a ✅ citando
+`apps/web/src/lib/cad/render/curve-kernel-tessellation.ts`. Ver el «Todavía no» de abajo sobre
+por qué la FILA sigue mostrando 1/2.
 
 ## «Todavía no»
 
-_(sin entradas todavía)_
+### 2026-09-04 · La fila «Kernel Rust/WASM» sigue en 1/2 pese a tener sus dos criterios verdes
+
+Con el cable puesto, `node scripts/cad/rubric.mjs --verbose` muestra los **dos** criterios de
+la fila en ✅ (2 pt ganados) y cita el importador. La fila sigue leyéndose `1/2` por una regla
+distinta y anterior: `rubric.mjs` aplica un techo a toda categoría cuyos puntos ganados vengan
+**íntegramente de evidencia propia** (`earned === category.points && independentEarned === 0`
+→ `points − 1`), que es la regla 1 de la campaña de cimientos. Para llegar a 2/2 hace falta un
+**oráculo externo** para el kernel: un teselado de referencia de un tercero, o la medida en
+hardware de un usuario real. Marcar la evidencia como `independent: true` en
+`docs/competitive/rubric.json` sería a la vez tocar un archivo compartido (R2) y relajar un
+gate (R6): no se hace.
+
+### 2026-09-04 · Qué motor sirvió cada lote no llega al hilo principal
+
+`tessellateCadEntitiesWithCurveKernel` devuelve `stats.backend` (`wasm` | `javascript`) y su
+`fallbackReason`, pero el worker no los devuelve en su respuesta, así que el pipeline no puede
+publicarlos junto a `tessellation: source` ni un golden de navegador puede afirmar «el binario
+CORRIÓ aquí». Es exactamente el silencio contra el que ya avisa `pipeline-offthread.ts` para
+`source`. El diseño está claro y cabe entero en `render/`: `backend?` opcional en
+`CadTessellateWorkerResponse`, la promesa del pool resolviendo `{results, backend}`,
+`CadTessellateOffThreadResult.backend`, el carril guardándolo y `CadRenderPipelineStats`
+publicándolo. No entra en esta entrega para no ampliarla; queda como primera tarea de la
+siguiente.
+
+### 2026-09-04 · La ganancia del kernel no se puede MEDIR en este contenedor
+
+Con el motor por defecto (JavaScript) el carril del kernel hace el mismo trabajo que el de
+adaptadores más el empaquetado plano: no es más rápido y no se afirma que lo sea. La ganancia
+la trae el binario, y medirla como la ve un usuario exige navegador: aquí **no hay navegadores
+de Playwright y no se pueden instalar** (`npx playwright install chromium` sale por egreso
+denegado, `/root/.cache/ms-playwright` no existe) ni hay GPU. Lo que sí está medido aquí es la
+PARIDAD con el binario cargado en Node, que es lo que autoriza a encenderlo.
