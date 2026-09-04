@@ -89,12 +89,42 @@ const CORPORA: CorpusTarget[] = [
 
 const TIER = process.env.CAD_RENDER_BROWSER_TIER === 'full' ? 'full' : 'smoke';
 
-const selected = CORPORA.filter((target) => TIER === 'full' || target.tier === 'smoke');
+/**
+ * Filtros por mezcla y por tamaño, para corridas EXPLORATORIAS.
+ *
+ * Los pone `scripts/perf/slo-navegador.mjs` cuando el titular pide medir una
+ * mezcla suelta en su GPU sin pagar el escalón entero. No son un atajo para el
+ * artefacto publicado: ese runner se NIEGA a escribir sobre
+ * `docs/cad/evidence` una corrida filtrada, porque encogería la cobertura
+ * vigente. Aquí lo único que hacen es seleccionar, y lo que dejan fuera viaja
+ * en `skipped` como todo lo demás: un recorte silencioso se lee como cobertura
+ * completa.
+ */
+const envList = (value: string | undefined): string[] =>
+  (value ?? '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+const MIX_FILTER = envList(process.env.CAD_RENDER_BROWSER_MIXES);
+const ENTITY_FILTER = envList(process.env.CAD_RENDER_BROWSER_ENTITIES)
+  .map(Number)
+  .filter((value) => Number.isFinite(value));
+const inFilter = (target: CorpusTarget): boolean =>
+  (MIX_FILTER.length === 0 || MIX_FILTER.includes(target.corpusId)) &&
+  (ENTITY_FILTER.length === 0 || ENTITY_FILTER.includes(target.entities));
+
+const selected = CORPORA.filter(
+  (target) => (TIER === 'full' || target.tier === 'smoke') && inFilter(target),
+);
 const pipelinesFor = (target: CorpusTarget): CadBrowserPipelineId[] =>
   TIER === 'full' ? BOTH : target.smokePipelines;
 const skipped = [
-  ...CORPORA.filter((target) => !selected.includes(target)).map(
+  ...CORPORA.filter((target) => !selected.includes(target) && inFilter(target)).map(
     (target) => `${target.corpusId}@${target.entities} · los dos caminos (escalón full)`,
+  ),
+  ...CORPORA.filter((target) => !inFilter(target)).map(
+    (target) =>
+      `${target.corpusId}@${target.entities} · filtrado por CAD_RENDER_BROWSER_MIXES/ENTITIES`,
   ),
   ...selected
     .filter((target) => pipelinesFor(target).length < BOTH.length)
@@ -103,6 +133,20 @@ const skipped = [
         `${target.corpusId}@${target.entities} · camino anterior (escalón full)`,
     ),
 ];
+
+/**
+ * Cuántos perfiles TIENE que producir esta corrida.
+ *
+ * Sin este número, un artefacto con doce perfiles y otro con veinte se leen
+ * igual de completos, y quien lo publica no puede distinguir «esto es todo lo
+ * que había que medir» de «aquí se murió el navegador». `run.complete` lo
+ * compara con lo que salió de verdad, y el runner de GPU real se niega a
+ * publicar cuando no cuadran.
+ */
+const PLANNED_PROFILES = selected.reduce(
+  (total, target) => total + pipelinesFor(target).length,
+  0,
+);
 
 const startedAt = new Date().toISOString();
 let bundle = '';
@@ -360,6 +404,17 @@ test.describe('CAD render · medida de navegador (FPS, draw calls, memoria GPU)'
         totalMemoryBytes: os.totalmem(),
         playwrightProject: testInfo.project.name,
         browser: environment,
+        // La máquina, en una frase, compuesta por quien SÍ la conoce.
+        //
+        // No se compone aquí porque desde dentro del test sólo se ven `os` y
+        // el navegador: quien sabe si esto es un portátil con vecinos o la
+        // máquina del titular midiendo a propósito es el runner que lanzó la
+        // corrida (`scripts/perf/slo-navegador.mjs`), y él la pasa por
+        // CAD_PERF_DECLARED_MACHINE ya compuesta con CPU, RAM, sistema,
+        // navegador y rasterizador. Cuando el spec se corre a mano queda
+        // `null`, que es lo honesto: el artefacto crudo no miente, y el
+        // verificador del runner lo rechazará si alguien intenta publicarlo.
+        declaredMachine: process.env.CAD_PERF_DECLARED_MACHINE?.trim() || null,
       },
       run: {
         enforcement: 'report-only',
@@ -368,6 +423,9 @@ test.describe('CAD render · medida de navegador (FPS, draw calls, memoria GPU)'
         tier: TIER,
         skipped,
         failures,
+        plannedProfiles: PLANNED_PROFILES,
+        producedProfiles: runs.length,
+        complete: failures.length === 0 && runs.length === PLANNED_PROFILES,
       },
       profiles: runs,
       leakCycles,
