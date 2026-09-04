@@ -134,7 +134,24 @@ Formato de cada petición:
   quede vigilada, la comprobación natural es un aserto en el propio gate que exija que
   `docs/adr/0009-dwg-promotion-package.md` mencione la ruta del paquete: son tres líneas
   y el frente las escribe en cuanto la sección exista.
-- **Estado:** pendiente
+- **Estado:** aplicada (2026-09-04). §10 añadida al FINAL del archivo, después de §9.5, con el
+  texto exacto de la petición; y la fila «Paquete de firma del encendido» al FINAL de la tabla de
+  §5, sin tocar ninguna fila existente. Las nueve entradas del mapa de secciones se cotejaron una
+  a una contra los encabezados reales del paquete y las nueve caen donde dicen; el paquete tiene
+  además un §10 «Cómo se verifica esta página» que el mapa no cita, y no hace falta que lo cite.
+  Verde: `npm run check:dwg-firma` → `50 comprobaciones · 5 bloques generados · 12 casos derivados
+  de CASES` y «El paquete de firma no afirma nada que su evidencia no sostenga»; `npm run
+  check:dwg-oraculo` sigue diciendo `externalOracleVerified = false`; `npm run typecheck` 8/8;
+  `check:cad` y `check:dwg` completos en verde con el espejo del corpus. Las dos banderas siguen
+  apagadas y el texto nuevo no insinúa lo contrario: **0 de 2 encendidas** —
+  `dwg-interop-flag.ts:38` y `dwg-export-flag.ts:28` declaran ambas `: boolean = false`, cero
+  ocurrencias de `= true`, y el propio gate lo reimprime («DWG_IMPORT_FLAG y DWG_EXPORT_FLAG
+  apagadas»). La §10 se titula «PROPUESTA … SIN FIRMAR» y lo único que pide firmar es una decisión
+  futura del titular. NO se añadió el aserto opcional que dejaría la ADR vigilada: la propia
+  petición se lo reserva al frente («son tres líneas y el frente las escribe en cuanto la sección
+  exista»). Consecuencia mientras no entre, dicha sin adornos: ningún gate lee esta ADR, así que si
+  alguien mueve o renombra `docs/cad/evidence/dwg-firma-encendido-20260904.md`, la §10 apunta a un
+  archivo que ya no existe y nada lo detecta.
 
 ### P-dwg-03 · Encadenar `check:dwg-firma` en `check:dwg`
 
