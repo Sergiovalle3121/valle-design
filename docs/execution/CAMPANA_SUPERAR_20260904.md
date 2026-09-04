@@ -73,3 +73,49 @@ Entre tanda y tanda va una ventana de integración (R5): se recogen las peticion
 archivos compartidos y se aplican, se integra frente por frente con la suite completa
 **después de cada uno**, y se hace un solo push.
 
+
+### Ventana de integración 1 (2026-09-04)
+
+Los cuatro frentes de la tanda 1 integrados **uno a uno**, con la suite completa
+después de cada uno. La vara subió de 576/576 a 593/593 sin que ningún umbral,
+golden o presupuesto se relajara.
+
+| Frente | Commits | Suite tras integrar |
+| --- | ---: | --- |
+| F1 DWG | 6 | 576/576 |
+| F2 Velocidad | 7 | 577/577 |
+| F3 3D | 6 | 580/580 |
+| F4 Express | 9 | 590/590 |
+
+F4 salió ROJO la primera vez por `plan-budget.spec.ts` y se revirtió, como manda
+R5. No era de F4: es un presupuesto de rendimiento y ocho tareas de turbo sobre
+4 CPU lo tumban. Verde dos veces sobre el mismo commit sin F4 y verde al
+reintegrarlo. Ha vuelto a pasar dos veces más; queda anotado como propiedad de
+esta máquina, no como intermitencia del test. En CI pasa.
+
+**Peticiones.** 19 de 23 aplicadas por el coordinador en seis grupos secuenciales
+(nunca dos a la vez sobre el mismo árbol). El grupo A encontró tres cosas que
+ninguna petición previó, todas con su gate en rojo primero: un alias ambiguo
+(`APLANAR` ya era de FLATSHOT), un resumen de 124 caracteres contra un contrato
+que corta en 110, y dieciséis comandos sin icono, porque los iconos también
+fallan cerrado.
+
+**Lo que el coordinador hizo mal, escrito donde se cometió.** Al empujar por
+petición del gate de git me llevé por delante el trabajo sin comitear del grupo A,
+y el mensaje de aquel commit no nombra los renglones de SOLIDEDIT y POLYSOLID que
+también iban dentro. El agente lo verificó archivo por archivo y lo dejó anotado
+en vez de reescribir la historia. Y concluí «el rojo de E2E no es de este PR»
+mirando un fragmento de tres, cuando dos eran regresiones propias: la disciplina
+de medir cada lado antes de atribuir, que sí apliqué al presupuesto de bundle, no
+la apliqué a E2E.
+
+**Regla que sale de ahí, para el resto de la campaña.** Un estado a medio
+construir no se empuja sólo porque compile. Antes de cada push: suite completa,
+typecheck, los tres gates de comandos y —si se tocaron rutas o el registro— build
+de producción con el presupuesto de bytes. Tres corridas de CI se gastaron
+aprendiéndolo.
+
+### Tanda 2 (lanzada 2026-09-04)
+
+F8 Map/Raster primero, por delante de su orden alfabético: es quien tiene el
+criterio abierto de 2 puntos (vectorizar un escaneo), el de más valor de la tanda.

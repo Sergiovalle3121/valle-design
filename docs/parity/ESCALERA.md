@@ -485,6 +485,41 @@ nada que ganar.
 | Los cuatro corpus auditados por escalón | 5 | La tabla del informe de distancia: `architecture` tenía el acantilado del sombreado, `cartography` y `text-hostile` no tenían LOD para polilíneas, `mechanical` está sano (119k → 290k → 975k, repartido en arc/spline/circle) | `text-hostile` no tiene nada que ganar: 2,8 puntos por entidad, líneas y textos. Auditar es parte del trabajo aunque el resultado sea «aquí no hay nada». |
 | El SLO de 100k medido en una máquina de verdad | 0 | ninguna | El propio `viewport-baseline.json` dice qué bloquea el objetivo: «el rasterizador POR SOFTWARE del runner… lo que queda NO es teselado: es pintar 100.000 entidades por ANGLE/SwiftShader **sin GPU**». **Decisión del titular**: una corrida de calibración en una máquina con GPU. Mientras no exista, cualquier promesa de rendimiento a 100.000 entidades sería una suposición. **Todavía no.** |
 
+## La campaña «Superar a AutoCAD completo» — ventana 1 (2026-09-04)
+
+Cuatro frentes integrados uno a uno, con la suite completa corrida DESPUÉS DE CADA
+UNO y no después del último: integrar cuatro y descubrir un rojo es no saber cuál
+lo rompió. La vara de la ventana fue 576/576 al abrirla y 593/593 al cerrarla.
+Cada renglón dice el peldaño de HOY y qué lo subiría; lo que no llegó está en su
+«todavía no» con fecha, no insinuado.
+
+| Capacidad | Peldaño hoy | Evidencia | Qué falta para subir |
+| --- | --- | --- | --- |
+| El writer público de DWG escribe HATCH de patrón, INSERT con sus ATTRIB y el espacio papel con su VIEWPORT | 3 | `corpus-rewrite.spec.mjs` sobre el corpus ajeno: 284 de 327 entidades regrabadas (86,9 %), 12 clases íntegras, 0 con pérdida declarada, 15 no escribibles; los tres specs del writer suman 36 pruebas | **Ningún lector ajeno ha abierto un archivo de este writer.** Todo lo medido enfrenta NUESTRO writer con NUESTRO lector; el anclaje al DXF del oráculo lo estrecha pero no lo cierra, porque un error SIMÉTRICO seguiría oculto. `externalOracleVerified = false`, 4 de 24 casos respaldados. Exige el ODA File Converter, binario del titular que no corre en este entorno. |
+| Las 15 clases que el writer sigue sin escribir | 0 | `check:dwg-oraculo` las enumera | attdef, dimension, face3d, leader, mline, polyfaceMesh, polyline2d, polyline3d, polymesh, ray, solid, spline, tolerance, trace, xline. **DIMENSION es la de más valor** y su sonda ya está diseñada. |
+| El kernel WASM, enchufado | 5 | `curve-kernel-tessellation.ts` enruta arcos, círculos, elipses y splines por lotes al kernel, y `tessellate.worker.ts` delega en él; el criterio `wasm.toolchain` de la rúbrica VERIFICA | Nada de peldaño. **La fila sigue en 1/2 y el total en 232/271**: su último punto lo retiene la falta de evidencia ajena, no el código. Cerrar un criterio abierto sin mover la puntuación es lo que esta rúbrica debía poder mostrar. |
+| `architecture@100k` a SLO | 0 | trinquete por etapa en `scripts/perf/etapas-100k-budget.json`, que juzga las tres corridas y tiene el candado contra «más rápido porque dibuja menos» | El SLO NO se cumple. El siguiente cuello está MEDIDO y no es el kernel: teselado es el 73,6 % del reparto (3.566,9 de 4.848,6 ms). **Todavía no.** |
+| Medir en GPU real | 0 | `scripts/perf/slo-navegador.mjs` comprueba, mide, publica y SE NIEGA | El contenedor rasteriza con SwiftShader y el propio runner se niega a publicar por eso. Cero cifras de GPU de este frente, dicho así. **Sólo lo cierra el titular en su máquina.** |
+| SOLIDEDIT | 3 | `solids-edit.spec.ts` (119 comprobaciones) y `solid3d-frontera.spec.ts` (279): de 16 ramas, **8 existen y 8 se declaran ausentes en el propio diálogo** | Un golden de navegador (peldaño 5). Las ocho que faltan: Cara·Mover, Girar, Inclinar, Borrar, Color y Material; Arista·Color; Cuerpo·Estampar. |
+| Los modos de las primitivas | 3 | `solids-primitives.spec.ts` (105) y la frontera: 52 modos, **48 escriben, 1 responde, 3 ausentes** | Ttr de CYLINDER y CONE piden un solucionador de tangencias que no existe en el repositorio, y los submodos del Arco de POLYSOLID. **Todavía no.** |
+| Vaciar un sólido (SHELL) y fundir caras coplanarias | 3 | `shell.spec.ts` (89) y `coplanar-merge.spec.ts` (76), con sus rechazos razonados y contados | La cáscara ABIERTA, los cuerpos cóncavos y cerrar un ANILLO al fundir: una placa con agujero pasante baja de 36 caras a 12 en vez de a 10, y el informe lo dice en vez de callarlo. **Todavía no.** |
+| Las quince Express Tools | 3 | cinco construidas y tecleables (BREAKLINE, FLATTEN, LAYDEL, TCOUNT, TXT2MTXT), 99 comprobaciones | Faltan ocho, cada una por un motivo escrito: TXTEXP y ARCTEXT piden geometría de glifos; SUPERHATCH, un modelo de sombreado que admita bloques como patrón. **Medido y no supuesto: cuatro de las cinco construidas DECLARAN SU LÍMITE en vez de mutar**, contra lo que su propia petición afirmaba. |
+| COMPARE entre dos archivos cualesquiera | 3 | `compare-documents.ts` en dos pasadas y nubes de revisión por union-find; `compare-drawings.spec.ts` (46) | Sólo compara contra la biblioteca ya cargada; sin ella declara el límite. La nube es siempre un rectángulo festoneado sobre la envolvente, y no se comparan las TABLAS del documento. **Todavía no.** |
+| PDF como sustrato | 3 | diez órdenes contra PDF reales del corpus (`pdf-underlay-commands.spec.ts`, 118 comprobaciones) y geometría de enganche en coordenadas de dibujo (95) | El sustrato se ve pero **no imanta** hasta que la escena de referencias lo incluya, y sólo se leen sustratos con ruta `data:`. |
+| Unidades imperiales y arquitectónicas | 3 | `units-imperial.spec.ts` (805 comprobaciones, 324 idas y vueltas sin una inestabilidad) y `units-label.spec.ts` (1037) | **Y una lección que costó un CI rojo**: al aceptar pies y pulgadas por teclado, un número DESNUDO pasó a reinterpretarse —`42` valía 1066.8 en un dibujo en milímetros— y lo cazó el golden 46, anterior a la campaña. Cambiar el FORMATO en que se escribe una medida no cambia lo que significa un número al teclearlo. |
+| Las órdenes son alcanzables | 5 | `check:command-integrity` 291 comandos y **0 éxitos falsos**; `ui-command-reach` 291 de 291 con el ratón; `check:ribbon-coverage` 291 en la cinta | Nada de peldaño. La cifra que la campaña venía repitiendo —«243 comandos»— llevaba tiempo desactualizada: el árbol medía 274 al cortar la rama. |
+
+### Dos trinquetes que quedaron al límite, y se dicen antes de que muerdan
+
+- **`/plantillas`** llevaba comiéndose su margen desde el PR #127 sin que nadie lo notara,
+  porque el 3 % de holgura —pensado para la variación entre corridas del MISMO commit— lo
+  absorbía. Se corrigió la dependencia y no el umbral: la ruta bajó de 362,5 a 285,6 KB al
+  dejar de arrastrar el registro de entidades a una página de miniaturas, y su techo se
+  apretó de 356,5 a 294,2.
+- **`Layout3DEditor.tsx`** queda a UNA línea de su asignación (18.453 de 18.454). El gate pasa
+  y el presupuesto sólo baja, pero el siguiente que necesite tocar el monolito **tiene que
+  extraer antes de añadir**.
+
 ## Cómo se usa
 
 - **Al añadir una entrada nueva a `BACKLOG.md`:** decir el peldaño ACTUAL
