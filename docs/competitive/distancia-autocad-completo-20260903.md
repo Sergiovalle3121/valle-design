@@ -1077,3 +1077,58 @@ evidencia es propia. Las cifras totales no se mueven —HOY 176/197 (89,3 %),
 DESTINO 232/271 (85,6 %)— porque el punto ganado es exactamente el que la
 retención descuenta. Se dice así, con el mecanismo a la vista, en vez de anunciar
 una subida que la rúbrica no concede.
+
+## Medición de arranque — Ola 8 (2026-09-04): automatización y personalización
+
+Antes de tocar nada, y con dos sorpresas.
+
+### La tabla de alias ya no cuelga
+
+El criterio `command-line.alias-complete` decía: *«los 129 alias, incluidos
+BE→BEDIT y BLE→BLEND, que hoy cuelgan»*. Sondeada la tabla entera contra el
+registro real:
+
+```
+alias declarados: 183
+sin resolver: 0
+```
+
+Ninguno cuelga. La fila ya está a su tope y sólo retiene 1 pt por evidencia
+propia. **No hay trabajo aquí**, y decirlo es parte del trabajo: la alternativa
+era «mejorar» algo que ya estaba y contarlo como avance.
+
+### La superficie de automatización, en cambio, está en 4 de 36
+
+Sondeados treinta y seis nombres de la familia contra el registro:
+
+| Familia | Hay | Faltan |
+| --- | --- | --- |
+| AutoLISP y scripting | 2/9 (SCRIPT, RSCRIPT) | APPLOAD, VLIDE, LOAD, SCRIPTCALL, DELAY, RESUME, MACRO |
+| Personalización de interfaz | 1/10 (TOOLPALETTES) | CUI, CUILOAD, CUIUNLOAD, CUIEXPORT, CUIIMPORT, CUSTOMIZE, WSSAVE, WSSETTINGS, MENU |
+| Acciones y grabación | 0/5 | ACTRECORD, ACTSTOP, ACTMANAGER, ACTUSERINPUT, ACTUSERMESSAGE |
+| Parámetros y campos | 1/5 (PARAMETERS) | FIELD, UPDATEFIELD, DATALINK, DATALINKUPDATE |
+| Automatización externa | 0/7 | NETLOAD, VBALOAD, VBARUN, VBAIDE, OPENSHEETSET, JSLOAD, PLUGIN |
+| **TOTAL** | **4/36** | |
+
+La rúbrica no ve este hueco: la fila `Automatización: AutoLISP y plugins JS`
+mide 6/8 y lo que le falta es el puente .NET/VBA, que en un navegador no
+existe y se dice. Pero **4/36 es el número honesto de la superficie**, y hay
+capacidades ahí que un despacho usa a diario.
+
+### Lo que esta ola va a atacar, y por qué en este orden
+
+1. **El grabador de acciones** (ACTRECORD / ACTSTOP / ACTMANAGER). Es el que más
+   vale y el que este motor puede hacer mejor que nadie: las órdenes son
+   máquinas de estados que se alimentan de tokens, así que grabar es guardar lo
+   que el usuario tecleó y repetir es meterlo por la misma puerta —la de
+   `parseCadScript`, que ya existe—. Un despacho graba una vez y lo repite en
+   veinte planos.
+2. **DELAY, RESUME y SCRIPTCALL**, que son lo que le falta al `.scr` para
+   encadenar guiones.
+3. **CUI/WSSAVE**, la personalización de la cinta y del espacio de trabajo.
+
+Lo que NO se va a hacer, dicho ya: **NETLOAD, VBALOAD, VBARUN y VBAIDE**. No hay
+runtime .NET ni VBA en un navegador y fingirlo con un comando que abre un aviso
+sería exactamente la clase de puerta falsa que esta campaña rechaza. El camino
+de extensión de este producto es AutoLISP más plugins JS con manifiesto
+versionado, y está documentado.
